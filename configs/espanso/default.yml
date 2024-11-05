@@ -64,6 +64,30 @@ matches:
       1. [Guia sobre ADR](https://medium.com/@jhonywalkeer/guia-completo-sobre-architecture-decision-records-adr-defini%C3%A7%C3%A3o-e-melhores-pr%C3%A1ticas-f63e66d33e6)
       2. [What is an ADR](https://github.com/joelparkerhenderson/architecture-decision-record/tree/main?tab=readme-ov-file#what-is-an-architecture-decision-record)
 
+  - trigger: ":br-hlr"
+    replace: |-
+      ## High Level Refining
+
+      #### Requisitos
+
+      TODO
+
+      #### Dúvidas
+
+      TODO
+
+      #### Notas
+
+      TODO
+
+      #### Times Envolvidos
+
+      TODO
+
+      #### High Level Estimate
+
+      X-Y dev/weeks (mais provável: Z)
+
   - trigger: ":br-pr-suggestion"
     replace: |-
       > Pode resolver esta thread depois de ler. Fique a vontade de faze-la ou não!
