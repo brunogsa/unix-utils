@@ -10,7 +10,7 @@ matches:
   - trigger: ":shrug"
     replace: "¯\\_(ツ)_/¯"
 
-  - trigger: ":code"
+  - trigger: ":block-code"
     replace: |-
       ```
       $|$
