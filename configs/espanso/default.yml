@@ -601,27 +601,27 @@ matches:
     replace: |-
       ## DD/MM/YYYY - <Nome da Reunião>
 
-      Participantes:
+      **Participantes:**
 
       TODO
 
-      Notas:
+      **Notas:**
 
       1. TODO
 
-      [Opcional] Gravação:
+      **[Opcional] Gravação:**
 
       TODO
 
-      [Mandatório, se existirem] Dúvidas em aberto:
+      **[Mandatório, se existirem] Dúvidas em aberto:**
 
       1. TODO
 
-      [Mandatório, se existirem] Decisões e Combinados:
+      **[Mandatório, se existirem] Decisões e Combinados:**
 
       1. TODO
 
-      [Mandatório, se existirem] Action Items:
+      **[Mandatório, se existirem] Action Items:**
 
       1. Owner: <Owner> - ETA: <ETA> - <Action Item>
 
@@ -629,26 +629,26 @@ matches:
     replace: |-
       ## DD/MM/YYYY - <Meeting Name>
 
-      Participants:
+      **Participants:**
 
       TODO
 
-      Notes:
+      **Notes:**
 
       1. TODO
 
-      [Optional] Recording:
+      **[Optional] Recording:**
 
       TODO
 
-      [Mandatory, if any] Open Questions:
+      **[Mandatory, if any] Open Questions:**
 
       1. TODO
 
-      [Mandatory, if any] Decisions and Agreements:
+      **[Mandatory, if any] Decisions and Agreements:**
 
       1. TODO
 
-      [Mandatory, if any] Action Items:
+      **[Mandatory, if any] Action Items:**
 
       1. Owner: <Owner> - ETA: <ETA> - <Action Item>
