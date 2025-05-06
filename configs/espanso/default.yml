@@ -596,3 +596,59 @@ matches:
       **Postconditions:**
       1. Order is placed and visible to user
       2. X
+
+  - trigger: ":br-meeting-notes"
+    replace: |-
+      ## DD/MM/YYYY - <Nome da Reunião>
+
+      Participantes:
+
+      TODO
+
+      Notas:
+
+      1. TODO
+
+      [Opcional] Gravação:
+
+      TODO
+
+      [Mandatório, se existirem] Dúvidas em aberto:
+
+      1. TODO
+
+      [Mandatório, se existirem] Decisões e Combinados:
+
+      1. TODO
+
+      [Mandatório, se existirem] Action Items:
+
+      1. Owner: <Owner> - ETA: <ETA> - <Action Item>
+
+  - trigger: ":en-meeting-notes"
+    replace: |-
+      ## DD/MM/YYYY - <Meeting Name>
+
+      Participants:
+
+      TODO
+
+      Notes:
+
+      1. TODO
+
+      [Optional] Recording:
+
+      TODO
+
+      [Mandatory, if any] Open Questions:
+
+      1. TODO
+
+      [Mandatory, if any] Decisions and Agreements:
+
+      1. TODO
+
+      [Mandatory, if any] Action Items:
+
+      1. Owner: <Owner> - ETA: <ETA> - <Action Item>
