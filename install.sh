@@ -15,6 +15,7 @@ brew install meld
 brew install tldr
 brew install gimp
 brew install imagemagick
+brew install csvkit
 
 # CPU/RAM/Disc/Network monitor on tray
 brew install stats
