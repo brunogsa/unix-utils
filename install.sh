@@ -11,6 +11,7 @@ brew install wget
 brew install tree
 brew install htop
 brew install ripgrep
+brew install ast-grep
 brew install meld
 brew install tldr
 brew install gimp
@@ -76,5 +77,10 @@ brew install pipx
 pipx install aider-chat
 pipx ensurepath
 echo "Now set its OPENAPI KEY: export OPENAI_API_KEY=your-key-goes-here"
+
+# Other stuff
+brew install shellcheck
+brew install luacheck
+brew install lua-language-server
 
 echo "Done!!"
