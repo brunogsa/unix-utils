@@ -11,7 +11,6 @@ brew install wget
 brew install tree
 brew install htop
 brew install ripgrep
-brew install ast-grep
 brew install meld
 brew install tldr
 brew install gimp
@@ -29,6 +28,10 @@ brew install stats
 # copyq
 # System Preferences -> Security & Privacy -> General (tab) -> You should see a warning that CopyQ was blocked, override it here and you should be good
 brew install --cask copyq
+xattr -d com.apple.quarantine /Applications/CopyQ.app
+codesign --force --deep --sign - /Applications/CopyQ.app
+rm -rf ~/.config/copyq
+ln -s ~/linux-utils/configs/copyq ~/.config
 
 # ngrok
 # Docs: https://ngrok.com/docs
