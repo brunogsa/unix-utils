@@ -79,11 +79,26 @@ npm install -g json-schema-generator
 brew install pipx
 pipx install aider-chat
 pipx ensurepath
-echo "Now set its OPENAPI KEY: export OPENAI_API_KEY=your-key-goes-here"
+touch ~/.ai-context.md
+echo "Now set its AI model key: export OPENAI_API_KEY=X or ANTHROPIC_API_KEY=X"
+
+# Claude Code (AI)
+brew install deno
+npm install -g @anthropic-ai/claude-code
+mkdir -p ~/.claude
+cat <<EOF > ~/.claude/config.json
+{
+  "api_key": "$ANTHROPIC_API_KEY",
+  "api_host": "https://api.anthropic.com",
+  "api_version": "2023-06-01"
+}
+EOF
 
 # Other stuff
 brew install shellcheck
 brew install luacheck
 brew install lua-language-server
+
+# AI
 
 echo "Done!!"
