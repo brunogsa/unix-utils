@@ -79,7 +79,6 @@ npm install -g json-schema-generator
 brew install pipx
 pipx install aider-chat
 pipx ensurepath
-touch ~/.ai-context.md
 echo "Now set its AI model key: export OPENAI_API_KEY=X or ANTHROPIC_API_KEY=X"
 
 # Claude Code (AI)
