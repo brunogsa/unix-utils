@@ -230,3 +230,15 @@ Sometimes you want to cover a whole set of possibilities.
 Instead of repeating the entire test code, it's okay to have an array of in/outs, that is used to generate a bunch of tests that have the same implementation.
 
 Avoid this, however, if this generalization makes the test code very hard to understand. Readability is more important than code deduplication on tests.
+
+## When using mocks, never set the "expected" values on magic numbers: calculate them from the mock data
+
+This ensures a more robust test.
+
+It's acceptable to NOT calculate the expected values from the mock data, when doing so makes the test harder to understand. It generally only happens when the mock data is sufficient simple that a human can look at it and easily verify that value.
+
+## Never make you test do, what your code should be doing
+
+If your code expect a list of items that it will filter to perform some computation, for example, don't make your test filter the items out, let your code do it (so we can test it).
+
+Otherwise, you are making your test pass, but not really testing your code.
