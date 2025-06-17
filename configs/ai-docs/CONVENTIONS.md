@@ -165,6 +165,42 @@ function({ paramA, paramB })
 
 This make it easier to understand the code, and make it harder to make mistakes by providing params in the wrong order.
 
+## Make loops easier to understand, when possible
+
+When you have something like this:
+
+```ts 
+groups.forEach((group) => {
+    group.lines.forEach((line) => {
+        if (line.composition.length) {
+            // ...
+        } else {
+            // ...
+        }
+    });
+});
+```
+
+Prefer something like that:
+
+```ts 
+const linesItemsOnEskolareOrder = [];
+
+groups.forEach((group) => {
+    group.lines.forEach(linesItemsOnEskolareOrder.push);
+});
+
+linesItemsOnEskolareOrder.forEach((line) => {
+    if (line.composition.length) {
+        // ...
+    } else {
+        // ...
+    }
+});
+```
+
+In this way you make it easier to understand.
+
 # TESTS
 
 Use the guidelines of this section when coding automated tests.

@@ -1,4 +1,3 @@
 *.deb
 *.tar.gz
 .aider*
-configs/ai-docs/TASKS.md
