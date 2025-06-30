@@ -7,16 +7,16 @@
 # Matches are the substitution rules, when you type the "trigger" string
 # it gets replaced by the "replace" string.
 matches:
-  - trigger: ":shrug"
+  - trigger: ";shrug"
     replace: "¯\\_(ツ)_/¯"
 
-  - trigger: ":block-code"
+  - trigger: ";block-code"
     replace: |-
       ```
       $|$
       ```
 
-  - trigger: ":br-adr"
+  - trigger: ";br-adr"
     replace: |-
       Owner: TODO
       Status: TODO.
@@ -64,7 +64,7 @@ matches:
       1. [Guia sobre ADR](https://medium.com/@jhonywalkeer/guia-completo-sobre-architecture-decision-records-adr-defini%C3%A7%C3%A3o-e-melhores-pr%C3%A1ticas-f63e66d33e6)
       2. [What is an ADR](https://github.com/joelparkerhenderson/architecture-decision-record/tree/main?tab=readme-ov-file#what-is-an-architecture-decision-record)
 
-  - trigger: ":br-hlr"
+  - trigger: ";br-hlr"
     replace: |-
       ## High Level Refining
 
@@ -88,7 +88,7 @@ matches:
 
       X-Y dev/weeks (mais provável: Z)
 
-  - trigger: ":br-pr-suggestion"
+  - trigger: ";br-pr-suggestion"
     replace: |-
       > Pode resolver esta thread depois de ler. Fique a vontade de faze-la ou não!
 
@@ -96,7 +96,7 @@ matches:
       
       X
 
-  - trigger: ":br-pr-compliment"
+  - trigger: ";br-pr-compliment"
     replace: |-
       > Pode resolver esta thread depois de ler!
 
@@ -104,7 +104,7 @@ matches:
       
       X
 
-  - trigger: ":en-pr-suggestion"
+  - trigger: ";en-pr-suggestion"
     replace: |-
       > You can resolve this thread after reading it. Feel free to do it or not!
 
@@ -112,7 +112,7 @@ matches:
       
       X
 
-  - trigger: ":en-pr-compliment"
+  - trigger: ";en-pr-compliment"
     replace: |-
       > You can resolve this thread after reading it!
 
@@ -120,7 +120,7 @@ matches:
       
       X
 
-  - trigger: ":br-jira-epic"
+  - trigger: ";br-jira-epic"
     replace: |-
       ## Para Atingir:
       
@@ -154,7 +154,7 @@ matches:
       
       1. X
 
-  - trigger: ":en-jira-epic"
+  - trigger: ";en-jira-epic"
     replace: |-
       ## To achieve:
       
@@ -188,7 +188,7 @@ matches:
       
       1. X
 
-  - trigger: ":br-jira-story"
+  - trigger: ";br-jira-story"
     replace: |-
       ## Necessidades de usuários
       
@@ -210,7 +210,7 @@ matches:
       
       1. X
 
-  - trigger: ":en-jira-story"
+  - trigger: ";en-jira-story"
     replace: |-
       ## User necessities
       
@@ -232,7 +232,7 @@ matches:
       
       1. X
 
-  - trigger: ":br-jira-spike"
+  - trigger: ";br-jira-spike"
     replace: |-
       ## O que queremos?
       
@@ -263,7 +263,7 @@ matches:
       
       1. X
 
-  - trigger: ":en-jira-spike"
+  - trigger: ";en-jira-spike"
     replace: |-
       ## What do we want?
       
@@ -294,7 +294,7 @@ matches:
       
       1. X
 
-  - trigger: ":br-jira-task"
+  - trigger: ";br-jira-task"
     replace: |-
       ## Critérios de aceite:
       
@@ -317,7 +317,7 @@ matches:
       
       1. X
 
-  - trigger: ":en-jira-task"
+  - trigger: ";en-jira-task"
     replace: |-
       ## Acceptance criteria:
       
@@ -340,7 +340,7 @@ matches:
       
       1. X
 
-  - trigger: ":br-jira-improvement"
+  - trigger: ";br-jira-improvement"
     replace: |-
       ## Relevância:
       
@@ -380,7 +380,7 @@ matches:
       
       1. X
 
-  - trigger: ":en-jira-improvement"
+  - trigger: ";en-jira-improvement"
     replace: |-
       ## Relevance:
       
@@ -420,7 +420,7 @@ matches:
       
       1. X
 
-  - trigger: ":br-jira-debt"
+  - trigger: ";br-jira-debt"
     replace: |-
       ## Criticidade:
 
@@ -460,7 +460,7 @@ matches:
       
       1. X
 
-  - trigger: ":en-jira-debt"
+  - trigger: ";en-jira-debt"
     replace: |-
       ## Risk:
 
@@ -500,7 +500,7 @@ matches:
 
       1. X
 
-  - trigger: ":br-jira-bug"
+  - trigger: ";br-jira-bug"
     replace: |-
       ## Descrição:
       
@@ -527,7 +527,7 @@ matches:
       
       1. X
 
-  - trigger: ":en-jira-bug"
+  - trigger: ";en-jira-bug"
     replace: |-
       ## Problem description:
       
@@ -554,7 +554,7 @@ matches:
 
       1. X
 
-  - trigger: ":en-use-case"
+  - trigger: ";en-use-case"
     replace: |-
       **Title:** UC1 - Place an order
       **Actor:** Buyer
@@ -576,7 +576,7 @@ matches:
       1. Order is placed and visible to user
       2. X
 
-  - trigger: ":en-test-case"
+  - trigger: ";en-test-case"
     replace: |-
       **Title:** UC1.TC1 - Verify Order Placement
       **Actor:** Buyer
@@ -597,7 +597,7 @@ matches:
       1. Order is placed and visible to user
       2. X
 
-  - trigger: ":br-meeting-notes"
+  - trigger: ";br-meeting-notes"
     replace: |-
       ## DD/MM/YYYY - <Nome da Reunião>
 
@@ -625,7 +625,7 @@ matches:
 
       1. Owner: <Owner> - ETA: <ETA> - <Action Item>
 
-  - trigger: ":en-meeting-notes"
+  - trigger: ";en-meeting-notes"
     replace: |-
       ## DD/MM/YYYY - <Meeting Name>
 
