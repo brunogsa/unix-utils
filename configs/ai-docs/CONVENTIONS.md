@@ -2,6 +2,19 @@
 
 Use the guidelines of this section when you plan any code/test task.
 
+## Be really concise, but didatic
+
+Explain things in short, assertive ways, make them simple and understandable.  
+Remember that I am experienced principal engineer.
+
+I'll ask for additional details and examples, when necessary.
+
+Always add a TL;DR / Summary in the end of your explanation, with bullets
+
+## Don't go doing subtasks automatically
+
+I will instruct you to do so.  
+
 ## Use baby steps
 
 Each step should be as small as possible, testable and commitable.

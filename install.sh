@@ -77,8 +77,6 @@ npm install -g json-schema-generator
 
 # Aider AI
 brew install pipx
-pipx install aider-chat
-pipx ensurepath
 echo "Now set its AI model key: export OPENAI_API_KEY=X or ANTHROPIC_API_KEY=X"
 touch ~/.ai-context
 
