@@ -1,188 +1,117 @@
-# DESIGN
+# CONVENTIONS
 
-Use the guidelines of this section when you plan any code/test task.
+> **Purpose** – Single source of truth for how we *design*, *code*, *test* **and review** software in this repository.
+> Each rule is phrased as a short, imperative sentence so humans & AIs can parse it quickly.
+> Every major section ends with a **TL;DR** that distills the rules into bite-sized bullets.
 
-## Be really concise, but didatic
+---
 
-Explain things in short, assertive ways, make them simple and understandable.  
-Remember that I am experienced principal engineer.
+## DESIGN
 
-I'll ask for additional details and examples, when necessary.
+### Principles
 
-Always add a TL;DR / Summary in the end of your explanation, with bullets
+1. **Be concise yet didactic** – use short, assertive explanations; I can request deeper detail when needed.
+2. **Ask before running subtasks** – take no implicit actions.
+3. **Work in baby steps** – each step must be the smallest, testable, commit-able change.
+4. **Green baseline first** – the existing test & lint suite *must* pass before new work begins.
+5. **Write the breaking test first** – add a failing test that captures the required behavior; run *only* that test.
+6. **Make the test pass** – implement minimal code to go green; run the whole suite.
+7. **Update docs** – locate and update any related documentation.
+8. **Human commits only** – after review, I create the commit; no auto-commits.
+9. **Change-request → new baby steps** – address review feedback as new steps.
+10. **Isolate refactors** – pure refactors = their own baby step & commit; fix tests inside the same commit.
 
-## Don't go doing subtasks automatically
+#### TL;DR
 
-I will instruct you to do so.  
+* Be concise, ask first, baby steps, tests first, docs updated, human commit.
 
-## Use baby steps
+---
 
-Each step should be as small as possible, testable and commitable.
+## CODE
 
-## Always ensure the pre-existing automated test suite is passing
+### Guidelines
 
-That will be our start point.
+1. **Preserve comments & formatting unless asked**.
+2. **Follow existing patterns** unless this guide overrides them.
+3. **Clean Code basics** – small, pure, well-named functions; no magic numbers; prefer enums; dependency-inject wisely; validate inputs; handle errors.
+4. **Project structure** –
+   * `controllers` – HTTP only (validate, paginate)
+   * `consumers`/`handlers`/`workers` – queue/event entry points
+   * `use-cases`/`services` – business rules
+   * `models`/`entities`/`types` – data modelling only
+   * `utils`/`helpers`/`lib` – tiny generic helpers
+   * create `shared` *only* if used ≥2 places
+5. **Loops & conditions** – avoid negatives, name complex predicates, favour `for-of` when index unused.
+6. **Functions ≥2 params** – use a named-param object.
 
-If that's necessary, iterate until we fix that. or simply ask me to do something described on a documentation that would fix the situation.
+#### Examples
 
-Include the entire test suite and linting.
+##### Avoid negatives:
 
-## Always start by ensuring there are automated tests for that baby step
-
-By either using jest or other test framework on that repo, or by simply adding a .sh file that can test that for you.
-
-Use the CODE_CONVENTIONS.md file as guidance.
-
-## Run the added test, it should break
-
-If the added test does not break before the changes, then the test is broken.
-
-Be smart, run only your added test, if possible (instead of the entire suite)
-
-## Code the baby test
-
-Use the CODE_CONVENTIONS.md file as guidance.
-
-## Run the test for that baby step, it should pass
-
-Be smart, run only your added test, if possible (instead of the entire suite).
-
-## Run the entire test suite, it should pass
-
-Include the entire test suite and linting.
-
-## Ensure related documentation is updated as well
-
-Find docs related to your change, ensure it is updated.
-
-## A finished baby step requires a commit generate by a human, after a code review
-
-Never commits by yourself, let me do it after I review it.
-
-Wait until I confirm to you that I reviewed, and generated the commit.
-
-## Change requests become new baby steps, just after the current one
-
-If after reviewing I point changes, that per se should become N baby steps just after the current baby step (and before the next ones).
-
-## Refactors should be a baby step
-
-Applying refactors should be an isolated baby step, which means refactors should be commits on their own, never together with fixes or changes. 
-
-Refactors in theory should not require new tests, since we are not changing functionality, but depending on the way the existing tests were coded we'll have to fix them as well.
-
-Fixing existing tests for refactories must be inside the same commit of the refactor per se.
-
-# CODE
-
-Use the guidelines of this section when coding in general (including automated tests).
-
-## Don't remove comments or change indentation / code format unless I ask you to
-
-That's important.
-
-## Be consistent
-
-Understand the code patterns around you and try to be consistent in their way of doing things, unless my guidelines below say so (they are more important then being consistent).
-
-## Make Clean Code
-
-- Use simple, well-described names for variables and functions
-- Use comments only when code can't be simple enough to be self-explanatory
-- Prefer small functions that does 1 thing well done
-- Prefer pure and modular functions that can be reused
-- Keep the side-effects in other small functions, make them specially clean
-- Prefer using maps (hashtables) over scanning / looping over and over again
-- Avoid deep nested loops and ifs, unless it's necessary
-- Prefer recursions if they make the code easier to understand. Otherwise, prefer iterarions (loops) over recursion
-- Type everything you can, to enable / improve code completion and tooling
-- Only exports things that should be exported. Internal types and interfaces must remain internal (information hidding principle)
-- Large files can be a problem (over 1000 lines), but avoid making thousand of nano-files as well
-- DRY: Don't Repeat Yourself. Avoid code duplication unless that make the code harder to understand (premature optimization)
-- Use dependency injection almost always, but avoid being excessive. It's okay to import some things, specially dependencies inside your subtree folder (internals)
-- NEVER allow magic numbers. Put them on constants that describe what that represents.
-- I love `enums`, prefer them always over "open" strings
-- Folder `controllers` should only have HTTP logic handling, with the business logic out of there, to ensure reusability
-- Folders `consumers`, `handlers`, `workers` (in order of what you should use) should be like a controller for queues, events etc
-- Folders `models`, `entities`, `types` (in order of what you should use) should contains general modelling. Never include business logic.
-- Folders `use-cases`, `services` (in order of what you should use) should contains the business logic, non-coupled with HTTP/Events handling logic.
-- Folders `utils`, `helpers`, `lib` (in order of what you should use) should contains small utilities, no business logic either.
-- You might need `shared` folders to share business logic and others. Make something shared only if it's used at least in 2+ places
-- Use `repository` pattern almost always
-- `controllers`, `consumers` and `use-cases` should always validate their input, including for empty values
-- `controllers` and `repositories` should have pagination always in mind on GET requests
-- Always handle the corner cases (errors etc)
-
-### In conditions, avoid negatives, if possible
-
-When something like this happen:
-
-```js
-if (!item.isShrinked)
-```
-
-Prefer something easier to understand like this:
-
-```js
-const nonShrinkedItem = !item.isShrinked
-if (nonShrinkedItem)
-```
-
-### Add a variable to long conditions or those hard to understand
-
-When something like this happen:
-
-```js
-if (item.type === KIT && !item.isShrinked && item.children.length < 1)
-```
-
-Prefer something easier to understand like this:
-
-```js
-const nonShrinkedKits = item.type === KIT && !item.isShrinked && item.children.length < 1;
-if (nonShrinkedKits)
-```
-
-Depending you can declare multiple variables, the most important thing is to make that condition easier to read as possible.
-
-### Prefer "for-let" instead of conventional the "for", when the index isn't necessary
-
-When something like this happen:
-
-```js
-for (let i = 0; i < items.length; i++) {
-    let item = items[i];
-    // Index `i` is never used
+```ts
+if (!item.isShrinked) {
+    // do something
 }
 ```
 
-Prefer something easier to understand like this:
+Prefer:
 
-```js
-for (let item of items) {}
+```ts
+const isExpandable = !item.isShrinked;
+if (isExpandable) {
+    // do something
+}
 ```
 
-### If a function has 2+ params, use named values (even if an object is necessary)
+##### Name long conditions:
 
-When something like this happen:
-
-```js
-function(paramA, paramB)
+```ts
+if (item.type === KIT && !item.isShrinked && item.children.length < 1) {
+    // do something
+}
 ```
 
-Prefer something easier to understand like this:
+Prefer:
 
-```js
-function({ paramA, paramB })
+```ts
+const isExpandableKit = item.type === KIT && !item.isShrinked && item.children.length < 1;
+if (isExpandableKit) {
+    // do something
+}
 ```
 
-This make it easier to understand the code, and make it harder to make mistakes by providing params in the wrong order.
+##### Prefer `for-of` over `for` when index is unused:
 
-## Make loops easier to understand, when possible
+```ts
+for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    // do something
+}
+```
 
-When you have something like this:
+Prefer:
 
-```ts 
+```ts
+for (const item of items) {
+    // do something
+}
+```
+
+##### Named parameters for functions:
+
+```ts
+function configure(a, b) {}
+```
+
+Prefer:
+
+```ts
+function configure({ retries, timeout }) {}
+```
+
+##### Loop simplification:
+
+```ts
 groups.forEach((group) => {
     group.lines.forEach((line) => {
         if (line.composition.length) {
@@ -194,11 +123,10 @@ groups.forEach((group) => {
 });
 ```
 
-Prefer something like that:
+Prefer:
 
-```ts 
+```ts
 const linesItemsOnEskolareOrder = [];
-
 groups.forEach((group) => {
     group.lines.forEach(linesItemsOnEskolareOrder.push);
 });
@@ -212,82 +140,92 @@ linesItemsOnEskolareOrder.forEach((line) => {
 });
 ```
 
-In this way you make it easier to understand.
+#### TL;DR
 
-# TESTS
+* Keep code clean, typed, modular, validated, DRY and follow folder roles.
 
-Use the guidelines of this section when coding automated tests.
+---
 
-## Prefer small tests, that test pieces of functionality
+## TESTS
 
-Don't make a test that "X should work".
+### Strategy
 
-Prefer something like:
-- X should throw an error when params are missing
-- X should assume 10 as default for `pageSize`, when none is provided
-- X should return an object with user info when params are ok
+1. **Test behaviour, not implementation** – prefer black-box integration tests; supplement with focused unit tests.
+2. **Deterministic & self-contained** – no shared state, no randomness.
+3. **Descriptive titles** – say *what* and *why*.
+4. **Mock sparingly** – only for hard-to-reach branches or flaky externals; calculate expected values from mock data.
+5. **Parametrised suites ok if still readable**.
+6. **Avoid making tests reproduce what the code already does** – let the system under test do the work.
 
-Etc
+#### Examples
 
-## Test titles should describe what the code do
+##### Good test names:
 
-Tests should test and document behaviour.
+* "should throw when params are missing"
+* "should default pageSize to 10"
+* "should return user info when params are valid"
 
-## Functions, Modules and Classes with no dependency can be easily tested via unit tests
+##### Use real-like mock data:
 
-In-out is easily to test without any mocks.
+```ts
+const mockUser = {
+    id: "123",
+    name: "Alice",
+    email: "alice@example.com",
+};
+```
 
-And unit tests are fast.
+##### Test inputs from arrays:
 
-## Prefer integration tests that test functionality without knowing implementation details, over mocked tests
+```ts
+const testCases = [
+    { input: 1, expected: 2 },
+    { input: 2, expected: 3 },
+];
 
-A test that test functionality is closer to ensure the behaviour user needs is working. 
+testCases.forEach(({ input, expected }) => {
+    test(`should return ${expected} for input ${input}`, () => {
+        expect(fn(input)).toBe(expected);
+    });
+});
+```
 
-Mocked tests are useful sometimes, but since they are coupled with the implementation details (white-box), changing the implementation require us to change the test as well.
+##### Don’t reproduce logic under test:
 
-Integration tests that don't know the implementation details (black-box) are better because, yet slower, changing the implementation don't require us to change the test.
-Instead, tests can be used to ENSURE our changes still works.
+```ts
+// Don't do this:
+const filtered = items.filter(...);
+expect(myFunc(filtered)).toEqual(...);
 
-Mocked test aren't forbidden, though, and can be used if it's necessary, specially for testing corner cases.
+// Instead:
+expect(myFunc(items)).toEqual(expectedFiltered);
+```
 
-## Even if an integration coverages all the code, add unit tests for its pieces
+#### TL;DR
 
-This is specially useful to document the behavior, and make it easier to identify where an error is occuring when the whole thing is failing.
+* Small, deterministic, behaviour-centric tests; integrate first, unit second.
 
-## Avoid test cases that depends in previous state, set by previous tests
+---
 
-This make it hard to debug when they fail.
+## REVIEW
 
-Prefer self-contained tests, even if you have to duplicate some code.
+### Good Practices
 
-On test, we prefer this over code deduplication.
+1. **Small, focused PRs** – one baby step per PR.
+2. **Explain *what* & *why*** – link issues; summarise impact.
+3. **Always provide examples to suggestions** – make it easier to learn and understand.
+4. **Mark as optional the nitpick** – but be free to add them.
+5. **Ensure guidelines for code and tests** – presented in this doc.
 
-## Avoid non-deterministic tests
+#### TL;DR
 
-Tests that generate random stuff, or dates are prone to fail randomly.
+* Tiny PRs, clear rationale, suggestions, follow the guidelines.
 
-Make them deterministic.
+---
 
-## Prefer using mock data in your test that are close to the real thing
+## AI-OPTIMISED SUMMARY
 
-Besides the improved documentation of this pattern, it make the test closer to the reality.
-
-## It's okay to generate test cases from an array of inputs, for an exaustive test suite
-
-Sometimes you want to cover a whole set of possibilities.
-
-Instead of repeating the entire test code, it's okay to have an array of in/outs, that is used to generate a bunch of tests that have the same implementation.
-
-Avoid this, however, if this generalization makes the test code very hard to understand. Readability is more important than code deduplication on tests.
-
-## When using mocks, never set the "expected" values on magic numbers: calculate them from the mock data
-
-This ensures a more robust test.
-
-It's acceptable to NOT calculate the expected values from the mock data, when doing so makes the test harder to understand. It generally only happens when the mock data is sufficient simple that a human can look at it and easily verify that value.
-
-## Never make you test do, what your code should be doing
-
-If your code expect a list of items that it will filter to perform some computation, for example, don't make your test filter the items out, let your code do it (so we can test it).
-
-Otherwise, you are making your test pass, but not really testing your code.
+* **Design** → concise, ask first, baby steps, tests first, docs, human commit.
+* **Code** → clean, typed, modular, validated, DRY, folder roles, improved conditions & loops.
+* **Tests** → deterministic, behaviour-based, integrate first, unit second.
+* **Review** → small PR, rationale, peer approval, green CI.
