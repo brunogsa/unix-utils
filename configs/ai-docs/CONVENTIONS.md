@@ -53,6 +53,7 @@
 7. **Don't add spaces on empty lines, nor add trailling spaces**
 8. **Remove unused code** – code that is no longer used must be removed along with its associated tests
 9. **Error handling** – always handle errors in the `controllers`/`consumers` layers to prevent crashes and provide appropriate responses
+10. **Input validation** – always validate and sanitize inputs in the `controllers`/`consumers` layers before passing to business logic
 
 #### Examples
 
