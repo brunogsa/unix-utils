@@ -51,6 +51,7 @@
 6. **Loops & conditions** – avoid negatives, name complex predicates, favour `for-of` when index unused.
 6. **Functions ≥2 params** – use a named-param object.
 7. **Don't add spaces on empty lines, nor add trailling spaces**
+8. **Remove unused code** – code that is no longer used must be removed along with its associated tests
 
 #### Examples
 
