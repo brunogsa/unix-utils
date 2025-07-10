@@ -46,7 +46,7 @@
    * `warning` – for unexpected events with fallbacks
    * `info` – for documenting the flow
    * No `debug` logs
-   * Each log must include: message, timestamp in UTC/ISO8601, uuid, level, and non-PII info
+   * Each log must include: message, timestamp in UTC/ISO8601, level, transactionId/traceId (for microservices tracing), and non-PII info
    * PII data can be included only if anonymized
 6. **Loops & conditions** – avoid negatives, name complex predicates, favour `for-of` when index unused.
 6. **Functions ≥2 params** – use a named-param object.
@@ -139,6 +139,7 @@ groups.forEach((group) => {
 logger.info({
   level: "INFO",
   timestamp: "2025-07-10T15:12:34Z",
+  transactionId: "550e8400-e29b-41d4-a716-446655440000", // UUID for tracing across microservices
   message: "User created successfully",
   userId: 666,
   userCpf: "***29430880"
