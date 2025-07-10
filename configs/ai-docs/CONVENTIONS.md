@@ -41,8 +41,16 @@
    * `models`/`entities`/`types` – data modelling only
    * `utils`/`helpers`/`lib` – tiny generic helpers
    * create `shared` *only* if used ≥2 places
-5. **Loops & conditions** – avoid negatives, name complex predicates, favour `for-of` when index unused.
+5. **Logging** – include logs in the `controllers`/`consumers` layer:
+   * `error` – for flow-crashing issues
+   * `warning` – for unexpected events with fallbacks
+   * `info` – for documenting the flow
+   * No `debug` logs
+   * Each log must include: message, timestamp in UTC/ISO8601, uuid, level, and non-PII info
+   * PII data can be included only if anonymized
+6. **Loops & conditions** – avoid negatives, name complex predicates, favour `for-of` when index unused.
 6. **Functions ≥2 params** – use a named-param object.
+7. **Don't add spaces on empty lines, nor add trailling spaces**
 
 #### Examples
 
@@ -121,6 +129,18 @@ groups.forEach((group) => {
         }
     });
 });
+
+##### Good logging:
+
+```ts
+logger.info({
+  level: "INFO",
+  timestamp: "2025-07-10T15:12:34Z",
+  message: "User created successfully",
+  userId: 666,
+  userCpf: "***29430880"
+});
+```
 ```
 
 Prefer:
@@ -140,9 +160,45 @@ linesItemsOnEskolareOrder.forEach((line) => {
 });
 ```
 
+##### Don't add spaces on empty lines, nor add trailling spaces:
+
+```lua
+vim.api.nvim_create_user_command("ToTabs", function()
+  -- Save current position
+  local view = vim.fn.winsaveview()
+   
+  -- Execute the conversion
+  vim.cmd([[set noexpandtab]])
+  vim.cmd([[retab!]])
+  
+  -- Restore position
+  vim.fn.winrestview(view)  
+  
+  vim.notify("Converted spaces to tabs", vim.log.levels.INFO)
+end, {})
+```
+
+Prefer:
+
+```lua
+vim.api.nvim_create_user_command("ToTabs", function()
+  -- Save current position
+  local view = vim.fn.winsaveview()
+
+  -- Execute the conversion
+  vim.cmd([[set noexpandtab]])
+  vim.cmd([[retab!]])
+
+  -- Restore position
+  vim.fn.winrestview(view)
+
+  vim.notify("Converted spaces to tabs", vim.log.levels.INFO)
+end, {})
+```
+
 #### TL;DR
 
-* Keep code clean, typed, modular, validated, DRY and follow folder roles.
+* Keep code clean, typed, modular, validated, DRY, follow folder roles, and use structured logging.
 
 ---
 
@@ -226,6 +282,6 @@ expect(myFunc(items)).toEqual(expectedFiltered);
 ## AI-OPTIMISED SUMMARY
 
 * **Design** → concise, ask first, baby steps, tests first, docs, human commit.
-* **Code** → clean, typed, modular, validated, DRY, folder roles, improved conditions & loops.
+* **Code** → clean, typed, modular, validated, DRY, folder roles, improved conditions & loops, no spaces in empty or trailing.
 * **Tests** → deterministic, behaviour-based, integrate first, unit second.
 * **Review** → small PR, rationale, peer approval, green CI.
