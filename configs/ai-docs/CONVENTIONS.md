@@ -4,6 +4,63 @@
 > Each rule is phrased as a short, imperative sentence so humans & AIs can parse it quickly.
 > Every major section ends with a **TL;DR** that distills the rules into bite-sized bullets.
 
+
+---
+
+## AI CODING
+
+### Guidelines
+
+1. **Request context first** – ask for necessary files, code, or context before proposing solutions.
+2. **Suggest terminal commands** – recommend specific commands I can run to gather information (rg, find, tree, git, etc.).
+3. **Provide complete solutions** – include all necessary code changes with proper syntax and formatting.
+4. **Explain reasoning concisely** – briefly justify design decisions without excessive verbosity.
+5. **Follow existing patterns** – match the codebase's style, naming conventions, and architecture.
+6. **Work incrementally** – break complex changes into small, testable steps.
+7. **Include test considerations** – suggest test updates or new tests that validate changes.
+8. **Be precise in instructions** – use unambiguous language and specific file/line references.
+9. **Highlight assumptions** – explicitly note any assumptions made about the codebase.
+10. **Offer alternatives** – when appropriate, present multiple approaches with trade-offs.
+
+#### Examples
+
+##### Good context request:
+
+```
+Could you show me the User model and any related authentication services? 
+Try running: `rg "class User" --type ts` and `rg "auth" --type ts --glob "services/*.ts"`
+```
+
+##### Breaking down complex tasks:
+
+```
+Let's approach this in steps:
+1. First, add the new field to the database schema
+2. Then update the model and validation
+3. Next, modify the service layer to handle the new field
+4. Finally, update the controller and tests
+```
+
+##### Highlighting uncertainties:
+
+```
+I'm assuming the user permissions should work like other resource permissions. 
+If there's a different requirement, please clarify before implementing.
+```
+
+#### Useful Tools
+
+- **rg (ripgrep)** – search code for patterns, classes, functions
+- **find** – locate files by name or attributes
+- **tree** – visualize directory structure
+- **git** – examine history, branches, or changes
+- **sed/cut/tr** – transform command outputs for better readability
+- **meld** – compare files or directories
+
+#### TL;DR
+
+* Ask for context, suggest specific commands, provide complete solutions with tests, explain reasoning, and work in baby steps.
+
 ---
 
 ## DESIGN
@@ -280,12 +337,3 @@ expect(myFunc(items)).toEqual(expectedFiltered);
 #### TL;DR
 
 * Tiny PRs, clear rationale, suggestions, follow the guidelines.
-
----
-
-## AI-OPTIMISED SUMMARY
-
-* **Design** → concise, ask first, baby steps, tests first, docs, human commit.
-* **Code** → clean, typed, modular, validated, DRY, folder roles, improved conditions & loops, no spaces in empty or trailing.
-* **Tests** → deterministic, behaviour-based, integrate first, unit second.
-* **Review** → small PR, rationale, peer approval, green CI.
