@@ -14,8 +14,9 @@
 1. **Request context first** – ask for necessary files, code, or context before proposing solutions.
 2. **Suggest terminal commands** – recommend specific commands I can run to gather information (rg, find, tree, git, etc.).
 3. **Never assume missing context. Ask questions if uncertain.**
+4. **Do not use emojis** – avoid using emojis in any communications or code.
 
-4. **Provide complete solutions** – include all necessary code changes with proper syntax and formatting.
+5. **Provide complete solutions** – include all necessary code changes with proper syntax and formatting.
 5. **Follow existing patterns** – match the codebase's style, naming conventions, and architecture.
 6. **Never hallucinate libraries, functions, tags – only use known, verified information.**
 7. **Always confirm file paths and module names exist before referencing them in code or tests.**
