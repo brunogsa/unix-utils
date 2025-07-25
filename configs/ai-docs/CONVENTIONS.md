@@ -13,14 +13,20 @@
 
 1. **Request context first** – ask for necessary files, code, or context before proposing solutions.
 2. **Suggest terminal commands** – recommend specific commands I can run to gather information (rg, find, tree, git, etc.).
-3. **Provide complete solutions** – include all necessary code changes with proper syntax and formatting.
-4. **Explain reasoning concisely** – briefly justify design decisions without excessive verbosity.
+3. **Never assume missing context. Ask questions if uncertain.**
+
+4. **Provide complete solutions** – include all necessary code changes with proper syntax and formatting.
 5. **Follow existing patterns** – match the codebase's style, naming conventions, and architecture.
-6. **Work incrementally** – break complex changes into small, testable steps.
-7. **Include test considerations** – suggest test updates or new tests that validate changes.
-8. **Be precise in instructions** – use unambiguous language and specific file/line references.
-9. **Highlight assumptions** – explicitly note any assumptions made about the codebase.
-10. **Offer alternatives** – when appropriate, present multiple approaches with trade-offs.
+6. **Never hallucinate libraries, functions, tags – only use known, verified information.**
+7. **Always confirm file paths and module names exist before referencing them in code or tests.**
+8. **Never delete or overwrite existing code unless explicitly instructed to or if part of a task**
+
+9. **Explain reasoning concisely** – briefly justify design decisions without excessive verbosity.
+10. **Highlight assumptions** – explicitly note any assumptions made about the codebase.
+11. **Offer alternatives** – when appropriate, present multiple approaches with trade-offs.
+
+12. **Work incrementally** – break complex changes into small, testable steps.
+13. **Include test considerations** – suggest test updates or new tests that validate changes.
 
 #### Examples
 
@@ -111,6 +117,8 @@ If there's a different requirement, please clarify before implementing.
 8. **Remove unused code** – code that is no longer used must be removed along with its associated tests
 9. **Error handling** – always handle errors in the `controllers`/`consumers` layers to prevent crashes and provide appropriate responses
 10. **Input validation** – always validate and sanitize inputs in the `controllers`/`consumers` layers before passing to business logic
+11. **Comment non-obvious code and ensure everything is understandable to a mid-level developer**
+12. **When writing complex logic, add comment explaining the why, not just the what**
 
 #### Examples
 
@@ -273,6 +281,7 @@ end, {})
 4. **Mock sparingly** – only for hard-to-reach branches or flaky externals; calculate expected values from mock data.
 5. **Parametrised suites ok if still readable**.
 6. **Avoid making tests reproduce what the code already does** – let the system under test do the work.
+7. **Test early, test often**
 
 #### Examples
 
@@ -337,3 +346,14 @@ expect(myFunc(items)).toEqual(expectedFiltered);
 #### TL;DR
 
 * Tiny PRs, clear rationale, suggestions, follow the guidelines.
+
+
+---
+
+## RECAP
+
+- Ask for missing context; suggest rg/find/tree commands.
+- Propose complete, incremental diffs that match existing patterns.
+- Explain decisions briefly; highlight assumptions & alternatives.
+- Keep code style: same folder roles, no trailing spaces, for‑of over C‑style loops, named param objects, structured logs with UTC timestamp + traceId.
+- Tests: behaviour‑driven, deterministic, descriptive titles, minimal mocks.
