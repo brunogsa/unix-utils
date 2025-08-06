@@ -120,6 +120,32 @@ If there's a different requirement, please clarify before implementing.
 10. **Input validation** – always validate and sanitize inputs in the `controllers`/`consumers` layers before passing to business logic
 11. **Comment non-obvious code and ensure everything is understandable to a mid-level developer**
 12. **When writing complex logic, add comment explaining the why, not just the what**
+13. **Extract magic values into constants** – define reusable constants for all magic strings, numbers, and sets, preferably using TypeScript enums when applicable.
+
+##### Example:
+
+```ts
+// Don't do this:
+if (type === "KIT" || type === "AVULSO") {
+  // do something
+}
+
+// Prefer:
+enum ProductType {
+  KIT = "KIT",
+  AVULSO = "AVULSO"
+}
+
+if (type === ProductType.KIT || type === ProductType.AVULSO) {
+  // do something
+}
+
+// Or for sets:
+const TYPE_SET = new Set([ProductType.KIT, ProductType.AVULSO]);
+if (TYPE_SET.has(type)) {
+  // do something
+}
+```
 
 #### Examples
 
@@ -266,9 +292,62 @@ vim.api.nvim_create_user_command("ToTabs", function()
 end, {})
 ```
 
+22. **Prefer tests and logs over comments** – document behavior through tests and logs whenever possible; use comments only as a last resort.
+
+##### Example:
+
+```ts
+// Don't do this:
+// This function validates that the user has the correct permissions
+// and then creates a new record if validation passes
+function createRecord(user, data) {
+  // Check permissions
+  if (!hasPermission(user)) {
+    return false;
+  }
+  // Create record
+  return db.insert(data);
+}
+
+// Prefer:
+// 1. Descriptive function and variable names
+function createRecordIfUserHasPermission(user, data) {
+  const userHasPermission = validateUserPermissions(user);
+  if (!userHasPermission) {
+    logger.info({
+      message: "Record creation rejected due to insufficient permissions",
+      userId: user.id
+    });
+    return false;
+  }
+
+  logger.info({
+    message: "Creating new record",
+      userId: user.id,
+      recordType: data.type
+  });
+  return db.insert(data);
+}
+
+// 2. Comprehensive tests that document behavior
+test("createRecordIfUserHasPermission rejects when user lacks permission", () => {
+  const user = { id: 1, permissions: [] };
+  const result = createRecordIfUserHasPermission(user, testData);
+  expect(result).toBe(false);
+});
+
+test("createRecordIfUserHasPermission creates record when user has permission", () => {
+  const user = { id: 1, permissions: ["create"] };
+  const result = createRecordIfUserHasPermission(user, testData);
+  expect(result).toBeTruthy();
+});
+```
+
 #### TL;DR
 
 * Keep code clean, typed, modular, validated, DRY, follow folder roles, and use structured logging.
+* Extract magic values to TypeScript enums or constants, validate thoroughly before processing, normalize consistently.
+* Separate concerns with helper functions, use descriptive function names, and document behavior through tests and logs rather than comments.
 
 ---
 

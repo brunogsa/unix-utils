@@ -16,6 +16,7 @@ brew install tldr
 brew install gimp
 brew install imagemagick
 brew install csvkit
+brew install datamash
 
 # CPU/RAM/Disc/Network monitor on tray
 brew install stats
