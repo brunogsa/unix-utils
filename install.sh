@@ -5,6 +5,7 @@
 
 brew update
 
+brew install fd
 brew install jq
 brew install git
 brew install wget
