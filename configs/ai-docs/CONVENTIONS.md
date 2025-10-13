@@ -29,6 +29,15 @@
 12. **Work incrementally** – break complex changes into small, testable steps.
 13. **Include test considerations** – suggest test updates or new tests that validate changes.
 
+14. **NEVER modify formatting, indentation, or whitespace unless explicitly requested** – preserve exact formatting, including:
+    - Indentation style (spaces vs tabs, 2-space vs 4-space)
+    - Line breaks and empty lines
+    - Comment formatting and alignment
+    - String literal formatting (single vs double quotes)
+    - Semicolon usage
+    - Any other stylistic choices
+15. **NEVER add spaces to empty lines or trailing spaces** – empty lines must be completely empty.
+
 #### Examples
 
 ##### Good context request:
@@ -114,7 +123,15 @@ If there's a different requirement, please clarify before implementing.
    * PII data can be included only if anonymized
 6. **Loops & conditions** – avoid negatives, name complex predicates, favour `for-of` when index unused.
 6. **Functions ≥2 params** – use a named-param object.
-7. **Don't add spaces on empty lines, nor add trailling spaces**
+7. **NEVER modify file formatting unless explicitly requested** – this is CRITICAL:
+   * DO NOT change indentation (spaces to tabs, tabs to spaces, 2-space to 4-space, etc.)
+   * DO NOT add or remove empty lines
+   * DO NOT add spaces or tabs to empty lines
+   * DO NOT add trailing whitespace
+   * DO NOT change quote style (single to double, double to single)
+   * DO NOT add or remove semicolons
+   * DO NOT reformat code "to make it cleaner" unless asked
+   * ONLY modify the exact lines needed for the requested change
 8. **Remove unused code** – code that is no longer used must be removed along with its associated tests
 9. **Error handling** – always handle errors in the `controllers`/`consumers` layers to prevent crashes and provide appropriate responses
 10. **Input validation** – always validate and sanitize inputs in the `controllers`/`consumers` layers before passing to business logic
@@ -256,40 +273,59 @@ linesItemsOnEskolareOrder.forEach((line) => {
 });
 ```
 
-##### Don't add spaces on empty lines, nor add trailling spaces:
+##### CRITICAL: Never modify formatting or add whitespace to empty lines:
 
-```lua
-vim.api.nvim_create_user_command("ToTabs", function()
-  -- Save current position
-  local view = vim.fn.winsaveview()
-   
-  -- Execute the conversion
-  vim.cmd([[set noexpandtab]])
-  vim.cmd([[retab!]])
-  
-  -- Restore position
-  vim.fn.winrestview(view)  
-  
-  vim.notify("Converted spaces to tabs", vim.log.levels.INFO)
-end, {})
+```ts
+// ❌ WRONG - AI added spaces to empty lines and changed indentation:
+function example() {
+    const x = 1;
+    
+    return x;  
+}
+
+// ✅ CORRECT - Preserved original formatting exactly:
+function example() {
+  const x = 1;
+
+  return x;
+}
 ```
 
-Prefer:
+```bash
+# ❌ WRONG - AI changed indentation and added trailing spaces:
+if [ "$status" == "active" ]; then
+    echo "Running"
+    
+    process_data  
+fi
 
-```lua
-vim.api.nvim_create_user_command("ToTabs", function()
-  -- Save current position
-  local view = vim.fn.winsaveview()
+# ✅ CORRECT - Preserved original 2-space indentation and no trailing spaces:
+if [ "$status" == "active" ]; then
+  echo "Running"
 
-  -- Execute the conversion
-  vim.cmd([[set noexpandtab]])
-  vim.cmd([[retab!]])
+  process_data
+fi
+```
 
-  -- Restore position
-  vim.fn.winrestview(view)
+```ts
+// ❌ WRONG - AI "cleaned up" the formatting:
+const items = [
+  { id: 1, name: "First" },
+  { id: 2, name: "Second" }
+];
 
-  vim.notify("Converted spaces to tabs", vim.log.levels.INFO)
-end, {})
+// ✅ CORRECT - Kept original formatting even if not perfect:
+const items = [
+  {id: 1, name: 'First'},
+  {id: 2, name: 'Second'}
+];
+```
+
+**REMEMBER:** When making changes:
+- Only modify the specific lines needed for the task
+- Copy indentation exactly from surrounding code
+- Never "fix" formatting unless explicitly asked
+- Empty lines must be completely empty (no spaces, no tabs)
 ```
 
 22. **Prefer tests and logs over comments** – document behavior through tests and logs whenever possible; use comments only as a last resort.
@@ -345,6 +381,7 @@ test("createRecordIfUserHasPermission creates record when user has permission", 
 
 #### TL;DR
 
+* **NEVER change formatting, indentation, or whitespace unless explicitly requested** - this is CRITICAL.
 * Keep code clean, typed, modular, validated, DRY, follow folder roles, and use structured logging.
 * Extract magic values to TypeScript enums or constants, validate thoroughly before processing, normalize consistently.
 * Separate concerns with helper functions, use descriptive function names, and document behavior through tests and logs rather than comments.
