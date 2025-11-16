@@ -399,6 +399,7 @@ test("createRecordIfUserHasPermission creates record when user has permission", 
 5. **Parametrised suites ok if still readable**.
 6. **Avoid making tests reproduce what the code already does** – let the system under test do the work.
 7. **Test early, test often**
+8. **Only mock external dependencies** – mock file I/O, network requests, and external processes; let internal utilities run with real implementations for true integration testing.
 
 #### Examples
 
