@@ -475,3 +475,22 @@ expect(myFunc(items)).toEqual(expectedFiltered);
 - Explain decisions briefly; highlight assumptions & alternatives.
 - Keep code style: same folder roles, no trailing spaces, for‑of over C‑style loops, named param objects, structured logs with UTC timestamp + traceId.
 - Tests: behaviour‑driven, deterministic, descriptive titles, minimal mocks.
+
+
+---
+
+# AI SHARED CONTEXT
+
+Purpose: this section is kind of "temporary". We use to share context among multiple AI tools (tasks and context, that I manually fill via neovim).
+
+---
+## TASKS
+---
+
+Don't go doing them automatically. I will instruct you to do so. 
+
+
+---
+## AI CONTEXT
+---
+
