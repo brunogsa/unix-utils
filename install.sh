@@ -100,5 +100,7 @@ brew install luacheck
 brew install lua-language-server
 
 # AI
+mkdir -p ~/.claude
+ln -s ~/linux-utils/configs/ai-docs/CONVENTIONS.md ~/.claude/CLAUDE.md
 
 echo "Done!!"
