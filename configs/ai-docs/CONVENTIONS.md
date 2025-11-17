@@ -461,9 +461,137 @@ expect(myFunc(items)).toEqual(expectedFiltered);
 4. **Mark as optional the nitpick** – but be free to add them.
 5. **Ensure guidelines for code and tests** – presented in this doc.
 
+### Review Structure
+
+When conducting code reviews, follow this systematic approach:
+
+1. **Start with a Changelog** – summarize what changed in grouped, concise bullets.
+2. **Follow priority order** – address items from most to least critical.
+3. **Use structured feedback format** – consistent, actionable, and traceable.
+4. **End with action items** – grouped by file, then by priority.
+
+### Review Priority Order
+
+Review code in this sequence, from most to least critical:
+
+1. **Correctness** – logic is correct; no bugs, race conditions, or ordering mistakes.
+2. **Corner cases** – edge cases for inputs, failures, timeouts, empty/large data, internationalization, encodings.
+3. **Testing** – verify tests:
+   - Document expected behavior
+   - Cover corner cases
+   - Are minimal, readable, and stable
+4. **Code quality** – clarity, naming, no magic numbers, high cohesion, avoid unnecessary coupling.
+5. **Logging** – useful, leveled, non-PII, actionable; no noisy loops.
+6. **SOLID principles** – Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion where applicable.
+7. **DRY / KISS** – remove duplication; keep it simple; avoid premature optimization.
+8. **Performance** – hot paths, complexity (Big O), I/O usage, memory consumption, N+1 queries.
+9. **Security** – injection vulnerabilities, path traversal, deserialization risks, authn/authz, secrets exposure, SSRF/RCE, unsafe eval, dependency vulnerabilities.
+
+### Feedback Format
+
+For each review item, use this structure:
+
+#### Reference Pattern
+
+- Use `<file:line>` format for all feedback items
+- Example: `src/services/auth.ts:42`
+
+#### Question Style
+
+- Ask **goal-directed questions** – explain how the answer would change the code or the decision
+- Example: "Should we handle the case where `userId` is undefined? This would prevent the TypeError on line 45."
+
+#### Provide Minimal Diffs
+
+- For every suggestion, include a **unified diff patch** showing the improvement
+- Keep diffs surgical and minimal – avoid broad rewrites
+
+Example:
+```diff
+--- a/src/services/auth.ts
++++ b/src/services/auth.ts
+@@ -42,1 +42,4 @@
+-  const user = await db.findUser(userId);
++  if (!userId) {
++    throw new ValidationError("userId is required");
++  }
++  const user = await db.findUser(userId);
+```
+
+#### Priority Tags
+
+Tag each item by severity:
+
+- **MANDATORY** – must be fixed before merge (correctness, security, critical bugs)
+- **RECOMMENDED** – should be addressed (code quality, performance, best practices)
+- **NITPICK** – optional improvements (minor style, subjective preferences)
+
+Example:
+```
+[MANDATORY] src/auth.ts:42 - Validate userId before database query to prevent TypeError
+[RECOMMENDED] src/utils.ts:15 - Extract magic number 3600 to named constant SECONDS_PER_HOUR
+[NITPICK] src/models.ts:8 - Consider renaming 'data' to 'userData' for clarity
+```
+
+### Review Checklist
+
+#### Corner Cases to Verify
+
+- Empty inputs (null, undefined, "", [], {})
+- Large inputs (pagination limits, memory constraints)
+- Boundary values (0, -1, max int, max length)
+- Invalid types or formats
+- Timeout and retry scenarios
+- Concurrent access and race conditions
+- Internationalization (encoding, locale, timezone)
+
+#### Security Checklist
+
+- SQL injection (parameterized queries)
+- Command injection (input sanitization)
+- XSS (output encoding)
+- Deserialization vulnerabilities
+- Authentication and authorization checks
+- Secret and credential exposure
+- SSRF/RCE risks
+- Unsafe eval or dynamic code execution
+
+#### Testing Checklist
+
+- Tests document expected behavior clearly
+- Corner cases are covered
+- Tests are deterministic (no flakiness)
+- Tests are minimal and focused
+- Mock only external dependencies
+- Test names describe what and why, BDD-like if possible
+
+#### Action Items Format
+
+Group feedback by file, then by priority:
+
+```
+## Action Items
+
+### src/services/auth.ts
+- [MANDATORY] Line 42: Validate userId before query
+- [RECOMMENDED] Line 67: Extract retry logic to helper function
+
+### src/controllers/user.ts
+- [MANDATORY] Line 23: Add input sanitization for email parameter
+- [NITPICK] Line 45: Consider more descriptive variable name
+```
+
+### Review Anti-Patterns
+
+1. **Don't** suggest broad rewrites – prefer small, surgical changes
+2. **Don't** ask questions without explaining their impact
+3. **Don't** provide feedback without line numbers
+4. **Don't** suggest changes without showing a diff
+5. **Don't** forget to prioritize feedback by severity
+
 #### TL;DR
 
-* Tiny PRs, clear rationale, suggestions, follow the guidelines.
+* Tiny PRs, clear rationale, changelog first, prioritized feedback (correctness → security), use `file:line` references, provide minimal diffs, tag severity (MANDATORY/RECOMMENDED/NITPICK), ask goal-directed questions, end with grouped action items.
 
 
 ---
