@@ -470,6 +470,17 @@ When conducting code reviews, follow this systematic approach:
 3. **Use structured feedback format** – consistent, actionable, and traceable.
 4. **End with action items** – grouped by file, then by priority.
 
+### Review Scope
+
+**CRITICAL**: Only review code that has been modified in the PR:
+- **Review**: Lines that were added (+ in diff)
+- **Review**: Lines that were changed (- then + in diff)
+- **Review**: Lines that were removed (- in diff)
+- **DO NOT review**: Code that exists but wasn't touched in this PR
+- **Exception**: If unchanged code creates a problem with the changed code (e.g., incompatible API usage), mention it briefly
+
+**Why**: Developers should focus on the changes they made. Reviewing untouched code belongs in a separate refactoring effort, not this PR.
+
 ### Review Priority Order
 
 Review code in this sequence, from most to least critical:
@@ -501,12 +512,42 @@ For each review item, use this structure:
 - Ask **goal-directed questions** – explain how the answer would change the code or the decision
 - Example: "Should we handle the case where `userId` is undefined? This would prevent the TypeError on line 45."
 
-#### Provide Minimal Diffs
+#### Provide Minimal Diffs or Suggestions
 
-- For every suggestion, include a **unified diff patch** showing the improvement
+**CRITICAL: Always preserve exact indentation in both suggestions and diffs**
+
+**When to use GitHub suggestions vs unified diffs:**
+
+1. **GitHub Suggestions** (```suggestion) – Use when:
+   - You can preserve **exact indentation** from the original code (MANDATORY)
+   - The suggestion is ≤16 lines
+   - It's a direct replacement for existing code that can be applied with one click
+   - You are confident the indentation matches perfectly
+
+2. **Unified Diffs** (```diff) – Use when:
+   - Suggestion would be >16 lines
+   - Multiple files involved
+   - Conceptual/educational explanation needed
+   - Unsure about exact indentation (prefer diff over wrong-indentation suggestion)
+   - Max 32 lines per diff (split into multiple diffs if needed)
+   - Still preserve exact indentation in the diff
+
+**Critical rules:**
+- **MANDATORY: Preserve exact indentation** – match spaces/tabs exactly from original code
+- **Prefer code ranges** (`start_line` + `line`) over single lines – comment on entire logical blocks
+- **Many small diffs** are better than one large diff
 - Keep diffs surgical and minimal – avoid broad rewrites
+- If unsure about indentation, use unified diff instead of suggestion
 
-Example:
+Example of GitHub suggestion with correct indentation:
+```suggestion
+if (!userId) {
+    throw new ValidationError("userId is required");
+}
+const user = await db.findUser(userId);
+```
+
+Example of unified diff with correct indentation:
 ```diff
 --- a/src/services/auth.ts
 +++ b/src/services/auth.ts
@@ -523,14 +564,44 @@ Example:
 Tag each item by severity:
 
 - **MANDATORY** – must be fixed before merge (correctness, security, critical bugs)
+  - No additional tags or markers needed
+  - Direct and assertive tone
+
 - **RECOMMENDED** – should be addressed (code quality, performance, best practices)
+  - Add quote line at start: `> Pode resolver esta thread depois de ler. Fique a vontade de fazê-la ou não!`
+  - Helpful and informative tone
+
 - **NITPICK** – optional improvements (minor style, subjective preferences)
+  - Add quote line at start: `> Pode resolver esta thread depois de ler. Fique a vontade de fazê-la ou não!`
+  - Friendly, conversational, non-pedantic tone
+  - Lower severity = less pedantic
+
+- **COMPLIMENT** – positive feedback on well-written code (best practices, clever solutions, good architecture)
+  - Add quote line at start: `> Pode resolver esta thread depois de ler. Fique a vontade de fazê-la ou não!`
+  - Warm, encouraging tone
+  - Use sparingly - only for genuinely excellent work
+  - Helps reinforce good patterns
+
+- **QUESTION** – genuine questions about design decisions or implementation choices
+  - Can be standalone or embedded within MANDATORY/RECOMMENDED/NITPICK comments
+  - If standalone: No quote line (must be answered)
+  - If embedded: Include question inline within the comment
+  - Ask goal-directed questions that help understand intent
 
 Example:
 ```
 [MANDATORY] src/auth.ts:42 - Validate userId before database query to prevent TypeError
+
 [RECOMMENDED] src/utils.ts:15 - Extract magic number 3600 to named constant SECONDS_PER_HOUR
+> Pode resolver esta thread depois de ler. Fique a vontade de fazê-la ou não!
+
 [NITPICK] src/models.ts:8 - Consider renaming 'data' to 'userData' for clarity
+> Pode resolver esta thread depois de ler. Fique a vontade de fazê-la ou não!
+
+[COMPLIMENT] src/cache.ts:23 - Excellent use of TTL-based cache invalidation with fallback strategy!
+> Pode resolver esta thread depois de ler. Fique a vontade de fazê-la ou não!
+
+[QUESTION] src/api.ts:67 - What's the rationale for using polling instead of webhooks here?
 ```
 
 ### Review Checklist

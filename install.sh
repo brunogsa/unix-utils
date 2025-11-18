@@ -103,5 +103,8 @@ brew install lua-language-server
 mkdir -p ~/.claude
 mkdir -p ~/.claude/commands
 ln -s ~/linux-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/CLAUDE.md
+ln -s ~/linux-utils/configs/ai-docs/claude/commands ~/.claude/commands
+npm install -g @modelcontextprotocol/server-github
+claude mcp add --transport stdio github --env GITHUB_PERSONAL_ACCESS_TOKEN="$GITHUB_PERSONAL_ACCESS_TOKEN" -- npx -y @modelcontextprotocol/server-github
 
 echo "Done!!"
