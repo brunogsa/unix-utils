@@ -26,9 +26,8 @@ Example: `/code-review https://github.com/owner/repo/pull/1597`
 # Run aireview --github (handles everything: PR metadata, repo map, files, diff, conventions)
 aireview --github "<pr-url>" > /tmp/aireview.log 2>&1
 
-# Extract paths from output
+# Extract bundle path from output
 bundle_path=$(grep "Bundle file:" /tmp/aireview.log | awk '{print $3}')
-clone_path=$(grep "Cloned at:" /tmp/aireview.log | awk '{print $3}')
 
 # Extract PR info from URL
 pr_number=$(echo "<pr-url>" | grep -oP 'pull/\K[0-9]+')
@@ -185,20 +184,28 @@ gh api repos/"$repo_path"/pulls/"$pr_number"/comments \
 
 **Getting correct line numbers (THE KEY TO SUCCESS):**
 
-The bundle's "Modified Files Content" section shows files with line numbers via `cat -n`, but you **MUST use the clone** to get actual line numbers:
-
-```bash
-# Read the actual file from the clone with line numbers
-# Use Read tool on: ${clone_path}/path/to/file.ts
-# The line numbers in Read output are the CORRECT line numbers for GitHub API
-```
+The bundle's "Modified Files Content" section contains files with **reliable line numbers** in the format `LINE:00123| code` (5-digit zero-padded to preserve indentation).
 
 **Process:**
 1. Find the code snippet in bundle's diff section
-2. Read the actual file from `${clone_path}/path/to/file.ts` using Read tool
-3. Find the snippet in the Read output
+2. Locate the same code in the "Full content of files" section
+3. Extract line numbers from the `LINE:00123|` prefix (just the digits)
 4. Use those line numbers for `start_line` and `line`
 5. For ranges: `start_line` = first line of logical block, `line` = last line
+
+**Example from bundle:**
+```
+### `src/index.ts`
+```
+LINE:00148| if (errorsHandler.hasFailedLines) {
+LINE:00149|     logger.warn({
+LINE:00150|         message: `Houve ${errorsHandler.failedLinesQuantity} erros...`,
+LINE:00151|     });
+LINE:00152|     process.exit(1);
+LINE:00153| }
+```
+
+For this block, use: `start_line=148, line=152` (remove leading zeros)
 
 **Suggestion format:**
 - **```suggestion** blocks (≤8 lines): Direct replacement, one-click apply
@@ -241,7 +248,7 @@ The bundle's "Modified Files Content" section shows files with line numbers via 
 ## Important Guidelines
 
 - **MANDATORY: Read entire bundle** - use multiple Read calls with offset/limit if needed
-- **MANDATORY: Use clone for line numbers** - read files from `${clone_path}` to get correct line numbers
+- **MANDATORY: Use bundle line numbers** - extract from `LINE:00123|` format (5-digit zero-padded) in "Full content of files" section
 - **MANDATORY: All code feedback as inline comments** - never post code feedback as general comments
 - **All output in Portuguese (Brazil)** - comments, changelog, summary
 - **Always use code ranges** (`start_line` + `line`) for logical blocks
@@ -252,12 +259,11 @@ The bundle's "Modified Files Content" section shows files with line numbers via 
 ## Error Handling
 
 If posting comment fails with line range errors:
-1. Read the actual file from `${clone_path}/path/to/file.ts`
-2. Find your code snippet in that file
-3. Use those exact line numbers
-4. Verify `commit_id` matches `$commit_sha`
-5. Retry with corrected values
-6. **NEVER fallback to general comments** - keep trying with correct line numbers
+1. Double-check line numbers from the `LINE:00123|` prefix in bundle (remove leading zeros)
+2. Verify the code snippet matches exactly
+3. Verify `commit_id` matches `$commit_sha`
+4. Retry with corrected values
+5. **NEVER fallback to general comments** - keep trying with correct line numbers
 
 If something else fails:
 1. Explain error in English
