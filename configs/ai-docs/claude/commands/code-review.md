@@ -15,104 +15,58 @@ Perform a comprehensive automated code review of a GitHub Pull Request.
 
 ## Arguments
 
-Usage: `/code-review <pr-url-or-number>`
+Usage: `/code-review <pr-url>`
 
-Examples:
-- `/code-review 1597`
+Example:
 - `/code-review https://github.com/owner/repo/pull/1597`
 
 ## Execution Steps
 
-### 1. Extract PR Information
+### 1. Generate Complete Review Context
 
-If given only a number, use `gh pr view <number> --json url,number,title,body,author,baseRefName,headRefName` in the current repository.
-
-If given a URL, extract:
-- Owner and repo from URL
-- PR number
-- Use `gh pr view <number> -R <owner>/<repo> --json ...` to fetch metadata
-
-Required data:
-- `number`: PR number
-- `title`: PR title
-- `body`: PR description
-- `author`: PR author
-- `baseRefName`: base branch (e.g., `main`)
-- `headRefName`: PR branch (e.g., `feature/nova-api`)
-- `repository`: `owner/repo`
-
-### 2. Generate Context with aireview and Append PR Description
-
-**Step 2.1: Run aireview**
-
-Run the `aireview` command and capture the bundle file path:
+Run `aireview` in GitHub mode with the PR URL:
 
 ```bash
-# Run aireview and save output to temporary file
-aireview <baseRefName> <headRefName> > /tmp/aireview-output.txt 2>&1
+# Run aireview --github to generate complete context
+aireview --github "<pr-url>" > /tmp/aireview-output.txt 2>&1
 
 # Extract bundle path from output
-bundle_path=$(grep "^Bundle file:" /tmp/aireview-output.txt | awk '{print $3}')
+bundle_path=$(grep "Bundle file:" /tmp/aireview-output.txt | awk '{print $3}')
 ```
 
-This generates complete context with:
-- Repository structure map (via Aider)
-- Full content of modified files
-- Unified git diff
-- Commit history
-- Code conventions from CLAUDE.md
+This single command automatically:
+- Fetches PR metadata (number, title, body, base/head refs)
+- Generates repository structure map (via Aider)
+- Includes full content of modified files with line numbers
+- Includes unified git diff (excluding lockfiles)
+- Includes commit history and git stats
+- Includes code conventions from CLAUDE.md
+- **Adds PR description in optimal position** for LLM prompt engineering
 
-**Step 2.2: Append PR Description to Bundle**
+The bundle file is now ready for review with everything in the optimal order:
+1. Header (metadata)
+2. Review guidelines (primes the AI)
+3. **PR description** (high-level context)
+4. Git context (commits, stats)
+5. Git diff (actual changes)
+6. Repository structure (architectural context)
+7. Full file contents (deep dive)
 
-Append the PR metadata and description to the bundle file:
+**IMPORTANT**: The bundle file contains everything needed for review. **NEVER** try to use `gh pr diff` or run git commands directly.
+
+### 2. Get Commit SHA for Posting Comments
+
+Extract owner, repo, and PR number from URL, then get commit SHA:
 
 ```bash
-# Append PR information to the bundle
-{
-  echo ""
-  echo "---"
-  echo ""
-  echo "## Pull Request Information"
-  echo ""
-  echo "**PR Number:** #${pr_number}"
-  echo "**Title:** ${pr_title}"
-  echo "**Author:** ${pr_author}"
-  echo ""
-  echo "### PR Description"
-  echo ""
-  echo "${pr_body}"
-} >> "$bundle_path"
+# Extract components from URL
+owner=$(echo "<pr-url>" | sed -n 's|^https://github\.com/\([^/]*\)/.*|\1|p')
+repo=$(echo "<pr-url>" | sed -n 's|^https://github\.com/[^/]*/\([^/]*\)/.*|\1|p')
+pr_number=$(echo "<pr-url>" | sed -n 's|^https://github\.com/[^/]*/[^/]*/pull/\([0-9]*\).*|\1|p')
+
+# Get commit SHA for posting comments
+commit_sha=$(gh pr view "$pr_number" --repo "${owner}/${repo}" --json headRefOid --jq '.headRefOid')
 ```
-
-**Complete workflow example:**
-```bash
-# Run aireview and extract bundle path
-aireview main feature/new-api > /tmp/aireview-output.txt 2>&1
-bundle_path=$(grep "^Bundle file:" /tmp/aireview-output.txt | awk '{print $3}')
-
-# Get PR metadata (already fetched in step 1)
-pr_info=$(gh pr view 1234 --json number,title,body,author)
-
-# Append PR info to bundle
-{
-  echo ""
-  echo "---"
-  echo ""
-  echo "## Pull Request Information"
-  echo ""
-  echo "**PR Number:** #$(echo "$pr_info" | jq -r '.number')"
-  echo "**Title:** $(echo "$pr_info" | jq -r '.title')"
-  echo "**Author:** $(echo "$pr_info" | jq -r '.author.login')"
-  echo ""
-  echo "### PR Description"
-  echo ""
-  echo "$(echo "$pr_info" | jq -r '.body')"
-} >> "$bundle_path"
-
-# Now read the complete bundle file - see Step 3 for instructions
-```
-
-**IMPORTANT**: After appending, the bundle file contains everything needed for review. **NEVER** try to use `gh pr diff` or run git commands directly.
 
 ### 3. Read the Complete Bundle File
 
@@ -128,21 +82,21 @@ echo "Bundle file has $bundle_lines lines"
 
 **Step 3.2: Read the entire file using appropriate strategy**
 
-The bundle file may exceed token limits (>2000 lines). You MUST use one of these strategies to ensure the ENTIRE file is read:
+The bundle file may exceed token limits (>1500 lines). You MUST use one of these strategies to ensure the ENTIRE file is read:
 
 **Strategy A: Multiple reads with offset (PREFERRED)**
 
 Read the file in chunks, ensuring full coverage:
 
 ```bash
-# Read first 2000 lines
-# Use Read tool with: file_path=$bundle_path, offset=0, limit=2000
+# Read first 1500 lines
+# Use Read tool with: file_path=$bundle_path, offset=0, limit=1500
 
-# Read next 2000 lines
-# Use Read tool with: file_path=$bundle_path, offset=2000, limit=2000
+# Read next 1500 lines
+# Use Read tool with: file_path=$bundle_path, offset=1500, limit=1500
 
 # Continue until entire file is read
-# Calculate: total_reads = ceil(bundle_lines / 2000)
+# Calculate: total_reads = ceil(bundle_lines / 1500)
 ```
 
 **Strategy B: Split into multiple files**
@@ -150,8 +104,8 @@ Read the file in chunks, ensuring full coverage:
 If the file is extremely large (>10000 lines), split it:
 
 ```bash
-# Split bundle into 2000-line chunks
-split -l 2000 "$bundle_path" /tmp/bundle-part-
+# Split bundle into 1500-line chunks
+split -l 1500 "$bundle_path" /tmp/bundle-part-
 
 # This creates: /tmp/bundle-part-aa, /tmp/bundle-part-ab, etc.
 # Then read each part sequentially using the Read tool
@@ -431,13 +385,13 @@ gh api repos/{owner}/{repo}/pulls/{pr_number}/comments \
 
 - **GitHub suggestion** (```suggestion): When suggesting a **replacement** for existing code
   - MUST preserve exact indentation from original code
-  - Max 16 lines
+  - Max 8 lines
   - Author can apply with one click
   - Shows clean before/after comparison
   - PREFERRED for most code changes when conditions are met
 
 - **Unified diff** (```diff): When:
-  - Suggestion would be >16 lines (max 32 lines per diff, split if needed)
+  - Suggestion would be >8 lines (max 32 lines per diff, split if needed)
   - Multiple files involved
   - Conceptual/educational explanation
   - Unsure about exact indentation (prefer diff over wrong-indentation suggestion)
