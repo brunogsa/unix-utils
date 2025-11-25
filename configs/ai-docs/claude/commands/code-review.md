@@ -14,24 +14,30 @@ Perform a comprehensive automated code review of a GitHub Pull Request.
 
 ## Usage
 
-`/code-review <pr-url>`
+`/code-review <pr-url> [jira-card-url]`
 
-Example: `/code-review https://github.com/owner/repo/pull/1597`
+Examples:
+- `/code-review https://github.com/owner/repo/pull/1597`
+- `/code-review https://github.com/owner/repo/pull/1597 https://company.atlassian.net/browse/PROJ-123`
 
 ## Execution Steps
 
 ### 1. Generate Complete Review Context
 
 ```bash
-# Run aireview --github (handles everything: PR metadata, repo map, files, diff, conventions)
-aireview --github "<pr-url>" > /tmp/aireview.log 2>&1
+# Run aireview --github (handles everything: PR metadata, repo map, files, diff, conventions, and Jira card when provided)
+if [[ -n "<jira-card-url>" ]]; then
+  aireview --github "<pr-url>" --jira "<jira-card-url>" > /tmp/aireview.log 2>&1
+else
+  aireview --github "<pr-url>" > /tmp/aireview.log 2>&1
+fi
 
 # Extract bundle path from output
 bundle_path=$(grep "Bundle file:" /tmp/aireview.log | awk '{print $3}')
 
 # Extract PR info from URL
-pr_number=$(echo "<pr-url>" | grep -oP 'pull/\K[0-9]+')
-repo_path=$(echo "<pr-url>" | grep -oP 'github\.com/\K[^/]+/[^/]+')
+pr_number=$(echo "<pr-url>" | sed 's|.*/pull/\([0-9][0-9]*\).*|\1|')
+repo_path=$(echo "<pr-url>" | sed 's|.*github\.com/\([^/]*/[^/]*\).*|\1|')
 
 # Get commit SHA for posting comments
 commit_sha=$(gh pr view "$pr_number" --repo "$repo_path" --json headRefOid --jq '.headRefOid')
@@ -40,10 +46,11 @@ commit_sha=$(gh pr view "$pr_number" --repo "$repo_path" --json headRefOid --jq 
 **What's in the bundle (optimally ordered for LLM):**
 1. Review guidelines & code conventions
 2. PR description (title, body)
-3. Git context (log, stats)
-4. Git diff
-5. Repository structure
-6. Full file contents with line numbers
+3. Jira card (title, description, epic) - when provided
+4. Git context (log, stats)
+5. Git diff
+6. Repository structure
+7. Full file contents with line numbers
 
 **CRITICAL**: The bundle has EVERYTHING. Never use `gh pr diff` or git commands.
 
