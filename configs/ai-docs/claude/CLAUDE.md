@@ -453,24 +453,85 @@ expect(myFunc(items)).toEqual(expectedFiltered);
 
 ## REVIEW
 
-### Good Practices
+### Review Guidelines
 
-1. **Small, focused PRs** – one baby step per PR.
-2. **Explain *what* & *why*** – link issues; summarise impact.
-3. **Always provide examples to suggestions** – make it easier to learn and understand.
-4. **Mark as optional the nitpick** – but be free to add them.
-5. **Ensure guidelines for code and tests** – presented in this doc.
+#### High Confidence Standard
 
-### Review Structure
+Only provide feedback when you have sufficient confidence about the issue:
+
+- **>80% confidence** – make a direct comment with clear reasoning
+- **60-80% confidence** – ask a clarifying question to reduce ambiguity
+- **<60% confidence** – skip the comment entirely
+
+Avoid speculative feedback using uncertain language like "maybe", "possibly", or "consider" without strong justification.
+
+**Example:**
+
+High confidence (>80%):
+```
+[MANDATORY] src/auth.ts:42 - Missing null check will cause TypeError when userId is undefined
+```
+
+Medium confidence (60-80%):
+```
+[QUESTION] src/cache.ts:15 - Is there a reason we're not setting a TTL here? Without it, entries could accumulate indefinitely.
+```
+
+Low confidence (<60%):
+```
+(Skip commenting)
+```
+
+#### Conciseness with Purpose
+
+Keep comments brief while including the reasoning:
+
+- **State the issue concisely** – be direct about what needs to change
+- **Explain why it matters** – brief reasoning helps developers learn and grow
+- **Show the fix** – provide examples or code snippets when helpful
+- Avoid verbose explanations without educational value
+
+#### Actionable Focus
+
+Prioritize feedback that guides specific improvements:
+
+- **Provide actionable guidance** – every comment should lead to a clear next step
+- **Avoid mere observations** – don't just point out what exists; explain what should change
+- **Include suggestions or questions** – help the developer understand how to improve
+
+#### Low-Value Comments to Avoid
+
+Skip feedback on these topics unless they represent genuine issues:
+
+- **Formatting and style** – let automated tools handle indentation, spacing, line length
+- **Linting errors** – these should be caught by CI/CD pipelines
+- **Test failures** – should be addressed before review
+- **Minor naming preferences** – unless the name is genuinely misleading
+- **Subjective refactoring** – avoid suggesting rewrites without clear benefit
+- **Multiple unrelated issues in one comment** – keep feedback focused
+
+**DO provide feedback on:**
+- **Typos** – especially in user-facing strings, documentation, or error messages
+- **Misleading names** – when they could cause confusion or bugs
+- **Formatting that breaks conventions** – when it significantly hurts readability
+
+### Review Process
+
+#### PR Requirements
+
+1. **Small, focused PRs** – one baby step per PR
+2. **Clear description** – link issues; summarize what changed and why
+
+#### Review Structure
 
 When conducting code reviews, follow this systematic approach:
 
-1. **Start with a Changelog** – summarize what changed in grouped, concise bullets.
-2. **Follow priority order** – address items from most to least critical.
-3. **Use structured feedback format** – consistent, actionable, and traceable.
-4. **End with action items** – grouped by file, then by priority.
+1. **Start with a Changelog** – summarize what changed in grouped, concise bullets
+2. **Follow priority order** – address items from most to least critical
+3. **Use structured feedback format** – consistent, actionable, and traceable
+4. **End with action items** – grouped by file, then by priority
 
-### Review Scope
+#### Review Scope
 
 **CRITICAL**: Only review code that has been modified in the PR:
 - **Review**: Lines that were added (+ in diff)
@@ -481,7 +542,7 @@ When conducting code reviews, follow this systematic approach:
 
 **Why**: Developers should focus on the changes they made. Reviewing untouched code belongs in a separate refactoring effort, not this PR.
 
-### Review Priority Order
+#### Review Priority Order
 
 Review code in this sequence, from most to least critical:
 
@@ -500,17 +561,61 @@ Review code in this sequence, from most to least critical:
 
 ### Feedback Format
 
-For each review item, use this structure:
+#### Comment Structure: Problem → Why → Fix
 
-#### Reference Pattern
+Every review comment should follow this flow:
 
-- Use `<file:line>` format for all feedback items
-- Example: `src/services/auth.ts:42`
+1. **State the problem** – clearly identify what needs to change (one sentence)
+2. **Explain why it matters** – brief reasoning that helps the developer learn and grow
+3. **Suggest the fix** – provide specific guidance, code snippet, or question
 
-#### Question Style
+**Always include the "why"** – even if it seems obvious to you, it helps developers understand the reasoning and learn for future reviews.
 
-- Ask **goal-directed questions** – explain how the answer would change the code or the decision
-- Example: "Should we handle the case where `userId` is undefined? This would prevent the TypeError on line 45."
+**Examples:**
+
+Good (includes problem, why, and fix):
+```
+[MANDATORY] src/auth.ts:42 - Missing null check for userId parameter
+Without this check, the function will throw TypeError when userId is undefined.
+
+if (!userId) {
+  throw new ValidationError("userId is required");
+}
+```
+
+```
+[RECOMMENDED] src/utils.ts:23 - Extract magic number 3600 to SECONDS_PER_HOUR constant
+This improves readability and makes future changes easier.
+
+const SECONDS_PER_HOUR = 3600;
+```
+
+```
+[QUESTION] src/api.ts:34-56 - This function handles authentication, validation, and business logic. Would it make sense to split these concerns into separate functions?
+```
+
+Bad (missing the "why"):
+```
+[RECOMMENDED] src/utils.ts:23 - Extract 3600 to a constant
+```
+
+Bad (too verbose without educational value):
+```
+[RECOMMENDED] src/utils.ts:23 - I noticed you're using 3600 here, and I was thinking it would be better if we extracted this into a constant because it's not immediately clear what this number represents to someone reading the code, and if we ever need to change it in the future, we'd have to search through the entire codebase to find all occurrences of this magic number.
+```
+
+Bad (non-actionable observation):
+```
+[COMMENT] src/api.ts:34 - This function is quite long
+```
+
+#### Reference Format
+
+- Use `file:line` for single-line feedback
+- **Prefer `file:startline-endline` for logical blocks** – provides better context
+- Examples:
+  - Single line: `src/services/auth.ts:42`
+  - Range: `src/services/auth.ts:42-48`
 
 #### Provide Minimal Diffs or Suggestions
 
@@ -586,7 +691,8 @@ Tag each item by severity:
   - Can be standalone or embedded within MANDATORY/RECOMMENDED/NITPICK comments
   - If standalone: No quote line (must be answered)
   - If embedded: Include question inline within the comment
-  - Ask goal-directed questions that help understand intent
+  - Ask **goal-directed questions** – explain how the answer would change the code or decision
+  - Use when 60-80% confident (reduces ambiguity instead of skipping)
 
 Example:
 ```
@@ -660,9 +766,17 @@ Group feedback by file, then by priority:
 4. **Don't** suggest changes without showing a diff
 5. **Don't** forget to prioritize feedback by severity
 
-#### TL;DR
+### TL;DR
 
-* Tiny PRs, clear rationale, changelog first, prioritized feedback (correctness → security), use `file:line` references, provide minimal diffs, tag severity (MANDATORY/RECOMMENDED/NITPICK), ask goal-directed questions, end with grouped action items.
+* **High confidence standard**: >80% comment, 60-80% question, <60% skip
+* **Conciseness with purpose**: Problem → Why → Fix (always explain why for learning/growth)
+* **Actionable focus**: Guide improvements, not mere observations
+* **Skip low-value**: Formatting/linting/minor naming, but catch typos
+* **Small PRs**, changelog first, prioritized feedback (correctness → security)
+* **Reference format**: Prefer `file:startline-endline` ranges over single lines
+* **Minimal diffs**: Preserve exact indentation, surgical changes
+* **Severity tags**: MANDATORY/RECOMMENDED/NITPICK/COMPLIMENT/QUESTION
+* **End with action items** grouped by file, then priority
 
 
 ---
