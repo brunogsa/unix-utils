@@ -56,42 +56,35 @@ commit_sha=$(gh pr view "$pr_number" --repo "$repo_path" --json headRefOid --jq 
 
 ### 2. Read Complete Bundle File
 
-**MANDATORY**: Read the ENTIRE bundle file, regardless of size.
+⚠️ **MANDATORY**: Read ENTIRE bundle file, regardless of size.
 
 ```bash
-# Check file size
 total_lines=$(wc -l < "$bundle_path")
 echo "Bundle has $total_lines lines"
-
-# Read in chunks if needed (2000 lines per read)
-# Use Read tool with offset/limit to read entire file
+# Read in chunks if needed: offset 0, 2000, 4000, ...
 ```
 
+**Bundle contains:**
+- **Code Review Instructions** ← ⚠️ CRITICAL: Read this section first (all review philosophy from ~/.claude/CLAUDE.md)
+- Code Conventions (Reference)
+- PR description / Jira card
+- Git context, diff, file contents with `LINE:00123|` prefixes
+
 **Reading strategy:**
-- File ≤2000 lines: Read once
-- File >2000 lines: Read in chunks with offset (0, 2000, 4000, ...)
-- Verify you've seen: Code Conventions, Code Review Instructions, repo structure, modified files, diff, git context, PR description
-
-**Key sections in the bundle:**
-- **Code Conventions (Reference)** - coding standards from ~/.claude/CLAUDE.md
-- **Code Review Instructions** - review philosophy, priority order, and feedback format from ~/.claude/CLAUDE.md
-- PR description / Jira card (when provided)
-- Git context, diff, and file contents
-
-**CRITICAL**: Pay special attention to the "Code Review Instructions" section - it contains all review philosophy (High Confidence Standard, Conciseness, Actionable Focus), priority order, and feedback format guidelines that must be followed.
+- ≤2000 lines → Read once
+- >2000 lines → Read in chunks (offset: 0, 2000, 4000, ...)
+- ✅ Verify seen: Code Review Instructions, Code Conventions, diff, git context
 
 ### 3. Perform Code Review (in Portuguese)
 
-**Review Guidelines** (from bundle's "Code Review Instructions" section):
+⚠️ **Apply guidelines from bundle's "Code Review Instructions" section:**
 
-**CRITICAL - Follow these principles from the bundle:**
-- **High Confidence Standard**: >80% confidence → Direct comment | 60-80% → Ask question | <60% → Skip
-- **Conciseness with Purpose**: State problem + explain why + suggest fix (always include the "why" for learning/growth)
-- **Actionable Focus**: Every comment guides specific improvements, not mere observations
-- **Low-Value Comments**: Skip formatting/linting/test failures/minor naming, BUT do catch typos in user-facing content
-- ✅ **ONLY review code in the diff** (added/changed/removed lines)
-- ❌ **DO NOT comment on unchanged code** unless directly related to changes
-- Brief mention if you notice issues in untouched code, but no detailed comments
+**Core principles:**
+- **Confidence**: >80% → comment | 60-80% → question | <60% → skip
+- **Structure**: Problem + Why + Fix (always explain why for learning)
+- **Actionable**: Guide improvements, not observations
+- **Scope**: ✅ Review diff only | ❌ No unchanged code (unless directly related)
+- **Skip low-value**: Formatting/linting/test-failures/minor-naming | ✅ Catch typos
 
 **For each issue found, create inline comment with:**
 
@@ -212,20 +205,16 @@ gh api repos/"$repo_path"/pulls/"$pr_number"/comments \
 - **DO NOT** use `--field body@/tmp/file.md` - it doesn't work!
 - **MUST** read file content into variable first: `body=$(cat /tmp/file.txt)`
 
-**Getting correct line numbers (THE KEY TO SUCCESS):**
+**Getting line numbers (KEY TO SUCCESS):**
 
-The bundle's "Modified Files Content" section contains files with **reliable line numbers** in the format `LINE:00123| code` (5-digit zero-padded to preserve indentation).
+Bundle's "Full content of files" section has reliable line numbers: `LINE:00123| code`
 
 **Process:**
-1. Find the code snippet in bundle's diff section
-2. Locate the same code in the "Full content of files" section
-3. Extract line numbers from the `LINE:00123|` prefix (just the digits)
-4. Use those line numbers for `start_line` and `line`
-5. For ranges: `start_line` = first line of logical block, `line` = last line
+1. Find code in bundle's diff → locate in "Full content of files" section
+2. Extract from `LINE:00123|` prefix (strip leading zeros)
+3. For ranges: `start_line` = first line, `line` = last line
 
-**Example from bundle:**
-```
-### `src/index.ts`
+**Example:**
 ```
 LINE:00148| if (errorsHandler.hasFailedLines) {
 LINE:00149|     logger.warn({
@@ -234,8 +223,7 @@ LINE:00151|     });
 LINE:00152|     process.exit(1);
 LINE:00153| }
 ```
-
-For this block, use: `start_line=148, line=152` (remove leading zeros)
+→ Use: `start_line=148, line=152`
 
 **Suggestion format:**
 - **```suggestion** blocks (≤8 lines): Direct replacement, one-click apply
@@ -275,16 +263,17 @@ For this block, use: `start_line=148, line=152` (remove leading zeros)
 - ❓ Questions: S
 ```
 
-## Important Guidelines
+## Critical Reminders
 
-- **MANDATORY: Read entire bundle** - use multiple Read calls with offset/limit if needed
-- **MANDATORY: Use bundle line numbers** - extract from `LINE:00123|` format (5-digit zero-padded) in "Full content of files" section
-- **MANDATORY: All code feedback as inline comments** - never post code feedback as general comments
-- **All output in Portuguese (Brazil)** - comments, changelog, summary
-- **Always use code ranges** (`start_line` + `line`) for logical blocks
-- **Preserve exact indentation** in suggestions and diffs (CRITICAL)
-- **Length limits**: Suggestions max 8 lines, diffs max 32 lines
-- **Be educational and kind** - provide code examples with proper indentation
+⚠️ **Must-follow rules:**
+- Read entire bundle (multiple Read calls with offset if needed)
+- Use bundle's `LINE:00123|` format for line numbers (remove leading zeros)
+- ALL code feedback = inline comments | ONLY changelog = general comment
+- Output in Portuguese (Brazil): comments, changelog, summary
+- Prefer code ranges (`start_line` + `line`) over single lines
+- Preserve exact indentation in suggestions/diffs
+- Limits: Suggestions ≤8 lines | Diffs ≤32 lines
+- Be educational and kind
 
 ## Error Handling
 
