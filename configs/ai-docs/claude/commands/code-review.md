@@ -70,11 +70,25 @@ echo "Bundle has $total_lines lines"
 **Reading strategy:**
 - File ≤2000 lines: Read once
 - File >2000 lines: Read in chunks with offset (0, 2000, 4000, ...)
-- Verify you've seen: repo structure, modified files, diff, git context, PR description
+- Verify you've seen: Code Conventions, Code Review Instructions, repo structure, modified files, diff, git context, PR description
+
+**Key sections in the bundle:**
+- **Code Conventions (Reference)** - coding standards from ~/.claude/CLAUDE.md
+- **Code Review Instructions** - review philosophy, priority order, and feedback format from ~/.claude/CLAUDE.md
+- PR description / Jira card (when provided)
+- Git context, diff, and file contents
+
+**CRITICAL**: Pay special attention to the "Code Review Instructions" section - it contains all review philosophy (High Confidence Standard, Conciseness, Actionable Focus), priority order, and feedback format guidelines that must be followed.
 
 ### 3. Perform Code Review (in Portuguese)
 
-**Review scope - CRITICAL**:
+**Review Guidelines** (from bundle's "Code Review Instructions" section):
+
+**CRITICAL - Follow these principles from the bundle:**
+- **High Confidence Standard**: >80% confidence → Direct comment | 60-80% → Ask question | <60% → Skip
+- **Conciseness with Purpose**: State problem + explain why + suggest fix (always include the "why" for learning/growth)
+- **Actionable Focus**: Every comment guides specific improvements, not mere observations
+- **Low-Value Comments**: Skip formatting/linting/test failures/minor naming, BUT do catch typos in user-facing content
 - ✅ **ONLY review code in the diff** (added/changed/removed lines)
 - ❌ **DO NOT comment on unchanged code** unless directly related to changes
 - Brief mention if you notice issues in untouched code, but no detailed comments
@@ -102,12 +116,14 @@ echo "Bundle has $total_lines lines"
   - Standalone: no quote line (must be answered)
   - Embedded in other severity: include inline
 
-**Comment structure:**
+**Comment structure** (Problem → Why → Fix, from bundle's "Code Review Instructions"):
 1. **[SEVERITY]** tag
 2. Optional quote line (based on severity)
-3. Clear problem explanation
-4. Why it matters
-5. Suggested fix with code (when applicable)
+3. **Problem**: Clear, concise statement of the issue (one sentence)
+4. **Why**: Brief explanation of why it matters (for learning/growth)
+5. **Fix**: Suggested solution with code snippet (when applicable)
+
+**ALWAYS include the "why"** - even if obvious to you, it helps developers learn.
 
 ### 4. Generate Changelog (in Portuguese)
 
