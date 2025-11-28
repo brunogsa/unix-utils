@@ -156,8 +156,8 @@ gh pr comment "$pr_number" --repo "$repo_path" --body-file /tmp/changelog.md
 For each issue, create markdown file and post:
 
 ```bash
-# Create comment file
-cat > /tmp/comment-1.md << 'EOF'
+# Create comment body file
+cat > /tmp/comment-1-body.txt << 'EOF'
 **[MANDATORY]**
 
 **Exit codes hardcoded sem constantes**
@@ -178,16 +178,23 @@ process.exit(ExitCode.VALIDATION_ERROR);
 - Facilita automação e tratamento de erros
 EOF
 
-# Post inline comment
+# Read body into variable and post inline comment
+body=$(cat /tmp/comment-1-body.txt)
 gh api repos/"$repo_path"/pulls/"$pr_number"/comments \
   --method POST \
-  --field body@/tmp/comment-1.md \
-  --field path="src/index.ts" \
-  --field commit_id="$commit_sha" \
-  --field start_line=148 \
-  --field line=152 \
-  --field side="RIGHT"
+  -f body="$body" \
+  -f path="src/index.ts" \
+  -f commit_id="$commit_sha" \
+  -F start_line=148 \
+  -F line=152 \
+  -f side="RIGHT"
 ```
+
+**CRITICAL - Correct field flags:**
+- Use `-f` for **string fields**: `body`, `path`, `commit_id`, `side`
+- Use `-F` for **numeric fields**: `start_line`, `line`
+- **DO NOT** use `--field body@/tmp/file.md` - it doesn't work!
+- **MUST** read file content into variable first: `body=$(cat /tmp/file.txt)`
 
 **Getting correct line numbers (THE KEY TO SUCCESS):**
 
@@ -222,12 +229,12 @@ For this block, use: `start_line=148, line=152` (remove leading zeros)
   - Split into multiple diffs if >32 lines
 
 **Important notes:**
-- `body@/tmp/file.md`: The `@` tells gh to read from file (no escaping!)
 - `commit_id`: Use the `$commit_sha` from step 1
 - `start_line` + `line`: Use ranges for multi-line (PREFERRED)
 - `line` only: For truly single-line issues (rare)
-- `side: "RIGHT"`: Comment on new code (the PR changes)
+- `side`: Always use `"RIGHT"` to comment on new code (the PR changes)
 - `path`: File path relative to repo root
+- **Field flags**: `-f` for strings, `-F` for numbers (see CRITICAL section above)
 
 ### 6. Display Results (in Portuguese)
 
@@ -265,14 +272,28 @@ For this block, use: `start_line=148, line=152` (remove leading zeros)
 
 ## Error Handling
 
-If posting comment fails with line range errors:
+**Common error: "invalid key: body@/tmp/file.md"**
+- **Cause**: Using `--field body@/tmp/file.md` syntax
+- **Fix**: Read file into variable first: `body=$(cat /tmp/file.md)`, then use `-f body="$body"`
+
+**Common error: "No subschema in oneOf matched" (HTTP 422)**
+- **Cause**: Missing required fields or wrong field types
+- **Fix**: Ensure all required fields present:
+  - `-f body="$body"` (string)
+  - `-f path="file/path.ext"` (string)
+  - `-f commit_id="$commit_sha"` (string)
+  - `-F line=123` (number)
+  - `-F start_line=120` (number, optional)
+  - `-f side="RIGHT"` (string)
+
+**If posting comment fails with line range errors:**
 1. Double-check line numbers from the `LINE:00123|` prefix in bundle (remove leading zeros)
 2. Verify the code snippet matches exactly
 3. Verify `commit_id` matches `$commit_sha`
 4. Retry with corrected values
 5. **NEVER fallback to general comments** - keep trying with correct line numbers
 
-If something else fails:
+**If something else fails:**
 1. Explain error in English
 2. Show partial results
 3. Suggest next manual steps
