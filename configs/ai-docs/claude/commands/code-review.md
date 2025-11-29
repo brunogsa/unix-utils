@@ -112,33 +112,38 @@ echo "Bundle has $total_lines lines"
 **Comment structure** (Problem → Why → Fix, from bundle's "Code Review Instructions"):
 1. **[SEVERITY]** tag
 2. Optional quote line (based on severity)
-3. **Problem**: Clear, concise statement of the issue (one sentence)
-4. **Why**: Brief explanation of why it matters (for learning/growth)
-5. **Fix**: Suggested solution with code snippet (when applicable)
+3. **Problem**: Clear, concise statement (one sentence)
+4. **Why**: Brief explanation why it matters (1-2 sentences max)
+5. **Fix**: Suggested solution with code snippet
 
-**ALWAYS include the "why"** - even if obvious to you, it helps developers learn.
+⚠️ **Keep comments concise**:
+- Aim for 3-5 lines total (problem + why + fix)
+- Always include "why" for learning
+- Be direct and educational, not conversational or verbose
 
 ### 4. Generate Changelog (in Portuguese)
 
-Group changes by type:
+⚠️ **Post changelog FIRST, before inline comments** (see bundle's "Changelog Guidelines" for full details)
 
+**Purpose**: Business-level summary for human reviewers, not technical details.
+
+**Structure**:
+1. **Business context**: What problem/feature? (from PR/Jira if available)
+2. **High-level approach**: How was it implemented conceptually? (PM-level explanation)
+3. **Coverage**: Mention refactoring (what kind), tests included, docs updated
+
+❌ **Avoid**: File lists, technical details, grouped categories (New features/Tests/Docs)
+✅ **Include**: Business need, conceptual approach, brief coverage notes
+
+**Example format:**
 ```markdown
 ## Changelog (salomao.ai)
 
-### Novas funcionalidades
-- Item 1
+[Business context: what problem this solves or feature it enables]
 
-### Correções
-- Item 1
+**Abordagem**: [High-level conceptual approach, like explaining to a PM]
 
-### Refatorações
-- Item 1
-
-### Testes
-- Item 1
-
-### Documentação
-- Item 1
+**Cobertura**: [Brief mention of refactoring/tests/docs]
 ```
 
 ### 5. Post Comments via GitHub API

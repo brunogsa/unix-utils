@@ -491,6 +491,26 @@ Keep comments brief while including the reasoning:
 - **Show the fix** – provide examples or code snippets when helpful
 - Avoid verbose explanations without educational value
 
+**Examples:**
+
+Good (concise with purpose):
+```
+[RECOMMENDED] src/utils.ts:23 - Extract magic number 3600 to SECONDS_PER_HOUR constant
+This improves readability and makes future changes easier.
+
+const SECONDS_PER_HOUR = 3600;
+```
+
+Bad (too verbose without educational value):
+```
+[RECOMMENDED] src/utils.ts:23 - I noticed you're using 3600 here, and I was thinking it would be better if we extracted this into a constant because it's not immediately clear what this number represents to someone reading the code, and if we ever need to change it in the future, we'd have to search through the entire codebase to find all occurrences of this magic number.
+```
+
+Bad (missing the "why"):
+```
+[RECOMMENDED] src/utils.ts:23 - Extract 3600 to a constant
+```
+
 #### Actionable Focus
 
 Prioritize feedback that guides specific improvements:
@@ -498,6 +518,24 @@ Prioritize feedback that guides specific improvements:
 - **Provide actionable guidance** – every comment should lead to a clear next step
 - **Avoid mere observations** – don't just point out what exists; explain what should change
 - **Include suggestions or questions** – help the developer understand how to improve
+
+**Examples:**
+
+Good (actionable):
+```
+[RECOMMENDED] src/api.ts:34-56 - Extract validation logic into validateRequest() function
+This improves readability and makes validation reusable across endpoints.
+```
+
+Bad (non-actionable observation):
+```
+[COMMENT] src/api.ts:34 - This function is quite long
+```
+
+Good (actionable question):
+```
+[QUESTION] src/api.ts:34-56 - This function handles authentication, validation, and business logic. Would it make sense to split these into separate functions?
+```
 
 #### Low-Value Comments to Avoid
 
@@ -526,10 +564,61 @@ Skip feedback on these topics unless they represent genuine issues:
 
 When conducting code reviews, follow this systematic approach:
 
-1. **Start with a Changelog** – summarize what changed in grouped, concise bullets
-2. **Follow priority order** – address items from most to least critical
-3. **Use structured feedback format** – consistent, actionable, and traceable
-4. **End with action items** – grouped by file, then by priority
+1. **Start with a Changelog** – post first, before inline comments
+2. **Then post inline comments** – following priority order (most to least critical)
+3. **End with action items** – grouped by file, then by priority
+
+#### Changelog Guidelines
+
+The changelog helps human reviewers understand the big picture before diving into code details.
+
+**Purpose**: Explain changes at a **business/product level**, not technical implementation details.
+
+**Structure**:
+1. **Business context** (if available from PR/Jira): What problem does this solve? What feature does this enable?
+2. **High-level approach**: How was it implemented conceptually? (like explaining to a PM, not a developer)
+3. **Coverage notes**: Mention if it includes refactoring (what kind at high level), adequate tests, and updated docs
+
+**What to AVOID**:
+- ❌ File-by-file lists of changes
+- ❌ Technical implementation details (those go in inline comments)
+- ❌ Exhaustive test/doc listings
+- ❌ Generic groupings like "New features / Bug fixes / Tests / Documentation"
+
+**What to INCLUDE**:
+- ✅ Business need or user benefit
+- ✅ Conceptual approach (e.g., "Implemented retry logic with exponential backoff" not "Added new RetryHandler class")
+- ✅ Brief mention: "Includes refactoring of [X]" or "Includes tests" or "Docs updated"
+
+**Example - Good:**
+```markdown
+## Changelog
+
+Adds user authentication timeout to prevent session hijacking. When users are inactive for 30 minutes, they're automatically logged out.
+
+**Approach**: Implemented sliding-window session tracking on the backend with client-side activity monitoring.
+
+**Coverage**: Includes refactoring of session middleware, adequate test coverage, and updated API documentation.
+```
+
+**Example - Bad:**
+```markdown
+## Changelog
+
+### New features
+- Added SessionTimeout class
+- Added activity tracker
+
+### Refactoring
+- Refactored auth middleware
+
+### Tests
+- Added test for timeout
+- Added test for activity
+
+### Documentation
+- Updated API docs
+```
 
 #### Review Scope
 
@@ -566,10 +655,13 @@ Review code in this sequence, from most to least critical:
 Every review comment should follow this flow:
 
 1. **State the problem** – clearly identify what needs to change (one sentence)
-2. **Explain why it matters** – brief reasoning that helps the developer learn and grow
+2. **Explain why it matters** – brief reasoning that helps the developer learn and grow (1-2 sentences max)
 3. **Suggest the fix** – provide specific guidance, code snippet, or question
 
-**Always include the "why"** – even if it seems obvious to you, it helps developers understand the reasoning and learn for future reviews.
+**CRITICAL**:
+- **Keep it concise** – aim for 3-5 lines total (problem + why + fix)
+- **Always include the "why"** – even if obvious, it helps developers learn
+- **Avoid verbose explanations** – be direct and educational, not conversational
 
 **Examples:**
 
@@ -772,7 +864,8 @@ Group feedback by file, then by priority:
 * **Conciseness with purpose**: Problem → Why → Fix (always explain why for learning/growth)
 * **Actionable focus**: Guide improvements, not mere observations
 * **Skip low-value**: Formatting/linting/minor naming, but catch typos
-* **Small PRs**, changelog first, prioritized feedback (correctness → security)
+* **Small PRs**, changelog first (business-level summary, not file lists)
+* **Prioritized feedback**: Correctness → corner cases → testing → security
 * **Reference format**: Prefer `file:startline-endline` ranges over single lines
 * **Minimal diffs**: Preserve exact indentation, surgical changes
 * **Severity tags**: MANDATORY/RECOMMENDED/NITPICK/COMPLIMENT/QUESTION
