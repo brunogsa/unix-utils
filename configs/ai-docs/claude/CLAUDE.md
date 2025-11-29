@@ -11,32 +11,20 @@
 
 ### Guidelines
 
-1. **Request context first** – ask for necessary files, code, or context before proposing solutions.
-2. **Suggest terminal commands** – recommend specific commands I can run to gather information (rg, find, tree, git, etc.).
-3. **Never assume missing context. Ask questions if uncertain.**
-4. **Do not use emojis** – avoid using emojis in any communications or code.
-
-5. **Provide complete solutions** – include all necessary code changes with proper syntax and formatting.
-5. **Follow existing patterns** – match the codebase's style, naming conventions, and architecture.
-6. **Never hallucinate libraries, functions, tags – only use known, verified information.**
-7. **Always confirm file paths and module names exist before referencing them in code or tests.**
-8. **Never delete or overwrite existing code unless explicitly instructed to or if part of a task**
-
-9. **Explain reasoning concisely** – briefly justify design decisions without excessive verbosity.
-10. **Highlight assumptions** – explicitly note any assumptions made about the codebase.
-11. **Offer alternatives** – when appropriate, present multiple approaches with trade-offs.
-
-12. **Work incrementally** – break complex changes into small, testable steps.
-13. **Include test considerations** – suggest test updates or new tests that validate changes.
-
-14. **NEVER modify formatting, indentation, or whitespace unless explicitly requested** – preserve exact formatting, including:
-    - Indentation style (spaces vs tabs, 2-space vs 4-space)
-    - Line breaks and empty lines
-    - Comment formatting and alignment
-    - String literal formatting (single vs double quotes)
-    - Semicolon usage
-    - Any other stylistic choices
-15. **NEVER add spaces to empty lines or trailing spaces** – empty lines must be completely empty.
+- **Request context first** – ask for necessary files, code, or context before proposing solutions.
+- **Suggest terminal commands** – recommend specific commands I can run to gather information (rg, find, tree, git, etc.).
+- **Never assume missing context. Ask questions if uncertain.**
+- **Do not use emojis** – avoid using emojis in any communications or code.
+- **Provide complete solutions** – include all necessary code changes with proper syntax and formatting.
+- **Follow existing patterns** – match the codebase's style, naming conventions, and architecture.
+- **Never hallucinate libraries, functions, tags – only use known, verified information.**
+- **Always confirm file paths and module names exist before referencing them in code or tests.**
+- **Never delete or overwrite existing code unless explicitly instructed to or if part of a task**
+- **Explain reasoning concisely** – briefly justify design decisions without excessive verbosity.
+- **Highlight assumptions** – explicitly note any assumptions made about the codebase.
+- **Offer alternatives** – when appropriate, present multiple approaches with trade-offs.
+- **Work incrementally** – break complex changes into small, testable steps.
+- **Include test considerations** – suggest test updates or new tests that validate changes.
 
 #### Examples
 
@@ -64,7 +52,7 @@ I'm assuming the user permissions should work like other resource permissions.
 If there's a different requirement, please clarify before implementing.
 ```
 
-#### Useful Tools
+### Useful Tools
 
 - **rg (ripgrep)** – search code for patterns, classes, functions
 - **find** – locate files by name or attributes
@@ -73,7 +61,7 @@ If there's a different requirement, please clarify before implementing.
 - **sed/cut/tr** – transform command outputs for better readability
 - **meld** – compare files or directories
 
-#### TL;DR
+### TL;DR
 
 * Ask for context, suggest specific commands, provide complete solutions with tests, explain reasoning, and work in baby steps.
 
@@ -83,18 +71,18 @@ If there's a different requirement, please clarify before implementing.
 
 ### Principles
 
-1. **Be concise yet didactic** – use short, assertive explanations; I can request deeper detail when needed.
-2. **Ask before running subtasks** – take no implicit actions.
-3. **Work in baby steps** – each step must be the smallest, testable, commit-able change.
-4. **Green baseline first** – the existing test & lint suite *must* pass before new work begins.
-5. **Write the breaking test first** – add a failing test that captures the required behavior; run *only* that test.
-6. **Make the test pass** – implement minimal code to go green; run the whole suite.
-7. **Update docs** – locate and update any related documentation.
-8. **Human commits only** – after review, I create the commit; no auto-commits.
-9. **Change-request → new baby steps** – address review feedback as new steps.
-10. **Isolate refactors** – pure refactors = their own baby step & commit; fix tests inside the same commit.
+- **Be concise yet didactic** – use short, assertive explanations; I can request deeper detail when needed.
+- **Ask before running subtasks** – take no implicit actions.
+- **Work in baby steps** – each step must be the smallest, testable, commit-able change.
+- **Green baseline first** – the existing test & lint suite *must* pass before new work begins.
+- **Write the breaking test first** – add a failing test that captures the required behavior; run *only* that test.
+- **Make the test pass** – implement minimal code to go green; run the whole suite.
+- **Update docs** – locate and update any related documentation.
+- **Human commits only** – after review, I create the commit; no auto-commits.
+- **Change-request → new baby steps** – address review feedback as new steps.
+- **Isolate refactors** – pure refactors = their own baby step & commit; fix tests inside the same commit.
 
-#### TL;DR
+### TL;DR
 
 * Be concise, ask first, baby steps, tests first, docs updated, human commit.
 
@@ -104,42 +92,41 @@ If there's a different requirement, please clarify before implementing.
 
 ### Guidelines
 
-1. **Preserve comments & formatting unless asked**.
-2. **Follow existing patterns** unless this guide overrides them.
-3. **Clean Code basics** – small, pure, well-named functions; no magic numbers; prefer enums; dependency-inject wisely; validate inputs; handle errors.
-4. **Project structure** –
-   * `controllers` – HTTP only (validate, paginate)
-   * `consumers`/`handlers`/`workers` – queue/event entry points
-   * `use-cases`/`services` – business rules
-   * `models`/`entities`/`types` – data modelling only
-   * `utils`/`helpers`/`lib` – tiny generic helpers
-   * create `shared` *only* if used ≥2 places
-5. **Logging** – include logs in the `controllers`/`consumers` layer:
-   * `error` – for flow-crashing issues
-   * `warning` – for unexpected events with fallbacks
-   * `info` – for documenting the flow
-   * No `debug` logs
-   * Each log must include: message, timestamp in UTC/ISO8601, level, transactionId/traceId (for microservices tracing), and non-PII info
-   * PII data can be included only if anonymized
-6. **Loops & conditions** – avoid negatives, name complex predicates, favour `for-of` when index unused.
-6. **Functions ≥2 params** – use a named-param object.
-7. **NEVER modify file formatting unless explicitly requested** – this is CRITICAL:
-   * DO NOT change indentation (spaces to tabs, tabs to spaces, 2-space to 4-space, etc.)
-   * DO NOT add or remove empty lines
-   * DO NOT add spaces or tabs to empty lines
-   * DO NOT add trailing whitespace
-   * DO NOT change quote style (single to double, double to single)
-   * DO NOT add or remove semicolons
-   * DO NOT reformat code "to make it cleaner" unless asked
-   * ONLY modify the exact lines needed for the requested change
-8. **Remove unused code** – code that is no longer used must be removed along with its associated tests
-9. **Error handling** – always handle errors in the `controllers`/`consumers` layers to prevent crashes and provide appropriate responses
-10. **Input validation** – always validate and sanitize inputs in the `controllers`/`consumers` layers before passing to business logic
-11. **Comment non-obvious code and ensure everything is understandable to a mid-level developer**
-12. **When writing complex logic, add comment explaining the why, not just the what**
-13. **Extract magic values into constants** – define reusable constants for all magic strings, numbers, and sets, preferably using TypeScript enums when applicable.
+- **Follow existing patterns** unless this guide overrides them.
+- **Clean Code basics** – small, pure, well-named functions; no magic numbers; prefer enums; dependency-inject wisely; validate inputs; handle errors.
+- **Project structure** –
+  * `controllers` – HTTP only (validate, paginate)
+  * `consumers`/`handlers`/`workers` – queue/event entry points
+  * `use-cases`/`services` – business rules
+  * `models`/`entities`/`types` – data modelling only
+  * `utils`/`helpers`/`lib` – tiny generic helpers
+  * create `shared` *only* if used ≥2 places
+- **Logging** – include logs in the `controllers`/`consumers` layer:
+  * `error` – for flow-crashing issues
+  * `warning` – for unexpected events with fallbacks
+  * `info` – for documenting the flow
+  * No `debug` logs
+  * Each log must include: message, timestamp in UTC/ISO8601, level, transactionId/traceId (for microservices tracing), and non-PII info
+  * PII data can be included only if anonymized
+- **Loops & conditions** – avoid negatives, name complex predicates, favour `for-of` when index unused.
+- **Functions ≥2 params** – use a named-param object.
+- **NEVER modify file formatting unless explicitly requested** – this is CRITICAL:
+  * DO NOT change indentation (spaces to tabs, tabs to spaces, 2-space to 4-space, etc.)
+  * DO NOT add or remove empty lines
+  * DO NOT add spaces or tabs to empty lines
+  * DO NOT add trailing whitespace
+  * DO NOT change quote style (single to double, double to single)
+  * DO NOT add or remove semicolons
+  * DO NOT reformat code "to make it cleaner" unless asked
+  * ONLY modify the exact lines needed for the requested change
+- **Remove unused code** – code that is no longer used must be removed along with its associated tests
+- **Error handling** – always handle errors in the `controllers`/`consumers` layers to prevent crashes and provide appropriate responses
+- **Input validation** – always validate and sanitize inputs in the `controllers`/`consumers` layers before passing to business logic
+- **Comment non-obvious code and ensure everything is understandable to a mid-level developer**
+- **When writing complex logic, add comment explaining the why, not just the what**
+- **Extract magic values into constants** – define reusable constants for all magic strings, numbers, and sets, preferably using TypeScript enums when applicable.
 
-##### Example:
+#### Examples
 
 ```ts
 // Don't do this:
@@ -163,8 +150,6 @@ if (TYPE_SET.has(type)) {
   // do something
 }
 ```
-
-#### Examples
 
 ##### Avoid negatives:
 
@@ -232,15 +217,19 @@ function configure({ retries, timeout }) {}
 ##### Loop simplification:
 
 ```ts
+// ❌ Nested loops mixing concerns:
 groups.forEach((group) => {
-    group.lines.forEach((line) => {
-        if (line.composition.length) {
-            // ...
-        } else {
-            // ...
-        }
-    });
+  group.lines.forEach((line) => {
+    if (line.composition.length) processLine(line);
+  });
 });
+
+// ✅ Flatten then process:
+const allLines = groups.flatMap(g => g.lines);
+allLines.forEach((line) => {
+  if (line.composition.length) processLine(line);
+});
+```
 
 ##### Good logging:
 
@@ -254,36 +243,18 @@ logger.info({
   userCpf: "***29430880"
 });
 ```
-```
 
-Prefer:
-
-```ts
-const linesItemsOnEskolareOrder = [];
-groups.forEach((group) => {
-    group.lines.forEach(linesItemsOnEskolareOrder.push);
-});
-
-linesItemsOnEskolareOrder.forEach((line) => {
-    if (line.composition.length) {
-        // ...
-    } else {
-        // ...
-    }
-});
-```
-
-##### CRITICAL: Never modify formatting or add whitespace to empty lines:
+##### Formatting preservation examples:
 
 ```ts
-// ❌ WRONG - AI added spaces to empty lines and changed indentation:
+// ❌ WRONG - Changed indentation and added spaces to empty line:
 function example() {
     const x = 1;
-    
-    return x;  
+
+    return x;
 }
 
-// ✅ CORRECT - Preserved original formatting exactly:
+// ✅ CORRECT - Preserved exact formatting:
 function example() {
   const x = 1;
 
@@ -292,94 +263,48 @@ function example() {
 ```
 
 ```bash
-# ❌ WRONG - AI changed indentation and added trailing spaces:
+# ❌ WRONG - Changed quote style and indentation:
 if [ "$status" == "active" ]; then
     echo "Running"
-    
-    process_data  
 fi
 
-# ✅ CORRECT - Preserved original 2-space indentation and no trailing spaces:
-if [ "$status" == "active" ]; then
+# ✅ CORRECT - Kept original formatting:
+if [ '$status' == 'active' ]; then
   echo "Running"
-
-  process_data
 fi
 ```
 
-```ts
-// ❌ WRONG - AI "cleaned up" the formatting:
-const items = [
-  { id: 1, name: "First" },
-  { id: 2, name: "Second" }
-];
-
-// ✅ CORRECT - Kept original formatting even if not perfect:
-const items = [
-  {id: 1, name: 'First'},
-  {id: 2, name: 'Second'}
-];
-```
+- **Prefer tests and logs over comments** – document behavior through tests and logs whenever possible; use comments only as a last resort.
 
 **REMEMBER:** When making changes:
 - Only modify the specific lines needed for the task
 - Copy indentation exactly from surrounding code
 - Never "fix" formatting unless explicitly asked
 - Empty lines must be completely empty (no spaces, no tabs)
-```
-
-22. **Prefer tests and logs over comments** – document behavior through tests and logs whenever possible; use comments only as a last resort.
-
-##### Example:
 
 ```ts
-// Don't do this:
-// This function validates that the user has the correct permissions
-// and then creates a new record if validation passes
+// ❌ Comments explaining what code does:
 function createRecord(user, data) {
   // Check permissions
-  if (!hasPermission(user)) {
-    return false;
-  }
-  // Create record
+  if (!hasPermission(user)) return false;
   return db.insert(data);
 }
 
-// Prefer:
-// 1. Descriptive function and variable names
+// ✅ Self-documenting code + logs + tests:
 function createRecordIfUserHasPermission(user, data) {
-  const userHasPermission = validateUserPermissions(user);
-  if (!userHasPermission) {
-    logger.info({
-      message: "Record creation rejected due to insufficient permissions",
-      userId: user.id
-    });
+  if (!validateUserPermissions(user)) {
+    logger.info({ message: "Record creation rejected", userId: user.id });
     return false;
   }
-
-  logger.info({
-    message: "Creating new record",
-      userId: user.id,
-      recordType: data.type
-  });
   return db.insert(data);
 }
 
-// 2. Comprehensive tests that document behavior
-test("createRecordIfUserHasPermission rejects when user lacks permission", () => {
-  const user = { id: 1, permissions: [] };
-  const result = createRecordIfUserHasPermission(user, testData);
-  expect(result).toBe(false);
-});
-
-test("createRecordIfUserHasPermission creates record when user has permission", () => {
-  const user = { id: 1, permissions: ["create"] };
-  const result = createRecordIfUserHasPermission(user, testData);
-  expect(result).toBeTruthy();
+test("rejects when user lacks permission", () => {
+  expect(createRecordIfUserHasPermission(userWithoutPerms, data)).toBe(false);
 });
 ```
 
-#### TL;DR
+### TL;DR
 
 * **NEVER change formatting, indentation, or whitespace unless explicitly requested** - this is CRITICAL.
 * Keep code clean, typed, modular, validated, DRY, follow folder roles, and use structured logging.
@@ -392,14 +317,14 @@ test("createRecordIfUserHasPermission creates record when user has permission", 
 
 ### Strategy
 
-1. **Test behaviour, not implementation** – prefer black-box integration tests; supplement with focused unit tests.
-2. **Deterministic & self-contained** – no shared state, no randomness.
-3. **Descriptive titles** – say *what* and *why*.
-4. **Mock sparingly** – only for hard-to-reach branches or flaky externals; calculate expected values from mock data.
-5. **Parametrised suites ok if still readable**.
-6. **Avoid making tests reproduce what the code already does** – let the system under test do the work.
-7. **Test early, test often**
-8. **Only mock external dependencies** – mock file I/O, network requests, and external processes; let internal utilities run with real implementations for true integration testing.
+- **Test behaviour, not implementation** – prefer black-box integration tests; supplement with focused unit tests.
+- **Deterministic & self-contained** – no shared state, no randomness.
+- **Descriptive titles** – say *what* and *why*.
+- **Mock sparingly** – only for hard-to-reach branches or flaky externals; calculate expected values from mock data.
+- **Parametrised suites ok if still readable**.
+- **Avoid making tests reproduce what the code already does** – let the system under test do the work.
+- **Test early, test often**
+- **Only mock external dependencies** – mock file I/O, network requests, and external processes; let internal utilities run with real implementations for true integration testing.
 
 #### Examples
 
@@ -445,7 +370,7 @@ expect(myFunc(filtered)).toEqual(...);
 expect(myFunc(items)).toEqual(expectedFiltered);
 ```
 
-#### TL;DR
+### TL;DR
 
 * Small, deterministic, behaviour-centric tests; integrate first, unit second.
 
@@ -557,16 +482,16 @@ Skip feedback on these topics unless they represent genuine issues:
 
 #### PR Requirements
 
-1. **Small, focused PRs** – one baby step per PR
-2. **Clear description** – link issues; summarize what changed and why
+- **Small, focused PRs** – one baby step per PR
+- **Clear description** – link issues; summarize what changed and why
 
 #### Review Structure
 
 When conducting code reviews, follow this systematic approach:
 
-1. **Start with a Changelog** – post first, before inline comments
-2. **Then post inline comments** – following priority order (most to least critical)
-3. **End with action items** – grouped by file, then by priority
+- **Start with a Changelog** – post first, before inline comments
+- **Then post inline comments** – following priority order (most to least critical)
+- **End with action items** – grouped by file, then by priority
 
 #### Changelog Guidelines
 
@@ -575,9 +500,9 @@ The changelog helps human reviewers understand the big picture before diving int
 **Purpose**: Explain changes at a **business/product level**, not technical implementation details.
 
 **Structure**:
-1. **Business context** (if available from PR/Jira): What problem does this solve? What feature does this enable?
-2. **High-level approach**: How was it implemented conceptually? (like explaining to a PM, not a developer)
-3. **Coverage notes**: Mention if it includes refactoring (what kind at high level), adequate tests, and updated docs
+- **Business context** (if available from PR/Jira): What problem does this solve? What feature does this enable?
+- **High-level approach**: How was it implemented conceptually? (like explaining to a PM, not a developer)
+- **Coverage notes**: Mention if it includes refactoring (what kind at high level), adequate tests, and updated docs
 
 **What to AVOID**:
 - ❌ File-by-file lists of changes
@@ -635,18 +560,18 @@ Adds user authentication timeout to prevent session hijacking. When users are in
 
 Review code in this sequence, from most to least critical:
 
-1. **Correctness** – logic is correct; no bugs, race conditions, or ordering mistakes.
-2. **Corner cases** – edge cases for inputs, failures, timeouts, empty/large data, internationalization, encodings.
-3. **Testing** – verify tests:
-   - Document expected behavior
-   - Cover corner cases
-   - Are minimal, readable, and stable
-4. **Code quality** – clarity, naming, no magic numbers, high cohesion, avoid unnecessary coupling.
-5. **Logging** – useful, leveled, non-PII, actionable; no noisy loops.
-6. **SOLID principles** – Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion where applicable.
-7. **DRY / KISS** – remove duplication; keep it simple; avoid premature optimization.
-8. **Performance** – hot paths, complexity (Big O), I/O usage, memory consumption, N+1 queries.
-9. **Security** – injection vulnerabilities, path traversal, deserialization risks, authn/authz, secrets exposure, SSRF/RCE, unsafe eval, dependency vulnerabilities.
+- **Correctness** – logic is correct; no bugs, race conditions, or ordering mistakes.
+- **Corner cases** – edge cases for inputs, failures, timeouts, empty/large data, internationalization, encodings.
+- **Testing** – verify tests:
+  - Document expected behavior
+  - Cover corner cases
+  - Are minimal, readable, and stable
+- **Code quality** – clarity, naming, no magic numbers, high cohesion, avoid unnecessary coupling.
+- **Logging** – useful, leveled, non-PII, actionable; no noisy loops.
+- **SOLID principles** – Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion where applicable.
+- **DRY / KISS** – remove duplication; keep it simple; avoid premature optimization.
+- **Performance** – hot paths, complexity (Big O), I/O usage, memory consumption, N+1 queries.
+- **Security** – injection vulnerabilities, path traversal, deserialization risks, authn/authz, secrets exposure, SSRF/RCE, unsafe eval, dependency vulnerabilities.
 
 ### Feedback Format
 
@@ -654,9 +579,9 @@ Review code in this sequence, from most to least critical:
 
 Every review comment should follow this flow:
 
-1. **State the problem** – clearly identify what needs to change (one sentence)
-2. **Explain why it matters** – brief reasoning that helps the developer learn and grow (1-2 sentences max)
-3. **Suggest the fix** – provide specific guidance, code snippet, or question
+- **State the problem** – clearly identify what needs to change (one sentence)
+- **Explain why it matters** – brief reasoning that helps the developer learn and grow (1-2 sentences max)
+- **Suggest the fix** – provide specific guidance, code snippet, or question
 
 **CRITICAL**:
 - **Keep it concise** – aim for 3-5 lines total (problem + why + fix)
@@ -715,19 +640,19 @@ Bad (non-actionable observation):
 
 **When to use GitHub suggestions vs unified diffs:**
 
-1. **GitHub Suggestions** (```suggestion) – Use when:
-   - You can preserve **exact indentation** from the original code (MANDATORY)
-   - The suggestion is ≤16 lines
-   - It's a direct replacement for existing code that can be applied with one click
-   - You are confident the indentation matches perfectly
+- **GitHub Suggestions** (```suggestion) – Use when:
+  - You can preserve **exact indentation** from the original code (MANDATORY)
+  - The suggestion is ≤16 lines
+  - It's a direct replacement for existing code that can be applied with one click
+  - You are confident the indentation matches perfectly
 
-2. **Unified Diffs** (```diff) – Use when:
-   - Suggestion would be >16 lines
-   - Multiple files involved
-   - Conceptual/educational explanation needed
-   - Unsure about exact indentation (prefer diff over wrong-indentation suggestion)
-   - Max 32 lines per diff (split into multiple diffs if needed)
-   - Still preserve exact indentation in the diff
+- **Unified Diffs** (```diff) – Use when:
+  - Suggestion would be >16 lines
+  - Multiple files involved
+  - Conceptual/educational explanation needed
+  - Unsure about exact indentation (prefer diff over wrong-indentation suggestion)
+  - Max 32 lines per diff (split into multiple diffs if needed)
+  - Still preserve exact indentation in the diff
 
 **Critical rules:**
 - **MANDATORY: Preserve exact indentation** – match spaces/tabs exactly from original code
@@ -852,11 +777,11 @@ Group feedback by file, then by priority:
 
 ### Review Anti-Patterns
 
-1. **Don't** suggest broad rewrites – prefer small, surgical changes
-2. **Don't** ask questions without explaining their impact
-3. **Don't** provide feedback without line numbers
-4. **Don't** suggest changes without showing a diff
-5. **Don't** forget to prioritize feedback by severity
+- **Don't** suggest broad rewrites – prefer small, surgical changes
+- **Don't** ask questions without explaining their impact
+- **Don't** provide feedback without line numbers
+- **Don't** suggest changes without showing a diff
+- **Don't** forget to prioritize feedback by severity
 
 ### TL;DR
 
@@ -874,7 +799,7 @@ Group feedback by file, then by priority:
 
 ---
 
-## RECAP
+## CONVENTIONS RECAP
 
 - Ask for missing context; suggest rg/find/tree commands.
 - Propose complete, incremental diffs that match existing patterns.
@@ -897,6 +822,6 @@ Don't go doing them automatically. I will instruct you to do so.
 
 
 ---
-## AI CONTEXT
+## MANUALLY SELECTED CONTEXT
 ---
 
