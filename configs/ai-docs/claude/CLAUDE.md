@@ -61,9 +61,26 @@ If there's a different requirement, please clarify before implementing.
 - **sed/cut/tr** – transform command outputs for better readability
 - **meld** – compare files or directories
 
+### CRITICAL: Always Review Global CLAUDE.md
+
+**MANDATORY at the end of EVERY coding session:**
+
+- **Add a final TODO task**: "Review global CLAUDE.md and update principles based on session learnings"
+- **Purpose**: Capture new patterns, anti-patterns, and best practices discovered during the session
+- **What to update**:
+  * New architecture patterns learned
+  * Common mistakes to avoid
+  * Better ways to structure code
+  * Testing strategies that worked well
+  * Any violations of existing principles that should be documented
+- **Why this matters**: Global CLAUDE.md is your source of truth. If you learn something valuable during a session and don't update it, the knowledge is lost for future sessions.
+
+**Example**: In this session, we learned about layered architecture (Controllers/Commands + Use Cases). This principle was added to the CODE section and will now guide all future development.
+
 ### TL;DR
 
 * Ask for context, suggest specific commands, provide complete solutions with tests, explain reasoning, and work in baby steps.
+* **ALWAYS end sessions with a TODO to review and update global CLAUDE.md based on learnings.**
 
 ---
 
@@ -97,10 +114,60 @@ If there's a different requirement, please clarify before implementing.
 - **Project structure** –
   * `controllers` – HTTP only (validate, paginate)
   * `consumers`/`handlers`/`workers` – queue/event entry points
-  * `use-cases`/`services` – business rules
+  * `commands` – CLI entry points (file I/O, orchestration, logging)
+  * `use-cases`/`services` – business rules (pure logic, no I/O)
   * `models`/`entities`/`types` – data modelling only
   * `utils`/`helpers`/`lib` – tiny generic helpers
   * create `shared` *only* if used ≥2 places
+- **Layered Architecture (Controllers/Commands + Use Cases)** – CRITICAL principle for separation of concerns:
+  * **Controller/Command layer** (`controllers`/`commands`/`consumers`):
+    - Handles all I/O operations (file reading/writing, HTTP requests/responses, database queries)
+    - Parses and serializes data (JSON.parse, JSON.stringify)
+    - Validates and sanitizes inputs
+    - Calls use cases with parsed data
+    - Handles error logging and user-facing messages
+    - Orchestrates multiple use cases if needed
+    - Returns/writes results to appropriate outputs
+  * **Use Case layer** (`use-cases`/`services`):
+    - Contains pure business logic only
+    - Receives already-parsed data as parameters
+    - Validates business rules (not input format)
+    - Performs domain operations and transformations
+    - Returns results as data structures (never performs I/O)
+    - Easily testable without mocking I/O dependencies
+  * **Benefits**:
+    - Use cases are pure functions → easier to test, no mocks needed
+    - Clear separation of concerns → easier to maintain
+    - Business logic is reusable across different entry points (CLI, HTTP, queue, etc.)
+    - Controllers/Commands can be thin orchestrators
+  * **Example pattern**:
+    ```javascript
+    // ❌ BAD: Use case handles I/O
+    function processDataUseCase(filepath) {
+      const data = readFileSync(filepath);  // I/O in use case!
+      const result = doBusinessLogic(data);
+      writeFileSync(outputPath, result);    // I/O in use case!
+    }
+
+    // ✅ GOOD: Controller handles I/O, use case is pure
+    // Use case (pure logic):
+    function processDataUseCase(data) {
+      const result = doBusinessLogic(data);
+      return result;
+    }
+
+    // Controller (orchestration + I/O):
+    function processDataCommand(filepath, outputPath) {
+      try {
+        const data = JSON.parse(readFileSync(filepath, 'utf8'));  // I/O
+        const result = processDataUseCase(data);                   // Pure logic
+        writeFileSync(outputPath, JSON.stringify(result));        // I/O
+        console.log('Success!');                                   // Logging
+      } catch (error) {
+        console.error('Failed:', error);                           // Error handling
+      }
+    }
+    ```
 - **Logging** – include logs in the `controllers`/`consumers` layer:
   * `error` – for flow-crashing issues
   * `warning` – for unexpected events with fallbacks
