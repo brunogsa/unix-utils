@@ -16,7 +16,7 @@
 - **Never assume missing context. Ask questions if uncertain.**
 - **Do not use emojis** – avoid using emojis in any communications or code.
 - **Provide complete solutions** – include all necessary code changes with proper syntax and formatting.
-- **Follow existing patterns** – match the codebase's style, naming conventions, and architecture.
+- **Follow existing patterns** – match the codebase's style, naming conventions, and architecture. Search for existing utilities before implementing new infrastructure; reuse reduces maintenance burden.
 - **Never hallucinate libraries, functions, tags – only use known, verified information.**
 - **Always confirm file paths and module names exist before referencing them in code or tests.**
 - **Never delete or overwrite existing code unless explicitly instructed to or if part of a task**
@@ -189,12 +189,25 @@ If there's a different requirement, please clarify before implementing.
 - **Remove unused code** – code that is no longer used must be removed along with its associated tests
 - **Error handling** – always handle errors in the `controllers`/`consumers` layers to prevent crashes and provide appropriate responses
 - **Input validation** – always validate and sanitize inputs in the `controllers`/`consumers` layers before passing to business logic
+- **Normalize data at entry point** – convert string dates, numbers-as-strings, and other serialized values to their proper types (Date objects, numbers, etc.) immediately after input validation, before passing to deeper layers. This prevents multiple format handling throughout the codebase.
+- **Deep clone with type preservation** – when using `JSON.stringify/JSON.parse` for deep cloning, use a reviver function to restore Date objects and other types that JSON doesn't preserve natively. Example:
+  ```javascript
+  const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/;
+  const dateReviver = (key, value) => {
+    if (typeof value === 'string' && ISO_DATE_PATTERN.test(value)) {
+      return new Date(value);
+    }
+    return value;
+  };
+  const clone = JSON.parse(JSON.stringify(obj), dateReviver);
+  ```
 - **Comment non-obvious code and ensure everything is understandable to a mid-level developer**
 - **When writing complex logic, add comment explaining the why, not just the what**
 - **Extract magic values into constants** – define reusable constants for all magic strings, numbers, and sets, preferably using TypeScript enums when applicable.
 - **Distinguish "missing" from "intentional zero/empty"** – when applying default values, explicitly check for *absence* (null/undefined/nil), not *falsiness*. Zero, empty string, and false are often valid intentional values that shouldn't trigger defaults.
 - **Centralize default logic in the function, not at call sites** – when a function parameter has a default value, handle it inside the function. Spreading default logic across every call site creates inconsistency and bugs.
 - **Use a context object for cross-cutting concerns** – when information like request IDs, user context, or trace data needs to flow through many function calls, pass a single mutable context object rather than adding parameters to every function signature.
+- **Parallelize CPU-bound independent iterations** – for tasks that process many independent iterations (simulations, batch processing, data transformations), distribute work across multiple threads/processes. This can yield 8-10x speedups on multi-core systems. Use worker threads for CPU-bound work; async I/O for I/O-bound work.
 
 #### Examples
 
@@ -378,7 +391,8 @@ test("rejects when user lacks permission", () => {
 
 * **NEVER change formatting, indentation, or whitespace unless explicitly requested** - this is CRITICAL.
 * Keep code clean, typed, modular, validated, DRY, follow folder roles, and use structured logging.
-* Extract magic values to TypeScript enums or constants, validate thoroughly before processing, normalize consistently.
+* Extract magic values to TypeScript enums or constants, validate thoroughly before processing.
+* **Normalize data at entry point** - convert string dates to Date objects immediately after validation.
 * Separate concerns with helper functions, use descriptive function names, and document behavior through tests and logs rather than comments.
 
 ---
