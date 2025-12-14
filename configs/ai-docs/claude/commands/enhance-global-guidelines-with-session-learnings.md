@@ -31,6 +31,14 @@ Review this coding session and identify learnings that should be added to the gl
 
 6. **Apply changes only with approval** - Wait for user confirmation before modifying CLAUDE.md.
 
+7. **Verify after editing** - After making changes to CLAUDE.md:
+   - Read the entire file
+   - Check for **consistency**: no duplicate or contradictory guidelines, new items in correct section
+   - Check for **proper structure**: imperative sentence format, examples where helpful, proper markdown
+   - Check for **conciseness**: no verbose explanations, no redundant phrases, minimal but illustrative examples
+   - Update **TL;DR sections** if adding important guidelines
+   - Report and fix any issues found
+
 ## Output Format
 
 ```
@@ -49,6 +57,13 @@ Review this coding session and identify learnings that should be added to the gl
 ## Already Covered
 
 - [Existing guideline that covers this]
+
+## Post-Edit Verification
+
+- Consistency: [OK / Issues found: ...]
+- Structure: [OK / Issues found: ...]
+- Conciseness: [OK / Issues found: ...]
+- TL;DR updated: [Yes / No / Not needed]
 ```
 
 ## Guidelines for Generalization
