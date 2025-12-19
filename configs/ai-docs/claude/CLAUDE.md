@@ -866,6 +866,23 @@ Group feedback by file, then by priority:
 - **Don't** suggest changes without showing a diff
 - **Don't** forget to prioritize feedback by severity
 
+### Avoiding the High-Standards Bottleneck
+
+- **Constraints over solutions** – frame feedback as invariants and trade-offs, not exact implementations
+- **Don't rewrite by default** – if you provide a rewrite, mark it as a *reference implementation*, not a mandate
+- **Optimize for decision quality** – ask: "Will this engineer make a better decision next time?"
+- **Delay intervention when risk is low** – allow safe-imperfect solutions to ship once; review outcomes, not just code shape
+- **Authority is last resort** – escalate: influence → constraints → authority; use authority intentionally, not reflexively
+
+### When Direct Intervention is Acceptable
+
+Direct fixes are OK only when:
+- **Systemic risk** – security, data loss, regulatory, or scalability issues
+- **Unblocking learning** – a reference implementation is needed to make progress
+- **Explicit request** – the team asked for a concrete solution
+
+These are **exceptions**, not defaults.
+
 ### TL;DR
 
 * **High confidence standard**: >80% comment, 60-80% question, <60% skip
@@ -878,6 +895,7 @@ Group feedback by file, then by priority:
 * **Minimal diffs**: Preserve exact indentation, surgical changes
 * **Severity tags**: MANDATORY/RECOMMENDED/NITPICK/COMPLIMENT/QUESTION
 * **End with action items** grouped by file, then priority
+* **Constraints over solutions**; authority is last resort; direct intervention only for systemic risk
 
 
 ---
