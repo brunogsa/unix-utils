@@ -7,16 +7,16 @@
 # Matches are the substitution rules, when you type the "trigger" string
 # it gets replaced by the "replace" string.
 matches:
-  - trigger: ":shrug"
+  - trigger: ";shrug"
     replace: "¯\\_(ツ)_/¯"
 
-  - trigger: ":code"
+  - trigger: ";block-code"
     replace: |-
       ```
       $|$
       ```
 
-  - trigger: ":br-adr"
+  - trigger: ";br-adr"
     replace: |-
       Owner: TODO
       Status: TODO.
@@ -64,257 +64,285 @@ matches:
       1. [Guia sobre ADR](https://medium.com/@jhonywalkeer/guia-completo-sobre-architecture-decision-records-adr-defini%C3%A7%C3%A3o-e-melhores-pr%C3%A1ticas-f63e66d33e6)
       2. [What is an ADR](https://github.com/joelparkerhenderson/architecture-decision-record/tree/main?tab=readme-ov-file#what-is-an-architecture-decision-record)
 
-  - trigger: ":br-pr-suggestion"
+  - trigger: ";br-hlr"
+    replace: |-
+      ## High Level Refining
+
+      #### Requisitos
+
+      TODO
+
+      #### Dúvidas
+
+      TODO
+
+      #### Notas
+
+      TODO
+
+      #### Times Envolvidos
+
+      TODO
+
+      #### High Level Estimate
+
+      X-Y dev/weeks (mais provável: Z)
+
+  - trigger: ";br-pr-suggestion"
     replace: |-
       > Pode resolver esta thread depois de ler. Fique a vontade de faze-la ou não!
 
       **Sugestão opcional:**
       
-      X$|$
+      X
 
-  - trigger: ":br-pr-compliment"
+  - trigger: ";br-pr-compliment"
     replace: |-
+      > Pode resolver esta thread depois de ler!
+
       **Elogio:**
       
-      X$|$
-      
-      > Pode resolve esta thread depois de ler
+      X
 
-  - trigger: ":en-pr-suggestion"
+  - trigger: ";en-pr-suggestion"
     replace: |-
       > You can resolve this thread after reading it. Feel free to do it or not!
 
       **Optional suggestion:**
       
-      X$|$
+      X
 
-  - trigger: ":en-pr-compliment"
+  - trigger: ";en-pr-compliment"
     replace: |-
+      > You can resolve this thread after reading it!
+
       **Compliment:**
       
-      X$|$
-      
-      > You can resolve this thread after reading it
+      X
 
-  - trigger: ":br-jira-epic"
+  - trigger: ";br-jira-epic"
     replace: |-
-      **PARA ATINGIR:** 
+      ## Para Atingir:
       
-      - X$|$ 
+      1. X
       
-      **ENTREGAREMOS:** 
+      ## Entregaremos:
       
-      - X 
+      1. X
       
-      **CRITÉRIOS DE ACEITE:** 
+      ## Critérios de aceite:
       
-      Funcionais: 
-      - X 
+      #### Funcionais:
+      1. X 
       
-      Não-funcionais: 
-      - X 
-      
-      **DÚVIDAS:** 
-      
-      - X 
-      
-      **REFERÊNCIAS:** 
-      
-      - X
+      #### Não-funcionais:
+      1. X
 
-  - trigger: ":en-jira-epic"
-    replace: |-
-      **TO ACHIEVE:** 
+      ## User Acceptance Tests (UATs):
       
-      - X$|$ 
-      
-      **WILL BE DELIVERED:** 
-      
-      - X 
-      
-      **ACCEPTANCE CRITERIA:** 
-      
-      Functionals: 
-      - X 
-      
-      Non-functionals: 
-      - X 
-      
-      **QUESTIONS:** 
-      
-      - X 
-      
-      **REFERENCES:** 
-      
-      - X
+      1. X
 
-  - trigger: ":br-jira-story"
-    replace: |-
-      Eu, como X, quero conseguir Y para Z. 
+      ## Métricas de Sucesso:
       
-      **CRITÉRIOS DE ACEITE:** 
+      1. X
       
-      Funcionais: 
-      - X 
+      ## Dúvidas:
       
-      Não-funcionais: 
-      - X 
+      1. X
       
-      **DÚVIDAS:** 
+      ## Referências:
       
-      - X 
-      
-      **REFERÊNCIAS:** 
-      
-      - X
+      1. X
 
-  - trigger: ":en-jira-story"
+  - trigger: ";en-jira-epic"
     replace: |-
-      I, as a X, want to Y for Z. 
+      ## To achieve:
       
-      **ACCEPTANCE CRITERIA:** 
+      1. X
       
-      Funcionals: 
-      - X 
+      ## Will be delivered:
       
-      Non-funcionals: 
-      - X 
+      1. X 
       
-      **QUESTIONS:** 
+      ## Acceptance criteria:
       
-      - X 
+      #### Functionals: 
+      1. X 
       
-      **REFERENCES:** 
-      
-      - X
+      #### Non-functionals: 
+      1. X 
 
-  - trigger: ":br-jira-spike"
+      ## User Acceptance Tests (UATs):
+      
+      1. X
+
+      ## Success Metrics:
+      
+      1. X
+      
+      ## Questions:
+      
+      1. X 
+      
+      ## References:
+      
+      1. X
+
+  - trigger: ";br-jira-story"
     replace: |-
-      **O QUE QUEREMOS?** 
+      ## Necessidades de usuários
       
-      - X$|$ 
+      1. Eu, como X, quero conseguir Y para Z. 
       
-      **POR QUE QUEREMOS?** 
+      ## Critérios de aceite:
       
-      - X 
+      #### Funcionais: 
+      1. X 
       
-      **CRITÉRIOS DE ACEITE:** 
+      #### Não-funcionais: 
+      1. X 
       
-      Funcionais: 
-      - X 
+      ## Dúvidas:
       
-      Não-funcionais: 
-      - X 
+      1. X 
       
-      **TIMEBOX MÁXIMO:** 
+      ## Referências:
+      
+      1. X
+
+  - trigger: ";en-jira-story"
+    replace: |-
+      ## User necessities
+      
+      1. I, as a X, want to Y for Z. 
+      
+      ## Acceptance criteria:
+      
+      #### Funcionals: 
+      1. X 
+      
+      #### Non-funcionals: 
+      1. X 
+      
+      ## Questions:
+      
+      1. X 
+      
+      ## References:
+      
+      1. X
+
+  - trigger: ";br-jira-spike"
+    replace: |-
+      ## O que queremos?
+      
+      1. X
+      
+      ## Por que queremos?
+      
+      1. X 
+      
+      ## Critérios de aceite:
+      
+      1. Decisão tomada 
+      2. Doc no Confluence ou repo 
+      3. Apresentação ao time 
+      4. Cards no Jira para endereçar os próximos passos 
+      
+      ## Timebox máximo:
       
       X dias. 
       
       Passado esse tempo, recomenda-se encerrar o spike com o que se descobriu até então. Logo após, defina os próximos spikes junto ao time para dar continuidade à investigação. 
       
-      **OUTPUT:** 
+      ## Dúvidas:
       
-      - Decisão tomada 
-      - Doc no Confluence ou repo 
-      - Apresentação ao time 
-      - Cards no Jira para endereçar os próximos passos 
+      1. X 
       
-      **DÚVIDAS:** 
+      ## Referências:
       
-      - X 
-      
-      **REFERÊNCIAS:** 
-      
-      - X
+      1. X
 
-  - trigger: ":en-jira-spike"
+  - trigger: ";en-jira-spike"
     replace: |-
-      **WHAT DO WE WANT?** 
+      ## What do we want?
       
-      - X$|$ 
+      1. X
       
-      **WHY DO WE WANT?** 
+      ## Why do we want?
       
-      - X 
+      1. X 
       
-      **ACCEPTANCE CRITERIA:** 
+      ## Acceptance criteria:
       
-      Functionals: 
-      - X 
+      1. Decision made
+      2. Doc in Confluence or repo
+      3. Presentation to team
+      4. Cards on Jira to address the next steps
       
-      Non-functionals: 
-      - X 
-      
-      **MAXIMUM TIMEBOX:** 
+      ## Maximum timebox:
       
       X days. 
 
       Passed this time, we suggest closing the spike with the findings until now. Then, define the next steps together with the team to continue the investigation in a next spike.
       
-      **OUTPUT:** 
+      ## Questions:
       
-      - Decision made
-      - Doc in Confluence or repo
-      - Presentation to team
-      - Cards on Jira to address the next steps
+      1. X 
       
-      **QUESTIONS:** 
+      ## References:
       
-      - X 
-      
-      **REFERENCES:** 
-      
-      - X
+      1. X
 
-  - trigger: ":br-jira-task"
+  - trigger: ";br-jira-task"
     replace: |-
-      **CRITÉRIOS DE ACEITE:** 
+      ## Critérios de aceite:
       
-      Funcionais: 
-      - X 
+      #### Funcionais: 
+      1. X 
       
-      Não-funcionais: 
-      - Logs (com level, timestamp, traceId etc) 
-      - Testes automatizados 
-      - Storybook 
-      - Documentação do repo (APIs e Arquitetura) atualizadas, se necessário 
-      - Infraestrutura como Código 
-      - Deploy para staging e production 
+      #### Não-funcionais: 
+      1. Logs (com level, timestamp, traceId etc) 
+      2. Testes automatizados 
+      3. UI Responsiva, Storybook
+      4. Documentação (APIs e Arquitetura) atualizada, se necessário 
+      5. Infraestrutura como Código 
+      6. Deploy para todos os ambientes, incluindo prod
       
-      **DÚVIDAS:** 
+      ## Dúvidas:
       
-      - X 
+      1. X 
       
-      **REFERÊNCIAS:** 
+      ## Referências:
       
-      - X
+      1. X
 
-  - trigger: ":en-jira-task"
+  - trigger: ";en-jira-task"
     replace: |-
-      **ACCEPTANCE CRITERIA:** 
+      ## Acceptance criteria:
       
-      Funcionals: 
-      - X 
+      #### Funcionals: 
+      1. X 
       
-      Non-funcional: 
-      - Logs (with level, timestamp, traceId etc) 
-      - Automated tests
-      - Storybook 
-      - Updated doc on repo (APIs and Architecture), if necessary
-      - Infrastructure as Code
-      - Deploy to staging and production 
+      #### Non-funcional: 
+      1. Logs (with level, timestamp, traceId etc) 
+      2. Automated tests
+      3. Responsive UI, Storybook 
+      4. Updated doc (APIs and Architecture), if necessary
+      5. Infrastructure as Code
+      6. Deploy to all environments, including prod
       
-      **QUESTIONS:** 
+      ## Questions:
       
-      - X 
+      1. X 
       
-      **REFERENCES:** 
+      ## References:
       
-      - X
+      1. X
 
-  - trigger: ":br-jira-improvement"
+  - trigger: ";br-jira-improvement"
     replace: |-
-      **RELEVÂNCIA**: 
+      ## Relevância:
       
       1/4 -> Pouco ganho, muito esforço: provavelmente não deveria ser feito, exceto caso nada de mais relevante esteja pendente. 
       
@@ -324,39 +352,37 @@ matches:
       
       4/4 -> Muito ganho, pouco esforço: deveria ser priorizado assim que possível, mesmo que existam bugs ou débitos pendentes, uma vez que irá aumentar (e muito) a eficiência de um processo ou solução com um baixo esforço. 
       
-      **RESUMO:** 
+      ## Resumo / Impacto:
       
       Descreva a dor e o porquê a melhoria é necessária. 
       
-      **IMPACTO:**
-      
       Com esse ajuste esperamos os seguintes ganhos: 
-      - X 
+      1. X 
       
-      **CRITÉRIOS DE ACEITE:** 
+      ## Critérios de aceite:
       
-      Funcionais: 
-      - X 
+      #### Funcionais: 
+      1. X 
       
-      Não-funcionais: 
-      - Logs (com level, timestamp, traceId etc) 
-      - Testes automatizados 
-      - Storybook 
-      - Documentação do repo (APIs e Arquitetura) atualizadas, se necessário 
-      - Infraestrutura como Código 
-      - Deploy para staging e production 
+      #### Não-funcionais: 
+      1. Logs (com level, timestamp, traceId etc) 
+      2. Testes automatizados 
+      3. UI Responsiva, Storybook 
+      4. Documentação do repo (APIs e Arquitetura) atualizadas, se necessário 
+      5. Infraestrutura como Código 
+      6. Deploy para todos os ambientes, incluindo prod
       
-      **DÚVIDAS:** 
+      ## Dúvidas:
       
-      - X 
+      1. X 
       
-      **REFERÊNCIAS:** 
+      ## Referências:
       
-      - X
+      1. X
 
-  - trigger: ":en-jira-improvement"
+  - trigger: ";en-jira-improvement"
     replace: |-
-      **RELEVANCE**: 
+      ## Relevance:
       
       1/4 -> Low gain, high effort: probably shouldn't be done, unless nothing more relevant is pending. 
       
@@ -366,39 +392,37 @@ matches:
       
       4/4 -> High gain, low effort: it should be prioritized as soon as possible, even if there are bugs or pending debts, since it will increase (by a lot) the efficiency of a process or solution with a low effort.
       
-      **RESUME:** 
+      ## Summary / Impact:
       
       Describe the pain points and why it's necessary.
       
-      **IMPACT:**
-      
       After adjusting it, we expect the following gains:
-      - X 
+      1. X 
       
-      **ACCEPTANCE CRITERIA:** 
+      ## Acceptance criteria:
       
-      Funcionals: 
-      - X 
+      #### Funcionals: 
+      1. X 
       
-      Non-funcional: 
-      - Logs (with level, timestamp, traceId etc) 
-      - Automated tests
-      - Storybook 
-      - Updated doc on repo (APIs and Architecture), if necessary
-      - Infrastructure as Code
-      - Deploy to staging and production 
+      #### Non-funcional: 
+      1. Logs (with level, timestamp, traceId etc) 
+      2. Automated tests
+      3. Responsive UI, Storybook 
+      4. Updated doc on repo (APIs and Architecture), if necessary
+      5. Infrastructure as Code
+      6. Deploy to all environments, including prod
       
-      **QUESTIONS:** 
+      ## Questions:
       
-      - X 
+      1. X 
       
-      **REFERENCES:** 
+      ## References:
       
-      - X
+      1. X
 
-  - trigger: ":br-jira-debt"
+  - trigger: ";br-jira-debt"
     replace: |-
-      **CRITICIDADE**: 
+      ## Criticidade:
 
       1/4 -> Criticidade baixa, alto esforço: não é uma melhoria, pois já deveria ter sido feito, mas precisa ser ajustado para manter o código limpo e fácil de ser extendido. Se possível, fatie este débito em micro-débitos de 'baixo risco, baixo esforço' para aumentar as chances desse débito ser endereçado.
 
@@ -408,40 +432,37 @@ matches:
 
       4/4 -> Criticidade alta, baixo esforço: não é um incidente, mas pode se tornar um em breve, ou; uma bola de neve incontrolável de retrabalho, se não ajustado o quanto antes. Priorize assim que possível.
       
-      **RESUMO:** 
-      
-      Por não arrumarmos X, sofreremos Y. 
-      
+      ## Resumo / Impacto:
+
       Insira um texto com detalhes não-técnicos aqui! 
       
-      **IMPACTO:** 
-      
-      X 
+      Por não arrumarmos:
+      1. X
 
-      **CRITÉRIOS DE ACEITE:** 
+      ## Critérios de aceite:
       
-      Funcionais: 
-      - X 
+      #### Funcionais: 
+      1. X 
       
-      Não-funcionais: 
-      - Logs (com level, timestamp, traceId etc) 
-      - Testes automatizados 
-      - Storybook 
-      - Documentação do repo (APIs e Arquitetura) atualizadas, se necessário 
-      - Infraestrutura como Código 
-      - Deploy para staging e production 
+      #### Não-funcionais: 
+      1. Logs (com level, timestamp, traceId etc) 
+      2. Testes automatizados 
+      3. UI Responsiva, Storybook 
+      4. Documentação do repo (APIs e Arquitetura) atualizadas, se necessário 
+      5. Infraestrutura como Código 
+      6. Deploy para todos os ambientes, incluindo prod
       
-      **DÚVIDAS:** 
+      ## Dúvidas:
       
-      - X 
+      1. X 
       
-      **REFERÊNCIAS:** 
+      ## Referências:
       
-      - X
+      1. X
 
-  - trigger: ":en-jira-debt"
+  - trigger: ";en-jira-debt"
     replace: |-
-      **RISK**: 
+      ## Risk:
 
       1/4 -> Low risk, high effort: not an improvement as it already should have been done, but need to be done to keep the code clean and easy to extend. If possible, slice this debt into 'low risk, low effort' micro-debts to increase the chances of this debt being addressed.
 
@@ -451,92 +472,89 @@ matches:
 
       4/4 -> High risk, low effort: Not an incident, but could become one soon, or; an uncontrollable snowball of rework if not fixed as soon as possible. Prioritize as soon as possible.
 
-      **SUMMARY:**
-
-      By not fixing X, we will suffer Y.
+      ## Summary / Impact:
 
       Insert text with non-technical details here!
 
-      **IMPACT:**
+      By not fixing it:
+      1. X
 
-      X
+      ## Acceptance criteria:
 
-      **ACCEPTANCE CRITERIA:**
+      #### Functionals:
+      1. X
 
-      Functionals:
-      - X
+      #### Non-functionals:
+      1. Logs (with level, timestamp, traceId etc)
+      2. Automated tests
+      3. Responsive UI, Storybook
+      4. Updated repo documentation (APIs and Architecture) if needed
+      5. Infrastructure as Code
+      6. Deploy to all environments, including prod
 
-      Non-functionals:
-      - Logs (with level, timestamp, traceId etc)
-      - Automated tests
-      - Storybook
-      - Updated repo documentation (APIs and Architecture) if needed
-      - Infrastructure as Code
-      - Deploy for staging and production
+      ## Questions:
 
-      **QUESTIONS:**
+      1. X
 
-      - X
+      ## References:
 
-      **REFERENCES:**
+      1. X
 
-      - X
-
-  - trigger: ":br-jira-bug"
+  - trigger: ";br-jira-bug"
     replace: |-
-      **DESCRIÇÃO:** 
+      ## Descrição:
       
       O problema X está acontecendo. 
       
-      **PASSOS P/ REPRODUZIR:** 
+      ## Passos p/ reproduzir:
       
-      - X$|$ 
+      1. X
       
-      **CRITÉRIOS DE ACEITE:** 
+      ## Critérios de aceite:
       
-      - Logs (com level, timestamp, traceId etc) 
-      - Testes automatizados, ao menos para cobrir o bug 
-      - Storybook 
-      - Documentação do repo (APIs e Arquitetura) atualizadas, se necessário 
-      - Infraestrutura como Código 
-      - Deploy para staging e production 
+      1. Logs (com level, timestamp, traceId etc) 
+      2. Testes automatizados, ao menos para cobrir o bug 
+      3. UI Responsiva, Storybook 
+      4. Documentação (APIs e Arquitetura) atualizadas, se necessário 
+      5. Infraestrutura como Código 
+      6. Deploy para todos os ambientes, incluindo prod
       
-      **DÚVIDAS:** 
+      ## Dúvidas:
       
-      - X 
+      1. X 
       
-      **REFERÊNCIAS:** 
+      ## Referências:
       
-      - X
+      1. X
 
-  - trigger: ":en-jira-bug"
+  - trigger: ";en-jira-bug"
     replace: |-
-      **PROBLEM DESCRIPTION:** 
+      ## Problem description:
       
       Problem X is happening.
       
-      **STEPS TO REPRODUCE:** 
+      ## Steps to reproduce:
       
-      - X$|$ 
+      1. X
       
-      **ACCEPTANCE CRITERIA:** 
+      ## Acceptance criteria:
       
-      - Logs (with level, timestamp, traceId etc) 
-      - Automated tests, at least for covering the bug
-      - Storybook
-      - Updated repo documentation (APIs and Architecture) if needed
-      - Infrastructure as Code
-      - Deploy for staging and production
+      1. Logs (with level, timestamp, traceId etc) 
+      2. Automated tests, at least for covering the bug
+      3. Storybook
+      4. Updated repo documentation (APIs and Architecture) if needed
+      5. Infrastructure as Code
+      6. Deploy to all environments, including prod
 
-      **QUESTIONS:**
+      ## Questions:
 
-      - X
+      1. X
 
-      **REFERENCES:**
+      ## References:
 
-      - X
+      1. X
 
-  - trigger: ":en-use-case"
+  - trigger: ";en-use-case"
     replace: |-
       **Title:** UC1 - Place an order
       **Actor:** Buyer
@@ -558,7 +576,7 @@ matches:
       1. Order is placed and visible to user
       2. X
 
-  - trigger: ":en-test-case"
+  - trigger: ";en-test-case"
     replace: |-
       **Title:** UC1.TC1 - Verify Order Placement
       **Actor:** Buyer
@@ -578,3 +596,59 @@ matches:
       **Postconditions:**
       1. Order is placed and visible to user
       2. X
+
+  - trigger: ";br-meeting-notes"
+    replace: |-
+      ## DD/MM/YYYY - <Nome da Reunião>
+
+      **Participantes:**
+
+      TODO
+
+      **Notas:**
+
+      1. TODO
+
+      **[Opcional] Gravação:**
+
+      TODO
+
+      **[Mandatório, se existirem] Dúvidas em aberto:**
+
+      1. TODO
+
+      **[Mandatório, se existirem] Decisões e Combinados:**
+
+      1. TODO
+
+      **[Mandatório, se existirem] Action Items:**
+
+      1. Owner: <Owner> - ETA: <ETA> - <Action Item>
+
+  - trigger: ";en-meeting-notes"
+    replace: |-
+      ## DD/MM/YYYY - <Meeting Name>
+
+      **Participants:**
+
+      TODO
+
+      **Notes:**
+
+      1. TODO
+
+      **[Optional] Recording:**
+
+      TODO
+
+      **[Mandatory, if any] Open Questions:**
+
+      1. TODO
+
+      **[Mandatory, if any] Decisions and Agreements:**
+
+      1. TODO
+
+      **[Mandatory, if any] Action Items:**
+
+      1. Owner: <Owner> - ETA: <ETA> - <Action Item>

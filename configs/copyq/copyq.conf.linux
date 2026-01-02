@@ -1,0 +1,174 @@
+activate_closes=true
+  Close main window after item is activated
+activate_focuses=true
+  Focus last window after item is activated
+activate_item_with_single_click=false
+  Activate item with single click
+activate_pastes=true
+  Paste to current window after item is activated
+always_on_top=false
+  Keep main window above other windows
+autocompletion=true
+  Automatically show popup to complete function, type and variable names in commands
+autostart=true
+  Run the application on system startup
+check_clipboard=true
+  Save clipboard in history
+clipboard_notification_lines=0
+  Number of lines to show for new clipboard content.
+  
+  Set to 0 to disable.
+clipboard_tab=&clipboard
+  Name of tab that will automatically store new clipboard content.
+  
+  Leave empty to disable automatic storing.
+close_on_unfocus=true
+  Close main window when other application has focus
+close_on_unfocus_delay_ms=500
+  Delay to close the main window when unfocused/deactivated
+command_history_size=100
+  Number of commands to keep in action dialog history
+confirm_exit=true
+  Confirm application exit
+disable_tray=false
+  Don't show tray icon; minimize window when closed
+edit_ctrl_return=true
+  Leave unchecked for Return key to save edited item and Ctrl+Return create new line.
+  
+  Note: Edited items can be saved with F2 disregarding this option.
+editor=gedit %1
+  External editor command (%1 is file to edit).
+    Examples:
+      gedit %1
+      notepad %1
+      gvim -f %1
+      xterm -e vim %1
+expire_tab=0
+  Unload each tab from memory after specified number of minutes of inactivity.
+  
+  Set to 0 not to unload tabs.
+filter_case_insensitive=true
+  Use case-insensitive item search
+filter_regular_expression=false
+  Use regular expressions to search items
+hide_main_window=false
+  Hide main window when closed
+hide_main_window_in_task_bar=false
+  Avoid showing entry for the main window in the task bar
+hide_tabs=false
+  Hide tabs (press Alt key to show)
+hide_toolbar=false
+  Hide toolbar
+hide_toolbar_labels=true
+  Hide tool&bar labels
+item_data_threshold=1024
+  Maximum item data size in bytes to save in tab data file (larger data are stored in separate files)
+item_popup_interval=0
+  Interval in seconds to display notification for new clipboard content or if item is copied to clipboard (only if main window is closed).
+  
+  Set to 0 to disable this.
+  
+  Set to -1 to keep visible until clicked.
+max_process_manager_rows=1000
+  Maximum number of rows in process manager dialog
+maxitems=2
+  Maximum number of items in each tab
+move=true
+  Move item to the top of the list after it is activated
+native_menu_bar=false
+  Use native menu bar, otherwise the menu bar shows in the main window
+native_notifications=true
+  &Use native notifications
+native_tray_menu=false
+  Use native tray menu (menu items search may not work)
+navigation_style=0
+  Support for Vi navigation (keys H, J, K, L, / and more) and Emacs navigation (Ctrl+N, P, V and more)
+notification_horizontal_offset=10
+  Notification distance from left or right screen edge in screen points
+notification_maximum_height=100
+  Maximum height for notification in screen points
+notification_maximum_width=300
+  Maximum width for notification in screen points
+notification_position=3
+  Position on screen for notifications
+notification_vertical_offset=10
+  Notification distance from top or bottom screen edge in screen points
+number_search=false
+  Enable searching for numbers, otherwise pressing a digit key activates item on that position
+open_windows_on_current_screen=true
+  Enable to open windows on current screen. Disable to open windows where they were last closed
+restore_geometry=true
+  Restore position and size for the main window and other dialogs
+row_index_from_one=true
+  Index items/rows in UI starting from 1 instead of 0 (in scripts, rows are always indexed from 0)
+save_delay_ms_on_item_added=300000
+  Tab save delay after an item is added to the tab
+save_delay_ms_on_item_edited=1000
+  Tab save delay after an item is edited in the tab
+save_delay_ms_on_item_modified=300000
+  Tab save delay after an item is modified in the tab
+save_delay_ms_on_item_moved=1800000
+  Tab save delay after an item is moved in the tab
+save_delay_ms_on_item_removed=600000
+  Tab save delay after an item is removed from the tab
+save_filter_history=false
+  Save and restore history of item filters
+save_on_app_deactivated=true
+  Save unsaved tabs immediately after the app is deactivated (main window loses focus)
+script_paste_delay_ms=250
+  Delay after pasting from script (when using `paste()`)
+show_advanced_command_settings=false
+  Show advanced command configuration in Command dialog
+show_simple_items=false
+  Show single line description of each item.
+  
+  Use Item Preview to display whole items.
+show_tab_item_count=false
+  Show number of items in tabs
+style=
+  Current application style (available styles can be listed with `copyq styles` command)
+tab_tree=false
+  Show tree with tabs instead of tab bar
+tabs=&clipboard
+  Ordered list of tabs
+text_tab_width=8
+  Width of Tab character in number of spaces
+text_wrap=true
+  Break text if it's too long to fit on line
+transparency=0
+  Transparency of main window if unfocused.
+  
+  Note: This is not supported on all systems.
+transparency_focused=0
+  Transparency of main window if focused.
+  
+  Note: This is not supported on all systems.
+tray_commands=true
+  Show command for current clipboard content in tray menu
+tray_images=true
+  Show image preview next to menu items
+tray_item_paste=true
+  Paste item to current window after selecting it in menu
+tray_items=5
+  Number of items in tray menu
+tray_menu_open_on_left_click=false
+  Open tray menu on left mouse button
+tray_tab=
+  Name of tab to show in tray menu (empty for the first tab)
+tray_tab_is_current=true
+  Show items from current tab in tray menu
+update_clipboard_owner_delay_ms=-1
+  Delay to update new clipboard owner window title (use negative value for the default interval)
+window_key_press_time_ms=100
+  Interval to keep simulated keys (Shift+Insert) pressed for pasting (needed for some apps)
+window_paste_with_ctrl_v_regex=
+  Regular expression matching window titles where Ctrl+V should be used for pasting instead of the default Shift+Insert
+window_wait_after_raised_ms=0
+  Delay after raising target window for pasting
+window_wait_before_raise_ms=20
+  Delay before trying to raise target window for pasting
+window_wait_for_modifier_released_ms=2000
+  Wait for any keyboard modifiers to be released before simulating/sending shortcut for pasting
+window_wait_raised_ms=150
+  Wait interval for raising target window for pasting
+
