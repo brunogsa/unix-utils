@@ -53,14 +53,14 @@ if [[ "$OS" == "macos" ]]; then
     xattr -d com.apple.quarantine /Applications/CopyQ.app 2>/dev/null || true
     codesign --force --deep --sign - /Applications/CopyQ.app
     rm -rf ~/.config/copyq
-    ln -s ~/linux-utils/configs/copyq ~/.config
+    ln -s ~/unix-utils/configs/copyq ~/.config
     ln -sf copyq.conf.macos ~/.config/copyq/copyq.conf
 elif [[ "$OS" == "linux" ]]; then
     sudo add-apt-repository ppa:hluk/copyq -y
     sudo apt update
     sudo apt install -y copyq
     rm -rf ~/.config/copyq
-    ln -s ~/linux-utils/configs/copyq ~/.config
+    ln -s ~/unix-utils/configs/copyq ~/.config
     ln -sf copyq.conf.linux ~/.config/copyq/copyq.conf
 fi
 
@@ -80,17 +80,17 @@ fi
 if [[ "$OS" == "macos" ]]; then
     brew tap espanso/espanso
     brew install espanso
-    ln -sf ~/linux-utils/configs/espanso/default.yml ~/Library/Application\ Support/espanso/config/default.yml
-    ln -sf ~/linux-utils/configs/espanso/default.yml ~/Library/Application\ Support/espanso/match/base.yml
+    ln -sf ~/unix-utils/configs/espanso/default.yml ~/Library/Application\ Support/espanso/config/default.yml
+    ln -sf ~/unix-utils/configs/espanso/default.yml ~/Library/Application\ Support/espanso/match/base.yml
     mkdir -p ~/.config/espanso
-    ln -sf ~/linux-utils/configs/espanso/default.yml ~/.config/espanso/config/default.yml
-    ln -sf ~/linux-utils/configs/espanso/default.yml ~/.config/espanso/match/base.yml
+    ln -sf ~/unix-utils/configs/espanso/default.yml ~/.config/espanso/config/default.yml
+    ln -sf ~/unix-utils/configs/espanso/default.yml ~/.config/espanso/match/base.yml
 elif [[ "$OS" == "linux" ]]; then
     sudo snap install espanso --classic
     mkdir -p ~/.config/espanso/config
     mkdir -p ~/.config/espanso/match
-    ln -sf ~/linux-utils/configs/espanso/default.yml ~/.config/espanso/config/default.yml
-    ln -sf ~/linux-utils/configs/espanso/default.yml ~/.config/espanso/match/base.yml
+    ln -sf ~/unix-utils/configs/espanso/default.yml ~/.config/espanso/config/default.yml
+    ln -sf ~/unix-utils/configs/espanso/default.yml ~/.config/espanso/match/base.yml
 fi
 
 espanso restart
@@ -140,7 +140,7 @@ fi
 # Linux-specific: xubuntu hotkeys
 if [[ "$OS" == "linux" ]]; then
     mkdir -p ~/.config/xfce4/xfconf/xfce-perchannel-xml/
-    ln -sf ~/linux-utils/configs/xubuntu/xfce4-keyboard-shortcuts.xml ~/.config/xfce4/xfconf/xfce-perchannel-xml/
+    ln -sf ~/unix-utils/configs/xubuntu/xfce4-keyboard-shortcuts.xml ~/.config/xfce4/xfconf/xfce-perchannel-xml/
 fi
 
 # Development tools (needed for neovim)
@@ -178,8 +178,8 @@ fi
 # AI setup: Claude documentation
 mkdir -p ~/.claude
 mkdir -p ~/.claude/commands
-ln -sf ~/linux-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/CLAUDE.md
-ln -sf ~/linux-utils/configs/ai-docs/claude/commands ~/.claude/commands
+ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/CLAUDE.md
+ln -sf ~/unix-utils/configs/ai-docs/claude/commands ~/.claude/commands
 
 # Node packages
 npm install -g json-schema-generator
