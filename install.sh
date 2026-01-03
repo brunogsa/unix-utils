@@ -52,17 +52,15 @@ if [[ "$OS" == "macos" ]]; then
     brew install --cask copyq
     xattr -d com.apple.quarantine /Applications/CopyQ.app 2>/dev/null || true
     codesign --force --deep --sign - /Applications/CopyQ.app
-    rm -rf ~/.config/copyq
-    ln -s ~/unix-utils/configs/copyq ~/.config
-    ln -sf copyq.conf.macos ~/.config/copyq/copyq.conf
 elif [[ "$OS" == "linux" ]]; then
     sudo add-apt-repository ppa:hluk/copyq -y
     sudo apt update
     sudo apt install -y copyq
-    rm -rf ~/.config/copyq
-    ln -s ~/unix-utils/configs/copyq ~/.config
-    ln -sf copyq.conf.linux ~/.config/copyq/copyq.conf
 fi
+
+# Unified copyq config for both platforms
+rm -rf ~/.config/copyq
+ln -s ~/unix-utils/configs/copyq ~/.config
 
 # Screen recorder
 if [[ "$OS" == "macos" ]]; then
