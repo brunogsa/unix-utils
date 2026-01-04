@@ -175,9 +175,9 @@ fi
 
 # AI setup: Claude documentation
 mkdir -p ~/.claude
-mkdir -p ~/.claude/commands
-ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/CLAUDE.md
-ln -sf ~/unix-utils/configs/ai-docs/claude/commands ~/.claude/commands
+rm -fr ~/.claude/commands
+ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/
+ln -sf ~/unix-utils/configs/ai-docs/claude/commands ~/.claude/
 
 # Node packages
 npm install -g json-schema-generator
