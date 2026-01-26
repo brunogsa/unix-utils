@@ -208,6 +208,11 @@ If there's a different requirement, please clarify before implementing.
 - **Centralize default logic in the function, not at call sites** – when a function parameter has a default value, handle it inside the function. Spreading default logic across every call site creates inconsistency and bugs.
 - **Use a context object for cross-cutting concerns** – when information like request IDs, user context, or trace data needs to flow through many function calls, pass a single mutable context object rather than adding parameters to every function signature.
 - **Parallelize CPU-bound independent iterations** – for tasks that process many independent iterations (simulations, batch processing, data transformations), distribute work across multiple threads/processes. This can yield 8-10x speedups on multi-core systems. Use worker threads for CPU-bound work; async I/O for I/O-bound work.
+- **Design batch operations for resilience** – when processing many items:
+  * Write results incrementally (don't wait for full completion)
+  * Make operations idempotent by checking for existing outputs before processing
+  * Enable resumability so partial failures don't lose progress
+  * When parallelizing, protect shared resources (counters, output streams) with synchronization primitives
 
 #### Examples
 
