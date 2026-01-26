@@ -10,6 +10,9 @@ matches:
   - trigger: ";shrug"
     replace: "¯\\_(ツ)_/¯"
 
+  - trigger: ";check"
+    replace: "✓"
+
   - trigger: ";block-code"
     replace: |-
       ```
