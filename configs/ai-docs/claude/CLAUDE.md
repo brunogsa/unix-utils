@@ -14,6 +14,7 @@
 - **Request context first** – ask for necessary files, code, or context before proposing solutions.
 - **Suggest terminal commands** – recommend specific commands I can run to gather information (rg, find, tree, git, etc.).
 - **Never assume missing context. Ask questions if uncertain.**
+- **Trust user's direct validation over API inspection** – when a user confirms something works by direct observation (e.g., "I checked the UI and it's correct"), trust their validation over programmatic analysis of API responses, especially for systems with unintuitive data representations.
 - **Do not use emojis** – avoid using emojis in any communications or code.
 - **Provide complete solutions** – include all necessary code changes with proper syntax and formatting.
 - **Follow existing patterns** – match the codebase's style, naming conventions, and architecture. Search for existing utilities before implementing new infrastructure; reuse reduces maintenance burden.
@@ -206,6 +207,8 @@ If there's a different requirement, please clarify before implementing.
 - **Extract magic values into constants** – define reusable constants for all magic strings, numbers, and sets, preferably using TypeScript enums when applicable.
 - **Distinguish "missing" from "intentional zero/empty"** – when applying default values, explicitly check for *absence* (null/undefined/nil), not *falsiness*. Zero, empty string, and false are often valid intentional values that shouldn't trigger defaults.
 - **Centralize default logic in the function, not at call sites** – when a function parameter has a default value, handle it inside the function. Spreading default logic across every call site creates inconsistency and bugs.
+- **Abstract counter-intuitive external APIs** – when external APIs behave unexpectedly (inverted parameters, confusing return values), create wrapper functions with intuitive interfaces. Handle the quirks internally and document the API's actual behavior in comments within the wrapper, not at call sites.
+- **Fix confusing interfaces, don't document workarounds** – if a function requires callers to remember non-obvious behavior (e.g., "swap parameters for this case"), refactor the function to provide an intuitive interface. Users shouldn't need to memorize workarounds.
 - **Use a context object for cross-cutting concerns** – when information like request IDs, user context, or trace data needs to flow through many function calls, pass a single mutable context object rather than adding parameters to every function signature.
 - **Parallelize CPU-bound independent iterations** – for tasks that process many independent iterations (simulations, batch processing, data transformations), distribute work across multiple threads/processes. This can yield 8-10x speedups on multi-core systems. Use worker threads for CPU-bound work; async I/O for I/O-bound work.
 - **Design batch operations for resilience** – when processing many items:
