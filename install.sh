@@ -60,7 +60,7 @@ fi
 
 # Unified copyq config for both platforms
 rm -rf ~/.config/copyq
-ln -s ~/unix-utils/configs/copyq ~/.config
+ln -s ~/unix-utils/configs/copyq ~/.config/copyq
 
 # Screen recorder
 if [[ "$OS" == "macos" ]]; then
@@ -202,8 +202,8 @@ fi
 # AI
 mkdir -p ~/.claude
 mkdir -p ~/.claude/commands
-ln -s ~/linux-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/CLAUDE.md
-ln -s ~/linux-utils/configs/ai-docs/claude/commands ~/.claude/commands
+ln -s ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/CLAUDE.md
+ln -s ~/unix-utils/configs/ai-docs/claude/commands ~/.claude/commands
 npm install -g @modelcontextprotocol/server-github
 claude mcp add --transport stdio github --env GITHUB_PERSONAL_ACCESS_TOKEN="$GITHUB_PERSONAL_ACCESS_TOKEN" -- npx -y @modelcontextprotocol/server-github
 claude mcp add atlassian -s local -- npx -y mcp-remote https://mcp.atlassian.com/v1/sse
