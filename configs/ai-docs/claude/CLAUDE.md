@@ -187,7 +187,7 @@ If there's a different requirement, please clarify before implementing.
   * DO NOT add or remove semicolons
   * DO NOT reformat code "to make it cleaner" unless asked
   * ONLY modify the exact lines needed for the requested change
-- **Remove unused code** – code that is no longer used must be removed along with its associated tests
+- **Remove unused code and orphaned internal logic** – code that is no longer used must be removed along with its associated tests. When removing a usage site, trace back and remove all supporting code (variables, tracking, return values) that no longer has consumers, even within still-used functions.
 - **Error handling** – always handle errors in the `controllers`/`consumers` layers to prevent crashes and provide appropriate responses
 - **Input validation** – always validate and sanitize inputs in the `controllers`/`consumers` layers before passing to business logic
 - **Normalize data at entry point** – convert string dates, numbers-as-strings, and other serialized values to their proper types (Date objects, numbers, etc.) immediately after input validation, before passing to deeper layers. This prevents multiple format handling throughout the codebase.
@@ -208,6 +208,7 @@ If there's a different requirement, please clarify before implementing.
 - **Extract magic values into constants** – define reusable constants for all magic strings, numbers, and sets, preferably using TypeScript enums when applicable.
 - **Distinguish "missing" from "intentional zero/empty"** – when applying default values, explicitly check for *absence* (null/undefined/nil), not *falsiness*. Zero, empty string, and false are often valid intentional values that shouldn't trigger defaults.
 - **Centralize repeated logic into a single source of truth** – defaults, derived-value transformations (display formatting, unit conversions, index offsets), and any computation repeated across multiple call sites should live in one place (a function, a constant, or a parameter default). This ensures changes happen in a single location and prevents inconsistency bugs.
+- **Don't wrap trivial expressions in single-use functions** – if an expression is self-explanatory (e.g., `list.size === 0`) and has only one call site, inline it. Unnecessary wrappers add indirection without improving readability. Extract only when the logic is non-obvious or reused.
 - **Abstract counter-intuitive external APIs** – when external APIs behave unexpectedly (inverted parameters, confusing return values), create wrapper functions with intuitive interfaces. Handle the quirks internally and document the API's actual behavior in comments within the wrapper, not at call sites.
 - **Fix confusing interfaces, don't document workarounds** – if a function requires callers to remember non-obvious behavior (e.g., "swap parameters for this case"), refactor the function to provide an intuitive interface. Users shouldn't need to memorize workarounds.
 - **Use a context object for cross-cutting concerns** – when information like request IDs, user context, or trace data needs to flow through many function calls, pass a single mutable context object rather than adding parameters to every function signature.

@@ -52,7 +52,9 @@ Review this coding session and identify learnings that should be added to the gl
 ## Proposed Additions
 
 ### [Section: CODE/TESTS/DESIGN/etc.]
-- **[Guideline title]** - [Description]
+1. **[Guideline title]** - [Description]
+2. **[Guideline title]** - [Description]
+...
 
 ## Already Covered
 
