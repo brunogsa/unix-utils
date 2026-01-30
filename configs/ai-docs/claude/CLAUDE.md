@@ -202,11 +202,12 @@ If there's a different requirement, please clarify before implementing.
   };
   const clone = JSON.parse(JSON.stringify(obj), dateReviver);
   ```
+- **Sanitize dynamic data in generated structured output** – when embedding variable data into DSL, templates, config files, or any structured format, escape or strip characters that have special meaning in the target format. This applies beyond security (SQL/XSS) to any code generation, diagram generation, or template rendering.
 - **Comment non-obvious code and ensure everything is understandable to a mid-level developer**
 - **When writing complex logic, add comment explaining the why, not just the what**
 - **Extract magic values into constants** – define reusable constants for all magic strings, numbers, and sets, preferably using TypeScript enums when applicable.
 - **Distinguish "missing" from "intentional zero/empty"** – when applying default values, explicitly check for *absence* (null/undefined/nil), not *falsiness*. Zero, empty string, and false are often valid intentional values that shouldn't trigger defaults.
-- **Centralize default logic in the function, not at call sites** – when a function parameter has a default value, handle it inside the function. Spreading default logic across every call site creates inconsistency and bugs.
+- **Centralize repeated logic into a single source of truth** – defaults, derived-value transformations (display formatting, unit conversions, index offsets), and any computation repeated across multiple call sites should live in one place (a function, a constant, or a parameter default). This ensures changes happen in a single location and prevents inconsistency bugs.
 - **Abstract counter-intuitive external APIs** – when external APIs behave unexpectedly (inverted parameters, confusing return values), create wrapper functions with intuitive interfaces. Handle the quirks internally and document the API's actual behavior in comments within the wrapper, not at call sites.
 - **Fix confusing interfaces, don't document workarounds** – if a function requires callers to remember non-obvious behavior (e.g., "swap parameters for this case"), refactor the function to provide an intuitive interface. Users shouldn't need to memorize workarounds.
 - **Use a context object for cross-cutting concerns** – when information like request IDs, user context, or trace data needs to flow through many function calls, pass a single mutable context object rather than adding parameters to every function signature.
@@ -419,6 +420,8 @@ test("rejects when user lacks permission", () => {
 - **Only mock external dependencies** – mock file I/O, network requests, and external processes; let internal utilities run with real implementations for true integration testing.
 - **Isolate tests from input mutation** – when testing functions that mutate their inputs, ensure each test or call starts with fresh data. Clone inputs when calling mutating functions multiple times.
 - **Debug with code and tests, not temp files** – when debugging, add logs to actual source code and exercise through tests. Temporary debug scripts get abandoned; logs in code stay maintained.
+- **Use constants in test assertions, not hardcoded strings** – when production code uses enums or constants, test assertions should reference the same constants. Hardcoded strings in tests silently break when enum values are renamed.
+- **One test per distinct cause** – when a behavior can be triggered by multiple independent causes (e.g., "blocked by dependencies", "blocked by date constraint", "blocked by capacity"), write a separate test for each cause. This isolates failures and documents each scenario clearly.
 
 #### Examples
 
