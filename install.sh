@@ -135,6 +135,14 @@ if [[ "$OS" == "macos" ]]; then
     brew install iterm2
 fi
 
+# macOS-specific: qView image viewer + set as default for PNG/JPEG
+if [[ "$OS" == "macos" ]]; then
+    brew install --cask qview
+    brew install duti
+    duti -s com.interversehq.qView public.png all
+    duti -s com.interversehq.qView public.jpeg all
+fi
+
 # Linux-specific: xubuntu hotkeys
 if [[ "$OS" == "linux" ]]; then
     mkdir -p ~/.config/xfce4/xfconf/xfce-perchannel-xml/
