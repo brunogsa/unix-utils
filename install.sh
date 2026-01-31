@@ -211,8 +211,16 @@ fi
 
 claude mcp add atlassian -s local -- npx -y mcp-remote https://mcp.atlassian.com/v1/sse
 claude mcp add context7 -- npx -y @anthropic-ai/context7-mcp
-echo "[MANUAL] Open claude and run: /plugin install code-simplifier@claude-plugin-directory"
-echo "[MANUAL] Open claude and run: /plugin install pr-review-toolkit@claude-plugin-directory"
+claude plugin marketplace add boostvolt/claude-code-lsps
+claude plugin install code-simplifier@claude-plugins-official
+claude plugin install context7@claude-plugins-official
+claude plugin install pr-review-toolkit@claude-plugins-official
+claude plugin install typescript-lsp@claude-plugins-official
+claude plugin install lua-lsp@claude-plugins-official
+claude plugin install gopls-lsp@claude-plugins-official
+claude plugin install bash-language-server@claude-code-lsps
+claude plugin install terraform-ls@claude-code-lsps
+claude plugin install pyright@claude-code-lsps
 echo "[MANUAL] Run :Lazy sync in neovim to install claudecode.nvim"
 
 echo "Installation complete for $OS!"
