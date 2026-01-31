@@ -35,10 +35,10 @@ fi
 
 # Core utilities
 if [[ "$OS" == "macos" ]]; then
-    brew install fd jq git wget tree htop ripgrep meld tldr gimp imagemagick csvkit datamash
+    brew install fd jq git wget tree htop ripgrep meld tldr gimp imagemagick csvkit datamash terminal-notifier
 elif [[ "$OS" == "linux" ]]; then
     sudo apt-get install -y git meld tree htop ripgrep kazam tldr
-    sudo apt-get install -y fd-find jq datamash shellcheck
+    sudo apt-get install -y fd-find jq datamash shellcheck libnotify-bin
 fi
 
 # macOS-specific: CPU/RAM/Disc/Network monitor
