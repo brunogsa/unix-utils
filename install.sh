@@ -181,16 +181,18 @@ elif [[ "$OS" == "linux" ]]; then
     grep -q 'DENO_INSTALL/bin' ~/.zshrc || echo 'export PATH="$DENO_INSTALL/bin:$PATH"' >> ~/.zshrc
 fi
 
-# AI setup: Claude documentation
-mkdir -p ~/.claude
-rm -fr ~/.claude/commands
-ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/
-ln -sf ~/unix-utils/configs/ai-docs/claude/commands ~/.claude/
-
 # Node packages
 npm install -g json-schema-generator
 npm install -g @anthropic-ai/claude-code
 npm install -g @modelcontextprotocol/server-github
+
+# AI setup: Claude Code configuration
+mkdir -p ~/.claude
+rm -fr ~/.claude/commands
+ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/
+ln -sf ~/unix-utils/configs/ai-docs/claude/commands ~/.claude/
+ln -sf ~/unix-utils/configs/ai-docs/claude/skills ~/.claude/
+ln -sf ~/unix-utils/configs/ai-docs/claude/settings.json ~/.claude/
 
 # Claude MCP configuration (optional, requires API keys)
 if [ -n "$ANTHROPIC_API_KEY" ]; then
@@ -207,16 +209,10 @@ if [ -n "$GITHUB_PERSONAL_ACCESS_TOKEN" ]; then
     claude mcp add --transport stdio github --env GITHUB_PERSONAL_ACCESS_TOKEN="$GITHUB_PERSONAL_ACCESS_TOKEN" -- npx -y @modelcontextprotocol/server-github
 fi
 
-# AI
-mkdir -p ~/.claude
-mkdir -p ~/.claude/commands
-ln -s ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/CLAUDE.md
-ln -s ~/unix-utils/configs/ai-docs/claude/commands ~/.claude/commands
-npm install -g @modelcontextprotocol/server-github
-claude mcp add --transport stdio github --env GITHUB_PERSONAL_ACCESS_TOKEN="$GITHUB_PERSONAL_ACCESS_TOKEN" -- npx -y @modelcontextprotocol/server-github
 claude mcp add atlassian -s local -- npx -y mcp-remote https://mcp.atlassian.com/v1/sse
 claude mcp add context7 -- npx -y @anthropic-ai/context7-mcp
 echo "[MANUAL] Open claude and run: /plugin install code-simplifier@claude-plugin-directory"
 echo "[MANUAL] Open claude and run: /plugin install pr-review-toolkit@claude-plugin-directory"
+echo "[MANUAL] Run :Lazy sync in neovim to install claudecode.nvim"
 
 echo "Installation complete for $OS!"
