@@ -54,6 +54,7 @@
 - **Trust user's direct validation over API inspection** -- when a user confirms something works by direct observation, trust their validation over programmatic analysis.
 - **Propose verification when none is obvious** -- if a task has no clear way to verify correctness (no tests, no expected output, no visual check), propose a verification approach before starting. The user will correct if needed.
 - **Suggest interviewing for complex features** -- for large or ambiguous features, proactively suggest interviewing the user via questions before writing code. Surfaces edge cases, tradeoffs, and requirements the user hasn't considered.
+- **Reload configs after editing** -- after modifying config files that require reloading (tmux, shell rc, editor config), apply the reload command automatically without being asked.
 
 ### Session End
 

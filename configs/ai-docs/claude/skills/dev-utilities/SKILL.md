@@ -69,9 +69,16 @@ search-replace-vim <search_pattern> <replace_pattern>
 ```
 
 ### vimreview
-Opens neovim with Diffview showing staged changes or comparing against a ref. Also accepts piped diffs.
+Opens neovim with Diffview showing staged changes or comparing against a ref. Also accepts piped diffs. Opens the most recently modified file first.
 ```
 vimreview              # staged changes
 vimreview HEAD~3       # compare against ref
 git diff ... | vimreview  # piped diff
+```
+
+### tmux-extract-claude-change-place
+Tmux hotkey script (`prefix + g`). Scrapes the focused pane for the last Claude Code edit, copies `nvim +<line> <file>` to clipboard. Paste in any terminal to jump to the change location.
+```
+# Press Ctrl+a, g while the Claude Code pane is focused
+# Then paste the clipboard in a terminal to open nvim at the edit
 ```

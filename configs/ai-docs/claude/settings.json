@@ -1,12 +1,4 @@
 {
-  "enabledPlugins": {
-    "typescript-lsp@claude-plugins-official": true,
-    "code-simplifier@claude-plugins-official": true,
-    "context7@claude-plugins-official": true,
-    "pr-review-toolkit@claude-plugins-official": true,
-    "lua-lsp@claude-plugins-official": true
-  },
-  "alwaysThinkingEnabled": true,
   "hooks": {
     "Stop": [
       {
@@ -14,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "afplay /System/Library/Sounds/Glass.aiff & osascript -e 'display notification \"Task completed\" with title \"Claude Code\"'"
+            "command": "if [ \"$(uname)\" = \"Darwin\" ]; then terminal-notifier -title 'Claude Code' -message 'Task completed'; else notify-send 'Claude Code' 'Task completed'; fi"
           }
         ]
       }
@@ -25,10 +17,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "osascript -e 'display notification \"Claude needs your attention\" with title \"Claude Code\" sound name \"Ping\"'"
+            "command": "if [ \"$(uname)\" = \"Darwin\" ]; then terminal-notifier -title 'Claude Code' -message 'Claude needs your attention'; else notify-send 'Claude Code' 'Claude needs your attention'; fi"
           }
         ]
       }
     ]
-  }
+  },
+  "enabledPlugins": {
+    "typescript-lsp@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "pr-review-toolkit@claude-plugins-official": true,
+    "lua-lsp@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true,
+    "bash-language-server@claude-code-lsps": true,
+    "terraform-ls@claude-code-lsps": true,
+    "pyright@claude-code-lsps": true
+  },
+  "alwaysThinkingEnabled": true
 }
