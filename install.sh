@@ -209,12 +209,10 @@ if [ -n "$GITHUB_PERSONAL_ACCESS_TOKEN" ]; then
     claude mcp add --transport stdio github --env GITHUB_PERSONAL_ACCESS_TOKEN="$GITHUB_PERSONAL_ACCESS_TOKEN" -- npx -y @modelcontextprotocol/server-github
 fi
 
-claude mcp add atlassian -s local -- npx -y mcp-remote https://mcp.atlassian.com/v1/sse
 claude mcp add context7 -- npx -y @anthropic-ai/context7-mcp
 claude plugin marketplace add boostvolt/claude-code-lsps
 claude plugin install code-simplifier@claude-plugins-official
 claude plugin install context7@claude-plugins-official
-claude plugin install pr-review-toolkit@claude-plugins-official
 claude plugin install typescript-lsp@claude-plugins-official
 claude plugin install lua-lsp@claude-plugins-official
 claude plugin install gopls-lsp@claude-plugins-official

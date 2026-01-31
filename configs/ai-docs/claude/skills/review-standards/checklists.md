@@ -37,3 +37,34 @@ Supplementary checklists for code review. Referenced by the review-standards ski
 - Tests are minimal and focused
 - Mock only external dependencies
 - Test names describe what and why, BDD-like if possible
+
+---
+
+## Silent Failure Checklist
+
+- Catch blocks that swallow errors (empty catch, catch with only console.log)
+- Fallback values that hide real failures (default returns masking bugs)
+- Error logging without re-throwing or propagating
+- Catch blocks that are too broad (catching Error instead of specific types)
+- Missing error handling on async operations (unhandled promise rejections)
+- User-facing error messages that leak internals or are unhelpful
+
+---
+
+## Comment & Documentation Checklist
+
+- Comments that contradict the actual code behavior
+- Outdated comments referencing removed/renamed code
+- TODO/FIXME/HACK comments without context or tracking
+- Misleading function/param docstrings
+- Comments explaining "what" instead of "why"
+
+---
+
+## Type Design Checklist
+
+- Types that allow invalid states (prefer types that make illegal states unrepresentable)
+- Missing readonly/immutability on data that shouldn't change
+- Overly permissive types (string where union/enum fits)
+- Types without enforced invariants (e.g., non-empty arrays typed as regular arrays)
+- Unnecessary optional fields that are always present in practice

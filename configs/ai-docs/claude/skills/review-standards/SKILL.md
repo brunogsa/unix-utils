@@ -52,7 +52,7 @@ Review in this sequence (most to least critical):
 3. **Testing** -- expected behavior documented, corner cases covered, deterministic
 4. **Code quality** -- clarity, naming, no magic numbers, high cohesion
 5. **Logging** -- useful, leveled, non-PII, actionable
-6. **SOLID principles** -- SRP, OCP, LSP, ISP, DIP where applicable
+6. **Design & Simplicity** -- SRP, OCP, LSP, ISP, DIP; reduce unnecessary complexity, consolidate redundant code
 7. **DRY / KISS** -- remove duplication, keep simple
 8. **Performance** -- hot paths, Big O, I/O, memory, N+1 queries
 9. **Security** -- injection, path traversal, deserialization, authn/authz, secrets, SSRF/RCE
