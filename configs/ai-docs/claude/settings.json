@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ \"$(uname)\" = \"Darwin\" ]; then terminal-notifier -title 'Claude Code' -message 'Task completed'; else notify-send 'Claude Code' 'Task completed'; fi"
+            "command": "hook_input=$(cat); if echo \"$hook_input\" | jq -e '.stop_hook_active == true' > /dev/null 2>&1; then exit 0; fi; case $(uname) in Darwin) osascript -e 'display alert \"Claude Code\" message \"Task completed\"' ;; *) notify-send 'Claude Code' 'Task completed' ;; esac"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ \"$(uname)\" = \"Darwin\" ]; then terminal-notifier -title 'Claude Code' -message 'Claude needs your attention'; else notify-send 'Claude Code' 'Claude needs your attention'; fi"
+            "command": "case $(uname) in Darwin) osascript -e 'display alert \"Claude Code\" message \"Claude needs your attention\"' ;; *) notify-send 'Claude Code' 'Claude needs your attention' ;; esac"
           }
         ]
       }
