@@ -1,0 +1,17 @@
+---
+description: "Send desktop notifications to the user on demand. Only notify when explicitly requested."
+user-invocable: false
+---
+
+# Notify User
+
+Append the notification after the command using `;` (always) or `&&` (success only). Replace `MESSAGE` with a short, specific message (under 10 words).
+
+```bash
+YOUR_COMMAND; case $(uname) in Darwin) osascript -e 'display alert "Claude Code" message "MESSAGE"' ;; *) notify-send 'Claude Code' 'MESSAGE' ;; esac
+```
+
+## Platform notes
+
+- **macOS**: `display alert` is modal (blocks until dismissed). Intentional -- banner notifications are broken on macOS Sequoia.
+- **Linux**: `notify-send` shows a non-blocking banner. Requires `libnotify-bin`.

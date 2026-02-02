@@ -1,28 +1,4 @@
 {
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "hook_input=$(cat); if echo \"$hook_input\" | jq -e '.stop_hook_active == true' > /dev/null 2>&1; then exit 0; fi; case $(uname) in Darwin) osascript -e 'display alert \"Claude Code\" message \"Task completed\"' ;; *) notify-send 'Claude Code' 'Task completed' ;; esac"
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "case $(uname) in Darwin) osascript -e 'display alert \"Claude Code\" message \"Claude needs your attention\"' ;; *) notify-send 'Claude Code' 'Claude needs your attention' ;; esac"
-          }
-        ]
-      }
-    ]
-  },
   "enabledPlugins": {
     "typescript-lsp@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,

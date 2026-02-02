@@ -33,6 +33,7 @@
 ## WORKFLOW
 
 - **Sequential over parallel for edits** -- IMPORTANT: never run parallel tool calls that require user approval or input (file edits, confirmations). Parallel is OK only for read-only info gathering (web search, file reads, grep). Parallel approval prompts are confusing and disruptive.
+- **Notify requests** -- when the user asks to be notified (e.g., "notify me when done"), load the `notify-user` skill BEFORE running the command. Chain the notification after the command in a single Bash call so the user approves once. Never run the command first and add the notification later.
 - **Prefer targeted edits over full rewrites** -- use Edit tool, not Write tool. The user reviews changes via diffs, not by re-reading entire files.
 - **Request context first** -- ask for files/code or suggest terminal commands (rg, find, tree, git) before proposing solutions.
 - **Work in baby steps** -- each step is the smallest testable, commit-able change.
