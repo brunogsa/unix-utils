@@ -185,6 +185,7 @@ fi
 npm install -g json-schema-generator
 npm install -g @anthropic-ai/claude-code
 npm install -g @modelcontextprotocol/server-github
+npm install -g ccusage
 
 # AI setup: Claude Code configuration
 mkdir -p ~/.claude
