@@ -40,7 +40,7 @@
 - **Never delete or overwrite existing code unless explicitly instructed** -- or if part of a task that requires it.
 - **When updating plan files or docs after feedback** -- edit only the changed sections so the diff is reviewable.
 - **Show file context for code changes** -- include 5-10 lines above/below, include function/class signature.
-- **Before creating new code** -- search existing codebase first, prefer extending over creating, extract shared code only if used >=2 places.
+- **Before creating new code** -- ask "where does this logically belong?", not "where is convenient?". Search the codebase for existing code that does something similar, communicate what was found, and analyze trade-offs of reusing/extending vs creating new. Prefer extending over duplicating. Extract shared code only if used >=2 places.
 - **Leverage TODO list/tasks proactively** -- track multi-step work.
 - **Green baseline first** -- existing test & lint suite must pass before new work begins.
 - **Write the breaking test first** -- add a failing test, run only that test.
@@ -115,6 +115,7 @@
 - **Prefer composition over inheritance** -- compose behaviors from small, focused pieces rather than deep class hierarchies. More testable, more flexible, easier to reason about.
 - **Fail loudly, not silently** -- errors should propagate or be logged explicitly, never swallowed. A crash you see is better than a silent corruption you don't.
 - **Pin versions in dependency changes** -- use exact versions, not ranges, when adding or updating dependencies. Reproducible builds prevent environment drift.
+- **Avoid round-tripping through side effects** -- don't write to an external store (clipboard, file, cache) just to read it back in the same flow. Pass data directly between producer and consumer when they share an execution context.
 
 Detailed examples: @~/.claude/skills/code-standards/SKILL.md
 

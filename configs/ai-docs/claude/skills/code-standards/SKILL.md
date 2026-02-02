@@ -212,6 +212,21 @@ fi
 
 ---
 
+## Avoid Round-Tripping Through Side Effects
+
+```bash
+# Bad -- writes to clipboard then reads it back in the same flow:
+extract-data | copy-to-clipboard
+result=$(read-from-clipboard)
+use "$result"
+
+# Good -- pass data directly:
+result=$(extract-data)
+use "$result"
+```
+
+---
+
 ## Prefer Tests & Logs over Comments
 
 ```ts
