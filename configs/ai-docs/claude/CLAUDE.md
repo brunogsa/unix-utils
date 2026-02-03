@@ -16,7 +16,7 @@
 
 ## COMMUNICATION
 
-- **Correct my English on the spot** -- CRITICAL: always point out grammar, word choice, and phrasing mistakes in my messages. Provide the corrected version briefly before responding to the actual content.
+- **Correct my English on the spot** -- CRITICAL: always point out grammar, word choice, and phrasing mistakes in my messages. Also correct phrasing that is grammatically valid but unnatural. Use the format `"[original snippet]" → "[corrected snippet]"` for each correction, before responding to the actual content.
 - **Be direct** -- no preambles, no filler, no emojis.
 - **If I am wrong, tell me directly** -- prioritize correctness over politeness.
 - **Explain reasoning concisely** -- briefly justify decisions without verbosity.
@@ -41,18 +41,20 @@
 - **When updating plan files or docs after feedback** -- edit only the changed sections so the diff is reviewable.
 - **Show file context for code changes** -- include 5-10 lines above/below, include function/class signature.
 - **Before creating new code** -- ask "where does this logically belong?", not "where is convenient?". Search the codebase for existing code that does something similar, communicate what was found, and analyze trade-offs of reusing/extending vs creating new. Prefer extending over duplicating. Extract shared code only if used >=2 places.
-- **Leverage TODO list/tasks proactively** -- track multi-step work.
+- **Leverage TODO list/tasks proactively** -- CRITICAL: use TaskCreate for almost every non-trivial task. The task list helps the user grasp the full plan and track progress as edits happen in pieces. Default to creating tasks; skip only for single-step trivial changes. Non-trivial changes or additions that you or the user propose should also become tasks.
 - **Green baseline first** -- existing test & lint suite must pass before new work begins.
-- **Write the breaking test first** -- add a failing test, run only that test.
-- **Make the test pass** -- implement minimal code to go green, run the whole suite. Suggest test updates for any change, even when not explicitly asked.
+- **Search before creating** -- search for existing utilities before implementing new infrastructure. Reuse or extend what exists.
+- **Design test titles before implementation** -- write test titles (no implementation) that describe the expected behavior as a suite. Validate the suite covers the right scope before writing any test or production code. For scripts: no automated tests -- instead, define usage syntax and all use-case examples in the comment header, which serve as the manual validation plan.
+- **Propose verification when none is obvious** -- if a task has no clear way to verify correctness (no tests, no expected output, no visual check), propose a verification approach before starting. The user will correct if needed.
+- **Write the breaking test first (RED)** -- add a failing test, run only that test.
+- **Make the test pass (GREEN)** -- implement minimal code to go green, run the whole suite. Suggest test updates for any change, even when not explicitly asked.
+- **Refactor after green** -- after tests pass, explicitly check if simplifications or refactors (changing no behavior) can be made to both code and tests. This is a deliberate step, not an afterthought.
+- **Isolate refactors** -- pure refactors get their own baby step & commit.
 - **Update docs** -- locate and update any related documentation.
 - **Human commits only** -- after review, I create the commit; no auto-commits.
 - **Change-request = new baby steps** -- address review feedback as new steps.
-- **Isolate refactors** -- pure refactors get their own baby step & commit.
 - **Provide complete solutions** -- include all necessary code changes with proper syntax and formatting.
-- **Follow existing patterns** -- match the codebase's style, naming conventions, and architecture. Search for existing utilities before implementing new infrastructure.
 - **Trust user's direct validation over API inspection** -- when a user confirms something works by direct observation, trust their validation over programmatic analysis.
-- **Propose verification when none is obvious** -- if a task has no clear way to verify correctness (no tests, no expected output, no visual check), propose a verification approach before starting. The user will correct if needed.
 - **Suggest interviewing for complex features** -- for large or ambiguous features, proactively suggest interviewing the user via questions before writing code. Surfaces edge cases, tradeoffs, and requirements the user hasn't considered.
 - **Reload configs after editing** -- after modifying config files that require reloading (tmux, shell rc, editor config), apply the reload command automatically without being asked.
 
@@ -71,7 +73,8 @@
 - **NEVER modify file formatting unless explicitly requested** -- CRITICAL:
   * DO NOT change indentation, empty lines, whitespace, quote style, or semicolons
   * ONLY modify the exact lines needed for the requested change
-- **Follow existing patterns** unless this guide overrides them.
+- **Guidelines override codebase patterns** -- CRITICAL: when existing code conflicts with rules in this guide, do NOT silently follow the codebase. Present the conflicting pattern and the guideline, then wait for approval before proceeding. Match codebase style only when it doesn't contradict these rules.
+- **Code top-down (Breadth First)** -- CRITICAL: start with the highest-level function, calling helpers that don't exist yet. Create skeletons (signature + TODO body) for each. After finishing the current layer, implement the next layer of TODOs, creating new skeletons as needed. Layer 1 → 2 → 3 until done. This applies to all code, not just complex features.
 - **Clean Code basics** -- small, pure, well-named functions; no magic numbers; prefer enums; dependency-inject wisely; validate inputs; handle errors.
 - **Project structure** --
   * `controllers` -- HTTP only (validate, paginate)
@@ -112,7 +115,7 @@
 - **Fail loudly, not silently** -- errors should propagate or be logged explicitly, never swallowed. A crash you see is better than a silent corruption you don't.
 - **Pin versions in dependency changes** -- use exact versions, not ranges, when adding or updating dependencies. Reproducible builds prevent environment drift.
 - **Avoid round-tripping through side effects** -- don't write to an external store (clipboard, file, cache) just to read it back in the same flow. Pass data directly between producer and consumer when they share an execution context.
-- **Scripts must be human-friendly** -- all automations/scripts must include `--help` and be clearly written so both humans and AI can use them.
+- **Scripts must be human-friendly** -- all scripts must include `--help` and a comment header with usage syntax and 2-3 concrete examples. This serves as both documentation and a manual test plan. Shell scripts never get automated tests; complex logic that needs automated tests belongs in Node.js/Python.
 - **Unix philosophy for scripts** -- each script does one thing well. Complex workflows compose small, focused scripts via pipes and arguments. Never duplicate logic that already exists in another script -- call it instead. Accept behavior as parameters (field names, sort keys, grouping criteria) -- domain-specific defaults belong in the caller, not the tool.
 - **Portable shell syntax** -- prefer bash-compatible syntax over zsh-specific extensions (e.g., `${!array[@]}` over `${(k)array}`, `while IFS= read -r` over `${(f)var}`). Scripts run in both shells and must pass shellcheck.
 - **Avoid numbered steps in evolving docs** -- use unnumbered headings in documentation that will be frequently edited (reordered, inserted, deleted). Numbering creates unnecessary renumbering overhead on every change.
