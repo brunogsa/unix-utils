@@ -51,16 +51,24 @@ Cross-reference active alarms with the alarm text to identify which CloudWatch a
 - Check OpenAPI in `docs/integrator/` for routing (HTTP_PROXY vs HTTP)
 
 - **Step A -- Bird's-eye view:**
+  Fetch API GW logs and pipe to the distribution table helper:
   ```bash
-  AWS_PROFILE=arco-prod aws-get-status-distribution-api-gw \
+  AWS_PROFILE=arco-prod aws-get-cloudwatch-logs \
     --log-group 'API-Gateway-Execution-Logs_1ciiwix04k/prod' \
-    --status <code>
+    --filter '{ $.status = <code> }' \
+    --stdout \
+  | node ~/oh-my-zsh/func-utilities/jsonl-distribution-table.js --fields httpMethod,resourcePath,status,apiKey
   ```
   Shows all affected endpoints and callers sorted by volume. Use to prioritize. **Quote the distribution table.**
 
 - **Step B -- Drill into API Gateway logs:**
-  - Filter: `{ $.status = <code> && $.resourcePath = "/v1/..." }`
-  - Key fields: `apiKey` (caller), `integrationLatency` (did it reach backend?), `ip`, `userAgent`, `responseLength`. **Quote sample log entries showing these fields.**
+  ```bash
+  AWS_PROFILE=arco-prod aws-get-cloudwatch-logs \
+    --log-group 'API-Gateway-Execution-Logs_1ciiwix04k/prod' \
+    --filter '{ $.status = <code> && $.resourcePath = "/v1/..." }' \
+    --stdout
+  ```
+  Key fields: `apiKey` (caller), `integrationLatency` (did it reach backend?), `ip`, `userAgent`, `responseLength`. **Quote sample log entries showing these fields.**
   - If `integrationLatency` = `-`: API GW level rejection (see @integrator-architecture auth section)
   - If `integrationLatency` > 0: request reached backend, status came from downstream
 

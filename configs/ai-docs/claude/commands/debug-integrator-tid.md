@@ -22,10 +22,30 @@ Both formats accepted -- they map to the same identifier (see @integrator-archit
 
 ## Execution Steps
 
-### Search Core Logs
+### Search All Layers at Once
 
-Start with core -- this is where business logic and downstream calls live:
+Start with a cross-service search to get the full picture:
 
+```bash
+AWS_PROFILE=arco-prod aws-get-integrator-logs \
+  --filter '{ $.transactionId = "<id>" || $.requestId = "<id>" }' \
+  --stdout
+```
+
+This fetches from all 6 Integrator log groups in parallel, merges by timestamp, and injects `__source` per entry. **Quote the merged output.**
+
+Extract from results:
+- Which layers were involved (`__source` field)
+- Request method, path, flow
+- Downstream calls and their responses (quote status codes and error payloads)
+- Error messages, status codes
+- Timestamps for timeline
+
+### Drill Into Specific Layers
+
+If the cross-service search is too broad or you need more context around specific entries, drill into individual log groups:
+
+**Core** (business logic and downstream calls):
 ```bash
 aws-get-cloudwatch-logs \
   --log-group '/aws/ecs/integrator-core-service/core' \
@@ -33,16 +53,7 @@ aws-get-cloudwatch-logs \
   --stdout
 ```
 
-**Quote the log entries found.** Then extract:
-- Request method, path, flow
-- Downstream calls and their responses (quote status codes and error payloads)
-- Error messages, status codes
-- Timestamps for timeline
-
-### Search API Gateway Logs
-
-If not found in core, or to get the entry point details:
-
+**API Gateway** (entry point details -- uses `requestId`, not `transactionId`):
 ```bash
 aws-get-cloudwatch-logs \
   --log-group 'API-Gateway-Execution-Logs_1ciiwix04k/prod' \
@@ -57,10 +68,7 @@ If `apiKey` is present, identify the caller:
 aws-get-api-keys --suffix '<last6chars>'
 ```
 
-### Search Middleware Logs (POST endpoints only)
-
-Only if the endpoint uses POST routing (API GW -> middleware -> core):
-
+**Middleware** (POST endpoints only -- skip for GET, see @integrator-architecture routing):
 ```bash
 aws-get-cloudwatch-logs \
   --log-group '/aws/ecs/integrator-middleware-service/middleware' \
@@ -68,12 +76,7 @@ aws-get-cloudwatch-logs \
   --stdout
 ```
 
-**Skip this for GET endpoints** -- they bypass middleware entirely (see @integrator-architecture routing).
-
-### Search Async Lambda Logs
-
-If the request triggered async downstream calls (POST to legacy or OMS):
-
+**Async Lambdas** (if request triggered downstream calls):
 ```bash
 # Legacy systems
 aws-get-cloudwatch-logs \

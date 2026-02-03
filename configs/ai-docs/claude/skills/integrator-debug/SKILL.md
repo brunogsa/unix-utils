@@ -63,9 +63,11 @@ Always suggest the delegation explicitly and let the user decide.
 | Tool | Purpose |
 |------|---------|
 | `aws-get-cloudwatch-logs` | Fetch and paginate CloudWatch logs; omit `--start-date` for progressive mode (see @aws-tools) |
-| `aws-get-status-distribution-api-gw` | Bird's-eye view of API GW status distribution (see @aws-tools) |
+| `aws-get-integrator-logs` | Fetch all 6 Integrator log groups in parallel, merge by timestamp with `__source` labels (see @aws-tools) |
 | `aws-get-api-keys` | List/filter API keys by suffix to identify callers (see @aws-tools) |
 | `aws-get-dlq-summary` | DLQ attributes + peek at messages with identifier extraction (see @aws-tools) |
+| `jsonl-distribution-table.js` | Group JSONL by specified `--fields` into a distribution table (see @aws-tools) |
+| `jsonl-merge-and-sort-by-field.js` | Merge multiple JSONL files, sort by `--sort-field` (see @aws-tools) |
 | `gh api` | Check recent deployments, PRs, and commits on GitHub |
 | `aws cloudwatch describe-alarms` | List active CloudWatch alarms |
 

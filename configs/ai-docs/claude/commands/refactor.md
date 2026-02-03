@@ -27,7 +27,7 @@ Deduplicate and merge the lists. If no files are found, inform the user and stop
 
 ### Run Code Simplifier
 
-Use the **Task tool** with `subagent_type=code-simplifier`. In the prompt:
+Use the **Task tool** with `subagent_type=code-simplifier:code-simplifier`. In the prompt:
 
 - List the files identified above
 - Instruct it to focus only on code touched by unpushed commits or uncommitted changes

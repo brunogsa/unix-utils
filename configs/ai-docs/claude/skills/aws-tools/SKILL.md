@@ -1,5 +1,5 @@
 ---
-description: "AWS shell utilities: CloudWatch logs, API Gateway distribution, API key lookup, DLQ summary"
+description: "AWS shell utilities: CloudWatch logs, API key lookup, DLQ summary, Integrator cross-service logs"
 user-invocable: false
 ---
 
@@ -48,40 +48,33 @@ AWS_PROFILE=arco-prod aws-get-cloudwatch-logs \
   --stdout
 ```
 
-### aws-get-status-distribution-api-gw
-Fetches API Gateway logs and outputs a distribution table grouped by endpoint, HTTP status, and caller (API key).
+### jsonl-distribution-table.js
+Generic JSONL distribution table. Groups entries by caller-specified fields, outputs an aligned table with a COUNT column sorted by count descending.
 
-```
-AWS_PROFILE=<profile> aws-get-status-distribution-api-gw \
-  --log-group <name> \
-  [--start-date <utc-iso8601>] \
-  [--end-date <utc-iso8601>] \
-  [--status <code>] \
-  [--path <resource-path>]
-```
-
-**Parameters:**
-- `--log-group` (required) -- API Gateway log group name
-- `--start-date` -- UTC ISO8601 (defaults to start of today UTC)
-- `--end-date` -- defaults to now
-- `--status` -- filter by HTTP status code (e.g., `401`)
-- `--path` -- filter by resourcePath (exact match)
-
-**Environment:** `AWS_PROFILE` (required)
-
-**Output:** aligned table with columns `METHOD`, `PATH`, `STATUS`, `API_KEY` (last 6 chars), `COUNT`, sorted by count descending.
-
-**Helper:** `apigw-distribution-table.js` (same directory) -- Node.js script that parses JSONL and produces the table.
-
-**Examples:**
 ```bash
-AWS_PROFILE=arco-prod aws-get-status-distribution-api-gw \
-  --log-group 'API-Gateway-Execution-Logs_1ciiwix04k/prod' \
-  --status 401
+node ~/oh-my-zsh/func-utilities/jsonl-distribution-table.js --fields field1,field2,... [file]
+```
 
-AWS_PROFILE=arco-prod aws-get-status-distribution-api-gw \
+Reads from `/dev/stdin` when no file is given. Composable via pipe:
+```bash
+AWS_PROFILE=arco-prod aws-get-cloudwatch-logs \
   --log-group 'API-Gateway-Execution-Logs_1ciiwix04k/prod' \
-  --status 401 --path '/v1/facades/sae/protheus/kits'
+  --filter '{ $.status = 401 }' \
+  --stdout \
+| node ~/oh-my-zsh/func-utilities/jsonl-distribution-table.js --fields httpMethod,resourcePath,status,apiKey
+```
+
+### jsonl-merge-and-sort-by-field.js
+Generic JSONL merge and sort. Reads multiple JSONL files, sorts all entries by a specified field, outputs merged JSONL to stdout.
+
+```bash
+node ~/oh-my-zsh/func-utilities/jsonl-merge-and-sort-by-field.js --sort-field <field> [--desc] <file1> [file2] ...
+```
+
+Handles numeric, ISO8601, and string values. Entries missing the sort field are placed at the end.
+
+```bash
+node ~/oh-my-zsh/func-utilities/jsonl-merge-and-sort-by-field.js --sort-field timestamp f1.jsonl f2.jsonl
 ```
 
 ### aws-get-api-keys
@@ -102,6 +95,47 @@ AWS_PROFILE=<profile> aws-get-api-keys [--suffix <last-N-chars>]
 ```bash
 AWS_PROFILE=arco-prod aws-get-api-keys
 AWS_PROFILE=arco-prod aws-get-api-keys --suffix 'xY3k9z'
+```
+
+### aws-get-integrator-logs
+Fetches logs from all 6 Integrator log groups in parallel, merges results into a single JSONL output sorted by timestamp. Each entry gets an injected `__source` field with the log group label.
+
+```
+AWS_PROFILE=<profile> aws-get-integrator-logs \
+  [--start-date <utc-iso8601>] \
+  [--end-date <utc-iso8601>] \
+  [--filter <pattern>] \
+  [--output <file>] \
+  [--stdout] \
+  [--exclude <label>...]
+```
+
+**Parameters:**
+- `--start-date` -- UTC ISO8601. When omitted, uses progressive mode (same as `aws-get-cloudwatch-logs`)
+- `--end-date` -- defaults to now
+- `--filter` -- CloudWatch filter pattern
+- `--output <file>` -- write merged output to file
+- `--stdout` -- print merged JSONL to stdout
+- `--exclude` -- skip specific log groups by label (space-separated)
+
+**Log group labels:** `apigw`, `middleware`, `core`, `http-caller`, `sf-http-caller`, `sf-notifier`
+
+**Environment:** `AWS_PROFILE` (required). Requires `node.js`.
+
+**Helpers:** `jsonl-merge-and-sort-by-field.js` (merge + sort), `jq` (injects `__source` label per log group).
+
+**Examples:**
+```bash
+# Trace a transactionId across all layers:
+AWS_PROFILE=arco-prod aws-get-integrator-logs \
+  --filter '{ $.transactionId = "abc-123" || $.requestId = "abc-123" }' \
+  --stdout
+
+# Skip API GW and sf-notifier:
+AWS_PROFILE=arco-prod aws-get-integrator-logs \
+  --filter '{ $.transactionId = "abc-123" }' \
+  --exclude apigw sf-notifier \
+  --stdout
 ```
 
 ### aws-get-dlq-summary

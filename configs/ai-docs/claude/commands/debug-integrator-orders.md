@@ -54,43 +54,11 @@ Based on log entries, determine:
 - Which queue/topic was involved
 - Whether the order was processed synchronously or asynchronously
 
-### Trace the Full Request Path
+### Trace Each Transaction
 
-Requests pass through: **API GW -> middleware -> core -> sf-http-caller / http-caller**
+For each unique `transactionId` found in the core logs, delegate to `/debug-integrator-tid` for the full cross-layer lifecycle (API GW, middleware, core, async lambdas).
 
-Search each layer as needed:
-
-**API Gateway** (entry point):
-```bash
-aws-get-cloudwatch-logs \
-  --log-group 'API-Gateway-Execution-Logs_1ciiwix04k/prod' \
-  --filter '{ $.requestId = "<transactionId>" }' \
-  --stdout
-```
-
-**Middleware** (POST endpoints):
-```bash
-aws-get-cloudwatch-logs \
-  --log-group '/aws/ecs/integrator-middleware-service/middleware' \
-  --filter '{ $.transactionId = "<id>" }' \
-  --stdout
-```
-
-**sf-http-caller** (async calls to OMS):
-```bash
-aws-get-cloudwatch-logs \
-  --log-group '/aws/lambda/integrator-sf-http-caller-prod' \
-  --filter '{ $.* = %<order-id>% }' \
-  --stdout
-```
-
-**http-caller** (async calls to legacy ERPs):
-```bash
-aws-get-cloudwatch-logs \
-  --log-group '/aws/lambda/integrator-http-caller-prod' \
-  --filter '{ $.* = %<order-id>% }' \
-  --stdout
-```
+If multiple orders share the same transactionId, note this (batch processing).
 
 ### Check Invoice Leg
 
@@ -109,15 +77,6 @@ aws-get-cloudwatch-logs \
   --stdout
 ```
 
-Also check http-caller for the downstream ERP delivery:
-
-```bash
-aws-get-cloudwatch-logs \
-  --log-group '/aws/lambda/integrator-http-caller-prod' \
-  --filter '{ $.* = %<order-id>% }' \
-  --stdout
-```
-
 ### Check for DLQ Messages
 
 If the order appears to have failed at any stage, check related DLQs:
@@ -127,12 +86,6 @@ aws-get-dlq-summary --queue-name <dlq-name> --peek 5
 ```
 
 Search the output for the order ID. If DLQ investigation is needed, suggest delegating to `/debug-integrator-dlq`.
-
-### Trace Individual Transactions
-
-For each unique `transactionId` found, suggest delegating to `/debug-integrator-tid` for the full request lifecycle.
-
-If multiple orders share the same transactionId, note this (batch processing).
 
 ### Analyze and Present Findings
 

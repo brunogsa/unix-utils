@@ -113,6 +113,8 @@
 - **Pin versions in dependency changes** -- use exact versions, not ranges, when adding or updating dependencies. Reproducible builds prevent environment drift.
 - **Avoid round-tripping through side effects** -- don't write to an external store (clipboard, file, cache) just to read it back in the same flow. Pass data directly between producer and consumer when they share an execution context.
 - **Scripts must be human-friendly** -- all automations/scripts must include `--help` and be clearly written so both humans and AI can use them.
+- **Unix philosophy for scripts** -- each script does one thing well. Complex workflows compose small, focused scripts via pipes and arguments. Never duplicate logic that already exists in another script -- call it instead. Accept behavior as parameters (field names, sort keys, grouping criteria) -- domain-specific defaults belong in the caller, not the tool.
+- **Portable shell syntax** -- prefer bash-compatible syntax over zsh-specific extensions (e.g., `${!array[@]}` over `${(k)array}`, `while IFS= read -r` over `${(f)var}`). Scripts run in both shells and must pass shellcheck.
 - **Avoid numbered steps in evolving docs** -- use unnumbered headings in documentation that will be frequently edited (reordered, inserted, deleted). Numbering creates unnecessary renumbering overhead on every change.
 
 Detailed examples: @~/.claude/skills/code-standards/SKILL.md
