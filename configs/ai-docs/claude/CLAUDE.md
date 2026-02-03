@@ -1,7 +1,7 @@
 # CONVENTIONS
 
 > Single source of truth for how we design, code, test, and review software.
-> Rules are imperative sentences. Each section ends with a TL;DR.
+> Rules are imperative sentences.
 > Detailed examples live in `skills/` -- auto-loaded by context.
 
 ---
@@ -25,15 +25,13 @@
 - **Never hallucinate** -- only reference known, verified libraries, functions, and tags.
 - **Offer alternatives** -- when appropriate, present multiple approaches with trade-offs.
 
-### TL;DR
-
-* Direct, honest, concise. Ask when uncertain. No emojis. ALWAYS correct my English first.
-
 ---
 
 ## WORKFLOW
 
+- **Prefer deterministic automation over AI** -- conventional automation is faster, more accurate, and cost-free. Use AI as a last resort, or as a stopgap until the automation is built.
 - **Sequential over parallel for edits** -- IMPORTANT: never run parallel tool calls that require user approval or input (file edits, confirmations). Parallel is OK only for read-only info gathering (web search, file reads, grep). Parallel approval prompts are confusing and disruptive.
+- **Ask before using sub-agents** -- never silently delegate work to Task/Explore agents. Always ask before spawning a sub-agent, explaining what it would do and why.
 - **Notify requests** -- when the user asks to be notified (e.g., "notify me when done"), load the `notify-user` skill BEFORE running the command. Chain the notification after the command in a single Bash call so the user approves once. Never run the command first and add the notification later.
 - **Prefer targeted edits over full rewrites** -- use Edit tool, not Write tool. The user reviews changes via diffs, not by re-reading entire files.
 - **Request context first** -- ask for files/code or suggest terminal commands (rg, find, tree, git) before proposing solutions.
@@ -65,10 +63,6 @@
 - Add a final TODO task: "Review global CLAUDE.md and update principles based on session learnings"
 - Capture: new patterns, anti-patterns, common mistakes, testing strategies
 - This is the source of truth -- if you learn something valuable and don't update it, the knowledge is lost.
-
-### TL;DR
-
-* Context first, baby steps, sequential edits, targeted diffs, tests first, human commits.
 
 ---
 
@@ -118,12 +112,10 @@
 - **Fail loudly, not silently** -- errors should propagate or be logged explicitly, never swallowed. A crash you see is better than a silent corruption you don't.
 - **Pin versions in dependency changes** -- use exact versions, not ranges, when adding or updating dependencies. Reproducible builds prevent environment drift.
 - **Avoid round-tripping through side effects** -- don't write to an external store (clipboard, file, cache) just to read it back in the same flow. Pass data directly between producer and consumer when they share an execution context.
+- **Scripts must be human-friendly** -- all automations/scripts must include `--help` and be clearly written so both humans and AI can use them.
+- **Avoid numbered steps in evolving docs** -- use unnumbered headings in documentation that will be frequently edited (reordered, inserted, deleted). Numbering creates unnecessary renumbering overhead on every change.
 
 Detailed examples: @~/.claude/skills/code-standards/SKILL.md
-
-### TL;DR
-
-* NEVER change formatting unless asked. Layered architecture. Clean, typed, DRY code. Normalize at entry. Structured logging. Constants over magic values. Guard clauses. Composition over inheritance. Fail loudly. Pin versions.
 
 ---
 
@@ -143,10 +135,6 @@ Detailed examples: @~/.claude/skills/code-standards/SKILL.md
 
 Detailed examples: @~/.claude/skills/test-standards/SKILL.md
 
-### TL;DR
-
-* Small, deterministic, behaviour-centric tests. Integrate first, unit second. Mock only externals.
-
 ---
 
 ## REVIEW
@@ -154,10 +142,3 @@ Detailed examples: @~/.claude/skills/test-standards/SKILL.md
 Review guidelines: @~/.claude/skills/review-standards/SKILL.md
 Review checklists: @~/.claude/skills/review-standards/checklists.md
 
-### TL;DR
-
-* >80% confidence: comment. 60-80%: question. <60%: skip.
-* Problem -> Why -> Fix (always explain why).
-* Tags: MANDATORY / RECOMMENDED / NITPICK / COMPLIMENT / QUESTION
-* Priority: Correctness -> corner cases -> testing -> security
-* Action items grouped by file, then priority.
