@@ -100,7 +100,6 @@
 - **Normalize data at entry point** -- convert string dates, numbers-as-strings, etc. to proper types immediately after validation.
 - **Deep clone with type preservation** -- use a reviver function to restore Date objects when using JSON.stringify/JSON.parse.
 - **Sanitize dynamic data in structured output** -- escape special characters when embedding variables into DSL, templates, configs, or any structured format.
-- **Comment the why, not the what** -- prefer tests and logs over comments. Comment only non-obvious logic.
 - **Extract magic values into constants** -- use TypeScript enums when applicable.
 - **Distinguish "missing" from "intentional zero/empty"** -- check for null/undefined, not falsiness.
 - **Centralize repeated logic** -- DRY: defaults, transformations, and repeated computations live in one place.
@@ -118,9 +117,21 @@
 - **Scripts must be human-friendly** -- all scripts must include `--help` and a comment header with usage syntax and 2-3 concrete examples. This serves as both documentation and a manual test plan. Shell scripts never get automated tests; complex logic that needs automated tests belongs in Node.js/Python.
 - **Unix philosophy for scripts** -- each script does one thing well. Complex workflows compose small, focused scripts via pipes and arguments. Never duplicate logic that already exists in another script -- call it instead. Accept behavior as parameters (field names, sort keys, grouping criteria) -- domain-specific defaults belong in the caller, not the tool.
 - **Portable shell syntax** -- prefer bash-compatible syntax over zsh-specific extensions (e.g., `${!array[@]}` over `${(k)array}`, `while IFS= read -r` over `${(f)var}`). Scripts run in both shells and must pass shellcheck.
-- **Avoid numbered steps in evolving docs** -- use unnumbered headings in documentation that will be frequently edited (reordered, inserted, deleted). Numbering creates unnecessary renumbering overhead on every change.
 
 Detailed examples: @~/.claude/skills/code-standards/SKILL.md
+
+---
+
+## DOCUMENTATION
+
+- **Comment the why, not the what** -- prefer tests and logs over comments. Comment only non-obvious logic.
+- **Avoid numbered steps in evolving docs** -- use unnumbered headings in documentation that will be frequently edited (reordered, inserted, deleted). Numbering creates unnecessary renumbering overhead on every change.
+- **Avoid enumerating directory contents in docs** -- describe the category's purpose and give 1-2 examples. Listing contents creates a maintenance burden that grows with every addition.
+- **Centralize repo-wide config** -- ignore rules, lint configs, and formatting configs should live in one canonical location (e.g., root `.gitignore`), not scattered per-directory. Scattered configs create redundancy and drift.
+- **READMEs describe purpose, not inventory** -- state what the directory/project does and why. Give 1-2 concrete examples. Don't list every file or subdirectory.
+- **Keep docs close to what they document** -- a module's README lives in the module's directory. API docs live next to the API code. Distance between docs and code causes drift.
+- **Commit messages explain the why** -- the diff shows the what. The commit message explains the motivation and context that the diff alone cannot convey.
+- **PR descriptions are for reviewers, not posterity** -- provide business context, approach summary, and anything non-obvious. Don't repeat what the diff already shows.
 
 ---
 
