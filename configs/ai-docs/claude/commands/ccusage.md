@@ -13,8 +13,8 @@ Fetch usage data for the current session using the `ccusage` CLI, interpret the 
 The current session is the most recently modified `.jsonl` file in the project directory:
 
 ```bash
-# Get project dir name (replace / with -)
-project_dir=$(echo "$PWD" | sed 's|^/||; s|/|-|g')
+# Get project dir name (replace / with -, keeping leading -)
+project_dir=$(echo "$PWD" | sed 's|/|-|g')
 
 # Get most recent session ID
 session_id=$(ls -t ~/.claude/projects/"$project_dir"/*.jsonl 2>/dev/null | head -1 | xargs basename | sed 's/\.jsonl$//')
