@@ -5,7 +5,7 @@ user-invocable: false
 
 # Code Standards -- Examples & Patterns
 
-Reference examples for the coding rules defined in CLAUDE.md.
+Reference examples for the CODE rules defined in CLAUDE.md.
 
 ---
 
@@ -324,32 +324,6 @@ function assertRequiredFields(order) {
 
 ---
 
-## Test Title Design (before implementation)
-
-```javascript
-// === STEP 1: Design test titles only ===
-
-describe("processOrder", () => {
-  it("should return a receipt with all line items when order is valid");
-  it("should throw when required fields are missing");
-  it("should apply percentage discount before calculating taxes");
-  it("should throw when item is out of stock");
-});
-
-// Review these titles with the user → validates understanding of behavior
-
-// === STEP 2: Implement tests (RED) ===
-// === STEP 3: Implement code (GREEN) ===
-// === STEP 4: Refactor ===
-```
-
-```javascript
-// BAD: Jump straight to implementing tests without designing the suite
-// Leads to missing cases, unclear scope, and rework
-```
-
----
-
 ## Script Usage Documentation
 
 ```bash
@@ -368,28 +342,3 @@ describe("processOrder", () => {
 # BAD: No usage section, caller has to read the implementation to understand it
 ```
 
----
-
-## Prefer Tests & Logs over Comments
-
-```ts
-// Bad -- comments explaining what code does:
-function createRecord(user, data) {
-  // Check permissions
-  if (!hasPermission(user)) return false;
-  return db.insert(data);
-}
-
-// Good -- self-documenting code + logs + tests:
-function createRecordIfUserHasPermission(user, data) {
-  if (!validateUserPermissions(user)) {
-    logger.info({ message: "Record creation rejected", userId: user.id });
-    return false;
-  }
-  return db.insert(data);
-}
-
-test("rejects when user lacks permission", () => {
-  expect(createRecordIfUserHasPermission(userWithoutPerms, data)).toBe(false);
-});
-```

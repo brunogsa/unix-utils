@@ -5,7 +5,7 @@ user-invocable: false
 
 # Test Standards -- Examples & Patterns
 
-Reference examples for the testing rules defined in CLAUDE.md.
+Reference examples for the TEST rules defined in CLAUDE.md.
 
 ---
 

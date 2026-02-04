@@ -68,3 +68,18 @@ Supplementary checklists for code review. Referenced by the review-standards ski
 - Overly permissive types (string where union/enum fits)
 - Types without enforced invariants (e.g., non-empty arrays typed as regular arrays)
 - Unnecessary optional fields that are always present in practice
+
+---
+
+## Code Design Checklist
+
+- Global mutable state (prefer params and return values)
+- I/O in use-case/business layer (layered architecture violation)
+- Deep nesting where guard clauses would simplify
+- Inheritance where composition fits better
+- Falsiness checks where null/undefined checks are needed
+- Data not normalized at entry point (string dates, numbers-as-strings)
+- Functions with 2+ positional params instead of named-param object
+- Unused code not cleaned up (dead imports, orphaned functions)
+- Unpinned dependency versions (ranges instead of exact)
+- Loops with I/O missing progress logging

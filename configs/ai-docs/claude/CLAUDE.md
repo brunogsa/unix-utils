@@ -76,6 +76,8 @@
 
 - **Update docs as you go** -- locate and update any related documentation, as you go.
 
+Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
+
 ---
 
 ## CODE
@@ -129,6 +131,8 @@
 
 - **Extract magic values into constants** -- use TypeScript enums when applicable.
 
+- **Design types to prevent invalid states** -- prefer unions/enums over loose strings, readonly for data that shouldn't change, and required fields over unnecessary optionals. Make illegal states unrepresentable.
+
 - **Distinguish "missing" from "intentional zero/empty"** -- check for null/undefined, not falsiness.
 
 - **Centralize repeated logic** -- DRY: defaults, transformations, and repeated computations live in one place.
@@ -171,6 +175,8 @@ Detailed examples: @~/.claude/skills/code-standards/SKILL.md
 
 - **Comment the why, not the what** -- prefer tests and logs over comments. Comment only non-obvious logic.
 
+- **Prefer tests and logs over comments** -- code behavior is best documented by tests that verify it and logs that trace it. Comments drift; tests and logs stay honest.
+
 - **Keep docs close to what they document** -- a module's README lives in the module's directory. API docs live next to the API code. Distance between docs and code causes drift.
 
 - **READMEs describe purpose, not inventory** -- state what the directory/project does and why. Give 1-2 concrete examples. Don't list every file or subdirectory. Listing contents creates a maintenance burden that grows with every addition.
@@ -182,6 +188,8 @@ Detailed examples: @~/.claude/skills/code-standards/SKILL.md
 - **Commit messages explain the why** -- the diff shows the what. The commit message explains the motivation and context that the diff alone cannot convey.
 
 - **PR descriptions are for reviewers, not posterity** -- provide business context, approach summary, and anything non-obvious. Don't repeat what the diff already shows.
+
+Detailed examples: @~/.claude/skills/doc-standards/SKILL.md
 
 ---
 
