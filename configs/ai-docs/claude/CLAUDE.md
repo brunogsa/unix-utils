@@ -14,7 +14,7 @@
 
 ---
 
-## COMMUNICATION
+## INTERACTION
 
 - **Correct my English on the spot** -- CRITICAL: always point out grammar, word choice, and phrasing mistakes in my messages. Also correct phrasing that is grammatically valid but unnatural. Use the format `"[original snippet]" → "[corrected snippet]"` for each correction, before responding to the actual content.
 
@@ -30,12 +30,6 @@
 
 - **Be direct** -- no preambles, no filler, no emojis.
 
----
-
-## WORKFLOW
-
-- **Never delete or overwrite existing code unless explicitly instructed** -- CRITICAL: O NOT change indentation, empty lines, whitespace, quote style, or semicolons. ONLY modify the exact lines needed for the requested change.
-
 - **Maximize verifiability** -- CRITICAL: for code edits, show file path, line numbers, enclosing signature, and 5-10 lines of context. For explorations, show the evidence (code snippets, search results) that supports every conclusion.
 
 - **Sequential over parallel for edits/inputs** -- IMPORTANT: never run parallel tool calls that require user approval or input (file edits, confirmations). Parallel is OK only for read-only info gathering (web search, file reads, grep). Parallel approval prompts are confusing and disruptive.
@@ -44,17 +38,29 @@
 
 - **Prefer targeted edits over full rewrites, even for plans** -- use Edit tool, not Write tool. The user reviews changes via diffs, not by re-reading entire files.
 
+- **Human commits only** -- after review, I create the commit; no auto-commits.
+
+- **Reload configs after editing** -- after modifying config files that require reloading (tmux, shell rc, editor config), apply the reload command automatically without being asked.
+
+- **Notify requests** -- when the user asks to be notified (e.g., "notify me when done"), load the `notify-user` skill BEFORE running the command. Chain the notification after the command in a single Bash call so the user approves once. Never run the command first and add the notification later.
+
+- **Change-request = new TODO items** -- address review feedback as new tasks, not amendments to existing steps.
+
+---
+
+## WORKFLOW
+
+- **Understand the problem first** -- design the solution path before writing code. Clarify requirements, identify affected areas, and outline the approach. Writing code is the last step, not the first.
+
 - **Work in baby steps** -- each step is the smallest testable, commit-able change.
 
 - **Prefer deterministic automation over AI, when reusable and composable** -- conventional automation is faster, more accurate, and cost-free. Use AI as a last resort, or as a stopgap until the automation is built.
 
 - **Suggest interviewing for complex features** -- for large or ambiguous features, proactively suggest interviewing the user via questions before writing code. Surfaces edge cases, tradeoffs, and requirements the user hasn't considered.
 
-- **Before creating new code** -- ask "where does this logically belong?", not "where is convenient?". Search the codebase for existing code that does something similar, communicate what was found, and analyze trade-offs of reusing/extending vs creating new. When an existing pattern is found, present it alongside the alternatives with a brief trade-off comparison and ask before adopting. Never assume the existing pattern is the right choice. Prefer extending over duplicating. Extract shared code only if used >=2 places.
+- **Before creating new code** -- ask "where does this logically belong?", not "where is convenient?". Search the codebase for existing code that does something similar, communicate what was found, and analyze trade-offs of reusing/extending vs creating new. When an existing pattern is found, present it alongside the alternatives with a brief trade-off comparison and ask before adopting. Never assume the existing pattern is the right choice. Prefer extending over duplicating. Extract shared code only if used >=2 places. Search for existing utilities before implementing new infrastructure. Reuse or extend what exists.
 
 - **Green baseline first** -- existing test & lint suite must pass before new work begins.
-
-- **Search before creating** -- search for existing utilities before implementing new infrastructure. Reuse or extend what exists.
 
 - **Design test titles before implementation** -- write test titles (no implementation) that describe the expected behavior as a suite. Validate the suite covers the right scope before writing any test or production code. For scripts: no automated tests -- instead, define usage syntax and all use-case examples in the comment header, which serve as the manual validation plan.
 
@@ -70,18 +76,11 @@
 
 - **Update docs as you go** -- locate and update any related documentation, as you go.
 
-- **Change-request = new baby steps** -- address review feedback as new steps.
-
-- **Human commits only** -- after review, I create the commit; no auto-commits.
-
-- **Reload configs after editing** -- after modifying config files that require reloading (tmux, shell rc, editor config), apply the reload command automatically without being asked.
-
-- **Notify requests** -- when the user asks to be notified (e.g., "notify me when done"), load the `notify-user` skill BEFORE running the command. Chain the notification after the command in a single Bash call so the user approves once. Never run the command first and add the notification later.
-
-
 ---
 
-## CODING
+## CODE
+
+- **Never delete or overwrite existing code unless explicitly instructed** -- CRITICAL: DO NOT change indentation, empty lines, whitespace, quote style, or semicolons. ONLY modify the exact lines needed for the requested change.
 
 - **Guidelines override codebase patterns** -- CRITICAL: when existing code conflicts with rules in this guide, do NOT silently follow the codebase. Present the conflicting pattern and the guideline, then wait for approval before proceeding. Match codebase style only when it doesn't contradict these rules.
 
@@ -168,7 +167,7 @@ Detailed examples: @~/.claude/skills/code-standards/SKILL.md
 
 ---
 
-## DOCUMENTATION
+## DOC
 
 - **Comment the why, not the what** -- prefer tests and logs over comments. Comment only non-obvious logic.
 
@@ -186,7 +185,7 @@ Detailed examples: @~/.claude/skills/code-standards/SKILL.md
 
 ---
 
-## TESTING
+## TEST
 
 - **Descriptive titles** -- CRITICAL: say what and why (BDD-like). Test titles should act as documentation of the behavior
 
