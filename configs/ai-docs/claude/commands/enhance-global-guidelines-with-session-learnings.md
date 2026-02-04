@@ -68,11 +68,13 @@ Learnings go to whichever file they belong in. Principles go to CLAUDE.md; detai
 
 ## Proposed Additions
 
+Number each proposal so the user can approve/reject by number (e.g., "Apply 1 and 3").
+
 ### CLAUDE.md > [Section: CODING/TESTING/WORKFLOW/etc.]
 1. **[Guideline title]** - [Description]
 
 ### skills/[skill-name]/SKILL.md
-1. **[Addition title]** - [Description]
+2. **[Addition title]** - [Description]
 
 ## Already Covered
 

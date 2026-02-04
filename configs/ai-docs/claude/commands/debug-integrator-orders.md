@@ -18,7 +18,89 @@ Where `<order-ids...>` is one or more order identifiers, space-separated. Accept
 
 ---
 
-## Execution Steps
+## Mode Selection
+
+Choose mode based on order count:
+- **<=5 orders:** use Single Mode (per-order CloudWatch queries)
+- **>5 orders:** use Bulk Mode (download logs once, grep locally)
+
+---
+
+## Bulk Mode (>5 orders)
+
+When debugging many orders, per-order CloudWatch queries are too slow. Instead: download logs once to a local file, then grep locally.
+
+### Download Middleware Logs
+
+Download middleware "Request received" logs for the relevant time range. This is much lighter than core and contains all key fields:
+
+```bash
+AWS_PROFILE=arco-prod aws-get-cloudwatch-logs \
+  --log-group '/aws/ecs/integrator-middleware-service/middleware' \
+  --filter '{ $.message = "Request received" }' \
+  --start-date '<start-iso8601>' \
+  --end-date '<end-iso8601>' \
+  --output '<repo-root>/logs/middleware-requests-<date-range>.jsonl'
+```
+
+Use a broad time range if the exact window is unknown. The file lives in the repo's `logs/` dir for reuse across queries (gitignored).
+
+### Extract Key Fields per Order
+
+Grep the downloaded file for each order ID and extract these fields:
+
+| Field | Description |
+|-------|-------------|
+| `transactionId` | Cross-layer trace ID |
+| `externalId` | Prefixed order ID (e.g., `SAS-ISAAC-4PFQLKBQL6LJ`) |
+| `brandSlug` | Brand identifier (e.g., `sas`, `sae`, `is`) |
+| `docNumber` / `DocNumber` | Document number (case varies) |
+| `orderTimestamp` | When the order was placed |
+
+```bash
+grep '<order-id>' <logfile> | jq -c '{transactionId, externalId, brandSlug, docNumber: (.docNumber // .DocNumber), orderTimestamp}'
+```
+
+Build a summary table from all matches to identify patterns (common brands, error messages).
+
+### Targeted Error Search
+
+With `transactionId` + timestamp from middleware, query other log groups using narrow time windows:
+
+```bash
+AWS_PROFILE=arco-prod aws-get-cloudwatch-logs \
+  --log-group '/aws/ecs/integrator-core-service/core' \
+  --filter '{ $.transactionId = "<tid>" && $.level = "error" }' \
+  --start-date '<narrow-window-start>' \
+  --end-date '<narrow-window-end>' \
+  --stdout
+```
+
+Or download all core errors for the period and grep locally (same pattern):
+
+```bash
+AWS_PROFILE=arco-prod aws-get-cloudwatch-logs \
+  --log-group '/aws/ecs/integrator-core-service/core' \
+  --filter '{ $.level = "error" }' \
+  --start-date '<start>' \
+  --end-date '<end>' \
+  --output '<repo-root>/logs/core-errors-<date-range>.jsonl'
+```
+
+Then grep for each transactionId locally.
+
+### Categorize Failures
+
+Group orders by error pattern (e.g., special characters, municipality mismatch, missing product). Present a distribution table:
+
+```bash
+grep -f <order-ids-file> <core-errors-logfile> \
+  | node ~/oh-my-zsh/func-utilities/jsonl-distribution-table.js --fields message
+```
+
+---
+
+## Single Mode (<=5 orders)
 
 ### Identify Order Format and Brand
 

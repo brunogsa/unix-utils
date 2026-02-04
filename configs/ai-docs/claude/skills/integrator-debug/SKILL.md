@@ -43,6 +43,20 @@ During debug sessions, new insights about architecture, log patterns, or debuggi
 
 ---
 
+## Bulk Investigation Pattern
+
+When debugging many items (>5 orders, transactions, etc.), per-item CloudWatch queries are too slow. Use the download-then-grep approach:
+
+1. **Download middleware "Request received" logs** -- middleware is much lighter than core. Filter with `{ $.message = "Request received" }` to get one entry per request containing all key fields. Save to `<repo-root>/logs/<descriptive-name>.jsonl`
+2. **Grep locally** -- search the downloaded file for each identifier using `grep` + `jq`
+3. **Extract key fields** -- `transactionId`, `externalId`, `brandSlug`, `docNumber`/`DocNumber`, `orderTimestamp`
+4. **Targeted follow-up** -- with `transactionId` + timestamp from middleware, query other log groups (core, lambdas) using narrow time windows and exact `transactionId` matches
+5. **Categorize** -- group failures by error pattern using `jsonl-distribution-table.js`
+
+The `logs/` directory in the repo root stores downloaded log files. Gitignore it if not already.
+
+---
+
 ## Cross-Command Delegation
 
 Debug commands can suggest running another command for deeper investigation:
