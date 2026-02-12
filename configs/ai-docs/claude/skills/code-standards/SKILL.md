@@ -41,6 +41,57 @@ function processDataCommand(filepath, outputPath) {
 
 ---
 
+## Single-Responsibility Functions
+
+```javascript
+// Bad -- one function handling two phases (comment is a smell):
+function syncOrder(order, client) {
+  // Phase 1: transform
+  const payload = { id: order.externalId, items: order.lines.map(formatLine) };
+  // Phase 2: send
+  const response = client.post('/orders', payload);
+  return response.id;
+}
+
+// Good -- split at the phase boundary:
+function buildOrderPayload(order) {
+  return { id: order.externalId, items: order.lines.map(formatLine) };
+}
+
+function submitOrder({ payload, client }) {
+  const response = client.post('/orders', payload);
+  return response.id;
+}
+```
+
+---
+
+## Inject What's Hard to Mock
+
+```javascript
+// Bad -- hardcoded I/O client, requires module patching to test:
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+
+function getOrder(orderId) {
+  const client = new DynamoDBClient({ region: 'us-east-1' });
+  return client.send(new GetItemCommand({ /* ... */ }));
+}
+
+// Good -- I/O collaborator injected, trivially substitutable in tests:
+function getOrder({ orderId, dbClient }) {
+  return dbClient.send(new GetItemCommand({ /* ... */ }));
+}
+
+// Pure helpers don't need injection -- direct import is fine:
+import { formatCurrency } from './utils.js';
+
+function buildReceipt(order) {
+  return { total: formatCurrency(order.total) };
+}
+```
+
+---
+
 ## Deep Clone with Type Preservation
 
 ```javascript
@@ -52,6 +103,21 @@ const dateReviver = (key, value) => {
   return value;
 };
 const clone = JSON.parse(JSON.stringify(obj), dateReviver);
+```
+
+---
+
+## Timezone-Ambiguous Timestamp Parsing
+
+```javascript
+// Bad -- timezone-ambiguous string parsed as local time:
+const ts = '2026-02-04 23:50:07.393'; // UTC from an API, no timezone indicator
+const date = new Date(ts);             // parsed as LOCAL time -- 3h off in BRT!
+
+// Good -- force UTC interpretation:
+const date = new Date(ts + 'Z');
+// Or normalize at entry point:
+const date = new Date(ts.replace(' ', 'T') + 'Z');
 ```
 
 ---
@@ -100,6 +166,60 @@ if (isExpandable) {
 
 ---
 
+## Never Name a Boolean as a Negative
+
+```javascript
+// Bad -- double-negative: the variable is named as a negative, then negated with !
+const isKnownNonTerminal = status === 'Running' || status === 'Scheduled';
+if (!isKnownNonTerminal) {
+  throw new Error(`Unexpected status: "${status}"`);
+}
+
+// Good -- name the guard condition directly:
+const isUnexpectedStatus = status !== 'Running' && status !== 'Scheduled';
+if (isUnexpectedStatus) {
+  throw new Error(`Unexpected status: "${status}"`);
+}
+```
+
+---
+
+## Don't Wrap Trivial Expressions
+
+```javascript
+// Bad -- wrapper adds no behavior, just renames a clear standard call:
+function ensureDir(dirPath) {
+  mkdirSync(dirPath, { recursive: true });
+}
+ensureDir(batchDir);
+
+// Good -- inline the call:
+mkdirSync(batchDir, { recursive: true });
+
+// OK -- wrapper adds real behavior (logging, retry, validation):
+function ensureDirWithLog(dirPath) {
+  mkdirSync(dirPath, { recursive: true });
+  console.log(`Created: ${dirPath}`);
+}
+```
+
+---
+
+## Decompose Dense Expressions
+
+```javascript
+// Bad -- requires mental unpacking of Array.from, length trick, and arrow:
+const paths = Array.from({ length: count }, (_, i) => resolve(dir, `batch-${i + 1}.csv`));
+
+// Good -- auxiliary variables make each step clear:
+const paths = [];
+for (let i = 1; i <= count; i++) {
+  paths.push(resolve(dir, FILE_NAMES.batch(i)));
+}
+```
+
+---
+
 ## Name Long Conditions
 
 ```ts
@@ -134,6 +254,20 @@ for (const item of items) {
 
 ---
 
+## Naming: Purpose Over Mechanism
+
+```javascript
+// Bad -- describes the mechanism (what it does internally):
+function collectAllColumns(rows) { /* ... */ }
+function getValues(rows) { /* ... */ }
+
+// Good -- describes the purpose/output (what the caller gets):
+function buildCsvColumnOrder(rows) { /* ... */ }
+function extractUniqueEmails(rows) { /* ... */ }
+```
+
+---
+
 ## Named Parameters for Functions (>=2 params)
 
 ```ts
@@ -142,6 +276,52 @@ function configure(a, b) {}
 
 // Good:
 function configure({ retries, timeout }) {}
+```
+
+---
+
+## Pass Specific Fields, Not Entire Objects
+
+```javascript
+// Bad -- signature hides what the function actually needs:
+async function fetchLogs({ config, workDir }) {
+  const query = buildQuery(config.logGroups);  // only uses logGroups and logRadius
+  const { start, end } = buildTimeWindow({ radiusMinutes: config.logRadius });
+  // ...
+}
+
+// Good -- signature documents exact dependencies:
+async function fetchLogs({ logGroups, logRadius, workDir }) {
+  const query = buildQuery(logGroups);
+  const { start, end } = buildTimeWindow({ radiusMinutes: logRadius });
+  // ...
+}
+```
+
+---
+
+## Naming Conventions
+
+```javascript
+// Booleans -- prefix with is/has/should/can:
+const isValid = order.items.length > 0;
+const hasPermission = user.roles.includes('admin');
+const shouldRetry = attempt < MAX_RETRIES;
+
+// Collections -- plural for arrays, suffix for non-arrays:
+const orders = [order1, order2];         // array → plural
+const userIdSet = new Set(['a', 'b']);   // Set → suffixed
+const errorMap = new Map();              // Map → suffixed
+
+// Pipeline variables -- stage-prefix when shape stays the same,
+// distinct name when shape changes:
+const rawOrder = parseInput(body);
+const validatedOrder = validate(rawOrder);   // same shape → prefix
+const receipt = generateReceipt(validatedOrder); // different shape → new name
+
+// Callbacks -- describe transformation when input isn't obvious:
+function collect({ dirPath, rowToValue }) {}   // input→output
+function process({ items, buildPayload }) {}   // output-only when obvious
 ```
 
 ---

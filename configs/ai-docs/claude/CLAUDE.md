@@ -28,6 +28,8 @@
 
 - **Highlight assumptions** -- explicitly note any assumptions made.
 
+- **Be the devil's advocate** -- proactively challenge decisions, point out over-engineering, and flag when a simpler approach exists. But verify assumptions before critiquing -- check the actual code, ask about context (one-off vs reusable, constraints), and ground the critique in evidence, not guesses.
+
 - **Be direct** -- no preambles, no filler, no emojis.
 
 - **Maximize verifiability** -- CRITICAL: for code edits, show file path, line numbers, enclosing signature, and 5-10 lines of context. For explorations, show the evidence (code snippets, search results) that supports every conclusion.
@@ -51,6 +53,8 @@
 ## WORKFLOW
 
 - **Understand the problem first** -- design the solution path before writing code. Clarify requirements, identify affected areas, and outline the approach. Writing code is the last step, not the first.
+
+- **Question complexity before building it** -- before implementing a multi-step solution, ask: is this one-off or reusable? Is there a simpler alternative? What's the minimum that solves the actual problem? Verify that the simpler alternative doesn't work (check the code, understand constraints) before committing to the complex path. Complexity must earn its place.
 
 - **Work in baby steps** -- each step is the smallest testable, commit-able change.
 
@@ -86,11 +90,24 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
 - **Guidelines override codebase patterns** -- CRITICAL: when existing code conflicts with rules in this guide, do NOT silently follow the codebase. Present the conflicting pattern and the guideline, then wait for approval before proceeding. Match codebase style only when it doesn't contradict these rules.
 
-- **Code top-down (Breadth First)** -- CRITICAL: tackle problems in multiple rounds, from top (main/controller/use-case) to leaves. Each round: implement 1 function and declare only the skeleton functions it requires (signature + contract + TODO body), in chronological order (order they appear in the implementation). Next round: implement the next unimplemented function in file order and declare its new skeletons. Repeat until every function is implemented. Skeletons have full contracts: parameters (names + types/meaning), return value, side effects, and error conditions. The main body must pass params explicitly -- the reader grasps full data flow without jumping to definitions. Files read top-to-bottom like a BFS queue. Stop and show the user after each round for review.
+- **Code top-down breadth first (TDBFC)** -- CRITICAL: tackle problems in multiple rounds, from top (main/controller/use-case) to leaves. Each round: implement 1 function and declare only the skeleton functions it requires (signature + contract + TODO body), in chronological order (order they appear in the implementation). Next round: implement the next unimplemented function in file order and declare its new skeletons. Repeat until every function is implemented. Skeletons have full contracts: parameters (names + types/meaning), return value, side effects, and error conditions. The main body must pass params explicitly -- the reader grasps full data flow without jumping to definitions. Files read top-to-bottom like a BFS queue. Stop and show the user after each round for review.
 
 - **Avoid global mutable state** -- pass data through parameters and return values. Global state is only acceptable when the language makes it unavoidable (e.g., bash lacks return values for complex data). When forced to use globals, justify the reason explicitly in a comment.
 
-- **Clean Code basics** -- small, pure, well-named functions; no magic numbers; prefer enums; dependency-inject wisely; validate inputs; handle errors.
+- **Prefer pure functions** -- default to functions with no side effects. Isolate impure code (I/O, mutations, logging) into thin, focused boundary functions. The less a function does beyond transforming its inputs into outputs, the easier it is to test, reuse, and reason about.
+
+- **Inject what's hard to mock** -- pass I/O collaborators (HTTP clients, database connections, SDK clients) as parameters so tests can substitute them. Don't inject pure utilities or internal helpers -- direct imports are simpler and more readable. When the codebase already injects a dependency, follow the pattern for consistency.
+
+- **Single-responsibility functions** -- each function does one thing at one level of abstraction. If a function needs a comment separating "phases", it should be split.
+
+- **Name by purpose, not mechanism** -- a name should tell the reader what something does as a black box, without having to read the implementation. Describe the output/purpose (what the caller gets), not the internal mechanism (how it works).
+
+- **Naming conventions** --
+  * Booleans: prefix with `is`/`has`/`should`/`can` so they read as questions.
+  * Collections: plural nouns for arrays (`orders`), suffixed for non-arrays (`userIdSet`, `errorMap`).
+  * Pipeline variables: stage-prefix when the shape stays the same (`rawOrder` → `validatedOrder`), distinct name when the shape changes (`order` → `receipt`).
+  * Callbacks: describe the transformation when the input isn't obvious (`rowToValue`, `itemToResult`); otherwise describe the output (`buildPayload`).
+  * Abbreviations: domain-standard abbreviations are fine (`tid`, `req`, `db`); don't invent new ones.
 
 - **Project structure** --
   * `controllers` -- HTTP only (validate, paginate)
@@ -115,7 +132,11 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
 - **Loops & conditions** -- avoid negatives, name complex predicates, favour `for-of` when index unused.
 
+- **Never name a boolean as a negative** -- names like `isNonTerminal`, `isNotReady`, `isInvalid` force double-negation at the call site (`!isNonTerminal`). Name the positive condition (`isUnexpectedStatus`) or the guard condition directly so the `if` reads naturally without `!`.
+
 - **Functions >=2 params** -- use a named-param object.
+
+- **Pass specific fields, not entire objects** -- when a function only needs a few fields from a larger object, destructure and pass those fields explicitly. The signature should document exactly what the function depends on, not hide it behind a bag of properties the reader has to trace.
 
 - **Remove unused code** -- trace back and remove all supporting code that no longer has consumers, including associated tests. Clean up orphaned logic even within still-used functions.
 
@@ -137,7 +158,11 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
 - **Centralize repeated logic** -- DRY: defaults, transformations, and repeated computations live in one place.
 
-- **Don't wrap trivial expressions** -- inline self-explanatory expressions with one call site.
+- **Merge near-duplicate functions via optional parameters** -- when two functions differ only by a filter, flag, or small configuration, generalize into one function with an optional parameter. Two functions that are 90% identical are a maintenance and comprehension burden.
+
+- **Don't wrap trivial expressions** -- don't create a function that just renames a single standard library call without adding logic. `ensureDir(path)` over `mkdirSync(path, { recursive: true })` is noise, not abstraction. Wrappers earn their existence by adding behavior (retry, logging, validation), not by giving a new name to something already clear.
+
+- **Decompose dense expressions into auxiliary variables** -- when an expression uses unfamiliar APIs, multiple nested callbacks, or implicit behavior, break it into named intermediate variables. Readability beats brevity. One-liners that require mental unpacking are not "clean."
 
 - **Abstract counter-intuitive APIs** -- create wrappers with intuitive interfaces, document quirks inside the wrapper.
 
@@ -154,6 +179,12 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 - **Prefer composition over inheritance** -- compose behaviors from small, focused pieces rather than deep class hierarchies. More testable, more flexible, easier to reason about.
 
 - **Fail loudly, not silently** -- errors should propagate or be logged explicitly, never swallowed. A crash you see is better than a silent corruption you don't.
+
+- **Log full diagnostic context on failures** -- when logging parse, validation, or deserialization failures, include the full input that caused the error. Truncated previews hide the exact cause. The cost of verbose failure logs is far lower than the cost of blind debugging.
+
+- **Never retry indefinitely** -- always cap consecutive retries on transient errors. Unlimited retries turn temporary failures into silent infinite loops.
+
+- **Handle unexpected states and responses** -- external systems don't always behave as documented. Whitelist expected values and fail on anything else. A crash on an unknown state is better than silent misbehavior.
 
 - **Pin versions in dependency changes** -- use exact versions, not ranges, when adding or updating dependencies. Reproducible builds prevent environment drift.
 
