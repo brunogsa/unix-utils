@@ -2,3 +2,4 @@
 *.tar.gz
 .aider*
 configs/copyq/copyq_tab_*.dat
+configs/copyq/copyq.lock
