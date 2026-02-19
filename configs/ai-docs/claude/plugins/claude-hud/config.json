@@ -1,9 +1,16 @@
 {
   "display": {
-    "showTools": true,
-    "showAgents": true,
+    "showTools": false,
+    "showAgents": false,
     "showTodos": true,
     "showDuration": true,
-    "showConfigCounts": true
+    "showConfigCounts": false,
+    "showContextBar": false,
+    "showModel": false,
+    "showUsage": true,
+    "usageBarEnabled": false
+  },
+  "gitStatus": {
+    "enabled": false
   }
 }

@@ -230,6 +230,9 @@ claude plugin install gopls-lsp@claude-plugins-official
 claude plugin install bash-language-server@claude-code-lsps
 claude plugin install terraform-ls@claude-code-lsps
 claude plugin install pyright@claude-code-lsps
+claude plugin install pr-review-toolkit@claude-plugins-official
+claude plugin install security-guidance@claude-plugins-official
+claude plugin install explanatory-output-style@claude-plugins-official
 claude plugin marketplace add jarrodwatts/claude-hud
 claude plugin install claude-hud@claude-hud
 mkdir -p ~/.claude/plugins/claude-hud
