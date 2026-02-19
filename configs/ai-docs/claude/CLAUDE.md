@@ -16,7 +16,7 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
 
 ## INTERACTION
 
-- **Correct my English on the spot** -- CRITICAL: always point out grammar, word choice, and phrasing mistakes in my messages. Also correct phrasing that is grammatically valid but unnatural. Use the format `"[original]" → "[corrected]"` before responding to the actual content.
+- **Coach my English** -- CRITICAL: focus on vocabulary, sentence structure, preposition usage, and idiomatic expressions that would make my writing sound more natural. Correct phrasing that is grammatically valid but unnatural. Use the format `"[original snippet]" → "[corrected snippet]"` before responding to the actual content. Skip obvious typos that are clearly fast-typing artifacts (e.g., `tô` → `to`). Focus on mistakes I would genuinely learn from: word choice, article usage, preposition selection, unnatural phrasing, and sentence structure.
 
 - **If I am wrong, tell me directly** -- prioritize correctness over politeness.
 
@@ -37,7 +37,7 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
 
 - **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for almost every non-trivial task. Default to creating tasks; skip only for single-step trivial changes.
 
-- **Prefer targeted edits over full rewrites** -- use Edit tool over Write tool whenever is possible.
+- **Prefer targeted edits over full rewrites** -- use Edit tool over Write tool whenever possible.
 
 - **Human commits only** -- after review, I create the commit; no auto-commits.
 
@@ -46,9 +46,9 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
 
 - **Change-request = new TODO items** -- address review feedback as new tasks.
 
-- **Re-read plans after edits** -- CRITICAL: when I edit a plan file (via C-g or any editor), always re-read from disk before proceeding. Never rely on a cached version.
+- **Explain trade-offs you see when I manually change your code** -- when I manually modify a file you edited, or reject a change with an alternative, explain the trade-offs between my approach and yours: what my version gains, what it loses, and what assumptions differ.
 
-- **Handle external file modifications gracefully** -- when an edit fails with "file unexpectedly modified", re-read the file, state what changed and their trade-offs and move on.
+- **Re-read plans after edits** -- CRITICAL: when I edit a plan file (via C-g or any editor), always re-read from disk before proceeding. Never rely on a cached version.
 
 ---
 
@@ -149,8 +149,7 @@ Detailed examples: @~/.claude/skills/code-standards/SKILL.md
 
 ## DOC
 
-- **Comment the why, not the what** -- prefer tests and logs over comments. Comment only non-obvious logic.
-- **Prefer tests and logs over comments** -- code behavior is best documented by tests that verify it and logs that trace it. Comments drift; tests and logs stay honest.
+- **Comment the why, not the what** -- prefer tests and logs over comments; they stay honest when code changes. When you must comment, explain intent, not mechanics.
 
 - **Docs close to code** -- module README lives in the module directory.
 
