@@ -9,5 +9,7 @@
     "terraform-ls@claude-code-lsps": true,
     "pyright@claude-code-lsps": true
   },
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "skipDangerousModePermissionPrompt": true,
+  "verbose": true
 }
