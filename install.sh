@@ -230,6 +230,11 @@ claude plugin install gopls-lsp@claude-plugins-official
 claude plugin install bash-language-server@claude-code-lsps
 claude plugin install terraform-ls@claude-code-lsps
 claude plugin install pyright@claude-code-lsps
+claude plugin marketplace add jarrodwatts/claude-hud
+claude plugin install claude-hud@claude-hud
+mkdir -p ~/.claude/plugins/claude-hud
+ln -sf ~/unix-utils/configs/ai-docs/claude/plugins/claude-hud/config.json ~/.claude/plugins/claude-hud/config.json
 echo "[MANUAL] Run :Lazy sync in neovim to install claudecode.nvim"
+echo "[MANUAL] Run /claude-hud:setup inside Claude Code to configure the statusLine"
 
 echo "Installation complete for $OS!"

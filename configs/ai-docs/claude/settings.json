@@ -7,9 +7,14 @@
     "gopls-lsp@claude-plugins-official": true,
     "bash-language-server@claude-code-lsps": true,
     "terraform-ls@claude-code-lsps": true,
-    "pyright@claude-code-lsps": true
+    "pyright@claude-code-lsps": true,
+    "claude-hud@claude-hud": true
   },
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
-  "verbose": true
+  "verbose": true,
+  "statusLine": {
+    "type": "command",
+    "command": "bash -c '\"/usr/local/bin/node\" \"$(ls -td ~/.claude/plugins/cache/claude-hud/claude-hud/*/ 2>/dev/null | head -1)dist/index.js\"'"
+  }
 }
