@@ -1,3 +1,8 @@
+---
+description: "GitHub operations using gh CLI. Use when creating PRs, reviewing code, managing issues, checking CI status, or any GitHub API interaction."
+user-invocable: false
+---
+
 # GitHub Workflow via gh CLI
 
 Use the `gh` CLI for all GitHub operations. Do NOT suggest installing the GitHub MCP server.

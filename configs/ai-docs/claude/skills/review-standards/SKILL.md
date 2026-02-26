@@ -9,6 +9,13 @@ Complete review guidelines. Auto-loaded during code review activities.
 
 ---
 
+## Language
+
+- Instructions and code examples: English
+- **All review output: Portuguese (Brazil)** -- comments, changelog, action items, summary
+
+---
+
 ## High Confidence Standard
 
 Only provide feedback when you have sufficient confidence:
@@ -91,12 +98,11 @@ Review in this sequence (most to least critical):
 ```markdown
 ## Changelog
 
-Adds user authentication timeout to prevent session hijacking.
-When users are inactive for 30 minutes, they're automatically logged out.
+[Contexto de negócio: qual problema isso resolve]
 
-**Approach**: Sliding-window session tracking on backend with client-side activity monitoring.
+**Abordagem**: [Explicação conceitual de alto nível]
 
-**Coverage**: Includes refactoring of session middleware, adequate test coverage, updated API docs.
+**Cobertura**: [Mencionar refatoração/testes/docs]
 ```
 
 ---
