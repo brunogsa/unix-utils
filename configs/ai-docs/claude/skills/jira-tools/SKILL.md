@@ -5,7 +5,7 @@ user-invocable: false
 
 # Jira Tools
 
-Shell functions at `~/oh-my-zsh/func-utilities/jira-utilities.sh`.
+Shell functions at `~/oh-my-zsh/commands/jira-utilities.sh`.
 
 ## Environment Variables (required)
 
@@ -56,7 +56,7 @@ export JIRA_API_TOKEN='your-api-token'
 ## Examples
 
 ```bash
-source ~/oh-my-zsh/func-utilities/jira-utilities.sh
+source ~/oh-my-zsh/commands/jira-utilities.sh
 
 create-jira-issue PROJ Story "My story" '{"parent":{"key":"PROJ-100"},"labels":["team-a"]}'
 link-jira-issues "PROJ-100" "Blocks" "PROJ-101"

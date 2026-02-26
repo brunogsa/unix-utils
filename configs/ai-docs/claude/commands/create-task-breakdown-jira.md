@@ -24,7 +24,7 @@ Example:
 
 2. **jira-utilities.sh** must be available:
    ```bash
-   source ~/oh-my-zsh/func-utilities/jira-utilities.sh
+   source ~/oh-my-zsh/commands/jira-utilities.sh
    ```
 
 ---
@@ -120,7 +120,7 @@ Read the provided markdown file and identify:
 Create all issues first, recording their keys. Use `create-jira-issue` from jira-utilities.sh:
 
 ```bash
-source ~/oh-my-zsh/func-utilities/jira-utilities.sh
+source ~/oh-my-zsh/commands/jira-utilities.sh
 
 # Story
 create-jira-issue PROJ Story "[Label1] Story title" '{"parent":{"key":"PROJ-123"},"labels":["Label1"]}'
@@ -261,7 +261,7 @@ link-jira-issues "ITGD-102" "Blocks" "ITGD-103"
 ## Managing Links
 
 ```bash
-source ~/oh-my-zsh/func-utilities/jira-utilities.sh
+source ~/oh-my-zsh/commands/jira-utilities.sh
 
 # Get all links for an issue
 get-jira-links ITGD-101

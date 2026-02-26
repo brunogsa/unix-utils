@@ -57,7 +57,7 @@ Cross-reference active alarms with the alarm text to identify which CloudWatch a
     --log-group 'API-Gateway-Execution-Logs_1ciiwix04k/prod' \
     --filter '{ $.status = <code> }' \
     --stdout \
-  | node ~/oh-my-zsh/func-utilities/jsonl-distribution-table.js --fields httpMethod,resourcePath,status,apiKey
+  | node ~/oh-my-zsh/commands/jsonl-distribution-table.js --fields httpMethod,resourcePath,status,apiKey
   ```
   Shows all affected endpoints and callers sorted by volume. Use to prioritize. **Quote the distribution table.**
 

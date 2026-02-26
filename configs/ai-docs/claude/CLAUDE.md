@@ -10,7 +10,7 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
 
 - Configs versioned at `~/unix-utils/configs/ai-docs/claude/*`
 - Symlinked to `~/.claude/*`
-- Custom scripts at `~/oh-my-zsh/func-utilities/` (documented in skills)
+- Custom scripts at `~/oh-my-zsh/commands/` (documented in skills)
 
 ---
 
@@ -34,6 +34,8 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
 - **Maximize verifiability** -- Show evidence supporting every conclusion.
 
 - **Sequential over parallel for edits/inputs** -- CRITICAL: never run parallel tool calls that require user approval or input. Parallel is OK only for read-only info gathering.
+
+- **Run subagents in foreground** -- CRITICAL: never auto-background Task tool calls. I will manually background them if I wish to.
 
 - **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for almost every non-trivial task. Default to creating tasks; skip only for single-step trivial changes.
 

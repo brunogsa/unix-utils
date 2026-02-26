@@ -5,7 +5,7 @@ user-invocable: false
 
 # AWS Tools
 
-Shell scripts at `~/oh-my-zsh/func-utilities/` for AWS operations.
+Shell scripts at `~/oh-my-zsh/commands/` for AWS operations.
 
 ## Scripts
 
@@ -52,7 +52,7 @@ AWS_PROFILE=arco-prod aws-get-cloudwatch-logs \
 Generic JSONL distribution table. Groups entries by caller-specified fields, outputs an aligned table with a COUNT column sorted by count descending.
 
 ```bash
-node ~/oh-my-zsh/func-utilities/jsonl-distribution-table.js --fields field1,field2,... [file]
+node ~/oh-my-zsh/commands/jsonl-distribution-table.js --fields field1,field2,... [file]
 ```
 
 Reads from `/dev/stdin` when no file is given. Composable via pipe:
@@ -61,20 +61,20 @@ AWS_PROFILE=arco-prod aws-get-cloudwatch-logs \
   --log-group 'API-Gateway-Execution-Logs_1ciiwix04k/prod' \
   --filter '{ $.status = 401 }' \
   --stdout \
-| node ~/oh-my-zsh/func-utilities/jsonl-distribution-table.js --fields httpMethod,resourcePath,status,apiKey
+| node ~/oh-my-zsh/commands/jsonl-distribution-table.js --fields httpMethod,resourcePath,status,apiKey
 ```
 
 ### jsonl-merge-and-sort-by-field.js
 Generic JSONL merge and sort. Reads multiple JSONL files, sorts all entries by a specified field, outputs merged JSONL to stdout.
 
 ```bash
-node ~/oh-my-zsh/func-utilities/jsonl-merge-and-sort-by-field.js --sort-field <field> [--desc] <file1> [file2] ...
+node ~/oh-my-zsh/commands/jsonl-merge-and-sort-by-field.js --sort-field <field> [--desc] <file1> [file2] ...
 ```
 
 Handles numeric, ISO8601, and string values. Entries missing the sort field are placed at the end.
 
 ```bash
-node ~/oh-my-zsh/func-utilities/jsonl-merge-and-sort-by-field.js --sort-field timestamp f1.jsonl f2.jsonl
+node ~/oh-my-zsh/commands/jsonl-merge-and-sort-by-field.js --sort-field timestamp f1.jsonl f2.jsonl
 ```
 
 ### aws-get-api-keys

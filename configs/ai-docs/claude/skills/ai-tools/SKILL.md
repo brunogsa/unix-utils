@@ -5,7 +5,7 @@ user-invocable: false
 
 # AI Tools
 
-Shell scripts at `~/oh-my-zsh/func-utilities/` that use OpenAI/Anthropic APIs.
+Shell scripts at `~/oh-my-zsh/commands/` that use OpenAI/Anthropic APIs.
 
 ## Scripts
 

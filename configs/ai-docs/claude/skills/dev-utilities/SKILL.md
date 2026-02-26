@@ -5,7 +5,7 @@ user-invocable: false
 
 # Dev Utilities
 
-Shell scripts at `~/oh-my-zsh/func-utilities/` for general development tasks.
+Shell scripts at `~/oh-my-zsh/commands/` for general development tasks.
 
 ## Scripts
 
