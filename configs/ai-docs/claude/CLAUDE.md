@@ -8,9 +8,23 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
 
 ## META
 
-- Configs versioned at `~/unix-utils/configs/ai-docs/claude/*`
-- Symlinked to `~/.claude/*`
-- Custom scripts at `~/oh-my-zsh/commands/` (documented in skills)
+Dev stack: Ghostty (terminal) → tmux → neovim → Claude Code
+
+### Tooling repos (cross-platform macOS/Linux)
+
+- `~/unix-utils/` -- system setup & config versioning. `install.sh` (OS-aware), `configs/` symlinked to `~/`
+- `~/oh-my-zsh/` -- zsh config & CLI scripts. `.zshrc`, `commands/` (executables), `lib/` (shared functions incl. `aireview.sh`)
+- `~/tmux/` -- tmux config. `.tmux.conf` with neovim/clipboard/Claude integrations
+- `~/neovim/` -- neovim config. Single-file `init.lua` (~2200 lines): LSP, Treesitter, CodeCompanion, Mermaid indent
+- `~/ghostty/` -- Ghostty terminal config (planned)
+
+Each repo may have its own `CLAUDE.md` with project-specific instructions.
+
+### Symlinks (always edit source, not target)
+
+- `~/unix-utils/configs/ai-docs/claude/*` → `~/.claude/*` (this file, skills/, commands/, settings.json)
+- `~/tmux/.tmux.conf` → `~/.tmux.conf`
+- `~/oh-my-zsh/.zshrc` → `~/.zshrc`
 
 ---
 
