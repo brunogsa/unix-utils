@@ -48,9 +48,9 @@ Each repo may have its own `CLAUDE.md` with project-specific instructions.
 
 - **Maximize verifiability** -- Show evidence supporting every conclusion.
 
-- **Sequential over parallel for edits/inputs** -- CRITICAL: never run parallel tool calls that require user approval or input. Parallel is OK only for read-only info gathering.
+- **Sequential over parallel for edits/inputs** -- CRITICAL: never run parallel tool calls that require user approval or input.
 
-- **Run subagents in foreground** -- CRITICAL: never auto-background Task tool calls. I will manually background them if I wish to.
+- **Ask before parallelizing read-only work** -- when about to make **multiple independent** read-only explorations or searches, ask whether to run in series/foreground (learn from each step) or parallel/background (prioritize speed). Single read-only calls: just run foreground. Web fetches: always parallel/background.
 
 - **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for almost every non-trivial task. Default to creating tasks; skip only for single-step trivial changes.
 
