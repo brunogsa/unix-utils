@@ -155,7 +155,7 @@ if [[ "$OS" == "macos" ]]; then
     brew install pipx
     brew install deno
 elif [[ "$OS" == "linux" ]]; then
-    # shellcheck already installed in core utilities above
+    # Already installed shellcheck in core utilities above
 
     # luacheck
     sudo apt-get install -y luarocks
@@ -186,7 +186,8 @@ npm install -g json-schema-generator
 npm install -g @anthropic-ai/claude-code
 npm install -g @modelcontextprotocol/server-github
 npm install -g ccusage
-npm i -g opencode-ai
+npm install -g opencode-ai
+npm install -g trash-cli
 
 # AI setup: Claude Code e OpenCode configuration
 mkdir -p ~/.claude
@@ -240,5 +241,16 @@ mkdir -p ~/.claude/plugins/claude-hud
 ln -sf ~/unix-utils/configs/ai-docs/claude/plugins/claude-hud/config.json ~/.claude/plugins/claude-hud/config.json
 echo "[MANUAL] Run :Lazy sync in neovim to install claudecode.nvim"
 echo "[MANUAL] Run /claude-hud:setup inside Claude Code to configure the statusLine"
+
+# peon-ping — WC3 sound notifications for Claude Code
+if [[ "$OS" == "macos" ]]; then
+    brew tap PeonPing/tap
+    brew install peon-ping
+elif [[ "$OS" == "linux" ]]; then
+    curl -fsSL https://raw.githubusercontent.com/PeonPing/peon-ping/main/install.sh | bash
+fi
+peon-ping-setup --packs=peasant,peon
+peon packs use peon
+ln -sf ~/unix-utils/configs/ai-docs/claude/hooks/peon-ping/config.json ~/.claude/hooks/peon-ping/config.json
 
 echo "Installation complete for $OS!"

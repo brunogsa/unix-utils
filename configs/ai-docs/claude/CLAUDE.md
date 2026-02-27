@@ -16,7 +16,9 @@ Dev stack: Ghostty (terminal) → tmux → neovim → Claude Code
 - `~/oh-my-zsh/` -- zsh config & CLI scripts. `.zshrc`, `commands/` (executables), `lib/` (shared functions incl. `aireview.sh`)
 - `~/tmux/` -- tmux config. `.tmux.conf` with neovim/clipboard/Claude integrations
 - `~/neovim/` -- neovim config. Single-file `init.lua` (~2200 lines): LSP, Treesitter, CodeCompanion, Mermaid indent
-- `~/ghostty/` -- Ghostty terminal config (planned)
+- `~/ghostty/` -- Ghostty terminal config. `install.sh` (cross-platform), `config` symlinked to `~/.config/ghostty/`
+
+Install scripts share a common pattern: detect OS via `detect-os.sh` from `~/oh-my-zsh/lib/`, branch on macOS/Linux, use idempotent checks (`command -v`, config file existence), symlink config at the end.
 
 Each repo may have its own `CLAUDE.md` with project-specific instructions.
 
@@ -90,6 +92,8 @@ Each repo may have its own `CLAUDE.md` with project-specific instructions.
 - **Design test titles first** -- write titles (no implementation) describing expected behavior. Validate coverage scope before writing any code. For scripts: define usage syntax and use-case examples in the comment header instead.
 
 - **Propose verification** -- if no clear way to verify correctness, propose an approach first.
+
+- **Validate automation by running it** -- when creating a script, installer, or any executable artifact, run it in the same task to verify it works. Writing without executing is an incomplete deliverable.
 
 - **TDD: RED → GREEN → REFACTOR** -- failing test first, minimal code to pass, then simplify. Suggest test updates for any change. After green, explicitly check for refactors. Isolate pure refactors into their own step & commit.
 

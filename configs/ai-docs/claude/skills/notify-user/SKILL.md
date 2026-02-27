@@ -8,8 +8,10 @@ user-invocable: false
 Append the notification after the command using `;` (always) or `&&` (success only). Replace `MESSAGE` with a short, specific message (under 10 words).
 
 ```bash
-YOUR_COMMAND; case $(uname) in Darwin) osascript -e 'display alert "Claude Code" message "MESSAGE"' ;; *) notify-send 'Claude Code' 'MESSAGE' ;; esac
+YOUR_COMMAND; notify "MESSAGE" "Claude Code"
 ```
+
+The `notify` script (`~/oh-my-zsh/commands/notify.sh`) handles cross-platform differences automatically.
 
 ## Platform notes
 
