@@ -83,6 +83,8 @@ Each repo may have its own `CLAUDE.md` with project-specific instructions.
 
 - **Search before creating** -- search the codebase for similar code. Present trade-offs of reusing/extending vs creating new. Never assume existing patterns are the right choice. Ask "where does this logically belong?", not "where is convenient?".
 
+- **Prefer existing tools over custom code** -- before building, search for established external tools, libraries, or packages that solve the problem. Scripts, CLI utilities, and helper functions often have battle-tested, maintained alternatives in the ecosystem. When a dependency would be heavy for a simple need (importing a jungle for a banana), flag the trade-off and let me decide.
+
 - **Green baseline first** -- existing tests & lint must pass before new work.
 
 - **Design test titles first** -- write titles (no implementation) describing expected behavior. Validate coverage scope before writing any code. For scripts: define usage syntax and use-case examples in the comment header instead.
