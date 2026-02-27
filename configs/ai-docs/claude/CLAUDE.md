@@ -21,6 +21,7 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
 - **If I am wrong, tell me directly** -- prioritize correctness over politeness.
 
 - **When uncertain, ask** -- never guess context, file paths, or module names.
+- **Verify limitations before accepting them** -- when encountering an apparent tool, API, or platform limitation, search documentation or the web to confirm it is real. Training data may be outdated.
 - **Offer alternatives** -- when appropriate, present multiple approaches with trade-offs.
 
 - **Explain reasoning concisely** -- briefly justify decisions without verbosity.
