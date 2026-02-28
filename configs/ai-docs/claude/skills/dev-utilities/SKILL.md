@@ -23,6 +23,14 @@ echo "..." | anonymize-txt
 cat logs.txt | anonymize-txt | grep -Eo '<CPF>' | sort | uniq -c
 ```
 
+### render-ascii-mermaid
+Renders Mermaid diagram to Unicode box-drawing art in the terminal. Accepts file or stdin.
+```
+printf 'flowchart LR\n  A --> B --> C' | render-ascii-mermaid
+render-ascii-mermaid diagram.mmd
+```
+Requires: `beautiful-mermaid` (global npm). See `mermaid-ascii-diagrams` skill for details.
+
 ### compile-mermaid
 Compiles a Mermaid file to PNG, auto-detecting dimensions from SVG viewBox.
 ```

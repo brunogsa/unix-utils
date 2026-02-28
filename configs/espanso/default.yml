@@ -125,112 +125,136 @@ matches:
 
   - trigger: ";br-jira-epic"
     replace: |-
+      ## Contexto:
+
+      Por que isso é necessário. Problema, dor, ou oportunidade.
+
+      ## Necessidades de Usuários:
+
+      1. Como [papel], quero [capacidade] para [benefício].
+
       ## Para Atingir:
-      
+
       1. X
-      
+
       ## Entregaremos:
-      
+
       1. X
-      
+
       ## Critérios de aceite:
-      
+
       #### Funcionais:
-      1. X 
-      
+      1. X
+
       #### Não-funcionais:
       1. X
 
       ## User Acceptance Tests (UATs):
-      
+
       1. X
 
       ## Métricas de Sucesso:
-      
+
       1. X
-      
+
       ## Dúvidas:
-      
+
       1. X
-      
+
       ## Referências:
-      
+
       1. X
 
   - trigger: ";en-jira-epic"
     replace: |-
+      ## Background:
+
+      Why this is needed. Problem, pain point, or opportunity.
+
+      ## User Stories:
+
+      1. As a [role], I want [capability] so that [benefit].
+
       ## To achieve:
-      
+
       1. X
-      
+
       ## Will be delivered:
-      
-      1. X 
-      
+
+      1. X
+
       ## Acceptance criteria:
-      
-      #### Functionals: 
-      1. X 
-      
-      #### Non-functionals: 
-      1. X 
+
+      #### Functional:
+      1. X
+
+      #### Non-functional:
+      1. X
 
       ## User Acceptance Tests (UATs):
-      
+
       1. X
 
       ## Success Metrics:
-      
+
       1. X
-      
+
       ## Questions:
-      
-      1. X 
-      
+
+      1. X
+
       ## References:
-      
+
       1. X
 
   - trigger: ";br-jira-story"
     replace: |-
-      ## Necessidades de usuários
-      
-      1. Eu, como X, quero conseguir Y para Z. 
-      
+      ## Contexto:
+
+      Por que isso é necessário. Problema ou contexto.
+
+      ## Necessidades de usuários:
+
+      1. Como [papel], quero [capacidade] para [benefício].
+
       ## Critérios de aceite:
-      
-      #### Funcionais: 
-      1. X 
-      
-      #### Não-funcionais: 
-      1. X 
-      
+
+      #### Funcionais:
+      1. X
+
+      #### Não-funcionais:
+      1. X
+
       ## Dúvidas:
-      
-      1. X 
-      
+
+      1. X
+
       ## Referências:
-      
+
       1. X
 
   - trigger: ";en-jira-story"
     replace: |-
-      ## User necessities
-      
-      1. I, as a X, want to Y for Z. 
-      
+      ## Background:
+
+      Why this is needed. Problem or context.
+
+      ## User Stories:
+
+      1. As a [role], I want [capability] so that [benefit].
+
       ## Acceptance criteria:
-      
-      #### Funcionals: 
-      1. X 
-      
-      #### Non-funcionals: 
-      1. X 
-      
+
+      #### Functional:
+      1. X
+
+      #### Non-functional:
+      1. X
+
       ## Questions:
-      
-      1. X 
-      
+
+      1. X
+
       ## References:
       
       1. X
@@ -300,47 +324,55 @@ matches:
   - trigger: ";br-jira-task"
     replace: |-
       ## Critérios de aceite:
-      
-      #### Funcionais: 
-      1. X 
-      
-      #### Não-funcionais: 
-      1. Logs (com level, timestamp, traceId etc) 
-      2. Testes automatizados 
+
+      #### Funcionais:
+      1. X
+
+      #### Não-funcionais:
+      1. Logs (com level, timestamp, traceId etc)
+      2. Testes automatizados
       3. UI Responsiva, Storybook
-      4. Documentação (APIs e Arquitetura) atualizada, se necessário 
-      5. Infraestrutura como Código 
+      4. Documentação (APIs e Arquitetura) atualizada, se necessário
+      5. Infraestrutura como Código
       6. Deploy para todos os ambientes, incluindo prod
-      
+
+      ## Verificação:
+
+      Como verificar que esta task está pronta (comando, teste, ou checagem manual).
+
       ## Dúvidas:
-      
-      1. X 
-      
+
+      1. X
+
       ## Referências:
-      
+
       1. X
 
   - trigger: ";en-jira-task"
     replace: |-
       ## Acceptance criteria:
-      
-      #### Funcionals: 
-      1. X 
-      
-      #### Non-funcional: 
-      1. Logs (with level, timestamp, traceId etc) 
+
+      #### Functional:
+      1. X
+
+      #### Non-functional:
+      1. Logs (with level, timestamp, traceId etc)
       2. Automated tests
-      3. Responsive UI, Storybook 
+      3. Responsive UI, Storybook
       4. Updated doc (APIs and Architecture), if necessary
       5. Infrastructure as Code
       6. Deploy to all environments, including prod
-      
+
+      ## Verification:
+
+      How to verify this task is done (command, test, or manual check).
+
       ## Questions:
-      
-      1. X 
-      
+
+      1. X
+
       ## References:
-      
+
       1. X
 
   - trigger: ";br-jira-improvement"
@@ -404,10 +436,10 @@ matches:
       
       ## Acceptance criteria:
       
-      #### Funcionals: 
+      #### Functional:
       1. X 
       
-      #### Non-funcional: 
+      #### Non-functional:
       1. Logs (with level, timestamp, traceId etc) 
       2. Automated tests
       3. Responsive UI, Storybook 
@@ -655,3 +687,77 @@ matches:
       **[Mandatory, if any] Action Items:**
 
       1. Owner: <Owner> - ETA: <ETA> - <Action Item>
+
+  - trigger: ";en-spec"
+    replace: |-
+      # Spec: [Title]
+
+      ## Background
+
+      Why this change is needed. Business context, pain point, or opportunity.
+
+      ## Goals
+
+      What we want to achieve (outcomes, not implementation).
+
+      ## User Stories
+
+      1. As a [role], I want [capability] so that [benefit].
+
+      ## Functional Requirements
+
+      1. System MUST ...
+
+      ## Non-Functional Requirements
+
+      1. Performance: ...
+      2. Security: ...
+
+      ## Acceptance Criteria
+
+      1. [Testable criterion]
+
+      ## Open Questions
+
+      - [NEEDS CLARIFICATION: ...]
+
+      ## Decisions
+
+      - [DECISION: ... because ...]
+
+  - trigger: ";br-spec"
+    replace: |-
+      # Spec: [Título]
+
+      ## Contexto
+
+      Por que essa mudança é necessária. Contexto de negócio, dor, ou oportunidade.
+
+      ## Objetivos
+
+      O que queremos alcançar (resultados, não implementação).
+
+      ## Necessidades de Usuários
+
+      1. Como [papel], quero [capacidade] para [benefício].
+
+      ## Requisitos Funcionais
+
+      1. O sistema DEVE ...
+
+      ## Requisitos Não-Funcionais
+
+      1. Performance: ...
+      2. Segurança: ...
+
+      ## Critérios de Aceite
+
+      1. [Critério testável]
+
+      ## Dúvidas em Aberto
+
+      - [NEEDS CLARIFICATION: ...]
+
+      ## Decisões
+
+      - [DECISION: ... because ...]

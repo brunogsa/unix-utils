@@ -183,6 +183,7 @@ npm install -g @modelcontextprotocol/server-github
 npm install -g ccusage
 npm install -g opencode-ai
 npm install -g trash-cli
+npm install -g beautiful-mermaid
 
 # AI setup: Claude Code e OpenCode configuration
 mkdir -p ~/.claude

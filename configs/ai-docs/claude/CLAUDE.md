@@ -56,6 +56,8 @@ Each repo may have its own `CLAUDE.md` with project-specific instructions.
 
 - **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for almost every non-trivial task. Default to creating tasks; skip only for single-step trivial changes.
 
+- **Prefix task titles with their ID** -- the task UI does not show IDs in titles. Always prefix the subject with `#N: ` (e.g., `#3: Create brainstorm skill`) so references like "blocked by #2" or "tackling #5" are clear to the user.
+
 - **Prefer targeted edits over full rewrites** -- use Edit tool over Write tool whenever possible.
 
 - **Human commits only** -- after review, I create the commit; no auto-commits.
@@ -83,6 +85,18 @@ Each repo may have its own `CLAUDE.md` with project-specific instructions.
 
 - **Interview for complex features** -- proactively suggest questions before writing code.
 
+- **Spec-driven for non-trivial work** -- for features and significant changes, use spec.md (what/why) and plan.md (how/tasks) as living documents in the project root. Not committed. Reference: @~/.claude/skills/spec-driven-development/SKILL.md
+
+- **Surface ambiguity with markers** -- use `[NEEDS CLARIFICATION: ...]` in specs and plans to flag gaps. Use `[DECISION: ... because ...]` to capture trade-offs. When resolved, remove the marker or update the decision in place.
+
+- **Tasks document acceptance criteria** -- every task in plan.md (and in TaskCreate) includes acceptance criteria and a verify method (command, test, or manual check).
+
+- **Save plans to the project directory** -- when generating a plan, write it to ./plan.md in the current working directory (not a temp or private location). If spec.md exists in cwd, read it and use it as input for the plan.
+
+- **Plan tasks become TODO items** -- after generating plan.md, create a TaskCreate item for each task listed in the plan. Include acceptance criteria and verify method.
+
+- **Keep spec and plan up to date** -- update spec.md and plan.md as decisions are made, requirements change, or tasks are completed during development.
+
 - **Search before creating** -- search the codebase for similar code. Present trade-offs of reusing/extending vs creating new. Never assume existing patterns are the right choice. Ask "where does this logically belong?", not "where is convenient?".
 
 - **Prefer existing tools over custom code** -- before building, search for established external tools, libraries, or packages that solve the problem. Scripts, CLI utilities, and helper functions often have battle-tested, maintained alternatives in the ecosystem. When a dependency would be heavy for a simple need (importing a jungle for a banana), flag the trade-off and let me decide.
@@ -100,6 +114,8 @@ Each repo may have its own `CLAUDE.md` with project-specific instructions.
 - **Isolate refactors** -- refactors happen alone, and get their own baby step and commit.
 
 - **Update docs as you go** -- locate and update related documentation inline.
+
+- **Use Mermaid for visual explanations** -- when architecture, data flow, state machines, or sequences would clarify a concept, render diagrams inline via `render-ascii-mermaid`. In spec.md/plan.md, use fenced Mermaid blocks with rendered ASCII output. Reference: @~/.claude/skills/mermaid-ascii-diagrams/SKILL.md
 
 Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
