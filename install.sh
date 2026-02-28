@@ -130,11 +130,6 @@ elif [[ "$OS" == "linux" ]]; then
     sudo apt-get update && sudo apt-get install -y terraform
 fi
 
-# macOS-specific: iTerm2
-if [[ "$OS" == "macos" ]]; then
-    brew install iterm2
-fi
-
 # macOS-specific: qView image viewer + set as default for PNG/JPEG
 if [[ "$OS" == "macos" ]]; then
     brew install --cask qview
