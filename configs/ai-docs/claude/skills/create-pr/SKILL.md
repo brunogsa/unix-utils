@@ -20,7 +20,7 @@ No flags needed. Auto-detects spec.md and plan.md in the current directory.
 
 - Check for spec.md and plan.md in cwd (optional -- works without them)
 - Check for PR templates in `.github/` (e.g., `PULL_REQUEST_TEMPLATE.md`)
-- Run git log to see commits on current branch vs base
+- Run git log to see commits on current branch vs base -- **primary source**: mine commit messages for decisions, rationale, and scope changes regardless of whether spec/plan exist
 - Run git diff against base branch
 - Check if branch is pushed
 
@@ -38,23 +38,33 @@ If no PR template exists, use the default template below.
 
 ```markdown
 ## Summary
-[From spec.md: Background + Goals, condensed to 2-3 bullets.
- Without spec.md: summarize from git log and diff]
+[From spec.md Background + Goals (when available), cross-referenced with
+ commit messages and diff to confirm what was actually delivered.
+ Condensed to 2-3 bullets. Always ground in commits, not just docs.]
 
 ## Approach
-[From plan.md: Approach section, condensed.
- Without plan.md: summarize from diff]
+[From plan.md Approach section (when available), confirmed against diff.
+ Without plan.md: infer from commit messages and diff.]
 
 ## Key Decisions
-[From [DECISION: ...] markers in both files.
- Without files: omit section]
+[Primary: [DECISION: ...] markers from spec.md and plan.md.
+ Always also: mine commit messages for decision rationale, trade-off
+ explanations, and "why" context -- even when spec/plan exist.
+ Merge both sources, deduplicate.]
 
 ## Changes
-[From git diff + plan.md tasks: what was actually implemented]
+[Compare git diff against plan.md tasks (when available).
+ Two groups:
+ - **Planned changes**: tasks from the plan that were implemented
+ - **Incidental changes**: modifications not in the plan -- side-effects,
+   cleanup, fixes discovered during implementation, scope adjustments.
+ Without plan.md: organize changes from diff and commit messages.]
 
 ## Test Plan
 [From plan.md task verify sections + acceptance criteria.
- Without plan.md: list tests added/modified]
+ Cross-reference with test files in the diff.
+ Mark items [x] if verification was performed in this session.
+ Without plan.md: list tests added/modified from diff.]
 
 ## References
 [Jira links, related PRs, etc.]

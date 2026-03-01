@@ -93,7 +93,7 @@ Each repo may have its own `CLAUDE.md` with project-specific instructions.
 
 - **Plan tasks become TODO items** -- after generating plan.md, create a TaskCreate item for each task listed in the plan. Include acceptance criteria and verify method.
 
-- **Keep spec and plan up to date** -- update spec.md and plan.md as decisions are made, requirements change, or tasks are completed during development.
+- **Keep spec and plan up to date** -- update at each task boundary: mark tasks done, add `[DECISION:]` markers immediately, note scope changes and incidental work. Stale docs degrade `/create-pr` output. Details in `spec-driven-development` skill.
 
 - **Search before creating** -- search the codebase for similar code. Present trade-offs of reusing/extending vs creating new. Never assume existing patterns are the right choice. Ask "where does this logically belong?", not "where is convenient?".
 

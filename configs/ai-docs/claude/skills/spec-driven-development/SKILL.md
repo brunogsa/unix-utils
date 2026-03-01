@@ -102,4 +102,8 @@ When a decision changes, update the existing marker in place.
 - **Include diagrams** -- use Mermaid blocks (source + rendered ASCII) when architecture, data flow, or state would clarify the spec or plan. See `mermaid-ascii-diagrams` skill.
 - **Tasks are baby steps** -- each task in plan.md should be the smallest testable, committable change
 - **Acceptance criteria are testable** -- every task has a concrete verify method (command, test, or manual check)
-- **Update as you go** -- when decisions are made, requirements change, or tasks complete, update both files
+- **Update docs at each task boundary** -- stale spec/plan degrades PR description quality. Specific triggers:
+  - **After completing a task**: mark it done in plan.md, note any deviations from the original plan
+  - **After making a decision**: add `[DECISION: ... because ...]` marker immediately in the relevant file
+  - **After discovering scope changes**: add/remove/update tasks in plan.md, update acceptance criteria in spec.md
+  - **After incidental changes**: if you fix or change something not in the plan, add it as a completed task in plan.md so `/create-pr` can distinguish planned vs incidental work
