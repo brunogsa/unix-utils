@@ -1,3 +1,8 @@
+---
+description: "Enhance Global Guidelines with Session Learnings"
+disable-model-invocation: true
+---
+
 # Enhance Global Guidelines with Session Learnings
 
 Review this coding session and identify learnings that should be added to CLAUDE.md or skills. Delegate the analysis to a **foreground subagent** to preserve the main session context window.

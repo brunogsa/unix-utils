@@ -1,5 +1,6 @@
 ---
 description: "Automated PR code review with context from aireview and posting via GitHub CLI"
+disable-model-invocation: true
 ---
 
 # Automated Code Review

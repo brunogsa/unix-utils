@@ -1,6 +1,6 @@
 ---
-description: "Brainstorm and refine ideas into a structured spec.md. Use when exploring a feature, problem, or design before implementation."
-disable-model-invocation: true
+description: "Brainstorm and refine ideas into a structured spec.md. Use when user says 'brainstorm', 'let's brainstorm', 'brainstorm with me', or is exploring a feature, problem, or design before implementation."
+disable-model-invocation: false
 ---
 
 # Brainstorm

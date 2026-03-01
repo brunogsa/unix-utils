@@ -1,3 +1,8 @@
+---
+description: "Simplify Unpushed & Uncommitted Code"
+disable-model-invocation: true
+---
+
 # Simplify Unpushed & Uncommitted Code
 
 Detect refactoring opportunities in unpushed/uncommitted code, then apply them one-by-one in the main conversation for user review.

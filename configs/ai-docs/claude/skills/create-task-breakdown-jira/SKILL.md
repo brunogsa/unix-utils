@@ -1,3 +1,8 @@
+---
+description: "Create Task Breakdown in Jira"
+disable-model-invocation: true
+---
+
 # Create Task Breakdown in Jira
 
 This command creates Jira issues from a structured task breakdown markdown file.

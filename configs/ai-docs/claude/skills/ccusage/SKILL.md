@@ -1,3 +1,8 @@
+---
+description: "Claude Code Usage Analysis"
+disable-model-invocation: true
+---
+
 # Claude Code Usage Analysis
 
 Fetch usage data for the current session using the `ccusage` CLI, interpret the results, and propose improvements to reduce cost and token usage.

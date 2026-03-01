@@ -24,7 +24,7 @@ Each repo may have its own `CLAUDE.md` with project-specific instructions.
 
 ### Symlinks (always edit source, not target)
 
-- `~/unix-utils/configs/ai-docs/claude/*` → `~/.claude/*` (this file, skills/, commands/, settings.json)
+- `~/unix-utils/configs/ai-docs/claude/*` → `~/.claude/*` (this file, skills/, settings.json)
 - `~/tmux/.tmux.conf` → `~/.tmux.conf`
 - `~/oh-my-zsh/.zshrc` → `~/.zshrc`
 
@@ -91,8 +91,6 @@ Each repo may have its own `CLAUDE.md` with project-specific instructions.
 
 - **Tasks document acceptance criteria** -- every task in plan.md (and in TaskCreate) includes acceptance criteria and a verify method (command, test, or manual check).
 
-- **Save plans to the project directory** -- when generating a plan, write it to ./plan.md in the current working directory (not a temp or private location). If spec.md exists in cwd, read it and use it as input for the plan.
-
 - **Plan tasks become TODO items** -- after generating plan.md, create a TaskCreate item for each task listed in the plan. Include acceptance criteria and verify method.
 
 - **Keep spec and plan up to date** -- update spec.md and plan.md as decisions are made, requirements change, or tasks are completed during development.
@@ -108,6 +106,8 @@ Each repo may have its own `CLAUDE.md` with project-specific instructions.
 - **Propose verification** -- if no clear way to verify correctness, propose an approach first.
 
 - **Validate automation by running it** -- when creating a script, installer, or any executable artifact, run it in the same task to verify it works. Writing without executing is an incomplete deliverable.
+
+- **Verify before completing** -- run the task's defined verify step and confirm it passes before marking the task complete. A task without executed verification is not done.
 
 - **TDD: RED → GREEN → REFACTOR** -- failing test first, minimal code to pass, then simplify. Suggest test updates for any change. After green, explicitly check for refactors. Isolate pure refactors into their own step & commit.
 

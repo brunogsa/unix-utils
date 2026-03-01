@@ -1,3 +1,8 @@
+---
+description: "Enhance Global Guidelines from Human-Reviewed Code"
+disable-model-invocation: true
+---
+
 # Enhance Global Guidelines from Human-Reviewed Code
 
 Extract learnings from the user's actual GitHub PR review comments and update CLAUDE.md or skills accordingly.
@@ -12,7 +17,7 @@ Accepts one or more PR URLs. The command fetches **only comments authored by bru
 
 - **CLAUDE.md** (`~/.claude/CLAUDE.md`) -- high-level principles, workflow rules, TL;DRs
 - **Skills** (`~/.claude/skills/*/SKILL.md`) -- detailed examples, domain knowledge, tool docs
-- **`/code-review` command** (`~/.claude/commands/code-review.md`) + **code-review-guidelines skill** (`~/.claude/skills/code-review-guidelines/SKILL.md`) -- format and tone alignment
+- **`/code-review` skill** (`~/.claude/skills/code-review/SKILL.md`) -- format and tone alignment
 
 Learnings go to whichever file they belong in. Principles go to CLAUDE.md; detailed examples go to the relevant skill. Format/tone adjustments go to the code-review command or guidelines skill.
 
@@ -50,7 +55,7 @@ Review the fetched comments and identify:
 
 ### 3. Cross-Check `/code-review` Format
 
-Read the current `/code-review` command (`~/.claude/commands/code-review.md`) and the code-review-guidelines skill (`~/.claude/skills/code-review-guidelines/SKILL.md`).
+Read the current `/code-review` skill (`~/.claude/skills/code-review/SKILL.md`).
 
 Compare the user's actual comment style against the automated review format:
 
@@ -83,7 +88,7 @@ For each learning:
 - High-level principle or workflow rule → CLAUDE.md (appropriate section)
 - Detailed code example or pattern → `skills/code-standards/SKILL.md`
 - Test example or strategy → `skills/test-standards/SKILL.md`
-- Review format/tone adjustment → `commands/code-review.md` or `skills/code-review-guidelines/SKILL.md`
+- Review format/tone adjustment → `skills/code-review/SKILL.md`
 - Review process improvement → `skills/review-standards/SKILL.md`
 - Domain-specific knowledge → relevant domain skill
 - New topic not covered by existing skills → propose a new skill
@@ -131,7 +136,7 @@ After making changes:
 ### Mismatches
 - [Mismatch description]: User does [X], /code-review prescribes [Y]
   - Proposed adjustment: [change to make]
-  - Target: [commands/code-review.md or skills/code-review-guidelines/SKILL.md]
+  - Target: [skills/code-review/SKILL.md]
 
 ## Learnings Identified
 
@@ -149,7 +154,7 @@ After making changes:
 ### skills/[skill-name]/SKILL.md
 1. **[Addition title]** -- [Description]
 
-### commands/code-review.md or skills/code-review-guidelines/SKILL.md
+### skills/code-review/SKILL.md
 1. **[Adjustment title]** -- [Description]
 
 ## Already Covered
