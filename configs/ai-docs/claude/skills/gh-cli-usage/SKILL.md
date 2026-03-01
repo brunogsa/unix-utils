@@ -3,7 +3,7 @@ description: "GitHub operations using gh CLI. Use when creating PRs, reviewing c
 user-invocable: false
 ---
 
-# GitHub Workflow via gh CLI
+# gh CLI Usage
 
 Use the `gh` CLI for all GitHub operations. Do NOT suggest installing the GitHub MCP server.
 
