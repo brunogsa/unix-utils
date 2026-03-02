@@ -70,8 +70,6 @@ You receive: `pr_url`, optionally `jira_url`
 
 Apply the review-standards and checklists you read in Step 1. Work through each checklist systematically against the diff and changed files. Use the review priority order and confidence thresholds exactly as defined in the standards.
 
-**Scope**: ONLY review changed code (lines in the diff). Exception: unchanged code that creates a problem with changed code.
-
 ---
 
 ## Step 4: Output (mode-dependent)

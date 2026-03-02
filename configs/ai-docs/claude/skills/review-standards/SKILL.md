@@ -1,5 +1,5 @@
 ---
-description: "Code review guidelines covering confidence thresholds, feedback format, priority tags, changelog structure, and review process"
+description: "Code review guidelines covering confidence thresholds, feedback format, priority tags, review priority order, and scope"
 user-invocable: false
 ---
 
@@ -75,38 +75,6 @@ Review in this sequence (most to least critical):
 
 ---
 
-## Review Process
-
-1. **Start with a Changelog** -- business-level summary, posted first
-2. **Post inline comments** -- following priority order
-3. **End with action items** -- grouped by file, then priority
-
----
-
-## Changelog Guidelines
-
-**Purpose**: Business/product level summary, not technical details.
-
-**Structure**:
-- Business context: what problem/feature?
-- High-level approach: conceptual explanation (PM-level)
-- Coverage: mention refactoring, tests, docs
-
-**Avoid**: file lists, technical details, generic groupings.
-
-**Example:**
-```markdown
-## Changelog
-
-[Contexto de negócio: qual problema isso resolve]
-
-**Abordagem**: [Explicação conceitual de alto nível]
-
-**Cobertura**: [Mencionar refatoração/testes/docs]
-```
-
----
-
 ## Actionable Focus
 
 - Every comment should lead to a clear next step
@@ -127,26 +95,6 @@ DO provide feedback on: typos (user-facing), misleading names, convention-breaki
 
 - Single line: `src/services/auth.ts:42`
 - Range (preferred): `src/services/auth.ts:42-48`
-
----
-
-## Diffs & Suggestions
-
-- **GitHub Suggestions** (```suggestion): <=16 lines, exact indentation, one-click apply
-- **Unified Diffs** (```diff): >16 lines, multiple files, or unsure about indentation. Max 32 lines per diff.
-
-Rules:
-- MANDATORY: preserve exact indentation
-- Prefer code ranges over single lines
-- Many small diffs > one large diff
-- Keep diffs surgical and minimal
-
----
-
-## PR Requirements
-
-- Small, focused PRs -- one baby step per PR
-- Clear description -- link issues, summarize what and why
 
 ---
 
