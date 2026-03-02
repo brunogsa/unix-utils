@@ -182,6 +182,9 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 - **Prefer composition over inheritance** -- compose behaviors from small, focused pieces rather than deep class hierarchies. More testable, more flexible, easier to reason about.
 
 - **Fail loudly, not silently** -- errors should propagate or be logged explicitly, never swallowed. A crash you see is better than a silent corruption you don't.
+
+- **Surface linter gaps, don't silently patch them** -- when fixing something a linter should catch deterministically (unused imports, dead code, cyclomatic complexity, circular dependencies), flag it as `[LINTER GAP]` so the project's linter config can be improved for the whole team.
+
 Detailed examples: @~/.claude/skills/code-standards/SKILL.md
 
 ---

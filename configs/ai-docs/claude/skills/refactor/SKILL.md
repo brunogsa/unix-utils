@@ -35,9 +35,11 @@ git ls-files --others --exclude-standard
 
 Deduplicate and merge the lists. If no files are found, inform the user and stop.
 
-### 2. Detect Refactoring Opportunities (Agent -- read-only)
+### 2. Detect Refactoring Opportunities (Agent -- foreground, read-only)
 
-Use the **Task tool** with `subagent_type=code-simplifier:code-simplifier`. In the prompt:
+Use the **Agent tool** with `subagent_type=code-simplifier:code-simplifier`. In the prompt:
+
+- Run in **foreground** (never `run_in_background`) -- the user must see analysis progress and the main session needs full visibility into findings for the learning loop (`enhance-global-guidelines-with-session-learnings`)
 
 - List the files identified above
 - Instruct it to **only analyze and report** -- it must NOT make any edits (no Edit, no Write)
@@ -47,10 +49,14 @@ Use the **Task tool** with `subagent_type=code-simplifier:code-simplifier`. In t
   - `~/.claude/skills/test-standards/SKILL.md` (test patterns)
 - Instruct it to focus only on code touched by unpushed commits or uncommitted changes
 - Instruct it to NOT propose changes that alter behavior, change formatting only, add features beyond what exists, or refactor code outside the changed files
+- Instruct it to classify each finding as **subjective** or **mechanical**:
+  - **Subjective**: naming, decomposition, architecture, layered-architecture violations, guideline alignment -- things only a context-aware reviewer can judge
+  - **Mechanical**: unused imports/variables, dead code/exports, cyclomatic complexity, circular dependencies, missing type annotations -- things a linter could catch deterministically
+- For mechanical findings, prefix the **What** field with `[LINTER GAP]` to signal that the project's linter config should be improved to catch this automatically
 
 The agent must return a **numbered list** of refactoring opportunities, each with:
 - **File** and approximate line range
-- **What**: one-sentence description of the change
+- **What**: `[LINTER GAP]` prefix if mechanical, then one-sentence description of the change
 - **Why**: which guideline or principle it addresses
 - **Before/After sketch**: brief code snippet showing the current state and proposed improvement
 

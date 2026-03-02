@@ -58,9 +58,9 @@ High-level technical approach. Architecture decisions. Trade-offs considered.
 
 ## Tasks
 
-### 0. Copy plan to project directory
-**What**: Copy this plan file to `./plan.md` in the current working directory. If spec.md exists in cwd, it was already used as input.
-**Verify**: `cat ./plan.md` shows this plan.
+### 0. Symlink plan to project directory
+**What**: Create a symlink from this plan file to `./plan.md` in the current working directory. If spec.md exists in cwd, it was already used as input.
+**Verify**: `readlink ./plan.md` points to this plan file.
 
 ### 1. [Task title]
 **Description**: What needs to be done.
