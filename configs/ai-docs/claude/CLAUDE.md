@@ -13,7 +13,7 @@ Dev stack: Ghostty (terminal) → tmux → neovim → Claude Code
 ### Tooling repos (cross-platform macOS/Linux)
 
 - `~/unix-utils/` -- system setup & config versioning. `install.sh` (OS-aware), `configs/` symlinked to `~/`
-- `~/oh-my-zsh/` -- zsh config & CLI scripts. `.zshrc`, `commands/` (executables), `lib/` (shared functions incl. `aireview.sh`)
+- `~/oh-my-zsh/` -- zsh config & CLI scripts. `.zshrc`, `commands/` (executables), `lib/` (shared functions)
 - `~/tmux/` -- tmux config. `.tmux.conf` with neovim/clipboard/Claude integrations
 - `~/neovim/` -- neovim config. Single-file `init.lua` (~2200 lines): LSP, Treesitter, CodeCompanion, Mermaid indent
 - `~/ghostty/` -- Ghostty terminal config. `install.sh` (cross-platform), `config` symlinked to `~/.config/ghostty/`

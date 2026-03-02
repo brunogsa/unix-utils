@@ -35,15 +35,6 @@ Generates a shell command from a natural language prompt, copies it to clipboard
 aicmd 'recursively find and delete all .DS_Store files'
 ```
 
-### aireview
-Prepares a comprehensive code review bundle (diff, file contents, repo map, conventions, PR/Jira context) and copies to clipboard.
-```
-aireview main feature/new-api
-aireview --github https://github.com/owner/repo/pull/123
-aireview --github <pr-url> --jira <jira-url>
-```
-Requires: git repo, SSH access. Optional: `gh` CLI, Jira env vars, `aider` (for repo map).
-
 ### aicopy
 Copies file names and contents to clipboard. Accepts file paths via args or stdin.
 ```

@@ -12,7 +12,7 @@ Complete review guidelines. Auto-loaded during code review activities.
 ## Language
 
 - Instructions and code examples: English
-- **All review output: Portuguese (Brazil)** -- comments, changelog, action items, summary
+- **Output language is determined by the invoking skill**: `/auto-review` = English, `/code-review` = Portuguese (Brazil)
 
 ---
 

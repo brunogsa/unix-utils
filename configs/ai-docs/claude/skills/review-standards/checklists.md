@@ -37,6 +37,8 @@ Supplementary checklists for code review. Referenced by the review-standards ski
 - Tests are minimal and focused
 - Mock only external dependencies
 - Test names describe what and why, BDD-like if possible
+- Missing tests not prioritized by impact (rate gaps: critical > important > edge case > nice-to-have)
+- Tests coupled to implementation details (would break if implementation changes but behavior stays?)
 
 ---
 
@@ -48,6 +50,8 @@ Supplementary checklists for code review. Referenced by the review-standards ski
 - Catch blocks that are too broad (catching Error instead of specific types)
 - Missing error handling on async operations (unhandled promise rejections)
 - User-facing error messages that leak internals or are unhelpful
+- Error messages not actionable (reader can't determine what went wrong or how to fix it)
+- Hidden failures via default values (`result || []` silently masking a real failure)
 
 ---
 
@@ -58,6 +62,8 @@ Supplementary checklists for code review. Referenced by the review-standards ski
 - TODO/FIXME/HACK comments without context or tracking
 - Misleading function/param docstrings
 - Comments explaining "what" instead of "why"
+- Side effects and critical assumptions not documented in function/method comments
+- Comments that will become stale when code changes (comment rot risk -- prefer tests/logs instead)
 
 ---
 
@@ -68,6 +74,8 @@ Supplementary checklists for code review. Referenced by the review-standards ski
 - Overly permissive types (string where union/enum fits)
 - Types without enforced invariants (e.g., non-empty arrays typed as regular arrays)
 - Unnecessary optional fields that are always present in practice
+- Type invariants not explicitly named (what invariants does each type maintain?)
+- Construction-time validation missing (does the constructor/factory enforce valid state?)
 
 ---
 
