@@ -12,7 +12,7 @@ Complete review guidelines. Auto-loaded during code review activities.
 ## Language
 
 - Instructions and code examples: English
-- **Output language is determined by the invoking skill**: `/auto-review` = English, `/code-review` = Portuguese (Brazil)
+- Output language is determined by the invoking context
 
 ---
 
@@ -30,23 +30,23 @@ Avoid speculative feedback using "maybe", "possibly", or "consider" without stro
 
 ## Feedback Structure: Problem -> Why -> Fix
 
-Every review comment follows this flow:
+Every review comment uses bullet format:
 
-1. **State the problem** -- one sentence
-2. **Explain why it matters** -- 1-2 sentences max (always include for learning)
-3. **Suggest the fix** -- code snippet, question, or guidance
+- **Problem**: one sentence stating the issue
+- **Why**: one sentence on impact (always include -- helps developers learn)
+- **Fix**: code snippet, question, or concrete guidance
 
-Keep it concise: aim for 3-5 lines total.
+Keep it concise: 3-5 lines total, max 256 characters per line. No paragraphs -- bullets only. Avoid verbose explanations without educational value.
 
 ---
 
 ## Priority Tags
 
 - **MANDATORY** -- must fix before merge (correctness, security, critical bugs). Direct, assertive tone.
-- **RECOMMENDED** -- should address (code quality, performance, best practices). Prefix with: `> Pode resolver esta thread depois de ler. Fique a vontade de faze-la ou nao!`
-- **NITPICK** -- optional improvements (minor style, subjective). Same prefix. Friendly, non-pedantic tone.
-- **COMPLIMENT** -- positive feedback on excellent patterns. Same prefix. Use sparingly.
-- **QUESTION** -- genuine questions about design decisions. Standalone: no prefix (must be answered). Embedded in other tags: include inline.
+- **RECOMMENDED** -- should address (code quality, performance, best practices).
+- **NITPICK** -- optional improvements (minor style, subjective). Friendly, non-pedantic tone.
+- **COMPLIMENT** -- positive feedback on excellent patterns. Use sparingly.
+- **QUESTION** -- genuine design questions. Standalone: must be answered. Embedded in other tags: include inline.
 
 ---
 
@@ -104,15 +104,6 @@ Review in this sequence (most to least critical):
 
 **Cobertura**: [Mencionar refatoração/testes/docs]
 ```
-
----
-
-## Conciseness with Purpose
-
-- State the issue concisely
-- Explain why it matters (brief reasoning helps developers learn)
-- Show the fix (examples or code snippets)
-- Avoid verbose explanations without educational value
 
 ---
 

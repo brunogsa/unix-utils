@@ -29,13 +29,16 @@ Follow these standards strictly throughout the review. They are your source of t
 
 You receive: `base_branch` (e.g. `main`)
 
-1. `git diff <base_branch>...HEAD` -- the full diff
-2. `git log --oneline <base_branch>...HEAD` -- commit history
-3. `git diff --name-only <base_branch>...HEAD` -- changed files list
-4. Read each changed file in full using Read tool (for accurate line numbers)
-5. Use Glob or Grep to understand surrounding context when needed
-6. Check if `./spec.md` exists -- if so, read it (feature specification)
-7. Check if `./plan.md` exists -- if so, read it (implementation plan)
+The `base_branch` parameter is the short branch name (e.g., `master`). These instructions prepend `origin/` to capture unpushed commits. Only committed changes are reviewed -- uncommitted/untracked files are excluded.
+
+1. `git fetch origin <base_branch>` -- ensure baseline is up to date
+2. Read `./spec.md` if it exists -- feature specification with intent, goals, and acceptance criteria. Use it to evaluate whether the changes fulfill the spec.
+3. Read `./plan.md` if it exists -- implementation plan with task breakdown. Use it to check for plan-vs-implementation drift.
+4. `git diff origin/<base_branch>...HEAD` -- the full diff
+5. `git log --oneline origin/<base_branch>...HEAD` -- commit history
+6. `git diff --name-only origin/<base_branch>...HEAD` -- changed files list
+7. Read each changed file in full using Read tool (for accurate line numbers)
+8. Use Glob or Grep to understand surrounding context when needed
 
 ### GitHub mode (`/code-review`)
 
@@ -50,7 +53,7 @@ You receive: `pr_url`, optionally `jira_url`
 3. `gh pr diff "$pr_number" --repo "$repo_path"` -- the full diff
 4. `gh pr diff "$pr_number" --repo "$repo_path" --name-only` -- changed files list
 5. Read each changed file in full using Read tool (for accurate line numbers)
-6. Read existing PR comments to avoid duplicating feedback:
+6. Read existing PR comments to avoid duplicating feedback (if this fails, warn and proceed -- accept potential duplicates rather than aborting):
    ```bash
    gh api repos/"$repo_path"/pulls/"$pr_number"/comments
    gh api repos/"$repo_path"/pulls/"$pr_number"/reviews
@@ -77,46 +80,33 @@ Apply the review-standards and checklists you read in Step 1. Work through each 
 
 Output language: **English**
 
-Write your review to `./auto-review.md` in the current working directory. Structure:
+Write your review to `./auto-review.md`. Follow the feedback structure from review-standards.
 
 ```markdown
 # Auto Review: <branch-name> vs <base-branch>
 
 ## Findings
 
-### `file/path.ts`
-
 **[SEVERITY]** `file/path.ts:42-48`
-
-Problem statement.
-
-Why it matters.
-
-Suggested fix or code snippet.
-
----
-
-### `another/file.ts`
-
-...
+- **Problem**: ...
+- **Why**: ...
+- **Fix**: ...
 
 ## Action Items
 
-- **MANDATORY**: N items
-  - `file:line` -- brief description
-- **RECOMMENDED**: N items
-  - `file:line` -- brief description
-- **NITPICK**: N items
-  - `file:line` -- brief description
+- **MANDATORY**: `file:line` -- brief description
+- **RECOMMENDED**: `file:line` -- brief description
 ```
 
-Group findings by file. Within each file, order by severity (MANDATORY first). Omit empty severity sections from Action Items.
+Order by severity (MANDATORY first). Omit empty sections.
 
 ---
 
 ### GitHub mode (`/code-review`) -- Post to GitHub
 
 Output language: **Portuguese (Brazil)**
+
+Prefix RECOMMENDED, NITPICK, and COMPLIMENT comments with: `> Pode resolver esta thread depois de ler. Fique a vontade de fazê-la ou não!`
 
 #### 4a. Generate Changelog
 

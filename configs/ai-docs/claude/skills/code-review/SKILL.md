@@ -19,9 +19,19 @@ Examples:
 
 Launch a **single foreground Agent** (subagent_type: `general-purpose`) with the following prompt.
 
-Replace `<PR_URL>` with the actual PR URL. Include the `Jira URL` line only if `--jira` was provided.
+Replace `<PR_URL>` with the actual PR URL. Use the appropriate template below.
 
-### Agent Prompt
+### Agent Prompt (without Jira)
+
+```
+Read `~/.claude/skills/reviewer-agent/SKILL.md` for your full instructions.
+
+Mode: **github** (`/code-review`)
+PR URL: `<PR_URL>`
+Language: **Portuguese (Brazil)**
+```
+
+### Agent Prompt (with --jira)
 
 ```
 Read `~/.claude/skills/reviewer-agent/SKILL.md` for your full instructions.

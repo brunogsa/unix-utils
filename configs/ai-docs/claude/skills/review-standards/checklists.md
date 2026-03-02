@@ -37,7 +37,7 @@ Supplementary checklists for code review. Referenced by the review-standards ski
 - Tests are minimal and focused
 - Mock only external dependencies
 - Test names describe what and why, BDD-like if possible
-- Missing tests not prioritized by impact (rate gaps: critical > important > edge case > nice-to-have)
+- Missing tests for high-impact paths (rate gaps by: critical > important > edge case > nice-to-have)
 - Tests coupled to implementation details (would break if implementation changes but behavior stays?)
 
 ---
