@@ -10,112 +10,93 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
 
 Dev stack: Ghostty (terminal) → tmux → neovim → Claude Code
 
-### Tooling repos (cross-platform macOS/Linux)
+Five cross-platform repos (macOS/Linux), each with its own `CLAUDE.md`:
 
-- `~/unix-utils/` -- system setup & config versioning. `install.sh` (OS-aware), `configs/` symlinked to `~/`
-- `~/oh-my-zsh/` -- zsh config & CLI scripts. `.zshrc`, `commands/` (executables), `lib/` (shared functions)
-- `~/tmux/` -- tmux config. `.tmux.conf` with neovim/clipboard/Claude integrations
-- `~/neovim/` -- neovim config. Single-file `init.lua` (~2200 lines): LSP, Treesitter, Mermaid indent
-- `~/ghostty/` -- Ghostty terminal config. `install.sh` (cross-platform), `config` symlinked to `~/.config/ghostty/`
+- `~/unix-utils/` -- system setup, config versioning, Claude Code global config
+- `~/oh-my-zsh/` -- zsh config & CLI scripts (`commands/`, `lib/`)
+- `~/tmux/` -- tmux config with neovim/clipboard/Claude integrations
+- `~/neovim/` -- neovim config: LSP, Treesitter, Mermaid indent
+- `~/ghostty/` -- Ghostty terminal config
 
-Install scripts share a common pattern: detect OS via `detect-os.sh` from `~/oh-my-zsh/lib/`, branch on macOS/Linux, use idempotent checks (`command -v`, config file existence), symlink config at the end.
-
-Each repo may have its own `CLAUDE.md` with project-specific instructions.
-
-### Symlinks (always edit source, not target)
-
-- `~/unix-utils/configs/ai-docs/claude/*` → `~/.claude/*` (this file, skills/, settings.json)
-- `~/tmux/.tmux.conf` → `~/.tmux.conf`
-- `~/oh-my-zsh/.zshrc` → `~/.zshrc`
+Configs are symlinked from repos to system locations. Always edit the source repo.
 
 ---
 
 ## INTERACTION
 
-- **Coach my English** -- CRITICAL: focus on vocabulary, sentence structure, preposition usage, and idiomatic expressions that would make my writing sound more natural. Correct phrasing that is grammatically valid but unnatural. Use the format `"[original snippet]" → "[corrected snippet]"` before responding to the actual content. Skip obvious typos that are clearly fast-typing artifacts (e.g., `tô` → `to`). Focus on mistakes I would genuinely learn from: word choice, article usage, preposition selection, unnatural phrasing, and sentence structure.
+- **Coach my English** -- CRITICAL: correct unnatural phrasing using `"[original]" → "[corrected]"` before responding. Focus on word choice, articles, prepositions, sentence structure. Skip obvious fast-typing typos.
 
-- **If I am wrong, tell me directly** -- prioritize correctness over politeness.
+- **If I am wrong, tell me directly** -- correctness over politeness.
 
 - **When uncertain, ask** -- never guess context, file paths, or module names.
-- **Verify limitations before accepting them** -- when encountering an apparent tool, API, or platform limitation, search documentation or the web to confirm it is real. Training data may be outdated.
-- **Offer alternatives** -- when appropriate, present multiple approaches with trade-offs.
+- **Verify limitations before accepting them** -- search docs or web to confirm.
+- **Offer alternatives** -- present multiple approaches with trade-offs.
 
 - **Explain reasoning concisely** -- briefly justify decisions without verbosity.
 
 - **Highlight assumptions** -- explicitly note any assumptions made.
 
-- **Be the devil's advocate** -- challenge decisions, point out over-engineering, flag simpler alternatives. But verify assumptions before critiquing -- check actual code, ask about context.
+- **Be the devil's advocate** -- challenge decisions, flag simpler alternatives. Verify assumptions before critiquing -- check actual code, ask about context.
 
 - **Be direct** -- no preambles, no filler, no emojis.
 
-- **Maximize verifiability** -- Show evidence supporting every conclusion.
+- **Maximize verifiability** -- show evidence supporting every conclusion.
 
 - **Sequential over parallel for edits/inputs** -- CRITICAL: never run parallel tool calls that require user approval or input.
 
-- **Ask before parallelizing read-only work** -- when about to make **multiple independent** read-only explorations or searches, ask whether to run in series/foreground (learn from each step) or parallel/background (prioritize speed). Single read-only calls: just run foreground. Web fetches: always parallel/background.
+- **Ask before parallelizing read-only work** -- ask series vs parallel for multiple independent explorations. Single calls: foreground. Web: parallel.
 
-- **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for almost every non-trivial task. Default to creating tasks; skip only for single-step trivial changes.
+- **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for non-trivial tasks. Prefix subjects with `#N: ` (UI doesn't show IDs in titles).
 
-- **Prefix task titles with their ID** -- the task UI does not show IDs in titles. Always prefix the subject with `#N: ` (e.g., `#3: Create brainstorm skill`) so references like "blocked by #2" or "tackling #5" are clear to the user.
+- **Prefer targeted edits over full rewrites** -- Edit tool over Write tool.
 
-- **Prefer targeted edits over full rewrites** -- use Edit tool over Write tool whenever possible.
+- **Human commits only** -- I create commits after review; no auto-commits.
 
-- **Human commits only** -- after review, I create the commit; no auto-commits.
+- **Notify requests** -- load `notify-user` skill BEFORE the command.
 
+- **Change-request = new TODO items** -- review feedback becomes new tasks.
 
-- **Notify requests** -- load the `notify-user` skill BEFORE running the command. Chain notification after the command in a single Bash call.
+- **Explain trade-offs on manual changes** -- when I modify your edit or reject with an alternative, explain what my version gains, loses, and assumes.
 
-- **Change-request = new TODO items** -- address review feedback as new tasks.
-
-- **Explain trade-offs you see when I manually change your code** -- when I manually modify a file you edited, or reject a change with an alternative, explain the trade-offs between my approach and yours: what my version gains, what it loses, and what assumptions differ.
-
-- **Re-read plans after edits** -- CRITICAL: when I edit a plan file (via C-g or any editor), always re-read from disk before proceeding. Never rely on a cached version.
+- **Re-read plans after edits** -- CRITICAL: when I edit a plan file, re-read from disk before proceeding. Never rely on cached version.
 
 ---
 
 ## WORKFLOW
 
-- **Understand first, code last** -- clarify requirements, identify affected areas, outline approach.
+- **Understand first, code last** -- clarify requirements, identify areas, outline approach.
 
-- **Question complexity** -- is this one-off or reusable? Is there a simpler alternative? Verify the simpler alternative doesn't work before committing to the complex path.
+- **Question complexity** -- one-off or reusable? Simpler alternative? Verify the simpler path doesn't work before committing to the complex one.
 
 - **Baby steps** -- each step is the smallest testable, committable change.
 
-- **Prefer deterministic automation over AI** -- conventional automation is faster, cheaper, and more accurate. Use AI as a last resort or stopgap.
+- **Prefer deterministic automation over AI** -- conventional automation is faster, cheaper, and more accurate. AI as last resort or stopgap.
 
-- **Interview for complex features** -- proactively suggest questions before writing code.
+- **Interview for complex features** -- suggest questions before writing code.
 
-- **Spec-driven for non-trivial work** -- for features and significant changes, use spec.md (what/why) and plan.md (how/tasks) as living documents in the project root. Not committed.
+- **Spec-driven for non-trivial work** -- use spec.md (what/why) and plan.md (how/tasks) as living documents. Not committed.
 
-- **Surface ambiguity with markers** -- use `[NEEDS CLARIFICATION: ...]` in specs and plans to flag gaps. Use `[DECISION: ... because ...]` to capture trade-offs. When resolved, remove the marker or update the decision in place.
+- **Surface ambiguity with markers** -- `[NEEDS CLARIFICATION: ...]` for gaps, `[DECISION: ... because ...]` for trade-offs. Remove when resolved.
 
-- **Tasks document acceptance criteria** -- every task in plan.md (and in TaskCreate) includes acceptance criteria and a verify method (command, test, or manual check).
+- **Plan tasks become TODO items with acceptance criteria** -- every task in plan.md and TaskCreate includes acceptance criteria and a verify method.
 
-- **Plan tasks become TODO items** -- after generating plan.md, create a TaskCreate item for each task listed in the plan. Include acceptance criteria and verify method.
+- **Keep spec and plan up to date** -- update at each task boundary: mark done, add `[DECISION:]` markers, note scope changes. Stale docs degrade `/create-pr`.
 
-- **Keep spec and plan up to date** -- update at each task boundary: mark tasks done, add `[DECISION:]` markers immediately, note scope changes and incidental work. Stale docs degrade `/create-pr` output. Details in `spec-driven-development` skill.
+- **Search before creating** -- search codebase for similar code. Present trade-offs of reusing vs creating. Ask "where does this logically belong?"
 
-- **Search before creating** -- search the codebase for similar code. Present trade-offs of reusing/extending vs creating new. Never assume existing patterns are the right choice. Ask "where does this logically belong?", not "where is convenient?".
-
-- **Prefer existing tools over custom code** -- before building, search for established external tools, libraries, or packages that solve the problem. Scripts, CLI utilities, and helper functions often have battle-tested, maintained alternatives in the ecosystem. When a dependency would be heavy for a simple need (importing a jungle for a banana), flag the trade-off and let me decide.
+- **Prefer existing tools over custom code** -- search for established libraries/packages first. Flag heavy dependencies and let me decide.
 
 - **Green baseline first** -- existing tests & lint must pass before new work.
 
-- **Design test titles first** -- write titles (no implementation) describing expected behavior. Validate coverage scope before writing any code. For scripts: define usage syntax and use-case examples in the comment header instead.
+- **Design test titles first** -- write titles (no implementation) describing expected behavior. For scripts: usage syntax + examples in comment header.
 
-- **Propose verification** -- if no clear way to verify correctness, propose an approach first.
+- **Verify before completing** -- run the task's verify step. Propose a verification approach if none exists. Run scripts/automation to confirm.
 
-- **Validate automation by running it** -- when creating a script, installer, or any executable artifact, run it in the same task to verify it works. Writing without executing is an incomplete deliverable.
-
-- **Verify before completing** -- run the task's defined verify step and confirm it passes before marking the task complete. A task without executed verification is not done.
-
-- **TDD: RED → GREEN → REFACTOR** -- failing test first, minimal code to pass, then simplify. Suggest test updates for any change. After green, explicitly check for refactors. Isolate pure refactors into their own step & commit.
-
-- **Isolate refactors** -- refactors happen alone, and get their own baby step and commit.
+- **TDD: RED → GREEN → REFACTOR** -- failing test first, minimal code to pass, then simplify. Isolate pure refactors into their own step & commit.
 
 - **Update docs as you go** -- locate and update related documentation inline.
 
-- **Use Mermaid for visual explanations** -- when architecture, data flow, state machines, or sequences would clarify a concept, render diagrams inline via `render-ascii-mermaid`. In spec.md/plan.md, use fenced Mermaid blocks with rendered ASCII output.
+- **Use Mermaid for visual explanations** -- render diagrams inline via `render-ascii-mermaid`. Use fenced Mermaid blocks with ASCII output in specs.
 
 Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
@@ -125,23 +106,23 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
 - **Never delete or overwrite existing code unless explicitly instructed** -- CRITICAL: do NOT change indentation, empty lines, whitespace, quote style, or semicolons. ONLY modify the exact lines needed for the requested change.
 
-- **Guidelines override codebase patterns** -- CRITICAL: when existing code conflicts with rules here, present the conflict and wait for approval.
+- **Guidelines override codebase patterns** -- CRITICAL: present the conflict and wait for approval when existing code contradicts rules here.
 
-- **Code top-down breadth first (TDBF Coding)** -- CRITICAL: tackle in rounds from top to leaves. Each round: implement 1 function, declare skeleton functions it requires (signature + contract + TODO body). Skeletons have full contracts.
+- **TDBF Coding for new code** -- CRITICAL: when writing new functions/modules, implement in rounds from top to leaves. Each round: 1 function + skeleton stubs it needs (signature + contract + TODO body).
 
-- **Avoid global mutable state** -- pass data through parameters and return values. When forced (e.g., bash), justify with a comment.
+- **Avoid global mutable state** -- pass data through params and return values.
 
 - **Pure functions by default** -- isolate I/O into thin boundary functions.
 
 - **Inject what's hard to mock** -- pass I/O collaborators as parameters.
 
-- **Single-responsibility** -- each function does one thing at one level of abstraction.
+- **Single-responsibility** -- one thing at one level of abstraction.
 
-- **Name by purpose, not mechanism** -- describe what the caller gets, not how it works.
+- **Name by purpose, not mechanism** -- what the caller gets, not how it works.
 
-- **Functions ≥2 params → named-param object. Pass specific fields, not entire objects.**
+- **Functions ≥2 params → named-param object. Pass specific fields, not whole objects.**
 
-- **Layered architecture** -- CRITICAL: Controller/Command (I/O, validation, logging) → Use Case (pure business logic, no I/O). Pure functions are testable without mocks.
+- **Layered architecture** -- CRITICAL: Controller (I/O, validation, logging) → Use Case (pure business logic, no I/O).
 
 - **Log progress in I/O loops** -- counter format: `[3/70] item-name`.
 
@@ -159,31 +140,31 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
 - **Remove unused code** -- trace back and remove all orphaned supporting code and tests.
 
-- **Input validation** -- validate and sanitize inputs in controllers/consumers before passing to business logic.
+- **Input validation** -- validate inputs in controllers before business logic.
 
-- **Normalize data at entry point** -- convert string dates, numbers-as-strings, etc. to proper types immediately after validation.
+- **Normalize data at entry point** -- convert string dates, numbers-as-strings to proper types immediately after validation.
 
-- **Extract magic values into constants** -- use TypeScript enums when applicable.
+- **Extract magic values into constants** -- use enums when applicable.
 
-- **Distinguish "missing" from "intentional zero/empty"** -- check for null/undefined, not falsiness.
-- **Centralize repeated logic** -- DRY: defaults, transformations, and repeated computations live in one place.
+- **Distinguish "missing" from "intentional zero/empty"** -- check null/undefined, not falsiness.
+- **Centralize repeated logic** -- DRY: defaults, transformations, computations.
 
-- **Merge near-duplicate functions via optional parameters** -- when two functions differ only by a filter, flag, or small configuration, generalize into one function with an optional parameter. Two functions that are 90% identical are a maintenance and comprehension burden.
+- **Merge near-duplicate functions** -- when two functions differ only by a flag or filter, generalize into one with an optional parameter.
 
-- **Don't wrap trivial expressions** -- don't create a function that just renames a single standard library call without adding logic. `ensureDir(path)` over `mkdirSync(path, { recursive: true })` is noise, not abstraction. Wrappers earn their existence by adding behavior (retry, logging, validation), not by giving a new name to something already clear.
+- **Don't wrap trivial expressions** -- wrappers earn existence by adding behavior (retry, logging, validation), not by renaming a clear stdlib call.
 
-- **Decompose dense expressions into auxiliary variables** -- when an expression uses unfamiliar APIs, multiple nested callbacks, or implicit behavior, break it into named intermediate variables. Readability beats brevity. One-liners that require mental unpacking are not "clean."
+- **Decompose dense expressions** -- break unfamiliar APIs and nested callbacks into named intermediate variables. Readability beats brevity.
 
-- **Abstract counter-intuitive APIs** -- create wrappers with intuitive interfaces, document quirks inside the wrapper.
-- **Context object for cross-cutting concerns** -- pass a single mutable context (request ID, user, trace) instead of adding params everywhere.
+- **Abstract counter-intuitive APIs** -- wrap with intuitive interfaces.
+- **Context object for cross-cutting concerns** -- pass a single context (request ID, user, trace) instead of adding params everywhere.
 
-- **Parallelize CPU-bound work** -- use worker threads for CPU-bound, async I/O for I/O-bound.
-- **Resilient batch operations** -- write incrementally, be idempotent, enable resumability, protect shared resources. Long-running scripts and processes must be crash-resilient: continue from where they stopped, lose no data, redo no completed work, and produce a best-effort report on fatal failure.
-- **Prefer composition over inheritance** -- compose behaviors from small, focused pieces rather than deep class hierarchies. More testable, more flexible, easier to reason about.
+- **Parallelize CPU-bound work** -- workers for CPU, async for I/O.
+- **Resilient batch operations** -- idempotent, resumable, crash-resilient. Best-effort report on fatal failure.
+- **Prefer composition over inheritance** -- small, focused pieces over deep class hierarchies.
 
-- **Fail loudly, not silently** -- errors should propagate or be logged explicitly, never swallowed. A crash you see is better than a silent corruption you don't.
+- **Fail loudly, not silently** -- errors propagate or get logged explicitly. A crash you see beats a silent corruption you don't.
 
-- **Surface linter gaps, don't silently patch them** -- when fixing something a linter should catch deterministically (unused imports, dead code, cyclomatic complexity, circular dependencies), flag it as `[LINTER GAP]` so the project's linter config can be improved for the whole team.
+- **Surface linter gaps** -- when fixing something a linter should catch, flag as `[LINTER GAP]` so the config can be improved.
 
 Detailed examples: @~/.claude/skills/code-standards/SKILL.md
 

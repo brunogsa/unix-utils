@@ -122,23 +122,23 @@ After all edits are applied and verified, measure the line count of every auto-l
 
 **Auto-loaded files** (loaded via `@` imports in CLAUDE.md on every session):
 
-| File | Budget (lines) |
-|------|----------------|
-| `~/.claude/CLAUDE.md` | 150 |
+| File | Budget (non-blank lines) |
+|------|--------------------------|
+| `~/.claude/CLAUDE.md` | 200 |
 | `~/.claude/skills/code-standards/SKILL.md` | 200 |
-| `~/.claude/skills/workflow-standards/SKILL.md` | 35 |
-| `~/.claude/skills/doc-standards/SKILL.md` | 35 |
-| `~/.claude/skills/test-standards/SKILL.md` | 55 |
+| `~/.claude/skills/workflow-standards/SKILL.md` | 40 |
+| `~/.claude/skills/doc-standards/SKILL.md` | 40 |
+| `~/.claude/skills/test-standards/SKILL.md` | 60 |
 | **Total** | **500** |
 
-**Line length limit:** 120 characters max per line. Lines longer than 120 chars should be wrapped or split. Check with: `awk 'length > 120' <file>`.
+**Line length limit:** 256 characters max per line. Check with: `awk 'length > 256' <file>`.
 
 **Process:**
 
-1. Run: `wc -l ~/.claude/CLAUDE.md ~/.claude/skills/code-standards/SKILL.md ~/.claude/skills/workflow-standards/SKILL.md ~/.claude/skills/doc-standards/SKILL.md ~/.claude/skills/test-standards/SKILL.md`
-2. Check for long lines: `awk 'length > 120' <file>` on each file
+1. Count non-blank lines: `grep -c '\S' <file>` on each auto-loaded file
+2. Check for long lines: `awk 'length > 256' <file>` on each file
 3. Compare each file and the total against the budget table above
-4. If any file or the total exceeds budget, or lines exceed 120 chars, warn the user with:
+4. If any file or the total exceeds budget, or lines exceed 256 chars, warn the user with:
    - A table showing current line count vs budget for each file
    - Which file(s) grew and by how much
    - Specific consolidation suggestions:

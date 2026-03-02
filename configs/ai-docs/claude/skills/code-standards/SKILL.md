@@ -39,86 +39,6 @@ function processDataCommand(filepath, outputPath) {
 }
 ```
 
----
-
-## Single-Responsibility Functions
-
-```javascript
-// Bad -- one function handling two phases (comment is a smell):
-function syncOrder(order, client) {
-  // Phase 1: transform
-  const payload = { id: order.externalId, items: order.lines.map(formatLine) };
-  // Phase 2: send
-  const response = client.post('/orders', payload);
-  return response.id;
-}
-
-// Good -- split at the phase boundary:
-function buildOrderPayload(order) {
-  return { id: order.externalId, items: order.lines.map(formatLine) };
-}
-
-function submitOrder({ payload, client }) {
-  const response = client.post('/orders', payload);
-  return response.id;
-}
-```
-
----
-
-## Inject What's Hard to Mock
-
-```javascript
-// Bad -- hardcoded I/O client, requires module patching to test:
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-
-function getOrder(orderId) {
-  const client = new DynamoDBClient({ region: 'us-east-1' });
-  return client.send(new GetItemCommand({ /* ... */ }));
-}
-
-// Good -- I/O collaborator injected, trivially substitutable in tests:
-function getOrder({ orderId, dbClient }) {
-  return dbClient.send(new GetItemCommand({ /* ... */ }));
-}
-
-// Pure helpers don't need injection -- direct import is fine:
-import { formatCurrency } from './utils.js';
-
-function buildReceipt(order) {
-  return { total: formatCurrency(order.total) };
-}
-```
-
----
-
-## Deep Clone with Type Preservation
-
-```javascript
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/;
-const dateReviver = (key, value) => {
-  if (typeof value === 'string' && ISO_DATE_PATTERN.test(value)) {
-    return new Date(value);
-  }
-  return value;
-};
-const clone = JSON.parse(JSON.stringify(obj), dateReviver);
-```
-
----
-
-## Timezone-Ambiguous Timestamp Parsing
-
-```javascript
-// Bad -- timezone-ambiguous string parsed as local time:
-const ts = '2026-02-04 23:50:07.393'; // UTC from an API, no timezone indicator
-const date = new Date(ts);             // parsed as LOCAL time -- 3h off in BRT!
-
-// Good -- force UTC interpretation:
-const date = new Date(ts + 'Z');
-// Or normalize at entry point:
-const date = new Date(ts.replace(' ', 'T') + 'Z');
-```
 
 ---
 
@@ -149,69 +69,38 @@ if (TYPE_SET.has(type)) {
 
 ---
 
-## Avoid Negatives
+## Boolean Naming
 
 ```ts
-// Bad:
-if (!item.isShrinked) {
-    // do something
-}
+// Bad -- negation of a negative:
+if (!item.isShrinked) { ... }
 
-// Good:
+// Good -- name the positive condition:
 const isExpandable = !item.isShrinked;
-if (isExpandable) {
-    // do something
-}
-```
+if (isExpandable) { ... }
 
----
+// Bad -- boolean named as negative, then negated:
+if (!isKnownNonTerminal) { ... }
 
-## Never Name a Boolean as a Negative
-
-```javascript
-// Bad -- double-negative: the variable is named as a negative, then negated with !
-const isKnownNonTerminal = status === 'Running' || status === 'Scheduled';
-if (!isKnownNonTerminal) {
-  throw new Error(`Unexpected status: "${status}"`);
-}
-
-// Good -- name the guard condition directly:
+// Good -- name the guard directly:
 const isUnexpectedStatus = status !== 'Running' && status !== 'Scheduled';
-if (isUnexpectedStatus) {
-  throw new Error(`Unexpected status: "${status}"`);
-}
+if (isUnexpectedStatus) { ... }
+
+// Also: extract long conditions into named booleans:
+const isExpandableKit = item.type === KIT && !item.isShrinked && item.children.length < 1;
+if (isExpandableKit) { ... }
 ```
 
----
-
-## Don't Wrap Trivial Expressions
-
-```javascript
-// Bad -- wrapper adds no behavior, just renames a clear standard call:
-function ensureDir(dirPath) {
-  mkdirSync(dirPath, { recursive: true });
-}
-ensureDir(batchDir);
-
-// Good -- inline the call:
-mkdirSync(batchDir, { recursive: true });
-
-// OK -- wrapper adds real behavior (logging, retry, validation):
-function ensureDirWithLog(dirPath) {
-  mkdirSync(dirPath, { recursive: true });
-  console.log(`Created: ${dirPath}`);
-}
-```
 
 ---
 
 ## Decompose Dense Expressions
 
 ```javascript
-// Bad -- requires mental unpacking of Array.from, length trick, and arrow:
+// Bad -- requires mental unpacking:
 const paths = Array.from({ length: count }, (_, i) => resolve(dir, `batch-${i + 1}.csv`));
 
-// Good -- auxiliary variables make each step clear:
+// Good -- each step is clear:
 const paths = [];
 for (let i = 1; i <= count; i++) {
   paths.push(resolve(dir, FILE_NAMES.batch(i)));
@@ -220,35 +109,31 @@ for (let i = 1; i <= count; i++) {
 
 ---
 
-## Name Long Conditions
+## Named Parameters for Functions (>=2 params)
 
 ```ts
 // Bad:
-if (item.type === KIT && !item.isShrinked && item.children.length < 1) {
-    // do something
-}
+function configure(retries, timeout) {}
 
 // Good:
-const isExpandableKit = item.type === KIT && !item.isShrinked && item.children.length < 1;
-if (isExpandableKit) {
-    // do something
-}
+function configure({ retries, timeout }) {}
 ```
 
 ---
 
-## Prefer `for-of` over `for`
+## Pass Specific Fields, Not Entire Objects
 
-```ts
-// Bad (index unused):
-for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    // do something
+```javascript
+// Bad -- signature hides what the function actually needs:
+async function fetchLogs({ config, workDir }) {
+  const query = buildQuery(config.logGroups);
+  const { start, end } = buildTimeWindow({ radiusMinutes: config.logRadius });
 }
 
-// Good:
-for (const item of items) {
-    // do something
+// Good -- signature documents exact dependencies:
+async function fetchLogs({ logGroups, logRadius, workDir }) {
+  const query = buildQuery(logGroups);
+  const { start, end } = buildTimeWindow({ radiusMinutes: logRadius });
 }
 ```
 
@@ -266,37 +151,6 @@ function buildCsvColumnOrder(rows) { /* ... */ }
 function extractUniqueEmails(rows) { /* ... */ }
 ```
 
----
-
-## Named Parameters for Functions (>=2 params)
-
-```ts
-// Bad:
-function configure(a, b) {}
-
-// Good:
-function configure({ retries, timeout }) {}
-```
-
----
-
-## Pass Specific Fields, Not Entire Objects
-
-```javascript
-// Bad -- signature hides what the function actually needs:
-async function fetchLogs({ config, workDir }) {
-  const query = buildQuery(config.logGroups);  // only uses logGroups and logRadius
-  const { start, end } = buildTimeWindow({ radiusMinutes: config.logRadius });
-  // ...
-}
-
-// Good -- signature documents exact dependencies:
-async function fetchLogs({ logGroups, logRadius, workDir }) {
-  const query = buildQuery(logGroups);
-  const { start, end } = buildTimeWindow({ radiusMinutes: logRadius });
-  // ...
-}
-```
 
 ---
 
@@ -326,25 +180,6 @@ function process({ items, buildPayload }) {}   // output-only when obvious
 
 ---
 
-## Loop Simplification
-
-```ts
-// Bad -- nested loops mixing concerns:
-groups.forEach((group) => {
-  group.lines.forEach((line) => {
-    if (line.composition.length) processLine(line);
-  });
-});
-
-// Good -- flatten then process:
-const allLines = groups.flatMap(g => g.lines);
-allLines.forEach((line) => {
-  if (line.composition.length) processLine(line);
-});
-```
-
----
-
 ## Structured Logging
 
 ```ts
@@ -358,149 +193,6 @@ logger.info({
 });
 ```
 
----
-
-## Formatting Preservation
-
-```ts
-// WRONG - Changed indentation and added spaces to empty line:
-function example() {
-    const x = 1;
-
-    return x;
-}
-
-// CORRECT - Preserved exact formatting:
-function example() {
-  const x = 1;
-
-  return x;
-}
-```
-
-```bash
-# WRONG - Changed quote style and indentation:
-if [ "$status" == "active" ]; then
-    echo "Running"
-fi
-
-# CORRECT - Kept original formatting:
-if [ '$status' == 'active' ]; then
-  echo "Running"
-fi
-```
-
----
-
-## Avoid Round-Tripping Through Side Effects
-
-```bash
-# Bad -- writes to clipboard then reads it back in the same flow:
-extract-data | copy-to-clipboard
-result=$(read-from-clipboard)
-use "$result"
-
-# Good -- pass data directly:
-result=$(extract-data)
-use "$result"
-```
-
----
-
-## Top-Down / Breadth First Coding
-
-```javascript
-// === Round 1: Implement processOrder, create its skeletons ===
-
-function processOrder(order) {
-  const validated = validateOrder(order);
-  const priced = applyPricing(validated);
-  const receipt = generateReceipt(priced);
-  return receipt;
-}
-
-// @param order {Order} -- raw order from API
-// @returns {Order} -- validated order
-// @throws {ValidationError} -- if fields missing or out of stock
-function validateOrder(order) { /* TODO */ }
-
-// @param order {Order} -- validated order
-// @returns {Order} -- order with discountedTotal and taxTotal
-function applyPricing(order) { /* TODO */ }
-
-// @param order {Order} -- priced order with totals
-// @returns {Receipt} -- formatted receipt with line items
-function generateReceipt(order) { /* TODO */ }
-
-
-// === Round 2: Implement validateOrder, create its skeletons ===
-
-function validateOrder(order) {
-  assertRequiredFields(order);
-  assertInventoryAvailable(order.items);
-  return order;
-}
-
-// @param order {Order} -- order to validate
-// @throws {ValidationError} -- if id, items, or customer missing
-function assertRequiredFields(order) { /* TODO */ }
-
-// @param items {OrderItem[]} -- items to check
-// @throws {ValidationError} -- if any item is out of stock
-function assertInventoryAvailable(items) { /* TODO */ }
-
-
-// === Round 3: Implement applyPricing, create its skeletons ===
-
-function applyPricing(order) {
-  const discounted = applyDiscounts(order);
-  const taxed = calculateTaxes(discounted);
-  return taxed;
-}
-
-// @param order {Order} -- validated order
-// @returns {Order} -- order with discountedTotal applied
-function applyDiscounts(order) { /* TODO */ }
-
-// @param order {Order} -- discounted order
-// @returns {Order} -- order with taxTotal calculated
-function calculateTaxes(order) { /* TODO */ }
-
-
-// === Round 4: Implement generateReceipt, create its skeletons ===
-
-function generateReceipt(order) {
-  const lines = formatLineItems(order.items);
-  return { lines, total: order.discountedTotal + order.taxTotal };
-}
-
-// @param items {OrderItem[]} -- priced items
-// @returns {string[]} -- formatted line strings
-function formatLineItems(items) { /* TODO */ }
-
-
-// === Rounds 5-9: Implement leaf functions (no new skeletons) ===
-// assertRequiredFields → assertInventoryAvailable → applyDiscounts
-// → calculateTaxes → formatLineItems
-
-
-// === Final file order (BFS queue) ===
-// processOrder → validateOrder → applyPricing → generateReceipt
-// → assertRequiredFields → assertInventoryAvailable → applyDiscounts
-// → calculateTaxes → formatLineItems
-```
-
-```javascript
-// BAD: Bottom-up / depth-first
-// Implements the deepest helper first without knowing the full picture
-
-function assertRequiredFields(order) {
-  if (!order.id) throw new Error('Missing id');
-  // ...
-}
-
-// Then builds upward, discovering the interface doesn't fit
-```
 
 ---
 
