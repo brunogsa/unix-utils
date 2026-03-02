@@ -98,11 +98,11 @@ Review in this sequence (most to least critical):
 ```markdown
 ## Changelog
 
-[Contexto de negócio: qual problema isso resolve]
+[Business context: what problem this solves or feature it enables]
 
-**Abordagem**: [Explicação conceitual de alto nível]
+**Approach**: [High-level conceptual approach, PM-level explanation]
 
-**Cobertura**: [Mencionar refatoração/testes/docs]
+**Coverage**: [Brief mention of refactoring/tests/docs]
 ```
 
 ---
