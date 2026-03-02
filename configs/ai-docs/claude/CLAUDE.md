@@ -15,7 +15,7 @@ Dev stack: Ghostty (terminal) → tmux → neovim → Claude Code
 - `~/unix-utils/` -- system setup & config versioning. `install.sh` (OS-aware), `configs/` symlinked to `~/`
 - `~/oh-my-zsh/` -- zsh config & CLI scripts. `.zshrc`, `commands/` (executables), `lib/` (shared functions)
 - `~/tmux/` -- tmux config. `.tmux.conf` with neovim/clipboard/Claude integrations
-- `~/neovim/` -- neovim config. Single-file `init.lua` (~2200 lines): LSP, Treesitter, CodeCompanion, Mermaid indent
+- `~/neovim/` -- neovim config. Single-file `init.lua` (~2200 lines): LSP, Treesitter, Mermaid indent
 - `~/ghostty/` -- Ghostty terminal config. `install.sh` (cross-platform), `config` symlinked to `~/.config/ghostty/`
 
 Install scripts share a common pattern: detect OS via `detect-os.sh` from `~/oh-my-zsh/lib/`, branch on macOS/Linux, use idempotent checks (`command -v`, config file existence), symlink config at the end.
@@ -85,7 +85,7 @@ Each repo may have its own `CLAUDE.md` with project-specific instructions.
 
 - **Interview for complex features** -- proactively suggest questions before writing code.
 
-- **Spec-driven for non-trivial work** -- for features and significant changes, use spec.md (what/why) and plan.md (how/tasks) as living documents in the project root. Not committed. Reference: @~/.claude/skills/spec-driven-development/SKILL.md
+- **Spec-driven for non-trivial work** -- for features and significant changes, use spec.md (what/why) and plan.md (how/tasks) as living documents in the project root. Not committed.
 
 - **Surface ambiguity with markers** -- use `[NEEDS CLARIFICATION: ...]` in specs and plans to flag gaps. Use `[DECISION: ... because ...]` to capture trade-offs. When resolved, remove the marker or update the decision in place.
 
@@ -115,7 +115,7 @@ Each repo may have its own `CLAUDE.md` with project-specific instructions.
 
 - **Update docs as you go** -- locate and update related documentation inline.
 
-- **Use Mermaid for visual explanations** -- when architecture, data flow, state machines, or sequences would clarify a concept, render diagrams inline via `render-ascii-mermaid`. In spec.md/plan.md, use fenced Mermaid blocks with rendered ASCII output. Reference: @~/.claude/skills/mermaid-ascii-diagrams/SKILL.md
+- **Use Mermaid for visual explanations** -- when architecture, data flow, state machines, or sequences would clarify a concept, render diagrams inline via `render-ascii-mermaid`. In spec.md/plan.md, use fenced Mermaid blocks with rendered ASCII output.
 
 Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
@@ -229,5 +229,4 @@ Detailed examples: @~/.claude/skills/test-standards/SKILL.md
 
 ## REVIEW
 
-Review guidelines: @~/.claude/skills/review-standards/SKILL.md
-Review checklists: @~/.claude/skills/review-standards/checklists.md
+Review guidelines and checklists are in the `review-standards` skill (loaded on-demand during reviews).

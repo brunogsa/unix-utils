@@ -176,3 +176,35 @@ After making changes:
 - Keep guidelines concise (1-2 sentences max)
 - Principles go to CLAUDE.md; examples and domain knowledge go to skills
 - Format/tone adjustments go to the code-review command or guidelines skill
+
+## 11. Check Performance Budget
+
+After all edits are applied and verified, measure the line count of every auto-loaded file to detect unbounded growth. Research shows LLMs follow ~150-200 total instructions effectively -- keeping auto-loaded content lean improves adherence.
+
+**Auto-loaded files** (loaded via `@` imports in CLAUDE.md on every session):
+
+| File | Budget (lines) |
+|------|----------------|
+| `~/.claude/CLAUDE.md` | 150 |
+| `~/.claude/skills/code-standards/SKILL.md` | 200 |
+| `~/.claude/skills/workflow-standards/SKILL.md` | 35 |
+| `~/.claude/skills/doc-standards/SKILL.md` | 35 |
+| `~/.claude/skills/test-standards/SKILL.md` | 55 |
+| **Total** | **500** |
+
+**Line length limit:** 120 characters max per line. Lines longer than 120 chars should be wrapped or split. Check with: `awk 'length > 120' <file>`.
+
+**Process:**
+
+1. Run: `wc -l ~/.claude/CLAUDE.md ~/.claude/skills/code-standards/SKILL.md ~/.claude/skills/workflow-standards/SKILL.md ~/.claude/skills/doc-standards/SKILL.md ~/.claude/skills/test-standards/SKILL.md`
+2. Check for long lines: `awk 'length > 120' <file>` on each file
+3. Compare each file and the total against the budget table above
+4. If any file or the total exceeds budget, or lines exceed 120 chars, warn the user with:
+   - A table showing current line count vs budget for each file
+   - Which file(s) grew and by how much
+   - Specific consolidation suggestions:
+     - Redundant rules that could merge
+     - Verbose examples that could be trimmed
+     - Content that could move to path-scoped `.claude/rules/` files (only loads when matching files are opened)
+     - Content that could become an on-demand skill instead of always-loaded
+5. Do NOT auto-consolidate or block -- present alternatives for the user to decide
