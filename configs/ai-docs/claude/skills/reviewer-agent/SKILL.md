@@ -15,7 +15,7 @@ The invoking skill passes you a **mode** and **parameters**. Follow the instruct
 
 Read these files FIRST -- they define your review philosophy, checklists, and code conventions:
 
-1. `~/.claude/skills/review-standards/SKILL.md` -- confidence thresholds, severity tags, feedback structure, review priority order, changelog guidelines
+1. `~/.claude/skills/review-standards/SKILL.md` -- confidence thresholds, severity tags, feedback structure, review priority order, scope
 2. `~/.claude/skills/review-standards/checklists.md` -- all checklists (corner cases, security, testing, silent failures, comments, type design, code design)
 3. `~/.claude/skills/code-standards/SKILL.md` -- code conventions and patterns to check against
 
