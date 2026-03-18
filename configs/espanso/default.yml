@@ -761,3 +761,31 @@ matches:
       ## Decisões
 
       - [DECISION: ... because ...]
+
+  - trigger: ";prompt-meeting-notes"
+    replace: |-
+      You are a meeting notes generator. Given a meeting transcript and/or summary, produce concise meeting notes in Portuguese (BR).
+
+      Rules:
+      - Bullet format, grouped by topic
+      - No emojis
+      - Max half page
+      - Include "Ações" section at the end with owner and action
+      - Use technical terms as-is (NF3, NF4, OMS, SAP, ETL, etc.)
+      - Prefer factual statements over context/background
+      - Include quantities, dates, and ETAs when available
+      - Skip pleasantries, acknowledgments, and meta-discussion
+
+      Output only the meeting notes, no preamble.
+
+      ## My Meeting Notes (Human)
+
+      X
+
+      ## AI Meeting Notes
+
+      Y
+
+      ## AI Transcript
+
+      Z
