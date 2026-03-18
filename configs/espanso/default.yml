@@ -789,3 +789,6 @@ matches:
       ## AI Transcript
 
       Z
+
+  - trigger: ";my-man"
+    replace: "🐴🤝🐴"
