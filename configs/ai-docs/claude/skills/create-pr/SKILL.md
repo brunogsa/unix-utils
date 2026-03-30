@@ -28,11 +28,30 @@ No flags needed. Auto-detects spec.md and plan.md in the current directory.
 
 Write `./rich-pr-description.md` in the directory where Claude Code is running.
 
-If a PR template exists in `.github/`, use it as the base structure but NEVER
-remove detail. All generated content must remain -- create a superset of the
-template if necessary (add sections, keep all info).
+**CRITICAL: Always check for a PR template** in `.github/` (e.g., `pull_request_template.md`,
+`PULL_REQUEST_TEMPLATE.md`). If one exists, it is the **base structure** -- keep every section
+and checkbox from the template. Fill in each section with the rich content generated from
+spec/plan/commits/diff. Add extra sections (Approach, Key Decisions, Findings, etc.) AFTER or
+WITHIN the template structure, never replacing it. Mark checklist items as `[x]` when applicable.
 
 If no PR template exists, use the default template below.
+
+#### Writing Style
+
+- **Keep lines scannable** -- if a bullet exceeds ~100 characters, break it into a top-level bullet (the what) and sub-bullets (the why, how, or details)
+- Prefer sub-bullets over long inline parentheticals or dashes
+- Each bullet should convey one idea at one level of detail
+
+Example:
+```markdown
+# Too long:
+- `lib/package.json` -- changed `build:deps` from selective (`tsc -b src/shared src/common src/logger src/test-utils`) to full (`tsc -b`). Fixes pre-existing test failures on `main` where `sf-authenticator` and `sf-client` test suites couldn't find their compiled dist output because they weren't included in the selective build.
+
+# Better:
+- `lib/package.json` -- changed `build:deps` from selective to full (`tsc -b`)
+  - Fixes pre-existing test failures on `main` (sf-authenticator, sf-client)
+  - Selective build was fragile -- broke silently when new modules were added
+```
 
 #### Default Template
 

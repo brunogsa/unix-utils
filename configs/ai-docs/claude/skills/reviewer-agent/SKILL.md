@@ -85,18 +85,23 @@ Write your review to `./auto-review.md`. Follow the feedback structure from revi
 
 ## Findings
 
-**[SEVERITY]** `file/path.ts:42-48`
+**#1 [SEVERITY]** `file/path.ts:42-48`
+- **Problem**: ...
+- **Why**: ...
+- **Fix**: ...
+
+**#2 [SEVERITY]** `file/path.ts:100-105`
 - **Problem**: ...
 - **Why**: ...
 - **Fix**: ...
 
 ## Action Items
 
-- **MANDATORY**: `file:line` -- brief description
-- **RECOMMENDED**: `file:line` -- brief description
+- **#1 MANDATORY**: `file:line` -- brief description
+- **#2 RECOMMENDED**: `file:line` -- brief description
 ```
 
-Order by severity (MANDATORY first). Omit empty sections.
+Number every finding sequentially (`#1`, `#2`, ...) so the user can reference them by number. Order by severity (MANDATORY first). Omit empty sections.
 
 ---
 
@@ -138,9 +143,9 @@ gh pr comment "$pr_number" --repo "$repo_path" --body-file /tmp/changelog.md
 For each issue found, create and post an inline comment:
 
 ```bash
-# Create comment body
+# Create comment body (N = finding number, matching the numbering in the summary)
 cat > /tmp/comment-N.txt << 'EOF'
-**[MANDATORY]**
+**#N [MANDATORY]**
 
 **Problem statement in Portuguese**
 
