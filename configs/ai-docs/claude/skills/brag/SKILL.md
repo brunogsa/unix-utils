@@ -66,7 +66,7 @@ If no date range provided, default to current week Monday-Friday.
 [entries, newest first]
 ```
 
-Year and month sections are created as needed. Insert entries under the correct year/month. Create the section if it doesn't exist.
+Year and month sections are created as needed. Insert entries under the correct year/month. Create the section if it doesn't exist. **Newest entries (by date) go at the top** of each month section — sort descending.
 
 ## Workflow — Single Entry (Formats 1-3)
 
@@ -96,24 +96,25 @@ Weekly ritual, typically Friday. Turns a calendar export into BRAG entries.
   - Prefixes Out of Office events with `[OO]`
   - Prefixes Focus Time events with `[FT]`
 - Display the total event count and date range
+- **Overlap check:** After parsing, detect non-OO event pairs where time ranges overlap. If any are found, present them to the user and ask which event they actually attended (or how to split the time) before proceeding to clustering. Drop `[FT]` events that overlap entirely with non-FT events — the FT block was just a placeholder consumed by the real event.
 
 ### Step 2 — Cluster by theme
 
-Group events into natural categories based on title patterns. Best-effort heuristic clustering. Examples of clusters:
-- Squad ceremonies (dailies, retros, refinements)
-- 1:1s / coffee chats
-- Reviews (RFC, ADR, design)
-- Tickets / incidents
-- Cross-team meetings
+Exclude `[OO]` events from clustering (personal/out-of-office). Include `[FT]` events — cluster them by their content alongside regular events (e.g., an `[FT] Learn, PoCs` goes into the PoCs/learning cluster). Drop `[FT]` events that overlap with non-FT events (the FT block was a placeholder).
+
+Group events into natural categories based on title patterns. Start from these base clusters, but adapt as needed — rename, merge, or add new ones when the data calls for it:
+- Glue work (Slack, alignment, self-org, notes)
+- Squad ceremonies (dailies, retros, refinements, handovers)
+- Cross-team meetings (weeklies, status, strategy)
+- 1:1s / mentorship (coffee chats, career conversations)
 - PoCs / learning
-- Coding sessions
-- Glue work (Slack, alignment, notes)
-- Talks / knowledge sharing
-- Context building
+- Reviews (RFC, ADR, design)
 
-Present a short summary first — a numbered bullet list of cluster names with event counts, total time (hours), and percentage of total week time. Do NOT show the full event tables yet.
+Present a short summary first — a numbered bullet list of cluster names with event counts, total time (hours), and percentage of total week time. Include a **Total** row at the bottom. Do NOT show the full event tables yet.
 
-When showing a cluster's event table, include the cluster's total time in the header.
+Format cluster names as: `Cluster name (2-3 examples from that cluster)` — e.g., "Reviews (RFC Auth Hub, Design Pedidos SAS, ADR OMS NF)". This helps the user quickly judge if events landed in the right cluster.
+
+When showing a cluster's event table, include the cluster's total time and its percentage of the total week in the header.
 
 ### Step 3 — Iterate cluster by cluster
 
@@ -135,6 +136,13 @@ Do NOT show the next cluster until the user says to proceed.
 ### Step 4 — Write
 
 After all clusters are processed, read `~/brag/brag.md` and write all entries directly under the correct year/month sections. The user reviews each entry in the Edit tool approval — no separate confirmation step needed.
+
+### Step 5 — Coaching debrief
+
+After writing entries, adopt the perspective of a senior staff+ engineer coaching the user, with the AI age in mind. Provide:
+- **Practical feedback** on the week: what to do differently and why. Be specific — name the cluster, the pattern, or the decision. No generic advice.
+- **Reasoning** behind each suggestion — tie it to career growth, leverage, or effectiveness.
+- Keep it short (3-5 points max). Prioritize high-impact observations over nitpicks.
 
 ## Anti-patterns
 

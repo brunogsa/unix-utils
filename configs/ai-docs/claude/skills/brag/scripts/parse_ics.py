@@ -95,12 +95,44 @@ def detect_event_prefix(block):
     return ""
 
 
+def collect_exdates(block):
+    """Collect all EXDATE datetimes from a VEVENT block."""
+    unfolded = re.sub(r"\r?\n[ \t]", "", block)
+    exdates = set()
+    for m in re.finditer(r"^EXDATE[^:]*:(.+)$", unfolded, re.MULTILINE):
+        for val in m.group(1).split(","):
+            parsed = parse_dt_with_tz("EXDATE:" + val.strip())
+            if parsed:
+                exdates.add(parsed)
+    return exdates
+
+
+def collect_recurrence_overrides(events_raw):
+    """Collect (UID, datetime) pairs for events that override a recurring occurrence.
+
+    When a single occurrence of a recurring event is edited, Google Calendar
+    keeps the original series VEVENT and adds a new VEVENT with the same UID
+    plus a RECURRENCE-ID. The override supersedes the original for that date.
+    """
+    overrides = set()
+    for ev in events_raw:
+        recurrence_line = get_raw_line(ev, "RECURRENCE-ID")
+        if not recurrence_line:
+            continue
+        uid = get_field(ev, "UID")
+        rec_dt = parse_dt_with_tz(recurrence_line)
+        if uid and rec_dt:
+            overrides.add((uid, rec_dt.isoformat()))
+    return overrides
+
+
 def parse_ics_events(ics_path, start_range, end_range):
     owner_email = extract_owner_email(ics_path)
     with open(ics_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     events_raw = re.findall(r"BEGIN:VEVENT(.*?)END:VEVENT", content, re.DOTALL)
+    recurrence_overrides = collect_recurrence_overrides(events_raw)
 
     events = []
     seen = set()
@@ -116,6 +148,16 @@ def parse_ics_events(ics_path, start_range, end_range):
             continue
         dt = parse_dt_with_tz(dtstart_line)
         if not dt or dt < start_range or dt >= end_range:
+            continue
+
+        # Skip occurrences excluded by EXDATE
+        if dt in collect_exdates(ev):
+            continue
+
+        # Skip original-series occurrences that have been overridden
+        uid = get_field(ev, "UID")
+        has_rrule = get_field(ev, "RRULE") is not None
+        if has_rrule and (uid, dt.isoformat()) in recurrence_overrides:
             continue
 
         prefix = detect_event_prefix(ev)
