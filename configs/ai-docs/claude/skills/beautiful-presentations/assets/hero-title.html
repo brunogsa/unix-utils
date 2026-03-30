@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hero Title Slide</title>
+  <style>
+    /* Embed your chosen CSS template here (classic-light.css, dark-mode.css, or warm-minimal.css) */
+    /* For this example, using classic-light styles */
+    
+    :root {
+      --color-background: #FFFFFF;
+      --color-text-primary: #1D1D1F;
+      --color-text-secondary: #86868B;
+      --color-accent: #0071E3;
+      --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', 'Inter', system-ui, sans-serif;
+      --font-size-hero: 72px;
+      --font-size-body: 26px;
+      --font-weight-bold: 700;
+      --font-weight-light: 300;
+      --space-md: 24px;
+      --line-height-tight: 1.1;
+      --line-height-normal: 1.4;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      width: 960px;
+      height: 540px;
+      background: var(--color-background);
+      color: var(--color-text-primary);
+      font-family: var(--font-family);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    .hero-slide {
+      text-align: center;
+      max-width: 800px;
+    }
+    
+    h1 {
+      font-size: var(--font-size-hero);
+      font-weight: var(--font-weight-bold);
+      line-height: var(--line-height-tight);
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-md);
+    }
+    
+    .subtitle {
+      font-size: var(--font-size-body);
+      font-weight: var(--font-weight-light);
+      color: var(--color-text-secondary);
+      line-height: var(--line-height-normal);
+    }
+    
+    .accent {
+      color: var(--color-accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="hero-slide">
+    <h1 data-balance>Revolutionizing the Future of <span class="accent">Business</span></h1>
+    <p class="subtitle">Q4 2024 Product Launch</p>
+  </div>
+</body>
+</html>

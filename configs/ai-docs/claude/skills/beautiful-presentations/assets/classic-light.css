@@ -1,0 +1,297 @@
+/* 
+ * Apple-Inspired Minimalist Template - Classic Light
+ * Use this template for clean, professional business presentations
+ */
+
+:root {
+  /* Color System - Classic Apple Light */
+  --color-background: #FFFFFF;
+  --color-text-primary: #1D1D1F;
+  --color-text-secondary: #86868B;
+  --color-accent: #0071E3;
+  --color-accent-hover: #0077ED;
+  --color-divider: #E5E5E7;
+  
+  /* Typography Scale */
+  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', 'Inter', system-ui, sans-serif;
+  --font-size-hero: 72px;
+  --font-size-title: 48px;
+  --font-size-subtitle: 32px;
+  --font-size-body: 26px;
+  --font-size-caption: 18px;
+  --font-size-stat: 96px;
+  
+  /* Font Weights */
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* Spacing System (8px base) */
+  --space-xs: 8px;
+  --space-sm: 16px;
+  --space-md: 24px;
+  --space-lg: 40px;
+  --space-xl: 60px;
+  --space-xxl: 80px;
+  
+  /* Layout */
+  --margin-slide: 60px;
+  --max-text-width: 800px;
+  --border-radius: 12px;
+  
+  /* Line Heights */
+  --line-height-tight: 1.1;
+  --line-height-normal: 1.4;
+  --line-height-relaxed: 1.6;
+}
+
+/* Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 960px;
+  height: 540px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding: var(--margin-slide);
+  overflow: hidden;
+}
+
+/* Typography Elements */
+h1 {
+  font-size: var(--font-size-hero);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-md);
+}
+
+h2 {
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-lg);
+}
+
+h3 {
+  font-size: var(--font-size-subtitle);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-md);
+}
+
+h4, h5, h6 {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-sm);
+}
+
+p {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-md);
+  max-width: var(--max-text-width);
+}
+
+/* Lists */
+ul, ol {
+  margin-bottom: var(--space-md);
+  padding-left: var(--space-md);
+  max-width: var(--max-text-width);
+}
+
+li {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-relaxed);
+  margin-bottom: var(--space-sm);
+  color: var(--color-text-primary);
+}
+
+ul li {
+  list-style-type: none;
+  position: relative;
+  padding-left: var(--space-md);
+}
+
+ul li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--color-accent);
+  font-weight: var(--font-weight-bold);
+}
+
+/* Utility Classes */
+.accent {
+  color: var(--color-accent);
+}
+
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+.light {
+  font-weight: var(--font-weight-light);
+}
+
+.medium {
+  font-weight: var(--font-weight-medium);
+}
+
+.bold {
+  font-weight: var(--font-weight-bold);
+}
+
+.caption {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-regular);
+}
+
+.stat {
+  font-size: var(--font-size-stat);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.03em;
+  color: var(--color-accent);
+}
+
+/* Layout Classes (html2pptx compatible) */
+.row {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-lg);
+  align-items: center;
+  width: 100%;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  flex: 1;
+}
+
+.fit {
+  flex-shrink: 0;
+}
+
+/* Alignment */
+.center {
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+}
+
+.left {
+  text-align: left;
+  align-items: flex-start;
+}
+
+.right {
+  text-align: right;
+  align-items: flex-end;
+}
+
+/* Spacing Utilities */
+.mb-sm { margin-bottom: var(--space-sm); }
+.mb-md { margin-bottom: var(--space-md); }
+.mb-lg { margin-bottom: var(--space-lg); }
+.mb-xl { margin-bottom: var(--space-xl); }
+
+.mt-sm { margin-top: var(--space-sm); }
+.mt-md { margin-top: var(--space-md); }
+.mt-lg { margin-top: var(--space-lg); }
+.mt-xl { margin-top: var(--space-xl); }
+
+/* Image Containers */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--border-radius);
+}
+
+.image-container {
+  width: 100%;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+}
+
+/* Placeholder for charts/images */
+.placeholder {
+  background: var(--color-divider);
+  border-radius: var(--border-radius);
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+}
+
+/* Special Slide Types */
+.hero-slide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%;
+  width: 100%;
+}
+
+.split-slide {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-xxl);
+  height: 100%;
+  align-items: center;
+}
+
+.split-slide > * {
+  flex: 1;
+}
+
+/* Footer/Header */
+.slide-footer {
+  position: absolute;
+  bottom: var(--space-md);
+  left: var(--margin-slide);
+  right: var(--margin-slide);
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slide-header {
+  position: absolute;
+  top: var(--space-md);
+  left: var(--margin-slide);
+  right: var(--margin-slide);
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}

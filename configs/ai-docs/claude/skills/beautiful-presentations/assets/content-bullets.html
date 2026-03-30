@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Content Bullets Slide</title>
+  <style>
+    :root {
+      --color-background: #FFFFFF;
+      --color-text-primary: #1D1D1F;
+      --color-text-secondary: #86868B;
+      --color-accent: #0071E3;
+      --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', 'Inter', system-ui, sans-serif;
+      --font-size-title: 48px;
+      --font-size-body: 26px;
+      --font-weight-semibold: 600;
+      --font-weight-regular: 400;
+      --space-md: 24px;
+      --space-lg: 40px;
+      --margin-slide: 60px;
+      --line-height-tight: 1.1;
+      --line-height-relaxed: 1.6;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      width: 960px;
+      height: 540px;
+      background: var(--color-background);
+      color: var(--color-text-primary);
+      font-family: var(--font-family);
+      padding: var(--margin-slide);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    h2 {
+      font-size: var(--font-size-title);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-tight);
+      letter-spacing: -0.01em;
+      margin-bottom: var(--space-lg);
+    }
+    
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    li {
+      font-size: var(--font-size-body);
+      font-weight: var(--font-weight-regular);
+      line-height: var(--line-height-relaxed);
+      margin-bottom: var(--space-md);
+      padding-left: var(--space-md);
+      position: relative;
+    }
+    
+    li::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: var(--color-accent);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>Key Benefits</h2>
+  <ul>
+    <li>Increase productivity by 3x with automated workflows</li>
+    <li>Reduce operational costs through intelligent optimization</li>
+    <li>Scale effortlessly from startup to enterprise</li>
+    <li>Enterprise-grade security and compliance built-in</li>
+  </ul>
+</body>
+</html>
