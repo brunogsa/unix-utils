@@ -50,7 +50,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Prefer targeted edits over full rewrites** -- Edit tool over Write tool.
 
-- **Commits on request** -- create commits when asked. Follow Conventional Commits with scope (`type(scope): subject`), imperative tone, max 72-char subject. Add a bullet changelog body below the subject line. Match the style of `aigitcommit`.
+- **Commits require explicit permission** -- CRITICAL: never commit without my explicit approval. Follow Conventional Commits with scope (`type(scope): subject`), imperative tone, max 72-char subject. Add a bullet changelog body below the subject line. Match the style of `aigitcommit`.
 
 - **Notify requests** -- load `notify-user` skill BEFORE the command.
 
