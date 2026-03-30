@@ -79,7 +79,7 @@ def is_owner_attending(unfolded_ev, owner_email):
     if not owner_email:
         return True
     owner_attendee = re.search(
-        r"ATTENDEE[^:]*:mailto:" + re.escape(owner_email),
+        r"ATTENDEE.*mailto:" + re.escape(owner_email),
         unfolded_ev
     )
     if not owner_attendee:

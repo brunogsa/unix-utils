@@ -153,6 +153,16 @@ After writing entries, adopt the perspective of a senior staff+ engineer coachin
 - **Reasoning** behind each suggestion — tie it to career growth, leverage, or effectiveness.
 - Keep it short (3-5 points max). Prioritize high-impact observations over nitpicks.
 
+### Step 6 — Update retro.md
+
+After the coaching debrief, read `~/brag/retro.md` and add a new weekly entry under the correct year section. **Newest entries (by date) go at the top** — sort descending, same as `brag.md`. Each entry should include:
+- **Summary line:** total hours, top 3 clusters by time, coding hours
+- **Observations:** patterns, trends vs previous weeks, highest-leverage moments
+- **vs. last week's next steps:** check each item from the previous entry (✅/⚠️/❌)
+- **Next steps:** 3-5 actionable items for the following week
+
+Reference the targets table at the top of `retro.md` when comparing actuals. The retro entry should track patterns across weeks, not just snapshot the current one.
+
 ## Anti-patterns
 
 - Don't inflate. A config fix is a config fix, not "ensured system reliability."
