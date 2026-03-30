@@ -70,7 +70,8 @@ def extract_owner_email(ics_path):
 def is_owner_attending(unfolded_ev, owner_email):
     """Check if the owner is attending the event.
 
-    Skips events where the owner declined or never responded (NEEDS-ACTION).
+    Skips events where the owner declined or never responded (NEEDS-ACTION),
+    unless the owner is the organizer (always attending their own events).
     Returns True for personal events (no ATTENDEE line for owner).
     """
     if not owner_email:
@@ -126,6 +127,111 @@ def collect_recurrence_overrides(events_raw):
     return overrides
 
 
+def expand_rrule(dtstart, rrule_str, start_range, end_range):
+    """Expand an RRULE to generate occurrence datetimes within [start_range, end_range).
+
+    Supports FREQ=WEEKLY and FREQ=DAILY with INTERVAL, BYDAY, UNTIL, and COUNT.
+    """
+    parts = dict(p.split("=", 1) for p in rrule_str.split(";") if "=" in p)
+    freq = parts.get("FREQ")
+    interval = int(parts.get("INTERVAL", "1"))
+    until_raw = parts.get("UNTIL")
+    count_raw = parts.get("COUNT")
+    byday_raw = parts.get("BYDAY", "")
+
+    until = parse_dt_with_tz("UNTIL:" + until_raw) if until_raw else None
+    max_count = int(count_raw) if count_raw else None
+    effective_end = min(until, end_range) if until else end_range
+
+    DAY_MAP = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
+    target_days = [DAY_MAP[d.strip()] for d in byday_raw.split(",") if d.strip() in DAY_MAP]
+
+    occurrences = []
+    count = 0
+
+    if freq == "WEEKLY":
+        if not target_days:
+            target_days = [dtstart.weekday()]
+        anchor_monday = dtstart - timedelta(days=dtstart.weekday())
+        week_idx = 0
+        while True:
+            current_monday = anchor_monday + timedelta(weeks=week_idx * interval)
+            if current_monday > effective_end + timedelta(days=6):
+                break
+            for day_num in sorted(target_days):
+                occ = current_monday + timedelta(days=day_num)
+                occ = occ.replace(hour=dtstart.hour, minute=dtstart.minute, second=dtstart.second)
+                if occ < dtstart:
+                    continue
+                if occ >= effective_end:
+                    return occurrences
+                count += 1
+                if max_count and count > max_count:
+                    return occurrences
+                if occ >= start_range:
+                    occurrences.append(occ)
+            week_idx += 1
+            if week_idx > 520:
+                break
+
+    elif freq == "DAILY":
+        current = dtstart
+        while current < effective_end:
+            if max_count and count >= max_count:
+                break
+            count += 1
+            if current >= start_range:
+                occurrences.append(current)
+            current += timedelta(days=interval)
+
+    return occurrences
+
+
+def resolve_overlaps(events):
+    """Resolve overlapping non-OO events using creation time.
+
+    The most recently created event takes priority — the user stopped the
+    older activity to attend the newer one. The overlap duration is
+    decremented from the older event.
+
+    Falls back to "later-starting event wins" when CREATED is unavailable.
+    """
+    for i, ev_a in enumerate(events):
+        if ev_a["summary"].startswith("[OO]"):
+            continue
+        a_start = datetime.strptime(ev_a["start"], "%Y-%m-%d %H:%M")
+        a_end = a_start + timedelta(minutes=ev_a["duration_min"])
+
+        for j in range(i + 1, len(events)):
+            ev_b = events[j]
+            if ev_b["summary"].startswith("[OO]"):
+                continue
+            b_start = datetime.strptime(ev_b["start"], "%Y-%m-%d %H:%M")
+            if b_start >= a_end:
+                break
+
+            b_end = b_start + timedelta(minutes=ev_b["duration_min"])
+            overlap_min = int((min(a_end, b_end) - b_start).total_seconds() / 60)
+            if overlap_min <= 0:
+                continue
+
+            a_created = ev_a.get("_created")
+            b_created = ev_b.get("_created")
+
+            if a_created and b_created:
+                if a_created <= b_created:
+                    ev_a["duration_min"] -= overlap_min
+                else:
+                    ev_b["duration_min"] -= overlap_min
+            else:
+                # Fallback: later-starting event wins
+                ev_a["duration_min"] -= overlap_min
+
+            a_end = a_start + timedelta(minutes=ev_a["duration_min"])
+
+    return [ev for ev in events if ev["duration_min"] > 0]
+
+
 def parse_ics_events(ics_path, start_range, end_range):
     owner_email = extract_owner_email(ics_path)
     with open(ics_path, "r", encoding="utf-8") as f:
@@ -137,7 +243,6 @@ def parse_ics_events(ics_path, start_range, end_range):
     events = []
     seen = set()
     for ev in events_raw:
-        # Skip events the user declined or never responded to
         unfolded_ev = re.sub(r"\r?\n[ \t]", "", ev)
         if not is_owner_attending(unfolded_ev, owner_email):
             continue
@@ -146,36 +251,66 @@ def parse_ics_events(ics_path, start_range, end_range):
         dtend_line = get_raw_line(ev, "DTEND")
         if not dtstart_line:
             continue
+
+        # Skip all-day events (date-only DTSTART, no time component)
+        dtstart_val = dtstart_line.split(":")[-1].strip()
+        if "T" not in dtstart_val:
+            continue
+
         dt = parse_dt_with_tz(dtstart_line)
-        if not dt or dt < start_range or dt >= end_range:
+        if not dt:
             continue
-
-        # Skip occurrences excluded by EXDATE
-        if dt in collect_exdates(ev):
-            continue
-
-        # Skip original-series occurrences that have been overridden
-        uid = get_field(ev, "UID")
-        has_rrule = get_field(ev, "RRULE") is not None
-        if has_rrule and (uid, dt.isoformat()) in recurrence_overrides:
-            continue
-
-        prefix = detect_event_prefix(ev)
-        summary = prefix + (get_field(ev, "SUMMARY") or "(no title)").replace("\\,", ",").replace("\\;", ";")
-        key = (summary, dt.isoformat())
-        if key in seen:
-            continue
-        seen.add(key)
 
         dtend = parse_dt_with_tz(dtend_line) if dtend_line else None
         duration = int((dtend - dt).total_seconds() / 60) if dt and dtend else 0
 
-        events.append({
-            "start": dt.strftime("%Y-%m-%d %H:%M"),
-            "day": dt.strftime("%A"),
-            "summary": summary,
-            "duration_min": duration,
-        })
+        prefix = detect_event_prefix(ev)
+        summary = prefix + (get_field(ev, "SUMMARY") or "(no title)").replace("\\,", ",").replace("\\;", ";")
+        uid = get_field(ev, "UID")
+        rrule_str = get_field(ev, "RRULE")
+        has_recurrence_id = get_raw_line(ev, "RECURRENCE-ID") is not None
+        exdates = collect_exdates(ev)
+
+        created_line = get_raw_line(ev, "CREATED")
+        created_dt = parse_dt_with_tz(created_line) if created_line else None
+
+        def append_event(occ_dt, created_iso):
+            key = (summary, occ_dt.isoformat())
+            if key in seen:
+                return
+            seen.add(key)
+            events.append({
+                "start": occ_dt.strftime("%Y-%m-%d %H:%M"),
+                "day": occ_dt.strftime("%A"),
+                "summary": summary,
+                "duration_min": duration,
+                "_created": created_iso,
+            })
+
+        created_iso = created_dt.isoformat() if created_dt else None
+
+        if rrule_str and not has_recurrence_id:
+            # Series definition — expand RRULE to find occurrences in range.
+            # Use None for _created: series CREATED date is misleading for
+            # overlap resolution (it's when the series was created, not when
+            # this specific occurrence was scheduled).
+            for occ_dt in expand_rrule(dt, rrule_str, start_range, end_range):
+                if occ_dt in exdates:
+                    continue
+                if (uid, occ_dt.isoformat()) in recurrence_overrides:
+                    continue
+                append_event(occ_dt, created_iso=None)
+        else:
+            # One-time event or recurrence override
+            if dt < start_range or dt >= end_range:
+                continue
+            if dt in exdates:
+                continue
+            # Recurrence overrides also inherit the series CREATED date,
+            # which is misleading for overlap resolution. Only use CREATED
+            # for true one-time events.
+            event_created = None if has_recurrence_id else created_iso
+            append_event(dt, event_created)
 
     events.sort(key=lambda x: x["start"])
 
@@ -187,7 +322,13 @@ def parse_ics_events(ics_path, start_range, end_range):
         else:
             merged.append(event)
 
-    return merged
+    resolved = resolve_overlaps(merged)
+
+    # Strip internal fields before output
+    for ev in resolved:
+        ev.pop("_created", None)
+
+    return resolved
 
 
 def main():

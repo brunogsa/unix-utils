@@ -96,7 +96,8 @@ Weekly ritual, typically Friday. Turns a calendar export into BRAG entries.
   - Prefixes Out of Office events with `[OO]`
   - Prefixes Focus Time events with `[FT]`
 - Display the total event count and date range
-- **Overlap check:** After parsing, detect non-OO event pairs where time ranges overlap. If any are found, present them to the user and ask which event they actually attended (or how to split the time) before proceeding to clustering. Drop `[FT]` events that overlap entirely with non-FT events — the FT block was just a placeholder consumed by the real event.
+- **Overlap resolution:** The parser automatically resolves overlapping non-OO events: the most recently created event (by ICS `CREATED` timestamp) takes priority, and the overlap duration is decremented from the older event. Events reduced to zero duration are dropped. Falls back to "later-starting event wins" when `CREATED` is unavailable. Drop `[FT]` events that overlap entirely with non-FT events — the FT block was just a placeholder consumed by the real event.
+  - **Stale calendar entries:** Some events may appear as ACCEPTED in the ICS but were actually declined verbally or never attended. These can't be detected by the parser — when the user flags them during cluster review, drop them and restore the decremented time to the overlapping event if applicable.
 
 ### Step 2 — Cluster by theme
 
