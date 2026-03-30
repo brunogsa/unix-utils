@@ -92,12 +92,20 @@ Weekly ritual, typically Friday. Turns a calendar export into BRAG entries.
   ```
   Outputs a JSON array of `{start, day, summary, duration_min}` sorted by start time, deduplicated.
   The parser automatically:
-  - Filters out events the user did not explicitly accept (only ACCEPTED is kept; TENTATIVE, NEEDS-ACTION, and DECLINED are all excluded)
+  - **PARTSTAT filter:** only keeps events where the user explicitly accepted (`PARTSTAT=ACCEPTED`). TENTATIVE, NEEDS-ACTION, and DECLINED are all excluded — no exceptions, even if the user is the organizer.
+  - **All-day filter:** skips date-only events (no time component in DTSTART) — these are calendar markers, not meetings.
+  - **RRULE expansion:** expands recurring events (WEEKLY, DAILY) to generate occurrences within the query range. Handles INTERVAL, BYDAY, UNTIL, COUNT. Respects EXDATE exclusions and RECURRENCE-ID overrides.
+  - **Overlap resolution:** resolves overlapping non-OO events automatically. For one-time events, the most recently created (by CREATED timestamp) takes priority. For recurring events and overrides (where CREATED reflects the series, not the occurrence), falls back to "later-starting event wins." The overlap duration is decremented from the losing event. Events reduced to zero are dropped.
   - Prefixes Out of Office events with `[OO]`
   - Prefixes Focus Time events with `[FT]`
 - Display the total event count and date range
-- **Overlap resolution:** The parser automatically resolves overlapping non-OO events: the most recently created event (by ICS `CREATED` timestamp) takes priority, and the overlap duration is decremented from the older event. Events reduced to zero duration are dropped. Falls back to "later-starting event wins" when `CREATED` is unavailable. Drop `[FT]` events that overlap entirely with non-FT events — the FT block was just a placeholder consumed by the real event.
-  - **Stale calendar entries:** Some events may appear as ACCEPTED in the ICS but were actually declined verbally or never attended. These can't be detected by the parser — when the user flags them during cluster review, drop them and restore the decremented time to the overlapping event if applicable.
+- **Stale calendar entries:** some events may appear as ACCEPTED in the ICS but were actually declined verbally or never attended. The parser can't detect these — when the user flags them during review, drop them and restore the decremented time to overlapping events if applicable.
+
+### Step 1.5 — Per-day validation
+
+Before clustering, show the user a per-day breakdown of ALL non-OO events in chronological order. For each day, show a numbered table with time, duration, and event title. Include a day total (excluding OO) and a week grand total at the bottom.
+
+This step lets the user catch missing events, incorrect durations, or stale entries before proceeding. Wait for the user to confirm the data looks correct. If they flag issues (e.g., "I declined X", "Y is missing"), adjust accordingly and re-display.
 
 ### Step 2 — Cluster by theme
 

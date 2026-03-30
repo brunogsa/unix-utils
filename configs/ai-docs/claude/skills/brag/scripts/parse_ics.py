@@ -19,6 +19,14 @@ from datetime import datetime, timedelta, timezone
 # BRT (UTC-3) — Google Calendar exports from Brazil use this or UTC
 BRT = timezone(timedelta(hours=-3))
 
+# Safety limit for RRULE expansion (~10 years of weekly events)
+MAX_WEEKLY_ITERATIONS = 520
+
+
+def unfold(block):
+    """Unfold iCal line continuations (RFC 5545 §3.1)."""
+    return re.sub(r"\r?\n[ \t]", "", block)
+
 
 def parse_dt_with_tz(raw_line):
     """Parse iCal DTSTART/DTEND line, normalizing to local time (America/Sao_Paulo).
@@ -28,15 +36,12 @@ def parse_dt_with_tz(raw_line):
       - DTSTART:20260316T180000Z → UTC, convert to BRT
       - DTSTART:20260316 → date-only, no conversion
     """
-    # Extract the value after the last colon
     val = raw_line.split(":")[-1].strip()
 
     if val.endswith("Z"):
-        # UTC timestamp — convert to BRT
         dt_utc = datetime.strptime(val, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
         return dt_utc.astimezone(BRT).replace(tzinfo=None)
 
-    # Try datetime (already local if TZID is present, or naive)
     for fmt in ("%Y%m%dT%H%M%S", "%Y%m%d"):
         try:
             return datetime.strptime(val, fmt)
@@ -45,16 +50,14 @@ def parse_dt_with_tz(raw_line):
     return None
 
 
-def get_field(block, field):
-    """Extract a field value from an iCal VEVENT block, handling folded lines."""
-    unfolded = re.sub(r"\r?\n[ \t]", "", block)
+def get_field(unfolded, field):
+    """Extract a field value from an unfolded iCal VEVENT block."""
     m = re.search(rf"^{field}[^:]*:(.*?)$", unfolded, re.MULTILINE)
     return m.group(1).strip() if m else None
 
 
-def get_raw_line(block, field):
+def get_raw_line(unfolded, field):
     """Extract the full raw line for a field (including params like TZID)."""
-    unfolded = re.sub(r"\r?\n[ \t]", "", block)
     m = re.search(rf"^({field}[^:]*:.*?)$", unfolded, re.MULTILINE)
     return m.group(1).strip() if m else None
 
@@ -70,8 +73,7 @@ def extract_owner_email(ics_path):
 def is_owner_attending(unfolded_ev, owner_email):
     """Check if the owner is attending the event.
 
-    Skips events where the owner declined or never responded (NEEDS-ACTION),
-    unless the owner is the organizer (always attending their own events).
+    Only includes events where the owner explicitly accepted (PARTSTAT=ACCEPTED).
     Returns True for personal events (no ATTENDEE line for owner).
     """
     if not owner_email:
@@ -86,9 +88,9 @@ def is_owner_attending(unfolded_ev, owner_email):
     return "PARTSTAT=ACCEPTED" in attendee_line
 
 
-def detect_event_prefix(block):
+def detect_event_prefix(unfolded):
     """Detect Google Calendar special event types (OOO, Focus Time)."""
-    display = get_field(block, "X-GOOGLE-CALENDAR-CONTENT-DISPLAY")
+    display = get_field(unfolded, "X-GOOGLE-CALENDAR-CONTENT-DISPLAY")
     if display == "outOfOffice":
         return "[OO] "
     if display == "focusTime":
@@ -96,9 +98,8 @@ def detect_event_prefix(block):
     return ""
 
 
-def collect_exdates(block):
-    """Collect all EXDATE datetimes from a VEVENT block."""
-    unfolded = re.sub(r"\r?\n[ \t]", "", block)
+def collect_exdates(unfolded):
+    """Collect all EXDATE datetimes from an unfolded VEVENT block."""
     exdates = set()
     for m in re.finditer(r"^EXDATE[^:]*:(.+)$", unfolded, re.MULTILINE):
         for val in m.group(1).split(","):
@@ -117,10 +118,11 @@ def collect_recurrence_overrides(events_raw):
     """
     overrides = set()
     for ev in events_raw:
-        recurrence_line = get_raw_line(ev, "RECURRENCE-ID")
+        unfolded = unfold(ev)
+        recurrence_line = get_raw_line(unfolded, "RECURRENCE-ID")
         if not recurrence_line:
             continue
-        uid = get_field(ev, "UID")
+        uid = get_field(unfolded, "UID")
         rec_dt = parse_dt_with_tz(recurrence_line)
         if uid and rec_dt:
             overrides.add((uid, rec_dt.isoformat()))
@@ -171,7 +173,7 @@ def expand_rrule(dtstart, rrule_str, start_range, end_range):
                 if occ >= start_range:
                     occurrences.append(occ)
             week_idx += 1
-            if week_idx > 520:
+            if week_idx > MAX_WEEKLY_ITERATIONS:
                 break
 
     elif freq == "DAILY":
@@ -232,6 +234,21 @@ def resolve_overlaps(events):
     return [ev for ev in events if ev["duration_min"] > 0]
 
 
+def _append_event(events, seen, occ_dt, summary, duration, created_iso):
+    """Add an event to the list if not already seen (dedup by summary + datetime)."""
+    key = (summary, occ_dt.isoformat())
+    if key in seen:
+        return
+    seen.add(key)
+    events.append({
+        "start": occ_dt.strftime("%Y-%m-%d %H:%M"),
+        "day": occ_dt.strftime("%A"),
+        "summary": summary,
+        "duration_min": duration,
+        "_created": created_iso,
+    })
+
+
 def parse_ics_events(ics_path, start_range, end_range):
     owner_email = extract_owner_email(ics_path)
     with open(ics_path, "r", encoding="utf-8") as f:
@@ -243,12 +260,12 @@ def parse_ics_events(ics_path, start_range, end_range):
     events = []
     seen = set()
     for ev in events_raw:
-        unfolded_ev = re.sub(r"\r?\n[ \t]", "", ev)
-        if not is_owner_attending(unfolded_ev, owner_email):
+        unfolded = unfold(ev)
+        if not is_owner_attending(unfolded, owner_email):
             continue
 
-        dtstart_line = get_raw_line(ev, "DTSTART")
-        dtend_line = get_raw_line(ev, "DTEND")
+        dtstart_line = get_raw_line(unfolded, "DTSTART")
+        dtend_line = get_raw_line(unfolded, "DTEND")
         if not dtstart_line:
             continue
 
@@ -264,29 +281,15 @@ def parse_ics_events(ics_path, start_range, end_range):
         dtend = parse_dt_with_tz(dtend_line) if dtend_line else None
         duration = int((dtend - dt).total_seconds() / 60) if dt and dtend else 0
 
-        prefix = detect_event_prefix(ev)
-        summary = prefix + (get_field(ev, "SUMMARY") or "(no title)").replace("\\,", ",").replace("\\;", ";")
-        uid = get_field(ev, "UID")
-        rrule_str = get_field(ev, "RRULE")
-        has_recurrence_id = get_raw_line(ev, "RECURRENCE-ID") is not None
-        exdates = collect_exdates(ev)
+        prefix = detect_event_prefix(unfolded)
+        summary = prefix + (get_field(unfolded, "SUMMARY") or "(no title)").replace("\\,", ",").replace("\\;", ";")
+        uid = get_field(unfolded, "UID")
+        rrule_str = get_field(unfolded, "RRULE")
+        has_recurrence_id = get_raw_line(unfolded, "RECURRENCE-ID") is not None
+        exdates = collect_exdates(unfolded)
 
-        created_line = get_raw_line(ev, "CREATED")
+        created_line = get_raw_line(unfolded, "CREATED")
         created_dt = parse_dt_with_tz(created_line) if created_line else None
-
-        def append_event(occ_dt, created_iso):
-            key = (summary, occ_dt.isoformat())
-            if key in seen:
-                return
-            seen.add(key)
-            events.append({
-                "start": occ_dt.strftime("%Y-%m-%d %H:%M"),
-                "day": occ_dt.strftime("%A"),
-                "summary": summary,
-                "duration_min": duration,
-                "_created": created_iso,
-            })
-
         created_iso = created_dt.isoformat() if created_dt else None
 
         if rrule_str and not has_recurrence_id:
@@ -299,7 +302,7 @@ def parse_ics_events(ics_path, start_range, end_range):
                     continue
                 if (uid, occ_dt.isoformat()) in recurrence_overrides:
                     continue
-                append_event(occ_dt, created_iso=None)
+                _append_event(events, seen, occ_dt, summary, duration, created_iso=None)
         else:
             # One-time event or recurrence override
             if dt < start_range or dt >= end_range:
@@ -310,7 +313,7 @@ def parse_ics_events(ics_path, start_range, end_range):
             # which is misleading for overlap resolution. Only use CREATED
             # for true one-time events.
             event_created = None if has_recurrence_id else created_iso
-            append_event(dt, event_created)
+            _append_event(events, seen, dt, summary, duration, event_created)
 
     events.sort(key=lambda x: x["start"])
 
