@@ -50,7 +50,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Prefer targeted edits over full rewrites** -- Edit tool over Write tool.
 
-- **Commits require explicit permission** -- CRITICAL: never commit without my explicit approval. Follow Conventional Commits with scope (`type(scope): subject`), imperative tone, max 72-char subject. Add a bullet changelog body below the subject line. Match the style of `aigitcommit`.
+- **Commits require explicit permission** -- CRITICAL: never commit without approval. Conventional Commits (`type(scope): subject`), imperative, max 72-char subject. Bullet changelog body. Match `aigitcommit` style.
 
 - **Notify requests** -- load `notify-user` skill BEFORE the command.
 
@@ -132,7 +132,7 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
 - **Handle unexpected states** -- whitelist expected values, fail on anything else.
 
-- **Scripts: human-friendly** -- `--help`, comment header with usage syntax and 2-3 examples.
+- **Scripts: human-friendly** -- `--help`, comment header with usage syntax and 2-3 examples. Help flags → stdout + exit 0; invalid usage → error + usage hint to stderr + exit 1.
 
 - **Scripts: right language** -- bash for linear/glue, Node.js for structured data or complex flow.
 
