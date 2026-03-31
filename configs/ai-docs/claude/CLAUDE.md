@@ -19,6 +19,7 @@ Five cross-platform repos (macOS/Linux), each with its own `CLAUDE.md`:
 - `~/ghostty/` -- Ghostty terminal config
 
 Configs are symlinked from repos to system locations. Always edit the source repo.
+`~/.claude/CLAUDE.md` and `~/.claude/skills/` are symlinked from `~/unix-utils/configs/ai-docs/claude/` -- commit Claude config changes to `~/unix-utils`.
 
 ---
 
