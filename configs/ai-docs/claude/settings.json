@@ -17,11 +17,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/oh-my-zsh/lib/claude-git-guard.sh"
+            "command": "bash ~/.claude/hooks/claude-git-guard.sh"
           },
           {
             "type": "command",
-            "command": "bash ~/oh-my-zsh/lib/claude-rm-guard.sh"
+            "command": "bash ~/.claude/hooks/claude-rm-guard.sh"
           }
         ]
       }

@@ -244,4 +244,7 @@ peon-ping-setup --packs=peasant,peon
 peon packs use peon
 ln -sf ~/unix-utils/configs/ai-docs/claude/hooks/peon-ping/config.json ~/.claude/hooks/peon-ping/config.json
 
+ln -sf ~/unix-utils/configs/ai-docs/claude/hooks/claude-git-guard.sh ~/.claude/hooks/claude-git-guard.sh
+ln -sf ~/unix-utils/configs/ai-docs/claude/hooks/claude-rm-guard.sh ~/.claude/hooks/claude-rm-guard.sh
+
 echo "Installation complete for $OS!"
