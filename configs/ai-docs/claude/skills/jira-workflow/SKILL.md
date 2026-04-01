@@ -50,6 +50,6 @@ link-jira-issues "PROJ-100" "Parent-Child" "PROJ-101"
 ## Bulk Operations
 
 ```bash
-source ~/oh-my-zsh/commands/jira-utilities.sh
+source ~/.claude/skills/jira-tools/scripts/jira-utilities.sh
 bulk-link-jira-issues "Parent-Child" PROJ-100 PROJ-101 PROJ-102 PROJ-103
 ```
