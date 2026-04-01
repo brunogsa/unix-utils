@@ -21,7 +21,7 @@ Five cross-platform repos (macOS/Linux), each with its own `CLAUDE.md`:
 Configs are symlinked from repos to system locations. Always edit the source repo.
 `~/.claude/CLAUDE.md` and `~/.claude/skills/` are symlinked from `~/unix-utils/configs/ai-docs/claude/` -- commit Claude config changes to `~/unix-utils`.
 
-**Prefer CLI scripts + skills over MCP servers** -- CLI tools are cheaper in context, easier to debug, and compose via pipes. Use MCP only when it provides capabilities that CLI + skills cannot (e.g., persistent connections, streaming, IDE-specific integrations).
+**Prefer CLI scripts + skills over MCP servers** -- cheaper in context, easier to debug, compose via pipes. Use MCP only for capabilities CLI + skills can't provide.
 
 **Always reference skill-creator when creating or editing skills** -- follow its folder structure (SKILL.md + scripts/ + references/), progressive disclosure, and writing patterns.
 
@@ -57,7 +57,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Commits require explicit permission** -- CRITICAL: never commit without approval. Conventional Commits (`type(scope): subject`), imperative, max 72-char subject. Bullet changelog body. Match `aigitcommit` style.
 
-- **One logical change per commit** -- never bundle unrelated changes. Each commit addresses exactly one concern.
+- **One logical change per commit, always working** -- never bundle unrelated changes. Never split a single change into commits that break the codebase. A migration (move + update refs + delete) is one concern.
 
 - **Notify requests** -- load `notify-user` skill BEFORE the command.
 
