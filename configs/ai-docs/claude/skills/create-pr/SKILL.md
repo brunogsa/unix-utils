@@ -38,19 +38,26 @@ If no PR template exists, use the default template below.
 
 #### Writing Style
 
-- **Keep lines scannable** -- if a bullet exceeds ~100 characters, break it into a top-level bullet (the what) and sub-bullets (the why, how, or details)
-- Prefer sub-bullets over long inline parentheticals or dashes
-- Each bullet should convey one idea at one level of detail
+- **Separate planned from incidental** -- group items under `**Planned:**` and `**Incidental:**`. For incidental items, briefly explain why they had to be fixed now (e.g., "blocked green CI on this branch")
+- **Bold topic prefix on every bullet** -- start each bullet with `**Topic** --` so reviewers can scan the bold words and skip details they don't need
+- **Be concise** -- one short sentence per bullet. Sub-bullets only when essential.
+- **No blank lines between bullets** -- keep lists tight. GitHub adds extra spacing with blank lines.
+- **Max ~100 chars per line** -- break longer lines into top-level bullet + sub-bullets
 
 Example:
 ```markdown
-# Too long:
-- `lib/package.json` -- changed `build:deps` from selective (`tsc -b src/shared src/common src/logger src/test-utils`) to full (`tsc -b`). Fixes pre-existing test failures on `main` where `sf-authenticator` and `sf-client` test suites couldn't find their compiled dist output because they weren't included in the selective build.
+# Hard to scan:
+- Fix lib test failures by changing build:deps from selective to full tsc -b
+- Auto-create .env from .env.local.example for seamless git worktree support
+  - New setup:env script in core/package.json
+- Apply Prisma migrations to test DB (port 5433)
+  - Fixes 40 pre-existing failures (test DB was never migrated)
 
 # Better:
-- `lib/package.json` -- changed `build:deps` from selective to full (`tsc -b`)
-  - Fixes pre-existing test failures on `main` (sf-authenticator, sf-client)
-  - Selective build was fragile -- broke silently when new modules were added
+- **Lib test fix** -- `build:deps` → full `tsc -b`
+- **Worktree support** -- `setup:env` auto-creates `.env` from example
+- **Test DB migrations** -- new `dbtest:migrate` for port 5433
+  - Fixes 40 pre-existing failures (test DB was never migrated)
 ```
 
 #### Default Template
@@ -60,10 +67,6 @@ Example:
 [From spec.md Background + Goals (when available), cross-referenced with
  commit messages and diff to confirm what was actually delivered.
  Condensed to 2-3 bullets. Always ground in commits, not just docs.]
-
-## Approach
-[From plan.md Approach section (when available), confirmed against diff.
- Without plan.md: infer from commit messages and diff.]
 
 ## Key Decisions
 [Primary: [DECISION: ...] markers from spec.md and plan.md.

@@ -12,14 +12,18 @@ Dev stack: Ghostty (terminal) → tmux → neovim → Claude Code
 
 Five cross-platform repos (macOS/Linux), each with its own `CLAUDE.md`:
 
-- `~/unix-utils/` -- system setup, config versioning, Claude Code global config
-- `~/oh-my-zsh/` -- zsh config & CLI scripts (`commands/`, `lib/`)
+- `~/unix-utils/` -- system setup, config versioning, Claude Code global config (skills, hooks, settings)
+- `~/oh-my-zsh/` -- zsh config, aliases, and CLI commands the user actually runs from the terminal. AI may also call these, but if a script is only used by AI, it belongs as a self-contained skill in `~/unix-utils/` instead.
 - `~/tmux/` -- tmux config with neovim/clipboard/Claude integrations
 - `~/neovim/` -- neovim config: LSP, Treesitter, Mermaid indent
 - `~/ghostty/` -- Ghostty terminal config
 
 Configs are symlinked from repos to system locations. Always edit the source repo.
 `~/.claude/CLAUDE.md` and `~/.claude/skills/` are symlinked from `~/unix-utils/configs/ai-docs/claude/` -- commit Claude config changes to `~/unix-utils`.
+
+**Prefer CLI scripts + skills over MCP servers** -- CLI tools are cheaper in context, easier to debug, and compose via pipes. Use MCP only when it provides capabilities that CLI + skills cannot (e.g., persistent connections, streaming, IDE-specific integrations).
+
+**Always reference skill-creator when creating or editing skills** -- follow its folder structure (SKILL.md + scripts/ + references/), progressive disclosure, and writing patterns.
 
 ---
 
@@ -52,6 +56,8 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 - **Prefer targeted edits over full rewrites** -- Edit tool over Write tool.
 
 - **Commits require explicit permission** -- CRITICAL: never commit without approval. Conventional Commits (`type(scope): subject`), imperative, max 72-char subject. Bullet changelog body. Match `aigitcommit` style.
+
+- **One logical change per commit** -- never bundle unrelated changes. Each commit addresses exactly one concern.
 
 - **Notify requests** -- load `notify-user` skill BEFORE the command.
 

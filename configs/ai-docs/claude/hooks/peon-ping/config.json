@@ -1,6 +1,6 @@
 {
   "default_pack": "peon",
-  "volume": 0.2,
+  "volume": 0.1,
   "enabled": true,
   "desktop_notifications": false,
   "categories": {
