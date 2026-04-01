@@ -1,19 +1,33 @@
 ---
-description: "Jira API shell utilities for issue CRUD, linking, querying, and status transitions"
+description: "Jira API shell utilities for issue CRUD, linking, querying, and status transitions. Use when interacting with Jira: creating issues, querying with JQL, managing links, transitioning statuses, or fetching issue context for code reviews."
 user-invocable: false
 ---
 
 # Jira Tools
 
-Shell functions at `~/oh-my-zsh/commands/jira-utilities.sh`.
+Self-contained Jira API utilities. Scripts live in this skill's `scripts/` directory.
 
-## Environment Variables (required)
+## Setup
+
+Source the utilities before use:
+
+```bash
+source ~/.claude/skills/jira-tools/scripts/jira-utilities.sh
+```
+
+Required environment variables:
 
 ```bash
 export JIRA_URL='https://yourcompany.atlassian.net'
 export JIRA_EMAIL='your.email@company.com'
 export JIRA_API_TOKEN='your-api-token'
 ```
+
+## Scripts
+
+- `scripts/jira.sh` -- core auth and request primitives (sourced automatically by the other scripts)
+- `scripts/jira-utilities.sh` -- CRUD, links, transitions, queries
+- `scripts/fetch-jira-review-context.sh` -- fetch issue context as markdown for code reviews
 
 ## Functions
 
@@ -47,6 +61,10 @@ export JIRA_API_TOKEN='your-api-token'
 - `get-jira-transitions <key>` -- list available transitions
 - `transition-jira-issue <key> <transition-id>` -- move issue to new status
 
+### Review Context
+
+- `fetch-jira-review-context <jira-url|issue-key>` -- fetch issue summary, description, and epic as markdown
+
 ## Link Types
 
 - `"Blocks"` -- source blocks target
@@ -56,7 +74,7 @@ export JIRA_API_TOKEN='your-api-token'
 ## Examples
 
 ```bash
-source ~/oh-my-zsh/commands/jira-utilities.sh
+source ~/.claude/skills/jira-tools/scripts/jira-utilities.sh
 
 create-jira-issue PROJ Story "My story" '{"parent":{"key":"PROJ-100"},"labels":["team-a"]}'
 link-jira-issues "PROJ-100" "Blocks" "PROJ-101"
