@@ -99,6 +99,8 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Verify before completing** -- run the task's verify step. Propose a verification approach if none exists. Run scripts/automation to confirm.
 
+- **Re-verify evidence when things don't add up** -- if two sources contradict (e.g., linter says unused but grep says used), re-read the actual code before assuming one is wrong. Stale results, shifted line numbers, or misread context waste hours.
+
 - **TDD: RED → GREEN → REFACTOR** -- failing test first, minimal code to pass, then simplify. Isolate pure refactors into their own step & commit.
 
 - **Update docs as you go** -- locate and update related documentation inline.
