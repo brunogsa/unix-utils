@@ -100,5 +100,5 @@ Wait for approval or edits before creating the PR.
 ### 4. Create the PR
 
 - Push branch if needed (with -u)
-- Create PR using `gh pr create` with the content from rich-pr-description.md
+- Create PR as **draft** using `gh pr create --draft` with the content from rich-pr-description.md
 - Return the PR URL
