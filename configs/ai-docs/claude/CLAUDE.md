@@ -55,6 +55,8 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Prefer targeted edits over full rewrites** -- Edit tool over Write tool.
 
+- **Small batches over big bangs** -- more iterations with small reviewable chunks is better than generating too much code at once. Late course-corrections are expensive; frequent checkpoints are cheap.
+
 - **Commits require explicit permission** -- CRITICAL: never commit without approval. Conventional Commits (`type(scope): subject`), imperative, max 72-char subject. Bullet changelog body. Match `aigitcommit` style.
 
 - **One logical change per commit, always working** -- never bundle unrelated changes. Never split a single change into commits that break the codebase. A migration (move + update refs + delete) is one concern.
@@ -95,13 +97,17 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Green baseline first** -- existing tests & lint must pass before new work.
 
-- **Design test titles first** -- write titles (no implementation) describing expected behavior. For scripts: usage syntax + examples in comment header.
+- **Design test titles first, all layers** -- write titles (no implementation) for ALL layers (integration + unit) describing expected behavior. Commit titles as documentation before any implementation. For scripts: usage syntax + examples in comment header.
 
 - **Verify before completing** -- run the task's verify step. Propose a verification approach if none exists. Run scripts/automation to confirm.
 
+- **Save slow command output, filter later** -- any command taking 8+ seconds: redirect full output to a `/tmp/` file first, then filter from the file as needed. Never pipe a slow command through `grep`/`head` directly — if the filter is wrong you'd re-run the entire command.
+
 - **Re-verify evidence when things don't add up** -- if two sources contradict (e.g., linter says unused but grep says used), re-read the actual code before assuming one is wrong. Stale results, shifted line numbers, or misread context waste hours.
 
-- **TDD: RED → GREEN → REFACTOR** -- failing test first, minimal code to pass, then simplify. Isolate pure refactors into their own step & commit.
+- **Scout rule** -- when you notice pre-existing issues (stale comments, budget overruns, small lint gaps), flag them to the user. Only fix if the user approves. When approved, use isolated commits separate from feature work.
+
+- **RED → GREEN → REFACTOR, most forcing case first** -- pick the test case that requires the most real logic. RED: write that test. GREEN: implement just enough, pulling in helpers only when called. Repeat for remaining cases, building on what exists. Backfill integration tests once core logic is solid. Isolate pure refactors into their own commit.
 
 - **Update docs as you go** -- locate and update related documentation inline.
 
@@ -117,7 +123,7 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
 - **Guidelines override codebase patterns** -- CRITICAL: present the conflict and wait for approval when existing code contradicts rules here.
 
-- **TDBF Coding for new code** -- CRITICAL: when writing new functions/modules, implement in rounds from top to leaves. Each round: 1 function + skeleton stubs it needs (signature + contract + TODO body).
+- **Code top-down, pull helpers on demand** -- start from the controller/worker layer and work downward. Don't write a function until something calls it. This prevents premature abstractions and ensures every helper's API is shaped by real demand from its caller.
 
 - **Avoid global mutable state** -- pass data through params and return values.
 
@@ -126,6 +132,8 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 - **Inject what's hard to mock** -- pass I/O collaborators as parameters.
 
 - **Single-responsibility** -- one thing at one level of abstraction.
+
+- **Spec cases ≠ code branches** -- when a spec defines N cases, design a unified pipeline that naturally produces correct output for all of them. Fewer branches, fewer bugs, easier to extend.
 
 - **Name by purpose, not mechanism** -- what the caller gets, not how it works.
 
@@ -205,7 +213,9 @@ Detailed examples: @~/.claude/skills/doc-standards/SKILL.md
 
 - **Don't reproduce logic under test** -- let the system under test do the work.
 
-- **One test per distinct cause** -- isolate each independent trigger for a behavior.
+- **One test per distinct cause** -- isolate each independent trigger for a behavior. Different inputs that exercise the same code path are one test, not two.
+
+- **Inline test helpers until reused** -- keep builder/factory helpers in the test file until a second test file needs them. Centralize at 2+ callers, not speculatively.
 
 - **Use constants in assertions** -- reference the same enums/constants as production code.
 

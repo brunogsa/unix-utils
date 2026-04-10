@@ -196,6 +196,32 @@ logger.info({
 
 ---
 
+## Builders Bundle, Use Cases Decide
+
+Builder/factory functions should only assemble data from explicit parameters. Business decisions (conditionals, calculations, transformations) belong at the use-case/caller level. This maximizes both business logic visibility (decisions are where the reader looks for them) and builder reusability (the same builder works for different business rules).
+
+```ts
+// Bad -- business rule hidden inside builder:
+function buildAvulso({ parentKit, child }) {
+    return {
+        sku: child.sku,
+        price: child.isBonused ? 0 : child.price,     // business rule buried here
+        discount: child.isBonused ? 0 : parentKit.discount,
+    };
+}
+
+// Good -- business rule visible at call site, builder is a dumb assembler:
+const price = child.isBonused ? 0 : child.price;
+const discount = child.isBonused ? 0 : parentKit.discount;
+buildAvulso({ parentKit, childSku: child.sku, price, discount });
+
+function buildAvulso({ parentKit, childSku, price, discount }) {
+    return { sku: childSku, price, discount, brandSlug: parentKit.brandSlug };
+}
+```
+
+---
+
 ## Script Usage Documentation
 
 ```bash

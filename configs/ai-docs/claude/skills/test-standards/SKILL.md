@@ -46,6 +46,27 @@ testCases.forEach(({ input, expected }) => {
 
 ---
 
+## Avoid Order-Dependent Assertions
+
+Tests should not break when the implementation changes the order of items in a collection, unless order is part of the contract. Asserting on exact array order couples tests to implementation details.
+
+```ts
+// Bad -- breaks if implementation reorders items:
+expect(result).toEqual([
+    { sku: 'CHILD-1', price: 100 },
+    { sku: 'KIT-1', price: 300 },
+]);
+
+// Good -- asserts membership and count, order-independent:
+expect(result).toHaveLength(2);
+expect(result).toEqual(expect.arrayContaining([
+    expect.objectContaining({ sku: 'CHILD-1', price: 100 }),
+    expect.objectContaining({ sku: 'KIT-1', price: 300 }),
+]));
+```
+
+---
+
 ## Don't Reproduce Logic Under Test
 
 ```ts

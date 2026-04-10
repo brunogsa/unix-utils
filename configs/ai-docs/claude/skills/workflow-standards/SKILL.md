@@ -9,26 +9,35 @@ Reference examples for the WORKFLOW rules defined in CLAUDE.md.
 
 ---
 
-## Test Title Design (before implementation)
+## Test Title Design (all layers, before implementation)
 
 ```javascript
-// === STEP 1: Design test titles only ===
-
-describe("processOrder", () => {
-  it("should return a receipt with all line items when order is valid");
-  it("should throw when required fields are missing");
-  it("should apply percentage discount before calculating taxes");
-  it("should throw when item is out of stock");
+// Integration test titles (outer layer)
+describe("CreateOrderUseCase", () => {
+  it("should unpack non-shrinked kit children as avulsos in the order payload");
+  it("should passthrough kit when all children are shrinked");
+  it("should throw when kit metadata fetch fails");
 });
 
-// Review these titles with the user → validates understanding of behavior
-
-// === STEP 2: Implement tests (RED) ===
-// === STEP 3: Implement code (GREEN) ===
-// === STEP 4: Refactor ===
+// Unit test titles (inner layer)
+describe("unpackKitItems", () => {
+  it("should replace kit 1:1 with single avulso");
+  it("should extract non-shrinked sold children and adjust kit price");
+  it("should throw when child prices sum != kit price");
+});
+// Review ALL titles with user → commit → then start RED-GREEN
 ```
 
-```javascript
-// BAD: Jump straight to implementing tests without designing the suite
-// Leads to missing cases, unclear scope, and rework
+## RED → GREEN, Most Forcing Case First
+
 ```
+1. Design test titles (all layers) → commit
+2. Pick the most forcing test case (needs the most real logic)
+3. RED: write that test body
+4. GREEN: implement just enough — pull in helpers only when called
+5. Repeat: next case, building on what exists
+6. Backfill integration tests once core logic is solid
+```
+
+Start from the controller layer and work downward. Don't write a helper
+until its caller demands it — the caller shapes the helper's API.
