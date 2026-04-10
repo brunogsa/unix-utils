@@ -43,6 +43,11 @@ If no PR template exists, use the default template below.
 - **Be concise** -- one short sentence per bullet. Sub-bullets only when essential.
 - **No blank lines between bullets** -- keep lists tight. GitHub adds extra spacing with blank lines.
 - **Max ~100 chars per line** -- break longer lines into top-level bullet + sub-bullets
+- **Explain the "how is it different"** -- when mentioning a new method/function, briefly say what makes it different from existing ones. Don't just name it.
+- **Don't list types/interfaces** -- type names are visible in the diff. Listing them in the PR is noise.
+- **Coarse-grained incidental items** -- group small fixes (typos, error messages, log levels) into a single bullet. Don't give each its own line.
+- **Collapsible sections for large content** -- use `<details><summary>` for reference payloads, long examples, or API responses.
+- **Decisions section = reviewer-facing** -- only include decisions that affect how reviewers should evaluate correctness. Implementation details (e.g., "English params at boundary") belong in commits, not the PR.
 
 Example:
 ```markdown
@@ -96,6 +101,14 @@ Example:
 
 Present the rich-pr-description.md content for review.
 Wait for approval or edits before creating the PR.
+
+### 3.5. Learn from user edits
+
+After the user edits rich-pr-description.md, diff the original against their version.
+Identify patterns in what was added, removed, or reworded. Present proposed improvements
+to THIS skill's writing style guidelines (step 2) for user approval -- similar to
+`enhance-global-guidelines-with-session-learnings`. Apply approved improvements before
+creating the PR. This makes the skill self-improving over time.
 
 ### 4. Create the PR
 
