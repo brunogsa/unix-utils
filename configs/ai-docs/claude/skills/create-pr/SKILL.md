@@ -69,6 +69,13 @@ Example:
 #### Default Template
 
 ```markdown
+[Review guide goes FIRST, before any content, collapsed by default:]
+
+<details>
+<summary><strong>Guia de review</strong> (tempo estimado: {min}-{max} min)</summary>
+[generated content -- see Guia de review section below]
+</details>
+
 ## Summary
 [From spec.md Background + Goals (when available), cross-referenced with
  commit messages and diff to confirm what was actually delivered.
