@@ -116,6 +116,19 @@ Group by file, then priority:
 
 ---
 
+## Recommended Reading Order
+
+Before writing any comments, read the PR in this order:
+
+1. **PR description** -- understand the business context and decisions first
+2. **Test titles** -- scan `it('should ...')` lines to understand expected behavior without reading implementation
+3. **Core implementation** -- controller/consumer first (orchestration), then use cases/pure functions (business logic)
+4. **Test bodies** -- only after understanding the implementation, verify tests are meaningful
+
+This order maximizes comprehension per minute: context → behavior → implementation → verification. Skip step 4 if short on time — steps 1-3 are sufficient for a quality review.
+
+---
+
 ## Anti-Patterns
 
 - Don't suggest broad rewrites -- prefer small, surgical changes
