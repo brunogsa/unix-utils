@@ -47,7 +47,8 @@ If no PR template exists, use the default template below.
 - **Don't list types/interfaces** -- type names are visible in the diff. Listing them in the PR is noise.
 - **Coarse-grained incidental items** -- group small fixes (typos, error messages, log levels) into a single bullet. Don't give each its own line.
 - **Collapsible sections for large content** -- use `<details><summary>` for reference payloads, long examples, or API responses.
-- **Decisions section = reviewer-facing** -- only include decisions that affect how reviewers should evaluate correctness. Implementation details (e.g., "English params at boundary") belong in commits, not the PR.
+- **Always include business context** -- every PR must explain the business problem being solved. Extract from spec.md Background section when available, or from commit messages. Reviewers who don't know the ticket need this to evaluate correctness.
+- **Always include decisions** -- every PR must have a decisions section. Reviewers need to understand the trade-offs made, not just the code. When using a PR template, place decisions as a subsection of the solution (e.g., `##### Decisões tomadas` under `#### Sobre a solução`). Only include reviewer-facing decisions, not implementation details.
 
 Example:
 ```markdown
