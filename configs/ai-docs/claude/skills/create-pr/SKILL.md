@@ -96,6 +96,39 @@ Example:
 
 ## References
 [Jira links, related PRs, etc.]
+
+## Guia de review
+[Generate a specific review guide with concrete file paths from the diff.
+ Estimate time range: essential (PR description + core impl + test titles)
+ to complete (+ test bodies + types/models).
+
+ Heuristic for time:
+ - Essential: ~5min base + ~1min per 50 lines of core implementation
+ - Complete: essential + ~1min per 100 lines of remaining diff
+
+ List files in recommended reading order, inferred from their role:
+ - Controller/consumer files first (orchestration)
+ - Use case / pure function files (business logic)
+ - Test title files with test count (behavior documentation)
+ - Then for "complete": test bodies, types/models, config
+
+ Template:]
+
+### Guia de review
+
+Tempo estimado: {min}-{max} min
+
+**Essencial** (~{min}min):
+1. Descrição do PR (contexto de negócio + decisões)
+2. `{controller_file}` — {brief role}
+3. `{use_case_file}` — regra de negócio
+4. Títulos dos testes em `{unit_test_file}` ({N} testes)
+5. Títulos dos testes em `{integration_test_file}` ({N} testes)
+
+**Completo** (+{extra}min):
+6. Corpo dos testes unitários
+7. Corpo dos testes de integração
+8. Types/models em `{types_path}`
 ```
 
 ### 3. Review with user
