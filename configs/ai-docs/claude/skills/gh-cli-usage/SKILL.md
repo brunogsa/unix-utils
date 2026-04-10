@@ -45,6 +45,24 @@ gh run view <run-id> [--log]
 gh run watch <run-id>
 ```
 
+### PR Comment Replies
+```bash
+# Fetch all review comments
+gh api repos/{owner}/{repo}/pulls/{number}/comments
+
+# Reply to a specific comment (in_reply_to = parent comment ID)
+gh api repos/{owner}/{repo}/pulls/{number}/comments \
+  -X POST -F in_reply_to={id} -f body="..."
+
+# Update an existing comment
+gh api repos/{owner}/{repo}/pulls/comments/{id} \
+  -X PATCH -f body="..."
+```
+
+When replying as Claude, always prefix with `🤖 Claude:` so reviewers know
+it's AI-generated. For answering PR comments addressed to Claude, use the
+dedicated `gh-claude-answers` skill instead.
+
 ### Raw API (for anything not covered above)
 ```bash
 gh api repos/{owner}/{repo}/... [--method GET|POST|PATCH]
