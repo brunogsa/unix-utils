@@ -157,6 +157,8 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
 - **Remove unused code** -- trace back and remove all orphaned supporting code and tests.
 
+- **Tests follow migrated code** -- when moving logic to a new location, adapt existing tests to the new path. Don't delete behavior coverage.
+
 - **Input validation** -- validate inputs in controllers before business logic.
 
 - **Normalize data at entry point** -- convert string dates, numbers-as-strings to proper types immediately after validation.
