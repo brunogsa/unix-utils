@@ -21,7 +21,6 @@ The install script:
 - Installs Docker, AWS CLI, dev tools (shellcheck, luacheck, lua-language-server, deno, pipx)
 - Installs global npm packages (Claude Code, MCP servers, ccusage, trash-cli)
 - Sets up Claude Code: symlinks `configs/ai-docs/claude/*` to `~/.claude/`, installs plugins and MCP servers
-- Installs peon-ping (sound notifications for Claude Code)
 - Linux-only: symlinks xubuntu keyboard shortcuts
 
 ## Directory Structure
@@ -37,3 +36,5 @@ The install script:
 - Idempotent: safe to re-run
 - Config files live in `configs/`, symlinked to system locations by the installer
 - Always edit source in `configs/`, never the symlink targets
+- **`settings.json` caveat**: Claude Code's `/config` command and the `update-config` skill write through temp+rename, which **replaces the symlink with a regular file** and detaches it from the repo. Always edit `configs/ai-docs/claude/settings.json` directly. If the symlink has been broken, re-run `install.sh` to restore it.
+- **Keep `install.sh` in sync**: `install.sh` is the canonical bootstrap — the source of truth for what a fresh machine should end up with. Whenever you add/remove a plugin, MCP server, npm global, symlink target, config file, or OS package used by the tooling, mirror the change in `install.sh` so a re-run reproduces the same state. If you're unsure whether a change belongs in `install.sh`, ask.

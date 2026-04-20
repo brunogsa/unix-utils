@@ -179,7 +179,6 @@ fi
 # Node packages
 npm install -g json-schema-generator
 npm install -g @anthropic-ai/claude-code
-npm install -g @modelcontextprotocol/server-github
 npm install -g ccusage
 npm install -g opencode-ai
 npm install -g trash-cli
@@ -209,11 +208,6 @@ if [ -n "$ANTHROPIC_API_KEY" ]; then
 EOF
 fi
 
-if [ -n "$GITHUB_PERSONAL_ACCESS_TOKEN" ]; then
-    claude mcp add --transport stdio github --env GITHUB_PERSONAL_ACCESS_TOKEN="$GITHUB_PERSONAL_ACCESS_TOKEN" -- npx -y @modelcontextprotocol/server-github
-fi
-
-claude mcp add context7 -- npx -y @anthropic-ai/context7-mcp
 claude plugin marketplace add boostvolt/claude-code-lsps
 claude plugin install code-simplifier@claude-plugins-official
 claude plugin install context7@claude-plugins-official
@@ -233,17 +227,7 @@ ln -sf ~/unix-utils/configs/ai-docs/claude/plugins/claude-hud/config.json ~/.cla
 echo "[MANUAL] Run :Lazy sync in neovim to install claudecode.nvim"
 echo "[MANUAL] Run /claude-hud:setup inside Claude Code to configure the statusLine"
 
-# peon-ping — WC3 sound notifications for Claude Code
-if [[ "$OS" == "macos" ]]; then
-    brew tap PeonPing/tap
-    brew install peon-ping
-elif [[ "$OS" == "linux" ]]; then
-    curl -fsSL https://raw.githubusercontent.com/PeonPing/peon-ping/main/install.sh | bash
-fi
-peon-ping-setup --packs=peasant,peon
-peon packs use peon
-ln -sf ~/unix-utils/configs/ai-docs/claude/hooks/peon-ping/config.json ~/.claude/hooks/peon-ping/config.json
-
+mkdir -p ~/.claude/hooks
 ln -sf ~/unix-utils/configs/ai-docs/claude/hooks/claude-git-guard.sh ~/.claude/hooks/claude-git-guard.sh
 ln -sf ~/unix-utils/configs/ai-docs/claude/hooks/claude-rm-guard.sh ~/.claude/hooks/claude-rm-guard.sh
 
