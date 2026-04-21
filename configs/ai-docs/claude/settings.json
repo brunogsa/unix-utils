@@ -25,6 +25,26 @@
           }
         ]
       }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/claude-tmux-notification.sh notification"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/claude-tmux-notification.sh done"
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
@@ -63,5 +83,6 @@
   "alwaysThinkingEnabled": true,
   "promptSuggestionEnabled": true,
   "skipDangerousModePermissionPrompt": true,
-  "verbose": true
+  "verbose": true,
+  "skipAutoPermissionPrompt": true
 }
