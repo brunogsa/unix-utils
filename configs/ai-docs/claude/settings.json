@@ -83,6 +83,6 @@
   "alwaysThinkingEnabled": true,
   "promptSuggestionEnabled": true,
   "skipDangerousModePermissionPrompt": true,
-  "verbose": true,
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "verbose": true
 }
