@@ -82,6 +82,7 @@
   },
   "alwaysThinkingEnabled": true,
   "promptSuggestionEnabled": true,
+  "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "skipAutoPermissionPrompt": true,
   "verbose": true
