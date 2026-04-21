@@ -23,7 +23,10 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 **Prefer CLI scripts + skills over MCP servers** -- cheaper in context, easier to debug, compose via pipes. Use MCP only for capabilities CLI + skills can't provide.
 
-**Always reference skill-creator when creating or editing skills** -- follow its folder structure (SKILL.md + scripts/ + references/), progressive disclosure, and writing patterns.
+**CRITICAL: Load `skill-creator` skill before creating or modifying any SKILL.md** -- never author skill content without it. Why: folder structure (SKILL.md + scripts/ + references/), progressive disclosure, frontmatter rules.
+
+**Prefer lazy loading** -- keep auto-loaded content lean; push detail into on-demand skills with progressive disclosure.
+  - Why: every auto-loaded line competes with the conversation for attention (Jaroslawicz 2025: adherence peaks at 150–200, degrades to 68% at 500).
 
 ---
 
