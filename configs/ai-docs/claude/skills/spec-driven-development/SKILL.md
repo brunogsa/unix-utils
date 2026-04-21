@@ -1,5 +1,5 @@
 ---
-description: "Spec-driven development workflow using spec.md (what/why) and plan.md (how/tasks) as living documents for features and significant changes"
+description: "Spec-driven development methodology: spec.md (requirements/why) and plan.md (tasks/how) as living docs, marker conventions ([NEEDS CLARIFICATION] for gaps, [DECISION: ... because ...] for trade-offs), and the spec→plan→tasks lifecycle. Templates live in assets/. USE PROACTIVELY when planning a non-trivial feature, writing up requirements, breaking work into committable tasks, or starting significant multi-step work — the skill provides both templates and the methodology for keeping spec and plan live as work progresses."
 user-invocable: false
 ---
 
