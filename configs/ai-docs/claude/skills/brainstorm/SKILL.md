@@ -7,6 +7,10 @@ disable-model-invocation: false
 
 Help the user explore and refine an idea into a structured spec.md.
 
+Spec template and marker conventions live in the companion skill — load it alongside this one:
+
+@~/.claude/skills/spec-driven-development/SKILL.md
+
 ## Usage
 
 `/brainstorm [path/to/spec.md]`
