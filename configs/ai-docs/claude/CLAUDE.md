@@ -114,8 +114,9 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Green baseline first** -- existing tests & lint must pass before new work.
 
-- **Design test titles first, all layers** -- write titles (no implementation) for ALL layers (integration + unit) describing expected behavior.
-  - Commit titles as documentation before any implementation.
+- **Design test titles before implementation** -- write titles (no bodies), review them, then run RED-GREEN.
+  - Applies upfront to integration tests and pre-known pure helpers, and again at each helper pulled on demand — designing them all upfront would force premature signatures.
+  - Commit tests together with their implementation — never titles alone.
   - For scripts: usage syntax + examples in the comment header.
 
 - **Verify before completing** -- run the task's verify step. Propose a verification approach if none exists. Run scripts/automation to confirm.
