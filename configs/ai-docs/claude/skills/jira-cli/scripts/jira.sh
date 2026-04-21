@@ -76,9 +76,7 @@ function jira-api-request() {
   curl_args+=("${JIRA_URL}${endpoint}")
 
   local response
-  response=$(curl "${curl_args[@]}" 2>&1)
-
-  if [[ $? -ne 0 ]]; then
+  if ! response=$(curl "${curl_args[@]}" 2>&1); then
     echo "Error: Failed to make Jira API request: $response" >&2
     return 1
   fi
