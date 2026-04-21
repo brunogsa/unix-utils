@@ -132,34 +132,6 @@ Number each proposal so the user can approve/reject by number (e.g., "Apply 1 an
 - Keep guidelines concise (1-2 sentences max)
 - Principles go to CLAUDE.md; examples and domain knowledge go to skills
 
-## 9. Check Performance Budget
+## 9. Verify Budgets
 
-After all edits are applied and verified, measure the line count of every auto-loaded file to detect unbounded growth. Research shows LLMs follow ~150-200 total instructions effectively -- keeping auto-loaded content lean improves adherence.
-
-**Auto-loaded files** (loaded via `@` imports in CLAUDE.md on every session):
-
-| File | Budget (non-blank lines) |
-|------|--------------------------|
-| `~/.claude/CLAUDE.md` | 200 |
-| `~/.claude/skills/code-standards/SKILL.md` | 200 |
-| `~/.claude/skills/workflow-standards/SKILL.md` | 40 |
-| `~/.claude/skills/doc-standards/SKILL.md` | 40 |
-| `~/.claude/skills/test-standards/SKILL.md` | 60 |
-| **Total** | **500** |
-
-**Line length limit:** 256 characters max per line. Check with: `awk 'length > 256' <file>`.
-
-**Process:**
-
-1. Count non-blank lines: `grep -c '\S' <file>` on each auto-loaded file
-2. Check for long lines: `awk 'length > 256' <file>` on each file
-3. Compare each file and the total against the budget table above
-4. If any file or the total exceeds budget, or lines exceed 256 chars, warn the user with:
-   - A table showing current line count vs budget for each file
-   - Which file(s) grew and by how much
-   - Specific consolidation suggestions:
-     - Redundant rules that could merge
-     - Verbose examples that could be trimmed
-     - Content that could move to path-scoped `.claude/rules/` files (only loads when matching files are opened)
-     - Content that could become an on-demand skill instead of always-loaded
-5. Do NOT auto-consolidate or block -- present alternatives for the user to decide
+Delegate to the `performance-check-principles-and-skills` skill — invoke it as the final step. It measures CLAUDE.md + skills against research-backed budgets and reports any overages. Surface the report to the user for triage; do not auto-fix.
