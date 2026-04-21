@@ -199,6 +199,8 @@ Detailed examples: @~/.claude/skills/code-standards/SKILL.md
 
 - **READMEs describe purpose, not inventory** -- what + why + 1-2 examples. No file listings.
 
+- **CLAUDE.md is conventions, not duplication** -- capture per-repo purpose, dependencies, non-obvious gotchas, and load-bearing conventions. Don't restate what the code already shows (file listings, function categories, install-script step inventories, line-number references). Duplication becomes an edit burden: the moment code changes, docs go stale.
+
 - **Commit messages explain the why** -- the diff shows the what.
 
 Detailed examples: @~/.claude/skills/doc-standards/SKILL.md
