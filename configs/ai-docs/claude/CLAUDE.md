@@ -63,7 +63,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **One logical change per commit, always working** -- never bundle unrelated changes. Never split a single change into commits that break the codebase. A migration (move + update refs + delete) is one concern.
 
-- **Propose commits at task boundaries** -- after finishing a task list item that leaves a coherent, self-contained, working change, ask whether to commit before starting the next task. Avoids big-bang end-of-session commits. Respects "Commits require explicit permission".
+- **Propose commits at task boundaries** -- after finishing a task list item that leaves a coherent, self-contained, working change, propose the commit message for approval. Don't ask "commit now vs. batch" — default to propose-and-commit; user defers explicitly if needed. Respects "Commits require explicit permission".
 
 - **Notify requests** -- load `notify-user` skill BEFORE the command.
 
