@@ -136,8 +136,6 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Update docs as you go** -- locate and update related documentation inline.
 
-- **Use Mermaid for visual explanations** -- render diagrams inline via `render-ascii-mermaid`. Use fenced Mermaid blocks with ASCII output in specs.
-
 Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
 ---

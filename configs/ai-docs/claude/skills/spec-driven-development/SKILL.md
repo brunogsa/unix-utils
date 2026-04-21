@@ -99,7 +99,6 @@ When a decision changes, update the existing marker in place.
 ## Guidelines
 
 - **spec.md is optional** -- plan.md can be created directly from a prompt for smaller work
-- **Include diagrams** -- use Mermaid blocks (source + rendered ASCII) when architecture, data flow, or state would clarify the spec or plan. See `mermaid-ascii-diagrams` skill.
 - **Tasks are baby steps** -- each task in plan.md should be the smallest testable, committable change
 - **Acceptance criteria are testable** -- every task has a concrete verify method (command, test, or manual check)
 - **Update docs at each task boundary** -- stale spec/plan degrades PR description quality. Specific triggers:

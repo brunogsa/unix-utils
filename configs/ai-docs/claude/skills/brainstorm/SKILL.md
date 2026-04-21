@@ -34,9 +34,6 @@ Ask clarifying questions (Socratic style). Focus on:
 - What constraints exist? (Non-Functional Requirements)
 - What's unclear? (mark with `[NEEDS CLARIFICATION]`)
 
-Use Mermaid diagrams (rendered via `render-ascii-mermaid`) to visualize
-architecture, data flow, or state when it aids understanding.
-
 Ask 2-3 questions per round. Don't overwhelm.
 
 ### 3. Generate/update spec.md
