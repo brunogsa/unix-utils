@@ -148,7 +148,7 @@ Wait for approval or edits before creating the PR.
 After the user edits rich-pr-description.md, diff the original against their version.
 Identify patterns in what was added, removed, or reworded. Present proposed improvements
 to THIS skill's writing style guidelines (step 2) for user approval -- similar to
-`enhance-global-guidelines-with-session-learnings`. Apply approved improvements before
+`improve-principles-and-skills-from-session-learnings`. Apply approved improvements before
 creating the PR. This makes the skill self-improving over time.
 
 ### 4. Create the PR
