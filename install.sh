@@ -197,7 +197,6 @@ fi
 # Node packages
 npm install -g json-schema-generator
 npm install -g @anthropic-ai/claude-code
-npm install -g ccusage
 npm install -g opencode-ai
 npm install -g trash-cli
 npm install -g beautiful-mermaid
