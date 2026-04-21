@@ -9,71 +9,19 @@ Lightweight workflow using two living documents in the project root to guide dev
 
 ## Documents
 
+Two living documents in the project root. Templates live in `assets/` and are populated (not copied verbatim) based on the user's input.
+
 ### spec.md (what / why)
 
 Captures requirements, context, and acceptance criteria. Owned by the user, refined collaboratively.
 
-```markdown
-# Spec: [Title]
-
-## Background
-Why this change is needed. Business context, pain point, or opportunity.
-
-## Goals
-What we want to achieve (outcomes, not implementation).
-
-## User Stories
-- As a [role], I want [capability] so that [benefit].
-
-## Functional Requirements
-1. System MUST ...
-2. System MUST ...
-
-## Non-Functional Requirements
-1. Performance: ...
-2. Security: ...
-
-## Acceptance Criteria
-1. [Testable criterion]
-2. [Testable criterion]
-
-## Open Questions
-- [NEEDS CLARIFICATION: ...]
-
-## Decisions
-- [DECISION: ... because ...]
-```
+Populate `assets/spec-template.md` — sections: Background, Goals, User Stories, Functional Requirements, Non-Functional Requirements, Acceptance Criteria, Open Questions (`[NEEDS CLARIFICATION]` markers), Decisions (`[DECISION: ... because ...]` markers).
 
 ### plan.md (how / tasks)
 
 Technical approach and task breakdown. Generated from spec.md (or directly from prompt).
 
-```markdown
-# Plan: [Title]
-
-Spec: [link or reference to spec.md]
-
-## Approach
-High-level technical approach. Architecture decisions. Trade-offs considered.
-
-## Tasks
-
-### 0. Symlink plan to project directory
-**What**: Create a symlink from this plan file to `./plan.md` in the current working directory. If spec.md exists in cwd, it was already used as input.
-**Verify**: `readlink ./plan.md` points to this plan file.
-
-### 1. [Task title]
-**Description**: What needs to be done.
-**Files**: `path/to/file1.ts`, `path/to/file2.ts`
-**Acceptance criteria**: What "done" looks like for this task.
-**Verify**: Command or test that proves it works.
-
-### 2. [Task title]
-...
-
-## Decisions
-- [DECISION: ... because ...]
-```
+Populate `assets/plan-template.md` — sections: Approach; Tasks (each with Description, Files, Acceptance criteria, Verify); Decisions. Task 0 is always a symlink step so `./plan.md` resolves to the canonical plan file.
 
 ## Marker Conventions
 

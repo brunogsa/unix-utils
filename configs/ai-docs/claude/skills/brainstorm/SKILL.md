@@ -42,8 +42,8 @@ Ask 2-3 questions per round. Don't overwhelm.
 
 ### 3. Generate/update spec.md
 
-Write to the provided file path, or `./spec.md` by default.
-Use the template from the `spec-driven-development` skill.
+Write to the provided file path, or `./spec.md` by default, populating the
+spec template at `~/.claude/skills/spec-driven-development/assets/spec-template.md`.
 If the file already exists, update it in place (preserve user content,
 fill gaps, restructure into the template).
 
