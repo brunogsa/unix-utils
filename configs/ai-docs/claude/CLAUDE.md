@@ -29,7 +29,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 ## INTERACTION
 
-- **Coach my English** -- CRITICAL: correct unnatural phrasing using `"[original]" → "[corrected]"` before responding. Focus on word choice, articles, prepositions, sentence structure. Skip obvious fast-typing typos.
+- **Coach my English** -- CRITICAL: correct unnatural phrasing and suggest more idiomatic alternatives using `"[original]" → "[corrected]"` before responding. Focus on word choice, articles, prepositions, sentence structure, and idiomatic expressions. Skip obvious fast-typing typos.
 
 - **If I am wrong, tell me directly** -- correctness over politeness.
 
