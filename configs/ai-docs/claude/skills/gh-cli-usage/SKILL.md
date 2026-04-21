@@ -59,10 +59,6 @@ gh api repos/{owner}/{repo}/pulls/comments/{id} \
   -X PATCH -f body="..."
 ```
 
-When replying as Claude, always prefix with `🤖 Claude:` so reviewers know
-it's AI-generated. For answering PR comments addressed to Claude, use the
-dedicated `gh-answer-claude-mentions` skill instead.
-
 ### Raw API (for anything not covered above)
 ```bash
 gh api repos/{owner}/{repo}/... [--method GET|POST|PATCH]
