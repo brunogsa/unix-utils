@@ -2,7 +2,7 @@
   "display": {
     "showTools": false,
     "showAgents": false,
-    "showTodos": true,
+    "showTodos": false,
     "showDuration": true,
     "showConfigCounts": false,
     "showContextBar": false,
