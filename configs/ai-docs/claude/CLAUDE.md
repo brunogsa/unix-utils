@@ -13,7 +13,8 @@ Dev stack: Ghostty (terminal) → tmux → neovim → Claude Code
 Five cross-platform repos (macOS/Linux), each with its own `CLAUDE.md`:
 
 - `~/unix-utils/` -- system setup, config versioning, Claude Code global config (skills, hooks, settings)
-- `~/oh-my-zsh/` -- zsh config, aliases, and CLI commands the user actually runs from the terminal. AI may also call these, but if a script is only used by AI, it belongs as a self-contained skill in `~/unix-utils/` instead.
+- `~/oh-my-zsh/` -- zsh config, aliases, and CLI commands the user runs from the terminal. AI may also call these.
+  - Exception: scripts only used by AI belong as self-contained skills in `~/unix-utils/` instead.
 - `~/tmux/` -- tmux config with neovim/clipboard/Claude integrations
 - `~/neovim/` -- neovim config: LSP, Treesitter, Mermaid indent
 - `~/ghostty/` -- Ghostty terminal config
@@ -32,7 +33,9 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 ## INTERACTION
 
-- **Coach my English** -- CRITICAL: correct unnatural phrasing and suggest more idiomatic alternatives using `"[original]" → "[corrected]"` before responding. Focus on word choice, articles, prepositions, sentence structure, and idiomatic expressions. Skip obvious fast-typing typos.
+- **Coach my English** -- CRITICAL: correct unnatural phrasing using `"[original]" → "[corrected]"` before responding.
+  - Focus: word choice, articles, prepositions, sentence structure, idiomatic expressions. Skip obvious fast-typing typos.
+  - Flag grammatically correct but awkward phrasings too — idiomaticity matters more than rule-correctness.
 
 - **If I am wrong, tell me directly** -- correctness over politeness.
 
@@ -48,7 +51,9 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Be direct** -- no preambles, no filler, no emojis.
 
-- **Prefer scannable shape over prose** -- default to bullets, short sections, tables, and bold key terms in user-facing text. Prose earns its place only when fragmenting would lose connective tissue: ultrathink/design reasoning, walking through a disagreement, or when the answer genuinely is a connected paragraph. Test: can the reader find the takeaway in ~5 seconds?
+- **Prefer scannable shape over prose** -- default to bullets, short sections, tables, bold key terms in user-facing text.
+  - Prose earns its place only when fragmenting would lose connective tissue: ultrathink/design reasoning, disagreements, connected-paragraph answers.
+  - Test: can the reader find the takeaway in ~5 seconds?
 
 - **Maximize verifiability** -- show evidence supporting every conclusion.
 
@@ -56,7 +61,9 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Ask before parallelizing read-only work** -- ask series vs parallel for multiple independent explorations. Single calls: foreground. Web: parallel.
 
-- **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for non-trivial tasks. After each create, use TaskUpdate to prefix the subject with ` <returned-id>. ` (leading space, id, period, trailing space) -- UI hides IDs in titles, and a manual counter drifts out of sync.
+- **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for non-trivial tasks.
+  - After each create, TaskUpdate the subject with ` <returned-id>. ` prefix (leading space, id, period, trailing space).
+  - Why: UI hides IDs in titles, and a manual counter drifts out of sync.
 
 - **Prefer targeted edits over full rewrites** -- Edit tool over Write tool.
 
@@ -64,13 +71,16 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Commits require explicit permission** -- CRITICAL: never commit without approval. Conventional Commits (`type(scope): subject`), imperative, max 72-char subject. Bullet changelog body. Match `aigitcommit` style.
 
-- **One logical change per commit, always working** -- never bundle unrelated changes. Never split a single change into commits that break the codebase. A migration (move + update refs + delete) is one concern.
+- **One logical change per commit, always working** -- never bundle unrelated changes.
+  - Never split a single change into commits that break the codebase.
+  - A migration (move + update refs + delete) is one concern.
 
 - **Propose commits at task boundaries** -- after finishing a coherent, working change, issue the `git commit` Bash call directly. The approval UI is the prompt; deny or say so to defer.
 
 - **Notify requests** -- load `notify-user` skill BEFORE the command.
 
-- **Out-of-scope work = new TODO items** -- whether review feedback, a request mid-task, or something you uncover yourself, reach for TaskCreate (ordered right after current) instead of pivoting. Prevents mixed-concern files, preserves "One logical change per commit", and keeps the partial-commits-in-one-file problem from happening in the first place.
+- **Out-of-scope work = new TODO items** -- review feedback, mid-task requests, or anything you uncover yourself go to TaskCreate (ordered right after current), not pivots.
+  - Why: preserves "One logical change per commit" and prevents mixed-concern files.
 
 - **Explain trade-offs on manual changes** -- when I modify your edit or reject with an alternative, explain what my version gains, loses, and assumes.
 
@@ -104,17 +114,25 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Green baseline first** -- existing tests & lint must pass before new work.
 
-- **Design test titles first, all layers** -- write titles (no implementation) for ALL layers (integration + unit) describing expected behavior. Commit titles as documentation before any implementation. For scripts: usage syntax + examples in comment header.
+- **Design test titles first, all layers** -- write titles (no implementation) for ALL layers (integration + unit) describing expected behavior.
+  - Commit titles as documentation before any implementation.
+  - For scripts: usage syntax + examples in the comment header.
 
 - **Verify before completing** -- run the task's verify step. Propose a verification approach if none exists. Run scripts/automation to confirm.
 
-- **Save slow command output, filter later** -- any command taking 8+ seconds: redirect full output to a `/tmp/` file first, then filter from the file as needed. Never pipe a slow command through `grep`/`head` directly — if the filter is wrong you'd re-run the entire command.
+- **Save slow command output, filter later** -- any command taking 8+ seconds: redirect full output to `/tmp/`, then filter from the file.
+  - Never pipe a slow command through `grep`/`head` directly — if the filter is wrong you'd re-run the whole thing.
 
-- **Re-verify evidence when things don't add up** -- if two sources contradict (e.g., linter says unused but grep says used), re-read the actual code before assuming one is wrong. Stale results, shifted line numbers, or misread context waste hours.
+- **Re-verify evidence when things don't add up** -- if two sources contradict, re-read the actual code before assuming one is wrong.
+  - Why: stale results, shifted line numbers, or misread context waste hours.
 
-- **Scout rule** -- when you notice pre-existing issues (stale comments, budget overruns, small lint gaps), flag them to the user. Only fix if the user approves. When approved, use isolated commits separate from feature work.
+- **Scout rule** -- when you notice pre-existing issues (stale comments, budget overruns, lint gaps), flag them to the user.
+  - Only fix if approved; use isolated commits separate from feature work.
 
-- **RED → GREEN → REFACTOR, most forcing case first** -- pick the test case that requires the most real logic. RED: write that test. GREEN: implement just enough, pulling in helpers only when called. Repeat for remaining cases, building on what exists. Backfill integration tests once core logic is solid. Isolate pure refactors into their own commit.
+- **RED → GREEN → REFACTOR, most forcing case first** -- pick the test case that requires the most real logic.
+  - RED: write that test. GREEN: implement just enough, pulling in helpers only when called.
+  - Repeat for remaining cases, building on what exists. Backfill integration tests once core logic is solid.
+  - Isolate pure refactors into their own commit.
 
 - **Update docs as you go** -- locate and update related documentation inline.
 
@@ -126,11 +144,13 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
 ## CODE
 
-- **Never delete or overwrite existing code unless explicitly instructed** -- CRITICAL: do NOT change indentation, empty lines, whitespace, quote style, or semicolons. ONLY modify the exact lines needed for the requested change.
+- **Never delete or overwrite existing code unless explicitly instructed** -- CRITICAL: do NOT change indentation, blank lines, whitespace, quotes, or semicolons.
+  - Modify only the exact lines needed for the requested change.
 
 - **Guidelines override codebase patterns** -- CRITICAL: present the conflict and wait for approval when existing code contradicts rules here.
 
-- **Code top-down, pull helpers on demand** -- start from the controller/worker layer and work downward. Don't write a function until something calls it. This prevents premature abstractions and ensures every helper's API is shaped by real demand from its caller.
+- **Code top-down, pull helpers on demand** -- start from the controller/worker layer and work downward; don't write a function until something calls it.
+  - Why: prevents premature abstractions; every helper's API is shaped by real demand from its caller.
 
 - **Avoid global mutable state** -- pass data through params and return values.
 
@@ -140,7 +160,8 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
 - **Single-responsibility** -- one thing at one level of abstraction.
 
-- **Spec cases ≠ code branches** -- when a spec defines N cases, design a unified pipeline that naturally produces correct output for all of them. Fewer branches, fewer bugs, easier to extend.
+- **Spec cases ≠ code branches** -- when a spec defines N cases, design a unified pipeline that naturally produces correct output for all of them.
+  - Fewer branches, fewer bugs, easier to extend.
 
 - **Name by purpose, not mechanism** -- what the caller gets, not how it works.
 
@@ -204,7 +225,9 @@ Detailed examples: @~/.claude/skills/code-standards/SKILL.md
 
 - **READMEs describe purpose, not inventory** -- what + why + 1-2 examples. No file listings.
 
-- **CLAUDE.md is conventions, not duplication** -- capture per-repo purpose, dependencies, non-obvious gotchas, and load-bearing conventions. Don't restate what the code already shows (file listings, function categories, install-script step inventories, line-number references). Duplication becomes an edit burden: the moment code changes, docs go stale.
+- **CLAUDE.md is conventions, not duplication** -- capture per-repo purpose, dependencies, non-obvious gotchas, load-bearing conventions.
+  - Don't restate what the code already shows (file listings, function categories, install-step inventories, line-numbers).
+  - Why: duplication is an edit burden — the moment code changes, docs go stale.
 
 - **Commit messages explain the why** -- the diff shows the what.
 
