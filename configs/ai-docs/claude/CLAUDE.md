@@ -65,7 +65,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Notify requests** -- load `notify-user` skill BEFORE the command.
 
-- **Change-request = new TODO items** -- review feedback becomes new tasks.
+- **Out-of-scope work = new TODO items** -- whether review feedback, a request mid-task, or something you uncover yourself, reach for TaskCreate (ordered right after current) instead of pivoting. Prevents mixed-concern files, preserves "One logical change per commit", and keeps the partial-commits-in-one-file problem from happening in the first place.
 
 - **Explain trade-offs on manual changes** -- when I modify your edit or reject with an alternative, explain what my version gains, loses, and assumes.
 
