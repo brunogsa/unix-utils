@@ -225,8 +225,7 @@ ln -sf ~/unix-utils/configs/ai-docs/claude/plugins/claude-hud/config.json ~/.cla
 echo "[MANUAL] Run :Lazy sync in neovim to install claudecode.nvim"
 echo "[MANUAL] Run /claude-hud:setup inside Claude Code to configure the statusLine"
 
-mkdir -p ~/.claude/hooks
-ln -sf ~/unix-utils/configs/ai-docs/claude/hooks/claude-git-guard.sh ~/.claude/hooks/claude-git-guard.sh
-ln -sf ~/unix-utils/configs/ai-docs/claude/hooks/claude-rm-guard.sh ~/.claude/hooks/claude-rm-guard.sh
+rm -fr ~/.claude/hooks
+ln -sf ~/unix-utils/configs/ai-docs/claude/hooks ~/.claude/
 
 echo "Installation complete for $OS!"
