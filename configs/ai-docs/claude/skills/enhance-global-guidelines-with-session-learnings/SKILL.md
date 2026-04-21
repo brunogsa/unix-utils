@@ -25,7 +25,7 @@ Spawn the subagent with `subagent_type: "general-purpose"` and `description: "An
 
 ## Step 1: Extract Session Moments (main context)
 
-Review the conversation history and write a concise bullet list of:
+Review the conversation history and list moments covering:
 - Bugs that were found and fixed
 - Code patterns that were corrected
 - Workflow or process feedback from the user
@@ -35,7 +35,23 @@ Review the conversation history and write a concise bullet list of:
 - Documentation or communication improvements
 - Any user correction of the AI's approach or assumptions
 
-For each moment, include: what happened, what the user said or corrected, and the outcome. This list is passed verbatim into the subagent prompt as a `## Session Moments` section.
+Format each moment as a top-level bullet with four sub-bullets — keep the structure consistent so the subagent can parse it reliably:
+
+```
+- **Moment N: [short title]**
+  - **User's exact words**: "<verbatim quote>"
+  - **Context**: <what Claude was doing, what misunderstanding or gap existed, relevant file paths or commands>
+  - **Outcome**: <what changed — code edits, decisions, discoveries>
+  - **Lesson drawn**: <the generalizable takeaway as Claude currently sees it; the subagent will challenge and refine>
+```
+
+Rules for each sub-bullet:
+- **User's exact words** — verbatim quote only. Do NOT paraphrase; preserve typos, casing, and emphasis. If the moment was Claude-initiated with no user prompt, write `(Claude-initiated — no user quote)`.
+- **Context** — concrete, specific. File paths, commands, error messages when relevant.
+- **Outcome** — what actually changed, not what was discussed.
+- **Lesson drawn** — one sentence, generalizable. Not "we fixed X"; rather "Y pattern leads to Z bug."
+
+This list is passed verbatim into the subagent prompt as a `## Session Moments` section. Richer input — especially verbatim quotes — gives the subagent raw signal it can't otherwise access (it can't see the parent conversation). Paraphrases smooth over nuance; verbatim preserves it.
 
 ## Subagent Process (steps 2-8)
 
