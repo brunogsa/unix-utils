@@ -71,6 +71,8 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Commits require explicit permission** -- CRITICAL: never commit without approval. Conventional Commits (`type(scope): subject`), imperative, max 72-char subject. Bullet changelog body. Match `aigitcommit` style.
 
+- **Commit body fits one screen (~25 lines)** -- explain why, not what; the diff already records what changed.
+
 - **One logical change per commit, always working** -- never bundle unrelated changes.
   - Never split a single change into commits that break the codebase.
   - A migration (move + update refs + delete) is one concern.
