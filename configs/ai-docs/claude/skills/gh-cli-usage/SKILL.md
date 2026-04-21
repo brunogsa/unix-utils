@@ -61,7 +61,7 @@ gh api repos/{owner}/{repo}/pulls/comments/{id} \
 
 When replying as Claude, always prefix with `🤖 Claude:` so reviewers know
 it's AI-generated. For answering PR comments addressed to Claude, use the
-dedicated `gh-claude-answers` skill instead.
+dedicated `gh-answer-claude-mentions` skill instead.
 
 ### Raw API (for anything not covered above)
 ```bash
