@@ -60,7 +60,7 @@ You receive: `pr_url`, optionally `jira_url`
    ```
 7. If `jira_url` was provided, fetch Jira context:
    ```bash
-   source ~/.claude/skills/jira-tools/scripts/fetch-jira-review-context.sh && fetch-jira-review-context "<jira_url>"
+   source ~/.claude/skills/jira-cli/scripts/fetch-jira-review-context.sh && fetch-jira-review-context "<jira_url>"
    ```
 8. Save `commit_sha` from PR metadata (`headRefOid`) -- needed for posting inline comments
 

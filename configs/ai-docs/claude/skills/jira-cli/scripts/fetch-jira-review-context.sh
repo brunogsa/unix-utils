@@ -15,7 +15,7 @@
 
 # Source core Jira library if not already loaded
 if ! command -v jira-api-request &>/dev/null; then
-  source "$HOME/.claude/skills/jira-tools/scripts/jira.sh"
+  source "$HOME/.claude/skills/jira-cli/scripts/jira.sh"
 fi
 
 function fetch-jira-review-context() {

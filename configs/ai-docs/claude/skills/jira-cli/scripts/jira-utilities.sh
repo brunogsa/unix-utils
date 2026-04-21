@@ -33,7 +33,7 @@
 #     transition-jira-issue          - Transition an issue to a new status
 
 # Source core library (jira-validate-env, jira-api-request, jira-check-error)
-source "$HOME/.claude/skills/jira-tools/scripts/jira.sh"
+source "$HOME/.claude/skills/jira-cli/scripts/jira.sh"
 
 # ==============================================================================
 # QUERY

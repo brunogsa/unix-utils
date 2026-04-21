@@ -3,7 +3,7 @@ description: "Jira API shell utilities for issue CRUD, linking, querying, and st
 user-invocable: false
 ---
 
-# Jira Tools
+# Jira CLI
 
 Self-contained Jira API utilities. Scripts live in this skill's `scripts/` directory.
 
@@ -12,7 +12,7 @@ Self-contained Jira API utilities. Scripts live in this skill's `scripts/` direc
 Source the utilities before use:
 
 ```bash
-source ~/.claude/skills/jira-tools/scripts/jira-utilities.sh
+source ~/.claude/skills/jira-cli/scripts/jira-utilities.sh
 ```
 
 Required environment variables:
@@ -74,7 +74,7 @@ export JIRA_API_TOKEN='your-api-token'
 ## Examples
 
 ```bash
-source ~/.claude/skills/jira-tools/scripts/jira-utilities.sh
+source ~/.claude/skills/jira-cli/scripts/jira-utilities.sh
 
 create-jira-issue PROJ Story "My story" '{"parent":{"key":"PROJ-100"},"labels":["team-a"]}'
 link-jira-issues "PROJ-100" "Blocks" "PROJ-101"
