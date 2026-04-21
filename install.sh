@@ -95,10 +95,11 @@ espanso restart
 
 # Docker
 if [[ "$OS" == "macos" ]]; then
-    cd ~/Downloads
-    wget https://desktop.docker.com/mac/main/amd64/Docker.dmg
-    sudo hdiutil attach Docker.dmg
-    cd -
+    (
+        cd ~/Downloads || exit
+        wget https://desktop.docker.com/mac/main/amd64/Docker.dmg
+        sudo hdiutil attach Docker.dmg
+    )
     sudo /Volumes/Docker/Docker.app/Contents/MacOS/install --accept-license
     sudo hdiutil detach /Volumes/Docker
     echo "[WARN] docker and docker-compose installation will be finished after starting docker for the first time via Finder"
@@ -109,10 +110,11 @@ fi
 
 # AWS CLI
 if [[ "$OS" == "macos" ]]; then
-    cd ~/Downloads
-    curl "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o "AWSCLIV2.pkg"
-    sudo installer -pkg AWSCLIV2.pkg -target /
-    cd -
+    (
+        cd ~/Downloads || exit
+        curl "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o "AWSCLIV2.pkg"
+        sudo installer -pkg AWSCLIV2.pkg -target /
+    )
 elif [[ "$OS" == "linux" ]]; then
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
     unzip awscliv2.zip
@@ -172,7 +174,9 @@ elif [[ "$OS" == "linux" ]]; then
 
     # deno
     curl -fsSL https://deno.land/install.sh | sh
+    # shellcheck disable=SC2016  # single quotes intentional: match literal string in ~/.zshrc
     grep -q 'DENO_INSTALL' ~/.zshrc || echo 'export DENO_INSTALL="$HOME/.deno"' >> ~/.zshrc
+    # shellcheck disable=SC2016
     grep -q 'DENO_INSTALL/bin' ~/.zshrc || echo 'export PATH="$DENO_INSTALL/bin:$PATH"' >> ~/.zshrc
 fi
 
