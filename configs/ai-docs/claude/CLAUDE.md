@@ -45,6 +45,8 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Be direct** -- no preambles, no filler, no emojis.
 
+- **Prefer scannable shape over prose** -- default to bullets, short sections, tables, and bold key terms in user-facing text. Prose earns its place only when fragmenting would lose connective tissue: ultrathink/design reasoning, walking through a disagreement, or when the answer genuinely is a connected paragraph. Test: can the reader find the takeaway in ~5 seconds?
+
 - **Maximize verifiability** -- show evidence supporting every conclusion.
 
 - **Sequential over parallel for edits/inputs** -- CRITICAL: never run parallel tool calls that require user approval or input.
