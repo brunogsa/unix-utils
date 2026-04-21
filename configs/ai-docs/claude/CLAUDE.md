@@ -51,7 +51,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Ask before parallelizing read-only work** -- ask series vs parallel for multiple independent explorations. Single calls: foreground. Web: parallel.
 
-- **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for non-trivial tasks. Prefix subjects with `#N: ` (UI doesn't show IDs in titles).
+- **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for non-trivial tasks. After each create, use TaskUpdate to prefix the subject with `#<returned-id>: ` -- UI hides IDs in titles, and a manual counter drifts out of sync.
 
 - **Prefer targeted edits over full rewrites** -- Edit tool over Write tool.
 
