@@ -136,7 +136,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Update docs as you go** -- locate and update related documentation inline.
 
-Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
+Concrete examples live in the `workflow-standards` skill (loaded on-demand when planning implementation).
 
 ---
 
@@ -211,7 +211,7 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
 - **Surface linter gaps** -- when fixing something a linter should catch, flag as `[LINTER GAP]` so the config can be improved.
 
-Detailed examples: @~/.claude/skills/code-standards/SKILL.md
+Concrete examples live in the `code-standards` skill (loaded on-demand when writing or reviewing code).
 
 ---
 
@@ -229,7 +229,7 @@ Detailed examples: @~/.claude/skills/code-standards/SKILL.md
 
 - **Commit messages explain the why** -- the diff shows the what.
 
-Detailed examples: @~/.claude/skills/doc-standards/SKILL.md
+Concrete examples live in the `doc-standards` skill (loaded on-demand when writing comments or docs).
 
 ---
 
@@ -255,7 +255,7 @@ Detailed examples: @~/.claude/skills/doc-standards/SKILL.md
 
 - **Parametrised suites OK** if still readable.
 
-Detailed examples: @~/.claude/skills/test-standards/SKILL.md
+Concrete examples live in the `test-standards` skill (loaded on-demand when writing or reviewing tests).
 
 ---
 
