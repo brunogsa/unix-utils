@@ -198,8 +198,7 @@ Concrete examples live in the `workflow-standards` skill (loaded on-demand when 
 
 - **Distinguish "missing" from "intentional zero/empty"** -- check null/undefined, not falsiness.
 - **Centralize repeated logic** -- DRY: defaults, transformations, computations.
-
-- **Merge near-duplicate functions** -- when two functions differ only by a flag or filter, generalize into one with an optional parameter.
+  - Merge near-duplicate functions: when two differ only by a flag or filter, generalize into one with an optional parameter.
 
 - **Don't wrap trivial expressions** -- wrappers earn existence by adding behavior (retry, logging, validation), not by renaming a clear stdlib call.
 
