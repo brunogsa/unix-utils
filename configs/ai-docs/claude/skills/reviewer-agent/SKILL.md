@@ -85,19 +85,7 @@ Write your review to `./auto-review.md`. Follow the feedback structure from revi
 
 <details>
 <summary><strong>Recommended Reading Order</strong> (estimated: {min}-{max} min)</summary>
-
-**Essential** (~{min}min):
-1. PR description (business context + decisions)
-2. `{controller_file}` — {brief role}
-3. `{use_case_file}` — business logic
-4. Test titles in `{unit_test_file}` ({N} tests)
-5. Test titles in `{integration_test_file}` ({N} tests)
-
-**Complete** (+{extra}min):
-6. Test bodies (unit)
-7. Test bodies (integration)
-8. Types/models in `{types_path}`
-
+[Reading order — generate per `references/reading-order-template.md` (English variant)]
 </details>
 
 ## Findings
@@ -118,7 +106,7 @@ Write your review to `./auto-review.md`. Follow the feedback structure from revi
 - **#2 RECOMMENDED**: `file:line` -- brief description
 ```
 
-Generate the reading order with **specific file paths** from the diff, not generic guidance. Infer file roles from paths (controller/consumer → orchestration, use-case/shared → business logic, *.spec.ts → tests, types/models → supporting). Estimate time: ~5min base + ~1min per 50 lines of core impl for essential, +1min per 100 lines of remaining diff for complete.
+Reading-order template, time-estimate heuristic, and file-role inference live in `references/reading-order-template.md`.
 
 Number every finding sequentially (`#1`, `#2`, ...) so the user can reference them by number. Order by severity (MANDATORY first). Omit empty sections.
 
