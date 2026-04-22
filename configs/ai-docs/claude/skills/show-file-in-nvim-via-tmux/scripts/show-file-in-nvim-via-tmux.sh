@@ -57,10 +57,12 @@ esac
 mode="$1"
 file="${2:-}"
 line="${3:-}"
+col="${4:-}"
 
 [[ -n "$file" ]] || die "Missing <file>."
 [[ -n "$line" ]] || die "Missing <line>."
 [[ "$line" =~ ^[0-9]+$ ]] || die "Line must be a positive integer; got '$line'."
+[[ -z "$col" || "$col" =~ ^[0-9]+$ ]] || die "Column must be a positive integer; got '$col'."
 
 case "$mode" in
   vertical|horizontal|window)
@@ -82,7 +84,12 @@ if [[ -z "${TMUX:-}" ]]; then
   exit 2
 fi
 
-nvim_cmd="nvim +$line $file"
+if [[ -n "$col" ]]; then
+  nvim_pre="+call cursor($line, $col)"
+else
+  nvim_pre="+$line"
+fi
+nvim_cmd="nvim $(printf '%q' "$nvim_pre") $(printf '%q' "$file")"
 tmux_argv=()
 
 case "$mode" in
@@ -111,7 +118,8 @@ esac
 
 if [[ "${TMUX_DRY_RUN:-}" == "1" ]]; then
   echo "${tmux_argv[*]}"
-  exit 0
+else
+  "${tmux_argv[@]}"
 fi
 
-"${tmux_argv[@]}"
+echo "Pane opened. Wait for the user's next message before any further action. If they signal they edited the file, re-read it and diff-summarize the changes."

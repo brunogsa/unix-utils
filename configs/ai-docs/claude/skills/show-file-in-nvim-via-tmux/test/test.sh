@@ -10,7 +10,12 @@ FAILED=0
 
 FIXTURE=$(mktemp)
 echo "test fixture" > "$FIXTURE"
-trap 'rm -f "$FIXTURE"' EXIT
+
+SPACES_DIR=$(mktemp -d)
+SPACES_FIXTURE="$SPACES_DIR/has space.md"
+echo "spaces fixture" > "$SPACES_FIXTURE"
+
+trap 'rm -f "$FIXTURE"; rm -rf "$SPACES_DIR"' EXIT
 
 # run "name" "command" expected_exit "regex pattern in combined output"
 run() {
@@ -104,6 +109,21 @@ run "pane:N without nvim respawns pane with fresh nvim" \
     "TMUX=fake TMUX_DRY_RUN=1 TMUX_DETECT_OVERRIDE=bash $SCRIPT pane:2 $FIXTURE 42" \
     0 \
     "tmux respawn-pane -k -t 2.*nvim \+42"
+
+run "escapes spaces in file paths via printf %q in the dispatched command" \
+    "TMUX=fake TMUX_DRY_RUN=1 $SCRIPT vertical '$SPACES_FIXTURE' 5" \
+    0 \
+    "has\\\\ space\\.md"
+
+run "accepts an optional column arg after line" \
+    "TMUX=fake TMUX_DRY_RUN=1 $SCRIPT vertical $FIXTURE 42 5" \
+    0 \
+    "call.*cursor.*42.*5"
+
+run "emits the post-run wait-for-user instruction to stdout on success" \
+    "TMUX=fake TMUX_DRY_RUN=1 $SCRIPT vertical $FIXTURE 5" \
+    0 \
+    "wait for the user|next message"
 
 echo ""
 echo "Passed: $PASSED, Failed: $FAILED"
