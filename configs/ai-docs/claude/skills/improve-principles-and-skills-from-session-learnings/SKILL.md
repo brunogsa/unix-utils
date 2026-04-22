@@ -19,7 +19,7 @@ Learnings go to whichever file they belong in. Principles go to CLAUDE.md; detai
 Subagents cannot see the parent conversation history. Use a hybrid approach:
 
 1. **Main context** performs step 1 (extract session moments) -- lightweight, stays in the main context.
-2. **Subagent** receives those moments and performs steps 2-8 (analysis, file reads, cross-checking, presenting findings, user approval, edits, verification) -- heavy, offloaded.
+2. **Subagent** receives those moments and performs steps 2-9 (analysis, file reads, cross-checking, presenting findings, user approval, edits, post-edit verification via dedicated audit skills) -- heavy, offloaded so the audit cost (especially LLM cross-file reading in the consistency check) does not pollute the main context.
 
 Spawn the subagent with `subagent_type: "general-purpose"` and `description: "Analyze session for guideline learnings"` (foreground). The subagent prompt must include **Scope**, the extracted session moments, and everything from **Subagent Process** through **Guidelines for Generalization** below.
 
@@ -53,7 +53,7 @@ Rules for each sub-bullet:
 
 This list is passed verbatim into the subagent prompt as a `## Session Moments` section. Richer input — especially verbatim quotes — gives the subagent raw signal it can't otherwise access (it can't see the parent conversation). Paraphrases smooth over nuance; verbatim preserves it.
 
-## Subagent Process (steps 2-8)
+## Subagent Process (steps 2-9)
 
 2. **Extract candidate learnings** - For each session moment, ask:
    - Is this a recurring pattern or a one-off situation?
@@ -84,13 +84,9 @@ This list is passed verbatim into the subagent prompt as a `## Session Moments` 
 
 7. **Apply changes only with approval** - Wait for user confirmation before modifying any file.
 
-8. **Verify after editing** - After making changes:
-   - Read the edited file
-   - Check for **consistency**: no duplicate or contradictory guidelines, new items in correct section
-   - Check for **proper structure**: imperative sentence format, examples where helpful, proper markdown
-   - Check for **conciseness**: no verbose explanations, no redundant phrases, minimal but illustrative examples
-   - Update **TL;DR sections** if adding important guidelines to CLAUDE.md
-   - Report and fix any issues found
+8. **Verify consistency** - Delegate to the `consistency-check-principles-and-skills` skill. It audits CLAUDE.md + skills for contradictions, merge/generalization opportunities, duplication, and structural compliance with skill-creator conventions. Embed its report verbatim under *Post-Edit Verification* in the Output Format. Surface findings for user triage; do not auto-fix.
+
+9. **Verify budgets** - Delegate to the `performance-check-principles-and-skills` skill as the final step. It measures CLAUDE.md + skills against research-backed budgets (line/word counts, conciseness, skill count). Embed its report verbatim alongside the consistency report. Surface findings for user triage; do not auto-fix.
 
 ## Output Format
 
@@ -119,10 +115,13 @@ Number each proposal so the user can approve/reject by number (e.g., "Apply 1 an
 
 ## Post-Edit Verification
 
-- Consistency: [OK / Issues found: ...]
-- Structure: [OK / Issues found: ...]
-- Conciseness: [OK / Issues found: ...]
-- TL;DR updated: [Yes / No / Not needed]
+Embed both audit reports verbatim:
+
+### Consistency check
+[Output from `consistency-check-principles-and-skills`]
+
+### Performance check
+[Output from `performance-check-principles-and-skills`]
 ```
 
 ## Guidelines for Generalization
@@ -131,7 +130,3 @@ Number each proposal so the user can approve/reject by number (e.g., "Apply 1 an
 - Describe *what* to do and *why*, not language-specific *how*
 - Keep guidelines concise (1-2 sentences max)
 - Principles go to CLAUDE.md; examples and domain knowledge go to skills
-
-## 9. Verify Budgets
-
-Delegate to the `performance-check-principles-and-skills` skill — invoke it as the final step. It measures CLAUDE.md + skills against research-backed budgets and reports any overages. Surface the report to the user for triage; do not auto-fix.
