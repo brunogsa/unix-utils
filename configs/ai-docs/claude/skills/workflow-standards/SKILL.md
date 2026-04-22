@@ -30,9 +30,7 @@ describe("normalizeProductPrice", () => {
 // caller first demands them, so the caller shapes the helper's API.
 ```
 
-Review titles with user → start RED-GREEN. Each commit bundles a test
-with its implementation (and any helper tests/impl pulled along the
-way) — never commit titles alone.
+Review titles with user, then start RED-GREEN.
 
 ## RED → GREEN, Most Forcing Case First
 
@@ -47,6 +45,3 @@ way) — never commit titles alone.
 6. Repeat for the next case, building on what exists
 7. Backfill remaining integration test bodies once core logic is solid
 ```
-
-Start from the controller layer and work downward. Don't write a helper
-until its caller demands it — the caller shapes the helper's API.
