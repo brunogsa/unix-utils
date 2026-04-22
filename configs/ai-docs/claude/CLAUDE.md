@@ -69,7 +69,9 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Small batches over big bangs** -- more iterations with small reviewable chunks is better than generating too much code at once. Late course-corrections are expensive; frequent checkpoints are cheap.
 
-- **Commits require explicit permission** -- CRITICAL: never commit without approval. Conventional Commits (`type(scope): subject`), imperative, max 72-char subject. Bullet changelog body. Match `aigitcommit` style.
+- **Commits require explicit permission** -- CRITICAL: never commit without approval.
+  - The per-commit Bash approval UI counts as the prompt — see "Propose commits at task boundaries" below for when to issue the `git commit` call directly.
+  - Format: Conventional Commits (`type(scope): subject`), imperative, max 72-char subject. Bullet changelog body. Match `aigitcommit` style.
 
 - **Commit body fits one screen (~25 lines)** -- explain why, not what; the diff already records what changed.
 
