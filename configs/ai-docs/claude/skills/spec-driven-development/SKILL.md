@@ -1,5 +1,5 @@
 ---
-description: "Spec-driven development methodology: spec.md (requirements/why) and plan.md (tasks/how) as living docs, marker conventions (**QUESTION:** for gaps, **DECISION:** for trade-offs), and the spec→plan→tasks lifecycle. Templates live in assets/. USE PROACTIVELY when planning a non-trivial feature, writing up requirements, breaking work into committable tasks, or starting significant multi-step work — the skill provides both templates and the methodology for keeping spec and plan live as work progresses."
+description: "Spec-driven development methodology: spec.md (requirements/why) and plan.md (tasks/how) as living docs, marker conventions (**QUESTION:** for gaps, **DECISION:** for trade-offs), and the spec→plan→tasks lifecycle. Templates live in assets/. USE PROACTIVELY when planning a non-trivial feature, breaking work into committable tasks, or managing the spec/plan lifecycle as work progresses. For interactive idea-refinement (Socratic Q&A), use `brainstorm` instead — it loads this skill for templates."
 user-invocable: false
 ---
 

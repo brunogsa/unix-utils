@@ -1,5 +1,5 @@
 ---
-description: "Brainstorm and refine ideas into a structured spec.md. Use when user says 'brainstorm', 'let's brainstorm', 'brainstorm with me', or is exploring a feature, problem, or design before implementation."
+description: "Interactively refine an idea into a structured spec.md through a Socratic interview. Use when user says 'brainstorm', 'let's brainstorm', 'brainstorm with me', or wants to explore a feature/problem/design through Q&A before implementation. Owns the interview surface; loads spec-driven-development for templates and lifecycle."
 disable-model-invocation: false
 ---
 
