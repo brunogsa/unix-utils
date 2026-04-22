@@ -54,7 +54,6 @@ esac
 mode="$1"
 file="${2:-}"
 line="${3:-}"
-col="${4:-}"
 
 [[ -n "$file" ]] || die "Missing <file>."
 [[ -n "$line" ]] || die "Missing <line>."
@@ -80,16 +79,27 @@ if [[ -z "${TMUX:-}" ]]; then
   exit 2
 fi
 
-if [[ "${TMUX_DRY_RUN:-}" == "1" ]]; then
-  echo "DRY RUN: mode=$mode file=$file line=$line col=$col"
-  exit 0
-fi
+nvim_cmd="nvim +$line $file"
+tmux_argv=()
 
 case "$mode" in
-  vertical|horizontal|window)
-    die "Mode '$mode' not yet implemented (plan task 2)."
+  vertical)
+    tmux_argv=(tmux split-window -h -c "$PWD" "$nvim_cmd")
+    ;;
+  horizontal)
+    tmux_argv=(tmux split-window -v -c "$PWD" "$nvim_cmd")
+    ;;
+  window)
+    tmux_argv=(tmux new-window -c "$PWD" "$nvim_cmd")
     ;;
   pane:*)
     die "Mode 'pane:<N>' not yet implemented (plan task 3)."
     ;;
 esac
+
+if [[ "${TMUX_DRY_RUN:-}" == "1" ]]; then
+  echo "${tmux_argv[*]}"
+  exit 0
+fi
+
+"${tmux_argv[@]}"

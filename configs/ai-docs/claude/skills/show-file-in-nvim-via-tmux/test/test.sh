@@ -80,6 +80,21 @@ run "exits non-zero and prints fallback nvim command on stdout when TMUX unset" 
     2 \
     "nvim \+5"
 
+run "vertical mode dispatches tmux split-window -h with nvim +<line> <file>" \
+    "TMUX=fake TMUX_DRY_RUN=1 $SCRIPT vertical $FIXTURE 42" \
+    0 \
+    "tmux split-window -h.*nvim \+42"
+
+run "horizontal mode dispatches tmux split-window -v with nvim +<line> <file>" \
+    "TMUX=fake TMUX_DRY_RUN=1 $SCRIPT horizontal $FIXTURE 42" \
+    0 \
+    "tmux split-window -v.*nvim \+42"
+
+run "window mode dispatches tmux new-window with nvim +<line> <file>" \
+    "TMUX=fake TMUX_DRY_RUN=1 $SCRIPT window $FIXTURE 42" \
+    0 \
+    "tmux new-window.*nvim \+42"
+
 echo ""
 echo "Passed: $PASSED, Failed: $FAILED"
 [[ "$FAILED" -eq 0 ]]
