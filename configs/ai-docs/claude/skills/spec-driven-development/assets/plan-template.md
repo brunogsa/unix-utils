@@ -32,18 +32,26 @@ If this change is a pure refactor, config edit, or similar no-behavior-change wo
 
 ## Tasks
 
+Each task produces **1-2 commits, never zero**. Sub-commit steps (RED/GREEN/REFACTOR cycles) live inside a task, not as sibling tasks. Scout findings, refactors, and scope increases become new peer tasks with their own commits.
+
+**Sub-step breadcrumb** — optional parenthetical at the end of the task title, semicolon-separated, to hint at the beats inside: `### N. Task title (sub-step; sub-step; sub-step)`. Keep to ~4 items; if it grows longer, the task is probably two tasks in disguise.
+
 ### 0. Symlink plan to project directory
 **What**: Create a symlink from this plan file to `./plan.md` in the current working directory. If spec.md exists in cwd, it was already used as input.
 **Verify**: `readlink ./plan.md` points to this plan file.
+**Commits**: none (scaffolding step).
 
-### 1. [Task title]
+### 1. [Task title] (optional: sub-step; sub-step; sub-step)
 **Description**: What needs to be done.
 **Files**: `path/to/file1.ts`, `path/to/file2.ts`
 **Acceptance criteria**: What "done" looks like for this task.
 **Verify**: Command or test that proves it works.
+**Commits**:
+  1. `~/repo` — `type(scope): subject`
+  2. `~/repo` — `type(scope): subject` *(only when the task naturally produces two — e.g., "introduce helper" + "replace callers" — otherwise delete this line)*
 
 ### 2. [Task title]
 ...
 
 ## Decisions
-- [DECISION: ... because ...]
+- **DECISION:** ..., because ...

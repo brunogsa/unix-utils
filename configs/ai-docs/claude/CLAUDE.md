@@ -77,7 +77,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
   - Never split a single change into commits that break the codebase.
   - A migration (move + update refs + delete) is one concern.
 
-- **Propose commits at task boundaries** -- after finishing a coherent, working change, issue the `git commit` Bash call directly. The approval UI is the prompt; deny or say so to defer.
+- **Propose commits at task boundaries** -- each task produces 1-2 commits, never zero. After finishing a coherent, working change, issue the `git commit` Bash call directly. Sub-commit steps (RED/GREEN/REFACTOR) live inside a task, not as sibling tasks. The approval UI is the prompt; deny or say so to defer.
 
 - **Notify requests** -- load `notify-user` skill BEFORE the command.
 
@@ -104,7 +104,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Spec-driven for non-trivial work** -- use spec.md (what/why) and plan.md (how/tasks) as living documents. Not committed.
 
-- **Surface ambiguity with markers** -- `[NEEDS CLARIFICATION: ...]` for gaps, `[DECISION: ... because ...]` for trade-offs. Remove when resolved.
+- **Surface ambiguity with markers** -- `**QUESTION:** ...` for gaps, `**DECISION:** ..., because ...` for trade-offs. Remove when resolved.
 
 - **Plan tasks become TODO items with acceptance criteria** -- every task in plan.md and TaskCreate includes acceptance criteria and a verify method.
 
@@ -212,7 +212,7 @@ Concrete examples live in the `workflow-standards` skill (loaded on-demand when 
 
 - **Fail loudly, not silently** -- errors propagate or get logged explicitly. A crash you see beats a silent corruption you don't.
 
-- **Surface linter gaps** -- when fixing something a linter should catch, flag as `[LINTER GAP]` so the config can be improved.
+- **Surface linter gaps** -- when fixing something a linter should catch, flag as `**LINTER GAP:** ...` so the config can be improved.
 
 Concrete examples live in the `code-standards` skill (loaded on-demand when writing or reviewing code).
 

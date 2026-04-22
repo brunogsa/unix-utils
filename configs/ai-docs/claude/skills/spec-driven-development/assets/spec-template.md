@@ -22,7 +22,7 @@ What we want to achieve (outcomes, not implementation).
 2. [Testable criterion]
 
 ## Open Questions
-- [NEEDS CLARIFICATION: ...]
+- **QUESTION:** ...
 
 ## Decisions
-- [DECISION: ... because ...]
+- **DECISION:** ..., because ...
