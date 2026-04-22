@@ -124,13 +124,12 @@ Configs are symlinked from repos to system locations. Always edit the source rep
   - Commit tests together with their implementation — never titles alone.
   - For scripts: usage syntax + examples in the comment header.
 
-- **Verify before completing** -- run the task's verify step. Propose a verification approach if none exists. Run scripts/automation to confirm.
+- **Verify what you produce** -- evidence over optimism.
+  - Before completing: run the task's verify step (or propose one). Run scripts/automation to confirm.
+  - When contradicted: if two sources disagree, re-read the actual code before assuming one is wrong. Stale results, shifted line numbers, or misread context waste hours.
 
 - **Save slow command output, filter later** -- any command taking 8+ seconds: redirect full output to `/tmp/`, then filter from the file.
   - Never pipe a slow command through `grep`/`head` directly — if the filter is wrong you'd re-run the whole thing.
-
-- **Re-verify evidence when things don't add up** -- if two sources contradict, re-read the actual code before assuming one is wrong.
-  - Why: stale results, shifted line numbers, or misread context waste hours.
 
 - **Scout rule** -- when you notice pre-existing issues (stale comments, budget overruns, lint gaps), flag them to the user.
   - Only fix if approved; use isolated commits separate from feature work.
