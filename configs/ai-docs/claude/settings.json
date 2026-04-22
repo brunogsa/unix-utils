@@ -1,5 +1,8 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(/home/brunogsa/.claude/skills/show-file-in-nvim-via-tmux/scripts/show-file-in-nvim-via-tmux.sh *)"
+    ],
     "deny": [
       "Bash(read:~/.ssh/**)",
       "Bash(read:~/.gnupg/**)",
