@@ -22,7 +22,6 @@ Layout you can count on:
 │   ├── false-positive-validator.md (Wave 4 prompt)
 │   ├── line-range-validator.md     (Wave 5 prompt)
 │   └── local-review-template.md    (Wave 7 local output template)
-├── tests/                          (script regression tests)
 └── evals/evals.json                (skill-level eval scaffolding)
 ```
 
@@ -66,7 +65,7 @@ Purpose: assemble everything every specialist will need on disk, so specialists 
 
 **Work dir**:
 - github: `/tmp/pr-review-<n>/`; create fresh (`rm -rf && mkdir -p`).
-- local: `$(mktemp -d "${TMPDIR:-/tmp}/auto-review.XXXXXX")` for scratch; the skill writes output to `./auto-review.md` in CWD.
+- local: `$(mktemp -d /tmp/auto-review.XXXXXX)` for scratch; the skill writes output to `./auto-review.md` in CWD.
 
 **Specialists receive the context listed in `references/common-preamble.md#Context you have`** — ensure Wave 1 produces all of it on disk. Commit messages are fetched in both modes; only `{pr_context}` differs:
 
@@ -113,7 +112,7 @@ Teardown: work dir stays in `/tmp` for macOS's periodic cleanup. On failure, pri
 Repo root for specialists is the user's CWD; the work dir is scratch for diff/context files.
 
 ```bash
-work_dir=$(mktemp -d "${TMPDIR:-/tmp}/auto-review.XXXXXX")
+work_dir=$(mktemp -d /tmp/auto-review.XXXXXX)
 git fetch origin "$base_branch"
 git diff "origin/$base_branch...HEAD"             > "$work_dir/diff"
 git diff "origin/$base_branch...HEAD" --name-only > "$work_dir/changed-files.txt"

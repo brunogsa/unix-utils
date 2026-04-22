@@ -5,7 +5,9 @@ disable-model-invocation: true
 
 # Code Review
 
-Orchestrate a GitHub PR review by delegating to `reviewer-agent`. The subagent has no prior conversation context — it gathers PR metadata, diff, files, existing comments, and Jira snippet itself, then posts a PENDING review to GitHub. You review it in the UI and submit on your own terms.
+Orchestrate a GitHub PR review by running `reviewer-agent` directly in the current session. The pipeline gathers PR metadata, diff, files, and optional Jira snippet, then posts a PENDING review to GitHub. You review it in the UI and submit on your own terms.
+
+For an unbiased review, start a **fresh Claude Code session** before invoking this command — the current session's conversation would otherwise color the review.
 
 ## Usage
 
@@ -17,29 +19,17 @@ Examples:
 
 ## Execution
 
-Before launching the agent, run `/effort max` to ensure maximum thinking depth for the wave pipeline.
+For maximum thinking depth on the wave pipeline, the user may run `/effort max` before invoking this command.
 
-Launch a **single foreground Agent** (subagent_type: `general-purpose`, model: `opus`) with the prompt below. Replace `<PR_URL>` and optionally `<JIRA_URL>`.
+In the **current session** (no subagent wrapper):
 
-### Agent prompt (without Jira)
+1. Read `~/.claude/skills/reviewer-agent/SKILL.md` and follow it as the orchestrator.
+2. Use these inputs:
+   - **Mode:** `github`
+   - **PR URL:** `<PR_URL>` (from the command argument)
+   - **Jira URL:** `<JIRA_URL>` (only if `--jira` was passed)
+   - **Language:** Portuguese (Brazil)
 
-```
-Read `~/.claude/skills/reviewer-agent/SKILL.md` for your full instructions.
+The base branch is read from the PR's `baseRefName` inside reviewer-agent's Wave 1 — no need to resolve it here. Reviewer-agent's pipeline spawns its own specialists/validators as parallel subagents per its design. The main session is the orchestrator.
 
-Mode: **github** (`/code-review`)
-PR URL: `<PR_URL>`
-Language: **Portuguese (Brazil)**
-```
-
-### Agent prompt (with --jira)
-
-```
-Read `~/.claude/skills/reviewer-agent/SKILL.md` for your full instructions.
-
-Mode: **github** (`/code-review`)
-PR URL: `<PR_URL>`
-Jira URL: `<JIRA_URL>`
-Language: **Portuguese (Brazil)**
-```
-
-After the subagent completes, the review is PENDING on GitHub — open `<pr-url>/files` to filter, edit, delete, or submit. The skill prints the review URL, per-severity counts, skipped files, and token totals.
+After the pipeline completes, the review is PENDING on GitHub — open `<pr-url>/files` to filter, edit, delete, or submit. Print the review URL, per-severity counts, skipped files, and the Wave 8 summary.
