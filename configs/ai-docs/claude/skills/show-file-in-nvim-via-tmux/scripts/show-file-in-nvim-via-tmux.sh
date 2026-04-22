@@ -28,6 +28,9 @@
 # Env:
 #   TMUX_DRY_RUN=1            print the dispatched tmux command instead of
 #                             executing it (used by tests).
+#   TMUX_DETECT_OVERRIDE=...  with TMUX_DRY_RUN=1, mocks the value of
+#                             `tmux display-message -p '#{pane_current_command}'`
+#                             for pane:N detection (used by tests).
 
 set -euo pipefail
 
@@ -93,7 +96,16 @@ case "$mode" in
     tmux_argv=(tmux new-window -c "$PWD" "$nvim_cmd")
     ;;
   pane:*)
-    die "Mode 'pane:<N>' not yet implemented (plan task 3)."
+    if [[ "${TMUX_DRY_RUN:-}" == "1" ]]; then
+      pane_cmd="${TMUX_DETECT_OVERRIDE:-bash}"
+    else
+      pane_cmd=$(tmux display-message -p -t "$pane_n" '#{pane_current_command}')
+    fi
+    if [[ "$pane_cmd" == nvim* ]]; then
+      tmux_argv=(tmux send-keys -t "$pane_n" Escape ":edit +$line $file" Enter)
+    else
+      tmux_argv=(tmux respawn-pane -k -t "$pane_n" "$nvim_cmd")
+    fi
     ;;
 esac
 

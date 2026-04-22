@@ -95,6 +95,16 @@ run "window mode dispatches tmux new-window with nvim +<line> <file>" \
     0 \
     "tmux new-window.*nvim \+42"
 
+run "pane:N with nvim sends :edit via send-keys (preserves jump list)" \
+    "TMUX=fake TMUX_DRY_RUN=1 TMUX_DETECT_OVERRIDE=nvim $SCRIPT pane:2 $FIXTURE 42" \
+    0 \
+    "tmux send-keys -t 2.*:edit \+42"
+
+run "pane:N without nvim respawns pane with fresh nvim" \
+    "TMUX=fake TMUX_DRY_RUN=1 TMUX_DETECT_OVERRIDE=bash $SCRIPT pane:2 $FIXTURE 42" \
+    0 \
+    "tmux respawn-pane -k -t 2.*nvim \+42"
+
 echo ""
 echo "Passed: $PASSED, Failed: $FAILED"
 [[ "$FAILED" -eq 0 ]]
