@@ -1,5 +1,4 @@
 ---
-name: beautiful-presentations
 description: This skill should be used when creating Apple-inspired minimalist business presentations with clean design, elegant typography, and strategic use of white space. Ideal for pitch decks, executive presentations, product launches, and any business presentation requiring a modern, professional aesthetic.
 ---
 

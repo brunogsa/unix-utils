@@ -1,5 +1,8 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(/home/brunogsa/.claude/skills/show-file-in-nvim-via-tmux/scripts/show-file-in-nvim-via-tmux.sh *)"
+    ],
     "deny": [
       "Bash(read:~/.ssh/**)",
       "Bash(read:~/.gnupg/**)",
@@ -26,53 +29,22 @@
         ]
       }
     ],
-    "SessionStart": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/Users/brunoagostini/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
     "Notification": [
       {
-        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/brunoagostini/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
-            "async": true
+            "command": "bash ~/.claude/hooks/claude-tmux-notification.sh notification"
           }
         ]
       }
     ],
-    "PermissionRequest": [
+    "Stop": [
       {
-        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/brunoagostini/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
-            "async": true
-          }
-        ]
-      }
-    ],
-    "PostToolUseFailure": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/Users/brunoagostini/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
-            "async": true
+            "command": "bash ~/.claude/hooks/claude-tmux-notification.sh done"
           }
         ]
       }
@@ -97,7 +69,23 @@
     "skill-creator@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true
   },
+  "extraKnownMarketplaces": {
+    "claude-code-lsps": {
+      "source": {
+        "source": "github",
+        "repo": "boostvolt/claude-code-lsps"
+      }
+    },
+    "claude-hud": {
+      "source": {
+        "source": "github",
+        "repo": "jarrodwatts/claude-hud"
+      }
+    }
+  },
   "alwaysThinkingEnabled": true,
+  "promptSuggestionEnabled": true,
+  "tui": "default",
   "skipDangerousModePermissionPrompt": true,
   "verbose": true,
   "skipAutoPermissionPrompt": true

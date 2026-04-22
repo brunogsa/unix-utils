@@ -1,5 +1,5 @@
 ---
-description: "Spec-driven development workflow using spec.md (what/why) and plan.md (how/tasks) as living documents for features and significant changes"
+description: "Spec-driven development methodology: spec.md (requirements/why) and plan.md (tasks/how) as living docs, marker conventions (**QUESTION:** for gaps, **DECISION:** for trade-offs), and the spec→plan→tasks lifecycle. Templates live in assets/. USE PROACTIVELY when planning a non-trivial feature, breaking work into committable tasks, or managing the spec/plan lifecycle as work progresses. For interactive idea-refinement (Socratic Q&A), use `brainstorm` instead — it loads this skill for templates."
 user-invocable: false
 ---
 
@@ -9,83 +9,41 @@ Lightweight workflow using two living documents in the project root to guide dev
 
 ## Documents
 
+Two living documents in the project root. Templates live in `assets/` and are populated (not copied verbatim) based on the user's input.
+
 ### spec.md (what / why)
 
 Captures requirements, context, and acceptance criteria. Owned by the user, refined collaboratively.
 
-```markdown
-# Spec: [Title]
-
-## Background
-Why this change is needed. Business context, pain point, or opportunity.
-
-## Goals
-What we want to achieve (outcomes, not implementation).
-
-## User Stories
-- As a [role], I want [capability] so that [benefit].
-
-## Functional Requirements
-1. System MUST ...
-2. System MUST ...
-
-## Non-Functional Requirements
-1. Performance: ...
-2. Security: ...
-
-## Acceptance Criteria
-1. [Testable criterion]
-2. [Testable criterion]
-
-## Open Questions
-- [NEEDS CLARIFICATION: ...]
-
-## Decisions
-- [DECISION: ... because ...]
-```
+Populate `assets/spec-template.md` — sections: Background, Goals, User Stories, Functional Requirements, Non-Functional Requirements, Acceptance Criteria, Open Questions (`**QUESTION:**` markers), Decisions (`**DECISION:** ..., because ...` markers).
 
 ### plan.md (how / tasks)
 
 Technical approach and task breakdown. Generated from spec.md (or directly from prompt).
 
-```markdown
-# Plan: [Title]
-
-Spec: [link or reference to spec.md]
-
-## Approach
-High-level technical approach. Architecture decisions. Trade-offs considered.
-
-## Tasks
-
-### 0. Symlink plan to project directory
-**What**: Create a symlink from this plan file to `./plan.md` in the current working directory. If spec.md exists in cwd, it was already used as input.
-**Verify**: `readlink ./plan.md` points to this plan file.
-
-### 1. [Task title]
-**Description**: What needs to be done.
-**Files**: `path/to/file1.ts`, `path/to/file2.ts`
-**Acceptance criteria**: What "done" looks like for this task.
-**Verify**: Command or test that proves it works.
-
-### 2. [Task title]
-...
-
-## Decisions
-- [DECISION: ... because ...]
-```
+Populate `assets/plan-template.md` — sections: Approach; Test Design; Tasks (each with Description, Files, Acceptance criteria, Verify, **Commits**); Decisions. Each task names the 1-2 commits it will produce (repo + `type(scope): subject`) as a local subsection — no separate global commit index. Task 0 is always a symlink step so `./plan.md` resolves to the canonical plan file.
 
 ## Marker Conventions
 
-### `[NEEDS CLARIFICATION: <specific question>]`
+Bold-label prefix + colon. No brackets — they trip markdown link-parsing in some editors.
+
+Separate adjacent markers with a blank line when listed in dedicated sections (Decisions, Open Questions) — readability.
+
+### `**QUESTION:** <specific question>`
 
 Surfaces ambiguity explicitly. Used in spec.md and plan.md.
 When resolved, remove the marker entirely.
 
-### `[DECISION: <what was decided> because <reasoning>]`
+### `**DECISION:** <what was decided>, because <reasoning>`
 
 Captures trade-off decisions as they happen. Feeds into PR descriptions.
 When a decision changes, update the existing marker in place.
+
+### `**LINTER GAP:** <what the linter should have caught>`
+
+Surfaces lint coverage gaps so the config can be improved.
+
+Grep all markers: `\*\*(DECISION|QUESTION|LINTER GAP):\*\*`
 
 ## Lifecycle
 
@@ -99,8 +57,8 @@ When a decision changes, update the existing marker in place.
 ## Guidelines
 
 - **spec.md is optional** -- plan.md can be created directly from a prompt for smaller work
-- **Include diagrams** -- use Mermaid blocks (source + rendered ASCII) when architecture, data flow, or state would clarify the spec or plan. See `mermaid-ascii-diagrams` skill.
-- **Tasks are baby steps** -- each task in plan.md should be the smallest testable, committable change
+- **Separate long list items with blank lines** -- if an item wraps to two or more visual lines, put a blank line between it and its neighbours. Short single-line items stay compact. Applies across the whole file (Goals, User Stories, Requirements, Acceptance Criteria, Decisions, Questions).
+- **Tasks are commit-sized, never smaller** -- each task produces 1-2 commits. Sub-commit steps (RED/GREEN/REFACTOR) live inside a task, not as sibling tasks. Optionally summarize them as a semicolon-separated breadcrumb in the task title: `### N. Title (tests; impl; refactor)`. Refactors, scout findings, and scope changes become new peer tasks with their own commits. Why: smaller than a commit = noise on the task list and duplicates what `git log` already records.
 - **Acceptance criteria are testable** -- every task has a concrete verify method (command, test, or manual check)
 - **Update docs at each task boundary** -- stale spec/plan degrades PR description quality. Specific triggers:
   - **After completing a task**: mark it done in plan.md, note any deviations from the original plan

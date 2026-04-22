@@ -1,5 +1,5 @@
 ---
-description: "Code standards with examples for layered architecture, enums, naming, loops, logging, formatting, and clean code patterns"
+description: "Code examples and anti-patterns covering a broad range of topics; headliners include layered architecture (controller vs use-case), enum discipline, named parameters, naming by purpose not mechanism, boolean discipline, builders vs use cases, structured logging, and script headers — this list is illustrative, not exhaustive. USE PROACTIVELY when writing, refactoring, or reviewing any code — the skill often has relevant guidance beyond what the headliners above suggest."
 user-invocable: false
 ---
 

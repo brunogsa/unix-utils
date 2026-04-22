@@ -33,7 +33,7 @@
 #     transition-jira-issue          - Transition an issue to a new status
 
 # Source core library (jira-validate-env, jira-api-request, jira-check-error)
-source "$HOME/.claude/skills/jira-tools/scripts/jira.sh"
+source "$HOME/.claude/skills/jira-cli/scripts/jira.sh"
 
 # ==============================================================================
 # QUERY
@@ -69,9 +69,7 @@ function query-jira() {
     }')
 
   local response
-  response=$(jira-api-request POST "/rest/api/3/search/jql" "$body")
-
-  if [[ $? -ne 0 ]]; then
+  if ! response=$(jira-api-request POST "/rest/api/3/search/jql" "$body"); then
     return 1
   fi
 
@@ -97,9 +95,7 @@ function get-jira-issue() {
 
   local endpoint="/rest/api/3/issue/${issue_key}?fields=${fields}"
   local response
-  response=$(jira-api-request GET "$endpoint")
-
-  if [[ $? -ne 0 ]]; then
+  if ! response=$(jira-api-request GET "$endpoint"); then
     return 1
   fi
 
@@ -140,9 +136,7 @@ function create-jira-issue() {
   body=$(jq -n --argjson fields "$fields_json" '{fields: $fields}')
 
   local response
-  response=$(jira-api-request POST "/rest/api/3/issue" "$body")
-
-  if [[ $? -ne 0 ]]; then
+  if ! response=$(jira-api-request POST "/rest/api/3/issue" "$body"); then
     return 1
   fi
 
@@ -167,9 +161,7 @@ function update-jira-issue() {
   body=$(jq -n --argjson fields "$fields_json" '{fields: $fields}')
 
   local response
-  response=$(jira-api-request PUT "/rest/api/3/issue/${issue_key}" "$body")
-
-  if [[ $? -ne 0 ]]; then
+  if ! response=$(jira-api-request PUT "/rest/api/3/issue/${issue_key}" "$body"); then
     return 1
   fi
 
@@ -200,7 +192,7 @@ function upsert-jira-issue() {
 
   # Search for existing issue with exact summary match
   local escaped_summary
-  escaped_summary=$(echo "$summary" | sed 's/"/\\"/g')
+  escaped_summary="${summary//\"/\\\"}"
   local jql="project = ${project} AND summary ~ \"\\\"${escaped_summary}\\\"\" AND issuetype = \"${issue_type}\""
 
   local search_body
@@ -209,9 +201,7 @@ function upsert-jira-issue() {
     '{jql: $jql, maxResults: 1, fields: ["key", "summary"]}')
 
   local search_response
-  search_response=$(jira-api-request POST "/rest/api/3/search/jql" "$search_body")
-
-  if [[ $? -ne 0 ]]; then
+  if ! search_response=$(jira-api-request POST "/rest/api/3/search/jql" "$search_body"); then
     return 1
   fi
 
@@ -227,9 +217,7 @@ function upsert-jira-issue() {
     # Issue doesn't exist, create it
     echo "No existing issue found, creating new..." >&2
     local create_response
-    create_response=$(create-jira-issue "$project" "$issue_type" "$summary" "$extra_fields")
-
-    if [[ $? -ne 0 ]]; then
+    if ! create_response=$(create-jira-issue "$project" "$issue_type" "$summary" "$extra_fields"); then
       return 1
     fi
 
@@ -260,9 +248,7 @@ function delete-jira-issue() {
   fi
 
   local response
-  response=$(jira-api-request DELETE "$endpoint")
-
-  if [[ $? -ne 0 ]]; then
+  if ! response=$(jira-api-request DELETE "$endpoint"); then
     return 1
   fi
 
@@ -294,9 +280,7 @@ function get-jira-links() {
   fi
 
   local response
-  response=$(jira-api-request GET "/rest/api/3/issue/${issue_key}?fields=issuelinks")
-
-  if [[ $? -ne 0 ]]; then
+  if ! response=$(jira-api-request GET "/rest/api/3/issue/${issue_key}?fields=issuelinks"); then
     return 1
   fi
 
@@ -368,9 +352,7 @@ function link-jira-issues() {
     }')
 
   local response
-  response=$(jira-api-request POST "/rest/api/3/issueLink" "$body")
-
-  if [[ $? -ne 0 ]]; then
+  if ! response=$(jira-api-request POST "/rest/api/3/issueLink" "$body"); then
     return 1
   fi
 
@@ -398,9 +380,7 @@ function delete-jira-link() {
   fi
 
   local response
-  response=$(jira-api-request DELETE "/rest/api/3/issueLink/${link_id}")
-
-  if [[ $? -ne 0 ]]; then
+  if ! response=$(jira-api-request DELETE "/rest/api/3/issueLink/${link_id}"); then
     return 1
   fi
 
@@ -461,9 +441,7 @@ function get-jira-transitions() {
   fi
 
   local response
-  response=$(jira-api-request GET "/rest/api/3/issue/${issue_key}/transitions")
-
-  if [[ $? -ne 0 ]]; then
+  if ! response=$(jira-api-request GET "/rest/api/3/issue/${issue_key}/transitions"); then
     return 1
   fi
 
@@ -492,9 +470,7 @@ function transition-jira-issue() {
   body=$(jq -n --arg id "$transition_id" '{transition: {id: $id}}')
 
   local response
-  response=$(jira-api-request POST "/rest/api/3/issue/${issue_key}/transitions" "$body")
-
-  if [[ $? -ne 0 ]]; then
+  if ! response=$(jira-api-request POST "/rest/api/3/issue/${issue_key}/transitions" "$body"); then
     return 1
   fi
 

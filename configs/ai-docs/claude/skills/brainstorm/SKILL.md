@@ -1,11 +1,15 @@
 ---
-description: "Brainstorm and refine ideas into a structured spec.md. Use when user says 'brainstorm', 'let's brainstorm', 'brainstorm with me', or is exploring a feature, problem, or design before implementation."
+description: "Interactively refine an idea into a structured spec.md through a Socratic interview. Use when user says 'brainstorm', 'let's brainstorm', 'brainstorm with me', or wants to explore a feature/problem/design through Q&A before implementation. Owns the interview surface; loads spec-driven-development for templates and lifecycle."
 disable-model-invocation: false
 ---
 
 # Brainstorm
 
 Help the user explore and refine an idea into a structured spec.md.
+
+Spec template and marker conventions live in the companion skill — load it alongside this one:
+
+@~/.claude/skills/spec-driven-development/SKILL.md
 
 ## Usage
 
@@ -34,15 +38,12 @@ Ask clarifying questions (Socratic style). Focus on:
 - What constraints exist? (Non-Functional Requirements)
 - What's unclear? (mark with `[NEEDS CLARIFICATION]`)
 
-Use Mermaid diagrams (rendered via `render-ascii-mermaid`) to visualize
-architecture, data flow, or state when it aids understanding.
-
 Ask 2-3 questions per round. Don't overwhelm.
 
 ### 3. Generate/update spec.md
 
-Write to the provided file path, or `./spec.md` by default.
-Use the template from the `spec-driven-development` skill.
+Write to the provided file path, or `./spec.md` by default, populating the
+spec template at `~/.claude/skills/spec-driven-development/assets/spec-template.md`.
 If the file already exists, update it in place (preserve user content,
 fill gaps, restructure into the template).
 

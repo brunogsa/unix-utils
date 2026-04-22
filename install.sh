@@ -29,7 +29,7 @@ fi
 if [[ "$OS" == "macos" ]]; then
     brew update
 elif [[ "$OS" == "linux" ]]; then
-    sudo apt upgrade
+    sudo apt upgrade -y
     sudo apt update
 fi
 
@@ -95,24 +95,32 @@ espanso restart
 
 # Docker
 if [[ "$OS" == "macos" ]]; then
-    cd ~/Downloads
-    wget https://desktop.docker.com/mac/main/amd64/Docker.dmg
-    sudo hdiutil attach Docker.dmg
-    cd -
-    sudo /Volumes/Docker/Docker.app/Contents/MacOS/install --accept-license
-    sudo hdiutil detach /Volumes/Docker
-    echo "[WARN] docker and docker-compose installation will be finished after starting docker for the first time via Finder"
+    if [ -d "/Applications/Docker.app" ]; then
+        echo "Docker already installed, skipping"
+    else
+        (
+            cd ~/Downloads || exit
+            wget -N https://desktop.docker.com/mac/main/amd64/Docker.dmg
+            sudo hdiutil attach Docker.dmg
+        )
+        sudo /Volumes/Docker/Docker.app/Contents/MacOS/install --accept-license
+        sudo hdiutil detach /Volumes/Docker
+        echo "[WARN] docker and docker-compose installation will be finished after starting docker for the first time via Finder"
+    fi
 elif [[ "$OS" == "linux" ]]; then
     # TODO
     :
 fi
 
 # AWS CLI
-if [[ "$OS" == "macos" ]]; then
-    cd ~/Downloads
-    curl "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o "AWSCLIV2.pkg"
-    sudo installer -pkg AWSCLIV2.pkg -target /
-    cd -
+if command -v aws &> /dev/null; then
+    echo "AWS CLI already installed, skipping"
+elif [[ "$OS" == "macos" ]]; then
+    (
+        cd ~/Downloads || exit
+        curl "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o "AWSCLIV2.pkg"
+        sudo installer -pkg AWSCLIV2.pkg -target /
+    )
 elif [[ "$OS" == "linux" ]]; then
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
     unzip awscliv2.zip
@@ -125,9 +133,13 @@ if [[ "$OS" == "macos" ]]; then
     # I probably won't need it, so commenting it out
     :
 elif [[ "$OS" == "linux" ]]; then
-    curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
-    sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-    sudo apt-get update && sudo apt-get install -y terraform
+    if command -v terraform &> /dev/null; then
+        echo "Terraform already installed, skipping"
+    else
+        curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list > /dev/null
+        sudo apt-get update && sudo apt-get install -y terraform
+    fi
 fi
 
 # macOS-specific: qView image viewer + set as default for PNG/JPEG
@@ -158,13 +170,17 @@ elif [[ "$OS" == "linux" ]]; then
 
     # lua-language-server (using precompiled binary)
     LUA_LS_VERSION="3.16.1"
-    wget "https://github.com/LuaLS/lua-language-server/releases/download/${LUA_LS_VERSION}/lua-language-server-${LUA_LS_VERSION}-linux-x64.tar.gz" -O /tmp/lua-language-server.tar.gz
-    sudo mkdir -p /opt/lua-language-server
-    sudo tar -xzf /tmp/lua-language-server.tar.gz -C /opt/lua-language-server
-    echo '#!/bin/bash' | sudo tee /usr/local/bin/lua-language-server > /dev/null
-    echo 'exec "/opt/lua-language-server/bin/lua-language-server" "$@"' | sudo tee -a /usr/local/bin/lua-language-server > /dev/null
-    sudo chmod +x /usr/local/bin/lua-language-server
-    rm /tmp/lua-language-server.tar.gz
+    if command -v lua-language-server &> /dev/null && lua-language-server --version 2>/dev/null | grep -q "${LUA_LS_VERSION}"; then
+        echo "lua-language-server ${LUA_LS_VERSION} already installed, skipping"
+    else
+        wget "https://github.com/LuaLS/lua-language-server/releases/download/${LUA_LS_VERSION}/lua-language-server-${LUA_LS_VERSION}-linux-x64.tar.gz" -O /tmp/lua-language-server.tar.gz
+        sudo mkdir -p /opt/lua-language-server
+        sudo tar -xzf /tmp/lua-language-server.tar.gz -C /opt/lua-language-server
+        echo '#!/bin/bash' | sudo tee /usr/local/bin/lua-language-server > /dev/null
+        echo 'exec "/opt/lua-language-server/bin/lua-language-server" "$@"' | sudo tee -a /usr/local/bin/lua-language-server > /dev/null
+        sudo chmod +x /usr/local/bin/lua-language-server
+        rm /tmp/lua-language-server.tar.gz
+    fi
 
     # pipx
     sudo apt-get install -y pipx
@@ -172,15 +188,15 @@ elif [[ "$OS" == "linux" ]]; then
 
     # deno
     curl -fsSL https://deno.land/install.sh | sh
+    # shellcheck disable=SC2016  # single quotes intentional: match literal string in ~/.zshrc
     grep -q 'DENO_INSTALL' ~/.zshrc || echo 'export DENO_INSTALL="$HOME/.deno"' >> ~/.zshrc
+    # shellcheck disable=SC2016
     grep -q 'DENO_INSTALL/bin' ~/.zshrc || echo 'export PATH="$DENO_INSTALL/bin:$PATH"' >> ~/.zshrc
 fi
 
 # Node packages
 npm install -g json-schema-generator
 npm install -g @anthropic-ai/claude-code
-npm install -g @modelcontextprotocol/server-github
-npm install -g ccusage
 npm install -g opencode-ai
 npm install -g trash-cli
 npm install -g beautiful-mermaid
@@ -188,14 +204,12 @@ npm install -g beautiful-mermaid
 # AI setup: Claude Code e OpenCode configuration
 mkdir -p ~/.claude
 rm -fr ~/.claude/commands ~/.claude/skills
-mkdir -p ~/.claude/skills
 ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/skills ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/settings.json ~/.claude/
 
 mkdir -p ~/.opencode
 rm -fr ~/.opencode/commands ~/.opencode/skills
-mkdir -p ~/.opencode/skills
 ln -sf ~/unix-utils/configs/ai-docs/claude/skills ~/.opencode/
 
 # Claude MCP configuration (optional, requires API keys)
@@ -209,11 +223,6 @@ if [ -n "$ANTHROPIC_API_KEY" ]; then
 EOF
 fi
 
-if [ -n "$GITHUB_PERSONAL_ACCESS_TOKEN" ]; then
-    claude mcp add --transport stdio github --env GITHUB_PERSONAL_ACCESS_TOKEN="$GITHUB_PERSONAL_ACCESS_TOKEN" -- npx -y @modelcontextprotocol/server-github
-fi
-
-claude mcp add context7 -- npx -y @anthropic-ai/context7-mcp
 claude plugin marketplace add boostvolt/claude-code-lsps
 claude plugin install code-simplifier@claude-plugins-official
 claude plugin install context7@claude-plugins-official
@@ -233,18 +242,7 @@ ln -sf ~/unix-utils/configs/ai-docs/claude/plugins/claude-hud/config.json ~/.cla
 echo "[MANUAL] Run :Lazy sync in neovim to install claudecode.nvim"
 echo "[MANUAL] Run /claude-hud:setup inside Claude Code to configure the statusLine"
 
-# peon-ping — WC3 sound notifications for Claude Code
-if [[ "$OS" == "macos" ]]; then
-    brew tap PeonPing/tap
-    brew install peon-ping
-elif [[ "$OS" == "linux" ]]; then
-    curl -fsSL https://raw.githubusercontent.com/PeonPing/peon-ping/main/install.sh | bash
-fi
-peon-ping-setup --packs=peasant,peon
-peon packs use peon
-ln -sf ~/unix-utils/configs/ai-docs/claude/hooks/peon-ping/config.json ~/.claude/hooks/peon-ping/config.json
-
-ln -sf ~/unix-utils/configs/ai-docs/claude/hooks/claude-git-guard.sh ~/.claude/hooks/claude-git-guard.sh
-ln -sf ~/unix-utils/configs/ai-docs/claude/hooks/claude-rm-guard.sh ~/.claude/hooks/claude-rm-guard.sh
+rm -fr ~/.claude/hooks
+ln -sf ~/unix-utils/configs/ai-docs/claude/hooks ~/.claude/
 
 echo "Installation complete for $OS!"

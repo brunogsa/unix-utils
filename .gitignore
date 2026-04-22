@@ -3,4 +3,11 @@
 .aider*
 configs/copyq/copyq_tab_*.dat
 configs/copyq/copyq.lock
+configs/copyq/copyq_no_session.ini
+configs/copyq/copyq_geometry.ini
+configs/copyq/copyq_geometry.ini.lock
+configs/copyq/copyq_geometry.ini.lock.rmlock
+configs/copyq/copyq-filter.ini
+configs/copyq/copyq-monitor.ini
+configs/copyq/.copyq_s
 __pycache__/

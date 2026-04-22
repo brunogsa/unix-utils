@@ -13,7 +13,8 @@ Dev stack: Ghostty (terminal) → tmux → neovim → Claude Code
 Five cross-platform repos (macOS/Linux), each with its own `CLAUDE.md`:
 
 - `~/unix-utils/` -- system setup, config versioning, Claude Code global config (skills, hooks, settings)
-- `~/oh-my-zsh/` -- zsh config, aliases, and CLI commands the user actually runs from the terminal. AI may also call these, but if a script is only used by AI, it belongs as a self-contained skill in `~/unix-utils/` instead.
+- `~/oh-my-zsh/` -- zsh config, aliases, and CLI commands the user runs from the terminal. AI may also call these.
+  - Exception: scripts only used by AI belong as self-contained skills in `~/unix-utils/` instead.
 - `~/tmux/` -- tmux config with neovim/clipboard/Claude integrations
 - `~/neovim/` -- neovim config: LSP, Treesitter, Mermaid indent
 - `~/ghostty/` -- Ghostty terminal config
@@ -23,13 +24,18 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 **Prefer CLI scripts + skills over MCP servers** -- cheaper in context, easier to debug, compose via pipes. Use MCP only for capabilities CLI + skills can't provide.
 
-**Always reference skill-creator when creating or editing skills** -- follow its folder structure (SKILL.md + scripts/ + references/), progressive disclosure, and writing patterns.
+**CRITICAL: Load `skill-creator` skill before creating or modifying any SKILL.md** -- never author skill content without it. Why: folder structure (SKILL.md + scripts/ + references/), progressive disclosure, frontmatter rules.
+
+**Prefer lazy loading** -- keep auto-loaded content lean; push detail into on-demand skills with progressive disclosure.
+  - Why: every auto-loaded line competes with the conversation for attention (Jaroslawicz 2025: adherence peaks at 150–200, degrades to 68% at 500).
 
 ---
 
 ## INTERACTION
 
-- **Coach my English** -- CRITICAL: correct unnatural phrasing using `"[original]" → "[corrected]"` before responding. Focus on word choice, articles, prepositions, sentence structure. Skip obvious fast-typing typos.
+- **Coach my English** -- CRITICAL: correct unnatural phrasing using `"[original]" → "[corrected]"` before responding.
+  - Focus: word choice, articles, prepositions, sentence structure, idiomatic expressions. Skip obvious fast-typing typos.
+  - Flag grammatically correct but awkward phrasings too — idiomaticity matters more than rule-correctness.
 
 - **If I am wrong, tell me directly** -- correctness over politeness.
 
@@ -45,25 +51,41 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Be direct** -- no preambles, no filler, no emojis.
 
+- **Prefer scannable shape over prose** -- default to bullets, short sections, tables, bold key terms in user-facing text.
+  - Prose earns its place only when fragmenting would lose connective tissue: ultrathink/design reasoning, disagreements, connected-paragraph answers.
+  - Test: can the reader find the takeaway in ~5 seconds?
+
 - **Maximize verifiability** -- show evidence supporting every conclusion.
 
 - **Sequential over parallel for edits/inputs** -- CRITICAL: never run parallel tool calls that require user approval or input.
 
 - **Ask before parallelizing read-only work** -- ask series vs parallel for multiple independent explorations. Single calls: foreground. Web: parallel.
 
-- **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for non-trivial tasks. Prefix subjects with `#N: ` (UI doesn't show IDs in titles).
+- **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for non-trivial tasks.
+  - After each create, TaskUpdate the subject with ` <returned-id>. ` prefix (leading space, id, period, trailing space).
+  - Why: UI hides IDs in titles, and a manual counter drifts out of sync.
 
 - **Prefer targeted edits over full rewrites** -- Edit tool over Write tool.
 
 - **Small batches over big bangs** -- more iterations with small reviewable chunks is better than generating too much code at once. Late course-corrections are expensive; frequent checkpoints are cheap.
 
-- **Commits require explicit permission** -- CRITICAL: never commit without approval. Conventional Commits (`type(scope): subject`), imperative, max 72-char subject. Bullet changelog body. Match `aigitcommit` style.
+- **Commits require explicit permission** -- CRITICAL: never commit without approval.
+  - The per-commit Bash approval UI counts as the prompt — see "Propose commits at task boundaries" below for when to issue the `git commit` call directly.
+  - Format: Conventional Commits (`type(scope): subject`), imperative, max 72-char subject. Body: bullet changelog or prose paragraph — whichever fits the change.
 
-- **One logical change per commit, always working** -- never bundle unrelated changes. Never split a single change into commits that break the codebase. A migration (move + update refs + delete) is one concern.
+- **Commit body fits one screen (~25 lines)** -- explain why, not what; the diff already records what changed.
+
+- **One logical change per commit, always working** -- never bundle unrelated changes.
+  - Never split a single change into commits that break the codebase.
+  - A migration (move + update refs + delete) is one concern.
+
+- **Propose commits at task boundaries** -- each task produces 1-2 commits, never zero. Sub-commit steps (RED/GREEN/REFACTOR) live inside a task, not as sibling tasks.
+  - After finishing a coherent, working change, issue the `git commit` Bash call directly. The approval UI is the prompt; deny or say so to defer.
 
 - **Notify requests** -- load `notify-user` skill BEFORE the command.
 
-- **Change-request = new TODO items** -- review feedback becomes new tasks.
+- **Out-of-scope work = new TODO items** -- review feedback, mid-task requests, or anything you uncover yourself go to TaskCreate (ordered right after current), not pivots.
+  - Why: preserves "One logical change per commit" and prevents mixed-concern files.
 
 - **Explain trade-offs on manual changes** -- when I modify your edit or reject with an alternative, explain what my version gains, loses, and assumes.
 
@@ -85,8 +107,6 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Spec-driven for non-trivial work** -- use spec.md (what/why) and plan.md (how/tasks) as living documents. Not committed.
 
-- **Surface ambiguity with markers** -- `[NEEDS CLARIFICATION: ...]` for gaps, `[DECISION: ... because ...]` for trade-offs. Remove when resolved.
-
 - **Plan tasks become TODO items with acceptance criteria** -- every task in plan.md and TaskCreate includes acceptance criteria and a verify method.
 
 - **Keep spec and plan up to date** -- update at each task boundary: mark done, add `[DECISION:]` markers, note scope changes. Stale docs degrade `/create-pr`.
@@ -97,33 +117,41 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Green baseline first** -- existing tests & lint must pass before new work.
 
-- **Design test titles first, all layers** -- write titles (no implementation) for ALL layers (integration + unit) describing expected behavior. Commit titles as documentation before any implementation. For scripts: usage syntax + examples in comment header.
+- **Design test titles before implementation** -- write titles (no bodies), review them, then run RED-GREEN.
+  - Applies upfront to integration tests and pre-known pure helpers, and again at each helper pulled on demand — designing them all upfront would force premature signatures.
+  - Commit tests together with their implementation — never titles alone.
+  - For scripts: usage syntax + examples in the comment header.
 
-- **Verify before completing** -- run the task's verify step. Propose a verification approach if none exists. Run scripts/automation to confirm.
+- **Verify what you produce** -- evidence over optimism.
+  - Before completing: run the task's verify step (or propose one). Run scripts/automation to confirm.
+  - When contradicted: if two sources disagree, re-read the actual code before assuming one is wrong. Stale results, shifted line numbers, or misread context waste hours.
 
-- **Save slow command output, filter later** -- any command taking 8+ seconds: redirect full output to a `/tmp/` file first, then filter from the file as needed. Never pipe a slow command through `grep`/`head` directly — if the filter is wrong you'd re-run the entire command.
+- **Save slow command output, filter later** -- any command taking 8+ seconds: redirect full output to `/tmp/`, then filter from the file.
+  - Never pipe a slow command through `grep`/`head` directly — if the filter is wrong you'd re-run the whole thing.
 
-- **Re-verify evidence when things don't add up** -- if two sources contradict (e.g., linter says unused but grep says used), re-read the actual code before assuming one is wrong. Stale results, shifted line numbers, or misread context waste hours.
+- **Scout rule** -- when you notice pre-existing issues (stale comments, budget overruns, lint gaps), flag them to the user.
+  - Only fix if approved; use isolated commits separate from feature work.
 
-- **Scout rule** -- when you notice pre-existing issues (stale comments, budget overruns, small lint gaps), flag them to the user. Only fix if the user approves. When approved, use isolated commits separate from feature work.
-
-- **RED → GREEN → REFACTOR, most forcing case first** -- pick the test case that requires the most real logic. RED: write that test. GREEN: implement just enough, pulling in helpers only when called. Repeat for remaining cases, building on what exists. Backfill integration tests once core logic is solid. Isolate pure refactors into their own commit.
+- **RED → GREEN → REFACTOR, most forcing case first** -- pick the test case that requires the most real logic.
+  - RED: write that test. GREEN: implement just enough, pulling in helpers only when called.
+  - Repeat for remaining cases, building on what exists. Backfill integration tests once core logic is solid.
+  - Isolate pure refactors into their own commit.
 
 - **Update docs as you go** -- locate and update related documentation inline.
 
-- **Use Mermaid for visual explanations** -- render diagrams inline via `render-ascii-mermaid`. Use fenced Mermaid blocks with ASCII output in specs.
-
-Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
+Concrete examples live in the `workflow-standards` skill (loaded on-demand when planning implementation).
 
 ---
 
 ## CODE
 
-- **Never delete or overwrite existing code unless explicitly instructed** -- CRITICAL: do NOT change indentation, empty lines, whitespace, quote style, or semicolons. ONLY modify the exact lines needed for the requested change.
+- **Never delete or overwrite existing code unless explicitly instructed** -- CRITICAL: do NOT change indentation, blank lines, whitespace, quotes, or semicolons.
+  - Modify only the exact lines needed for the requested change.
 
 - **Guidelines override codebase patterns** -- CRITICAL: present the conflict and wait for approval when existing code contradicts rules here.
 
-- **Code top-down, pull helpers on demand** -- start from the controller/worker layer and work downward. Don't write a function until something calls it. This prevents premature abstractions and ensures every helper's API is shaped by real demand from its caller.
+- **Code top-down, pull helpers on demand** -- start from the controller/worker layer and work downward; don't write a function until something calls it.
+  - Why: prevents premature abstractions; every helper's API is shaped by real demand from its caller.
 
 - **Avoid global mutable state** -- pass data through params and return values.
 
@@ -133,7 +161,8 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 
 - **Single-responsibility** -- one thing at one level of abstraction.
 
-- **Spec cases ≠ code branches** -- when a spec defines N cases, design a unified pipeline that naturally produces correct output for all of them. Fewer branches, fewer bugs, easier to extend.
+- **Spec cases ≠ code branches** -- when a spec defines N cases, design a unified pipeline that naturally produces correct output for all of them.
+  - Fewer branches, fewer bugs, easier to extend.
 
 - **Name by purpose, not mechanism** -- what the caller gets, not how it works.
 
@@ -166,26 +195,28 @@ Detailed examples: @~/.claude/skills/workflow-standards/SKILL.md
 - **Extract magic values into constants** -- use enums when applicable.
 
 - **Distinguish "missing" from "intentional zero/empty"** -- check null/undefined, not falsiness.
-- **Centralize repeated logic** -- DRY: defaults, transformations, computations.
 
-- **Merge near-duplicate functions** -- when two functions differ only by a flag or filter, generalize into one with an optional parameter.
+- **Centralize repeated logic** -- DRY: defaults, transformations, computations.
+  - Merge near-duplicate functions: when two differ only by a flag or filter, generalize into one with an optional parameter.
 
 - **Don't wrap trivial expressions** -- wrappers earn existence by adding behavior (retry, logging, validation), not by renaming a clear stdlib call.
 
 - **Decompose dense expressions** -- break unfamiliar APIs and nested callbacks into named intermediate variables. Readability beats brevity.
 
 - **Abstract counter-intuitive APIs** -- wrap with intuitive interfaces.
+
 - **Context object for cross-cutting concerns** -- pass a single context (request ID, user, trace) instead of adding params everywhere.
 
 - **Parallelize CPU-bound work** -- workers for CPU, async for I/O.
+
 - **Resilient batch operations** -- idempotent, resumable, crash-resilient. Best-effort report on fatal failure.
 - **Prefer composition over inheritance** -- small, focused pieces over deep class hierarchies.
 
 - **Fail loudly, not silently** -- errors propagate or get logged explicitly. A crash you see beats a silent corruption you don't.
 
-- **Surface linter gaps** -- when fixing something a linter should catch, flag as `[LINTER GAP]` so the config can be improved.
+- **Surface linter gaps** -- when fixing something a linter should catch, flag as `**LINTER GAP:** ...` so the config can be improved.
 
-Detailed examples: @~/.claude/skills/code-standards/SKILL.md
+Concrete examples live in the `code-standards` skill (loaded on-demand when writing or reviewing code).
 
 ---
 
@@ -197,9 +228,13 @@ Detailed examples: @~/.claude/skills/code-standards/SKILL.md
 
 - **READMEs describe purpose, not inventory** -- what + why + 1-2 examples. No file listings.
 
+- **CLAUDE.md is conventions, not duplication** -- capture per-repo purpose, dependencies, non-obvious gotchas, load-bearing conventions.
+  - Don't restate what the code already shows (file listings, function categories, install-step inventories, line-numbers).
+  - Why: duplication is an edit burden — the moment code changes, docs go stale.
+
 - **Commit messages explain the why** -- the diff shows the what.
 
-Detailed examples: @~/.claude/skills/doc-standards/SKILL.md
+Concrete examples live in the `doc-standards` skill (loaded on-demand when writing comments or docs).
 
 ---
 
@@ -225,7 +260,7 @@ Detailed examples: @~/.claude/skills/doc-standards/SKILL.md
 
 - **Parametrised suites OK** if still readable.
 
-Detailed examples: @~/.claude/skills/test-standards/SKILL.md
+Concrete examples live in the `test-standards` skill (loaded on-demand when writing or reviewing tests).
 
 ---
 

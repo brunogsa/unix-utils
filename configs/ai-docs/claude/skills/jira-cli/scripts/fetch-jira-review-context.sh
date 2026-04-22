@@ -15,7 +15,7 @@
 
 # Source core Jira library if not already loaded
 if ! command -v jira-api-request &>/dev/null; then
-  source "$HOME/.claude/skills/jira-tools/scripts/jira.sh"
+  source "$HOME/.claude/skills/jira-cli/scripts/jira.sh"
 fi
 
 function fetch-jira-review-context() {
@@ -33,7 +33,9 @@ function fetch-jira-review-context() {
   # Extract issue key from URL or use as-is
   local issue_key
   if [[ "$input" == http* ]]; then
-    issue_key=$(echo "$input" | sed 's|.*/browse/\([A-Z][A-Z]*-[0-9][0-9]*\).*|\1|')
+    # Strip URL prefix, then trim trailing non-key characters; subsequent validation rejects malformed inputs
+    issue_key="${input##*/browse/}"
+    issue_key="${issue_key%%[^A-Z0-9-]*}"
   else
     issue_key="$input"
   fi

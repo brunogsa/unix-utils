@@ -75,7 +75,7 @@ Example:
 
 <details>
 <summary><strong>Guia de review</strong> (tempo estimado: {min}-{max} min)</summary>
-[generated content -- see Guia de review section below]
+[Generated per `~/.claude/skills/reviewer-agent/references/reading-order-template.md` (Portuguese variant)]
 </details>
 
 ## Summary
@@ -105,40 +105,9 @@ Example:
 
 ## References
 [Jira links, related PRs, etc.]
-
-## Guia de review
-[Generate a specific review guide with concrete file paths from the diff.
- Estimate time range: essential (PR description + core impl + test titles)
- to complete (+ test bodies + types/models).
-
- Heuristic for time:
- - Essential: ~5min base + ~1min per 50 lines of core implementation
- - Complete: essential + ~1min per 100 lines of remaining diff
-
- List files in recommended reading order, inferred from their role:
- - Controller/consumer files first (orchestration)
- - Use case / pure function files (business logic)
- - Test title files with test count (behavior documentation)
- - Then for "complete": test bodies, types/models, config
-
- Template:]
-
-### Guia de review
-
-Tempo estimado: {min}-{max} min
-
-**Essencial** (~{min}min):
-1. Descrição do PR (contexto de negócio + decisões)
-2. `{controller_file}` — {brief role}
-3. `{use_case_file}` — regra de negócio
-4. Títulos dos testes em `{unit_test_file}` ({N} testes)
-5. Títulos dos testes em `{integration_test_file}` ({N} testes)
-
-**Completo** (+{extra}min):
-6. Corpo dos testes unitários
-7. Corpo dos testes de integração
-8. Types/models em `{types_path}`
 ```
+
+The Guia de review template, time-estimate heuristic, and file-role inference live in `~/.claude/skills/reviewer-agent/references/reading-order-template.md` (Portuguese variant).
 
 ### 3. Review with user
 
@@ -150,7 +119,7 @@ Wait for approval or edits before creating the PR.
 After the user edits rich-pr-description.md, diff the original against their version.
 Identify patterns in what was added, removed, or reworded. Present proposed improvements
 to THIS skill's writing style guidelines (step 2) for user approval -- similar to
-`enhance-global-guidelines-with-session-learnings`. Apply approved improvements before
+`improve-principles-and-skills-from-session-learnings`. Apply approved improvements before
 creating the PR. This makes the skill self-improving over time.
 
 ### 4. Create the PR
