@@ -77,7 +77,8 @@ Configs are symlinked from repos to system locations. Always edit the source rep
   - Never split a single change into commits that break the codebase.
   - A migration (move + update refs + delete) is one concern.
 
-- **Propose commits at task boundaries** -- each task produces 1-2 commits, never zero. After finishing a coherent, working change, issue the `git commit` Bash call directly. Sub-commit steps (RED/GREEN/REFACTOR) live inside a task, not as sibling tasks. The approval UI is the prompt; deny or say so to defer.
+- **Propose commits at task boundaries** -- each task produces 1-2 commits, never zero. Sub-commit steps (RED/GREEN/REFACTOR) live inside a task, not as sibling tasks.
+  - After finishing a coherent, working change, issue the `git commit` Bash call directly. The approval UI is the prompt; deny or say so to defer.
 
 - **Notify requests** -- load `notify-user` skill BEFORE the command.
 
