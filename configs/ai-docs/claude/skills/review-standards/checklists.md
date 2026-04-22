@@ -91,3 +91,20 @@ Supplementary checklists for code review. Referenced by the review-standards ski
 - Unused code not cleaned up (dead imports, orphaned functions)
 - Unpinned dependency versions (ranges instead of exact)
 - Loops with I/O missing progress logging
+
+---
+
+## AI Slop Checklist
+
+Patterns common in AI-authored or AI-assisted diffs that silently erode codebase quality. Flag so a human decides.
+
+- Lint / type-check suppressions added without justification (`// eslint-disable-*`, `// @ts-expect-error`, `# noqa`, `@SuppressWarnings`, etc.)
+- Tests disabled (`.skip`, `.only`, `xit`, `xdescribe`) or commented out without a replacement
+- Tests wholesale deleted with no replacement added
+- Snapshot updates without a rationale in the diff or commit message
+- Near-duplicate helpers when an existing function already does the job (reuse would be better than re-implementation)
+- Inline copy of a block that already exists as a helper in the same file or a neighboring module
+- Dead code introduced: unreferenced variables, imports, types, helpers, or unreachable branches
+- `TODO` / `FIXME` / `HACK` comments without a tracking reference (they'll outlive the PR)
+- Abstractions (interfaces, base classes, generics) introduced with only one caller and no plausible second
+- Wrappers that rename an existing call without adding behavior (retry, logging, validation)

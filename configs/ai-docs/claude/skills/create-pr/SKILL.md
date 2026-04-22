@@ -49,6 +49,8 @@ If no PR template exists, use the default template below.
 - **Collapsible sections for large content** -- use `<details><summary>` for reference payloads, long examples, or API responses.
 - **Always include business context** -- every PR must explain the business problem being solved. Extract from spec.md Background section when available, or from commit messages. Reviewers who don't know the ticket need this to evaluate correctness.
 - **Always include decisions** -- every PR must have a decisions section. Reviewers need to understand the trade-offs made, not just the code. When using a PR template, place decisions as a subsection of the solution (e.g., `##### Decisões tomadas` under `#### Sobre a solução`). Only include reviewer-facing decisions, not implementation details.
+- **Don't repeat links across sections** -- if a Jira link or PR link appears in "Link do Jira" or "Contexto do PR", don't repeat it in "Referências". The references section is for follow-up tasks, external docs, or links not already present elsewhere in the PR.
+- **Drop implementation jargon from planned items** -- don't say "(injectable NestJS)" or "(pure function)". Describe what it does for the reviewer, not the DI framework details.
 
 Example:
 ```markdown

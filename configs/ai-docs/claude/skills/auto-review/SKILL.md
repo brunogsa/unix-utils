@@ -1,29 +1,29 @@
 ---
-description: "Local code review of current branch vs base using an isolated foreground subagent"
+description: "Local branch review using the wave-based reviewer-agent. Multiple parallel specialists + Review Guide (business context, decisions, where to focus, incidental changes) → written to ./auto-review.md. Strongest review at the cost of 30s–3min setup."
 disable-model-invocation: true
 ---
 
 # Auto Review
 
-Local code review using an isolated foreground subagent. The subagent has no main session context -- it gathers everything itself, ensuring an unbiased review.
+Orchestrate a local code review by delegating to `reviewer-agent`. The subagent has no prior conversation context — it gathers the diff vs. `base-branch`, reads files from CWD, and writes the review to `./auto-review.md`.
 
 ## Usage
 
 `/auto-review [base-branch]`
 
-- `base-branch` defaults to `main`
+- `base-branch` defaults to `main`.
 
 Examples:
-- `/auto-review` -- review current branch vs main
-- `/auto-review develop` -- review current branch vs develop
+- `/auto-review` — current branch vs. main.
+- `/auto-review develop` — current branch vs. develop.
 
 ## Execution
 
-Launch a **single foreground Agent** (subagent_type: `general-purpose`) with the following prompt.
+Before launching the agent, run `/effort max` so the wave pipeline thinks as deeply as it can.
 
-Replace `<BASE_BRANCH>` with the actual base branch argument (or `main` if omitted).
+Launch a **single foreground Agent** (subagent_type: `general-purpose`, model: `opus`) with the prompt below. Replace `<BASE_BRANCH>` with the argument, or `main` when omitted.
 
-### Agent Prompt
+### Agent prompt
 
 ```
 Read `~/.claude/skills/reviewer-agent/SKILL.md` for your full instructions.
@@ -33,4 +33,4 @@ Base branch: `<BASE_BRANCH>`
 Language: **English**
 ```
 
-After the subagent completes, the review is written to `./auto-review.md`. No further processing needed.
+After the subagent completes, the review lives at `./auto-review.md`. The skill prints the file path, per-severity counts, skipped files, and token totals.

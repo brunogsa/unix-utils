@@ -1,11 +1,11 @@
 ---
-description: "GitHub PR code review using an isolated foreground subagent, posting changelog and inline comments via gh CLI"
+description: "GitHub PR code review using the wave-based reviewer-agent. Produces a single PENDING review (not published) with a Review Guide in the body and validated inline comments — so you filter and submit manually."
 disable-model-invocation: true
 ---
 
 # Code Review
 
-GitHub PR code review using an isolated foreground subagent. The subagent has no main session context -- it gathers PR metadata, diff, files, existing comments, and Jira context itself, then posts the review to GitHub.
+Orchestrate a GitHub PR review by delegating to `reviewer-agent`. The subagent has no prior conversation context — it gathers PR metadata, diff, files, existing comments, and Jira snippet itself, then posts a PENDING review to GitHub. You review it in the UI and submit on your own terms.
 
 ## Usage
 
@@ -17,11 +17,11 @@ Examples:
 
 ## Execution
 
-Launch a **single foreground Agent** (subagent_type: `general-purpose`) with the following prompt.
+Before launching the agent, run `/effort max` to ensure maximum thinking depth for the wave pipeline.
 
-Replace `<PR_URL>` with the actual PR URL. Use the appropriate template below.
+Launch a **single foreground Agent** (subagent_type: `general-purpose`, model: `opus`) with the prompt below. Replace `<PR_URL>` and optionally `<JIRA_URL>`.
 
-### Agent Prompt (without Jira)
+### Agent prompt (without Jira)
 
 ```
 Read `~/.claude/skills/reviewer-agent/SKILL.md` for your full instructions.
@@ -31,7 +31,7 @@ PR URL: `<PR_URL>`
 Language: **Portuguese (Brazil)**
 ```
 
-### Agent Prompt (with --jira)
+### Agent prompt (with --jira)
 
 ```
 Read `~/.claude/skills/reviewer-agent/SKILL.md` for your full instructions.
@@ -42,4 +42,4 @@ Jira URL: `<JIRA_URL>`
 Language: **Portuguese (Brazil)**
 ```
 
-After the subagent completes, the review has been posted to GitHub. No further processing needed.
+After the subagent completes, the review is PENDING on GitHub — open `<pr-url>/files` to filter, edit, delete, or submit. The skill prints the review URL, per-severity counts, skipped files, and token totals.

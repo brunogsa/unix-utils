@@ -1,0 +1,36 @@
+{
+  "skill_name": "reviewer-agent",
+  "notes": "Evals for the wave-based review pipeline used by /code-review (GitHub mode) and /auto-review (local mode). Assertions are intentionally unset — fill them when running the first iteration through skill-creator's benchmark loop. See skill-creator/references/schemas.md for the full assertions shape.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "gh-small-pr-happy-path",
+      "mode": "github",
+      "prompt": "/code-review <SMALL_PR_URL>",
+      "setup": "Pick or craft a small open PR (≤5 files, ≤100 lines changed) with at least one real bug (e.g., off-by-one, missing await, or a subjective style issue). Prefer a throwaway repo so the pending review can be deleted without noise.",
+      "expected_output": "A PENDING review appears in the GitHub UI. Body contains the Review Guide (Contexto de negócio, Decisões, Onde focar, Mudanças incidentais — sections present only when they add value). Inline comments anchor on the right lines and carry the '— 🤖 claude' signature footer. Token summary printed to terminal.",
+      "assertions": [],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "gh-already-reviewed-early-exit",
+      "mode": "github",
+      "prompt": "/code-review <PR_URL_THAT_ALREADY_HAS_A_CLAUDE_REVIEW>",
+      "setup": "Re-run /code-review on a PR that already carries the '— 🤖 claude' signature from a prior pending review. Wave 0 should abort before launching specialists.",
+      "expected_output": "Skill prints 'abort: prior Claude review detected' (or equivalent). No specialist Agent calls are made. Token total reflects only the Wave 0 Haiku call.",
+      "assertions": [],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "local-auto-review-with-incidental-changes",
+      "mode": "local",
+      "prompt": "/auto-review main",
+      "setup": "Create a throwaway feature branch with (a) one real bug in use-case code, (b) one subjective style quirk, (c) one incidental fix in an unrelated module (bump log level, fix typo). Run /auto-review main.",
+      "expected_output": "./auto-review.md generated. Review Guide's 'Incidental changes' section lists the unrelated change and explains why it's incidental. The bug is flagged MANDATORY. The style quirk is flagged NITPICK with the subjective-opinion prefix. Token total printed at the bottom.",
+      "assertions": [],
+      "files": []
+    }
+  ]
+}
