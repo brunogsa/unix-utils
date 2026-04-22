@@ -195,6 +195,7 @@ Concrete examples live in the `workflow-standards` skill (loaded on-demand when 
 - **Extract magic values into constants** -- use enums when applicable.
 
 - **Distinguish "missing" from "intentional zero/empty"** -- check null/undefined, not falsiness.
+
 - **Centralize repeated logic** -- DRY: defaults, transformations, computations.
   - Merge near-duplicate functions: when two differ only by a flag or filter, generalize into one with an optional parameter.
 
@@ -203,9 +204,11 @@ Concrete examples live in the `workflow-standards` skill (loaded on-demand when 
 - **Decompose dense expressions** -- break unfamiliar APIs and nested callbacks into named intermediate variables. Readability beats brevity.
 
 - **Abstract counter-intuitive APIs** -- wrap with intuitive interfaces.
+
 - **Context object for cross-cutting concerns** -- pass a single context (request ID, user, trace) instead of adding params everywhere.
 
 - **Parallelize CPU-bound work** -- workers for CPU, async for I/O.
+
 - **Resilient batch operations** -- idempotent, resumable, crash-resilient. Best-effort report on fatal failure.
 - **Prefer composition over inheritance** -- small, focused pieces over deep class hierarchies.
 
