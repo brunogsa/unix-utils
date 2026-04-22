@@ -107,8 +107,6 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Spec-driven for non-trivial work** -- use spec.md (what/why) and plan.md (how/tasks) as living documents. Not committed.
 
-- **Surface ambiguity with markers** -- `**QUESTION:** ...` for gaps, `**DECISION:** ..., because ...` for trade-offs. Remove when resolved.
-
 - **Plan tasks become TODO items with acceptance criteria** -- every task in plan.md and TaskCreate includes acceptance criteria and a verify method.
 
 - **Keep spec and plan up to date** -- update at each task boundary: mark done, add `[DECISION:]` markers, note scope changes. Stale docs degrade `/create-pr`.
