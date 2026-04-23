@@ -13,6 +13,7 @@
       "Bash(read:~/.config/gh/**)"
     ]
   },
+  "model": "sonnet",
   "hooks": {
     "PreToolUse": [
       {
@@ -52,7 +53,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "bash -c '\"/usr/local/bin/node\" \"$(ls -td ~/.claude/plugins/cache/claude-hud/claude-hud/*/ 2>/dev/null | head -1)dist/index.js\"'"
+    "command": "bash ~/.claude/scripts/statusline.sh"
   },
   "enabledPlugins": {
     "typescript-lsp@claude-plugins-official": true,
@@ -84,6 +85,7 @@
     }
   },
   "alwaysThinkingEnabled": true,
+  "advisorModel": "opus",
   "promptSuggestionEnabled": true,
   "tui": "default",
   "skipDangerousModePermissionPrompt": true,

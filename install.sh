@@ -203,9 +203,10 @@ npm install -g beautiful-mermaid
 
 # AI setup: Claude Code e OpenCode configuration
 mkdir -p ~/.claude
-rm -fr ~/.claude/commands ~/.claude/skills
+rm -fr ~/.claude/commands ~/.claude/skills ~/.claude/scripts
 ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/skills ~/.claude/
+ln -sf ~/unix-utils/configs/ai-docs/claude/scripts ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/settings.json ~/.claude/
 
 mkdir -p ~/.opencode

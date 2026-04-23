@@ -1,4 +1,5 @@
 {
+  "lineLayout": "compact",
   "display": {
     "showTools": false,
     "showAgents": false,
@@ -8,7 +9,8 @@
     "showContextBar": false,
     "showModel": false,
     "showUsage": true,
-    "usageBarEnabled": false
+    "usageBarEnabled": false,
+    "sevenDayThreshold": 0
   },
   "gitStatus": {
     "enabled": false
