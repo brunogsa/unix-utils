@@ -71,7 +71,8 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Commits require explicit permission** -- CRITICAL: never commit without approval.
   - The per-commit Bash approval UI counts as the prompt — see "Propose commits at task boundaries" below for when to issue the `git commit` call directly.
-  - Format: Conventional Commits (`type(scope): subject`), imperative, max 72-char subject. Body: bullet changelog or prose paragraph — whichever fits the change.
+  - Format: Conventional Commits (`type(scope): subject`), imperative, max 72-char subject.
+  - Body: scannable bullets/sub-bullets by default. Prose only when fragmenting would lose connective tissue (rare — most changes are bullet-shaped).
   - Don't inspect `git log` or prior commits to learn commit style — the format above is authoritative across all repos. Skip that tool call.
 
 - **Commit body fits one screen (~25 lines)** -- explain why, not what; the diff already records what changed.
