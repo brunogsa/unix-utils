@@ -1,11 +1,19 @@
 ---
-description: "Shared reviewer orchestrator for /auto-review (local) and /code-review (GitHub). Wave-based pipeline: early exit → context prep → 8 parallel specialists + guide writer → dedup → false-positive filter → line-range validation → drop off-diff findings → emit pending review or auto-review.md → summary."
+description: "Shared reviewer orchestrator for /auto-review (local) and /code-review (GitHub). Single-session pipeline (serial specialists, no internal sub-Agents): early exit → context prep (with tiny-PR fast-path) → serial specialist review + guide writer → batched self-validation → drop off-diff → emit pending review or auto-review.md → summary. The caller wraps this skill in a subagent for bias isolation; inside, everything runs serially to keep prompt cache warm."
 user-invocable: false
 ---
 
 # Reviewer Agent
 
-You orchestrate a 9-wave code review pipeline (Waves 0-8). The same pipeline serves both modes; only Waves 1 and 7 differ.
+You orchestrate a 7-wave code review pipeline (Waves 0-6). The same pipeline
+serves both modes; only Waves 1 and 5 differ.
+
+**Architecture note.** Everything inside this skill runs **serially in the same
+session** — no sub-Agent spawning. The caller (`/auto-review` or `/code-review`)
+wraps *this* skill in a subagent so the review is isolated from the user's
+session (bias removal); inside, there are no nested subagents. Serializing
+keeps the prompt cache warm, avoids N× system-prompt duplication, and lets
+later specialists see what earlier ones already raised (natural dedup).
 
 Layout you can count on:
 
@@ -19,13 +27,12 @@ Layout you can count on:
 │   ├── common-preamble.md          (shared contract for all 8 specialists)
 │   ├── specialists/<name>.md       (one per topic; 8 files)
 │   ├── guide-writer.md
-│   ├── false-positive-validator.md (Wave 4 prompt)
-│   ├── line-range-validator.md     (Wave 5 prompt)
-│   └── local-review-template.md    (Wave 7 local output template)
+│   ├── validator.md                (Wave 3 batched FP + line-range validator)
+│   └── local-review-template.md    (Wave 5 local output template)
 └── evals/evals.json                (skill-level eval scaffolding)
 ```
 
-Subagents read their prompt file from `references/`. This file is the glue.
+Specialist and validator prompts live in `references/`; this file is the glue.
 
 ## Before you start
 
@@ -46,7 +53,7 @@ Subagents read their prompt file from `references/`. This file is the glue.
 5. `~/.claude/skills/doc-standards/SKILL.md`
 6. Any `CLAUDE.md` files at the repo root or in parent directories of changed files.
 
-**Architectural principle: specialists never hit GitHub or any external system.** They process only the pre-built context from Wave 1. This keeps them reproducible, parallel-safe, and idempotent.
+**Architectural principle: specialists never hit GitHub or any external system.** They process only the pre-built context from Wave 1. Keeps the review reproducible and idempotent.
 
 ---
 
@@ -55,7 +62,7 @@ Subagents read their prompt file from `references/`. This file is the glue.
 Deterministic check; no subagent needed. Only aborts on hard no-ops.
 
 - **github**: `state=$(gh pr view "$pr_number" --repo "$repo" --json state --jq .state)`. If `state` is `CLOSED` or `MERGED`, print `abort: PR <state>` and stop.
-- **local**: always proceed. Empty diffs surface naturally — Wave 2 specialists return empty arrays and Wave 7 writes an "auto-review: no findings" file.
+- **local**: always proceed. Empty diffs surface naturally — Wave 2 produces an empty findings list and Wave 5 writes an "auto-review: no findings" file.
 
 ---
 
@@ -81,7 +88,7 @@ pr_number=...
 repo="owner/name"
 work_dir="/tmp/pr-review-${pr_number}"
 
-gh pr diff  "$pr_number" --repo "$repo"             > "$work_dir/pr.diff"
+gh pr diff  "$pr_number" --repo "$repo" -- -U20     > "$work_dir/pr.diff"
 gh pr diff  "$pr_number" --repo "$repo" --name-only > "$work_dir/changed-files.txt"
 gh pr view  "$pr_number" --repo "$repo" --json title,body,headRefOid,baseRefName,headRefName > "$work_dir/pr.json"
 
@@ -114,8 +121,8 @@ Repo root for specialists is the user's CWD; the work dir is scratch for diff/co
 ```bash
 work_dir=$(mktemp -d /tmp/auto-review.XXXXXX)
 git fetch origin "$base_branch"
-git diff "origin/$base_branch...HEAD"             > "$work_dir/diff"
-git diff "origin/$base_branch...HEAD" --name-only > "$work_dir/changed-files.txt"
+git diff -U20 "origin/$base_branch...HEAD"             > "$work_dir/diff"
+git diff      "origin/$base_branch...HEAD" --name-only > "$work_dir/changed-files.txt"
 git log  "origin/$base_branch..HEAD" --format='%B%n---%n' > "$work_dir/commit-messages.txt"
 
 bash ~/.claude/skills/reviewer-agent/scripts/extract-commentable-lines.sh \
@@ -125,84 +132,143 @@ bash ~/.claude/skills/reviewer-agent/scripts/extract-skipped-files.sh \
   "$work_dir/diff" "$work_dir"
 ```
 
----
+### Tiny-PR fast-path
 
-## Wave 2 — Parallel specialists + guide writer
+After the diff is on disk (both modes), count added lines:
 
-Spawn **9 Opus Agents in a single message** to run them in parallel. The wave completes when the slowest returns.
+```bash
+diff_file="$work_dir/pr.diff"; [ -f "$diff_file" ] || diff_file="$work_dir/diff"
+added_lines=$(grep -c '^+[^+]' "$diff_file" || echo 0)
+```
 
-**The 9 agents:**
-
-- **8 specialists** (in order of relevance): `correctness`, `corner-cases-and-side-effects`, `testing-and-type-design`, `security`, `code-design-clarity`, `ai-slop`, `docs-comments-logging`, `performance`. Each reads `references/common-preamble.md` + `references/specialists/<name>.md`.
-- **1 guide writer**: reads `references/guide-writer.md` and produces the human-readable change summary shown at the top of the emitted review.
-
-Each agent's reference file documents its placeholders; resolve them with Wave 1 paths and values.
-
-Specialists return a JSON array of findings. Guide writer returns Markdown. Collect all 9 outputs before advancing.
-
----
-
-## Wave 3 — Dedup specialists' findings
-
-Parse every specialist's JSON array. Merge into one flat list.
-
-**Threshold: LOW (conservative).** Only collapse findings we are very confident are the same issue. When in doubt, keep both — users can ignore noise, but silently dropping distinct findings erodes trust.
-
-Near-duplicate rule — drop only if ALL of:
-- same `path` AND
-- `|f1.line − f2.line| ≤ 1` AND
-- their bodies' first sentences match under a strict token-overlap (>= 0.7 Jaccard on a 40-char prefix).
-
-When duplicates are found, keep the highest-severity one (MANDATORY > RECOMMENDED > NITPICK > OPTIONAL > COMPLIMENT > QUESTION). Note the dropped ones in a dedup log for Wave 8's summary.
-
-You can do this inline with a short script or inline logic. It's cheap; no subagent needed.
+If `added_lines < 100`, set the `tiny_pr=true` flag. Waves 2 and 3 collapse
+into a single combined pass (see Wave 2 below). At this scale the whole diff
+fits comfortably in context, serial expansion buys little, and the
+per-finding validator adds more cost than it saves. Otherwise leave
+`tiny_pr=false` and run the full pipeline.
 
 ---
 
-## Wave 4 — False-positive filter
+## Wave 2 — Specialist review + guide writer (serial, in this session)
 
-Purpose: drop findings where the claim clearly doesn't hold against the actual file. Separated from line-range validation so each agent has a single, focused question.
+**If `tiny_pr=true`, use the fast-path at the end of this section instead
+of the full per-specialist loop below.**
 
-**Threshold: LOW (conservative).** Drop only when you have clear, specific evidence the finding is wrong. The validator prompt itself emphasizes "err toward kept" — when uncertain, the finding stays. We can tighten later.
 
-For each surviving finding, spawn a validator Agent (Opus) with the prompt at `references/false-positive-validator.md`. **All validator calls in parallel in one message** (they're independent and short).
+You run the specialist review yourself, in this same session. **Do not spawn
+sub-Agents for specialists.** The work is linear reasoning over the diff, and
+serializing it in one session has three big wins:
 
-Each validator gets:
-- `{finding_json}` — stringified single finding object.
-- `{file_path}` — the `path` from the finding.
-- `{repo_root}` — the work-dir repo (GH) or CWD (LOCAL).
+- Zero duplicated system-prompt overhead (vs. N separate Agent calls).
+- The prompt cache stays warm — the shared preamble/standards/context is paid
+  for once, not once per specialist.
+- Later specialists see what earlier ones already flagged → natural dedup
+  without a separate Wave.
 
-Apply results:
-- `kept` → carry the finding forward to Wave 5.
-- `dropped` → drop the finding. Record the reason in the Wave 8 summary.
+**Loaded once, reused across all passes:**
+
+- `references/common-preamble.md` — the shared reviewer contract.
+- Wave 1 outputs: diff, changed-files list, commentable-lines, commit messages,
+  `{pr_context}`.
+- The standards files loaded at startup.
+
+**Specialist order (do them one at a time):**
+
+1. `correctness`
+2. `corner-cases-and-side-effects`
+3. `testing-and-type-design`
+4. `security`
+5. `code-design-clarity`
+6. `ai-slop`
+7. `docs-comments-logging`
+8. `performance`
+
+Per-specialist loop:
+
+- Read `references/specialists/<name>.md`. Combine with `common-preamble.md`.
+- Walk the diff through that specialist's rubric. Pull full files from
+  `{repo_root}` only when the `-U20` diff context isn't enough to decide.
+- Emit that specialist's findings as a JSON array; `scope_tag` matches the
+  file name (e.g., `"security"`).
+- **Skip issues already raised** by a previous specialist in this session —
+  the scope_tag + the Problem sentence tell you. This replaces the old Wave 3
+  dedup; distinct issues that just share a line stay in.
+- Maintain a running findings list in working memory; append each pass.
+
+**Guide writer (after all 8 specialists):**
+
+- Read `references/guide-writer.md`.
+- Produce the Review Guide Markdown (business context, decisions, where to
+  focus, incidental changes). 400 words max.
+
+Resolve placeholders in each reference file against Wave 1 paths and values as
+you read them — there's no separate Agent to parameterize.
+
+### Tiny-PR fast-path body
+
+When `tiny_pr=true`, do this in place of the per-specialist loop:
+
+- Read `common-preamble.md` once. Then read all 8 specialist files — at <100
+  added lines their combined prompt is still small enough to hold in context.
+- Walk the diff once. Flag any issue that matches any specialist's rubric,
+  tagging each finding's `scope_tag` with the matching specialist name.
+- Skip the guide writer and produce a 2-sentence change summary instead —
+  at this size a full Review Guide is usually busywork.
+- **Skip Wave 3 entirely.** Validators add the most value on large diffs
+  where specialists reason from partial memory; at <100 added lines the
+  whole change is in context already and hallucinations are rare. Findings
+  go straight to Wave 4.
+
+Artifact at the end of Wave 2: **one flat findings list + one Review Guide**
+(or 2-sentence summary on the fast-path).
 
 ---
 
-## Wave 5 — Line-range validation
+## Wave 3 — Batched validation pass (self-check)
 
-Purpose: tighten the anchor of each surviving finding. Specialists often mis-anchor issues by a few lines; this wave corrects that. Never drops findings — false-positive filtering already happened in Wave 4.
+Before emitting, re-read each finding against its actual file. This single pass
+catches hallucinations (specialist mis-remembered the code) **and** tightens
+line anchors — merged from two previously-separate waves so you re-load each
+file at most once. Inline reasoning, no subagent.
 
-For each surviving finding, spawn a validator Agent (Opus) with the prompt at `references/line-range-validator.md`. **All validator calls in parallel in one message.**
+Dedup used to be a separate wave here. It isn't needed: serial specialists in
+Wave 2 already skip issues earlier specialists raised. If two distinct issues
+happen to share a line, keeping both is correct.
 
-Each validator gets:
-- `{finding_json}` — stringified single finding object.
-- `{file_path}` — the `path` from the finding.
-- `{repo_root}` — the work-dir repo (GH) or CWD (LOCAL).
-- `{commentable_lines_path}` — Wave 1 output.
+**Read this once:** `references/validator.md` — the exact per-finding rubric.
 
-Apply results:
-- `confirmed` → keep the finding as-is.
-- `revised-range` → update `start_line` + `line` in the finding.
+**For each finding in the flat list:**
+
+1. Load the file at `{finding.path}` under `{repo_root}` (reuse a prior Read
+   when the same file appears in consecutive findings). Focus on
+   `start_line..line ± 10`.
+2. **False-positive check.** Is the claim visibly present in the code?
+   - **Drop** only on clear, specific evidence the claim doesn't hold:
+     the cited code doesn't exist; the code already does what was asked;
+     the issue depends on a behavior the file explicitly prevents.
+   - **Keep** otherwise — including when uncertain. Err toward kept.
+3. **Line-range check (kept findings only).** Is `start_line..line` the
+   tightest range that captures the problem? If off by a few lines or too
+   wide, update `start_line` and `line`. Don't widen/tighten just for
+   style — only when the current anchor actually misleads.
+
+**Threshold: LOW (conservative).** Dropping a real finding erodes trust
+more than keeping noise. When in doubt, keep. Record every drop with a
+one-sentence reason for Wave 6's summary.
+
+**Don't touch** severity, body, or scope_tag. The specialist owns those.
+
+Artifact: a reduced, range-tightened findings list + a drop log.
 
 ---
 
-## Wave 6 — Drop off-diff findings
+## Wave 4 — Drop off-diff findings
 
 For each surviving finding, drop it if `start_line..line` is not entirely within `commentable-lines.txt`. We don't comment on code outside the diff — that's noise the author didn't ask for and can't act on in this PR.
 
 ---
 
-## Wave 7 — Emit
+## Wave 5 — Emit
 
 ### github mode
 
@@ -250,9 +316,9 @@ Write `./auto-review.md` to the current CWD following the template at `reference
 
 ---
 
-## Wave 8 — Summary
+## Wave 6 — Summary
 
-Print a terminal summary. Token accounting is covered by Claude Code's UI (per-subagent token usage is already visible); this wave just reports the review-level counts.
+Print a terminal summary reporting the review-level counts.
 
 ### github mode summary
 
@@ -272,11 +338,10 @@ Findings posted: <N>
   QUESTION: <s>
 
 Dropped findings (one line each, for validation):
-  [Wave 3 dup]  path:line — <first 80 chars of body> — dropped because <reason>
-  [Wave 4 FP ]  path:line — <first 80 chars of body> — dropped because <reason>
-  [Wave 6 off]  path:line — <first 80 chars of body>
+  [Wave 3 FP ]  path:line — <first 80 chars of body> — dropped because <reason>
+  [Wave 4 off]  path:line — <first 80 chars of body>
 
-Totals: <x> duplicates, <y> false positives, <z> off-diff dropped.
+Totals: <y> false positives, <z> off-diff dropped.
 
 Skipped files (not reviewed):
   binary: <list from work_dir/skipped-binary.txt>
@@ -285,7 +350,7 @@ Skipped files (not reviewed):
 Open <pr-url>/files to filter and submit.
 ```
 
-The per-finding list exists so you can sanity-check the filters while thresholds are tuned LOW. If you see real findings disappearing, tighten the thresholds in Waves 3/4. If you see noise surviving, loosen.
+The per-finding drop list exists so you can sanity-check the filter while the threshold is tuned LOW. If real findings are disappearing, tighten Wave 3. If noise is surviving, loosen.
 
 ### local mode summary
 
@@ -295,9 +360,8 @@ Same structure, but with `./auto-review.md` as the output path and no review URL
 
 ## Error handling
 
-- **gh api POST 422 (Wave 7 emit)**: retry once after verifying line numbers against `commentable-lines.txt` and dropping findings whose anchors don't resolve. Never fall back to general comments.
+- **gh api POST 422 (Wave 5 emit)**: retry once after verifying line numbers against `commentable-lines.txt` and dropping findings whose anchors don't resolve. Never fall back to general comments.
 - **Clone fails (Wave 1)**: abort with a clear error and the target `work_dir` path. The review cannot proceed without the code on disk.
-- **Parallel Agent wave exceeds rate limit (429)**: retry failed specialists sequentially; surface which ones ran vs. not in the summary.
 - **No findings at all**: emit the pending review anyway (body-only Review Guide) for GH; for LOCAL, write `auto-review.md` with "no findings" under Findings.
 
 ---
@@ -307,5 +371,5 @@ Same structure, but with `./auto-review.md` as the output path and no review URL
 - Don't `gh pr checkout` into the user's working tree — isolation matters; always clone into `/tmp`.
 - Don't post inline comments via the single-comment endpoint — always use the batch review endpoint so the review stays atomic and pending.
 - Don't include a changelog. The Review Guide replaces it.
-- Don't fan out specialists sequentially — parallelism is the point.
+- Don't spawn sub-Agents for specialists or the validator — the pipeline is intentionally single-session to keep the prompt cache warm and avoid duplicated system-prompt overhead. The caller already wraps this skill in a subagent for bias isolation.
 - Don't invent flags. The CLI surface is deliberately minimal.

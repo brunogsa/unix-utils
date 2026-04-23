@@ -1,13 +1,17 @@
 ---
-description: "GitHub PR code review using the wave-based reviewer-agent. Produces a single PENDING review (not published) with a Review Guide in the body and validated inline comments — so you filter and submit manually."
+description: "GitHub PR review via the reviewer-agent skill, dispatched as a subagent for bias isolation. The subagent runs the full pipeline serially in one session (no further fan-out) and posts a single PENDING review for you to filter and submit."
 disable-model-invocation: true
 ---
 
 # Code Review
 
-Orchestrate a GitHub PR review by running `reviewer-agent` directly in the current session. The pipeline gathers PR metadata, diff, files, and optional Jira snippet, then posts a PENDING review to GitHub. You review it in the UI and submit on your own terms.
+Orchestrate a GitHub PR review by dispatching **one** subagent that runs the
+`reviewer-agent` pipeline end-to-end. The subagent boundary isolates the
+review from the current session's conversation (bias removal). Everything
+inside the subagent runs serially in that single session — no nested
+fan-out — so the review stays within a predictable token budget.
 
-For an unbiased review, start a **fresh Claude Code session** before invoking this command — the current session's conversation would otherwise color the review.
+The output is a PENDING review on GitHub; you filter and submit manually.
 
 ## Usage
 
@@ -19,17 +23,21 @@ Examples:
 
 ## Execution
 
-For maximum thinking depth on the wave pipeline, the user may run `/effort max` before invoking this command.
+For maximum thinking depth on the wave pipeline, the user may run
+`/effort max` before invoking this command.
 
-In the **current session** (no subagent wrapper):
+Spawn a single Agent with these inputs in the prompt body:
 
-1. Read `~/.claude/skills/reviewer-agent/SKILL.md` and follow it as the orchestrator.
-2. Use these inputs:
-   - **Mode:** `github`
-   - **PR URL:** `<PR_URL>` (from the command argument)
-   - **Jira URL:** `<JIRA_URL>` (only if `--jira` was passed)
-   - **Language:** Portuguese (Brazil)
+- **Mode:** `github`
+- **PR URL:** `<PR_URL>` (from the command argument)
+- **Jira URL:** `<JIRA_URL>` (only if `--jira` was passed)
+- **Language:** Portuguese (Brazil)
 
-The base branch is read from the PR's `baseRefName` inside reviewer-agent's Wave 1 — no need to resolve it here. Reviewer-agent's pipeline spawns its own specialists/validators as parallel subagents per its design. The main session is the orchestrator.
+Tell the subagent to read `~/.claude/skills/reviewer-agent/SKILL.md` and
+follow it as the orchestrator. The base branch is discovered inside the
+pipeline's Wave 1 from `baseRefName`. The subagent runs the full pipeline
+itself — do not spawn additional Agents from here.
 
-After the pipeline completes, the review is PENDING on GitHub — open `<pr-url>/files` to filter, edit, delete, or submit. Print the review URL, per-severity counts, skipped files, and the Wave 8 summary.
+After the subagent returns, the review is PENDING on GitHub. Open
+`<pr-url>/files` to filter, edit, delete, or submit. Print the review URL,
+per-severity counts, skipped files, and the Wave 6 summary.

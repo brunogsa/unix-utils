@@ -1,41 +1,49 @@
 ---
-description: "Local branch review using the wave-based reviewer-agent. Multiple parallel specialists + Review Guide (business context, decisions, where to focus, incidental changes) → written to ./auto-review.md. Strongest review at the cost of 30s–3min setup."
+description: "Local branch review via the reviewer-agent skill, dispatched as a subagent for bias isolation. The subagent reads the diff vs. base-branch, walks specialists serially in one session (no further fan-out), and writes the review to ./auto-review.md."
 disable-model-invocation: true
 ---
 
 # Auto Review
 
-Orchestrate a local code review by running `reviewer-agent` directly in the current session. The pipeline reads the diff vs. `base-branch`, reads files from CWD, and writes the review to `./auto-review.md`.
-
-For an unbiased review, start a **fresh Claude Code session** before invoking this command — the current session's conversation would otherwise color the review.
+Orchestrate a local code review by dispatching **one** subagent that runs the
+`reviewer-agent` pipeline end-to-end. The subagent boundary isolates the
+review from the current session's conversation (bias removal). Everything
+inside the subagent runs serially in that single session — no nested
+fan-out — so the review stays within a predictable token budget.
 
 ## Usage
 
 `/auto-review [base-branch]`
 
-- `base-branch` defaults to the repo's default branch (auto-detected; works for `main`, `master`, or anything else).
+- `base-branch` defaults to the repo's default branch (auto-detected; works
+  for `main`, `master`, or anything else).
 
 Examples:
 - `/auto-review` — current branch vs. the repo's default (auto-detected).
-- `/auto-review develop` — current branch vs. develop.
+- `/auto-review develop` — current branch vs. `develop`.
 
 ## Execution
 
-For maximum thinking depth on the wave pipeline, the user may run `/effort max` before invoking this command.
+For maximum thinking depth on the wave pipeline, the user may run
+`/effort max` before invoking this command.
 
 Resolve `<BASE_BRANCH>`:
+
 - If the user passed an argument, use it as-is.
-- Else, run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'` and use that.
-- If detection fails (no origin HEAD set), ask the user which branch to diff against rather than guessing.
+- Else run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`
+  and use that.
+- If detection fails (no `origin/HEAD` set), ask the user which branch to
+  diff against rather than guessing.
 
-Then, in the **current session** (no subagent wrapper):
+Spawn a single Agent with these inputs in the prompt body:
 
-1. Read `~/.claude/skills/reviewer-agent/SKILL.md` and follow it as the orchestrator.
-2. Use these inputs:
-   - **Mode:** `local`
-   - **Base branch:** `<BASE_BRANCH>` (resolved above)
-   - **Language:** English
+- **Mode:** `local`
+- **Base branch:** `<BASE_BRANCH>` (resolved above)
+- **Language:** English
 
-Reviewer-agent's pipeline spawns its own specialists/validators as parallel subagents per its design. The main session is the orchestrator.
+Tell the subagent to read `~/.claude/skills/reviewer-agent/SKILL.md` and
+follow it as the orchestrator. The subagent runs the full pipeline itself
+— do not spawn additional Agents from here.
 
-After the pipeline completes, the review lives at `./auto-review.md`. Print the file path, per-severity counts, skipped files, and the Wave 8 summary.
+After the subagent returns, the review is at `./auto-review.md`. Print the
+file path, per-severity counts, skipped files, and the Wave 6 summary.

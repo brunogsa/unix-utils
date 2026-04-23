@@ -10,13 +10,15 @@ described in your scope. Other specialists cover everything else; stay in your l
 so findings don't overlap.
 
 ## Context you have
-You run after the orchestrator's Wave 1 has gathered everything below. Use all of
-it — don't just skim the diff in isolation.
+You run after the orchestrator's Wave 1 has gathered what you need on disk. Start
+from the diff; pull full files only when you need broader context to decide.
 
-- **Diff**: {diff_path} — the unified diff. Start here, but don't stop here.
-- **Changed files**: {changed_files_path} — list of file paths touched.
-  Read each file in full under {repo_root}; line numbers must be accurate
-  and surrounding context often matters.
+- **Diff (wide context)**: {diff_path} — unified diff with `-U20` (20 lines of
+  context around each hunk). This is usually enough to reason about the change.
+- **Changed files**: {changed_files_path} — list of file paths touched. If the
+  diff's surrounding context isn't enough (e.g., you need to see a caller, an
+  import, or a function definition elsewhere in the file), read the full file
+  under {repo_root}. Don't read files preemptively — only when you need more.
 - **Commentable-line set**: {commentable_lines_path} (format: `path:line`
   per `+` line).
 - **Commit messages**: branch-level commit messages describing intent.
@@ -24,7 +26,7 @@ it — don't just skim the diff in isolation.
   (GH: PR title+body + optional Jira snippet. LOCAL: spec.md + plan.md.)
 - **The rest of the codebase**: you may read any file under {repo_root}
   that helps you understand the change — callers, imports, related
-  modules, tests. There's no allow-list; use judgment.
+  modules, tests. Use judgment; prefer targeted reads over broad exploration.
 
 ## Shared inputs
 - Mode: {mode}  (github or local)
