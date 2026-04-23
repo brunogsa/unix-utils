@@ -87,6 +87,6 @@
   "promptSuggestionEnabled": true,
   "tui": "default",
   "skipDangerousModePermissionPrompt": true,
-  "verbose": true,
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "verbose": true
 }
