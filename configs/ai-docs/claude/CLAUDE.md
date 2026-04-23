@@ -62,8 +62,9 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 - **Ask before parallelizing read-only work** -- ask series vs parallel for multiple independent explorations. Single calls: foreground. Web: parallel.
 
 - **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for non-trivial tasks.
-  - After each create, TaskUpdate the subject with ` <returned-id>. ` prefix (leading space, id, period, trailing space).
-  - Why: UI hides IDs in titles, and a manual counter drifts out of sync.
+  - Create with ` <N>. ` prefix in the subject (sequential 1/2/3; leading space, period, trailing space) — renders instantly, no update round-trip.
+  - Once TaskCreate returns the id, TaskUpdate the subject to swap ` <N>. ` for ` <returned-id>. `.
+  - Why: UI hides IDs in titles, so a visible prefix is required; the later id swap anchors the canonical reference so a manual counter can't drift.
 
 - **Prefer targeted edits over full rewrites** -- Edit tool over Write tool.
 
