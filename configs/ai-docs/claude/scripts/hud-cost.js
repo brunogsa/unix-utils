@@ -30,6 +30,11 @@ const PRICES = {
   haiku:  { in: 1, out:  5, cacheWrite5m: 1.25, cacheWrite1h:  2.0, cacheRead: 0.10 },
 };
 
+const SHOW_COSTS = true;
+const SHOW_CACHE = true;
+
+const MAX_LABEL_LEN = 48;
+
 const USAGE = [
   'Usage:',
   '  node hud-cost.js               emit {"label": "Opus4.7 $11 • Sonnet4.6 $9 | cache 89%"}',
@@ -186,9 +191,13 @@ function aggregateByFamily(byModel) {
 }
 
 function formatLabel({ byModel, unknownNames, input, cacheCreate, cacheRead }) {
-  const denom     = input + cacheCreate + cacheRead;
-  const hitPct    = denom > 0 ? Math.round((cacheRead / denom) * 100) : 0;
-  const cachePart = `cache ${hitPct}%`;
+  const totalPromptTokens = input + cacheCreate + cacheRead;
+  const cacheHitPct = totalPromptTokens > 0 ? Math.round((cacheRead / totalPromptTokens) * 100) : 0;
+  const cacheHitLabel = `cache ${cacheHitPct}%`;
+
+  if (!SHOW_COSTS) return SHOW_CACHE ? cacheHitLabel : '';
+
+  const suffix = SHOW_CACHE ? ` | ${cacheHitLabel}` : '';
 
   const sorted = (obj) => Object.entries(obj).sort(([, a], [, b]) => b - a);
 
@@ -209,13 +218,13 @@ function formatLabel({ byModel, unknownNames, input, cacheCreate, cacheRead }) {
     for (const compact of [false, true]) {
       const parts = buildParts(entries, compact);
       if (parts.length === 0) parts.push(formatCost(0));
-      const label = parts.join(' • ') + ' | ' + cachePart;
-      if (label.length <= 48) return label;
+      const label = parts.join(' • ') + suffix;
+      if (label.length <= MAX_LABEL_LEN) return label;
     }
   }
 
   const total = Object.values(byModel).reduce((a, b) => a + b, 0);
-  return `${formatCost(total)} | ${cachePart}`;
+  return `${formatCost(total)}${suffix}`;
 }
 
 async function main() {
@@ -227,7 +236,8 @@ async function main() {
   try {
     const session = findSession(process.cwd());
     if (!session) {
-      process.stdout.write(JSON.stringify({ label: '$0.00 | cache 0%' }));
+      const label = formatLabel({ byModel: {}, unknownNames: [], input: 0, cacheCreate: 0, cacheRead: 0 });
+      process.stdout.write(JSON.stringify({ label }));
       return;
     }
 
@@ -242,9 +252,12 @@ async function main() {
     const label  = formatLabel(totals);
     writeCache(cacheFile, { maxMtime: session.maxMtime, label });
     process.stdout.write(JSON.stringify({ label }));
-  } catch {
+  } catch (err) {
+    process.stderr.write(`hud-cost: ${err.message}\n${err.stack}\n`);
     process.stdout.write(JSON.stringify({ label: '' }));
   }
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { SHOW_COSTS, SHOW_CACHE, PRICES, MAX_LABEL_LEN, shortModelName, priceFor, formatCost, stripVersion, aggregateByFamily, formatLabel, parseOneFile };
