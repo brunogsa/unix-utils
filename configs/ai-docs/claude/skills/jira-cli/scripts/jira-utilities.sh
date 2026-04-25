@@ -110,7 +110,11 @@ function create-jira-issue() {
   local project="$1"
   local issue_type="$2"
   local summary="$3"
-  local extra_fields="${4:-{}}"
+  # Avoid ${4:-{}} — zsh misparses the closing brace in the default word,
+  # appending a stray '}' to the value when $4 is set. Use explicit conditional.
+  local extra_fields
+  extra_fields="${4}"
+  [[ -z "$extra_fields" ]] && extra_fields="{}"
 
   if [[ -z "$project" ]] || [[ -z "$issue_type" ]] || [[ -z "$summary" ]]; then
     echo "Usage: create-jira-issue <project> <issue-type> <summary> [json-fields]" >&2
@@ -119,18 +123,24 @@ function create-jira-issue() {
     return 1
   fi
 
+  # Write extra_fields to a temp file to avoid shell-escaping issues with --argjson
+  local tmp_extra
+  tmp_extra=$(mktemp)
+  printf '%s' "$extra_fields" > "$tmp_extra"
+
   # Build the fields JSON, merging extra_fields
   local fields_json
   fields_json=$(jq -n \
     --arg project "$project" \
     --arg issuetype "$issue_type" \
     --arg summary "$summary" \
-    --argjson extra "$extra_fields" \
+    --slurpfile extra "$tmp_extra" \
     '{
       project: {key: $project},
       issuetype: {name: $issuetype},
       summary: $summary
-    } + $extra')
+    } + $extra[0]')
+  rm -f "$tmp_extra"
 
   local body
   body=$(jq -n --argjson fields "$fields_json" '{fields: $fields}')
