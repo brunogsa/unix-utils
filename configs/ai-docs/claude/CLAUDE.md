@@ -146,6 +146,8 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Bug fix starts with a failing regression test** -- reproduce the bug as a test first, confirm it fails, then fix. The test guards against recurrence.
 
+- **Debug systematically** -- root cause before fix. After 3 failed fixes, STOP: web search the symptom and question the architecture, don't try a fourth. Concrete workflow in the `debug-standards` skill.
+
 - **Update docs as you go** -- locate and update related documentation inline.
 
 Concrete examples live in the `workflow-standards` skill (loaded on-demand when planning implementation).
