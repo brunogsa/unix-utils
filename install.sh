@@ -202,6 +202,8 @@ npm install -g trash-cli
 npm install -g beautiful-mermaid
 
 # AI setup: Claude Code e OpenCode configuration
+npm install -g codeburn
+
 mkdir -p ~/.claude
 rm -fr ~/.claude/commands ~/.claude/skills ~/.claude/scripts
 ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/
