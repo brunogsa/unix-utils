@@ -24,6 +24,9 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 **Prefer CLI scripts + skills over MCP servers** -- cheaper in context, easier to debug, compose via pipes. Use MCP only for capabilities CLI + skills can't provide.
 
+**Skill tool over Read for matching skills** -- when a skill's description matches the task, invoke it via the Skill tool. Use Read on `SKILL.md` only for meta-work (audit, edit, compare).
+  - Why: Skill activates the guidance into active behavior; Read merely shows you the file. Reading without invoking is half a step.
+
 **CRITICAL: Load `skill-creator` skill before creating or modifying any SKILL.md** -- never author skill content without it. Why: folder structure (SKILL.md + scripts/ + references/), progressive disclosure, frontmatter rules.
 
 **Prefer lazy loading** -- keep auto-loaded content lean; push detail into on-demand skills with progressive disclosure.
@@ -33,7 +36,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 ## INTERACTION
 
-- **Coach my English** -- CRITICAL: correct unnatural phrasing using `"[original]" → "[corrected]"` before responding.
+- **Coach my English** -- CRITICAL: correct unnatural phrasing inline as `~~original~~ **corrected**` — only the changed span, not the surrounding sentence. Less reading drift.
   - Focus: word choice, articles, prepositions, sentence structure, idiomatic expressions. Skip obvious fast-typing typos.
   - Flag grammatically correct but awkward phrasings too — idiomaticity matters more than rule-correctness.
 
@@ -132,7 +135,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 - **Save slow command output, filter later** -- any command taking 8+ seconds: redirect full output to `/tmp/`, then filter from the file.
   - Never pipe a slow command through `grep`/`head` directly — if the filter is wrong you'd re-run the whole thing.
 
-- **Scout rule** -- when you notice pre-existing issues (stale comments, budget overruns, lint gaps), flag them to the user.
+- **Scout rule** -- when you notice pre-existing issues (stale comments, budget overruns, lint gaps), flag them and ask whether to add to the task list.
   - Only fix if approved; use isolated commits separate from feature work.
 
 - **RED → GREEN → REFACTOR, most forcing case first** -- pick the test case that requires the most real logic.
