@@ -54,4 +54,11 @@ Each task produces **1-2 commits, never zero**. Sub-commit steps (RED/GREEN/REFA
 ...
 
 ## Decisions
+
+Chronological log. Editable while planning. Once the user approves the plan and signals execution start, insert the divider line below and switch to append-only — revisions become new entries with `**Supersedes:**` references rather than in-place edits.
+
 - **DECISION:** ..., because ...
+
+<!-- ── execution begins below; entries above are frozen, append-only below ── -->
+
+- **DECISION (Task N):** ..., because ... *(to revise an earlier decision, append a new entry ending with `**Supersedes:** "<first ~60 chars of prior>"`)*

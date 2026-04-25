@@ -54,4 +54,11 @@ Group by category for scannability:
 - **QUESTION:** ...
 
 ## Decisions
+
+Chronological log. Editable during refinement. Once the user approves the plan and signals execution start, insert the divider line below and switch to append-only — revisions become new entries with `**Supersedes:**` references rather than in-place edits.
+
 - **DECISION:** ..., because ...
+
+<!-- ── execution begins below; entries above are frozen, append-only below ── -->
+
+- **DECISION (Task N):** ..., because ... *(to revise an earlier decision, append a new entry ending with `**Supersedes:** "<first ~60 chars of prior>"`)*

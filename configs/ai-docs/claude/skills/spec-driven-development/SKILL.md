@@ -37,7 +37,10 @@ When resolved, remove the marker entirely.
 ### `**DECISION:** <what was decided>, because <reasoning>`
 
 Captures trade-off decisions as they happen. Feeds into PR descriptions.
-When a decision changes, update the existing marker in place.
+
+- **Editable while planning** — modify in place freely.
+- **Append-only after execution begins** — once the user approves the plan, the execution divider is inserted in spec.md and plan.md; from that point, append new entries prefixed `**DECISION (Task N):**`. To revise an earlier decision, append a new entry ending with `**Supersedes:** "<first ~60 chars of prior decision>"` rather than editing the prior entry in place.
+- **Why:** preserves evolution for `/create-pr` and review; keeps prompt cache warm (immutable history); makes `git diff` of the plan unambiguous (only additions, no rewrites).
 
 ### `**LINTER GAP:** <what the linter should have caught>`
 
@@ -47,12 +50,23 @@ Grep all markers: `\*\*(DECISION|QUESTION|LINTER GAP):\*\*`
 
 ## Lifecycle
 
-0. User creates spec.md with initial prompt/notes (or `/brainstorm` refines it)
-1. Plan mode or direct request generates plan.md from spec.md (or from prompt)
-2. Each plan.md task becomes a TaskCreate item (with acceptance criteria + verify)
-3. Both files are updated as development progresses (living docs)
-4. `/create-pr` uses both files to generate a rich PR description
-5. spec.md and plan.md are NOT committed -- session-scoped scaffolding (gitignored or deleted after PR)
+0. User creates spec.md with initial prompt/notes (or `/brainstorm` refines it).
+1. Plan mode or direct request generates plan.md from spec.md (or from prompt).
+2. **Self-review** — run the two checks in the next section; surface gaps, unresolved `**QUESTION:**` markers, and any incidental observations (per the scout rule).
+3. **User approves the plan** — when the user signals execution start (e.g., "approved, let's go"), insert the execution divider line into the `## Decisions` section of both spec.md and plan.md as the first action, then begin Task 1.
+4. Each plan.md task becomes a TaskCreate item (with acceptance criteria + verify).
+5. Both files updated as work progresses (living docs); decisions are append-only past the divider.
+6. `/create-pr` uses both files to generate a rich PR description.
+7. spec.md and plan.md are NOT committed -- session-scoped scaffolding (gitignored or deleted after PR).
+
+## Self-review
+
+After writing or revising spec.md or plan.md, run two checks before handing off:
+
+1. **Spec coverage** — for each spec acceptance criterion, name the task that implements it. Surface gaps to the user only when they might be intentional out-of-scope (so the user can confirm).
+2. **Open questions** — collect every unresolved `**QUESTION:**` marker; surface them as a "before we proceed, can you answer these?" list.
+
+Anything else you notice during the review (stray placeholders, name drift, inconsistent terminology, stale references) follows the scout rule from `CLAUDE.md` — flag it to the user, fix only if approved. The two checks above are mandatory; everything beyond is incidental observation worth surfacing but not blocking.
 
 ## Guidelines
 
@@ -62,6 +76,6 @@ Grep all markers: `\*\*(DECISION|QUESTION|LINTER GAP):\*\*`
 - **Acceptance criteria are testable** -- every task has a concrete verify method (command, test, or manual check)
 - **Update docs at each task boundary** -- stale spec/plan degrades PR description quality. Specific triggers:
   - **After completing a task**: mark it done in plan.md, note any deviations from the original plan
-  - **After making a decision**: add `[DECISION: ... because ...]` marker immediately in the relevant file
+  - **After making or revising a decision**: append a `**DECISION (Task N):**` entry below the execution divider. To revise a prior decision, end the new entry with `**Supersedes:** "<first ~60 chars of prior>"` rather than editing the prior entry in place.
   - **After discovering scope changes**: add/remove/update tasks in plan.md, update acceptance criteria in spec.md
   - **After incidental changes**: if you fix or change something not in the plan, add it as a completed task in plan.md so `/create-pr` can distinguish planned vs incidental work
