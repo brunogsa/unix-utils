@@ -64,6 +64,9 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Ask before parallelizing read-only work** -- ask series vs parallel for multiple independent explorations. Single calls: foreground. Web: parallel.
 
+- **Verify subagent results against artifacts** -- check `git diff`, file contents, or command output before treating a subagent's "done" as done.
+  - Why: the summary describes intent; only the artifact shows reality.
+
 - **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for non-trivial tasks.
   - Create with ` <N>. ` prefix in the subject (sequential 1/2/3; leading space, period, trailing space) — renders instantly, no update round-trip.
   - Once TaskCreate returns the id, TaskUpdate the subject to swap ` <N>. ` for ` <returned-id>. `.
@@ -130,6 +133,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Verify what you produce** -- evidence over optimism.
   - Before completing: run the task's verify step (or propose one). Run scripts/automation to confirm.
+  - Fresh evidence only: if the verification hasn't been re-run since your latest change, run it again before claiming. Prior-turn output doesn't prove the current state.
   - When contradicted: if two sources disagree, re-read the actual code before assuming one is wrong. Stale results, shifted line numbers, or misread context waste hours.
 
 - **Save slow command output, filter later** -- any command taking 8+ seconds: redirect full output to `/tmp/`, then filter from the file.
