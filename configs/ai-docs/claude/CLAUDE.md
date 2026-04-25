@@ -139,9 +139,12 @@ Configs are symlinked from repos to system locations. Always edit the source rep
   - Only fix if approved; use isolated commits separate from feature work.
 
 - **RED → GREEN → REFACTOR, most forcing case first** -- pick the test case that requires the most real logic.
-  - RED: write that test. GREEN: implement just enough, pulling in helpers only when called.
+  - RED: write the test, run it, confirm it fails for the expected reason (missing behavior — not a typo, missing import, or setup error).
+  - GREEN: implement just enough, pulling in helpers only when called.
   - Repeat for remaining cases, building on what exists. Backfill integration tests once core logic is solid.
   - Isolate pure refactors into their own commit.
+
+- **Bug fix starts with a failing regression test** -- reproduce the bug as a test first, confirm it fails, then fix. The test guards against recurrence.
 
 - **Update docs as you go** -- locate and update related documentation inline.
 
