@@ -202,6 +202,8 @@ Concrete examples live in the `workflow-standards` skill (loaded on-demand when 
 - **Centralize repeated logic** -- DRY: defaults, transformations, computations.
   - Merge near-duplicate functions: when two differ only by a flag or filter, generalize into one with an optional parameter.
 
+- **No speculative scope** -- don't add features or configurability the user didn't ask for. Every line should trace to the request.
+
 - **Don't wrap trivial expressions** -- wrappers earn existence by adding behavior (retry, logging, validation), not by renaming a clear stdlib call.
 
 - **Decompose dense expressions** -- break unfamiliar APIs and nested callbacks into named intermediate variables. Readability beats brevity.
