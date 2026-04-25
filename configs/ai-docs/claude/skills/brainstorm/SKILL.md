@@ -34,11 +34,17 @@ codebase understanding) to seed the brainstorm.
 Ask clarifying questions (Socratic style). Focus on:
 - What problem are we solving? (Background)
 - Who benefits and how? (User Stories)
-- What does success look like? (Acceptance Criteria)
+- What does success look like? (Testable Acceptance Criteria — BDD scenarios)
 - What constraints exist? (Non-Functional Requirements)
 - What's unclear? (mark with `[NEEDS CLARIFICATION]`)
 
 Ask 2-3 questions per round. Don't overwhelm.
+
+**For Testable Acceptance Criteria, actively probe for coverage gaps.** Happy-path scenarios are easy to elicit; corner cases and failure modes need pulling. Before generating spec.md, push the user to enumerate:
+- **Corner cases**: empty inputs, max sizes/limits, boundary values, combined/composed filters, idempotency, concurrent access.
+- **Failure modes**: validation errors (4xx), downstream timeouts, downstream 5xx, partial failures, auth failures, rate limits.
+
+If the user only describes the happy path, ask explicitly: "what should happen when X is empty / oversized / invalid / unavailable?" The spec template requires happy + corner + failure coverage.
 
 ### 3. Generate/update spec.md
 

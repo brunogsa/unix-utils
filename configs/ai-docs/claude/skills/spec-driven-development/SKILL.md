@@ -15,7 +15,7 @@ Two living documents in the project root. Templates live in `assets/` and are po
 
 Captures requirements, context, and acceptance criteria. Owned by the user, refined collaboratively.
 
-Populate `assets/spec-template.md` — sections: Background, Goals, User Stories, Functional Requirements, Non-Functional Requirements, Acceptance Criteria, Open Questions (`**QUESTION:**` markers), Decisions (`**DECISION:** ..., because ...` markers).
+Populate `assets/spec-template.md` — sections: Background, Goals, User Stories, Functional Requirements, Non-Functional Requirements, **Testable Acceptance Criteria** (BDD-style Given/When/Then scenarios — see template for format and the happy/corner/failure coverage rule), Open Questions (`**QUESTION:**` markers), Decisions (`**DECISION:** ..., because ...` markers).
 
 ### plan.md (how / tasks)
 
