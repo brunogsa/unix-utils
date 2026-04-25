@@ -85,7 +85,7 @@
     }
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "xhigh",
+  "effortLevel": "high",
   "advisorModel": "opus",
   "promptSuggestionEnabled": true,
   "tui": "default",

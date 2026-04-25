@@ -1,5 +1,5 @@
 {
-  "lineLayout": "compact",
+  "lineLayout": "expanded",
   "display": {
     "showTools": false,
     "showAgents": false,
@@ -7,7 +7,7 @@
     "showDuration": true,
     "showConfigCounts": false,
     "showContextBar": false,
-    "showModel": false,
+    "showModel": true,
     "showUsage": true,
     "usageBarEnabled": false,
     "sevenDayThreshold": 0
