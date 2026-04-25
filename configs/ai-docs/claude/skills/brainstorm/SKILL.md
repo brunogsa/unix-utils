@@ -1,5 +1,5 @@
 ---
-description: "Interactively refine an idea into a structured spec.md through a Socratic interview. Use when user says 'brainstorm', 'let's brainstorm', 'brainstorm with me', or wants to explore a feature/problem/design through Q&A before implementation. Owns the interview surface; loads spec-driven-development for templates and lifecycle."
+description: "Interactively refine an idea into a structured spec.md through a Socratic interview. Use ONLY when the user explicitly says 'brainstorm', 'let's brainstorm', 'brainstorm with me', or invokes /brainstorm. Do NOT auto-trigger from general design/feature discussion — the user reserves this for when they want the full interview. Owns the interview surface; loads spec-driven-development for templates and lifecycle."
 disable-model-invocation: false
 ---
 
@@ -29,7 +29,26 @@ Examples:
 **If nothing exists**: use the current session context (conversation history,
 codebase understanding) to seed the brainstorm.
 
-### 2. Interview the user
+### 2. Probe scope before deep questions
+
+Before drilling into requirements, check whether the request describes multiple independent subsystems (e.g., "platform with chat, file storage, billing, and analytics"). Signals: multiple unrelated nouns, distinct user roles, separate persistence concerns, or features that could each ship independently.
+
+If it looks decomposable, surface it: name the candidate sub-projects, ask the user how they relate and which one ships first. Brainstorm only the first sub-project here — each remaining piece gets its own spec→plan cycle.
+
+**If the user agrees to decompose**: write a brief `scopes.md` next to where the spec will live. One line per sub-project — name, one-sentence purpose, dependency on other sub-projects (if any). Mark the one being brainstormed now. Format:
+
+```
+## Sub-projects
+
+1. **<name>** — <one-sentence purpose>. Depends on: <none | #N>.
+2. **<name>** — <one-sentence purpose>. Depends on: <none | #N>.
+
+Currently brainstorming: #<N>
+```
+
+Why: a stale brainstorm session loses the decomposition map; `scopes.md` survives so the next `/brainstorm` run picks up the queue without re-deriving it. Refining a too-large idea wastes interview rounds on details that belong in separate specs.
+
+### 3. Interview the user
 
 Ask clarifying questions (Socratic style). Focus on:
 - What problem are we solving? (Background)
@@ -46,14 +65,40 @@ Ask 2-3 questions per round. Don't overwhelm.
 
 If the user only describes the happy path, ask explicitly: "what should happen when X is empty / oversized / invalid / unavailable?" The spec template requires happy + corner + failure coverage.
 
-### 3. Generate/update spec.md
+### 4. Propose 2-3 approaches with trade-offs
+
+Once requirements feel solid, present 2-3 viable approaches conversationally. Lead with your recommendation and the reasoning. Cover the trade-off axes that matter for this idea (complexity, blast radius, reversibility, dependencies, time-to-first-value).
+
+Get a directional pick from the user before writing the spec. Capture the outcome in the spec's Decisions section as one marker with discarded alternatives as sub-bullets:
+
+```
+**DECISION:** Chose <approach>, because <reason>.
+- Discarded **<alt-1>**: <why rejected>.
+- Discarded **<alt-2>**: <why rejected>.
+```
+
+Why one marker (not separate `**DECISION:**` lines per rejection): the chosen and rejected approaches are one decision, not three. Sub-bullets keep them visually grouped while staying scannable; separate markers would pollute the Decisions section with negative entries and break the "one marker = one decision" grep convention.
+
+Why include discarded options at all: the next session (or reviewer) will re-derive the same alternatives unless the rationale is preserved. Naming what lost — and why — prevents re-litigation and surfaces when a trade-off has shifted (e.g., the constraint that killed alt-2 no longer applies).
+
+### 5. Generate/update spec.md
 
 Write to the provided file path, or `./spec.md` by default, populating the
 spec template at `~/.claude/skills/spec-driven-development/assets/spec-template.md`.
 If the file already exists, update it in place (preserve user content,
 fill gaps, restructure into the template).
 
-### 4. Present for review
+### 6. Self-review the spec before handing it back
+
+Read the spec with fresh eyes. Fix inline (no need to re-review):
+- **Placeholders**: any TBD, TODO, or vague requirements lingering?
+- **Contradictions**: do sections disagree (e.g., goals vs. acceptance criteria, decisions vs. requirements)?
+- **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition? If yes, jump back to step 2 and write/update `scopes.md`.
+- **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker for the user.
+
+Why: cheaper for you to catch these than for the user to find them in review — and it prevents the "looks good, ship it" loop where ambiguity surfaces only during implementation.
+
+### 7. Present for review
 
 Show the spec summary. Ask if anything is missing or wrong.
 Iterate until the user is satisfied.
