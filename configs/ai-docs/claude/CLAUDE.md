@@ -277,6 +277,9 @@ Concrete examples live in the `doc-standards` skill (loaded on-demand when writi
 
 - **Don't reproduce logic under test** -- let the system under test do the work.
 
+- **Coverage finds untested flows** -- after tests pass, check coverage if available; uncovered branches reveal corner cases the tests didn't actually exercise.
+  - Source order: repo's existing coverage script first; else run coverage directly; else read existing artifacts (lcov, coverage.xml). Skip silently if none work.
+
 - **One test per distinct cause** -- isolate each independent trigger for a behavior. Different inputs that exercise the same code path are one test, not two.
 
 - **Inline test helpers until reused** -- keep builder/factory helpers in the test file until a second test file needs them. Centralize at 2+ callers, not speculatively.
