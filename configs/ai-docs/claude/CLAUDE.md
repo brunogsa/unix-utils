@@ -121,6 +121,8 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Plan tasks become TODO items with acceptance criteria** -- every task in plan.md and TaskCreate includes acceptance criteria and a verify method.
 
+- **TDD/BDD default for plan tasks** -- every plan.md task follows RED-GREEN-REFACTOR unless `**DECISION:** skip TDD because <reason>` overrides. Plan-template carries the reminder; `test-driven-development` is canonical.
+
 - **Keep spec and plan up to date** -- update at each task boundary: mark done, add `[DECISION:]` markers, note scope changes. Stale docs degrade `/create-pr`.
 
 - **Search before creating** -- search codebase for similar code. Present trade-offs of reusing vs creating. Ask "where does this logically belong?"
@@ -263,6 +265,8 @@ Concrete examples live in the `doc-standards` skill (loaded on-demand when writi
 - **Descriptive titles** -- CRITICAL: say what and why (BDD-like). Test titles should act as documentation of the behavior
 
 - **Test behaviour, not implementation** -- prefer black-box integration tests; supplement with focused unit tests.
+
+- **Manual tests require evidence** -- log every manual check in `./manual-tests-evidences.md` (gitignored, session-scoped) per the format in `test-driven-development`. No evidence = no manual check.
 
 - **Deterministic & self-contained** -- no shared state, no randomness, clone inputs when testing mutating functions.
 

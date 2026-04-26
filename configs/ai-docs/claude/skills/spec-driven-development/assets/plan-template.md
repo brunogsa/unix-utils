@@ -2,6 +2,8 @@
 
 Spec: [link or reference to spec.md]
 
+> **Default: each task follows RED-GREEN-REFACTOR (TDD/BDD).** See the `test-driven-development` skill. Opt-out per task with `**DECISION:** skip TDD because <reason>`.
+
 ## Approach
 High-level technical approach. Architecture decisions. Trade-offs considered.
 
