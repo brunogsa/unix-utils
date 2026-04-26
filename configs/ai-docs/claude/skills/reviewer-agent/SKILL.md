@@ -120,6 +120,7 @@ Repo root for specialists is the user's CWD; the work dir is scratch for diff/co
 
 ```bash
 work_dir=$(mktemp -d /tmp/auto-review.XXXXXX)
+out_file="./auto-review_$(date +%Y-%m-%d_%H-%M).md"
 git fetch origin "$base_branch"
 git diff -U20 "origin/$base_branch...HEAD"             > "$work_dir/diff"
 git diff      "origin/$base_branch...HEAD" --name-only > "$work_dir/changed-files.txt"
@@ -312,7 +313,7 @@ For each surviving finding, drop it if `start_line..line` is not entirely within
 
 ### local mode
 
-Write `./auto-review.md` to the current CWD following the template at `references/local-review-template.md` — read that file and expand its placeholders. Keep the template file as the single source of truth for the output shape; do not inline the template here.
+Write `${out_file}` (set in Wave 1 to `./auto-review_YYYY-MM-DD_HH-MM.md`; timestamp preserves ordering across runs, e.g. per-task in autonomous mode) to the current CWD following the template at `references/local-review-template.md` — read that file and expand its placeholders. Keep the template file as the single source of truth for the output shape; do not inline the template here.
 
 ---
 
@@ -354,7 +355,7 @@ The per-finding drop list exists so you can sanity-check the filter while the th
 
 ### local mode summary
 
-Same structure, but with `./auto-review.md` as the output path and no review URL.
+Same structure, but with `${out_file}` (the timestamped path) as the output path and no review URL.
 
 ---
 

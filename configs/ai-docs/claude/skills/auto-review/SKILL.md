@@ -1,5 +1,5 @@
 ---
-description: "Local branch review via the reviewer-agent skill, dispatched as a subagent for bias isolation. The subagent reads the diff vs. base-branch, walks specialists serially in one session (no further fan-out), and writes the review to ./auto-review.md."
+description: "USE when finishing a coherent change before pushing/PR-ing — at task boundaries during autonomous plan execution, before /create-pr, or when the user says 'review this branch' / 'audit my changes' / 'check what I just did' / 'run a local review'. Spawns reviewer-agent (8 serial specialists + validator + drop off-diff) in an isolated subagent; writes ./auto-review_YYYY-MM-DD_HH-MM.md. Use even on small diffs — tiny-PR fast-path keeps cost low."
 disable-model-invocation: false
 ---
 
@@ -21,6 +21,17 @@ fan-out — so the review stays within a predictable token budget.
 Examples:
 - `/auto-review` — current branch vs. the repo's default (auto-detected).
 - `/auto-review develop` — current branch vs. `develop`.
+- `/auto-review HEAD~2` — review only the last 2 commits (per-task scoping).
+
+## Per-task usage during autonomous execution
+
+In autonomous mode, gate each task before moving to the next:
+
+`/auto-review HEAD~N`
+
+where N is the number of commits the just-finished task produced. The base argument accepts any git ref (commit SHA, branch name, `HEAD~N`), so per-task scoping reuses the full-branch flow.
+
+If MANDATORY findings surface, fix before the next task. If only RECOMMENDED/lower, log to plan.md as incidentals and continue.
 
 ## Execution
 
@@ -45,5 +56,8 @@ Tell the subagent to read `~/.claude/skills/reviewer-agent/SKILL.md` and
 follow it as the orchestrator. The subagent runs the full pipeline itself
 — do not spawn additional Agents from here.
 
-After the subagent returns, the review is at `./auto-review.md`. Print the
-file path, per-severity counts, skipped files, and the Wave 6 summary.
+After the subagent returns, the review is at `./auto-review_<timestamp>.md`
+(Wave 6 summary contains the exact resolved path). Print the file path,
+per-severity counts, skipped files, and the Wave 6 summary. Multiple runs
+accumulate as separate timestamped files — preserves ordering across
+per-task and end-of-branch invocations.
