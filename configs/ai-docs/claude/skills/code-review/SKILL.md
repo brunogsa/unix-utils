@@ -1,5 +1,5 @@
 ---
-description: "GitHub PR review via the reviewer-agent skill, dispatched as a subagent for bias isolation. The subagent runs the full pipeline serially in one session (no further fan-out) and posts a single PENDING review for you to filter and submit."
+description: "GitHub PR review via the reviewer-agent skill. User-invoked only — wraps reviewer-agent in a subagent and posts a PENDING review."
 disable-model-invocation: true
 ---
 

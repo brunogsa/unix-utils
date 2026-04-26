@@ -1,5 +1,5 @@
 ---
-description: "Discover and use Bruno's personal CLI commands from ~/oh-my-zsh. Use when you need a shell utility for text processing, clipboard, AI tools, data transformation, git workflows, AWS operations, mermaid diagrams, or notifications -- an existing command likely already does it. Also use when encountering an unknown command name that might be a personal tool."
+description: "Discover Bruno's personal CLI commands in ~/oh-my-zsh. USE when user says 'use my script/utility/func' that does X, or when needing a shell utility — an existing command likely already does it. Also for unknown command names."
 user-invocable: false
 ---
 

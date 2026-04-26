@@ -29,6 +29,9 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 **CRITICAL: Load `skill-creator` skill before creating or modifying any SKILL.md** -- never author skill content without it. Why: folder structure (SKILL.md + scripts/ + references/), progressive disclosure, frontmatter rules.
 
+**Skill descriptions: goal + triggers, not inventory** -- state the skill's purpose and when to invoke it; don't enumerate what it covers. Detail belongs in the body.
+  - Why: only the first 250 chars participate in `/skills` routing (Claude Code 2.1.86 cap); inventory burns the budget on details that don't change the trigger decision.
+
 **Prefer lazy loading** -- keep auto-loaded content lean; push detail into on-demand skills with progressive disclosure.
   - Why: every auto-loaded line competes with the conversation for attention (Jaroslawicz 2025: adherence peaks at 150–200, degrades to 68% at 500).
 

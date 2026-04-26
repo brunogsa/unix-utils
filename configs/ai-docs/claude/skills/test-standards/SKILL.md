@@ -1,5 +1,5 @@
 ---
-description: "Test examples and anti-patterns covering a broad range of topics; headliners include descriptive BDD-like titles, realistic mock data, parametrized suites, order-independent assertions, and not reproducing logic under test — this list is illustrative, not exhaustive. USE PROACTIVELY when writing, reviewing, refactoring, or debugging tests — the skill often has relevant guidance beyond what the headliners above suggest."
+description: "Test guidelines and anti-patterns. USE PROACTIVELY when writing, reviewing, refactoring, or debugging tests."
 user-invocable: false
 ---
 

@@ -1,5 +1,5 @@
 ---
-description: "USE when implementing tasks from plan.md (TDD/BDD by default for plan-driven work) OR user says 'TDD this' / 'BDD style' / 'test-first' / 'red-green' / 'test-driven'. Canonical for the RED-GREEN-REFACTOR cycle (most-forcing case first, helper-on-demand), the rationalization tables that catch drift away from test-first, and the manual-tests-evidences.md format for when automation isn't enough. Don't skip — 'this case is too simple' is the most common rationalization."
+description: "Canonical TDD/BDD discipline for plan-driven work. USE when implementing plan.md tasks (TDD/BDD default) OR user says 'TDD this' / 'BDD style' / 'test-first' / 'red-green' / 'test-driven'."
 user-invocable: false
 ---
 

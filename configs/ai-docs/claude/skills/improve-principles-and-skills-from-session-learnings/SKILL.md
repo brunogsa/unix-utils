@@ -1,5 +1,5 @@
 ---
-description: "Improve Principles and Skills from Session Learnings"
+description: "Refine CLAUDE.md and skills based on patterns observed in the current session. User-invoked only."
 disable-model-invocation: true
 ---
 

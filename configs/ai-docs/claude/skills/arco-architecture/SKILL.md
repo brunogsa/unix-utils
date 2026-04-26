@@ -1,5 +1,5 @@
 ---
-description: "Arco ecosystem from Integrator's perspective: brands, legacy/modern systems, sources of truth. USE when the user mentions Arco brand names (SAS, SAE, IS, NSE), discusses legacy vs modern Arco systems, asks about which service owns a piece of data, or debugs anything spanning the Arco ecosystem."
+description: "Arco ecosystem reference from Integrator's perspective. USE when debugging Arco-spanning issues, looking up which service owns data, or when brand names like SAS/SAE/IS/NSE come up."
 user-invocable: false
 ---
 

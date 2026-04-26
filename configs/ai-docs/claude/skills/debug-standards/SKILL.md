@@ -1,5 +1,5 @@
 ---
-description: "Debugging examples and anti-patterns covering a broad range of topics; headliners include root-cause-before-fix, reproducing bugs as failing tests, multi-component boundary instrumentation, backward data-flow tracing, and the 3-failed-fixes escalation rule (web search the symptom, question the architecture) — this list is illustrative, not exhaustive. USE PROACTIVELY when investigating any test failure, bug, unexpected behavior, performance regression, build failure, or 'why doesn't this work' situation — the skill often has relevant guidance beyond what the headliners above suggest."
+description: "Debugging guidelines and anti-patterns. USE PROACTIVELY when investigating any test failure, bug, regression, or 'why doesn't this work'."
 user-invocable: false
 ---
 

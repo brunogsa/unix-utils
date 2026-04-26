@@ -1,5 +1,5 @@
 ---
-description: "Documentation examples and anti-patterns covering a broad range of topics; headliners include commenting the why not the what, preferring tests and logs over comments, and self-documenting code through explicit names — this list is illustrative, not exhaustive. USE PROACTIVELY when writing or reviewing comments, docstrings, READMEs, module docs, or commit messages — the skill often has relevant guidance beyond what the headliners above suggest."
+description: "Documentation guidelines and anti-patterns. USE PROACTIVELY when writing or reviewing comments, docstrings, READMEs, or commit messages."
 user-invocable: false
 ---
 

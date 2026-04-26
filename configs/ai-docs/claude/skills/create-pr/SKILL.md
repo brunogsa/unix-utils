@@ -1,5 +1,5 @@
 ---
-description: "Create a GitHub PR with a rich description. Auto-detects spec.md and plan.md in cwd for context."
+description: "Create a GitHub PR with a rich description. User-invoked only — auto-detects spec.md/plan.md for context."
 disable-model-invocation: true
 ---
 

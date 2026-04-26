@@ -1,5 +1,5 @@
 ---
-description: "USE for local code review. DEFAULT mode: only on explicit user trigger ('review this branch' / 'audit my changes' / 'check what I just did' / 'run a local review' / direct /auto-review invocation). AUTONOMOUS mode: per-task gate during plan execution, AND a final pass at end-of-branch AFTER /refactor (sequence: refactor → final auto-review + fixes → create-pr). Spawns reviewer-agent (8 serial specialists + validator + drop off-diff) in an isolated subagent; writes ./auto-review_YYYY-MM-DD_HH-MM.md. Use even on small diffs — tiny-PR fast-path keeps cost low."
+description: "USE for local code review on the current branch. DEFAULT mode: explicit user trigger ('review this branch' / 'audit my changes' / /auto-review). AUTONOMOUS mode: per-task gate during plan execution + final pass at end-of-branch (after /refactor)."
 disable-model-invocation: false
 ---
 

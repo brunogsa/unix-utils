@@ -1,5 +1,5 @@
 ---
-description: "Interactively refine an idea into a structured spec.md through a Socratic interview. Use ONLY when the user explicitly says 'brainstorm', 'let's brainstorm', 'brainstorm with me', or invokes /brainstorm. Do NOT auto-trigger from general design/feature discussion — the user reserves this for when they want the full interview. Owns the interview surface; loads spec-driven-development for templates and lifecycle."
+description: "Interactively refine an idea into spec.md via Socratic interview. Use ONLY when user explicitly says 'brainstorm' / 'let's brainstorm' / invokes /brainstorm. Do NOT auto-trigger from general design discussion — reserved for the full interview."
 disable-model-invocation: false
 ---
 

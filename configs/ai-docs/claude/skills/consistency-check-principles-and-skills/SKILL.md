@@ -1,5 +1,5 @@
 ---
-description: "Audit CLAUDE.md and its companion skills for contradictions, merge/generalization opportunities, duplication, and structural compliance with skill-creator conventions. Trigger on explicit phrases: 'consistency check', 'check for contradictions', 'audit principles for duplicates', 'find merge opportunities', 'are any of my rules contradictory', 'audit my skills for overlap', or any variant asking about coherence of CLAUDE.md / skills. Also invoked at the end of guideline-editing flows such as `improve-principles-and-skills-from-session-learnings`. Report-only — surfaces findings for user triage, never auto-fixes. Heavy (LLM cross-file reading) — do NOT invoke proactively after every edit; pair with the cheap `performance-check-principles-and-skills` skill for quantitative budgets and conciseness."
+description: "Audit CLAUDE.md and skills for contradictions, duplication, and merge opportunities. Trigger on 'consistency check' / 'check for contradictions' / 'audit my skills'. Heavy (LLM cross-file reading) — don't invoke after every edit. Report-only."
 ---
 
 # Consistency Check: Principles and Skills

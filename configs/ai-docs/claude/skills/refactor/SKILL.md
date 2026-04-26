@@ -1,5 +1,5 @@
 ---
-description: "USE for end-of-branch refactoring sweep over unpushed/uncommitted changes (naming, decomposition, dead code, dense expressions, layered-architecture violations). DEFAULT mode: only on explicit user trigger ('refactor this' / 'clean this up' / 'simplify what I just wrote' / direct /refactor invocation). AUTONOMOUS mode: at end-of-branch as the FIRST step of the wrap-up sequence (refactor → final auto-review + fixes → create-pr). NOT for in-task cleanup — GREEN-REFACTOR within the task already handles that. Reports a numbered opportunity list; user picks which to apply."
+description: "USE for end-of-branch refactoring sweep over unpushed changes. DEFAULT: explicit trigger ('refactor this' / 'clean this up' / /refactor). AUTONOMOUS: first step of end-of-branch wrap-up (refactor → final auto-review + fixes → create-pr)."
 disable-model-invocation: false
 ---
 

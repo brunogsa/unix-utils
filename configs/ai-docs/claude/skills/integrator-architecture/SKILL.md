@@ -1,5 +1,5 @@
 ---
-description: "Integrator architecture: routing, auth, downstream calls, log groups, databases, and debugging reference. USE when debugging Integrator routes/auth/downstream calls, looking up log group names or database connections, or answering any Integrator-internal question."
+description: "Integrator architecture reference. USE when debugging Integrator routes/auth/downstream calls, looking up log groups or DBs, or answering any Integrator-internal question."
 user-invocable: false
 ---
 

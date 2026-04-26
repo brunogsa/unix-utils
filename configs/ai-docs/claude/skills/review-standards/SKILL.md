@@ -1,5 +1,5 @@
 ---
-description: "Code review guidelines covering confidence thresholds, feedback format, priority tags, review priority order, and scope"
+description: "Code review guidelines and anti-patterns. USE PROACTIVELY when reviewing code or guiding /auto-review and /code-review."
 user-invocable: false
 ---
 

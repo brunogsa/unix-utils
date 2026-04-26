@@ -1,6 +1,7 @@
 ---
-description: "Answer PR review comments addressed to Claude. Use when the user says 'answer PR comments', 'reply to PR', 'check PR comments for me', or shares a PR link/number asking to respond to comments mentioning @claude. Also use proactively when working on a PR that has unresolved comments addressed to Claude."
+description: "Answer PR review comments addressed to Claude. User-invoked only — drafts replies to unresolved @claude mentions on a PR."
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Answer PR Comments as Claude

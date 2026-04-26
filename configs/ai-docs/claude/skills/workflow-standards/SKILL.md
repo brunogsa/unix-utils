@@ -1,5 +1,5 @@
 ---
-description: "Workflow examples covering a broad range of topics; headliners include designing test titles across all layers before any implementation, and RED-GREEN-REFACTOR starting with the most-forcing test case — this list is illustrative, not exhaustive. USE PROACTIVELY when planning implementation for a non-trivial task, starting a new feature, or breaking down work — the skill often has relevant guidance beyond what the headliners above suggest."
+description: "Workflow guidelines for plan-driven implementation. USE PROACTIVELY when planning implementation for a non-trivial task or starting a new feature."
 user-invocable: false
 ---
 

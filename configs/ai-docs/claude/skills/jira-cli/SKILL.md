@@ -1,5 +1,5 @@
 ---
-description: "Jira API shell utilities for issue CRUD, linking, querying, and status transitions. Use when interacting with Jira: creating issues, querying with JQL, managing links, transitioning statuses, or fetching issue context for code reviews."
+description: "Jira API shell utilities. USE when interacting with Jira tickets, JQL queries, or fetching issue context for code reviews."
 user-invocable: false
 ---
 

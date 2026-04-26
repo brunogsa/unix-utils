@@ -1,5 +1,5 @@
 ---
-description: "Shared reviewer orchestrator for /auto-review (local) and /code-review (GitHub). Single-session pipeline (serial specialists, no internal sub-Agents): early exit → context prep (with tiny-PR fast-path) → serial specialist review + guide writer → batched self-validation → drop off-diff → emit pending review or auto-review.md → summary. The caller wraps this skill in a subagent for bias isolation; inside, everything runs serially to keep prompt cache warm."
+description: "Shared reviewer orchestrator for /auto-review (local) and /code-review (GitHub). Wrapped in a subagent for bias isolation. USE only via those callers — not invoked directly."
 user-invocable: false
 ---
 

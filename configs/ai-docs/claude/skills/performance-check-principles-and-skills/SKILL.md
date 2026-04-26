@@ -1,5 +1,5 @@
 ---
-description: "Audit CLAUDE.md and skills against research-backed performance budgets (line count, words per line, skill count, per-skill size). USE PROACTIVELY after any edit to ~/.claude/CLAUDE.md, ~/.claude/skills/**/SKILL.md, or a repo's CLAUDE.md / .claude/skills/**/SKILL.md — even when the user didn't explicitly ask — to catch drift early. Also trigger on explicit phrases: 'check budget', 'performance check', 'audit principles', 'measure CLAUDE.md', 'check skill sizes', 'is my CLAUDE.md too long', or any variant asking about config size or performance. Report-only — never auto-fixes."
+description: "Audit CLAUDE.md and skills against research-backed performance budgets. USE PROACTIVELY after editing CLAUDE.md or any SKILL.md to catch drift. Trigger on 'performance check' / 'check budget'. Report-only — never auto-fixes."
 ---
 
 # Performance Check: Principles and Skills
