@@ -1,5 +1,5 @@
 ---
-description: "USE when finishing a coherent change before pushing/PR-ing — at task boundaries during autonomous plan execution, before /create-pr, or when the user says 'review this branch' / 'audit my changes' / 'check what I just did' / 'run a local review'. Spawns reviewer-agent (8 serial specialists + validator + drop off-diff) in an isolated subagent; writes ./auto-review_YYYY-MM-DD_HH-MM.md. Use even on small diffs — tiny-PR fast-path keeps cost low."
+description: "USE for local code review. DEFAULT mode: only on explicit user trigger ('review this branch' / 'audit my changes' / 'check what I just did' / 'run a local review' / direct /auto-review invocation). AUTONOMOUS mode: per-task gate during plan execution, AND a final pass at end-of-branch AFTER /refactor (sequence: refactor → final auto-review + fixes → create-pr). Spawns reviewer-agent (8 serial specialists + validator + drop off-diff) in an isolated subagent; writes ./auto-review_YYYY-MM-DD_HH-MM.md. Use even on small diffs — tiny-PR fast-path keeps cost low."
 disable-model-invocation: false
 ---
 
@@ -23,15 +23,16 @@ Examples:
 - `/auto-review develop` — current branch vs. `develop`.
 - `/auto-review HEAD~2` — review only the last 2 commits (per-task scoping).
 
-## Per-task usage during autonomous execution
+## When to invoke
 
-In autonomous mode, gate each task before moving to the next:
+**Default mode (interactive):** only on explicit user trigger — direct `/auto-review` invocation or phrases like "review this branch" / "audit my changes" / "check what I just did" / "run a local review". Do NOT auto-trigger from "task done" or similar; the user reserves this command.
 
-`/auto-review HEAD~N`
+**Autonomous mode** has two trigger points:
 
-where N is the number of commits the just-finished task produced. The base argument accepts any git ref (commit SHA, branch name, `HEAD~N`), so per-task scoping reuses the full-branch flow.
+1. **Per-task gate during plan execution** — `/auto-review HEAD~N` after each task's commits, where N is the number of commits the task produced. Fix MANDATORY findings before the next task; log RECOMMENDED/lower to plan.md as incidentals.
+2. **Final pass at end-of-branch** — after `/refactor` and before `/create-pr` (sequence: refactor → final auto-review + fixes → create-pr). Catches anything refactor introduced and gives create-pr clean ground to describe.
 
-If MANDATORY findings surface, fix before the next task. If only RECOMMENDED/lower, log to plan.md as incidentals and continue.
+The base argument accepts any git ref (commit SHA, branch name, `HEAD~N`), so per-task scoping reuses the full-branch flow.
 
 ## Execution
 

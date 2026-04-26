@@ -1,11 +1,29 @@
 ---
-description: "Simplify Unpushed & Uncommitted Code"
+description: "USE for end-of-branch refactoring sweep over unpushed/uncommitted changes (naming, decomposition, dead code, dense expressions, layered-architecture violations). DEFAULT mode: only on explicit user trigger ('refactor this' / 'clean this up' / 'simplify what I just wrote' / direct /refactor invocation). AUTONOMOUS mode: at end-of-branch as the FIRST step of the wrap-up sequence (refactor → final auto-review + fixes → create-pr). NOT for in-task cleanup — GREEN-REFACTOR within the task already handles that. Reports a numbered opportunity list; user picks which to apply."
 disable-model-invocation: false
 ---
 
 # Simplify Unpushed & Uncommitted Code
 
 Detect refactoring opportunities in unpushed/uncommitted code, then apply them one-by-one in the main conversation for user review.
+
+## When to invoke
+
+**Default mode (interactive):** only on explicit user trigger — direct `/refactor` invocation or phrases like "refactor this" / "clean this up" / "simplify what I just wrote". Do NOT auto-trigger from "user just finished editing some code" or similar; the user reserves this command.
+
+**Autonomous mode:** run as the FIRST step of the end-of-branch wrap-up sequence:
+
+1. `/refactor` — sweep + apply approved opportunities
+2. final `/auto-review` — quality gate; fix MANDATORY findings
+3. `/create-pr` — generate the PR description
+
+This ordering matters: refactor first so auto-review sees the polished code; auto-review second so create-pr's description reflects the final state.
+
+**NOT for in-task cleanup.** RED-GREEN-REFACTOR already covers in-task local cleanup (rename a variable, extract a helper, restructure within the task). Invoking `/refactor` mid-task is both more expensive and more likely to over-abstract on partial visibility.
+
+**Exceptions where mid-branch is OK:**
+- The branch produced an obvious large duplication and you want to dedup before adding more on top.
+- A naming choice in an early task turned out wrong and is propagating; rename now before the cost compounds.
 
 ## Usage
 
