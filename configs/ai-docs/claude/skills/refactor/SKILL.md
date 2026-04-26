@@ -1,6 +1,6 @@
 ---
 description: "Simplify Unpushed & Uncommitted Code"
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Simplify Unpushed & Uncommitted Code

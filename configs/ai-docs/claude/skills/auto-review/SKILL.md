@@ -1,6 +1,6 @@
 ---
 description: "Local branch review via the reviewer-agent skill, dispatched as a subagent for bias isolation. The subagent reads the diff vs. base-branch, walks specialists serially in one session (no further fan-out), and writes the review to ./auto-review.md."
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Auto Review
