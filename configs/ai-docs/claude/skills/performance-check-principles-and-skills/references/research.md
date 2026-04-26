@@ -9,6 +9,8 @@ Citations backing every number in `SKILL.md`'s budget table. Read this when you 
 - [Skill size](#skill-size)
 - [Skill count](#skill-count)
 - [Skill words per SKILL.md](#skill-words-per-skillmd)
+- [Skill description length](#skill-description-length)
+- [Skill name length](#skill-name-length)
 - [Summary](#summary)
 
 ---
@@ -88,6 +90,70 @@ No external source. User preference. Co-binds with the 500-line cap: at ~4 words
 
 ---
 
+## Skill description length
+
+**Budget: 250 characters per `description` frontmatter field**
+
+### Claude Code — `/skills` display cap (the routing-effective limit)
+
+*Claude Code changelog v2.1.86* — https://github.com/anthropics/claude-code/issues/40121
+
+Verbatim from the changelog:
+
+> "Skill descriptions in the `/skills` listing are now capped at 250 characters to reduce context usage."
+
+The `/skills` listing is what Claude consults when deciding whether to invoke a skill. Anything past character 250 in your description **does not participate in routing**. Front-load triggers and core context within those 250.
+
+The same issue clarifies that `SLASH_COMMAND_TOOL_CHAR_BUDGET` increases the overall metadata budget across skills but does not remove the per-description 250-char cap.
+
+### Anthropic — frontmatter validation hard cap (failure threshold)
+
+*Skill authoring best practices* — https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
+
+> "`description`: Must be non-empty. Maximum 1024 characters. Cannot contain XML tags."
+
+This is the validation cap; descriptions longer than 1024 chars fail at load time. We don't budget against 1024 because the routing cap (250) is a much stricter effective limit, but it remains the absolute ceiling.
+
+### Anthropic — skill-creator authoring guidance
+
+*skill-creator SKILL.md* — https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
+
+Two concrete patterns for the description:
+- "Include both what the skill does AND specific contexts for when to use it. All 'when to use' info goes here, not in the body."
+- "Make the skill descriptions a little bit 'pushy'." Skills tend to **under-trigger**; explicit trigger contexts help.
+
+Per Anthropic's API docs the metadata layer (name + description) is "always in context" at approximately 100 tokens / ~100 words per skill at session start. With 32 skills loaded, that's ~3,200 tokens before any conversation begins.
+
+### Why 250, not 1024
+
+The 1024 cap is the *failure* threshold; the 250 cap is the *effective* trigger budget — only the first 250 chars are read by the router. A description longer than 250 isn't broken, but the tail is wasted from a discovery standpoint and bloats the always-loaded metadata layer. Aligning the budget with the routing-effective length keeps every char working.
+
+### No published empirical ablation
+
+*Berkeley Function Calling Leaderboard (BFCL) v4* — https://gorilla.cs.berkeley.edu/leaderboard.html
+
+BFCL v4 measures function-calling accuracy broadly, but no public study isolates *description length* as an independent variable affecting routing. Search results across BFCL, ToolBench, and academic repositories surfaced no description-length ablation. The 250 budget therefore anchors on Anthropic's product cap, not an evaluation result.
+
+---
+
+## Skill name length
+
+**Budget: 64 characters per skill name**
+
+### Anthropic — frontmatter validation hard cap
+
+*Skill authoring best practices* — https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
+
+> "`name`: Maximum 64 characters. Must contain only lowercase letters, numbers, and hyphens. Cannot contain XML tags. Cannot contain reserved words: 'anthropic', 'claude'."
+
+This budget enforces only the length cap. The other rules (charset, reserved words, XML) belong in a stricter frontmatter-validation skill if needed; performance-check stays focused on size budgets.
+
+### Skill name resolution
+
+For Claude Code skills, the `name` field is optional in the frontmatter — when absent, the directory name is used. The 64-char cap applies to whichever resolves: explicit field if present, else `basename` of the skill directory. The audit script measures the directory name because that's what Claude Code displays in `/skills` and what users invoke via `/<skill-name>`.
+
+---
+
 ## Summary
 
 | Budget | Value | Anchor |
@@ -97,5 +163,7 @@ No external source. User preference. Co-binds with the 500-line cap: at ~4 words
 | Skill total count | 32 | User preference; conservative vs. Anthropic's 100+ reference |
 | Skill non-blank lines | 500 | Anthropic official best practice |
 | Skill words per SKILL.md | 2048 | User preference; co-binds with 500 lines at ~4 words/line |
+| Skill description chars | 250 | Claude Code 2.1.86 `/skills` listing cap |
+| Skill name chars | 64 | Anthropic frontmatter validation hard cap |
 
-When dialling any budget, update both this file and `SKILL.md`'s table. If a sourced value changes (e.g., Anthropic updates their skill-size guidance), update the linked URL and re-check every skill for overage against the new ceiling.
+When dialling any budget, update both this file and `SKILL.md`'s table. If a sourced value changes (e.g., Anthropic updates their skill-size guidance, or the 250-char `/skills` cap moves), update the linked URL and re-check every skill for overage against the new ceiling.

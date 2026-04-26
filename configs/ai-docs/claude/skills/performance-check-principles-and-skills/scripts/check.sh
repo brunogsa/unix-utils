@@ -23,6 +23,8 @@ readonly CLAUDE_WORDS_PER_LINE_BUDGET=32
 readonly SKILLS_COUNT_BUDGET=32
 readonly SKILL_LINES_BUDGET=500
 readonly SKILL_WORDS_BUDGET=2048
+readonly SKILL_DESC_BUDGET=250
+readonly SKILL_NAME_BUDGET=64
 
 # Resolve targets
 if [ -z "${1:-}" ]; then
@@ -53,18 +55,55 @@ if [ "$has_claude_md" -eq 1 ]; then
     claude_offending=$(awk -v b="$CLAUDE_WORDS_PER_LINE_BUDGET" '{ if (NF > b) print NR": "NF" words" }' "$CLAUDE_MD")
 fi
 
+# Extract single-line YAML frontmatter description (handles optional surrounding quotes)
+extract_description() {
+    awk '
+        /^---[[:space:]]*$/ { in_fm = !in_fm; if (!in_fm) exit; next }
+        in_fm && /^description:[[:space:]]/ {
+            sub(/^description:[[:space:]]+/, "")
+            sub(/^["\047]/, "")
+            sub(/["\047][[:space:]]*$/, "")
+            print
+            exit
+        }
+    ' "$1"
+}
+
 # Skill measurements
 if [ "$has_skills_dir" -eq 1 ]; then
     skill_count=$(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')
 
     skill_overages=""
+    max_desc=0
+    max_desc_skill="—"
+    max_name=0
+    max_name_skill="—"
     for f in "$SKILLS_DIR"/*/SKILL.md; do
         [ -f "$f" ] || continue
+        name=$(basename "$(dirname "$f")")
         lines=$(grep -c '\S' "$f")
         words=$(wc -w < "$f" | tr -d ' ')
-        if [ "$lines" -gt "$SKILL_LINES_BUDGET" ] || [ "$words" -gt "$SKILL_WORDS_BUDGET" ]; then
-            name=$(basename "$(dirname "$f")")
-            skill_overages+=$'\n'"- $name: $lines lines, $words words"
+        desc=$(extract_description "$f")
+        desc_chars=$(printf '%s' "$desc" | LC_ALL=en_US.UTF-8 wc -m | tr -d ' ')
+        name_chars=${#name}
+
+        if [ "$desc_chars" -gt "$max_desc" ]; then
+            max_desc=$desc_chars
+            max_desc_skill=$name
+        fi
+        if [ "$name_chars" -gt "$max_name" ]; then
+            max_name=$name_chars
+            max_name_skill=$name
+        fi
+
+        issues=""
+        [ "$lines" -gt "$SKILL_LINES_BUDGET" ] && issues+=" lines=$lines"
+        [ "$words" -gt "$SKILL_WORDS_BUDGET" ] && issues+=" words=$words"
+        [ "$desc_chars" -gt "$SKILL_DESC_BUDGET" ] && issues+=" desc=${desc_chars}c"
+        [ "$name_chars" -gt "$SKILL_NAME_BUDGET" ] && issues+=" name=${name_chars}c"
+
+        if [ -n "$issues" ]; then
+            skill_overages+=$'\n'"- $name:$issues"
         fi
     done
 fi
@@ -97,6 +136,8 @@ fi
 
 if [ "$has_skills_dir" -eq 1 ]; then
     echo "| Skill count | $skill_count | $SKILLS_COUNT_BUDGET | $(status_of "$skill_count" "$SKILLS_COUNT_BUDGET") |"
+    echo "| Max skill desc chars | $max_desc ($max_desc_skill) | $SKILL_DESC_BUDGET | $(status_of "$max_desc" "$SKILL_DESC_BUDGET") |"
+    echo "| Max skill name chars | $max_name ($max_name_skill) | $SKILL_NAME_BUDGET | $(status_of "$max_name" "$SKILL_NAME_BUDGET") |"
     [ "$skill_count" -gt "$SKILLS_COUNT_BUDGET" ] && overages=1
     [ -n "$skill_overages" ] && overages=1
 else
@@ -112,7 +153,7 @@ if [ "$has_claude_md" -eq 1 ] && [ -n "$claude_offending" ]; then
 fi
 
 if [ "$has_skills_dir" -eq 1 ] && [ -n "$skill_overages" ]; then
-    echo "## Skills exceeding size budgets ($SKILL_LINES_BUDGET lines or $SKILL_WORDS_BUDGET words)"
+    echo "## Skills exceeding budgets (lines >$SKILL_LINES_BUDGET, words >$SKILL_WORDS_BUDGET, desc >${SKILL_DESC_BUDGET}c, name >${SKILL_NAME_BUDGET}c)"
     echo "$skill_overages"
     echo
 fi
