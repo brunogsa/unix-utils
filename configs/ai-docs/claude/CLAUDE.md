@@ -96,6 +96,9 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 - **Out-of-scope work = new TODO items** -- review feedback, mid-task requests, or anything you uncover yourself go to TaskCreate (ordered right after current), not pivots.
   - Why: preserves "One logical change per commit" and prevents mixed-concern files.
 
+- **Side quest** -- when I say "side quest", TaskCreate at end of list with `[SIDE QUEST]` subject prefix; also append at end of plan.md if one exists. Overrides "Out-of-scope work" default.
+  - Why: explicit signal of lower-priority deferral; "Out-of-scope work" assumes reactive-to-current, "side quest" assumes explicit-defer.
+
 - **Explain trade-offs on manual changes** -- when I modify your edit or reject with an alternative, explain what my version gains, loses, and assumes.
 
 - **Re-read plans after edits** -- CRITICAL: when I edit a plan file, re-read from disk before proceeding. Never rely on cached version.
