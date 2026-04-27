@@ -68,7 +68,8 @@
     "security-guidance@claude-plugins-official": true,
     "explanatory-output-style@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true
+    "pyright-lsp@claude-plugins-official": true,
+    "understand-anything@understand-anything": true
   },
   "extraKnownMarketplaces": {
     "claude-code-lsps": {
@@ -81,6 +82,12 @@
       "source": {
         "source": "github",
         "repo": "jarrodwatts/claude-hud"
+      }
+    },
+    "understand-anything": {
+      "source": {
+        "source": "github",
+        "repo": "Lum1104/Understand-Anything"
       }
     }
   },
