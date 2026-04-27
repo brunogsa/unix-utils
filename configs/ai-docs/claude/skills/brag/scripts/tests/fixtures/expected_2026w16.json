@@ -1,0 +1,362 @@
+[
+  {
+    "start": "2026-04-13 08:00",
+    "day": "Monday",
+    "summary": "[FT] Glue work: Questions, Alginment, Slack, Reminders",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-13 08:30",
+    "day": "Monday",
+    "summary": "[FT] Plan, Org, Retro, BRAG",
+    "duration_min": 60
+  },
+  {
+    "start": "2026-04-13 09:45",
+    "day": "Monday",
+    "summary": "Planning Squad B2B Meu Arco",
+    "duration_min": 105
+  },
+  {
+    "start": "2026-04-13 11:30",
+    "day": "Monday",
+    "summary": "#1 ADR: Como podemos entregar a réplica NSE no B2B, com o prazo que temos?",
+    "duration_min": 90
+  },
+  {
+    "start": "2026-04-13 13:00",
+    "day": "Monday",
+    "summary": "[OO] Almoço",
+    "duration_min": 60
+  },
+  {
+    "start": "2026-04-13 14:00",
+    "day": "Monday",
+    "summary": "Configurações do Slack",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-13 14:30",
+    "day": "Monday",
+    "summary": "rest",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-13 15:00",
+    "day": "Monday",
+    "summary": "Fix Integrador alarms: set new webhook for slack",
+    "duration_min": 15
+  },
+  {
+    "start": "2026-04-13 15:15",
+    "day": "Monday",
+    "summary": "Coding",
+    "duration_min": 45
+  },
+  {
+    "start": "2026-04-13 16:00",
+    "day": "Monday",
+    "summary": "[OO] Médico Esposa",
+    "duration_min": 120
+  },
+  {
+    "start": "2026-04-13 18:00",
+    "day": "Monday",
+    "summary": "Coding - Changes PR review ITGD-2589 #1",
+    "duration_min": 105
+  },
+  {
+    "start": "2026-04-14 08:30",
+    "day": "Tuesday",
+    "summary": "Coding - Changes PR review ITGD-2589 #2",
+    "duration_min": 15
+  },
+  {
+    "start": "2026-04-14 08:45",
+    "day": "Tuesday",
+    "summary": "ADR 5 - Campo complementary em freightPaidBySchool para Hub Protheus IS",
+    "duration_min": 15
+  },
+  {
+    "start": "2026-04-14 09:00",
+    "day": "Tuesday",
+    "summary": "#2 ADR: Como podemos entregar a réplica NSE no B2B, com o prazo que temos?",
+    "duration_min": 45
+  },
+  {
+    "start": "2026-04-14 10:00",
+    "day": "Tuesday",
+    "summary": "Daily squad integrações",
+    "duration_min": 45
+  },
+  {
+    "start": "2026-04-14 10:45",
+    "day": "Tuesday",
+    "summary": "Co-constructed Doc Severities w/ team",
+    "duration_min": 75
+  },
+  {
+    "start": "2026-04-14 12:00",
+    "day": "Tuesday",
+    "summary": "[OO] Inglês",
+    "duration_min": 60
+  },
+  {
+    "start": "2026-04-14 13:00",
+    "day": "Tuesday",
+    "summary": "[OO] Almoço",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-14 13:30",
+    "day": "Tuesday",
+    "summary": "Glue work",
+    "duration_min": 15
+  },
+  {
+    "start": "2026-04-14 13:45",
+    "day": "Tuesday",
+    "summary": "#1 Coding ITGD-2666: Unpack non-shrink products Eskolare SAS",
+    "duration_min": 90
+  },
+  {
+    "start": "2026-04-14 15:15",
+    "day": "Tuesday",
+    "summary": "#dados-e-eng-leadership",
+    "duration_min": 45
+  },
+  {
+    "start": "2026-04-14 16:00",
+    "day": "Tuesday",
+    "summary": "Cafézin: Renato / Salomão",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-14 16:30",
+    "day": "Tuesday",
+    "summary": "#2 Coding ITGD-2666: Unpack non-shrink products Eskolare SAS",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-14 17:00",
+    "day": "Tuesday",
+    "summary": "CNPJ Alfanumérico - Entendimento Loja NSE",
+    "duration_min": 60
+  },
+  {
+    "start": "2026-04-14 18:00",
+    "day": "Tuesday",
+    "summary": "#3 Coding ITGD-2666: Unpack non-shrink products Eskolare SAS",
+    "duration_min": 45
+  },
+  {
+    "start": "2026-04-14 19:30",
+    "day": "Tuesday",
+    "summary": "[OO] Psiquiatra",
+    "duration_min": 60
+  },
+  {
+    "start": "2026-04-15 08:30",
+    "day": "Wednesday",
+    "summary": "[FT] Glue work: Questions, Alginment, Slack, Reminders",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-15 09:00",
+    "day": "Wednesday",
+    "summary": "Cafezin: Celson / Salomão",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-15 09:30",
+    "day": "Wednesday",
+    "summary": "#3 ADR: Como podemos entregar a réplica NSE no B2B, com o prazo que temos?",
+    "duration_min": 15
+  },
+  {
+    "start": "2026-04-15 09:45",
+    "day": "Wednesday",
+    "summary": "#1 Review PR 1978: [DBMA-300] Mapper 4MDG → ProductUpsert event",
+    "duration_min": 15
+  },
+  {
+    "start": "2026-04-15 10:00",
+    "day": "Wednesday",
+    "summary": "Daily squad integrações",
+    "duration_min": 45
+  },
+  {
+    "start": "2026-04-15 11:00",
+    "day": "Wednesday",
+    "summary": "Commerce - B2B 2.0",
+    "duration_min": 60
+  },
+  {
+    "start": "2026-04-15 12:00",
+    "day": "Wednesday",
+    "summary": "[OO] Psico",
+    "duration_min": 60
+  },
+  {
+    "start": "2026-04-15 13:00",
+    "day": "Wednesday",
+    "summary": "[OO] Almoço",
+    "duration_min": 75
+  },
+  {
+    "start": "2026-04-15 14:15",
+    "day": "Wednesday",
+    "summary": "#1 Learn: Shape Up",
+    "duration_min": 45
+  },
+  {
+    "start": "2026-04-15 15:00",
+    "day": "Wednesday",
+    "summary": "Cumbuca: Tech Talks",
+    "duration_min": 90
+  },
+  {
+    "start": "2026-04-15 16:30",
+    "day": "Wednesday",
+    "summary": "Design Review: Sync de dados do painel monitor erros",
+    "duration_min": 60
+  },
+  {
+    "start": "2026-04-15 17:30",
+    "day": "Wednesday",
+    "summary": "#4 ADR: Como podemos entregar a réplica NSE no B2B, com o prazo que temos?",
+    "duration_min": 60
+  },
+  {
+    "start": "2026-04-16 08:30",
+    "day": "Thursday",
+    "summary": "Cafézin: Renan / Salomão",
+    "duration_min": 120
+  },
+  {
+    "start": "2026-04-16 10:30",
+    "day": "Thursday",
+    "summary": "Refinament Squaq B2B Meu Arco",
+    "duration_min": 90
+  },
+  {
+    "start": "2026-04-16 12:00",
+    "day": "Thursday",
+    "summary": "[OO] Almoço",
+    "duration_min": 90
+  },
+  {
+    "start": "2026-04-16 13:30",
+    "day": "Thursday",
+    "summary": "Semanal - Commerce (Virada ERP)",
+    "duration_min": 60
+  },
+  {
+    "start": "2026-04-16 14:30",
+    "day": "Thursday",
+    "summary": "#5 ADR: Como podemos entregar a réplica NSE no B2B, com o prazo que temos?",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-16 15:00",
+    "day": "Thursday",
+    "summary": "Read: Trilha de Carreira Arco",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-16 15:30",
+    "day": "Thursday",
+    "summary": "1-1: Salomão + Mauneto",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-16 16:00",
+    "day": "Thursday",
+    "summary": "Code Review PR 1977 - Runbook do Integrador e agente integrator-runbook-advisor",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-16 16:30",
+    "day": "Thursday",
+    "summary": "Checkpoint: Virada ERP [tech <> produto]",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-16 17:00",
+    "day": "Thursday",
+    "summary": "[Arco 2.0] Revisão cenários C27",
+    "duration_min": 60
+  },
+  {
+    "start": "2026-04-17 08:30",
+    "day": "Friday",
+    "summary": "BO: Risks Launch Error Monitor",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-17 09:00",
+    "day": "Friday",
+    "summary": "Code Review Carbon: Solução para emissão de NF4 sendo que a compra (NF2) ocorreu no protheus",
+    "duration_min": 15
+  },
+  {
+    "start": "2026-04-17 09:15",
+    "day": "Friday",
+    "summary": "#1 Learn: AI Harness Engineering",
+    "duration_min": 15
+  },
+  {
+    "start": "2026-04-17 09:30",
+    "day": "Friday",
+    "summary": "Entendimento - Kit Customizado SAS (B2C)",
+    "duration_min": 60
+  },
+  {
+    "start": "2026-04-17 10:30",
+    "day": "Friday",
+    "summary": "#2 Learn: AI Harness Engineering",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-17 11:00",
+    "day": "Friday",
+    "summary": "Sync - Launch prod Error Monitor",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-17 11:30",
+    "day": "Friday",
+    "summary": "Glue work",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-17 12:00",
+    "day": "Friday",
+    "summary": "[OO] Almoço",
+    "duration_min": 120
+  },
+  {
+    "start": "2026-04-17 14:00",
+    "day": "Friday",
+    "summary": "#6 ADR: Como podemos entregar a réplica NSE no B2B, com o prazo que temos?",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-17 14:30",
+    "day": "Friday",
+    "summary": "Cafézin: Lê / Salomão",
+    "duration_min": 60
+  },
+  {
+    "start": "2026-04-17 15:30",
+    "day": "Friday",
+    "summary": "Glue work",
+    "duration_min": 30
+  },
+  {
+    "start": "2026-04-17 16:00",
+    "day": "Friday",
+    "summary": "#7 ADR: Como podemos entregar a réplica NSE no B2B, com o prazo que temos?",
+    "duration_min": 45
+  }
+]

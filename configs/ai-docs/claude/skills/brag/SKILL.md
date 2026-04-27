@@ -26,10 +26,10 @@ R: [outcome]
 **Format 3 — Freeform natural language:**
 User describes what happened conversationally.
 
-**Format 4 — Calendar export (.ics):**
+**Format 4 — Calendar review:**
 ```
-brag from calendar ~/path/to/export.zip 2026-03-15 to 2026-03-21
-brag from calendar ~/path/to/export.zip
+brag from calendar 2026-03-15 to 2026-03-21
+brag from calendar
 ```
 If no date range provided, default to current week Monday-Friday.
 
@@ -85,21 +85,33 @@ Weekly ritual, typically Friday. Turns a calendar export into BRAG entries.
 
 ### Step 1 — Parse & deduplicate
 
-- If the file is a `.zip`, unzip to `/tmp/brag-cal/` and find the `.ics` file inside
-- Run the parser script (end date is exclusive):
+Two paths — try MCP first, fall back to ICS.
+
+**Path A — Google Calendar MCP (preferred):**
+- Call `mcp__claude_ai_Google_Calendar__list_events` with `startTime` = start date, `endTime` = end date (exclusive), `orderBy: startTime`, `pageSize: 250`
+- Save the result to `/tmp/brag-gcal.json`
+- Run:
+  ```bash
+  python3 ~/.claude/skills/brag/scripts/parse_gcal_mcp.py /tmp/brag-gcal.json <start_date> <end_date>
+  ```
+
+**Path B — ICS fallback (if MCP fails or is unavailable):**
+- Unzip `~/brag/calendar.ical.zip` to `/tmp/brag-cal/` and find the `.ics` inside
+- Run:
   ```bash
   python3 ~/.claude/skills/brag/scripts/parse_ics.py <ics_path> <start_date> <end_date>
   ```
-  Outputs a JSON array of `{start, day, summary, duration_min}` sorted by start time, deduplicated.
-  The parser automatically:
-  - **PARTSTAT filter:** only keeps events where the user explicitly accepted (`PARTSTAT=ACCEPTED`). TENTATIVE, NEEDS-ACTION, and DECLINED are all excluded — no exceptions, even if the user is the organizer.
-  - **All-day filter:** skips date-only events (no time component in DTSTART) — these are calendar markers, not meetings.
-  - **RRULE expansion:** expands recurring events (WEEKLY, DAILY) to generate occurrences within the query range. Handles INTERVAL, BYDAY, UNTIL, COUNT. Respects EXDATE exclusions and RECURRENCE-ID overrides.
-  - **Overlap resolution:** resolves overlapping non-OO events automatically. For one-time events, the most recently created (by CREATED timestamp) takes priority. For recurring events and overrides (where CREATED reflects the series, not the occurrence), falls back to "later-starting event wins." The overlap duration is decremented from the losing event. Events reduced to zero are dropped.
-  - Prefixes Out of Office events with `[OO]`
-  - Prefixes Focus Time events with `[FT]`
-- Display the total event count and date range
-- **Stale calendar entries:** some events may appear as ACCEPTED in the ICS but were actually declined verbally or never attended. The parser can't detect these — when the user flags them during review, drop them and restore the decremented time to overlapping events if applicable.
+  If the zip is absent, inform the user and stop.
+
+Both scripts output a JSON array of `{start, day, summary, duration_min}` sorted by start time. They apply the same filters:
+- **Accepted-only:** skips events the user declined, tentative, or didn't respond to
+- **All-day filter:** skips date-only events (calendar markers, not meetings)
+- **Overlap resolution:** resolves overlapping non-OO events; most recently created wins, falls back to later-starting. Overlap duration decremented from the losing event; events reduced to zero are dropped.
+- **`[OO]` / `[FT]` prefixes:** carried from the event title as-is (user adds these manually)
+
+Display the total event count and date range.
+
+**Stale calendar entries:** some events may appear as accepted but were declined verbally or never attended. When the user flags them during review, drop them and restore the decremented time to overlapping events if applicable.
 
 ### Step 1.5 — Per-day validation
 

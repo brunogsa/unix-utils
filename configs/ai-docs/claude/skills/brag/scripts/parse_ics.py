@@ -15,9 +15,7 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 
-
-# BRT (UTC-3) — Google Calendar exports from Brazil use this or UTC
-BRT = timezone(timedelta(hours=-3))
+from shared import BRT, append_event, resolve_overlaps
 
 # Safety limit for RRULE expansion (~10 years of weekly events)
 MAX_WEEKLY_ITERATIONS = 520
@@ -189,66 +187,6 @@ def expand_rrule(dtstart, rrule_str, start_range, end_range):
     return occurrences
 
 
-def resolve_overlaps(events):
-    """Resolve overlapping non-OO events using creation time.
-
-    The most recently created event takes priority — the user stopped the
-    older activity to attend the newer one. The overlap duration is
-    decremented from the older event.
-
-    Falls back to "later-starting event wins" when CREATED is unavailable.
-    """
-    for i, ev_a in enumerate(events):
-        if ev_a["summary"].startswith("[OO]"):
-            continue
-        a_start = datetime.strptime(ev_a["start"], "%Y-%m-%d %H:%M")
-        a_end = a_start + timedelta(minutes=ev_a["duration_min"])
-
-        for j in range(i + 1, len(events)):
-            ev_b = events[j]
-            if ev_b["summary"].startswith("[OO]"):
-                continue
-            b_start = datetime.strptime(ev_b["start"], "%Y-%m-%d %H:%M")
-            if b_start >= a_end:
-                break
-
-            b_end = b_start + timedelta(minutes=ev_b["duration_min"])
-            overlap_min = int((min(a_end, b_end) - b_start).total_seconds() / 60)
-            if overlap_min <= 0:
-                continue
-
-            a_created = ev_a.get("_created")
-            b_created = ev_b.get("_created")
-
-            if a_created and b_created:
-                if a_created <= b_created:
-                    ev_a["duration_min"] -= overlap_min
-                else:
-                    ev_b["duration_min"] -= overlap_min
-            else:
-                # Fallback: later-starting event wins
-                ev_a["duration_min"] -= overlap_min
-
-            a_end = a_start + timedelta(minutes=ev_a["duration_min"])
-
-    return [ev for ev in events if ev["duration_min"] > 0]
-
-
-def _append_event(events, seen, occ_dt, summary, duration, created_iso):
-    """Add an event to the list if not already seen (dedup by summary + datetime)."""
-    key = (summary, occ_dt.isoformat())
-    if key in seen:
-        return
-    seen.add(key)
-    events.append({
-        "start": occ_dt.strftime("%Y-%m-%d %H:%M"),
-        "day": occ_dt.strftime("%A"),
-        "summary": summary,
-        "duration_min": duration,
-        "_created": created_iso,
-    })
-
-
 def parse_ics_events(ics_path, start_range, end_range):
     owner_email = extract_owner_email(ics_path)
     with open(ics_path, "r", encoding="utf-8") as f:
@@ -302,7 +240,7 @@ def parse_ics_events(ics_path, start_range, end_range):
                     continue
                 if (uid, occ_dt.isoformat()) in recurrence_overrides:
                     continue
-                _append_event(events, seen, occ_dt, summary, duration, created_iso=None)
+                append_event(events, seen, occ_dt, summary, duration, created_iso=None)
         else:
             # One-time event or recurrence override
             if dt < start_range or dt >= end_range:
@@ -313,7 +251,7 @@ def parse_ics_events(ics_path, start_range, end_range):
             # which is misleading for overlap resolution. Only use CREATED
             # for true one-time events.
             event_created = None if has_recurrence_id else created_iso
-            _append_event(events, seen, dt, summary, duration, event_created)
+            append_event(events, seen, dt, summary, duration, event_created)
 
     events.sort(key=lambda x: x["start"])
 
