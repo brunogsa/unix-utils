@@ -1,4 +1,5 @@
 ---
+name: gh-answer-claude-mentions
 description: "Answer PR review comments addressed to Claude. User-invoked only — drafts replies to unresolved @claude mentions on a PR."
 user-invocable: true
 disable-model-invocation: true

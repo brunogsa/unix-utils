@@ -1,4 +1,5 @@
 ---
+name: spec-driven-development
 description: "Spec-driven development methodology with spec.md/plan.md as living docs. USE PROACTIVELY when planning a non-trivial feature or breaking work into committable tasks. For interactive idea-refinement (Socratic Q&A), use `brainstorm` instead."
 user-invocable: false
 ---

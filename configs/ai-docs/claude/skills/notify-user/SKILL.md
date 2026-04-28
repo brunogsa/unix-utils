@@ -1,4 +1,5 @@
 ---
+name: notify-user
 description: "Send desktop notifications to the user on demand. Only notify when explicitly requested."
 user-invocable: false
 ---

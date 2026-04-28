@@ -1,4 +1,5 @@
 ---
+name: test-driven-development
 description: "Canonical TDD/BDD discipline for plan-driven work. USE when implementing plan.md tasks (TDD/BDD default) OR user says 'TDD this' / 'BDD style' / 'test-first' / 'red-green' / 'test-driven'."
 user-invocable: false
 ---

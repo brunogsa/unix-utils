@@ -1,4 +1,5 @@
 ---
+name: arco-architecture
 description: "Arco ecosystem reference from Integrator's perspective. USE when debugging Arco-spanning issues, looking up which service owns data, or when brand names like SAS/SAE/IS/NSE come up."
 user-invocable: false
 ---

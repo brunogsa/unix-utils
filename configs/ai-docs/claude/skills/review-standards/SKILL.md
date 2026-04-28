@@ -1,4 +1,5 @@
 ---
+name: review-standards
 description: "Code review guidelines and anti-patterns. USE PROACTIVELY when reviewing code or guiding /auto-review and /code-review."
 user-invocable: false
 ---

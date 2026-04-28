@@ -1,4 +1,5 @@
 ---
+name: gh-cli-usage
 description: "GitHub operations using gh CLI. Use when creating PRs, reviewing code, managing issues, checking CI status, or any GitHub API interaction."
 user-invocable: false
 ---

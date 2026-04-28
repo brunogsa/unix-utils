@@ -1,4 +1,5 @@
 ---
+name: performance-check-principles-and-skills
 description: "Audit CLAUDE.md and skills against research-backed performance budgets. USE PROACTIVELY after editing CLAUDE.md or any SKILL.md to catch drift. Trigger on 'performance check' / 'check budget'. Report-only — never auto-fixes."
 ---
 

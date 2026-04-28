@@ -1,4 +1,5 @@
 ---
+name: english-coach
 description: "Analyze the user's typed messages from the current session for English patterns and produce ./english-lesson_YYYY-MM-DD_HH-MM.md. User-invoked only — best run after creating a PR."
 user-invocable: true
 disable-model-invocation: true

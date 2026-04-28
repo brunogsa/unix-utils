@@ -1,4 +1,5 @@
 ---
+name: consistency-check-principles-and-skills
 description: "Audit CLAUDE.md and skills for contradictions, duplication, and merge opportunities. Trigger on 'consistency check' / 'check for contradictions' / 'audit my skills'. Heavy (LLM cross-file reading) — don't invoke after every edit. Report-only."
 ---
 

@@ -1,4 +1,5 @@
 ---
+name: doc-standards
 description: "Documentation guidelines and anti-patterns. USE PROACTIVELY when writing or reviewing comments, docstrings, READMEs, or commit messages."
 user-invocable: false
 ---

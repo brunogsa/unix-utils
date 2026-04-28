@@ -1,4 +1,5 @@
 ---
+name: personal-cli-discovery
 description: "Discover Bruno's personal CLI commands in ~/oh-my-zsh. USE when user says 'use my script/utility/func' that does X, or when needing a shell utility — an existing command likely already does it. Also for unknown command names."
 user-invocable: false
 ---

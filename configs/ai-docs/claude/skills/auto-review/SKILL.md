@@ -1,4 +1,5 @@
 ---
+name: auto-review
 description: "USE for local code review on the current branch. DEFAULT mode: explicit user trigger ('review this branch' / 'audit my changes' / /auto-review). AUTONOMOUS mode: per-task gate during plan execution + final pass at end-of-branch (after /refactor)."
 disable-model-invocation: false
 ---

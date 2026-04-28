@@ -1,4 +1,5 @@
 ---
+name: brainstorm
 description: "Interactively refine an idea into spec.md via Socratic interview. Use ONLY when user explicitly says 'brainstorm' / 'let's brainstorm' / invokes /brainstorm. Do NOT auto-trigger from general design discussion — reserved for the full interview."
 disable-model-invocation: false
 ---

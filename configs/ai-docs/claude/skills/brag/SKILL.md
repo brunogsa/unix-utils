@@ -1,4 +1,5 @@
 ---
+name: brag
 description: "Log work accomplishments as BRAG/STAR entries. Use when user says 'brag', 'log this', 'add win', 'record accomplishment', 'brag from calendar', 'save this for my perf review', or describes a work achievement they want captured."
 disable-model-invocation: false
 ---

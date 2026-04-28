@@ -1,4 +1,5 @@
 ---
+name: debug-standards
 description: "Debugging guidelines and anti-patterns. USE PROACTIVELY when investigating any test failure, bug, regression, or 'why doesn't this work'."
 user-invocable: false
 ---

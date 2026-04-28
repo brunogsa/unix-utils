@@ -1,4 +1,5 @@
 ---
+name: test-standards
 description: "Test guidelines and anti-patterns. USE PROACTIVELY when writing, reviewing, refactoring, or debugging tests."
 user-invocable: false
 ---

@@ -1,4 +1,5 @@
 ---
+name: jira-cli
 description: "Jira API shell utilities. USE when interacting with Jira tickets, JQL queries, or fetching issue context for code reviews."
 user-invocable: false
 ---

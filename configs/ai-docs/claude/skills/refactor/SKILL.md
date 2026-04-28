@@ -1,4 +1,5 @@
 ---
+name: refactor
 description: "USE for end-of-branch refactoring sweep over unpushed changes. DEFAULT: explicit trigger ('refactor this' / 'clean this up' / /refactor). AUTONOMOUS: first step of end-of-branch wrap-up (refactor → final auto-review + fixes → create-pr)."
 disable-model-invocation: false
 ---

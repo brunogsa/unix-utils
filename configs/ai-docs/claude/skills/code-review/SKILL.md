@@ -1,4 +1,5 @@
 ---
+name: code-review
 description: "GitHub PR review via the reviewer-agent skill. User-invoked only — wraps reviewer-agent in a subagent and posts a PENDING review."
 disable-model-invocation: true
 ---

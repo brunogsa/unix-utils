@@ -1,4 +1,5 @@
 ---
+name: create-pr
 description: "Create a GitHub PR with a rich description. User-invoked only — auto-detects spec.md/plan.md for context."
 disable-model-invocation: true
 ---

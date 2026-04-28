@@ -1,4 +1,5 @@
 ---
+name: beautiful-presentations
 description: USE for Apple-inspired minimalist business presentations. Trigger when the user asks for a polished business deck, pitch deck, executive presentation, product launch, or modern professional aesthetic.
 ---
 

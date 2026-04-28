@@ -1,4 +1,5 @@
 ---
+name: code-standards
 description: "Code guidelines and anti-patterns. USE PROACTIVELY when writing, refactoring, or reviewing any code."
 user-invocable: false
 ---

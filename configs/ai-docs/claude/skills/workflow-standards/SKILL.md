@@ -1,4 +1,5 @@
 ---
+name: workflow-standards
 description: "Workflow guidelines for plan-driven implementation. USE PROACTIVELY when planning implementation for a non-trivial task or starting a new feature."
 user-invocable: false
 ---

@@ -1,4 +1,5 @@
 ---
+name: reviewer-agent
 description: "Shared reviewer orchestrator for /auto-review (local) and /code-review (GitHub). Wrapped in a subagent for bias isolation. USE only via those callers — not invoked directly."
 user-invocable: false
 ---
