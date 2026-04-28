@@ -77,12 +77,28 @@ JSON. Each finding object:
   "scope_tag": "<your specialist name>"  // e.g. "security"; used for dedup
 }
 
-Body follows the Problem → Why → Fix structure from review-standards:
-- Problem: one sentence.
-- Why: one sentence on impact.
-- Fix: code snippet (```suggestion\n...\n```), question, or concrete guidance.
+Body follows the Problem → Why → Fix structure from review-standards. Write for a
+**low-context reviewer** — someone reading the comment as their first exposure to
+the issue, without having read the full PR or surrounding code. Each body must
+include enough information to act on without leaving the comment.
 
-Keep bodies ≤256 chars per line, 3–5 lines total. No paragraphs.
+- **Problem**: name the issue concretely. Quote the relevant code (1–2 lines)
+  inline so the reader doesn't have to navigate elsewhere.
+- **Why**: explain the runtime/user-facing impact. For numeric/unit issues
+  include a worked example with concrete values
+  (e.g. *"subtotal R$200 × 3.11% should be R$6.22, but the function returns 622"*).
+  For broader correctness issues, name the failure mode the reader will see.
+- **Fix**: provide a code snippet — prefer `​`​`​`suggestion ... `​`​`​` blocks
+  when the change fits a single hunk; otherwise show the proposed code in a
+  fenced block and call out any imports/setup needed.
+
+Length budget per body: target ~6–12 lines, ~800–1500 chars. Up to ~2500 chars
+is acceptable for MANDATORY findings that benefit from a worked example or
+multi-step fix. Stay under 4000 chars (GitHub displays the rest behind a
+"…show more" affordance).
+
+Keep individual lines readable (≤256 chars/line where Markdown allows it).
+Use bullets and short paragraphs over walls of text.
 
 Permalinks (GH mode only): when referencing *another* file inside a comment body,
 use `https://github.com/{repo}/blob/{commit_sha}/{path}#L{a}-L{b}`. Values for

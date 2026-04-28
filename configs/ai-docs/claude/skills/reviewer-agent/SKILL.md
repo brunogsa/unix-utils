@@ -279,12 +279,12 @@ For each surviving finding, drop it if `start_line..line` is not entirely within
    commit_sha=$(gh pr view "$pr_number" --repo "$repo" --json headRefOid --jq '.headRefOid')
    ```
 
-2. Build `$work_dir/review-payload.json` with jq, combining the guide, findings, and `commit_sha`. The Review Guide goes in `body`. Every inline comment body gets the signature footer appended: two newlines + `— 🤖 claude`. Include `start_line`/`start_side` only on multi-line ranges (`line > start_line`). Target shape:
+2. Build `$work_dir/review-payload.json` with jq for the inline comments only. **Leave `body` empty** — the Review Guide is delivered as a separate standalone PR comment in step 5 (the pending-review body is not a good carrier for the guide; it gets buried behind the GitHub review filter and is hard for the human reviewer to find). Every inline comment body gets the signature footer appended: two newlines + `— 🤖 claude`. Include `start_line`/`start_side` only on multi-line ranges (`line > start_line`). Target shape:
 
    ```json
    {
      "commit_id": "<commit_sha>",
-     "body": "<guide + signature footer>",
+     "body": "",
      "comments": [
        {
          "path": "src/foo.ts",
@@ -312,6 +312,34 @@ For each surviving finding, drop it if `start_line..line` is not entirely within
 
 4. If the POST fails (422), re-read line numbers from `commentable-lines.txt`, drop findings whose anchors are unresolvable, and retry once. Never fall back to general comments — integrity of the pending-review contract matters more than posting at all.
 
+5. **Post the Review Guide as a standalone PR comment**, wrapped in a collapsed `<details>` block so it doesn't dominate the conversation feed but stays one click away. Use the issue-comments endpoint (PR conversation comments share the issue API):
+
+   ```bash
+   jq -n --arg body "$guide_body" '{body: $body}' > "$work_dir/guide-payload.json"
+   gh api repos/"$repo"/issues/"$pr_number"/comments \
+     --method POST \
+     --input "$work_dir/guide-payload.json" \
+     > "$work_dir/guide-response.json"
+   guide_url=$(jq -r '.html_url' "$work_dir/guide-response.json")
+   ```
+
+   The `$guide_body` must follow this shape (PT-BR for github mode):
+
+   ```markdown
+   <details>
+   <summary><strong>📋 Code review — guia de leitura</strong> (clique para expandir)</summary>
+
+   Este comentário acompanha a [revisão automática neste PR](<pr-files-url>). Use ele pra localizar os hunks que valem mais atenção antes de mergulhar no diff inteiro.
+
+   <guide content from references/guide-writer.md — sections "Onde focar" + "Mudanças incidentais" only>
+
+   </details>
+
+   — 🤖 claude
+   ```
+
+   Print both `review_url` (pending review) and `guide_url` (standalone comment) in Wave 6.
+
 ### local mode
 
 Write `${out_file}` (set in Wave 1 to `./auto-review_YYYY-MM-DD_HH-MM.md`; timestamp preserves ordering across runs, e.g. per-task in autonomous mode) to the current CWD following the template at `references/local-review-template.md` — read that file and expand its placeholders. Keep the template file as the single source of truth for the output shape; do not inline the template here.
@@ -328,7 +356,7 @@ Print a terminal summary using the template at `references/wave6-summary-templat
 
 - **gh api POST 422 (Wave 5 emit)**: retry once after verifying line numbers against `commentable-lines.txt` and dropping findings whose anchors don't resolve. Never fall back to general comments.
 - **Clone fails (Wave 1)**: abort with a clear error and the target `work_dir` path. The review cannot proceed without the code on disk.
-- **No findings at all**: emit the pending review anyway (body-only Review Guide) for GH; for LOCAL, write `auto-review.md` with "no findings" under Findings.
+- **No findings at all**: skip the pending review entirely for GH (don't post an empty review just to carry the guide); still post the Review Guide as a standalone PR comment per Wave 5 step 5 so the human gets the context. For LOCAL, write `auto-review.md` with "no findings" under Findings.
 
 ---
 

@@ -7,8 +7,11 @@ Prompt for a single Opus subagent that produces the "Review Guide" — the piece
 ```
 You write concise review guides for human reviewers. You are given a diff plus
 whatever written context exists (PR description, commit messages, spec.md,
-plan.md). Your output goes into the review body so the human knows where to
-spend attention BEFORE diving into the code.
+plan.md). Your output is delivered as a **standalone PR comment** (GitHub mode)
+or appended to the local review file (LOCAL mode). In GitHub mode the comment
+is wrapped in a collapsed `<details>` block by the orchestrator (Wave 5), so
+write the guide assuming readers will expand it on demand — keep it scannable
+once expanded but don't worry about it crowding the conversation feed.
 
 ## Inputs
 - Mode: {mode}                         (github or local)
@@ -96,6 +99,13 @@ Total guide: <= 400 words. Tight bullets. No rambling.
   doesn't already have.
 - Section 3 is mandatory.
 - Everything else is optional.
+- **Only the four sections above are allowed.** Do NOT add a "Resumo dos
+  findings" / "Summary of findings" / per-finding table — the inline comments
+  themselves are the source of truth, and a parallel summary in the guide goes
+  stale the moment a finding is edited or dropped.
+- Do NOT include the outer `<details>` wrapper or the signature footer in your
+  output — Wave 5 of the orchestrator wraps the guide and appends the footer.
+  Just emit the section content.
 
 ## Output is the Markdown body only
 No JSON wrapper, no prose commentary, no meta-explanation. Just the guide.
