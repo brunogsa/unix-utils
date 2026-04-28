@@ -197,6 +197,7 @@ fi
 # Node packages
 npm install -g json-schema-generator
 npm install -g @anthropic-ai/claude-code
+npm install -g @google/gemini-cli
 npm install -g opencode-ai
 npm install -g trash-cli
 npm install -g beautiful-mermaid
@@ -247,5 +248,12 @@ echo "[MANUAL] Run /claude-hud:setup inside Claude Code to configure the statusL
 
 rm -fr ~/.claude/hooks
 ln -sf ~/unix-utils/configs/ai-docs/claude/hooks ~/.claude/
+
+# AI setup: Gemini CLI configuration (shares CLAUDE.md + skills with Claude Code)
+mkdir -p ~/.gemini
+rm -f ~/.gemini/GEMINI.md
+rm -fr ~/.gemini/skills
+ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.gemini/GEMINI.md
+ln -sf ~/unix-utils/configs/ai-docs/claude/skills ~/.gemini/
 
 echo "Installation complete for $OS!"
