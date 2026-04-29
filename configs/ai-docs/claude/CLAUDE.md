@@ -37,7 +37,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 **Where knowledge belongs** -- use the right place for each kind of knowledge; memory is the last resort.
   - Global CLAUDE.md (here): rules, habits, and preferences that apply to ALL repos.
-  - Repo CLAUDE.md / agents.md: repo-specific gotchas, conventions, architecture notes, and non-obvious decisions — anything a future contributor (or AI) needs to work safely in that codebase. MUST go here, not in memory.
+  - Repo CLAUDE.md / agents.md: repo-specific gotchas, conventions, architecture, non-obvious decisions — anything a future contributor (or AI) needs to work safely. MUST go here, not memory.
   - Memory: last resort, only for personal preferences about a specific repo/project that don't fit in either of the above.
 
 ---
@@ -84,8 +84,13 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Small batches over big bangs** -- more iterations with small reviewable chunks is better than generating too much code at once. Late course-corrections are expensive; frequent checkpoints are cheap.
 
-- **Commits require explicit permission** -- CRITICAL: never commit without approval.
-  - The per-commit Bash approval UI counts as the prompt — see "Propose commits at task boundaries" below for when to issue the `git commit` call directly.
+- **Permission UIs are the asking — never pre-ask in chat** -- CRITICAL: once content is decided, issue the tool call directly. The UI is where the user reviews and approves/denies.
+  - Applies to `git commit`, `Edit`, `Write`, and any tool whose permission UI surfaces the proposed content.
+  - **DO NOT pre-show + ask.** No "does this look good?", "want me to apply?", "confirm and I'll run it". Pre-show + run = double-prompt. UI renders cleaner than chat.
+
+- **Commit at task boundaries** -- CRITICAL: at end of a coherent change, issue `git commit` as a standalone call. Exactly one prompt per commit, always.
+  - **DO NOT bypass the prompt.** No compound commands (`git add … && git commit …`), no chaining after approval, no assuming prior approval extends. Each commit is a standalone call.
+  - Each task produces 1–2 commits, never zero. Sub-commit steps (RED/GREEN/REFACTOR) live inside a task, not as siblings.
   - Format: Conventional Commits (`type(scope): subject`), imperative, max 72-char subject.
   - Body: scannable bullets/sub-bullets by default. Prose only when fragmenting would lose connective tissue (rare — most changes are bullet-shaped).
   - Don't inspect `git log` or prior commits to learn commit style — the format above is authoritative across all repos. Skip that tool call.
@@ -95,9 +100,6 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 - **One logical change per commit, always working** -- never bundle unrelated changes.
   - Never split a single change into commits that break the codebase.
   - A migration (move + update refs + delete) is one concern.
-
-- **Propose commits at task boundaries** -- each task produces 1-2 commits, never zero. Sub-commit steps (RED/GREEN/REFACTOR) live inside a task, not as sibling tasks.
-  - After finishing a coherent, working change, issue the `git commit` Bash call directly. The approval UI is the prompt; deny or say so to defer.
 
 - **Notify requests** -- load `notify-user` skill BEFORE the command.
 
