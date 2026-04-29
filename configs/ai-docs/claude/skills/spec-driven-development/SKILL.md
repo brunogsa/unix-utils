@@ -22,7 +22,7 @@ Populate `assets/spec-template.md` — sections: Background, Goals, User Stories
 
 Technical approach and task breakdown. Generated from spec.md (or directly from prompt).
 
-Populate `assets/plan-template.md` — sections: Approach; Test Design; Tasks (each with Description, Files, Acceptance criteria, Verify, **Commits**); Decisions. Each task names the 1-2 commits it will produce (repo + `type(scope): subject`) as a local subsection — no separate global commit index. Task 0 is always a symlink step so `./plan.md` resolves to the canonical plan file.
+Populate `assets/plan-template.md` — sections: Approach; Test Design; Tasks (each with Description, Files, Acceptance criteria, Verify, **Commits**); Decisions. Each task names its planned commits (typically 1 base; optionally +1 if a refactor is anticipated upfront) (repo + `type(scope): subject`) as a local subsection — no separate global commit index. Task 0 is always a symlink step so `./plan.md` resolves to the canonical plan file.
 
 ## Marker Conventions
 
@@ -73,7 +73,7 @@ Anything else you notice during the review (stray placeholders, name drift, inco
 
 - **spec.md is optional** -- plan.md can be created directly from a prompt for smaller work
 - **Separate long list items with blank lines** -- if an item wraps to two or more visual lines, put a blank line between it and its neighbours. Short single-line items stay compact. Applies across the whole file (Goals, User Stories, Requirements, Acceptance Criteria, Decisions, Questions).
-- **Tasks are commit-sized, never smaller** -- each task produces 1-2 commits. Sub-commit steps (RED/GREEN/REFACTOR) live inside a task, not as sibling tasks. Optionally summarize them as a semicolon-separated breadcrumb in the task title: `### N. Title (tests; impl; refactor)`. Refactors, scout findings, and scope changes become new peer tasks with their own commits. Why: smaller than a commit = noise on the task list and duplicates what `git log` already records.
+- **Tasks are commit-sized, never smaller** -- each task produces **at least one base commit** (tests + impl together; RED/GREEN cycles inside that commit). Optional breadcrumb in the task title: `### N. Title (tests; impl; refactor)`. At execution, any refactor, scout finding, side quest worked on, separable incidental, or `/auto-review` follow-up gets its own additional commit within the task. Substantial scope additions still warrant a new peer task. Why: smaller than a commit = noise on the task list; bundling unrelated changes = mixed-concern reviews.
 - **Acceptance criteria are testable** -- every task has a concrete verify method (command, test, or manual check)
 - **Update docs at each task boundary** -- stale spec/plan degrades PR description quality. Specific triggers:
   - **After completing a task**: mark it done in plan.md, note any deviations from the original plan

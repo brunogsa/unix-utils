@@ -34,7 +34,7 @@ If this change is a pure refactor, config edit, or similar no-behavior-change wo
 
 ## Tasks
 
-Each task produces **1-2 commits, never zero**. Sub-commit steps (RED/GREEN/REFACTOR cycles) live inside a task, not as sibling tasks. Scout findings, refactors, and scope increases become new peer tasks with their own commits.
+Each task produces **at least one base commit** (tests + impl together; RED/GREEN cycles live inside that commit). At execution, any refactor, scout finding, side quest worked on, separable incidental, or `/auto-review` follow-up change becomes its own additional commit within the task. Substantial scope additions still warrant a new peer task.
 
 **Sub-step breadcrumb** — optional parenthetical at the end of the task title, semicolon-separated, to hint at the beats inside: `### N. Task title (sub-step; sub-step; sub-step)`. Keep to ~4 items; if it grows longer, the task is probably two tasks in disguise.
 

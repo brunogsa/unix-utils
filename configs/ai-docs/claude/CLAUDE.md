@@ -79,6 +79,11 @@ Configs are symlinked from repos to system locations. Always edit the source rep
   - Create with ` <N>. ` prefix in the subject (sequential 1/2/3; leading space, period, trailing space) — renders instantly, no update round-trip.
   - Once TaskCreate returns the id, TaskUpdate the subject to swap ` <N>. ` for ` <returned-id>. `.
   - Why: UI hides IDs in titles, so a visible prefix is required; the later id swap anchors the canonical reference so a manual counter can't drift.
+  - **Category prefix** (after the numeric one) — only add when the item's routing differs from a regular task:
+    - `[Sub-Step]` — decomposition of a parent task; numbering is ` <task-id>.<M>. ` (e.g., ` 3.1. `). Keeps the semantic ID — no swap to TaskList numeric IDs.
+    - `[Side]` — explicitly deferred work; trigger: I say "side quest". Placed at end of list (overrides "Out-of-scope" positioning), also appended to `plan.md` if one exists. Doesn't block parent's `[Done]` unless escalated.
+    - `[Scout]` — pre-existing issue noticed in passing; needs my explicit approval before fixing.
+    - Plain tasks (top-level work, trivial incidentals) carry no marker — the structure speaks for itself.
 
 - **Prefer targeted edits over full rewrites** -- Edit tool over Write tool.
 
@@ -90,7 +95,9 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Commit at task boundaries** -- CRITICAL: at end of a coherent change, issue `git commit` as a standalone call. Exactly one prompt per commit, always.
   - **DO NOT bypass the prompt.** No compound commands (`git add … && git commit …`), no chaining after approval, no assuming prior approval extends. Each commit is a standalone call.
-  - Each task produces 1–2 commits, never zero. Sub-commit steps (RED/GREEN/REFACTOR) live inside a task, not as siblings.
+  - A task produces **at least one commit, never zero**: tests + impl together as the base (RED+GREEN inside one commit).
+  - Things that **must not bundle** with the base each get their own commit: refactor, `/auto-review` follow-up changes, scout findings, side quests worked on, separable incidentals.
+  - Typical task = 1 commit; with refactor + scout fix = 3.
   - Format: Conventional Commits (`type(scope): subject`), imperative, max 72-char subject.
   - Body: scannable bullets/sub-bullets by default. Prose only when fragmenting would lose connective tissue (rare — most changes are bullet-shaped).
   - Don't inspect `git log` or prior commits to learn commit style — the format above is authoritative across all repos. Skip that tool call.
@@ -105,9 +112,6 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Out-of-scope work = new TODO items** -- review feedback, mid-task requests, or anything you uncover yourself go to TaskCreate (ordered right after current), not pivots.
   - Why: preserves "One logical change per commit" and prevents mixed-concern files.
-
-- **Side quest** -- when I say "side quest", TaskCreate at end of list with `[SIDE QUEST]` subject prefix; also append at end of plan.md if one exists. Overrides "Out-of-scope work" default.
-  - Why: explicit signal of lower-priority deferral; "Out-of-scope work" assumes reactive-to-current, "side quest" assumes explicit-defer.
 
 - **Explain trade-offs on manual changes** -- when I modify your edit or reject with an alternative, explain what my version gains, loses, and assumes.
 
