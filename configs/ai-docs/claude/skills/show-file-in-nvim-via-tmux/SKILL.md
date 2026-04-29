@@ -1,6 +1,6 @@
 ---
 name: show-file-in-nvim-via-tmux
-description: Open a file at a specific line in the user's tmux session for visual review. USE PROACTIVELY after 3 edit rejections, or when user says 'let me check' / 'open in nvim' / 'show me' / names a pane type.
+description: Open a file at a line in tmux/nvim for visual review. USE PROACTIVELY after 3 edit rejections, or when user says 'open in tmux', 'open in nvim', 'new window/pane', 'show me', 'let me check', or asks to open a file/symbol where it's defined.
 ---
 
 # show-file-in-nvim-via-tmux
