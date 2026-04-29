@@ -35,6 +35,11 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 **Prefer lazy loading** -- keep auto-loaded content lean; push detail into on-demand skills with progressive disclosure.
   - Why: every auto-loaded line competes with the conversation for attention (Jaroslawicz 2025: adherence peaks at 150–200, degrades to 68% at 500).
 
+**Where knowledge belongs** -- use the right place for each kind of knowledge; memory is the last resort.
+  - Global CLAUDE.md (here): rules, habits, and preferences that apply to ALL repos.
+  - Repo CLAUDE.md / agents.md: repo-specific gotchas, conventions, architecture notes, and non-obvious decisions — anything a future contributor (or AI) needs to work safely in that codebase. MUST go here, not in memory.
+  - Memory: last resort, only for personal preferences about a specific repo/project that don't fit in either of the above.
+
 ---
 
 ## INTERACTION
@@ -144,8 +149,10 @@ Configs are symlinked from repos to system locations. Always edit the source rep
   - Fresh evidence only: if the verification hasn't been re-run since your latest change, run it again before claiming. Prior-turn output doesn't prove the current state.
   - When contradicted: if two sources disagree, re-read the actual code before assuming one is wrong. Stale results, shifted line numbers, or misread context waste hours.
 
-- **Save slow command output, filter later** -- any command taking 8+ seconds: redirect full output to `/tmp/`, then filter from the file.
+- **Save slow command output, verify from the file** -- any command taking 2+ seconds: redirect full output to `/tmp/`, then filter from the file.
   - Never pipe a slow command through `grep`/`head` directly — if the filter is wrong you'd re-run the whole thing.
+  - Always check both exit code and tail in one line — never trust exit code alone. Some runners exit 0 on partial failure; the tail shows the real summary.
+  - Pattern: `<slow-cmd> > /tmp/out.txt 2>&1; echo "exit: $?"; tail -<N> /tmp/out.txt`. Choose N based on how many lines the command's summary typically spans.
 
 - **Scout rule** -- when you notice pre-existing issues (stale comments, budget overruns, lint gaps), flag them and ask whether to add to the task list.
   - Only fix if approved; use isolated commits separate from feature work.
@@ -159,6 +166,8 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 - **Bug fix starts with a failing regression test** -- reproduce the bug as a test first, confirm it fails, then fix. The test guards against recurrence.
 
 - **Debug systematically** -- root cause before fix. After 3 failed fixes, STOP: web search the symptom and question the architecture, don't try a fourth. Concrete workflow in the `debug-standards` skill.
+
+- **Cheap-check key assumptions before big implementations** -- before refactoring on an unverified assumption (API behavior, field shape, flag semantics), verify with a cheap spike: EXPLAIN/dry-run, smoke test, or primary-source read.
 
 - **Update docs as you go** -- locate and update related documentation inline.
 
