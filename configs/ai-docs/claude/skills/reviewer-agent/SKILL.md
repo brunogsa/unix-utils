@@ -9,31 +9,9 @@ user-invocable: false
 You orchestrate a 7-wave code review pipeline (Waves 0-6). The same pipeline
 serves both modes; only Waves 1 and 5 differ.
 
-**Architecture note.** Everything inside this skill runs **serially in the same
-session** — no sub-Agent spawning. The caller (`/auto-review` or `/code-review`)
-wraps *this* skill in a subagent so the review is isolated from the user's
-session (bias removal); inside, there are no nested subagents. Serializing
-keeps the prompt cache warm, avoids N× system-prompt duplication, and lets
-later specialists see what earlier ones already raised (natural dedup).
+**Architecture.** This skill runs **serially in one session** — no nested sub-Agents. The caller wraps this skill in a subagent for bias isolation; inside, specialists run linearly so the prompt cache stays warm and later passes naturally dedup what earlier ones raised.
 
-Layout you can count on:
-
-```
-~/.claude/skills/reviewer-agent/
-├── SKILL.md                        (this file — the orchestrator)
-├── scripts/
-│   ├── extract-commentable-lines.sh
-│   └── extract-skipped-files.sh
-├── references/
-│   ├── common-preamble.md          (shared contract for all 8 specialists)
-│   ├── specialists/<name>.md       (one per topic; 8 files)
-│   ├── guide-writer.md
-│   ├── validator.md                (Wave 3 batched FP + line-range validator)
-│   └── local-review-template.md    (Wave 5 local output template)
-└── evals/evals.json                (skill-level eval scaffolding)
-```
-
-Specialist and validator prompts live in `references/`; this file is the glue.
+Specialist prompts and validator rubric live in `references/`; bash glue in `scripts/`. This file is the orchestrator.
 
 ## Before you start
 
@@ -157,15 +135,7 @@ per-finding validator adds more cost than it saves. Otherwise leave
 of the full per-specialist loop below.**
 
 
-You run the specialist review yourself, in this same session. **Do not spawn
-sub-Agents for specialists.** The work is linear reasoning over the diff, and
-serializing it in one session has three big wins:
-
-- Zero duplicated system-prompt overhead (vs. N separate Agent calls).
-- The prompt cache stays warm — the shared preamble/standards/context is paid
-  for once, not once per specialist.
-- Later specialists see what earlier ones already flagged → natural dedup
-  without a separate Wave.
+You run the specialist review yourself, in this same session. **Do not spawn sub-Agents for specialists** (rationale at top: serial = warm cache + natural dedup).
 
 **Loaded once, reused across all passes:**
 
@@ -233,9 +203,7 @@ catches hallucinations (specialist mis-remembered the code) **and** tightens
 line anchors — merged from two previously-separate waves so you re-load each
 file at most once. Inline reasoning, no subagent.
 
-Dedup used to be a separate wave here. It isn't needed: serial specialists in
-Wave 2 already skip issues earlier specialists raised. If two distinct issues
-happen to share a line, keeping both is correct.
+Dedup isn't a separate wave — serial specialists in Wave 2 already skip issues earlier ones raised; distinct issues that share a line stay.
 
 **Read this once:** `references/validator.md` — the exact per-finding rubric.
 
@@ -365,5 +333,5 @@ Print a terminal summary using the template at `references/wave6-summary-templat
 - Don't `gh pr checkout` into the user's working tree — isolation matters; always clone into `/tmp`.
 - Don't post inline comments via the single-comment endpoint — always use the batch review endpoint so the review stays atomic and pending.
 - Don't include a changelog. The Review Guide replaces it.
-- Don't spawn sub-Agents for specialists or the validator — the pipeline is intentionally single-session to keep the prompt cache warm and avoid duplicated system-prompt overhead. The caller already wraps this skill in a subagent for bias isolation.
+- Don't spawn sub-Agents for specialists or the validator — see Architecture at top.
 - Don't invent flags. The CLI surface is deliberately minimal.
