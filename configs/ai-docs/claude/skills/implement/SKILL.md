@@ -130,7 +130,15 @@ If a sub-step uncovers a new helper that needs its own test, **insert** a RED-he
 
 Format: ` 3.4a. [Sub-Step] RED — helper for case A`, ` 3.4b. [Sub-Step] GREEN — helper for case A`. Continues `3.4c`, `3.4d`, ... if more helpers cascade.
 
-The original numbering for `3.5`, `3.6`, ... stays intact — the suffixed IDs signal "added mid-flight after step 3.4". TaskList renders items in creation order; the semantic position lives in the number itself.
+The original numbering for `3.5`, `3.6`, ... stays intact — the suffixed IDs signal "added mid-flight after step 3.4". The numeric prefix is the canonical ordering contract. However, since TaskList renders in a non-deterministic order (opaque algorithm, not reliably creation-order), mid-flight sub-steps with new IDs will typically appear at the end of the list — after their later siblings.
+
+**To keep mid-flight sub-steps visually grouped before their later siblings:**
+1. Note the subjects + descriptions of all later **pending** sub-steps (e.g., 3.5, 3.6, ...).
+2. Delete those later pending sub-steps (`TaskUpdate` → `deleted`).
+3. Create the mid-flight sub-steps (3.4a, 3.4b, ...).
+4. Immediately recreate the later sub-steps in order.
+
+This ensures the later sub-steps get higher TaskList IDs than the new ones, which is the best available lever over display ordering.
 
 ## Status markers (plan.md task title)
 
