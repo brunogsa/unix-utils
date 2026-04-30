@@ -236,6 +236,8 @@ Concrete examples live in the `workflow-standards` skill (loaded on-demand when 
 
 - **Tests follow migrated code** -- when moving logic to a new location, adapt existing tests to the new path. Don't delete behavior coverage.
 
+- **Move + edit when renaming or generalizing** -- when extending an existing script/module to cover a broader use case, move the file (`git mv` or `cp` + `rm`) and edit it in place; don't write a fresh file from scratch. Preserves git history (blame/log tracks the lineage), avoids duplicate code drift, and forces you to reckon with the original's behavior — rewriting blind is how subtle quirks get silently dropped. Applies to scripts, modules, configs, and skills alike.
+
 - **Input validation** -- validate inputs in controllers before business logic.
 
 - **Normalize data at entry point** -- convert string dates, numbers-as-strings to proper types immediately after validation.
