@@ -34,6 +34,18 @@ One task per invocation — no `/implement 3,4` batch form. Small batches over b
 
 ## Pre-flight
 
+### 0. Task worktree (always)
+
+Every task runs in its own git worktree branched off the current branch (whether that's the feature branch inside a feature worktree, or `main` directly).
+
+@references/task-worktree.md
+
+Pre-flight check:
+- **Already inside this task's worktree** (path matches `<repo>_<feature>_<task>`) → proceed, worktree already set up.
+- **In any other worktree or the main checkout** → create the task worktree now, then `cd` into it before continuing.
+
+The `[Done]` sequence replaces the normal commit step with a verify-then-merge-back (see above). The task worktree and branch are NOT deleted after `[Done]` — batch cleanup happens separately.
+
 ### 1. Locate `plan.md` (and `spec.md`)
 
 - Both present in CWD → proceed.
