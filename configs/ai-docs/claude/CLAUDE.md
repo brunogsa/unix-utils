@@ -22,6 +22,14 @@ Five cross-platform repos (macOS/Linux), each with its own `CLAUDE.md`:
 Configs are symlinked from repos to system locations. Always edit the source repo.
 `~/.claude/CLAUDE.md` and `~/.claude/skills/` are symlinked from `~/unix-utils/configs/ai-docs/claude/` -- commit Claude config changes to `~/unix-utils`.
 
+**Symlink + permission-rule gotcha** -- `settings.json` `permissions.allow` Bash rules are matched against the **canonical path** (after resolving all symlinks), not the symlink path. Since `~/.claude/` is a symlink into `~/unix-utils/`, the effective path of any skill script is the `unix-utils` one. Always get the canonical path with `realpath <script>` and use THAT in the allow rule.
+
+  Also, since `settings.json` is shared across platforms and home dirs differ, you need one entry per platform:
+  - macOS canonical: `"Bash(/Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/.../script.sh *)"`
+  - Linux canonical: `"Bash(/home/brunogsa/unix-utils/configs/ai-docs/claude/skills/.../script.sh *)"` (verify with `realpath` on that machine)
+
+  The symlink path entries (`/Users/brunoagostini/.claude/skills/...`) are harmless to keep as fallbacks but the canonical path is what actually matches.
+
 **Prefer CLI scripts + skills over MCP servers** -- cheaper in context, easier to debug, compose via pipes. Use MCP only for capabilities CLI + skills can't provide.
 
 **Skill tool over Read for matching skills** -- when a skill's description matches the task, invoke it via the Skill tool. Use Read on `SKILL.md` only for meta-work (audit, edit, compare).

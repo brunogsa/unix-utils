@@ -89,6 +89,10 @@ Generate sub-step items based on **both**:
 - The task's existing breadcrumb / sub-bullets in `plan.md` (e.g., `(migration; seed; baseline EXPLAIN; index-on EXPLAIN; compare)`)
 - A fresh decomposition: one item per RED-GREEN cycle (one per most-forcing case from the task's acceptance criteria), plus verify / commit / finalize steps.
 
+**CRITICAL: Create ALL known sub-steps in TaskList BEFORE executing any of them.** Always include the tail steps (verify, two-party handshake, commit, plan.md update) — they are known upfront and must appear in the list from the start. The user needs macro visibility of the full plan before any code is touched. Only use alphabetical-suffix insertions (e.g., `3.4a`) for sub-steps that are genuinely discovered mid-flight (helper-on-demand, unexpected drift). Known steps added late are a planning failure.
+
+**The numeric prefix IS the ordering contract.** TaskList display order is not reliably controllable (the rendering algorithm is opaque). The subject prefix (` 6.1. `, ` 6.2. `, etc.) is what readers use to navigate — it is the canonical order, regardless of display position. Always number sub-steps sequentially so the intended sequence is unambiguous from the subject alone.
+
 ### TaskList structure: parent task + sub-steps
 
 Create the parent task in TaskList **first**, then each sub-step. The parent groups its sub-steps visually and provides a single place to flip task-level status.
@@ -190,7 +194,7 @@ These use **flat top-level numbering** (next available `<N>.`, not `<task-id>.<M
 
 - **Side quest** — user (or AI) explicitly defers something. Append at the end with ` <N>. [Side] ` subject prefix; also append at the end of `plan.md` per the global rule. Side quests **do not block** `[Done]` unless explicitly marked as a blocker. Why the marker: different completion rule from a regular task (parent's `[Done]` doesn't wait on it).
 - **Scout finding** — pre-existing issue noticed in passing. Surface to the user with ` <N>. [Scout] ` prefix; only fix if approved. Approved fixes get isolated commits (separate from the base). Why the marker: requires explicit user approval before fixing.
-- **Incidental change** — collateral fix needed to make the current task work. No category marker — it's just a sub-step (or its own commit if separable).
+- **Incidental change** — collateral fix needed to make the current task work. No category marker — it's just a sub-step (or its own commit if separable). **When committed separately, append a `**DECISION (Task N):**` marker in `plan.md`** documenting what was fixed and why — same append-only rule as plan deviations. Trivial incidentals bundled into the base commit don't need a DECISION entry.
 - **Plan deviation** — implementation diverges materially from the planned approach. Append a `**DECISION (Task N):**` marker in `plan.md` per `spec-driven-development`'s append-only rule.
 - **Stop mid-flight** — if the user halts work before `[Done]`, leave the status as `[Doing]`, leave TaskCreate items as-is. Resume later with another `/implement <N>` (it'll detect the existing state in pre-flight step 5).
 

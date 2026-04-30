@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(/home/brunogsa/.claude/skills/show-file-in-nvim-via-tmux/scripts/show-file-in-nvim-via-tmux.sh *)"
+      "Bash(/home/brunogsa/.claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
+      "Bash(/home/brunogsa/unix-utils/configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
+      "Bash(/Users/brunoagostini/.claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
+      "Bash(/Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)"
     ],
     "deny": [
       "Bash(read:~/.ssh/**)",
@@ -13,7 +16,7 @@
       "Bash(read:~/.config/gh/**)"
     ]
   },
-  "model": "sonnet",
+  "model": "opus",
   "hooks": {
     "PreToolUse": [
       {
