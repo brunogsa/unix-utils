@@ -198,7 +198,16 @@ The skill itself never auto-invokes `/refactor` or `/auto-review` — the user r
 
 ## Out-of-band events during execution
 
-These use **flat top-level numbering** (next available `<N>.`, not `<task-id>.<M>.`) — they are siblings of tasks, not sub-steps. Two carry category markers because their routing rules differ from a regular task; everything else is just a plain numbered task.
+These use **flat top-level numbering** — they are siblings of tasks, not sub-steps. Two carry category markers because their routing rules differ from a regular task; everything else is just a plain numbered task.
+
+**Subject format is non-optional.** The numeric prefix comes first, then the category marker, then the description: ` N. [Side] description` or ` N. [Scout] description`. Concrete examples (using TaskList IDs):
+
+- ` 32. [Side] Add stream-output-in-tmux skill`
+- ` 41. [Scout] error-callbacks DTO has stale @ApiProperty decorator`
+
+**`N` is the TaskList ID returned by `TaskCreate`, not a manual sequential count.** Same swap rule as regular parent tasks: create with a placeholder ` <next>. ` prefix, then immediately `TaskUpdate` to swap in the returned numeric ID. This applies to **all flat-numbered items** — regular tasks, side quests, scouts, and any future category. Sub-steps are the only exception (their semantic position is the contract, e.g., `3.1.`, `3.4a.`).
+
+Why the number is required: it makes side quests and scouts addressable across both TaskList and plan.md (where they're also appended). Without the number, you can't say "let's do task 32" — you'd have to copy-paste the description. Aligning with the TaskList ID also keeps the canonical reference single-sourced — no parallel manual counter to drift.
 
 - **Side quest** — user (or AI) explicitly defers something. Append at the end with ` <N>. [Side] ` subject prefix; also append at the end of `plan.md` per the global rule. Side quests **do not block** `[Done]` unless explicitly marked as a blocker. Why the marker: different completion rule from a regular task (parent's `[Done]` doesn't wait on it).
 - **Scout finding** — pre-existing issue noticed in passing. Surface to the user with ` <N>. [Scout] ` prefix; only fix if approved. Approved fixes get isolated commits (separate from the base). Why the marker: requires explicit user approval before fixing.
