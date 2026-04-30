@@ -133,6 +133,8 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 
 - **Spec-driven for non-trivial work** -- use spec.md (what/why) and plan.md (how/tasks) as living documents. Not committed.
 
+- **spec.md and plan.md are session-scoped and untracked** -- never reference them in committed artifacts (code comments, commit bodies, docs). They stay local and get removed after the session; the next reader won't have them. Put the why in the code comment itself or in agents.md.
+
 - **Plan tasks become TODO items with acceptance criteria** -- every task in plan.md and TaskCreate includes acceptance criteria and a verify method.
 
 - **TDD/BDD default for plan tasks** -- every plan.md task follows RED-GREEN-REFACTOR unless `**DECISION:** skip TDD because <reason>` overrides. Plan-template carries the reminder; `test-driven-development` is canonical.

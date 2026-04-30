@@ -93,8 +93,9 @@ Generate sub-step items based on **both**:
 
 Create the parent task in TaskList **first**, then each sub-step. The parent groups its sub-steps visually and provides a single place to flip task-level status.
 
-- **Parent:** ` <task-id>. <task title from plan.md, full breadcrumb>` — no category marker (top-level identity is implicit). Keeps the semantic plan.md task ID; do **not** swap to the TaskList numeric ID — the alignment with sub-steps would be lost.
-- **Sub-step:** ` <task-id>.<M>. [Sub-Step] <subject>` — e.g., ` 3.1. [Sub-Step] RED — case A`. The hierarchical numbering signals parent-child; the `[Sub-Step]` marker distinguishes from out-of-band items (`[Side]`, `[Scout]` — see CLAUDE.md for the canonical category list).
+- **Parent:** create with ` <task-id>. <task title from plan.md, full breadcrumb>` — no category marker. Once `TaskCreate` returns the TaskList numeric ID, **immediately `TaskUpdate` the subject** to swap the ` <task-id>. ` prefix for ` <returned-id>. ` (per CLAUDE.md). This anchors the canonical reference so the counter can't drift.
+  - **Check TaskList first** — if a task with a matching `<task-id>.` prefix already exists, use it as the parent (flip its status); never create a duplicate.
+- **Sub-step:** ` <task-id>.<M>. [Sub-Step] <subject>` — e.g., ` 3.1. [Sub-Step] RED — case A`. The hierarchical numbering signals parent-child; the `[Sub-Step]` marker distinguishes from out-of-band items (`[Side]`, `[Scout]` — see CLAUDE.md for the canonical category list). **Do NOT swap sub-step numbers** to TaskList numeric IDs — their semantic position is the contract.
 - **Sub-step status sync:** TaskList parent's status mirrors `plan.md`'s status marker — `pending` ↔ no marker, `in_progress` ↔ `[Doing]`, `completed` ↔ `[Done]`. The same milestone updates both surfaces (steps 3.3 and 3.13 in the template).
 
 ### Template (concrete example for task 3)
