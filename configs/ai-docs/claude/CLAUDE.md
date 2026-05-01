@@ -217,6 +217,8 @@ Concrete examples live in the `workflow-standards` skill (loaded on-demand when 
 
 - **Name by purpose, not mechanism** -- what the caller gets, not how it works.
 
+- **Information hiding** -- expose intent, hide implementation. Public APIs should reveal what the module promises, not how it stores state, threads I/O, or sequences calls. Clients depend on the contract; internals are free to change without ripple.
+
 - **Functions ≥2 params → named-param object. Pass specific fields, not whole objects.**
 
 - **Layered architecture** -- CRITICAL: Controller (I/O, validation, logging) → Use Case (pure business logic, no I/O).
@@ -242,6 +244,8 @@ Concrete examples live in the `workflow-standards` skill (loaded on-demand when 
 - **Move + edit when renaming or generalizing** -- when extending an existing script/module to cover a broader use case, move the file (`git mv` or `cp` + `rm`) and edit it in place; don't write a fresh file from scratch. Preserves git history (blame/log tracks the lineage), avoids duplicate code drift, and forces you to reckon with the original's behavior — rewriting blind is how subtle quirks get silently dropped. Applies to scripts, modules, configs, and skills alike.
 
 - **Input validation** -- validate inputs in controllers before business logic.
+
+- **Defend at trust boundaries, trust internals** -- validate at the edges (user input, external APIs, deserialization, queue payloads); don't re-validate between modules you control. Internal validation is noise that hides where the real boundary is. When an internal invariant breaks, fail fast and loudly — never silently coerce, swallow, or default away the error.
 
 - **Normalize data at entry point** -- convert string dates, numbers-as-strings to proper types immediately after validation.
 
