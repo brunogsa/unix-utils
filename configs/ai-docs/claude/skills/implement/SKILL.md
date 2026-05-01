@@ -1,18 +1,18 @@
 ---
 name: implement
-description: "USE to execute one plan.md task end-to-end. Trigger: /implement <task-id>. Owns the task lifecycle ([Doing]→[Done] markers, sub-step tracking via TaskCreate, commit, two-party-done handshake). Single task per invocation."
+description: "USE to execute one or more plan.md tasks end-to-end (run sequentially). Trigger: /implement <id> or /implement <id1>,<id2>,... Owns lifecycle: [Doing]→[Done] markers, sub-step tracking, advisor consult, commit, two-party-done handshake. User-invocable only."
 disable-model-invocation: true
 ---
 
 # Implement a Plan Task
 
-Execute one plan.md task end-to-end with `[Doing]/[Done]` status tracking, sub-step decomposition via TaskCreate, BDD/TDD for the actual code-writing loop, and a two-party "done" handshake.
+Execute one or more plan.md tasks end-to-end with `[Doing]/[Done]` status tracking, sub-step decomposition via TaskCreate, mandatory advisor consultation per task, BDD/TDD for the actual code-writing loop, and a two-party "done" handshake. Multi-task batches run sequentially, never in parallel.
 
 This skill owns the **task lifecycle** (locate, mark, decompose, execute, commit, finalize). It defers the **code-writing discipline** (RED → GREEN → REFACTOR, helper-on-demand, drift handling) to `test-driven-development`. Compose without overlap: `/implement` is the outer shell, `test-driven-development` is the inner loop.
 
 ## When to invoke
 
-**User-invocable only.** This skill runs only when the user types `/implement <task-id>`. The model never auto-invokes it (`disable-model-invocation: true`); chat phrases like "let's do task 3" do **not** trigger it — the slash command is the sole contract.
+**User-invocable only.** This skill runs only when the user types `/implement <task-id>` (single) or `/implement <id1>,<id2>,...` (sequential batch — comma-separated, no spaces). The model never auto-invokes it (`disable-model-invocation: true`); chat phrases like "let's do task 3" or "use the implement skill on tasks 1,2,3" do **not** trigger it — the slash command is the sole contract.
 
 The user also reserves `/refactor` and `/auto-review` — do not auto-invoke those either.
 
@@ -24,27 +24,19 @@ The user also reserves `/refactor` and `/auto-review` — do not auto-invoke tho
 ## Usage
 
 ```
-/implement <task-id>          # interactive — auto-detect base branch, confirm with user
-/implement <task-id> <base>   # autonomous — base branch supplied (e.g., main, master, develop)
+/implement <task-ids>          # interactive — auto-detect base branch, confirm with user
+/implement <task-ids> <base>   # autonomous — base branch supplied (e.g., main, master, develop)
 ```
 
-`<task-id>` matches the **exact** numeric prefix of a plan.md heading (e.g., `1`, `1.2`, `3`). On ambiguity (rare), ask the user.
+`<task-ids>` is one numeric task prefix or a comma-list of them — `5`, `1.2`, or `1,2,3`. No spaces around the commas; reject space-separated forms like `/implement 1 2 3` (the shell parses the second token as `<base>`). Each ID matches the **exact** numeric prefix of a plan.md heading. On ambiguity (rare), ask the user.
 
-One task per invocation — no `/implement 3,4` batch form. Small batches over big bangs.
+In a multi-task batch, tasks run **sequentially**, never in parallel — small batches still beat one big bang. The two-party `[Done]` handshake between tasks is the chain-abort gate: at any handshake you can answer "stop" instead of "yes" and the batch halts cleanly, leaving the remaining IDs in their original state.
 
 ## Pre-flight
 
-### 0. Task worktree (always)
+The user creates and manages worktrees themselves — this skill assumes CWD is already where the task should run. It does not create, move into, or merge worktrees. (See `references/task-worktree.md` for the user's reference workflow when relevant.)
 
-Every task runs in its own git worktree branched off the current branch (whether that's the feature branch inside a feature worktree, or `main` directly).
-
-@references/task-worktree.md
-
-Pre-flight check:
-- **Already inside this task's worktree** (path matches `<repo>_<feature>_<task>`) → proceed, worktree already set up.
-- **In any other worktree or the main checkout** → create the task worktree now, then `cd` into it before continuing.
-
-The `[Done]` sequence replaces the normal commit step with a verify-then-merge-back (see above). The task worktree and branch are NOT deleted after `[Done]` — batch cleanup happens separately.
+In a multi-task batch (`/implement 1,2,3`), pre-flight steps **§1–§3 run once** at the start of the invocation; **§4–§7 run once per task** as each becomes active.
 
 ### 1. Locate `plan.md` (and `spec.md`)
 
@@ -91,6 +83,14 @@ Run TaskList. If any items exist, list them and ask:
 - Cancel `/implement`
 
 Apply the choice before continuing — long lists may not fully render in the UI, so listing them in chat for explicit confirmation is part of the safety net.
+
+### 7. Advisor consultation (per task — mandatory)
+
+Before decomposing the active task into sub-steps and before writing any code, call `advisor()`. The transcript at this point holds the full plan.md task text, spec.md context, recap of work since base, and current TaskList state — exactly what a stronger reviewer needs to challenge the approach, surface forcing cases you missed, and flag risky assumptions.
+
+This is **per task**, not per invocation. In a multi-task batch each task gets its own advisor call right before its sub-step decomposition — the relevant context (acceptance criteria, forcing cases, prior tasks' commits) is task-specific and only fully present once the prior task is done.
+
+Take the advice seriously: if the advisor flags a forcing case you didn't plan for, add it to the sub-steps. If it challenges the verify method, reconcile before flipping to `[Doing]`. Skipping this step or no-op'ing it ("looks fine, proceeding") defeats the point.
 
 ## Execution shell — TaskCreate sub-steps
 
@@ -188,9 +188,10 @@ After step 3.10 (verify passes), do not auto-mark `[Done]`. Instead:
 
 1. **AI proposes:** "Acceptance criteria pass. Verify ran clean: `<output snippet>`. Mark `[Done]`?"
 2. **User confirms** (yes / changes / blocked).
-3. **On yes** → commit (step 3.12) → update plan.md to `[Done]` (step 3.13).
+3. **On yes** → commit (step 3.12) → update plan.md to `[Done]` (step 3.13). In a multi-task batch, then advance to the next task: re-run pre-flight §4–§7 (match next `<task-id>`, state check, TaskList review, advisor) — §1–§3 do not repeat.
 4. **On changes** → insert the requested change with alphabetical-suffix notation right after the cursor (e.g., ` 3.5a. [Sub-Step] ...`), loop back to the relevant RED-GREEN pair, then re-verify.
-5. **On blocked** → flip to `[Blocked]`, stop.
+5. **On blocked** → flip to `[Blocked]`, stop. In a multi-task batch this halts the chain; remaining IDs stay untouched.
+6. **On stop** (user answers "stop" mid-batch instead of "yes") → leave the active task as `[Doing]` and do not start the next task. The batch ends cleanly with remaining IDs in their original state.
 
 In autonomous mode, this collapses to single-party: AI declares `[Done]` once verify passes, commits, and updates `plan.md`.
 
@@ -219,6 +220,7 @@ Out-of-band items are flat-numbered siblings of the active task (not sub-steps).
 - **`[Drift]`** — when the fix is committed separately (per CLAUDE.md), the `**DECISION (Task N):**` marker uses the active /implement task's plan.md ID for `N`.
 - **Plan deviation** — implementation diverges materially from the planned approach. Append a `**DECISION (Task N):**` marker in `plan.md` per `spec-driven-development`'s append-only rule.
 - **Stop mid-flight** — if the user halts work before `[Done]`, leave the status as `[Doing]`, leave TaskCreate items as-is. Resume later with another `/implement <N>` (it'll detect the existing state in pre-flight step 5).
+- **Mid-batch out-of-band items** (`[Side]`/`[Scout]`/`[Drift]`) — flat siblings of the active task; they do **not** block batch advancement. The active task still goes through its own `[Done]` handshake; the batch then advances normally to the next ID.
 
 ## Why it works
 
