@@ -1,6 +1,6 @@
 ---
 name: open-in-tmux
-description: Run any command in a new tmux pane, split, or window. USE PROACTIVELY for: (1) file review — when user says 'open in tmux', 'open in nvim', 'new window/pane', 'show me', 'let me check', after 3 edit rejections; (2) streaming long output — when a slow command saves to /tmp/ and the output is large or still running, or user says 'stream it', 'show me live', 'tail the log', 'follow the output'.
+description: Run any command in a new tmux pane, split, or window. USE for: (1) file review — when user says 'open in tmux', 'open in nvim', 'new window/pane', 'let me check', after 3 edit rejections; (2) streaming live output IN PARALLEL — when user says 'open it on a pane', 'let me watch', 'stream it', 'show me live', 'tail the log', 'follow the output'. The pane is for the USER to observe while I keep executing — I self-monitor and never pause waiting for the user to say the command finished.
 ---
 
 # open-in-tmux
@@ -44,20 +44,20 @@ For multi-pane layouts in one exchange, invoke once per command with the matchin
 
 ## After every successful invocation
 
-**Wait for the user's next message before any further action.** The pane is open; the user is reading or watching. Do not edit, commit, or proceed until they reply.
+Two modes — behavior differs:
 
-When the user replies:
+**File review** (nvim, diffview): wait for the user's next message. They may edit the file in the pane. When they reply, re-read the file from disk and diff-summarize any changes — e.g. "I see you replaced the early return at L42 with a guard clause; want me to extend my edit to match?"
 
-- **File review — they edited in the pane** ("I added a guard", "I changed the import"): re-read the file from disk and diff-summarize the changes — e.g. "I see you replaced the early return at L42 with a guard clause; want me to extend my edit to match?" This confirms you understand the new state.
-- **Streaming output — they signal done** ("ok stop", "looks good", "continue"): proceed with the originally proposed work.
-- **Nothing changed** ("ok proceed", "fine"): proceed.
+**Streaming output** (`tail -f`, long-running command): the pane is for the user to observe IN PARALLEL. Do NOT pause or wait. Continue executing the next steps immediately — check the output file yourself. Never ask the user to signal when the command finishes.
 
-The script prints this reminder on stdout after every dispatch — honor it.
+The script prints a reminder on stdout after every dispatch. For streaming invocations, override it: keep working.
 
 ## Outside tmux
 
 If `$TMUX` is unset, the script exits non-zero and prints the command to stdout. Tell the user: "I can't open a tmux pane from here, but you can run the printed command yourself."
 
 ## What NOT to use this for
+
+**Unsolicited streaming.** The pane is a viewer for the user — open it only when they ask. For streaming, always `tail -f /tmp/file.txt` in the pane, never re-run the original command (it exits when done, closing the pane immediately).
 
 **Multi-file diff review.** The user has `vimreview` and `diffview` for batch-comparing many changes. This skill is for "gather more context" or "watch a running command", not bulk diff-walking.

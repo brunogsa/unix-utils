@@ -109,18 +109,20 @@ Generate sub-step items based on **both**:
 
 Create the parent task in TaskList **first**, then each sub-step. The parent groups its sub-steps visually and provides a single place to flip task-level status.
 
-- **Parent:** create with ` <task-id>. <task title from plan.md, full breadcrumb>` — no category marker. Once `TaskCreate` returns the TaskList numeric ID, **immediately `TaskUpdate` the subject** to swap the ` <task-id>. ` prefix for ` <returned-id>. ` (per CLAUDE.md). This anchors the canonical reference so the counter can't drift.
-  - **Check TaskList first** — if a task with a matching `<task-id>.` prefix already exists, use it as the parent (flip its status); never create a duplicate.
-- **Sub-step:** ` <task-id>.<M>. [Sub-Step] <subject>` — e.g., ` 3.1. [Sub-Step] RED — case A`. The hierarchical numbering signals parent-child; the `[Sub-Step]` marker distinguishes from out-of-band items (`[Side]`, `[Scout]` — see CLAUDE.md for the canonical category list). **Do NOT swap sub-step numbers** to TaskList numeric IDs — their semantic position is the contract.
+- **Parent:** `<prefix>` is `<task-id>` (the plan.md task number); subject is the full plan.md breadcrumb; no category marker. Apply the CLAUDE.md title format.
+  - **Check TaskList first** — if a task with a matching ` <task-id>.` prefix already exists, use it as the parent (flip its status); never create a duplicate.
+- **Sub-step:** `<prefix>` is `<task-id>.<M>` (or `<task-id>.<M><char>` for mid-flight insertions, e.g., ` 3.4a. `); category is `[Sub-Step]`. Apply the CLAUDE.md title format.
 - **Sub-step status sync:** TaskList parent's status mirrors `plan.md`'s status marker — `pending` ↔ no marker, `in_progress` ↔ `[Doing]`, `completed` ↔ `[Done]`. The same milestone updates both surfaces (steps 3.3 and 3.13 in the template).
 
 ### Template (concrete example for task 3)
+
+Subjects shown without `[#<returned-id>]` for readability — add it after each `TaskCreate` per CLAUDE.md's title format.
 
 ```
  3.    <task 3 title from plan.md, full breadcrumb>           ← parent, no marker
  3.1.  [Sub-Step] Recap: read plan.md task 3, spec.md context, full git log since base
  3.2.  [Sub-Step] Confirm acceptance criteria + verify method with user
- 3.3.  [Sub-Step] Mark plan.md task 3 as [Doing]              ← also flip TaskList #3 to in_progress
+ 3.3.  [Sub-Step] Mark plan.md task 3 as [Doing]              ← also flip the parent to in_progress
  3.4.  [Sub-Step] RED — case A (most forcing): failing test, confirm fails for the right reason
  3.5.  [Sub-Step] GREEN — case A: minimal impl
  3.6.  [Sub-Step] RED — case B
@@ -131,7 +133,7 @@ Create the parent task in TaskList **first**, then each sub-step. The parent gro
  3.10. [Sub-Step] Run the task's verify step (fresh evidence)
  3.11. [Sub-Step] Two-party [Done] handshake
  3.12. [Sub-Step] Commit (tests + impl together — single base commit)
- 3.13. [Sub-Step] Update plan.md task 3 to [Done]             ← also flip TaskList #3 to completed
+ 3.13. [Sub-Step] Update plan.md task 3 to [Done]             ← also flip the parent to completed
 ```
 
 Why expand the cycles instead of looping: each RED-GREEN pair surviving as its own item means a `/clear` or session restart can resume cleanly — a single "loop the rest" bullet erases that visibility.
@@ -200,9 +202,9 @@ When any of these *are resolved during this `/implement` run*, each gets its own
 
 - **Refactor** — clearly separable cleanup (always isolated; never mixed with behavior changes).
 - **`/auto-review` follow-up changes** — when the user invokes `/auto-review` and it surfaces fixes.
-- **Side quest worked on as a blocker** — typically queued, not done during this run; if escalated to blocker and addressed, own commit.
-- **Scout finding the user approves to fix** — pre-existing issue surfaced and fixed, separate from the task.
-- **Incidental change** — only when *separable* from the base; trivial collateral fixes (one-line typo, stray import) go in the base commit.
+- **`[Side]` worked on as a blocker** — typically queued, not done during this run; if escalated to blocker and addressed, own commit.
+- **`[Scout]` the user approves to fix** — pre-existing issue surfaced and fixed, separate from the task.
+- **`[Drift]`** — separable collateral fix; commit rule per CLAUDE.md.
 
 So a task might be 1 commit (clean), 2 (base + refactor), 3 (base + refactor + scout fix), and so on. Never zero.
 
@@ -210,20 +212,11 @@ The skill itself never auto-invokes `/refactor` or `/auto-review` — the user r
 
 ## Out-of-band events during execution
 
-These use **flat top-level numbering** — they are siblings of tasks, not sub-steps. Two carry category markers because their routing rules differ from a regular task; everything else is just a plain numbered task.
+Out-of-band items are flat-numbered siblings of the active task (not sub-steps). **Title format and category semantics for `[Side]`, `[Scout]`, `[Drift]` live in CLAUDE.md** — read that for the canonical rules. The /implement-specific concerns:
 
-**Subject format is non-optional.** The numeric prefix comes first, then the category marker, then the description: ` N. [Side] description` or ` N. [Scout] description`. Concrete examples (using TaskList IDs):
-
-- ` 32. [Side] Add stream-output-in-tmux skill`
-- ` 41. [Scout] error-callbacks DTO has stale @ApiProperty decorator`
-
-**`N` is the TaskList ID returned by `TaskCreate`, not a manual sequential count.** Same swap rule as regular parent tasks: create with a placeholder ` <next>. ` prefix, then immediately `TaskUpdate` to swap in the returned numeric ID. This applies to **all flat-numbered items** — regular tasks, side quests, scouts, and any future category. Sub-steps are the only exception (their semantic position is the contract, e.g., `3.1.`, `3.4a.`).
-
-Why the number is required: it makes side quests and scouts addressable across both TaskList and plan.md (where they're also appended). Without the number, you can't say "let's do task 32" — you'd have to copy-paste the description. Aligning with the TaskList ID also keeps the canonical reference single-sourced — no parallel manual counter to drift.
-
-- **Side quest** — user (or AI) explicitly defers something. Append at the end with ` <N>. [Side] ` subject prefix; also append at the end of `plan.md` per the global rule. Side quests **do not block** `[Done]` unless explicitly marked as a blocker. Why the marker: different completion rule from a regular task (parent's `[Done]` doesn't wait on it).
-- **Scout finding** — pre-existing issue noticed in passing. Surface to the user with ` <N>. [Scout] ` prefix; only fix if approved. Approved fixes get isolated commits (separate from the base). Why the marker: requires explicit user approval before fixing.
-- **Incidental change** — collateral fix needed to make the current task work. No category marker — it's just a sub-step (or its own commit if separable). **When committed separately, append a `**DECISION (Task N):**` marker in `plan.md`** documenting what was fixed and why — same append-only rule as plan deviations. Trivial incidentals bundled into the base commit don't need a DECISION entry.
+- **`[Side]` mid-/implement** — doesn't block the active task's `[Done]` unless explicitly escalated to a blocker.
+- **`[Scout]` mid-/implement** — surfacing requires user approval; approved fixes commit separately, before the active task's `[Done]`.
+- **`[Drift]`** — when the fix is committed separately (per CLAUDE.md), the `**DECISION (Task N):**` marker uses the active /implement task's plan.md ID for `N`.
 - **Plan deviation** — implementation diverges materially from the planned approach. Append a `**DECISION (Task N):**` marker in `plan.md` per `spec-driven-development`'s append-only rule.
 - **Stop mid-flight** — if the user halts work before `[Done]`, leave the status as `[Doing]`, leave TaskCreate items as-is. Resume later with another `/implement <N>` (it'll detect the existing state in pre-flight step 5).
 

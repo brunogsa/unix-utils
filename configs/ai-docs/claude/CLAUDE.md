@@ -84,14 +84,17 @@ Configs are symlinked from repos to system locations. Always edit the source rep
   - Why: the summary describes intent; only the artifact shows reality.
 
 - **Leverage TODO list proactively** -- CRITICAL: use TaskCreate for non-trivial tasks.
-  - Create with ` <N>. ` prefix in the subject (sequential 1/2/3; leading space, period, trailing space) — renders instantly, no update round-trip.
-  - Once TaskCreate returns the id, TaskUpdate the subject to swap ` <N>. ` for ` <returned-id>. `.
-  - Why: UI hides IDs in titles, so a visible prefix is required; the later id swap anchors the canonical reference so a manual counter can't drift.
-  - **Category prefix** (after the numeric one) — only add when the item's routing differs from a regular task:
-    - `[Sub-Step]` — decomposition of a parent task; numbering is ` <task-id>.<M>. ` (e.g., ` 3.1. `). Keeps the semantic ID — no swap to TaskList numeric IDs.
-    - `[Side]` — explicitly deferred work; trigger: I say "side quest". Placed at end of list (overrides "Out-of-scope" positioning), also appended to `plan.md` if one exists. Doesn't block parent's `[Done]` unless escalated.
-    - `[Scout]` — pre-existing issue noticed in passing; needs my explicit approval before fixing.
-    - Plain tasks (top-level work, trivial incidentals) carry no marker — the structure speaks for itself.
+  - Create with ` <prefix>. ` in the subject (leading space, period, trailing space) — renders instantly, no update round-trip:
+    - Plain task: `<prefix>` is sequential `<N>` (1/2/3...).
+    - Sub-step: `<prefix>` is hierarchical `<N>.<M>` or `<N>.<M><char>` for mid-flight insertions (e.g., ` 3.1. `, ` 3.4a. `).
+  - Once TaskCreate returns the id, TaskUpdate the subject to add ` [#<returned-id>]` after the period. Final shape: ` <prefix>. [#<returned-id>] <category>? <description>`.
+  - Why: `<prefix>` is the human-facing handle (matches plan.md, used in conversation: "let's do task 5", "redo 3.1"). `[#<returned-id>]` is the stable programmatic handle for TaskUpdate/TaskGet — can't drift even if the manual counter does. Both visible, no ambiguity.
+  - **Category prefix** (between `[#<returned-id>]` and the description) — only add when the item's routing differs from a regular task:
+    - `[Sub-Step]` — decomposition of a parent task; the `<N>.<M>` shape of `<prefix>` already signals parent-child, `[Sub-Step]` is the explicit category marker.
+    - `[Side]` — explicitly deferred work; trigger: I say "side quest". Placed at end of list (overrides "Out-of-scope" positioning). Doesn't block parent's `[Done]` unless escalated.
+    - `[Scout]` — pre-existing issue noticed in passing; needs my explicit approval before fixing. Approved fixes land as their own commit, never bundled with feature work.
+    - `[Drift]` — collateral fix needed mid-flight to make the current task work. Bundle into the base commit if trivial (typo, stray import); else own commit + a `**DECISION (Task N):**` marker in `plan.md` documenting what was fixed and why.
+    - Plain tasks (top-level work) carry no marker — the structure speaks for itself.
 
 - **Prefer targeted edits over full rewrites** -- Edit tool over Write tool.
 
@@ -104,7 +107,7 @@ Configs are symlinked from repos to system locations. Always edit the source rep
 - **Commit at task boundaries** -- CRITICAL: at end of a coherent change, issue `git commit` as a standalone call. Exactly one prompt per commit, always.
   - **DO NOT bypass the prompt.** No compound commands (`git add … && git commit …`), no chaining after approval, no assuming prior approval extends. Each commit is a standalone call.
   - A task produces **at least one commit, never zero**: tests + impl together as the base (RED+GREEN inside one commit).
-  - Things that **must not bundle** with the base each get their own commit: refactor, `/auto-review` follow-up changes, scout findings, side quests worked on, separable incidentals.
+  - Things that **must not bundle** with the base each get their own commit: refactor, `/auto-review` follow-up changes, scout findings, side quests worked on, separable drifts.
   - Typical task = 1 commit; with refactor + scout fix = 3.
   - Format: Conventional Commits (`type(scope): subject`), imperative, max 72-char subject.
   - Body: scannable bullets/sub-bullets by default. Prose only when fragmenting would lose connective tissue (rare — most changes are bullet-shaped).
@@ -283,6 +286,9 @@ Concrete examples live in the `code-standards` skill (loaded on-demand when writ
 - **CLAUDE.md is conventions, not duplication** -- capture per-repo purpose, dependencies, non-obvious gotchas, load-bearing conventions.
   - Don't restate what the code already shows (file listings, function categories, install-step inventories, line-numbers).
   - Why: duplication is an edit burden — the moment code changes, docs go stale.
+
+- **Patch doc gaps the moment they bite** -- when missing or wrong docs cost you time (env setup, onboarding, hidden behavior), fix the doc inline as part of the current change.
+  - Why: each gap teaches once; the next person should learn from the doc, not from your detour. Discovery is when you have full context to write the fix.
 
 - **Commit messages explain the why** -- the diff shows the what.
 
