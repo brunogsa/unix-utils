@@ -1,22 +1,24 @@
 # Spec: [Title]
 
-## Background
+---
+## Background / Context
 Why this change is needed. Business context, pain point, or opportunity.
 
-## Goals
+---
+## Goals and Success Metrics / KPIs
 What we want to achieve (outcomes, not implementation).
 
+---
 ## User Stories
 - As a [role], I want [capability] so that [benefit].
 
-## Functional Requirements
-1. System MUST ...
-2. System MUST ...
-
-## Non-Functional Requirements
+---
+## Non-Functional and Technical Requirements
 1. Performance: ...
 2. Security: ...
+3. Reuse module X ...
 
+---
 ## Testable Acceptance Criteria
 
 Use BDD-style scenarios (Given / When / Then). One scenario per criterion, each with a short title.
@@ -50,15 +52,19 @@ Group by category for scannability:
 #### Failure modes
 ### AC-N: ...
 
+---
 ## Open Questions
-- **QUESTION:** ...
+- **QUESTION:** ... ?
 
-## Decisions
+---
+## Functional Decisions
 
 Chronological log. Editable during refinement. Once the user approves the plan and signals execution start, insert the divider line below and switch to append-only — revisions become new entries with `**Supersedes:**` references rather than in-place edits.
 
-- **DECISION:** ..., because ...
+- **DECISION:** __Chose__ <approach>, __because__ <reason>
+  - __Discarded__ **<alternative>**: <reason>
 
 <!-- ── execution begins below; entries above are frozen, append-only below ── -->
 
-- **DECISION (Task N):** ..., because ... *(to revise an earlier decision, append a new entry ending with `**Supersedes:** "<first ~60 chars of prior>"`)*
+- **DECISION (Task N):** __Chose__ <approach>, __because__ <reason>
+  - __Supersedes__ "<first ~60 chars of prior decision>" __because__ <reason>

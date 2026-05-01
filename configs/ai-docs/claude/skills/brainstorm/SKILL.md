@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: "Interactively refine an idea into spec.md via Socratic interview. Use ONLY when user explicitly says 'brainstorm' / 'let's brainstorm' / invokes /brainstorm. Do NOT auto-trigger from general design discussion — reserved for the full interview."
+description: "Interactively refine an idea into spec.md via Socratic interview. USE when user explicitly says 'let's brainstorm'."
 disable-model-invocation: false
 ---
 
@@ -27,24 +27,23 @@ Examples:
 
 **If a file path is provided**: read it and use as the starting point.
 **If no file path**: check if `./spec.md` exists and read it.
-**If nothing exists**: use the current session context (conversation history,
-codebase understanding) to seed the brainstorm.
+**If nothing exists**: use the current session context (conversation history, codebase understanding) to seed the brainstorm.
 
 ### 2. Probe scope before deep questions
 
-Before drilling into requirements, check whether the request describes multiple independent subsystems (e.g., "platform with chat, file storage, billing, and analytics"). Signals: multiple unrelated nouns, distinct user roles, separate persistence concerns, or features that could each ship independently.
+Before drilling into requirements, check whether the request describes multiple independent subsystems (e.g., "platform with chat, file storage, billing, and analytics").
+Signals: multiple unrelated nouns, distinct user roles, separate persistence concerns, or features that could each ship independently.
 
-If it looks decomposable, surface it: name the candidate sub-projects, ask the user how they relate and which one ships first. Brainstorm only the first sub-project here — each remaining piece gets its own spec→plan cycle.
+If it looks decomposable, surface it: name the candidate sub-projects, ask the user how they relate and which one ships first. Brainstorm only the first sub-project here — each remaining piece ideally gets its own spec→plan cycle.
 
-**If the user agrees to decompose**: write a brief `scopes.md` next to where the spec will live. One line per sub-project — name, one-sentence purpose, dependency on other sub-projects (if any). Mark the one being brainstormed now. Format:
+**If the user agrees to decompose**: write a brief `scopes.md` next to where the spec will live. One line per sub-project — name, one-sentence purpose, dependency on other sub-projects (if any). Include the one being brainstormed now. Format:
 
-```
+```markdown
 ## Sub-projects
 
 1. **<name>** — <one-sentence purpose>. Depends on: <none | #N>.
-2. **<name>** — <one-sentence purpose>. Depends on: <none | #N>.
 
-Currently brainstorming: #<N>
+2. **<name>** — <one-sentence purpose>. Depends on: <none | #N>.
 ```
 
 Why: a stale brainstorm session loses the decomposition map; `scopes.md` survives so the next `/brainstorm` run picks up the queue without re-deriving it. Refining a too-large idea wastes interview rounds on details that belong in separate specs.
@@ -53,14 +52,15 @@ Why: a stale brainstorm session loses the decomposition map; `scopes.md` survive
 
 Ask clarifying questions (Socratic style). Focus on:
 - What problem are we solving? (Background)
+- What is goal and success metrics/KPIs? (Goal)
 - Who benefits and how? (User Stories)
 - What does success look like? (Testable Acceptance Criteria — BDD scenarios)
-- What constraints exist? (Non-Functional Requirements)
-- What's unclear? (mark with `[NEEDS CLARIFICATION]`)
+- What constraints exist? (Non-Functional and Techincal Requirements)
+- What's unclear? (Open Questions)
 
 Ask 2-3 questions per round. Don't overwhelm.
 
-**For Testable Acceptance Criteria, actively probe for coverage gaps.** Happy-path scenarios are easy to elicit; corner cases and failure modes need pulling. Before generating spec.md, push the user to enumerate:
+**CRITICAL: For Testable Acceptance Criteria, actively probe for coverage gaps.** Happy-path scenarios are easy to elicit; corner cases and failure modes need pulling. Before generating spec.md, push the user to enumerate:
 - **Corner cases**: empty inputs, max sizes/limits, boundary values, combined/composed filters, idempotency, concurrent access.
 - **Failure modes**: validation errors (4xx), downstream timeouts, downstream 5xx, partial failures, auth failures, rate limits.
 
@@ -70,32 +70,25 @@ If the user only describes the happy path, ask explicitly: "what should happen w
 
 Once requirements feel solid, present 2-3 viable approaches conversationally. Lead with your recommendation and the reasoning. Cover the trade-off axes that matter for this idea (complexity, blast radius, reversibility, dependencies, time-to-first-value).
 
-Get a directional pick from the user before writing the spec. Capture the outcome in the spec's Decisions section as one marker with discarded alternatives as sub-bullets:
-
-```
-**DECISION:** Chose <approach>, because <reason>.
-- Discarded **<alt-1>**: <why rejected>.
-- Discarded **<alt-2>**: <why rejected>.
-```
-
-Why one marker (not separate `**DECISION:**` lines per rejection): the chosen and rejected approaches are one decision, not three. Sub-bullets keep them visually grouped while staying scannable; separate markers would pollute the Decisions section with negative entries and break the "one marker = one decision" grep convention.
+Get a directional pick from the user before writing the spec. Capture the outcome in the spec's Decisions section as one marker with discarded alternatives as sub-bullets.
 
 Why include discarded options at all: the next session (or reviewer) will re-derive the same alternatives unless the rationale is preserved. Naming what lost — and why — prevents re-litigation and surfaces when a trade-off has shifted (e.g., the constraint that killed alt-2 no longer applies).
 
 ### 5. Generate/update spec.md
 
-Write to the provided file path, or `./spec.md` by default, populating the
-spec template at `~/.claude/skills/spec-driven-development/assets/spec-template.md`.
-If the file already exists, update it in place (preserve user content,
-fill gaps, restructure into the template).
+Write to the provided file path, or `./spec.md` by default, populating the spec template.
+
+If the file already exists, update it in place (preserve user content, fill gaps, restructure into the template).
 
 ### 6. Self-review the spec before handing it back
 
-Read the spec with fresh eyes. Fix inline (no need to re-review):
-- **Placeholders**: any TBD, TODO, or vague requirements lingering?
-- **Contradictions**: do sections disagree (e.g., goals vs. acceptance criteria, decisions vs. requirements)?
+Read the spec with fresh eyes by spawning a sub-agent that reports:
+- **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
+- **Contradictions**: do sections disagree?
 - **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition? If yes, jump back to step 2 and write/update `scopes.md`.
 - **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker for the user.
+- **Completeness**: does ALL Goals, Success Metrics and KPIs, User Stories and Non-Functional and Technical Requirements being covered on Testable Acceptance Criteria section? ALL corner cases and failure modes covered?
+- **Human-Reviewable**: Is it easy for the user to review? Is the format pleasant to read? Are you enabling user to verify you?
 
 Why: cheaper for you to catch these than for the user to find them in review — and it prevents the "looks good, ship it" loop where ambiguity surfaces only during implementation.
 

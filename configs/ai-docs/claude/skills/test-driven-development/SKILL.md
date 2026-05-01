@@ -1,12 +1,12 @@
 ---
 name: test-driven-development
-description: "Canonical TDD/BDD discipline for plan-driven work. USE when implementing plan.md tasks (TDD/BDD default) OR user says 'TDD this' / 'BDD style' / 'test-first' / 'red-green' / 'test-driven'."
+description: "Canonical red-green-refactor TDD/BDD discipline. USE when user says 'TDD this' / 'BDD that' / 'test-first' / 'test-driven' / 'red-green'."
 user-invocable: false
 ---
 
 # Test-Driven Development
 
-Canonical TDD/BDD discipline for plan-driven work. For all tasks executed from a plan.md, TDD is the default — the plan-template carries a header reminder; opt out per task with an explicit `**DECISION:** skip TDD because <reason>`.
+Canonical TDD/BDD discipline for plan-driven work.
 
 For test patterns (titles, mock data, parametrized suites, anti-patterns) and test-type selection (integration vs unit vs e2e vs manual), see `test-standards`.
 
@@ -15,11 +15,17 @@ For test patterns (titles, mock data, parametrized suites, anti-patterns) and te
 ## The cycle: RED → GREEN → REFACTOR, most forcing case first
 
 1. **Design test titles** for the integration layer up front — review with user before coding. Pre-known pure helpers (obvious normalizers, parsers, validators) can also be designed up front. Helpers pulled on demand get their tests at the moment of pull; designing them eagerly forces premature signatures.
+
 2. **Pick the most forcing case** — the one that requires the most real logic. Trivial cases first lock in trivial implementations.
+
 3. **RED**: write the test, run it, confirm it fails for the **expected reason** — missing behavior, not a typo, missing import, or setup error.
+
 4. **GREEN**: implement just enough to pass. When a helper is needed, write its test first (RED for helper), then implement (GREEN for helper).
+
 5. **Repeat** for the next case, building on what exists.
+
 6. **Backfill** integration test bodies once core logic is solid.
+
 7. **REFACTOR** in its own commit, never bundled with behavior changes.
 
 ---
