@@ -80,19 +80,7 @@ Write to the provided file path, or `./spec.md` by default, populating the spec 
 
 If the file already exists, update it in place (preserve user content, fill gaps, restructure into the template).
 
-### 6. Self-review the spec before handing it back
-
-Read the spec with fresh eyes by spawning a sub-agent that reports:
-- **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
-- **Contradictions**: do sections disagree?
-- **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition? If yes, jump back to step 2 and write/update `scopes.md`.
-- **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker for the user.
-- **Completeness**: does ALL Goals, Success Metrics and KPIs, User Stories and Non-Functional and Technical Requirements being covered on Testable Acceptance Criteria section? ALL corner cases and failure modes covered?
-- **Human-Reviewable**: Is it easy for the user to review? Is the format pleasant to read? Are you enabling user to verify you?
-
-Why: cheaper for you to catch these than for the user to find them in review — and it prevents the "looks good, ship it" loop where ambiguity surfaces only during implementation.
-
-### 7. Present for review
+### 6. Present for review
 
 Show the spec summary. Ask if anything is missing or wrong.
 Iterate until the user is satisfied.

@@ -7,8 +7,7 @@ Spec: [link or reference to spec.md]
 
 High-level technical approach. Architecture and Trade-offs considered.
 
-A flowchart, C4L1 (context diagram) or simple, if possible and readable.
-Keep mermaid in mind. Decompose in multiple drawings if that makes it easier to grasp and read.
+A flowchart, C4L1 (context diagram) or anything else. Keep simple and readable.
 
 ---
 ## General Flow
@@ -17,8 +16,7 @@ Where the code starts executing, having which data, which modules/class/function
 
 It should explain for the human, assuming do NOT know the codebase, what happens technically in the code at the high level AS SIMPLE as possible, without code.
 
-A sequence diagram, flowchart or something simpler or more readable, if possible.
-Keep mermaid in mind. Decompose in multiple drawings if that makes it easier to grasp and read.
+A sequence diagram, flowchart or anything else. Keep simple and readable.
 
 ---
 ## Reusage report

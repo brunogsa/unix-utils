@@ -34,7 +34,7 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 0. User creates spec.md with initial prompt/notes (or `/brainstorm` refines it).
 1. Plan mode or direct request generates plan.md from spec.md (or from prompt).
-2. AI Self-review — AI checks and surface gaps, contradictions, unresolved ambiguity etc.
+2. AI Self-review — surface gaps, contradictions, unresolved ambiguity. Validate every mermaid block with `mmdc` (caveats in plan-template.md).
 3. User reviews and approves — when the user signals, execution start.
 4. Each plan.md task becomes a TaskCreate item.
 5. Both files updated as work progresses (living docs); decisions are append-only past the divider that exists on both spec.md and plan.md.
@@ -44,6 +44,20 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 9. Self-improving loop: user runs `/improve-principles-and-skills-from-session-learnings` then `english-coach` skills so both AI and humand learn.
 
 Both spec.md and plan.md enable or enrich multiple of these steps.
+
+
+### Self-review both spec and plan before handing it back
+
+Read them with fresh eyes by spawning a sub-agent that reports:
+- **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
+- **Contradictions**: do sections disagree?
+- **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition? If yes, jump back to step 2 and write/update `scopes.md`.
+- **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker for the user.
+- **Completeness**: does ALL Goals, Success Metrics and KPIs, User Stories and Non-Functional and Technical Requirements being covered on Testable Acceptance Criteria section? ALL corner cases and failure modes covered?
+- **Human-Reviewable**: Is it easy for the user to review? Is the format pleasant to read? Are you enabling user to verify you?
+- **Artifacts Valid**: If any mermaid diagram exists, are they valid, verified via `mmdc`?
+
+Why: cheaper for you to catch these than for the user to find them in review — and it prevents the "looks good, ship it" loop where ambiguity surfaces only during implementation.
 
 ## Guidelines
 
@@ -64,3 +78,20 @@ Both spec.md and plan.md enable or enrich multiple of these steps.
     - Shape: `## <status> Task <N>: <title>`
 
 - **After completing a task note deviations from the original plan**.
+
+- **CRITICAL: Use mermaid if you decide on a diagram, but ensure it's readable**:
+  - Prefer top-down over left-right.
+  - Decompose in multiple drawings if that makes it easier to grasp and read.
+
+
+- **CRITICAL: Validate every mermaid block with `mmdc` CLI before declaring the doc ready**:
+  - Extract each ` ```mermaid ` block to a temp file and run `mmdc -i /tmp/d.mmd -o /tmp/d.svg`.
+  - A non-zero exit means the diagram is broken — fix and re-run until clean.
+  - Common parser traps that look fine to humans but break the parser:
+    - `;` inside `Note` text (it's a Mermaid statement separator)
+    - `->>` / `-->>` in sequenceDiagram message bodies (collides with arrow operators — use plain words instead)
+    - `<br/>` inside sequenceDiagram `Note` blocks (use multiple notes or single-line text)
+    - Round/curly brackets in flowchart node labels (wrap the label in double quotes: `A["foo (bar)"]`).
+
+- **CRITICAL: Add a blank line between bullets (not sub-bullets)**:
+  - This improve A LOT the readability
