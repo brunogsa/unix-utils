@@ -9,6 +9,8 @@ High-level technical approach. Architecture and Trade-offs considered.
 
 A flowchart, C4L1 (context diagram) or anything else. Keep simple and readable.
 
+Follow the `mermaid-diagrams` skill for conventions.
+
 ---
 ## General Flow
 
@@ -17,6 +19,8 @@ Where the code starts executing, having which data, which modules/class/function
 It should explain for the human, assuming do NOT know the codebase, what happens technically in the code at the high level AS SIMPLE as possible, without code.
 
 A sequence diagram, flowchart or anything else. Keep simple and readable.
+
+Follow the `mermaid-diagrams` skill for conventions.
 
 ---
 ## Reusage report

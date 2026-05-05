@@ -9,6 +9,13 @@ Why this change is needed. Business context, pain point, or opportunity.
 What we want to achieve (outcomes, not implementation).
 
 ---
+## Context Diagram
+
+> **Diagrams**: include a C4L1 (context diagram) paired with sequence diagrams, if necessary, from the perspective of the users using the systems (described below as User Stories and Testable Acceptance Criteria).
+>
+> Follow the `mermaid-diagrams` skill for conventions.
+
+---
 ## User Stories
 - As a [role], I want [capability] so that [benefit].
 
