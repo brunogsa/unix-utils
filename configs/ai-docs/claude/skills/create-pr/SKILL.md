@@ -20,22 +20,35 @@ No flags needed. Auto-detects spec.md and plan.md in the current directory.
 ### 1. Gather context
 
 - Check for spec.md and plan.md in cwd (optional -- works without them)
+  - Extract all ` ```mermaid ``` ` fenced blocks from each file, including all of them in the PR description as collapsibles
 - Check for PR templates in `.github/` (e.g., `PULL_REQUEST_TEMPLATE.md`)
 - Run git log to see commits on current branch vs base -- **primary source**: mine commit messages for decisions, rationale, and scope changes regardless of whether spec/plan exist
 - Run git diff against base branch
 - Check if branch is pushed
 
-### 2. Write rich-pr-description.md
+### 2. Write pr-description.md
 
-Write `./rich-pr-description.md` in the directory where Claude Code is running.
+Write `./pr-description.md` in the directory where Claude Code is running.
 
 **CRITICAL: Always check for a PR template** in `.github/` (e.g., `pull_request_template.md`,
 `PULL_REQUEST_TEMPLATE.md`). If one exists, it is the **base structure** -- keep every section
-and checkbox from the template. Fill in each section with the rich content generated from
-spec/plan/commits/diff. Add extra sections (Approach, Key Decisions, Findings, etc.) AFTER or
-WITHIN the template structure, never replacing it. Mark checklist items as `[x]` when applicable.
+and checkbox from the template.
+
+Fill in each section with the rich content generated from
+spec/plan/commits/diff.
+
+Add extra sections as per the PR template below AFTER (as an appendix) or
+WITHIN the template structure (preferred), **NEVER** replacing it.
+
+Mark checklist items as `[x]` when applicable.
 
 If no PR template exists, use the default template below.
+
+#### Default Template
+
+See `references/pr-template.md` for the full template structure.
+
+The Guia de review template, time-estimate heuristic, and file-role inference live in `~/.claude/skills/reviewer-agent/references/reading-order-template.md` (Portuguese variant).
 
 #### Writing Style
 
@@ -69,59 +82,18 @@ Example:
   - Fixes 40 pre-existing failures (test DB was never migrated)
 ```
 
-#### Default Template
-
-```markdown
-[Review guide goes FIRST, before any content, collapsed by default:]
-
-<details>
-<summary><strong>Guia de review</strong> (tempo estimado: {min}-{max} min)</summary>
-[Generated per `~/.claude/skills/reviewer-agent/references/reading-order-template.md` (Portuguese variant)]
-</details>
-
-## Summary
-[From spec.md Background + Goals (when available), cross-referenced with
- commit messages and diff to confirm what was actually delivered.
- Condensed to 2-3 bullets. Always ground in commits, not just docs.]
-
-## Key Decisions
-[Primary: [DECISION: ...] markers from spec.md and plan.md.
- Always also: mine commit messages for decision rationale, trade-off
- explanations, and "why" context -- even when spec/plan exist.
- Merge both sources, deduplicate.]
-
-## Changes
-[Compare git diff against plan.md tasks (when available).
- Two groups:
- - **Planned changes**: tasks from the plan that were implemented
- - **Incidental changes**: modifications not in the plan -- side-effects,
-   cleanup, fixes discovered during implementation, scope adjustments.
- Without plan.md: organize changes from diff and commit messages.]
-
-## Test Plan
-[From plan.md task verify sections + acceptance criteria.
- Cross-reference with test files in the diff.
- Mark items [x] if verification was performed in this session.
- Without plan.md: list tests added/modified from diff.]
-
-## References
-[Jira links, related PRs, etc.]
-```
-
-The Guia de review template, time-estimate heuristic, and file-role inference live in `~/.claude/skills/reviewer-agent/references/reading-order-template.md` (Portuguese variant).
-
 ### 3. Review with user
 
-Present the rich-pr-description.md content for review.
+Present the pr-description.md content for review.
 Wait for approval or edits before creating the PR.
 
 ### 3.5. Learn from user edits
 
-After the user edits rich-pr-description.md, diff the original against their version.
+After the user edits pr-description.md, diff the original against their version.
 Identify patterns in what was added, removed, or reworded. Present proposed improvements
-to THIS skill's writing style guidelines (step 2) for user approval -- similar to
-`improve-principles-and-skills-from-session-learnings`. Apply approved improvements before
-creating the PR. This makes the skill self-improving over time.
+to THIS skill's writing style guidelines (step 2) for user approval.
+
+Apply approved improvements before creating the PR. This makes the skill self-improving over time.
 
 ### 4. Create the PR
 
