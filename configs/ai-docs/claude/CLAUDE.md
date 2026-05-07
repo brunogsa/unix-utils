@@ -98,8 +98,8 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
     - Never pipe a slow command through `grep`/`head` directly — if the filter is wrong you'd re-run the whole thing.
     - Always check both exit code and tail in one line — never trust exit code alone. Some runners exit 0 on partial failure; the tail shows the real summary.
     - Reuse that `/tmp/` file if possible - user might be tailing it, making it easier for him;
-    - Pattern: `<slow-cmd> > /tmp/out.txt 2>&1; echo "exit: $?"; tail -<N> /tmp/out.txt;`.
-      - Choose N based on how many lines the command's summary typically spans.
+    - Pattern: `<slow-cmd> > /tmp/out.txt 2>&1; echo "exit: $?"; tail -<N> /tmp/out.txt;`. Choose N to fit the command's summary.
+      - `echo "exit: $?"` MUST come right after the slow command — echo after `tail` captures tail's `0` and masks the failure. Bash tool's reported exit is the chain's last, not yours.
 
 - **Prefer scannable shape over prose** -- default to bullets, short sections, tables, bold key terms in user-facing text.
   - Prose earns its place only when fragmenting would lose connective tissue: ultrathink/design reasoning, disagreements, connected-paragraph answers.
