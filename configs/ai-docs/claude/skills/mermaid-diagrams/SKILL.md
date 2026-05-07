@@ -7,7 +7,7 @@ description: "Best practices for writing Mermaid diagrams. Use when writing, rev
 
 ## Validate before paste — non-negotiable
 
-Mermaid has subtle syntax traps a human reader won't catch from looking at the source. A broken diagram renders as plain text in GitHub, GitLab, Jira, and most markdown previewers — it silently degrades the doc instead of raising an error. **Run every diagram through `mmdc` before pasting it into any `.md` file, PR description, ticket, wiki page, or chat.** No exceptions, including for "obvious" one-liners — the trap is usually a one-character typo that looks fine on the page.
+Mermaid has subtle syntax traps the eye misses. A broken diagram renders as plain text in GitHub/GitLab/Jira and most previewers — silent doc degradation, no error. **Run every diagram through `mmdc` before pasting into any `.md`, PR, ticket, wiki, or chat.** No exceptions, even one-liners — the trap is usually a one-char typo that looks fine.
 
 ```bash
 # Single diagram saved to a .mmd file:
@@ -44,6 +44,32 @@ Every node, box, or actor must name the actual component it represents — never
   - Good: `UserController`, `AuthService`, `Kafka: order-events`
   - Bad: `Module A`, `Handler`, `Queue`
 
+## Edge semantics — source must be the actor
+
+`A --> B` reads as "A performs an action that affects B" — the source must be the **agent doing the work**, not the data origin. Flowcharts (unlike sequence diagrams) don't enforce this, so it's the most common architecture-diagram bug.
+
+It hits hardest in client-side caching (TanStack Query, SWR, RTK Query, Apollo) and any framework that intercepts on the receiver side: the origin can't reach the destination directly — some other actor puts the data there.
+
+```text
+Bad   (says "the BFF reaches into the browser cache"):
+  GSA --> Cache
+
+Good  (the UI's useQuery hook caches the response it received from GSA):
+  UI -->|"useQuery caches the envelope returned by GSA"| Cache
+```
+
+Same issue, different domains:
+- **Apollo / RTK Query / SWR** — the *client* normalizes/caches; the GraphQL server / REST endpoint never touches the cache.
+- **Webhooks landing in a queue** — the HTTP handler (not the external sender) is what enqueues; arrow source is the handler.
+- **Database triggers writing audit rows** — the *trigger* is the actor, not the original `INSERT` caller.
+
+When in doubt, **write the sequence diagram first**. Lifelines force each message between actually-connected participants; if you can't draw `GSA → Cache` directly there, you can't shortcut it in the flowchart either. Mirror the sequence's arrow sources into the flowchart.
+
+Reviewer checklist:
+
+- For every edge `X --> Y`, ask: *does X execute the code that affects Y?* If "X provides data some other component then puts into Y", it's mis-sourced.
+- Cross-check against any sibling sequence diagram — if the sequence has `A->>B: data; B->>C: write`, the flowchart edge is `B --> C`, not `A --> C`.
+
 ## Diagram Type Selection
 
 | Goal | Diagram type |
@@ -60,8 +86,37 @@ Every node, box, or actor must name the actual component it represents — never
 - Aim for 5–10 nodes. More than 15 usually means it should be two diagrams.
 - Label edges when the relationship isn't obvious from node names alone.
 - Use `subgraph` to group related components, not just for visual decoration.
-- Always use `TD` (top-down) direction — vertical scrolling is easier to read than horizontal.
+- Direction: default to `TD` (top-down) for small flowcharts. For larger / subgraph-heavy flowcharts, **render both `TD` and `LR` and pick the easier-to-read one** (workflow below). Don't guess.
 - Omit flows that are obvious and add noise without adding insight.
+
+### TD vs LR — render both and pick
+
+For any flowchart with subgraphs or > 6 nodes, `TD` and `LR` produce meaningfully different auto-layouts. Don't pick on feel — render both as PNG and judge the rendered output:
+
+```bash
+cp diagram.mmd /tmp/td.mmd
+sed 's/^flowchart TD/flowchart LR/' /tmp/td.mmd > /tmp/lr.mmd
+mmdc -i /tmp/td.mmd -o /tmp/td.png -w 1600 -H 1200
+mmdc -i /tmp/lr.mmd -o /tmp/lr.png -w 1600 -H 1200
+# Then view both with the Read tool (Claude is multimodal — PNGs work).
+```
+
+What to compare on the rendered images:
+
+- **Subgraph titles intact** — header overlapped by a contained node = wrong direction for this graph.
+- **Edge crossings** — fewer is better; zero crossings reads almost twice as fast.
+- **Aspect ratio fits the medium** — tall narrow scrolls badly in PR descriptions; very wide gets squeezed by sidebars.
+- **Pipeline alignment** — request → service → upstream pipelines mirror naturally as `LR`; sequential decision flows read better as `TD`.
+- **Loop compactness** — pick the direction that keeps feedback edges (cache reads, retries) as short local arcs.
+
+Heuristic to start from (verify with the visual check anyway):
+
+| Shape of the system | Try first |
+|---|---|
+| Small ≤ 6 nodes, no subgraphs | `TD` |
+| Sequential decision flow (yes/no branches) | `TD` |
+| Layered request pipeline (UI → BFF → upstream), C4L2 with subgraphs | `LR` |
+| Wide fan-out from one source to many siblings | `LR` |
 
 ## Reading start point and flow ordering
 
@@ -132,9 +187,9 @@ flowchart TD
 
 ## C4L2 Container Diagram
 
-The right level for a plan.md / tech-design architecture flowchart. Don't redraw the C4L1 from scratch — **build on it**: open the spec.md context diagram, copy the actor + system-under-design boxes + external systems, then expand each system-under-design box with a `subgraph` exposing its internal containers (services, caches, modules, queues). External systems stay as opaque black boxes — their internals belong in *their* L2, not yours.
+The right level for a plan.md / tech-design architecture flowchart. Don't redraw the C4L1 from scratch — **build on it**: copy the actor + system-under-design boxes + external systems from the spec.md L1, then expand each system-under-design box with a `subgraph` exposing its internal containers (services, caches, modules, queues). External systems stay opaque — their internals belong in *their* L2.
 
-This is a strong preference for `plan.md`-tier docs: a reader who already saw the L1 should see the same outline (same actors, same external systems, same naming) and just zoom into the boxes they care about. Redrawing from scratch loses that continuity and forces the reader to re-anchor.
+A reader who already saw the L1 should see the same outline (same actors, same external systems, same names) and just zoom into the boxes they care about. Redrawing breaks that continuity.
 
 ~~~mermaid
 flowchart TD
