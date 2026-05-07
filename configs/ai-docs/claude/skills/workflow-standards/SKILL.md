@@ -1,6 +1,6 @@
 ---
 name: workflow-standards
-description: "Workflow guidelines for plan-driven implementation. USE PROACTIVELY when planning implementation for a non-trivial task or starting a new feature."
+description: "Plan-driven implementation rules. USE PROACTIVELY whenever planning a non-trivial task, starting a feature, breaking work into commits, designing test titles upfront, or running a green-baseline check before new work."
 user-invocable: false
 ---
 

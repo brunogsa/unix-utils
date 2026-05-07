@@ -1,6 +1,6 @@
 ---
 name: code-standards
-description: "Code guidelines and anti-patterns. USE PROACTIVELY when writing, refactoring, or reviewing any code."
+description: "Code rules and anti-pattern examples for maintainable code. USE PROACTIVELY whenever writing a new function or module, refactoring, naming things, splitting controllers from use cases, or reviewing any code change — even if not explicitly asked."
 user-invocable: false
 ---
 

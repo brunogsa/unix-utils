@@ -1,6 +1,6 @@
 ---
 name: debug-standards
-description: "Debugging guidelines and anti-patterns. USE PROACTIVELY when investigating any test failure, bug, regression, or 'why doesn't this work'."
+description: "Systematic root-cause debugging workflow. USE PROACTIVELY for any failing test, bug, regression, stack trace, flake, or 'why doesn't this work' / 'this is broken' moment — before attempting a second fix."
 user-invocable: false
 ---
 

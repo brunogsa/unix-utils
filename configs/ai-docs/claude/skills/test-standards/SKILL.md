@@ -1,6 +1,6 @@
 ---
 name: test-standards
-description: "Test guidelines and anti-patterns. USE PROACTIVELY when writing, reviewing, refactoring, or debugging tests."
+description: "Test design rules and anti-pattern examples. USE PROACTIVELY whenever writing a new test, picking test type (unit vs integration vs e2e), mocking dependencies, debugging a flake, or reviewing test code — even when user just says 'add a test'."
 user-invocable: false
 ---
 

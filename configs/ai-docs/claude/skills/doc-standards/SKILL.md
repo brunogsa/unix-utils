@@ -1,6 +1,6 @@
 ---
 name: doc-standards
-description: "Documentation guidelines and anti-patterns. USE PROACTIVELY when writing or reviewing comments, docstrings, READMEs, or commit messages."
+description: "Doc and commit-message rules with examples. USE PROACTIVELY whenever writing or reviewing code comments, docstrings, READMEs, repo CLAUDE.md, or commit messages — including before adding any 'why' comment to code."
 user-invocable: false
 ---
 
