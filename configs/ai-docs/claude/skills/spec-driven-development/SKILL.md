@@ -79,19 +79,7 @@ Why: cheaper for you to catch these than for the user to find them in review —
 
 - **After completing a task note deviations from the original plan**.
 
-- **CRITICAL: Use mermaid if you decide on a diagram, but ensure it's readable**:
-  - Prefer top-down over left-right.
-  - Decompose in multiple drawings if that makes it easier to grasp and read.
-
-
-- **CRITICAL: Validate every mermaid block with `mmdc` CLI before declaring the doc ready**:
-  - Extract each ` ```mermaid ` block to a temp file and run `mmdc -i /tmp/d.mmd -o /tmp/d.svg`.
-  - A non-zero exit means the diagram is broken — fix and re-run until clean.
-  - Common parser traps that look fine to humans but break the parser:
-    - `;` inside `Note` text (it's a Mermaid statement separator)
-    - `->>` / `-->>` in sequenceDiagram message bodies (collides with arrow operators — use plain words instead)
-    - `<br/>` inside sequenceDiagram `Note` blocks (use multiple notes or single-line text)
-    - Round/curly brackets in flowchart node labels (wrap the label in double quotes: `A["foo (bar)"]`).
+- **CRITICAL: When a doc warrants a diagram, follow the `mermaid-diagrams` skill**.
 
 - **CRITICAL: Add a blank line between bullets (not sub-bullets)**:
   - This improve A LOT the readability
