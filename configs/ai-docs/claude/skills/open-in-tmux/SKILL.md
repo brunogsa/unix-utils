@@ -1,6 +1,6 @@
 ---
 name: open-in-tmux
-description: Run any command in a new tmux pane, split, or window. USE for: (1) file review — when user says 'open in tmux', 'open in nvim', 'new window/pane', 'let me check', after 3 edit rejections; (2) streaming live output IN PARALLEL — when user says 'open it on a pane', 'let me watch', 'stream it', 'show me live', 'tail the log', 'follow the output'. The pane is for the USER to observe while I keep executing — I self-monitor and never pause waiting for the user to say the command finished.
+description: Run a command in a new tmux pane. USE for file review ('open in tmux'/'in nvim'/'new pane'/'let me check', after 3 edit rejections) or streaming live output ('tail the log'/'stream it'/'show me live'). User observes; I keep executing.
 ---
 
 # open-in-tmux
