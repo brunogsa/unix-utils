@@ -25,7 +25,8 @@ If you haven't reproduced the bug *and* explained why it happens, you don't have
 1. **Read the error completely.** Stack trace, line numbers, error codes — they often contain the answer. Skipping past the error to "fix it" is the most common debugging failure.
 2. **Reproduce as a failing test** (reinforces "Bug fix starts with a failing regression test" in CLAUDE.md). Automated reproduction is non-negotiable: it proves you understand the trigger, guards against recurrence, and lets you iterate faster than re-running the manual scenario. The test must fail for the right reason — not a typo or setup error.
 3. **Check what changed recently.** `git log -n 20 --oneline`, recent dependency bumps, config changes, environment differences.
-4. **Instrument component boundaries** when the system spans layers (CI → build → deploy, controller → use case → repo). Log what enters and what exits each boundary, then run once. The evidence tells you which layer fails — only then investigate that layer.
+4. **Stash-and-rerun to isolate pre-existing failures from regressions.** When unexpected failures appear after touching shared code or merging — and you can't tell whether your change caused them — stash *only* the suspect files (`git stash push -- <file1> <file2>`), rerun the failing tests, then `git stash pop`. Same failures on the baseline → pre-existing, capture as Scout, ship your change unentangled. New failures only with your change → your change is the cause; debug it. Stashing the smallest possible scope (your change, not all working-tree changes) keeps the test of "is this me?" surgical.
+5. **Instrument component boundaries** when the system spans layers (CI → build → deploy, controller → use case → repo). Log what enters and what exits each boundary, then run once. The evidence tells you which layer fails — only then investigate that layer.
 
 ```bash
 # Boundary instrumentation example: tracking secret propagation

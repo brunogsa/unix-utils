@@ -64,3 +64,44 @@ gh api repos/{owner}/{repo}/pulls/comments/{id} \
 ```bash
 gh api repos/{owner}/{repo}/... [--method GET|POST|PATCH]
 ```
+
+## Fallback: REST `gh api` when high-level subcommands fail
+
+If a high-level `gh` subcommand fails with a GraphQL deprecation warning (e.g., GitHub deprecates a field used by `gh pr view --json X`, `gh issue list ...`, etc.), don't fight the warning — drop to the REST API directly via `gh api`. REST endpoints are versioned independently and rarely break.
+
+Symptoms that warrant the fallback:
+- `gh: GraphQL: Field 'X' is deprecated` or `... will be removed on YYYY-MM-DD`
+- `gh: failed to read JSON output: ...` after a recent gh upgrade
+- A subcommand silently returning an empty list while the web UI shows results
+
+Common REST equivalents:
+
+```bash
+# Instead of:  gh pr view <num> --json mergeStateStatus,mergeable,...
+gh api repos/{owner}/{repo}/pulls/<num>
+
+# Instead of:  gh pr edit <num> --body-file ./body.md (fails on projectCards GraphQL deprecation)
+gh api -X PATCH "repos/{owner}/{repo}/pulls/<num>" -F body=@./body.md
+# Same shape for title:
+gh api -X PATCH "repos/{owner}/{repo}/pulls/<num>" -F title="New title"
+
+# Instead of:  gh pr list --json ... (when filters fail)
+gh api "repos/{owner}/{repo}/pulls?state=open&per_page=50"
+
+# Instead of:  gh issue list --json labels,...
+gh api "repos/{owner}/{repo}/issues?labels=bug&state=open"
+
+# Instead of:  gh run list --json ... (failing field)
+gh api "repos/{owner}/{repo}/actions/runs?per_page=20"
+
+# Pagination (REST defaults to 30/page, max 100):
+gh api --paginate "repos/{owner}/{repo}/pulls?state=closed"
+```
+
+Use `--jq` for projection when the response is large:
+
+```bash
+gh api repos/{owner}/{repo}/pulls/123 --jq '{title, mergeable, mergeable_state}'
+```
+
+Reach for GraphQL (`gh api graphql -f query='...'`) only when REST genuinely cannot express the query (deeply joined fields, cross-resource aggregation). For routine reads, REST is the more stable fallback.

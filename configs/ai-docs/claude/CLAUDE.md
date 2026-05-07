@@ -17,16 +17,10 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
     - `~/unix-utils/` -- system setup, CLI helpers and their configs versioning, Claude Code global config (CLAUDE.md, skills, hooks, settings)
       - Scripts only used by AI belong as self-contained skills in `~/unix-utils/` instead of `~/oh-my-zsh/`.
   - **Configs are symlinked from repos to system locations** -- **CRITICAL:** Always edit the source repo.
-    - Examples:
-      - `~/.claude/CLAUDE.md` and `~/.claude/skills/` are symlinked from `~/unix-utils/configs/ai-docs/claude/`
-      - `~/.zshrc` is symlinked from `~/oh-my-zsh/.zshrc`
-    - **Symlink + permission-rule gotcha** -- `settings.json` `permissions.allow` Bash rules are matched against the **canonical path** (after resolving all symlinks), not the symlink path.
-      -Since `~/.claude/` is a symlink into `~/unix-utils/`, the effective path of any skill script is the `unix-utils` one.
-      - Always get the canonical path with `realpath <script>` and use THAT in the allow rule.
-      - Also, since `settings.json` is shared across platforms and home dirs differ, you need one entry per platform:
-        - macOS canonical: `"Bash(/Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/.../script.sh *)"`
-        - Linux canonical: `"Bash(/home/brunogsa/unix-utils/configs/ai-docs/claude/skills/.../script.sh *)"` (verify with `realpath` on that machine)
-      - The symlink path entries (`/Users/brunoagostini/.claude/skills/...`) should be removed, since it's not used at all
+    - Examples: `~/.claude/CLAUDE.md` ← `~/unix-utils/configs/ai-docs/claude/`; `~/.zshrc` ← `~/oh-my-zsh/.zshrc`.
+    - **Symlink + permission-rule gotcha** -- `settings.json` `permissions.allow` matches the **canonical path** (use `realpath`), not the symlink. One entry per platform (home dirs differ); drop symlink-path entries:
+      - macOS: `"Bash(/Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/.../script.sh *)"`
+      - Linux: `"Bash(/home/brunogsa/unix-utils/configs/ai-docs/claude/skills/.../script.sh *)"`
 
 - **Prefer CLI scripts + skills over MCP servers** -- cheaper in context, easier to debug, compose via pipes. Use MCP only for capabilities CLI + skills can't provide.
 
@@ -83,6 +77,8 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
 
 - **CRITICAL: When I manually change something or reject you, explain trade-offs and learn**.
 
+- **CRITICAL: Even in auto mode, ask before reverting prior intent** -- a fix that contradicts a prior commit or a documented `spec.md`/`plan.md` decision needs confirmation.
+
 - **CRITICAL: Leverage TaskList proactively** -- feel free to use TaskCreate and TaskUpdate.
   - Create with ` <id>. ` in the subject (leading space, number, period, trailing space) — renders instantly.
   - Once TaskCreate returns its id, TaskUpdate the subject to add ` [#<returned-id>]` after the period. Final shape = ` <id>. [#<returned-id>] <description>`.
@@ -92,8 +88,8 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
   - **Category prefix** (between `[#<returned-id>]` and the description): Final shape = ` <id>. [#<returned-id>][<category>] <description>`.
     - `[Sub-Step]` — Place it after its parent, or after one of its siblings (on logical order). Commited along with its Task ancestor;
     - `[Side]` — explicitly deferred work, isolated by nature; trigger: I say "side quest". By default is placed at end of list. Has its own commit;
-    - `[Scout]` — pre-existing issue noticed in passing; needs my explicit approval before queueing it. Once approved, land as their own commit. By default is placed at th end of list;
-    - `[Drift]` — collateral fix needed mid-flight to make the current task work. Place after the current task. Bundle into the base commit if trivial (typo, stray import). Otherwise, has its own commit;
+    - `[Scout]` — pre-existing issue noticed in passing; needs my approval before queueing. Lands as own commit, placed at end of list by default;
+    - `[Drift]` — collateral fix needed mid-flight to make the current task work. Bundle into the base commit if trivial; otherwise its own commit;
     - Other suggested markers: `[Feature]`, `[Spike]`, `[Debt]`, `[Refactor]`. If not certain, fallback to `[Task]`.
   - **Out-of-scope work = new TaskList items** -- review feedback, mid-task requests, or anything you uncover yourself go to TaskCreate (ordered right after current), not pivots.
     - Why: preserves "One logical change per commit" and prevents mixed-concern files.
@@ -102,7 +98,7 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
     - Never pipe a slow command through `grep`/`head` directly — if the filter is wrong you'd re-run the whole thing.
     - Always check both exit code and tail in one line — never trust exit code alone. Some runners exit 0 on partial failure; the tail shows the real summary.
     - Reuse that `/tmp/` file if possible - user might be tailing it, making it easier for him;
-    - Pattern: `<slow-cmd> > /tmp/out.txt 2>&1; tail -<N> /tmp/out.txt; echo "exit: $?";`.
+    - Pattern: `<slow-cmd> > /tmp/out.txt 2>&1; echo "exit: $?"; tail -<N> /tmp/out.txt;`.
       - Choose N based on how many lines the command's summary typically spans.
 
 - **Prefer scannable shape over prose** -- default to bullets, short sections, tables, bold key terms in user-facing text.
@@ -158,6 +154,7 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
   - Before completing: run the task's verify step (or propose one). Run scripts/automation to confirm.
   - Fresh evidence only: if the verification hasn't been re-run since your latest change, run it again before claiming. Prior-turn output doesn't prove the current state.
   - When contradicted: if two sources disagree, re-read the actual code before assuming one is wrong. Stale results, shifted line numbers, or misread context waste hours.
+  - **Broadest verification scope on shared code or merges** -- all-workspace lint + full unit + integration. Scoped verification is false economy; verification cost beats incident cost.
 
 - **CRITICAL: Debug systematically** -- root cause before fix. After 3 failed fixes, STOP: web search the symptom and question the architecture, don't try a fourth. Concrete workflow in the `debug-standards` skill.
 
@@ -208,7 +205,7 @@ Concrete examples live in the `workflow-standards` skill (loaded on-demand when 
 
 - **Never retry indefinitely** -- always cap consecutive retries.
 
-- **CRITICAL: Scripts: human-friendly** -- `--help`, comment header with usage syntax and 2-3 examples. Help flags → stdout + exit 0; invalid usage → error + usage hint to stderr + exit 1.
+- **CRITICAL: Scripts: human-friendly** -- `--help` and a comment header with usage + examples. Help → stdout + exit 0; bad input → stderr + exit 1.
 
 - **Scripts: right language** -- bash for linear/glue, Node.js for structured data or complex flow.
 
@@ -269,7 +266,7 @@ Concrete examples live in the `code-standards` skill (loaded on-demand).
   - Don't restate what the code already shows (file listings, function categories, install-step inventories, line-numbers).
   - Why: duplication is an edit burden — the moment code changes, docs go stale.
 
-- **CRITICAL: Patch doc gaps the moment they bite** -- when missing or wrong docs cost you time (env setup, onboarding, hidden behavior), fix the doc inline as part of the current change.
+- **CRITICAL: Patch doc gaps the moment they bite** -- when missing/wrong docs cost time, fix the doc inline as part of the current change.
   - Why: each gap teaches once; the next person should learn from the doc, not from your detour. Discovery is when you have full context to write the fix.
 
 Concrete examples live in the `doc-standards` skill (loaded on-demand).
@@ -286,7 +283,7 @@ Concrete examples live in the `doc-standards` skill (loaded on-demand).
 - **CRITICAL: Manual tests require evidence** -- log every manual check in `./manual-tests-evidences.md` (gitignored, session-scoped) per the format in `test-driven-development`.
   - No evidence = no manual check.
 
-- **CRITICAL: Deterministic & self-contained** -- no shared state, no randomness, clone inputs when testing mutating functions.
+- **CRITICAL: Deterministic & self-contained** -- no shared state, no randomness, clone inputs when testing mutating functions. Freeze the clock when testing date-derived behavior.
 
 - **CRITICAL: Mock sparingly** -- only external dependencies (file I/O, network, external processes).
 

@@ -223,6 +223,26 @@ function buildAvulso({ parentKit, childSku, price, discount }) {
 
 ---
 
+## Defensive defaults that contradict a stated invariant -- throw instead
+
+If a file/module states an invariant (e.g., header comment "Column names use Prisma.raw, but only after allowlist lookup -- never raw user input"), a `?? rawValue` fallback at the protected site silently relaxes the invariant and becomes a future-drift surface. The intent is "this should never happen" -- make it crash loudly with a message naming the violator.
+
+```ts
+// Bad -- header says "never raw user input", but `?? f` does exactly that on miss:
+byFields.map((f) => Prisma.raw(`"${GROUPABLE_COLUMNS[f] ?? f}"`));
+
+// Good -- explicit throw names the violator; future drift surfaces in seconds:
+byFields.map((f) => {
+    const column = GROUPABLE_COLUMNS[f];
+    if (!column) throw new Error(`Unsupported field: ${f}`);
+    return Prisma.raw(`"${column}"`);
+});
+```
+
+The risk: today's union narrows to keys all in the allowlist, so the fallback is unreachable; tomorrow someone extends the union without updating the allowlist, and the silent fallback ships. A defensive default that disagrees with its own header is worse than no default. Concrete instance of CLAUDE.md CODE: "never silently coerce, swallow, or default away the error" (under "Input validation").
+
+---
+
 ## Script Usage Documentation
 
 ```bash

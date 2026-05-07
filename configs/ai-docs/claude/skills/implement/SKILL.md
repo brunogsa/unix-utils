@@ -147,6 +147,10 @@ In all non-`[Done]` terminal states, do NOT commit code partially. Either land w
 
 ## 4. Two-party `[Done]` handshake
 
+> **CRITICAL: Skipping the handshake is a protocol violation, not an optimization.**
+
+> In a multi-task batch (`/implement 1, 2, 3`) the handshake must run for **every** task in the chain, unless auto-mode or bypass-permission is ON              . This rule overrides any urge to "save a round-trip".
+
 After step 3.10 (verify passes), do not auto-mark `[Done]`. Instead:
 
 1. **AI proposes:** "Acceptance criteria pass. Verify ran clean: `<output snippet>`. Mark `[Done]`?"

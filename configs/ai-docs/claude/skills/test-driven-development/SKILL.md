@@ -30,6 +30,12 @@ For test patterns (titles, mock data, parametrized suites, anti-patterns) and te
 
 ---
 
+## Keep heavy fixtures up across red/green cycles
+
+Across multi-cycle TDD, keep Docker / DBs / LocalStack / browser sessions running between RED → fix → GREEN iterations. Tear down only after the task ships. Re-spinning between cycles costs 1–7 minutes per iteration and breaks flow — and the harness's `pretest`/`posttest` hooks often do unnecessary `docker:clean` cycles you don't need mid-loop. When the harness scripts insist on managing fixtures, bypass them: invoke `jest`/`vitest`/etc. directly with the fixture-up state intact, skip the `pretest:*`/`posttest:*` hooks for the inner loop.
+
+---
+
 ## Rationalization tables — catch drift before it commits
 
 Watch for these phrases in your own thinking. Each is a rationalization that bypasses TDD. If you catch yourself thinking any of them, **stop and write the test**.
