@@ -310,7 +310,7 @@ For each surviving finding, drop it if `start_line..line` is not entirely within
 
 ### local mode
 
-Write `${out_file}` (set in Wave 1 to `./auto-review_YYYY-MM-DD_HH-MM.md`; timestamp preserves ordering across runs, e.g. per-task in autonomous mode) to the current CWD following the template at `references/local-review-template.md` — read that file and expand its placeholders. Keep the template file as the single source of truth for the output shape; do not inline the template here.
+Write `${out_file}` (set in Wave 1 to `./auto-review_YYYY-MM-DD_HH:MM.md`; timestamp preserves ordering across runs, e.g. per-task in autonomous mode) to the current CWD following the template at `references/local-review-template.md` — read that file and expand its placeholders. Keep the template file as the single source of truth for the output shape; do not inline the template here.
 
 ---
 
