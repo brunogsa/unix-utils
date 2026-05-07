@@ -1,7 +1,7 @@
 ---
 name: spec-driven-development
 description: "Spec-driven development with spec.md/plan.md as session-scoped, untracked living docs. USE PROACTIVELY when planning a non-trivial feature or breaking work into commits. For Socratic idea-refinement, use `brainstorm` instead."
-user-invocable: false
+disable-model-invocation: false
 ---
 
 # Spec-Driven Development
@@ -43,10 +43,7 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 8. `/create-pr` uses both spec.md and plan.md to generate a rich PR description.
 9. Self-improving loop: user runs `/improve-principles-and-skills-from-session-learnings` then `english-coach` skills so both AI and humand learn.
 
-Both spec.md and plan.md enable or enrich multiple of these steps.
-
-
-### Self-review both spec and plan before handing it back
+### Self-review both spec and plan before handing it back (step 2 detail)
 
 Read them with fresh eyes by spawning a sub-agent that reports:
 - **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
