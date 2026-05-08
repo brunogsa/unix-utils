@@ -57,6 +57,12 @@ Every node, box, or actor must name the actual component it represents — never
   - Good: `UserController`, `AuthService`, `Kafka: order-events`
   - Bad: `Module A`, `Handler`, `Queue`
 
+## Diagram titles — scannable summaries
+
+Pack the title (in `<details><summary>` or heading) with mechanism + payload + flow direction so readers can pre-read and skip the body when not needed.
+
+Pattern + examples: see [`references/diagram-titles.md`](references/diagram-titles.md).
+
 ## Edge semantics — source must be the actor
 
 `A --> B` reads as "A performs an action that affects B" — the source must be the **agent doing the work**, not the data origin.
@@ -112,25 +118,25 @@ Reviewer checklist:
 
 ### TD vs LR — render both and pick
 
-For any flowchart with subgraphs or > 6 nodes, `TD` and `LR` produce meaningfully different auto-layouts. Don't pick on feel — render both as PNG and judge the rendered output:
+For flowcharts with subgraphs or > 6 nodes, `TD` and `LR` produce meaningfully different auto-layouts. Render both and judge from rendered PNG:
 
 ```bash
 cp diagram.mmd /tmp/td.mmd
 sed 's/^flowchart TD/flowchart LR/' /tmp/td.mmd > /tmp/lr.mmd
 mmdc -i /tmp/td.mmd -o /tmp/td.png -w 1600 -H 1200
 mmdc -i /tmp/lr.mmd -o /tmp/lr.png -w 1600 -H 1200
-# Then view both with the Read tool (Claude is multimodal — PNGs work).
+# View both with the Read tool (Claude is multimodal).
 ```
 
-What to compare on the rendered images:
+Compare on rendered images:
 
-- **Subgraph titles intact** — header overlapped by a contained node = wrong direction for this graph.
-- **Edge crossings** — fewer is better; zero crossings reads almost twice as fast.
-- **Aspect ratio fits the medium** — tall narrow scrolls badly in PR descriptions; very wide gets squeezed by sidebars.
-- **Pipeline alignment** — request → service → upstream pipelines mirror naturally as `LR`; sequential decision flows read better as `TD`.
-- **Loop compactness** — pick the direction that keeps feedback edges (cache reads, retries) as short local arcs.
+- **Subgraph titles intact** — header overlap = wrong direction.
+- **Edge crossings** — fewer is better; zero crossings reads ~2× faster.
+- **Aspect ratio** — tall narrow scrolls badly; very wide gets squeezed by sidebars.
+- **Pipeline alignment** — request→service→upstream reads as `LR`; sequential decisions as `TD`.
+- **Loop compactness** — pick the direction keeping feedback edges (cache reads, retries) as short local arcs.
 
-Heuristic to start from (verify with the visual check anyway):
+Heuristic (verify visually anyway):
 
 | Shape of the system | Try first |
 |---|---|
@@ -186,22 +192,15 @@ flowchart TD
 
 Conventions:
 
-- **Numbers (`1`, `2`, `3`)** mark sequence: step 2 cannot start until step 1 finishes.
-- **Letters (`1a`, `1b`, `1c`)** mark sibling sub-steps of one parent step: they may execute in parallel, or in any order within that step.
-- **Phase prefixes** (`1a`, `1b`, …, `2a`, `2b`, …) work well when the diagram contains two or more discrete flows triggered by different events (e.g., "on Apply" vs. "on tab switch").
-  - The phase number is the major identifier; sub-letter is the within-phase order.
-- **Dashed alternative within a step** — a fallback edge sharing a step number works as `"1c (fallback). on X failure"`.
-  - Dashed line + parenthetical signals "alternative path within step 1c".
-- **Skip the numbers** for diagrams that show pure structure (no flow), and for tiny one-or-two-edge diagrams where order is obvious.
-  - Numbers earn their place when the diagram has ≥ 3 directed edges or any branching.
+- **Numbers (`1`, `2`, `3`)** mark sequence: step 2 starts after step 1 finishes.
+- **Letters (`1a`, `1b`, `1c`)** mark sibling sub-steps of one parent: parallel or any order within that step.
+- **Phase prefixes** (`1a`...`2a`...) when the diagram contains 2+ discrete flows triggered by different events (e.g., "on Apply" vs "on tab switch"). Phase number = major identifier; sub-letter = within-phase order.
+- **Dashed alternative within a step** — `"1c (fallback). on X failure"` signals alternative path within step 1c.
+- **Skip numbers** for pure-structure diagrams or tiny ones; numbers earn their place when there are ≥3 directed edges or branching.
 
 ### Don't over-color
 
-One `classDef start` plus the default styling for everything else is usually enough.
-
-- Mermaid already gives data stores the cylinder shape `[(…)]`.
-- External nodes can be marked in their label (`"…<br/>external"`).
-- Resist the urge to invent palettes — every additional color is one more thing the reader has to decode.
+One `classDef start` + default styling is usually enough. Data stores get cylinder shape `[(…)]`; external nodes get `"…<br/>external"` in the label. Every extra color is one more thing the reader decodes.
 
 ## C4L1 Context Diagram
 
@@ -258,16 +257,12 @@ flowchart TD
 
 Conventions:
 
-- One `subgraph` per system-under-design box that L1 had. Don't subgraph external systems — they stay opaque.
-- Re-use the L1 box title verbatim as the subgraph title so a reader can spot the L1↔L2 correspondence at a glance.
-- Containers inside the subgraph follow the same naming rule as everywhere else: name the actual module / service / store, never "Component A".
-- Edges that cross the boundary terminate at the inner container, not the subgraph wrapper — `Browser --> Auth`, not `Web --> API`.
-  - The wrapper exists to group; data still flows between the actual containers.
-- Aim for ≤ 4 containers per subgraph.
-  - If a subgraph has more, it likely deserves its own L3 diagram (zoom further into that one container) instead of growing this one.
-- Keep the *count of subgraphs + external boxes + actors* ≤ 6.
-  - The point is a single readable picture.
-  - If you need more boxes, split into two L2 diagrams scoped to different parts of the L1.
+- One `subgraph` per system-under-design box L1 had. External systems stay opaque (no subgraph).
+- Re-use L1 box title verbatim as subgraph title so the L1↔L2 correspondence is visible.
+- Containers follow naming rules: real module/service/store names, never "Component A".
+- Cross-boundary edges terminate at the inner container, not the wrapper: `Browser --> Auth`, not `Web --> API`.
+- Aim for ≤ 4 containers per subgraph; more = the subgraph deserves its own L3.
+- Keep total count of subgraphs + external boxes + actors ≤ 6. More = split into two L2 diagrams scoped differently.
 
 ## Sequence Diagram
 
