@@ -33,8 +33,11 @@ All limits sourced where possible. Full citations in [references/research.md](re
 | Skill words per SKILL.md | 2048 | User preference — co-binds with 500 lines at ~4 words/line |
 | Skill description chars | 250 | [Claude Code 2.1.86 `/skills` listing cap](references/research.md#skill-description-length) |
 | Skill name chars | 64 | [Anthropic frontmatter validation](references/research.md#skill-name-length) |
+| Density violations across all .md | 0 | Density rule (256 chars / 32 words per line) — see `~/.claude/skills/doc-standards/scripts/check-density.sh` |
 
 Skills have no per-line length limit — the per-skill word cap covers overflow.
+
+Density is checked across CLAUDE.md + every `SKILL.md` + every `references/*.md` + every `assets/*.md`. Per-file violation counts are listed under "Density violations" in the report.
 
 ## How to Run
 

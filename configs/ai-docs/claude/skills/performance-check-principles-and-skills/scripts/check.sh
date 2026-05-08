@@ -158,6 +158,37 @@ if [ "$has_skills_dir" -eq 1 ] && [ -n "$skill_overages" ]; then
     echo
 fi
 
+# Density check across CLAUDE.md + all SKILL.md + references + assets
+density_script="$HOME/.claude/skills/doc-standards/scripts/check-density.sh"
+if [ -x "$density_script" ]; then
+    density_targets=()
+    [ "$has_claude_md" -eq 1 ] && density_targets+=("$CLAUDE_MD")
+    if [ "$has_skills_dir" -eq 1 ]; then
+        while IFS= read -r f; do density_targets+=("$f"); done < <(
+            find -L "$SKILLS_DIR" -type f \( -name "SKILL.md" -o -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort
+        )
+    fi
+    if [ "${#density_targets[@]}" -gt 0 ]; then
+        density_out=$("$density_script" "${density_targets[@]}" 2>/dev/null || true)
+        density_total=$(printf '%s\n' "$density_out" | awk '/^[0-9]/' | wc -l | tr -d ' ')
+        density_status="OK"
+        [ "$density_total" -gt 0 ] && density_status="OVER" && overages=1
+        echo "## Density check (256 chars / 32 words per line)"
+        echo
+        echo "Total violations: $density_total ($density_status)"
+        if [ "$density_total" -gt 0 ]; then
+            echo
+            echo "Per-file:"
+            printf '%s\n' "$density_out" | awk '
+                /^==/ { file=$2; next }
+                /^[0-9]/ { count[file]++ }
+                END { for (f in count) printf "- %s: %d\n", f, count[f] }
+            ' | sort
+        fi
+        echo
+    fi
+fi
+
 if [ "$overages" -eq 0 ]; then
     echo "All budgets met ✓"
     exit 0
