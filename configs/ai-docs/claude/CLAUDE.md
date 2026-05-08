@@ -24,8 +24,8 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
 
 - **Prefer CLI scripts + skills over MCP servers** -- cheaper in context, easier to debug, compose via pipes. Use MCP only for capabilities CLI + skills can't provide.
 
-- **Skill tool over Read for matching skills** -- when a skill's description matches the task, invoke it via the Skill tool. Use Read on `SKILL.md` only for meta-work (audit, edit, compare).
-  - Why: Skill activates the guidance into active behavior and counts toward metrics; Read merely shows you the file. Reading without invoking is half a step.
+- **Skill tool over Read for matching skills** -- invoke via Skill when description matches; use Read on `SKILL.md` only for meta-work (audit/edit/compare).
+  - Why: Skill activates guidance and counts toward metrics; Read merely shows the file.
 
 - **CRITICAL: Load `skill-creator` skill before creating or modifying any SKILL.md** -- never author skill content without it.
   - Why: folder structure (SKILL.md + scripts/ + references/), progressive disclosure, frontmatter rules.
@@ -101,9 +101,7 @@ Rules are imperative sentences. Detailed examples live in `skills/` — auto-loa
     - Pattern: `<slow-cmd> > /tmp/out.txt 2>&1; echo "exit: $?"; tail -<N> /tmp/out.txt;`. Choose N to fit the command's summary.
       - `echo "exit: $?"` MUST come right after the slow command — echo after `tail` captures tail's `0` and masks the failure. Bash tool's reported exit is the chain's last, not yours.
 
-- **Prefer scannable shape over prose** -- default to bullets, short sections, tables, bold key terms in user-facing text.
-  - Prose earns its place only when fragmenting would lose connective tissue: ultrathink/design reasoning, disagreements, connected-paragraph answers.
-  - Test: can the reader find the takeaway in ~5 seconds?
+- **Prefer scannable shape over prose** -- bullets, short sections, tables, bold key terms in user-facing text. Prose earns its place only for connective tissue (design reasoning, disagreements). Test: 5-second takeaway.
 
 - **Be direct and concise** -- no preambles, no filler, no emojis. No useless verbosity.
 
@@ -269,13 +267,7 @@ Concrete examples live in the `code-standards` skill (loaded on-demand).
 - **CRITICAL: Patch doc gaps the moment they bite** -- when missing/wrong docs cost time, fix the doc inline as part of the current change.
   - Why: each gap teaches once; the next person should learn from the doc, not from your detour. Discovery is when you have full context to write the fix.
 
-- **CRITICAL: Density caps for user-facing markdown** -- every prose line, bullet, and sub-bullet stays ≤256 chars or ≤32 words.
-  - Over the cap in prose → split into more (shorter) paragraphs, or convert to bullets+sub-bullets.
-  - Over the cap in a bullet/sub-bullet → split into more bullets+sub-bullets.
-  - Either way: never drop information.
-  - Applies to PR descriptions, specs, plans, READMEs, auto-reviews — anything a human scans.
-  - Why: long lines compress thinking; shorter units force expansion of the structure the writer used to reason — exactly what readers need to scan.
-  - Verify deterministically with `~/.claude/skills/doc-standards/scripts/check-density.sh <file>` before declaring a doc ready.
+- **CRITICAL: Density caps** -- every line/bullet/sub-bullet ≤256 chars / ≤32 words; over → split, never drop info. Verify with `~/.claude/skills/doc-standards/scripts/check-density.sh <file>`. Scope + patterns: `doc-standards` skill.
 
 Concrete examples live in the `doc-standards` skill (loaded on-demand).
 
