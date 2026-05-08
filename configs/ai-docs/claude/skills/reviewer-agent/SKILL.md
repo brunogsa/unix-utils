@@ -329,12 +329,7 @@ Write `${out_file}` to the current CWD following the template at `references/loc
 - Read the template file and expand its placeholders.
 - Keep the template file as the single source of truth for the output shape; do not inline the template here.
 
-**Density check (after writing).** Run `~/.claude/skills/doc-standards/scripts/check-density.sh "$out_file"`.
-
-- Output is `<line>:<chars>:<words>` per violation; exit 0 means clean.
-- For each violation, rewrite per `~/.claude/skills/doc-standards/references/density-rules.md` (paragraph → bullets+sub-bullets, long bullet → bullet + sub-bullets) without dropping information.
-- Re-run until exit 0.
-- The reviewer's own output must obey the standards it applies to others.
+**Density check (after writing).** Run `~/.claude/skills/doc-standards/scripts/check-density.sh "$out_file"`. Rewrite each violation per `doc-standards/references/density-rules.md`; re-run until exit 0.
 
 ---
 
