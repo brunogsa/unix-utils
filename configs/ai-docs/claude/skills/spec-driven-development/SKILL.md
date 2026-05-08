@@ -53,6 +53,9 @@ Read them with fresh eyes by spawning a sub-agent that reports:
 - **Completeness**: does ALL Goals, Success Metrics and KPIs, User Stories and Non-Functional and Technical Requirements being covered on Testable Acceptance Criteria section? ALL corner cases and failure modes covered?
 - **Human-Reviewable**: Is it easy for the user to review? Is the format pleasant to read? Are you enabling user to verify you?
 - **Artifacts Valid**: If any mermaid diagram exists, are they valid, verified via `mmdc`?
+- **Density**: Run `~/.claude/skills/doc-standards/scripts/check-density.sh spec.md plan.md`.
+  - Exit 0 = clean; exit 1 = rewrite each `<line>:<chars>:<words>` violation.
+  - Follow `~/.claude/skills/doc-standards/references/density-rules.md` (paragraph → bullets+sub-bullets, long bullet → bullet + sub-bullets) without dropping information.
 
 Why: cheaper for you to catch these than for the user to find them in review — and it prevents the "looks good, ship it" loop where ambiguity surfaces only during implementation.
 

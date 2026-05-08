@@ -4,7 +4,11 @@ Sources:
 - `review-standards/checklists.md#Testing Checklist` + test design rules in `code-standards`.
 - `review-standards/checklists.md#Type Design Checklist`.
 
-Why bundled: both are about making correctness provable before runtime. Types prevent invalid states from being expressed; tests prevent invalid behavior from shipping. A single pass over new types and their tests catches mismatches between the two.
+Why bundled: both are about making correctness provable before runtime.
+
+- Types prevent invalid states from being expressed.
+- Tests prevent invalid behavior from shipping.
+- A single pass over new types and their tests catches mismatches between the two.
 
 ---
 

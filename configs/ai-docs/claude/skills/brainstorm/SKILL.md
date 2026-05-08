@@ -34,9 +34,15 @@ Examples:
 Before drilling into requirements, check whether the request describes multiple independent subsystems (e.g., "platform with chat, file storage, billing, and analytics").
 Signals: multiple unrelated nouns, distinct user roles, separate persistence concerns, or features that could each ship independently.
 
-If it looks decomposable, surface it: name the candidate sub-projects, ask the user how they relate and which one ships first. Brainstorm only the first sub-project here — each remaining piece ideally gets its own spec→plan cycle.
+If it looks decomposable, surface it.
 
-**If the user agrees to decompose**: write a brief `scopes.md` next to where the spec will live. One line per sub-project — name, one-sentence purpose, dependency on other sub-projects (if any). Include the one being brainstormed now. Format:
+- Name the candidate sub-projects, ask the user how they relate and which one ships first.
+- Brainstorm only the first sub-project here — each remaining piece ideally gets its own spec→plan cycle.
+
+**If the user agrees to decompose**: write a brief `scopes.md` next to where the spec will live.
+
+- One line per sub-project — name, one-sentence purpose, dependency on other sub-projects (if any).
+- Include the one being brainstormed now. Format:
 
 ```markdown
 ## Sub-projects
@@ -46,7 +52,11 @@ If it looks decomposable, surface it: name the candidate sub-projects, ask the u
 2. **<name>** — <one-sentence purpose>. Depends on: <none | #N>.
 ```
 
-Why: a stale brainstorm session loses the decomposition map; `scopes.md` survives so the next `/brainstorm` run picks up the queue without re-deriving it. Refining a too-large idea wastes interview rounds on details that belong in separate specs.
+Why:
+
+- A stale brainstorm session loses the decomposition map.
+- `scopes.md` survives so the next `/brainstorm` run picks up the queue without re-deriving it.
+- Refining a too-large idea wastes interview rounds on details that belong in separate specs.
 
 ### 3. Interview the user
 
@@ -64,7 +74,9 @@ Ask 2-3 questions per round. Don't overwhelm.
 - **Corner cases**: empty inputs, max sizes/limits, boundary values, combined/composed filters, idempotency, concurrent access.
 - **Failure modes**: validation errors (4xx), downstream timeouts, downstream 5xx, partial failures, auth failures, rate limits.
 
-If the user only describes the happy path, ask explicitly: "what should happen when X is empty / oversized / invalid / unavailable?" The spec template requires happy + corner + failure coverage.
+If the user only describes the happy path, ask explicitly: "what should happen when X is empty / oversized / invalid / unavailable?"
+
+The spec template requires happy + corner + failure coverage.
 
 ### 4. Propose 2-3 approaches with trade-offs
 
@@ -72,7 +84,11 @@ Once requirements feel solid, present 2-3 viable approaches conversationally. Le
 
 Get a directional pick from the user before writing the spec. Capture the outcome in the spec's Decisions section as one marker with discarded alternatives as sub-bullets.
 
-Why include discarded options at all: the next session (or reviewer) will re-derive the same alternatives unless the rationale is preserved. Naming what lost — and why — prevents re-litigation and surfaces when a trade-off has shifted (e.g., the constraint that killed alt-2 no longer applies).
+Why include discarded options at all:
+
+- The next session (or reviewer) will re-derive the same alternatives unless the rationale is preserved.
+- Naming what lost — and why — prevents re-litigation.
+- It surfaces when a trade-off has shifted (e.g., the constraint that killed alt-2 no longer applies).
 
 ### 5. Generate/update spec.md
 

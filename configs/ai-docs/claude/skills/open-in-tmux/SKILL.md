@@ -1,6 +1,6 @@
 ---
 name: open-in-tmux
-description: Run a command in a new tmux pane. USE for file review ('open in tmux'/'in nvim'/'new pane'/'let me check', after 3 edit rejections) or streaming live output ('tail the log'/'stream it'/'show me live'). User observes; I keep executing.
+description: Run a command in a new tmux pane. USE for file review ('open in tmux'/'nvim'/'new pane', after 3 edit rejections) or streaming output ('tail log'/'show live'). User observes; I keep going.
 ---
 
 # open-in-tmux
@@ -46,18 +46,31 @@ For multi-pane layouts in one exchange, invoke once per command with the matchin
 
 Two modes — behavior differs:
 
-**File review** (nvim, diffview): wait for the user's next message. They may edit the file in the pane. When they reply, re-read the file from disk and diff-summarize any changes — e.g. "I see you replaced the early return at L42 with a guard clause; want me to extend my edit to match?"
+**File review** (nvim, diffview): wait for the user's next message.
 
-**Streaming output** (`tail -f`, long-running command): the pane is for the user to observe IN PARALLEL. Do NOT pause or wait. Continue executing the next steps immediately — check the output file yourself. Never ask the user to signal when the command finishes.
+- They may edit the file in the pane.
+- When they reply, re-read the file from disk and diff-summarize any changes.
+- E.g. "I see you replaced the early return at L42 with a guard clause; want me to extend my edit to match?"
+
+**Streaming output** (`tail -f`, long-running command): the pane is for the user to observe IN PARALLEL.
+
+- Do NOT pause or wait.
+- Continue executing the next steps immediately — check the output file yourself.
+- Never ask the user to signal when the command finishes.
 
 The script prints a reminder on stdout after every dispatch. For streaming invocations, override it: keep working.
 
 ## Outside tmux
 
-If `$TMUX` is unset, the script exits non-zero and prints the command to stdout. Tell the user: "I can't open a tmux pane from here, but you can run the printed command yourself."
+If `$TMUX` is unset, the script exits non-zero and prints the command to stdout.
+
+Tell the user: "I can't open a tmux pane from here, but you can run the printed command yourself."
 
 ## What NOT to use this for
 
-**Unsolicited streaming.** The pane is a viewer for the user — open it only when they ask. For streaming, always `tail -f /tmp/file.txt` in the pane, never re-run the original command (it exits when done, closing the pane immediately).
+**Unsolicited streaming.** The pane is a viewer for the user — open it only when they ask.
+
+- For streaming, always `tail -f /tmp/file.txt` in the pane.
+- Never re-run the original command (it exits when done, closing the pane immediately).
 
 **Multi-file diff review.** The user has `vimreview` and `diffview` for batch-comparing many changes. This skill is for "gather more context" or "watch a running command", not bulk diff-walking.

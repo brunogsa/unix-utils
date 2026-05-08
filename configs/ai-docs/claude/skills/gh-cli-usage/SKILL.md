@@ -67,7 +67,10 @@ gh api repos/{owner}/{repo}/... [--method GET|POST|PATCH]
 
 ## Fallback: REST `gh api` when high-level subcommands fail
 
-If a high-level `gh` subcommand fails with a GraphQL deprecation warning (e.g., GitHub deprecates a field used by `gh pr view --json X`, `gh issue list ...`, etc.), don't fight the warning — drop to the REST API directly via `gh api`. REST endpoints are versioned independently and rarely break.
+If a high-level `gh` subcommand fails with a GraphQL deprecation warning, don't fight it — drop to the REST API directly via `gh api`.
+
+- Examples: GitHub deprecates a field used by `gh pr view --json X`, `gh issue list ...`, etc.
+- REST endpoints are versioned independently and rarely break.
 
 Symptoms that warrant the fallback:
 - `gh: GraphQL: Field 'X' is deprecated` or `... will be removed on YYYY-MM-DD`

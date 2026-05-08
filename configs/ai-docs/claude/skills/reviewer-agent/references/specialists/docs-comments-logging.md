@@ -4,7 +4,13 @@ Sources:
 - `review-standards/checklists.md#Comment & Documentation Checklist` + `doc-standards`.
 - `review-standards/SKILL.md#Review Priority Order` item 5 + `code-standards` logging rules.
 
-Why bundled: all three are "writing for future readers" — comments for the next human to read the code, docstrings for API consumers, logs for the on-call engineer. Same discipline: explain the WHY and provide actionable context; avoid restating what the code already says.
+Why bundled: all three are "writing for future readers".
+
+- Comments — for the next human to read the code.
+- Docstrings — for API consumers.
+- Logs — for the on-call engineer.
+
+Same discipline: explain the WHY and provide actionable context; avoid restating what the code already says.
 
 ---
 

@@ -25,7 +25,9 @@ Condensed to 2-3 bullets. Always ground in commits, not just docs.]
 > Covered by [manual tests](#scenario-N), [`path/to/spec.ts`](https://github.com/<owner>/<repo>/blob/<branch>/path), and/or [contract tests](#anchor).
 ```
 
-Use whichever combination of links applies — manual + integration + contract; omit any that don't apply. Source-code links MUST be absolute GitHub URLs (relative paths are unreliable in PR descriptions — see "Always use absolute GitHub URLs" rule in SKILL.md).
+Use whichever combination of links applies — manual + integration + contract; omit any that don't apply.
+
+Source-code links MUST be absolute GitHub URLs (relative paths are unreliable in PR descriptions — see "Always use absolute GitHub URLs" rule in SKILL.md).
 
 Do NOT inline payloads/screenshots/log output here. Those live in the Evidences appendix; the link puts the reviewer one click away.
 
@@ -55,12 +57,19 @@ Two groups:
 
 ## Evidences
 
-[Include ONLY categories that add value beyond GitHub's PR UI (the checks tab already renders lint/build/security/generic-CI as badges — don't duplicate them). Do NOT use markdown tables.
+[Include ONLY categories that add value beyond GitHub's PR UI — the checks tab already renders lint/build/security/generic-CI as badges, don't duplicate them.
+
+Do NOT use markdown tables.
 
 Typical sections worth including:
 
-- **Manual tests** — primary evidence with no GitHub equivalent. One collapsible per scenario, each preceded by an explicit `<a id="scenario-N"></a>` anchor (GitHub does NOT auto-generate anchors from `<details><summary>` text — only from headings — so the anchor is mandatory for ACs to deep-link in). Setup/seed inventory in its own collapsible. Request + response (pretty-printed JSON, one field per line per the "JSON snippets" rule in SKILL.md).
-- **High-risk CI checks worth highlighting** — e.g., a migration that takes a maintenance-window lock, or a new integration suite worth calling out by count + scope. Link the run; don't restate what the green badge already says.
+- **Manual tests** — primary evidence with no GitHub equivalent.
+  - One collapsible per scenario, each preceded by an explicit `<a id="scenario-N"></a>` anchor.
+  - GitHub does NOT auto-generate anchors from `<details><summary>` text — only from headings — so the anchor is mandatory for ACs to deep-link in.
+  - Setup/seed inventory in its own collapsible.
+  - Request + response (pretty-printed JSON, one field per line per the "JSON snippets" rule in SKILL.md).
+- **High-risk CI checks worth highlighting** — e.g., a migration that takes a maintenance-window lock, or a new integration suite worth calling out by count + scope.
+  - Link the run; don't restate what the green badge already says.
 - **Pre-prod / staging deploy** — only if you have the link + smoke result NOW; otherwise omit (don't park as `⚠️ TODO collect post-merge`).
 - **Screenshots** — only when UI actually changed.
 

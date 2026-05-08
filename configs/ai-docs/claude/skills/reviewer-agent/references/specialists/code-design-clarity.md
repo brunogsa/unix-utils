@@ -2,7 +2,10 @@
 
 Source: `review-standards/checklists.md#Code Design Checklist` + SRP/OCP/LSP/ISP/DIP from `review-standards/SKILL.md` + `code-standards`.
 
-Scope spans structural design (layering, SRP, parameter shape, duplication) AND cognitive complexity (nesting, naming-for-purpose, clarity of dense expressions). Both aim at the same outcome: a reader should understand the diff without having to reverse-engineer it.
+Scope spans two angles, both aimed at the same outcome — a reader should understand the diff without having to reverse-engineer it:
+
+- Structural design — layering, SRP, parameter shape, duplication.
+- Cognitive complexity — nesting, naming-for-purpose, clarity of dense expressions.
 
 **Focus: modularity + reuse + simplicity.** Push complexity into well-named, reusable units; avoid unnecessary duplication; keep each piece as simple as its responsibility allows.
 

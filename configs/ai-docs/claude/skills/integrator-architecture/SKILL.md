@@ -95,7 +95,9 @@ See also: @arco-architecture for the broader Arco ecosystem context.
 
 ## Progressive Time Window Strategy
 
-Omit `--start-date` from `aws-get-cloudwatch-logs` to activate progressive mode automatically. It tries windows of 15m, 1h, 2h, 4h, 8h, 1d, 2d, 1w, 2w, 4w anchored from `--end-date` (or now), stopping at the first window with results.
+Omit `--start-date` from `aws-get-cloudwatch-logs` to activate progressive mode automatically.
+
+It tries windows of 15m, 1h, 2h, 4h, 8h, 1d, 2d, 1w, 2w, 4w anchored from `--end-date` (or now), stopping at the first window with results.
 
 ---
 

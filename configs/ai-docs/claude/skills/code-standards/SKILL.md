@@ -1,6 +1,6 @@
 ---
 name: code-standards
-description: "Code rules and anti-pattern examples for maintainable code. USE PROACTIVELY whenever writing a new function or module, refactoring, naming things, splitting controllers from use cases, or reviewing any code change — even if not explicitly asked."
+description: "Code rules and anti-pattern examples for maintainable code. USE PROACTIVELY when writing a new function/module, refactoring, naming, splitting controllers from use cases, or reviewing code — even if not explicitly asked."
 user-invocable: false
 ---
 
@@ -199,7 +199,12 @@ logger.info({
 
 ## Builders Bundle, Use Cases Decide
 
-Builder/factory functions should only assemble data from explicit parameters. Business decisions (conditionals, calculations, transformations) belong at the use-case/caller level. This maximizes both business logic visibility (decisions are where the reader looks for them) and builder reusability (the same builder works for different business rules).
+Builder/factory functions should only assemble data from explicit parameters. Business decisions (conditionals, calculations, transformations) belong at the use-case/caller level.
+
+This maximizes:
+
+- Business logic visibility — decisions are where the reader looks for them.
+- Builder reusability — the same builder works for different business rules.
 
 ```ts
 // Bad -- business rule hidden inside builder:
@@ -225,7 +230,13 @@ function buildAvulso({ parentKit, childSku, price, discount }) {
 
 ## Defensive defaults that contradict a stated invariant -- throw instead
 
-If a file/module states an invariant (e.g., header comment "Column names use Prisma.raw, but only after allowlist lookup -- never raw user input"), a `?? rawValue` fallback at the protected site silently relaxes the invariant and becomes a future-drift surface. The intent is "this should never happen" -- make it crash loudly with a message naming the violator.
+A file/module may state an invariant — e.g., header: "Column names use Prisma.raw, only after allowlist lookup -- never raw user input".
+
+A `?? rawValue` fallback at the protected site silently relaxes that invariant.
+
+Such a fallback becomes a future-drift surface.
+
+The intent is "this should never happen" -- make it crash loudly with a message naming the violator.
 
 ```ts
 // Bad -- header says "never raw user input", but `?? f` does exactly that on miss:
@@ -239,7 +250,13 @@ byFields.map((f) => {
 });
 ```
 
-The risk: today's union narrows to keys all in the allowlist, so the fallback is unreachable; tomorrow someone extends the union without updating the allowlist, and the silent fallback ships. A defensive default that disagrees with its own header is worse than no default. Concrete instance of CLAUDE.md CODE: "never silently coerce, swallow, or default away the error" (under "Input validation").
+The risk:
+
+- Today's union narrows to keys all in the allowlist, so the fallback is unreachable.
+- Tomorrow someone extends the union without updating the allowlist, and the silent fallback ships.
+- A defensive default that disagrees with its own header is worse than no default.
+
+Concrete instance of CLAUDE.md CODE: "never silently coerce, swallow, or default away the error" (under "Input validation").
 
 ---
 

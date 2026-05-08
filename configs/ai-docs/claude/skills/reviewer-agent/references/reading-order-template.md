@@ -1,6 +1,11 @@
 # Reading Order Template
 
-Used by `reviewer-agent` (English, in `auto-review.md` output) and `create-pr` (Portuguese, in PR descriptions as `Guia de review`). Generate a **specific** reading order from the diff -- list real file paths, not generic placeholders.
+Used by:
+
+- `reviewer-agent` — English, in `auto-review.md` output.
+- `create-pr` — Portuguese, in PR descriptions as `Guia de review`.
+
+Generate a **specific** reading order from the diff -- list real file paths, not generic placeholders.
 
 ## Time-Estimate Heuristic
 

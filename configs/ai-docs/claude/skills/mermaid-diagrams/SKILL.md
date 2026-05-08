@@ -7,7 +7,11 @@ description: "Best practices for writing Mermaid diagrams. Use when writing, rev
 
 ## Validate before paste — non-negotiable
 
-Mermaid has subtle syntax traps the eye misses. A broken diagram renders as plain text in GitHub/GitLab/Jira and most previewers — silent doc degradation, no error. **Run every diagram through `mmdc` before pasting into any `.md`, PR, ticket, wiki, or chat.** No exceptions, even one-liners — the trap is usually a one-char typo that looks fine.
+Mermaid has subtle syntax traps the eye misses.
+
+- A broken diagram renders as plain text in GitHub/GitLab/Jira and most previewers — silent doc degradation, no error.
+- **Run every diagram through `mmdc` before pasting into any `.md`, PR, ticket, wiki, or chat.**
+- No exceptions, even one-liners — the trap is usually a one-char typo that looks fine.
 
 ```bash
 # Single diagram saved to a .mmd file:
@@ -22,16 +26,25 @@ for f in /tmp/d*.mmd; do
 done
 ```
 
-Install if missing: `npm i -g @mermaid-js/mermaid-cli`. Validate each fenced block independently — a broken diagram earlier in the file does not fail-fast the renderer for later blocks; the reader just sees garbled text on the broken one.
+Install if missing: `npm i -g @mermaid-js/mermaid-cli`.
+
+Validate each fenced block independently — a broken diagram earlier in the file does not fail-fast the renderer for later blocks; the reader just sees garbled text on the broken one.
 
 ### Common parse traps that pass eyeball review but fail `mmdc`
 
-- **Unquoted parens / brackets inside pipe-delimited edge labels** — `A -->|label (with parens)| B` fails: mermaid reads `(` as the start of a node shape. Fix: quote the whole label — `A -->|"label (with parens)"| B`. Applies to `()`, `[]`, `{}`, and `(())` inside any pipe label.
-- **Special characters in node display text** — `:` `(` `)` `&` `/` are usually fine inside `["..."]` but break inside bare `[...]`. When in doubt, wrap node text in double quotes: `node["Foo: Bar (v2)"]`.
+- **Unquoted parens / brackets inside pipe-delimited edge labels** — `A -->|label (with parens)| B` fails: mermaid reads `(` as the start of a node shape.
+  - Fix: quote the whole label — `A -->|"label (with parens)"| B`.
+  - Applies to `()`, `[]`, `{}`, and `(())` inside any pipe label.
+- **Special characters in node display text** — `:` `(` `)` `&` `/` are usually fine inside `["..."]` but break inside bare `[...]`.
+  - When in doubt, wrap node text in double quotes: `node["Foo: Bar (v2)"]`.
 - **Reserved words as participant ids** — `end`, `note`, `loop` confuse the parser. Alias them: `participant E as end-state`.
 - **`<br/>` line breaks** — only work inside quoted strings. Bare `[Foo<br/>Bar]` fails; `["Foo<br/>Bar"]` works.
 
-When `mmdc` reports `Parse error on line N` with a caret — the caret points at the first token the parser couldn't accept, but the actual cause is usually one or two characters before it (the unbalanced `(`, the reserved word, etc.). Read the line right-to-left from the caret.
+When `mmdc` reports `Parse error on line N` with a caret:
+
+- The caret points at the first token the parser couldn't accept.
+- The actual cause is usually one or two characters before it (the unbalanced `(`, the reserved word, etc.).
+- Read the line right-to-left from the caret.
 
 ## Naming
 
@@ -46,9 +59,13 @@ Every node, box, or actor must name the actual component it represents — never
 
 ## Edge semantics — source must be the actor
 
-`A --> B` reads as "A performs an action that affects B" — the source must be the **agent doing the work**, not the data origin. Flowcharts (unlike sequence diagrams) don't enforce this, so it's the most common architecture-diagram bug.
+`A --> B` reads as "A performs an action that affects B" — the source must be the **agent doing the work**, not the data origin.
 
-It hits hardest in client-side caching (TanStack Query, SWR, RTK Query, Apollo) and any framework that intercepts on the receiver side: the origin can't reach the destination directly — some other actor puts the data there.
+Flowcharts (unlike sequence diagrams) don't enforce this, so it's the most common architecture-diagram bug.
+
+It hits hardest in client-side caching (TanStack Query, SWR, RTK Query, Apollo) and any framework that intercepts on the receiver side.
+
+The origin can't reach the destination directly — some other actor puts the data there.
 
 ```text
 Bad   (says "the BFF reaches into the browser cache"):
@@ -63,7 +80,11 @@ Same issue, different domains:
 - **Webhooks landing in a queue** — the HTTP handler (not the external sender) is what enqueues; arrow source is the handler.
 - **Database triggers writing audit rows** — the *trigger* is the actor, not the original `INSERT` caller.
 
-When in doubt, **write the sequence diagram first**. Lifelines force each message between actually-connected participants; if you can't draw `GSA → Cache` directly there, you can't shortcut it in the flowchart either. Mirror the sequence's arrow sources into the flowchart.
+When in doubt, **write the sequence diagram first**.
+
+- Lifelines force each message between actually-connected participants.
+- If you can't draw `GSA → Cache` directly there, you can't shortcut it in the flowchart either.
+- Mirror the sequence's arrow sources into the flowchart.
 
 Reviewer checklist:
 
@@ -120,11 +141,15 @@ Heuristic to start from (verify with the visual check anyway):
 
 ## Reading start point and flow ordering
 
-A static architecture diagram is read like a map: the reader needs to know **where to enter** and, when a flow has multiple steps, **what order to follow them in**. Two cheap conventions handle both — apply them whenever a reader could otherwise follow the wrong edge first.
+A static architecture diagram is read like a map: the reader needs to know **where to enter** and, when a flow has multiple steps, **what order to follow them in**.
+
+Two cheap conventions handle both — apply them whenever a reader could otherwise follow the wrong edge first.
 
 ### Mark the start point with `classDef`
 
-Highlight the entry actor (or the first system the reader should look at) with a distinct fill color so the reader's eye lands there first. Re-use the class name `start` across diagrams for consistency:
+Highlight the entry actor (or the first system the reader should look at) with a distinct fill color so the reader's eye lands there first.
+
+Re-use the class name `start` across diagrams for consistency:
 
 ~~~mermaid
 flowchart TD
@@ -139,7 +164,9 @@ The actor shape `(["…"])` already says "person" semantically; the highlight re
 
 ### Number the flow when ordering matters
 
-If the diagram describes a multi-step flow (Apply → derive → cache → query, login → fetch → render), prefix edge labels with `1.`, `2.`, `3.` so the reading order is unambiguous. Use letters (`1a`, `1b`, `1c`) for siblings inside a step that fan out in parallel or whose internal order doesn't matter — they all "happen as part of step 1":
+If the diagram describes a multi-step flow (Apply → derive → cache → query, login → fetch → render), prefix edge labels with `1.`, `2.`, `3.` so the reading order is unambiguous.
+
+Use letters (`1a`, `1b`, `1c`) for siblings inside a step that fan out in parallel or whose internal order doesn't matter — they all "happen as part of step 1":
 
 ~~~mermaid
 flowchart TD
@@ -161,13 +188,20 @@ Conventions:
 
 - **Numbers (`1`, `2`, `3`)** mark sequence: step 2 cannot start until step 1 finishes.
 - **Letters (`1a`, `1b`, `1c`)** mark sibling sub-steps of one parent step: they may execute in parallel, or in any order within that step.
-- **Phase prefixes** (`1a`, `1b`, …, `2a`, `2b`, …) work well when the diagram contains two or more discrete flows triggered by different events (e.g., "on Apply" vs. "on tab switch"). The phase number is the major identifier; sub-letter is the within-phase order.
-- **Dashed alternative within a step** — a fallback edge sharing a step number works as `"1c (fallback). on X failure"`. Dashed line + parenthetical signals "alternative path within step 1c".
-- **Skip the numbers** for diagrams that show pure structure (no flow), and for tiny one-or-two-edge diagrams where order is obvious. Numbers earn their place when the diagram has ≥ 3 directed edges or any branching.
+- **Phase prefixes** (`1a`, `1b`, …, `2a`, `2b`, …) work well when the diagram contains two or more discrete flows triggered by different events (e.g., "on Apply" vs. "on tab switch").
+  - The phase number is the major identifier; sub-letter is the within-phase order.
+- **Dashed alternative within a step** — a fallback edge sharing a step number works as `"1c (fallback). on X failure"`.
+  - Dashed line + parenthetical signals "alternative path within step 1c".
+- **Skip the numbers** for diagrams that show pure structure (no flow), and for tiny one-or-two-edge diagrams where order is obvious.
+  - Numbers earn their place when the diagram has ≥ 3 directed edges or any branching.
 
 ### Don't over-color
 
-One `classDef start` plus the default styling for everything else is usually enough. Mermaid already gives data stores the cylinder shape `[(…)]` and external nodes can be marked in their label (`"…<br/>external"`). Resist the urge to invent palettes — every additional color is one more thing the reader has to decode.
+One `classDef start` plus the default styling for everything else is usually enough.
+
+- Mermaid already gives data stores the cylinder shape `[(…)]`.
+- External nodes can be marked in their label (`"…<br/>external"`).
+- Resist the urge to invent palettes — every additional color is one more thing the reader has to decode.
 
 ## C4L1 Context Diagram
 
@@ -187,7 +221,13 @@ flowchart TD
 
 ## C4L2 Container Diagram
 
-The right level for a plan.md / tech-design architecture flowchart. Don't redraw the C4L1 from scratch — **build on it**: copy the actor + system-under-design boxes + external systems from the spec.md L1, then expand each system-under-design box with a `subgraph` exposing its internal containers (services, caches, modules, queues). External systems stay opaque — their internals belong in *their* L2.
+The right level for a plan.md / tech-design architecture flowchart.
+
+Don't redraw the C4L1 from scratch — **build on it**:
+
+- Copy the actor + system-under-design boxes + external systems from the spec.md L1.
+- Then expand each system-under-design box with a `subgraph` exposing its internal containers (services, caches, modules, queues).
+- External systems stay opaque — their internals belong in *their* L2.
 
 A reader who already saw the L1 should see the same outline (same actors, same external systems, same names) and just zoom into the boxes they care about. Redrawing breaks that continuity.
 
@@ -221,9 +261,13 @@ Conventions:
 - One `subgraph` per system-under-design box that L1 had. Don't subgraph external systems — they stay opaque.
 - Re-use the L1 box title verbatim as the subgraph title so a reader can spot the L1↔L2 correspondence at a glance.
 - Containers inside the subgraph follow the same naming rule as everywhere else: name the actual module / service / store, never "Component A".
-- Edges that cross the boundary terminate at the inner container, not the subgraph wrapper — `Browser --> Auth`, not `Web --> API`. The wrapper exists to group; data still flows between the actual containers.
-- Aim for ≤ 4 containers per subgraph. If a subgraph has more, it likely deserves its own L3 diagram (zoom further into that one container) instead of growing this one.
-- Keep the *count of subgraphs + external boxes + actors* ≤ 6. The point is a single readable picture; if you need more boxes, split into two L2 diagrams scoped to different parts of the L1.
+- Edges that cross the boundary terminate at the inner container, not the subgraph wrapper — `Browser --> Auth`, not `Web --> API`.
+  - The wrapper exists to group; data still flows between the actual containers.
+- Aim for ≤ 4 containers per subgraph.
+  - If a subgraph has more, it likely deserves its own L3 diagram (zoom further into that one container) instead of growing this one.
+- Keep the *count of subgraphs + external boxes + actors* ≤ 6.
+  - The point is a single readable picture.
+  - If you need more boxes, split into two L2 diagrams scoped to different parts of the L1.
 
 ## Sequence Diagram
 

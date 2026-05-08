@@ -5,7 +5,9 @@ description: USE for Apple-inspired minimalist business presentations. Trigger w
 
 # Beautiful Presentations - Apple-Inspired Minimalist Design
 
-Create stunning, minimalist business presentations inspired by Apple's design philosophy. This skill provides comprehensive design principles, pre-built CSS templates, and best practices for crafting pitch decks that are clean, elegant, and highly effective.
+Create stunning, minimalist business presentations inspired by Apple's design philosophy.
+
+This skill provides comprehensive design principles, pre-built CSS templates, and best practices for crafting pitch decks that are clean, elegant, and highly effective.
 
 ## When to Use This Skill
 

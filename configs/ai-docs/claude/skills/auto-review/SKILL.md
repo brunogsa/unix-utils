@@ -1,6 +1,6 @@
 ---
 name: auto-review
-description: "USE for local code review on the current branch. DEFAULT mode: explicit user trigger ('review this branch' / 'audit my changes' / /auto-review). AUTONOMOUS mode: per-task gate during plan execution + final pass at end-of-branch (after /refactor)."
+description: "USE for local code review on the current branch. DEFAULT: explicit trigger ('review this branch' / 'audit my changes' / /auto-review). AUTONOMOUS: per-task gate during plan execution + final end-of-branch pass."
 disable-model-invocation: false
 ---
 
@@ -26,11 +26,17 @@ Examples:
 
 ## When to invoke
 
-**Default mode (interactive):** only on explicit user trigger — direct `/auto-review` invocation or phrases like "review this branch" / "audit my changes" / "check what I just did" / "run a local review". Do NOT auto-trigger from "task done" or similar; the user reserves this command.
+**Default mode (interactive):** only on explicit user trigger.
+
+Triggers include direct `/auto-review` invocation or phrases like "review this branch" / "audit my changes" / "check what I just did" / "run a local review".
+
+Do NOT auto-trigger from "task done" or similar; the user reserves this command.
 
 **Autonomous mode** has two trigger points:
 
-1. **Per-task gate during plan execution** — `/auto-review HEAD~N` after each task's commits, where N is the number of commits the task produced. Fix MANDATORY findings before the next task; log RECOMMENDED/lower to plan.md as incidentals.
+1. **Per-task gate during plan execution** — `/auto-review HEAD~N` after each task's commits, where N is the number of commits the task produced.
+   - Fix MANDATORY findings before the next task.
+   - Log RECOMMENDED/lower to plan.md as incidentals.
 2. **Final pass at end-of-branch** — after `/refactor` and before `/create-pr` (sequence: refactor → final auto-review + fixes → create-pr). Catches anything refactor introduced and gives create-pr clean ground to describe.
 
 The base argument accepts any git ref (commit SHA, branch name, `HEAD~N`), so per-task scoping reuses the full-branch flow.

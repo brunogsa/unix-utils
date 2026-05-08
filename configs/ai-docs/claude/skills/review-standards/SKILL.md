@@ -1,6 +1,6 @@
 ---
 name: review-standards
-description: "Code-review confidence bar and feedback rules. USE PROACTIVELY before commenting on a PR, running /auto-review or /code-review, or giving any code-review feedback — including phrases like 'review this' or 'look at my changes'."
+description: "Code-review confidence bar and feedback rules. USE PROACTIVELY before commenting on a PR, running /auto-review or /code-review, or giving review feedback — including 'review this' or 'look at my changes'."
 user-invocable: false
 ---
 

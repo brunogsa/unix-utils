@@ -1,6 +1,6 @@
 ---
 name: refactor
-description: "USE for end-of-branch refactoring sweep over unpushed changes. DEFAULT: explicit trigger ('refactor this' / 'clean this up' / /refactor). AUTONOMOUS: first step of end-of-branch wrap-up (refactor → final auto-review + fixes → create-pr)."
+description: "USE for end-of-branch refactoring sweep over unpushed changes. DEFAULT: explicit trigger ('refactor this' / 'clean up' / /refactor). AUTONOMOUS: first step of end-of-branch wrap-up (refactor → auto-review + fixes → create-pr)."
 disable-model-invocation: false
 ---
 
@@ -10,7 +10,10 @@ Detect refactoring opportunities in unpushed/uncommitted code, then apply them o
 
 ## When to invoke
 
-**Default mode (interactive):** only on explicit user trigger — direct `/refactor` invocation or phrases like "refactor this" / "clean this up" / "simplify what I just wrote". Do NOT auto-trigger from "user just finished editing some code" or similar; the user reserves this command.
+**Default mode (interactive):** only on explicit user trigger.
+
+- Direct `/refactor` invocation or phrases like "refactor this" / "clean this up" / "simplify what I just wrote".
+- Do NOT auto-trigger from "user just finished editing some code" or similar; the user reserves this command.
 
 **Autonomous mode:** run as the FIRST step of the end-of-branch wrap-up sequence:
 
@@ -20,7 +23,10 @@ Detect refactoring opportunities in unpushed/uncommitted code, then apply them o
 
 This ordering matters: refactor first so auto-review sees the polished code; auto-review second so create-pr's description reflects the final state.
 
-**NOT for in-task cleanup.** RED-GREEN-REFACTOR already covers in-task local cleanup (rename a variable, extract a helper, restructure within the task). Invoking `/refactor` mid-task is both more expensive and more likely to over-abstract on partial visibility.
+**NOT for in-task cleanup.**
+
+- RED-GREEN-REFACTOR already covers in-task local cleanup (rename a variable, extract a helper, restructure within the task).
+- Invoking `/refactor` mid-task is both more expensive and more likely to over-abstract on partial visibility.
 
 **Exceptions where mid-branch is OK:**
 - The branch produced an obvious large duplication and you want to dedup before adding more on top.
@@ -86,8 +92,15 @@ After the agent returns, present the numbered list to the user and ask which ite
 
 ### 4. Apply Refactors in Main Conversation
 
-For each approved item, **you** (not the agent) perform the edit directly in the main conversation using the Edit tool. This keeps the user in the loop -- they can provide guidance, corrections, or reject individual changes as they happen.
+For each approved item, **you** (not the agent) perform the edit directly in the main conversation using the Edit tool.
 
-All CLAUDE.md principles plus the code-standards, test-standards, and doc-standards skills apply to the resulting code. Stay within the approved refactor's *intent*: structural formatting changes implied by the refactor are expected (an extracted method has different indentation than its inlined version, etc.) -- but tangential reformatting the user did not approve (quote-style swaps, blank-line shuffles, surrounding-code reflows) is not.
+- This keeps the user in the loop.
+- They can provide guidance, corrections, or reject individual changes as they happen.
+
+All CLAUDE.md principles plus the code-standards, test-standards, and doc-standards skills apply to the resulting code.
+
+- Stay within the approved refactor's *intent*.
+- Structural formatting changes implied by the refactor are expected (an extracted method has different indentation than its inlined version, etc.).
+- But tangential reformatting the user did not approve (quote-style swaps, blank-line shuffles, surrounding-code reflows) is not.
 
 Work through items sequentially. After each edit, move to the next item.

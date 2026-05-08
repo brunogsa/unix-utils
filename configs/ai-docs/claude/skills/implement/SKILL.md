@@ -15,7 +15,10 @@ Each ID matches the **exact** numeric prefix of a plan.md heading. On ambiguity 
 
 In a multi-task batch, tasks run **sequentially**, never in parallel — small batches still beat one big bang.
 
-The two-party `[Done]` handshake between tasks is the chain-abort gate: at any handshake you can answer "stop" instead of "yes" and the batch halts cleanly, leaving the remaining IDs in their original state.
+The two-party `[Done]` handshake between tasks is the chain-abort gate.
+
+- At any handshake you can answer "stop" instead of "yes" and the batch halts cleanly.
+- Remaining IDs are left in their original state.
 
 ## 1. Pre-flight
 
@@ -77,9 +80,16 @@ Generate sub-step items based on **both**:
 - The task's existing breadcrumb / sub-bullets in `plan.md` (e.g., `(migration; seed; baseline EXPLAIN; index-on EXPLAIN; compare)`)
 - A fresh decomposition: one item per RED-GREEN cycle (one per most-forcing case from the task's acceptance criteria), plus verify / commit / finalize steps.
 
-**CRITICAL: Create ALL known sub-steps in TaskList BEFORE executing any of them.** Always include the tail steps (verify, two-party handshake, commit, plan.md update) — they are known upfront and must appear in the list from the start. The user needs macro visibility of the full plan before any code is touched. Only use alphabetical-suffix insertions (e.g., `3.4a`) for sub-steps that are genuinely discovered mid-flight (helper-on-demand, unexpected drift). Known steps added late are a planning failure.
+**CRITICAL: Create ALL known sub-steps in TaskList BEFORE executing any of them.**
 
-Why expand the cycles instead of looping: each RED-GREEN pair surviving as its own item means a `/clear` or session restart can resume cleanly — a single "loop the rest" bullet erases that visibility.
+- Always include the tail steps (verify, two-party handshake, commit, plan.md update) — known upfront, must appear from the start.
+- The user needs macro visibility of the full plan before any code is touched.
+- Only use alphabetical-suffix insertions (e.g., `3.4a`) for sub-steps genuinely discovered mid-flight (helper-on-demand, unexpected drift).
+- Known steps added late are a planning failure.
+
+Why expand the cycles instead of looping: each RED-GREEN pair surviving as its own item means a `/clear` or session restart can resume cleanly.
+
+A single "loop the rest" bullet erases that visibility.
 
 ### 2.1. TaskList structure: parent task + sub-steps
 
@@ -90,11 +100,19 @@ The parent groups its sub-steps visually and provides a single place to flip tas
 
 Before writing any code, call `advisor()`.
 
-The transcript at this point holds the full plan.md task text, spec.md context, recap of work since base, and current TaskList state — exactly what a stronger reviewer needs to challenge the approach, surface forcing cases you missed, and flag risky assumptions.
+The transcript at this point holds the full plan.md task text, spec.md context, recap of work since base, and current TaskList state.
 
-This is **per task**, not per invocation. In a multi-task batch each task gets its own advisor call right before its sub-step decomposition — the relevant context (acceptance criteria, forcing cases, prior tasks' commits) is task-specific and only fully present once the prior task is done.
+That is exactly what a stronger reviewer needs to challenge the approach, surface forcing cases you missed, and flag risky assumptions.
 
-Take the advice seriously: if the advisor flags a forcing case you didn't plan for, add it to the sub-steps. If it challenges the verify method, reconcile before flipping to `[Doing]`. Skipping this step or no-op'ing it ("looks fine, proceeding") defeats the point.
+This is **per task**, not per invocation. In a multi-task batch each task gets its own advisor call right before its sub-step decomposition.
+
+The relevant context (acceptance criteria, forcing cases, prior tasks' commits) is task-specific and only fully present once the prior task is done.
+
+Take the advice seriously:
+
+- If the advisor flags a forcing case you didn't plan for, add it to the sub-steps.
+- If it challenges the verify method, reconcile before flipping to `[Doing]`.
+- Skipping this step or no-op'ing it ("looks fine, proceeding") defeats the point.
 
 Advisor should also question the organization itself.
 
@@ -149,21 +167,33 @@ In all non-`[Done]` terminal states, do NOT commit code partially. Either land w
 
 > **CRITICAL: Skipping the handshake is a protocol violation, not an optimization.**
 
-> In a multi-task batch (`/implement 1, 2, 3`) the handshake must run for **every** task in the chain, unless auto-mode or bypass-permission is ON              . This rule overrides any urge to "save a round-trip".
+> In a multi-task batch (`/implement 1, 2, 3`) the handshake must run for **every** task in the chain, unless auto-mode or bypass-permission is ON.
+>
+> This rule overrides any urge to "save a round-trip".
 
 After step 3.10 (verify passes), do not auto-mark `[Done]`. Instead:
 
 1. **AI proposes:** "Acceptance criteria pass. Verify ran clean: `<output snippet>`. Mark `[Done]`?"
 2. **User confirms** (yes / changes / blocked).
-3. **On yes** → commit (step 3.12) → update plan.md to `[Done]` (step 3.13). In a multi-task batch, then advance to the next task: re-run pre-flight §4–§7 (match next `<task-id>`, state check, TaskList review, advisor) — §1–§3 do not repeat.
-4. **On changes** → insert the requested change with alphabetical-suffix notation right after the cursor (e.g., ` 3.5a. [Sub-Step] ...`), loop back to the relevant RED-GREEN pair, then re-verify.
-5. **On blocked** → flip to `[Blocked]`, stop. In a multi-task batch this halts the chain; remaining IDs stay untouched.
-6. **On stop** (user answers "stop" mid-batch instead of "yes") → leave the active task as `[Doing]` and do not start the next task. The batch ends cleanly with remaining IDs in their original state.
+3. **On yes** → commit (step 3.12) → update plan.md to `[Done]` (step 3.13).
+   - In a multi-task batch, then advance to the next task: re-run pre-flight §4–§7 (match next `<task-id>`, state check, TaskList review, advisor).
+   - §1–§3 do not repeat.
+4. **On changes** → insert the requested change with alphabetical-suffix notation right after the cursor (e.g., ` 3.5a. [Sub-Step] ...`).
+   - Loop back to the relevant RED-GREEN pair, then re-verify.
+5. **On blocked** → flip to `[Blocked]`, stop.
+   - In a multi-task batch this halts the chain; remaining IDs stay untouched.
+6. **On stop** (user answers "stop" mid-batch instead of "yes") → leave the active task as `[Doing]` and do not start the next task.
+   - The batch ends cleanly with remaining IDs in their original state.
 
 ## 5. Commit model
 
-A typical task produces **1 commit** — tests + implementation together (single base commit). RED and GREEN cycles inside the task share the commit; refactors do not and should bea task on their own.
+A typical task produces **1 commit** — tests + implementation together (single base commit).
+
+- RED and GREEN cycles inside the task share the commit.
+- Refactors do not, and should be a task on their own.
 
 So a task might be 1 commit (clean), 2 (base + refactor), 3 (base + refactor + scout fix), and so on. Never zero.
 
-The skill itself never auto-invokes `/refactor` or `/auto-review` — the user reserves those triggers. If the user runs them mid-task and they produce changes, those land as their own commits **before** the task is marked `[Done]`.
+The skill itself never auto-invokes `/refactor` or `/auto-review` — the user reserves those triggers.
+
+If the user runs them mid-task and they produce changes, those land as their own commits **before** the task is marked `[Done]`.

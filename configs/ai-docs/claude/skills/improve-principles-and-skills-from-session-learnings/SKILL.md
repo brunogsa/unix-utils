@@ -20,9 +20,13 @@ Learnings go to whichever file they belong in. Principles go to CLAUDE.md; detai
 Subagents cannot see the parent conversation history. Use a hybrid approach:
 
 1. **Main context** performs step 1 (extract session moments) -- lightweight, stays in the main context.
-2. **Subagent** receives those moments and performs steps 2-9 (analysis, file reads, cross-checking, presenting findings, user approval, edits, post-edit verification via dedicated audit skills) -- heavy, offloaded so the audit cost (especially LLM cross-file reading in the consistency check) does not pollute the main context.
+2. **Subagent** receives those moments and performs steps 2-9 -- heavy, offloaded.
+   - Steps include analysis, file reads, cross-checking, presenting findings, user approval, edits, post-edit verification via dedicated audit skills.
+   - The audit cost (especially LLM cross-file reading in the consistency check) does not pollute the main context.
 
-Spawn the subagent with `subagent_type: "general-purpose"` and `description: "Analyze session for guideline learnings"` (foreground). The subagent prompt must include **Scope**, the extracted session moments, and everything from **Subagent Process** through **Guidelines for Generalization** below.
+Spawn the subagent with `subagent_type: "general-purpose"` and `description: "Analyze session for guideline learnings"` (foreground).
+
+The subagent prompt must include **Scope**, the extracted session moments, and everything from **Subagent Process** through **Guidelines for Generalization** below.
 
 ## Step 1: Extract Session Moments (main context)
 
@@ -52,7 +56,10 @@ Rules for each sub-bullet:
 - **Outcome** — what actually changed, not what was discussed.
 - **Lesson drawn** — one sentence, generalizable. Not "we fixed X"; rather "Y pattern leads to Z bug."
 
-This list is passed verbatim into the subagent prompt as a `## Session Moments` section. Richer input — especially verbatim quotes — gives the subagent raw signal it can't otherwise access (it can't see the parent conversation). Paraphrases smooth over nuance; verbatim preserves it.
+This list is passed verbatim into the subagent prompt as a `## Session Moments` section.
+
+- Richer input — especially verbatim quotes — gives the subagent raw signal it can't otherwise access (it can't see the parent conversation).
+- Paraphrases smooth over nuance; verbatim preserves it.
 
 ## Subagent Process (steps 2-9)
 
@@ -85,9 +92,15 @@ This list is passed verbatim into the subagent prompt as a `## Session Moments` 
 
 7. **Apply changes only with approval** - Wait for user confirmation before modifying any file.
 
-8. **Verify consistency** - Delegate to the `consistency-check-principles-and-skills` skill. It audits CLAUDE.md + skills for contradictions, merge/generalization opportunities, duplication, and structural compliance with skill-creator conventions. Embed its report verbatim under *Post-Edit Verification* in the Output Format. Surface findings for user triage; do not auto-fix.
+8. **Verify consistency** - Delegate to the `consistency-check-principles-and-skills` skill.
+   - It audits CLAUDE.md + skills for contradictions, merge/generalization opportunities, duplication, and structural compliance with skill-creator conventions.
+   - Embed its report verbatim under *Post-Edit Verification* in the Output Format.
+   - Surface findings for user triage; do not auto-fix.
 
-9. **Verify budgets** - Delegate to the `performance-check-principles-and-skills` skill as the final step. It measures CLAUDE.md + skills against research-backed budgets (line/word counts, conciseness, skill count). Embed its report verbatim alongside the consistency report. Surface findings for user triage; do not auto-fix.
+9. **Verify budgets** - Delegate to the `performance-check-principles-and-skills` skill as the final step.
+   - It measures CLAUDE.md + skills against research-backed budgets (line/word counts, conciseness, skill count).
+   - Embed its report verbatim alongside the consistency report.
+   - Surface findings for user triage; do not auto-fix.
 
 ## Output Format
 

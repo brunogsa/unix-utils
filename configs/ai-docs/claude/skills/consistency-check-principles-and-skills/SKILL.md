@@ -1,6 +1,6 @@
 ---
 name: consistency-check-principles-and-skills
-description: "Audit CLAUDE.md and skills for contradictions, duplication, and merge opportunities. Trigger on 'consistency check' / 'check for contradictions' / 'audit my skills'. Heavy (LLM cross-file reading) — don't invoke after every edit. Report-only."
+description: "Audit CLAUDE.md and skills for contradictions, duplication, and merges. Trigger on 'consistency check' / 'check contradictions' / 'audit my skills'. Heavy (LLM cross-file) — don't invoke after each edit. Report-only."
 ---
 
 # Consistency Check: Principles and Skills
@@ -35,7 +35,10 @@ Look for:
 - A skill says "do Y"; CLAUDE.md says "do not Y" (or vice versa).
 - Two skills give opposing guidance on the same situation.
 
-Why this is the top priority: contradictions cause **behavioral drift**. Claude may follow one rule on Monday and the other on Tuesday with no predictable trigger — the cost is silent and recurring.
+Why this is the top priority: contradictions cause **behavioral drift**.
+
+- Claude may follow one rule on Monday and the other on Tuesday with no predictable trigger.
+- The cost is silent and recurring.
 
 When in doubt, flag it. False positives are cheap (the user dismisses); false negatives ship undetected.
 
@@ -48,7 +51,10 @@ Look for:
 - Two skills whose `description` field overlaps significantly (≳50% of triggers shared) — candidates to merge, or to fold one into the other.
 - A pattern stated in three sections — promote to a single principle and reference from each section instead of repeating the rule.
 
-Why it matters: a smaller, sharper principle set is easier for Claude to attend to. Per Jaroslawicz et al. 2025 (cited in `performance-check`'s `references/research.md`), instruction adherence degrades sharply past ~200 instructions. Every merged duplicate buys back attention.
+Why it matters: a smaller, sharper principle set is easier for Claude to attend to.
+
+- Per Jaroslawicz et al. 2025 (cited in `performance-check`'s `references/research.md`), instruction adherence degrades sharply past ~200 instructions.
+- Every merged duplicate buys back attention.
 
 ### 3. Duplication
 
@@ -60,7 +66,10 @@ Look for:
 
 Why it matters: edit burden — when one copy changes, the others go stale silently.
 
-**Distinguish from intentional layering**: CLAUDE.md often states a principle in one line, and a skill expands with examples. That is *not* duplication — that is progressive disclosure (CLAUDE.md is auto-loaded; skills load on demand). Only flag when both copies say the *same thing at the same level of detail*.
+**Distinguish from intentional layering**: CLAUDE.md often states a principle in one line, and a skill expands with examples.
+
+- That is *not* duplication — that is progressive disclosure (CLAUDE.md is auto-loaded; skills load on demand).
+- Only flag when both copies say the *same thing at the same level of detail*.
 
 ### 4. Structure (per skill-creator conventions)
 
@@ -141,7 +150,13 @@ Auto-resolving would erase that nuance. Surface findings; the user triages and a
 
 ## Why Not a Script
 
-Each heuristic requires semantic reading across files: detecting when "always X" and "never X" share scope, judging whether two skill descriptions overlap meaningfully, distinguishing duplication from intentional layering. A regex/script approach produces false positives at every step. LLM cross-file reading is the right tool — accept the cost, invoke on demand.
+Each heuristic requires semantic reading across files:
+
+- Detecting when "always X" and "never X" share scope.
+- Judging whether two skill descriptions overlap meaningfully.
+- Distinguishing duplication from intentional layering.
+
+A regex/script approach produces false positives at every step. LLM cross-file reading is the right tool — accept the cost, invoke on demand.
 
 For deterministic / fast checks (line counts, word budgets, per-line conciseness), use `performance-check-principles-and-skills`.
 

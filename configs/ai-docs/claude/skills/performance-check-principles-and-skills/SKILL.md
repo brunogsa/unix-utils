@@ -45,7 +45,10 @@ bash scripts/check.sh           # user mode
 bash scripts/check.sh <path>    # repo mode
 ```
 
-The script measures with `grep`, `awk`, `wc`, and `find`. It prints a markdown report to stdout: the status table, then follow-up sections listing offending lines in CLAUDE.md and over-budget skills if any. Exit code is 0 when all budgets are met, 1 otherwise — handy for CI.
+The script measures with `grep`, `awk`, `wc`, and `find`.
+
+- It prints a markdown report to stdout: the status table, then follow-up sections listing offending lines in CLAUDE.md and over-budget skills if any.
+- Exit code is 0 when all budgets are met, 1 otherwise — handy for CI.
 
 ## What the Report Looks Like
 
@@ -75,7 +78,10 @@ The script measures with `grep`, `awk`, `wc`, and `find`. It prints a markdown r
 
 ## Why Report-Only
 
-Budget violations are signals, not commands. Fixes often require judgment (which rule to merge, which example to prune, whether to split a bullet or move to a reference file). The skill surfaces findings so the user can triage; blind auto-consolidation tends to damage intent.
+Budget violations are signals, not commands.
+
+- Fixes often require judgment (which rule to merge, which example to prune, whether to split a bullet or move to a reference file).
+- The skill surfaces findings so the user can triage; blind auto-consolidation tends to damage intent.
 
 Good consolidation options when over-budget:
 - **Lines or words per line over in CLAUDE.md**: split a rule into main-bullet + sub-bullet (`- Why: ...`); move inline code examples to a skill's `references/`.

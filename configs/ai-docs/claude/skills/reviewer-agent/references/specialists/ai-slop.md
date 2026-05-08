@@ -2,7 +2,15 @@
 
 Source: `review-standards/checklists.md#AI Slop Checklist` + patterns specific to AI-generated or AI-assisted code.
 
-Scope targets patterns common in AI-authored diffs that erode codebase quality over time: suppressed checks, deleted/skipped tests, near-duplicate helpers, dead code left around to justify an answer, and abstractions added without demand. Separate from code-design-clarity because we want to ensure focus on this matter.
+Scope targets patterns common in AI-authored diffs that erode codebase quality over time:
+
+- Suppressed checks.
+- Deleted/skipped tests.
+- Near-duplicate helpers.
+- Dead code left around to justify an answer.
+- Abstractions added without demand.
+
+Separate from code-design-clarity because we want to ensure focus on this matter.
 
 ---
 

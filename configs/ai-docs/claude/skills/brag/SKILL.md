@@ -1,6 +1,6 @@
 ---
 name: brag
-description: "Log work accomplishments as BRAG/STAR entries. Use when user says 'brag', 'log this', 'add win', 'record accomplishment', 'brag from calendar', 'save this for my perf review', or describes a work achievement they want captured."
+description: "Log work accomplishments as BRAG/STAR entries. Use on 'brag', 'log this', 'add win', 'record accomplishment', 'brag from calendar', 'save for perf review', or when user describes a work achievement to capture."
 disable-model-invocation: false
 ---
 
@@ -67,7 +67,10 @@ If no date range provided, default to current week Monday-Friday.
 [entries, newest first]
 ```
 
-Year and month sections are created as needed. Insert entries under the correct year/month. Create the section if it doesn't exist. **Newest entries (by date) go at the top** of each month section — sort descending.
+Year and month sections are created as needed.
+
+- Insert entries under the correct year/month. Create the section if it doesn't exist.
+- **Newest entries (by date) go at the top** of each month section — sort descending.
 
 ## Workflow — Single Entry (Formats 1-3)
 
@@ -112,17 +115,27 @@ Both scripts output a JSON array of `{start, day, summary, duration_min}` sorted
 
 Display the total event count and date range.
 
-**Stale calendar entries:** some events may appear as accepted but were declined verbally or never attended. When the user flags them during review, drop them and restore the decremented time to overlapping events if applicable.
+**Stale calendar entries:** some events may appear as accepted but were declined verbally or never attended.
+
+When the user flags them during review, drop them and restore the decremented time to overlapping events if applicable.
 
 ### Step 1.5 — Per-day validation
 
-Before clustering, show the user a per-day breakdown of ALL non-OO events in chronological order. For each day, show a numbered table with time, duration, and event title. Include a day total (excluding OO) and a week grand total at the bottom.
+Before clustering, show the user a per-day breakdown of ALL non-OO events in chronological order.
 
-This step lets the user catch missing events, incorrect durations, or stale entries before proceeding. Wait for the user to confirm the data looks correct. If they flag issues (e.g., "I declined X", "Y is missing"), adjust accordingly and re-display.
+- For each day, show a numbered table with time, duration, and event title.
+- Include a day total (excluding OO) and a week grand total at the bottom.
+
+This step lets the user catch missing events, incorrect durations, or stale entries before proceeding.
+
+Wait for the user to confirm the data looks correct. If they flag issues (e.g., "I declined X", "Y is missing"), adjust accordingly and re-display.
 
 ### Step 2 — Cluster by theme
 
-Exclude `[OO]` events from clustering (personal/out-of-office). Include `[FT]` events — cluster them by their content alongside regular events (e.g., an `[FT] Learn, PoCs` goes into the PoCs/learning cluster). Drop `[FT]` events that overlap with non-FT events (the FT block was a placeholder).
+Exclude `[OO]` events from clustering (personal/out-of-office).
+
+- Include `[FT]` events — cluster them by content alongside regular events (e.g., `[FT] Learn, PoCs` goes into the PoCs/learning cluster).
+- Drop `[FT]` events that overlap with non-FT events (the FT block was a placeholder).
 
 Group events into natural categories based on title patterns. Start from these base clusters, but adapt as needed — rename, merge, or add new ones when the data calls for it:
 - Glue work (Slack, alignment, self-org, notes)
@@ -132,9 +145,14 @@ Group events into natural categories based on title patterns. Start from these b
 - PoCs / learning
 - Reviews (RFC, ADR, design)
 
-Present a short summary first — a numbered bullet list of cluster names with event counts, total time (hours), and percentage of total week time. Include a **Total** row at the bottom. Do NOT show the full event tables yet.
+Present a short summary first — a numbered bullet list of cluster names with event counts, total time (hours), and percentage of total week time.
 
-Format cluster names as: `Cluster name (2-3 examples from that cluster)` — e.g., "Reviews (RFC Auth Hub, Design Pedidos SAS, ADR OMS NF)". This helps the user quickly judge if events landed in the right cluster.
+- Include a **Total** row at the bottom.
+- Do NOT show the full event tables yet.
+
+Format cluster names as: `Cluster name (2-3 examples from that cluster)` — e.g., "Reviews (RFC Auth Hub, Design Pedidos SAS, ADR OMS NF)".
+
+This helps the user quickly judge if events landed in the right cluster.
 
 When showing a cluster's event table, include the cluster's total time and its percentage of the total week in the header.
 
@@ -157,7 +175,9 @@ Do NOT show the next cluster until the user says to proceed.
 
 ### Step 4 — Write
 
-After all clusters are processed, read `~/brag/brag.md` and write all entries directly under the correct year/month sections. The user reviews each entry in the Edit tool approval — no separate confirmation step needed.
+After all clusters are processed, read `~/brag/brag.md` and write all entries directly under the correct year/month sections.
+
+The user reviews each entry in the Edit tool approval — no separate confirmation step needed.
 
 ### Step 5 — Coaching debrief
 
@@ -168,7 +188,9 @@ After writing entries, adopt the perspective of a senior staff+ engineer coachin
 
 ### Step 6 — Update retro.md
 
-After the coaching debrief, read `~/brag/retro.md` and add a new weekly entry under the correct year section. **Newest entries (by date) go at the top** — sort descending, same as `brag.md`. Each entry should include:
+After the coaching debrief, read `~/brag/retro.md` and add a new weekly entry under the correct year section.
+
+**Newest entries (by date) go at the top** — sort descending, same as `brag.md`. Each entry should include:
 - **Summary line:** total hours, top 3 clusters by time, coding hours
 - **Observations:** patterns, trends vs previous weeks, highest-leverage moments
 - **vs. last week's next steps:** check each item from the previous entry (✅/⚠️/❌)

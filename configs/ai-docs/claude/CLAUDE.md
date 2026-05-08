@@ -269,6 +269,14 @@ Concrete examples live in the `code-standards` skill (loaded on-demand).
 - **CRITICAL: Patch doc gaps the moment they bite** -- when missing/wrong docs cost time, fix the doc inline as part of the current change.
   - Why: each gap teaches once; the next person should learn from the doc, not from your detour. Discovery is when you have full context to write the fix.
 
+- **CRITICAL: Density caps for user-facing markdown** -- every prose line, bullet, and sub-bullet stays ≤256 chars or ≤32 words.
+  - Over the cap in prose → split into more (shorter) paragraphs, or convert to bullets+sub-bullets.
+  - Over the cap in a bullet/sub-bullet → split into more bullets+sub-bullets.
+  - Either way: never drop information.
+  - Applies to PR descriptions, specs, plans, READMEs, auto-reviews — anything a human scans.
+  - Why: long lines compress thinking; shorter units force expansion of the structure the writer used to reason — exactly what readers need to scan.
+  - Verify deterministically with `~/.claude/skills/doc-standards/scripts/check-density.sh <file>` before declaring a doc ready.
+
 Concrete examples live in the `doc-standards` skill (loaded on-demand).
 
 ---

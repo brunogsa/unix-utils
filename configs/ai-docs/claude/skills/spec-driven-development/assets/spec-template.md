@@ -30,9 +30,17 @@ What we want to achieve (outcomes, not implementation).
 
 Use BDD-style scenarios (Given / When / Then). One scenario per criterion, each with a short title.
 
-**Rule for `Given`:** include it only when removing it would make the scenario ambiguous (e.g., DB seeded with specific state, feature flag value, prior request). For simple input → output assertions on stateless endpoints, skip `Given`.
+**Rule for `Given`:** include it only when removing it would make the scenario ambiguous (e.g., DB seeded with specific state, feature flag value, prior request).
 
-**Coverage rule:** every spec MUST include scenarios for the **happy path**, **corner cases** (empty inputs, boundary values, max sizes, combined filters, idempotency), and **failure modes** (validation errors, downstream timeouts, 4xx/5xx responses, partial failures). A spec with only happy-path ACs is incomplete.
+For simple input → output assertions on stateless endpoints, skip `Given`.
+
+**Coverage rule:** every spec MUST include scenarios for:
+
+- **happy path**
+- **corner cases** (empty inputs, boundary values, max sizes, combined filters, idempotency)
+- **failure modes** (validation errors, downstream timeouts, 4xx/5xx responses, partial failures)
+
+A spec with only happy-path ACs is incomplete.
 
 Format:
 
@@ -66,7 +74,11 @@ Group by category for scannability:
 ---
 ## Functional Decisions
 
-Chronological log. Editable during refinement. Once the user approves the plan and signals execution start, insert the divider line below and switch to append-only — revisions become new entries with `**Supersedes:**` references rather than in-place edits.
+Chronological log. Editable during refinement.
+
+Once the user approves the plan and signals execution start, insert the divider line below and switch to append-only.
+
+Revisions become new entries with `**Supersedes:**` references rather than in-place edits.
 
 - **DECISION:** __Chose__ <approach>, __because__ <reason>
   - __Discarded__ **<alternative>**: <reason>

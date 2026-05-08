@@ -78,7 +78,9 @@ Substantial scope additions still warrant a new peer task.
 
 Refactors are isolated tasks by definition.
 
-**Sub-step breadcrumb** — optional parenthetical at the end of the task title, semicolon-separated, to hint at the beats inside: `### N. Task title (sub-step; sub-step; sub-step)`. Keep to ~4 items; if it grows longer, the task is probably two tasks in disguise, or require sub-steps on the TaskList.
+**Sub-step breadcrumb** — optional parenthetical at the end of the task title, semicolon-separated, to hint at the beats inside: `### N. Task title (sub-step; sub-step; sub-step)`.
+
+Keep to ~4 items; if it grows longer, the task is probably two tasks in disguise, or require sub-steps on the TaskList.
 
 ### 1. [Task title] (optional: sub-step; sub-step; sub-step)
 
@@ -114,7 +116,11 @@ Refactors are isolated tasks by definition.
 ---
 ## Technical Decisions
 
-Chronological log. Editable while planning. Once the user approves the plan and signals execution start, insert the divider line below and switch to append-only — revisions become new entries with `**Supersedes:**` references rather than in-place edits.
+Chronological log. Editable while planning.
+
+Once the user approves the plan and signals execution start, insert the divider line below and switch to append-only.
+
+Revisions become new entries with `**Supersedes:**` references rather than in-place edits.
 
 - **DECISION:** __Chose__ <approach>, __because__ <reason>
   - __Discarded__ **<alternative>**: <reason>

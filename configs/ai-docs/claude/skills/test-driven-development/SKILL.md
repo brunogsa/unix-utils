@@ -14,7 +14,9 @@ For test patterns (titles, mock data, parametrized suites, anti-patterns) and te
 
 ## The cycle: RED → GREEN → REFACTOR, most forcing case first
 
-1. **Design test titles** for the integration layer up front — review with user before coding. Pre-known pure helpers (obvious normalizers, parsers, validators) can also be designed up front. Helpers pulled on demand get their tests at the moment of pull; designing them eagerly forces premature signatures.
+1. **Design test titles** for the integration layer up front — review with user before coding.
+   - Pre-known pure helpers (obvious normalizers, parsers, validators) can also be designed up front.
+   - Helpers pulled on demand get their tests at the moment of pull; designing them eagerly forces premature signatures.
 
 2. **Pick the most forcing case** — the one that requires the most real logic. Trivial cases first lock in trivial implementations.
 
@@ -32,7 +34,12 @@ For test patterns (titles, mock data, parametrized suites, anti-patterns) and te
 
 ## Keep heavy fixtures up across red/green cycles
 
-Across multi-cycle TDD, keep Docker / DBs / LocalStack / browser sessions running between RED → fix → GREEN iterations. Tear down only after the task ships. Re-spinning between cycles costs 1–7 minutes per iteration and breaks flow — and the harness's `pretest`/`posttest` hooks often do unnecessary `docker:clean` cycles you don't need mid-loop. When the harness scripts insist on managing fixtures, bypass them: invoke `jest`/`vitest`/etc. directly with the fixture-up state intact, skip the `pretest:*`/`posttest:*` hooks for the inner loop.
+Across multi-cycle TDD, keep Docker / DBs / LocalStack / browser sessions running between RED → fix → GREEN iterations. Tear down only after the task ships.
+
+- Re-spinning between cycles costs 1–7 minutes per iteration and breaks flow.
+- The harness's `pretest`/`posttest` hooks often do unnecessary `docker:clean` cycles you don't need mid-loop.
+- When the harness scripts insist on managing fixtures, bypass them: invoke `jest`/`vitest`/etc. directly with the fixture-up state intact.
+- Skip the `pretest:*`/`posttest:*` hooks for the inner loop.
 
 ---
 
@@ -59,4 +66,9 @@ When manual testing is the right call (rare UI flows, third-party integrations w
 
 **Lifecycle:** gitignored, session-scoped — same as spec.md / plan.md. Delete or archive after PR.
 
-**Format:** see template at [`assets/manual-tests-evidences-template.md`](assets/manual-tests-evidences-template.md). Each entry is a bold one-liner (timestamp + what + outcome marker) plus an indented code block with the smallest verifiable artifact (command output, HTTP response, log line, JSON payload, file diff excerpt). Avoid screenshots — text artifacts are diff-able and grep-able. Append-only, grouped by task.
+**Format:** see template at [`assets/manual-tests-evidences-template.md`](assets/manual-tests-evidences-template.md).
+
+- Each entry is a bold one-liner (timestamp + what + outcome marker).
+- Plus an indented code block with the smallest verifiable artifact (command output, HTTP response, log line, JSON payload, file diff excerpt).
+- Avoid screenshots — text artifacts are diff-able and grep-able.
+- Append-only, grouped by task.
