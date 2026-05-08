@@ -38,7 +38,9 @@ test("rejects when user lacks permission", () => {
 
 ## Code comments: WHY at most
 
-A code comment's maximum scope is **why this code exists in its current shape** — a permanent invariant the next reader cannot infer from the code itself. Anything narrower than WHY is wrong:
+A code comment's maximum scope is **why this code exists in its current shape** — a permanent invariant the next reader cannot infer from the code itself.
+
+Anything narrower than WHY is wrong:
 
 - **History** (PR numbers, "main used to", "the merge", "we previously did") → commit message body, not source. Rots the moment the next commit lands.
 - **What the code does** → already shown by the code; rename or restructure instead.
