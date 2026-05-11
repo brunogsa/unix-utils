@@ -73,6 +73,20 @@ Run TaskList. If any items exist, list them **ON CHAT** and ask:
 
 Apply the choice before continuing — long lists may not fully render in the UI, so listing them in chat for explicit confirmation is part of the safety net.
 
+## Standards loaded on demand
+
+These standards skills shape the work at specific moments — load each as its scope opens, not upfront.
+
+Most load automatically via their description triggers; the explicit load points below guard against undertriggering:
+
+- `test-standards` — load when designing test titles, picking the most forcing case, writing test bodies (RED), or backfilling.
+- `code-standards` — load before any production edit (GREEN cycles, helpers, refactor sub-steps).
+- `doc-standards` — load before adding any comment, docstring, log line, or doc edit.
+- `commit-standards` — load at every commit boundary (base, refactor, scout, drift).
+- `debug-standards` — load when a test fails for the wrong reason, a verify step goes red unexpectedly, or a regression surfaces.
+
+Lazy load keeps context lean; load at the right moment ensures the rules actually shape the output.
+
 ## 2. Update TaskList
 
 Generate sub-step items based on **both**:

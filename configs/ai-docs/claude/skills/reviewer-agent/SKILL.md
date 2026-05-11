@@ -27,14 +27,13 @@ Specialist prompts and validator rubric live in `references/`; bash glue in `scr
 - `Base branch` (local only; default `main`)
 - `Language`: `Portuguese (Brazil)` (github) or `English` (local)
 
-**Load these once and keep in working context.** They ground every specialist and validation decision:
+**Load lazily, by wave; keep loaded after.** They ground every specialist and validation decision:
 
-1. `~/.claude/skills/review-standards/SKILL.md`
-2. `~/.claude/skills/review-standards/checklists.md`
-3. `~/.claude/skills/code-standards/SKILL.md`
-4. `~/.claude/skills/test-standards/SKILL.md`
-5. `~/.claude/skills/doc-standards/SKILL.md`
-6. Any `CLAUDE.md` files at the repo root or in parent directories of changed files.
+1. `~/.claude/skills/review-standards/SKILL.md` + `checklists.md` (Wave 0+)
+2. `~/.claude/skills/code-standards/SKILL.md` (Wave 2)
+3. `~/.claude/skills/test-standards/SKILL.md` (Wave 2)
+4. `~/.claude/skills/doc-standards/SKILL.md` (Wave 2; Wave 5 density check, local)
+5. `CLAUDE.md` files at repo root / parents of changed files (Wave 2)
 
 **Architectural principle: specialists never hit GitHub or any external system.** They process only the pre-built context from Wave 1. Keeps the review reproducible and idempotent.
 
@@ -146,7 +145,7 @@ You run the specialist review yourself, in this same session. **Do not spawn sub
 - `references/common-preamble.md` — the shared reviewer contract.
 - Wave 1 outputs: diff, changed-files list, commentable-lines, commit messages,
   `{pr_context}`.
-- The standards files loaded at startup.
+- The standards files (per the mapping in "Before you start").
 
 **Specialist order (do them one at a time):**
 

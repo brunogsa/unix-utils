@@ -8,11 +8,11 @@ user-invocable: false
 
 Canonical TDD/BDD discipline for plan-driven work.
 
-For test patterns (titles, mock data, parametrized suites, anti-patterns) and test-type selection (integration vs unit vs e2e vs manual), see `test-standards`.
+For test patterns (titles, mock data, parametrized suites, anti-patterns) and test-type selection (integration vs unit vs e2e vs manual), load `test-standards`.
 
 **Bug fixes follow the same discipline**: start with a RED regression test that reproduces the bug.
 
-Confirm it fails for the right reason, then fix until it goes GREEN. The full rule lives in `debug-standards`.
+Confirm it fails for the right reason, then fix until it goes GREEN. Load `debug-standards` for the full rule.
 
 ---
 
@@ -27,12 +27,14 @@ Confirm it fails for the right reason, then fix until it goes GREEN. The full ru
 3. **RED**: write the test, run it, confirm it fails for the **expected reason** — missing behavior, not a typo, missing import, or setup error.
 
 4. **GREEN**: implement just enough to pass. When a helper is needed, write its test first (RED for helper), then implement (GREEN for helper).
+   - Load `code-standards` before the production edit — catches magic values, premature abstractions, missing constants.
+   - Load `doc-standards` if the change adds a comment, docstring, or log line.
 
 5. **Repeat** for the next case, building on what exists.
 
 6. **Backfill** integration test bodies once core logic is solid.
 
-7. **REFACTOR** in its own commit (see `commit-standards`).
+7. **REFACTOR** in its own commit — load `commit-standards` for the message + decomposition rules; pair with `code-standards` for the cleanup itself.
 
 ---
 
