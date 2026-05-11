@@ -68,13 +68,7 @@ AC/Req/Task/DBMA/Jira refs belong in commit messages, PR descriptions, or `spec.
 
 ## Bug fix starts with a failing regression test
 
-Reproduce the bug as a test first, watch it fail for the right reason, then fix.
-
-Why: the test guards against recurrence and proves the fix actually addresses the cause.
-
-A bug fix without a regression test means the bug will return the next time someone refactors that area.
-
-The test fails (the bug exists) → fix the code → the test passes. Now it's a guarded behavior.
+See `debug-standards` for the full rule.
 
 ## Deterministic & self-contained
 

@@ -32,7 +32,7 @@ Confirm it fails for the right reason, then fix until it goes GREEN. The full ru
 
 6. **Backfill** integration test bodies once core logic is solid.
 
-7. **REFACTOR** in its own commit, never bundled with behavior changes.
+7. **REFACTOR** in its own commit (see `commit-standards`).
 
 ---
 

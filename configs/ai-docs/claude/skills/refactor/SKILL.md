@@ -68,11 +68,11 @@ Use the **Agent tool** with `subagent_type=code-simplifier:code-simplifier`. In 
 
 - List the files identified above
 - Instruct it to **only analyze and report** -- it must NOT make any edits (no Edit, no Write)
-- Instruct it to read and apply principles from:
+- Instruct it to load and apply principles from:
   - `~/.claude/CLAUDE.md` (global guidelines)
-  - `~/.claude/skills/code-standards/SKILL.md` (code patterns)
-  - `~/.claude/skills/test-standards/SKILL.md` (test patterns)
-  - `~/.claude/skills/doc-standards/SKILL.md` (doc / comment patterns)
+  - `code-standards` skill (code patterns)
+  - `test-standards` skill (test patterns)
+  - `doc-standards` skill (doc / comment patterns)
 - Instruct it to focus only on code touched by unpushed commits or uncommitted changes
 - Instruct it to NOT propose changes that alter behavior, change formatting only, add features beyond what exists, or refactor code outside the changed files
 - Instruct it to classify each finding as **subjective** or **mechanical**:

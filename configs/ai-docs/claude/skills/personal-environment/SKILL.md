@@ -1,6 +1,6 @@
 ---
 name: personal-environment
-description: "Bruno's dev stack (Ghostty/tmux/oh-my-zsh/neovim/unix-utils repos), config symlinks, and platform gotchas. USE when in Bruno's config repos, editing settings.json, hitting symlink/path issues, or answering setup questions."
+description: "ALWAYS load when CRUDing or looking up Bruno's principles/skills (~/.claude/), oh-my-zsh (zshrc/aliases/shell utilities), neovim/tmux/ghostty, or unix-utils repo. Covers symlink rules, permission canonical paths, platform path differences."
 user-invocable: false
 ---
 

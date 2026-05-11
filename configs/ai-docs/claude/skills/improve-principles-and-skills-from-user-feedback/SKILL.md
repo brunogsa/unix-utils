@@ -10,9 +10,11 @@ Review user feedback — from the current session, a pull request's comments, or
 
 Delegate the analysis to a **foreground subagent** to preserve the main session context window.
 
-This skill is **read-only**: it does NOT remove TODOs, resolve PR comments, or address the questions they raise.
+This skill is **read-only on input artifacts**: it does NOT remove TODOs, resolve PR comments, or address the questions they raise. Those are downstream actions.
 
-Those are downstream actions. Its goal is to capture learnings so the same feedback isn't needed next time.
+It DOES write to `~/.claude/CLAUDE.md` and anywhere under `~/.claude/skills/*/` (SKILL.md, references/, scripts/, assets/) — with user approval per step 7.
+
+Capturing learnings so the same feedback isn't needed next time is the whole point.
 
 ## Usage
 
