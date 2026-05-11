@@ -44,6 +44,9 @@ How AI talk to user and learn from his feedback.
 
 - **Prefer scannable shape over prose** -- bullets, short sections, tables, bold key terms in user-facing text. Prose earns its place only for connective tissue (design reasoning, disagreements). Test: 5-second takeaway.
 
+- **CRITICAL: Density rule — max 256 chars / 32 words per line** -- applies to code, docs, skills, and chat output. Split, sub-bullet, or move to references.
+  - Why: dense lines force re-parsing; short scannable lines reduce cognitive load and preserve prompt cache continuity.
+
 - **Be direct and concise** -- no preambles, no filler, no emojis. No useless verbosity.
 
 ## Task Approach
