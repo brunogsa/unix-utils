@@ -1,6 +1,6 @@
 ---
 name: personal-environment
-description: "ALWAYS load when CRUDing or looking up Bruno's principles/skills (~/.claude/), oh-my-zsh (zshrc/aliases/shell utilities), neovim/tmux/ghostty, or unix-utils repo. Covers symlink rules, permission canonical paths, platform path differences."
+description: "ALWAYS load when editing CLAUDE.md, SKILL.md, .zshrc, or any config in ~/.claude/, ~/oh-my-zsh/, ~/neovim/, ~/tmux/, ~/ghostty/, ~/unix-utils/. Symlink + canonical-path rules; macOS/Linux paths differ."
 user-invocable: false
 ---
 
