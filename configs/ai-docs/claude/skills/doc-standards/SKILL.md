@@ -1,48 +1,24 @@
 ---
 name: doc-standards
-description: "Doc and commit-message rules with examples. USE PROACTIVELY whenever writing or reviewing code comments, docstrings, READMEs, repo CLAUDE.md, or commit messages — including before adding any 'why' comment to code."
+description: "Documentation principles + examples. USE PROACTIVELY on ANY doc work — code comments, JSDoc/docstrings, READMEs, CLAUDE.md edits, spec docs, density checks, or any 'why' comment. Fires before adding any comment."
 user-invocable: false
 ---
 
-# Doc Standards -- Examples & Patterns
+# Doc Standards
 
-Reference examples for the DOC rules defined in CLAUDE.md.
+Principles and paired examples for any documentation work. Each section pairs a principle with its example. Principles without an example stand on their own.
 
----
+## WHY at most — never history, never mechanics
 
-## Prefer Tests & Logs over Comments
+Prefer tests and logs over comments — they stay honest under refactors.
 
-```ts
-// Bad -- comments explaining what code does:
-function createRecord(user, data) {
-  // Check permissions
-  if (!hasPermission(user)) return false;
-  return db.insert(data);
-}
+When you must comment, the maximum scope is **why this code exists in its current shape** — a permanent invariant the next reader cannot infer from the code itself.
 
-// Good -- self-documenting code + logs + tests:
-function createRecordIfUserHasPermission(user, data) {
-  if (!validateUserPermissions(user)) {
-    logger.info({ message: "Record creation rejected", userId: user.id });
-    return false;
-  }
-  return db.insert(data);
-}
+Why: tests and logs are exercised by the runtime, so lies surface fast.
 
-test("rejects when user lacks permission", () => {
-  expect(createRecordIfUserHasPermission(userWithoutPerms, data)).toBe(false);
-});
-```
+Comments aren't exercised — lies persist. Anything narrower than WHY rots: history on next commit, mechanics on next refactor. Only invariants survive.
 
----
-
-## Code comments: WHY at most
-
-A code comment's maximum scope is **why this code exists in its current shape** — a permanent invariant the next reader cannot infer from the code itself.
-
-Anything narrower than WHY is wrong:
-
-- **History** (PR numbers, "main used to", "the merge", "we previously did") → commit message body, not source. Rots the moment the next commit lands.
+- **History** (PR numbers, "main used to", "the merge", "we previously did") → commit message body, not source.
 - **What the code does** → already shown by the code; rename or restructure instead.
 - **How it works** → implementation detail; the next refactor falsifies it.
 
@@ -60,3 +36,88 @@ Anything narrower than WHY is wrong:
 ```
 
 If the explanation would survive any future refactor of the surrounding code, it's a WHY and probably belongs. Otherwise, delete.
+
+## Describe the use case prevented, not the mechanism
+
+When commenting near a non-obvious mechanism, name the case the guard prevents.
+
+Why: a reviewer asks "why is this guard here?". The comment should answer THAT question — not paraphrase what the code already shows.
+
+```ts
+// Bad — restates what the code says
+// Only fires on landing view
+const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: currentView === 'landing' });
+
+// Good — names the case the gate prevents
+// Tabs view fires its own scoped summaries (one per entity tab);
+// firing this one there would batch with those and waste a round-trip.
+const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: currentView === 'landing' });
+```
+
+## No spec-tracking refs in shipped artifacts
+
+`AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `PR-X` do NOT belong in shipped code, test titles, JSDoc, or file headers.
+
+Why: spec refs rot at the first refactor. The ticket gets closed, the requirement evolves, the PR gets squashed — the ref outlives its meaning.
+
+Spec linkage belongs in commit message bodies, PR descriptions, or `spec.md`.
+
+```ts
+// Bad — file header reads as a task list
+/**
+ * Integration Tests: contractValidation.getSchoolsAgreementsAndSkus
+ *
+ * Task 2 — Schema validation tests (AC-19, AC-22)
+ * Task 4 — Full procedure tests (AC-7, AC-14, AC-18, Req 21)
+ */
+
+// Good — one-line scope summary
+/**
+ * Integration Tests: contractValidation.getSchoolsAgreementsAndSkus.
+ */
+```
+
+```ts
+// Bad — test title carries the tracking ref
+it('should throw INTERNAL_SERVER_ERROR after retries (AC-18)', async () => { ... });
+
+// Good — title describes behavior only
+it('should throw INTERNAL_SERVER_ERROR after retries', async () => { ... });
+```
+
+## Docs close to code
+
+Module README lives in the module directory.
+
+Why: docs separated from code drift fast. When the README is one directory away from the code it describes, refactors update both as a unit. Docs in a separate repo get forgotten.
+
+## READMEs describe purpose, not inventory
+
+What + why + 1-2 examples. No file listings.
+
+Why: file listings are auto-generated by every IDE. Purpose is not. A README that enumerates files duplicates information that's free elsewhere and rots the moment a file moves.
+
+## Repo CLAUDE.md contains conventions and gotchas, not duplication
+
+Capture per-repo purpose, dependencies, non-obvious gotchas, load-bearing conventions.
+
+Why: duplication is an edit burden — the moment code changes, docs go stale. CLAUDE.md's value is what the code *can't* show.
+
+- Don't restate what the code already shows (file listings, function categories, install-step inventories, line-numbers).
+
+## Update docs as you go
+
+Locate and update related documentation inline with the change.
+
+Why: deferring doc updates to "later" means they don't happen.
+
+The PR description, README, and inline comments touching the changed area are part of the change — not a follow-up. The reviewer (and future-you) need them synced.
+
+## Density caps (≤256 chars / ≤32 words per line)
+
+Every line/bullet/sub-bullet ≤256 chars / ≤32 words; over → split, never drop info.
+
+Why: dense prose drops adherence in LLM consumers and increases scan time for human readers. The cap forces clarity. Verify with `~/.claude/skills/doc-standards/scripts/check-density.sh <file>`.
+
+- Splits go on sentence boundaries.
+- Never drop info to fit; split into two bullets/lines instead.

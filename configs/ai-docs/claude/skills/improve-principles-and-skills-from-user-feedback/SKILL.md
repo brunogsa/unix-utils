@@ -6,9 +6,13 @@ disable-model-invocation: true
 
 # Improve Principles and Skills from User Feedback
 
-Review user feedback — from the current session, a pull request's comments, or TODO/XXX markers left in files — and identify learnings that should be added to CLAUDE.md or skills. Delegate the analysis to a **foreground subagent** to preserve the main session context window.
+Review user feedback — from the current session, a pull request's comments, or TODO/XXX markers left in files — and identify learnings that should be added to CLAUDE.md or skills.
 
-This skill is **read-only**: it does NOT remove TODOs, resolve PR comments, or address the questions they raise. Those are downstream actions. Its goal is to capture learnings so the same feedback isn't needed next time.
+Delegate the analysis to a **foreground subagent** to preserve the main session context window.
+
+This skill is **read-only**: it does NOT remove TODOs, resolve PR comments, or address the questions they raise.
+
+Those are downstream actions. Its goal is to capture learnings so the same feedback isn't needed next time.
 
 ## Usage
 
@@ -50,7 +54,9 @@ Spawn the subagent with `subagent_type: "general-purpose"` and `description: "An
 
 The subagent prompt must include **Scope**, the extracted user feedback items, and everything from **Subagent Process** through **Guidelines for Generalization** below.
 
-If step 1 yields zero items (no quote-worthy session moments, no PR comments from your login, or no TODO/XXX matches), report that to the user and stop — do not spawn the subagent on nothing.
+If step 1 yields zero items (no quote-worthy session moments, no PR comments from your login, or no TODO/XXX matches), report that to the user and stop.
+
+Do not spawn the subagent on nothing.
 
 ## Step 1: Extract User Feedback Items (main context)
 
@@ -79,7 +85,9 @@ Per-item field hints (the unified format is documented below):
 
 ### Mode B — PR comments
 
-Triggered when the arg matches `PR <n>`, `PR#<n>`, `pull <n>`, `#<n>`, or similar with an **explicit** PR token. A bare number alone is not sufficient — require the prefix to avoid misrouting Mode A inputs.
+Triggered when the arg matches `PR <n>`, `PR#<n>`, `pull <n>`, `#<n>`, or similar with an **explicit** PR token.
+
+A bare number alone is not sufficient — require the prefix to avoid misrouting Mode A inputs.
 
 Steps:
 
@@ -126,9 +134,11 @@ Steps:
      git ls-files --others --exclude-standard    # untracked
      ```
 
-3. Scan each file for case-insensitive word-boundary matches on `TODO` or `XXX`, regardless of comment syntax — this catches `// TODO`, `# TODO`, `<!-- TODO ... -->`, and bare-text `TODO:` in `.md` files alike.
+3. Scan each file for case-insensitive word-boundary matches on `TODO` or `XXX`, regardless of comment syntax.
+   - Catches `// TODO`, `# TODO`, `<!-- TODO ... -->`, and bare-text `TODO:` in `.md` files alike.
 
-4. **Exclude** any line containing the exact substring `TODO(lint)` — that form is documented production debt per CLAUDE.md, not user feedback. Other parenthesized forms (e.g. `TODO(BRUNO)`, `TODO(plan-step-3)`) are real feedback — keep them.
+4. **Exclude** any line containing the exact substring `TODO(lint)` — that form is documented production debt per CLAUDE.md, not user feedback.
+   - Other parenthesized forms (e.g. `TODO(BRUNO)`, `TODO(plan-step-3)`) are real feedback — keep them.
 
 Per-item field hints:
 - **Source** — `path/to/file.ext:LINE`.

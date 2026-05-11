@@ -1,280 +1,258 @@
 ---
 name: code-standards
-description: "Code rules and anti-pattern examples for maintainable code. USE PROACTIVELY when writing a new function/module, refactoring, naming, splitting controllers from use cases, or reviewing code — even if not explicitly asked."
+description: "Code principles + examples. USE PROACTIVELY on ANY code edit — writing, refactoring, naming, controllers/use cases, error handling, logging, scripts, or reviewing code. Fires even on small tweaks."
 user-invocable: false
 ---
 
-# Code Standards -- Examples & Patterns
+# Code Standards
 
-Reference examples for the CODE rules defined in CLAUDE.md.
+Principles for any code edit. Each section has a principle + WHY.
 
----
+Paired code examples for every principle below: @references/examples.md (keyed by the same section header).
 
-## Layered Architecture (Controllers/Commands + Use Cases)
+## Code top-down, pull helpers on demand
 
-```javascript
-// BAD: Use case handles I/O
-function processDataUseCase(filepath) {
-  const data = readFileSync(filepath);  // I/O in use case!
-  const result = doBusinessLogic(data);
-  writeFileSync(outputPath, result);    // I/O in use case!
-}
+- Start from the controller/worker layer and work downward;
+- Don't write a function until something calls it.
 
-// GOOD: Controller handles I/O, use case is pure
-// Use case (pure logic):
-function processDataUseCase(data) {
-  const result = doBusinessLogic(data);
-  return result;
-}
+Why: helpers shaped by real demand match callers; speculative ones don't.
 
-// Controller (orchestration + I/O):
-function processDataCommand(filepath, outputPath) {
-  try {
-    const data = JSON.parse(readFileSync(filepath, 'utf8'));
-    const result = processDataUseCase(data);
-    writeFileSync(outputPath, JSON.stringify(result));
-    console.log('Success!');
-  } catch (error) {
-    console.error('Failed:', error);
-  }
-}
-```
+## Name by purpose, not mechanism
 
+What the caller gets, not how it works.
 
----
+Why: implementation changes with refactors but the caller's contract shouldn't — a mechanism-named function starts lying after a body rewrite.
 
-## Enums over Magic Strings
+## Self-explanatory names — no context-dependent jargon
 
-```ts
-// Don't do this:
-if (type === "KIT" || type === "AVULSO") {
-  // do something
-}
+Names parse for future readers lacking today's spec context. Avoid numbered phases (`Phase-1`), abbreviated prefixes (`sa`/`sap`), platform-colliding acronyms (`SAP` vs ERP).
 
-// Prefer:
-enum ProductType {
-  KIT = "KIT",
-  AVULSO = "AVULSO"
-}
+Why: spec context decays fast (closed tickets, deleted threads, lost-from-memory); self-explanatory names survive it.
 
-if (type === ProductType.KIT || type === ProductType.AVULSO) {
-  // do something
-}
+Heuristic: a reviewer skimming the diff in 18 months should not need to ask "what is `sa`?" or "what does Phase-2 do here?".
 
-// Or for sets:
-const TYPE_SET = new Set([ProductType.KIT, ProductType.AVULSO]);
-if (TYPE_SET.has(type)) {
-  // do something
-}
-```
+## Locale-neutral naming in shared APIs
 
----
+Prefer `documentNumber` over `cnpj` in shared internal code. End-user strings use i18n. Locale-specific OK where the locale IS the contract (URL segments, validators).
 
-## Boolean Naming
+Why: a `cnpj` field locks shared code to one country's regulations; `documentNumber` survives expansion.
 
-```ts
-// Bad -- negation of a negative:
-if (!item.isShrinked) { ... }
+## Name booleans positively
 
-// Good -- name the positive condition:
-const isExpandable = !item.isShrinked;
-if (isExpandable) { ... }
+Prefix with `is`/`has`/`should`/`can`. Avoid negating a negative ("not-not-X").
 
-// Bad -- boolean named as negative, then negated:
-if (!isKnownNonTerminal) { ... }
+Why: double negatives force the reader to flip the truth value at every read site — a cognitive tax.
 
-// Good -- name the guard directly:
-const isUnexpectedStatus = status !== 'Running' && status !== 'Scheduled';
-if (isUnexpectedStatus) { ... }
+## Extract long conditions into named booleans
 
-// Also: extract long conditions into named booleans:
-const isExpandableKit = item.type === KIT && !item.isShrinked && item.children.length < 1;
-if (isExpandableKit) { ... }
-```
+When a condition spans 3+ clauses, extract it into a named boolean used at the if site.
 
+Why: a multi-clause condition at the call site hides intent; a named boolean documents it.
 
----
+## Use consistent naming conventions
 
-## Decompose Dense Expressions
+Collections plural for arrays, suffix for Sets/Maps. Pipeline vars: stage prefix when shape stays the same, distinct name when shape changes.
 
-```javascript
-// Bad -- requires mental unpacking:
-const paths = Array.from({ length: count }, (_, i) => resolve(dir, `batch-${i + 1}.csv`));
+Why: convention is a free type system — drop the suffix and the reader has to look up the type every time.
 
-// Good -- each step is clear:
-const paths = [];
-for (let i = 1; i <= count; i++) {
-  paths.push(resolve(dir, FILE_NAMES.batch(i)));
-}
-```
+## Single-responsibility
 
----
+One thing at one level of abstraction.
 
-## Named Parameters for Functions (>=2 params)
+Why: N concerns means N reasons to change — each one risks regressing the others.
 
-```ts
-// Bad:
-function configure(retries, timeout) {}
+## Cap nesting depth
 
-// Good:
-function configure({ retries, timeout }) {}
-```
+More than 2 levels is a smell; more than 3 is a refactor. Extract inner units into named helpers; flatten via early returns.
 
----
+Why: each nesting level multiplies the mental state the reader holds — bugs hide where "I don't understand" lives.
 
-## Pass Specific Fields, Not Entire Objects
+Heuristic: more than 2 levels of nesting in one function body is a smell; more than 3 is a refactor request.
 
-```javascript
-// Bad -- signature hides what the function actually needs:
-async function fetchLogs({ config, workDir }) {
-  const query = buildQuery(config.logGroups);
-  const { start, end } = buildTimeWindow({ radiusMinutes: config.logRadius });
-}
+## Avoid global mutable state
 
-// Good -- signature documents exact dependencies:
-async function fetchLogs({ logGroups, logRadius, workDir }) {
-  const query = buildQuery(logGroups);
-  const { start, end } = buildTimeWindow({ radiusMinutes: logRadius });
-}
-```
+Pass data through params and return values.
 
----
+Why: module-scope state makes data flow invisible and breaks unit isolation.
 
-## Naming: Purpose Over Mechanism
+## Pure functions by default
 
-```javascript
-// Bad -- describes the mechanism (what it does internally):
-function collectAllColumns(rows) { /* ... */ }
-function getValues(rows) { /* ... */ }
+Isolate I/O into thin boundary functions.
 
-// Good -- describes the purpose/output (what the caller gets):
-function buildCsvColumnOrder(rows) { /* ... */ }
-function extractUniqueEmails(rows) { /* ... */ }
-```
+Why: pure functions test without mocks; I/O is the part that needs infrastructure — keep it at the edges.
 
+## Inject what's hard to mock
 
----
+Pass I/O collaborators as parameters.
 
-## Naming Conventions
+Why: imported singletons bind at module load — you can't substitute them per test.
 
-```javascript
-// Booleans -- prefix with is/has/should/can:
-const isValid = order.items.length > 0;
-const hasPermission = user.roles.includes('admin');
-const shouldRetry = attempt < MAX_RETRIES;
+## Spec cases ≠ code branches
 
-// Collections -- plural for arrays, suffix for non-arrays:
-const orders = [order1, order2];         // array → plural
-const userIdSet = new Set(['a', 'b']);   // Set → suffixed
-const errorMap = new Map();              // Map → suffixed
+When a spec defines N cases, design a unified pipeline that naturally produces correct output for all of them. Fewer branches, fewer bugs.
 
-// Pipeline variables -- stage-prefix when shape stays the same,
-// distinct name when shape changes:
-const rawOrder = parseInput(body);
-const validatedOrder = validate(rawOrder);   // same shape → prefix
-const receipt = generateReceipt(validatedOrder); // different shape → new name
+Why: a 1:1 if/else translation of spec cases couples control flow to the spec — every requirement change demands a code change.
 
-// Callbacks -- describe transformation when input isn't obvious:
-function collect({ dirPath, rowToValue }) {}   // input→output
-function process({ items, buildPayload }) {}   // output-only when obvious
-```
+## Functions ≥2 params → named-param object. Pass specific fields, not whole objects
 
----
+Signature documents exact dependencies.
 
-## Structured Logging
+Why: positional args lose meaning at call sites (`configure(3, 5000)` — what's 3?); fat-object params hide internal coupling.
 
-```ts
-logger.info({
-  level: "INFO",
-  timestamp: "2025-07-10T15:12:34Z",
-  transactionId: "550e8400-e29b-41d4-a716-446655440000",
-  message: "User created successfully",
-  userId: 666,
-  userCpf: "***29430880"
-});
-```
+## Layered architecture
 
+Controller (I/O, validation, logging) → Use Case (pure business logic, no I/O).
 
----
+Why: I/O changes most often (HTTP → queue → CLI); pure use cases survive every swap.
 
-## Builders Bundle, Use Cases Decide
+- Avoid duplicate `info` logs across layers — controller is the natural owner.
+- Helpers stay quiet (`debug` for diagnostics, or `info` only when owning a concern the controller can't see).
+
+## Builders assemble, use cases decide
 
 Builder/factory functions should only assemble data from explicit parameters. Business decisions (conditionals, calculations, transformations) belong at the use-case/caller level.
 
-This maximizes:
+Why: business decisions buried inside builders hide the actual rules; pulling them out keeps business logic visible and builders reusable.
 
-- Business logic visibility — decisions are where the reader looks for them.
-- Builder reusability — the same builder works for different business rules.
+## Log progress in I/O loops
 
-```ts
-// Bad -- business rule hidden inside builder:
-function buildAvulso({ parentKit, child }) {
-    return {
-        sku: child.sku,
-        price: child.isBonused ? 0 : child.price,     // business rule buried here
-        discount: child.isBonused ? 0 : parentKit.discount,
-    };
-}
+Counter format: `[3/70] item-name`.
 
-// Good -- business rule visible at call site, builder is a dumb assembler:
-const price = child.isBonused ? 0 : child.price;
-const discount = child.isBonused ? 0 : parentKit.discount;
-buildAvulso({ parentKit, childSku: child.sku, price, discount });
+Why: silent loops feel hung; the counter answers "progressing?" and "stuck where?" at once.
 
-function buildAvulso({ parentKit, childSku, price, discount }) {
-    return { sku: childSku, price, discount, brandSlug: parentKit.brandSlug };
-}
-```
+## Use structured logging
 
----
+Level, timestamp, transactionId, message, context.
 
-## Defensive defaults that contradict a stated invariant -- throw instead
+Why: structured logs are queryable; free-text needs grep + human pattern matching.
 
-A file/module may state an invariant — e.g., header: "Column names use Prisma.raw, only after allowlist lookup -- never raw user input".
+## Log full diagnostic context on failures
 
-A `?? rawValue` fallback at the protected site silently relaxes that invariant.
+Include the full input that caused the error.
 
-Such a fallback becomes a future-drift surface.
+Why: a failure log without input is a hunt; with input, it's a reproduction case.
 
-The intent is "this should never happen" -- make it crash loudly with a message naming the violator.
+## Logs must never crash the flow
 
-```ts
-// Bad -- header says "never raw user input", but `?? f` does exactly that on miss:
-byFields.map((f) => Prisma.raw(`"${GROUPABLE_COLUMNS[f] ?? f}"`));
+Every reducer/accessor/template expression must tolerate undefined or empty inputs.
 
-// Good -- explicit throw names the violator; future drift surfaces in seconds:
-byFields.map((f) => {
-    const column = GROUPABLE_COLUMNS[f];
-    if (!column) throw new Error(`Unsupported field: ${f}`);
-    return Prisma.raw(`"${column}"`);
-});
-```
+Why: telemetry that crashes the flow removes the very thing meant to help you debug.
 
-The risk:
+## Pair `info` with `debug` carrying full payload
 
-- Today's union narrows to keys all in the allowlist, so the fallback is unreachable.
-- Tomorrow someone extends the union without updating the allowlist, and the silent fallback ships.
-- A defensive default that disagrees with its own header is worse than no default.
+`info` logs counts/IDs/status; matching `debug` log carries full payload (sorted arrays). Toggle `debug` during incident, off after.
 
-Concrete instance of CLAUDE.md CODE: "never silently coerce, swallow, or default away the error" (under "Input validation").
+Why: `info` runs always (cheap, scannable); `debug` flips on during incidents — config flag beats code change.
 
----
+Sensitive fields (CPF, CNPJ, email, address, tokens, free-text): flag candidates and ask before shipping; don't silently include or drop.
 
-## Script Usage Documentation
+In prod: `debug` is off by default. During launch / incident, flip the config — no code change, no deploy.
 
-```bash
-#!/usr/bin/env bash
-# extract-field - Extract a field from JSON lines
-#
-# Usage:
-#   extract-field <field> [file]
-#   cat data.jsonl | extract-field .name
-#
-# Examples:
-#   extract-field .email users.jsonl          # extract email from file
-#   extract-field '.address.city' users.jsonl # nested field
-#   cat api-response.json | extract-field .id # from stdin
+**AI flags risky fields; user decides.** When proposing a `debug` payload that includes identifiers or potentially sensitive data:
+- Surface the candidate fields explicitly and ask before shipping.
+- Don't silently include them.
+- Don't silently drop them either — both rob the user of the decision.
 
-# BAD: No usage section, caller has to read the implementation to understand it
-```
+## Never retry indefinitely
 
+Always cap consecutive retries.
+
+Why: uncapped retries during an outage become a self-inflicted DDoS on the upstream.
+
+## Scripts: human-friendly
+
+`--help` and a comment header with usage + examples. Help → stdout + exit 0; bad input → stderr + exit 1.
+
+Why: the next user (often future-you) won't read the source — `--help` is the contract surface.
+
+## Scripts: right language
+
+Bash for linear/glue, Node.js for structured data or complex flow.
+
+Why: bash excels at process composition but degrades on structured data — pick the grain that matches.
+
+## Scripts: Unix philosophy
+
+One thing well, compose via pipes, accept behavior as parameters.
+
+Why: one thing well composes; a monolithic script becomes a private API nobody reuses.
+
+## Input validation ALWAYS present on controllers
+
+Defend at trust boundaries (user input, external APIs, queue payloads); trust internals.
+
+When an internal invariant breaks, fail fast and loudly — never silently coerce, swallow, or default away the error.
+
+Why: validation at every boundary is paranoid; validation only at trust boundaries is honest about the threat model.
+
+## Normalize data at entry point
+
+Convert string dates, numbers-as-strings to proper types immediately after validation.
+
+Why: defer normalization and you scatter `parseInt`/`new Date` across the codebase.
+
+## Extract magic values into constants
+
+Use enums when applicable. Share constants across layers (UI + server) via single import.
+
+Why: a `10` scattered across files becomes a coordination problem when it changes — a constant is grep-able.
+
+## Distinguish "missing" from "intentional zero/empty"
+
+Check null/undefined, not falsiness.
+
+Why: `if (count)` treats `0` and `undefined` identically — falsiness checks paper over the distinction and ship bugs.
+
+## Don't wrap trivial expressions
+
+Wrappers earn existence by adding behavior (retry, logging, validation), not by renaming a clear stdlib call.
+
+Why: a `getCurrentTime()` wrapper around `Date.now()` adds indirection with no payoff.
+
+## Decompose dense, complex expressions
+
+Break unfamiliar APIs, nested callbacks into named intermediate variables.
+
+Why: dense expressions optimize for character count — readability beats brevity.
+
+## Abstract counter-intuitive APIs
+
+Wrap with intuitive interfaces.
+
+Why: every call site of a counter-intuitive API is a future bug site.
+
+## Context object for cross-cutting concerns
+
+Pass a single context (request ID, user, trace) instead of adding params everywhere.
+
+Why: cross-cutting concerns grow new params across every layer without a context — a hidden propagation tax.
+
+## Parallelize CPU-bound work
+
+Workers for CPU, async for I/O.
+
+Why: async on CPU-bound tasks blocks the event loop — concurrency in name only.
+
+## Don't optimize without evidence
+
+Simplest correct version first. Memoization/caching needs profiling proof OR a clear Big-O reason.
+
+Why: premature optimization adds complexity without evidence — profile first.
+
+## Resilient batch operations
+
+Idempotent, resumable, crash-resilient. Best-effort report on fatal failure.
+
+Why: long batches eventually crash mid-flight; without resumability, you re-run the whole thing and risk duplicates.
+
+## Prefer composition over inheritance
+
+Small, focused pieces over deep class hierarchies.
+
+Why: inheritance couples to the parent's implementation, not just its contract; composition couples to interfaces only.
+
+## Fail loudly, not silently
+
+Errors propagate or get logged explicitly.
+
+Why: a crash you see beats a silent corruption you don't — silent failures hide until the data is wrong downstream.

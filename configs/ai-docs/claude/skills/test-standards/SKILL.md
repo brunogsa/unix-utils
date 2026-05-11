@@ -1,62 +1,51 @@
 ---
 name: test-standards
-description: "Test design rules and anti-pattern examples. USE PROACTIVELY when writing a new test, picking test type (unit/integration/e2e), mocking, debugging flakes, or reviewing tests — even on 'add a test'."
+description: "Test principles + examples. USE PROACTIVELY on ANY test work — writing, reading, choosing test type (unit/integration/e2e), mocking, flakes, coverage gaps, regression tests, test titles, or reviewing tests."
 user-invocable: false
 ---
 
-# Test Standards -- Examples & Patterns
+# Test Standards
 
-Reference examples for the TEST rules defined in CLAUDE.md.
+Principles and paired examples for any test work. Each section pairs a principle with its example (when necessary).
+Principles without an example stand on their own.
 
----
+## Default to integration tests for behavior coverage
 
-## Test-type hierarchy & preferences
+Black-box by nature. Mock at external/IO boundaries (DB, HTTP, queues, file system).
 
-Default to **integration tests** for behavior coverage.
+Why: integration tests survive internal refactors and exercise the path the caller actually takes. Unit tests pinned to implementation details break every time the implementation moves, even when behavior is identical.
 
-- They survive internal refactors and exercise the path the caller actually takes.
-- Mock at external/IO boundaries (DB, HTTP, queues, file system).
 - Prefer fakes and localstack-style emulators to bare mocks where the cost is reasonable.
-- Blackbox by nature.
+- Add **unit tests** for leaf functions/modules — pure logic with no/few dependencies (parsers, normalizers, validators, formatters). Whitebox; expect tests to change when the implementation changes.
+- Skip unit tests when the only "unit" is a thin glue function.
+- **E2E tests sparingly** — slow and brittle; flakiness erodes trust in the suite. Acceptable when the specific case is cheap (existing fixture, single happy-path Playwright run, smoke test).
+- **Manual tests** when automation cost is disproportionate (rare UI flows, third-party integrations without sandbox). Log per `test-driven-development` format.
 
-Add **unit tests** for leaf functions/modules — pure logic with no/few dependencies (parsers, normalizers, validators, formatters).
+## Test behaviour, not implementation
 
-- Whitebox; expect tests to change when the implementation changes.
-- Skip when the only "unit" is a thin glue function.
+Black-box integration tests preferred; supplement with focused unit tests.
 
-**E2E tests sparingly.**
+Why: on refactors, integration tests (behavior) keep working and serve as a guardrail.
 
-- Slow and brittle by nature; flakiness erodes trust in the suite.
-- Acceptable when the specific case is cheap (existing fixture, single happy-path Playwright run, smoke test).
-- Don't make them the default.
+Unit tests pinned to implementation must be refactored too — the test stops protecting you the moment you most need it.
 
-**Manual tests** are allowed when automation cost is disproportionate (rare UI flows, third-party integrations without sandbox).
+## Design test titles before implementation
 
-- Log every manual check in `./manual-tests-evidences.md` (see `test-driven-development` for format) so the work is verifiable.
+Write titles (no bodies), review them, then run RED-GREEN.
 
----
+Why: titles capture the contract before the code locks it in.
 
-## Bug fix → start with a failing regression test
+Writing tests AFTER you "see what works" shapes the test to whatever you ended up writing — the test stops being a contract.
 
-Reproduce the bug as a test first, watch it fail for the right reason, then fix. The test guards against recurrence and proves the fix actually addresses the cause.
+- Applies upfront to integration tests and pre-known pure helpers, and again at each helper pulled on demand — designing them all upfront forces premature signatures.
+- Commit tests together with their implementation — never titles alone.
+- For scripts: usage syntax + examples in the comment header.
 
-```ts
-// Good — regression test before the fix
-it("should reject login when password contains trailing whitespace (regression: #1234)", () => {
-  expect(login("user", "secret ")).toThrow("Invalid credentials");
-});
-```
+## Descriptive titles (BDD-like)
 
-The test fails (the bug exists) → fix the code → the test passes. Now it's a guarded behavior.
+Test titles read as the behavior documentation, in domain language.
 
----
-
-## Good Test Names
-
-Title the **observable behavior** in domain language.
-
-- Bad titles describe SQL/operator mechanics (`AND`, `IN`, `JOIN`), code structure (`if-else`, `early return`), or regression history (`PR #X`, `regression after merge`).
-- Good titles read like a contract a non-engineer could verify.
+Why: titles get scanned a hundred times more than test bodies.
 
 ```
 Bad:  "should AND fieldA IN with fieldB NOT IN when both provided"   (operator mechanics)
@@ -64,45 +53,131 @@ Bad:  "regression: PR #2034 last-spread-wins on flowCode"            (session/br
 Good: "should subtract excludeFlowCodes from the flowCode include set when both filters are provided"
 ```
 
-Other examples:
-* "should throw when params are missing"
-* "should default pageSize to 10"
-* "should return user info when params are valid"
-
----
-
-## Use Real-Like Mock Data
+**Anti-pattern: spec-tracking refs in test titles**
 
 ```ts
-const mockUser = {
-    id: "123",
-    name: "Alice",
-    email: "alice@example.com",
-};
+// Bad
+it('should throw INTERNAL_SERVER_ERROR when getSalesAgreements throws after retries (AC-18)', ...);
+it('should emit the structured procedure-entry log per Req 21', ...);
+
+// Good
+it('should throw INTERNAL_SERVER_ERROR when getSalesAgreements throws after retries', ...);
 ```
 
----
+AC/Req/Task/DBMA/Jira refs belong in commit messages, PR descriptions, or `spec.md` — not in test titles, which describe behavior.
 
-## Parametrized Test Inputs
+## Bug fix starts with a failing regression test
+
+Reproduce the bug as a test first, watch it fail for the right reason, then fix.
+
+Why: the test guards against recurrence and proves the fix actually addresses the cause.
+
+A bug fix without a regression test means the bug will return the next time someone refactors that area.
+
+The test fails (the bug exists) → fix the code → the test passes. Now it's a guarded behavior.
+
+## Deterministic & self-contained
+
+No shared state, no randomness, clone inputs when testing mutating functions. Pin the clock with fake timers when the system under test reads it — directly or via helpers.
+
+Why: flaky tests erode trust.
+
+A test that passes 9 times and fails the 10th is worse than no test — engineers learn to rerun instead of investigate, and real failures get ignored.
+
+- Time-derived tests without a frozen clock are time-bombs — they pass today and silently fail in N months when wall-clock crosses a threshold.
+- Apply when test names contain "past", "future", "expired", "min", "cap", "deadline" — wall-clock-sensitive vocabulary.
+
+## Mock sparingly
+
+Only external dependencies (file I/O, network, external processes).
+
+Why: every mock is a hypothesis about what the dependency does.
+
+If the hypothesis drifts from reality, the test passes while production breaks. Mock at the system boundary, not in the middle.
+
+## Use real-like mock data
+
+Why: cryptic mock data (`name: "x"`, `email: "a@b"`) hides bugs that show up only with realistic shapes (encoding, length, casing). Real-like data catches real-like bugs.
+
+## Don't re-implement logic under test
+
+Let the system under test do the work.
+
+Why: if the test reproduces the logic, both move together.
+
+A bug in the production logic is mirrored in the test, and the test passes anyway. The test must encode an independent expectation.
 
 ```ts
-const testCases = [
-    { input: 1, expected: 2 },
-    { input: 2, expected: 3 },
-];
+// Bad -- reproduces filtering logic:
+const filtered = items.filter(...);
+expect(myFunc(filtered)).toEqual(...);
 
-testCases.forEach(({ input, expected }) => {
-    test(`should return ${expected} for input ${input}`, () => {
-        expect(fn(input)).toBe(expected);
-    });
+// Good -- let the system under test do the work:
+expect(myFunc(items)).toEqual(expectedFiltered);
+```
+
+## Remove redundant / tautological tests
+
+When a new test exercises the same code path with the same inputs as an existing one, remove the duplicate or merge.
+
+Why: two tests asserting the same thing don't improve safety — they slow the suite, double the maintenance burden, and create false confidence.
+
+Schema example: if "max 10" is enforced, one test at 11 covers it; tests at 12, 15, 100 are redundant. Boundary + 1 is the contract.
+
+## One test per distinct cause
+
+Isolate each independent trigger for a behavior. Different inputs that exercise the same code path are one test, not two.
+
+Why: distinct causes are the unit of safety. If two test cases hit the same production code path, the second adds maintenance with no extra coverage.
+
+## Don't test log presence
+
+Log emission is not behavior the caller observes.
+
+Why: log assertions are brittle (change when the log format evolves), tautological (mirror the impl), and clutter the suite. Test the behavior that produced the log, not the log itself.
+
+**Exception**: when a log is an external contract (audit log consumed by another system, structured event for analytics), test the payload shape — that's contract testing, not log presence testing.
+
+## Cover every variant of a behavior
+
+When a feature has N variants (tabs, entity types, query params, view modes, browser sizes), every variant must be covered — directly or via parametrization.
+
+Why: coverage on variant A says nothing about variant B's behavior. The "one example, infer the rest" heuristic fails the moment behavior diverges across variants.
+
+Heuristic: ask "are the other variants tested?" for every test you write.
+
+## Group tests by intent: happy path, corner cases, failure scenarios
+
+```ts
+// Bad — mixed
+describe('contractValidation.getSchoolsAgreementsAndSkus', () => {
+  it('returns agreements + SKUs for valid input', ...);
+  it('throws BAD_REQUEST when no schools provided', ...);
+  it('attaches SKU codes returned by getSKUs', ...);
+  it('throws INTERNAL_SERVER_ERROR after retries', ...);
+});
+
+// Good — split
+describe('contractValidation.getSchoolsAgreementsAndSkus', () => {
+  describe('happy path', () => {
+    it('returns agreements + SKUs for valid input', ...);
+    it('attaches SKU codes returned by getSKUs', ...);
+  });
+
+  describe('failure scenarios', () => {
+    it('throws BAD_REQUEST when no schools provided', ...);
+    it('throws INTERNAL_SERVER_ERROR after retries', ...);
+  });
 });
 ```
 
----
+Why: readers scanning "what does this do when it works?" should not wade through error paths. Grouping by intent makes the contract scannable at a glance.
 
-## Avoid Order-Dependent Assertions
+## Avoid order-dependent assertions
 
-Tests should not break when the implementation changes the order of items in a collection, unless order is part of the contract. Asserting on exact array order couples tests to implementation details.
+Tests should not break when the implementation changes the order of items in a collection, unless order is part of the contract.
+
+Why: asserting on exact array order couples tests to implementation details. A refactor that changes iteration order shouldn't break a behavior test.
 
 ```ts
 // Bad -- breaks if implementation reorders items:
@@ -119,60 +194,18 @@ expect(result).toEqual(expect.arrayContaining([
 ]));
 ```
 
----
-
-## Date-derived test stability — freeze the clock
-
-Tests that depend on "now" (date math, expiry checks, `Date.now()`-derived caps) become time-bombs.
-
-- The assertion passes today and silently fails in N months when wall-clock time crosses a threshold.
-- Pin time with fake timers whenever the system under test reads the clock — even indirectly through helpers.
-
-```ts
-// Bad — relies on real wall-clock time:
-it("caps the value at min when the deadline has passed", () => {
-  // Passes today; will start failing once 'now' moves past the fixture's deadline
-  expect(computeCap({ deadline: '2026-01-01' })).toBe(MIN_CAP);
-});
-
-// Good — pin 'now' to a deterministic instant:
-import { vi } from 'vitest';
-
-beforeEach(() => {
-  vi.useFakeTimers();
-  vi.setSystemTime(new Date('2026-05-01T00:00:00Z'));
-});
-
-afterEach(() => {
-  vi.useRealTimers();
-});
-
-it("caps the value at min when the deadline has passed", () => {
-  expect(computeCap({ deadline: '2026-01-01' })).toBe(MIN_CAP);
-});
-```
-
-Apply to:
-
-- Any test that exercises a code path branching on the current date, age comparisons, "expired"/"future" booleans, or relative-time formatting.
-- If the test name contains "past", "future", "expired", "min", "cap", "deadline" etc. and the fixture date is hardcoded, freeze.
-
----
-
 ## Fixtures must support every state the tests assert on
 
 When a single fixture is reused across tests that assert on different states (idle, loading, error, edge case), the fixture's defaults must allow each test to express its state without monkey-patching internals.
 
-If a test has to mutate the fixture in surprising ways to reach a state, the fixture is too narrow.
+Why: if a test has to mutate the fixture in surprising ways to reach a state, the fixture is too narrow. Extending the factory is the contract; tests stay declarative.
 
 ```ts
 // Bad — fixture only supports the happy path; "expired" test has to dig into internals:
 const baseAgreement = { signedAt: '2025-01-01', deadline: '2025-12-31' };
 
 it('shows expired badge when past deadline', () => {
-  // Forced to mutate or rebuild from scratch — coupling test to shape
   const agreement = { ...baseAgreement, deadline: '2020-01-01' };
-  // ...
 });
 
 // Good — factory with overrides; every state is one named override away:
@@ -182,33 +215,61 @@ function createAgreement(overrides: Partial<Agreement> = {}): Agreement {
 
 it('shows expired badge when past deadline', () => {
   const agreement = createAgreement({ deadline: '2020-01-01' });
-  // ...
 });
 ```
 
 When you add a new test that asserts on a state the fixture didn't anticipate, **extend the factory** rather than constructing one-offs in the test body.
 
-- Add a new override key, broaden a union type, etc.
-- The factory is the contract; tests stay declarative.
+## Parametrized test inputs (OK when readable)
 
----
+Why: parametrization reduces duplication when N tests differ only by input/expected. Stops being useful when bodies diverge — at that point, separate tests are more readable.
 
-## Don't Reproduce Logic Under Test
+## Inline test helpers until reused
 
-```ts
-// Bad -- reproduces filtering logic:
-const filtered = items.filter(...);
-expect(myFunc(filtered)).toEqual(...);
+Keep builder/factory helpers in the test file until a second test file needs them. Centralize at 2+ callers, not speculatively.
 
-// Good -- let the system under test do the work:
-expect(myFunc(items)).toEqual(expectedFiltered);
-```
+Why: speculative centralization adds indirection without payoff.
 
----
+Readers have to navigate to a shared module to understand what a test does. The 2+ caller rule keeps the abstraction grounded in real demand.
+
+## Test body and helpers easier to read
+
+Ensure a human can read it and understand what is happening.
+
+Why: a test you can't read is a test you can't trust during a failure.
+
+The body is documentation of intent — opaque tests get deleted at the first "what does this even test?" moment.
+
+## Re-use constants in assertions
+
+Reference the same enums/constants as production code.
+
+Why: hardcoding the literal value in the test means a refactor that renames the enum silently breaks production while the test still passes (with the old literal). Sharing the constant catches drift.
+
+## Debug with code and tests, not temp files
+
+Why: temp files (scratchpads, throwaway scripts) vanish when the session ends. The next person who hits the same bug has no signal. A failing test or a committed debug script survives.
+
+## Leverage coverage to find untested flows
+
+After tests pass, check coverage if available; uncovered branches reveal corner cases the tests didn't actually exercise.
+
+Why: green tests prove the cases you thought of work. Coverage gaps reveal the cases you didn't think of — corner cases hide there.
+
+- Source order: repo's existing coverage script first; else run coverage directly; else read existing artifacts (lcov, coverage.xml).
+- Skip silently if none work.
+
+## Tests follow migrated code
+
+When moving logic to a new location, adapt existing tests to the new path. Don't delete behavior coverage.
+
+Why: deleting tests during a migration is silent regression risk. The behavior they protected is still being shipped — without the test, the next bug in that area has no signal.
 
 ## Regression baselines: hand-coded shape, not self-comparison
 
 A test that asserts `f(X) === f(X)` proves only that `f` is deterministic — it can never fail unless the system is non-deterministic.
+
+Why: a genuine regression guard must encode an *expectation* the implementation might miss. Self-comparison guards nothing.
 
 - Regression baselines must be hand-coded values that the implementation could plausibly fail to produce.
 - This is distinct from "Don't reproduce logic under test" (which is about the test recomputing what the code does).
@@ -228,5 +289,3 @@ expect(response.body.data).toHaveLength(1);
 expect(response.body.data[0].entity).toBe('order');
 expect(response.body.pagination).toEqual({ page: 1, pageSize: 20, totalItems: 1, totalPages: 1 });
 ```
-
-The bad version cannot fail because both sides come from the same code path. A genuine regression guard must encode an *expectation* the implementation might miss.

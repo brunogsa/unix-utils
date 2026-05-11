@@ -10,6 +10,10 @@ Canonical TDD/BDD discipline for plan-driven work.
 
 For test patterns (titles, mock data, parametrized suites, anti-patterns) and test-type selection (integration vs unit vs e2e vs manual), see `test-standards`.
 
+**Bug fixes follow the same discipline**: start with a RED regression test that reproduces the bug.
+
+Confirm it fails for the right reason, then fix until it goes GREEN. The full rule lives in `debug-standards`.
+
 ---
 
 ## The cycle: RED → GREEN → REFACTOR, most forcing case first
