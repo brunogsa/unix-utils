@@ -64,7 +64,7 @@ The script measures with `grep`, `awk`, `wc`, and `find`.
 | CLAUDE.md max words/line | 58 (line 114) | 32 | OVER |
 | Skill count | 27 | 32 | OK |
 | Max skill desc chars | 806 (consistency-check-principles-and-skills) | 250 | OVER |
-| Max skill name chars | 52 (improve-principles-and-skills-from-session-learnings) | 64 | OK |
+| Max skill name chars | 48 (improve-principles-and-skills-from-user-feedback) | 64 | OK |
 
 ## CLAUDE.md lines exceeding 32 words
 

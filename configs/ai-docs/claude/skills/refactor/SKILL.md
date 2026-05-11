@@ -64,7 +64,7 @@ Deduplicate and merge the lists. If no files are found, inform the user and stop
 
 Use the **Agent tool** with `subagent_type=code-simplifier:code-simplifier`. In the prompt:
 
-- Run in **foreground** (never `run_in_background`) -- the user must see analysis progress and the main session needs full visibility into findings for the learning loop (`improve-principles-and-skills-from-session-learnings`)
+- Run in **foreground** (never `run_in_background`) -- the user must see analysis progress and the main session needs full visibility into findings
 
 - List the files identified above
 - Instruct it to **only analyze and report** -- it must NOT make any edits (no Edit, no Write)

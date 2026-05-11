@@ -41,7 +41,7 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 6. User generally run `/refactor` then `/auto-review` skills when the entire features is developed; fixes are addressed, if any.
 7. User manually review the code. More fixes, if any.
 8. `/create-pr` uses both spec.md and plan.md to generate a rich PR description.
-9. Self-improving loop: user runs `/improve-principles-and-skills-from-session-learnings` then `english-coach` skills so both AI and humand learn.
+9. Self-improving loop: user runs `/improve-principles-and-skills-from-user-feedback` then `english-coach` skills so both AI and humand learn.
 
 ### Self-review both spec and plan before handing it back (step 2 detail)
 

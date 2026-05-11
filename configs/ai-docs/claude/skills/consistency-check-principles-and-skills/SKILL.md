@@ -162,7 +162,7 @@ For deterministic / fast checks (line counts, word budgets, per-line conciseness
 
 ## When to Invoke
 
-- After a guideline-editing flow finishes (called by `improve-principles-and-skills-from-session-learnings` step 8).
+- After any guideline-editing flow finishes — to audit the edits before declaring them done.
 - On demand, when the user suspects drift ("are any of my rules contradicting each other?", "audit my skills for overlap").
 - After a major refactor of CLAUDE.md or several skills, before committing.
 
