@@ -6,8 +6,9 @@ user-invocable: false
 
 # Test Standards
 
-Principles and paired examples for any test work. Each section pairs a principle with its example (when necessary).
-Principles without an example stand on their own.
+Principles for any test work. Each section pairs a principle with its WHY.
+
+Paired code examples for every principle below: @references/examples.md (keyed by the same section header).
 
 ## Default to integration tests for behavior coverage
 
@@ -36,7 +37,8 @@ Concrete patterns this rule generates:
 - **Async safety / idempotency** — disabled-during-fetch (UI), idempotency keys (API), retry-resistant operations — the actions a manual tester would re-fire need explicit tests.
 - **Three-branch dependency outcome** — success, error response, AND timeout/never-responds. Missing the timeout branch leaves a real production gap (UI stays loading forever; backend leaks resources).
 - **Inverse cache branch** — when set-and-fetch is tested, test clear-and-restore (or invalidate-and-refetch). Partial cache coverage is a known footgun.
-- **Observably-non-empty BEFORE and AFTER** — for filter/transition tests (UI or API), baseline and final state must both be non-empty. Empty-to-something only proves the filter renders/returns something — not that it changes meaningfully.
+- **Observably-non-empty BEFORE and AFTER** — for filter/transition tests (UI or API), baseline and final state must both be non-empty.
+  - Empty-to-something only proves the filter renders/returns something — not that it changes meaningfully.
 
 ## Test behaviour, not implementation
 
@@ -64,36 +66,15 @@ Test titles read as the behavior documentation, in domain language.
 
 Why: titles get scanned a hundred times more than test bodies.
 
-```
-Bad:  "should AND fieldA IN with fieldB NOT IN when both provided"   (operator mechanics)
-Bad:  "regression: PR #2034 last-spread-wins on flowCode"            (session/branch history)
-Good: "should subtract excludeFlowCodes from the flowCode include set when both filters are provided"
-```
-
 **Anti-pattern: spec-tracking refs in test titles**
-
-```ts
-// Bad
-it('should throw INTERNAL_SERVER_ERROR when getSalesAgreements throws after retries (AC-18)', ...);
-it('should emit the structured procedure-entry log per Req 21', ...);
-
-// Good
-it('should throw INTERNAL_SERVER_ERROR when getSalesAgreements throws after retries', ...);
-```
 
 AC/Req/Task/DBMA/Jira refs belong in commit messages, PR descriptions, or `spec.md` — not in test titles, which describe behavior.
 
 **Anti-pattern: generic noun when multiple instances of the same kind exist**
 
-```ts
-// Bad — page has two searches (school name + externalId); which one?
-it('should NOT re-fire schoolsAgreements when search changes (cache hit)', ...);
+When a system has multiple instances of the same kind — two search fields, two filters, two query params, two endpoints — name the specific one in the title.
 
-// Good — names the specific control:
-it('should NOT re-fire schoolsAgreements when externalId search changes (cache hit)', ...);
-```
-
-When a system has multiple instances of the same kind — two search fields, two filters, two query params, two endpoints — name the specific one in the title. Generic nouns invite confusion.
+Generic nouns invite confusion.
 
 ## Bug fix starts with a failing regression test
 
@@ -130,15 +111,6 @@ Why: if the test reproduces the logic, both move together.
 
 A bug in the production logic is mirrored in the test, and the test passes anyway. The test must encode an independent expectation.
 
-```ts
-// Bad -- reproduces filtering logic:
-const filtered = items.filter(...);
-expect(myFunc(filtered)).toEqual(...);
-
-// Good -- let the system under test do the work:
-expect(myFunc(items)).toEqual(expectedFiltered);
-```
-
 ## Remove redundant / tautological tests
 
 When a new test exercises the same code path with the same inputs as an existing one, remove the duplicate or merge.
@@ -159,17 +131,9 @@ When multiple events produce the same outcome — different filters reset the pa
 
 Don't write N tests one-per-trigger when all paths lead to the same final state.
 
-Why: N specific tests grow linearly with each new trigger and silently miss the next one added. A test of the outcome itself ("any refetch resets page to 1") inherits coverage automatically when new triggers join.
+Why: N specific tests grow linearly with each new trigger and silently miss the next one added.
 
-```ts
-// Bad — three tests, one per trigger, all asserting the same behavior:
-it('should reset page to 1 when status filter changes', ...);
-it('should reset page to 1 when search input changes', ...);
-it('should reset page to 1 when sort order changes', ...);
-
-// Good — one test of the underlying invariant:
-it('should reset page to 1 on every refetch of the dataset', ...);
-```
+A test of the outcome itself ("any refetch resets page to 1") inherits coverage automatically when new triggers join.
 
 - **vs. "Remove redundant tests"** — that rule fires on identical assertions; this rule fires when triggers differ but outcome doesn't.
 - **vs. "One test per distinct cause"** — that rule fires when causes have independent production branches; this rule fires when triggers share one production branch.
@@ -192,29 +156,6 @@ Heuristic: ask "are the other variants tested?" for every test you write.
 
 ## Group tests by intent: happy path, corner cases, failure scenarios
 
-```ts
-// Bad — mixed
-describe('contractValidation.getSchoolsAgreementsAndSkus', () => {
-  it('returns agreements + SKUs for valid input', ...);
-  it('throws BAD_REQUEST when no schools provided', ...);
-  it('attaches SKU codes returned by getSKUs', ...);
-  it('throws INTERNAL_SERVER_ERROR after retries', ...);
-});
-
-// Good — split
-describe('contractValidation.getSchoolsAgreementsAndSkus', () => {
-  describe('happy path', () => {
-    it('returns agreements + SKUs for valid input', ...);
-    it('attaches SKU codes returned by getSKUs', ...);
-  });
-
-  describe('failure scenarios', () => {
-    it('throws BAD_REQUEST when no schools provided', ...);
-    it('throws INTERNAL_SERVER_ERROR after retries', ...);
-  });
-});
-```
-
 Why: readers scanning "what does this do when it works?" should not wade through error paths. Grouping by intent makes the contract scannable at a glance.
 
 ## Avoid order-dependent assertions
@@ -223,44 +164,11 @@ Tests should not break when the implementation changes the order of items in a c
 
 Why: asserting on exact array order couples tests to implementation details. A refactor that changes iteration order shouldn't break a behavior test.
 
-```ts
-// Bad -- breaks if implementation reorders items:
-expect(result).toEqual([
-    { sku: 'CHILD-1', price: 100 },
-    { sku: 'KIT-1', price: 300 },
-]);
-
-// Good -- asserts membership and count, order-independent:
-expect(result).toHaveLength(2);
-expect(result).toEqual(expect.arrayContaining([
-    expect.objectContaining({ sku: 'CHILD-1', price: 100 }),
-    expect.objectContaining({ sku: 'KIT-1', price: 300 }),
-]));
-```
-
 ## Fixtures must support every state the tests assert on
 
 When a single fixture is reused across tests that assert on different states (idle, loading, error, edge case), the fixture's defaults must allow each test to express its state without monkey-patching internals.
 
 Why: if a test has to mutate the fixture in surprising ways to reach a state, the fixture is too narrow. Extending the factory is the contract; tests stay declarative.
-
-```ts
-// Bad — fixture only supports the happy path; "expired" test has to dig into internals:
-const baseAgreement = { signedAt: '2025-01-01', deadline: '2025-12-31' };
-
-it('shows expired badge when past deadline', () => {
-  const agreement = { ...baseAgreement, deadline: '2020-01-01' };
-});
-
-// Good — factory with overrides; every state is one named override away:
-function createAgreement(overrides: Partial<Agreement> = {}): Agreement {
-  return { signedAt: '2025-01-01', deadline: '2025-12-31', ...overrides };
-}
-
-it('shows expired badge when past deadline', () => {
-  const agreement = createAgreement({ deadline: '2020-01-01' });
-});
-```
 
 When you add a new test that asserts on a state the fixture didn't anticipate, **extend the factory** rather than constructing one-offs in the test body.
 
@@ -318,18 +226,3 @@ Why: a genuine regression guard must encode an *expectation* the implementation 
 - Regression baselines must be hand-coded values that the implementation could plausibly fail to produce.
 - This is distinct from "Don't reproduce logic under test" (which is about the test recomputing what the code does).
 - Self-comparison is about the test asserting against its own runtime output.
-
-```ts
-// Bad -- two identical requests, asserting equal proves nothing:
-const [a, b] = await Promise.all([
-  request(app).get('/v1/things?resolved=false'),
-  request(app).get('/v1/things?resolved=false'),
-]);
-expect(a.body).toEqual(b.body);
-
-// Good -- single request + explicit hand-coded shape:
-const response = await request(app).get('/v1/things?resolved=false');
-expect(response.body.data).toHaveLength(1);
-expect(response.body.data[0].entity).toBe('order');
-expect(response.body.pagination).toEqual({ page: 1, pageSize: 20, totalItems: 1, totalPages: 1 });
-```
