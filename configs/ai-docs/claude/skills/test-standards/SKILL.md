@@ -21,6 +21,23 @@ Why: integration tests survive internal refactors and exercise the path the call
 - **E2E tests sparingly** — slow and brittle; flakiness erodes trust in the suite. Acceptable when the specific case is cheap (existing fixture, single happy-path Playwright run, smoke test).
 - **Manual tests** when automation cost is disproportionate (rare UI flows, third-party integrations without sandbox). Log per `test-driven-development` format.
 
+## Gold rule: automate what a human would manually do to verify
+
+Before writing tests, ask: "if I had to verify this change by hand, what steps would I take?" — then automate that list.
+
+Applies to backend (API calls, payloads, DB states) and frontend (clicks, inputs, page states) equally — the human verification checklist is the same shape regardless of layer.
+
+Why: coverage tools answer "is this line touched?" — they cannot answer "would a manual tester have noticed this?". The manual-verification checklist is the test checklist.
+
+Concrete patterns this rule generates:
+
+- **Cover every input variant** — N input fields, filters, query params, or request shapes of the same kind = N tests. Coverage on one says nothing about the others.
+- **Boundary on caps/limits** — a cap of N gets an explicit N+1 test (send N+1 of the limited thing and prove the cap engages). Happy-path-only leaves the invariant unverified.
+- **Async safety / idempotency** — disabled-during-fetch (UI), idempotency keys (API), retry-resistant operations — the actions a manual tester would re-fire need explicit tests.
+- **Three-branch dependency outcome** — success, error response, AND timeout/never-responds. Missing the timeout branch leaves a real production gap (UI stays loading forever; backend leaks resources).
+- **Inverse cache branch** — when set-and-fetch is tested, test clear-and-restore (or invalidate-and-refetch). Partial cache coverage is a known footgun.
+- **Observably-non-empty BEFORE and AFTER** — for filter/transition tests (UI or API), baseline and final state must both be non-empty. Empty-to-something only proves the filter renders/returns something — not that it changes meaningfully.
+
 ## Test behaviour, not implementation
 
 Black-box integration tests preferred; supplement with focused unit tests.
@@ -65,6 +82,18 @@ it('should throw INTERNAL_SERVER_ERROR when getSalesAgreements throws after retr
 ```
 
 AC/Req/Task/DBMA/Jira refs belong in commit messages, PR descriptions, or `spec.md` — not in test titles, which describe behavior.
+
+**Anti-pattern: generic noun when multiple instances of the same kind exist**
+
+```ts
+// Bad — page has two searches (school name + externalId); which one?
+it('should NOT re-fire schoolsAgreements when search changes (cache hit)', ...);
+
+// Good — names the specific control:
+it('should NOT re-fire schoolsAgreements when externalId search changes (cache hit)', ...);
+```
+
+When a system has multiple instances of the same kind — two search fields, two filters, two query params, two endpoints — name the specific one in the title. Generic nouns invite confusion.
 
 ## Bug fix starts with a failing regression test
 
@@ -123,6 +152,27 @@ Schema example: if "max 10" is enforced, one test at 11 covers it; tests at 12, 
 Isolate each independent trigger for a behavior. Different inputs that exercise the same code path are one test, not two.
 
 Why: distinct causes are the unit of safety. If two test cases hit the same production code path, the second adds maintenance with no extra coverage.
+
+## When N triggers share one outcome, test the outcome
+
+When multiple events produce the same outcome — different filters reset the page, different mutations invalidate one cache, different errors roll back one transaction — write ONE test asserting the outcome.
+
+Don't write N tests one-per-trigger when all paths lead to the same final state.
+
+Why: N specific tests grow linearly with each new trigger and silently miss the next one added. A test of the outcome itself ("any refetch resets page to 1") inherits coverage automatically when new triggers join.
+
+```ts
+// Bad — three tests, one per trigger, all asserting the same behavior:
+it('should reset page to 1 when status filter changes', ...);
+it('should reset page to 1 when search input changes', ...);
+it('should reset page to 1 when sort order changes', ...);
+
+// Good — one test of the underlying invariant:
+it('should reset page to 1 on every refetch of the dataset', ...);
+```
+
+- **vs. "Remove redundant tests"** — that rule fires on identical assertions; this rule fires when triggers differ but outcome doesn't.
+- **vs. "One test per distinct cause"** — that rule fires when causes have independent production branches; this rule fires when triggers share one production branch.
 
 ## Don't test log presence
 
