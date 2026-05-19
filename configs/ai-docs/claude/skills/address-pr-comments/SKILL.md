@@ -24,9 +24,18 @@ This skill **does not** mark threads resolved. The user closes them after review
 
 | Form | Effect |
 |---|---|
-| `by alice, bob` | keep only comments authored by these gh logins |
+| `by alice, bob` | keep only items **owned** by these gh logins (see "ownership" below) |
 | `in src/foo, src/bar` | keep only comments whose `path` matches these files/folders |
 | (omitted) | all unresolved comments from all authors on all files |
+
+**Ownership** (what `by` matches):
+- **inline thread** — owner = author of the thread's **first comment**. Replies don't transfer ownership.
+- **top-level conversation comment** — owner = author of the comment itself (no threading).
+- **review-summary body** — owner = author of the review.
+
+Why: the thread-opener raises the concern; replies are participation.
+
+- Filtering by participation surfaces threads the user only answered in (not theirs to address). Thread-opener matches the "my comments" mental model.
 
 Examples:
 - `/address-pr-comments 169`
@@ -44,22 +53,15 @@ The PR number alone is enough — both filters are optional.
   - The remote (one batch `git push` after all commits).
   - The PR (one reply per addressed comment, AI-signed).
 - **Does not**: resolve threads, request re-review, dismiss reviews, or touch other PRs.
-- **Self-comments are included** — sometimes the user is addressing their own notes-to-self. The proposal block labels them `(yours)` so they're easy to spot.
+- **Self-comments are included** — the proposal block labels them `(yours)`.
 
 ## Reuse note
 
-Mode B of `improve-principles-and-skills-from-user-feedback` solves PR-comment fetching for a different purpose (mining feedback for guideline updates).
-
-This skill **duplicates** the `gh api` primitives intentionally:
-
-- The two skills' fetch shapes diverge — this one needs GraphQL for `isResolved`; that one only needs REST.
-- A shared module would couple two different lifecycles.
-
-Duplication is the right call here.
+Duplicates `gh api` fetch primitives from `improve-principles-and-skills-from-user-feedback` Mode B intentionally — that flow uses REST only; this one needs GraphQL for `isResolved`.
 
 ## Execution (Hybrid)
 
-Subagents cannot post replies, run commits, or push — those need permission UIs in the main context. But fetching + clustering + ranking is heavy and read-only. Split:
+Subagents can't post replies, commit, or push — permission UIs live in main. Fetching + clustering is heavy and read-only. Split:
 
 1. **Main context** — steps 1, 2, 4–7 (preconditions, fetch, selection, commit, push, reply).
 2. **Subagent** (`general-purpose`, foreground) — step 3 (cluster, rank, propose default actions, propose drop reasons). Returns the proposal block.
@@ -67,6 +69,21 @@ Subagents cannot post replies, run commits, or push — those need permission UI
 Spawn the subagent with `description: "Cluster and rank PR review comments"`.
 
 If step 2 yields zero unresolved comments matching the filters, report that and stop. Don't spawn the subagent on nothing.
+
+## Standards loaded on demand
+
+These standards skills shape the work at specific moments — load each as its scope opens, not upfront.
+
+Most load automatically via their description triggers; the explicit load points below guard against undertriggering:
+
+- `review-standards` — load while interpreting reviewer comments in step 3 (severity vs. nit, framing drop reasons, distinguishing actionable from informational).
+- `code-standards` — load before any production edit while applying a cluster (step 5).
+- `test-standards` — load when a cluster touches tests, or when applying a change needs a regression test (step 5).
+- `doc-standards` — load before adding any comment, docstring, log line, or doc edit while applying a cluster (step 5).
+- `debug-standards` — load when lint/test goes red in step 1c, or when a test fails for the wrong reason while applying a cluster (step 5).
+- `commit-standards` — load at every commit boundary (step 1b offer-to-commit, step 5 per-cluster commits).
+
+Lazy load keeps context lean; load at the right moment ensures the rules actually shape the output.
 
 ## Step 1: Validate preconditions (main)
 
@@ -105,16 +122,16 @@ Discover the runners (cheap probe, no full project scan):
 | `pyproject.toml` | `ruff check .` / `flake8` | `pytest` |
 | `Cargo.toml` | `cargo clippy` | `cargo test` |
 
-If multiple match, ask which to use. If none match, ask the user to provide the commands.
+If multiple match or none match, ask the user which commands to use.
 
-Run lint then test (per CLAUDE.md "Save slow command output, verify from the file" pattern):
+Run lint then test:
 
 ```bash
 <lint-cmd> > /tmp/apc-lint.txt 2>&1; echo "exit: $?"; tail -20 /tmp/apc-lint.txt
 <test-cmd> > /tmp/apc-test.txt 2>&1; echo "exit: $?"; tail -30 /tmp/apc-test.txt
 ```
 
-If either is red, abort. Pre-existing breakage isn't this skill's problem — fix it first so cluster commits don't conflate new regressions with old ones.
+If either is red, abort — fix pre-existing breakage first so cluster commits don't conflate new regressions with old.
 
 ## Step 2: Fetch + filter unresolved comments (main)
 
@@ -129,30 +146,7 @@ ME=$(gh api user -q .login)
 
 ### 2b. Inline review comments via GraphQL (need `isResolved`)
 
-```graphql
-query($owner: String!, $repo: String!, $n: Int!) {
-  repository(owner: $owner, name: $repo) {
-    pullRequest(number: $n) {
-      reviewThreads(first: 100) {
-        nodes {
-          isResolved
-          comments(first: 50) {
-            nodes {
-              databaseId
-              author { login }
-              body
-              path
-              line
-              url
-              diffHunk
-            }
-          }
-        }
-      }
-    }
-  }
-}
-```
+Query lives in `references/queries.graphql`. Invoke via:
 
 ```bash
 gh api graphql -f query='...' -F owner="$OWNER" -F repo="$REPO" -F n=<n>
@@ -174,49 +168,62 @@ These are always "open" by GitHub's model. Include all of them.
 gh api repos/$OWNER_REPO/pulls/<n>/reviews
 ```
 
-Include each review's `body` (when non-empty) plus its `state` (`APPROVED` / `CHANGES_REQUESTED` / `COMMENTED`). The `state` feeds the relevance sort in step 3.
+Include each review's `body` (when non-empty) plus its `state` (`APPROVED` / `CHANGES_REQUESTED` / `COMMENTED`) — `state` feeds step 3's relevance sort.
 
 ### 2e. Apply user filters
 
-- `by <logins>` — keep where `author.login ∈ {logins}`.
-- `in <paths>` — keep where `path` starts-with any of the paths (folder match) or equals it (file match).
-  - Top-level/review-summary comments have no `path` and are kept only if **no** `in` filter was given.
+`by <logins>` matches **ownership**, not participation. The unit of ownership differs by source — see the table in the Usage section. Concretely:
+
+- **inline threads** — keep the thread iff `comments[0].author.login ∈ {logins}`. When kept, **include all comments in the thread**.
+  - Replies provide context for addressing the thread, even if the user didn't write them.
+- **top-level comments** — keep where `user.login ∈ {logins}`.
+- **review-summary bodies** — keep where the review's `user.login ∈ {logins}`.
+
+`in <paths>` — keep where `path` starts-with any of the paths (folder match) or equals it (file match).
+- Top-level/review-summary comments have no `path` and are kept only if **no** `in` filter was given.
 
 If the result is empty after filtering, report and stop.
+
+Example query for inline threads with `by` filter (jq):
+
+```bash
+jq --arg author "alice" '
+  [.data.repository.pullRequest.reviewThreads.nodes[]
+    | select(.isResolved == false)
+    | select(.comments.nodes[0].author.login == $author)
+  ]' inline.json
+```
+
+The `select(.comments.nodes[0].author.login == ...)` is the ownership check — `nodes[0]` is the thread-opener.
 
 ## Step 3: Cluster, rank, propose (subagent)
 
 Hand the filtered comment list to the subagent with this prompt skeleton:
 
 ```
-You receive a list of PR review comments. Produce a proposal block per the
-output format below.
+Input fields per comment: id, author, body, path, line, diffHunk, url,
+source ("inline"|"top-level"|"review-summary"), state (review-summary only),
+is_self (author == ME).
 
-For each comment you receive these fields: id, author, body, path, line,
-diffHunk, url, source ("inline"|"top-level"|"review-summary"), state (only
-for review-summary), is_self (true if author == ME).
-
-Tasks:
-1. Semantic-cluster: group comments that address one logical change. Comments
-   on the same file are a hint, not a rule — comments on different files can
-   share a cluster if they describe one underlying issue.
-2. Rank clusters by: severity (CHANGES_REQUESTED > general > nit) → cluster
-   size → file recency (most recently modified first).
-3. Per cluster, pick a default action:
-   - `answer` if every comment is a question (heuristic: ends in "?", or
-     starts with why/what/how/when/could/would/should/can/is/are/does, with
-     no actionable request)
-   - `apply` otherwise
-   - Never default to `drop` — dropping is always an explicit user choice.
-4. For each cluster, propose a one-line drop reason the user can use if they
-   flip the action to `drop`. Be honest and specific (not "out of scope").
+- Semantic-cluster: group comments addressing one logical change. Same-file
+  is a hint, not a rule; cross-file comments can share a cluster.
+- Rank: severity (CHANGES_REQUESTED > general > nit) → cluster size → file
+  recency (most recent first).
+- Default action per cluster:
+  - `answer` if every comment is a question (ends in "?", or starts with
+    why/what/how/when/could/would/should/can/is/are/does, no actionable
+    request).
+  - `apply` otherwise.
+  - Never default to `drop` — that's always an explicit user choice.
+- Per cluster, propose a one-line drop reason — honest and specific (not
+  "out of scope").
 
 Emit the proposal block exactly per the format below.
 ```
 
 ## Output: proposal block format
 
-Return this single editable block. The user edits in place — flips action markers, edits drop reasons, deletes whole clusters they don't want touched — then sends back. **One round.**
+Return this single editable block. The user edits in place — flips action markers, edits drop reasons, deletes clusters to skip — then sends back. **One round.**
 
 ```
 ## PR <n> — <total> unresolved comments in <K> clusters
@@ -225,25 +232,13 @@ Return this single editable block. The user edits in place — flips action mark
 - Files: src/auth/login.ts, src/auth/session.ts
 - Comments:
   - [c12345] (alice) src/auth/login.ts:42 — "the rate limit should also..."
-    https://github.com/.../pull/169#discussion_r12345
+    <url>
   - [c12389] (alice) src/auth/session.ts:88 — "same here"
-    https://github.com/.../pull/169#discussion_r12389
+    <url>
 - Proposed drop reason (if flipped): rate-limit lives in the gateway, not the app
-
-### Cluster 2: <short title> [action: answer]
-- Files: src/api/users.ts
-- Comments:
-  - [c12401] (bob) src/api/users.ts:120 — "why a Map and not a Set here?"
-    https://github.com/.../pull/169#discussion_r12401
-- Proposed drop reason (if flipped): N/A — pure question
-
-### Cluster 3: <short title> [action: apply]
-- Files: (top-level)
-- Comments:
-  - [c99001] (yours) PR conversation — "TODO: also bump the deps"
-    https://github.com/.../pull/169#issuecomment-99001
-- Proposed drop reason (if flipped): deferred to a follow-up PR
 ```
+
+For `[action: answer]`, add an `Answer:` line. Top-level comments use `(top-level)` in `Files`; self-authored ones are labeled `(yours)`. See "Editing rules" for the full set.
 
 ### Editing rules (state these to the user)
 
@@ -298,31 +293,36 @@ git push
 
 Single push. Confirm with the user before running — it's the irreversible step that triggers CI and notifies reviewers.
 
-If the push is rejected (remote moved), abort and tell the user to `git pull --rebase` and re-run from step 5 onward. Don't auto-rebase — silent rebase risks losing work.
+If the push is rejected (remote moved), abort and tell the user to `git pull --rebase`, then re-run from step 5. Don't auto-rebase — risks lost work.
 
 ## Step 7: Post replies (main)
 
-For **every comment in every surviving cluster** (apply, answer, and drop alike), post a reply. Loop, don't batch — each reply is a permission-gated API call.
+For **every comment in every surviving cluster** (apply/answer/drop), post a reply. Loop, don't batch — each reply is permission-gated.
 
-### 7a. Reply body templates
+### 7a. Reply body templates — minimal by default
 
-**Apply** — link to the commit. Construct the URL from `OWNER_REPO` and the SHA captured in step 5:
+Reviewer wrote what they wrote. Acknowledge it landed, link the proof, move on. Anything more usually gets deleted post-post. Observed deletions (real edits):
+
+- ❌ "Pegada boa — exatamente o cenário..." — unsolicited praise reads as canned-bot empathy.
+- ❌ "Cobertura adicionada em <sha>: <url>. summarize() reusa o mesmo X, mas sem cenário pinned..." — re-explaining the reviewer's own point back to them is patronizing.
+
+**Apply** — short ack + commit URL. Don't praise, don't re-explain, don't double-anchor the SHA.
 
 ```
-Addressed in <SHORT_SHA>: https://github.com/<OWNER_REPO>/pull/<n>/commits/<FULL_SHA>
+<optional one-word ack> https://github.com/<OWNER_REPO>/pull/<n>/commits/<FULL_SHA>
 
 🤖 _via Claude Code (`address-pr-comments`)_
 ```
 
-**Answer** — the user-supplied answer text:
+Examples that survived: `Bem visto. Aplicado em <url>`, `Cobertura adicionada em <url>`, `Adicionado em <url>`. Ack is optional — bare URL works.
+
+**Answer** — the user-supplied answer text, in the user's voice. **No AI signature** (see 7c).
 
 ```
 <answer_body>
-
-🤖 _via Claude Code (`address-pr-comments`)_
 ```
 
-**Drop** — the (user-edited) drop reason:
+**Drop** — minimal drop reason.
 
 ```
 Dropping this one — <drop_reason>
@@ -338,13 +338,17 @@ Dropping this one — <drop_reason>
 | top-level | `gh api -X POST repos/$OWNER_REPO/issues/<n>/comments -f body='@<author> re: <comment_url> — <body>'` |
 | review-summary | same as top-level (no per-review reply API) |
 
-For top-level / review-summary replies, prefix with `@<original_author> re: <link>` so the original commenter still gets pinged and the thread context is recoverable.
+For top-level / review-summary replies, prefix with `@<original_author> re: <link>` — pings the commenter and preserves thread context.
 
-### 7c. Signature is mandatory
+### 7c. Signature rules — split by action
 
-Every reply ends with the literal line `🤖 _via Claude Code (`address-pr-comments`)_`.
+- `apply` replies: AI signature **mandatory**.
+- `drop` replies: AI signature **mandatory**.
+- `answer` replies: **NO signature**.
+  - The answer carries the user's reasoning in the user's voice.
+  - Tagging as AI-assisted dilutes ownership; reviewer may discount it (observed: user stripped signature on C3 of PR #2030).
 
-This is the **only** exception to the global no-emoji rule — keeping the existing Claude Code visual convention earns the trade.
+Signature literal: `🤖 _via Claude Code (`address-pr-comments`)_`. Only exception to the no-emoji rule — Claude Code's visual convention earns it.
 
 ## Step 8: Final report (main)
 

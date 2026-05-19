@@ -1,0 +1,23 @@
+# Used by SKILL.md step 2b — inline review comments via GraphQL (need isResolved).
+query($owner: String!, $repo: String!, $n: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $n) {
+      reviewThreads(first: 100) {
+        nodes {
+          isResolved
+          comments(first: 50) {
+            nodes {
+              databaseId
+              author { login }
+              body
+              path
+              line
+              url
+              diffHunk
+            }
+          }
+        }
+      }
+    }
+  }
+}
