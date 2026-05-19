@@ -1,6 +1,6 @@
 ---
 name: jira-cli
-description: "Jira API shell utilities. USE when interacting with Jira tickets, JQL queries, or fetching issue context for code reviews."
+description: "Create, query, update, link, and transition Jira issues (bugs, stories, epics, subtasks) via the Atlassian REST API. USE for any Jira task: creating issues from local files/templates, linking tickets, JQL searches, status transitions, fetching issue context for code reviews."
 user-invocable: false
 ---
 
