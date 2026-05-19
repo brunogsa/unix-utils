@@ -54,13 +54,15 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: currentView === 'landing' });
 ```
 
-## No spec-tracking refs in shipped artifacts
+## Comments stand alone — full names and concrete values, not local shorthand
 
-`AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `PR-X` do NOT belong in shipped code, test titles, JSDoc, or file headers.
+Applies to comments and test titles. See CLAUDE.md ("Self-describing artifacts — no context-dependent shorthand") for the principle.
 
-Why: spec refs rot at the first refactor. The ticket gets closed, the requirement evolves, the PR gets squashed — the ref outlives its meaning.
-
-Spec linkage belongs in commit message bodies, PR descriptions, or `spec.md`.
+Domain elaboration:
+- Never reference `AC-N` / `Req-N` / `Task-N` / `DBMA-X` / `PR-X` in committed code/comments/test titles. Those live only in gitignored planning docs. Spell out the behavior briefly instead.
+- Spell project-private acronyms: `SA` / `SAP` → `sales_agreement` / `sales_agreement_product`.
+- Prefer concrete example values: `"12345678000195" + "12.345.678/0001-95"` beats `digits + formatCnpj(digits)`.
+- Spec linkage belongs in commit message bodies, PR descriptions, or `spec.md` — not in source.
 
 ```ts
 // Bad — file header reads as a task list
