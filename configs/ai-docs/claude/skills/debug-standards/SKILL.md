@@ -54,6 +54,19 @@ Why: telling "is this me?" without isolation conflates pre-existing brokenness w
 - Steps: `git stash push -- <file1> <file2>`, rerun the failing tests, then `git stash pop`.
 - Same failures on the baseline → pre-existing, capture as Scout, ship your change unentangled.
 - New failures only with your change → your change is the cause; debug it.
+- **Never `git checkout HEAD -- <file>` for transient diagnostic reverts** — that discards uncommitted work irrecoverably. Stash preserves; checkout destroys. Reach for checkout only when the working-tree state is provably reproducible from somewhere else.
+
+## Git bisect on flaky tests requires boundary re-runs
+
+`git bisect` assumes deterministic test results. On a flaky test, every commit in the range has some probability of failing — single-run-per-commit converges on noise, not signal.
+
+Why: a flaky test produces a false "first bad" verdict that points at an unrelated commit. Following that verdict wastes hours investigating mechanical impossibilities (e.g., a commit that only changed comments).
+
+Before trusting any bisect verdict:
+
+- Re-run the test at the bisected "first bad" commit **3+ times**.
+- If it doesn't deterministically fail, the bisect verdict is noise.
+- Look elsewhere: uncommitted working-tree changes, environment, system memory pressure, pool contention.
 
 ## Instrument component boundaries before guessing layers
 
