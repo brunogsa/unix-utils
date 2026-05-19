@@ -65,6 +65,11 @@ Why: cheaper for you to catch these than for the user to find them in review —
   - Never reference them in committed artifacts (code comments, commit bodies, docs).
   - They stay local and get removed after the session; the next reader won't have them. Put the why in the code comment itself or other appropriated place.
 
+- **Cross-references inside the planning doc expand inline, not by ID alone**.
+  - Bad: "AC-12 / AC-13 / AC-15 / AC-16a behavior captured" — forces the reader to flip back.
+  - Good: "AC-12 (one school's fetch fails) / AC-13 (one agreement's SKU fetch fails)".
+  - Why: specs/plans are scanned non-linearly; ID-only references add lookup cost on every scan.
+
 - **CRITICAL: Keep spec and plan up to date** -- Stale docs degrade `/create-pr`.
 
 - **plan.md tasks and their sub-steps become items on TaskList**.
