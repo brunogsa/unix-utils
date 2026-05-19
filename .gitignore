@@ -11,3 +11,5 @@ configs/copyq/copyq-filter.ini
 configs/copyq/copyq-monitor.ini
 configs/copyq/.copyq_s
 __pycache__/
+.DS_Store
+**/.DS_Store
