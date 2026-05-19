@@ -29,6 +29,9 @@ How AI talk to user and learn from his feedback.
 
 - **CRITICAL: When uncertain, ask** -- never guess context, file paths, or module names.
   - Why: guessing produces confident-sounding wrong answers — the user can't tell the model is off-script without explicit doubt.
+  - **Ambiguous one-word commands or seemingly-redundant requests trigger a clarifying question** -- "Retry"/"yes"/"do that"/"generate X" without a clear antecedent, or requests that would re-do completed work, must be confirmed before execution.
+    - Cost of asking: one short message. Cost of guessing wrong: wasted tokens, possibly destroyed work, confused user.
+    - Why: ambiguity in user signal is invisible to the user but load-bearing for AI action — surface it explicitly.
 
 - **CRITICAL: Highlight assumptions** -- explicitly note any assumptions made.
   - Why: an unspoken assumption silently drives the wrong outcome; surfacing it lets the user correct early.
@@ -73,8 +76,12 @@ How AI scope, plan, and verify work on any task.
 - **CRITICAL: Cheap-check key assumptions before big implementations** -- before refactoring on an unverified assumption (API behavior, field shape, flag semantics), verify with a cheap spike: EXPLAIN/dry-run, smoke test, or primary-source read.
   - Why: discovering a wrong assumption after a big change costs N× more than verifying it with a 30-second spike.
 
-- **CRITICAL: Scout rule** -- when you notice pre-existing issues (stale comments, budget overruns, lint gaps), flag them and ask whether to add to the task list.
-  - Why: pre-existing issues mid-task either derail the current commit or get silently absorbed — explicit flagging gives the user the call.
+- **CRITICAL: Scout rule** -- when you notice pre-existing issues, flag them AND auto-add to the task list as `[Scout]` items.
+  - Why: auto-add removes the per-Scout confirmation friction that tempts silent skipping. That preserves both commit discipline (absorbed issues derail the commit) and user choices (skipped ones never reach the menu).
+  - Examples (non-exhaustive): stale comments, budget overruns, lint gaps, dead config, type-check failures unrelated to your task.
+  - **Surface ALL noticed issues — don't pre-filter** -- during a verification pass, list every issue you didn't introduce as a Scout with your fix-or-skip prior. The user picks.
+    - Don't silently skip "not my problem" issues — that biases toward less work.
+  - The user drops any `[Scout]` they don't want — the failure mode is the model omitting them, not the user vetoing them.
 
 - **CRITICAL: Green baseline first** -- existing tests & lint must pass before new work.
   - Why: starting on red conflates pre-existing failures with new regressions — can't tell whose fault each break is.
@@ -94,6 +101,13 @@ How AI scope, plan, and verify work on any task.
 - **CRITICAL: No speculative scope** -- don't add features, configurability, abstractions, comments, tests, or principles the user didn't ask for. Every line should trace to the request.
   - Why: speculative additions inflate diff size, dilute review attention, and ship code with no real caller.
 
+- **CRITICAL: Self-describing artifacts — no context-dependent shorthand** -- names, comments, test titles, and log lines must stand alone for a future reader without today's mental model.
+  - Spell project-private acronyms (`SA` → `sales_agreement`).
+  - Describe behavior briefly instead of referencing tickets/ACs/plan-IDs. Expand inline cross-refs (`AC-12 (one school's fetch fails)`) instead of ID-only listings (`AC-12 / AC-13 / AC-15`).
+  - Prefer concrete example values over abstract function-call shapes.
+  - Applies to identifiers, inline documentation, test titles, and planning docs — both committed artifacts and session-scoped notes.
+  - Why: every shorthand has a half-life. When the context that explains it disappears (spec deleted, ticket archived, contributor rotated off), the shorthand becomes opaque debt the next reader must triangulate.
+
 - **CRITICAL: Information hiding** -- expose intent, hide implementation. Applies to code APIs, CLI interfaces, doc structure, test helpers — clients depend on the contract.
 
 - **CRITICAL: Patch gaps the moment they bite** -- when missing/wrong docs OR tests OR automation cost time, fix inline as part of the current change.
@@ -105,12 +119,19 @@ How AI scope, plan, and verify work on any task.
 - **CRITICAL: Remove unused artifacts** -- code, configs, mocks, env vars, scripts, docs. Trace back and remove all orphans.
   - Why: orphan code/configs/mocks accumulate as "is this still used?" debt — readers spend cycles auditing dead weight.
 
+- **CRITICAL: Prefer deterministic tools over LLM judgment for verification** -- when a claim can be checked by a tool, run the tool first; reserve LLM judgment for the ambiguous tail the tool can't resolve (e.g., dynamic import patterns, runtime-only references).
+  - Why: deterministic tools answer in seconds with reproducible signal; LLM verification is orders of magnitude slower and noisier. Tool-first keeps the bulk cheap and reserves LLM cycles for the cases where its judgment actually adds value.
+  - Examples (non-exhaustive): `knip` / `ts-prune` / `madge` (dead-code & orphan detection), coverage reports (untested branches), `tsc --noEmit` (type errors), linters (style/correctness), complexity scanners like `eslint-plugin-sonarjs` / `lizard` / `complexity-report` (cyclomatic & cognitive complexity), `git blame` / `git log` (ownership/age).
+
 - **CRITICAL: Verify what you produce** -- evidence over optimism.
   - Before completing: run the task's verify step (or propose one). Run scripts/automation to confirm.
   - Fresh evidence only: if the verification hasn't been re-run since your latest change, run it again before claiming. Prior-turn output doesn't prove the current state.
   - When contradicted: if two sources disagree, re-read the actual code before assuming one is wrong. Stale results, shifted line numbers, or misread context waste hours.
   - **Manual verification persists to a .md file in CWD** -- session memory is ephemeral; only the persisted artifact survives. No persistence = no manual check.
   - **Broadest verification scope on shared code or merges** -- all-workspace lint + full unit + integration. Scoped verification is false economy; verification cost beats incident cost.
+  - **Content match, not size delta** -- when verifying a write/edit landed on a large pre-existing artifact (PR body, log, doc), grep for a unique substring of the NEW content.
+    - A no-op edit on an already-large file looks like success on `wc -c` / size checks.
+    - Why: size deltas are lossy on large artifacts — the unchanged old content masks a failed write.
 
 ## Tool Use
 
@@ -167,8 +188,14 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
     - Pattern: `<slow-cmd> > /tmp/out.txt 2>&1; echo "exit: $?"; tail -<N> /tmp/out.txt;`. Choose N to fit the command's summary.
       - `echo "exit: $?"` MUST come right after the slow command — echo after `tail` captures tail's `0` and masks the failure. Bash tool's reported exit is the chain's last, not yours.
 
-- **CRITICAL: Guidelines override observed patterns, present the conflict** -- wait for approval when existing code/docs/configs/conventions contradict the global user rules.
-  - Why: codebases accumulate inconsistencies; following the local pattern compounds the drift instead of correcting it.
+- **Truncated file content in system reminders is not exhaustive**.
+  - When a system reminder shows file content with `[N lines truncated]` or similar marker, treat the visible portion as a snippet.
+  - Grep/wc/list against the actual file before reporting counts or claims about completeness.
+  - Why: snippets feel complete because they're framed as "here's the file" — but the truncation marker says you're seeing partial data. Acting on the snippet ships wrong counts.
+
+- **CRITICAL: Don't replicate problematic patterns — present the conflict** -- pause and ask before applying a fix that matches an existing pattern, when that pattern either (a) contradicts the global user rules, or (b) is itself a smell (e.g., `as any` proliferating, swallowed errors, hardcoded magic literals).
+  - Why: every replication compounds the bad pattern. "Matches existing convention" / "consistent with what's there" makes the wrong fix feel safe — but each repetition entrenches the drift one more notch.
+  - Smell examples: `as any` proliferating, swallowed errors, hardcoded magic literals, copy-paste validation, untyped escape hatches.
 
 - **CRITICAL: Surface harness gaps** -- when fixing something a linter/test/hook/automation could catch, flag `[HARNESS GAP] ...` so the harness can be used instead of AI.
 
