@@ -69,6 +69,20 @@ extract_description() {
     ' "$1"
 }
 
+# Extract optional per-skill word-budget override (frontmatter `words-budget: N`)
+# Empty string = no override; caller falls back to SKILL_WORDS_BUDGET.
+extract_words_budget() {
+    awk '
+        /^---[[:space:]]*$/ { in_fm = !in_fm; if (!in_fm) exit; next }
+        in_fm && /^words-budget:[[:space:]]+[0-9]+[[:space:]]*$/ {
+            sub(/^words-budget:[[:space:]]+/, "")
+            sub(/[[:space:]]*$/, "")
+            print
+            exit
+        }
+    ' "$1"
+}
+
 # Skill measurements
 if [ "$has_skills_dir" -eq 1 ]; then
     skill_count=$(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')
@@ -87,6 +101,17 @@ if [ "$has_skills_dir" -eq 1 ]; then
         desc_chars=$(printf '%s' "$desc" | LC_ALL=en_US.UTF-8 wc -m | tr -d ' ')
         name_chars=${#name}
 
+        # Per-skill override beats default. Skills that legitimately pair
+        # principles with inline examples opt in via `words-budget: N`.
+        skill_words_budget_override=$(extract_words_budget "$f")
+        if [ -n "$skill_words_budget_override" ]; then
+            skill_words_budget=$skill_words_budget_override
+            words_overage_suffix=" (override; default=$SKILL_WORDS_BUDGET)"
+        else
+            skill_words_budget=$SKILL_WORDS_BUDGET
+            words_overage_suffix=""
+        fi
+
         if [ "$desc_chars" -gt "$max_desc" ]; then
             max_desc=$desc_chars
             max_desc_skill=$name
@@ -98,7 +123,7 @@ if [ "$has_skills_dir" -eq 1 ]; then
 
         issues=""
         [ "$lines" -gt "$SKILL_LINES_BUDGET" ] && issues+=" lines=$lines"
-        [ "$words" -gt "$SKILL_WORDS_BUDGET" ] && issues+=" words=$words"
+        [ "$words" -gt "$skill_words_budget" ] && issues+=" words=$words(>$skill_words_budget$words_overage_suffix)"
         [ "$desc_chars" -gt "$SKILL_DESC_BUDGET" ] && issues+=" desc=${desc_chars}c"
         [ "$name_chars" -gt "$SKILL_NAME_BUDGET" ] && issues+=" name=${name_chars}c"
 
