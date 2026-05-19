@@ -1,6 +1,6 @@
 ---
 name: commit-standards
-description: "Conventional commit format + commit-decomposition rules (one logical change per commit, refactor isolation, tests/docs bundled). USE PROACTIVELY before `git commit`, drafting commit messages, or splitting commits."
+description: "Conventional commit format + commit-decomposition rules (one logical change per commit, refactor isolation, tests/docs bundled). USE PROACTIVELY before `git commit`, drafting commit messages, splitting commits, or when a task/sub-step ends."
 user-invocable: false
 ---
 
@@ -20,6 +20,7 @@ Bundled commits force you to revert good changes to undo a bad one, and force re
 - **A migration (move + update refs + delete) is one commit.**
 - **Refactors get their own commit, always isolated from behavior change.**
 - **Related tests, code, docs, IaC all bundled together in their own commit.**
+- **Exception: when two logical changes are entangled in one file, prefer a single combined commit over a temporary revert.** Reverting in-progress code to split commits risks losing work or introducing manual errors. The "preserve user work" rule overrides "one logical change per commit." Combine, and name both concerns explicitly in the commit body.
 
 ## Conventional commits with WHY body that fits on a screen (~32 lines)
 
