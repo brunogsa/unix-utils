@@ -138,6 +138,12 @@ A test that passes 9 times and fails the 10th is worse than no test — engineer
 - Time-derived tests without a frozen clock are time-bombs — they pass today and silently fail in N months when wall-clock crosses a threshold.
 - Apply when test names contain "past", "future", "expired", "min", "cap", "deadline" — wall-clock-sensitive vocabulary.
 
+## Observed test flakes always become Scouts
+
+Any observed test flake — intermittent failure, OOM, timing race — queues a Scout immediately, even when the root cause is unclear at observation time. Uses the Scout mechanism from CLAUDE.md's Scout rule (auto-add as `[Scout]`).
+
+Why: flakiness compounds — each ignored instance erodes signal in the suite, so the "next" failure can't be trusted as a real regression. "Not my problem today" becomes "the suite stops guarding tomorrow."
+
 ## Mock sparingly
 
 Only external dependencies (file I/O, network, external processes).
