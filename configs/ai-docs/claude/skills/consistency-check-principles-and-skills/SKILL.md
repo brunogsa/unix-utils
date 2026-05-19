@@ -1,6 +1,6 @@
 ---
 name: consistency-check-principles-and-skills
-description: "Audit CLAUDE.md and skills for contradictions, duplication, and merges. Trigger on 'consistency check' / 'check contradictions' / 'audit my skills'. Heavy (LLM cross-file) — don't invoke after each edit. Report-only."
+description: "Audit CLAUDE.md and skills for qualitative coherence drift across files; surface findings for user triage. Trigger on 'consistency check' / 'check contradictions' / 'audit my skills'. Heavy (LLM cross-file) — don't invoke after each edit. Report-only."
 ---
 
 # Consistency Check: Principles and Skills
@@ -56,7 +56,27 @@ Why it matters: a smaller, sharper principle set is easier for Claude to attend 
 - Per Jaroslawicz et al. 2025 (cited in `performance-check`'s `references/research.md`), instruction adherence degrades sharply past ~200 instructions.
 - Every merged duplicate buys back attention.
 
-### 3. Duplication
+### 3. Multiple Whys per principle
+
+A single principle's bullet tree carries two or more distinct `Why:` clauses (parent + sub-bullet, or across sibling sub-bullets).
+
+Look for:
+- A `Why:` on the top-level rule AND a `Why:` on one of its sub-bullets.
+- Two or more sub-bullets, each with its own `Why:`, under the same parent rule.
+- A nested `Why:` whose argument doesn't subsume the parent's `Why:` — the sub-bullet stands on a different mechanism, not a sharpening of the same one.
+
+This is a fork — surface it; the user picks the action:
+- **Split**: each `Why:` anchors a distinct concept. Promote the sub-bullet to its own top-level principle.
+- **Generalize**: the sub-bullets are facets of the same idea. Rewrite the parent so a single `Why:` covers them all; demote sub-bullets to bullet examples (no `Why:`).
+
+Why it matters: every directive should pair with exactly one load-bearing rationale (per CLAUDE.md's "Teach the *why*, not just the *what*").
+
+- A principle with multiple `Why:` clauses gives the model multiple competing reasons to generalize from — but only one parent heading anchoring them, so the "what" silently has ambiguous scope.
+- Either there are N principles welded together (split), or the rationales are duplicate-ish and one generalization covers them (generalize). Both shapes are cleaner than the current state.
+
+**When NOT to flag**: a sub-bullet's `Why:` is a strict sharpening of the parent's `Why:` — same mechanism, narrower case. Style debt at most. Note but don't push.
+
+### 4. Duplication
 
 The same rule stated in multiple places without each restatement adding value.
 
@@ -71,7 +91,7 @@ Why it matters: edit burden — when one copy changes, the others go stale silen
 - That is *not* duplication — that is progressive disclosure (CLAUDE.md is auto-loaded; skills load on demand).
 - Only flag when both copies say the *same thing at the same level of detail*.
 
-### 4. Structure (per skill-creator conventions)
+### 5. Structure (per skill-creator conventions)
 
 Each skill must follow `skill-creator`'s structural conventions. Audit each `SKILL.md` for:
 - **Frontmatter**: required `description` field present; `disable-model-invocation` only used intentionally (e.g., for slash-only skills).
@@ -107,6 +127,7 @@ Mirror `performance-check`'s shape: summary table, then per-heuristic detail sec
 |---|---|---|
 | Contradictions | 1 | ISSUE |
 | Merge / generalization | 2 | REVIEW |
+| Multiple Whys | 1 | REVIEW |
 | Duplication | 0 | OK |
 | Structure | 1 | REVIEW |
 
@@ -123,6 +144,11 @@ Mirror `performance-check`'s shape: summary table, then per-heuristic detail sec
 
 2. **skills/foo/SKILL.md description** overlaps ~60% with **skills/bar/SKILL.md description** on triggers around X.
    - Consider merging, or sharpening one description to claim a distinct trigger surface.
+
+## Multiple Whys
+
+1. **CLAUDE.md "Scout rule"** carries 3 distinct `Why:` clauses (parent + "Surface ALL noticed issues" sub-bullet + "Flaky tests" sub-sub-bullet) — each on a different mechanism (mid-task derailment, user-choice preservation, flake compounding).
+   - Suggestion: promote "Flaky tests ALWAYS become Scouts" to its own top-level principle (distinct mechanism); evaluate whether parent + "Surface ALL" share one rationale ("don't pre-filter the user's menu") that can be generalized.
 
 ## Duplication
 
@@ -145,6 +171,7 @@ Findings are signals, not commands. Many require judgment that only the user can
 - *Which side of a contradiction is correct?* The newer rule? The more cited one? The one with a stronger "Why:"?
 - *Is this duplication or intentional layering?*
 - *Are these two skills truly redundant, or do they each carve out a real niche the descriptions just fail to convey?*
+- *Should this multi-Why principle split into N rules, or generalize to one?* The two paths point in opposite directions; only the user knows which mechanism the rule was really about.
 
 Auto-resolving would erase that nuance. Surface findings; the user triages and approves edits.
 
