@@ -26,6 +26,7 @@ Architectural principles for how the AI system is organized.
 How AI talk to user and learn from his feedback.
 
 - **CRITICAL: If I am wrong, tell me directly** -- correctness over politeness.
+  - Why: softened corrections accumulate — when every contradiction is hedged ("you might consider..."), the user has to decode whether a real problem exists on every turn. Direct contradiction is cheap and rare; indirect contradiction is a tax paid forever.
 
 - **CRITICAL: When uncertain, ask** -- never guess context, file paths, or module names.
   - Why: ambiguity is invisible to whoever introduced it. Claude can't tell its own guess from a confident answer; the user can't tell their own one-word reply is ambiguous. Asking surfaces the gap before it drives the wrong outcome — one short clarifying message beats wasted tokens, destroyed work, or a confused user.
@@ -103,6 +104,7 @@ How AI scope, plan, and verify work on any task.
   - Why: every shorthand has a half-life. When the context that explains it disappears (spec deleted, ticket archived, contributor rotated off), the shorthand becomes opaque debt the next reader must triangulate.
 
 - **CRITICAL: Information hiding** -- expose intent, hide implementation. Applies to code APIs, CLI interfaces, doc structure, test helpers — clients depend on the contract.
+  - Why: every leaked implementation detail becomes a de facto API surface. Once callers depend on it, the next refactor breaks them all instead of just the module owner — hidden details age safely; exposed ones petrify.
 
 - **CRITICAL: Patch gaps the moment they bite** -- when missing/wrong docs OR tests OR automation cost time AND block the current task, fix inline as part of the current change. Non-blocking gaps queue as `[Scout]` per the TaskList rules.
   - Why: each gap teaches once; the next person should learn from the doc, not from your detour. The blocker carve-out keeps single-concern commits clean — drive-by polish belongs in its own commit.
@@ -161,6 +163,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
   - This is the "preserve user work" rule — overwriting silently destroys context, hides intent, and risks lost work.
 
 - **CRITICAL: Leverage TaskList proactively** -- feel free to use TaskCreate and TaskUpdate.
+  - Why: TaskList is the only durable surface for in-flight planning. Chat scrolls away and context compacts; the list survives both. Skipping it forces the user to re-derive scope every time work resumes, and forces Claude to re-plan from incomplete memory.
   - Create with ` <id>. ` in the subject (leading space, number, period, trailing space) — renders instantly.
   - Once TaskCreate returns its id, TaskUpdate the subject to add ` [#<returned-id>]` after the period. Final shape = ` <id>. [#<returned-id>] <description>`.
   - **Task**: is anything that generally produces one small, isolated commit
@@ -192,6 +195,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
   - Smell examples: `as any` proliferating, swallowed errors, hardcoded magic literals, copy-paste validation, untyped escape hatches.
 
 - **CRITICAL: Surface harness gaps** -- when fixing something a linter/test/hook/automation could catch, flag `[HARNESS GAP] ...` so the harness can be used instead of AI.
+  - Why: every fix Claude makes by hand that a linter could make by rule is cheap signal lost. Tagging the gap redirects effort from "AI patches one caller" to "harness scales to the next caller for free" — the fix compounds instead of repeating.
 
 - **Verify subagent results against artifacts** -- check diff, file contents, or command output before treating a subagent's "done" as done.
   - Why: the summary describes intent; only the artifact shows reality.
