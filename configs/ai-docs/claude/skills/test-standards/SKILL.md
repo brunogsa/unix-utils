@@ -140,9 +140,13 @@ A test that passes 9 times and fails the 10th is worse than no test — engineer
 
 ## Observed test flakes always become Scouts
 
-Any observed test flake — intermittent failure, OOM, timing race — queues a Scout immediately, even when the root cause is unclear at observation time. Uses the Scout mechanism from CLAUDE.md's Scout rule (auto-add as `[Scout]`).
+Any observed test flake — intermittent failure, OOM, timing race — queues a Scout immediately, even when the root cause is unclear at observation time.
 
-Why: flakiness compounds — each ignored instance erodes signal in the suite, so the "next" failure can't be trusted as a real regression. "Not my problem today" becomes "the suite stops guarding tomorrow."
+Uses the Scout mechanism from CLAUDE.md's Scout rule (auto-add as `[Scout]`).
+
+Why: flakiness compounds — each ignored instance erodes signal in the suite, so the "next" failure can't be trusted as a real regression.
+
+"Not my problem today" becomes "the suite stops guarding tomorrow."
 
 ## Mock sparingly
 
@@ -313,7 +317,13 @@ Reference the same enums/constants as production code — in assertions, in mock
 
 Why: hardcoding the literal value in the test means a refactor that renames the enum silently breaks production while the test still passes (with the old literal). Sharing the constant catches drift.
 
-Mock factories are the silent killer here: a factory that hardcodes `'PLENO'` while production uses `BrandSlugs.PLENO = 'pleno'` (uppercase vs lowercase) lets drift compound — the test passes against its own mock but never matches the shape production actually emits. TypeScript can't catch it (string literal narrows but doesn't enforce equivalence with the enum). The fix is mechanical: every domain identifier in a mock body refers to the production constant, not a copy.
+Mock factories are the silent killer here: a factory that hardcodes `'PLENO'` while production uses `BrandSlugs.PLENO = 'pleno'` (uppercase vs lowercase) lets drift compound.
+
+The test passes against its own mock but never matches the shape production actually emits.
+
+TypeScript can't catch it (string literal narrows but doesn't enforce equivalence with the enum).
+
+The fix is mechanical: every domain identifier in a mock body refers to the production constant, not a copy.
 
 ## Debug with code and tests, not temp files
 
@@ -339,10 +349,18 @@ Why: deleting tests during a migration is silent regression risk. The behavior t
 Every `.skip` you encounter — yours or someone else's, old or new — owes the suite a justification. Stop and ask three questions:
 
 1. **Should this be skipped at all?** A skip without a written reason (inline comment or linked ticket explaining what blocks it) is dead weight, not deferred work.
-2. **Is it stale?** Old `.skip` + no follow-up commits + production code the test references is missing or changed = abandoned scaffolding. Delete (and the file, if 100% of its tests were skipped).
-3. **Should it actually be un-skipped now?** The condition that justified the skip may have lifted. Un-skip and run — if it passes, the skip outlived its purpose; if it fails meaningfully, the test just caught a real gap.
+2. **Is it stale?** Old `.skip` + no follow-up commits + production code the test references is missing or changed = abandoned scaffolding.
+   - Delete (and the file, if 100% of its tests were skipped).
+3. **Should it actually be un-skipped now?** The condition that justified the skip may have lifted.
+   - Un-skip and run — if it passes, the skip outlived its purpose; if it fails meaningfully, the test just caught a real gap.
 
-Why: skipped tests are silent debt — the skip count grows quietly, and `skipped` loses meaning when half the entries are forever-deferred. Skipped tests are also a tell for AI slop: agents readily generate `it.skip(...)` scaffolds claiming TDD intent, but the implementation that would un-skip them never lands, and the file rots as forever-pending TDD. Treating each skip as a decision-point keeps the suite honest about what it actually guards — and catches the slop pattern early.
+Why: skipped tests are silent debt — the skip count grows quietly, and `skipped` loses meaning when half the entries are forever-deferred.
+
+Skipped tests are also a tell for AI slop: agents readily generate `it.skip(...)` scaffolds claiming TDD intent.
+
+But the implementation that would un-skip them never lands, and the file rots as forever-pending TDD.
+
+Treating each skip as a decision-point keeps the suite honest about what it actually guards — and catches the slop pattern early.
 
 When the answer is "delete," cross-reference the three-evidence checklist in CLAUDE.md ("Destructive cleanup needs 3 evidence types") and capture the investigation in the commit body.
 

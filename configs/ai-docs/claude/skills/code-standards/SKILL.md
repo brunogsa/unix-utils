@@ -414,10 +414,14 @@ Why: a `getCurrentTime()` wrapper around `Date.now()` adds indirection with no p
 
 A helper for 2–4 callsites earns its place only when extraction **strictly raises both** bars. Both must rise — not one.
 
-1. **Readability bar** — does the helper's name communicate intent better than the inline form? If the inline pattern is already self-evident (a 3-line `JSON.parse(decodeURIComponent(raw))`), a helper named `extractTrpcInputField` adds indirection without revelation.
-2. **Cognitive load bar** — does extraction shrink the working set the reader has to hold? A 10-line helper hiding a 2-line pattern doesn't reduce load; it spreads the same load across two files (the call site + the helper body), and now the reader chases both.
+1. **Readability bar** — does the helper's name communicate intent better than the inline form?
+   - If the inline pattern is already self-evident (a 3-line `JSON.parse(decodeURIComponent(raw))`), a helper named `extractTrpcInputField` adds indirection without revelation.
+2. **Cognitive load bar** — does extraction shrink the working set the reader has to hold?
+   - A 10-line helper hiding a 2-line pattern doesn't reduce load; it spreads the same load across two files (the call site + the helper body), and now the reader chases both.
 
-If either bar fails, **inline wins**. DRY is not a value on its own — it's a heuristic for reducing complexity. When extraction adds complexity, DRY is the wrong heuristic for that case.
+If either bar fails, **inline wins**. DRY is not a value on its own — it's a heuristic for reducing complexity.
+
+When extraction adds complexity, DRY is the wrong heuristic for that case.
 
 Symmetric to "Don't wrap trivial expressions" (wrappers must add behavior) — this rule covers wrappers that hide patterns without adding behavior, and asserts they're noise unless they clear both bars.
 
@@ -442,9 +446,13 @@ for (let i = 1; i <= count; i++) {
 
 When a render function or JSX block exceeds ~50 lines with multiple conditional branches, extract each branch into a self-naming sub-component (inline same-file is fine when the sub-component isn't reused elsewhere).
 
-Why: flat conditional JSX with anonymous `<div>` blocks forces every reader to parse every branch's content to understand the page outline. Named sub-components make the top-level scannable as an outline — `{isOverCap && <OverCapBanner />}` reads its intent in one glance; the 7-line div behind it doesn't.
+Why: flat conditional JSX with anonymous `<div>` blocks forces every reader to parse every branch's content to understand the page outline.
 
-Target shape: every conditional block in the parent becomes a one-line `<Foo prop={...} />`. The parent JSX reads as the page's outline. data-testids and behavior are preserved by definition — you're only moving JSX, not changing it.
+Named sub-components make the top-level scannable as an outline — `{isOverCap && <OverCapBanner />}` reads its intent in one glance; the 7-line div behind it doesn't.
+
+Target shape: every conditional block in the parent becomes a one-line `<Foo prop={...} />`. The parent JSX reads as the page's outline.
+
+data-testids and behavior are preserved by definition — you're only moving JSX, not changing it.
 
 Applies to any framework's render tree (React JSX, Vue templates, Svelte markup, JSX-like DSLs) — the principle is "render functions are outlines, not encyclopedias".
 

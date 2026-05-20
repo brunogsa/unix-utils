@@ -51,9 +51,13 @@ words-budget: 5096
 ---
 ```
 
-Why: a few skills legitimately pair principles with inline examples (code-standards, test-standards), so they need ~2× the default budget. Hard-coding the exception list in the script would couple performance-check to specific skill names; an opt-in field keeps the override self-documenting and local to the skill that needs it.
+Why: a few skills legitimately pair principles with inline examples (code-standards, test-standards), so they need ~2× the default budget.
 
-The report stays quiet about overrides while the skill is under its custom budget — the override only surfaces when the skill blows past its own ceiling, where the line is annotated as `words=N(>budget (override; default=2048))` so the next reader knows the larger budget was intentional.
+Hard-coding the exception list in the script would couple performance-check to specific skill names; an opt-in field keeps the override self-documenting and local to the skill that needs it.
+
+The report stays quiet about overrides while the skill is under its custom budget — the override only surfaces when the skill blows past its own ceiling.
+
+Over-budget lines are annotated as `words=N(>budget (override; default=2048))` so the next reader knows the larger budget was intentional.
 
 Only `words-budget` is overridable today — line/desc/name budgets remain global.
 

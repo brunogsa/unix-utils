@@ -54,7 +54,9 @@ Why: telling "is this me?" without isolation conflates pre-existing brokenness w
 - Steps: `git stash push -- <file1> <file2>`, rerun the failing tests, then `git stash pop`.
 - Same failures on the baseline → pre-existing, capture as Scout, ship your change unentangled.
 - New failures only with your change → your change is the cause; debug it.
-- **Never `git checkout HEAD -- <file>` for transient diagnostic reverts** — that discards uncommitted work irrecoverably. Stash preserves; checkout destroys. Reach for checkout only when the working-tree state is provably reproducible from somewhere else.
+- **Never `git checkout HEAD -- <file>` for transient diagnostic reverts** — that discards uncommitted work irrecoverably.
+  - Stash preserves; checkout destroys.
+  - Reach for checkout only when the working-tree state is provably reproducible from somewhere else.
 
 ## Git bisect on flaky tests requires boundary re-runs
 

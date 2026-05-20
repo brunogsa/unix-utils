@@ -66,13 +66,20 @@ Before any other work, ask the user which post-edit audits (if any) this invocat
 
 > Should I run `consistency-check-principles-and-skills` and `performance-check-principles-and-skills` after applying edits? (both / consistency only / performance only / neither)
 
-Default the suggestion to `both`. Capture the answer and thread it into the subagent prompt as a `## Post-Edit Audit Scope` section, so steps 8–9 fire only for the selected audits. If the user picks `neither`, both steps are skipped and the *Post-Edit Verification* block in the Output Format becomes `(skipped per user choice)`.
+Default the suggestion to `both`. Capture the answer and thread it into the subagent prompt as a `## Post-Edit Audit Scope` section, so steps 8–9 fire only for the selected audits.
+
+If the user picks `neither`, both steps are skipped and the *Post-Edit Verification* block in the Output Format becomes `(skipped per user choice)`.
 
 Why ask:
 
-- **Cost.** Both audits are heavy. Consistency-check does LLM cross-file reading over every `SKILL.md`; performance-check scans the tree against research budgets. For a one-off correction the cost rarely amortizes; for a session-wide sweep it does. Per-invocation choice keeps the skill cheap when the user wants it cheap.
-- **Participation.** Audits run *inside* the subagent here, so the user sees only the final embedded reports — not the turn-by-turn triage loop where findings get split, generalized, or dismissed. `neither` is a first-class option: the user can re-invoke `/consistency-check-principles-and-skills` and `/performance-check-principles-and-skills` themselves in a fresh Claude session, where each runs in that session's *main* context with the user in the loop for every finding.
-- **Timing.** The user may also prefer running the audits later — after several improve-* invocations land, or right before committing — so a single audit pass covers the whole batch instead of N redundant passes per micro-edit.
+- **Cost.** Both audits are heavy. Consistency-check does LLM cross-file reading over every `SKILL.md`; performance-check scans the tree against research budgets.
+  - For a one-off correction the cost rarely amortizes; for a session-wide sweep it does.
+  - Per-invocation choice keeps the skill cheap when the user wants it cheap.
+- **Participation.** Audits run *inside* the subagent here, so the user sees only the final embedded reports — not the turn-by-turn triage loop where findings get split, generalized, or dismissed.
+  - `neither` is a first-class option: the user can re-invoke `/consistency-check-principles-and-skills` and `/performance-check-principles-and-skills` themselves in a fresh Claude session.
+  - In a fresh session each runs in that session's *main* context with the user in the loop for every finding.
+- **Timing.** The user may also prefer running the audits later — after several improve-* invocations land, or right before committing.
+  - A single audit pass covers the whole batch instead of N redundant passes per micro-edit.
 
 ## Step 1: Extract User Feedback Items (main context)
 

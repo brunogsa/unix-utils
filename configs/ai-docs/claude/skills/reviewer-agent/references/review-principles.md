@@ -13,9 +13,14 @@ Confidence governs reviewer behavior at two gates that pull in opposite directio
   - **60-80% confidence** → emit as a clarifying question to reduce ambiguity.
   - **<60% confidence** → skip the comment entirely.
 - **Validation gate (Wave 3 self-check, post-emission):**
-  - **When in doubt, KEEP.** Dropping a real finding erodes trust more than keeping noise. Only drop on clear, specific evidence the claim doesn't hold (cited code doesn't exist; code already does what was asked; the issue depends on behavior the file explicitly prevents).
+  - **When in doubt, KEEP.** Dropping a real finding erodes trust more than keeping noise.
+    - Only drop on clear, specific evidence the claim doesn't hold (cited code doesn't exist; code already does what was asked; the issue depends on behavior the file explicitly prevents).
 
-Why two gates pull opposite ways: emission is cheap to abort (the comment doesn't exist yet), so the bar is "is this likely real?". Validation is expensive to abort (the work is already done; dropping it loses the specialist's reasoning), so the bar is "is this provably wrong?". One threshold can't govern both — they're not the same decision.
+Why two gates pull opposite ways: emission is cheap to abort (the comment doesn't exist yet), so the bar is "is this likely real?".
+
+Validation is expensive to abort (the work is already done; dropping it loses the specialist's reasoning), so the bar is "is this provably wrong?".
+
+One threshold can't govern both — they're not the same decision.
 
 Avoid speculative feedback using "maybe", "possibly", or "consider" without strong justification at the emission gate. Don't compensate at validation — those are different problems.
 

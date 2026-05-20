@@ -1,6 +1,6 @@
 ---
 name: auto-review
-description: "USE for code review on a local branch (no GitHub PR URL — for that, use /code-review). Triggers: 'review this branch' / 'audit my changes' / /auto-review. AUTONOMOUS step in plan execution + end-of-branch pass."
+description: "USE for code review on a local branch (no PR URL — use /code-review). Triggers: 'review this branch' / 'audit my changes' / /auto-review. AUTONOMOUS: plan execution + end-of-branch pass."
 disable-model-invocation: false
 ---
 
