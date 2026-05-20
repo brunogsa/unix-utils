@@ -115,14 +115,19 @@ How AI scope, plan, and verify work on any task.
 
 - **CRITICAL: Verify everything you do — assumptions, stated limitations, and produced artifacts** -- check at three gates: before starting (cheap spike on key assumptions — API behavior, field shape, flag semantics — via EXPLAIN/dry-run, smoke test, or primary-source read), before accepting (verify stated limits against actual code, docs, or web), and before declaring done (run the task's verify step or propose one).
   - Why: unverified beliefs compound. A wrong assumption discovered after a big change costs N× more than a 30-second spike. An accepted-as-stated limit propagates into design decisions that are expensive to unwind. An unverified output ships the bug. Evidence over optimism, applied at every gate.
-  - Before completing: run the task's verify step (or propose one). Run scripts/automation to confirm.
-  - Fresh evidence only: if the verification hasn't been re-run since your latest change, run it again before claiming. Prior-turn output doesn't prove the current state.
-  - When contradicted: if two sources disagree, re-read the actual code before assuming one is wrong. Stale results, shifted line numbers, or misread context waste hours.
-  - **Manual verification persists to a .md file in CWD** -- session memory is ephemeral; only the persisted artifact survives. No persistence = no manual check.
-  - **Broadest verification scope on shared code or merges** -- all-workspace lint + full unit + integration. Scoped verification is false economy; verification cost beats incident cost.
-  - **Content match, not size delta** -- when verifying a write/edit landed on a large pre-existing artifact (PR body, log, doc), grep for a unique substring of the NEW content.
-    - A no-op edit on an already-large file looks like success on `wc -c` / size checks.
-    - Why: size deltas are lossy on large artifacts — the unchanged old content masks a failed write.
+
+- **CRITICAL: Fresh evidence only — re-run if stale, re-read on contradiction** -- if the verification hasn't been re-run since your latest change, run it again before claiming. If two sources disagree, re-read the actual code before assuming one is wrong.
+  - Why: prior-turn output doesn't prove the current state. Stale results, shifted line numbers, or misread context waste hours chasing problems that no longer exist — or missing ones that just appeared.
+
+- **CRITICAL: Manual verification persists to a .md file in CWD** -- session memory is ephemeral; only the persisted artifact survives. No persistence = no manual check.
+  - Why: a manual check that lives in session memory disappears the moment context compacts or the session ends. The next regression in that area has no signal — the persisted file is the durable proof.
+
+- **CRITICAL: Broadest verification scope on shared code or merges** -- all-workspace lint + full unit + integration. Scoped verification is false economy.
+  - Why: shared code's blast radius is the whole workspace; a narrow verify misses regressions in adjacent callers. Verification cost beats incident cost — pay it up front.
+
+- **CRITICAL: Content match, not size delta** -- when verifying a write/edit landed on a large pre-existing artifact (PR body, log, doc), grep for a unique substring of the NEW content.
+  - A no-op edit on an already-large file looks like success on `wc -c` / size checks.
+  - Why: size deltas are lossy on large artifacts — the unchanged old content masks a failed write.
 
 ## Tool Use
 
