@@ -110,8 +110,8 @@ How AI scope, plan, and verify work on any task.
 
 - **CRITICAL: Information hiding** -- expose intent, hide implementation. Applies to code APIs, CLI interfaces, doc structure, test helpers — clients depend on the contract.
 
-- **CRITICAL: Patch gaps the moment they bite** -- when missing/wrong docs OR tests OR automation cost time, fix inline as part of the current change.
-  - Why: each gap teaches once; the next person should learn from the doc, not from your detour.
+- **CRITICAL: Patch gaps the moment they bite** -- when missing/wrong docs OR tests OR automation cost time AND block the current task, fix inline as part of the current change. Non-blocking gaps queue as `[Scout]` per the TaskList rules.
+  - Why: each gap teaches once; the next person should learn from the doc, not from your detour. The blocker carve-out keeps single-concern commits clean — drive-by polish belongs in its own commit.
 
 - **Centralize repeated artifacts** -- DRY for code, docs, scripts, configs. Merge near-duplicate units when they differ only by a flag or filter.
   - Why: duplicated artifacts drift on every edit — N copies become N versions of "almost the same thing".
