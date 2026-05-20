@@ -263,7 +263,7 @@ If parse fails (mangled markers, missing `Answer:` for answer clusters), surface
 For each `apply` cluster, **in the order the user left them**:
 
 1. Make the code changes that address the cluster's comments.
-2. Stage **only** files relevant to this cluster (no `git add -A` — bundling unrelated files breaks "one logical change per commit").
+2. Stage **only** files relevant to this cluster — see `commit-standards` for the `git add` rules.
 3. Commit using `commit-standards` (delegate via the Skill tool). Message body should reference the comments:
 
    ```
