@@ -33,9 +33,7 @@ This skill **does not** mark threads resolved. The user closes them after review
 - **top-level conversation comment** — owner = author of the comment itself (no threading).
 - **review-summary body** — owner = author of the review.
 
-Why: the thread-opener raises the concern; replies are participation.
-
-- Filtering by participation surfaces threads the user only answered in (not theirs to address). Thread-opener matches the "my comments" mental model.
+Why: see `references/reply-patterns.md` (Ownership rationale).
 
 Examples:
 - `/address-pr-comments 169`
@@ -54,10 +52,6 @@ The PR number alone is enough — both filters are optional.
   - The PR (one reply per addressed comment, AI-signed).
 - **Does not**: resolve threads, request re-review, dismiss reviews, or touch other PRs.
 - **Self-comments are included** — the proposal block labels them `(yours)`.
-
-## Reuse note
-
-Duplicates `gh api` fetch primitives from `improve-principles-and-skills-from-user-feedback` Mode B intentionally — that flow uses REST only; this one needs GraphQL for `isResolved`.
 
 ## Execution (Hybrid)
 
@@ -82,8 +76,6 @@ Most load automatically via their description triggers; the explicit load points
 - `doc-standards` — load before adding any comment, docstring, log line, or doc edit while applying a cluster (step 5).
 - `debug-standards` — load when lint/test goes red in step 1c, or when a test fails for the wrong reason while applying a cluster (step 5).
 - `commit-standards` — load at every commit boundary (step 1b offer-to-commit, step 5 per-cluster commits).
-
-Lazy load keeps context lean; load at the right moment ensures the rules actually shape the output.
 
 ## Step 1: Validate preconditions (main)
 
@@ -184,17 +176,7 @@ Include each review's `body` (when non-empty) plus its `state` (`APPROVED` / `CH
 
 If the result is empty after filtering, report and stop.
 
-Example query for inline threads with `by` filter (jq):
-
-```bash
-jq --arg author "alice" '
-  [.data.repository.pullRequest.reviewThreads.nodes[]
-    | select(.isResolved == false)
-    | select(.comments.nodes[0].author.login == $author)
-  ]' inline.json
-```
-
-The `select(.comments.nodes[0].author.login == ...)` is the ownership check — `nodes[0]` is the thread-opener.
+See `references/reply-patterns.md` (jq ownership query) for the inline-thread `by` filter pattern.
 
 ## Step 3: Cluster, rank, propose (subagent)
 
@@ -301,10 +283,7 @@ For **every comment in every surviving cluster** (apply/answer/drop), post a rep
 
 ### 7a. Reply body templates — minimal by default
 
-Reviewer wrote what they wrote. Acknowledge it landed, link the proof, move on. Anything more usually gets deleted post-post. Observed deletions (real edits):
-
-- ❌ "Pegada boa — exatamente o cenário..." — unsolicited praise reads as canned-bot empathy.
-- ❌ "Cobertura adicionada em <sha>: <url>. summarize() reusa o mesmo X, mas sem cenário pinned..." — re-explaining the reviewer's own point back to them is patronizing.
+Reviewer wrote what they wrote. Acknowledge it landed, link the proof, move on. See `references/reply-patterns.md` for observed deletions and survivors.
 
 **Apply** — short ack + commit URL. Don't praise, don't re-explain, don't double-anchor the SHA.
 
@@ -314,7 +293,7 @@ Reviewer wrote what they wrote. Acknowledge it landed, link the proof, move on. 
 🤖 _via Claude Code (`address-pr-comments`)_
 ```
 
-Examples that survived: `Bem visto. Aplicado em <url>`, `Cobertura adicionada em <url>`, `Adicionado em <url>`. Ack is optional — bare URL works.
+Ack is optional — bare URL works.
 
 **Answer** — the user-supplied answer text, in the user's voice. **No AI signature** (see 7c).
 
@@ -346,7 +325,7 @@ For top-level / review-summary replies, prefix with `@<original_author> re: <lin
 - `drop` replies: AI signature **mandatory**.
 - `answer` replies: **NO signature**.
   - The answer carries the user's reasoning in the user's voice.
-  - Tagging as AI-assisted dilutes ownership; reviewer may discount it (observed: user stripped signature on C3 of PR #2030).
+  - Tagging as AI-assisted dilutes ownership (see `references/reply-patterns.md`).
 
 Signature literal: `🤖 _via Claude Code (`address-pr-comments`)_`. Only exception to the no-emoji rule — Claude Code's visual convention earns it.
 
