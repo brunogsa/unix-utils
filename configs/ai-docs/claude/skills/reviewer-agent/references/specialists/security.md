@@ -1,6 +1,6 @@
 # Specialist: Security
 
-Source: `review-standards/checklists.md#Security Checklist`.
+Source: `reviewer-agent/references/review-checklists.md#Security Checklist`.
 
 ---
 

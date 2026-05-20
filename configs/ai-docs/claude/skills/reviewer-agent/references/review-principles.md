@@ -1,24 +1,23 @@
----
-name: review-standards
-description: "Code-review principles + feedback rules. USE PROACTIVELY on ANY review work — commenting on a PR, /auto-review, /code-review, or any 'review this' / 'look at my changes' request."
-user-invocable: false
----
-
-# Review Standards
+# Review Principles
 
 Principles and paired rules for any code review. Each section pairs a principle with its rule/format.
 
-## High confidence standard — skip below 60%
+Source-of-truth file for reviewer behavior — loaded by `reviewer-agent`'s pipeline and by `address-pr-comments` when interpreting reviewer comments. Not a skill (no frontmatter); referenced by path.
 
-Only provide feedback when you have sufficient confidence:
+## High confidence standard — skip below 60% on EMISSION, keep on VALIDATION
 
-- **>80% confidence** → make a direct comment with clear reasoning.
-- **60-80% confidence** → ask a clarifying question to reduce ambiguity.
-- **<60% confidence** → skip the comment entirely.
+Confidence governs reviewer behavior at two gates that pull in opposite directions:
 
-Why: low-confidence feedback wastes the author's time and erodes the reviewer's signal. Each speculative "maybe consider..." trains the author to discount you. High-confidence comments compound trust.
+- **Emission gate (Wave 2 specialists):**
+  - **>80% confidence** → emit a direct comment with clear reasoning.
+  - **60-80% confidence** → emit as a clarifying question to reduce ambiguity.
+  - **<60% confidence** → skip the comment entirely.
+- **Validation gate (Wave 3 self-check, post-emission):**
+  - **When in doubt, KEEP.** Dropping a real finding erodes trust more than keeping noise. Only drop on clear, specific evidence the claim doesn't hold (cited code doesn't exist; code already does what was asked; the issue depends on behavior the file explicitly prevents).
 
-Avoid speculative feedback using "maybe", "possibly", or "consider" without strong justification.
+Why two gates pull opposite ways: emission is cheap to abort (the comment doesn't exist yet), so the bar is "is this likely real?". Validation is expensive to abort (the work is already done; dropping it loses the specialist's reasoning), so the bar is "is this provably wrong?". One threshold can't govern both — they're not the same decision.
+
+Avoid speculative feedback using "maybe", "possibly", or "consider" without strong justification at the emission gate. Don't compensate at validation — those are different problems.
 
 ## Feedback structure: Problem → Why → Fix
 

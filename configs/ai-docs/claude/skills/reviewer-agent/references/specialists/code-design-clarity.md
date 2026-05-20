@@ -1,6 +1,6 @@
 # Specialist: Code Design & Clarity
 
-Source: `review-standards/checklists.md#Code Design Checklist` + SRP/OCP/LSP/ISP/DIP from `review-standards/SKILL.md` + `code-standards`.
+Source: `reviewer-agent/references/review-checklists.md#Code Design Checklist` + SRP/OCP/LSP/ISP/DIP from `reviewer-agent/references/review-principles.md` + `code-standards`.
 
 Scope spans two angles, both aimed at the same outcome — a reader should understand the diff without having to reverse-engineer it:
 

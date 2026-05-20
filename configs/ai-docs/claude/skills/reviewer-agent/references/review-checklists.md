@@ -1,6 +1,6 @@
 # Review Checklists
 
-Supplementary checklists for code review. Referenced by the review-standards skill.
+Supplementary checklists for code review. Companion to `review-principles.md`.
 
 ---
 

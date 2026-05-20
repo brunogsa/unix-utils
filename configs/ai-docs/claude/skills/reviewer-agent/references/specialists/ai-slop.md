@@ -1,6 +1,6 @@
 # Specialist: AI Slop
 
-Source: `review-standards/checklists.md#AI Slop Checklist` + patterns specific to AI-generated or AI-assisted code.
+Source: `reviewer-agent/references/review-checklists.md#AI Slop Checklist` + patterns specific to AI-generated or AI-assisted code.
 
 Scope targets patterns common in AI-authored diffs that erode codebase quality over time:
 

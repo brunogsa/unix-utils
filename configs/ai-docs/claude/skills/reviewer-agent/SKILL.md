@@ -29,7 +29,7 @@ Specialist prompts and validator rubric live in `references/`; bash glue in `scr
 
 **Load lazily, by wave; keep loaded after.** They ground every specialist and validation decision:
 
-1. `~/.claude/skills/review-standards/SKILL.md` + `checklists.md` (Wave 0+)
+1. `~/.claude/skills/reviewer-agent/references/review-principles.md` + `review-checklists.md` (Wave 0+)
 2. `~/.claude/skills/code-standards/SKILL.md` (Wave 2)
 3. `~/.claude/skills/test-standards/SKILL.md` (Wave 2)
 4. `~/.claude/skills/doc-standards/SKILL.md` (Wave 2; Wave 5 density check, local)

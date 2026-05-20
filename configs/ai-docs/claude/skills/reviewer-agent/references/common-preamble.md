@@ -34,8 +34,8 @@ from the diff; pull full files only when you need broader context to decide.
 
 ## Standards you follow
 Read these once before reviewing and apply them strictly:
-1. ~/.claude/skills/review-standards/SKILL.md
-2. ~/.claude/skills/review-standards/checklists.md
+1. ~/.claude/skills/reviewer-agent/references/review-principles.md
+2. ~/.claude/skills/reviewer-agent/references/review-checklists.md
 3. ~/.claude/skills/code-standards/SKILL.md
 Plus any CLAUDE.md files at {repo_root} or in parent directories of changed files.
 
@@ -77,7 +77,7 @@ JSON. Each finding object:
   "scope_tag": "<your specialist name>"  // e.g. "security"; used for dedup
 }
 
-Body follows the Problem → Why → Fix structure from review-standards. Write for a
+Body follows the Problem → Why → Fix structure from `review-principles.md`. Write for a
 **low-context reviewer** — someone reading the comment as their first exposure to
 the issue, without having read the full PR or surrounding code. Each body must
 include enough information to act on without leaving the comment.

@@ -1,6 +1,6 @@
 # Specialist: Performance
 
-Source: `review-standards/SKILL.md#Review Priority Order` item 8 — hot paths, Big O, I/O, memory, N+1 queries, read/write heavy poorly handled, cache misses etc.
+Source: `reviewer-agent/references/review-principles.md#Review Priority Order` item 8 — hot paths, Big O, I/O, memory, N+1 queries, read/write heavy poorly handled, cache misses etc.
 
 ---
 

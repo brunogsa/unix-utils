@@ -194,7 +194,7 @@ This list is passed verbatim into the subagent prompt as a `## User Feedback Ite
    - High-level principle or workflow rule → CLAUDE.md (appropriate section)
    - Detailed code example or pattern → `skills/code-standards/SKILL.md`
    - Test example or strategy → `skills/test-standards/SKILL.md`
-   - Review process improvement → `skills/review-standards/SKILL.md`
+   - Review process improvement → `skills/reviewer-agent/references/review-principles.md`
    - Domain-specific knowledge → relevant domain skill
    - New topic not covered by existing skills → propose a new skill
 

@@ -76,7 +76,7 @@ These standards skills shape the work at specific moments — load each as its s
 
 Most load automatically via their description triggers; the explicit load points below guard against undertriggering:
 
-- `review-standards` — load while interpreting reviewer comments in step 3 (severity vs. nit, framing drop reasons, distinguishing actionable from informational).
+- `~/.claude/skills/reviewer-agent/references/review-principles.md` — read while interpreting reviewer comments in step 3 (severity vs. nit, framing drop reasons, distinguishing actionable from informational).
 - `code-standards` — load before any production edit while applying a cluster (step 5).
 - `test-standards` — load when a cluster touches tests, or when applying a change needs a regression test (step 5).
 - `doc-standards` — load before adding any comment, docstring, log line, or doc edit while applying a cluster (step 5).

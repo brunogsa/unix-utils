@@ -1,8 +1,8 @@
 # Specialist: Corner Cases & Side-Effects
 
 Sources:
-- `review-standards/checklists.md#Corner Cases to Verify` — empty / null / undefined / [] / {}, large inputs, boundary values (0, -1, max), invalid types, timeouts / retries, concurrency, i18n (encoding, locale, timezone).
-- `review-standards/checklists.md#Silent Failure Checklist`.
+- `reviewer-agent/references/review-checklists.md#Corner Cases to Verify` — empty / null / undefined / [] / {}, large inputs, boundary values (0, -1, max), invalid types, timeouts / retries, concurrency, i18n (encoding, locale, timezone).
+- `reviewer-agent/references/review-checklists.md#Silent Failure Checklist`.
 - Side-effect hygiene — mutations, I/O, and hidden state changes the caller doesn't expect.
 
 Why bundled: all three are "things happening at runtime the caller didn't ask for".
