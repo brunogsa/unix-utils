@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: "GitHub PR review via the reviewer-agent skill. User-invoked only — wraps reviewer-agent in a subagent and posts a PENDING review."
+description: "USE for code review on a GitHub PR URL (no URL — use /auto-review on your local branch). User-invoked only; posts a PENDING review you filter and submit."
 disable-model-invocation: true
 ---
 

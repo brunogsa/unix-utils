@@ -1,6 +1,6 @@
 ---
 name: auto-review
-description: "USE for local code review on the current branch. DEFAULT: explicit trigger ('review this branch' / 'audit my changes' / /auto-review). AUTONOMOUS: per-task gate during plan execution + final end-of-branch pass."
+description: "USE for code review on a local branch (no GitHub PR URL — for that, use /code-review). Triggers: 'review this branch' / 'audit my changes' / /auto-review. AUTONOMOUS step in plan execution + end-of-branch pass."
 disable-model-invocation: false
 ---
 
