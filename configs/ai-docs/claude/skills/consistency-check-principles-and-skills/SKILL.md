@@ -94,7 +94,7 @@ Why it matters: edit burden — when one copy changes, the others go stale silen
 ### 5. Structure (per skill-creator conventions)
 
 Each skill must follow `skill-creator`'s structural conventions. Audit each `SKILL.md` for:
-- **Frontmatter**: required `description` field present; `disable-model-invocation` only used intentionally (e.g., for slash-only skills).
+- **Frontmatter**: required `description` field present; `disable-model-invocation: true` only used intentionally (slash-only skills). `user-invocable: false` is the inverse (Claude-auto-invokable but hidden from the user's `/` menu) — both are recognized Claude Code keys, do NOT flag them as non-standard. Reference: https://code.claude.com/docs/en/skills.md#control-who-invokes-a-skill.
 - **Pushy description**: contains both *what the skill does* and *when to trigger* (skill-creator's anti-undertriggering guidance). A description that only says what the skill does, with no trigger phrases, undertriggers in practice.
 - **Body size**: under 500 lines (delegate the line count itself to `performance-check`; here, judge whether a long body would benefit from progressive disclosure into `references/` or `scripts/`).
 - **Folder structure**: `SKILL.md` at the root, optional `scripts/`, `references/`, `assets/`. Flag stray files at unexpected paths.
