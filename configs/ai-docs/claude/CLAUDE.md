@@ -69,9 +69,6 @@ How AI scope, plan, and verify work on any task.
 - **CRITICAL: Search before creating** -- search codebase for similar code. Present trade-offs of reusing vs creating. Ask "where does this logically belong?"
   - Why: duplicate code splits maintenance across N callers; finding prior art first is cheaper than discovering it post-merge.
 
-- **CRITICAL: Cheap-check key assumptions before big implementations** -- before refactoring on an unverified assumption (API behavior, field shape, flag semantics), verify with a cheap spike: EXPLAIN/dry-run, smoke test, or primary-source read.
-  - Why: discovering a wrong assumption after a big change costs N× more than verifying it with a 30-second spike.
-
 - **CRITICAL: Scout rule** -- when you notice pre-existing issues, flag them AND auto-add to the task list as `[Scout]` items.
   - Why: noticed issues drop silently via two mechanisms — per-Scout confirmation friction that tempts skipping, and the "not my problem" bias that pre-filters before the user sees the choice. Auto-add and surface-all neutralize both. That preserves commit discipline (absorbed issues derail the commit) and user choices (skipped ones never reach the menu).
   - Examples (non-exhaustive): stale comments, budget overruns, lint gaps, dead config, type-check failures unrelated to your task.
@@ -86,9 +83,6 @@ How AI scope, plan, and verify work on any task.
 
 - **CRITICAL: Prefer web search on scientific, trusted, reliable or official sources** -- it's okay to use other sources, but flag them to user.
   - Why: random blogs and stale Stack Overflow drift from current behavior; primary sources carry the contract.
-
-- **CRITICAL: Verify assumptions and limitations before accepting them** -- check actual code, search docs or web to confirm.
-  - Why: accepted-as-stated limitations propagate into design decisions that are expensive to unwind.
 
 - **CRITICAL: Handle failures, corner cases, unexpected states** -- applies to code paths, user flows, scripts, processes, integrations — anything you build.
   - Why: happy-path-only code ships bugs that only fire in production where corner cases live.
@@ -119,7 +113,8 @@ How AI scope, plan, and verify work on any task.
   - Why: deterministic tools answer in seconds with reproducible signal; LLM verification is orders of magnitude slower and noisier. Tool-first keeps the bulk cheap and reserves LLM cycles for the cases where its judgment actually adds value.
   - Examples (non-exhaustive): `knip` / `ts-prune` / `madge` (dead-code & orphan detection), coverage reports (untested branches), `tsc --noEmit` (type errors), linters (style/correctness), complexity scanners like `eslint-plugin-sonarjs` / `lizard` / `complexity-report` (cyclomatic & cognitive complexity), `git blame` / `git log` (ownership/age).
 
-- **CRITICAL: Verify what you produce** -- evidence over optimism.
+- **CRITICAL: Verify everything you do — assumptions, stated limitations, and produced artifacts** -- check at three gates: before starting (cheap spike on key assumptions — API behavior, field shape, flag semantics — via EXPLAIN/dry-run, smoke test, or primary-source read), before accepting (verify stated limits against actual code, docs, or web), and before declaring done (run the task's verify step or propose one).
+  - Why: unverified beliefs compound. A wrong assumption discovered after a big change costs N× more than a 30-second spike. An accepted-as-stated limit propagates into design decisions that are expensive to unwind. An unverified output ships the bug. Evidence over optimism, applied at every gate.
   - Before completing: run the task's verify step (or propose one). Run scripts/automation to confirm.
   - Fresh evidence only: if the verification hasn't been re-run since your latest change, run it again before claiming. Prior-turn output doesn't prove the current state.
   - When contradicted: if two sources disagree, re-read the actual code before assuming one is wrong. Stale results, shifted line numbers, or misread context waste hours.
