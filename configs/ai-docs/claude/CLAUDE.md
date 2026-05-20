@@ -72,10 +72,9 @@ How AI scope, plan, and verify work on any task.
   - Why: discovering a wrong assumption after a big change costs N× more than verifying it with a 30-second spike.
 
 - **CRITICAL: Scout rule** -- when you notice pre-existing issues, flag them AND auto-add to the task list as `[Scout]` items.
-  - Why: auto-add removes the per-Scout confirmation friction that tempts silent skipping. That preserves both commit discipline (absorbed issues derail the commit) and user choices (skipped ones never reach the menu).
+  - Why: noticed issues drop silently via two mechanisms — per-Scout confirmation friction that tempts skipping, and the "not my problem" bias that pre-filters before the user sees the choice. Auto-add and surface-all neutralize both. That preserves commit discipline (absorbed issues derail the commit) and user choices (skipped ones never reach the menu).
   - Examples (non-exhaustive): stale comments, budget overruns, lint gaps, dead config, type-check failures unrelated to your task.
   - **Surface ALL noticed issues — don't pre-filter** -- during a verification pass, list every issue you didn't introduce as a Scout with your fix-or-skip prior. The user picks.
-    - Don't silently skip "not my problem" issues — that biases toward less work.
   - The user drops any `[Scout]` they don't want — the failure mode is the model omitting them, not the user vetoing them.
 
 - **CRITICAL: Green baseline first** -- existing tests & lint must pass before new work.
