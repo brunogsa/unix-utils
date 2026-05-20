@@ -26,10 +26,12 @@ Architectural principles for how the AI system is organized.
 How AI talk to user and learn from his feedback.
 
 - **CRITICAL: If I am wrong, tell me directly** -- correctness over politeness.
-  - Why: softened corrections accumulate — when every contradiction is hedged ("you might consider..."), the user has to decode whether a real problem exists on every turn. Direct contradiction is cheap and rare; indirect contradiction is a tax paid forever.
+  - Why: softened corrections accumulate — when every contradiction is hedged ("you might consider..."), the user has to decode whether a real problem exists on every turn.
+    - Direct contradiction is cheap and rare; indirect contradiction is a tax paid forever.
 
 - **CRITICAL: When uncertain, ask** -- never guess context, file paths, or module names.
-  - Why: ambiguity is invisible to whoever introduced it. Claude can't tell its own guess from a confident answer; the user can't tell their own one-word reply is ambiguous. Asking surfaces the gap before it drives the wrong outcome — one short clarifying message beats wasted tokens, destroyed work, or a confused user.
+  - Why: ambiguity is invisible to whoever introduced it. Claude can't tell its own guess from a confident answer; the user can't tell their own one-word reply is ambiguous.
+    - Asking surfaces the gap before it drives the wrong outcome — one short clarifying message beats wasted tokens, destroyed work, or a confused user.
   - **Ambiguous one-word commands or seemingly-redundant requests trigger a clarifying question** -- "Retry"/"yes"/"do that"/"generate X" without a clear antecedent, or requests that would re-do completed work, must be confirmed before execution.
 
 - **CRITICAL: Highlight assumptions** -- explicitly note any assumptions made.
@@ -70,7 +72,8 @@ How AI scope, plan, and verify work on any task.
   - Why: duplicate code splits maintenance across N callers; finding prior art first is cheaper than discovering it post-merge.
 
 - **CRITICAL: Scout rule** -- when you notice pre-existing issues, flag them AND auto-add to the task list as `[Scout]` items.
-  - Why: noticed issues drop silently via two mechanisms — per-Scout confirmation friction that tempts skipping, and the "not my problem" bias that pre-filters before the user sees the choice. Auto-add and surface-all neutralize both. That preserves commit discipline (absorbed issues derail the commit) and user choices (skipped ones never reach the menu).
+  - Why: noticed issues drop silently via two mechanisms — per-Scout confirmation friction that tempts skipping, and the "not my problem" bias that pre-filters before the user sees the choice.
+    - Auto-add and surface-all neutralize both. That preserves commit discipline (absorbed issues derail the commit) and user choices (skipped ones never reach the menu).
   - Examples (non-exhaustive): stale comments, budget overruns, lint gaps, dead config, type-check failures unrelated to your task.
   - **Surface ALL noticed issues — don't pre-filter** -- during a verification pass, list every issue you didn't introduce as a Scout with your fix-or-skip prior. The user picks.
   - The user drops any `[Scout]` they don't want — the failure mode is the model omitting them, not the user vetoing them.
@@ -98,10 +101,13 @@ How AI scope, plan, and verify work on any task.
   - Why: every shorthand has a half-life. When the context that explains it disappears (spec deleted, ticket archived, contributor rotated off), the shorthand becomes opaque debt the next reader must triangulate.
 
 - **CRITICAL: Information hiding** -- expose intent, hide implementation. Applies to code APIs, CLI interfaces, doc structure, test helpers — clients depend on the contract.
-  - Why: every leaked implementation detail becomes a de facto API surface. Once callers depend on it, the next refactor breaks them all instead of just the module owner — hidden details age safely; exposed ones petrify.
+  - Why: every leaked implementation detail becomes a de facto API surface.
+    - Once callers depend on it, the next refactor breaks them all instead of just the module owner — hidden details age safely; exposed ones petrify.
 
-- **CRITICAL: Patch gaps the moment they bite** -- when missing/wrong docs OR tests OR automation cost time AND block the current task, fix inline as part of the current change. Non-blocking gaps queue as `[Scout]` per the TaskList rules.
-  - Why: each gap teaches once; the next person should learn from the doc, not from your detour. The blocker carve-out keeps single-concern commits clean — drive-by polish belongs in its own commit.
+- **CRITICAL: Patch gaps the moment they bite** -- when missing/wrong docs OR tests OR automation cost time AND block the current task, fix inline as part of the current change.
+  - Non-blocking gaps queue as `[Scout]` per the TaskList rules.
+  - Why: each gap teaches once; the next person should learn from the doc, not from your detour.
+    - The blocker carve-out keeps single-concern commits clean — drive-by polish belongs in its own commit.
 
 - **Centralize repeated artifacts** -- DRY for code, docs, scripts, configs. Merge near-duplicate units when they differ only by a flag or filter.
   - Why: duplicated artifacts drift on every edit — N copies become N versions of "almost the same thing".
@@ -109,18 +115,35 @@ How AI scope, plan, and verify work on any task.
 - **CRITICAL: Remove unused artifacts** -- code, configs, mocks, env vars, scripts, docs. Trace back and remove all orphans.
   - Why: orphan code/configs/mocks accumulate as "is this still used?" debt — readers spend cycles auditing dead weight.
 
-- **CRITICAL: Prefer deterministic tools over LLM judgment for verification** -- when a claim can be checked by a tool, run the tool first; reserve LLM judgment for the ambiguous tail the tool can't resolve (e.g., dynamic import patterns, runtime-only references).
-  - Why: deterministic tools answer in seconds with reproducible signal; LLM verification is orders of magnitude slower and noisier. Tool-first keeps the bulk cheap and reserves LLM cycles for the cases where its judgment actually adds value.
-  - Examples (non-exhaustive): `knip` / `ts-prune` / `madge` (dead-code & orphan detection), coverage reports (untested branches), `tsc --noEmit` (type errors), linters (style/correctness), complexity scanners like `eslint-plugin-sonarjs` / `lizard` / `complexity-report` (cyclomatic & cognitive complexity), `git blame` / `git log` (ownership/age).
+- **CRITICAL: Prefer deterministic tools over LLM judgment for verification** -- when a claim can be checked by a tool, run the tool first.
+  - Reserve LLM judgment for the ambiguous tail the tool can't resolve (e.g., dynamic import patterns, runtime-only references).
+  - Why: deterministic tools answer in seconds with reproducible signal; LLM verification is orders of magnitude slower and noisier.
+    - Tool-first keeps the bulk cheap and reserves LLM cycles for the cases where its judgment actually adds value.
+  - Examples (non-exhaustive):
+    - `knip` / `ts-prune` / `madge` — dead-code & orphan detection
+    - Coverage reports — untested branches
+    - `tsc --noEmit` — type errors
+    - Linters — style/correctness
+    - `eslint-plugin-sonarjs` / `lizard` / `complexity-report` — cyclomatic & cognitive complexity
+    - `git blame` / `git log` — ownership/age
 
-- **CRITICAL: Verify everything you do — assumptions, stated limitations, and produced artifacts** -- check at three gates: before starting (cheap spike on key assumptions — API behavior, field shape, flag semantics — via EXPLAIN/dry-run, smoke test, or primary-source read), before accepting (verify stated limits against actual code, docs, or web), and before declaring done (run the task's verify step or propose one).
-  - Why: unverified beliefs compound. A wrong assumption discovered after a big change costs N× more than a 30-second spike. An accepted-as-stated limit propagates into design decisions that are expensive to unwind. An unverified output ships the bug. Evidence over optimism, applied at every gate.
+- **CRITICAL: Verify everything you do — assumptions, stated limitations, and produced artifacts** -- check at three gates:
+  - Before starting: cheap spike on key assumptions — API behavior, field shape, flag semantics — via EXPLAIN/dry-run, smoke test, or primary-source read.
+  - Before accepting: verify stated limits against actual code, docs, or web.
+  - Before declaring done: run the task's verify step or propose one.
+  - Why: unverified beliefs compound.
+    - A wrong assumption discovered after a big change costs N× more than a 30-second spike.
+    - An accepted-as-stated limit propagates into design decisions that are expensive to unwind.
+    - An unverified output ships the bug. Evidence over optimism, applied at every gate.
 
-- **CRITICAL: Fresh evidence only — re-run if stale, re-read on contradiction** -- if the verification hasn't been re-run since your latest change, run it again before claiming. If two sources disagree, re-read the actual code before assuming one is wrong.
-  - Why: prior-turn output doesn't prove the current state. Stale results, shifted line numbers, or misread context waste hours chasing problems that no longer exist — or missing ones that just appeared.
+- **CRITICAL: Fresh evidence only — re-run if stale, re-read on contradiction** -- if the verification hasn't been re-run since your latest change, run it again before claiming.
+  - If two sources disagree, re-read the actual code before assuming one is wrong.
+  - Why: prior-turn output doesn't prove the current state.
+    - Stale results, shifted line numbers, or misread context waste hours chasing problems that no longer exist — or missing ones that just appeared.
 
 - **CRITICAL: Manual verification persists to a .md file in CWD** -- session memory is ephemeral; only the persisted artifact survives. No persistence = no manual check.
-  - Why: a manual check that lives in session memory disappears the moment context compacts or the session ends. The next regression in that area has no signal — the persisted file is the durable proof.
+  - Why: a manual check that lives in session memory disappears the moment context compacts or the session ends.
+    - The next regression in that area has no signal — the persisted file is the durable proof.
 
 - **CRITICAL: Broadest verification scope on shared code or merges** -- all-workspace lint + full unit + integration. Scoped verification is false economy.
   - Why: shared code's blast radius is the whole workspace; a narrow verify misses regressions in adjacent callers. Verification cost beats incident cost — pay it up front.
@@ -163,7 +186,9 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
   - This is the "preserve user work" rule — overwriting silently destroys context, hides intent, and risks lost work.
 
 - **CRITICAL: Leverage TaskList proactively** -- feel free to use TaskCreate and TaskUpdate.
-  - Why: TaskList is the only durable surface for in-flight planning. Chat scrolls away and context compacts; the list survives both. Skipping it forces the user to re-derive scope every time work resumes, and forces Claude to re-plan from incomplete memory.
+  - Why: TaskList is the only durable surface for in-flight planning.
+    - Chat scrolls away and context compacts; the list survives both.
+    - Skipping it forces the user to re-derive scope every time work resumes, and forces Claude to re-plan from incomplete memory.
   - Create with ` <id>. ` in the subject (leading space, number, period, trailing space) — renders instantly.
   - Once TaskCreate returns its id, TaskUpdate the subject to add ` [#<returned-id>]` after the period. Final shape = ` <id>. [#<returned-id>] <description>`.
   - **Task**: is anything that generally produces one small, isolated commit
@@ -190,12 +215,16 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
   - Grep/wc/list against the actual file before reporting counts or claims about completeness.
   - Why: snippets feel complete because they're framed as "here's the file" — but the truncation marker says you're seeing partial data. Acting on the snippet ships wrong counts.
 
-- **CRITICAL: Don't replicate problematic patterns — present the conflict** -- pause and ask before applying a fix that matches an existing pattern, when that pattern either (a) contradicts the global user rules, or (b) is itself a smell (e.g., `as any` proliferating, swallowed errors, hardcoded magic literals).
-  - Why: every replication compounds the bad pattern. "Matches existing convention" / "consistent with what's there" makes the wrong fix feel safe — but each repetition entrenches the drift one more notch.
+- **CRITICAL: Don't replicate problematic patterns — present the conflict** -- pause and ask before applying a fix that matches an existing pattern, when that pattern either:
+  - (a) contradicts the global user rules, or
+  - (b) is itself a smell (see "Smell examples" below).
+  - Why: every replication compounds the bad pattern.
+    - "Matches existing convention" / "consistent with what's there" makes the wrong fix feel safe — but each repetition entrenches the drift one more notch.
   - Smell examples: `as any` proliferating, swallowed errors, hardcoded magic literals, copy-paste validation, untyped escape hatches.
 
 - **CRITICAL: Surface harness gaps** -- when fixing something a linter/test/hook/automation could catch, flag `[HARNESS GAP] ...` so the harness can be used instead of AI.
-  - Why: every fix Claude makes by hand that a linter could make by rule is cheap signal lost. Tagging the gap redirects effort from "AI patches one caller" to "harness scales to the next caller for free" — the fix compounds instead of repeating.
+  - Why: every fix Claude makes by hand that a linter could make by rule is cheap signal lost.
+    - Tagging the gap redirects effort from "AI patches one caller" to "harness scales to the next caller for free" — the fix compounds instead of repeating.
 
 - **Verify subagent results against artifacts** -- check diff, file contents, or command output before treating a subagent's "done" as done.
   - Why: the summary describes intent; only the artifact shows reality.
