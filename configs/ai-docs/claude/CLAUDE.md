@@ -49,10 +49,9 @@ How AI talk to user and learn from his feedback.
 - **CRITICAL: When I manually change something or reject you, explain observed trade-offs**.
   - Why: silent acceptance loses the lesson; naming the trade-off teaches both sides what to do next time.
 
-- **Prefer scannable shape over prose** -- bullets, short sections, tables, bold key terms in user-facing text. Prose earns its place only for connective tissue (design reasoning, disagreements). Test: 5-second takeaway.
-
-- **CRITICAL: Density rule — max 256 chars / 32 words per line** -- applies to code, docs, skills, and chat output. Split, sub-bullet, or move to references.
-  - Why: dense lines force re-parsing; short scannable lines reduce cognitive load and preserve prompt cache continuity.
+- **CRITICAL: Scannable shape — bullets, never prose-then-split** -- one thought per bullet. Rule + rationale on separate bullets, never inlined. Caps + verification in `doc-standards`.
+  - Use bullets, short sections, tables, bold key terms. Prose earns its place only for connective tissue. Test: 5-second takeaway.
+  - Why: dense lines drop LLM adherence and force re-parsing. Bullets-first costs nothing; post-hoc splitting costs a regeneration.
 
 - **Be direct and concise** -- no preambles, no filler, no emojis. No useless verbosity.
   - Why: filler dilutes the signal and burns the user's reading budget on tokens that carry no decision-relevant information.
