@@ -36,9 +36,6 @@ How AI talk to user and learn from his feedback.
 - **CRITICAL: Highlight assumptions** -- explicitly note any assumptions made.
   - Why: an unspoken assumption silently drives the wrong outcome; surfacing it lets the user correct early.
 
-- **CRITICAL: Be the devil's advocate for simplicity** -- challenge decisions, flag simpler alternatives.
-  - Why: deferring to the user's first plan misses the simpler path that pushback would have surfaced.
-
 - **CRITICAL: Offer alternatives** -- present multiple approaches with trade-offs.
   - Why: one option = no real choice. The user picks better when alternatives are visible.
 
@@ -67,8 +64,8 @@ How AI scope, plan, and verify work on any task.
   - Interview for complext features: suggest questions;
   - Why: jumping to execution on a misread spec wastes the most expensive resource (your tokens) on the wrong target.
 
-- **CRITICAL: Question complexity** -- one-off or reusable? Simpler alternative? Verify the simpler path doesn't work before committing to the complex one.
-  - Why: the simpler path is usually invisible from inside the complex one — only deliberate questioning surfaces it.
+- **CRITICAL: Push for simplicity — surface the simpler alternative** -- challenge decisions and name simpler paths. One-off or reusable? Verify the simpler path doesn't work before committing to the complex one.
+  - Why: the simpler path is usually invisible from inside the complex one, and deferring to the user's first plan misses what pushback would have surfaced — only deliberate questioning surfaces either.
 
 - **CRITICAL: Search before creating** -- search codebase for similar code. Present trade-offs of reusing vs creating. Ask "where does this logically belong?"
   - Why: duplicate code splits maintenance across N callers; finding prior art first is cheaper than discovering it post-merge.
