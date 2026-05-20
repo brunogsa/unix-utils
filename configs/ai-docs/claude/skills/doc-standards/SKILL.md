@@ -18,7 +18,8 @@ Why: tests and logs are exercised by the runtime, so lies surface fast.
 
 Comments aren't exercised — lies persist. Anything narrower than WHY rots: history on next commit, mechanics on next refactor. Only invariants survive.
 
-- **History** (PR numbers, "main used to", "the merge", "we previously did") → commit message body, not source.
+- **History** (PR numbers, "main used to", "the merge", "we previously did", "(after the rename)") → commit message body, not source.
+  - **Mid-refactor justifications** belong here too — phrases like "(not a skill anymore)", "(was previously inline)", "(moved here from X)" feel useful while the change is fresh, but they describe why the CURRENT form was just adopted. The context "this just changed" rots within days; the new form has to stand alone.
 - **What the code does** → already shown by the code; rename or restructure instead.
 - **How it works** → implementation detail; the next refactor falsifies it.
 
