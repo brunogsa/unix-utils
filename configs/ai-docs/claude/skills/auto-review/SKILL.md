@@ -69,3 +69,11 @@ After the subagent returns, the review is at `./auto-review_<timestamp>.md`
 per-severity counts, skipped files, and the Wave 6 summary. Multiple runs
 accumulate as separate timestamped files — preserves ordering across
 per-task and end-of-branch invocations.
+
+## Acting on findings
+
+Before applying any fix, emit the "leveraging tasklist" trigger phrase so CLAUDE.md's TaskList protocol takes over. The skill's only job here is choosing the gating mode and the category prefix per finding.
+
+- **Interactive mode:** ask which findings to address (all MANDATORY, specific numbers, none). On selection, emit *"Selected N findings. Leveraging tasklist."*
+- **Autonomous mode (per-task or end-of-branch):** MANDATORY findings are fixed without asking. Emit *"N MANDATORY findings to fix. Leveraging tasklist."* before touching code.
+- Category prefix per task: `[Drift]` for collateral fixes needed to make the current task work, `[Scout]` for pre-existing issues the review surfaced, `[Refactor]` or `[Task]` otherwise.
