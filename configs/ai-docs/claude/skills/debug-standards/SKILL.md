@@ -13,13 +13,11 @@ Principles and paired examples for any debugging work. Each section pairs a prin
 
 [Instruction] If you haven't reproduced the bug *and* explained why it happens, you don't have a fix. You have a guess.
 
-[Why] Symptom-fixes mask defects, create new ones, and waste time. Even simple bugs have root causes — the process is fast for small bugs and irreplaceable for large ones.
+- [Examples] Steps: reproduce → gather evidence → trace data flow backward → hypothesize → test minimally.
 
-## Debug systematically — root cause before fix
+[Why] Symptom-fixes mask defects, create new ones, and waste time.
 
-[Instruction] Reproduce → gather evidence → trace data flow backward → hypothesize → test minimally.
-
-[Why] Ad-hoc debugging (try things and see) burns hours on dead ends. Systematic debugging converges. The discipline costs minutes upfront and saves hours downstream.
+Ad-hoc debugging burns hours on dead ends while systematic debugging converges. Even simple bugs have root causes — fast for small bugs, irreplaceable for large ones.
 
 ## Bug fix starts with a failing regression test
 
@@ -53,12 +51,11 @@ The error message is the cheapest evidence you have; ignoring it forces you to d
 
 [Why] Telling "is this me?" without isolation conflates pre-existing brokenness with new regressions. The smallest stash answers the question surgically.
 
-- [Instruction] Steps: `git stash push -- <file1> <file2>`, rerun the failing tests, then `git stash pop`.
-- [Instruction] Same failures on the baseline → pre-existing, capture as Scout, ship your change unentangled.
-- [Instruction] New failures only with your change → your change is the cause; debug it.
-- [Instruction] **Never `git checkout HEAD -- <file>` for transient diagnostic reverts** — that discards uncommitted work irrecoverably.
-  - [Examples] Stash preserves; checkout destroys.
-  - [Examples] Reach for checkout only when the working-tree state is provably reproducible from somewhere else.
+- [Examples] Steps: `git stash push -- <file1> <file2>`, rerun the failing tests, then `git stash pop`.
+- [Examples] Same failures on the baseline → pre-existing, capture as Scout, ship your change unentangled.
+- [Examples] New failures only with your change → your change is the cause; debug it.
+- [Instruction] For transient diagnostic reverts during debugging, always stash — see CLAUDE.md "Prefer the least-destructive available action".
+  - [Examples] Reach for `git checkout HEAD -- <file>` only when the working-tree state is provably reproducible elsewhere.
 
 ## Git bisect on flaky tests requires boundary re-runs
 
@@ -69,8 +66,8 @@ The error message is the cheapest evidence you have; ignoring it forces you to d
 Before trusting any bisect verdict:
 
 - [Instruction] Re-run the test at the bisected "first bad" commit **3+ times**.
-- [Instruction] If it doesn't deterministically fail, the bisect verdict is noise.
-- [Instruction] Look elsewhere: uncommitted working-tree changes, environment, system memory pressure, pool contention.
+- [Examples] If it doesn't deterministically fail, the bisect verdict is noise.
+- [Examples] Look elsewhere: uncommitted working-tree changes, environment, system memory pressure, pool contention.
 
 ## Instrument component boundaries before guessing layers
 
@@ -94,9 +91,9 @@ Reveals: secrets reached the workflow ✓, but didn't propagate to the build scr
 
 [Why] A patch at the symptom hides the upstream defect. Tomorrow another caller hits the same upstream defect via a different path — and the patch doesn't cover it.
 
-- [Instruction] Where does the bad value come from? Trace one frame up.
-- [Instruction] What called this with that value? Trace another frame up.
-- [Instruction] Repeat until you reach the source.
+- [Examples] Where does the bad value come from? Trace one frame up.
+- [Examples] What called this with that value? Trace another frame up.
+- [Examples] Repeat until you reach the source.
 - [Instruction] **Fix at the source.** Patches at the symptom often hide a worse bug.
 
 ## Single hypothesis, minimal test
@@ -105,9 +102,9 @@ Reveals: secrets reached the workflow ✓, but didn't propagate to the build scr
 
 [Why] Multiple simultaneous changes muddy attribution — when something improves, you can't tell which change did it. One variable at a time keeps signals clean.
 
-- [Instruction] Make the smallest possible change to test only that hypothesis.
-- [Instruction] Worked? → continue. Didn't? → form a *new* hypothesis, don't pile on more changes.
-- [Instruction] "I don't know yet" is a valid answer. Pretending to know wastes hours.
+- [Examples] Make the smallest possible change to test only that hypothesis.
+- [Examples] Worked? → continue. Didn't? → form a *new* hypothesis, don't pile on more changes.
+- [Examples] "I don't know yet" is a valid answer. Pretending to know wastes hours.
 
 ## Pattern analysis when stuck or applying an unfamiliar pattern
 
@@ -115,8 +112,8 @@ Reveals: secrets reached the workflow ✓, but didn't propagate to the build scr
 
 [Why] "That can't matter" is the phrase that hides the bug. The working example is a ground truth; differences are leads to investigate.
 
-- [Instruction] Read reference implementations completely, not skimmed.
-- [Instruction] Partial understanding guarantees bugs.
+- [Examples] Read reference implementations completely, not skimmed.
+- [Examples] Partial understanding guarantees bugs.
 
 ## After 3 failed fixes, STOP — escalate
 
@@ -151,8 +148,8 @@ Mandatory escalation steps, in order:
 
 [Instruction] Sometimes a bug is genuinely environmental, timing-dependent, or external (flaky network, race in a third-party lib). After thorough investigation:
 
-1. [Instruction] Document what was investigated and ruled out.
-2. [Instruction] Implement appropriate handling: capped retry, timeout, clear error message.
-3. [Instruction] Add monitoring/logging so the next occurrence has more evidence.
+1. [Examples] Document what was investigated and ruled out.
+2. [Examples] Implement appropriate handling: capped retry, timeout, clear error message.
+3. [Examples] Add monitoring/logging so the next occurrence has more evidence.
 
 [Why] ~95% of "no root cause" claims are incomplete investigation. Default to suspecting your own analysis first — the alternative (it's the universe's fault) prevents you from finding the real cause.

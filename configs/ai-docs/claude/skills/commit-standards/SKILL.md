@@ -17,14 +17,12 @@ Principles and rules for any git commit. Each section pairs a principle with its
 
 Bundled commits force you to revert good changes to undo a bad one, and force reviewers to context-switch between concerns. Small, single-purpose commits are surgical.
 
-- [Instruction] **1 task = 1 commit.**
-- [Instruction] **A migration (move + update refs + delete) is one commit.**
-- [Instruction] **Refactors get their own commit, always isolated from behavior change.**
-- [Instruction] **Related tests, code, docs, IaC all bundled together in their own commit.**
-- [Instruction] **Exception: when two logical changes are entangled in one file, prefer a single combined commit over a temporary revert.**
-  - [Examples] Reverting in-progress code to split commits risks losing work or introducing manual errors.
-  - [Examples] The "preserve user work" rule overrides "one logical change per commit."
-  - [Examples] Combine, and name both concerns explicitly in the commit body.
+- [Examples] **1 task = 1 commit.**
+- [Examples] **A migration (move + update refs + delete) is one commit.**
+- [Examples] **Refactors get their own commit, always isolated from behavior change.**
+- [Examples] **Related tests, code, docs, IaC all bundled together in their own commit.**
+- [Instruction] **Exception**: when two logical changes are entangled in one file, prefer a single combined commit over a temporary revert — name both concerns explicitly in the commit body.
+  - [Why] Reverting in-progress code to split commits risks losing work or introducing manual errors. The "preserve user work" rule (`CLAUDE.md`) overrides "one logical change per commit."
 
 ## Conventional commits with WHY body that fits on a screen (~32 lines)
 
@@ -32,8 +30,8 @@ Bundled commits force you to revert good changes to undo a bad one, and force re
 
 [Why] Future-you reading `git log` six months later doesn't have the PR open. The commit body is the standalone record of intent. If the body just restates the diff, it's wasted lines.
 
-- [Instruction] Format: Conventional Commits (`type(scope): subject`), imperative, max 72-char subject.
-- [Instruction] Body: scannable bullets/sub-bullets by default. Prose only when fragmenting would lose connective tissue.
+- [Examples] Format: Conventional Commits (`type(scope): subject`), imperative, max 72-char subject.
+- [Examples] Body: scannable bullets/sub-bullets by default. Prose only when fragmenting would lose connective tissue.
 
 ## Minimize tool calls when committing
 
@@ -41,8 +39,8 @@ Bundled commits force you to revert good changes to undo a bad one, and force re
 
 [Why] Every tool call slows down the commit and adds context noise. We want FREQUENT and small commits — those need to be cheap.
 
-- [Instruction] Don't inspect `git log` or prior commits to learn commit style — Bruno's format is authoritative across all repos. Skip that tool call.
-- [Instruction] Don't add files with `git add -A` or `git add .` — adds risk of including secrets or unrelated files. Specify paths explicitly.
+- [Examples] Don't inspect `git log` or prior commits to learn commit style — Bruno's format is authoritative across all repos. Skip that tool call.
+- [Examples] Don't add files with `git add -A` or `git add .` — adds risk of including secrets or unrelated files. Specify paths explicitly.
 
 ## Refactors are isolated from behavior changes
 

@@ -46,7 +46,9 @@ Density is checked across CLAUDE.md + every `SKILL.md` + every `references/*.md`
 
 The cross-file [Instruction] sum and CRITICAL ratio depend on the marker convention defined in `~/.claude/CLAUDE.md` → "Counting conventions". The script counts [Instruction] markers via `grep`/`awk` in milliseconds — no LLM judgment.
 
-A CLAUDE.md or *-standards skill with zero [Instruction] markers fails the check: it has either not been migrated to the marker convention, or no longer carries any instruction (in which case it shouldn't be a *-standards skill).
+A CLAUDE.md or *-standards skill with zero [Instruction] markers fails the check.
+
+It either hasn't been migrated to the marker convention, or no longer carries any instruction (in which case it shouldn't be a *-standards skill).
 
 ### Per-skill word-budget override
 
@@ -82,9 +84,13 @@ instructions-budget: 90
 ---
 ```
 
-The override is enforced **in addition to** the cross-skill `*-standards` total cap (300). It exists so the 300 budget can be intentionally allocated across the standards skills — for example, weighting test-standards heavier than doc-standards because day-to-day testing work fires that skill more often.
+The override is enforced **in addition to** the cross-skill `*-standards` total cap (300).
 
-When a skill exceeds its override, the report lists the offending count in a dedicated section and the run fails. Skills without `instructions-budget` participate only in the *-standards total — the per-skill check is silent for them.
+It exists so the 300 budget can be intentionally allocated across the standards skills — e.g., weighting test-standards heavier than doc-standards because day-to-day testing fires that skill more often.
+
+When a skill exceeds its override, the report lists the offending count and the run fails.
+
+Skills without `instructions-budget` participate only in the *-standards total — the per-skill check is silent for them.
 
 ## How to Run
 

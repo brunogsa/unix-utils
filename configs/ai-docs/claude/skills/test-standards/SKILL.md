@@ -58,13 +58,11 @@ Writing tests AFTER you "see what works" shapes the test to whatever you ended u
 
 ## Descriptive titles (BDD-like)
 
-[Instruction] Test titles read as the behavior documentation, in domain language.
-
-Title content describes observable behavior in domain vocabulary, not internal field names or implementation tokens.
+[Instruction] Test titles read as behavior documentation in domain vocabulary — observable behavior, not internal field names or implementation tokens.
 
 [Why] Titles get scanned a hundred times more than test bodies.
 
-A title coupled to an internal field name breaks the moment the field is renamed even when the behavior is identical; a title in domain language survives.
+A title coupled to an internal field name breaks the moment the field is renamed even when behavior is identical; a domain-language title survives.
 
 [Instruction] **No spec/plan/AC refs in test titles** — see CLAUDE.md ("Self-describing artifacts — no context-dependent shorthand"). Same rule applies to test titles.
 
@@ -153,11 +151,11 @@ Uses the Scout mechanism from CLAUDE.md's Scout rule (auto-add as `[Scout]`).
 
 ## Mock sparingly
 
-[Instruction] Only external dependencies (file I/O, network, external processes).
+[Instruction] Justify each mock; the only mocks worth keeping are at the external/IO boundaries defined under "Default to integration tests".
 
 [Why] Every mock is a hypothesis about what the dependency does.
 
-If the hypothesis drifts from reality, the test passes while production breaks. Mock at the system boundary, not in the middle.
+If the hypothesis drifts from reality, the test passes while production breaks.
 
 ## Use real-like mock data
 
@@ -167,11 +165,9 @@ If the hypothesis drifts from reality, the test passes while production breaks. 
 
 ## Don't re-implement logic under test
 
-[Instruction] Let the system under test do the work.
+[Instruction] Let the system under test do the work — the test must encode an independent expectation, not recompute what the code does.
 
-[Why] If the test reproduces the logic, both move together.
-
-A bug in the production logic is mirrored in the test, and the test passes anyway. The test must encode an independent expectation.
+[Why] If the test reproduces the logic, both move together: a bug in the production logic is mirrored in the test, and the test passes anyway.
 
 [Examples]
 ```ts
@@ -225,7 +221,9 @@ it('should reset page to 1 on every refetch of the dataset', ...);
 
 [Instruction] Log emission is not behavior the caller observes.
 
-[Why] Log assertions are brittle (change when the log format evolves), tautological (mirror the impl), and clutter the suite. Test the behavior that produced the log, not the log itself.
+[Why] Log assertions are brittle (break when format evolves), tautological (mirror impl), and clutter the suite.
+
+Testing the behavior that produced the log carries the same signal without the brittleness.
 
 [Instruction] **Exception**: when a log is an external contract (audit log consumed by another system, structured event for analytics), test the payload shape — that's contract testing, not log presence testing.
 
@@ -283,7 +281,7 @@ expect(result).toEqual(expect.arrayContaining([
 
 ## Fixtures must support every state the tests assert on
 
-[Instruction] When a single fixture is reused across tests that assert on different states (idle, loading, error, edge case), the fixture's defaults must allow each test to express its state without monkey-patching internals.
+[Instruction] When a single fixture is reused across tests asserting on different states (idle, loading, error, edge case), its defaults must let each test express its state without monkey-patching internals.
 
 [Why] If a test has to mutate the fixture in surprising ways to reach a state, the fixture is too narrow. Extending the factory is the contract; tests stay declarative.
 
@@ -378,7 +376,7 @@ But the implementation that would un-skip them never lands, and the file rots as
 
 Treating each skip as a decision-point keeps the suite honest about what it actually guards — and catches the slop pattern early.
 
-When the answer is "delete," cross-reference the three-evidence checklist in CLAUDE.md ("Destructive cleanup needs 3 evidence types") and capture the investigation in the commit body.
+When the answer is "delete," capture the investigation (what was tried, why the skip is dead, what production code it would have guarded) in the commit body.
 
 ## Regression baselines: hand-coded shape, not self-comparison
 

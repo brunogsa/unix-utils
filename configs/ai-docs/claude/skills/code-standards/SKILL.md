@@ -296,14 +296,7 @@ logger.info({
 
 [Why] `info` runs always (cheap, scannable); `debug` flips on during incidents — config flag beats code change.
 
-[Instruction] Sensitive fields (CPF, CNPJ, email, address, tokens, free-text): flag candidates and ask before shipping; don't silently include or drop.
-
 In prod: `debug` is off by default. During launch / incident, flip the config — no code change, no deploy.
-
-**AI flags risky fields; user decides.** When proposing a `debug` payload that includes identifiers or potentially sensitive data:
-- [Instruction] Surface the candidate fields explicitly and ask before shipping.
-- [Instruction] Don't silently include them.
-- [Instruction] Don't silently drop them either — both rob the user of the decision.
 
 [Examples]
 ```ts
@@ -317,11 +310,20 @@ logger.info({
 logger.debug({
   message: 'getSchoolsAgreementsAndSkus payload',
   service: 'ContractValidation',
-  schoolDocNumbers: [...input.schoolCNPJ].sort(),  // sensitive: org identifiers — confirm with user
+  schoolDocNumbers: [...input.schoolCNPJ].sort(),
   agreementIds: result.agreements.map((a) => a.agreementId).sort(),
   skuCodes: result.agreements.flatMap((a) => a.skus).sort(),
 });
 ```
+
+## Sensitive fields in log payloads: surface, never silently include or drop
+
+[Instruction] When proposing a log payload that includes identifiers or potentially sensitive data (CPF, CNPJ, email, address, tokens, free-text), surface the candidate fields explicitly and ask before shipping.
+
+- [Instruction] Don't silently include sensitive fields.
+- [Instruction] Don't silently drop them either.
+
+[Why] Silent-include leaks PII; silent-drop rob the user of the decision. Both replace an explicit per-field choice with a default the user never made.
 
 ## Never retry indefinitely
 
@@ -432,13 +434,12 @@ if (type === ProductType.KIT || type === ProductType.AVULSO) {
 1. [Instruction] **Readability bar** — does the helper's name communicate intent better than the inline form?
    - [Examples] If the inline pattern is already self-evident (a 3-line `JSON.parse(decodeURIComponent(raw))`), a helper named `extractTrpcInputField` adds indirection without revelation.
 2. [Instruction] **Cognitive load bar** — does extraction shrink the working set the reader has to hold?
-   - [Examples] A 10-line helper hiding a 2-line pattern doesn't reduce load; it spreads the same load across two files (the call site + the helper body), and now the reader chases both.
+   - [Examples] A 10-line helper hiding a 2-line pattern doesn't reduce load.
+   - [Examples] It spreads the same load across two files (call site + helper body); the reader chases both.
 
 [Instruction] If either bar fails, **inline wins**. DRY is not a value on its own — it's a heuristic for reducing complexity.
 
 [Why] When extraction adds complexity, DRY is the wrong heuristic for that case.
-
-Symmetric to "Don't wrap trivial expressions" (wrappers must add behavior) — this rule covers wrappers that hide patterns without adding behavior, and asserts they're noise unless they clear both bars.
 
 ## Decompose dense, complex expressions
 
@@ -460,17 +461,52 @@ for (let i = 1; i <= count; i++) {
 
 ## CRITICAL: Decompose long render trees into named sub-components
 
-[Instruction] CRITICAL: When a render function or JSX block exceeds ~50 lines with multiple conditional branches, extract each branch into a self-naming sub-component (inline same-file is fine when the sub-component isn't reused elsewhere).
+[Instruction] CRITICAL: When a render function or JSX block exceeds ~50 lines with multiple conditional branches, extract each branch into a self-naming sub-component.
 
-[Why] Flat conditional JSX with anonymous `<div>` blocks forces every reader to parse every branch's content to understand the page outline.
+- [Examples] Inline same-file is fine when not reused.
+- [Examples] Target shape: every conditional block becomes a one-line `<Foo prop={...} />`; parent JSX reads as the page's outline.
+- [Examples] Preserve data-testids and behavior — you're only moving JSX, not changing it.
+- [Examples] Applies to any framework's render tree (React JSX, Vue templates, Svelte markup, JSX-like DSLs).
 
-Named sub-components make the top-level scannable as an outline — `{isOverCap && <OverCapBanner />}` reads its intent in one glance; the 7-line div behind it doesn't.
+[Why] Flat conditional JSX with anonymous `<div>` blocks forces every reader to parse every branch to understand the page outline.
 
-Target shape: every conditional block in the parent becomes a one-line `<Foo prop={...} />`. The parent JSX reads as the page's outline.
+Named sub-components make the top level scannable — `{isOverCap && <OverCapBanner />}` reads its intent in one glance; the 7-line div behind it doesn't. Render functions are outlines, not encyclopedias.
 
-data-testids and behavior are preserved by definition — you're only moving JSX, not changing it.
+[Examples]
+```tsx
+// Bad — flat return; parent has no scannable outline:
+return (
+  <div>
+    <h1>{title}</h1>
+    {isOverCap && (
+      <div className="banner banner--warning">
+        <Icon name="warning" />
+        <span>Cap reached: {currentCount} / {maxCount}</span>
+        <Button onClick={onClear}>Clear</Button>
+      </div>
+    )}
+    {isLoading && <Spinner />}
+    {!isLoading && items.length === 0 && (
+      <div className="empty">
+        <Illustration name="empty-box" />
+        <p>{emptyMessage}</p>
+      </div>
+    )}
+    {!isLoading && items.length > 0 && <ul>{items.map(...)}</ul>}
+  </div>
+);
 
-Applies to any framework's render tree (React JSX, Vue templates, Svelte markup, JSX-like DSLs) — the principle is "render functions are outlines, not encyclopedias".
+// Good — parent reads as outline; each branch is one line:
+return (
+  <div>
+    <h1>{title}</h1>
+    {isOverCap && <OverCapBanner current={currentCount} max={maxCount} onClear={onClear} />}
+    {isLoading && <Spinner />}
+    {!isLoading && items.length === 0 && <EmptyState message={emptyMessage} />}
+    {!isLoading && items.length > 0 && <ItemList items={items} />}
+  </div>
+);
+```
 
 ## Abstract counter-intuitive APIs
 

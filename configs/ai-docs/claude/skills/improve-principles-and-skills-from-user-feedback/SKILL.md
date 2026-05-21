@@ -48,9 +48,10 @@ Learnings go to whichever file they belong in. Principles go to CLAUDE.md; detai
 Subagents cannot see the parent conversation history, the PR diff, or the working tree. Use a hybrid approach:
 
 1. **Main context** performs step 1 (extract user feedback items) — lightweight, stays in the main context.
-2. **Subagent** receives those items and performs steps 2-9 — heavy, offloaded.
-   - Steps include analysis, file reads, cross-checking, presenting findings, user approval, edits, post-edit verification via dedicated audit skills.
-   - The audit cost (especially LLM cross-file reading in the consistency check) does not pollute the main context.
+2. **Subagent** receives those items and performs steps 2-7 — heavy, offloaded.
+   - Steps include analysis, file reads, cross-checking, presenting findings, user approval, and edits.
+   - Post-edit audits do NOT run here — see Step 10 (main-context reminder).
+3. **Main context** prints Step 10 (the audit reminder) after the subagent returns.
 
 Spawn the subagent with `subagent_type: "general-purpose"` and `description: "Analyze user feedback for guideline learnings"` (foreground).
 
@@ -60,26 +61,12 @@ If step 1 yields zero items (no quote-worthy session moments, no PR comments fro
 
 Do not spawn the subagent on nothing.
 
-## Step 0: Confirm post-edit verification scope (main context)
+**Post-edit audits do NOT run inside this skill.**
 
-Before any other work, ask the user which post-edit audits (if any) this invocation should run:
-
-> Should I run `consistency-check-principles-and-skills` and `performance-check-principles-and-skills` after applying edits? (both / consistency only / performance only / neither)
-
-Default the suggestion to `both`. Capture the answer and thread it into the subagent prompt as a `## Post-Edit Audit Scope` section, so steps 8–9 fire only for the selected audits.
-
-If the user picks `neither`, both steps are skipped and the *Post-Edit Verification* block in the Output Format becomes `(skipped per user choice)`.
-
-Why ask:
-
-- **Cost.** Both audits are heavy. Consistency-check does LLM cross-file reading over every `SKILL.md`; performance-check scans the tree against research budgets.
-  - For a one-off correction the cost rarely amortizes; for a session-wide sweep it does.
-  - Per-invocation choice keeps the skill cheap when the user wants it cheap.
-- **Participation.** Audits run *inside* the subagent here, so the user sees only the final embedded reports — not the turn-by-turn triage loop where findings get split, generalized, or dismissed.
-  - `neither` is a first-class option: the user can re-invoke `/consistency-check-principles-and-skills` and `/performance-check-principles-and-skills` themselves in a fresh Claude session.
-  - In a fresh session each runs in that session's *main* context with the user in the loop for every finding.
-- **Timing.** The user may also prefer running the audits later — after several improve-* invocations land, or right before committing.
-  - A single audit pass covers the whole batch instead of N redundant passes per micro-edit.
+- Subagents cannot spawn subagents.
+- `consistency-check-principles-and-skills` now fans out 3 ensemble subagents in its main-mode flow.
+- Running it from inside the improve subagent would silently degrade it to single-sample mode.
+- Step 10 (main context) reminds the user to run the audits in a fresh session.
 
 ## Step 1: Extract User Feedback Items (main context)
 
@@ -188,7 +175,7 @@ This list is passed verbatim into the subagent prompt as a `## User Feedback Ite
 - Richer input — especially verbatim quotes — gives the subagent raw signal it can't otherwise access (it can't see the parent conversation, the PR diff, or the working tree).
 - Paraphrases smooth over nuance; verbatim preserves it.
 
-## Subagent Process (steps 2-9)
+## Subagent Process (steps 2-7)
 
 2. **Extract candidate learnings** - For each user feedback item, ask:
    - Is this a recurring pattern or a one-off situation?
@@ -219,15 +206,22 @@ This list is passed verbatim into the subagent prompt as a `## User Feedback Ite
 
 7. **Apply changes only with approval** - Wait for user confirmation before modifying any file.
 
-8. **Verify consistency** - Delegate to the `consistency-check-principles-and-skills` skill.
-   - It audits CLAUDE.md + skills for contradictions, merge/generalization opportunities, duplication, and structural compliance with skill-creator conventions.
-   - Embed its report verbatim under *Post-Edit Verification* in the Output Format.
-   - Surface findings for user triage; do not auto-fix.
+## Step 10: Post-edit audit reminder (main context)
 
-9. **Verify budgets** - Delegate to the `performance-check-principles-and-skills` skill as the final step.
-   - It measures CLAUDE.md + skills against research-backed budgets (line/word counts, conciseness, skill count).
-   - Embed its report verbatim alongside the consistency report.
-   - Surface findings for user triage; do not auto-fix.
+After the subagent returns its report, the main session prints a short reminder.
+
+Each audit then runs in *that* fresh session's main context, with the user in the loop for every finding:
+
+> Edits applied. Run the audits in a fresh session when you're ready:
+> - `/consistency-check-principles-and-skills` — semantic coherence (3-subagent ensemble, ~2/3 majority vote)
+> - `/performance-check-principles-and-skills` — research-backed budgets
+
+Why a reminder instead of an automatic run:
+
+- **Nested subagents don't work.** `consistency-check` now fans out 3 ensemble subagents in main mode.
+  - Spawning it from the improve subagent would fail, or silently degrade it to single-sample mode (the pre-ensemble behavior this whole rework targets).
+- **User-in-the-loop triage.** In a fresh main-context session the user sees every finding turn-by-turn rather than a pre-digested embedded report.
+- **Batching wins.** One audit pass after several `/improve-*` invocations land beats N redundant passes per micro-edit.
 
 ## Output Format
 
@@ -253,17 +247,9 @@ Number each proposal so the user can approve/reject by number (e.g., "Apply 1 an
 ## Already Covered
 
 - [Existing guideline/skill content that covers this]
-
-## Post-Edit Verification
-
-Embed both audit reports verbatim:
-
-### Consistency check
-[Output from `consistency-check-principles-and-skills`]
-
-### Performance check
-[Output from `performance-check-principles-and-skills`]
 ```
+
+Post-edit audits are not embedded — see Step 10 (main-context reminder).
 
 ## Guidelines for Generalization
 

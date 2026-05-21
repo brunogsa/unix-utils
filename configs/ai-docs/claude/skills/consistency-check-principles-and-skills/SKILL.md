@@ -1,243 +1,289 @@
 ---
 name: consistency-check-principles-and-skills
-description: "Audit CLAUDE.md and skills for qualitative coherence drift; surface findings for triage. Trigger: 'consistency check' / 'check contradictions' / 'audit my skills'. Heavy (LLM cross-file) — don't invoke per-edit. Report-only."
+description: "Audit CLAUDE.md + skills for semantic coherence (contradictions, untagged constraints, stale cross-refs). Trigger: 'consistency check'. Heavy: orchestrator fans out 3 ensemble children, keeps only ≥2/3-vote findings. Report-only."
 ---
-
-# Consistency Check: Principles and Skills
-
-Audit a CLAUDE.md file + its companion `.claude/skills/` directory for qualitative coherence issues. Report findings; never auto-fix.
-
-This skill is intentionally LLM-driven (not a script): each heuristic requires cross-file reading and judgment. Pair with `performance-check-principles-and-skills` for the quantitative side (line/word budgets, conciseness).
 
 ## Usage
 
 ```
-/consistency-check-principles-and-skills           # user: ~/.claude/CLAUDE.md + ~/.claude/skills/
-/consistency-check-principles-and-skills <path>    # repo: <path>/CLAUDE.md + <path>/.claude/skills/
-/consistency-check-principles-and-skills .         # repo: current working directory
+/consistency-check-principles-and-skills           # user ~/.claude CLAUDE.md and skills by default
+/consistency-check-principles-and-skills <path>
+/consistency-check-principles-and-skills skill X   # accepts natural language
 ```
 
-Examples:
-- `/consistency-check-principles-and-skills` — your personal config
-- `/consistency-check-principles-and-skills ~/work/my-project` — an explicit repo path
-- `/consistency-check-principles-and-skills this repo` / `... here` / `... current` — Claude resolves these natural phrases to `.` (the cwd)
+# Consistency Check: Principles and Skills
 
-## Heuristics (in priority order)
+Audit CLAUDE.md file and skills for semantic coherence issues.
+Report findings; never auto-fix.
 
-Findings are reported in this order — the highest-impact issues first.
+LLM-driven (not a script): each heuristic requires cross-file reading.
+User can pair it with `performance-check-principles-and-skills` for the quantitative side (line/word budgets, density, marker counts).
 
-### 1. Contradictions (highest value)
+## Modes (orchestrator vs ensemble child)
 
-Two rules that disagree without a clear reconciling condition.
+LLM cross-file reading is stochastic. A single sample over-flags.
+
+Fix: **self-consistency** — run 3 samples in parallel, keep only what ≥2 agree on.
+
+| Mode | Trigger | Behavior |
+|---|---|---|
+| **Orchestrator** | invoked from main session (default) | spawns 3 ensemble children in parallel, filters their reports by 2/3 majority vote, emits the merged report |
+| **Ensemble child** | spawned by orchestrator; prompt contains `ENSEMBLE_CHILD=true` | runs §Lifecycle directly with no fanout, emits the raw report (parent does the voting) |
+
+[Instruction] **CRITICAL: Children must NOT spawn further children.** The orchestrator's spawn prompt sets `ENSEMBLE_CHILD=true` and explicitly forbids fanout. Without this gate the skill recurses infinitely.
+
+[Instruction] **Spawn the 3 children in parallel** — single message, 3 `Agent` tool calls. Serial fanout 3×s wall-clock latency for the same token cost.
+
+[Instruction] **Forward scope verbatim** — whatever scope the user passed (`default`, `<path>`, `skill X`) goes into every child prompt unchanged.
+
+### Orchestrator flow
+
+1. Detect mode: if the invocation prompt does NOT contain `ENSEMBLE_CHILD=true`, this is the orchestrator.
+2. Spawn 3 subagents in parallel via the `Agent` tool:
+   - `subagent_type: "general-purpose"`
+   - `description: "Consistency-check ensemble child <N>/3"`
+   - Prompt template:
+     ```
+     ENSEMBLE_CHILD=true. Scope: <forwarded-scope>.
+     Load consistency-check-principles-and-skills via Skill.
+     Run heuristics directly. DO NOT spawn further subagents.
+     ```
+3. Collect the 3 reports.
+4. Apply the **2/3 majority filter** (see below).
+5. Emit the merged report in §Report Format.
+
+### 2/3 majority filter (deterministic match key)
+
+[Instruction] **Match key = `(heuristic-section-number, primary-file:line)`.** Two findings match iff both fields match exactly. Confidence tier, diff wording, and prose vary stochastically across children — only the key counts for voting.
+
+- `heuristic-section-number` — the integer 1–7 from §Heuristics (Contradictions=1, …, Term consistency=7).
+- `primary-file:line` — the first `file:line` cited in the finding body. For multi-file findings (contradictions cite two), use the lexicographically lower path.
+
+[Instruction] **CRITICAL: Children MUST emit a machine-readable key line immediately under each finding ID.** Format is fixed and grep-able — no free-text parsing in the merge step.
+
+Required emission (see §Report Format below for the full per-finding template):
+
+```
+**<section>.<index>** — <human-readable header>
+[KEY] section=<N> file=<path>:<line>
+   - <body bullets>
+```
+
+Why mandate this:
+
+- Extracting `(section, file:line)` from free prose is itself LLM-stochastic — children would phrase the header differently and the vote would silently noop.
+- A fixed `[KEY]` line lets the orchestrator merge via `grep '^\[KEY\]'` with zero LLM judgment.
+
+Algorithm:
+1. `grep '^\[KEY\]'` over each child report → list of keys per child.
+2. Count keys across the 3 reports.
+3. Keep findings whose key appears in ≥2 reports. Drop the rest silently.
+4. For each kept key, emit the finding body from whichever child reported it with HIGHEST confidence; tie → lexicographically first child's wording.
+5. Re-number kept findings as `<section>.<index>` per §Lifecycle step 6 (numbering restarts at .1 within each section).
+
+[Instruction] **Surface the ensemble-vs-correlated distinction in the orchestrator's handback.** 2/3 voting filters *stochastic* noise (samples disagree). It does NOT filter *correlated* false positives (every sample flags the same wrong thing).
+
+If a finding persists across rerun-and-fix cycles, the orchestrator notes:
+
+> "This finding survived 3/3 — likely a correlated false positive.
+> Consider tightening the heuristic wording or raising the confidence threshold, not just re-running."
+
+## What this skill does NOT flag
+
+- Anything `performance-check` already counts deterministically.
+- Anything `skill-creator` skill already states.
+
+**Boundary with `performance-check` and `skill-creator`:**
+
+`skill-creator` owns frontmatter shape, folder layout, description guidance etc — out of scope here.
+This skill's surface is semantic relationships across files.
+
+| Surface | performance-check | consistency-check |
+|---|---|---|
+| `[Instruction]` markers | counts vs. budget | finds untagged (heuristic #3) |
+| Frontmatter | char counts | semantic quality |
+| Density | line-by-line violations | (none) |
+| CRITICAL ratio | counts ratio | semantic placement + Missing `[Why]` (heuristic #5) |
+| Cross-references | (future — exact-string subset) | semantic refs (heuristic #6) |
+
+Perf-check answers *"how many?"*; consistency-check answers *"are the right ones tagged the right way?"*.
+
+## Default state: no findings
+
+LLM judges over-flag by default.
+The medical-chatbot study found ~77% of judge false positives are "non-essential gap" flags (see [references/research.md](references/research.md)).
+
+Producing findings when none exist trains the user to ignore the next run.
+
+**Default state for every heuristic is `(no findings)`.** A finding ships only when ALL three gates pass:
+
+1. **Trade-offs listed and evaluated**: what are the pros of keeping as-is? What are the cons? 1-line each;
+2. **Actionable diff**: a specific 1-line proposed change.
+   - Bare *"consider X"* / *"might benefit from"* / *"could collapse"* → drop.
+3. **HIGH or MEDIUM confidence** per the rubric below; LOW drops silently.
+
+### Confidence rubric
+
+- **HIGH** — direct locatable defect; defending the current state is implausible. Ships as **ISSUE**.
+- **MEDIUM** — overlapping scenarios with arguable interpretation; user judgment required. Ships as **REVIEW**.
+- **LOW** — stylistic preference or pattern intuition; no specific defect. **Dropped silently.**
+
+Research backing per move:
+- I-CALM — the per-finding confidence rubric.
+- Conformal Abstention — "default state is silence".
+- Silent Judge — the report-only stance.
+- Systematic Overcorrection — the adversarial sanity-check (step 4).
+
+Full citations in [references/research.md](references/research.md).
+
+## Heuristics (priority order)
+
+### 1. Contradictions
+
+Two rules that disagree without a reconciling condition.
 
 Look for:
-- Rule A asserts "always X"; rule B asserts "never X" — and there is no qualifier explaining when each applies.
-- A skill says "do Y"; CLAUDE.md says "do not Y" (or vice versa).
+- "Always X" vs "never X" with shared scope.
+- A skill says "do Y" while CLAUDE.md says "do not Y" (or vice versa).
 - Two skills give opposing guidance on the same situation.
 
-Why this is the top priority: contradictions cause **behavioral drift**.
+Top priority because contradictions cause **behavioral drift** — Claude follows one rule today, the other tomorrow, no predictable trigger.
 
-- Claude may follow one rule on Monday and the other on Tuesday with no predictable trigger.
-- The cost is silent and recurring.
-
-When in doubt, flag it. False positives are cheap (the user dismisses); false negatives ship undetected.
+When in doubt, **do not flag** — apply the confidence rubric. A vague contradiction without locatable file:line + concrete diff is LOW; drop it.
 
 ### 2. Unresolved trade-off tensions
 
-Two rules that BOTH apply to overlapping scenarios but pull in opposite directions, with no explicit arbitration clause naming when to favor which.
+Two rules that BOTH apply to overlapping scenarios but pull in opposite directions, with no explicit arbitration clause.
 
-Distinguish from #1 (Contradictions) — both rules are individually valid; the gap is that neither names which one wins when both fire.
-
-Look for:
-- Verb pairs pointing opposite ways: "simplify" vs "preserve", "DRY" vs "inline", "collapse" vs "keep", "be concise" vs "explain in detail", "verify" vs "move fast".
-- Scenario overlap: would both rules fire on the same situation (e.g., during a refactor, while writing tests)?
-- Arbitration check: does either rule contain "UNLESS", "when X prefer Y", "BUT when", or another tiebreaker clause naming the other rule?
-
-If both rules fire AND no arbitration exists → **flag**.
-
-For each finding, surface:
-- The two rules (file + line).
-- The overlap scenario (one sentence).
-- A proposed arbitration clause grafted onto one of the rules.
-
-Why this matters: per ConInstruct (arXiv:2511.14342), frontier LLMs cannot reliably detect or resolve conflicting constraints — they default to whichever rule has higher salience (recency, position, emphasis). Without explicit arbitration, behavior on the overlap becomes non-deterministic.
-
-Example finding shape:
-- `CLAUDE.md:67` "Push for simplicity" vs. another bullet "Clarity over cleverness" — both fire on refactor proposals; no arbitration clause naming the winner.
-- Proposed clause: "Push for simplicity UNLESS the verbosity buys documentation surface, stable identity, or asymmetric-growth room."
-
-### 3. Hidden instructions inside bullets
-
-Bullet shapes that smuggle constraints past the [Instruction] count without their own marker.
+Distinguish from #1: both rules are individually valid; the gap is that neither names which one wins.
 
 Look for:
-- **Sub-bullets that add a distinct constraint** — a child bullet (often tagged `[Why]` or untagged) that actually carries imperative content the model must honor.
-- **Multi-clause bullets joined by AND** — one bullet enumerating two or more independent constraints in a single sentence ("Use bullets AND short sections AND tables").
-- **Lists buried inside Why/Example blocks** — enumerated requirements hidden where the script expects pure rationale or illustration.
+- Opposing verbs ("DRY" vs "inline", "be concise" vs "explain in detail").
+- Scenario overlap (would both fire during the same refactor?).
+- No `UNLESS` / `when X prefer Y` / `BUT when` clause naming the other rule.
 
-Why this matters: every shape above hides instructions from the `performance-check` script, which counts [Instruction] tags. The model still has to honor them, but they aren't budgeted — so the actual instruction load is higher than the count reports, and the per-bucket caps (CLAUDE.md ≤ 200, *-standards total ≤ 300) stop reflecting reality.
+Per ConInstruct (arXiv:2511.14342), models default to whichever rule has higher salience — explicit arbitration is the fix.
 
-This is a fork — surface it; the user picks the action:
-- **Generalize / merge** — when sub-bullets share the parent's mechanism, rewrite the parent so one [Instruction] covers them all and demote the sub-bullets to plain examples (no [Why], no implied constraint).
-- **Split** — when sub-bullets are distinct constraints, promote each to its own top-level [Instruction] (with its own [Why] if needed).
+Example of a *correctly* arbitrated pair (does NOT flag): "Centralize repeated artifacts (DRY) ... UNLESS extraction fails the readability + cognitive-load bars".
 
-Same fork applies to multi-clause AND-joined bullets — split each conjunct into its own [Instruction], or keep one canonical conjunct and drop the rest.
+The `UNLESS` clause names exactly when DRY yields — no flag.
 
-**When NOT to flag**: a sub-bullet that is purely illustrative ("Examples: X, Y, Z") with no constraint the model has to apply. Pure [Examples] stay as-is.
+**Sub-check: arbitration well-definedness.** Per CNL-P (arXiv:2508.06942, testable-predicate argument), `UNLESS X` is only useful when X is testable.
+
+Audit X for groundedness — does it point at a glossary entry, measurable criterion, or concrete example? Flag ambiguous prose like "UNLESS it's reasonable".
+
+### 3. Hidden instructions on CLAUDE.md or *standards skills
+
+Skip this for other files.
+
+Bullet shapes that smuggle constraints past the `[Instruction]` count without their own marker.
+
+Look for:
+- Sub-bullets adding distinct constraints (often tagged `[Why]` or untagged).
+- Multi-clause bullets joined by AND.
+- Lists buried inside Why/Example blocks.
+
+Hidden constraints inflate the actual instruction load beyond what `performance-check` measures.
+
+Fork (surface, user picks): **generalize/merge** when sub-bullets share the parent's mechanism; **split** when they stand on distinct mechanisms.
+
+**Coherent-recipe carve-out** (do NOT flag): sub-`[Instruction]`s forming a coherent recipe under one parent mechanism may stay nested.
+
+Examples: TaskList category definitions; the 3 audit handles under "Make your reasoning verifiable".
 
 ### 4. Merge or generalization opportunities
 
 Multiple rules / skills that could collapse into one stronger general rule.
 
 Look for:
-- Two bullets that differ only by a modifier (e.g., one for tests, one for code) and could be generalized into one.
-- Two skills whose `description` field overlaps significantly (≳50% of triggers shared) — candidates to merge, or to fold one into the other.
-- A pattern stated in three sections — promote to a single principle and reference from each section instead of repeating the rule.
+- Bullets differing only by a modifier (one for tests, one for code).
+- Skill `description` fields overlapping ≳50% on triggers.
+- A pattern stated in three sections.
+- Two copies saying the same thing at the same level of detail.
+- One principle with two distinct `[Why]` clauses on different mechanisms.
 
-Why it matters: a smaller, sharper principle set is easier for Claude to attend to.
+Do NOT flag:
+- Progressive disclosure — same idea at different detail levels across files (intentional layering).
 
-- Per Jaroslawicz et al. 2025 (cited in `performance-check`'s `references/research.md`), instruction adherence degrades sharply past ~200 instructions.
-- Every merged duplicate buys back attention.
+Per Jaroslawicz 2025, adherence degrades past ~200 instructions — every merged duplicate buys back attention.
 
-### 5. Multiple Whys per principle
+### 5. Misplaced CRITICAL marker
 
-A single principle's bullet tree carries two or more distinct `Why:` clauses (parent + sub-bullet, or across sibling sub-bullets).
-
-Look for:
-- A `Why:` on the top-level rule AND a `Why:` on one of its sub-bullets.
-- Two or more sub-bullets, each with its own `Why:`, under the same parent rule.
-- A nested `Why:` whose argument doesn't subsume the parent's `Why:` — the sub-bullet stands on a different mechanism, not a sharpening of the same one.
-
-This is a fork — surface it; the user picks the action:
-- **Split**: each `Why:` anchors a distinct concept. Promote the sub-bullet to its own top-level principle.
-- **Generalize**: the sub-bullets are facets of the same idea. Rewrite the parent so a single `Why:` covers them all; demote sub-bullets to bullet examples (no `Why:`).
-
-Why it matters: every directive should pair with exactly one load-bearing rationale (per CLAUDE.md's "Teach the *why*, not just the *what*").
-
-- A principle with multiple `Why:` clauses gives the model multiple competing reasons to generalize from — but only one parent heading anchoring them, so the "what" silently has ambiguous scope.
-- Either there are N principles welded together (split), or the rationales are duplicate-ish and one generalization covers them (generalize). Both shapes are cleaner than the current state.
-
-**When NOT to flag**: a sub-bullet's `Why:` is a strict sharpening of the parent's `Why:` — same mechanism, narrower case. Style debt at most. Note but don't push.
-
-### 6. Duplication
-
-The same rule stated in multiple places without each restatement adding value.
+Perf-check counts the CRITICAL ratio; this heuristic asks *whether the right rules carry CRITICAL*. Per Control Illusion (arXiv:2502.15851), WHICH instructions sit at the top matters more than HOW MANY.
 
 Look for:
-- Identical or near-identical bullets across CLAUDE.md and one or more skills.
-- A rule restated in multiple skills without each repetition adding context.
+- **Under-marked** — a non-CRITICAL rule that other rules visibly defer to.
+- **Missing `[Why]`** — a CRITICAL `[Instruction]` with no `[Why]` clause within the next 3 non-blank lines (`[Examples]` may sit between).
+   - Fix: add a `[Why]`, or demote from CRITICAL — no rationale means no tiebreaker authority.
 
-Why it matters: edit burden — when one copy changes, the others go stale silently.
+HIGH confidence requires citing the other rule(s) that defer to the rule in question, or; for **Missing `[Why]`**, the exact line range checked.
 
-**Distinguish from intentional layering**: CLAUDE.md often states a principle in one line, and a skill expands with examples.
+### 6. Stale or unnecessary references
 
-- That is *not* duplication — that is progressive disclosure (CLAUDE.md is auto-loaded; skills load on demand).
-- Only flag when both copies say the *same thing at the same level of detail*.
+Skills reference each other ("see `<skill>`/`<section>`", "per CLAUDE.md's `<rule>`").
+These rot when targets rename, move, or get rewritten. Sometimes it also generate unnecessary coupling.
 
-### 7. Structure (per skill-creator conventions)
+Look for:
+- Named-section refs where the heading no longer exists, or could be a file-reference.
+- `<file>:<N>` refs in general (avoid those).
+- Quoted-rule refs where no rule with that name exists at the cited location.
+- A coupling that could NOT exist and still keep that skill functioning.
 
-Each skill must follow `skill-creator`'s structural conventions. Audit each `SKILL.md` for:
-- **Frontmatter**:
-  - required `description` field present;
-  - `disable-model-invocation: true` only used intentionally (slash-only skills);
-  - `user-invocable: false` is the inverse (Claude-auto-invokable but hidden from the user's `/` menu);
-  - both are recognized Claude Code keys — do NOT flag them as non-standard. Reference: https://code.claude.com/docs/en/skills.md#control-who-invokes-a-skill.
-- **Pushy description**: contains both *what the skill does* and *when to trigger* (skill-creator's anti-undertriggering guidance). A description that only says what the skill does, with no trigger phrases, undertriggers in practice.
-- **Body size**: under 500 lines (delegate the line count itself to `performance-check`; here, judge whether a long body would benefit from progressive disclosure into `references/` or `scripts/`).
-- **Folder structure**: `SKILL.md` at the root, optional `scripts/`, `references/`, `assets/`. Flag stray files at unexpected paths.
-- **Reference files >300 lines**: should have a table of contents.
+### 7. Term consistency / glossary
 
-For CLAUDE.md, audit for:
-- Imperative-sentence rule format (per the file's own opening: "Rules are imperative sentences").
-- CRITICAL items have a `Why:` clause or sub-bullet rationale — without one, the rule is hard to apply at edge cases.
-- Section headers are present and consistently structured.
+Same concept named differently across files breaks the prompt-as-API contract (CNL-P, arXiv:2508.06942, grammar-precision argument for cross-prompt term consistency).
 
-**Out of scope**: conciseness (words per line, redundant phrasing). Use `performance-check-principles-and-skills` for that — it measures it deterministically.
+Look for:
+- Synonym proliferation in *imperative* contexts ("task" / "sub-step" / "work-item").
+- Drift between a defined term and its loose use elsewhere (e.g. `[Why]` marker vs casual "why" prose).
+- Term collisions (same word, different meaning across files).
 
-## How to Run
+Flag only when synonyms appear in contexts where the model must distinguish them to act AND the difference matters for behavior.
+Provide examples of the different usages to the user.
 
-1. Resolve the target paths from the argument (default: `~/.claude/CLAUDE.md` + `~/.claude/skills/`).
-2. Read CLAUDE.md and every `skills/*/SKILL.md` in full. Cross-file reading is the whole point — do not shortcut with grep.
-3. For each heuristic in order, scan and collect findings.
-4. Render the report below.
+## Lifecycle
+
+This is what an **ensemble child** executes (mode B). The orchestrator (mode A) only runs the flow in §"Orchestrator flow" above — it does not perform heuristic analysis itself.
+
+1. Resolve target paths (default: `~/.claude/CLAUDE.md` + `~/.claude/skills/`).
+2. Read CLAUDE.md and every `skills/*/SKILL.md` in full — cross-file is the whole point, no grep shortcuts.
+   - Scoped runs (e.g., `skill X`) still load the full set; the scope filters which findings to report, not which files to read.
+3. For each heuristic, scan and collect *draft* findings against the rubric.
+4. **Adversarial sanity-check.** For each draft, write one sentence defending the current state.
+   - If the defense cites the rule's actual mechanism, **downgrade one tier** (HIGH→MEDIUM, MEDIUM→LOW, LOW→drop).
+   - Counters the 88% over-flag rate under adversarial framing (arXiv:2603.00539).
+5. Apply gates from §"Default state: no findings": drop LOW; survivors (MEDIUM/HIGH) need file:line + 1-line diff or drop.
+6. Render. Sections with no surviving findings → `(no findings)`. **Number findings as `<section>.<index>`**
+   - By "section" I mean the headings I have numbered on this skill;
+   - Within each section, starting at `.1` (e.g., `2.1`, `2.2`). User references IDs to direct fixes (`apply 1.2, 3.1`).
 
 ## Report Format
 
-Mirror `performance-check`'s shape: summary table, then per-heuristic detail sections.
+Summary table + per-heuristic sections. Seven heuristic rows (one per heuristic), each in the same fixed order as the §Heuristics list.
+
+**Example with findings** (the `[KEY]` line is mandatory in child reports — see §"2/3 majority filter"):
 
 ```
 # Consistency Check — user (~/.claude)
 
-## Summary
+## 1. Contradictions
 
-| Heuristic | Findings | Status |
-|---|---|---|
-| Contradictions | 1 | ISSUE |
-| Merge / generalization | 2 | REVIEW |
-| Multiple Whys | 1 | REVIEW |
-| Duplication | 0 | OK |
-| Structure | 1 | REVIEW |
+**1.1** — `CLAUDE.md:67` vs `skills/foo/SKILL.md:12`
+[KEY] section=1 file=CLAUDE.md:67
+   - <conflict description>
+   - <place A>: 1-3 lines
+   - <place B>: 1-3 lines
+   - <proposed change>: Not the entire diff per se, but the high level idea
 
-## Contradictions
+## 2. Unresolved trade-off tensions
 
-1. **CLAUDE.md INTERACTION "Sequential over parallel for edits/inputs"** vs **skills/foo/SKILL.md "always parallelize tool calls"**
-   - The first forbids parallel calls when user input is required; the second has no such carve-out.
-   - Suggestion: add the input-required exception to the skill, or remove the conflicting line.
+(no findings).
 
-## Merge or Generalization
-
-1. **CLAUDE.md WORKFLOW "Verify before completing"** + **CLAUDE.md WORKFLOW "Re-verify evidence when things don't add up"**
-   - Both express "verify, then act". Consider collapsing into one principle with two sub-bullets covering "before completing" and "when contradicted by new evidence".
-
-2. **skills/foo/SKILL.md description** overlaps ~60% with **skills/bar/SKILL.md description** on triggers around X.
-   - Consider merging, or sharpening one description to claim a distinct trigger surface.
-
-## Multiple Whys
-
-1. **CLAUDE.md "Scout rule"** carries 3 distinct `Why:` clauses (parent + "Surface ALL noticed issues" sub-bullet + "Flaky tests" sub-sub-bullet) — each on a different mechanism (mid-task derailment, user-choice preservation, flake compounding).
-   - Suggestion: promote "Flaky tests ALWAYS become Scouts" to its own top-level principle (distinct mechanism); evaluate whether parent + "Surface ALL" share one rationale ("don't pre-filter the user's menu") that can be generalized.
-
-## Duplication
-
-(none)
-
-## Structure
-
-1. **skills/foo/SKILL.md** — frontmatter description omits trigger phrases. Per skill-creator, descriptions should be "pushy" (include both *what* and *when*) to combat undertriggering.
+## ...
 ```
 
-Status values:
-- **OK** — no findings.
-- **REVIEW** — findings exist but require user judgment (most merge / duplication / structure cases).
-- **ISSUE** — high-confidence problem (most contradictions; clear-cut duplication).
+The orchestrator strips `[KEY]` lines before emitting the merged report to the user — they exist for the vote, not the human reader.
 
-## Why Report-Only
+Status: **OK** (no findings), **REVIEW** (user judgment needed), **ISSUE** (high-confidence problem).
 
-Findings are signals, not commands. Many require judgment that only the user can supply:
-
-- *Which side of a contradiction is correct?* The newer rule? The more cited one? The one with a stronger "Why:"?
-- *Is this duplication or intentional layering?*
-- *Are these two skills truly redundant, or do they each carve out a real niche the descriptions just fail to convey?*
-- *Should this multi-Why principle split into N rules, or generalize to one?* The two paths point in opposite directions; only the user knows which mechanism the rule was really about.
-
-Auto-resolving would erase that nuance. Surface findings; the user triages and approves edits.
-
-## Why Not a Script
-
-Each heuristic requires semantic reading across files:
-
-- Detecting when "always X" and "never X" share scope.
-- Judging whether two skill descriptions overlap meaningfully.
-- Distinguishing duplication from intentional layering.
-
-A regex/script approach produces false positives at every step. LLM cross-file reading is the right tool — accept the cost, invoke on demand.
-
-For deterministic / fast checks (line counts, word budgets, per-line conciseness), use `performance-check-principles-and-skills`.
-
-## When to Invoke
-
-- After any guideline-editing flow finishes — to audit the edits before declaring them done.
-- On demand, when the user suspects drift ("are any of my rules contradicting each other?", "audit my skills for overlap").
-- After a major refactor of CLAUDE.md or several skills, before committing.
-
-Do **not** invoke proactively after every edit. The cost (LLM reading every skill + CLAUDE.md) does not amortize across small edits.
+Reference findings by ID: `apply 1.1, 4.2` or `skip 7.1`.
