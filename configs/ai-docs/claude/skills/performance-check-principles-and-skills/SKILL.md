@@ -34,10 +34,19 @@ All limits sourced where possible. Full citations in [references/research.md](re
 | Skill description chars | 250 | [Claude Code 2.1.86 `/skills` listing cap](references/research.md#skill-description-length) |
 | Skill name chars | 64 | [Anthropic frontmatter validation](references/research.md#skill-name-length) |
 | Density violations across all .md | 0 | Density rule (256 chars / 32 words per line) — see `~/.claude/skills/doc-standards/scripts/check-density.sh` |
+| CLAUDE.md [Instruction] count | 100 | [Reserved share for always-loaded principles — deliberately tight vs. IFScale 500 ceiling](references/research.md#instruction-count-budgets) |
+| *-standards [Instruction] total (sum across `*-standards/SKILL.md`) | 200 | [Reserved share for lazy-loaded standards skills — deliberately tight vs. IFScale 500 ceiling](references/research.md#instruction-count-budgets) |
+| CRITICAL ratio per file ([Instruction] lines marked CRITICAL ÷ [Instruction] count) | 16% | [Emphasis-salience reasoning — not measured](references/research.md#critical-emphasis-ratio) |
 
 Skills have no per-line length limit — the per-skill word cap covers overflow.
 
 Density is checked across CLAUDE.md + every `SKILL.md` + every `references/*.md` + every `assets/*.md`. Per-file violation counts are listed under "Density violations" in the report.
+
+### Instruction-density measurement (markers)
+
+The cross-file [Instruction] sum and CRITICAL ratio depend on the marker convention defined in `~/.claude/CLAUDE.md` → "Counting conventions". The script counts [Instruction] markers via `grep`/`awk` in milliseconds — no LLM judgment.
+
+A CLAUDE.md or *-standards skill with zero [Instruction] markers fails the check: it has either not been migrated to the marker convention, or no longer carries any instruction (in which case it shouldn't be a *-standards skill).
 
 ### Per-skill word-budget override
 
@@ -60,6 +69,22 @@ The report stays quiet about overrides while the skill is under its custom budge
 Over-budget lines are annotated as `words=N(>budget (override; default=2048))` so the next reader knows the larger budget was intentional.
 
 Only `words-budget` is overridable today — line/desc/name budgets remain global.
+
+### Per-skill instructions-budget override
+
+A `*-standards` skill can opt into a per-skill instruction cap by adding `instructions-budget: N` to its YAML frontmatter:
+
+```yaml
+---
+name: example-standards
+description: "..."
+instructions-budget: 90
+---
+```
+
+The override is enforced **in addition to** the cross-skill `*-standards` total cap (300). It exists so the 300 budget can be intentionally allocated across the standards skills — for example, weighting test-standards heavier than doc-standards because day-to-day testing work fires that skill more often.
+
+When a skill exceeds its override, the report lists the offending count in a dedicated section and the run fails. Skills without `instructions-budget` participate only in the *-standards total — the per-skill check is silent for them.
 
 ## How to Run
 

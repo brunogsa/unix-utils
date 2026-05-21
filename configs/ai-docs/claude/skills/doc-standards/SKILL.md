@@ -2,6 +2,7 @@
 name: doc-standards
 description: "Documentation principles + examples. USE PROACTIVELY on ANY doc work — code comments, JSDoc/docstrings, READMEs, CLAUDE.md edits, spec docs, density checks, or any 'why' comment. Fires before adding any comment."
 user-invocable: false
+instructions-budget: 30
 ---
 
 # Doc Standards
@@ -10,20 +11,21 @@ Principles and paired examples for any documentation work. Each section pairs a 
 
 ## WHY at most — never history, never mechanics
 
-Prefer tests and logs over comments — they stay honest under refactors.
+[Instruction] Prefer tests and logs over comments — they stay honest under refactors.
 
-When you must comment, the maximum scope is **why this code exists in its current shape** — a permanent invariant the next reader cannot infer from the code itself.
+[Instruction] When you must comment, the maximum scope is **why this code exists in its current shape** — a permanent invariant the next reader cannot infer from the code itself.
 
-Why: tests and logs are exercised by the runtime, so lies surface fast.
+[Why] Tests and logs are exercised by the runtime, so lies surface fast.
 
 Comments aren't exercised — lies persist. Anything narrower than WHY rots: history on next commit, mechanics on next refactor. Only invariants survive.
 
-- **History** (PR numbers, "main used to", "the merge", "we previously did", "(after the rename)") → commit message body, not source.
-  - **Mid-refactor justifications** belong here too — phrases like "(not a skill anymore)", "(was previously inline)", "(moved here from X)" feel useful while the change is fresh.
-    - But they describe why the CURRENT form was just adopted; the context "this just changed" rots within days, and the new form has to stand alone.
-- **What the code does** → already shown by the code; rename or restructure instead.
-- **How it works** → implementation detail; the next refactor falsifies it.
+- [Instruction] **History** (PR numbers, "main used to", "the merge", "we previously did", "(after the rename)") → commit message body, not source.
+  - [Instruction] **Mid-refactor justifications** belong here too — phrases like "(not a skill anymore)", "(was previously inline)", "(moved here from X)" feel useful while the change is fresh.
+    - [Examples] But they describe why the CURRENT form was just adopted; the context "this just changed" rots within days, and the new form has to stand alone.
+- [Instruction] **What the code does** → already shown by the code; rename or restructure instead.
+- [Instruction] **How it works** → implementation detail; the next refactor falsifies it.
 
+[Examples]
 ```ts
 // Bad — history (rots on next commit):
 // excludeFlowCodes overrides flowCode — replicates main's last-spread-wins (PR #2034).
@@ -41,10 +43,11 @@ If the explanation would survive any future refactor of the surrounding code, it
 
 ## Describe the use case prevented, not the mechanism
 
-When commenting near a non-obvious mechanism, name the case the guard prevents.
+[Instruction] When commenting near a non-obvious mechanism, name the case the guard prevents.
 
-Why: a reviewer asks "why is this guard here?". The comment should answer THAT question — not paraphrase what the code already shows.
+[Why] A reviewer asks "why is this guard here?". The comment should answer THAT question — not paraphrase what the code already shows.
 
+[Examples]
 ```ts
 // Bad — restates what the code says
 // Only fires on landing view
@@ -58,14 +61,15 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 
 ## Comments stand alone — full names and concrete values, not local shorthand
 
-Applies to comments and test titles. See CLAUDE.md ("Self-describing artifacts — no context-dependent shorthand") for the principle.
+[Instruction] Applies to comments and test titles. See CLAUDE.md ("Self-describing artifacts — no context-dependent shorthand") for the principle.
 
 Domain elaboration:
-- Never reference `AC-N` / `Req-N` / `Task-N` / `DBMA-X` / `PR-X` in committed code/comments/test titles. Those live only in gitignored planning docs. Spell out the behavior briefly instead.
-- Spell project-private acronyms: `SA` / `SAP` → `sales_agreement` / `sales_agreement_product`.
-- Prefer concrete example values: `"12345678000195" + "12.345.678/0001-95"` beats `digits + formatCnpj(digits)`.
-- Spec linkage belongs in commit message bodies, PR descriptions, or `spec.md` — not in source.
+- [Instruction] Never reference `AC-N` / `Req-N` / `Task-N` / `DBMA-X` / `PR-X` in committed code/comments/test titles. Those live only in gitignored planning docs. Spell out the behavior briefly instead.
+- [Instruction] Spell project-private acronyms: `SA` / `SAP` → `sales_agreement` / `sales_agreement_product`.
+- [Instruction] Prefer concrete example values: `"12345678000195" + "12.345.678/0001-95"` beats `digits + formatCnpj(digits)`.
+- [Instruction] Spec linkage belongs in commit message bodies, PR descriptions, or `spec.md` — not in source.
 
+[Examples]
 ```ts
 // Bad — file header reads as a task list
 /**
@@ -91,37 +95,37 @@ it('should throw INTERNAL_SERVER_ERROR after retries', async () => { ... });
 
 ## Docs close to code
 
-Module README lives in the module directory.
+[Instruction] Module README lives in the module directory.
 
-Why: docs separated from code drift fast. When the README is one directory away from the code it describes, refactors update both as a unit. Docs in a separate repo get forgotten.
+[Why] Docs separated from code drift fast. When the README is one directory away from the code it describes, refactors update both as a unit. Docs in a separate repo get forgotten.
 
 ## READMEs describe purpose, not inventory
 
-What + why + 1-2 examples. No file listings.
+[Instruction] What + why + 1-2 examples. No file listings.
 
-Why: file listings are auto-generated by every IDE. Purpose is not. A README that enumerates files duplicates information that's free elsewhere and rots the moment a file moves.
+[Why] File listings are auto-generated by every IDE. Purpose is not. A README that enumerates files duplicates information that's free elsewhere and rots the moment a file moves.
 
 ## Repo CLAUDE.md contains conventions and gotchas, not duplication
 
-Capture per-repo purpose, dependencies, non-obvious gotchas, load-bearing conventions.
+[Instruction] Capture per-repo purpose, dependencies, non-obvious gotchas, load-bearing conventions.
 
-Why: duplication is an edit burden — the moment code changes, docs go stale. CLAUDE.md's value is what the code *can't* show.
+[Why] Duplication is an edit burden — the moment code changes, docs go stale. CLAUDE.md's value is what the code *can't* show.
 
-- Don't restate what the code already shows (file listings, function categories, install-step inventories, line-numbers).
+- [Instruction] Don't restate what the code already shows (file listings, function categories, install-step inventories, line-numbers).
 
 ## Update docs as you go
 
-Locate and update related documentation inline with the change.
+[Instruction] Locate and update related documentation inline with the change.
 
-Why: deferring doc updates to "later" means they don't happen.
+[Why] Deferring doc updates to "later" means they don't happen.
 
 The PR description, README, and inline comments touching the changed area are part of the change — not a follow-up. The reviewer (and future-you) need them synced.
 
 ## Density caps (≤256 chars / ≤32 words per line)
 
-Every line/bullet/sub-bullet ≤256 chars / ≤32 words; over → split, never drop info.
+[Instruction] Every line/bullet/sub-bullet ≤256 chars / ≤32 words; over → split, never drop info.
 
-Why: dense prose drops adherence in LLM consumers and increases scan time for human readers. The cap forces clarity. Verify with `~/.claude/skills/doc-standards/scripts/check-density.sh <file>`.
+[Why] Dense prose drops adherence in LLM consumers and increases scan time for human readers. The cap forces clarity. Verify with `~/.claude/skills/doc-standards/scripts/check-density.sh <file>`.
 
-- Splits go on sentence boundaries.
-- Never drop info to fit; split into two bullets/lines instead.
+- [Instruction] Splits go on sentence boundaries.
+- [Instruction] Never drop info to fit; split into two bullets/lines instead.

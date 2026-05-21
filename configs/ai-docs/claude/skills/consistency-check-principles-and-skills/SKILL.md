@@ -42,7 +42,50 @@ Why this is the top priority: contradictions cause **behavioral drift**.
 
 When in doubt, flag it. False positives are cheap (the user dismisses); false negatives ship undetected.
 
-### 2. Merge or generalization opportunities
+### 2. Unresolved trade-off tensions
+
+Two rules that BOTH apply to overlapping scenarios but pull in opposite directions, with no explicit arbitration clause naming when to favor which.
+
+Distinguish from #1 (Contradictions) — both rules are individually valid; the gap is that neither names which one wins when both fire.
+
+Look for:
+- Verb pairs pointing opposite ways: "simplify" vs "preserve", "DRY" vs "inline", "collapse" vs "keep", "be concise" vs "explain in detail", "verify" vs "move fast".
+- Scenario overlap: would both rules fire on the same situation (e.g., during a refactor, while writing tests)?
+- Arbitration check: does either rule contain "UNLESS", "when X prefer Y", "BUT when", or another tiebreaker clause naming the other rule?
+
+If both rules fire AND no arbitration exists → **flag**.
+
+For each finding, surface:
+- The two rules (file + line).
+- The overlap scenario (one sentence).
+- A proposed arbitration clause grafted onto one of the rules.
+
+Why this matters: per ConInstruct (arXiv:2511.14342), frontier LLMs cannot reliably detect or resolve conflicting constraints — they default to whichever rule has higher salience (recency, position, emphasis). Without explicit arbitration, behavior on the overlap becomes non-deterministic.
+
+Example finding shape:
+- `CLAUDE.md:67` "Push for simplicity" vs. another bullet "Clarity over cleverness" — both fire on refactor proposals; no arbitration clause naming the winner.
+- Proposed clause: "Push for simplicity UNLESS the verbosity buys documentation surface, stable identity, or asymmetric-growth room."
+
+### 3. Hidden instructions inside bullets
+
+Bullet shapes that smuggle constraints past the [Instruction] count without their own marker.
+
+Look for:
+- **Sub-bullets that add a distinct constraint** — a child bullet (often tagged `[Why]` or untagged) that actually carries imperative content the model must honor.
+- **Multi-clause bullets joined by AND** — one bullet enumerating two or more independent constraints in a single sentence ("Use bullets AND short sections AND tables").
+- **Lists buried inside Why/Example blocks** — enumerated requirements hidden where the script expects pure rationale or illustration.
+
+Why this matters: every shape above hides instructions from the `performance-check` script, which counts [Instruction] tags. The model still has to honor them, but they aren't budgeted — so the actual instruction load is higher than the count reports, and the per-bucket caps (CLAUDE.md ≤ 200, *-standards total ≤ 300) stop reflecting reality.
+
+This is a fork — surface it; the user picks the action:
+- **Generalize / merge** — when sub-bullets share the parent's mechanism, rewrite the parent so one [Instruction] covers them all and demote the sub-bullets to plain examples (no [Why], no implied constraint).
+- **Split** — when sub-bullets are distinct constraints, promote each to its own top-level [Instruction] (with its own [Why] if needed).
+
+Same fork applies to multi-clause AND-joined bullets — split each conjunct into its own [Instruction], or keep one canonical conjunct and drop the rest.
+
+**When NOT to flag**: a sub-bullet that is purely illustrative ("Examples: X, Y, Z") with no constraint the model has to apply. Pure [Examples] stay as-is.
+
+### 4. Merge or generalization opportunities
 
 Multiple rules / skills that could collapse into one stronger general rule.
 
@@ -56,7 +99,7 @@ Why it matters: a smaller, sharper principle set is easier for Claude to attend 
 - Per Jaroslawicz et al. 2025 (cited in `performance-check`'s `references/research.md`), instruction adherence degrades sharply past ~200 instructions.
 - Every merged duplicate buys back attention.
 
-### 3. Multiple Whys per principle
+### 5. Multiple Whys per principle
 
 A single principle's bullet tree carries two or more distinct `Why:` clauses (parent + sub-bullet, or across sibling sub-bullets).
 
@@ -76,7 +119,7 @@ Why it matters: every directive should pair with exactly one load-bearing ration
 
 **When NOT to flag**: a sub-bullet's `Why:` is a strict sharpening of the parent's `Why:` — same mechanism, narrower case. Style debt at most. Note but don't push.
 
-### 4. Duplication
+### 6. Duplication
 
 The same rule stated in multiple places without each restatement adding value.
 
@@ -91,7 +134,7 @@ Why it matters: edit burden — when one copy changes, the others go stale silen
 - That is *not* duplication — that is progressive disclosure (CLAUDE.md is auto-loaded; skills load on demand).
 - Only flag when both copies say the *same thing at the same level of detail*.
 
-### 5. Structure (per skill-creator conventions)
+### 7. Structure (per skill-creator conventions)
 
 Each skill must follow `skill-creator`'s structural conventions. Audit each `SKILL.md` for:
 - **Frontmatter**:
