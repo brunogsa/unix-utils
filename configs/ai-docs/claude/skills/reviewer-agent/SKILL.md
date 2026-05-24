@@ -1,6 +1,6 @@
 ---
 name: reviewer-agent
-description: "Shared reviewer orchestrator for /auto-review (local) and /code-review (GitHub). Wrapped in a subagent for bias isolation. USE only via those callers — not invoked directly."
+description: "Shared reviewer orchestrator for /auto-review (local) and /code-review (GitHub). Runs in the caller's session by default; the caller may opt into wrapping it in a subagent for bias isolation (--isolate). USE only via those callers — not invoked directly."
 user-invocable: false
 ---
 
@@ -11,8 +11,14 @@ serves both modes; only Waves 1 and 5 differ.
 
 **Architecture.** This skill runs **serially in one session** — no nested sub-Agents.
 
-- The caller wraps this skill in a subagent for bias isolation.
-- Inside, specialists run linearly so the prompt cache stays warm.
+- By default, the caller runs this skill directly in its session so specialist
+  passes stream live and the user keeps full visibility.
+- The caller may opt into wrapping this skill in a subagent (the `--isolate`
+  flag in `/auto-review` and `/code-review`) when the calling session already
+  has opinions about the diff and bias isolation matters more than live
+  visibility.
+- Either way, specialists run linearly inside this skill so the prompt cache
+  stays warm.
 - Later passes naturally dedup what earlier ones raised.
 
 Specialist prompts and validator rubric live in `references/`; bash glue in `scripts/`. This file is the orchestrator.
@@ -102,7 +108,7 @@ Repo root for specialists is the user's CWD; the work dir is scratch for diff/co
 
 ```bash
 work_dir=$(mktemp -d /tmp/auto-review.XXXXXX)
-out_file="./auto-review_$(date +%Y-%m-%d_%H-%M).md"
+out_file="./auto-review_$(date +%Y-%m-%d_%H:%M).md"
 git fetch origin "$base_branch"
 git diff -U20 "origin/$base_branch...HEAD"             > "$work_dir/diff"
 git diff      "origin/$base_branch...HEAD" --name-only > "$work_dir/changed-files.txt"
