@@ -19,10 +19,15 @@ Principles for any test work. Each section pairs a principle with its WHY, with 
 Unit tests pinned to implementation must be refactored alongside the code they pin — the test stops protecting you the moment you most need it.
 
 - [Instruction] Prefer fakes and localstack-style emulators to bare mocks where the cost is reasonable.
-- [Instruction] Add **unit tests** for leaf functions/modules — pure logic with no/few dependencies (parsers, normalizers, validators, formatters). Whitebox; expect tests to change when the implementation changes.
-- [Instruction] Skip unit tests when the only "unit" is a thin glue function.
+- [Instruction] **Unit tests for leaf functions/modules** (parsers, normalizers, validators, formatters) — whitebox; expect tests to change with implementation. Skip when the only "unit" is a thin glue function.
 - [Instruction] **E2E tests sparingly** — slow and brittle; flakiness erodes trust in the suite. Acceptable when the specific case is cheap (existing fixture, single happy-path Playwright run, smoke test).
 - [Instruction] **Manual tests** when automation cost is disproportionate (rare UI flows, third-party integrations without sandbox). Log per `test-driven-development` format.
+
+## Each layer independently exercises its functionality — overlap cheap, gaps not
+
+[Instruction] **CRITICAL: Each test layer (unit / integration/router / e2e/browser) independently exercises the functionality it owns. Don't drop a layer's coverage on the grounds that another layer covers it.**
+
+[Why] In the AI era overlapping tests are cheap; gaps justified by cross-layer reliance ship undetected when the "covering" layer diverges. Prefer visibly-redundant tests (user prunes) over quietly-uncovered layers.
 
 ## Gold rule: automate what a human would manually do to verify
 

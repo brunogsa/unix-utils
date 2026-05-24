@@ -1,7 +1,7 @@
 ---
 name: improve-principles-and-skills-from-user-feedback
-description: "Mine current session, a PR's comments, or TODO/XXX markers you left in files for CLAUDE.md / skill updates. User-invoked only."
-disable-model-invocation: true
+description: "Mine current session, a PR's comments, or TODO/XXX markers you left in files for CLAUDE.md / skill updates."
+disable-model-invocation: false
 ---
 
 # Improve Principles and Skills from User Feedback
@@ -43,25 +43,36 @@ Examples:
 
 Learnings go to whichever file they belong in. Principles go to CLAUDE.md; detailed examples and domain-specific knowledge go to the relevant skill.
 
-## Execution (Hybrid)
+## Execution
 
-Subagents cannot see the parent conversation history, the PR diff, or the working tree. Use a hybrid approach:
+Step 1 (extract feedback items) always runs in the main context — it depends on the parent conversation, the PR diff, or the working tree, none of which a subagent can see.
 
-1. **Main context** performs step 1 (extract user feedback items) — lightweight, stays in the main context.
-2. **Subagent** receives those items and performs steps 2-7 — heavy, offloaded.
-   - Steps include analysis, file reads, cross-checking, presenting findings, user approval, and edits.
-   - Post-edit audits do NOT run here — see Step 10 (main-context reminder).
-3. **Main context** prints Step 10 (the audit reminder) after the subagent returns.
+Steps 2-7 (analyze, generalize, target, cross-check, present, apply) can run **either in the main context (default) or in a subagent (opt-in)**. Ask the user before step 2:
 
-Spawn the subagent with `subagent_type: "general-purpose"` and `description: "Analyze user feedback for guideline learnings"` (foreground).
+> "Run analysis + edits in this main context (default — you see every read and edit inline) or offload to a subagent (saves context tokens but hides intermediate output)?"
 
-The subagent prompt must include **Scope**, the extracted user feedback items, and everything from **Subagent Process** through **Guidelines for Generalization** below.
+Default to main-context execution unless the user explicitly opts in to the subagent.
+
+Subagents condense their work into a final report — the user loses visibility into intermediate decisions and may miss edits they would have caught inline.
+
+### Main-context flow (default)
+
+1. Step 1 in main context.
+2. Steps 2-7 in main context: read targets, analyze, present findings, get per-item approval, apply edits one at a time.
+3. Step 10 (audit reminder) at the end.
+
+### Subagent flow (opt-in)
+
+1. Step 1 in main context.
+2. Steps 2-7 in a foreground subagent: spawn with `subagent_type: "general-purpose"`, `description: "Analyze user feedback for guideline learnings"`.
+3. Subagent prompt must include **Scope**, the extracted user feedback items, and everything from **Subagent Process** through **Guidelines for Generalization** below.
+4. Step 10 (audit reminder) in main context after subagent returns.
 
 If step 1 yields zero items (no quote-worthy session moments, no PR comments from your login, or no TODO/XXX matches), report that to the user and stop.
 
-Do not spawn the subagent on nothing.
+Do not run analysis on nothing.
 
-**Post-edit audits do NOT run inside this skill.**
+**Post-edit audits do NOT run inside this skill** — regardless of which flow ran steps 2-7.
 
 - Subagents cannot spawn subagents.
 - `consistency-check-principles-and-skills` now fans out 3 ensemble subagents in its main-mode flow.

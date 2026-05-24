@@ -10,6 +10,23 @@ instructions-budget: 80
 
 Principles for any code edit. Each section has a principle + WHY, with paired examples co-located under the principle.
 
+## CRITICAL: Optimize for the human reviewer — readability is HIGHEST priority
+
+[Instruction] **CRITICAL: In an AI-collaboration workflow, the human reviewer is the bottleneck — not the AI's typing speed.** Readability is the HIGHEST priority.
+
+Any tactic that lowers reviewer cognitive load (one-idea-per-line, aux helpers, output-descriptive names, pure transforms split from side effects) is non-optional.
+
+[Why] The AI generates code in seconds; the reviewer takes minutes to validate. Compact-but-dense code optimizes for the wrong cost (author keystrokes) over the right one (reviewer cognitive minutes).
+
+The reviewer pays the readability tax once per read; the author pays once per write — favor the side bearing the larger cumulative cost.
+
+[Examples] See the CRITICAL sections below for the specific tactics:
+- "Line-break dense expressions; extract aux helpers when an ugly block repeats"
+- "CRITICAL: Separate pure transforms from side effects — let the callsite commit"
+- "CRITICAL: Name pure helpers for their output, not their operation"
+
+Each captures one tactic with bad/good examples from a real coordinator-hook refactor.
+
 ## Code top-down, pull helpers on demand
 
 - [Instruction] Start from the controller/worker layer and work downward;
@@ -135,6 +152,14 @@ async function fetchSchoolData(cnpj: string) {
 const perSchoolResults = await Promise.all(cnpjs.map(fetchSchoolData));
 ```
 
+## Line-break dense expressions; extract aux helpers when an ugly block repeats
+
+[Instruction] Multi-clause one-liners read worse than the same logic spread across 2-3 short lines. Break for the reader.
+
+[Instruction] When the same ugly shape repeats 3+ times in a function, extract an aux helper. Name it for what it does at the callsite (e.g. `appendSchoolAgreementErrors`), not how it does it.
+
+[Why] Both moves move work from the reader's mental stack into named, addressable chunks. The aux helper also lets you fix the shape once instead of N times.
+
 ## Avoid global mutable state
 
 [Instruction] Pass data through params and return values.
@@ -146,6 +171,81 @@ const perSchoolResults = await Promise.all(cnpjs.map(fetchSchoolData));
 [Instruction] Isolate I/O into thin boundary functions.
 
 [Why] Pure functions test without mocks; I/O is the part that needs infrastructure — keep it at the edges.
+
+## CRITICAL: Separate pure transforms from side effects — let the callsite commit
+
+[Instruction] **CRITICAL: A helper that computes a new shape and a helper that commits that shape are two responsibilities.** Split them.
+
+The transform takes inputs and returns the new value; the callsite commits via the relevant setter / writer / dispatcher.
+
+[Why] Coupling the side-effect (setState / setFailures / db.write / publish) into the helper forces every caller to pass the dispatcher in.
+
+It also makes the helper hostile to unit testing (you mock the dispatcher to assert what was committed) and hides the transform's result behind a void return.
+
+[Examples]
+```ts
+// Bad — helper takes the setter, commits inside.
+function appendSchoolAgreementFetchError(
+  setFailures: FailuresSetter,
+  schoolDocNumber: string,
+  error: string,
+) {
+  setFailures((prev) => ({
+    ...prev,
+    failedSchoolAgreementsFetches: [
+      ...prev.failedSchoolAgreementsFetches,
+      { schoolDocNumber, error },
+    ],
+  }));
+}
+// Callsite:
+appendSchoolAgreementFetchError(setFailures, schoolCNPJ, msg);
+
+// Good — helper is pure; callsite commits.
+// Helper name follows the next rule (output-descriptive, not operation-descriptive).
+function getPreviousFailuresWithNewSchoolAgreementFetchError(
+  failures: Failures,
+  schoolDocNumber: string,
+  error: string,
+): Failures {
+  return {
+    ...failures,
+    failedSchoolAgreementsFetches: [
+      ...failures.failedSchoolAgreementsFetches,
+      { schoolDocNumber, error },
+    ],
+  };
+}
+// Callsite:
+setFailures((prev) => getPreviousFailuresWithNewSchoolAgreementFetchError(prev, schoolCNPJ, msg));
+```
+
+## CRITICAL: Name pure helpers for their output, not their operation
+
+[Instruction] **CRITICAL: A pure helper's name should read as a self-contained noun phrase describing what it returns — not what operation it performs on inputs.**
+
+Use a `get` prefix to signal "returns a new immutable"; let the rest of the name describe the output shape.
+
+[Why] When the name describes the operation (`appendX`, `withX`), the caller has to mentally invert to use it ("I want X added to Y → call `appendX(Y, ...)`").
+
+When the name describes the output (`getPreviousYWithNewX`), the callsite reads naturally as a noun phrase.
+
+The helper also stays usable in contexts the original author didn't anticipate — its name doesn't presume the callsite.
+
+[Examples]
+```ts
+// Bad — name describes the operation; reads naturally only inside `setFailures`.
+function withSchoolAgreementFetchError(failures, schoolDocNumber, error): Failures { ... }
+setFailures((prev) => withSchoolAgreementFetchError(prev, schoolDocNumber, error));
+// Parsed left-to-right: "with-school-agreement-fetch-error-applied-to-prev" — incomplete without setFailures.
+
+// Good — name describes the output; reads as a noun on its own.
+function getPreviousFailuresWithNewSchoolAgreementFetchError(failures, schoolDocNumber, error): Failures { ... }
+setFailures((prev) => getPreviousFailuresWithNewSchoolAgreementFetchError(prev, schoolDocNumber, error));
+// Parsed left-to-right: "set failures to: [the previous failures with a new school-agreement fetch error]".
+```
+
+The `get` prefix is the universal "returns a new immutable" signal; pair it with a descriptive output phrase that names the shape, not the verb.
 
 ## Inject what's hard to mock
 

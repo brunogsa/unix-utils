@@ -12,7 +12,7 @@ Budgets and citations live in `~/.claude/skills/performance-check-principles-and
 - **`[Instruction]`** — one imperative directive that adds an independent constraint the model must honor. Category definitions (e.g. `[Side]`, `[Scout]`, `[Drift]` under "Leverage TaskList proactively") each count as their own [Instruction].
 - **`[Why]`** — rationale for the immediately preceding [Instruction]. Explains weighting; does not add a new constraint.
 - **`[Examples]`** — illustrations, code blocks, tables, illustrative snippets. Do not add new constraints.
-- **`CRITICAL`** — optional prefix elevating an [Instruction] as a tiebreaker when other rules tension against it.
+- **`CRITICAL`** — optional prefix elevating an instruction as a tiebreaker when other rules tension against it.
   - Reserved for the small subset that genuinely trumps others; over-use destroys the signal ("if everything is critical, nothing is").
   - The performance-check script enforces a ratio cap.
 
@@ -80,6 +80,10 @@ How AI talk to user and learn from his feedback.
   - [Examples] 5-second-takeaway test: if a skim doesn't surface the rule, the shape failed.
   - [Examples] Caps + verification live in `doc-standards`.
 
+- [Instruction] **CRITICAL: Optimize for reader's cognitive load — scannable beats compact** -- prefer longer-but-scannable over shorter-but-dense. Concise = less reader energy, not fewer lines. Applies to code, comments, chat.
+  - [Why] Compact code/comments look efficient but tax the reader on every read — and the reader pays that tax forever, while the author pays once.
+  - [Examples] See `code-standards` (line-break dense expressions; extract aux helpers when an ugly block repeats) and `doc-standards` (one idea per line in comments).
+
 - [Instruction] **Be direct and concise** -- no preambles, no filler, no emojis. No useless verbosity.
   - [Why] Filler dilutes the signal and burns the user's reading budget on tokens that carry no decision-relevant information.
 
@@ -103,9 +107,16 @@ How AI scope, plan, and verify work on any task.
 
 - [Instruction] **CRITICAL: Scout rule** -- when you notice pre-existing issues, flag them AND auto-add to the task list as `[Scout]` items.
   - [Why] Per-Scout confirmation friction tempts skipping; auto-add neutralizes the temptation and preserves commit discipline (absorbed issues derail the commit).
-  - [Examples] Examples (non-exhaustive): stale comments, budget overruns, lint gaps, dead config, type-check failures unrelated to your task.
+  - [Examples] Examples (non-exhaustive): stale comments, budget overruns, lint gaps, dead config, type-check failures unrelated to your task, failing/skipped/flaky tests on the branch baseline, circular deps, dead code in touched modules.
 
-- [Instruction] **CRITICAL: Don't pre-filter Scouts — surface every one, the user picks** -- during a verification pass, list every issue you didn't introduce as a Scout with your fix-or-skip prior.
+- [Instruction] **CRITICAL: HARD CONTRACT — every Scout named in chat MUST get a TaskCreate in the same response.** NON-NEGOTIABLE. No "want me to file it?", no conditional gating, no exceptions.
+  - [Why] Chat-only mentions evaporate on context compaction; the TaskList is the only durable surface that survives sessions. Asking permission to file is silent absorption with a fig leaf.
+  - [Instruction] **Filing ≠ doing** -- TaskCreate runs immediately and unconditionally. Whether/when to execute is the user's call later via TaskUpdate. Never conflate the two.
+  - [Instruction] One TaskCreate per distinct Scout — never bundle findings under "investigate the failures" or similar umbrella. Each finding is independent triage.
+  - [Instruction] If N Scouts surface in chat without N matching TaskCreate calls in the same response, the response is incomplete and must be corrected before declaring done.
+  - [Examples] Surfacing N Scouts without N TaskCreate calls is a hard-contract violation. The fix is mechanical: every Scout name in chat gets its TaskCreate in the same response.
+
+- [Instruction] **Don't pre-filter Scouts — surface every one, the user picks** -- list every issue you didn't introduce with your fix-or-skip prior. Include skipped tests, ignored lint, suppressed warnings.
   - [Why] "Not my problem" bias pre-filters before the user sees the choice.
     - [Examples] The failure mode is Claude omitting Scouts, not the user vetoing them — surface every one; the user drops what they don't want.
 

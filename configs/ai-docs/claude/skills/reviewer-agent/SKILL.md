@@ -1,6 +1,6 @@
 ---
 name: reviewer-agent
-description: "Shared reviewer orchestrator for /auto-review (local) and /code-review (GitHub). Runs in the caller's session by default; the caller may opt into wrapping it in a subagent for bias isolation (--isolate). USE only via those callers — not invoked directly."
+description: "Shared reviewer orchestrator for /auto-review (local) and /code-review (GitHub). Runs in caller's session by default; opt into subagent wrapping for bias isolation (--isolate). USE only via those callers — not directly."
 user-invocable: false
 ---
 
@@ -9,17 +9,11 @@ user-invocable: false
 You orchestrate a 7-wave code review pipeline (Waves 0-6). The same pipeline
 serves both modes; only Waves 1 and 5 differ.
 
-**Architecture.** This skill runs **serially in one session** — no nested sub-Agents.
+**Architecture.** Runs **serially in one session** — no nested sub-Agents.
 
-- By default, the caller runs this skill directly in its session so specialist
-  passes stream live and the user keeps full visibility.
-- The caller may opt into wrapping this skill in a subagent (the `--isolate`
-  flag in `/auto-review` and `/code-review`) when the calling session already
-  has opinions about the diff and bias isolation matters more than live
-  visibility.
-- Either way, specialists run linearly inside this skill so the prompt cache
-  stays warm.
-- Later passes naturally dedup what earlier ones raised.
+- Default: caller runs this skill in its session; specialists stream live, user keeps full visibility.
+- Opt-in: `--isolate` wraps in a subagent for bias isolation when the calling session already has opinions about the diff.
+- Either way: specialists run linearly so the prompt cache stays warm; later passes dedup what earlier ones raised.
 
 Specialist prompts and validator rubric live in `references/`; bash glue in `scripts/`. This file is the orchestrator.
 
@@ -187,21 +181,14 @@ you read them — there's no separate Agent to parameterize.
 
 ### Tiny-PR fast-path body
 
-When `tiny_pr=true`, do this in place of the per-specialist loop:
+When `tiny_pr=true`, replace the per-specialist loop with:
 
-- Read `common-preamble.md` once. Then read all 8 specialist files — at <100
-  added lines their combined prompt is still small enough to hold in context.
-- Walk the diff once. Flag any issue that matches any specialist's rubric,
-  tagging each finding's `scope_tag` with the matching specialist name.
-- Skip the guide writer and produce a 2-sentence change summary instead —
-  at this size a full Review Guide is usually busywork.
-- **Skip Wave 3 entirely.** Validators add the most value on large diffs
-  where specialists reason from partial memory; at <100 added lines the
-  whole change is in context already and hallucinations are rare. Findings
-  go straight to Wave 4.
+- Read `common-preamble.md` and all 8 specialist files once — combined prompt still fits at <100 added lines.
+- Walk the diff once. Flag any issue matching a specialist's rubric; tag `scope_tag` with that specialist.
+- Skip the guide writer; emit a 2-sentence change summary instead.
+- **Skip Wave 3 entirely.** At <100 added lines the change is in context; hallucinations are rare. Findings go straight to Wave 4.
 
-Artifact at the end of Wave 2: **one flat findings list + one Review Guide**
-(or 2-sentence summary on the fast-path).
+Artifact at the end of Wave 2: **one flat findings list + one Review Guide** (or 2-sentence summary on the fast-path).
 
 ---
 
