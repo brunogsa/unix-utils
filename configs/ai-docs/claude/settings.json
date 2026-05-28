@@ -13,7 +13,7 @@
       "Bash(read:~/.config/gh/**)"
     ]
   },
-  "model": "opus",
+  "model": "sonnet",
   "hooks": {
     "PreToolUse": [
       {

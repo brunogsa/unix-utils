@@ -51,6 +51,22 @@ function buildCsvColumnOrder(rows) { /* ... */ }
 function extractUniqueEmails(rows) { /* ... */ }
 ```
 
+[Examples]
+```ts
+// Bad — `hasApplied` implies an event tracker, but is actually a URL-state derivative.
+const hasApplied = appliedCNPJs.length > 0;
+// A reader debugging "why are we in slow mode after clearing?" gets misled twice:
+// once by the name (implies sticky), once by the derivation (it isn't).
+
+// Good — rename to match the question it answers:
+const isSlowMode = appliedCNPJs.length > 0;
+// The identifier now reads as the mode gate it actually is.
+```
+
+[Why amplification] Two values that evaluate identically can still be two different concepts.
+
+[Why amplification] If the name implies the wrong one, rename — "functionally equivalent" is not "semantically equivalent".
+
 ## Self-explanatory names — no context-dependent jargon
 
 [Instruction] Applies to identifiers. See CLAUDE.md ("Self-describing artifacts — no context-dependent shorthand") for the principle.

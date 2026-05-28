@@ -109,6 +109,28 @@ it('should count agreements with errorOnSkusFetch toward Acordos carregados tota
 it('should count agreements whose SKUs fetch failed toward the Acordos carregados total', ...);
 ```
 
+**Anti-pattern: internal-state predicate instead of operator-language behavior**
+
+[Instruction] Test titles describe observable behavior in operator/domain language a non-engineer (PM, QA, designer) could understand.
+
+[Why] Internal-state predicates, codebase tokens, and clean-code assertions about names don't describe behavior — they force the reader to reconstruct the mental model the test was written against.
+
+[Examples]
+```ts
+// Bad — internal-state expressed as a logical formula
+it('should enable Aplicar when pending is empty but applied is non-empty (clear-to-zero is a real commit, not a no-op)', ...);
+
+// Bad — codebase token leaks into the title
+it('should render the filtered table sourced from list-with-IDs once the school batch resolves', ...);
+
+// Bad — clean-code assertion (not behavior)
+it('should keep the fast-default empty placeholder name distinct from the school-scoped one', ...);
+
+// Good — behavior in operator/domain language
+it('should enable Aplicar after the operator clears the school selection so the cleared state can be committed back to no filter', ...);
+it('should filter the active-tab table by agreementIds once the school batch resolves in slow mode', ...);
+```
+
 ## Test titles encode the FULL precondition, not happy-path only
 
 [Instruction] The form `should X when Y` implies Y is the only precondition.
@@ -197,6 +219,30 @@ Schema example: if "max 10" is enforced, one test at 11 covers it; tests at 12, 
 [Instruction] Isolate each independent trigger for a behavior. Different inputs that exercise the same code path are one test, not two.
 
 [Why] Distinct causes are the unit of safety. If two test cases hit the same production code path, the second adds maintenance with no extra coverage.
+
+## Split tests that assert more than one behavior
+
+[Instruction] One `it` = one assertion of behavior. A title joined by "and" or covering two independent observable behaviors splits into two tests.
+
+[Why] Compound assertions hide which half broke when the test fails — the reader has to re-read the body to recover which.
+
+[Why] Splitting forces sharper titles — each half names its own observable behavior; the test surface becomes a per-behavior index.
+
+[Examples]
+```ts
+// Bad — compound assertion, hides which half failed
+it('should render entity tabs and active-tab table on cold mount', ...);
+it('should filter the table by agreementIds (or skus for the product tab)', ...);
+it('should re-derive per-tab badges and the brand-selector dropdown', ...);
+
+// Good — one observable behavior per test
+it('should render the entity tabs on cold mount', ...);
+it('should render the active-tab table on cold mount', ...);
+it('should filter the sales-agreement tab table by agreementIds', ...);
+it('should filter the product tab table by skus', ...);
+it('should re-derive per-tab badges from school-scoped summary calls', ...);
+it('should re-derive the brand-selector dropdown options from school-scoped summary calls', ...);
+```
 
 ## When N triggers share one outcome, test the outcome
 
@@ -319,14 +365,12 @@ it('shows expired badge when past deadline', () => {
 
 ## Inline test helpers until reused
 
-[Instruction] Keep builder/factory helpers in the test file until a second test file needs them. Centralize at 2+ callers, not speculatively.
+[Instruction] Keep test-file helpers inline until a second file needs them (centralize at 2+ callers, not speculatively) — grasp-at-a-glance beats DRY, body stays human-readable as documentation of intent.
 
-- [Instruction] **Grasp-at-a-glance beats DRY in tests** -- before extracting a helper across N files, ask: does the extraction force the reader to chase indirection?
-  - [Examples] Inline narrative often wins when the duplicated block is byte-identical and the helper would hide what's being asserted.
-  - [Examples] Helper-required tests lose their narrative. Duplication cost is mechanical; grasp cost compounds on every read.
-- [Instruction] **Body must be human-readable** — the body is documentation of intent.
-  - [Examples] A test you can't read is a test you can't trust during a failure.
-  - [Examples] Opaque tests get deleted at the first "what does this even test?" moment.
+- [Examples] Inline narrative often wins when the duplicated block is byte-identical and the helper would hide what's being asserted.
+- [Examples] Helper-required tests lose their narrative. Duplication cost is mechanical; grasp cost compounds on every read.
+- [Examples] A test you can't read is a test you can't trust during a failure.
+- [Examples] Opaque tests get deleted at the first "what does this even test?" moment.
 
 ## Re-use constants in assertions AND in mock data
 

@@ -47,7 +47,7 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 Read them with fresh eyes by spawning a sub-agent that reports:
 - **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
-- **Contradictions**: do sections disagree?
+- **Contradictions**: do sections within the same doc disagree? Does plan.md contradict spec.md — assumptions the spec made that planning overturned, architectural choices that supersede spec requirements, or constraints discovered during planning that change scope?
 - **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition? If yes, jump back to step 2 and write/update `scopes.md`.
 - **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker for the user.
 - **Completeness**: does ALL Goals, Success Metrics and KPIs, User Stories and Non-Functional and Technical Requirements being covered on Testable Acceptance Criteria section? ALL corner cases and failure modes covered?
@@ -58,6 +58,21 @@ Read them with fresh eyes by spawning a sub-agent that reports:
   - Follow `~/.claude/skills/doc-standards/references/density-rules.md` (paragraph → bullets+sub-bullets, long bullet → bullet + sub-bullets) without dropping information.
 
 Why: cheaper for you to catch these than for the user to find them in review — and it prevents the "looks good, ship it" loop where ambiguity surfaces only during implementation.
+
+#### Resolving spec/plan drift
+
+When plan.md and spec.md disagree, surface each conflict before updating anything:
+
+1. **List each drift item** — what spec.md states, what plan.md says, and why they conflict.
+
+2. **Present to the user and wait** — don't update either doc yet. The user picks the direction:
+   - Update spec.md (planning uncovered a better reality).
+   - Correct plan.md (it misread the spec).
+   - Add a `**QUESTION:**` marker (the trade-off is genuinely open).
+
+3. **Apply only the agreed change** — targeted edit to whichever doc the user chose; don't refactor surrounding content.
+
+Why: spec.md drives PR description and auto-review — a stale spec ships wrong context downstream. But plan.md can also be the one that's wrong; surfacing the choice preserves intent rather than assuming the spec was outdated.
 
 ## Guidelines
 
