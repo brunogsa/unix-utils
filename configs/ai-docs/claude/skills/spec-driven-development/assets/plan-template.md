@@ -93,6 +93,23 @@ Keep to ~4 items; if it grows longer, the task is probably two tasks in disguise
 **Testable Acceptance criteria**:
 - What "done" looks like for this task.
 
+**Tests (planned)**:
+- "should [behavior] when [condition]"
+- "should [behavior] when [condition]"
+
+Subset of the global Test Design section that this task owns. The /implement
+pre-commit gate (Gate 3) parses these titles via
+`spec-driven-development/scripts/extract-planned-tests-for-task.sh` and a
+fresh-context subagent verifies each one exists in the diff before allowing
+the commit.
+
+- Pure refactor / config edit with no behavior change: use
+  `**Tests (planned)**: N/A — <one-line reason>`. The gate short-circuits.
+- Helper test pulled in mid-task (test-first at point of pull, per
+  `test-driven-development`): append the new title to this list in the
+  same commit, tagged `[on-demand]`. The gate treats `[on-demand]` titles
+  identically to originally planned ones.
+
 **Verification**:
 - Command or test that proves it works.
 
@@ -100,9 +117,14 @@ Keep to ~4 items; if it grows longer, the task is probably two tasks in disguise
 - `path/to/file1.ts`
 - `path/to/file2.ts`
 
-**Commits (logical order)**:
+**Commits (sketch, minimum)**:
   1. `~/repo` — `type(scope): subject`
   2. `~/repo` — `type(scope): subject` *(only when the task naturally produces two — e.g., "introduce helper" + "replace callers" — otherwise delete this line)*
+
+Minimum count, not exact. Drift fixes, scout findings, refactor sub-steps,
+and `/auto-review` follow-ups become their own additional commits within
+the task, each carrying the matching `[Drift]` / `[Scout]` / `[Refactor]`
+category tag in the message.
 
 ### 2. [Task title]
 
