@@ -57,6 +57,20 @@ Read them with fresh eyes by spawning a sub-agent that reports:
   - Exit 0 = clean; exit 1 = rewrite each `<line>:<chars>:<words>` violation.
   - Follow `~/.claude/skills/doc-standards/references/density-rules.md` (paragraph → bullets+sub-bullets, long bullet → bullet + sub-bullets) without dropping information.
 
+The next four checks are **dedicated fresh-context gates** — each runs in its own subagent invocation so prior session bias does not leak into the verdict. All four are **fail-closed**: any miss, parse error, or subagent error blocks self-review until reconciled.
+
+- **Gate 1 — AC ↔ Test Design coverage**: spawn a fresh-context subagent with `spec.md` + `plan.md`. Task: for every `### AC-N:` heading in spec.md, identify at least one test in plan.md (either in the global Test Design section or under a task's `**Tests (planned)**:`) that semantically covers it. Output: list of ACs with no covering test (empty list = pass).
+  - Semantic match, not literal grep — AC wording and test title may diverge ("reject empty input" ↔ "return 400 when payload missing"); the subagent judges equivalence.
+  - Block plan approval on any non-empty missing list.
+
+- **Gate 2 — Test Design ↔ per-task assignment**: spawn a separate fresh-context subagent with `plan.md`. Task: for every test title in the global Test Design section, locate the task whose `**Tests (planned)**:` bullet owns it. Output: list of orphan titles (tests designed but unassigned).
+  - Same fail-closed semantics as Gate 1.
+
+- **Checklist completeness**: verify spec.md's **boundary checklist** (under Corner cases) and **failure category checklist** (under Failure modes) are evaluated — each item marked `covered (AC-N)` or `N/A — <reason>`. Empty template placeholders fail self-review.
+  - Honor opt-out: a checklist replaced with `**DECISION:** Skip <name> checklist because <reason>` counts as evaluated.
+
+- **Inversion sweep**: for every AC in spec.md, ask "how would this break in production?". If no failure mode surfaces, the AC is under-specified — flag it for the user to either tighten the AC or document the N/A reason in the failure-category checklist.
+
 Why: cheaper for you to catch these than for the user to find them in review — and it prevents the "looks good, ship it" loop where ambiguity surfaces only during implementation.
 
 #### Resolving spec/plan drift
