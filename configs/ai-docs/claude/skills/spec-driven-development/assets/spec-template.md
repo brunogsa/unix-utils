@@ -62,9 +62,33 @@ Group by category for scannability:
 ### AC-1: ...
 
 #### Corner cases
+
+**Boundary checklist** — for each input field this spec affects, mark each item below either `covered (AC-N)` or `N/A — <one-word reason>`. An unevaluated checklist fails self-review.
+
+- empty / single / many / max-size / overflow:
+- null / undefined / missing:
+- unicode / whitespace-only / leading-trailing-spaces:
+- duplicate / out-of-order:
+- boundary numbers (0, -1, MAX_INT, off-by-one):
+
+Opt-out: replace the checklist with `**DECISION:** Skip boundary checklist because <reason>` when the spec is trivially scoped (e.g., one-line config change).
+
 ### AC-N: ...
 
 #### Failure modes
+
+**Failure category checklist** — for each item, mark `covered (AC-N)` or `N/A — <one-word reason>`. An unevaluated checklist fails self-review.
+
+- validation error (4xx):
+- downstream timeout / 5xx:
+- partial failure (some items succeed, some fail):
+- auth / authz failure:
+- concurrency / race / double-submit:
+- idempotency (repeat request behavior):
+- network drop mid-operation:
+
+Opt-out: replace with `**DECISION:** Skip failure-category checklist because <reason>` when N/A applies wholesale.
+
 ### AC-N: ...
 
 ---
