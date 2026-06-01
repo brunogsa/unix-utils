@@ -151,49 +151,9 @@ This ensures the later sub-steps get higher TaskList IDs than the new ones, whic
 
 ### 2.4. Gate 3: pre-commit planned-test verification
 
-Place one sub-step immediately before the two-party handshake (§4) that runs Gate 3.
+Place one sub-step immediately before the two-party handshake (§4) that runs Gate 3 — a fresh-context check that planned tests landed in the diff before any commit.
 
-It exists because planned tests are the most common thing AI forgets mid-flight — RED-GREEN cycles, helper insertions, and drift fixes all pull attention away.
-
-The gate is a fresh-context check that closes that gap before any commit lands.
-
-**Procedure** (single sub-step, e.g. ` 3.11. Gate 3 — verify planned tests present`):
-
-1. Run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <N>` where `<plan-path>` is the active plan.md and `<N>` is the current task number.
-   - Exit 2 (usage / parse error) → abort immediately, surface to user, no commit.
-   - Exit 1 (plan.md malformed: missing `### N.` heading or missing `**Tests (planned)**:` bullet) → abort, surface, no commit. Fix the plan before retrying.
-   - Exit 0, empty stdout → task declared `**Tests (planned)**: N/A`; **skip the gate entirely**, proceed to handshake.
-   - Exit 0, non-empty stdout → planned-test list captured; continue.
-
-2. Spawn a **fresh-context subagent** (Agent tool, general-purpose) with these inputs:
-   - The list of planned test titles (one per line, from step 1 stdout).
-   - The repo path (CWD).
-   - The task's commit range so far so it can scope diff-checks (`<batch-base>..HEAD` if any task commits already exist, otherwise working tree).
-   - Explicit prompt content:
-     - "For each title, search the test files in the diff + wider test dirs."
-     - "Return a per-title verdict (`found` / `missing`) + file:line of any found test."
-     - "Semantic matching — title wording may diverge slightly from the plan."
-
-3. Parse the subagent's verdict:
-   - **All `found`** → gate passes; proceed to the handshake sub-step.
-   - **Any `missing`** → AI inserts the missing tests via alphabetical-suffix sub-steps (per §2.3), implements them per the TDD skill (RED → GREEN), then **re-runs Gate 3 from step 1**.
-   - **Retry cap = 3.** Track the retry count on the gate sub-step itself.
-     - On the 4th attempt (3 retries exhausted), abort: keep task `[Doing]`, surface still-missing titles to user, stop the batch cleanly.
-   - **Subagent error / unparseable verdict** → abort cleanly with the error; no commit; no fallback to inline AI judgment.
-
-**Why fresh-context subagent**:
-
-- The writer's session has bias ("I already convinced myself this is covered"). A subagent reading just the diff + title list has none of that residue.
-- Semantic matching (not literal grep) is required because plan titles and test titles drift linguistically; only an LLM can judge equivalence.
-
-**Why the 3-retry cap**:
-
-- Unbounded retries reward gaming via increasingly shallow tests under pressure.
-- Three attempts is enough for genuine forgetting; beyond that the gate escalates to user attention.
-
-**Anti-gaming note**: this gate verifies *presence*, not *quality*. Trivial assertions still pass it.
-
-The fresh-context test-quality wave in `/auto-review` is the complementary gate — earlier in the lifecycle is cheaper, but gaming defense lives at end-of-batch review.
+Full procedure (extract script + verify subagent + 3-retry cap + failure handling) lives in [`references/gate-3-pre-commit-verification.md`](references/gate-3-pre-commit-verification.md). Load on demand when authoring or debugging the gate.
 
 ## 3. Status markers (plan.md task title)
 
@@ -321,9 +281,3 @@ Each invocation produces timestamped filenames (`refactor_<ts>.md`, `auto-review
 
 Gitignore patterns `refactor*.md` and `auto-review*.md` cover all timestamped variants.
 
-### 6.5. Why this exists
-
-- The user runs `/implement` asynchronously and is not in the loop to invoke `/refactor` / `/auto-review` manually at end-of-branch.
-- These subagents generate findings only — the user reviews them when next at the keyboard and decides what to apply.
-- Fresh-context spawning removes the writing session's bias (same rationale as Gate 1/2/3).
-- Report-only via preamble (not skill flag) keeps `/refactor` and `/auto-review` unchanged for users who invoke them directly.
