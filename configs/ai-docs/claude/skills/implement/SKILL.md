@@ -25,7 +25,7 @@ The two-party `[Done]` handshake between tasks is the chain-abort gate.
 The user creates and manages git worktrees themselves — this skill assumes CWD is already where the task should run.
 It does not create, move into, or merge worktrees.
 
-In a multi-task batch (`/implement 1, 2, 3`), pre-flight steps **§1–§3 run once** at the start of the invocation; **§4–§7 run once per task** as each becomes active.
+In a multi-task batch (`/implement 1, 2, 3`), pre-flight steps **§1.1–§1.3 run once** at the start of the invocation; **§1.4–§1.6 (+ §2.2 advisor) run once per task** as each becomes active.
 
 ### 1.1. Locate `plan.md` (and `spec.md`)
 
@@ -226,8 +226,8 @@ After step 3.10 (verify passes), do not auto-mark `[Done]`. Instead:
 1. **AI proposes:** "Acceptance criteria pass. Verify ran clean: `<output snippet>`. Gate 3 — planned tests verified: `<count>` titles found in diff (or `N/A — pure refactor`). Mark `[Done]`?"
 2. **User confirms** (yes / changes / blocked).
 3. **On yes** → commit (step 3.12) → update plan.md to `[Done]` (step 3.13).
-   - In a multi-task batch, then advance to the next task: re-run pre-flight §4–§7 (match next `<task-id>`, state check, TaskList review, advisor).
-   - §1–§3 do not repeat.
+   - In a multi-task batch, then advance to the next task: re-run pre-flight §1.4–§1.6 + §2.2 advisor (match next `<task-id>`, state check, TaskList review, advisor).
+   - §1.1–§1.3 do not repeat.
 4. **On changes** → insert the requested change with alphabetical-suffix notation right after the cursor (e.g., ` 3.5a. [Sub-Step] ...`).
    - Loop back to the relevant RED-GREEN pair, then re-verify.
 5. **On blocked** → flip to `[Blocked]`, stop.
