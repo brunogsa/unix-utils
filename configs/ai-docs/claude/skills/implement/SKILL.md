@@ -244,6 +244,70 @@ A typical task produces **1 commit** — tests + implementation together (single
 
 So a task might be 1 commit (clean), 2 (base + refactor), 3 (base + refactor + scout fix), and so on. Never zero.
 
-The skill itself never auto-invokes `/refactor` or `/auto-review` — the user reserves those triggers.
+The skill never auto-invokes `/refactor` or `/auto-review` **mid-task** — those triggers belong to the user when running on a live task, or to the batch-end tail subagents in **report-only** mode (per §6).
 
 If the user runs them mid-task and they produce changes, those land as their own commits **before** the task is marked `[Done]`.
+
+## 6. End-of-batch tail subagents (report-only)
+
+After the last task in the batch transitions to `[Done]`, before declaring the entire `/implement` invocation complete, queue **two** additional TaskList items (NOT sub-steps of any single task — batch-level items):
+
+1. `[Side] Tail — /refactor over batch in fresh-context subagent (report-only)`
+2. `[Side] Tail — /auto-review over batch in fresh-context subagent (report-only)`
+
+Run them **sequentially**, in that order (refactor first so its findings can inform later passes). Both run once per `/implement` invocation regardless of batch size.
+
+### 6.1. Scope
+
+Each subagent reviews **only the batch's commit range**, not the whole branch. Resolve the range as `<state-at-start-of-implement>..HEAD` — capture the starting SHA in pre-flight (§1.3 already runs `git log` against base; store its `<base>..HEAD` boundary as `BATCH_BASE_SHA` for use here).
+
+### 6.2. Spawn contract
+
+Spawn each subagent via the **Agent tool**, `subagent_type=general-purpose`, foreground (never `run_in_background`). Pass the inputs below in the prompt body — these are the entire instruction set the subagent receives.
+
+The prompt **must lead with this preamble verbatim** (line-for-line; the subagent's compliance with these rules is what enforces report-only behavior — there is no skill flag, no harness gate):
+
+```
+REPORT-ONLY MODE — STRICT CONTRACT
+
+You are spawned by /implement as an end-of-batch tail subagent. Your only
+permitted output side effect is writing ONE markdown report file to CWD.
+
+YOU MUST NOT:
+- Run `git commit`, `git push`, or any state-mutating git command.
+- Use the Edit, Write, or MultiEdit tools on any file except your single
+  report file.
+- Apply, fix, or suggest-and-then-apply any finding.
+- Spawn nested subagents.
+
+YOU MUST:
+- Run the underlying skill (/refactor or /auto-review) in its
+  analysis/findings phase only.
+- Write the complete findings to the report path named below — overwriting
+  any prior file at that path.
+- Return a one-paragraph summary plus the report path. Nothing else.
+
+Violating any of the MUST NOT items aborts the parent /implement.
+```
+
+After the preamble, include the skill-specific body:
+
+- For the **refactor** subagent: "Invoke `/refactor` over `<BATCH_BASE_SHA>..HEAD`. Write findings to `./refactor_<YYYY-MM-DD_HH:MM>.md` in CWD."
+- For the **auto-review** subagent: "Invoke `/auto-review <BATCH_BASE_SHA>` (per its `/auto-review HEAD~N` per-task scoping convention). Write findings to `./auto-review_<YYYY-MM-DD_HH:MM>.md` in CWD."
+
+### 6.3. Failure handling
+
+- **Subagent attempts a forbidden operation** (per preamble) → permission gate refuses; subagent's verdict surfaces as the failure. Parent `/implement` reports the violation to the user and continues to the next tail subagent (refactor failing does not block auto-review).
+- **Subagent error / no report file written** → log it to chat with the agent's last message; do NOT retry inline (different from Gate 3) — these are batch-end reports the user reviews asynchronously; a missing report is a user-attention moment, not a retry loop.
+- **Both reports written** → print the two file paths in chat and end the invocation.
+
+### 6.4. Overwrite policy
+
+Each invocation produces timestamped filenames (`refactor_<ts>.md`, `auto-review_<ts>.md`), so multiple `/implement` runs in the same CWD accumulate as separate files. The user's `.gitignore` rules (`refactor*.md`, `auto-review*.md` patterns) cover all timestamped variants.
+
+### 6.5. Why this exists
+
+- The user runs `/implement` asynchronously and is not in the loop to invoke `/refactor` / `/auto-review` manually at end-of-branch.
+- These subagents generate findings only — the user reviews them when next at the keyboard and decides what to apply.
+- Fresh-context spawning removes the writing session's bias (same rationale as Gate 1/2/3).
+- Report-only via preamble (not skill flag) keeps `/refactor` and `/auto-review` unchanged for users who invoke them directly.
