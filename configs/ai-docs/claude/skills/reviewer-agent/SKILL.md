@@ -115,6 +115,34 @@ bash ~/.claude/skills/reviewer-agent/scripts/extract-skipped-files.sh \
   "$work_dir/diff" "$work_dir"
 ```
 
+#### Repo-wide static checks + tests + coverage (local mode)
+
+After the diff files are on disk, gather repo-wide signal that specialists in Wave 2 will consume alongside the diff. CWD is the branch under review, so the project's own commands run directly.
+
+Discover commands from the repo: `package.json` scripts, `Makefile`, `justfile`, repo CLAUDE.md. Prefer "agentic" / "ci" variants when present — they exit non-zero cleanly. If a check does not exist for this project, write a one-line `not-available: <reason>` to its output file so Wave 2 can distinguish "ran clean" from "did not run". Never skip silently.
+
+Apply CLAUDE.md `"Save slow command output, verify from the file"`: each command writes to `$work_dir/`, then `echo "exit: $?"`, then `tail -<N>` to keep the parent-session context lean. Run independent commands in parallel.
+
+| Output file | Source |
+|---|---|
+| `static-lint.txt` | Project's full lint task (workspace-wide, not scoped) |
+| `static-typecheck.txt` | Strictest typecheck/build — `tsc --noEmit`, `next build`, `cargo check`, `mypy`, equivalent |
+| `static-dead-code.txt` | `knip`, `ts-prune`, equivalent (unused exports) |
+| `static-circular.txt` | `madge --circular`, equivalent (dependency cycles) |
+| `tests-unit.txt` | Full unit suite |
+| `tests-integration.txt` | Every integration tier (router/API, service, contract, ...) |
+| `tests-e2e.txt` | Browser / e2e tests **if** the diff touches UI, hooks, or anything rendered |
+| `coverage.txt` | Branch + line coverage on the changed files if the runner emits it |
+| `discovered-commands.txt` | One line per check: `<name>: <command-used>` or `<name>: not-available` |
+
+Wave 2 specialists rule of consumption:
+
+- Failures **inside the diff** → become findings against the diff (MANDATORY / RECOMMENDED per severity).
+- Failures **outside the diff** → reported but flagged `[Pre-existing]`. The orchestrator MUST file each via TaskCreate per CLAUDE.md's Scout rule.
+- Coverage drops on changed files → surface as findings.
+
+This collection is **local mode only** today. github mode runs from a `/tmp` work dir without a code checkout, so the equivalent here would require an extra checkout step — out of scope for the current change; revisit if github reviews ever need the same signal.
+
 ### Tiny-PR fast-path
 
 After the diff is on disk (both modes), count added lines:
