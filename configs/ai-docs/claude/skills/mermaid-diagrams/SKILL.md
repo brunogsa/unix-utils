@@ -145,6 +145,33 @@ Heuristic (verify visually anyway):
 | Layered request pipeline (UI → BFF → upstream), C4L2 with subgraphs | `LR` |
 | Wide fan-out from one source to many siblings | `LR` |
 
+### Dagre vs ELK — also render both for dense diagrams
+
+For flowcharts beyond ~10 nodes with multiple subgraphs and many cross-cluster edges, Mermaid's ELK renderer often produces tighter layouts than the default dagre.
+
+Render both and judge visually (same workflow as TD vs LR).
+
+Enable ELK by prepending an init directive to the diagram source:
+
+~~~text
+%%{init: {"flowchart": {"defaultRenderer": "elk"}}}%%
+flowchart LR
+  ...
+~~~
+
+Compare on rendered PNGs:
+
+- **Edge crossings** — ELK typically wins on subgraph-heavy diagrams (uses orthogonal routing).
+- **Subgraph compactness** — dagre often stretches subgraphs into long rows; ELK packs them more tightly.
+- **Cross-cluster edge routing** — ELK's orthogonal routing is easier to follow when edges traverse multiple subgraphs.
+- **Aspect ratio** — ELK usually gives a more balanced shape; dagre tends toward extreme widths or heights.
+
+Caveats:
+
+- GitHub's bundled Mermaid sometimes lags on ELK feature support.
+  - If a diagram renders worse on GitHub than locally, removing the init directive falls back to dagre — treat ELK as an opt-in.
+- ELK can be slower for very large diagrams (>50 nodes); usually not noticeable in `mmdc` but worth knowing if you script bulk renders.
+
 ## Reading start point and flow ordering
 
 A static architecture diagram is read like a map: the reader needs to know **where to enter** and, when a flow has multiple steps, **what order to follow them in**.
@@ -204,108 +231,18 @@ One `classDef start` + default styling is usually enough. Data stores get cylind
 
 ## C4L1 Context Diagram
 
-Shows the system under design and its external actors. Keep it high-level — no internal implementation details. Use `flowchart TD` with clear node shapes to distinguish actors from systems.
+System under design + external actors. High-level, `flowchart TD`.
 
-~~~mermaid
-flowchart TD
-  user(["End User"]):::start
-  api["Integrator API"]
-  arco["Arco SAS<br/>external"]
-
-  user -->|"1. HTTP requests"| api
-  api -->|"2. fetches pricing"| arco
-
-  classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
-~~~
+Load [`references/diagram-c4l1.md`](references/diagram-c4l1.md) when drawing one — covers example, edge-incidence rule, abstraction level (roles not fields), and uniform-pattern rule for N entities sharing a role.
 
 ## C4L2 Container Diagram
 
-The right level for a plan.md / tech-design architecture flowchart.
+Right level for a plan.md / tech-design flowchart. Build on the L1, don't redraw from scratch.
 
-Don't redraw the C4L1 from scratch — **build on it**:
-
-- Copy the actor + system-under-design boxes + external systems from the spec.md L1.
-- Then expand each system-under-design box with a `subgraph` exposing its internal containers (services, caches, modules, queues).
-- External systems stay opaque — their internals belong in *their* L2.
-
-A reader who already saw the L1 should see the same outline (same actors, same external systems, same names) and just zoom into the boxes they care about. Redrawing breaks that continuity.
-
-~~~mermaid
-flowchart TD
-  user(["End User"]):::start
-
-  subgraph Web["Web App"]
-    Browser["React UI"]
-    Cache[("Browser cache")]
-  end
-
-  subgraph API["API Server"]
-    Auth["AuthService"]
-    Orders["OrdersController"]
-  end
-
-  ext["Stripe<br/>external"]
-
-  user -->|"1. HTTP"| Browser
-  Browser -->|"2a. tRPC"| Orders
-  Browser -->|"2b. reads / writes"| Cache
-  Orders -->|"3a. verifies token"| Auth
-  Orders -->|"3b. charges card"| ext
-
-  classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
-~~~
-
-Conventions:
-
-- One `subgraph` per system-under-design box L1 had. External systems stay opaque (no subgraph).
-- Re-use L1 box title verbatim as subgraph title so the L1↔L2 correspondence is visible.
-- Containers follow naming rules: real module/service/store names, never "Component A".
-- Cross-boundary edges terminate at the inner container, not the wrapper: `Browser --> Auth`, not `Web --> API`.
-- Aim for ≤ 4 containers per subgraph; more = the subgraph deserves its own L3.
-- Keep total count of subgraphs + external boxes + actors ≤ 6. More = split into two L2 diagrams scoped differently.
+Load [`references/diagram-c4l2.md`](references/diagram-c4l2.md) when drawing one — covers example, build-on-L1 rule, and full convention list (subgraph-per-system, naming, cross-boundary edges, container/box caps).
 
 ## Sequence Diagram
 
-Shows the execution path at module/function level. Actors must be actual code components.
+Execution path at module/function level. Actors must be actual code components. Always `autonumber`; split if >5 lanes.
 
-- Always enable `autonumber` — it makes referencing steps in discussion and review much easier.
-- If the diagram needs more than 5 participants (lanes), split it into smaller sub-diagrams, each covering one logical phase or interaction boundary.
-
-~~~mermaid
-sequenceDiagram
-  autonumber
-  participant C as UserController
-  participant S as AuthService
-  participant DB as Postgres: users_db
-
-  C->>S: validateToken(token)
-  S->>DB: findUser(userId)
-  DB-->>S: User | null
-  S-->>C: AuthResult
-~~~
-
-### Explicit fan-out, filter parameters, external hops
-
-[Instruction] **Parallel calls render as separate arrows, not lumped.** N parallel calls = N arrows; `Note: in parallel` if useful.
-
-[Instruction] **Filter parameters on the arrow label.** Write `summary(entity=X, resolved=false)`, not `summary call`.
-
-[Instruction] **External-system hops are explicit.** Draw `BFF -> External` per call (or per batch with a note); don't hide the trust boundary.
-
-[Why] Sequence diagrams are implementation contracts. Lumped nodes hide fan-out, filter shapes, and trust-boundary crossings — decisions reviewers need.
-
-~~~mermaid
-sequenceDiagram
-    participant UI
-    participant BFF
-    participant Int as Integrator
-    Note over UI,Int: Fan-out + filters per label + Integrator hop
-    UI->>BFF: summary(entity=A, resolved=false)
-    UI->>BFF: summary(entity=B, resolved=false)
-    UI->>BFF: summary(entity=C, resolved=false)
-    UI->>BFF: list(entity=active, resolved=false)
-    Note right of UI: 4 calls in parallel
-    BFF->>Int: 4 proxied GETs
-    Int-->>BFF: typed responses
-    BFF-->>UI: typed responses
-~~~
+Load [`references/diagram-sequence.md`](references/diagram-sequence.md) when drawing one — covers examples and the fan-out / filter-parameter / external-hop rules for implementation contracts.
