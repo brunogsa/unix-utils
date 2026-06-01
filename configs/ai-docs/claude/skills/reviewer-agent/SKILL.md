@@ -117,11 +117,19 @@ bash ~/.claude/skills/reviewer-agent/scripts/extract-skipped-files.sh \
 
 #### Repo-wide static checks + tests + coverage (local mode)
 
-After the diff files are on disk, gather repo-wide signal that specialists in Wave 2 will consume alongside the diff. CWD is the branch under review, so the project's own commands run directly.
+After the diff files are on disk, gather repo-wide signal that specialists in Wave 2 consume alongside the diff.
 
-Discover commands from the repo: `package.json` scripts, `Makefile`, `justfile`, repo CLAUDE.md. Prefer "agentic" / "ci" variants when present — they exit non-zero cleanly. If a check does not exist for this project, write a one-line `not-available: <reason>` to its output file so Wave 2 can distinguish "ran clean" from "did not run". Never skip silently.
+CWD is the branch under review, so the project's own commands run directly.
 
-Apply CLAUDE.md `"Save slow command output, verify from the file"`: each command writes to `$work_dir/`, then `echo "exit: $?"`, then `tail -<N>` to keep the parent-session context lean. Run independent commands in parallel.
+Discover commands from the repo: `package.json` scripts, `Makefile`, `justfile`, repo CLAUDE.md.
+
+- Prefer "agentic" / "ci" variants when present — they exit non-zero cleanly.
+- If a check does not exist, write `not-available: <reason>` to its output file so Wave 2 can tell "ran clean" from "did not run".
+- Never skip silently.
+
+Apply CLAUDE.md `"Save slow command output, verify from the file"`: each command writes to `$work_dir/`, then `echo "exit: $?"`, then `tail -<N>` to keep the parent-session context lean.
+
+Run independent commands in parallel.
 
 | Output file | Source |
 |---|---|
@@ -141,7 +149,9 @@ Wave 2 specialists rule of consumption:
 - Failures **outside the diff** → reported but flagged `[Pre-existing]`. The orchestrator MUST file each via TaskCreate per CLAUDE.md's Scout rule.
 - Coverage drops on changed files → surface as findings.
 
-This collection is **local mode only** today. github mode runs from a `/tmp` work dir without a code checkout, so the equivalent here would require an extra checkout step — out of scope for the current change; revisit if github reviews ever need the same signal.
+This collection is **local mode only** today.
+
+github mode runs from a `/tmp` work dir without a code checkout. Extending would need an extra checkout step — out of scope; revisit if github reviews need the same signal.
 
 ### Tiny-PR fast-path
 
