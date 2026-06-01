@@ -260,5 +260,9 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
   - [Why] Every fix Claude makes by hand that a linter could make by rule is cheap signal lost.
     - [Examples] Tagging the gap redirects effort from "AI patches one caller" to "harness scales to the next caller for free" — the fix compounds instead of repeating.
 
+- [Instruction] **Spawn a fresh-context subagent when writing-session bias would distort the check** -- verification, semantic match, or quality judgment over your own output.
+  - [Why] In-session reading carries "I already convinced myself" residue; a subagent sees only the artifact + the question.
+    - [Examples] Test-presence gates, AC↔test coverage, code-review of just-written code, end-of-batch refactor + auto-review reports.
+
 - [Instruction] **Verify subagent results against artifacts** -- check diff, file contents, or command output before treating a subagent's "done" as done.
   - [Why] The summary describes intent; only the artifact shows reality.
