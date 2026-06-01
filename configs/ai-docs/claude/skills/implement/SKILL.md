@@ -96,7 +96,7 @@ Generate sub-step items based on **both**:
 
 **CRITICAL: Create ALL known sub-steps in TaskList BEFORE executing any of them.**
 
-- Always include the tail steps (verify, two-party handshake, commit, plan.md update) — known upfront, must appear from the start.
+- Always include the tail steps (verify, Gate 3 planned-test verification per §2.4, two-party handshake, commit, plan.md update) — known upfront, must appear from the start.
 - The user needs macro visibility of the full plan before any code is touched.
 - Only use alphabetical-suffix insertions (e.g., `3.4a`) for sub-steps genuinely discovered mid-flight (helper-on-demand, unexpected drift).
 - Known steps added late are a planning failure.
@@ -149,6 +149,42 @@ However, since TaskList renders in a non-deterministic order (opaque algorithm, 
 
 This ensures the later sub-steps get higher TaskList IDs than the new ones, which is the best available lever over display ordering.
 
+### 2.4. Gate 3: pre-commit planned-test verification
+
+Place one sub-step immediately before the two-party handshake (§4) that runs Gate 3. It exists because tests planned in plan.md are the most common thing AI forgets mid-flight — RED-GREEN cycles, helper insertions, and drift fixes all pull attention away. The gate is a fresh-context check that closes that gap before any commit lands.
+
+**Procedure** (single sub-step, e.g. ` 3.11. Gate 3 — verify planned tests present`):
+
+1. Run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <N>` where `<plan-path>` is the active plan.md and `<N>` is the current task number.
+   - Exit 2 (usage / parse error) → abort immediately, surface to user, no commit.
+   - Exit 1 (plan.md malformed: missing `### N.` heading or missing `**Tests (planned)**:` bullet) → abort, surface, no commit. Fix the plan before retrying.
+   - Exit 0, empty stdout → task declared `**Tests (planned)**: N/A`; **skip the gate entirely**, proceed to handshake.
+   - Exit 0, non-empty stdout → planned-test list captured; continue.
+
+2. Spawn a **fresh-context subagent** (Agent tool, general-purpose) with these inputs:
+   - The list of planned test titles (one per line, from step 1 stdout).
+   - The repo path (CWD).
+   - The task's commit range so far so it can scope diff-checks (`<batch-base>..HEAD` if any task commits already exist, otherwise working tree).
+   - Explicit prompt: "For each title, search the test files in the diff and the wider test directories. Return a per-title verdict (`found` or `missing`) and the file:line of any found test. Use semantic matching — title wording may diverge from the plan slightly."
+
+3. Parse the subagent's verdict:
+   - **All `found`** → gate passes; proceed to the handshake sub-step.
+   - **Any `missing`** → AI inserts the missing tests via alphabetical-suffix sub-steps (per §2.3), implements them per the TDD skill (RED → GREEN), then **re-runs Gate 3 from step 1**.
+   - **Retry cap = 3.** Track the retry count on the gate sub-step itself. On the 4th attempt (i.e., 3 retries exhausted), abort: keep task `[Doing]`, surface the still-missing titles to the user, stop the batch cleanly.
+   - **Subagent error / unparseable verdict** → abort cleanly with the error; no commit; no fallback to inline AI judgment.
+
+**Why fresh-context subagent**:
+
+- The writer's session has bias ("I already convinced myself this is covered"). A subagent reading just the diff + title list has none of that residue.
+- Semantic matching (not literal grep) is required because plan titles and test titles drift linguistically; only an LLM can judge equivalence.
+
+**Why the 3-retry cap**:
+
+- Unbounded retries reward gaming via increasingly shallow tests under pressure.
+- Three attempts is enough for genuine forgetting; beyond that the gate escalates to user attention.
+
+**Anti-gaming note**: this gate verifies *presence*, not *quality*. Trivial assertions still pass it. The fresh-context test-quality wave in `/auto-review` is the complementary gate (caught earlier in the lifecycle is cheaper, but gaming defense lives at the end-of-batch review).
+
 ## 3. Status markers (plan.md task title)
 
 Status sits **right after the number, before any pre-existing tag** (e.g., Jira IDs):
@@ -187,7 +223,7 @@ In all non-`[Done]` terminal states, do NOT commit code partially. Either land w
 
 After step 3.10 (verify passes), do not auto-mark `[Done]`. Instead:
 
-1. **AI proposes:** "Acceptance criteria pass. Verify ran clean: `<output snippet>`. Mark `[Done]`?"
+1. **AI proposes:** "Acceptance criteria pass. Verify ran clean: `<output snippet>`. Gate 3 — planned tests verified: `<count>` titles found in diff (or `N/A — pure refactor`). Mark `[Done]`?"
 2. **User confirms** (yes / changes / blocked).
 3. **On yes** → commit (step 3.12) → update plan.md to `[Done]` (step 3.13).
    - In a multi-task batch, then advance to the next task: re-run pre-flight §4–§7 (match next `<task-id>`, state check, TaskList review, advisor).
