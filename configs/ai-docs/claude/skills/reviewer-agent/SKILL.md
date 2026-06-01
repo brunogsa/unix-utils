@@ -172,8 +172,8 @@ Per-specialist loop:
 - Emit that specialist's findings as a JSON array; `scope_tag` matches the
   file name (e.g., `"security"`).
 - **Skip issues already raised** by a previous specialist in this session —
-  the scope_tag + the Problem sentence tell you. This replaces the old Wave 3
-  dedup; distinct issues that just share a line stay in.
+  the scope_tag + the Problem sentence tell you. Distinct issues that share
+  a line stay in.
 - Maintain a running findings list in working memory; append each pass.
 
 **Guide writer (after all 8 specialists):**
@@ -204,8 +204,6 @@ Before emitting, re-read each finding against its actual file. This single pass
 catches hallucinations (specialist mis-remembered the code) **and** tightens
 line anchors — merged from two previously-separate waves so you re-load each
 file at most once. Inline reasoning, no subagent.
-
-Dedup isn't a separate wave — serial specialists in Wave 2 already skip issues earlier ones raised; distinct issues that share a line stay.
 
 **Read this once:** `references/validator.md` — the exact per-finding rubric.
 
