@@ -151,7 +151,11 @@ This ensures the later sub-steps get higher TaskList IDs than the new ones, whic
 
 ### 2.4. Gate 3: pre-commit planned-test verification
 
-Place one sub-step immediately before the two-party handshake (§4) that runs Gate 3. It exists because tests planned in plan.md are the most common thing AI forgets mid-flight — RED-GREEN cycles, helper insertions, and drift fixes all pull attention away. The gate is a fresh-context check that closes that gap before any commit lands.
+Place one sub-step immediately before the two-party handshake (§4) that runs Gate 3.
+
+It exists because planned tests are the most common thing AI forgets mid-flight — RED-GREEN cycles, helper insertions, and drift fixes all pull attention away.
+
+The gate is a fresh-context check that closes that gap before any commit lands.
 
 **Procedure** (single sub-step, e.g. ` 3.11. Gate 3 — verify planned tests present`):
 
@@ -165,12 +169,16 @@ Place one sub-step immediately before the two-party handshake (§4) that runs Ga
    - The list of planned test titles (one per line, from step 1 stdout).
    - The repo path (CWD).
    - The task's commit range so far so it can scope diff-checks (`<batch-base>..HEAD` if any task commits already exist, otherwise working tree).
-   - Explicit prompt: "For each title, search the test files in the diff and the wider test directories. Return a per-title verdict (`found` or `missing`) and the file:line of any found test. Use semantic matching — title wording may diverge from the plan slightly."
+   - Explicit prompt content:
+     - "For each title, search the test files in the diff + wider test dirs."
+     - "Return a per-title verdict (`found` / `missing`) + file:line of any found test."
+     - "Semantic matching — title wording may diverge slightly from the plan."
 
 3. Parse the subagent's verdict:
    - **All `found`** → gate passes; proceed to the handshake sub-step.
    - **Any `missing`** → AI inserts the missing tests via alphabetical-suffix sub-steps (per §2.3), implements them per the TDD skill (RED → GREEN), then **re-runs Gate 3 from step 1**.
-   - **Retry cap = 3.** Track the retry count on the gate sub-step itself. On the 4th attempt (i.e., 3 retries exhausted), abort: keep task `[Doing]`, surface the still-missing titles to the user, stop the batch cleanly.
+   - **Retry cap = 3.** Track the retry count on the gate sub-step itself.
+     - On the 4th attempt (3 retries exhausted), abort: keep task `[Doing]`, surface still-missing titles to user, stop the batch cleanly.
    - **Subagent error / unparseable verdict** → abort cleanly with the error; no commit; no fallback to inline AI judgment.
 
 **Why fresh-context subagent**:
@@ -183,7 +191,9 @@ Place one sub-step immediately before the two-party handshake (§4) that runs Ga
 - Unbounded retries reward gaming via increasingly shallow tests under pressure.
 - Three attempts is enough for genuine forgetting; beyond that the gate escalates to user attention.
 
-**Anti-gaming note**: this gate verifies *presence*, not *quality*. Trivial assertions still pass it. The fresh-context test-quality wave in `/auto-review` is the complementary gate (caught earlier in the lifecycle is cheaper, but gaming defense lives at the end-of-batch review).
+**Anti-gaming note**: this gate verifies *presence*, not *quality*. Trivial assertions still pass it.
+
+The fresh-context test-quality wave in `/auto-review` is the complementary gate — earlier in the lifecycle is cheaper, but gaming defense lives at end-of-batch review.
 
 ## 3. Status markers (plan.md task title)
 
@@ -259,7 +269,9 @@ Run them **sequentially**, in that order (refactor first so its findings can inf
 
 ### 6.1. Scope
 
-Each subagent reviews **only the batch's commit range**, not the whole branch. Resolve the range as `<state-at-start-of-implement>..HEAD` — capture the starting SHA in pre-flight (§1.3 already runs `git log` against base; store its `<base>..HEAD` boundary as `BATCH_BASE_SHA` for use here).
+Each subagent reviews **only the batch's commit range**, not the whole branch.
+
+Resolve the range as `<state-at-start-of-implement>..HEAD`. Capture the starting SHA in pre-flight (§1.3 already runs `git log` against base) and store it as `BATCH_BASE_SHA` for use here.
 
 ### 6.2. Spawn contract
 
@@ -297,13 +309,17 @@ After the preamble, include the skill-specific body:
 
 ### 6.3. Failure handling
 
-- **Subagent attempts a forbidden operation** (per preamble) → permission gate refuses; subagent's verdict surfaces as the failure. Parent `/implement` reports the violation to the user and continues to the next tail subagent (refactor failing does not block auto-review).
-- **Subagent error / no report file written** → log it to chat with the agent's last message; do NOT retry inline (different from Gate 3) — these are batch-end reports the user reviews asynchronously; a missing report is a user-attention moment, not a retry loop.
+- **Subagent attempts a forbidden operation** (per preamble) → permission gate refuses; subagent's verdict surfaces as the failure.
+  - Parent `/implement` reports the violation and continues to the next tail subagent (refactor failing does not block auto-review).
+- **Subagent error / no report file written** → log it to chat with the agent's last message.
+  - Do NOT retry inline (different from Gate 3): batch-end reports are reviewed asynchronously; a missing report is user-attention, not a retry loop.
 - **Both reports written** → print the two file paths in chat and end the invocation.
 
 ### 6.4. Overwrite policy
 
-Each invocation produces timestamped filenames (`refactor_<ts>.md`, `auto-review_<ts>.md`), so multiple `/implement` runs in the same CWD accumulate as separate files. The user's `.gitignore` rules (`refactor*.md`, `auto-review*.md` patterns) cover all timestamped variants.
+Each invocation produces timestamped filenames (`refactor_<ts>.md`, `auto-review_<ts>.md`), so multiple `/implement` runs in the same CWD accumulate as separate files.
+
+Gitignore patterns `refactor*.md` and `auto-review*.md` cover all timestamped variants.
 
 ### 6.5. Why this exists
 
