@@ -44,7 +44,7 @@ Specialist prompts and validator rubric live in `references/`; bash glue in `scr
 Deterministic check; no subagent needed. Only aborts on hard no-ops.
 
 - **github**: `state=$(gh pr view "$pr_number" --repo "$repo" --json state --jq .state)`. If `state` is `CLOSED` or `MERGED`, print `abort: PR <state>` and stop.
-- **local**: always proceed. Empty diffs surface naturally — Wave 2 produces an empty findings list and Wave 5 writes an "auto-review: no findings" file.
+- **local**: always proceed. Empty diffs surface naturally — Wave 5 writes "auto-review: no findings".
 
 ---
 

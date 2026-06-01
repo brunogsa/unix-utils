@@ -96,10 +96,9 @@ Generate sub-step items based on **both**:
 
 **CRITICAL: Create ALL known sub-steps in TaskList BEFORE executing any of them.**
 
-- Always include the tail steps (verify, Gate 3 planned-test verification per §2.4, two-party handshake, commit, plan.md update) — known upfront, must appear from the start.
-- The user needs macro visibility of the full plan before any code is touched.
+- Always include the tail steps (verify, Gate 3 per §2.4, handshake, commit, plan.md update) — known upfront.
+- The user needs macro visibility before any code is touched; known steps added late are a planning failure.
 - Only use alphabetical-suffix insertions (e.g., `3.4a`) for sub-steps genuinely discovered mid-flight (helper-on-demand, unexpected drift).
-- Known steps added late are a planning failure.
 
 Why expand the cycles instead of looping: each RED-GREEN pair surviving as its own item means a `/clear` or session restart can resume cleanly.
 
@@ -112,23 +111,17 @@ The parent groups its sub-steps visually and provides a single place to flip tas
 
 ### 2.2. Advisor consultation
 
-Before writing any code, call `advisor()`.
+Call `advisor()` before writing any code, **once per task** (not per invocation).
 
-The transcript at this point holds the full plan.md task text, spec.md context, recap of work since base, and current TaskList state.
+In a multi-task batch each task gets its own call after its sub-step decomposition — task-specific context (ACs, forcing cases, prior commits) is only fully present once the prior task ships.
 
-That is exactly what a stronger reviewer needs to challenge the approach, surface forcing cases you missed, and flag risky assumptions.
-
-This is **per task**, not per invocation. In a multi-task batch each task gets its own advisor call right before its sub-step decomposition.
-
-The relevant context (acceptance criteria, forcing cases, prior tasks' commits) is task-specific and only fully present once the prior task is done.
+The transcript at that point carries plan.md, spec.md, recap since base, and current TaskList — enough for the advisor to challenge approach, surface missed forcing cases, and question the sub-step organization.
 
 Take the advice seriously:
 
-- If the advisor flags a forcing case you didn't plan for, add it to the sub-steps.
+- If the advisor flags a forcing case, add it to sub-steps.
 - If it challenges the verify method, reconcile before flipping to `[Doing]`.
-- Skipping this step or no-op'ing it ("looks fine, proceeding") defeats the point.
-
-Advisor should also question the organization itself.
+- Skipping or no-op'ing ("looks fine, proceeding") defeats the point.
 
 ### 2.3. How to deal with mid-flight sub-steps
 
@@ -138,7 +131,7 @@ Full insertion rule + visual-regrouping procedure live in [`references/mid-fligh
 
 ### 2.4. Gate 3: pre-commit planned-test verification
 
-Place one sub-step immediately before the two-party handshake (§4) that runs Gate 3 — a fresh-context check that planned tests landed in the diff before any commit.
+Place one sub-step before the §4 handshake that runs Gate 3 — a fresh-context check that planned tests landed before commit.
 
 Full procedure (extract script + verify subagent + 3-retry cap + failure handling) lives in [`references/gate-3-pre-commit-verification.md`](references/gate-3-pre-commit-verification.md). Load on demand when authoring or debugging the gate.
 
@@ -194,12 +187,9 @@ After step 3.10 (verify passes), do not auto-mark `[Done]`. Instead:
 
 ## 5. Commit model
 
-A typical task produces **1 commit** — tests + implementation together (single base commit).
+A task produces **at least 1 commit** — RED + GREEN cycles share the base (tests + impl together). Refactors land as their own task.
 
-- RED and GREEN cycles inside the task share the commit.
-- Refactors do not, and should be a task on their own.
-
-So a task might be 1 commit (clean), 2 (base + refactor), 3 (base + refactor + scout fix), and so on. Never zero.
+Counts: 1 (clean), 2 (+refactor), 3 (+scout fix), etc. Never zero.
 
 The skill never auto-invokes `/refactor` or `/auto-review` **mid-task** — those triggers belong to the user when running on a live task, or to the batch-end tail subagents in **report-only** mode (per §6).
 
@@ -218,7 +208,7 @@ Run them **sequentially**, in that order (refactor first so its findings can inf
 
 Each subagent reviews **only the batch's commit range**, not the whole branch.
 
-Resolve the range as `<state-at-start-of-implement>..HEAD`. Capture the starting SHA in pre-flight (§1.3 already runs `git log` against base) and store it as `BATCH_BASE_SHA` for use here.
+Resolve the range as `<state-at-start-of-implement>..HEAD`. Capture the starting SHA in pre-flight (§1.3 already runs `git log` against base) and store as `BATCH_BASE_SHA`.
 
 ### 6.2. Spawn contract
 
