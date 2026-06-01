@@ -98,7 +98,9 @@ When a skill exceeds its override, the report lists the offending count and the 
 
 Skills without `instructions-budget` participate only in the *-standards total — the per-skill check is silent for them.
 
-**Same user-only rule applies**: AI must not set or raise `instructions-budget`. On an instruction-count overflow, AI's job is to merge near-duplicates, demote sub-bullets, or extract examples — and propose alternatives. The user owns the budget decision.
+**Same user-only rule applies**: AI must not set or raise `instructions-budget`.
+
+On an instruction-count overflow, AI's job is to merge near-duplicates, demote sub-bullets, or extract examples — and propose alternatives. The user owns the budget decision.
 
 ## How to Run
 
