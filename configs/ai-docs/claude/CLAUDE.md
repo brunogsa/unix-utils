@@ -45,7 +45,8 @@ Architectural principles for how the AI system is organized.
   - [Examples] Repo CLAUDE.md / agents.md: repo-specific gotchas, conventions, architecture, non-obvious decisions.
   - [Examples] Auto-Memory is disabled in my setup.
 
-- [Instruction] **Teach the *why*, not just the *what*** -- when authoring rules, skills, comments, or commit messages, pair every directive with its reasoning.
+- [Instruction] **Teach the *why*, not just the *what*** -- pair every directive with **decision-shaping** reasoning when authoring rules, skills, comments, or commit messages.
+  - [Why] A WHY earns its slot when removing it would let a future reader break the rule unwittingly; decorative or inferable WHYs don't qualify.
   - [Why] Anthropic research found adding reasoning to aligned-behavior training cut misalignment ~5× (15% → 3%) vs. demonstrations alone. Models generalize principles; they overfit to bare directives.
 
 ## Communication & Feedback
