@@ -132,22 +132,9 @@ Advisor should also question the organization itself.
 
 ### 2.3. How to deal with mid-flight sub-steps
 
-If a sub-step uncovers a new helper that needs its own test, **insert** a RED-helper / GREEN-helper pair using **alphabetical suffix** right after the current step — never re-enumerate existing sub-steps.
+When a helper or drift surfaces mid-task and needs its own RED/GREEN pair, insert with alphabetical-suffix notation (e.g., ` 3.4.1.`, ` 3.4.2.`) — never re-enumerate existing sub-steps.
 
-Format: ` 3.4.1. [Sub-Step] RED — helper for case A`, ` 3.4.2. [Sub-Step] GREEN — helper for case A`. Continues `3.4.3.`, `3.4.4.`, ... if more helpers cascade.
-
-The original numbering for `3.5`, `3.6`, ... stays intact — the suffixed IDs signal "added mid-flight after step 3.4". The numeric prefix is the canonical ordering contract.
-
-However, since TaskList renders in a non-deterministic order (opaque algorithm, not reliably creation-order), mid-flight sub-steps with new IDs will typically appear at the end of the list — after their later siblings.
-
-**CRITICAL: To keep mid-flight sub-steps visually grouped before their later siblings:**
-1. Note the subjects + descriptions of all later **pending** sub-steps (e.g., 3.5, 3.6, ...) on a `/tmp` file.
-2. Delete those later pending sub-steps (`TaskUpdate` → `deleted`).
-3. Create the mid-flight sub-steps
-4. Immediately recreate the later sub-steps in order.
-5. Make SURE you re-created everything as it was
-
-This ensures the later sub-steps get higher TaskList IDs than the new ones, which is the best available lever over display ordering.
+Full insertion rule + visual-regrouping procedure live in [`references/mid-flight-substeps.md`](references/mid-flight-substeps.md). Load on demand when the insertion case actually fires.
 
 ### 2.4. Gate 3: pre-commit planned-test verification
 
