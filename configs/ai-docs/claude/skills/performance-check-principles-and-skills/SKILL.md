@@ -72,6 +72,12 @@ Over-budget lines are annotated as `words=N(>budget (override; default=2048))` s
 
 Only `words-budget` is overridable today — line/desc/name budgets remain global.
 
+**CRITICAL: Only the user adds `words-budget`. AI must never autonomously set or raise it.**
+
+- AI's job on a word-budget overflow is to trim: move examples to `references/`, drop redundant prose, tighten dense wording, or split a skill into two — in that order of preference.
+- AI may **propose** an override as one of several alternatives surfaced to the user, but never apply it silently. Cite the trim alternatives alongside it so the user picks deliberately.
+- Why: an override is a deliberate trade-off the user owns. AI applying it unilaterally hides the cost of complexity behind a config knob — exactly the drift performance-check exists to catch.
+
 ### Per-skill instructions-budget override
 
 A `*-standards` skill can opt into a per-skill instruction cap by adding `instructions-budget: N` to its YAML frontmatter:
@@ -91,6 +97,8 @@ It exists so the 300 budget can be intentionally allocated across the standards 
 When a skill exceeds its override, the report lists the offending count and the run fails.
 
 Skills without `instructions-budget` participate only in the *-standards total — the per-skill check is silent for them.
+
+**Same user-only rule applies**: AI must not set or raise `instructions-budget`. On an instruction-count overflow, AI's job is to merge near-duplicates, demote sub-bullets, or extract examples — and propose alternatives. The user owns the budget decision.
 
 ## How to Run
 
