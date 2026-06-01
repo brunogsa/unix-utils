@@ -85,7 +85,7 @@ bash ~/.claude/skills/reviewer-agent/scripts/extract-skipped-files.sh \
   "$work_dir/pr.diff" "$work_dir"
 
 # Jira context (optional)
-source ~/.claude/skills/jira-tools/scripts/fetch-jira-review-context.sh 2>/dev/null \
+source ~/.claude/skills/jira-cli/scripts/fetch-jira-review-context.sh 2>/dev/null \
   && fetch-jira-review-context "$jira_url" > "$work_dir/jira-context.md" 2>/dev/null || true
 
 # Clone the PR head
