@@ -168,11 +168,7 @@ How AI scope, plan, and verify work on any task.
     - [Examples] Before declaring done: run the task's verify step or propose one.
   - [Instruction] **Fresh evidence only** -- re-run verification if stale since your latest change; re-read the actual code on contradiction. Prior-turn output doesn't prove the current state.
   - [Instruction] **Tools-first** -- prefer deterministic tools over LLM judgment when a claim can be checked by a tool; reserve LLM for the ambiguous tail (dynamic imports, runtime-only references).
-    - [Examples] `knip` / `ts-prune` / `madge` — dead code & orphans.
-    - [Examples] Coverage reports — untested branches.
-    - [Examples] `tsc --noEmit` — types; linters — style/correctness.
-    - [Examples] `eslint-plugin-sonarjs` / `lizard` / `complexity-report` — complexity.
-    - [Examples] `git blame` / `git log` — ownership/age.
+    - [Examples] Dead code: `knip`/`ts-prune`/`madge`. Coverage: coverage reports. Types: `tsc --noEmit`. Style: linters. Complexity: `eslint-plugin-sonarjs`/`lizard`. History: `git blame`/`git log`.
   - [Instruction] **Broadest scope on shared code or merges** -- all-workspace lint + full unit + integration.
     - [Examples] Scoped verification is false economy; shared code's blast radius is the workspace, and verification cost beats incident cost.
   - [Instruction] **Content match, not size delta** -- on large pre-existing artifacts (PR body, log, doc), grep for a unique substring of the NEW content.
