@@ -149,9 +149,38 @@ Budget violations are signals, not commands.
 - Fixes often require judgment (which rule to merge, which example to prune, whether to split a bullet or move to a reference file).
 - The skill surfaces findings so the user can triage; blind auto-consolidation tends to damage intent.
 
-Good consolidation options when over-budget:
-- **Lines or words per line over in CLAUDE.md**: split a rule into main-bullet + sub-bullet (`- Why: ...`); move inline code examples to a skill's `references/`.
-- **Skill lines or words over**: move examples into `references/`; split domain variants into separate reference files per skill-creator's domain-organization pattern.
+### Trim hierarchy (preference order)
+
+Apply in order, top to bottom. Each step is cheaper / less destructive than the next.
+
+1. **Drop redundant content** — duplicate statements, decorative examples, restatements already covered elsewhere (other skills, common-preamble, commit log, spec decisions).
+2. **Tighten dense wording** — compact verbose prose; collapse multi-clause bullets into shorter ones; merge per-category sub-bullets into one comma-separated line when category-detail isn't decision-shaping.
+3. **Extract to `references/`** — **only if the extracted content is genuinely lazy-loadable**. Otherwise extraction is fake savings (see "References must earn their lazy load" below).
+4. **Split the skill** — when the body legitimately covers two distinct concerns that don't co-fire. Last structural option before override.
+5. **Override (`words-budget` / `instructions-budget`)** — **user's call only, after the four steps above are exhausted**. AI proposes alternatives; never applies silently.
+
+### References must earn their lazy load
+
+Extraction to `references/<name>.md` only buys savings if the content is **conditionally loaded** — fires on a specific trigger that doesn't hit every skill invocation.
+
+Examples that **earn** lazy extraction:
+
+- Mid-flight helper-insertion procedure (fires only when a helper surfaces mid-task).
+- Domain-specific specialist rubrics in `reviewer-agent` (each specialist file loads only when its wave runs).
+- Debug deep-dive trees (fire only when a specific failure pattern appears).
+
+Examples that **don't** earn lazy extraction (move them inline or split the skill instead):
+
+- Sections that fire every invocation (Gate procedures, always-needed orchestration steps).
+- "How to use this skill" content (always needed when the skill is loaded).
+- Standard verification matrices that apply to every skill output.
+
+When extraction doesn't pass the lazy test, prefer steps 1–2 (drop / tighten) over step 3.
+
+### Per-overage moves
+
+- **Lines or words per line over in CLAUDE.md**: drop duplicate principles; collapse multi-example sub-bullets into one comma-separated line.
+- **Skill lines or words over**: apply the trim hierarchy above. Look for the redundancy and density wins first — references second.
 - **Skill description over 250 chars**: front-load triggers within the first 250 (the `/skills` listing only routes on those); move long enumerations of trigger phrases into the skill body, not the description.
 - **Skill name over 64 chars**: rename the skill directory (the `name` Claude Code uses); ensure replacement is still descriptive in gerund form.
 - **Skill count over**: merge near-duplicate skills or fold rarely-used ones into a broader sibling.
