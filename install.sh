@@ -196,7 +196,7 @@ fi
 
 # Node packages
 npm install -g json-schema-generator
-npm install -g @anthropic-ai/claude-code
+curl -fsSL https://claude.ai/install.sh | bash
 npm install -g @google/gemini-cli
 npm install -g opencode-ai
 npm install -g trash-cli
