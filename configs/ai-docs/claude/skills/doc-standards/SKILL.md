@@ -188,6 +188,18 @@ it('should throw INTERNAL_SERVER_ERROR after retries', async () => { ... });
 
 The PR description, README, and inline comments touching the changed area are part of the change — not a follow-up. The reviewer (and future-you) need them synced.
 
+## AI-facing docs parity — update CLAUDE.md / agents.md alongside human-facing docs
+
+[Instruction] When canonical content lands in human-facing docs (README, ADRs, public schemas), update AI-facing docs (`CLAUDE.md`, `agents.md`, repo `CLAUDE.md`) in the SAME change.
+
+[Why] AI sessions read AI-facing docs on every invocation; stale guidance there silently produces work the human-facing docs already obsoleted. Humans skim once and remember; AIs reload from disk each turn.
+
+[Examples] New diagram added to README → add a one-line pointer in `agents.md` so the next AI session treats it as canonical truth, not as derivable from code.
+
+[Examples] Deprecated module removed → remove its mention in repo `CLAUDE.md`'s file-tree section so the next AI session doesn't recreate it from "the docs said it exists".
+
+[Examples] New permission/role/feature flag landed → if `CLAUDE.md` had a list of known flags or permissions, append the new one; otherwise the next AI session may invent a parallel name.
+
 ## Density caps (≤256 chars / ≤32 words per line)
 
 [Instruction] Every line/bullet/sub-bullet ≤256 chars / ≤32 words; over → split, never drop info.
