@@ -67,7 +67,6 @@
     "gopls-lsp@claude-plugins-official": true,
     "bash-language-server@claude-code-lsps": true,
     "terraform-ls@claude-code-lsps": true,
-    "pyright@claude-code-lsps": true,
     "claude-hud@claude-hud": true,
     "security-guidance@claude-plugins-official": true,
     "explanatory-output-style@claude-plugins-official": true,

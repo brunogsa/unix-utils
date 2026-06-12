@@ -235,7 +235,6 @@ claude plugin install lua-lsp@claude-plugins-official
 claude plugin install gopls-lsp@claude-plugins-official
 claude plugin install bash-language-server@claude-code-lsps
 claude plugin install terraform-ls@claude-code-lsps
-claude plugin install pyright@claude-code-lsps
 claude plugin install security-guidance@claude-plugins-official
 claude plugin install explanatory-output-style@claude-plugins-official
 claude plugin install skill-creator@claude-plugins-official
