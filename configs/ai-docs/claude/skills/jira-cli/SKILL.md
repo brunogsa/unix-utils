@@ -27,8 +27,9 @@ export JIRA_API_TOKEN='your-api-token'
 ## Scripts
 
 - `scripts/jira.sh` -- core auth and request primitives (sourced automatically by the other scripts)
-- `scripts/jira-utilities.sh` -- CRUD, links, transitions, queries
+- `scripts/jira-utilities.sh` -- CRUD, links, transitions, queries, markdown helpers
 - `scripts/fetch-jira-review-context.sh` -- fetch issue context as markdown for code reviews
+- `scripts/md-to-adf.py` -- convert Markdown to Atlassian Document Format JSON (required by Jira REST API v3 for rich-text fields)
 
 ## Functions
 
@@ -66,6 +67,16 @@ export JIRA_API_TOKEN='your-api-token'
 
 - `fetch-jira-review-context <jira-url|issue-key>` -- fetch issue summary, description, and epic as markdown
 
+### Markdown -> ADF (Jira REST API v3 rich-text)
+
+Jira REST API v3 expects `description` (and other rich-text fields) as ADF JSON, not markdown.
+
+- `md-to-adf <md-file | ->` -- convert a markdown file (or stdin via `-`) to ADF JSON on stdout
+- `create-jira-issue-from-md <project> <type> <summary> <md-file> [extra-fields-json]` -- like `create-jira-issue` but reads description from a markdown file
+- `update-jira-issue-from-md <key> <md-file> [extra-fields-json]` -- like `update-jira-issue` but reads description from a markdown file
+
+The `extra-fields-json` is merged into the request body, so you can set labels, parent, duedate, etc. alongside the description.
+
 ## Link Types
 
 - `"Blocks"` -- source blocks target
@@ -81,4 +92,11 @@ create-jira-issue PROJ Story "My story" '{"parent":{"key":"PROJ-100"},"labels":[
 link-jira-issues "PROJ-100" "Blocks" "PROJ-101"
 bulk-link-jira-issues "Parent-Child" PROJ-100 PROJ-101 PROJ-102 PROJ-103
 get-jira-links PROJ-101
+
+# Create from a markdown description file:
+create-jira-issue-from-md PROJ Task "Foo task" task-desc.md \
+  '{"parent":{"key":"PROJ-100"},"labels":["team-a"],"duedate":"2026-07-06"}'
+
+# Update an existing issue's description:
+update-jira-issue-from-md PROJ-123 task-desc-v2.md
 ```

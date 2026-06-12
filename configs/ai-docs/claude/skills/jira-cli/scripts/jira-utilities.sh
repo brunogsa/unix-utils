@@ -493,3 +493,95 @@ function transition-jira-issue() {
 
   echo "Issue ${issue_key} transitioned successfully"
 }
+
+# ==============================================================================
+# MARKDOWN -> ADF HELPERS
+# ==============================================================================
+# Jira REST API v3 requires rich-text fields (description, comments) in ADF JSON,
+# not plain markdown. These wrappers let you author content in .md files and
+# delegate the conversion to the bundled md-to-adf.py.
+
+# Convert a markdown file (or stdin via "-") to ADF JSON on stdout.
+# Usage: md-to-adf <markdown-file>
+#        echo "## Title" | md-to-adf -
+function md-to-adf() {
+  local src="$1"
+
+  if [[ -z "$src" ]]; then
+    echo "Usage: md-to-adf <markdown-file> | -" >&2
+    return 1
+  fi
+
+  local script="$HOME/.claude/skills/jira-cli/scripts/md-to-adf.py"
+  if [[ ! -f "$script" ]]; then
+    echo "md-to-adf.py missing at $script" >&2
+    return 1
+  fi
+
+  if [[ "$src" == "-" ]]; then
+    python3 "$script"
+  else
+    if [[ ! -f "$src" ]]; then
+      echo "Markdown file not found: $src" >&2
+      return 1
+    fi
+    python3 "$script" < "$src"
+  fi
+}
+
+# Create a Jira issue with description sourced from a markdown file.
+# Wraps create-jira-issue: converts md -> ADF, merges into extra-fields JSON,
+# delegates. Returns the API response (key, id, self).
+#
+# Usage: create-jira-issue-from-md <project> <type> <summary> <md-file> [extra-fields-json]
+# Example:
+#   create-jira-issue-from-md PROJ Task "Foo" foo.md '{"labels":["team-a"],"parent":{"key":"PROJ-100"}}'
+function create-jira-issue-from-md() {
+  local project="$1" type="$2" summary="$3" md_file="$4"
+  local extra_fields="${5}"
+  [[ -z "$extra_fields" ]] && extra_fields="{}"
+
+  if [[ -z "$project" || -z "$type" || -z "$summary" || -z "$md_file" ]]; then
+    echo "Usage: create-jira-issue-from-md <project> <type> <summary> <md-file> [extra-fields-json]" >&2
+    return 1
+  fi
+
+  local adf
+  if ! adf=$(md-to-adf "$md_file"); then
+    return 1
+  fi
+
+  local merged
+  merged=$(jq -n --argjson desc "$adf" --argjson extra "$extra_fields" \
+    '$extra + {description: $desc}')
+
+  create-jira-issue "$project" "$type" "$summary" "$merged"
+}
+
+# Update a Jira issue's description from a markdown file.
+# Optional extra-fields JSON gets merged in (e.g. labels, duedate, status fields).
+#
+# Usage: update-jira-issue-from-md <issue-key> <md-file> [extra-fields-json]
+# Example:
+#   update-jira-issue-from-md PROJ-123 desc.md '{"labels":["needs-review"]}'
+function update-jira-issue-from-md() {
+  local issue_key="$1" md_file="$2"
+  local extra_fields="${3}"
+  [[ -z "$extra_fields" ]] && extra_fields="{}"
+
+  if [[ -z "$issue_key" || -z "$md_file" ]]; then
+    echo "Usage: update-jira-issue-from-md <issue-key> <md-file> [extra-fields-json]" >&2
+    return 1
+  fi
+
+  local adf
+  if ! adf=$(md-to-adf "$md_file"); then
+    return 1
+  fi
+
+  local merged
+  merged=$(jq -n --argjson desc "$adf" --argjson extra "$extra_fields" \
+    '$extra + {description: $desc}')
+
+  update-jira-issue "$issue_key" "$merged"
+}
