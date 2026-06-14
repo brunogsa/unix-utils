@@ -4,7 +4,7 @@
 
 **Convention — open work only**: when a task is **done, REMOVE it from this file** (do not mark it as done). This file always lists *only* what's still open; git history holds the record of what was completed.
 
-**Convention — one commit per task**: work each numbered task in its own session and land it as a single commit (its removal from this file rides in that same commit). Keeps history bisectable and 1:1 with tasks; a task too big for one reviewable commit is the signal to split it.
+**Convention — commits per task**: each task lands **at least one** commit, and may span several independently-reviewable ones if it naturally decomposes; its removal from this file rides in that work. **Spikes are the exception** — a pure investigation may conclude with no dedicated commit (findings captured as notes, the removal batched with other doc edits).
 
 ## Shared context (read once per session)
 
