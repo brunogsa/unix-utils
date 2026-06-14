@@ -28,6 +28,11 @@ Always edit `configs/ai-docs/claude/settings.json` directly. If the symlink has 
 
 ## Conventions
 
+- **Prefer cross-platform AND cross-tool configs** -- favor configs/hooks/scripts that hold across both OSes (macOS + Linux) and across the agent CLIs in use (Claude Code, opencode, Gemini CLI).
+  - Cross-platform: path-based config needs both home-dir forms (`/Users/...` and `/home/...`); prefer OS-agnostic logic. (See the `personal-environment` skill for the symlink/permission gotchas.)
+  - Cross-tool: the agents share one git repo, so safety guards and worktree ergonomics must hold whichever agent runs — a guard that protects only Claude Code leaves the repo exposed when opencode/Gemini does the work.
+  - Why: a config that holds for only one OS or one tool is a silent hole — the protection looks present but isn't, and the gap surfaces only when work moves to the other side.
+
 - **Keep `install.sh` in sync** -- `install.sh` is the canonical bootstrap — the source of truth for a fresh-machine setup.
   - When you add/remove a plugin, MCP server, npm global, symlink target, config file, or OS package, mirror the change in `install.sh`.
   - If unsure, ask.
