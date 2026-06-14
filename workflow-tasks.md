@@ -17,18 +17,13 @@
 
 ## 2. [Spike] Simulate desktop-style diff view via terminal + tmux + neovim
 
-**Goal**: Approximate the Claude Code **desktop app's visual diff review** inside the terminal stack (terminal + tmux + neovim), so a desktop switch isn't needed just for nicer diffs.
+**Status**: spike concluded — full findings + design-of-record in `specs/spec-claude-diff-view.md` (awaiting review; plan deferred).
 
-**Context**: User stays terminal-primary (heavy tmux/hooks/skills investment). Desktop app's main draws are visual diffs, file tree, and multi-cloud-agent concurrency. This task targets only the **diff** draw.
+**Goal** (unchanged): approximate the desktop app's visual diff review in the terminal stack, so a desktop switch isn't needed just for nicer diffs.
 
-**Where to look**: `~/neovim` (check which plugin manager + whether fugitive / diffview.nvim / gitsigns already present), git config (`~/.gitconfig` / oh-my-zsh) for current pager.
+**Conclusion**: the visual full-screen tier **already exists** — `diffview.nvim` + `gitsigns` + the `vimreview` command (`<leader>td/tD/th/tH`, base-compare, history, hunk nav). Option (c) — an auto-open `PostToolUse` hook — is **rejected** (noisy; the `open-in-tmux` skill covers on-demand). The only gap is option (b), a syntax-aware shell pager (`delta` / `difftastic`).
 
-**Options to evaluate**:
-- (a) neovim diff: `diffview.nvim` (best side-by-side + file panel, closest to desktop) or `:Gdiffsplit` via fugitive.
-- (b) syntax-aware pager: `delta` or `difftastic` as `git` pager for inline review without leaving the shell.
-- (c) a Claude Code `PostToolUse` hook (Edit/Write) that opens the just-changed files in a neovim diff split in an adjacent tmux pane.
-
-**Deliverable**: recommendation + concrete wiring (keybind / alias / hook). Favor `diffview.nvim` if neovim plugins are acceptable. Spike — may conclude "current setup is enough."
+**Remaining open work (finish later)**: decide whether the shell-pager tier is worth adopting **at all**, and if so `delta` vs `difftastic` + scope — tracked as Open Questions in the spec. Any wiring is gated on **task 4** (version-control `~/.gitconfig`).
 
 ---
 
