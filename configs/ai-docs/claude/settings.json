@@ -117,5 +117,8 @@
   "verbose": true,
   "preferredNotifChannel": "ghostty",
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "worktree": {
+    "baseRef": "head"
+  }
 }

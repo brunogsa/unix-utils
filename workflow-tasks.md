@@ -11,7 +11,7 @@
 
   - **commits per task**: each task (but spikes) lands **at least one** commit, and may span several if it naturally decomposes; its removal from this file rides in that work;
 
-  - **open work only**: when a task is **done, REMOVE it from this file** (do not mark it as done). This file always lists *only* what's still open; git history holds the record of what was completed. Do this after the commits;
+  - **open work only**: when a task is **done, REMOVE it from this file** (do not mark it as done). This file always lists *only* what's still open; git history holds the record of what was completed. Do this **BEFORE** the commits;
 
 ---
 
@@ -248,27 +248,3 @@
 **Where**: the `skill-creator` skill (plugin-provided or under `configs/ai-docs/claude/skills/` — check which first). Read its eval harness, understand what it checks (skill quality / frontmatter / progressive disclosure), run it against the user's existing skills.
 
 **Deliverable**: explanation of what the evals check + how to run them + whether they're worth wiring into the user's skill-authoring loop.
-
----
-
-## 4. [Spike] Safe parallel-session isolation in one repo (git worktree)
-
-**Goal**: Find the most convenient, low-risk way to run **multiple Claude Code sessions in parallel against the same git repo** without their work colliding — likely `git worktree`, one isolated working dir + index per session.
-
-**Problem (observed this session, 2026-06-14)**: parallel sessions share a single working tree + index, so the staging area gets **mixed** — `git add`/`git status`/`git commit` from one session pick up another session's changes, making it impossible to commit cleanly per-session. The shared index is the collision point.
-
-**Hard constraints (the whole point of the spike — non-negotiable)**:
-- **Never lose uncommitted work.** Teardown/cleanup must refuse (or stash) when a worktree is dirty or holds unpushed commits — never silently discard.
-- **Never push or delete the wrong thing.** Each session on its own branch; guard against deleting a branch that's checked out elsewhere, and against pushing the wrong branch.
-- **Convenient, not ceremony.** If spinning up/tearing down isolation is heavy, it won't get used — bias toward an alias/skill that makes it one step.
-
-**Options to evaluate**:
-- (a) **Claude Code native worktree isolation** — `EnterWorktree`/`ExitWorktree` + the `worktree.baseRef` setting create a per-session worktree under `.claude/worktrees/<id>` and auto-clean if unchanged. Check: does it solve the index-mixing cleanly, what's the dirty-worktree teardown behavior (keep vs remove prompt), and does it fit the "edit in place" default this repo currently uses?
-- (b) **Manual `git worktree` + a helper skill/alias** — `git worktree add ../<repo>-<branch> <branch>`; each gets its own index sharing the `.git` object store. Pair with a teardown helper that blocks on dirty/unpushed state.
-- (c) **Separate clones** — heaviest (full duplicate, no shared objects); fallback only.
-
-**Where to look**: Claude Code worktree tooling + `worktree.baseRef` setting; this repo's CLAUDE.md note that the session is configured to "work in place rather than isolating into a worktree"; existing `claude-git-guard.sh` / `claude-rm-guard.sh` (coordinate any new guard, don't duplicate); `git worktree list/remove` semantics (esp. `--force` refusal on dirty trees).
-
-**Relates to #8**: that task already flagged transcript-path resolution inside `.claude/worktrees/<id>` — if worktrees become the default workflow, verify the cost-ledger hook there too.
-
-**Deliverable**: a recommended parallel-session workflow (likely worktree-based) with concrete one-step setup (alias/skill) + the safety guard that prevents losing work / wrong push-delete; documented for cross-OS (macOS + Linux). Spike — may conclude native isolation already covers it.
