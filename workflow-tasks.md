@@ -5,13 +5,13 @@
 **Conventions:**
   - **CRITICAL**: ALWWAYS load my **personal-environment** skill before doing anything;
 
-  - **open work only**: when a task is **done, REMOVE it from this file** (do not mark it as done). This file always lists *only* what's still open; git history holds the record of what was completed;
-
-  - **commits per task**: each task (but spikes) lands **at least one** commit, and may span several if it naturally decomposes; its removal from this file rides in that work;
+  - **reuse task numbers available, but always add them in the end**: the numbers are more a facilitator for me referencing them you, instead of an ordering per se;
 
   - **check for overlap before adding**: before adding a task, scan the list for an overlapping one. If the new work fits an existing task, **fold it in** rather than duplicating;
 
-  - **reuse task numbers available, but always add them in the end**: the numbers are more a facilitator for me referencing them you, instead of an ordering per se;
+  - **commits per task**: each task (but spikes) lands **at least one** commit, and may span several if it naturally decomposes; its removal from this file rides in that work;
+
+  - **open work only**: when a task is **done, REMOVE it from this file** (do not mark it as done). This file always lists *only* what's still open; git history holds the record of what was completed. Do this after the commits;
 
 ---
 
@@ -29,24 +29,6 @@
 - (c) a Claude Code `PostToolUse` hook (Edit/Write) that opens the just-changed files in a neovim diff split in an adjacent tmux pane.
 
 **Deliverable**: recommendation + concrete wiring (keybind / alias / hook). Favor `diffview.nvim` if neovim plugins are acceptable. Spike — may conclude "current setup is enough."
-
----
-
-## 4. [Spike] Evaluate /remote phone notifications vs. cross-OS desktop notifications
-
-**Goal**: Decide the user's notification strategy: Claude Code `/remote` (push to phone) exclusively, local desktop notifications only, or both.
-
-**Research**:
-- How `/remote` (RemoteTrigger) works: setup, which events it fires on, whether it needs cloud/Routines, latency, what the phone payload contains.
-- A **cross-OS desktop** path that works on BOTH macOS and Linux: a `Notification` hook shelling to `terminal-notifier`/`osascript` on macOS and `notify-send` on Linux (or a unified wrapper).
-
-**Existing assets to reuse, don't duplicate**: `configs/ai-docs/claude/hooks/claude-tmux-notification.sh` already exists; the `notify-user` skill exists. Check whether to wire `notify-user` to the `Notification` hook rather than build new.
-
-**Session note (2026-06-14, from the now-closed agent-view debate)**: the terminal agent view (`claude agents`) already provides an *in-TUI* attention surface — a `Needs input` group pinned to the top of the table plus a terminal tab-title `N awaiting input` count. So frame this notification work as the **away-from-keyboard / not-watching-the-TUI complement**, NOT a duplicate of that dashboard: `/remote`-to-phone when AFK, desktop `Notification` hook when at-desk but outside the agent-view pane.
-
-**Relates to**: #18 (hands-on `/remote-control` trial feeds this recommendation).
-
-**Deliverable**: recommendation — likely a split (phone for away-from-keyboard, desktop for at-desk), with the concrete hook config to implement it.
 
 ---
 
