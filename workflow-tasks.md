@@ -269,16 +269,6 @@
 
 ---
 
-## 18. [Spike] Test `/remote-control`
-
-**Goal**: Hands-on test of Claude Code's `/remote-control` — driving/monitoring a session from the phone. Confirm setup steps, which session events it surfaces, latency, and what the phone can actually see and do.
-
-**Relates to**: task #4 (notification strategy) — `/remote-control` is the away-from-keyboard path being weighed there; this trial feeds #4's recommendation.
-
-**Deliverable**: notes on whether `/remote-control` is worth adopting + any config needed to wire it.
-
----
-
 ## 19. [Feature] Integrate RTK (Rust Token Killer) to compress Bash output
 
 **Goal**: Adopt RTK — a CLI proxy that compresses Bash command output before it reaches the model — to cut Claude Code token/$ burn (vendor claims 60–90% on common dev commands).
