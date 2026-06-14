@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 # Launches claude-hud. Kept in a wrapper so settings.json holds only a stable
 # 1-line command — preventing Claude Code's /config write-back from stripping flags.
-HUD_DIR=$(ls -td ~/.claude/plugins/cache/claude-hud/claude-hud/*/ 2>/dev/null | head -1)
+# Pick the newest installed HUD version dir by mtime via a portable glob loop.
+# `-nt` works on macOS and Linux; avoids parsing `ls` (SC2012) and the GNU-only
+# `find -printf` mtime trick that BSD find lacks.
+HUD_DIR=""
+for d in ~/.claude/plugins/cache/claude-hud/claude-hud/*/; do
+  [ -d "$d" ] || continue
+  if [ -z "$HUD_DIR" ] || [ "$d" -nt "$HUD_DIR" ]; then HUD_DIR="$d"; fi
+done
 # Resolve node from PATH so the statusline renders on macOS (/usr/local/bin) and
 # Linux (/usr/bin or nvm) alike; render nothing if node is absent rather than erroring.
 NODE_BIN=$(command -v node) || exit 0
