@@ -101,7 +101,7 @@
   "advisorModel": "opus",
   "promptSuggestionEnabled": true,
   "autoUpdatesChannel": "latest",
-  "tui": "default",
+  "tui": "fullscreen",
   "autoMemoryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
