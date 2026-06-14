@@ -32,23 +32,17 @@
 
 ---
 
-## 5. [Feature] Human-only authenticated command to toggle Claude Code hook behaviors
+## 5. [Feature] Autonomous Mode — human-only toggle for unattended-accountability hooks
 
-**Goal**: A command that **ONLY the human** can run — gated by a secret Claude cannot know or retrieve — that switches certain hook behaviors on/off (e.g. relax the Stop-hook nag, loosen a future PR-size ceiling, enable a bypass/loop mode for low-stakes work).
+**Status**: spec drafted (2026-06-14 spike), **awaiting review**; plan + execution deferred. Spec: `specs/spec-autonomous-mode-2026-06-14.md` (why/what, threat model, acceptance criteria, open questions, known limitations). A `plan.md` is written only after the spec is reviewed.
 
-**CRITICAL threat model**: Claude Code runs with the user's uid. Any file Claude can read, it can read; any file it can write, it can write.
-- The secret must NOT live where Claude can read it: not env vars, not repo/home files, not shell history (read interactively via `/dev/tty`, never as a CLI arg), not process listings.
-- The **toggle STATE must be tamper-resistant against Claude too** — otherwise Claude can flip the state file directly and skip the gate. A password that only guards the *command* is insufficient.
+**Goal**: A single `autonomous mode` switch only the human can flip (`sudo claude-autonomous-toggle on|off`), **default OFF**. When ON, unattended-accountability hooks fire (today: the tasklist Stop-nag); when OFF they bow out (no noise while the human is present). Claude must be unable to flip the state, edit the hook scripts, or unwire them.
 
-**Mechanisms whose boundary actually holds (evaluate, Spike first)**:
-- macOS Keychain + Touch ID via `security` CLI — Claude can't satisfy the biometric/GUI prompt. (macOS-only.)
-- HMAC/signature on the state, key held only in Keychain/`pass` — Claude can read state but can't forge a valid signature. (Cross-OS if key store is.)
-- Root- or other-user-owned state file writable only via `sudo` — OS permission separation; Claude lacks the password. (Works on Linux; puts `sudo` in the loop.)
-- REJECT: plain dotfile/env flag, or password stored in a readable file.
+**Decided mechanism (don't re-derive)**: OS privilege separation — root-owned state `/etc/claude-autonomous-mode` + root-owned command `/usr/local/sbin/claude-autonomous-toggle` (Claude reads, can't write/delete). **Rejected** HMAC (symmetric key the hook must read to verify = a key Claude reads and forges) and plain dotfile/env (Claude-writable). Verified on the dev Mac: sudo needs a password (not NOPASSWD); `/etc` + `/usr/local` are `root:wheel`.
 
-**Lean**: HMAC-signed state with key in Keychain/`pass` for cross-OS fit — but confirm before building.
+**Load-bearing open question**: can Claude Code **managed settings** host immutable hook wiring with **no user-writable kill-switch** that disables all hooks? If not, the hook-immutability goal (Claude can't edit/unwire the hook) must change approach. Verify before any build.
 
-**Deliverable**: chosen mechanism whose boundary holds at Claude's privilege level, the command (interactive secret prompt), hooks wired to honor the authenticated toggle, threat model documented in the command, mirrored into `install.sh`.
+**Known limitations (in the spec's Scout section)**: (1) the state boundary protects the *state*, not the hook *code/wiring* — hook scripts + `settings.json` are Claude-writable today; closing it also hardens `git-guard`/`rm-guard` and overlaps **#15** (sandbox); (2) `install.sh` is a Claude-writable trust root for the privileged deploy — review its diff before `sudo install.sh`.
 
 ---
 
