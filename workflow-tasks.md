@@ -242,3 +242,17 @@
 **Where**: the `skill-creator` skill (plugin-provided or under `configs/ai-docs/claude/skills/` — check which first). Read its eval harness, understand what it checks (skill quality / frontmatter / progressive disclosure), run it against the user's existing skills.
 
 **Deliverable**: explanation of what the evals check + how to run them + whether they're worth wiring into the user's skill-authoring loop.
+
+---
+
+## 4. [Task] Bring ~/.gitconfig under repo management (currently unversioned)
+
+**Goal**: Version-control `~/.gitconfig`, which today is a plain unmanaged file outside the stack — despite this repo's whole purpose being config versioning.
+
+**Context**: Surfaced while scoping task 2 (diff-view spike). Current `~/.gitconfig` (293B): `[user]` email/name, `[core] editor = nvim`, and `gh` credential helpers for github.com + gist. It is NOT symlinked from `unix-utils` or `oh-my-zsh`, so it's invisible to a fresh-machine `install.sh`.
+
+**Why it matters now (prerequisite for task 2 option b)**: wiring `delta` as the git pager means writing `[core] pager` / `[delta]` blocks somewhere version-controlled. Without managed gitconfig, that config is lost on a fresh machine or lives unversioned. So this is the prerequisite for the delta path of the diff-view work.
+
+**Mechanism**: move `~/.gitconfig` → `configs/git/.gitconfig` (or similar), symlink it via `install.sh` with both-OS home paths, mirror into `install.sh`. Watch the macOS-specific `/opt/homebrew/bin/gh` path in the credential helper — Linux `gh` lives elsewhere; may need OS-conditional handling.
+
+**Deliverable**: `~/.gitconfig` symlinked from the repo, `install.sh` updated (both OSes), `gh` credential-helper path made portable. One commit.
