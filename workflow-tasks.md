@@ -248,3 +248,22 @@
 **Where**: the `skill-creator` skill (plugin-provided or under `configs/ai-docs/claude/skills/` — check which first). Read its eval harness, understand what it checks (skill quality / frontmatter / progressive disclosure), run it against the user's existing skills.
 
 **Deliverable**: explanation of what the evals check + how to run them + whether they're worth wiring into the user's skill-authoring loop.
+
+---
+
+## 3. [Task] Port the git-worktree safety guard cross-tool + easy worktree workflow
+
+**Goal**: Make the parallel-session worktree workflow safe AND convenient across every agent CLI in use (Claude Code, opencode, Gemini CLI) — both the safety guard and one-step worktree setup/teardown — not just in Claude Code.
+
+**Why**: configs in this repo should be cross-tool (see the project `CLAUDE.md` convention). The agents share one git repo; a guard that only fires in Claude Code leaves the repo exposed when opencode/Gemini does the work. `git-worktree-add` already works for all three (it's plain git), but the force-remove safety guard and the auto-isolation ergonomics are Claude-Code-only today.
+
+**Verified findings (don't re-derive)**:
+- **Claude Code (done, task 4)**: `claude-git-guard.sh` now blocks `git worktree remove --force`; native `--worktree` + `worktree.baseRef=head` give one-step isolation with safe `ExitWorktree` teardown (refuses dirty/unpushed unless `discard_changes:true`).
+- **Gemini CLI**: its `BeforeTool` hook uses the SAME contract as Claude Code — reads `tool_input.command` from stdin, exits 2 to block. The guard likely ports near-verbatim, wired in `.gemini/settings.json`. VERIFY the exact JSON key path (Gemini may nest `tool_input.command` differently). No native worktree flag — use manual `git-worktree-add` or a community plugin.
+- **opencode**: NO stdin/exit-2 contract — the guard must be rewritten as a TypeScript `tool.execute.before` plugin that throws to block. KNOWN BUG (`sst/opencode#5894`): `tool.execute.before` does NOT intercept subagent tool calls → a guard-bypass hole; account for it. No native worktree flag; community plugins exist (`kdcokenny/opencode-worktree`, `felixAnhalt/opencode-worktree-session`).
+
+**Easy-worktree piece (skill-based?)**: evaluate a single skill/alias that spins up + tears down a worktree safely for whichever tool is running — wrapping the existing `git-worktree-add` plus a teardown helper that refuses on dirty/unpushed (the safety the force-remove guard enforces). Decide: one shared skill vs per-tool wiring. Load `skill-creator` before authoring any `SKILL.md`.
+
+**Cross-platform**: any path-based wiring needs both macOS (`/Users/...`) and Linux (`/home/...`) home-dir forms.
+
+**Deliverable**: the worktree force-remove guard wired into Gemini CLI (`BeforeTool`) and opencode (TS plugin, subagent-bypass noted); a one-step safe worktree setup/teardown that works cross-tool (skill or alias); mirrored into `install.sh` if new deps/files land; verified cross-platform.
