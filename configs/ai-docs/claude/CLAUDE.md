@@ -1,7 +1,6 @@
 # Principles
 
 Always-loaded cross-cutting principles. Domain-specific principles + examples live in `skills/` (lazy-loaded by context).
-Rules are imperative sentences.
 
 ## Counting conventions — markers for deterministic measurement
 
@@ -25,10 +24,6 @@ Budgets and citations live in `~/.claude/skills/performance-check-principles-and
 [Examples] TaskList category definitions under "Leverage TaskList proactively" use the carve-out.
 
 [Why] Total instruction count and CRITICAL ratio both correlate with adherence decay in modern LLMs (IFScale + emphasis-salience research).
-
-Markers also enable `performance-check` to measure deterministically via `grep`/`awk` in milliseconds rather than expensive LLM judgment — making the metrics available for optional CI gating downstream.
-
-Specific thresholds and citations live in `performance-check-principles-and-skills/SKILL.md` + `performance-check-principles-and-skills/references/research.md` — single source of truth.
 
 ## Foundations
 
@@ -263,3 +258,5 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] **Verify subagent results against artifacts** -- check diff, file contents, or command output before treating a subagent's "done" as done.
   - [Why] The summary describes intent; only the artifact shows reality.
+
+@RTK.md

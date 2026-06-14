@@ -205,12 +205,27 @@ npm install -g beautiful-mermaid
 # AI setup: Claude Code e OpenCode configuration
 npm install -g codeburn
 
+# RTK (Rust Token Killer) — CLI proxy that compresses Bash output to cut Claude Code token burn.
+# Wired as a second PreToolUse Bash hook (rtk hook claude) in settings.json; RTK.md is symlinked below.
+# Verified to coexist with claude-git-guard/claude-rm-guard: a hook exit-2 (deny) outranks rtk's "allow".
+if command -v rtk &> /dev/null; then
+    echo "rtk already installed, skipping"
+elif [[ "$OS" == "macos" ]]; then
+    brew install rtk
+elif [[ "$OS" == "linux" ]]; then
+    # Installs to ~/.local/bin (no sudo). Ensure it is on PATH so the hook can find rtk.
+    curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/master/install.sh | sh
+    # shellcheck disable=SC2016  # single quotes intentional: match literal string in ~/.zshrc
+    grep -q '.local/bin' ~/.zshrc || echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+fi
+
 mkdir -p ~/.claude
 rm -fr ~/.claude/commands ~/.claude/skills ~/.claude/scripts
 ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/skills ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/scripts ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/settings.json ~/.claude/
+ln -sf ~/unix-utils/configs/ai-docs/claude/RTK.md ~/.claude/
 
 mkdir -p ~/.opencode
 rm -fr ~/.opencode/commands ~/.opencode/skills

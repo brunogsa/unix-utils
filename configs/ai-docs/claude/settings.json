@@ -30,6 +30,15 @@
             "command": "bash ~/.claude/hooks/claude-rm-guard.sh"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
+          }
+        ]
       }
     ],
     "Notification": [

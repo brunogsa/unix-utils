@@ -8,6 +8,7 @@
 #   git push --force/-f, git push -f (non-reversible)
 #   git reset --hard (non-reversible)
 #   git clean -f/-fd/-fx (non-reversible)
+#   git worktree remove --force (discards a dirty worktree's uncommitted changes)
 #   git branch -D (non-reversible)
 #   git checkout . / git restore . (bulk discard)
 #   git commit --amend (must create new commits)
@@ -45,6 +46,14 @@ fi
 # Block git clean -f (and variants like -fd, -fx, -fxd)
 if echo "$CMD" | grep -qE 'git\s+clean\s+.*-[a-z]*f'; then
   echo 'git clean -f is non-reversible. List untracked files with git clean -n first, or ask the user.' >&2
+  exit 2
+fi
+
+# Block git worktree remove --force (bypasses ExitWorktree's dirty-tree refusal)
+# Plain "git worktree remove" already refuses a dirty tree; only --force/-f discards
+# uncommitted changes. "git worktree add --force" stays allowed (legitimate).
+if echo "$CMD" | grep -qE 'git\s+worktree\s+remove\s+.*(-f\b|--force\b)'; then
+  echo 'git worktree remove --force discards a dirty worktree'\''s uncommitted changes. Run git worktree remove (no --force), or ask the user.' >&2
   exit 2
 fi
 

@@ -106,7 +106,7 @@
 
 **Touches**: a new `Stop` hook in `configs/ai-docs/claude/hooks/` (mirror into `install.sh`), the statusline (`configs/ai-docs/claude/scripts/statusline.sh` — un-`exec` the wrapper to append the segment), a small price map, and the cost-ledger dir. Keep the personal time-usage HUD intact.
 
-**Relates to #19**: RTK reduces the token burn this HUD measures — complementary, not overlapping (RTK lowers spend, this segment displays it).
+**Note**: RTK (now integrated) reduces the token burn this HUD measures — complementary, not overlapping (RTK lowers spend, this segment displays it).
 
 **Deliverable**: a working `$X / $250 · resets <date>` segment coexisting with the existing time bar, driven by a per-turn account-attributed ledger; the enterprise account UUID captured; `install.sh` updated for the new hook + any deps; verified on macOS (and node-path-verified for Linux).
 
@@ -208,7 +208,7 @@
 
 **Candidates not yet used** (map each of the 12 lifecycle events to a possible use): `UserPromptSubmit` (inject context / validate prompts), `PreCompact`, `SessionStart`/`SessionEnd`, `SubagentStop` (validate subagent output — pairs with the "verify subagent results" rule), `Stop` exit-2 force-continue (pairs with `/loop`).
 
-**Hook tasks already open** (this is the umbrella; coordinate the `hooks/` + `settings.json` + `install.sh` wiring with them, don't re-spec it): #4 (Notification), #5 (toggle), #8 (Stop cost-ledger), #9 (commit-size ceiling), #13 (AI-pitfall), #19 (RTK — third-party PreToolUse hook).
+**Hook tasks already open** (this is the umbrella; coordinate the `hooks/` + `settings.json` + `install.sh` wiring with them, don't re-spec it): #5 (toggle), #8 (Stop cost-ledger), #9 (commit-size ceiling), #13 (AI-pitfall).
 
 **Deliverable**: shortlist of hooks worth adopting with rationale. Some may spawn their own tasks (#9 and #13 are already hook tasks).
 
@@ -251,21 +251,24 @@
 
 ---
 
-## 19. [Feature] Integrate RTK (Rust Token Killer) to compress Bash output
+## 4. [Spike] Safe parallel-session isolation in one repo (git worktree)
 
-**Goal**: Adopt RTK — a CLI proxy that compresses Bash command output before it reaches the model — to cut Claude Code token/$ burn (vendor claims 60–90% on common dev commands).
+**Goal**: Find the most convenient, low-risk way to run **multiple Claude Code sessions in parallel against the same git repo** without their work colliding — likely `git worktree`, one isolated working dir + index per session.
 
-**What it is** (verified via web, 2026-06): open-source (MIT), single Rust binary, zero deps. `rtk init -g` installs a **PreToolUse hook on the Bash tool** plus an `RTK.md`; the hook rewrites commands (e.g. `git status` → `rtk git status`) and filters/compresses output (e.g. `cargo test` 155→3 lines). Rust binary → fits the macOS+Linux requirement.
+**Problem (observed this session, 2026-06-14)**: parallel sessions share a single working tree + index, so the staging area gets **mixed** — `git add`/`git status`/`git commit` from one session pick up another session's changes, making it impossible to commit cleanly per-session. The shared index is the collision point.
 
-**Coordinate with #14** (hooks umbrella): wire it through `settings.json` + `install.sh` like the other hooks — but it's installed via `rtk init -g`, not a hand-written `hooks/` script.
+**Hard constraints (the whole point of the spike — non-negotiable)**:
+- **Never lose uncommitted work.** Teardown/cleanup must refuse (or stash) when a worktree is dirty or holds unpushed commits — never silently discard.
+- **Never push or delete the wrong thing.** Each session on its own branch; guard against deleting a branch that's checked out elsewhere, and against pushing the wrong branch.
+- **Convenient, not ceremony.** If spinning up/tearing down isolation is heavy, it won't get used — bias toward an alias/skill that makes it one step.
 
-**Relates to #8**: RTK lowers the token burn that #8's `$X / $250` HUD measures — complementary (RTK reduces spend, #8 displays it).
+**Options to evaluate**:
+- (a) **Claude Code native worktree isolation** — `EnterWorktree`/`ExitWorktree` + the `worktree.baseRef` setting create a per-session worktree under `.claude/worktrees/<id>` and auto-clean if unchanged. Check: does it solve the index-mixing cleanly, what's the dirty-worktree teardown behavior (keep vs remove prompt), and does it fit the "edit in place" default this repo currently uses?
+- (b) **Manual `git worktree` + a helper skill/alias** — `git worktree add ../<repo>-<branch> <branch>`; each gets its own index sharing the `.git` object store. Pair with a teardown helper that blocks on dirty/unpushed state.
+- (c) **Separate clones** — heaviest (full duplicate, no shared objects); fallback only.
 
-**Verify before adopting (don't trust the vendor numbers)**:
-- **Coexistence with existing Bash PreToolUse hooks** — `claude-git-guard.sh` and `claude-rm-guard.sh` already gate Bash. Confirm RTK's command rewrite doesn't bypass or break those guards, and that hook ordering is sane.
-- **Compression vs. the verification workflow** — global `CLAUDE.md` mandates saving slow-command output and checking *exit code + tail*. Confirm RTK doesn't strip the tail/exit summary or hide a failure behind compression (false green).
-- **`rtk init -g` writes to `~/.claude`** — it edits the global `settings.json`, the same temp+rename hazard that detaches our symlink. Capture exactly what it changes, mirror it into the `configs/` source, then re-run `install.sh`.
+**Where to look**: Claude Code worktree tooling + `worktree.baseRef` setting; this repo's CLAUDE.md note that the session is configured to "work in place rather than isolating into a worktree"; existing `claude-git-guard.sh` / `claude-rm-guard.sh` (coordinate any new guard, don't duplicate); `git worktree list/remove` semantics (esp. `--force` refusal on dirty trees).
 
-**Deliverable**: RTK installed + hook wired; coexistence with the git/rm guards verified; the compression-vs-verification tension resolved (config or carve-out); `install.sh` updated (binary install + `rtk init` + any `settings.json` delta); measured before/after token savings on a real session. Lands as its own commit(s) — a spike commit if it turns out not to fit.
+**Relates to #8**: that task already flagged transcript-path resolution inside `.claude/worktrees/<id>` — if worktrees become the default workflow, verify the cost-ledger hook there too.
 
-**Sources**: https://github.com/rtk-ai/rtk · https://www.rtk-ai.app/
+**Deliverable**: a recommended parallel-session workflow (likely worktree-based) with concrete one-step setup (alias/skill) + the safety guard that prevents losing work / wrong push-delete; documented for cross-OS (macOS + Linux). Spike — may conclude native isolation already covers it.
