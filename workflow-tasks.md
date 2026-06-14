@@ -2,26 +2,16 @@
 
 **What this file is for**: tracking the things I want to improve or add to my AI and tooling workflow — Claude Code (hooks, skills, CLAUDE.md), tmux, neovim, zshrc/oh-my-zsh, ghostty, and the rest of the stack. It is the durable, committable backlog of open improvements.
 
-**Convention — open work only**: when a task is **done, REMOVE it from this file** (do not mark it as done). This file always lists *only* what's still open; git history holds the record of what was completed.
+**Conventions:**
+  - **CRITICAL**: ALWWAYS load my **personal-environment** skill before doing anything;
 
-**Convention — commits per task**: each task lands **at least one** commit, and may span several independently-reviewable ones if it naturally decomposes; its removal from this file rides in that work. **Spikes are the exception** — a pure investigation may conclude with no dedicated commit (findings captured as notes, the removal batched with other doc edits).
+  - **open work only**: when a task is **done, REMOVE it from this file** (do not mark it as done). This file always lists *only* what's still open; git history holds the record of what was completed;
 
-## Shared context (read once per session)
+  - **commits per task**: each task (but spikes) lands **at least one** commit, and may span several if it naturally decomposes; its removal from this file rides in that work;
 
-- **Repo**: `unix-utils` — system setup + config-versioning repo. Base of a five-repo stack: `unix-utils`, `oh-my-zsh`, `tmux`, `neovim`, `ghostty`.
-- **Sibling repos** (this user, absolute paths):
-  - tmux config → `~/tmux`
-  - ghostty config → `~/ghostty`
-  - neovim config → `~/neovim`
-  - oh-my-zsh → `~/oh-my-zsh`
-- **Global Claude config lives here**, symlinked to `~/.claude/`:
-  - `configs/ai-docs/claude/CLAUDE.md`
-  - `configs/ai-docs/claude/settings.json`
-  - `configs/ai-docs/claude/hooks/` → `claude-tasklist-stop-hook.sh`, `claude-tmux-notification.sh`, `claude-git-guard.sh`, `claude-rm-guard.sh`
-  - `configs/ai-docs/claude/skills/` → includes `spec-driven-development`, `notify-user`, `open-in-tmux`, `performance-check-principles-and-skills`, etc.
-- **Editing rule**: always edit source in `configs/`, never the `~/.claude` symlink target. `settings.json` and skill files get silently replaced by temp+rename writes — edit the source file directly; re-run `install.sh` to restore a broken symlink.
-- **Keep `install.sh` in sync**: any new hook, script, symlink target, package, or plugin must be mirrored there (canonical fresh-machine bootstrap).
-- **Conventions**: one logical change per commit; load `skill-creator` before editing any `SKILL.md`; follow `commit-standards` / `code-standards` / `doc-standards`.
+  - **check for overlap before adding**: before adding a task, scan the list for an overlapping one. If the new work fits an existing task, **fold it in** rather than duplicating;
+
+  - **reuse task numbers available, but always add them in the end**: the numbers are more a facilitator for me referencing them you, instead of an ordering per se;
 
 ---
 
@@ -53,6 +43,8 @@
 **Existing assets to reuse, don't duplicate**: `configs/ai-docs/claude/hooks/claude-tmux-notification.sh` already exists; the `notify-user` skill exists. Check whether to wire `notify-user` to the `Notification` hook rather than build new.
 
 **Session note (2026-06-14, from the now-closed agent-view debate)**: the terminal agent view (`claude agents`) already provides an *in-TUI* attention surface — a `Needs input` group pinned to the top of the table plus a terminal tab-title `N awaiting input` count. So frame this notification work as the **away-from-keyboard / not-watching-the-TUI complement**, NOT a duplicate of that dashboard: `/remote`-to-phone when AFK, desktop `Notification` hook when at-desk but outside the agent-view pane.
+
+**Relates to**: #18 (hands-on `/remote-control` trial feeds this recommendation).
 
 **Deliverable**: recommendation — likely a split (phone for away-from-keyboard, desktop for at-desk), with the concrete hook config to implement it.
 
@@ -146,6 +138,8 @@
 
 **Touches**: a new `Stop` hook in `configs/ai-docs/claude/hooks/` (mirror into `install.sh`), the statusline (`configs/ai-docs/claude/scripts/statusline.sh` — un-`exec` the wrapper to append the segment), a small price map, and the cost-ledger dir. Keep the personal time-usage HUD intact.
 
+**Relates to #19**: RTK reduces the token burn this HUD measures — complementary, not overlapping (RTK lowers spend, this segment displays it).
+
 **Deliverable**: a working `$X / $250 · resets <date>` segment coexisting with the existing time bar, driven by a per-turn account-attributed ledger; the enterprise account UUID captured; `install.sh` updated for the new hook + any deps; verified on macOS (and node-path-verified for Linux).
 
 ---
@@ -176,7 +170,9 @@
 
 **Effort (user's estimate)**: complexity ≈ one afternoon (immediate gating); architecture enforcement ≈ one day greenfield / one week legacy.
 
-**OPEN QUESTION**: which codebase does this target? `unix-utils` is mostly shell/markdown — this is almost certainly for the user's work TS projects, not this repo. Confirm target before wiring.
+**OPEN QUESTION**: which codebase does this target? `unix-utils` is mostly shell/markdown — this is almost certainly for the user's work TS projects, not this repo. Confirm target before wiring. (Shared target-repo question with #11, #12 — decide once for all three.)
+
+**Coordinate with #13**: both touch sonarjs dup-detection (`no-identical-functions`) — own the rule here, don't duplicate.
 
 **Deliverable**: eslint config + dependency-cruiser config (or chosen tool), wired into lint/CI, thresholds set.
 
@@ -194,7 +190,7 @@
 
 **Contract tests (exploratory)** — only worth it with real service-to-service boundaries (consumer-driven, Pact); overhead for a single app. OPEN QUESTION: are there service boundaries that justify it?
 
-**OPEN QUESTION**: target repo (not `unix-utils`).
+**OPEN QUESTION**: target repo (not `unix-utils`) — shared with #10, #12; decide once.
 
 **Deliverable**: `stryker.conf` scoped to domain + incremental, `diff-cover` gate, the wholesome-suite script (single commit).
 
@@ -211,7 +207,7 @@
 
 **Why surgical**: property tests shine on invariant-bearing, pure-ish functions — highest find-rate-per-test of the test-guardrail options, but wasteful applied blanket.
 
-**OPEN QUESTION**: target repo (not `unix-utils`).
+**OPEN QUESTION**: target repo (not `unix-utils`) — shared with #10, #11; decide once.
 
 **Deliverable**: `fast-check` added, 1–3 exemplar property tests on real parsers/idempotent handlers, the pattern documented for reuse.
 
@@ -244,7 +240,9 @@
 
 **Candidates not yet used** (map each of the 12 lifecycle events to a possible use): `UserPromptSubmit` (inject context / validate prompts), `PreCompact`, `SessionStart`/`SessionEnd`, `SubagentStop` (validate subagent output — pairs with the "verify subagent results" rule), `Stop` exit-2 force-continue (pairs with `/loop`).
 
-**Deliverable**: shortlist of hooks worth adopting with rationale. Some may spawn their own tasks (tasks 9 and 13 are already hook tasks).
+**Hook tasks already open** (this is the umbrella; coordinate the `hooks/` + `settings.json` + `install.sh` wiring with them, don't re-spec it): #4 (Notification), #5 (toggle), #8 (Stop cost-ledger), #9 (commit-size ceiling), #13 (AI-pitfall), #19 (RTK — third-party PreToolUse hook).
+
+**Deliverable**: shortlist of hooks worth adopting with rationale. Some may spawn their own tasks (#9 and #13 are already hook tasks).
 
 ---
 
@@ -292,3 +290,24 @@
 **Relates to**: task #4 (notification strategy) — `/remote-control` is the away-from-keyboard path being weighed there; this trial feeds #4's recommendation.
 
 **Deliverable**: notes on whether `/remote-control` is worth adopting + any config needed to wire it.
+
+---
+
+## 19. [Feature] Integrate RTK (Rust Token Killer) to compress Bash output
+
+**Goal**: Adopt RTK — a CLI proxy that compresses Bash command output before it reaches the model — to cut Claude Code token/$ burn (vendor claims 60–90% on common dev commands).
+
+**What it is** (verified via web, 2026-06): open-source (MIT), single Rust binary, zero deps. `rtk init -g` installs a **PreToolUse hook on the Bash tool** plus an `RTK.md`; the hook rewrites commands (e.g. `git status` → `rtk git status`) and filters/compresses output (e.g. `cargo test` 155→3 lines). Rust binary → fits the macOS+Linux requirement.
+
+**Coordinate with #14** (hooks umbrella): wire it through `settings.json` + `install.sh` like the other hooks — but it's installed via `rtk init -g`, not a hand-written `hooks/` script.
+
+**Relates to #8**: RTK lowers the token burn that #8's `$X / $250` HUD measures — complementary (RTK reduces spend, #8 displays it).
+
+**Verify before adopting (don't trust the vendor numbers)**:
+- **Coexistence with existing Bash PreToolUse hooks** — `claude-git-guard.sh` and `claude-rm-guard.sh` already gate Bash. Confirm RTK's command rewrite doesn't bypass or break those guards, and that hook ordering is sane.
+- **Compression vs. the verification workflow** — global `CLAUDE.md` mandates saving slow-command output and checking *exit code + tail*. Confirm RTK doesn't strip the tail/exit summary or hide a failure behind compression (false green).
+- **`rtk init -g` writes to `~/.claude`** — it edits the global `settings.json`, the same temp+rename hazard that detaches our symlink. Capture exactly what it changes, mirror it into the `configs/` source, then re-run `install.sh`.
+
+**Deliverable**: RTK installed + hook wired; coexistence with the git/rm guards verified; the compression-vs-verification tension resolved (config or carve-out); `install.sh` updated (binary install + `rtk init` + any `settings.json` delta); measured before/after token savings on a real session. Lands as its own commit(s) — a spike commit if it turns out not to fit.
+
+**Sources**: https://github.com/rtk-ai/rtk · https://www.rtk-ai.app/
