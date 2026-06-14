@@ -86,20 +86,6 @@
 
 ---
 
-## 7. [Task] Make statusline.sh node path cross-platform
-
-**Goal**: Remove the hardcoded node path in the claude-hud statusline wrapper so it works on both macOS and Linux.
-
-**Problem**: `configs/ai-docs/claude/scripts/statusline.sh` ends with `exec /usr/local/bin/node "${HUD_DIR}dist/index.js"`. `/usr/local/bin/node` exists on the user's Mac but typically does **not** exist on Linux (node is usually `/usr/bin/node` or an nvm-managed path). The statusline — and any future work-profile variant built on it — silently fails to render on Linux.
-
-**Fix**: resolve node portably, e.g. `NODE_BIN="$(command -v node)"` with a sensible fallback (and a clear no-op if node is absent), then `exec "$NODE_BIN" ...`. Keep the wrapper a stable 1-line-ish command so Claude Code's `/config` write-back can't strip it.
-
-**Verify**: confirm the statusline renders on both macOS and Linux (or at least that `command -v node` resolves on each box). Pairs with / is a prerequisite for task #8.
-
-**Deliverable**: portable node resolution in `statusline.sh`; one isolated commit. No `install.sh` change expected (script already symlinked).
-
----
-
 ## 8. [Feature] HUD segment for enterprise dollar usage, coexisting with personal time-usage HUD
 
 **Goal**: Add a statusline segment that shows **enterprise-account dollar spend** — `$X / $250 · resets <1st of month UTC>` — **alongside** (not replacing) the existing claude-hud time-based usage bar that works for the personal Max subscription. The user has a separate enterprise Claude account with a ~$250/month budget and wants to see consumed-vs-budget + reset.
