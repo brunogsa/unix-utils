@@ -28,10 +28,10 @@ Always edit `configs/ai-docs/claude/settings.json` directly. If the symlink has 
 
 ## Conventions
 
-- **Cross-platform is a MUST; cross-tool is a bonus** -- **Claude Code is the main tool and primary concern — it MUST work**, on both OSes (macOS + Linux). opencode and Gemini CLI should be remembered (prefer designs that also port to them) but are NOT requirements.
+- **Cross-platform is a MUST; cross-tool is a should-have** -- **Claude Code is the primary tool and MUST work** on both OSes (macOS + Linux). opencode and Gemini CLI ports are DESIRABLE (should-have) — genuinely wanted, but never required and never ahead of Claude Code.
   - Cross-platform (MUST): path-based config needs both home-dir forms (`/Users/...` and `/home/...`); prefer OS-agnostic logic. (See the `personal-environment` skill for the symlink/permission gotchas.)
-  - Cross-tool (bonus): when cheap, favor guards/worktree ergonomics that also hold for opencode/Gemini — e.g. Gemini's `BeforeTool` shares Claude Code's stdin + exit-2 hook contract, so a guard often ports for free. Never block or delay Claude Code work for cross-tool parity.
-  - Why: a config that breaks on the other OS is a silent hole that surfaces only when work moves there — non-negotiable. Cross-tool parity is worth taking when free, not worth slowing the primary tool for.
+  - Cross-tool (should-have): opencode/Gemini parity is desirable, not required — pursue it when it's cheap or when actually working in those tools, but never block, delay, or complicate Claude Code work for it. The worktree-guard port exploring this was cancelled as not-now, not never.
+  - Why: a config that breaks on the other OS is a silent hole that surfaces only when work moves there — non-negotiable. Cross-tool parity is wanted but stays subordinate: it earns effort, just never at Claude Code's expense.
 
 - **Keep `install.sh` in sync** -- `install.sh` is the canonical bootstrap — the source of truth for a fresh-machine setup.
   - When you add/remove a plugin, MCP server, npm global, symlink target, config file, or OS package, mirror the change in `install.sh`.
