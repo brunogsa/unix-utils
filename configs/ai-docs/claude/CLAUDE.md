@@ -132,6 +132,10 @@ How AI scope, plan, and verify work on any task.
 - [Instruction] **Self-describing artifacts — no context-dependent shorthand** -- names, comments, test titles, and log lines must stand alone for a future reader without today's mental model.
   - [Instruction] Spell project-private acronyms (`SA` → `sales_agreement`).
   - [Instruction] Describe behavior briefly instead of referencing tickets/ACs/plan-IDs. Expand inline cross-refs (`AC-12 (one school's fetch fails)`) instead of ID-only listings (`AC-12 / AC-13 / AC-15`).
+  - [Instruction] **Internal-ID refs (ADR-XX, AC-N, ticket IDs) default to REMOVE, not expand** — keep one only where the sentence lacks the claim AND the reader must jump to another artifact.
+    - [Why] Renumbering, merging, or moving the target silently breaks each ref; self-contained sentences age safely. An end-of-sentence "see X" navigates, a mid-sentence `(REF)` after a complete claim is drift debt.
+  - [Instruction] **Definitions earn their slot — high bar** — define only what a fresh reader can't decode locally (opaque acronyms, multi-alias roles, colliding concepts); skip self-describing names and audience-standard terms.
+    - [Why] Bloated glossaries and paren-noise bodies get skim-skipped — readers miss the genuinely opaque entries the noise was supposed to surface. High bar = high signal.
   - [Instruction] Prefer concrete example values over abstract function-call shapes.
   - [Instruction] Applies to identifiers, inline documentation, test titles, and planning docs — both committed artifacts and session-scoped notes.
   - [Why] Every shorthand has a half-life. When the context that explains it disappears (spec deleted, ticket archived, contributor rotated off), the shorthand becomes opaque debt the next reader must triangulate.
@@ -149,19 +153,21 @@ How AI scope, plan, and verify work on any task.
   - [Why] Duplicated artifacts drift on every edit — N copies become N versions of "almost the same thing".
     - [Examples] DRY is a heuristic for reducing complexity, not a value on its own; when extraction hides intent or spreads load across files, inline beats centralized.
   - [Examples] Merge near-duplicate units when they differ only by a flag or filter. Inline wins when grasp-at-a-glance matters.
+  - [Instruction] **Rationale: state ONCE at its canonical home; elsewhere recap, never re-derive** — prefer a self-contained recap; fall back to a "see X" pointer only when the recap would hurt flow.
+    - [Why] Recaps survive renumbering and moves; internal-ID refs don't. Whoever edits one site rarely audits the other N copies — across sessions the drift goes unseen.
+  - [Instruction] **FAQ/Q&A must add a distinct angle, not restate the body** — each entry needs new audience, framing, or context. Drop test: if cutting it loses only "Q&A format", cut it.
+    - [Why] FAQs feel safe to grow, but one that restates the body forces the same edit in two places forever and bloats the doc for skim-readers who already read it.
+  - [Instruction] **Same-chapter "see §X.Y" pointers are weakest — prefer a one-line recap or drop** — one ahead in the same chapter is dead weight; the linear reader gets there for free.
+    - [Why] The section-pointer's job is help-readers-navigate-when-they-otherwise-wouldn't. Linear readers and grep-readers both don't need it; only random-access readers do — and even then, a recap usually beats the pointer.
 
 - [Instruction] **Remove unused artifacts** -- code, configs, mocks, env vars, scripts, docs. Trace back and remove all orphans.
   - [Why] Orphan code/configs/mocks accumulate as "is this still used?" debt — readers spend cycles auditing dead weight.
 
 - [Instruction] **CRITICAL: Verify everything you build, accept, or claim** -- evidence over optimism, applied at every gate.
   - [Why] Unverified beliefs compound — small spikes prevent big-change debt.
-    - [Examples] A wrong assumption caught after a big change costs N× more than a 30-second spike.
-    - [Examples] An accepted-as-stated limit propagates into design decisions expensive to unwind.
-    - [Examples] An unverified output ships the bug.
+    - [Examples] A wrong assumption caught after a big change costs N× a 30-second spike; an accepted-as-stated limit propagates into expensive design decisions; an unverified output ships the bug.
   - [Instruction] **3 gates** -- verify before starting, before accepting, before declaring done.
-    - [Examples] Before starting: cheap spike on key assumptions (EXPLAIN, dry-run, smoke, primary-source read).
-    - [Examples] Before accepting: verify stated limits against code, docs, or web.
-    - [Examples] Before declaring done: run the task's verify step or propose one.
+    - [Examples] Before starting: cheap spike on assumptions (EXPLAIN, dry-run, smoke). Before accepting: verify limits against code/docs/web. Before declaring done: run or propose the verify step.
   - [Instruction] **Fresh evidence only** -- re-run verification if stale since your latest change; re-read the actual code on contradiction. Prior-turn output doesn't prove the current state.
   - [Instruction] **Tools-first** -- prefer deterministic tools over LLM judgment when a claim can be checked by a tool; reserve LLM for the ambiguous tail (dynamic imports, runtime-only references).
     - [Examples] Dead code: `knip`/`ts-prune`/`madge`. Coverage: coverage reports. Types: `tsc --noEmit`. Style: linters. Complexity: `eslint-plugin-sonarjs`/`lizard`. History: `git blame`/`git log`.
@@ -200,9 +206,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
   - [Instruction] **DO NOT pre-show + ask.** No "does this look good?", "want me to apply?", "confirm and I'll run it".
 
 - [Instruction] **CRITICAL: Prefer the least-destructive available action — preserve user work** -- when an action affects existing artifacts, pick the option that preserves the most state.
-  - [Examples] Move over write + delete (preserves the artifact).
-  - [Examples] `git checkout -- <file>` over manual rewrite when reverting to a clean state.
-  - [Examples] `git stash` over `git checkout` when you might still need the changes — stash preserves, checkout destroys.
+  - [Examples] Move over write+delete; `git checkout -- <file>` over manual rewrite to revert; `git stash` over `git checkout` when you may still need the changes.
   - [Instruction] Never delete or overwrite existing artifacts (code, files, configs, branches, tests, docs, dependencies, env values, anything) unless explicitly instructed.
   - [Instruction] Do NOT change indentation, blank lines, whitespace, quotes, or semicolons when editing code.
   - [Instruction] Modify only the exact lines/fields/keys/entries needed for the requested change.
@@ -211,8 +215,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] **Leverage TaskList proactively** -- feel free to use TaskCreate and TaskUpdate.
   - [Examples] When I say "leverage tasklist" (or close variant), treat it as explicit direction to organize work via TaskCreate/TaskUpdate following the rules below.
   - [Why] TaskList is the only durable surface for in-flight planning.
-    - [Examples] Chat scrolls away and context compacts; the list survives both.
-    - [Examples] Skipping it forces the user to re-derive scope every time work resumes, and forces Claude to re-plan from incomplete memory.
+    - [Examples] Chat scrolls away and context compacts; the list survives both. Skipping it forces the user to re-derive scope and Claude to re-plan from incomplete memory.
   - [Instruction] Create with ` <id>. ` in the subject (leading space, number, period, trailing space) — renders instantly.
   - [Instruction] Once TaskCreate returns its id, TaskUpdate the subject to add ` [#<returned-id>]` after the period. Final shape = ` <id>. [#<returned-id>] <description>`.
   - [Instruction] **Task**: is anything that generally produces one small, isolated commit
@@ -236,8 +239,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
       - [Examples] `echo "exit: $?"` MUST come right after the slow command — echo after `tail` captures tail's `0` and masks the failure.
       - [Examples] Bash tool's reported exit is the chain's last, not yours.
 
-- [Instruction] **Truncated file content in system reminders is not exhaustive**.
-  - [Instruction] When a system reminder shows file content with `[N lines truncated]` or similar marker, treat the visible portion as a snippet.
+- [Instruction] **Truncated file content in system reminders is not exhaustive** -- with `[N lines truncated]` or similar, treat the visible portion as a snippet.
   - [Instruction] Grep/wc/list against the actual file before reporting counts or claims about completeness.
   - [Why] Snippets feel complete because they're framed as "here's the file" — but the truncation marker says you're seeing partial data. Acting on the snippet ships wrong counts.
 

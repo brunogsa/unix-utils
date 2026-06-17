@@ -39,6 +39,11 @@ Validate each fenced block independently — a broken diagram earlier in the fil
   - When in doubt, wrap node text in double quotes: `node["Foo: Bar (v2)"]`.
 - **Reserved words as participant ids** — `end`, `note`, `loop` confuse the parser. Alias them: `participant E as end-state`.
 - **`<br/>` line breaks** — only work inside quoted strings. Bare `[Foo<br/>Bar]` fails; `["Foo<br/>Bar"]` works.
+- **Bare `%%` separator lines spawn a phantom node** — a line that is *only* `%%` renders as a stray node labelled `%%`, and passes `mmdc` with exit 0 (no error).
+  - It's a junk box floating in the diagram — give every comment content (`%% --`, `%% ----`), never a lone `%%`.
+- **Arrow tokens inside `%%` comments leak into the parse** — a comment like `%% solid (-->) vs dashed (-.->)` emits a phantom `%%` node; the stripper misfires on `-->`/`-.->`.
+  - Keep arrow syntax out of comment text — write "solid vs dashed", not the literal arrows.
+  - Detection for both: after rendering, `grep -c 'nodeLabel">%%' out.svg` — must be `0`. Exit code alone won't catch these; they're silent.
 
 When `mmdc` reports `Parse error on line N` with a caret:
 
@@ -56,6 +61,27 @@ Every node, box, or actor must name the actual component it represents — never
 - **Flow / sequence diagrams** — name the actual module, class, function, or service.
   - Good: `UserController`, `AuthService`, `Kafka: order-events`
   - Bad: `Module A`, `Handler`, `Queue`
+
+## Rich node labels — separate the header from the body with a blank line
+
+When a node carries more than its name — vendor tag, responsibilities, status notes, bullets — split the label into a **header** (identity) and a **body** (details) with a blank line: `<br/><br/>`.
+
+- **Header** = what the node *is*: the name, plus an optional `« Vendor »` tech tag on its own line and/or a short alias like `(SeFaz)` / `(Configurador)`.
+- **Body** = what it *does* or what's notable: responsibilities, bullets, ⚠ caveats, migration intent.
+- Put the blank line after the **whole** header block (name + vendor + alias), before the first detail.
+
+~~~text
+oms["OMS<br/>« Salesforce »<br/><br/>• Orquestração: Pedidos, Invoice<br/>⚠ acoplado à nuvem SF"]
+cgi["CGI (Cadastro Global)<br/><br/>Fonte da Verdade: Escolas, Faculdades<br/>expõe eventos + API"]
+~~~
+
+[Why] The header answers "what is this?", the body "what does it do?". The blank line lets the eye grab the name first and drop into details only when needed.
+
+- Without the break the name blurs into the bullets and the node reads as one wall of text. Costs one `<br/>`, saves a re-scan per node.
+- **Identity-only nodes get no break.** A bare name, or name + short alias (`Receita Federal<br/>(SeFaz)`), has no body to separate — a blank line just floats a lonely subtitle.
+  - Apply the break only where a real details/responsibilities block exists.
+- A single parenthetical that *renames or expands* the node (`(Loja B2C 2.0)`, `(Sistema Produção Gráfica)`) is part of the header, not the body — it stays attached, no break.
+  - A parenthetical that *describes behavior* (a note, a sentence with a verb) is body — break before it.
 
 ## Diagram titles — scannable summaries
 
@@ -112,65 +138,15 @@ Reviewer checklist:
 - One diagram = one question answered. Don't try to show everything in one diagram.
 - Aim for 5–10 nodes. More than 15 usually means it should be two diagrams.
 - Label edges when the relationship isn't obvious from node names alone.
-- Use `subgraph` to group related components, not just for visual decoration.
-- Direction: default to `TD` (top-down) for small flowcharts. For larger / subgraph-heavy flowcharts, **render both `TD` and `LR` and pick the easier-to-read one** (workflow below). Don't guess.
+- Use `subgraph` to group related components, not just for visual decoration — but on dense graphs grouping is a trade-off (see Layout below).
+- Direction: default to `TD` (top-down) for small flowcharts. For larger / subgraph-heavy flowcharts, **render both `TD` and `LR` and pick the easier-to-read one** (see Layout below). Don't guess.
 - Omit flows that are obvious and add noise without adding insight.
 
-### TD vs LR — render both and pick
+### Layout: render alternatives and pick — don't guess
 
-For flowcharts with subgraphs or > 6 nodes, `TD` and `LR` produce meaningfully different auto-layouts. Render both and judge from rendered PNG:
+For subgraph-heavy or > 6-node flowcharts, the same nodes and edges render very differently across layout choices. Render the alternatives and judge from the PNG, never guess.
 
-```bash
-cp diagram.mmd /tmp/td.mmd
-sed 's/^flowchart TD/flowchart LR/' /tmp/td.mmd > /tmp/lr.mmd
-mmdc -i /tmp/td.mmd -o /tmp/td.png -w 1600 -H 1200
-mmdc -i /tmp/lr.mmd -o /tmp/lr.png -w 1600 -H 1200
-# View both with the Read tool (Claude is multimodal).
-```
-
-Compare on rendered images:
-
-- **Subgraph titles intact** — header overlap = wrong direction.
-- **Edge crossings** — fewer is better; zero crossings reads ~2× faster.
-- **Aspect ratio** — tall narrow scrolls badly; very wide gets squeezed by sidebars.
-- **Pipeline alignment** — request→service→upstream reads as `LR`; sequential decisions as `TD`.
-- **Loop compactness** — pick the direction keeping feedback edges (cache reads, retries) as short local arcs.
-
-Heuristic (verify visually anyway):
-
-| Shape of the system | Try first |
-|---|---|
-| Small ≤ 6 nodes, no subgraphs | `TD` |
-| Sequential decision flow (yes/no branches) | `TD` |
-| Layered request pipeline (UI → BFF → upstream), C4L2 with subgraphs | `LR` |
-| Wide fan-out from one source to many siblings | `LR` |
-
-### Dagre vs ELK — also render both for dense diagrams
-
-For flowcharts beyond ~10 nodes with multiple subgraphs and many cross-cluster edges, Mermaid's ELK renderer often produces tighter layouts than the default dagre.
-
-Render both and judge visually (same workflow as TD vs LR).
-
-Enable ELK by prepending an init directive to the diagram source:
-
-~~~text
-%%{init: {"flowchart": {"defaultRenderer": "elk"}}}%%
-flowchart LR
-  ...
-~~~
-
-Compare on rendered PNGs:
-
-- **Edge crossings** — ELK typically wins on subgraph-heavy diagrams (uses orthogonal routing).
-- **Subgraph compactness** — dagre often stretches subgraphs into long rows; ELK packs them more tightly.
-- **Cross-cluster edge routing** — ELK's orthogonal routing is easier to follow when edges traverse multiple subgraphs.
-- **Aspect ratio** — ELK usually gives a more balanced shape; dagre tends toward extreme widths or heights.
-
-Caveats:
-
-- GitHub's bundled Mermaid sometimes lags on ELK feature support.
-  - If a diagram renders worse on GitHub than locally, removing the init directive falls back to dagre — treat ELK as an opt-in.
-- ELK can be slower for very large diagrams (>50 nodes); usually not noticeable in `mmdc` but worth knowing if you script bulk renders.
+Load [`references/layout-tuning.md`](references/layout-tuning.md) — covers the subgraph keep-vs-flatten trade-off, TD vs LR, and dagre vs ELK (init directive, not frontmatter), each with a render-both-and-compare workflow.
 
 ## Reading start point and flow ordering
 
@@ -228,6 +204,12 @@ Conventions:
 ### Don't over-color
 
 One `classDef start` + default styling is usually enough. Data stores get cylinder shape `[(…)]`; external nodes get `"…<br/>external"` in the label. Every extra color is one more thing the reader decodes.
+
+### Lifecycle convention for to-be / migration diagrams
+
+When showing a **target ("to-be") or migration state**, encode lifecycle status so the reader tells *what's real now* from *what's planned* — the one case extra color earns its keep.
+
+Load [`references/diagram-lifecycle.md`](references/diagram-lifecycle.md) — covers the node/edge marker convention (green/yellow/dashed), the future-edge-stays-solid subtlety, the state-it-in-diagram rule, and the `classDef` recipe.
 
 ## C4L1 Context Diagram
 
