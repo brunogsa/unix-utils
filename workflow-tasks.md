@@ -251,3 +251,24 @@
 **Mechanism**: move `~/.gitconfig` → `configs/git/.gitconfig` (or similar), symlink it via `install.sh` with both-OS home paths, mirror into `install.sh`. Watch the macOS-specific `/opt/homebrew/bin/gh` path in the credential helper — Linux `gh` lives elsewhere; may need OS-conditional handling.
 
 **Deliverable**: `~/.gitconfig` symlinked from the repo, `install.sh` updated (both OSes), `gh` credential-helper path made portable. One commit.
+
+---
+
+## 1. [Spike] Should spec-driven-development model DDD Bounded Contexts?
+
+**Goal**: Decide whether the `spec-driven-development` skill should make spec.md/plan.md explicitly name the DDD **Bounded Context(s)** a feature lives in — the context boundary, its ubiquitous language, and any cross-context contracts/translations — and whether that sharpens specs enough to justify the added ceremony.
+
+**Open question the spike answers**: does naming bounded contexts in the spec actually tighten scope and catch domain leaks early, or is it speculative ceremony for the kind of features the user typically specs?
+
+**Why it might help**: a bounded context forces an explicit boundary + ubiquitous language — exactly what an AI agent lacks when it guesses module names or reuses the wrong domain term. Could feed the self-review **Ambiguity** check and prevent cross-domain leakage before implementation.
+
+**Why it might not (the tension to resolve)**: most specs may be single-context; DDD is heavyweight and risks failing **No speculative scope**. Bounded-context modeling likely earns its weight only when a feature spans ≥2 contexts or introduces new ubiquitous language — so "opt-in when multi-context" is a live third option, not just adopt/reject.
+
+**Investigate**:
+- Where it would live: a new **optional** `spec-template.md` section ("Bounded Context & Ubiquitous Language") vs. the plan.md architecture section vs. opt-in only when multi-context.
+- Overlap with existing skills: do `arco-architecture` / `integrator-architecture` already encode context boundaries? Reuse before adding.
+- Whether the self-review gates should grow a "context-boundary / ubiquitous-language consistency" check.
+
+**Coordinate with**: task 6 (plan/tasks split — same skill, sequence the edits) and task 10 (architecture / circular-dep enforcement — the deterministic enforcement of the very boundary this spike would declare in prose).
+
+**Deliverable**: a decision — adopt (with the concrete section + where it lives), reject as speculative, or adopt opt-in for multi-context features only. If adopted, the follow-up `spec-driven-development` edits are a separate task (load `skill-creator` first).
