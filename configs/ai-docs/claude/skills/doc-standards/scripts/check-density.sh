@@ -7,7 +7,7 @@
 #
 # Caps default to 256 chars / 32 words per line (override with flags).
 #
-# Skips: fenced code blocks (``` … ```), blank lines, table rows, HTML-tag-only
+# Skips: fenced code blocks (``` or ~~~), blank lines, table rows, HTML-tag-only
 # lines, link-only lines (a single "[text](url)" with optional list/quote marker).
 #
 # Char/word counts are measured AFTER stripping `(https://…)` URL portions and
@@ -47,7 +47,7 @@ done
 
 awk -v mc="$MAX_CHARS" -v mw="$MAX_WORDS" '
   FNR == 1 { in_code = 0 }
-  /^[[:space:]]*```/                                            { in_code = !in_code; next }
+  /^[[:space:]]*(```|~~~)/                                      { in_code = !in_code; next }
   in_code                                                       { next }
   /^[[:space:]]*$/                                              { next }
   /^[[:space:]]*\|/                                             { next }
