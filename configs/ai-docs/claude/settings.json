@@ -66,6 +66,9 @@
       }
     ]
   },
+  "worktree": {
+    "baseRef": "head"
+  },
   "statusLine": {
     "type": "command",
     "command": "bash ~/.claude/scripts/statusline.sh"
@@ -117,8 +120,5 @@
   "verbose": true,
   "preferredNotifChannel": "ghostty",
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true,
-  "worktree": {
-    "baseRef": "head"
-  }
+  "agentPushNotifEnabled": true
 }
