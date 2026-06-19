@@ -131,14 +131,17 @@ How AI scope, plan, and verify work on any task.
 
 - [Instruction] **Self-describing artifacts — no context-dependent shorthand** -- names, comments, test titles, and log lines must stand alone for a future reader without today's mental model.
   - [Instruction] Spell project-private acronyms (`SA` → `sales_agreement`).
-  - [Instruction] Describe behavior briefly instead of referencing tickets/ACs/plan-IDs. Expand inline cross-refs (`AC-12 (one school's fetch fails)`) instead of ID-only listings (`AC-12 / AC-13 / AC-15`).
-  - [Instruction] **Internal-ID refs (ADR-XX, AC-N, ticket IDs) default to REMOVE, not expand** — keep one only where the sentence lacks the claim AND the reader must jump to another artifact.
-    - [Why] Renumbering, merging, or moving the target silently breaks each ref; self-contained sentences age safely. An end-of-sentence "see X" navigates, a mid-sentence `(REF)` after a complete claim is drift debt.
   - [Instruction] **Definitions earn their slot — high bar** — define only what a fresh reader can't decode locally (opaque acronyms, multi-alias roles, colliding concepts); skip self-describing names and audience-standard terms.
     - [Why] Bloated glossaries and paren-noise bodies get skim-skipped — readers miss the genuinely opaque entries the noise was supposed to surface. High bar = high signal.
   - [Instruction] Prefer concrete example values over abstract function-call shapes.
   - [Instruction] Applies to identifiers, inline documentation, test titles, and planning docs — both committed artifacts and session-scoped notes.
   - [Why] Every shorthand has a half-life. When the context that explains it disappears (spec deleted, ticket archived, contributor rotated off), the shorthand becomes opaque debt the next reader must triangulate.
+
+- [Instruction] **CRITICAL: Forbid internal-ID refs in prose — they are drift debt** -- ticket IDs (`ITGD-XXXX`, `JIRA-N`), ADR/ACR/RFC numbers, internal section pointers (`§X.Y`, `§3.2.1`), premise/AC/UC IDs (`P-NN`, `AC-N`, `UC-TOBE-N`), and similar internal references MUST NOT appear in committed prose, comments, or planning docs.
+  - [Instruction] State the claim self-contained inline. If the reader genuinely needs the source artifact, link by URL or file path — not by symbol.
+  - [Instruction] Carve-out: top-of-doc metadata blocks (Issue/Owner/Jira headers), end-of-section Sources lists, and the **canonical-home definition site itself** (`### 5.3.4. ADR-04 — Title here`) are fine — those are anchors/navigation, not in-prose drift.
+  - [Why] Every internal ID is a fragile pointer: renumbering, merging, archiving, or splitting the target silently breaks the ref. The reader either chases a dead link or trusts the shorthand without verifying. Self-contained prose ages safely; ID refs accumulate as opaque debt that compounds with every doc revision.
+  - [Examples] **Bad**: `covered by ITGD-2957` / `see ADR-04` / `per §2.2.8` / `(ver P-11)` / `as UC-TOBE-4 shows`. **Good**: `covered by the CRM read-before-write tech debt` / state the rule inline / `as the dedup carve-out above states`.
 
 - [Instruction] **Information hiding** -- expose intent, hide implementation. Applies to code APIs, CLI interfaces, doc structure, test helpers — clients depend on the contract.
   - [Why] Every leaked implementation detail becomes a de facto API surface.
@@ -153,7 +156,7 @@ How AI scope, plan, and verify work on any task.
   - [Why] Duplicated artifacts drift on every edit — N copies become N versions of "almost the same thing".
     - [Examples] DRY is a heuristic for reducing complexity, not a value on its own; when extraction hides intent or spreads load across files, inline beats centralized.
   - [Examples] Merge near-duplicate units when they differ only by a flag or filter. Inline wins when grasp-at-a-glance matters.
-  - [Instruction] **Rationale: state ONCE at its canonical home; elsewhere recap, never re-derive** — prefer a self-contained recap; fall back to a "see X" pointer only when the recap would hurt flow.
+  - [Instruction] **CRITICAL: state ONCE at its canonical home; elsewhere recap, never re-derive** — write a self-contained recap; "see X" pointers are not a substitute.
     - [Why] Recaps survive renumbering and moves; internal-ID refs don't. Whoever edits one site rarely audits the other N copies — across sessions the drift goes unseen.
   - [Instruction] **FAQ/Q&A must add a distinct angle, not restate the body** — each entry needs new audience, framing, or context. Drop test: if cutting it loses only "Q&A format", cut it.
     - [Why] FAQs feel safe to grow, but one that restates the body forces the same edit in two places forever and bloats the doc for skim-readers who already read it.
