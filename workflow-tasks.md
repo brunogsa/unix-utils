@@ -15,18 +15,6 @@
 
 ---
 
-## 2. [Spike] Simulate desktop-style diff view via terminal + tmux + neovim
-
-**Status**: spike concluded — full findings + design-of-record in `specs/spec-claude-diff-view.md` (awaiting review; plan deferred).
-
-**Goal** (unchanged): approximate the desktop app's visual diff review in the terminal stack, so a desktop switch isn't needed just for nicer diffs.
-
-**Conclusion**: the visual full-screen tier **already exists** — `diffview.nvim` + `gitsigns` + the `vimreview` command (`<leader>td/tD/th/tH`, base-compare, history, hunk nav). Option (c) — an auto-open `PostToolUse` hook — is **rejected** (noisy; the `open-in-tmux` skill covers on-demand). The only gap is option (b), a syntax-aware shell pager (`delta` / `difftastic`).
-
-**Remaining open work (finish later)**: decide whether the shell-pager tier is worth adopting **at all**, and if so `delta` vs `difftastic` + scope — tracked as Open Questions in the spec. Any wiring is gated on **task 4** (version-control `~/.gitconfig`).
-
----
-
 ## 5. [Feature] Autonomous Mode — human-only toggle for unattended-accountability hooks
 
 **Status**: spec drafted (2026-06-14 spike), **awaiting review**; plan + execution deferred. Spec: `specs/spec-autonomous-mode-2026-06-14.md` (why/what, threat model, acceptance criteria, open questions, known limitations). A `plan.md` is written only after the spec is reviewed.
