@@ -249,6 +249,20 @@
 
 ---
 
+## 21. [Task] Allowlist `open-in-tmux.sh` so it runs without a permission prompt
+
+**Goal**: `open-in-tmux.sh` prompts for permission on every invocation — pure friction for a trusted local helper that only opens tmux panes.
+
+**Mechanism**: add it to `permissions.allow` in `configs/ai-docs/claude/settings.json` (edit the source directly — the `/config`/`update-config` temp+rename detaches the symlink). Per the `personal-environment` skill, permission rules match the **canonical realpath**, not the symlink, and need **one entry per platform** (home dirs differ):
+- macOS: `Bash(/Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)`
+- Linux: `Bash(/home/brunogsa/unix-utils/configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)`
+
+Use the `update-config` skill. Verify the rule matches the realpath of the symlinked script.
+
+**Deliverable**: `open-in-tmux.sh` runs without a prompt on both OSes; `settings.json` updated. One commit.
+
+---
+
 ## 2. [Spike] Accelerate the time I wait on AI — latency-reduction techniques
 
 **Status**: brainstorm pending — refine via `/brainstorm` into a spec before execution. This entry only captures the goal + seeds; do not implement yet.
@@ -265,18 +279,6 @@
 **Coordinate with**: task 15 (safe bypass-permission loop + sandbox / auto-mode) — the mode that seed 1's carve-out keys off is the same mode task 15 gates.
 
 **Deliverable** (post-brainstorm): a spec of adopted techniques; the first concrete change is likely the mode-conditional serial-writes rule in global `CLAUDE.md`. Each adopted technique lands its own commit.
-
----
-
-## 3. [Task] Run performance-check on haiku — it's deterministic, no Opus needed
-
-**Goal**: The `performance-check-principles-and-skills` skill is purely deterministic — its `check.sh` measures with grep/awk/wc/find and is report-only (no LLM judgment). Running its audit on Opus wastes cost and latency; it should run on **haiku**.
-
-**Mechanism to confirm**: invoke the audit via a haiku subagent (the `Agent` tool with `model: haiku`), or a skill-level model hint if the harness supports one. The bash script does all the work; the model only relays the table and flags overages.
-
-**Touches**: `configs/ai-docs/claude/skills/performance-check-principles-and-skills/` (a note on running it cheap), or the standard invocation pattern. Load `skill-creator` before editing the `SKILL.md`.
-
-**Deliverable**: performance-check runs on haiku by default; one commit.
 
 ---
 

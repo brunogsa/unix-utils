@@ -149,6 +149,25 @@ Budget violations are signals, not commands.
 - Fixes often require judgment (which rule to merge, which example to prune, whether to split a bullet or move to a reference file).
 - The skill surfaces findings so the user can triage; blind auto-consolidation tends to damage intent.
 
+### Offer to run the fixes on a haiku subagent
+
+The audit stays report-only — but applying the fixes is noisy: dozens of read/edit/re-run calls that flood the main session's context.
+
+So when the report shows overages, end it with an offer: delegate the **fix loop** to a haiku subagent.
+
+On the user's go-ahead, the main session spawns one haiku subagent (the `Agent` tool with `model: haiku`) that owns the whole loop in its own context:
+
+- Run `check.sh`, apply trim-hierarchy steps 1–4 to the offending files, re-run, repeat until green or stuck.
+- Load `skill-creator` before editing any `SKILL.md`, per the global rule the subagent inherits.
+- Never the override step (`words-budget`/`instructions-budget`) — that's a budget trade-off the user owns, not a trim.
+- Return a concise summary plus a minimal diff so the user can review fast.
+
+What we move to haiku is the *noise*, not the *judgment*. The trims still need judgment — which rule to merge, which example to prune.
+
+So the user's review of the resulting `git diff` is the backstop where that trim judgment gets validated.
+
+That keeps "never auto-fix" intact: haiku executes the edits in its own context, but nothing lands as final until the human reads the diff.
+
 ### Trim hierarchy (preference order)
 
 Apply in order, top to bottom. Each step is cheaper / less destructive than the next.
