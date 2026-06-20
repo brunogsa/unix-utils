@@ -1,0 +1,11 @@
+[user]
+	email = brunogsa.92@gmail.com
+	name = Bruno G. Salomao Agostini
+[core]
+	editor = nvim
+[credential "https://github.com"]
+	helper =
+	helper = !gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !gh auth git-credential

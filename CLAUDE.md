@@ -26,6 +26,10 @@ Always edit source in `configs/`, never the symlink targets.
 
 Always edit `configs/ai-docs/claude/settings.json` directly. If the symlink has been broken, re-run `install.sh` to restore it.
 
+**`~/.gitconfig` caveat**: `git config --global ...` writes through lock+rename, which **replaces the symlink with a regular file** and detaches it from the repo — same hazard as `settings.json`, but easier to trip since `git config --global` (and a re-run of `gh auth setup-git`) is reflexive.
+
+Always edit `configs/git/.gitconfig` directly. If the symlink has been broken, re-run `install.sh` to restore it.
+
 ## Conventions
 
 - **Cross-platform is a MUST; cross-tool is a should-have** -- **Claude Code is the primary tool and MUST work** on both OSes (macOS + Linux). opencode and Gemini CLI ports are DESIRABLE (should-have) — genuinely wanted, but never required and never ahead of Claude Code.

@@ -15,10 +15,11 @@ detect_os() {
 OS=$(detect_os)
 echo "Detected OS: $OS"
 
-# Common git configuration
-git config --global user.email "brunogsa.92@gmail.com"
-git config --global user.name "Bruno G. Salomao Agostini"
-git config --global core.editor "nvim"
+# Git configuration — symlink the versioned ~/.gitconfig from the repo.
+# Holds user identity, editor, and the gh credential helper (portable `!gh ...`, no hardcoded path).
+# NOTE: never run `git config --global` after this — it rewrites via lock+rename and replaces the
+# symlink with a regular file, detaching it from the repo (same caveat as settings.json).
+ln -sf ~/unix-utils/configs/git/.gitconfig ~/.gitconfig
 
 # Install package manager if needed (macOS only)
 if [[ "$OS" == "macos" ]] && ! command -v brew &> /dev/null; then
