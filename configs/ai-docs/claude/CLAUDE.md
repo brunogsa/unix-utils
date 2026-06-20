@@ -196,6 +196,12 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] **Skill descriptions: goal + triggers, not inventory** -- state the skill's purpose and when to invoke it; don't enumerate what it covers. Detail belongs in the body.
   - [Why] Only the first 250 chars participate in `/skills` routing (Claude Code 2.1.86+ cap); inventory burns the budget on details that don't change the trigger decision.
 
+- [Instruction] **CRITICAL: `*-standards` loading — the facets a 250-char description can't carry** -- each of `code/doc/test/commit/debug-standards` already states its own trigger; this adds only the cross-cutting rules, stated once here.
+  - [Instruction] **Load all that apply** -- one change can fire several: code+comment+test loads all three; a failing test loads debug + test.
+  - [Instruction] **Once per session** -- load on first trigger; don't re-invoke each turn; re-load only after compaction drops it.
+  - [Instruction] **Both paths** -- rely on auto-routing AND explicitly invoke via the Skill tool the moment you spot a trigger.
+  - [Instruction] **Subagents inherit** -- a spawned review/verify subagent on code/test/doc work loads the matching standard too.
+
 - [Instruction] **Prefer targeted edits over full rewrites** -- Edit tool over Write tool (overwrite), whenever it's possible
   - [Why] Allows me to better review/verify your work.
 

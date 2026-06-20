@@ -1,6 +1,6 @@
 ---
 name: code-standards
-description: "Code principles + examples. USE PROACTIVELY on ANY code edit — writing, refactoring, naming, controllers/use cases, error handling, logging, scripts, or reviewing code. Fires even on small tweaks."
+description: "USE PROACTIVELY when you write, edit, or review code, shell scripts, or config (settings.json, .gitconfig) — even one-liners. Not for pure reading. The quality bar: naming, error handling, logging, structure."
 user-invocable: false
 words-budget: 5096
 instructions-budget: 80

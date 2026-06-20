@@ -1,6 +1,6 @@
 ---
 name: test-standards
-description: "Test principles + examples. USE PROACTIVELY on ANY test work — writing, reading, choosing test type (unit/integration/e2e), mocking, flakes, coverage gaps, regression tests, test titles, or reviewing tests."
+description: "USE PROACTIVELY whenever you write, edit, or review tests — choosing test type (unit/integration/e2e), mocking, flakes, coverage gaps, regression tests, test titles. Any test edit, not pure reading."
 user-invocable: false
 words-budget: 5096
 instructions-budget: 60

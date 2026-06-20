@@ -1,6 +1,6 @@
 ---
 name: doc-standards
-description: "Documentation principles + examples. USE PROACTIVELY on ANY doc work — code comments, JSDoc/docstrings, READMEs, CLAUDE.md edits, spec docs, density checks, or any 'why' comment. Fires before adding any comment."
+description: "USE PROACTIVELY whenever you write, edit, or review docs or comments — code comments, JSDoc/docstrings, READMEs, CLAUDE.md, SKILL.md, markdown, spec/plan/brainstorm docs. Fires before adding any comment. Not for pure reading."
 user-invocable: false
 instructions-budget: 30
 ---

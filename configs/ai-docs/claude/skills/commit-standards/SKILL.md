@@ -1,6 +1,6 @@
 ---
 name: commit-standards
-description: "Conventional commit format + commit-decomposition rules (one logical change per commit, refactor isolation, tests/docs bundled). USE PROACTIVELY before `git commit`, drafting commit messages, splitting commits, or when a task/sub-step ends."
+description: "USE PROACTIVELY at two moments: planning commit boundaries when a task or sub-step ends, AND drafting a message or running git commit. Conventional format + one-logical-change decomposition, refactor isolation, tests/docs bundled."
 user-invocable: false
 instructions-budget: 10
 ---

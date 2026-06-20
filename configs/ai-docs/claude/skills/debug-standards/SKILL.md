@@ -1,6 +1,6 @@
 ---
 name: debug-standards
-description: "Systematic root-cause debugging. USE PROACTIVELY for ANY failing test, bug, regression, stack trace, flake, 'why doesn't this work', or 'this is broken' moment — and before attempting a second fix."
+description: "USE PROACTIVELY for ANY failure — failing test, bug, regression, stack trace, flake, 'why is this broken', and before a second fix attempt. Find the root cause before proposing any fix."
 user-invocable: false
 instructions-budget: 20
 ---
