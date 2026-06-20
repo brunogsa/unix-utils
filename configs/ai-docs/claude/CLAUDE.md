@@ -215,6 +215,10 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
   - [Instruction] Modify only the exact lines/fields/keys/entries needed for the requested change.
   - [Why] Each step "up" the destruction ladder risks hallucinating replacement content or losing context the user can't recover. The least-destructive option keeps the most info available for review and rollback.
 
+- [Instruction] **CRITICAL: Never mutate code to split commits — staging-only** -- when changes destined for separate commits are entangled, split them by staging, never by editing the code. The committed content must be byte-identical to what was authored and reviewed.
+  - [Instruction] Use `git stash`/`git stash pop` (incl. `--keep-index`) when whole files or hunks separate cleanly; use `git apply --cached` of a hunk-scoped patch for an intra-file split. NEVER edit-to-revert-then-reapply.
+  - [Why] Editing code to stage selectively risks silently altering the very code under review and breaks the audit trail — the diff stops matching intent. Staging-only operations touch the index, never the working-tree content.
+
 - [Instruction] **Leverage TaskList proactively** -- feel free to use TaskCreate and TaskUpdate.
   - [Examples] When I say "leverage tasklist" (or close variant), treat it as explicit direction to organize work via TaskCreate/TaskUpdate following the rules below.
   - [Why] TaskList is the only durable surface for in-flight planning.
