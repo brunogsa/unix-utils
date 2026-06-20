@@ -220,6 +220,14 @@ npm install -g beautiful-mermaid
 # AI setup: Claude Code e OpenCode configuration
 npm install -g codeburn
 
+# Python CLI tools (pipx) — git-hunk: non-interactive, content-hashed hunk staging for agent-driven
+# commit splitting (scriptable alternative to interactive `git add -p`; pipx is installed above).
+if command -v git-hunk &> /dev/null; then
+    echo "git-hunk already installed, skipping"
+else
+    pipx install git-hunk
+fi
+
 # RTK (Rust Token Killer) — CLI proxy that compresses Bash output to cut Claude Code token burn.
 # Wired as a second PreToolUse Bash hook (rtk hook claude) in settings.json; RTK.md is symlinked below.
 # Verified to coexist with claude-git-guard/claude-rm-guard: a hook exit-2 (deny) outranks rtk's "allow".
