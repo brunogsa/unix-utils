@@ -246,3 +246,52 @@
 **Coordinate with**: task 6 (plan/tasks split — same skill, sequence the edits) and task 10 (architecture / circular-dep enforcement — the deterministic enforcement of the very boundary this spike would declare in prose).
 
 **Deliverable**: a decision — adopt (with the concrete section + where it lives), reject as speculative, or adopt opt-in for multi-context features only. If adopted, the follow-up `spec-driven-development` edits are a separate task (load `skill-creator` first).
+
+---
+
+## 2. [Spike] Accelerate the time I wait on AI — latency-reduction techniques
+
+**Status**: brainstorm pending — refine via `/brainstorm` into a spec before execution. This entry only captures the goal + seeds; do not implement yet.
+
+**Goal**: Cut the wall-clock time spent waiting on AI turns. Catalogue latency-reduction techniques, then decide which to adopt.
+
+**Seed 1 — make "writes always serial" mode-conditional**: the global `CLAUDE.md` rule "Writes ALWAYS serial, never parallel" exists *only* so each Edit/Write hits its own permission gate for review. Under **bypass-permissions** or **auto-mode** there is no per-edit approval — so the rule's sole rationale evaporates and serial writes just add latency for no benefit. Candidate change: carve out parallel writes when no interactive per-edit gate exists.
+  - **Open question**: can the model reliably detect the active permission mode at turn time? If no signal is exposed to the model, the carve-out can't be self-applied — verify before relying on it.
+
+**Seed 2 — other techniques to evaluate** (brainstorm fodder, non-exhaustive): batching independent tool calls in one block, subagent fan-out for independent work, background Bash/tasks, cutting redundant re-reads / re-verification, prompt-cache warmth (avoid >5-min idle gaps that cold-cache the next turn), per-subtask model selection. RTK (already integrated) and parallel read-only calls (already default) are the baseline — find what's left.
+
+**Constraint**: exclude **/fast mode** — already known, not the answer wanted.
+
+**Coordinate with**: task 15 (safe bypass-permission loop + sandbox / auto-mode) — the mode that seed 1's carve-out keys off is the same mode task 15 gates.
+
+**Deliverable** (post-brainstorm): a spec of adopted techniques; the first concrete change is likely the mode-conditional serial-writes rule in global `CLAUDE.md`. Each adopted technique lands its own commit.
+
+---
+
+## 3. [Task] Run performance-check on haiku — it's deterministic, no Opus needed
+
+**Goal**: The `performance-check-principles-and-skills` skill is purely deterministic — its `check.sh` measures with grep/awk/wc/find and is report-only (no LLM judgment). Running its audit on Opus wastes cost and latency; it should run on **haiku**.
+
+**Mechanism to confirm**: invoke the audit via a haiku subagent (the `Agent` tool with `model: haiku`), or a skill-level model hint if the harness supports one. The bash script does all the work; the model only relays the table and flags overages.
+
+**Touches**: `configs/ai-docs/claude/skills/performance-check-principles-and-skills/` (a note on running it cheap), or the standard invocation pattern. Load `skill-creator` before editing the `SKILL.md`.
+
+**Deliverable**: performance-check runs on haiku by default; one commit.
+
+---
+
+## 4. [Task] Purge fabricated/useless examples & fix WHYs repo-wide + prevent recurrence
+
+**Goal**: Global `CLAUDE.md` accumulated many low-value `[Examples]` (decorative restatements, aphorisms, same-file pointers) that bloated the always-loaded budget — surfaced when performance-check flagged it over the line/density budget. Three parts:
+
+1. **Diagnose**: name *why* they accumulated — likely AI over-generating illustrative examples when authoring rules, with no gate distinguishing a load-bearing example from a decorative one.
+
+2. **Sweep**: remove ALL useless examples from `CLAUDE.md` **and every skill `SKILL.md`**, applying the "earns its slot" bar — keep only examples that disambiguate something the rule's prose can't convey; drop restatements, aphorisms, and pointers. **Care for the WHYs in the same pass**: every directive must keep a proper decision-shaping WHY (never strip a sole rationale — a near-miss this session), and drop decorative WHYs that merely restate the rule.
+
+3. **Prevent recurrence**: add a standing rule covering BOTH markers — e.g. in `doc-standards` and/or the CLAUDE.md counting-conventions section: "`[Examples]` must earn their slot — no fabricated or decorative examples; an example earns its place only when it disambiguates something the prose can't. `[Why]` must be a real decision-shaping rationale — never decorative, never a restatement of the rule, and never dropped while it is a directive's sole rationale."
+
+**Mechanism**: load `skill-creator` before editing any `SKILL.md`; use `performance-check` density/line budgets as the forcing function (deterministic). Likely one commit for the preventive rule + a sweep commit (or per-skill commits) for the cleanup.
+
+**Coordinate with**: the CLAUDE.md example purge already done this session (the budget-grooming work) — this extends the same bar to every skill and makes it a standing rule.
+
+**Deliverable**: `CLAUDE.md` + every `SKILL.md` free of decorative examples, with a proper WHY on every directive; a standing "examples and WHYs earn their slot" rule added; root cause named.
