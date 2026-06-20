@@ -21,8 +21,16 @@ Bundled commits force you to revert good changes to undo a bad one, and force re
 - [Examples] **A migration (move + update refs + delete) is one commit.**
 - [Examples] **Refactors get their own commit, always isolated from behavior change.**
 - [Examples] **Related tests, code, docs, IaC all bundled together in their own commit.**
-- [Instruction] **Exception**: when two logical changes are entangled in one file, prefer a single combined commit over a temporary revert — name both concerns explicitly in the commit body.
-  - [Why] Reverting in-progress code to split commits risks losing work or introducing manual errors. The "preserve user work" rule (`CLAUDE.md`) overrides "one logical change per commit."
+
+## Split entangled commits by staging — never edit code to split
+
+[Instruction] **CRITICAL: Never mutate code to split commits — staging-only** -- split entangled commits by staging, never by editing code. Committed content must stay byte-identical to what was authored and reviewed.
+
+[Instruction] Use `git-hunk` for intra-file splits -- `git-hunk list --json`, then `git-hunk stage <id>` (line-level: `-l 3,5-7`). NEVER edit-to-revert-then-reapply.
+
+[Why] Editing to stage selectively risks altering the code under review and breaks the audit trail — staging touches the index, never the working tree.
+
+[Why] Only combine entangled changes into one commit when staging genuinely can't separate them; then name both concerns in the body.
 
 ## Conventional commits with WHY body that fits on a screen (~32 lines)
 
@@ -65,7 +73,7 @@ Bundled commits force you to revert good changes to undo a bad one, and force re
 
 ## Use HEREDOC for commit messages
 
-[Instruction] Pass multi-line commit messages via HEREDOC.
+[Examples] Pass multi-line commit messages via HEREDOC.
 
 [Examples]
 ```bash

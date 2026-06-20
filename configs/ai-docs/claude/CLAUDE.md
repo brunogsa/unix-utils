@@ -206,15 +206,9 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
   - [Instruction] Modify only the exact lines/fields/keys/entries needed for the requested change.
   - [Why] Each step "up" the destruction ladder risks hallucinating replacement content or losing context the user can't recover. The least-destructive option keeps the most info available for review and rollback.
 
-- [Instruction] **CRITICAL: Never mutate code to split commits — staging-only** -- when changes destined for separate commits are entangled, split them by staging, never by editing the code. The committed content must be byte-identical to what was authored and reviewed.
-  - [Instruction] Use `git-hunk` for intra-file splits -- `git-hunk list --json`, then `git-hunk stage <id>`. NEVER edit-to-revert-then-reapply.
-    - [Why] Content-hashed IDs stay stable as other hunks stage; supports line-level staging (`-l 3,5-7`).
-  - [Why] Editing code to stage selectively risks silently altering the very code under review and breaks the audit trail — the diff stops matching intent. Staging-only operations touch the index, never the working-tree content.
-
 - [Instruction] **Leverage TaskList proactively** -- feel free to use TaskCreate and TaskUpdate.
   - [Examples] When I say "leverage tasklist" (or close variant), treat it as explicit direction to organize work via TaskCreate/TaskUpdate following the rules below.
   - [Why] TaskList is the only durable surface for in-flight planning.
-    - [Examples] Chat scrolls away and context compacts; the list survives both. Skipping it forces the user to re-derive scope and Claude to re-plan from incomplete memory.
   - [Instruction] Create with ` <id>. ` in the subject (leading space, number, period, trailing space) — renders instantly.
   - [Instruction] Once TaskCreate returns its id, TaskUpdate the subject to add ` [#<returned-id>]` after the period. Final shape = ` <id>. [#<returned-id>] <description>`.
   - [Instruction] **Task**: is anything that generally produces one small, isolated commit
