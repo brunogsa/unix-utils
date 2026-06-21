@@ -280,3 +280,20 @@ Use the `update-config` skill. Verify the rule matches the realpath of the symli
 
 **Deliverable** (post-brainstorm): a spec of adopted techniques; the first concrete change is likely the mode-conditional serial-writes rule in global `CLAUDE.md`. Each adopted technique lands its own commit.
 
+---
+
+## 4. [Task] Trim marker budgets back under cap after the strict re-tag
+
+**Goal**: The repo-wide strict marker re-tag (already committed) left honest `[Instruction]` counts over budget. Trim them back **without** raising the budgets.
+
+**Current overage (perf-check, deterministic)**:
+- Global `CLAUDE.md`: **103** `[Instruction]` (cap 100).
+- `*-standards` total: **206** (cap 200) — per-skill overrides also over: commit-standards 20 (>10), debug-standards 36 (>20), test-standards 64 (>60).
+- Density: 0 violations (already clean).
+
+**Mechanism**: apply the `performance-check` trim hierarchy in order — drop redundant → tighten dense wording → extract to `references/` (only if genuinely lazy-loadable) → split a skill. **Never** raise `instructions-budget` / `words-budget` (user-only). Load `skill-creator` before editing any `SKILL.md`.
+
+**Why deferred**: accurate marking came first; the overage is the honest signal that drives this trim, not a reason to loosen the cap.
+
+**Deliverable**: `CLAUDE.md` ≤100 `[Instruction]` and `*-standards` total ≤200, verified by `performance-check`; one commit (or per-skill).
+
