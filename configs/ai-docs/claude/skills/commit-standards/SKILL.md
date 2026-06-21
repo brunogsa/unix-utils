@@ -17,10 +17,10 @@ Principles and rules for any git commit. Each section pairs a principle with its
 
 Bundled commits force you to revert good changes to undo a bad one, and force reviewers to context-switch between concerns. Small, single-purpose commits are surgical.
 
-- [Examples] **1 task = 1 commit.**
-- [Examples] **A migration (move + update refs + delete) is one commit.**
-- [Examples] **Refactors get their own commit, always isolated from behavior change.**
-- [Examples] **Related tests, code, docs, IaC all bundled together in their own commit.**
+- [Instruction] **1 task = 1 commit.**
+- [Instruction] **A migration (move + update refs + delete) is one commit.**
+- [Instruction] **Refactors get their own commit, always isolated from behavior change.**
+- [Instruction] **Related tests, code, docs, IaC all bundled together in their own commit.**
 
 ## Split entangled commits by staging — never edit code to split
 
@@ -38,8 +38,8 @@ Bundled commits force you to revert good changes to undo a bad one, and force re
 
 [Why] Future-you reading `git log` six months later doesn't have the PR open. The commit body is the standalone record of intent. If the body just restates the diff, it's wasted lines.
 
-- [Examples] Format: Conventional Commits (`type(scope): subject`), imperative, max 72-char subject.
-- [Examples] Body: scannable bullets/sub-bullets by default. Prose only when fragmenting would lose connective tissue.
+- [Instruction] Format: Conventional Commits (`type(scope): subject`), imperative, max 72-char subject.
+- [Instruction] Body: scannable bullets/sub-bullets by default. Prose only when fragmenting would lose connective tissue.
 
 ## Minimize tool calls when committing
 
@@ -47,8 +47,8 @@ Bundled commits force you to revert good changes to undo a bad one, and force re
 
 [Why] Every tool call slows down the commit and adds context noise. We want FREQUENT and small commits — those need to be cheap.
 
-- [Examples] Don't inspect `git log` or prior commits to learn commit style — Bruno's format is authoritative across all repos. Skip that tool call.
-- [Examples] Don't add files with `git add -A` or `git add .` — adds risk of including secrets or unrelated files. Specify paths explicitly.
+- [Instruction] Don't inspect `git log` or prior commits to learn commit style — Bruno's format is authoritative across all repos. Skip that tool call.
+- [Instruction] Don't add files with `git add -A` or `git add .` — adds risk of including secrets or unrelated files. Specify paths explicitly.
 
 ## Refactors are isolated from behavior changes
 
@@ -56,8 +56,8 @@ Bundled commits force you to revert good changes to undo a bad one, and force re
 
 [Why] Bundled refactors hide the behavior change in mechanical noise — reviewers can't tell the substantive diff from the cosmetic. Isolation makes each commit reviewable in seconds.
 
-- [Examples] Refactor commit: rename, restructure, extract — green tests stay green.
-- [Examples] Behavior commit: small, focused, test-backed.
+- [Instruction] Refactor commit: rename, restructure, extract — green tests stay green.
+- [Instruction] Behavior commit: small, focused, test-backed.
 
 ## Don't skip hooks (--no-verify) or bypass signing (--no-gpg-sign)
 
@@ -73,14 +73,12 @@ Bundled commits force you to revert good changes to undo a bad one, and force re
 
 ## Use HEREDOC for commit messages
 
-[Examples] Pass multi-line commit messages via HEREDOC.
-
-[Examples]
+[Example]
 ```bash
 git commit -m "$(cat <<'EOF'
    Commit message here.
 
-   Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+   Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
    EOF
 )"
 ```

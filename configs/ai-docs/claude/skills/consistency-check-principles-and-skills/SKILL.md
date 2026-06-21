@@ -213,7 +213,7 @@ Perf-check counts the CRITICAL ratio; this heuristic asks *whether the right rul
 
 Look for:
 - **Under-marked** — a non-CRITICAL rule that other rules visibly defer to.
-- **Missing `[Why]`** — a CRITICAL `[Instruction]` with no `[Why]` clause within the next 3 non-blank lines (`[Examples]` may sit between).
+- **Missing `[Why]`** — a CRITICAL `[Instruction]` with no `[Why]` clause within the next 3 non-blank lines (`[Example]` may sit between).
    - Fix: add a `[Why]`, or demote from CRITICAL — no rationale means no tiebreaker authority.
 
 HIGH confidence requires citing the other rule(s) that defer to the rule in question, or; for **Missing `[Why]`**, the exact line range checked.

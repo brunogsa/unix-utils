@@ -21,11 +21,11 @@ Comments aren't exercised — lies persist. Anything narrower than WHY rots: his
 
 - [Instruction] **History** (PR numbers, "main used to", "the merge", "we previously did", "(after the rename)") → commit message body, not source.
   - [Instruction] **Mid-refactor justifications** belong here too — phrases like "(not a skill anymore)", "(was previously inline)", "(moved here from X)" feel useful while the change is fresh.
-    - [Examples] But they describe why the CURRENT form was just adopted; the context "this just changed" rots within days, and the new form has to stand alone.
+    - [Why] But they describe why the CURRENT form was just adopted; the context "this just changed" rots within days, and the new form has to stand alone.
 - [Instruction] **What the code does** → already shown by the code; rename or restructure instead.
 - [Instruction] **How it works** → implementation detail; the next refactor falsifies it.
 
-[Examples]
+[Example]
 ```ts
 // Bad — history (rots on next commit):
 // excludeFlowCodes overrides flowCode — replicates main's last-spread-wins (PR #2034).
@@ -57,7 +57,7 @@ Avoid time-anchored vocabulary: "stays", "now", "currently", "as of today", "the
 
 [Why] Time-anchored phrasing presumes the reader shares the author's "now" — the moment the surrounding context shifts, the phrasing becomes a lie.
 
-[Examples] Bad: `// Value stays '_loadingDeadlineMs' — browser specs hardcode this URL literal` / Good: `// This constant exists so E2E tests can override the timeout, making tests faster`
+[Example] Bad: `// Value stays '_loadingDeadlineMs' — browser specs hardcode this URL literal` / Good: `// This constant exists so E2E tests can override the timeout, making tests faster`
 
 ## One idea per line in comments
 
@@ -73,7 +73,7 @@ Avoid time-anchored vocabulary: "stays", "now", "currently", "as of today", "the
 
 They also break in plain-text contexts (terminals without UTF-8, code review diffs, grep output) where ASCII renders cleanly.
 
-[Examples]
+[Example]
 ```
 Bad:  // ── Helpers ───────────────────────
 Good: // Helpers
@@ -88,7 +88,7 @@ Don't use fencing decoratively — only when the file genuinely has multiple dis
 
 [Why] Consistent widths give the reader a depth cue at a glance. Over-fencing turns into visual noise that hides real structure.
 
-[Examples]
+[Example]
 ```
 // Top-level section
 // ================================================================
@@ -106,7 +106,7 @@ Don't use fencing decoratively — only when the file genuinely has multiple dis
 
 [Why] A reviewer asks "why is this guard here?". The comment should answer THAT question — not paraphrase what the code already shows.
 
-[Examples]
+[Example]
 ```ts
 // Bad — restates what the code says
 // Only fires on landing view
@@ -128,7 +128,7 @@ Domain elaboration:
 - [Instruction] Prefer concrete example values: `"12345678000195" + "12.345.678/0001-95"` beats `digits + formatCnpj(digits)`.
 - [Instruction] Spec linkage belongs in commit message bodies, PR descriptions, or `spec.md` — not in source.
 
-[Examples]
+[Example]
 ```ts
 // Bad — file header reads as a task list
 /**
@@ -144,6 +144,7 @@ Domain elaboration:
  */
 ```
 
+[Example]
 ```ts
 // Bad — test title carries the tracking ref
 it('should throw INTERNAL_SERVER_ERROR after retries (AC-18)', async () => { ... });
@@ -170,7 +171,7 @@ it('should throw INTERNAL_SERVER_ERROR after retries', async () => { ... });
 
 [Why] Inventories duplicate information that's free elsewhere; the duplicate goes stale silently while the canonical source stays fresh.
 
-[Examples] Extends the existing "READMEs describe purpose, not inventory" rule to inline comments. Bad: `// Used by: src/foo.ts, src/bar.ts, tests/baz.test.ts`. Good: omit the list entirely; reader can grep.
+[Example] Extends the existing "READMEs describe purpose, not inventory" rule to inline comments. Bad: `// Used by: src/foo.ts, src/bar.ts, tests/baz.test.ts`. Good: omit the list entirely; reader can grep.
 
 ## Repo CLAUDE.md contains conventions and gotchas, not duplication
 
@@ -194,11 +195,11 @@ The PR description, README, and inline comments touching the changed area are pa
 
 [Why] AI sessions read AI-facing docs on every invocation; stale guidance there silently produces work the human-facing docs already obsoleted. Humans skim once and remember; AIs reload from disk each turn.
 
-[Examples] New diagram added to README → add a one-line pointer in `agents.md` so the next AI session treats it as canonical truth, not as derivable from code.
+[Example] New diagram added to README → add a one-line pointer in `agents.md` so the next AI session treats it as canonical truth, not as derivable from code.
 
-[Examples] Deprecated module removed → remove its mention in repo `CLAUDE.md`'s file-tree section so the next AI session doesn't recreate it from "the docs said it exists".
+[Example] Deprecated module removed → remove its mention in repo `CLAUDE.md`'s file-tree section so the next AI session doesn't recreate it from "the docs said it exists".
 
-[Examples] New permission/role/feature flag landed → if `CLAUDE.md` had a list of known flags or permissions, append the new one; otherwise the next AI session may invent a parallel name.
+[Example] New permission/role/feature flag landed → if `CLAUDE.md` had a list of known flags or permissions, append the new one; otherwise the next AI session may invent a parallel name.
 
 ## Density caps (≤256 chars / ≤32 words per line)
 

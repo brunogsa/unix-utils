@@ -20,13 +20,6 @@ Any tactic that lowers reviewer cognitive load (one-idea-per-line, aux helpers, 
 
 The reviewer pays the readability tax once per read; the author pays once per write — favor the side bearing the larger cumulative cost.
 
-[Examples] See the CRITICAL sections below for the specific tactics:
-- "Line-break dense expressions; extract aux helpers when an ugly block repeats"
-- "CRITICAL: Separate pure transforms from side effects — let the callsite commit"
-- "CRITICAL: Name pure helpers for their output, not their operation"
-
-Each captures one tactic with bad/good examples from a real coordinator-hook refactor.
-
 ## Code top-down, pull helpers on demand
 
 - [Instruction] Start from the controller/worker layer and work downward;
@@ -40,7 +33,7 @@ Each captures one tactic with bad/good examples from a real coordinator-hook ref
 
 [Why] Implementation changes with refactors but the caller's contract shouldn't — a mechanism-named function starts lying after a body rewrite.
 
-[Examples]
+[Example]
 ```javascript
 // Bad -- describes the mechanism (what it does internally):
 function collectAllColumns(rows) { /* ... */ }
@@ -51,7 +44,7 @@ function buildCsvColumnOrder(rows) { /* ... */ }
 function extractUniqueEmails(rows) { /* ... */ }
 ```
 
-[Examples]
+[Example]
 ```ts
 // Bad — `hasApplied` implies an event tracker, but is actually a URL-state derivative.
 const hasApplied = appliedCNPJs.length > 0;
@@ -75,7 +68,7 @@ Domain elaboration: avoid numbered phases (`Phase-1`), abbreviated prefixes (`sa
 
 Heuristic: a reviewer skimming the diff in 18 months should not need to ask "what is `sa`?" or "what does Phase-2 do here?".
 
-[Examples]
+[Example]
 ```ts
 // Bad — numbered phases force readers to recover spec context
 const phaseOneReady = hasApplied && hasSchoolsData && hasAgreements;
@@ -100,7 +93,7 @@ const salesAgreementProductSummaryQuery = ...;
 
 [Why] Double negatives force the reader to flip the truth value at every read site — a cognitive tax.
 
-[Examples]
+[Example]
 ```ts
 // Bad -- negation of a negative:
 if (!item.isShrinked) { ... }
@@ -116,7 +109,7 @@ if (isExpandable) { ... }
 
 [Why] A multi-clause condition at the call site hides intent; a named boolean documents it.
 
-[Examples]
+[Example]
 ```ts
 const isExpandableKit = item.type === KIT && !item.isShrinked && item.children.length < 1;
 if (isExpandableKit) { ... }
@@ -140,9 +133,7 @@ if (isExpandableKit) { ... }
 
 [Why] Each nesting level multiplies the mental state the reader holds — bugs hide where "I don't understand" lives.
 
-Heuristic: more than 2 levels of nesting in one function body is a smell; more than 3 is a refactor request.
-
-[Examples]
+[Example]
 ```ts
 // Bad — Promise.all + .map + async + try/catch + conditional, all stacked
 const perSchoolResults = await Promise.all(
@@ -198,7 +189,7 @@ The transform takes inputs and returns the new value; the callsite commits via t
 
 It also makes the helper hostile to unit testing (you mock the dispatcher to assert what was committed) and hides the transform's result behind a void return.
 
-[Examples]
+[Example]
 ```ts
 // Bad — helper takes the setter, commits inside.
 function appendSchoolAgreementFetchError(
@@ -248,7 +239,7 @@ When the name describes the output (`getPreviousYWithNewX`), the callsite reads 
 
 The helper also stays usable in contexts the original author didn't anticipate — its name doesn't presume the callsite.
 
-[Examples]
+[Example]
 ```ts
 // Bad — name describes the operation; reads naturally only inside `setFailures`.
 function withSchoolAgreementFetchError(failures, schoolDocNumber, error): Failures { ... }
@@ -260,8 +251,6 @@ function getPreviousFailuresWithNewSchoolAgreementFetchError(failures, schoolDoc
 setFailures((prev) => getPreviousFailuresWithNewSchoolAgreementFetchError(prev, schoolDocNumber, error));
 // Parsed left-to-right: "set failures to: [the previous failures with a new school-agreement fetch error]".
 ```
-
-The `get` prefix is the universal "returns a new immutable" signal; pair it with a descriptive output phrase that names the shape, not the verb.
 
 ## Inject what's hard to mock
 
@@ -281,7 +270,7 @@ The `get` prefix is the universal "returns a new immutable" signal; pair it with
 
 [Why] Positional args lose meaning at call sites (`configure(3, 5000)` — what's 3?); fat-object params hide internal coupling.
 
-[Examples]
+[Example]
 ```javascript
 // Bad -- signature hides what the function actually needs:
 async function fetchLogs({ config, workDir }) {
@@ -305,7 +294,7 @@ async function fetchLogs({ logGroups, logRadius, workDir }) {
 - [Instruction] Avoid duplicate `info` logs across layers — controller is the natural owner.
 - [Instruction] Helpers stay quiet (`debug` for diagnostics, or `info` only when owning a concern the controller can't see).
 
-[Examples]
+[Example]
 ```javascript
 // BAD: Use case handles I/O
 function processDataUseCase(filepath) {
@@ -332,7 +321,7 @@ function processDataCommand(filepath, outputPath) {
 
 [Why] Business decisions buried inside builders hide the actual rules; pulling them out keeps business logic visible and builders reusable.
 
-[Examples]
+[Example]
 ```ts
 // Bad -- business rule hidden inside builder:
 function buildAvulso({ parentKit, child }) {
@@ -365,7 +354,7 @@ function buildAvulso({ parentKit, childSku, price, discount }) {
 
 [Why] Structured logs are queryable; free-text needs grep + human pattern matching.
 
-[Examples]
+[Example]
 ```ts
 logger.info({
   level: "INFO",
@@ -389,7 +378,7 @@ logger.info({
 
 [Why] Telemetry that crashes the flow removes the very thing meant to help you debug.
 
-[Examples]
+[Example]
 ```ts
 // Bad — reduce throws on empty agreements
 logger.info({
@@ -414,7 +403,7 @@ logger.info({
 
 In prod: `debug` is off by default. During launch / incident, flip the config — no code change, no deploy.
 
-[Examples]
+[Example]
 ```ts
 logger.info({
   message: 'getSchoolsAgreementsAndSkus completed',
@@ -453,7 +442,7 @@ logger.debug({
 
 [Why] The next user (often future-you) won't read the source — `--help` is the contract surface.
 
-[Examples]
+[Example]
 ```bash
 #!/usr/bin/env bash
 # extract-field - Extract a field from JSON lines
@@ -500,7 +489,7 @@ logger.debug({
 
 [Why] A `10` scattered across files becomes a coordination problem when it changes — a constant is grep-able.
 
-[Examples]
+[Example]
 ```ts
 // Don't do this:
 if (type === "KIT" || type === "AVULSO") {
@@ -520,7 +509,7 @@ if (type === ProductType.KIT || type === ProductType.AVULSO) {
 
 ### Share across layers — one source of truth
 
-[Examples]
+[Example]
 ```ts
 // Bad — `MAX_SCHOOLS = 10` duplicated in UI and server
 // SchoolFilterCombobox.tsx:  const MAX_SCHOOLS = 10;
@@ -548,10 +537,10 @@ if (type === ProductType.KIT || type === ProductType.AVULSO) {
 [Instruction] A helper for 2–4 callsites earns its place only when extraction **strictly raises both** bars. Both must rise — not one.
 
 1. [Instruction] **Readability bar** — does the helper's name communicate intent better than the inline form?
-   - [Examples] If the inline pattern is already self-evident (a 3-line `JSON.parse(decodeURIComponent(raw))`), a helper named `extractTrpcInputField` adds indirection without revelation.
+   - [Why] If the inline pattern is already self-evident (a 3-line `JSON.parse(decodeURIComponent(raw))`), a helper named `extractTrpcInputField` adds indirection without revelation.
 2. [Instruction] **Cognitive load bar** — does extraction shrink the working set the reader has to hold?
-   - [Examples] A 10-line helper hiding a 2-line pattern doesn't reduce load.
-   - [Examples] It spreads the same load across two files (call site + helper body); the reader chases both.
+   - [Why] A 10-line helper hiding a 2-line pattern doesn't reduce load.
+   - [Why] It spreads the same load across two files (call site + helper body); the reader chases both.
 
 [Instruction] If either bar fails, **inline wins**. DRY is not a value on its own — it's a heuristic for reducing complexity.
 
@@ -563,7 +552,7 @@ if (type === ProductType.KIT || type === ProductType.AVULSO) {
 
 [Why] Dense expressions optimize for character count — readability beats brevity.
 
-[Examples]
+[Example]
 ```javascript
 // Bad -- requires mental unpacking:
 const paths = Array.from({ length: count }, (_, i) => resolve(dir, `batch-${i + 1}.csv`));
@@ -579,16 +568,16 @@ for (let i = 1; i <= count; i++) {
 
 [Instruction] CRITICAL: When a render function or JSX block exceeds ~50 lines with multiple conditional branches, extract each branch into a self-naming sub-component.
 
-- [Examples] Inline same-file is fine when not reused.
-- [Examples] Target shape: every conditional block becomes a one-line `<Foo prop={...} />`; parent JSX reads as the page's outline.
-- [Examples] Preserve data-testids and behavior — you're only moving JSX, not changing it.
-- [Examples] Applies to any framework's render tree (React JSX, Vue templates, Svelte markup, JSX-like DSLs).
+- [Instruction] Inline same-file is fine when not reused.
+- [Instruction] Target shape: every conditional block becomes a one-line `<Foo prop={...} />`; parent JSX reads as the page's outline.
+- [Instruction] Preserve data-testids and behavior — you're only moving JSX, not changing it.
+- [Instruction] Applies to any framework's render tree (React JSX, Vue templates, Svelte markup, JSX-like DSLs).
 
 [Why] Flat conditional JSX with anonymous `<div>` blocks forces every reader to parse every branch to understand the page outline.
 
 Named sub-components make the top level scannable — `{isOverCap && <OverCapBanner />}` reads its intent in one glance; the 7-line div behind it doesn't. Render functions are outlines, not encyclopedias.
 
-[Examples]
+[Example]
 ```tsx
 // Bad — flat return; parent has no scannable outline:
 return (

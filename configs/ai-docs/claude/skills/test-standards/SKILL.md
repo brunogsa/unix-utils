@@ -40,14 +40,14 @@ Applies to backend (API calls, payloads, DB states) and frontend (clicks, inputs
 Concrete patterns this rule generates:
 
 - [Instruction] **Cover every variant** — N variants of the same kind = N tests (directly or via parametrization). Coverage on one says nothing about the others.
-  - [Examples] Variant kinds: input fields, filters, query params, tabs, entity types, view modes, browser sizes.
-  - [Examples] The "one example, infer the rest" heuristic fails the moment behavior diverges.
+  - [Instruction] Variant kinds: input fields, filters, query params, tabs, entity types, view modes, browser sizes.
+  - [Why] The "one example, infer the rest" heuristic fails the moment behavior diverges.
 - [Instruction] **Boundary on caps/limits** — a cap of N gets an explicit N+1 test (send N+1 of the limited thing and prove the cap engages). Happy-path-only leaves the invariant unverified.
 - [Instruction] **Async safety / idempotency** — disabled-during-fetch (UI), idempotency keys (API), retry-resistant operations — the actions a manual tester would re-fire need explicit tests.
 - [Instruction] **Three-branch dependency outcome** — success, error response, AND timeout/never-responds. Missing the timeout branch leaves a real production gap (UI stays loading forever; backend leaks resources).
 - [Instruction] **Inverse cache branch** — when set-and-fetch is tested, test clear-and-restore (or invalidate-and-refetch). Partial cache coverage is a known footgun.
 - [Instruction] **Observably-non-empty BEFORE and AFTER** — for filter/transition tests (UI or API), baseline and final state must both be non-empty.
-  - [Examples] Empty-to-something only proves the filter renders/returns something — not that it changes meaningfully.
+  - [Why] Empty-to-something only proves the filter renders/returns something — not that it changes meaningfully.
 
 ## Design test titles before implementation
 
@@ -77,13 +77,14 @@ A title coupled to an internal field name breaks the moment the field is renamed
 
 Generic nouns invite confusion.
 
-[Examples]
+[Example]
 ```
 Bad:  "should AND fieldA IN with fieldB NOT IN when both provided"   (operator mechanics)
 Bad:  "regression: PR #2034 last-spread-wins on flowCode"            (session/branch history)
 Good: "should subtract excludeFlowCodes from the flowCode include set when both filters are provided"
 ```
 
+[Example]
 ```ts
 // Bad — spec-tracking refs in test titles
 it('should throw INTERNAL_SERVER_ERROR when getSalesAgreements throws after retries (AC-18)', ...);
@@ -93,6 +94,7 @@ it('should emit the structured procedure-entry log per Req 21', ...);
 it('should throw INTERNAL_SERVER_ERROR when getSalesAgreements throws after retries', ...);
 ```
 
+[Example]
 ```ts
 // Bad — generic noun; page has two searches (school name + externalId); which one?
 it('should NOT re-fire schoolsAgreements when search changes (cache hit)', ...);
@@ -101,21 +103,13 @@ it('should NOT re-fire schoolsAgreements when search changes (cache hit)', ...);
 it('should NOT re-fire schoolsAgreements when externalId search changes (cache hit)', ...);
 ```
 
-```ts
-// Bad — implementation token in title (leaks internal field name)
-it('should count agreements with errorOnSkusFetch toward Acordos carregados total', ...);
-
-// Good — domain language, decoupled from implementation
-it('should count agreements whose SKUs fetch failed toward the Acordos carregados total', ...);
-```
-
 **Anti-pattern: internal-state predicate instead of operator-language behavior**
 
 [Instruction] Test titles describe observable behavior in operator/domain language a non-engineer (PM, QA, designer) could understand.
 
 [Why] Internal-state predicates, codebase tokens, and clean-code assertions about names don't describe behavior — they force the reader to reconstruct the mental model the test was written against.
 
-[Examples]
+[Example]
 ```ts
 // Bad — internal-state expressed as a logical formula
 it('should enable Aplicar when pending is empty but applied is non-empty (clear-to-zero is a real commit, not a no-op)', ...);
@@ -141,7 +135,7 @@ it('should filter the active-tab table by agreementIds once the school batch res
 
 An incomplete title fails to document the conjunctive constraint — readers learn the wrong contract, and the test stops being a guard for the missing precondition.
 
-[Examples]
+[Example]
 ```ts
 // Bad — incomplete precondition (only true when loading=false)
 it('should enable Apply after operator toggles a school off then back on', ...);
@@ -196,7 +190,7 @@ If the hypothesis drifts from reality, the test passes while production breaks.
 
 [Why] If the test reproduces the logic, both move together: a bug in the production logic is mirrored in the test, and the test passes anyway.
 
-[Examples]
+[Example]
 ```ts
 // Bad -- reproduces filtering logic:
 const filtered = items.filter(...);
@@ -228,7 +222,7 @@ Schema example: if "max 10" is enforced, one test at 11 covers it; tests at 12, 
 
 [Why] Splitting forces sharper titles — each half names its own observable behavior; the test surface becomes a per-behavior index.
 
-[Examples]
+[Example]
 ```ts
 // Bad — compound assertion, hides which half failed
 it('should render entity tabs and active-tab table on cold mount', ...);
@@ -257,7 +251,7 @@ A test of the outcome itself ("any refetch resets page to 1") inherits coverage 
 - [Instruction] **vs. "Remove redundant tests"** — that rule fires on identical assertions; this rule fires when triggers differ but outcome doesn't.
 - [Instruction] **vs. "One test per distinct cause"** — that rule fires when causes have independent production branches; this rule fires when triggers share one production branch.
 
-[Examples]
+[Example]
 ```ts
 // Bad — three tests, one per trigger, all asserting the same behavior:
 it('should reset page to 1 when status filter changes', ...);
@@ -284,7 +278,7 @@ Testing the behavior that produced the log carries the same signal without the b
 
 [Why] Readers scanning "what does this do when it works?" should not wade through error paths. Grouping by intent makes the contract scannable at a glance.
 
-[Examples]
+[Example]
 ```ts
 // Bad — mixed
 describe('contractValidation.getSchoolsAgreementsAndSkus', () => {
@@ -314,7 +308,7 @@ describe('contractValidation.getSchoolsAgreementsAndSkus', () => {
 
 [Why] Asserting on exact array order couples tests to implementation details. A refactor that changes iteration order shouldn't break a behavior test.
 
-[Examples]
+[Example]
 ```ts
 // Bad -- breaks if implementation reorders items:
 expect(result).toEqual([
@@ -338,7 +332,7 @@ expect(result).toEqual(expect.arrayContaining([
 
 [Instruction] When you add a new test that asserts on a state the fixture didn't anticipate, **extend the factory** rather than constructing one-offs in the test body.
 
-[Examples]
+[Example]
 ```ts
 // Bad — fixture only supports the happy path; "expired" test has to dig into internals:
 const baseAgreement = { signedAt: '2025-01-01', deadline: '2025-12-31' };
@@ -367,10 +361,8 @@ it('shows expired badge when past deadline', () => {
 
 [Instruction] Keep test-file helpers inline until a second file needs them (centralize at 2+ callers, not speculatively) — grasp-at-a-glance beats DRY, body stays human-readable as documentation of intent.
 
-- [Examples] Inline narrative often wins when the duplicated block is byte-identical and the helper would hide what's being asserted.
-- [Examples] Helper-required tests lose their narrative. Duplication cost is mechanical; grasp cost compounds on every read.
-- [Examples] A test you can't read is a test you can't trust during a failure.
-- [Examples] Opaque tests get deleted at the first "what does this even test?" moment.
+- [Instruction] Inline narrative often wins when the duplicated block is byte-identical and the helper would hide what's being asserted.
+- [Why] Helper-required tests lose their narrative. Duplication cost is mechanical; grasp cost compounds on every read.
 
 ## Re-use constants in assertions AND in mock data
 
@@ -413,9 +405,9 @@ The fix is mechanical: every domain identifier in a mock body refers to the prod
 
 1. [Instruction] **Should this be skipped at all?** A skip without a written reason (inline comment or linked ticket explaining what blocks it) is dead weight, not deferred work.
 2. [Instruction] **Is it stale?** Old `.skip` + no follow-up commits + production code the test references is missing or changed = abandoned scaffolding.
-   - [Examples] Delete (and the file, if 100% of its tests were skipped).
+   - [Instruction] Delete (and the file, if 100% of its tests were skipped).
 3. [Instruction] **Should it actually be un-skipped now?** The condition that justified the skip may have lifted.
-   - [Examples] Un-skip and run — if it passes, the skip outlived its purpose; if it fails meaningfully, the test just caught a real gap.
+   - [Instruction] Un-skip and run — if it passes, the skip outlived its purpose; if it fails meaningfully, the test just caught a real gap.
 
 [Why] Skipped tests are silent debt — the skip count grows quietly, and `skipped` loses meaning when half the entries are forever-deferred.
 
@@ -437,7 +429,7 @@ When the answer is "delete," capture the investigation (what was tried, why the 
 - [Instruction] This is distinct from "Don't reproduce logic under test" (which is about the test recomputing what the code does).
 - [Instruction] Self-comparison is about the test asserting against its own runtime output.
 
-[Examples]
+[Example]
 ```ts
 // Bad -- two identical requests, asserting equal proves nothing:
 const [a, b] = await Promise.all([

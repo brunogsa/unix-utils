@@ -280,20 +280,3 @@ Use the `update-config` skill. Verify the rule matches the realpath of the symli
 
 **Deliverable** (post-brainstorm): a spec of adopted techniques; the first concrete change is likely the mode-conditional serial-writes rule in global `CLAUDE.md`. Each adopted technique lands its own commit.
 
----
-
-## 4. [Task] Purge fabricated/useless examples & fix WHYs repo-wide + prevent recurrence
-
-**Goal**: Global `CLAUDE.md` accumulated many low-value `[Examples]` (decorative restatements, aphorisms, same-file pointers) that bloated the always-loaded budget — surfaced when performance-check flagged it over the line/density budget. Three parts:
-
-1. **Diagnose**: name *why* they accumulated — likely AI over-generating illustrative examples when authoring rules, with no gate distinguishing a load-bearing example from a decorative one.
-
-2. **Sweep**: remove ALL useless examples from `CLAUDE.md` **and every skill `SKILL.md`**, applying the "earns its slot" bar — keep only examples that disambiguate something the rule's prose can't convey; drop restatements, aphorisms, and pointers. **Care for the WHYs in the same pass**: every directive must keep a proper decision-shaping WHY (never strip a sole rationale — a near-miss this session), and drop decorative WHYs that merely restate the rule.
-
-3. **Prevent recurrence**: add a standing rule covering BOTH markers — e.g. in `doc-standards` and/or the CLAUDE.md counting-conventions section: "`[Examples]` must earn their slot — no fabricated or decorative examples; an example earns its place only when it disambiguates something the prose can't. `[Why]` must be a real decision-shaping rationale — never decorative, never a restatement of the rule, and never dropped while it is a directive's sole rationale."
-
-**Mechanism**: load `skill-creator` before editing any `SKILL.md`; use `performance-check` density/line budgets as the forcing function (deterministic). Likely one commit for the preventive rule + a sweep commit (or per-skill commits) for the cleanup.
-
-**Coordinate with**: the CLAUDE.md example purge already done this session (the budget-grooming work) — this extends the same bar to every skill and makes it a standing rule.
-
-**Deliverable**: `CLAUDE.md` + every `SKILL.md` free of decorative examples, with a proper WHY on every directive; a standing "examples and WHYs earn their slot" rule added; root cause named.

@@ -22,7 +22,7 @@ Don't draw inter-third-party arrows for "completeness" — they belong in a wide
 
 [Why] L1's purpose is X's contract with its surroundings. Inter-third-party edges misrepresent that focus and clutter the diagram with information that doesn't decide anything about X.
 
-[Examples] If a Hub posts orders directly to OMS (bypassing X), don't draw `Hub --> OMS` in X's L1 — drop the arrow even though the relationship exists.
+[Example] If a Hub posts orders directly to OMS (bypassing X), don't draw `Hub --> OMS` in X's L1 — drop the arrow even though the relationship exists.
 
 Annotate it inside the Hub's node label if context-critical.
 
@@ -32,7 +32,7 @@ Annotate it inside the Hub's node label if context-critical.
 
 [Why] L1 is the role-level story (who plays what part); L2 zooms into the specific machinery. Leaking field names buries the role under noise the reader can't act on at this level.
 
-[Examples] Bad (L2 detail in L1): `Integrator --> ERP: reads sales agreements, branches, carriers, segments, payment-info`. Good (L1 role-level): `Integrator --> ERP: reads sales agreements and products`.
+[Example] Bad (L2 detail in L1): `Integrator --> ERP: reads sales agreements, branches, carriers, segments, payment-info`. Good (L1 role-level): `Integrator --> ERP: reads sales agreements and products`.
 
 ## Uniform pattern when N entities play the same role
 
@@ -42,7 +42,7 @@ Annotate it inside the Hub's node label if context-critical.
 
 Bespoke labels per entity force the reader to read each label and *infer* the shared role.
 
-[Examples] Four ERPs (Protheus SAS/SAE/IS + SAP1 NSE) all play the "1.0 ERP" role.
+[Example] Four ERPs (Protheus SAS/SAE/IS + SAP1 NSE) all play the "1.0 ERP" role.
 
 Uniform skeleton: `Integrator --> <ERP>: reads Acordos and Produtos; syncs Escolas and Produtos`.
 
@@ -163,7 +163,7 @@ style NSE fill:#fee2e2,stroke:#dc2626,stroke-width:2px
 style Modern fill:#d1fae5,stroke:#059669,stroke-width:2px
 ```
 
-[Examples] It also realizes the rules above:
+[Example] It also realizes the rules above:
 
 - **edge-incidence** — every arrow touches Integrador; the Configurador bypass lives in a label.
 - **uniform pattern** — the 4 ERPs share one skeleton label, deltas appended per brand.

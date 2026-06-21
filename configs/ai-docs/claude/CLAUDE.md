@@ -30,15 +30,15 @@ Budgets and citations live in `~/.claude/skills/performance-check-principles-and
 Architectural principles for how the AI system is organized.
 
 - [Instruction] **CLAUDE.md = always-loaded cross-cutting principles. Anything else → skills**.
-  - [Examples] If a rule is domain-specific and useful **sometimes**, it belongs in a skill, not here.
+  - [Why] If a rule is domain-specific and useful **sometimes**, it belongs in a skill, not here.
 
 - [Instruction] **Prefer CLI scripts + skills over MCP servers** -- cheaper in context, easier to debug, compose via pipes. Use MCP only for capabilities CLI + skills can't provide.
 
 - [Instruction] **Where knowledge belongs** -- use the right place for each kind of knowledge.
-  - [Examples] Global CLAUDE.md (here): rules that pass the FOUNDATIONS test (always-needed + cross-cutting).
-  - [Examples] Skills: domain knowledge, examples, detailed how-tos — anything lazy-loadable.
-  - [Examples] Repo CLAUDE.md / agents.md: repo-specific gotchas, conventions, architecture, non-obvious decisions.
-  - [Examples] Auto-Memory is disabled in my setup.
+  - [Example] Global CLAUDE.md (here): rules that pass the FOUNDATIONS test (always-needed + cross-cutting).
+  - [Example] Skills: domain knowledge, examples, detailed how-tos — anything lazy-loadable.
+  - [Example] Repo CLAUDE.md / agents.md: repo-specific gotchas, conventions, architecture, non-obvious decisions.
+  - [Instruction] Auto-Memory is disabled in my setup.
 
 - [Instruction] **Teach the *why*, not just the *what*** -- pair every directive with **decision-shaping** reasoning when authoring rules, skills, comments, or commit messages.
   - [Why] A WHY earns its slot when removing it would let a future reader break the rule unwittingly; decorative or inferable WHYs don't qualify.
@@ -53,7 +53,7 @@ How AI talk to user and learn from his feedback.
 
 - [Instruction] **CRITICAL: When uncertain, ask** -- never guess context, file paths, or module names.
   - [Why] Ambiguity is invisible to whoever introduced it. Claude can't tell its own guess from a confident answer; the user can't tell their own one-word reply is ambiguous.
-    - [Examples] Asking surfaces the gap before it drives the wrong outcome — one short clarifying message beats wasted tokens, destroyed work, or a confused user.
+    - [Why] Asking surfaces the gap before it drives the wrong outcome — one short clarifying message beats wasted tokens, destroyed work, or a confused user.
   - [Instruction] **Ambiguous commands trigger a clarifying question** -- "Retry"/"yes"/"do that" without a clear antecedent, or requests that would re-do completed work, must be confirmed.
 
 - [Instruction] **Offer alternatives** -- present multiple approaches with trade-offs.
@@ -70,7 +70,7 @@ How AI talk to user and learn from his feedback.
 
 - [Instruction] **Scannable shape — bullets, never prose-then-split** -- one thought per bullet; rule + rationale on separate bullets, never inlined.
   - [Why] Dense lines drop LLM adherence and force re-parsing. Bullets-first costs nothing; post-hoc splitting costs a regeneration.
-  - [Examples] Prose earns its place only for connective tissue. Formatting devices: bullets, short sections, tables, bold key terms.
+  - [Example] Prose earns its place only for connective tissue. Formatting devices: bullets, short sections, tables, bold key terms.
 
 - [Instruction] **CRITICAL: Optimize for reader's cognitive load — scannable beats compact** -- prefer longer-but-scannable over shorter-but-dense. Concise = less reader energy, not fewer lines. Applies to code, comments, chat.
   - [Why] Compact code/comments look efficient but tax the reader on every read — and the reader pays that tax forever, while the author pays once.
@@ -97,7 +97,7 @@ How AI scope, plan, and verify work on any task.
 
 - [Instruction] **CRITICAL: Scout rule** -- when you notice pre-existing issues, flag them AND auto-add to the task list as `[Scout]` items.
   - [Why] Per-Scout confirmation friction tempts skipping; auto-add neutralizes the temptation and preserves commit discipline (absorbed issues derail the commit).
-  - [Examples] Examples (non-exhaustive): stale comments, budget overruns, lint gaps, dead config, type-check failures unrelated to your task, failing/skipped/flaky tests on the branch baseline, circular deps, dead code in touched modules.
+  - [Example] Examples (non-exhaustive): stale comments, budget overruns, lint gaps, dead config, type-check failures unrelated to your task, failing/skipped/flaky tests on the branch baseline, circular deps, dead code in touched modules.
 
 - [Instruction] **CRITICAL: HARD CONTRACT — every Scout named in chat MUST get a TaskCreate in the same response.** NON-NEGOTIABLE. No "want me to file it?", no conditional gating, no exceptions.
   - [Why] Chat-only mentions evaporate on context compaction; the TaskList is the only durable surface that survives sessions. Asking permission to file is silent absorption with a fig leaf.
@@ -113,7 +113,7 @@ How AI scope, plan, and verify work on any task.
 
 - [Instruction] **Use web search, preferring trusted/official sources** -- triggers: complex themes, walls, consecutive failures, confirmation requests. Other sources OK but flag them to the user.
   - [Why] Training-data drift makes stale answers feel current; web search detects it — but only against current sources.
-    - [Examples] Random blogs and stale Stack Overflow carry their own drift; primary sources carry the contract.
+    - [Why] Random blogs and stale Stack Overflow carry their own drift; primary sources carry the contract.
 
 - [Instruction] **CRITICAL: Handle failures, corner cases, unexpected states** -- applies to code paths, user flows, scripts, processes, integrations — anything you build.
   - [Why] Happy-path-only code ships bugs that only fire in production where corner cases live.
@@ -140,7 +140,7 @@ How AI scope, plan, and verify work on any task.
 - [Instruction] **Patch gaps the moment they bite** -- when missing/wrong docs OR tests OR automation cost time AND block the current task, fix inline as part of the current change.
   - [Instruction] Non-blocking gaps queue as `[Scout]` per the TaskList rules.
   - [Why] Each gap teaches once; the next person should learn from the doc, not from your detour.
-    - [Examples] The blocker carve-out keeps single-concern commits clean — drive-by polish belongs in its own commit.
+    - [Why] The blocker carve-out keeps single-concern commits clean — drive-by polish belongs in its own commit.
 
 - [Instruction] **Centralize repeated artifacts** -- DRY for code, docs, scripts, configs — UNLESS extraction fails the readability + cognitive-load bars (see `code-standards` / `test-standards`).
   - [Why] Duplicated artifacts drift on every edit — N copies become N versions of "almost the same thing".
@@ -156,19 +156,19 @@ How AI scope, plan, and verify work on any task.
 
 - [Instruction] **CRITICAL: Verify everything you build, accept, or claim** -- evidence over optimism, applied at every gate.
   - [Why] Unverified beliefs compound — small spikes prevent big-change debt.
-    - [Examples] A wrong assumption caught after a big change costs N× a 30-second spike; an accepted-as-stated limit propagates into expensive design decisions; an unverified output ships the bug.
+    - [Why] A wrong assumption caught after a big change costs N× a 30-second spike; an accepted-as-stated limit propagates into expensive design decisions; an unverified output ships the bug.
   - [Instruction] **3 gates** -- verify before starting, before accepting, before declaring done.
-    - [Examples] Before starting: cheap spike on assumptions (EXPLAIN, dry-run, smoke). Before accepting: verify limits against code/docs/web. Before declaring done: run or propose the verify step.
+    - [Example] Before starting: cheap spike on assumptions (EXPLAIN, dry-run, smoke). Before accepting: verify limits against code/docs/web. Before declaring done: run or propose the verify step.
   - [Instruction] **Fresh evidence only** -- re-run verification if stale since your latest change; re-read the actual code on contradiction. Prior-turn output doesn't prove the current state.
   - [Instruction] **Tools-first** -- prefer deterministic tools over LLM judgment when a claim can be checked by a tool; reserve LLM for the ambiguous tail (dynamic imports, runtime-only references).
-    - [Examples] Dead code: `knip`/`ts-prune`/`madge`. Coverage: coverage reports. Types: `tsc --noEmit`. Style: linters. Complexity: `eslint-plugin-sonarjs`/`lizard`. History: `git blame`/`git log`.
+    - [Example] Dead code: `knip`/`ts-prune`/`madge`. Coverage: coverage reports. Types: `tsc --noEmit`. Style: linters. Complexity: `eslint-plugin-sonarjs`/`lizard`. History: `git blame`/`git log`.
   - [Instruction] **Broadest scope on shared code or merges** -- all-workspace lint + full unit + integration.
-    - [Examples] Scoped verification is false economy; shared code's blast radius is the workspace, and verification cost beats incident cost.
+    - [Why] Scoped verification is false economy; shared code's blast radius is the workspace, and verification cost beats incident cost.
   - [Instruction] **Content match, not size delta** -- on large pre-existing artifacts (PR body, log, doc), grep for a unique substring of the NEW content.
 
 - [Instruction] **Manual verification persists to a .md file in CWD** -- session memory is ephemeral; only the persisted artifact survives. No persistence = no manual check.
   - [Why] A manual check that lives in session memory disappears the moment context compacts or the session ends.
-    - [Examples] The next regression in that area has no signal — the persisted file is the durable proof.
+    - [Why] The next regression in that area has no signal — the persisted file is the durable proof.
 
 ## Tool Use
 
@@ -194,34 +194,34 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] **Writes ALWAYS serial, never parallel** -- one Edit/Write tool call at a time; wait for the result before issuing the next.
   - [Why] Each write is a permission gate. Parallel writes prevent per-edit approval — one rejection forces all to be re-issued, multiplying token cost and slowing user feedback.
-  - [Examples] Overrides the default 'parallelize independent tool calls' for write tools. Read-only calls (Read, Grep, read-only Bash) keep running in parallel.
+  - [Example] Overrides the default 'parallelize independent tool calls' for write tools. Read-only calls (Read, Grep, read-only Bash) keep running in parallel.
 
 - [Instruction] **Permission UIs are the asking. NEVER pre-ask in chat** -- once content is decided, issue the tool call directly. The UI/prompt is where the user reviews and approves/denies.
   - [Why] Pre-show + run = double-prompt. UI renders cleaner than chat.
-  - [Examples] Applies to `git commit`, `Edit`, `Write`, and any tool whose permission UI surfaces the proposed content.
+  - [Example] Applies to `git commit`, `Edit`, `Write`, and any tool whose permission UI surfaces the proposed content.
   - [Instruction] **DO NOT pre-show + ask.** No "does this look good?", "want me to apply?", "confirm and I'll run it".
 
 - [Instruction] **CRITICAL: Prefer the least-destructive available action — preserve user work** -- when an action affects existing artifacts, pick the option that preserves the most state.
-  - [Examples] Move over write+delete; `git checkout -- <file>` over manual rewrite to revert; `git stash` over `git checkout` when you may still need the changes.
+  - [Example] Move over write+delete; `git checkout -- <file>` over manual rewrite to revert; `git stash` over `git checkout` when you may still need the changes.
   - [Instruction] Never delete or overwrite existing artifacts (code, files, configs, branches, tests, docs, dependencies, env values, anything) unless explicitly instructed.
   - [Instruction] Do NOT change indentation, blank lines, whitespace, quotes, or semicolons when editing code.
   - [Instruction] Modify only the exact lines/fields/keys/entries needed for the requested change.
   - [Why] Each step "up" the destruction ladder risks hallucinating replacement content or losing context the user can't recover. The least-destructive option keeps the most info available for review and rollback.
 
 - [Instruction] **Leverage TaskList proactively** -- feel free to use TaskCreate and TaskUpdate.
-  - [Examples] When I say "leverage tasklist" (or close variant), treat it as explicit direction to organize work via TaskCreate/TaskUpdate following the rules below.
+  - [Instruction] When I say "leverage tasklist" (or close variant), treat it as explicit direction to organize work via TaskCreate/TaskUpdate following the rules below.
   - [Why] TaskList is the only durable surface for in-flight planning.
   - [Instruction] Create with ` <id>. ` in the subject (leading space, number, period, trailing space) — renders instantly.
   - [Instruction] Once TaskCreate returns its id, TaskUpdate the subject to add ` [#<returned-id>]` after the period. Final shape = ` <id>. [#<returned-id>] <description>`.
   - [Instruction] **Task**: is anything that generally produces one small, isolated commit
   - [Instruction] **Sub-step**: child of a Task, or of another Sub-step
-    - [Examples] `<id>` is hierarchical `<parent-id>.<substep-id>.`, where `<substep-id>` is a sequential number. Examples: 1.1., 2.3.1. etc)
+    - [Example] `<id>` is hierarchical `<parent-id>.<substep-id>.`, where `<substep-id>` is a sequential number. Examples: 1.1., 2.3.1. etc)
   - [Instruction] **Category prefix** (between `[#<returned-id>]` and the description): Final shape = ` <id>. [#<returned-id>][<category>] <description>`.
     - [Instruction] `[Sub-Step]` — Place it after its parent, or after one of its siblings (on logical order). Commited along with its Task ancestor;
     - [Instruction] `[Side]` — explicitly deferred work, isolated by nature; trigger: I say "side quest". By default is placed at end of list. Has its own commit;
     - [Instruction] `[Scout]` — pre-existing issue noticed in passing; auto-queued per the Scout rule (no per-Scout approval). Lands as own commit, placed at end of list by default;
     - [Instruction] `[Drift]` — collateral fix needed mid-flight to make the current task work. Bundle into the base commit if trivial; otherwise its own commit;
-    - [Examples] Other suggested markers: `[Feature]`, `[Spike]`, `[Debt]`, `[Refactor]`. If not certain, fallback to `[Task]`.
+    - [Instruction] Other suggested markers: `[Feature]`, `[Spike]`, `[Debt]`, `[Refactor]`. If not certain, fallback to `[Task]`.
 
 - [Instruction] **Out-of-scope work = new TaskList items** -- review feedback, mid-task requests, or anything you uncover yourself go to TaskCreate (ordered right after current), not pivots.
   - [Why] Preserves "One logical change per commit" and prevents mixed-concern files.
@@ -231,26 +231,26 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
     - [Instruction] Always check both exit code and tail in one line — never trust exit code alone. Some runners exit 0 on partial failure; the tail shows the real summary.
     - [Instruction] Reuse that `/tmp/` file if possible - user might be tailing it, making it easier for him;
     - [Instruction] Pattern: `<slow-cmd> > /tmp/out.txt 2>&1; echo "exit: $?"; tail -<N> /tmp/out.txt;`. Choose N to fit the command's summary.
-      - [Examples] `echo "exit: $?"` MUST come right after the slow command — echo after `tail` captures tail's `0` and masks the failure.
-      - [Examples] Bash tool's reported exit is the chain's last, not yours.
+      - [Instruction] `echo "exit: $?"` MUST come right after the slow command — echo after `tail` captures tail's `0` and masks the failure.
+      - [Why] Bash tool's reported exit is the chain's last, not yours.
 
 - [Instruction] **Truncated file content in system reminders is not exhaustive** -- with `[N lines truncated]` or similar, treat the visible portion as a snippet.
   - [Instruction] Grep/wc/list against the actual file before reporting counts or claims about completeness.
   - [Why] Snippets feel complete because they're framed as "here's the file" — but the truncation marker says you're seeing partial data. Acting on the snippet ships wrong counts.
 
 - [Instruction] **Don't replicate problematic patterns — present the conflict** -- pause and ask before applying a fix that matches an existing pattern, when that pattern either:
-  - [Examples] (a) contradicts the global user rules, or
-  - [Examples] (b) is itself a smell (see "Smell examples" below).
+  - [Instruction] (a) contradicts the global user rules, or
+  - [Instruction] (b) is itself a smell (see "Smell examples" below).
   - [Why] Every replication compounds the bad pattern.
-  - [Examples] Smell examples: `as any` proliferating, swallowed errors, hardcoded magic literals, copy-paste validation, untyped escape hatches.
+  - [Example] Smell examples: `as any` proliferating, swallowed errors, hardcoded magic literals, copy-paste validation, untyped escape hatches.
 
 - [Instruction] **Surface harness gaps** -- when fixing something a linter/test/hook/automation could catch, flag `[HARNESS GAP] ...` so the harness can be used instead of AI.
   - [Why] Every fix Claude makes by hand that a linter could make by rule is cheap signal lost.
-    - [Examples] Tagging the gap redirects effort from "AI patches one caller" to "harness scales to the next caller for free" — the fix compounds instead of repeating.
+    - [Why] Tagging the gap redirects effort from "AI patches one caller" to "harness scales to the next caller for free" — the fix compounds instead of repeating.
 
 - [Instruction] **Spawn a fresh-context subagent when writing-session bias would distort the check** -- verification, semantic match, or quality judgment over your own output.
   - [Why] In-session reading carries "I already convinced myself" residue; a subagent sees only the artifact + the question.
-    - [Examples] Test-presence gates, AC↔test coverage, code-review of just-written code, end-of-batch refactor + auto-review reports.
+    - [Example] Test-presence gates, AC↔test coverage, code-review of just-written code, end-of-batch refactor + auto-review reports.
 
 - [Instruction] **Verify subagent results against artifacts** -- check diff, file contents, or command output before treating a subagent's "done" as done.
   - [Why] The summary describes intent; only the artifact shows reality.
