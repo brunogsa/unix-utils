@@ -56,9 +56,9 @@ const isSlowMode = appliedCNPJs.length > 0;
 // The identifier now reads as the mode gate it actually is.
 ```
 
-[Why amplification] Two values that evaluate identically can still be two different concepts.
+[Why] Two values that evaluate identically can still be two different concepts.
 
-[Why amplification] If the name implies the wrong one, rename — "functionally equivalent" is not "semantically equivalent".
+[Why] If the name implies the wrong one, rename — "functionally equivalent" is not "semantically equivalent".
 
 ## Self-explanatory names — no context-dependent jargon
 
