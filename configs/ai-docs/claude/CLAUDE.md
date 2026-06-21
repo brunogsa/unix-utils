@@ -10,7 +10,9 @@ Budgets and citations live in `~/.claude/skills/performance-check-principles-and
 
 - **`[Instruction]`** — one imperative directive that adds an independent constraint the model must honor. Category definitions (e.g. `[Side]`, `[Scout]`, `[Drift]` under "Leverage TaskList proactively") each count as their own [Instruction].
 - **`[Why]`** — rationale for the immediately preceding [Instruction]. Explains weighting; does not add a new constraint.
-- **`[Examples]`** — illustrations, code blocks, tables, illustrative snippets. Do not add new constraints.
+  - Must be decision-shaping — never decorative or a restatement; a directive's sole [Why] is never dropped.
+- **`[Example]`** — illustrations, code blocks, tables, illustrative snippets. Do not add new constraints.
+  - Each must concretely showcase its instruction or why — ideally a bad/good contrast — never an abstract restatement, aphorism, or pointer.
 - **`CRITICAL`** — optional prefix elevating an instruction as a tiebreaker when other rules tension against it.
   - Reserved for the small subset that genuinely trumps others; over-use destroys the signal ("if everything is critical, nothing is").
   - The performance-check script enforces a ratio cap.
