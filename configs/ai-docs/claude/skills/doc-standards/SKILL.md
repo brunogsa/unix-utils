@@ -1,6 +1,6 @@
 ---
 name: doc-standards
-description: "USE PROACTIVELY whenever you write, edit, or review docs or comments — code comments, JSDoc/docstrings, READMEs, CLAUDE.md, SKILL.md, markdown, spec/plan/brainstorm docs. Fires before adding any comment. Not for pure reading."
+description: "USE PROACTIVELY before you write, edit, or review any doc or comment — especially authoring a standalone .md: design docs, ADRs, RFCs, READMEs, CLAUDE.md/SKILL.md, code comments/JSDoc/docstrings. Not for pure reading."
 user-invocable: false
 instructions-budget: 30
 ---
@@ -9,21 +9,24 @@ instructions-budget: 30
 
 Principles and paired examples for any documentation work. Each section pairs a principle with its example. Principles without an example stand on their own.
 
-## WHY at most — never history, never mechanics
+## What a comment may say
 
-[Instruction] Prefer tests and logs over comments — they stay honest under refactors.
+### WHY at most — never history, never mechanics
 
-[Instruction] When you must comment, the maximum scope is **why this code exists in its current shape** — a permanent invariant the next reader cannot infer from the code itself.
+- [Instruction] Prefer tests and logs over comments.
+  - [Why] A comment isn't bound to the code, so it drifts out of sync and starts misleading; code, tests, and logs stay bound to behavior and document it for free.
 
-[Why] Tests and logs are exercised by the runtime, so lies surface fast.
+- [Instruction] When you must comment, the maximum scope is **why this code exists in its current shape** — something the next reader cannot infer from the code itself.
+  - [Why] History rots on the next commit, mechanics on the next refactor; only the reason the code exists in this shape still holds after it changes.
 
-Comments aren't exercised — lies persist. Anything narrower than WHY rots: history on next commit, mechanics on next refactor. Only invariants survive.
+- [Instruction] Route history to the commit message body, not source — PR numbers, "main used to", and mid-refactor justifications like "(was previously inline)", "(moved here from X)".
+  - [Why] A history note rots in the code as the code keeps changing; the commit preserves that same history as a point-in-time snapshot that never goes stale.
 
-- [Instruction] **History** (PR numbers, "main used to", "the merge", "we previously did", "(after the rename)") → commit message body, not source.
-  - [Instruction] **Mid-refactor justifications** belong here too — phrases like "(not a skill anymore)", "(was previously inline)", "(moved here from X)" feel useful while the change is fresh.
-    - [Why] But they describe why the CURRENT form was just adopted; the context "this just changed" rots within days, and the new form has to stand alone.
-- [Instruction] **What the code does** → already shown by the code; rename or restructure instead.
-- [Instruction] **How it works** → implementation detail; the next refactor falsifies it.
+- [Instruction] Don't comment what the code already shows — rename or restructure to make it clear instead.
+  - [Why] A comment restating the code duplicates what's already visible and falls out of sync the moment the code changes.
+
+- [Instruction] Don't comment how the code works — it's an implementation detail.
+  - [Why] The next refactor falsifies a how-it-works comment, leaving a confident lie next to the code.
 
 [Example]
 ```ts
@@ -39,72 +42,22 @@ Comments aren't exercised — lies persist. Anything narrower than WHY rots: his
 // Switching syntax silently degrades to Seq Scan on 1.2M rows.
 ```
 
-If the explanation would survive any future refactor of the surrounding code, it's a WHY and probably belongs. Otherwise, delete.
+If the explanation would survive any future refactor of the surrounding code, it's a WHY and probably belongs. Otherwise it's the kind of comment this section says to drop.
 
-## Default to no comment — burden is on adding one, not omitting
+- [Instruction] Default to no comment — add one only when the WHY is genuinely non-obvious; if names, types, and error/log messages already communicate intent, a comment is noise.
+  - [Why] Reaching for a comment is a signal the names, types, or logs aren't self-describing — fix those and the comment has no reason to exist.
 
-[Instruction] If the identifier name + types + error/log messages already communicate intent, an additional comment is noise.
+### Phrasing that survives refactors
 
-Default to no comment; only add one when the WHY is genuinely non-obvious to a future reader.
+- [Instruction] Write WHY comments about the *purpose* a thing serves, not its *current state*.
+  - [Why] A purpose survives refactors; a note about the current state goes stale the moment that state changes.
 
-[Why] Every redundant comment is one more thing that can drift out of sync with the code it describes — and the redundant comment isn't even *useful* when it's accurate.
+- [Instruction] Avoid time-anchored vocabulary in comments — "stays", "now", "currently", "as of today", "we just".
+  - [Why] Time-anchored phrasing presumes the reader shares the author's "now" — the moment the surrounding context shifts, the phrasing becomes a lie.
+  - [Example] Bad: `// Value stays '_loadingDeadlineMs' — browser specs hardcode this URL literal` / Good: `// This constant exists so E2E tests can override the timeout, making tests faster`
 
-## Time-anchored phrasing in comments rots — describe purpose, not current state
-
-[Instruction] WHY comments describe the *purpose* a thing serves, not the *current state* relative to a moment in time.
-
-Avoid time-anchored vocabulary: "stays", "now", "currently", "as of today", "the recent change", "we just".
-
-[Why] Time-anchored phrasing presumes the reader shares the author's "now" — the moment the surrounding context shifts, the phrasing becomes a lie.
-
-[Example] Bad: `// Value stays '_loadingDeadlineMs' — browser specs hardcode this URL literal` / Good: `// This constant exists so E2E tests can override the timeout, making tests faster`
-
-## One idea per line in comments
-
-[Instruction] Multi-clause comment lines should be split into separate lines or sub-bullets. `"X because Y, and also Z"` → three lines.
-
-[Why] Single-line comments scan as one mental "chunk". Comma-stacked clauses force re-parsing on every read.
-
-## No box-drawing characters in comments
-
-[Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments. Use plain ASCII (`=`, `-`, `|`).
-
-[Why] Box-drawing chars are an AI-generated tell — humans almost never type them; they show up because LLMs over-decorate fence comments.
-
-They also break in plain-text contexts (terminals without UTF-8, code review diffs, grep output) where ASCII renders cleanly.
-
-[Example]
-```
-Bad:  // ── Helpers ───────────────────────
-Good: // Helpers
-      // ================================
-```
-
-## Section fencing in code files — use `=`, size by nesting level, sparingly
-
-[Instruction] When fencing a section in a code file, use `=` (ASCII), and pick width by nesting level: 64 chars for top-level sections, 32 for second-level, 16 for third.
-
-Don't use fencing decoratively — only when the file genuinely has multiple distinct sections worth separating.
-
-[Why] Consistent widths give the reader a depth cue at a glance. Over-fencing turns into visual noise that hides real structure.
-
-[Example]
-```
-// Top-level section
-// ================================================================
-
-// Sub-section
-// ================================
-
-// Sub-sub-section
-// ================
-```
-
-## Describe the use case prevented, not the mechanism
-
-[Instruction] When commenting near a non-obvious mechanism, name the case the guard prevents.
-
-[Why] A reviewer asks "why is this guard here?". The comment should answer THAT question — not paraphrase what the code already shows.
+- [Instruction] When commenting near a non-obvious mechanism, name the case the guard prevents.
+  - [Why] A reviewer asks "why is this guard here?" — the comment should answer that, not paraphrase what the code already shows.
 
 [Example]
 ```ts
@@ -118,15 +71,58 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: currentView === 'landing' });
 ```
 
-## Comments stand alone — full names and concrete values, not local shorthand
+## Comment formatting & fencing
 
-[Instruction] Applies to comments and test titles. See CLAUDE.md ("Self-describing artifacts — no context-dependent shorthand") for the principle.
+### Comment line formatting
 
-Domain elaboration:
-- [Instruction] Never reference `AC-N` / `Req-N` / `Task-N` / `DBMA-X` / `PR-X` in committed code/comments/test titles. Those live only in gitignored planning docs. Spell out the behavior briefly instead.
+- [Instruction] **CRITICAL: One idea per comment-line** — split multi-clause comment lines into separate lines or sub-bullets (`"X because Y, and also Z"` → three lines).
+  - [Why] A single-line comment scans as one mental "chunk"; comma-stacked clauses force re-parsing on every read.
+
+- [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments — use plain ASCII (`=`, `-`, `|`).
+  - [Why] Humans don't type these by hand, so they look AI-written and get used inconsistently; they also break in terminals, diffs, and grep where ASCII works.
+
+[Example]
+```
+Bad:  // ── Helpers ───────────────────────
+Good: // Helpers
+      // ================================
+```
+
+### Section fencing in code files
+
+- [Instruction] Fence sections with `=` (ASCII), never `-` or `---`.
+  - [Why] `=` carries visual weight and avoids `-`/`---`, which collide with list, heading-underline, and front-matter syntax.
+
+- [Instruction] Size fences by nesting level: 64 chars top-level, 32 second-level, 16 third.
+  - [Why] Consistent widths give the reader a depth cue at a glance.
+
+- [Instruction] Don't fence decoratively — only when the file genuinely has multiple distinct sections worth separating.
+  - [Why] Over-fencing turns into visual noise that hides the real structure it was meant to reveal.
+
+[Example]
+```
+// Top-level section
+// ================================================================
+
+// Sub-section
+// ================================
+
+// Sub-sub-section
+// ================
+```
+
+## Self-describing comments
+
+Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles — concretely:
+
+- [Instruction] Never reference `AC-N` / `Req-N` / `Task-N` / `DBMA-X` in code, docs, comments, or test titles — spell out the behavior briefly instead.
+  - [Why] The referenced file may not even be committed, and each ID forces the reader to stop and look it up — a short parenthetical recap keeps them reading.
+
 - [Instruction] Spell project-private acronyms: `SA` / `SAP` → `sales_agreement` / `sales_agreement_product`.
+  - [Why] The private context behind the acronym can change, be forgotten, or simply never reach a new team member — leaving them to guess.
+
 - [Instruction] Prefer concrete example values: `"12345678000195" + "12.345.678/0001-95"` beats `digits + formatCnpj(digits)`.
-- [Instruction] Spec linkage belongs in commit message bodies, PR descriptions, or `spec.md` — not in source.
+  - [Why] A concrete value shows the intent directly; an abstract call shape makes the reader instantiate it mentally.
 
 [Example]
 ```ts
@@ -153,59 +149,46 @@ it('should throw INTERNAL_SERVER_ERROR after retries (AC-18)', async () => { ...
 it('should throw INTERNAL_SERVER_ERROR after retries', async () => { ... });
 ```
 
-## Docs close to code
+## Standalone doc files
 
-[Instruction] Module README lives in the module directory.
+### Where docs live and ship
 
-[Why] Docs separated from code drift fast. When the README is one directory away from the code it describes, refactors update both as a unit. Docs in a separate repo get forgotten.
+- [Instruction] Module README lives in the module directory.
+  - [Why] Docs one directory from the code get updated with it as a unit; docs in a separate repo drift and get forgotten.
 
-## READMEs describe purpose, not inventory
+- [Instruction] Locate and update related documentation inline with the change.
+  - [Why] Deferring doc updates to "later" means they don't happen — the PR description, README, and touched comments are part of the change, and the reviewer needs them synced.
 
-[Instruction] What + why + 1-2 examples. No file listings.
+- [Instruction] When canonical content lands in human-facing docs (README, ADRs, public schemas), update AI-facing docs (`CLAUDE.md`, `agents.md`, repo `CLAUDE.md`) in the SAME change.
+  - [Why] AI sessions reload AI-facing docs from disk every turn, so stale guidance there silently produces work the human-facing docs already obsoleted; humans skim once and remember.
+  - [Example] New diagram added to README → add a one-line pointer in `agents.md` so the next AI session treats it as canonical truth, not as derivable from code.
+  - [Example] Deprecated module removed → remove its mention in repo `CLAUDE.md`'s file-tree section so the next AI session doesn't recreate it from "the docs said it exists".
+  - [Example] New permission/role/feature flag landed → if `CLAUDE.md` had a list of known flags or permissions, append the new one; otherwise the next AI session may invent a parallel name.
 
-[Why] File listings are auto-generated by every IDE. Purpose is not. A README that enumerates files duplicates information that's free elsewhere and rots the moment a file moves.
+### What a doc should and shouldn't contain
 
-## No inventories or grep-able fact lists inside comments
+- [Instruction] In a repo's CLAUDE.md, capture its purpose, dependencies, non-obvious gotchas, and load-bearing conventions.
+  - [Why] CLAUDE.md's value is what the code *can't* show — purpose, gotchas, and conventions live nowhere else.
 
-[Instruction] Comments must not enumerate facts grep/IDE/tooling produces on demand (file paths, callers, dependent modules, references). Such lists rot the moment a referenced item moves.
+- [Instruction] Never inventory facts a tool generates on demand — file paths, callers, deps, file/function listings — in any doc or comment.
+  - [Why] IDEs, grep, and doc tools regenerate these for free, so an inline copy adds nothing and goes stale the moment an item moves.
+  - [Example] Bad: `// Used by: src/foo.ts, src/bar.ts, tests/baz.test.ts`. Good: omit the list entirely; the reader can grep.
 
-[Why] Inventories duplicate information that's free elsewhere; the duplicate goes stale silently while the canonical source stays fresh.
+- [Instruction] An FAQ/Q&A entry must add a distinct angle — new audience, framing, or context — not restate the body. Drop test: if cutting it loses only "Q&A format", cut it.
+  - [Why] FAQs feel safe to grow, but one that restates the body forces the same edit in two places forever and bloats the doc for skim-readers who already read it.
 
-[Example] Extends the existing "READMEs describe purpose, not inventory" rule to inline comments. Bad: `// Used by: src/foo.ts, src/bar.ts, tests/baz.test.ts`. Good: omit the list entirely; reader can grep.
+## Density
 
-## Repo CLAUDE.md contains conventions and gotchas, not duplication
+- [Instruction] Every line/bullet ≤256 chars and ≤32 words; over the cap, split on a sentence boundary — never drop info to fit.
+  - [Why] Dense prose drops adherence in LLM consumers and raises scan time for humans; the cap forces clarity.
 
-[Instruction] Capture per-repo purpose, dependencies, non-obvious gotchas, load-bearing conventions.
+Verify with `~/.claude/skills/doc-standards/scripts/check-density.sh <file>`.
 
-[Why] Duplication is an edit burden — the moment code changes, docs go stale. CLAUDE.md's value is what the code *can't* show.
+Prose paragraphs are one line each and still subject to the cap: a line over the cap is split into smaller paragraphs or bullets, never hard-wrapped.
 
-- [Instruction] Don't restate what the code already shows (file listings, function categories, install-step inventories, line-numbers).
+- [Instruction] In standalone markdown docs, keep each prose paragraph on a single physical line — never hard-wrap or insert manual line breaks mid-paragraph; rely on the editor's soft-wrap.
+  - [Why] The density check flags over-long lines, but hard-wrapping a long paragraph into short lines makes each one pass while the reader's cognitive load stays just as high.
+  - [Example] Bad: a 60-word paragraph wrapped into three 20-word lines, each passing the cap though it's still 60 words to read. Good: one line the cap can flag honestly.
 
-## Update docs as you go
-
-[Instruction] Locate and update related documentation inline with the change.
-
-[Why] Deferring doc updates to "later" means they don't happen.
-
-The PR description, README, and inline comments touching the changed area are part of the change — not a follow-up. The reviewer (and future-you) need them synced.
-
-## AI-facing docs parity — update CLAUDE.md / agents.md alongside human-facing docs
-
-[Instruction] When canonical content lands in human-facing docs (README, ADRs, public schemas), update AI-facing docs (`CLAUDE.md`, `agents.md`, repo `CLAUDE.md`) in the SAME change.
-
-[Why] AI sessions read AI-facing docs on every invocation; stale guidance there silently produces work the human-facing docs already obsoleted. Humans skim once and remember; AIs reload from disk each turn.
-
-[Example] New diagram added to README → add a one-line pointer in `agents.md` so the next AI session treats it as canonical truth, not as derivable from code.
-
-[Example] Deprecated module removed → remove its mention in repo `CLAUDE.md`'s file-tree section so the next AI session doesn't recreate it from "the docs said it exists".
-
-[Example] New permission/role/feature flag landed → if `CLAUDE.md` had a list of known flags or permissions, append the new one; otherwise the next AI session may invent a parallel name.
-
-## Density caps (≤256 chars / ≤32 words per line)
-
-[Instruction] Every line/bullet/sub-bullet ≤256 chars / ≤32 words; over → split, never drop info.
-
-[Why] Dense prose drops adherence in LLM consumers and increases scan time for human readers. The cap forces clarity. Verify with `~/.claude/skills/doc-standards/scripts/check-density.sh <file>`.
-
-- [Instruction] Splits go on sentence boundaries.
-- [Instruction] Never drop info to fit; split into two bullets/lines instead.
+- [Instruction] Separate any bullet that has a sub-bullet or exceeds 80% of the density cap from the next bullet with a blank line.
+  - [Why] A dense or parent bullet blurs into the next without a gap; the blank line gives the eye a stopping point between groups.

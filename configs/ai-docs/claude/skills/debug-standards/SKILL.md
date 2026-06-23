@@ -2,32 +2,24 @@
 name: debug-standards
 description: "USE PROACTIVELY for ANY failure — failing test, bug, regression, stack trace, flake, 'why is this broken', and before a second fix attempt. Find the root cause before proposing any fix."
 user-invocable: false
-instructions-budget: 20
+instructions-budget: 18
 ---
 
 # Debug Standards
 
 Principles and paired examples for any debugging work. Each section pairs a principle with its workflow or example.
 
-## Find the root cause before proposing a fix (the Iron Law)
+## The Iron Law
 
-[Instruction] If you haven't reproduced the bug *and* explained why it happens, you don't have a fix. You have a guess.
+- [Instruction] Reproduce the bug and explain why it happens before you call anything a fix.
+  - [Why] Symptom-fixes mask the real defect, spawn new ones, and burn hours on dead ends, while systematic debugging converges.
 
-- [Instruction] Steps: reproduce → gather evidence → trace data flow backward → hypothesize → test minimally.
+The systematic steps: reproduce → gather evidence → trace data flow backward → hypothesize → test minimally.
 
-[Why] Symptom-fixes mask defects, create new ones, and waste time.
+- [Instruction] Reproduce the bug as a test first, confirm it fails for the right reason, then fix.
+  - [Why] The test guards against recurrence and proves the fix addresses the cause — without it, the bug returns the next time someone refactors that area.
 
-Ad-hoc debugging burns hours on dead ends while systematic debugging converges. Even simple bugs have root causes — fast for small bugs, irreplaceable for large ones.
-
-## Bug fix starts with a failing regression test
-
-[Instruction] Reproduce the bug as a test first. Confirm it fails for the right reason. Then fix.
-
-[Why] The test guards against recurrence and proves the fix actually addresses the cause.
-
-A bug fix without a regression test means the bug will return the next time someone refactors that area.
-
-[Example]
+- [Example]
 ```ts
 // Good — regression test before the fix
 it("should reject login when password contains trailing whitespace", () => {
@@ -37,45 +29,23 @@ it("should reject login when password contains trailing whitespace", () => {
 
 The test fails (the bug exists) → fix the code → the test passes. Now it's a guarded behavior.
 
-## Read the error completely before reacting
+## Gathering evidence
 
-[Instruction] Stack trace, line numbers, error codes — they often contain the answer.
+- [Instruction] When unexpected failures appear after touching shared code or merging, stash *only* the suspect files and rerun: `git stash push -- <file1> <file2>`, rerun, then `git stash pop`.
+  - [Why] Without isolation you can't tell a pre-existing failure from one your change caused; stashing only the suspect files restores the baseline so the rerun answers it.
 
-[Why] Skipping past the error to "fix it" is the most common debugging failure.
+Same failures on the baseline mean they're pre-existing: they become a Scout, and your change ships unentangled. New failures only with your change present mean your change is the cause.
 
-The error message is the cheapest evidence you have; ignoring it forces you to discover the same information the slow way.
+- [Instruction] On a flaky test, re-run the bisected "first bad" commit 3+ times before trusting the verdict; if it doesn't deterministically fail, treat the verdict as noise.
+  - [Why] `git bisect` assumes deterministic results, so a flaky test yields a false "first bad" at an unrelated commit — following it wastes hours on mechanical impossibilities (e.g., a comment-only commit).
 
-## Stash-and-rerun to isolate pre-existing failures from regressions
+- [Instruction] When the verdict is noise, look outside the commit range: uncommitted changes, environment, memory pressure, pool contention.
+  - [Why] Bisect can only blame a commit in its range, but a noisy verdict means the real cause isn't there — it's in the environment or working tree.
 
-[Instruction] When unexpected failures appear after touching shared code or merging, stash *only* the suspect files and rerun.
+- [Instruction] When the system spans layers (CI → build → deploy, controller → use case → repo), log what enters and exits each boundary, then run once.
+  - [Why] The logs show exactly which layer breaks; guessing instead means trying one layer at a time and re-running for each.
 
-[Why] Telling "is this me?" without isolation conflates pre-existing brokenness with new regressions. The smallest stash answers the question surgically.
-
-- [Instruction] Steps: `git stash push -- <file1> <file2>`, rerun the failing tests, then `git stash pop`.
-- [Instruction] Same failures on the baseline → pre-existing, capture as Scout, ship your change unentangled.
-- [Instruction] New failures only with your change → your change is the cause; debug it.
-- [Instruction] For transient diagnostic reverts during debugging, always stash — see CLAUDE.md "Prefer the least-destructive available action".
-  - [Instruction] Reach for `git checkout HEAD -- <file>` only when the working-tree state is provably reproducible elsewhere.
-
-## Git bisect on flaky tests requires boundary re-runs
-
-[Instruction] `git bisect` assumes deterministic test results. On a flaky test, every commit in the range has some probability of failing — single-run-per-commit converges on noise, not signal.
-
-[Why] A flaky test produces a false "first bad" verdict that points at an unrelated commit. Following that verdict wastes hours investigating mechanical impossibilities (e.g., a commit that only changed comments).
-
-Before trusting any bisect verdict:
-
-- [Instruction] Re-run the test at the bisected "first bad" commit **3+ times**.
-- [Instruction] If it doesn't deterministically fail, the bisect verdict is noise.
-- [Instruction] Look elsewhere: uncommitted working-tree changes, environment, system memory pressure, pool contention.
-
-## Instrument component boundaries before guessing layers
-
-[Instruction] When the system spans layers (CI → build → deploy, controller → use case → repo), log what enters and what exits each boundary. Run once.
-
-[Why] The evidence tells you which layer fails. Guessing skips a cheap deterministic test in favor of a slower hypothesis loop.
-
-[Example]
+- [Example]
 ```bash
 # Boundary instrumentation example: tracking secret propagation
 echo "=== workflow level ===";       echo "TOKEN: ${TOKEN:+SET}${TOKEN:-UNSET}"
@@ -85,53 +55,31 @@ echo "=== signing script level ==="; security find-identity -v
 
 Reveals: secrets reached the workflow ✓, but didn't propagate to the build script ✗.
 
-## Trace data flow backward — fix at the source, not the symptom
+- [Instruction] When a bad value surfaces deep in the stack, trace it one frame up at a time to its origin — don't jump to a guessed source.
+  - [Why] Jumping to a guessed origin skips the frame where the value first goes wrong; stepping up one at a time lands on it.
 
-[Instruction] When a bad value surfaces deep in the stack, don't fix it where it appears.
+## Hypothesis discipline
 
-[Why] A patch at the symptom hides the upstream defect. Tomorrow another caller hits the same upstream defect via a different path — and the patch doesn't cover it.
+### State and test one hypothesis
 
-- [Instruction] Where does the bad value come from? Trace one frame up.
-- [Instruction] What called this with that value? Trace another frame up.
-- [Instruction] Repeat until you reach the source.
-- [Instruction] **Fix at the source.** Patches at the symptom often hide a worse bug.
+- [Instruction] **CRITICAL: State the hypothesis explicitly before changing anything — "I believe X causes the bug because Y; the test for that is Z".**
+  - [Why] An unstated hypothesis can't be falsified; naming the prediction first is what lets you tell a confirmed cause from a lucky change.
 
-## Single hypothesis, minimal test
+- [Instruction] **Make the smallest change that tests only that hypothesis.**
+  - [Why] Multiple simultaneous changes muddy attribution — when something improves, you can't tell which change did it; one variable keeps the signal clean.
 
-[Instruction] State it explicitly: "I believe X causes the bug because Y; the test for that is Z."
+- [Instruction] If the test fails, form a *new* hypothesis instead of piling on more changes — and accept "I don't know yet" as a valid answer.
+  - [Why] Pretending to know wastes hours chasing a theory the evidence already disproved; a fresh hypothesis re-anchors on what you actually observed.
 
-[Why] Multiple simultaneous changes muddy attribution — when something improves, you can't tell which change did it. One variable at a time keeps signals clean.
+### Check yourself against reality
 
-- [Instruction] Make the smallest possible change to test only that hypothesis.
-- [Instruction] Worked? → continue. Didn't? → form a *new* hypothesis, don't pile on more changes.
-- [Instruction] "I don't know yet" is a valid answer. Pretending to know wastes hours.
+- [Instruction] Find a working example of the same pattern in the same codebase, read it completely (not skimmed), and list every difference.
+  - [Why] "That can't matter" is the phrase that hides the bug; the working example is ground truth, so each difference is a lead to investigate.
 
-## Pattern analysis when stuck or applying an unfamiliar pattern
+- [Instruction] If you catch yourself saying any phrase in the table below, stop and re-evaluate before continuing.
+  - [Why] These phrases are rationalizations for skipping the systematic process; catching them is the only guard against sliding back into guessing.
 
-[Instruction] Find a working example of the same pattern in the same codebase. List every difference.
-
-[Why] "That can't matter" is the phrase that hides the bug. The working example is a ground truth; differences are leads to investigate.
-
-- [Instruction] Read reference implementations completely, not skimmed.
-
-## After 3 failed fixes, STOP — escalate
-
-[Instruction] CRITICAL: Three failed fixes is empirical evidence that **either the hypothesis is wrong or the architecture is wrong**. Don't try a fourth fix on the same theory.
-
-[Why] 3 failures means the model in your head doesn't match reality. More attempts on the same model will keep failing.
-
-Mandatory escalation steps, in order:
-
-1. [Instruction] **Web search the exact symptom** — error message, stack-trace fragment, library name + version, framework + error code. Use the WebSearch tool.
-2. [Instruction] **Re-read the actual code from disk** (not from memory of earlier reads) for every component touched. Stale assumptions are a top cause of multi-fix failure.
-3. [Instruction] **Question the architecture, not just the code.** If each fix reveals a new symptom in a different place, the *pattern* is broken — not the implementation.
-   - [Instruction] Surface the pattern to the user before continuing.
-
-## Catch red-flag self-talk and stop
-
-[Instruction] If you catch yourself saying any phrase in the table below, stop and re-evaluate — these are rationalizations for skipping the systematic process.
-
-[Example]
+- [Example]
 | Phrase | Reality |
 |---|---|
 | "Quick fix for now, investigate later" | The first fix sets the pattern. Do it right the first time. |
@@ -141,14 +89,29 @@ Mandatory escalation steps, in order:
 | "While I'm here, let me also fix Y" | One variable at a time. Y goes on the task list. |
 | "One more fix attempt" (after 2 failed) | Three failures = wrong hypothesis or wrong architecture. Escalate. |
 
-[Why] These phrases are rationalizations for skipping the systematic process. Catching them is a self-discipline guard.
+## When stuck: escalate
 
-## When investigation reveals "no single root cause" — default to suspecting your analysis
+### Escalating after repeated failures
 
-[Instruction] Sometimes a bug is genuinely environmental, timing-dependent, or external (flaky network, race in a third-party lib). After thorough investigation:
+- [Instruction] **CRITICAL: After three failed fixes, stop — don't try a fourth on the same theory; escalate instead.**
+  - [Why] Three failures is empirical evidence the model in your head doesn't match reality, so more attempts on the same model keep failing.
+  - [Example] Step one is a web search of the exact symptom — error message, stack-trace fragment, library + version, framework + error code.
 
-1. [Instruction] Document what was investigated and ruled out.
-2. [Instruction] Implement appropriate handling: capped retry, timeout, clear error message.
-3. [Instruction] Add monitoring/logging so the next occurrence has more evidence.
+- [Instruction] **Question the architecture, not just the code — ask whether the layer boundaries or data model are themselves wrong.**
+  - [Why] If each fix reveals a new symptom elsewhere, the pattern is broken, not the implementation — patching code can't fix a wrong structure.
 
-[Why] ~95% of "no root cause" claims are incomplete investigation. Default to suspecting your own analysis first — the alternative (it's the universe's fault) prevents you from finding the real cause.
+### When there's no single root cause
+
+- [Instruction] When you conclude a bug has no single root cause, default to suspecting your own analysis first; only after thorough investigation accept it as environmental, timing-dependent, or external.
+  - [Why] ~95% of "no root cause" claims are incomplete investigation — "it's the universe's fault" is the belief that stops you from finding the real cause.
+
+Once genuinely satisfied it's external, handle it so the next occurrence is a known state, not a silent recurring failure:
+
+- [Instruction] Document what you ruled out to reach the external conclusion.
+  - [Why] The next person to hit it needs your elimination trail, or they redo the whole investigation from scratch.
+
+- [Instruction] Once a fault is confirmed external, handle it explicitly — cap retries, set a timeout, or raise a clear error.
+  - [Why] Left unhandled, it comes back as a silent or confusing failure; explicit handling turns it into a state you can recover from.
+
+- [Instruction] Add logging and monitoring that fire on the next occurrence.
+  - [Why] Without a logged signal or alert, a recurring external failure stays invisible until it grows into a larger incident.

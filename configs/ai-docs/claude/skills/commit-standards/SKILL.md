@@ -2,78 +2,59 @@
 name: commit-standards
 description: "USE PROACTIVELY at two moments: planning commit boundaries when a task or sub-step ends, AND drafting a message or running git commit. Conventional format + one-logical-change decomposition, refactor isolation, tests/docs bundled."
 user-invocable: false
-instructions-budget: 10
+instructions-budget: 12
 ---
 
 # Commit Standards
 
-Principles and rules for any git commit. Each section pairs a principle with its rule or example.
+Principles for any git commit. Each rule is an instruction with its nested why; code-fence examples sit at the margin below.
 
-## One logical change per commit, always working
+## Commit decomposition
 
-[Instruction] Never bundle unrelated changes.
+### One logical change per commit
 
-[Why] A commit is a unit of reverting and a unit of review.
+- [Instruction] Never bundle unrelated changes — one logical change per commit.
+  - [Why] A commit is the unit of revert and review; bundling forces you to revert good changes to undo a bad one and makes reviewers context-switch between concerns.
 
-Bundled commits force you to revert good changes to undo a bad one, and force reviewers to context-switch between concerns. Small, single-purpose commits are surgical.
+- [Instruction] **CRITICAL: Ensure every commit builds and passes its tests on its own.**
+  - [Why] A commit that doesn't build breaks `git bisect` and any rollback that lands on it, defeating the per-commit revert it's supposed to enable.
+  - [Example] A migration's move + update-refs + delete must land in one commit — split apart, the intermediate commits don't build.
 
-- [Instruction] **1 task = 1 commit.**
-- [Instruction] **A migration (move + update refs + delete) is one commit.**
-- [Instruction] **Refactors get their own commit, always isolated from behavior change.**
-- [Instruction] **Related tests, code, docs, IaC all bundled together in their own commit.**
+- [Instruction] Split a large task into several small, focused commits rather than one big one.
+  - [Why] A big commit makes the reviewer judge it all at once; small focused commits each get reviewed and reverted on their own.
 
-## Split entangled commits by staging — never edit code to split
+- [Instruction] **Bundle the related tests, code, docs, and IaC for a change into that one commit.**
+  - [Why] Splitting them strands a reviewer who can't see the test that proves the code, or the doc that explains it.
 
-[Instruction] **CRITICAL: Never mutate code to split commits — staging-only** -- split entangled commits by staging, never by editing code. Committed content must stay byte-identical to what was authored and reviewed.
+### Refactor isolation & hunk-splitting
 
-[Instruction] Use `git-hunk` for intra-file splits -- `git-hunk list --json`, then `git-hunk stage <id>` (line-level: `-l 3,5-7`). NEVER edit-to-revert-then-reapply.
+- [Instruction] Keep a refactor commit to structure only — rename, restructure, extract, with green tests staying green.
+  - [Why] Bundling behavior in hides it under mechanical noise, so reviewers can't separate the substantive diff from the cosmetic; isolation makes each reviewable in seconds.
+  - [Example] A migration (move + update refs + delete) is structure-only — keep it as one isolated refactor commit.
 
-[Why] Editing to stage selectively risks altering the code under review and breaks the audit trail — staging touches the index, never the working tree.
+- [Instruction] **Split entangled commits by staging with `git-hunk`, never by editing code — committed content stays byte-identical to what was authored and reviewed.**
+  - [Why] Editing to stage selectively risks altering the code under review and breaks the audit trail; staging touches the index, never the working tree.
 
-[Why] Only combine entangled changes into one commit when staging genuinely can't separate them; then name both concerns in the body.
+- [Example]
+```bash
+git-hunk list --json           # list hunks with ids
+git-hunk show <id>             # inspect a hunk before staging
+git-hunk stage <id>            # stage a whole hunk
+git-hunk stage <id> -l 3,5-7   # stage only lines 3 and 5-7
+```
 
-## Conventional commits with WHY body that fits on a screen (~32 lines)
+## Message format
 
-[Instruction] The diff already records what changed; the body explains why.
+- [Instruction] Make the body carry the why — the spec, business reason, and intent — not the what the diff already records.
+  - [Why] Spec and business reasoning rarely survive in the code; the commit body is their durable record for later readers, human and AI alike.
 
-[Why] Future-you reading `git log` six months later doesn't have the PR open. The commit body is the standalone record of intent. If the body just restates the diff, it's wasted lines.
+- [Instruction] Format the subject as Conventional Commits (`type(scope): subject`), imperative, max 64 chars.
+  - [Why] A uniform machine-parseable subject lets tooling group and changelog commits, and the cap keeps it readable in a one-line log.
 
-- [Instruction] Format: Conventional Commits (`type(scope): subject`), imperative, max 72-char subject.
-- [Instruction] Body: scannable bullets/sub-bullets by default. Prose only when fragmenting would lose connective tissue.
+- [Instruction] Pass a multi-line commit message via HEREDOC, not a plain `-m "..."`.
+  - [Why] HEREDOC preserves line breaks, indentation, and blank lines reliably across shells, where `-m "..."` mangles multi-line text.
 
-## Minimize tool calls when committing
-
-[Instruction] One `git status + git diff` + `git add .. && git commit` is generally enough.
-
-[Why] Every tool call slows down the commit and adds context noise. We want FREQUENT and small commits — those need to be cheap.
-
-- [Instruction] Don't inspect `git log` or prior commits to learn commit style — Bruno's format is authoritative across all repos. Skip that tool call.
-- [Instruction] Don't add files with `git add -A` or `git add .` — adds risk of including secrets or unrelated files. Specify paths explicitly.
-
-## Refactors are isolated from behavior changes
-
-[Instruction] A refactor commit changes structure, never behavior. A behavior commit changes behavior, never structure.
-
-[Why] Bundled refactors hide the behavior change in mechanical noise — reviewers can't tell the substantive diff from the cosmetic. Isolation makes each commit reviewable in seconds.
-
-- [Instruction] Refactor commit: rename, restructure, extract — green tests stay green.
-- [Instruction] Behavior commit: small, focused, test-backed.
-
-## Don't skip hooks (--no-verify) or bypass signing (--no-gpg-sign)
-
-[Instruction] Unless the user has explicitly asked for it.
-
-[Why] Hooks catch lint/security issues at commit time — bypassing means they ship. If a hook fails, investigate and fix the underlying issue, not the hook.
-
-## Don't commit changes unless explicitly asked
-
-[Instruction] Wait for the user's explicit "commit this" or equivalent.
-
-[Why] Pre-emptive commits feel intrusive — the user may want to inspect first or batch differently. Default to staging/diffing only; commit on request.
-
-## Use HEREDOC for commit messages
-
-[Example]
+- [Example]
 ```bash
 git commit -m "$(cat <<'EOF'
    Commit message here.
@@ -83,20 +64,14 @@ git commit -m "$(cat <<'EOF'
 )"
 ```
 
-[Why] HEREDOC preserves formatting (line breaks, indentation, blank lines) reliably across shells. Plain `-m "..."` mangles multi-line messages.
+## How to commit
 
-## Create new commits rather than amending
+- [Instruction] Commit in roughly one `git status + git diff` then `git add <paths> && git commit` — don't pad with extra inspection calls.
+  - [Why] We want frequent small commits, and those only stay cheap if each one's tool overhead and context noise stay minimal.
+  - [Example] Don't inspect `git log` or prior commits to learn commit style — the format here is authoritative across all repos.
 
-[Instruction] Default to NEW commits. Only amend when the user explicitly requests it.
+- [Instruction] Don't stage with `git add -A` or `git add .`; specify paths explicitly.
+  - [Why] A blanket add risks sweeping in secrets or unrelated files that then ship in the commit.
 
-[Why] Amending modifies the PREVIOUS commit. If the previous commit was pushed or used by others, amending destroys their reference point.
-
-Critically, when a pre-commit hook FAILS, the commit didn't happen — so `--amend` would modify a different (earlier) commit. After hook failure, fix the issue, re-stage, and create a NEW commit.
-
-## Never force-push to main/master
-
-[Instruction] Warn the user if they request it.
-
-[Why] Force-pushing main rewrites shared history. Everyone who pulled is now out of sync. The cost is repo-wide; the benefit is rarely worth it.
-
-For non-main branches, force-push only when the user explicitly asks.
+- [Instruction] **CRITICAL: Never pass `--no-verify` or `--no-gpg-sign` unless the user explicitly asks for it.**
+  - [Why] Hooks catch lint and security issues at commit time, so bypassing them just ships those issues.

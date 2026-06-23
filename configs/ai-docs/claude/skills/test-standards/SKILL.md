@@ -10,88 +10,104 @@ instructions-budget: 60
 
 Principles for any test work. Each section pairs a principle with its WHY, with paired examples co-located under the principle.
 
-## Default to integration tests; test behaviour, not implementation
+## Test types
 
-[Instruction] Black-box by nature. Mock at external/IO boundaries (DB, HTTP, queues, file system).
+- [Instruction] Unit tests exercise a single function or module in isolation — especially good for stress-testing corner cases in leaf functions (parsers, normalizers, validators, formatters).
+  - [Why] Fast execution shortens the code-test iteration cycle; but isolation means they don't prove business value is delivered — complement with integration tests.
 
-[Why] Integration tests survive internal refactors and exercise the path the caller actually takes.
+- [Instruction] Integration tests exercise multiple units together with some parts mocked (typically external/IO boundaries like DB, HTTP, queues) and should be most used type.
+  - [Why] They verify units collaborate correctly without the full-stack cost of E2E, while still exercising enough context to validate real behavior.
 
-Unit tests pinned to implementation must be refactored alongside the code they pin — the test stops protecting you the moment you most need it.
+- [Instruction] Contract tests verify the API boundary between two systems — request/response shape, status codes, error format — without running the full stack.
+  - [Why] A contract test is cheaper and faster than E2E (no browser or full-stack setup) and catches incompatibilities early, before they surface in slow E2E runs or production.
 
-- [Instruction] Prefer fakes and localstack-style emulators to bare mocks where the cost is reasonable.
-- [Instruction] **Unit tests for leaf functions/modules** (parsers, normalizers, validators, formatters) — whitebox; expect tests to change with implementation. Skip when the only "unit" is a thin glue function.
-- [Instruction] **E2E tests sparingly** — slow and brittle; flakiness erodes trust in the suite. Acceptable when the specific case is cheap (existing fixture, single happy-path Playwright run, smoke test).
-- [Instruction] **Manual tests** when automation cost is disproportionate (rare UI flows, third-party integrations without sandbox). Log per `test-driven-development` format.
+- [Instruction] E2E tests exercise real scenarios end-to-end with no mocking — only fake or test data — validating the full system as users experience it.
+  - [Why] No mocking means they catch integration bugs narrower tests miss, but they're slow, brittle, and expensive to maintain — use sparingly for critical paths.
 
-## Each layer independently exercises its functionality — overlap cheap, gaps not
+## Choosing the test type
 
-[Instruction] **CRITICAL: Each test layer (unit / integration/router / e2e/browser) independently exercises the functionality it owns. Don't drop a layer's coverage on the grounds that another layer covers it.**
+- [Instruction] **CRITICAL: Prefer blackbox tests over whitebox — test at the caller's boundary, not the internals.**
+  - [Why] Blackbox tests survive refactors and catch refactor bugs; whitebox tests couple to implementation and break on rename or restructure even when behavior is unchanged.
 
-[Why] In the AI era overlapping tests are cheap; gaps justified by cross-layer reliance ship undetected when the "covering" layer diverges. Prefer visibly-redundant tests (user prunes) over quietly-uncovered layers.
+- [Instruction] **CRITICAL: Mock only at external/IO boundaries (DB, HTTP, queues, file system); keep everything inside the boundary real.**
+  - [Why] Integration tests survive internal refactors and exercise the path the caller actually takes.
 
-## Gold rule: automate what a human would manually do to verify
+- [Instruction] Prefer fakes and localstack-style emulators over bare mocks where the cost is reasonable.
+  - [Why] A fake behaves like the real dependency; a bare mock only replays the assumptions you encoded, so it keeps passing after they drift from reality.
 
-[Instruction] Before writing tests, ask: "if I had to verify this change by hand, what steps would I take?" — then automate that list.
+- [Instruction] Fall back to manual tests only when automation cost is disproportionate (rare UI flows, third-party integrations without sandbox).
+  - [Why] Without a sandbox the automation cost outweighs the risk, so forcing automation there spends more than the bug it would catch.
 
-Applies to backend (API calls, payloads, DB states) and frontend (clicks, inputs, page states) equally — the human verification checklist is the same shape regardless of layer.
+- [Instruction] **Each test layer (unit, integration/router, e2e/browser) independently exercises the functionality it owns — never drop a layer's coverage because another layer covers it.**
+  - [Why] Overlapping tests are cheap; a gap justified by cross-layer reliance ships undetected when the covering layer diverges, so visibly-redundant beats quietly-uncovered.
 
-[Why] Coverage tools answer "is this line touched?" — they cannot answer "would a manual tester have noticed this?". The manual-verification checklist is the test checklist.
+## Coverage & the manual-verification checklist
+
+- [Instruction] **Before writing tests, ask "if I had to verify this change by hand, what steps would I take?" — then automate that list, for backend and frontend alike.**
+  - [Why] Coverage tools answer "is this line touched?" but not "would a manual tester have noticed this?" — the manual-verification checklist is the test checklist.
 
 Concrete patterns this rule generates:
 
-- [Instruction] **Cover every variant** — N variants of the same kind = N tests (directly or via parametrization). Coverage on one says nothing about the others.
-  - [Instruction] Variant kinds: input fields, filters, query params, tabs, entity types, view modes, browser sizes.
-  - [Why] The "one example, infer the rest" heuristic fails the moment behavior diverges.
-- [Instruction] **Boundary on caps/limits** — a cap of N gets an explicit N+1 test (send N+1 of the limited thing and prove the cap engages). Happy-path-only leaves the invariant unverified.
-- [Instruction] **Async safety / idempotency** — disabled-during-fetch (UI), idempotency keys (API), retry-resistant operations — the actions a manual tester would re-fire need explicit tests.
-- [Instruction] **Three-branch dependency outcome** — success, error response, AND timeout/never-responds. Missing the timeout branch leaves a real production gap (UI stays loading forever; backend leaks resources).
-- [Instruction] **Inverse cache branch** — when set-and-fetch is tested, test clear-and-restore (or invalidate-and-refetch). Partial cache coverage is a known footgun.
+- [Instruction] **Cover every variant** — when several things are the same kind (input fields, filters, query params, tabs, entity types, view modes), test each one, directly or via parametrization.
+  - [Why] Testing one variant says nothing about the others — they share a kind but can behave differently, so each needs its own check.
+
+[Example]
+```ts
+// Bad — one filter tested, the other two ship unverified
+it('should filter by status', ...);
+
+// Good — every filter variant covered
+it('should filter by status', ...);
+it('should filter by date range', ...);
+it('should filter by assignee', ...);
+```
+
+- [Instruction] **Boundary on caps/limits** — a cap of N gets an explicit N+1 test: send N+1 of the limited thing and prove the cap engages.
+  - [Why] Happy-path-only leaves the invariant unverified — the cap could be silently broken and every passing test would miss it.
+
+- [Instruction] **Async safety / idempotency** — explicitly test disabled-during-fetch (UI), idempotency keys (API), and retry-resistant operations.
+  - [Why] These are the actions a manual tester would re-fire, so an untested one leaves a double-submit or duplicate-write gap in production.
+
+- [Instruction] **Three-branch dependency outcome** — test success, error response, AND timeout/never-responds for every dependency call.
+  - [Why] Missing the timeout branch leaves a real production gap — the caller hangs forever (UI stuck loading, backend leaking connections, requests, and pool slots).
+
+- [Instruction] **Test both cache directions** — when you test that data is cached and read back, also test that clearing or invalidating it works (value gone, refetch reloads it).
+  - [Why] Testing only the populate path leaves eviction unverified — a broken invalidation silently serves stale data while every passing test misses it.
+
 - [Instruction] **Observably-non-empty BEFORE and AFTER** — for filter/transition tests (UI or API), baseline and final state must both be non-empty.
-  - [Why] Empty-to-something only proves the filter renders/returns something — not that it changes meaningfully.
+  - [Why] Empty-to-something only proves the filter renders/returns something — not that it changes the result meaningfully.
 
-## Design test titles before implementation
+- [Instruction] **After tests pass, check coverage if available.**
+  - [Why] Green tests prove the cases you thought of work; coverage gaps reveal the cases you didn't think of — corner cases hide there.
 
-[Instruction] Write titles (no bodies), review them, then run RED-GREEN.
+## Test titles
 
-[Why] Titles capture the contract before the code locks it in.
+### Design test titles before implementation
 
-Writing tests AFTER you "see what works" shapes the test to whatever you ended up writing — the test stops being a contract.
+- [Instruction] **Write titles (no bodies) FIRST, review whether they properly describe the intent/behavior, then run RED-GREEN.**
+  - [Why] A title that describes intent on its own reviews fast — you catch a wrong contract before coding, and it guides the right implementation; wrong tests waste time and tokens.
 
-- [Instruction] Applies upfront to integration tests and pre-known pure helpers, and again at each helper pulled on demand — designing them all upfront forces premature signatures.
-- [Instruction] Commit tests together with their implementation — never titles alone.
-- [Instruction] For scripts: usage syntax + examples in the comment header.
+- [Instruction] Never commit test titles alone — a title needs its body in the same commit.
+  - [Why] A title committed without its body rots as forever-pending TDD scaffolding that never gets its implementation.
 
-## Descriptive titles (BDD-like)
+- [Instruction] For scripts (where we usually don't write tests), start with the usage syntax + examples in the comment header — the contract, written before the code.
+  - [Why] A script has no `it()` titles to design first, so its comment-header usage line is the contract you write before coding — the same role test titles play.
 
-[Instruction] Test titles read as behavior documentation in domain vocabulary — observable behavior, not internal field names or implementation tokens.
+### Descriptive titles (BDD-like)
 
-[Why] Titles get scanned a hundred times more than test bodies.
-
-A title coupled to an internal field name breaks the moment the field is renamed even when behavior is identical; a domain-language title survives.
-
-[Instruction] **No spec/plan/AC refs in test titles** — see CLAUDE.md ("Self-describing artifacts — no context-dependent shorthand"). Same rule applies to test titles.
+- [Instruction] **CRITICAL: Write test titles in domain language a non-engineer (PM, QA, designer) could understand — observable behavior, not internal field names or implementation tokens.**
+  - [Why] Titles get scanned more than bodies, and one tied to an internal field name breaks on rename even when behavior is unchanged — domain-language titles survive.
 
 **Anti-pattern: generic noun when multiple instances of the same kind exist**
 
-[Instruction] When a system has multiple instances of the same kind — two search fields, two filters, two query params, two endpoints — name the specific one in the title.
-
-Generic nouns invite confusion.
+- [Instruction] When a system has multiple instances of the same kind — two search fields, two filters, two query params, two endpoints — name the specific one in the title.
+  - [Why] A generic noun invites confusion when two of the same kind exist — the reader can't tell which control the test pins.
 
 [Example]
 ```
 Bad:  "should AND fieldA IN with fieldB NOT IN when both provided"   (operator mechanics)
 Bad:  "regression: PR #2034 last-spread-wins on flowCode"            (session/branch history)
 Good: "should subtract excludeFlowCodes from the flowCode include set when both filters are provided"
-```
-
-[Example]
-```ts
-// Bad — spec-tracking refs in test titles
-it('should throw INTERNAL_SERVER_ERROR when getSalesAgreements throws after retries (AC-18)', ...);
-it('should emit the structured procedure-entry log per Req 21', ...);
-
-// Good
-it('should throw INTERNAL_SERVER_ERROR when getSalesAgreements throws after retries', ...);
 ```
 
 [Example]
@@ -104,10 +120,6 @@ it('should NOT re-fire schoolsAgreements when externalId search changes (cache h
 ```
 
 **Anti-pattern: internal-state predicate instead of operator-language behavior**
-
-[Instruction] Test titles describe observable behavior in operator/domain language a non-engineer (PM, QA, designer) could understand.
-
-[Why] Internal-state predicates, codebase tokens, and clean-code assertions about names don't describe behavior — they force the reader to reconstruct the mental model the test was written against.
 
 [Example]
 ```ts
@@ -125,15 +137,10 @@ it('should enable Aplicar after the operator clears the school selection so the 
 it('should filter the active-tab table by agreementIds once the school batch resolves in slow mode', ...);
 ```
 
-## Test titles encode the FULL precondition, not happy-path only
+The form `should X when Y` implies Y is the only precondition.
 
-[Instruction] The form `should X when Y` implies Y is the only precondition.
-
-[Instruction] If the assertion holds only when `Y AND Z`, the title must say so — `should X when Y, only when not Z` — or split into separate tests if cleaner.
-
-[Why] A title is a tiny spec.
-
-An incomplete title fails to document the conjunctive constraint — readers learn the wrong contract, and the test stops being a guard for the missing precondition.
+- [Instruction] If the assertion holds only when `Y AND Z`, the title must encode the conjunction — or split into separate tests if cleaner.
+  - [Why] A title is a tiny spec; an incomplete one documents the wrong contract, so readers learn the wrong precondition and the test stops guarding the missing one.
 
 [Example]
 ```ts
@@ -145,82 +152,37 @@ it('should enable Apply after operator toggles a school off then back on, only w
 it('should disable Apply while loading (loading dominates dirty state)', ...);
 ```
 
-## Bug fix starts with a failing regression test
+## Splitting & pruning tests
 
-[Instruction] See `debug-standards` for the full rule.
+### One test per distinct cause
 
-## Deterministic & self-contained
+- [Instruction] **CRITICAL: When a new test exercises the same code path with the same inputs as an existing one, remove the duplicate or merge.**
+  - [Why] Two tests asserting the same thing don't improve safety — they slow the suite, double the maintenance burden, and create false confidence.
+  - [Example] If "max 10" is enforced, one test at 11 covers it; tests at 12, 15, 100 are redundant — boundary + 1 is the contract.
 
-[Instruction] No shared state, no randomness, clone inputs when testing mutating functions. Pin the clock with fake timers when the system under test reads it — directly or via helpers.
+- [Instruction] Isolate each independent trigger for a behavior; different inputs that exercise the same code path are one test, not two.
+  - [Why] Distinct causes are the unit of safety — if two test cases hit the same production code path, the second adds maintenance with no extra coverage.
 
-[Why] Flaky tests erode trust.
+- [Instruction] When multiple events produce the same outcome (different filters reset the page, different errors roll back one transaction), write ONE test on the outcome, not N one-per-trigger.
+  - [Why] One-per-trigger tests miss the next trigger someone adds; a test on the shared outcome automatically covers new triggers too.
 
-A test that passes 9 times and fails the 10th is worse than no test — engineers learn to rerun instead of investigate, and real failures get ignored.
-
-- [Instruction] Time-derived tests without a frozen clock are time-bombs — they pass today and silently fail in N months when wall-clock crosses a threshold.
-- [Instruction] Apply when test names contain "past", "future", "expired", "min", "cap", "deadline" — wall-clock-sensitive vocabulary.
-
-## Observed test flakes always become Scouts
-
-[Instruction] Any observed test flake — intermittent failure, OOM, timing race — queues a Scout immediately, even when the root cause is unclear at observation time.
-
-Uses the Scout mechanism from CLAUDE.md's Scout rule (auto-add as `[Scout]`).
-
-[Why] Flakiness compounds — each ignored instance erodes signal in the suite, so the "next" failure can't be trusted as a real regression.
-
-"Not my problem today" becomes "the suite stops guarding tomorrow."
-
-## Mock sparingly
-
-[Instruction] Justify each mock; the only mocks worth keeping are at the external/IO boundaries defined under "Default to integration tests".
-
-[Why] Every mock is a hypothesis about what the dependency does.
-
-If the hypothesis drifts from reality, the test passes while production breaks.
-
-## Use real-like mock data
-
-[Instruction] Use realistic-looking values in mock data (real-shaped names, emails, IDs, dates) — not placeholder fragments.
-
-[Why] Cryptic mock data (`name: "x"`, `email: "a@b"`) hides bugs that show up only with realistic shapes (encoding, length, casing). Real-like data catches real-like bugs.
-
-## Don't re-implement logic under test
-
-[Instruction] Let the system under test do the work — the test must encode an independent expectation, not recompute what the code does.
-
-[Why] If the test reproduces the logic, both move together: a bug in the production logic is mirrored in the test, and the test passes anyway.
+Distinguish from neighbors: "Remove redundant tests" fires on identical assertions; "One test per distinct cause" fires when causes have independent production branches; this rule fires when triggers differ but share one branch.
 
 [Example]
 ```ts
-// Bad -- reproduces filtering logic:
-const filtered = items.filter(...);
-expect(myFunc(filtered)).toEqual(...);
+// Bad — three tests, one per trigger, all asserting the same behavior:
+it('should reset page to 1 when status filter changes', ...);
+it('should reset page to 1 when search input changes', ...);
+it('should reset page to 1 when sort order changes', ...);
 
-// Good -- let the system under test do the work:
-expect(myFunc(items)).toEqual(expectedFiltered);
+// Good — one test of the underlying invariant:
+it('should reset page to 1 on every refetch of the dataset', ...);
 ```
 
-## Remove redundant / tautological tests
+### Splitting & grouping by behavior
 
-[Instruction] When a new test exercises the same code path with the same inputs as an existing one, remove the duplicate or merge.
-
-[Why] Two tests asserting the same thing don't improve safety — they slow the suite, double the maintenance burden, and create false confidence.
-
-Schema example: if "max 10" is enforced, one test at 11 covers it; tests at 12, 15, 100 are redundant. Boundary + 1 is the contract.
-
-## One test per distinct cause
-
-[Instruction] Isolate each independent trigger for a behavior. Different inputs that exercise the same code path are one test, not two.
-
-[Why] Distinct causes are the unit of safety. If two test cases hit the same production code path, the second adds maintenance with no extra coverage.
-
-## Split tests that assert more than one behavior
-
-[Instruction] One `it` = one assertion of behavior. A title joined by "and" or covering two independent observable behaviors splits into two tests.
-
-[Why] Compound assertions hide which half broke when the test fails — the reader has to re-read the body to recover which.
-
-[Why] Splitting forces sharper titles — each half names its own observable behavior; the test surface becomes a per-behavior index.
+- [Instruction] One test = one behavior asserted; a title joined by "and" (or covering two independent behaviors) splits into two tests.
+  - [Why] A compound assertion hides which half broke — you re-read the body to find out; splitting forces sharper per-behavior titles, making the test list an index.
 
 [Example]
 ```ts
@@ -238,45 +200,8 @@ it('should re-derive per-tab badges from school-scoped summary calls', ...);
 it('should re-derive the brand-selector dropdown options from school-scoped summary calls', ...);
 ```
 
-## When N triggers share one outcome, test the outcome
-
-[Instruction] When multiple events produce the same outcome — different filters reset the page, different mutations invalidate one cache, different errors roll back one transaction — write ONE test asserting the outcome.
-
-[Instruction] Don't write N tests one-per-trigger when all paths lead to the same final state.
-
-[Why] N specific tests grow linearly with each new trigger and silently miss the next one added.
-
-A test of the outcome itself ("any refetch resets page to 1") inherits coverage automatically when new triggers join.
-
-- [Instruction] **vs. "Remove redundant tests"** — that rule fires on identical assertions; this rule fires when triggers differ but outcome doesn't.
-- [Instruction] **vs. "One test per distinct cause"** — that rule fires when causes have independent production branches; this rule fires when triggers share one production branch.
-
-[Example]
-```ts
-// Bad — three tests, one per trigger, all asserting the same behavior:
-it('should reset page to 1 when status filter changes', ...);
-it('should reset page to 1 when search input changes', ...);
-it('should reset page to 1 when sort order changes', ...);
-
-// Good — one test of the underlying invariant:
-it('should reset page to 1 on every refetch of the dataset', ...);
-```
-
-## Don't test log presence
-
-[Instruction] Log emission is not behavior the caller observes.
-
-[Why] Log assertions are brittle (break when format evolves), tautological (mirror impl), and clutter the suite.
-
-Testing the behavior that produced the log carries the same signal without the brittleness.
-
-[Instruction] **Exception**: when a log is an external contract (audit log consumed by another system, structured event for analytics), test the payload shape — that's contract testing, not log presence testing.
-
-## Group tests by intent: happy path, corner cases, failure scenarios
-
-[Instruction] Group tests by intent — happy path, corner cases, failure scenarios — using nested describe blocks.
-
-[Why] Readers scanning "what does this do when it works?" should not wade through error paths. Grouping by intent makes the contract scannable at a glance.
+- [Instruction] Group tests by intent — happy path, corner cases, failure scenarios — using nested describe blocks.
+  - [Why] Readers scanning "what does this do when it works?" should not wade through error paths — grouping by intent makes the contract scannable at a glance.
 
 [Example]
 ```ts
@@ -302,11 +227,25 @@ describe('contractValidation.getSchoolsAgreementsAndSkus', () => {
 });
 ```
 
-## Avoid order-dependent assertions
+## Determinism & flakes
 
-[Instruction] Tests should not break when the implementation changes the order of items in a collection, unless order is part of the contract.
+- [Instruction] **No shared state between tests — each test sets up and tears down its own.**
+  - [Why] Shared state makes outcome depend on run order: a test that passes 9 times and fails the 10th teaches engineers to rerun instead of investigate, so real failures get ignored.
 
-[Why] Asserting on exact array order couples tests to implementation details. A refactor that changes iteration order shouldn't break a behavior test.
+- [Instruction] **No randomness in test inputs or assertions — use fixed values.**
+  - [Why] A random input means a failure may not reproduce, so the signal is unactionable and the flake erodes trust in the suite.
+
+- [Instruction] Clone inputs before passing them to mutating functions.
+  - [Why] A function that mutates its argument corrupts the shared fixture, so the next test in the file silently inherits the mutation.
+
+- [Instruction] **Pin the clock with fake timers whenever the system under test reads it (directly or via helpers); test names like "expired", "deadline", "min", "cap" are the tell.**
+  - [Why] Without a frozen clock, a time-derived test passes today and silently fails in N months when the wall-clock crosses the threshold it depends on.
+
+- [Instruction] **File a `[Scout]` for any observed test flake (intermittent failure, OOM, timing race) immediately, even before the cause is clear.**
+  - [Why] A flake wastes your time chasing bugs that aren't there and erodes trust in the suite; left unfiled, flakes pile up until it guards nothing.
+
+- [Instruction] Tests should not break when the implementation changes the order of items in a collection, unless order is part of the contract.
+  - [Why] Asserting on exact array order couples tests to implementation details — a refactor that changes iteration order shouldn't break a behavior test.
 
 [Example]
 ```ts
@@ -324,13 +263,13 @@ expect(result).toEqual(expect.arrayContaining([
 ]));
 ```
 
-## Fixtures must support every state the tests assert on
+## Mocking, fixtures & test data
 
-[Instruction] When a single fixture is reused across tests asserting on different states (idle, loading, error, edge case), its defaults must let each test express its state without monkey-patching internals.
+- [Instruction] Use realistic-looking values in mock data (real-shaped names, emails, IDs, dates) — not placeholder fragments.
+  - [Why] Cryptic mock data (`name: "x"`, `email: "a@b"`) hides bugs that show up only with realistic shapes (encoding, length, casing) — real-like data catches real-like bugs.
 
-[Why] If a test has to mutate the fixture in surprising ways to reach a state, the fixture is too narrow. Extending the factory is the contract; tests stay declarative.
-
-[Instruction] When you add a new test that asserts on a state the fixture didn't anticipate, **extend the factory** rather than constructing one-offs in the test body.
+- [Instruction] Reach any test state by extending the shared factory with overrides — never monkey-patch fixture internals or build one-offs in the test body.
+  - [Why] A one-off or monkey-patch drifts from the shared fixture and hides setup from the next reader; a factory override keeps every state declarative.
 
 [Example]
 ```ts
@@ -351,83 +290,37 @@ it('shows expired badge when past deadline', () => {
 });
 ```
 
-## Parametrized test inputs (OK when readable)
+- [Instruction] **CRITICAL: Reference the same enums/constants as production code — in assertions, in mock factory bodies, and in fixture defaults.**
+  - [Why] Hardcoding the literal means a refactor that renames the enum silently breaks production while the test still passes on the old literal — sharing the constant catches the drift.
+  - [Example] A mock factory that hardcodes `'PLENO'` while production uses `BrandSlugs.PLENO = 'pleno'` passes against its own mock but never matches production's shape — and TypeScript can't catch it.
 
-[Instruction] Use parametrized inputs when N tests differ only by input/expected; switch back to separate tests when bodies diverge.
+- [Instruction] Parametrize inputs only when it keeps tests readable, or when writing them one-by-one doesn't scale; split back to separate tests once bodies diverge.
+  - [Why] Parametrization's only payoff is dedup; once bodies diverge, the shared harness obscures what each case actually asserts, and that readability cost outweighs the dedup.
 
-[Why] Parametrization reduces duplication when N tests differ only by input/expected. Stops being useful when bodies diverge — at that point, separate tests are more readable.
+- [Instruction] Keep test-file helpers inline until a second file needs them — and even at 2+ callers, stay inline when a helper would hide what's being asserted.
+  - [Why] Grasp-at-a-glance beats DRY in tests — the body stays readable as documentation of intent, and a helper's mechanical dedup isn't worth the grasp cost on every read.
 
-## Inline test helpers until reused
+## Test integrity & maintenance
 
-[Instruction] Keep test-file helpers inline until a second file needs them (centralize at 2+ callers, not speculatively) — grasp-at-a-glance beats DRY, body stays human-readable as documentation of intent.
+### Assert real behavior, not implementation
 
-- [Instruction] Inline narrative often wins when the duplicated block is byte-identical and the helper would hide what's being asserted.
-- [Why] Helper-required tests lose their narrative. Duplication cost is mechanical; grasp cost compounds on every read.
+- [Instruction] **CRITICAL: Let the system under test do the work — the test must encode an independent expectation, not recompute what the code does.**
+  - [Why] If the test reproduces the logic, both move together: a bug in the production logic is mirrored in the test, and the test passes anyway.
 
-## Re-use constants in assertions AND in mock data
+[Example]
+```ts
+// Bad -- reproduces filtering logic:
+const filtered = items.filter(...);
+expect(myFunc(filtered)).toEqual(...);
 
-[Instruction] Reference the same enums/constants as production code — in assertions, in mock factory bodies, and in fixture defaults.
+// Good -- let the system under test do the work:
+expect(myFunc(items)).toEqual(expectedFiltered);
+```
 
-[Why] Hardcoding the literal value in the test means a refactor that renames the enum silently breaks production while the test still passes (with the old literal). Sharing the constant catches drift.
+- [Instruction] Hand-code regression baselines as explicit expected values — never `f(X) === f(X)`, which only proves `f` is deterministic and can never fail.
+  - [Why] A real regression guard needs a value you wrote down that the code might get wrong; comparing the code's output to itself checks nothing.
 
-Mock factories are the silent killer here: a factory that hardcodes `'PLENO'` while production uses `BrandSlugs.PLENO = 'pleno'` (uppercase vs lowercase) lets drift compound.
-
-The test passes against its own mock but never matches the shape production actually emits.
-
-TypeScript can't catch it (string literal narrows but doesn't enforce equivalence with the enum).
-
-The fix is mechanical: every domain identifier in a mock body refers to the production constant, not a copy.
-
-## Debug with code and tests, not temp files
-
-[Instruction] Debug with code and tests, not temp scratchpad files.
-
-[Why] Temp files (scratchpads, throwaway scripts) vanish when the session ends. The next person who hits the same bug has no signal. A failing test or a committed debug script survives.
-
-## Leverage coverage to find untested flows
-
-[Instruction] After tests pass, check coverage if available; uncovered branches reveal corner cases the tests didn't actually exercise.
-
-[Why] Green tests prove the cases you thought of work. Coverage gaps reveal the cases you didn't think of — corner cases hide there.
-
-- [Instruction] Source order: repo's existing coverage script first; else run coverage directly; else read existing artifacts (lcov, coverage.xml).
-- [Instruction] Skip silently if none work.
-
-## Tests follow migrated code
-
-[Instruction] When moving logic to a new location, adapt existing tests to the new path. Don't delete behavior coverage.
-
-[Why] Deleting tests during a migration is silent regression risk. The behavior they protected is still being shipped — without the test, the next bug in that area has no signal.
-
-## Question every skipped test
-
-[Instruction] Every `.skip` you encounter — yours or someone else's, old or new — owes the suite a justification. Stop and ask three questions:
-
-1. [Instruction] **Should this be skipped at all?** A skip without a written reason (inline comment or linked ticket explaining what blocks it) is dead weight, not deferred work.
-2. [Instruction] **Is it stale?** Old `.skip` + no follow-up commits + production code the test references is missing or changed = abandoned scaffolding.
-   - [Instruction] Delete (and the file, if 100% of its tests were skipped).
-3. [Instruction] **Should it actually be un-skipped now?** The condition that justified the skip may have lifted.
-   - [Instruction] Un-skip and run — if it passes, the skip outlived its purpose; if it fails meaningfully, the test just caught a real gap.
-
-[Why] Skipped tests are silent debt — the skip count grows quietly, and `skipped` loses meaning when half the entries are forever-deferred.
-
-Skipped tests are also a tell for AI slop: agents readily generate `it.skip(...)` scaffolds claiming TDD intent.
-
-But the implementation that would un-skip them never lands, and the file rots as forever-pending TDD.
-
-Treating each skip as a decision-point keeps the suite honest about what it actually guards — and catches the slop pattern early.
-
-When the answer is "delete," capture the investigation (what was tried, why the skip is dead, what production code it would have guarded) in the commit body.
-
-## Regression baselines: hand-coded shape, not self-comparison
-
-[Instruction] A test that asserts `f(X) === f(X)` proves only that `f` is deterministic — it can never fail unless the system is non-deterministic. Use hand-coded expected values instead.
-
-[Why] A genuine regression guard must encode an *expectation* the implementation might miss. Self-comparison guards nothing.
-
-- [Instruction] Regression baselines must be hand-coded values that the implementation could plausibly fail to produce.
-- [Instruction] This is distinct from "Don't reproduce logic under test" (which is about the test recomputing what the code does).
-- [Instruction] Self-comparison is about the test asserting against its own runtime output.
+Distinct from "Don't reproduce logic under test": that rule is about the test recomputing what the code does, this one is about the test asserting against its own runtime output.
 
 [Example]
 ```ts
@@ -444,3 +337,31 @@ expect(response.body.data).toHaveLength(1);
 expect(response.body.data[0].entity).toBe('order');
 expect(response.body.pagination).toEqual({ page: 1, pageSize: 20, totalItems: 1, totalPages: 1 });
 ```
+
+- [Instruction] Don't assert that a log was emitted — log emission is not behavior the caller observes.
+  - [Why] Log assertions are brittle (break when format evolves), tautological (mirror impl), and clutter the suite — testing the behavior that produced the log carries the same signal without the brittleness.
+
+### Durable regression coverage
+
+- [Instruction] **CRITICAL: Write a failing regression test that reproduces the bug before the fix lands; `debug-standards` holds the full rule.**
+  - [Why] The failing test proves you've reproduced the real bug and turns into the guard that stops it from regressing.
+
+- [Instruction] When you move code, move its tests too (if they exist) — adapt them to the new path, don't drop the coverage.
+  - [Why] Leaving tests behind during a move is silent regression risk: the behavior still ships, but the next bug in that area has no test to catch it.
+
+- [Instruction] Prefer durable debugging artifacts — a failing test or committed debug script — over throwaway scratchpads.
+  - [Why] A scratchpad vanishes when the session ends, leaving the next person who hits the bug no signal; a test or committed script survives.
+
+### Question every skipped test
+
+- [Instruction] **Every `.skip` — yours or someone else's, old or new — owes a written justification (inline comment or linked ticket).**
+  - [Why] Skipped tests are silent debt whose count grows quietly, and a tell for AI slop — `it.skip()` scaffolds whose implementation never lands and the file rots as forever-pending TDD.
+
+- [Instruction] Delete dead skips — a stale one (old, no follow-up commits, referenced code gone or changed), or the whole file when 100% of its tests are skipped.
+  - [Why] A stale skip pads the count with tests that map to no real code; a fully-skipped file adds zero coverage and a standing audit cost — both dead weight.
+
+- [Instruction] Un-skip and run when the condition that justified the skip may have lifted.
+  - [Why] If it passes, the skip outlived its purpose; if it fails meaningfully, it just caught a real gap — the blocking condition often lifts silently.
+
+- [Instruction] When the answer is "delete," capture the investigation (what was tried, why the skip is dead, what code it would have guarded) in the commit body.
+  - [Why] The next reader who wonders why that coverage vanished needs the reasoning, or they re-litigate the same dead skip.
