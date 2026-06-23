@@ -282,18 +282,14 @@ Use the `update-config` skill. Verify the rule matches the realpath of the symli
 
 ---
 
-## 4. [Task] Trim marker budgets back under cap after the strict re-tag
+## 3. [Task] Catalogue the doc types I use in doc-standards (with a references/ decision guide)
 
-**Goal**: The repo-wide strict marker re-tag (already committed) left honest `[Instruction]` counts over budget. Trim them back **without** raising the budgets.
+**Goal**: Document, in the `doc-standards` skill, the document types I regularly work with — HLD, LLD, ADR, RFC, meeting notes, Jira tasks, and the rest — each with a clear, non-overlapping "when to use which" criterion so the choice is unambiguous.
 
-**Current overage (perf-check, deterministic)**:
-- Global `CLAUDE.md`: **103** `[Instruction]` (cap 100).
-- `*-standards` total: **206** (cap 200) — per-skill overrides also over: commit-standards 20 (>10), debug-standards 36 (>20), test-standards 64 (>60).
-- Density: 0 violations (already clean).
+**Mechanism**: add a lazy-loaded `references/<name>.md` under `doc-standards/` (the catalogue fires only when doc-type selection is in question, so it earns the lazy load — keeps the SKILL.md body lean). Per type capture: what it is, when to reach for it vs. its neighbours (the disambiguation is the point — HLD vs LLD, ADR vs RFC, meeting notes vs a tracked task), expected audience/lifespan, and where it lives. Spell every acronym on first use per the global self-describing-artifacts rule. Load `skill-creator` before editing the SKILL.md.
 
-**Mechanism**: apply the `performance-check` trim hierarchy in order — drop redundant → tighten dense wording → extract to `references/` (only if genuinely lazy-loadable) → split a skill. **Never** raise `instructions-budget` / `words-budget` (user-only). Load `skill-creator` before editing any `SKILL.md`.
+**Coordinate with**: the in-flight `doc-standards` marker sweep (TaskList) — land this after that sweep so the new references file follows the same marker convention.
 
-**Why deferred**: accurate marking came first; the overage is the honest signal that drives this trim, not a reason to loosen the cap.
+**Deliverable**: `doc-standards/references/<name>.md` cataloguing the doc types with a clean selection criterion, linked from the SKILL.md body. One commit.
 
-**Deliverable**: `CLAUDE.md` ≤100 `[Instruction]` and `*-standards` total ≤200, verified by `performance-check`; one commit (or per-skill).
-
+---
