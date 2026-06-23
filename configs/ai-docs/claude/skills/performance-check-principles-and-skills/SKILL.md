@@ -26,7 +26,7 @@ All limits sourced where possible. Full citations in [references/research.md](re
 
 | Target | Budget | Rationale |
 |---|---|---|
-| CLAUDE.md non-blank lines | 200 | [Community consensus + Jaroslawicz 2025 peak](references/research.md#claudemd-length) |
+| CLAUDE.md non-blank lines | 260 | [Marker-convention re-derivation: [Why] pairs double lines-per-instruction; count is the real gate](references/research.md#claudemd-length) |
 | CLAUDE.md words per line | 32 | User preference — enforces "Prefer scannable shape" |
 | Skill total count | 32 | User preference — keeps metadata preload small |
 | Skill non-blank lines | 500 | [Anthropic official best practice](references/research.md#skill-size) |
@@ -90,9 +90,9 @@ instructions-budget: 90
 ---
 ```
 
-The override is enforced **in addition to** the cross-skill `*-standards` total cap (300).
+The override is enforced **in addition to** the cross-skill `*-standards` total cap (200).
 
-It exists so the 300 budget can be intentionally allocated across the standards skills — e.g., weighting test-standards heavier than doc-standards because day-to-day testing fires that skill more often.
+It exists so the 200 budget can be intentionally allocated across the standards skills — e.g., weighting test-standards heavier than doc-standards because day-to-day testing fires that skill more often.
 
 When a skill exceeds its override, the report lists the offending count and the run fails.
 
@@ -210,7 +210,10 @@ Cite the research file when justifying cuts — grounded numbers are easier to d
 
 Every budget row links into `references/research.md`. Short answers:
 
-- **CLAUDE.md length**: Jaroslawicz et al. 2025 (arXiv:2507.11538) found instruction-following peaks at 150–200 instructions, degrading to 68% at 500. Community guidance lands 200 ideal / 300 ceiling.
+- **CLAUDE.md length (260 lines)**: Jaroslawicz et al. 2025 (arXiv:2507.11538) found instruction-following peaks at 150–200 *instructions*, degrading to 68% at 500.
+  - The old 200-*line* budget stood in for instruction count under "1 line ≈ 1 instruction" — true before the marker convention.
+  - Markers added a [Why] line under every [Instruction], so lines now ≈ 2× instructions + header/meta; the line cap no longer proxies the count.
+  - The [Instruction] count (≤100) is the real adherence gate; the line budget only guards marker-overhead bloat — re-derived to 260.
 - **Skill lines**: Anthropic's own skill-authoring docs state "Keep SKILL.md body under 500 lines."
 - **Skill description chars**: Claude Code 2.1.86 caps the `/skills` listing at 250 chars per description; only those participate in routing. The 1024 frontmatter cap is the failure threshold, not the budget.
 - **Skill name chars**: Anthropic's frontmatter validation rejects names over 64 chars. We measure the directory `basename` because that's what Claude Code uses when no explicit `name` field is set.

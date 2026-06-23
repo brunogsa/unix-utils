@@ -19,7 +19,21 @@ Citations backing every number in `SKILL.md`'s budget table. Read this when you 
 
 ## CLAUDE.md length
 
-**Budget: 200 non-blank lines**
+**Budget: 260 non-blank lines**
+
+### Marker-convention re-derivation (200 → 260)
+
+The 200 below was anchored on "a line roughly equals an instruction" — true for the pre-marker imperative style.
+
+The marker convention broke that 1:1 mapping: every `[Instruction]` now carries a `[Why]` line beneath it, plus optional `[Example]` lines.
+
+So ~100 instructions cost ~200 non-blank lines as instruction+why pairs alone, before any header or the Counting-conventions meta section.
+
+That makes the 100-instruction budget and a 200-line budget mathematically incompatible — you cannot use the full instruction budget without breaching 200 lines.
+
+The fix keeps instruction *count* (≤100) as the real adherence gate and re-derives the line cap to **260** = ~200 (pairs at full instruction budget) + ~60 (current header/meta/example overhead).
+
+The line budget now guards only marker-overhead bloat, not instruction load — the count budget already does the latter.
 
 ### Jaroslawicz et al. 2025 — instruction adherence peaks at 150–200
 
@@ -32,7 +46,7 @@ IFScale benchmark across 20 frontier models. Key findings:
 - Best models drop to 68% accuracy at 500 instructions.
 - Reasoning models hold up better through 100–250.
 
-**Implication:** 200 non-blank lines is at the upper edge of the empirical safe zone. A line roughly equals an instruction for imperative-style rule-based CLAUDE.md files.
+**Implication:** the 150–200 peak applies to *instruction count*, which the marker convention now measures directly (≤100 budget). The line cap (260) is a separate marker-overhead guard — see the re-derivation above.
 
 ### Community consensus — 200 ideal, 300 ceiling
 
@@ -275,7 +289,7 @@ Until then: 16% with citations to the three anchors above.
 
 | Budget | Value | Anchor |
 |---|---|---|
-| CLAUDE.md non-blank lines | 200 | HumanLayer community + Jaroslawicz 2025 peak (150–200) |
+| CLAUDE.md non-blank lines | 260 | Marker-convention re-derivation ([Why] pairs ~2× lines/instruction); count is the real gate |
 | CLAUDE.md words per line | 32 | User preference; prose-bloat guard |
 | Skill total count | 32 | User preference; conservative vs. Anthropic's 100+ reference |
 | Skill non-blank lines | 500 | Anthropic official best practice |

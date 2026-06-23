@@ -18,7 +18,11 @@
 set -eo pipefail
 
 # Budgets — keep in sync with SKILL.md
-readonly CLAUDE_LINES_BUDGET=200
+# 260, not 200: the marker convention pairs a [Why] line under every [Instruction],
+# so ~100 instructions cost ~200 lines of pairs before any header/example/meta. The
+# old 200 assumed "1 line ≈ 1 instruction" (pre-markers) and now binds before the real
+# gate — the [Instruction] count (CLAUDE_INSTRUCTIONS_BUDGET). See research.md#claudemd-length.
+readonly CLAUDE_LINES_BUDGET=260
 readonly CLAUDE_WORDS_PER_LINE_BUDGET=32
 readonly SKILLS_COUNT_BUDGET=32
 readonly SKILL_LINES_BUDGET=500
@@ -103,16 +107,16 @@ extract_instructions_budget() {
 }
 
 # Count [Instruction] markers (one per line). Always returns an integer.
-# Loose match — prose mentions of the marker name (e.g. in the CLAUDE.md
-# Counting Conventions section) inflate the count by ~3-4 lines, which is
-# negligible noise vs. real instruction counts in the hundreds.
+# Anchored to a leading tag — optional list marker (-, *, N.) then the bracket —
+# so prose mentions of the marker name and the glossary definition in the
+# CLAUDE.md Counting Conventions section are excluded, not counted as tags.
 count_instructions() {
-    awk '/\[Instruction\]/ { c++ } END { print c+0 }' "$1"
+    awk '/^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*\[Instruction\]/ { c++ } END { print c+0 }' "$1"
 }
 
 # Count [Instruction] lines also marked CRITICAL. Always returns an integer.
 count_critical_instructions() {
-    awk '/\[Instruction\]/ && /CRITICAL/ { c++ } END { print c+0 }' "$1"
+    awk '/^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*\[Instruction\]/ && /CRITICAL/ { c++ } END { print c+0 }' "$1"
 }
 
 # Render a critical/total pair as a percentage string. "N/A" when total is 0.
