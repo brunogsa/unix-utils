@@ -16,6 +16,16 @@ Confirm it fails for the right reason, then fix until it goes GREEN. Load `debug
 
 ---
 
+## Green baseline first
+
+Before writing any new test, confirm the existing suite and lint already pass.
+
+Starting on red conflates pre-existing failures with the regressions you're about to introduce — you can't tell whose fault each break is.
+
+When the baseline is already red, isolate the pre-existing failure first — see `debug-standards` (stash-and-rerun) — before adding your own RED.
+
+---
+
 ## The cycle: RED → GREEN → REFACTOR, most forcing case first
 
 1. **Design test titles** for the integration layer up front — review with user before coding.
