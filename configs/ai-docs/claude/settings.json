@@ -5,6 +5,10 @@
   "permissions": {
     "allow": [
       "Read",
+      "Edit(//tmp/**)",
+      "Edit(//private/tmp/**)",
+      "Write(//tmp/**)",
+      "Write(//private/tmp/**)",
       "WebFetch",
       "WebSearch",
       "TaskCreate",
@@ -13,30 +17,18 @@
       "TaskGet",
       "TaskOutput",
       "TaskStop",
-      "Bash(~/.claude/skills/doc-standards/scripts/check-density.sh *)",
-      "Bash(bash ~/.claude/skills/doc-standards/scripts/check-density.sh *)",
-      "Bash(/Users/brunoagostini/.claude/skills/doc-standards/scripts/check-density.sh *)",
-      "Bash(bash /Users/brunoagostini/.claude/skills/doc-standards/scripts/check-density.sh *)",
-      "Bash(configs/ai-docs/claude/skills/doc-standards/scripts/check-density.sh *)",
-      "Bash(bash configs/ai-docs/claude/skills/doc-standards/scripts/check-density.sh *)",
       "Bash(/Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/doc-standards/scripts/check-density.sh *)",
       "Bash(bash /Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/doc-standards/scripts/check-density.sh *)",
-      "Bash(~/.claude/skills/performance-check-principles-and-skills/scripts/check.sh *)",
-      "Bash(bash ~/.claude/skills/performance-check-principles-and-skills/scripts/check.sh *)",
-      "Bash(/Users/brunoagostini/.claude/skills/performance-check-principles-and-skills/scripts/check.sh *)",
-      "Bash(bash /Users/brunoagostini/.claude/skills/performance-check-principles-and-skills/scripts/check.sh *)",
-      "Bash(configs/ai-docs/claude/skills/performance-check-principles-and-skills/scripts/check.sh *)",
-      "Bash(bash configs/ai-docs/claude/skills/performance-check-principles-and-skills/scripts/check.sh *)",
+      "Bash(/home/brunogsa/unix-utils/configs/ai-docs/claude/skills/doc-standards/scripts/check-density.sh *)",
+      "Bash(bash /home/brunogsa/unix-utils/configs/ai-docs/claude/skills/doc-standards/scripts/check-density.sh *)",
       "Bash(/Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/performance-check-principles-and-skills/scripts/check.sh *)",
       "Bash(bash /Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/performance-check-principles-and-skills/scripts/check.sh *)",
-      "Bash(~/.claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
-      "Bash(bash ~/.claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
-      "Bash(/Users/brunoagostini/.claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
-      "Bash(bash /Users/brunoagostini/.claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
-      "Bash(configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
-      "Bash(bash configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
+      "Bash(/home/brunogsa/unix-utils/configs/ai-docs/claude/skills/performance-check-principles-and-skills/scripts/check.sh *)",
+      "Bash(bash /home/brunogsa/unix-utils/configs/ai-docs/claude/skills/performance-check-principles-and-skills/scripts/check.sh *)",
       "Bash(/Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
       "Bash(bash /Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
+      "Bash(/home/brunogsa/unix-utils/configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
+      "Bash(bash /home/brunogsa/unix-utils/configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
       "Bash(mmdc *)",
       "Bash(shellcheck *)",
       "Bash(git-hunk list *)",
@@ -63,6 +55,7 @@
       "Read(~/.config/gh/**)"
     ]
   },
+  "model": "opus",
   "hooks": {
     "PreToolUse": [
       {
@@ -104,10 +97,6 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/claude-tmux-notification.sh done"
-          },
-          {
-            "type": "command",
-            "command": "bash ~/.claude/hooks/claude-tasklist-stop-hook.sh"
           }
         ]
       }
@@ -156,7 +145,6 @@
     }
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "high",
   "advisorModel": "opus",
   "promptSuggestionEnabled": true,
   "autoUpdatesChannel": "latest",
