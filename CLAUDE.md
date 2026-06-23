@@ -26,6 +26,10 @@ Always edit source in `configs/`, never the symlink targets.
 
 Always edit `configs/ai-docs/claude/settings.json` directly. If the symlink has been broken, re-run `install.sh` to restore it.
 
+**Permission-glob caveat**: in `settings.json` `permissions.allow`, an `Edit`/`Write` path glob with a SINGLE leading slash (`Edit(/tmp/**)`) is read as project-root-relative and silently matches nothing. A filesystem-absolute path needs a DOUBLE slash: `Edit(//tmp/**)`.
+
+For a symlinked dir (macOS `/tmp` → `/private/tmp`), add both the symlink path and its resolved target — `//tmp/**` and `//private/tmp/**`. The failure reads as a missing permission, not a typo, so it recurs on every rediscovery.
+
 **`~/.gitconfig` caveat**: `git config --global ...` writes through lock+rename, which **replaces the symlink with a regular file** and detaches it from the repo — same hazard as `settings.json`, but easier to trip since `git config --global` (and a re-run of `gh auth setup-git`) is reflexive.
 
 Always edit `configs/git/.gitconfig` directly. If the symlink has been broken, re-run `install.sh` to restore it.
