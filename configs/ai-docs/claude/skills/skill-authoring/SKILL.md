@@ -1,6 +1,6 @@
 ---
 name: skill-authoring
-description: "Load when creating or editing a SKILL.md: skill folder structure, frontmatter, and how descriptions route in /skills. USE when authoring/modifying a skill or writing its description."
+description: "Creating, editing, improving, packaging, or evaluating a skill, or writing/optimizing a SKILL.md description: Bruno's local superset of the skill-creator skill — ALWAYS load this alongside skill-creator for those tasks."
 user-invocable: false
 ---
 
@@ -13,6 +13,12 @@ Rules for writing and maintaining Claude Code skills.
 Never author skill content without it.
 
 Why: it carries the folder structure (SKILL.md + scripts/ + references/), the progressive-disclosure rules, and the frontmatter conventions — all easy to get wrong from memory.
+
+## Load `personal-environment` too — skills live behind a symlink
+
+`~/.claude/skills/` symlinks into `~/unix-utils/`, so the file you edit and the path you commit are different, and `~/.claude/` is not itself a git repo.
+
+Why: `personal-environment` carries the symlink + canonical-path rules; without them you stage from the wrong directory or assume `~/.claude/` is the repo and the commit fails.
 
 ## Skill descriptions state goal + triggers, not an inventory
 
