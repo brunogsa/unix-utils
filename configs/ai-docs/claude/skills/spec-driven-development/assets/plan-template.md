@@ -131,6 +131,31 @@ category tag in the message.
 ...
 
 ---
+## PR Breakdown
+
+Default: **one plan = one PR.** Most plans stop here — write "Single PR." and move on.
+
+Split into a sequence of PRs only when the work is too large to review well in one sitting.
+
+**Felt size anchor (a guide, not a gate)** — reviewer defect-detection drops sharply past ~400 lines of diff and falls off hard above ~600 (SmartBear/Cisco 2,500-review study; Google's small-CL guidance). No code exists yet, so estimate by feel from the task and file counts above — never invent a line number.
+
+**Splitting rules:**
+
+- **Vertical, never horizontal** — each PR ships its own tests + code + docs + infra together. Never "PR-1 = all tests, PR-2 = all code."
+
+- **Prefer independent PRs; a dependent sequence is fine** — a series of manageable PRs beats one big PR when full independence isn't feasible.
+
+- **Each PR is independently reviewable and mergeable** — in order, if dependent.
+
+- **Don't over-split** — a PR under ~50 lines usually lacks the context to review. The failure mode to catch is the one giant PR, not many tiny ones.
+
+Partition the tasks above — one line per PR:
+
+1. **PR-1** — <theme>. Tasks: <N, N>. Depends on: <none | PR-N>.
+
+2. **PR-2** — <theme>. Tasks: <N, N>. Depends on: <none | PR-N>.
+
+---
 ## Open Questions
 
 - **QUESTION:** ... ?
