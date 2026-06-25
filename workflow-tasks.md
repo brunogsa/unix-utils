@@ -29,22 +29,6 @@
 
 ---
 
-## 6. [Task] Separate tasks.md from plan.md in the planning workflow
-
-**Goal**: Split planning into two artifacts instead of one blended doc:
-- **plan.md** — DESIGN/approach: problem framing, chosen strategy, trade-offs, and the explicit **list of files to check/touch** (token-efficient grounding). Stable, read-mostly, written once.
-- **tasks.md** — EXECUTION checklist: ordered, checkable tasks/sub-steps derived from the plan. Volatile, durable across sessions, diffable, committable. (This very file is the prototype.)
-
-**Rationale**: plan = why/how (stable); tasks = what's-left (write-often). Separating them stops the volatile checklist from churning the stable design doc, and makes tasks.md the per-feature backlog of record alongside `spec.md`.
-
-**Touches**: `spec-driven-development` skill, and possibly the TaskList conventions in the global `CLAUDE.md`. Load `skill-creator` before editing any `SKILL.md`.
-
-**OPEN QUESTION to confirm before implementing**: should tasks.md **replace** the live TaskList tool, or **coexist** (durable file as source-of-record + TaskList for in-flight session execution)? Author's lean: coexist.
-
-**Deliverable**: updated `spec-driven-development` skill establishing the plan.md / tasks.md split; CLAUDE.md TaskList convention reconciled with tasks.md; one isolated commit.
-
----
-
 ## 10. [Spike] Complexity metrics + architecture / circular-dep enforcement
 
 **Goal**: Add deterministic complexity + architecture gating. Answers "which complexity metrics, is it easy to add?" and "circular dependency checks / deterministic onion-architecture enforcer?".
