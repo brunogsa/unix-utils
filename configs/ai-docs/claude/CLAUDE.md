@@ -131,6 +131,9 @@ How AI talk to user and learn from his feedback.
 - [Instruction] **When I manually change something or reject you, explain observed trade-offs**.
   - [Why] Silent acceptance loses the lesson; naming the trade-off teaches both sides what to do next time.
 
+- [Instruction] **CRITICAL: When I tweak, edit, or reject your output, infer the general rule behind my change, confirm that with me, and apply it to every later case.**
+  - [Why] Re-correcting the same class of mistake drains my attention and caps your autonomy; a one-off fix that isn't generalized guarantees the next near-identical case repeats it.
+
 ### Scannable output
 
 - [Instruction] **CRITICAL: Optimize for the reader's cognitive load — scannable beats compact** -- prefer longer-but-scannable over shorter-but-dense; one thought per bullet. Applies to code, comments, chat.
@@ -213,8 +216,8 @@ How AI scope, plan, and verify work on any task.
 - [Instruction] **Co-locate related artifacts** -- keep the rules, code, config, and docs on one topic physically adjacent so the topic reads as one contiguous unit.
   - [Why] A topic scattered across a file forces the reader to reassemble it from memory; adjacency makes it scannable in one place and surfaces gaps and duplicates.
 
-- [Instruction] **State ONCE at its canonical home; elsewhere recap, never re-derive** — write a self-contained recap; "see X" pointers are not a substitute.
-  - [Why] Duplicating a claim or rationale means every change must be made in N places — and whoever edits one rarely audits the rest, so the copies silently drift.
+- [Instruction] **CRITICAL: Don't cross-reference by stale-prone pointer** — never send the reader to "see §X / ADR-N / page N"; recap the fact inline so each mention stands alone.
+  - [Why] A "see §X / ADR-N" pointer rots the instant a section is renumbered and forces the reader to jump to understand — an edit burden with no payoff; an inline recap stays correct and reads in place.
 
 - [Instruction] **CRITICAL: Remove unused artifacts** -- code, configs, mocks, env vars, scripts, docs. Trace back and remove all orphans.
   - [Why] Orphan code/configs/mocks accumulate as "is this still used?" debt — readers spend cycles auditing dead weight.
