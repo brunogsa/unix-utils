@@ -187,41 +187,25 @@
 
 ---
 
-## 7. [Feature] Auto-worktree isolation for `/implement` batches (+ doc-design merge-back)
+## 7. [Feature] `/implement`: fresh-context subagent per task, fed by durable artifacts
 
-**Goal**: Let `/implement` put each batch in its own git worktree automatically but safely, so several batches/features run in parallel isolated sessions without single-checkout branch-switching contention. This **reverses** the skill's current §1 stance ("the user creates and manages git worktrees themselves… it does not create, move into, or merge worktrees"). Secondary want: a lightweight "worktree this doc work, then merge back" flow so parallel edits to the *same doc* don't clobber each other or waste tokens reconciling.
+**Goal**: Make `/implement` run each task as a **fresh-context subagent** instead of accumulating the whole batch in one transcript, to fight context rot across a multi-task batch. The subagent re-grounds from durable artifacts, not session history. **Worktrees are out of scope** — the author creates/deletes them by hand and runs `/implement` wherever CWD already is (the skill's current §1 stance is unchanged). The only thing automated here is the per-task subagent + its context hand-off.
 
-**Why (from the brainstorm)**: worktrees give file-level isolation; pairing them with fresh context also fights context rot. The alternative — branch-switching a single checkout — serializes the work and risks stashing or clobbering uncommitted state.
+**Why (from the brainstorm)**: a long sequential batch rots the main transcript; a fresh subagent per task resets it. The bet — the author's #2 principle ("fresh-context-plus-batch beats rotted-context-plus-drip; re-ground from the durable artifact") applied one level down to the task loop — is that durable artifacts carry *enough* to replace the accumulated transcript.
 
-**Decided mechanism (don't re-derive)**:
-- **Use native `EnterWorktree`/`ExitWorktree`** (main loop, sequential batch) — NOT Agent `isolation:"worktree"` (that's for *subagent* fan-out). The tool is gated on "explicit instruction — user **or project instructions (CLAUDE.md/memory)**", so a skill invoking it is the sanctioned trigger, not a guardrail violation.
+**Decided (don't re-derive)**:
+- **One fresh-context subagent per task, run sequentially** (no within-batch parallelism — it's async work, latency isn't the point). The orchestrator (main `/implement` session) holds only plan + orchestration state, never the per-task implementation context.
 
-- **Safety principle: automate the reversible, human-gate the irreversible.** Auto-create + auto-enter are recoverable. NEVER auto-merge, auto-remove, or auto-delete-branch.
+- **Context bus = durable artifacts**: each subagent re-grounds from (a) its `plan.md` task slice + explicit files-to-touch list (the #6 "token-efficient grounding" list), (b) the `git log <base>..HEAD` recap (§1.3 already runs this — rich commit *bodies* carry prior-task *why*), (c) spec ACs. **Precondition: commit bodies rich enough to carry the why** (ties to `commit-standards` — already the author's practice).
 
-- **Teardown is already guarded — reuse, don't rebuild**: `claude-git-guard.sh` blocks `git worktree remove --force`; `ExitWorktree` refuses to `remove` a dirty/unmerged tree without `discard_changes:true`; session-exit prompts keep/remove.
+- **Per-task `[Done]` handshake → per-batch async review**: the subagent works + self-verifies + returns a report; the orchestrator verifies its result against the diff (CLAUDE.md "verify subagent results against artifacts"); the human reviews the batch async (#2's async-downstream thesis, not a regression of §4).
 
-- **Handback for `/implement` = leave the worktree + branch for human review/PR** (review the diff, run `/create-pr` or merge by hand, then remove). No auto-merge in the code path.
+**OPEN QUESTION 1 (the core — "receive better context somehow")**: define the subagent context contract — what the orchestrator embeds in the prompt (plan.md task slice, files-to-touch, spec ACs) vs what the subagent fetches itself from CWD (`git log`, full plan/spec). Plus the back-channel: the subagent's report shape, how the orchestrator verifies it, and what (if anything) carries to the next task.
 
-- **Location/base**: native default `.claude/worktrees/<name>`; `worktree.baseRef` is currently `head` in `settings.json` → branches from local HEAD (carries committed batch work, not untracked files).
+**OPEN QUESTION 2 (the cross-task-learning risk)**: a fresh subagent loses non-obvious gotchas a prior task surfaced that never reached a commit body or plan.md. Mitigation to evaluate: the orchestrator keeps a distilled **carry-forward digest** (not the full transcript — just cross-task notes) and passes it alongside the durable artifacts. This decides whether durable-artifacts-only is actually enough.
 
-- **Cross-task context = durable artifacts, not accumulated transcript** (the orchestrator enabler): make `/implement` an orchestrator that dispatches a **fresh-context subagent per task**, re-grounded from (a) the task's `plan.md` slice + explicit files-to-touch list (the #6 "token-efficient grounding" list), (b) the `git log <base>..HEAD` recap (§1.3 already runs this — rich commit *bodies* carry prior-task *why*), (c) spec ACs. This applies #2's "re-ground from durable artifact beats rotted context" one level down, to the task loop itself — and it is the prerequisite that makes parallel worktree execution possible at all. **Precondition: commit bodies must be rich enough to carry the why** (ties to `commit-standards`).
+**Touches**: `implement` skill §2 (sub-step decomposition → per-task subagent dispatch), §2.2 (advisor now orchestrator-side or per-subagent), §4 handshake, §6 tail subagents (already report-only — same spawn pattern to reuse). Load `skill-authoring` before editing SKILL.md. Tightly coupled to **#6** (produces the files-to-touch list this consumes) and **#2** (same async / fresh-context family — coordinate, don't duplicate).
 
-- **Per-task `[Done]` handshake becomes a per-batch async review** under the orchestrator model: the subagent works + self-verifies + returns a report; the human reviews the batch async (orchestrator still verifies each subagent's result against the diff, per CLAUDE.md). This is #2's async-downstream thesis, not a regression of §4.
-
-**OPEN QUESTION 1 (LOAD-BEARING — blocks a naive build; verify first)**: `plan.md`/`spec.md` are untracked + session-scoped, so a fresh worktree (clean checkout of `baseRef`) does NOT carry them — `/implement` §1.1 "locate plan.md in CWD" then finds nothing. Decide propagation: copy into the worktree, read from the original CWD by absolute path, or temp-track. Same hazard for §6 report-only files (`refactor_*.md`/`auto-review_*.md` written to CWD) — if the worktree is later removed they vanish; decide where reports land.
-
-**OPEN QUESTION 2 (the orchestrator fork — author's call, don't pre-decide)**: once context comes from durable artifacts (above), the per-task model splits by task independence, and the author picks the fork:
-- **Sequential-subagents-in-one-worktree** — orchestrator enters the invocation worktree; a fresh subagent per task commits into that same cwd; the next subagent sees the prior commit. Simplest: no dependency graph, no merge-back, but no within-batch parallelism. Handles *dependent* tasks (task 2 needs task 1's commit).
-- **Parallel-subagents-each-own-worktree + merge-back** — *independent* tasks (module A vs module B) run concurrently in sibling worktrees, then merge back. Real wall-clock win — this is the author's "multiple agent implements, each with its own worktree" vision. Cost: needs (a) a **which-tasks-may-run-concurrently declaration in `plan.md`** and (b) **merge-back conflict handling**.
-- *Killed*: the literal `head > invocation > task` nesting — `EnterWorktree` refuses to create when already in a worktree session and git worktrees are flat siblings, so nesting isn't a thing. Parallel siblings + merge-back is the real shape of that intent.
-- **Spike to verify before either**: does a spawned subagent inherit the orchestrator's worktree as its cwd and commit into it? If yes, the sequential model needs *zero* per-task worktree machinery (clean baseline); the parallel model is the opt-in escalation on top.
-
-**OPEN QUESTION 3 (merge strategy — only if OQ2 picks the parallel branch)**: define the sibling-worktree → invocation-branch merge-back — who merges, when, conflict handling. For `/implement` the human merges (leave-for-review). For the **doc-design flow the author explicitly wants auto-merge-back** — the one sanctioned auto-merge, justified by lower stakes (single prose doc, human reviews the merged result). Reconcile with the "never auto-merge" rule by scoping auto-merge to docs only.
-
-**OPEN QUESTION 4 (trigger shape)**: per-invocation flag (`/implement 1,2,3 --worktree`) vs auto-create + one-line confirm vs silent default-on. Author didn't pick; lean = skill-driven with a confirm, given the "SAFELY" emphasis.
-
-**Touches**: `implement` skill §1 (pre-flight create/enter), §4 handback, §6 report paths; the doc-design / `brainstorm` flow for the merge-back variant; `claude-git-guard.sh` already covers teardown. Load `skill-authoring` before editing any SKILL.md. Coordinate with **#15** (sandbox isolation — adjacent but a different concern: autonomy-safety vs parallelism).
-
-**Deliverable**: `implement` skill updated to auto-isolate a batch in a worktree (trigger per OQ4) with plan/spec propagation (OQ1) resolved and leave-for-review handback; the doc-design merge-back flow as a separate follow-on commit. **Spike OQ1 + OQ2 first** (verify worktree untracked-file behavior + whether a spawned subagent inherits the orchestrator's worktree cwd and commits into it) before any skill edit. Each adopted change lands its own commit.
+**Deliverable**: `implement` skill updated so each task dispatches a fresh-context subagent fed by the durable-artifact context contract (OQ1), with orchestrator-side verification + async batch review. **Spike first**: confirm a spawned subagent shares the orchestrator's CWD and can edit + commit in it (the load-bearing assumption of the whole model). Each adopted change lands its own commit.
 
 ---
