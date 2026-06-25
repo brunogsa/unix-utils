@@ -151,7 +151,7 @@ it('should throw INTERNAL_SERVER_ERROR after retries', async () => { ... });
 
 ## Standalone doc files
 
-Not sure which doc to write? `references/doc-selection.md` is the decision tree (ADR / HLD / LLD / spec / plan) plus the ownership table that keeps them from overlapping.
+Writing an ADR / HLD / LLD / spec / plan? `references/doc-writing.md` is the ownership + altitude rules that keep the five docs from overlapping (plus a glance-table for which is which).
 
 When authoring a design doc or ADR: copy the `assets/` template to start, and read the matching `references/` example to see it filled in.
 

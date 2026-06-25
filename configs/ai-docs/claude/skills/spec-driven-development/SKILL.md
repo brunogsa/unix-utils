@@ -12,7 +12,7 @@ Lightweight workflow using two living documents in the project root to guide dev
 
 Two living documents in the project root. Templates live in `assets/` and are populated based on the user's input.
 
-Choosing between these throwaway docs and a durable design doc (ADR / HLD / LLD)? See `~/.claude/skills/doc-standards/references/doc-selection.md` — the decision tree and the no-overlap ownership rules.
+These throwaway docs feed from durable design docs (ADR / HLD / LLD). See `~/.claude/skills/doc-standards/references/doc-writing.md` for the ownership + altitude rules that keep spec/plan from re-deriving them.
 
 ### spec.md (why / what)
 
