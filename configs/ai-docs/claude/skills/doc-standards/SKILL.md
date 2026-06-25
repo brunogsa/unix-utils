@@ -151,6 +151,16 @@ it('should throw INTERNAL_SERVER_ERROR after retries', async () => { ... });
 
 ## Standalone doc files
 
+Not sure which doc to write? `references/doc-selection.md` is the decision tree (ADR / HLD / LLD / spec / plan) plus the ownership table that keeps them from overlapping.
+
+When authoring a design doc or ADR: copy the `assets/` template to start, and read the matching `references/` example to see it filled in.
+
+- HLD — start from `assets/template-hld.md` (skeleton with TODOs + authoring notes); see `references/example-good-hld.md` for a full worked example (MoSCoW scope, numbered premises/decisions/risks, sequence + state diagrams, appendix).
+
+- ADR — start from `assets/template-adr.md` (skeleton with TODOs); see `references/example-good-adr.md` for a worked example (decision + alternatives with +/-/~ trade-offs + consequences).
+
+- LLD — start from `assets/template-lld.md` (one component, implementation-ready: code design, data model, contracts, de/para mappings, error/concurrency, observability). The top comment block holds the HLD↔LLD boundary rule. No worked example yet.
+
 ### Where docs live and ship
 
 - [Instruction] Module README lives in the module directory.
@@ -183,6 +193,8 @@ it('should throw INTERNAL_SERVER_ERROR after retries', async () => { ... });
   - [Why] Dense prose drops adherence in LLM consumers and raises scan time for humans; the cap forces clarity.
 
 Verify with `~/.claude/skills/doc-standards/scripts/check-density.sh <file>`.
+
+When a line is over the cap, read `references/density-rules.md` — it has the rewrite patterns (dense paragraph → bullets) and explains what the script excludes (code fences, tables, link-only lines) and why.
 
 Prose paragraphs are one line each and still subject to the cap: a line over the cap is split into smaller paragraphs or bullets, never hard-wrapped.
 
