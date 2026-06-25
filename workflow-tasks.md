@@ -142,20 +142,30 @@
 
 ---
 
-## 3. [Feature] Phone-push "done / needs-you" notification — meeting-safe, cross-OS
+## 3. [Feature] Session-done sound — discrete tones on the existing tmux hook
 
-**Goal**: A quiet, off-screen, cross-OS signal that fires when AI finishes an async run or needs the human — so the human can fully *leave* during async work instead of half-watching. Today the only signal is `claude-tmux-notification.sh`, invisible in a meeting or during screen-share.
+**Goal**: An audible "go look" cue when an AI run finishes or needs input, so the human can leave a session running instead of half-watching it. The existing `claude-tmux-notification.sh` already shows *which* session changed (per-window tmux `@claude_state` flag); this adds the sound that says *something* changed.
 
-**Why (from the brainstorm)**: this is the load-bearing enabler — without a trustworthy "leave now, I'll ping you" signal, every async-iteration improvement (#2, #4) still leaves the human hovering in the uncanny valley. The human attends many meetings + screen-shares, so an **on-screen popup leaks** and must be avoided; **phone push** keeps it off the shared screen and reaches them mid-meeting.
+**Why (2026-06-24 brainstorm)**: load-bearing enabler for the async-iteration improvements (#2 discipline, #4 docs) — without a "leave now, I'll cue you" signal the human hovers in the uncanny valley.
 
-**Mechanism / open question — pick the push channel (verify before building)**:
-- **Claude Code `PushNotification`** — native push to the phone app, if it fits hook-driven "done" signaling.
-- **Slack self-DM** — via the already-connected Slack MCP; the human already "goes to Slack," quiet, reaches phone + desktop.
-- **ntfy.sh / Pushover** — generic phone-push, cross-OS by construction, self-hostable.
+**Decided mechanism (don't re-derive)**: add a **discrete sound** to `claude-tmux-notification.sh`, played for both states with **distinct tones** — one for `done` (turn finished), a different, more-urgent one for `notification` (blocked on permission). Cross-platform players: macOS `afplay /System/Library/Sounds/<name>.aiff` (built in); Linux `paplay`/`canberra-gtk-play` on freedesktop `.oga` sounds. Sound names as constants at the top of the script for taste-tuning. **No Slack, no webhook, no browser, no phone, no new gate logic.**
 
-**Touches**: a `Stop`/`SubagentStop` (and maybe `Notification`) hook in `configs/ai-docs/claude/hooks/`, wired in `settings.json`, mirrored into `install.sh`; cross-platform path entries (macOS + Linux). Coordinate with **#14 (hooks-audit umbrella)** — this is one adopted hook — and the existing `notify-user` skill / `claude-tmux-notification.sh` (extend, don't duplicate). Ties to **#15 (autonomy)** — lets the human leave an autonomous run.
+**Reuse the gates already in the script (the sound inherits them by sitting after these checks)**:
+- Skips the `idle_prompt` Notification (fires ~60s after every turn; not actionable).
+- **Skips when you are viewing that window** (attached session + active window) → silent during interactive design, sounds only once you've moved away. (Answers "no sound if I'm looking at that pane" — already true.)
+- Skips when not under tmux.
 
-**Deliverable**: chosen channel + a meeting-safe push hook, wired + mirrored into `install.sh`, both-OS paths. One feature, may split (spike to choose channel → build).
+**Why this shape (peon-ping done right)**: the loop rejected louder designs and landed on sound-only because — (a) the tmux flag is a small status-bar icon, not a full-screen banner → no embarrassing visual leak on a shared screen; (b) a *discrete* short sound is acceptable in a meeting (the old peon-ping was loud/silly); (c) sound carries no session-identity, but the per-window flag already does, in-terminal, free.
+
+**Rejected (don't re-derive)**:
+- **Slack tab on a private monitor / ntfy / phone push / OS desktop banners**: all heavier than a sound on a hook that already exists and already gates; a phone in the vision field hurts focus; OS banners can't be pinned to the private monitor (leak on the shared screen); Slack/ntfy add a service + secret. Revisit only if sound proves insufficient when *fully away from the terminal*.
+- **macOS Focus/DND routing**: not needed — sound has no visual footprint to leak, so there is nothing to route.
+
+**Known gap (within tolerance)**: a *single* session left as the active tmux window while you alt-tab to a meeting won't sound (the "viewing" gate counts it as viewed). Accepted by the human ("ok if it plays/doesn't while I'm on the terminal").
+
+**Touches**: edit `claude-tmux-notification.sh` in `configs/ai-docs/claude/hooks/` (already wired in `settings.json` for both states — no settings change). Linux needs a sound player + freedesktop-sounds package — mirror that dependency into `install.sh`; macOS needs nothing extra. Coordinate with **#14 (hooks-audit umbrella)**.
+
+**Deliverable**: distinct discrete tones for `done` vs `notification` added to the existing hook, gated by its existing "skip if viewing" check, cross-platform (macOS + Linux), Linux sound dependency mirrored into `install.sh`. One small commit.
 
 ---
 
@@ -174,5 +184,44 @@
 **Touches**: `doc-standards` skill (the flow + voice-guide); applies #2's async-batch thesis to docs. Load `skill-authoring` before editing any SKILL.md.
 
 **Deliverable**: `doc-standards` updated with the outline-sync → draft-async → batch/edit-direct flow + a seeded HLD/LLD/ADR voice-guide. One isolated commit (may split flow vs voice-guide).
+
+---
+
+## 7. [Feature] Auto-worktree isolation for `/implement` batches (+ doc-design merge-back)
+
+**Goal**: Let `/implement` put each batch in its own git worktree automatically but safely, so several batches/features run in parallel isolated sessions without single-checkout branch-switching contention. This **reverses** the skill's current §1 stance ("the user creates and manages git worktrees themselves… it does not create, move into, or merge worktrees"). Secondary want: a lightweight "worktree this doc work, then merge back" flow so parallel edits to the *same doc* don't clobber each other or waste tokens reconciling.
+
+**Why (from the brainstorm)**: worktrees give file-level isolation; pairing them with fresh context also fights context rot. The alternative — branch-switching a single checkout — serializes the work and risks stashing or clobbering uncommitted state.
+
+**Decided mechanism (don't re-derive)**:
+- **Use native `EnterWorktree`/`ExitWorktree`** (main loop, sequential batch) — NOT Agent `isolation:"worktree"` (that's for *subagent* fan-out). The tool is gated on "explicit instruction — user **or project instructions (CLAUDE.md/memory)**", so a skill invoking it is the sanctioned trigger, not a guardrail violation.
+
+- **Safety principle: automate the reversible, human-gate the irreversible.** Auto-create + auto-enter are recoverable. NEVER auto-merge, auto-remove, or auto-delete-branch.
+
+- **Teardown is already guarded — reuse, don't rebuild**: `claude-git-guard.sh` blocks `git worktree remove --force`; `ExitWorktree` refuses to `remove` a dirty/unmerged tree without `discard_changes:true`; session-exit prompts keep/remove.
+
+- **Handback for `/implement` = leave the worktree + branch for human review/PR** (review the diff, run `/create-pr` or merge by hand, then remove). No auto-merge in the code path.
+
+- **Location/base**: native default `.claude/worktrees/<name>`; `worktree.baseRef` is currently `head` in `settings.json` → branches from local HEAD (carries committed batch work, not untracked files).
+
+- **Cross-task context = durable artifacts, not accumulated transcript** (the orchestrator enabler): make `/implement` an orchestrator that dispatches a **fresh-context subagent per task**, re-grounded from (a) the task's `plan.md` slice + explicit files-to-touch list (the #6 "token-efficient grounding" list), (b) the `git log <base>..HEAD` recap (§1.3 already runs this — rich commit *bodies* carry prior-task *why*), (c) spec ACs. This applies #2's "re-ground from durable artifact beats rotted context" one level down, to the task loop itself — and it is the prerequisite that makes parallel worktree execution possible at all. **Precondition: commit bodies must be rich enough to carry the why** (ties to `commit-standards`).
+
+- **Per-task `[Done]` handshake becomes a per-batch async review** under the orchestrator model: the subagent works + self-verifies + returns a report; the human reviews the batch async (orchestrator still verifies each subagent's result against the diff, per CLAUDE.md). This is #2's async-downstream thesis, not a regression of §4.
+
+**OPEN QUESTION 1 (LOAD-BEARING — blocks a naive build; verify first)**: `plan.md`/`spec.md` are untracked + session-scoped, so a fresh worktree (clean checkout of `baseRef`) does NOT carry them — `/implement` §1.1 "locate plan.md in CWD" then finds nothing. Decide propagation: copy into the worktree, read from the original CWD by absolute path, or temp-track. Same hazard for §6 report-only files (`refactor_*.md`/`auto-review_*.md` written to CWD) — if the worktree is later removed they vanish; decide where reports land.
+
+**OPEN QUESTION 2 (the orchestrator fork — author's call, don't pre-decide)**: once context comes from durable artifacts (above), the per-task model splits by task independence, and the author picks the fork:
+- **Sequential-subagents-in-one-worktree** — orchestrator enters the invocation worktree; a fresh subagent per task commits into that same cwd; the next subagent sees the prior commit. Simplest: no dependency graph, no merge-back, but no within-batch parallelism. Handles *dependent* tasks (task 2 needs task 1's commit).
+- **Parallel-subagents-each-own-worktree + merge-back** — *independent* tasks (module A vs module B) run concurrently in sibling worktrees, then merge back. Real wall-clock win — this is the author's "multiple agent implements, each with its own worktree" vision. Cost: needs (a) a **which-tasks-may-run-concurrently declaration in `plan.md`** and (b) **merge-back conflict handling**.
+- *Killed*: the literal `head > invocation > task` nesting — `EnterWorktree` refuses to create when already in a worktree session and git worktrees are flat siblings, so nesting isn't a thing. Parallel siblings + merge-back is the real shape of that intent.
+- **Spike to verify before either**: does a spawned subagent inherit the orchestrator's worktree as its cwd and commit into it? If yes, the sequential model needs *zero* per-task worktree machinery (clean baseline); the parallel model is the opt-in escalation on top.
+
+**OPEN QUESTION 3 (merge strategy — only if OQ2 picks the parallel branch)**: define the sibling-worktree → invocation-branch merge-back — who merges, when, conflict handling. For `/implement` the human merges (leave-for-review). For the **doc-design flow the author explicitly wants auto-merge-back** — the one sanctioned auto-merge, justified by lower stakes (single prose doc, human reviews the merged result). Reconcile with the "never auto-merge" rule by scoping auto-merge to docs only.
+
+**OPEN QUESTION 4 (trigger shape)**: per-invocation flag (`/implement 1,2,3 --worktree`) vs auto-create + one-line confirm vs silent default-on. Author didn't pick; lean = skill-driven with a confirm, given the "SAFELY" emphasis.
+
+**Touches**: `implement` skill §1 (pre-flight create/enter), §4 handback, §6 report paths; the doc-design / `brainstorm` flow for the merge-back variant; `claude-git-guard.sh` already covers teardown. Load `skill-authoring` before editing any SKILL.md. Coordinate with **#15** (sandbox isolation — adjacent but a different concern: autonomy-safety vs parallelism).
+
+**Deliverable**: `implement` skill updated to auto-isolate a batch in a worktree (trigger per OQ4) with plan/spec propagation (OQ1) resolved and leave-for-review handback; the doc-design merge-back flow as a separate follow-on commit. **Spike OQ1 + OQ2 first** (verify worktree untracked-file behavior + whether a spawned subagent inherits the orchestrator's worktree cwd and commits into it) before any skill edit. Each adopted change lands its own commit.
 
 ---
