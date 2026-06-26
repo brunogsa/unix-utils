@@ -1,6 +1,17 @@
-# Writing ADR / HLD / LLD / spec / plan without overlap
+---
+name: design-docs
+description: "USE PROACTIVELY when authoring or revising an ADR, HLD, LLD, RFC, design doc, tech design, spec.md, plan.md, or a payload schema as JSONC. Routes you to the right doc, its template, a worked example, and the rules that keep them from overlapping."
+user-invocable: false
+---
+
+# Design & Build Docs — ADR / HLD / LLD / spec / plan
 
 How the five docs divide work, so each one is written faster and none re-derives another.
+
+This skill picks *which* doc to write and routes you to its template and a worked example. Two companion skills carry the quality bar — load them alongside this one:
+
+- **`doc-standards`** — prose, comment, and density rules for the words inside any of these docs (also runs the density check).
+- **`mermaid-diagrams`** — for every diagram you embed: validation, the target renderer version, and the common parse traps.
 
 The toolbox: **ADR, HLD, LLD** (durable, committed in `docs/`) and **spec.md, plan.md** (throwaway, untracked, deleted after the PR).
 
@@ -106,3 +117,18 @@ flowchart TD
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
 ```
+
+## Templates and worked examples — start here to write one
+
+When authoring a design doc or ADR: copy the matching `assets/` template to start, then read the matching `references/` example to see it filled in.
+
+Every diagram in these examples was validated with the `mermaid-diagrams` skill — load it before you paste your own.
+
+- HLD — start from `assets/template-hld.md` (skeleton with TODOs + authoring notes); see `references/example-good-hld.md` for a full worked example (MoSCoW scope, numbered premises/decisions/risks, sequence + state diagrams, appendix).
+
+- ADR — start from `assets/template-adr.md` (skeleton with TODOs); see `references/example-good-adr.md` for a worked example (decision + alternatives with +/-/~ trade-offs + consequences).
+
+- LLD — start from `assets/template-lld.md` (one component, implementation-ready: code design, data model, contracts, de/para mappings, error/concurrency, observability). The top comment block holds the HLD↔LLD boundary rule. No worked example yet.
+
+- Schema as JSONC — when a doc shows a request/response/event payload, render it as one annotated JSONC object, not a field table; copy `references/example-good-schema.jsonc`.
+  - "Schema as jsonc" means that file's style: real values, each field tagged `type | required|optional | constraints | description`, optional fields shown, nested objects in full, quirks inline.

@@ -151,15 +151,11 @@ it('should throw INTERNAL_SERVER_ERROR after retries', async () => { ... });
 
 ## Standalone doc files
 
-Writing an ADR / HLD / LLD / spec / plan? `references/doc-writing.md` is the ownership + altitude rules that keep the five docs from overlapping (plus a glance-table for which is which).
+Authoring a full ADR / HLD / LLD / spec / plan, or rendering a payload schema as JSONC? Load the **`design-docs`** skill.
 
-When authoring a design doc or ADR: copy the `assets/` template to start, and read the matching `references/` example to see it filled in.
+It picks which doc to write, hands you the template and a worked example, and carries the ownership + altitude rules that keep the five docs from overlapping.
 
-- HLD — start from `assets/template-hld.md` (skeleton with TODOs + authoring notes); see `references/example-good-hld.md` for a full worked example (MoSCoW scope, numbered premises/decisions/risks, sequence + state diagrams, appendix).
-
-- ADR — start from `assets/template-adr.md` (skeleton with TODOs); see `references/example-good-adr.md` for a worked example (decision + alternatives with +/-/~ trade-offs + consequences).
-
-- LLD — start from `assets/template-lld.md` (one component, implementation-ready: code design, data model, contracts, de/para mappings, error/concurrency, observability). The top comment block holds the HLD↔LLD boundary rule. No worked example yet.
+The two subsections below apply to any standalone doc — where it lives and what it should contain.
 
 ### Where docs live and ship
 
