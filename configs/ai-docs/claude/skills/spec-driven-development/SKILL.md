@@ -52,7 +52,9 @@ Read them with fresh eyes by spawning a sub-agent that reports:
 - **Contradictions**: do sections within the same doc disagree?
   - Does plan.md contradict spec.md? Examples: spec assumptions planning overturned, architectural choices superseding spec requirements, scope constraints discovered during planning.
 - **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition? If yes, jump back to step 2 and write/update `scopes.md`.
-- **PR size**: does the work fit one reviewable PR, or is it large enough to stage into several? If large, the plan's **PR Breakdown** must partition the tasks into an ordered PR sequence (vertical splits — each PR ships its own tests + code + docs), not stay one oversized PR. Felt anchor: reviewer defect-detection drops past ~400 lines of diff and hard above ~600 (SmartBear/Cisco; Google small-CL) — no code exists yet, so estimate by feel, never invent a line count.
+- **PR size**: does the work fit one reviewable PR, or is it large enough to stage into several?
+  - If large, **PR Breakdown** must split the tasks into an ordered PR sequence — vertical splits, each shipping its own tests + code + docs — not one oversized PR.
+  - Felt anchor: reviewer defect-detection drops past ~400 lines of diff and hard above ~600 (SmartBear/Cisco; Google small-CL) — no code exists yet, so estimate by feel, never invent a line count.
 - **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker for the user.
 - **Completeness**: does ALL Goals, Success Metrics and KPIs, User Stories and Non-Functional and Technical Requirements being covered on Testable Acceptance Criteria section? ALL corner cases and failure modes covered?
 - **Human-Reviewable**: Is it easy for the user to review? Is the format pleasant to read? Are you enabling user to verify you?

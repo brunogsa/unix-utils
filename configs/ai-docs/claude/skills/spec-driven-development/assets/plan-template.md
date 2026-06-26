@@ -137,7 +137,9 @@ Default: **one plan = one PR.** Most plans stop here — write "Single PR." and 
 
 Split into a sequence of PRs only when the work is too large to review well in one sitting.
 
-**Felt size anchor (a guide, not a gate)** — reviewer defect-detection drops sharply past ~400 lines of diff and falls off hard above ~600 (SmartBear/Cisco 2,500-review study; Google's small-CL guidance). No code exists yet, so estimate by feel from the task and file counts above — never invent a line number.
+**Felt size anchor (a guide, not a gate)** — reviewer defect-detection drops sharply past ~400 lines of diff and falls off hard above ~600 (SmartBear/Cisco 2,500-review study; Google's small-CL guidance).
+
+No code exists yet, so estimate by feel from the task and file counts above — never invent a line number.
 
 **Splitting rules:**
 

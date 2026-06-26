@@ -28,7 +28,7 @@ done
 
 Install if missing: `npm i -g @mermaid-js/mermaid-cli`.
 
-Validate each fenced block independently — a broken diagram earlier in the file does not fail-fast the renderer for later blocks; the reader just sees garbled text on the broken one.
+Validate each fenced block independently — one broken block doesn't fail-fast the renderer for the others.
 
 ### Target renderer: Mermaid 10.2.3
 
@@ -85,7 +85,7 @@ cgi["CGI (Cadastro Global)<br/><br/>Fonte da Verdade: Escolas, Faculdades<br/>ex
 
 [Why] The header answers "what is this?", the body "what does it do?". The blank line lets the eye grab the name first and drop into details only when needed.
 
-- Without the break the name blurs into the bullets and the node reads as one wall of text. Costs one `<br/>`, saves a re-scan per node.
+- Without the break the name blurs into the bullets — costs one `<br/>`, saves a re-scan per node.
 - **Identity-only nodes get no break.** A bare name, or name + short alias (`Receita Federal<br/>(SeFaz)`), has no body to separate — a blank line just floats a lonely subtitle.
   - Apply the break only where a real details/responsibilities block exists.
 - A single parenthetical that *renames or expands* the node (`(Loja B2C 2.0)`, `(Sistema Produção Gráfica)`) is part of the header, not the body — it stays attached, no break.
@@ -103,7 +103,7 @@ Pattern + examples: see [`references/diagram-titles.md`](references/diagram-titl
 
 Flowcharts (unlike sequence diagrams) don't enforce this, so it's the most common architecture-diagram bug.
 
-It hits hardest in client-side caching (TanStack Query, SWR, RTK Query, Apollo) and any framework that intercepts on the receiver side.
+It hits hardest in client-side caching and any framework that intercepts on the receiver side.
 
 The origin can't reach the destination directly — some other actor puts the data there.
 

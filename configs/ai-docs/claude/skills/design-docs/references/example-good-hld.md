@@ -21,7 +21,9 @@ Não substitui o LLD (Low Level Design) por ERP 1.0 — cada um terá o seu, det
 
 ## 1. Contexto
 
-O Programa de Integração de Contratos (PIC) Arco — versão evoluída do PIC 1.0 (sistema original), também chamado de PIC 1.9, é o sistema interno para cadastro/atualização de Acordos de Vendas (contrato comercial entre Arco e Escola).
+O Programa de Integração de Contratos (PIC) Arco é o sistema interno para cadastro/atualização de Acordos de Vendas (contrato comercial entre Arco e Escola).
+
+É a versão evoluída do PIC 1.0 (sistema original), também chamada de PIC 1.9.
 
 Tem UI mais amigável e validações que reduzem erro humano.
 
@@ -640,13 +642,17 @@ O ideal é gravar **tudo** que o PIC envia. O que cada ERP 1.0 consegue (ou não
 
 #### 5.4.15. Sync de Endereço de Entrega PIC → CRM 2.0 fica fora do Integrador
 
-**Contexto**: O endereço de entrega nasce no Acordo (PIC) e o CRM 2.0 também o quer. Esse é um fluxo 1.0 → 2.0 — exatamente o tipo de integração que o Integrador costuma intermediar.
+**Contexto**: O endereço de entrega nasce no Acordo (PIC) e o CRM 2.0 também o quer.
 
-**Decisão**: Na Fase 1, esse sync **não passa pelo Integrador**. O PIC envia o endereço de entrega direto ao CRM (Salesforce) via SF Composite API; se a chamada falhar, o cadastro fica manual por operação.
+Esse é um fluxo 1.0 → 2.0 — exatamente o tipo de integração que o Integrador costuma intermediar.
+
+**Decisão**: Na Fase 1, esse sync **não passa pelo Integrador**.
+
+O PIC envia o endereço de entrega direto ao CRM (Salesforce) via SF Composite API; se a chamada falhar, o cadastro fica manual por operação.
 
 **Por quê**:
 - **Sem capacity na Fase 1**: absorver mais um fluxo no Integrador agora estoura a janela do V1 Excelente.
-- **O rePIC (2.0) vai implementar essa integração direto com o CRM 2.0**: como ambos são 2.0, o Integrador não precisa ser a ponte — o esforço de fazê-lo aqui seria descartado no rePIC.
+- **O rePIC (2.0) implementará essa integração direto com o CRM 2.0**: ambos são 2.0, então o Integrador não precisa ser a ponte — fazê-lo aqui seria descartado no rePIC.
 - O fallback manual cobre o caso de a SF Composite API falhar, então nenhum endereço se perde silenciosamente.
 
 ### 5.5. Diagramas TO-BE
@@ -688,7 +694,9 @@ A máquina de estados do evento de sync, do `received` aos terminais `discarded`
 
 ##### 5.5.2.1. Sync feliz — multimarca → multi-ERP
 
-PIC quebra o Acordo multimarca em N POSTs (1 por marca). Cada marca é roteada por `(brandSlug, tipoContrato)` para a fila do seu ERP 1.0 e segue o mesmo pipeline em paralelo — o diagrama detalha 1 marca após o fan-out.
+PIC quebra o Acordo multimarca em N POSTs (1 por marca).
+
+Cada marca é roteada por `(brandSlug, tipoContrato)` para a fila do seu ERP 1.0 e segue o mesmo pipeline em paralelo — o diagrama detalha 1 marca após o fan-out.
 
 ```mermaid
 sequenceDiagram
@@ -728,7 +736,11 @@ sequenceDiagram
 
 ##### 5.5.2.2. Erro técnico transitório — ERP fora
 
-ERP 1.0 fora do ar ou em timeout (5XX). N retentativas com backoff exponencial + jitter — ao esgotar, callback de erro ao PIC e mensagem vai para a DLQ do ERP. O prefixo (middleware → ingestão → roteamento) é idêntico ao do happy path e foi omitido.
+ERP 1.0 fora do ar ou em timeout (5XX). N retentativas com backoff exponencial + jitter.
+
+Ao esgotar, callback de erro ao PIC e a mensagem vai para a DLQ do ERP.
+
+O prefixo (middleware → ingestão → roteamento) é idêntico ao do happy path e foi omitido.
 
 ```mermaid
 sequenceDiagram
@@ -757,7 +769,11 @@ sequenceDiagram
 
 ##### 5.5.2.3. Erro de negócio — cadastro errado/faltante
 
-Data Quality (4XX): cadastro errado ou faltante que o sistema não corrige sozinho. Sem retry e sem DLQ — callback de erro imediato ao PIC, e o operador corrige no PIC e retenta pela UI. O prefixo (middleware → ingestão → roteamento) é idêntico ao do happy path e foi omitido.
+Data Quality (4XX): cadastro errado ou faltante que o sistema não corrige sozinho.
+
+Sem retry e sem DLQ — callback de erro imediato ao PIC, e o operador corrige no PIC e retenta pela UI.
+
+O prefixo (middleware → ingestão → roteamento) é idêntico ao do happy path e foi omitido.
 
 ```mermaid
 sequenceDiagram
@@ -783,7 +799,11 @@ sequenceDiagram
 
 ##### 5.5.2.4. Bug no Integrador — DLQ + redrive
 
-Erro técnico inesperado (bug nosso): sem retry, callback de erro + DLQ. Após o fix, o engenheiro redriva a DLQ e o evento é reprocessado inteiro. O `alt` mostra as duas saídas do redrive: se o operador já retentou com sucesso pela UI, o anti-OLD/dedup descarta em silêncio (sem callback) — caso contrário, segue para sucesso.
+Erro técnico inesperado (bug nosso): sem retry, callback de erro + DLQ.
+
+Após o fix, o engenheiro redriva a DLQ e o evento é reprocessado inteiro.
+
+O `alt` mostra as duas saídas do redrive: se o operador já retentou com sucesso pela UI, o anti-OLD/dedup descarta em silêncio (sem callback) — caso contrário, segue para sucesso.
 
 ```mermaid
 sequenceDiagram
@@ -824,7 +844,13 @@ sequenceDiagram
 
 ##### 5.5.2.5. Sucesso parcial — Tradutor faz 2 POSTs ao ERP 1.0, 1 falha
 
-ERPs que exigem 2+ requisições para um Acordo completo: chamadas em série, dado crítico (endereço de entrega) por último. A 1ª efetiva, a 2ª falha — sucesso parcial é tratado como erro do fluxo: `last_success` não atualiza e o PIC recebe callback de erro. Retry/redrive reprocessa o evento inteiro e a idempotência impede que a chamada 1 duplique registro. O prefixo (middleware → ingestão → roteamento) é idêntico ao do happy path e foi omitido.
+ERPs que exigem 2+ requisições para um Acordo completo: chamadas em série, dado crítico (endereço de entrega) por último.
+
+A 1ª efetiva, a 2ª falha — sucesso parcial é tratado como erro do fluxo: `last_success` não atualiza e o PIC recebe callback de erro.
+
+Retry/redrive reprocessa o evento inteiro e a idempotência impede que a chamada 1 duplique registro.
+
+O prefixo (middleware → ingestão → roteamento) é idêntico ao do happy path e foi omitido.
 
 ```mermaid
 sequenceDiagram
