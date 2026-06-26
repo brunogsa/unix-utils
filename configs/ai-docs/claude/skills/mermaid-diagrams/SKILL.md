@@ -30,6 +30,14 @@ Install if missing: `npm i -g @mermaid-js/mermaid-cli`.
 
 Validate each fenced block independently — a broken diagram earlier in the file does not fail-fast the renderer for later blocks; the reader just sees garbled text on the broken one.
 
+### Target renderer: Mermaid 10.2.3
+
+The renderer in use is **Mermaid 10.2.3**; author for it, not for the latest spec.
+
+- A globally-installed `mmdc` often bundles a newer Mermaid than 10.2.3, so it may pass syntax that 10.2.3 rejects — `mmdc` exit 0 is necessary, not sufficient.
+- Prefer the conservative forms that work on 10.2.3: quote every node and edge label, and use `<br/>` (never `\n`) for line breaks. `\n` renders as the literal characters `\n` on 10.2.3.
+- When unsure a newer feature is safe, pin the check to the target: `npm i -g @mermaid-js/mermaid-cli@10.2.3` (or the closest available 10.2.x) and re-validate.
+
 ### Common parse traps that pass eyeball review but fail `mmdc`
 
 - **Unquoted parens / brackets inside pipe-delimited edge labels** — `A -->|label (with parens)| B` fails: mermaid reads `(` as the start of a node shape.
