@@ -216,8 +216,8 @@ How AI scope, plan, and verify work on any task.
 - [Instruction] **Co-locate related artifacts** -- keep the rules, code, config, and docs on one topic physically adjacent so the topic reads as one contiguous unit.
   - [Why] A topic scattered across a file forces the reader to reassemble it from memory; adjacency makes it scannable in one place and surfaces gaps and duplicates.
 
-- [Instruction] **CRITICAL: Don't cross-reference by stale-prone pointer** — never send the reader to "see §X / ADR-N / page N"; recap the fact inline so each mention stands alone.
-  - [Why] A "see §X / ADR-N" pointer rots the instant a section is renumbered and forces the reader to jump to understand — an edit burden with no payoff; an inline recap stays correct and reads in place.
+- [Instruction] **Don't cross-reference by stale-prone pointer** — never send the reader to "see §X / ADR-N / page N"; recap the fact inline so each mention stands alone.
+  - [Why] A "see §X / ADR-N" pointer rots when a section is renumbered and forces a jump — pure cost; an inline recap stays correct and reads in place.
 
 - [Instruction] **CRITICAL: Remove unused artifacts** -- code, configs, mocks, env vars, scripts, docs. Trace back and remove all orphans.
   - [Why] Orphan code/configs/mocks accumulate as "is this still used?" debt — readers spend cycles auditing dead weight.
@@ -255,7 +255,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] **Skill tool over Read for matching skills** -- invoke via Skill when description matches; use Read on `SKILL.md` only for meta-work (audit/edit/compare).
   - [Why] Skill activates guidance and counts toward metrics; Read merely shows the file.
 
-- [Instruction] **CRITICAL: The `*-standards` skills are essential — when in doubt, load the one whose trigger fires** (`code/doc/test/commit/debug-standards`).
+- [Instruction] **The `*-standards` skills are essential — when in doubt, load the one whose trigger fires** (`code/doc/test/commit/debug-standards`).
   - [Why] They encode hard-won wisdom but lazy-load to save context; skip the load when it applies and the user must repeat that wisdom by hand, wasting time and tokens.
 
 - [Instruction] Treat config files as code — editing one (e.g. `init.lua`) fires the same `*-standards` triggers a source file would.
