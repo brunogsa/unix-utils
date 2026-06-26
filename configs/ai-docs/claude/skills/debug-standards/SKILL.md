@@ -29,6 +29,8 @@ it("should reject login when password contains trailing whitespace", () => {
 
 The test fails (the bug exists) → fix the code → the test passes. Now it's a guarded behavior.
 
+Author that regression test to `test-standards` — naming, scope (unit/integration), and mocking discipline; a poorly-scoped guard is no guard.
+
 ## Gathering evidence
 
 - [Instruction] When unexpected failures appear after touching shared code or merging, stash *only* the suspect files and rerun: `git stash push -- <file1> <file2>`, rerun, then `git stash pop`.

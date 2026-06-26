@@ -19,6 +19,8 @@ The split that matters most is **purpose**: HLD, LLD, and ADR are **decision & a
 
 So durable docs carry tests, tasks, and launch at **alignment altitude** — strategy, titles, cross-team deps — while the plan carries the **concrete** version — commit-tasks, file paths, test titles.
 
+The spec.md/plan.md workflow — interviewing, drafting, refining — lives in the `spec-driven-development` skill; this skill only covers their shape and altitude.
+
 ## Who owns what (single source of truth)
 
 When two docs could carry the same thing, this table says which one owns the full version; the others recap + link instead of repeating.

@@ -23,6 +23,7 @@ No flags needed. Auto-detects spec.md and plan.md in the current directory.
   - Extract all ` ```mermaid ``` ` fenced blocks from each file, including all of them in the PR description as collapsibles
 - Check for PR templates in `.github/` (e.g., `PULL_REQUEST_TEMPLATE.md`)
 - Run git log to see commits on current branch vs base -- **primary source**: mine commit messages for decisions, rationale, and scope changes regardless of whether spec/plan exist
+  - This mining only works if commits follow `commit-standards` — well-formed messages are what carry the decisions and rationale worth extracting
 - Run git diff against base branch
 - Check if branch is pushed
 
