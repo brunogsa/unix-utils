@@ -359,8 +359,8 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 ### Subagents
 
-- [Instruction] Default to launching subagents in the background (`run_in_background`) — don't block the main loop waiting on one.
-  - [Why] Background keeps the loop free for work that lands mid-run; the UI shows token use and lets you inspect anytime, so foreground only adds a re-background step later.
+- [Instruction] Default to launching subagents in the background (`run_in_background`) — don't block the main loop — UNLESS the user must watch the run's progress stream live, then foreground.
+  - [Why] Background keeps the loop free and the UI still shows token use; reserve foreground for the case where the user needs to watch progress unfold live.
 
 - [Instruction] **Spawn a fresh-context subagent when writing-session bias would distort the check** -- verification, semantic match, or quality judgment over your own output.
   - [Why] In-session reading carries "I already convinced myself" residue; a subagent sees only the artifact + the question.

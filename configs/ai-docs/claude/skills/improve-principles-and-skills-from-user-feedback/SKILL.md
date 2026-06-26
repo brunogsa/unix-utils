@@ -8,7 +8,7 @@ disable-model-invocation: false
 
 Review user feedback — from the current session, a pull request's comments, or TODO/XXX markers left in files — and identify learnings that should be added to CLAUDE.md or skills.
 
-Delegate the analysis to a **foreground subagent** to preserve the main session context window.
+Run the analysis inline in the main context by default; a **foreground subagent** is an opt-in that saves context tokens but hides intermediate output.
 
 This skill is **read-only on input artifacts**: it does NOT remove TODOs, resolve PR comments, or address the questions they raise. Those are downstream actions.
 

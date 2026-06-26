@@ -157,30 +157,6 @@ Before applying any fix, emit the "leveraging tasklist" trigger phrase so CLAUDE
 
 ## Verify the full check matrix after fixes — MANDATORY
 
-After ALL approved fixes are applied (at the end of the batch, not after each), run every gate the project exposes — in parallel where independent.
+After ALL approved fixes are applied (at the end of the batch, not after each), run the full post-change verification gate — load and follow `~/.claude/skills/reviewer-agent/references/verify-check-matrix.md`.
 
 Review-driven fixes look mechanical, but renames, contract changes, removed code, and type-narrowing tweaks all surface failures here — not at edit time.
-
-Run, at minimum:
-
-- **Lint** (project's full lint task — workspace-wide, not scoped).
-- **Type-check / build** (the strictest available — prefer `tsc --noEmit` or full build over scoped variants).
-- **Dead code / unused exports** (e.g. `knip`, `ts-prune`).
-- **Circular dependencies** (e.g. `madge --circular`).
-- **Unit tests** (full suite — a fix's blast radius is bigger than its diff).
-- **Integration tests** — every tier the project has (router/API, service, contract, etc.).
-- **Browser / e2e tests** if the project has them and a fix touched UI, hooks, or anything rendered.
-
-Discover the actual commands from the repo (`package.json` scripts, `Makefile`, `justfile`, repo CLAUDE.md). Prefer the project's "agentic" / "ci" variants when they exist.
-
-If a check doesn't exist for this project, say so explicitly instead of skipping silently.
-
-Apply CLAUDE.md `"Save slow command output, verify from the file"`: redirect long-running commands to `/tmp/`, check exit + tail in one shot. Run independent checks in parallel.
-
-**Fix what you find.**
-
-- Failures your fix caused are part of the fix — resolve before declaring done.
-- Pre-existing failures your branch did NOT introduce are reported AND filed: per CLAUDE.md's hard-contract Scout rule, **every distinct pre-existing finding gets a TaskCreate in the same response** that surfaces it.
-- Covers cycles, failing tests, skipped/disabled tests, dead-code findings in untouched modules, etc. Filing is non-negotiable; whether to execute later is the user's call.
-
-A passing lint with failing tests is NOT done. Only after every gate is green (or pre-existing failures are explicitly acknowledged) may the review pass be declared complete.

@@ -127,7 +127,7 @@ Each finding is a `## N. <one-line title>` section. Inside, use these labeled bl
 - **What**: 2-4 sentences on the change. Name the construct (function, variable, type, test), what it does now, what it should become.
   - Avoid pronouns without antecedents ("it", "this") -- spell out the target.
 - **Why**: which principle, skill rule, or smell this addresses. Quote the exact bullet from `~/.claude/CLAUDE.md` or a `*-standards` skill.
-  - Example: `code-standards › "Centralize repeated artifacts"`. Generic "improves readability" is not acceptable.
+  - Example: `CLAUDE.md › "Centralize repeated artifacts"`. Generic "improves readability" is not acceptable.
 - **Before** (fenced code block): the full current code with ≥3 lines of surrounding context above and below.
   - The reader shouldn't need to open the file. Mark target lines with a `// ← target` comment when helpful.
 - **After** (fenced code block): the **full** proposed code with the same surrounding context, so a side-by-side compare is trivial.
@@ -171,30 +171,6 @@ Work through the TaskList created in step 3 in order, one finding per edit.
 
 ### 5. Verify the full check matrix — MANDATORY
 
-After ALL approved refactors are applied (at the end of the batch, not after each), run every gate the project exposes — in parallel where independent.
+After ALL approved refactors are applied (at the end of the batch, not after each), run the full post-change verification gate — load and follow `~/.claude/skills/reviewer-agent/references/verify-check-matrix.md`.
 
 Refactors look mechanical, but rename collisions, missed callers, removed exports still in use elsewhere, and broken type narrowing all surface here — not at edit time.
-
-Run, at minimum:
-
-- **Lint** (project's full lint task — workspace-wide, not scoped).
-- **Type-check / build** (the strictest available — prefer `tsc --noEmit` or `next build` over scoped variants).
-- **Dead code / unused exports** (e.g. `knip`, `ts-prune`).
-- **Circular dependencies** (e.g. `madge --circular`).
-- **Unit tests** (full suite, not scoped to the touched files — a refactor's blast radius is bigger than its diff).
-- **Integration tests** — every tier the project has (router/API, service, contract, etc.).
-- **Browser / e2e tests** if the project has them and the refactor touched UI, hooks, or anything rendered.
-
-Discover the actual commands from the repo (`package.json` scripts, `Makefile`, `justfile`, repo CLAUDE.md). Prefer the project's "agentic" / "ci" variants when they exist — they exit non-zero cleanly.
-
-If a check doesn't exist for this project, say so explicitly instead of skipping silently.
-
-Apply CLAUDE.md `"Save slow command output, verify from the file"`: redirect each long-running command to `/tmp/`, check exit + tail in one shot. Run independent checks in parallel.
-
-**Fix what you find.**
-
-- Failures your refactor caused (lint, type, test, new cycle, new unused export) are part of the refactor — fix before declaring done.
-- Pre-existing failures your branch did NOT introduce are reported AND filed: per CLAUDE.md's hard-contract Scout rule, **every distinct pre-existing finding gets a TaskCreate in the same response** that surfaces it.
-- Covers cycles, failing tests, skipped/disabled tests, dead-code findings in untouched modules, etc. Filing is non-negotiable; whether to execute later is the user's call.
-
-Only after every gate is green (or pre-existing failures are explicitly acknowledged) may the refactor be declared complete. A passing lint with failing tests is NOT done.
