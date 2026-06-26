@@ -7,8 +7,13 @@
 #
 # Caps default to 256 chars / 32 words per line (override with flags).
 #
-# Skips: fenced code blocks (``` or ~~~), blank lines, table rows, HTML-tag-only
-# lines, link-only lines (a single "[text](url)" with optional list/quote marker).
+# Skips: leading YAML frontmatter (--- ... ---), fenced code blocks (``` or ~~~),
+# blank lines, table rows, HTML-tag-only lines, link-only lines (a single
+# "[text](url)" with optional list/quote marker).
+#
+# Frontmatter is skipped because its keys are router/tooling metadata, not prose:
+# a `description:` scalar can't obey the "split on a sentence boundary" remedy, and
+# its real cap is the skill-router budget (~first 250 chars), not the word count.
 #
 # Char/word counts are measured AFTER stripping `(https://…)` URL portions and
 # remaining `[`/`]` brackets — so "[label](url)" measures as "label", giving the
@@ -46,7 +51,10 @@ done
 [[ ${#FILES[@]} -eq 0 ]] && { echo "usage: check-density.sh [--max-chars N] [--max-words N] <file>..." >&2; exit 2; }
 
 awk -v mc="$MAX_CHARS" -v mw="$MAX_WORDS" '
-  FNR == 1 { in_code = 0 }
+  FNR == 1 { in_code = 0; in_fm = 0 }
+  FNR == 1 && /^---[[:space:]]*$/                               { in_fm = 1; next }
+  in_fm && /^---[[:space:]]*$/                                  { in_fm = 0; next }
+  in_fm                                                         { next }
   /^[[:space:]]*(```|~~~)/                                      { in_code = !in_code; next }
   in_code                                                       { next }
   /^[[:space:]]*$/                                              { next }
