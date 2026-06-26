@@ -24,7 +24,7 @@ set -eo pipefail
 # gate — the [Instruction] count (CLAUDE_INSTRUCTIONS_BUDGET). See research.md#claudemd-length.
 readonly CLAUDE_LINES_BUDGET=260
 readonly CLAUDE_WORDS_PER_LINE_BUDGET=32
-readonly SKILLS_COUNT_BUDGET=32
+readonly SKILLS_COUNT_BUDGET=50
 readonly SKILL_LINES_BUDGET=500
 readonly SKILL_WORDS_BUDGET=2048
 readonly SKILL_DESC_BUDGET=250

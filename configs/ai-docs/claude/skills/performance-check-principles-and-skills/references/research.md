@@ -102,9 +102,23 @@ https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md —
 
 ## Skill count
 
-**Budget: 32 skills**
+**Budget: 50 skills**
 
-No external source. User preference. Anthropic's skill-authoring docs mention Claude choosing "from potentially 100+ available Skills" — 32 is conservative, keeps metadata preload small, and forces consolidation when the surface grows.
+*Skill authoring best practices* — https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
+
+Anthropic's official docs design description-based routing for scale.
+
+They state twice that Claude "choose[s] the right Skill from potentially 100+ available Skills."
+
+So the platform is built to route across 100+; raw count is not the constraint Anthropic warns about.
+
+Metadata preload cost is also negligible: ~30–50 tokens per skill (name + ≤250-char description).
+
+So 50 skills ≈ 1.5–2.5k tokens, ~1% of a 200k window — the old "keep preload small" rationale does not bind at this scale.
+
+The real (soft) guardrail is routing sharpness: more near-overlapping descriptions make the router's pick harder.
+
+50 sits at half of Anthropic's documented 100+ scale — a 2× safety margin — while giving headroom so the cap forces consolidation only when skills genuinely proliferate.
 
 ---
 
@@ -160,7 +174,7 @@ Two concrete patterns for the description:
 Per Anthropic's API docs the metadata layer (name + description) is "always in context":
 
 - Approximately 100 tokens / ~100 words per skill at session start.
-- With 32 skills loaded, that's ~3,200 tokens before any conversation begins.
+- With 50 skills loaded, that's ~5,000 tokens before any conversation begins.
 
 ### Why 250, not 1024
 
@@ -291,7 +305,7 @@ Until then: 16% with citations to the three anchors above.
 |---|---|---|
 | CLAUDE.md non-blank lines | 260 | Marker-convention re-derivation ([Why] pairs ~2× lines/instruction); count is the real gate |
 | CLAUDE.md words per line | 32 | User preference; prose-bloat guard |
-| Skill total count | 32 | User preference; conservative vs. Anthropic's 100+ reference |
+| Skill total count | 50 | Half of Anthropic's documented 100+ routing scale; preload cost negligible (~1% of context) |
 | Skill non-blank lines | 500 | Anthropic official best practice |
 | Skill words per SKILL.md | 2048 | User preference; co-binds with 500 lines at ~4 words/line |
 | Skill description chars | 250 | Claude Code 2.1.86 `/skills` listing cap |

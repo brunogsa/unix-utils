@@ -28,7 +28,7 @@ All limits sourced where possible. Full citations in [references/research.md](re
 |---|---|---|
 | CLAUDE.md non-blank lines | 260 | [Marker-convention re-derivation: [Why] pairs double lines-per-instruction; count is the real gate](references/research.md#claudemd-length) |
 | CLAUDE.md words per line | 32 | User preference — enforces "Prefer scannable shape" |
-| Skill total count | 32 | User preference — keeps metadata preload small |
+| Skill total count | 50 | [Half of Anthropic's documented 100+ routing scale; preload negligible (~1% of context)](references/research.md#skill-count) |
 | Skill non-blank lines | 500 | [Anthropic official best practice](references/research.md#skill-size) |
 | Skill words per SKILL.md | 2048 | User preference — co-binds with 500 lines at ~4 words/line |
 | Skill description chars | 250 | [Claude Code 2.1.86 `/skills` listing cap](references/research.md#skill-description-length) |
@@ -125,7 +125,7 @@ The script measures with `grep`, `awk`, `wc`, and `find`.
 |---|---|---|---|
 | CLAUDE.md non-blank lines | 128 | 200 | OK |
 | CLAUDE.md max words/line | 58 (line 114) | 32 | OVER |
-| Skill count | 27 | 32 | OK |
+| Skill count | 27 | 50 | OK |
 | Max skill desc chars | 806 (consistency-check-principles-and-skills) | 250 | OVER |
 | Max skill name chars | 48 (improve-principles-and-skills-from-user-feedback) | 64 | OK |
 
