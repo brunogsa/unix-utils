@@ -15,133 +15,252 @@
 //   3. ALWAYS show optional fields too — mark them `optional`; never omit
 //      a field just because it is not required. Omission hides the contract.
 //   4. Show every nested object and array element in full. The ONLY allowed
-//      shorthand is "same shape as X" for a sub-object whose schema is already
-//      shown elsewhere — see `mediador` (same as `escola`) and `entrega.endereco`.
-//      Never just drop a field/object to shorten.
+//      shorthand is "same shape as X" for a sub-object whose schema is shown
+//      elsewhere — see `mediador` (same as `escola`). Never drop a field to
+//      shorten. When such a `/* ... */` shorthand runs long, wrap it across
+//      lines inside its braces (it is a value placeholder, not a trailing
+//      annotation, so it is not moved above per rule 7).
 //   5. Put quirks/gotchas inline where they bite (e.g. "null quando X",
 //      "consistência é responsabilidade do produtor", "NÃO confundir com Y").
 //   6. Enums list all values inline; if huge (~60), say so and give the rule.
+//   7. Keep every line <=80 chars. When a complete annotation would push the
+//      field line past 80, move the comment ABOVE the field (wrapped across
+//      lines as needed), preceded by a blank line so the comment hugs its
+//      field. Short annotations stay inline to the right.
 //
 // One physical line per field. Tables and JSONC fences are exempt from the
-// density cap, so long inline comments are fine — favor a complete annotation
-// over a terse one. The reader should not need a second doc to read the shape.
+// density cap, but cap each line at 80 chars anyway for scannability: keep
+// short annotations inline; overflow a long one to a comment block directly
+// above its field, preceded by a blank line (rule 7). Favor a complete
+// annotation over a terse one — its length goes above the field, never
+// off-screen to the right.
 //
 // The example is a real inbound webhook payload (PIC Arco → Integrador).
 // ============================================================
 
 {
-  "operacao": "create",                              // string | required | enum [create, update] | informacional/log apenas; consumidor trata sempre como upsert (não diverge comportamento entre create e update)
-  "id": 12345,                                       // integer | required | >=1 | ID do contrato no sistema de origem (estável entre updates)
-  "versaoId": 7,                                     // integer | required | >=1 | versão do contrato; usado no path do callback e como chave primária do dedup
-  "anoVigencia": 2027,                               // integer | required | 2024..2099
-  "contratoAnterior": 12340,                         // integer | required, nullable | ID do contrato do ano anterior; null no 1º ano
-  "status": "Contrato Assinado",                     // string | required | enum [Rascunho, Contrato Assinado, Contrato Bundle Assinado] (Rascunho assumido válido)
-  "dataAlteracao": "2027-02-14T18:22:05.123Z",       // string ISO 8601 UTC | required | última alteração na origem; tiebreaker do dedup dentro do mesmo versaoId — NÃO confundir com receipt timestamp do consumidor
-  "duracao": 1,                                      // integer | required | duração em anos
-  "cnpjFilialFaturamento": "12345678000190",         // string 14 dígitos | required | filial de faturamento
-  "cnpjFilialExpedicao": "12345678000190",           // string 14 dígitos | required | filial de expedição (pode diferir da de faturamento)
-  "tipoContrato": "Venda Padrão",                    // string | required | enum [Venda Padrão (B2B), Loja Virtual (B2C), Comercializador (revenda)] | compõe a chave de roteamento
+  // string | required | enum [create, update] | informacional/log apenas;
+  // consumidor trata sempre como upsert (não diverge comportamento entre create
+  // e update)
+  "operacao": "create",
 
-  "escola": {                                        // object | required | dados da Escola titular
-    "nome": "Colégio Exemplo S.A.",                  // string | required | max 255 | razão social
-    "nomeFantasia": "Colégio Exemplo",               // string | required | max 255
-    "cpfCnpj": "12345678000190",                     // string | required | regex ^[0-9]{11}$ (CPF) ou ^[0-9A-Z]{14}$ (CNPJ)
-    "institutionId": "ESC-000123",                   // string | required | ID da Escola no cadastro global; persistido downstream
-    "enderecoPrincipal": {                           // object | required
-      "cep": "01310100",                             // string 8 dígitos | required
-      "uf": "SP",                                    // string 2 maiúsculas | required
-      "municipio": "São Paulo",                      // string | required | max 100
-      "bairro": "Bela Vista",                        // string | required | max 100
-      "logradouro": "Av. Paulista",                  // string | required | max 255
-      "numero": "1000",                              // string | required | max 20 | aceita "S/N"
-      "complemento": "Sala 42"                       // string | optional | max 255
+  // integer | required | >=1 | ID do contrato no sistema de origem (estável
+  // entre updates)
+  "id": 12345,
+
+  // integer | required | >=1 | versão do contrato; usado no path do callback e
+  // como chave primária do dedup
+  "versaoId": 7,
+
+  "anoVigencia": 2027,  // integer | required | 2024..2099
+
+  // integer | required, nullable | ID do contrato do ano anterior; null no 1º
+  // ano
+  "contratoAnterior": 12340,
+
+  // string | required | enum [Rascunho, Contrato Assinado, Contrato Bundle
+  // Assinado] (Rascunho assumido válido)
+  "status": "Contrato Assinado",
+
+  // string ISO 8601 UTC | required | última alteração na origem; tiebreaker do
+  // dedup dentro do mesmo versaoId — NÃO confundir com receipt timestamp do
+  // consumidor
+  "dataAlteracao": "2027-02-14T18:22:05.123Z",
+
+  "duracao": 1,  // integer | required | duração em anos
+
+  // string 14 dígitos | required | filial de faturamento
+  "cnpjFilialFaturamento": "12345678000190",
+
+  // string 14 dígitos | required | filial de expedição (pode diferir da de
+  // faturamento)
+  "cnpjFilialExpedicao": "12345678000190",
+
+  // string | required | enum [Venda Padrão (B2B), Loja Virtual (B2C),
+  // Comercializador (revenda)] | compõe a chave de roteamento
+  "tipoContrato": "Venda Padrão",
+
+  "escola": {  // object | required | dados da Escola titular
+
+    // string | required | max 255 | razão social
+    "nome": "Colégio Exemplo S.A.",
+
+    "nomeFantasia": "Colégio Exemplo",  // string | required | max 255
+
+    // string | required | regex ^[0-9]{11}$ (CPF) ou ^[0-9A-Z]{14}$ (CNPJ)
+    "cpfCnpj": "12345678000190",
+
+    // string | required | ID da Escola no cadastro global; persistido
+    // downstream
+    "institutionId": "ESC-000123",
+
+    "enderecoPrincipal": {  // object | required
+      "cep": "01310100",  // string 8 dígitos | required
+      "uf": "SP",  // string 2 maiúsculas | required
+      "municipio": "São Paulo",  // string | required | max 100
+      "bairro": "Bela Vista",  // string | required | max 100
+      "logradouro": "Av. Paulista",  // string | required | max 255
+      "numero": "1000",  // string | required | max 20 | aceita "S/N"
+      "complemento": "Sala 42"  // string | optional | max 255
     }
   },
 
-  "mediador": { /* object | required | MESMA estrutura de `escola`; intermediário do Acordo. institutionId aqui é optional (aceito, não consumido downstream) */ },
-
-  "entrega": {                                       // object | required
-    "condicaoExpedicao": "C",                        // string | required | enum [C=CIF (frete pelo remetente), F=FOB (frete pelo destinatário)]
-    "local": "E",                                    // string | required | enum [E=Escola, M=Mediador, O=Outra Unidade]
-    "endereco": { /* object | required | mesma estrutura de escola.enderecoPrincipal */ }
+  "mediador": {
+    /* object | required | MESMA estrutura de `escola`; intermediário do
+       Acordo. institutionId aqui é optional (aceito, não consumido
+       downstream) */
   },
 
-  "frete": {                                         // object | required
-    "tipoNormal": "S",                               // string | required | enum [E=pago pela Escola, S=pago pela Arco]
-    "tipoComplementar": "S",                         // string | required | mesmo enum de tipoNormal
-    "normal": {                                      // object | required
-      "automatico": true,                            // boolean | required
-      "percentual": null                             // decimal | required, nullable | null quando automatico=true
+  "entrega": {  // object | required
+
+    // string | required | enum [C=CIF (frete pelo remetente), F=FOB (frete pelo
+    // destinatário)]
+    "condicaoExpedicao": "C",
+
+    // string | required | enum [E=Escola, M=Mediador, O=Outra Unidade]
+    "local": "E",
+
+    "endereco": {
+      /* object | required | mesma estrutura de escola.enderecoPrincipal */
+    }
+  },
+
+  "frete": {  // object | required
+
+    // string | required | enum [E=pago pela Escola, S=pago pela Arco]
+    "tipoNormal": "S",
+
+    "tipoComplementar": "S",  // string | required | mesmo enum de tipoNormal
+    "normal": {  // object | required
+      "automatico": true,  // boolean | required
+
+      // decimal | required, nullable | null quando automatico=true
+      "percentual": null
     },
-    "complementar": {                                // object | required
-      "automatico": false,                           // boolean | required
-      "percentual": 5.0                              // decimal | required, nullable
+    "complementar": {  // object | required
+      "automatico": false,  // boolean | required
+      "percentual": 5.0  // decimal | required, nullable
     }
   },
 
-  "pagamento": {                                     // object | required
-    "diaFixoPagamento": 10,                          // integer | required | 1..31 | dia de vencimento das parcelas
-    "condicoesPagamentoPorMarca": {                  // object | required | map keyed pela marca
+  "pagamento": {  // object | required
+
+    // integer | required | 1..31 | dia de vencimento das parcelas
+    "diaFixoPagamento": 10,
+
+    "condicoesPagamentoPorMarca": {  // object | required | map keyed pela marca
       "SPE": {
         "parcelas": [
           {
-            "numeroParcela": 1,                      // integer | required | 1..12 | sequencial no ano
-            "mes": 2,                                // integer | required | 1..12
-            "numeroParcelas": 3,                     // integer | required | >=1 | nº de parcelas permitidas neste mês
-            "condicaoEspecial": false                // boolean | optional
+            // integer | required | 1..12 | sequencial no ano
+            "numeroParcela": 1,
+
+            "mes": 2,  // integer | required | 1..12
+
+            // integer | required | >=1 | nº de parcelas permitidas neste mês
+            "numeroParcelas": 3,
+
+            "condicaoEspecial": false  // boolean | optional
           }
         ],
-        "numeroParcelasComplementar": 2,             // integer | required | >=0
-        "condicaoEspecialComplementar": false        // boolean | optional
+        "numeroParcelasComplementar": 2,  // integer | required | >=0
+        "condicaoEspecialComplementar": false  // boolean | optional
       }
     }
   },
 
-  "materiais": [                                     // array | required | min_items=1 | sync nunca acontece sem materiais
+  // array | required | min_items=1 | sync nunca acontece sem materiais
+  "materiais": [
+
     {
-      "skuColecao": "COL-2027-EFI",                  // string | required | max 50
-      "descricaoColecao": "Coleção 2027 EFI",        // string | required | max 255
-      "descricaoAmigavel": "Material EFI 2027",      // string | required | max 255 | user-facing
-      "composicaoAnual": [                           // array | required | min_items=1
+      "skuColecao": "COL-2027-EFI",  // string | required | max 50
+      "descricaoColecao": "Coleção 2027 EFI",  // string | required | max 255
+
+      // string | required | max 255 | user-facing
+      "descricaoAmigavel": "Material EFI 2027",
+
+      "composicaoAnual": [  // array | required | min_items=1
         {
-          "skuKIT": "KIT-EFI-1B",                    // string | required | max 50
-          "descricaoKIT": "Kit 1º bimestre EFI",     // string | required | max 255
-          "tipo": "K",                               // string | required | constante "K"
-          "bimestre": 1,                             // integer | required | 1..4
-          "composicao": [                            // array | required | min_items=1
+          "skuKIT": "KIT-EFI-1B",  // string | required | max 50
+          "descricaoKIT": "Kit 1º bimestre EFI",  // string | required | max 255
+          "tipo": "K",  // string | required | constante "K"
+          "bimestre": 1,  // integer | required | 1..4
+          "composicao": [  // array | required | min_items=1
             {
-              "skuProduto": "PROD-001",              // string | required | max 50
-              "descricaoProduto": "Livro do Aluno",  // string | required | max 500
-              "suplemento": "N",                     // string | required | enum [S, N]
-              "tipo": "P"                            // string | required | constante "P"
+              "skuProduto": "PROD-001",  // string | required | max 50
+
+              // string | required | max 500
+              "descricaoProduto": "Livro do Aluno",
+
+              "suplemento": "N",  // string | required | enum [S, N]
+              "tipo": "P"  // string | required | constante "P"
             }
           ]
         }
       ],
-      "suplementar": null,                           // object | required, nullable | quando preenchido, mesmo schema de um item de `materiais` (recursivo); null quando não há
-      "digital": "N",                                // string | required | enum [S, N]
-      "quantidadeVenda": 30,                         // decimal | required | >=0
-      "quantidadeBonificada": 2,                     // decimal | required | >=0
-      "tipo": "A",                                   // string | required | enum [A=Aluno, P=Professor, C=Coordenação, O=Outros]
-      "valorBruto": 200.0,                           // decimal | required | >=0
-      "percentualDesconto": 10.0,                    // decimal | required | 0..100
-      "valorLiquido": 180.0,                         // decimal | required | >=0 | valorBruto − desconto (consistência é responsabilidade do produtor)
-      "rateiov1": 25.0,                              // decimal | required | 0..100 | rateio por trimestre/quadrimestre
-      "rateiov2": 25.0,                              // decimal | required | 0..100
-      "rateiov3": 25.0,                              // decimal | required | 0..100
-      "rateiov4": 25.0,                              // decimal | required | 0..100 | soma rateiov1..4 = 100 (consistência é responsabilidade do produtor)
-      "precoRevendaB2C": 0,                          // decimal | required | >=0 | só aplicável quando tipoContrato="Loja Virtual"
-      "voucher": 0,                                  // decimal | required | 0..100 | % de desconto via voucher
-      "precoFinalLoja": 0,                           // decimal | required | >=0 | precoRevendaB2C − voucher
-      "nivel": "EFI",                                // string | required | enum [EI, EFI, EFII, EM, PV, N/A]
-      "serie": "1º ano",                             // string | required | enum extenso (~60 valores) variando por nivel (consistência nivel × serie é responsabilidade do produtor)
-      "status": "Novo",                              // string | required | enum [Novo, Ampliação, Renovação, Descredenciamento, Perda]
-      "marca": "SPE",                                // string | required | mesmo enum da marca raiz
-      "listaPreco": "LP-2027-B2B"                    // string | required | enum/origem a definir por consumidor (risco de mapeamento)
+
+      // object | required, nullable | quando preenchido, mesmo schema de um
+      // item de `materiais` (recursivo); null quando não há
+      "suplementar": null,
+
+      "digital": "N",  // string | required | enum [S, N]
+      "quantidadeVenda": 30,  // decimal | required | >=0
+      "quantidadeBonificada": 2,  // decimal | required | >=0
+
+      // string | required | enum [A=Aluno, P=Professor, C=Coordenação,
+      // O=Outros]
+      "tipo": "A",
+
+      "valorBruto": 200.0,  // decimal | required | >=0
+      "percentualDesconto": 10.0,  // decimal | required | 0..100
+
+      // decimal | required | >=0 | valorBruto − desconto (consistência é
+      // responsabilidade do produtor)
+      "valorLiquido": 180.0,
+
+      // decimal | required | 0..100 | rateio por trimestre/quadrimestre
+      "rateiov1": 25.0,
+
+      "rateiov2": 25.0,  // decimal | required | 0..100
+      "rateiov3": 25.0,  // decimal | required | 0..100
+
+      // decimal | required | 0..100 | soma rateiov1..4 = 100 (consistência é
+      // responsabilidade do produtor)
+      "rateiov4": 25.0,
+
+      // decimal | required | >=0 | só aplicável quando tipoContrato="Loja
+      // Virtual"
+      "precoRevendaB2C": 0,
+
+      "voucher": 0,  // decimal | required | 0..100 | % de desconto via voucher
+
+      // decimal | required | >=0 | precoRevendaB2C − voucher
+      "precoFinalLoja": 0,
+
+      "nivel": "EFI",  // string | required | enum [EI, EFI, EFII, EM, PV, N/A]
+
+      // string | required | enum extenso (~60 valores) variando por nivel
+      // (consistência nivel × serie é responsabilidade do produtor)
+      "serie": "1º ano",
+
+      // string | required | enum [Novo, Ampliação, Renovação,
+      // Descredenciamento, Perda]
+      "status": "Novo",
+
+      "marca": "SPE",  // string | required | mesmo enum da marca raiz
+
+      // string | required | enum/origem a definir por consumidor (risco de
+      // mapeamento)
+      "listaPreco": "LP-2027-B2B"
     }
   ],
 
-  "pedidoMinimo": 70.0,                              // decimal | required | 0..200 | % mínimo de pedido permitido
-  "pedidoMaximo": 120.0,                             // decimal | required | 0..500 | % máximo de pedido permitido
-  "devolucaoMaxima": 20.0                            // decimal | required | 0..100 | % máximo de devolução permitido
+  // decimal | required | 0..200 | % mínimo de pedido permitido
+  "pedidoMinimo": 70.0,
+
+  // decimal | required | 0..500 | % máximo de pedido permitido
+  "pedidoMaximo": 120.0,
+
+  // decimal | required | 0..100 | % máximo de devolução permitido
+  "devolucaoMaxima": 20.0
 }
