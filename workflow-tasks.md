@@ -126,25 +126,3 @@
 
 ---
 
-## 7. [Feature] `/implement`: fresh-context subagent per task, fed by durable artifacts
-
-**Goal**: Make `/implement` run each task as a **fresh-context subagent** instead of accumulating the whole batch in one transcript, to fight context rot across a multi-task batch. The subagent re-grounds from durable artifacts, not session history. **Worktrees are out of scope** — the author creates/deletes them by hand and runs `/implement` wherever CWD already is (the skill's current §1 stance is unchanged). The only thing automated here is the per-task subagent + its context hand-off.
-
-**Why (from the brainstorm)**: a long sequential batch rots the main transcript; a fresh subagent per task resets it. The bet — the author's #2 principle ("fresh-context-plus-batch beats rotted-context-plus-drip; re-ground from the durable artifact") applied one level down to the task loop — is that durable artifacts carry *enough* to replace the accumulated transcript.
-
-**Decided (don't re-derive)**:
-- **One fresh-context subagent per task, run sequentially** (no within-batch parallelism — it's async work, latency isn't the point). The orchestrator (main `/implement` session) holds only plan + orchestration state, never the per-task implementation context.
-
-- **Context bus = durable artifacts**: each subagent re-grounds from (a) its `plan.md` task slice + explicit files-to-touch list (the #6 "token-efficient grounding" list), (b) the `git log <base>..HEAD` recap (§1.3 already runs this — rich commit *bodies* carry prior-task *why*), (c) spec ACs. **Precondition: commit bodies rich enough to carry the why** (ties to `commit-standards` — already the author's practice).
-
-- **Per-task `[Done]` handshake → per-batch async review**: the subagent works + self-verifies + returns a report; the orchestrator verifies its result against the diff (CLAUDE.md "verify subagent results against artifacts"); the human reviews the batch async (#2's async-downstream thesis, not a regression of §4).
-
-**OPEN QUESTION 1 (the core — "receive better context somehow")**: define the subagent context contract — what the orchestrator embeds in the prompt (plan.md task slice, files-to-touch, spec ACs) vs what the subagent fetches itself from CWD (`git log`, full plan/spec). Plus the back-channel: the subagent's report shape, how the orchestrator verifies it, and what (if anything) carries to the next task.
-
-**OPEN QUESTION 2 (the cross-task-learning risk)**: a fresh subagent loses non-obvious gotchas a prior task surfaced that never reached a commit body or plan.md. Mitigation to evaluate: the orchestrator keeps a distilled **carry-forward digest** (not the full transcript — just cross-task notes) and passes it alongside the durable artifacts. This decides whether durable-artifacts-only is actually enough.
-
-**Touches**: `implement` skill §2 (sub-step decomposition → per-task subagent dispatch), §2.2 (advisor now orchestrator-side or per-subagent), §4 handshake, §6 tail subagents (already report-only — same spawn pattern to reuse). Load `skill-authoring` before editing SKILL.md. Tightly coupled to **#6** (produces the files-to-touch list this consumes) and **#2** (same async / fresh-context family — coordinate, don't duplicate).
-
-**Deliverable**: `implement` skill updated so each task dispatches a fresh-context subagent fed by the durable-artifact context contract (OQ1), with orchestrator-side verification + async batch review. **Spike first**: confirm a spawned subagent shares the orchestrator's CWD and can edit + commit in it (the load-bearing assumption of the whole model). Each adopted change lands its own commit.
-
----
