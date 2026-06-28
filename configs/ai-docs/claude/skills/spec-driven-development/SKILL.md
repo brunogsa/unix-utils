@@ -36,7 +36,7 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 0. User creates spec.md with initial prompt/notes (or `/brainstorm` refines it).
 1. Plan mode or direct request generates plan.md from spec.md (or from prompt).
-2. AI Self-review — surface gaps, contradictions, unresolved ambiguity. Validate every mermaid block with `mmdc` (caveats in plan-template.md).
+2. AI Self-review (two lenses) — a fresh-context subagent runs the unbiased structural gates; an advisor pass catches over-engineering and spec-vs-request drift. Validate every mermaid block with `mmdc` (caveats in plan-template.md).
 3. User reviews and approves — when the user signals, execution start.
 4. Each plan.md task becomes a TaskCreate item.
 5. Both files updated as work progresses (living docs); decisions are append-only past the divider that exists on both spec.md and plan.md.
@@ -63,9 +63,15 @@ Read them with fresh eyes by spawning a sub-agent that reports:
   - Exit 0 = clean; exit 1 = rewrite each `<line>:<chars>:<words>` violation.
   - Follow `~/.claude/skills/doc-standards/references/density-rules.md` (paragraph → bullets+sub-bullets, long bullet → bullet + sub-bullets) without dropping information.
 
-Two of the four checks below are **dedicated fresh-context subagent gates** (Gate 1, Gate 2). The other two (checklist completeness, inversion sweep) are inline checks.
+Three of the five checks below are **dedicated fresh-context subagent gates** (Gate 1, Gate 2, Gate 3) — they see only the artifacts, so no writing-session bias leaks in.
 
-All four are **fail-closed**: any miss, parse error, or subagent error blocks self-review until reconciled.
+The other two (checklist completeness, inversion sweep) are inline checks.
+
+All five are **fail-closed**: any miss, parse error, or subagent error blocks self-review until reconciled.
+
+A sixth check — the **advisor lens** — runs on the full session instead of a fresh context, and is advisory rather than fail-closed.
+
+It is the one judgment the artifact-only gates structurally can't make: whether the spec is over-scoped versus what the user actually asked.
 
 - **Gate 1 — AC ↔ Test Design coverage**: spawn a fresh-context subagent with `spec.md` + `plan.md`.
   - Task: for every `### AC-N:` in spec.md, identify at least one test in plan.md (Test Design section or per-task `**Tests (planned)**:`) that semantically covers it.
@@ -78,12 +84,26 @@ All four are **fail-closed**: any miss, parse error, or subagent error blocks se
   - Output: list of orphan titles (designed but unassigned).
   - Same fail-closed semantics as Gate 1.
 
+- **Gate 3 — Machinery ↔ AC traceability (over-engineering)**: spawn a fresh-context subagent with `spec.md` + `plan.md`.
+  - Task: for every piece of machinery in plan.md — each abstraction, dependency, config knob, extra layer, or point of generality — name the spec AC or documented requirement (goal/NFR) it serves.
+  - Output: list of machinery with no traceable justification (empty = pass).
+  - Untraceable machinery is speculative scope; block plan approval until each item is either cut or earns an AC that justifies it.
+  - "Necessary" means it traces to a requirement — this is the artifact-internal half of the over-engineering check; the request-context half is the advisor lens below.
+
 - **Checklist completeness**: verify spec.md's **boundary checklist** (Corner cases) and **failure category checklist** (Failure modes) are evaluated.
   - Each item marked `covered (AC-N)` or `N/A — <reason>`. Empty template placeholders fail self-review.
   - Honor opt-out: a checklist replaced with `**DECISION:** Skip <name> checklist because <reason>` counts as evaluated.
 
 - **Inversion sweep**: for every AC in spec.md, ask "how would this break in production?".
   - If no failure mode surfaces, the AC is under-specified — flag it for the user to tighten the AC or document N/A in the failure-category checklist.
+
+- **Advisor lens (full-context, advisory — not a gate)**: the gates above see only the artifacts, so they can't tell whether the spec itself is over-scoped versus what you were actually asked.
+  - The advisor sees the whole session, so it can.
+  - First state the concern in your reasoning — name plan.md's heaviest machinery and the simplest design you believe meets every AC — then call `advisor()`.
+    - It forwards the transcript with no question attached, so a bare call with nothing staged wastes it.
+  - Aim it at two judgments: is the spec scoped to the request (no gold-plated ACs the user never asked for), and is plan.md the simplest design that still meets every AC?
+  - Advisory, not fail-closed: surface its findings to the user alongside the gate results and let them decide what to cut.
+    - Over-engineering is a judgment call, not a parse error — don't block on it.
 
 Why: cheaper for you to catch these than for the user to find them in review — and it prevents the "looks good, ship it" loop where ambiguity surfaces only during implementation.
 
