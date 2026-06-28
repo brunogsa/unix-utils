@@ -173,6 +173,9 @@ The two subsections below apply to any standalone doc — where it lives and wha
 
 ### What a doc should and shouldn't contain
 
+- [Instruction] Lead with the bottom line — state a doc's and each section's conclusion first, then its support (BLUF).
+  - [Why] NN/g eye-tracking shows readers scan in an F-pattern and bail early, so a buried conclusion is one early-scanning readers never reach.
+
 - [Instruction] In a repo's CLAUDE.md, capture its purpose, dependencies, non-obvious gotchas, and load-bearing conventions.
   - [Why] CLAUDE.md's value is what the code *can't* show — purpose, gotchas, and conventions live nowhere else.
 
