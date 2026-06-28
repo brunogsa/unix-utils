@@ -132,6 +132,33 @@ It is the one judgment the artifact-only gates structurally can't make: whether 
 
 Why: cheaper for you to catch these than for the user to find them in review — and it prevents the "looks good, ship it" loop where ambiguity surfaces only during implementation.
 
+#### Delta-scoped re-review on iteration rounds
+
+The first self-review runs every gate over the whole doc.
+
+Later rounds scope the gates to what actually changed — computed by `diff`, never from the in-doc summary (the human edits these docs directly, so a hand-maintained list misses their edits):
+
+- **Snapshot at hand-off**: copy the docs into a stable dir when you hand them to the human; re-snapshot every hand-back.
+  - `mkdir -p /tmp/sdd-snapshots && cp spec_<slug>.md plan_<slug>.md /tmp/sdd-snapshots/`
+
+- **Diff on re-review**: next round, `diff /tmp/sdd-snapshots/spec_<slug>.md spec_<slug>.md` (same for plan) yields the changed hunks — including edits the human made directly.
+
+- **Scope, don't blind**: hand each gate the changed hunks plus the full doc.
+  - Gates stay fresh-context subagents, so the bias guarantee holds — scoping changes what they focus on, not where they run.
+
+- **Re-check broken invariants**: each gate concentrates on the changed regions plus any invariant those changes break, even in UNCHANGED regions.
+  - Deletions are the trap: removing an AC orphans the plan machinery tracing to it (Gate 3); removing a task orphans its owned test title (Gate 2).
+  - Both orphans sit in unchanged regions the diff won't flag — this is what the full-doc backstop must catch.
+  - The local case is easier: an edited AC or test re-runs that AC↔test coverage pair (Gate 1).
+
+- **Backstop**: the full doc is present, so a gate that spots a problem outside the changed regions still reports it. The diff focuses the review, it doesn't blind it.
+
+Why: convergence rounds shouldn't re-pay a full-doc review — it wastes subagent budget and makes the human re-read a whole report when only the delta moved.
+
+The snapshot+diff is tools-first: it can't go stale or miss a human edit, unlike a hand-maintained marker.
+
+The stable `/tmp` path is reconstructable after a `/clear`, so the re-review scope survives a phase handoff.
+
 #### Resolving spec/plan drift
 
 When plan_<slug>.md and spec_<slug>.md disagree, surface each conflict before updating anything:
