@@ -43,6 +43,47 @@ case "$STATE" in
     ;;
 esac
 
+# Sound cues -- tweak to taste. A discrete "go look" tone, distinct per state:
+# a calm one when a turn finishes, a more urgent one when Claude is blocked on
+# a permission prompt. Played only after the "skip if viewing/not-tmux/idle"
+# gates below, so they stay silent while you're already watching the window.
+#   macOS: built-in .aiff under /System/Library/Sounds (afplay, no install).
+#   Linux: freedesktop .oga theme (canberra-gtk-play/paplay + sound-theme-freedesktop).
+DONE_SOUND_MACOS="Purr"
+NOTIFICATION_SOUND_MACOS="Tink"
+DONE_SOUND_LINUX="complete"
+NOTIFICATION_SOUND_LINUX="message"
+
+# Play the cue for $1 (done|notification): best-effort and non-blocking.
+# Never fails the hook -- no player found means it's skipped, and the player
+# runs detached (&) so the short sound outlives this script's exit.
+play_attention_sound() {
+  local state="$1"
+  local name
+
+  if command -v afplay >/dev/null 2>&1; then
+    case "$state" in
+      done)         name="$DONE_SOUND_MACOS" ;;
+      notification) name="$NOTIFICATION_SOUND_MACOS" ;;
+    esac
+    afplay "/System/Library/Sounds/${name}.aiff" >/dev/null 2>&1 &
+    return 0
+  fi
+
+  case "$state" in
+    done)         name="$DONE_SOUND_LINUX" ;;
+    notification) name="$NOTIFICATION_SOUND_LINUX" ;;
+  esac
+
+  if command -v canberra-gtk-play >/dev/null 2>&1; then
+    canberra-gtk-play -i "$name" >/dev/null 2>&1 &
+  elif command -v paplay >/dev/null 2>&1; then
+    paplay "/usr/share/sounds/freedesktop/stereo/${name}.oga" >/dev/null 2>&1 &
+  fi
+
+  return 0
+}
+
 # Buffer stdin once (may be empty for manual invocations)
 PAYLOAD=""
 if [ ! -t 0 ]; then
@@ -76,3 +117,6 @@ if [ "$VIEWING" = "1" ]; then
 fi
 
 tmux set-option -w -t "$TMUX_PANE" "@claude_state" "$STATE"
+
+# Audible "go look" cue -- inherits every skip gate above by sitting after them.
+play_attention_sound "$STATE"

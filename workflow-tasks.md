@@ -126,33 +126,6 @@
 
 ---
 
-## 3. [Feature] Session-done sound — discrete tones on the existing tmux hook
-
-**Goal**: An audible "go look" cue when an AI run finishes or needs input, so the human can leave a session running instead of half-watching it. The existing `claude-tmux-notification.sh` already shows *which* session changed (per-window tmux `@claude_state` flag); this adds the sound that says *something* changed.
-
-**Why (2026-06-24 brainstorm)**: load-bearing enabler for the async-iteration improvements (#2 discipline, #4 docs) — without a "leave now, I'll cue you" signal the human hovers in the uncanny valley.
-
-**Decided mechanism (don't re-derive)**: add a **discrete sound** to `claude-tmux-notification.sh`, played for both states with **distinct tones** — one for `done` (turn finished), a different, more-urgent one for `notification` (blocked on permission). Cross-platform players: macOS `afplay /System/Library/Sounds/<name>.aiff` (built in); Linux `paplay`/`canberra-gtk-play` on freedesktop `.oga` sounds. Sound names as constants at the top of the script for taste-tuning. **No Slack, no webhook, no browser, no phone, no new gate logic.**
-
-**Reuse the gates already in the script (the sound inherits them by sitting after these checks)**:
-- Skips the `idle_prompt` Notification (fires ~60s after every turn; not actionable).
-- **Skips when you are viewing that window** (attached session + active window) → silent during interactive design, sounds only once you've moved away. (Answers "no sound if I'm looking at that pane" — already true.)
-- Skips when not under tmux.
-
-**Why this shape (peon-ping done right)**: the loop rejected louder designs and landed on sound-only because — (a) the tmux flag is a small status-bar icon, not a full-screen banner → no embarrassing visual leak on a shared screen; (b) a *discrete* short sound is acceptable in a meeting (the old peon-ping was loud/silly); (c) sound carries no session-identity, but the per-window flag already does, in-terminal, free.
-
-**Rejected (don't re-derive)**:
-- **Slack tab on a private monitor / ntfy / phone push / OS desktop banners**: all heavier than a sound on a hook that already exists and already gates; a phone in the vision field hurts focus; OS banners can't be pinned to the private monitor (leak on the shared screen); Slack/ntfy add a service + secret. Revisit only if sound proves insufficient when *fully away from the terminal*.
-- **macOS Focus/DND routing**: not needed — sound has no visual footprint to leak, so there is nothing to route.
-
-**Known gap (within tolerance)**: a *single* session left as the active tmux window while you alt-tab to a meeting won't sound (the "viewing" gate counts it as viewed). Accepted by the human ("ok if it plays/doesn't while I'm on the terminal").
-
-**Touches**: edit `claude-tmux-notification.sh` in `configs/ai-docs/claude/hooks/` (already wired in `settings.json` for both states — no settings change). Linux needs a sound player + freedesktop-sounds package — mirror that dependency into `install.sh`; macOS needs nothing extra. Coordinate with **#14 (hooks-audit umbrella)**.
-
-**Deliverable**: distinct discrete tones for `done` vs `notification` added to the existing hook, gated by its existing "skip if viewing" check, cross-platform (macOS + Linux), Linux sound dependency mirrored into `install.sh`. One small commit.
-
----
-
 ## 4. [Task] Doc-writing async workflow + voice-guide (HLD/LLD/ADR)
 
 **Goal**: Give doc-writing the same design→implement→review shape that already works for code, so prose iteration stops happening live, change-by-change. Highest current pain: HLD/LLD/ADR have a template (recently improved; now in the `design-docs` skill) but no SDD-equivalent and no guardrails, so the human iterates ON the prose directly.

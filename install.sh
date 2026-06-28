@@ -42,6 +42,13 @@ elif [[ "$OS" == "linux" ]]; then
     sudo apt-get install -y fd-find jq datamash shellcheck libnotify-bin
 fi
 
+# Sound cues for the Claude Code tmux notification hook (done/notification tones).
+# macOS needs nothing -- afplay and /System/Library/Sounds are built in.
+if [[ "$OS" == "linux" ]]; then
+    # sound-theme-freedesktop -> /usr/share/sounds/freedesktop/*.oga; pulseaudio-utils -> paplay
+    sudo apt-get install -y sound-theme-freedesktop pulseaudio-utils
+fi
+
 # macOS-specific: CPU/RAM/Disc/Network monitor
 if [[ "$OS" == "macos" ]]; then
     brew install stats
