@@ -14,20 +14,22 @@ Spec: [link or reference to the paired spec_<slug>.md]
 ---
 ## Technical Approach & High Level Architecture
 
-High-level technical approach. Architecture and Trade-offs considered.
+**Lead with a diagram** — a flowchart or C4L1 context diagram is the primary artifact; a picture is faster for the reviewer to scan than prose. Keep it simple and readable.
 
-A flowchart, C4L1 (context diagram) or anything else. Keep simple and readable.
+Add prose only for the trade-offs and architecture decisions the diagram can't convey.
+
+N/A escape: for a trivial or no-flow change, write "N/A — <reason>" and skip the diagram.
 
 Follow the `mermaid-diagrams` skill for conventions.
 
 ---
 ## General Flow
 
-Where the code starts executing, having which data, which modules/class/functions/enums etc are required and in which order.
+**Lead with a diagram** — faster to scan than prose: a sequence diagram or flowchart showing where execution starts, what data it carries, and which modules/functions run in order.
 
-It should explain for the human, assuming do NOT know the codebase, what happens technically in the code at the high level AS SIMPLE as possible, without code.
+For a reader who does NOT know the codebase, the diagram plus minimal prose should convey the high-level technical flow, as simply as possible, without code.
 
-A sequence diagram, flowchart or anything else. Keep simple and readable.
+N/A escape: for a trivial or no-flow change, write "N/A — <reason>" and skip the diagram.
 
 Follow the `mermaid-diagrams` skill for conventions.
 

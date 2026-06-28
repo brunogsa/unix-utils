@@ -20,7 +20,11 @@ What we want to achieve (outcomes, not implementation).
 ---
 ## Context Diagram
 
-> **Diagrams**: include a C4L1 (context diagram) paired with sequence diagrams, if necessary, from the perspective of the users using the systems (described below as User Stories and Testable Acceptance Criteria).
+> **Lead with the diagram** — a C4L1 context diagram (plus sequence diagrams when a flow needs them), from the perspective of the users in the User Stories and Acceptance Criteria below.
+>
+> A validated picture is the fastest way for the reviewer to grasp the system boundary; add prose only for what it can't show.
+>
+> N/A escape: for a trivial or no-flow change (one-line config, copy tweak), write "N/A — <reason>" and skip the diagram.
 >
 > Follow the `mermaid-diagrams` skill for conventions.
 
