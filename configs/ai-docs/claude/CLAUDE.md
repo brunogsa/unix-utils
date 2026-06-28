@@ -287,7 +287,10 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] **Serialize writes when they prompt for permission** -- one Edit/Write at a time, waiting for each result; in bypass-permissions/auto-accept mode, parallel writes are fine.
   - [Why] With prompts on, each write is a permission gate — one rejection re-issues all parallel writes; with prompts off, the gate is gone and parallel is just faster.
-  - [Example] Overrides the default 'parallelize independent tool calls' for write tools. Read-only calls (Read, Grep, read-only Bash) keep running in parallel.
+  - [Example] Overrides the default 'parallelize independent tool calls' for write tools only.
+
+- [Instruction] Parallelize independent read-only calls (Read, Grep, Glob, read-only Bash) in one block — never serialize them.
+  - [Why] Reads carry no permission gate and no write-ordering hazard, so batching them is pure latency saved; the serialize-writes default never extends to them.
 
 - [Instruction] **Permission UIs are the asking. NEVER pre-ask in chat** -- once content is decided, issue the tool call directly. The UI/prompt is where the user reviews and approves/denies.
   - [Why] Pre-show + run = double-prompt. UI renders cleaner than chat.

@@ -108,24 +108,6 @@
 
 ---
 
-## 2. [Task] Async-iteration discipline — stop drip-feeding corrections downstream
-
-**Spawned from the old task 2 brainstorm (2026-06-24)**, which split into three: this (#2), phone-push notification (#3), doc-writing async workflow (#4). **Connective thesis across all three**: synchronous human↔AI engagement belongs in **design/planning ONLY**; everything downstream (implement, refactor, review, docs) should be **async — AI generates an artifact, the human responds in one batch**. Never drip-feed live corrections downstream.
-
-**Why (from the brainstorm)**: the painful waiting isn't AI latency — it's the *uncanny-valley* synchronous loop where the human feeds micro-corrections one at a time and waits on each turn. N corrections = N waits = N context-switches. The "report-not-run" change to the `implement` skill (refactor + auto-review emit REPORTs to read later instead of running live) already proved the pattern: converting live-watching → async-batch was a big win. Generalize it.
-
-**Mechanism**:
-- **CLAUDE.md principle** — encode the thesis as a global rule, plus the batch-correction rule: *collect all corrections, submit once; never correct change-by-change.* Split **independent** corrections (always batch — one wait, low rot risk if numbered) from **dependent/exploratory** ones (don't drip-feed — `/clear` + re-ground from the durable artifact (diff/spec/plan) + batch in a fresh context; fresh-context-plus-batch beats rotted-context-plus-drip).
-- **Skill edits** — bake batch-correction + report-pattern into `implement` and `address-pr-comments` (review the whole diff, submit all comments at once, like async PR review — never comment-and-wait per line).
-
-**Secondary — minor latency wins** (demoted from old task 2; kept, not dropped; second-order, seconds-per-turn):
-- **Seed 1 — mode-conditional serial writes**: the CLAUDE.md "writes always serial" rule exists only so each Edit/Write hits its own permission gate. Under bypass-permissions/auto-mode there's no per-edit gate, so serial writes just add latency. Carve out parallel writes when no interactive gate exists. *Open question*: can the model reliably detect the active permission mode at turn time? Verify before relying on it. *Coordinate with #15 (autonomy/sandbox)* — the mode it keys off is what #15 gates.
-- **Seed 2 — other techniques**: batch independent tool calls in one block (already default for reads), subagent fan-out, background Bash/tasks, cut redundant re-reads/re-verification, prompt-cache warmth (avoid >5-min idle gaps), per-subtask model selection. *Constraint*: exclude `/fast` — already known.
-
-**Deliverable**: CLAUDE.md principle + batch-correction rule; `implement` / `address-pr-comments` skill edits; serial-writes carve-out as a separate commit. Load `skill-authoring` before editing any SKILL.md. Each adopted change lands its own commit.
-
----
-
 ## 4. [Task] Doc-writing async workflow + voice-guide (HLD/LLD/ADR)
 
 **Goal**: Give doc-writing the same design→implement→review shape that already works for code, so prose iteration stops happening live, change-by-change. Highest current pain: HLD/LLD/ADR have a template (recently improved; now in the `design-docs` skill) but no SDD-equivalent and no guardrails, so the human iterates ON the prose directly.
