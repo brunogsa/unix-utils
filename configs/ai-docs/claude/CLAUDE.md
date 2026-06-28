@@ -300,6 +300,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] **CRITICAL: Preserve user work — prefer the least-destructive action, and never delete or overwrite an existing artifact without explicit instruction.**
   - [Why] Each step up the destruction ladder risks hallucinating a replacement or losing unrecoverable context; a deletion you can't justify is often one the user can't undo.
   - [Example] Move over write+delete; `git checkout -- <file>` over manual rewrite to revert; `git stash` over `git checkout` when you may still need the changes.
+  - [Example] When a file holds others' uncommitted work, stage only your hunks with `git-hunk` rather than committing or reverting the whole file.
 
 - [Instruction] Modify only the exact lines/fields/keys/entries needed for the requested change.
   - [Why] Touching more than asked widens the blast radius and review surface, and incidental reformatting buries the real change and can trip linters or git blame.
