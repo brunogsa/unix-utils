@@ -223,6 +223,8 @@ npm install -g @google/gemini-cli
 npm install -g opencode-ai
 npm install -g trash-cli
 npm install -g beautiful-mermaid
+# mmdc — renders mermaid; used by compile-mermaid, the mermaid-diagrams skill, and md-to-html
+npm install -g @mermaid-js/mermaid-cli
 
 # AI setup: Claude Code e OpenCode configuration
 npm install -g codeburn
