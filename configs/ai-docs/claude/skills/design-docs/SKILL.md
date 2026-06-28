@@ -134,4 +134,5 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
 
 - Schema as JSONC — when a doc shows a request/response/event payload, render it as one annotated JSONC object, not a field table; copy `references/example-good-schema.jsonc`.
   - "Schema as jsonc" means that file's style: real values, each field tagged `type | required|optional | constraints | description`, optional fields shown, nested objects in full, quirks inline.
-  - Keep every line ≤80 chars: short annotations stay inline; when a complete annotation would push the field line past 80, move the comment above the field (wrapped, multi-line), preceded by a blank line so it hugs its field.
+  - Keep every line ≤80 chars: short annotations stay inline.
+    - When a full annotation would push the field line past 80, move the comment above the field (wrapped, multi-line), preceded by a blank line so it hugs its field.
