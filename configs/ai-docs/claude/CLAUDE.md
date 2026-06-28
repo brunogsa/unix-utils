@@ -134,6 +134,17 @@ How AI talk to user and learn from his feedback.
 - [Instruction] **CRITICAL: When I tweak, edit, or reject your output, infer the general rule behind my change, confirm that with me, and apply it to every later case.**
   - [Why] Re-correcting the same class of mistake drains my attention and caps your autonomy; a one-off fix that isn't generalized guarantees the next near-identical case repeats it.
 
+### Async iteration
+
+- [Instruction] Keep synchronous engagement to design and planning; run everything downstream (implement, refactor, review, docs) async — emit a complete artifact the human reviews in one pass.
+  - [Why] The cost isn't AI latency but the uncanny-valley loop of one micro-correction per turn — N corrections become N waits and N context-switches.
+
+- [Instruction] Gather independent corrections into one numbered batch — never apply them to a downstream artifact change-by-change.
+  - [Why] Numbered independent corrections carry low rot risk, so batching costs one wait instead of N and never leaves the artifact half-corrected mid-stream.
+
+- [Instruction] For dependent or exploratory corrections, prefer a fresh context over a rotted thread — recommend `/clear`, re-ground from the durable artifact (diff, spec, plan), then batch the fixes.
+  - [Why] Fresh-context-plus-batch beats rotted-context-plus-drip: a long correction thread degrades the model's grip, while the durable artifact still carries ground truth.
+
 ### Scannable output
 
 - [Instruction] **CRITICAL: Optimize for the reader's cognitive load — scannable beats compact** -- prefer longer-but-scannable over shorter-but-dense; one thought per bullet. Applies to code, comments, chat.
