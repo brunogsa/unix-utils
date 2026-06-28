@@ -1,6 +1,6 @@
 # Mid-flight sub-steps — insertion + ordering
 
-Detail for §2.3 in `/implement`. Load only when a helper or drift surfaces mid-task and you need to insert new sub-steps without losing visual ordering.
+Detail for §3.2 in `/implement`. Load only when a helper or drift surfaces mid-task and you need to insert new sub-steps without losing visual ordering.
 
 ## Insertion rule
 
