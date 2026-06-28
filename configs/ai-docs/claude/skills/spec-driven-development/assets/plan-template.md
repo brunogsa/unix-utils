@@ -77,7 +77,9 @@ Tests for helpers pulled on demand during RED-GREEN are designed at the moment t
 
 If this change is a pure refactor, config edit, or similar no-behavior-change work, mark this section "N/A" with a short reason.
 
-**CRITICAL:** Include a table with the columns "Testable Acceptance Criteria" and "Covered by", that shows user ALL ACs from the paired spec were covered by this plan's tests. Not a single one left behind.
+**CRITICAL:** Include a table with columns "Testable Acceptance Criteria" and "Covered by", showing the user that every AC from the paired spec is covered by this plan's tests.
+
+Not a single one left behind.
 
 ---
 ## Task Breakdown
