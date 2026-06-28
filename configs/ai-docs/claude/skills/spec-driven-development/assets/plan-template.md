@@ -97,11 +97,11 @@ Keep to ~4 items; if it grows longer, the task is probably two tasks in disguise
 - "should [behavior] when [condition]"
 - "should [behavior] when [condition]"
 
-Subset of the global Test Design section that this task owns. The /implement
-pre-commit gate (Gate 3) parses these titles via
-`spec-driven-development/scripts/extract-planned-tests-for-task.sh` and a
-fresh-context subagent verifies each one exists in the diff before allowing
-the commit.
+Subset of the global Test Design section that this task owns. After the task's
+subagent commits, the /implement post-commit gate (Gate 3) parses these titles
+via `spec-driven-development/scripts/extract-planned-tests-for-task.sh` and the
+orchestrator — fresh-context relative to the subagent's work — verifies each one
+exists in the committed diff before the task is marked done.
 
 - Pure refactor / config edit with no behavior change: use
   `**Tests (planned)**: N/A — <one-line reason>`. The gate short-circuits.
@@ -116,6 +116,10 @@ the commit.
 **Files (logical order)**:
 - `path/to/file1.ts`
 - `path/to/file2.ts`
+
+`/implement` hands this list to the task's subagent as its grounding starting-set, so it doesn't re-discover the file map from scratch.
+
+Keep it accurate; the subagent may still touch more when execution requires it.
 
 **Commits (sketch, minimum)**:
   1. `~/repo` — `type(scope): subject`
