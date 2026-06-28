@@ -1,26 +1,29 @@
 ---
 name: create-pr
-description: "Create a GitHub PR with a rich description. User-invoked only — auto-detects spec.md/plan.md for context."
+description: "Create a GitHub PR with a rich description. User-invoked only — auto-detects spec_<slug>.md/plan_<slug>.md for context."
 disable-model-invocation: true
 ---
 
 # Create Pull Request
 
 Create a GitHub PR with a rich description generated from
-spec.md and plan.md context (when available).
+spec_<slug>.md and plan_<slug>.md context (when available).
 
 ## Usage
 
 `/create-pr`
 
-No flags needed. Auto-detects spec.md and plan.md in the current directory.
+No flags needed. Auto-detects `spec_*.md` and `plan_*.md` in the current directory (if several, it asks which pair to use).
 
 ## Process
 
 ### 1. Gather context
 
-- Check for spec.md and plan.md in cwd (optional -- works without them)
-  - Extract all ` ```mermaid ``` ` fenced blocks from each file, including all of them in the PR description as collapsibles
+- Discover spec/plan in cwd by glob `spec_*.md plan_*.md` (top-level; optional -- works without them):
+  - At most one spec and at most one plan → use whichever exist (either, both, or neither).
+  - Multiple specs OR multiple plans → list them numbered and ask which to use.
+  - None → proceed from commits + diff only.
+  - Extract all ` ```mermaid ``` ` fenced blocks from each resolved file, including all of them in the PR description as collapsibles
 - Check for PR templates in `.github/` (e.g., `PULL_REQUEST_TEMPLATE.md`)
 - Run git log to see commits on current branch vs base -- **primary source**: mine commit messages for decisions, rationale, and scope changes regardless of whether spec/plan exist
   - This mining only works if commits follow `commit-standards` — well-formed messages are what carry the decisions and rationale worth extracting
@@ -112,7 +115,7 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits, and doesn't s
 - **Decisions: title is the user-visible surprise, not internal mechanism** -- mechanism details go in sub-bullets. Examples: see [`references/decision-quality.md`](references/decision-quality.md).
 - **Decisions: spell out the consequence if reversed when non-obvious** -- sub-bullet showing what breaks. Examples: same reference.
 - **Reuse rationale: ONE concrete future use, not a speculative list** -- name a specific use case with ticket ref. Examples: same reference.
-- **CRITICAL: ZERO references to untracked session docs** -- never name `spec.md`, `plan.md`, gitignored `.md`, internal task/AC numbers, commit SHAs in prose, or internal dependency files.
+- **CRITICAL: ZERO references to untracked session docs** -- never name `spec_<slug>.md`, `plan_<slug>.md`, gitignored `.md`, internal task/AC numbers, commit SHAs in prose, or internal dependency files.
   - Reviewer can't open them. Verify with `git ls-files <name>` before referencing any `.md`; if untracked, substitute the actual value or delete.
   - Applies to verbatim spec copies too. Exception: git-tracked files in the same repo stay.
 - **Don't repeat links across sections** -- if a Jira/PR link appears in "Link do Jira" or "Context", don't repeat in "References".

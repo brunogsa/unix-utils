@@ -1,6 +1,6 @@
-# Status markers — plan.md task title
+# Status markers — plan_<slug>.md task title
 
-Detail for §6 in `/implement`. The orchestrator owns these edits — the subagent never touches plan.md status.
+Detail for §6 in `/implement`. The orchestrator owns these edits — the subagent never touches plan_<slug>.md status.
 
 Status sits **right after the number, before any pre-existing tag** (e.g., Jira IDs).
 
@@ -16,7 +16,7 @@ Status sits **right after the number, before any pre-existing tag** (e.g., Jira 
 
 Single value, mutually exclusive — `[Blocked]` *replaces* `[Doing]`, never stacks.
 
-`plan.md` is session-scoped (gitignored per `spec-driven-development`). Status updates are file edits only, **never committed**.
+`plan_<slug>.md` is session-scoped (gitignored per `spec-driven-development`). Status updates are file edits only, **never committed**.
 
 ## Semantics
 

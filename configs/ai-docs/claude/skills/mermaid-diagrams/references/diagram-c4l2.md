@@ -1,10 +1,10 @@
 # C4L2 Container Diagram
 
-The right level for a plan.md / tech-design architecture flowchart.
+The right level for a plan_<slug>.md / tech-design architecture flowchart.
 
 Don't redraw the C4L1 from scratch — **build on it**:
 
-- Copy the actor + system-under-design boxes + external systems from the spec.md L1.
+- Copy the actor + system-under-design boxes + external systems from the spec_<slug>.md L1.
 - Then expand each system-under-design box with a `subgraph` exposing its internal containers (services, caches, modules, queues).
 - External systems stay opaque — their internals belong in *their* L2.
 

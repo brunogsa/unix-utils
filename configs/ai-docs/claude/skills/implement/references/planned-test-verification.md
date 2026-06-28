@@ -8,9 +8,9 @@ The orchestrator never saw the implementation, so it is genuinely fresh-context 
 
 ## Procedure
 
-1. Run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <N>` where `<plan-path>` is the active plan.md and `<N>` is the current task number.
+1. Run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <N>` where `<plan-path>` is the active plan_<slug>.md and `<N>` is the current task number.
    - Exit 2 (usage / parse error) → abort the task: record the failure, surface in the batch-end report, do not mark `[Done]`.
-   - Exit 1 (plan.md malformed: missing `### N.` heading or missing `**Tests (planned)**:` bullet) → abort the task: record, surface, fix the plan before re-running.
+   - Exit 1 (plan_<slug>.md malformed: missing `### N.` heading or missing `**Tests (planned)**:` bullet) → abort the task: record, surface, fix the plan before re-running.
    - Exit 0, empty stdout → task declared `**Tests (planned)**: N/A`; **skip the check entirely**, proceed to §5.5 advance.
    - Exit 0, non-empty stdout → planned-test list captured; continue.
 

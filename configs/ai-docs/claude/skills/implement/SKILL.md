@@ -1,6 +1,6 @@
 ---
 name: implement
-description: "Execute one or more plan.md tasks end-to-end as fresh-context subagents — run sequentially, fully async — managing decomposition, status, verification and commits. Trigger: /implement <id> or /implement <id1>, <id2>, ..."
+description: "Execute one or more plan_<slug>.md tasks end-to-end as fresh-context subagents — run sequentially, fully async — managing decomposition, status, verification and commits. Trigger: /implement <id> or /implement <id1>, <id2>, ..."
 disable-model-invocation: true
 ---
 
@@ -10,8 +10,8 @@ disable-model-invocation: true
 /implement <task-ids>
 ```
 
-`<task-ids>` is one numeric task prefix or a comma-list of them — `5`, or `1, 2, 3` from `plan.md` in CWD. 1 space after commas.
-Each ID matches the **exact** numeric prefix of a plan.md heading. On ambiguity (rare), ask the user.
+`<task-ids>` is one numeric task prefix or a comma-list of them — `5`, or `1, 2, 3` from `plan_<slug>.md` in CWD. 1 space after commas.
+Each ID matches the **exact** numeric prefix of a plan_<slug>.md heading. On ambiguity (rare), ask the user.
 
 ## Execution model — orchestrator + per-task subagents
 
@@ -21,15 +21,15 @@ There is no per-task human handshake — your batch-end review is the handshake.
 
 Two roles:
 
-- **Orchestrator** (this session) — owns pre-flight, the one-time plan review, decomposition, TaskList, plan.md status, per-task dispatch, post-commit verification, and the batch-end report.
+- **Orchestrator** (this session) — owns pre-flight, the one-time plan review, decomposition, TaskList, plan_<slug>.md status, per-task dispatch, post-commit verification, and the batch-end report.
   - It holds only plan + orchestration state, never a task's implementation context.
 
 - **Task subagent** — one fresh context per task, run sequentially: does the RED-GREEN work, self-verifies, commits, returns a report.
-  - Each re-grounds from durable artifacts (plan.md, spec.md, `git log`), not session history — so a long batch never rots into one transcript.
+  - Each re-grounds from durable artifacts (plan_<slug>.md, spec_<slug>.md, `git log`), not session history — so a long batch never rots into one transcript.
 
 Run subagents on **Sonnet** (execution is mechanical once the plan is sound); keep the orchestrator on the session's stronger model for planning and verification.
 
-Tasks run **sequentially**, never in parallel (async work — latency isn't the point); sequential order lets each subagent read the prior task's commits and plan.md notes first.
+Tasks run **sequentially**, never in parallel (async work — latency isn't the point); sequential order lets each subagent read the prior task's commits and plan_<slug>.md notes first.
 
 ### Chain-abort, with no human gate
 
@@ -48,10 +48,22 @@ The user manages git worktrees; this skill assumes CWD is already where the task
 
 In a multi-task batch (`/implement 1, 2, 3`), **§1.1–§1.3 and §2 run once** at the start; **§1.4–§1.5 run once per task** as each becomes active.
 
-### 1.1. Locate `plan.md` (and `spec.md`)
+### 1.1. Locate the plan (and spec)
 
-- Both present in CWD → proceed.
-- Both missing → ask the user for paths. If none provided, **stop**.
+Glob in CWD (top-level only):
+
+```bash
+ls -1 plan_*.md spec_*.md 2>/dev/null
+```
+
+Resolve to `<PLAN_PATH>` and `<SPEC_PATH>` with this decision tree:
+
+- **Exactly one plan and one spec** → use both; print the resolved paths, no prompt.
+- **Multiple plans (or multiple specs)** → list the matches numbered and ask the user which plan to implement; pair it with the spec sharing its `<slug>` when one exists.
+- **No plan found** → ask the user for the path. If none provided, **stop**.
+- **Plan but no spec** → proceed plan-only; the spec is optional context.
+
+Everywhere below, `plan_<slug>.md` / `spec_<slug>.md` refer to these resolved paths.
 
 ### 1.2. Detect base branch
 
@@ -77,7 +89,7 @@ Don't dump the full log to chat; the per-task subagents re-derive their own cont
 
 ### 1.4. Match `<task-id>`
 
-Exact-match against numeric prefixes in `plan.md` headings. On multiple matches (rare), ask the user which one.
+Exact-match against numeric prefixes in `plan_<slug>.md` headings. On multiple matches (rare), ask the user which one.
 
 ### 1.5. Existing state (resume / dirty runs)
 
@@ -89,7 +101,7 @@ The per-state prompts (re-execute / resume / restart / revive) and the TaskList 
 
 Call `advisor()` **once per invocation**, after pre-flight and before dispatching any task — an auto-review of the whole orchestration plan, not a per-task check.
 
-Read the full `plan.md` and all batched IDs first, so the call challenges the batch as a whole: approach, task ordering, cross-task dependencies, verification strategy.
+Read the full `plan_<slug>.md` and all batched IDs first, so the call challenges the batch as a whole: approach, task ordering, cross-task dependencies, verification strategy.
 
 Take the advice seriously:
 
@@ -105,12 +117,12 @@ The orchestrator owns the TaskList — your macro-visibility surface. The subage
 
 For each task as it becomes active, generate sub-step items based on **both**:
 
-- The task's existing breadcrumb / sub-bullets in `plan.md` (e.g., `(migration; seed; baseline EXPLAIN; index-on EXPLAIN; compare)`)
+- The task's existing breadcrumb / sub-bullets in `plan_<slug>.md` (e.g., `(migration; seed; baseline EXPLAIN; index-on EXPLAIN; compare)`)
 - A fresh decomposition: one item per RED-GREEN cycle (one per most-forcing case from the task's acceptance criteria), plus verify / commit / finalize steps.
 
 **CRITICAL: Create ALL known sub-steps in TaskList BEFORE dispatching the task's subagent.**
 
-- Always include the tail steps (post-commit verify per §5, plan.md update) — known upfront.
+- Always include the tail steps (post-commit verify per §5, plan_<slug>.md update) — known upfront.
 - You need macro visibility before any code is touched; steps added late are a planning failure.
 - Decomposition is planning, not implementation — it reads the plan slice and ACs, so it stays light.
 
@@ -136,7 +148,7 @@ The subagent runs the **full per-task lifecycle**. Its prompt is the entire inst
 
 **Push** — embed verbatim in the prompt (what the orchestrator already holds):
 
-- The task's `plan.md` slice: heading, brief, acceptance criteria, planned-test titles, verification command.
+- The task's `plan_<slug>.md` slice: heading, brief, acceptance criteria, planned-test titles, verification command.
 - The task's **Files (logical order)** list as the **starting set** — not a cage; touch more when needed, routing the delta per §4.3.
 - `BATCH_BASE_SHA` and the base branch, so the subagent can scope its own `git log`.
 - The sub-step list the orchestrator decomposed (§3), as the work plan to execute.
@@ -146,8 +158,8 @@ The subagent runs the **full per-task lifecycle**. Its prompt is the entire inst
 
 **Pull** — tell the subagent to fetch these itself from CWD (keeps the prompt lean):
 
-- Full `plan.md` and `spec.md`.
-- `git log <BATCH_BASE_SHA>..HEAD` for the prior tasks' *why* (rich commit bodies), and any `[Scout]` notes a prior task appended to plan.md.
+- Full `plan_<slug>.md` and `spec_<slug>.md`.
+- `git log <BATCH_BASE_SHA>..HEAD` for the prior tasks' *why* (rich commit bodies), and any `[Scout]` notes a prior task appended to plan_<slug>.md.
 - The actual source files it needs to read.
 
 ### 4.2. On-demand advisor (subagent escape hatch)
@@ -173,8 +185,8 @@ Anything the subagent uncovers outside its task's core work routes through one o
   - If the abstraction isn't trivial, it's a Scout / its own task instead — no speculative scope mid-task.
 
 - **Scout** — a pre-existing, non-blocking issue, or a real gotcha that can't be abstracted away (environmental things like a required env var).
-  - Do **not** touch it; return it to the orchestrator, which records it as a `[Scout]` note on plan.md's task breakdown.
-  - plan.md is the carry-forward surface, read by the next subagent.
+  - Do **not** touch it; return it to the orchestrator, which records it as a `[Scout]` note on plan_<slug>.md's task breakdown.
+  - plan_<slug>.md is the carry-forward surface, read by the next subagent.
 
 ### 4.4. Report back
 
@@ -184,7 +196,7 @@ The subagent returns a structured report (text), never a silent "done":
 - **Commits**: the SHAs it created, with subjects.
 - **Self-verification**: the verification command it ran and its result; the planned-test titles it added.
 - **Deviations**: sub-steps inserted mid-flight, soft design-forks resolved (with the choice), Drift fixes folded in.
-- **For the orchestrator to record**: `[Scout]` items to note on plan.md; any block, with exactly what's needed to clear it.
+- **For the orchestrator to record**: `[Scout]` items to note on plan_<slug>.md; any block, with exactly what's needed to clear it.
 
 ## 5. Verify, retry & advance (orchestrator)
 
@@ -214,13 +226,13 @@ If the subagent returned `blocked` (§4.4), leave the task where it stopped, rec
 
 ### 5.5. Advance
 
-On a clean verify: flip plan.md to `[Done]` (§6), record the subagent's `[Scout]` notes on plan.md, then re-run §1.4–§1.5 + §3 for the next task. §1.1–§1.3 and §2 do not repeat.
+On a clean verify: flip plan_<slug>.md to `[Done]` (§6), record the subagent's `[Scout]` notes on plan_<slug>.md, then re-run §1.4–§1.5 + §3 for the next task. §1.1–§1.3 and §2 do not repeat.
 
-## 6. Status markers (plan.md task title)
+## 6. Status markers (plan_<slug>.md task title)
 
-The orchestrator owns plan.md status edits (`[Doing]` / `[Done]` / `[Blocked]` / `[Deferred]` / `[Dropped]`); the subagent never touches them.
+The orchestrator owns plan_<slug>.md status edits (`[Doing]` / `[Done]` / `[Blocked]` / `[Deferred]` / `[Dropped]`); the subagent never touches them.
 
-Status is a file edit only, never committed (plan.md is session-scoped per `spec-driven-development`).
+Status is a file edit only, never committed (plan_<slug>.md is session-scoped per `spec-driven-development`).
 
 The full marker table, placement rule, and per-state semantics live in [`references/status-markers.md`](references/status-markers.md). Load when flipping status or handling a non-`[Done]` terminal state.
 

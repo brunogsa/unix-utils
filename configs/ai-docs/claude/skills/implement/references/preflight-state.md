@@ -6,7 +6,7 @@ Detail for §1.5 in `/implement`. Fires only on a resume or dirty run — a clea
 
 - **Already `[Done]`** → ask: re-execute / skip / abort.
 - **Already `[Doing]`** → ask: resume / restart / abort. Multiple `[Doing]` tasks at once is a smell — flag it.
-- **Already `[Blocked]` / `[Deferred]`** → ask: resume / abort. (Resume picks up from existing TaskCreate items + `plan.md` context; the `[Doing]` flip happens on resume.)
+- **Already `[Blocked]` / `[Deferred]`** → ask: resume / abort. (Resume picks up from existing TaskCreate items + `plan_<slug>.md` context; the `[Doing]` flip happens on resume.)
 - **Already `[Dropped]`** → ask: revive (clear status, restart) / abort.
 
 ## Existing TaskCreate items

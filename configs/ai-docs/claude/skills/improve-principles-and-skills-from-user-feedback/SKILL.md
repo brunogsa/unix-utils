@@ -33,7 +33,7 @@ Examples:
 - `/improve-principles-and-skills-from-user-feedback this session`
 - `/improve-principles-and-skills-from-user-feedback PR 169`
 - `/improve-principles-and-skills-from-user-feedback TODOs I left`
-- `/improve-principles-and-skills-from-user-feedback TODOs I left on files src/foo.ts, plan.md`
+- `/improve-principles-and-skills-from-user-feedback TODOs I left on files src/foo.ts, plan_<slug>.md`
 - `/improve-principles-and-skills-from-user-feedback TODOs I left on src/components, docs/`
 
 ## Scope

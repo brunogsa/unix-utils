@@ -80,7 +80,7 @@ Watch for these phrases in your own thinking. Each is a rationalization that byp
 
 When manual testing is the right call (rare UI flows, third-party integrations without sandbox, automation cost disproportionate), log it in `./manual-tests-evidences.md` at project root.
 
-**Lifecycle:** gitignored, session-scoped — same as spec.md / plan.md. Delete or archive after PR.
+**Lifecycle:** gitignored, session-scoped — same as spec_<slug>.md / plan_<slug>.md. Delete or archive after PR.
 
 **Format:** see template at [`assets/manual-tests-evidences-template.md`](assets/manual-tests-evidences-template.md).
 

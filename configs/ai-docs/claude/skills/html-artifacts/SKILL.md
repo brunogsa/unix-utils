@@ -159,7 +159,7 @@ Why: these are read-once, throwaway views. Committing one re-introduces the revi
 
 | Artifact | Format | Why |
 |----------|--------|-----|
-| spec.md / plan.md | Markdown (numbered sections for §-anchored comments) | living, edited, re-fed to an LLM |
+| spec_<slug>.md / plan_<slug>.md | Markdown (numbered sections for §-anchored comments) | living, edited, re-fed to an LLM |
 | HLD / LLD (durable design docs) | Markdown + Google Docs for external review | committed; heavy external feedback |
 | README / CLAUDE.md / SKILL.md | Markdown | they are LLM context |
 | brag | Markdown | structured prose neovim renders; fails the capability test |

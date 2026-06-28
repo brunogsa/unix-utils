@@ -1,12 +1,12 @@
 ---
 name: brainstorm
-description: "Interactively refine an idea into spec.md via Socratic interview. USE when user explicitly says 'let's brainstorm'."
+description: "Interactively refine an idea into a spec_<slug>.md via Socratic interview. USE when user explicitly says 'let's brainstorm'."
 disable-model-invocation: false
 ---
 
 # Brainstorm
 
-Help the user explore and refine an idea into a structured spec.md.
+Help the user explore and refine an idea into a structured `spec_<slug>.md`.
 
 Spec template and marker conventions live in the companion skill — load it alongside this one:
 
@@ -14,19 +14,19 @@ Spec template and marker conventions live in the companion skill — load it alo
 
 ## Usage
 
-`/brainstorm [path/to/spec.md]`
+`/brainstorm [path/to/spec_<slug>.md]`
 
 Examples:
-- `/brainstorm spec.md` -- refine an existing spec the user wrote
-- `/brainstorm features/auth-spec.md` -- custom path
-- `/brainstorm` -- no file: use session context, check for ./spec.md
+- `/brainstorm spec_auth.md` -- refine an existing spec the user wrote
+- `/brainstorm features/spec_auth.md` -- custom path
+- `/brainstorm` -- no file: use session context; discover existing `spec_*.md` (see step 1)
 
 ## Process
 
 ### 1. Gather starting context
 
 **If a file path is provided**: read it and use as the starting point.
-**If no file path**: check if `./spec.md` exists and read it.
+**If no file path**: glob `spec_*.md` in CWD (top-level). One match → read it. Multiple → list them numbered and ask which to refine. Zero → treat as a fresh idea.
 **If nothing exists**: use the current session context (conversation history, codebase understanding) to seed the brainstorm.
 
 ### 2. Probe scope before deep questions
@@ -70,7 +70,7 @@ Ask clarifying questions (Socratic style). Focus on:
 
 Ask 2-3 questions per round. Don't overwhelm.
 
-**CRITICAL: For Testable Acceptance Criteria, actively probe for coverage gaps.** Happy-path scenarios are easy to elicit; corner cases and failure modes need pulling. Before generating spec.md, push the user to enumerate:
+**CRITICAL: For Testable Acceptance Criteria, actively probe for coverage gaps.** Happy-path scenarios are easy to elicit; corner cases and failure modes need pulling. Before generating the spec, push the user to enumerate:
 - **Corner cases**: empty inputs, max sizes/limits, boundary values, combined/composed filters, idempotency, concurrent access.
 - **Failure modes**: validation errors (4xx), downstream timeouts, downstream 5xx, partial failures, auth failures, rate limits.
 
@@ -90,9 +90,13 @@ Why include discarded options at all:
 - Naming what lost — and why — prevents re-litigation.
 - It surfaces when a trade-off has shifted (e.g., the constraint that killed alt-2 no longer applies).
 
-### 5. Generate/update spec.md
+### 5. Generate/update the spec
 
-Write to the provided file path, or `./spec.md` by default, populating the spec template.
+Write to the provided/discovered file path. For a fresh idea, name a new spec file:
+
+- Derive a short kebab-case `<slug>` from the feature and confirm it with the user.
+- Write `spec_<slug>.md` in CWD. The plan later inherits the same slug.
+- The companion `spec-driven-development` skill defines this naming convention.
 
 If the file already exists, update it in place (preserve user content, fill gaps, restructure into the template).
 

@@ -6,8 +6,8 @@ Prompt for a single Opus subagent that produces the "Review Guide" — the piece
 
 ```
 You write concise review guides for human reviewers. You are given a diff plus
-whatever written context exists (PR description, commit messages, spec.md,
-plan.md). Your output is delivered as a **standalone PR comment** (GitHub mode)
+whatever written context exists (PR description, commit messages, spec_<slug>.md,
+plan_<slug>.md). Your output is delivered as a **standalone PR comment** (GitHub mode)
 or appended to the local review file (LOCAL mode). In GitHub mode the comment
 is wrapped in a collapsed `<details>` block by the orchestrator (Wave 5), so
 write the guide assuming readers will expand it on demand — keep it scannable
@@ -21,7 +21,7 @@ once expanded but don't worry about it crowding the conversation feed.
 - PR description (GH only): {pr_description}    (may be empty string)
 - Jira snippet (GH, optional): {jira_context}
 - Commit messages: {commit_messages}    (git log --format=%B since base)
-- repo_spec_md: {repo_spec_md_or_null}  (contents of ./spec.md at repo root, if any)
+- repo_spec_md: {repo_spec_md_or_null}  (contents of the resolved spec_<slug>.md, if any)
 - repo_plan_md: {repo_plan_md_or_null}
 - Commit SHA (GH only): {commit_sha}    (for permalinks)
 - Repo slug (GH only): {repo_slug}      (owner/repo)
@@ -39,7 +39,7 @@ Section 1 — Business context
 Heading: `## Contexto de negócio` (PT) / `## Business context` (EN)
 One short paragraph (2–4 sentences) explaining the problem being solved.
 Build it by merging:
-  • spec.md Background (if repo_spec_md is not null)
+  • spec_<slug>.md Background (if repo_spec_md is not null)
   • rationale from commit messages
   • Jira snippet (if available)
 Include this section ONLY IF the PR description does NOT already explain the

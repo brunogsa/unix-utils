@@ -8,12 +8,12 @@
 </details>
 
 ## Summary
-[From spec.md Background + Goals (when available), cross-referenced with
+[From spec_<slug>.md Background + Goals (when available), cross-referenced with
 commit messages and diff to confirm what was actually delivered.
 Condensed to 2-3 bullets. Always ground in commits, not just docs.]
 
 ## Testable Acceptance Criteria
-[Format follows the "Testable Acceptance Criteria — verbatim from spec.md" rule in SKILL.md (the rule is canonical; do not restate it here). Skeleton:
+[Format follows the "Testable Acceptance Criteria — verbatim from spec_<slug>.md" rule in SKILL.md (the rule is canonical; do not restate it here). Skeleton:
 
 ```
 ### <AC title from spec, "AC-N:" prefix removed>
@@ -35,25 +35,25 @@ This section comes BEFORE Architecture — it's the truth-criterion of the PR.]
 
 ## Architecture
 [**ALWAYS include this section** — never silently drop it.
-Mermaid diagrams extracted from spec.md/plan.md lives here, pasted verbatim (GitHub renders them natively), with highlights if possible.
+Mermaid diagrams extracted from spec_<slug>.md/plan_<slug>.md lives here, pasted verbatim (GitHub renders them natively), with highlights if possible.
 Each diagram preceded by a one-line caption. All encapsulated by collapsibles, `<details><summary>Caption here</summary> … </details>`. With 2+ diagrams, leave the first open and the rest closed by default.]
 
 ### Decisions
 [Decisions justify the high-level structure — they belong INSIDE Architecture, not as a peer section.
 
-Primary: [DECISION: ...] markers from spec.md and plan.md.
+Primary: [DECISION: ...] markers from spec_<slug>.md and plan_<slug>.md.
 Start with the Functional Decisions, then list the Technical Decisions.
 Make them as short as possible, but optimize for clarity. It should be easy as possible to understand, don't assume reader the relevant context. Provide it as sub-bullet if necessary.
 Merge both sources, deduplicate if necessary.]
 
 ## Changes
-[Compare git diff against plan.md tasks (when available).
+[Compare git diff against plan_<slug>.md tasks (when available).
 Two groups:
 
 - **Planned changes**: tasks from the plan that were implemented.
 - **Discovered along the way**: modifications not in the plan -- side-effects,
   cleanup, fixes discovered during implementation, scope adjustments.
-  Without plan.md: organize changes from diff and commit messages.]
+  Without plan_<slug>.md: organize changes from diff and commit messages.]
 
 ## Evidences
 

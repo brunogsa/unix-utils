@@ -47,7 +47,7 @@ Do NOT auto-trigger from "task done" or similar; the user reserves this command.
 
 1. **Per-task gate during plan execution** — `/auto-review HEAD~N` after each task's commits, where N is the number of commits the task produced.
    - Fix MANDATORY findings before the next task.
-   - Log RECOMMENDED/lower to plan.md as incidentals.
+   - Log RECOMMENDED/lower to the resolved `plan_<slug>.md` as incidentals.
 2. **Final pass at end-of-branch** — after `/refactor` and before `/create-pr` (sequence: refactor → final auto-review + fixes → create-pr). Catches anything refactor introduced and gives create-pr clean ground to describe.
 
 The base argument accepts any git ref (commit SHA, branch name, `HEAD~N`), so per-task scoping reuses the full-branch flow.
@@ -75,15 +75,15 @@ files feed the review — guessing would silently drop intent.
 Discover candidates in CWD (top-level only, not recursive):
 
 ```bash
-ls -1 spec*.md plan*.md 2>/dev/null
+ls -1 spec_*.md plan_*.md 2>/dev/null
 ```
 
 Apply this decision tree:
 
 - **Zero matches** → set `<SPEC_PLAN_PATHS>=<none>`. Tell the user explicitly
   that the review will run without spec/plan context.
-- **Exactly one spec file AND exactly one plan file** (e.g. `spec.md` +
-  `plan.md`) → use both. Print the resolved paths; no prompt needed.
+- **Exactly one spec file AND exactly one plan file** (e.g. `spec_auth.md` +
+  `plan_auth.md`) → use both. Print the resolved paths; no prompt needed.
 - **Any other shape** (multiple specs, multiple plans, only spec, only plan,
   mixed counts) → ALWAYS prompt the user with a numbered list and these
   options:
@@ -97,10 +97,10 @@ Render the prompt like:
 ```
 Found multiple spec/plan files in CWD. Which should feed the review?
 
-  1. spec-dbma-877.md
-  2. spec-watchable-scenarios.md
-  3. plan-integrator.md
-  4. plan-partial-success-no-fanout.md
+  1. spec_dbma-877.md
+  2. spec_watchable-scenarios.md
+  3. plan_integrator.md
+  4. plan_partial-success-no-fanout.md
 
 Reply with: all | <numbers> | none | cancel
 ```
@@ -121,7 +121,7 @@ The reviewer-agent expects these inputs:
     diff only.
   - Otherwise, the listed absolute paths must be read verbatim and their
     concatenated content used as `{pr_context}` for every specialist
-    (replacing the default `spec.md` + `plan.md` lookup).
+    (replacing the default `spec_<slug>.md` + `plan_<slug>.md` lookup).
 
 **Default — run in the calling session (no `--isolate`):**
 

@@ -1,6 +1,6 @@
 ---
 name: design-docs
-description: "USE PROACTIVELY when authoring or revising an ADR, HLD, LLD, RFC, design doc, tech design, spec.md, plan.md, or a payload schema as JSONC. Routes you to the right doc, its template, a worked example, and the rules that keep them from overlapping."
+description: "USE PROACTIVELY when authoring or revising an ADR, HLD, LLD, RFC, design doc, tech design, spec_<slug>.md, plan_<slug>.md, or a payload schema as JSONC. Routes you to the right doc, its template, a worked example, and the rules that keep them from overlapping."
 user-invocable: false
 ---
 
@@ -13,13 +13,13 @@ This skill picks *which* doc to write and routes you to its template and a worke
 - **`doc-standards`** — prose, comment, and density rules for the words inside any of these docs (also runs the density check).
 - **`mermaid-diagrams`** — for every diagram you embed: validation, the target renderer version, and the common parse traps.
 
-The toolbox: **ADR, HLD, LLD** (durable, committed in `docs/`) and **spec.md, plan.md** (throwaway, untracked, deleted after the PR).
+The toolbox: **ADR, HLD, LLD** (durable, committed in `docs/`) and **spec_<slug>.md, plan_<slug>.md** (throwaway, untracked, deleted after the PR).
 
 The split that matters most is **purpose**: HLD, LLD, and ADR are **decision & alignment** docs (for humans aligning); spec and plan are **AI-build** docs (spec-driven), fed from them.
 
 So durable docs carry tests, tasks, and launch at **alignment altitude** — strategy, titles, cross-team deps — while the plan carries the **concrete** version — commit-tasks, file paths, test titles.
 
-The spec.md/plan.md workflow — interviewing, drafting, refining — lives in the `spec-driven-development` skill; this skill only covers their shape and altitude.
+The spec_<slug>.md/plan_<slug>.md workflow — interviewing, drafting, refining — lives in the `spec-driven-development` skill; this skill only covers their shape and altitude.
 
 ## Who owns what (single source of truth)
 
@@ -27,15 +27,15 @@ When two docs could carry the same thing, this table says which one owns the ful
 
 | Concern | Owner | Others |
 |---|---|---|
-| Why / business context | HLD (epic) · spec.md (feature) | recap + link |
+| Why / business context | HLD (epic) · spec_<slug>.md (feature) | recap + link |
 | Decision + alternatives | ADR; or HLD/LLD decision section / spec·plan log (minor) | recap + link the ADR |
 | Structure, contracts, data model, de/para | LLD | recap + link the LLD |
 | Diagrams — big-picture (C4L1, architecture; high-level flow/sequence/state) | HLD | recap + link, don't redraw |
 | Diagrams — detailed (code/component design, data-model & endpoint schemas, detailed flow/sequence/state, corner/failure) | LLD | recap + link, don't redraw |
 | Success metrics, UAT, test & launch strategy — high-level | HLD / LLD | spec/plan recap + link |
 | Task breakdown — titles only (estimates, parallelization, cross-team deps) | HLD / LLD | plan expands to commit-tasks |
-| Concrete testable acceptance criteria | spec.md | HLD/LLD keep the high-level version + link |
-| Test titles, commit-sized tasks, file paths, commit sketch | plan.md | — |
+| Concrete testable acceptance criteria | spec_<slug>.md | HLD/LLD keep the high-level version + link |
+| Test titles, commit-sized tasks, file paths, commit sketch | plan_<slug>.md | — |
 
 Diagram *type* isn't the discriminator — altitude is: the same flow/sequence/state diagram can serve an HLD at big-picture level and an LLD at detail level.
 
@@ -82,14 +82,14 @@ Shared mental model for which doc is which — not a step you need help running.
 | **ADR** | Durable | Decide — one significant decision + alternatives |
 | **HLD** | Durable | Design (system / epic) — what & why across alternatives |
 | **LLD** | Durable | Design (one component) — structure, contracts, data, de/para |
-| **spec.md** | Throwaway | Why / What — requirements + acceptance criteria, one feature |
-| **plan.md** | Throwaway | Build — tasks, files, commits, test titles, one feature |
+| **spec_<slug>.md** | Throwaway | Why / What — requirements + acceptance criteria, one feature |
+| **plan_<slug>.md** | Throwaway | Build — tasks, files, commits, test titles, one feature |
 
 **Significant** = hard to reverse OR cross-team blast radius.
 
-Not significant (cheap to reverse AND contained) → skip durable docs, go straight to `spec.md` → `plan.md`.
+Not significant (cheap to reverse AND contained) → skip durable docs, go straight to `spec_<slug>.md` → `plan_<slug>.md`.
 
-Significant → write the durable doc, then still produce `spec.md` → `plan.md` downstream to execute.
+Significant → write the durable doc, then still produce `spec_<slug>.md` → `plan_<slug>.md` downstream to execute.
 
 ```mermaid
 flowchart TD
@@ -101,8 +101,8 @@ flowchart TD
   hld["HLD — system / epic design<br/>what & why across alternatives"]
   lld["LLD — one component<br/>structure, contracts, data, de/para, diagrams"]
 
-  spec["spec.md (throwaway)<br/>why / what + acceptance criteria"]
-  plan["plan.md (throwaway)<br/>tasks, files, commits, test titles"]
+  spec["spec_*.md (throwaway)<br/>why / what + acceptance criteria"]
+  plan["plan_*.md (throwaway)<br/>tasks, files, commits, test titles"]
   build(["Build"])
 
   start --> q1

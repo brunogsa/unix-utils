@@ -227,7 +227,7 @@ Load [`references/diagram-c4l1.md`](references/diagram-c4l1.md) when drawing one
 
 ## C4L2 Container Diagram
 
-Right level for a plan.md / tech-design flowchart. Build on the L1, don't redraw from scratch.
+Right level for a plan_<slug>.md / tech-design flowchart. Build on the L1, don't redraw from scratch.
 
 Load [`references/diagram-c4l2.md`](references/diagram-c4l2.md) when drawing one — covers example, build-on-L1 rule, and full convention list (subgraph-per-system, naming, cross-boundary edges, container/box caps).
 

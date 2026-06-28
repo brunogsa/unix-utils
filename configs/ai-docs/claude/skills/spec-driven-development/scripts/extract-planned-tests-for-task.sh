@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# extract-planned-tests-for-task - extract per-task planned test titles from a plan.md.
+# extract-planned-tests-for-task - extract per-task planned test titles from a plan file (plan_<slug>.md).
 #
 # Usage:
 #   extract-planned-tests-for-task.sh <plan-path> <task-N>
@@ -9,7 +9,7 @@
 #
 # Exit codes:
 #   0  - success. stdout may be empty when the task declared `**Tests (planned)**: N/A`.
-#   1  - plan.md is malformed (task heading missing OR `**Tests (planned)**:` bullet missing).
+#   1  - the plan file is malformed (task heading missing OR `**Tests (planned)**:` bullet missing).
 #   2  - usage error (wrong arg count, non-integer task-N, plan file not found).
 #
 # Used by /implement's post-commit planned-test step. The orchestrator verifies each

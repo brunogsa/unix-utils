@@ -29,7 +29,7 @@
 #
 # Examples:
 #   check-density.sh pr-description.md
-#   check-density.sh --max-chars 200 spec.md plan.md
+#   check-density.sh --max-chars 200 spec_<slug>.md plan_<slug>.md
 #   check-density.sh --max-words 24 README.md
 
 set -euo pipefail
