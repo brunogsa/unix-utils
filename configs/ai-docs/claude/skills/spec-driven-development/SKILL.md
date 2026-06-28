@@ -162,6 +162,12 @@ But plan_<slug>.md can also be wrong; surfacing the choice preserves intent rath
 
 - **CRITICAL: Keep spec and plan up to date** -- Stale docs degrade `/create-pr`.
 
+- **Maintain the "Bottom line" and "Since your last review" header on every edit** -- they serve the human reviewer, your bottleneck.
+  - The Bottom line is the reviewer's BLUF: the proposal, the one decision to weigh, the scope boundary — so an early-scanning reader gets the conclusion before the detail.
+  - The "Since your last review" delta lists one bullet per section changed since the human last looked, so they re-read only the delta.
+  - Update it in the same edit that changes the body; a stale summary misleads the reviewer.
+  - This delta is human-facing prose only — the gates compute their re-review scope by diff, not from this list.
+
 - **plan_<slug>.md tasks and their sub-steps become items on TaskList**.
 
 - **Tasks are commit-sized, never smaller**.

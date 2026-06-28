@@ -2,6 +2,15 @@
 
 Spec: [link or reference to the paired spec_<slug>.md]
 
+**Bottom line — read first:**
+- <chosen approach in one line>
+- <the riskiest part / biggest trade-off to challenge>
+- <PR count: "Single PR" or "N PRs — see PR Breakdown">
+
+**Since your last review:**
+- First pass — whole doc is new.
+- Later rounds: one bullet per changed section (`<section>: <what changed>`), so you re-read only the delta.
+
 ---
 ## Technical Approach & High Level Architecture
 
