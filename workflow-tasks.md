@@ -108,24 +108,6 @@
 
 ---
 
-## 4. [Task] Doc-writing async workflow + voice-guide (HLD/LLD/ADR)
-
-**Goal**: Give doc-writing the same design→implement→review shape that already works for code, so prose iteration stops happening live, change-by-change. Highest current pain: HLD/LLD/ADR have a template (recently improved; now in the `design-docs` skill) but no SDD-equivalent and no guardrails, so the human iterates ON the prose directly.
-
-**Why (from the brainstorm)**: a doc collapses design + output into one artifact (the doc *is* the spec), so iteration has nowhere to go but live on the prose — structurally worse than code. Two fixes: (1) re-introduce a design layer; (2) stop round-tripping *taste* through the AI.
-
-**Mechanism — the flow**:
-- **Outline + key claims, synchronous** — small, fast, human engaged; this is the "design" layer where iteration is cheap.
-- **AI drafts full prose async** — human leaves; #3's push signals done.
-- **Review the whole diff once** — for *taste*, edit directly + `git commit --amend` (instructing the AI to fix style costs more than fixing it yourself — the human is the fast taste oracle; AI does the 90%, human does the final 10% by hand); for *substance/structure*, batch all corrections as one numbered set. Never change-by-change.
-- **Harvest taste edits into a doc voice-guide** in `design-docs` — the human's hand-edits ARE the rule (CLAUDE.md: infer the rule, apply to every later case); capture them so draft N+1 starts closer. Mirrors how CLAUDE.md is already a voice-guide for *rules*.
-
-**Touches**: `design-docs` skill (the flow + voice-guide), with prose/comment/density rules staying in `doc-standards`; applies #2's async-batch thesis to docs. Load `skill-authoring` before editing any SKILL.md.
-
-**Deliverable**: `design-docs` updated with the outline-sync → draft-async → batch/edit-direct flow + a seeded HLD/LLD/ADR voice-guide. One isolated commit (may split flow vs voice-guide).
-
----
-
 ## 8. [Feature] HTML artifacts — format router skill + `md → single-file HTML` script
 
 **Goal**: Let the AI emit HTML instead of Markdown when HTML measurably speeds the human reader, without losing Markdown where it wins. Human reading/review is the bottleneck; optimize reader-facing, non-living artifacts for comprehension even at token cost. Brainstormed 2026-06-28; spec drafted this session in CWD `spec.md` (ephemeral — decisions captured here).
@@ -174,4 +156,4 @@
 - First proof artifact: a code-review/auto-review report rendered as interactive HTML (opportunistic).
 - Templated HTML+JSON: v2 (its doc-standards verification is unsolved).
 
----
+--
