@@ -280,6 +280,9 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] **Load a standard file once per session** -- on its first trigger; don't re-invoke it each turn; re-load only after compaction drops it.
   - [Why] Re-loading each turn burns context for guidance you already hold; reload only when compaction has actually dropped it.
 
+- [Instruction] Before producing a reader-facing artifact (report, review, research synthesis), consult the `html-artifacts` router — Markdown vs HTML vs Google Docs.
+  - [Why] HTML can speed the human reader for read-once interactive artifacts, but its router is lazy-loaded — without this always-on nudge it never fires and everything defaults to Markdown by omission.
+
 ### Editing & permissions
 
 - [Instruction] **Prefer targeted edits over full rewrites** -- use the Edit tool over the Write tool (overwrite) whenever possible.
