@@ -994,121 +994,232 @@ Disparado pelo PIC ao consolidar um Acordo. Acordo multimarca = 1 POST por marca
 
 ```jsonc
 {
-  "operacao": "create",                              // string | required | enum [create, update] | informacional/log apenas; Integrador trata sempre como upsert (não diverge comportamento entre create e update)
-  "id": 12345,                                       // integer | required | >=1 | ID do contrato no PIC (estável entre updates)
-  "versaoId": 7,                                     // integer | required | >=1 | versão do contrato; usado no path do callback /contract_callback/{versaoId} e como chave primária do dedup
-  "anoVigencia": 2027,                               // integer | required | 2024..2099
-  "contratoAnterior": 12340,                         // integer | required, nullable | ID do contrato do ano anterior; null no 1º ano
-  "status": "Contrato Assinado",                     // string | required | enum [Rascunho, Contrato Assinado, Contrato Assinado - Aguarda Alteração de Contrato, Contrato Assinado - Aguarda integração - Pendência via física, Contrato Assinado - Aguarda Integração (com desconto), Contrato Bundle Assinado] (Rascunho assumido válido)
-  "dataAlteracao": "2027-02-14T18:22:05.123Z",       // string ISO 8601 UTC | required | última alteração no PIC; tiebreaker do dedup dentro do mesmo versaoId — NÃO confundir com receipt timestamp do Integrador
-  "duracao": 1,                                      // integer | required | duração em anos
-  "cnpjFilialFaturamento": "12345678000190",         // string 14 dígitos | required
-  "cnpjFilialExpedicao": "12345678000190",           // string 14 dígitos | required
-  "tipoContrato": "Venda Padrão",                    // string | required | enum [Venda Padrão (B2B), Loja Virtual (B2C), Comercializador (revenda)] | compõe a chave de roteamento (brandSlug, tipoContrato)
-  "marca": "SPE",                                    // string | required | enum [SAS, SAE, IS, SPE, PES, Maralto, Conquista, Mestre, Gênio, EI, Pleno, COC, PGS, Positivo, Geekie, Nave à vela, PIÁ] | Multimarca = N POSTs (1/marca); Positivo roteia como SPE, PIÁ como Maralto; SAS/SAE/IS fora do escopo Fase 1
-  "institutionId": "ESC-000123",                     // string | required | ID da Escola no CGI; persistido no ERP 1.0 junto com o Acordo
+  // string | required | enum [create, update] | informacional/log apenas;
+  // Integrador trata sempre como upsert (não diverge comportamento entre create
+  // e update)
+  "operacao": "create",
 
-  "escola": {                                        // object | required | dados da Escola titular (mesma estrutura que "mediador")
-    "nome": "Colégio Exemplo S.A.",                  // string | required | max 255 | razão social
-    "nomeFantasia": "Colégio Exemplo",               // string | required | max 255
-    "cpfCnpj": "12345678000190",                     // string | required | regex ^[0-9]{11}$ (CPF) ou ^[0-9]{14}$ (CNPJ)
-    "enderecoPrincipal": {                           // object | required
-      "cep": "01310100",                             // string 8 dígitos | required
-      "uf": "SP",                                    // string 2 maiúsculas | required
-      "municipio": "São Paulo",                      // string | required | max 100
-      "bairro": "Bela Vista",                        // string | required | max 100
-      "logradouro": "Av. Paulista",                  // string | required | max 255
-      "numero": "1000",                              // string | required | max 20 | aceita "S/N"
-      "complemento": "Sala 42"                       // string | OPTIONAL | max 255
+  // integer | required | >=1 | ID do contrato no PIC (estável entre updates)
+  "id": 12345,
+
+  // integer | required | >=1 | versão do contrato; usado no path do callback
+  // /contract_callback/{versaoId} e como chave primária do dedup
+  "versaoId": 7,
+
+  "anoVigencia": 2027,  // integer | required | 2024..2099
+
+  // integer | required, nullable | ID do contrato do ano anterior; null no 1º
+  // ano
+  "contratoAnterior": 12340,
+
+  // string | required | enum [Rascunho, Contrato Assinado, Contrato Assinado -
+  // Aguarda Alteração de Contrato, Contrato Assinado - Aguarda integração -
+  // Pendência via física, Contrato Assinado - Aguarda Integração (com
+  // desconto), Contrato Bundle Assinado] (Rascunho assumido válido)
+  "status": "Contrato Assinado",
+
+  // string ISO 8601 UTC | required | última alteração no PIC; tiebreaker do
+  // dedup dentro do mesmo versaoId — NÃO confundir com receipt timestamp do
+  // Integrador
+  "dataAlteracao": "2027-02-14T18:22:05.123Z",
+
+  "duracao": 1,  // integer | required | duração em anos
+  "cnpjFilialFaturamento": "12345678000190",  // string 14 dígitos | required
+  "cnpjFilialExpedicao": "12345678000190",  // string 14 dígitos | required
+
+  // string | required | enum [Venda Padrão (B2B), Loja Virtual (B2C),
+  // Comercializador (revenda)] | compõe a chave de roteamento (brandSlug,
+  // tipoContrato)
+  "tipoContrato": "Venda Padrão",
+
+  // string | required | enum [SAS, SAE, IS, SPE, PES, Maralto, Conquista,
+  // Mestre, Gênio, EI, Pleno, COC, PGS, Positivo, Geekie, Nave à vela, PIÁ] |
+  // Multimarca = N POSTs (1/marca); Positivo roteia como SPE, PIÁ como Maralto;
+  // SAS/SAE/IS fora do escopo Fase 1
+  "marca": "SPE",
+
+  // string | required | ID da Escola no CGI; persistido no ERP 1.0 junto com o
+  // Acordo
+  "institutionId": "ESC-000123",
+
+  // object | required | dados da Escola titular (mesma estrutura que
+  // "mediador")
+  "escola": {
+    // string | required | max 255 | razão social
+    "nome": "Colégio Exemplo S.A.",
+
+    "nomeFantasia": "Colégio Exemplo",  // string | required | max 255
+
+    // string | required | regex ^[0-9]{11}$ (CPF) ou ^[0-9]{14}$ (CNPJ)
+    "cpfCnpj": "12345678000190",
+
+    "enderecoPrincipal": {  // object | required
+      "cep": "01310100",  // string 8 dígitos | required
+      "uf": "SP",  // string 2 maiúsculas | required
+      "municipio": "São Paulo",  // string | required | max 100
+      "bairro": "Bela Vista",  // string | required | max 100
+      "logradouro": "Av. Paulista",  // string | required | max 255
+      "numero": "1000",  // string | required | max 20 | aceita "S/N"
+      "complemento": "Sala 42"  // string | OPTIONAL | max 255
     }
   },
 
-  "mediador": { /* mesma estrutura de "escola"; required (pode espelhar a Escola quando não há intermediador) */ },
+  "mediador": {
+    /* mesma estrutura de "escola"; required (pode espelhar a Escola quando
+       não há intermediador) */
+  },
 
-  "entrega": {                                       // object | required
-    "condicaoExpedicao": "C",                        // string | required | enum [C=CIF (frete pelo remetente), F=FOB (frete pelo destinatário)]
-    "local": "E",                                    // string | required | enum [E=Escola, M=Mediador, O=Outra Unidade]
+  "entrega": {  // object | required
+
+    // string | required | enum [C=CIF (frete pelo remetente), F=FOB (frete pelo
+    // destinatário)]
+    "condicaoExpedicao": "C",
+
+    // string | required | enum [E=Escola, M=Mediador, O=Outra Unidade]
+    "local": "E",
+
     "endereco": { /* mesma estrutura de enderecoPrincipal */ }
   },
 
-  "frete": {                                         // object | required
-    "tipoNormal": "S",                               // string | required | enum [E=pago pela Escola, S=pago pela Arco, T=Tabela]
-    "tipoComplementar": "S",                         // string | required | mesmo enum de tipoNormal
+  "frete": {  // object | required
+
+    // string | required | enum [E=pago pela Escola, S=pago pela Arco, T=Tabela]
+    "tipoNormal": "S",
+
+    "tipoComplementar": "S",  // string | required | mesmo enum de tipoNormal
     "normal": {
-      "automatico": true,                            // boolean | required
-      "percentual": null                             // decimal | required, nullable | null quando automatico=true
+      "automatico": true,  // boolean | required
+
+      // decimal | required, nullable | null quando automatico=true
+      "percentual": null
     },
     "complementar": {
       "automatico": false,
-      "percentual": 5.0                              // decimal | required, nullable
+      "percentual": 5.0  // decimal | required, nullable
     }
   },
 
-  "pagamento": {                                     // object | required
-    "diaFixoPagamento": 10,                          // integer | required | 1..31 | dia de vencimento das parcelas
-    "condicoesPagamentoPorMarca": {                  // object | required | map keyed pela marca
+  "pagamento": {  // object | required
+
+    // integer | required | 1..31 | dia de vencimento das parcelas
+    "diaFixoPagamento": 10,
+
+    "condicoesPagamentoPorMarca": {  // object | required | map keyed pela marca
       "SPE": {
         "parcelas": [
           {
-            "numeroParcela": 1,                      // integer | required | 1..12 | sequencial no ano
-            "mes": 2,                                // integer | required | 1..12
-            "numeroParcelas": 3,                     // integer | required | >=1 | nº de parcelas permitidas neste mês
-            "condicaoEspecial": false                // boolean | OPTIONAL
+            // integer | required | 1..12 | sequencial no ano
+            "numeroParcela": 1,
+
+            "mes": 2,  // integer | required | 1..12
+
+            // integer | required | >=1 | nº de parcelas permitidas neste mês
+            "numeroParcelas": 3,
+
+            "condicaoEspecial": false  // boolean | OPTIONAL
           }
         ],
-        "numeroParcelasComplementar": 2,             // integer | required | >=0
-        "condicaoEspecialComplementar": false        // boolean | OPTIONAL
+        "numeroParcelasComplementar": 2,  // integer | required | >=0
+        "condicaoEspecialComplementar": false  // boolean | OPTIONAL
       }
     }
   },
 
-  "materiais": [                                     // array | required | min_items=1 | sync nunca acontece sem materiais; middleware rejeita array vazio
+  // array | required | min_items=1 | sync nunca acontece sem materiais;
+  // middleware rejeita array vazio
+  "materiais": [
     {
-      "skuColecao": "COL-2027-EFI",                  // string | required | max 50
-      "descricaoColecao": "Coleção 2027 EFI",        // string | required | max 255
-      "descricaoAmigavel": "Material EFI 2027",      // string | required | max 255 | user-facing
-      "composicaoAnual": [                           // array | required | min_items=1
+      "skuColecao": "COL-2027-EFI",  // string | required | max 50
+      "descricaoColecao": "Coleção 2027 EFI",  // string | required | max 255
+
+      // string | required | max 255 | user-facing
+      "descricaoAmigavel": "Material EFI 2027",
+
+      "composicaoAnual": [  // array | required | min_items=1
         {
-          "skuKIT": "KIT-EFI-1B",                    // string | required | max 50
-          "descricaoKIT": "Kit 1º bimestre EFI",     // string | required | max 255
-          "tipo": "K",                               // string | required | constante "K"
-          "bimestre": 1,                             // integer | required | 1..4 | 1º a 4º bimestre
-          "composicao": [                            // array | required | min_items=1
+          "skuKIT": "KIT-EFI-1B",  // string | required | max 50
+          "descricaoKIT": "Kit 1º bimestre EFI",  // string | required | max 255
+          "tipo": "K",  // string | required | constante "K"
+          "bimestre": 1,  // integer | required | 1..4 | 1º a 4º bimestre
+          "composicao": [  // array | required | min_items=1
             {
-              "skuProduto": "PROD-001",              // string | required | max 50
-              "descricaoProduto": "Livro do Aluno",  // string | required | max 500
-              "suplemento": "N",                     // string | required | enum [S, N]
-              "tipo": "P"                            // string | required | constante "P"
+              "skuProduto": "PROD-001",  // string | required | max 50
+
+              // string | required | max 500
+              "descricaoProduto": "Livro do Aluno",
+
+              "suplemento": "N",  // string | required | enum [S, N]
+              "tipo": "P"  // string | required | constante "P"
             }
           ]
         }
       ],
-      "suplementar": null,                           // object | required, nullable | quando preenchido, mesmo schema de um item de `materiais` (recursivo); null quando não há
-      "digital": "N",                                // string | required | enum [S, N]
-      "quantidadeVenda": 30,                         // decimal | required | >=0
-      "quantidadeBonificada": 2,                     // decimal | required | >=0
-      "tipo": "A",                                   // string | required | enum [A=Aluno, P=Professor, C=Coordenação]
-      "valorBruto": 200.0,                           // decimal | required | >=0
-      "percentualDesconto": 10.0,                    // decimal | required | 0..100
-      "valorLiquido": 180.0,                         // decimal | required | >=0 | valorBruto − desconto (consistência é responsabilidade do PIC)
-      "rateiov1": 25.0,                              // decimal | required | 0..100 | rateio por trimestre/quadrimestre
-      "rateiov2": 25.0,                              // decimal | required | 0..100
-      "rateiov3": 25.0,                              // decimal | required | 0..100
-      "rateiov4": 25.0,                              // decimal | required | 0..100 | soma rateiov1..4 = 100 (consistência é responsabilidade do PIC)
-      "precoRevendaB2C": 0,                          // decimal | required | >=0 | só aplicável quando tipoContrato="Loja Virtual"
-      "voucher": 0,                                  // decimal | required | 0..100 | % de desconto via voucher
-      "precoFinalLoja": 0,                           // decimal | required | >=0 | precoRevendaB2C − voucher
-      "nivel": "EFI",                                // string | required | enum [EI, EFI, EFII, EM, PV, N/A]
-      "serie": "1º ano",                             // string | required | enum extenso (~60 valores) variando por nivel (consistência nivel × serie é responsabilidade do PIC)
-      "status": "Novo",                              // string | required | enum [Novo, Ampliação, Renovação, Descredenciamento, Perda]
-      "marca": "SPE",                                // string | required | mesmo enum da marca raiz (consistência com a marca do contrato é responsabilidade do PIC)
-      "listaPreco": "LP-2027-B2B"                    // string | required | enum/origem a definir no LLD por ERP (risco de mapeamento)
+
+      // object | required, nullable | quando preenchido, mesmo schema de um
+      // item de `materiais` (recursivo); null quando não há
+      "suplementar": null,
+
+      "digital": "N",  // string | required | enum [S, N]
+      "quantidadeVenda": 30,  // decimal | required | >=0
+      "quantidadeBonificada": 2,  // decimal | required | >=0
+
+      // string | required | enum [A=Aluno, P=Professor, C=Coordenação]
+      "tipo": "A",
+
+      "valorBruto": 200.0,  // decimal | required | >=0
+      "percentualDesconto": 10.0,  // decimal | required | 0..100
+
+      // decimal | required | >=0 | valorBruto − desconto (consistência é
+      // responsabilidade do PIC)
+      "valorLiquido": 180.0,
+
+      // decimal | required | 0..100 | rateio por trimestre/quadrimestre
+      "rateiov1": 25.0,
+
+      "rateiov2": 25.0,  // decimal | required | 0..100
+      "rateiov3": 25.0,  // decimal | required | 0..100
+
+      // decimal | required | 0..100 | soma rateiov1..4 = 100 (consistência é
+      // responsabilidade do PIC)
+      "rateiov4": 25.0,
+
+      // decimal | required | >=0 | só aplicável quando tipoContrato="Loja
+      // Virtual"
+      "precoRevendaB2C": 0,
+
+      "voucher": 0,  // decimal | required | 0..100 | % de desconto via voucher
+
+      // decimal | required | >=0 | precoRevendaB2C − voucher
+      "precoFinalLoja": 0,
+
+      "nivel": "EFI",  // string | required | enum [EI, EFI, EFII, EM, PV, N/A]
+
+      // string | required | enum extenso (~60 valores) variando por nivel
+      // (consistência nivel × serie é responsabilidade do PIC)
+      "serie": "1º ano",
+
+      // string | required | enum [Novo, Ampliação, Renovação,
+      // Descredenciamento, Perda]
+      "status": "Novo",
+
+      // string | required | mesmo enum da marca raiz (consistência com a marca
+      // do contrato é responsabilidade do PIC)
+      "marca": "SPE",
+
+      // string | required | enum/origem a definir no LLD por ERP (risco de
+      // mapeamento)
+      "listaPreco": "LP-2027-B2B"
     }
   ],
 
-  "pedidoMinimo": 70.0,                              // decimal | required | 0..200 | % mínimo de pedido permitido
-  "pedidoMaximo": 120.0,                             // decimal | required | 0..500 | % máximo de pedido permitido
-  "devolucaoMaxima": 20.0                            // decimal | required | 0..100 | % máximo de devolução permitido
+  // decimal | required | 0..200 | % mínimo de pedido permitido
+  "pedidoMinimo": 70.0,
+
+  // decimal | required | 0..500 | % máximo de pedido permitido
+  "pedidoMaximo": 120.0,
+
+  // decimal | required | 0..100 | % máximo de devolução permitido
+  "devolucaoMaxima": 20.0
 }
 ```
 
@@ -1121,14 +1232,26 @@ Multimarca = um callback por marca (1:1 com o inbound).
 Auth via header `X-API-Key`; chave de HML disponível, **chave de PROD pendente do time PIC antes do go-live**. Erro de auth retorna 401.
 
 ```jsonc
-// path param: versaoId (integer, required, >=1) — espelha o versaoId do payload inbound
+// path param: versaoId (integer, required, >=1) — espelha o versaoId do payload
+// inbound
 {
-  "anoVigencia": 2027,                            // integer | required | espelha do inbound
-  "marca": "SPE",                                 // string  | required | espelha do inbound
-  "timestamp": "2027-02-14T18:25:30.456Z",        // string ISO 8601 UTC | required | momento de publicação do callback; PIC ordena por este campo (não pela ordem de entrega) e descarta duplicados
-  "status": "integrado",                          // string  | required | enum [integrado, erro] | colapso 3-vias → 1 par: sucesso → "integrado"; qualquer erro (negócio | transitório | bug) → "erro"
-  "idContratoERP": "ERP-XYZ-42",                  // string  | required, nullable | preenchido em sucesso; null em erro
-  "message": null                                 // string  | required, nullable | null em sucesso; mensagem operacional em erro; max 500 chars; NÃO vazar stack trace
+  "anoVigencia": 2027,  // integer | required | espelha do inbound
+  "marca": "SPE",  // string  | required | espelha do inbound
+
+  // string ISO 8601 UTC | required | momento de publicação do callback; PIC
+  // ordena por este campo (não pela ordem de entrega) e descarta duplicados
+  "timestamp": "2027-02-14T18:25:30.456Z",
+
+  // string | required | enum [integrado, erro] | colapso 3-vias → 1 par:
+  // sucesso → "integrado"; qualquer erro (negócio | transitório | bug) → "erro"
+  "status": "integrado",
+
+  // string | required, nullable | preenchido em sucesso; null em erro
+  "idContratoERP": "ERP-XYZ-42",
+
+  // string | required, nullable | null em sucesso; mensagem operacional em
+  // erro; max 500 chars; NÃO vazar stack trace
+  "message": null
 }
 ```
 
