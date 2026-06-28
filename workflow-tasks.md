@@ -126,3 +126,52 @@
 
 ---
 
+## 8. [Feature] HTML artifacts — format router skill + `md → single-file HTML` script
+
+**Goal**: Let the AI emit HTML instead of Markdown when HTML measurably speeds the human reader, without losing Markdown where it wins. Human reading/review is the bottleneck; optimize reader-facing, non-living artifacts for comprehension even at token cost. Brainstormed 2026-06-28; spec drafted this session in CWD `spec.md` (ephemeral — decisions captured here).
+
+**Decided format router (don't re-derive)** — four-way, by artifact:
+- **Committed / in-a-PR / hand-edited / re-fed-to-an-LLM → Markdown.** Hard exclusion. Covers spec/plan (source of truth), SKILL.md, CLAUDE.md, README, verification notes, HLD/LLD.
+- **Needs others' comments/feedback → Google Docs** (`markdown-to-google-docs`); HTML never tries to own commenting.
+- **Read-once by the user, AND adds a capability the markdown renderer (neovim) lacks, AND > ~50 rendered lines / ~500 words → propose HTML** (generate only on user OK; never auto-spend tokens).
+- **Just sharing an existing `.md` with a non-renderer-haver → the static render script.**
+
+**Decided "overkill line" (the capability test)**: HTML must add what neovim can't — interactivity (sort/filter/collapse/tabs/tune) or a layout markdown can't express. "Renders nicer" never qualifies (neovim already styles + renders static mermaid). A dense diagram is **split into sub-diagrams per `mermaid-diagrams`**, not promoted to HTML; only genuine zoom/pan/toggle on a non-splittable image earns HTML.
+
+**Decided artifact verdicts**: brag → **Markdown** (fails capability test — structured prose neovim renders fine; earlier "brag-first" call reversed). code-review / auto-review reports → **strong HTML candidates** (findings sortable/filterable by severity, heavily reviewed, user picks fixes by number, never committed). deep-research synthesis → candidate if it clears the capability + size bar. perf/consistency check-reports → Markdown (under the one-screen floor).
+
+**Decided generation strategies**: (a) **static render** — `md → single-file HTML`; (b) **bespoke** — hand-author one-off HTML; (c) **templated** — DEFERRED (see below).
+
+**Decided non-negotiables for any HTML artifact**: one self-contained `.html`, zero external refs; CSS inlined; JS inlined (no CDN); mermaid as inline SVG by default (runtime lib only for genuinely-interactive diagrams); images base64/`data:` (prefer SVG). Verified cross-OS toolchain on the dev Mac: `pandoc --standalone --embed-resources` + `mmdc -e svg` + puppeteer `--no-sandbox` (harmless on macOS, needed on Linux) yields a true single file (brag spike: 19KB md → 27KB html, 0 external refs, 0 AI tokens).
+
+**Decided doc-standards apply to HTML**: a generated HTML that substitutes a `.md` obeys all `doc-standards`. For static/bespoke HTML, run `check-density.sh` on the `.html` source like any file. Templated HTML+JSON verification → open (see deferred).
+
+**Decided anchoring (for the user's "line 34, do X" without copy-pasting text)**: natively-authored HTML includes **numbered sections/blocks by default, as a rule**, so the user references `§3.2` and the AI addresses it. Numbered sections also work in Markdown, so spec/plan stay Markdown and get the same anchoring — no HTML review-view needed. The `md → html` script stays a **dumb converter** (adds no anchoring).
+
+**Decided encoding (hybrid)**: one always-loaded trigger line in CLAUDE.md ("for a reader-facing, non-living artifact, consider proposing HTML per the html-artifacts skill") so the router always fires; the new **`html-artifacts` skill** holds the full router, non-negotiables, anchoring rule, authoring standards, and the render-script pointer. CLAUDE.md trigger costs 1 instruction — confirm against `performance-check` budget.
+
+**Decided script placement**: the `md → single-file HTML` script ships in the **oh-my-zsh repo** (a shell util the user also runs by hand); default output = input path with `.html`, optional output-path arg. It does **not** warrant its own spec.
+
+**DEFERRED — templated HTML + JSON (keep on the LLM's radar via the skill)**: for recurring artifact types (code-review reports first), author the layout once as a static template that inlines its own CSS/JS; the AI emits only **JSON data** embedded as `<script type="application/json" id="data">` and rendered client-side. Slashes AI token cost from "regenerate the document" to "fill a data file" and gives house-style consistency for free. Deferred because its doc-standards verification (density on JSON-fed HTML) is unsolved. The skill should mention this path as future so a later session can pick it up.
+
+**OPEN QUESTIONS**: (1) external feedback on an HTML the user already reviewed — Google Docs can't host the interactivity; hosting + a comment widget is heavy; parked. (2) interactive diagrams — exact trigger for inlining a mermaid runtime (heavy) vs shipping interactive/static SVG. (3) templated verification (above). (4) does the template+JSON merge belong in the skill or the oh-my-zsh script — avoid two overlapping mechanics.
+
+**Touches**: new `html-artifacts` skill under `configs/ai-docs/claude/skills/`; one CLAUDE.md trigger line; the render script in the oh-my-zsh repo; a **neovim keybind** in the neovim repo (render current `.md` buffer + open in browser — `open` macOS / `xdg-open` Linux; the keybind's non-interactive shell can't use the user's `open` alias); `install.sh` mirrors `pandoc` (+ the mmdc/puppeteer dep already present). Load `skill-authoring` before writing the SKILL.md and `performance-check` after the CLAUDE.md edit. Coordinate with #4 (doc-writing async workflow — both touch how docs get produced/reviewed).
+
+**Verified this session (don't re-derive)**:
+- **pandoc `---` bug**: bare `---` section dividers (spec/plan style) make pandoc parse `---`...`---` as YAML metadata and **silently drop** the content between pairs. Fix: rewrite each bare `---` to `***` (unambiguous `<hr>`) before pandoc. Confirmed on the spec (3→9 sections restored). The spike `/tmp/render-md-to-html.sh` carries this fix; port it.
+- **mermaid inline-SVG truncation**: mmdc defaults to `htmlLabels:true` → labels are `<foreignObject>` with fixed size that **clip to "truncated text"** when the SVG scales to fit width. Fix: render with `htmlLabels:false` (config `{"flowchart":{"htmlLabels":false}}`) so labels are SVG-native `<text>`. Confirmed on the generated spec HTML.
+- **spec/plan-as-HTML rejected (empirical)**: the user reviewed a natively-generated HTML of this very spec and kept spec/plan as Markdown — native HTML rots them as AI context (CSS/JS/tag noise), blocks hand-edit, blocks inline comments, and beat nothing vs his neovim renderer. Confirms the routing table; do NOT revisit spec/plan→HTML.
+
+**Shipped (this session — don't redo)**:
+- `md → single-file HTML` render script `md-to-html` in oh-my-zsh + PATH symlink + pandoc dep (commit `oh-my-zsh a5444e1`).
+- neovim `<leader>vM` keybind: render current `.md` buffer to /tmp + open; also made vh/vo/va cross-OS (commit `neovim adfd096`).
+- mmdc added to `unix-utils/install.sh` (commit `unix-utils 8b49e46`).
+
+**Open (remaining) — plan drafted in `generated-plan.md`**:
+- The `html-artifacts` skill (router + non-negotiables + anchoring rule + standards), pointing at the shipped script/keybind.
+- The CLAUDE.md trigger line (hybrid encoding) + `performance-check` budget reconcile.
+- First proof artifact: a code-review/auto-review report rendered as interactive HTML (opportunistic).
+- Templated HTML+JSON: v2 (its doc-standards verification is unsolved).
+
+---
