@@ -98,7 +98,7 @@ Keep to ~4 items; if it grows longer, the task is probably two tasks in disguise
 - "should [behavior] when [condition]"
 
 Subset of the global Test Design section that this task owns. After the task's
-subagent commits, the /implement post-commit gate (Gate 3) parses these titles
+subagent commits, the /implement post-commit planned-test check parses these titles
 via `spec-driven-development/scripts/extract-planned-tests-for-task.sh` and the
 orchestrator — fresh-context relative to the subagent's work — verifies each one
 exists in the committed diff before the task is marked done.

@@ -52,7 +52,7 @@ After the preamble, include the skill-specific body:
 - **Subagent attempts a forbidden operation** (per preamble) → permission gate refuses; subagent's verdict surfaces as the failure.
   - Parent `/implement` reports the violation and continues to the next tail subagent (refactor failing does not block auto-review).
 - **Subagent error / no report file written** → log it to chat with the agent's last message.
-  - Do NOT retry inline (different from Gate 3): batch-end reports are reviewed asynchronously; a missing report is user-attention, not a retry loop.
+  - Do NOT retry inline (unlike the planned-test check): batch-end reports are reviewed asynchronously; a missing report is user-attention, not a retry loop.
 - **Both reports written** → present the batch (below).
 
 ## Overwrite policy

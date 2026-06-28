@@ -12,7 +12,7 @@
 #   1  - plan.md is malformed (task heading missing OR `**Tests (planned)**:` bullet missing).
 #   2  - usage error (wrong arg count, non-integer task-N, plan file not found).
 #
-# Used by /implement's Gate 3 post-commit step. The orchestrator verifies each
+# Used by /implement's post-commit planned-test step. The orchestrator verifies each
 # title against the subagent's committed diff using this stdout as its list.
 
 set -eo pipefail

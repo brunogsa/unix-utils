@@ -194,11 +194,11 @@ No human gate. The orchestrator — fresh-context relative to the subagent's wor
 
 Per CLAUDE.md "verify subagent results against artifacts": confirm the reported commits exist (`git log <BATCH_BASE_SHA>..HEAD`), the diff matches the report, and the verification command passes on re-run.
 
-### 5.2. Gate 3 — planned-test presence (post-commit)
+### 5.2. Planned-test presence check (post-commit)
 
-Run Gate 3 against the subagent's commit range — the orchestrator never saw the impl, so it is genuinely fresh-context and needs no nested sub-subagent.
+Run the planned-test check against the subagent's commit range — the orchestrator never saw the impl, so it is genuinely fresh-context and needs no nested sub-subagent.
 
-Full procedure in [`references/gate-3-verification.md`](references/gate-3-verification.md). Load on demand.
+Full procedure in [`references/planned-test-verification.md`](references/planned-test-verification.md). Load on demand.
 
 ### 5.3. On failure — bounded retry
 
