@@ -42,8 +42,13 @@ Always edit `configs/git/.gitconfig` directly. If the symlink has been broken, r
   - Why: a config that breaks on the other OS is a silent hole that surfaces only when work moves there — non-negotiable. Cross-tool parity is wanted but stays subordinate: it earns effort, just never at Claude Code's expense.
 
 - **Keep `install.sh` in sync** -- `install.sh` is the canonical bootstrap — the source of truth for a fresh-machine setup.
-  - When you add/remove a plugin, MCP server, npm global, symlink target, config file, or OS package, mirror the change in `install.sh`.
+  - When you add/remove an MCP server, npm global, symlink target, config file, or OS package, mirror the change in `install.sh`.
+  - Plugins are the exception — they live in `settings.json`, not `install.sh` (see below).
   - If unsure, ask.
+
+- **Plugins live in `settings.json`, not `install.sh`** -- Claude Code plugins and their non-official marketplaces are version-controlled in `configs/ai-docs/claude/settings.json` under `enabledPlugins` (which plugins are on) and `extraKnownMarketplaces` (their GitHub sources). A fresh install symlinks settings.json, and Claude Code installs the enabled plugins on first launch — so `install.sh` needs no plugin logic.
+  - `claude plugin install <name>@<marketplace>` writes *through* the symlink (it does NOT detach it the way `/config` and `update-config` do), so the new `enabledPlugins` entry lands in the repo file directly — just commit it.
+  - The official `claude-plugins-official` marketplace is built-in; only non-official marketplaces need an `extraKnownMarketplaces` entry.
 
 - **Read skills from source, not the symlink** -- when reading or auditing a skill, use `configs/ai-docs/claude/skills/<name>/SKILL.md`, not `~/.claude/skills/<name>/` (which is a symlink target that can be replaced silently — same caveat as `settings.json`).
   - **Native skills** (`simplify`, `init`, `review`, `security-review`) are built into Claude Code; no local file exists.
