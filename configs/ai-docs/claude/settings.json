@@ -29,6 +29,12 @@
       "Bash(bash /Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
       "Bash(/home/brunogsa/unix-utils/configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
       "Bash(bash /home/brunogsa/unix-utils/configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh *)",
+      "Bash(~/.claude/scripts/tmux-window-title.sh *)",
+      "Bash(bash ~/.claude/scripts/tmux-window-title.sh *)",
+      "Bash(/Users/brunoagostini/unix-utils/configs/ai-docs/claude/scripts/tmux-window-title.sh *)",
+      "Bash(bash /Users/brunoagostini/unix-utils/configs/ai-docs/claude/scripts/tmux-window-title.sh *)",
+      "Bash(/home/brunogsa/unix-utils/configs/ai-docs/claude/scripts/tmux-window-title.sh *)",
+      "Bash(bash /home/brunogsa/unix-utils/configs/ai-docs/claude/scripts/tmux-window-title.sh *)",
       "Bash(mmdc *)",
       "Bash(shellcheck *)",
       "Bash(git-hunk list *)",
@@ -97,6 +103,17 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/claude-tmux-notification.sh done"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/claude-tmux-title-reminder.sh"
           }
         ]
       }
