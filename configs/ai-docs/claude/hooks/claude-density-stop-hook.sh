@@ -27,9 +27,11 @@
 # Enforcement vs. loop-safety:
 #   Honors stop_hook_active=true → bows out, so an always-on global hook can never
 #   spin an infinite stop-block loop. Because the guard bails on the post-fix stop,
-#   the hook itself can't re-verify the fix — so the block message makes the Haiku
-#   subagent re-run check-density and confirm clean BEFORE returning. Verification
-#   lives in the subagent, not a second hook pass.
+#   the hook itself can't re-verify the fix — so the Haiku subagent re-runs
+#   check-density and confirms clean BEFORE returning. Verification lives in the
+#   subagent — NOT the main session, which must trust the subagent and never re-read
+#   the files or re-run the gate: doing so would pull the density detail back into the
+#   main context, defeating the whole point of offloading it to a subagent.
 #
 # Safeguards (all silent no-ops — never break Claude on a tooling/context gap):
 #   - jq / git / awk / comm missing, or check-density.sh absent → exit 0.
@@ -109,12 +111,13 @@ done < <(git diff --name-only -z HEAD -- '*.md' 2>/dev/null || true)
 violations=$(printf '%s' "$violations" | sed '/^$/d' | sort -u)
 [ -z "$violations" ] && exit 0
 
-count=$(printf '%s\n' "$violations" | grep -c ':' || true)
 list=$(printf '%s\n' "$violations" | paste -sd ', ' -)
 
-reason="Density gate (doc-standards): ${count} markdown line(s) you wrote/edited exceed the 256-char / 32-word cap, on changed lines only: ${list}. \
-Before this doc reaches the human reviewer, spawn a Haiku subagent (Agent tool, model 'claude-haiku-4-5') to split ONLY these specific lines on sentence/clause boundaries — preserve meaning and structure, touch nothing else. \
-The subagent MUST re-run check-density.sh on each file and confirm zero violations remain on those lines before returning; if a line genuinely cannot be split (an unbreakable URL or path), leave it and report it — do not loop. \
-Density is fixed off the main thread so the reviewer reads a clean doc without main-session churn."
+# Kept minimal on purpose: this string is injected into the MAIN session context on
+# every block, and a Stop can block repeatedly — a verbose reason would accumulate and
+# crowd out real work. Detail (how to split, don't-loop) is left to the Haiku subagent.
+reason="Density: changed line(s) over the 256/32 cap — ${list}. \
+Delegate the split to a Haiku (claude-haiku-4-5) subagent; it self-verifies with check-density. \
+Do not verify or re-read in this session — trust the subagent."
 
 jq -n --arg r "$reason" '{decision: "block", reason: $r}'
