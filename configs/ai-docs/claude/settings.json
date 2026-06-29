@@ -102,6 +102,14 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash ~/.claude/hooks/claude-density-stop-hook.sh"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "bash ~/.claude/hooks/claude-tmux-notification.sh done"
           }
         ]

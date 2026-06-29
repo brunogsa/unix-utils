@@ -64,25 +64,6 @@
 
 ---
 
-## 14. [Spike] Audit & adopt unused Claude Code hooks
-
-**Goal**: Survey hooks the user doesn't yet use and adopt the valuable ones. (Answers "any hooks I could use that I don't? what hooks do people use?")
-
-**References**:
-- `disler/claude-code-hooks-mastery` → https://github.com/disler/claude-code-hooks-mastery
-- `disler/claude-code-hooks-multi-agent-observability`
-- User's own reference chat: https://claude.ai/chat/eedef19b-3f7c-4753-a753-cf7b7858152f — **Claude cannot fetch this** (auth-gated); user must paste the relevant parts.
-
-**Already have**: `claude-tasklist-stop-hook.sh`, `claude-tmux-notification.sh`, `claude-git-guard.sh`, `claude-rm-guard.sh`.
-
-**Candidates not yet used** (map each of the 12 lifecycle events to a possible use): `UserPromptSubmit` (inject context / validate prompts), `PreCompact`, `SessionStart`/`SessionEnd`, `SubagentStop` (validate subagent output — pairs with the "verify subagent results" rule), `Stop` exit-2 force-continue (pairs with `/loop`).
-
-**Hook tasks already open** (this is the umbrella; coordinate the `hooks/` + `settings.json` + `install.sh` wiring with them, don't re-spec it): #5 (toggle), #3 (phone-push notification).
-
-**Deliverable**: shortlist of hooks worth adopting with rationale. Some may spawn their own tasks.
-
----
-
 ## 15. [Spike] Safe "bypass-permission" loop + sandbox mode
 
 **Goal**: Enable low-attention autonomous work (e.g. fixing fragile tests overnight) without full `--dangerously-skip-permissions` risk.
