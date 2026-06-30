@@ -116,8 +116,9 @@ list=$(printf '%s\n' "$violations" | paste -sd ', ' -)
 # Kept minimal on purpose: this string is injected into the MAIN session context on
 # every block, and a Stop can block repeatedly — a verbose reason would accumulate and
 # crowd out real work. Detail (how to split, don't-loop) is left to the Haiku subagent.
-reason="Density: changed line(s) over the 256/32 cap — ${list}. \
+reason="Density: uncommitted .md over the 256/32 cap — ${list}. \
+Always yours to clean, even if outside this session's task. \
 Delegate the split to a Haiku (claude-haiku-4-5) subagent; it self-verifies with check-density. \
-Do not verify or re-read in this session — trust the subagent."
+Do not re-read in this session — trust the subagent."
 
 jq -n --arg r "$reason" '{decision: "block", reason: $r}'

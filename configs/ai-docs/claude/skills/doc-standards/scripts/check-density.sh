@@ -15,9 +15,10 @@
 # a `description:` scalar can't obey the "split on a sentence boundary" remedy, and
 # its real cap is the skill-router budget (~first 250 chars), not the word count.
 #
-# Char/word counts are measured AFTER stripping `(https://…)` URL portions and
-# remaining `[`/`]` brackets — so "[label](url)" measures as "label", giving the
-# rendered density a reader actually sees.
+# Char/word counts are measured AFTER stripping `(https://…)` and `(data:…)` URI
+# portions and remaining `[`/`]` brackets — so "[label](url)" measures as "label"
+# and a base64 image — inline `![alt](data:…)` or reference def `[id]: <data:…>` —
+# collapses to its label, giving the rendered density a reader actually sees.
 #
 # Usage:
 #   check-density.sh [--max-chars N] [--max-words N] <file> [<file>...]
@@ -63,6 +64,7 @@ awk -v mc="$MAX_CHARS" -v mw="$MAX_WORDS" '
   /^[[:space:]]*([>*+-]|[0-9]+\.)?[[:space:]]*\[[^]]+\]\([^)]+\)[[:space:]]*\.?[[:space:]]*$/ { next }
   {
     gsub(/\(https?:\/\/[^)]*\)/, "")
+    gsub(/[(<]data:[^)>]*[)>]/, "")
     gsub(/[][]/, "")
     if (length($0) > mc || NF > mw) {
       if (FILENAME != prev) { if (prev != "") print ""; print "== " FILENAME; prev = FILENAME }
