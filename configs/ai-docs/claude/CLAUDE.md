@@ -102,6 +102,9 @@ How AI talk to user and learn from his feedback.
 
 ### Directness & clarification
 
+- [Instruction] Start every chat response with the literal canary `(_')>` before any other text.
+  - [Why] A liveness signal healthy models emit and drifted ones drop, so its absence flags degradation; non-critical by design, since CRITICAL would fire even when drifted and mask that.
+
 - [Instruction] **If I am wrong, tell me directly.**
   - [Why] Correctness beats politeness — softened corrections accumulate; when every contradiction is hedged ("you might consider..."), the user must decode whether a real problem exists every turn.
 
@@ -229,6 +232,8 @@ How AI scope, plan, and verify work on any task.
 
 - [Instruction] **Don't cross-reference by stale-prone pointer** — never send the reader to "see §X / ADR-N / page N"; recap the fact inline so each mention stands alone.
   - [Why] A "see §X / ADR-N" pointer rots when a section is renumbered and forces a jump — pure cost; an inline recap stays correct and reads in place.
+  - [Example] Bad: `see HLD §5.6` / `Fundação §6.2` — a bare section number naming another document, with neither a clickable link nor a recap.
+  - [Example] Good: recap the fact in one line, then link the source file/anchor — `[HLD → Riscos](./hld.md#riscos)` — as an optional drill-down.
 
 - [Instruction] **CRITICAL: Remove unused artifacts** -- code, configs, mocks, env vars, scripts, docs. Trace back and remove all orphans.
   - [Why] Orphan code/configs/mocks accumulate as "is this still used?" debt — readers spend cycles auditing dead weight.

@@ -73,6 +73,22 @@ Don't create a separate RFC artifact; it would duplicate the HLD.
 
 - **A decision you'll argue again in 6–12 months → ADR.** A minor one → a line in the spec/plan decision log; graduate it to an ADR if it grows teeth.
 
+## Decisions, Premises, Risks, Open Questions — how to structure them
+
+The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open Questions. Keep those four sections clean with these rules.
+
+- **One item, one subsection.** Give each Decision/Premise/Risk/Open-Question its own heading, not a bullet buried in a long list — it reads as a scannable unit and can be anchor-linked from elsewhere.
+
+- **Label by what you actually know.** A fact you've validated or assume true is a *Premise*; a genuine unknown is an *Open Question*.
+  - Don't dress an unknown as a Premise, nor prematurely close a question you can't yet answer — both directions matter.
+
+- **Each fact lives once.** When a question is answered, move the answer into *Decisions*; don't leave decided content embedded inside the *Open Question*.
+  - Drop any Open Question that a Premise already settles — no duplicate item across sections.
+
+- **One logical decision, one Decision.** Consolidate; don't fragment a single choice across several `D-` items. Rejected options belong as *"discarded alternatives"* sub-bullets under the decision they lost to, not separate entries.
+
+- **Trade-offs as sub-bullets, not a table.** For a decision's pros/cons, nest bullets under each option — more scannable and easier to keep inside the density cap than a markdown table.
+
 ## The five docs at a glance
 
 Shared mental model for which doc is which — not a step you need help running.
@@ -136,3 +152,7 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
   - "Schema as jsonc" means that file's style: real values, each field tagged `type | required|optional | constraints | description`, optional fields shown, nested objects in full, quirks inline.
   - Keep every line ≤80 chars: short annotations stay inline.
     - When a full annotation would push the field line past 80, move the comment above the field (wrapped, multi-line), preceded by a blank line so it hugs its field.
+
+- de/para (from → to) mapping — qualify every field by its system.
+  - Prefix each field with its source/destination system (`pic.`, `sge.`, `hub.`, `crm.`, or `const` for a literal), so provenance stays clear when systems share field names.
+  - Validate the mapping against a real production payload, not just the vendor's example — real data stress-tests edge cases the example misses before you finalize.
