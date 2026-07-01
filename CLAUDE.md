@@ -10,6 +10,11 @@ System setup and configuration versioning repo. Part of a five-repo tooling stac
 
 `configs/ai-docs/claude/` holds the **global** Claude Code config (CLAUDE.md, skills, settings.json, hooks), symlinked to `~/.claude/`. Changes there affect every Claude Code session.
 
+## Git workflow
+
+- Sole maintainer: commit directly to the default branch (`master`/`main`) — no feature branch or PR needed.
+- This overrides the global "branch first" default, which exists for shared repos where others review changes.
+
 ## Setup
 
 ```bash
