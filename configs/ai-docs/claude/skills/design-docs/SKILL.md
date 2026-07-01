@@ -162,6 +162,7 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
   - "Schema as jsonc" means that file's style: real values, each field tagged `type | required|optional | constraints | description`, optional fields shown, nested objects in full, quirks inline.
   - Keep every line ≤80 chars: short annotations stay inline.
     - When a full annotation would push the field line past 80, move the comment above the field (wrapped, multi-line), preceded by a blank line so it hugs its field.
+    - When the *value* is long (two origin paths in one de/para value), keep the leaf field in the value and move the container path up into the comment — never truncate.
 
 - de/para (from → to) mapping — qualify every field by its system.
   - Prefix each field with its source/destination system (`pic.`, `sge.`, `hub.`, `crm.`, or `const` for a literal), so provenance stays clear when systems share field names.

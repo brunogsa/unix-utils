@@ -195,6 +195,9 @@ Verify with `~/.claude/skills/doc-standards/scripts/check-density.sh <file>`.
 
 When a line is over the cap, read `references/density-rules.md` — it has the rewrite patterns (dense paragraph → bullets) and explains what the script excludes (code fences, tables, link-only lines) and why.
 
+- [Instruction] Separately verify each schema JSONC block against its ≤80-char/line rule (in the `design-docs` skill) — `check-density.sh` excludes fenced code, so it never measured them.
+  - [Why] A green density run reads as "the whole doc passes," yet a design doc can be half JSONC the script skipped — the over-long schema lines then ship unflagged.
+
 Prose paragraphs are one line each and still subject to the cap: a line over the cap is split into smaller paragraphs or bullets, never hard-wrapped.
 
 - [Instruction] In standalone markdown docs, keep each prose paragraph on a single physical line — never hard-wrap or insert manual line breaks mid-paragraph; rely on the editor's soft-wrap.
