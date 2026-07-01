@@ -383,7 +383,7 @@ Premissas que o design abaixo trata como verdade. Se alguma cair, este doc preci
 
 ### 5.4. Decisões
 
-#### 5.4.1. Fluxo Async com Callback (ao invés de Sync HTTP)
+#### D-01 — Fluxo Async com Callback (ao invés de Sync HTTP)
 
 **Decisão**: Async + Callback HTTP do Integrador → PIC Arco.
 
@@ -396,7 +396,7 @@ Premissas que o design abaixo trata como verdade. Se alguma cair, este doc preci
 - Sync HTTP direto (como o PIC↔Protheus hoje): falha no requisito de disponibilidade, não escala para 4+ ERPs.
 - Polling do PIC ao Integrador por status (ao invés de callback): chato pro PIC implementar, mais latente, desperdiça chamadas.
 
-#### 5.4.2. Anti-OLD usa `(versaoId, dataAlteracao)` do PIC, não timestamp do Integrador
+#### D-02 — Anti-OLD usa `(versaoId, dataAlteracao)` do PIC, não timestamp do Integrador
 
 **Decisão**: Para decidir se um evento recebido é "mais novo" que o último sucesso gravado, o dedup compara o par `(versaoId, dataAlteracao)` — ambos do payload PIC.
 
@@ -416,7 +416,7 @@ Apesar do Integrador gerar um timestamp próprio no API Gateway ao receber o eve
 - **Comparar só `versaoId`**: frágil ao cenário Andre Isaac/rePIC.
 - **Comparar pelo receipt timestamp do Integrador**: não distingue updates anteriores reenviados manualmente pelo operador.
 
-#### 5.4.3. Descarte de duplicatas e eventos antigos via DynamoDB
+#### D-03 — Descarte de duplicatas e eventos antigos via DynamoDB
 
 **Decisão**: Tabela DynamoDB chaveada em `(cpnj, número do acordo, marca)` — **uma linha por Acordo** — armazena `(last_success_versaoId, last_success_dataAlteracao)`.
 
@@ -443,7 +443,7 @@ O dedup é reavaliado a cada consumo de fila (ingestão por ERP).
 - **Tabela relacional**: mais lenta, sem benefício no caso.
 - **Idempotência só no ERP**: depende de cada legado garantir; nem todos garantem.
 
-#### 5.4.4. Erros sempre geram callback; alguns também vão para DLQ
+#### D-04 — Erros sempre geram callback; alguns também vão para DLQ
 
 **Decisão**:
 
@@ -474,7 +474,7 @@ O dedup é reavaliado a cada consumo de fila (ingestão por ERP).
 - Não-técnico em DLQ: ruído sem ganho.
 - Suprimir callback em alguma classe de erro: operador no escuro; quebra o SLA de notificação.
 
-#### 5.4.5. Callback desacoplado do `errors-callback` genérico
+#### D-05 — Callback desacoplado do `errors-callback` genérico
 
 **Decisão**: O **cliente HTTP** do callback ao PIC é dedicado, **não** reaproveita o cliente `errors-callback` genérico do Integrador.
 
@@ -484,7 +484,7 @@ A **tabela** `errors_callbacks` é usada para persistir erros do fluxo e produti
 - Contrato do callback é específico do PIC (formato, autenticação, retry).
 - Acoplar criaria gambiarra na hora de evoluir qualquer um dos lados.
 
-#### 5.4.6. Modo Ativo (vs. Modo Hub)
+#### D-06 — Modo Ativo (vs. Modo Hub)
 
 **Decisão**: Cada use case por ERP implementa o de/para no modo ativo (contrato customizado por legado).
 
@@ -495,7 +495,7 @@ A **tabela** `errors_callbacks` é usada para persistir erros do fluxo e produti
 **Descartado**:
 - Modo hub implementado nos ERPs: cronograma apertado, dependência externa adicional inviável.
 
-#### 5.4.7. Institution ID: mandatório em Acordos, FF (feature flag) em Escolas
+#### D-07 — Institution ID: mandatório em Acordos, FF (feature flag) em Escolas
 
 **Decisão**: O `institutionId` (ID da Escola no CGI) é tratado de duas formas distintas:
 
@@ -517,7 +517,7 @@ A **tabela** `errors_callbacks` é usada para persistir erros do fluxo e produti
 - Adiar em ambos: perde a chance de capturar o ID já nas integrações novas.
 - FF nos dois lados: complexidade extra sem ganho — Acordos é greenfield.
 
-#### 5.4.8. Tradução direta PIC → ERP (sem formato intermediário)
+#### D-08 — Tradução direta PIC → ERP (sem formato intermediário)
 
 **Decisão**: Cada use case por ERP traduz **direto do payload PIC 1.9 para o formato do ERP 1.0 de destino**, sem passar por um formato intermediário do Integrador.
 
@@ -529,7 +529,7 @@ A **tabela** `errors_callbacks` é usada para persistir erros do fluxo e produti
   - Pequeno comparado ao risco de cronograma de fazer o canônico agora.
   - Existe a alternativa do rePIC implementar o mesmo formato do PIC 1.9 (somente ajuste de config nesse caso).
 
-#### 5.4.9. Implementação em 2 camadas: Fundação + N Tradutores
+#### D-09 — Implementação em 2 camadas: Fundação + N Tradutores
 
 **Decisão**: A implementação se divide em 2 camadas — uma **Fundação** compartilhada e **N Tradutores** (1 por ERP 1.0).
 
@@ -556,7 +556,7 @@ O Tradutor chama o ERP 1.0 diretamente via HTTP síncrono; a Fundação emite o 
 - **Custo de adicionar novo ERP 1.0 (previsto)**: 1 nova subclasse Tradutor + 1 entrada no mapa de roteamento da Fundação. Nenhum código de orquestração precisa ser duplicado.
 - **Fan-out por ERP**: ingestão única simplifica o contrato do middleware (um destino); o split em filas por ERP entrega bulkhead, redrive isolado e vazão independente por ERP.
 
-#### 5.4.10. HTTP direto ao ERP (sem `http-caller`); controle de vazão via filas FIFO por ERP
+#### D-10 — HTTP direto ao ERP (sem `http-caller`); controle de vazão via filas FIFO por ERP
 
 **Decisão**:
 - O Tradutor chama o ERP 1.0 **diretamente via HTTP síncrono** (sem `http-caller`); sucesso/erro e `idContratoERP` voltam na própria resposta.
@@ -574,7 +574,7 @@ O Tradutor chama o ERP 1.0 diretamente via HTTP síncrono; a Fundação emite o 
 
 **Risco aceito**: a vazão ao PIC (callback) não é controlada diretamente — é o somatório das vazões dos ERPs. Mais difícil de limitar, mas gerenciável para a Fase 1.
 
-#### 5.4.11. Controle de concorrência e anti-OLD — ADR dedicada
+#### D-11 — Controle de concorrência e anti-OLD — ADR dedicada
 
 A garantia de anti-OLD sob concorrência (nunca gravar uma versão anterior depois de uma posterior, processando 1 evento por chave por vez) tem ADR própria.
 
@@ -586,7 +586,7 @@ Ver: [Controle de concorrência e anti-OLD no Sync de Acordos PIC 1.9](../adrs/7
 - Version guard otimista (janela de corrida maior para um invariante crítico).
 - Notificação + read-latest (PIC 1.9 não expõe o GET de Acordo necessário).
 
-#### 5.4.12. Sucesso parcial em ERPs 1.0 multi-request: mitigado, sem SAGA pattern
+#### D-12 — Sucesso parcial em ERPs 1.0 multi-request: mitigado, sem SAGA pattern
 
 Alguns ERPs 1.0 exigem 2+ requisições HTTP para sincronizar um Acordo por completo.
 
@@ -617,7 +617,7 @@ A idempotência (3) é o que impede que as chamadas já efetivadas dupliquem reg
 **Descartado**:
 - **SAGA com compensações**: complexidade alta e dependência de endpoints/docs do legado que ainda não existem; fora da janela da Fase 1.
 
-#### 5.4.13. Fonte da verdade do endereço é o Acordo; Sync de Escolas não sobrescreve
+#### D-13 — Fonte da verdade do endereço é o Acordo; Sync de Escolas não sobrescreve
 
 **Contexto**: Faturamento e entrega são gravados no mesmo registro do ERP 1.0 por dois fluxos que fazem upsert.
 
@@ -632,7 +632,7 @@ São eles: o Sync de Acordos (este HLD) e o Sync de Escolas (CRM 2.0, épico à 
 - O endereço de entrega correto é definido no Acordo (por escola atendida); o cadastro genérico de Escola no CRM pode divergir.
 - Sem a trava, um Sync de Escolas posterior sobrescreve o endereço do Acordo → entrega em endereço errado, exatamente o problema que esta iniciativa resolve.
 
-#### 5.4.14. Campos mínimos syncados no ERP 1.0 (obrigatórios vs best-effort)
+#### D-14 — Campos mínimos syncados no ERP 1.0 (obrigatórios vs best-effort)
 
 **Contexto**: O Integrador lê de volta certos campos dos ERPs 1.0 para servir 2.0.
 
@@ -656,7 +656,7 @@ O ideal é gravar **tudo** que o PIC envia. O que cada ERP 1.0 consegue (ou não
 **Descartado**:
 - **Exigir 100% dos campos PIC em todo ERP**: irrealista — nem todo campo existe no legado; ou precisa existir.
 
-#### 5.4.15. Sync de Endereço de Entrega PIC → CRM 2.0 fica fora do Integrador
+#### D-15 — Sync de Endereço de Entrega PIC → CRM 2.0 fica fora do Integrador
 
 **Contexto**: O endereço de entrega nasce no Acordo (PIC) e o CRM 2.0 também o quer.
 
