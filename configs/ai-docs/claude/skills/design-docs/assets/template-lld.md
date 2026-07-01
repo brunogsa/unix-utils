@@ -55,6 +55,10 @@ TODO
 
 ### 3.3. Perguntas em aberto
 
+> Meta: chegar a "Nenhuma". Cada pergunta é uma sub-seção com título-resumo; ao fechar, vira premissa/decisão/risco ou é embutida na solução/mapeamento, e sai daqui.
+
+#### OQ-01 — <resumo escaneável da pergunta>
+
 TODO
 
 ## 4. TO-BE — Design detalhado
@@ -63,11 +67,11 @@ TODO
 
 TODO — decisões táticas locais; ADRs de arquitetura ficam no HLD (referencie-os).
 
-#### 4.1.1. Decisão A
+#### D-01 — <resumo escaneável da decisão>
 
 TODO
 
-#### 4.1.2. Decisão B
+#### D-02 — <resumo escaneável da decisão>
 
 TODO
 
@@ -108,6 +112,8 @@ TODO
 TODO — abordagem de testes/UAT em alto nível. Títulos de teste concretos vivem no plan (recap + link); casos de borda/falha são cobertos via diagramas/prose em 4.6/4.7.
 
 ### 4.11. Riscos e pontos de atenção (de implementação)
+
+#### R-01 — <resumo escaneável do risco>
 
 TODO
 

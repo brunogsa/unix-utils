@@ -77,7 +77,12 @@ Don't create a separate RFC artifact; it would duplicate the HLD.
 
 The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open Questions. Keep those four sections clean with these rules.
 
-- **One item, one subsection.** Give each Decision/Premise/Risk/Open-Question its own heading, not a bullet buried in a long list — it reads as a scannable unit and can be anchor-linked from elsewhere.
+- **One item, one sub-section — never a flat bullet list.** Give each Decision/Premise/Risk/Open-Question its own markdown heading, with the entry's body beneath it.
+  - Applies uniformly to all four sections — don't leave one as a bullet list and another as sub-sections.
+  - **The heading title is a scannable summary.** A reader skims the outline and opens a body only for details — so the title must carry the gist, not just the token.
+  - Format: `### <TOKEN> — <summary>`, e.g. `### OQ-08 — Preço do item: unitário vs total`.
+  - Keep the stable `<TOKEN>` (OQ-/PR-/D-/R-N) in the heading as the cross-reference anchor.
+  - Prefer the token over a `§N.M`-number here — items get added/removed (Open Questions burn down), and `§`-numbers churn.
 
 - **Label by what you actually know.** A fact you've validated or assume true is a *Premise*; a genuine unknown is an *Open Question*.
   - Don't dress an unknown as a Premise, nor prematurely close a question you can't yet answer — both directions matter.

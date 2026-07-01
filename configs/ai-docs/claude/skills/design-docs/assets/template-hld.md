@@ -86,15 +86,19 @@ TODO
 
 ### 5.2. [TO-BE] Perguntas em aberto
 
+> Meta: chegar a "Nenhuma". Cada pergunta é uma sub-seção com título-resumo; ao fechar, vira premissa/decisão/risco ou é embutida na solução, e sai daqui.
+
+#### OQ-01 — <resumo escaneável da pergunta>
+
 TODO
 
 ### 5.3. [TO-BE] Decisões (ADRs / DRs)
 
-#### 5.3.1. Decisão A
+#### D-01 — <resumo escaneável da decisão>
 
 TODO
 
-#### 5.3.2. Decisão B
+#### D-02 — <resumo escaneável da decisão>
 
 TODO
 
@@ -121,6 +125,8 @@ TODO
 TODO
 
 ### 5.8. Pontos de Atenção e Riscos
+
+#### R-01 — <resumo escaneável do risco>
 
 TODO
 

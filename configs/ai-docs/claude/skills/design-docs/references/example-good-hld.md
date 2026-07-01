@@ -283,87 +283,103 @@ Nenhuma.
 
 Premissas que o design abaixo trata como verdade. Se alguma cair, este doc precisa ser revisitado.
 
-- **P-01 — `versaoId` é inteiro monotônico incremental por contrato** (PIC contract, `versaoId.min: 1`).
-  - Identifica unicamente a versão de um Acordo no PIC.
-  - Fonte única; o Integrador não gera versões; ERPs 1.0 não persistem essa info.
+#### P-01 — `versaoId` é inteiro monotônico incremental por contrato (PIC contract, `versaoId.min: 1`).
 
-- **P-02 — No PIC 1.9, qualquer alteração no Acordo incrementa `versaoId`**.
-  - **Cai no futuro** por dois vetores: (a) Andre Isaac — updates sem nova assinatura não incrementam versão; (b) rePIC — updates sem nova versão por design.
-  - Em ambos, o evento chega com mesmo `versaoId` e `dataAlteracao` mais recente.
+- Identifica unicamente a versão de um Acordo no PIC.
+- Fonte única; o Integrador não gera versões; ERPs 1.0 não persistem essa info.
 
-- **P-03 — [SHOULD] Integrador gera receipt timestamp na entrada (API Gateway)**, separado dos critérios de dedup.
-  - Serve para observabilidade (recebimento→ERP, debug, métricas), **não** para dedup/anti-OLD.
-  - Dedup usa `dataAlteracao` do PIC, porque o operador pode clicar "Sync" muito depois da edição no PIC.
-  - Receipt-time não representa "qual versão é mais nova".
+#### P-02 — No PIC 1.9, qualquer alteração no Acordo incrementa `versaoId`.
 
-- **P-04 — PIC envia 1 POST por (marca, endereço de entrega)**.
-  - Cada POST traz exatamente 1 marca e exatamente 1 endereço de entrega e faturamento; o Integrador roteia por `(marca, tipoContrato)`.
-  - Acordo com Intermediador atendendo N escolas → PIC envia N POSTs distintos, um por escola/endereço atendido.
-  - Não há lógica de splitting no Integrador.
+- **Cai no futuro** por dois vetores: (a) Andre Isaac — updates sem nova assinatura não incrementam versão; (b) rePIC — updates sem nova versão por design.
+- Em ambos, o evento chega com mesmo `versaoId` e `dataAlteracao` mais recente.
 
-- **P-05 — Em falha parcial multimarca, PIC 1.9 retenta o conjunto inteiro**.
-  - Idempotência por `versaoId` no Integrador garante que marcas já com sucesso são descartadas adequadamente.
+#### P-03 — [SHOULD] Integrador gera receipt timestamp na entrada (API Gateway), separado dos critérios de dedup.
 
-- **P-06 — `tipoContrato` ∈ `{Venda Padrão, Loja Virtual, Comercializador}`** (PIC contract enum).
-  - **Venda Padrão** = B2B direto (Acordo entre Arco e a Escola).
-  - **Loja Virtual** = B2C (Acordo entre Arco e consumidor final via loja online).
-  - **Comercializador** = B2B via Intermediador (a.k.a. Interveniente) — Acordo entre Arco e uma entidade que contrata material em nome de N escolas. Sempre B2B; não existe Intermediador no modelo B2C.
-  - Implicação para roteamento `(brandSlug, tipoContrato)`: Comercializador é variante de B2B, então mapeia para o **mesmo ERP destino** do `Venda Padrão` da marca.
-  - Os quirks de payload (Intermediador como conta no ERP, endereços de entrega por escola atendida) ficam no LLD por ERP.
+- Serve para observabilidade (recebimento→ERP, debug, métricas), **não** para dedup/anti-OLD.
+- Dedup usa `dataAlteracao` do PIC, porque o operador pode clicar "Sync" muito depois da edição no PIC.
+- Receipt-time não representa "qual versão é mais nova".
 
-- **P-07 — ERPs 1.0 são idempotentes em PUT por `agreementId` (`idContratoERP`)**
-  - Reenvio do mesmo Acordo após erro de rede não cria duplicata no ERP.
-  - O Integrador é incapaz de garantir integridade na base dos ERPs 1.0 em case de partição de rede.
+#### P-04 — PIC envia 1 POST por (marca, endereço de entrega).
 
-- **P-08 — `create` antes do `update`**: se um `update` chegar sem que o `create` correspondente tenha efetivado, o Integrador trata como upsert (cria).
-  - Evita falhas reais em race conditions PIC→Integrador→ERP.
+- Cada POST traz exatamente 1 marca e exatamente 1 endereço de entrega e faturamento; o Integrador roteia por `(marca, tipoContrato)`.
+- Acordo com Intermediador atendendo N escolas → PIC envia N POSTs distintos, um por escola/endereço atendido.
+- Não há lógica de splitting no Integrador.
 
-- **P-09 — Premissas sobre o contrato PIC→Integrador para a Fase 1**. Até confirmação formal do time PIC, o design adota:
-  - **CNPJ**: tipo `string` 14 dígitos numéricos (regex `^[0-9]{14}$`), apesar do exemplo do PIC mostrar integer em alguns lugares.
-  - **`dataAlteracao`**: string ISO 8601 UTC (`pattern: ^\d{4}-\d{2}-\d{2}T...Z$`).
-    - **PRECISA** ser UTC — design dedup depende disso (segundo critério da chave composta após `versaoId`).
-    - Risco aceito: se o PIC enviar timestamp errado, podemos descartar um evento legítimo.
-  - **Callback ao PIC contém `timestamp`**: string ISO 8601 UTC; PIC ordena callbacks por este campo, não pela ordem de entrega (não garantida).
-  - **`status = "Rascunho" em Acordos`**: aceito pelo schema (enum válido), mas descartado pelo Integrador — não sincroniza ao ERP, sem callback.
-    - Premissa: PIC não emite Rascunho ao Integrador; se emitir, será descartado ou gerará 400 (Bad Request).
-  - **Marcas Positivo e PIÁ**: Positivo é alias de SPE (mesmo destino de roteamento); PIÁ é selo de literatura dentro do Maralto (idem).
-  - Os dois resolvem para um Tradutor existente; não há Tradutor dedicado. SPE = Positivo, PIÁ = Maralto.
-  - **`materiais[].suplementar`**: quando preenchido, segue o **mesmo schema de um item de `materiais`** (estrutura recursiva).
-  - **`Kit.bimestre`**: integer `1..4` (1º a 4º bimestre).
+#### P-05 — Em falha parcial multimarca, PIC 1.9 retenta o conjunto inteiro.
 
-- **P-10 — Validações cruzadas são responsabilidade do PIC, não do Integrador**
-  - Semântica correta de `segmento e serie`, `marca do evento e marca do material`, soma de rateios = 100, `valorLiquido = bruto − desconto`, etc.
-  - Integrador valida somente a **estrutura** do payload (shape, mandatórios etc) e propaga ao ERP sem validar semântica e regras de negócio inter-campo.
-  - Se uma regra cruzada falhar no ERP, o erro é tratado como Data Quality — ônus do operador corrigir no PIC.
+- Idempotência por `versaoId` no Integrador garante que marcas já com sucesso são descartadas adequadamente.
 
-- **P-11 — Sync nunca acontece sem `materiais` definidos** (`min_items=1`).
-  - Antes da Fase 1, especulava-se que Acordos pudessem ser assinados antes de o material ser definido.
-  - Negócio confirmou que isso **não ocorre**: um Acordo só é enviado ao Integrador após `materiais` estar preenchido.
-  - Integrador rejeita payload com `materiais` vazio (`400 Bad Request`); operador corrige no PIC e retenta.
-  - Demais campos nullable/optional permanecem como tal:
-    - `contratoAnterior` (null no 1º ano)
-    - `endereco.complemento` (OPCIONAL)
-    - `materiais[].suplementar` (null quando não há)
-    - `frete.normal.percentual` (null quando `automatico=true`) etc.
+#### P-06 — `tipoContrato` ∈ `{Venda Padrão, Loja Virtual, Comercializador}` (PIC contract enum).
 
-- **P-12 — Todo ERP 1.0 retorna o `idContratoERP` na resposta HTTP do upsert**.
-  - O callback ao PIC exige `idContratoERP` em caso de sucesso; logo, assume-se que todos os ERPs 1.0 o devolvem na resposta.
+- **Venda Padrão** = B2B direto (Acordo entre Arco e a Escola).
+- **Loja Virtual** = B2C (Acordo entre Arco e consumidor final via loja online).
+- **Comercializador** = B2B via Intermediador (a.k.a. Interveniente) — Acordo entre Arco e uma entidade que contrata material em nome de N escolas. Sempre B2B; não existe Intermediador no modelo B2C.
+- Implicação para roteamento `(brandSlug, tipoContrato)`: Comercializador é variante de B2B, então mapeia para o **mesmo ERP destino** do `Venda Padrão` da marca.
+- Os quirks de payload (Intermediador como conta no ERP, endereços de entrega por escola atendida) ficam no LLD por ERP.
 
-- **P-13 — Todo POST/PUT do Integrador aos ERPs 1.0 são síncronos (nenhum assíncrono)**.
-  - A chamada HTTP bloqueia até o ERP responder; sucesso/erro e `idContratoERP` voltam na própria resposta.
-  - Pela documentação atual dos 4 ERPs 1.0 da Fase 1 (SGE, Oracle EBS, SAPB1, Raízes), nenhum expõe upsert assíncrono.
-  - O que conhecemos hoje de Protheus também é síncrono.
-  - Isso simplifica bastante a solução.
+#### P-07 — ERPs 1.0 são idempotentes em PUT por `agreementId` (`idContratoERP`)
 
-- **P-14 — Este design é baseado no contrato do PIC 1.9**.
-  - A migração para o PIC 2.0 (rePIC) potencialmente exigirá alguns ajustes: provavelmente nos endpoints de callback e roteamento (ajustes pequenos).
+- Reenvio do mesmo Acordo após erro de rede não cria duplicata no ERP.
+- O Integrador é incapaz de garantir integridade na base dos ERPs 1.0 em case de partição de rede.
 
-- **P-15 — O PIC aceita qualquer transição de status nos callbacks** para o mesmo `(versaoId, marca)` - alinhado com o time PIC.
-  - Ordena por `timestamp` do callback (não pela ordem de entrega) e descarta duplicados.
-  - Aceita erro > sucesso (ex.: retry após ERP voltar) e erro > erro (nova causa de falha), sucesso > erro (atualização contratual inválida).
+#### P-08 — `create` antes do `update`: se um `update` chegar sem que o `create` correspondente tenha efetivado, o Integrador trata como upsert (cria).
 
-- **P-16 — O payload do PIC é auto-contido**: todos os dados para traduzir ao formato de qualquer ERP 1.0 chegam no próprio payload, independente do `tipoContrato`.
-  - O Integrador não enriquece de outras fontes — apenas **traduz** (de/para) e **orquestra**.
+- Evita falhas reais em race conditions PIC→Integrador→ERP.
+
+#### P-09 — Premissas sobre o contrato PIC→Integrador para a Fase 1. Até confirmação formal do time PIC, o design adota:
+
+- **CNPJ**: tipo `string` 14 dígitos numéricos (regex `^[0-9]{14}$`), apesar do exemplo do PIC mostrar integer em alguns lugares.
+- **`dataAlteracao`**: string ISO 8601 UTC (`pattern: ^\d{4}-\d{2}-\d{2}T...Z$`).
+  - **PRECISA** ser UTC — design dedup depende disso (segundo critério da chave composta após `versaoId`).
+  - Risco aceito: se o PIC enviar timestamp errado, podemos descartar um evento legítimo.
+- **Callback ao PIC contém `timestamp`**: string ISO 8601 UTC; PIC ordena callbacks por este campo, não pela ordem de entrega (não garantida).
+- **`status = "Rascunho" em Acordos`**: aceito pelo schema (enum válido), mas descartado pelo Integrador — não sincroniza ao ERP, sem callback.
+  - Premissa: PIC não emite Rascunho ao Integrador; se emitir, será descartado ou gerará 400 (Bad Request).
+- **Marcas Positivo e PIÁ**: Positivo é alias de SPE (mesmo destino de roteamento); PIÁ é selo de literatura dentro do Maralto (idem).
+- Os dois resolvem para um Tradutor existente; não há Tradutor dedicado. SPE = Positivo, PIÁ = Maralto.
+- **`materiais[].suplementar`**: quando preenchido, segue o **mesmo schema de um item de `materiais`** (estrutura recursiva).
+- **`Kit.bimestre`**: integer `1..4` (1º a 4º bimestre).
+
+#### P-10 — Validações cruzadas são responsabilidade do PIC, não do Integrador
+
+- Semântica correta de `segmento e serie`, `marca do evento e marca do material`, soma de rateios = 100, `valorLiquido = bruto − desconto`, etc.
+- Integrador valida somente a **estrutura** do payload (shape, mandatórios etc) e propaga ao ERP sem validar semântica e regras de negócio inter-campo.
+- Se uma regra cruzada falhar no ERP, o erro é tratado como Data Quality — ônus do operador corrigir no PIC.
+
+#### P-11 — Sync nunca acontece sem `materiais` definidos (`min_items=1`).
+
+- Antes da Fase 1, especulava-se que Acordos pudessem ser assinados antes de o material ser definido.
+- Negócio confirmou que isso **não ocorre**: um Acordo só é enviado ao Integrador após `materiais` estar preenchido.
+- Integrador rejeita payload com `materiais` vazio (`400 Bad Request`); operador corrige no PIC e retenta.
+- Demais campos nullable/optional permanecem como tal:
+  - `contratoAnterior` (null no 1º ano)
+  - `endereco.complemento` (OPCIONAL)
+  - `materiais[].suplementar` (null quando não há)
+  - `frete.normal.percentual` (null quando `automatico=true`) etc.
+
+#### P-12 — Todo ERP 1.0 retorna o `idContratoERP` na resposta HTTP do upsert.
+
+- O callback ao PIC exige `idContratoERP` em caso de sucesso; logo, assume-se que todos os ERPs 1.0 o devolvem na resposta.
+
+#### P-13 — Todo POST/PUT do Integrador aos ERPs 1.0 são síncronos (nenhum assíncrono).
+
+- A chamada HTTP bloqueia até o ERP responder; sucesso/erro e `idContratoERP` voltam na própria resposta.
+- Pela documentação atual dos 4 ERPs 1.0 da Fase 1 (SGE, Oracle EBS, SAPB1, Raízes), nenhum expõe upsert assíncrono.
+- O que conhecemos hoje de Protheus também é síncrono.
+- Isso simplifica bastante a solução.
+
+#### P-14 — Este design é baseado no contrato do PIC 1.9.
+
+- A migração para o PIC 2.0 (rePIC) potencialmente exigirá alguns ajustes: provavelmente nos endpoints de callback e roteamento (ajustes pequenos).
+
+#### P-15 — O PIC aceita qualquer transição de status nos callbacks para o mesmo `(versaoId, marca)` - alinhado com o time PIC.
+
+- Ordena por `timestamp` do callback (não pela ordem de entrega) e descarta duplicados.
+- Aceita erro > sucesso (ex.: retry após ERP voltar) e erro > erro (nova causa de falha), sucesso > erro (atualização contratual inválida).
+
+#### P-16 — O payload do PIC é auto-contido: todos os dados para traduzir ao formato de qualquer ERP 1.0 chegam no próprio payload, independente do `tipoContrato`.
+
+- O Integrador não enriquece de outras fontes — apenas **traduz** (de/para) e **orquestra**.
 
 ### 5.4. Decisões
 
@@ -878,47 +894,55 @@ sequenceDiagram
 
 ### 5.6. Pontos de Atenção e Riscos
 
-- **R-01** — Raízes sem JSON definido pela consultoria; pode atrasar o último ERP.
-  - *Mitigação*: priorizar Raízes por último; se atrasar, Fase 1 entrega sem Raízes (desliza pra Fase 2).
+#### R-01 — Raízes sem JSON definido pela consultoria; pode atrasar o último ERP.
 
-- **R-02** — Overwrite do Endereço (faturamento e entrega) vindo do Sync de Escolas pode corromper Acordos sincados.
-  - *Mitigação*: fonte da verdade é o Acordo; CRM bloqueia edição; trava (PATCH/read-before-write) implementada no épico de Escolas — [ITGD-2957](https://arco-educacao.atlassian.net/browse/ITGD-2957).
+- *Mitigação*: priorizar Raízes por último; se atrasar, Fase 1 entrega sem Raízes (desliza pra Fase 2).
 
-- **R-03** — Callback ao PIC indisponível; operador não é notificado.
-  - *Mitigação*: 3 retries com backoff; se falhar, engenheiros serão alertados.
+#### R-02 — Overwrite do Endereço (faturamento e entrega) vindo do Sync de Escolas pode corromper Acordos sincados.
 
-- **R-04** — Payload PIC pode passar de 256KB do SQS quando `materiais` é grande.
-  - O schema limita SKUs (≤300) mas **não** a contagem de materiais/kits, então em estrutura adversária o payload estoura o limite.
-  - *Falha controlada*: SQS rejeita o envio > 256KB já na ingestão; o evento falha cedo e visível (callback de erro / alarme), não some silenciosamente nem chega a uma DLQ.
-  - *Mitigação (risco aceito na Fase 1)*: o middleware loga o payload inteiro, então nada se perde.
-    - Recuperação = habilitar o SQS Extended Client (payload em S3, ponteiro na fila) e/ou compressão e reprocessar manualmente a partir do log.
-    - Mecanismo já disponível → correção rápida; default decidido na Tarefa Fundacional.
+- *Mitigação*: fonte da verdade é o Acordo; CRM bloqueia edição; trava (PATCH/read-before-write) implementada no épico de Escolas — [ITGD-2957](https://arco-educacao.atlassian.net/browse/ITGD-2957).
 
-- **R-05** — Alguns ERPs 1.0 exigem 2+ requisições HTTP para sincronizar um Acordo completo.
-  - Ex.: persistir a escola e o acordo separadamente, ou o header do acordo numa chamada e os SKUs em outra.
-  - Isso abre espaço para **sucesso parcial**: parte das chamadas efetiva e outra falha.
-  - *Mitigado*: optamos por não fazer SAGA na Fase 1 e endereçar o risco com 5 medidas combinadas.
-  - *Como*, 5 medidas combinadas:
-    - Chamadas em série (menos combinações de falha).
-    - Dado mais crítico (ex.: endereço de entrega) por último.
-    - Idempotência obrigatória em todas as chamadas de cada Tradutor.
-    - Retry para erros transitórios.
-    - Sucesso parcial tratado como erro: não atualiza `last_success` e dispara callback de erro ao PIC, habilitando retry/redrive seguro.
+#### R-03 — Callback ao PIC indisponível; operador não é notificado.
 
-- **R-06** — Um campo obrigatório (lido de volta para 2.0) pode não ter campo nativo em algum ERP 1.0.
-  - *Mitigação*: adicionar um campo custom/extensão no ERP, alinhado com o time de 1.0.
+- *Mitigação*: 3 retries com backoff; se falhar, engenheiros serão alertados.
 
-- **R-07** — Um campo best-effort do PIC pode não ter onde ser gravado num ERP 1.0.
-  - *Falha controlada*: o campo é descartado e o Acordo é sincado sem ele, sem callback de erro.
-  - *Mitigação*: cada gap é documentado no LLD do ERP e alinhado com times do 1.0.
+#### R-04 — Payload PIC pode passar de 256KB do SQS quando `materiais` é grande.
 
-- **R-08** — Classificação de erro depende do status HTTP do ERP, que muitos legados não implementam corretamente.
-  - O Integrador decide o comportamento do retry/DLQ pela classe do erro.
-  - Essa classe é inferida em boa parte do status HTTP do ERP.
-  - Mas muitos legados não respeitam a semântica HTTP: um `4XX` pode ser de fato um técnico transitório, e um `5XX` pode ser um Data Quality.
-  - *Risco aceito*: ajustável ao longo do tempo.
-  - Pior caso: um Data Quality retenta desnecessariamente, ou um técnico transitório não chega à DLQ.
-  - Mas, em qualquer classificação, o erro **sempre gera callback e aparece na UI do PIC** — o operador nunca fica no escuro.
+- O schema limita SKUs (≤300) mas **não** a contagem de materiais/kits, então em estrutura adversária o payload estoura o limite.
+- *Falha controlada*: SQS rejeita o envio > 256KB já na ingestão; o evento falha cedo e visível (callback de erro / alarme), não some silenciosamente nem chega a uma DLQ.
+- *Mitigação (risco aceito na Fase 1)*: o middleware loga o payload inteiro, então nada se perde.
+  - Recuperação = habilitar o SQS Extended Client (payload em S3, ponteiro na fila) e/ou compressão e reprocessar manualmente a partir do log.
+  - Mecanismo já disponível → correção rápida; default decidido na Tarefa Fundacional.
+
+#### R-05 — Alguns ERPs 1.0 exigem 2+ requisições HTTP para sincronizar um Acordo completo.
+
+- Ex.: persistir a escola e o acordo separadamente, ou o header do acordo numa chamada e os SKUs em outra.
+- Isso abre espaço para **sucesso parcial**: parte das chamadas efetiva e outra falha.
+- *Mitigado*: optamos por não fazer SAGA na Fase 1 e endereçar o risco com 5 medidas combinadas.
+- *Como*, 5 medidas combinadas:
+  - Chamadas em série (menos combinações de falha).
+  - Dado mais crítico (ex.: endereço de entrega) por último.
+  - Idempotência obrigatória em todas as chamadas de cada Tradutor.
+  - Retry para erros transitórios.
+  - Sucesso parcial tratado como erro: não atualiza `last_success` e dispara callback de erro ao PIC, habilitando retry/redrive seguro.
+
+#### R-06 — Um campo obrigatório (lido de volta para 2.0) pode não ter campo nativo em algum ERP 1.0.
+
+- *Mitigação*: adicionar um campo custom/extensão no ERP, alinhado com o time de 1.0.
+
+#### R-07 — Um campo best-effort do PIC pode não ter onde ser gravado num ERP 1.0.
+
+- *Falha controlada*: o campo é descartado e o Acordo é sincado sem ele, sem callback de erro.
+- *Mitigação*: cada gap é documentado no LLD do ERP e alinhado com times do 1.0.
+
+#### R-08 — Classificação de erro depende do status HTTP do ERP, que muitos legados não implementam corretamente.
+
+- O Integrador decide o comportamento do retry/DLQ pela classe do erro.
+- Essa classe é inferida em boa parte do status HTTP do ERP.
+- Mas muitos legados não respeitam a semântica HTTP: um `4XX` pode ser de fato um técnico transitório, e um `5XX` pode ser um Data Quality.
+- *Risco aceito*: ajustável ao longo do tempo.
+- Pior caso: um Data Quality retenta desnecessariamente, ou um técnico transitório não chega à DLQ.
+- Mas, em qualquer classificação, o erro **sempre gera callback e aparece na UI do PIC** — o operador nunca fica no escuro.
 
 ---
 
