@@ -59,7 +59,7 @@ git-hunk stage <id> -l 3,5-7   # stage only lines 3 and 5-7
 git commit -m "$(cat <<'EOF'
    Commit message here.
 
-   Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+   Co-Authored-By: <current Claude model, as the harness instructs> <noreply@anthropic.com>
    EOF
 )"
 ```
