@@ -241,8 +241,9 @@ How AI scope, plan, and verify work on any task.
 - [Instruction] **CRITICAL: Remove unused artifacts** -- code, configs, mocks, env vars, scripts, docs. Trace back and remove all orphans.
   - [Why] Orphan code/configs/mocks accumulate as "is this still used?" debt — readers spend cycles auditing dead weight.
 
-- [Instruction] Put ephemeral scratch — throwaway scripts, debug dumps, working notes — in /tmp, never the repo or CWD.
-  - [Why] Scratch in the repo gets committed by accident or rots as orphan debt; /tmp is outside version control and OS-cleared, so throwaway stays throwaway.
+- [Instruction] Put ephemeral scratch — throwaway scripts, debug dumps, working notes — in /tmp, never the repo or CWD — UNLESS the user reviews it, then it lives gitignored in CWD.
+  - [Why] Unreviewed scratch in the repo gets committed by accident or rots as orphan debt; a user-reviewed doc must sit where the user and downstream skills discover it.
+  - [Example] User-reviewed → CWD: `spec_/plan_<slug>.md`, manual-verification `.md`. Never-reviewed → /tmp: debug dumps, one-off scripts, diff snapshots.
 
 ### Verify before done
 
