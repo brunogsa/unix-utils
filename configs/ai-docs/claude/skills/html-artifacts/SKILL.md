@@ -107,7 +107,7 @@ Author a single self-contained `.html` for a novel artifact with no template. Ap
 
 The recurring path (reuse a static template, emit only JSON data merged client-side) is **not built yet**. Its doc-standards verification — density on JSON-fed HTML — is unsolved.
 
-Keep it on the radar: when a type recurs, note that a template would pay off, but author bespoke for now. Tracked on `workflow-tasks.md` #6.
+Keep it on the radar: when a type recurs, note that a template would pay off, but author bespoke for now. The templated-HTML spike is tracked in `~/unix-utils/workflow-tasks.md`.
 
 ## Non-negotiables for any HTML artifact
 
