@@ -73,7 +73,7 @@ Purpose: assemble everything every specialist will need on disk, so specialists 
 
 **Work dir**:
 - github: `/tmp/pr-review-<n>/`; create fresh (`rm -rf && mkdir -p`).
-- local: `$(mktemp -d /tmp/auto-review.XXXXXX)` for scratch; the skill writes output to `./auto-review.md` in CWD.
+- local: `$(mktemp -d /tmp/auto-review.XXXXXX)` for scratch; the review lands in a timestamped `./auto-review_<timestamp>` file in CWD (`out_base` set below; extension decided in Wave 5).
 
 **Specialists receive the context listed in `references/common-preamble.md#Context you have`** — ensure Wave 1 produces all of it on disk. Commit messages are fetched in both modes; only `{pr_context}` differs:
 
@@ -121,7 +121,7 @@ Repo root for specialists is the user's CWD; the work dir is scratch for diff/co
 
 ```bash
 work_dir=$(mktemp -d /tmp/auto-review.XXXXXX)
-out_file="./auto-review_$(date +%Y-%m-%d_%H:%M).md"
+out_base="./auto-review_$(date +%Y-%m-%d_%H:%M)"
 git fetch origin "$base_branch"
 git diff -U20 "origin/$base_branch...HEAD"             > "$work_dir/diff"
 git diff      "origin/$base_branch...HEAD" --name-only > "$work_dir/changed-files.txt"
@@ -338,13 +338,13 @@ We don't comment on code outside the diff — that's noise the author didn't ask
 
 ### local mode
 
-Write `${out_file}` to the current CWD following the template at `references/local-review-template.md`.
+Consult the `html-artifacts` skill's decision tree, then write `${out_file}` — `${out_base}.md` or `${out_base}.html` per its verdict — to the current CWD.
 
-- `${out_file}` is set in Wave 1 to `./auto-review_YYYY-MM-DD_HH:MM.md`; timestamp preserves ordering across runs, e.g. per-task in autonomous mode.
-- Read the template file and expand its placeholders.
+- `${out_base}` is set in Wave 1 to `./auto-review_YYYY-MM-DD_HH:MM`; the timestamp preserves ordering when the user runs several reviews in one CWD. Only the extension is the router's call.
+- Either format follows the template at `references/local-review-template.md` — read it and expand its placeholders; an `.html` output renders those same sections under html-artifacts' non-negotiables.
 - Keep the template file as the single source of truth for the output shape; do not inline the template here.
 
-**Density check (after writing).** Run `~/.claude/skills/doc-standards/scripts/check-density.sh "$out_file"`. Rewrite each violation per `doc-standards/references/density-rules.md`; re-run until exit 0.
+**Density check (after writing, `.md` output only).** Run `~/.claude/skills/doc-standards/scripts/check-density.sh "$out_file"`. Rewrite each violation per `doc-standards/references/density-rules.md`; re-run until exit 0.
 
 ---
 
@@ -361,7 +361,7 @@ Print a terminal summary using the template at `references/wave6-summary-templat
 - **No findings at all**:
   - GH: skip the pending review entirely — don't post an empty review just to carry the guide.
     - Still post the Review Guide as a standalone PR comment per Wave 5 step 5 so the human gets the context.
-  - LOCAL: write `auto-review.md` with "no findings" under Findings.
+  - LOCAL: write `${out_file}` (the timestamped `./auto-review_<timestamp>` file) with "no findings" under Findings.
 
 ---
 
