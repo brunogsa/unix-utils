@@ -50,8 +50,8 @@ For simple input → output assertions on stateless endpoints, skip `Given`.
 **Coverage rule:** every spec MUST include scenarios for:
 
 - **happy path**
-- **corner cases** (empty inputs, boundary values, max sizes, combined filters, idempotency)
-- **failure modes** (validation errors, downstream timeouts, 4xx/5xx responses, partial failures)
+- **corner cases** (e.g. empty inputs, boundary values, max sizes — full list in the checklists below)
+- **failure modes** (e.g. validation errors, downstream timeouts, partial failures — full list in the checklists below)
 
 A spec with only happy-path ACs is incomplete.
 
@@ -76,13 +76,15 @@ Group by category for scannability:
 
 #### Corner cases
 
-**Boundary checklist** — for each input field this spec affects, mark each item below either `covered (AC-N)` or `N/A — <one-word reason>`. An unevaluated checklist fails self-review.
+**Boundary checklist** — instantiate one row per item in the corner-cases list of the canonical coverage taxonomy (`~/.claude/skills/test-standards/references/coverage-taxonomy.md`).
+
+Illustrative rows (full list in the taxonomy):
 
 - empty / single / many / max-size / overflow:
 - null / undefined / missing:
-- unicode / whitespace-only / leading-trailing-spaces:
-- duplicate / out-of-order:
 - boundary numbers (0, -1, MAX_INT, off-by-one):
+
+Mark each row either `covered (<recap of the covering AC>)` or `N/A — <one-word reason>`. An unevaluated or partially-instantiated checklist fails self-review.
 
 Opt-out: replace the checklist with `**DECISION:** Skip boundary checklist because <reason>` when the spec is trivially scoped (e.g., one-line config change).
 
@@ -90,15 +92,15 @@ Opt-out: replace the checklist with `**DECISION:** Skip boundary checklist becau
 
 #### Failure modes
 
-**Failure category checklist** — for each item, mark `covered (AC-N)` or `N/A — <one-word reason>`. An unevaluated checklist fails self-review.
+**Failure category checklist** — instantiate one row per item in the failure-modes list of the canonical coverage taxonomy (`~/.claude/skills/test-standards/references/coverage-taxonomy.md`).
+
+Illustrative rows (full list in the taxonomy):
 
 - validation error (4xx):
 - downstream timeout / 5xx:
 - partial failure (some items succeed, some fail):
-- auth / authz failure:
-- concurrency / race / double-submit:
-- idempotency (repeat request behavior):
-- network drop mid-operation:
+
+Mark each row `covered (<recap of the covering AC>)` or `N/A — <one-word reason>`. An unevaluated or partially-instantiated checklist fails self-review.
 
 Opt-out: replace with `**DECISION:** Skip failure-category checklist because <reason>` when N/A applies wholesale.
 

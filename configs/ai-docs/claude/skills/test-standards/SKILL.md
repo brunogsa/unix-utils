@@ -46,6 +46,9 @@ Principles for any test work. Each section pairs a principle with its WHY, with 
 - [Instruction] **Before writing tests, ask "if I had to verify this change by hand, what steps would I take?" — then automate that list, for backend and frontend alike.**
   - [Why] Coverage tools answer "is this line touched?" but not "would a manual tester have noticed this?" — the manual-verification checklist is the test checklist.
 
+- [Instruction] **Probe corner-case and failure-mode coverage against the canonical checklists in `references/coverage-taxonomy.md`** — that file owns the category lists; other skills only recap it.
+  - [Why] One canonical taxonomy keeps interview probes, spec checklists, and test design aligned; parallel copies drift and ship gaps between what's asked and what's checked.
+
 Concrete patterns this rule generates:
 
 - [Instruction] **Cover every variant** — when several things are the same kind (input fields, filters, query params, tabs, entity types, view modes), test each one, directly or via parametrization.

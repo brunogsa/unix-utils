@@ -65,14 +65,17 @@ Ask clarifying questions (Socratic style). Focus on:
 - What is goal and success metrics/KPIs? (Goal)
 - Who benefits and how? (User Stories)
 - What does success look like? (Testable Acceptance Criteria — BDD scenarios)
-- What constraints exist? (Non-Functional and Techincal Requirements)
+- What constraints exist? (Non-Functional and Technical Requirements)
 - What's unclear? (Open Questions)
 
 Ask 2-3 questions per round. Don't overwhelm.
 
-**CRITICAL: For Testable Acceptance Criteria, actively probe for coverage gaps.** Happy-path scenarios are easy to elicit; corner cases and failure modes need pulling. Before generating the spec, push the user to enumerate:
-- **Corner cases**: empty inputs, max sizes/limits, boundary values, combined/composed filters, idempotency, concurrent access.
-- **Failure modes**: validation errors (4xx), downstream timeouts, downstream 5xx, partial failures, auth failures, rate limits.
+**CRITICAL: For Testable Acceptance Criteria, actively probe for coverage gaps.** Happy-path scenarios are easy to elicit; corner cases and failure modes need pulling.
+
+Before generating the spec, push the user through every category in the canonical coverage taxonomy (`~/.claude/skills/test-standards/references/coverage-taxonomy.md`). Illustrative probes:
+
+- **Corner cases** (e.g.): empty inputs, max sizes/limits, boundary values.
+- **Failure modes** (e.g.): downstream timeouts, partial failures, rate limits.
 
 If the user only describes the happy path, ask explicitly: "what should happen when X is empty / oversized / invalid / unavailable?"
 

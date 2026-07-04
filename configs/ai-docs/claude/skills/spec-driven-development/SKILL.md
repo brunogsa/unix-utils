@@ -116,7 +116,7 @@ It is the one judgment the artifact-only gates structurally can't make: whether 
   - "Necessary" means it traces to a requirement — this is the artifact-internal half of the over-engineering check; the request-context half is the advisor lens below.
 
 - **Checklist completeness**: verify spec_<slug>.md's **boundary checklist** (Corner cases) and **failure category checklist** (Failure modes) are evaluated.
-  - Each item marked `covered (AC-N)` or `N/A — <reason>`. Empty template placeholders fail self-review.
+  - Each item marked `covered (<recap of the covering AC>)` or `N/A — <reason>`. Empty template placeholders fail self-review.
   - Honor opt-out: a checklist replaced with `**DECISION:** Skip <name> checklist because <reason>` counts as evaluated.
 
 - **Inversion sweep**: for every AC in spec_<slug>.md, ask "how would this break in production?".
