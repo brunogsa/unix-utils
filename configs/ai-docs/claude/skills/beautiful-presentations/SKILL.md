@@ -32,6 +32,16 @@ This skill embodies three fundamental principles:
 
 ## How to Use This Skill
 
+### Step 0: Verify the pptx Skill Mount (REQUIRED, FIRST)
+
+Steps 5-6 depend on the claude.ai container's pptx skill: `/mnt/skills/public/pptx/` (html2pptx doc + `thumbnail.py`) and the `@ant/html2pptx` npm package.
+
+Before authoring any slide, run `ls /mnt/skills/public/pptx/` to verify the mount exists.
+
+If it is missing (the norm on a local machine), tell the user the pptx dependency is absent in this environment and stop.
+
+Why stop upfront: the conversion and validation steps are unexecutable without the mount, so slide-authoring effort would be wasted on a deck that cannot convert.
+
 ### Step 1: Read Design Principles (REQUIRED)
 
 Before creating any presentation, ALWAYS read the comprehensive design principles reference:

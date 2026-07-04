@@ -108,8 +108,9 @@ With the inputs above resolved, dispatch per "How callers dispatch" in `~/.claud
 Run the fresh-session check there, then either walk the pipeline in-session or spawn the isolated subagent.
 
 After the pipeline finishes (either mode), the review is at
-`./auto-review_<timestamp>.md` (Wave 6 summary contains the exact resolved
-path). Print the file path, per-severity counts, skipped files, and the
+`./auto-review_<timestamp>.md` or `.html` — extension per the html-artifacts
+router (Wave 6 summary contains the exact resolved path).
+Print the file path, per-severity counts, skipped files, and the
 Wave 6 summary. Multiple runs accumulate as separate timestamped files,
 preserving their order when the user runs several reviews in one CWD.
 
