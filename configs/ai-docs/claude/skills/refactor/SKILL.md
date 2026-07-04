@@ -147,8 +147,8 @@ Once the user selects items, emit *"Selected N findings. Leveraging tasklist."*
 
 For each approved item, **you** (not the agent) perform the edit directly in the main conversation using the Edit tool.
 
-- This keeps the user in the loop.
-- They can provide guidance, corrections, or reject individual changes as they happen.
+- Step 3's batch selection IS the one-pass review (CLAUDE.md's async-iteration rule): apply every approved finding without pausing for per-item confirmation.
+- The user may interject at any point; fold their corrections into one numbered batch — never wait for a per-edit go-ahead.
 
 All CLAUDE.md principles plus the code-standards, test-standards, and doc-standards skills apply to the resulting code.
 
