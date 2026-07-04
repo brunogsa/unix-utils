@@ -61,7 +61,7 @@
       "Read(~/.config/gh/**)"
     ]
   },
-  "model": "sonnet",
+  "model": "fable",
   "hooks": {
     "PreToolUse": [
       {
