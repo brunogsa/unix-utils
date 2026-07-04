@@ -2,7 +2,7 @@
 name: debug-standards
 description: "USE PROACTIVELY for ANY failure — failing test, bug, regression, stack trace, flake, 'why is this broken', and before a second fix attempt. Find the root cause before proposing any fix."
 user-invocable: false
-instructions-budget: 18
+instructions-budget: 19
 ---
 
 # Debug Standards
@@ -29,7 +29,8 @@ it("should reject login when password contains trailing whitespace", () => {
 
 The test fails (the bug exists) → fix the code → the test passes. Now it's a guarded behavior.
 
-Author that regression test to `test-standards` — naming, scope (unit/integration), and mocking discipline; a poorly-scoped guard is no guard.
+- [Instruction] Author the regression test per `test-standards` — naming, scope (unit/integration), and mocking discipline.
+  - [Why] A poorly-scoped guard is no guard — a test pinned to the wrong layer or behavior passes while the bug returns.
 
 ## Gathering evidence
 
