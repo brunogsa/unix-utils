@@ -66,14 +66,15 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 0. User creates spec_<slug>.md with initial prompt/notes (or `/brainstorm` refines it).
 1. Plan mode or direct request generates plan_<slug>.md from spec_<slug>.md (or from prompt).
-2. AI Self-review (two lenses) — a fresh-context subagent runs the unbiased structural gates; an advisor pass catches over-engineering and spec-vs-request drift. Validate every mermaid block with `mmdc` (caveats in plan-template.md).
+2. AI Self-review (two lenses) — a fresh-context subagent runs the unbiased structural gates; an advisor pass catches over-engineering and spec-vs-request drift.
+   - Validate every mermaid block with `mmdc` (parse traps and version caveats live in the `mermaid-diagrams` skill).
 3. User reviews and approves — when the user signals, execution start.
 4. Each plan_<slug>.md task becomes a TaskCreate item.
 5. Both files updated as work progresses (living docs); decisions are append-only past the divider that exists on both spec_<slug>.md and plan_<slug>.md.
 6. User generally run `/refactor` then `/auto-review` skills when the entire features is developed; fixes are addressed, if any.
 7. User manually review the code. More fixes, if any.
 8. `/create-pr` uses both spec_<slug>.md and plan_<slug>.md to generate a rich PR description.
-9. Self-improving loop: user runs `/improve-principles-and-skills-from-user-feedback` then `english-coach` skills so both AI and humand learn.
+9. Self-improving loop: user runs `/improve-principles-and-skills-from-user-feedback` then `english-coach` skills so both AI and human learn.
 
 ### Self-review both spec and plan before handing it back (step 2 detail)
 
@@ -81,7 +82,7 @@ Read them with fresh eyes by spawning a sub-agent that reports:
 - **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
 - **Contradictions**: do sections within the same doc disagree?
   - Does plan_<slug>.md contradict spec_<slug>.md? Examples: spec assumptions planning overturned, architectural choices superseding spec requirements, scope constraints discovered during planning.
-- **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition? If yes, jump back to step 2 and write/update `scopes.md`.
+- **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition? If yes, write/update `scopes.md` per the `brainstorm` skill's scope-probe step, then re-run this self-review.
 - **PR size**: does the work fit one reviewable PR, or is it large enough to stage into several?
   - If large, **PR Breakdown** must split the tasks into an ordered PR sequence — vertical splits, each shipping its own tests + code + docs — not one oversized PR.
   - Felt anchor: reviewer defect-detection drops past ~400 lines of diff and hard above ~600 (SmartBear/Cisco; Google small-CL) — no code exists yet, so estimate by feel, never invent a line count.
