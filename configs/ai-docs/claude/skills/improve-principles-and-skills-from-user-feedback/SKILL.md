@@ -158,7 +158,7 @@ Steps:
 3. Scan each file for case-insensitive word-boundary matches on `TODO` or `XXX`, regardless of comment syntax.
    - Catches `// TODO`, `# TODO`, `<!-- TODO ... -->`, and bare-text `TODO:` in `.md` files alike.
 
-4. **Exclude** any line containing the exact substring `TODO(lint)` — that form is documented production debt per CLAUDE.md, not user feedback.
+4. **Exclude** any line containing the exact substring `TODO(lint)` when the repo's own CLAUDE.md documents that form as tracked lint debt — production debt, not user feedback.
    - Other parenthesized forms (e.g. `TODO(BRUNO)`, `TODO(plan-step-3)`) are real feedback — keep them.
 
 Per-item field hints:
