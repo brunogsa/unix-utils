@@ -230,10 +230,13 @@ How AI scope, plan, and verify work on any task.
 - [Instruction] **Co-locate related artifacts** -- keep the rules, code, config, and docs on one topic physically adjacent so the topic reads as one contiguous unit.
   - [Why] A topic scattered across a file forces the reader to reassemble it from memory; adjacency makes it scannable in one place and surfaces gaps and duplicates.
 
-- [Instruction] **Don't cross-reference by stale-prone pointer** — never send the reader to "see §X / ADR-N / page N"; recap the fact inline so each mention stands alone.
-  - [Why] A "see §X / ADR-N" pointer rots when a section is renumbered and forces a jump — pure cost; an inline recap stays correct and reads in place.
-  - [Example] Bad: `see HLD §5.6` / `Fundação §6.2` — a bare section number naming another document, with neither a clickable link nor a recap.
-  - [Example] Good: recap the fact in one line, then link the source file/anchor — `[HLD → Riscos](./hld.md#riscos)` — as an optional drill-down.
+- [Instruction] Point to a source only by file path, URL, or named anchor — never by a section or page number (`§X`, `ADR-N`, `page N`, `mitigação N`), even alongside a recap.
+  - [Why] A number renumbers on the next edit and rots silently; a file path, URL, or named anchor tracks the thing itself and the recap already carries the meaning.
+  - [Example] Bad: `see HLD §5.6` / `Fundação §6.2`; and even `recap… (HLD §5.4.14)` — the recap is fine, but the `§5.4.14` still drifts and invites a jump.
+  - [Example] Good: `[HLD → Riscos](./hld.md#riscos)` (named anchor), or "…, per the HLD (`./hld.md`)" — file/anchor, no number.
+
+- [Instruction] Make each cross-reference self-contained — recap the fact inline so the reader understands without opening the target.
+  - [Why] Fluid reading means not jumping between docs; the file/URL exists only for whoever wants the full detail, so if understanding *requires* following the pointer, the recap failed.
 
 - [Instruction] **CRITICAL: Remove unused artifacts** -- code, configs, mocks, env vars, scripts, docs. Trace back and remove all orphans.
   - [Why] Orphan code/configs/mocks accumulate as "is this still used?" debt — readers spend cycles auditing dead weight.

@@ -182,10 +182,10 @@ But plan_<slug>.md can also be wrong; surfacing the choice preserves intent rath
   - Never reference them in committed artifacts (code comments, commit bodies, docs).
   - They stay local and get removed after the session; the next reader won't have them. Put the why in the code comment itself or other appropriated place.
 
-- **Cross-references inside the planning doc expand inline, not by ID alone**.
+- **Cross-references inside the planning doc spell out the behavior — never cite `AC-N` IDs** (doc-standards' no-ID-references rule; the `### AC-N:` headings defining ACs are anchors, not references).
   - Bad: "AC-12 / AC-13 / AC-15 / AC-16a behavior captured" — forces the reader to flip back.
-  - Good: "AC-12 (one school's fetch fails) / AC-13 (one agreement's SKU fetch fails)".
-  - Why: specs/plans are scanned non-linearly; ID-only references add lookup cost on every scan.
+  - Good: "one school's fetch fails / one agreement's SKU fetch fails — behavior captured".
+  - Why: specs/plans are scanned non-linearly; an ID reference adds lookup cost on every scan, while the behavior recap alone already carries the meaning.
 
 - **CRITICAL: Keep spec and plan up to date** -- Stale docs degrade `/create-pr`.
 

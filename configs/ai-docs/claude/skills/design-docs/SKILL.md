@@ -39,13 +39,17 @@ When two docs could carry the same thing, this table says which one owns the ful
 
 Diagram *type* isn't the discriminator — altitude is: the same flow/sequence/state diagram can serve an HLD at big-picture level and an LLD at detail level.
 
-## Relating docs: recap + link by section, let sections flex
+## Relating docs: recap + link by file, let sections flex
 
-When two docs relate, the referencing doc points to the other by **filepath or URL at the section level**, with a **brief recap** of what's there.
+When two docs relate, the referencing doc points to the other by **file path, URL, or named anchor — never by a section or page number**.
+
+It adds a **brief recap** of what's there.
 
 The recap is enough to read standalone; the link is the drill-down for readers who want the full detail.
 
-Recap *and* link, never link alone: a bare "see §X" rots when the target moves and forces a jump to understand, whereas the inline recap keeps each doc readable on its own.
+Recap *and* link, never link alone and never a bare number.
+
+A `§X` pointer rots when the target renumbers and forces a jump to understand; the inline recap keeps each doc readable on its own.
 
 So related sections are **elastic**:
 
@@ -82,7 +86,7 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
   - **The heading title is a scannable summary.** A reader skims the outline and opens a body only for details — so the title must carry the gist, not just the token.
   - Format: `### <TOKEN> — <summary>`, e.g. `### OQ-08 — Preço do item: unitário vs total`.
   - Keep the stable `<TOKEN>` (OQ-/PR-/D-/R-N) in the heading as the cross-reference anchor.
-  - Prefer the token over a `§N.M`-number here — items get added/removed (Open Questions burn down), and `§`-numbers churn.
+  - Cross-reference these items only by their stable `<TOKEN>`, never a `§N.M`-number — items get added/removed and `§`-numbers churn, while the token is a named anchor that tracks the item.
 
 - **Label by what you actually know.** A fact you've validated or assume true is a *Premise*; a genuine unknown is an *Open Question*.
   - Don't dress an unknown as a Premise, nor prematurely close a question you can't yet answer — both directions matter.
