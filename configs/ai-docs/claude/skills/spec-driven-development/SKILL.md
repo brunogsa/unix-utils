@@ -33,11 +33,16 @@ Downstream skills (`/implement`, `/auto-review`, `/create-pr`) discover the file
 ls -1 spec_*.md plan_*.md 2>/dev/null
 ```
 
-Resolve with this decision tree:
+Resolve with this shared baseline:
 
 - **Exactly one spec and one plan** → use both; print the resolved paths, no prompt.
-- **Zero matches** → proceed without spec/plan context; tell the user explicitly.
-- **Any other shape** (multiple specs, multiple plans, only one kind) → list the matches numbered and ask the user which to use before proceeding.
+- **Multiple specs or multiple plans** → list the matches numbered and ask the user which to use before proceeding.
+
+The remaining shapes (zero matches, only one kind) diverge per consumer because their needs differ — each skill's own Discovery section is canonical. Recap:
+
+- `/implement` — a plan is mandatory: plan without spec proceeds plan-only; no plan → ask for the path, else stop.
+- `/auto-review` — only one kind found → prompt the user; zero matches → proceed without spec/plan context, telling the user explicitly.
+- `/create-pr` — both files optional: use whichever exist (either, both, or neither); zero → proceed from commits + diff only.
 
 ### spec_<slug>.md (why / what)
 
