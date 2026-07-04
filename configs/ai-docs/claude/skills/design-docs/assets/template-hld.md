@@ -16,6 +16,8 @@ Traps:
 
 Best practices:
 - Should decrease or eliminate ambiguity
+- Keep the knowns-first section order (premises → decisions → risks → open questions → solution): sections may reference only earlier sections.
+- Only the appendix may be referenced from anywhere (rule in the design-docs skill).
 - Have a section in your doc that states its goal and structure
 - Have an audience in mind
 - Fail fast: ask minor feedbacks along the journey
@@ -56,21 +58,17 @@ TODO
 
 TODO
 
-### 3.2. [AS-IS] Perguntas em aberto
+### 3.2. [AS-IS] Diagrama de Contexto (C4L1)
 
 TODO
 
-### 3.3. [AS-IS] Diagrama de Contexto (C4L1)
+### 3.3. [AS-IS] Fluxogramas / Diagramas de Sequência
+
+#### 3.3.1. [AS-IS] JTBD / UC A
 
 TODO
 
-### 3.4. [AS-IS] Fluxogramas / Diagramas de Sequência
-
-#### 3.4.1. [AS-IS] JTBD / UC A
-
-TODO
-
-#### 3.4.2. [AS-IS] JTBD / UC B
+#### 3.3.2. [AS-IS] JTBD / UC B
 
 TODO
 
@@ -84,11 +82,11 @@ TODO
 
 TODO
 
-### 5.2. [TO-BE] Perguntas em aberto
+### 5.2. [TO-BE] Premissas
 
-> Meta: chegar a "Nenhuma". Cada pergunta é uma sub-seção com título-resumo; ao fechar, vira premissa/decisão/risco ou é embutida na solução, e sai daqui.
+> Tratadas como verdade pelo design; se alguma cair, o doc precisa ser revisitado.
 
-#### OQ-01 — <resumo escaneável da pergunta>
+#### PR-01 — <resumo escaneável da premissa>
 
 TODO
 
@@ -102,39 +100,48 @@ TODO
 
 TODO
 
-### 5.4. [TO-BE] Diagrama de Contexto (C4L1)
-
-TODO
-
-### 5.5. [TO-BE] Fluxogramas / Diagramas de Sequência
-
-#### 5.5.1. [TO-BE] JTBD / UC A
-
-TODO
-
-#### 5.5.2. [TO-BE] JTBD / UC B
-
-TODO
-
-### 5.6. Estratégia de Testes
-
-TODO
-
-### 5.7. Estratégia de Launch
-
-TODO
-
-### 5.8. Pontos de Atenção e Riscos
+### 5.4. [TO-BE] Pontos de Atenção e Riscos
 
 #### R-01 — <resumo escaneável do risco>
 
 TODO
 
-### 5.9. Task Breakdown
+### 5.5. [TO-BE] Perguntas em aberto
+
+> Registro único do doc — inclui perguntas sobre o AS-IS. Meta: chegar a "Nenhuma".
+> Cada pergunta é uma sub-seção com título-resumo; ao fechar, vira premissa/decisão/risco ou é embutida na solução, e sai daqui.
+
+#### OQ-01 — <resumo escaneável da pergunta>
 
 TODO
 
-### 5.10. Dependências
+### 5.6. [TO-BE] Diagrama de Contexto (C4L1)
+
+TODO
+
+### 5.7. [TO-BE] Fluxogramas / Diagramas de Sequência
+
+#### 5.7.1. [TO-BE] JTBD / UC A
+
+TODO
+
+#### 5.7.2. [TO-BE] JTBD / UC B
+
+TODO
+
+### 5.8. Estratégia de Testes
+
+TODO
+
+### 5.9. Estratégia de Launch
+
+TODO
+
+### 5.10. Task Breakdown
+
+TODO
+
+### 5.11. Dependências
 
 TODO
 

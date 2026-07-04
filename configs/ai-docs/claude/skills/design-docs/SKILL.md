@@ -59,6 +59,27 @@ So related sections are **elastic**:
 
 Applies to every pair that relates: HLD↔ADR, HLD↔LLD, LLD↔LLD, LLD↔ADR, HLD↔spec, LLD↔plan, spec↔plan.
 
+## Within a doc: sections reference only what the reader already read
+
+The rule above covers doc→doc pointers, which may point anywhere. This one covers section→section pointers inside a single doc, where reading is linear.
+
+- **A section may reference only earlier sections** — the reader has read them; a forward reference demands a jump into unread territory mid-sentence.
+
+- **The appendix is the only exception**: it is optional-reading lookup material, so any section may reference it.
+
+- **Token refs count as references** — `(OQ-17)` / `(R-11)` may only be cited after their registry section; before it, state the fact inline without the token.
+  - Item-to-item token refs inside the same registry section are fine: the section's roadmap already introduced every item.
+
+- **Order sections knowns-first so refs flow backward**: Context → Requirements → Premises → Decisions → Risks → Open Questions → core solution (design, mappings, flows) → Appendix.
+  - Unknowns cite the knowns that spawned them; the core solution cites everything; the HLD/LLD templates encode this order.
+
+- **Circular pairs** (a premise and the risk it creates, an open question and its risk): the earlier item keeps only the inline recap — no token.
+  - The later item carries the backward token.
+
+- **A forward pointer must be linkless**: "detalhado adiante" / "detailed ahead" with no anchor, token, or section number — it signals detail is coming without demanding the jump.
+
+- Applies to all five docs — ADR, HLD, LLD, spec, plan.
+
 ## RFC is a status, not a doc
 
 An RFC is a doc *circulating for comments*, not a sixth document.
@@ -86,7 +107,9 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
   - **The heading title is a scannable summary.** A reader skims the outline and opens a body only for details — so the title must carry the gist, not just the token.
   - Format: `### <TOKEN> — <summary>`, e.g. `### OQ-08 — Preço do item: unitário vs total`.
   - Keep the stable `<TOKEN>` (OQ-/PR-/D-/R-N) in the heading as the cross-reference anchor.
-  - Cross-reference these items only by their stable `<TOKEN>`, never a `§N.M`-number — items get added/removed and `§`-numbers churn, while the token is a named anchor that tracks the item.
+  - Cross-reference these items only by their stable `<TOKEN>`, never a `§N.M`-number.
+    - Items get added/removed and `§`-numbers churn, while the token is a named anchor that tracks the item.
+  - Tokens obey the reading-order rule above: cite them only from text after their registry section; earlier text recaps inline without the token.
 
 - **Label by what you actually know.** A fact you've validated or assume true is a *Premise*; a genuine unknown is an *Open Question*.
   - Don't dress an unknown as a Premise, nor prematurely close a question you can't yet answer — both directions matter.

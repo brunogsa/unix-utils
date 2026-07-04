@@ -15,6 +15,8 @@ How an LLD complements its HLD(s) (do NOT repeat them — an LLD may reference o
 Keep it simple:
 - Delete any section that does not apply (e.g. mockups for a backend-only change, AS-IS for greenfield).
 - A section is worth keeping only if it removes ambiguity for the implementer.
+- Keep the knowns-first section order (premises → decisions → risks → open questions → detailed design): sections may reference only earlier sections.
+- Only the appendix may be referenced from anywhere (rule in the design-docs skill).
 -->
 
 # LLD — TODO (título — componente / integração)
@@ -41,7 +43,7 @@ TODO — requisitos funcionais em alto nível. Critérios de aceite concretos e 
 
 ### 2.2. Não-Funcionais (técnicos)
 
-TODO — metas/restrições a atingir (ex.: latência, throughput, disponibilidade). O design que as atende fica em 4.7–4.9.
+TODO — metas/restrições a atingir (ex.: latência, throughput, disponibilidade). O design que as atende fica nas seções de erros, observabilidade e configuração, adiante.
 
 ## 3. AS-IS — apenas o que muda
 
@@ -53,17 +55,17 @@ TODO
 
 TODO
 
-### 3.3. Perguntas em aberto
+## 4. TO-BE — Design detalhado
 
-> Meta: chegar a "Nenhuma". Cada pergunta é uma sub-seção com título-resumo; ao fechar, vira premissa/decisão/risco ou é embutida na solução/mapeamento, e sai daqui.
+### 4.1. Premissas
 
-#### OQ-01 — <resumo escaneável da pergunta>
+> Tratadas como verdade pelo design; se alguma cair, o LLD precisa ser revisitado.
+
+#### PR-01 — <resumo escaneável da premissa>
 
 TODO
 
-## 4. TO-BE — Design detalhado
-
-### 4.1. Decisões de design (DRs)
+### 4.2. Decisões de design (DRs)
 
 TODO — decisões táticas locais; ADRs de arquitetura ficam no HLD (referencie-os).
 
@@ -75,49 +77,58 @@ TODO
 
 TODO
 
-### 4.2. Design de código (componentes, classes, responsabilidades, interfaces)
-
-TODO
-
-### 4.3. Modelo de dados (DER, tabelas, chaves, índices, TTL, migrações)
-
-TODO
-
-### 4.4. Contratos de API / Eventos (request/response, status codes, auth, validação, exemplos)
-
-TODO
-
-### 4.5. Mapeamentos de/para (campo a campo)
-
-TODO
-
-### 4.6. Diagramas (design de código/componentes, fluxograma, sequência, máquina de estados — incl. caminhos de erro)
-
-TODO
-
-### 4.7. Erros, idempotência e concorrência (retry/backoff, DLQ, locks)
-
-TODO
-
-### 4.8. Observabilidade e sustentação (logs, métricas, alarmes)
-
-TODO
-
-### 4.9. Configuração e segurança (feature flags, segredos, authz, PII)
-
-TODO
-
-### 4.10. Estratégia de testes e UAT (alto nível, p/ alinhamento)
-
-TODO — abordagem de testes/UAT em alto nível. Títulos de teste concretos vivem no plan (recap + link); casos de borda/falha são cobertos via diagramas/prose em 4.6/4.7.
-
-### 4.11. Riscos e pontos de atenção (de implementação)
+### 4.3. Riscos e pontos de atenção (de implementação)
 
 #### R-01 — <resumo escaneável do risco>
 
 TODO
 
-### 4.12. Task breakdown (títulos), dependências e estratégia de launch
+### 4.4. Perguntas em aberto
+
+> Registro único do doc — inclui perguntas sobre o AS-IS. Meta: chegar a "Nenhuma".
+> Cada pergunta é uma sub-seção com título-resumo; ao fechar, vira premissa/decisão/risco ou é embutida na solução/mapeamento, e sai daqui.
+
+#### OQ-01 — <resumo escaneável da pergunta>
+
+TODO
+
+### 4.5. Design de código (componentes, classes, responsabilidades, interfaces)
+
+TODO
+
+### 4.6. Modelo de dados (DER, tabelas, chaves, índices, TTL, migrações)
+
+TODO
+
+### 4.7. Contratos de API / Eventos (request/response, status codes, auth, validação, exemplos)
+
+TODO
+
+### 4.8. Mapeamentos de/para (campo a campo)
+
+TODO
+
+### 4.9. Diagramas (design de código/componentes, fluxograma, sequência, máquina de estados — incl. caminhos de erro)
+
+TODO
+
+### 4.10. Erros, idempotência e concorrência (retry/backoff, DLQ, locks)
+
+TODO
+
+### 4.11. Observabilidade e sustentação (logs, métricas, alarmes)
+
+TODO
+
+### 4.12. Configuração e segurança (feature flags, segredos, authz, PII)
+
+TODO
+
+### 4.13. Estratégia de testes e UAT (alto nível, p/ alinhamento)
+
+TODO — abordagem de testes/UAT em alto nível. Títulos de teste concretos vivem no plan (recap + link); casos de borda/falha são cobertos via diagramas/prose nas seções de diagramas e de erros.
+
+### 4.14. Task breakdown (títulos), dependências e estratégia de launch
 
 TODO — breakdown em títulos p/ estimativas, paralelização e dependências entre times; estratégia de launch (FF, rollout incremental, decisão de migração/backfill). Tarefas commit-sized, caminhos de arquivo e passos concretos vivem no plan.
 
