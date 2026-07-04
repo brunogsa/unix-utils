@@ -103,6 +103,14 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
 
 - **Trade-offs as sub-bullets, not a table.** For a decision's pros/cons, nest bullets under each option — more scannable and easier to keep inside the density cap than a markdown table.
 
+- **Cluster items by theme, then order the clusters along one stable narrative.** Don't leave the four sections in the accidental order the tokens were minted.
+  - Pick a narrative the whole doc already follows and reuse it in every section — e.g. the payload/call flow (source-of-truth → header → items → response → read-back), or foundational-scope-first.
+  - Reorder freely: the stable `<TOKEN>` is a named anchor, so moving a `### OQ-08` block never breaks a `(OQ-08)` cross-reference elsewhere.
+  - **Never renumber a token to fit the new order** — that *does* break every reference.
+  - Open the section with a **roadmap** naming each cluster and listing its tokens in reading order (one cluster per line), then order the `###` items to match.
+  - The roadmap gives the reader the map before the details.
+  - Prefer the roadmap over per-cluster headings — a heading with a single item under it violates the "never a one-item heading" rule, and singleton clusters are common.
+
 ## The five docs at a glance
 
 Shared mental model for which doc is which — not a step you need help running.
