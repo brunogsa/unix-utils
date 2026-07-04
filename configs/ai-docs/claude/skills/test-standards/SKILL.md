@@ -13,16 +13,22 @@ Principles for any test work. Each section pairs a principle with its WHY, with 
 ## Test types
 
 - [Instruction] Unit tests exercise a single function or module in isolation — especially good for stress-testing corner cases in leaf functions (parsers, normalizers, validators, formatters).
-  - [Why] Fast execution shortens the code-test iteration cycle; but isolation means they don't prove business value is delivered — complement with integration tests.
+  - [Why] Fast execution shortens the code-test iteration cycle, but isolation means they don't prove business value is delivered.
 
-- [Instruction] Integration tests exercise multiple units together with some parts mocked (typically external/IO boundaries like DB, HTTP, queues) and should be most used type.
+- [Instruction] Integration tests exercise multiple units together with some parts mocked — typically external/IO boundaries like DB, HTTP, queues.
   - [Why] They verify units collaborate correctly without the full-stack cost of E2E, while still exercising enough context to validate real behavior.
+
+- [Instruction] Make integration tests the most-used tier of the suite.
+  - [Why] They hit the sweet spot — more real behavior than unit tests, far cheaper and less brittle than E2E — so the bulk of coverage belongs there.
 
 - [Instruction] Contract tests verify the API boundary between two systems — request/response shape, status codes, error format — without running the full stack.
   - [Why] A contract test is cheaper and faster than E2E (no browser or full-stack setup) and catches incompatibilities early, before they surface in slow E2E runs or production.
 
 - [Instruction] E2E tests exercise real scenarios end-to-end with no mocking — only fake or test data — validating the full system as users experience it.
-  - [Why] No mocking means they catch integration bugs narrower tests miss, but they're slow, brittle, and expensive to maintain — use sparingly for critical paths.
+  - [Why] No mocking means they catch integration bugs that narrower tests miss.
+
+- [Instruction] Reserve E2E for a few critical paths — don't grow the E2E tier broadly.
+  - [Why] E2E is slow, brittle, and expensive to maintain, so broad coverage there costs far more than the marginal bugs it catches beyond cheaper tiers.
 
 ## Choosing the test type
 
