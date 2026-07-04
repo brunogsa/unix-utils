@@ -179,5 +179,5 @@ Apply approved improvements before creating the PR. This makes the skill self-im
 ### 4. Create the PR
 
 - Push branch if needed (with -u)
-- Create PR as **draft** using `gh pr create --draft` with the content from rich-pr-description.md
+- Create PR as **draft** using `gh pr create --draft` with the content from pr-description.md
 - Return the PR URL
