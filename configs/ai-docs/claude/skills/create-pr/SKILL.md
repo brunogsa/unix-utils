@@ -97,10 +97,7 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits, and doesn't s
   - Whitespace gives scan-anchors. Bullets stay tight; flowing narrative stays prose.
 - **Section names AND body prose in the PR's primary language** -- translate headers and recurring body terms; engineering jargon stays English. Examples: see [`references/decision-quality.md`](references/decision-quality.md).
 - **Blank line BEFORE every list** -- prevents CommonMark merging ordered lists that don't start at `1.` into the preceding paragraph. Defensive: always insert, regardless of list type or start number.
-- **CRITICAL: Density caps verified by script** -- every prose line, bullet, and sub-bullet ≤256 chars / ≤32 words. Break longer lines into bullet + sub-bullets, or into more (shorter) paragraphs.
-  - Run `~/.claude/skills/doc-standards/scripts/check-density.sh pr-description.md` after writing the body, before showing the user.
-  - Output: `<line>:<chars>:<words>` per violation. Exit 1 = violations to fix; iterate until exit 0.
-  - Rewrite patterns (paragraph → bullets+sub-bullets, long bullet → bullet + sub-bullets): see `~/.claude/skills/doc-standards/references/density-rules.md`.
+- **CRITICAL: Density caps** -- every prose line, bullet, and sub-bullet ≤256 chars / ≤32 words. Step 2.5 owns the script-verification procedure.
 - **Never use markdown tables in PR bodies** -- tables fragment scanning, break on narrow widths, separate claim from evidence. Replace with bullets where evidence is a sub-bullet or inline collapsible.
 - **`>` blockquotes only for quoted content or per-bullet evidence pointers, not section intros** -- a `>` at section top creates a gray bar visually indented below H4 headings, inverting hierarchy.
   - Use plain paragraphs for intros; reserve `>` for quoted external text or per-AC "Covered by..." one-liners.
