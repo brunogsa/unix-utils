@@ -92,7 +92,7 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits, and doesn't s
 
 - **Bold topic prefix on every bullet** -- start each bullet with `**Topic** --` so reviewers can scan the bold words and skip details they don't need
 - **Be concise** -- one short sentence per bullet. Sub-bullets only when essential.
-- **No blank lines between bullets** -- keep lists tight. GitHub adds extra spacing with blank lines.
+- **Bullet spacing follows doc-standards** -- blank line after any bullet that has a sub-bullet or nears the density cap; other bullets stay tight (no blank line between them).
 - **One sentence per paragraph for dense factual prose** -- when a body paragraph stacks ≥2 atomic claims (e.g., CI status + scope + count), split each into its own short paragraph.
   - Whitespace gives scan-anchors. Bullets stay tight; flowing narrative stays prose.
 - **Section names AND body prose in the PR's primary language** -- translate headers and recurring body terms; engineering jargon stays English. Examples: see [`references/decision-quality.md`](references/decision-quality.md).
