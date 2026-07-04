@@ -61,7 +61,7 @@
       "Read(~/.config/gh/**)"
     ]
   },
-  "model": "opus",
+  "model": "sonnet",
   "hooks": {
     "PreToolUse": [
       {
@@ -164,7 +164,7 @@
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
-  "advisorModel": "opus",
+  "advisorModel": "fable",
   "promptSuggestionEnabled": true,
   "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
