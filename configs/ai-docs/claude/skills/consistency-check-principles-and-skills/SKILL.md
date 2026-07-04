@@ -57,7 +57,8 @@ Fix: **self-consistency** — run 3 samples in parallel, keep only what ≥2 agr
 [Instruction] **Match key = `(heuristic-section-number, primary-file:line)`.** Two findings match iff both fields match exactly. Confidence tier, diff wording, and prose vary stochastically across children — only the key counts for voting.
 
 - `heuristic-section-number` — the integer 1–7 from §Heuristics (Contradictions=1, …, Term consistency=7).
-- `primary-file:line` — the first `file:line` cited in the finding body. For multi-file findings (contradictions cite two), use the lexicographically lower path.
+- `primary-file:line` — the lexicographically lowest `file:line` mentioned ANYWHERE in the finding body, not just its header (multi-file findings like contradictions cite two or more).
+  - Never key on "the first file cited" — citation order varies with prose across children, so identical findings key differently and silently lose the vote.
 
 [Instruction] **CRITICAL: Children MUST emit a machine-readable key line immediately under each finding ID.** Format is fixed and grep-able — no free-text parsing in the merge step.
 
