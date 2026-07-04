@@ -1,27 +1,16 @@
 ---
 name: refactor
-description: "USE for end-of-branch refactoring sweep over unpushed changes. DEFAULT: explicit trigger ('refactor this' / 'clean up' / /refactor). AUTONOMOUS: first step of end-of-branch wrap-up (refactor → auto-review + fixes → create-pr)."
+description: "USE for end-of-branch refactoring sweep over unpushed changes. Triggers: 'refactor this' / 'clean up' / /refactor, or dispatch from another skill's flow."
 disable-model-invocation: false
 ---
 
 # Simplify Unpushed & Uncommitted Code
 
-Detect refactoring opportunities in unpushed/uncommitted code, then apply them one-by-one in the main conversation for user review.
+Detect refactoring opportunities in unpushed/uncommitted code, then apply the user-approved batch in the main conversation.
 
 ## When to invoke
 
-**Default mode (interactive):** only on explicit user trigger.
-
-- Direct `/refactor` invocation or phrases like "refactor this" / "clean this up" / "simplify what I just wrote".
-- Do NOT auto-trigger from "user just finished editing some code" or similar; the user reserves this command.
-
-**Autonomous mode:** run as the FIRST step of the end-of-branch wrap-up sequence:
-
-1. `/refactor` — sweep + apply approved opportunities
-2. final `/auto-review` — quality gate; fix MANDATORY findings
-3. `/create-pr` — generate the PR description
-
-This ordering matters: refactor first so auto-review sees the polished code; auto-review second so create-pr's description reflects the final state.
+Direct `/refactor` invocation, phrases like "refactor this" / "clean this up" / "simplify what I just wrote", or dispatch from another skill's flow (e.g. `/implement`'s batch-end tail).
 
 **NOT for in-task cleanup.**
 

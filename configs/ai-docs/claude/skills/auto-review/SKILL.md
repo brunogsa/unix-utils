@@ -1,6 +1,6 @@
 ---
 name: auto-review
-description: "USE for code review on a local branch (no PR URL — use /code-review). Triggers: 'review this branch' / 'audit my changes' / /auto-review. AUTONOMOUS: plan execution + end-of-branch pass."
+description: "USE for code review on a local branch (no PR URL — use /code-review). Triggers: 'review this branch' / 'audit my changes' / /auto-review."
 disable-model-invocation: false
 ---
 
@@ -10,15 +10,7 @@ Orchestrate a local code review by running the `reviewer-agent` pipeline
 end-to-end. The pipeline runs serially — no nested fan-out — so the review
 stays within a predictable token budget.
 
-**Default: run in the calling session.** Specialist passes stream live so
-the user can watch findings as they land. This is the right choice when
-`/auto-review` is invoked in a fresh session (where there's no prior
-context to bias against) or when the user wants visibility into each wave.
-
-**Opt-in `--isolate` flag: dispatch a subagent.** The subagent boundary
-removes any bias from the current session's conversation. Use when the
-review runs inside a long-lived session that already has opinions about
-the diff (e.g. the same session that wrote the code).
+Execution mode (in-session vs. `--isolate` subagent) and the fresh-session check are shared across both review callers — see "How callers dispatch" in `~/.claude/skills/reviewer-agent/SKILL.md`.
 
 ## Usage
 
@@ -31,31 +23,19 @@ the diff (e.g. the same session that wrote the code).
 Examples:
 - `/auto-review` — current branch vs. the repo's default (auto-detected), runs in-session.
 - `/auto-review develop` — current branch vs. `develop`, in-session.
-- `/auto-review HEAD~2` — review only the last 2 commits (per-task scoping).
+- `/auto-review HEAD~2` — review only the last 2 commits.
 - `/auto-review --isolate` — current branch vs. default, wrapped in a subagent.
 - `/auto-review main --isolate` — explicit base + isolated.
 
 ## When to invoke
 
-**Default mode (interactive):** only on explicit user trigger.
+Direct `/auto-review` invocation or phrases like "review this branch" / "audit my changes" / "check what I just did" / "run a local review".
 
-Triggers include direct `/auto-review` invocation or phrases like "review this branch" / "audit my changes" / "check what I just did" / "run a local review".
+Another skill's flow may also dispatch it (e.g. `/implement`'s batch-end tail).
 
-Do NOT auto-trigger from "task done" or similar; the user reserves this command.
-
-**Autonomous mode** has two trigger points:
-
-1. **Per-task gate during plan execution** — `/auto-review HEAD~N` after each task's commits, where N is the number of commits the task produced.
-   - Fix MANDATORY findings before the next task.
-   - Log RECOMMENDED/lower to the resolved `plan_<slug>.md` as incidentals.
-2. **Final pass at end-of-branch** — after `/refactor` and before `/create-pr` (sequence: refactor → final auto-review + fixes → create-pr). Catches anything refactor introduced and gives create-pr clean ground to describe.
-
-The base argument accepts any git ref (commit SHA, branch name, `HEAD~N`), so per-task scoping reuses the full-branch flow.
+The base argument accepts any git ref (commit SHA, branch name, `HEAD~N`), so you can scope the review to a subset of commits and still reuse the full-branch flow.
 
 ## Execution
-
-For maximum thinking depth on the wave pipeline, the user may run
-`/effort max` before invoking this command.
 
 Resolve `<BASE_BRANCH>`:
 
@@ -123,36 +103,21 @@ The reviewer-agent expects these inputs:
     concatenated content used as `{pr_context}` for every specialist
     (replacing the default `spec_<slug>.md` + `plan_<slug>.md` lookup).
 
-**Default — run in the calling session (no `--isolate`):**
+With the inputs above resolved, dispatch per "How callers dispatch" in `~/.claude/skills/reviewer-agent/SKILL.md`.
 
-Read `~/.claude/skills/reviewer-agent/SKILL.md` and execute its wave
-pipeline directly in this session. Treat the inputs above as if they
-arrived in the skill's "Parse the input header" step. Walk every wave
-(0 → 6) yourself; do not spawn any Agent. Each specialist pass and Wave 5
-density check will stream into the conversation, giving the user live
-visibility.
-
-**Opt-in — `--isolate` was passed:**
-
-Spawn a single Agent and put the inputs above in its prompt body. Tell
-the subagent to read `~/.claude/skills/reviewer-agent/SKILL.md` and follow
-it as the orchestrator. The subagent runs the full pipeline itself — do
-not spawn additional Agents from there. The user sees only the final
-summary, not the per-wave progress; the trade-off buys bias isolation
-from the calling session's conversation history.
+Run the fresh-session check there, then either walk the pipeline in-session or spawn the isolated subagent.
 
 After the pipeline finishes (either mode), the review is at
 `./auto-review_<timestamp>.md` (Wave 6 summary contains the exact resolved
 path). Print the file path, per-severity counts, skipped files, and the
-Wave 6 summary. Multiple runs accumulate as separate timestamped files —
-preserves ordering across per-task and end-of-branch invocations.
+Wave 6 summary. Multiple runs accumulate as separate timestamped files,
+preserving their order when the user runs several reviews in one CWD.
 
 ## Acting on findings
 
-Before applying any fix, emit the "leveraging tasklist" trigger phrase so CLAUDE.md's TaskList protocol takes over. The skill's only job here is choosing the gating mode and the category prefix per finding.
+Before applying any fix, emit the "leveraging tasklist" trigger phrase so CLAUDE.md's TaskList protocol takes over. The skill's only job here is choosing the category prefix per finding.
 
-- **Interactive mode:** ask which findings to address (all MANDATORY, specific numbers, none). On selection, emit *"Selected N findings. Leveraging tasklist."*
-- **Autonomous mode (per-task or end-of-branch):** MANDATORY findings are fixed without asking. Emit *"N MANDATORY findings to fix. Leveraging tasklist."* before touching code.
+- Ask which findings to address (all MANDATORY, specific numbers, none). On selection, emit *"Selected N findings. Leveraging tasklist."*
 - Category prefix per task: `[Drift]` for collateral fixes needed to make the current task work, `[Scout]` for pre-existing issues the review surfaced, `[Refactor]` or `[Task]` otherwise.
 
 ## Verify the full check matrix after fixes — MANDATORY
