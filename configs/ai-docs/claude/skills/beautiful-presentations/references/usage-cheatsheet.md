@@ -46,24 +46,24 @@ Common slide patterns, do/don't lists, and tips. Companion to `design-principles
 ## Avoiding Common Mistakes
 
 **Don't:**
-- ❌ Cram multiple ideas onto one slide
-- ❌ Use more than one font family
-- ❌ Mix too many colors (stick to 3-4)
-- ❌ Create inconsistent spacing
-- ❌ Use low-quality or generic stock photos
-- ❌ Add unnecessary animations or transitions
-- ❌ Center-align everything (causes visual chaos)
-- ❌ Forget margins (minimum 60px)
+- Cram multiple ideas onto one slide
+- Use more than one font family
+- Mix too many colors (stick to 3-4)
+- Create inconsistent spacing
+- Use low-quality or generic stock photos
+- Add unnecessary animations or transitions
+- Center-align everything (causes visual chaos)
+- Forget margins (minimum 60px)
 
 **Do:**
-- ✅ One clear idea per slide
-- ✅ Consistent font weights and sizes
-- ✅ Monochromatic or two-tone palette
-- ✅ Systematic spacing using CSS variables
-- ✅ Professional, authentic imagery
-- ✅ Minimal or no transitions
-- ✅ Strategic alignment (left for text, center for titles)
-- ✅ Generous white space throughout
+- One clear idea per slide
+- Consistent font weights and sizes
+- Monochromatic or two-tone palette
+- Systematic spacing using CSS variables
+- Professional, authentic imagery
+- Minimal or no transitions
+- Strategic alignment (left for text, center for titles)
+- Generous white space throughout
 
 ## Tips for Excellence
 

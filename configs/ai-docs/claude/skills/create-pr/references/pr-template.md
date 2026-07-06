@@ -70,7 +70,7 @@ Typical sections worth including:
   - Request + response (pretty-printed JSON, one field per line per the "JSON snippets" rule in SKILL.md).
 - **High-risk CI checks worth highlighting** — e.g., a migration that takes a maintenance-window lock, or a new integration suite worth calling out by count + scope.
   - Link the run; don't restate what the green badge already says.
-- **Pre-prod / staging deploy** — only if you have the link + smoke result NOW; otherwise omit (don't park as `⚠️ TODO collect post-merge`).
+- **Pre-prod / staging deploy** — only if you have the link + smoke result NOW; otherwise omit (don't park as `TODO collect post-merge`).
 - **Screenshots** — only when UI actually changed.
 
 Drop categories without value-add (lint, generic build, security scans, "N/A — backend-only" placeholders).

@@ -290,7 +290,7 @@ Reviewer wrote what they wrote. Acknowledge it landed, link the proof, move on. 
 ```
 <optional one-word ack> https://github.com/<OWNER_REPO>/pull/<n>/commits/<FULL_SHA>
 
-🤖 _via Claude Code (`address-pr-comments`)_
+_via Claude Code (`address-pr-comments`)_
 ```
 
 Ack is optional — bare URL works.
@@ -306,7 +306,7 @@ Ack is optional — bare URL works.
 ```
 Dropping this one — <drop_reason>
 
-🤖 _via Claude Code (`address-pr-comments`)_
+_via Claude Code (`address-pr-comments`)_
 ```
 
 ### 7b. Reply API per comment source
@@ -327,7 +327,7 @@ For top-level / review-summary replies, prefix with `@<original_author> re: <lin
   - The answer carries the user's reasoning in the user's voice.
   - Tagging as AI-assisted dilutes ownership (see `references/reply-patterns.md`).
 
-Signature literal: `🤖 _via Claude Code (`address-pr-comments`)_`. Only exception to the no-emoji rule — Claude Code's visual convention earns it.
+Signature literal: `_via Claude Code (`address-pr-comments`)_`. Plain text only — the global no-emoji rule applies to posted replies too.
 
 ## Step 8: Final report (main)
 

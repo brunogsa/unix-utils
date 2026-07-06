@@ -6,8 +6,8 @@ Real edits the user has made to AI-generated replies, captured to justify the te
 
 Reviewer wrote what they wrote. Acknowledge it landed, link the proof, move on. Anything more usually gets deleted post-post.
 
-- ❌ "Pegada boa — exatamente o cenário..." — unsolicited praise reads as canned-bot empathy.
-- ❌ "Cobertura adicionada em <sha>: <url>. summarize() reusa o mesmo X, mas sem cenário pinned..." — re-explaining the reviewer's own point is patronizing.
+- "Pegada boa — exatamente o cenário..." — unsolicited praise reads as canned-bot empathy.
+- "Cobertura adicionada em <sha>: <url>. summarize() reusa o mesmo X, mas sem cenário pinned..." — re-explaining the reviewer's own point is patronizing.
 
 ## Apply replies — examples that survived
 

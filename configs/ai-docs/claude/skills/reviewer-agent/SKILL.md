@@ -271,7 +271,7 @@ We don't comment on code outside the diff — that's noise the author didn't ask
 2. Build `$work_dir/review-payload.json` with jq for the inline comments only.
    - **Leave `body` empty** — the Review Guide is delivered as a separate standalone PR comment in step 5.
      - Rationale: the pending-review body is not a good carrier for the guide; it gets buried behind the GitHub review filter and is hard for the human reviewer to find.
-   - Every inline comment body gets the signature footer appended: two newlines + `— 🤖 claude`.
+   - Every inline comment body gets the signature footer appended: two newlines + `— claude`.
    - Include `start_line`/`start_side` only on multi-line ranges (`line > start_line`).
    - Target shape:
 
@@ -286,7 +286,7 @@ We don't comment on code outside the diff — that's noise the author didn't ask
          "side": "RIGHT",
          "start_line": 40,
          "start_side": "RIGHT",
-         "body": "<finding body>\n\n— 🤖 claude"
+         "body": "<finding body>\n\n— claude"
        }
      ]
    }
@@ -323,7 +323,7 @@ We don't comment on code outside the diff — that's noise the author didn't ask
 
    ```markdown
    <details>
-   <summary><strong>📋 Code review — guia de leitura</strong> (clique para expandir)</summary>
+   <summary><strong>Code review — guia de leitura</strong> (clique para expandir)</summary>
 
    Este comentário acompanha a [revisão automática neste PR](<pr-files-url>). Use ele pra localizar os hunks que valem mais atenção antes de mergulhar no diff inteiro.
 
@@ -331,7 +331,7 @@ We don't comment on code outside the diff — that's noise the author didn't ask
 
    </details>
 
-   — 🤖 claude
+   — claude
    ```
 
    Print both `review_url` (pending review) and `guide_url` (standalone comment) in Wave 6.

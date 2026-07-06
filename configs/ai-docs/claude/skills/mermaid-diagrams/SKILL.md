@@ -75,11 +75,11 @@ Every node, box, or actor must name the actual component it represents — never
 When a node carries more than its name — vendor tag, responsibilities, status notes, bullets — split the label into a **header** (identity) and a **body** (details) with a blank line: `<br/><br/>`.
 
 - **Header** = what the node *is*: the name, plus an optional `« Vendor »` tech tag on its own line and/or a short alias like `(SeFaz)` / `(Configurador)`.
-- **Body** = what it *does* or what's notable: responsibilities, bullets, ⚠ caveats, migration intent.
+- **Body** = what it *does* or what's notable: responsibilities, bullets, caveats, migration intent.
 - Put the blank line after the **whole** header block (name + vendor + alias), before the first detail.
 
 ~~~text
-oms["OMS<br/>« Salesforce »<br/><br/>• Orquestração: Pedidos, Invoice<br/>⚠ acoplado à nuvem SF"]
+oms["OMS<br/>« Salesforce »<br/><br/>• Orquestração: Pedidos, Invoice<br/>Atenção: acoplado à nuvem SF"]
 cgi["CGI (Cadastro Global)<br/><br/>Fonte da Verdade: Escolas, Faculdades<br/>expõe eventos + API"]
 ~~~
 

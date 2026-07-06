@@ -120,7 +120,7 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits, and doesn't s
 - **Explain domain terms inline on first use** -- define team-specific terms ("bulk-failure", "all_skus row", "shadow read") parenthetically on first mention. Don't assume shared vocabulary.
 - **Frame as user/system impact, not internal model** -- "afetando fluxos de orders, invoicing, sync" beats "compartilhada com fluxos de write". Consequences over taxonomy.
 - **Plain language in decisions, not insider shorthand** -- state the concrete consequence if reversed (e.g., "exposed to injection or DoS"), not the abstract property ("fail-loud"). Replace jargon with plain terms.
-- **⚠️ marker on operational risks** -- prefix decisions/checklist items with ⚠️ when they need human coordination (maintenance windows, on-call handoff, manual deploy steps, irreversible migrations).
+- **"WARNING:" prefix on operational risks** -- prefix decisions/checklist items with "WARNING:" when they need human coordination (maintenance windows, on-call handoff, manual deploy steps, irreversible migrations).
 - **Explain "how is it different"** -- when introducing a new method/function, briefly say what makes it different from existing ones. Don't just name it.
 - **Don't list types/interfaces** -- type names are visible in the diff. Listing them is noise.
 - **Drop implementation jargon from planned items** -- don't say "(injectable NestJS)" or "(pure function)". Describe what it does for the reviewer.
@@ -140,7 +140,7 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits, and doesn't s
   - ACs link to `#scenario-N`. Keeps TAC scannable, locality one click away.
 - **No claim without evidence — drop the scenario, don't park it** -- can't paste the verifiable artifact → DROP the bullet.
   - "Covered by automated tests at path/spec.ts" isn't evidence (the diff already shows it).
-  - Same for sections: if "Pre-prod pipeline" can only say "⚠️ TODO collect post-merge", remove the section. TODO sections rot and dilute.
+  - Same for sections: if "Pre-prod pipeline" can only say "TODO collect post-merge", remove the section. TODO sections rot and dilute.
 - **Coverage-only scenarios — group, don't enumerate** -- when an automated suite covers many scenarios with no manual evidence, write ONE intro pointing to the suite + CI link.
   - Then list scenarios as plain bullets. Don't repeat empty `<details>covered by tests</details>` shells.
 

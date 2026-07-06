@@ -8,7 +8,7 @@
       "mode": "github",
       "prompt": "/code-review <SMALL_PR_URL>",
       "setup": "Pick or craft a small open PR (≤5 files, ≤100 lines changed) with at least one real bug (e.g., off-by-one, missing await, or a subjective style issue). Prefer a throwaway repo so the pending review can be deleted without noise.",
-      "expected_output": "A PENDING review appears in the GitHub UI. Body contains the Review Guide (Contexto de negócio, Decisões, Onde focar, Mudanças incidentais — sections present only when they add value). Inline comments anchor on the right lines and carry the '— 🤖 claude' signature footer. Token summary printed to terminal.",
+      "expected_output": "A PENDING review appears in the GitHub UI. Body contains the Review Guide (Contexto de negócio, Decisões, Onde focar, Mudanças incidentais — sections present only when they add value). Inline comments anchor on the right lines and carry the '— claude' signature footer. Token summary printed to terminal.",
       "assertions": [],
       "files": []
     },
@@ -17,7 +17,7 @@
       "name": "gh-already-reviewed-early-exit",
       "mode": "github",
       "prompt": "/code-review <PR_URL_THAT_ALREADY_HAS_A_CLAUDE_REVIEW>",
-      "setup": "Re-run /code-review on a PR that already carries the '— 🤖 claude' signature from a prior pending review. Wave 0 should abort before launching specialists.",
+      "setup": "Re-run /code-review on a PR that already carries the '— claude' signature from a prior pending review. Wave 0 should abort before launching specialists.",
       "expected_output": "Skill prints 'abort: prior Claude review detected' (or equivalent). No specialist Agent calls are made. Token total reflects only the Wave 0 Haiku call.",
       "assertions": [],
       "files": []

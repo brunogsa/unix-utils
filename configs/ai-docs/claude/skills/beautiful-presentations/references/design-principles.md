@@ -164,15 +164,17 @@ This document outlines core design principles for creating Apple-inspired minima
 
 ### Common Mistakes to Avoid
 
-❌ Cramming too much content on one slide
-❌ Inconsistent spacing between elements
-❌ Insufficient margins
-❌ Center-aligning everything (causes visual chaos)
+Don't:
+- Cramming too much content on one slide
+- Inconsistent spacing between elements
+- Insufficient margins
+- Center-aligning everything (causes visual chaos)
 
-✅ One main idea per slide
-✅ Consistent rhythm of spacing
-✅ Generous margins
-✅ Strategic alignment (left for text, center for titles)
+Do:
+- One main idea per slide
+- Consistent rhythm of spacing
+- Generous margins
+- Strategic alignment (left for text, center for titles)
 
 ## Visual Elements
 

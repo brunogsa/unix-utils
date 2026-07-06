@@ -8,7 +8,7 @@ disable-model-invocation: true
 # Answer PR Comments as Claude
 
 Fetch comments on a GitHub PR, filter those addressed to Claude, discuss each
-with the user on terminal, and post approved replies with a `🤖 Claude:` prefix.
+with the user on terminal, and post approved replies with a `Claude:` prefix.
 
 ## Process
 
@@ -53,12 +53,12 @@ After the user approves a conclusion, post it as a reply:
 gh api repos/{owner}/{repo}/pulls/{number}/comments \
   -X POST \
   -F in_reply_to={comment_id} \
-  -f body="🤖 Claude:
+  -f body="Claude:
 
 {approved conclusion}"
 ```
 
-Every reply MUST be prefixed with `🤖 Claude:` followed by a blank line,
+Every reply MUST be prefixed with `Claude:` followed by a blank line,
 so reviewers immediately know it's AI-generated context, not the user
 talking to themselves.
 
