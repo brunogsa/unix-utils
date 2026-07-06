@@ -81,7 +81,14 @@ function jira-api-request() {
     return 1
   fi
 
-  echo "$response"
+  # NOTE: printf, not echo — these library functions are `source`d into the
+  # caller's interactive shell (zsh here), and zsh's builtin echo reinterprets
+  # backslash escapes (\n, \t) by default. Jira returns properly-escaped JSON;
+  # `echo "$response"` silently turns escaped \n\t sequences into raw control
+  # bytes, which then breaks every downstream jq (strict JSON parser). printf
+  # never reinterprets escapes regardless of shell, so it round-trips the
+  # payload unchanged.
+  printf '%s' "$response"
 }
 
 # Check if a Jira API response contains errors
@@ -91,11 +98,11 @@ function jira-check-error() {
   local response
   response=$(cat)
 
-  if echo "$response" | grep -q '"errorMessages"'; then
+  if printf '%s' "$response" | grep -q '"errorMessages"'; then
     local error_messages
-    error_messages=$(echo "$response" | jq -r '.errorMessages[]? // empty' 2>/dev/null)
+    error_messages=$(printf '%s' "$response" | jq -r '.errorMessages[]? // empty' 2>/dev/null)
     local errors
-    errors=$(echo "$response" | jq -r '.errors | to_entries[]? | "\(.key): \(.value)"' 2>/dev/null)
+    errors=$(printf '%s' "$response" | jq -r '.errors | to_entries[]? | "\(.key): \(.value)"' 2>/dev/null)
 
     if [[ -n "$error_messages" ]]; then
       echo "Error: Jira API returned error messages:" >&2
@@ -110,6 +117,6 @@ function jira-check-error() {
     return 1
   fi
 
-  echo "$response"
+  printf '%s' "$response"
   return 0
 }

@@ -73,7 +73,7 @@ function query-jira() {
     return 1
   fi
 
-  echo "$response" | jira-check-error
+  printf '%s' "$response" | jira-check-error
 }
 
 # ==============================================================================
@@ -99,7 +99,7 @@ function get-jira-issue() {
     return 1
   fi
 
-  echo "$response" | jira-check-error
+  printf '%s' "$response" | jira-check-error
 }
 
 # Create a new Jira issue
@@ -150,7 +150,7 @@ function create-jira-issue() {
     return 1
   fi
 
-  echo "$response" | jira-check-error
+  printf '%s' "$response" | jira-check-error
 }
 
 # Update an existing Jira issue
@@ -177,7 +177,7 @@ function update-jira-issue() {
 
   # PUT returns empty on success
   if [[ -n "$response" ]]; then
-    if ! echo "$response" | jira-check-error > /dev/null; then
+    if ! printf '%s' "$response" | jira-check-error > /dev/null; then
       return 1
     fi
   fi
@@ -216,7 +216,7 @@ function upsert-jira-issue() {
   fi
 
   local existing_key
-  existing_key=$(echo "$search_response" | jq -r '.issues[0].key // empty')
+  existing_key=$(printf '%s' "$search_response" | jq -r '.issues[0].key // empty')
 
   if [[ -n "$existing_key" ]]; then
     # Issue exists, update it
@@ -232,7 +232,7 @@ function upsert-jira-issue() {
     fi
 
     local new_key
-    new_key=$(echo "$create_response" | jq -r '.key')
+    new_key=$(printf '%s' "$create_response" | jq -r '.key')
     echo "Created: ${new_key}" >&2
     echo "$new_key"
   fi
@@ -264,7 +264,7 @@ function delete-jira-issue() {
 
   # DELETE returns empty on success
   if [[ -n "$response" ]]; then
-    if ! echo "$response" | jira-check-error > /dev/null; then
+    if ! printf '%s' "$response" | jira-check-error > /dev/null; then
       return 1
     fi
   fi
@@ -294,26 +294,26 @@ function get-jira-links() {
     return 1
   fi
 
-  if ! echo "$response" | jira-check-error > /dev/null; then
+  if ! printf '%s' "$response" | jira-check-error > /dev/null; then
     return 1
   fi
 
   # Return raw response if requested
   if [[ "$raw_mode" == "--raw" ]]; then
-    echo "$response"
+    printf '%s' "$response"
     return 0
   fi
 
   # Extract and format links
   local links
-  links=$(echo "$response" | jq '.fields.issuelinks // []')
+  links=$(printf '%s' "$response" | jq '.fields.issuelinks // []')
 
   if [[ "$links" == "[]" ]]; then
     echo "No links found for ${issue_key}"
     return 0
   fi
 
-  echo "$links" | jq -c '.[] | {
+  printf '%s' "$links" | jq -c '.[] | {
     id: .id,
     type: .type.name,
     inward: .type.inward,
@@ -368,7 +368,7 @@ function link-jira-issues() {
 
   # POST returns empty on success
   if [[ -n "$response" ]]; then
-    if ! echo "$response" | jira-check-error > /dev/null; then
+    if ! printf '%s' "$response" | jira-check-error > /dev/null; then
       return 1
     fi
   fi
@@ -396,7 +396,7 @@ function delete-jira-link() {
 
   # DELETE returns empty on success
   if [[ -n "$response" ]]; then
-    if ! echo "$response" | jira-check-error > /dev/null; then
+    if ! printf '%s' "$response" | jira-check-error > /dev/null; then
       return 1
     fi
   fi
@@ -455,11 +455,11 @@ function get-jira-transitions() {
     return 1
   fi
 
-  if ! echo "$response" | jira-check-error > /dev/null; then
+  if ! printf '%s' "$response" | jira-check-error > /dev/null; then
     return 1
   fi
 
-  echo "$response" | jq -r '.transitions[] | "\(.id): \(.name)"'
+  printf '%s' "$response" | jq -r '.transitions[] | "\(.id): \(.name)"'
 }
 
 # Transition an issue to a new status
@@ -486,7 +486,7 @@ function transition-jira-issue() {
 
   # POST returns empty on success
   if [[ -n "$response" ]]; then
-    if ! echo "$response" | jira-check-error > /dev/null; then
+    if ! printf '%s' "$response" | jira-check-error > /dev/null; then
       return 1
     fi
   fi

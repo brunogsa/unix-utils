@@ -54,7 +54,7 @@ function fetch-jira-review-context() {
   local response
   response=$(jira-api-request GET "/rest/api/3/issue/${issue_key}?fields=summary,description,parent&expand=renderedFields")
 
-  if echo "$response" | jira-check-error >/dev/null 2>&1; then
+  if printf '%s' "$response" | jira-check-error >/dev/null 2>&1; then
     :
   else
     echo "Error: Failed to fetch $issue_key" >&2
@@ -63,12 +63,12 @@ function fetch-jira-review-context() {
 
   # Extract fields
   local summary epic_key epic_summary description
-  summary=$(echo "$response" | jq -r '.fields.summary // ""')
-  epic_key=$(echo "$response" | jq -r '.fields.parent.key // ""')
-  epic_summary=$(echo "$response" | jq -r '.fields.parent.fields.summary // ""')
+  summary=$(printf '%s' "$response" | jq -r '.fields.summary // ""')
+  epic_key=$(printf '%s' "$response" | jq -r '.fields.parent.key // ""')
+  epic_summary=$(printf '%s' "$response" | jq -r '.fields.parent.fields.summary // ""')
 
   # Convert rendered HTML description to plain text
-  description=$(echo "$response" | jq -r '.renderedFields.description // ""' | \
+  description=$(printf '%s' "$response" | jq -r '.renderedFields.description // ""' | \
     sed 's|</p>|\n\n|g' | \
     sed 's|</div>|\n|g' | \
     sed 's|<br[^>]*>|\n|g' | \
@@ -82,18 +82,19 @@ function fetch-jira-review-context() {
     sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | \
     sed '/^$/N;/^\n$/D')
 
-  # Output markdown
-  echo "## Jira Card: ${issue_key} - ${summary}"
+  # Output markdown. printf (not echo) for anything carrying Jira-sourced
+  # text — same zsh-echo backslash-reinterpretation hazard as the JSON above.
+  printf '## Jira Card: %s - %s\n' "$issue_key" "$summary"
   echo ""
 
   if [[ -n "$epic_key" ]]; then
-    echo "**Epic**: ${epic_key} - ${epic_summary}"
+    printf '**Epic**: %s - %s\n' "$epic_key" "$epic_summary"
     echo ""
   fi
 
   if [[ -n "$description" ]]; then
     echo "### Description"
     echo ""
-    echo "$description"
+    printf '%s\n' "$description"
   fi
 }
