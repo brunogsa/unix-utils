@@ -13,6 +13,9 @@ serves both modes; only Waves 1 and 5 differ.
 
 Whether that session is the caller's own or an isolated subagent is the caller's choice — see "How callers dispatch" below.
 
+**Compaction resilience.** Waves 2–4 persist their output to `$work_dir` as they complete (see each wave's "Resume check" / "Persist" notes below).
+If context gets compacted mid-pipeline, re-read this SKILL.md, then check `$work_dir` for the furthest-along wave/step output before redoing any work — load it instead of recomputing.
+
 Specialist prompts and validator rubric live in `references/`; bash glue in `scripts/`. This file is the orchestrator.
 
 ## How callers dispatch
@@ -63,6 +66,13 @@ The subagent runs the whole pipeline itself — no further Agents. The user sees
 Deterministic check; no subagent needed. Only aborts on hard no-ops.
 
 - **github**: `state=$(gh pr view "$pr_number" --repo "$repo" --json state --jq .state)`. If `state` is `CLOSED` or `MERGED`, print `abort: PR <state>` and stop.
+- **github — prior-review guard**: check whether this PR already carries a review from this pipeline, pending or submitted, before spending tokens on a duplicate:
+  ```bash
+  prior_count=$(gh api repos/"$repo"/pulls/"$pr_number"/comments \
+    --jq '[.[] | select(.body | contains("comentário gerado automaticamente por IA"))] | length')
+  ```
+  If `prior_count > 0`, print `abort: prior review detected` and stop.
+  - Every inline comment this pipeline posts carries that signature (Wave 5), so any match means a run already reviewed this exact PR.
 - **local**: always proceed. Empty diffs surface naturally — Wave 5 writes "auto-review: no findings".
 
 ---
@@ -185,6 +195,9 @@ You run the specialist review yourself, in this same session. **Do not spawn sub
 
 Per-specialist loop:
 
+- **Resume check** (before the first iteration only): if `$work_dir/wave2-progress.txt` exists, read it.
+  - One completed specialist name per line; load `$work_dir/wave2-findings.json` for their findings so far.
+  - Start the loop at the first specialist NOT listed there instead of at `correctness`.
 - Read `references/specialists/<name>.md`. Combine with `common-preamble.md`.
 - Walk the diff through that specialist's rubric. Pull full files from
   `{repo_root}` only when the `-U20` diff context isn't enough to decide.
@@ -194,12 +207,15 @@ Per-specialist loop:
   the scope_tag + the Problem sentence tell you. Distinct issues that share
   a line stay in.
 - Maintain a running findings list in working memory; append each pass.
+- **Persist**: overwrite `$work_dir/wave2-findings.json` with the full cumulative findings array, and append this specialist's name to `$work_dir/wave2-progress.txt` — both before moving to the next specialist.
 
 **Guide writer (after all 8 specialists):**
 
+- **Resume check**: if `$work_dir/wave2-guide.md` already exists, load it and skip straight to Wave 3.
 - Read `references/guide-writer.md`.
 - Produce the Review Guide Markdown (business context, decisions, where to
   focus, incidental changes). 400 words max.
+- **Persist**: write the guide to `$work_dir/wave2-guide.md`.
 
 Resolve placeholders in each reference file against Wave 1 paths and values as
 you read them — there's no separate Agent to parameterize.
@@ -211,6 +227,7 @@ When `tiny_pr=true`, replace the per-specialist loop with:
 - Read `common-preamble.md` and all 8 specialist files once — combined prompt still fits at <100 added lines.
 - Walk the diff once. Flag any issue matching a specialist's rubric; tag `scope_tag` with that specialist.
 - Skip the guide writer; emit a 2-sentence change summary instead.
+- **Persist**: write the summary to `$work_dir/wave2-guide.md` — same filename the full guide uses, so Wave 5's density check and guide-posting steps don't need tiny-PR-specific branching.
 - **Skip Wave 3 entirely.** At <100 added lines the change is in context; hallucinations are rare. Findings go straight to Wave 4.
 
 Artifact at the end of Wave 2: **one flat findings list + one Review Guide** (or 2-sentence summary on the fast-path).
@@ -223,6 +240,8 @@ Before emitting, re-read each finding against its actual file. This single pass
 catches hallucinations (specialist mis-remembered the code) **and** tightens
 line anchors — merged from two previously-separate waves so you re-load each
 file at most once. Inline reasoning, no subagent.
+
+**Resume check**: if `$work_dir/wave3-findings.json` already exists, load it (and `$work_dir/wave3-drop-log.txt`) and skip straight to Wave 4 — this wave already completed.
 
 **Read this once:** `references/validator.md` — the exact per-finding rubric.
 
@@ -247,15 +266,19 @@ one-sentence reason for Wave 6's summary.
 
 **Don't touch** severity, body, or scope_tag. The specialist owns those.
 
-Artifact: a reduced, range-tightened findings list + a drop log.
+Artifact: a reduced, range-tightened findings list + a drop log. **Persist**: write both to `$work_dir/wave3-findings.json` and `$work_dir/wave3-drop-log.txt` before moving to Wave 4.
 
 ---
 
 ## Wave 4 — Drop off-diff findings
 
+**Resume check**: if `$work_dir/wave4-findings.json` already exists, load it and skip straight to Wave 5 — this wave already completed.
+
 For each surviving finding, drop it if `start_line..line` is not entirely within `commentable-lines.txt`.
 
 We don't comment on code outside the diff — that's noise the author didn't ask for and can't act on in this PR.
+
+**Persist**: write the surviving findings to `$work_dir/wave4-findings.json` before moving to Wave 5.
 
 ---
 
@@ -268,10 +291,20 @@ We don't comment on code outside the diff — that's noise the author didn't ask
    commit_sha=$(gh pr view "$pr_number" --repo "$repo" --json headRefOid --jq '.headRefOid')
    ```
 
-2. Build `$work_dir/review-payload.json` with jq for the inline comments only.
-   - **Leave `body` empty** — the Review Guide is delivered as a separate standalone PR comment in step 5.
+2. **Density check.** Every comment body about to be posted must obey doc-standards' cap (≤256 chars / ≤32 words per line) before it goes anywhere near the payload.
+   - GitHub's review UI renders a dense paragraph as one hard-to-scan block, with no line breaks to anchor a skim-read.
+   - Write each Wave-4 finding's `body` to its own file, `$work_dir/wave5-comment-<n>.md` (one per finding, in finding order).
+   - Copy the guide's raw content from `$work_dir/wave2-guide.md` alongside them — it isn't wrapped in `<details>` yet, so it's still plain markdown the script can check.
+   - Run `~/.claude/skills/doc-standards/scripts/check-density.sh "$work_dir"/wave5-comment-*.md "$work_dir/wave2-guide.md"` in one call.
+   - For any flagged line, rewrite it in place per `~/.claude/skills/doc-standards/references/density-rules.md` — split into bullets/sub-bullets or shorter sentences, never drop information.
+   - Re-run the script until it exits 0 for every file. The payload-build step below reads finding bodies from these now-clean files; the guide-posting step below reads the guide from `wave2-guide.md`.
+
+3. Build `$work_dir/review-payload.json` with jq for the inline comments only, sourcing each `body` from its density-clean `$work_dir/wave5-comment-<n>.md`.
+   - **Leave the top-level `body` empty** — the Review Guide is delivered as a separate standalone PR comment in the guide-posting step below.
      - Rationale: the pending-review body is not a good carrier for the guide; it gets buried behind the GitHub review filter and is hard for the human reviewer to find.
-   - Every inline comment body gets the signature footer appended: two newlines + `— claude`.
+   - Every inline comment body gets the signature footer appended: two newlines + `— comentário gerado automaticamente por IA`.
+     - Rationale: the review posts under the human operator's own GitHub account (`gh api` authenticates as them).
+     - Without an explicit AI disclaimer, the comments read as if that person wrote them by hand.
    - Include `start_line`/`start_side` only on multi-line ranges (`line > start_line`).
    - Target shape:
 
@@ -286,13 +319,13 @@ We don't comment on code outside the diff — that's noise the author didn't ask
          "side": "RIGHT",
          "start_line": 40,
          "start_side": "RIGHT",
-         "body": "<finding body>\n\n— claude"
+         "body": "<finding body>\n\n— comentário gerado automaticamente por IA"
        }
      ]
    }
    ```
 
-3. POST as a **pending** review (no `event` field), in exactly one call — the whole `comments[]` array goes in this single request, never one comment at a time:
+4. POST as a **pending** review (no `event` field), in exactly one call — the whole `comments[]` array goes in this single request, never one comment at a time:
 
    ```bash
    gh api repos/"$repo"/pulls/"$pr_number"/reviews \
@@ -304,21 +337,32 @@ We don't comment on code outside the diff — that's noise the author didn't ask
    review_url=$(jq -r '.html_url // "(pending — open PR and filter reviews)"' "$work_dir/review-response.json")
    ```
 
-4. If the POST fails (422), re-read line numbers from `commentable-lines.txt`, drop findings whose anchors are unresolvable, and retry once **with the same single-batch-POST shape** — same endpoint, same one call, just a smaller `comments[]`.
-   - Never fall back to the single-comment endpoint (`POST .../pulls/{pull_number}/comments`) or to `gh pr review`, not even for the findings the retry couldn't place. Both endpoints submit immediately on creation — there is no way to keep their output pending. Posting some findings as always-visible, unreviewable comments while the rest wait in a pending review is worse than not posting those findings at all.
+5. If the POST fails (422), re-read line numbers from `commentable-lines.txt` and drop findings whose anchors are unresolvable, then retry once **with the same single-batch-POST shape**.
+   - Same endpoint, same one call, just a smaller `comments[]`.
+   - Never fall back to the single-comment endpoint (`POST .../pulls/{pull_number}/comments`) or to `gh pr review`, not even for the findings the retry couldn't place.
+   - Both endpoints submit immediately on creation — there is no way to keep their output pending.
+   - Posting some findings as always-visible, unreviewable comments while the rest wait in a pending review is worse than not posting those findings at all.
    - If the retry also fails, stop and report the 422 body to the user instead of degrading the contract further.
 
-5. **Verify the review actually stayed pending** — a POST response of `"state": "PENDING"` is not proof by itself; re-fetch the same review a moment later and check again, since something between POST and report-out (a stray follow-up call, a retry, a second Wave-5 run in the same session) can submit it without your noticing:
+6. **Verify the review actually stayed pending** — a POST response of `"state": "PENDING"` is not proof by itself.
+   - Re-fetch the same review a moment later and check again.
+   - Something between POST and report-out (a stray follow-up call, a retry, a second Wave-5 run in the same session) can submit it without your noticing:
 
    ```bash
    gh api repos/"$repo"/pulls/"$pr_number"/reviews/"$review_id" --jq '{state, submitted_at}'
    ```
 
-   - Expect `{"state": "PENDING", "submitted_at": null}`. Anything else — `COMMENTED`, `APPROVED`, `CHANGES_REQUESTED`, or a non-null `submitted_at` — means the review already went live. Do not report success; report the actual state to the user and stop, since a submitted review can't be put back to pending via the API (only its individual comments can be deleted, one by one, via `DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}`).
-   - Also re-fetch `.../reviews/"$review_id"/comments` and confirm the comment count and line numbers match `review-payload.json` exactly — an unexpected extra comment or a mismatched count is the same signal as an unexpected state: stop and report, don't declare success.
-   - **Never call anything that submits a review** — no `event` field on the POST, no follow-up call to `.../reviews/{id}/events`, no `gh pr review --comment/--approve/--request-changes`. Submitting is the human's action alone; the pipeline's job ends at a verified-pending review.
+   - Expect `{"state": "PENDING", "submitted_at": null}`.
+   - Anything else — `COMMENTED`, `APPROVED`, `CHANGES_REQUESTED`, or a non-null `submitted_at` — means the review already went live.
+   - Do not report success; report the actual state to the user and stop.
+   - A submitted review can't be put back to pending via the API (only its individual comments can be deleted, one by one, via `DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}`).
+   - Also re-fetch `.../reviews/"$review_id"/comments` and confirm the comment count and line numbers match `review-payload.json` exactly.
+   - An unexpected extra comment or a mismatched count is the same signal as an unexpected state: stop and report, don't declare success.
+   - **Never call anything that submits a review** — no `event` field on the POST, no follow-up call to `.../reviews/{id}/events`, no `gh pr review --comment/--approve/--request-changes`.
+   - Submitting is the human's action alone; the pipeline's job ends at a verified-pending review.
 
-6. **Post the Review Guide as a standalone PR comment**, wrapped in a collapsed `<details>` block so it doesn't dominate the conversation feed but stays one click away.
+7. **Post the Review Guide as a standalone PR comment**, wrapped in a collapsed `<details>` block so it doesn't dominate the conversation feed but stays one click away.
+   - Its content is `$work_dir/wave2-guide.md`, already made density-clean by the density-check step above — don't re-check it here.
    - Use the issue-comments endpoint (PR conversation comments share the issue API):
 
    ```bash
@@ -338,11 +382,11 @@ We don't comment on code outside the diff — that's noise the author didn't ask
 
    Este comentário acompanha a [revisão automática neste PR](<pr-files-url>). Use ele pra localizar os hunks que valem mais atenção antes de mergulhar no diff inteiro.
 
-   <guide content from references/guide-writer.md — sections "Onde focar" + "Mudanças incidentais" only>
+   <guide content from references/guide-writer.md — sections "Onde focar" + "Mudanças incidentais" only; on tiny_pr=true this is just the 2-sentence summary from Wave 2's fast-path>
 
    </details>
 
-   — claude
+   — comentário gerado automaticamente por IA
    ```
 
    Print both `review_url` (pending review) and `guide_url` (standalone comment) in Wave 6.
@@ -369,12 +413,18 @@ Print a terminal summary using the template at `references/wave6-summary-templat
 
 ## Error handling
 
-- **gh api POST 422 (Wave 5 emit)**: retry once, same single-batch-POST call, after verifying line numbers against `commentable-lines.txt` and dropping findings whose anchors don't resolve. If it still fails, stop and report the error — never fall back to general comments or to the single-comment endpoint, and never split the batch into several POSTs. A finding that can't go through the batch endpoint gets dropped from this run, not posted a different way.
-- **Post-emit verification fails (Wave 5 step 5, the pending-state check)**: if the re-fetched review isn't `PENDING`, or its comment count/lines don't match `review-payload.json`, stop — don't proceed to Wave 6's success summary. Report the mismatch (actual state, actual vs. expected comment list) to the user verbatim so they can decide whether to clean up live GitHub artifacts themselves; don't delete or edit anything on GitHub without their explicit go-ahead, since submitted reviews and comments are visible to every collaborator.
+- **gh api POST 422 (Wave 5 emit)**: retry once, same single-batch-POST call, after verifying line numbers against `commentable-lines.txt` and dropping findings whose anchors don't resolve.
+  - If it still fails, stop and report the error.
+  - Never fall back to general comments or to the single-comment endpoint, and never split the batch into several POSTs.
+  - A finding that can't go through the batch endpoint gets dropped from this run, not posted a different way.
+- **Post-emit verification fails (Wave 5's pending-state verification step)**: if the re-fetched review isn't `PENDING`, or its comment count/lines don't match `review-payload.json`, stop.
+  - Don't proceed to Wave 6's success summary.
+  - Report the mismatch (actual state, actual vs. expected comment list) to the user verbatim so they can decide whether to clean up live GitHub artifacts themselves.
+  - Don't delete or edit anything on GitHub without their explicit go-ahead, since submitted reviews and comments are visible to every collaborator.
 - **Clone fails (Wave 1)**: abort with a clear error and the target `work_dir` path. The review cannot proceed without the code on disk.
 - **No findings at all**:
   - GH: skip the pending review entirely — don't post an empty review just to carry the guide.
-    - Still post the Review Guide as a standalone PR comment per Wave 5 step 5 so the human gets the context.
+    - Still post the Review Guide as a standalone PR comment (Wave 5's guide-posting step) so the human gets the context.
   - LOCAL: write `${out_file}` (the timestamped `./auto-review_<timestamp>` file) with "no findings" under Findings.
 
 ---
@@ -382,8 +432,10 @@ Print a terminal summary using the template at `references/wave6-summary-templat
 ## What NOT to do
 
 - Don't `gh pr checkout` into the user's working tree — isolation matters; always clone into `/tmp`.
-- Don't post inline comments via the single-comment endpoint (`POST .../pulls/{pull_number}/comments`) — always use the batch review endpoint, in one call, so the review stays atomic and pending. This holds on retries too: a 422 on the batch call is never a reason to fall back to single comments.
-- Don't submit the review, ever, by any path: no `event` field on the create call, no `.../reviews/{id}/events` call, no `gh pr review --comment/--approve/--request-changes`. Submitting is the human's decision — verify `state == "PENDING"` after posting (Wave 5 step 5) instead of trusting the create response alone.
+- Don't post inline comments via the single-comment endpoint (`POST .../pulls/{pull_number}/comments`) — always use the batch review endpoint, in one call, so the review stays atomic and pending.
+  - This holds on retries too: a 422 on the batch call is never a reason to fall back to single comments.
+- Don't submit the review, ever, by any path: no `event` field on the create call, no `.../reviews/{id}/events` call, no `gh pr review --comment/--approve/--request-changes`.
+  - Submitting is the human's decision — verify `state == "PENDING"` after posting (Wave 5's pending-state verification step) instead of trusting the create response alone.
 - Don't include a changelog. The Review Guide replaces it.
 - Don't spawn sub-Agents for specialists or the validator — see Architecture at top.
 - Don't invent flags. The CLI surface is deliberately minimal.
