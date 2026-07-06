@@ -79,7 +79,7 @@ Apply the same analysis discipline directly:
 
 Use the **Agent tool** with `subagent_type=code-simplifier:code-simplifier`. In the prompt:
 
-- Run in **foreground** (never `run_in_background`) -- the user must see analysis progress and the main session needs full visibility into findings
+- Run in the **background** (the default) -- the UI still surfaces progress, and the harness delivers the findings report on completion
 
 - List the files identified above
 - Instruct it to **only analyze and report** -- it must NOT make any edits (no Edit, no Write)

@@ -140,7 +140,7 @@ The insertion + visual-regrouping mechanics live in [`references/mid-flight-subs
 
 ## 4. Dispatch the task subagent
 
-Spawn one fresh-context subagent per task via the **Agent tool** (`subagent_type=general-purpose`, `model=sonnet`), foreground so you can act on its report; the run is async regardless.
+Spawn one fresh-context subagent per task via the **Agent tool** (`subagent_type=general-purpose`, `model=sonnet`), in the background (the default) — the harness re-invokes you with its report on completion, so you can still act on it.
 
 The subagent runs the **full per-task lifecycle**. Its prompt is the entire instruction set it receives, so the contract below must be self-contained.
 

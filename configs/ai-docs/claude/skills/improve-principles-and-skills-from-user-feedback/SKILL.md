@@ -8,7 +8,7 @@ disable-model-invocation: false
 
 Review user feedback — from the current session, a pull request's comments, or TODO/XXX markers left in files — and identify learnings that should be added to CLAUDE.md or skills.
 
-Run the analysis inline in the main context by default; a **foreground subagent** is an opt-in that saves context tokens but hides intermediate output.
+Run the analysis inline in the main context by default; a **background subagent** is an opt-in that saves context tokens but hides intermediate output.
 
 This skill is **read-only on input artifacts**: it does NOT remove TODOs, resolve PR comments, or address the questions they raise. Those are downstream actions.
 
@@ -64,7 +64,7 @@ Subagents condense their work into a final report — the user loses visibility 
 ### Subagent flow (opt-in)
 
 1. Step 1 in main context.
-2. Steps 2-7 in a foreground subagent: spawn with `subagent_type: "general-purpose"`, `description: "Analyze user feedback for guideline learnings"`.
+2. Steps 2-7 in a background subagent (the default): spawn with `subagent_type: "general-purpose"`, `description: "Analyze user feedback for guideline learnings"`.
 3. Subagent prompt must include **Scope**, the extracted user feedback items, and everything from **Subagent Process** through **Guidelines for Generalization** below.
 4. Step 10 (audit reminder) in main context after subagent returns.
 
