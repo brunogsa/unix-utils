@@ -292,7 +292,7 @@ We don't comment on code outside the diff — that's noise the author didn't ask
    }
    ```
 
-3. POST as a **pending** review (no `event` field):
+3. POST as a **pending** review (no `event` field), in exactly one call — the whole `comments[]` array goes in this single request, never one comment at a time:
 
    ```bash
    gh api repos/"$repo"/pulls/"$pr_number"/reviews \
@@ -304,10 +304,21 @@ We don't comment on code outside the diff — that's noise the author didn't ask
    review_url=$(jq -r '.html_url // "(pending — open PR and filter reviews)"' "$work_dir/review-response.json")
    ```
 
-4. If the POST fails (422), re-read line numbers from `commentable-lines.txt`, drop findings whose anchors are unresolvable, and retry once.
-   - Never fall back to general comments — integrity of the pending-review contract matters more than posting at all.
+4. If the POST fails (422), re-read line numbers from `commentable-lines.txt`, drop findings whose anchors are unresolvable, and retry once **with the same single-batch-POST shape** — same endpoint, same one call, just a smaller `comments[]`.
+   - Never fall back to the single-comment endpoint (`POST .../pulls/{pull_number}/comments`) or to `gh pr review`, not even for the findings the retry couldn't place. Both endpoints submit immediately on creation — there is no way to keep their output pending. Posting some findings as always-visible, unreviewable comments while the rest wait in a pending review is worse than not posting those findings at all.
+   - If the retry also fails, stop and report the 422 body to the user instead of degrading the contract further.
 
-5. **Post the Review Guide as a standalone PR comment**, wrapped in a collapsed `<details>` block so it doesn't dominate the conversation feed but stays one click away.
+5. **Verify the review actually stayed pending** — a POST response of `"state": "PENDING"` is not proof by itself; re-fetch the same review a moment later and check again, since something between POST and report-out (a stray follow-up call, a retry, a second Wave-5 run in the same session) can submit it without your noticing:
+
+   ```bash
+   gh api repos/"$repo"/pulls/"$pr_number"/reviews/"$review_id" --jq '{state, submitted_at}'
+   ```
+
+   - Expect `{"state": "PENDING", "submitted_at": null}`. Anything else — `COMMENTED`, `APPROVED`, `CHANGES_REQUESTED`, or a non-null `submitted_at` — means the review already went live. Do not report success; report the actual state to the user and stop, since a submitted review can't be put back to pending via the API (only its individual comments can be deleted, one by one, via `DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}`).
+   - Also re-fetch `.../reviews/"$review_id"/comments` and confirm the comment count and line numbers match `review-payload.json` exactly — an unexpected extra comment or a mismatched count is the same signal as an unexpected state: stop and report, don't declare success.
+   - **Never call anything that submits a review** — no `event` field on the POST, no follow-up call to `.../reviews/{id}/events`, no `gh pr review --comment/--approve/--request-changes`. Submitting is the human's action alone; the pipeline's job ends at a verified-pending review.
+
+6. **Post the Review Guide as a standalone PR comment**, wrapped in a collapsed `<details>` block so it doesn't dominate the conversation feed but stays one click away.
    - Use the issue-comments endpoint (PR conversation comments share the issue API):
 
    ```bash
@@ -358,7 +369,8 @@ Print a terminal summary using the template at `references/wave6-summary-templat
 
 ## Error handling
 
-- **gh api POST 422 (Wave 5 emit)**: retry once after verifying line numbers against `commentable-lines.txt` and dropping findings whose anchors don't resolve. Never fall back to general comments.
+- **gh api POST 422 (Wave 5 emit)**: retry once, same single-batch-POST call, after verifying line numbers against `commentable-lines.txt` and dropping findings whose anchors don't resolve. If it still fails, stop and report the error — never fall back to general comments or to the single-comment endpoint, and never split the batch into several POSTs. A finding that can't go through the batch endpoint gets dropped from this run, not posted a different way.
+- **Post-emit verification fails (Wave 5 step 5, the pending-state check)**: if the re-fetched review isn't `PENDING`, or its comment count/lines don't match `review-payload.json`, stop — don't proceed to Wave 6's success summary. Report the mismatch (actual state, actual vs. expected comment list) to the user verbatim so they can decide whether to clean up live GitHub artifacts themselves; don't delete or edit anything on GitHub without their explicit go-ahead, since submitted reviews and comments are visible to every collaborator.
 - **Clone fails (Wave 1)**: abort with a clear error and the target `work_dir` path. The review cannot proceed without the code on disk.
 - **No findings at all**:
   - GH: skip the pending review entirely — don't post an empty review just to carry the guide.
@@ -370,7 +382,8 @@ Print a terminal summary using the template at `references/wave6-summary-templat
 ## What NOT to do
 
 - Don't `gh pr checkout` into the user's working tree — isolation matters; always clone into `/tmp`.
-- Don't post inline comments via the single-comment endpoint — always use the batch review endpoint so the review stays atomic and pending.
+- Don't post inline comments via the single-comment endpoint (`POST .../pulls/{pull_number}/comments`) — always use the batch review endpoint, in one call, so the review stays atomic and pending. This holds on retries too: a 422 on the batch call is never a reason to fall back to single comments.
+- Don't submit the review, ever, by any path: no `event` field on the create call, no `.../reviews/{id}/events` call, no `gh pr review --comment/--approve/--request-changes`. Submitting is the human's decision — verify `state == "PENDING"` after posting (Wave 5 step 5) instead of trusting the create response alone.
 - Don't include a changelog. The Review Guide replaces it.
 - Don't spawn sub-Agents for specialists or the validator — see Architecture at top.
 - Don't invent flags. The CLI surface is deliberately minimal.
