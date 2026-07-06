@@ -59,14 +59,14 @@ Subagents condense their work into a final report — the user loses visibility 
 
 1. Step 1 in main context.
 2. Steps 2-7 in main context: read targets, analyze, present findings, get per-item approval, apply edits one at a time.
-3. Step 10 (audit reminder) at the end.
+3. Step 8 (audit reminder) at the end.
 
 ### Subagent flow (opt-in)
 
 1. Step 1 in main context.
 2. Steps 2-7 in a background subagent (the default): spawn with `subagent_type: "general-purpose"`, `description: "Analyze user feedback for guideline learnings"`.
 3. Subagent prompt must include **Scope**, the extracted user feedback items, and everything from **Subagent Process** through **Guidelines for Generalization** below.
-4. Step 10 (audit reminder) in main context after subagent returns.
+4. Step 8 (audit reminder) in main context after subagent returns.
 
 If step 1 yields zero items (no quote-worthy session moments, no PR comments from your login, or no TODO/XXX matches), report that to the user and stop.
 
@@ -77,7 +77,7 @@ Do not run analysis on nothing.
 - Subagents cannot spawn subagents.
 - `consistency-check-principles-and-skills` now fans out 3 ensemble subagents in its main-mode flow.
 - Running it from inside the improve subagent would silently degrade it to single-sample mode.
-- Step 10 (main context) reminds the user to run the audits in a fresh session.
+- Step 8 (main context) reminds the user to run the audits in a fresh session.
 
 ## Step 1: Extract User Feedback Items (main context)
 
@@ -217,7 +217,7 @@ This list is passed verbatim into the subagent prompt as a `## User Feedback Ite
 
 7. **Apply changes only with approval** - Wait for user confirmation before modifying any file.
 
-## Step 10: Post-edit audit reminder (main context)
+## Step 8: Post-edit audit reminder (main context)
 
 After the subagent returns its report, the main session prints a short reminder.
 
@@ -260,7 +260,7 @@ Number each proposal so the user can approve/reject by number (e.g., "Apply 1 an
 - [Existing guideline/skill content that covers this]
 ```
 
-Post-edit audits are not embedded — see Step 10 (main-context reminder).
+Post-edit audits are not embedded — see Step 8 (main-context reminder).
 
 ## Guidelines for Generalization
 
