@@ -307,8 +307,11 @@ setFailures((prev) => getPreviousFailuresWithNewSchoolAgreementFetchError(prev, 
 - [Instruction] Inject what's hard to mock — pass I/O collaborators as parameters.
   - [Why] Passing the collaborator as a param lets a test swap in a fake; an imported singleton binds at module load and can't be substituted.
 
-- [Instruction] **Use named-param objects for any function with 2+ params; in the signature, list the specific fields the function needs rather than passing whole config objects.**
-  - [Why] Positional args lose meaning at call sites (`configure(3, 5000)` — what's 3?); fat-object params hide internal coupling.
+- [Instruction] **Use named-param objects for any function with 2+ params.**
+  - [Why] Positional args lose meaning at call sites (`configure(3, 5000)` — what's 3?).
+
+- [Instruction] **In the signature, list the specific fields the function needs rather than passing whole config objects.**
+  - [Why] Fat-object params hide internal coupling — the signature stops documenting what the function actually depends on.
 
 - [Example]
 ```javascript
