@@ -164,7 +164,6 @@
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
-  "advisorModel": "fable",
   "promptSuggestionEnabled": true,
   "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
