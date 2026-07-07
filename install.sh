@@ -276,7 +276,6 @@ fi
 
 claude plugin marketplace add boostvolt/claude-code-lsps
 claude plugin install code-simplifier@claude-plugins-official
-claude plugin install context7@claude-plugins-official
 claude plugin install typescript-lsp@claude-plugins-official
 claude plugin install lua-lsp@claude-plugins-official
 claude plugin install gopls-lsp@claude-plugins-official

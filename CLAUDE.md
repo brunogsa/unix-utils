@@ -57,5 +57,5 @@ Always edit `configs/git/.gitconfig` directly. If the symlink has been broken, r
 
 - **Read skills from source, not the symlink** -- when reading or auditing a skill, use `configs/ai-docs/claude/skills/<name>/SKILL.md`, not `~/.claude/skills/<name>/` (which is a symlink target that can be replaced silently — same caveat as `settings.json`).
   - **Native skills** (`simplify`, `init`, `review`, `security-review`) are built into Claude Code; no local file exists.
-  - **Plugin skills** (`claude-hud:*`, `plugin:context7:*`, etc.) live in plugin marketplace dirs, not in this repo.
+  - **Plugin skills** (`claude-hud:*`, etc.) live in plugin marketplace dirs, not in this repo.
   - If the source path is missing, check whether the skill is native or plugin-provided before assuming the file is gone.
