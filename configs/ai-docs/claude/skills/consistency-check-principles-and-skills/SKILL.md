@@ -54,11 +54,14 @@ Fix: **self-consistency** — run 3 samples in parallel, keep only what ≥2 agr
 
 ### 2/3 majority filter (deterministic match key)
 
-[Instruction] **Match key = `(heuristic-section-number, primary-file:line)`.** Two findings match iff both fields match exactly. Confidence tier, diff wording, and prose vary stochastically across children — only the key counts for voting.
+[Instruction] **Match key = `(section-group, primary-file)`.** Two findings match iff both fields match exactly. Confidence tier, line numbers, diff wording, and prose vary stochastically across children; only the key counts for voting.
 
-- `heuristic-section-number` — the integer 1–7 from §Heuristics (Contradictions=1, …, Term consistency=7).
-- `primary-file:line` — the lexicographically lowest `file:line` mentioned ANYWHERE in the finding body, not just its header (multi-file findings like contradictions cite two or more).
+- `section-group` — the integer 1–7 from §Heuristics (Contradictions=1, …, Term consistency=7), with sections 1 and 2 normalized to the single group `1-2` at merge time.
+  - The contradiction-vs-tension boundary is itself a judgment call, so children flagging the same defect split across 1 and 2 — a section-exact key silently loses that vote.
+- `primary-file` — the lexicographically lowest file path mentioned ANYWHERE in the finding body, not just its header (multi-file findings like contradictions cite two or more).
   - Never key on "the first file cited" — citation order varies with prose across children, so identical findings key differently and silently lose the vote.
+  - No line number in the key — children anchor the same defect to different lines (header vs body, small offsets), so a line-exact key silently loses the vote.
+  - Accepted trade-off: two distinct defects in the same file and section-group false-merge; with the handful of findings a run produces, that's rarer and cheaper than false-dropping real agreement.
 
 [Instruction] **CRITICAL: Children MUST emit a machine-readable key line immediately under each finding ID.** Format is fixed and grep-able — no free-text parsing in the merge step.
 
@@ -66,9 +69,11 @@ Required emission (see §Report Format below for the full per-finding template):
 
 ```
 **<section>.<index>** — <human-readable header>
-[KEY] section=<N> file=<path>:<line>
+[KEY] section=<N> file=<path>
    - <body bullets>
 ```
+
+Children emit their own section number and a line-free path; the orchestrator does the `1-2` grouping — normalization is merge-side, so children stay grouping-agnostic.
 
 Why mandate this:
 
@@ -77,10 +82,11 @@ Why mandate this:
 
 Algorithm:
 1. `grep '^\[KEY\]'` over each child report → list of keys per child.
-2. Count keys across the 3 reports.
-3. Keep findings whose key appears in ≥2 reports. Drop the rest silently.
-4. For each kept key, emit the finding body from whichever child reported it with HIGHEST confidence; tie → lexicographically first child's wording.
-5. Re-number kept findings as `<section>.<index>` per §Lifecycle step 6 (numbering restarts at .1 within each section).
+2. Normalize each key: sections 1 and 2 become group `1-2`; strip any stray `:<line>` suffix a child left on the file path.
+3. Count each normalized key once per child report — same-key duplicates within one report still count as one vote.
+4. Keep findings whose key appears in ≥2 reports. Drop the rest silently.
+5. For each kept key, emit the finding body from whichever child reported it with HIGHEST confidence; tie → lexicographically first child's wording.
+6. Re-number kept findings as `<section>.<index>` per §Lifecycle step 6 (numbering restarts at .1 within each section; a `1-2`-group finding renders under the winning body's own section).
 
 [Instruction] **Surface the ensemble-vs-correlated distinction in the orchestrator's handback.** 2/3 voting filters *stochastic* noise (samples disagree). It does NOT filter *correlated* false positives (every sample flags the same wrong thing).
 
@@ -270,7 +276,7 @@ Summary table + per-heuristic sections. Seven heuristic rows (one per heuristic)
 ## 1. Contradictions
 
 **1.1** — `CLAUDE.md:67` vs `skills/foo/SKILL.md:12`
-[KEY] section=1 file=CLAUDE.md:67
+[KEY] section=1 file=CLAUDE.md
    - <conflict description>
    - <place A>: 1-3 lines
    - <place B>: 1-3 lines
