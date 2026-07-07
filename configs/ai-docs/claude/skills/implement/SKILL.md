@@ -97,19 +97,21 @@ On a resume or re-run, reconcile any pre-existing task status and stray TaskList
 
 The per-state prompts (re-execute / resume / restart / revive) and the TaskList cleanup choices live in [`references/preflight-state.md`](references/preflight-state.md). Load when state exists.
 
-## 2. Orchestration review — advisor, once before any dispatch
+## 2. Orchestration review — fresh-context subagent, once before any dispatch
 
-Call `advisor()` **once per invocation**, after pre-flight and before dispatching any task — an auto-review of the whole orchestration plan, not a per-task check.
+Spawn a fresh-context review subagent **once per invocation**, after pre-flight and before dispatching any task — an adversarial review of the whole orchestration plan, not a per-task check.
 
-Read the full `plan_<slug>.md` and all batched IDs first, so the call challenges the batch as a whole: approach, task ordering, cross-task dependencies, verification strategy.
+Fresh context is the point: the plan was authored in a session already convinced by it, so this is CLAUDE.md's writing-session-bias case — the reviewer sees only the artifacts and the question.
 
-Take the advice seriously:
+Push the full `plan_<slug>.md` and all batched IDs into its prompt, so the review challenges the batch as a whole: approach, task ordering, cross-task dependencies, verification strategy.
 
-- If the advisor flags a missed forcing case or dependency, fix the plan or the batch order before any dispatch.
+Take the review seriously:
+
+- If the reviewer flags a missed forcing case or dependency, fix the plan or the batch order before any dispatch.
 - If it challenges the verify method, reconcile it now.
 - Skipping or no-op'ing ("looks fine, proceeding") defeats the point.
 
-This is the orchestrator's only advisor call; the subagent has its own narrower lever for mid-execution forks (§4.2).
+This is the orchestrator's only plan-level review; the task subagent has its own narrower lever for mid-execution forks (§4.2).
 
 ## 3. Decompose into TaskList (orchestrator, per task)
 
@@ -140,7 +142,9 @@ The insertion + visual-regrouping mechanics live in [`references/mid-flight-subs
 
 ## 4. Dispatch the task subagent
 
-Spawn one fresh-context subagent per task via the **Agent tool** (`subagent_type=general-purpose`, `model=sonnet`), in the background (the default) — the harness re-invokes you with its report on completion, so you can still act on it.
+Spawn one fresh-context subagent per task via the **Agent tool** (`subagent_type=general-purpose`, `model=sonnet`), in the background (the default).
+
+The harness re-invokes you with its report on completion, so you can still act on it.
 
 The subagent runs the **full per-task lifecycle**. Its prompt is the entire instruction set it receives, so the contract below must be self-contained.
 
@@ -162,15 +166,17 @@ The subagent runs the **full per-task lifecycle**. Its prompt is the entire inst
 - `git log <BATCH_BASE_SHA>..HEAD` for the prior tasks' *why* (rich commit bodies), and any `[Scout]` notes a prior task appended to plan_<slug>.md.
 - The actual source files it needs to read.
 
-### 4.2. On-demand advisor (subagent escape hatch)
+### 4.2. On-demand fork review (subagent escape hatch)
 
-The subagent does **not** call `advisor()` by default — the plan was already advisor-reviewed (§2).
+The task subagent does **not** spawn a reviewer by default — the plan was already reviewed (§2).
 
-It calls `advisor()` **only** for a real mid-execution design fork the plan didn't pre-decide, where guessing wrong is costly.
+It spawns a fresh-context review subagent **only** for a real mid-execution design fork the plan didn't pre-decide, where guessing wrong is costly.
 
-It escalates to the stronger advisor model, not to you — off your plate.
+Push the fork, the candidate options, and the relevant plan slice into the reviewer's prompt; omit the `model=sonnet` override so it runs on the stronger session model.
 
-The advisor also triages the fork:
+It escalates to that reviewer, not to you — off your plate.
+
+The reviewer also triages the fork:
 
 - **Soft** — pick a sensible default, proceed, and flag it in the report for batch review. Most forks are this.
 - **Hard** — can't sensibly proceed → stop the task and return it as a block (§4.4). Rare.
