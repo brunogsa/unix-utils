@@ -304,10 +304,11 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] Parallelize independent read-only calls (Read, Grep, Glob, read-only Bash) in one block — never serialize them.
   - [Why] Reads carry no permission gate and no write-ordering hazard, so batching them is pure latency saved; the serialize-writes default never extends to them.
 
-- [Instruction] **Permission UIs are the asking. NEVER pre-ask in chat** -- once content is decided, issue the tool call directly. The UI/prompt is where the user reviews and approves/denies.
-  - [Why] Pre-show + run = double-prompt. UI renders cleaner than chat.
+- [Instruction] **Permission UIs are the asking. NEVER pre-ask in chat** -- issue the decided call directly, UNLESS it's an irreversible remote mutation that may be allowlisted, then confirm once in chat.
+  - [Why] Pre-show + run = double-prompt and the UI renders cleaner than chat; but an allowlisted irreversible action fires no UI, so the one chat confirm is the only human gate.
   - [Example] Applies to `git commit`, `Edit`, `Write`, and any tool whose permission UI surfaces the proposed content.
   - [Example] DO NOT pre-show + ask: no "does this look good?", "want me to apply?", "confirm and I'll run it".
+  - [Example] UNLESS case: the batch `git push` in `address-pr-comments` — irreversible (fires CI, notifies reviewers) and commonly allowlisted.
 
 - [Instruction] **CRITICAL: Preserve user work — prefer the least-destructive action, and never delete or overwrite an existing artifact without explicit instruction.**
   - [Why] Each step up the destruction ladder risks hallucinating a replacement or losing unrecoverable context; a deletion you can't justify is often one the user can't undo.

@@ -275,6 +275,8 @@ git push
 
 Single push. Confirm with the user before running — it's the irreversible step that triggers CI and notifies reviewers.
 
+This is the UNLESS case in CLAUDE.md's never-pre-ask rule: `git push` is commonly allowlisted, so this one chat confirm is the only human gate.
+
 If the push is rejected (remote moved), abort and tell the user to `git pull --rebase`, then re-run from step 5. Don't auto-rebase — risks lost work.
 
 ## Step 7: Post replies (main)
