@@ -114,6 +114,9 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
 - **Label by what you actually know.** A fact you've validated or assume true is a *Premise*; a genuine unknown is an *Open Question*.
   - Don't dress an unknown as a Premise, nor prematurely close a question you can't yet answer — both directions matter.
 
+- **A fact already stated in Context isn't a Premise**, even if later sections cite it often or in a specific way.
+  - Recap the Context fact inline instead of minting or reviving a registry token for it.
+
 - **Each fact lives once.** When a question is answered, move the answer into *Decisions*; don't leave decided content embedded inside the *Open Question*.
   - Drop any Open Question that a Premise already settles — no duplicate item across sections.
 
@@ -198,7 +201,16 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
   - Keep every line ≤80 chars: short annotations stay inline.
     - When a full annotation would push the field line past 80, move the comment above the field (wrapped, multi-line), preceded by a blank line so it hugs its field.
     - When the *value* is long (two origin paths in one de/para value), keep the leaf field in the value and move the container path up into the comment — never truncate.
+    - When an enum has several long or multi-word values, list one value per line (`// enum:` header, then `//   - value` per line).
+      - This avoids wrapping inline `enum [a, b, c]` mid-value across lines.
+    - Never leave an orphaned continuation fragment (a lone trailing word) when wrapping.
+      - Either fit the whole clause on one line.
+      - Or split at a real idea boundary (e.g. a semicolon joining two clauses) so every resulting line stands complete on its own.
+    - Measure before wrapping (`wc -c` on the line).
+      - A line that looks long by eye often already fits within 80 chars.
+      - Splitting one that doesn't need it adds noise instead of removing it.
 
 - de/para (from → to) mapping — qualify every field by its system.
   - Prefix each field with its source/destination system (`pic.`, `sge.`, `hub.`, `crm.`, or `const` for a literal), so provenance stays clear when systems share field names.
   - Validate the mapping against a real production payload, not just the vendor's example — real data stress-tests edge cases the example misses before you finalize.
+  - **If a field has no destination because that concept doesn't apply on the destination side, say so plainly — don't call it a gap.**
