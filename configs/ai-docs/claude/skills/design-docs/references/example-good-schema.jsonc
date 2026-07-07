@@ -12,6 +12,10 @@
 //        type | required|optional[, nullable] | constraints | description
 //      - constraints = enum [..], regex, range (1..31), max len, fixed value.
 //      - keep the pipes so a reader scans one column of types, one of rules.
+//      - description is OPTIONAL and goes last when present. Add it only
+//        when it gives real information beyond name+type+constraints
+//        (decoded enum/magic value, unit, business rule, quirk) — never to
+//        restate the field name in prose. Omit the segment otherwise.
 //   3. ALWAYS show optional fields too — mark them `optional`; never omit
 //      a field just because it is not required. Omission hides the contract.
 //   4. Show every nested object and array element in full. The ONLY allowed
@@ -54,12 +58,14 @@
 
   "anoVigencia": 2027,  // integer | required | 2024..2099
 
-  // integer | required, nullable | ID do contrato do ano anterior; null no 1º
-  // ano
+  // integer | required, nullable | ID do contrato do ano anterior
+  // null no 1º ano
   "contratoAnterior": 12340,
 
-  // string | required | enum [Rascunho, Contrato Assinado, Contrato Bundle
-  // Assinado] (Rascunho assumido válido)
+  // string | required | enum:
+  //   - Rascunho (assumido válido)
+  //   - Contrato Assinado
+  //   - Contrato Bundle Assinado
   "status": "Contrato Assinado",
 
   // string ISO 8601 UTC | required | última alteração na origem; tiebreaker do
@@ -69,11 +75,9 @@
 
   "duracao": 1,  // integer | required | duração em anos
 
-  // string 14 dígitos | required | filial de faturamento
-  "cnpjFilialFaturamento": "12345678000190",
+  "cnpjFilialFaturamento": "12345678000190",  // string 14 dígitos | required
 
-  // string 14 dígitos | required | filial de expedição (pode diferir da de
-  // faturamento)
+  // string 14 dígitos | required | pode diferir de cnpjFilialFaturamento
   "cnpjFilialExpedicao": "12345678000190",
 
   // string | required | enum [Venda Padrão (B2B), Loja Virtual (B2C),
