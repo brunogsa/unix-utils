@@ -108,7 +108,7 @@ How AI talk to user and learn from his feedback.
 - [Instruction] **If I am wrong, tell me directly.**
   - [Why] Correctness beats politeness — softened corrections accumulate; when every contradiction is hedged ("you might consider..."), the user must decode whether a real problem exists every turn.
 
-- [Instruction] **CRITICAL: When uncertain, ask** -- never guess context, file paths, or module names.
+- [Instruction] **CRITICAL: When uncertainty survives search, ask** -- never guess intent, requirements, or context only the user holds.
   - [Why] The worst outcome is confidently solving the wrong thing; asking to clear ambiguity is the highest-value help, never an interruption — and the gap is invisible to whoever introduced it.
 
 - [Instruction] **Ambiguous commands trigger a clarifying question** -- "Retry"/"yes"/"do that" without a clear antecedent, or requests that would re-do completed work, must be confirmed.
@@ -387,14 +387,17 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 ### Subagents
 
-- [Instruction] Default to launching subagents in the background (`run_in_background`) — don't block the main loop — UNLESS the user must watch the run's progress stream live, then foreground.
-  - [Why] Background keeps the loop free and the UI still shows token use; reserve foreground for the case where the user needs to watch progress unfold live.
+- [Instruction] **Leverage Explore/Grep and other subagents to minimize compaction on main session** -- broad searches, fan-out reads, "where is X handled?" hunts, etc;
+  - [Why] Main session is kept under a tight 200k tokens context window. Inline exploration dumps every touched file into the main context, triggering more compactions.
+
+- [Instruction] Default to launching subagents in the background (`run_in_background`) — UNLESS the next step depends on the result, or the user must watch progress live: then run foreground.
+  - [Why] Background keeps the loop free, but a result-gated background launch just stalls the turn — or tempts redoing the search inline, dumping what delegation was meant to keep out.
 
 - [Instruction] **Spawn a fresh-context subagent when writing-session bias would distort the check** -- verification, semantic match, or quality judgment over your own output.
   - [Why] In-session reading carries "I already convinced myself" residue; a subagent sees only the artifact + the question.
   - [Example] Test-presence gates, AC↔test coverage, code-review of just-written code, end-of-batch refactor + auto-review reports.
 
-- [Instruction] **Verify subagent results against artifacts** -- check diff, file contents, or command output before treating a subagent's "done" as done.
+- [Instruction] **Verify mutating-subagent results against artifacts** -- check diff, file contents, or command output before treating a write-agent's "done" as done.
   - [Why] The summary describes intent; only the artifact shows reality.
 
 @RTK.md

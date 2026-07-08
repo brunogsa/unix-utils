@@ -75,8 +75,8 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 
 ### Comment line formatting
 
-- [Instruction] **CRITICAL: One idea per comment-line** — split multi-clause comment lines into separate lines or sub-bullets (`"X because Y, and also Z"` → three lines).
-  - [Why] A single-line comment scans as one mental "chunk"; comma-stacked clauses force re-parsing on every read.
+- [Instruction] **CRITICAL: One idea per comment-line** — split multi-clause comment lines into separate lines or sub-bullets.
+  - [Why] A single-line comment scans as one mental "chunk"; comma-stacked clauses force re-parsing on every read. This applies regardless of comment syntax (`//` in JS/JSONC, `#` in YAML).
 
 - [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments — use plain ASCII (`=`, `-`, `|`).
   - [Why] Humans don't type these by hand, so they look AI-written and get used inconsistently; they also break in terminals, diffs, and grep where ASCII works.
