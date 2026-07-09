@@ -100,15 +100,3 @@
 **Deliverable**: a working template+JSON path for one recurring artifact type (code-review report), its density-verification story solved, and the `html-artifacts` skill updated to route recurring types to it instead of bespoke.
 
 ---
-
-## 1. [Spike] Evaluate herdr (agent multiplexer) vs. the current tmux + Claude Code setup
-
-**Goal**: Decide whether to adopt `herdr` (https://herdr.dev/) in place of, or alongside, tmux. It bills itself as an "agent multiplexer": persistent PTY panes/tabs/workspaces, per-pane agent-state indicators (blocked/working/done/idle), SSH remote attach (including from mobile), and out-of-the-box support for Claude Code, Codex, OpenCode, Cursor.
-
-**Verified (web)**: it's not a terminal emulator — it runs inside the existing terminal (Ghostty, iTerm, Alacritty, etc.), so any comparison is herdr-vs-tmux, not herdr-vs-Ghostty. Cross-platform requirement is met: stable installs for Linux + macOS (curl/Homebrew/Nix); Windows is preview-beta.
-
-**Open question — is there a real gap to fill?**: Claude Code is already deeply wired into tmux (see `~/tmux/`'s neovim/Claude integrations). herdr's differentiators over plain tmux are agent-state-awareness and SSH/mobile remote attach — check whether either is actually missing today, or cheaply addable to the existing tmux config (e.g. a status-line hook), before considering a multiplexer swap.
-
-**Deliverable**: a decision (adopt / cherry-pick specific herdr ideas into tmux / skip) with the reasoning, and if adopting, an integration plan that doesn't regress the existing tmux+neovim+Claude Code integration.
-
----
