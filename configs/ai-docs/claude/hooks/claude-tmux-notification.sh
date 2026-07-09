@@ -15,6 +15,16 @@
 #   the window (attached session + window active) -- no point flagging a
 #   window you can already see.
 #
+#   Also tints the pane background (orange for "notification", green for
+#   "done") via the per-pane option @claude_pane_state, for when Claude
+#   shares a window with a sibling pane you're actively working in -- the
+#   tab icon alone can't be seen from another pane in the same window. This
+#   gate is independent and stricter: it only skips when you're looking at
+#   this exact pane (active pane, in an active window, in an attached
+#   session), so a non-active split still gets tinted even while its window
+#   is the one on screen. A pane-focus-in hook in the tmux config clears the
+#   tint once you focus the pane.
+#
 #   For state=notification, reads the event JSON from stdin and skips
 #   idle alerts (notification_type=idle_prompt), which Claude Code fires
 #   ~60s after every turn and are not actionable. Permission prompts
@@ -53,6 +63,14 @@ DONE_SOUND_MACOS="Purr"
 NOTIFICATION_SOUND_MACOS="Tink"
 DONE_SOUND_LINUX="complete"
 NOTIFICATION_SOUND_LINUX="message"
+
+# Pane tint colors -- muted so the theme's light text stays readable over a
+# full-pane background (the bright tab-bar hues would wash it out). Set via
+# `set-option -p window-style`, never `select-pane -P`: the latter activates
+# the target pane and steals focus, which was spiked and confirmed to yank
+# the cursor into the Claude pane and self-clear the tint it had just set.
+TINT_COLOR_NOTIFICATION="#653f1c"
+TINT_COLOR_DONE="#345c3a"
 
 # Play the cue for $1 (done|notification): best-effort and non-blocking.
 # Never fails the hook -- no player found means it's skipped, and the player
@@ -110,13 +128,47 @@ if [ -z "$TMUX" ] || [ -z "$TMUX_PANE" ]; then
   exit 0
 fi
 
-# Skip if the user is currently viewing this window (attached session + active window)
-VIEWING=$(tmux display-message -t "$TMUX_PANE" -p '#{?#{&&:#{window_active},#{session_attached}},1,0}')
-if [ "$VIEWING" = "1" ]; then
-  exit 0
+# Read pane/window/session state once for both skip gates below -- the icon
+# gate and the tint gate are independent (a non-active pane in the active,
+# viewed window needs the tint but not the icon), so neither can early-exit
+# the whole script the way the old single-gate version did.
+read -r PANE_ACTIVE WINDOW_ACTIVE SESSION_ATTACHED <<< "$(
+  tmux display-message -t "$TMUX_PANE" -p '#{pane_active} #{window_active} #{session_attached}'
+)"
+
+# Icon gate: skip @claude_state (and the sound cue) if the user is already
+# viewing this window (attached session + active window) -- no point
+# flagging or sounding an alert for a window you can already see.
+IS_WINDOW_VIEWED=0
+if [ "$WINDOW_ACTIVE" = "1" ] && [ "$SESSION_ATTACHED" = "1" ]; then
+  IS_WINDOW_VIEWED=1
 fi
 
-tmux set-option -w -t "$TMUX_PANE" "@claude_state" "$STATE"
+if [ "$IS_WINDOW_VIEWED" = "0" ]; then
+  tmux set-option -w -t "$TMUX_PANE" "@claude_state" "$STATE"
+fi
 
-# Audible "go look" cue -- inherits every skip gate above by sitting after them.
-play_attention_sound "$STATE"
+# Tint gate: stricter superset of the icon gate above -- skip the tint only
+# when the pane is also the active one in that viewed window. A non-active
+# pane in the active window (a split you're not focused on) still gets
+# tinted, and so does any pane in a non-active window.
+IS_PANE_VIEWED=0
+if [ "$PANE_ACTIVE" = "1" ] && [ "$IS_WINDOW_VIEWED" = "1" ]; then
+  IS_PANE_VIEWED=1
+fi
+
+if [ "$IS_PANE_VIEWED" = "0" ]; then
+  case "$STATE" in
+    done)         TINT_COLOR="$TINT_COLOR_DONE" ;;
+    notification) TINT_COLOR="$TINT_COLOR_NOTIFICATION" ;;
+  esac
+  tmux set-option -p -t "$TMUX_PANE" window-style "bg=$TINT_COLOR"
+  tmux set-option -p -t "$TMUX_PANE" "@claude_pane_state" "$STATE"
+fi
+
+# Audible "go look" cue -- skip it under the same condition the icon uses
+# (unchanged from before the tint gate existed): no point sounding an alert
+# for a window you're already viewing.
+if [ "$IS_WINDOW_VIEWED" = "0" ]; then
+  play_attention_sound "$STATE"
+fi
