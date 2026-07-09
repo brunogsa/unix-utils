@@ -1,6 +1,6 @@
 ---
 name: address-todo-comments
-description: "Sweep AI?/AI!/TODO/XXX markers in code/docs via a Haiku-clustered digest, turn clusters into TaskList tasks, execute, strip the marker when done. Triggers: 'raise/gather/check/find/see the TODOs I left on <path>', or /address-todo-comments <path(s)>."
+description: "Sweep AI?/AI!/TODO/XXX markers in code/docs inline in the main session, turn clusters into TaskList tasks, execute, strip the marker when done. Triggers: 'raise/gather/check/find/see the TODOs I left on <path>', or /address-todo-comments <path(s)>."
 disable-model-invocation: false
 ---
 
@@ -26,21 +26,27 @@ Bruno is migrating toward `AI?`/`AI!` precisely because they remove this ambigui
 
 ## Workflow
 
+This runs entirely inline in the main session — no subagent fan-out. It's the current experiment: earlier versions delegated gather+classify+cluster to a Haiku subagent, but on real usage that added a full agent round-trip (tokens, tool calls, latency) while the main session still had to re-read the same file region to verify the subagent's output before trusting it — the "keep main context light" benefit never actually landed for a single small/medium file with markers clustered in one span. See "When a subagent might still help" below for the one case worth revisiting.
+
 1. **Resolve the target(s).** One or more files, or a folder (recursive), that the user names. If no target is given, ask which files/folders to sweep.
 
-2. **Gather, classify, and cluster inside a Haiku subagent — not inline Read/Grep.** Spawn `Agent` with `model: "haiku"` and give it the full job: scan the target(s), classify each marker (`AI!` → action, `AI?` → question, `TODO`/`XXX` → infer from context), and group them into themed clusters before returning.
-   - Doing all three steps inside the subagent — not just the raw scan — is what keeps the main session's context light: it comes back with a ready-to-file digest instead of a pile of raw hits the main session would have to re-read and re-derive structure from.
-   - Ask the subagent to return, per cluster: a theme name, and per marker within it — file path, line number, marker type, the classification it assigned, the full comment text, a couple of surrounding lines, and whether it considers the classification confident or ambiguous.
-   - For a large tree, split the scan across more than one Haiku subagent (e.g. by subdirectory) and merge the returned clusters, rather than one subagent reading hundreds of files serially.
-   - Instruct the subagent to be exhaustive: read whole files, don't stop at the first few hits, don't skip content past a default read window.
+2. **Gather every marker with `grep -n`, then read each hit's surrounding context directly.** Search the target(s) for `AI!`, `AI?`, `TODO`, `XXX` literally. For each hit, `Read` enough surrounding lines to classify it — don't stop at the grep line alone; the comment's meaning often depends on the field/code it annotates and on other parts of the same file (e.g. a design doc's Premises/Decisions/Open-Questions registries).
+   - Classify each marker as action or question: `AI!` → always action, `AI?` → always question, `TODO`/`XXX` → infer from the text and context.
+   - Cluster the markers into themes yourself as you read them — group by what they're really about (a field, a mechanism, a section), not by file order.
+   - Be exhaustive: don't stop at the first few hits, don't skip content past a default read window — read whole files when the target is a single file.
 
-3. **Resolve anything the subagent flagged as ambiguous.** Only the main session talks to the user — batch every ambiguous marker into one clarifying round rather than asking one by one.
+3. **Batch every ambiguous marker into one clarifying round with the user** before filing tasks — never guess marker by marker.
 
-4. **Create one TaskList task per cluster** returned by the subagent — don't re-cluster or second-guess a confident classification. Each task description embeds its file:line references and original marker text so it's self-contained; nothing needs to be re-derived by re-opening the subagent's raw output.
+4. **Create one TaskList task per cluster** you identified — don't file a task per raw marker if several belong to one theme. Each task description embeds its file:line references and original marker text so it's self-contained.
+   - Populate the full TaskList before investigating or executing any single cluster. A cluster that reads as quick to verify (a one-grep answer, an obvious fix) still tempts sliding straight into execution — file every cluster as a task first, so the list stays the complete, durable plan rather than a partial one reconstructed after the fact.
 
 5. **Execute, then strip the marker.** A task isn't done until its marker comment is gone from the source: for `AI!`/action items, perform the change first; for `AI?`/question items, answer in chat first (never in the file); either way, delete the comment once resolved. Treat the file like a burn-down list, not an archive of resolved notes.
 
-6. **Report back compactly.** Reply with the tasks created/executed and their file:line references, not the full digest. The point of pushing gather+classify+cluster into the subagent was to keep the main session's context light — don't undo that by pasting everything back in prose.
+6. **Report back compactly.** Reply with the tasks created/executed and their file:line references, not a full transcript of every file region you read.
+
+## When a subagent might still help
+
+Not ruled out permanently — just not the default while this runs inline. A subagent fan-out is worth revisiting only when the scan genuinely can't fit the main session cheaply: many files or a large directory tree, where splitting the grep+read pass across parallel subagents (e.g. one per subdirectory) actually avoids reading everything serially in one context. Even then, keep the subagent's job mechanical (locate + classify), not the clustering or resolution-planning — anything that requires cross-referencing the rest of a structured doc (registries, prior decisions, existing tokens) belongs in the main session, which is what actually resolves each item.
 
 ## Out of scope: design-doc Open Questions registries
 
