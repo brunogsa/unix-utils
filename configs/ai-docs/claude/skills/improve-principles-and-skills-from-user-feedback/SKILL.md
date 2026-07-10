@@ -64,7 +64,7 @@ Subagents condense their work into a final report — the user loses visibility 
 ### Subagent flow (opt-in)
 
 1. Step 1 in main context.
-2. Steps 2-7 in a background subagent (the default): spawn with `subagent_type: "general-purpose"`, `description: "Analyze user feedback for guideline learnings"`.
+2. Steps 2-7 in a background subagent: spawn with `subagent_type: "general-purpose"`, `description: "Analyze user feedback for guideline learnings"`.
 3. Subagent prompt must include **Scope**, the extracted user feedback items, and everything from **Subagent Process** through **Guidelines for Generalization** below.
 4. Step 8 (audit reminder) in main context after subagent returns.
 
@@ -81,7 +81,7 @@ Do not run analysis on nothing.
 
 ## Step 1: Extract User Feedback Items (main context)
 
-Detect the mode from the arg, then run the matching sub-step. **All sub-steps emit items in the same unified format below** so the subagent treats them uniformly.
+Detect the mode from the arg, then run the matching sub-step. **All sub-steps emit items in the same unified format below** so steps 2-7 treat them uniformly in either flow.
 
 ### Mode A — Current session (default)
 
@@ -170,7 +170,7 @@ Per-item field hints:
 
 ### Unified item format (all modes emit this)
 
-Format each item as a top-level bullet with five sub-bullets — keep the structure consistent so the subagent can parse it reliably:
+Format each item as a top-level bullet with five sub-bullets — keep the structure consistent so steps 2-7 can parse it reliably in either flow:
 
 ```
 - **Feedback N: [short title]**
@@ -181,12 +181,12 @@ Format each item as a top-level bullet with five sub-bullets — keep the struct
   - **Lesson drawn**: <generalizable takeaway as you currently see it; the subagent will challenge and refine>
 ```
 
-This list is passed verbatim into the subagent prompt as a `## User Feedback Items` section.
+In the main-context flow this list is the working input for steps 2-7. In the subagent flow it is passed verbatim into the subagent prompt as a `## User Feedback Items` section.
 
-- Richer input — especially verbatim quotes — gives the subagent raw signal it can't otherwise access (it can't see the parent conversation, the PR diff, or the working tree).
+- Richer input — especially verbatim quotes — matters most for the subagent, which can't see the parent conversation, the PR diff, or the working tree.
 - Paraphrases smooth over nuance; verbatim preserves it.
 
-## Subagent Process (steps 2-7)
+## Steps 2-7: Analyze, Present, Apply (main context by default; subagent on opt-in)
 
 2. **Extract candidate learnings** - For each user feedback item, ask:
    - Is this a recurring pattern or a one-off situation?
@@ -219,7 +219,7 @@ This list is passed verbatim into the subagent prompt as a `## User Feedback Ite
 
 ## Step 8: Post-edit audit reminder (main context)
 
-After the subagent returns its report, the main session prints a short reminder.
+After steps 2-7 finish — inline, or via the subagent's report — the main session prints a short reminder.
 
 Each audit then runs in *that* fresh session's main context, with the user in the loop for every finding:
 
