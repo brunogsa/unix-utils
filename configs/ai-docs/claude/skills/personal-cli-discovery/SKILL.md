@@ -22,14 +22,14 @@ Commands in `commands/` define a shell function with the same name as the file (
 These are hints to help you find the right tool -- not exhaustive documentation. Always run `--help` for current usage.
 
 - **AI tools**: `ai-request`, `ai-changelog`, `aigitcommit`, `aicmd`, `aicopy`, `aiyank`, `aiappend`, `estimate_tokens`
-- **Data processing**: `jsonl-distribution-table.js`, `jsonl-merge-and-sort-by-field.js`, `anonymize-txt`, `gen-schema-from-json`, `json-deep-sort.js`
+- **Data processing**: `jsonl-distribution-table.js`, `jsonl-merge-and-sort-by-field.js`, `anonymize-txt`, `gen-schema-from-json`, `json-deep-sort.js` (lives at `~/oh-my-zsh/json-deep-sort.js`, outside `commands/` and `lib/`)
 - **Diff/comparison**: `diff-sorted-jsons`, `diff-sorted-txt`
 - **Clipboard**: `copy` (cross-platform), `aicopy` (bulk file contents), `aiyank` (paths)
 - **Git/review**: `vimreview`, `git-worktree-add`
 - **Mermaid diagrams**: `render-ascii-mermaid`, `compile-mermaid`, `compile-gantt-mermaid`
 - **AWS**: `aws-get-dlq-summary`
 - **Vim/editor**: `search-replace-vim`
-- **Tmux**: `tmux-pane-words-picker`, `tmux-extract-claude-change-place`
+- **Tmux**: `tmux-pane-words-picker`
 - **Notifications**: `notify`
 - **System**: `detect-os`, `command-exists`, `list-project-paths`
 

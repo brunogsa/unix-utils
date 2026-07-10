@@ -123,7 +123,7 @@ The script measures with `grep`, `awk`, `wc`, and `find`.
 
 | Target | Measured | Budget | Status |
 |---|---|---|---|
-| CLAUDE.md non-blank lines | 128 | 200 | OK |
+| CLAUDE.md non-blank lines | 128 | 260 | OK |
 | CLAUDE.md max words/line | 58 (line 114) | 32 | OVER |
 | Skill count | 27 | 50 | OK |
 | Max skill desc chars | 806 (consistency-check-principles-and-skills) | 250 | OVER |
