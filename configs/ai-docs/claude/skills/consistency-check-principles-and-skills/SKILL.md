@@ -30,7 +30,7 @@ Fix: **self-consistency** — run 3 samples in parallel, keep only what ≥2 agr
 | **Orchestrator** | invoked from main session (default) | spawns 3 ensemble children in parallel, filters their reports by 2/3 majority vote, emits the merged report |
 | **Ensemble child** | spawned by orchestrator; prompt contains `ENSEMBLE_CHILD=true` | runs §Lifecycle directly with no fanout, emits the raw report (parent does the voting) |
 
-[Instruction] **CRITICAL: Children must NOT spawn further children.** The orchestrator's spawn prompt sets `ENSEMBLE_CHILD=true` and explicitly forbids fanout. Without this gate the skill recurses infinitely.
+[Instruction] **CRITICAL: Children must NOT spawn further children.** The orchestrator forbids fanout via `ENSEMBLE_CHILD=true` to prevent infinite recursion.
 
 [Instruction] **Spawn the 3 children in parallel** — single message, 3 `Agent` tool calls. Serial fanout 3×s wall-clock latency for the same token cost.
 
@@ -54,14 +54,11 @@ Fix: **self-consistency** — run 3 samples in parallel, keep only what ≥2 agr
 
 ### 2/3 majority filter (deterministic match key)
 
-[Instruction] **Match key = `(section-group, primary-file)`.** Two findings match iff both fields match exactly. Confidence tier, line numbers, diff wording, and prose vary stochastically across children; only the key counts for voting.
+[Instruction] **Match key = `(section-group, primary-file)`.** Two findings match iff both fields match exactly. Only the key counts for voting; confidence tier, line numbers, diff wording vary stochastically.
 
-- `section-group` — the integer 1–7 from §Heuristics (Contradictions=1, …, Term consistency=7), with sections 1 and 2 normalized to the single group `1-2` at merge time.
-  - The contradiction-vs-tension boundary is itself a judgment call, so children flagging the same defect split across 1 and 2 — a section-exact key silently loses that vote.
-- `primary-file` — the lexicographically lowest file path mentioned ANYWHERE in the finding body, not just its header (multi-file findings like contradictions cite two or more).
-  - Never key on "the first file cited" — citation order varies with prose across children, so identical findings key differently and silently lose the vote.
-  - No line number in the key — children anchor the same defect to different lines (header vs body, small offsets), so a line-exact key silently loses the vote.
-  - Accepted trade-off: two distinct defects in the same file and section-group false-merge; with the handful of findings a run produces, that's rarer and cheaper than false-dropping real agreement.
+- `section-group` — integer 1–7 from §Heuristics, normalized to `1-2` at merge time (sections 1 & 2 conflate at the boundary).
+- `primary-file` — lexicographically lowest file path in the finding body (not header; for multi-file findings, use the first file alphabetically).
+  - No line number in key — children anchor the same defect differently, so line-exact keys silently lose votes.
 
 [Instruction] **CRITICAL: Children MUST emit a machine-readable key line immediately under each finding ID.** Format is fixed and grep-able — no free-text parsing in the merge step.
 
@@ -88,12 +85,11 @@ Algorithm:
 5. For each kept key, emit the finding body from whichever child reported it with HIGHEST confidence; tie → lexicographically first child's wording.
 6. Re-number kept findings as `<section>.<index>` per §Lifecycle step 6 (numbering restarts at .1 within each section; a `1-2`-group finding renders under the winning body's own section).
 
-[Instruction] **Surface the ensemble-vs-correlated distinction in the orchestrator's handback.** 2/3 voting filters *stochastic* noise (samples disagree). It does NOT filter *correlated* false positives (every sample flags the same wrong thing).
+[Instruction] **Surface ensemble-vs-correlated distinction in handback.** 2/3 voting filters stochastic noise (samples disagree), NOT correlated false positives (every sample flags the same wrong thing).
 
-If a finding persists across rerun-and-fix cycles, the orchestrator notes:
+If a finding persists across rerun-and-fix cycles:
 
-> "This finding survived 3/3 — likely a correlated false positive.
-> Consider tightening the heuristic wording or raising the confidence threshold, not just re-running."
+> "Finding survived 3/3 — likely correlated false positive. Tighten the heuristic wording or raise the confidence threshold, not just re-run."
 
 ## What this skill does NOT flag
 
@@ -117,31 +113,22 @@ Perf-check answers *"how many?"*; consistency-check answers *"are the right ones
 
 ## Default state: no findings
 
-LLM judges over-flag by default.
-The medical-chatbot study found ~77% of judge false positives are "non-essential gap" flags (see [references/research.md](references/research.md)).
+LLM judges over-flag; ~77% of judge false positives are "non-essential gaps" (medical-chatbot study).
+Findings trigger users to ignore the next run.
 
-Producing findings when none exist trains the user to ignore the next run.
+**Default state for every heuristic: no findings.** A finding ships ONLY when ALL three gates pass:
 
-**Default state for every heuristic is `(no findings)`.** A finding ships only when ALL three gates pass:
-
-1. **Trade-offs listed and evaluated**: what are the pros of keeping as-is? What are the cons? 1-line each;
-2. **Actionable diff**: a specific 1-line proposed change.
-   - Bare *"consider X"* / *"might benefit from"* / *"could collapse"* → drop.
-3. **HIGH or MEDIUM confidence** per the rubric below; LOW drops silently.
+1. **Trade-offs**: pros and cons of keeping as-is (1-line each).
+2. **Actionable diff**: specific 1-line change. Bare *"consider X"* drops.
+3. **HIGH or MEDIUM confidence**; LOW drops silently.
 
 ### Confidence rubric
 
-- **HIGH** — direct locatable defect; defending the current state is implausible. Ships as **ISSUE**.
-- **MEDIUM** — overlapping scenarios with arguable interpretation; user judgment required. Ships as **REVIEW**.
-- **LOW** — stylistic preference or pattern intuition; no specific defect. **Dropped silently.**
+- **HIGH** — direct locatable defect, implausible to defend. Ships as **ISSUE**.
+- **MEDIUM** — overlapping scenarios, arguable interpretation. Ships as **REVIEW**.
+- **LOW** — stylistic preference, no specific defect. **Dropped silently.**
 
-Research backing per move:
-- I-CALM — the per-finding confidence rubric.
-- Conformal Abstention — "default state is silence".
-- Silent Judge — the report-only stance.
-- Systematic Overcorrection — the adversarial sanity-check (step 4).
-
-Full citations in [references/research.md](references/research.md).
+(Research: I-CALM, Conformal Abstention, Silent Judge, Systematic Overcorrection — see [references/research.md](references/research.md).)
 
 ## Heuristics (priority order)
 

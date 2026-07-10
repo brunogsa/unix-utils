@@ -70,12 +70,12 @@ These standards skills shape the work at specific moments — load each as its s
 
 Most load automatically via their description triggers; the explicit load points below guard against undertriggering:
 
-- `~/.claude/skills/reviewer-agent/references/review-principles.md` — read while interpreting reviewer comments in step 3 (severity vs. nit, framing drop reasons, distinguishing actionable from informational).
-- `code-standards` — load before any production edit while applying a cluster (step 5).
-- `test-standards` — load when a cluster touches tests, or when applying a change needs a regression test (step 5).
-- `doc-standards` — load before adding any comment, docstring, log line, or doc edit while applying a cluster (step 5).
-- `debug-standards` — load when lint/test goes red in step 1c, or when a test fails for the wrong reason while applying a cluster (step 5).
-- `commit-standards` — load at every commit boundary (step 1b offer-to-commit, step 5 per-cluster commits).
+- `review-principles.md` (reviewer-agent/references) — while interpreting comments in step 3 (severity, drop framing, actionable vs. informational).
+- `code-standards` — before production edits in step 5.
+- `test-standards` — when touching tests or needing a regression test (step 5).
+- `doc-standards` — before editing code comments, docstrings, logs (step 5).
+- `debug-standards` — when lint/test fails in step 1c or step 5.
+- `commit-standards` — at every commit boundary (step 1b, step 5).
 
 ## Step 1: Validate preconditions (main)
 
@@ -99,7 +99,7 @@ git status --porcelain
 
 If non-empty, **offer to commit first**: list the dirty files, ask whether to commit them now (delegate the commit to `commit-standards`).
 
-After the user commits or stashes manually, re-run the skill.
+After the user commits or stashes, re-run the skill.
 
 Don't proceed with a dirty tree — uncommitted work risks getting bundled into a cluster commit.
 

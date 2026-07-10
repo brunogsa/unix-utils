@@ -4,15 +4,8 @@ Always-loaded cross-cutting principles. Domain-specific principles + examples li
 
 ## Counting conventions — markers for deterministic measurement
 
-Every list-bullet in this file and the `*-standards` skills carries one marker, so `performance-check` counts adherence budgets with `grep` — no LLM judgment. Headers, intro prose, and fact notes carry no marker.
-
-Budgets and citations live in `~/.claude/skills/performance-check-principles-and-skills/`; this section defines only the vocabulary and how to tag.
-
-The shape: each instruction marker sits at the left margin; its why and example indent one level beneath.
-
-A code-fence example is the exception — it sits at the margin, since fences don't indent cleanly under a bullet. (The `*-standards` skills, which carry most code examples, show this.)
-
-Instructions never nest under instructions — the rules below are the example.
+Every list-bullet carries one marker for deterministic counting via `grep` — no LLM judgment. Headers, intro prose, fact notes carry no marker.
+Each marker sits at the margin; its [Why]/[Example] indent beneath; code fences sit at the margin (can't indent cleanly); instructions never nest under instructions.
 
 ### The four markers
 
@@ -77,9 +70,7 @@ Keeping the count low is the point: instruction count and CRITICAL ratio both tr
 
 ## Foundations
 
-Architectural principles for how the AI system is organized.
-
-Auto-Memory is disabled here, so knowledge persists only where you deliberately place it.
+Architectural principles — auto-memory disabled, so knowledge persists only where you deliberately place it.
 
 - [Instruction] Put cross-cutting, always-needed rules in the global CLAUDE.md (here).
   - [Why] CLAUDE.md loads every session, so only universally-needed rules justify the always-on context cost.
@@ -97,8 +88,6 @@ Auto-Memory is disabled here, so knowledge persists only where you deliberately 
   - [Why] Anthropic research found adding reasoning to aligned-behavior training cut misalignment ~5× (15% → 3%) vs. demonstrations alone — models generalize principles but overfit to bare directives.
 
 ## Communication & Feedback
-
-How AI talk to user and learn from his feedback.
 
 ### Directness & clarification
 
@@ -165,8 +154,6 @@ How AI talk to user and learn from his feedback.
 
 ## Task Approach
 
-How AI scope, plan, and verify work on any task.
-
 ### Understand & simplify first
 
 - [Instruction] **Understand first, then execute** -- clarify requirements, identify areas, outline approach.
@@ -191,7 +178,7 @@ How AI scope, plan, and verify work on any task.
 
 - [Instruction] **CRITICAL: Scout rule** -- when you notice pre-existing issues, flag them AND auto-add to the task list as `[Scout]` items.
   - [Why] Per-Scout confirmation friction tempts skipping; auto-add neutralizes the temptation and preserves commit discipline (absorbed issues derail the commit).
-  - [Example] Examples (non-exhaustive): stale comments, budget overruns, lint gaps, dead config, type-check failures unrelated to your task, failing/skipped/flaky tests on the branch baseline, circular deps, dead code in touched modules.
+  - [Example] Stale comments, budget overruns, lint gaps, dead config, type-check failures, failing/skipped tests, circular deps, dead code.
 
 - [Instruction] One TaskCreate per distinct Scout — never bundle findings under "investigate the failures" or similar umbrella. Each finding is independent triage.
   - [Why] Bundled findings can't be triaged, prioritized, or commit-scoped independently.

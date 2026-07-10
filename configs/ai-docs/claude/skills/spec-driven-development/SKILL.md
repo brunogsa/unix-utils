@@ -66,8 +66,7 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 0. User creates spec_<slug>.md with initial prompt/notes (or `/brainstorm` refines it).
 1. Plan mode or direct request generates plan_<slug>.md from spec_<slug>.md (or from prompt).
-2. AI Self-review (two lenses) — a fresh-context subagent runs the unbiased structural gates; a scope pass catches over-engineering and spec-vs-request drift.
-   - Validate every mermaid block with `mmdc` (parse traps and version caveats live in the `mermaid-diagrams` skill).
+2. AI Self-review — fresh-context subagent runs structural gates; scope pass catches over-engineering and spec-vs-request drift. Validate mermaid blocks with `mmdc`.
 3. User reviews and approves — when the user signals, execution start.
 4. Each plan_<slug>.md task becomes a TaskCreate item.
 5. Both files updated as work progresses (living docs); decisions are append-only past the divider that exists on both spec_<slug>.md and plan_<slug>.md.
@@ -93,49 +92,29 @@ Read them with fresh eyes by spawning a sub-agent that reports:
 - **Density**: spawn the `density-fixer` subagent on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check or rewrite density violations inline.
   - The subagent runs `check-density.sh` and applies the `density-rules.md` rewrite patterns until exit 0, without dropping information.
 
-Three of the five checks below are **dedicated fresh-context subagent gates** (Gate 1, Gate 2, Gate 3) — they see only the artifacts, so no writing-session bias leaks in.
+Six checks (three fresh-context subagent gates + two inline + one advisory scope lens) run in sequence:
 
-The other two (checklist completeness, inversion sweep) are inline checks.
+- **Gates 1-3** (fail-closed): AC↔test coverage, test↔task assignment, machinery↔spec traceability — see only artifacts, no session bias.
+- **Inline checks** (fail-closed): checklist completeness, inversion sweep — do the corner case and failure checklists have per-item disposition (covered / N/A)?
+- **Scope lens** (advisory): does the spec match the user's request, or is plan_<slug>.md over-engineered relative to the ACs?
 
-All five are **fail-closed**: any miss, parse error, or subagent error blocks self-review until reconciled.
+- **Gate 1 — AC ↔ Test Design coverage**: every `### AC-N:` in spec has ≥1 test in plan (semantic match, not grep).
+  Output: orphan ACs (empty = pass). Block plan approval if non-empty.
 
-A sixth check — the **scope lens** — is advisory rather than fail-closed, and is the only check that gets the user's original request pushed into its prompt.
+- **Gate 2 — Test Design ↔ per-task assignment**: every Test Design title must be owned by a task's `**Tests (planned)**:`. Output: orphan titles (empty = pass). Block if non-empty.
 
-It is the one judgment the artifact-only gates structurally can't make: whether the spec is over-scoped versus what the user actually asked.
+- **Gate 3 — Machinery ↔ AC traceability**: every piece of machinery (abstraction, dependency, knob, extra layer) must trace to a spec AC or requirement.
+  Output: untraceable items (empty = pass). Block if non-empty — cut or earn an AC.
 
-- **Gate 1 — AC ↔ Test Design coverage**: spawn a fresh-context subagent with `spec_<slug>.md` + `plan_<slug>.md`.
-  - Task: for every `### AC-N:` in spec_<slug>.md, identify at least one test in plan_<slug>.md (Test Design section or per-task `**Tests (planned)**:`) that semantically covers it.
-  - Output: list of ACs with no covering test (empty = pass).
-  - Semantic match, not literal grep — AC wording and test title may diverge ("reject empty input" ↔ "return 400 when payload missing"); the subagent judges equivalence.
-  - Block plan approval on any non-empty missing list.
+- **Checklist completeness**: every corner case / failure mode item must be marked `covered (<recap>)`, `N/A — <reason>`, or opt-out: `**DECISION:** Skip because <reason>`. Empty placeholders fail self-review.
 
-- **Gate 2 — Test Design ↔ per-task assignment**: spawn a separate fresh-context subagent with `plan_<slug>.md`.
-  - Task: for every title in the global Test Design section, locate the task whose `**Tests (planned)**:` bullet owns it.
-  - Output: list of orphan titles (designed but unassigned).
-  - Same fail-closed semantics as Gate 1.
+- **Inversion sweep**: for every AC, ask "how would this break in production?" If no failure mode surfaces, flag as under-specified.
 
-- **Gate 3 — Machinery ↔ AC traceability (over-engineering)**: spawn a fresh-context subagent with `spec_<slug>.md` + `plan_<slug>.md`.
-  - Task: for every piece of machinery in plan_<slug>.md — each abstraction, dependency, config knob, extra layer, or point of generality — name the spec AC or documented requirement (goal/NFR) it serves.
-  - Output: list of machinery with no traceable justification (empty = pass).
-  - Untraceable machinery is speculative scope; block plan approval until each item is either cut or earns an AC that justifies it.
-  - "Necessary" means it traces to a requirement — this is the artifact-internal half of the over-engineering check; the request-context half is the scope lens below.
+- **Scope lens** (advisory): pass user's request + spec + plan to a subagent.
+  Ask: does spec match request (no gold-plate), and is plan the simplest design meeting every AC?
+  Advisory, not fail-closed — surface findings and let the user decide.
 
-- **Checklist completeness**: verify spec_<slug>.md's **boundary checklist** (Corner cases) and **failure category checklist** (Failure modes) are evaluated.
-  - Each item marked `covered (<recap of the covering AC>)` or `N/A — <reason>`. Empty template placeholders fail self-review.
-  - Honor opt-out: a checklist replaced with `**DECISION:** Skip <name> checklist because <reason>` counts as evaluated.
-
-- **Inversion sweep**: for every AC in spec_<slug>.md, ask "how would this break in production?".
-  - If no failure mode surfaces, the AC is under-specified — flag it for the user to tighten the AC or document N/A in the failure-category checklist.
-
-- **Scope lens (request-context, advisory — not a gate)**: the gates above see only the artifacts, so they can't tell whether the spec itself is over-scoped versus what you were actually asked.
-  - Spawn a fresh-context subagent, pushing verbatim: the user's original request (plus any scope-changing follow-ups), spec_<slug>.md, and plan_<slug>.md.
-  - First state the concern in your reasoning — name plan_<slug>.md's heaviest machinery and the simplest design you believe meets every AC — then pass both as claims to challenge.
-    - A bare "review this for over-engineering" with nothing staged wastes the pass.
-  - Aim it at two judgments: is the spec scoped to the request (no gold-plated ACs the user never asked for), and is plan_<slug>.md the simplest design that still meets every AC?
-  - Advisory, not fail-closed: surface its findings to the user alongside the gate results and let them decide what to cut.
-    - Over-engineering is a judgment call, not a parse error — don't block on it.
-
-Why: cheaper for you to catch these than for the user to find them in review — and it prevents the "looks good, ship it" loop where ambiguity surfaces only during implementation.
+Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces only in implementation.
 
 #### Delta-scoped re-review on iteration rounds
 

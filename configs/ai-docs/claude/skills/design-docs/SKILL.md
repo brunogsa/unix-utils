@@ -1,6 +1,6 @@
 ---
 name: design-docs
-description: "USE PROACTIVELY when authoring or revising an ADR, HLD, LLD, RFC, design doc, tech design, spec_<slug>.md, plan_<slug>.md, or a payload schema as JSONC. Routes you to the right doc, its template, a worked example, and the rules that keep them from overlapping."
+description: "USE PROACTIVELY when authoring an ADR, HLD, LLD, RFC, design doc, tech design, spec_<slug>.md, plan_<slug>.md, or payload schema — routes to templates, rules, and worked examples."
 user-invocable: false
 ---
 
@@ -100,48 +100,10 @@ Don't create a separate RFC artifact; it would duplicate the HLD.
 
 ## Decisions, Premises, Risks, Open Questions — how to structure them
 
-The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open Questions. Keep those four sections clean with these rules.
+Durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open Questions — use tokens (`D-`, `PR-`, `R-`, `OQ-`) as stable cross-reference anchors.
+One item per heading, cluster by theme before ordering.
 
-- **One item, one sub-section — never a flat bullet list.** Give each Decision/Premise/Risk/Open-Question its own markdown heading, with the entry's body beneath it.
-  - Applies uniformly to all four sections — don't leave one as a bullet list and another as sub-sections.
-  - **The heading title is a scannable summary.** A reader skims the outline and opens a body only for details — so the title must carry the gist, not just the token.
-  - Format: `### <TOKEN> — <summary>`, e.g. `### OQ-08 — Preço do item: unitário vs total`.
-  - Keep the stable `<TOKEN>` (OQ-/PR-/D-/R-N) in the heading as the cross-reference anchor.
-  - Cross-reference these items only by their stable `<TOKEN>`, never a `§N.M`-number.
-    - Items get added/removed and `§`-numbers churn, while the token is a named anchor that tracks the item.
-  - Tokens obey the reading-order rule above: cite them only from text after their registry section; earlier text recaps inline without the token.
-
-- **Label by what you actually know.** A fact you've validated or assume true is a *Premise*; a genuine unknown is an *Open Question*.
-  - Don't dress an unknown as a Premise, nor prematurely close a question you can't yet answer — both directions matter.
-
-- **An unknown that would block execution becomes a provisional Premise + Risk, not an Open Question.**
-  - Assume the most reasonable default, write it as a Premise flagged provisional (e.g. "Provisória — confirmar com o time X").
-  - Register what breaks if the assumption is wrong as a Risk that cites the Premise back.
-  - This keeps the build moving on the assumed default while the real answer is chased in parallel — reserve Open Questions for unknowns that don't gate work already in flight.
-  - Since Risks (section 5) follows Premises (section 3), the Premise points forward with a linkless phrase ("risco ... registrado adiante"); the Risk then carries the backward token once both entries exist.
-
-- **A fact already stated in Context isn't a Premise**, even if later sections cite it often or in a specific way.
-  - Recap the Context fact inline instead of minting or reviving a registry token for it.
-
-- **Each fact lives once.** When a question is answered, move the answer into *Decisions*; don't leave decided content embedded inside the *Open Question*.
-  - Drop any Open Question that a Premise already settles — no duplicate item across sections.
-
-- **Open Questions is a burn-down list — its goal is "Nenhuma".** It records only what is *still* unknown, not a history of what got resolved.
-  - When a question closes, **relocate** its content to the right home — a *Premise*, *Decision*, *Risk*, or embedded directly in the solution/mapping — and **remove** it from the Open Questions list.
-  - Never leave a "[RESOLVIDA]" / "resolved" stub sitting in the Open Questions section — that defeats the burn-down and clutters the list.
-  - When relocating, keep cross-references intact: repoint any `OQ-N` pointer to the item's new home (or state the fact inline), then grep the doc for dangling `OQ-/PR-/D-/R-` tokens before calling it done.
-
-- **One logical decision, one Decision.** Consolidate; don't fragment a single choice across several `D-` items. Rejected options belong as *"discarded alternatives"* sub-bullets under the decision they lost to, not separate entries.
-
-- **Trade-offs as sub-bullets, not a table.** For a decision's pros/cons, nest bullets under each option — more scannable and easier to keep inside the density cap than a markdown table.
-
-- **Cluster items by theme, then order the clusters along one stable narrative.** Don't leave the four sections in the accidental order the tokens were minted.
-  - Pick a narrative the whole doc already follows and reuse it in every section — e.g. the payload/call flow (source-of-truth → header → items → response → read-back), or foundational-scope-first.
-  - Reorder freely: the stable `<TOKEN>` is a named anchor, so moving a `### OQ-08` block never breaks a `(OQ-08)` cross-reference elsewhere.
-  - **Never renumber a token to fit the new order** — that *does* break every reference.
-  - Open the section with a **roadmap** naming each cluster and listing its tokens in reading order (one cluster per line), then order the `###` items to match.
-  - The roadmap gives the reader the map before the details.
-  - Prefer the roadmap over per-cluster headings — a heading with a single item under it violates the "never a one-item heading" rule, and singleton clusters are common.
+See [`references/dpro-structure.md`](./references/dpro-structure.md) for detailed rules on labeling, token ordering, burn-down lists, and roadmaps.
 
 ## The five docs at a glance
 
@@ -200,29 +162,11 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
 
 - ADR — start from `assets/template-adr.md` (skeleton with TODOs); see `references/example-good-adr.md` for a worked example (decision + alternatives with +/-/~ trade-offs + consequences).
 
-- LLD — start from `assets/template-lld.md` (one component, implementation-ready: code design, data model, contracts, de/para mappings, error/concurrency, observability). The top comment block holds the HLD↔LLD boundary rule. No worked example yet.
+- LLD — start from `assets/template-lld.md` (one component, implementation-ready: code design, data model, contracts, de/para mappings, error/concurrency, observability).
+  The top comment block holds the HLD↔LLD boundary rule. No worked example yet.
 
-- Schema as JSONC — when a doc shows a request/response/event payload, render it as one annotated JSONC object, not a field table; copy `references/example-good-schema.jsonc`.
-  - "Schema as jsonc" means that file's style: real values, each field tagged `type | required|optional | constraints | description`, optional fields shown, nested objects in full, quirks inline.
-  - Keep every line ≤80 chars: short annotations stay inline.
-    - When a full annotation would push the field line past 80, move the comment above the field (wrapped, multi-line), preceded by a blank line so it hugs its field.
-    - When the *value* is long (two origin paths in one de/para value), keep the leaf field in the value and move the container path up into the comment — never truncate.
-    - When an enum has several long or multi-word values, list one value per line (`// enum:` header, then `//   - value` per line).
-      - This avoids wrapping inline `enum [a, b, c]` mid-value across lines.
-    - Never leave an orphaned continuation fragment (a lone trailing word) when wrapping.
-      - Either fit the whole clause on one line.
-      - Or split at a real idea boundary (e.g. a semicolon joining two clauses) so every resulting line stands complete on its own.
-    - Measure before wrapping (`wc -c` on the line).
-      - A line that looks long by eye often already fits within 80 chars.
-      - Splitting one that doesn't need it adds noise instead of removing it.
-  - **The description segment is optional — include it only when it adds real information beyond the name and type; otherwise omit it rather than forcing one.**
-    - A phrase that just unpacks the identifier is not a description: `"modular"` → `// indica se é de modelo modular`, `"dataFimVigencia"` → `// data de término da vigência`.
-    - Both examples above restate the name and teach the reader nothing new.
-    - A description earns its place when it decodes a magic value/enum, states a unit, or names a business rule/quirk: `"tipoEndereco": 1  // fixo 1 = Faturamento conforme doc`.
-  - **When a description does earn its place, keep it one short clause — never a paragraph.**
-    - This is a content rule, distinct from the ≤80-char line cap above: a description can fit inside the cap and still be over-elaborate.
-    - "Every field needs a description" is license to cover more fields, never to write more per field.
-    - The fix for a useless description is to delete or tighten it, not expand it.
+- Schema as JSONC — render request/response/event payloads as annotated JSONC (real values, each field tagged with type/required/constraints/description); copy `references/example-good-schema.jsonc`.
+  See [`references/schema-jsonc-rules.md`](./references/schema-jsonc-rules.md) for line-length, description, and enum formatting rules.
 
 - de/para (from → to) mapping — qualify every field by its system.
   - Prefix each field with its source/destination system (`pic.`, `sge.`, `hub.`, `crm.`, or `const` for a literal), so provenance stays clear when systems share field names.

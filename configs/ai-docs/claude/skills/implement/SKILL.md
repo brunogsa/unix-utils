@@ -21,15 +21,14 @@ There is no per-task human handshake — your batch-end review is the handshake.
 
 Two roles:
 
-- **Orchestrator** (this session) — owns pre-flight, the one-time plan review, decomposition, TaskList, plan_<slug>.md status, per-task dispatch, post-commit verification, and the batch-end report.
-  - It holds only plan + orchestration state, never a task's implementation context.
+- **Orchestrator** (this session) — pre-flight, plan review, decomposition, TaskList, dispatch, post-commit verification, batch-end report.
+  Holds only orchestration state, never task implementation context.
 
-- **Task subagent** — one fresh context per task, run sequentially: does the RED-GREEN work, self-verifies, commits, returns a report.
-  - Each re-grounds from durable artifacts (plan_<slug>.md, spec_<slug>.md, `git log`), not session history — so a long batch never rots into one transcript.
+- **Task subagent** — one fresh context per task, sequential: RED-GREEN work, self-verify, commit, report.
+  Each re-grounds from durable artifacts (plan_<slug>.md, spec_<slug>.md, `git log`), not session history.
 
-Run subagents on **Sonnet** (execution is mechanical once the plan is sound); keep the orchestrator on the session's stronger model for planning and verification.
-
-Tasks run **sequentially**, never in parallel (async work — latency isn't the point); sequential order lets each subagent read the prior task's commits and plan_<slug>.md notes first.
+Run subagents on **Sonnet** (execution is mechanical); keep orchestrator on stronger model.
+Tasks run **sequentially** — each reads the prior task's commits + plan_<slug>.md notes first.
 
 ### Chain-abort, with no human gate
 
@@ -75,17 +74,8 @@ Confirm with the user before proceeding. In autonomous mode: take the parameter 
 
 ### 1.3. Recap of work since base + capture `BATCH_BASE_SHA`
 
-Capture HEAD as `BATCH_BASE_SHA` — the start of this invocation's commit range, reused in §4 and §8.
-
-Read **full commit messages** — bodies often carry the *why* subjects don't:
-
-```bash
-git log <base>..HEAD > /tmp/implement-recap.log
-```
-
-Then read it and give the user a 3–5 line summary of what's done.
-
-Don't dump the full log to chat; the per-task subagents re-derive their own context from `git log` at dispatch.
+Capture HEAD as `BATCH_BASE_SHA` — the start of this invocation's commit range (reused in §4 and §8).
+Read **full commit messages** and give a 3–5 line summary. Don't dump the log; subagents re-derive context from `git log` at dispatch.
 
 ### 1.4. Match `<task-id>`
 
@@ -99,28 +89,22 @@ The per-state prompts (re-execute / resume / restart / revive) and the TaskList 
 
 ## 2. Orchestration review — fresh-context subagent, once before any dispatch
 
-Spawn a fresh-context review subagent **once per invocation**, after pre-flight and before dispatching any task — an adversarial review of the whole orchestration plan, not a per-task check.
+Spawn a review subagent **once per invocation**, after pre-flight and before dispatching — adversarial review of the whole batch (not per-task).
+Fresh context: the plan was authored in-session, already convinced — reviewer sees only artifacts + question.
 
-Fresh context is the point: the plan was authored in a session already convinced by it, so this is CLAUDE.md's writing-session-bias case — the reviewer sees only the artifacts and the question.
+Challenge the batch as a whole: approach, ordering, dependencies, verification strategy.
+Take it seriously: fix the plan/batch if dependencies are missed; reconcile verification method challenges; skipping defeats the point.
 
-Push the full `plan_<slug>.md` and all batched IDs into its prompt, so the review challenges the batch as a whole: approach, task ordering, cross-task dependencies, verification strategy.
-
-Take the review seriously:
-
-- If the reviewer flags a missed forcing case or dependency, fix the plan or the batch order before any dispatch.
-- If it challenges the verify method, reconcile it now.
-- Skipping or no-op'ing ("looks fine, proceeding") defeats the point.
-
-This is the orchestrator's only plan-level review; the task subagent has its own narrower lever for mid-execution forks (§4.2).
+This is the orchestrator's only plan-level review; the task subagent has its own mid-execution fork lever (§4.2).
 
 ## 3. Decompose into TaskList (orchestrator, per task)
 
 The orchestrator owns the TaskList — your macro-visibility surface. The subagent reports against it and never creates its own items, so the plan stays legible.
 
-For each task as it becomes active, generate sub-step items based on **both**:
+For each task, generate sub-steps based on:
 
-- The task's existing breadcrumb / sub-bullets in `plan_<slug>.md` (e.g., `(migration; seed; baseline EXPLAIN; index-on EXPLAIN; compare)`)
-- A fresh decomposition: one item per RED-GREEN cycle (one per most-forcing case from the task's acceptance criteria), plus verify / commit / finalize steps.
+- Task's existing breadcrumb/sub-bullets in `plan_<slug>.md`
+- Fresh decomposition: one item per RED-GREEN cycle (per AC forcing case), plus verify/commit/finalize steps.
 
 **CRITICAL: Create ALL known sub-steps in TaskList BEFORE dispatching the task's subagent.**
 

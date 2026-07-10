@@ -64,7 +64,7 @@
       "Read(~/.config/gh/**)"
     ]
   },
-  "model": "fable",
+  "model": "opus",
   "hooks": {
     "PreToolUse": [
       {
