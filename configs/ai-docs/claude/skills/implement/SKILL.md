@@ -378,4 +378,4 @@ Then present the whole batch for your async review.
 
 That async review **is** the handshake this skill replaces the per-task gate with.
 
-The full procedure — queued items, spawn contract, report-only preamble, failure handling, batch-review summary, and opening the diff in a neovim-diffview tmux window — lives in [`references/batch-end.md`](references/batch-end.md). Load at batch end.
+The full procedure — queued items, spawn contract, report-only preamble, failure handling, batch-review summary, and opening the diff in a neovim-diffview tmux pane — lives in [`references/batch-end.md`](references/batch-end.md). Load at batch end.
