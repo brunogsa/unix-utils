@@ -376,13 +376,6 @@ After the last task is terminal (`[Done]`, blocked, or the batch halted on budge
 
 That async review **is** the handshake this skill replaces the per-task gate with.
 
-The flow, in order:
+The flow, in one pass: repo-green check; two report-only `deep-reviewer` tails (`/refactor` then `/auto-review`); triage; metrics; package print + diffview pane; opt-in draft PR, then finalize.
 
-1. **Repo-green check** — full lint + tests, before the tails.
-2. Two **`deep-reviewer` tails** — `/refactor` then `/auto-review`, report-only.
-3. **Triage** both reports into one prioritized summary.
-4. **Metrics** — write `presented_at`, then run the metrics script (it needs `presented_at`).
-5. **Assemble & print the package** — outcomes, diff range, metrics, worktree reminder; then open the diffview pane.
-6. **Opt-in draft PR, then finalize** — optional draft PR; then delete-or-keep the state file.
-
-Each step's full detail — spawn contract, report-only preamble, failure handling, and finalize ordering — lives in [`references/batch-end.md`](references/batch-end.md). Load at batch end.
+Every step — ordering, spawn contract, failure handling, finalize — is owned in full by [`references/batch-end.md`](references/batch-end.md). Load at batch end.
