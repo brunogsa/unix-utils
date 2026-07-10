@@ -120,6 +120,16 @@
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/claude-tmux-title-restore.sh"
+          }
+        ]
+      }
     ]
   },
   "worktree": {
