@@ -15,6 +15,7 @@ For each input field or collection the change touches:
 - unicode / whitespace-only / leading-trailing spaces
 - duplicate / out-of-order entries
 - boundary numbers (0, -1, MAX_INT, off-by-one)
+- clock / timezone / DST boundaries (midnight, month-end, leap day)
 - combined / composed filters (multiple filters active at once)
 
 ## Failure modes (adverse interactions and dependencies)
@@ -30,7 +31,22 @@ For each dependency call and state-changing operation:
 - concurrency / race / double-submit
 - idempotency (repeat-request behavior)
 - network drop mid-operation
+- datastore unavailable / deadlock / constraint violation
+- crash mid-transaction (what state does the retry see?)
+- stale cache (serving pre-change data after the change lands)
+- resource exhaustion (disk / memory / connection pool / queue backpressure)
+
+### Async delivery (event/message consumers)
+
+For each event or message the change consumes or emits:
+
+- duplicate delivery (at-least-once redelivery)
+- out-of-order delivery
+- redelivery after partial processing (consumer crashed mid-message)
+- poison message / dead-letter path
 
 ## Classification note
 
 Concurrency and idempotency file under failure modes (adverse interaction with state), not corner cases (data shape) — probe and checklist them there.
+
+Duplicate / out-of-order *entries* (data inside one input list) are a corner case; duplicate / out-of-order *delivery* (the broker re-sends or reorders messages) files under async failure modes.

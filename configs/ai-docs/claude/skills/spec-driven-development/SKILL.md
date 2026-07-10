@@ -55,7 +55,7 @@ Populate @./assets/spec-template.md
 
 Technical approach and task breakdown. Generated from spec_<slug>.md (or directly from prompt).
 
-Contains the high level architecture, general flow, reusage and side effect reports, test design, task breakdown and technical decisions.
+Contains the high level architecture, general flow, reuse and side-effect reports, failure handling, test design, task breakdown and technical decisions.
 
 Populate @./assets/plan-template.md
 
@@ -67,10 +67,10 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 0. User creates spec_<slug>.md with initial prompt/notes (or `/brainstorm` refines it).
 1. Plan mode or direct request generates plan_<slug>.md from spec_<slug>.md (or from prompt).
 2. AI Self-review — fresh-context subagent runs structural gates; scope pass catches over-engineering and spec-vs-request drift. Validate mermaid blocks with `mmdc`.
-3. User reviews and approves — when the user signals, execution start.
+3. User reviews and approves — when the user signals, execution starts.
 4. Each plan_<slug>.md task becomes a TaskCreate item.
 5. Both files updated as work progresses (living docs); decisions are append-only past the divider that exists on both spec_<slug>.md and plan_<slug>.md.
-6. User generally run `/refactor` then `/auto-review` skills when the entire features is developed; fixes are addressed, if any.
+6. User generally runs `/refactor` then `/auto-review` when the entire feature is developed; fixes are addressed, if any.
 7. User manually review the code. More fixes, if any.
 8. `/create-pr` uses both spec_<slug>.md and plan_<slug>.md to generate a rich PR description.
 9. Self-improving loop: user runs `/improve-principles-and-skills-from-user-feedback` then `english-coach` skills so both AI and human learn.

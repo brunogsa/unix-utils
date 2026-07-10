@@ -47,13 +47,7 @@ Use BDD-style scenarios (Given / When / Then). One scenario per criterion, each 
 
 For simple input → output assertions on stateless endpoints, skip `Given`.
 
-**Coverage rule:** every spec MUST include scenarios for:
-
-- **happy path**
-- **corner cases** (e.g. empty inputs, boundary values, max sizes — full list in the checklists below)
-- **failure modes** (e.g. validation errors, downstream timeouts, partial failures — full list in the checklists below)
-
-A spec with only happy-path ACs is incomplete.
+**Coverage rule:** happy path + corner cases + failure modes — the checklists below enforce it; a spec with only happy-path ACs is incomplete.
 
 Format:
 
