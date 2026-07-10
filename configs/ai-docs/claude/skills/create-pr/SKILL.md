@@ -1,7 +1,7 @@
 ---
 name: create-pr
 description: "Create a GitHub PR with a rich description. User-invoked only — auto-detects spec_<slug>.md/plan_<slug>.md for context."
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Create Pull Request
