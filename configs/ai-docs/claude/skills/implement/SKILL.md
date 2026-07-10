@@ -43,9 +43,11 @@ A good spec/plan (the prerequisite for any `/implement` run) should make mid-bat
 
 ## 1. Pre-flight (orchestrator)
 
-The user manages git worktrees; this skill assumes CWD is already where the task should run and never creates, moves into, or merges them.
+The up-front interview (§1.2) asks whether this run creates its own git worktree; on yes, §1.3 creates and populates it.
 
-In a multi-task batch (`/implement 1, 2, 3`), **§1.1–§1.3 and §2 run once** at the start; **§1.4–§1.5 run once per task** as each becomes active.
+On no, this skill runs in the current checkout as before, and never merges or deletes a worktree on its own either way.
+
+In a multi-task batch (`/implement 1, 2, 3`), **§1.1–§1.5 and §2 run once** at the start; **§1.6–§1.7 run once per task** as each becomes active.
 
 ### 1.1. Locate the plan (and spec)
 
@@ -55,35 +57,73 @@ Glob in CWD (top-level only):
 ls -1 plan_*.md spec_*.md 2>/dev/null
 ```
 
-Resolve to `<PLAN_PATH>` and `<SPEC_PATH>` with this decision tree:
+Resolve candidates with this decision tree — this step only gathers candidates and never prompts on its own; an ambiguous match becomes the interview's plan-pick question (§1.2):
 
 - **Exactly one plan and one spec** → use both; print the resolved paths, no prompt.
-- **Multiple plans (or multiple specs)** → list the matches numbered and ask the user which plan to implement; pair it with the spec sharing its `<slug>` when one exists.
-- **No plan found** → ask the user for the path. If none provided, **stop**.
+- **Multiple plans (or multiple specs)** → the interview's plan-pick question lists the matches numbered; pair each plan with the spec sharing its `<slug>` when one exists.
+- **No plan found** → the interview asks for the path. If none provided, **stop**.
 - **Plan but no spec** → proceed plan-only; the spec is optional context.
 
 Everywhere below, `plan_<slug>.md` / `spec_<slug>.md` refer to these resolved paths.
 
-### 1.2. Detect base branch
+### 1.2. One up-front interview
 
-```bash
-git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'
-```
+Ask everything at once, in a single message, before any dispatch — this is the only round of questions until the review package.
 
-Confirm with the user before proceeding. In autonomous mode: take the parameter as-is; if absent, STOP.
+The rare exceptions are §1.6's multiple-task-id-match disambiguation and §1.7's resume/dirty-run prompts — pre-existing task-activation checks, outside the up-front interview.
 
-### 1.3. Recap of work since base + capture `BATCH_BASE_SHA`
+Mid-run `.env` needs are self-served (copy from the original checkout) rather than asked.
+
+- **Plan pick**, only when §1.1 found multiple candidates.
+- **Run in a git worktree?** (yes/no) — on yes, §1.3 creates it from HEAD and copies files in.
+- **Open a draft PR at batch end?** (yes/no).
+- **Base-branch confirmation** — show `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'` as the default; let the user confirm or override.
+  In autonomous mode: take the parameter as-is; if absent, STOP.
+
+Record all answers (three, or four when the plan-pick question fired) before proceeding — §1.5 persists them into the state file.
+
+### 1.3. Worktree setup (only when §1.2 answered yes)
+
+Call `EnterWorktree` with no `path` argument.
+
+`settings.json`'s `worktree.baseRef: "head"` makes the new worktree branch from the current HEAD, so this works from `main` or any feature branch — never from a fixed default branch.
+
+Then copy into the worktree, from the original checkout: `plan_<slug>.md`, `spec_<slug>.md` (both untracked, so `git worktree add`'s checkout never carries them), and any `.env*` files.
+
+When §1.2 answered no, skip this step entirely; the batch-end package omits the merge-back reminder because no worktree exists to merge back.
+
+### 1.4. Recap of work since base + capture `BATCH_BASE_SHA`
 
 Capture HEAD as `BATCH_BASE_SHA` — the start of this invocation's commit range (reused in §4 and §8).
+
+Capture it **after** §1.3, so a new worktree's HEAD (same commit, different working directory) is what gets recorded.
+
 Read **full commit messages** and give a 3–5 line summary. Don't dump the log; subagents re-derive context from `git log` at dispatch.
 
-### 1.4. Match `<task-id>`
+### 1.5. State-file init (and resume adoption)
+
+Check for an existing state file belonging to this `<slug>`:
+
+```bash
+grep -l "\"slug\": \"<slug>\"" ~/.claude/implement-runs/*.json 2>/dev/null
+```
+
+- **None found** → create `~/.claude/implement-runs/<session_id>.json` per the schema in `plan_implement-loop.md`'s Technical Approach.
+  - Top-level fields: `version`, `session_id`, `slug`, `phase: "tasks"`, `batch_base_sha`, `started_at`, `presented_at: ""`, `gate_dispatches: 0`, empty `tails`.
+  - Plus `worktree` / `pr` filled from §1.2's answers, one `tasks[]` entry per matched task-id (`status: "pending"`), and empty `attempts[]`.
+- **Found** → load [`references/preflight-state.md`](references/preflight-state.md) for the JSON-adoption mechanics that restore attempt counts and completed-task status.
+
+### 1.6. Match `<task-id>`
 
 Exact-match against numeric prefixes in `plan_<slug>.md` headings. On multiple matches (rare), ask the user which one.
 
-### 1.5. Existing state (resume / dirty runs)
+### 1.7. Existing state (resume / dirty runs)
 
 On a resume or re-run, reconcile any pre-existing task status and stray TaskList items before proceeding. A clean first run skips this.
+
+This is orthogonal to §1.5's silent JSON adoption: once adopted, the verdict script (§4-5) already skips `done`/`blocked` tasks on its own.
+
+So this step fires only for drift the JSON doesn't cover — a stale `plan_<slug>.md` marker, a stray TaskList item, or a dirty run with no matching JSON file at all.
 
 The per-state prompts (re-execute / resume / restart / revive) and the TaskList cleanup choices live in [`references/preflight-state.md`](references/preflight-state.md). Load when state exists.
 
@@ -225,7 +265,7 @@ If the subagent returned `blocked` (§4.4), leave the task where it stopped, rec
 
 ### 5.5. Advance
 
-On a clean verify: flip plan_<slug>.md to `[Done]` (§6), record the subagent's `[Scout]` notes on plan_<slug>.md, then re-run §1.4–§1.5 + §3 for the next task. §1.1–§1.3 and §2 do not repeat.
+On a clean verify: flip plan_<slug>.md to `[Done]` (§6), record the subagent's `[Scout]` notes on plan_<slug>.md, then re-run §1.6–§1.7 + §3 for the next task. §1.1–§1.5 and §2 do not repeat.
 
 ## 6. Status markers (plan_<slug>.md task title)
 
