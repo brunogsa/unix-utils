@@ -90,9 +90,8 @@ Read them with fresh eyes by spawning a sub-agent that reports:
 - **Completeness**: does ALL Goals, Success Metrics and KPIs, User Stories and Non-Functional and Technical Requirements being covered on Testable Acceptance Criteria section? ALL corner cases and failure modes covered?
 - **Human-Reviewable**: Is it easy for the user to review? Is the format pleasant to read? Are you enabling user to verify you?
 - **Artifacts Valid**: If any mermaid diagram exists, are they valid, verified via `mmdc`?
-- **Density**: Run `~/.claude/skills/doc-standards/scripts/check-density.sh <resolved-spec> <resolved-plan>` (the actual `spec_<slug>.md` / `plan_<slug>.md` paths).
-  - Exit 0 = clean; exit 1 = rewrite each `<line>:<chars>:<words>` violation.
-  - Follow `~/.claude/skills/doc-standards/references/density-rules.md` (paragraph → bullets+sub-bullets, long bullet → bullet + sub-bullets) without dropping information.
+- **Density**: spawn the `density-fixer` subagent on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check or rewrite density violations inline.
+  - The subagent runs `check-density.sh` and applies the `density-rules.md` rewrite patterns until exit 0, without dropping information.
 
 Three of the five checks below are **dedicated fresh-context subagent gates** (Gate 1, Gate 2, Gate 3) — they see only the artifacts, so no writing-session bias leaks in.
 
