@@ -1,6 +1,6 @@
 ---
 name: html-artifacts
-description: "Decide whether a reader-facing artifact should be Markdown, Google Docs, or an interactive page (hosted Artifact or local HTML), and how to produce each. Use before producing any report, review, research synthesis, or reader-facing doc — even if HTML was not mentioned."
+description: "Route a reader-facing artifact to Markdown, Google Docs, or an interactive page (hosted Artifact or local HTML), and produce it. Use before any report, review, research synthesis, or reader-facing doc — even if HTML was not mentioned."
 user-invocable: false
 ---
 
@@ -81,14 +81,16 @@ When an interactive page wins, produce it with the native **Artifact tool** — 
 Fall back to a **local single-file `.html`** only when hosting is wrong: sensitive content that must not leave the machine, or a page that must open offline.
 
 - To share an existing `.md`, run `md-to-html` (below) — never hand-reimplement it.
-- A hand-authored local page must be one self-contained file: embedded CSS in `<style>`, JS in `<script>`, diagrams as inline SVG, images as base64 `data:` URIs, zero external references.
+- A hand-authored local page must be one self-contained file with zero external references.
+  - Embedded CSS in `<style>`, JS in `<script>`, diagrams as inline SVG, images as base64 `data:` URIs.
   - Why: its whole value is opening anywhere offline with no build step; one external reference breaks that.
 
 A templated HTML+JSON path for recurring artifact types stays deferred — the spike lives in `~/unix-utils/workflow-tasks.md`; the Artifact tool's redeploy-to-same-URL may supersede it.
 
 ## Propose first, generate only on user OK
 
-When the router selects an interactive page, propose it in one line naming the capability gain (e.g. "sortable/filterable findings neovim can't show") and the pipeline (Artifact vs local), then wait for the user's OK.
+When the router selects an interactive page, propose it in one line and wait for the user's OK.
+The proposal names the capability gain (e.g. "sortable/filterable findings neovim can't show") and the pipeline (Artifact vs local).
 
 Why: the user is token-sensitive and wants the cost decision per instance — and for Artifacts the OK also covers publishing to claude.ai. Never auto-generate, and never auto-generate both md+html.
 
