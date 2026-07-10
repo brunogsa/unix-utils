@@ -36,7 +36,7 @@ Run them **sequentially**, in that order (refactor first so its findings can inf
 
 Spawn each tail via the **Agent tool**, `subagent_type=deep-reviewer`, in the background (the default) — wait for its completion notification before spawning the next, preserving the sequential order above.
 
-`deep-reviewer` pins Opus + max effort by its own definition, so the dispatch site sets no `model` override (AC-5).
+`deep-reviewer` pins Opus + max effort by its own definition, so the dispatch site sets no `model` override.
 
 The prompt body is the entire instruction set the subagent receives.
 
@@ -68,9 +68,9 @@ Violating any of the MUST NOT items aborts the parent /implement.
 After the preamble, include the skill-specific body:
 
 - **refactor** tail: "Invoke `/refactor` over `<BATCH_BASE_SHA>..HEAD`. Write findings to `./report_refactor_<YYYY-MM-DD_HH:MM>.md` in CWD."
-  - Pass **no** spec/plan paths — refactor judges code shape, not spec conformance (AC-5, deliberate).
+  - Pass **no** spec/plan paths — refactor judges code shape, not spec conformance (deliberate).
 - **auto-review** tail: "Invoke `/auto-review <BATCH_BASE_SHA>` (per its `/auto-review HEAD~N` per-task scoping convention). Write findings to `./report_auto-review_<YYYY-MM-DD_HH:MM>.md` in CWD."
-  - Also pass the resolved `spec_<slug>.md` and `plan_<slug>.md` paths — auto-review always gets them to check spec conformance (AC-5).
+  - Also pass the resolved `spec_<slug>.md` and `plan_<slug>.md` paths — auto-review always gets them to check spec conformance.
 
 When each tail returns, record its results into the state file's `tails` object:
 
@@ -81,7 +81,7 @@ When each tail returns, record its results into the state file's `tails` object:
 
 - **Subagent violates the report-only contract** (a forbidden mutation per the preamble) → this **aborts the parent `/implement`**.
   - There is no permission gate — `deep-reviewer` has all tools — so the preamble's behavioral contract is the only enforcement.
-- **Subagent errors, or writes no report file** (AC-16) → log it to chat with the agent's last message; the **other** tail still runs; the package flags the missing artifact.
+- **Subagent errors, or writes no report file** → log it to chat with the agent's last message; the **other** tail still runs; the package flags the missing artifact.
   - A refactor failure never blocks the auto-review tail.
   - Do NOT retry inline (unlike the planned-test check): batch-end reports are reviewed asynchronously; a missing report is user-attention, not a retry loop.
 
@@ -113,11 +113,11 @@ The package is the single async pass the human reviews — the replacement for t
 - **"Unexpected extras"** — the repo-green cheap fixes committed above (and any completed Scout fixes), each with its commit.
 - **Run metrics** — total wall-clock time and summed tokens from the metrics script (below).
 - **Repo-green status** — flag "repo not green" when any structural failure remains as a Scout.
-- **TDD opt-out note** — when §8's gate passed as all-N/A, state the explicit opt-out (AC-9).
-- **Worktree merge-back reminder** — only when a worktree exists (read its path + branch from the state file); omit entirely when the interview declined it (AC-11).
+- **TDD opt-out note** — when §8's gate passed as all-N/A, state the explicit opt-out.
+- **Worktree merge-back reminder** — only when a worktree exists (read its path + branch from the state file); omit entirely when the interview declined it.
   - The reminder ends the package: its path, its branch, and "nothing was merged or deleted — merge back and remove it yourself".
 
-On a **halted** batch — budget hit, or any task left `blocked` / `stuck` — present this as a **partial** package, still labeling each task `done` / `blocked` / `stuck` (AC-15).
+On a **halted** batch — budget hit, or any task left `blocked` / `stuck` — present this as a **partial** package, still labeling each task `done` / `blocked` / `stuck`.
 
 ## Open the diff for review (neovim diffview)
 
@@ -129,7 +129,7 @@ After printing the summary, open the batch diff in a **side-by-side tmux pane** 
 
 - Mode `vertical` splits the current pane side-by-side (the user chose a pane, not a window).
 - The command `cd`s into `<worktree-or-cwd>` first, so `DiffviewOpen` runs against the batch's working tree.
-  - The pane inherits the orchestrator's cwd, which differs from the worktree when the interview chose one (AC-11); without the `cd` the diff would open against the wrong tree.
+  - The pane inherits the orchestrator's cwd, which differs from the worktree when the interview chose one; without the `cd` the diff would open against the wrong tree.
 - **Diff against the bare `<BATCH_BASE_SHA>`, never `<BATCH_BASE_SHA>..HEAD`** — the bare base compares base ⟷ working tree (right pane editable); `..HEAD` diffs two commits (both panes read-only).
 - On a clean batch the working tree equals HEAD, so the editable view shows exactly the batch; edits land as uncommitted changes atop the batch commits.
 - The skill handles the `$TMUX` guard itself: outside tmux it exits non-zero and prints the full `cd '<worktree-or-cwd>' && nvim -c 'DiffviewOpen <BATCH_BASE_SHA>'` command for the human to run.
@@ -157,11 +157,11 @@ It prints JSON: `{duration_seconds, tokens:{per_task, subagent_total, orchestrat
 
 Only when the interview opted into a draft PR (§1.2). Skip this section entirely otherwise.
 
-- **AC-13 guard first** — if `gh` is absent or the repo has no remote, skip the PR with an explicit notice in the package; everything else in the package is unaffected.
+- **Guard first** — if `gh` is absent or the repo has no remote, skip the PR with an explicit notice in the package; everything else in the package is unaffected.
 - Otherwise **push the branch** and create a **draft** PR with `gh pr create --draft`. Never auto-merge, never force-push.
 - Generate the description with a **separate `deep-reviewer` dispatch** from the spec/plan and commit bodies, following the `create-pr` skill's conventions (`~/.claude/skills/create-pr/SKILL.md`).
   - That dispatch **returns the description text only** — it must not push or commit; the orchestrator owns the push.
-- Put completed Scout / repo-green fixes under an **"Unexpected extras"** section in the PR body (AC-7).
+- Put completed Scout / repo-green fixes under an **"Unexpected extras"** section in the PR body.
 
 ## Finalize
 
@@ -175,4 +175,4 @@ This is the ordering spine. The print comes last of the review steps because the
 6. **Delete or keep the state file by terminal phase.** The phase set here is the Stop hook's release signal.
    - The hook blocks stops while phase is `tasks` / `gates` / `tails`, and allows them once phase is `presented` or `halted`.
    - **Every task `done`** → set `phase: presented` and **delete** the state file (a presented batch never resumes).
-   - **Budget hit, or any task `blocked` / `stuck`** → set `phase: halted` and **keep** it for resume; the printed package is the partial one (AC-15).
+   - **Budget hit, or any task `blocked` / `stuck`** → set `phase: halted` and **keep** it for resume; the printed package is the partial one.
