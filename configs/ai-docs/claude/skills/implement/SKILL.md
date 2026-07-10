@@ -385,8 +385,9 @@ Then re-gate ONCE — a second `deep-reviewer` pass, same contract.
 
 - Re-gate still missing → record the still-missing titles for §9's package, then set `phase: "tails"` and go to §9 so the package surfaces them. Do NOT loop, do NOT hand-fix.
 
-**Budget note.** This gate never calls `implement-loop-state.sh`.
-The `gate_dispatches` it increments are accounted by the script's budget backstop at §9's next verdict call, which returns `halt-budget` there if the ceiling was blown.
+**Budget note.** This gate never calls `implement-loop-state.sh` — and neither does §9, which runs linearly to the package.
+The `gate_dispatches` it increments are recorded for the script's phase-independent budget backstop, which fires on its next call — in practice, a resumed run's first verdict — returning `halt-budget` before anything else.
+A gate-fix overflow therefore never halts the current batch; the gate is try-once, so the overshoot is bounded at one dispatch per task.
 Keeping the accounting in the script is the invariant — do not "helpfully" add a script call here.
 
 ## 9. Batch-end review & tail subagents
