@@ -66,7 +66,7 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 0. User creates spec_<slug>.md with initial prompt/notes (or `/brainstorm` refines it).
 1. Plan mode or direct request generates plan_<slug>.md from spec_<slug>.md (or from prompt).
-2. AI Self-review — fresh-context subagent runs structural gates; scope pass catches over-engineering and spec-vs-request drift. Validate mermaid blocks with `mmdc`.
+2. AI Self-review — `deep-reviewer` subagents run structural gates; scope pass catches over-engineering and spec-vs-request drift. A failing mermaid `mmdc` check routes to `mermaid-fixer`, never fixed inline.
 3. User reviews and approves — when the user signals, execution starts.
 4. Each plan_<slug>.md task becomes a TaskCreate item.
 5. Both files updated as work progresses (living docs); decisions are append-only past the divider that exists on both spec_<slug>.md and plan_<slug>.md.
@@ -89,12 +89,13 @@ Read them with fresh eyes by spawning a sub-agent that reports:
 - **Completeness**: does ALL Goals, Success Metrics and KPIs, User Stories and Non-Functional and Technical Requirements being covered on Testable Acceptance Criteria section? ALL corner cases and failure modes covered?
 - **Human-Reviewable**: Is it easy for the user to review? Is the format pleasant to read? Are you enabling user to verify you?
 - **Artifacts Valid**: If any mermaid diagram exists, are they valid, verified via `mmdc`?
+  - A failing check routes to the `mermaid-fixer` subagent on the resolved doc path — never fixed inline, mirroring the density-fixer rule below.
 - **Density**: spawn the `density-fixer` subagent on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check or rewrite density violations inline.
   - The subagent runs `check-density.sh` and applies the `density-rules.md` rewrite patterns until exit 0, without dropping information.
 
-Six checks (three fresh-context subagent gates + two inline + one advisory scope lens) run in sequence:
+Six checks (three `deep-reviewer` gates + two inline + one advisory scope lens) run in sequence:
 
-- **Gates 1-3** (fail-closed): AC↔test coverage, test↔task assignment, machinery↔spec traceability — see only artifacts, no session bias.
+- **Gates 1-3** (fail-closed): AC↔test coverage, test↔task assignment, machinery↔spec traceability — each a fresh-context `deep-reviewer` dispatch (Opus, max effort), so it sees only artifacts, no session bias.
 - **Inline checks** (fail-closed): checklist completeness, inversion sweep — do the corner case and failure checklists have per-item disposition (covered / N/A)?
 - **Scope lens** (advisory): does the spec match the user's request, or is plan_<slug>.md over-engineered relative to the ACs?
 
