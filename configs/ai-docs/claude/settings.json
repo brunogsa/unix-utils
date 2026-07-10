@@ -55,13 +55,6 @@
       "mcp__claude_ai_Google_Calendar__list_events"
     ],
     "deny": [
-      "Bash(read:~/.ssh/**)",
-      "Bash(read:~/.gnupg/**)",
-      "Bash(read:~/.git-credentials)",
-      "Bash(read:~/.npmrc)",
-      "Bash(read:~/.pypirc)",
-      "Bash(read:~/.docker/config.json)",
-      "Bash(read:~/.config/gh/**)",
       "Read(~/.ssh/**)",
       "Read(~/.gnupg/**)",
       "Read(~/.git-credentials)",
@@ -71,7 +64,7 @@
       "Read(~/.config/gh/**)"
     ]
   },
-  "model": "sonnet",
+  "model": "fable",
   "hooks": {
     "PreToolUse": [
       {
