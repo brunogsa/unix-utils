@@ -6,11 +6,11 @@ disable-model-invocation: false
 
 # Spec-Driven Development
 
-Lightweight workflow using two living documents in the project root to guide development, code review, and PR description generation.
+Lightweight workflow using two living documents in CWD to guide development, code review, and PR description generation.
 
 ## Documents
 
-Two living documents in the project root. Templates live in `assets/` and are populated based on the user's input.
+Two living documents in CWD. Templates live in `assets/` and are populated based on the user's input.
 
 These throwaway docs feed from durable design docs (ADR / HLD / LLD). Load the `design-docs` skill for the ownership + altitude rules that keep spec/plan from re-deriving them.
 
@@ -77,7 +77,7 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 ### Self-review both spec and plan before handing it back (step 2 detail)
 
-Read them with fresh eyes by spawning a sub-agent that reports:
+First, a qualitative pass — spawn one sub-agent that reads both docs with fresh eyes and reports (findings only, no gate):
 - **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
 - **Contradictions**: do sections within the same doc disagree?
   - Does plan_<slug>.md contradict spec_<slug>.md? Examples: spec assumptions planning overturned, architectural choices superseding spec requirements, scope constraints discovered during planning.
@@ -93,7 +93,7 @@ Read them with fresh eyes by spawning a sub-agent that reports:
 - **Density**: spawn the `density-fixer` subagent on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check or rewrite density violations inline.
   - The subagent runs `check-density.sh` and applies the `density-rules.md` rewrite patterns until exit 0, without dropping information.
 
-Six checks (three `deep-reviewer` gates + two inline + one advisory scope lens) run in sequence:
+Then six formal checks run in sequence — they turn the report's Completeness and Artifacts claims above into fail-closed gates (three `deep-reviewer` gates + two inline + one advisory scope lens):
 
 - **Gates 1-3** (fail-closed): AC↔test coverage, test↔task assignment, machinery↔spec traceability — each a fresh-context `deep-reviewer` dispatch (Opus, max effort), so it sees only artifacts, no session bias.
 - **Inline checks** (fail-closed): checklist completeness, inversion sweep — do the corner case and failure checklists have per-item disposition (covered / N/A)?
@@ -185,7 +185,8 @@ But plan_<slug>.md can also be wrong; surfacing the choice preserves intent rath
   - Update it in the same edit that changes the body; a stale summary misleads the reviewer.
   - This delta is human-facing prose only — the gates compute their re-review scope by diff, not from this list.
 
-- **plan_<slug>.md tasks and their sub-steps become items on TaskList**.
+- **plan_<slug>.md tasks and their sub-steps become items on TaskList** — when running inline.
+  - Under `/implement`, only parent tasks go on the orchestrator's TaskList; each task subagent tracks its own sub-steps in a private checklist file.
 
 - **Tasks are commit-sized, never smaller**.
 
@@ -193,7 +194,7 @@ But plan_<slug>.md can also be wrong; surfacing the choice preserves intent rath
   - For plan_<slug>.md use this pattern:
     - The "ToDo" / "Pending" state do not required a marker
     - Suggested status: `[Doing]`, `[Done]`, `[Blocked]`, `[Deferred]`, `[Dropped]`
-    - Shape: `## <status> Task <N>: <title>`
+    - Shape: `### <N>. [<status>] <title>` — number first, status bracketed after it; matches the plan template and `/implement`'s status-markers reference (the bracket is absent for pending, per above).
 
 - **After completing a task note deviations from the original plan**.
 
