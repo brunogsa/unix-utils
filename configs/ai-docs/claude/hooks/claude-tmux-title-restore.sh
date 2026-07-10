@@ -61,7 +61,11 @@ if ! tmux show-options -p -t "$TMUX_PANE" -v "@claude_prev_window_name" >/dev/nu
 fi
 
 PREV_WINDOW_NAME=$(tmux show-options -p -t "$TMUX_PANE" -v "@claude_prev_window_name")
-PREV_AUTO_RENAME=$(tmux show-options -p -t "$TMUX_PANE" -v "@claude_prev_auto_rename")
+# The guard above only confirmed @claude_prev_window_name exists. Tolerate a
+# missing auto-rename (partial-capture edge) so `set -e` can't abort here and
+# silently skip the restore; an empty value falls through to the safe `else`
+# branch below (literal name, automatic-rename off).
+PREV_AUTO_RENAME=$(tmux show-options -p -t "$TMUX_PANE" -v "@claude_prev_auto_rename" 2>/dev/null || true)
 
 if [ "$PREV_AUTO_RENAME" = "on" ]; then
   # Re-enabling automatic-rename makes tmux immediately re-derive the name
