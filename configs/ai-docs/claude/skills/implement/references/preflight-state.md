@@ -8,15 +8,21 @@ When §1.5 finds an existing `~/.claude/implement-runs/*.json` whose `slug` matc
 
 No prompt: an existing file is itself the resume signal, mirroring the Stop hook's own escape hatch (deleting the file un-scopes the session).
 
-Adoption is a rename plus one field patch, never a rewrite of its contents:
+Adoption is a rename plus two field patches, never a rewrite of its contents:
 
 ```bash
 mv ~/.claude/implement-runs/<old_session_id>.json ~/.claude/implement-runs/<new_session_id>.json
-jq --arg sid "<new_session_id>" '.session_id = $sid' ~/.claude/implement-runs/<new_session_id>.json \
+jq --arg sid "<new_session_id>" \
+  '.session_id = $sid | if .phase == "halted" then .phase = "tasks" else . end' \
+  ~/.claude/implement-runs/<new_session_id>.json \
   > /tmp/state.json && mv /tmp/state.json ~/.claude/implement-runs/<new_session_id>.json
 ```
 
-`phase`, `tasks[]`, `attempts[]`, `gate_dispatches`, `tails`, `worktree`, and `pr` all carry over verbatim.
+`tasks[]`, `attempts[]`, `gate_dispatches`, `tails`, `worktree`, and `pr` all carry over verbatim.
+
+`phase` carries over too, except `halted`, which resets to `tasks`: the verdict script fails loud on any phase other than `tasks`/`tails`, so a resumed halted batch would crash its first verdict call.
+
+A budget-halted resume still halts again at that first verdict — the carried `attempts[]` already exceed the ceiling; delete the state file (below) to truly start over.
 
 That alone restores every task's completed status and every attempt count: `implement-loop-state.sh` reads them the same way whether the run is fresh or resumed.
 
