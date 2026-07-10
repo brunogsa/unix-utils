@@ -187,6 +187,11 @@ But plan_<slug>.md can also be wrong; surfacing the choice preserves intent rath
   - Never reference them in committed artifacts (code comments, commit bodies, docs).
   - They stay local and get removed after the session; the next reader won't have them. Put the why in the code comment itself or other appropriated place.
 
+- **CRITICAL: Keep spec and plan as lean as the change allows — brief and didactic beats exhaustive**:
+  - Fill only the sections the change needs; use each section's `N/A — <reason>` escape freely instead of padding.
+  - Short titles, one thought per bullet, terse Given/When/Then — optimize for a fast human read, not formal completeness.
+  - Why: these are throwaway living docs, so verbosity taxes every re-read and buries the decisions that matter.
+
 - **Cross-references inside the planning doc spell out the behavior — never cite `AC-N` IDs** (doc-standards' no-ID-references rule; the `### AC-N:` headings defining ACs are anchors, not references).
   - Bad: "AC-12 / AC-13 / AC-15 / AC-16a behavior captured" — forces the reader to flip back.
   - Good: "one school's fetch fails / one agreement's SKU fetch fails — behavior captured".
