@@ -16,7 +16,7 @@
 # recorder of raw facts (attempt outcomes, phase, report paths); this script is
 # the infallible judge that turns those facts into one of six actions.
 #
-# Design (see plan_implement-loop.md, Task 2, for full context):
+# Design:
 #   - The "current task" is whichever task the LAST entry in `attempts[]`
 #     belongs to — not `tasks[].status`, which the orchestrator may lag on.
 #   - A task is "terminal" (no longer blocks the batch) once its `status` is
@@ -39,7 +39,7 @@
 #   0 - verdict printed on stdout.
 #   1 - usage error, missing file, invalid JSON, or a state this script has
 #       no verdict for. Fail-loud by design: this is not the fail-open
-#       component — that's the Stop hook (a later task).
+#       component — that's claude-implement-stop-hook.sh.
 
 set -eo pipefail
 

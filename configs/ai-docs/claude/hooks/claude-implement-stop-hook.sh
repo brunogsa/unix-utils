@@ -7,7 +7,7 @@
 #   stdout: optional JSON ({ decision: "block", reason: "..." }) to keep Claude going
 #
 # Rationale:
-#   /implement's task loop (see plan_implement-loop.md) writes a per-session
+#   /implement's task loop (the implement skill) writes a per-session
 #   state file at ~/.claude/implement-runs/<session_id>.json while it works
 #   through a batch. A natural Stop before the batch reaches `presented` or
 #   `halted` would leave the run abandoned mid-way with no re-prompt. This

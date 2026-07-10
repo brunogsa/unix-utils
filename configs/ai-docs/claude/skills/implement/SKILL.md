@@ -108,9 +108,28 @@ Check for an existing state file belonging to this `<slug>`:
 grep -l "\"slug\": \"<slug>\"" ~/.claude/implement-runs/*.json 2>/dev/null
 ```
 
-- **None found** → create `~/.claude/implement-runs/<session_id>.json` per the schema in `plan_implement-loop.md`'s Technical Approach.
-  - Top-level fields: `version`, `session_id`, `slug`, `phase: "tasks"`, `batch_base_sha`, `started_at`, `presented_at: ""`, `gate_dispatches: 0`, empty `tails`.
-  - Plus `worktree` / `pr` filled from §1.2's answers, one `tasks[]` entry per matched task-id (`status: "pending"`), and empty `attempts[]`.
+- **None found** → create `~/.claude/implement-runs/<session_id>.json` with exactly this shape:
+
+```json
+{
+  "version": 1,
+  "session_id": "<session_id>",
+  "slug": "<slug>",
+  "phase": "tasks",
+  "batch_base_sha": "<BATCH_BASE_SHA>",
+  "started_at": "<ISO-8601 now>",
+  "presented_at": "",
+  "tasks": [{ "id": "1", "status": "pending" }],
+  "attempts": [],
+  "gate_dispatches": 0,
+  "tails": { "refactor_report": "", "auto_review_report": "", "tokens": { "gate": 0, "refactor": 0, "auto_review": 0, "pr": 0 } },
+  "worktree": { "created": false, "path": "", "branch": "" },
+  "pr": { "wanted": false }
+}
+```
+
+- One `tasks[]` entry per matched task-id (`status: "pending"`); `worktree` / `pr` filled from §1.2's answers.
+  - §5.3/§5.5 append `attempts[]` entries as `{ "task", "n", "result", "signature", "tokens", "at" }`.
 - **Found** → load [`references/preflight-state.md`](references/preflight-state.md) for the JSON-adoption mechanics that restore attempt counts and completed-task status.
 
 ### 1.6. Match `<task-id>`
