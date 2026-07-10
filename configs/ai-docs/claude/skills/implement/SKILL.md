@@ -339,7 +339,7 @@ That no longer holds at batch scope — by now the orchestrator has watched ever
 This gate is therefore a fresh-context `deep-reviewer` dispatch, not an inline orchestrator check.
 
 **Entry.** Run this when `phase` is `gates` — the state §5.4's queue-empty scan and §5.5's `gates` verdict both set.
-On `halt-budget`, skip the gate entirely — the budget is already spent, so go straight to §9 and let the package note the gate was skipped.
+A `halt-budget` verdict never reaches here: it routes straight to §9 from §5.3/§5.5, upstream of this gate, so the gate has no budget branch of its own.
 
 **Dispatch.** Spawn ONE `deep-reviewer` subagent via the Agent tool — fresh context, Opus + max effort, which is that agent type's built-in tier.
 Pass it the resolved `plan_<slug>.md` path and the diff range `<BATCH_BASE_SHA>..HEAD`.
