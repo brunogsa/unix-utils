@@ -94,7 +94,7 @@ When §1.2 answered no, skip this step entirely; the batch-end package omits the
 
 ### 1.4. Recap of work since base + capture `BATCH_BASE_SHA`
 
-Capture HEAD as `BATCH_BASE_SHA` — the start of this invocation's commit range (reused in §4 and §8).
+Capture HEAD as `BATCH_BASE_SHA` — the start of this invocation's commit range (reused in §4, §8, and §9).
 
 Capture it **after** §1.3, so a new worktree's HEAD (same commit, different working directory) is what gets recorded.
 
@@ -269,7 +269,7 @@ Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` an
 
 - **`retry`** → re-dispatch the **same task** as a fresh subagent, passing the recorded failure as feedback.
 - **`stuck`** → the script judged this task's failures aren't converging (too many attempts, or a repeating failure signature) — go to §5.4, which marks it terminal.
-- **`halt-budget`** → the batch's dispatch budget is exhausted. Halt the loop and go to §8's batch-end review with whatever work is done so far.
+- **`halt-budget`** → the batch's dispatch budget is exhausted. Halt the loop and go to §9's batch-end review with whatever work is done so far.
   - This is the same backstop §5.5 can hit on a pass — it's checked before this call even looks at the fail/timeout result.
 
 Load `debug-standards` if you need to diagnose why a task keeps failing before its next retry.
@@ -293,7 +293,7 @@ Flip `plan_<slug>.md` to `[Blocked]` for the terminal task and every dependent t
 **Pick the next task yourself — the script can't.** `next-task` only comes out of a `pass` attempt (§5.5), and this task didn't pass.
 Scan `tasks[]` in order for the first entry whose `status` is neither `done` nor `blocked`, and re-run §1.6–§1.7 + §3 on it.
 This is a plain list filter, not loop math — no count or threshold enters into it, so it stays out of the script's job.
-Find none — every task is terminal. Set `phase: "gates"` and move to the batch-wide gate phase that follows the loop.
+Find none — every task is terminal. Set `phase: "gates"` and move to §8's batch test-presence gate.
 
 ### 5.5. Advance
 
@@ -311,7 +311,7 @@ Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` an
 - **`next-task`** → its `task` field names the next task-id; re-run §1.6–§1.7 + §3 on it. §1.1–§1.5 and §2 do not repeat.
 - **`gates`** → every task is terminal, and the last one to get there passed.
   - Set `phase: "gates"` — the same phase §5.4's queue-empty scan reaches when the last task was blocked or stuck instead.
-- **`halt-budget`** → the batch's dispatch budget is exhausted. Halt the loop and go to §8's batch-end review with whatever work is done so far.
+- **`halt-budget`** → the batch's dispatch budget is exhausted. Halt the loop and go to §9's batch-end review with whatever work is done so far.
 
 ## 6. Status markers (plan_<slug>.md task title)
 
@@ -327,9 +327,48 @@ The **subagent** produces the commits. A task lands **at least 1 commit** — RE
 
 Counts: 1 (clean), 2 (+refactor), 3 (+scout fix), etc. Never zero.
 
-Never auto-invoke `/refactor` or `/auto-review` **mid-task** — those belong to the user, or to the batch-end tail subagents in **report-only** mode (§8).
+Never auto-invoke `/refactor` or `/auto-review` **mid-task** — those belong to the user, or to the batch-end tail subagents in **report-only** mode (§9).
 
-## 8. Batch-end review & tail subagents
+## 8. Batch test-presence gate
+
+This gate runs once after the loop, before §9's tails.
+It verifies every planned test the plan declared actually landed in the batch's commits.
+
+§5.2's per-task check could run inline because the orchestrator never saw that task's implementation.
+That no longer holds at batch scope — by now the orchestrator has watched every task's results flow through it, so it is no longer an unbiased judge.
+This gate is therefore a fresh-context `deep-reviewer` dispatch, not an inline orchestrator check.
+
+**Entry.** Run this when `phase` is `gates` — the state §5.4's queue-empty scan and §5.5's `gates` verdict both set.
+On `halt-budget`, skip the gate entirely — the budget is already spent, so go straight to §9 and let the package note the gate was skipped.
+
+**Dispatch.** Spawn ONE `deep-reviewer` subagent via the Agent tool — fresh context, Opus + max effort, which is that agent type's built-in tier.
+Pass it the resolved `plan_<slug>.md` path and the diff range `<BATCH_BASE_SHA>..HEAD`.
+
+**What the deep-reviewer does.** For every task in the batch, run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <N>` to get that task's planned-test titles.
+Exit-code handling matches the per-task procedure — see [`references/planned-test-verification.md`](references/planned-test-verification.md) for the exit-2 / exit-1 / empty-stdout meanings, rather than restating them.
+Grep the `<BATCH_BASE_SHA>..HEAD` diff for each title as a deterministic pre-pass.
+Apply an AI semantic check ONLY to the titles grep didn't match.
+Return a per-title `found` / `missing` verdict, plus the list of tasks that declared `**Tests (planned)**: N/A`.
+
+**All found, or every task N/A — the gate passes.**
+If every task was N/A, note the explicit TDD opt-out so §9's package can state it.
+Set `phase` to `tails` and proceed to §9.
+
+**Any missing — run one fix round, try-once.**
+For each task with missing titles, re-dispatch THAT task's subagent (fresh, per §4) with its missing titles as feedback.
+The subagent owns writing them (RED → GREEN); you never hand-write tests.
+Increment `gate_dispatches` in the state file by one per fix dispatch.
+Then re-gate ONCE — a second `deep-reviewer` pass, same contract.
+
+- Re-gate all found → pass; set `phase: "tails"` and go to §9.
+
+- Re-gate still missing → record the still-missing titles for §9's package, then set `phase: "tails"` and go to §9 so the package surfaces them. Do NOT loop, do NOT hand-fix.
+
+**Budget note.** This gate never calls `implement-loop-state.sh`.
+The `gate_dispatches` it increments are accounted by the script's budget backstop at §9's next verdict call, which returns `halt-budget` there if the ceiling was blown.
+Keeping the accounting in the script is the invariant — do not "helpfully" add a script call here.
+
+## 9. Batch-end review & tail subagents
 
 After the last task is `[Done]` (or the batch ends with blocked/failed tasks recorded), run two report-only tail subagents over the batch range `<BATCH_BASE_SHA>..HEAD` — `/refactor` then `/auto-review`.
 

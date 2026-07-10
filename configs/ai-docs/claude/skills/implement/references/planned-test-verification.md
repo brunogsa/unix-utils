@@ -21,6 +21,8 @@ The orchestrator never saw the implementation, so it is genuinely fresh-context 
 
 3. Act on the verdict:
    - **All `found`** → check passes; proceed to §5.5 advance.
-   - **Any `missing`** → a §5.3 failure. Re-dispatch the **same task** as a fresh subagent with the missing titles as feedback — the subagent owns writing them (RED → GREEN), not you.
-     - **Retry cap = 2** (per §5.3). After the cap, leave the task `[Doing]`, record the still-missing titles, and surface them in the batch-end report. Don't loop, don't hand-fix.
+   - **Any `missing`** → record a `fail` attempt (§5.3): `result: "fail"`, `signature` = the missing titles verbatim.
+     - Then obey the verdict script — no cap lives here.
+     - On `retry`, re-dispatch the **same task** as a fresh subagent with the missing titles as feedback — the subagent owns writing them (RED → GREEN), not you.
+     - On `stuck`, §5.4 marks the task terminal. Don't loop, don't hand-fix.
    - **Parse error in step 1** → handled in step 1 (abort + record), never fall back to inline AI judgment.

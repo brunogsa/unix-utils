@@ -1,6 +1,6 @@
 # Batch-end review & tail subagents
 
-Detail for §8 in `/implement`. Load when the batch reaches its end.
+Detail for §9 in `/implement`. Load when the batch reaches its end.
 
 Queue **two** batch-level TaskList items (NOT sub-steps of any single task):
 
