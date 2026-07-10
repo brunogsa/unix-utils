@@ -252,10 +252,11 @@ elif [[ "$OS" == "linux" ]]; then
 fi
 
 mkdir -p ~/.claude
-rm -fr ~/.claude/commands ~/.claude/skills ~/.claude/scripts
+rm -fr ~/.claude/commands ~/.claude/skills ~/.claude/scripts ~/.claude/agents
 ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/skills ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/scripts ~/.claude/
+ln -sf ~/unix-utils/configs/ai-docs/claude/agents ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/settings.json ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/RTK.md ~/.claude/
 
