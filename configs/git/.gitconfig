@@ -3,6 +3,7 @@
 	name = Bruno G. Salomao Agostini
 [core]
 	editor = nvim
+	excludesfile = ~/.gitignore-global
 [credential "https://github.com"]
 	helper =
 	helper = !gh auth git-credential
