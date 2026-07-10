@@ -4,7 +4,7 @@ Procedure for the post-commit planned-test check in `/implement` (referenced fro
 
 The task subagent has already committed. The check runs **on the orchestrator**, against the subagent's commit range, before the orchestrator marks the task `[Done]`.
 
-The orchestrator never saw the implementation, so it is genuinely fresh-context — it runs the check itself, no nested sub-subagent needed.
+The orchestrator didn't author the implementation, so it can judge it without self-review bias — it runs the check itself, no nested sub-subagent needed.
 
 ## Procedure
 

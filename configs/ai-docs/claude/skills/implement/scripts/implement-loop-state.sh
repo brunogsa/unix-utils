@@ -5,7 +5,7 @@
 #   implement-loop-state.sh <state-file>
 #
 # Reads a /implement run's JSON state file and prints one JSON verdict on stdout:
-#   {"action": "retry|stuck|next-task|gates|present|halt-budget", "task": "<id or empty>", "reason": "..."}
+#   {"action": "retry|stuck|next-task|gates|halt-budget", "task": "<id or empty>", "reason": "..."}
 #
 # Examples:
 #   implement-loop-state.sh ~/.claude/implement-runs/abc123.json
@@ -14,7 +14,7 @@
 # Pure: no writes, no clock reads, deterministic — the same state file always
 # yields the same verdict. The orchestrator (main session AI) is the fallible
 # recorder of raw facts (attempt outcomes, phase, report paths); this script is
-# the infallible judge that turns those facts into one of six actions.
+# the infallible judge that turns those facts into one of five actions.
 #
 # Design:
 #   - The "current task" is whichever task the LAST entry in `attempts[]`
@@ -30,10 +30,10 @@
 #     backstop for a runaway gate-fixing loop (gate_dispatches piling up),
 #     since a single task alone can never exceed MAX_ATTEMPTS before the
 #     per-task "stuck" verdict already caught it.
-#   - The script only knows how to verdict phases "tasks" (retry/stuck/
-#     next-task/gates) and "tails" (present). Any other phase, or a "tails"
-#     phase where the tail reports aren't both recorded yet, is a caller
-#     misuse the script fails loud on rather than guess a verdict for.
+#   - The script only knows how to verdict phase "tasks" (retry/stuck/
+#     next-task/gates). Any other phase is a caller misuse the script
+#     fails loud on rather than guess a verdict for — after the task
+#     loop, the gate and batch-end flow run linearly with no verdict call.
 #
 # Exit codes:
 #   0 - verdict printed on stdout.
@@ -54,7 +54,7 @@ usage() {
 usage: implement-loop-state.sh <state-file>
 
 Reads a /implement run's JSON state file and prints one JSON verdict:
-  {"action": "retry|stuck|next-task|gates|present|halt-budget", "task": "...", "reason": "..."}
+  {"action": "retry|stuck|next-task|gates|halt-budget", "task": "...", "reason": "..."}
 
 Examples:
   implement-loop-state.sh ~/.claude/implement-runs/abc123.json
@@ -131,18 +131,8 @@ fi
 
 phase=$(jq -r '.phase' "$state_file")
 
-if [ "$phase" = "tails" ]; then
-  refactor_report=$(jq -r '.tails.refactor_report // ""' "$state_file")
-  auto_review_report=$(jq -r '.tails.auto_review_report // ""' "$state_file")
-  if [ -n "$refactor_report" ] && [ -n "$auto_review_report" ]; then
-    emit_verdict "present" "" "both tail reports recorded (refactor: $refactor_report, auto-review: $auto_review_report); ready to present"
-    exit 0
-  fi
-  fail "phase is 'tails' but the refactor and/or auto-review report path is not yet recorded"
-fi
-
 if [ "$phase" != "tasks" ]; then
-  fail "no verdict defined for phase '$phase' (this script only verdicts 'tasks' and 'tails')"
+  fail "no verdict defined for phase '$phase' (this script only verdicts phase 'tasks')"
 fi
 
 if [ "$attempts_count" -eq 0 ]; then

@@ -42,7 +42,7 @@ The prompt body is the entire instruction set the subagent receives.
 
 The prompt **must lead with this preamble verbatim**, line-for-line.
 
-The subagent's compliance is what enforces the no-mutations contract — the harness blocks a `deep-reviewer`'s file writes, but its git/Bash mutations have no gate behind them:
+The subagent's compliance is what enforces the no-mutations contract — `deep-reviewer`'s read-only rule lives in its prompt, not the harness (its tools are unrestricted), so this preamble is the only gate:
 
 ```
 REPORT-ONLY MODE — STRICT CONTRACT
@@ -76,14 +76,14 @@ After the preamble, include the skill-specific body:
 When each tail returns, the orchestrator persists its findings, then records the results into the state file's `tails` object:
 
 - **The orchestrator writes the report file itself** — the tail's returned findings, verbatim, to `./report_refactor_<YYYY-MM-DD_HH:MM>.md` / `./report_auto-review_<YYYY-MM-DD_HH:MM>.md` in CWD.
-  - The subagent can't write it: the harness routes a `deep-reviewer`'s output to text and blocks its file writes, so a subagent-side write silently never lands.
-- The report path it wrote — `refactor` → `.tails.refactor_report`, `auto-review` → `.tails.auto_review_report`. The loop-state script emits the `present` verdict only once **both** paths are recorded.
+  - The subagent must not write it: its contract is report-only, and its findings are its final message — the orchestrator is the one place the write reliably happens.
+- The report path it wrote — `refactor` → `.tails.refactor_report`, `auto-review` → `.tails.auto_review_report` — so a resumed run can see which reports already exist.
 - Its token count → `.tails.tokens.<name>` (`0` if the Agent result omits it). The metrics script sums these into the subagent total.
 
 ## Failure handling
 
 - **Subagent violates the report-only contract** (a forbidden mutation per the preamble) → this **aborts the parent `/implement`**.
-  - The harness blocks its file writes, but git/Bash mutations have no gate — for those the preamble's behavioral contract is the only enforcement.
+  - Detect it by checking `git status` / `git log` after the tail returns — no harness gate blocks the subagent's mutations, so the preamble plus this check are the only enforcement.
 - **Subagent errors, or returns no usable findings** → log it to chat with the agent's last message; the **other** tail still runs; the package flags the missing artifact.
   - A refactor failure never blocks the auto-review tail.
   - Do NOT retry inline (unlike the planned-test check): batch-end reports are reviewed asynchronously; a missing report is user-attention, not a retry loop.
@@ -164,6 +164,7 @@ Only when the interview opted into a draft PR (§1.2). Skip this section entirel
 - Otherwise **push the branch** and create a **draft** PR with `gh pr create --draft`. Never auto-merge, never force-push.
 - Generate the description with a **separate `deep-reviewer` dispatch** from the spec/plan and commit bodies, following the `create-pr` skill's conventions (`~/.claude/skills/create-pr/SKILL.md`).
   - That dispatch **returns the description text only** — it must not push or commit; the orchestrator owns the push.
+  - Its tokens are **not tracked**: metrics print before this step, and a presented run's state file is deleted right after — so don't add a `tokens` field for it.
 - Put completed Scout / repo-green fixes under an **"Unexpected extras"** section in the PR body.
 
 ## Finalize

@@ -61,7 +61,7 @@ it_should_verdict_next_task_when_current_task_passed_and_pending_tasks_remain() 
     "tasks": [{"id": "1", "status": "done"}, {"id": "2", "status": "pending"}],
     "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "tokens": 100, "at": "2026-07-10T10:05:00Z"}],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0, "pr": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -80,7 +80,7 @@ it_should_verdict_gates_when_every_task_in_the_batch_is_done() {
       {"task": "2", "n": 1, "result": "pass", "signature": "", "tokens": 100, "at": "2026-07-10T10:10:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0, "pr": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -98,7 +98,7 @@ it_should_verdict_retry_when_a_task_failed_with_fewer_than_4_attempts_and_no_stu
       {"task": "1", "n": 2, "result": "fail", "signature": "TypeError cannot read property foo", "tokens": 0, "at": "2026-07-10T10:02:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0, "pr": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -119,7 +119,7 @@ it_should_verdict_stuck_when_a_task_records_its_4th_failed_attempt() {
       {"task": "1", "n": 4, "result": "fail", "signature": "error variant D", "tokens": 0, "at": "2026-07-10T10:04:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0, "pr": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -139,7 +139,7 @@ it_should_verdict_stuck_when_3_consecutive_identical_signatures_occur_before_the
       {"task": "1", "n": 3, "result": "fail", "signature": "connection refused", "tokens": 0, "at": "2026-07-10T10:03:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0, "pr": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -158,7 +158,7 @@ it_should_not_verdict_stuck_when_identical_signatures_are_interrupted_by_a_diffe
       {"task": "1", "n": 3, "result": "fail", "signature": "connection refused", "tokens": 0, "at": "2026-07-10T10:03:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0, "pr": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -177,7 +177,7 @@ it_should_treat_signatures_as_identical_when_they_differ_only_by_digits_paths_or
       {"task": "1", "n": 3, "result": "fail", "signature": "ERROR AT /Users/x/baz7.ts:7: assertion failed", "tokens": 0, "at": "2026-07-10T10:03:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0, "pr": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -197,7 +197,7 @@ it_should_count_a_timeout_signature_attempt_as_a_failed_attempt() {
       {"task": "1", "n": 4, "result": "timeout", "signature": "timeout", "tokens": 0, "at": "2026-07-10T10:04:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0, "pr": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -216,26 +216,26 @@ it_should_verdict_halt_budget_when_total_dispatches_reach_4x_task_count_plus_the
       {"task": "2", "n": 1, "result": "pass", "signature": "", "tokens": 100, "at": "2026-07-10T10:10:00Z"}
     ],
     "gate_dispatches": 10,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0, "pr": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
   assert_eq "should verdict halt-budget when total dispatches reach 4x task count plus the gate allowance" "halt-budget" "$(action_of)"
 }
 
-it_should_verdict_present_when_phase_is_tails_and_both_tail_report_paths_are_recorded() {
+it_should_exit_non_zero_when_phase_is_anything_other_than_tasks() {
   local fixture
-  fixture=$(write_fixture "present" '{
+  fixture=$(write_fixture "non-tasks-phase" '{
     "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tails",
     "batch_base_sha": "abc", "started_at": "2026-07-10T10:00:00Z", "presented_at": "",
     "tasks": [{"id": "1", "status": "done"}],
     "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "tokens": 100, "at": "2026-07-10T10:05:00Z"}],
     "gate_dispatches": 1,
-    "tails": {"refactor_report": "/tmp/refactor.md", "auto_review_report": "/tmp/auto-review.md", "tokens": {"gate": 10, "refactor": 20, "auto_review": 30, "pr": 0}},
+    "tails": {"refactor_report": "/tmp/refactor.md", "auto_review_report": "/tmp/auto-review.md", "tokens": {"gate": 10, "refactor": 20, "auto_review": 30}},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
-  assert_eq "should verdict present when phase is tails and both tail report paths are recorded" "present" "$(action_of)"
+  assert_eq "should exit non-zero when phase is anything other than tasks (exit code)" "1" "$VERDICT_EXIT"
 }
 
 it_should_exit_non_zero_with_a_clear_message_when_the_state_file_is_missing_or_invalid_json() {
@@ -272,7 +272,7 @@ it_should_not_verdict_stuck_when_identical_signatures_are_interrupted_by_a_diffe
 it_should_treat_signatures_as_identical_when_they_differ_only_by_digits_paths_or_whitespace
 it_should_count_a_timeout_signature_attempt_as_a_failed_attempt
 it_should_verdict_halt_budget_when_total_dispatches_reach_4x_task_count_plus_the_gate_allowance
-it_should_verdict_present_when_phase_is_tails_and_both_tail_report_paths_are_recorded
+it_should_exit_non_zero_when_phase_is_anything_other_than_tasks
 it_should_exit_non_zero_with_a_clear_message_when_the_state_file_is_missing_or_invalid_json
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"

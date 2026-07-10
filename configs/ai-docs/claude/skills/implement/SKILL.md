@@ -78,7 +78,6 @@ Mid-run `.env` needs are self-served (copy from the original checkout) rather th
 - **Run in a git worktree?** (yes/no) — on yes, §1.3 creates it from HEAD and copies files in.
 - **Open a draft PR at batch end?** (yes/no).
 - **Base-branch confirmation** — show `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'` as the default; let the user confirm or override.
-  In autonomous mode: take the parameter as-is; if absent, STOP.
 
 Record all answers (three, or four when the plan-pick question fired) before proceeding — §1.5 persists them into the state file.
 
@@ -122,7 +121,7 @@ grep -l "\"slug\": \"<slug>\"" ~/.claude/implement-runs/*.json 2>/dev/null
   "tasks": [{ "id": "1", "status": "pending" }],
   "attempts": [],
   "gate_dispatches": 0,
-  "tails": { "refactor_report": "", "auto_review_report": "", "tokens": { "gate": 0, "refactor": 0, "auto_review": 0, "pr": 0 } },
+  "tails": { "refactor_report": "", "auto_review_report": "", "tokens": { "gate": 0, "refactor": 0, "auto_review": 0 } },
   "worktree": { "created": false, "path": "", "branch": "" },
   "pr": { "wanted": false }
 }
@@ -190,9 +189,8 @@ The insertion mechanics live in [`references/mid-flight-substeps.md`](references
 
 Spawn one fresh-context subagent per task via the **Agent tool** (`subagent_type=general-purpose`, `model=sonnet`), in the background (the default).
 
-Cap the dispatch with a 1-hour `Monitor` timeout.
+Cap the dispatch with a 1-hour `Monitor` timeout (`timeout_ms: 3600000` — the tool's documented maximum).
 On expiry, call `TaskStop` on the subagent — the dispatch then resolves as a `timeout`, which §5.3 records and obeys exactly like a `fail`.
-Whether the harness actually honors a 1-hour `Monitor` cap is an execution-time discovery — this documents the intent, not a verified guarantee.
 
 The harness re-invokes you with its report on completion, so you can still act on it.
 Note the token count the Agent tool result reports for the run, defaulting to `0` when it doesn't expose one.
@@ -209,7 +207,9 @@ The subagent runs the **full per-task lifecycle**. Its prompt is the entire inst
 - The task's **Files (logical order)** list as the **starting set** — not a cage; touch more when needed, routing the delta per §4.3.
 - `BATCH_BASE_SHA` and the base branch, so the subagent can scope its own `git log`.
 - The checklist file path (§3): on a fresh dispatch, before coding, write the RED-GREEN breakdown there — one item per AC forcing case, plus post-commit-verify and plan_<slug>.md-update tail steps.
-- On a re-dispatch that file already exists: read it and resume from the first unchecked item rather than rewriting it, so the progress log survives.
+- On a re-dispatch, if that file already exists: read it and resume from the first unchecked item rather than rewriting it.
+  - The progress log survives intact.
+  - If the file is missing (e.g. `/tmp` was cleared), write the breakdown fresh first.
 - The rule to keep that file current: flip each sub-step done as it lands, so the file stays an accurate progress log for the orchestrator to verify (§5.1).
 - Standards to load: `test-standards`, `code-standards`, `doc-standards`, `commit-standards` (and `debug-standards` if a test goes red for the wrong reason).
 - The commit rule: follow `commit-standards`, including the `Co-Authored-By` trailer — the git-guard hook rejects commits without it, subagents included.
@@ -273,7 +273,7 @@ Unchecked items mean it stopped short of its own plan — treat that as a failed
 
 ### 5.2. Planned-test presence check (post-commit)
 
-Run the planned-test check against the subagent's commit range — the orchestrator never saw the impl, so it is genuinely fresh-context and needs no nested sub-subagent.
+Run the planned-test check against the subagent's commit range — the orchestrator didn't author the impl, so it can judge it inline; no nested subagent needed.
 
 Full procedure in [`references/planned-test-verification.md`](references/planned-test-verification.md). Load on demand.
 
@@ -319,9 +319,7 @@ Find none — every task is terminal. Set `phase: "gates"` and move to §8's bat
 On a clean verify (§5.1, §5.2): record the attempt with `result: "pass"` and the token count noted at dispatch (§4).
 
 Flip that task to `status: "done"` and `reason: "done"` in the state file — before calling the verdict script, not after.
-The order matters for later tasks, not this one: picture tasks A and B, with A already passed.
-Evaluating B's own verdict call filters `remaining` by `status`, so a still-`pending` A is not excluded and gets re-selected as B's "next" task — a redundant re-dispatch.
-Flipping A to `done` first is what keeps it out.
+The script picks the next task by `status`, so a passed task left `pending` would later be re-selected as another task's "next" and redundantly re-dispatched.
 
 Also flip `plan_<slug>.md` to `[Done]` (§6) and record the subagent's `[Scout]` notes there.
 
@@ -342,9 +340,13 @@ The full marker table, placement rule, and per-state semantics live in [`referen
 
 ## 7. Commit model
 
-The **subagent** produces the commits. A task lands **at least 1 commit** — RED + GREEN cycles share the base (tests + impl together). Refactors land as their own task.
+The **subagent** produces the commits.
 
-Counts: 1 (clean), 2 (+refactor), 3 (+scout fix), etc. Never zero.
+A task lands **at least 1 commit** — RED + GREEN cycles share the base (tests + impl together).
+
+A refactor lands as its own commit, never folded into the base.
+
+Counts: 1 (clean), 2 (+refactor), 3 (+drift fix), etc. Never zero. Scouts are never committed by the subagent — they route to the orchestrator per §4.3.
 
 Never auto-invoke `/refactor` or `/auto-review` **mid-task** — those belong to the user, or to the batch-end tail subagents in **report-only** mode (§9).
 
@@ -353,9 +355,9 @@ Never auto-invoke `/refactor` or `/auto-review` **mid-task** — those belong to
 This gate runs once after the loop, before §9's tails.
 It verifies every planned test the plan declared actually landed in the batch's commits.
 
-§5.2's per-task check could run inline because the orchestrator never saw that task's implementation.
-That no longer holds at batch scope — by now the orchestrator has watched every task's results flow through it, so it is no longer an unbiased judge.
-This gate is therefore a fresh-context `deep-reviewer` dispatch, not an inline orchestrator check.
+§5.2's per-task check verified each task at its own commit point — it can't see what later tasks did to those tests afterward.
+This gate re-checks the batch's **final state**, catching a later task that renamed, gutted, or deleted an earlier task's tests.
+It runs as a fresh-context `deep-reviewer` dispatch: semantic title-matching across the whole batch diff deserves eyes that carry none of the loop's accumulated assumptions.
 
 **Entry.** Run this when `phase` is `gates` — the state §5.4's queue-empty scan and §5.5's `gates` verdict both set.
 A `halt-budget` verdict never reaches here: it routes straight to §9 from §5.3/§5.5, upstream of this gate, so the gate has no budget branch of its own.
@@ -378,7 +380,7 @@ Set `phase` to `tails` and proceed to §9.
 **Any missing — run one fix round, try-once.**
 For each task with missing titles, re-dispatch THAT task's subagent (fresh, per §4) with its missing titles as feedback.
 The subagent owns writing them (RED → GREEN); you never hand-write tests.
-Increment `gate_dispatches` in the state file by one per fix dispatch.
+Increment `gate_dispatches` in the state file by one per fix dispatch, and add each dispatch's token count into `.tails.tokens.gate` (the metrics script sums it).
 Then re-gate ONCE — a second `deep-reviewer` pass, same contract.
 
 - Re-gate all found → pass; set `phase: "tails"` and go to §9.

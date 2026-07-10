@@ -20,7 +20,13 @@ jq --arg sid "<new_session_id>" \
 
 `tasks[]`, `attempts[]`, `gate_dispatches`, `tails`, `worktree`, and `pr` all carry over verbatim.
 
-`phase` carries over too, except `halted`, which resets to `tasks`: the verdict script fails loud on any phase other than `tasks`/`tails`, so a resumed halted batch would crash its first verdict call.
+`phase` carries over too, except `halted`, which resets to `tasks`: the verdict script fails loud on any phase other than `tasks`, so a resumed halted batch would crash its first verdict call.
+
+The adopted phase decides where the resumed run re-enters:
+
+- `tasks` → run the flow normally from §2 onward — the orchestration review runs once, then the task loop.
+- `gates` → skip straight to the §8 batch test-presence gate; the §2 review and the task loop already ran.
+- `tails` → skip straight to the §9 batch-end flow; check `.tails.*_report` for reports that already exist.
 
 A budget-halted resume still halts again at that first verdict — the carried `attempts[]` already exceed the ceiling; delete the state file (below) to truly start over.
 
@@ -43,6 +49,8 @@ These prompts fire only for state the adopted JSON doesn't already resolve.
 That means a task whose `plan_<slug>.md` marker or TaskList entry disagrees with its JSON status, or a dirty run with no JSON file at all.
 
 A task the JSON already marks `done`/`blocked` is skipped by the verdict script directly (§4-5) and never reaches this section.
+
+That means an adopted `blocked` task is never re-offered for retry — its status carries over as terminal. To retry it after clearing the blocker, delete the state file and start clean.
 
 ### Handle existing task state
 

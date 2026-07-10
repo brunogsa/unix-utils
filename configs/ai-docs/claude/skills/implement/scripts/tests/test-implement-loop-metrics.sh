@@ -59,7 +59,7 @@ it_should_sum_subagent_tokens_across_attempts_and_tails_from_the_state_file() {
       {"task": "2", "n": 1, "result": "pass", "signature": "", "tokens": 2000, "at": "t3"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "r.md", "auto_review_report": "a.md", "tokens": {"gate": 100, "refactor": 200, "auto_review": 300, "pr": 0}},
+    "tails": {"refactor_report": "r.md", "auto_review_report": "a.md", "tokens": {"gate": 100, "refactor": 200, "auto_review": 300}},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -80,7 +80,7 @@ it_should_compute_wall_clock_duration_from_the_started_and_presented_timestamps(
     "tasks": [{"id": "1", "status": "done"}],
     "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "tokens": 0, "at": "2026-07-10T10:05:00Z"}],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0, "pr": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -97,7 +97,7 @@ it_should_add_orchestrator_tokens_when_a_session_transcript_path_is_provided() {
     "tasks": [{"id": "1", "status": "done"}],
     "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "tokens": 1000, "at": "t1"}],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0, "pr": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
 
@@ -131,7 +131,7 @@ it_should_list_tasks_whose_summed_attempt_tokens_exceed_the_soft_200k_budget() {
       {"task": "2", "n": 1, "result": "pass", "signature": "", "tokens": 150000, "at": "t2"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0, "pr": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
