@@ -114,7 +114,9 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
 - **Label by what you actually know.** A fact you've validated or assume true is a *Premise*; a genuine unknown is an *Open Question*.
   - Don't dress an unknown as a Premise, nor prematurely close a question you can't yet answer — both directions matter.
 
-- **An unknown that would block execution becomes a provisional Premise + Risk, not an Open Question.** Assume the most reasonable default, write it as a Premise flagged provisional (e.g. "Provisória — confirmar com o time X"), and register what breaks if the assumption is wrong as a Risk that cites the Premise back.
+- **An unknown that would block execution becomes a provisional Premise + Risk, not an Open Question.**
+  - Assume the most reasonable default, write it as a Premise flagged provisional (e.g. "Provisória — confirmar com o time X").
+  - Register what breaks if the assumption is wrong as a Risk that cites the Premise back.
   - This keeps the build moving on the assumed default while the real answer is chased in parallel — reserve Open Questions for unknowns that don't gate work already in flight.
   - Since Risks (section 5) follows Premises (section 3), the Premise points forward with a linkless phrase ("risco ... registrado adiante"); the Risk then carries the backward token once both entries exist.
 

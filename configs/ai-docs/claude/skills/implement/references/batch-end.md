@@ -15,7 +15,9 @@ Each subagent reviews **only the batch's commit range** `<BATCH_BASE_SHA>..HEAD`
 
 ## Spawn contract
 
-Spawn each subagent via the **Agent tool**, `subagent_type=general-purpose`, in the background (the default) — wait for its completion notification before spawning the next, preserving the sequential order above. The prompt body is the entire instruction set the subagent receives.
+Spawn each subagent via the **Agent tool**, `subagent_type=general-purpose`, in the background (the default) — wait for its completion notification before spawning the next, preserving the sequential order above.
+
+The prompt body is the entire instruction set the subagent receives.
 
 The prompt **must lead with this preamble verbatim** (line-for-line; the subagent's compliance with these rules is what enforces report-only behavior — there is no skill flag, no harness gate):
 
