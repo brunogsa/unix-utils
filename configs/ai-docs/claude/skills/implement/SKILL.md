@@ -38,7 +38,7 @@ A good spec/plan (the prerequisite for any `/implement` run) should make mid-bat
   - Record it, **never guess past it**, leave that task where it stopped, and continue with tasks that don't depend on it.
   - Every block lands in the batch-end report for you to clear in one pass.
 
-- **Subagent's own work fails the orchestrator's post-commit verification** → re-dispatch the same task with the failure as feedback, up to twice.
+- **Subagent's own work fails the orchestrator's post-commit verification** → re-dispatch the same task with the failure as feedback; the verdict script decides how many attempts it gets (§5.3).
   - Surface it only if it still fails. Execution correctness is the AI's job, not yours.
 
 ## 1. Pre-flight (orchestrator)
@@ -171,7 +171,14 @@ The insertion mechanics live in [`references/mid-flight-substeps.md`](references
 
 Spawn one fresh-context subagent per task via the **Agent tool** (`subagent_type=general-purpose`, `model=sonnet`), in the background (the default).
 
+Cap the dispatch with a 1-hour `Monitor` timeout.
+On expiry, call `TaskStop` on the subagent — the dispatch then resolves as a `timeout`, which §5.3 records and obeys exactly like a `fail`.
+Whether the harness actually honors a 1-hour `Monitor` cap is an execution-time discovery — this documents the intent, not a verified guarantee.
+
 The harness re-invokes you with its report on completion, so you can still act on it.
+Note the token count the Agent tool result reports for the run, defaulting to `0` when it doesn't expose one.
+§5 records it into the attempt it creates — except on a self-reported block, which creates no attempt at all (§5.4).
+This is best-effort only and never gates the loop mid-run — overage surfaces later via the metrics script, not here.
 
 The subagent runs the **full per-task lifecycle**. Its prompt is the entire instruction set it receives, so the contract below must be self-contained.
 
@@ -251,21 +258,57 @@ Run the planned-test check against the subagent's commit range — the orchestra
 
 Full procedure in [`references/planned-test-verification.md`](references/planned-test-verification.md). Load on demand.
 
-### 5.3. On failure — bounded retry
+### 5.3. On failure — record and obey the verdict
 
-If §5.1 or §5.2 fails (diff mismatch, verification red, planned tests missing), re-dispatch the **same task** as a fresh subagent with the specific failure as feedback. Cap at **2 retries**.
+If §5.1 or §5.2 fails (diff mismatch, verification red, planned tests missing), or the dispatch hit the 1-hour timeout (§4), record the attempt.
+On a verify failure, set `result` to `fail` and `signature` to the failure text verbatim — the error output, or the list of missing planned tests.
+On a timeout, set `result` to `timeout` and `signature` to the literal string `timeout` — there's no diff to inspect, since the subagent never reported back.
 
-If it still fails, leave the task `[Doing]`, record the failure, and surface it in the batch-end report; don't hand-fix what the subagent should own.
+Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey the verdict — the script alone decides how many retries a task gets; no cap is written here.
 
-Load `debug-standards` if you need to diagnose why it keeps failing.
+- **`retry`** → re-dispatch the **same task** as a fresh subagent, passing the recorded failure as feedback.
+- **`stuck`** → the script judged this task's failures aren't converging (too many attempts, or a repeating failure signature) — go to §5.4, which marks it terminal.
 
-### 5.4. On block
+Load `debug-standards` if you need to diagnose why a task keeps failing before its next retry.
 
-If the subagent returned `blocked` (§4.4), leave the task where it stopped, record the block, and advance to the next independent task. Never guess past a human-needed block.
+### 5.4. Mark terminal, chain-abort dependents, advance
+
+A task becomes terminal without a `[Done]` two ways: the subagent self-reports `blocked` (§4.4), or §5.3's verdict is `stuck`. Handle both the same way from here.
+
+**A self-reported block bypasses the script entirely.** `implement-loop-state.sh` only accepts `result` of `pass`, `fail`, or `timeout` — recording `blocked` as an attempt result crashes it.
+So on a block, skip the attempt record and the script call: set `status: "blocked"` and `reason: "blocked"` on that task directly.
+
+**A `stuck` verdict is already backed by a recorded fail/timeout attempt (§5.3).** Set that same task to `status: "blocked"` and `reason: "stuck"`.
+`status` drives flow — blocked tasks are excluded from the next pick — while `reason` keeps the finer stuck-vs-blocked label for the batch-end report.
+
+**Chain-abort the task's dependents, before picking what runs next.** Read `plan_<slug>.md`'s "Depends on" lines and walk them transitively.
+Any task that depends on the one just marked terminal — directly, or through another dependent — also gets `status: "blocked"` and `reason: "blocked-upstream"`.
+This is what makes chain-abort hold: if A goes terminal and B depends on A, B is marked before the orchestrator looks for a next task.
+So B can never be picked — the same walk catches a C that depends on B, one hop further out.
+Flip `plan_<slug>.md` to `[Blocked]` for the terminal task and every dependent this just chain-aborted (§6).
+
+**Pick the next task yourself — the script can't.** `next-task` only comes out of a `pass` attempt (§5.5), and this task didn't pass.
+Scan `tasks[]` in order for the first entry whose `status` is neither `done` nor `blocked`, and re-run §1.6–§1.7 + §3 on it.
+This is a plain list filter, not loop math — no count or threshold enters into it, so it stays out of the script's job.
+Find none — every task is terminal. Set `phase: "gates"` and move to the batch-wide gate phase that follows the loop.
 
 ### 5.5. Advance
 
-On a clean verify: flip plan_<slug>.md to `[Done]` (§6), record the subagent's `[Scout]` notes on plan_<slug>.md, then re-run §1.6–§1.7 + §3 for the next task. §1.1–§1.5 and §2 do not repeat.
+On a clean verify (§5.1, §5.2): record the attempt with `result: "pass"` and the token count noted at dispatch (§4).
+
+Flip that task to `status: "done"` and `reason: "done"` in the state file — before calling the verdict script, not after.
+The order matters for later tasks, not this one: picture tasks A and B, with A already passed.
+Evaluating B's own verdict call filters `remaining` by `status`, so a still-`pending` A is not excluded and gets re-selected as B's "next" task — a redundant re-dispatch.
+Flipping A to `done` first is what keeps it out.
+
+Also flip `plan_<slug>.md` to `[Done]` (§6) and record the subagent's `[Scout]` notes there.
+
+Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey the verdict:
+
+- **`next-task`** → its `task` field names the next task-id; re-run §1.6–§1.7 + §3 on it. §1.1–§1.5 and §2 do not repeat.
+- **`gates`** → every task is terminal, and the last one to get there passed.
+  - Set `phase: "gates"` — the same phase §5.4's queue-empty scan reaches when the last task was blocked or stuck instead.
+- **`halt-budget`** → the batch's dispatch budget is exhausted. Halt the loop and go to §8's batch-end review with whatever work is done so far.
 
 ## 6. Status markers (plan_<slug>.md task title)
 
