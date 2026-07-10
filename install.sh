@@ -20,9 +20,6 @@ echo "Detected OS: $OS"
 # NOTE: never run `git config --global` after this — it rewrites via lock+rename and replaces the
 # symlink with a regular file, detaching it from the repo (same caveat as settings.json).
 ln -sf ~/unix-utils/configs/git/.gitconfig ~/.gitconfig
-# Global excludes (core.excludesfile): session-scoped AI docs (spec_/plan_/report_*.md etc.)
-# stay untracked in every repo, so a blanket `git add` can't sweep them into a commit.
-ln -sf ~/unix-utils/configs/git/.gitignore-global ~/.gitignore-global
 
 # Install package manager if needed (macOS only)
 if [[ "$OS" == "macos" ]] && ! command -v brew &> /dev/null; then
