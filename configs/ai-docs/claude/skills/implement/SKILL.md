@@ -372,10 +372,17 @@ Keeping the accounting in the script is the invariant — do not "helpfully" add
 
 ## 9. Batch-end review & tail subagents
 
-After the last task is `[Done]` (or the batch ends with blocked/failed tasks recorded), run two report-only tail subagents over the batch range `<BATCH_BASE_SHA>..HEAD` — `/refactor` then `/auto-review`.
-
-Then present the whole batch for your async review.
+After the last task is terminal (`[Done]`, blocked, or the batch halted on budget/stuck), run the batch-end flow over `<BATCH_BASE_SHA>..HEAD`, then present the whole batch for your async review.
 
 That async review **is** the handshake this skill replaces the per-task gate with.
 
-The full procedure — queued items, spawn contract, report-only preamble, failure handling, batch-review summary, and opening the diff in a neovim-diffview tmux pane — lives in [`references/batch-end.md`](references/batch-end.md). Load at batch end.
+The flow, in order:
+
+1. **Repo-green check** — full lint + tests, before the tails.
+2. Two **`deep-reviewer` tails** — `/refactor` then `/auto-review`, report-only.
+3. **Triage** both reports into one prioritized summary.
+4. **Metrics** — write `presented_at`, then run the metrics script (it needs `presented_at`).
+5. **Assemble & print the package** — outcomes, diff range, metrics, worktree reminder; then open the diffview pane.
+6. **Opt-in draft PR, then finalize** — optional draft PR; then delete-or-keep the state file.
+
+Each step's full detail — spawn contract, report-only preamble, failure handling, and finalize ordering — lives in [`references/batch-end.md`](references/batch-end.md). Load at batch end.
