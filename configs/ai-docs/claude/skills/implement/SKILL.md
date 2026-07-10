@@ -342,9 +342,11 @@ This gate is therefore a fresh-context `deep-reviewer` dispatch, not an inline o
 A `halt-budget` verdict never reaches here: it routes straight to §9 from §5.3/§5.5, upstream of this gate, so the gate has no budget branch of its own.
 
 **Dispatch.** Spawn ONE `deep-reviewer` subagent via the Agent tool — fresh context, Opus + max effort, which is that agent type's built-in tier.
-Pass it the resolved `plan_<slug>.md` path and the diff range `<BATCH_BASE_SHA>..HEAD`.
+Pass it the resolved `plan_<slug>.md` path, the diff range `<BATCH_BASE_SHA>..HEAD`, and the batch's task IDs.
+Read those IDs from the state file's `tasks[]` — the plan file holds every task, including ones this batch never ran.
 
-**What the deep-reviewer does.** For every task in the batch, run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <N>` to get that task's planned-test titles.
+**What the deep-reviewer does.** Iterate exactly the batch task IDs it was handed — never every `### N.` heading in the plan, which lists tasks other runs owned.
+For each ID `<N>`, run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <N>` to get that task's planned-test titles.
 Exit-code handling matches the per-task procedure — see [`references/planned-test-verification.md`](references/planned-test-verification.md) for the exit-2 / exit-1 / empty-stdout meanings, rather than restating them.
 Grep the `<BATCH_BASE_SHA>..HEAD` diff for each title as a deterministic pre-pass.
 Apply an AI semantic check ONLY to the titles grep didn't match.
