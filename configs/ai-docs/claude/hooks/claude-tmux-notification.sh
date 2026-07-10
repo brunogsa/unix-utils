@@ -70,7 +70,7 @@ NOTIFICATION_SOUND_LINUX="message"
 # the target pane and steals focus, which was spiked and confirmed to yank
 # the cursor into the Claude pane and self-clear the tint it had just set.
 TINT_COLOR_NOTIFICATION="#653f1c"
-TINT_COLOR_DONE="#345c3a"
+TINT_COLOR_DONE="#2a4a2e"
 
 # Play the cue for $1 (done|notification): best-effort and non-blocking.
 # Never fails the hook -- no player found means it's skipped, and the player
