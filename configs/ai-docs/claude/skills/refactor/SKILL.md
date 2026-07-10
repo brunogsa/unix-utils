@@ -1,6 +1,6 @@
 ---
 name: refactor
-description: "USE for end-of-branch refactoring sweep over unpushed changes. Triggers: 'refactor this' / 'clean up' / /refactor, or dispatch from another skill's flow."
+description: "USE for end-of-branch refactoring sweep over unpushed changes — batch report → approve → apply (direct-apply cleanup of just-written code → native /simplify). Triggers: 'refactor this' / 'clean up' / /refactor, or another skill's dispatch."
 disable-model-invocation: false
 ---
 
@@ -65,35 +65,29 @@ Only spawn the subagent on explicit user opt-in.
 
 The subagent path is faster on token budget but the user loses visibility into intermediate decisions, and subagent return messages have hit truncation limits before.
 
-#### Main-context flow (default)
+#### Analysis constraints (both flows)
 
-Apply the same analysis discipline directly:
-
-- Load and apply principles from `~/.claude/CLAUDE.md`, `code-standards`, `test-standards`, `doc-standards`.
+- Load and apply principles from `~/.claude/CLAUDE.md` and the `code-standards`, `test-standards`, `doc-standards` skills.
 - Focus only on code touched by unpushed commits or uncommitted changes.
 - Do NOT propose changes that alter behavior, change formatting only, add features beyond what exists, or refactor code outside the changed files.
-- Classify each finding as **subjective** or **mechanical** per the schema below.
-- Write the complete findings report to `$REPORT_PATH` for the user to review.
+- Classify each finding as **subjective** or **mechanical**:
+  - **Subjective**: naming, decomposition, architecture, layered-architecture violations, guideline alignment -- things only a context-aware reviewer can judge
+  - **Mechanical**: unused imports/variables, dead code/exports, cyclomatic complexity, circular dependencies, missing type annotations -- things a linter could catch deterministically
+  - For mechanical findings, prefix the **What** field with `[LINTER GAP]` to signal that the project's linter config should be improved to catch this automatically
+- Write the complete findings report to `$REPORT_PATH` (overwrite if exists) per the schema below.
+
+#### Main-context flow (default)
+
+Apply the analysis constraints directly yourself — the user sees every file read and reasoning step inline.
 
 #### Subagent flow (opt-in)
 
 Use the **Agent tool** with `subagent_type=code-simplifier:code-simplifier`. In the prompt:
 
 - Run in the **background** (the default) -- the UI still surfaces progress, and the harness delivers the findings report on completion
-
 - List the files identified above
+- Include the analysis constraints above verbatim
 - Instruct it to **only analyze and report** -- it must NOT make any edits (no Edit, no Write)
-- Instruct it to load and apply principles from:
-  - `~/.claude/CLAUDE.md` (global guidelines)
-  - `code-standards` skill (code patterns)
-  - `test-standards` skill (test patterns)
-  - `doc-standards` skill (doc / comment patterns)
-- Instruct it to focus only on code touched by unpushed commits or uncommitted changes
-- Instruct it to NOT propose changes that alter behavior, change formatting only, add features beyond what exists, or refactor code outside the changed files
-- Instruct it to classify each finding as **subjective** or **mechanical**:
-  - **Subjective**: naming, decomposition, architecture, layered-architecture violations, guideline alignment -- things only a context-aware reviewer can judge
-  - **Mechanical**: unused imports/variables, dead code/exports, cyclomatic complexity, circular dependencies, missing type annotations -- things a linter could catch deterministically
-- For mechanical findings, prefix the **What** field with `[LINTER GAP]` to signal that the project's linter config should be improved to catch this automatically
 
 #### Persist full findings to a file (avoid return-message truncation)
 
@@ -128,9 +122,9 @@ A finding that cannot fill every field above is not ready to surface -- the agen
 
 ### 3. Present Findings to User
 
-After the agent returns:
+After the analysis completes (either flow):
 
-1. `Read` `$REPORT_PATH` end-to-end (do **not** rely on the agent's return summary -- it is truncated by design).
+1. `Read` `$REPORT_PATH` end-to-end (in the subagent flow, do **not** rely on the return summary -- it is truncated by design).
 2. Present a **compact index** in chat: numbered list, one line per finding.
    - Format: `<file>:<lines> — <one-line title> [classification, risk, effort]`.
    - Do not inline Before/After -- the user has the full file open.
