@@ -10,6 +10,9 @@ disable-model-invocation: true
 Fetch comments on a GitHub PR, filter those addressed to Claude, discuss each
 with the user on terminal, and post approved replies with a `Claude:` prefix.
 
+**Boundary vs `address-pr-comments`**: this skill answers only comments directed AT Claude, in Claude's own voice — hence the mandatory `Claude:` prefix.
+To work a PR's general review comments (apply fixes, answer in the user's voice — deliberately unsigned), use `address-pr-comments`; the signature rules invert because the speaker does.
+
 ## Process
 
 ### 1. Fetch comments

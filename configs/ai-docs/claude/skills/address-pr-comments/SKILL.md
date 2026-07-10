@@ -328,6 +328,7 @@ For top-level / review-summary replies, prefix with `@<original_author> re: <lin
 - `answer` replies: **NO signature**.
   - The answer carries the user's reasoning in the user's voice.
   - Tagging as AI-assisted dilutes ownership (see `references/reply-patterns.md`).
+  - The inverse case — a comment addressed to Claude, answered in Claude's own voice with a mandatory `Claude:` prefix — belongs to `gh-answer-claude-mentions`, not here.
 
 Signature literal: `_via Claude Code (`address-pr-comments`)_`. Plain text only — the global no-emoji rule applies to posted replies too.
 
