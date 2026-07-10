@@ -21,10 +21,10 @@ There is no per-task human handshake — your batch-end review is the handshake.
 
 Two roles:
 
-- **Orchestrator** (this session) — pre-flight, plan review, decomposition, TaskList, dispatch, post-commit verification, batch-end report.
+- **Orchestrator** (this session) — pre-flight, plan review, TaskList (parent tasks only), dispatch, post-commit verification, batch-end report.
   Holds only orchestration state, never task implementation context.
 
-- **Task subagent** — one fresh context per task, sequential: RED-GREEN work, self-verify, commit, report.
+- **Task subagent** — one fresh context per task, sequential: decompose into its own checklist file, RED-GREEN work, self-verify, commit, report.
   Each re-grounds from durable artifacts (plan_<slug>.md, spec_<slug>.md, `git log`), not session history.
 
 Run subagents on **Sonnet** (execution is mechanical); keep orchestrator on stronger model.
@@ -97,32 +97,35 @@ Take it seriously: fix the plan/batch if dependencies are missed; reconcile veri
 
 This is the orchestrator's only plan-level review; the task subagent has its own mid-execution fork lever (§4.2).
 
-## 3. Decompose into TaskList (orchestrator, per task)
+## 3. Sub-step decomposition (subagent-owned, per task)
 
-The orchestrator owns the TaskList — your macro-visibility surface. The subagent reports against it and never creates its own items, so the plan stays legible.
+Sub-steps live in a **durable checklist file the subagent owns** — a `/tmp` markdown file — not the orchestrator's TaskList.
 
-For each task, generate sub-steps based on:
+Two reasons: subagents have no TaskList or TodoWrite tool to create them with, and keeping sub-steps off the orchestrator's list holds that list at task-level macro visibility.
 
-- Task's existing breadcrumb/sub-bullets in `plan_<slug>.md`
-- Fresh decomposition: one item per RED-GREEN cycle (per AC forcing case), plus verify/commit/finalize steps.
+The orchestrator, per task, does this and no more:
 
-**CRITICAL: Create ALL known sub-steps in TaskList BEFORE dispatching the task's subagent.**
+- Creates **one parent task** in its TaskList — task-level status, never sub-steps as separate items.
+- Gives that task a **breadcrumb** — a coarse outline of its sub-steps (e.g. the plan's acceptance-criteria titles).
+  - This ensures the TaskList conveys the task's gist at a glance, without the RED-GREEN detail.
+- Picks the checklist path `/tmp/implement_substeps_<slug>_<id>.md` and pushes it into the subagent's prompt (§4.1).
 
-- Always include the tail steps (post-commit verify per §5, plan_<slug>.md update) — known upfront.
-- You need macro visibility before any code is touched; steps added late are a planning failure.
-- Decomposition is planning, not implementation — it reads the plan slice and ACs, so it stays light.
+The subagent owns everything below, at dispatch and before touching code:
 
-Expand the cycles rather than loop: each RED-GREEN pair as its own item lets a `/clear` or restart resume cleanly — a single "loop the rest" bullet erases that.
+- Writes its RED-GREEN decomposition to that file: one item per RED-GREEN cycle (per AC forcing case), plus the tail steps (post-commit verify per §5, plan_<slug>.md update).
+- Flips each item done as it lands — the file is both its working plan and its progress log.
+- Expands the cycles rather than looping one "do the rest" line, so a re-dispatched subagent picks up from the file instead of re-deriving the breakdown.
 
-### 3.1. TaskList structure: parent task + sub-steps
+The file is a **contract, not scratch**: the orchestrator reads it during post-commit verification (§5.1) to confirm every sub-step ran as decomposed.
 
-Create the parent task **first** (if absent), then each sub-step — it groups them visually and gives one place to flip task-level status.
+The breadcrumb and the checklist don't overlap: the breadcrumb is a static, orchestrator-authored gist for the TaskList; the checklist is the subagent's live, fine-grained log and the only verification source (§5.1).
 
-### 3.2. Mid-flight sub-steps
+### 3.1. Mid-flight sub-steps
 
-A helper or drift surfacing mid-task is handled inside the subagent and reported back (§4.4); the orchestrator just reflects the outcome in its TaskList, not the subagent's RED-GREEN granularity.
+When a helper or drift surfaces mid-task, the subagent inserts the new RED-GREEN lines into its checklist file right after the current step, then reports the deviation back (§4.4).
+The orchestrator's TaskList never changes except the parent task's status.
 
-The insertion + visual-regrouping mechanics live in [`references/mid-flight-substeps.md`](references/mid-flight-substeps.md). Load on demand.
+The insertion mechanics live in [`references/mid-flight-substeps.md`](references/mid-flight-substeps.md). Load on demand.
 
 ## 4. Dispatch the task subagent
 
@@ -139,7 +142,9 @@ The subagent runs the **full per-task lifecycle**. Its prompt is the entire inst
 - The task's `plan_<slug>.md` slice: heading, brief, acceptance criteria, planned-test titles, verification command.
 - The task's **Files (logical order)** list as the **starting set** — not a cage; touch more when needed, routing the delta per §4.3.
 - `BATCH_BASE_SHA` and the base branch, so the subagent can scope its own `git log`.
-- The sub-step list the orchestrator decomposed (§3), as the work plan to execute.
+- The checklist file path (§3): on a fresh dispatch, before coding, write the RED-GREEN breakdown there — one item per AC forcing case, plus post-commit-verify and plan_<slug>.md-update tail steps.
+- On a re-dispatch that file already exists: read it and resume from the first unchecked item rather than rewriting it, so the progress log survives.
+- The rule to keep that file current: flip each sub-step done as it lands, so the file stays an accurate progress log for the orchestrator to verify (§5.1).
 - Standards to load: `test-standards`, `code-standards`, `doc-standards`, `commit-standards` (and `debug-standards` if a test goes red for the wrong reason).
 - The commit rule: follow `commit-standards`, including the `Co-Authored-By` trailer — the git-guard hook rejects commits without it, subagents included.
 - The required report shape (§4.4).
@@ -185,7 +190,7 @@ The subagent returns a structured report (text), never a silent "done":
 - **Status**: `done` / `blocked`.
 - **Commits**: the SHAs it created, with subjects.
 - **Self-verification**: the verification command it ran and its result; the planned-test titles it added.
-- **Deviations**: sub-steps inserted mid-flight, soft design-forks resolved (with the choice), Drift fixes folded in.
+- **Deviations**: sub-steps it inserted into its checklist mid-flight, soft design-forks resolved (with the choice), Drift fixes folded in.
 - **For the orchestrator to record**: `[Scout]` items to note on plan_<slug>.md; any block, with exactly what's needed to clear it.
 
 ## 5. Verify, retry & advance (orchestrator)
@@ -195,6 +200,10 @@ No human gate. The orchestrator — fresh-context relative to the subagent's wor
 ### 5.1. Verify the result against the diff
 
 Per CLAUDE.md "verify subagent results against artifacts": confirm the reported commits exist (`git log <BATCH_BASE_SHA>..HEAD`), the diff matches the report, and the verification command passes on re-run.
+
+Also read the subagent's checklist file (§3): every sub-step should be checked off before you trust the `done` report.
+
+Unchecked items mean it stopped short of its own plan — treat that as a failed verify (§5.3) or a block (§5.4).
 
 ### 5.2. Planned-test presence check (post-commit)
 
