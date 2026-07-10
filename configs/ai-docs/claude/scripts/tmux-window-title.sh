@@ -21,6 +21,11 @@
 #     is currently focused.
 #   - Caps the title at 16 chars (truncates) so several titled tabs fit
 #     comfortably side by side. The caller should already keep titles short.
+#   - On the first call for a pane, captures the pre-Claude window name and
+#     automatic-rename flag into pane options ($TMUX_PANE-scoped
+#     @claude_prev_window_name / @claude_prev_auto_rename) before overwriting
+#     either -- first-set-wins, so later calls in the same session don't
+#     clobber the captured original. A separate SessionEnd hook restores it.
 #
 # Examples:
 #   tmux-window-title.sh "fix-auth-bug"   # spaces are converted to hyphens too
@@ -72,6 +77,28 @@ MAX_LEN=16
 if [ "${#CLEAN_TITLE}" -gt "$MAX_LEN" ]; then
   CLEAN_TITLE="${CLEAN_TITLE:0:MAX_LEN}"
   CLEAN_TITLE="${CLEAN_TITLE%-}"  # drop a trailing hyphen the cut may leave
+fi
+
+# First-set-wins capture of the window's pre-Claude name and automatic-rename
+# flag, into pane options (not window options) so the "original" ties to this
+# specific Claude pane/session -- relevant if the window ever holds more than
+# one pane. A SessionEnd hook (separate script) reads these back to restore
+# the window once Claude's session ends. `show-options -v` on an option that
+# was never set exits non-zero with nothing on stdout, and exits 0 with the
+# value once it has been -- that's the "already captured?" check below.
+if ! tmux show-options -p -t "$TMUX_PANE" -v "@claude_prev_window_name" >/dev/null 2>&1; then
+  PREV_WINDOW_NAME=$(tmux display-message -t "$TMUX_PANE" -p '#{window_name}')
+
+  # automatic-rename is a window option; an unset local value means the
+  # window inherits the global default, so fall back to that -- the restore
+  # hook needs a literal "on"/"off" captured here, never an empty string.
+  PREV_AUTO_RENAME=$(tmux show-options -w -t "$TMUX_PANE" -v automatic-rename)
+  if [ -z "$PREV_AUTO_RENAME" ]; then
+    PREV_AUTO_RENAME=$(tmux show-options -g -v automatic-rename)
+  fi
+
+  tmux set-option -p -t "$TMUX_PANE" -- "@claude_prev_window_name" "$PREV_WINDOW_NAME"
+  tmux set-option -p -t "$TMUX_PANE" "@claude_prev_auto_rename" "$PREV_AUTO_RENAME"
 fi
 
 # Disable auto-rename for this window so the manual name persists, then set it.
