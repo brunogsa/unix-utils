@@ -1,10 +1,10 @@
 ---
-name: code-review
+name: pr-review
 description: "USE for code review on a GitHub PR URL (no URL — use /auto-review on your local branch). User-invoked only; posts a PENDING review you filter and submit."
 disable-model-invocation: true
 ---
 
-# Code Review
+# PR Review
 
 Orchestrate a GitHub PR review by running the `reviewer-agent` pipeline
 end-to-end. The pipeline runs serially — no nested fan-out — so the review
@@ -15,12 +15,12 @@ Execution mode (in-session vs. `--isolate` subagent) and the fresh-session check
 
 ## Usage
 
-`/code-review <pr-url> [--jira <jira-url>] [--isolate]`
+`/pr-review <pr-url> [--jira <jira-url>] [--isolate]`
 
 Examples:
-- `/code-review https://github.com/owner/repo/pull/1597` — in-session.
-- `/code-review https://github.com/owner/repo/pull/1597 --jira https://company.atlassian.net/browse/PROJ-123` — in-session with Jira context.
-- `/code-review https://github.com/owner/repo/pull/1597 --isolate` — wrapped in a bias-isolation subagent.
+- `/pr-review https://github.com/owner/repo/pull/1597` — in-session.
+- `/pr-review https://github.com/owner/repo/pull/1597 --jira https://company.atlassian.net/browse/PROJ-123` — in-session with Jira context.
+- `/pr-review https://github.com/owner/repo/pull/1597 --isolate` — wrapped in a bias-isolation subagent.
 
 ## Execution
 

@@ -1,6 +1,6 @@
 ---
 name: reviewer-agent
-description: "Shared reviewer orchestrator for /auto-review (local) and /code-review (GitHub). Runs in caller's session by default; opt into subagent wrapping for bias isolation (--isolate). USE only via those callers — not directly."
+description: "Shared reviewer orchestrator for /auto-review (local) and /pr-review (GitHub). Runs in caller's session by default; opt into subagent wrapping for bias isolation (--isolate). USE only via those callers — not directly."
 user-invocable: false
 ---
 
@@ -20,7 +20,7 @@ Specialist prompts and validator rubric live in `references/`; bash glue in `scr
 
 ## How callers dispatch
 
-`/auto-review` (local) and `/code-review` (github) each resolve their own input header, then hand execution to this pipeline.
+`/auto-review` (local) and `/pr-review` (github) each resolve their own input header, then hand execution to this pipeline.
 
 The dispatch mechanics live here so both callers stay identical; each caller keeps only its own inputs.
 

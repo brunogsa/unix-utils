@@ -55,6 +55,6 @@ Always edit `configs/git/.gitconfig` directly. If the symlink has been broken, r
   - The official `claude-plugins-official` marketplace is built-in; only non-official marketplaces need an `extraKnownMarketplaces` entry.
 
 - **Read skills from source, not the symlink** -- when reading or auditing a skill, use `configs/ai-docs/claude/skills/<name>/SKILL.md`, not `~/.claude/skills/<name>/` (which is a symlink target that can be replaced silently — same caveat as `settings.json`).
-  - **Native skills** (`simplify`, `init`, `review`, `security-review`) are built into Claude Code; no local file exists.
+  - **Native skills** (`simplify`, `init`, `review`, `security-review`, `code-review`, `verify`) are built into Claude Code; no local file exists. The local GitHub-PR review skill is `pr-review` (renamed from `code-review` to avoid shadowing the native one).
   - **Plugin skills** (`claude-hud:*`, etc.) live in plugin marketplace dirs, not in this repo.
   - If the source path is missing, check whether the skill is native or plugin-provided before assuming the file is gone.
