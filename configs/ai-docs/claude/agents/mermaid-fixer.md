@@ -29,6 +29,9 @@ Hard rules:
 
 - Fix ONLY syntax errors `mmdc` reports. NEVER drop, summarize-away, or reword-to-shorten any node, edge, or label — every piece of diagram content present before your fix must still be present after.
 
+- Before copying a fixed diagram back (step 5), list every node id, edge, and label text from the ORIGINAL fence, then confirm each one still appears in the fixed fence.
+  `mmdc` exiting 0 proves the syntax is valid — it does NOT prove nothing was dropped, so this inventory check is the only proof of content preservation.
+
 - Edit ONLY the mermaid code fence needed to clear the render failure. No reformatting, re-indenting, or touching surrounding prose, whitespace, or any other diagram in the same file.
 
 - Loop `mmdc` re-renders until exit 0 — never report a diagram fixed on the assumption that the syntax now looks valid; the exit code is the only proof.
