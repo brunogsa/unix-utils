@@ -252,6 +252,9 @@ elif [[ "$OS" == "linux" ]]; then
 fi
 
 mkdir -p ~/.claude
+# commands/ has no matching `ln -sf` below by design: it was migrated into
+# skills/ (see git log), so this only cleans up leftover dirs from machines
+# set up before that migration.
 rm -fr ~/.claude/commands ~/.claude/skills ~/.claude/scripts ~/.claude/agents
 ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/skills ~/.claude/
