@@ -40,48 +40,51 @@ Spawn each tail via the **Agent tool**, `subagent_type=deep-reviewer`, in the ba
 
 The prompt body is the entire instruction set the subagent receives.
 
-The prompt **must lead with this preamble verbatim** (line-for-line; the subagent's compliance is what enforces report-only behavior — `deep-reviewer` has all tools, so there is no harness gate behind it):
+The prompt **must lead with this preamble verbatim**, line-for-line.
+
+The subagent's compliance is what enforces the no-mutations contract — the harness blocks a `deep-reviewer`'s file writes, but its git/Bash mutations have no gate behind them:
 
 ```
 REPORT-ONLY MODE — STRICT CONTRACT
 
-You are spawned by /implement as an end-of-batch tail subagent. Your only
-permitted output side effect is writing ONE markdown report file to CWD.
+You are spawned by /implement as an end-of-batch tail subagent. You produce
+NO side effects — your complete findings ARE your final message.
 
 YOU MUST NOT:
 - Run `git commit`, `git push`, or any state-mutating git command.
-- Use the Edit, Write, or MultiEdit tools on any file except your single
-  report file.
+- Use the Edit, Write, or MultiEdit tools on any file — including report
+  files; the orchestrator persists your findings itself.
 - Apply, fix, or suggest-and-then-apply any finding.
 - Spawn nested subagents.
 
 YOU MUST:
 - Run the underlying skill (/refactor or /auto-review) in its
   analysis/findings phase only.
-- Write the complete findings to the report path named below — overwriting
-  any prior file at that path.
-- Return a one-paragraph summary plus the report path. Nothing else.
+- Return the complete findings as your final message — every finding with
+  file:line evidence, no summarizing or truncation.
 
 Violating any of the MUST NOT items aborts the parent /implement.
 ```
 
 After the preamble, include the skill-specific body:
 
-- **refactor** tail: "Invoke `/refactor` over `<BATCH_BASE_SHA>..HEAD`. Write findings to `./report_refactor_<YYYY-MM-DD_HH:MM>.md` in CWD."
+- **refactor** tail: "Invoke `/refactor` over `<BATCH_BASE_SHA>..HEAD`. Return the complete findings as your final message."
   - Pass **no** spec/plan paths — refactor judges code shape, not spec conformance (deliberate).
-- **auto-review** tail: "Invoke `/auto-review <BATCH_BASE_SHA>` (per its `/auto-review HEAD~N` per-task scoping convention). Write findings to `./report_auto-review_<YYYY-MM-DD_HH:MM>.md` in CWD."
+- **auto-review** tail: "Invoke `/auto-review <BATCH_BASE_SHA>` (per its `/auto-review HEAD~N` per-task scoping convention). Return the complete findings as your final message."
   - Also pass the resolved `spec_<slug>.md` and `plan_<slug>.md` paths — auto-review always gets them to check spec conformance.
 
-When each tail returns, record its results into the state file's `tails` object:
+When each tail returns, the orchestrator persists its findings, then records the results into the state file's `tails` object:
 
-- Its report path — `refactor` → `.tails.refactor_report`, `auto-review` → `.tails.auto_review_report`. The loop-state script emits the `present` verdict only once **both** paths are recorded.
+- **The orchestrator writes the report file itself** — the tail's returned findings, verbatim, to `./report_refactor_<YYYY-MM-DD_HH:MM>.md` / `./report_auto-review_<YYYY-MM-DD_HH:MM>.md` in CWD.
+  - The subagent can't write it: the harness routes a `deep-reviewer`'s output to text and blocks its file writes, so a subagent-side write silently never lands.
+- The report path it wrote — `refactor` → `.tails.refactor_report`, `auto-review` → `.tails.auto_review_report`. The loop-state script emits the `present` verdict only once **both** paths are recorded.
 - Its token count → `.tails.tokens.<name>` (`0` if the Agent result omits it). The metrics script sums these into the subagent total.
 
 ## Failure handling
 
 - **Subagent violates the report-only contract** (a forbidden mutation per the preamble) → this **aborts the parent `/implement`**.
-  - There is no permission gate — `deep-reviewer` has all tools — so the preamble's behavioral contract is the only enforcement.
-- **Subagent errors, or writes no report file** → log it to chat with the agent's last message; the **other** tail still runs; the package flags the missing artifact.
+  - The harness blocks its file writes, but git/Bash mutations have no gate — for those the preamble's behavioral contract is the only enforcement.
+- **Subagent errors, or returns no usable findings** → log it to chat with the agent's last message; the **other** tail still runs; the package flags the missing artifact.
   - A refactor failure never blocks the auto-review tail.
   - Do NOT retry inline (unlike the planned-test check): batch-end reports are reviewed asynchronously; a missing report is user-attention, not a retry loop.
 
