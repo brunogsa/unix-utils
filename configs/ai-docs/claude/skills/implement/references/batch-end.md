@@ -70,3 +70,17 @@ Print to chat the single async pass the human reviews — the replacement for th
 - Per-task outcomes: `done` / `blocked` / `failed-after-retry`, each with its commit SHAs.
 - The two tail-report paths.
 - Every recorded `[Scout]` note and every block, with what each needs to clear.
+
+## Open the diff for review (neovim diffview)
+
+After printing the summary, open the batch diff in a **new tmux window** running neovim diffview so the human reviews — and can directly edit — the changes:
+
+```bash
+tmux new-window -n review-<slug> -c "<worktree-or-cwd>" \
+  "nvim -c 'DiffviewOpen <BATCH_BASE_SHA>'"
+```
+
+- **Diff against the bare `<BATCH_BASE_SHA>`, never `<BATCH_BASE_SHA>..HEAD`** — the bare base compares base ⟷ working tree (right pane editable); `..HEAD` diffs two commits (both panes read-only).
+- On a clean batch the working tree equals HEAD, so the editable view shows exactly the batch; edits land as uncommitted changes atop the batch commits.
+- Guard on `$TMUX` — spawn the window only inside tmux; otherwise print the `nvim -c 'DiffviewOpen <BATCH_BASE_SHA>'` command for the human to run.
+- Requires the `diffview.nvim` plugin; name the window `review-<slug>` so it stays findable among other tmux windows.

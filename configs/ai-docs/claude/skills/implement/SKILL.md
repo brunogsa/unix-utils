@@ -1,7 +1,7 @@
 ---
 name: implement
 description: "Execute one or more plan_<slug>.md tasks end-to-end as fresh-context subagents — run sequentially, fully async — managing decomposition, status, verification and commits. Trigger: /implement <id> or /implement <id1>, <id2>, ..."
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 ## Usage
@@ -378,4 +378,4 @@ Then present the whole batch for your async review.
 
 That async review **is** the handshake this skill replaces the per-task gate with.
 
-The full procedure — queued items, spawn contract, report-only preamble, failure handling, batch-review summary — lives in [`references/batch-end.md`](references/batch-end.md). Load at batch end.
+The full procedure — queued items, spawn contract, report-only preamble, failure handling, batch-review summary, and opening the diff in a neovim-diffview tmux window — lives in [`references/batch-end.md`](references/batch-end.md). Load at batch end.
