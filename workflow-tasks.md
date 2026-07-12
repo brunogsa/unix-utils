@@ -110,3 +110,74 @@ Sources: code.claude.com/docs (permission-modes, hooks-guide, sandboxing, server
 **Open on review**: (1) accept/veto the unattended `gh pr comment` residual; (2) deletion rule profile-only vs always-on (lean: always-on).
 
 ---
+
+## 1. [Task] Over-engineering audit — brainstorm + spec-driven-development skills
+
+**Goal**: Check whether the `brainstorm` and `spec-driven-development` skills are over-engineered; simplify if so.
+
+**Scope**: `configs/ai-docs/claude/skills/brainstorm/` and `configs/ai-docs/claude/skills/spec-driven-development/` (SKILL.md + assets/scripts).
+Look for machinery with no real caller, speculative configurability, ceremony that outweighs its payoff, or steps a simpler path would replace.
+
+**Deliverable**: a verdict (over-engineered where? or "no, justified") plus the simplifying edits if any. No change is a valid outcome — but state the evidence either way.
+
+---
+
+## 2. [Task] Over-engineering audit — implement skill
+
+**Goal**: Same as #1, for the `implement` skill.
+
+**Scope**: `configs/ai-docs/claude/skills/implement/`. Same lens: unused machinery, speculative scope, ceremony vs. payoff, simpler-path-exists.
+
+**Deliverable**: verdict + simplifying edits if warranted, evidence either way.
+
+---
+
+## 3. [Task] Over-engineering audit — auto-review + pr-review + reviewer-agent skills
+
+**Goal**: Same as #1, for the review-cluster skills, watching for overlap/duplication across the three as its own over-engineering smell.
+
+**Scope**: `configs/ai-docs/claude/skills/auto-review/`, `pr-review/`, `reviewer-agent/`. Same lens plus: do three skills earn their separation, or is there redundant machinery that should be centralized?
+
+**Deliverable**: verdict + simplifying edits if warranted, evidence either way.
+
+---
+
+## 4. [Feature] `implement` skill — multi-PR output (independent + stacked)
+
+**Goal**: Let the `implement` skill split its committed tasks across **several PRs** instead of forcing one PR per run. Two shapes must both work:
+- **Independent PRs** — groups of committed tasks with no dependency between them, each opened straight off the base branch, reviewable and mergeable in any order.
+- **Stacked (dependent) PRs** — a chain where PR B branches off PR A's head (not base), so B's diff shows only its own delta; A must merge (or rebase) first.
+
+**Scope**: `configs/ai-docs/claude/skills/implement/`. Likely touches how the skill plans branch/commit grouping and how it hands off to PR creation (`create-pr` skill).
+
+**Design questions to settle before wiring**:
+- How does the skill decide the grouping — explicit user direction, task-dependency inference from the plan, or both? Default when unspecified?
+- Stacked-PR mechanics: plain git branches-off-branches vs. a tool (`gh`, Graphite/`gt`, `spr`). Prefer plain git + `gh` unless a tool clearly pays off — check for existing stacking support first.
+- Base-branch tracking on rebase: when the bottom of a stack merges, how do the upper PRs get retargeted (manual note vs. automated)?
+- Overlap with `create-pr` — does multi-PR logic live in `implement`, in `create-pr`, or split? Avoid duplicating PR-creation mechanics.
+
+**Deliverable**: `implement` supports emitting N PRs (independent and stacked) from one run, the grouping rule documented, the stacking mechanic chosen and wired, and `create-pr` reused rather than duplicated.
+
+---
+
+## 7. [Task] `implement` skill — token metrics must account for compactions + count them
+
+**Goal**: Make the `implement` run-metrics reflect context **compactions**, in both the main (orchestrator) session and the sub-agents, and — if feasible — report the **number of compactions** on each side.
+
+**Why this matters**: `implement-loop-metrics.sh` sums `orchestrator_total` from the session transcript's `.message.usage` records (`input/output/cache_creation/cache_read`), and sums `subagent_total` from per-attempt/tail `tokens`.
+A compaction is a real token cost (the summarization pass reshapes cache), yet the current sum treats the transcript as a flat stream — it neither isolates cost nor counts occurrences.
+Compacted and uncompacted runs report the same total with no thrashing signal.
+
+**Scope**: `configs/ai-docs/claude/skills/implement/scripts/implement-loop-metrics.sh` and tests, plus the reporting doc `references/batch-end.md` (`tokens:{…}` JSON shape).
+
+**Open questions to settle before wiring**:
+- What does a compaction look like in the transcript JSONL? Find the record type/marker Claude Code emits (likely a summary/`isCompactSummary`-style field) — verify against a real transcript, don't assume the shape.
+- Sub-agent side: do Agent-result token counts already fold in the sub-agent's own compactions, or is that data reachable?
+  If a sub-agent's compaction cost is unobservable from the orchestrator, scope the count to what's available (main session may be all we can measure).
+- Output shape: add `compactions:{orchestrator, subagent_total}` (counts) alongside `tokens`, or fold into the existing block? Keep backward-compat with the current JSON consumers in `batch-end.md`.
+
+**Deliverable**: metrics script isolates compaction cost in its token accounting and emits a **count** for each observable side (main session at minimum).
+A test covers transcripts with ≥1 compaction, and `batch-end.md` is updated to present the counts.
+Any unobservable side (e.g. sub-agent compactions) is documented as not-tracked rather than silently zero.
+
+---
