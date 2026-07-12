@@ -165,6 +165,14 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
 - LLD — start from `assets/template-lld.md` (one component, implementation-ready: code design, data model, contracts, de/para mappings, error/concurrency, observability).
   The top comment block holds the HLD↔LLD boundary rule. No worked example yet.
 
+- spec_<slug>.md — do **not** improvise from this skill's altitude/ownership notes.
+  - Load the **`spec-driven-development`** skill and populate its `assets/spec-template.md` (Bottom line, Since-your-last-review, Context Diagram, `### AC-N:` BDD acceptance criteria + boundary/failure coverage checklists, Functional Decisions log).
+  - This skill owns only the spec's *altitude and ownership*; the section structure and the interview/self-review workflow live in `spec-driven-development`.
+
+- plan_<slug>.md — same rule: load **`spec-driven-development`** and populate its `assets/plan-template.md`.
+  - Sections: Reuse report, Side-effect report, Failure Handling & Consistency, Test Design AC↔"Covered by" table, structured Task Breakdown, PR Breakdown, Technical Decisions log.
+  - Authoring a spec/plan from the altitude notes above instead of these templates is the known failure mode this route exists to prevent.
+
 - Schema as JSONC — render request/response/event payloads as annotated JSONC (real values, each field tagged with type/required/constraints/description); copy `references/example-good-schema.jsonc`.
   See [`references/schema-jsonc-rules.md`](./references/schema-jsonc-rules.md) for line-length, description, and enum formatting rules.
 
