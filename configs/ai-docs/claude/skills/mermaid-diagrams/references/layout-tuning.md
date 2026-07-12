@@ -57,7 +57,7 @@ flowchart LR
 
 **Use the init directive above — NOT the YAML frontmatter `config: layout: elk`.** They are two different mechanisms, and the frontmatter one fails silently on older renderers:
 
-- **Init directive** `defaultRenderer: elk` — the ELK renderer built into mermaid core. Works on mermaid 10.x, which is what `mermaid-cli` ships (`mmdc --version` → 10.9.x).
+- **Init directive** `defaultRenderer: elk` — the ELK renderer built into mermaid core. Works across mermaid 10.x and 11.x, so it's the portable choice regardless of which version your `mmdc` ships.
 - **Frontmatter** `config: layout: elk` — the pluggable layout-engine API added in mermaid **11**, needing `@mermaid-js/layout-elk` installed. On 10.x it is **silently ignored** (no error, exit 0) and falls back to dagre.
 - **Tell them apart** — ELK routes edges as **orthogonal right-angle** segments; dagre uses **curved splines**. See curves when you asked for ELK? Check you used `defaultRenderer`, not `layout`.
 

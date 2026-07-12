@@ -30,13 +30,14 @@ Install if missing: `npm i -g @mermaid-js/mermaid-cli`.
 
 Validate each fenced block independently — one broken block doesn't fail-fast the renderer for the others.
 
-### Target renderer: Mermaid 10.2.3
+### Target renderer
 
-The renderer in use is **Mermaid 10.2.3**; author for it, not for the latest spec.
+Author against the locally-installed `mmdc` (`mmdc --version`); validate every diagram with it before committing.
 
-- A globally-installed `mmdc` often bundles a newer Mermaid than 10.2.3, so it may pass syntax that 10.2.3 rejects — `mmdc` exit 0 is necessary, not sufficient.
-- Prefer the conservative forms that work on 10.2.3: quote every node and edge label, and use `<br/>` (never `\n`) for line breaks. `\n` renders as the literal characters `\n` on 10.2.3.
-- When unsure a newer feature is safe, pin the check to the target: `npm i -g @mermaid-js/mermaid-cli@10.2.3` (or the closest available 10.2.x) and re-validate.
+- `mmdc` exit 0 is necessary but only sufficient when your publish target renders the same Mermaid version as your local `mmdc`.
+- A different target (e.g. GitHub's pinned version) can still reject what passed locally.
+- Prefer conservative forms that render identically across versions: quote every node and edge label, and use `<br/>` (never `\n`) for line breaks.
+- Bare `\n` renders as the literal characters `\n` on older renderers.
 
 ### Common parse traps that pass eyeball review but fail `mmdc`
 
