@@ -2,15 +2,6 @@
 
 Spec: [link or reference to the paired spec_<slug>.md]
 
-**Bottom line — read first:**
-- <chosen approach in one line>
-- <the riskiest part / biggest trade-off to challenge>
-- <PR count: "Single PR" or "N PRs — see PR Breakdown">
-
-**Since your last review:**
-- First pass — whole doc is new.
-- Later rounds: one bullet per changed section (`<section>: <what changed>`), so you re-read only the delta.
-
 ---
 ## Technical Approach & High Level Architecture
 
@@ -70,13 +61,21 @@ N/A escape: no downstream calls, async flows, or multi-write state changes → "
 
 Test titles designed before implementation — bodies come during each RED-GREEN cycle. Review before coding starts.
 
-**Integration tests (outer layer)** — the stable user-facing contract. Design all titles upfront:
+**Integration tests (outer layer)** — the stable user-facing contract. Design all titles upfront, grouped by scenario class so a thin class is a visible gap:
+
+- **Happy cases** — the expected success paths.
+- **Corner cases** — boundary/edge inputs handled deliberately (off-by-one, empty, single-vs-many, precision residue, optional field present/absent).
+- **Failure scenarios** — every way it fails: guard rejections, downstream errors, partial success, retry-vs-DLQ classification.
 
 ```
 // <file>
 describe("[ComponentOrUseCase]", () => {
-  it("should [behavior] when [condition]");
-  it("should [behavior] when [condition]");
+  // Happy cases
+  it("should [behavior] when [nominal condition]");
+  // Corner cases
+  it("should [behavior] when [boundary condition]");
+  // Failure scenarios
+  it("should [fail/throw] when [failure condition]");
 });
 ```
 
@@ -93,9 +92,56 @@ Tests for helpers pulled on demand during RED-GREEN are designed at the moment t
 
 If this change is a pure refactor, config edit, or similar no-behavior-change work, mark this section "N/A" with a short reason.
 
-**CRITICAL:** Include a table with columns "Testable Acceptance Criteria" and "Covered by", showing the user that every AC from the paired spec is covered by this plan's tests.
+**AC → test coverage — an AC-grouped nested list, not a table:**
 
-Not a single one left behind.
+Each AC from the paired spec is a header; under it, the tests that prove it as sub-bullets, each written as a Test Design breadcrumb.
+
+Format: `<describe> > <happy|corner|failure> > <it>`, or `<describe> > <it>` for a flat helper block with no class grouping:
+
+```
+- **AC-1** <short AC title>
+  - "SgeSyncUseCase > happy > verbatim it() title from Test Design"
+  - "SgeSyncUseCase > failure > another verbatim it() title"
+
+- **AC-2** <short AC title>
+  - "SomeHelper > verbatim helper it() title"
+```
+
+A nested list, not a table, because one AC maps to many tests — a table jams N titles into one cell, forcing `…` truncation.
+Truncation is exactly where a gamed citation hides.
+One test per line keeps each line short and verbatim.
+The human cross-checks each against the Test Design by exact string.
+
+Spell out the AC title, not only its `AC-N` mnemonic, so the human verifies each group without a legend.
+
+The breadcrumb prefix (describe + class) makes each citation self-describing — its exact home in Test Design is visible without hunting.
+
+It keeps two same-named `it()` titles distinct, which a bare title would collapse under de-duplication, silently hiding a coverage gap.
+
+Don't hand-type breadcrumbs — the prefix is derived from Test Design, so typing it in the lists duplicates a source and drifts.
+
+Author the AC and task lists with bare `it()` titles, then run `spec-driven-development/scripts/normalize-list-breadcrumbs.sh <plan>` to upgrade every list bullet to its breadcrumb in place.
+
+It is idempotent and only rewrites titles that match a real Test Design test.
+
+**Both coverage axes are verified by script, not by hand:**
+
+- `spec-driven-development/scripts/check-ac-coverage.sh <plan> <spec>`:
+  - COMPLETENESS: every `AC-N` defined in the spec's Acceptance-Criteria section has a header.
+  - HONESTY: every cited breadcrumb exists verbatim among the Test Design breadcrumbs; a `…`-truncated or invented citation won't match → flagged.
+  - The semantic "does this test prove this AC?" stays the human's read — the script only kills the two gaming vectors around it.
+
+- `spec-driven-development/scripts/check-test-distribution.sh <plan>` — SET EQUALITY between the Test Design breadcrumbs (A) and the union of all tasks' Tests (planned) lists (B).
+  Fails on `A \ B` (a designed test in no task) or `B \ A` (a task inventing a test).
+  Don't maintain a hand-written Test → task table — it becomes a third verbatim copy that drifts.
+  Set-equality (not a naive "title appears ≥2 times" count) is needed because the AC coverage list also quotes titles, so a bare count passes without the title ever reaching a task.
+
+- Both gates reconstruct the Test Design breadcrumbs via the shared `spec-driven-development/scripts/extract-design-tests.sh`, so the breadcrumb format lives in one place.
+
+  Each gate scans only its relevant sections — Test Design, the AC-coverage list, the per-task Tests (planned) lists, and the spec's Acceptance-Criteria section — never the whole file.
+
+Both gates are fail-closed and run before the first human review, then again on every test change (add / remove / title edit).
+See the gate process in the `spec-driven-development` SKILL.md for when and how they run.
 
 ---
 ## Task Breakdown

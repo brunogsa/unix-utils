@@ -95,14 +95,28 @@ First, a qualitative pass — spawn one sub-agent that reads both docs with fres
 
 Then six formal checks run in sequence — they turn the report's Completeness and Artifacts claims above into fail-closed gates (three `deep-reviewer` gates + two inline + one advisory scope lens):
 
-- **Gates 1-3** (fail-closed): AC↔test coverage, test↔task assignment, machinery↔spec traceability — each a fresh-context `deep-reviewer` dispatch (Opus, max effort), so it sees only artifacts, no session bias.
+- **Gates 1-3** (fail-closed): AC↔test coverage, test↔task assignment, machinery↔spec traceability.
+  Deterministic parts run as scripts (tools-first — a set-equality or existence check is exact, not a judgment).
+  Semantic parts run as fresh-context `deep-reviewer` dispatches (Opus, max effort), so they see only artifacts, no session bias.
 - **Inline checks** (fail-closed): checklist completeness, inversion sweep — do the corner case and failure checklists have per-item disposition (covered / N/A)?
 - **Scope lens** (advisory): does the spec match the user's request, or is plan_<slug>.md over-engineered relative to the ACs?
 
-- **Gate 1 — AC ↔ Test Design coverage**: every `### AC-N:` in spec has ≥1 test in plan (semantic match, not grep).
-  Output: orphan ACs (empty = pass). Block plan approval if non-empty.
+- **Gate 1 — AC ↔ Test Design coverage**: every `### AC-N:` in spec is proven by ≥1 test in the plan's AC-grouped coverage list.
+  - Mechanical half — `scripts/check-ac-coverage.sh <plan> <spec>`: completeness (every AC in the spec's Acceptance-Criteria section has a coverage header).
+    Honesty: every cited breadcrumb exists verbatim among Test Design breadcrumbs; a `…`-truncated or invented citation won't match.
+    Exit 1 blocks.
+  - Semantic half — a `deep-reviewer` dispatch judges whether each cited test actually *proves* its AC — the match no script can make.
+  - Output: orphan ACs + bogus citations (empty = pass). Block plan approval if non-empty.
 
-- **Gate 2 — Test Design ↔ per-task assignment**: every Test Design title must be owned by a task's `**Tests (planned)**:`. Output: orphan titles (empty = pass). Block if non-empty.
+- **Gate 2 — Test Design ↔ per-task assignment**: `scripts/check-test-distribution.sh <plan>` asserts set-equality between the Test Design breadcrumbs (A) and the union of tasks' `**Tests (planned)**:` lists (B).
+  Deterministic, so a script, not a subagent.
+  Output: `A \ B` (a designed test in no task) + `B \ A` (a task inventing a test); empty = pass.
+  Block if non-empty.
+
+- **Both gates share `scripts/extract-design-tests.sh`** to reconstruct the Test Design breadcrumb (`<describe> [> class] > it`), so the format lives in one place.
+
+  Each scans only its relevant sections — never the whole file.
+  Authors write the two lists with bare `it()` titles, then run `scripts/normalize-list-breadcrumbs.sh <plan>` (idempotent) to upgrade them to breadcrumbs before the gates run — never hand-typed.
 
 - **Gate 3 — Machinery ↔ AC traceability**: every piece of machinery (abstraction, dependency, knob, extra layer) must trace to a spec AC or requirement.
   Output: untraceable items (empty = pass). Block if non-empty — cut or earn an AC.
@@ -128,8 +142,11 @@ Later rounds scope the gates to what actually changed — computed by `diff`, ne
 
 - **Diff on re-review**: next round, `diff /tmp/sdd-snapshots/spec_<slug>.md spec_<slug>.md` (same for plan) yields the changed hunks — including edits the human made directly.
 
-- **Scope, don't blind**: hand each gate the changed hunks plus the full doc.
-  - Gates stay fresh-context subagents, so the bias guarantee holds — scoping changes what they focus on, not where they run.
+- **Scope, don't blind**: hand each subagent gate the changed hunks plus the full doc.
+  - Subagent gates stay fresh-context, so the bias guarantee holds — scoping changes what they focus on, not where they run.
+  - The deterministic script gates (Gate 2, and Gate 1's mechanical half) are exempt from scoping.
+    They run in full on every round because they're cheap and see the whole doc anyway.
+    Re-run them on any test change (add / remove / title edit) to catch drift the moment it appears, not at review.
 
 - **Re-check broken invariants**: each gate concentrates on the changed regions plus any invariant those changes break, even in UNCHANGED regions.
   - Deletions are the trap: removing an AC orphans the plan machinery tracing to it (Gate 3); removing a task orphans its owned test title (Gate 2).
@@ -163,6 +180,12 @@ But plan_<slug>.md can also be wrong; surfacing the choice preserves intent rath
 
 ## Guidelines
 
+- **CRITICAL: Write spec_<slug>.md and plan_<slug>.md in English** — even when the team, repo, or conversation is in another language:
+  - Covers everything in both docs: headings, prose, Given/When/Then, task titles, and planned-test breadcrumbs.
+  - Match the code they drive — comments, `describe`/`it` titles, and symbols are English, so a same-language plan stays greppable and copy-paste-ready.
+  - Localize only the durable decision docs (ADR/HLD/LLD) and the final PR description — those target human reviewers, not the codebase.
+  - Why: a plan in one language driving code in another forces the implementer to translate every task title and test name before writing the actual symbol.
+
 - **CRITICAL: spec_<slug>.md and plan_<slug>.md are session-scoped and untracked**.
   - Never reference them in committed artifacts (code comments, commit bodies, docs).
   - They stay local and get removed after the session; the next reader won't have them. Put the why in the code comment itself or other appropriated place.
@@ -178,12 +201,6 @@ But plan_<slug>.md can also be wrong; surfacing the choice preserves intent rath
   - Why: specs/plans are scanned non-linearly; an ID reference adds lookup cost on every scan, while the behavior recap alone already carries the meaning.
 
 - **CRITICAL: Keep spec and plan up to date** -- Stale docs degrade `/create-pr`.
-
-- **Maintain the "Bottom line" and "Since your last review" header on every edit** -- they serve the human reviewer, your bottleneck.
-  - The Bottom line is the reviewer's BLUF: the proposal, the one decision to weigh, the scope boundary — so an early-scanning reader gets the conclusion before the detail.
-  - The "Since your last review" delta lists one bullet per section changed since the human last looked, so they re-read only the delta.
-  - Update it in the same edit that changes the body; a stale summary misleads the reviewer.
-  - This delta is human-facing prose only — the gates compute their re-review scope by diff, not from this list.
 
 - **plan_<slug>.md tasks and their sub-steps become items on TaskList** — when running inline.
   - Under `/implement`, only parent tasks go on the orchestrator's TaskList; each task subagent tracks its own sub-steps in a private checklist file.

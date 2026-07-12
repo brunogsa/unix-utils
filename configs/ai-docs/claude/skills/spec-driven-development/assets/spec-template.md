@@ -1,14 +1,5 @@
 # Spec: [Title]
 
-**Bottom line — read first:**
-- <the change in one line: what we build, and for whom>
-- <the one decision the reviewer must weigh, or "none open">
-- <scope boundary — what this spec does NOT cover>
-
-**Since your last review:**
-- First pass — whole doc is new.
-- Later rounds: one bullet per changed section (`<section>: <what changed>`), so you re-read only the delta.
-
 ---
 ## Background / Context
 Why this change is needed. Business context, pain point, or opportunity.
