@@ -179,5 +179,11 @@ Apply approved improvements before creating the PR. This makes the skill self-im
 ### 4. Create the PR
 
 - Push branch if needed (with -u)
-- Create PR as **draft** using `gh pr create --draft` with the content from pr-description.md
+- Create PR as **draft** using `gh pr create --draft --body-file pr-description.md`
+- **Updating an existing PR's body: never use `gh pr edit --body-file`** — write via the REST API instead:
+  ```bash
+  gh api --method PATCH repos/<owner>/<repo>/pulls/<n> -F body=@pr-description.md
+  ```
+  - `gh pr edit` eagerly queries `repository.pullRequest.projectCards` (Projects **classic**); on repos where classic Projects is sunset the command errors on that query and the body write silently does not land. The REST `PATCH .../pulls/{n}` endpoint touches no Projects data, so `-F body=@file` (reads the field value from a file) writes cleanly.
+  - After either path, read the PR body back (`gh pr view <n> --json body`) and confirm the first lines match pr-description.md — the GraphQL error can exit non-zero even when nothing was written.
 - Return the PR URL

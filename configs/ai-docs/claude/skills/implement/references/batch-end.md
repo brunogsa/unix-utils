@@ -42,7 +42,13 @@ The prompt body is the entire instruction set the subagent receives.
 
 The prompt **must lead with this preamble verbatim**, line-for-line.
 
-The subagent's compliance is what enforces the no-mutations contract — `deep-reviewer`'s read-only rule lives in its prompt, not the harness (its tools are unrestricted), so this preamble is the only gate:
+Two layers enforce the no-mutations contract.
+
+The hard gate is a `PreToolUse` hook in `deep-reviewer`'s own frontmatter (`~/.claude/hooks/deep-reviewer-report-guard.sh`).
+
+It auto-approves a Write/Edit whose basename matches `report_*.md` and denies (exit 2) every other write target, so the agent physically cannot touch source.
+
+This preamble is the second layer — it tells the subagent the same rule in its own words so it never attempts a blocked write in the first place:
 
 ```
 REPORT-ONLY MODE — STRICT CONTRACT
@@ -52,47 +58,55 @@ NO side effects — your complete findings ARE your final message.
 
 YOU MUST NOT:
 - Run `git commit`, `git push`, or any state-mutating git command.
-- Use the Edit, Write, or MultiEdit tools on any file — including report
-  files; the orchestrator persists your findings itself.
+- Use the Edit, Write, or MultiEdit tools on ANY file EXCEPT the single
+  report file whose path is given to you below — never touch the reviewed
+  source or any other file.
 - Apply, fix, or suggest-and-then-apply any finding.
 - Spawn nested subagents.
 
 YOU MUST:
 - Run the underlying skill (/refactor or /auto-review) in its
   analysis/findings phase only.
-- Return the complete findings as your final message — every finding with
-  file:line evidence, no summarizing or truncation.
+- Write your COMPLETE findings — every finding with file:line evidence, no
+  summarizing or truncation — to your assigned report file: <REPORT_PATH>.
+- Return a short final message: the report path, the finding count, and the
+  single highest-priority finding, so the orchestrator can triage from the file.
 
 Violating any of the MUST NOT items aborts the parent /implement.
 ```
 
-After the preamble, include the skill-specific body:
+After the preamble, include the skill-specific body. The orchestrator **assigns the report path** in the prompt (substituting `<REPORT_PATH>` in the preamble) — it never writes the file, only names it:
 
-- **refactor** tail: "Invoke `/refactor` over `<BATCH_BASE_SHA>..HEAD`. Return the complete findings as your final message."
+- **refactor** tail: "Invoke `/refactor` over `<BATCH_BASE_SHA>..HEAD`. Write the complete findings to `./report_refactor_<YYYY-MM-DD_HH:MM>.md`."
   - Pass **no** spec/plan paths — refactor judges code shape, not spec conformance (deliberate).
-- **auto-review** tail: "Invoke `/auto-review <BATCH_BASE_SHA>` (per its `/auto-review HEAD~N` per-task scoping convention). Return the complete findings as your final message."
+- **auto-review** tail: "Invoke `/auto-review <BATCH_BASE_SHA>` (per its `/auto-review HEAD~N` per-task scoping convention). Write the complete findings to `./report_auto-review_<YYYY-MM-DD_HH:MM>.md`."
   - Also pass the resolved `spec_<slug>.md` and `plan_<slug>.md` paths — auto-review always gets them to check spec conformance.
 
-When each tail returns, the orchestrator persists its findings, then records the results into the state file's `tails` object:
+The subagent writes its own report — one file, the assigned path — so the full findings land on disk with zero fidelity loss.
 
-- **The orchestrator writes the report file itself** — the tail's returned findings, verbatim, to `./report_refactor_<YYYY-MM-DD_HH:MM>.md` / `./report_auto-review_<YYYY-MM-DD_HH:MM>.md` in CWD.
-  - The subagent must not write it: its contract is report-only, and its findings are its final message — the orchestrator is the one place the write reliably happens.
-- The report path it wrote — `refactor` → `.tails.refactor_report`, `auto-review` → `.tails.auto_review_report` — so a resumed run can see which reports already exist.
+- The orchestrator writing the file itself was the old design; it stored a lossy shorthand in state instead of the report, so the subagent owns the write now (same pattern as the §3 checklist file: orchestrator assigns the path, subagent writes the content).
+
+When each tail returns, the orchestrator confirms the report file exists at the assigned path, then records into the state file's `tails` object:
+
+- The report path the subagent wrote — `refactor` → `.tails.refactor_report`, `auto-review` → `.tails.auto_review_report`.
+  - Record the **path**, not the content — the file on disk is canonical, and a resumed run reads it back to see which reports already exist.
 - Its token count → `.tails.tokens.<name>` (`0` if the Agent result omits it). The metrics script sums these into the subagent total.
 
 ## Failure handling
 
 - **Subagent violates the report-only contract** (a forbidden mutation per the preamble) → this **aborts the parent `/implement`**.
-  - Detect it by checking `git status` / `git log` after the tail returns — no harness gate blocks the subagent's mutations, so the preamble plus this check are the only enforcement.
+  - The frontmatter `PreToolUse` hook already blocks any non-report write at the tool layer, so a forbidden *file* mutation should never land.
+  - This `git status` / `git log` check is the backstop for mutations the hook doesn't cover — e.g. a `git commit` / `git push` run through Bash.
+  - **Exclude the assigned report file** from this check — the subagent writing its own `report_*.md` is the contract, not a violation. A compliant tail leaves the tracked tree untouched and adds exactly one new untracked file: its assigned report. Any tracked-file change, or any untracked file other than that report, is the violation.
 - **Subagent errors, or returns no usable findings** → log it to chat with the agent's last message; the **other** tail still runs; the package flags the missing artifact.
   - A refactor failure never blocks the auto-review tail.
   - Do NOT retry inline (unlike the planned-test check): batch-end reports are reviewed asynchronously; a missing report is user-attention, not a retry loop.
 
 ## Overwrite policy
 
-Each invocation produces timestamped filenames (`report_refactor_<ts>.md`, `report_auto-review_<ts>.md`), so multiple `/implement` runs in the same CWD accumulate as separate files.
+Each invocation produces timestamped filenames (`report_refactor_<ts>.md`, `report_auto-review_<ts>.md`), so multiple `/implement` runs in the same CWD accumulate as separate files — each tail's own timestamp keeps its report distinct.
 
-The repo's existing `report_*.md` gitignore pattern covers both.
+Leave the reports **untracked but not gitignored** — same convention as `spec_<slug>.md` / `plan_<slug>.md`: they show in `git status` so the human sees them, and never get auto-committed by the batch. Do not add a `report_*` gitignore pattern.
 
 ## Triage both reports
 
@@ -103,6 +117,10 @@ Both tails are report-only — neither applies anything. Once both reports are w
 - Close with an actionable apply-offer — "tell me which to apply and I'll do it in a follow-up". The human decides asynchronously.
 
 This synthesis is **additive** to the two raw report paths — it never replaces them. The package carries **both** the raw paths and the triaged summary.
+
+When the human (or the orchestrator's own in-scope disposition) elects to **apply** a triaged finding, that fix is not done inline. Dispatch a fresh `general-purpose` subagent on `model=sonnet` per the §4 contract, and require strict TDD: the subagent writes the test first and **confirms it RED on the pre-fix code for the expected reason** (a correctness fix reproduces the bug; a behavior-preserving refactor pins current behavior with a test that stays green), then applies the fix and confirms GREEN. The orchestrator verifies the diff (§5.1) and that the test was shown failing before trusting `done`. A test added alongside its fix, never seen RED, proves nothing — re-dispatch.
+
+Once a fix lands, the orchestrator **annotates its finding in the timestamped report file** — mark it `APPLIED` (with the fix commit SHA) or `SKIPPED` (with the reason). The report is the timestamped, on-disk triage ledger: because each tail run has its own filename, its report is the durable record of which of its findings the orchestrator disposed of, so a later reader (or a resumed run) sees exactly what was fixed versus deferred without re-deriving it. This is the **only** report-file write the orchestrator makes — the subagent authored the findings; the orchestrator only stamps dispositions onto them.
 
 ## The review package
 
@@ -161,7 +179,9 @@ It prints JSON: `{duration_seconds, tokens:{per_task, subagent_total, orchestrat
 Only when the interview opted into a draft PR (§1.2). Skip this section entirely otherwise.
 
 - **Guard first** — if `gh` is absent or the repo has no remote, skip the PR with an explicit notice in the package; everything else in the package is unaffected.
-- Otherwise **push the branch** and create a **draft** PR with `gh pr create --draft`. Never auto-merge, never force-push.
+- Otherwise **push the branch** and create a **draft** PR with `gh pr create --draft --body-file <file>`. Never auto-merge, never force-push.
+  - **Updating an existing PR's body: use the REST API, never `gh pr edit --body-file`** — `gh api --method PATCH repos/<owner>/<repo>/pulls/<n> -F body=@<file>`.
+    - `gh pr edit` eagerly queries Projects-classic `projectCards`; on repos where classic Projects is sunset it errors on that query and the write silently doesn't land. The REST endpoint touches no Projects data. Read the body back afterward to confirm it landed.
 - Generate the description with a **separate `deep-reviewer` dispatch** from the spec/plan and commit bodies, following the `create-pr` skill's conventions (`~/.claude/skills/create-pr/SKILL.md`).
   - That dispatch **returns the description text only** — it must not push or commit; the orchestrator owns the push.
   - Its tokens are **not tracked**: metrics print before this step, and a presented run's state file is deleted right after — so don't add a `tokens` field for it.

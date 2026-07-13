@@ -398,6 +398,55 @@ After the last task is terminal (`[Done]`, blocked, or the batch halted on budge
 
 That async review **is** the handshake this skill replaces the per-task gate with.
 
-The flow, in one pass: repo-green check; two report-only `deep-reviewer` tails (`/refactor` then `/auto-review`); triage; metrics; package print + diffview pane; opt-in draft PR, then finalize.
+The stages are ordered §9.1 → (§9.2 ∥ §9.3) → §9.4 → §9.5, but the two tails run **in parallel**: dispatch both in the same turn (both `run_in_background`), then wait for both to return before §9.4. Both tails are **mandatory** — neither is optional, and the PR (§9.5) must not open until both reports are recorded in the state file. This is a checklist, not a summary line: do each stage, don't collapse them.
+
+### 9.1. Repo-green GATE — full suite, non-negotiable
+
+Confirm the batch's final state is green before reviewing it. This is a hard GATE: the package (§9.5) and PR must not open while it is red or unrun.
+
+Run the **entire** repository's tests and lint — **not** scoped to touched files. Scoped runs are a mid-development convenience only; the batch-end gate always runs everything, because a batch can break a workspace it never edited (shared types, lib consumers, contract tests).
+
+- Full test suite across **all** workspaces, per the repo's own test guidance. When a repo documents that its raw full suite is unstable (e.g. a Jest worker leak that SIGSEGVs the whole run), use the repo's prescribed stable runner (e.g. a per-spec/agentic runner) — never downgrade the gate to a scoped subset to dodge the instability.
+- Full lint across **all** workspaces (the repo-wide lint target, not the per-workspace one).
+- Capture both to a file and verify exit code + tail (slow commands per CLAUDE.md); a runner that exits 0 on partial failure must be read from its summary, not its exit code alone.
+
+A red repo here is a batch-end block for the package, not something to hand-fix silently. Record the full-suite result (pass/fail + counts) into the package so the human sees the gate actually ran over everything.
+
+### 9.2. Refactor tail (mandatory — `/refactor` lens, report-only)
+
+Spawn ONE `deep-reviewer` subagent (fresh context, Opus + max effort) over `<BATCH_BASE_SHA>..HEAD` with a **simplification lens**: duplication, dead code, over-abstraction, unclear naming, missed extractions, needless indirection, idioms inconsistent with surrounding code.
+
+- **Report-only** — it never edits or commits the reviewed code; it **writes** a ranked list of opportunities (`file:line` + the concrete simpler form) to its own assigned `report_refactor_<ts>.md` in CWD (the one file it may write; see `references/batch-end.md`).
+- Record the report **path** it wrote into `.tails.refactor_report` (the file on disk is canonical, not a state-file copy) and its token count into `.tails.tokens.refactor`.
+- Launch it in the background so it runs concurrently with §9.3 — the two tails are independent report-only passes with no ordering dependency.
+
+### 9.3. Auto-review tail (mandatory — `/auto-review` lens, report-only)
+
+Spawn ONE `deep-reviewer` subagent (fresh context, Opus + max effort) over the same range with a **correctness lens**: bugs, missed edge cases, contract mismatches between what the batch produces and what its callers expect, test gaps.
+
+- **Report-only** — same rule as §9.2; it **writes** its ranked findings (`file:line` + a concrete failure scenario each) to its own assigned `report_auto-review_<ts>.md` in CWD.
+- Record the report **path** it wrote into `.tails.auto_review_report` and its token count into `.tails.tokens.auto_review`.
+
+**Both §9.2 and §9.3 report files must exist on disk before proceeding.** If either tail's state field is still `""`, or the file it names is absent, that tail hasn't run — go back and run it. Do not reach §9.5 with a missing tail report.
+
+### 9.4. Triage
+
+Read both reports. For each finding, assign a fix-or-defer prior: trivial + in-scope + low-risk → fold into a batch-end refactor/fix commit; anything else → a `[Scout]`/`[Side]` task the user triages. Never auto-apply a report-only tail's suggestion without this triage step; surface every finding you don't fix so the user can choose.
+
+**Every finding you do fix is executed by a fresh `general-purpose` subagent on `model=sonnet`, never inline** — same dispatch contract as §4 (§4.1 context push/pull, §4.4 report shape), and the orchestrator verifies its diff per §5.1 before trusting `done`. The orchestrator holds review/triage context; handing the mechanical edit to a fresh sonnet context keeps that separation and matches the per-task execution model.
+
+**Each fix follows strict TDD — RED before GREEN, always.** The subagent first adds/adjusts the failing test and **confirms it fails on the pre-fix code for the expected reason** (a correctness fix reproduces the bug; a refactor that must preserve behavior pins current behavior with a test that passes, then stays green). Only then does it apply the fix and confirm GREEN. A fix commit whose test was never shown RED first is not trusted — the orchestrator re-dispatches. This is what makes the tail re-run (§9.2/§9.3) meaningful: a test added alongside its fix, never seen failing, proves nothing.
+
+### 9.5. Package, metrics, and opt-in draft PR
+
+Print the batch-end package for the user's one-pass async review: commit-by-commit reading guide, the two tail reports (with your triage verdicts), any blocks/scouts, and the metrics summary.
+
+Open the draft PR only when §1.2 recorded `pr.wanted: true`, targeting the confirmed base branch. Opening the PR is the final step — it presupposes §9.1–§9.4 all ran.
+
+**Never hand-write the PR body — always generate it by invoking the `create-pr` skill (Skill tool).** It fills `.github/PULL_REQUEST_TEMPLATE.md`, embeds mermaid blocks, and enforces the mandatory Testable-Acceptance-Criteria + Evidences structure a hand-written body silently omits. Carry any manual deploy prerequisites (new secrets, new Parameter-Store values) into its description as `WARNING:`-prefixed items. A `create-pr`-generated body is the only accepted PR description; a hand-authored one is a defect.
+
+**Pass the exact `spec_<slug>.md` + `plan_<slug>.md` this batch resolved in §1.1 — never let `create-pr` auto-detect.** The CWD may hold several spec/plan pairs; auto-detection would prompt or bind to the wrong one. State the resolved pair's filenames explicitly in the `create-pr` invocation so it uses this batch's slug, not a sibling's.
+
+Set `phase: "presented"` once the package is delivered.
 
 Every step — ordering, spawn contract, failure handling, finalize — is owned in full by [`references/batch-end.md`](references/batch-end.md). Load at batch end.
