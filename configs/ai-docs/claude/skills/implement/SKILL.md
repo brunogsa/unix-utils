@@ -155,6 +155,40 @@ Take it seriously: fix the plan/batch if dependencies are missed; reconcile veri
 
 This is the orchestrator's only plan-level review; the task subagent has its own mid-execution fork lever (§4.2).
 
+### 2.1. Seed the batch-end `[Remind]` task (survives compaction)
+
+Right after the review and before the first dispatch, create **one `[Remind]` task** anchoring the whole §9 batch-end procedure in the TaskList — once per invocation, never per task.
+
+That's the CLAUDE.md `[Remind]` category: a durable reminder to run a later step. This batch-end one produces no commit of its own.
+
+**Put the ordered step list in the task SUBJECT, not a description field.**
+
+Only the subject re-surfaces in the turn-by-turn task reminder; a description needs an explicit `TaskGet` to read back, so after a compaction it is exactly as lost as the doc.
+
+Encode the finalize checklist as an arrow chain in the subject — substituting the real sha for `<BATCH_BASE_SHA>`:
+
+```
+[Remind] Batch-end §9: gate → tails(refactor∥review) → triage → PR(create-pr, if wanted) → nvim DiffviewOpen <BATCH_BASE_SHA>
+```
+
+Those steps map to: repo-green gate (§9.1), the two parallel review tails (§9.2 ∥ §9.3), and triage (§9.4).
+
+The last two: the `create-pr` PR only when `pr.wanted`, and opening the diff in a side tmux pane via the `open-in-tmux` skill (§9.5).
+
+As each step lands, `TaskUpdate` the subject to mark it done — strike it or prefix a `✓` — so the re-surfaced subject always shows exactly which steps remain.
+
+Why the subject and not the doc alone: a long batch passes through many compactions, and each one drops the doc-resident §9 steps from working memory.
+
+But the task subject re-surfaces every turn and survives compaction, so the reminder keeps §9 in view instead of letting the batch end at the last task's commit.
+
+Leave it `pending` through the whole task loop; flip it `in_progress` on entering §9 and `completed` only once the review package is presented (§9.5).
+
+On a resume, before dispatch, check the TaskList for this task — a new session may not carry it. If absent, re-create it and pre-strike the steps the state-file `phase` shows already done.
+
+This is the positive complement to the Stop hook's negative backstop.
+
+The hook blocks *stopping* before the batch is presented; this task keeps the steps *in view* so you run them unprompted.
+
 ## 3. Sub-step decomposition (subagent-owned, per task)
 
 Sub-steps live in a **durable checklist file the subagent owns** — a `/tmp` markdown file — not the orchestrator's TaskList.

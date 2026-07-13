@@ -340,6 +340,10 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] `[Drift]` — collateral fix the current task is blocked on (needed mid-flight to make it work); bundle into the base commit if trivial, else its own commit.
   - [Why] Leave-it-better is worth it for small drifts that don't delay the real goal; a larger one burdens the goal's reviewer, so it earns its own commit or PR.
 
+- [Instruction] `[Remind]` — a durable reminder of a process step to run later; the step may or may not produce a commit; stays pending until it runs, then completes.
+  - [Why] The TaskList re-surfaces to the AI every turn and survives compaction, so a long unattended run through many compactions keeps the step visible instead of silently skipping it.
+  - [Example] Batch-end procedure steps: run the repo-green gate, dispatch the review tails, finalize the PR, open the diff-review pane.
+
 ### Slow commands
 
 - [Instruction] **Save slow command output, verify from the file** -- any command taking 4+ seconds: redirect full output to `/tmp/`, then filter from the file.
