@@ -120,6 +120,15 @@
             "command": "bash ~/.claude/hooks/claude-tmux-title-reminder.sh"
           }
         ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/claude-implement-compact-reminder.sh"
+          }
+        ]
       }
     ],
     "SessionEnd": [
