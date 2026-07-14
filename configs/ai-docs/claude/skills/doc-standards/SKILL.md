@@ -84,6 +84,24 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 - [Instruction] **CRITICAL: One idea per comment-line** — split multi-clause comment lines into separate lines or sub-bullets.
   - [Why] A single-line comment scans as one mental "chunk"; comma-stacked clauses force re-parsing on every read. This applies regardless of comment syntax (`//` in JS/JSONC, `#` in YAML).
 
+- [Instruction] Break a mid-long comment line at the next punctuation boundary (`,`, `.`, `;`) rather than letting it run to the density cap.
+  - [Why] The punctuation boundary is a deterministic split point, and a shorter line scans faster even when it carries a single idea.
+
+- [Instruction] Put a blank comment line between distinct comment paragraphs, or after a phrase heavy or important enough to deserve visual isolation.
+  - [Why] Without the gap, separate thoughts blur into one block; the blank line gives the eye a stopping point and lifts the heavy phrase out.
+
+[Example]
+```ts
+// Bad — one mid-long line, two thoughts, no break
+// School defaults isTaxPayerType to false when unset, so it must be set explicitly for the upsert to carry true.
+
+// Good — broken at the comma, blank comment line isolating the caveat
+// CRM CONTRIBUINTE → isTaxPayerType true.
+//
+// School defaults this to false when unset,
+// so it must be explicit for the upsert to carry `true`.
+```
+
 - [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments — use plain ASCII (`=`, `-`, `|`).
   - [Why] Humans don't type these by hand, so they look AI-written and get used inconsistently; they also break in terminals, diffs, and grep where ASCII works.
 
@@ -121,8 +139,12 @@ Good: // Helpers
 
 Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles — concretely:
 
-- [Instruction] Never reference `AC-N` / `Req-N` / `Task-N` / `DBMA-X` in code, docs, comments, or test titles — spell out the behavior briefly instead.
-  - [Why] The referenced file may not even be committed, and each ID forces the reader to stop and look it up — a short parenthetical recap keeps them reading.
+- [Instruction] Never cite a spec or design doc by a numbered token in code, docs, comments, or test titles; spell out the behavior briefly inline instead.
+  - [Why] A bare number renumbers on edit and forces a lookup; both tracking and design-doc item numbers rot, so spell them out inline instead.
+  - [Example] Tracking tokens: `AC-N`, `Req-N`, `Task-N`, `DBMA-X`. Design-doc item numbers: `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
+
+- [Instruction] Cite the doc by file path (per the phrasing rule above) only when the full rationale is worth the pointer.
+  - [Why] A file path is durable; a number goes stale on every edit.
 
 - [Instruction] Spell project-private acronyms: `SA` / `SAP` → `sales_agreement` / `sales_agreement_product`.
   - [Why] The private context behind the acronym can change, be forgotten, or simply never reach a new team member — leaving them to guess.
@@ -153,6 +175,18 @@ it('should throw INTERNAL_SERVER_ERROR after retries (AC-18)', async () => { ...
 
 // Good — title describes behavior only
 it('should throw INTERNAL_SERVER_ERROR after retries', async () => { ... });
+```
+
+[Example]
+```ts
+// Bad — design-doc item numbers rot on renumber and force a lookup
+valorUnitario: 1058.33, // precoRevendaB2C (PR-09)
+sistema: 'SPE',         // Positivo → SPE (PR-13)
+
+// Good — state the fact inline; cite the doc by file path only when the full rationale is needed
+valorUnitario: 1058.33, // precoRevendaB2C
+sistema: 'SPE',         // Positivo → SPE
+// Per the SGE LLD (docs/designs/sync-agreements_sge-translator_lld.md): this field is collection-only.
 ```
 
 ## Standalone doc files
