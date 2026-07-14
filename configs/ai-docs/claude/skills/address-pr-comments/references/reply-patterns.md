@@ -46,4 +46,4 @@ jq --arg author "alice" '
 
 ## Reuse note (fetch primitives)
 
-This skill duplicates `gh api` fetch primitives from `improve-principles-and-skills-from-user-feedback` Mode B intentionally — that flow uses REST only; this one needs GraphQL for `isResolved`.
+This skill duplicates `gh api` fetch primitives from `improve-from-user` Mode B intentionally — that flow uses REST only; this one needs GraphQL for `isResolved`.

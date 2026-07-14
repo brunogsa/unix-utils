@@ -123,8 +123,15 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **When I manually change something or reject you, explain observed trade-offs**.
   - [Why] Silent acceptance loses the lesson; naming the trade-off teaches both sides what to do next time.
 
-- [Instruction] **CRITICAL: When I tweak, edit, or reject your output, infer the general rule behind my change, confirm that with me, and apply it to every later case.**
+- [Instruction] **CRITICAL: When I tweak, edit, reject, or hand-edit your output, infer the general rule behind my change, confirm that with me, and apply it to every later case.**
   - [Why] Re-correcting the same class of mistake drains my attention and caps your autonomy; a one-off fix that isn't generalized guarantees the next near-identical case repeats it.
+
+- [Instruction] Emit that inferred rule as a standalone `[Learning]` marker line the moment the correction lands, in the fixed format below — its own line, never mid-sentence.
+  - [Why] Compaction thins my in-context memory to a summary, but the on-disk transcript keeps assistant turns verbatim — a parseable marker there is a compaction-proof learning log the improve skill greps.
+
+```
+[Learning] said="<what you did — your verbatim words, or a summary of the edit you made>" | rule="<the general rule I inferred>"
+```
 
 ### Async iteration
 

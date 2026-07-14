@@ -1,16 +1,18 @@
 ---
-name: improve-principles-and-skills-from-user-feedback
-description: "Mine current session, a PR's comments, or TODO/XXX markers you left in files for CLAUDE.md / skill updates."
+name: improve-from-user
+description: "Mine current session, a PR's comments, or AI! comments you left in files for CLAUDE.md / skill updates."
 disable-model-invocation: false
 ---
 
-# Improve Principles and Skills from User Feedback
+# Improve from User
 
-Review user feedback — from the current session, a pull request's comments, or TODO/XXX markers left in files — and identify learnings that should be added to CLAUDE.md or skills.
+Review user feedback — from the current session, a pull request's comments, or AI! comments left in files — and identify learnings that should be added to CLAUDE.md or skills.
 
 Run the analysis inline in the main context by default; a **background subagent** is an opt-in that saves context tokens but hides intermediate output.
 
-This skill is **read-only on input artifacts**: it does NOT remove TODOs, resolve PR comments, or address the questions they raise. Those are downstream actions.
+This skill is **read-only on input artifacts**: it does NOT strip AI! comments, resolve PR comments, or address the questions they raise.
+
+Those are downstream actions — stripping AI! markers is the `address-ai-comments` skill's job.
 
 It DOES write to `~/.claude/CLAUDE.md` and anywhere under `~/.claude/skills/*/` (SKILL.md, references/, scripts/, assets/) — with user approval per step 7.
 
@@ -18,23 +20,23 @@ Capturing learnings so the same feedback isn't needed next time is the whole poi
 
 ## Usage
 
-`/improve-principles-and-skills-from-user-feedback [feedback-source]`
+`/improve-from-user [feedback-source]`
 
 The `feedback-source` arg is freeform; parse it semantically. Recognised forms:
 
 | Form | Mode |
 |---|---|
-| omitted, `this session`, `current session` | **A. Session** — verbatim user turns in this chat |
+| omitted, `this session`, `current session` | **A. Session** — verbatim user turns from the on-disk transcript (survives compaction) |
 | `PR <n>`, `PR#<n>`, `pull <n>`, `#<n>` | **B. PR comments** — your comments on PR `<n>` (other users ignored) |
-| `TODOs I left` (± `on <paths>`) | **C. TODO markers** — `TODO`/`XXX` you left; `<paths>` is comma-separated and each entry can be a file OR a folder |
+| `AI! comments` (± `on <paths>`) | **C. AI! comments** — `AI!` markers you left; `<paths>` is comma-separated and each entry can be a file OR a folder |
 
 Examples:
-- `/improve-principles-and-skills-from-user-feedback`
-- `/improve-principles-and-skills-from-user-feedback this session`
-- `/improve-principles-and-skills-from-user-feedback PR 169`
-- `/improve-principles-and-skills-from-user-feedback TODOs I left`
-- `/improve-principles-and-skills-from-user-feedback TODOs I left on files src/foo.ts, plan_<slug>.md`
-- `/improve-principles-and-skills-from-user-feedback TODOs I left on src/components, docs/`
+- `/improve-from-user`
+- `/improve-from-user this session`
+- `/improve-from-user PR 169`
+- `/improve-from-user AI! comments`
+- `/improve-from-user AI! comments on files src/foo.ts, plan_<slug>.md`
+- `/improve-from-user AI! comments on src/components, docs/`
 
 ## Scope
 
@@ -68,7 +70,7 @@ Subagents condense their work into a final report — the user loses visibility 
 3. Subagent prompt must include **Scope**, the extracted user feedback items, and everything from **Subagent Process** through **Guidelines for Generalization** below.
 4. Step 8 (audit reminder) in main context after subagent returns.
 
-If step 1 yields zero items (no quote-worthy session moments, no PR comments from your login, or no TODO/XXX matches), report that to the user and stop.
+If step 1 yields zero items (no quote-worthy session moments, no PR comments from your login, or no AI! matches), report that to the user and stop.
 
 Do not run analysis on nothing.
 
@@ -87,7 +89,28 @@ Detect the mode from the arg, then run the matching sub-step. **All sub-steps em
 
 Triggered when the arg is empty, `this session`, `current session`, or anything semantically equivalent.
 
-Review the conversation history and list moments covering:
+**Read feedback from the on-disk transcript, not your in-context memory.**
+
+Compaction thins your memory to a summary, so verbatim user corrections from earlier in the session are gone from context.
+
+They survive in the session's JSONL transcript, which compaction only appends to. Run the extractor:
+
+```bash
+python3 ~/.claude/skills/improve-from-user/scripts/extract-session-feedback.py
+```
+
+It auto-detects the live session (newest transcript for the current cwd) and emits:
+- **`[Learning]` markers** — learnings you pre-digested at correction time. Each pairs what the user did (`said`) with the rule you inferred (`rule`). Highest signal; treat every marker as a candidate.
+- **Verbatim user turns + next action** — raw feedback, recovered losslessly across compaction boundaries. Mine these for corrections no marker captured — your raw input is itself feedback.
+- **Compaction boundaries** — marked inline, so you see where memory was thinned.
+
+Prefer the extractor's verbatim text over your memory wherever they disagree. Supplement it with the last turn or two still in context — the transcript can lag the live tail.
+
+If it errors — e.g. the session was resumed via `claude --resume` into a fresh file lacking the earlier turns — pass the older file with `--session-id <id>`.
+
+It reads one file; it does not chain across them.
+
+Then list moments covering:
 - Bugs that were found and fixed
 - Code patterns that were corrected
 - Workflow or process feedback from the user
@@ -98,7 +121,7 @@ Review the conversation history and list moments covering:
 - Any user correction of the AI's approach or assumptions
 
 Per-item field hints (the unified format is documented below):
-- **Source** — `(this session, turn ~N)` or a stable marker. If the moment was Claude-initiated with no user prompt, note that here.
+- **Source** — the extractor's `[line N]` and timestamp, or the `[Learning]` marker it came from. If the moment was Claude-initiated with no user prompt, note that here.
 - **Verbatim** — exact user words. Do NOT paraphrase; preserve typos, casing, and emphasis. If Claude-initiated, write `(Claude-initiated — no user quote)`.
 - **Context** — what Claude was doing, what misunderstanding or gap existed, relevant file paths or commands.
 - **Outcome** — what actually changed (code edits, decisions, discoveries), not what was discussed.
@@ -132,9 +155,13 @@ Per-item field hints:
 - **Outcome** — best-effort `still open` unless subsequent commits clearly addressed it. Do not deep-dive blame; if unsure, mark `still open`.
 - **Lesson drawn** — one sentence, generalizable.
 
-### Mode C — TODO / XXX markers
+### Mode C — AI! comments
 
-Triggered when the arg mentions `TODOs`, `TODO`, or `XXX`. Optional path restriction via `on <paths>` — comma-separated, where each entry can be a **file or folder**.
+Triggered when the arg mentions `AI!` (e.g. `AI! comments`). Optional path restriction via `on <paths>` — comma-separated, where each entry can be a **file or folder**.
+
+`AI!` is the same marker the `address-ai-comments` skill sweeps — but that skill *executes and strips* it, whereas this one only *mines it for a learning* (read-only).
+
+`AI?` questions and `TODO`/`XXX` are different conventions; do not scan them here.
 
 Steps:
 
@@ -155,17 +182,15 @@ Steps:
      git ls-files --others --exclude-standard    # untracked
      ```
 
-3. Scan each file for case-insensitive word-boundary matches on `TODO` or `XXX`, regardless of comment syntax.
-   - Catches `// TODO`, `# TODO`, `<!-- TODO ... -->`, and bare-text `TODO:` in `.md` files alike.
-
-4. **Exclude** any line containing the exact substring `TODO(lint)` when the repo's own CLAUDE.md documents that form as tracked lint debt — production debt, not user feedback.
-   - Other parenthesized forms (e.g. `TODO(BRUNO)`, `TODO(plan-step-3)`) are real feedback — keep them.
+3. Scan each file for the literal string `AI!`, regardless of comment syntax.
+   - Catches `// AI!`, `# AI!`, `<!-- AI! ... -->`, and bare-text `AI!` in `.md` files alike.
+   - Match `AI!` only — never the `AI?` question marker (that's the live-answer path `address-ai-comments` owns).
 
 Per-item field hints:
 - **Source** — `path/to/file.ext:LINE`.
-- **Verbatim** — the full TODO/XXX line (you may trim leading comment markers like `//` or `<!--` for readability; do not paraphrase the body).
+- **Verbatim** — the full `AI!` comment line (you may trim leading comment markers like `//` or `<!--` for readability; do not paraphrase the body).
 - **Context** — ±3 lines around the marker.
-- **Outcome** — `still open` (this skill never removes TODOs).
+- **Outcome** — `still open` (this skill never strips AI! comments).
 - **Lesson drawn** — one sentence, generalizable.
 
 ### Unified item format (all modes emit this)
@@ -240,7 +265,7 @@ Why a reminder instead of an automatic run:
 ## User Feedback Learnings Identified
 
 1. [Learning description]
-   - Context: [Session moment | PR comment | TODO/XXX line]
+   - Context: [Session moment | PR comment | AI! comment line]
    - Generalized principle: [Language-agnostic version]
    - Target: [CLAUDE.md > SECTION or skills/skill-name/SKILL.md]
    - Status: [New / Already covered / Needs clarification]
