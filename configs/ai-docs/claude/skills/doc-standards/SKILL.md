@@ -14,16 +14,16 @@ Principles and paired examples for any documentation work. Each section pairs a 
 ### WHY at most — never history, never mechanics
 
 - [Instruction] Prefer tests and logs over comments.
-  - [Why] A comment isn't bound to the code, so it drifts out of sync and starts misleading; code, tests, and logs stay bound to behavior and document it for free.
+  - [Why] A comment isn't bound to the code, so it drifts out of sync and misleads; code, tests, and logs stay bound to behavior and document it for free.
 
 - [Instruction] When you must comment, the maximum scope is **why this code exists in its current shape** — something the next reader cannot infer from the code itself.
   - [Why] History rots on the next commit, mechanics on the next refactor; only the reason the code exists in this shape still holds after it changes.
 
 - [Instruction] Route history to the commit message body, not source — PR numbers, "main used to", and mid-refactor justifications like "(was previously inline)", "(moved here from X)".
-  - [Why] A history note rots in the code as the code keeps changing; the commit preserves that same history as a point-in-time snapshot that never goes stale.
+  - [Why] A history note rots as the code keeps changing; the commit preserves that history as a point-in-time snapshot that never goes stale.
 
 - [Instruction] A deferred-work TODO/FIXME in source must link to a tracked ticket (Jira/Linear URL), never to a local `.md` doc or a task named only in prose.
-  - [Why] A ticket URL is durable and checkable; a local `.md` is an uncommitted scratchpad that vanishes, and a prose task pointer rots with no way to verify it still exists.
+  - [Why] A ticket URL is durable and checkable; a local `.md` is an uncommitted scratchpad that vanishes, and a prose task pointer rots with no way to verify it exists.
 
 - [Instruction] Don't comment what the code already shows — rename or restructure to make it clear instead.
   - [Why] A comment restating the code duplicates what's already visible and falls out of sync the moment the code changes.
@@ -47,19 +47,19 @@ Principles and paired examples for any documentation work. Each section pairs a 
 
 If the explanation would survive any future refactor of the surrounding code, it's a WHY and probably belongs. Otherwise it's the kind of comment this section says to drop.
 
-- [Instruction] Default to no comment — add one only when the WHY is genuinely non-obvious; if names, types, and error/log messages already communicate intent, a comment is noise.
-  - [Why] Reaching for a comment is a signal the names, types, or logs aren't self-describing — fix those and the comment has no reason to exist.
+- [Instruction] Default to no comment — add one only when the WHY is genuinely non-obvious; if names, types, and error/log messages already convey intent, a comment is noise.
+  - [Why] Reaching for a comment signals the names, types, or logs aren't self-describing — fix those and the comment has no reason to exist.
 
 ### Phrasing that survives refactors
 
 - [Instruction] Write WHY comments about the *purpose* a thing serves, not its *current state*.
   - [Why] A purpose survives refactors; a note about the current state goes stale the moment that state changes.
 
-- [Instruction] Link a non-obvious domain rule or field to its durable design doc (LLD, spec, ADR — by file path or URL) in the comment.
-  - [Why] The comment states the local why in one line; the design doc holds the full rationale the reader needs but can't reconstruct from the code alone.
+- [Instruction] Link a non-obvious domain rule or field to its durable design doc (LLD/spec/ADR) by file path or URL — only when the full rationale is worth the pointer.
+  - [Why] The comment gives the local why in one line; the design doc holds the full rationale the code can't show — cite by durable path/URL, not a rot-prone number.
 
 - [Instruction] Avoid time-anchored vocabulary in comments — "stays", "now", "currently", "as of today", "we just".
-  - [Why] Time-anchored phrasing presumes the reader shares the author's "now" — the moment the surrounding context shifts, the phrasing becomes a lie.
+  - [Why] Time-anchored phrasing presumes the reader shares the author's "now" — the moment the context shifts, the phrasing becomes a lie.
   - [Example] Bad: `// Value stays '_loadingDeadlineMs' — browser specs hardcode this URL literal` / Good: `// This constant exists so E2E tests can override the timeout, making tests faster`
 
 - [Instruction] When commenting near a non-obvious mechanism, name the case the guard prevents.
@@ -81,26 +81,11 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 
 ### Comment line formatting
 
-- [Instruction] **CRITICAL: One idea per comment-line** — split multi-clause comment lines into separate lines or sub-bullets.
-  - [Why] A single-line comment scans as one mental "chunk"; comma-stacked clauses force re-parsing on every read. This applies regardless of comment syntax (`//` in JS/JSONC, `#` in YAML).
-
-- [Instruction] Break a mid-long comment line at the next punctuation boundary (`,`, `.`, `;`) rather than letting it run to the density cap.
-  - [Why] The punctuation boundary is a deterministic split point, and a shorter line scans faster even when it carries a single idea.
+- [Instruction] **CRITICAL: One idea per comment-line** — split multi-clause lines at the next punctuation boundary (`,`, `.`, `;`) into separate lines or sub-bullets.
+  - [Why] A single-line comment scans as one "chunk"; comma-stacked clauses force re-parsing, and the punctuation boundary is the deterministic split point. Applies to any syntax (`//`, `#`).
 
 - [Instruction] Put a blank comment line between distinct comment paragraphs, or after a phrase heavy or important enough to deserve visual isolation.
   - [Why] Without the gap, separate thoughts blur into one block; the blank line gives the eye a stopping point and lifts the heavy phrase out.
-
-[Example]
-```ts
-// Bad — one mid-long line, two thoughts, no break
-// School defaults isTaxPayerType to false when unset, so it must be set explicitly for the upsert to carry true.
-
-// Good — broken at the comma, blank comment line isolating the caveat
-// CRM CONTRIBUINTE → isTaxPayerType true.
-//
-// School defaults this to false when unset,
-// so it must be explicit for the upsert to carry `true`.
-```
 
 - [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments — use plain ASCII (`=`, `-`, `|`).
   - [Why] Humans don't type these by hand, so they look AI-written and get used inconsistently; they also break in terminals, diffs, and grep where ASCII works.
@@ -114,26 +99,8 @@ Good: // Helpers
 
 ### Section fencing in code files
 
-- [Instruction] Fence sections with `=` (ASCII), never `-` or `---`.
-  - [Why] `=` carries visual weight and avoids `-`/`---`, which collide with list, heading-underline, and front-matter syntax.
-
-- [Instruction] Size fences by nesting level: 64 chars top-level, 32 second-level, 16 third.
-  - [Why] Consistent widths give the reader a depth cue at a glance.
-
-- [Instruction] Don't fence decoratively — only when the file genuinely has multiple distinct sections worth separating.
-  - [Why] Over-fencing turns into visual noise that hides the real structure it was meant to reveal.
-
-[Example]
-```
-// Top-level section
-// ================================================================
-
-// Sub-section
-// ================================
-
-// Sub-sub-section
-// ================
-```
+- [Instruction] Fence a section only when the file has multiple distinct sections worth separating — use `=` (ASCII, never `-`/`---`), sized by nesting: 64 chars top-level, 32 second, 16 third.
+  - [Why] `=` carries visual weight and dodges `-`/`---` collisions with list, heading-underline, and front-matter syntax; consistent widths cue nesting depth; over-fencing hides the structure it should reveal.
 
 ## Self-describing comments
 
@@ -143,39 +110,11 @@ Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles �
   - [Why] A bare number renumbers on edit and forces a lookup; both tracking and design-doc item numbers rot, so spell them out inline instead.
   - [Example] Tracking tokens: `AC-N`, `Req-N`, `Task-N`, `DBMA-X`. Design-doc item numbers: `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
 
-- [Instruction] Cite the doc by file path (per the phrasing rule above) only when the full rationale is worth the pointer.
-  - [Why] A file path is durable; a number goes stale on every edit.
-
 - [Instruction] Spell project-private acronyms: `SA` / `SAP` → `sales_agreement` / `sales_agreement_product`.
-  - [Why] The private context behind the acronym can change, be forgotten, or simply never reach a new team member — leaving them to guess.
+  - [Why] The private context behind the acronym can change, be forgotten, or never reach a new team member — leaving them to guess.
 
 - [Instruction] Prefer concrete example values: `"12345678000195" + "12.345.678/0001-95"` beats `digits + formatCnpj(digits)`.
   - [Why] A concrete value shows the intent directly; an abstract call shape makes the reader instantiate it mentally.
-
-[Example]
-```ts
-// Bad — file header reads as a task list
-/**
- * Integration Tests: contractValidation.getSchoolsAgreementsAndSkus
- *
- * Task 2 — Schema validation tests (AC-19, AC-22)
- * Task 4 — Full procedure tests (AC-7, AC-14, AC-18, Req 21)
- */
-
-// Good — one-line scope summary
-/**
- * Integration Tests: contractValidation.getSchoolsAgreementsAndSkus.
- */
-```
-
-[Example]
-```ts
-// Bad — test title carries the tracking ref
-it('should throw INTERNAL_SERVER_ERROR after retries (AC-18)', async () => { ... });
-
-// Good — title describes behavior only
-it('should throw INTERNAL_SERVER_ERROR after retries', async () => { ... });
-```
 
 [Example]
 ```ts
@@ -203,13 +142,11 @@ The two subsections below apply to any standalone doc — where it lives and wha
   - [Why] Docs one directory from the code get updated with it as a unit; docs in a separate repo drift and get forgotten.
 
 - [Instruction] Locate and update related documentation inline with the change.
-  - [Why] Deferring doc updates to "later" means they don't happen — the PR description, README, and touched comments are part of the change, and the reviewer needs them synced.
+  - [Why] Deferring doc updates to "later" means they don't happen — the PR description, README, and touched comments are part of the change the reviewer needs synced.
 
 - [Instruction] When canonical content lands in human-facing docs (README, ADRs, public schemas), update AI-facing docs (`CLAUDE.md`, `agents.md`, repo `CLAUDE.md`) in the SAME change.
   - [Why] AI sessions reload AI-facing docs from disk every turn, so stale guidance there silently produces work the human-facing docs already obsoleted; humans skim once and remember.
   - [Example] New diagram added to README → add a one-line pointer in `agents.md` so the next AI session treats it as canonical truth, not as derivable from code.
-  - [Example] Deprecated module removed → remove its mention in repo `CLAUDE.md`'s file-tree section so the next AI session doesn't recreate it from "the docs said it exists".
-  - [Example] New permission/role/feature flag landed → if `CLAUDE.md` had a list of known flags or permissions, append the new one; otherwise the next AI session may invent a parallel name.
 
 ### What a doc should and shouldn't contain
 
@@ -224,7 +161,7 @@ The two subsections below apply to any standalone doc — where it lives and wha
   - [Example] Bad: `// Used by: src/foo.ts, src/bar.ts, tests/baz.test.ts`. Good: omit the list entirely; the reader can grep.
 
 - [Instruction] An FAQ/Q&A entry must add a distinct angle — new audience, framing, or context — not restate the body. Drop test: if cutting it loses only "Q&A format", cut it.
-  - [Why] FAQs feel safe to grow, but one that restates the body forces the same edit in two places forever and bloats the doc for skim-readers who already read it.
+  - [Why] FAQs feel safe to grow, but one that restates the body forces the same edit in two places and bloats the doc for skim-readers who already read it.
 
 ## Density
 
@@ -232,7 +169,7 @@ The two subsections below apply to any standalone doc — where it lives and wha
   - [Why] Dense prose drops adherence in LLM consumers and raises scan time for humans; the cap forces clarity.
 
 - [Instruction] Delegate density verification and fixing to the `density-fixer` subagent (Agent tool) — never run the check-or-rewrite loop inline in the main session.
-  - [Why] The subagent runs `scripts/check-density.sh` and `references/density-rules.md` deterministically with fresh eyes; inline fixing burns main-session context on mechanical splits and eyeballing misses over-cap lines.
+  - [Why] The subagent runs `scripts/check-density.sh` and `references/density-rules.md` deterministically with fresh eyes; inline fixing burns main-session context on mechanical splits, and eyeballing misses over-cap lines.
 
 - [Instruction] Separately verify each schema JSONC block against its ≤80-char/line rule (in the `design-docs` skill) — `check-density.sh` excludes fenced code, so it never measured them.
   - [Why] A green density run reads as "the whole doc passes," yet a design doc can be half JSONC the script skipped — the over-long schema lines then ship unflagged.

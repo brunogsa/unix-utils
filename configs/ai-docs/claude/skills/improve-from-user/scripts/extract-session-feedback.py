@@ -27,9 +27,14 @@ Usage:
   extract-session-feedback.py [--session-id ID] [--project-dir DIR] [--cwd PATH]
 
 Transcript auto-detection: project dir = ~/.claude/projects/<slug>, where <slug>
-is --cwd (default: current directory) with every '/' and '.' mapped to '-'; the
-transcript is the newest *.jsonl in it (the live session). Override the file with
---session-id (uses <project-dir>/<ID>.jsonl) or the directory with --project-dir.
+is --cwd (default: current directory) with every '/' and '.' mapped to '-'. Inside
+that dir the transcript is chosen by precedence: --session-id, then the live
+session's own id from $CLAUDE_CODE_SESSION_ID, then newest *.jsonl by mtime. The
+env-id step matters because "newest by mtime" mis-picks whenever a parallel session
+(a concurrent /auto-review, a queued sub-session) writes to the same dir a moment
+later — its fresher file wins and you get a transcript with none of the real
+feedback. Override the directory with --project-dir. The header's "selected by"
+line records which rule fired, so a heuristic (unverified) pick is never silent.
 """
 
 import argparse
@@ -72,12 +77,36 @@ def resolve_project_dir(args):
 
 
 def resolve_transcript(args):
+    """Return (transcript_path, selection_note).
+
+    Precedence, most authoritative first:
+      1. --session-id                      (explicit override)
+      2. $CLAUDE_CODE_SESSION_ID           (the live session this Bash runs in)
+      3. newest *.jsonl by mtime           (last-resort heuristic)
+
+    Step 2 exists because "newest by mtime" mis-picks whenever ANOTHER session
+    writes to the same project dir at the same time — a parallel /auto-review or
+    a queued sub-session. That neighbour's file can be seconds fresher than the
+    interactive session's, so the heuristic silently hands back the wrong
+    transcript (one with none of the user's real feedback). Claude Code exports
+    the running session's own id, so when this script is invoked from inside that
+    session we can pin the exact file instead of guessing.
+    """
     project_dir = resolve_project_dir(args)
     if args.session_id:
         path = os.path.join(project_dir, f"{args.session_id}.jsonl")
         if not os.path.isfile(path):
             die(f"no transcript for session {args.session_id} at {path}")
-        return path
+        return path, "explicit --session-id"
+
+    env_id = os.environ.get("CLAUDE_CODE_SESSION_ID")
+    if env_id:
+        path = os.path.join(project_dir, f"{env_id}.jsonl")
+        if os.path.isfile(path):
+            return path, "live session ($CLAUDE_CODE_SESSION_ID)"
+        # env id set but not in this dir: a --project-dir/--cwd override points
+        # elsewhere, or a resumed session wrote a fresh file. Fall through.
+
     jsonls = [
         os.path.join(project_dir, f)
         for f in os.listdir(project_dir)
@@ -85,8 +114,9 @@ def resolve_transcript(args):
     ]
     if not jsonls:
         die(f"no *.jsonl transcripts in {project_dir}")
-    # Newest by mtime is the live session being appended to right now.
-    return max(jsonls, key=os.path.getmtime)
+    # Heuristic last resort: newest by mtime. May mis-pick under concurrent
+    # sessions — the header flags this so a wrong file is visible, not silent.
+    return max(jsonls, key=os.path.getmtime), "newest-by-mtime heuristic (unverified)"
 
 
 def is_real_user_prose(d):
@@ -142,7 +172,7 @@ def main():
     ap.add_argument("--cwd")
     args = ap.parse_args()
 
-    path = resolve_transcript(args)
+    path, selection_note = resolve_transcript(args)
 
     # Build an ordered event list; attach each assistant burst to the user turn it answers.
     turns = []            # list of dicts: {ts, line, text, tools:set, next_text, boundaries_after}
@@ -189,10 +219,10 @@ def main():
                     if not current["next_text"] and text:
                         current["next_text"] = text
 
-    emit(path, turns, learnings, boundaries)
+    emit(path, turns, learnings, boundaries, selection_note)
 
 
-def emit(path, turns, learnings, boundaries):
+def emit(path, turns, learnings, boundaries, selection_note):
     out = sys.stdout
     mtime = ""
     try:
@@ -203,6 +233,7 @@ def emit(path, turns, learnings, boundaries):
 
     out.write("# Session feedback extract (recovered from disk — survives compaction)\n")
     out.write(f"# transcript : {path}\n")
+    out.write(f"# selected by: {selection_note}\n")
     out.write(f"# modified   : {mtime}\n")
     out.write(f"# summary    : {len(turns)} user turns · "
               f"{len(learnings)} [Learning] markers · {len(boundaries)} compaction boundaries\n")

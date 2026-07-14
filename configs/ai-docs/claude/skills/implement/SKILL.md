@@ -2,6 +2,7 @@
 name: implement
 description: "Execute one or more plan_<slug>.md tasks end-to-end as fresh-context subagents — run sequentially, fully async — managing decomposition, status, verification and commits. Trigger: /implement <id> or /implement <id1>, <id2>, ..."
 disable-model-invocation: false
+words-budget: 5000
 ---
 
 ## Usage
@@ -32,7 +33,7 @@ Tasks run **sequentially** — each reads the prior task's commits + plan_<slug>
 
 ### Chain-abort, with no human gate
 
-A good spec/plan (the prerequisite for any `/implement` run) should make mid-batch stalls almost never fire. When one does:
+A good spec/plan — required for any `/implement` run — makes mid-batch stalls almost never fire. When one does:
 
 - **Subagent blocked on something only the human can resolve** (missing access, upstream API down, a genuinely open decision):
   - Record it, **never guess past it**, leave that task where it stopped, and continue with tasks that don't depend on it.
@@ -45,7 +46,7 @@ A good spec/plan (the prerequisite for any `/implement` run) should make mid-bat
 
 The up-front interview (§1.2) asks whether this run creates its own git worktree; on yes, §1.3 creates and populates it.
 
-On no, this skill runs in the current checkout as before, and never merges or deletes a worktree on its own either way.
+On no, this skill runs in the current checkout, and never merges or deletes a worktree on its own either way.
 
 In a multi-task batch (`/implement 1, 2, 3`), **§1.1–§1.5 and §2 run once** at the start; **§1.6–§1.7 run once per task** as each becomes active.
 
@@ -57,7 +58,7 @@ Glob in CWD (top-level only):
 ls -1 plan_*.md spec_*.md 2>/dev/null
 ```
 
-Resolve candidates with this decision tree — this step only gathers candidates and never prompts on its own; an ambiguous match becomes the interview's plan-pick question (§1.2):
+Resolve candidates with this decision tree — it only gathers candidates, never prompts; an ambiguous match becomes the interview's plan-pick question (§1.2):
 
 - **Exactly one plan and one spec** → use both; print the resolved paths, no prompt.
 - **Multiple plans (or multiple specs)** → the interview's plan-pick question lists the matches numbered; pair each plan with the spec sharing its `<slug>` when one exists.
@@ -70,7 +71,7 @@ Everywhere below, `plan_<slug>.md` / `spec_<slug>.md` refer to these resolved pa
 
 Ask everything at once, in a single message, before any dispatch — this is the only round of questions until the review package.
 
-The rare exceptions are §1.6's multiple-task-id-match disambiguation and §1.7's resume/dirty-run prompts — pre-existing task-activation checks, outside the up-front interview.
+Rare exceptions: §1.6's task-id disambiguation and §1.7's resume/dirty-run prompts — task-activation checks outside this interview.
 
 Mid-run `.env` needs are self-served (copy from the original checkout) rather than asked.
 
@@ -79,17 +80,13 @@ Mid-run `.env` needs are self-served (copy from the original checkout) rather th
 - **Open a draft PR at batch end?** (yes/no).
 - **Base-branch confirmation** — show `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'` as the default; let the user confirm or override.
 
-Record all answers (three, or four when the plan-pick question fired) before proceeding — §1.5 persists them into the state file.
+Record all answers (three, or four with plan-pick) before proceeding — §1.5 persists them to the state file.
 
 ### 1.3. Worktree setup (only when §1.2 answered yes)
 
-Call `EnterWorktree` with no `path` argument.
+Creation and file-copy mechanics live in [`references/worktree-setup.md`](references/worktree-setup.md). Load when §1.2 answered yes.
 
-`settings.json`'s `worktree.baseRef: "head"` makes the new worktree branch from the current HEAD, so this works from `main` or any feature branch — never from a fixed default branch.
-
-Then copy into the worktree, from the original checkout: `plan_<slug>.md`, `spec_<slug>.md` (both untracked, so `git worktree add`'s checkout never carries them), and any `.env*` files.
-
-When §1.2 answered no, skip this step entirely; the batch-end package omits the merge-back reminder because no worktree exists to merge back.
+When §1.2 answered no, skip this step; the batch-end package omits the merge-back reminder, since no worktree exists to merge back.
 
 ### 1.4. Recap of work since base + capture `BATCH_BASE_SHA`
 
@@ -139,11 +136,9 @@ Exact-match against numeric prefixes in `plan_<slug>.md` headings. On multiple m
 
 On a resume or re-run, reconcile any pre-existing task status and stray TaskList items before proceeding. A clean first run skips this.
 
-This is orthogonal to §1.5's silent JSON adoption: once adopted, the verdict script (§4-5) already skips `done`/`blocked` tasks on its own.
+The reconciliation mechanics live in [`references/resume-reconcile.md`](references/resume-reconcile.md) — how this differs from §1.5's silent JSON adoption, and the per-state prompts (re-execute / resume / restart / revive).
 
-So this step fires only for drift the JSON doesn't cover — a stale `plan_<slug>.md` marker, a stray TaskList item, or a dirty run with no matching JSON file at all.
-
-The per-state prompts (re-execute / resume / restart / revive) and the TaskList cleanup choices live in [`references/preflight-state.md`](references/preflight-state.md). Load when state exists.
+Load it only on a resume or dirty run.
 
 ## 2. Orchestration review — fresh-context subagent, once before any dispatch
 
@@ -159,11 +154,11 @@ This is the orchestrator's only plan-level review; the task subagent has its own
 
 Right after the review and before the first dispatch, create **one `[Remind]` task** anchoring the whole §9 batch-end procedure in the TaskList — once per invocation, never per task.
 
-That's the CLAUDE.md `[Remind]` category: a durable reminder to run a later step. This batch-end one produces no commit of its own.
+The CLAUDE.md `[Remind]` category: a durable reminder to run a later step. This one produces no commit of its own.
 
 **Put the ordered step list in the task SUBJECT, not a description field.**
 
-Only the subject re-surfaces in the turn-by-turn task reminder; a description needs an explicit `TaskGet` to read back, so after a compaction it is exactly as lost as the doc.
+Only the subject re-surfaces in the turn-by-turn reminder; a description needs an explicit `TaskGet` to read back, so after compaction it is as lost as the doc.
 
 Encode the finalize checklist as an arrow chain in the subject — substituting the real sha for `<BATCH_BASE_SHA>`:
 
@@ -175,38 +170,37 @@ Those steps map to: repo-green gate (§9.1), the two parallel review tails (§9.
 
 The last two: the `create-pr` PR only when `pr.wanted`, and opening the diff in a side tmux pane via the `open-in-tmux` skill (§9.5).
 
-As each step lands, `TaskUpdate` the subject to mark it done — strike it or prefix a `✓` — so the re-surfaced subject always shows exactly which steps remain.
+As each step lands, `TaskUpdate` the subject to mark it done — strike it or prefix `✓` — so the re-surfaced subject always shows which steps remain.
 
-Why the subject and not the doc alone: a long batch passes through many compactions, and each one drops the doc-resident §9 steps from working memory.
+Why the subject, not the doc alone: a long batch passes through many compactions, each dropping the doc-resident §9 steps from working memory.
 
-But the task subject re-surfaces every turn and survives compaction, so the reminder keeps §9 in view instead of letting the batch end at the last task's commit.
+The subject re-surfaces every turn and survives compaction, keeping §9 in view instead of letting the batch end at the last task's commit.
 
-Leave it `pending` through the whole task loop; flip it `in_progress` on entering §9 and `completed` only once the review package is presented (§9.5).
+Leave it `pending` through the task loop; flip it `in_progress` on entering §9 and `completed` only once the review package is presented (§9.5).
 
-On a resume, before dispatch, check the TaskList for this task — a new session may not carry it. If absent, re-create it and pre-strike the steps the state-file `phase` shows already done.
+On a resume, before dispatch, check the TaskList for this task — a new session may not carry it.
+If absent, re-create it and pre-strike the steps the state-file `phase` shows already done.
 
-This is the positive complement to the Stop hook's negative backstop.
-
-The hook blocks *stopping* before the batch is presented; this task keeps the steps *in view* so you run them unprompted.
+This is the positive complement to the Stop hook's negative backstop: the hook blocks *stopping* before the batch is presented; this task keeps the steps *in view* so you run them unprompted.
 
 ## 3. Sub-step decomposition (subagent-owned, per task)
 
 Sub-steps live in a **durable checklist file the subagent owns** — a `/tmp` markdown file — not the orchestrator's TaskList.
 
-Two reasons: subagents have no TaskList or TodoWrite tool to create them with, and keeping sub-steps off the orchestrator's list holds that list at task-level macro visibility.
+Two reasons: subagents have no TaskList/TodoWrite tool to create them, and keeping sub-steps off the orchestrator's list holds it at task-level macro visibility.
 
 The orchestrator, per task, does this and no more:
 
 - Creates **one parent task** in its TaskList — task-level status, never sub-steps as separate items.
 - Gives that task a **breadcrumb** — a coarse outline of its sub-steps (e.g. the plan's acceptance-criteria titles).
-  - This ensures the TaskList conveys the task's gist at a glance, without the RED-GREEN detail.
+  - So the TaskList conveys the task's gist at a glance, without RED-GREEN detail.
 - Picks the checklist path `/tmp/implement_substeps_<slug>_<id>.md` and pushes it into the subagent's prompt (§4.1).
 
 The subagent owns everything below, at dispatch and before touching code:
 
 - Writes its RED-GREEN decomposition to that file: one item per RED-GREEN cycle (per AC forcing case), plus the tail steps (post-commit verify per §5, plan_<slug>.md update).
 - Flips each item done as it lands — the file is both its working plan and its progress log.
-- Expands the cycles rather than looping one "do the rest" line, so a re-dispatched subagent picks up from the file instead of re-deriving the breakdown.
+- Expands the cycles rather than a single "do the rest" line, so a re-dispatched subagent resumes from the file instead of re-deriving the breakdown.
 
 The file is a **contract, not scratch**: the orchestrator reads it during post-commit verification (§5.1) to confirm every sub-step ran as decomposed.
 
@@ -217,7 +211,7 @@ The breadcrumb and the checklist don't overlap: the breadcrumb is a static, orch
 When a helper or drift surfaces mid-task, the subagent inserts the new RED-GREEN lines into its checklist file right after the current step, then reports the deviation back (§4.4).
 The orchestrator's TaskList never changes except the parent task's status.
 
-The insertion mechanics live in [`references/mid-flight-substeps.md`](references/mid-flight-substeps.md). Load on demand.
+Insertion mechanics live in [`references/mid-flight-substeps.md`](references/mid-flight-substeps.md). Load on demand.
 
 ## 4. Dispatch the task subagent
 
@@ -227,9 +221,9 @@ Cap the dispatch with a 1-hour `Monitor` timeout (`timeout_ms: 3600000` — the 
 On expiry, call `TaskStop` on the subagent — the dispatch then resolves as a `timeout`, which §5.3 records and obeys exactly like a `fail`.
 
 The harness re-invokes you with its report on completion, so you can still act on it.
-Note the token count the Agent tool result reports for the run, defaulting to `0` when it doesn't expose one.
+Note the token count the Agent result reports for the run, defaulting to `0` when absent.
 §5 records it into the attempt it creates — except on a self-reported block, which creates no attempt at all (§5.4).
-This is best-effort only and never gates the loop mid-run — overage surfaces later via the metrics script, not here.
+Best-effort only; never gates the loop mid-run — overage surfaces later via the metrics script, not here.
 
 The subagent runs the **full per-task lifecycle**. Its prompt is the entire instruction set it receives, so the contract below must be self-contained.
 
@@ -244,7 +238,7 @@ The subagent runs the **full per-task lifecycle**. Its prompt is the entire inst
 - On a re-dispatch, if that file already exists: read it and resume from the first unchecked item rather than rewriting it.
   - The progress log survives intact.
   - If the file is missing (e.g. `/tmp` was cleared), write the breakdown fresh first.
-- The rule to keep that file current: flip each sub-step done as it lands, so the file stays an accurate progress log for the orchestrator to verify (§5.1).
+- Keep that file current: flip each sub-step done as it lands, so it stays an accurate progress log for the orchestrator to verify (§5.1).
 - Standards to load: `test-standards`, `code-standards`, `doc-standards`, `commit-standards` (and `debug-standards` if a test goes red for the wrong reason).
 - The commit rule: follow `commit-standards`, including the `Co-Authored-By` trailer — the git-guard hook rejects commits without it, subagents included.
 - The required report shape (§4.4).
@@ -313,19 +307,11 @@ Full procedure in [`references/planned-test-verification.md`](references/planned
 
 ### 5.3. On failure — record and obey the verdict
 
-If §5.1 or §5.2 fails (diff mismatch, verification red, planned tests missing), or the dispatch hit the 1-hour timeout (§4), record the attempt.
-On a verify failure, set `result` to `fail` and `signature` to the failure text verbatim — the error output, or the list of missing planned tests.
-On a timeout, set `result` to `timeout` and `signature` to the literal string `timeout` — there's no diff to inspect, since the subagent never reported back.
-Either way, also record the token count noted at dispatch (§4) — the run still cost tokens even though it didn't pass.
+On a failed §5.1/§5.2 verify or a §4 timeout, record the attempt, then run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey its verdict — `retry`, `stuck`, or `halt-budget`.
 
-Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey the verdict — the script alone decides how many retries a task gets; no cap is written here.
+The script alone decides how many retries a task gets.
 
-- **`retry`** → re-dispatch the **same task** as a fresh subagent, passing the recorded failure as feedback.
-- **`stuck`** → the script judged this task's failures aren't converging (too many attempts, or a repeating failure signature) — go to §5.4, which marks it terminal.
-- **`halt-budget`** → the batch's dispatch budget is exhausted. Halt the loop and go to §9's batch-end review with whatever work is done so far.
-  - This is the same backstop §5.5 can hit on a pass — it's checked before this call even looks at the fail/timeout result.
-
-Load `debug-standards` if you need to diagnose why a task keeps failing before its next retry.
+Full verdict semantics, attempt-recording fields, and the `debug-standards` load live in [`references/failure-verdict.md`](references/failure-verdict.md). Load only on a failed verify.
 
 ### 5.4. Mark terminal, chain-abort dependents, advance
 
@@ -402,7 +388,7 @@ Read those IDs from the state file's `tasks[]` — the plan file holds every tas
 
 **What the deep-reviewer does.** Iterate exactly the batch task IDs it was handed — never every `### N.` heading in the plan, which lists tasks other runs owned.
 For each ID `<N>`, run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <N>` to get that task's planned-test titles.
-Exit-code handling matches the per-task procedure — see [`references/planned-test-verification.md`](references/planned-test-verification.md) for the exit-2 / exit-1 / empty-stdout meanings, rather than restating them.
+Exit-code handling matches the per-task procedure — see [`references/planned-test-verification.md`](references/planned-test-verification.md) for the exit-2 / exit-1 / empty-stdout meanings.
 Grep the `<BATCH_BASE_SHA>..HEAD` diff for each title as a deterministic pre-pass.
 Apply an AI semantic check ONLY to the titles grep didn't match.
 Return a per-title `found` / `missing` verdict, plus the list of tasks that declared `**Tests (planned)**: N/A`.
@@ -432,44 +418,65 @@ After the last task is terminal (`[Done]`, blocked, or the batch halted on budge
 
 That async review **is** the handshake this skill replaces the per-task gate with.
 
-The stages are ordered §9.1 → (§9.2 ∥ §9.3) → §9.4 → §9.5, but the two tails run **in parallel**: dispatch both in the same turn (both `run_in_background`), then wait for both to return before §9.4. Both tails are **mandatory** — neither is optional, and the PR (§9.5) must not open until both reports are recorded in the state file. This is a checklist, not a summary line: do each stage, don't collapse them.
+The stages are ordered §9.1 → (§9.2 ∥ §9.3) → §9.4 → §9.5.
+The two tails run **in parallel**: dispatch both in the same turn (both `run_in_background`), then wait for both to return before §9.4.
+Both tails are **mandatory**; the PR (§9.5) must not open until both reports are recorded in the state file.
+This is a checklist, not a summary line: do each stage, don't collapse them.
 
 ### 9.1. Repo-green GATE — full suite, non-negotiable
 
 Confirm the batch's final state is green before reviewing it. This is a hard GATE: the package (§9.5) and PR must not open while it is red or unrun.
 
-Run the **entire** repository's tests and lint — **not** scoped to touched files. Scoped runs are a mid-development convenience only; the batch-end gate always runs everything, because a batch can break a workspace it never edited (shared types, lib consumers, contract tests).
+Run the **entire** repository's tests and lint — **not** scoped to touched files.
+Scoped runs are a mid-development convenience only; the batch-end gate always runs everything, because a batch can break a workspace it never edited (shared types, lib consumers, contract tests).
 
-- Full test suite across **all** workspaces, per the repo's own test guidance. When a repo documents that its raw full suite is unstable (e.g. a Jest worker leak that SIGSEGVs the whole run), use the repo's prescribed stable runner (e.g. a per-spec/agentic runner) — never downgrade the gate to a scoped subset to dodge the instability.
+- Full test suite across **all** workspaces, per the repo's own test guidance.
+  - When a repo documents that its raw full suite is unstable (e.g. a Jest worker leak that SIGSEGVs the whole run), use the repo's prescribed stable runner (e.g. a per-spec/agentic runner).
+  - Never downgrade the gate to a scoped subset to dodge the instability.
 - Full lint across **all** workspaces (the repo-wide lint target, not the per-workspace one).
-- Capture both to a file and verify exit code + tail (slow commands per CLAUDE.md); a runner that exits 0 on partial failure must be read from its summary, not its exit code alone.
+- Capture both to a file and verify exit code + tail (slow commands per CLAUDE.md).
+- A runner that exits 0 on partial failure must be read from its summary, not its exit code alone.
 
-A red repo here is a batch-end block for the package, not something to hand-fix silently. Record the full-suite result (pass/fail + counts) into the package so the human sees the gate actually ran over everything.
+A red repo here is a batch-end block for the package, not something to hand-fix silently.
+Record the full-suite result (pass/fail + counts) into the package so the human sees the gate actually ran over everything.
 
 ### 9.2. Refactor tail (mandatory — `/refactor` lens, report-only)
 
-Spawn ONE `deep-reviewer` subagent (fresh context, Opus + max effort) over `<BATCH_BASE_SHA>..HEAD` with a **simplification lens**: duplication, dead code, over-abstraction, unclear naming, missed extractions, needless indirection, idioms inconsistent with surrounding code.
+Spawn ONE `deep-reviewer` subagent (fresh context, Opus + max effort) over `<BATCH_BASE_SHA>..HEAD` with a **simplification lens**.
+Focus: duplication, dead code, over-abstraction, unclear naming, missed extractions, needless indirection, idioms inconsistent with surrounding code.
 
-- **Report-only** — it never edits or commits the reviewed code; it **writes** a ranked list of opportunities (`file:line` + the concrete simpler form) to its own assigned `report_refactor_<ts>.md` in CWD (the one file it may write; see `references/batch-end.md`).
+- **Report-only** — it never edits or commits the reviewed code.
+- It **writes** a ranked list of opportunities (`file:line` + the concrete simpler form) to its own assigned `report_refactor_<ts>.md` in CWD (the one file it may write; see `references/batch-end.md`).
 - Record the report **path** it wrote into `.tails.refactor_report` (the file on disk is canonical, not a state-file copy) and its token count into `.tails.tokens.refactor`.
 - Launch it in the background so it runs concurrently with §9.3 — the two tails are independent report-only passes with no ordering dependency.
 
 ### 9.3. Auto-review tail (mandatory — `/auto-review` lens, report-only)
 
-Spawn ONE `deep-reviewer` subagent (fresh context, Opus + max effort) over the same range with a **correctness lens**: bugs, missed edge cases, contract mismatches between what the batch produces and what its callers expect, test gaps.
+Spawn ONE `deep-reviewer` subagent (fresh context, Opus + max effort) over the same range with a **correctness lens**.
+Focus: bugs, missed edge cases, contract mismatches between what the batch produces and what its callers expect, test gaps.
 
 - **Report-only** — same rule as §9.2; it **writes** its ranked findings (`file:line` + a concrete failure scenario each) to its own assigned `report_auto-review_<ts>.md` in CWD.
 - Record the report **path** it wrote into `.tails.auto_review_report` and its token count into `.tails.tokens.auto_review`.
 
-**Both §9.2 and §9.3 report files must exist on disk before proceeding.** If either tail's state field is still `""`, or the file it names is absent, that tail hasn't run — go back and run it. Do not reach §9.5 with a missing tail report.
+**Both §9.2 and §9.3 report files must exist on disk before proceeding.**
+If either tail's state field is still `""`, or the file it names is absent, that tail hasn't run — go back and run it.
+Do not reach §9.5 with a missing tail report.
 
 ### 9.4. Triage
 
-Read both reports. For each finding, assign a fix-or-defer prior: trivial + in-scope + low-risk → fold into a batch-end refactor/fix commit; anything else → a `[Scout]`/`[Side]` task the user triages. Never auto-apply a report-only tail's suggestion without this triage step; surface every finding you don't fix so the user can choose.
+Read both reports. For each finding, assign a fix-or-defer prior: trivial + in-scope + low-risk → fold into a batch-end refactor/fix commit; anything else → a `[Scout]`/`[Side]` task the user triages.
+Never auto-apply a report-only tail's suggestion without this triage step; surface every finding you don't fix so the user can choose.
 
-**Every finding you do fix is executed by a fresh `general-purpose` subagent on `model=sonnet`, never inline** — same dispatch contract as §4 (§4.1 context push/pull, §4.4 report shape), and the orchestrator verifies its diff per §5.1 before trusting `done`. The orchestrator holds review/triage context; handing the mechanical edit to a fresh sonnet context keeps that separation and matches the per-task execution model.
+**Every finding you do fix is executed by a fresh `general-purpose` subagent on `model=sonnet`, never inline**.
+Same dispatch contract as §4 (§4.1 context push/pull, §4.4 report shape), and the orchestrator verifies its diff per §5.1 before trusting `done`.
+The orchestrator holds review/triage context; handing the mechanical edit to a fresh sonnet context keeps that separation and matches the per-task execution model.
 
-**Each fix follows strict TDD — RED before GREEN, always.** The subagent first adds/adjusts the failing test and **confirms it fails on the pre-fix code for the expected reason** (a correctness fix reproduces the bug; a refactor that must preserve behavior pins current behavior with a test that passes, then stays green). Only then does it apply the fix and confirm GREEN. A fix commit whose test was never shown RED first is not trusted — the orchestrator re-dispatches. This is what makes the tail re-run (§9.2/§9.3) meaningful: a test added alongside its fix, never seen failing, proves nothing.
+**Each fix follows strict TDD — RED before GREEN, always.**
+The subagent first adds/adjusts the failing test and **confirms it fails on the pre-fix code for the expected reason**.
+For a correctness fix, this reproduces the bug; for a refactor, it pins current behavior with a test that passes, then stays green.
+Only then does it apply the fix and confirm GREEN.
+A fix commit whose test was never shown RED first is not trusted — the orchestrator re-dispatches.
+This is what makes the tail re-run (§9.2/§9.3) meaningful: a test added alongside its fix, never seen failing, proves nothing.
 
 ### 9.5. Package, metrics, and opt-in draft PR
 
@@ -477,9 +484,14 @@ Print the batch-end package for the user's one-pass async review: commit-by-comm
 
 Open the draft PR only when §1.2 recorded `pr.wanted: true`, targeting the confirmed base branch. Opening the PR is the final step — it presupposes §9.1–§9.4 all ran.
 
-**Never hand-write the PR body — always generate it by invoking the `create-pr` skill (Skill tool).** It fills `.github/PULL_REQUEST_TEMPLATE.md`, embeds mermaid blocks, and enforces the mandatory Testable-Acceptance-Criteria + Evidences structure a hand-written body silently omits. Carry any manual deploy prerequisites (new secrets, new Parameter-Store values) into its description as `WARNING:`-prefixed items. A `create-pr`-generated body is the only accepted PR description; a hand-authored one is a defect.
+**Never hand-write the PR body — always generate it by invoking the `create-pr` skill (Skill tool).**
+It fills `.github/PULL_REQUEST_TEMPLATE.md`, embeds mermaid blocks, and enforces the mandatory Testable-Acceptance-Criteria + Evidences structure a hand-written body silently omits.
+Carry any manual deploy prerequisites (new secrets, new Parameter-Store values) into its description as `WARNING:`-prefixed items.
+A `create-pr`-generated body is the only accepted PR description; a hand-authored one is a defect.
 
-**Pass the exact `spec_<slug>.md` + `plan_<slug>.md` this batch resolved in §1.1 — never let `create-pr` auto-detect.** The CWD may hold several spec/plan pairs; auto-detection would prompt or bind to the wrong one. State the resolved pair's filenames explicitly in the `create-pr` invocation so it uses this batch's slug, not a sibling's.
+**Pass the exact `spec_<slug>.md` + `plan_<slug>.md` this batch resolved in §1.1 — never let `create-pr` auto-detect.**
+The CWD may hold several spec/plan pairs; auto-detection would prompt or bind to the wrong one.
+State the resolved pair's filenames explicitly in the `create-pr` invocation so it uses this batch's slug, not a sibling's.
 
 Set `phase: "presented"` once the package is delivered.
 

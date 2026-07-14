@@ -154,8 +154,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 - [Instruction] **Prefer plain, concrete wording — cut abstract filler ("lero-lero")** -- say it in simple words; drop constructs that sound sophisticated but add no meaning.
   - [Why] The simpler and more concrete the wording, the more readers it reaches and the less it can be misread; fancy phrasing shrinks the audience and adds ambiguity.
-  - [Example] Bad: "a permanent invariant the next reader cannot infer" → Good: "something the next reader cannot infer".
-
 - [Instruction] Cut weasel words — vague hedges like "generally", "often", "somewhat" — from rules, docs, and comments; give the number or the exact condition instead.
   - [Why] A hedge is subjective — the reader can't check it; a number or named condition is objective, so they can verify it and know exactly when it holds.
 
@@ -244,7 +242,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **CRITICAL: Verify everything you build, accept, or claim** -- evidence over optimism, applied at every gate.
   - [Why] Unverified beliefs compound — a wrong assumption caught late costs N× a 30-second spike, an accepted limit propagates into bad design, and an unverified output ships the bug.
   - [Example] Before starting — dry-run or EXPLAIN to check your assumption holds.
-  - [Example] Before declaring done — run the verify step, or propose it.
   - [Example] Before claiming a count or "complete," grep/wc the actual file — a truncated snippet isn't proof.
 
 - [Instruction] **Fresh evidence only** -- re-run verification if stale since your latest change; re-read the actual code on contradiction.
@@ -269,16 +266,11 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] **Skill tool over Read for matching skills** -- invoke via Skill when description matches; use Read on `SKILL.md` only for meta-work (audit/edit/compare).
   - [Why] Skill activates guidance and counts toward metrics; Read merely shows the file.
 
-- [Instruction] **The `*-standards` skills are essential — when in doubt, load the one whose trigger fires** (`code/doc/test/commit/debug-standards`).
-  - [Why] They encode hard-won wisdom but lazy-load to save context; skip the load when it applies and the user must repeat that wisdom by hand, wasting time and tokens.
-
+- [Instruction] Load every `*-standards` skill whose trigger fires (`code/doc/test/commit/debug-standards`) — one change can fire several; when in doubt, load it.
+  - [Why] They encode hard-won wisdom but lazy-load to save context; a change can span several concerns, and each standard you skip is wisdom the user must repeat by hand.
+  - [Example] A change that touches code, its comments, and its tests fires three triggers at once — load code-standards, doc-standards, and test-standards.
 - [Instruction] Treat config files as code — editing one (e.g. `init.lua`) fires the same `*-standards` triggers a source file would.
   - [Why] Counting config as code loads code-standards on it, so its conventions apply instead of getting skipped as "just config".
-
-- [Instruction] **Load every `*-standards` skill that applies** -- one change can fire several at once.
-  - [Why] A single change often spans concerns, and each standard you skip is wisdom left unloaded.
-  - [Example] A change that touches code, its comments, and its tests fires three triggers at once — load code-standards, doc-standards, and test-standards.
-  - [Example] A failing test you sit down to debug fires two — load debug-standards (to diagnose it) and test-standards (to keep the fix sound).
 
 - [Instruction] **Load a standard file once per session** -- on its first trigger; don't re-invoke it each turn; re-load only after compaction drops it.
   - [Why] Re-loading each turn burns context for guidance you already hold; reload only when compaction has actually dropped it.
@@ -300,7 +292,6 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] **Permission UIs are the asking. NEVER pre-ask in chat** -- issue the decided call directly, UNLESS it's an irreversible remote mutation that may be allowlisted, then confirm once in chat.
   - [Why] Pre-show + run = double-prompt and the UI renders cleaner than chat; but an allowlisted irreversible action fires no UI, so the one chat confirm is the only human gate.
-  - [Example] Applies to `git commit`, `Edit`, `Write`, and any tool whose permission UI surfaces the proposed content.
   - [Example] DO NOT pre-show + ask: no "does this look good?", "want me to apply?", "confirm and I'll run it".
   - [Example] UNLESS case: the batch `git push` in `address-pr-comments` — irreversible (fires CI, notifies reviewers) and commonly allowlisted.
 
@@ -336,8 +327,6 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] `[Sub-Step]` — a child of a Task or another Sub-step; place it after its parent or a sibling (logical order); commits along with its Task ancestor.
   - [Why] A sub-step decomposes a task into ordered pieces without its own commit — it isn't independently shippable, so bundling it with its parent gives the reviewer one coherent change.
-  - [Example] `<id>` is hierarchical `<parent-id>.<substep-id>.` — e.g. 1.1., 2.3.1.
-
 - [Instruction] `[Side]` — deferred "side quest" / out-of-scope work (review feedback, mid-task requests, anything you uncover); file as a new task, don't pivot; own commit, end of list.
   - [Why] Filing deferred work as its own task instead of derailing the current one keeps each commit a single logical change.
 
@@ -378,8 +367,6 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] **Don't replicate problematic patterns** -- pause and ask before copying one that either (a) contradicts the global rules or (b) is itself a smell (see examples).
   - [Why] Every replication compounds the bad pattern.
-  - [Example] Smell examples: `as any` proliferating, swallowed errors, hardcoded magic literals, copy-paste validation, untyped escape hatches.
-
 - [Instruction] **Surface harness gaps** -- when fixing something a linter/test/hook/automation could catch, flag `[Harness] ...` so the harness can be used instead of AI.
   - [Why] A hand-fix a linter could make by rule is signal lost; tagging the gap makes the harness scale to the next caller for free, so the fix compounds.
 

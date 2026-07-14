@@ -162,8 +162,9 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
 
 - ADR — start from `assets/template-adr.md` (skeleton with TODOs); see `references/example-good-adr.md` for a worked example (decision + alternatives with +/-/~ trade-offs + consequences).
 
-- LLD — start from `assets/template-lld.md` (one component, implementation-ready: code design, data model, contracts, de/para mappings, error/concurrency, observability); see `references/example-good-lld.md` for a full worked example (numbered premises/decisions/risks/open-questions with `PR-`/`D-`/`R-`/`OQ-` tokens, de/para mappings as the core, call-sequence diagram, source/destination schemas in the appendix).
-  The top comment block holds the HLD↔LLD boundary rule.
+- LLD — start from `assets/template-lld.md` (one component, implementation-ready: code design, data model, contracts, de/para mappings, error/concurrency, observability).
+  - See `references/example-good-lld.md` for a full worked example (numbered premises/decisions/risks/open-questions with `PR-`/`D-`/`R-`/`OQ-` tokens, de/para mappings as the core, call-sequence diagram, source/destination schemas in the appendix).
+  - The top comment block holds the HLD↔LLD boundary rule.
 
 - spec_<slug>.md — do **not** improvise from this skill's altitude/ownership notes.
   - Load the **`spec-driven-development`** skill and populate its `assets/spec-template.md` (Bottom line, Since-your-last-review, Context Diagram, `### AC-N:` BDD acceptance criteria + boundary/failure coverage checklists, Functional Decisions log).

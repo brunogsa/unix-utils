@@ -108,21 +108,14 @@ With the inputs above resolved, dispatch per "How callers dispatch" in `~/.claud
 Run the fresh-session check there, then either walk the pipeline in-session or spawn the isolated subagent.
 
 After the pipeline finishes (either mode), the review is at
-`./auto-review_<timestamp>.md` or `.html` — extension per the html-artifacts
+`./report_auto-review_<timestamp>.md` or `.html` — extension per the html-artifacts
 router (Wave 6 summary contains the exact resolved path).
 Print the file path, per-severity counts, skipped files, and the
 Wave 6 summary. Multiple runs accumulate as separate timestamped files,
 preserving their order when the user runs several reviews in one CWD.
 
-## Acting on findings
+**Report only — the skill stops here.** `/auto-review` produces the report and applies nothing.
 
-Before applying any fix, emit the "leveraging tasklist" trigger phrase so CLAUDE.md's TaskList protocol takes over. The skill's only job here is choosing the category prefix per finding.
+The user reads it and decides later which findings to act on — by hand, or by asking the AI to triage and apply a selected subset.
 
-- Ask which findings to address (all MANDATORY, specific numbers, none). On selection, emit *"Selected N findings. Leveraging tasklist."*
-- Category prefix per task: `[Drift]` for collateral fixes needed to make the current task work, `[Scout]` for pre-existing issues the review surfaced, `[Refactor]` or `[Task]` otherwise.
-
-## Verify the full check matrix after fixes — MANDATORY
-
-After ALL approved fixes are applied (at the end of the batch, not after each), run the full post-change verification gate — load and follow `~/.claude/skills/code-review-pipeline/references/verify-check-matrix.md`.
-
-Review-driven fixes look mechanical, but renames, contract changes, removed code, and type-narrowing tweaks all surface failures here — not at edit time.
+Acting on findings is a separate, explicit step the user initiates — it is not part of this flow.

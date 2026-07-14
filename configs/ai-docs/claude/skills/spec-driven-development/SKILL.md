@@ -131,52 +131,12 @@ Then six formal checks run in sequence — they turn the report's Completeness a
 
 Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces only in implementation.
 
-#### Delta-scoped re-review on iteration rounds
+#### Iteration rounds and drift (conditional — load only when they fire)
 
-The first self-review runs every gate over the whole doc.
-
-Later rounds scope the gates to what actually changed — computed by `diff`, never from the in-doc summary (the human edits these docs directly, so a hand-maintained list misses their edits):
-
-- **Snapshot at hand-off**: copy the docs into a stable dir when you hand them to the human; re-snapshot every hand-back.
-  - `mkdir -p /tmp/sdd-snapshots && cp spec_<slug>.md plan_<slug>.md /tmp/sdd-snapshots/`
-
-- **Diff on re-review**: next round, `diff /tmp/sdd-snapshots/spec_<slug>.md spec_<slug>.md` (same for plan) yields the changed hunks — including edits the human made directly.
-
-- **Scope, don't blind**: hand each subagent gate the changed hunks plus the full doc.
-  - Subagent gates stay fresh-context, so the bias guarantee holds — scoping changes what they focus on, not where they run.
-  - The deterministic script gates (Gate 2, and Gate 1's mechanical half) are exempt from scoping.
-    They run in full on every round because they're cheap and see the whole doc anyway.
-    Re-run them on any test change (add / remove / title edit) to catch drift the moment it appears, not at review.
-
-- **Re-check broken invariants**: each gate concentrates on the changed regions plus any invariant those changes break, even in UNCHANGED regions.
-  - Deletions are the trap: removing an AC orphans the plan machinery tracing to it (Gate 3); removing a task orphans its owned test title (Gate 2).
-  - Both orphans sit in unchanged regions the diff won't flag — this is what the full-doc backstop must catch.
-  - The local case is easier: an edited AC or test re-runs that AC↔test coverage pair (Gate 1).
-
-- **Backstop**: the full doc is present, so a gate that spots a problem outside the changed regions still reports it. The diff focuses the review, it doesn't blind it.
-
-Why: convergence rounds shouldn't re-pay a full-doc review — it wastes subagent budget and makes the human re-read a whole report when only the delta moved.
-
-The snapshot+diff is tools-first: it can't go stale or miss a human edit, unlike a hand-maintained marker.
-
-The stable `/tmp` path is reconstructable after a `/clear`, so the re-review scope survives a phase handoff.
-
-#### Resolving spec/plan drift
-
-When plan_<slug>.md and spec_<slug>.md disagree, surface each conflict before updating anything:
-
-1. **List each drift item** — what spec_<slug>.md states, what plan_<slug>.md says, and why they conflict.
-
-2. **Present to the user and wait** — don't update either doc yet. The user picks the direction:
-   - Update spec_<slug>.md (planning uncovered a better reality).
-   - Correct plan_<slug>.md (it misread the spec).
-   - Add a `**QUESTION:**` marker (the trade-off is genuinely open).
-
-3. **Apply only the agreed change** — targeted edit to whichever doc the user chose; don't refactor surrounding content.
-
-Why: spec_<slug>.md drives PR description and auto-review — a stale spec ships wrong context downstream.
-
-But plan_<slug>.md can also be wrong; surfacing the choice preserves intent rather than assuming the spec was outdated.
+- **Delta-scoped re-review** — later self-review rounds scope the gates to what `diff` shows changed, not the whole doc again.
+  - Load [`references/delta-scoped-rereview.md`](references/delta-scoped-rereview.md) on the second and later rounds.
+- **Resolving spec/plan drift** — when plan_<slug>.md and spec_<slug>.md disagree, surface each conflict for the user before editing either doc.
+  - Load [`references/resolving-drift.md`](references/resolving-drift.md) when a conflict surfaces.
 
 ## Guidelines
 

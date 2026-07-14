@@ -25,8 +25,8 @@ No flags needed. Auto-detects `spec_*.md` and `plan_*.md` in the current directo
   - None → proceed from commits + diff only.
   - Extract all ` ```mermaid ``` ` fenced blocks from each resolved file, including all of them in the PR description as collapsibles
 - Check for PR templates in `.github/` (e.g., `PULL_REQUEST_TEMPLATE.md`)
-- Run git log to see commits on current branch vs base -- **primary source**: mine commit messages for decisions, rationale, and scope changes regardless of whether spec/plan exist
-  - This mining only works if commits follow `commit-standards` — well-formed messages are what carry the decisions and rationale worth extracting
+- Run git log for commits on current branch vs base -- **primary source**: mine commit messages for decisions, rationale, and scope changes, with or without spec/plan
+  - Mining only works if commits follow `commit-standards` — well-formed messages carry the decisions and rationale worth extracting
 - Run git diff against base branch
 - Check if branch is pushed
 
@@ -59,7 +59,7 @@ Open with a rationale paragraph, bold the densest file, close with a minimum-via
 
 **Meta-principle: reader has no context — provide it.**
 
-The reviewer hasn't read your spec, plan, Jira ticket, or commits, and doesn't share your team's vocabulary. Anything you reference must be self-contained or externally linked. Be concise but didactic.
+The reviewer hasn't read your spec, plan, Jira ticket, or commits, nor shares your team's vocabulary. Anything referenced must be self-contained or externally linked. Be concise but didactic.
 
 ##### Required structure & mandatory content
 
@@ -72,7 +72,7 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits, and doesn't s
   6. Checklist — preserve the team's checklist verbatim
   7. Evidences — value-add only; manual-test appendix lives here
   8. References — last
-- **Always include business context** -- explain the business problem; extract from spec Background or commit messages. Reviewers without ticket access need this to evaluate correctness.
+- **Always include business context** -- explain the business problem; extract from spec Background or commits. Reviewers without ticket access need it to evaluate correctness.
 - **Context section in scannable layers, never one paragraph per ticket** -- ordered layers:
   1. User-facing problem.
   2. Parent goal / epic.
@@ -90,20 +90,20 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits, and doesn't s
 
 ##### Formatting & rendering
 
-- **Bold topic prefix on every bullet** -- start each bullet with `**Topic** --` so reviewers can scan the bold words and skip details they don't need
+- **Bold topic prefix on every bullet** -- start each bullet with `**Topic** --` so reviewers scan the bold words and skip details they don't need
 - **Be concise** -- one short sentence per bullet. Sub-bullets only when essential.
 - **Bullet spacing follows doc-standards** -- blank line after any bullet that has a sub-bullet or nears the density cap; other bullets stay tight (no blank line between them).
-- **One sentence per paragraph for dense factual prose** -- when a body paragraph stacks ≥2 atomic claims (e.g., CI status + scope + count), split each into its own short paragraph.
-  - Whitespace gives scan-anchors. Bullets stay tight; flowing narrative stays prose.
+- **One sentence per paragraph for dense factual prose** -- when a paragraph stacks ≥2 atomic claims (e.g., CI status + scope + count), split each into its own short paragraph.
+  - Whitespace gives scan-anchors. Bullets stay tight; narrative stays prose.
 - **Section names AND body prose in the PR's primary language** -- translate headers and recurring body terms; engineering jargon stays English. Examples: see [`references/decision-quality.md`](references/decision-quality.md).
 - **Blank line BEFORE every list** -- prevents CommonMark merging ordered lists that don't start at `1.` into the preceding paragraph. Defensive: always insert, regardless of list type or start number.
 - **CRITICAL: Density caps** -- every prose line, bullet, and sub-bullet ≤256 chars / ≤32 words. Step 2.5 owns the script-verification procedure.
-- **Never use markdown tables in PR bodies** -- tables fragment scanning, break on narrow widths, separate claim from evidence. Replace with bullets where evidence is a sub-bullet or inline collapsible.
-- **`>` blockquotes only for quoted content or per-bullet evidence pointers, not section intros** -- a `>` at section top creates a gray bar visually indented below H4 headings, inverting hierarchy.
+- **Never use markdown tables in PR bodies** -- they fragment scanning, break on narrow widths, separate claim from evidence. Replace with bullets where evidence is a sub-bullet or inline collapsible.
+- **`>` blockquotes only for quoted content or per-bullet evidence pointers, not section intros** -- a `>` at section top creates a gray bar indented below H4 headings, inverting hierarchy.
   - Use plain paragraphs for intros; reserve `>` for quoted external text or per-AC "Covered by..." one-liners.
 - **JSON snippets: fully pretty-printed, one field per line** -- `JSON.stringify(obj, null, 2)` style; every nested object/array expanded vertically, including single-key.
   - NEVER inline. Only `[]` empty arrays stay on one line. Example: [`references/json-format-example.md`](references/json-format-example.md).
-- **Absolute GitHub URLs for in-repo links** -- relative paths break across notifications/previews/GraphQL. Use `https://github.com/<owner>/<repo>/blob/<branch>/<path>` (branch ref for PR-scoped, commit SHA for permalinks).
+- **Absolute GitHub URLs for in-repo links** -- relative paths break across notifications/previews/GraphQL. Use `https://github.com/<owner>/<repo>/blob/<branch>/<path>` (branch ref for PR-scoped, SHA for permalinks).
 
 ##### Content quality
 
@@ -111,36 +111,36 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits, and doesn't s
   - **Drop the `**Planned:**` subsection** when Architecture/Decisions already cover per-ticket scope; keep only "Discovered along the way".
 - **Decisions: title is the user-visible surprise, not internal mechanism** -- mechanism details go in sub-bullets. Examples: see [`references/decision-quality.md`](references/decision-quality.md).
 - **Decisions: spell out the consequence if reversed when non-obvious** -- sub-bullet showing what breaks. Examples: same reference.
-- **Reuse rationale: ONE concrete future use, not a speculative list** -- name a specific use case with ticket ref. Examples: same reference.
+- **Reuse rationale: ONE concrete future use, not a speculative list** -- name a specific use case with ticket ref. Same reference.
 - **CRITICAL: ZERO references to untracked session docs** -- never name `spec_<slug>.md`, `plan_<slug>.md`, gitignored `.md`, internal task/AC numbers, commit SHAs in prose, or internal dependency files.
-  - Reviewer can't open them. Verify with `git ls-files <name>` before referencing any `.md`; if untracked, substitute the actual value or delete.
-  - Applies to verbatim spec copies too. Exception: git-tracked files in the same repo stay.
+  - Reviewer can't open them. Verify with `git ls-files <name>` before referencing any `.md`; if untracked, substitute the value or delete.
+  - Applies to verbatim spec copies too. Exception: git-tracked files in the repo stay.
 - **Don't repeat links across sections** -- if a Jira/PR link appears in "Link do Jira" or "Context", don't repeat in "References".
-  - References section is for follow-ups, external docs, or links not elsewhere.
-- **Explain domain terms inline on first use** -- define team-specific terms ("bulk-failure", "all_skus row", "shadow read") parenthetically on first mention. Don't assume shared vocabulary.
-- **Frame as user/system impact, not internal model** -- "afetando fluxos de orders, invoicing, sync" beats "compartilhada com fluxos de write". Consequences over taxonomy.
+  - References is for follow-ups, external docs, or links not elsewhere.
+- **Explain domain terms inline on first use** -- define team-specific terms ("bulk-failure", "all_skus row", "shadow read") parenthetically on first mention. Don't assume shared vocab.
+- **Frame as user/system impact, not internal model** -- "afetando fluxos de orders, invoicing, sync" beats "compartilhada com fluxos de write" — consequences over taxonomy.
 - **Plain language in decisions, not insider shorthand** -- state the concrete consequence if reversed (e.g., "exposed to injection or DoS"), not the abstract property ("fail-loud"). Replace jargon with plain terms.
 - **"WARNING:" prefix on operational risks** -- prefix decisions/checklist items with "WARNING:" when they need human coordination (maintenance windows, on-call handoff, manual deploy steps, irreversible migrations).
 - **Explain "how is it different"** -- when introducing a new method/function, briefly say what makes it different from existing ones. Don't just name it.
-- **Don't list types/interfaces** -- type names are visible in the diff. Listing them is noise.
+- **Don't list types/interfaces** -- type names are visible in the diff; listing is noise.
 - **Drop implementation jargon from planned items** -- don't say "(injectable NestJS)" or "(pure function)". Describe what it does for the reviewer.
 - **No scope-internal acronyms without definition** -- "AC", "FR/NFR", team shorthand only make sense to spec readers. Spell out on first use, or use plain language ("the scenario where..." instead of "AC-7").
 - **Incidentals must change shared state to earn a bullet** -- only incidentals that modify docs, conventions, or shared infra.
   - Skip diff/commit-visible items (merge resolutions, auto-review responses, intra-branch refactors, task-internal cleanup).
   - Group small fixes (typos, log levels) into one bullet.
-  - Test: would a future contributor searching "why does X exist?" find this valuable? If no, cut.
+  - Test: would a future contributor searching "why does X exist?" find it valuable? If no, cut.
 
 ##### Evidence & locality
 
 - **Collapsible sections for large content** -- `<details><summary>` for payloads, long examples, API responses.
 - **Evidence locality: claim adjacent OR linked to artifact** -- every claim ("PASS", "validated", "AC met") needs a collapsible with the artifact OR a deep link.
-  - The link IS locality. For long lists (e.g., 18 ACs), use deep links to one appendix; don't bloat with inline collapsibles.
+  - The link IS locality. For long lists (e.g., 18 ACs), deep-link to one appendix; don't bloat with inline collapsibles.
 - **Manual test payloads live in Evidences appendix, not inline in TAC** -- one collapsible per scenario in the manual-tests subsection.
-  - Each `<details>` needs an explicit `<a id="scenario-N"></a>` line above it (GitHub doesn't auto-anchor `<summary>` text, only headings).
+  - Each `<details>` needs an explicit `<a id="scenario-N"></a>` line above it (GitHub auto-anchors only headings, not `<summary>` text).
   - ACs link to `#scenario-N`. Keeps TAC scannable, locality one click away.
 - **No claim without evidence — drop the scenario, don't park it** -- can't paste the verifiable artifact → DROP the bullet.
   - "Covered by automated tests at path/spec.ts" isn't evidence (the diff already shows it).
-  - Same for sections: if "Pre-prod pipeline" can only say "TODO collect post-merge", remove the section. TODO sections rot and dilute.
+  - Same for sections: if "Pre-prod pipeline" can only say "TODO collect post-merge", remove it. TODO sections rot and dilute.
 - **Coverage-only scenarios — group, don't enumerate** -- when an automated suite covers many scenarios with no manual evidence, write ONE intro pointing to the suite + CI link.
   - Then list scenarios as plain bullets. Don't repeat empty `<details>covered by tests</details>` shells.
 
@@ -155,13 +155,13 @@ Before step 3, resolve every TODO:
 - **If the answer adds reviewer value** — investigate the code, replace the TODO with the answer inline (concise prose, not the full investigation).
 - **If the answer is internal-only** — strip the TODO entirely.
 
-A TODO must NEVER survive into the final PR push — they're embarrassing to reviewers and signal the author didn't finish the doc.
+A TODO must NEVER survive into the final PR push — they embarrass reviewers and signal the author didn't finish the doc.
 
 ### 2.5. Verify density
 
 Run `~/.claude/skills/doc-standards/scripts/check-density.sh pr-description.md`. Output is `<line>:<chars>:<words>` per violation; exit 0 means clean.
 
-For each violation, rewrite per `~/.claude/skills/doc-standards/references/density-rules.md` (paragraph → bullets+sub-bullets, long bullet → bullet + sub-bullets) without dropping information. Re-run until exit 0 before moving to step 3.
+For each violation, rewrite per `~/.claude/skills/doc-standards/references/density-rules.md` (paragraph → bullets+sub-bullets, long bullet → bullet + sub-bullets) without dropping info. Re-run until exit 0 before step 3.
 
 ### 3. Review with user
 
@@ -174,7 +174,7 @@ After the user edits pr-description.md, diff the original against their version.
 Identify patterns in what was added, removed, or reworded. Present proposed improvements
 to THIS skill's writing style guidelines (step 2) for user approval.
 
-Apply approved improvements before creating the PR. This makes the skill self-improving over time.
+Apply approved improvements before creating the PR. This makes the skill self-improving.
 
 ### 4. Create the PR
 
@@ -184,6 +184,8 @@ Apply approved improvements before creating the PR. This makes the skill self-im
   ```bash
   gh api --method PATCH repos/<owner>/<repo>/pulls/<n> -F body=@pr-description.md
   ```
-  - `gh pr edit` eagerly queries `repository.pullRequest.projectCards` (Projects **classic**); on repos where classic Projects is sunset the command errors on that query and the body write silently does not land. The REST `PATCH .../pulls/{n}` endpoint touches no Projects data, so `-F body=@file` (reads the field value from a file) writes cleanly.
-  - After either path, read the PR body back (`gh pr view <n> --json body`) and confirm the first lines match pr-description.md — the GraphQL error can exit non-zero even when nothing was written.
+  - `gh pr edit` eagerly queries `repository.pullRequest.projectCards` (Projects **classic**); where classic Projects is sunset it errors on that query and the body write silently fails.
+  - The REST `PATCH .../pulls/{n}` endpoint touches no Projects data, so `-F body=@file` (reads the value from a file) writes cleanly.
+  - After either path, read the PR body back (`gh pr view <n> --json body`) and confirm the first lines match pr-description.md.
+  - The GraphQL error can exit non-zero even when nothing was written.
 - Return the PR URL

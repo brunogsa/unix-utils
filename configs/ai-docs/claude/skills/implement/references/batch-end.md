@@ -46,7 +46,9 @@ Two layers enforce the no-mutations contract.
 
 The hard gate is a `PreToolUse` hook in `deep-reviewer`'s own frontmatter (`~/.claude/hooks/deep-reviewer-report-guard.sh`).
 
-It auto-approves a Write/Edit whose basename matches `report_*.md` and denies (exit 2) every other write target, so the agent physically cannot touch source.
+It auto-approves a Write/Edit whose basename matches `report_*.md`, or whose path is under `/tmp` (scratch — e.g. the review pipeline's wave artifacts).
+
+It denies (exit 2) every other target, so the agent physically cannot touch repo source.
 
 This preamble is the second layer — it tells the subagent the same rule in its own words so it never attempts a blocked write in the first place:
 
@@ -84,7 +86,8 @@ After the preamble, include the skill-specific body. The orchestrator **assigns 
 
 The subagent writes its own report — one file, the assigned path — so the full findings land on disk with zero fidelity loss.
 
-- The orchestrator writing the file itself was the old design; it stored a lossy shorthand in state instead of the report, so the subagent owns the write now (same pattern as the §3 checklist file: orchestrator assigns the path, subagent writes the content).
+- The orchestrator writing the file itself was the old design; it stored a lossy shorthand in state instead of the report, so the subagent owns the write now.
+  - Same pattern as the §3 checklist file: orchestrator assigns the path, subagent writes the content.
 
 When each tail returns, the orchestrator confirms the report file exists at the assigned path, then records into the state file's `tails` object:
 
@@ -95,9 +98,11 @@ When each tail returns, the orchestrator confirms the report file exists at the 
 ## Failure handling
 
 - **Subagent violates the report-only contract** (a forbidden mutation per the preamble) → this **aborts the parent `/implement`**.
-  - The frontmatter `PreToolUse` hook already blocks any non-report write at the tool layer, so a forbidden *file* mutation should never land.
+  - The frontmatter `PreToolUse` hook already blocks any write to repo source at the tool layer (only `report_*.md` and `/tmp` scratch pass), so a forbidden *file* mutation should never land.
   - This `git status` / `git log` check is the backstop for mutations the hook doesn't cover — e.g. a `git commit` / `git push` run through Bash.
-  - **Exclude the assigned report file** from this check — the subagent writing its own `report_*.md` is the contract, not a violation. A compliant tail leaves the tracked tree untouched and adds exactly one new untracked file: its assigned report. Any tracked-file change, or any untracked file other than that report, is the violation.
+  - **Exclude the assigned report file** from this check — the subagent writing its own `report_*.md` is the contract, not a violation.
+    - A compliant tail leaves the tracked tree untouched and adds exactly one new untracked file: its assigned report.
+    - Any tracked-file change, or any untracked file other than that report, is the violation.
 - **Subagent errors, or returns no usable findings** → log it to chat with the agent's last message; the **other** tail still runs; the package flags the missing artifact.
   - A refactor failure never blocks the auto-review tail.
   - Do NOT retry inline (unlike the planned-test check): batch-end reports are reviewed asynchronously; a missing report is user-attention, not a retry loop.
@@ -106,7 +111,9 @@ When each tail returns, the orchestrator confirms the report file exists at the 
 
 Each invocation produces timestamped filenames (`report_refactor_<ts>.md`, `report_auto-review_<ts>.md`), so multiple `/implement` runs in the same CWD accumulate as separate files — each tail's own timestamp keeps its report distinct.
 
-Leave the reports **untracked but not gitignored** — same convention as `spec_<slug>.md` / `plan_<slug>.md`: they show in `git status` so the human sees them, and never get auto-committed by the batch. Do not add a `report_*` gitignore pattern.
+Leave the reports **untracked but not gitignored** — same convention as `spec_<slug>.md` / `plan_<slug>.md`: they show in `git status` so the human sees them, and never get auto-committed by the batch.
+
+Do not add a `report_*` gitignore pattern.
 
 ## Triage both reports
 
@@ -118,9 +125,27 @@ Both tails are report-only — neither applies anything. Once both reports are w
 
 This synthesis is **additive** to the two raw report paths — it never replaces them. The package carries **both** the raw paths and the triaged summary.
 
-When the human (or the orchestrator's own in-scope disposition) elects to **apply** a triaged finding, that fix is not done inline. Dispatch a fresh `general-purpose` subagent on `model=sonnet` per the §4 contract, and require strict TDD: the subagent writes the test first and **confirms it RED on the pre-fix code for the expected reason** (a correctness fix reproduces the bug; a behavior-preserving refactor pins current behavior with a test that stays green), then applies the fix and confirms GREEN. The orchestrator verifies the diff (§5.1) and that the test was shown failing before trusting `done`. A test added alongside its fix, never seen RED, proves nothing — re-dispatch.
+When the human (or the orchestrator's own in-scope disposition) elects to **apply** a triaged finding, that fix is not done inline.
 
-Once a fix lands, the orchestrator **annotates its finding in the timestamped report file** — mark it `APPLIED` (with the fix commit SHA) or `SKIPPED` (with the reason). The report is the timestamped, on-disk triage ledger: because each tail run has its own filename, its report is the durable record of which of its findings the orchestrator disposed of, so a later reader (or a resumed run) sees exactly what was fixed versus deferred without re-deriving it. This is the **only** report-file write the orchestrator makes — the subagent authored the findings; the orchestrator only stamps dispositions onto them.
+Dispatch a fresh `general-purpose` subagent on `model=sonnet` per the §4 contract, and require strict TDD.
+
+The subagent writes the test first and **confirms it RED on the pre-fix code for the expected reason**.
+
+A correctness fix reproduces the bug; a behavior-preserving refactor pins current behavior with a test that stays green.
+
+Then apply the fix and confirm GREEN.
+
+The orchestrator verifies the diff (§5.1) and that the test was shown failing before trusting `done`.
+
+A test added alongside its fix, never seen RED, proves nothing — re-dispatch.
+
+Once a fix lands, the orchestrator **annotates its finding in the timestamped report file** — mark it `APPLIED` (with the fix commit SHA) or `SKIPPED` (with the reason).
+
+The report is the timestamped, on-disk triage ledger: because each tail run has its own filename, its report is the durable record of which of its findings the orchestrator disposed of.
+
+A later reader (or a resumed run) sees exactly what was fixed versus deferred without re-deriving it.
+
+This is the **only** report-file write the orchestrator makes — the subagent authored the findings; the orchestrator only stamps dispositions onto them.
 
 ## The review package
 
@@ -181,7 +206,9 @@ Only when the interview opted into a draft PR (§1.2). Skip this section entirel
 - **Guard first** — if `gh` is absent or the repo has no remote, skip the PR with an explicit notice in the package; everything else in the package is unaffected.
 - Otherwise **push the branch** and create a **draft** PR with `gh pr create --draft --body-file <file>`. Never auto-merge, never force-push.
   - **Updating an existing PR's body: use the REST API, never `gh pr edit --body-file`** — `gh api --method PATCH repos/<owner>/<repo>/pulls/<n> -F body=@<file>`.
-    - `gh pr edit` eagerly queries Projects-classic `projectCards`; on repos where classic Projects is sunset it errors on that query and the write silently doesn't land. The REST endpoint touches no Projects data. Read the body back afterward to confirm it landed.
+    - `gh pr edit` eagerly queries Projects-classic `projectCards`; on repos where classic Projects is sunset it errors on that query and the write silently doesn't land.
+    - The REST endpoint touches no Projects data.
+    - Read the body back afterward to confirm it landed.
 - Generate the description with a **separate `deep-reviewer` dispatch** from the spec/plan and commit bodies, following the `create-pr` skill's conventions (`~/.claude/skills/create-pr/SKILL.md`).
   - That dispatch **returns the description text only** — it must not push or commit; the orchestrator owns the push.
   - Its tokens are **not tracked**: metrics print before this step, and a presented run's state file is deleted right after — so don't add a `tokens` field for it.
