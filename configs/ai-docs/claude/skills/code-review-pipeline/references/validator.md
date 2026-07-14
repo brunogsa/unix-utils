@@ -1,6 +1,6 @@
 # Validator Rubric (Wave 3, inline self-check)
 
-You run this rubric inline in the reviewer-agent session — there is no separate
+You run this rubric inline in the code-review-pipeline session — there is no separate
 agent call. For each finding in the flat list, work through the two checks
 below in order. This combines the old "false-positive filter" and
 "line-range validator" into one pass so each file is loaded at most once per

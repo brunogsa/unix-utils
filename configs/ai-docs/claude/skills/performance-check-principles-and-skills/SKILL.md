@@ -138,7 +138,7 @@ The script measures with `grep`, `awk`, `wc`, and `find`.
 ## Skills exceeding budgets (lines >500, words >2048, desc >250c, name >64c)
 
 - auto-review: desc=563c
-- reviewer-agent: words=2132 desc=458c
+- code-review-pipeline: words=2132 desc=458c
 ...
 ```
 
@@ -185,7 +185,7 @@ Extraction to `references/<name>.md` only buys savings if the content is **condi
 Examples that **earn** lazy extraction:
 
 - Mid-flight helper-insertion procedure (fires only when a helper surfaces mid-task).
-- Domain-specific specialist rubrics in `reviewer-agent` (each specialist file loads only when its wave runs).
+- Domain-specific specialist rubrics in `code-review-pipeline` (each specialist file loads only when its wave runs).
 - Debug deep-dive trees (fire only when a specific failure pattern appears).
 
 Examples that **don't** earn lazy extraction (move them inline or split the skill instead):

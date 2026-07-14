@@ -4,7 +4,7 @@
 
 <details>
 <summary><strong>Review guide</strong> (estimated time: {min}-{max} min)</summary>
-[Generated per `~/.claude/skills/reviewer-agent/references/reading-order-template.md` — translate to the team's language as needed.]
+[Generated per `~/.claude/skills/code-review-pipeline/references/reading-order-template.md` — translate to the team's language as needed.]
 </details>
 
 ## Summary

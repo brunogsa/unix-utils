@@ -1,5 +1,5 @@
 {
-  "skill_name": "reviewer-agent",
+  "skill_name": "code-review-pipeline",
   "notes": "Evals for the wave-based review pipeline used by /pr-review (GitHub mode) and /auto-review (local mode). Assertions are intentionally unset — fill them when running the first iteration through skill-creator's benchmark loop. See skill-creator/references/schemas.md for the full assertions shape.",
   "evals": [
     {

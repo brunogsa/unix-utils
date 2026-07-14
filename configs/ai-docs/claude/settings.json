@@ -179,6 +179,7 @@
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
+  "advisorModel": "opus",
   "promptSuggestionEnabled": true,
   "autoUpdatesChannel": "latest",
   "tui": "fullscreen",

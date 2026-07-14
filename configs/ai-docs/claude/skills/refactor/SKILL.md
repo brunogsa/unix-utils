@@ -154,6 +154,6 @@ Work through the TaskList created in step 3 in order, one finding per edit.
 
 ### 5. Verify the full check matrix — MANDATORY
 
-After ALL approved refactors are applied (at the end of the batch, not after each), run the full post-change verification gate — load and follow `~/.claude/skills/reviewer-agent/references/verify-check-matrix.md`.
+After ALL approved refactors are applied (at the end of the batch, not after each), run the full post-change verification gate — load and follow `~/.claude/skills/code-review-pipeline/references/verify-check-matrix.md`.
 
 Refactors look mechanical, but rename collisions, missed callers, removed exports still in use elsewhere, and broken type narrowing all surface here — not at edit time.

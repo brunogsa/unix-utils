@@ -70,7 +70,7 @@ These standards skills shape the work at specific moments — load each as its s
 
 Most load automatically via their description triggers; the explicit load points below guard against undertriggering:
 
-- `review-principles.md` (reviewer-agent/references) — while interpreting comments in step 3 (severity, drop framing, actionable vs. informational).
+- `review-principles.md` (code-review-pipeline/references) — while interpreting comments in step 3 (severity, drop framing, actionable vs. informational).
 - `code-standards` — before production edits in step 5.
 - `test-standards` — when touching tests or needing a regression test (step 5).
 - `doc-standards` — before editing code comments, docstrings, logs (step 5).

@@ -224,7 +224,7 @@ In the main-context flow this list is the working input for steps 2-7. In the su
    - High-level principle or workflow rule → CLAUDE.md (appropriate section)
    - Detailed code example or pattern → `skills/code-standards/SKILL.md`
    - Test example or strategy → `skills/test-standards/SKILL.md`
-   - Review process improvement → `skills/reviewer-agent/references/review-principles.md`
+   - Review process improvement → `skills/code-review-pipeline/references/review-principles.md`
    - Domain-specific knowledge → relevant domain skill
    - New topic not covered by existing skills → propose a new skill
 

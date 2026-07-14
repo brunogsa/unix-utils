@@ -1,8 +1,8 @@
 # Specialist: Testing & Type Design
 
 Sources:
-- `reviewer-agent/references/review-checklists.md#Testing Checklist` + test design rules in `code-standards`.
-- `reviewer-agent/references/review-checklists.md#Type Design Checklist`.
+- `code-review-pipeline/references/review-checklists.md#Testing Checklist` + test design rules in `code-standards`.
+- `code-review-pipeline/references/review-checklists.md#Type Design Checklist`.
 
 Why bundled: both are about making correctness provable before runtime.
 

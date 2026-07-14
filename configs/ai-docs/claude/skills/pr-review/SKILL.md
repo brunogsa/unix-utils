@@ -6,12 +6,12 @@ disable-model-invocation: true
 
 # PR Review
 
-Orchestrate a GitHub PR review by running the `reviewer-agent` pipeline
+Orchestrate a GitHub PR review by running the `code-review-pipeline` pipeline
 end-to-end. The pipeline runs serially — no nested fan-out — so the review
 stays within a predictable token budget. The output is a PENDING review on
 GitHub; you filter and submit manually.
 
-Execution mode (in-session vs. `--isolate` subagent) and the fresh-session check are shared across both review callers — see "How callers dispatch" in `~/.claude/skills/reviewer-agent/SKILL.md`.
+Execution mode (in-session vs. `--isolate` subagent) and the fresh-session check are shared across both review callers — see "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md`.
 
 ## Usage
 
@@ -24,14 +24,14 @@ Examples:
 
 ## Execution
 
-The reviewer-agent expects these inputs:
+The code-review-pipeline expects these inputs:
 
 - **Mode:** `github`
 - **PR URL:** `<PR_URL>` (from the command argument)
 - **Jira URL:** `<JIRA_URL>` (only if `--jira` was passed)
 - **Language:** Portuguese (Brazil)
 
-With the inputs above resolved, dispatch per "How callers dispatch" in `~/.claude/skills/reviewer-agent/SKILL.md`.
+With the inputs above resolved, dispatch per "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md`.
 
 Run the fresh-session check there, then either walk the pipeline in-session or spawn the isolated subagent. The base branch is discovered inside Wave 1 from `baseRefName`.
 

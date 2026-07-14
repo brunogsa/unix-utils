@@ -49,7 +49,7 @@ Write `./pr-description.md` in cwd.
 
 See `references/pr-template.md` for the full template structure.
 
-The Guia de review template, time-estimate heuristic, and file-role inference live in `~/.claude/skills/reviewer-agent/references/reading-order-template.md` (Portuguese variant).
+The Guia de review template, time-estimate heuristic, and file-role inference live in `~/.claude/skills/code-review-pipeline/references/reading-order-template.md` (Portuguese variant).
 
 **Reading guide is qualitative, not taxonomic** -- each file entry describes what the reviewer *learns* there, not just role labels.
 

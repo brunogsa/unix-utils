@@ -1,6 +1,6 @@
 # Specialist: Correctness
 
-Source: `reviewer-agent/references/review-principles.md#Review Priority Order` item 1 — logic, bugs, race conditions, ordering, off-by-one, wrong branches, missing returns.
+Source: `code-review-pipeline/references/review-principles.md#Review Priority Order` item 1 — logic, bugs, race conditions, ordering, off-by-one, wrong branches, missing returns.
 
 ---
 

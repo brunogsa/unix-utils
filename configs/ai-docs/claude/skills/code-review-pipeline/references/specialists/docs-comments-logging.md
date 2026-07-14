@@ -1,8 +1,8 @@
 # Specialist: Docs, Comments & Logging
 
 Sources:
-- `reviewer-agent/references/review-checklists.md#Comment & Documentation Checklist` + `doc-standards`.
-- `reviewer-agent/references/review-principles.md#Review Priority Order` item 5 + `code-standards` logging rules.
+- `code-review-pipeline/references/review-checklists.md#Comment & Documentation Checklist` + `doc-standards`.
+- `code-review-pipeline/references/review-principles.md#Review Priority Order` item 5 + `code-standards` logging rules.
 
 Why bundled: all three are "writing for future readers".
 

@@ -43,8 +43,8 @@ from the diff; pull full files only when you need broader context to decide.
 
 ## Standards you follow
 Read these once before reviewing and apply them strictly:
-1. ~/.claude/skills/reviewer-agent/references/review-principles.md
-2. ~/.claude/skills/reviewer-agent/references/review-checklists.md
+1. ~/.claude/skills/code-review-pipeline/references/review-principles.md
+2. ~/.claude/skills/code-review-pipeline/references/review-checklists.md
 3. ~/.claude/skills/code-standards/SKILL.md
 Plus any CLAUDE.md files at {repo_root} or in parent directories of changed files.
 

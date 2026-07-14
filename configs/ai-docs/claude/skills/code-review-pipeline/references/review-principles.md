@@ -2,7 +2,7 @@
 
 Principles and paired rules for any code review. Each section pairs a principle with its rule/format.
 
-Source-of-truth file for reviewer behavior — loaded by `reviewer-agent`'s pipeline and by `address-pr-comments` when interpreting reviewer comments. Not a skill (no frontmatter); referenced by path.
+Source-of-truth file for reviewer behavior — loaded by `code-review-pipeline`'s pipeline and by `address-pr-comments` when interpreting reviewer comments. Not a skill (no frontmatter); referenced by path.
 
 ## High confidence standard — skip below 60% on EMISSION, keep on VALIDATION
 

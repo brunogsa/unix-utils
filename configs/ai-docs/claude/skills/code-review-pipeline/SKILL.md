@@ -1,5 +1,5 @@
 ---
-name: reviewer-agent
+name: code-review-pipeline
 description: "Shared reviewer orchestrator for /auto-review (local) and /pr-review (GitHub). Runs in caller's session by default; opt into subagent wrapping for bias isolation (--isolate). USE only via those callers — not directly."
 user-invocable: false
 ---
@@ -51,7 +51,7 @@ The subagent runs the whole pipeline itself — no further Agents. The user sees
 
 **Load lazily, by wave; keep loaded after.** They ground every specialist and validation decision:
 
-1. `~/.claude/skills/reviewer-agent/references/review-principles.md` + `review-checklists.md` (Wave 0+)
+1. `~/.claude/skills/code-review-pipeline/references/review-principles.md` + `review-checklists.md` (Wave 0+)
 2. `~/.claude/skills/code-standards/SKILL.md` (Wave 2)
 3. `~/.claude/skills/test-standards/SKILL.md` (Wave 2)
 4. `~/.claude/skills/doc-standards/SKILL.md` (Wave 2; Wave 5 density check, local)

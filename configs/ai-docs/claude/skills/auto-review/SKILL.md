@@ -6,11 +6,11 @@ disable-model-invocation: false
 
 # Auto Review
 
-Orchestrate a local code review by running the `reviewer-agent` pipeline
+Orchestrate a local code review by running the `code-review-pipeline` pipeline
 end-to-end. The pipeline runs serially — no nested fan-out — so the review
 stays within a predictable token budget.
 
-Execution mode (in-session vs. `--isolate` subagent) and the fresh-session check are shared across both review callers — see "How callers dispatch" in `~/.claude/skills/reviewer-agent/SKILL.md`.
+Execution mode (in-session vs. `--isolate` subagent) and the fresh-session check are shared across both review callers — see "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md`.
 
 ## Usage
 
@@ -47,8 +47,8 @@ Resolve `<BASE_BRANCH>`:
 
 ### Resolve `<SPEC_PLAN_PATHS>` (local-mode `{pr_context}` source)
 
-The reviewer-agent's local-mode `{pr_context}` is "spec + plan" content
-(see `reviewer-agent/references/common-preamble.md`). In CWDs that hold
+The code-review-pipeline's local-mode `{pr_context}` is "spec + plan" content
+(see `code-review-pipeline/references/common-preamble.md`). In CWDs that hold
 multiple session-scoped specs/plans, the orchestrator must pick which
 files feed the review — guessing would silently drop intent.
 
@@ -91,7 +91,7 @@ or the literal string `<none>`).
 
 ### Dispatch the reviewer pipeline
 
-The reviewer-agent expects these inputs:
+The code-review-pipeline expects these inputs:
 
 - **Mode:** `local`
 - **Base branch:** `<BASE_BRANCH>` (resolved above)
@@ -103,7 +103,7 @@ The reviewer-agent expects these inputs:
     concatenated content used as `{pr_context}` for every specialist
     (replacing the default `spec_<slug>.md` + `plan_<slug>.md` lookup).
 
-With the inputs above resolved, dispatch per "How callers dispatch" in `~/.claude/skills/reviewer-agent/SKILL.md`.
+With the inputs above resolved, dispatch per "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md`.
 
 Run the fresh-session check there, then either walk the pipeline in-session or spawn the isolated subagent.
 
@@ -123,6 +123,6 @@ Before applying any fix, emit the "leveraging tasklist" trigger phrase so CLAUDE
 
 ## Verify the full check matrix after fixes — MANDATORY
 
-After ALL approved fixes are applied (at the end of the batch, not after each), run the full post-change verification gate — load and follow `~/.claude/skills/reviewer-agent/references/verify-check-matrix.md`.
+After ALL approved fixes are applied (at the end of the batch, not after each), run the full post-change verification gate — load and follow `~/.claude/skills/code-review-pipeline/references/verify-check-matrix.md`.
 
 Review-driven fixes look mechanical, but renames, contract changes, removed code, and type-narrowing tweaks all surface failures here — not at edit time.

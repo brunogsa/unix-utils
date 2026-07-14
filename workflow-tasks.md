@@ -132,11 +132,11 @@ Look for machinery with no real caller, speculative configurability, ceremony th
 
 ---
 
-## 3. [Task] Over-engineering audit — auto-review + pr-review + reviewer-agent skills
+## 3. [Task] Over-engineering audit — auto-review + pr-review + code-review-pipeline skills
 
 **Goal**: Same as #1, for the review-cluster skills, watching for overlap/duplication across the three as its own over-engineering smell.
 
-**Scope**: `configs/ai-docs/claude/skills/auto-review/`, `pr-review/`, `reviewer-agent/`. Same lens plus: do three skills earn their separation, or is there redundant machinery that should be centralized?
+**Scope**: `configs/ai-docs/claude/skills/auto-review/`, `pr-review/`, `code-review-pipeline/`. Same lens plus: do three skills earn their separation, or is there redundant machinery that should be centralized?
 
 **Deliverable**: verdict + simplifying edits if warranted, evidence either way.
 

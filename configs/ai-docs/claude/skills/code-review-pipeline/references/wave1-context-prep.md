@@ -28,10 +28,10 @@ gh pr view  "$pr_number" --repo "$repo" --json title,body,headRefOid,baseRefName
 gh api "repos/$repo/pulls/$pr_number/commits" --jq '.[].commit.message' \
   > "$work_dir/commit-messages.txt"
 
-bash ~/.claude/skills/reviewer-agent/scripts/extract-commentable-lines.sh \
+bash ~/.claude/skills/code-review-pipeline/scripts/extract-commentable-lines.sh \
   "$work_dir/pr.diff" > "$work_dir/commentable-lines.txt"
 
-bash ~/.claude/skills/reviewer-agent/scripts/extract-skipped-files.sh \
+bash ~/.claude/skills/code-review-pipeline/scripts/extract-skipped-files.sh \
   "$work_dir/pr.diff" "$work_dir"
 
 # Jira context (optional)
@@ -58,10 +58,10 @@ git diff -U20 "origin/$base_branch...HEAD"             > "$work_dir/diff"
 git diff      "origin/$base_branch...HEAD" --name-only > "$work_dir/changed-files.txt"
 git log  "origin/$base_branch..HEAD" --format='%B%n---%n' > "$work_dir/commit-messages.txt"
 
-bash ~/.claude/skills/reviewer-agent/scripts/extract-commentable-lines.sh \
+bash ~/.claude/skills/code-review-pipeline/scripts/extract-commentable-lines.sh \
   "$work_dir/diff" > "$work_dir/commentable-lines.txt"
 
-bash ~/.claude/skills/reviewer-agent/scripts/extract-skipped-files.sh \
+bash ~/.claude/skills/code-review-pipeline/scripts/extract-skipped-files.sh \
   "$work_dir/diff" "$work_dir"
 ```
 

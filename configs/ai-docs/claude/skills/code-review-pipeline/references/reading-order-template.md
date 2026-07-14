@@ -2,7 +2,7 @@
 
 Used by:
 
-- `reviewer-agent` — English, in `auto-review.md` output.
+- `code-review-pipeline` — English, in `auto-review.md` output.
 - `create-pr` — Portuguese, in PR descriptions as `Guia de review`.
 
 Generate a **specific** reading order from the diff -- list real file paths, not generic placeholders.
@@ -27,7 +27,7 @@ Path heuristics: `controller/`, `consumer/` → orchestration. `use-case/`, `sha
 
 ## Templates
 
-### English -- used by `reviewer-agent` local mode (`auto-review.md`)
+### English -- used by `code-review-pipeline` local mode (`auto-review.md`)
 
 ```markdown
 <details>
