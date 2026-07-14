@@ -52,6 +52,9 @@ If the explanation would survive any future refactor of the surrounding code, it
 - [Instruction] Write WHY comments about the *purpose* a thing serves, not its *current state*.
   - [Why] A purpose survives refactors; a note about the current state goes stale the moment that state changes.
 
+- [Instruction] Link a non-obvious domain rule or field to its durable design doc (LLD, spec, ADR — by file path or URL) in the comment.
+  - [Why] The comment states the local why in one line; the design doc holds the full rationale the reader needs but can't reconstruct from the code alone.
+
 - [Instruction] Avoid time-anchored vocabulary in comments — "stays", "now", "currently", "as of today", "we just".
   - [Why] Time-anchored phrasing presumes the reader shares the author's "now" — the moment the surrounding context shifts, the phrasing becomes a lie.
   - [Example] Bad: `// Value stays '_loadingDeadlineMs' — browser specs hardcode this URL literal` / Good: `// This constant exists so E2E tests can override the timeout, making tests faster`

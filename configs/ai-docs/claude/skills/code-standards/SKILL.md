@@ -172,6 +172,9 @@ const salesAgreementProductSummaryQuery = ...;
 - [Instruction] Use locale-neutral names in shared code (`documentNumber` over `cnpj`) — reserve locale-specific forms for where the locale IS the contract (URL segments, validators, i18n'd end-user strings).
   - [Why] A `cnpj` field locks shared code to one country's regulations; `documentNumber` survives expansion to others.
 
+- [Instruction] Don't mix languages in code identifiers — keep names in one language (default English), unless a country-specific term (`cnpj`, `notaFiscal`) turns obscure when translated.
+  - [Why] A half-native-half-English name (`endereco` beside `agreementId`) reads awkwardly and splits the codebase's vocabulary, forcing every reader to code-switch mid-line.
+
 ### Booleans, conditions & naming conventions
 
 - [Instruction] Prefix booleans with `is`/`has`/`should`/`can`.
