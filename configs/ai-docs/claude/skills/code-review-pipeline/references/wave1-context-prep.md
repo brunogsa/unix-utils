@@ -20,7 +20,9 @@ pr_number=...
 repo="owner/name"
 work_dir="/tmp/pr-review-${pr_number}"
 
-gh pr diff  "$pr_number" --repo "$repo" -- -U20     > "$work_dir/pr.diff"
+# gh pr diff has no context-width flag, so github mode gets 3-line hunks (vs
+# local's -U20); specialists read the on-disk clone below for deeper context.
+gh pr diff "$pr_number" --repo "$repo" > "$work_dir/pr.diff"
 gh pr diff  "$pr_number" --repo "$repo" --name-only > "$work_dir/changed-files.txt"
 gh pr view  "$pr_number" --repo "$repo" --json title,body,headRefOid,baseRefName,headRefName > "$work_dir/pr.json"
 
