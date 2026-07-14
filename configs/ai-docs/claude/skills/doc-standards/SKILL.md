@@ -22,6 +22,9 @@ Principles and paired examples for any documentation work. Each section pairs a 
 - [Instruction] Route history to the commit message body, not source — PR numbers, "main used to", and mid-refactor justifications like "(was previously inline)", "(moved here from X)".
   - [Why] A history note rots in the code as the code keeps changing; the commit preserves that same history as a point-in-time snapshot that never goes stale.
 
+- [Instruction] A deferred-work TODO/FIXME in source must link to a tracked ticket (Jira/Linear URL), never to a local `.md` doc or a task named only in prose.
+  - [Why] A ticket URL is durable and checkable; a local `.md` is an uncommitted scratchpad that vanishes, and a prose task pointer rots with no way to verify it still exists.
+
 - [Instruction] Don't comment what the code already shows — rename or restructure to make it clear instead.
   - [Why] A comment restating the code duplicates what's already visible and falls out of sync the moment the code changes.
 

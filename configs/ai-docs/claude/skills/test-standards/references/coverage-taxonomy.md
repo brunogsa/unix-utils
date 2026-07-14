@@ -15,7 +15,9 @@ For each input field or collection the change touches:
 - unicode / whitespace-only / leading-trailing spaces
 - duplicate / out-of-order entries
 - boundary numbers (0, -1, MAX_INT, off-by-one)
+- numeric precision (float rounding, division remainders, shares that must reconcile to a total, currency as cents vs float)
 - clock / timezone / DST boundaries (midnight, month-end, leap day)
+- timestamp format / offset (ISO-8601 vs epoch, `Z` vs `+00:00`, fractional seconds, naive vs zoned)
 - combined / composed filters (multiple filters active at once)
 
 ## Failure modes (adverse interactions and dependencies)

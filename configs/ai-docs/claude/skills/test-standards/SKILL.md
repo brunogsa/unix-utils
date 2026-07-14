@@ -74,6 +74,10 @@ it('should filter by assignee', ...);
 - [Instruction] **Boundary on caps/limits** — a cap of N gets an explicit N+1 test: send N+1 of the limited thing and prove the cap engages.
   - [Why] Happy-path-only leaves the invariant unverified — the cap could be silently broken and every passing test would miss it.
 
+- [Instruction] **Fixture data must enter the guarded branch** — when the code under test has precision/rounding/division/dedup logic, build fixtures from realistic non-round, multi-element values, never round numbers or a single element.
+  - [Why] A round-number, single-element fixture stays green while never executing the guarded branch, so the precision or division bug ships behind a passing test.
+  - [Example] Price `1000` split one way never trips a rounding-reconciliation guard; `1058.33` divided across 3 shares of `33.33%` does.
+
 - [Instruction] **Async safety / idempotency** — explicitly test disabled-during-fetch (UI), idempotency keys (API), and retry-resistant operations.
   - [Why] These are the actions a manual tester would re-fire, so an untested one leaves a double-submit or duplicate-write gap in production.
 
@@ -85,6 +89,15 @@ it('should filter by assignee', ...);
 
 - [Instruction] **Observably-non-empty BEFORE and AFTER** — for filter/transition tests (UI or API), baseline and final state must both be non-empty.
   - [Why] Empty-to-something only proves the filter renders/returns something — not that it changes the result meaningfully.
+
+- [Instruction] After changing code, re-run the full suite across every tier the change could reach (unit, integration/contract, e2e) workspace-wide — not the diff-scoped subset — before declaring the change done.
+  - [Why] A change's blast radius exceeds its diff — a rename or removed export breaks callers a scoped run never touches, surfacing only in the full multi-tier run.
+
+- [Instruction] Prefer the project's ci/agentic test variant when one exists over the bare test runner.
+  - [Why] The ci/agentic variant exits non-zero cleanly, so automation can trust its exit code instead of scraping output for pass/fail.
+
+- [Instruction] Flag a tier the change touches but the project has no suite for as `[Harness]`, rather than skipping it silently.
+  - [Why] A silently-skipped tier reads as "covered" when it isn't; naming the gap makes the missing harness visible and scales the fix to the next caller.
 
 - [Instruction] **After tests pass, check coverage if available.**
   - [Why] Green tests prove the cases you thought of work; coverage gaps reveal the cases you didn't think of — corner cases hide there.
