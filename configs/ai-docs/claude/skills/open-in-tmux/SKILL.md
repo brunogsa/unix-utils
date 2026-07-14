@@ -26,8 +26,8 @@ Open any command in the user's tmux session — file review in nvim, live output
 
 | Mode | Behavior |
 |---|---|
-| `vertical` | Side-by-side split of the current pane. |
-| `horizontal` | Stacked split of the current pane. |
+| `vertical` | Side-by-side split of the caller's own pane (this session's pane, not the pane the user is currently viewing). |
+| `horizontal` | Stacked split of the caller's own pane (same targeting as `vertical`). |
 | `window` | New tmux window — leaves the current layout untouched. |
 | `pane:<N>` | Send the command to pane N (types it into the existing shell via send-keys; preserves pane history and state). |
 

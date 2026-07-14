@@ -11,8 +11,9 @@
 #   open-in-tmux <mode> <command>
 #
 # Modes:
-#   vertical          Side-by-side split of the current pane.
-#   horizontal        Stacked split of the current pane.
+#   vertical          Side-by-side split of the caller's own pane (this session's
+#                     pane, not the pane the user is currently viewing).
+#   horizontal        Stacked split of the caller's own pane (same targeting).
 #   window            New tmux window — leaves the current layout untouched.
 #   pane:<N>          Send the command to pane N via send-keys (types it into
 #                     the existing shell; preserves pane history and state).
@@ -80,11 +81,20 @@ fi
 tmux_argv=()
 
 case "$mode" in
-  vertical)
-    tmux_argv=(tmux split-window -h -c "$PWD" "$command_str")
-    ;;
-  horizontal)
-    tmux_argv=(tmux split-window -v -c "$PWD" "$command_str")
+  vertical|horizontal)
+    # Target THIS script's own pane ($TMUX_PANE), not the attached client's
+    # active pane: `split-window` with no -t splits whatever pane the user is
+    # currently viewing, which may be a different window than the one this ran
+    # in (e.g. a Claude Code session in window 1 while the user browses window
+    # 2 — the split would wrongly land in window 2). Fall back to the active
+    # pane only if $TMUX_PANE is somehow unset.
+    split_flag="-h"                                # -h = side-by-side
+    [[ "$mode" == horizontal ]] && split_flag="-v" # -v = stacked
+    if [[ -n "${TMUX_PANE:-}" ]]; then
+      tmux_argv=(tmux split-window "$split_flag" -t "$TMUX_PANE" -c "$PWD" "$command_str")
+    else
+      tmux_argv=(tmux split-window "$split_flag" -c "$PWD" "$command_str")
+    fi
     ;;
   window)
     tmux_argv=(tmux new-window -c "$PWD" "$command_str")
