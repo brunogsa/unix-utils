@@ -25,3 +25,23 @@ Why: `personal-environment` carries the symlink + canonical-path rules; without 
 State the skill's purpose and when to invoke it; don't enumerate what it covers. Detail belongs in the body.
 
 Why: only the first 250 chars participate in `/skills` routing (Claude Code 2.1.86+ cap). Inventory burns that budget on details that don't change the trigger decision.
+
+## CRITICAL: references/assets must buy real context savings, never budget cosmetics
+
+Move text out of SKILL.md into `references/` or `assets/` only when the move keeps words out of context on typical runs:
+
+- Conditional loads — some invocations never read the file (branches, domain variants, skippable examples).
+- Subagent-consumed files — prompts and checklists read by a spawned agent, never by the main session.
+- Late loads in marathon flows — content needed only near the end, read fresh after compactions would have dropped it.
+
+A "mandatory read" the main flow opens at invocation time on every run is a fake lazy-load.
+Keep that text in SKILL.md — get under the word budget with real trims, or set an honest `words-budget:` frontmatter override.
+
+Why: an always-read reference loads the same words every run plus a Read round-trip — it saves nothing and hides the cost from the budget gate, which exists to measure that cost.
+
+## Pin an explicit model on every subagent dispatch a skill prescribes
+
+Name the model in the dispatch instruction: `sonnet` for mechanical or tool-driving steps, `haiku` for trivial transforms.
+Omit the pin only when the step genuinely needs the session model's judgment — and say so in the skill.
+
+Why: an unpinned Agent call inherits the session's model — often the most expensive tier — so a scripted mechanical fan-out silently runs at top-tier pricing on every future invocation.
