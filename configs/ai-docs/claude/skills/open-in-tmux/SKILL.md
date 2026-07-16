@@ -1,11 +1,13 @@
 ---
 name: open-in-tmux
-description: Run a command in a new tmux pane. USE for file review ('open in tmux'/'nvim'/'new pane', after 3 edit rejections) or streaming output ('tail log'/'show live'). User observes; I keep going.
+description: Run a command in a new tmux pane, or open a git diff in neovim's Diffview. USE for file/diff review ('open in tmux'/'nvim'/'new pane'/'side pane'/'review this'/'show me the diff', after 3 edit rejections) or streaming output ('tail log'/'show live').
 ---
 
 # open-in-tmux
 
-Open any command in the user's tmux session — file review in nvim, live output streaming with `tail -f`, or any other shell command. Composable for multi-pane layouts.
+Open any command in the user's tmux session — file review in nvim, live output streaming with `tail -f`, or any other shell command.
+Composable for multi-pane layouts.
+The user observes the pane; I keep going.
 
 ## How to invoke
 
@@ -42,6 +44,20 @@ Map the user's spoken placement:
 
 For multi-pane layouts in one exchange, invoke once per command with the matching mode.
 
+## Reviewing a git diff (branch, or since a commit)
+
+For the common "let me review what you did" case — the whole-branch diff, or the diff since some commit — use the sibling helper instead of hand-writing the nvim command:
+
+```
+~/.claude/skills/open-in-tmux/scripts/diffview-in-tmux.sh [<ref>]
+```
+
+- No `<ref>` → diffs the working tree vs the repo's base branch (origin/HEAD → main → master), i.e. the whole-branch diff. Matches neovim's `<leader>tD`.
+- With `<ref>` → diffs the working tree vs that commit-ish (a SHA, a `git merge-base` output, a branch, a tag).
+  - When the user says "since X", YOU resolve X to that ref and pass it.
+
+It opens a `vertical` pane running `nvim -c 'DiffviewOpen <ref>'` in the repo root, then follows the **File review** post-invocation behavior below (wait for the user; re-read on reply).
+
 ## After every successful invocation
 
 Two modes — behavior differs:
@@ -73,4 +89,6 @@ Tell the user: "I can't open a tmux pane from here, but you can run the printed 
 - For streaming, always `tail -f /tmp/file.txt` in the pane.
 - Never re-run the original command (it exits when done, closing the pane immediately).
 
-**Multi-file diff review.** The user has `vimreview` and `diffview` for batch-comparing many changes. This skill is for "gather more context" or "watch a running command", not bulk diff-walking.
+**Interactive bulk diff-walking.** `vimreview` and the neovim diffview keymaps (`<leader>td/tD/th`) are the user's own interactive TTY tools for stepping through many changes — Claude can't drive them (they need a hands-on terminal).
+
+For a git branch/commit diff Claude CAN open on request, use the `diffview-in-tmux.sh` helper above — that leaves `vimreview` for the human's own review, no overlap.
