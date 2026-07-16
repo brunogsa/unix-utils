@@ -237,6 +237,12 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
   - [Why] Unreviewed scratch in the repo gets committed by accident or rots as orphan debt; a user-reviewed doc must sit where the user and downstream skills discover it.
   - [Example] User-reviewed → CWD: `spec_/plan_<slug>.md`, manual-verification `.md`. Never-reviewed → /tmp: debug dumps, one-off scripts, diff snapshots.
 
+- [Instruction] **In long or multi-step work, offload working state — findings, decisions, intermediate results — to a `/tmp` scratchpad file as you produce it, not only at the end.**
+  - [Why] Compaction summarizes context lossily mid-task, so unpersisted state silently vanishes; Anthropic ships this pattern as "structured note-taking" (https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents).
+
+- [Instruction] On resume or after compaction, re-ground from the scratchpad — re-read the file and trust it over recalled context.
+  - [Why] Post-compaction recall feels complete but is a summary; the file re-reads verbatim, turning "I think I checked X" into a checkable fact.
+
 ### Verify before done
 
 - [Instruction] **CRITICAL: Verify everything you build, accept, or claim** -- evidence over optimism, applied at every gate.
@@ -272,8 +278,8 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] Treat config files as code — editing one (e.g. `init.lua`) fires the same `*-standards` triggers a source file would.
   - [Why] Counting config as code loads code-standards on it, so its conventions apply instead of getting skipped as "just config".
 
-- [Instruction] **Load a standard file once per session** -- on its first trigger; don't re-invoke it each turn; re-load only after compaction drops it.
-  - [Why] Re-loading each turn burns context for guidance you already hold; reload only when compaction has actually dropped it.
+- [Instruction] **CRITICAL: Load a skill once per session — then after every compaction, reload ALL skills loaded before it**, immediately, before resuming the task; never re-invoke mid-session.
+  - [Why] Skills carry the user's highest-leverage instructions and whys, and post-compaction summaries silently drop them — exactly when you stop doing what they mandate.
 
 - [Instruction] Before producing a reader-facing artifact (report, review, research synthesis), consult the `html-artifacts` router — Markdown vs HTML vs Google Docs.
   - [Why] HTML can speed the human reader for read-once interactive artifacts, but its router is lazy-loaded — without this always-on nudge it never fires and everything defaults to Markdown by omission.
@@ -342,19 +348,13 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 ### Slow commands
 
-- [Instruction] **Save slow command output, verify from the file** -- any command taking 4+ seconds: redirect full output to `/tmp/`, then filter from the file.
-  - [Why] A slow command is expensive to repeat; the file is a durable record you can re-filter without paying again.
+- [Instruction] **Save slow command output, verify from the file** -- any command taking 4+ seconds: redirect full output to a stable, reused `/tmp/` path, then filter from the file.
+  - [Why] A slow command is expensive to repeat; the file is a durable record you can re-filter without paying again, and a stable path lets the user keep tailing it.
   - [Example] `<slow-cmd> > /tmp/out.txt 2>&1; echo "exit: $?"; tail -<N> /tmp/out.txt;` — choose N to fit the command's summary.
   - [Example] Don't pipe it straight to `grep`/`head` — a wrong filter discards the output and forces the whole slow run again.
 
-- [Instruction] Check both exit code and tail in one line — never trust exit code alone.
-  - [Why] Some runners exit 0 on partial failure; the tail shows the real summary.
-
-- [Instruction] Reuse that `/tmp/` file when possible.
-  - [Why] The user might be tailing it, so a stable path is easier for them to follow.
-
-- [Instruction] Put `echo "exit: $?"` immediately after the slow command, before any `tail`.
-  - [Why] The Bash tool reports the chain's last exit, not yours — an `echo` after `tail` captures tail's `0` and masks the real failure.
+- [Instruction] Check both exit code and tail in one line, with `echo "exit: $?"` immediately after the slow command, before any `tail` — never trust exit code alone.
+  - [Why] Some runners exit 0 on partial failure and only the tail shows the real summary; an `echo` after `tail` captures tail's `0` and masks the real failure.
 
 ### Harness caveats & hygiene
 
