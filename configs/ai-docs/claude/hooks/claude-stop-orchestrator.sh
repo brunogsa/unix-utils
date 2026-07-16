@@ -15,12 +15,13 @@
 #   aren't watching, that's a misleading double-notify.
 #
 #   Sequencing them here fixes it: run the density gate, then the session-scoped
-#   implement gate; only if NEITHER blocks (the turn is genuinely over) do we run
-#   the notification. One ping, on the real stop.
+#   implement gate, then the spec-driven coverage gate; only if NONE blocks (the
+#   turn is genuinely over) do we run the notification. One ping, on the real stop.
 #
 # This does NOT merge the child scripts:
-#   claude-density-stop-hook.sh, claude-implement-stop-hook.sh, and
-#   claude-tmux-notification.sh stay standalone, independently testable, and
+#   claude-density-stop-hook.sh, claude-implement-stop-hook.sh,
+#   claude-sdd-stop-hook.sh, and claude-tmux-notification.sh stay standalone,
+#   independently testable, and
 #   usable on their own events (the notification is still wired directly to the
 #   Notification event elsewhere). This orchestrator only sequences them for the
 #   Stop event and gates the notification on either gate's verdict.
@@ -37,6 +38,7 @@ input=$(cat)
 dir=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd) || dir="$HOME/.claude/hooks"
 density="$dir/claude-density-stop-hook.sh"
 implement_gate="$dir/claude-implement-stop-hook.sh"
+sdd_gate="$dir/claude-sdd-stop-hook.sh"
 notify="$dir/claude-tmux-notification.sh"
 
 # 1. Density gate first. It prints a {decision:"block"} JSON (and nothing else)
@@ -72,7 +74,27 @@ case "$implement_out" in
     ;;
 esac
 
-# 5. Both gates clean → this is the real stop → fire the "done" notification.
+# 5. Spec-driven coverage gate. Runs AFTER the implement gate on purpose: that
+#    gate blocks every mid-batch stop, and the plan_/spec_ docs are the batch's
+#    own WIP — gating their coverage earlier would churn on transient mid-batch
+#    drift. It prints a {decision:"block"} JSON reporting the itemized drift for the
+#    main session to reconcile when a spec-driven plan_<slug>.md in CWD has drifted;
+#    stays silent when there's no such plan or it's clean.
+sdd_out=""
+if [ -f "$sdd_gate" ]; then
+  sdd_out=$(printf '%s' "$input" | bash "$sdd_gate" 2>/dev/null || true)
+fi
+
+# 6. Gate blocked → pass its decision straight through and STOP here, same as
+#    steps 2 and 4: coverage still needs reconciling, so do NOT notify.
+case "$sdd_out" in
+  *'"decision"'*)
+    printf '%s\n' "$sdd_out"
+    exit 0
+    ;;
+esac
+
+# 7. All gates clean → this is the real stop → fire the "done" notification.
 #    Its stdout (none today; forward-safe if a future variant emits JSON) flows
 #    through as this hook's stdout.
 if [ -f "$notify" ]; then
