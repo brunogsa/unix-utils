@@ -33,11 +33,11 @@ and the subagent's reasoning doesn't pollute the active conversation.
 
 ## Run
 
-1. Read the subagent task prompt at
-   `~/.claude/skills/english-coach/assets/subagent-prompt.md`.
-2. Spawn an Agent with `subagent_type: general-purpose` and the contents of
-   that file as the prompt. Description: "English-coach analysis pass".
-3. When the Agent reports back, share the output file path with the user
+1. Spawn an Agent with `subagent_type: general-purpose` and this prompt: "Read
+   `~/.claude/skills/english-coach/assets/subagent-prompt.md` and follow it."
+   Description: "English-coach analysis pass". The subagent reads its own
+   instructions from disk — the orchestrator never loads that file.
+2. When the Agent reports back, share the output file path with the user
    along with its one-line summary of the top pattern.
 
 ## Files

@@ -2,7 +2,7 @@
 name: implement
 description: "Execute one or more plan_<slug>.md tasks end-to-end as fresh-context subagents — run sequentially, fully async — managing decomposition, status, verification and commits. Trigger: /implement <id> or /implement <id1>, <id2>, ..."
 disable-model-invocation: false
-words-budget: 5000
+words-budget: 5250
 ---
 
 ## Usage
@@ -356,7 +356,31 @@ The orchestrator owns plan_<slug>.md status edits (`[Doing]` / `[Done]` / `[Bloc
 
 Status is a file edit only, never committed (plan_<slug>.md is session-scoped per `spec-driven-development`).
 
-The full marker table, placement rule, and per-state semantics live in [`references/status-markers.md`](references/status-markers.md). Load when flipping status or handling a non-`[Done]` terminal state.
+Status sits **right after the number, before any pre-existing tag** (e.g., Jira IDs).
+
+| State | Title format |
+|---|---|
+| Initial | `### N. Title (...)` |
+| In progress | `### N. [Doing] Title (...)` |
+| Done | `### N. [Done] Title (...)` |
+| Blocked | `### N. [Blocked] Title (...)` |
+| Deferred | `### N. [Deferred] Title (...)` |
+| Dropped | `### N. [Dropped] Title (...)` |
+| With pre-existing tag | `### N. [Doing][JIRA-123] Title (...)` |
+
+Single value, mutually exclusive — `[Blocked]` *replaces* `[Doing]`, never stacks.
+
+### Semantics
+
+- `[Doing]` — actively in progress this session (dispatched, not yet verified-done).
+- `[Done]` — finished, verified by the orchestrator, committed by the subagent.
+- `[Blocked]` — external dependency unresolvable in this session (e.g., upstream API down, missing access). Pair with a `**QUESTION:**` marker that names what's needed to unblock.
+- `[Deferred]` — deliberately postponed to a later session, but still planned.
+- `[Dropped]` — decided not to do at all (scope reduction). Pair with `**DECISION (Task N):**` capturing the reason.
+
+In all non-`[Done]` terminal states, do NOT leave partial code committed under a misleading status.
+
+Either the subagent's commits stand as coherent work (status is a separate concern) or the WIP is reverted first.
 
 ## 7. Commit model
 

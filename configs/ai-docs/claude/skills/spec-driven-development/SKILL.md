@@ -49,7 +49,7 @@ The remaining shapes (zero matches, only one kind) diverge per consumer because 
 Captures background, goals, requirements, testable acceptance criteria and functional decisions.
 Owned by the user, refined collaboratively.
 
-Populate @./assets/spec-template.md
+Read `./assets/spec-template.md` when starting the spec phase, and populate it.
 
 ### plan_<slug>.md (how / tasks)
 
@@ -57,9 +57,9 @@ Technical approach and task breakdown. Generated from spec_<slug>.md (or directl
 
 Contains the high level architecture, general flow, reuse and side-effect reports, failure handling, test design, task breakdown and technical decisions.
 
-Populate @./assets/plan-template.md
+Read `./assets/plan-template.md` when starting the plan phase, and populate it.
 
-Uses BDD/TDD by default: @~/.claude/skills/test-driven-development/SKILL.md
+Uses BDD/TDD by default: load the `test-driven-development` skill when starting the implementation phase.
 Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task itself).
 
 ## Lifecycle
@@ -171,7 +171,7 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
   - For plan_<slug>.md use this pattern:
     - The "ToDo" / "Pending" state do not required a marker
     - Suggested status: `[Doing]`, `[Done]`, `[Blocked]`, `[Deferred]`, `[Dropped]`
-    - Shape: `### <N>. [<status>] <title>` — number first, status bracketed after it; matches the plan template and `/implement`'s status-markers reference (the bracket is absent for pending, per above).
+    - Shape: `### <N>. [<status>] <title>` — number first, status bracketed after it; matches the plan template and `/implement`'s status-markers section (the bracket is absent for pending, per above).
 
 - **After completing a task note deviations from the original plan**.
 
