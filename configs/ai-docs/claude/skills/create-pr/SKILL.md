@@ -2,6 +2,7 @@
 name: create-pr
 description: "Create a GitHub PR with a rich description. User-invoked only — auto-detects spec_<slug>.md/plan_<slug>.md for context."
 disable-model-invocation: false
+words-budget: 2250
 ---
 
 # Create Pull Request
@@ -113,24 +114,26 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits, nor shares yo
 
 ##### Content quality
 
+Mandatory while drafting `pr-description.md`. Same authority as the rules above.
+
 - **Separate planned from incidental** -- group items under `**Planned:**` (PT-BR: `**Descobertas durante o desenvolvimento, também endereçadas:**`) and briefly explain each incidental.
   - **Drop the `**Planned:**` subsection** when Architecture/Decisions already cover per-ticket scope; keep only "Discovered along the way".
-- **Decisions: title is the user-visible surprise, not internal mechanism** -- mechanism details go in sub-bullets. Examples: see [`references/decision-quality.md`](references/decision-quality.md).
-- **Decisions: spell out the consequence if reversed when non-obvious** -- sub-bullet showing what breaks. Examples: same reference.
+- **Decisions: title is the user-visible surprise, not internal mechanism** -- mechanism details go in sub-bullets. Examples: see [`decision-quality.md`](decision-quality.md).
+  - Frame by user/system impact (e.g. "affects orders, invoicing, sync"), not internal taxonomy.
+- **Decisions: spell out the consequence if reversed when non-obvious** -- sub-bullet showing what breaks, in plain language (e.g. "exposed to injection or DoS", not "fail-loud"). Examples: same reference.
 - **Reuse rationale: ONE concrete future use, not a speculative list** -- name a specific use case with ticket ref. Same reference.
 - **CRITICAL: ZERO references to untracked session docs** -- never name `spec_<slug>.md`, `plan_<slug>.md`, gitignored `.md`, internal task/AC numbers, commit SHAs in prose, or internal dependency files.
   - Reviewer can't open them. Verify with `git ls-files <name>` before referencing any `.md`; if untracked, substitute the value or delete.
   - Applies to verbatim spec copies too. Exception: git-tracked files in the repo stay.
 - **Don't repeat links across sections** -- if a Jira/PR link appears in "Link do Jira" or "Context", don't repeat in "References".
   - References is for follow-ups, external docs, or links not elsewhere.
-- **Explain domain terms inline on first use** -- define team-specific terms ("bulk-failure", "all_skus row", "shadow read") parenthetically on first mention. Don't assume shared vocab.
-- **Frame as user/system impact, not internal model** -- "afetando fluxos de orders, invoicing, sync" beats "compartilhada com fluxos de write" — consequences over taxonomy.
-- **Plain language in decisions, not insider shorthand** -- state the concrete consequence if reversed (e.g., "exposed to injection or DoS"), not the abstract property ("fail-loud"). Replace jargon with plain terms.
+- **No shorthand the reviewer can't resolve** -- team jargon, spec-internal acronyms, and implementation jargon in Planned items all assume context the reviewer lacks.
+  - Team jargon (e.g. "shadow read"): define parenthetically on first use.
+  - Spec acronyms ("AC", "FR/NFR"): spell out, or describe the scenario instead of citing the ID.
+  - Implementation jargon in Planned items (e.g. "(injectable NestJS)"): describe what it does, not its shape.
 - **"WARNING:" prefix on operational risks** -- prefix decisions/checklist items with "WARNING:" when they need human coordination (maintenance windows, on-call handoff, manual deploy steps, irreversible migrations).
 - **Explain "how is it different"** -- when introducing a new method/function, briefly say what makes it different from existing ones. Don't just name it.
 - **Don't list types/interfaces** -- type names are visible in the diff; listing is noise.
-- **Drop implementation jargon from planned items** -- don't say "(injectable NestJS)" or "(pure function)". Describe what it does for the reviewer.
-- **No scope-internal acronyms without definition** -- "AC", "FR/NFR", team shorthand only make sense to spec readers. Spell out on first use, or use plain language ("the scenario where..." instead of "AC-7").
 - **Incidentals must change shared state to earn a bullet** -- only incidentals that modify docs, conventions, or shared infra.
   - Skip diff/commit-visible items (merge resolutions, auto-review responses, intra-branch refactors, task-internal cleanup).
   - Group small fixes (typos, log levels) into one bullet.
