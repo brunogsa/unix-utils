@@ -24,6 +24,10 @@ No flags needed. Auto-detects `spec_*.md` and `plan_*.md` in the current directo
   - Multiple specs OR multiple plans → list them numbered and ask which to use.
   - None → proceed from commits + diff only.
   - Extract all ` ```mermaid ``` ` fenced blocks from each resolved file, including all of them in the PR description as collapsibles
+  - When embedding spec/plan content beyond diagrams, prefer a curated slice over the full file.
+    - Ask the user which `## ` sections matter (e.g. Background, Goals, Testable Acceptance Criteria, Technical Decisions).
+    - Pull them with `~/.claude/skills/create-pr/scripts/extract-md-sections.sh <file> "<section>" ["<section>" ...]`.
+    - A full-file embed routinely blows the body-size cap (see step 2.6).
 - Check for PR templates in `.github/` (e.g., `PULL_REQUEST_TEMPLATE.md`)
 - Run git log for commits on current branch vs base -- **primary source**: mine commit messages for decisions, rationale, and scope changes, with or without spec/plan
   - Mining only works if commits follow `commit-standards` — well-formed messages carry the decisions and rationale worth extracting
@@ -50,6 +54,8 @@ Write `./pr-description.md` in cwd.
 See `references/pr-template.md` for the full template structure.
 
 The Guia de review template, time-estimate heuristic, and file-role inference live in `~/.claude/skills/code-review-pipeline/references/reading-order-template.md` (Portuguese variant).
+
+For a full real-world example following this structure end-to-end — including the curated spec/plan embed from step 1 — see [`references/pr-description-example.md`](references/pr-description-example.md).
 
 **Reading guide is qualitative, not taxonomic** -- each file entry describes what the reviewer *learns* there, not just role labels.
 
@@ -162,6 +168,14 @@ A TODO must NEVER survive into the final PR push — they embarrass reviewers an
 Run `~/.claude/skills/doc-standards/scripts/check-density.sh pr-description.md`. Output is `<line>:<chars>:<words>` per violation; exit 0 means clean.
 
 For each violation, rewrite per `~/.claude/skills/doc-standards/references/density-rules.md` (paragraph → bullets+sub-bullets, long bullet → bullet + sub-bullets) without dropping info. Re-run until exit 0 before step 3.
+
+### 2.6. Verify body size
+
+GitHub rejects a PR body over 65,536 characters — a hard API limit, distinct from the density cap.
+
+Run `~/.claude/skills/create-pr/scripts/check-pr-body-size.sh pr-description.md`. Exit 0 = safe; exit 2 = close to the cap, trim soon; exit 3 = over the cap, trim now.
+
+Over the cap? Re-scope embedded spec/plan content to fewer `## ` sections via `extract-md-sections.sh` (see step 1), then re-run this check before step 3.
 
 ### 3. Review with user
 
