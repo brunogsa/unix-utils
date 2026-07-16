@@ -44,10 +44,10 @@
 set -eo pipefail
 
 # Tunable constants.
-MAX_ATTEMPTS=4
+MAX_ATTEMPTS=3
 STUCK_CONSECUTIVE=3
 BATCH_CAP_MULT=4
-GATE_FIX_ALLOWANCE=4
+GATE_FIX_ALLOWANCE=2
 
 usage() {
   cat <<'EOF'
