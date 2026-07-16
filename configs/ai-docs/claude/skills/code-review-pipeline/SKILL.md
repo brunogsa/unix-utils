@@ -33,9 +33,13 @@ The dispatch mechanics live here so both callers stay identical; each caller kee
 
 **Default — calling session (no `--isolate`):** Read this SKILL.md and walk every wave (0 → 6) yourself, treating the resolved inputs as the "Parse the input header" step below.
 
-Do not spawn any Agent — every specialist pass and the Wave 5 density check streams into the conversation for live visibility.
+Do not spawn Agents for the review itself — every specialist pass runs inline in this conversation, keeping the prompt cache warm and the review live-visible.
 
-**Isolated — `--isolate`, or a non-fresh session:** Spawn one Agent, put the resolved inputs in its prompt body, and tell it to read this SKILL.md and orchestrate from there.
+The one exception is Wave 5's density fix: it delegates the mechanical line-splitting to the `density-fixer` agent (see `wave5-emit.md`). Post-review cleanup, so it doesn't touch cache warmth or dedup.
+
+**Isolated — `--isolate`, or a non-fresh session:** Spawn one Agent with `model: "sonnet"`, put the resolved inputs in its prompt body, and tell it to read this SKILL.md and orchestrate from there.
+
+The sonnet pin trades review depth for cost: the isolated wrapper runs every specialist pass itself, so the whole review runs on sonnet — accepted as the isolation path's price ceiling.
 
 The subagent runs the whole pipeline itself — no further Agents. The user sees only the final summary; the trade-off buys bias isolation from the calling session's history.
 

@@ -58,11 +58,11 @@ The PR number alone is enough — both filters are optional.
 Subagents can't post replies, commit, or push — permission UIs live in main. Fetching + clustering is heavy and read-only. Split:
 
 1. **Main context** — steps 1, 2, 4–7 (preconditions, fetch, selection, commit, push, reply).
-2. **Subagent** (`general-purpose`, background — the default) — step 3 (cluster, rank, propose default actions, propose drop reasons). Returns the proposal block.
+2. **Subagent** (`general-purpose`, background — the default) — step 3 (cluster, rank, propose actions and drop reasons). Returns the proposal block.
 
-Spawn the subagent with `description: "Cluster and rank PR review comments"`.
+Spawn the subagent with `model: "sonnet"` and `description: "Cluster and rank PR review comments"`.
 
-If step 2 yields zero unresolved comments matching the filters, report that and stop. Don't spawn the subagent on nothing.
+If step 2 yields zero unresolved comments matching the filters, report that and stop.
 
 ## Standards loaded on demand
 

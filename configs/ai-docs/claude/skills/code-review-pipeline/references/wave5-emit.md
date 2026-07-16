@@ -12,8 +12,15 @@
    - Write each Wave-4 finding's `body` to its own file, `$work_dir/wave5-comment-<n>.md` (one per finding, in finding order).
    - Copy the guide's raw content from `$work_dir/wave2-guide.md` alongside them — it isn't wrapped in `<details>` yet, so it's still plain markdown the script can check.
    - Run `~/.claude/skills/doc-standards/scripts/check-density.sh "$work_dir"/wave5-comment-*.md "$work_dir/wave2-guide.md"` in one call.
-   - For any flagged line, rewrite it in place per `~/.claude/skills/doc-standards/references/density-rules.md` — split into bullets/sub-bullets or shorter sentences, never drop information.
-   - Re-run the script until it exits 0 for every file. The payload-build step below reads finding bodies from these now-clean files; the guide-posting step below reads the guide from `wave2-guide.md`.
+   - Fix every flagged line so all files exit 0. Which path you take depends on whether this Wave 5 runs in the top-level session or inside a spawned subagent:
+     - **Calling session (you were NOT spawned as a subagent):** delegate to the `density-fixer` agent and wait for it to report every file at exit 0.
+       - Pass it the file list: `$work_dir`/wave5-comment-*.md plus `$work_dir/wave2-guide.md`.
+       - It splits over-cap lines and re-runs the script itself, and is contractually barred from rewording or dropping content.
+       - So each finding's wording stays verbatim — unlike an inline rewrite, which can drift the meaning while fixing density.
+     - **Isolated (`--isolate`, or the non-fresh-session dispatch that spawned you):** you are already a subagent, so do NOT spawn another.
+       - Rewrite each flagged line in place per `~/.claude/skills/doc-standards/references/density-rules.md` — split into bullets/sub-bullets or shorter sentences, never drop information.
+       - Re-run the script until it exits 0 for every file.
+   - Either way, the payload-build step below reads finding bodies from these now-clean files; the guide-posting step below reads the guide from `wave2-guide.md`.
 
 3. Build `$work_dir/review-payload.json` with jq for the inline comments only, sourcing each `body` from its density-clean `$work_dir/wave5-comment-<n>.md`.
    - **Leave the top-level `body` empty** — the Review Guide is delivered as a separate standalone PR comment in the guide-posting step below.
@@ -117,4 +124,8 @@ Consult the `html-artifacts` skill's decision tree, then write `${out_file}` —
 - Either format follows the template at `references/local-review-template.md` — read it and expand its placeholders; an `.html` output renders those same sections under html-artifacts' non-negotiables.
 - Keep the template file as the single source of truth for the output shape; do not inline the template here.
 
-**Density check (after writing, `.md` output only).** Run `~/.claude/skills/doc-standards/scripts/check-density.sh "$out_file"`. Rewrite each violation per `doc-standards/references/density-rules.md`; re-run until exit 0.
+**Density check (after writing, `.md` output only).** Run `~/.claude/skills/doc-standards/scripts/check-density.sh "$out_file"`, then fix flagged lines by how this Wave 5 runs:
+
+- **Calling session (you were NOT spawned as a subagent):** delegate to the `density-fixer` agent, passing it `$out_file`; wait for it to report exit 0.
+  - It splits over-cap lines and re-runs the script itself, without rewording or dropping content.
+- **Isolated (`--isolate`, or the non-fresh-session dispatch that spawned you):** you are already a subagent — do NOT spawn another; rewrite each violation in place per `doc-standards/references/density-rules.md` and re-run until exit 0.
