@@ -8,8 +8,6 @@
       "Read",
       "Edit(//tmp/**)",
       "Edit(//private/tmp/**)",
-      "Write(//tmp/**)",
-      "Write(//private/tmp/**)",
       "WebFetch",
       "WebSearch",
       "TaskCreate",
