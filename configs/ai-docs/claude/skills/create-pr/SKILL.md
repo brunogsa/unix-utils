@@ -23,25 +23,28 @@ No flags needed. Auto-detects `spec_*.md` and `plan_*.md` in the current directo
 - Discover spec/plan in cwd by glob `spec_*.md plan_*.md` (top-level; optional -- works without them):
   - At most one spec and at most one plan → use whichever exist (either, both, or neither).
   - Multiple specs OR multiple plans → list them numbered and ask which to use.
-  - None → proceed from commits + diff only.
+  - None → proceed from the changes digest (below) only.
   - Extract all ` ```mermaid ``` ` fenced blocks from each resolved file, including all of them in the PR description as collapsibles
   - When embedding spec/plan content beyond diagrams, prefer a curated slice over the full file.
     - Ask the user which `## ` sections matter (e.g. Background, Goals, Testable Acceptance Criteria, Technical Decisions).
     - Pull them with `~/.claude/skills/create-pr/scripts/extract-md-sections.sh <file> "<section>" ["<section>" ...]`.
     - A full-file embed routinely blows the body-size cap (see step 2.6).
-- Check for PR templates in `.github/` (e.g., `PULL_REQUEST_TEMPLATE.md`)
-- Run git log for commits on current branch vs base -- **primary source**: mine commit messages for decisions, rationale, and scope changes, with or without spec/plan
-  - Mining only works if commits follow `commit-standards` — well-formed messages carry the decisions and rationale worth extracting
-- Run git diff against base branch
+- Check for a PR template in `.github/`
 - Check if branch is pushed
+- **Delegate diff/log reading to a subagent** -- dispatch one `general-purpose` Agent, `model: "sonnet"`, `description: "Gather PR changes digest"`, foreground (step 2 needs the result immediately).
+  - Give it the base branch, the resolved spec/plan section slices from above, and this skill's Writing Style section so it knows what the digest feeds.
+  - It reads git log for commits on current branch vs base with **full commit bodies** -- primary source for decisions, rationale, and scope changes; mining only works if commits follow `commit-standards`.
+  - It also reads git diff against base branch — but returns only the **changes digest** in the format at `~/.claude/skills/create-pr/references/changes-digest.md`, never the raw diff.
 
 ### 2. Write pr-description.md
 
-Write `./pr-description.md` in cwd.
+Write `./pr-description.md` in cwd. Author from the changes digest (step 1), the curated spec/plan slices, and the template -- not the raw diff.
+
+**Escape hatch**: if the digest is insufficient for a specific section, read that file's targeted diff (`git diff <base> -- <path>`); never fall back to the full diff.
 
 **CRITICAL: Always check `.github/` for a PR template** (`pull_request_template.md`, `PULL_REQUEST_TEMPLATE.md`).
 
-- If present, it's the base structure — keep every section and checkbox; fill with rich content from spec/plan/commits/diff.
+- If present, it's the base structure — keep every section and checkbox; fill with rich content from spec/plan and the changes digest.
 - Add extra sections WITHIN the template (preferred) or as an appendix, **NEVER** replacing it.
 - Mark checklist items as `[x]` when applicable. If no template exists, use the default below.
 
@@ -88,7 +91,6 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits, nor shares yo
   - Multi-ticket PRs need one bullet per ticket — not a dense paragraph each.
 - **Testable Acceptance Criteria — verbatim from spec** -- copy BDD content (Given/When/Then/And) from `## Testable Acceptance Criteria`; drop only "AC-N:" prefix.
   - Each AC ends with one line: `> Covered by [manual tests](#scenario-N), [path/to/spec.ts](https://github.com/.../blob/branch/path), and/or [contract tests](#anchor).` Use whichever combination applies.
-  - Mandatory even if the template lacks the section.
 - **Evidences section — only what adds value beyond GitHub PR UI** -- skip what the checks tab already shows (lint/build/security/CI badges).
   - Worth including: manual tests (collapsible per scenario, claim adjacent to request+response).
   - High-risk CI checks (e.g., maintenance-window migration).
@@ -119,7 +121,6 @@ Mandatory while drafting `pr-description.md`. Same authority as the rules above.
 - **Separate planned from incidental** -- group items under `**Planned:**` (PT-BR: `**Descobertas durante o desenvolvimento, também endereçadas:**`) and briefly explain each incidental.
   - **Drop the `**Planned:**` subsection** when Architecture/Decisions already cover per-ticket scope; keep only "Discovered along the way".
 - **Decisions: title is the user-visible surprise, not internal mechanism** -- mechanism details go in sub-bullets. Examples: see [`decision-quality.md`](decision-quality.md).
-  - Frame by user/system impact (e.g. "affects orders, invoicing, sync"), not internal taxonomy.
 - **Decisions: spell out the consequence if reversed when non-obvious** -- sub-bullet showing what breaks, in plain language (e.g. "exposed to injection or DoS", not "fail-loud"). Examples: same reference.
 - **Reuse rationale: ONE concrete future use, not a speculative list** -- name a specific use case with ticket ref. Same reference.
 - **CRITICAL: ZERO references to untracked session docs** -- never name `spec_<slug>.md`, `plan_<slug>.md`, gitignored `.md`, internal task/AC numbers, commit SHAs in prose, or internal dependency files.

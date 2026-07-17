@@ -7,25 +7,37 @@ disable-model-invocation: false
 # Auto Review
 
 Orchestrate a local code review by running the `code-review-pipeline` pipeline
-end-to-end. The pipeline runs serially — no nested fan-out — so the review
-stays within a predictable token budget.
+end-to-end, always inside an isolated subagent. The pipeline runs serially —
+no nested fan-out — so the review stays within a predictable token budget.
 
-Execution mode (in-session vs. `--isolate` subagent) and the fresh-session check are shared across both review callers — see "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md`.
+auto-review always dispatches isolated, never in-session. The invoking
+session usually authored the code under review, and a same-session author
+reviewing its own output carries "already convinced myself" bias — isolation
+gives the review fresh context instead. Keeping the pipeline's read load out
+of main context is a secondary benefit.
+
+See "How callers dispatch" → "Isolated" in
+`~/.claude/skills/code-review-pipeline/SKILL.md` for the subagent mechanics
+that dispatch reuses (prompt body, reading this SKILL.md, orchestrating from
+there). auto-review overrides the model choice: the pipeline's default
+isolated wrapper pins `model: "sonnet"`, but auto-review spawns the
+`deep-reviewer` agent (opus) instead — review judgment is the product here,
+so it earns the top tier, unlike mechanical spawns, which pin sonnet.
 
 ## Usage
 
-`/auto-review [base-branch] [--isolate]`
+`/auto-review [base-branch]`
 
 - `base-branch` defaults to the repo's default branch (auto-detected; works
   for `main`, `master`, or anything else).
-- `--isolate` opts into the bias-isolation subagent wrapper. Off by default.
+
+Every invocation runs isolated — there is no in-session mode left to opt
+into or out of.
 
 Examples:
-- `/auto-review` — current branch vs. the repo's default (auto-detected), runs in-session.
-- `/auto-review develop` — current branch vs. `develop`, in-session.
+- `/auto-review` — current branch vs. the repo's default (auto-detected).
+- `/auto-review develop` — current branch vs. `develop`.
 - `/auto-review HEAD~2` — review only the last 2 commits.
-- `/auto-review --isolate` — current branch vs. default, wrapped in a subagent.
-- `/auto-review main --isolate` — explicit base + isolated.
 
 ## When to invoke
 
@@ -103,11 +115,20 @@ The code-review-pipeline expects these inputs:
     concatenated content used as `{pr_context}` for every specialist
     (replacing the default `spec_<slug>.md` + `plan_<slug>.md` lookup).
 
-With the inputs above resolved, dispatch per "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md`.
+With the inputs above resolved, always dispatch isolated: spawn the
+`deep-reviewer` agent (`subagent_type: deep-reviewer`) — its definition pins
+`model: opus`, so no explicit `model` parameter is needed in the dispatch.
+Put the resolved inputs in its prompt body, and tell it to read
+`~/.claude/skills/code-review-pipeline/SKILL.md` and orchestrate from there
+— per that file's "Isolated" dispatch mode under "How callers dispatch",
+substituting deep-reviewer (opus) for the pipeline's default sonnet-pinned
+wrapper.
 
-Run the fresh-session check there, then either walk the pipeline in-session or spawn the isolated subagent.
+Skip the pipeline's fresh-session check: that check exists only to pick
+between in-session and isolated, and auto-review never picks — it always
+isolates.
 
-After the pipeline finishes (either mode), the review is at
+After the pipeline finishes, the review is at
 `./report_auto-review_<timestamp>.md` or `.html` — extension per the html-artifacts
 router (Wave 6 summary contains the exact resolved path).
 Print the file path, per-severity counts, skipped files, and the

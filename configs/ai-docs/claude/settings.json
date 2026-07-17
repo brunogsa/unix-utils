@@ -188,7 +188,6 @@
     }
   },
   "effortLevel": "high",
-  "advisorModel": "opus",
   "promptSuggestionEnabled": true,
   "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
@@ -198,5 +197,6 @@
   "verbose": true,
   "preferredNotifChannel": "ghostty",
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "advisorModel": "opus"
 }

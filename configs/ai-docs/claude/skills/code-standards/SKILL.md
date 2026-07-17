@@ -274,6 +274,12 @@ function buildAvulso({ parentKit, childSku, price, discount }) {
 - [Instruction] Prefer composition — small, focused pieces — over inheritance and deep class hierarchies.
   - [Why] Inheritance couples to the parent's implementation, not just its contract; composition couples to interfaces only.
 
+- [Instruction] **Information hiding** -- expose intent, hide implementation across code APIs, CLI interfaces, doc structures, and test helpers; clients depend only on the contract.
+  - [Why] Hiding internals lets you change them later without breaking downstream callers; exposing internals creates coupling you'll have to keep forever.
+
+- [Instruction] **Keep backward compatibility unless told otherwise** -- changing shared code, APIs, schemas, or configs must not break existing callers without explicit approval.
+  - [Why] Shared code's blast radius is every consumer; a silent breaking change ships failures you can't see from the diff.
+
 - [Instruction] Pass a single `ctx` object for cross-cutting values (request ID, user, trace) that logging and tracing need but business logic doesn't — not a new param at every layer.
   - [Why] Cross-cutting concerns grow new params across every layer without a context — a hidden propagation tax.
 

@@ -105,20 +105,11 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 ### Auditable reasoning
 
-- [Instruction] **Offer alternatives** -- present multiple approaches with trade-offs.
-  - [Why] One option = no real choice. The user picks better when alternatives are visible.
-
-- [Instruction] **CRITICAL: Make your reasoning verifiable** -- the user must be able to audit every conclusion.
+- [Instruction] **CRITICAL: Make your reasoning verifiable** -- briefly justify each decision and back every claim with code/test/doc/search evidence, so the user can audit every conclusion.
   - [Why] Claude can be wrong or hallucinate, so the human must verify every conclusion — and the human is the bottleneck, so making that check easy is the whole point.
 
 - [Instruction] **Highlight assumptions** -- explicitly name what you assumed.
   - [Why] Unspoken assumptions silently drive the wrong outcome.
-
-- [Instruction] **Explain reasoning** -- briefly justify decisions without verbosity.
-  - [Why] Conclusions without rationale force the user to trust or re-derive — both expensive.
-
-- [Instruction] **Show evidence** -- code, test, doc, or search snippets behind every claim.
-  - [Why] Evidence converts trust into verification.
 
 - [Instruction] **When I manually change something or reject you, explain observed trade-offs**.
   - [Why] Silent acceptance loses the lesson; naming the trade-off teaches both sides what to do next time.
@@ -152,10 +143,8 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **Be direct and concise** -- no preambles, filler, emojis, or useless verbosity.
   - [Why] Filler dilutes the signal and burns the user's reading budget on tokens that carry no decision-relevant information.
 
-- [Instruction] **Prefer plain, concrete wording — cut abstract filler ("lero-lero")** -- say it in simple words; drop constructs that sound sophisticated but add no meaning.
-  - [Why] The simpler and more concrete the wording, the more readers it reaches and the less it can be misread; fancy phrasing shrinks the audience and adds ambiguity.
-- [Instruction] Cut weasel words — vague hedges like "generally", "often", "somewhat" — from rules, docs, and comments; give the number or the exact condition instead.
-  - [Why] A hedge is subjective — the reader can't check it; a number or named condition is objective, so they can verify it and know exactly when it holds.
+- [Instruction] **Prefer plain, concrete wording** -- cut abstract filler ("lero-lero") and vague hedges ("generally", "often"); say it simply, and give the number or exact condition instead of a hedge.
+  - [Why] Plain wording reaches more readers with less ambiguity; a hedge is subjective and uncheckable, while a number or exact condition is objective and verifiable.
 
 ## Task Approach
 
@@ -208,9 +197,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] State a claim inline so it stands alone; cite sources by URL or file path, never by a bare symbol.
   - [Why] A URL or path the reader can just open; a bare symbol assumes they already know what it points to.
 
-- [Instruction] **Information hiding** -- expose intent, hide implementation. Applies to code APIs, CLI interfaces, doc structure, test helpers — clients depend on the contract.
-  - [Why] Hiding internals lets you change them later without breaking downstreams; exposing them creates coupling you'll have to keep.
-
 ### Single source of truth, no orphans
 
 - [Instruction] **Patch gaps the moment they bite** -- when a missing or wrong doc, test, or script both costs you time and blocks the task, fix it inline.
@@ -257,9 +243,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
   - [Why] An LLM check can hallucinate and burns tokens and thinking time; a deterministic tool avoids all three and just returns the fact.
   - [Example] Dead code: `knip`/`ts-prune`/`madge`. Coverage: coverage reports. Types: `tsc --noEmit`. Style: linters. Complexity: `eslint-plugin-sonarjs`/`lizard`. History: `git blame`/`git log`.
 
-- [Instruction] **Keep backward compatibility unless told otherwise** -- changing shared code, APIs, schemas, or configs must not break existing callers without explicit approval.
-  - [Why] Shared code's blast radius is every consumer; a silent breaking change ships failures you can't see from the diff.
-
 - [Instruction] **Manual verification persists to a .md file in CWD** -- session memory is ephemeral; only the persisted artifact survives. No persistence = no manual check.
   - [Why] A manual check in session memory vanishes on compaction; persisting it gives the next regression a signal, lets the human verify it easily, and can be reused in PR descriptions.
 
@@ -278,8 +261,17 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] Treat config files as code — editing one (e.g. `init.lua`) fires the same `*-standards` triggers a source file would.
   - [Why] Counting config as code loads code-standards on it, so its conventions apply instead of getting skipped as "just config".
 
-- [Instruction] **CRITICAL: Load a skill once per session — then after every compaction, reload ALL skills loaded before it**, immediately, before resuming the task; never re-invoke mid-session.
-  - [Why] Skills carry the user's highest-leverage instructions and whys, and post-compaction summaries silently drop them — exactly when you stop doing what they mandate.
+- [Instruction] Load a skill once per session — never re-invoke it while it remains loaded in context.
+  - [Why] Re-invoking repeats guidance already active in context, spending tokens without adding anything new.
+
+- [Instruction] After a compaction, treat every previously loaded skill as unloaded, not carried forward.
+  - [Why] Eager reload-all taxed every compaction 10-30k tokens; treating skills as unloaded is what stops the eager reload.
+
+- [Instruction] Reload each skill lazily — a procedural skill at the step that next needs it, a `*-standards` skill when its trigger next fires.
+  - [Why] Lazy reload pays only for remaining work, and each skill's trigger already encodes when it applies.
+
+- [Instruction] **CRITICAL: Mirror remaining steps as TaskList entries** -- when a step-shaped skill starts, add each remaining step as a `[Remind]` entry and complete it as it runs.
+  - [Why] Steps were observed skipped after compaction; TaskList survives compaction and re-surfaces every turn, so the sequence can't vanish with the summary.
 
 - [Instruction] Before producing a reader-facing artifact (report, review, research synthesis), consult the `html-artifacts` router — Markdown vs HTML vs Google Docs.
   - [Why] HTML can speed the human reader for read-once interactive artifacts, but its router is lazy-loaded — without this always-on nudge it never fires and everything defaults to Markdown by omission.
@@ -315,9 +307,6 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] **CRITICAL: Leverage TaskList proactively** -- whenever there are 2+ things to do, use TaskCreate/TaskUpdate; never skip it.
   - [Why] It's the only durable surface that survives compaction and session ends, so tracking 2+ items there is what stops you forgetting them.
 
-- [Instruction] Treat "leverage tasklist" (or a close variant) as explicit direction to organize the work via TaskCreate/TaskUpdate under these rules.
-  - [Why] It disambiguates a deliberate request for the formal system from a casual mention of tasks.
-
 - [Instruction] Create the task with ` <id>. ` in the subject — leading space, number, period, trailing space.
   - [Why] The manual ` <id>` lets you reference the task in chat immediately, without waiting for TaskCreate to return its system id.
 
@@ -345,6 +334,15 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] `[Remind]` — a durable reminder of a process step to run later; the step may or may not produce a commit; stays pending until it runs, then completes.
   - [Why] The TaskList re-surfaces to the AI every turn and survives compaction, so a long unattended run through many compactions keeps the step visible instead of silently skipping it.
   - [Example] Batch-end procedure steps: run the repo-green gate, dispatch the review tails, finalize the PR, open the diff-review pane.
+
+- [Instruction] On a leveraged tasklist, execute each task via a pinned subagent — main orchestrates and validates against artifacts with fresh eyes.
+  - [Why] Inline task execution burns the main window that compactions are rationed by, and orchestrator-validates already governs `/implement`.
+
+- [Instruction] Pick the pin per task: haiku when the dispatch prompt carries the exact content to place (mechanical transform), sonnet when the subagent must compose or restructure under conventions.
+  - [Why] Tier follows judgment required, not habit — haiku costs ~3x less than sonnet and suffices when nothing is left to decide.
+
+- [Instruction] Keep in main: permission-gated actions (commit, push, reply) and small edits whose inputs main already holds, while the session is shallow.
+  - [Why] Permission UIs only render in main, and a subagent re-reads from scratch what main holds warm — delegating there re-buys reads main already paid for.
 
 ### Slow commands
 
@@ -377,6 +375,9 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] Default to launching subagents in the background (`run_in_background`) — UNLESS the next step depends on the result, or the user must watch progress live: then run foreground.
   - [Why] Background keeps the loop free, but a result-gated background launch just stalls the turn — or tempts redoing the search inline, dumping what delegation was meant to keep out.
+
+- [Instruction] Give every Agent `description` the form `<title> - <model> <effort>` — no parens, no `<agent-type>` (the UI prepends it, so the full line reads `<agent-type> <title> - <model> <effort>`).
+  - [Why] That dispatch line is all the user sees live, so naming tier and effort lets them audit spawns in real time; repeating the type just doubles it (`general-purpose general-purpose …`).
 
 - [Instruction] **Spawn a fresh-context subagent when writing-session bias would distort the check** -- verification, semantic match, or quality judgment over your own output.
   - [Why] In-session reading carries "I already convinced myself" residue; a subagent sees only the artifact + the question.

@@ -1,4 +1,4 @@
-# Used by SKILL.md step 2b — inline review comments via GraphQL (need isResolved).
+# Used by references/step-3-fetch-cluster-propose.md step 3a — inline review comments via GraphQL (need isResolved).
 query($owner: String!, $repo: String!, $n: Int!) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $n) {

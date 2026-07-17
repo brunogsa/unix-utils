@@ -55,14 +55,14 @@ The PR number alone is enough — both filters are optional.
 
 ## Execution (Hybrid)
 
-Subagents can't post replies, commit, or push — permission UIs live in main. Fetching + clustering is heavy and read-only. Split:
+Subagents can't post replies, commit, or push — permission UIs live in main. Fetching + filtering + clustering is heavy and read-only. Split:
 
-1. **Main context** — steps 1, 2, 4–7 (preconditions, fetch, selection, commit, push, reply).
-2. **Subagent** (`general-purpose`, background — the default) — step 3 (cluster, rank, propose actions and drop reasons). Returns the proposal block.
+1. **Main context** — steps 1, 2, 4–7 (preconditions, resolve repo/login, selection, commit, push, reply).
+2. **Subagent** (`general-purpose`, background — the default) — step 3 (fetch, filter, cluster, rank, propose actions and drop reasons). Returns only the proposal block — raw comment JSON never reaches main.
 
-Spawn the subagent with `model: "sonnet"` and `description: "Cluster and rank PR review comments"`.
+Spawn the subagent with `model: "sonnet"` and `description: "Fetch, cluster, and rank PR review comments"`.
 
-If step 2 yields zero unresolved comments matching the filters, report that and stop.
+If the subagent reports zero unresolved comments matching the filters, stop — don't proceed to step 4.
 
 ## Standards loaded on demand
 
@@ -125,83 +125,39 @@ Run lint then test:
 
 If either is red, abort — fix pre-existing breakage first so cluster commits don't conflate new regressions with old.
 
-## Step 2: Fetch + filter unresolved comments (main)
-
-### 2a. Resolve repo + own login
+## Step 2: Resolve repo + own login (main)
 
 ```bash
 OWNER_REPO=$(gh repo view --json owner,name -q '.owner.login + "/" + .name')
 ME=$(gh api user -q .login)
 ```
 
+`OWNER_REPO` and `ME` go into the step-3 dispatch prompt — main never fetches comments itself.
+
 `ME` powers the `(yours)` label later — not a filter.
 
-### 2b. Inline review comments via GraphQL (need `isResolved`)
+## Step 3: Fetch, filter, cluster, rank, propose (subagent)
 
-Query lives in `references/queries.graphql`. Invoke via:
-
-```bash
-gh api graphql -f query='...' -F owner="$OWNER" -F repo="$REPO" -F n=<n>
-```
-
-Keep only threads where `isResolved == false`. Flatten the comments inside.
-
-### 2c. Top-level conversation comments via REST (no resolved concept)
-
-```bash
-gh api repos/$OWNER_REPO/issues/<n>/comments
-```
-
-These are always "open" by GitHub's model. Include all of them.
-
-### 2d. Review summary bodies via REST
-
-```bash
-gh api repos/$OWNER_REPO/pulls/<n>/reviews
-```
-
-Include each review's `body` (when non-empty) plus its `state` (`APPROVED` / `CHANGES_REQUESTED` / `COMMENTED`) — `state` feeds step 3's relevance sort.
-
-### 2e. Apply user filters
-
-`by <logins>` matches **ownership**, not participation. The unit of ownership differs by source — see the table in the Usage section. Concretely:
-
-- **inline threads** — keep the thread iff `comments[0].author.login ∈ {logins}`. When kept, **include all comments in the thread**.
-  - Replies provide context for addressing the thread, even if the user didn't write them.
-- **top-level comments** — keep where `user.login ∈ {logins}`.
-- **review-summary bodies** — keep where the review's `user.login ∈ {logins}`.
-
-`in <paths>` — keep where `path` starts-with any of the paths (folder match) or equals it (file match).
-- Top-level/review-summary comments have no `path` and are kept only if **no** `in` filter was given.
-
-If the result is empty after filtering, report and stop.
-
-See `references/reply-patterns.md` (jq ownership query) for the inline-thread `by` filter pattern.
-
-## Step 3: Cluster, rank, propose (subagent)
-
-Hand the filtered comment list to the subagent with this prompt skeleton:
+Dispatch a `general-purpose` subagent (model `"sonnet"`, background) with this prompt, filling in `<n>`, `OWNER_REPO`, `ME`, and the parsed filters:
 
 ```
-Input fields per comment: id, author, body, path, line, diffHunk, url,
-source ("inline"|"top-level"|"review-summary"), state (review-summary only),
-is_self (author == ME).
+Read ~/.claude/skills/address-pr-comments/references/step-3-fetch-cluster-propose.md
+and execute it yourself for PR <n> in <OWNER_REPO>, then read SKILL.md's
+"Output: proposal block format" section and emit the result in that
+exact format. Ignore every other step in SKILL.md — those run in the
+caller's own session, not here.
 
-- Semantic-cluster: group comments addressing one logical change. Same-file
-  is a hint, not a rule; cross-file comments can share a cluster.
-- Rank: severity (CHANGES_REQUESTED > general > nit) → cluster size → file
-  recency (most recent first).
-- Default action per cluster:
-  - `answer` if every comment is a question (ends in "?", or starts with
-    why/what/how/when/could/would/should/can/is/are/does, no actionable
-    request).
-  - `apply` otherwise.
-  - Never default to `drop` — that's always an explicit user choice.
-- Per cluster, propose a one-line drop reason — honest and specific (not
-  "out of scope").
+ME="<ME>". Filters: by=<logins or "none">, in=<paths or "none">.
 
-Emit the proposal block exactly per the format below.
+Mark each comment's is_self = (author == ME); label it (yours) per the
+proposal-block format. If nothing survives the filters, report zero
+matches and stop — don't cluster.
+
+Return ONLY the proposal block in your final message — never the raw
+fetched JSON.
 ```
+
+The subsections (fetch, filter, cluster, rank, propose — 3a through 3e) live in `references/step-3-fetch-cluster-propose.md`; only the dispatched subagent reads them.
 
 ## Output: proposal block format
 
