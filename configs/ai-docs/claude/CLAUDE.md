@@ -370,6 +370,12 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 ### Subagents
 
+- [Instruction] **CRITICAL: Default to parallel fan-out** when a task splits into independent chunks (one per file/module/target/ERP/service).
+  - [Why] Wall-clock time is the user's real cost, not token spend; independent chunks carry no ordering dependency, so serial execution just makes the user wait N× longer for free.
+
+- [Instruction] Dispatch one subagent per independent chunk in a single message rather than serially or inline.
+  - [Why] One subagent per chunk ensures independent execution; a single message minimizes dispatch overhead.
+
 - [Instruction] **Leverage Explore/Grep and other subagents to minimize compaction on main session** -- broad searches, fan-out reads, "where is X handled?" hunts, etc;
   - [Why] Main session is kept under a tight 200k tokens context window. Inline exploration dumps every touched file into the main context, triggering more compactions.
 
