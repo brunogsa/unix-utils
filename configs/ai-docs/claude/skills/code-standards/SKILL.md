@@ -450,6 +450,21 @@ if (type === ProductType.KIT || type === ProductType.AVULSO) {
 - [Instruction] Distinguish missing from intentional zero/empty — check null/undefined, not falsiness.
   - [Why] `if (count)` treats `0` and `undefined` identically — falsiness checks paper over the distinction and ship bugs.
 
+- [Instruction] Never narrow a runtime-derived value to a stricter enum with a blind `as` or `as unknown as` cast.
+  - [Why] A blind cast lies to the type system about unchecked data.
+
+- [Instruction] Validate runtime-derived enum membership at the boundary and throw a domain error on mismatch.
+  - [Why] Validation catches out-of-range values loudly at the boundary instead of failing silently downstream as wrongly-typed enums.
+
+- [Example]
+```ts
+function assertSgeSiglaNivel(value: string): asserts value is SgeSiglaNivel {
+  if (!Object.values(SgeSiglaNivel).includes(value as SgeSiglaNivel)) {
+    throw new SgeInvalidSiglaNivelError(value);
+  }
+}
+```
+
 ## Scripts
 
 ### Scripts: human-friendly
