@@ -1,6 +1,6 @@
 ---
 name: open-in-tmux
-description: Run a command in a new tmux pane, or open a git diff in neovim's Diffview. USE for file/diff review ('open in tmux'/'nvim'/'new pane'/'side pane'/'review this'/'show me the diff', after 3 edit rejections) or streaming output ('tail log'/'show live').
+description: Run a command in a new tmux pane, or open a git diff in neovim's Diffview. USE for file/diff review ('open in tmux'/'new pane'/'review this'/'let me review'/'show me the diff', after 3 edit rejections) or streaming output ('tail log'/'show live').
 ---
 
 # open-in-tmux
@@ -55,6 +55,9 @@ For the common "let me review what you did" case — the whole-branch diff, or t
 - No `<ref>` → diffs the working tree vs the repo's base branch (origin/HEAD → main → master), i.e. the whole-branch diff. Matches neovim's `<leader>tD`.
 - With `<ref>` → diffs the working tree vs that commit-ish (a SHA, a `git merge-base` output, a branch, a tag).
   - When the user says "since X", YOU resolve X to that ref and pass it.
+  - "Review this session" / "let me review" with no explicit ref: resolve `<ref>` yourself, don't ask which ref.
+  - Resolve it to the parent of the first commit *you* made this session, not the branch-base default.
+  - The branch-base default is wrong here: in a direct-to-default-branch repo it shows unrelated history too.
 
 It opens a `vertical` pane running `nvim -c 'DiffviewOpen <ref>'` in the repo root, then follows the **File review** post-invocation behavior below (wait for the user; re-read on reply).
 
