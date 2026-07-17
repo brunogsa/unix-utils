@@ -1,6 +1,6 @@
 ---
 name: implement
-description: "Execute one or more plan_<slug>.md tasks end-to-end as fresh-context subagents — run sequentially, fully async — managing decomposition, status, verification and commits. Trigger: /implement <id> or /implement <id1>, <id2>, ..."
+description: "Execute plan_<slug>.md tasks end-to-end as fresh-context subagents, fully async. Trigger: /implement <id(s)> or natural language (\"let's implement that\", \"implement this plan\") when a plan_<slug>.md exists."
 disable-model-invocation: false
 words-budget: 5250
 ---
