@@ -71,6 +71,17 @@ Open with a rationale paragraph, bold the densest file, close with a minimum-via
 
 The reviewer hasn't read your spec, plan, Jira ticket, or commits, nor shares your team's vocabulary. Anything referenced must be self-contained or externally linked. Be concise but didactic.
 
+**Second meta-principle: a small PR earns a small description.**
+
+Optimize every section for the fewest words that still let the reviewer verify the change was designed and tested properly — didactic, never exhaustive. This is a discipline, not a hard cap:
+
+- **CRITICAL: Write the shortest version that still teaches** -- cut any sentence that doesn't help the reviewer decide.
+  - Test: would removing it lose reviewer-relevant information? If no, cut it. A one-file, one-decision PR should read in under a minute.
+- **Never restate what the diff already shows** -- a sentence naming only a file, a line count, or "added X function" is noise the reviewer already sees.
+  - Reserve prose for the *why* the diff can't show: the reasoning, the trade-off, the discarded alternative.
+- **Evidences defaults to one line per claim, not a narrative** -- `**Claim** -- link/output`.
+  - Expand to a paragraph only for a genuinely surprising or high-risk result; skip routine green-checks the CI tab already proves.
+
 ##### Required structure & mandatory content
 
 - **Required PR structure (in this order)** -- canonical sections, all mandatory unless N/A. Translate to the team's language per the rule below.

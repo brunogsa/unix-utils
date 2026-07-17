@@ -3,6 +3,7 @@ name: deep-reviewer
 description: General-purpose deep-review agent — given an artifact plus a specific review question, reads what it needs, reasons at high effort, and returns a structured verdict backed by evidence. Use as a fresh-context, unbiased judge for self-review gates, batch-end review, or test-presence checks.
 model: opus
 effort: high
+maxTurns: 64
 hooks:
   PreToolUse:
     - matcher: "Write|Edit"

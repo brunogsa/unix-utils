@@ -68,20 +68,6 @@ Read its eval harness, understand what it checks (skill quality / frontmatter / 
 
 ---
 
-## 6. [Spike] Templated HTML+JSON artifacts — deferred v2 of html-artifacts
-
-**Goal**: For recurring reader-facing artifact types (code-review/auto-review reports first), author the layout once as a static HTML template that inlines its own CSS/JS.
-The AI then emits only **JSON data** (embedded as `<script type="application/json" id="data">`, rendered client-side).
-Cuts AI token cost from "regenerate the whole document" to "fill a data file" and gives house-style consistency for free.
-
-**Why deferred (don't re-derive)**: its doc-standards verification is unsolved.
-Density caps assume prose lives in the markup; here prose lives in JSON data, so `check-density.sh` has nothing to measure.
-Until settled, the `html-artifacts` skill routes recurring types to **bespoke** HTML and flags that a template would pay off later (skill: Gate 4 and "Templated — DEFERRED to v2" both point here).
-
-**OPEN QUESTION**: does the template+JSON merge belong in the `html-artifacts` skill or in the oh-my-zsh `md-to-html` script? Pick one home — avoid two overlapping mechanics.
-
-**Deliverable**: a working template+JSON path for one recurring artifact type (code-review report), its density-verification story solved, and the `html-artifacts` skill updated to route recurring types to it instead of bespoke.
-
 ---
 
 ## 5. [Feature] Safe bypass-permissions profile (`claude-safe`)
