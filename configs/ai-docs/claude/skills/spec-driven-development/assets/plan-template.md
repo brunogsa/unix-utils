@@ -32,6 +32,8 @@ What did you consider reusing or extending? Why did you discard it?
 Something simple in bullets and sub-bullets, easy for user to scan.
 The main goal is to create user awareness and enforce AI to exercise this.
 
+N/A escape: when there's nothing to reuse or extend, write bare `N/A` — no reason clause needed.
+
 ---
 ## Side-effect report
 
@@ -41,6 +43,8 @@ Does rollout need ordering — DB migration (expand-contract), feature flag, or 
 
 Something simple in bullets and sub-bullets, easy for user to scan.
 The main goal is to create user awareness and enforce AI to exercise this.
+
+N/A escape: when nothing here applies, write bare `N/A` — no reason clause needed.
 
 ---
 ## Failure Handling & Consistency
@@ -54,7 +58,7 @@ Cover only the bullets that apply, one line each, easy for the user to challenge
 - **Transactions**: boundary of each multi-write state change; what a crash between writes leaves behind (single transaction, outbox, saga).
 - **Ordering**: assumptions about event/message order, and the behavior when delivery is duplicated or reordered.
 
-N/A escape: no downstream calls, async flows, or multi-write state changes → "N/A — <reason>".
+N/A escape: no downstream calls, async flows, or multi-write state changes → bare `N/A`, no reason clause needed.
 
 ---
 ## Test Design

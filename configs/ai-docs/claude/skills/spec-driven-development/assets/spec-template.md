@@ -21,6 +21,9 @@ What we want to achieve (outcomes, not implementation).
 
 ---
 ## User Stories
+
+N/A escape: when no distinct user role applies, write bare `N/A` — no reason clause needed.
+
 - As a [role], I want [capability] so that [benefit].
 
 ---
