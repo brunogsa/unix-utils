@@ -18,7 +18,9 @@ jq --arg sid "<new_session_id>" \
   > /tmp/state.json && mv /tmp/state.json ~/.claude/implement-runs/<new_session_id>.json
 ```
 
-`tasks[]`, `attempts[]`, `gate_dispatches`, `tails`, `worktree`, and `pr` all carry over verbatim.
+`tasks[]`, `attempts[]`, `gate_dispatches`, `tails`, `worktree`, `pr`, and `orchestration_review` all carry over verbatim.
+
+A pre-change state file predates `tails.wanted` and has no such key — treat its absence as `true`, matching the tails-mandatory behavior that file was created under.
 
 `phase` carries over too, except `halted`, which resets to `tasks`: the verdict script fails loud on any phase other than `tasks`, so a resumed halted batch would crash its first verdict call.
 

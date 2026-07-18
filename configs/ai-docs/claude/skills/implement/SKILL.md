@@ -78,9 +78,11 @@ Mid-run `.env` needs are self-served (copy from the original checkout) rather th
 - **Plan pick**, only when §1.1 found multiple candidates.
 - **Run in a git worktree?** (yes/no) — on yes, §1.3 creates it from HEAD and copies files in.
 - **Open a draft PR at batch end?** (yes/no).
+- **Run pre-dispatch orchestration review?** (yes/no, default no) — no skips §2, dispatching the first task after pre-flight.
+- **Run refactor + auto-review batch-end tails?** (yes/no, default yes) — no skips §9.2–§9.4; §9.1's gate always runs.
 - **Base-branch confirmation** — show `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'` as the default; let the user confirm or override.
 
-Record all answers (three, or four with plan-pick) before proceeding — §1.5 persists them to the state file.
+Record all answers (five, or six with plan-pick) before proceeding — §1.5 persists them to the state file.
 
 ### 1.3. Worktree setup (only when §1.2 answered yes)
 
@@ -118,13 +120,14 @@ grep -l "\"slug\": \"<slug>\"" ~/.claude/implement-runs/*.json 2>/dev/null
   "tasks": [{ "id": "1", "status": "pending" }],
   "attempts": [],
   "gate_dispatches": 0,
-  "tails": { "refactor_report": "", "auto_review_report": "", "tokens": { "gate": 0, "refactor": 0, "auto_review": 0 } },
+  "tails": { "wanted": true, "refactor_report": "", "auto_review_report": "", "tokens": { "gate": 0, "refactor": 0, "auto_review": 0 } },
   "worktree": { "created": false, "path": "", "branch": "" },
-  "pr": { "wanted": false }
+  "pr": { "wanted": false },
+  "orchestration_review": { "wanted": false }
 }
 ```
 
-- One `tasks[]` entry per matched task-id (`status: "pending"`); `worktree` / `pr` filled from §1.2's answers.
+- One `tasks[]` entry per matched task-id (`status: "pending"`); `worktree`/`pr`/`tails.wanted`/`orchestration_review.wanted` filled from §1.2's answers.
   - §5.3/§5.5 append `attempts[]` entries as `{ "task", "n", "result", "signature", "tokens", "at" }`.
 - **Found** → load [`references/preflight-state.md`](references/preflight-state.md) for the JSON-adoption mechanics that restore attempt counts and completed-task status.
 
@@ -141,6 +144,8 @@ The reconciliation mechanics live in [`references/resume-reconcile.md`](referenc
 Load it only on a resume or dirty run.
 
 ## 2. Orchestration review — fresh-context subagent, once before any dispatch
+
+Runs only when §1.2's toggle is yes; on no, skip to §2.1, dispatch the first task.
 
 Spawn a review subagent **once per invocation**, after pre-flight and before dispatching — adversarial review of the whole batch (not per-task).
 Fresh context: the plan was authored in-session, already convinced — reviewer sees only artifacts + question.
@@ -442,9 +447,10 @@ After the last task is terminal (`[Done]`, blocked, or the batch halted on budge
 
 That async review **is** the handshake this skill replaces the per-task gate with.
 
-The stages are ordered §9.1 → (§9.2 ∥ §9.3) → §9.4 → §9.5.
-The two tails run **in parallel**: dispatch both in the same turn (both `run_in_background`), then wait for both to return before §9.4.
-Both tails are **mandatory**; the PR (§9.5) must not open until both reports are recorded in the state file.
+The stages are ordered §9.1 → (§9.2 ∥ §9.3) → §9.4 → §9.5. §9.1 always runs, regardless of the tails toggle (§1.2).
+Toggle yes (default): the two tails run **in parallel** — dispatch both in the same turn (both `run_in_background`), wait for both, then §9.4.
+Both are **mandatory**; the PR (§9.5) must not open until both reports are recorded.
+Toggle no: skip §9.2–§9.4, go straight to §9.5, and state there that tails were skipped by request — no retroactive re-run; invoke `/refactor` or `/auto-review` manually later.
 This is a checklist, not a summary line: do each stage, don't collapse them.
 
 ### 9.1. Repo-green GATE — full suite, non-negotiable
@@ -482,9 +488,10 @@ Focus: bugs, missed edge cases, contract mismatches between what the batch produ
 - **Report-only** — same rule as §9.2; it **writes** its ranked findings (`file:line` + a concrete failure scenario each) to its own assigned `report_auto-review_<ts>.md` in CWD.
 - Record the report **path** it wrote into `.tails.auto_review_report` and its token count into `.tails.tokens.auto_review`.
 
-**Both §9.2 and §9.3 report files must exist on disk before proceeding.**
+**Both §9.2 and §9.3 report files must exist on disk before proceeding (when tails were requested).**
 If either tail's state field is still `""`, or the file it names is absent, that tail hasn't run — go back and run it.
 Do not reach §9.5 with a missing tail report.
+A tail agent that errors is noted in §9.5's package; already-made commits and replies stand untouched.
 
 ### 9.4. Triage
 
