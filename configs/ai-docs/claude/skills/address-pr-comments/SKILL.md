@@ -300,7 +300,7 @@ Signature literal: `_via Claude Code (`address-pr-comments`)_`. Plain text only 
 
 Skip this subsection entirely when the toggle is off — go straight to step 8.
 
-Mirror `implement`'s existing refactor-tail and auto-review-tail steps: spawn two `deep-reviewer` subagents in the background (fresh context, Opus + max effort) over `<BATCH_BASE_SHA>..HEAD`.
+Mirror `implement`'s existing refactor-tail and auto-review-tail steps: spawn two `deep-reviewer` subagents in the background (fresh context, Opus + high effort) over `<BATCH_BASE_SHA>..HEAD`.
 
 One reviews with a simplification lens (duplication, dead code, over-abstraction); the other with a correctness lens (bugs, missed edge cases, test gaps).
 
