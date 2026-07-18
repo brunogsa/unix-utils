@@ -26,10 +26,13 @@ The dispatch mechanics live here so both callers stay identical; each caller kee
 
 **Thinking depth.** For maximum depth on the wave pipeline, the user may run `/effort max` before invoking the caller.
 
-**Fresh-session check — ask before dispatching.** Confirm with the user whether this is a fresh session that did NOT write the code under review.
+**Fresh-session check — ask before dispatching, `Mode: local` only.** Confirm with the user whether this is a fresh session that did NOT write the code under review.
 
 - Fresh session → run in the calling session (default below). No prior conversation biases the review, and specialists stream live.
 - Same session that wrote the diff → dispatch isolated, as if `--isolate`. That session holds opinions the review must not inherit — CLAUDE.md's fresh-context-subagent rule.
+
+**`Mode: github` skips this question** — always dispatch in the calling session, as if the answer were "yes", unless `--isolate` was explicitly passed.
+`/pr-review` invocations are a fresh session by convention (a PR review happens after the code already landed), so asking every time added friction with no real signal.
 
 **Default — calling session (no `--isolate`):** Read this SKILL.md and walk every wave (0 → 6) yourself, treating the resolved inputs as the "Parse the input header" step below.
 
