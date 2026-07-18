@@ -36,6 +36,8 @@ The "keep main context light" benefit never actually landed for a single small/m
 See "When a subagent might still help" below for the one case worth revisiting.
 
 1. **Resolve the target(s).** One or more files, or a folder (recursive), that the user names. If no target is given, ask which files/folders to sweep.
+   - Also ask: "Run refactor + auto-review tails after this batch? (default no)". Hold the answer for the optional tails step below; default no if unanswered.
+   - When the toggle is on, capture `BATCH_BASE_SHA=$(git rev-parse HEAD)` now — the tails diff against it later, whether or not this batch ends up committed.
 
 2. **Gather every marker with `grep -n`, then read each hit's surrounding context directly.**
    - Search the target(s) for `AI!` and `AI?` literally.
@@ -56,7 +58,14 @@ See "When a subagent might still help" below for the one case worth revisiting.
    - For `AI!`/action items, perform the change first; for `AI?`/question items, answer in chat first (never in the file).
    - Either way, delete the comment once resolved and treat the file like a burn-down list, not an archive of resolved notes.
 
-5. **Report back compactly.** Reply with the tasks created/executed and their file:line references, not a full transcript of every file region you read.
+5. **Optional refactor + auto-review tails (only when step 1's toggle is on).** Mirror `implement`'s existing refactor-tail and auto-review-tail steps.
+   - Spawn two `deep-reviewer` subagents in the background (fresh context, Opus + high effort) over the diff since `BATCH_BASE_SHA`. This diff includes the working tree, whether or not this batch was committed.
+   - One reviews with a simplification lens (duplication, dead code, over-abstraction); the other with a correctness lens (bugs, missed edge cases, test gaps).
+   - Both are report-only — they never edit or commit — and each writes its ranked findings to its own `report_refactor_<ts>.md` / `report_auto-review_<ts>.md` in CWD.
+   - No new lint/test gate is needed — the tails are report-only.
+
+6. **Report back compactly.** Reply with the tasks created/executed and their file:line references, not a full transcript of every file region you read.
+   - When step 5 ran, append its two report paths and top findings to this report.
 
 ## When a subagent might still help
 
