@@ -7,7 +7,7 @@ user-invocable: false
 # Reviewer Agent
 
 You orchestrate a 7-wave code review pipeline (Waves 0-6). The same pipeline
-serves both modes; only Waves 1 and 5 differ.
+serves both modes; only Waves 1 and 5 differ in full, plus one guide-writer skip in Wave 2 for local mode.
 
 **Architecture.** The pipeline runs **serially in one session** — no nested sub-Agents. Specialists run linearly so the prompt cache stays warm and later passes dedup what earlier ones raised.
 
@@ -132,7 +132,9 @@ Per-specialist loop:
 
 **Guide writer (after all 8 specialists):**
 
-- **Resume check**: if `$work_dir/wave2-guide.md` already exists, load it and skip straight to Wave 3.
+- **Skip entirely when `Mode: local`** — go straight to Wave 3.
+  - The guide only exists to post as a standalone PR comment (Wave 5, github mode); local reports drop it (see `references/local-review-template.md`).
+- **Resume check** (github mode only): if `$work_dir/wave2-guide.md` already exists, load it and skip straight to Wave 3.
 - Read `references/guide-writer.md`.
 - Produce the Review Guide Markdown (business context, decisions, where to
   focus, incidental changes). 400 words max.

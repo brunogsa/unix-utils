@@ -4,16 +4,17 @@ Used by Wave 5 (local mode) to write `${out_file}` (timestamped, e.g. `./report_
 
 Placeholders resolved by the orchestrator:
 - `<branch>`, `<base-branch>`: current and base branch names
-- `<Review Guide from Wave 2's guide writer>`: the guide-writer's full markdown body, verbatim
 - Findings are numbered sequentially, ordered by severity
 - Action items are grouped by file, then severity
+
+Local mode carries no Review Guide block — Wave 2's guide-writer step doesn't run for `Mode: local` (see `SKILL.md`'s Wave 2).
+
+The guide only exists to post as a standalone PR comment in github mode.
 
 ---
 
 ```markdown
 # Auto Review: <branch> vs <base-branch>
-
-<Review Guide from Wave 2's guide writer goes here verbatim>
 
 ## Findings
 
