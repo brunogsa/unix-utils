@@ -36,7 +36,7 @@ Run them **sequentially**, in that order (refactor first so its findings can inf
 
 Spawn each tail via the **Agent tool**, `subagent_type=deep-reviewer`, in the background (the default) — wait for its completion notification before spawning the next, preserving the sequential order above.
 
-`deep-reviewer` pins Opus + max effort by its own definition, so the dispatch site sets no `model` override.
+`deep-reviewer` pins its own model and effort by definition, so the dispatch site sets no `model` override.
 
 The prompt body is the entire instruction set the subagent receives.
 

@@ -58,7 +58,7 @@ Deduplicate and merge the lists. If no files are found, inform the user and stop
 - The `report_` prefix is mandatory, not cosmetic: the deep-reviewer agent's guard hook blocks every Write/Edit whose basename isn't `report_*.md`, so a differently-named path is rejected and never lands.
 - Use that exact filename in every reference below. One file per `/refactor` invocation; never reuse a prior run's path.
 
-**Dispatch.** Use the **Agent tool** with `subagent_type=deep-reviewer` (opus, max effort, report-only by construction). In the prompt:
+**Dispatch.** Use the **Agent tool** with `subagent_type=deep-reviewer` (its pinned model/effort, report-only by construction). In the prompt:
 
 - Run in the **background** (the default) -- the UI still surfaces progress, and the harness delivers the findings report on completion.
 - List the target files identified in step 1.

@@ -411,7 +411,7 @@ It runs as a fresh-context `deep-reviewer` dispatch: semantic title-matching acr
 **Entry.** Run this when `phase` is `gates` — the state §5.4's queue-empty scan and §5.5's `gates` verdict both set.
 A `halt-budget` verdict never reaches here: it routes straight to §9 from §5.3/§5.5, upstream of this gate, so the gate has no budget branch of its own.
 
-**Dispatch.** Spawn ONE `deep-reviewer` subagent via the Agent tool — fresh context, Opus + max effort, which is that agent type's built-in tier.
+**Dispatch.** Spawn ONE `deep-reviewer` subagent via the Agent tool — fresh context, using that agent type's pinned model and effort (no override needed).
 Pass it the resolved `plan_<slug>.md` path, the diff range `<BATCH_BASE_SHA>..HEAD`, and the batch's task IDs.
 Read those IDs from the state file's `tasks[]` — the plan file holds every task, including ones this batch never ran.
 
@@ -472,7 +472,7 @@ Record the full-suite result (pass/fail + counts) into the package so the human 
 
 ### 9.2. Refactor tail (mandatory — `/refactor` lens, report-only)
 
-Spawn ONE `deep-reviewer` subagent (fresh context, Opus + max effort) over `<BATCH_BASE_SHA>..HEAD` with a **simplification lens**.
+Spawn ONE `deep-reviewer` subagent (fresh context, its pinned model/effort) over `<BATCH_BASE_SHA>..HEAD` with a **simplification lens**.
 Focus: duplication, dead code, over-abstraction, unclear naming, missed extractions, needless indirection, idioms inconsistent with surrounding code.
 
 - **Report-only** — it never edits or commits the reviewed code.
@@ -482,7 +482,7 @@ Focus: duplication, dead code, over-abstraction, unclear naming, missed extracti
 
 ### 9.3. Auto-review tail (mandatory — `/auto-review` lens, report-only)
 
-Spawn ONE `deep-reviewer` subagent (fresh context, Opus + max effort) over the same range with a **correctness lens**.
+Spawn ONE `deep-reviewer` subagent (fresh context, its pinned model/effort) over the same range with a **correctness lens**.
 Focus: bugs, missed edge cases, contract mismatches between what the batch produces and what its callers expect, test gaps.
 
 - **Report-only** — same rule as §9.2; it **writes** its ranked findings (`file:line` + a concrete failure scenario each) to its own assigned `report_auto-review_<ts>.md` in CWD.

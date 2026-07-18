@@ -117,7 +117,7 @@ The code-review-pipeline expects these inputs:
 
 With the inputs above resolved, always dispatch isolated: spawn the
 `deep-reviewer` agent (`subagent_type: deep-reviewer`) — its definition pins
-`model: opus`, so no explicit `model` parameter is needed in the dispatch.
+model and effort, so no explicit `model` parameter is needed in the dispatch.
 Put the resolved inputs in its prompt body, and tell it to read
 `~/.claude/skills/code-review-pipeline/SKILL.md` and orchestrate from there
 — per that file's "Isolated" dispatch mode under "How callers dispatch",
