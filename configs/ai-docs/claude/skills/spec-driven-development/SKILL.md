@@ -66,8 +66,8 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 0. User creates spec_<slug>.md with initial prompt/notes (or `/brainstorm` refines it).
 1. Plan mode or direct request generates plan_<slug>.md from spec_<slug>.md (or from prompt).
-2. AI Self-review — `deep-reviewer` subagents run structural gates; scope pass catches over-engineering and spec-vs-request drift. A failing mermaid `mmdc` check routes to `mermaid-fixer`, never fixed inline.
-3. User reviews and approves — when the user signals, execution starts.
+2. AI Self-review — qualitative pass, then five formal checks (three always-on, two toggled by one live question asked once). A failing mermaid `mmdc` check routes to `mermaid-fixer`, never fixed inline.
+3. User reviews and approves — when the user signals, ask "Start `/implement` now?" (default no); on yes, hand off to the `implement` skill directly instead of waiting for a separate invocation.
 4. Each plan_<slug>.md task becomes a TaskCreate item.
 5. Both files updated as work progresses (living docs); decisions are append-only past the divider that exists on both spec_<slug>.md and plan_<slug>.md.
 6. User generally runs `/refactor` then `/auto-review` when the entire feature is developed; fixes are addressed, if any.
@@ -93,41 +93,54 @@ First, a qualitative pass — spawn one sub-agent that reads both docs with fres
 - **Density**: spawn the `density-fixer` subagent on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check or rewrite density violations inline.
   - The subagent runs `check-density.sh` and applies the `density-rules.md` rewrite patterns until exit 0, without dropping information.
 
-Then six formal checks run in sequence — they turn the report's Completeness and Artifacts claims above into fail-closed gates (three `deep-reviewer` gates + two inline + one advisory scope lens):
+Immediately before plan generation, ask one live question with two independent yes/no toggles — answered fresh each time, never written to `plan_<slug>.md` or any state file:
 
-- **Gates 1-3** (fail-closed): AC↔test coverage, test↔task assignment, machinery↔spec traceability.
-  Deterministic parts run as scripts (tools-first — a set-equality or existence check is exact, not a judgment).
-  Semantic parts run as fresh-context `deep-reviewer` dispatches (Opus, max effort), so they see only artifacts, no session bias.
-- **Inline checks** (fail-closed): checklist completeness, inversion sweep — do the corner case and failure checklists have per-item disposition (covered / N/A)?
-- **Scope lens** (advisory): does the spec match the user's request, or is plan_<slug>.md over-engineered relative to the ACs?
+- **"Every line traces to an AC?"** — formerly Gate 3 (machinery↔AC traceability).
+- **"Right-sized plan?"** — formerly the scope lens.
 
-- **Gate 1 — AC ↔ Test Design coverage**: every `### AC-N:` in spec is proven by ≥1 test in the plan's AC-grouped coverage list.
+Five formal checks then run in sequence, renamed to describe what each catches rather than its mechanism (three always-on + the two toggles above):
+
+| Check | Catches | Toggle? |
+|---|---|---|
+| Every AC has a test | AC↔Test Design coverage | Always on |
+| Every test has a task | Test Design↔per-task assignment | Always on |
+| How would this break? | checklist completeness + inversion sweep, merged | Always on |
+| Every line traces to an AC | machinery↔AC traceability | Toggle |
+| Right-sized plan | scope vs. request, simplest design | Toggle |
+
+The three always-on checks, plus the Test Design authoring requirement itself, never become optional — they verify the plan is mechanically correct regardless of change size.
+
+A toggled-off check is simply omitted from that pass; self-review's output states explicitly which checks were skipped by request, so the reviewer never wonders why something is absent.
+
+- **Every AC has a test**: every `### AC-N:` in spec is proven by ≥1 test in the plan's AC-grouped coverage list.
   - Mechanical half — `scripts/check-ac-coverage.sh <plan> <spec>`: completeness (every AC in the spec's Acceptance-Criteria section has a coverage header).
     Honesty: every cited breadcrumb exists verbatim among Test Design breadcrumbs; a `…`-truncated or invented citation won't match.
     Exit 1 blocks.
   - Semantic half — a `deep-reviewer` dispatch judges whether each cited test actually *proves* its AC — the match no script can make.
   - Output: orphan ACs + bogus citations (empty = pass). Block plan approval if non-empty.
 
-- **Gate 2 — Test Design ↔ per-task assignment**: `scripts/check-test-distribution.sh <plan>` asserts set-equality between the Test Design breadcrumbs (A) and the union of tasks' `**Tests (planned)**:` lists (B).
+- **Every test has a task**: `scripts/check-test-distribution.sh <plan>` asserts set-equality between the Test Design breadcrumbs (A) and the union of tasks' `**Tests (planned)**:` lists (B).
   Deterministic, so a script, not a subagent.
   Output: `A \ B` (a designed test in no task) + `B \ A` (a task inventing a test); empty = pass.
   Block if non-empty.
 
-- **Both gates share `scripts/extract-design-tests.sh`** to reconstruct the Test Design breadcrumb (`<describe> [> class] > it`), so the format lives in one place.
+- **Both checks share `scripts/extract-design-tests.sh`** to reconstruct the Test Design breadcrumb (`<describe> [> class] > it`), so the format lives in one place.
 
   Each scans only its relevant sections — never the whole file.
-  Authors write the two lists with bare `it()` titles, then run `scripts/normalize-list-breadcrumbs.sh <plan>` (idempotent) to upgrade them to breadcrumbs before the gates run — never hand-typed.
+  Authors write the two lists with bare `it()` titles, then run `scripts/normalize-list-breadcrumbs.sh <plan>` (idempotent) to upgrade them to breadcrumbs before the checks run — never hand-typed.
 
-- **Gate 3 — Machinery ↔ AC traceability**: every piece of machinery (abstraction, dependency, knob, extra layer) must trace to a spec AC or requirement.
-  Output: untraceable items (empty = pass). Block if non-empty — cut or earn an AC.
+- **How would this break?**: every corner case / failure mode item must be marked `covered (<recap>)`, `N/A — <reason>`, or opt-out: `**DECISION:** Skip because <reason>`. Empty placeholders fail self-review.
+  - Then, for every AC, ask "how would this break in production?" If no failure mode surfaces, flag as under-specified.
+  - Fail-closed; runs unconditionally, regardless of either toggle.
 
-- **Checklist completeness**: every corner case / failure mode item must be marked `covered (<recap>)`, `N/A — <reason>`, or opt-out: `**DECISION:** Skip because <reason>`. Empty placeholders fail self-review.
+- **Every line traces to an AC** (toggle): every piece of machinery (abstraction, dependency, knob, extra layer) must trace to a spec AC or requirement.
+  - Output: untraceable items (empty = pass). Block if non-empty — cut or earn an AC.
+  - Runs only when its toggle is "yes"; otherwise skipped for this pass.
 
-- **Inversion sweep**: for every AC, ask "how would this break in production?" If no failure mode surfaces, flag as under-specified.
-
-- **Scope lens** (advisory): pass user's request + spec + plan to a subagent.
-  Ask: does spec match request (no gold-plate), and is plan the simplest design meeting every AC?
-  Advisory, not fail-closed — surface findings and let the user decide.
+- **Right-sized plan** (toggle, advisory): pass user's request + spec + plan to a subagent.
+  - Ask: does spec match request (no gold-plate), and is plan the simplest design meeting every AC?
+  - Advisory even when its toggle is "yes" — surface findings and let the user decide, never blocks.
+  - Runs only when its toggle is "yes"; otherwise skipped for this pass.
 
 Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces only in implementation.
 
