@@ -125,6 +125,12 @@ Run lint then test:
 
 If either is red, abort — fix pre-existing breakage first so cluster commits don't conflate new regressions with old.
 
+### 1d. Tails toggle
+
+Ask the user: "Run refactor + auto-review tails after this batch? (default no)"
+
+This isn't a pass/fail precondition — hold the answer in session context for step 7d. Default no if the user doesn't answer explicitly.
+
 ## Step 2: Resolve repo + own login (main)
 
 ```bash
@@ -197,6 +203,8 @@ Parse the returned block. For each surviving cluster, record:
 If parse fails (mangled markers, missing `Answer:` for answer clusters), surface the exact issue and ask the user to re-send. Don't guess.
 
 ## Step 5: Per-cluster commits (main, applied clusters only)
+
+If step 1d's toggle is on, capture `BATCH_BASE_SHA=$(git rev-parse HEAD)` before the first commit below — step 7d's tails review this range.
 
 For each `apply` cluster, **in the order the user left them**:
 
@@ -288,6 +296,18 @@ For top-level / review-summary replies, prefix with `@<original_author> re: <lin
 
 Signature literal: `_via Claude Code (`address-pr-comments`)_`. Plain text only — the global no-emoji rule applies to posted replies too.
 
+### 7d. Optional refactor + auto-review tails (main, when step 1d's toggle is on)
+
+Skip this subsection entirely when the toggle is off — go straight to step 8.
+
+Mirror `implement`'s existing refactor-tail and auto-review-tail steps: spawn two `deep-reviewer` subagents in the background (fresh context, Opus + max effort) over `<BATCH_BASE_SHA>..HEAD`.
+
+One reviews with a simplification lens (duplication, dead code, over-abstraction); the other with a correctness lens (bugs, missed edge cases, test gaps).
+
+Both are report-only — they never edit or commit — and each writes its ranked findings to its own `report_refactor_<ts>.md` / `report_auto-review_<ts>.md` in CWD.
+
+No new lint/test gate is needed — step 1c's green-baseline check already covers this batch.
+
 ## Step 8: Final report (main)
 
 Print a compact summary:
@@ -300,5 +320,7 @@ PR <n> address summary
 - Skipped (deleted from proposal): <count> clusters
 - Open threads remaining for you to resolve: <link to PR's "Files changed">
 ```
+
+When step 7d ran, append its two report paths and top findings to this summary so the user sees them in the same pass.
 
 The user resolves the threads themselves after eyeballing the replies — that's deliberate, not an oversight.
