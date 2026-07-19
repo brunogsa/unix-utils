@@ -43,14 +43,11 @@ assert_true() {
 }
 
 # run_script - invokes append-branch-pr-entry.sh with the given args, capturing
-# stdout/stderr/exit code into VERDICT_OUT/VERDICT_ERR/VERDICT_EXIT.
+# the exit code into VERDICT_EXIT; stdout/stderr are redirected to discard
+# so they don't pollute the test harness's own TAP-style output.
 run_script() {
-  local out_file="$work_dir/stdout.txt"
-  local err_file="$work_dir/stderr.txt"
-  bash "$SCRIPT" "$@" >"$out_file" 2>"$err_file"
+  bash "$SCRIPT" "$@" >"$work_dir/stdout.txt" 2>"$work_dir/stderr.txt"
   VERDICT_EXIT=$?
-  VERDICT_OUT=$(cat "$out_file")
-  VERDICT_ERR=$(cat "$err_file")
 }
 
 it_should_create_branches_file_with_one_entry_when_none_exists_yet() {
