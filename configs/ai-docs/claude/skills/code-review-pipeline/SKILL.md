@@ -6,8 +6,8 @@ user-invocable: false
 
 # Reviewer Agent
 
-You orchestrate a 7-wave code review pipeline (Waves 0-6). The same pipeline
-serves both modes; only Waves 1 and 5 differ in full, plus one guide-writer skip in Wave 2 for local mode.
+You orchestrate a 7-wave code review pipeline (Waves 0-6) shared by both
+modes — only Waves 1 and 5 differ in full, plus one guide-writer skip in Wave 2 for local mode.
 
 **Architecture.** The pipeline runs **serially in one session** — no nested sub-Agents. Specialists run linearly so the prompt cache stays warm and later passes dedup what earlier ones raised.
 
@@ -22,29 +22,25 @@ Specialist prompts and validator rubric live in `references/`; bash glue in `scr
 
 `/auto-review` (local) and `/pr-review` (github) each resolve their own input header, then hand execution to this pipeline.
 
-The dispatch mechanics live here so both callers stay identical; each caller keeps only its own inputs.
+The dispatch mechanics live here so both callers stay identical, each keeping only its own inputs.
 
-**Thinking depth.** For maximum depth on the wave pipeline, the user may run `/effort max` before invoking the caller.
+**Thinking depth.** The user may run `/effort max` before invoking the caller for maximum depth.
 
-**Fresh-session check — ask before dispatching, `Mode: local` only.** Confirm with the user whether this is a fresh session that did NOT write the code under review.
+**Fresh-session check — ask before dispatching, `Mode: local` only.** Confirm whether this session did NOT write the code under review.
 
-- Fresh session → run in the calling session (default below). No prior conversation biases the review, and specialists stream live.
-- Same session that wrote the diff → dispatch isolated, as if `--isolate`. That session holds opinions the review must not inherit — CLAUDE.md's fresh-context-subagent rule.
+- Fresh session → run inline in the calling session (default below); no prior conversation biases the review.
+- Same session that wrote the diff → dispatch isolated, as if `--isolate` — CLAUDE.md's fresh-context-subagent rule: that session holds opinions the review must not inherit.
 
-**`Mode: github` skips this question** — always dispatch in the calling session, as if the answer were "yes", unless `--isolate` was explicitly passed.
-`/pr-review` invocations are a fresh session by convention (a PR review happens after the code already landed), so asking every time added friction with no real signal.
+**`Mode: github` skips this question** — always dispatch inline, as if the answer were "yes", unless `--isolate` was explicitly passed.
+`/pr-review` invocations are a fresh session by convention (review happens after the code already landed), so asking every time added friction with no real signal.
 
 **Default — calling session (no `--isolate`):** Read this SKILL.md and walk every wave (0 → 6) yourself, treating the resolved inputs as the "Parse the input header" step below.
 
-Do not spawn Agents for the review itself — every specialist pass runs inline in this conversation, keeping the prompt cache warm and the review live-visible.
-
-The one exception is Wave 5's density fix: it delegates the mechanical line-splitting to the `density-fixer` agent (see `wave5-emit.md`). Post-review cleanup, so it doesn't touch cache warmth or dedup.
+Don't spawn Agents for the review itself (rationale at top) — the one exception is Wave 5's density fix, delegated to the `density-fixer` agent (see `wave5-emit.md`) as post-review cleanup.
 
 **Isolated — `--isolate`, or a non-fresh session:** Spawn one Agent with `model: "sonnet"`, put the resolved inputs in its prompt body, and tell it to read this SKILL.md and orchestrate from there.
 
-The sonnet pin trades review depth for cost: the isolated wrapper runs every specialist pass itself, so the whole review runs on sonnet — accepted as the isolation path's price ceiling.
-
-The subagent runs the whole pipeline itself — no further Agents. The user sees only the final summary; the trade-off buys bias isolation from the calling session's history.
+It runs the whole pipeline itself — no further Agents — the user sees only the final summary. The sonnet pin trades depth for cost, accepted as the isolation path's price ceiling.
 
 ## Before you start
 
@@ -64,7 +60,7 @@ The subagent runs the whole pipeline itself — no further Agents. The user sees
 4. `~/.claude/skills/doc-standards/SKILL.md` (Wave 2; Wave 5 density check, local)
 5. `CLAUDE.md` files at repo root / parents of changed files (Wave 2)
 
-**Architectural principle: specialists never hit GitHub or any external system.** They process only the pre-built context from Wave 1. Keeps the review reproducible and idempotent.
+Specialists never hit GitHub or any external system; they process only Wave 1's pre-built context, keeping the review reproducible and idempotent.
 
 ---
 
