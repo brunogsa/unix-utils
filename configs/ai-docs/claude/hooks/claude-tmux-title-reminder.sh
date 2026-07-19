@@ -28,6 +28,19 @@ if [ -z "${TMUX:-}" ]; then
   exit 0
 fi
 
+# Headless/programmatic invocations (claude -p, SDK calls, eval harnesses like
+# skill-creator's run_loop.py) inherit TMUX from the launching shell even
+# though there's no real window to title. Worse, injecting the directive
+# there forces an unwanted Bash tool call as the model's first action, which
+# corrupts anything that inspects the first tool call (e.g. skill-trigger
+# evals). CLAUDE_CODE_ENTRYPOINT is "cli" only for a genuine top-level
+# interactive terminal launch; anything else (sdk-cli, remote, ...) is not.
+# Unset means an older Claude Code version that predates this var -- fall
+# back to firing rather than silently break existing tmux titling for them.
+if [ -n "${CLAUDE_CODE_ENTRYPOINT:-}" ] && [ "${CLAUDE_CODE_ENTRYPOINT}" != "cli" ]; then
+  exit 0
+fi
+
 read -r -d '' DIRECTIVE <<'EOF' || true
 You are running inside tmux. Keep the tmux window titled with the SHORTEST name that still conveys the current work. Rules: hyphen-separated (no spaces), no prefixes, at most 16 characters (the script truncates longer ones), and shorter is always better -- prefer "auth-fix" over "fix-the-auth-bug". Set or refresh it by running:
   ~/.claude/scripts/tmux-window-title.sh "<title>"
