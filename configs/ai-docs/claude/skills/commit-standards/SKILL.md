@@ -73,5 +73,5 @@ git commit -m "$(cat <<'EOF'
 - [Instruction] Don't stage with `git add -A` or `git add .`; specify paths explicitly.
   - [Why] A blanket add risks sweeping in secrets or unrelated files that then ship in the commit.
 
-- [Instruction] **CRITICAL: Never pass `--no-verify` or `--no-gpg-sign` unless the user explicitly asks for it.**
+- [Instruction] **Never pass `--no-verify` or `--no-gpg-sign` unless the user explicitly asks for it.**
   - [Why] Hooks catch lint and security issues at commit time, so bypassing them just ships those issues.
