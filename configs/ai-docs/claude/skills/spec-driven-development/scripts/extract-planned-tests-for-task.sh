@@ -30,6 +30,8 @@ if [ ! -f "$plan" ]; then
   exit 2
 fi
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 case "$task_n" in
   ''|*[!0-9]*)
     echo "error: task-N must be a positive integer, got: $task_n" >&2
@@ -38,18 +40,7 @@ case "$task_n" in
 esac
 
 # Slice the task section: from `### <N>.` heading to the next `### ` heading or EOF.
-section=$(awk -v n="$task_n" '
-  /^### / {
-    if (in_section) exit
-    stripped = $0
-    sub(/^### /, "", stripped)
-    if (stripped ~ ("^" n "\\.")) {
-      in_section = 1
-      next
-    }
-  }
-  in_section { print }
-' "$plan")
+section=$("$script_dir/plan-section.sh" "$plan" "###" "^${task_n}[.]")
 
 if [ -z "$section" ]; then
   echo "error: no '### $task_n.' task heading found in $plan" >&2

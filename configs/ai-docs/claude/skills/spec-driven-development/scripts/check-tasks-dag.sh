@@ -29,14 +29,7 @@ fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-section=$(awk '
-  /^## / {
-    if (in_section) exit
-    if ($0 ~ /^## Task Breakdown[[:space:]]*$/) { in_section = 1; next }
-    next
-  }
-  in_section { print }
-' "$plan_file")
+section=$("$script_dir/plan-section.sh" "$plan_file" "##" '^Task Breakdown[[:space:]]*$')
 
 # Each task entry looks like:
 #   ### N. [<status>] Title

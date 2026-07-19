@@ -33,14 +33,7 @@ fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-section=$(awk '
-  /^## / {
-    if (in_section) exit
-    if ($0 ~ /^## PR Breakdown[[:space:]]*$/) { in_section = 1; next }
-    next
-  }
-  in_section { print }
-' "$plan_file")
+section=$("$script_dir/plan-section.sh" "$plan_file" "##" '^PR Breakdown[[:space:]]*$')
 
 trimmed=$(printf '%s' "$section" | sed '/^[[:space:]]*$/d')
 
