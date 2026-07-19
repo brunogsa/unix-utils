@@ -87,7 +87,8 @@ First, a qualitative pass — spawn one sub-agent that reads both docs with fres
   - Felt anchor: reviewer defect-detection drops past ~400 lines of diff and hard above ~600 (SmartBear/Cisco; Google small-CL) — no code exists yet, so estimate by feel, never invent a line count.
 - **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker for the user.
 - **Completeness**: does ALL Goals, Success Metrics and KPIs, User Stories and Non-Functional and Technical Requirements being covered on Testable Acceptance Criteria section? ALL corner cases and failure modes covered?
-- **Human-Reviewable**: Is it easy for the user to review? Is the format pleasant to read? Are you enabling user to verify you?
+- **Human-Reviewable**: could a complete novice succeed with only this plan and the repo — no other context?
+  - Is the format pleasant to read, and are you enabling the user to verify you?
 - **Artifacts Valid**: If any mermaid diagram exists, are they valid, verified via `mmdc`?
   - A failing check routes to the `mermaid-fixer` subagent on the resolved doc path — never fixed inline, mirroring the density-fixer rule below.
 - **Density**: spawn the `density-fixer` subagent on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check or rewrite density violations inline.
@@ -129,7 +130,11 @@ A toggled-off check is simply omitted from that pass; self-review's output state
   Each scans only its relevant sections — never the whole file.
   Authors write the two lists with bare `it()` titles, then run `scripts/normalize-list-breadcrumbs.sh <plan>` (idempotent) to upgrade them to breadcrumbs before the checks run — never hand-typed.
 
-- **How would this break?**: every corner case / failure mode item must be marked `covered (<recap>)`, `N/A — <reason>`, or opt-out: `**DECISION:** Skip because <reason>`. Empty placeholders fail self-review.
+- **How would this break?**: the boundary and failure-category checklists (per `spec-template.md`) must each be present.
+  - Either instantiated with one row per coverage-taxonomy item marked `covered (<recap>)` / `N/A — <reason>`.
+  - Or replaced wholesale by the opt-out `**DECISION:** Skip ... checklist because <reason>`.
+  - A checklist section skipped outright — corner cases / failure modes written as flat ACs with neither checklist rows nor an opt-out line.
+  - Fails self-review exactly like an empty placeholder row would.
   - Then, for every AC, ask "how would this break in production?" If no failure mode surfaces, flag as under-specified.
   - Fail-closed; runs unconditionally, regardless of either toggle.
 
