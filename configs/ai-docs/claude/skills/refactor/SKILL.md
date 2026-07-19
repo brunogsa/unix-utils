@@ -53,9 +53,9 @@ Deduplicate and merge the lists. If no files are found, inform the user and stop
 
 ### 2. Dispatch deep-reviewer to detect opportunities
 
-**Before dispatch, mint the report path.** Run `date "+report_refactor_%Y-%m-%d_%H:%M.md"` once and treat the output as `$REPORT_PATH` in CWD (NOT `/tmp/` — the user reviews it alongside the diff in their editor).
+**Before dispatch, mint the report path.** Run `date "+verdict_refactor_%Y-%m-%d_%H:%M.md"` once and treat the output as `$VERDICT_PATH` in CWD (NOT `/tmp/` — the user reviews it alongside the diff in their editor).
 
-- The `report_` prefix is mandatory, not cosmetic: the deep-reviewer agent's guard hook blocks every Write/Edit whose basename isn't `report_*.md`, so a differently-named path is rejected and never lands.
+- The `verdict_` prefix is mandatory, not cosmetic — see `~/.claude/hooks/deep-reviewer-write-guard.sh` for why (a reserved-prefix collision with the Claude Code harness itself, not our own guard).
 - Use that exact filename in every reference below. One file per `/refactor` invocation; never reuse a prior run's path.
 
 **Dispatch.** Use the **Agent tool** with `subagent_type=deep-reviewer` (its pinned model/effort, report-only by construction). In the prompt:
@@ -63,7 +63,7 @@ Deduplicate and merge the lists. If no files are found, inform the user and stop
 - Run in the **background** (the default) -- the UI still surfaces progress, and the harness delivers the findings report on completion.
 - List the target files identified in step 1.
 - Include the analysis constraints below verbatim.
-- Instruct it to **write the complete report to `$REPORT_PATH`** (overwrite if exists) and make no other edits — the guard enforces this; stating it stops a wasted blocked-write attempt.
+- Instruct it to **write the complete report to `$VERDICT_PATH`** (overwrite if exists) and make no other edits — the guard enforces this; stating it stops a wasted blocked-write attempt.
 
 #### Analysis constraints (passed to deep-reviewer)
 
@@ -77,18 +77,18 @@ Deduplicate and merge the lists. If no files are found, inform the user and stop
   - **Subjective**: naming, decomposition, architecture, layered-architecture violations, guideline alignment -- things only a context-aware reviewer can judge
   - **Mechanical**: unused imports/variables, dead code/exports, cyclomatic complexity, circular dependencies, missing type annotations -- things a linter could catch deterministically
   - For mechanical findings, prefix the **What** field with `[LINTER GAP]` to signal that the project's linter config should be improved to catch this automatically
-- Write the complete findings report to `$REPORT_PATH` (overwrite if exists) per the schema below.
+- Write the complete findings report to `$VERDICT_PATH` (overwrite if exists) per the schema below.
 
 #### Persist full findings to the file (avoid return-message truncation)
 
 Subagent return messages are capped and **WILL truncate long lists** -- the user has hit this before. To make findings readable:
 
-- The report file at `$REPORT_PATH` is the source of truth (overwrite if exists).
+- The report file at `$VERDICT_PATH` is the source of truth (overwrite if exists).
 - The subagent's return must contain only: total count, file path, and one title line per finding.
   - Format: `1. <file>:<lines> — <one-line title>`. No code blocks, no Before/After in the return.
 - If the file is missing or empty after the agent returns, treat the run as failed and re-invoke (do not proceed from the truncated return alone).
 
-#### Per-finding schema (inside `$REPORT_PATH`)
+#### Per-finding schema (inside `$VERDICT_PATH`)
 
 Each finding is a `## N. <one-line title>` section. Inside, use these labeled blocks -- no field may be omitted. Empty / N/A is allowed but must be stated explicitly.
 
@@ -113,11 +113,11 @@ A finding that cannot fill every field above is not ready to surface -- the agen
 
 After the agent returns:
 
-1. `Read` `$REPORT_PATH` end-to-end — do **not** rely on the return summary, it is truncated by design.
+1. `Read` `$VERDICT_PATH` end-to-end — do **not** rely on the return summary, it is truncated by design.
 2. Present a **compact index** in chat: numbered list, one line per finding.
    - Format: `<file>:<lines> — <one-line title> [classification, risk, effort]`.
    - Do not inline Before/After -- the user has the full file open.
-3. Tell the user the full report is at `$REPORT_PATH` and invite them to open it (`tail -f` or editor) for the rich detail.
+3. Tell the user the full report is at `$VERDICT_PATH` and invite them to open it (`tail -f` or editor) for the rich detail.
 
 **Stop here — this skill does not apply findings.** The user decides later which to act on.
 

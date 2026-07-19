@@ -120,7 +120,7 @@ Consult the `html-artifacts` skill's decision tree, then write `${out_file}` —
 
 - The routing table's fixed verdict for this artifact type counts as standing approval — skip html-artifacts' propose-first gate here.
   - Why: the pipeline may run unattended (isolated subagent, `/implement`'s batch-end tail), where no per-instance OK is possible; pausing to propose would stall the async run.
-- `${out_base}` is set in Wave 1 to `./report_auto-review_YYYY-MM-DD_HH:MM`; the timestamp preserves ordering when the user runs several reviews in one CWD. Only the extension is the router's call.
+- `${out_base}` is set in Wave 1 to `./verdict_auto-review_YYYY-MM-DD_HH:MM`; the timestamp preserves ordering when the user runs several reviews in one CWD. Only the extension is the router's call.
 - Either format follows the template at `references/local-review-template.md` — read it and expand its placeholders; an `.html` output renders those same sections under html-artifacts' non-negotiables.
 - Keep the template file as the single source of truth for the output shape; do not inline the template here.
 

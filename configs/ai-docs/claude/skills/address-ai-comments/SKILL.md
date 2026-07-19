@@ -61,7 +61,7 @@ See "When a subagent might still help" below for the one case worth revisiting.
 5. **Optional refactor + auto-review tails (only when step 1's toggle is on).** Mirror `implement`'s existing refactor-tail and auto-review-tail steps.
    - Spawn two `deep-reviewer` subagents in the background (fresh context, its pinned model/effort) over the diff since `BATCH_BASE_SHA`. This diff includes the working tree, whether or not this batch was committed.
    - One reviews with a simplification lens (duplication, dead code, over-abstraction); the other with a correctness lens (bugs, missed edge cases, test gaps).
-   - Both are report-only — they never edit or commit — and each writes its ranked findings to its own `report_refactor_<ts>.md` / `report_auto-review_<ts>.md` in CWD.
+   - Both are report-only — they never edit or commit — and each writes its ranked findings to its own `verdict_refactor_<ts>.md` / `verdict_auto-review_<ts>.md` in CWD.
    - No new lint/test gate is needed — the tails are report-only.
 
 6. **Report back compactly.** Reply with the tasks created/executed and their file:line references, not a full transcript of every file region you read.

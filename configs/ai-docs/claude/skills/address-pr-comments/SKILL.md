@@ -304,7 +304,7 @@ Mirror `implement`'s existing refactor-tail and auto-review-tail steps: spawn tw
 
 One reviews with a simplification lens (duplication, dead code, over-abstraction); the other with a correctness lens (bugs, missed edge cases, test gaps).
 
-Both are report-only — they never edit or commit — and each writes its ranked findings to its own `report_refactor_<ts>.md` / `report_auto-review_<ts>.md` in CWD.
+Both are report-only — they never edit or commit — and each writes its ranked findings to its own `verdict_refactor_<ts>.md` / `verdict_auto-review_<ts>.md` in CWD.
 
 No new lint/test gate is needed — step 1c's green-baseline check already covers this batch.
 

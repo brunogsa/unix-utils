@@ -506,7 +506,7 @@ Spawn ONE `deep-reviewer` subagent (fresh context, its pinned model/effort) over
 Focus: duplication, dead code, over-abstraction, unclear naming, missed extractions, needless indirection, idioms inconsistent with surrounding code.
 
 - **Report-only** — it never edits or commits the reviewed code.
-- It **writes** a ranked list of opportunities (`file:line` + the concrete simpler form) to its own assigned `report_refactor_<ts>.md` in CWD (the one file it may write; see `references/batch-end.md`).
+- It **writes** a ranked list of opportunities (`file:line` + the concrete simpler form) to its own assigned `verdict_refactor_<ts>.md` in CWD (the one file it may write; see `references/batch-end.md`).
 - Record the report **path** it wrote into `.tails.refactor_report` (the file on disk is canonical, not a state-file copy) and its token count into `.tails.tokens.refactor`.
 - Launch it in the background so it runs concurrently with §9.3 — the two tails are independent report-only passes with no ordering dependency.
 
@@ -515,7 +515,7 @@ Focus: duplication, dead code, over-abstraction, unclear naming, missed extracti
 Spawn ONE `deep-reviewer` subagent (fresh context, its pinned model/effort) over the same range with a **correctness lens**.
 Focus: bugs, missed edge cases, contract mismatches between what the batch produces and what its callers expect, test gaps.
 
-- **Report-only** — same rule as §9.2; it **writes** its ranked findings (`file:line` + a concrete failure scenario each) to its own assigned `report_auto-review_<ts>.md` in CWD.
+- **Report-only** — same rule as §9.2; it **writes** its ranked findings (`file:line` + a concrete failure scenario each) to its own assigned `verdict_auto-review_<ts>.md` in CWD.
 - Record the report **path** it wrote into `.tails.auto_review_report` and its token count into `.tails.tokens.auto_review`.
 
 **Both §9.2 and §9.3 report files must exist on disk before proceeding (when tails were requested).**

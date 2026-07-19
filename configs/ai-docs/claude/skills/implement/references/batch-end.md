@@ -44,9 +44,9 @@ The prompt **must lead with this preamble verbatim**, line-for-line.
 
 Two layers enforce the no-mutations contract.
 
-The hard gate is a `PreToolUse` hook in `deep-reviewer`'s own frontmatter (`~/.claude/hooks/deep-reviewer-report-guard.sh`).
+The hard gate is a `PreToolUse` hook in `deep-reviewer`'s own frontmatter (`~/.claude/hooks/deep-reviewer-write-guard.sh`).
 
-It auto-approves a Write/Edit whose basename matches `report_*.md`, or whose path is under `/tmp` (scratch — e.g. the review pipeline's wave artifacts).
+It auto-approves a Write/Edit whose basename matches `verdict_*.md`, or whose path is under `/tmp` (scratch — e.g. the review pipeline's wave artifacts).
 
 It denies (exit 2) every other target, so the agent physically cannot touch repo source.
 
@@ -70,18 +70,18 @@ YOU MUST:
 - Run the underlying skill (/refactor or /auto-review) in its
   analysis/findings phase only.
 - Write your COMPLETE findings — every finding with file:line evidence, no
-  summarizing or truncation — to your assigned report file: <REPORT_PATH>.
+  summarizing or truncation — to your assigned verdict file: <VERDICT_PATH>.
 - Return a short final message: the report path, the finding count, and the
   single highest-priority finding, so the orchestrator can triage from the file.
 
 Violating any of the MUST NOT items aborts the parent /implement.
 ```
 
-After the preamble, include the skill-specific body. The orchestrator **assigns the report path** in the prompt (substituting `<REPORT_PATH>` in the preamble) — it never writes the file, only names it:
+After the preamble, include the skill-specific body. The orchestrator **assigns the verdict path** in the prompt (substituting `<VERDICT_PATH>` in the preamble) — it never writes the file, only names it:
 
-- **refactor** tail: "Invoke `/refactor` over `<BATCH_BASE_SHA>..HEAD`. Write the complete findings to `./report_refactor_<YYYY-MM-DD_HH:MM>.md`."
+- **refactor** tail: "Invoke `/refactor` over `<BATCH_BASE_SHA>..HEAD`. Write the complete findings to `./verdict_refactor_<YYYY-MM-DD_HH:MM>.md`."
   - Pass **no** spec/plan paths — refactor judges code shape, not spec conformance (deliberate).
-- **auto-review** tail: "Invoke `/auto-review <BATCH_BASE_SHA>` (per its `/auto-review HEAD~N` per-task scoping convention). Write the complete findings to `./report_auto-review_<YYYY-MM-DD_HH:MM>.md`."
+- **auto-review** tail: "Invoke `/auto-review <BATCH_BASE_SHA>` (per its `/auto-review HEAD~N` per-task scoping convention). Write the complete findings to `./verdict_auto-review_<YYYY-MM-DD_HH:MM>.md`."
   - Also pass the resolved `spec_<slug>.md` and `plan_<slug>.md` paths — auto-review always gets them to check spec conformance.
 
 The subagent writes its own report — one file, the assigned path — so the full findings land on disk with zero fidelity loss.
@@ -95,20 +95,12 @@ When each tail returns, the orchestrator confirms the report file exists at the 
   - Record the **path**, not the content — the file on disk is canonical, and a resumed run reads it back to see which reports already exist.
 - Its token count → `.tails.tokens.<name>` (`0` if the Agent result omits it). The metrics script sums these into the subagent total.
 
-Known, recoverable failure mode: a sandbox layer can deny the subagent's `Write` to its assigned `report_*.md` path even though the `PreToolUse` hook auto-approves that exact path.
-
-When that happens, the subagent's final message carries its complete findings text instead, per the preamble's documented fallback.
-
-The orchestrator then persists that returned text verbatim to the assigned report path itself via the Write tool, before proceeding with triage.
-
-This is a recoverable condition, not a MUST-NOT violation or abort trigger.
-
 ## Failure handling
 
 - **Subagent violates the report-only contract** (a forbidden mutation per the preamble) → this **aborts the parent `/implement`**.
-  - The frontmatter `PreToolUse` hook already blocks any write to repo source at the tool layer (only `report_*.md` and `/tmp` scratch pass), so a forbidden *file* mutation should never land.
+  - The frontmatter `PreToolUse` hook already blocks any write to repo source at the tool layer (only `verdict_*.md` and `/tmp` scratch pass), so a forbidden *file* mutation should never land.
   - This `git status` / `git log` check is the backstop for mutations the hook doesn't cover — e.g. a `git commit` / `git push` run through Bash.
-  - **Exclude the assigned report file** from this check — the subagent writing its own `report_*.md` is the contract, not a violation.
+  - **Exclude the assigned verdict file** from this check — the subagent writing its own `verdict_*.md` is the contract, not a violation.
     - A compliant tail leaves the tracked tree untouched and adds exactly one new untracked file: its assigned report.
     - Any tracked-file change, or any untracked file other than that report, is the violation.
 - **Subagent errors, or returns no usable findings** → log it to chat with the agent's last message; the **other** tail still runs; the package flags the missing artifact.
@@ -117,11 +109,11 @@ This is a recoverable condition, not a MUST-NOT violation or abort trigger.
 
 ## Overwrite policy
 
-Each invocation produces timestamped filenames (`report_refactor_<ts>.md`, `report_auto-review_<ts>.md`), so multiple `/implement` runs in the same CWD accumulate as separate files — each tail's own timestamp keeps its report distinct.
+Each invocation produces timestamped filenames (`verdict_refactor_<ts>.md`, `verdict_auto-review_<ts>.md`), so multiple `/implement` runs in the same CWD accumulate as separate files — each tail's own timestamp keeps its report distinct.
 
 Leave the reports **untracked but not gitignored** — same convention as `spec_<slug>.md` / `plan_<slug>.md`: they show in `git status` so the human sees them, and never get auto-committed by the batch.
 
-Do not add a `report_*` gitignore pattern.
+Do not add a `verdict_*` gitignore pattern.
 
 ## Triage both reports
 
@@ -160,7 +152,7 @@ This is the **only** report-file write the orchestrator makes — the subagent a
 The package is the single async pass the human reviews — the replacement for the per-task handshake. Finalize prints it (below), after metrics. It contains:
 
 - **Per-task outcomes** — each task labeled `done` / `blocked` / `stuck`, with its commit SHAs.
-- **Both raw tail-report paths** (`report_refactor_<ts>.md`, `report_auto-review_<ts>.md`), plus any missing-report flag from failure handling.
+- **Both raw tail-report paths** (`verdict_refactor_<ts>.md`, `verdict_auto-review_<ts>.md`), plus any missing-report flag from failure handling.
 - **The triaged synthesis** (above), with its apply-offer.
 - **Every recorded `[Scout]` note and every block**, with what each needs to clear.
 - **The literal diff range** — print `git diff BATCH_BASE_SHA..HEAD` with the actual SHA substituted, so the human can reproduce the range.

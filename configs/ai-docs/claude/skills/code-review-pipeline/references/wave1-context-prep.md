@@ -4,7 +4,7 @@ Purpose: assemble everything every specialist will need on disk, so specialists 
 
 **Work dir**:
 - github: `/tmp/pr-review-<n>/`; create fresh (`rm -rf && mkdir -p`).
-- local: `$(mktemp -d /tmp/auto-review.XXXXXX)` for scratch; the review lands in a timestamped `./report_auto-review_<timestamp>` file in CWD (`out_base` set below; extension decided in Wave 5).
+- local: `$(mktemp -d /tmp/auto-review.XXXXXX)` for scratch; the review lands in a timestamped `./verdict_auto-review_<timestamp>` file in CWD (`out_base` set below; extension decided in Wave 5).
 
 **Specialists receive the context listed in `references/common-preamble.md#Context you have`** — ensure Wave 1 produces all of it on disk. Commit messages are fetched in both modes; only `{pr_context}` differs:
 
@@ -54,7 +54,7 @@ Repo root for specialists is the user's CWD; the work dir is scratch for diff/co
 
 ```bash
 work_dir=$(mktemp -d /tmp/auto-review.XXXXXX)
-out_base="./report_auto-review_$(date +%Y-%m-%d_%H:%M)"
+out_base="./verdict_auto-review_$(date +%Y-%m-%d_%H:%M)"
 git fetch origin "$base_branch"
 git diff -U20 "origin/$base_branch...HEAD"             > "$work_dir/diff"
 git diff      "origin/$base_branch...HEAD" --name-only > "$work_dir/changed-files.txt"

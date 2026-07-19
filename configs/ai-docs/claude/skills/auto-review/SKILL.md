@@ -129,7 +129,7 @@ between in-session and isolated, and auto-review never picks — it always
 isolates.
 
 After the pipeline finishes, the review is at
-`./report_auto-review_<timestamp>.md` or `.html` — extension per the html-artifacts
+`./verdict_auto-review_<timestamp>.md` or `.html` — extension per the html-artifacts
 router (Wave 6 summary contains the exact resolved path).
 Print the file path, per-severity counts, skipped files, and the
 Wave 6 summary. Multiple runs accumulate as separate timestamped files,
