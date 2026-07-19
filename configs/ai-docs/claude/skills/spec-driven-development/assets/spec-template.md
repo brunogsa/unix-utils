@@ -43,6 +43,13 @@ For simple input → output assertions on stateless endpoints, skip `Given`.
 
 **Coverage rule:** happy path + corner cases + failure modes — the checklists below enforce it; a spec with only happy-path ACs is incomplete.
 
+**Title rule:** the title must summarize the entire Given/When/Then body in one scannable line, not just name the scenario.
+Readers scan titles only and open the body when they need detail, so a title that omits the outcome loses exactly what a scan-only read needs.
+
+**Then rule:** the outcome must be a concrete, checkable assertion — such as a return value, status code, state change, or emitted event.
+Never use subjective language like "works correctly", "behaves as expected", or "handles it properly".
+A vague `Then` can't be proven false, so it can't drive a test; self-review rejects any AC whose `Then` isn't independently checkable without asking the author what they meant.
+
 Format:
 
 ### AC-N: <short scenario title>
