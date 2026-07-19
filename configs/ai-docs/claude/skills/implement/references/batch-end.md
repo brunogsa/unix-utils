@@ -222,7 +222,10 @@ Skip this whole section on a plain `<task-ids>` run (no `PR-N` label, `pr_label`
 Only when the interview opted into a draft PR (§1.2). Skip this section entirely otherwise.
 
 - **Guard first** — if `gh` is absent or the repo has no remote, skip the PR with an explicit notice in the package; everything else in the package is unaffected.
-- Otherwise **push the branch** and create a **draft** PR with `gh pr create --draft --body-file <file>`. Never auto-merge, never force-push.
+- Otherwise **push the branch** and create a **draft** PR with `gh pr create --draft --body-file <file> --base <base-branch>`, where `<base-branch>` is §1.2's confirmed base branch. Never auto-merge, never force-push.
+  - Every PR-label run needs this `--base`, dependent or not.
+    Without it, `gh pr create` falls back to `branch.<name>.gh-merge-base` or the repo's default branch — never to a parent's branch by any ancestry heuristic.
+    That fallback is implicit, not the plan's explicitly confirmed choice.
   - **This branch already has an open PR** (`gh pr create` errors that a PR already exists) → not a failure.
     Fall back to the same REST-API body-update path below, targeting that existing PR number.
     A resumed batch updates its own already-open PR instead of erroring.
