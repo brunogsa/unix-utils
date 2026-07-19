@@ -53,6 +53,8 @@ On no, this skill runs in the current checkout, and never merges or deletes a wo
 
 In a multi-task batch (`/implement 1, 2, 3`), **§1.1–§1.5 and §2 run once** at the start; **§1.6–§1.7 run once per task** as each becomes active.
 
+In a PR-label list (`/implement PR-1, PR-2`), the boundary shifts: §1.1–§1.3 and §2 run once for the whole list; §1.4–§9 repeat once per PR, in order — see [`references/pr-awareness.md`](references/pr-awareness.md).
+
 ### 1.1. Locate the plan (and spec)
 
 Glob in CWD (top-level only):
@@ -98,6 +100,8 @@ When §1.2 answered no, skip this step; the batch-end package omits the merge-ba
 Capture HEAD as `BATCH_BASE_SHA` — the start of this invocation's commit range (reused in §4, §8, and §9).
 
 Capture it **after** §1.3, so a new worktree's HEAD (same commit, different working directory) is what gets recorded.
+
+In a PR-label list, capture it fresh per PR (right before that PR's branch decision), so each PR's gate/tails/diff scope to only its own commits — never the whole list's.
 
 Read **full commit messages** and give a 3–5 line summary. Don't dump the log; subagents re-derive context from `git log` at dispatch.
 
@@ -151,6 +155,18 @@ On a resume or re-run, reconcile any pre-existing task status and stray TaskList
 The reconciliation mechanics live in [`references/resume-reconcile.md`](references/resume-reconcile.md) — how this differs from §1.5's silent JSON adoption, and the per-state prompts (re-execute / resume / restart / revive).
 
 Load it only on a resume or dirty run.
+
+### 1.8. PR-label resolution & per-PR loop (only when the arg is a PR-label)
+
+Runs at the start of **each** PR's iteration, before that iteration's own §1.4 — first for `PR-N`, then again for `PR-M` once `PR-N`'s full §1.4–§9 batch is terminal.
+
+Before resolving the PR-N label, re-run `check-pr-dag.sh` against the live plan — it's symlink-shared and mutable for the rest of execution (§1.3), so self-review's earlier pass can go stale.
+
+Each PR in the list runs its own full §1.4–§9 batch, in order — branch → tasks → gate → PR — before the next PR's branch is even created.
+
+Stop before the next PR on any task ending terminal-without-`[Done]`, or a §9.1 gate failure; never skip ahead.
+
+Full resolution, branch-creation, and stop-predicate mechanics live in [`references/pr-awareness.md`](references/pr-awareness.md). Load when the arg is a PR-label.
 
 ## 2. Orchestration review — fresh-context subagent, once before any dispatch
 
