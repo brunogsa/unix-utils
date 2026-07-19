@@ -159,6 +159,7 @@ On the user's go-ahead, the main session spawns one haiku subagent (the `Agent` 
 
 - Run `check.sh`, apply trim-hierarchy steps 1–4 to the offending files, re-run, repeat until green or stuck.
 - Load `skill-creator` before editing any `SKILL.md`, per the global rule the subagent inherits.
+- When the offending file is CLAUDE.md or a `*-standards` skill, also load `skill-authoring` — it overrides `skill-creator` and holds the marker-splitting/nesting rules a trim must not violate.
 - Never the override step (`words-budget`/`instructions-budget`) — that's a budget trade-off the user owns, not a trim.
 - Return a concise summary plus a minimal diff so the user can review fast.
 

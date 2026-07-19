@@ -93,13 +93,9 @@ If a finding persists across rerun-and-fix cycles:
 
 ## What this skill does NOT flag
 
-- Anything `performance-check` already counts deterministically.
-- Anything `skill-creator` skill already states.
+- Anything `performance-check` counts deterministically, or `skill-creator` already states.
 
-**Boundary with `performance-check` and `skill-creator`:**
-
-`skill-creator` owns frontmatter shape, folder layout, description guidance etc — out of scope here.
-This skill's surface is semantic relationships across files.
+**Boundary:** `skill-creator` owns frontmatter/folder/description shape; this skill's surface is semantic relationships across files (table below).
 
 | Surface | performance-check | consistency-check |
 |---|---|---|
@@ -242,6 +238,7 @@ This is what an **ensemble child** executes (mode B). The orchestrator (mode A) 
 1. Resolve target paths (default: `~/.claude/CLAUDE.md` + `~/.claude/skills/`).
 2. Read CLAUDE.md and every `skills/*/SKILL.md` in full — cross-file is the whole point, no grep shortcuts.
    - Scoped runs (e.g., `skill X`) still load the full set; the scope filters which findings to report, not which files to read.
+   - Load `skill-authoring` too — heuristics #3, #5 judge marker placement against its rules.
 3. For each heuristic, scan and collect *draft* findings against the rubric.
 4. **Adversarial sanity-check.** For each draft, write one sentence defending the current state.
    - If the defense cites the rule's actual mechanism, **downgrade one tier** (HIGH→MEDIUM, MEDIUM→LOW, LOW→drop).

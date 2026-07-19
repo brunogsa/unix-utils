@@ -23,7 +23,7 @@ Each feature gets a descriptive slug, and its spec and plan **share** that slug:
 
 `<slug>` is a short kebab-case descriptor of the feature. The shared slug pairs the spec with its plan by name.
 
-Why descriptive over one generic filename: a directory may hold several in-flight features at once, and a slug makes each pair self-identifying instead of colliding on one shared name.
+Why: a directory may hold several in-flight features at once, so a descriptive slug keeps each pair self-identifying instead of colliding on one shared name.
 
 ### Discovery (how consumers find these files)
 
@@ -38,11 +38,7 @@ Resolve with this shared baseline:
 - **Exactly one spec and one plan** → use both; print the resolved paths, no prompt.
 - **Multiple specs or multiple plans** → list the matches numbered and ask the user which to use before proceeding.
 
-The remaining shapes (zero matches, only one kind) diverge per consumer because their needs differ — each skill's own Discovery section is canonical. Recap:
-
-- `/implement` — a plan is mandatory: plan without spec proceeds plan-only; no plan → ask for the path, else stop.
-- `/auto-review` — only one kind found → prompt the user; zero matches → proceed without spec/plan context, telling the user explicitly.
-- `/create-pr` — both files optional: use whichever exist (either, both, or neither); zero → proceed from commits + diff only.
+The remaining shapes (zero matches, only one kind) diverge per consumer because their needs differ — each skill's own Discovery section is canonical.
 
 ### spec_<slug>.md (why / what)
 
@@ -55,8 +51,6 @@ Read `./assets/spec-template.md` when starting the spec phase, and populate it.
 
 Technical approach and task breakdown. Generated from spec_<slug>.md (or directly from prompt).
 
-Contains the high level architecture, general flow, reuse and side-effect reports, failure handling, test design, task breakdown and technical decisions.
-
 Read `./assets/plan-template.md` when starting the plan phase, and populate it.
 
 Uses BDD/TDD by default: load the `test-driven-development` skill when starting the implementation phase.
@@ -66,11 +60,11 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 0. User creates spec_<slug>.md with initial prompt/notes (or `/brainstorm` refines it).
 1. Plan mode or direct request generates plan_<slug>.md from spec_<slug>.md (or from prompt).
-2. AI Self-review — qualitative pass, then seven formal checks (five always-on, two toggled by one live question asked once). A failing mermaid `mmdc` check routes to `mermaid-fixer`, never fixed inline.
+2. AI Self-review — qualitative pass, then seven formal checks (five always-on, two toggled by one live question asked once).
 3. User reviews and approves — when the user signals, ask "Start `/implement` now?" (default no); on yes, hand off to the `implement` skill directly instead of waiting for a separate invocation.
 4. Each plan_<slug>.md task becomes a TaskCreate item.
 5. Both files updated as work progresses (living docs); decisions are append-only past the divider that exists on both spec_<slug>.md and plan_<slug>.md.
-6. User generally runs `/refactor` then `/auto-review` when the entire feature is developed; fixes are addressed, if any.
+6. User runs `/refactor` then `/auto-review` when the entire feature is developed; fixes are addressed, if any.
 7. User manually review the code. More fixes, if any.
 8. `/create-pr` uses both spec_<slug>.md and plan_<slug>.md to generate a rich PR description.
 9. Self-improving loop: user runs `/improve-from-user` then `english-coach` skills so both AI and human learn.
@@ -79,27 +73,25 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 First, a qualitative pass — spawn one sub-agent that reads both docs with fresh eyes and reports (findings only, no gate):
 - **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
-- **Contradictions**: do sections within the same doc disagree?
-  - Does plan_<slug>.md contradict spec_<slug>.md? Examples: spec assumptions planning overturned, architectural choices superseding spec requirements, scope constraints discovered during planning.
+- **Contradictions**: do sections within the same doc disagree, or does plan_<slug>.md contradict spec_<slug>.md (e.g. spec assumptions overturned by planning, architectural choices superseding spec requirements)?
 - **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition? If yes, write/update `scopes.md` per the `brainstorm` skill's scope-probe step, then re-run this self-review.
 - **PR size**: does the work fit one reviewable PR, or is it large enough to stage into several?
   - If large, **PR Breakdown** must split the tasks into an ordered PR sequence — vertical splits, each shipping its own tests + code + docs — not one oversized PR.
   - Felt anchor: reviewer defect-detection drops past ~400 lines of diff and hard above ~600 (SmartBear/Cisco; Google small-CL) — no code exists yet, so estimate by feel, never invent a line count.
 - **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker for the user.
-- **Completeness**: does ALL Goals, Success Metrics and KPIs, User Stories and Non-Functional and Technical Requirements being covered on Testable Acceptance Criteria section? ALL corner cases and failure modes covered?
-- **Human-Reviewable**: could a complete novice succeed with only this plan and the repo — no other context?
-  - Is the format pleasant to read, and are you enabling the user to verify you?
+- **Completeness**: does the Testable Acceptance Criteria section cover every Goal, Success Metric/KPI, User Story, and Non-Functional/Technical Requirement — and every corner case and failure mode?
+- **Human-Reviewable**: could a complete novice succeed with only this plan and the repo — no other context? Is the format pleasant to read enough to let the user verify you?
 - **Artifacts Valid**: If any mermaid diagram exists, are they valid, verified via `mmdc`?
-  - A failing check routes to the `mermaid-fixer` subagent on the resolved doc path — never fixed inline, mirroring the density-fixer rule below.
-- **Density**: spawn the `density-fixer` subagent on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check or rewrite density violations inline.
+  - A failing check routes to the `mermaid-fixer` subagent on the resolved doc path — never fixed inline.
+- **Density**: spawn the `density-fixer` subagent on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check/rewrite density violations inline.
   - The subagent runs `check-density.sh` and applies the `density-rules.md` rewrite patterns until exit 0, without dropping information.
 
 Immediately before plan generation, ask one live question with two independent yes/no toggles — answered fresh each time, never written to `plan_<slug>.md` or any state file:
 
-- **"Every line traces to an AC?"** — formerly Gate 3 (machinery↔AC traceability).
-- **"Right-sized plan?"** — formerly the scope lens.
+- **"Every line traces to an AC?"**
+- **"Right-sized plan?"**
 
-Seven formal checks then run in sequence, renamed to describe what each catches rather than its mechanism (five always-on + the two toggles above):
+Seven formal checks run in sequence (five always-on + the two toggles above):
 
 | Check | Catches | Toggle? |
 |---|---|---|
@@ -138,10 +130,9 @@ A toggled-off check is simply omitted from that pass; self-review's output state
   - A checklist section skipped outright — corner cases / failure modes written as flat ACs with neither checklist rows nor an opt-out line.
   - Fails self-review exactly like an empty placeholder row would.
   - Then, for every AC, ask "how would this break in production?" If no failure mode surfaces, flag as under-specified.
-  - Fail-closed; runs unconditionally, regardless of either toggle.
+  - Fail-closed; runs regardless of either toggle.
 
 - **PR dependencies form a DAG**: `scripts/check-pr-dag.sh <plan>` validates the PR Breakdown's `Depends on:` graph.
-  - No cycles; no dangling references to PR-N labels; no duplicate PR-N labels.
   Passes trivially when the section reads `Single PR.` (nothing to validate). Exit 1 blocks.
 
 - **Task dependencies form a DAG**: `scripts/check-tasks-dag.sh <plan>` — the same three checks (cycle, dangling reference, duplicate label) over the Task Breakdown's `Depends on:` graph. Exit 1 blocks.
@@ -150,12 +141,10 @@ A toggled-off check is simply omitted from that pass; self-review's output state
 
 - **Every line traces to an AC** (toggle): every piece of machinery (abstraction, dependency, knob, extra layer) must trace to a spec AC or requirement.
   - Output: untraceable items (empty = pass). Block if non-empty — cut or earn an AC.
-  - Runs only when its toggle is "yes"; otherwise skipped for this pass.
 
 - **Right-sized plan** (toggle, advisory): pass user's request + spec + plan to a subagent.
   - Ask: does spec match request (no gold-plate), and is plan the simplest design meeting every AC?
   - Advisory even when its toggle is "yes" — surface findings and let the user decide, never blocks.
-  - Runs only when its toggle is "yes"; otherwise skipped for this pass.
 
 Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces only in implementation.
 
@@ -184,9 +173,7 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
   - Why: these are throwaway living docs, so verbosity taxes every re-read and buries the decisions that matter.
 
 - **Cross-references inside the planning doc spell out the behavior — never cite `AC-N` IDs** (doc-standards' no-ID-references rule; the `### AC-N:` headings defining ACs are anchors, not references).
-  - Bad: "AC-12 / AC-13 / AC-15 / AC-16a behavior captured" — forces the reader to flip back.
-  - Good: "one school's fetch fails / one agreement's SKU fetch fails — behavior captured".
-  - Why: specs/plans are scanned non-linearly; an ID reference adds lookup cost on every scan, while the behavior recap alone already carries the meaning.
+  - Why: specs/plans are scanned non-linearly; an ID reference adds lookup cost on every scan, while the behavior recap alone carries the meaning.
 
 - **CRITICAL: Keep spec and plan up to date** -- Stale docs degrade `/create-pr`.
 
@@ -195,11 +182,7 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
 
 - **Tasks are commit-sized, never smaller**.
 
-- **CRITICAL: Keep task status updated as you go, in both TaskList and plan_<slug>.md**:
-  - For plan_<slug>.md use this pattern:
-    - The "ToDo" / "Pending" state do not required a marker
-    - Suggested status: `[Doing]`, `[Done]`, `[Blocked]`, `[Deferred]`, `[Dropped]`
-    - Shape: `### <N>. [<status>] <title>` — number first, status bracketed after it; matches the plan template and `/implement`'s status-markers section (the bracket is absent for pending, per above).
+- **CRITICAL: Keep task status updated as you go, in both TaskList and plan_<slug>.md** — in plan_<slug>.md, status markers (`[Doing]`/`[Done]`/`[Blocked]`/`[Deferred]`/`[Dropped]`, pending needs none) follow `/implement`'s status-markers section exactly.
 
 - **After completing a task note deviations from the original plan**.
 
