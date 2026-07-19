@@ -54,19 +54,54 @@ Before dispatching a PR's tasks, ask:
 
 `<worktree-path>` is the directory this run operates in — the worktree from §1.3 if one was created, else CWD.
 
-**Prints `no`** → dispatch this PR's tasks on the current branch. No `git checkout -b`, no `branches_<slug>.md` write (that manifest write is out of this task's scope).
+**Prints `no`** → dispatch this PR's tasks on the current branch.
+No `git checkout -b` runs.
+No manifest write happens here either — this PR's own `branches_<slug>.md` entry is written later, at its own batch-end (see "Manifest writes", below), same as every other PR.
 
-**Prints `yes`** → create `<feat_branch>/pr<N>` before dispatching:
+**Prints `yes`** → resolve `<feat_branch>/pr<N>` before dispatching:
 
 - `<feat_branch>` = `git branch --show-current`, with any trailing `/pr<digits>` suffix stripped. Stateless — no new persistent store, matching the plan's NFR.
-- Count `PR-N`'s parents from its PR Breakdown line's `Depends on:` clause (already open from §1.1).
-- **Zero parents** (a second independent root reached after an earlier PR's batch already ran) → branch explicitly from the confirmed base branch (§1.2): `git checkout -b <feat_branch>/pr<N> <base-branch>`.
-  Never from current HEAD — HEAD may sit at an unrelated PR's tip.
-- **Exactly one parent** → `git checkout -b <feat_branch>/pr<N>` with no explicit base ref, i.e. from current HEAD.
-  This is correct because a DAG-root PR's commits (the `no`-checkout case above) land directly on the pre-existing branch.
-  By the time a single dependent PR runs, HEAD already sits at its parent's tip.
-- **Two or more parents** (diamond dependency) → stop and report a clear "diamond dependency not supported here" block; do not attempt a merge.
-  Real diamond-merge handling is a separate, later concern outside this task's scope.
+- **Resume check, first**: `git rev-parse --verify --quiet <feat_branch>/pr<N>`.
+  Branch already exists → `git checkout <feat_branch>/pr<N>` (plain, no `-b`) and skip every step below.
+  The guard and the parent-entry write already ran, and passed, the first time this branch was created — re-running either on an adopted branch is redundant, not merely safe-to-repeat.
+- Branch doesn't exist yet (first time through) → count `PR-N`'s parents from its PR Breakdown line's `Depends on:` clause (already open from §1.1):
+  - **Zero parents** (a second independent root reached after an earlier PR's batch already ran) → branch explicitly from the confirmed base branch (§1.2): `git checkout -b <feat_branch>/pr<N> <base-branch>`.
+    Never from current HEAD — HEAD may sit at an unrelated PR's tip.
+    No parent to guard against or record.
+  - **Exactly one parent** → first, the dependency guard:
+    ```bash
+    ~/.claude/skills/implement/scripts/check-pr-dependencies-ready.sh <plan-file> <PR-N> <worktree-path>
+    ```
+    Exit 1 refuses to create this PR's branch or dispatch any of its tasks.
+    Surface the script's own stderr diagnostic verbatim and stop; do not retry.
+    Exit 2 (usage/parse error) surfaces the same way.
+    Exit 0 → before switching away from the parent's branch, record it:
+    ```bash
+    ~/.claude/skills/implement/scripts/append-branch-pr-entry.sh <worktree-path>/branches_<slug>.md <slug> <parent-PR-label> <feat_branch>
+    ```
+    `<parent-PR-label>` is this PR's single parent, from the same `Depends on:` clause.
+    `<feat_branch>` here is still the parent's own branch — HEAD hasn't moved yet.
+    Idempotent: a no-op if an earlier dependent PR already wrote this same parent's entry.
+    This is the earliest point the guard could have needed this entry.
+    It's also the last point `git branch --show-current` still reports it, so it must run exactly here — never deferred to any batch-end.
+    Then `git checkout -b <feat_branch>/pr<N>` with no explicit base ref, i.e. from current HEAD.
+    Correct because a DAG-root PR's commits (the `no`-checkout case above) land directly on the pre-existing branch, so by the time a single dependent PR runs, HEAD already sits at its parent's tip.
+  - **Two or more parents** (diamond dependency) → stop and report a clear "diamond dependency not supported here" block; do not attempt a merge.
+    Real diamond-merge handling is a separate, later concern outside this task's scope.
+
+## Manifest writes (`branches_<slug>.md`)
+
+Every PR — checkout-needed or not — writes its own entry once, at its own batch-end (§9, see `references/batch-end.md`), never in this branch-creation step:
+
+```bash
+~/.claude/skills/implement/scripts/append-branch-pr-entry.sh <worktree-path>/branches_<slug>.md <slug> <this-PR-label> <this-PR-branch>
+```
+
+A `no`-checkout PR's branch is the `git branch --show-current` value from its own preflight; a checkout-needed PR's branch is whatever `checkout -b` (or the resume-check's plain `checkout`) resolved to above.
+
+This primary-entry write is independent from the pre-guard parent-entry write above.
+The two can name the same PR without conflict — a PR is simultaneously a later PR's recorded parent and the subject of its own batch-end write.
+`append-branch-pr-entry.sh` is idempotent per label: whichever write reaches a given PR's entry first wins, the second is a silent no-op.
 
 ## The per-PR loop and fail-fast
 

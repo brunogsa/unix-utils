@@ -48,6 +48,21 @@ The appended entry is `{"id": "<id>", "status": "pending"}`.
 
 To discard a stale run entirely instead of resuming it, delete its state file before re-running `/implement` — that is the only supported way to force a clean slate.
 
+## PR-level: branch resume on a PR-label run
+
+Everything above already covers a PR-label run's *state file* — it's keyed on `(slug, pr_label)`, same adoption mechanics, no special case.
+What's PR-specific is the **branch and manifest**, which live outside the state file entirely.
+
+- **Re-invoking `/implement PR-N` while its PR is already open** — the state file adopts normally (phase carries over per above).
+  The branch itself: `references/pr-awareness.md`'s resume check (`git rev-parse --verify --quiet <feat_branch>/pr<N>`) finds it already exists.
+  It runs a plain `git checkout` (never `-b`), and skips the dependency guard and parent-entry write — both already ran, and passed, the first time this branch was created.
+  No second branch, no second PR: `gh pr create` in `references/batch-end.md`'s "Draft PR" step hits the already-open-PR case and falls back to updating the existing PR's body instead of erroring.
+- **Re-invoking `/implement PR-N` after a kill between `checkout -b` and its first task's commit.**
+  The same resume check finds the branch — now real, with zero commits on it yet — and adopts it the same way.
+  The state file's `tasks[]` shows every task still `pending` (or a lone `[Doing]` if the kill landed mid-dispatch — see "Handle existing task state" below).
+  So §1.6–§1.7 dispatch the first task exactly as a fresh run would.
+  Nothing here is a distinct recovery path: an empty branch is just a branch whose tasks haven't committed yet, and task-level resume already handles that.
+
 ## Task-level: plan_<slug>.md markers & TaskList items (§1.7)
 
 These prompts fire only for state the adopted JSON doesn't already resolve.
