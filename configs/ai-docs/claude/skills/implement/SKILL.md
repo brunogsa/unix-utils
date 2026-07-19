@@ -76,7 +76,7 @@ Rare exceptions: §1.6's task-id disambiguation and §1.7's resume/dirty-run pro
 Mid-run `.env` needs are self-served (copy from the original checkout) rather than asked.
 
 - **Plan pick**, only when §1.1 found multiple candidates.
-- **Run in a git worktree?** (yes/no) — on yes, §1.3 creates it from HEAD and copies files in.
+- **Run in a git worktree?** (yes/no) — on yes, §1.3 creates it from HEAD and symlinks files in.
 - **Open a draft PR at batch end?** (yes/no).
 - **Run pre-dispatch orchestration review?** (yes/no, default no) — no skips §2, dispatching the first task after pre-flight.
 - **Run refactor + auto-review batch-end tails?** (yes/no, default yes) — no skips §9.2–§9.4; §9.1's gate always runs.
@@ -86,7 +86,7 @@ Record all answers (five, or six with plan-pick) before proceeding — §1.5 per
 
 ### 1.3. Worktree setup (only when §1.2 answered yes)
 
-Creation and file-copy mechanics live in [`references/worktree-setup.md`](references/worktree-setup.md). Load when §1.2 answered yes.
+Creation and file-symlink mechanics live in [`references/worktree-setup.md`](references/worktree-setup.md). Load when §1.2 answered yes.
 
 When §1.2 answered no, skip this step; the batch-end package omits the merge-back reminder, since no worktree exists to merge back.
 
