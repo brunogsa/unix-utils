@@ -58,65 +58,43 @@ if [ ! -d "$worktree_path" ]; then
   exit 2
 fi
 
-pr_section=$(awk '
-  /^## / {
-    if (in_section) exit
-    if ($0 ~ /^## PR Breakdown[[:space:]]*$/) { in_section = 1; next }
-    next
-  }
-  in_section { print }
-' "$plan_file")
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-pr_trimmed=$(printf '%s' "$pr_section" | sed '/^[[:space:]]*$/d')
-
-if [ -z "$pr_trimmed" ] || [ "$pr_trimmed" = "Single PR." ]; then
-  echo "error: PR-N label not found in the plan's PR Breakdown (section absent or Single PR.): $pr_label" >&2
-  exit 1
+# parse-pr-breakdown.sh does the section-extraction + entry-parse pipeline
+# shared with get-pr-tasks.sh and need-git-checkout.sh; this script consumes
+# both the Tasks: field (column 2) and the Depends on: field (column 3) of
+# its TSV output, where each sibling only needed one. Its non-zero exit
+# codes distinguish a trivial section (1: absent/"Single PR."), which needs
+# this script's own $pr_label-specific diagnostic below, from a malformed
+# one (2: content present but unparsable), whose diagnostic
+# parse-pr-breakdown.sh already printed to stderr itself - re-printing it
+# here would duplicate the line, since $(...) only captures stdout, never
+# stderr. Assigned inside an if-condition (never a bare assignment) so a
+# non-zero exit here doesn't abort the script under `set -e`.
+if pr_entries=$("$script_dir/parse-pr-breakdown.sh" "$plan_file"); then
+  :
+else
+  parse_exit=$?
+  if [ "$parse_exit" -eq 1 ]; then
+    echo "error: PR-N label not found in the plan's PR Breakdown (section absent or Single PR.): $pr_label" >&2
+    exit 1
+  else
+    exit 2
+  fi
 fi
 
-# Each PR Breakdown entry line looks like:
-#   N. **[<status>] PR-N** — <title>. Tasks: <N, N>. Depends on: <none | PR-N, PR-M>.
-# The label sits in the line's first **...** span; the Tasks: and Depends
-# on: clauses each run up to the next period, mirroring
-# need-git-checkout.sh's and get-pr-tasks.sh's own parsing (this script
-# needs both clauses, where each sibling only needed one).
-pr_entries=$(printf '%s\n' "$pr_section" | awk '
-  {
-    line = $0
-    if (!match(line, /\*\*[^*]*PR-[0-9]+[^*]*\*\*/)) next
-    seg = substr(line, RSTART, RLENGTH)
-    if (!match(seg, /PR-[0-9]+/)) next
-    label = substr(seg, RSTART, RLENGTH)
+# find_pr_entry - prints the pr_entries line (label\ttasks\tdeps) for the
+# given PR-N label, or nothing if absent. Bare awk, never a non-zero exit,
+# for the same set -e/bare-assignment reason noted throughout this script.
+# Defined before its first use below (the target PR-N lookup) since the
+# dependency-walk loop further down calls it again for each PARENT label -
+# two distinct callers sharing the one lookup.
+find_pr_entry() {
+  local label="$1"
+  printf '%s\n' "$pr_entries" | awk -F'\t' -v target="$label" '$1 == target { print; exit }'
+}
 
-    tasks = ""
-    if (match(line, /Tasks:[^.]*/)) {
-      tasks = substr(line, RSTART + 6, RLENGTH - 6)
-      gsub(/^[ \t]+|[ \t]+$/, "", tasks)
-    }
-
-    deps = ""
-    if (match(line, /Depends on:[^.]*/)) {
-      clause = substr(line, RSTART + 11, RLENGTH - 11)
-      while (match(clause, /PR-[0-9]+/)) {
-        tok = substr(clause, RSTART, RLENGTH)
-        deps = (deps == "" ? tok : deps "," tok)
-        clause = substr(clause, RSTART + RLENGTH)
-      }
-    }
-    print label "\t" tasks "\t" deps
-  }
-')
-
-if [ -z "$pr_entries" ]; then
-  echo "error: PR Breakdown section found but no PR-N entries could be parsed from it" >&2
-  exit 2
-fi
-
-# Looked up via a plain string match (never a failing awk exit code): under
-# `set -e`, a command substitution's failure inside a bare assignment (not an
-# if/while/&&/|| condition) aborts the script before the diagnostic below can
-# print, so "not found" must surface as an empty string, not a non-zero exit.
-matched_entry=$(printf '%s\n' "$pr_entries" | awk -F'\t' -v target="$pr_label" '$1 == target { print; exit }')
+matched_entry=$(find_pr_entry "$pr_label")
 
 if [ -z "$matched_entry" ]; then
   echo "error: PR-N label not found in the plan's PR Breakdown: $pr_label" >&2
@@ -129,14 +107,6 @@ if [ -z "$deps" ]; then
   echo "OK: $pr_label has no parents (DAG root)."
   exit 0
 fi
-
-# find_pr_entry - prints the pr_entries line (label\ttasks\tdeps) for the
-# given PR-N label, or nothing if absent. Bare awk, never a non-zero exit,
-# for the same set -e/bare-assignment reason as matched_entry above.
-find_pr_entry() {
-  local label="$1"
-  printf '%s\n' "$pr_entries" | awk -F'\t' -v target="$label" '$1 == target { print; exit }'
-}
 
 task_section=$(awk '
   /^## / {

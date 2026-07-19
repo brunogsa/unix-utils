@@ -48,50 +48,28 @@ if [ ! -d "$worktree_path" ]; then
   exit 2
 fi
 
-section=$(awk '
-  /^## / {
-    if (in_section) exit
-    if ($0 ~ /^## PR Breakdown[[:space:]]*$/) { in_section = 1; next }
-    next
-  }
-  in_section { print }
-' "$plan_file")
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-trimmed=$(printf '%s' "$section" | sed '/^[[:space:]]*$/d')
-
-if [ -z "$trimmed" ] || [ "$trimmed" = "Single PR." ]; then
-  echo "error: PR-N label not found in the plan's PR Breakdown (section absent or Single PR.): $pr_label" >&2
-  exit 1
-fi
-
-# Each PR Breakdown entry line looks like:
-#   N. **[<status>] PR-N** — <title>. Tasks: <N, N>. Depends on: <none | PR-N, PR-M>.
-# The label sits in the line's first **...** span; the Depends on: clause
-# runs up to the next period, mirroring check-pr-dag.sh's own parsing.
-entries=$(printf '%s\n' "$section" | awk '
-  {
-    line = $0
-    if (!match(line, /\*\*[^*]*PR-[0-9]+[^*]*\*\*/)) next
-    seg = substr(line, RSTART, RLENGTH)
-    if (!match(seg, /PR-[0-9]+/)) next
-    label = substr(seg, RSTART, RLENGTH)
-
-    deps = ""
-    if (match(line, /Depends on:[^.]*/)) {
-      clause = substr(line, RSTART + 11, RLENGTH - 11)
-      while (match(clause, /PR-[0-9]+/)) {
-        tok = substr(clause, RSTART, RLENGTH)
-        deps = (deps == "" ? tok : deps "," tok)
-        clause = substr(clause, RSTART + RLENGTH)
-      }
-    }
-    print label "\t" deps
-  }
-')
-
-if [ -z "$entries" ]; then
-  echo "error: PR Breakdown section found but no PR-N entries could be parsed from it" >&2
-  exit 2
+# parse-pr-breakdown.sh does the section-extraction + entry-parse pipeline
+# shared with get-pr-tasks.sh and check-pr-dependencies-ready.sh; this script
+# only consumes the Depends on: field (column 3) of its TSV output. Its
+# non-zero exit codes distinguish a trivial section (1: absent/"Single PR."),
+# which needs this script's own $pr_label-specific diagnostic below, from a
+# malformed one (2: content present but unparsable), whose diagnostic
+# parse-pr-breakdown.sh already printed to stderr itself - re-printing it
+# here would duplicate the line, since $(...) only captures stdout, never
+# stderr. Assigned inside an if-condition (never a bare assignment) so a
+# non-zero exit here doesn't abort the script under `set -e`.
+if entries=$("$script_dir/parse-pr-breakdown.sh" "$plan_file"); then
+  :
+else
+  parse_exit=$?
+  if [ "$parse_exit" -eq 1 ]; then
+    echo "error: PR-N label not found in the plan's PR Breakdown (section absent or Single PR.): $pr_label" >&2
+    exit 1
+  else
+    exit 2
+  fi
 fi
 
 # Looked up via a plain string match (never a failing awk exit code): under
@@ -105,7 +83,7 @@ if [ -z "$matched_entry" ]; then
   exit 1
 fi
 
-deps=$(printf '%s' "$matched_entry" | cut -f2)
+deps=$(printf '%s' "$matched_entry" | cut -f3)
 
 if [ -n "$deps" ]; then
   echo "yes"
