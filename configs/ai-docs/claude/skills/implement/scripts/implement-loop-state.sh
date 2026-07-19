@@ -28,8 +28,8 @@
 #   - The batch-wide dispatch budget (BATCH_CAP_MULT * task count +
 #     GATE_FIX_ALLOWANCE) is checked before any per-task logic: it is the
 #     backstop for a runaway gate-fixing loop (gate_dispatches piling up),
-#     since a single task alone can never exceed MAX_ATTEMPTS before the
-#     per-task "stuck" verdict already caught it.
+#     since a single task alone can never exceed MAX_ATTEMPTS + 1 attempts
+#     before the per-task "stuck" verdict already caught it.
 #   - The script only knows how to verdict phase "tasks" (retry/stuck/
 #     next-task/gates). Any other phase is a caller misuse the script
 #     fails loud on rather than guess a verdict for — after the task
@@ -184,10 +184,10 @@ case "$last_result" in
         "task $current_task repeated the same failure signature $STUCK_CONSECUTIVE times in a row"
     elif [ "$n_attempts" -gt "$MAX_ATTEMPTS" ]; then
       emit_verdict "stuck" "$current_task" \
-        "task $current_task reached the $MAX_ATTEMPTS-attempt cap without a consistent pass"
+        "task $current_task exceeded the $MAX_ATTEMPTS-attempt cap without a consistent pass"
     else
       emit_verdict "retry" "$current_task" \
-        "task $current_task failed attempt $n_attempts of $MAX_ATTEMPTS; retry"
+        "task $current_task failed attempt $n_attempts of $((MAX_ATTEMPTS + 1)); retry"
     fi
     ;;
   *)
