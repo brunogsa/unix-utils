@@ -64,6 +64,8 @@ No manifest write happens here either — this PR's own `branches_<slug>.md` ent
 - **Resume check, first**: `git rev-parse --verify --quiet <feat_branch>/pr<N>`.
   Branch already exists → `git checkout <feat_branch>/pr<N>` (plain, no `-b`) and skip every step below.
   The guard already ran, and passed, the first time this branch was created — re-running it on an adopted branch is redundant, not merely safe-to-repeat.
+  This guarantee holds for the diamond case too: its guard already ran by branch-creation time, in the diamond-specific position after the checkout and merges.
+  That run validated ancestry against every parent, not just one, so an adopted diamond branch inherits the same completed guarantee.
 - Branch doesn't exist yet (first time through) → count `PR-N`'s parents from its PR Breakdown line's `Depends on:` clause (already open from §1.1):
   - **Zero parents** (a second independent root reached after an earlier PR's batch already ran) → branch explicitly from the confirmed base branch (§1.2): `git checkout -b <feat_branch>/pr<N> <base-branch>`.
     Never from current HEAD — HEAD may sit at an unrelated PR's tip.
@@ -92,7 +94,7 @@ No manifest write happens here either — this PR's own `branches_<slug>.md` ent
       A conflict here is resolved by `/implement` itself, never surfaced to the user.
       Read the conflict markers, reconcile the intent behind both sides, then `git add` the resolved paths.
       Close out the merge with `git commit --no-edit`, never a bare `git commit`.
-      A bare `git commit` opens `$EDITOR` on the pending `MERGE_MSG`; this run has no TTY, so that call would hang or error — exactly the interactive handoff AC-2 forbids.
+      A bare `git commit` opens `$EDITOR` on the pending `MERGE_MSG`; this run has no TTY, so that call would hang or error — exactly the interactive handoff this batch's multi-PR design forbids.
       Never `git merge --abort`, never a blind `-X ours`/`-X theirs`, never an interactive handoff.
       Both branches are `/implement`-authored PRs from the same plan, so no independent human work is ever at risk of being silently overwritten.
     - Only once every parent is merged in, call the dependency guard exactly once, against the now-merged HEAD:
