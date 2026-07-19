@@ -110,6 +110,13 @@ Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles �
   - [Why] A bare number renumbers on edit and forces a lookup; both tracking and design-doc item numbers rot, so spell them out inline instead.
   - [Example] Tracking tokens: `AC-N`, `Req-N`, `Task-N`, `DBMA-X`. Design-doc item numbers: `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
 
+- [Instruction] The numbered-citation ban targets cross-file citations only.
+  - [Why] Rot risk depends on visual proximity; cross-file citations share no file/diff/reviewer with the citing text, making edits invisible to the citation.
+
+- [Instruction] A document's own internal section numbers, cited within that same document, carry lower rot risk — prefer naming the section, but it's not banned.
+  - [Why] Same-file citations share their file/diff/reviewer, so renumbering edits are visible in the same change.
+  - [Example] Bad (cross-file): a spec citing another doc's `§5.6`. OK (same-file): `implement/SKILL.md` citing its own `§9` elsewhere in that file — still name the step when practical.
+
 - [Instruction] Spell project-private acronyms: `SA` / `SAP` → `sales_agreement` / `sales_agreement_product`.
   - [Why] The private context behind the acronym can change, be forgotten, or never reach a new team member — leaving them to guess.
 
