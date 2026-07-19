@@ -89,27 +89,6 @@ it_should_append_a_new_entry_when_branches_file_already_has_prior_prs() {
   assert_true "should append a new entry when branches_<slug>.md already has prior PRs (PR-1 stays before PR-2)" "$pr1_before_pr2"
 }
 
-it_should_backfill_the_no_checkout_prs_entry_when_the_manifest_is_created_on_pr2_batch_end() {
-  local branches_file="$work_dir/corner-backfill/branches_test-slug.md"
-  mkdir -p "$(dirname "$branches_file")"
-  run_script "$branches_file" "test-slug" "PR-2" "feat-foo/pr2" "PR-1" "feat-foo"
-  assert_eq "should backfill the no-checkout PR's entry when the manifest is created on PR-2's batch-end (exit code)" "0" "$VERDICT_EXIT"
-
-  local pr1_line pr2_line backfill_before_primary="false"
-  pr1_line=$(grep -n '\*\*PR-1\*\*' "$branches_file" | cut -d: -f1)
-  pr2_line=$(grep -n '\*\*PR-2\*\*' "$branches_file" | cut -d: -f1)
-  if [ -n "$pr1_line" ] && [ -n "$pr2_line" ] && [ "$pr1_line" -lt "$pr2_line" ]; then
-    backfill_before_primary="true"
-  fi
-  assert_true "should backfill the no-checkout PR's entry when the manifest is created on PR-2's batch-end (backfilled PR-1 entry precedes PR-2's own entry)" "$backfill_before_primary"
-
-  local content
-  content=$(cat "$branches_file")
-  local has_backfill_branch="false"
-  [[ "$content" == *'**PR-1** — branch: `feat-foo`'* ]] && has_backfill_branch="true"
-  assert_true "should backfill the no-checkout PR's entry when the manifest is created on PR-2's batch-end (backfilled branch name recorded)" "$has_backfill_branch"
-}
-
 it_should_leave_the_manifest_unchanged_when_appending_the_same_pr_n_entry_twice() {
   local branches_file="$work_dir/failure-idempotent/branches_test-slug.md"
   mkdir -p "$(dirname "$branches_file")"
@@ -160,7 +139,6 @@ it_should_preserve_a_pre_existing_symlink_when_the_manifest_is_created_through_i
 
 it_should_create_branches_file_with_one_entry_when_none_exists_yet
 it_should_append_a_new_entry_when_branches_file_already_has_prior_prs
-it_should_backfill_the_no_checkout_prs_entry_when_the_manifest_is_created_on_pr2_batch_end
 it_should_leave_the_manifest_unchanged_when_appending_the_same_pr_n_entry_twice
 it_should_preserve_a_pre_existing_symlink_when_the_manifest_is_created_through_it
 

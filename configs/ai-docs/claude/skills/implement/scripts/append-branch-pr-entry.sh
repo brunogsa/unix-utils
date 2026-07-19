@@ -3,22 +3,13 @@
 # creating the file (with a header) on first use.
 #
 # Usage:
-#   append-branch-pr-entry.sh <branches-file> <slug> <pr-label> <branch-name> \
-#     [<backfill-pr-label> <backfill-branch-name>]
+#   append-branch-pr-entry.sh <branches-file> <slug> <pr-label> <branch-name>
 #
 # Writes one entry line per PR into <branches-file>:
 #   - **<pr-label>** — branch: `<branch-name>`
 #
-# The optional backfill pair records an EARLIER PR's entry (the one that ran
-# under /implement's no-checkout path and so never triggered a manifest
-# write) the first time this script creates the manifest for a later PR's
-# batch-end. Per the spec's decision, the manifest must never silently omit
-# the PR that triggered its own creation. When given, the backfill entry is
-# written before the primary <pr-label> entry — see "Entry ordering" below.
-#
 # Examples:
 #   append-branch-pr-entry.sh branches_foo.md foo PR-1 feat-foo/pr1
-#   append-branch-pr-entry.sh branches_foo.md foo PR-2 feat-foo/pr2 PR-1 feat-foo
 #
 # Idempotent: re-running with a <pr-label> already present in the file is a
 # silent no-op for that entry (matches simple-append semantics with the
@@ -38,22 +29,14 @@
 # manifest. Same footgun this repo's own CLAUDE.md documents for
 # settings.json and .gitconfig.
 #
-# Entry ordering without mid-file insertion
-#
-# The backfill entry (if given) is appended-if-missing BEFORE the primary
-# entry is appended-if-missing. Since both entries only ever append (never
-# rewrite existing lines), and the backfill check always runs first, the
-# backfill entry lands ahead of the primary entry in the file without ever
-# needing to insert a line into already-written content.
-#
 # Exit codes:
 #   0 - success (entry written, or already present as a no-op).
 #   2 - usage error (wrong arg count).
 
 set -eo pipefail
 
-if [ $# -ne 4 ] && [ $# -ne 6 ]; then
-  echo "usage: $(basename "$0") <branches-file> <slug> <pr-label> <branch-name> [<backfill-pr-label> <backfill-branch-name>]" >&2
+if [ $# -ne 4 ]; then
+  echo "usage: $(basename "$0") <branches-file> <slug> <pr-label> <branch-name>" >&2
   exit 2
 fi
 
@@ -61,8 +44,6 @@ branches_file="$1"
 slug="$2"
 pr_label="$3"
 branch_name="$4"
-backfill_pr_label="${5:-}"
-backfill_branch_name="${6:-}"
 
 # entry_line - prints the manifest line for a given PR label + branch name.
 entry_line() {
@@ -81,10 +62,6 @@ if [ ! -f "$branches_file" ]; then
     printf '# Branches: %s\n' "$slug"
     printf '\n'
   } > "$branches_file"
-fi
-
-if [ -n "$backfill_pr_label" ] && ! has_entry "$backfill_pr_label"; then
-  entry_line "$backfill_pr_label" "$backfill_branch_name" >> "$branches_file"
 fi
 
 if ! has_entry "$pr_label"; then
