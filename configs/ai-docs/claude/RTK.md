@@ -25,3 +25,10 @@ which rtk             # Verify correct binary
 
 All other commands are automatically rewritten by the Claude Code hook.
 Example: `git status` → `rtk git status` (transparent, 0 tokens overhead)
+
+## Known Limitations
+
+**`rtk find` rejects compound predicates** (`-o`, `-a`, parenthesized groups) with "Use `find` directly".
+Use `rtk proxy find ...` for those, or split into one `find` call per predicate.
+
+Inside a `&&` chain, that error silently short-circuits to the `||` branch — so an unrelated fallback message can mask the real failure. Run affected checks as separate statements.
