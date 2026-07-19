@@ -28,9 +28,13 @@ words-budget: 2250
   - No spec/plan resolved → `<slug>` falls back to the current branch name (`/` replaced with `-`).
   - Plan's `## PR Breakdown` reads "Single PR." (or no plan resolved) → omit `<N>` entirely.
   - Plan's `## PR Breakdown` lists multiple `PR-N` entries → ask the user which `PR-N` this covers, set `<N>` to that number (e.g. `PR-2` → `2`).
+- **Resolve the base branch (used below and in step 4)**:
+  - `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'` — same default `/implement`'s own pre-flight interview uses.
+  - Every PR targets this branch directly on GitHub, dependent or not — never a parent's branch, matching the plan's own base-branch targeting.
+  - Empty result (`origin/HEAD` unset) → omit `--base` in step 4 instead of passing an empty value; let `gh pr create` fall back to its own default.
 - Check if branch is pushed
 - **Delegate diff/log reading to a subagent** -- dispatch one `general-purpose` Agent, `model: "sonnet"`, `description: "Gather PR changes digest"`, foreground (step 2 needs the result immediately).
-  - Give it the base branch, the resolved spec/plan section slices from above, and this skill's Writing Style section so it knows what the digest feeds.
+  - Give it the resolved base branch (above), the resolved spec/plan section slices from above, and this skill's Writing Style section so it knows what the digest feeds.
   - It reads git log vs base with **full commit bodies** -- the primary source for decisions, rationale, and scope changes (mining relies on `commit-standards`-shaped commits).
   - It reads git diff vs base too, but returns only the **changes digest** (format: `references/changes-digest.md`), never the raw diff.
 
@@ -196,7 +200,8 @@ Apply approved updates before creating the PR — the skill self-improves.
 ### 4. Create the PR
 
 - Push branch if needed (with -u)
-- Create PR as **draft** using `gh pr create --draft --body-file pr-descr_<slug>_pr<N>.md`
+- Create PR as **draft** using `gh pr create --draft --body-file pr-descr_<slug>_pr<N>.md --base <base-branch>`, where `<base-branch>` is the value resolved in step 1.
+  - Resolved value was empty → drop `--base` from the command entirely, per step 1's fallback.
 - **Updating an existing PR's body: never use `gh pr edit --body-file`** — write via the REST API instead:
   ```bash
   gh api --method PATCH repos/<owner>/<repo>/pulls/<n> -F body=@pr-descr_<slug>_pr<N>.md
