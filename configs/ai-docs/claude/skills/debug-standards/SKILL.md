@@ -32,6 +32,27 @@ The test fails (the bug exists) → fix the code → the test passes. Now it's a
 - [Instruction] Author the regression test per `test-standards` — naming, scope (unit/integration), and mocking discipline.
   - [Why] A poorly-scoped guard is no guard — a test pinned to the wrong layer or behavior passes while the bug returns.
 
+## The feedback loop
+
+Phase zero of any debug is one repro command you can re-run cheaply. Building it IS the debugging, not a preliminary.
+
+- [Instruction] **CRITICAL: No hypothesis before a red-capable repro command exists and has run once — one command that fails demonstrating the bug, deterministic, fast, and runnable by the agent.**
+  - [Why] Without it every hypothesis test is a vibes-read of the code; with it each test costs seconds and returns an objective red/green — loop quality beats cleverness for debugging speed.
+
+- [Example] When a failing test isn't feasible, descend the ladder — the strongest loop you can actually build wins:
+
+```
+failing test → curl script → CLI + fixture file → headless-browser script
+→ replay of a captured trace → throwaway harness file
+→ git bisect run script → differential run (works at commit A, fails at B — diff them)
+```
+
+- [Instruction] Shrink the repro until every element is load-bearing — removing anything makes the bug vanish.
+  - [Why] A non-load-bearing element is a false lead that multiplies the search space; the minimal repro is also the regression test the Iron Law already requires.
+
+- [Instruction] On a non-deterministic bug, raise the reproduction rate — loop the repro 100×, add load or contention, narrow the timing window — rather than waiting for a clean repro.
+  - [Why] A bug reproducing 30% per loop-run is already debuggable; demanding determinism first blocks all progress on exactly the bugs least likely to offer it.
+
 ## Gathering evidence
 
 - [Instruction] When unexpected failures appear after touching shared code or merging, stash *only* the suspect files and rerun: `git stash push -- <file1> <file2>`, rerun, then `git stash pop`.
@@ -58,12 +79,18 @@ echo "=== signing script level ==="; security find-identity -v
 
 Reveals: secrets reached the workflow ✓, but didn't propagate to the build script ✗.
 
+- [Instruction] Prefix every temporary debug log with one shared run tag (e.g. `[DEBUG-x7q]`) so cleanup is a single grep.
+  - [Why] Untagged debug logs hide among real ones and ship by accident; the tag makes removal deterministic instead of a judgment sweep.
+
 - [Instruction] When a bad value surfaces deep in the stack, trace it one frame up at a time to its origin — don't jump to a guessed source.
   - [Why] Jumping to a guessed origin skips the frame where the value first goes wrong; stepping up one at a time lands on it.
 
 ## Hypothesis discipline
 
 ### State and test one hypothesis
+
+- [Instruction] Generate 3-5 ranked, falsifiable hypotheses before testing any; work through them most-likely first.
+  - [Why] The first idea anchors; forced breadth before depth stops tunneling on it, and ranking spends the cheap tests where the probability mass is.
 
 - [Instruction] **CRITICAL: State the hypothesis explicitly before changing anything — "I believe X causes the bug because Y; the test for that is Z".**
   - [Why] An unstated hypothesis can't be falsified; naming the prediction first is what lets you tell a confirmed cause from a lucky change.
