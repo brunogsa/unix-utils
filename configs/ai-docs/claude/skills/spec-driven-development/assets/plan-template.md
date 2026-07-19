@@ -150,6 +150,11 @@ See the gate process in the `spec-driven-development` SKILL.md for when and how 
 ---
 ## Task Breakdown
 
+**Task-dependency DAG diagram** — lead the section with a mermaid flowchart when any task's `Depends on:` names a real task (not empty/`none`): one node per task, edges following each `Depends on:` link.
+Validate with `mmdc` before pasting, per the `mermaid-diagrams` skill.
+
+N/A escape: when every task is independent, or there's only one task, write `N/A — no task dependencies` in place of the diagram and skip it.
+
 Each task produces **at least one base commit** (related tests, code and even IaC and docs, if they exist, together; RED/GREEN cycles live inside that commit).
 
 At execution, any refactor, scout finding, side quest worked on, separable drift, or `/auto-review` follow-up change becomes its own additional commit within the task.
@@ -234,11 +239,21 @@ No code exists yet, so estimate by feel from the task and file counts above — 
 
 - **Don't over-split** — a PR under ~50 lines usually lacks the context to review. The failure mode to catch is the one giant PR, not many tiny ones.
 
+**PR-level status marker** — `[<status>]` prefixes the PR-N label, mirroring the Task Breakdown's `### N. [<status>] Title` convention one level up: `[Doing]`, `[Done]`, `[Blocked]`, `[Deferred]`, `[Dropped]`.
+Absent for the pending/not-started state — a PR that hasn't started yet carries no bracket at all.
+Written inline by the orchestrating agent at PR batch-end, never scripted — same precedent as the task-level marker.
+
+**PR-dependency DAG diagram** — lead the numbered list below with a mermaid flowchart when any PR's `Depends on:` names a real PR (not `none`).
+One node per PR, edges following each `Depends on:` link — one abstraction level up from the Task Breakdown's own diagram.
+Validate with `mmdc` before pasting, per the `mermaid-diagrams` skill.
+
+N/A escape: for a "Single PR." plan, or a multi-PR plan where every PR is independent, write `N/A — no PR dependencies` in place of the diagram and skip it.
+
 Partition the tasks above — one line per PR:
 
-1. **PR-1** — <theme>. Tasks: <N, N>. Depends on: <none | PR-N>.
+1. **[<status>] PR-1** — <title>. Tasks: <N, N>. Depends on: <none | PR-N, PR-M, ...>.
 
-2. **PR-2** — <theme>. Tasks: <N, N>. Depends on: <none | PR-N>.
+2. **[<status>] PR-2** — <title>. Tasks: <N, N>. Depends on: <none | PR-N, PR-M, ...>.
 
 ---
 ## Open Questions
