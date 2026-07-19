@@ -16,20 +16,14 @@ Principles and paired examples for any documentation work. Each section pairs a 
 - [Instruction] Prefer tests and logs over comments.
   - [Why] A comment isn't bound to the code, so it drifts out of sync and misleads; code, tests, and logs stay bound to behavior and document it for free.
 
-- [Instruction] When you must comment, the maximum scope is **why this code exists in its current shape** — something the next reader cannot infer from the code itself.
-  - [Why] History rots on the next commit, mechanics on the next refactor; only the reason the code exists in this shape still holds after it changes.
+- [Instruction] When you must comment, the maximum scope is **why this code exists in its current shape** — never restate what the code shows (rename/restructure instead) or explain how it works.
+  - [Why] History rots on commit, mechanics falsify on refactor, and a restatement drifts out of sync — only the reason the code exists like this survives all three.
 
 - [Instruction] Route history to the commit message body, not source — PR numbers, "main used to", and mid-refactor justifications like "(was previously inline)", "(moved here from X)".
   - [Why] A history note rots as the code keeps changing; the commit preserves that history as a point-in-time snapshot that never goes stale.
 
 - [Instruction] A deferred-work TODO/FIXME in source must link to a tracked ticket (Jira/Linear URL), never to a local `.md` doc or a task named only in prose.
   - [Why] A ticket URL is durable and checkable; a local `.md` is an uncommitted scratchpad that vanishes, and a prose task pointer rots with no way to verify it exists.
-
-- [Instruction] Don't comment what the code already shows — rename or restructure to make it clear instead.
-  - [Why] A comment restating the code duplicates what's already visible and falls out of sync the moment the code changes.
-
-- [Instruction] Don't comment how the code works — it's an implementation detail.
-  - [Why] The next refactor falsifies a how-it-works comment, leaving a confident lie next to the code.
 
 [Example]
 ```ts
@@ -106,14 +100,10 @@ Good: // Helpers
 
 Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles — concretely:
 
-- [Instruction] Never cite a spec or design doc by a numbered token in code, docs, comments, or test titles; spell out the behavior briefly inline instead.
-  - [Why] A bare number renumbers on edit and forces a lookup; both tracking and design-doc item numbers rot, so spell them out inline instead.
-  - [Example] Tracking tokens: `AC-N`, `Req-N`, `Task-N`, `DBMA-X`. Design-doc item numbers: `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
-
-- [Instruction] The numbered-citation ban exempts a number that itself defines a workflow/pipeline/loop's step order — everything else follows the ban above.
-  - [Why] A step number there isn't a lookup pointer to rot — it IS the sequence being described, so citing it states the order directly instead of standing in for it.
-  - [Example] OK: `implement/SKILL.md` citing its own `§1.4–§9 repeat once per PR` — the numbers encode the loop's bounds.
-  - [Example] Bad: an `AC-N`/`PR-N`/`D-N` citation anywhere, same-file or not — those are lookup pointers, not sequence, so they follow the ban.
+- [Instruction] Never cite a spec/design doc by a numbered token in code, docs, comments, or test titles — spell out the behavior inline instead; exempt a workflow/pipeline/loop's own step-order number.
+  - [Why] A bare lookup number renumbers on edit and forces a lookup; a step-order number is different — it IS the sequence, not a pointer to it.
+  - [Example] Bad (lookup pointers — always follow the ban): `AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
+  - [Example] OK (step order — exempted): `implement/SKILL.md` citing its own `§1.4–§9 repeat once per PR` — the numbers encode the loop's bounds.
 
 - [Instruction] Spell project-private acronyms: `SA` / `SAP` → `sales_agreement` / `sales_agreement_product`.
   - [Why] The private context behind the acronym can change, be forgotten, or never reach a new team member — leaving them to guess.
@@ -148,10 +138,7 @@ The two subsections below apply to any standalone doc — where it lives and wha
 
 - [Instruction] Locate and update related documentation inline with the change.
   - [Why] Deferring doc updates to "later" means they don't happen — the PR description, README, and touched comments are part of the change the reviewer needs synced.
-
-- [Instruction] When canonical content lands in human-facing docs (README, ADRs, public schemas), update AI-facing docs (`CLAUDE.md`, `agents.md`, repo `CLAUDE.md`) in the SAME change.
-  - [Why] AI sessions reload AI-facing docs from disk every turn, so stale guidance there silently produces work the human-facing docs already obsoleted; humans skim once and remember.
-  - [Example] New diagram added to README → add a one-line pointer in `agents.md` so the next AI session treats it as canonical truth, not as derivable from code.
+  - [Example] New diagram added to README → also add a pointer in `agents.md`/`CLAUDE.md`, reloaded fresh every AI turn but skimmed only once by a human.
 
 ### What a doc should and shouldn't contain
 
