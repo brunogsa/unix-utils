@@ -63,7 +63,7 @@ No manifest write happens here either — this PR's own `branches_<slug>.md` ent
 - `<feat_branch>` = `git branch --show-current`, with any trailing `/pr<digits>` suffix stripped. Stateless — no new persistent store, matching the plan's NFR.
 - **Resume check, first**: `git rev-parse --verify --quiet <feat_branch>/pr<N>`.
   Branch already exists → `git checkout <feat_branch>/pr<N>` (plain, no `-b`) and skip every step below.
-  The guard and the parent-entry write already ran, and passed, the first time this branch was created — re-running either on an adopted branch is redundant, not merely safe-to-repeat.
+  The guard already ran, and passed, the first time this branch was created — re-running it on an adopted branch is redundant, not merely safe-to-repeat.
 - Branch doesn't exist yet (first time through) → count `PR-N`'s parents from its PR Breakdown line's `Depends on:` clause (already open from §1.1):
   - **Zero parents** (a second independent root reached after an earlier PR's batch already ran) → branch explicitly from the confirmed base branch (§1.2): `git checkout -b <feat_branch>/pr<N> <base-branch>`.
     Never from current HEAD — HEAD may sit at an unrelated PR's tip.
@@ -75,16 +75,12 @@ No manifest write happens here either — this PR's own `branches_<slug>.md` ent
     Exit 1 refuses to create this PR's branch or dispatch any of its tasks.
     Surface the script's own stderr diagnostic verbatim and stop; do not retry.
     Exit 2 (usage/parse error) surfaces the same way.
-    Exit 0 → before switching away from the parent's branch, record it:
-    ```bash
-    ~/.claude/skills/implement/scripts/append-branch-pr-entry.sh <worktree-path>/branches_<slug>.md <slug> <parent-PR-label> <feat_branch>
-    ```
-    `<parent-PR-label>` is this PR's single parent, from the same `Depends on:` clause.
-    `<feat_branch>` here is still the parent's own branch — HEAD hasn't moved yet.
-    Idempotent: a no-op if an earlier dependent PR already wrote this same parent's entry.
-    This is the earliest point the guard could have needed this entry.
-    It's also the last point `git branch --show-current` still reports it, so it must run exactly here — never deferred to any batch-end.
-    Then `git checkout -b <feat_branch>/pr<N>` with no explicit base ref, i.e. from current HEAD.
+    The guard's own `branch_for_pr()` hard-requires the parent's `branches_<slug>.md` entry to already exist — no fallback ancestry source, absence is always a hard block.
+    That precondition is already satisfied by the time this guard runs, every time.
+    The stop predicate (below) means the parent PR's own full batch already completed before this PR's pre-flight ever started.
+    That completed batch includes the parent's own §9 batch-end, where it wrote its own entry (see "Manifest writes" below).
+    So this step writes nothing itself; only the parent's own batch-end write ever populates this entry, and it always got there first.
+    Exit 0 → `git checkout -b <feat_branch>/pr<N>` with no explicit base ref, i.e. from current HEAD.
     Correct because a DAG-root PR's commits (the `no`-checkout case above) land directly on the pre-existing branch, so by the time a single dependent PR runs, HEAD already sits at its parent's tip.
   - **Two or more parents** (diamond dependency) → stop and report a clear "diamond dependency not supported here" block; do not attempt a merge.
     Real diamond-merge handling is a separate, later concern outside this task's scope.
@@ -99,9 +95,10 @@ Every PR — checkout-needed or not — writes its own entry once, at its own ba
 
 A `no`-checkout PR's branch is the `git branch --show-current` value from its own preflight; a checkout-needed PR's branch is whatever `checkout -b` (or the resume-check's plain `checkout`) resolved to above.
 
-This primary-entry write is independent from the pre-guard parent-entry write above.
-The two can name the same PR without conflict — a PR is simultaneously a later PR's recorded parent and the subject of its own batch-end write.
-`append-branch-pr-entry.sh` is idempotent per label: whichever write reaches a given PR's entry first wins, the second is a silent no-op.
+This is the *only* write for a given PR's entry.
+Nothing runs at that PR's own branch creation (see the guard step above), so there's no earlier write for this one to race against.
+A PR is simultaneously a later PR's recorded parent and the subject of its own batch-end write — that dual role is exactly what makes the guard's precondition always hold above.
+`append-branch-pr-entry.sh`'s idempotence still matters across re-runs of the *same* PR's batch-end (a resumed batch re-reaching §9), not across two different call sites.
 
 ## The per-PR loop and fail-fast
 
