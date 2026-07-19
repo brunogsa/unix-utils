@@ -119,14 +119,11 @@ count_critical_instructions() {
     awk '/^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*\[Instruction\]/ && /CRITICAL/ { c++ } END { print c+0 }' "$1"
 }
 
-# Render a critical/total pair as a percentage string. "N/A" when total is 0.
-ratio_percent() {
-    awk -v c="$1" -v t="$2" 'BEGIN { if (t == 0) print "N/A"; else printf "%.1f", (c*100)/t }'
-}
-
-# Integer percentage for comparison (truncates). 0 when total is 0.
+# Integer percentage, rounded to nearest (not truncated) — the single source
+# used for BOTH the displayed value and the pass/fail comparison, so what the
+# report shows is exactly what it verified. 0 when total is 0.
 ratio_percent_int() {
-    awk -v c="$1" -v t="$2" 'BEGIN { if (t == 0) print 0; else printf "%d", (c*100)/t }'
+    awk -v c="$1" -v t="$2" 'BEGIN { if (t == 0) print 0; else printf "%d", (c*100)/t + 0.5 }'
 }
 
 # Compare a measured integer against a budget. Echo "OK" or "OVER".
@@ -152,7 +149,6 @@ if [ "$has_claude_md" -eq 1 ]; then
     # Instruction-density measurements (transitional: 0 markers = unmigrated, skip ratio check)
     claude_instructions=$(count_instructions "$CLAUDE_MD")
     claude_criticals=$(count_critical_instructions "$CLAUDE_MD")
-    claude_ratio_pct=$(ratio_percent "$claude_criticals" "$claude_instructions")
     claude_ratio_int=$(ratio_percent_int "$claude_criticals" "$claude_instructions")
 fi
 
@@ -222,10 +218,9 @@ if [ "$has_skills_dir" -eq 1 ]; then
                     standards_unmigrated+=$'\n'"- $name (0 [Instruction] markers)"
                 else
                     standards_total_instructions=$((standards_total_instructions + skill_instructions))
-                    skill_ratio_pct=$(ratio_percent "$skill_criticals" "$skill_instructions")
                     skill_ratio_int=$(ratio_percent_int "$skill_criticals" "$skill_instructions")
                     ratio_status=$(status_of "$skill_ratio_int" "$CRITICAL_RATIO_BUDGET")
-                    standards_ratio_rows+=$'\n'"| $name | $skill_instructions | $skill_criticals | ${skill_ratio_pct}% | $ratio_status |"
+                    standards_ratio_rows+=$'\n'"| $name | $skill_instructions | $skill_criticals | ${skill_ratio_int}% | $ratio_status |"
                     [ "$skill_ratio_int" -gt "$CRITICAL_RATIO_BUDGET" ] && standards_ratio_over=1
 
                     # Per-skill instructions-budget override (frontmatter `instructions-budget: N`).
@@ -262,7 +257,7 @@ if [ "$has_claude_md" -eq 1 ]; then
         echo "| CLAUDE.md [Instruction] count | $claude_instructions | $CLAUDE_INSTRUCTIONS_BUDGET | $(status_of "$claude_instructions" "$CLAUDE_INSTRUCTIONS_BUDGET") |"
         [ "$claude_instructions" -gt "$CLAUDE_INSTRUCTIONS_BUDGET" ] && overages=1
         claude_ratio_status=$(status_of "$claude_ratio_int" "$CRITICAL_RATIO_BUDGET")
-        echo "| CLAUDE.md CRITICAL ratio | ${claude_ratio_pct}% ($claude_criticals/$claude_instructions) | ${CRITICAL_RATIO_BUDGET}% | $claude_ratio_status |"
+        echo "| CLAUDE.md CRITICAL ratio | ${claude_ratio_int}% ($claude_criticals/$claude_instructions) | ${CRITICAL_RATIO_BUDGET}% | $claude_ratio_status |"
         [ "$claude_ratio_int" -gt "$CRITICAL_RATIO_BUDGET" ] && overages=1
     fi
 else
