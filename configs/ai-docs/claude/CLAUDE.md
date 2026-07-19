@@ -83,7 +83,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 ### Scannable output
 
-- [Instruction] **CRITICAL: Optimize for the reader's cognitive load — scannable beats compact** -- prefer longer-but-scannable over shorter-but-dense; one thought per bullet. Applies to code, comments, chat.
+- [Instruction] **Optimize for the reader's cognitive load — scannable beats compact** -- prefer longer-but-scannable over shorter-but-dense; one thought per bullet. Applies to code, comments, chat.
   - [Why] Scannable text lets the reader read more and understand it faster; compact text saves the author once but costs the reader on every read.
 
 - [Instruction] **Be direct and concise** -- no preambles, filler, emojis, or useless verbosity.
@@ -116,7 +116,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 ### Scout discipline
 
-- [Instruction] **CRITICAL: Scout rule** -- when you notice pre-existing issues, flag them AND auto-add to the task list as `[Scout]` items.
+- [Instruction] **Scout rule** -- when you notice pre-existing issues, flag them AND auto-add to the task list as `[Scout]` items.
   - [Why] Per-Scout confirmation friction tempts skipping; auto-add neutralizes the temptation and preserves commit discipline (absorbed issues derail the commit).
   - [Example] Stale comments, budget overruns, lint gaps, dead config, type-check failures, failing/skipped tests, circular deps, dead code.
 
@@ -216,7 +216,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] Reload each skill lazily — a procedural skill at the step that next needs it, a `*-standards` skill when its trigger next fires.
   - [Why] Lazy reload pays only for remaining work, and each skill's trigger already encodes when it applies.
 
-- [Instruction] **CRITICAL: Mirror remaining steps as TaskList entries** -- when a step-shaped skill starts, add each remaining step as a `[Remind]` entry and complete it as it runs.
+- [Instruction] **Mirror remaining steps as TaskList entries** -- when a step-shaped skill starts, add each remaining step as a `[Remind]` entry and complete it as it runs.
   - [Why] Steps were observed skipped after compaction; TaskList survives compaction and re-surfaces every turn, so the sequence can't vanish with the summary.
 
 - [Instruction] Before producing a reader-facing artifact (report, review, research synthesis), consult the `html-artifacts` router — Markdown vs HTML vs Google Docs.
@@ -250,7 +250,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 ### TaskList discipline
 
-- [Instruction] **CRITICAL: Leverage TaskList proactively** -- whenever there are 2+ things to do, use TaskCreate/TaskUpdate; never skip it.
+- [Instruction] **Leverage TaskList proactively** -- whenever there are 2+ things to do, use TaskCreate/TaskUpdate; never skip it.
   - [Why] It's the only durable surface that survives compaction and session ends, so tracking 2+ items there is what stops you forgetting them.
 
 - [Instruction] Create the task with ` <id>. ` in the subject — leading space, number, period, trailing space.
@@ -331,7 +331,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] Give every Agent `description` the form `<title> - <model> <effort>` — no parens, no `<agent-type>` (the UI prepends it, so the full line reads `<agent-type> <title> - <model> <effort>`).
   - [Why] That dispatch line is all the user sees live, so naming tier and effort lets them audit spawns in real time; repeating the type just doubles it (`general-purpose general-purpose …`).
 
-- [Instruction] **Spawn a fresh-context subagent when writing-session bias would distort the check** -- verification, semantic match, or quality judgment over your own output.
+- [Instruction] **CRITICAL: Spawn a fresh-context subagent when writing-session bias would distort the check** -- verification, semantic match, or quality judgment over your own output.
   - [Why] In-session reading carries "I already convinced myself" residue; a subagent sees only the artifact + the question.
   - [Example] Test-presence gates, AC↔test coverage, code-review of just-written code, end-of-batch refactor + auto-review reports.
 
