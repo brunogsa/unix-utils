@@ -70,6 +70,13 @@ Ask clarifying questions (Socratic style). Focus on:
 
 Ask 2-3 questions per round. Don't overwhelm.
 
+**Split facts from decisions before asking.** Anything discoverable from the codebase, session context, or a web search is legwork — look it up yourself, never ask it.
+Questions to the user are reserved for genuine decisions: preferences, priorities, and context only they hold.
+
+**Attach your recommended answer to every question**, with one line of reasoning.
+
+Why: a look-up-able fact wastes an interview round on work the agent can do; a recommendation turns each remaining question from an essay prompt into a confirm-or-override.
+
 **CRITICAL: For Testable Acceptance Criteria, actively probe for coverage gaps.** Happy-path scenarios are easy to elicit; corner cases and failure modes need pulling.
 
 Before generating the spec, push the user through every category in the canonical coverage taxonomy (`~/.claude/skills/test-standards/references/coverage-taxonomy.md`). Illustrative probes:
