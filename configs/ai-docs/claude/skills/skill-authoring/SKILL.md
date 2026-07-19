@@ -46,6 +46,16 @@ Omit the pin only when the step genuinely needs the session model's judgment —
 
 Why: an unpinned Agent call inherits the session's model — often the most expensive tier — so a scripted mechanical fan-out silently runs at top-tier pricing on every future invocation.
 
+## When a skill step gets rushed, sharpen its completion criterion before adding process
+
+First rewrite the step's completion criterion to be checkable (a third party could verify it mechanically) and exhaustive (quantified over every item it covers).
+Reach for heavier machinery — gates, fresh-context subagents, steps hidden behind a context boundary — only if the criterion is irreducibly fuzzy AND the rushing persists after the rewrite.
+
+Example: "produce a review" → "list every modified function, each with its covering test or explicitly marked untested."
+
+Why: a model can bluff "step done" but can't cheaply bluff an exhaustive, checkable enumeration — faking one costs more than doing the work.
+So the rewrite often fixes the rush at zero runtime cost, while added process taxes every future run.
+
 ## Marker-authoring rules — global CLAUDE.md and `*-standards` skills
 
 These rules govern every file that uses the `[Instruction]`/`[Why]`/`[Example]`/`CRITICAL` marker system: the global CLAUDE.md (`~/unix-utils/configs/ai-docs/claude/CLAUDE.md`, which defines the four markers) and the `*-standards` skills.
