@@ -1,6 +1,6 @@
 ---
 name: skill-authoring
-description: "Creating, editing, improving, packaging, or evaluating a skill, or writing/optimizing a SKILL.md description — Bruno's superset of skill-creator; ALWAYS load alongside it. ALSO load before editing the global CLAUDE.md or any *-standards skill (marker-authoring rules)."
+description: "Creating, editing, packaging, or evaluating a skill, or writing a SKILL.md description — Bruno's superset of skill-creator; always load alongside it. Also load before editing CLAUDE.md or any *-standards skill (marker-authoring rules)."
 user-invocable: false
 ---
 
