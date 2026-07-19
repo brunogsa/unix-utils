@@ -182,7 +182,7 @@ case "$last_result" in
     if [ "$consecutive_identical" = true ]; then
       emit_verdict "stuck" "$current_task" \
         "task $current_task repeated the same failure signature $STUCK_CONSECUTIVE times in a row"
-    elif [ "$n_attempts" -ge "$MAX_ATTEMPTS" ]; then
+    elif [ "$n_attempts" -gt "$MAX_ATTEMPTS" ]; then
       emit_verdict "stuck" "$current_task" \
         "task $current_task reached the $MAX_ATTEMPTS-attempt cap without a consistent pass"
     else
