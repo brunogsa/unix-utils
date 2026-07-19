@@ -30,17 +30,16 @@ assert_eq() {
   fi
 }
 
-# run_script - invokes parse-pr-breakdown.sh against a plan-file fixture,
+# run_script - invokes parse-pr-breakdown.sh with any number of args,
 # capturing stdout/exit code into VERDICT_OUT/VERDICT_EXIT (stderr is
 # discarded to a file, not a variable - no assertion below needs it, since
 # parse-pr-breakdown.sh's exit-1 trivial-section path prints no diagnostic
 # by design, leaving that message to each caller's own $pr_label context).
 run_script() {
-  local plan_file="$1"
   local out_file="$work_dir/stdout.txt"
   local err_file="$work_dir/stderr.txt"
-  bash "$SCRIPT" "$plan_file" >"$out_file" 2>"$err_file"
-  VERDICT_EXIT=$?
+  VERDICT_EXIT=0
+  bash "$SCRIPT" "$@" >"$out_file" 2>"$err_file" || VERDICT_EXIT=$?
   VERDICT_OUT=$(cat "$out_file")
 }
 
@@ -93,10 +92,53 @@ it_should_emit_every_dependency_for_a_pr_with_a_diamond_dependency() {
   assert_eq "should emit every dependency for a PR with a diamond dependency (deps field)" "PR-3	3	PR-1,PR-2" "$diamond_line"
 }
 
+it_should_exit_1_when_no_pr_breakdown_section_exists() {
+  local path="$work_dir/no-section.md"
+  printf '## Other Section\n\nsome content\n' > "$path"
+  run_script "$path"
+  assert_eq "should exit 1 when no PR Breakdown section exists (exit code)" "1" "$VERDICT_EXIT"
+  assert_eq "should exit 1 when no PR Breakdown section exists (no stdout)" "" "$VERDICT_OUT"
+}
+
+it_should_exit_2_when_pr_breakdown_exists_but_no_pr_entries() {
+  local path="$work_dir/no-pr-entries.md"
+  printf '## PR Breakdown\n\nSome prose without PR entries.\n' > "$path"
+  run_script "$path"
+  assert_eq "should exit 2 when PR Breakdown exists but no PR-N entries (exit code)" "2" "$VERDICT_EXIT"
+}
+
+it_should_exit_2_on_wrong_arg_count() {
+  run_script
+  assert_eq "should exit 2 when called with 0 arguments" "2" "$VERDICT_EXIT"
+
+  run_script "$work_dir/dummy1.md" "$work_dir/dummy2.md"
+  assert_eq "should exit 2 when called with 2 arguments" "2" "$VERDICT_EXIT"
+}
+
+it_should_exit_2_when_the_plan_file_does_not_exist() {
+  run_script "$work_dir/does-not-exist.md"
+  assert_eq "should exit 2 when the plan file does not exist" "2" "$VERDICT_EXIT"
+}
+
+it_should_parse_a_pr_entry_with_no_tasks_or_depends_clauses() {
+  local fixture
+  fixture=$(write_plan "pr-with-minimal-format" '1. **PR-1** — A simple PR.')
+  run_script "$fixture"
+  assert_eq "should parse PR with no Tasks or Depends fields (exit code)" "0" "$VERDICT_EXIT"
+  local expected
+  expected=$(printf 'PR-1\t\t')
+  assert_eq "should parse PR with no Tasks or Depends fields (TSV body)" "$expected" "$VERDICT_OUT"
+}
+
 it_should_emit_one_tsv_line_per_pr_n_entry_for_a_normal_multi_pr_plan
 it_should_report_nothing_to_parse_for_a_single_pr_plan
 it_should_emit_an_empty_deps_field_for_a_pr_with_no_dependencies
 it_should_emit_every_dependency_for_a_pr_with_a_diamond_dependency
+it_should_exit_1_when_no_pr_breakdown_section_exists
+it_should_exit_2_when_pr_breakdown_exists_but_no_pr_entries
+it_should_exit_2_on_wrong_arg_count
+it_should_exit_2_when_the_plan_file_does_not_exist
+it_should_parse_a_pr_entry_with_no_tasks_or_depends_clauses
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
