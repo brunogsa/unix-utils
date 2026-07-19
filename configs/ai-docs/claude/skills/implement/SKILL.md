@@ -2,17 +2,20 @@
 name: implement
 description: "Execute plan_<slug>.md tasks end-to-end as fresh-context subagents, fully async. Trigger: /implement <id(s)> or natural language (\"let's implement that\", \"implement this plan\") when a plan_<slug>.md exists."
 disable-model-invocation: false
-words-budget: 5250
+words-budget: 5550
 ---
 
 ## Usage
 
 ```
-/implement <task-ids>
+/implement <task-ids> | <PR-label(s)>
 ```
 
 `<task-ids>` is one numeric task prefix or a comma-list of them — `5`, or `1, 2, 3` from `plan_<slug>.md` in CWD. 1 space after commas.
 Each ID matches the **exact** numeric prefix of a plan_<slug>.md heading. On ambiguity (rare), ask the user.
+
+`<PR-label(s)>` is `PR-N` or a comma-list — `PR-1`, or `PR-1, PR-2` — from the plan's PR Breakdown, same comma-space convention. Resolves to its own task-id list.
+See [`references/pr-awareness.md`](references/pr-awareness.md), loaded whenever the arg is a PR-label.
 
 ## Execution model — orchestrator + per-task subagents
 
@@ -100,11 +103,15 @@ Read **full commit messages** and give a 3–5 line summary. Don't dump the log;
 
 ### 1.5. State-file init (and resume adoption)
 
-Check for an existing state file belonging to this `<slug>`:
+Check for an existing state file belonging to this `<slug>` **and** this run's `<pr_label>` (`""` for a plain task-id run, else the resolved `PR-N`):
 
 ```bash
-grep -l "\"slug\": \"<slug>\"" ~/.claude/implement-runs/*.json 2>/dev/null
+jq -r --arg slug "<slug>" --arg pr "<pr_label>" \
+  'select(.slug == $slug and ((.pr_label // "") == $pr)) | input_filename' \
+  ~/.claude/implement-runs/*.json 2>/dev/null
 ```
+
+`// ""` matches a pre-change file with no `pr_label` key against a plain task-id run's empty `<pr_label>` — see `references/preflight-state.md`.
 
 - **None found** → create `~/.claude/implement-runs/<session_id>.json` with exactly this shape:
 
@@ -113,6 +120,7 @@ grep -l "\"slug\": \"<slug>\"" ~/.claude/implement-runs/*.json 2>/dev/null
   "version": 1,
   "session_id": "<session_id>",
   "slug": "<slug>",
+  "pr_label": "",
   "phase": "tasks",
   "batch_base_sha": "<BATCH_BASE_SHA>",
   "started_at": "<ISO-8601 now>",
@@ -128,6 +136,7 @@ grep -l "\"slug\": \"<slug>\"" ~/.claude/implement-runs/*.json 2>/dev/null
 ```
 
 - One `tasks[]` entry per matched task-id (`status: "pending"`); `worktree`/`pr`/`tails.wanted`/`orchestration_review.wanted` filled from §1.2's answers.
+  - `pr_label` is `""` for a plain `<task-ids>` run, else the `PR-N` this file belongs to (`references/pr-awareness.md`).
   - §5.3/§5.5 append `attempts[]` entries as `{ "task", "n", "result", "signature", "tokens", "at" }`.
 - **Found** → load [`references/preflight-state.md`](references/preflight-state.md) for the JSON-adoption mechanics that restore attempt counts and completed-task status.
 

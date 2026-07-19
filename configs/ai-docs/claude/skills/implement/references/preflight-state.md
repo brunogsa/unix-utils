@@ -4,7 +4,7 @@ Detail for §1.5 (JSON state-file adoption) and §1.7 (task/TaskList reconciliat
 
 ## Session-level: JSON state-file adoption (§1.5)
 
-When §1.5 finds an existing `~/.claude/implement-runs/*.json` whose `slug` matches this run's `<slug>`, adopt it instead of creating a new file.
+When §1.5 finds an existing `~/.claude/implement-runs/*.json` whose `slug` AND `pr_label` both match this run's, adopt it instead of creating a new file.
 
 No prompt: an existing file is itself the resume signal, mirroring the Stop hook's own escape hatch (deleting the file un-scopes the session).
 
@@ -18,9 +18,13 @@ jq --arg sid "<new_session_id>" \
   > /tmp/state.json && mv /tmp/state.json ~/.claude/implement-runs/<new_session_id>.json
 ```
 
-`tasks[]`, `attempts[]`, `gate_dispatches`, `tails`, `worktree`, `pr`, and `orchestration_review` all carry over verbatim.
+`tasks[]`, `attempts[]`, `gate_dispatches`, `tails`, `worktree`, `pr`, `orchestration_review`, and `pr_label` all carry over verbatim.
 
 A pre-change state file predates `tails.wanted` and has no such key — treat its absence as `true`, matching the tails-mandatory behavior that file was created under.
+
+A pre-change state file predates `pr_label` the same way — treat its absence as `""`, matching a plain task-id run (no `PR-N` label given).
+
+§1.5's lookup filters on `pr_label`, so an adopted file's absent key must resolve to the same empty string the lookup itself defaults to. Otherwise adoption would never match a pre-change file.
 
 `phase` carries over too, except `halted`, which resets to `tasks`: the verdict script fails loud on any phase other than `tasks`, so a resumed halted batch would crash its first verdict call.
 
