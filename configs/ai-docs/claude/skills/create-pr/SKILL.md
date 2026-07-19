@@ -7,39 +7,32 @@ words-budget: 2250
 
 # Create Pull Request
 
-Create a GitHub PR with a rich description generated from
-spec_<slug>.md and plan_<slug>.md context (when available).
-
 ## Usage
 
-`/create-pr`
-
-No flags needed. Auto-detects `spec_*.md` and `plan_*.md` in the current directory (if several, it asks which pair to use).
+`/create-pr` — no flags needed.
 
 ## Process
 
 ### 1. Gather context
 
 - Discover spec/plan in cwd by glob `spec_*.md plan_*.md` (top-level; optional -- works without them):
-  - At most one spec and at most one plan → use whichever exist (either, both, or neither).
+  - One spec / one plan → use whichever exist.
   - Multiple specs OR multiple plans → list them numbered and ask which to use.
   - None → proceed from the changes digest (below) only.
-  - Extract all ` ```mermaid ``` ` fenced blocks from each resolved file, including all of them in the PR description as collapsibles
+  - Extract every ` ```mermaid ``` ` fenced block from each resolved file; include them all in the PR description as collapsibles.
   - When embedding spec/plan content beyond diagrams, prefer a curated slice over the full file.
-    - Ask the user which `## ` sections matter (e.g. Background, Goals, Testable Acceptance Criteria, Technical Decisions).
-    - Pull them with `~/.claude/skills/create-pr/scripts/extract-md-sections.sh <file> "<section>" ["<section>" ...]`.
+    - Ask the user which `## ` sections matter; pull them with `~/.claude/skills/create-pr/scripts/extract-md-sections.sh <file> "<section>" ["<section>" ...]`.
     - A full-file embed routinely blows the body-size cap (see step 2.6).
 - **Resolve the output filename's `<slug>` and `<N>` (used in step 2)**:
   - `<slug>` is the shared filename slug from the resolved `spec_<slug>.md`/`plan_<slug>.md`.
   - No spec/plan resolved → `<slug>` falls back to the current branch name (`/` replaced with `-`).
   - Plan's `## PR Breakdown` reads "Single PR." (or no plan resolved) → omit `<N>` entirely.
   - Plan's `## PR Breakdown` lists multiple `PR-N` entries → ask the user which `PR-N` this covers, set `<N>` to that number (e.g. `PR-2` → `2`).
-- Check for a PR template in `.github/`
 - Check if branch is pushed
 - **Delegate diff/log reading to a subagent** -- dispatch one `general-purpose` Agent, `model: "sonnet"`, `description: "Gather PR changes digest"`, foreground (step 2 needs the result immediately).
   - Give it the base branch, the resolved spec/plan section slices from above, and this skill's Writing Style section so it knows what the digest feeds.
-  - It reads git log for commits on current branch vs base with **full commit bodies** -- primary source for decisions, rationale, and scope changes; mining only works if commits follow `commit-standards`.
-  - It also reads git diff against base branch — but returns only the **changes digest** in the format at `~/.claude/skills/create-pr/references/changes-digest.md`, never the raw diff.
+  - It reads git log vs base with **full commit bodies** -- the primary source for decisions, rationale, and scope changes (mining relies on `commit-standards`-shaped commits).
+  - It reads git diff vs base too, but returns only the **changes digest** (format: `references/changes-digest.md`), never the raw diff.
 
 ### 2. Write pr-descr_<slug>_pr<N>.md
 
@@ -80,7 +73,7 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits, nor shares yo
 
 **Second meta-principle: a small PR earns a small description.**
 
-Optimize every section for the fewest words that still let the reviewer verify the change was designed and tested properly — didactic, never exhaustive. This is a discipline, not a hard cap:
+This is a discipline, not a hard cap:
 
 - **CRITICAL: Write the shortest version that still teaches** -- cut any sentence that doesn't help the reviewer decide.
   - Test: would removing it lose reviewer-relevant information? If no, cut it. A one-file, one-decision PR should read in under a minute.
@@ -108,26 +101,21 @@ Optimize every section for the fewest words that still let the reviewer verify t
   4. This PR's scope as bullets+sub-bullets per ticket.
   - Multi-ticket PRs need one bullet per ticket — not a dense paragraph each.
 - **Testable Acceptance Criteria — verbatim from spec** -- copy BDD content (Given/When/Then/And) from `## Testable Acceptance Criteria`; drop only "AC-N:" prefix.
-  - Each AC ends with one line: `> Covered by [manual tests](#scenario-N), [path/to/spec.ts](https://github.com/.../blob/branch/path), and/or [contract tests](#anchor).` Use whichever combination applies.
-- **Evidences section — only what adds value beyond GitHub PR UI** -- skip what the checks tab already shows (lint/build/security/CI badges).
-  - Worth including: manual tests (collapsible per scenario, claim adjacent to request+response).
-  - High-risk CI checks (e.g., maintenance-window migration).
-  - Pre-prod/staging deploy (only with link + smoke result NOW).
-  - Screenshots (only when UI changed).
+  - Each AC ends with a one-line `> Covered by ...` pointer (skeleton in `references/pr-template.md`); use whichever link combination applies.
+- **Evidences section — value-add only** -- categories and layout live in `references/pr-template.md` (canonical); skip anything the checks tab already shows (lint/build/security/CI badges).
 
 ##### Formatting & rendering
 
 - **Bold topic prefix on every bullet** -- start each bullet with `**Topic** --` so reviewers scan the bold words and skip details they don't need
 - **Be concise** -- one short sentence per bullet. Sub-bullets only when essential.
-- **Bullet spacing follows doc-standards** -- blank line after any bullet that has a sub-bullet or nears the density cap; other bullets stay tight (no blank line between them).
+- **Bullet spacing follows doc-standards**.
 - **One sentence per paragraph for dense factual prose** -- when a paragraph stacks ≥2 atomic claims (e.g., CI status + scope + count), split each into its own short paragraph.
   - Whitespace gives scan-anchors. Bullets stay tight; narrative stays prose.
 - **Section names AND body prose in the PR's primary language** -- translate headers and recurring body terms; engineering jargon stays English. Examples: see [`references/decision-quality.md`](references/decision-quality.md).
-- **Blank line BEFORE every list** -- prevents CommonMark merging ordered lists that don't start at `1.` into the preceding paragraph. Defensive: always insert, regardless of list type or start number.
-- **CRITICAL: Density caps** -- every prose line, bullet, and sub-bullet ≤256 chars / ≤32 words. Step 2.5 owns the script-verification procedure.
+- **Blank line BEFORE every list** -- prevents CommonMark merging ordered lists that don't start at `1.` into the preceding paragraph.
+- **CRITICAL: Density caps per doc-standards** -- step 2.5 owns the script verification.
 - **Never use markdown tables in PR bodies** -- they fragment scanning, break on narrow widths, separate claim from evidence. Replace with bullets where evidence is a sub-bullet or inline collapsible.
 - **`>` blockquotes only for quoted content or per-bullet evidence pointers, not section intros** -- a `>` at section top creates a gray bar indented below H4 headings, inverting hierarchy.
-  - Use plain paragraphs for intros; reserve `>` for quoted external text or per-AC "Covered by..." one-liners.
 - **JSON snippets: fully pretty-printed, one field per line** -- `JSON.stringify(obj, null, 2)` style; every nested object/array expanded vertically, including single-key.
   - NEVER inline. Only `[]` empty arrays stay on one line. Example: [`references/json-format-example.md`](references/json-format-example.md).
 - **Absolute GitHub URLs for in-repo links** -- relative paths break across notifications/previews/GraphQL. Use `https://github.com/<owner>/<repo>/blob/<branch>/<path>` (branch ref for PR-scoped, SHA for permalinks).
@@ -162,13 +150,11 @@ Mandatory while drafting `pr-descr_<slug>_pr<N>.md`. Same authority as the rules
 
 - **Collapsible sections for large content** -- `<details><summary>` for payloads, long examples, API responses.
 - **Evidence locality: claim adjacent OR linked to artifact** -- every claim ("PASS", "validated", "AC met") needs a collapsible with the artifact OR a deep link.
-  - The link IS locality. For long lists (e.g., 18 ACs), deep-link to one appendix; don't bloat with inline collapsibles.
-- **Manual test payloads live in Evidences appendix, not inline in TAC** -- one collapsible per scenario in the manual-tests subsection.
-  - Each `<details>` needs an explicit `<a id="scenario-N"></a>` line above it (GitHub auto-anchors only headings, not `<summary>` text).
-  - ACs link to `#scenario-N`. Keeps TAC scannable, locality one click away.
+  - The link IS locality. For long lists, deep-link to one appendix; don't bloat with inline collapsibles.
+- **Manual test payloads live in the Evidences appendix, not inline in TAC** -- one collapsible per scenario; ACs deep-link to `#scenario-N` (anchor mechanics: `references/pr-template.md`).
 - **No claim without evidence — drop the scenario, don't park it** -- can't paste the verifiable artifact → DROP the bullet.
   - "Covered by automated tests at path/spec.ts" isn't evidence (the diff already shows it).
-  - Same for sections: if "Pre-prod pipeline" can only say "TODO collect post-merge", remove it. TODO sections rot and dilute.
+  - Same for sections: one that can only say "TODO collect post-merge" gets removed — TODO sections rot.
 - **Coverage-only scenarios — group, don't enumerate** -- when an automated suite covers many scenarios with no manual evidence, write ONE intro pointing to the suite + CI link.
   - Then list scenarios as plain bullets. Don't repeat empty `<details>covered by tests</details>` shells.
 
@@ -183,13 +169,11 @@ Before step 3, resolve every TODO:
 - **If the answer adds reviewer value** — investigate the code, replace the TODO with the answer inline (concise prose, not the full investigation).
 - **If the answer is internal-only** — strip the TODO entirely.
 
-A TODO must NEVER survive into the final PR push — they embarrass reviewers and signal the author didn't finish the doc.
+A TODO must NEVER survive into the final PR push.
 
 ### 2.5. Verify density
 
-Run `~/.claude/skills/doc-standards/scripts/check-density.sh pr-descr_<slug>_pr<N>.md`. Output is `<line>:<chars>:<words>` per violation; exit 0 means clean.
-
-For each violation, rewrite per `~/.claude/skills/doc-standards/references/density-rules.md` (paragraph → bullets+sub-bullets, long bullet → bullet + sub-bullets) without dropping info. Re-run until exit 0 before step 3.
+Delegate to the `density-fixer` subagent (Agent tool) on `pr-descr_<slug>_pr<N>.md`; it must exit clean before step 3.
 
 ### 2.6. Verify body size
 
@@ -206,11 +190,8 @@ Wait for approval or edits before creating the PR.
 
 ### 3.5. Learn from user edits
 
-After the user edits pr-descr_<slug>_pr<N>.md, diff the original against their version.
-Identify patterns in what was added, removed, or reworded. Present proposed improvements
-to THIS skill's writing style guidelines (step 2) for user approval.
-
-Apply approved improvements before creating the PR. This makes the skill self-improving.
+Diff the user's edited pr-descr_<slug>_pr<N>.md against your original; infer the general rule behind each edit and propose updates to this skill's Writing Style for approval.
+Apply approved updates before creating the PR — the skill self-improves.
 
 ### 4. Create the PR
 
