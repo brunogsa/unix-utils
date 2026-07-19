@@ -199,17 +199,44 @@ It prints JSON: `{duration_seconds, tokens:{per_task, subagent_total, orchestrat
 - `over_budget_tasks` lists any task above the 200000-token budget.
   - Surface each as a plan-granularity smell — the task was too big for one context window.
 
+## PR manifest entry & PR-level status marker (PR-label runs only)
+
+Skip this whole section on a plain `<task-ids>` run (no `PR-N` label, `pr_label` is `""`).
+
+- **Manifest entry** — record this PR's own branch, once, regardless of terminal outcome:
+  ```bash
+  ~/.claude/skills/implement/scripts/append-branch-pr-entry.sh <worktree-path>/branches_<slug>.md <slug> <this-PR-label> <this-PR-branch>
+  ```
+  `<this-PR-branch>` is `git branch --show-current` right now. See `references/pr-awareness.md`'s "Manifest writes" for why this write belongs here and not at branch creation.
+- **PR-level status marker** — on a fully **`[Done]`** batch only (every task `[Done]`, repo-green gate passed), update this PR's own line in the plan's PR Breakdown.
+  This mirrors §6's task-level marker convention one level up:
+  ```
+  N. **[Done] PR-N** — <theme>. Tasks: <N, N>. Depends on: <none | PR-N>.
+  ```
+  Write it inline, in the same edit style as a task-level marker — never scripted.
+  A halted batch (any task `blocked`/`stuck`, or the gate failed) leaves the PR Breakdown line **unmarked**.
+  Resuming re-evaluates it, so a partial PR must never read as `[Done]`.
+
 ## Draft PR (opt-in)
 
 Only when the interview opted into a draft PR (§1.2). Skip this section entirely otherwise.
 
 - **Guard first** — if `gh` is absent or the repo has no remote, skip the PR with an explicit notice in the package; everything else in the package is unaffected.
 - Otherwise **push the branch** and create a **draft** PR with `gh pr create --draft --body-file <file>`. Never auto-merge, never force-push.
+  - **This branch already has an open PR** (`gh pr create` errors that a PR already exists) → not a failure.
+    Fall back to the same REST-API body-update path below, targeting that existing PR number.
+    A resumed batch updates its own already-open PR instead of erroring.
   - **Updating an existing PR's body: use the REST API, never `gh pr edit --body-file`** — `gh api --method PATCH repos/<owner>/<repo>/pulls/<n> -F body=@<file>`.
     - `gh pr edit` eagerly queries Projects-classic `projectCards`; on repos where classic Projects is sunset it errors on that query and the write silently doesn't land.
     - The REST endpoint touches no Projects data.
     - Read the body back afterward to confirm it landed.
-- Generate the description with a **separate `deep-reviewer` dispatch** from the spec/plan and commit bodies, following the `create-pr` skill's conventions (`~/.claude/skills/create-pr/SKILL.md`).
+- Generate the description with a **separate `deep-reviewer` dispatch** from the spec/plan and commit bodies, following the `create-pr` skill's conventions (`~/.claude/skills/create-pr/SKILL.md`) for structure and tone only.
+  - Never invoke `create-pr` itself for this — its own step 3 is an interactive approval gate, incompatible with this fully-async flow.
+  - It fills `.github/PULL_REQUEST_TEMPLATE.md`, embeds mermaid blocks, and includes the mandatory Testable-Acceptance-Criteria + Evidences sections a hand-written body silently omits.
+  - Carry any manual deploy prerequisites (new secrets, new Parameter-Store values) into the description as `WARNING:`-prefixed items.
+  - Pass the resolved `<this-PR-label>` explicitly in the dispatch prompt, so the subagent writes one PR's description, never asks which PR it covers.
+    The CWD may hold several spec/plan pairs, and a PR-label run may cover several PRs, so an unstated label binds to the wrong one.
+  - Assign its output path explicitly: `./pr-descr_<slug>_<this-PR-label-lowercase>.md` (e.g. `pr-descr_multi-pr-implement_pr2.md`) — same assign-path-subagent-writes-content pattern as the tail reports above.
   - That dispatch **returns the description text only** — it must not push or commit; the orchestrator owns the push.
   - Its tokens are **not tracked**: metrics print before this step, and a presented run's state file is deleted right after — so don't add a `tokens` field for it.
 - Put completed Scout / repo-green fixes under an **"Unexpected extras"** section in the PR body.
@@ -222,8 +249,9 @@ This is the ordering spine. The print comes last of the review steps because the
 2. **Run the metrics script** now that `presented_at` exists (see "Run metrics") and fold its totals into the package.
 3. **Assemble the package** (contents under "The review package") and **print it** to chat — the single async review pass.
 4. **Open the diffview pane** (see "Open the diff for review").
-5. **Draft PR** if the interview opted in (see "Draft PR (opt-in)").
-6. **Delete or keep the state file by terminal phase.** The phase set here is the Stop hook's release signal.
+5. **PR manifest entry & status marker**, on a PR-label run (see above).
+6. **Draft PR** if the interview opted in (see "Draft PR (opt-in)").
+7. **Delete or keep the state file by terminal phase.** The phase set here is the Stop hook's release signal.
    - The hook blocks stops while phase is `tasks` / `gates` / `tails`, and allows them once phase is `presented` or `halted`.
    - **Every task `done`** → set `phase: presented` and **delete** the state file (a presented batch never resumes).
    - **Budget hit, or any task `blocked` / `stuck`** → set `phase: halted` and **keep** it for resume; the printed package is the partial one.

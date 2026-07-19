@@ -412,6 +412,11 @@ In all non-`[Done]` terminal states, do NOT leave partial code committed under a
 
 Either the subagent's commits stand as coherent work (status is a separate concern) or the WIP is reverted first.
 
+### PR-level status markers (PR Breakdown line, PR-label runs only)
+
+One level up: a PR-label run's own PR Breakdown line gets the same `[<status>]` prefix at its own §9.
+Only `[Done]` in practice, inline, never scripted. Format/timing: `references/batch-end.md`'s "PR manifest entry & PR-level status marker".
+
 ## 7. Commit model
 
 The **subagent** produces the commits.
@@ -540,14 +545,11 @@ Print the batch-end package for the user's one-pass async review: commit-by-comm
 
 Open the draft PR only when §1.2 recorded `pr.wanted: true`, targeting the confirmed base branch. Opening the PR is the final step — it presupposes §9.1–§9.4 all ran.
 
-**Never hand-write the PR body — always generate it by invoking the `create-pr` skill (Skill tool).**
-It fills `.github/PULL_REQUEST_TEMPLATE.md`, embeds mermaid blocks, and enforces the mandatory Testable-Acceptance-Criteria + Evidences structure a hand-written body silently omits.
-Carry any manual deploy prerequisites (new secrets, new Parameter-Store values) into its description as `WARNING:`-prefixed items.
-A `create-pr`-generated body is the only accepted PR description; a hand-authored one is a defect.
+**Never hand-write the PR body — always generate it via a fresh subagent dispatch, never by invoking `create-pr` itself.**
+Its own step 3 is an interactive approval gate, incompatible with this fully-async flow.
+A hand-authored body is a defect. Exact dispatch, conventions, and required content: `references/batch-end.md`'s "Draft PR (opt-in)".
 
-**Pass the exact `spec_<slug>.md` + `plan_<slug>.md` this batch resolved in §1.1 — never let `create-pr` auto-detect.**
-The CWD may hold several spec/plan pairs; auto-detection would prompt or bind to the wrong one.
-State the resolved pair's filenames explicitly in the `create-pr` invocation so it uses this batch's slug, not a sibling's.
+**Pass the exact `spec_<slug>.md` + `plan_<slug>.md` this batch resolved in §1.1, plus the resolved `PR-N` on a PR-label run — never auto-detected.**
 
 Set `phase: "presented"` once the package is delivered.
 
