@@ -66,7 +66,7 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 0. User creates spec_<slug>.md with initial prompt/notes (or `/brainstorm` refines it).
 1. Plan mode or direct request generates plan_<slug>.md from spec_<slug>.md (or from prompt).
-2. AI Self-review — qualitative pass, then five formal checks (three always-on, two toggled by one live question asked once). A failing mermaid `mmdc` check routes to `mermaid-fixer`, never fixed inline.
+2. AI Self-review — qualitative pass, then seven formal checks (five always-on, two toggled by one live question asked once). A failing mermaid `mmdc` check routes to `mermaid-fixer`, never fixed inline.
 3. User reviews and approves — when the user signals, ask "Start `/implement` now?" (default no); on yes, hand off to the `implement` skill directly instead of waiting for a separate invocation.
 4. Each plan_<slug>.md task becomes a TaskCreate item.
 5. Both files updated as work progresses (living docs); decisions are append-only past the divider that exists on both spec_<slug>.md and plan_<slug>.md.
@@ -99,17 +99,19 @@ Immediately before plan generation, ask one live question with two independent y
 - **"Every line traces to an AC?"** — formerly Gate 3 (machinery↔AC traceability).
 - **"Right-sized plan?"** — formerly the scope lens.
 
-Five formal checks then run in sequence, renamed to describe what each catches rather than its mechanism (three always-on + the two toggles above):
+Seven formal checks then run in sequence, renamed to describe what each catches rather than its mechanism (five always-on + the two toggles above):
 
 | Check | Catches | Toggle? |
 |---|---|---|
 | Every AC has a test | AC↔Test Design coverage | Always on |
 | Every test has a task | Test Design↔per-task assignment | Always on |
 | How would this break? | checklist completeness + inversion sweep, merged | Always on |
+| PR dependencies form a DAG | cyclic, dangling, or duplicate PR-N label in the PR Breakdown | Always on |
+| Task dependencies form a DAG | cyclic, dangling, or duplicate task id in the Task Breakdown | Always on |
 | Every line traces to an AC | machinery↔AC traceability | Toggle |
 | Right-sized plan | scope vs. request, simplest design | Toggle |
 
-The three always-on checks, plus the Test Design authoring requirement itself, never become optional — they verify the plan is mechanically correct regardless of change size.
+The five always-on checks, plus the Test Design authoring requirement itself, never become optional — they verify the plan is mechanically correct regardless of change size.
 
 A toggled-off check is simply omitted from that pass; self-review's output states explicitly which checks were skipped by request, so the reviewer never wonders why something is absent.
 
@@ -137,6 +139,14 @@ A toggled-off check is simply omitted from that pass; self-review's output state
   - Fails self-review exactly like an empty placeholder row would.
   - Then, for every AC, ask "how would this break in production?" If no failure mode surfaces, flag as under-specified.
   - Fail-closed; runs unconditionally, regardless of either toggle.
+
+- **PR dependencies form a DAG**: `scripts/check-pr-dag.sh <plan>` validates the PR Breakdown's `Depends on:` graph.
+  - No cycles; no dangling references to PR-N labels; no duplicate PR-N labels.
+  Passes trivially when the section reads `Single PR.` (nothing to validate). Exit 1 blocks.
+
+- **Task dependencies form a DAG**: `scripts/check-tasks-dag.sh <plan>` — the same three checks (cycle, dangling reference, duplicate label) over the Task Breakdown's `Depends on:` graph. Exit 1 blocks.
+
+- **Both checks share `scripts/dag-check-helper.sh`** for the cycle/dangling/duplicate-label detection algorithm — only the markdown parsing (PR Breakdown's single-line entries vs. Task Breakdown's heading + block) differs between the two.
 
 - **Every line traces to an AC** (toggle): every piece of machinery (abstraction, dependency, knob, extra layer) must trace to a spec AC or requirement.
   - Output: untraceable items (empty = pass). Block if non-empty — cut or earn an AC.
