@@ -1,4 +1,4 @@
-# On failure — record and obey the verdict (§5.3 detail)
+# On failure — record and obey the verdict (detail for /implement's verify-retry-advance step)
 
 Load this only when a §5.1/§5.2 verify fails or the §4 dispatch hit its 1-hour timeout. A task that verifies clean skips it (that path is §5.5).
 

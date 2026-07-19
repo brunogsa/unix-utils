@@ -1,6 +1,6 @@
 # Pre-flight — existing task state & TaskList items
 
-Detail for §1.5 (JSON state-file adoption) and §1.7 (task/TaskList reconciliation) in `/implement`. Fires only on a resume or dirty run — a clean first run skips both sections.
+Detail for /implement's pre-flight JSON state-file adoption step and its task/TaskList reconciliation step. Fires only on a resume or dirty run — a clean first run skips both sections.
 
 ## Session-level: JSON state-file adoption (§1.5)
 

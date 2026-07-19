@@ -1,6 +1,6 @@
 # Post-commit planned-test verification
 
-Procedure for the post-commit planned-test check in `/implement` (referenced from SKILL.md §5.2).
+Procedure for /implement's planned-test presence check (post-commit), part of its verify-retry-advance step.
 
 The task subagent has already committed. The check runs **on the orchestrator**, against the subagent's commit range, before the orchestrator marks the task `[Done]`.
 

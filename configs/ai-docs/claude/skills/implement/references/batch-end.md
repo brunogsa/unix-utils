@@ -1,6 +1,6 @@
 # Batch-end review & tail subagents
 
-Detail for §9 in `/implement`. Load when the batch reaches its end.
+Detail for /implement's batch-end review & tail subagents step. Load when the batch reaches its end.
 
 The batch-end flow runs in this order:
 
@@ -94,6 +94,14 @@ When each tail returns, the orchestrator confirms the report file exists at the 
 - The report path the subagent wrote — `refactor` → `.tails.refactor_report`, `auto-review` → `.tails.auto_review_report`.
   - Record the **path**, not the content — the file on disk is canonical, and a resumed run reads it back to see which reports already exist.
 - Its token count → `.tails.tokens.<name>` (`0` if the Agent result omits it). The metrics script sums these into the subagent total.
+
+Known, recoverable failure mode: a sandbox layer can deny the subagent's `Write` to its assigned `report_*.md` path even though the `PreToolUse` hook auto-approves that exact path.
+
+When that happens, the subagent's final message carries its complete findings text instead, per the preamble's documented fallback.
+
+The orchestrator then persists that returned text verbatim to the assigned report path itself via the Write tool, before proceeding with triage.
+
+This is a recoverable condition, not a MUST-NOT violation or abort trigger.
 
 ## Failure handling
 

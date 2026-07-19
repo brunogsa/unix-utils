@@ -1,4 +1,4 @@
-# Existing-state reconciliation (§1.7 detail)
+# Existing-state reconciliation (detail for /implement's pre-flight existing-state step)
 
 Load this only on a resume or re-run — a clean first run skips §1.7 entirely.
 

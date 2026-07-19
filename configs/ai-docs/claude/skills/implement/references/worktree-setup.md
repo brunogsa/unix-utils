@@ -1,4 +1,4 @@
-# Worktree setup (§1.3 detail)
+# Worktree setup (detail for /implement's pre-flight worktree-setup step)
 
 Load this only when §1.2's interview answered **yes** to "Run in a git worktree?". A no-worktree run never needs it.
 
