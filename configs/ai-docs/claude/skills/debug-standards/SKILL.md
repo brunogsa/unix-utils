@@ -16,8 +16,12 @@ Principles and paired examples for any debugging work. Each section pairs a prin
 
 The systematic steps: reproduce → gather evidence → trace data flow backward → hypothesize → test minimally.
 
-- [Instruction] Reproduce the bug as a test first, confirm it fails for the right reason, then fix.
-  - [Why] The test guards against recurrence and proves the fix addresses the cause — without it, the bug returns the next time someone refactors that area.
+## The feedback loop
+
+Phase zero of any debug is one repro command you can re-run cheaply. Building it IS the debugging, not a preliminary.
+
+- [Instruction] **CRITICAL: No hypothesis before a red-capable repro has run once — ideally a test failing for the right reason (the future regression guard), else a deterministic, fast, agent-runnable failing command.**
+  - [Why] Without it every hypothesis test is a vibes-read of the code; with it each test costs seconds and returns an objective red/green — and the test form guards against recurrence.
 
 - [Example]
 ```ts
@@ -28,16 +32,6 @@ it("should reject login when password contains trailing whitespace", () => {
 ```
 
 The test fails (the bug exists) → fix the code → the test passes. Now it's a guarded behavior.
-
-- [Instruction] Author the regression test per `test-standards` — naming, scope (unit/integration), and mocking discipline.
-  - [Why] A poorly-scoped guard is no guard — a test pinned to the wrong layer or behavior passes while the bug returns.
-
-## The feedback loop
-
-Phase zero of any debug is one repro command you can re-run cheaply. Building it IS the debugging, not a preliminary.
-
-- [Instruction] **CRITICAL: No hypothesis before a red-capable repro command exists and has run once — one command that fails demonstrating the bug, deterministic, fast, and runnable by the agent.**
-  - [Why] Without it every hypothesis test is a vibes-read of the code; with it each test costs seconds and returns an objective red/green — loop quality beats cleverness for debugging speed.
 
 - [Example] When a failing test isn't feasible, descend the ladder — the strongest loop you can actually build wins:
 
@@ -60,11 +54,8 @@ failing test → curl script → CLI + fixture file → headless-browser script
 
 Same failures on the baseline mean they're pre-existing: they become a Scout, and your change ships unentangled. New failures only with your change present mean your change is the cause.
 
-- [Instruction] On a flaky test, re-run the bisected "first bad" commit 3+ times before trusting the verdict; if it doesn't deterministically fail, treat the verdict as noise.
-  - [Why] `git bisect` assumes deterministic results, so a flaky test yields a false "first bad" at an unrelated commit — following it wastes hours on mechanical impossibilities (e.g., a comment-only commit).
-
-- [Instruction] When the verdict is noise, look outside the commit range: uncommitted changes, environment, memory pressure, pool contention.
-  - [Why] Bisect can only blame a commit in its range, but a noisy verdict means the real cause isn't there — it's in the environment or working tree.
+- [Instruction] On a flaky test, re-run the bisected "first bad" commit 3+ times; if it doesn't deterministically fail, discard the verdict and look outside the commit range.
+  - [Why] `git bisect` assumes deterministic results, so a flaky test yields a false "first bad" at an unrelated commit — the real cause lives outside the range: uncommitted changes, environment, contention.
 
 - [Instruction] When the system spans layers (CI → build → deploy, controller → use case → repo), log what enters and exits each boundary, then run once.
   - [Why] The logs show exactly which layer breaks; guessing instead means trying one layer at a time and re-running for each.
@@ -121,14 +112,9 @@ Reveals: secrets reached the workflow ✓, but didn't propagate to the build scr
 
 ## When stuck: escalate
 
-### Escalating after repeated failures
-
-- [Instruction] **CRITICAL: After three failed fixes, stop — don't try a fourth on the same theory; escalate instead.**
-  - [Why] Three failures is empirical evidence the model in your head doesn't match reality, so more attempts on the same model keep failing.
+- [Instruction] **CRITICAL: After three failed fixes, stop — escalate, not a fourth attempt, and widen the frame: ask whether the layer boundaries or data model are wrong, not just the code.**
+  - [Why] Three failures is empirical evidence the model in your head doesn't match reality — and if each fix reveals a new symptom elsewhere, the pattern is broken, not the implementation.
   - [Example] Step one is a web search of the exact symptom — error message, stack-trace fragment, library + version, framework + error code.
-
-- [Instruction] **Question the architecture, not just the code — ask whether the layer boundaries or data model are themselves wrong.**
-  - [Why] If each fix reveals a new symptom elsewhere, the pattern is broken, not the implementation — patching code can't fix a wrong structure.
 
 ### When there's no single root cause
 
@@ -140,8 +126,5 @@ Once genuinely satisfied it's external, handle it so the next occurrence is a kn
 - [Instruction] Document what you ruled out to reach the external conclusion.
   - [Why] The next person to hit it needs your elimination trail, or they redo the whole investigation from scratch.
 
-- [Instruction] Once a fault is confirmed external, handle it explicitly — cap retries, set a timeout, or raise a clear error.
-  - [Why] Left unhandled, it comes back as a silent or confusing failure; explicit handling turns it into a state you can recover from.
-
-- [Instruction] Add logging and monitoring that fire on the next occurrence.
-  - [Why] Without a logged signal or alert, a recurring external failure stays invisible until it grows into a larger incident.
+- [Instruction] Once a fault is confirmed external, make it a recoverable, observable state — cap retries, timeout, or raise a clear error, plus logging/monitoring firing on the next occurrence.
+  - [Why] Left unhandled it returns as a silent, confusing failure; explicit handling plus a fired alert turns the recurrence into a visible, recoverable event instead of a growing incident.
