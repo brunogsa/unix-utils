@@ -5,7 +5,7 @@ Detail for /implement's batch-end review & tail subagents step. Load when the ba
 The batch-end flow runs in this order:
 
 1. **Repo-green check** — full lint + tests, before the tails, so they analyze green code.
-2. **Two `deep-reviewer` tails** — `/refactor` then `/auto-review`, sequential, report-only.
+2. **Deep-reviewer tail pair** — simplification lens + correctness lens, in parallel, report-only.
 3. **Triage both reports** — read both, synthesize one prioritized summary.
 4. **Metrics** — write `presented_at`, then run the metrics script (it needs `presented_at`).
 5. **Assemble & print the package** — outcomes, diff range, metrics, worktree reminder; then open the diffview pane.
@@ -23,129 +23,31 @@ This is the **only** auto-apply path at batch end. Tail findings are never appli
 
 ## The two tails
 
-Each tail reviews **only the batch's commit range** `<BATCH_BASE_SHA>..HEAD` (captured in §1.4), not the whole branch.
+Full dispatch contract, preamble, failure handling, and overwrite policy: [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../../code-review-pipeline/references/deep-reviewer-tail-pair.md).
 
-Queue **two** batch-level TaskList items (NOT sub-steps of any single task):
+`<BASE_REF>` = `<BATCH_BASE_SHA>` (captured in §1.4); `<SPEC_PLAN_PATHS>` = the resolved `spec_<slug>.md`/`plan_<slug>.md`.
 
-1. `[Side] Tail — /refactor over batch as deep-reviewer (report-only)`
-2. `[Side] Tail — /auto-review over batch as deep-reviewer (report-only)`
+What's specific to `/implement`, not covered by the shared reference:
 
-Run them **sequentially**, in that order (refactor first so its findings can inform later passes). Both run once per `/implement` invocation regardless of batch size.
-
-## Spawn contract
-
-Spawn each tail via the **Agent tool**, `subagent_type=deep-reviewer`, in the background (the default) — wait for its completion notification before spawning the next, preserving the sequential order above.
-
-`deep-reviewer` pins its own model and effort by definition, so the dispatch site sets no `model` override.
-
-The prompt body is the entire instruction set the subagent receives.
-
-The prompt **must lead with this preamble verbatim**, line-for-line.
-
-Two layers enforce the no-mutations contract.
-
-The hard gate is a `PreToolUse` hook in `deep-reviewer`'s own frontmatter (`~/.claude/hooks/deep-reviewer-write-guard.sh`).
-
-It auto-approves a Write/Edit whose basename matches `verdict_*.md`, or whose path is under `/tmp` (scratch — e.g. the review pipeline's wave artifacts).
-
-It denies (exit 2) every other target, so the agent physically cannot touch repo source.
-
-This preamble is the second layer — it tells the subagent the same rule in its own words so it never attempts a blocked write in the first place:
-
-```
-REPORT-ONLY MODE — STRICT CONTRACT
-
-You are spawned by /implement as an end-of-batch tail subagent. You produce
-NO side effects — your complete findings ARE your final message.
-
-YOU MUST NOT:
-- Run `git commit`, `git push`, or any state-mutating git command.
-- Use the Edit, Write, or MultiEdit tools on ANY file EXCEPT the single
-  report file whose path is given to you below — never touch the reviewed
-  source or any other file.
-- Apply, fix, or suggest-and-then-apply any finding.
-- Spawn nested subagents.
-
-YOU MUST:
-- Run the underlying skill (/refactor or /auto-review) in its
-  analysis/findings phase only.
-- Write your COMPLETE findings — every finding with file:line evidence, no
-  summarizing or truncation — to your assigned verdict file: <VERDICT_PATH>.
-- Return a short final message: the report path, the finding count, and the
-  single highest-priority finding, so the orchestrator can triage from the file.
-
-Violating any of the MUST NOT items aborts the parent /implement.
-```
-
-After the preamble, include the skill-specific body. The orchestrator **assigns the verdict path** in the prompt (substituting `<VERDICT_PATH>` in the preamble) — it never writes the file, only names it:
-
-- **refactor** tail: "Invoke `/refactor` over `<BATCH_BASE_SHA>..HEAD`. Write the complete findings to `./verdict_refactor_<YYYY-MM-DD_HH:MM>.md`."
-  - Pass **no** spec/plan paths — refactor judges code shape, not spec conformance (deliberate).
-- **auto-review** tail: "Invoke `/auto-review <BATCH_BASE_SHA>` (per its `/auto-review HEAD~N` per-task scoping convention). Write the complete findings to `./verdict_auto-review_<YYYY-MM-DD_HH:MM>.md`."
-  - Also pass the resolved `spec_<slug>.md` and `plan_<slug>.md` paths — auto-review always gets them to check spec conformance.
-
-The subagent writes its own report — one file, the assigned path — so the full findings land on disk with zero fidelity loss.
-
-- The orchestrator writing the file itself was the old design; it stored a lossy shorthand in state instead of the report, so the subagent owns the write now.
-  - Same pattern as the §3 checklist file: orchestrator assigns the path, subagent writes the content.
-
-When each tail returns, the orchestrator confirms the report file exists at the assigned path, then records into the state file's `tails` object:
-
-- The report path the subagent wrote — `refactor` → `.tails.refactor_report`, `auto-review` → `.tails.auto_review_report`.
-  - Record the **path**, not the content — the file on disk is canonical, and a resumed run reads it back to see which reports already exist.
-- Its token count → `.tails.tokens.<name>` (`0` if the Agent result omits it). The metrics script sums these into the subagent total.
-
-## Failure handling
-
-- **Subagent violates the report-only contract** (a forbidden mutation per the preamble) → this **aborts the parent `/implement`**.
-  - The frontmatter `PreToolUse` hook already blocks any write to repo source at the tool layer (only `verdict_*.md` and `/tmp` scratch pass), so a forbidden *file* mutation should never land.
-  - This `git status` / `git log` check is the backstop for mutations the hook doesn't cover — e.g. a `git commit` / `git push` run through Bash.
-  - **Exclude the assigned verdict file** from this check — the subagent writing its own `verdict_*.md` is the contract, not a violation.
-    - A compliant tail leaves the tracked tree untouched and adds exactly one new untracked file: its assigned report.
-    - Any tracked-file change, or any untracked file other than that report, is the violation.
-- **Subagent errors, or returns no usable findings** → log it to chat with the agent's last message; the **other** tail still runs; the package flags the missing artifact.
-  - A refactor failure never blocks the auto-review tail.
-  - Do NOT retry inline (unlike the planned-test check): batch-end reports are reviewed asynchronously; a missing report is user-attention, not a retry loop.
-
-## Overwrite policy
-
-Each invocation produces timestamped filenames (`verdict_refactor_<ts>.md`, `verdict_auto-review_<ts>.md`), so multiple `/implement` runs in the same CWD accumulate as separate files — each tail's own timestamp keeps its report distinct.
-
-Leave the reports **untracked but not gitignored** — same convention as `spec_<slug>.md` / `plan_<slug>.md`: they show in `git status` so the human sees them, and never get auto-committed by the batch.
-
-Do not add a `verdict_*` gitignore pattern.
+- Queue **two** batch-level TaskList items (NOT sub-steps of any single task), so they're visible in the batch's own TaskList:
+  1. `[Side] Tail — deep-reviewer, simplification lens (report-only)`
+  2. `[Side] Tail — deep-reviewer, correctness lens (report-only)`
+- When each tail returns, confirm its report file exists at the assigned path, then record into the state file's `tails` object:
+  - The report path — `refactor` → `.tails.refactor_report`, `auto-review` → `.tails.auto_review_report` (record the **path**, not the content — a resumed run reads it back to see which reports already exist).
+  - Its token count → `.tails.tokens.<name>` (`0` if the Agent result omits it). The metrics script sums these into the subagent total.
 
 ## Triage both reports
 
-Both tails are report-only — neither applies anything. Once both reports are written, the orchestrator **triages** them before presenting:
+Follow the shared reference's triage procedure: read both reports, synthesize one prioritized apply-offer summary. This synthesis is **additive** to the two raw report paths — the package carries **both**.
 
-- Read both reports in full.
-- Synthesize **one** prioritized summary for the package: group findings by theme/severity, and recommend a disposition for each.
-- Close with an actionable apply-offer — "tell me which to apply and I'll do it in a follow-up". The human decides asynchronously.
+**Never fold a finding in on your own initiative** — see SKILL.md §9.4.
+  - When the human names specific findings to apply after seeing the package, follow the shared reference's "Applying a single finding, on explicit request".
+    - Dispatch a fresh `general-purpose` subagent on `model=sonnet` per the §4 contract with strict TDD (RED before GREEN).
+    - Verify the diff (§5.1) before trusting `done`.
 
-This synthesis is **additive** to the two raw report paths — it never replaces them. The package carries **both** the raw paths and the triaged summary.
+Once a fix lands, annotate its finding in the timestamped report file — `APPLIED` (with the fix commit SHA) or `SKIPPED` (with the reason).
 
-When the human (or the orchestrator's own in-scope disposition) elects to **apply** a triaged finding, that fix is not done inline.
-
-Dispatch a fresh `general-purpose` subagent on `model=sonnet` per the §4 contract, and require strict TDD.
-
-The subagent writes the test first and **confirms it RED on the pre-fix code for the expected reason**.
-
-A correctness fix reproduces the bug; a behavior-preserving refactor pins current behavior with a test that stays green.
-
-Then apply the fix and confirm GREEN.
-
-The orchestrator verifies the diff (§5.1) and that the test was shown failing before trusting `done`.
-
-A test added alongside its fix, never seen RED, proves nothing — re-dispatch.
-
-Once a fix lands, the orchestrator **annotates its finding in the timestamped report file** — mark it `APPLIED` (with the fix commit SHA) or `SKIPPED` (with the reason).
-
-The report is the timestamped, on-disk triage ledger: because each tail run has its own filename, its report is the durable record of which of its findings the orchestrator disposed of.
-
-A later reader (or a resumed run) sees exactly what was fixed versus deferred without re-deriving it.
-
-This is the **only** report-file write the orchestrator makes — the subagent authored the findings; the orchestrator only stamps dispositions onto them.
+The report is the durable, on-disk ledger of what got fixed versus deferred; this is the **only** report-file write the orchestrator itself makes.
 
 ## The review package
 

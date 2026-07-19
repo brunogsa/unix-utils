@@ -300,11 +300,8 @@ Signature literal: `_via Claude Code (`address-pr-comments`)_`. Plain text only 
 
 Skip this subsection entirely when the toggle is off — go straight to step 8.
 
-Mirror `implement`'s existing refactor-tail and auto-review-tail steps: spawn two `deep-reviewer` subagents in the background (fresh context, its pinned model/effort) over `<BATCH_BASE_SHA>..HEAD`.
-
-One reviews with a simplification lens (duplication, dead code, over-abstraction); the other with a correctness lens (bugs, missed edge cases, test gaps).
-
-Both are report-only — they never edit or commit — and each writes its ranked findings to its own `verdict_refactor_<ts>.md` / `verdict_auto-review_<ts>.md` in CWD.
+Dispatch the shared deep-reviewer tail pair — [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md) — with `<BASE_REF>` = `<BATCH_BASE_SHA>`.
+No `<SPEC_PLAN_PATHS>` — this flow has no spec/plan.
 
 No new lint/test gate is needed — step 1c's green-baseline check already covers this batch.
 

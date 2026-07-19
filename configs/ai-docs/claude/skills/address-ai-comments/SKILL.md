@@ -58,10 +58,9 @@ See "When a subagent might still help" below for the one case worth revisiting.
    - For `AI!`/action items, perform the change first; for `AI?`/question items, answer in chat first (never in the file).
    - Either way, delete the comment once resolved and treat the file like a burn-down list, not an archive of resolved notes.
 
-5. **Optional refactor + auto-review tails (only when step 1's toggle is on).** Mirror `implement`'s existing refactor-tail and auto-review-tail steps.
-   - Spawn two `deep-reviewer` subagents in the background (fresh context, its pinned model/effort) over the diff since `BATCH_BASE_SHA`. This diff includes the working tree, whether or not this batch was committed.
-   - One reviews with a simplification lens (duplication, dead code, over-abstraction); the other with a correctness lens (bugs, missed edge cases, test gaps).
-   - Both are report-only — they never edit or commit — and each writes its ranked findings to its own `verdict_refactor_<ts>.md` / `verdict_auto-review_<ts>.md` in CWD.
+5. **Optional refactor + auto-review tails (only when step 1's toggle is on).** Dispatch the shared deep-reviewer tail pair — [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md).
+   - Set `<BASE_REF>` = `BATCH_BASE_SHA`, diffing against the working tree since this batch may be uncommitted.
+   - No `<SPEC_PLAN_PATHS>` — this flow has no spec/plan.
    - No new lint/test gate is needed — the tails are report-only.
 
 6. **Report back compactly.** Reply with the tasks created/executed and their file:line references, not a full transcript of every file region you read.
