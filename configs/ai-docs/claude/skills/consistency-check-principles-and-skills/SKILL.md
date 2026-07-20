@@ -57,8 +57,9 @@ Fix: **self-consistency** — run 3 samples in parallel, keep only what ≥2 agr
 [Instruction] **Match key = `(section-group, primary-file)`.** Two findings match iff both fields match exactly. Only the key counts for voting; confidence tier, line numbers, diff wording vary stochastically.
 
 - `section-group` — integer 1–7 from §Heuristics, normalized to `1-2` at merge time (sections 1 & 2 conflate at the boundary).
-- `primary-file` — lexicographically lowest file path in the finding body (not header; for multi-file findings, use the first file alphabetically).
+- `primary-file` — lowest file path in the finding body that falls inside the audited scope; fall back to the lexicographically lowest path overall only when no path in the body is in-scope (not header; for multi-file findings, use the first in-scope file alphabetically).
   - No line number in key — children anchor the same defect differently, so line-exact keys silently lose votes.
+  - Scope-first, not lexicographic-first: a cross-file finding that cites both a scope file and CLAUDE.md must key on the scope file — otherwise which file a child happens to quote first (not the defect itself) decides the key, splitting one real finding's votes across two keys.
 
 [Instruction] **CRITICAL: Children MUST emit a machine-readable key line immediately under each finding ID.** Format is fixed and grep-able — no free-text parsing in the merge step.
 
