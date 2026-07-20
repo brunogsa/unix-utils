@@ -1,6 +1,6 @@
 ---
 name: english-coach
-description: "Analyze the user's typed messages from the current session for English patterns and produce ./english-lesson_YYYY-MM-DD_HH-MM.md. User-invoked only — best run after creating a PR."
+description: "Analyze the user's typed messages from the current session for English patterns and produce ./english-lesson_YYYY-MM-DD_HH-MM.md. Best run after creating a PR."
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -17,7 +17,7 @@ articles, idiomaticity, sentence structure, register.
 /english-coach
 ```
 
-User-invoked only. Best run at the end of the day's work or after creating a
+Best run at the end of the day's work or after creating a
 PR — by then the session has accumulated enough material for patterns to
 emerge from noise.
 

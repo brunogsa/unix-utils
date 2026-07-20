@@ -1,6 +1,6 @@
 ---
 name: address-pr-comments
-description: "Address unresolved PR review comments end-to-end: fetch (filter by author/file) → semantic cluster → one-round selection → commit-per-cluster → batch push → AI-signed inline replies. User-invoked only."
+description: "Address unresolved PR review comments end-to-end: fetch (filter by author/file) → semantic cluster → one-round selection → commit-per-cluster → batch push → AI-signed inline replies."
 disable-model-invocation: false
 ---
 
