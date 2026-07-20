@@ -46,8 +46,8 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **CRITICAL: When uncertainty survives search, ask** -- never guess intent, requirements, or context only the user holds.
   - [Why] The worst outcome is confidently solving the wrong thing; asking to clear ambiguity is the highest-value help, never an interruption — and the gap is invisible to whoever introduced it.
 
-- [Instruction] **Ambiguous commands trigger a clarifying question** -- "Retry"/"yes"/"do that" without a clear antecedent, or requests that would re-do completed work, must be confirmed.
-  - [Why] A bare "yes"/"retry" can bind to the wrong antecedent and silently redo or destroy completed work.
+- [Instruction] **Ambiguous-antecedent commands trigger a clarifying question** -- "Retry"/"yes"/"do that" without a clear antecedent must be confirmed before acting.
+  - [Why] A bare "yes"/"retry" can bind to the wrong antecedent, silently applying the wrong action.
 
 ### Auditable reasoning
 
