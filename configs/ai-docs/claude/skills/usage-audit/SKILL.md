@@ -55,7 +55,7 @@ The three KPIs (defined in `./usage-history/README.md`): **session time up** (lo
 - [Instruction] Treat dollars as LIST-price estimates; shares and rankings are the reliable signal.
   - [Why] Subscription coverage and corporate rates change absolute dollars, not proportions.
 
-- [Instruction] Before quoting dollar figures, verify the `PRICES` table in the script against current Anthropic pricing (claude-api skill or docs.claude.com); update the table and its dated comment on drift.
+- [Instruction] Before quoting dollar figures, verify the `PRICES` table in the script against current Anthropic pricing (the built-in `claude-api` skill, or docs.claude.com); update the table and its dated comment on drift.
   - [Why] The first 2026-07 audit used stale prices and inflated Opus figures ~3×; prices drift silently across model generations.
 
 ## Context: the baseline and the repertoire
