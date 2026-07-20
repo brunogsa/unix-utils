@@ -1,6 +1,6 @@
 ---
 name: skill-authoring
-description: "Creating, editing, packaging, or evaluating a skill, or writing a SKILL.md description — Bruno's superset of skill-creator; always load alongside it. Also load before editing CLAUDE.md or any *-standards skill (marker-authoring rules)."
+description: "Creating, editing, packaging, or evaluating a skill, or writing a SKILL.md description. Also load before editing CLAUDE.md or any *-standards skill (marker-authoring rules)."
 user-invocable: false
 ---
 
@@ -8,11 +8,57 @@ user-invocable: false
 
 Rules for writing and maintaining Claude Code skills.
 
-## Load `skill-creator` before creating or modifying any SKILL.md
+## Anatomy of a skill folder
 
-Never author skill content without it.
+```
+skill-name/
+├── SKILL.md (required)
+│   ├── YAML frontmatter (name, description required)
+│   └── Markdown instructions
+└── Bundled resources (optional)
+    ├── scripts/    - executable code for deterministic/repetitive tasks
+    ├── references/ - docs loaded into context only as needed
+    └── assets/     - files used in output (templates, icons, fonts)
+```
 
-Why: it carries the folder structure (SKILL.md + scripts/ + references/), the progressive-disclosure rules, and the frontmatter conventions — all easy to get wrong from memory.
+## Progressive disclosure — three loading levels, budgeted separately
+
+Keep the frontmatter (name + description) under ~100 words — it loads into every session regardless of whether the skill ends up triggering.
+Keep the body under ~500 lines.
+Past that, split a layer into `references/` with a pointer telling the model when to read it.
+Give any `references/` file over ~300 lines its own table of contents, so a partial read can find the relevant section instead of reading the whole thing.
+
+Why: each layer is paid on a different cadence — metadata every session, body every trigger, references only on demand.
+The budget for each is set by how often it's paid, not by one global limit.
+
+When a skill covers multiple domains or frameworks, split by variant instead of branching prose in the body:
+
+```
+cloud-deploy/
+├── SKILL.md (workflow + selection)
+└── references/
+    ├── aws.md
+    ├── gcp.md
+    └── azure.md
+```
+
+## This skill is self-sufficient — skill-creator is inspiration, not a dependency
+
+The eval/optimization scripts and agent prompts (`scripts/`, `agents/`, `references/schemas.md`, `eval-viewer/`, `assets/`) are absorbed locally from Anthropic's `skill-creator` plugin, not loaded from it at runtime.
+Don't load `skill-creator` before authoring or editing a SKILL.md — this skill already carries what matters.
+
+Why: the plugin cache isn't version-controlled and can be silently overwritten by updates.
+A bug found in a local copy — `scripts/run_eval.py`'s early-return trigger-detection bug, fixed here — can be patched directly instead of waiting on upstream.
+
+Skim skill-creator's own upstream changes occasionally for ideas worth stealing selectively — not a trigger to re-sync wholesale or treat it as a live dependency again.
+
+## Skill evals target `sonnet`, not the session model
+
+Run this skill's own eval/optimization loop (`scripts/run_loop.py`, `scripts/run_eval.py`, `eval-viewer/generate_review.py`) with `--model claude-sonnet-5` as the pass/fail bar, even when the session driving the loop itself runs on a stronger model.
+See `references/eval-workflow.md` for the full run/grade/improve process.
+
+Why: opus- and fable-class models can trigger a skill more reliably than sonnet does, but the bar is sonnet specifically because it's the model driving most day-to-day sessions.
+Optimizing against a stronger model can make a skill look reliable when it validates the wrong population.
 
 ## Load `personal-environment` too — skills live behind a symlink
 
@@ -22,9 +68,26 @@ Why: `personal-environment` carries the symlink + canonical-path rules; without 
 
 ## Skill descriptions state goal + triggers, not an inventory
 
-State the skill's purpose and when to invoke it; don't enumerate what it covers. Detail belongs in the body.
+State the skill's purpose and when to invoke it; don't enumerate what it covers — detail belongs in the body.
+Name concrete trigger phrases and contexts explicitly, even ones a user might phrase differently — bias toward over-triggering, not under.
 
-Why: only the first 250 chars participate in `/skills` routing (Claude Code 2.1.86+ cap). Inventory burns that budget on details that don't change the trigger decision.
+Why: only the first 250 chars participate in `/skills` routing (Claude Code 2.1.86+ cap), so an inventory burns budget that doesn't change the trigger decision.
+Models undertrigger skills by default; an abstract goal alone reads narrower than the skill's real applicability, so naming contexts explicitly closes that gap.
+
+## Writing patterns for output formats and examples
+
+When the skill's job is to produce a specific format, give a literal template to reproduce exactly:
+
+```markdown
+## Report structure
+ALWAYS use this exact template:
+# [Title]
+## Executive summary
+## Key findings
+## Recommendations
+```
+
+For behavior patterns (e.g. commit message style), show input → output pairs instead of describing the transformation in prose — a worked example teaches the mapping faster than an explanation of it.
 
 ## CRITICAL: references/assets must buy real context savings, never budget cosmetics
 
@@ -55,6 +118,15 @@ Example: "produce a review" → "list every modified function, each with its cov
 
 Why: a model can bluff "step done" but can't cheaply bluff an exhaustive, checkable enumeration — faking one costs more than doing the work.
 So the rewrite often fixes the rush at zero runtime cost, while added process taxes every future run.
+
+## A compliance complaint may be a harness bug, not a weak instruction
+
+When told a skill or instruction "didn't trigger" or "wasn't followed," test empirically via `scripts/run_eval.py` before rewriting the skill's wording.
+A bug in the eval or observation harness itself can produce the exact same symptom as a genuinely weak description.
+
+Why: `run_eval.py`'s own early-return bug (fixed in this skill's local copy) once made a correctly-triggering skill look like it silently failed.
+The harness decided "not triggered" from the first tool call instead of scanning the whole run.
+Rewriting the skill's description on that false signal would have fixed nothing and hidden the real defect.
 
 ## Marker-authoring rules — global CLAUDE.md and `*-standards` skills
 
