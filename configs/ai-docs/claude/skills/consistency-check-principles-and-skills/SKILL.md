@@ -54,12 +54,14 @@ Fix: **self-consistency** — run 3 samples in parallel, keep only what ≥2 agr
 
 ### 2/3 majority filter (deterministic match key)
 
-[Instruction] **Match key = `(section-group, primary-file)`.** Two findings match iff both fields match exactly. Only the key counts for voting; confidence tier, line numbers, diff wording vary stochastically.
+[Instruction] **Match key = `(section-group, primary-file, anchor)`.** Two findings match iff all three fields match exactly. Only the key counts for voting; confidence tier, line numbers, diff wording vary stochastically.
 
 - `section-group` — integer 1–7 from §Heuristics, normalized to `1-2` at merge time (sections 1 & 2 conflate at the boundary).
 - `primary-file` — lowest file path in the finding body that falls inside the audited scope; fall back to the lexicographically lowest path overall only when no path in the body is in-scope (not header; for multi-file findings, use the first in-scope file alphabetically).
   - No line number in key — children anchor the same defect differently, so line-exact keys silently lose votes.
   - Scope-first, not lexicographic-first: a cross-file finding that cites both a scope file and CLAUDE.md must key on the scope file — otherwise which file a child happens to quote first (not the defect itself) decides the key, splitting one real finding's votes across two keys.
+- `anchor` — the nearest enclosing heading in `primary-file` that contains the cited defect: its numbered section (`9.5`, `2.1`) on a file with SKILL.md-style numbered headings, else the heading text kebab-cased (`draft-pr-opt-in`). Exact string match only, no fuzzy comparison.
+  - A hub file cited by several unrelated defects (e.g. `implement/SKILL.md`, separately defective under `§2.1`, `§9.1`, and `§9.5`) would otherwise collapse those into one `(section-group, file)` key — the first-reported wording wins the vote and the other two defects silently vanish. The anchor keeps them as distinct keys.
 
 [Instruction] **CRITICAL: Children MUST emit a machine-readable key line immediately under each finding ID.** Format is fixed and grep-able — no free-text parsing in the merge step.
 
@@ -67,20 +69,20 @@ Required emission (see §Report Format below for the full per-finding template):
 
 ```
 **<section>.<index>** — <human-readable header>
-[KEY] section=<N> file=<path>
+[KEY] section=<N> file=<path> anchor=<heading>
    - <body bullets>
 ```
 
-Children emit their own section number and a line-free path; the orchestrator does the `1-2` grouping — normalization is merge-side, so children stay grouping-agnostic.
+Children emit their own section number, a line-free path, and the enclosing heading; the orchestrator does the `1-2` grouping — normalization is merge-side, so children stay grouping-agnostic.
 
 Why mandate this:
 
-- Extracting `(section, file:line)` from free prose is itself LLM-stochastic — children would phrase the header differently and the vote would silently noop.
+- Extracting `(section, file, anchor)` from free prose is itself LLM-stochastic — children would phrase the header differently and the vote would silently noop.
 - A fixed `[KEY]` line lets the orchestrator merge via `grep '^\[KEY\]'` with zero LLM judgment.
 
 Algorithm:
 1. `grep '^\[KEY\]'` over each child report → list of keys per child.
-2. Normalize each key: sections 1 and 2 become group `1-2`; strip any stray `:<line>` suffix a child left on the file path.
+2. Normalize each key: sections 1 and 2 become group `1-2`; strip any stray `:<line>` suffix a child left on the file path; anchor stays as emitted (exact match, no normalization).
 3. Count each normalized key once per child report — same-key duplicates within one report still count as one vote.
 4. Keep findings whose key appears in ≥2 reports. Drop the rest silently.
 5. For each kept key, emit the finding body from whichever child reported it with HIGHEST confidence; tie → lexicographically first child's wording.
@@ -261,7 +263,7 @@ Summary table + per-heuristic sections. Seven heuristic rows (one per heuristic)
 ## 1. Contradictions
 
 **1.1** — `CLAUDE.md:67` vs `skills/foo/SKILL.md:12`
-[KEY] section=1 file=CLAUDE.md
+[KEY] section=1 file=CLAUDE.md anchor=foundations
    - <conflict description>
    - <place A>: 1-3 lines
    - <place B>: 1-3 lines

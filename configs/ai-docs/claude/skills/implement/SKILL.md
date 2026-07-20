@@ -530,6 +530,6 @@ A hand-authored body is a defect. Exact dispatch, conventions, and required cont
 
 **Pass the exact `spec_<slug>.md` + `plan_<slug>.md` this batch resolved in §1.1, plus the resolved `PR-N` on a PR-label run — never auto-detected.**
 
-Set `phase: "presented"` once the package is delivered.
+Set the terminal phase per `references/batch-end.md`'s Finalize step — `presented` (and delete the state file) only when every task is `done`; `halted` (and keep it for resume) on a budget hit or any `blocked`/`stuck` task.
 
 Every step — ordering, spawn contract, failure handling, finalize — is owned in full by [`references/batch-end.md`](references/batch-end.md). Load at batch end.
