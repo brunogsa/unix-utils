@@ -46,6 +46,8 @@ See `references/reply-patterns.md` (jq ownership query) for the inline-thread `b
 
 ### 3e. Cluster, rank, propose
 
+Load `code-review-pipeline/references/review-principles.md` first — it governs severity, drop framing, and actionable-vs-informational calls below.
+
 Per comment field, once fetched and filtered: id, author, body, path, line, diffHunk, url, source (`"inline"`/`"top-level"`/`"review-summary"`), state (review-summary only), is_self.
 
 - Semantic-cluster: group comments addressing one logical change. Same-file
