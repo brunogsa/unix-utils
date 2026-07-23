@@ -213,8 +213,11 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] After a compaction, treat every previously loaded skill as unloaded, not carried forward.
   - [Why] Eager reload-all taxed every compaction 10-30k tokens; treating skills as unloaded is what stops the eager reload.
 
-- [Instruction] Reload each skill lazily — a procedural skill at the step that next needs it, a `*-standards` skill when its trigger next fires.
-  - [Why] Lazy reload pays only for remaining work, and each skill's trigger already encodes when it applies.
+- [Instruction] On compaction, reload eagerly-first — before continuing the task — any procedural/orchestrator skill (e.g. `brainstorm`, `implement`) that still governs what you are doing.
+  - [Why] These carry multi-step state that compaction drops, leaving the orchestrator blind until its procedure is re-established; a hook shows what was loaded, but you judge what applies.
+
+- [Instruction] Reload each `*-standards` skill lazily instead — when its trigger next fires, never on the compaction itself.
+  - [Why] Standards are stateless guidance, so reloading one before its trigger fires buys nothing and just re-taxes the context the compaction freed.
 
 - [Instruction] **Mirror remaining steps as TaskList entries** -- when a step-shaped skill starts, add each remaining step as a `[Remind]` entry and complete it as it runs.
   - [Why] Steps were observed skipped after compaction; TaskList survives compaction and re-surfaces every turn, so the sequence can't vanish with the summary.
