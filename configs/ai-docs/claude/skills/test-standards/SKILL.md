@@ -316,6 +316,12 @@ it('shows expired badge when past deadline', () => {
   - [Why] Hardcoding the literal means a refactor that renames the enum silently breaks production while the test still passes on the old literal — sharing the constant catches the drift.
   - [Example] A mock factory that hardcodes `'PLENO'` while production uses `BrandSlugs.PLENO = 'pleno'` passes against its own mock but never matches production's shape — and TypeScript can't catch it.
 
+- [Instruction] Never use an `as` cast in a test to inject a value the type or contract forbids; pass a valid domain value instead.
+  - [Why] A forced cast fabricates an input production can never receive, so the test guards a case that cannot happen and drifts from real behavior.
+
+- [Instruction] When a test deliberately exercises an out-of-domain or otherwise-unexpected value, name that intent in its title.
+  - [Why] Without it a reader takes the odd value for a mistake; the title is what marks the value as intentional rather than wrong.
+
 - [Instruction] Parametrize inputs only when it keeps tests readable, or when writing them one-by-one doesn't scale; split back to separate tests once bodies diverge.
   - [Why] Parametrization's only payoff is dedup; once bodies diverge, the shared harness obscures what each case actually asserts, and that readability cost outweighs the dedup.
 

@@ -179,19 +179,11 @@ GitHub rejects a PR body over 65,536 characters — a hard API limit, distinct f
 Run `~/.claude/skills/create-pr/scripts/check-pr-body-size.sh pr-descr_<slug>_pr<N>.md`:
 - Exit 0 → safe.
 - Exit 2 → close to the cap (trim soon).
-- Exit 3 → over the cap (re-scope embedded spec/plan content to fewer `## ` sections via `extract-md-sections.sh` from step 1, then re-run before step 3).
+- Exit 3 → over the cap (re-scope embedded spec/plan content to fewer `## ` sections via `extract-md-sections.sh` from step 1, then re-run before proceeding).
 
-### 3. Review with user
+### 3. Create the PR
 
-Present the pr-descr_<slug>_pr<N>.md content for review.
-Wait for approval or edits before creating the PR.
-
-### 3.5. Learn from user edits
-
-Diff the user's edited pr-descr_<slug>_pr<N>.md against your original; infer the general rule behind each edit and propose updates to this skill's Writing Style for approval.
-Apply approved updates before creating the PR — the skill self-improves.
-
-### 4. Create the PR
+Once step 2.5 (density) and step 2.6 (body size) both pass, proceed directly — do not pause for user review of pr-descr_<slug>_pr<N>.md before pushing/creating the PR.
 
 - Push branch if needed (with -u)
 - Create PR as **draft** using `gh pr create --draft --body-file pr-descr_<slug>_pr<N>.md --base <base-branch>`, where `<base-branch>` is the value resolved in step 1.
@@ -204,3 +196,8 @@ Apply approved updates before creating the PR — the skill self-improves.
   ```
   - After either path, read the PR body back (`gh pr view <n> --json body`) and confirm the first lines match pr-descr_<slug>_pr<N>.md.
 - Return the PR URL
+
+### 3.5. Learn from user feedback
+
+If the user later asks for changes to the pushed PR body (in chat, or by hand-editing pr-descr_<slug>_pr<N>.md), diff the edit against the version actually pushed; infer the general rule behind each edit and propose updates to this skill's Writing Style for approval.
+Apply approved updates so future runs pick them up automatically — the skill self-improves.
