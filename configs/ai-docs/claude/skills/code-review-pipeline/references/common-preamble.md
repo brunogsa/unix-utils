@@ -80,26 +80,38 @@ JSON. Each finding object:
   "start_line": 42,                  // inclusive
   "line": 42,                        // inclusive; equal to start_line for single-line
   "side": "RIGHT",                   // always RIGHT; comments target new code
-  "severity": "MANDATORY|RECOMMENDED|NITPICK|COMPLIMENT|QUESTION|OPTIONAL",
-  "body": "Problem statement.\n\nWhy it matters.\n\nFix or suggestion block.",
+  "severity": "MANDATORY|RECOMMENDED|NITPICK|OPTIONAL|QUESTION",
+  "body": "**[OBRIGATÓRIO]**\n\n**O que:**\n- ...\n\n**Por que:**\n- ...\n\n**Sugestão:**\n- ...",
   "confidence": 0.85,                // 0.0–1.0 self-reported
   "scope_tag": "<your specialist name>"  // e.g. "security"; used for dedup
 }
 
-Body follows the Problem → Why → Fix structure from `review-principles.md`. Write for a
-**low-context reviewer** — someone reading the comment as their first exposure to
-the issue, without having read the full PR or surrounding code. Each body must
-include enough information to act on without leaving the comment.
+Body follows the severity-tag → O que → Por que → Sugestão structure from
+`review-principles.md`. Write for a **low-context reviewer** — someone
+reading the comment as their first exposure to the issue, without having
+read the full PR or surrounding code. Each body must include enough
+information to act on without leaving the comment. Every section is a
+short bullet list, not a paragraph — scannable, simple enough wording for
+an intern unfamiliar with the module to follow.
 
-- **Problem**: name the issue concretely. Quote the relevant code (1–2 lines)
-  inline so the reader doesn't have to navigate elsewhere.
-- **Why**: explain the runtime/user-facing impact. For numeric/unit issues
-  include a worked example with concrete values
+- **Severity tag** (first line, bold + bracketed): `**[OBRIGATÓRIO]**` /
+  `**[RECOMENDADO]**` / `**[NITPICK]**` / `**[OPCIONAL]**` / `**[PERGUNTA]**`
+  in GH/PT-BR mode; `**[MANDATORY]**` / `**[RECOMMENDED]**` / `**[NITPICK]**` /
+  `**[OPTIONAL]**` / `**[QUESTION]**` in LOCAL/English mode. Must match the
+  `severity` field 1:1 — the visible tag and the JSON field can never disagree.
+- **O que** / **What**: name the issue concretely, in bullets. Quote the
+  relevant code (1–2 lines) inline so the reader doesn't have to navigate
+  elsewhere.
+- **Por que** / **Why**: explain the runtime/user-facing impact, in bullets.
+  For numeric/unit issues include a worked example with concrete values
   (e.g. *"subtotal R$200 × 3.11% should be R$6.22, but the function returns 622"*).
   For broader correctness issues, name the failure mode the reader will see.
-- **Fix**: provide a code snippet — prefer `​`​`​`suggestion ... `​`​`​` blocks
-  when the change fits a single hunk; otherwise show the proposed code in a
-  fenced block and call out any imports/setup needed.
+- **Sugestão** / **Suggestion**: the fix, in bullets — prefer `​`​`​`suggestion ... `​`​`​`
+  blocks when the change fits a single hunk and you're confident in the exact
+  replacement text; otherwise a short bullet describing the change, with a
+  fenced code snippet when it helps. Omit this section only for a QUESTION
+  finding with no concrete fix to propose. Add a permalink reference (see
+  below) only when genuinely needed.
 
 Length budget per body: target ~6–12 lines, ~800–1500 chars. Up to ~2500 chars
 is acceptable for MANDATORY findings that benefit from a worked example or

@@ -538,28 +538,32 @@ matches:
   - trigger: ";br-jira-bug"
     replace: |-
       ## Descrição:
-      
-      O problema X está acontecendo. 
-      
+
+      O problema X está acontecendo.
+
       ## Passos p/ reproduzir:
-      
+
       1. X
-      
+
       ## Critérios de aceite:
-      
-      1. Logs (com level, timestamp, traceId etc) 
-      2. Testes automatizados, ao menos para cobrir o bug 
-      3. UI Responsiva, Storybook 
-      4. Documentação (APIs e Arquitetura) atualizadas, se necessário 
-      5. Infraestrutura como Código 
-      6. Deploy para todos os ambientes, incluindo prod
-      
+
+      Funcionais:
+
+      1. X
+
+      Técnicos:
+
+      1. Logs (com level, timestamp, traceId etc)
+      2. Testes automatizados, ao menos para cobrir o bug
+      3. Documentação (APIs e Arquitetura) atualizadas, se necessário
+      4. Infraestrutura como Código, se necessário
+
       ## Dúvidas:
-      
-      1. X 
-      
-      ## Referências:
-      
+
+      1. X
+
+      ## Referências, Evidências, Payloads/Requests/Response/Logs:
+
       1. X
 
   - trigger: ";en-jira-bug"

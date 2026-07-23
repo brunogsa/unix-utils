@@ -17,7 +17,6 @@ Findings posted: <N>
   RECOMMENDED: <p>
   NITPICK: <q>
   OPTIONAL: <o>
-  COMPLIMENT: <r>
   QUESTION: <s>
 
 Dropped findings (one line each, for validation):

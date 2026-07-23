@@ -25,7 +25,7 @@
 3. Build `$work_dir/review-payload.json` with jq for the inline comments only, sourcing each `body` from its density-clean `$work_dir/wave5-comment-<n>.md`.
    - **Leave the top-level `body` empty** — the Review Guide is delivered as a separate standalone PR comment in the guide-posting step below.
      - Rationale: the pending-review body is not a good carrier for the guide; it gets buried behind the GitHub review filter and is hard for the human reviewer to find.
-   - Every inline comment body gets the signature footer appended: two newlines + `— comentário gerado automaticamente por IA`.
+   - Every inline comment body gets the signature footer appended: two newlines + `— gerado por IA, revisado pelo usuário`.
      - Rationale: the review posts under the human operator's own GitHub account (`gh api` authenticates as them).
      - Without an explicit AI disclaimer, the comments read as if that person wrote them by hand.
    - Include `start_line`/`start_side` only on multi-line ranges (`line > start_line`).
@@ -42,7 +42,7 @@
          "side": "RIGHT",
          "start_line": 40,
          "start_side": "RIGHT",
-         "body": "<finding body>\n\n— comentário gerado automaticamente por IA"
+         "body": "<finding body>\n\n— gerado por IA, revisado pelo usuário"
        }
      ]
    }
@@ -109,7 +109,7 @@
 
    </details>
 
-   — comentário gerado automaticamente por IA
+   — gerado por IA, revisado pelo usuário
    ```
 
    Print both `review_url` (pending review) and `guide_url` (standalone comment) in Wave 6.

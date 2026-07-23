@@ -8,7 +8,7 @@
       "mode": "github",
       "prompt": "/pr-review <SMALL_PR_URL>",
       "setup": "Pick or craft a small open PR (≤5 files, ≤100 lines changed) with at least one real bug (e.g., off-by-one, missing await, or a subjective style issue). Prefer a throwaway repo so the pending review can be deleted without noise.",
-      "expected_output": "A PENDING review appears in the GitHub UI. Body contains the Review Guide (Contexto de negócio, Decisões, Onde focar, Mudanças incidentais — sections present only when they add value). Inline comments anchor on the right lines and carry the '— comentário gerado automaticamente por IA' signature footer, and every comment body passes the doc-standards density check. Token summary printed to terminal.",
+      "expected_output": "A PENDING review appears in the GitHub UI. Body contains the Review Guide (Contexto de negócio, Decisões, Onde focar, Mudanças incidentais — sections present only when they add value). Inline comments anchor on the right lines and carry the '— gerado por IA, revisado pelo usuário' signature footer, and every comment body passes the doc-standards density check. Token summary printed to terminal.",
       "assertions": [],
       "files": []
     },
@@ -17,7 +17,7 @@
       "name": "gh-already-reviewed-early-exit",
       "mode": "github",
       "prompt": "/pr-review <PR_URL_THAT_ALREADY_HAS_A_CLAUDE_REVIEW>",
-      "setup": "Re-run /pr-review on a PR that already carries the '— comentário gerado automaticamente por IA' signature from a prior pending review. Wave 0 should abort before launching specialists.",
+      "setup": "Re-run /pr-review on a PR that already carries the '— gerado por IA, revisado pelo usuário' signature from a prior pending review. Wave 0 should abort before launching specialists.",
       "expected_output": "Skill prints 'abort: prior review detected'. No specialist Agent calls are made. Token total reflects only the Wave 0 PR-comments lookup.",
       "assertions": [],
       "files": []

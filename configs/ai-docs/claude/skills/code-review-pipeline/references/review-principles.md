@@ -24,25 +24,26 @@ One threshold can't govern both — they're not the same decision.
 
 Avoid speculative feedback using "maybe", "possibly", or "consider" without strong justification at the emission gate. Don't compensate at validation — those are different problems.
 
-## Feedback structure: Problem → Why → Fix
+## Feedback structure: severity tag → O que → Por que → Sugestão
 
-Every review comment uses bullet format:
+Every review comment opens with a bold, bracketed severity tag on its own line, then three bold-labeled sections, each a short bullet list (not paragraphs):
 
-- **Problem**: one sentence stating the issue.
-- **Why**: one sentence on impact (always include — helps developers learn).
-- **Fix**: code snippet, question, or concrete guidance.
+- **Severity tag**: `**[OBRIGATÓRIO]**` / `**[RECOMENDADO]**` / `**[NITPICK]**` / `**[OPCIONAL]**` / `**[PERGUNTA]**` in PT-BR output; `**[MANDATORY]**` / `**[RECOMMENDED]**` / `**[NITPICK]**` / `**[OPTIONAL]**` / `**[QUESTION]**` in English output. Must match the finding's `severity` field 1:1 — the visible tag and the machine-readable field can never disagree.
+- **O que** / **What**: the problem, stated concretely. Quote the relevant code (1-2 lines) inline.
+- **Por que** / **Why**: the impact — always include, it's what helps developers learn. For numeric/unit issues, use a worked example with concrete values.
+- **Sugestão** / **Suggestion**: the fix — a `suggestion` diff block when it fits a single hunk and you're confident in the exact replacement, otherwise a short bullet describing the change. Omit only for a QUESTION finding with no concrete fix to propose.
 
-Why: Problem alone leaves the author guessing about severity. Why educates. Fix removes ambiguity about what to do next. The triple is the unit of useful feedback.
+Why: the problem alone leaves the author guessing about severity — the tag fixes that immediately. Why educates. Suggestion removes ambiguity about what to do next. Splitting suggestion into its own bold section (rather than folding it into the problem prose) keeps each part independently scannable.
 
-Keep it concise: 3-5 lines total, max 256 characters per line. No paragraphs — bullets only.
+Keep it concise and scannable: short bullets, wording simple enough for an intern unfamiliar with the module to follow, max 256 characters per line.
 
 ## Priority tags — match severity to tone
 
-- **MANDATORY** — must fix before merge (correctness, security, critical bugs). Direct, assertive tone.
-- **RECOMMENDED** — should address (code quality, performance, best practices).
-- **NITPICK** — optional improvements (minor style, subjective). Friendly, non-pedantic tone.
-- **COMPLIMENT** — positive feedback on excellent patterns. Use sparingly.
-- **QUESTION** — genuine design questions. Standalone: must be answered. Embedded in other tags: include inline.
+- **MANDATORY** (`OBRIGATÓRIO`) — must fix before merge (correctness, security, critical bugs). Direct, assertive tone.
+- **RECOMMENDED** (`RECOMENDADO`) — should address (code quality, performance, best practices).
+- **NITPICK** (`NITPICK`) — optional improvements (minor style, subjective). Friendly, non-pedantic tone.
+- **OPTIONAL** (`OPCIONAL`) — pre-existing issue surfaced for awareness only, not introduced or worsened by this diff (see the don't-flag list).
+- **QUESTION** (`PERGUNTA`) — genuine design questions. Standalone: must be answered. Embedded in other tags: include inline.
 
 Why: a NITPICK with MANDATORY tone is hostile. A MANDATORY with NITPICK tone is ignored. Matching severity to tone keeps the signal honest.
 

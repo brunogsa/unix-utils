@@ -81,6 +81,24 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 - [Instruction] Put a blank comment line between distinct comment paragraphs, or after a phrase heavy or important enough to deserve visual isolation.
   - [Why] Without the gap, separate thoughts blur into one block; the blank line gives the eye a stopping point and lifts the heavy phrase out.
 
+- [Instruction] Cap every comment-touched physical line — standalone or with code in front of it — at 64 chars total; when a trailing comment would push the line over, move it above the code as its own line(s) instead. Verify with `scripts/check-comment-format.js <file>...` (`WIDTH` output).
+  - [Why] A fixed, narrow width keeps comments scannable in narrow diff panes and side-by-side review; squeezing an overflowing trailing comment onto the code line just relocates the overflow instead of fixing it — a regex/awk width check can't tell a real comment from a `//` inside a string literal, which is why the script uses the TypeScript compiler's own scanner.
+
+- [Instruction] Cap a standalone-comment paragraph (consecutive full-comment lines) at 4 lines before a blank comment line breaks it up. Verify with the same script (`PARAGRAPH` output).
+  - [Why] Same "one stopping point per thought" as the blank-line rule above, made checkable — 4 lines is about what a reader holds before needing a pause.
+
+- [Instruction] **CRITICAL: A paragraph break may only land where the preceding line ends a sentence or clause** (`.`/`;`, or `:` immediately introducing the bullet list that follows) — never mid-sentence. When aligning breaks to sentence ends still leaves a paragraph over 4 lines, trim the sentence or split it into two complete sentences instead of cutting at an arbitrary line count. Verify with the same script (`SENTENCE-BREAK` output).
+  - [Why] A break placed by line-count alone can land between a clause and its continuation (e.g. "...still" / blank line / "depends on."), forcing the reader to mentally rejoin two fragments the blank line visually severed.
+
+- [Instruction] When a bullet or sub-bullet's text wraps across 2 or more physical lines, follow it with a blank comment line before the next bullet or prose.
+  - [Why] A short bullet reads as one visual unit on its own line; a wrapped one needs the same blank-line pause a paragraph gets, or its wrapped tail blurs into the next bullet.
+
+- [Instruction] Indent a top-level bullet marker with exactly one space after the comment prefix (` * - text`, `// - text`); reserve extra indentation for sub-bullets only, matching the file's own indent convention (tab, 2-space, or 4-space).
+  - [Why] Extra spaces before a top-level bullet imply a nesting level that doesn't exist, and inconsistent indentation across bullets in the same list reads as accidental rather than intentional.
+
+- [Instruction] When the WIDTH fix moves an over-width trailing comment above its code line, put a blank line above the promoted comment — unless one is already there or the comment is now the block's first line.
+  - [Why] A comment dropped directly onto the previous line's tail still reads as attached to that line's code; the blank line signals it now stands on its own, describing the line below it.
+
 - [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments — use plain ASCII (`=`, `-`, `|`).
   - [Why] Humans don't type these by hand, so they look AI-written and get used inconsistently; they also break in terminals, diffs, and grep where ASCII works.
 
@@ -89,6 +107,81 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 Bad:  // ── Helpers ───────────────────────
 Good: // Helpers
       // ================================
+
+Bad (88 chars total; comment squeezed onto the code line):
+quantidadeVenda: 7, // 1058.33 / 7 = 151.19 exactly (LLD formula) vs 1058.33 (the code)
+
+Good (moved above, wrapped under 64 chars each):
+// 1058.33 / 7 = 151.19 exactly per the LLD formula,
+// vs 1058.33 in the code.
+quantidadeVenda: 7,
+
+Bad (7-line paragraph, no break):
+/**
+ * Line 1
+ * Line 2
+ * Line 3
+ * Line 4
+ * Line 5
+ * Line 6
+ */
+
+Good (blank comment line splits it into two 3-line paragraphs):
+/**
+ * Line 1
+ * Line 2
+ * Line 3
+ *
+ * Line 4
+ * Line 5
+ * Line 6
+ */
+
+Bad (paragraph break lands mid-sentence — "still" / "depends on." is one clause):
+/**
+ * `createDynamoTable` is idempotent (checks `ListTablesCommand`
+ * first), so calling it here is safe either way — but this spec
+ * deliberately does NOT call `deleteDynamoTable` in `afterAll`:
+ * doing so would drop a table a sibling agent's run still
+ *
+ * depends on.
+ */
+
+Good (rewritten as two complete sentences, break lands on the period):
+/**
+ * `createDynamoTable` is idempotent (checks `ListTablesCommand`
+ * first), so calling it here is safe either way.
+ *
+ * This spec deliberately skips `deleteDynamoTable` in `afterAll`:
+ * dropping the table would break a sibling agent's run that
+ * still depends on it.
+ */
+
+Bad (bullet over-indented; no blank line after a 2-line-wrapped bullet):
+ *   - Material 1 has 6 kits spread unevenly across all 4
+ *     bimestres (3/1/1/1) — proves per-kit/bimestre line
+ *     generation across an uneven split.
+ *   - Material 2 carries a `suplementar` item.
+
+Good (single space before the dash; blank line after the wrapped bullet):
+ * - Material 1 has 6 kits spread unevenly across all 4
+ *   bimestres (3/1/1/1) — proves per-kit/bimestre line
+ *   generation across an uneven split.
+ *
+ * - Material 2 carries a `suplementar` item.
+
+Bad (promoted comment glued to the previous line's code):
+quantidadeVenda: 7,
+// 1058.33 / 7 = 151.19 exactly per the LLD formula,
+// vs 1058.33 in the code.
+unitPrice: 151.19,
+
+Good (blank line separates the promoted comment from prior code):
+quantidadeVenda: 7,
+
+// 1058.33 / 7 = 151.19 exactly per the LLD formula,
+// vs 1058.33 in the code.
+unitPrice: 151.19,
 ```
 
 ### Section fencing in code files

@@ -72,10 +72,11 @@ Deterministic check; no subagent needed. Only aborts on hard no-ops.
 - **github — prior-review guard**: check whether this PR already carries a review from this pipeline, pending or submitted, before spending tokens on a duplicate:
   ```bash
   prior_count=$(gh api repos/"$repo"/pulls/"$pr_number"/comments \
-    --jq '[.[] | select(.body | contains("comentário gerado automaticamente por IA"))] | length')
+    --jq '[.[] | select(.body | test("gerado por IA, revisado pelo usuário|comentário gerado automaticamente por IA"))] | length')
   ```
   If `prior_count > 0`, print `abort: prior review detected` and stop.
-  - Every inline comment this pipeline posts carries that signature (Wave 5), so any match means a run already reviewed this exact PR.
+  - Every inline comment this pipeline posts carries the current signature (Wave 5), so any match means a run already reviewed this exact PR.
+  - The pattern also matches the pipeline's prior signature text, so PRs reviewed before that text changed are still detected.
 - **local**: always proceed. Empty diffs surface naturally — Wave 5 writes "auto-review: no findings".
 
 ---
