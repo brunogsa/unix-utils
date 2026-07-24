@@ -41,6 +41,14 @@ COMMAND_NAME_RE = re.compile(r"<command-name>/?([\w:-]+)</command-name>")
 # carries <local-command-stdout>. These built-ins emit no stdout record,
 # so the structural filter can't catch them — exclude by name.
 BUILTIN_SILENT_COMMANDS = {"clear", "compact", "login", "logout"}
+# A/B experiment markers a skill prints into chat (e.g. pr-review's
+# review-isolation experiment), landing verbatim in assistant text blocks:
+#   [ABTest] experiment=review-isolation arm=A pr=123
+#   [ABTest] experiment=review-isolation arm=B pr=124 override=manual
+# experiment/arm are opaque tokens — the parser never hardcodes a slug or arm
+# name, so any future experiment using this shape parses for free.
+AB_MARKER_RE = re.compile(
+    r"\[ABTest\] experiment=(\S+) arm=(\S+) pr=(\d+)(?: override=(manual))?")
 
 # Anthropic LIST prices, $/MTok — verified 2026-07-23 against the claude-api skill.
 # A stale table skews dollars, not shares — re-verify the numbers when models change.
@@ -225,12 +233,20 @@ def scan_transcript(path, cutoff_epoch):
         # [(record_index, cost)] for every priced API message — the per-message
         # cost by_skill_marginal sums into whichever skill's span it falls in.
         "message_costs": [],
+        # One dict per distinct (experiment, arm, pr) [ABTest] marker found in
+        # this session — see ab_seen below for how repeats within a session
+        # collapse to a single trial.
+        "ab_trials": [],
         "first_epoch": None,
         "last_epoch": None,
     }
     # Commands seen but not yet classified as skill vs built-in, as
     # (record_index, name); settled by the NEXT user record (see the deferral below).
     pending_commands = []
+    # (experiment, arm, pr) -> override-seen bool. A session can print the same
+    # marker more than once (e.g. reprinted after a retry); dedupe to one trial
+    # per distinct tuple, OR-ing the override flag across repeats.
+    ab_seen = {}
     for record_index, record in enumerate(iter_records(path)):
         epoch = parse_ts(record.get("timestamp"))
         if epoch is not None and epoch < cutoff_epoch:
@@ -288,6 +304,9 @@ def scan_transcript(path, cutoff_epoch):
                     stats["thinking_blocks"] += 1
                 elif item.get("type") == "text":
                     stats["text_blocks"] += 1
+                    for experiment, arm, pr, override in AB_MARKER_RE.findall(item.get("text") or ""):
+                        key = (experiment, arm, pr)
+                        ab_seen[key] = ab_seen.get(key, False) or bool(override)
                 elif item.get("type") == "tool_use" and item.get("name") == "Skill":
                     skill = (item.get("input") or {}).get("skill")
                     if skill:
@@ -313,6 +332,10 @@ def scan_transcript(path, cutoff_epoch):
     for pending_index, name in pending_commands:
         stats["skills"][name] += 1
         stats["skill_events"].append((pending_index, name))
+    stats["ab_trials"] = [
+        {"experiment": experiment, "arm": arm, "pr": pr, "override": override}
+        for (experiment, arm, pr), override in ab_seen.items()
+    ]
     return stats
 
 
@@ -382,6 +405,15 @@ def aggregate(main_files, subagent_files, cutoff_epoch):
             "dedicated_sessions": 0, "dedicated_cost": 0.0,
             "mixed_sessions": 0, "mixed_cost_estimate": 0.0,
         }),
+        # [ABTest] marker rollup: ab_tests[experiment][arm] holds that arm's
+        # trials/sessions/cost/tokens/overrides; ab_contaminated[experiment]
+        # counts sessions that carried 2+ arms of the SAME experiment, whose
+        # cost is excluded from every arm rather than misattributed to one.
+        "ab_tests": defaultdict(lambda: defaultdict(lambda: {
+            "trials": 0, "sessions": 0, "cost": 0.0,
+            "tokens": dict.fromkeys(TOKEN_KINDS, 0), "overrides": 0,
+        })),
+        "ab_contaminated": defaultdict(int),
         "sessions": [],
         "subagents_per_session": defaultdict(lambda: {
             "cost": 0.0, "runs": 0, "tokens": dict.fromkeys(TOKEN_KINDS, 0),
@@ -477,6 +509,26 @@ def aggregate(main_files, subagent_files, cutoff_epoch):
                 marginal = result["by_skill_marginal"][skill]
                 marginal["mixed_sessions"] += 1
                 marginal["mixed_cost_estimate"] += mixed_cost_by_skill.get(skill, 0.0)
+        # [ABTest] markers: this session's full cost (+ its subagents')
+        # attributes to each arm it carries, per experiment — a session with
+        # unrelated experiments A and B contributes its whole cost to both.
+        # A session carrying 2+ arms of the SAME experiment can't be trusted
+        # to pick one, so it's tallied as contaminated instead of split.
+        trials_by_experiment = defaultdict(list)
+        for trial in stats["ab_trials"]:
+            trials_by_experiment[trial["experiment"]].append(trial)
+        for experiment, trials in trials_by_experiment.items():
+            arms_in_session = {trial["arm"] for trial in trials}
+            if len(arms_in_session) > 1:
+                result["ab_contaminated"][experiment] += 1
+                continue
+            arm_stats = result["ab_tests"][experiment][trials[0]["arm"]]
+            arm_stats["trials"] += len(trials)
+            arm_stats["sessions"] += 1
+            arm_stats["cost"] += stats["cost"] + session_subagents["cost"]
+            arm_stats["overrides"] += sum(1 for trial in trials if trial["override"])
+            for kind in TOKEN_KINDS:
+                arm_stats["tokens"][kind] += stats["tokens"][kind] + session_subagents["tokens"][kind]
         priced_input = (stats["tokens"]["cache_read"] + stats["tokens"]["input"]
                         + stats["tokens"]["cache_write_5m"] + stats["tokens"]["cache_write_1h"])
         result["sessions"].append({
@@ -577,6 +629,23 @@ def render_text(result, top_n):
               f"dedicated=${stats['dedicated_cost']:.2f} (n={stats['dedicated_sessions']})\t"
               f"mixed_est=${stats['mixed_cost_estimate']:.2f} (n={stats['mixed_sessions']})")
 
+    if result["ab_tests"] or result["ab_contaminated"]:
+        print("\n== AB TESTS ([ABTest] markers found in chat transcripts) ==")
+        experiments = sorted(set(result["ab_tests"]) | set(result["ab_contaminated"]))
+        for experiment in experiments:
+            print(f"{experiment}:")
+            arms = result["ab_tests"].get(experiment, {})
+            for arm, stats in sorted(arms.items()):
+                total_tokens = sum(stats["tokens"].values())
+                avg = stats["cost"] / max(stats["trials"], 1)
+                print(f"\tarm={arm}\ttrials={stats['trials']}\tsessions={stats['sessions']}\t"
+                      f"cost=${stats['cost']:.2f}\tavg=${avg:.2f}/trial\t"
+                      f"tokens={total_tokens:,}\toverrides={stats['overrides']}")
+            contaminated = result["ab_contaminated"].get(experiment, 0)
+            if contaminated:
+                print(f"\tcontaminated_sessions={contaminated} "
+                      f"(session carried 2+ arms; cost excluded from every arm)")
+
     print(f"\n== TOP {top_n} MAIN SESSIONS (own cost, + their subagents) ==")
     ranked_sessions = sorted(result["sessions"], key=lambda s: -s["cost"])[:top_n]
     for session in ranked_sessions:
@@ -596,7 +665,7 @@ def build_payload(result, top_n, window_days):
     grand = result["main_cost"] + result["subagent_cost"]
     derived = derived_metrics(result)
     ranked_sessions = sorted(result["sessions"], key=lambda s: -s["cost"])[:top_n]
-    return {
+    payload = {
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "window_days": window_days,
         "kpis": {
@@ -653,6 +722,23 @@ def build_payload(result, top_n, window_days):
             "skills": s["skills"],
         } for s in ranked_sessions],
     }
+    # Only present when at least one [ABTest] marker was found — mirrors
+    # render_text's gate so a marker-free window's JSON stays unchanged too.
+    if result["ab_tests"] or result["ab_contaminated"]:
+        payload["ab_tests"] = {
+            experiment: {
+                arm: {
+                    "trials": v["trials"], "sessions": v["sessions"],
+                    "cost": round(v["cost"], 2), "tokens": dict(v["tokens"]),
+                    "overrides": v["overrides"],
+                }
+                for arm, v in sorted(arms.items(), key=lambda kv: -kv[1]["cost"])
+            }
+            for experiment, arms in result["ab_tests"].items()
+        }
+        if result["ab_contaminated"]:
+            payload["ab_tests_contaminated_sessions"] = dict(result["ab_contaminated"])
+    return payload
 
 
 def write_snapshot(payload):
