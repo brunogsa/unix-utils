@@ -195,9 +195,13 @@ Opening the diff in a side tmux pane runs via `open-in-tmux` (§9.5).
 As each step lands, `TaskUpdate` the subject to mark it done — strike it or prefix `✓`.
 This keeps showing which steps remain even after a compaction drops the doc-resident §9 steps from working memory.
 
+Alongside the strike, `TaskUpdate` this task's `metadata` with the same per-step outcome — keys `gate`/`tails`/`triage`/`pr`/`diffview`, each `"pending"` or `"done"` (`"skipped"` for `pr` when not wanted).
+Triage, PR, and diffview completion have no JSON state-file equivalent — this metadata is their only durable, machine-checkable record.
+
 Leave it `pending` through the task loop; flip it `in_progress` on entering §9 and `completed` only once the review package is presented (§9.5).
 On a resume, before dispatch, check the TaskList for this task — a new session may not carry it.
-If absent, re-create it and pre-strike the steps the state-file `phase` shows already done.
+If present, `TaskGet` its `metadata` first — the exact per-step record, sharper than `phase`'s coarse value.
+If absent, re-create it and pre-strike the steps the state-file `phase` shows already done, since no metadata survived to read.
 
 This complements the Stop hook: the hook blocks *stopping* before the batch is presented; this task keeps the steps *in view* so you run them unprompted.
 
@@ -206,6 +210,9 @@ This complements the Stop hook: the hook blocks *stopping* before the batch is p
 Before dispatching task 1, create one TaskList entry for **every** task-id in this batch — not just the first one.
 
 Mark the first task `in_progress` and every other task `pending`. This shows the user the whole batch from the start, instead of tasks appearing one at a time as they activate.
+
+Init each task's `metadata` to `{"pr_label": "<this run's pr_label, "" if none>", "attempt_count": 0, "gate_outcome": "pending", "fix_commit_shas": []}`.
+§5.3–§5.5 update these fields as the task runs — never track them only in a prose subject/description or in chat scrollback.
 
 ## 3. Sub-step decomposition (subagent-owned, per task)
 
@@ -331,6 +338,8 @@ On a failed §5.1/§5.2 verify or a §4 timeout, record the attempt, then run `~
 
 The script alone decides how many retries a task gets.
 
+Also `TaskUpdate` that task's TaskList `metadata`: increment `attempt_count` and set `gate_outcome: "red"` — mirrors the JSON attempt record so a `TaskGet` shows the same failure without opening the state file.
+
 Full verdict semantics, attempt-recording fields, and the `debug-standards` load live in [`references/failure-verdict.md`](references/failure-verdict.md). Load only on a failed verify.
 
 ### 5.4. Mark terminal, chain-abort dependents, advance
@@ -339,14 +348,18 @@ A task becomes terminal without a `[Done]` two ways: the subagent self-reports `
 
 **A self-reported block bypasses the script entirely.** `implement-loop-state.sh` only accepts `result` of `pass`, `fail`, or `timeout` — recording `blocked` as an attempt result crashes it.
 So on a block, skip the attempt record and the script call: set `status: "blocked"` and `reason: "blocked"` on that task directly.
+Also `TaskUpdate` its TaskList `metadata.gate_outcome` to `"red"` directly — §5.3 never ran, so nothing set it yet.
 
 **A `stuck` verdict is already backed by a recorded fail/timeout attempt (§5.3).** Set that same task to `status: "blocked"` and `reason: "stuck"`.
 `status` drives flow — blocked tasks are excluded from the next pick — while `reason` keeps the finer stuck-vs-blocked label for the batch-end report.
+
+Either way, `TaskUpdate` that task's TaskList status to `completed` — the tool has no `blocked` state; `metadata.gate_outcome: "red"` is what a `TaskGet` reads to tell a blocked task from a passed one.
 
 **Chain-abort the task's dependents, before picking what runs next.** Read `plan_<slug>.md`'s "Depends on" lines and walk them transitively.
 Any task that depends on the one just marked terminal — directly, or through another dependent — also gets `status: "blocked"` and `reason: "blocked-upstream"`.
 Mark it before the orchestrator looks for a next task so it can never be picked.
 Flip `plan_<slug>.md` to `[Blocked]` for the terminal task and every dependent this just chain-aborted (§6).
+Also `TaskUpdate` each chain-aborted dependent's TaskList `metadata.gate_outcome` to `"red"` and status to `completed` — it never dispatched, so nothing else would ever close it out.
 
 **Pick the next task yourself — the script can't.** `next-task` only comes out of a `pass` attempt (§5.5), and this task didn't pass.
 Scan `tasks[]` in order for the first entry whose `status` is neither `done` nor `blocked`, and re-run §1.6–§1.7 + §3 on it.
@@ -360,6 +373,8 @@ Flip that task to `status: "done"` and `reason: "done"` in the state file — be
 The script picks the next task by `status`, so a passed task left `pending` would later be re-selected as another task's "next" and redundantly re-dispatched.
 
 Also flip `plan_<slug>.md` to `[Done]` (§6) and record the subagent's `[Scout]` notes there.
+
+Also `TaskUpdate` that task's TaskList `metadata`: `gate_outcome: "green"`, `fix_commit_shas` from §4.4's reported SHAs, then flip its TaskList status to `completed`.
 
 Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey the verdict:
 

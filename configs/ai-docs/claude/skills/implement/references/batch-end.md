@@ -35,6 +35,8 @@ What's specific to `/implement`, not covered by the shared reference:
 - When each tail returns, confirm its report file exists at the assigned path, then record into the state file's `tails` object:
   - The report path — `refactor` → `.tails.refactor_report`, `auto-review` → `.tails.auto_review_report` (record the **path**, not the content — a resumed run reads it back to see which reports already exist).
   - Its token count → `.tails.tokens.<name>` (`0` if the Agent result omits it). The metrics script sums these into the subagent total.
+- Mirror the same two fields into that tail's own TaskList `metadata` — `report_path` and `tokens` — via `TaskUpdate`, then flip its status to `completed`.
+  The state file stays the resume source of truth; this metadata just lets a `TaskGet` on the tail task show its outcome without opening the state file.
 
 ## Triage both reports
 
