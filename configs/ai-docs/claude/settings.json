@@ -77,7 +77,7 @@
     ]
   },
   "model": "sonnet",
-  "advisorModel": "fable",
+  "advisorModel": "opus",
   "hooks": {
     "PreToolUse": [
       {
