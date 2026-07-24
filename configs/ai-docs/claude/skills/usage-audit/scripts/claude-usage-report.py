@@ -13,11 +13,12 @@
 # Reads every transcript under ~/.claude/projects modified in the window and
 # prices each API message at Anthropic LIST prices (PRICES below).
 # Answers: where did the spend go — main loop vs subagents, model family,
-# day, subagent type, and the costliest sessions.
+# day, subagent type, skill, and the costliest sessions.
 
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from collections import defaultdict
@@ -31,10 +32,20 @@ HISTORY_DIR = os.path.normpath(
 TOKEN_KINDS = ("input", "output", "cache_read", "cache_write_5m", "cache_write_1h")
 # The literal record Claude Code writes when the user presses Escape mid-turn.
 INTERRUPT_SENTINEL = "[Request interrupted by user"
+# Slash-command invocations land in user records as <command-name>/x</command-name>;
+# plugin skills can carry a colon (plugin:skill).
+COMMAND_NAME_RE = re.compile(r"<command-name>/?([\w:-]+)</command-name>")
+# Built-in commands are told apart structurally: the record after theirs
+# carries <local-command-stdout>. These built-ins emit no stdout record,
+# so the structural filter can't catch them — exclude by name.
+BUILTIN_SILENT_COMMANDS = {"clear", "compact", "login", "logout"}
 
-# Anthropic LIST prices, $/MTok — verified 2026-07-16 against the claude-api skill.
+# Anthropic LIST prices, $/MTok — verified 2026-07-23 against the claude-api skill.
 # A stale table skews dollars, not shares — re-verify the numbers when models change.
 # family: (input, output, cache_read); cache write = input x1.25 (5m TTL) / x2 (1h TTL).
+# Sonnet 5 has an intro rate ($2.00/$10.00) through 2026-08-31; this table uses
+# the flat post-intro $3.00/$15.00 bucket, so sonnet dollars run slightly high
+# until that date.
 PRICES = {
     "fable": (10.0, 50.0, 1.00),
     "opus": (5.0, 25.0, 0.50),
@@ -166,8 +177,18 @@ def first_text(content):
     return ""
 
 
+def iter_text_payloads(content):
+    """Every text payload of a record, whether content is a string or a block list."""
+    if isinstance(content, str):
+        yield content
+    elif isinstance(content, list):
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                yield item.get("text") or ""
+
+
 def scan_transcript(path, cutoff_epoch):
-    """Cost, tokens, call/turn counters, and wall-clock bounds of one transcript.
+    """Cost, tokens, call/turn counters, skills, and wall-clock bounds of one transcript.
 
     A file can clear the mtime-based find_transcripts() gate (touched recently)
     while still holding much older records (a long-running/resumed session) —
@@ -179,6 +200,7 @@ def scan_transcript(path, cutoff_epoch):
         "by_family": defaultdict(float),
         "by_day": defaultdict(float),
         "first_prompt": "",
+        "title": "",
         "api_calls": 0,
         "tokens": dict.fromkeys(TOKEN_KINDS, 0),
         "thinking_blocks": 0,
@@ -186,15 +208,23 @@ def scan_transcript(path, cutoff_epoch):
         "user_messages": 0,
         "interruptions": 0,
         "compactions": 0,
+        "skills": defaultdict(int),
         "first_epoch": None,
         "last_epoch": None,
     }
+    # Commands seen but not yet classified as skill vs built-in;
+    # settled by the NEXT user record (see the deferral below).
+    pending_commands = []
     for record in iter_records(path):
         epoch = parse_ts(record.get("timestamp"))
         if epoch is not None and epoch < cutoff_epoch:
             continue
         if record.get("subtype") == "compact_boundary":
             stats["compactions"] += 1
+        # Claude Code writes an auto-generated title as this session
+        # progresses; the transcript's last one is the final title.
+        if record.get("type") == "ai-title" and record.get("aiTitle"):
+            stats["title"] = record["aiTitle"]
         if epoch is not None:
             if stats["first_epoch"] is None or epoch < stats["first_epoch"]:
                 stats["first_epoch"] = epoch
@@ -202,6 +232,25 @@ def scan_transcript(path, cutoff_epoch):
                 stats["last_epoch"] = epoch
         message = record.get("message") or {}
         content = message.get("content")
+        if message.get("role") == "user":
+            # Command-name tags also appear in meta/local-command records,
+            # so scan every user record, not just typed human turns.
+            #
+            # A built-in command's record is immediately followed by a
+            # <local-command-stdout> user record; a skill invocation's
+            # never is. Defer counting each command until the next user
+            # record settles which kind it was.
+            texts = list(iter_text_payloads(content))
+            is_stdout_record = any("<local-command-stdout>" in t for t in texts)
+            if not is_stdout_record:
+                for name in pending_commands:
+                    stats["skills"][name] += 1
+            pending_commands.clear()
+            if not is_stdout_record:
+                for text in texts:
+                    for name in COMMAND_NAME_RE.findall(text):
+                        if name not in BUILTIN_SILENT_COMMANDS:
+                            pending_commands.append(name)
         if message.get("role") == "user" and is_human_message(record, content):
             text = first_text(content)
             # An Escape press is a correction event, not a typed turn — count it apart.
@@ -222,6 +271,10 @@ def scan_transcript(path, cutoff_epoch):
                     stats["thinking_blocks"] += 1
                 elif item.get("type") == "text":
                     stats["text_blocks"] += 1
+                elif item.get("type") == "tool_use" and item.get("name") == "Skill":
+                    skill = (item.get("input") or {}).get("skill")
+                    if skill:
+                        stats["skills"][skill] += 1
         usage = message.get("usage")
         model = message.get("model") or ""
         if not usage or model == "<synthetic>":
@@ -237,6 +290,9 @@ def scan_transcript(path, cutoff_epoch):
         stats["cost"] += cost
         stats["by_family"][price_family(model)] += cost
         stats["by_day"][(record.get("timestamp") or "")[:10]] += cost
+    # A command at end-of-file has no follower to disprove it — count it.
+    for name in pending_commands:
+        stats["skills"][name] += 1
     return stats
 
 
@@ -275,8 +331,15 @@ def aggregate(main_files, subagent_files, cutoff_epoch):
         "by_family": defaultdict(float),
         "by_day": defaultdict(lambda: {"main": 0.0, "sub": 0.0}),
         "by_subagent_type": defaultdict(lambda: {"cost": 0.0, "runs": 0}),
+        "by_skill": defaultdict(lambda: {
+            "cost": 0.0, "invocations": 0, "sessions": 0,
+            "compactions": 0, "interruptions": 0,
+            "tokens": dict.fromkeys(TOKEN_KINDS, 0),
+        }),
         "sessions": [],
-        "subagents_per_session": defaultdict(lambda: {"cost": 0.0, "runs": 0}),
+        "subagents_per_session": defaultdict(lambda: {
+            "cost": 0.0, "runs": 0, "tokens": dict.fromkeys(TOKEN_KINDS, 0),
+        }),
         "api_calls": {"main": 0, "sub": 0},
         "tokens": dict.fromkeys(TOKEN_KINDS, 0),
         "thinking_blocks": 0,
@@ -293,6 +356,8 @@ def aggregate(main_files, subagent_files, cutoff_epoch):
         parent = path.split("/subagents/")[0] + ".jsonl"
         result["subagents_per_session"][parent]["cost"] += stats["cost"]
         result["subagents_per_session"][parent]["runs"] += 1
+        for kind in TOKEN_KINDS:
+            result["subagents_per_session"][parent]["tokens"][kind] += stats["tokens"][kind]
         spawn_type = match_spawn_type(stats["first_prompt"], spawns.get(parent, []))
         result["by_subagent_type"][spawn_type]["cost"] += stats["cost"]
         result["by_subagent_type"][spawn_type]["runs"] += 1
@@ -307,14 +372,33 @@ def aggregate(main_files, subagent_files, cutoff_epoch):
         result["interruptions"] += stats["interruptions"]
         result["compactions"] += stats["compactions"]
         result["session_seconds"] += duration
+        # A session counts under EVERY skill it invoked, so by_skill rows
+        # overlap and don't sum to the total — they isolate, not partition.
+        session_subagents = result["subagents_per_session"].get(
+            path, {"cost": 0.0, "tokens": dict.fromkeys(TOKEN_KINDS, 0)})
+        for skill, invocation_count in stats["skills"].items():
+            entry = result["by_skill"][skill]
+            entry["cost"] += stats["cost"] + session_subagents["cost"]
+            entry["invocations"] += invocation_count
+            entry["sessions"] += 1
+            entry["compactions"] += stats["compactions"]
+            entry["interruptions"] += stats["interruptions"]
+            for kind in TOKEN_KINDS:
+                entry["tokens"][kind] += stats["tokens"][kind] + session_subagents["tokens"][kind]
+        priced_input = (stats["tokens"]["cache_read"] + stats["tokens"]["input"]
+                        + stats["tokens"]["cache_write_5m"] + stats["tokens"]["cache_write_1h"])
         result["sessions"].append({
             "path": path,
+            "title": stats["title"],
             "cost": stats["cost"],
             "api_calls": stats["api_calls"],
             "duration_s": duration,
             "compactions": stats["compactions"],
             "user_messages": stats["user_messages"],
             "interruptions": stats["interruptions"],
+            "tokens": dict(stats["tokens"]),
+            "cache_hit_rate": stats["tokens"]["cache_read"] / priced_input if priced_input else 0.0,
+            "skills": dict(sorted(stats["skills"].items())),
         })
     return result
 
@@ -379,14 +463,28 @@ def render_text(result, top_n):
         avg = stats["cost"] / max(stats["runs"], 1)
         print(f"{spawn_type}\t${stats['cost']:.2f}\tn={stats['runs']}\tavg=${avg:.2f}")
 
+    print("\n== BY SKILL (session own+sub cost/tokens; rows overlap — a session "
+          "counts under every skill it invoked, so avg inherits whole-session cost) ==")
+    ranked_skills = sorted(result["by_skill"].items(), key=lambda kv: -kv[1]["cost"])
+    for skill, stats in ranked_skills:
+        avg = stats["cost"] / max(stats["invocations"], 1)
+        total_tokens = sum(stats["tokens"].values())
+        print(f"{skill}\t${stats['cost']:.2f}\tn={stats['invocations']}\tavg=${avg:.2f}\t"
+              f"tokens={total_tokens:,}\tsessions={stats['sessions']}\t"
+              f"compactions={stats['compactions']}\tinterruptions={stats['interruptions']}")
+
     print(f"\n== TOP {top_n} MAIN SESSIONS (own cost, + their subagents) ==")
     ranked_sessions = sorted(result["sessions"], key=lambda s: -s["cost"])[:top_n]
     for session in ranked_sessions:
         subs = result["subagents_per_session"].get(session["path"], {"cost": 0.0, "runs": 0})
         short_name = session["path"].replace(TRANSCRIPTS_ROOT + "/", "")
+        title = session["title"] or "(no ai-title recorded)"
+        total_tokens = sum(session["tokens"].values())
         print(f"${session['cost']:.2f}\t(+${subs['cost']:.2f} sub, n={subs['runs']})\t"
               f"{session['duration_s'] / 3600:.1f}h\tcompactions={session['compactions']}\t"
-              f"user_msgs={session['user_messages']}\t{short_name}")
+              f"user_msgs={session['user_messages']}\t{title}")
+        print(f"\ttokens={total_tokens:,} (out={session['tokens']['output']:,})\t"
+              f"cache_hit={session['cache_hit_rate']:.1%}\t{short_name}")
 
 
 def build_payload(result, top_n, window_days):
@@ -420,8 +518,15 @@ def build_payload(result, top_n, window_days):
                    for day, split in sorted(result["by_day"].items())},
         "by_subagent_type": {k: {"cost": round(v["cost"], 2), "runs": v["runs"]}
                              for k, v in result["by_subagent_type"].items()},
+        # Rows overlap — a session counts under every skill it invoked.
+        "by_skill": {k: {"cost": round(v["cost"], 2), "invocations": v["invocations"],
+                         "sessions": v["sessions"], "compactions": v["compactions"],
+                         "interruptions": v["interruptions"], "tokens": dict(v["tokens"])}
+                     for k, v in sorted(result["by_skill"].items(),
+                                        key=lambda kv: -kv[1]["cost"])},
         "top_sessions": [{
             "path": s["path"],
+            "title": s["title"],
             "cost": round(s["cost"], 2),
             "subagent_cost": round(result["subagents_per_session"].get(s["path"], {"cost": 0.0})["cost"], 2),
             "api_calls": s["api_calls"],
@@ -429,6 +534,9 @@ def build_payload(result, top_n, window_days):
             "compactions": s["compactions"],
             "user_messages": s["user_messages"],
             "interruptions": s["interruptions"],
+            "tokens": s["tokens"],
+            "cache_hit_rate": round(s["cache_hit_rate"], 3),
+            "skills": s["skills"],
         } for s in ranked_sessions],
     }
 
