@@ -169,8 +169,17 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
   - [Why] Unreviewed scratch in the repo gets committed by accident or rots as orphan debt; a user-reviewed doc must sit where the user and downstream skills discover it.
   - [Example] User-reviewed → CWD: `spec_/plan_<slug>.md`, manual-verification `.md`. Never-reviewed → /tmp: debug dumps, one-off scripts, diff snapshots.
 
-- [Instruction] **In long or multi-step work, offload working state — findings, decisions, intermediate results — to a `/tmp` scratchpad file as you produce it, not only at the end.**
-  - [Why] Compaction summarizes context lossily mid-task, so unpersisted state silently vanishes; Anthropic ships this pattern as "structured note-taking" (https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents).
+- [Instruction] When a task earns TaskList entries or a procedural skill starts, create its `/tmp` scratchpad file and offload working state immediately.
+  - [Why] A transcript audit (2026-07-24) found 37 deep-compaction sessions with zero scratchpad writes, proving "long or multi-step work" is too fuzzy; TaskList is deterministic and always visible.
+
+- [Instruction] Working state includes findings, decisions, and intermediate results — persist these as you produce them, not at the end.
+  - [Why] Compaction summarizes context lossily mid-task, so state not yet persisted when it fires silently vanishes from the session.
+
+- [Instruction] Persist to the scratchpad only state that is expensive to reconstruct — counts, verdicts, decisions with their why, rejected approaches, artifact paths.
+  - [Why] Notes carry real token cost, so cheap-to-rederive content buries the load-bearing state it was meant to protect (https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents).
+
+- [Instruction] Reference large payloads — tool outputs, file contents — by path and line range; never copy them into the scratchpad.
+  - [Why] A copy goes stale the moment its source changes, while a pointer re-reads fresh — the "store references, not payloads" pattern from deep-agents practice (https://docs.langchain.com/oss/python/deepagents/context-engineering).
 
 - [Instruction] On resume or after compaction, re-ground from the scratchpad — re-read the file and trust it over recalled context.
   - [Why] Post-compaction recall feels complete but is a summary; the file re-reads verbatim, turning "I think I checked X" into a checkable fact.
@@ -286,6 +295,12 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] Persist machine-checkable task state — step counters, gate outcomes, attempt counts, decisions, artifact/experiment links — in the task's `metadata` field, not in prose subjects or descriptions.
   - [Why] Metadata survives compaction with the task and reads back as structured fields, so a resumed skill checks exactly where it was instead of re-parsing prose.
+
+- [Instruction] Split durable state by surface — the TaskList carries status plus machine-checkable metadata; the `/tmp` scratchpad carries narrative findings, evidence, and decision rationale.
+  - [Why] The TaskList re-surfaces every turn, so narrative there taxes every turn; the scratchpad reads on demand — the index-vs-topic-file split Claude Code's own memory design uses (https://code.claude.com/docs/en/memory).
+
+- [Instruction] Cross-reference the two surfaces by task id and file path — never duplicate the same content on both.
+  - [Why] Content stored twice drifts into two versions on the next edit; a pointer keeps one source of truth and a TaskList subject can't carry findings losslessly anyway.
 
 - [Instruction] On a leveraged tasklist, execute each task via a pinned subagent — main orchestrates and validates against artifacts with fresh eyes.
   - [Why] Inline task execution burns the main window that compactions are rationed by, and orchestrator-validates already governs `/implement`.
