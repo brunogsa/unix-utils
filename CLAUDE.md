@@ -31,6 +31,10 @@ Always edit source in `configs/`, never the symlink targets.
 
 Always edit `configs/ai-docs/claude/settings.json` directly. If the symlink has been broken, re-run `install.sh` to restore it.
 
+**`/model` and `/advisor` caveat**: typing `/model <name>` or `/advisor <model>` in any session writes the choice into the global `settings.json` (documented: code.claude.com/docs/en/model-config.md and .../advisor.md) — a session-local pick silently becomes the committed steady state.
+
+For a session-only model, use the `s` key inside the `/model` picker, or launch with `claude --model <m>` / `claude --advisor <m>`. The `settings-model-drift-guard.sh` SessionStart hook warns at startup when the live `model`/`advisorModel` keys differ from git HEAD (the committed file IS the steady state), and when the symlink got detached.
+
 **Permission-glob caveat**: in `settings.json` `permissions.allow`, an `Edit`/`Write` path glob with a SINGLE leading slash (`Edit(/tmp/**)`) is read as project-root-relative and silently matches nothing. A filesystem-absolute path needs a DOUBLE slash: `Edit(//tmp/**)`.
 
 For a symlinked dir (macOS `/tmp` → `/private/tmp`), add both the symlink path and its resolved target — `//tmp/**` and `//private/tmp/**`. The failure reads as a missing permission, not a typo, so it recurs on every rediscovery.
