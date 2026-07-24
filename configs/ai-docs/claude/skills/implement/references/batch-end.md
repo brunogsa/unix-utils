@@ -123,6 +123,7 @@ Skip this whole section on a plain `<task-ids>` run (no `PR-N` label, `pr_label`
 
 Only when the interview opted into a draft PR (§1.2). Skip this section entirely otherwise.
 
+- **CRITICAL: re-read this whole section fresh immediately before dispatching — never execute it from a compacted-summary recollection.** A post-compaction paraphrase like "generate the body via a subagent, following create-pr conventions" is lossy: it silently drops the enumerated specifics below (template check, TAC-verbatim, `WARNING:`-prefixed items, exact output path, REST-API-PATCH-only). The cost of re-reading is one file read; the cost of skipping it is a PR body already pushed to GitHub with mandatory sections missing.
 - **Guard first** — if `gh` is absent or the repo has no remote, skip the PR with an explicit notice in the package; everything else in the package is unaffected.
 - Otherwise **push the branch** and create a **draft** PR with `gh pr create --draft --body-file <file> --base <base-branch>`, where `<base-branch>` is §1.2's confirmed base branch. Never auto-merge, never force-push.
   - Every PR-label run needs this `--base`, dependent or not.
@@ -138,11 +139,14 @@ Only when the interview opted into a draft PR (§1.2). Skip this section entirel
 - Generate the description with a **separate `general-purpose` subagent dispatch** (`model=sonnet` — composition, not review) from the spec/plan and commit bodies, following the `create-pr` skill's conventions (`~/.claude/skills/create-pr/SKILL.md`) for structure and tone only.
   - Never dispatch `deep-reviewer` for this: its write-guard hook allows only `verdict_*.md` and `/tmp` writes, and denies a `pr-descr_*.md` write in CWD outright.
   - Never invoke `create-pr` itself for this — its own step 3 is an interactive approval gate, incompatible with this fully-async flow.
-  - It fills `.github/PULL_REQUEST_TEMPLATE.md`, embeds mermaid blocks, and includes the mandatory Testable-Acceptance-Criteria + Evidences sections a hand-written body silently omits.
-  - Carry any manual deploy prerequisites (new secrets, new Parameter-Store values) into the description as `WARNING:`-prefixed items.
+  - **The dispatch prompt must spell out every one of these requirements explicitly — never just "follow create-pr's conventions" by bare reference.** A subagent (like the orchestrator) has no memory of create-pr's SKILL.md unless the prompt states its content; a vague pointer produces the same silently-incomplete body this note exists to prevent:
+    - Check `.github/PULL_REQUEST_TEMPLATE.md` / `.github/pull_request_template.md` first; if present it's the base structure — keep every section/checkbox, fill with rich content, never replace it.
+    - The 8-section required order (drop any that are genuinely N/A, never silently): Jira link → Context (business problem, layered) → Testable Acceptance Criteria (verbatim from spec, `AC-N:` prefix dropped, each ending in a `> Covered by ...` pointer) → Architecture (diagrams + a Decisions subsection) → Changes (Planned + Discovered) → Checklist (preserve the team's template checklist verbatim) → Evidences (value-add only, one line per claim) → References (last).
+    - `WARNING:`-prefixed items for any manual deploy prerequisite (new secrets, new Parameter-Store values) or other operationally-risky item needing human coordination.
+    - Zero references to untracked session docs (`spec_<slug>.md`, `plan_<slug>.md`, `verdict_*.md`, internal task/AC numbers, commit SHAs in prose) — verify each candidate reference with `git ls-files <name>` first; substitute the value or drop the reference.
   - Pass the resolved `<this-PR-label>` explicitly in the dispatch prompt, so the subagent writes one PR's description, never asks which PR it covers.
     The CWD may hold several spec/plan pairs, and a PR-label run may cover several PRs, so an unstated label binds to the wrong one.
-  - Assign its output path explicitly: `./pr-descr_<slug>_<this-PR-label-lowercase>.md` (e.g. `pr-descr_multi-pr-implement_pr2.md`) — the subagent writes that file directly; the orchestrator then reads it for `--body-file`.
+  - Assign its output path explicitly: `./pr-descr_<slug>_<this-PR-label-lowercase>.md` (e.g. `pr-descr_multi-pr-implement_pr2.md`) when `pr_label` is non-empty; on a plain `<task-ids>` run (`pr_label` is `""`), drop the suffix entirely — `./pr-descr_<slug>.md` — matching create-pr's own single-PR-plan convention. The subagent writes that file directly; the orchestrator then reads it for `--body-file`.
   - It must not push or commit — the orchestrator owns the push.
   - Its tokens are **not tracked**: metrics print before this step, and a presented run's state file is deleted right after — so don't add a `tokens` field for it.
 - Put completed Scout / repo-green fixes under an **"Unexpected extras"** section in the PR body.
