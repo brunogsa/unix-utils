@@ -59,9 +59,11 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 ## Lifecycle
 
 0. User creates spec_<slug>.md with initial prompt/notes (or `/brainstorm` refines it).
-1. Plan mode or direct request generates plan_<slug>.md from spec_<slug>.md (or from prompt).
+1. Dispatch the `plan-writer` subagent to write plan_<slug>.md from spec_<slug>.md alone — same mechanism regardless of whether the spec came from `/brainstorm`, plan mode, or a direct request.
+   - Exception: a plan requested straight from a prompt with no spec_<slug>.md on disk skips plan-writer (spec-only input) — write it in-session instead.
 2. AI Self-review — qualitative pass, then seven formal checks (five always-on, two toggled by one live question asked once).
-3. User reviews and approves — when the user signals, ask "Start `/implement` now?" (default no); on yes, hand off to the `implement` skill directly instead of waiting for a separate invocation.
+3. User reviews and approves — then run `/clear` and invoke `/implement` in a fresh session; never continue in this one.
+   - Why: `/implement` re-grounds from spec_<slug>.md and plan_<slug>.md on disk, so carrying this session forward only blurs planning-vs-execution cost.
 4. Each plan_<slug>.md task becomes a TaskCreate item.
 5. Both files updated as work progresses (living docs); decisions are append-only past the divider that exists on both spec_<slug>.md and plan_<slug>.md.
 6. User runs `/refactor` then `/auto-review` when the entire feature is developed; fixes are addressed, if any.
