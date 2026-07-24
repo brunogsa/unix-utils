@@ -100,6 +100,15 @@
             "command": "rtk hook claude"
           }
         ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/subagent-model-guard.py"
+          }
+        ]
       }
     ],
     "Notification": [
