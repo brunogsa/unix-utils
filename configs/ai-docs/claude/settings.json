@@ -75,7 +75,7 @@
       "Read(~/.config/gh/**)"
     ]
   },
-  "model": "sonnet",
+  "model": "fable",
   "hooks": {
     "PreToolUse": [
       {
@@ -218,6 +218,5 @@
   "verbose": true,
   "preferredNotifChannel": "ghostty",
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true,
-  "advisorModel": "opus"
+  "agentPushNotifEnabled": true
 }
