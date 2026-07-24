@@ -38,6 +38,9 @@ The three KPIs (defined in `./usage-history/README.md`): **session time up** (lo
 - [Instruction] Raise 1–3 new hypotheses per audit and append them as `running` rows — each with the config/skill/model tweak, its rationale, and the snapshot signal to watch.
   - [Why] The loop only compounds if every audit feeds the next one; an audit that just reports numbers is a dead end.
 
+- [Instruction] Advance at least one item from the `Open questions backlog` in `./usage-history/experiments.md` per audit — settle it with cited evidence, or promote it into a `running` row.
+  - [Why] The backlog holds the user's standing questions; without a per-audit pull, fresh hypotheses crowd them out and they sit unanswered indefinitely.
+
 - [Instruction] Back each new hypothesis with web search against current official sources (Anthropic docs/engineering blog, recent papers) — not training-data recall.
   - [Why] Pricing, model behavior, and best practices drift fast; a hypothesis built on stale recall wastes an observation window on a dead lever.
 
