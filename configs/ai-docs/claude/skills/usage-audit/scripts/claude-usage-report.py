@@ -13,9 +13,11 @@
 # Reads every transcript under ~/.claude/projects modified in the window and
 # prices each API message at Anthropic LIST prices (PRICES below).
 # Answers: where did the spend go — main loop vs subagents, model family,
-# day, subagent type, skill, and the costliest sessions.
+# day, subagent type, skill (both whole-session and marginal/non-overlapping),
+# and the costliest sessions.
 
 import argparse
+import bisect
 import json
 import os
 import re
@@ -134,10 +136,17 @@ def iter_records(path):
 
 
 def collect_agent_spawns(main_files):
-    """session file -> [(subagent_type, prompt prefix)] for subagent attribution."""
+    """session file -> [(subagent_type, prompt prefix, record_index)] for subagent attribution.
+
+    record_index is this record's position in the SAME iter_records(path) sequence
+    scan_transcript() enumerates below, so a spawn's index lines up with the
+    skill-invocation and message-cost positions scan_transcript records for that
+    file — that alignment is what lets by_skill_marginal place a subagent into
+    the skill span it was spawned in.
+    """
     spawns = defaultdict(list)
     for path in main_files:
-        for record in iter_records(path):
+        for record_index, record in enumerate(iter_records(path)):
             content = (record.get("message") or {}).get("content")
             if not isinstance(content, list):
                 continue
@@ -149,6 +158,7 @@ def collect_agent_spawns(main_files):
                 spawns[path].append((
                     spawn_input.get("subagent_type") or "general-purpose",
                     (spawn_input.get("prompt") or "")[:150],
+                    record_index,
                 ))
     return spawns
 
@@ -209,13 +219,19 @@ def scan_transcript(path, cutoff_epoch):
         "interruptions": 0,
         "compactions": 0,
         "skills": defaultdict(int),
+        # [(record_index, skill_name)], one entry per invocation, in file order —
+        # by_skill_marginal's span split (aggregate()) uses these as span boundaries.
+        "skill_events": [],
+        # [(record_index, cost)] for every priced API message — the per-message
+        # cost by_skill_marginal sums into whichever skill's span it falls in.
+        "message_costs": [],
         "first_epoch": None,
         "last_epoch": None,
     }
-    # Commands seen but not yet classified as skill vs built-in;
-    # settled by the NEXT user record (see the deferral below).
+    # Commands seen but not yet classified as skill vs built-in, as
+    # (record_index, name); settled by the NEXT user record (see the deferral below).
     pending_commands = []
-    for record in iter_records(path):
+    for record_index, record in enumerate(iter_records(path)):
         epoch = parse_ts(record.get("timestamp"))
         if epoch is not None and epoch < cutoff_epoch:
             continue
@@ -243,14 +259,15 @@ def scan_transcript(path, cutoff_epoch):
             texts = list(iter_text_payloads(content))
             is_stdout_record = any("<local-command-stdout>" in t for t in texts)
             if not is_stdout_record:
-                for name in pending_commands:
+                for pending_index, name in pending_commands:
                     stats["skills"][name] += 1
+                    stats["skill_events"].append((pending_index, name))
             pending_commands.clear()
             if not is_stdout_record:
                 for text in texts:
                     for name in COMMAND_NAME_RE.findall(text):
                         if name not in BUILTIN_SILENT_COMMANDS:
-                            pending_commands.append(name)
+                            pending_commands.append((record_index, name))
         if message.get("role") == "user" and is_human_message(record, content):
             text = first_text(content)
             # An Escape press is a correction event, not a typed turn — count it apart.
@@ -275,6 +292,7 @@ def scan_transcript(path, cutoff_epoch):
                     skill = (item.get("input") or {}).get("skill")
                     if skill:
                         stats["skills"][skill] += 1
+                        stats["skill_events"].append((record_index, skill))
         usage = message.get("usage")
         model = message.get("model") or ""
         if not usage or model == "<synthetic>":
@@ -288,19 +306,40 @@ def scan_transcript(path, cutoff_epoch):
         stats["tokens"]["cache_write_1h"] += write_1h
         cost = message_cost(model, usage)
         stats["cost"] += cost
+        stats["message_costs"].append((record_index, cost))
         stats["by_family"][price_family(model)] += cost
         stats["by_day"][(record.get("timestamp") or "")[:10]] += cost
     # A command at end-of-file has no follower to disprove it — count it.
-    for name in pending_commands:
+    for pending_index, name in pending_commands:
         stats["skills"][name] += 1
+        stats["skill_events"].append((pending_index, name))
     return stats
 
 
-def match_spawn_type(prompt, session_spawns):
-    for spawn_type, prompt_prefix in session_spawns:
+def match_spawn(prompt, session_spawns):
+    """(subagent_type, spawn record_index) for the Task/Agent call that started this
+    subagent transcript, matched by prompt prefix. Feeds both by_subagent_type
+    (type only) and by_skill_marginal (record_index, to place the subagent's cost
+    into the skill span it was spawned in). ("UNMATCHED", None) if no call matches.
+    """
+    for spawn_type, prompt_prefix, record_index in session_spawns:
         if prompt_prefix and prompt.startswith(prompt_prefix[:100]):
-            return spawn_type
-    return "UNMATCHED"
+            return spawn_type, record_index
+    return "UNMATCHED", None
+
+
+def span_owner(sorted_events, event_indices, position):
+    """The skill owning `position` (a record_index) under by_skill_marginal's span
+    rule: a skill's span runs from its invocation event up to the next invocation
+    event (of any skill). None if `position` precedes every event in the session —
+    that cost is excluded from all skills, same rule as pre-invocation messages.
+
+    `sorted_events` is stats["skill_events"] sorted by index; `event_indices` is
+    its parallel list of just the indices, passed separately so callers doing this
+    per-message/per-subagent inside one session build it once via bisect, not per call.
+    """
+    i = bisect.bisect_right(event_indices, position) - 1
+    return sorted_events[i][1] if i >= 0 else None
 
 
 def merge_common(result, stats, side):
@@ -336,9 +375,20 @@ def aggregate(main_files, subagent_files, cutoff_epoch):
             "compactions": 0, "interruptions": 0,
             "tokens": dict.fromkeys(TOKEN_KINDS, 0),
         }),
+        # Marginal counterpart to by_skill: partitions each session's cost across
+        # the skills it invoked instead of letting rows overlap — see the
+        # dedicated/mixed split in the main_files loop below.
+        "by_skill_marginal": defaultdict(lambda: {
+            "dedicated_sessions": 0, "dedicated_cost": 0.0,
+            "mixed_sessions": 0, "mixed_cost_estimate": 0.0,
+        }),
         "sessions": [],
         "subagents_per_session": defaultdict(lambda: {
             "cost": 0.0, "runs": 0, "tokens": dict.fromkeys(TOKEN_KINDS, 0),
+            # [(spawn record_index or None, cost)], one entry per subagent run —
+            # by_skill_marginal uses spawn_index to place each subagent's cost
+            # into the skill span it was spawned in.
+            "by_spawn": [],
         }),
         "api_calls": {"main": 0, "sub": 0},
         "tokens": dict.fromkeys(TOKEN_KINDS, 0),
@@ -358,9 +408,10 @@ def aggregate(main_files, subagent_files, cutoff_epoch):
         result["subagents_per_session"][parent]["runs"] += 1
         for kind in TOKEN_KINDS:
             result["subagents_per_session"][parent]["tokens"][kind] += stats["tokens"][kind]
-        spawn_type = match_spawn_type(stats["first_prompt"], spawns.get(parent, []))
+        spawn_type, spawn_index = match_spawn(stats["first_prompt"], spawns.get(parent, []))
         result["by_subagent_type"][spawn_type]["cost"] += stats["cost"]
         result["by_subagent_type"][spawn_type]["runs"] += 1
+        result["subagents_per_session"][parent]["by_spawn"].append((spawn_index, stats["cost"]))
     for path in main_files:
         stats = scan_transcript(path, cutoff_epoch)
         result["main_cost"] += stats["cost"]
@@ -375,7 +426,7 @@ def aggregate(main_files, subagent_files, cutoff_epoch):
         # A session counts under EVERY skill it invoked, so by_skill rows
         # overlap and don't sum to the total — they isolate, not partition.
         session_subagents = result["subagents_per_session"].get(
-            path, {"cost": 0.0, "tokens": dict.fromkeys(TOKEN_KINDS, 0)})
+            path, {"cost": 0.0, "tokens": dict.fromkeys(TOKEN_KINDS, 0), "by_spawn": []})
         for skill, invocation_count in stats["skills"].items():
             entry = result["by_skill"][skill]
             entry["cost"] += stats["cost"] + session_subagents["cost"]
@@ -385,6 +436,47 @@ def aggregate(main_files, subagent_files, cutoff_epoch):
             entry["interruptions"] += stats["interruptions"]
             for kind in TOKEN_KINDS:
                 entry["tokens"][kind] += stats["tokens"][kind] + session_subagents["tokens"][kind]
+        # by_skill_marginal: a session with exactly one distinct skill is
+        # "dedicated" to it — its whole cost (session + subagents) is a clean,
+        # non-overlapping signal. A session with 2+ distinct skills is "mixed" —
+        # split its cost by invocation span instead of double-counting it under
+        # every skill: each skill owns everything from its invocation event up
+        # to the next invocation (of any skill); cost before the first
+        # invocation is excluded from all skills, same as an unattributed setup
+        # cost. A session with zero skills invoked has nothing to attribute.
+        distinct_skills = list(stats["skills"].keys())
+        if len(distinct_skills) == 1:
+            marginal = result["by_skill_marginal"][distinct_skills[0]]
+            marginal["dedicated_sessions"] += 1
+            marginal["dedicated_cost"] += stats["cost"] + session_subagents["cost"]
+        elif len(distinct_skills) >= 2:
+            events = sorted(stats["skill_events"], key=lambda e: e[0])
+            event_indices = [e[0] for e in events]
+            mixed_cost_by_skill = defaultdict(float)
+            for record_index, cost in stats["message_costs"]:
+                owner = span_owner(events, event_indices, record_index)
+                if owner is not None:
+                    mixed_cost_by_skill[owner] += cost
+            for spawn_index, sub_cost in session_subagents["by_spawn"]:
+                if spawn_index is None:
+                    # Can't tell which Task/Agent call spawned this subagent, so
+                    # its span is undeterminable — split like messages: proportional
+                    # to each skill's message-cost share already assigned above.
+                    total_assigned = sum(mixed_cost_by_skill.values())
+                    for skill in distinct_skills:
+                        share = (mixed_cost_by_skill[skill] / total_assigned if total_assigned
+                                 else 1 / len(distinct_skills))
+                        mixed_cost_by_skill[skill] += sub_cost * share
+                    continue
+                owner = span_owner(events, event_indices, spawn_index)
+                if owner is not None:
+                    mixed_cost_by_skill[owner] += sub_cost
+                # else: spawned before the first skill invocation — excluded,
+                # same as pre-invocation messages.
+            for skill in distinct_skills:
+                marginal = result["by_skill_marginal"][skill]
+                marginal["mixed_sessions"] += 1
+                marginal["mixed_cost_estimate"] += mixed_cost_by_skill.get(skill, 0.0)
         priced_input = (stats["tokens"]["cache_read"] + stats["tokens"]["input"]
                         + stats["tokens"]["cache_write_5m"] + stats["tokens"]["cache_write_1h"])
         result["sessions"].append({
@@ -473,6 +565,18 @@ def render_text(result, top_n):
               f"tokens={total_tokens:,}\tsessions={stats['sessions']}\t"
               f"compactions={stats['compactions']}\tinterruptions={stats['interruptions']}")
 
+    print("\n== BY SKILL (MARGINAL: non-overlapping, sums toward the total) ==")
+    print("caveat: dedicated_cost is exact (session had only this skill); "
+          "mixed_cost_est is a span-based approximation, not exact.")
+    ranked_marginal = sorted(
+        result["by_skill_marginal"].items(),
+        key=lambda kv: -(kv[1]["dedicated_cost"] + kv[1]["mixed_cost_estimate"]))
+    for skill, stats in ranked_marginal:
+        total = stats["dedicated_cost"] + stats["mixed_cost_estimate"]
+        print(f"{skill}\ttotal=${total:.2f}\t"
+              f"dedicated=${stats['dedicated_cost']:.2f} (n={stats['dedicated_sessions']})\t"
+              f"mixed_est=${stats['mixed_cost_estimate']:.2f} (n={stats['mixed_sessions']})")
+
     print(f"\n== TOP {top_n} MAIN SESSIONS (own cost, + their subagents) ==")
     ranked_sessions = sorted(result["sessions"], key=lambda s: -s["cost"])[:top_n]
     for session in ranked_sessions:
@@ -524,6 +628,16 @@ def build_payload(result, top_n, window_days):
                          "interruptions": v["interruptions"], "tokens": dict(v["tokens"])}
                      for k, v in sorted(result["by_skill"].items(),
                                         key=lambda kv: -kv[1]["cost"])},
+        # Non-overlapping counterpart to by_skill — dedicated_cost is exact,
+        # mixed_cost_estimate is a span-based approximation (see render_text).
+        "by_skill_marginal": {
+            k: {"dedicated_sessions": v["dedicated_sessions"],
+                "dedicated_cost": round(v["dedicated_cost"], 2),
+                "mixed_sessions": v["mixed_sessions"],
+                "mixed_cost_estimate": round(v["mixed_cost_estimate"], 2)}
+            for k, v in sorted(result["by_skill_marginal"].items(),
+                                key=lambda kv: -(kv[1]["dedicated_cost"] + kv[1]["mixed_cost_estimate"]))
+        },
         "top_sessions": [{
             "path": s["path"],
             "title": s["title"],
