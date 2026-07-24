@@ -88,7 +88,8 @@ First, a qualitative pass — spawn one sub-agent that reads both docs with fres
 - **Density**: spawn the `density-fixer` subagent on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check/rewrite density violations inline.
   - The subagent runs `check-density.sh` and applies the `density-rules.md` rewrite patterns until exit 0, without dropping information.
 
-Immediately before plan generation, ask one live question with two independent yes/no toggles — answered fresh each time, never written to `plan_<slug>.md` or any state file:
+Immediately before dispatching `plan-writer` (or writing the plan in-session on the spec-less exception path), the orchestrating session asks one live question with two independent yes/no toggles.
+It is answered fresh each time, never written to `plan_<slug>.md` or any state file:
 
 - **"Every line traces to an AC?"**
 - **"Right-sized plan?"**
