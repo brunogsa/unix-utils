@@ -524,8 +524,8 @@ Print the batch-end package for the user's one-pass async review: commit-by-comm
 
 Open the draft PR only when §1.2 recorded `pr.wanted: true`, targeting the confirmed base branch. Opening the PR is the final step — it presupposes §9.1–§9.4 all ran.
 
-**Never hand-write the PR body — always generate it via a fresh subagent dispatch, never by invoking `create-pr` itself.**
-Its own step 3 is an interactive approval gate, incompatible with this fully-async flow.
+**Never hand-write the PR body — always generate it via a fresh `create-pr` agent dispatch (`subagent_type=create-pr`), scoped to drafting only.**
+The agent's own skill would push and create the PR itself; cap its dispatch to the drafted file so the orchestrator still owns the push and the existing-PR fallback.
 A hand-authored body is a defect. Exact dispatch, conventions, and required content: `references/batch-end.md`'s "Draft PR (opt-in)".
 
 **Pass the exact `spec_<slug>.md` + `plan_<slug>.md` this batch resolved in §1.1, plus the resolved `PR-N` on a PR-label run — never auto-detected.**

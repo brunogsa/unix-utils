@@ -41,9 +41,12 @@ What's specific to `/implement`, not covered by the shared reference:
 Follow the shared reference's triage procedure: read both reports, synthesize one prioritized apply-offer summary. This synthesis is **additive** to the two raw report paths — the package carries **both**.
 
 **Never fold a finding in on your own initiative** — see SKILL.md §9.4.
-  - When the human names specific findings to apply after seeing the package, follow the shared reference's "Applying a single finding, on explicit request".
-    - Dispatch a fresh `general-purpose` subagent on `model=sonnet` per the §4 contract with strict TDD (RED before GREEN).
-    - Verify the diff (§5.1) before trusting `done`.
+  - When the human names specific findings to apply after seeing the package, follow the shared reference's "Applying a single finding, on explicit request" — with one implement-specific routing choice:
+    - **A refactor-lens finding** (from `verdict_refactor_*.md`) → dispatch the **`refactor` agent** (Agent tool, `subagent_type=refactor` — its frontmatter pins model/effort, no override needed).
+      Pass it the finding's scope and the caller's test command; it applies the change itself and confirms tests stay green before and after.
+    - **An auto-review-lens finding** (from `verdict_auto-review_*.md`) → dispatch a fresh `general-purpose` subagent on `model=sonnet` per the §4 contract with strict TDD (RED before GREEN), unchanged.
+      The refactor agent refuses behavior changes, so a correctness fix can't route through it.
+    - Verify the diff (§5.1) before trusting `done`, either way.
 
 Once a fix lands, annotate its finding in the timestamped report file — `APPLIED` (with the fix commit SHA) or `SKIPPED` (with the reason).
 
@@ -136,10 +139,12 @@ Only when the interview opted into a draft PR (§1.2). Skip this section entirel
     - `gh pr edit` eagerly queries Projects-classic `projectCards`; on repos where classic Projects is sunset it errors on that query and the write silently doesn't land.
     - The REST endpoint touches no Projects data.
     - Read the body back afterward to confirm it landed.
-- Generate the description with a **separate `general-purpose` subagent dispatch** (`model=sonnet` — composition, not review) from the spec/plan and commit bodies, following the `create-pr` skill's conventions (`~/.claude/skills/create-pr/SKILL.md`) for structure and tone only.
+- Generate the description with the **`create-pr` agent** (Agent tool, `subagent_type=create-pr` — its frontmatter pins model/effort, no override needed) from the spec/plan and commit bodies.
   - Never dispatch `deep-reviewer` for this: its write-guard hook allows only `verdict_*.md` and `/tmp` writes, and denies a `pr-descr_*.md` write in CWD outright.
-  - Never invoke `create-pr` itself for this — its own step 3 is an interactive approval gate, incompatible with this fully-async flow.
-  - **The dispatch prompt must spell out every one of these requirements explicitly — never just "follow create-pr's conventions" by bare reference.** A subagent (like the orchestrator) has no memory of create-pr's SKILL.md unless the prompt states its content; a vague pointer produces the same silently-incomplete body this note exists to prevent:
+  - Scope this dispatch to drafting only — the agent's own skill would otherwise push and create the PR itself, which the orchestrator owns instead (see "must not push" below).
+  - **The dispatch prompt must spell out every one of these requirements explicitly — never just "follow create-pr's conventions" by bare reference.**
+    The agent loads its own skill's conventions, but has no visibility into this batch's own specifics (output path, PR-label, draft-only scope) unless the prompt states them.
+    A vague pointer produces the same silently-incomplete body this note exists to prevent:
     - Check `.github/PULL_REQUEST_TEMPLATE.md` / `.github/pull_request_template.md` first; if present it's the base structure — keep every section/checkbox, fill with rich content, never replace it.
     - The 8-section required order (drop any that are genuinely N/A, never silently): Jira link → Context (business problem, layered) → Testable Acceptance Criteria (verbatim from spec, `AC-N:` prefix dropped, each ending in a `> Covered by ...` pointer) → Architecture (diagrams + a Decisions subsection) → Changes (Planned + Discovered) → Checklist (preserve the team's template checklist verbatim) → Evidences (value-add only, one line per claim) → References (last).
     - `WARNING:`-prefixed items for any manual deploy prerequisite (new secrets, new Parameter-Store values) or other operationally-risky item needing human coordination.
