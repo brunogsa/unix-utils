@@ -284,6 +284,9 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
   - [Why] The TaskList re-surfaces to the AI every turn and survives compaction, so a long unattended run through many compactions keeps the step visible instead of silently skipping it.
   - [Example] Batch-end procedure steps: run the repo-green gate, dispatch the review tails, finalize the PR, open the diff-review pane.
 
+- [Instruction] Persist machine-checkable task state — step counters, gate outcomes, attempt counts, decisions, artifact/experiment links — in the task's `metadata` field, not in prose subjects or descriptions.
+  - [Why] Metadata survives compaction with the task and reads back as structured fields, so a resumed skill checks exactly where it was instead of re-parsing prose.
+
 - [Instruction] On a leveraged tasklist, execute each task via a pinned subagent — main orchestrates and validates against artifacts with fresh eyes.
   - [Why] Inline task execution burns the main window that compactions are rationed by, and orchestrator-validates already governs `/implement`.
 
