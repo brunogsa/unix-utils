@@ -114,3 +114,31 @@ If the file already exists, update it in place (preserve user content, fill gaps
 
 Show the spec summary. Ask if anything is missing or wrong.
 Iterate until the user is satisfied.
+
+### 7. Dispatch `plan-writer` to generate the plan
+
+Once the spec is approved, dispatch the `plan-writer` subagent (`subagent_type: plan-writer` — its frontmatter pins model/effort, no model param needed here) to write `plan_<slug>.md` from the spec alone.
+
+Run it in the foreground (not backgrounded) — the next step depends on its result.
+
+Pass it:
+- The spec file's absolute path.
+- The plan output path: `plan_<slug>.md` in CWD, same slug as the spec.
+- Any planning-conventions file the user named (ADR/HLD/LLD), if one exists.
+
+**If it returns a numbered list of gaps** instead of a plan: the spec is missing information the plan needs.
+Walk each gap with the user, update `spec_<slug>.md` to close it, then re-dispatch `plan-writer`.
+Never fill a gap yourself with an invented decision — that's exactly the author-bias this dispatch exists to catch.
+
+Why fresh context: this session already talked itself into the spec's choices during the interview.
+A planner that sees only the spec file — never the interview — tests whether the spec actually carries what a plan needs.
+It does this instead of quietly drawing on session memory the next reader won't have.
+
+### 8. Validate the plan, then hand off with `/clear`
+
+Once `plan-writer` returns a plan, read `plan_<slug>.md` in this session — a quick completeness check, not a redo of plan-writer's own self-review.
+Confirm the file exists and its Task/PR breakdown covers every AC and requirement in the spec.
+
+Tell the user to run `/clear`, then invoke `/implement` — don't run `/implement` in this session.
+
+Why: `/implement` re-grounds entirely from `spec_<slug>.md` and `plan_<slug>.md` on disk; carrying this session's conversation forward buys nothing and blurs cost attribution between planning and execution.
