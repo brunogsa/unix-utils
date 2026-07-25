@@ -64,7 +64,7 @@ Spawn the subagent with `model: "sonnet"`, `effort: "medium"`, and `description:
 
 If the subagent reports zero unresolved comments matching the filters, stop — don't proceed to step 4.
 
-## Scratchpad + TaskList state
+## Run-state file + TaskList state
 
 At skill start, create `/tmp/address-pr-comments_<session_id>_<ts>.json` — this run's durable working-state file (`<ts>` = run-start timestamp `date +%Y%m%d-%H%M%S` — the skill can run several times per session).
 
@@ -74,9 +74,9 @@ Persist as produced, never at the end: the pre-flight answers first, then per-cl
 
 On resume or after compaction, re-read this file and trust it over recalled context — a summary loses detail the file keeps verbatim.
 
-Once the proposal step's clusters are approved (step 4), create one TaskList task per **applied** cluster — only those produce a commit, the CLAUDE.md test for a Task.
+Once the proposal step's clusters are approved (step 4), create one TaskList task per **applied** cluster — only those produce a commit, which is CLAUDE.md's test for what counts as a Task.
 
-Put machine-checkable state (`action`, `commit_sha`, `status`) in each task's `metadata` field; keep narrative rationale in the scratchpad file, not duplicated across both.
+Put machine-checkable state (`action`, `commit_sha`, `status`) in each task's `metadata` field; keep narrative rationale in the run-state file, not duplicated across both.
 
 Cross-reference the two surfaces by task id and file path only.
 
@@ -108,7 +108,7 @@ Ask, in one message, only the questions whose condition holds:
 - **Green baseline checker** (only if 1c's table matched multiple or none) — ask which lint/test commands establish 1c's baseline; mark it as relevant only on an opt-in yes.
 - **Refactor + auto-review tails after this batch?** (yes/no, default no) — always asked.
 
-The moment answers arrive, persist them to `/tmp/address-pr-comments_<session_id>_<ts>.json` — see "Scratchpad + TaskList state" above. A mid-flow compaction must not lose them.
+The moment answers arrive, persist them to `/tmp/address-pr-comments_<session_id>_<ts>.json` — see "Run-state file + TaskList state" above. A mid-flow compaction must not lose them.
 
 Steps 1b, 1c, and 1d below consume these persisted answers; they don't ask again.
 
@@ -237,7 +237,7 @@ Parse the returned block. For each surviving cluster, record:
 
 If parse fails (mangled markers, missing `Answer:` for answer clusters), surface the exact issue and ask the user to re-send. Don't guess.
 
-Once parsing succeeds, create the TaskList tasks — see "Scratchpad + TaskList state" above — one per applied cluster.
+Once parsing succeeds, create the TaskList tasks — see "Run-state file + TaskList state" above — one per applied cluster.
 
 ## Step 5: Per-cluster commits (main, applied clusters only)
 
@@ -257,7 +257,7 @@ For each `apply` cluster, **in the order the user left them**:
    - https://github.com/.../pull/169#discussion_r12389
    ```
 
-4. Capture the commit SHA — needed for the reply link in step 7, and record it in the cluster's TaskList task metadata plus the scratchpad file.
+4. Capture the commit SHA — needed for the reply link in step 7, and record it in the cluster's TaskList task metadata plus the run-state file.
 
 If a cluster's edits accidentally touch files outside its scope (drift), pause and ask the user whether to:
 

@@ -28,8 +28,9 @@ The dispatch mechanics live here so both callers stay identical, each keeping on
 
 **Dispatch rule — auto-decided, no question asked.** The mode already determines whether the calling session is biased, so never ask the user:
 
-- `Mode: local` (`/auto-review`) → **always dispatch isolated** (subagent path below). The calling session normally wrote the diff, so CLAUDE.md's fresh-context-subagent rule applies as a constant.
-- `Mode: github` (`/pr-review`) → **always run inline** — a fresh main session by convention, since review happens after the code already landed. `--isolate` still forces the isolated path when explicitly passed.
+- `Mode: local` (`/auto-review`) → **always dispatch isolated** (subagent path below). `/auto-review` runs in the session that produced the diff, so CLAUDE.md's fresh-context-subagent rule always applies.
+- `Mode: github` (`/pr-review`) → **always run inline** — review happens after the code already landed, so the calling session did not write the diff.
+  - `--isolate` still forces the isolated path when explicitly passed.
 
 **Order:** mode is known first, then this isolate-or-inline decision, then the chosen run parses the full input header below.
 

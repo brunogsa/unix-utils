@@ -41,12 +41,12 @@ See "When a subagent might still help" below for the one case worth revisiting.
    - The moment both answers arrive, create the run-state file `/tmp/address-ai-comments_<session_id>_<ts>.json` and persist them there (`<ts>` = run-start timestamp `date +%Y%m%d-%H%M%S` — the skill can run several times per session).
    - A mid-flow compaction must not lose them.
    - When the toggle is on, capture `BATCH_BASE_SHA=$(git rev-parse HEAD)` now — the tails diff against it later, whether or not this batch ends up committed.
-   - Persist it into the run-state JSON immediately, not held only in context — same compaction-survival reason the file exists.
+   - Persist it into the run-state JSON immediately, never held only in context — a compaction drops context, which is why the file exists.
 
 2. **Gather every marker with `grep -n`, then read each hit's surrounding context directly.**
    - Step 1 already created `/tmp/address-ai-comments_<session_id>_<ts>.json` with the pre-flight answers — a lost sweep means redoing the whole grep+read pass.
    - Append each marker's classification and cluster theme to that same file as you produce them, not at the end.
-   - On resume or after a compaction, re-read the scratchpad first and trust it over recalled context — recall reads as complete but is lossy.
+   - On resume or after a compaction, re-read that run-state file first and trust it over recalled context — recall feels complete but drops detail.
    - Search the target(s) for `AI!` and `AI?` literally.
    - For each hit, `Read` enough surrounding lines to classify it — don't stop at the grep line alone.
    - The comment's meaning often depends on the field/code it annotates and on other parts of the same file (e.g. a design doc's Premises/Decisions/Open-Questions registries).

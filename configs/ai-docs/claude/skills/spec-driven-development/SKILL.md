@@ -19,7 +19,8 @@ They govern the two toggleable self-review checks (see "Self-review both spec an
 Answered fresh each run — never reused from a previous run, never written to `plan_<slug>.md` or any committed state file.
 
 The moment the answers arrive, persist them to `/tmp/sdd_<session_id>.json` — one SDD run per session, so the session id alone keys the file.
-The self-review checks consume them only after `plan-writer` returns, and a compaction in that window must not lose them — session-scoped noting, not the banned cross-run persistence.
+The self-review checks consume them only after `plan-writer` returns, and a compaction in that window must not lose them.
+Writing them to `/tmp` for this run only is not the cross-run persistence banned above.
 
 ## Documents
 
