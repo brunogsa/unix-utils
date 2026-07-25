@@ -104,7 +104,8 @@ Also probe for lint/test runners using 1c's table below (read-only — don't run
 
 Ask, in one message, only the questions whose condition holds:
 - **Dirty tree** (only if git status printed output) — list the dirty files, ask whether to commit now.
-- **Green baseline checker** (only if 1c's table matched multiple or none) — ask which lint/test commands establish 1c's green baseline.
+- **Green baseline check?** (yes/no, default no) — always asked. Opt-in: 1c runs only on a yes.
+- **Green baseline checker** (only if 1c's table matched multiple or none) — ask which lint/test commands establish 1c's baseline; mark it as relevant only on an opt-in yes.
 - **Refactor + auto-review tails after this batch?** (yes/no, default no) — always asked.
 
 The moment answers arrive, persist them to `/tmp/address-pr-comments_<session_id>_<ts>.json` — see "Scratchpad + TaskList state" above. A mid-flow compaction must not lose them.
@@ -113,7 +114,7 @@ Steps 1b, 1c, and 1d below consume these persisted answers; they don't ask again
 
 ## Step 1: Validate preconditions (main)
 
-All three must hold. If any fails, abort with the suggested fix — don't try to recover automatically.
+Every applicable check must hold — 1c applies only when step 0 opted in. If any fails, abort with the suggested fix — don't try to recover automatically.
 
 ### 1a. On the PR's branch
 
@@ -133,7 +134,9 @@ After the user commits or stashes, re-run the skill.
 
 Don't proceed with a dirty tree — uncommitted work risks getting bundled into a cluster commit.
 
-### 1c. Green baseline (lint + test)
+### 1c. Green baseline (lint + test — opt-in)
+
+Runs only when step 0's "Green baseline check?" was answered yes — when declined (or unanswered), skip this whole subsection and run no lint/test.
 
 Discover the runners (cheap probe, no full project scan):
 
@@ -335,7 +338,7 @@ Skip this subsection entirely when the toggle is off — go straight to step 8.
 Dispatch the shared deep-reviewer tail pair — [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md) — with `<BASE_REF>` = `<BATCH_BASE_SHA>`.
 No `<SPEC_PLAN_PATHS>` — this flow has no spec/plan.
 
-No new lint/test gate is needed — step 1c's green-baseline check already covers this batch.
+No new lint/test gate is needed — the tails are report-only, and when step 1c's opt-in check ran, it already covered this batch.
 
 ## Step 8: Final report (main)
 
