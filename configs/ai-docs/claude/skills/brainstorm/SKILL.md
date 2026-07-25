@@ -38,6 +38,7 @@ If it looks decomposable, surface it.
 
 - Name the candidate sub-projects, ask the user how they relate and which one ships first.
 - Brainstorm only the first sub-project here — each remaining piece ideally gets its own spec→plan cycle.
+- If the user declines, brainstorm the whole original idea instead — no implicit narrowing to a first sub-project.
 
 **If the user agrees to decompose**: write a brief `scopes.md` next to where the spec will live.
 
@@ -88,7 +89,7 @@ Why: a look-up-able fact wastes an interview round on work the agent can do; a r
 
 **CRITICAL: For Testable Acceptance Criteria, actively probe for coverage gaps.** Happy-path scenarios are easy to elicit; corner cases and failure modes need pulling.
 
-Before generating the spec, push the user through every category in the canonical coverage taxonomy (`~/.claude/skills/test-standards/references/coverage-taxonomy.md`). Illustrative probes:
+Before generating the spec, always push the user through every category in the canonical coverage taxonomy (`~/.claude/skills/test-standards/references/coverage-taxonomy.md`). Illustrative probes:
 
 - **Corner cases** (e.g.): empty inputs, max sizes/limits, boundary values.
 - **Failure modes** (e.g.): downstream timeouts, partial failures, rate limits.
@@ -97,9 +98,12 @@ If the user only describes the happy path, ask explicitly: "what should happen w
 
 The spec template requires happy + corner + failure coverage.
 
+**Exit criterion**: end interview rounds once the latest round adds no new requirement or constraint changes, and every coverage-taxonomy category is covered or explicitly ruled out.
+
 ### 4. Propose 2-3 approaches with trade-offs
 
-Once requirements feel solid, present 2-3 viable approaches conversationally. Lead with your recommendation and the reasoning. Cover the trade-off axes that matter for this idea (complexity, blast radius, reversibility, dependencies, time-to-first-value).
+Once the step 3 exit criterion is met, present 2-3 viable approaches conversationally.
+Lead with your recommendation and the reasoning. Cover the trade-off axes that matter for this idea (complexity, blast radius, reversibility, dependencies, time-to-first-value).
 
 Get a directional pick from the user before writing the spec. Capture the outcome in the spec's Decisions section as one marker with discarded alternatives as sub-bullets.
 
@@ -124,6 +128,12 @@ Fold the scratchpad's decisions and discarded alternatives into the spec's Decis
 ### 6. Present for review
 
 Show the spec summary. Ask if anything is missing or wrong.
+Route rework to the earliest step the feedback invalidates:
+
+- Wording/detail issues → re-present this spec.
+- Missing or wrong requirements → back to the step 3 interview.
+- Approach concerns → back to the step 4 trade-off discussion.
+
 Iterate until the user is satisfied.
 
 ### 7. Dispatch `plan-writer` to generate the plan
@@ -138,7 +148,7 @@ Pass it:
 - Any planning-conventions file the user named (ADR/HLD/LLD), if one exists.
 
 **If it returns a numbered list of gaps** instead of a plan: the spec is missing information the plan needs.
-Walk each gap with the user, update `spec_<slug>.md` to close it, then re-dispatch `plan-writer`.
+Walk and close every reported gap with the user first, updating `spec_<slug>.md`, then re-dispatch `plan-writer` once — not once per gap.
 Never fill a gap yourself with an invented decision — that's exactly the author-bias this dispatch exists to catch.
 
 Why fresh context: this session already talked itself into the spec's choices during the interview.

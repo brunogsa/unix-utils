@@ -6,7 +6,7 @@ Human-facing overview for auditing the flow at a glance. Non-authoritative — t
 flowchart TD
   start(["User runs /brainstorm [path/to/spec_&lt;slug&gt;.md]"]):::start
   skillLoad["Load spec-driven-development skill alongside brainstorm<br/><br/>spec template + marker conventions"]:::skill
-  taskList["Mirror steps 1-8 as TaskList entries (category [Remind]);<br/>update each as it completes"]:::state
+  taskList["Mirror steps 1-8 as TaskList entries (category [Remind]), once, at skill start;<br/>update each as it completes — TaskList itself survives compaction, no re-mirroring"]:::state
   d1{"Path provided?"}
   n1["Read the provided spec file"]
   n2["Glob spec_*.md in CWD (top-level)"]
@@ -22,10 +22,9 @@ flowchart TD
 
   n8["Create /tmp/brainstorm_&lt;session_id&gt;.md scratchpad<br/><br/>persist decisions+why, discarded alternatives+why, open questions as they happen<br/>on resume/after compaction: re-read this file first, trust over recalled context"]:::state
   n9["Interview: ask 2-3 Socratic questions per round<br/>(prefer AskUserQuestion tool, recommended answer + reasoning)<br/><br/>categories: Background • Goal/KPIs • User Stories • Acceptance Criteria (BDD) • NFR/Technical constraints • Open Questions<br/><br/>split facts (look up yourself) from decisions (ask user)"]:::gate
-  d5{"User only described the happy path?"}
-  refLoad["Load test-standards coverage-taxonomy reference"]:::skill
-  n10["Probe explicitly: corner cases (empty/max/boundary) + failure modes (timeouts/partial/rate-limit)<br/><br/>ask: what should happen when X is empty/oversized/invalid/unavailable?"]:::gate
-  d6{"Requirements feel solid?"}
+  refLoad["Load test-standards coverage-taxonomy reference<br/>(unconditional, every round, before spec generation)"]:::skill
+  n10["Push user through every taxonomy category;<br/>probe corner cases (empty/max/boundary) + failure modes (timeouts/partial/rate-limit)<br/><br/>ask: what should happen when X is empty/oversized/invalid/unavailable?"]:::gate
+  d6{"Exit criterion met?<br/>(latest round added no new requirement/constraint changes AND every taxonomy category covered or ruled out)"}
 
   n11["Propose 2-3 approaches with trade-offs;<br/>lead with recommendation"]
   n12["Get directional pick from user;<br/>capture outcome + discarded alternatives in spec's Decisions section"]:::gate
@@ -40,7 +39,7 @@ flowchart TD
 
   dispatch{{"Dispatch plan-writer subagent (serial, foreground)<br/><br/>subagent_type: plan-writer — model/effort inherits its own frontmatter pin<br/>inputs: spec path, plan_&lt;slug&gt;.md output path, planning-conventions file if any"}}:::dispatch
   d9{"plan-writer returned a numbered gap list?"}
-  n18["Walk each gap with user; update spec_&lt;slug&gt;.md to close it<br/><br/>never invent the missing decision"]:::gate
+  n18["Walk and close EVERY reported gap with user first; update spec_&lt;slug&gt;.md<br/><br/>then re-dispatch once (not once per gap); never invent the missing decision"]:::gate
   n19["Validate plan_&lt;slug&gt;.md: file exists, Task/PR breakdown covers every AC + requirement"]
   done(["Tell user: run /clear, then invoke /implement<br/>(don't run /implement in this session)"]):::gate
 
@@ -63,14 +62,12 @@ flowchart TD
   d3 -->|"no"| n8
   n6 --> d4
   d4 -->|"yes"| n7
-  d4 -->|"no"| n8
+  d4 -->|"no: whole idea, no narrowing"| n8
   n7 --> n8
 
   n8 --> n9
-  n9 --> d5
-  d5 -->|"yes"| refLoad
+  n9 --> refLoad
   refLoad --> n10
-  d5 -->|"no"| d6
   n10 --> d6
   d6 -->|"no, more rounds"| n9
   d6 -->|"yes"| n11
@@ -84,7 +81,9 @@ flowchart TD
 
   n15 --> n16
   n16 --> d8
-  d8 -->|"no, revise + re-present"| n16
+  d8 -->|"no: wording/detail"| n16
+  d8 -->|"no: missing/wrong requirements"| n9
+  d8 -->|"no: approach concerns"| n11
   d8 -->|"yes"| dispatch
 
   dispatch --> d9
