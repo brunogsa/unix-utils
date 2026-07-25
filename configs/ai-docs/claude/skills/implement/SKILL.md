@@ -227,7 +227,7 @@ The orchestrator, per task, does this and no more (the parent task itself was al
   - So the TaskList conveys the task's gist at a glance, without RED-GREEN detail.
 - Picks the checklist path `/tmp/implement_substeps_<slug>_<id>.md` and pushes it into the subagent's prompt (§4.1).
 
-The subagent owns everything below, at dispatch and before touching code:
+The subagent owns everything below, at dispatch and before touching code (its side of these mechanics is also encoded in `~/.claude/agents/tdd-coder.md` — edit both together):
 
 - Writes its RED-GREEN decomposition to that file: one item per RED-GREEN cycle (per AC forcing case), plus the tail steps (post-commit verify per §5, plan_<slug>.md update).
 - Flips each item done as it lands — the file is both its working plan and its progress log.
@@ -244,7 +244,7 @@ Insertion mechanics live in [`references/mid-flight-substeps.md`](references/mid
 
 ## 4. Dispatch the task subagent
 
-Spawn one fresh-context subagent per task via the **Agent tool** (`subagent_type=general-purpose`, `model=sonnet`), in the background (the default).
+Spawn one fresh-context subagent per task via the **Agent tool** (`subagent_type=tdd-coder`, model omitted — the agent file pins sonnet and the subagent-model-guard hook enforces it), in the background (the default).
 
 Cap the dispatch with a 1-hour `Monitor` timeout (`timeout_ms: 3600000` — the tool's documented maximum).
 On expiry, call `TaskStop` on the subagent — the dispatch then resolves as a `timeout`, which §5.3 records and obeys exactly like a `fail`.
@@ -254,42 +254,31 @@ Note the token count the Agent result reports for the run, defaulting to `0` whe
 §5 records it into the attempt it creates — except on a self-reported block, which creates no attempt at all (§5.4).
 Best-effort only; never gates the loop mid-run — overage surfaces later via the metrics script, not here.
 
-The subagent runs the **full per-task lifecycle**. Its prompt is the entire instruction set it receives, so the contract below must be self-contained.
+The subagent runs the **full per-task lifecycle**.
+Its invariant discipline — TDD rules, preloaded standards, checklist mechanics, routing channels, report shape — lives in the agent definition (`~/.claude/agents/tdd-coder.md`); the prompt pushes only the per-task data below.
 
 ### 4.1. Context contract
 
-**Push** — embed verbatim in the prompt (what the orchestrator already holds):
+**Push** — embed verbatim in the prompt (the per-task data only the orchestrator holds):
 
 - The task's `plan_<slug>.md` slice: heading, brief, acceptance criteria, planned-test titles, verification command.
 - The task's **Files (logical order)** list as the **starting set** — not a cage; touch more when needed, routing the delta per §4.3.
 - `BATCH_BASE_SHA` and the base branch, so the subagent can scope its own `git log`.
-- The checklist file path (§3): on a fresh dispatch, before coding, write the RED-GREEN breakdown there — one item per AC forcing case, plus post-commit-verify and plan_<slug>.md-update tail steps.
-- On a re-dispatch, if that file already exists: read it and resume from the first unchecked item rather than rewriting it.
-  - The progress log survives intact.
-  - If the file is missing (e.g. `/tmp` was cleared), write the breakdown fresh first.
-- Keep that file current: flip each sub-step done as it lands, so it stays an accurate progress log for the orchestrator to verify (§5.1).
-- Standards to load: `test-standards`, `code-standards`, `doc-standards`, `commit-standards` (and `debug-standards` if a test goes red for the wrong reason).
-- The commit rule: follow `commit-standards`, including the `Co-Authored-By` trailer — the git-guard hook rejects commits without it, subagents included.
-- The required report shape (§4.4).
+- The checklist file path (§3).
 
-**Pull** — tell the subagent to fetch these itself from CWD (keeps the prompt lean):
-
-- Full `plan_<slug>.md` and `spec_<slug>.md`.
-- `git log <BATCH_BASE_SHA>..HEAD` for the prior tasks' *why* (rich commit bodies), and any `[Scout]` notes a prior task appended to plan_<slug>.md.
-- The actual source files it needs to read.
+Everything invariant — checklist write/resume mechanics, preloaded standards, commit rule, report shape, and pull-from-CWD items (plan/spec files, `git log`, source reads) — is baked into the tdd-coder agent definition; don't re-push it.
 
 ### 4.2. On-demand fork review (subagent escape hatch)
 
 The task subagent does **not** spawn a reviewer by default — the plan was already reviewed (§2).
 
-It spawns a fresh-context review subagent **only** for a real mid-execution design fork the plan didn't pre-decide, where guessing wrong is costly.
+The escape hatch itself lives in the agent definition.
+On a mid-execution design fork the plan didn't pre-decide, tdd-coder spawns a fresh-context reviewer with explicit `model=opus` (judgment tier; the subagent-model-guard hook denies an unnamed model on an unpinned agent type).
 
-Push the fork, the candidate options, and the relevant plan slice into the reviewer's prompt; omit the `model=sonnet` override so it runs on the stronger session model.
+The orchestrator only sees the outcome:
 
-The reviewer also triages the fork:
-
-- **Soft** — pick a sensible default, proceed, and flag it in the report for batch review. Most forks are this.
-- **Hard** — can't sensibly proceed → stop the task and return it as a block (§4.4). Rare.
+- **Soft** fork — the subagent took the reviewer's default and flagged the choice under Deviations in its report (§4.4). Most forks are this.
+- **Hard** fork — the subagent couldn't sensibly proceed and returned `blocked` (§4.4). Rare.
 
 ### 4.3. Routing mid-execution discoveries
 
@@ -306,7 +295,7 @@ Anything the subagent uncovers outside its task's core work routes through one o
 
 ### 4.4. Report back
 
-The subagent returns a structured report (text), never a silent "done":
+The subagent returns a structured report (text), never a silent "done" (shape mirrored in `~/.claude/agents/tdd-coder.md` — edit both together):
 
 - **Status**: `done` / `blocked`.
 - **Commits**: the SHAs it created, with subjects.

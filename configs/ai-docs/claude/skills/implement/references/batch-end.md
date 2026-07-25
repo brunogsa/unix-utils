@@ -46,7 +46,7 @@ Follow the shared reference's triage procedure: read both reports, synthesize on
   - When the human names specific findings to apply after seeing the package, follow the shared reference's "Applying a single finding, on explicit request" — with one implement-specific routing choice:
     - **A refactor-lens finding** (from `verdict_refactor_*.md`) → dispatch the **`refactor` agent** (Agent tool, `subagent_type=refactor` — its frontmatter pins model/effort, no override needed).
       Pass it the finding's scope and the caller's test command; it applies the change itself and confirms tests stay green before and after.
-    - **An auto-review-lens finding** (from `verdict_auto-review_*.md`) → dispatch a fresh `general-purpose` subagent on `model=sonnet` per the §4 contract with strict TDD (RED before GREEN), unchanged.
+    - **An auto-review-lens finding** (from `verdict_auto-review_*.md`) → dispatch a fresh `tdd-coder` subagent (model omitted — its frontmatter pins sonnet) per the §4 contract with strict TDD (RED before GREEN), unchanged.
       The refactor agent refuses behavior changes, so a correctness fix can't route through it.
     - Verify the diff (§5.1) before trusting `done`, either way.
 
