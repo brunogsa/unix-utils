@@ -60,7 +60,7 @@ Why:
 
 ### 3. Interview the user
 
-At interview start, create `/tmp/brainstorm_<slug>_<ts>.md` (`<ts>` = run-start timestamp `date +%Y%m%d-%H%M%S`; provisional slug if not yet finalized).
+At interview start, create `/tmp/brainstorm_<session_id>.md` — one brainstorm per session, so the session id alone keys the file.
 Persist each decision with its why, each discarded alternative with why it lost, and open questions — as they happen, not at the end.
 Why: a compaction mid-interview drops session memory entirely; the file survives so you re-ground instead of re-deriving lost ground.
 On resume or after a compaction, re-read this file first and trust it over recalled context.

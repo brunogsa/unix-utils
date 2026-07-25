@@ -66,7 +66,7 @@ If the subagent reports zero unresolved comments matching the filters, stop — 
 
 ## Scratchpad + TaskList state
 
-At skill start, create `/tmp/address-pr-comments-runs_<pr>_<ts>.json` (`<ts>` = run-start timestamp, `date +%Y%m%d-%H%M%S`) — this run's durable working-state file.
+At skill start, create `/tmp/address-pr-comments_<session_id>_<ts>.json` — this run's durable working-state file (`<ts>` = run-start timestamp `date +%Y%m%d-%H%M%S` — the skill can run several times per session).
 
 JSON, not prose — the pre-flight answers and per-cluster state read back as structured fields, mirroring the implement skill's run-state file.
 
@@ -107,7 +107,7 @@ Ask, in one message, only the questions whose condition holds:
 - **Green baseline checker** (only if 1c's table matched multiple or none) — ask which lint/test commands establish 1c's green baseline.
 - **Refactor + auto-review tails after this batch?** (yes/no, default no) — always asked.
 
-The moment answers arrive, persist them to `/tmp/address-pr-comments-runs_<pr>_<ts>.json` — see "Scratchpad + TaskList state" above. A mid-flow compaction must not lose them.
+The moment answers arrive, persist them to `/tmp/address-pr-comments_<session_id>_<ts>.json` — see "Scratchpad + TaskList state" above. A mid-flow compaction must not lose them.
 
 Steps 1b, 1c, and 1d below consume these persisted answers; they don't ask again.
 
@@ -159,7 +159,7 @@ If either is red, abort — fix pre-existing breakage first so cluster commits d
 
 Use the persisted step-0 answer for whether to run refactor + auto-review tails.
 
-This isn't a pass/fail precondition. The answer lives in `/tmp/address-pr-comments-runs_<pr>_<ts>.json` for step 7d, surviving compaction — default no if unanswered.
+This isn't a pass/fail precondition. The answer lives in `/tmp/address-pr-comments_<session_id>_<ts>.json` for step 7d, surviving compaction — default no if unanswered.
 
 ## Step 2: Resolve repo + own login (main)
 

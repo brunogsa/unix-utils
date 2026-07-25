@@ -18,7 +18,7 @@ The moment this skill starts — before any spec or plan work — ask one messag
 They govern the two toggleable self-review checks (see "Self-review both spec and plan" below).
 Answered fresh each run — never reused from a previous run, never written to `plan_<slug>.md` or any committed state file.
 
-The moment the answers arrive, persist them to `/tmp/sdd_<slug>_<ts>.json` (`<ts>` = run-start timestamp `date +%Y%m%d-%H%M%S`; provisional slug if not yet finalized).
+The moment the answers arrive, persist them to `/tmp/sdd_<session_id>.json` — one SDD run per session, so the session id alone keys the file.
 The self-review checks consume them only after `plan-writer` returns, and a compaction in that window must not lose them — session-scoped noting, not the banned cross-run persistence.
 
 ## Documents
@@ -101,7 +101,7 @@ First, a qualitative pass — spawn one sub-agent that reads both docs with fres
 - **Density**: spawn the `density-fixer` subagent on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check/rewrite density violations inline.
   - The subagent runs `check-density.sh` and applies the `density-rules.md` rewrite patterns until exit 0, without dropping information.
 
-The two toggles were already asked at skill start — the "Pre-flight interview" section at the top of this SKILL.md — and persisted to `/tmp/sdd_<slug>_<ts>.json`.
+The two toggles were already asked at skill start — the "Pre-flight interview" section at the top of this SKILL.md — and persisted to `/tmp/sdd_<session_id>.json`.
 Read them from that file here; never re-ask them at this point.
 
 Seven formal checks run in sequence (five always-on + the two toggles above):

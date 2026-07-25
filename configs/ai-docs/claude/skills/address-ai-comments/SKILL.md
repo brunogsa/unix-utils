@@ -38,12 +38,12 @@ See "When a subagent might still help" below for the one case worth revisiting.
 1. **Pre-flight batch (one message).** Ask together — never sequentially — the target(s) and the tails toggle below; each is independent, so batch them.
    - Target(s): one or more files, or a folder (recursive), that the user names. If no target is given, ask which files/folders to sweep.
    - Toggle: "Run refactor + auto-review tails after this batch? (default no)". Hold the answer for the optional tails step below; default no if unanswered.
-   - The moment both answers arrive, create the run-state file `/tmp/address-ai-comments-runs_<slug>_<ts>.json` (`<slug>` from the target, `<ts>` = run-start timestamp `date +%Y%m%d-%H%M%S`) and persist them there.
+   - The moment both answers arrive, create the run-state file `/tmp/address-ai-comments_<session_id>_<ts>.json` and persist them there (`<ts>` = run-start timestamp `date +%Y%m%d-%H%M%S` — the skill can run several times per session).
    - A mid-flow compaction must not lose them.
    - When the toggle is on, capture `BATCH_BASE_SHA=$(git rev-parse HEAD)` now — the tails diff against it later, whether or not this batch ends up committed.
 
 2. **Gather every marker with `grep -n`, then read each hit's surrounding context directly.**
-   - Step 1 already created `/tmp/address-ai-comments-runs_<slug>_<ts>.json` with the pre-flight answers — a lost sweep means redoing the whole grep+read pass.
+   - Step 1 already created `/tmp/address-ai-comments_<session_id>_<ts>.json` with the pre-flight answers — a lost sweep means redoing the whole grep+read pass.
    - Append each marker's classification and cluster theme to that same file as you produce them, not at the end.
    - On resume or after a compaction, re-read the scratchpad first and trust it over recalled context — recall reads as complete but is lossy.
    - Search the target(s) for `AI!` and `AI?` literally.
