@@ -30,7 +30,7 @@ A pre-change state file predates `pr_label` the same way — treat its absence a
 
 The adopted phase decides where the resumed run re-enters:
 
-- `tasks` → run the flow normally from §2 onward — the orchestration review runs once, then the task loop.
+- `tasks` → run the flow from §2 onward — the orchestration review runs once, then the task loop.
 - `gates` → skip straight to the §8 batch test-presence gate; the §2 review and the task loop already ran.
 - `tails` → skip straight to the §9 batch-end flow; check `.tails.*_report` for reports that already exist.
 
@@ -53,7 +53,7 @@ To discard a stale run entirely instead of resuming it, delete its state file be
 Everything above already covers a PR-label run's *state file* — it's keyed on `(slug, pr_label)`, same adoption mechanics, no special case.
 What's PR-specific is the **branch and manifest**, which live outside the state file entirely.
 
-- **Re-invoking `/implement PR-N` while its PR is already open** — the state file adopts normally (phase carries over per above).
+- **Re-invoking `/implement PR-N` while its PR is already open** — the state file adopts the same way (phase carries over per above).
   The branch itself: `references/pr-awareness.md`'s resume check (`git rev-parse --verify --quiet <feat_branch>/pr<N>`) finds it already exists.
   It runs a plain `git checkout` (never `-b`), and skips the dependency guard and parent-entry write — both already ran, and passed, the first time this branch was created.
   No second branch, no second PR: `gh pr create` in `references/batch-end.md`'s "Draft PR" step hits the already-open-PR case and falls back to updating the existing PR's body instead of erroring.

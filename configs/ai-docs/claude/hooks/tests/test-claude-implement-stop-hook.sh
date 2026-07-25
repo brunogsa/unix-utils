@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# test-claude-implement-stop-hook.sh - plain-bash test file for claude-implement-stop-hook.sh.
+# Plain-bash test file for claude-implement-stop-hook.sh.
 #
 # Usage:
 #   bash test-claude-implement-stop-hook.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
-# by design — three small scripts don't justify a new cross-platform
-# test-runner dependency in install.sh.
+# Exits 0 when every assertion passes, non-zero otherwise.
+#
+# No bats dependency by design — three small scripts don't
+# justify a new cross-platform test-runner dependency in
+# install.sh.
 
 set -uo pipefail
 

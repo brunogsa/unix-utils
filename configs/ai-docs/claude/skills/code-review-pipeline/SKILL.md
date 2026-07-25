@@ -40,7 +40,9 @@ Don't spawn Agents for the review itself (rationale at top) — the one exceptio
 
 **Isolated — `Mode: local`, or `--isolate` passed:** Spawn one Agent with `model: "sonnet"`, put the resolved inputs in its prompt body, and tell it to read this SKILL.md and orchestrate from there.
 
-It runs the whole pipeline itself — no further Agents — the user sees only the final summary. The sonnet pin trades depth for cost, accepted as the isolation path's price ceiling.
+It runs the whole pipeline itself — no further Agents — the user sees only the final summary.
+
+The sonnet pin trades some review depth for lower cost, an accepted limit of running the pipeline isolated.
 
 ## Before you start
 

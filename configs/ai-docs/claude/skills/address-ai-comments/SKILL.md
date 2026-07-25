@@ -49,7 +49,7 @@ See "When a subagent might still help" below for the one case worth revisiting.
    - On resume or after a compaction, re-read that run-state file first and trust it over recalled context — recall feels complete but drops detail.
    - Search the target(s) for `AI!` and `AI?` literally.
    - For each hit, `Read` enough surrounding lines to classify it — don't stop at the grep line alone.
-   - The comment's meaning often depends on the field/code it annotates and on other parts of the same file (e.g. a design doc's Premises/Decisions/Open-Questions registries).
+   - The comment's meaning depends on the field/code it annotates and on other parts of the same file (e.g. a design doc's Premises/Decisions/Open-Questions registries).
    - Classify each marker as action or question: `AI!` → always action, `AI?` → always question.
    - Cluster the markers into themes yourself as you read them — group by what they're really about (a field, a mechanism, a section), not by file order.
    - Be exhaustive: don't stop at the first few hits, don't skip content past a default read window — read whole files when the target is a single file.

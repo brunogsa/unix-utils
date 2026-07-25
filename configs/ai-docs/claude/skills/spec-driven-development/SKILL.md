@@ -123,7 +123,7 @@ Seven formal checks run in sequence (five always-on + the two toggles above):
 
 The five always-on checks, plus the Test Design authoring requirement itself, never become optional — they verify the plan is mechanically correct regardless of change size.
 
-A toggled-off check is simply omitted from that pass; self-review's output states explicitly which checks were skipped by request, so the reviewer never wonders why something is absent.
+A toggled-off check is omitted from that pass; self-review's output states explicitly which checks were skipped by request, so the reviewer never wonders why something is absent.
 
 - **Every AC has a test**: every `### AC-N:` in spec is proven by ≥1 test in the plan's AC-grouped coverage list.
   - Mechanical half — `scripts/check-ac-coverage.sh <plan> <spec>`: completeness (every AC in the spec's Acceptance-Criteria section has a coverage header).
