@@ -206,5 +206,6 @@ Once step 2.5 (density) and step 2.6 (body size) both pass, proceed directly —
 
 ### 3.5. Learn from user feedback
 
-If the user later asks for changes to the pushed PR body (in chat, or by hand-editing pr-descr_<slug>_pr<N>.md), diff the edit against the version actually pushed; infer the general rule behind each edit and propose updates to this skill's Writing Style for approval.
+If the user later asks for changes to the pushed PR body (in chat, or by hand-editing pr-descr_<slug>_pr<N>.md), diff the edit against the version actually pushed.
+Infer the general rule behind each edit and propose updates to this skill's Writing Style for approval.
 Apply approved updates so future runs pick them up automatically — the skill self-improves.
