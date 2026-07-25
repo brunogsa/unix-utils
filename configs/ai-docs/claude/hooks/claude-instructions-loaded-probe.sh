@@ -10,10 +10,11 @@
 # nested ones are not. User-scope (~/.claude/CLAUDE.md) is unstated -- yet the
 # whole "# Compact instructions" lever depends on the file being re-read.
 #
-# Logs the payload's own key paths rather than named fields. An earlier version
+# Every named field logged here was read off a real firing. An earlier version
 # read .instruction_file_path and .instruction_content straight from the docs
 # and logged "unknown" on every real firing, because the live payload carries
-# neither -- the schema has to be observed, not assumed.
+# neither -- the schema has to be observed, not assumed. There is no content
+# field at all, so this can report WHICH files reload but never their text.
 #
 # InstructionsLoaded is side-effects-only (exit code ignored, cannot alter or
 # suppress instructions), so this cannot affect a session -- it only observes.
@@ -29,17 +30,28 @@ raw_bytes=${#INPUT}
 # One load must stay one grep-able line, so newlines and tabs become spaces.
 flat=$(printf '%s' "$INPUT" | tr '\n\t' '  ')
 
-# Every scalar's dotted path, which is the schema itself rather than a guess
-# at it. Missing jq must not turn a diagnostic into a broken session.
+# The three fields below were read off a real firing, not off the docs, which
+# name neither memory_type nor file_path. keys= stays so a schema change shows
+# up as a new path rather than as silently-empty values.
+# Missing jq must not turn a diagnostic into a broken session.
 keys=""
+reason=""
+scope=""
+file=""
 if command -v jq >/dev/null 2>&1; then
   keys=$(printf '%s' "$INPUT" | jq -rc '[paths(scalars) | join(".")] | unique | join(",")' 2>/dev/null)
+  reason=$(printf '%s' "$INPUT" | jq -rc '.load_reason // ""' 2>/dev/null)
+  scope=$(printf '%s' "$INPUT" | jq -rc '.memory_type // ""' 2>/dev/null)
+  file=$(printf '%s' "$INPUT" | jq -rc '.file_path // ""' 2>/dev/null)
 fi
 [ -z "$keys" ] && keys="unparsed"
 
 # raw is truncated because an instruction payload may carry a whole CLAUDE.md.
-printf '%s\tbytes=%s\tkeys=%s\traw=%.400s\n' \
+printf '%s\treason=%s\tscope=%s\tfile=%s\tbytes=%s\tkeys=%s\traw=%.200s\n' \
   "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+  "$reason" \
+  "$scope" \
+  "$file" \
   "$raw_bytes" \
   "$keys" \
   "$flat" >> "$LOG"
