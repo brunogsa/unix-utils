@@ -4,18 +4,18 @@ Detail for /implement's pre-flight JSON state-file adoption step and its task/Ta
 
 ## Session-level: JSON state-file adoption (§1.5)
 
-When §1.5 finds an existing `~/.claude/implement-runs/*.json` whose `slug` AND `pr_label` both match this run's, adopt it instead of creating a new file.
+When §1.5 finds an existing `/tmp/implement_*.json` whose `slug` AND `pr_label` both match this run's, adopt it instead of creating a new file.
 
 No prompt: an existing file is itself the resume signal, mirroring the Stop hook's own escape hatch (deleting the file un-scopes the session).
 
 Adoption is a rename plus two field patches, never a rewrite of its contents:
 
 ```bash
-mv ~/.claude/implement-runs/<old_session_id>.json ~/.claude/implement-runs/<new_session_id>.json
+mv /tmp/implement_<old_session_id>.json /tmp/implement_<new_session_id>.json
 jq --arg sid "<new_session_id>" \
   '.session_id = $sid | if .phase == "halted" then .phase = "tasks" else . end' \
-  ~/.claude/implement-runs/<new_session_id>.json \
-  > /tmp/state.json && mv /tmp/state.json ~/.claude/implement-runs/<new_session_id>.json
+  /tmp/implement_<new_session_id>.json \
+  > /tmp/state.json && mv /tmp/state.json /tmp/implement_<new_session_id>.json
 ```
 
 `tasks[]`, `attempts[]`, `gate_dispatches`, `tails`, `worktree`, `pr`, `orchestration_review`, and `pr_label` all carry over verbatim.

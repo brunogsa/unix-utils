@@ -14,11 +14,12 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$script_dir/claude-implement-stop-hook.sh"
 
 work_dir=$(mktemp -d)
-trap 'rm -rf "$work_dir"' EXIT
 
-fake_home="$work_dir/home"
-runs_dir="$fake_home/.claude/implement-runs"
-mkdir -p "$runs_dir"
+# The hook reads a fixed /tmp path (no HOME involved), so tests write
+# real /tmp state files; the trap removes every test-session file on
+# exit, and the rm below clears leftovers from an interrupted prior run.
+trap 'rm -rf "$work_dir"; rm -f /tmp/implement_sess-*.json' EXIT
+rm -f /tmp/implement_sess-*.json
 
 pass_count=0
 fail_count=0
@@ -48,23 +49,23 @@ assert_true() {
 }
 
 # write_state - writes the given JSON body as the state file for session_id,
-# under the fake HOME's implement-runs dir.
+# at the hook's fixed /tmp path.
 write_state() {
   local session_id="$1" body="$2"
-  printf '%s' "$body" > "$runs_dir/$session_id.json"
+  printf '%s' "$body" > "/tmp/implement_$session_id.json"
 }
 
-# run_hook - invokes the hook with the given stdin JSON and HOME, capturing
+# run_hook - invokes the hook with the given stdin JSON, capturing
 # stdout/exit code into HOOK_OUT/HOOK_EXIT (stderr is discarded — no test here
-# asserts on it). An optional third arg overrides PATH (used by the
+# asserts on it). An optional second arg overrides PATH (used by the
 # "jq unavailable" test).
 bash_bin="$(command -v bash)"
 
 run_hook() {
-  local stdin_json="$1" home="${2:-$fake_home}" path_override="${3:-$PATH}"
+  local stdin_json="$1" path_override="${2:-$PATH}"
   # Invoke bash by absolute path so a restricted PATH (the "jq unavailable"
   # test) affects only commands the hook itself runs, not resolving bash.
-  HOOK_OUT=$(printf '%s' "$stdin_json" | HOME="$home" PATH="$path_override" "$bash_bin" "$SCRIPT" 2>/dev/null)
+  HOOK_OUT=$(printf '%s' "$stdin_json" | PATH="$path_override" "$bash_bin" "$SCRIPT" 2>/dev/null)
   HOOK_EXIT=$?
 }
 
@@ -112,7 +113,7 @@ it_should_exit_silently_when_jq_is_unavailable() {
   mkdir -p "$fake_bin"
   ln -sf "$(command -v cat)" "$fake_bin/cat"
 
-  run_hook '{"session_id": "sess-no-jq", "stop_hook_active": false}' "$fake_home" "$fake_bin"
+  run_hook '{"session_id": "sess-no-jq", "stop_hook_active": false}' "$fake_bin"
   assert_eq "should exit silently when jq is unavailable (exit code)" "0" "$HOOK_EXIT"
   assert_eq "should exit silently when jq is unavailable (no stdout)" "" "$HOOK_OUT"
 }

@@ -108,12 +108,12 @@ Check for an existing state file belonging to this `<slug>` **and** this run's `
 ```bash
 jq -r --arg slug "<slug>" --arg pr "<pr_label>" \
   'select(.slug == $slug and ((.pr_label // "") == $pr)) | input_filename' \
-  ~/.claude/implement-runs/*.json 2>/dev/null
+  /tmp/implement_*.json 2>/dev/null
 ```
 
 `// ""` matches a pre-change file with no `pr_label` key against a plain task-id run's empty `<pr_label>` — see `references/preflight-state.md`.
 
-- **None found** → create `~/.claude/implement-runs/<session_id>.json` with exactly this shape:
+- **None found** → create `/tmp/implement_<session_id>.json` with exactly this shape:
 
 ```json
 {

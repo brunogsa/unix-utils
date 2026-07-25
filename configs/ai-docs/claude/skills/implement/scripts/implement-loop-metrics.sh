@@ -18,8 +18,8 @@
 #   }
 #
 # Examples:
-#   implement-loop-metrics.sh ~/.claude/implement-runs/abc123.json
-#   implement-loop-metrics.sh ~/.claude/implement-runs/abc123.json ~/.claude/projects/-foo/abc123.jsonl
+#   implement-loop-metrics.sh /tmp/implement_abc123.json
+#   implement-loop-metrics.sh /tmp/implement_abc123.json ~/.claude/projects/-foo/abc123.jsonl
 #   implement-loop-metrics.sh --help
 #
 # Pure: no writes, no clock reads. `duration_seconds` is arithmetic over the
@@ -52,8 +52,8 @@ transcript JSONL) and prints one JSON summary: wall-clock duration, summed
 subagent + orchestrator tokens, and the list of over-budget tasks.
 
 Examples:
-  implement-loop-metrics.sh ~/.claude/implement-runs/abc123.json
-  implement-loop-metrics.sh ~/.claude/implement-runs/abc123.json ~/.claude/projects/-foo/abc123.jsonl
+  implement-loop-metrics.sh /tmp/implement_abc123.json
+  implement-loop-metrics.sh /tmp/implement_abc123.json ~/.claude/projects/-foo/abc123.jsonl
 EOF
 }
 

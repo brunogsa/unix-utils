@@ -8,7 +8,7 @@
 #   {"action": "retry|stuck|next-task|gates|halt-budget", "task": "<id or empty>", "reason": "..."}
 #
 # Examples:
-#   implement-loop-state.sh ~/.claude/implement-runs/abc123.json
+#   implement-loop-state.sh /tmp/implement_abc123.json
 #   implement-loop-state.sh --help
 #
 # Pure: no writes, no clock reads, deterministic — the same state file always
@@ -57,7 +57,7 @@ Reads a /implement run's JSON state file and prints one JSON verdict:
   {"action": "retry|stuck|next-task|gates|halt-budget", "task": "...", "reason": "..."}
 
 Examples:
-  implement-loop-state.sh ~/.claude/implement-runs/abc123.json
+  implement-loop-state.sh /tmp/implement_abc123.json
 EOF
 }
 

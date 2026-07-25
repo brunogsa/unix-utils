@@ -8,7 +8,7 @@
 #
 # Rationale:
 #   /implement's task loop (the implement skill) writes a per-session
-#   state file at ~/.claude/implement-runs/<session_id>.json while it works
+#   state file at /tmp/implement_<session_id>.json while it works
 #   through a batch. A natural Stop before the batch reaches `presented` or
 #   `halted` would leave the run abandoned mid-way with no re-prompt. This
 #   hook reads that same state file and blocks the stop until the batch is
@@ -55,7 +55,7 @@ stop_hook_active=$(printf '%s' "$input" | jq -r '.stop_hook_active // false' 2>/
 session_id=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)
 [ -z "$session_id" ] && exit 0
 
-state_file="$HOME/.claude/implement-runs/$session_id.json"
+state_file="/tmp/implement_$session_id.json"
 [ -f "$state_file" ] || exit 0
 
 jq empty "$state_file" >/dev/null 2>&1 || exit 0

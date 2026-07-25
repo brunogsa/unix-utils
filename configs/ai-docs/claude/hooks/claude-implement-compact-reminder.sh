@@ -42,7 +42,7 @@ command -v jq >/dev/null 2>&1 || exit 0
 session_id=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)
 [ -z "$session_id" ] && exit 0
 
-state_file="$HOME/.claude/implement-runs/$session_id.json"
+state_file="/tmp/implement_$session_id.json"
 [ -f "$state_file" ] || exit 0
 
 jq empty "$state_file" >/dev/null 2>&1 || exit 0
