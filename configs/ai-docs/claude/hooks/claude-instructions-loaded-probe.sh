@@ -2,7 +2,7 @@
 # claude-instructions-loaded-probe - TEMPORARY diagnostic for the compaction-level spike (task #52).
 #
 # Usage (Claude Code InstructionsLoaded hook):
-#   Reads JSON from stdin, appends one line per instruction-file load, always exits 0.
+#   Reads JSON from stdin, appends one line per instruction load, always exits 0.
 #
 # Answers the question the spike is blocked on, which the docs leave unstated:
 # which CLAUDE.md files reload at load_reason=compact? The docs promise only
@@ -10,9 +10,10 @@
 # nested ones are not. User-scope (~/.claude/CLAUDE.md) is unstated -- yet the
 # whole "# Compact instructions" lever depends on the file being re-read.
 #
-# A second question (are @imports re-expanded on that reload?) is moot: the
-# global CLAUDE.md now bans @-imported auto-loaded files outright, so no design
-# can depend on the answer.
+# Logs the payload's own key paths rather than named fields. An earlier version
+# read .instruction_file_path and .instruction_content straight from the docs
+# and logged "unknown" on every real firing, because the live payload carries
+# neither -- the schema has to be observed, not assumed.
 #
 # InstructionsLoaded is side-effects-only (exit code ignored, cannot alter or
 # suppress instructions), so this cannot affect a session -- it only observes.
@@ -23,21 +24,24 @@ LOG=/tmp/claude-instructions-loaded-probe.log
 
 INPUT=$(cat)
 
-# Missing jq must not turn a diagnostic into a broken session.
-if ! command -v jq >/dev/null 2>&1; then
-  exit 0
+raw_bytes=${#INPUT}
+
+# One load must stay one grep-able line, so newlines and tabs become spaces.
+flat=$(printf '%s' "$INPUT" | tr '\n\t' '  ')
+
+# Every scalar's dotted path, which is the schema itself rather than a guess
+# at it. Missing jq must not turn a diagnostic into a broken session.
+keys=""
+if command -v jq >/dev/null 2>&1; then
+  keys=$(printf '%s' "$INPUT" | jq -rc '[paths(scalars) | join(".")] | unique | join(",")' 2>/dev/null)
 fi
+[ -z "$keys" ] && keys="unparsed"
 
-load_reason=$(printf '%s' "$INPUT" | jq -r '.load_reason // "unknown"' 2>/dev/null)
-file_path=$(printf '%s' "$INPUT" | jq -r '.instruction_file_path // "unknown"' 2>/dev/null)
-content=$(printf '%s' "$INPUT" | jq -r '.instruction_content // ""' 2>/dev/null)
-
-content_chars=${#content}
-
-printf '%s\treason=%s\tchars=%s\tfile=%s\n' \
+# raw is truncated because an instruction payload may carry a whole CLAUDE.md.
+printf '%s\tbytes=%s\tkeys=%s\traw=%.400s\n' \
   "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-  "$load_reason" \
-  "$content_chars" \
-  "$file_path" >> "$LOG"
+  "$raw_bytes" \
+  "$keys" \
+  "$flat" >> "$LOG"
 
 exit 0
