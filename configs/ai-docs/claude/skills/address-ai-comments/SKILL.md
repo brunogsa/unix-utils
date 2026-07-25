@@ -90,3 +90,7 @@ Anything that requires cross-referencing the rest of a structured doc (registrie
 A design doc's numbered `OQ-NN` entries (see the `design-docs` skill) are a separate, already-structured mechanism with their own burn-down rules — don't sweep those into this flow.
 
 This skill targets loose `AI?`/`AI!` comment markers, in code or prose.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the workflow above wins; regenerate it whenever the flow changes.

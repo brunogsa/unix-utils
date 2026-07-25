@@ -356,3 +356,7 @@ PR <n> address summary
 When step 7d ran, append its two report paths and top findings to this summary so the user sees them in the same pass.
 
 The user resolves the threads themselves after eyeballing the replies — that's deliberate, not an oversight.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.

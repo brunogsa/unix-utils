@@ -203,3 +203,7 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
 
 - **CRITICAL: Add a blank line between bullets (not sub-bullets)**:
   - This improve A LOT the readability
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the lifecycle above wins; regenerate it whenever the flow changes.

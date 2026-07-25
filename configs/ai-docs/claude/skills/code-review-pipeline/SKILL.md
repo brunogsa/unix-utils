@@ -243,3 +243,7 @@ Print a terminal summary using the template at `references/wave6-summary-templat
 - Don't include a changelog. The Review Guide replaces it.
 - Don't spawn sub-Agents for specialists or the validator — see Architecture at top.
 - Don't invent flags. The CLI surface is deliberately minimal.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the waves above win; regenerate it whenever the flow changes.

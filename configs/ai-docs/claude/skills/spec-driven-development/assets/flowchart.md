@@ -1,0 +1,96 @@
+# spec-driven-development — flow overview
+
+Human-facing overview for auditing the flow at a glance. Non-authoritative — the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
+
+```mermaid
+flowchart TD
+  start(["User invokes<br/>spec-driven-development"]):::start
+  preflight["Pre-flight interview:<br/>ask 2 toggles<br/>(AC-traceability? Right-sized?)"]
+  persistToggles["Persist toggle answers to<br/>/tmp/sdd_&lt;session_id&gt;.json"]
+  createSpec["Step 0: user creates spec_&lt;slug&gt;.md<br/>(or /brainstorm refines it)"]
+  specOnDisk{"spec_&lt;slug&gt;.md<br/>exists on disk?"}
+  writeInSession["Write plan_&lt;slug&gt;.md in-session<br/>(spec-only prompt, exception path)"]
+  dispatchPlanWriter["Dispatch plan-writer subagent:<br/>writes plan_&lt;slug&gt;.md from spec alone"]:::dispatch
+  qualitativePass["Dispatch fresh-eyes subagent:<br/>placeholders, contradictions, scope,<br/>PR size, ambiguity, completeness,<br/>human-reviewable, artifacts, density"]:::dispatch
+  scopeHidden{"Hidden decomposition<br/>revealed by interview?"}
+  writeScopes["Write/update scopes.md<br/>per brainstorm scope-probe"]
+  prSizeLarge{"Work fits one<br/>reviewable PR?"}
+  prBreakdown["PR Breakdown: split into<br/>ordered vertical PR sequence"]
+  mermaidValid{"Any mermaid diagrams<br/>valid via mmdc?"}
+  dispatchMermaidFixer["Dispatch mermaid-fixer subagent"]:::dispatch
+  dispatchDensityFixer["Dispatch density-fixer subagent:<br/>runs check-density.sh until exit 0"]:::dispatch
+  formalChecks["Run seven formal checks in sequence<br/>(5 always-on + 2 toggled)"]
+  checkACTest["Every AC has a test:<br/>script + dispatch deep-reviewer<br/>for semantic match"]:::dispatch
+  checkTestTask["Every test has a task:<br/>check-test-distribution.sh"]
+  checkHowBreak["How would this break?<br/>checklist + inversion sweep<br/>(fail-closed, always runs)"]
+  checkPRDag["PR dependencies form a DAG:<br/>check-pr-dag.sh"]
+  checkTaskDag["Task dependencies form a DAG:<br/>check-tasks-dag.sh"]
+  toggleTraceability{"Toggle: every line<br/>traces to an AC?"}
+  checkTraceability["Check untraceable machinery<br/>(blocks if non-empty)"]
+  toggleRightSized{"Toggle: right-sized<br/>plan check?"}
+  checkRightSized["Right-sized plan check<br/>(advisory, never blocks)"]
+  allChecksPass{"All blocking<br/>checks pass?"}
+  conflictSurfaced{"spec/plan<br/>disagree?"}
+  resolveDrift["Surface each conflict to user<br/>before editing either doc"]
+  fixIssue["Fix flagged issue directly"]
+  deltaRereview["Delta-scoped re-review:<br/>scope gates to diff only<br/>(round 2+)"]
+  userApprove["Step 3: user reviews and approves"]
+  clearImplement["/clear then /implement<br/>in fresh session"]:::dispatch
+  taskCreateItems["Step 4: each plan task<br/>becomes a TaskCreate item"]
+  updateDocs["Step 5: update both docs<br/>as work progresses (append-only)"]
+  refactorReview["Step 6: /refactor then /auto-review"]
+  manualReview["Step 7: user manual review,<br/>more fixes if any"]
+  createPR["Step 8: /create-pr generates<br/>rich PR description"]
+  improveLoop["Step 9: /improve-from-user<br/>then english-coach"]
+  shipped(["Feature shipped"])
+
+  start --> preflight
+  preflight --> persistToggles
+  persistToggles --> createSpec
+  createSpec --> specOnDisk
+  specOnDisk -->|"no: spec-only prompt"| writeInSession
+  specOnDisk -->|"yes"| dispatchPlanWriter
+  writeInSession --> qualitativePass
+  dispatchPlanWriter --> qualitativePass
+  qualitativePass --> scopeHidden
+  scopeHidden -->|"yes"| writeScopes
+  writeScopes --> qualitativePass
+  scopeHidden -->|"no"| prSizeLarge
+  prSizeLarge -->|"no: too large"| prBreakdown
+  prSizeLarge -->|"yes"| mermaidValid
+  prBreakdown --> mermaidValid
+  mermaidValid -->|"no"| dispatchMermaidFixer
+  dispatchMermaidFixer --> mermaidValid
+  mermaidValid -->|"yes / n-a"| dispatchDensityFixer
+  dispatchDensityFixer --> formalChecks
+  formalChecks --> checkACTest
+  checkACTest --> checkTestTask
+  checkTestTask --> checkHowBreak
+  checkHowBreak --> checkPRDag
+  checkPRDag --> checkTaskDag
+  checkTaskDag --> toggleTraceability
+  toggleTraceability -->|"on"| checkTraceability
+  toggleTraceability -->|"off"| toggleRightSized
+  checkTraceability --> toggleRightSized
+  toggleRightSized -->|"on"| checkRightSized
+  toggleRightSized -->|"off"| allChecksPass
+  checkRightSized --> allChecksPass
+  allChecksPass -->|"no"| conflictSurfaced
+  conflictSurfaced -->|"yes"| resolveDrift
+  conflictSurfaced -->|"no"| fixIssue
+  resolveDrift --> deltaRereview
+  fixIssue --> deltaRereview
+  deltaRereview --> formalChecks
+  allChecksPass -->|"yes"| userApprove
+  userApprove --> clearImplement
+  clearImplement --> taskCreateItems
+  taskCreateItems --> updateDocs
+  updateDocs --> refactorReview
+  refactorReview --> manualReview
+  manualReview --> createPR
+  createPR --> improveLoop
+  improveLoop --> shipped
+
+  classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
+  classDef dispatch fill:#dbeafe,stroke:#2563eb,stroke-width:2px
+```

@@ -539,3 +539,7 @@ Use `presented` (and delete the state file) only when every task is `done`.
 Use `halted` (and keep it for resume) on a budget hit or any `blocked`/`stuck` task.
 
 Every step — ordering, spawn contract, failure handling, finalize — is owned in full by [`references/batch-end.md`](references/batch-end.md). Load at batch end.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.

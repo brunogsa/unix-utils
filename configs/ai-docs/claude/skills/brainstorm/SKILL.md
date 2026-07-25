@@ -153,3 +153,7 @@ Confirm the file exists and its Task/PR breakdown covers every AC and requiremen
 Tell the user to run `/clear`, then invoke `/implement` — don't run `/implement` in this session.
 
 Why: `/implement` re-grounds entirely from `spec_<slug>.md` and `plan_<slug>.md` on disk; carrying this session's conversation forward buys nothing and blurs cost attribution between planning and execution.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
