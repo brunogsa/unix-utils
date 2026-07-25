@@ -90,8 +90,11 @@ description body indented three spaces — the same contract
    (`TaskCreate` returned an id, and its follow-up `TaskUpdate`
    returned `success: true`). An entry whose `TaskCreate` or
    `TaskUpdate` failed keeps its line in `tasklist.md` — it must never
-   appear in step 7's removal list, or the backlog would lose the only
-   record of a task that never made it into the TaskList.
+   appear in step 7's removal list. The two failures leave different
+   states behind: a failed `TaskCreate` means no task exists yet, so
+   the entry is the only record left; a failed `TaskUpdate` means a
+   task already exists with its subject still unfolded, so the entry
+   and the task now both exist side by side.
 
 7. Spawn `tasklist-sweeper` with `run_in_background: true`, passing the
    list of local ids from step 6 — successes only — as already-imported
@@ -124,10 +127,15 @@ ambiguity that only affects id-based selection.
 - Entries imported: report how many tasks were created, and name any
   requested local id that was skipped because it did not resolve.
 
-- Any `TaskCreate` or `TaskUpdate` failed for one or more entries: name
-  every failed entry's local id and the error, and note that each stays
-  in `tasklist.md` untouched — it was excluded from the sweeper's
-  removal list — so the caller can retry it.
+- A `TaskCreate` failed for one or more entries: name every such local
+  id and the error. No task was created, so the entry is still the only
+  record — the caller can simply retry it.
+
+- A `TaskUpdate` failed for one or more entries after its `TaskCreate`
+  succeeded: name every such local id and the error, and warn that each
+  one now exists in both `tasklist.md` and the TaskList (with an
+  unfolded subject) until the caller resolves it by hand — retrying
+  would create a duplicate task.
 
 - Missing file: report that there was nothing to import. No
   `TaskCreate` call was made, no sweeper was spawned.
@@ -148,6 +156,8 @@ ambiguity that only affects id-based selection.
 - Never spawn `tasklist-sweeper` more than once per invocation, and
   never before every selected entry has been attempted.
 - Never skip inspecting a `TaskCreate` or `TaskUpdate` result for
-  failure — passing a failed entry's local id to the sweeper would
-  delete its only remaining record, since that entry never became a
-  TaskList task.
+  failure. Neither failure is safe to hand the sweeper: a failed
+  `TaskCreate` leaves no task, so passing that entry's local id would
+  delete its only remaining record; a failed `TaskUpdate` leaves a task
+  that already exists with an unfolded subject, so passing that entry's
+  local id would hide the duplicate the caller still needs to resolve.
