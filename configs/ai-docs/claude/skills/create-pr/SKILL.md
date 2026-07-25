@@ -16,16 +16,21 @@ words-budget: 2048
 ### 1. Gather context
 
 - Discover spec/plan in cwd by glob `spec_*.md plan_*.md` (top-level; optional -- works without them):
-  - One spec / one plan → use whichever exist. Multiple of either → list them numbered and ask which to use. None → proceed from the changes digest (below) only.
+  - One spec / one plan → use whichever exist, auto-resolved. Multiple of either → open question **(A) Spec/plan choice**: list them numbered.
+  - None found → proceed from the changes digest (below) only, auto-resolved.
   - Extract every ` ```mermaid ``` ` fenced block from each resolved file.
   - Include all diagrams in the PR description as collapsibles.
   - Beyond diagrams, prefer a curated slice over the full file.
-  - Ask which `## ` sections matter and pull them with `~/.claude/skills/create-pr/scripts/extract-md-sections.sh <file> "<section>" ["<section>" ...]`.
+  - A spec/plan resolved → open question **(B) Sections to pull**: which `## ` sections matter, via `~/.claude/skills/create-pr/scripts/extract-md-sections.sh <file> "<section>" ["<section>" ...]`.
   - A full embed blows the body-size cap (see step 2.6).
 - **Resolve the output filename's `<slug>` and `<N>` (used in step 2)**: `<slug>` is the shared filename slug from the resolved `spec_<slug>.md`/`plan_<slug>.md`.
   - Fall back to the current branch name (`/` → `-`) when neither spec nor plan resolved.
-  - Single PR plan or no plan resolved → omit `<N>`.
-  - Multiple `PR-N` entries in `## PR Breakdown` → ask which one this covers and set `<N>` to that number (e.g. `PR-2` → `2`).
+  - Single PR plan or no plan resolved → omit `<N>`, auto-resolved.
+  - Multiple `PR-N` entries in `## PR Breakdown` → open question **(C) Which PR-N**: set `<N>` to that number (e.g. `PR-2` → `2`).
+- **Ask every open question (A/B/C) together, in one message, before continuing** -- skip any label that auto-resolved above; never dribble the rest one at a time.
+  - Once answered, resolve `<slug>`/`<N>` and create `pr-descr_<slug>_pr<N>.md` right away with an HTML comment logging each answer.
+  - Example: `<!-- step 1: spec=spec_foo.md; sections=Architecture,Evidences; PR=2/3 -->` -- GitHub hides HTML comments in rendered bodies.
+  - This file, not a separate scratchpad, is this skill's durable record -- it survives a mid-flow compaction that would otherwise drop the answers.
 - **Resolve the base branch (used below and in step 4)**: run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
   - Same default `/implement`'s pre-flight interview uses.
   - Every PR targets this branch directly on GitHub, never a parent's branch.
@@ -39,6 +44,8 @@ words-budget: 2048
 ### 2. Write pr-descr_<slug>_pr<N>.md
 
 Write `./pr-descr_<slug>_pr<N>.md` in cwd -- `<slug>` and `<N>` resolved per step 1 (`_pr<N>` dropped for a single-PR plan).
+
+If step 1's batch already created this file with the resolved-answers comment, keep it and write the rest below.
 
 Author from the changes digest (step 1), the curated spec/plan slices, and the template -- not the raw diff.
 

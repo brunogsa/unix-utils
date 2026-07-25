@@ -104,13 +104,28 @@ CUR_BRANCH=$(git branch --show-current)
 If `PR_BRANCH != CUR_BRANCH`, abort:
 > Not on PR branch. Run: `gh pr checkout <n>`
 
-### 1b. Clean working tree
+### Pre-flight interview (single batch, before 1b–1d execute)
+
+Discover cheaply, then ask everything that applies in ONE message — mirrors the implement skill's up-front interview.
 
 ```bash
 git status --porcelain
 ```
 
-If non-empty, **offer to commit first**: list the dirty files, ask whether to commit them now (delegate the commit to `commit-standards`).
+Also probe for lint/test runners using 1c's table below (read-only — don't run anything yet).
+
+Ask, in one message, only the questions whose condition holds:
+- **Dirty tree** (only if git status printed output) — list the dirty files, ask whether to commit now.
+- **Lint/test runners** (only if 1c's table matched multiple or none) — ask which commands to use.
+- **Refactor + auto-review tails after this batch?** (yes/no, default no) — always asked.
+
+The moment answers arrive, persist them to `/tmp/apc-<pr>.md` — see "Scratchpad + TaskList state" below. A mid-flow compaction must not lose them.
+
+1b, 1c, and 1d below consume these persisted answers; they don't ask again.
+
+### 1b. Clean working tree
+
+Use the persisted pre-flight answer above — if the tree was dirty, it says whether to commit now via `commit-standards`.
 
 After the user commits or stashes, re-run the skill.
 
@@ -127,7 +142,7 @@ Discover the runners (cheap probe, no full project scan):
 | `pyproject.toml` | `ruff check .` / `flake8` | `pytest` |
 | `Cargo.toml` | `cargo clippy` | `cargo test` |
 
-If multiple match or none match, ask the user which commands to use.
+If multiple or no markers matched, use the persisted pre-flight answer for which commands to use.
 
 Run lint then test:
 
@@ -140,9 +155,9 @@ If either is red, abort — fix pre-existing breakage first so cluster commits d
 
 ### 1d. Tails toggle
 
-Ask the user: "Run refactor + auto-review tails after this batch? (default no)"
+Use the persisted pre-flight answer (see the interview after 1a) for whether to run refactor + auto-review tails.
 
-This isn't a pass/fail precondition — hold the answer in session context for step 7d. Default no if the user doesn't answer explicitly.
+This isn't a pass/fail precondition. The answer lives in `/tmp/apc-<pr>.md` for step 7d, surviving compaction — default no if unanswered.
 
 ## Step 2: Resolve repo + own login (main)
 

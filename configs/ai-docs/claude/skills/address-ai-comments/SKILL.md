@@ -35,8 +35,10 @@ The "keep main context light" benefit never actually landed for a single small/m
 
 See "When a subagent might still help" below for the one case worth revisiting.
 
-1. **Resolve the target(s).** One or more files, or a folder (recursive), that the user names. If no target is given, ask which files/folders to sweep.
-   - Also ask: "Run refactor + auto-review tails after this batch? (default no)". Hold the answer for the optional tails step below; default no if unanswered.
+1. **Pre-flight batch (one message).** Ask together — never sequentially — the target(s) and the tails toggle below; each is independent, so batch them.
+   - Target(s): one or more files, or a folder (recursive), that the user names. If no target is given, ask which files/folders to sweep.
+   - Toggle: "Run refactor + auto-review tails after this batch? (default no)". Hold the answer for the optional tails step below; default no if unanswered.
+   - The moment both answers arrive, persist them to the scratchpad (see step 2) — a mid-flow compaction must not lose them.
    - When the toggle is on, capture `BATCH_BASE_SHA=$(git rev-parse HEAD)` now — the tails diff against it later, whether or not this batch ends up committed.
 
 2. **Gather every marker with `grep -n`, then read each hit's surrounding context directly.**
