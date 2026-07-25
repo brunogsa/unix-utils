@@ -15,9 +15,11 @@ SCRIPT="$script_dir/claude-implement-stop-hook.sh"
 
 work_dir=$(mktemp -d)
 
-# The hook reads a fixed /tmp path (no HOME involved), so tests write
-# real /tmp state files; the trap removes every test-session file on
-# exit, and the rm below clears leftovers from an interrupted prior run.
+# The hook reads a fixed /tmp path (no HOME involved),
+# so tests write real /tmp state files.
+#
+# The trap removes every test-session file on exit.
+# The rm below clears leftovers from an interrupted prior run.
 trap 'rm -rf "$work_dir"; rm -f /tmp/implement_sess-*.json' EXIT
 rm -f /tmp/implement_sess-*.json
 
