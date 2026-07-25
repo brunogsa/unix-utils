@@ -41,6 +41,7 @@ See "When a subagent might still help" below for the one case worth revisiting.
    - The moment both answers arrive, create the run-state file `/tmp/address-ai-comments_<session_id>_<ts>.json` and persist them there (`<ts>` = run-start timestamp `date +%Y%m%d-%H%M%S` — the skill can run several times per session).
    - A mid-flow compaction must not lose them.
    - When the toggle is on, capture `BATCH_BASE_SHA=$(git rev-parse HEAD)` now — the tails diff against it later, whether or not this batch ends up committed.
+   - Persist it into the run-state JSON immediately, not held only in context — same compaction-survival reason the file exists.
 
 2. **Gather every marker with `grep -n`, then read each hit's surrounding context directly.**
    - Step 1 already created `/tmp/address-ai-comments_<session_id>_<ts>.json` with the pre-flight answers — a lost sweep means redoing the whole grep+read pass.
@@ -61,25 +62,33 @@ See "When a subagent might still help" below for the one case worth revisiting.
      File every cluster as a task first, so the list stays the complete, durable plan rather than a partial one reconstructed after the fact.
 
 4. **Execute, then strip the marker.**
+   - Loop over clusters strictly sequentially — this flow is inline in the main session by design, so there's nothing to parallelize.
    - A task isn't done until its marker comment is gone from the source.
    - For `AI!`/action items, perform the change first; for `AI?`/question items, answer in chat first (never in the file).
    - Either way, delete the comment once resolved and treat the file like a burn-down list, not an archive of resolved notes.
+   - A cluster mixing both types processes its markers in file order, each under its own type rule above.
 
 5. **Optional refactor + auto-review tails (only when step 1's toggle is on).** Dispatch the shared deep-reviewer tail pair — [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md).
    - Set `<BASE_REF>` = `BATCH_BASE_SHA`, diffing against the working tree since this batch may be uncommitted.
    - No `<SPEC_PLAN_PATHS>` — this flow has no spec/plan.
-   - No new lint/test gate is needed — the tails are report-only.
+   - No new lint/test gate is needed — the tails are report-only; that means this skill adds no lint/test gate of its own.
+   - The shared tail-pair flow still governs after dispatch, including its triage and apply-offer — see the reference for what that covers.
 
 6. **Report back compactly.** Reply with the tasks created/executed and their file:line references, not a full transcript of every file region you read.
-   - When step 5 ran, append its two report paths and top findings to this report.
+   - Report once, after all clusters are resolved — never an incremental report per cluster.
+   - When step 5 ran, append its two report paths, top findings, and the tail pair's apply-offer to this report.
 
 ## When a subagent might still help
 
 Not ruled out permanently — just not the default while this runs inline.
 
+Judge this once, at the start of step 2, before the grep+read pass begins — a discretionary call, not an automatic threshold.
+
 A subagent fan-out is worth revisiting only when the scan genuinely can't fit the main session cheaply: many files or a large directory tree.
 
 Splitting the grep+read pass across parallel subagents (e.g. one per subdirectory) actually avoids reading everything serially in one context.
+
+Pin any such dispatch as `general-purpose`, `haiku`, effort low — mechanical locate+classify only.
 
 Even then, keep the subagent's job mechanical (locate + classify), not the clustering or resolution-planning.
 

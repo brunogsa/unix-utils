@@ -8,19 +8,18 @@ flowchart TD
   preflight["1. Ask together (one message): 'Which file(s)/folder(s)<br/>to sweep?' + 'Run refactor/auto-review tails after? (default no)'"]:::gate
   scratchpad["Create run-state file<br/>/tmp/address-ai-comments_&lt;session_id&gt;_&lt;ts&gt;.json;<br/>persist target(s) + toggle answer"]:::state
   togglecheck{"Tails toggle on?"}
-  captureSha["Capture BATCH_BASE_SHA = git rev-parse HEAD<br/>(tails diff against it later)"]
+  captureSha["Capture BATCH_BASE_SHA = git rev-parse HEAD;<br/>persist into run-state JSON immediately"]:::state
+  sizecheck{"Scan fits main session cheaply?<br/>(judged once, start of step 2,<br/>before grep+read pass begins)"}
   gather["2. Grep -n for AI! and AI? in target(s)"]
   readctx["Read surrounding context for each hit"]
   classify{"Classify marker"}
   actionType["AI! -&gt; action item"]
   questionType["AI? -&gt; question item"]
   cluster["Cluster markers into themes;<br/>append classification + theme to run-state file as produced"]:::state
-  sizecheck{"Scan fits main session cheaply?"}
-  subDispatch[["(optional, not default) Dispatch subagents in parallel (∥)<br/>— agent type/model unspecified in SKILL.md —<br/>one per subdirectory, mechanical locate+classify only"]]:::dispatch
-  inline["Continue gather+classify inline (default path)"]
+  subDispatch[["(optional, not default) Dispatch subagents in parallel (∥)<br/>pin: general-purpose · haiku · low<br/>one per subdirectory, mechanical locate+classify only"]]:::dispatch
   taskcreate["3. Create one TaskList task per cluster —<br/>metadata: file:line refs + marker text;<br/>description: theme summary.<br/>Populate full list before executing any"]:::state
-  loopcheck{"Clusters remaining?"}
-  markercheck{"Cluster's marker type?"}
+  loopcheck{"Clusters remaining?<br/>(loop runs sequentially — inline in main<br/>session by design, nothing to parallelize)"}
+  markercheck{"Cluster's marker type?<br/>(mixed clusters: markers process in file order)"}
   doAction["4a. AI!: perform the action/change first"]
   doAnswer["4b. AI?: answer in chat first, never in the file"]
   strip["Delete the marker from source once resolved"]
@@ -29,26 +28,25 @@ flowchart TD
   hookNode["PreToolUse hook: deep-reviewer-write-guard.sh<br/>allows writes only to verdict_*.md or under /tmp;<br/>denies + aborts run otherwise"]:::hook
   triage["Triage: read both verdict reports, synthesize<br/>prioritized summary, close with apply-offer<br/>(opt-in only — never auto-applied)"]:::gate
   appendTails["Append tails' two report paths + top findings<br/>+ apply-offer to final report"]
-  report["6. Report tasks created/executed + file:line refs"]
+  report["6. Report tasks created/executed + file:line refs<br/>(single final report — no per-cluster reports)"]
   done(["Done"])
 
   start --> preflight
   preflight --> scratchpad
   scratchpad --> togglecheck
   togglecheck -->|"yes"| captureSha
-  togglecheck -->|"no"| gather
-  captureSha --> gather
+  togglecheck -->|"no"| sizecheck
+  captureSha --> sizecheck
+  sizecheck -->|"yes, fits (default)"| gather
+  sizecheck -->|"no, many files/large tree"| subDispatch
+  subDispatch --> cluster
   gather --> readctx
   readctx --> classify
   classify -->|"AI!"| actionType
   classify -->|"AI?"| questionType
   actionType --> cluster
   questionType --> cluster
-  cluster --> sizecheck
-  sizecheck -->|"yes, fits"| inline
-  sizecheck -->|"no, many files/large tree"| subDispatch
-  subDispatch --> inline
-  inline --> taskcreate
+  cluster --> taskcreate
   taskcreate --> loopcheck
   loopcheck -->|"yes, cluster remains"| markercheck
   markercheck -->|"AI!"| doAction
