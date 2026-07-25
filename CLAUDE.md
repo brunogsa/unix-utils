@@ -31,9 +31,17 @@ Always edit source in `configs/`, never the symlink targets.
 
 Always edit `configs/ai-docs/claude/settings.json` directly. If the symlink has been broken, re-run `install.sh` to restore it.
 
-**`/model` and `/advisor` caveat**: typing `/model <name>` or `/advisor <model>` in any session writes the choice into the global `settings.json` (documented: code.claude.com/docs/en/model-config.md and .../advisor.md) — a session-local pick silently becomes the committed steady state.
+**`/model`, `/effort`, and `/advisor` write to `settings.json` — never commit that**: these three keys get changed session by session on purpose, so their diff is expected noise, not drift.
 
-For a session-only model, use the `s` key inside the `/model` picker, or launch with `claude --model <m>` / `claude --advisor <m>`. The `settings-model-drift-guard.sh` SessionStart hook warns at startup when the live `model`/`advisorModel` keys differ from git HEAD (the committed file IS the steady state), and when the symlink got detached.
+Leave it dirty: don't flag it, don't ask whether to commit it, don't commit it. Every other `settings.json` key change still earns its own commit.
+
+The committed values are the declared defaults: `model` `sonnet`, `advisorModel` `opus`, `effortLevel` `high`. Restore them any time with `git checkout -- configs/ai-docs/claude/settings.json`.
+
+The writes are documented at code.claude.com/docs/en/model-config.md and .../advisor.md.
+
+The `settings-model-drift-guard.sh` SessionStart hook still warns when these keys differ from HEAD — expected for these three; its load-bearing job is the symlink-detachment check beside it.
+
+For a session-only model that never touches the file, use the `s` key inside the `/model` picker, or launch with `claude --model <m>` / `claude --advisor <m>`.
 
 **Permission-glob caveat**: in `settings.json` `permissions.allow`, an `Edit`/`Write` path glob with a SINGLE leading slash (`Edit(/tmp/**)`) is read as project-root-relative and silently matches nothing. A filesystem-absolute path needs a DOUBLE slash: `Edit(//tmp/**)`.
 
