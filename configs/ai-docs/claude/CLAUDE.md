@@ -364,6 +364,9 @@ rtk proxy <cmd>       # run <cmd> raw, bypassing rtk's filtering
 - [Instruction] **Leverage Explore/Grep and other subagents to minimize compaction on main session** -- broad searches, fan-out reads, "where is X handled?" hunts, etc;
   - [Why] Main session is kept under a tight 200k tokens context window. Inline exploration dumps every touched file into the main context, triggering more compactions.
 
+- [Instruction] Execute any TaskList item whose goal diverges from the main session's goal (e.g. `[Side]`/`[Scout]` entries) through a subagent — never inline in the main session.
+  - [Why] Inline execution pulls the off-goal task's files and reasoning into the main context, taxing the compaction budget the actual goal needs and blurring the session's focus and audit trail.
+
 - [Instruction] Default to launching subagents in the background (`run_in_background`) — UNLESS the next step depends on the result, or the user must watch progress live: then run foreground.
   - [Why] Background keeps the loop free, but a result-gated background launch just stalls the turn — or tempts redoing the search inline, dumping what delegation was meant to keep out.
 
