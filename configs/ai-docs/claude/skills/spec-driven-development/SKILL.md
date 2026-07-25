@@ -89,10 +89,13 @@ First, a qualitative pass — spawn one sub-agent that reads both docs with fres
   - The subagent runs `check-density.sh` and applies the `density-rules.md` rewrite patterns until exit 0, without dropping information.
 
 Immediately before dispatching `plan-writer` (or writing the plan in-session on the spec-less exception path), the orchestrating session asks one live question with two independent yes/no toggles.
-It is answered fresh each time, never written to `plan_<slug>.md` or any state file:
+It is answered fresh each run — never reused from a previous run, never written to `plan_<slug>.md` or any committed state file:
 
 - **"Every line traces to an AC?"**
 - **"Right-sized plan?"**
+
+The moment the answers arrive, note them in the session's /tmp scratchpad (e.g. `/tmp/sdd_<slug>.md`).
+The checks consume them only after `plan-writer` returns, and a compaction in that window must not lose them — session-scoped noting is not the cross-run persistence banned above.
 
 Seven formal checks run in sequence (five always-on + the two toggles above):
 
