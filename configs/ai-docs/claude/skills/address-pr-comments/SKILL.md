@@ -60,7 +60,7 @@ Subagents can't post replies, commit, or push — permission UIs live in main. F
 1. **Main context** — steps 0–2, 4–7 (pre-flight interview, preconditions, resolve repo/login, selection, commit, push, reply).
 2. **Subagent** (`general-purpose`, background — the default) — step 3 (fetch, filter, cluster, rank, propose actions and drop reasons). Returns only the proposal block — raw comment JSON never reaches main.
 
-Spawn the subagent with `model: "sonnet"` and `description: "Fetch, cluster, and rank PR review comments"`.
+Spawn the subagent with `model: "sonnet"`, `effort: "medium"`, and `description: "Fetch, cluster, and rank PR review comments"`.
 
 If the subagent reports zero unresolved comments matching the filters, stop — don't proceed to step 4.
 
@@ -115,6 +115,8 @@ Steps 1b, 1c, and 1d below consume these persisted answers; they don't ask again
 ## Step 1: Validate preconditions (main)
 
 Every applicable check must hold — 1c applies only when step 0 opted in. If any fails, abort with the suggested fix — don't try to recover automatically.
+
+Run 1a, 1b, 1c, 1d sequentially in that order; fail-fast on the first failure, not collected together.
 
 ### 1a. On the PR's branch
 
@@ -177,7 +179,7 @@ ME=$(gh api user -q .login)
 
 ## Step 3: Fetch, filter, cluster, rank, propose (subagent)
 
-Dispatch a `general-purpose` subagent (model `"sonnet"`, background) with this prompt, filling in `<n>`, `OWNER_REPO`, `ME`, and the parsed filters:
+Dispatch a `general-purpose` subagent (model `"sonnet"`, effort `"medium"`, background) with this prompt, filling in `<n>`, `OWNER_REPO`, `ME`, and the parsed filters:
 
 ```
 Read ~/.claude/skills/address-pr-comments/references/step-3-fetch-cluster-propose.md
@@ -264,6 +266,8 @@ If a cluster's edits accidentally touch files outside its scope (drift), pause a
 
 Don't silently absorb.
 
+Either way, flow resumes the current cluster's commit flow — the choice only decides where the drift fix commits — then continues to the next cluster.
+
 ## Step 6: Batch push (main)
 
 After all `apply` clusters are committed:
@@ -276,11 +280,17 @@ Single push. Confirm with the user before running — it's the irreversible step
 
 This is the UNLESS case in CLAUDE.md's never-pre-ask rule: `git push` is commonly allowlisted, so this one chat confirm is the only human gate.
 
-If the push is rejected (remote moved), abort and tell the user to `git pull --rebase`, then re-run from step 5. Don't auto-rebase — risks lost work.
+If the push is rejected (remote moved), abort — stop and surface to the user; the per-cluster commits stand as-is.
+
+Ask the user to resolve the divergence manually (never auto-rebase), then re-attempt only the push — skip step 5's commit logic.
 
 ## Step 7: Post replies (main)
 
 For **every comment in every surviving cluster** (apply/answer/drop), post a reply. Loop, don't batch — each reply is permission-gated.
+
+On a permission denial, skip that reply and list it in the final report (step 8).
+
+On a `gh api` failure, retry once, then skip and list it too. The loop always continues to the next comment — never stops.
 
 ### 7a. Reply body templates — minimal by default
 
@@ -338,6 +348,8 @@ Skip this subsection entirely when the toggle is off — go straight to step 8.
 Dispatch the shared deep-reviewer tail pair — [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md) — with `<BASE_REF>` = `<BATCH_BASE_SHA>`.
 No `<SPEC_PLAN_PATHS>` — this flow has no spec/plan.
 
+The `deep-reviewer-write-guard.sh` PreToolUse hook blocks writes during these report-only tails — detail in the reference above.
+
 No new lint/test gate is needed — the tails are report-only, and when step 1c's opt-in check ran, it already covered this batch.
 
 ## Step 8: Final report (main)
@@ -350,6 +362,7 @@ PR <n> address summary
 - Answered: <count> clusters → <count> replies
 - Dropped:  <count> clusters → <count> replies
 - Skipped (deleted from proposal): <count> clusters
+- Reply failures (permission/API skip): <count> comments
 - Open threads remaining for you to resolve: <link to PR's "Files changed">
 ```
 
