@@ -64,6 +64,20 @@ Spawn the subagent with `model: "sonnet"` and `description: "Fetch, cluster, and
 
 If the subagent reports zero unresolved comments matching the filters, stop — don't proceed to step 4.
 
+## Scratchpad + TaskList state
+
+At skill start, create `/tmp/apc-<pr>.md` — alongside the existing `/tmp/apc-lint.txt` / `/tmp/apc-test.txt` convention — this skill's durable working-state file.
+
+Persist as produced, never at the end: the pre-flight answers first, then per-cluster state as it's decided — chosen action, drop/skip reason, resulting commit SHA.
+
+On resume or after compaction, re-read this file and trust it over recalled context — a summary loses detail the file keeps verbatim.
+
+Once the proposal step's clusters are approved (step 4), create one TaskList task per **applied** cluster — only those produce a commit, the CLAUDE.md test for a Task.
+
+Put machine-checkable state (`action`, `commit_sha`, `status`) in each task's `metadata` field; keep narrative rationale in the scratchpad file, not duplicated across both.
+
+Cross-reference the two surfaces by task id and file path only.
+
 ## Standards loaded on demand
 
 These standards skills shape the work at specific moments — load each as its scope opens, not upfront.
@@ -201,6 +215,8 @@ Parse the returned block. For each surviving cluster, record:
 
 If parse fails (mangled markers, missing `Answer:` for answer clusters), surface the exact issue and ask the user to re-send. Don't guess.
 
+Once parsing succeeds, create the TaskList tasks — see "Scratchpad + TaskList state" above — one per applied cluster.
+
 ## Step 5: Per-cluster commits (main, applied clusters only)
 
 If step 1d's toggle is on, capture `BATCH_BASE_SHA=$(git rev-parse HEAD)` before the first commit below — step 7d's tails review this range.
@@ -219,7 +235,7 @@ For each `apply` cluster, **in the order the user left them**:
    - https://github.com/.../pull/169#discussion_r12389
    ```
 
-4. Capture the commit SHA — needed for the reply link in step 7.
+4. Capture the commit SHA — needed for the reply link in step 7, and record it in the cluster's TaskList task metadata plus the scratchpad file.
 
 If a cluster's edits accidentally touch files outside its scope (drift), pause and ask the user whether to:
 

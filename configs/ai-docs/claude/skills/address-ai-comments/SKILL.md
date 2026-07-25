@@ -40,6 +40,9 @@ See "When a subagent might still help" below for the one case worth revisiting.
    - When the toggle is on, capture `BATCH_BASE_SHA=$(git rev-parse HEAD)` now — the tails diff against it later, whether or not this batch ends up committed.
 
 2. **Gather every marker with `grep -n`, then read each hit's surrounding context directly.**
+   - Before searching, create a /tmp scratchpad (e.g. `/tmp/aac-<slug-or-date>.md`) — a lost sweep means redoing the whole grep+read pass.
+   - Persist the pre-flight answers there immediately, then append each marker's classification and cluster theme as you produce them, not at the end.
+   - On resume or after a compaction, re-read the scratchpad first and trust it over recalled context — recall reads as complete but is lossy.
    - Search the target(s) for `AI!` and `AI?` literally.
    - For each hit, `Read` enough surrounding lines to classify it — don't stop at the grep line alone.
    - The comment's meaning often depends on the field/code it annotates and on other parts of the same file (e.g. a design doc's Premises/Decisions/Open-Questions registries).
@@ -48,7 +51,8 @@ See "When a subagent might still help" below for the one case worth revisiting.
    - Be exhaustive: don't stop at the first few hits, don't skip content past a default read window — read whole files when the target is a single file.
 
 3. **Create one TaskList task per cluster** you identified — don't file a task per raw marker if several belong to one theme.
-   - Each task description embeds its file:line references and original marker text so it's self-contained.
+   - Put the cluster's file:line references and each marker's original text in the task's `metadata` field, not the description.
+   - The description stays a concise, human-readable summary of the cluster's theme — metadata carries the machine-checkable state.
    - Populate the full TaskList before investigating or executing any single cluster.
      A cluster that reads as quick to verify (a one-grep answer, an obvious fix) still tempts sliding straight into execution.
      File every cluster as a task first, so the list stays the complete, durable plan rather than a partial one reconstructed after the fact.

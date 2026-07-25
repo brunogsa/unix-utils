@@ -60,6 +60,11 @@ Why:
 
 ### 3. Interview the user
 
+At interview start, create `/tmp/brainstorm_<slug>.md` (provisional slug if not yet finalized).
+Persist each decision with its why, each discarded alternative with why it lost, and open questions — as they happen, not at the end.
+Why: a compaction mid-interview drops session memory entirely; the file survives so you re-ground instead of re-deriving lost ground.
+On resume or after a compaction, re-read this file first and trust it over recalled context.
+
 Ask clarifying questions (Socratic style). Focus on:
 - What problem are we solving? (Background)
 - What is goal and success metrics/KPIs? (Goal)
@@ -109,6 +114,8 @@ Write to the provided/discovered file path. For a fresh idea, name a new spec fi
 - The companion `spec-driven-development` skill defines this naming convention.
 
 If the file already exists, update it in place (preserve user content, fill gaps, restructure into the template).
+
+Fold the scratchpad's decisions and discarded alternatives into the spec's Decisions section, then discard the scratchpad — the spec is now the durable artifact.
 
 ### 6. Present for review
 
