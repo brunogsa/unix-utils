@@ -44,6 +44,7 @@ Follow the shared reference's triage procedure: read both reports, synthesize on
 
 **Never fold a finding in on your own initiative** — see SKILL.md §9.4.
   - When the human names specific findings to apply after seeing the package, follow the shared reference's "Applying a single finding, on explicit request" — with one implement-specific routing choice:
+    - This deliberately overrides the shared reference's generic routing (a single `general-purpose` subagent for every finding) — the reference's own note cross-links back here.
     - **A refactor-lens finding** (from `verdict_refactor_*.md`) → dispatch the **`refactor` agent** (Agent tool, `subagent_type=refactor` — its frontmatter pins model/effort, no override needed).
       Pass it the finding's scope and the caller's test command; it applies the change itself and confirms tests stay green before and after.
     - **An auto-review-lens finding** (from `verdict_auto-review_*.md`) → dispatch a fresh `tdd-coder` subagent (model omitted — its frontmatter pins sonnet) per the §4 contract with strict TDD (RED before GREEN), unchanged.

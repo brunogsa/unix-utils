@@ -13,9 +13,9 @@ flowchart TD
   skill_worktree["Load references/worktree-setup.md"]:::skill
   worktree_setup["1.3 EnterWorktree + symlink<br/>plan/spec/branches files,<br/>copy .env*"]
   d_review{"Pre-dispatch review requested?"}
-  orch_review["2. Orchestration review<br/>(fresh-context, adversarial;<br/>agent type/model not pinned<br/>in SKILL.md)"]:::dispatch
+  orch_review["2. Orchestration review<br/>(deep-reviewer, opus, high;<br/>fresh-context, adversarial)"]:::dispatch
   seed_remind["2.1 TaskList: seed ONE [Remind] task<br/>(subject = arrow chain, survives<br/>compaction):<br/>gate to tails(refactor par review) to<br/>triage to PR(create-pr, if wanted) to<br/>diffview; metadata tracks each<br/>step pending or done"]:::state
-  seed_tasks["2.2 TaskList: create ALL matched<br/>tasks upfront (1st in_progress, rest<br/>pending); metadata: pr_label,<br/>attempt_count=0, gate_outcome=pending"]:::state
+  seed_tasks["2.2 TaskList: create matched tasks<br/>(this PR's only, if PR-label run);<br/>1st in_progress, rest pending;<br/>metadata: pr_label, attempt_count=0,<br/>gate_outcome=pending"]:::state
   d_prlabel{"Arg is PR-label(s)?"}
   skill_pr["Load references/pr-awareness.md"]:::skill
 
@@ -38,7 +38,7 @@ flowchart TD
     hook_dispatch_guards["Hooks guarding this dispatch:<br/>subagent-model-guard (enforces<br/>pinned model) + git-guard (rejects<br/>a commit missing the<br/>Co-Authored-By trailer)"]:::hook
     timeout_stop["1h Monitor timeout expires:<br/>TaskStop the subagent<br/>(dispatch resolves as timeout)"]:::hook
     d_fork{"Mid-execution design fork?"}
-    fork_review["4.2 Fork reviewer (opus,<br/>fresh-context; no subagent_type<br/>pinned in SKILL.md; serial,<br/>nested inside the task dispatch)"]:::dispatch
+    fork_review["4.2 Fork reviewer (opus,<br/>fresh-context; no subagent_type<br/>pinned; bound by that agent's own<br/>maxTurns, not the 1h Monitor cap)"]:::dispatch
     d_report{"4.4 Subagent report status?"}
     verify["5.1-5.2 Verify diff, checklist,<br/>planned-test presence"]
     skill_planned_test["Load references/<br/>planned-test-verification.md"]:::skill
@@ -52,11 +52,11 @@ flowchart TD
     d_verdict_pass{"5.5 Run implement-loop-state.sh:<br/>verdict?"}:::hook
     gate_dispatch["8. Dispatch deep-reviewer:<br/>batch test-presence gate<br/>(opus, effort high, maxTurns 64)"]:::dispatch
     d_gate{"All planned tests found<br/>(or every task N/A)?"}
-    gate_fix["8. Re-dispatch task(s) with<br/>missing titles (tdd-coder,<br/>sonnet, try-once)"]:::dispatch
+    gate_fix["8. Re-dispatch task(s) with<br/>missing titles (tdd-coder, sonnet,<br/>try-once, same 1h Monitor cap<br/>as step 4)"]:::dispatch
     gate_regate["8. Re-gate once<br/>(deep-reviewer, opus, high)"]:::dispatch
     hook_write_guard["Hook: deep-reviewer-write-guard<br/>(auto-approves only verdict_*.md<br/>/ /tmp writes, denies the rest)"]:::hook
     skill_batch_end["Load references/batch-end.md<br/>(owns the whole batch-end flow)"]:::skill
-    green_gate["9.1 Repo-green gate: full suite<br/>+ lint; cheap failures fixed by<br/>the orchestrator itself, its own<br/>commit (permission-gated);<br/>structural failures become<br/>[Scout] items, unfixed"]:::gate
+    green_gate["9.1 Repo-green gate: full suite<br/>+ lint; cheap failures fixed by<br/>the orchestrator itself, its own<br/>commit (autonomous, no human<br/>gate); structural failures become<br/>[Scout] items, unfixed"]:::gate
     d_green{"Repo green?"}
     d_tails{"Tails requested?"}
     tasklist_tails["9.2-9.3 TaskList: create 2 [Side]<br/>tail tasks (simplification,<br/>correctness lenses)"]:::state

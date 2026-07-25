@@ -134,6 +134,8 @@ The whole pipeline from `BATCH_BASE_SHA` capture through batch-end and PR creati
 §1.1 (locate plan/spec), §1.2 (interview), §1.3 (worktree setup), and §2 (orchestration review) run once for the whole list.
 §2 reviews the list's PR ordering and dependencies as a whole, which is cheaper and more useful than reviewing each PR in isolation.
 
+**Exception: §2.2's TaskList task creation repeats per PR.** Before dispatching each PR's first task, create entries only for that PR's own resolved task-ids — never every PR's tasks upfront.
+
 Before each PR's loop iteration: the defensive DAG re-check, label resolution, and checkout decision above, all run fresh for that PR.
 
 **Stop predicate, checked after each PR's own §9 completes:** proceed to the next PR only if every one of that PR's tasks reached `[Done]` (none terminal-without-`[Done]`) AND §9.1's repo-green gate passed.
@@ -143,3 +145,4 @@ Report the batch as it stands; the remaining PRs in the list are untouched.
 This mirrors §5.4's task-level chain-abort but at the PR level.
 A task failure inside one PR's batch already chain-aborts that PR's own dependents via the existing mechanism.
 This stop predicate is what additionally keeps a failed PR from starting the *next* PR in the list.
+A chain-aborted dependent (`reason: "blocked-upstream"`) is terminal-without-`[Done]` too — it fails this PR's every-task-`[Done]` check and halts here.

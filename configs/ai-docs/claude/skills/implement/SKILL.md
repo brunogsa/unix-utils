@@ -52,7 +52,7 @@ On no, this skill runs in the current checkout, and never merges or deletes a wo
 
 In a multi-task batch (`/implement 1, 2, 3`), **§1.1–§1.5 and §2 run once** at the start; **§1.6–§1.7 run once per task** as each becomes active.
 
-In a PR-label list (`/implement PR-1, PR-2`), the boundary shifts: §1.1–§1.3 and §2 run once for the whole list; §1.4–§9 repeat once per PR, in order — see [`references/pr-awareness.md`](references/pr-awareness.md).
+In a PR-label list (`/implement PR-1, PR-2`), the boundary shifts: §1.1–§1.3, §2, §2.1 run once for the whole list; §2.2 and §1.4–§9 repeat once per PR — see [`references/pr-awareness.md`](references/pr-awareness.md).
 
 ### 1.1. Locate the plan (and spec)
 
@@ -166,7 +166,7 @@ Full resolution, branch-creation, and stop-predicate mechanics live in [`referen
 
 Runs only when §1.2's toggle is yes; on no, skip to §2.1, dispatch the first task.
 
-Spawn a review subagent **once per invocation**, after pre-flight and before dispatching.
+Spawn a `deep-reviewer` subagent (Agent tool, `subagent_type=deep-reviewer` — its frontmatter pins model/effort, no override) once per invocation, after pre-flight and before dispatching.
 Conduct an adversarial review of the whole batch (not per-task).
 Fresh context: the plan was authored in-session, already convinced — reviewer sees only artifacts + question.
 
@@ -208,6 +208,7 @@ This complements the Stop hook: the hook blocks *stopping* before the batch is p
 ### 2.2. Create all matched tasks in the TaskList upfront
 
 Before dispatching task 1, create one TaskList entry for **every** task-id in this batch — not just the first one.
+In a PR-label run, **this batch** means only the current PR's task-ids — §1.8's per-PR loop repeats this step fresh entering each PR, never every PR's tasks upfront.
 
 Mark the first task `in_progress` and every other task `pending`. This shows the user the whole batch from the start, instead of tasks appearing one at a time as they activate.
 
@@ -274,6 +275,8 @@ The task subagent does **not** spawn a reviewer by default — the plan was alre
 
 The escape hatch itself lives in the agent definition.
 On a mid-execution design fork the plan didn't pre-decide, tdd-coder spawns a fresh-context reviewer with explicit `model=opus` (judgment tier; the subagent-model-guard hook denies an unnamed model on an unpinned agent type).
+This nested dispatch has no subagent_type pinned, so its turn bound is that agent definition's own maxTurns.
+Never the orchestrator's 1-hour Monitor cap — that wraps only §4's and §8's top-level dispatches.
 
 The orchestrator only sees the outcome:
 
@@ -352,6 +355,7 @@ Also `TaskUpdate` each chain-aborted dependent's TaskList `metadata.gate_outcome
 
 **Pick the next task yourself — the script can't.** `next-task` only comes out of a `pass` attempt (§5.5), and this task didn't pass.
 Scan `tasks[]` in order for the first entry whose `status` is neither `done` nor `blocked`, and re-run §1.6–§1.7 + §3 on it.
+§1.7 here is a direct pick, not a resume — its resume-reconcile mechanics apply only to an actual stale or dirty run.
 Find none — every task is terminal. Set `phase: "gates"` and move to §8's batch test-presence gate.
 
 ### 5.5. Advance
@@ -437,6 +441,7 @@ A `halt-budget` verdict never reaches here: it routes straight to §9 from §5.3
 **Dispatch.**
 Spawn ONE `deep-reviewer` subagent via the Agent tool — fresh context, that agent type's pinned model and effort (no override needed).
 Pass it the resolved `plan_<slug>.md` path, the diff range `<BATCH_BASE_SHA>..HEAD`, and the batch's task IDs, read from the state file's `tasks[]`.
+`BATCH_BASE_SHA` here is this run's own base — the current PR's, captured fresh per §1.4 — never the whole PR-label list's start.
 
 **What the deep-reviewer does.**
 Iterate exactly the batch task IDs it was handed — never every `### N.` heading in the plan, which lists tasks other runs owned.
@@ -452,6 +457,7 @@ Set `phase` to `tails` and proceed to §9.
 
 **Any missing — run one fix round, try-once.**
 For each task with missing titles, re-dispatch THAT task's subagent (fresh, per §4) with missing titles as feedback.
+The same 1-hour Monitor cap from §4 applies here too — every tdd-coder dispatch, including this gate-fix re-dispatch, gets it.
 The subagent owns writing them (RED → GREEN), never hand-write tests.
 Increment `gate_dispatches` in the state file by one per fix dispatch.
 Add each dispatch's token count into `.tails.tokens.gate` — the metrics script sums it.
