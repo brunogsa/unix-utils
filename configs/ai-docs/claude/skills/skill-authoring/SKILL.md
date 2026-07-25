@@ -102,6 +102,17 @@ Keep that text in SKILL.md — get under the word budget with real trims, or set
 
 Why: an always-read reference loads the same words every run plus a Read round-trip — it saves nothing and hides the cost from the budget gate, which exists to measure that cost.
 
+## Procedural skills ship a human-facing assets/flowchart.md
+
+A step-shaped (procedural/orchestrator) skill should carry `assets/flowchart.md`: an H1 title, a preamble marking it human-facing and non-authoritative (SKILL.md's numbered steps win on conflict), then one mermaid flowchart of the control flow.
+The flowchart includes steps, decisions, loops, and subagent dispatches.
+
+Reference it from SKILL.md with a one-liner that tells the model NOT to load it.
+Regenerate it whenever the skill's flow changes, and validate the render with `mmdc` (dispatch the `mermaid-fixer` agent on failures); author it under the `mermaid-diagrams` skill.
+
+Why: to the model, mermaid is just a second text encoding of the numbered steps — a drift-prone second source of truth that would tax every trigger if in-body.
+The human gets an at-a-glance flow audit; parking it in assets keeps that value at zero context cost.
+
 ## Pin an explicit model on every subagent dispatch a skill prescribes
 
 Name the model in the dispatch instruction: `sonnet` for mechanical or tool-driving steps, `haiku` for trivial transforms.
