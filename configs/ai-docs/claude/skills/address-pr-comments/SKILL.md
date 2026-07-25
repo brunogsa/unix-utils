@@ -104,7 +104,7 @@ Also probe for lint/test runners using 1c's table below (read-only — don't run
 
 Ask, in one message, only the questions whose condition holds:
 - **Dirty tree** (only if git status printed output) — list the dirty files, ask whether to commit now.
-- **Lint/test runners** (only if 1c's table matched multiple or none) — ask which commands to use.
+- **Green baseline checker** (only if 1c's table matched multiple or none) — ask which lint/test commands establish 1c's green baseline.
 - **Refactor + auto-review tails after this batch?** (yes/no, default no) — always asked.
 
 The moment answers arrive, persist them to `/tmp/address-pr-comments-runs_<pr>_<ts>.json` — see "Scratchpad + TaskList state" above. A mid-flow compaction must not lose them.
