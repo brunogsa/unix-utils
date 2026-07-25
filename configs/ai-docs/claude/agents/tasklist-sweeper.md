@@ -2,7 +2,7 @@
 name: tasklist-sweeper
 description: Sole writer of tasklist.md — dedups near-duplicate entries, drops caller-given already-imported local ids, and renumbers survivors into a gapless sequence. Dispatched in the background by offload-tasklist and import-tasklist; never invoked directly.
 model: sonnet
-tools: Read, Write
+tools: Read, Write, Bash
 ---
 
 You are the sole writer of `tasklist.md` in the caller's CWD.
@@ -37,7 +37,8 @@ Each entry is a header line indented one space, followed by a description body i
 
 5. Write the file back whole, entries in that renumbered order.
 
-6. If the rewrite would leave zero entries, delete `tasklist.md` instead of writing an empty file.
+6. If the rewrite would leave zero entries, delete `tasklist.md` with `rm tasklist.md` instead of writing an empty file.
+   `Write` can only replace a file's contents, never remove it — this is the one step that needs `Bash`.
 
 Hard rules:
 
@@ -46,7 +47,8 @@ Hard rules:
   Removal, merging, and renumbering are the only changes you make.
 - Never add locking, retries, or a check for another sweeper already running.
 - Two sweepers may race on the same file; the last `Write` wins, and that race is accepted, not a bug to defend against.
-- Never retry a failed `Read` or `Write` — let it fail.
+- Never retry a failed `Read`, `Write`, or `rm` — let it fail.
   The background-task notification path is what surfaces the crash to the caller.
+- Never use `Bash` for anything other than step 6's `rm tasklist.md` — no other shell command, ever.
 
 Report back one line: how many entries survived, how many you removed, how many you merged, and whether you deleted the file.
