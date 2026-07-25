@@ -110,7 +110,7 @@ The flowchart covers, at minimum:
 
 - The trigger/invocation that starts the skill, its steps/phases, and every loop with its exit condition.
 - User-interaction points: the questions asked (interviews, toggles) and the manual gates where the human approves before flow continues.
-- Durable-state writes: TaskList usage (tasks created, `[Remind]` entries) and scratchpad/run-state updates, each with a short why.
+- Durable-state writes: TaskList usage (tasks created, `[Reminder]` entries) and scratchpad/run-state updates, each with a short why.
 - Delegation: other skills loaded, and every subagent dispatch labeled with agent type, model, effort, and parallel (∥) vs serial.
 - Hooks/scripts that steer the flow (state machines, Stop hooks).
 

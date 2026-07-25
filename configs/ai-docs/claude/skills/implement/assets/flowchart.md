@@ -14,7 +14,7 @@ flowchart TD
   worktree_setup["1.3 EnterWorktree + symlink<br/>plan/spec/branches files,<br/>copy .env*"]
   d_review{"Pre-dispatch review requested?"}
   orch_review["2. Orchestration review<br/>(deep-reviewer, opus, high;<br/>fresh-context, adversarial)"]:::dispatch
-  seed_remind["2.1 TaskList: seed ONE [Remind] task<br/>(subject = arrow chain, survives<br/>compaction):<br/>gate to tails(refactor par review) to<br/>triage to PR(create-pr, if wanted) to<br/>diffview; metadata tracks each<br/>step pending or done"]:::state
+  seed_remind["2.1 TaskList: seed ONE [Reminder] task<br/>(subject = arrow chain, survives<br/>compaction):<br/>gate to tails(refactor par review) to<br/>triage to PR(create-pr, if wanted) to<br/>diffview; metadata tracks each<br/>step pending or done"]:::state
   seed_tasks["2.2 TaskList: create matched tasks<br/>(this PR's only, if PR-label run);<br/>1st in_progress, rest pending;<br/>metadata: pr_label, attempt_count=0,<br/>gate_outcome=pending"]:::state
   d_prlabel{"Arg is PR-label(s)?"}
   skill_pr["Load references/pr-awareness.md"]:::skill
@@ -62,13 +62,13 @@ flowchart TD
     tasklist_tails["9.2-9.3 TaskList: create 2 [Side]<br/>tail tasks (simplification,<br/>correctness lenses)"]:::state
     skill_tail_pair["Load code-review-pipeline/<br/>references/deep-reviewer-tail-pair.md"]:::skill
     tails["9.2 par 9.3 Dispatch refactor +<br/>auto-review deep-reviewer tails<br/>(BOTH opus, effort high, PARALLEL,<br/>mandatory, report-only)"]:::dispatch
-    tails_record["Record tails report paths + tokens<br/>into state file; TaskUpdate tail<br/>TaskList metadata; strike this<br/>[Remind] step"]:::state
+    tails_record["Record tails report paths + tokens<br/>into state file; TaskUpdate tail<br/>TaskList metadata; strike this<br/>[Reminder] step"]:::state
     triage["9.4 Triage: synthesize +<br/>apply-offer both reports"]
     pr_manifest["9.5 branches_&lt;slug&gt;.md:<br/>append-branch-pr-entry.sh<br/>(PR-label runs only)"]:::state
     d_pr{"Draft PR requested?"}
     pr_dispatch["9.5 Dispatch create-pr agent<br/>(sonnet, effort medium,<br/>draft-only scope)"]:::dispatch
     push_pr["Push branch + gh pr create --draft<br/>(or PATCH existing PR body)"]:::gate
-    package["9.5 Present batch-end package;<br/>run implement-loop-metrics.sh;<br/>strike remaining [Remind] steps<br/>as they land; write presented_at"]
+    package["9.5 Present batch-end package;<br/>run implement-loop-metrics.sh;<br/>strike remaining [Reminder] steps<br/>as they land; write presented_at"]
     d_pr_ok{"This PR/batch: all tasks Done<br/>AND gate passed?"}
   end
 

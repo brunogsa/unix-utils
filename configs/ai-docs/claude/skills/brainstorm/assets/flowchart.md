@@ -6,7 +6,7 @@ Human-facing overview for auditing the flow at a glance. Non-authoritative — t
 flowchart TD
   start(["User runs /brainstorm [path/to/spec_&lt;slug&gt;.md]"]):::start
   skillLoad["Load spec-driven-development skill alongside brainstorm<br/><br/>spec template + marker conventions"]:::skill
-  taskList["Mirror steps 1-8 as TaskList entries (category [Remind]), once, at skill start;<br/>update each as it completes — TaskList itself survives compaction, no re-mirroring"]:::state
+  taskList["Mirror steps 1-8 as TaskList entries (category [Reminder]), once, at skill start;<br/>update each as it completes — TaskList itself survives compaction, no re-mirroring"]:::state
   d1{"Path provided?"}
   n1["Read the provided spec file"]
   n2["Glob spec_*.md in CWD (top-level)"]

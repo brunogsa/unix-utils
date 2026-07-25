@@ -7,7 +7,7 @@ flowchart TD
   start(["User invokes<br/>spec-driven-development"]):::start
   preflight["Pre-flight interview:<br/>ask 2 toggles<br/>(AC-traceability? Right-sized?)"]:::gate
   persistToggles["Persist toggle answers to<br/>/tmp/sdd_&lt;session_id&gt;.json"]:::state
-  mirrorRemind["Mirror lifecycle steps 0-9<br/>as TaskList [Remind] entries"]:::state
+  mirrorRemind["Mirror lifecycle steps 0-9<br/>as TaskList [Reminder] entries"]:::state
   designDocsSkill["Load design-docs skill:<br/>ownership + altitude rules<br/>(spec/plan vs ADR/HLD/LLD)"]:::skill
   createSpec["Step 0: user creates spec_&lt;slug&gt;.md<br/>(or /brainstorm refines it)"]
   specOnDisk{"spec_&lt;slug&gt;.md<br/>exists on disk?"}

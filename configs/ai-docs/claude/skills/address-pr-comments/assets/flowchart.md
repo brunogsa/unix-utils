@@ -6,7 +6,7 @@ Human-facing overview for auditing the flow at a glance. Non-authoritative — t
 flowchart TD
   invoke(["/address-pr-comments PR# [filters]"]):::start
   createState["Create run-state file<br/>/tmp/address-pr-comments_&lt;session_id&gt;_&lt;ts&gt;.json"]:::state
-  remindTask0["Global CLAUDE.md rule:<br/>add [Remind] TaskList entry<br/>per remaining step (0-8)"]:::state
+  remindTask0["Global CLAUDE.md rule:<br/>add [Reminder] TaskList entry<br/>per remaining step (0-8)"]:::state
   probe0["Step 0: git status --porcelain;<br/>probe lint/test runner markers (read-only)"]
   askBatch["Step 0: Ask in ONE message<br/>(only conditions that hold)<br/><br/>- Dirty tree -&gt; commit now? (if dirty)<br/>- Green baseline check? (default no)<br/>- Runner pick (if ambiguous/none)<br/>- Tails after this batch? (default no)"]:::gate
   persistAnswers["Persist step-0 answers to<br/>run-state file - survives compaction"]:::state

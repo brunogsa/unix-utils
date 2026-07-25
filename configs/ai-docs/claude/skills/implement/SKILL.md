@@ -174,18 +174,18 @@ Challenge the batch as a whole: approach, ordering, dependencies, verification s
 
 This is the orchestrator's only plan-level review; the task subagent has its own mid-execution fork lever (§4.2).
 
-### 2.1. Seed the batch-end `[Remind]` task (survives compaction)
+### 2.1. Seed the batch-end `[Reminder]` task (survives compaction)
 
-Right after the review and before the first dispatch, create **one `[Remind]` task per invocation** anchoring the whole §9 batch-end procedure in the TaskList.
+Right after the review and before the first dispatch, create **one `[Reminder]` task per invocation** anchoring the whole §9 batch-end procedure in the TaskList.
 Create it once per invocation, never per task.
-This is the CLAUDE.md `[Remind]` category — a durable reminder to run a later step, producing no commit of its own.
+This is the CLAUDE.md `[Reminder]` category — a durable reminder to run a later step, producing no commit of its own.
 
 **Put the ordered step list in the task SUBJECT, not a description field** — only the subject re-surfaces in the turn-by-turn reminder.
 A description needs an explicit `TaskGet` to read back, so after compaction it's as lost as the doc.
 Encode the finalize checklist as an arrow chain in the subject — substituting the real sha for `<BATCH_BASE_SHA>`:
 
 ```
-[Remind] Batch-end §9: gate → tails(refactor∥review) → triage → PR(create-pr, if wanted) → nvim DiffviewOpen <BATCH_BASE_SHA>
+[Reminder] Batch-end §9: gate → tails(refactor∥review) → triage → PR(create-pr, if wanted) → nvim DiffviewOpen <BATCH_BASE_SHA>
 ```
 
 The steps map to: repo-green gate (§9.1) and the two parallel review tails (§9.2 ∥ §9.3).

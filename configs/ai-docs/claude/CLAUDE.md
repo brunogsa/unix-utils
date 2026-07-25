@@ -228,7 +228,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] Reload each `*-standards` skill lazily instead — when its trigger next fires, never on the compaction itself.
   - [Why] Standards are stateless guidance, so reloading one before its trigger fires buys nothing and just re-taxes the context the compaction freed.
 
-- [Instruction] **Mirror remaining steps as TaskList entries** -- when a step-shaped skill starts, add each remaining step as a `[Remind]` entry and complete it as it runs.
+- [Instruction] **Mirror remaining steps as TaskList entries** -- when a step-shaped skill starts, add each remaining step as a `[Reminder]` entry and complete it as it runs.
   - [Why] Steps were observed skipped after compaction; TaskList survives compaction and re-surfaces every turn, so the sequence can't vanish with the summary.
 
 - [Instruction] Before producing a reader-facing artifact (report, review, research synthesis), consult the `html-artifacts` router — Markdown vs HTML vs Google Docs.
@@ -289,7 +289,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] `[Drift]` — collateral fix the current task is blocked on (needed mid-flight to make it work); bundle into the base commit if trivial, else its own commit.
   - [Why] Leave-it-better is worth it for small drifts that don't delay the real goal; a larger one burdens the goal's reviewer, so it earns its own commit or PR.
 
-- [Instruction] `[Remind]` — a durable reminder of a process step to run later; the step may or may not produce a commit; stays pending until it runs, then completes.
+- [Instruction] `[Reminder]` — a durable reminder of a process step to run later; the step may or may not produce a commit; stays pending until it runs, then completes.
   - [Why] The TaskList re-surfaces to the AI every turn and survives compaction, so a long unattended run through many compactions keeps the step visible instead of silently skipping it.
   - [Example] Batch-end procedure steps: run the repo-green gate, dispatch the review tails, finalize the PR, open the diff-review pane.
 
