@@ -78,15 +78,25 @@ description body indented three spaces — the same contract
    fold it in, producing the final shape
    ` <local-id>. [#<returned-id>][<category>] <title>` — the standard
    CLAUDE.md convention, with the entry's local id standing in for the
-   ` <id>. ` slot the convention already asks for.
+   ` <id>. ` slot the convention already asks for. `TaskUpdate` returns
+   a result object rather than throwing on failure (`success: false`,
+   with an `error` string) — inspect every call's `success` field;
+   watching only for a thrown error would silently swallow a
+   well-formed fold-in request that still failed, leaving the task's
+   subject stuck at its unfolded ` <local-id>. [<category>] <title>`
+   shape.
 
 6. Track the local id of every entry that was successfully imported
-   (`TaskCreate` + its follow-up `TaskUpdate` both succeeded).
+   (`TaskCreate` returned an id, and its follow-up `TaskUpdate`
+   returned `success: true`). An entry whose `TaskCreate` or
+   `TaskUpdate` failed keeps its line in `tasklist.md` — it must never
+   appear in step 7's removal list, or the backlog would lose the only
+   record of a task that never made it into the TaskList.
 
 7. Spawn `tasklist-sweeper` with `run_in_background: true`, passing the
-   list of local ids from step 6 as already-imported ids to remove.
-   Spawn it once, after every selected entry has been attempted — never
-   per-entry.
+   list of local ids from step 6 — successes only — as already-imported
+   ids to remove. Spawn it once, after every selected entry has been
+   attempted (succeeded or failed) — never per-entry.
 
 ## What this skill never restores
 
@@ -114,6 +124,11 @@ ambiguity that only affects id-based selection.
 - Entries imported: report how many tasks were created, and name any
   requested local id that was skipped because it did not resolve.
 
+- Any `TaskCreate` or `TaskUpdate` failed for one or more entries: name
+  every failed entry's local id and the error, and note that each stays
+  in `tasklist.md` untouched — it was excluded from the sweeper's
+  removal list — so the caller can retry it.
+
 - Missing file: report that there was nothing to import. No
   `TaskCreate` call was made, no sweeper was spawned.
 
@@ -132,3 +147,7 @@ ambiguity that only affects id-based selection.
   equivalent on a given entry.
 - Never spawn `tasklist-sweeper` more than once per invocation, and
   never before every selected entry has been attempted.
+- Never skip inspecting a `TaskCreate` or `TaskUpdate` result for
+  failure — passing a failed entry's local id to the sweeper would
+  delete its only remaining record, since that entry never became a
+  TaskList task.
