@@ -60,7 +60,7 @@ Why:
 
 ### 3. Interview the user
 
-At interview start, create `/tmp/brainstorm_<slug>.md` (provisional slug if not yet finalized).
+At interview start, create `/tmp/brainstorm_<slug>_<ts>.md` (`<ts>` = run-start timestamp `date +%Y%m%d-%H%M%S`; provisional slug if not yet finalized).
 Persist each decision with its why, each discarded alternative with why it lost, and open questions — as they happen, not at the end.
 Why: a compaction mid-interview drops session memory entirely; the file survives so you re-ground instead of re-deriving lost ground.
 On resume or after a compaction, re-read this file first and trust it over recalled context.
@@ -74,6 +74,10 @@ Ask clarifying questions (Socratic style). Focus on:
 - What's unclear? (Open Questions)
 
 Ask 2-3 questions per round. Don't overwhelm.
+
+**Prefer the AskUserQuestion tool for each round** — options with your recommended answer first — over free-text chat questions; fall back to chat only when a question can't be shaped into options.
+
+This skill is the deliberate exception to the ask-everything-up-front pre-flight pattern other procedural skills follow: the interview IS the skill, and each round depends on the previous answer.
 
 **Split facts from decisions before asking.** Anything discoverable from the codebase, session context, or a web search is legwork — look it up yourself, never ask it.
 Questions to the user are reserved for genuine decisions: preferences, priorities, and context only they hold.

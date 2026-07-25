@@ -8,6 +8,19 @@ disable-model-invocation: false
 
 Lightweight workflow using two living documents in CWD to guide development, code review, and PR description generation.
 
+## Pre-flight interview (the first thing, every run)
+
+The moment this skill starts — before any spec or plan work — ask one message with two independent yes/no toggles:
+
+- **"Every line traces to an AC?"**
+- **"Right-sized plan?"**
+
+They govern the two toggleable self-review checks (see "Self-review both spec and plan" below).
+Answered fresh each run — never reused from a previous run, never written to `plan_<slug>.md` or any committed state file.
+
+The moment the answers arrive, persist them to `/tmp/sdd_<slug>_<ts>.json` (`<ts>` = run-start timestamp `date +%Y%m%d-%H%M%S`; provisional slug if not yet finalized).
+The self-review checks consume them only after `plan-writer` returns, and a compaction in that window must not lose them — session-scoped noting, not the banned cross-run persistence.
+
 ## Documents
 
 Two living documents in CWD. Templates live in `assets/` and are populated based on the user's input.
@@ -61,7 +74,7 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 0. User creates spec_<slug>.md with initial prompt/notes (or `/brainstorm` refines it).
 1. Dispatch the `plan-writer` subagent to write plan_<slug>.md from spec_<slug>.md alone — same mechanism regardless of whether the spec came from `/brainstorm`, plan mode, or a direct request.
    - Exception: a plan requested straight from a prompt with no spec_<slug>.md on disk skips plan-writer (spec-only input) — write it in-session instead.
-2. AI Self-review — qualitative pass, then seven formal checks (five always-on, two toggled by one live question asked once).
+2. AI Self-review — qualitative pass, then seven formal checks (five always-on, two toggled by the pre-flight interview at skill start).
 3. User reviews and approves — then run `/clear` and invoke `/implement` in a fresh session; never continue in this one.
    - Why: `/implement` re-grounds from spec_<slug>.md and plan_<slug>.md on disk, so carrying this session forward only blurs planning-vs-execution cost.
 4. Each plan_<slug>.md task becomes a TaskCreate item.
@@ -88,14 +101,8 @@ First, a qualitative pass — spawn one sub-agent that reads both docs with fres
 - **Density**: spawn the `density-fixer` subagent on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check/rewrite density violations inline.
   - The subagent runs `check-density.sh` and applies the `density-rules.md` rewrite patterns until exit 0, without dropping information.
 
-Immediately before dispatching `plan-writer` (or writing the plan in-session on the spec-less exception path), the orchestrating session asks one live question with two independent yes/no toggles.
-It is answered fresh each run — never reused from a previous run, never written to `plan_<slug>.md` or any committed state file:
-
-- **"Every line traces to an AC?"**
-- **"Right-sized plan?"**
-
-The moment the answers arrive, note them in the session's /tmp scratchpad (e.g. `/tmp/sdd_<slug>.md`).
-The checks consume them only after `plan-writer` returns, and a compaction in that window must not lose them — session-scoped noting is not the cross-run persistence banned above.
+The two toggles were already asked at skill start — the "Pre-flight interview" section at the top of this SKILL.md — and persisted to `/tmp/sdd_<slug>_<ts>.json`.
+Read them from that file here; never re-ask them at this point.
 
 Seven formal checks run in sequence (five always-on + the two toggles above):
 

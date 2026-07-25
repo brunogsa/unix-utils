@@ -57,7 +57,7 @@ The PR number alone is enough — both filters are optional.
 
 Subagents can't post replies, commit, or push — permission UIs live in main. Fetching + filtering + clustering is heavy and read-only. Split:
 
-1. **Main context** — steps 1, 2, 4–7 (preconditions, resolve repo/login, selection, commit, push, reply).
+1. **Main context** — steps 0–2, 4–7 (pre-flight interview, preconditions, resolve repo/login, selection, commit, push, reply).
 2. **Subagent** (`general-purpose`, background — the default) — step 3 (fetch, filter, cluster, rank, propose actions and drop reasons). Returns only the proposal block — raw comment JSON never reaches main.
 
 Spawn the subagent with `model: "sonnet"` and `description: "Fetch, cluster, and rank PR review comments"`.
@@ -66,7 +66,9 @@ If the subagent reports zero unresolved comments matching the filters, stop — 
 
 ## Scratchpad + TaskList state
 
-At skill start, create `/tmp/apc-<pr>.md` — alongside the existing `/tmp/apc-lint.txt` / `/tmp/apc-test.txt` convention — this skill's durable working-state file.
+At skill start, create `/tmp/address-pr-comments-runs_<pr>_<ts>.json` (`<ts>` = run-start timestamp, `date +%Y%m%d-%H%M%S`) — this run's durable working-state file.
+
+JSON, not prose — the pre-flight answers and per-cluster state read back as structured fields, mirroring the implement skill's run-state file.
 
 Persist as produced, never at the end: the pre-flight answers first, then per-cluster state as it's decided — chosen action, drop/skip reason, resulting commit SHA.
 
@@ -90,6 +92,25 @@ Most load automatically via their description triggers; the explicit load points
 - `debug-standards` — when lint/test fails in step 1c or step 5.
 - `commit-standards` — at every commit boundary (step 1b, step 5).
 
+## Step 0: Pre-flight interview (main — the first thing, before any other step)
+
+Discover cheaply, then ask everything that applies in ONE message — mirrors the implement skill's up-front interview. Nothing else runs before this interview.
+
+```bash
+git status --porcelain
+```
+
+Also probe for lint/test runners using 1c's table below (read-only — don't run anything yet).
+
+Ask, in one message, only the questions whose condition holds:
+- **Dirty tree** (only if git status printed output) — list the dirty files, ask whether to commit now.
+- **Lint/test runners** (only if 1c's table matched multiple or none) — ask which commands to use.
+- **Refactor + auto-review tails after this batch?** (yes/no, default no) — always asked.
+
+The moment answers arrive, persist them to `/tmp/address-pr-comments-runs_<pr>_<ts>.json` — see "Scratchpad + TaskList state" above. A mid-flow compaction must not lose them.
+
+Steps 1b, 1c, and 1d below consume these persisted answers; they don't ask again.
+
 ## Step 1: Validate preconditions (main)
 
 All three must hold. If any fails, abort with the suggested fix — don't try to recover automatically.
@@ -104,28 +125,9 @@ CUR_BRANCH=$(git branch --show-current)
 If `PR_BRANCH != CUR_BRANCH`, abort:
 > Not on PR branch. Run: `gh pr checkout <n>`
 
-### Pre-flight interview (single batch, before 1b–1d execute)
-
-Discover cheaply, then ask everything that applies in ONE message — mirrors the implement skill's up-front interview.
-
-```bash
-git status --porcelain
-```
-
-Also probe for lint/test runners using 1c's table below (read-only — don't run anything yet).
-
-Ask, in one message, only the questions whose condition holds:
-- **Dirty tree** (only if git status printed output) — list the dirty files, ask whether to commit now.
-- **Lint/test runners** (only if 1c's table matched multiple or none) — ask which commands to use.
-- **Refactor + auto-review tails after this batch?** (yes/no, default no) — always asked.
-
-The moment answers arrive, persist them to `/tmp/apc-<pr>.md` — see "Scratchpad + TaskList state" below. A mid-flow compaction must not lose them.
-
-1b, 1c, and 1d below consume these persisted answers; they don't ask again.
-
 ### 1b. Clean working tree
 
-Use the persisted pre-flight answer above — if the tree was dirty, it says whether to commit now via `commit-standards`.
+Use the persisted step-0 answer — if the tree was dirty, it says whether to commit now via `commit-standards`.
 
 After the user commits or stashes, re-run the skill.
 
@@ -142,7 +144,7 @@ Discover the runners (cheap probe, no full project scan):
 | `pyproject.toml` | `ruff check .` / `flake8` | `pytest` |
 | `Cargo.toml` | `cargo clippy` | `cargo test` |
 
-If multiple or no markers matched, use the persisted pre-flight answer for which commands to use.
+If multiple or no markers matched, use the persisted step-0 answer for which commands to use.
 
 Run lint then test:
 
@@ -155,9 +157,9 @@ If either is red, abort — fix pre-existing breakage first so cluster commits d
 
 ### 1d. Tails toggle
 
-Use the persisted pre-flight answer (see the interview after 1a) for whether to run refactor + auto-review tails.
+Use the persisted step-0 answer for whether to run refactor + auto-review tails.
 
-This isn't a pass/fail precondition. The answer lives in `/tmp/apc-<pr>.md` for step 7d, surviving compaction — default no if unanswered.
+This isn't a pass/fail precondition. The answer lives in `/tmp/address-pr-comments-runs_<pr>_<ts>.json` for step 7d, surviving compaction — default no if unanswered.
 
 ## Step 2: Resolve repo + own login (main)
 

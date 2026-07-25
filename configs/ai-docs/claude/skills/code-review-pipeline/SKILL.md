@@ -26,19 +26,16 @@ The dispatch mechanics live here so both callers stay identical, each keeping on
 
 **Thinking depth.** The user may run `/effort max` before invoking the caller for maximum depth.
 
-**Fresh-session check — ask before dispatching, `Mode: local` only.** Confirm whether this session did NOT write the code under review.
+**Dispatch rule — auto-decided, no question asked.** The mode already determines whether the calling session is biased, so never ask the user:
 
-- Fresh session → run inline in the calling session (default below); no prior conversation biases the review.
-- Same session that wrote the diff → dispatch isolated, as if `--isolate` — CLAUDE.md's fresh-context-subagent rule: that session holds opinions the review must not inherit.
+- `Mode: local` (`/auto-review`) → **always dispatch isolated** (subagent path below). The calling session normally wrote the diff, so CLAUDE.md's fresh-context-subagent rule applies as a constant.
+- `Mode: github` (`/pr-review`) → **always run inline** — a fresh main session by convention, since review happens after the code already landed. `--isolate` still forces the isolated path when explicitly passed.
 
-**`Mode: github` skips this question** — always dispatch inline, as if the answer were "yes", unless `--isolate` was explicitly passed.
-`/pr-review` invocations are a fresh session by convention (review happens after the code already landed), so asking every time added friction with no real signal.
-
-**Default — calling session (no `--isolate`):** Read this SKILL.md and walk every wave (0 → 6) yourself, treating the resolved inputs as the "Parse the input header" step below.
+**Inline — `Mode: github` without `--isolate`:** Read this SKILL.md and walk every wave (0 → 6) yourself, treating the resolved inputs as the "Parse the input header" step below.
 
 Don't spawn Agents for the review itself (rationale at top) — the one exception is Wave 5's density fix, delegated to the `density-fixer` agent (see `wave5-emit.md`) as post-review cleanup.
 
-**Isolated — `--isolate`, or a non-fresh session:** Spawn one Agent with `model: "sonnet"`, put the resolved inputs in its prompt body, and tell it to read this SKILL.md and orchestrate from there.
+**Isolated — `Mode: local`, or `--isolate` passed:** Spawn one Agent with `model: "sonnet"`, put the resolved inputs in its prompt body, and tell it to read this SKILL.md and orchestrate from there.
 
 It runs the whole pipeline itself — no further Agents — the user sees only the final summary. The sonnet pin trades depth for cost, accepted as the isolation path's price ceiling.
 
