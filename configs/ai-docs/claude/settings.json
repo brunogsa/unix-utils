@@ -150,10 +150,6 @@
           {
             "type": "command",
             "command": "bash ~/.claude/scripts/tmux-window-title.sh --reset-counter"
-          },
-          {
-            "type": "command",
-            "command": "bash ~/.claude/hooks/settings-model-drift-guard.sh"
           }
         ]
       },

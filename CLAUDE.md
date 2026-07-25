@@ -39,8 +39,6 @@ The committed values are the declared defaults: `model` `sonnet`, `advisorModel`
 
 The writes are documented at code.claude.com/docs/en/model-config.md and .../advisor.md.
 
-The `settings-model-drift-guard.sh` SessionStart hook still warns when these keys differ from HEAD — expected for these three; its load-bearing job is the symlink-detachment check beside it.
-
 For a session-only model that never touches the file, use the `s` key inside the `/model` picker, or launch with `claude --model <m>` / `claude --advisor <m>`.
 
 **Permission-glob caveat**: in `settings.json` `permissions.allow`, an `Edit`/`Write` path glob with a SINGLE leading slash (`Edit(/tmp/**)`) is read as project-root-relative and silently matches nothing. A filesystem-absolute path needs a DOUBLE slash: `Edit(//tmp/**)`.
