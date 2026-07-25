@@ -8,6 +8,12 @@ The orchestrator didn't author the implementation, so it can judge it without se
 
 ## Procedure
 
+0. Check the task's own entry in plan_<slug>.md for a `**DECISION:** Skip planned-test check because <reason>` marker.
+   - Present → skip this entire check, proceed to §5.5 advance.
+     - Reserved for a task whose deliverable has no runtime to test against, such as a prompt-markdown skill or agent file.
+     - Test Design and the authoring-time coverage gates (`check-test-distribution.sh`, `check-ac-coverage.sh`) still apply in full; only this post-commit runtime check is bypassed.
+   - Absent → continue to step 1.
+
 1. Run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <N>` where `<plan-path>` is the active plan_<slug>.md and `<N>` is the current task number.
    - Exit 2 (usage / parse error) → abort the task: record the failure, surface in the batch-end report, do not mark `[Done]`.
    - Exit 1 (plan_<slug>.md malformed: missing `### N.` heading or missing `**Tests (planned)**:` bullet) → abort the task: record, surface, fix the plan before re-running.
