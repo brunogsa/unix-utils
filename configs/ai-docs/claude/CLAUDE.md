@@ -321,6 +321,24 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] Check both exit code and tail in one line, with `echo "exit: $?"` immediately after the slow command, before any `tail` — never trust exit code alone.
   - [Why] Some runners exit 0 on partial failure and only the tail shows the real summary; an `echo` after `tail` captures tail's `0` and masks the real failure.
 
+### RTK command proxy
+
+- [Instruction] Never hand-prefix a Bash command with `rtk` — write the plain command and let the `PreToolUse` hook rewrite it.
+  - [Why] The hook rewrites every Bash call to `rtk` transparently at zero token overhead (60-90% savings on dev operations), so a manual prefix only risks double-prefixing what the hook rewrites anyway.
+
+- [Instruction] Invoke rtk's own meta commands with an explicit `rtk` prefix — they are the one case the hook never produces.
+  - [Why] The hook only rewrites *other* tools' commands, so rtk's analytics and its escape hatch have no unprefixed form to rewrite and must be typed directly.
+
+```bash
+rtk gain              # token savings analytics
+rtk gain --history    # per-command usage history with savings
+rtk discover          # mine Claude Code history for missed opportunities
+rtk proxy <cmd>       # run <cmd> raw, bypassing rtk's filtering
+```
+
+- [Instruction] Route a `find` carrying compound predicates (`-o`, `-a`, or parenthesized groups) through `rtk proxy find`.
+  - [Why] `rtk find` rejects compound predicates outright, so the plain form just fails and `rtk proxy` is the documented way back to real `find`.
+
 ### Harness caveats & hygiene
 
 - [Instruction] **Truncated file content in system reminders is not exhaustive** -- with `[N lines truncated]` or similar, treat the visible portion as a snippet.
@@ -358,5 +376,3 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] **Verify mutating-subagent results against artifacts** -- check diff, file contents, or command output before treating a write-agent's "done" as done.
   - [Why] The summary describes intent; only the artifact shows reality.
-
-@RTK.md

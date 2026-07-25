@@ -237,9 +237,19 @@ else
     pipx install git-hunk
 fi
 
-# RTK (Rust Token Killer) — CLI proxy that compresses Bash output to cut Claude Code token burn.
-# Wired as a second PreToolUse Bash hook (rtk hook claude) in settings.json; RTK.md is symlinked below.
-# Verified to coexist with claude-git-guard/claude-rm-guard: a hook exit-2 (deny) outranks rtk's "allow".
+# RTK (Rust Token Killer) — CLI proxy that compresses Bash
+# output to cut Claude Code token burn.
+#
+# Wired as a second PreToolUse Bash hook (rtk hook claude)
+# in settings.json. Usage rules live in the global
+# CLAUDE.md under "RTK command proxy".
+#
+# Verified to coexist with claude-git-guard/claude-rm-guard:
+# a hook exit-2 (deny) outranks rtk's "allow".
+#
+# If `rtk gain` errors after install, the wrong `rtk` is on
+# PATH — reachingforthejack/rtk (Rust Type Kit) shares the
+# name. Check with `rtk --version` and `which rtk`.
 if command -v rtk &> /dev/null; then
     echo "rtk already installed, skipping"
 elif [[ "$OS" == "macos" ]]; then
@@ -256,12 +266,15 @@ mkdir -p ~/.claude
 # skills/ (see git log), so this only cleans up leftover dirs from machines
 # set up before that migration.
 rm -fr ~/.claude/commands ~/.claude/skills ~/.claude/scripts ~/.claude/agents
+# RTK.md has no matching `ln -sf` below by design: its rules
+# now live inline in CLAUDE.md (see git log), so this only
+# clears the stale symlink on machines set up before that.
+rm -f ~/.claude/RTK.md
 ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/skills ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/scripts ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/agents ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/settings.json ~/.claude/
-ln -sf ~/unix-utils/configs/ai-docs/claude/RTK.md ~/.claude/
 
 mkdir -p ~/.opencode
 rm -fr ~/.opencode/commands ~/.opencode/skills
