@@ -11,7 +11,7 @@ flowchart TD
   parseHeader["Parse input header<br/>(mode, PR/branch, language)"]
   loadWave0Refs["Load review-principles.md<br/>+ review-checklists.md<br/>(grounds every wave)"]:::skill
 
-  wave0Guard{"Wave 0: github -- PR closed/merged,<br/>or prior review detected?"}
+  wave0Guard{"Wave 0 (github-only): PR closed/merged,<br/>or prior review detected?"}
   abortWave0(["Abort: PR closed/merged<br/>or prior review found"])
 
   wave1["Wave 1: context prep<br/>create $work_dir, clone/diff,<br/>commentable-lines, skipped-files"]
@@ -77,13 +77,13 @@ flowchart TD
   parseHeader --> loadWave0Refs
   loadWave0Refs --> wave0Guard
 
-  wave0Guard -->|"yes"| abortWave0
-  wave0Guard -->|"no / local always proceeds"| wave1
+  wave0Guard -->|"yes (github)"| abortWave0
+  wave0Guard -->|"no (github) / no-op (local)"| wave1
 
   wave1 --> wave1Scripts
   wave1 -.->|"github + Jira URL given"| wave1Jira
   wave1 -.->|"local mode only"| wave1RepoWide
-  wave1 -->|"clone fails (github)"| abortClone
+  wave1 -->|"clone fails (github-only)"| abortClone
   wave1Scripts --> wave1State
   wave1Jira --> wave1State
   wave1RepoWide --> wave1State
@@ -114,7 +114,7 @@ flowchart TD
   wave4ResumeDecision -->|"no"| wave4
   wave4 --> findingsDecision
 
-  findingsDecision -->|"none"| noFindingsModeDecision
+  findingsDecision -->|"none (normal outcome)"| noFindingsModeDecision
   findingsDecision -->|"some"| wave5ModeDecision
 
   noFindingsModeDecision -->|"github"| noFindingsGithub

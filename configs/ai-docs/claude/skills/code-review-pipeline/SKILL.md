@@ -31,6 +31,8 @@ The dispatch mechanics live here so both callers stay identical, each keeping on
 - `Mode: local` (`/auto-review`) → **always dispatch isolated** (subagent path below). The calling session normally wrote the diff, so CLAUDE.md's fresh-context-subagent rule applies as a constant.
 - `Mode: github` (`/pr-review`) → **always run inline** — a fresh main session by convention, since review happens after the code already landed. `--isolate` still forces the isolated path when explicitly passed.
 
+**Order:** mode is known first, then this isolate-or-inline decision, then the chosen run parses the full input header below.
+
 **Inline — `Mode: github` without `--isolate`:** Read this SKILL.md and walk every wave (0 → 6) yourself, treating the resolved inputs as the "Parse the input header" step below.
 
 Don't spawn Agents for the review itself (rationale at top) — the one exception is Wave 5's density fix, delegated to the `density-fixer` agent (see `wave5-emit.md`) as post-review cleanup.
@@ -74,7 +76,7 @@ Deterministic check; no subagent needed. Only aborts on hard no-ops.
   If `prior_count > 0`, print `abort: prior review detected` and stop.
   - Every inline comment this pipeline posts carries the current signature (Wave 5), so any match means a run already reviewed this exact PR.
   - The pattern also matches the pipeline's prior signature text, so PRs reviewed before that text changed are still detected.
-- **local**: always proceed. Empty diffs surface naturally — Wave 5 writes "auto-review: no findings".
+- **local**: always proceed — Wave 0 is a no-op here (both guards above are github-only). Empty diffs surface naturally — Wave 5 writes "auto-review: no findings".
 
 ---
 
@@ -82,6 +84,8 @@ Deterministic check; no subagent needed. Only aborts on hard no-ops.
 
 Assemble everything every specialist needs on disk from GitHub PR or local repo.
 Implementation: github & local modes, tiny-PR fast-path — see [`references/wave1-context-prep.md`](./references/wave1-context-prep.md).
+
+This is where the `tiny_pr` flag (`added_lines < 100`) gets set; Wave 2 branches on it below.
 
 ---
 
@@ -200,6 +204,8 @@ We don't comment on code outside the diff — that's noise the author didn't ask
 
 **Persist**: write the surviving findings to `$work_dir/wave4-findings.json` before moving to Wave 5.
 
+Zero surviving findings here is a normal outcome, not an error — see Error handling below for what Wave 5 emits.
+
 ---
 
 ## Wave 5 — Emit
@@ -225,7 +231,7 @@ Print a terminal summary using the template at `references/wave6-summary-templat
   - Don't proceed to Wave 6's success summary.
   - Report the mismatch (actual state, actual vs. expected comment list) to the user verbatim so they can decide whether to clean up live GitHub artifacts themselves.
   - Don't delete or edit anything on GitHub without their explicit go-ahead, since submitted reviews and comments are visible to every collaborator.
-- **Clone fails (Wave 1)**: abort with a clear error and the target `work_dir` path. The review cannot proceed without the code on disk.
+- **Clone fails (Wave 1, github-only — `gh repo clone` never runs in local mode)**: abort with a clear error and `work_dir`'s path. Review cannot proceed without the code on disk.
 - **No findings at all**:
   - GH: skip the pending review entirely — don't post an empty review just to carry the guide.
     - Still post the Review Guide as a standalone PR comment (Wave 5's guide-posting step) so the human gets the context.

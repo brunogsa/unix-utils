@@ -82,10 +82,12 @@ If the human, after seeing the caller's package, names specific findings to appl
 
 Never do this as an unprompted default, and never as a repeating loop:
 
-- Dispatch a fresh `general-purpose` subagent (`model=sonnet`) that writes the test first, confirms it fails **RED** on the pre-fix code for the expected reason, then applies the fix and confirms **GREEN**.
+- Dispatch a fresh `general-purpose` subagent (`model=sonnet`, effort medium) that writes the test, confirms it fails **RED** on the pre-fix code for the expected reason, then applies the fix and confirms **GREEN**.
 - A fix whose test was never shown RED first isn't trusted — re-dispatch.
 - Verify the diff before trusting `done`.
 - Annotate the finding in its verdict file as `APPLIED` (with the fix commit SHA) or `SKIPPED` (with why).
+
+**Callers may override this generic routing.** `implement`'s `batch-end.md` routes by lens instead — refactor-lens findings to the `refactor` agent, auto-review-lens findings to `tdd-coder`.
 
 **Repeating this across rounds until the tails come back dry is `loop-auto-review`'s job, not this reference's**.
 
