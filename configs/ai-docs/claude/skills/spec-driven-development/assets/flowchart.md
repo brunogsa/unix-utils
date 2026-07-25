@@ -13,18 +13,19 @@ flowchart TD
   specOnDisk{"spec_&lt;slug&gt;.md<br/>exists on disk?"}
   writeInSession["Write plan_&lt;slug&gt;.md in-session<br/>(spec-only prompt, exception path)"]
   dispatchPlanWriter["Dispatch plan-writer subagent<br/>(opus, high effort, serial):<br/>writes plan_&lt;slug&gt;.md from spec alone"]:::dispatch
-  qualitativePass["Dispatch fresh-eyes subagent<br/>(general-purpose, inherits, serial):<br/>placeholders, contradictions, scope,<br/>PR size, ambiguity, completeness,<br/>human-reviewable, artifacts, density"]:::dispatch
+  qualitativePass["Dispatch deep-reviewer · opus · high<br/>(fresh-eyes, serial):<br/>placeholders, contradictions, scope,<br/>PR size, ambiguity, completeness,<br/>human-reviewable, artifacts, density"]:::dispatch
   scopeHidden{"Hidden decomposition<br/>revealed by interview?"}
   brainstormSkill["Load brainstorm skill:<br/>scope-probe step"]:::skill
   writeScopes["Write/update scopes.md"]
   prSizeLarge{"Work fits one<br/>reviewable PR?"}
+  prSizeGate{"Oversized PR: plan split,<br/>or user waives<br/>for this run?"}:::gate
   prBreakdown["PR Breakdown: split into<br/>ordered vertical PR sequence"]
   mermaidValid{"Any mermaid diagrams<br/>valid via mmdc?"}
   dispatchMermaidFixer["Dispatch mermaid-fixer subagent<br/>(haiku, default effort, serial)"]:::dispatch
   dispatchDensityFixer["Dispatch density-fixer subagent<br/>(haiku, default effort, serial):<br/>runs check-density.sh until exit 0"]:::dispatch
   normalizeBreadcrumbs["scripts/normalize-list-breadcrumbs.sh:<br/>upgrade bare it() titles<br/>to breadcrumbs"]:::hook
   formalChecks["Run seven formal checks in sequence<br/>(5 always-on + 2 toggled)"]
-  checkACTest["Every AC has a test:<br/>check-ac-coverage.sh, then dispatch<br/>deep-reviewer (opus, high, serial)<br/>for semantic match"]:::dispatch
+  checkACTest["Every AC has a test:<br/>check-ac-coverage.sh first;<br/>if it passes, dispatch<br/>deep-reviewer · opus · high<br/>for semantic match"]:::dispatch
   checkTestTask["Every test has a task:<br/>check-test-distribution.sh"]:::hook
   checkHowBreak["How would this break?<br/>checklist + inversion sweep<br/>(fail-closed, always runs)"]
   checkPRDag["PR dependencies form a DAG:<br/>check-pr-dag.sh"]:::hook
@@ -32,13 +33,15 @@ flowchart TD
   toggleTraceability{"Toggle: every line traces<br/>to an AC? (read from<br/>/tmp/sdd_&lt;session_id&gt;.json)"}
   checkTraceability["Check untraceable machinery<br/>(blocks if non-empty)"]
   toggleRightSized{"Toggle: right-sized<br/>plan check?"}
-  checkRightSized["Right-sized plan check<br/>(general-purpose, inherits, serial;<br/>advisory, never blocks)"]:::dispatch
+  checkRightSized["Right-sized plan check:<br/>dispatch deep-reviewer · opus · high<br/>(advisory, never blocks)"]:::dispatch
   allChecksPass{"All blocking<br/>checks pass?"}
   conflictSurfaced{"spec/plan<br/>disagree?"}
   resolveDrift["Surface each conflict to user<br/>and wait for their pick"]:::gate
   fixIssue["Fix flagged issue directly"]
   deltaRereview["Load delta-scoped-rereview.md:<br/>scope gates to diff only<br/>(round 2+)"]:::skill
   snapshotDocs["Snapshot spec+plan to<br/>/tmp/sdd-snapshots/<br/>(re-snapshot each hand-back)"]:::state
+  humanSnapshotReview{"User re-reviews fresh<br/>snapshot: approved?"}:::gate
+  rerunFailedCheck["Re-run only the failed check<br/>+ its delta re-review<br/>(never the full 7-check block)"]
   userApprove["Step 3: user reviews<br/>and approves"]:::gate
   clearImplement["/clear then /implement<br/>in fresh session<br/>(re-grounds from disk)"]:::skill
   taskCreateItems["Step 4: each plan task<br/>becomes a TaskCreate item"]:::state
@@ -65,7 +68,9 @@ flowchart TD
   brainstormSkill --> writeScopes
   writeScopes --> qualitativePass
   scopeHidden -->|"no"| prSizeLarge
-  prSizeLarge -->|"no: too large"| prBreakdown
+  prSizeLarge -->|"no: too large"| prSizeGate
+  prSizeGate -->|"user waives"| mermaidValid
+  prSizeGate -->|"split plan"| prBreakdown
   prSizeLarge -->|"yes"| mermaidValid
   prBreakdown --> mermaidValid
   mermaidValid -->|"no"| dispatchMermaidFixer
@@ -91,7 +96,10 @@ flowchart TD
   resolveDrift --> deltaRereview
   fixIssue --> deltaRereview
   deltaRereview --> snapshotDocs
-  snapshotDocs --> formalChecks
+  snapshotDocs --> humanSnapshotReview
+  humanSnapshotReview -->|"no: more annotations"| fixIssue
+  humanSnapshotReview -->|"yes"| rerunFailedCheck
+  rerunFailedCheck --> allChecksPass
   allChecksPass -->|"yes"| userApprove
   userApprove --> clearImplement
   clearImplement --> taskCreateItems

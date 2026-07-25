@@ -25,7 +25,8 @@ The self-review checks consume them only after `plan-writer` returns, and a comp
 
 Two living documents in CWD. Templates live in `assets/` and are populated based on the user's input.
 
-These throwaway docs feed from durable design docs (ADR / HLD / LLD). Load the `design-docs` skill for the ownership + altitude rules that keep spec/plan from re-deriving them.
+These throwaway docs feed from durable design docs (ADR / HLD / LLD).
+Load the `design-docs` skill at step 0 (spec authoring) for the ownership + altitude rules that keep spec/plan from re-deriving them.
 
 ### Naming convention
 
@@ -66,7 +67,7 @@ Technical approach and task breakdown. Generated from spec_<slug>.md (or directl
 
 Read `./assets/plan-template.md` when starting the plan phase, and populate it.
 
-Uses BDD/TDD by default: load the `test-driven-development` skill when starting the implementation phase.
+Uses BDD/TDD by default: load the `test-driven-development` skill at step 4 (per TaskCreate item, before implementing it).
 Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task itself).
 
 ## Lifecycle
@@ -77,7 +78,7 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 2. AI Self-review — qualitative pass, then seven formal checks (five always-on, two toggled by the pre-flight interview at skill start).
 3. User reviews and approves — then run `/clear` and invoke `/implement` in a fresh session; never continue in this one.
    - Why: `/implement` re-grounds from spec_<slug>.md and plan_<slug>.md on disk, so carrying this session forward only blurs planning-vs-execution cost.
-4. Each plan_<slug>.md task becomes a TaskCreate item.
+4. Each plan_<slug>.md task becomes a TaskCreate item — owned by `/implement` in the fresh post-`/clear` session; listed here for lifecycle continuity only.
 5. Both files updated as work progresses (living docs); decisions are append-only past the divider that exists on both spec_<slug>.md and plan_<slug>.md.
 6. User runs `/refactor` then `/auto-review` when the entire feature is developed; fixes are addressed, if any.
 7. User manually review the code. More fixes, if any.
@@ -86,12 +87,14 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 ### Self-review both spec and plan before handing it back (step 2 detail)
 
-First, a qualitative pass — spawn one sub-agent that reads both docs with fresh eyes and reports (findings only, no gate):
+First, a qualitative pass — dispatch the `deep-reviewer` agent to read both docs with fresh eyes and report findings (PR size below is the one blocking exception):
 - **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
 - **Contradictions**: do sections within the same doc disagree, or does plan_<slug>.md contradict spec_<slug>.md (e.g. spec assumptions overturned by planning, architectural choices superseding spec requirements)?
 - **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition? If yes, write/update `scopes.md` per the `brainstorm` skill's scope-probe step, then re-run this self-review.
+  - "This self-review" means the qualitative pass only — not the seven formal checks, which follow next regardless.
 - **PR size**: does the work fit one reviewable PR, or is it large enough to stage into several?
   - If large, **PR Breakdown** must split the tasks into an ordered PR sequence — vertical splits, each shipping its own tests + code + docs — not one oversized PR.
+  - Blocking gate: an oversized PR blocks approval until the plan is split, or the user explicitly waives it for this run.
   - Felt anchor: reviewer defect-detection drops past ~400 lines of diff and hard above ~600 (SmartBear/Cisco; Google small-CL) — no code exists yet, so estimate by feel, never invent a line count.
 - **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker for the user.
 - **Completeness**: does the Testable Acceptance Criteria section cover every Goal, Success Metric/KPI, User Story, and Non-Functional/Technical Requirement — and every corner case and failure mode?
@@ -99,6 +102,7 @@ First, a qualitative pass — spawn one sub-agent that reads both docs with fres
 - **Artifacts Valid**: If any mermaid diagram exists, are they valid, verified via `mmdc`?
   - A failing check routes to the `mermaid-fixer` subagent on the resolved doc path — never fixed inline.
 - **Density**: spawn the `density-fixer` subagent on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check/rewrite density violations inline.
+  - Runs last in the qualitative pass, after every content check above (including mermaid validation), before the seven formal checks begin.
   - The subagent runs `check-density.sh` and applies the `density-rules.md` rewrite patterns until exit 0, without dropping information.
 
 The two toggles were already asked at skill start — the "Pre-flight interview" section at the top of this SKILL.md — and persisted to `/tmp/sdd_<session_id>.json`.
@@ -123,8 +127,9 @@ A toggled-off check is simply omitted from that pass; self-review's output state
 - **Every AC has a test**: every `### AC-N:` in spec is proven by ≥1 test in the plan's AC-grouped coverage list.
   - Mechanical half — `scripts/check-ac-coverage.sh <plan> <spec>`: completeness (every AC in the spec's Acceptance-Criteria section has a coverage header).
     Honesty: every cited breadcrumb exists verbatim among Test Design breadcrumbs; a `…`-truncated or invented citation won't match.
-    Exit 1 blocks.
-  - Semantic half — a `deep-reviewer` dispatch judges whether each cited test actually *proves* its AC — the match no script can make.
+    Exit 1 blocks; the semantic half below runs only after this passes.
+  - Semantic half — runs only after the mechanical half passes (sequential, never parallel).
+    Dispatch `deep-reviewer` to judge whether each cited test actually *proves* its AC — the match no script can make.
   - Output: orphan ACs + bogus citations (empty = pass). Block plan approval if non-empty.
 
 - **Every test has a task**: `scripts/check-test-distribution.sh <plan>` asserts set-equality between the Test Design breadcrumbs (A) and the union of tasks' `**Tests (planned)**:` lists (B).
@@ -155,7 +160,7 @@ A toggled-off check is simply omitted from that pass; self-review's output state
 - **Every line traces to an AC** (toggle): every piece of machinery (abstraction, dependency, knob, extra layer) must trace to a spec AC or requirement.
   - Output: untraceable items (empty = pass). Block if non-empty — cut or earn an AC.
 
-- **Right-sized plan** (toggle, advisory): pass user's request + spec + plan to a subagent.
+- **Right-sized plan** (toggle, advisory): dispatch the `deep-reviewer` agent with the user's request + spec + plan.
   - Ask: does spec match request (no gold-plate), and is plan the simplest design meeting every AC?
   - Advisory even when its toggle is "yes" — surface findings and let the user decide, never blocks.
 
@@ -165,8 +170,12 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
 
 - **Delta-scoped re-review** — later self-review rounds scope the gates to what `diff` shows changed, not the whole doc again.
   - Load [`references/delta-scoped-rereview.md`](references/delta-scoped-rereview.md) on the second and later rounds.
+- **Formal-check recovery loop** — on a blocking failure, fix the issue, then re-run only that failed check plus the delta-scoped re-review above.
+  - Never re-run the full seven-check block from the top — only the one check that failed, plus its delta re-review.
+- **Snapshot hand-off loop** — before re-running the failed check, snapshot spec_<slug>.md + plan_<slug>.md to `/tmp/sdd-snapshots/` for the user's annotated-diff review.
+  - Each round of AI fixes produces a fresh snapshot; the loop exits only when the user approves it.
 - **Resolving spec/plan drift** — when plan_<slug>.md and spec_<slug>.md disagree, surface each conflict for the user before editing either doc.
-  - Load [`references/resolving-drift.md`](references/resolving-drift.md) when a conflict surfaces.
+  - Load [`references/resolving-drift.md`](references/resolving-drift.md) the moment a conflict first surfaces — any check, qualitative or formal; there is no fixed slot.
 
 ## Guidelines
 
