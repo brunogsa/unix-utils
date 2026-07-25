@@ -57,6 +57,8 @@
       "Bash(shellcheck *)",
       "Bash(git-hunk list *)",
       "Bash(git-hunk show *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
       "Bash(claude doctor *)",
       "Bash(npm view *)",
       "Bash(get-jira-issue *)",
