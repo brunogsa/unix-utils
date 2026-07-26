@@ -1,5 +1,13 @@
 [Template is in English. For non-English teams, translate section headers and body text to the team's primary language per the "Section names in the PR's primary language" rule in SKILL.md.]
 
+[Every section below obeys SKILL.md's non-overlap invariant: nothing rendered here may also appear in the appendix, and nothing in the appendix may repeat a body section.]
+
+[It also obeys SKILL.md's one-page goal: the whole file, appendix included, fits 64 rendered lines.
+
+Each section below opens with its own line allowance. SKILL.md owns those budgets, the measurement, and the cut order; the numbers here are a recap, not a second source of truth.
+
+Images, diagrams, blank lines, and collapsed content are free — a collapsed `<details>` costs only what its `<summary>` renders as.]
+
 [Review guide goes FIRST, before any content, collapsed by default:]
 
 <details>
@@ -8,84 +16,91 @@
 </details>
 
 ## Jira link
-[Bullet list of the ticket(s) this PR closes. Omit only when the repo tracks no tickets.]
+[Budget: 4 lines. Bullet list of the ticket(s) this PR closes, plus any related PR. Omit only when the repo tracks no tickets.]
 
 ## Context
-[Business context in scannable layers, per the "Context section" rule in SKILL.md (the rule is canonical; do not restate it here).
+[Budget: 17 lines — this heading plus at most 4 paragraphs of at most 4 lines each.
+
+Business context in scannable layers, per the "Context section" rule in SKILL.md (the rule is canonical; do not restate it here).
 
 Source it from spec_<slug>.md Background + Goals when available, cross-referenced with commit messages and the diff to confirm what was actually delivered.
 
 Always ground in commits, not just docs. This section carries the PR's summary — there is no separate Summary heading.]
 
-## Testable Acceptance Criteria
-[Format follows the "Testable Acceptance Criteria — verbatim from spec_<slug>.md" rule in SKILL.md (the rule is canonical; do not restate it here). Skeleton:
+## Changes
+[Budget: 9 lines — this heading plus 8 bullets, counting both group labels toward the 8.
+
+A changelog, not a narrative — read like game patch notes: one flat line per change, no sub-bullets, no bold-topic prose.
+
+Each bullet names the BEHAVIOR that changed, never the file that changed; the review guide already lists the files.
+
+Two groups, per the "Separate planned from incidental" rule in SKILL.md, which owns the group labels and what earns a bullet in each.
+
+Without plan_<slug>.md: derive the bullets from the diff and commit messages.]
+
+## Decisions
+[Budget: 19 lines — 3 headings plus 8 bullets for Functional and 8 for Technical, with either subsection free to spend the other's unused allowance.
+
+Decisions come BEFORE Architecture: the reviewer learns what was chosen, then sees it rendered in the diagrams.
+
+This is a HIGH-LEVEL SUMMARY of the main decisions. The full catalog lives verbatim in the appendix — see SKILL.md's altitude rule, which is canonical.
+
+Source: [DECISION: ...] markers from spec_<slug>.md and plan_<slug>.md, merged and deduplicated, then cut down to the ones that change behavior, cost, or risk.
+
+Anything a reader could settle by opening the code — a field choice, a file location, a signature — stays in the appendix only.
+
+Each entry reads decided → why → considered:
 
 ```
-### <AC title from spec, "AC-N:" prefix removed>
-- **Given** ...
-- **When** ...
-- **Then** ...
-- **And** ...
-
-> Covered by [manual tests](#scenario-N), [`path/to/spec.ts`](https://github.com/<owner>/<repo>/blob/<branch>/path), and/or [contract tests](#anchor).
+- **<what was decided, stated as the outcome>** — <why, in one clause>.
+  - Considered: <the rejected alternative> — <why it lost>.
 ```
 
-Use whichever combination of links applies — manual + integration + contract; omit any that don't apply.
+Drop `Considered` only when no alternative was genuinely weighed, and drop every entry the Architecture diagrams already encode.
 
-Source-code links MUST be absolute GitHub URLs (relative paths are unreliable in PR descriptions — see "Always use absolute GitHub URLs" rule in SKILL.md).
+Omit either subsection when it has no decisions; never pad it with a placeholder.]
 
-Do NOT inline payloads/screenshots/log output here. Those live in the Evidences appendix; the link puts the reviewer one click away.
+### Functional
+[Product/behavior choices a non-engineer stakeholder could disagree with.]
 
-This section comes BEFORE Architecture — it's the truth-criterion of the PR.]
+### Technical
+[Implementation choices only an engineer would weigh in on.]
 
 ## Architecture
-[**ALWAYS include this section** — never silently drop it.
-Mermaid diagrams extracted from spec_<slug>.md/plan_<slug>.md lives here, pasted verbatim (GitHub renders them natively), with highlights if possible.
-Each diagram preceded by a one-line caption. All encapsulated by collapsibles, `<details><summary>Caption here</summary> … </details>`. With 2+ diagrams, leave the first open and the rest closed by default.]
+[Budget: 5 lines — this heading plus at most 4 diagrams, each costing only its one-line caption.
 
-### Decisions
-[Decisions justify the high-level structure — they belong INSIDE Architecture, not as a peer section.
+**ALWAYS include this section** — never silently drop it.
 
-Primary: [DECISION: ...] markers from spec_<slug>.md and plan_<slug>.md.
-Start with the Functional Decisions, then list the Technical Decisions.
-Make them as short as possible, but optimize for clarity. It should be easy as possible to understand, don't assume reader the relevant context. Provide it as sub-bullet if necessary.
-Merge both sources, deduplicate if necessary.]
+Every mermaid diagram extracted from spec_<slug>.md/plan_<slug>.md lives here, pasted verbatim (GitHub renders them natively), with highlights if possible.
 
-## Changes
-[Compare git diff against plan_<slug>.md tasks (when available).
-Two groups:
+Each diagram sits in its own `<details open><summary>One-line caption</summary> … </details>`, expanded by default, including when there are several.
 
-- `**Planned:**` — tasks from the plan that were implemented.
-- `**Discovered along the way:**` — modifications not in the plan: side-effects,
-  cleanup, fixes discovered during implementation, scope adjustments.
-  Without plan_<slug>.md: organize changes from diff and commit messages.]
-
-## Checklist
-[Preserve the team's existing checklist verbatim — never rewrite, reorder, or prune its items.
-Prefix an item with "WARNING:" when it needs human coordination (maintenance window, on-call handoff, manual deploy step, irreversible migration).
-Omit this section entirely when the repo has no team checklist.]
+Diagrams are the fastest thing in the PR to review, so they must not start collapsed.]
 
 ## Evidences
+[Budget: 4 lines — this heading, the counted-tests line, and up to 3 collapsed manual scenarios.
 
-[Include ONLY categories that add value beyond GitHub's PR UI — the checks tab already renders lint/build/security/generic-CI as badges, don't duplicate them.
+Prove the change was tested, in the fewest words that still convince. Two parts, in this order: automated coverage, then manual evidence.
 
-Do NOT use markdown tables.
+**Automated coverage is ONE line**: how many tests were added and how many acceptance criteria they cover, pointing at the appendix for the criteria themselves.
 
-Typical sections worth including:
+Never index the criteria here — no per-criterion bullets, no happy-path/failure/corner-case groups.
 
-- **Manual tests** — primary evidence with no GitHub equivalent.
-  - One collapsible per scenario, each preceded by an explicit `<a id="scenario-N"></a>` anchor.
-  - GitHub does NOT auto-generate anchors from `<details><summary>` text — only from headings — so the anchor is mandatory for ACs to deep-link in.
-  - Setup/seed inventory in its own collapsible.
-  - Request + response (pretty-printed JSON, one field per line per the "JSON snippets" rule in SKILL.md).
-- **High-risk CI checks worth highlighting** — e.g., a migration that takes a maintenance-window lock, or a new integration suite worth calling out by count + scope.
-  - Link the run; don't restate what the green badge already says.
-- **Pre-prod / staging deploy** — only if you have the link + smoke result NOW; otherwise omit (don't park as `TODO collect post-merge`).
-- **Screenshots** — only when UI actually changed.
+The tests are in the diff and the criteria are in the appendix, so a body-side index is a third copy of both.
 
-Drop categories without value-add (lint, generic build, security scans, "N/A — backend-only" placeholders).
+**Manual evidence** covers only what automation could not prove. Omit the part entirely when everything is automated.
 
-Manual-test appendix layout:
+Each manual scenario sits in its own `<details>`, COLLAPSED by default, preceded by an explicit `<a id="scenario-N"></a>` anchor.
+
+Its methodology goes INSIDE that collapsed block, not above it: 2-3 sentences in plain words on what you ran, against what, and what you looked at.
+
+Then just enough log output or screenshots to show it ran and passed — not the full transcript.
+
+GitHub does NOT auto-generate anchors from `<details><summary>` text — only from headings — which is why the explicit anchor is mandatory.
+
+Drop lint, generic build, and security scans: the checks tab already renders those as badges. Screenshots only when UI actually changed.
+
+Manual-scenario layout:
 
 ```
 <a id="scenario-1"></a>
@@ -102,5 +117,51 @@ Manual-test appendix layout:
 ```
 ]
 
-## References
-[Jira links, related PRs, etc.]
+## Appendix — optional reading
+[Budget: 6 lines — this heading, at most 2 lines of intro, and one collapsed block per subsection.
+
+Collapsed by default, and explicitly labelled optional: the body plus the diff is the complete review. Its audience is deep divers and AI reviewers.
+
+One `<details>` per subsection below. Omit the whole section only when it would be empty.
+
+Source-code links MUST be absolute GitHub URLs (relative paths are unreliable in PR descriptions — see the "Absolute GitHub URLs" rule in SKILL.md).]
+
+### References
+[Follow-ups, external docs, and related PRs.
+
+A link already rendered in "Jira link" or "Context" never repeats here — that is the non-overlap invariant applied to links.]
+
+### <spec & plan details>
+[Contents are DERIVED, not chosen — the resolved spec/plan minus every section the body already renders.
+
+SKILL.md's "Derive the appendix's section list" owns the included/excluded lists. Never re-enumerate them here, since one enumeration is what keeps the two files from drifting.
+
+Omit these subsections entirely when no spec/plan resolved.
+
+Acceptance criteria live here and ONLY here — the body's Evidences carries just their count, never their titles or their BDD body.
+
+The decision catalog likewise lives here in full and verbatim, including the low-level entries the body's summary cut.
+
+Keep the spec's BDD content (Given/When/Then/And) verbatim EXCEPT for its numbered lookup tokens: strip every `AC-N`, `PR-N`, `D-N`, `R-N`, and `OQ-N`, wherever it sits.
+
+That is doc-standards' ban on citing a doc by a number that renumbers on the next edit, and it outranks the verbatim rule.
+
+A criterion's own `AC-N:` heading prefix just disappears; a token cited inline is replaced by the behavior it names, or dropped when the sentence already names it.
+
+Keep the spec's own criterion grouping as `### ` headings, so each criterion nests one level under its group:
+
+```
+### <group from spec — e.g. Happy path / Corner cases / Failure modes>
+
+#### <AC title from spec, "AC-N:" prefix removed>
+- **Given** ...
+- **When** ...
+- **Then** ...
+- **And** ...
+
+> Covered by [manual tests](#scenario-N), [`path/to/spec.ts`](https://github.com/<owner>/<repo>/blob/<branch>/path), and/or [contract tests](#anchor).
+```
+
+Use whichever combination of links applies — manual + integration + contract; omit any that don't apply.
+
+Do NOT inline payloads/screenshots/log output here. Those live in Evidences; the link puts the reviewer one click away.]
