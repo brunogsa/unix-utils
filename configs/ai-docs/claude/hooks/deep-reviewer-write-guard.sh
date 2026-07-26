@@ -2,11 +2,17 @@
 # PreToolUse guard for the deep-reviewer subagent (referenced from its frontmatter).
 #
 # deep-reviewer is a read-only judge. Its write affordances are exactly two:
-#   1. persisting its own verdict to a caller-assigned `verdict_*.md` file, and
+#   1. persisting its own verdict to a caller-assigned verdict file, and
 #   2. scratch under /tmp — the review pipeline (auto-review) persists its wave
 #      artifacts to a mktemp dir there, and /tmp is never repo source.
-# This guard enforces that at the tool layer: a Write/Edit to `verdict_*.md` or to
-# a path under /tmp is auto-approved (so an unattended background subagent needs
+#
+# Both `.md` and `.html` count as a verdict file: the html-artifacts router
+# picks the extension per artifact type, and it routes a review report to an
+# HTML artifact. A guard allowing only `.md` would deny that write at the tool
+# layer and lose the whole review at its last step.
+#
+# This guard enforces that at the tool layer: a Write/Edit to a verdict file or
+# to a path under /tmp is auto-approved (so an unattended background subagent needs
 # no interactive prompt); every other Write/Edit is denied (so it can never touch
 # repo source, even under a bypassPermissions parent).
 #
@@ -17,14 +23,15 @@
 # across path (/tmp and repo-relative) and subagent type (deep-reviewer and
 # plain general-purpose) — the block is keyed purely on basename prefix.
 # `verdict_` sidesteps that reserved prefix; every skill dispatching
-# deep-reviewer for a persisted verdict must name its output `verdict_*.md`.
+# deep-reviewer for a persisted verdict must name its output `verdict_*.md`
+# or `verdict_*.html`.
 
 INPUT=$(cat)
 
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 BASENAME=${FILE_PATH##*/}
 
-if [[ "$BASENAME" == verdict_*.md ]]; then
+if [[ "$BASENAME" == verdict_*.md || "$BASENAME" == verdict_*.html ]]; then
   # Auto-approve: bypasses the permission prompt the background subagent can't answer.
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"deep-reviewer may persist its verdict to its verdict file (%s)"}}\n' "$BASENAME"
   exit 0
@@ -39,5 +46,5 @@ if [[ "$FILE_PATH" != *..* && ( "$FILE_PATH" == /tmp/* || "$FILE_PATH" == /priva
 fi
 
 # Any other write target is a repo-source/artifact mutation — deny it outright.
-echo "Blocked: deep-reviewer may write only verdict_*.md or scratch under /tmp (attempted: ${FILE_PATH:-<no path>})" >&2
+echo "Blocked: deep-reviewer may write only verdict_*.md, verdict_*.html, or scratch under /tmp (attempted: ${FILE_PATH:-<no path>})" >&2
 exit 2
