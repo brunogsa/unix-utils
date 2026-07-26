@@ -6,7 +6,7 @@ Human-facing overview for auditing the flow at a glance. Non-authoritative — t
 flowchart TD
   start(["Invoke /auto-review (local) or /pr-review (github)<br/>flag: --isolate forces isolated path"]):::start
   dispatchDecision{"Mode local, or --isolate passed?"}
-  spawnIsolated["Dispatch Agent<br/>model: sonnet, effort: inherits<br/>serial -- one instance runs whole pipeline"]:::dispatch
+  spawnIsolated["Dispatch general-purpose · sonnet · effort inherits<br/>serial -- one instance runs whole pipeline"]:::dispatch
   runInline["Run inline in fresh main session<br/>(github, no --isolate)"]
   parseHeader["Parse input header<br/>(mode, PR/branch, language)"]
   loadWave0Refs["Load review-principles.md<br/>+ review-checklists.md<br/>(grounds every wave)"]:::skill
@@ -46,7 +46,7 @@ flowchart TD
   wave5ModeDecision{"Mode?"}
 
   checkDensityGithub["check-density.sh on<br/>wave5-comment-*.md + wave2-guide.md<br/>(cap: 256 chars / 32 words per line)"]:::hook
-  dispatchDensityFixer["Dispatch density-fixer agent<br/>model: haiku, serial<br/>splits over-cap lines, loops<br/>internally until exit 0"]:::dispatch
+  dispatchDensityFixer["Dispatch density-fixer · agent-pinned · serial<br/>splits over-cap lines, loops<br/>internally until exit 0"]:::dispatch
   selfFixDensity["Fix density violations inline<br/>(already a subagent, no re-spawn)<br/>loop until exit 0"]
 
   buildPayloadPost["Build review-payload.json,<br/>POST pending review (single batch call)"]:::state

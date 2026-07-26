@@ -22,7 +22,7 @@ A pointer back into SKILL.md hands the reader the very cross-reference the diagr
 - The trigger/invocation that starts the skill, its steps/phases, and every loop with its exit condition.
 - User-interaction points: the questions asked (interviews, toggles) and the manual gates where the human approves before flow continues.
 - Durable-state writes: scratchpad/run-state updates, plus **one node per TaskList entry**, each with a short why.
-- Delegation: other skills loaded, and every subagent dispatch labeled with agent type, model, effort, and parallel (∥) vs serial.
+- Delegation: other skills loaded, and every subagent dispatch labeled with agent type and parallel (∥) vs serial — model and effort only per the rule below.
 - Hooks/scripts that steer the flow (state machines, Stop hooks).
 
 ## One node per TaskList entry
@@ -51,7 +51,19 @@ Collapsing also holds the diagram at a single altitude, which is what makes it a
 
 Bad: a dispatch node listing the five skills the agent preloads, or a hook node spelling out which write paths it auto-approves.
 
-Good: `Dispatch tdd-coder (sonnet, maxTurns 128, serial)`, and `Hook: deep-reviewer-write-guard`.
+Good: `Dispatch tdd-coder (agent-pinned, background, serial)`, and `Hook: deep-reviewer-write-guard`.
+
+## Model and effort come from the agent file, never the node label
+
+Write `agent-pinned` whenever `agents/<name>.md` pins `model:`/`effort:` — never copy the values, and never copy `maxTurns` either.
+
+Spell out an explicit tier only where the caller genuinely owns it: an unpinned agent like `general-purpose`, or a real per-call override.
+
+Separate the parts with `·`, and always keep ∥/serial and background/foreground, which are the caller's own facts.
+
+Why: a copied pin rots on the agent file's schedule rather than this diagram's, and nobody reopens six flowcharts when retuning one tier.
+
+Every hand-copied effort in these files had already gone stale — two read "default effort" for agents since pinned to `low`, two more read "inherits".
 
 ## Node kinds and rendering
 

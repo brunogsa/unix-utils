@@ -65,11 +65,11 @@ flowchart TD
   chk7apiRetry{"Retry<br/>succeeded?"}
   skipLogApi["Skip reply;<br/>list in final report"]
   chk7d{"7d. Tails toggle on<br/>step 0 answer?"}
-  dispatchTails["Step 7d: Dispatch deep-reviewer tail pair<br/>2x subagent_type=deep-reviewer<br/>model/effort pinned by agent, no override<br/>parallel (∥), background<br/><br/>Reads deep-reviewer-tail-pair.md<br/>Lens A simplification -&gt; verdict_refactor_*.md<br/>Lens B correctness -&gt; verdict_auto-review_*.md"]:::dispatch
+  dispatchTails["Step 7d: Dispatch deep-reviewer tail pair<br/>2x deep-reviewer · agent-pinned<br/>parallel (∥), background<br/><br/>Reads deep-reviewer-tail-pair.md<br/>Lens A simplification -&gt; verdict_refactor_*.md<br/>Lens B correctness -&gt; verdict_auto-review_*.md"]:::dispatch
   hookGuard["PreToolUse hook:<br/>deep-reviewer-write-guard.sh<br/><br/>Auto-approves writes to verdict_*.md or /tmp;<br/>denies all other writes/mutations"]:::hook
   triageTails["Read both verdict reports;<br/>synthesize prioritized summary;<br/>offer to apply (report-only by default)"]
   chk7dApply{"User names specific<br/>findings to apply?"}
-  dispatchFixer["Dispatch fresh general-purpose subagent<br/>model sonnet, effort inherits<br/>serial per named finding<br/><br/>test-first: confirm RED, apply fix, confirm GREEN"]:::dispatch
+  dispatchFixer["Dispatch a fresh subagent per named finding<br/>general-purpose · sonnet · medium<br/>serial per named finding<br/><br/>test-first: confirm RED, apply fix, confirm GREEN"]:::dispatch
   step8["Step 8: Print final summary<br/>applied/answered/dropped/skipped counts"]
 
   invoke --> createState

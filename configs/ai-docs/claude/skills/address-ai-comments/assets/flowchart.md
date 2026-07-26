@@ -24,7 +24,7 @@ flowchart TD
   doAnswer["4b. AI?: answer in chat first, never in the file"]
   strip["Delete the marker from source once resolved"]
   tailscheck{"Step 1 toggle was on?"}
-  tailsDispatch[["5. Dispatch deep-reviewer x2, own pinned model/effort,<br/>in parallel (∥, same turn) — simplification + correctness lenses<br/>(ref: code-review-pipeline/references/deep-reviewer-tail-pair.md);<br/>diff BATCH_BASE_SHA..working tree"]]:::dispatch
+  tailsDispatch[["5. Dispatch deep-reviewer x2 · agent-pinned,<br/>in parallel (∥, same turn) — simplification + correctness lenses<br/>(ref: code-review-pipeline/references/deep-reviewer-tail-pair.md);<br/>diff BATCH_BASE_SHA..working tree"]]:::dispatch
   hookNode["PreToolUse hook: deep-reviewer-write-guard.sh<br/>allows writes only to verdict_*.md or under /tmp;<br/>denies + aborts run otherwise"]:::hook
   triage["Triage: read both verdict reports, synthesize<br/>prioritized summary, close with apply-offer<br/>(opt-in only — never auto-applied)"]:::gate
   appendTails["Append tails' two report paths + top findings<br/>+ apply-offer to final report"]
