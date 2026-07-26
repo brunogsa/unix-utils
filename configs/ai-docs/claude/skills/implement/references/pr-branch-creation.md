@@ -29,11 +29,13 @@ It covers resolving `<feat_branch>/pr<N>`, the resume check for an already-exist
     Exit 2 (usage/parse error) surfaces the same way.
     The guard's own `branch_for_pr()` hard-requires the parent's `branches_<slug>.md` entry to already exist — no fallback ancestry source, absence is always a hard block.
     That precondition is already satisfied by the time this guard runs, every time.
-    The stop predicate (below) means the parent PR's own full batch already completed before this PR's pre-flight ever started.
-    That completed batch includes the parent's own §9 batch-end, where it wrote its own entry (see "Manifest writes" below).
+    The stop predicate — [`pr-awareness.md`](pr-awareness.md)'s "The per-PR loop and fail-fast" — starts the next PR only once every task of the previous one reached `[Done]` and its repo-green gate passed.
+    This means the parent PR's own full batch already completed before this PR's pre-flight ever started.
+    That completed batch includes the parent's own §9 batch-end, where it wrote its own entry (see "Manifest writes" in [`pr-awareness.md`](pr-awareness.md) — that step is the only writer of a PR's manifest entry).
     So this step writes nothing itself; only the parent's own batch-end write ever populates this entry, and it always got there first.
     Exit 0 → `git checkout -b <feat_branch>/pr<N>` with no explicit base ref, i.e. from current HEAD.
-    Correct because a DAG-root PR's commits (the `no`-checkout case above) land directly on the pre-existing branch, so by the time a single dependent PR runs, HEAD already sits at its parent's tip.
+    Correct because a DAG-root PR's commits land directly on the pre-existing branch, so by the time a single dependent PR runs, HEAD already sits at its parent's tip.
+    That is the `no`-checkout case, owned by [`pr-awareness.md`](pr-awareness.md) — a DAG root needs no branch of its own, so nothing was ever created for it to diverge onto.
   - **Two or more parents** (diamond dependency) → resolve each parent's branch name from `branches_<slug>.md` first, in the order listed in `Depends on:`.
     Same `**<label>**` → `` branch: `<name>` `` lookup that `check-pr-dependencies-ready.sh`'s own `branch_for_pr()` uses internally.
     Every parent's entry is guaranteed to already exist here, by the same reasoning as the single-parent case above.
