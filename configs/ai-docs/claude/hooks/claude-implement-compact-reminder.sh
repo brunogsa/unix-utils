@@ -14,7 +14,7 @@
 #   which can summarize the doc-resident §9 finalize steps (gate, tails,
 #   triage, package, diffview pane, PR) out of working memory — the
 #   "orchestrator forgot the steps" failure. The batch-end [Reminder] task
-#   (implement skill §2.1) keeps them in view each turn, and the Stop hook
+#   (implement skill §2.2) keeps them in view each turn, and the Stop hook
 #   (claude-implement-stop-hook.sh) blocks stopping while any unit is
 #   mid-flight. This hook is the third guard: it fires at the compaction
 #   boundary itself — the one moment working memory resets — and
@@ -29,9 +29,7 @@
 # Session scoping — identical to claude-implement-stop-hook.sh:
 #   State file paths are keyed by session_id. No file matching this session
 #   id → silent exit 0. A compaction keeps the same session_id, so the files
-#   the run created are the ones this hook finds. (A cross-session resume
-#   renames nothing and is handled by the skill's §2.1 resume-guard, not
-#   here.)
+#   the run created are the ones this hook finds.
 #
 # Safeguards (all silent no-ops — never break Claude on a tooling/state gap):
 #   - jq missing → exit 0.

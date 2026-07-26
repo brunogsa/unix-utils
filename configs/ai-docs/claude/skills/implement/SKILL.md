@@ -391,7 +391,7 @@ Find none — every task is terminal, and at least one of them (this one) is ter
 
 ### 5.4. On a clean verify — advance
 
-Record the attempt with `result: "pass"` and the token count noted at dispatch (§4).
+Record the attempt with `result: "pass"`.
 
 Flip that task to `status: "done"` and `reason: "done"` in the state file — before calling the verdict script, not after.
 The script picks the next task by `status`, so a passed task left `pending` would later be re-selected as another task's "next" and redundantly re-dispatched.
