@@ -375,7 +375,15 @@ rtk proxy <cmd>       # run <cmd> raw, bypassing rtk's filtering
   - [Why] Background keeps the loop free, but a result-gated background launch just stalls the turn — or tempts redoing the search inline, dumping what delegation was meant to keep out.
 
 - [Instruction] Render every Agent `description` here as `<title> - <model> <effort>` from the values a skill declares — no parens, no `<agent-type>`, which the UI already prepends.
-  - [Why] That dispatch line is all the user sees live, so naming tier and effort lets them audit spawns in real time — one owner of the shape stops skills drifting.
+  - [Why] That dispatch line is all the user sees live, so naming tier and effort lets them audit spawns in real time.
+
+- [Instruction] Leave that shape to this file alone — a skill spelling out the `description` format is a bug even when it spells it out correctly.
+  - [Why] A format copied into N skills becomes N formats after the first edit here, and the drift surfaces only in the live dispatch line, where nobody diffs it.
+
+- [Instruction] Declare every skill's spawn as `agent(subAgent=X, title=Y[, model=Z][, effort=W])` — drop `model=` only where the subagent's frontmatter pins it, and `effort=` unless overriding.
+  - [Why] One fixed notation makes each declared tier greppable, and dropping a pinned one keeps a single owner — re-pinning the agent would otherwise leave stale copies in callers nobody re-reads.
+  - [Example] `agent(subAgent=deep-reviewer, title=verify auth gate)` → its frontmatter pins `opus`/`max`, so the description renders `verify auth gate - opus max`.
+  - [Example] `agent(subAgent=fork, title=retry failing spec)` → a fork inherits the parent model, so `model=` never appears on one.
 
 - [Instruction] **CRITICAL: Spawn a fresh-context subagent when writing-session bias would distort the check** -- verification, semantic match, or quality judgment over your own output.
   - [Why] In-session reading carries "I already convinced myself" residue; a subagent sees only the artifact + the question.
