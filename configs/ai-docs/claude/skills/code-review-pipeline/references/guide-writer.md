@@ -1,34 +1,35 @@
 # Review Guide Writer Prompt
 
-Prompt for a single Opus subagent that produces the "Review Guide" — the piece of the review body that tells a human reviewer where to focus.
+You run this prompt inline in the code-review-pipeline session — there is no separate agent call.
+
+It produces the "Review Guide": the standalone PR comment that tells a human reviewer where to focus.
+
+**github mode only.** Wave 2 skips this step for `Mode: local`, whose output carries no Review Guide block (see `references/local-review-template.md`).
 
 ---
 
 ```
 You write concise review guides for human reviewers. You are given a diff plus
 whatever written context exists (PR description, commit messages, spec_<slug>.md,
-plan_<slug>.md). Your output is delivered as a **standalone PR comment** (GitHub mode)
-or appended to the local review file (LOCAL mode). In GitHub mode the comment
-is wrapped in a collapsed `<details>` block by the orchestrator (Wave 5), so
-write the guide assuming readers will expand it on demand — keep it scannable
-once expanded but don't worry about it crowding the conversation feed.
+plan_<slug>.md). Your output is delivered as a **standalone PR comment**, which
+the orchestrator (Wave 5) wraps in a collapsed `<details>` block. So write the
+guide assuming readers will expand it on demand — keep it scannable once
+expanded but don't worry about it crowding the conversation feed.
 
 ## Inputs
-- Mode: {mode}                         (github or local)
 - Repo root: {repo_root}
 - Diff file: {diff_path}
 - Changed files list: {changed_files_path}
-- PR description (GH only): {pr_description}    (may be empty string)
-- Jira snippet (GH, optional): {jira_context}
+- PR description: {pr_description}      (may be empty string)
+- Jira snippet (optional): {jira_context}
 - Commit messages: {commit_messages}    (git log --format=%B since base)
 - repo_spec_md: {repo_spec_md_or_null}  (contents of the resolved spec_<slug>.md, if any)
 - repo_plan_md: {repo_plan_md_or_null}
-- Commit SHA (GH only): {commit_sha}    (for permalinks)
-- Repo slug (GH only): {repo_slug}      (owner/repo)
+- Commit SHA: {commit_sha}              (for permalinks)
+- Repo slug: {repo_slug}                (owner/repo)
 
 ## Output language
-- GH mode: Portuguese (Brazil)
-- LOCAL mode: English
+Portuguese (Brazil).
 
 ## Output format
 Plain Markdown with up to four sections, in this order. OMIT any section that
@@ -36,7 +37,7 @@ adds no new information beyond what the PR description already contains.
 NEVER emit a section that says "see the PR description" or similar filler.
 
 Section 1 — Business context
-Heading: `## Contexto de negócio` (PT) / `## Business context` (EN)
+Heading: `## Contexto de negócio`
 One short paragraph (2–4 sentences) explaining the problem being solved.
 Build it by merging:
   • spec_<slug>.md Background (if repo_spec_md is not null)
@@ -47,7 +48,7 @@ problem. Detection rule: if pr_description contains any sentence that clearly
 states the business goal/problem, OMIT the section entirely.
 
 Section 2 — Decisions
-Heading: `## Decisões` (PT) / `## Decisions` (EN)
+Heading: `## Decisões`
 Bullet list, 2–8 items. Sources in priority order:
   1. `[DECISION: ...]` markers in repo_spec_md and repo_plan_md (quote verbatim,
      trimmed).
@@ -58,18 +59,14 @@ Dedup near-duplicates. Omit section entirely if the PR description already has a
 empty.
 
 Section 3 — Where to focus
-Heading: `## Onde focar` (PT) / `## Where to focus` (EN)
+Heading: `## Onde focar`
 3–5 bullets pointing at the load-bearing commits/files/hunks. Always include this
 section (it's the main value of the guide).
 
-Each bullet format (GH):
+Each bullet format:
   `- **src/path/foo.ts:42-58** — [short reason why it's load-bearing](permalink)`
 Where permalink = https://github.com/{repo_slug}/blob/{commit_sha}/src/path/foo.ts#L42-L58
 One line of context above and below the cited range.
-
-Each bullet format (LOCAL):
-  `- **src/path/foo.ts:42-58** — short reason why it's load-bearing`
-(No permalinks in LOCAL mode.)
 
 Heuristics for load-bearing:
   • Controller/consumer files (orchestration).
@@ -80,10 +77,9 @@ Heuristics for load-bearing:
 Skip trivial files: test fixtures, snapshots, lock files, generated code.
 
 Section 4 — Incidental changes
-Heading: `## Mudanças incidentais` (PT) / `## Incidental changes` (EN)
-Files/changes that don't match the stated intent:
-  • GH: inferred from the PR description and commit messages
-  • LOCAL: inferred from commit messages and spec/plan files.
+Heading: `## Mudanças incidentais`
+Files/changes that don't match the stated intent, inferred from the PR
+description, the commit messages, and the spec/plan files.
 One bullet per distinct incidental concern (not per file — group small
 typos/log-level tweaks into one bullet). Brief "why it was fixed now" rationale
 per item when available.
