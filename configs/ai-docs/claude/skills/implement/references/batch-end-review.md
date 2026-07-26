@@ -2,12 +2,11 @@
 # performance-check budget override, not batch-end content.
 # This file merges what used to be two references, because every section fires on the same
 # run — a split would only re-fragment one sequence across two files always read together.
-# The redundancy against SKILL.md's batch-end steps was already trimmed out (1418 -> 1345
-# words); what remains is the per-step detail those steps point at. Doubled from the 1024w
-# bundled default.
+# It carries no redundancy against SKILL.md's batch-end steps — only the per-step detail
+# those steps point at. Doubled from the 1024w bundled default.
 words-budget: 2048
 ---
-# Batch-end — repo-green, tails, triage, package, metrics & finalize
+# Batch-end — repo-green, tails, triage, package & finalize
 
 Detail for /implement's batch-end steps. Load when the batch reaches its end.
 
@@ -38,7 +37,6 @@ What's specific to `/implement`:
 - The TaskList already carries this step as the `Batch-end 3/5` reminder seeded in §2.2 — flip that one entry, and don't queue a separate item per tail.
 - When a tail returns, confirm its report file exists at the assigned path, then record that **path** into `.tails.refactor_report` / `.tails.auto_review_report`.
   - Record the path, never the content: a resumed run reads it back to see which reports already exist.
-- Record each tail's token count into `.tails.tokens.<name>` (`0` when the Agent result omits it), which the metrics script sums into the subagent total.
 
 ## Triage both reports (§9.4)
 
@@ -60,7 +58,7 @@ The report is the durable, on-disk ledger of what got fixed versus deferred; thi
 
 ## The review package (§9.5)
 
-The package is the single async pass the human reviews — the replacement for the per-task handshake. Finalize prints it (below), after metrics. It contains:
+The package is the single async pass the human reviews — the replacement for the per-task handshake. Finalize prints it (below). It contains:
 
 - **Per-task outcomes** — each task labeled `done` / `blocked` / `stuck`, with its commit SHAs.
 - **Both raw tail-report paths** (`verdict_refactor_<ts>.md`, `verdict_auto-review_<ts>.md`), plus any missing-report flag from failure handling.
@@ -68,7 +66,6 @@ The package is the single async pass the human reviews — the replacement for t
 - **Every recorded `[Scout]` note and every block**, with what each needs to clear.
 - **The literal diff range** — print `git diff BATCH_BASE_SHA..HEAD` with the actual SHA substituted, so the human can reproduce the range.
 - **"Unexpected extras"** — the repo-green cheap fixes committed above (and any completed Scout fixes), each with its commit.
-- **Run metrics** — total wall-clock time and summed tokens from the metrics script (below).
 - **Repo-green status** — flag "repo not green" when any structural failure remains as a Scout.
 - **TDD opt-out note** — when §8's gate passed as all-N/A, state the explicit opt-out.
 - **Worktree merge-back reminder** — only when a worktree exists (read its path + branch from the state file); omit entirely when the interview declined it.
@@ -90,35 +87,13 @@ After printing the summary, open the batch diff in a **side-by-side tmux pane** 
 - On a clean batch the working tree equals HEAD, so the editable view shows exactly the batch; edits land as uncommitted changes atop the batch commits.
 - Outside tmux the skill exits non-zero and prints the full command for the human to run. Requires the `diffview.nvim` plugin.
 
-## Run metrics
-
-Compute run totals with the pure metrics script:
-
-```bash
-~/.claude/skills/implement/scripts/implement-loop-metrics.sh <state-file> <transcript-jsonl>
-```
-
-It prints JSON: `{duration_seconds, tokens:{per_task, subagent_total, orchestrator_total, total}, over_budget_tasks}`. Fold these totals into the package.
-
-- **Always pass the transcript path as the 2nd arg** — without it, `orchestrator_total` is silently `0`.
-  - The orchestrator can't observe its own token use in-session, so the transcript is the only source; omitting the arg undercounts the total.
-- Derive the transcript path as `~/.claude/projects/<cwd-slug>/<session_id>.jsonl`.
-  - `<cwd-slug>` is the absolute CWD path with every `/` replaced by `-` (e.g. `/Users/x/repo` → `-Users-x-repo`).
-  - `<session_id>` comes from the state file.
-- `over_budget_tasks` lists any task above the 200000-token budget.
-  - Surface each as a plan-granularity smell — the task was too big for one context window.
-
 ## Finalize — the step order inside §9.5
 
-The print comes last of the review steps because the package must carry the metrics, and metrics needs `presented_at` — so stamp, compute, then print.
-
-1. **Write `presented_at`** to the state file (the metrics script derives `duration_seconds` from `started_at`/`presented_at`).
-2. **Run the metrics script** now that `presented_at` exists (see "Run metrics") and fold its totals into the package.
-3. **Assemble the package** (contents under "The review package") and **print it** to chat — the single async review pass.
-4. **Open the diffview pane** (see "Open the diff for review").
-5. **PR manifest entry & status marker**, on a PR-label run (see [`batch-end-pr.md`](batch-end-pr.md)).
-6. **Draft PR** if the interview opted in (see [`batch-end-pr.md`](batch-end-pr.md)'s "Draft PR (opt-in)").
-7. **Delete or keep the state file by terminal phase.** The phase set here is the Stop hook's release signal.
+1. **Assemble the package** (contents under "The review package") and **print it** to chat — the single async review pass.
+2. **Open the diffview pane** (see "Open the diff for review").
+3. **PR manifest entry & status marker**, on a PR-label run (see [`batch-end-pr.md`](batch-end-pr.md)).
+4. **Draft PR** if the interview opted in (see [`batch-end-pr.md`](batch-end-pr.md)'s "Draft PR (opt-in)").
+5. **Delete or keep the state file by terminal phase.** The phase set here is the Stop hook's release signal.
    - The hook blocks stops while phase is `tasks` / `gates` / `tails`, and allows them once phase is `presented` or `halted`.
    - **Every task `done`** → set `phase: presented` and **delete** the state file (a presented batch never resumes).
    - **Budget hit, or any task `blocked` / `stuck`** → set `phase: halted` and **keep** it for resume; the printed package is the partial one.

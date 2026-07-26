@@ -10,8 +10,6 @@ All three outcomes record one attempt; only `result` and `signature` differ.
 - **Timeout** → `result: "timeout"`, `signature` the literal string `timeout` — there's no diff to inspect, since the subagent never reported back.
 - **Self-reported block** → `result: "blocked"`, `signature` the subagent's own blocker statement verbatim, so the batch-end package can quote what needs clearing.
 
-Either way, also record the token count noted at dispatch (§4) — the run cost tokens even though it didn't pass.
-
 ## Obey the verdict
 
 Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey the verdict — the script alone decides how many retries a task gets; no cap is written here.

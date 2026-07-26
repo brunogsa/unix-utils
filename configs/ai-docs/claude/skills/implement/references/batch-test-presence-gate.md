@@ -62,7 +62,6 @@ For each task with missing titles, re-dispatch THAT task's subagent (fresh, per 
 The same 1-hour Monitor cap from §4 applies here too — every tdd-coder dispatch, including this gate-fix re-dispatch, gets it.
 The subagent owns writing them (RED → GREEN), never hand-write tests.
 Increment `gate_dispatches` in the state file by one per fix dispatch.
-Add each dispatch's token count into `.tails.tokens.gate` — the metrics script sums it.
 Then re-gate ONCE — a second `deep-reviewer` pass, same contract.
 
 - Re-gate all found → pass; set `phase: "tails"` and go to §9.

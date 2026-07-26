@@ -22,7 +22,7 @@ flowchart TD
     rem1["Add to TaskList a [Reminder] for<br/>Batch-end 1/5: planned-test presence gate"]:::state
     rem2["Add to TaskList a [Reminder] for<br/>Batch-end 2/5: repo-green gate — full suite + full lint"]:::state
     rem3["Add to TaskList a [Reminder] for<br/>Batch-end 3/5: review tails ∥ then triage"]:::state
-    rem4["Add to TaskList a [Reminder] for<br/>Batch-end 4/5: metrics, package print, diffview pane"]:::state
+    rem4["Add to TaskList a [Reminder] for<br/>Batch-end 4/5: package print, diffview pane"]:::state
     rem5["Add to TaskList a [Reminder] for<br/>Batch-end 5/5: draft PR via create-pr (only when pr.wanted)"]:::state
     rem1 --> rem2 --> rem3 --> rem4 --> rem5
   end
@@ -50,7 +50,7 @@ flowchart TD
     d_report{"4.4 Subagent report status?"}
     verify["5.1 Verify commits, diff,<br/>checklist, verification command"]
     d_verify{"Verify passed?"}
-    record_attempt["5.2 Record attempt:<br/>result=fail/timeout/blocked,<br/>signature, tokens, into state<br/>file attempts[]"]:::state
+    record_attempt["5.2 Record attempt:<br/>result=fail/timeout/blocked,<br/>signature, into state<br/>file attempts[]"]:::state
     skill_failure["Load references/failure-verdict.md"]:::skill
     d_verdict_fail{"5.2 Run implement-loop-state.sh:<br/>verdict?"}:::hook
     terminal["5.3 Mark task terminal in the state<br/>file; chain-abort dependents;<br/>TaskUpdate status=completed"]:::state
@@ -68,13 +68,13 @@ flowchart TD
     d_tails{"Tails requested?"}
     skill_tail_pair["Load code-review-pipeline/<br/>references/deep-reviewer-tail-pair.md"]:::skill
     tails["9.2 par 9.3 Dispatch refactor +<br/>auto-review deep-reviewer tails<br/>(BOTH opus, effort max, PARALLEL,<br/>mandatory, report-only)"]:::dispatch
-    tails_record["Record tails report paths + tokens<br/>into the state file; complete the<br/>'Batch-end 3/5' [Reminder]"]:::state
+    tails_record["Record tails report paths<br/>into the state file; complete the<br/>'Batch-end 3/5' [Reminder]"]:::state
     triage["9.4 Triage: synthesize +<br/>apply-offer both reports"]
     pr_manifest["9.5 branches_&lt;slug&gt;.md:<br/>append-branch-pr-entry.sh<br/>(PR-label runs only)"]:::state
     d_pr{"Draft PR requested<br/>AND repo green?"}
     pr_dispatch["9.5 Dispatch create-pr agent<br/>(sonnet, effort medium,<br/>draft-only scope)"]:::dispatch
     push_pr["Push branch + open or update<br/>the draft PR"]:::gate
-    package["9.5 write presented_at; run<br/>implement-loop-metrics.sh; print the<br/>batch-end package; THEN open the<br/>nvim diffview pane (open-in-tmux);<br/>strike remaining [Reminder] steps"]
+    package["9.5 Print the batch-end package;<br/>THEN open the nvim diffview pane<br/>(open-in-tmux); strike remaining<br/>[Reminder] steps"]
     d_pr_ok{"This PR/batch: all tasks Done<br/>AND gate passed?"}
   end
 

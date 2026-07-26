@@ -68,6 +68,5 @@ Only when the interview opted into a draft PR (§1.2). Skip this section entirel
     - On a plain `<task-ids>` run (`pr_label` is `""`): drop the suffix entirely — `./pr-descr_<slug>.md` — matching create-pr's own single-PR-plan convention.
     - The subagent writes that file directly; the orchestrator then reads it for `--body-file`.
   - It must not push or commit — the orchestrator owns the push.
-  - Its tokens are **not tracked**: metrics print before this step, and a presented run's state file is deleted right after — so don't add a `tokens` field for it.
 - Put completed Scout / repo-green fixes under an **"Unexpected extras"** section in the PR body.
 

@@ -146,24 +146,25 @@ Look for machinery with no real caller, speculative configurability, ceremony th
 
 ---
 
-## 7. [Task] `implement` skill — token metrics must account for compactions + count them
+## 7. [Spike] Revisit run cost/token reporting for `implement` — transcript-only, no state-file coupling
 
-**Goal**: Make the `implement` run-metrics reflect context **compactions**, in both the main (orchestrator) session and the sub-agents, and — if feasible — report the **number of compactions** on each side.
+**Goal**: Decide whether `implement` runs deserve a cost/token report at all, and if so, build one that reads only the session transcript — never a JSON file `implement` writes.
 
-**Why this matters**: `implement-loop-metrics.sh` sums `orchestrator_total` from the session transcript's `.message.usage` records (`input/output/cache_creation/cache_read`), and sums `subagent_total` from per-attempt/tail `tokens`.
-A compaction is a real token cost (the summarization pass reshapes cache), yet the current sum treats the transcript as a flat stream — it neither isolates cost nor counts occurrences.
-Compacted and uncompacted runs report the same total with no thrashing signal.
+**Why this matters**: the whole metrics apparatus was **removed** from `implement` — the `implement-loop-metrics.sh` script, its test, the `tokens`/`started_at`/`presented_at` state-file fields, and every prose step that ran or printed it.
+It was pure accounting: it never gated the loop, so the orchestrator paid to record numbers nobody acted on.
+The per-task token ceiling (`TASK_TOKEN_BUDGET` / `over_budget_tasks`) went with it — a task "over budget" was reported after the fact, which is a plan-granularity smell better caught at plan time.
 
-**Scope**: `configs/ai-docs/claude/skills/implement/scripts/implement-loop-metrics.sh` and tests, plus the reporting doc `references/batch-end.md` (`tokens:{…}` JSON shape).
+**What was deliberately kept**: the `halt-budget` **dispatch** cap in `implement-loop-state.sh` (`BATCH_CAP_MULT × tasks + GATE_FIX_ALLOWANCE`).
+That one is loop control flow, not accounting — it bounds runaway retries and the state script branches on it.
 
-**Open questions to settle before wiring**:
-- What does a compaction look like in the transcript JSONL? Find the record type/marker Claude Code emits (likely a summary/`isCompactSummary`-style field) — verify against a real transcript, don't assume the shape.
-- Sub-agent side: do Agent-result token counts already fold in the sub-agent's own compactions, or is that data reachable?
-  If a sub-agent's compaction cost is unobservable from the orchestrator, scope the count to what's available (main session may be all we can measure).
-- Output shape: add `compactions:{orchestrator, subagent_total}` (counts) alongside `tokens`, or fold into the existing block? Keep backward-compat with the current JSON consumers in `batch-end.md`.
+**Hard constraint on any revisit**: `usage-audit` must NOT depend on `implement`'s state JSON.
+It already reads `~/.claude/projects/<cwd-slug>/<session_id>.jsonl` transcripts directly via `claude-usage-report.py`, and that independence is the point — the audit has to work for every session, not just `implement` runs.
 
-**Deliverable**: metrics script isolates compaction cost in its token accounting and emits a **count** for each observable side (main session at minimum).
-A test covers transcripts with ≥1 compaction, and `batch-end.md` is updated to present the counts.
-Any unobservable side (e.g. sub-agent compactions) is documented as not-tracked rather than silently zero.
+**Open questions to settle before building anything**:
+- Does a per-run report beat what `usage-audit` already gives across all sessions? If not, close this task and keep the removal.
+- Can subagent cost be attributed to a task from the transcript alone, without `implement` writing per-attempt token fields back into its state file?
+- Compaction cost: a compaction reshapes cache and is a real token cost, but a flat transcript sum neither isolates it nor counts occurrences — is a thrashing signal worth the accounting?
+
+**Deliverable**: either a written decision to leave metrics out (with the reasoning above folded into it), or a transcript-only reporter that satisfies the no-state-file constraint, with tests.
 
 ---

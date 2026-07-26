@@ -57,11 +57,11 @@ it_should_verdict_next_task_when_current_task_passed_and_pending_tasks_remain() 
   local fixture
   fixture=$(write_fixture "next-task" '{
     "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
-    "batch_base_sha": "abc", "started_at": "2026-07-10T10:00:00Z", "presented_at": "",
+    "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "done"}, {"id": "2", "status": "pending"}],
-    "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "tokens": 100, "at": "2026-07-10T10:05:00Z"}],
+    "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": ""},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -73,14 +73,14 @@ it_should_verdict_gates_when_every_task_in_the_batch_is_done() {
   local fixture
   fixture=$(write_fixture "gates" '{
     "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
-    "batch_base_sha": "abc", "started_at": "2026-07-10T10:00:00Z", "presented_at": "",
+    "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "done"}, {"id": "2", "status": "done"}],
     "attempts": [
-      {"task": "1", "n": 1, "result": "pass", "signature": "", "tokens": 100, "at": "2026-07-10T10:05:00Z"},
-      {"task": "2", "n": 1, "result": "pass", "signature": "", "tokens": 100, "at": "2026-07-10T10:10:00Z"}
+      {"task": "1", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"},
+      {"task": "2", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:10:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": ""},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -91,14 +91,14 @@ it_should_verdict_retry_when_a_task_failed_with_fewer_than_4_attempts_and_no_stu
   local fixture
   fixture=$(write_fixture "retry" '{
     "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
-    "batch_base_sha": "abc", "started_at": "2026-07-10T10:00:00Z", "presented_at": "",
+    "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "pending"}],
     "attempts": [
-      {"task": "1", "n": 1, "result": "fail", "signature": "AssertionError expected 1 got 2", "tokens": 0, "at": "2026-07-10T10:01:00Z"},
-      {"task": "1", "n": 2, "result": "fail", "signature": "TypeError cannot read property foo", "tokens": 0, "at": "2026-07-10T10:02:00Z"}
+      {"task": "1", "n": 1, "result": "fail", "signature": "AssertionError expected 1 got 2", "at": "2026-07-10T10:01:00Z"},
+      {"task": "1", "n": 2, "result": "fail", "signature": "TypeError cannot read property foo", "at": "2026-07-10T10:02:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": ""},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -110,13 +110,13 @@ it_should_verdict_stuck_on_the_very_first_blocked_attempt_instead_of_retrying() 
   local fixture
   fixture=$(write_fixture "blocked-first-attempt" '{
     "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
-    "batch_base_sha": "abc", "started_at": "2026-07-10T10:00:00Z", "presented_at": "",
+    "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "pending"}, {"id": "2", "status": "pending"}],
     "attempts": [
-      {"task": "1", "n": 1, "result": "blocked", "signature": "staging DB credentials are missing from the vault", "tokens": 4200, "at": "2026-07-10T10:01:00Z"}
+      {"task": "1", "n": 1, "result": "blocked", "signature": "staging DB credentials are missing from the vault", "at": "2026-07-10T10:01:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": ""},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -128,16 +128,16 @@ it_should_verdict_stuck_when_a_task_records_its_4th_failed_attempt() {
   local fixture
   fixture=$(write_fixture "stuck-4th" '{
     "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
-    "batch_base_sha": "abc", "started_at": "2026-07-10T10:00:00Z", "presented_at": "",
+    "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "pending"}],
     "attempts": [
-      {"task": "1", "n": 1, "result": "fail", "signature": "error variant A", "tokens": 0, "at": "2026-07-10T10:01:00Z"},
-      {"task": "1", "n": 2, "result": "fail", "signature": "error variant B", "tokens": 0, "at": "2026-07-10T10:02:00Z"},
-      {"task": "1", "n": 3, "result": "fail", "signature": "error variant C", "tokens": 0, "at": "2026-07-10T10:03:00Z"},
-      {"task": "1", "n": 4, "result": "fail", "signature": "error variant D", "tokens": 0, "at": "2026-07-10T10:04:00Z"}
+      {"task": "1", "n": 1, "result": "fail", "signature": "error variant A", "at": "2026-07-10T10:01:00Z"},
+      {"task": "1", "n": 2, "result": "fail", "signature": "error variant B", "at": "2026-07-10T10:02:00Z"},
+      {"task": "1", "n": 3, "result": "fail", "signature": "error variant C", "at": "2026-07-10T10:03:00Z"},
+      {"task": "1", "n": 4, "result": "fail", "signature": "error variant D", "at": "2026-07-10T10:04:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": ""},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -149,15 +149,15 @@ it_should_verdict_stuck_when_3_consecutive_identical_signatures_occur_before_the
   local fixture
   fixture=$(write_fixture "stuck-consecutive" '{
     "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
-    "batch_base_sha": "abc", "started_at": "2026-07-10T10:00:00Z", "presented_at": "",
+    "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "pending"}],
     "attempts": [
-      {"task": "1", "n": 1, "result": "fail", "signature": "connection refused", "tokens": 0, "at": "2026-07-10T10:01:00Z"},
-      {"task": "1", "n": 2, "result": "fail", "signature": "connection refused", "tokens": 0, "at": "2026-07-10T10:02:00Z"},
-      {"task": "1", "n": 3, "result": "fail", "signature": "connection refused", "tokens": 0, "at": "2026-07-10T10:03:00Z"}
+      {"task": "1", "n": 1, "result": "fail", "signature": "connection refused", "at": "2026-07-10T10:01:00Z"},
+      {"task": "1", "n": 2, "result": "fail", "signature": "connection refused", "at": "2026-07-10T10:02:00Z"},
+      {"task": "1", "n": 3, "result": "fail", "signature": "connection refused", "at": "2026-07-10T10:03:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": ""},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -168,15 +168,15 @@ it_should_not_verdict_stuck_when_identical_signatures_are_interrupted_by_a_diffe
   local fixture
   fixture=$(write_fixture "not-stuck-interrupted" '{
     "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
-    "batch_base_sha": "abc", "started_at": "2026-07-10T10:00:00Z", "presented_at": "",
+    "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "pending"}],
     "attempts": [
-      {"task": "1", "n": 1, "result": "fail", "signature": "connection refused", "tokens": 0, "at": "2026-07-10T10:01:00Z"},
-      {"task": "1", "n": 2, "result": "fail", "signature": "unrelated null pointer", "tokens": 0, "at": "2026-07-10T10:02:00Z"},
-      {"task": "1", "n": 3, "result": "fail", "signature": "connection refused", "tokens": 0, "at": "2026-07-10T10:03:00Z"}
+      {"task": "1", "n": 1, "result": "fail", "signature": "connection refused", "at": "2026-07-10T10:01:00Z"},
+      {"task": "1", "n": 2, "result": "fail", "signature": "unrelated null pointer", "at": "2026-07-10T10:02:00Z"},
+      {"task": "1", "n": 3, "result": "fail", "signature": "connection refused", "at": "2026-07-10T10:03:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": ""},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -187,15 +187,15 @@ it_should_treat_signatures_as_identical_when_they_differ_only_by_digits_paths_or
   local fixture
   fixture=$(write_fixture "normalize-identical" '{
     "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
-    "batch_base_sha": "abc", "started_at": "2026-07-10T10:00:00Z", "presented_at": "",
+    "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "pending"}],
     "attempts": [
-      {"task": "1", "n": 1, "result": "fail", "signature": "Error at /src/foo.ts:12: assertion failed", "tokens": 0, "at": "2026-07-10T10:01:00Z"},
-      {"task": "1", "n": 2, "result": "fail", "signature": "error   at /tmp/bar42.ts:99:   assertion   failed", "tokens": 0, "at": "2026-07-10T10:02:00Z"},
-      {"task": "1", "n": 3, "result": "fail", "signature": "ERROR AT /Users/x/baz7.ts:7: assertion failed", "tokens": 0, "at": "2026-07-10T10:03:00Z"}
+      {"task": "1", "n": 1, "result": "fail", "signature": "Error at /src/foo.ts:12: assertion failed", "at": "2026-07-10T10:01:00Z"},
+      {"task": "1", "n": 2, "result": "fail", "signature": "error   at /tmp/bar42.ts:99:   assertion   failed", "at": "2026-07-10T10:02:00Z"},
+      {"task": "1", "n": 3, "result": "fail", "signature": "ERROR AT /Users/x/baz7.ts:7: assertion failed", "at": "2026-07-10T10:03:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": ""},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -206,16 +206,16 @@ it_should_count_a_timeout_signature_attempt_as_a_failed_attempt() {
   local fixture
   fixture=$(write_fixture "timeout-counts" '{
     "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
-    "batch_base_sha": "abc", "started_at": "2026-07-10T10:00:00Z", "presented_at": "",
+    "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "pending"}],
     "attempts": [
-      {"task": "1", "n": 1, "result": "fail", "signature": "error variant A", "tokens": 0, "at": "2026-07-10T10:01:00Z"},
-      {"task": "1", "n": 2, "result": "fail", "signature": "error variant B", "tokens": 0, "at": "2026-07-10T10:02:00Z"},
-      {"task": "1", "n": 3, "result": "fail", "signature": "error variant C", "tokens": 0, "at": "2026-07-10T10:03:00Z"},
-      {"task": "1", "n": 4, "result": "timeout", "signature": "timeout", "tokens": 0, "at": "2026-07-10T10:04:00Z"}
+      {"task": "1", "n": 1, "result": "fail", "signature": "error variant A", "at": "2026-07-10T10:01:00Z"},
+      {"task": "1", "n": 2, "result": "fail", "signature": "error variant B", "at": "2026-07-10T10:02:00Z"},
+      {"task": "1", "n": 3, "result": "fail", "signature": "error variant C", "at": "2026-07-10T10:03:00Z"},
+      {"task": "1", "n": 4, "result": "timeout", "signature": "timeout", "at": "2026-07-10T10:04:00Z"}
     ],
     "gate_dispatches": 0,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": ""},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -227,14 +227,14 @@ it_should_verdict_halt_budget_when_total_dispatches_reach_4x_task_count_plus_the
   # 2 tasks -> threshold = 4*2 + 4 = 12. 2 attempts (both pass) + 10 gate_dispatches = 12.
   fixture=$(write_fixture "halt-budget" '{
     "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "gates",
-    "batch_base_sha": "abc", "started_at": "2026-07-10T10:00:00Z", "presented_at": "",
+    "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "done"}, {"id": "2", "status": "done"}],
     "attempts": [
-      {"task": "1", "n": 1, "result": "pass", "signature": "", "tokens": 100, "at": "2026-07-10T10:05:00Z"},
-      {"task": "2", "n": 1, "result": "pass", "signature": "", "tokens": 100, "at": "2026-07-10T10:10:00Z"}
+      {"task": "1", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"},
+      {"task": "2", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:10:00Z"}
     ],
     "gate_dispatches": 10,
-    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
+    "tails": {"refactor_report": "", "auto_review_report": ""},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
@@ -245,11 +245,11 @@ it_should_exit_non_zero_when_phase_is_anything_other_than_tasks() {
   local fixture
   fixture=$(write_fixture "non-tasks-phase" '{
     "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tails",
-    "batch_base_sha": "abc", "started_at": "2026-07-10T10:00:00Z", "presented_at": "",
+    "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "done"}],
-    "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "tokens": 100, "at": "2026-07-10T10:05:00Z"}],
+    "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}],
     "gate_dispatches": 1,
-    "tails": {"refactor_report": "/tmp/refactor.md", "auto_review_report": "/tmp/auto-review.md", "tokens": {"gate": 10, "refactor": 20, "auto_review": 30}},
+    "tails": {"refactor_report": "/tmp/refactor.md", "auto_review_report": "/tmp/auto-review.md"},
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"

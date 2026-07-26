@@ -137,12 +137,10 @@ jq -r --arg slug "<slug>" --arg pr "<pr_label>" \
   "pr_label": "",
   "phase": "tasks",
   "batch_base_sha": "<BATCH_BASE_SHA>",
-  "started_at": "<ISO-8601 now>",
-  "presented_at": "",
   "tasks": [{ "id": "1", "status": "pending" }],
   "attempts": [],
   "gate_dispatches": 0,
-  "tails": { "wanted": true, "refactor_report": "", "auto_review_report": "", "tokens": { "gate": 0, "refactor": 0, "auto_review": 0 } },
+  "tails": { "wanted": true, "refactor_report": "", "auto_review_report": "" },
   "worktree": { "created": false, "path": "", "branch": "" },
   "pr": { "wanted": false }
 }
@@ -150,7 +148,7 @@ jq -r --arg slug "<slug>" --arg pr "<pr_label>" \
 
 - One `tasks[]` entry per matched task-id (`status: "pending"`); `worktree`/`pr`/`tails.wanted` filled from §1.2's answers.
   - `pr_label` is `""` for a plain `<task-ids>` run, else the `PR-N` this file belongs to (`references/pr-awareness.md`).
-  - §5.2/§5.4 append `attempts[]` entries as `{ "task", "n", "result", "signature", "tokens", "at" }`.
+  - §5.2/§5.4 append `attempts[]` entries as `{ "task", "n", "result", "signature", "at" }`.
 - **Found** → load [`references/preflight-state.md`](references/preflight-state.md) for the JSON-adoption mechanics that restore attempt counts and completed-task status.
 
 ### 1.6. Match `<task-id>`
@@ -205,7 +203,7 @@ Seed exactly these five, in this order, prefixed with the owning `PR-N ·` on a 
 [Reminder] Batch-end 1/5: planned-test presence gate (§8)
 [Reminder] Batch-end 2/5: repo-green gate — full suite + full lint (§9.1)
 [Reminder] Batch-end 3/5: review tails ∥ then triage (§9.2–§9.4)
-[Reminder] Batch-end 4/5: metrics, package print, diffview pane (§9.5)
+[Reminder] Batch-end 4/5: package print, diffview pane (§9.5)
 [Reminder] Batch-end 5/5: draft PR via create-pr (§9.5, only when pr.wanted)
 ```
 
@@ -256,9 +254,6 @@ Cap the dispatch with a 1-hour `Monitor` timeout (`timeout_ms: 3600000` — the 
 On expiry, call `TaskStop` on the subagent — the dispatch then resolves as a `timeout`, which §5.2 records and obeys exactly like a `fail`.
 
 The harness re-invokes you with its report on completion, so you can still act on it.
-Note the token count the Agent result reports for the run, defaulting to `0` when absent.
-§5 records it into the attempt it creates, whatever that attempt's result turns out to be.
-Best-effort only; never gates the loop mid-run — overage surfaces later via the metrics script, not here.
 
 The subagent runs the **full per-task lifecycle**.
 Its invariant discipline — TDD rules, preloaded standards, checklist mechanics, routing channels, report shape — lives in the agent definition (`~/.claude/agents/tdd-coder.md`); the prompt pushes only the per-task data below.
@@ -476,7 +471,7 @@ Record the full-suite result (pass/fail + counts) into the package so the human 
 Dispatch both tails via the shared reference [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md).
 Set `<BASE_REF>` = `<BATCH_BASE_SHA>` and `<SPEC_PLAN_PATHS>` = the resolved `spec_<slug>.md`/`plan_<slug>.md`.
 
-Record each report's **path** into `.tails.refactor_report`/`.tails.auto_review_report` (the file on disk is canonical, not a state-file copy) and its token count into `.tails.tokens.refactor`/`.tails.tokens.auto_review`.
+Record each report's **path** into `.tails.refactor_report`/`.tails.auto_review_report` — the file on disk is canonical, not a state-file copy.
 
 **Both report files must exist on disk before proceeding (when tails were requested).**
 If either tail's state field is still `""`, or the file it names is absent, that tail hasn't run.
@@ -492,9 +487,9 @@ Follow the shared reference's triage section: read both reports, synthesize one 
 The auto-apply loop is opt-in, and that opt-in only comes from the user asking directly.
 This is either by naming findings to apply after seeing this package (the reference's "Applying a single finding, on explicit request"), or by running `/loop-auto-review` themselves separately for the full loop-until-dry treatment.
 
-### 9.5. Package, metrics, and opt-in draft PR
+### 9.5. Package and opt-in draft PR
 
-Print the batch-end package for the user's one-pass async review: commit-by-commit reading guide, the two tail reports (with your triage verdicts), any blocks/scouts, and the metrics summary.
+Print the batch-end package for the user's one-pass async review: commit-by-commit reading guide, the two tail reports (with your triage verdicts), and any blocks/scouts.
 
 Open the draft PR only when §1.2 recorded `pr.wanted: true`, targeting the confirmed base branch, and only when §9.1's gate came back green.
 
