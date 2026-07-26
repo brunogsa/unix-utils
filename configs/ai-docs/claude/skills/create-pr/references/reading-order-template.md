@@ -1,9 +1,6 @@
 # Reading Order Template
 
-Used by:
-
-- `code-review-pipeline` — English, in `auto-review.md` output.
-- `create-pr` — Portuguese, in PR descriptions as `Guia de review`.
+Used by `create-pr`, in PR descriptions as `Guia de review`. Portuguese is the default; the English variant below covers teams whose PR language is English.
 
 Generate a **specific** reading order from the diff -- list real file paths, not generic placeholders.
 
@@ -27,7 +24,7 @@ Path heuristics: `controller/`, `consumer/` → orchestration. `use-case/`, `sha
 
 ## Templates
 
-### English -- used by `code-review-pipeline` local mode (`auto-review.md`)
+### English -- when the team's PR language is English
 
 ```markdown
 <details>
@@ -48,7 +45,7 @@ Path heuristics: `controller/`, `consumer/` → orchestration. `use-case/`, `sha
 </details>
 ```
 
-### Portuguese -- used by `create-pr` (PR description "Guia de review")
+### Portuguese -- the default (PR description "Guia de review")
 
 ```markdown
 ### Guia de review

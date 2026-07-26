@@ -59,7 +59,7 @@ Author from the changes digest (step 1), the curated spec/plan slices, and the t
 
 #### Default Template
 
-See `references/pr-template.md` for the full template. Guia de review template, time-estimate heuristic, file-role inference: `~/.claude/skills/code-review-pipeline/references/reading-order-template.md` (PT-BR).
+See `references/pr-template.md` for the full template. Guia de review template, time-estimate heuristic, file-role inference: [`references/reading-order-template.md`](references/reading-order-template.md) (PT-BR).
 
 A full worked example, including the curated spec/plan embed from step 1: [`references/pr-description-example.md`](references/pr-description-example.md).
 
