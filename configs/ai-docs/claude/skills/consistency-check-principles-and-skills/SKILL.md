@@ -34,7 +34,7 @@ Fix: **self-consistency** — run 3 samples in parallel, keep only what ≥2 agr
 
 [Instruction] **Spawn the 3 children in parallel** — single message, 3 `Agent` tool calls. Serial fanout 3×s wall-clock latency for the same token cost.
 
-[Instruction] **Dispatch the `consistency-ensemble-child` agent type**, never `general-purpose` — its frontmatter pins opus at max effort, so pass no `model` param.
+[Instruction] **Dispatch `subAgent=consistency-ensemble-child`**, never `general-purpose` — its frontmatter pins the opus-at-max-effort tier this audit needs.
 
 [Instruction] **Forward scope verbatim** — whatever scope the user passed (`default`, `<path>`, `skill X`) goes into every child prompt unchanged.
 
@@ -42,8 +42,7 @@ Fix: **self-consistency** — run 3 samples in parallel, keep only what ≥2 agr
 
 1. Detect mode: if the invocation prompt does NOT contain `ENSEMBLE_CHILD=true`, this is the orchestrator.
 2. Spawn 3 subagents in parallel via the `Agent` tool:
-   - `subagent_type=consistency-ensemble-child`, `title=Consistency-check ensemble child <N>/3`
-   - `model=opus`, `effort=max` — both come from the agent's frontmatter, so pass no `model` param; render `description` per CLAUDE.md's Agent-description form
+   - `agent(subAgent=consistency-ensemble-child, title=Consistency-check ensemble child <N>/3)` — its frontmatter pins opus at max effort
    - Prompt template:
      ```
      ENSEMBLE_CHILD=true. Scope: <forwarded-scope>.

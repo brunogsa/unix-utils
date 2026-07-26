@@ -16,7 +16,7 @@ It is not part of the 7-wave pipeline those callers' sibling skills (`/auto-revi
 
 ## The two tails
 
-Spawn both via the **Agent tool**, `subagent_type=deep-reviewer` (it pins its own model/effort — no override), in the background, **in the same turn**.
+Spawn both as `agent(subAgent=deep-reviewer, title=Simplification-lens review)` and `agent(subAgent=deep-reviewer, title=Correctness-lens review)`, in the background, **in the same turn**.
 
 They're independent report-only passes with no ordering dependency between them.
 
@@ -82,7 +82,8 @@ If the human, after seeing the caller's package, names specific findings to appl
 
 Never do this as an unprompted default, and never as a repeating loop:
 
-- Dispatch a fresh `general-purpose` subagent (`model=sonnet`, effort medium) that writes the test, confirms it fails **RED** on the pre-fix code for the expected reason, then applies the fix and confirms **GREEN**.
+- Dispatch a fresh `agent(subAgent=general-purpose, title=Apply review finding, model=sonnet, effort=medium)`.
+  - It writes the test, confirms it fails **RED** on the pre-fix code for the expected reason, then applies the fix and confirms **GREEN**.
 - A fix whose test was never shown RED first isn't trusted — re-dispatch.
 - Verify the diff before trusting `done`.
 - Annotate the finding in its verdict file as `APPLIED` (with the fix commit SHA) or `SKIPPED` (with why).

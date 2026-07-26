@@ -15,7 +15,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
    - Copy the guide's raw content from `$work_dir/wave2-guide.md` alongside them — it isn't wrapped in `<details>` yet, so it's still plain markdown the script can check.
    - Run `~/.claude/skills/doc-standards/scripts/check-density.sh "$work_dir"/wave5-comment-*.md "$work_dir/wave2-guide.md"` in one call.
    - Fix every flagged line so all files exit 0. Which path you take depends on whether this Wave 5 runs in the top-level session or inside a spawned subagent:
-     - **Calling session (you were NOT spawned as a subagent):** delegate to the `density-fixer` agent and wait for it to report every file at exit 0.
+     - **Calling session (you were NOT spawned as a subagent):** delegate to `agent(subAgent=density-fixer, title=Fix review-comment density)` and wait for it to report every file at exit 0.
        - Pass it the file list: `$work_dir`/wave5-comment-*.md plus `$work_dir/wave2-guide.md`.
        - It splits over-cap lines and re-runs the script itself, and is contractually barred from rewording or dropping content — so each finding's wording stays verbatim.
      - **Isolated (`--isolate` passed):** you are already a subagent, so do NOT spawn another.

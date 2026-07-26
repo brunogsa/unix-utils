@@ -96,7 +96,8 @@ description body indented three spaces — the same contract
    task already exists with its subject still unfolded, so the entry
    and the task now both exist side by side.
 
-7. Spawn `tasklist-sweeper` with `run_in_background: true`, passing the
+7. Spawn `agent(subAgent=tasklist-sweeper, title=Sweep imported tasklist entries)`
+   in the background, passing the
    list of local ids from step 6 — successes only — as already-imported
    ids to remove. Spawn it once, after every selected entry has been
    attempted (succeeded or failed) — never per-entry.

@@ -46,9 +46,9 @@ This synthesis is **additive** to the two raw report paths — the package carri
 When the human names specific findings to apply after seeing the package, follow the shared reference's "Applying a single finding, on explicit request" — with one implement-specific routing choice:
 
 - This deliberately overrides the shared reference's generic routing (a single `general-purpose` subagent for every finding); the reference's own note cross-links back here.
-- **A refactor-lens finding** (from `verdict_refactor_*.md`) → dispatch the **`refactor` agent** (Agent tool, `subagent_type=refactor` — its frontmatter pins model/effort, no override needed).
+- **A refactor-lens finding** (from `verdict_refactor_*.md`) → dispatch `agent(subAgent=refactor, title=Apply refactor finding: <finding>)`.
   Pass it the finding's scope and the caller's test command; it applies the change itself and confirms tests stay green before and after.
-- **An auto-review-lens finding** (from `verdict_auto-review_*.md`) → dispatch a fresh `tdd-coder` subagent (model omitted — its frontmatter pins sonnet) per the §4 contract with strict TDD (RED before GREEN), unchanged.
+- **An auto-review-lens finding** (from `verdict_auto-review_*.md`) → dispatch a fresh `agent(subAgent=tdd-coder, title=Apply review finding: <finding>)` per the §4 contract with strict TDD (RED before GREEN), unchanged.
   The refactor agent refuses behavior changes, so a correctness fix can't route through it.
 - Verify the diff (§5.1) before trusting `done`, either way.
 

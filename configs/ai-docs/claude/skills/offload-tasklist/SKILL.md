@@ -93,7 +93,8 @@ at the end of this skill.
    watching only for a thrown error would silently swallow a
    well-formed delete request that still failed.
 
-6. Spawn `tasklist-sweeper` with `run_in_background: true`. Do this
+6. Spawn `agent(subAgent=tasklist-sweeper, title=Dedup and renumber tasklist)`
+   in the background. Do this
    once the append has succeeded, regardless of whether every delete
    also succeeded.
 

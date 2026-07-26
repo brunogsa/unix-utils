@@ -156,7 +156,7 @@ The two subsections below apply to any standalone doc — where it lives and wha
 - [Instruction] Every line/bullet ≤256 chars and ≤32 words; over the cap, split on a sentence boundary — never drop info to fit.
   - [Why] Dense prose drops adherence in LLM consumers and raises scan time for humans; the cap forces clarity.
 
-- [Instruction] Delegate density verification and fixing to the `density-fixer` subagent (Agent tool) — never run the check-or-rewrite loop inline in the main session.
+- [Instruction] Delegate density verification and fixing to `agent(subAgent=density-fixer, title=Fix <doc> density)` — never run the check-or-rewrite loop inline in the main session.
   - [Why] The subagent runs `scripts/check-density.sh` and `references/density-rules.md` deterministically with fresh eyes; inline fixing burns main-session context on mechanical splits, and eyeballing misses over-cap lines.
 
 - [Instruction] Separately verify each schema JSONC block against its ≤80-char/line rule (in the `design-docs` skill) — `check-density.sh` excludes fenced code, so it never measured them.

@@ -33,10 +33,8 @@ and the subagent's reasoning doesn't pollute the active conversation.
 
 ## Run
 
-1. Spawn an Agent declared as `subagent_type=english-coach-analyst`,
-   `title=English-coach analysis pass`, `model=opus`, `effort=high` — render its
-   `description` per CLAUDE.md's Agent-description form. Both `model` and `effort`
-   come from the agent's frontmatter, so pass no `model` param.
+1. Spawn `agent(subAgent=english-coach-analyst, title=English-coach analysis pass)`
+   — its frontmatter pins opus at high effort.
    Prompt: "Run the English-coach analysis pass for the current session."
    The subagent reads its own instructions from disk — the orchestrator never
    loads `assets/subagent-prompt.md`.

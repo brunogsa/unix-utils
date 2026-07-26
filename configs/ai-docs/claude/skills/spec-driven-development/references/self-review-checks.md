@@ -15,7 +15,7 @@ SKILL.md carries the check table; this file carries what each check means and wh
 
 ## Qualitative pass
 
-Dispatch the `deep-reviewer` agent to read both docs with fresh eyes and report findings. Only the PR-size item below blocks.
+Dispatch `agent(subAgent=deep-reviewer, title=Qualitative review of spec and plan)` to read both docs with fresh eyes and report findings. Only the PR-size item below blocks.
 
 - **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
 - **Contradictions**: do sections within one doc disagree, or does plan_<slug>.md contradict spec_<slug>.md (spec assumptions overturned by planning, architectural choices superseding spec requirements)?
@@ -30,8 +30,8 @@ Dispatch the `deep-reviewer` agent to read both docs with fresh eyes and report 
 - **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker for the user.
 - **Completeness**: does the Testable Acceptance Criteria section cover every Goal, Success Metric/KPI, User Story, and Non-Functional/Technical Requirement — and every corner case and failure mode?
 - **Human-Reviewable**: could a complete novice succeed with only this plan and the repo — no other context? Is the format pleasant enough to read that the user can verify you?
-- **Artifacts Valid**: if any mermaid diagram exists, is it valid, verified via `mmdc`? A failing check routes to the `mermaid-fixer` subagent on the resolved doc path — never fixed inline.
-- **Density**: spawn the `density-fixer` subagent on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check or rewrite density violations inline.
+- **Artifacts Valid**: if any mermaid diagram exists, is it valid, verified via `mmdc`? A failing check routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)` on the resolved doc path — never fixed inline.
+- **Density**: spawn `agent(subAgent=density-fixer, title=Fix spec/plan density)` on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check or rewrite density violations inline.
   - Runs last in the qualitative pass, after every content check above (including mermaid validation), before the seven formal checks begin.
   - The subagent runs `check-density.sh` and applies the `density-rules.md` rewrite patterns until exit 0, without dropping information.
 
@@ -42,7 +42,8 @@ Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped co
 - Mechanical half — `scripts/check-ac-coverage.sh <plan> <spec>` checks completeness (every AC in the spec's Acceptance-Criteria section has a coverage header).
   - Honesty: every cited breadcrumb must exist verbatim among Test Design breadcrumbs; a `…`-truncated or invented citation won't match.
   - Exit 1 blocks; the semantic half runs only after this passes.
-- Semantic half — sequential after the mechanical half, never parallel. Dispatch `deep-reviewer` to judge whether each cited test actually *proves* its AC — the match no script can make.
+- Semantic half — sequential after the mechanical half, never parallel. Dispatch `agent(subAgent=deep-reviewer, title=Judge AC-to-test coverage)`.
+  - It judges whether each cited test actually *proves* its AC — the match no script can make.
 - Output: orphan ACs + bogus citations (empty = pass). Block plan approval if non-empty.
 
 ## Every test has a task
@@ -87,6 +88,6 @@ Output: untraceable items (empty = pass). Block if non-empty — cut it or earn 
 
 ## Right-sized plan (toggle)
 
-Dispatch the `deep-reviewer` agent with the user's request + spec + plan. Ask: does the spec match the request (no gold-plating), and is the plan the simplest design meeting every AC?
+Dispatch `agent(subAgent=deep-reviewer, title=Judge spec/plan simplicity)` with the user's request + spec + plan. Ask: does the spec match the request (no gold-plating), and is the plan the simplest design meeting every AC?
 
 Advisory even when its toggle is "yes" — surface findings and let the user decide, never blocks.

@@ -58,7 +58,7 @@ Deduplicate and merge the lists. If no files are found, inform the user and stop
 - The `verdict_` prefix is mandatory, not cosmetic — see `~/.claude/hooks/deep-reviewer-write-guard.sh` for why (a reserved-prefix collision with the Claude Code harness itself, not our own guard).
 - Use that exact filename in every reference below. One file per `/refactor` invocation; never reuse a prior run's path.
 
-**Dispatch.** Use the **Agent tool** with `subagent_type=deep-reviewer` (its pinned model/effort, report-only by construction). In the prompt:
+**Dispatch** `agent(subAgent=deep-reviewer, title=Refactor-lens review)` — report-only by construction. In the prompt:
 
 - Run in the **background** (the default) -- the UI still surfaces progress, and the harness delivers the findings report on completion.
 - List the target files identified in step 1.

@@ -66,7 +66,7 @@ Subagents condense their work into a final report — the user loses visibility 
 ### Subagent flow (opt-in)
 
 1. Step 1 in main context.
-2. Steps 2-7 in a background subagent, declared as `subagent_type=general-purpose`, `title=Analyze user feedback for guideline learnings`, `model=sonnet` — render `description` per CLAUDE.md's Agent-description form.
+2. Steps 2-7 in a background `agent(subAgent=general-purpose, title=Analyze user feedback for guideline learnings, model=sonnet)`.
 3. Subagent prompt must include **Scope**, the extracted user feedback items, and everything from **Steps 2-7: Analyze, Present, Apply** through **Guidelines for Generalization** below.
 4. Step 8 (audit reminder) in main context after subagent returns.
 

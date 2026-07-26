@@ -14,7 +14,9 @@ Hand-invented prompts encode the author's guess at real usage; transcripts are o
 ## Running and grading
 
 1. **Spawn all runs in the same turn.**
-   - For each test case, spawn a with-skill subagent and a baseline subagent (no skill, or the pre-change skill snapshot) together — not with-skill first and baselines later.
+   - For each test case, spawn `agent(subAgent=general-purpose, title=Eval <id> with skill, model=sonnet)` together with `agent(subAgent=general-purpose, title=Eval <id> baseline, model=sonnet)`.
+   - The baseline runs with no skill, or the pre-change skill snapshot — spawn both in the same turn, not with-skill first and baselines later.
+   - Both carry `model=sonnet` for the reason "Skill evals target `sonnet`" gives in SKILL.md: the bar is the model driving most day-to-day sessions, not the stronger one running the loop.
    - Save outputs under `<skill-name>-workspace/iteration-<N>/eval-<id>/{with_skill,without_skill}/outputs/`.
 2. **While runs are in flight, draft assertions** — objectively verifiable checks with descriptive names. Subjective qualities (style, tone) are better judged by the human reviewer than forced into an assertion.
 3. **Capture timing from task notifications as they arrive** — `total_tokens` and `duration_ms` are only available in that notification, not persisted elsewhere; write them to `timing.json` in each run directory immediately.

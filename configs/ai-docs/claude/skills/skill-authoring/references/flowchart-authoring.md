@@ -61,4 +61,4 @@ Copy the classDef color block verbatim from any existing flowchart.md so all six
 
 Reference the flowchart from SKILL.md with a one-liner that tells the model NOT to load it.
 
-Regenerate it whenever the skill's flow changes, and validate the render with `mmdc` (dispatch the `mermaid-fixer` agent on failures); author it under the `mermaid-diagrams` skill.
+Regenerate it whenever the skill's flow changes, and validate the render with `mmdc` (on failures, dispatch `agent(subAgent=mermaid-fixer, title=Fix skill flowchart)`); author it under the `mermaid-diagrams` skill.

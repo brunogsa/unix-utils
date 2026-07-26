@@ -248,7 +248,9 @@ Insertion mechanics live in [`references/mid-flight-substeps.md`](references/mid
 
 ## 4. Dispatch the task subagent
 
-Spawn one fresh-context subagent per task via the **Agent tool** (`subagent_type=tdd-coder`, model omitted — the agent file pins sonnet and the subagent-model-guard hook enforces it), in the background (the default).
+Spawn one fresh-context `agent(subAgent=tdd-coder, title=Implement task <N>: <task subject>)` per task, in the background (the default).
+
+Model is omitted because the agent file pins sonnet and the subagent-model-guard hook enforces it.
 
 Cap the dispatch with a 1-hour `Monitor` timeout (`timeout_ms: 3600000` — the tool's documented maximum).
 On expiry, call `TaskStop` on the subagent — the dispatch then resolves as a `timeout`, which §5.2 records and obeys exactly like a `fail`.
@@ -495,7 +497,7 @@ Open the draft PR only when §1.2 recorded `pr.wanted: true`, targeting the conf
 
 Opening the PR is the last of the batch-end steps — it runs after the package print and the diffview pane, and presupposes §9.1–§9.4 all ran.
 
-**Never hand-write the PR body — always generate it via a fresh `create-pr` agent dispatch (`subagent_type=create-pr`), scoped to drafting only.**
+**Never hand-write the PR body — always generate it via a fresh `agent(subAgent=create-pr, title=Draft batch PR description)`, scoped to drafting only.**
 The agent's own skill would push and create the PR itself; cap its dispatch to the drafted file so the orchestrator still owns the push and the existing-PR fallback.
 A hand-authored body is a defect. Exact dispatch, conventions, and required content: `references/batch-end-pr.md`'s "Draft PR (opt-in)".
 

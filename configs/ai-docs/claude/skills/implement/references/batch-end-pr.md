@@ -42,7 +42,7 @@ Only when the interview opted into a draft PR (§1.2). Skip this section entirel
     - `gh pr edit` eagerly queries Projects-classic `projectCards`; on repos where classic Projects is sunset it errors on that query and the write silently doesn't land.
     - The REST endpoint touches no Projects data.
     - Read the body back afterward to confirm it landed.
-- Generate the description with the **`create-pr` agent** (Agent tool, `subagent_type=create-pr` — its frontmatter pins model/effort, no override needed) from the spec/plan and commit bodies.
+- Generate the description with `agent(subAgent=create-pr, title=Draft batch PR description)` from the spec/plan and commit bodies.
   - Never dispatch `deep-reviewer` for this: its write-guard hook allows only `verdict_*.md` and `/tmp` writes, and denies a `pr-descr_*.md` write in CWD outright.
   - Scope this dispatch to drafting only — the agent's own skill would otherwise push and create the PR itself, which the orchestrator owns instead (see "must not push" below).
   - **The dispatch prompt must spell out every one of these requirements explicitly — never just "follow create-pr's conventions" by bare reference.**

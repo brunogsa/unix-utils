@@ -157,7 +157,7 @@ Iterate until the user is satisfied.
 
 ### 7. Dispatch `plan-writer` to generate the plan
 
-Once the spec is approved, dispatch the `plan-writer` subagent (`subagent_type: plan-writer` — its frontmatter pins model/effort, no model param needed here) to write `plan_<slug>.md` from the spec alone.
+Once the spec is approved, dispatch `agent(subAgent=plan-writer, title=Write implementation plan from spec)` to write `plan_<slug>.md` from the spec alone.
 
 Run it in the foreground (not backgrounded) — the next step depends on its result.
 

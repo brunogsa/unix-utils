@@ -34,7 +34,9 @@ Specialist prompts and validator rubric live in `references/`; bash glue in `scr
 
 The one exception to the no-Agents rule: Wave 5's density fix, delegated to the `density-fixer` agent (see either `wave5-emit-*.md`) as post-review cleanup.
 
-**Isolated — `Mode: local`, or `--isolate` passed:** Spawn one Agent with `model: "sonnet"`, put the resolved inputs in its prompt body, and tell it to read this SKILL.md and orchestrate from there.
+**Isolated — `Mode: local`, or `--isolate` passed:** Spawn one `agent(subAgent=general-purpose, title=Run code-review pipeline, model=sonnet)`.
+
+Put the resolved inputs in its prompt body, and tell it to read this SKILL.md and orchestrate from there.
 
 It runs the whole pipeline itself; the user sees only the final summary.
 

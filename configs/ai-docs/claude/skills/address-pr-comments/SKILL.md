@@ -36,7 +36,7 @@ Subagents can't post replies, commit, or push — permission UIs live in main. F
 
 So main runs steps 0–2 and 4–7, while step 3 goes to a background `general-purpose` subagent that returns only the proposal block — raw comment JSON never reaches main.
 
-Declare it as `title=Fetch, cluster, and rank PR review comments`, `model=sonnet`, `effort=medium` — render `description` per CLAUDE.md's Agent-description form.
+Declare it as `agent(subAgent=general-purpose, title=Fetch, cluster, and rank PR review comments, model=sonnet, effort=medium)`.
 
 If it reports zero unresolved comments matching the filters, stop — don't proceed to step 4.
 
@@ -132,7 +132,7 @@ Both go into the step-3 dispatch prompt — main never fetches comments itself. 
 
 ## Step 3: Fetch, filter, cluster, rank, propose (subagent)
 
-Dispatch a `general-purpose` subagent (model `"sonnet"`, effort `"medium"`, background) with this prompt, filling in `<n>`, `OWNER_REPO`, `ME`, and the parsed filters:
+Dispatch `agent(subAgent=general-purpose, title=Fetch, cluster, and rank PR review comments, model=sonnet, effort=medium)` in the background, with this prompt, filling in `<n>`, `OWNER_REPO`, `ME`, and the parsed filters:
 
 ```
 Read ~/.claude/skills/address-pr-comments/references/fetch-cluster-propose.md

@@ -51,8 +51,9 @@ Tracked in the `usage-audit` skill's `usage-history/experiments.md`
 - Otherwise, walk every wave (0 → 6) inline, per code-review-pipeline's
   "Inline — `Mode: github` without `--isolate`" dispatch.
 - **Arm B (fresh subagent):** dispatch per code-review-pipeline's
-  "Isolated — `Mode: local`, or `--isolate` passed" path — spawn the
-  sonnet-pinned wrapper Agent, unconditionally.
+  "Isolated — `Mode: local`, or `--isolate` passed" path — spawn
+  `agent(subAgent=general-purpose, title=Run code-review pipeline, model=sonnet)`,
+  unconditionally.
 - A new Agent is inherently fresh, so no session check is needed here.
 
 ## Execution

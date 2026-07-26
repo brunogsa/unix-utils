@@ -21,7 +21,7 @@ A `halt-budget` verdict never reaches here: it routes straight to §9 from §5.2
 
 ## Dispatch
 
-Spawn ONE `deep-reviewer` subagent via the Agent tool — fresh context, that agent type's pinned model and effort (no override needed).
+Spawn ONE `agent(subAgent=deep-reviewer, title=Test-presence gate for batch)` — fresh context.
 
 Pass it the resolved `plan_<slug>.md` path, the diff range `<BATCH_BASE_SHA>..HEAD`, and the batch's task IDs, read from the state file's `tasks[]`.
 

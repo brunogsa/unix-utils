@@ -115,9 +115,8 @@ The code-review-pipeline expects these inputs:
     concatenated content used as `{pr_context}` for every specialist
     (replacing the default `spec_<slug>.md` + `plan_<slug>.md` lookup).
 
-With the inputs above resolved, always dispatch isolated: spawn the
-`deep-reviewer` agent (`subagent_type: deep-reviewer`) — its definition pins
-model and effort, so no explicit `model` parameter is needed in the dispatch.
+With the inputs above resolved, always dispatch isolated: spawn
+`agent(subAgent=deep-reviewer, title=Review branch changes)`.
 Put the resolved inputs in its prompt body, and tell it to read
 `~/.claude/skills/code-review-pipeline/SKILL.md` and orchestrate from there
 — per that file's "Isolated" dispatch mode under "How callers dispatch",
