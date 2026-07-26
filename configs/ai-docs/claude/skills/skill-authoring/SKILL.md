@@ -149,12 +149,26 @@ Regenerate it whenever the skill's flow changes, and validate the render with `m
 Why: to the model, mermaid is just a second text encoding of the numbered steps — a drift-prone second source of truth that would tax every trigger if in-body.
 The human gets an at-a-glance flow audit; parking it in assets keeps that value at zero context cost.
 
-## Pin an explicit model on every subagent dispatch a skill prescribes
+## A procedural skill seeds its TaskList entries upfront, one per step
+
+Seed every unit of the run's work before the first one executes, in the order they execute.
+Give each follow-up step its own `[Reminder]` — never one entry standing for several.
+
+Why: the list then reads as the run's whole timeline, and a skipped step stays visible as pending.
+Bundled into one reminder, that step hides behind a checkbox someone already flipped.
+
+## Pin the model on every dispatch, and keep spawning in the orchestrator
 
 Name the model in the dispatch instruction: `sonnet` for mechanical or tool-driving steps, `haiku` for trivial transforms.
 Omit the pin only when the step genuinely needs the session model's judgment — and say so in the skill.
 
 Why: an unpinned Agent call inherits the session's model — often the most expensive tier — so a scripted mechanical fan-out silently runs at top-tier pricing on every future invocation.
+
+Only the orchestrator spawns: a subagent the skill dispatches must never spawn one of its own.
+Say so in that agent's file, and route the second opinion it wanted to a review step the orchestrator already runs.
+
+Why: a nested spawn is invisible to the orchestrator's budget and token accounting, so the run's caps stop bounding it.
+It also judges one slice mid-flight, where the deferred whole-artifact review sees that question against the full batch.
 
 ## When a skill step gets rushed, sharpen its completion criterion before adding process
 
