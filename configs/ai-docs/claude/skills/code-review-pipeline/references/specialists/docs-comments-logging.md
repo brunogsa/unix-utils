@@ -2,7 +2,7 @@
 
 Sources:
 - `code-review-pipeline/references/review-checklists.md#Comment & Documentation Checklist` + `doc-standards`.
-- `code-review-pipeline/references/review-principles.md#Review Priority Order` item 5 + `code-standards` logging rules.
+- The **Logging** dimension in `code-review-pipeline/references/review-principles.md#Review in priority order — most critical first`, plus `code-standards` logging rules.
 
 Why bundled: all three are "writing for future readers".
 

@@ -1,6 +1,6 @@
 # Specialist: Correctness
 
-Source: `code-review-pipeline/references/review-principles.md#Review Priority Order` item 1 — logic, bugs, race conditions, ordering, off-by-one, wrong branches, missing returns.
+Source: the **Correctness** dimension in `code-review-pipeline/references/review-principles.md#Review in priority order — most critical first` — logic, bugs, race conditions, ordering, off-by-one, wrong branches, missing returns.
 
 ---
 
