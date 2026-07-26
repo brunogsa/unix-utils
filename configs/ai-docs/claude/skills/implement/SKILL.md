@@ -420,11 +420,14 @@ This is the single exit every dead end in the run routes to. Entry, from anywher
 
 Then, wherever you came from:
 
-- Set `phase: "halted"` in this unit's state file.
+- Set `phase: "halted"` in this unit's state file — and in every remaining unit's file too.
+  - The Stop hook globs the whole session and blocks on any unit still at `tasks`.
+
 - Write into the scratchpad, per blocked task, **exactly what a human must do to clear it** — that list is the whole point of stopping here.
 - Leave this unit's remaining batch-end `[Reminder]` entries `pending`. They didn't run, and a pending entry is the honest record of that.
 - **Run nothing further** — whichever of the gate, the tails, the triage, the package, the diffview, and the PR you hadn't reached yet stays unrun.
   - Each presupposes a finished batch: gating a partial one flags tests never meant to exist yet, and a package invites review of work that isn't there.
+
 - On a PR-label run, the remaining PRs stay untouched — no branch, no dispatch.
 - Say it in one short message: which tasks are blocked, and what each one needs. Nothing else.
 
