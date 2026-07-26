@@ -175,6 +175,7 @@ Two artifacts, both written here and updated as the run goes:
 - **One JSON state file per unit** — the machine-checkable record the scripts and the hooks read.
   - `/tmp/implement_<session_id>.json` on a plain `<task-ids>` run.
   - `/tmp/implement_<session_id>_pr<n>.json` per PR on a PR-label run (`_pr1`, `_pr2`, …) — one file per label in the arg, **all created now**, not lazily as each PR's turn comes up.
+
 - **One markdown scratchpad** — `/tmp/implement_<session_id>.md`, the narrative surface the JSON has no shape for: decisions and their why, blocks with exactly what each needs, `[Scout]` notes, rejected approaches, artifact paths.
 
 Each state file has exactly this shape:
@@ -199,6 +200,7 @@ Each state file has exactly this shape:
 
 - `start_sha` is `git rev-parse HEAD` taken **before any branch is created and before any task is dispatched**, identical in every unit's file.
   - It is the run's anchor, naming where the repo stood when it began.
+
 - `batch_base_sha` stays `""` until that unit actually starts (§3.2) — a dependent PR branches off its parent, so its base does not exist yet.
 - One `tasks[]` entry per task-id that unit resolved, each `status: "pending"`; `worktree` / `pr` / `tails.wanted` come from §1.2's answers.
 - `pr_label` is `""` on a plain run, else the `PR-N` that file belongs to.

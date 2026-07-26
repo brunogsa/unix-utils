@@ -50,6 +50,7 @@ Split across two owners, an orchestrator that dies between them leaves a pushed 
     6. Checklist (preserve the team's template checklist verbatim)
     7. Evidences (value-add only, one line per claim)
     8. References (last)
+
   - `WARNING:`-prefixed items for any manual deploy prerequisite (new secrets, new Parameter-Store values) or other operationally-risky item needing human coordination.
   - Zero references to untracked session docs (`spec_<slug>.md`, `plan_<slug>.md`, `verdict_*.md`, internal task/AC numbers, commit SHAs in prose).
     Verify each candidate reference with `git ls-files <name>` first; substitute the value or drop the reference.
@@ -63,6 +64,7 @@ Split across two owners, an orchestrator that dies between them leaves a pushed 
       - `gh pr edit` eagerly queries Projects-classic `projectCards`; on repos where classic Projects is sunset it errors on that query and the write silently doesn't land.
       - The REST endpoint touches no Projects data.
       - Read the body back afterward to confirm it landed.
+
   - Put completed Scout / repo-green fix-loop (§9.1) commits under an **"Unexpected extras"** section in the PR body.
   - Pass the resolved `<this-PR-label>` explicitly in the dispatch prompt, so the subagent writes and opens one PR, never asks which PR it covers.
     The CWD may hold several spec/plan pairs and a run may cover several PRs, so an unstated label binds to the wrong one.

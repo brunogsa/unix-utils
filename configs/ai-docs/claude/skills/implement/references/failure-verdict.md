@@ -35,6 +35,7 @@ Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` an
 - **`stuck`** → go to §5.3, which marks the task terminal and chain-aborts its dependents.
   - A `fail`/`timeout` attempt earns this only once the script judges the failures aren't converging (too many attempts, or a repeating failure signature).
   - A `blocked` attempt always earns it on the first try: only the human can clear a real blocker, so retrying the same subagent just burns a dispatch.
+
 - **`halt-budget`** → the batch's dispatch budget is exhausted. Go to §5.5 and halt — wait for the human.
   - This is the same backstop §5.4 can hit on a pass — it's checked before this call even looks at the attempt's result.
   - It does **not** route to §9: a batch that burned its dispatch budget didn't finish, so there is no batch to gate or review yet.

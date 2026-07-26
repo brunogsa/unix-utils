@@ -103,6 +103,7 @@ Each step presupposes the one before it succeeded; the package is never printed 
    - **Failing here is a §5.5 halt, not a partial package.** No `gh`, no remote, a rejected push, or a create that errored all route to §5.5.
    - Name the failure, keep the state file, print nothing.
    - Not requesting a PR (`pr.wanted: false`) is not a failure — step 3 proceeds normally.
+
 3. **Assemble the package** (contents under "The review package") and **print it** to chat — the single async review pass, reached only once step 2 succeeded or was never requested.
 4. **Open the diffview pane** (see "Open the diff for review").
 5. **Finalize the phase.** Reaching this point means every task is `[Done]`, the gate passed, and the PR (if wanted) is open — the only outcome left.

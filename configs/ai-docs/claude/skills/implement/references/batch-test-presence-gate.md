@@ -37,6 +37,7 @@ For each ID `<N>`, first check that task's own plan entry for a `**DECISION:** S
 - Present → skip that task entirely and report it as opted out.
   - Reserved for a task whose deliverable has no runtime to test against, such as a prompt-markdown skill or agent file.
   - Test Design and the authoring-time coverage gates (`check-test-distribution.sh`, `check-ac-coverage.sh`) still apply in full; only this runtime check is bypassed.
+
 - Absent → run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <N>` for that task's planned-test titles.
 
 Handle its exit codes exactly this way — never fall back to inline AI judgment on a parse failure:
