@@ -46,7 +46,8 @@ Two dispatches that repair rather than judge, run serially after the qualitative
 
 **No toggle switches these two off**, including the one that skips the qualitative pass.
 
-Why: they repair a mechanical defect rather than judge content, so a caller has no rigor to trade — and nothing else in the run catches an unrenderable diagram or an over-cap line.
+Why: they repair a mechanical defect rather than judge content, so a caller has no rigor to trade away.
+Nothing else in the run catches an unrenderable diagram or an over-cap line.
 
 ## Every AC has a test
 
@@ -63,11 +64,9 @@ Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped co
 
 `scripts/check-test-distribution.sh <plan>` asserts set-equality between the Test Design breadcrumbs (A) and the union of tasks' `**Tests (planned)**:` lists (B).
 
-Deterministic, so a script, not a subagent. Output: `A \ B` (a designed test in no task) + `B \ A` (a task inventing a test); empty = pass. Block if non-empty.
+Output: `A \ B` (a designed test in no task) + `B \ A` (a task inventing a test); empty = pass. Block if non-empty.
 
 Both AC/test checks share `scripts/extract-design-tests.sh` to reconstruct the Test Design breadcrumb (`<describe> [> class] > it`), so the format lives in one place.
-
-Each scans only its relevant sections — never the whole file.
 
 Authors write the two lists with bare `it()` titles, then run `scripts/normalize-list-breadcrumbs.sh <plan>` (idempotent) to upgrade them to breadcrumbs before the checks run — never hand-typed.
 
@@ -78,9 +77,8 @@ The boundary and failure-category checklists (per `spec-template.md`) must each 
 - Instantiated with one row per coverage-taxonomy item marked `covered (<recap>)` / `N/A — <reason>`, or
 - Replaced wholesale by the opt-out `**DECISION:** Skip ... checklist because <reason>`.
 
-A checklist section skipped outright fails self-review exactly like an empty placeholder row would.
-
-"Skipped outright" means corner cases / failure modes written as flat ACs, with neither checklist rows nor an opt-out line.
+Skipping a section outright fails self-review exactly like an empty placeholder row would.
+"Skipped outright" means corner cases or failure modes written as flat ACs, with neither checklist rows nor an opt-out line.
 
 Then, for every AC, ask "how would this break in production?" If no failure mode surfaces, flag it as under-specified.
 

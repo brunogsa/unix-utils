@@ -1,28 +1,28 @@
 # brainstorm — flow overview
 
-Human-facing overview for auditing the flow at a glance. Non-authoritative — the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
+Human-facing flow audit. Non-authoritative — [`../SKILL.md`](../SKILL.md)'s numbered steps win on any conflict; regenerate whenever the flow changes.
 
 ```mermaid
 flowchart TD
   start(["User runs /brainstorm [path/to/spec_&lt;slug&gt;.md]"]):::start
 
-  subgraph seedTaskList["Seed the TaskList once, at skill start — one [Reminder] per step, before step 1 runs.<br/>Update each as it completes; the TaskList survives compaction, so nothing is ever re-seeded."]
+  subgraph seedTaskList["Seed the TaskList once, at skill start — one [Reminder] per step, before step 1 runs.<br/>Update each as it completes; the list survives compaction, so nothing is ever re-seeded."]
     direction TB
-    tl1["Add to TaskList a [Reminder] for Step 1:<br/>Pre-flight — settle the run's toggles, open its state"]:::state
-    tl2["Add to TaskList a [Reminder] for Step 2:<br/>Gather starting context"]:::state
-    tl3["Add to TaskList a [Reminder] for Step 3:<br/>Probe scope for decomposable sub-projects"]:::state
-    tl4["Add to TaskList a [Reminder] for Step 4:<br/>Interview the user (Socratic rounds)"]:::state
-    tl5["Add to TaskList a [Reminder] for Step 5:<br/>Propose 2-3 approaches with trade-offs"]:::state
-    tl6["Add to TaskList a [Reminder] for Step 6:<br/>Dispatch a fork to write spec_&lt;slug&gt;.md"]:::state
-    tl7["Add to TaskList a [Reminder] for Step 7:<br/>Self-review the spec with fresh eyes"]:::state
-    tl8["Add to TaskList a [Reminder] for Step 8:<br/>Present the spec for review"]:::state
-    tl9["Add to TaskList a [Reminder] for Step 9:<br/>Dispatch plan-writer to write plan_&lt;slug&gt;.md"]:::state
-    tl10["Add to TaskList a [Reminder] for Step 10:<br/>Run self-review, then hand off with /clear"]:::state
+    tl1["Step 1 · Pre-flight — toggles + run state"]:::state
+    tl2["Step 2 · Gather starting context"]:::state
+    tl3["Step 3 · Probe scope for sub-projects"]:::state
+    tl4["Step 4 · Interview (Socratic rounds)"]:::state
+    tl5["Step 5 · Propose 2-3 approaches"]:::state
+    tl6["Step 6 · fork writes spec_&lt;slug&gt;.md"]:::state
+    tl7["Step 7 · Self-review the spec"]:::state
+    tl8["Step 8 · Present the spec for review"]:::state
+    tl9["Step 9 · plan-writer writes plan_&lt;slug&gt;.md"]:::state
+    tl10["Step 10 · Self-review, hand off with /clear"]:::state
     tl1 --> tl2 --> tl3 --> tl4 --> tl5 --> tl6 --> tl7 --> tl8 --> tl9 --> tl10
   end
 
   preflightGate["Step 1 · Ask all 3 yes/no toggles in ONE message, before any other question:<br/><br/>Every line traces to an AC? · Right-sized plan? · Fresh-eyes self-review (default yes)?<br/>they gate how strictly steps 7 and 10 check the documents"]:::gate
-  persistToggles["Persist all 3 answers to /tmp/sdd_&lt;session_id&gt;.json<br/><br/>steps 7 and 10 read them back from this file and never re-ask;<br/>settled before any document exists, so none can be waived for failing"]:::state
+  persistToggles["Persist all 3 answers to /tmp/sdd_&lt;session_id&gt;.json<br/><br/>steps 7 and 10 read them back and never re-ask;<br/>settled before any document exists, so none can be waived for failing"]:::state
   makeScratch["Create the run scratchpad /tmp/brainstorm_&lt;session_id&gt;.md<br/><br/>written as things happen, never at the end; lives through spec, plan and self-review<br/>on resume/after compaction: re-read it first, trust it over recalled context"]:::state
 
   d1{"Step 2 · Path provided?"}
@@ -38,18 +38,18 @@ flowchart TD
   d4{"User agrees to decompose?"}
   n7["Write scopes.md<br/><br/>One line per sub-project: name, purpose, dependency"]
 
-  n9["Step 4 · Interview: ask 2-3 Socratic questions per round<br/>(prefer AskUserQuestion tool, recommended answer + reasoning)<br/><br/>categories: Background • Goal/KPIs • User Stories • Acceptance Criteria (BDD) • NFR/Technical constraints • Open Questions<br/><br/>split facts (look up yourself) from decisions (ask user)"]:::gate
+  n9["Step 4 · Interview: ask 2-3 Socratic questions per round<br/>(AskUserQuestion, recommended answer first)<br/><br/>categories: Background • Goal/KPIs • User Stories • Acceptance Criteria (BDD) • NFR/Technical constraints • Open Questions<br/><br/>split facts (look up yourself) from decisions (ask user)"]:::gate
   writeScratch["Write each round's outcome to the scratchpad as it closes<br/><br/>decisions with their why, discarded alternatives with why they lost, open questions"]:::state
-  refLoad["Load test-standards coverage-taxonomy reference<br/>(unconditional, every round, before spec generation)"]:::skill
-  n10["Push user through every taxonomy category;<br/>probe corner cases (empty/max/boundary) + failure modes (timeouts/partial/rate-limit)<br/><br/>ask: what should happen when X is empty/oversized/invalid/unavailable?"]:::gate
+  refLoad["Load test-standards coverage-taxonomy reference<br/>(unconditional, before spec generation)"]:::skill
+  n10["Push user through every taxonomy category;<br/>probe corner cases (empty/max/boundary) + failure modes (timeouts/partial/rate-limit)"]:::gate
   d6{"Exit criterion met?<br/>(latest round added no new requirement/constraint changes AND every taxonomy category covered or ruled out)"}
 
   n11["Step 5 · Propose 2-3 approaches with trade-offs;<br/>lead with recommendation"]
   n12["Get directional pick from user;<br/>the fork later records it plus the discarded alternatives in the spec's Decisions section"]:::gate
 
   d7{"Step 6 · spec_&lt;slug&gt;.md already exists?"}
-  n14["Derive kebab-case slug from the feature, confirm it with the user<br/><br/>the plan inherits the same slug — that shared slug is what pairs the two"]:::gate
-  specFork{{"Dispatch fork · inherits this session's model AND full context (serial, foreground)<br/><br/>it reads the spec-driven-development library + spec-template, folds the scratchpad's<br/>decisions in, then writes/updates the spec and reports the resolved path<br/><br/>this session never writes the spec itself — every later edit re-dispatches a fork"}}:::dispatch
+  n14["Derive kebab-case slug from the feature, confirm it with the user<br/><br/>the plan inherits the same slug, which is what pairs the two"]:::gate
+  specFork{{"Dispatch fork · inherits this session's model AND full context (serial, foreground)<br/><br/>it reads the spec-driven-development library + spec-template, folds the<br/>scratchpad's decisions in, then writes/updates the spec<br/><br/>this session never writes the spec itself — every later edit re-dispatches a fork"}}:::dispatch
 
   d_selfreview{"Step 7 · Fresh-eyes self-review toggle on?<br/>(read back from /tmp/sdd_&lt;session_id&gt;.json, never re-asked)"}
   specReview{{"Dispatch deep-reviewer · agent-pinned (serial, foreground)<br/>on the spec file ALONE — no plan exists yet<br/><br/>placeholders • contradictions • ambiguity • completeness • scope • human-reviewable"}}:::dispatch
@@ -65,19 +65,19 @@ flowchart TD
   d9{"plan-writer returned a numbered gap list?"}
   n18["Walk and close EVERY reported gap with the user first<br/><br/>the spec update goes through a fork; then re-dispatch plan-writer once (not once per gap);<br/>never invent the missing decision"]:::gate
 
-  refSelfReview["Step 10 · Read spec-driven-development/references/self-review-checks.md<br/>(the checks run below are defined there)"]:::skill
+  refSelfReview["Step 10 · Read spec-driven-development/references/self-review-checks.md"]:::skill
   d_qualitative{"Fresh-eyes self-review toggle on?<br/>(same answer as step 7, same file)"}
   qualDispatch1{{"Dispatch deep-reviewer · agent-pinned (serial):<br/>qualitative pass over spec + plan — placeholders, contradictions,<br/>scope, PR size, ambiguity, completeness, human-reviewable"}}:::dispatch
   skipQual["Note 'qualitative pass skipped by request' in the self-review output"]:::state
   qualDispatch2{{"Dispatch mermaid-fixer · agent-pinned (serial)<br/>on every diagram in the spec + plan — no toggle switches this off"}}:::dispatch
   qualDispatch3{{"Dispatch density-fixer · agent-pinned (serial)<br/>on the spec + plan files — no toggle switches this off"}}:::dispatch
-  formalChecksNode["Run seven formal checks in sequence<br/>(5 always-on + 2 gated by the AC-traceability and right-sized toggles,<br/>read back from /tmp/sdd_&lt;session_id&gt;.json)<br/><br/>AC-test-coverage and right-sized checks each<br/>dispatch deep-reviewer · agent-pinned (serial)"]
+  formalChecksNode["Run seven formal checks in sequence<br/>(5 always-on + 2 gated by the AC-traceability and right-sized toggles)<br/><br/>AC-test-coverage and right-sized checks each<br/>dispatch deep-reviewer · agent-pinned (serial)"]
   d10{"All blocking checks pass?"}
   fixLoop["Fix flagged issue directly;<br/>surface spec/plan conflicts to user first, if any"]:::gate
   snapshotLoop["Snapshot spec+plan to /tmp/sdd-snapshots/<br/>for the user's annotated-diff review<br/><br/>a fresh snapshot per round of AI fixes"]:::state
   d11{"User approves the snapshot?"}:::gate
   rerunCheck["Re-run only the failed check,<br/>plus a delta-scoped re-review of what the diff shows changed<br/><br/>never the whole seven-check block"]
-  done(["Hand off: tell the user to run /clear, then invoke /implement<br/><br/>brainstorm never runs /implement itself — everything downstream is the user's to drive"]):::gate
+  done(["Hand off: tell the user to run /clear, then invoke /implement<br/><br/>brainstorm never runs /implement itself"]):::gate
 
   start --> tl1
   tl10 --> preflightGate

@@ -61,7 +61,7 @@ Then create the run scratchpad `/tmp/brainstorm_<session_id>.md`, keyed the same
 
 ### 3. Probe scope before deep questions
 
-Before drilling into requirements, check whether the request describes multiple independent subsystems (e.g., "platform with chat, file storage, billing, and analytics").
+Before drilling into requirements, check whether the request describes multiple independent subsystems.
 Signals: multiple unrelated nouns, distinct user roles, separate persistence concerns, or features that could each ship independently.
 
 If it looks decomposable, surface it:
@@ -110,7 +110,7 @@ If the user only describes the happy path, ask explicitly: "what should happen w
 
 ### 5. Propose 2-3 approaches with trade-offs
 
-Once the step 4 exit criterion is met, present 2-3 viable approaches conversationally.
+Present 2-3 viable approaches conversationally.
 Lead with your recommendation and the reasoning. Cover the trade-off axes that matter for this idea (complexity, blast radius, reversibility, dependencies, time-to-first-value).
 
 Get a directional pick from the user before writing the spec. Capture the outcome in the spec's Decisions section as one marker with discarded alternatives as sub-bullets.
@@ -121,7 +121,7 @@ It also surfaces when the constraint that killed an alternative no longer applie
 ### 6. Dispatch a `fork` to write the spec
 
 For a fresh idea, derive a short kebab-case `<slug>` from the feature and confirm it with the user **before dispatching**.
-The plan later inherits that same slug — the shared slug is what pairs the two, so several in-flight features can coexist in one directory.
+The plan later inherits that same slug — the shared slug is what pairs the two.
 
 Then dispatch `agent(subAgent=fork, title=Write spec_<slug>.md)`, in the foreground — the next step needs the spec to exist. Instruct it to:
 
@@ -150,7 +150,7 @@ No plan exists yet, so the PR-size and plan-contradiction items don't apply.
 Then dispatch `agent(subAgent=fork, title=Apply spec review findings)` to apply every blocking finding, and record in the scratchpad what was flagged and how each was resolved.
 
 **Run this review exactly once — never a second round.**
-The user reads the spec next and is the stronger judge of it, so a re-review only pre-empts a human already about to look.
+The user reads the spec next and is the stronger judge of it.
 
 Why fresh eyes before the user: this session argued itself into every choice, so it reads its own spec as complete because it remembers what the spec never says.
 Catching that at step 10 instead would mean the plan was already built on the gap.
@@ -175,8 +175,8 @@ Pass it:
 - The plan output path: `plan_<slug>.md` in CWD, same slug as the spec.
 - Any planning-conventions file the user named (ADR/HLD/LLD), if one exists.
 
-**If it returns a numbered list of gaps** instead of a plan: the spec is missing information the plan needs.
-Walk and close every reported gap with the user first, updating `spec_<slug>.md` through a `fork` per step 6, then re-dispatch `plan-writer` once — not once per gap.
+**If it returns a numbered list of gaps** instead of a plan, walk and close every reported gap with the user first, updating `spec_<slug>.md` through a `fork` per step 6.
+Then re-dispatch `plan-writer` once — not once per gap.
 Never fill a gap yourself with an invented decision — that's exactly the author-bias this dispatch exists to catch.
 
 Why fresh context: this session already talked itself into the spec's choices during the interview.
@@ -194,7 +194,8 @@ Run the gates in this order, each one serial:
 2. **Artifact fixers** — `agent(subAgent=mermaid-fixer, ...)`, then `agent(subAgent=density-fixer, ...)`, per that reference. Both run regardless of any toggle.
 3. **The seven formal checks, in sequence** — the five always-on ones, plus the two toggles read from `/tmp/sdd_<session_id>.json`. Never re-ask a toggle here.
 
-On a blocking failure, follow that library's iteration-and-drift loops: fix the issue, snapshot both docs to `/tmp/sdd-snapshots/` for the user's annotated-diff review, and once they approve it re-run only the failed check plus a delta-scoped re-review.
+On a blocking failure, follow that library's iteration-and-drift loops: fix the issue, then snapshot both docs to `/tmp/sdd-snapshots/` for the user's annotated-diff review.
+Once they approve it, re-run only the failed check plus a delta-scoped re-review.
 
 Once every blocking check passes, tell the user to run `/clear`, then invoke `/implement`. Don't run `/implement` in this session.
 
