@@ -141,6 +141,13 @@ The two subsections below apply to any standalone doc — where it lives and wha
 - [Instruction] Lead with the bottom line — state a doc's and each section's conclusion first, then its support (BLUF).
   - [Why] NN/g eye-tracking shows readers scan in an F-pattern and bail early, so a buried conclusion is one early-scanning readers never reach.
 
+- [Instruction] Collapse what the reader consults — a lookup table, an index, a raw payload, a full log — into a `<details>` or equivalent toggle.
+  - [Why] Consulted content is read by whoever needs one row of it, so leaving it expanded spends every reader's attention to serve the few who came for it.
+
+- [Instruction] Never collapse what the reader is meant to read — narrative, rationale, decisions, or anything a review depends on.
+  - [Why] Collapsed content is content nobody opens, so hiding the part the doc exists to communicate buys a shorter page by trading away the reading it was written for.
+  - [Example] Collapse an acceptance-criteria index or a 200-line payload; never collapse a PR's Context, Changes, or Decisions.
+
 - [Instruction] In a repo's CLAUDE.md, capture its purpose, dependencies, non-obvious gotchas, and load-bearing conventions.
   - [Why] CLAUDE.md's value is what the code *can't* show — purpose, gotchas, and conventions live nowhere else.
 
