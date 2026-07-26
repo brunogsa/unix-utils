@@ -19,7 +19,7 @@ The split that matters most is **purpose**: HLD, LLD, and ADR are **decision & a
 
 So durable docs carry tests, tasks, and launch at **alignment altitude** — strategy, titles, cross-team deps — while the plan carries the **concrete** version — commit-tasks, file paths, test titles.
 
-The spec_<slug>.md/plan_<slug>.md workflow — interviewing, drafting, refining — lives in the `spec-driven-development` skill; this skill only covers their shape and altitude.
+The spec_<slug>.md/plan_<slug>.md workflow — interviewing, drafting, refining — lives in the `brainstorm` skill, and their conventions and self-review gates in the `spec-driven-development` library; this skill only covers their shape and altitude.
 
 ## Who owns what (single source of truth)
 
@@ -167,10 +167,11 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
   - The top comment block holds the HLD↔LLD boundary rule.
 
 - spec_<slug>.md — do **not** improvise from this skill's altitude/ownership notes.
-  - Load the **`spec-driven-development`** skill and populate its `assets/spec-template.md` (Bottom line, Since-your-last-review, Context Diagram, `### AC-N:` BDD acceptance criteria + boundary/failure coverage checklists, Functional Decisions log).
-  - This skill owns only the spec's *altitude and ownership*; the section structure and the interview/self-review workflow live in `spec-driven-development`.
+  - Read `~/.claude/skills/spec-driven-development/SKILL.md` (by path — it is not Skill-invocable) and populate its `assets/spec-template.md`.
+  - Sections: Bottom line, Since-your-last-review, Context Diagram, `### AC-N:` BDD acceptance criteria + boundary/failure coverage checklists, Functional Decisions log.
+  - This skill owns only the spec's *altitude and ownership*; the section structure and self-review gates live in that library, and the interview workflow in `brainstorm`.
 
-- plan_<slug>.md — same rule: load **`spec-driven-development`** and populate its `assets/plan-template.md`.
+- plan_<slug>.md — same rule: read that same library by path and populate its `assets/plan-template.md`.
   - Sections: Reuse report, Side-effect report, Failure Handling & Consistency, Test Design AC↔"Covered by" table, structured Task Breakdown, PR Breakdown, Technical Decisions log.
   - Authoring a spec/plan from the altitude notes above instead of these templates is the known failure mode this route exists to prevent.
 

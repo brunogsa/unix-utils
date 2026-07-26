@@ -1,16 +1,22 @@
 ---
 name: brainstorm
-description: "Interactively refine an idea into a spec_<slug>.md via Socratic interview. USE when user explicitly says 'let's brainstorm'."
+description: "Refine an idea into an approved spec_<slug>.md + plan_<slug>.md via Socratic interview, then self-review and hand off to /implement. USE when the user says 'let's brainstorm', or when planning a non-trivial feature or breaking work into commits."
 disable-model-invocation: false
 ---
 
 # Brainstorm
 
-Help the user explore and refine an idea into a structured `spec_<slug>.md`.
+Help the user explore and refine an idea into a structured `spec_<slug>.md`, then into a self-reviewed `plan_<slug>.md` ready to hand off.
 
-Spec template and marker conventions live in the companion skill — load it alongside this one:
+This skill owns the whole procedure end to end.
+The document conventions it writes against — naming, templates, guidelines, and the self-review gates — live in the `spec-driven-development` library, read at the two points that need it:
 
-@~/.claude/skills/spec-driven-development/SKILL.md
+- **Step 5 (write the spec)**: read `~/.claude/skills/spec-driven-development/SKILL.md` for its Guidelines, plus its `assets/spec-template.md` for the section structure.
+- **Step 8 (self-review)**: read `~/.claude/skills/spec-driven-development/references/self-review-checks.md`.
+
+Read that library by path — never via the Skill tool. It sets `disable-model-invocation: true`, so it is absent from the skill listing and cannot be invoked.
+
+Why not read it upfront: steps 1-4 are pure interview and need none of it, and that is the phase that burns the most context before any document exists.
 
 ## Usage
 
@@ -61,12 +67,16 @@ Why:
 
 ### 3. Interview the user
 
-**Before the first question round**, run the pre-flight toggle interview from `spec-driven-development/SKILL.md`'s "Pre-flight interview" section — one message, two yes/no toggles ("Every line traces to an AC?", "Right-sized plan?").
-Persist the answers immediately to `/tmp/sdd_<session_id>.json`, exactly as that section specifies.
+**Open with two yes/no rigor toggles**, in one message, before the first Socratic round:
 
-Why here, not at step 8: both toggles gate how strictly the eventual plan gets checked.
-Deciding on rigor before the plan exists closes off tuning rigor down after seeing what was produced.
-Step 8's self-review reads the persisted answers — never re-ask.
+- **"Every line traces to an AC?"** — should self-review block on machinery that maps to no acceptance criterion?
+- **"Right-sized plan?"** — should a fresh reviewer judge the plan against the original request for gold-plating?
+
+Persist both answers immediately to `/tmp/sdd_<session_id>.json` — one brainstorm run per session, so the session id alone keys the file.
+Answer them fresh each run: never reuse a previous run's answers, and never write them into `plan_<slug>.md` or any committed file.
+
+Why upfront: both toggles gate how strictly step 8 checks the plan, so deciding rigor before the plan exists closes off tuning it down after seeing what was produced.
+Why persisted: a compaction between here and step 8 would otherwise lose them, and step 8 must read the file — never re-ask.
 
 At interview start, create `/tmp/brainstorm_<session_id>.md` — one brainstorm per session, so the session id alone keys the file.
 Persist each decision with its why, each discarded alternative with why it lost, and open questions — as they happen, not at the end.
@@ -122,11 +132,13 @@ Why include discarded options at all:
 
 ### 5. Generate/update the spec
 
+**Read `~/.claude/skills/spec-driven-development/SKILL.md` now**, plus its `assets/spec-template.md`.
+That library's Guidelines govern what you write: English regardless of the conversation's language, lean over exhaustive, and no `AC-N` cross-references.
+
 Write to the provided/discovered file path. For a fresh idea, name a new spec file:
 
 - Derive a short kebab-case `<slug>` from the feature and confirm it with the user.
-- Write `spec_<slug>.md` in CWD. The plan later inherits the same slug.
-- The companion `spec-driven-development` skill defines this naming convention.
+- Write `spec_<slug>.md` in CWD. The plan later inherits that same slug — the shared slug is what pairs the two, so several in-flight features can coexist in one directory.
 
 If the file already exists, update it in place (preserve user content, fill gaps, restructure into the template).
 
@@ -164,17 +176,26 @@ It does this instead of quietly drawing on session memory the next reader won't 
 
 ### 8. Run self-review, then hand off with `/clear`
 
-Once `plan-writer` returns a plan, run `spec-driven-development/SKILL.md`'s Lifecycle step 2 ("AI Self-review") in full, in this session.
-`plan-writer` never runs it itself, so nothing upstream has checked the plan yet.
+`plan-writer` never reviews its own output, so nothing upstream has checked the plan yet — this session runs every gate.
 
-Dispatch the qualitative pass in order (`deep-reviewer` → `mermaid-fixer` → `density-fixer`, per that section's detail), then the seven formal checks.
-These checks include the five always-on checks, plus the two toggles resolved from the answers persisted at step 3.
+**Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now.**
+The library SKILL.md read at step 5 carries the seven-check table this reference expands on.
 
-A blocking failure follows that section's iteration/recovery loops (delta-scoped re-review, formal-check recovery, snapshot hand-off): fix, then re-run only the failed check — never the whole seven-check block.
+Run the gates in this order:
 
-Tell the user to run `/clear`, then invoke `/implement` — don't run `/implement` in this session.
+1. **Qualitative pass** — dispatch `deep-reviewer`, then `mermaid-fixer`, then `density-fixer`, serially, per that reference's detail.
+2. **The seven formal checks, in sequence** — the five always-on ones, plus the two toggles read from `/tmp/sdd_<session_id>.json`. Never re-ask a toggle here.
+
+On a blocking failure, follow that library's iteration-and-drift loops: fix the issue, then snapshot both docs to `/tmp/sdd-snapshots/` for the user's annotated-diff review.
+Once the user approves that snapshot, re-run only the failed check plus a delta-scoped re-review of what changed — never the whole seven-check block from the top.
+
+Once every blocking check passes, tell the user to run `/clear`, then invoke `/implement`. Don't run `/implement` in this session.
 
 Why: `/implement` re-grounds entirely from `spec_<slug>.md` and `plan_<slug>.md` on disk; carrying this session's conversation forward buys nothing and blurs cost attribution between planning and execution.
+
+What follows is the user's to drive, not this skill's: `/implement`, then `/refactor` and `/auto-review` once the feature is whole.
+Then a manual code read, then `/create-pr` (which reads both docs for a rich description), then `/improve-from-user` and `english-coach`.
+Both documents stay living through all of it — this skill produces their starting state, never their final one.
 
 ## Flowchart (human-facing)
 

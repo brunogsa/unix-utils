@@ -1,6 +1,7 @@
 # Self-review checks — what each one means and what blocks
 
-Read this when step 2's self-review starts, after `plan-writer` returns. SKILL.md carries the check table; this file carries what each check means and what blocks.
+Read this when self-review starts, once a plan exists and before any human is asked to review it.
+SKILL.md carries the check table; this file carries what each check means and what blocks.
 
 ## Contents
 
@@ -19,7 +20,9 @@ Dispatch the `deep-reviewer` agent to read both docs with fresh eyes and report 
 - **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
 - **Contradictions**: do sections within one doc disagree, or does plan_<slug>.md contradict spec_<slug>.md (spec assumptions overturned by planning, architectural choices superseding spec requirements)?
 - **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition?
-  - If yes, write/update `scopes.md` per the `brainstorm` skill's scope-probe step, then re-run the qualitative pass only — the formal checks follow next regardless.
+  - If decomposable, write/update `scopes.md` next to the spec — one line per sub-project, each giving its name, a one-sentence purpose, and which other sub-projects it depends on.
+  - Then re-run the qualitative pass only; the formal checks follow next regardless.
+  - Why the file: a stale session loses the decomposition map, so the next planning run re-derives the same split from scratch.
 - **PR size**: does the work fit one reviewable PR, or is it large enough to stage into several?
   - If large, **PR Breakdown** must split the tasks into an ordered PR sequence — vertical splits, each shipping its own tests + code + docs — not one oversized PR.
   - Blocking gate: an oversized PR blocks approval until the plan is split, or the user explicitly waives it for this run.

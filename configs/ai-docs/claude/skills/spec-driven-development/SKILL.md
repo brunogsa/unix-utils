@@ -1,37 +1,28 @@
 ---
 name: spec-driven-development
-description: "Spec-driven development with spec_<slug>.md/plan_<slug>.md as session-scoped, untracked living docs. USE PROACTIVELY when planning a non-trivial feature or breaking work into commits. For Socratic idea-refinement, use `brainstorm` instead."
-disable-model-invocation: false
+description: "Conventions and self-review gates for spec_<slug>.md/plan_<slug>.md living docs — naming, discovery, templates, and the checks a plan must pass. Read by path from `brainstorm`, `design-docs`, and `plan-writer`; run `/brainstorm` to produce a spec/plan pair."
+disable-model-invocation: true
 ---
 
 # Spec-Driven Development
 
-Lightweight workflow using two living documents in CWD to guide development, code review, and PR description generation.
+Conventions and gates for the two living documents in CWD that drive development, code review, and PR description generation.
 
-## Pre-flight interview (the first thing, every run)
+This skill is a library, not a procedure.
+It defines what the docs are called, how consumers find them, what shape they take, and which checks a plan must pass before a human sees it.
+The procedure that produces them — interview, spec, plan, self-review, handoff — lives in the `brainstorm` skill.
 
-The moment this skill starts — before any spec or plan work — ask one message with two independent yes/no toggles:
+Why the split: `/implement`, `/auto-review`, and `/create-pr` consume these docs without ever authoring one, so the authoring flow would be dead weight in their context.
 
-- **"Every line traces to an AC?"**
-- **"Right-sized plan?"**
-
-UNLESS `brainstorm` drives the run — it `@`-imports this skill at load time, so "starts" would otherwise mean brainstorm's first step.
-There the toggles fire at the top of brainstorm's "Interview the user" step instead, before its first question round.
-Why: brainstorm reads any existing spec and probes scope before that, and firing the toggles ahead of its scope probe splits one interview into two disjoint question moments.
-
-They govern the two toggleable self-review checks (see "Self-review both spec and plan" below).
-Answered fresh each run — never reused from a previous run, never written to `plan_<slug>.md` or any committed state file.
-
-The moment the answers arrive, persist them to `/tmp/sdd_<session_id>.json` — one SDD run per session, so the session id alone keys the file.
-The self-review checks consume them only after `plan-writer` returns, and a compaction in that window must not lose them.
-Writing them to `/tmp` for this run only is not the cross-run persistence banned above.
+**Callers reach this file by path, not by the Skill tool** — `Read ~/.claude/skills/spec-driven-development/SKILL.md`.
+`disable-model-invocation: true` keeps a library nothing auto-triggers off the model's skill listing, which is also what takes its description out of every session's always-on budget.
 
 ## Documents
 
 Two living documents in CWD. Templates live in `assets/` and are populated based on the user's input.
 
 These throwaway docs feed from durable design docs (ADR / HLD / LLD).
-Load the `design-docs` skill at step 0 (spec authoring) for the ownership + altitude rules that keep spec/plan from re-deriving them.
+Load the `design-docs` skill when authoring the spec, for the ownership + altitude rules that keep spec/plan from re-deriving them.
 
 ### Naming convention
 
@@ -72,32 +63,19 @@ Technical approach and task breakdown. Generated from spec_<slug>.md (or directl
 
 Read `./assets/plan-template.md` when starting the plan phase, and populate it.
 
-Uses BDD/TDD by default: load the `test-driven-development` skill at step 4 (per TaskCreate item, before implementing it).
+Uses BDD/TDD by default: load the `test-driven-development` skill once per task, before implementing it.
 Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task itself).
 
-## Lifecycle
+## Self-review gates
 
-0. User creates spec_<slug>.md with initial prompt/notes (or `/brainstorm` refines it).
-1. Dispatch the `plan-writer` subagent to write plan_<slug>.md from spec_<slug>.md alone — same mechanism regardless of whether the spec came from `/brainstorm`, plan mode, or a direct request.
-   - Exception: a plan requested straight from a prompt with no spec_<slug>.md on disk skips plan-writer (spec-only input) — write it in-session instead.
-2. AI Self-review — qualitative pass, then seven formal checks (five always-on, two toggled by the pre-flight interview at skill start).
-3. User reviews and approves — then run `/clear` and invoke `/implement` in a fresh session; never continue in this one.
-   - Why: `/implement` re-grounds from spec_<slug>.md and plan_<slug>.md on disk, so carrying this session forward only blurs planning-vs-execution cost.
-4. Each plan_<slug>.md task becomes a TaskCreate item — owned by `/implement` in the fresh post-`/clear` session; listed here for lifecycle continuity only.
-5. Both files updated as work progresses (living docs); decisions are append-only past the divider that exists on both spec_<slug>.md and plan_<slug>.md.
-6. User runs `/refactor` then `/auto-review` when the entire feature is developed; fixes are addressed, if any.
-7. User manually review the code. More fixes, if any.
-8. `/create-pr` uses both spec_<slug>.md and plan_<slug>.md to generate a rich PR description.
-9. Self-improving loop: user runs `/improve-from-user` then `english-coach` skills so both AI and human learn.
+Every plan passes a qualitative pass, then the seven formal checks below, before a human is asked to review it.
 
-### Self-review both spec and plan before handing it back (step 2 detail)
+**Read [`references/self-review-checks.md`](references/self-review-checks.md) when you run these** — it carries the qualitative-pass checklist and, per formal check, what it means and what blocks.
 
-Step 2 runs a qualitative pass first, then the seven formal checks below.
+Two of the seven are toggles the caller resolves *before* the plan exists and persists to `/tmp/sdd_<session_id>.json`.
+Read the answers from that file when you reach the checks — never ask them here.
 
-**Read [`references/self-review-checks.md`](references/self-review-checks.md) when you reach this step** — it carries the qualitative-pass checklist and, per formal check, what it means and what blocks.
-
-The two toggles were already asked at skill start — the "Pre-flight interview" section at the top of this SKILL.md — and persisted to `/tmp/sdd_<session_id>.json`.
-Read them from that file here; never re-ask them at this point.
+Why: asking after the plan is written lets a check get waived because it failed, rather than because it never applied.
 
 Seven formal checks run in sequence (five always-on + the two toggles above):
 
@@ -117,7 +95,7 @@ A toggled-off check is omitted from that pass; self-review's output states expli
 
 Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces only in implementation.
 
-#### Iteration rounds and drift (conditional — load only when they fire)
+### Iteration rounds and drift (conditional — load only when they fire)
 
 - **Delta-scoped re-review** — later self-review rounds scope the gates to what `diff` shows changed, not the whole doc again.
   - Load [`references/delta-scoped-rereview.md`](references/delta-scoped-rereview.md) on the second and later rounds.
@@ -150,6 +128,7 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
   - Why: specs/plans are scanned non-linearly; an ID reference adds lookup cost on every scan, while the behavior recap alone carries the meaning.
 
 - **CRITICAL: Keep spec and plan up to date** -- Stale docs degrade `/create-pr`.
+  - Both files stay living through implementation; decisions are append-only past the divider that exists on both.
 
 - **plan_<slug>.md tasks and their sub-steps become items on TaskList** — when running inline.
   - Under `/implement`, only parent tasks go on the orchestrator's TaskList; each task subagent tracks its own sub-steps in a private checklist file.
@@ -164,7 +143,3 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
 
 - **CRITICAL: Add a blank line between bullets (not sub-bullets)**:
   - This improve A LOT the readability
-
-## Flowchart (human-facing)
-
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the lifecycle above wins; regenerate it whenever the flow changes.

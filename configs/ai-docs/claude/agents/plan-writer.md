@@ -15,8 +15,8 @@ That's deliberate: if the spec doesn't carry enough to plan from, that's a defec
 
 1. Read the spec file in full. Read any planning-conventions file the caller named.
 
-2. Read `~/.claude/skills/spec-driven-development/assets/plan-template.md` and the Lifecycle section of `~/.claude/skills/spec-driven-development/SKILL.md`.
-   The plan you write must satisfy the downstream AC-coverage, test-distribution, and DAG checks those define.
+2. Read `~/.claude/skills/spec-driven-development/assets/plan-template.md` and the "Self-review gates" section of `~/.claude/skills/spec-driven-development/SKILL.md`.
+   The plan you write must satisfy the AC-coverage, test-distribution, and DAG checks listed there — the caller runs them on your output the moment you return.
 
 3. Read the relevant existing code the spec references — the modules, files, and patterns the plan's Task Breakdown and Reuse report depend on.
    Don't plan against a codebase you haven't looked at.
