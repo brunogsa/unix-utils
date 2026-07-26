@@ -28,7 +28,7 @@
 #
 # Safeguards (all silent no-ops — never break Claude on a tooling/state gap):
 #   - jq missing → exit 0.
-#   - stop_hook_active=true → exit 0 (mirrors claude-density-stop-hook.sh's
+#   - stop_hook_active=true → exit 0 (mirrors claude-markdown-standards-stop-hook.sh's
 #     guard: an always-on hook must never spin an infinite stop-block loop).
 #   - No session_id, or no state files match it → exit 0.
 #   - A state file that is corrupt JSON is skipped (fail-open per-file), not

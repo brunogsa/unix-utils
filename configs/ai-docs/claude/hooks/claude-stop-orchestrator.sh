@@ -9,17 +9,17 @@
 # Why this exists:
 #   Claude Code runs all hooks on one event IN PARALLEL with no short-circuit
 #   (one hook's block does not suppress a sibling's side effects). With the
-#   density gate and the tmux "done" notification both wired directly to Stop,
-#   a turn that the gate blocks (to keep fixing density) still fires a premature
+#   markdown-standards gate and the tmux "done" notification both wired directly
+#   to Stop, a turn that the gate blocks (to keep fixing the doc) still fires a premature
 #   "done" ping — then a second, real ping after the fix. On a tmux window you
 #   aren't watching, that's a misleading double-notify.
 #
-#   Sequencing them here fixes it: run the density gate, then the session-scoped
+#   Sequencing them here fixes it: run the markdown-standards gate, then the session-scoped
 #   implement gate, then the spec-driven coverage gate; only if NONE blocks (the
 #   turn is genuinely over) do we run the notification. One ping, on the real stop.
 #
 # This does NOT merge the child scripts:
-#   claude-density-stop-hook.sh, claude-implement-stop-hook.sh,
+#   claude-markdown-standards-stop-hook.sh, claude-implement-stop-hook.sh,
 #   claude-sdd-stop-hook.sh, and claude-tmux-notification.sh stay standalone,
 #   independently testable, and
 #   usable on their own events (the notification is still wired directly to the
@@ -36,23 +36,24 @@
 input=$(cat)
 
 dir=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd) || dir="$HOME/.claude/hooks"
-density="$dir/claude-density-stop-hook.sh"
+md_standards="$dir/claude-markdown-standards-stop-hook.sh"
 implement_gate="$dir/claude-implement-stop-hook.sh"
 sdd_gate="$dir/claude-sdd-stop-hook.sh"
 notify="$dir/claude-tmux-notification.sh"
 
-# 1. Density gate first. It prints a {decision:"block"} JSON (and nothing else)
-#    when changed markdown still has density violations; stays silent otherwise.
-density_out=""
-if [ -f "$density" ]; then
-  density_out=$(printf '%s' "$input" | bash "$density" 2>/dev/null || true)
+# 1. Markdown-standards gate first. It prints a {decision:"block"} JSON (and
+#    nothing else) when changed markdown still violates a doc-standards line
+#    rule (density cap or bullet gap); stays silent otherwise.
+md_standards_out=""
+if [ -f "$md_standards" ]; then
+  md_standards_out=$(printf '%s' "$input" | bash "$md_standards" 2>/dev/null || true)
 fi
 
 # 2. Gate blocked → pass its decision straight through and STOP here. The turn
-#    isn't really over (Claude will fix density next), so do NOT notify.
-case "$density_out" in
+#    isn't really over (Claude will fix the markdown next), so do NOT notify.
+case "$md_standards_out" in
   *'"decision"'*)
-    printf '%s\n' "$density_out"
+    printf '%s\n' "$md_standards_out"
     exit 0
     ;;
 esac

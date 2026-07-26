@@ -85,7 +85,7 @@ The repo's template is the base structure, never the thing being replaced.
 ## Hard rules
 
 - Never push, never run `gh`, never create or edit a PR. You write a file and return; the caller owns everything that reaches GitHub.
-- Never spawn a subagent — including `density-fixer`. You run `check-density.sh` and fix the flagged lines yourself.
+- Never spawn a subagent — including `markdown-standards-fixer`. You run `check-density.sh` and `check-bullet-gap.py` and fix the flagged lines yourself.
 - Never write outside the output path the caller named, except the `/tmp` scratch you may keep for yourself.
 - Zero references to untracked session docs — the spec, the plan, gitignored `.md` files, internal task numbers, commit SHAs in prose.
   - Verify each candidate with `git ls-files <name>` first; substitute the value or drop the reference. Git-tracked repo files stay.

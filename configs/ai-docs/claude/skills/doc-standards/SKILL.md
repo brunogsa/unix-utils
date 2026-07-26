@@ -163,8 +163,8 @@ The two subsections below apply to any standalone doc — where it lives and wha
 - [Instruction] Every line/bullet ≤256 chars and ≤32 words; over the cap, split on a sentence boundary — never drop info to fit.
   - [Why] Dense prose drops adherence in LLM consumers and raises scan time for humans; the cap forces clarity.
 
-- [Instruction] Delegate density verification and fixing to `agent(subAgent=density-fixer, title=Fix <doc> density)` — never run the check-or-rewrite loop inline in the main session.
-  - [Why] The subagent runs `scripts/check-density.sh` and `references/density-rules.md` deterministically with fresh eyes; inline fixing burns main-session context on mechanical splits, and eyeballing misses over-cap lines.
+- [Instruction] Delegate verification and fixing of both line rules — the density cap and the blank-line gap — to `agent(subAgent=markdown-standards-fixer, title=Fix <doc> markdown)`, never inline in the main session.
+  - [Why] The subagent runs `scripts/check-density.sh`, `scripts/check-bullet-gap.py`, and `references/density-rules.md` deterministically with fresh eyes; inline fixing burns main-session context on mechanical splits, and eyeballing misses the violations.
 
 - [Instruction] Separately verify each schema JSONC block against its ≤80-char/line rule (in the `design-docs` skill) — `check-density.sh` excludes fenced code, so it never measured them.
   - [Why] A green density run reads as "the whole doc passes," yet a design doc can be half JSONC the script skipped — the over-long schema lines then ship unflagged.
