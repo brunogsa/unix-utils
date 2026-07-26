@@ -86,10 +86,10 @@ Seven formal checks run in sequence (five always-on + the two toggles above):
 |---|---|---|---|
 | Every AC has a test | `check-ac-coverage.sh`, then `deep-reviewer` | AC↔Test Design coverage | Always on |
 | Every test has a task | `check-test-distribution.sh` | Test Design↔per-task assignment | Always on |
-| How would this break? | manual sweep | checklist completeness + inversion sweep, merged | Always on |
+| How would this break? | `deep-reviewer` | checklist completeness + inversion sweep, merged | Always on |
 | PR dependencies form a DAG | `check-pr-dag.sh` | cyclic, dangling, or duplicate PR-N label in the PR Breakdown | Always on |
 | Task dependencies form a DAG | `check-tasks-dag.sh` | cyclic, dangling, or duplicate task id in the Task Breakdown | Always on |
-| Every line traces to an AC | manual sweep | machinery↔AC traceability | Toggle |
+| Every line traces to an AC | `deep-reviewer` | machinery↔AC traceability | Toggle |
 | Right-sized plan | `deep-reviewer` | scope vs. request, simplest design | Toggle |
 
 The five always-on checks, plus the Test Design authoring requirement itself, never become optional — they verify the plan is mechanically correct regardless of change size.
@@ -104,20 +104,20 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
   - Load [`references/delta-scoped-rereview.md`](references/delta-scoped-rereview.md) on the second and later rounds.
 - **Formal-check recovery loop** — on a blocking failure, fix the issue, then re-run only that failed check plus the delta-scoped re-review above.
   - Never re-run the full seven-check block from the top — only the one check that failed, plus its delta re-review.
-- **Snapshot hand-off loop** — before re-running the failed check, snapshot spec_<slug>.md + plan_<slug>.md to `/tmp/sdd-snapshots/` for the user's annotated-diff review.
+- **Snapshot hand-off loop** — before re-running the failed check, snapshot the spec and the plan to `/tmp/sdd-snapshots/` for the user's annotated-diff review.
   - Each round of AI fixes produces a fresh snapshot; the loop exits only when the user approves it.
-- **Resolving spec/plan drift** — when plan_<slug>.md and spec_<slug>.md disagree, surface each conflict for the user before editing either doc.
+- **Resolving spec/plan drift** — when the plan and the spec disagree, surface each conflict for the user before editing either doc.
   - Load [`references/resolving-drift.md`](references/resolving-drift.md) the moment a conflict first surfaces — any check, qualitative or formal; there is no fixed slot.
 
 ## Guidelines
 
-- **CRITICAL: Write spec_<slug>.md and plan_<slug>.md in English** — even when the team, repo, or conversation is in another language:
+- **CRITICAL: Write the spec and the plan in English** — even when the team, repo, or conversation is in another language:
   - Covers everything in both docs: headings, prose, Given/When/Then, task titles, and planned-test breadcrumbs.
   - Match the code they drive — comments, `describe`/`it` titles, and symbols are English, so a same-language plan stays greppable and copy-paste-ready.
   - Localize only the durable decision docs (ADR/HLD/LLD) and the final PR description — those target human reviewers, not the codebase.
   - Why: a plan in one language driving code in another forces the implementer to translate every task title and test name before writing the actual symbol.
 
-- **CRITICAL: spec_<slug>.md and plan_<slug>.md are session-scoped and untracked**.
+- **CRITICAL: The spec and the plan are session-scoped and untracked**.
   - Never reference them in committed artifacts (code comments, commit bodies, docs).
   - They stay local and get removed after the session; the next reader won't have them. Put the why in the code comment itself or other appropriated place.
 
@@ -133,12 +133,12 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
 - **CRITICAL: Keep spec and plan up to date** -- Stale docs degrade `/create-pr`.
   - Both files stay living through implementation; decisions are append-only past the divider that exists on both.
 
-- **plan_<slug>.md tasks and their sub-steps become items on TaskList** — when running inline.
+- **The plan's tasks and their sub-steps become items on TaskList** — when running inline.
   - Under `/implement`, only parent tasks go on the orchestrator's TaskList; each task subagent tracks its own sub-steps in a private checklist file.
 
 - **Tasks are commit-sized, never smaller**.
 
-- **CRITICAL: Keep task status updated as you go, in both TaskList and plan_<slug>.md** — in plan_<slug>.md, status markers (`[Doing]`/`[Done]`/`[Blocked]`/`[Deferred]`/`[Dropped]`, pending needs none) follow `/implement`'s status-markers section exactly.
+- **CRITICAL: Keep task status updated as you go, in both TaskList and the plan** — in the plan, status markers (`[Doing]`/`[Done]`/`[Blocked]`/`[Deferred]`/`[Dropped]`, pending needs none) follow `/implement`'s status-markers section exactly.
 
 - **After completing a task note deviations from the original plan**.
 

@@ -22,7 +22,7 @@ Dispatch `agent(subAgent=deep-reviewer, title=Qualitative review of spec and pla
 State in the output that it was skipped by request; the artifact fixers below still run.
 
 - **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
-- **Contradictions**: do sections within one doc disagree, or does plan_<slug>.md contradict spec_<slug>.md (spec assumptions overturned by planning, architectural choices superseding spec requirements)?
+- **Contradictions**: do sections within one doc disagree, or does the plan contradict the spec (spec assumptions overturned by planning, architectural choices superseding spec requirements)?
 - **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition?
   - If decomposable, write/update `scopes.md` next to the spec — one line per sub-project, each giving its name, a one-sentence purpose, and which other sub-projects it depends on.
   - Then re-run the qualitative pass only; the formal checks follow next regardless.
@@ -41,7 +41,7 @@ Two dispatches that repair rather than judge, run serially after the qualitative
 
 - **Artifacts Valid**: if any mermaid diagram exists, is it valid, verified via `mmdc`? A failing check routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)` on the resolved doc path — never fixed inline.
 
-- **Density**: spawn `agent(subAgent=density-fixer, title=Fix spec/plan density)` on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check or rewrite density violations inline.
+- **Density**: spawn `agent(subAgent=density-fixer, title=Fix spec/plan density)` on the resolved spec and plan paths — never check or rewrite density violations inline.
   - Runs after mermaid validation, since repairing a diagram adds lines the density check must then measure.
 
 **No toggle switches these two off**, including the one that skips the qualitative pass.
@@ -72,6 +72,10 @@ Authors write the two lists with bare `it()` titles, then run `scripts/normalize
 
 ## How would this break?
 
+Dispatch `agent(subAgent=deep-reviewer, title=Judge failure-mode coverage)` on both docs — never sweep this one inline.
+
+Why dispatched: whether a listed failure mode is real, and whether a missing one matters, is exactly the blind spot the plan's own author cannot see.
+
 The boundary and failure-category checklists (per `spec-template.md`) must each be present, either:
 
 - Instantiated with one row per coverage-taxonomy item marked `covered (<recap>)` / `N/A — <reason>`, or
@@ -90,6 +94,8 @@ Fail-closed; runs regardless of either toggle.
 - `scripts/check-tasks-dag.sh <plan>` runs the same three checks (cycle, dangling reference, duplicate label) over the Task Breakdown's `Depends on:` graph. Exit 1 blocks.
 
 ## Every line traces to an AC (toggle)
+
+Dispatch `agent(subAgent=deep-reviewer, title=Judge machinery-to-AC traceability)` with the spec and the plan.
 
 Every piece of machinery (abstraction, dependency, knob, extra layer) must trace to a spec AC or requirement.
 

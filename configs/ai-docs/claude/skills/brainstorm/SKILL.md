@@ -6,21 +6,28 @@ disable-model-invocation: false
 
 # Brainstorm
 
-Help the user explore and refine an idea into a structured `spec_<slug>.md`, then into a self-reviewed `plan_<slug>.md` ready to hand off.
+Help the user explore and refine an idea into a structured spec, then into a self-reviewed plan ready to hand off.
 
 This skill owns the whole procedure end to end.
-The document conventions it writes against — naming, templates, guidelines, self-review gates — live in the `spec-driven-development` library, read at exactly two points:
+The document conventions it writes against — naming, templates, guidelines, self-review gates — live in the `spec-driven-development` library.
 
-- **Step 6 (write the spec)**: the dispatched `fork` reads that library's `SKILL.md` plus its `assets/spec-template.md`. This session reads neither.
-- **Step 10 (self-review)**: this session reads its `references/self-review-checks.md`.
+**This session reads from that library only at step 10**: `references/self-review-checks.md`, plus `references/delta-scoped-rereview.md` once self-review reaches a second round.
+
+Every other read happens inside a dispatched agent's own context, never this one:
+
+- **Step 6 (write the spec)**: the `fork` reads that library's `SKILL.md` plus its `assets/spec-template.md`.
+- **Step 7 (review the spec)**: the `deep-reviewer` reads one section of its `references/self-review-checks.md`.
+- **Step 9 (write the plan)**: `plan-writer` reads that library's `SKILL.md` plus its `assets/plan-template.md`.
 
 Read that library by path — never via the Skill tool; its `disable-model-invocation: true` keeps it out of the skill listing entirely.
 
-Why not read it upfront: steps 1-5 are pure interview and need none of it, and that is the phase that burns the most context before any document exists.
+Why the two lists: only the step-10 reads land in this session's context, so only those spend the budget this skill has to survive on.
+
+Why nothing loads upfront: steps 1-5 are pure interview and need none of it, and that is the phase that burns the most context before any document exists.
 
 ## Usage
 
-`/brainstorm [path/to/spec_<slug>.md]`
+`/brainstorm [path/to/spec]`
 
 Examples:
 - `/brainstorm spec_auth.md` -- refine an existing spec, at any path the user gives
@@ -41,7 +48,7 @@ Why: the TaskList survives compaction, so one entry per step keeps a step that w
 - **"Fresh-eyes self-review?"** — should a `deep-reviewer` subagent read the spec (step 7) and the plan (step 10) before you do? Default yes; a no skips both.
 
 Persist all three answers immediately to `/tmp/sdd_<session_id>.json` — one brainstorm run per session, so the session id alone keys the file.
-Answer them fresh each run: never reuse a previous run's answers, and never write them into `spec_<slug>.md`, `plan_<slug>.md`, or any committed file.
+Answer them fresh each run: never reuse a previous run's answers, and never write them into the spec, the plan, or any committed file.
 
 Why upfront: all three gate how strictly later steps check the documents, so settling rigor before any document exists closes off tuning it down after seeing what was produced.
 Why persisted: a compaction between here and self-review would lose them, so those steps read the file instead of re-asking.
@@ -58,6 +65,9 @@ Then create the run scratchpad `/tmp/brainstorm_<session_id>.md`, keyed the same
 **If a file path is provided**: read it and use as the starting point.
 **If no file path**: glob `spec_*.md` in CWD (top-level). One match → read it. Multiple → list them numbered and ask which to refine.
 **Zero matches**: seed the brainstorm from session context — conversation history plus codebase understanding.
+
+Then check whether a plan already sits beside the resolved spec — the paired file the library's naming convention gives.
+Record the answer in the run scratchpad: step 9 needs it to update that plan rather than overwrite it.
 
 ### 3. Probe scope before deep questions
 
@@ -130,11 +140,11 @@ The plan later inherits that same slug — the shared slug is what pairs the two
 
 Why not confirm: the slug only names two files that always travel together, so a wrong one costs a rename, and the user is about to read the spec anyway.
 
-Then dispatch `agent(subAgent=fork, title=Write spec_<slug>.md)`, in the foreground — the next step needs the spec to exist. Instruct it to:
+Then dispatch `agent(subAgent=fork, title=Write the spec)`, in the foreground — the next step needs the spec to exist. Instruct it to:
 
 - Read `~/.claude/skills/spec-driven-development/SKILL.md` and its `assets/spec-template.md`. That library's Guidelines govern what it writes — English regardless of the conversation's language, lean over exhaustive.
 - Read the run scratchpad `/tmp/brainstorm_<session_id>.md` and fold its decisions and discarded alternatives into the spec's Decisions section.
-- Write to the provided/discovered path, or for a fresh idea to `spec_<slug>.md` in CWD.
+- Write to the provided/discovered path, or for a fresh idea to the spec file in CWD.
 - If the file already exists, update it in place — preserve user content, fill gaps, restructure into the template.
 - Report back the resolved spec path plus a short summary of what it wrote.
 
@@ -158,8 +168,8 @@ Exclude Scope too: step 3 already asked the user about decomposition, and step 1
 
 Then dispatch `agent(subAgent=fork, title=Apply spec review findings)` to apply every blocking finding.
 
-**Run this review exactly once — never a second round.**
-The user reads the spec next and is the stronger judge of it.
+**Run this review once per spec-writing pass — never twice over the same text.**
+A step-8 loop-back through step 6 rewrites the spec, so that new version earns a fresh pass; unchanged text does not, since the user reading it next is the stronger judge.
 
 Why fresh eyes before the user: this session argued itself into every choice, so it reads its own spec as complete because it remembers what the spec never says.
 Catching that at step 10 instead would mean the plan was already built on the gap.
@@ -181,12 +191,23 @@ Route rework to the earliest step the feedback invalidates:
 
 ### 9. Dispatch `plan-writer` to generate the plan
 
-Once the spec is approved, dispatch `agent(subAgent=plan-writer, title=Write implementation plan from spec)` in the foreground, to write `plan_<slug>.md` from the spec alone.
+Once the spec is approved, dispatch `agent(subAgent=plan-writer, title=Write implementation plan from spec)` in the foreground, to write the plan from the spec alone.
 
 Pass it:
-- The spec file's absolute path.
-- The plan output path: `plan_<slug>.md` in CWD, same slug as the spec.
+
+- The spec file's absolute path, plus the slug you derived in step 6.
+
 - Any planning-conventions file the user named (ADR/HLD/LLD), if one exists.
+
+- **Whether a plan already sits at the paired path** — per step 2, instruct `plan-writer` to update it in place if it does.
+  - Preserve every task status marker and everything below the decisions divider.
+  - Fill gaps, restructure into the template.
+
+`plan-writer` resolves the output path itself from the slug — it reads the library that defines how a plan is named, so this session never spells that name out.
+
+Why that last one: `/brainstorm <spec path>` is a documented entry point for refining a spec mid-implementation, where the paired plan already carries `[Done]` markers and an append-only decisions log.
+
+A regenerated plan destroys both, and neither is recoverable — the two documents are untracked by design.
 
 **A gap in the spec never withholds the plan.**
 Where the spec doesn't carry a decision the plan needs, `plan-writer` writes the plan around it and records it as a `**QUESTION:**` entry under the plan's Open Questions.
@@ -197,7 +218,7 @@ Both documents may therefore reach step 10 with Open Questions still open; step 
 Why batch them there: a gap-by-gap walkthrough stops the run once per item.
 One pass at step 10.2 lets the user answer every question against a finished plan, where what each one actually decides is visible.
 
-Should it return a numbered gap list anyway instead of a plan, dispatch a `fork` to record those gaps as Open Questions in `spec_<slug>.md`.
+Should it return a numbered gap list anyway instead of a plan, dispatch a `fork` to record those gaps as Open Questions in the spec.
 Then re-dispatch `plan-writer` once — not once per gap.
 
 Why fresh context: this session already talked itself into the spec's choices during the interview.
@@ -209,17 +230,31 @@ A planner that sees only the spec file tests whether the spec carries what a pla
 
 **Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now** — it defines every gate below.
 
+**From the second round on, also read that library's `references/delta-scoped-rereview.md`** — it scopes each re-review to what `diff` shows changed, instead of both documents whole.
+
 Sort those gates into two buckets first, because every rule in this step turns on which bucket a gate is in:
 
 - **Deterministic** — a script or renderer returns the verdict, and re-running one costs nothing: the mermaid and density artifact fixers, `check-ac-coverage.sh`, `check-test-distribution.sh`, `check-pr-dag.sh`, `check-tasks-dag.sh`.
+  - Every agent dispatched here runs `model=sonnet, effort=high`, overriding the cheaper tier its own file pins.
+
 - **Non-deterministic** — a `deep-reviewer` judges: the qualitative pass, the semantic half of AC-to-test coverage, "how would this break?", and the two toggled checks.
+  - Every dispatch here runs opus at `effort=high` — opus comes from that agent's own pin, `high` overrides its `max`.
+
+Why the deterministic bucket is not on a trivial-transform tier: its fixers edit prose a human reads next, so a mangled sentence costs more than the cheaper tier saves.
+
+Why the judged bucket caps at `high`: the library keeps both documents deliberately lean, so `max` buys latency on a short read rather than accuracy.
 
 Why the split governs everything here: a deterministic gate is free to re-run and catches structural breakage, while each non-deterministic round costs a dispatch over both documents whole.
 So the deterministic ones run first and as often as needed, and the non-deterministic ones run as few times as the user will accept.
 
 #### 10.1 Run the deterministic gates
 
-Run them serially in this order: `mermaid-fixer`, then `density-fixer`, then the four scripts.
+Run them serially in this order:
+
+1. `agent(subAgent=mermaid-fixer, title=Fix diagrams in the spec and plan, model=sonnet, effort=high)`
+2. `agent(subAgent=density-fixer, title=Fix density in the spec and plan, model=sonnet, effort=high)`
+3. The four scripts.
+
 Fix each failure, then re-run that gate alone until it passes.
 
 The fixers lead because repairing a diagram adds lines the density cap must then measure.
@@ -228,7 +263,7 @@ The reference sequences one pass over both buckets, while this step runs the che
 
 #### 10.2 Close every Open Question before anything expensive runs
 
-Read the Open Questions section of both `spec_<slug>.md` and `plan_<slug>.md`.
+Read the Open Questions section of both the spec and the plan.
 
 While either still holds a `**QUESTION:**` entry, interview the user to settle them — `AskUserQuestion`, 2-3 at a time, recommended answer first, exactly as in step 4.
 Then dispatch `agent(subAgent=fork, title=Close open questions)` to fold the answers into both documents and leave each Open Questions section reading `None`.
@@ -239,21 +274,35 @@ Why gate here: every non-deterministic gate reads both documents whole, so runni
 
 #### 10.3 Run the non-deterministic gates once
 
-Dispatch them serially, per that reference — the qualitative pass first, then the remaining judged checks, including the two toggles read from `/tmp/sdd_<session_id>.json`. Never re-ask a toggle here.
+Dispatch each one as `agent(subAgent=deep-reviewer, title=<the gate it judges>, effort=high)`, serially, per that reference.
+
+Order: the qualitative pass first, then the remaining judged checks, including the two toggles read from `/tmp/sdd_<session_id>.json`. Never re-ask a toggle here.
+
 Skip only the qualitative-pass dispatch when the pre-flight's self-review toggle is off, and say so in the output.
 
 #### 10.4 Loop on any blocking finding
 
-1. **Interview the user to resolve it** — never invent the resolution, and never resolve it silently.
-2. **Dispatch `agent(subAgent=fork, title=Apply self-review findings)`** to apply what the user decided to the spec, the plan, or both.
-3. **Re-run the deterministic gates only** — the fork's edits can break a DAG or an AC-coverage citation, and those are free to re-check.
-4. **Ask the user whether to re-run the non-deterministic gates.** A yes returns to 10.3; a no ends the loop and accepts the documents as they stand.
+1. **Snapshot both documents into `/tmp/sdd-snapshots/` first**, per that library's `references/delta-scoped-rereview.md`, before any fix lands.
 
-Repeat until nothing blocks or the user declines another round.
+2. **Interview the user to resolve the finding** — never invent the resolution, and never resolve it silently.
+
+3. **Dispatch `agent(subAgent=fork, title=Apply self-review findings)`** to apply what the user decided to the spec, the plan, or both.
+
+4. **Re-run the deterministic gates only** — the fork's edits can break a DAG or an AC-coverage citation, and those are free to re-check.
+
+5. **Hand the user a `diff` of each document against its snapshot** — that annotated diff is what they approve, and it also surfaces edits they made directly.
+
+6. **Ask the user whether to re-run the non-deterministic gates.** A yes returns to 10.3, scoped to that diff; a no accepts the documents as they stand.
+
+Repeat until nothing blocks and the user approves the latest diff, or until they decline another round.
+
+Why snapshot before fixing: the diff against it is the only view that shows the user what the fork actually changed.
+
+Why scope the return to that diff: a round that re-reads both documents whole re-pays a full dispatch for text nobody touched.
 
 Then tell the user to run `/clear`, then invoke `/implement`. Don't run `/implement` in this session.
 
-Why: `/implement` re-grounds entirely from `spec_<slug>.md` and `plan_<slug>.md` on disk; carrying this session's conversation forward buys nothing and blurs cost attribution between planning and execution.
+Why: `/implement` re-grounds entirely from the spec and the plan on disk; carrying this session's conversation forward buys nothing and blurs cost attribution between planning and execution.
 
 Everything downstream — `/implement`, `/refactor`, `/auto-review`, `/create-pr` — is the user's to drive.
 Both documents stay living through all of it; this skill produces their starting state, never their final one.
