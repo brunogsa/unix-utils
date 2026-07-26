@@ -9,7 +9,7 @@ Purpose: assemble everything every specialist will need on disk, so specialists 
 **Specialists receive the context listed in `references/common-preamble.md#Context you have`** — ensure Wave 1 produces all of it on disk. Commit messages are fetched in both modes; only `{pr_context}` differs:
 
 - github: PR title + body + optional Jira snippet.
-- local: the resolved `spec_<slug>.md` + `plan_<slug>.md` (if present).
+- local: the resolved spec and plan (if present).
 
 ## github mode
 

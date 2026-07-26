@@ -25,7 +25,7 @@ This file owns the `<details>` wrapper and the summary label; `references/readin
 
 Business context in scannable layers, per the "Context section" rule in SKILL.md (the rule is canonical; do not restate it here).
 
-Source it from spec_<slug>.md Background + Goals when available, cross-referenced with commit messages and the diff to confirm what was actually delivered.
+Source it from the spec's Background + Goals when available, cross-referenced with commit messages and the diff to confirm what was actually delivered.
 
 Always ground in commits, not just docs. This section carries the PR's summary — there is no separate Summary heading.]
 
@@ -38,7 +38,7 @@ Each bullet names the BEHAVIOR that changed, never the file that changed; the re
 
 Two groups, per the "Separate planned from incidental" rule in SKILL.md, which owns the group labels and what earns a bullet in each.
 
-Without plan_<slug>.md: derive the bullets from the diff and commit messages.]
+Without the plan: derive the bullets from the diff and commit messages.]
 
 ## Decisions
 [Budget: 18 lines — 3 headings plus 8 bullets for Functional and 7 for Technical, with either subsection free to spend the other's unused allowance.
@@ -47,7 +47,7 @@ Decisions come BEFORE Architecture: the reviewer learns what was chosen, then se
 
 This is a HIGH-LEVEL SUMMARY of the main decisions. The full catalog lives verbatim in the appendix — see SKILL.md's altitude rule, which is canonical.
 
-Source: [DECISION: ...] markers from spec_<slug>.md and plan_<slug>.md, merged and deduplicated, then cut down to the ones that change behavior, cost, or risk.
+Source: [DECISION: ...] markers from the spec and the plan, merged and deduplicated, then cut down to the ones that change behavior, cost, or risk.
 
 Anything a reader could settle by opening the code — a field choice, a file location, a signature — stays in the appendix only.
 
@@ -73,7 +73,7 @@ Omit either subsection when it has no decisions; never pad it with a placeholder
 
 **ALWAYS include this section** — never silently drop it.
 
-Every mermaid diagram extracted from spec_<slug>.md/plan_<slug>.md lives here, pasted verbatim (GitHub renders them natively), with highlights if possible.
+Every mermaid diagram extracted from the spec and the plan lives here, pasted verbatim (GitHub renders them natively), with highlights if possible.
 
 Each diagram sits in its own `<details open><summary>One-line caption</summary> … </details>`, expanded by default, including when there are several.
 

@@ -171,7 +171,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 - [Instruction] Put ephemeral scratch — throwaway scripts, debug dumps, working notes — in /tmp, never the repo or CWD — UNLESS the user reviews it, then it lives gitignored in CWD.
   - [Why] Unreviewed scratch in the repo gets committed by accident or rots as orphan debt; a user-reviewed doc must sit where the user and downstream skills discover it.
-  - [Example] User-reviewed → CWD: `spec_/plan_<slug>.md`, manual-verification `.md`. Never-reviewed → /tmp: debug dumps, one-off scripts, diff snapshots.
+  - [Example] User-reviewed → CWD: a `brainstorm` spec or plan, manual-verification `.md`. Never-reviewed → /tmp: debug dumps, one-off scripts, diff snapshots.
 
 - [Instruction] When a task earns TaskList entries or a procedural skill starts, create its `/tmp` scratchpad file and offload working state immediately.
   - [Why] A transcript audit (2026-07-24) found 37 deep-compaction sessions with zero scratchpad writes, proving "long or multi-step work" is too fuzzy; TaskList is deterministic and always visible.

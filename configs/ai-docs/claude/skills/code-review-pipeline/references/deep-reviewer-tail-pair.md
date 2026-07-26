@@ -11,7 +11,7 @@ It is not part of the 7-wave pipeline those callers' sibling skills (`/auto-revi
 ## Inputs the caller supplies
 
 - `<BASE_REF>` — the commit range base; the tails diff `<BASE_REF>..HEAD` (or the working tree, for a caller like `address-ai-comments` whose batch may be uncommitted).
-- `<SPEC_PLAN_PATHS>` — optional; pass the caller's resolved `spec_<slug>.md`/`plan_<slug>.md` paths when they exist, so the correctness-lens tail can check spec conformance.
+- `<SPEC_PLAN_PATHS>` — optional; pass the caller's resolved spec/plan paths when they exist, so the correctness-lens tail can check spec conformance.
 - Omit when the caller has none (e.g. `address-ai-comments`).
 
 ## The two tails
@@ -64,7 +64,7 @@ The subagent cannot physically touch repo source even if it tried.
 
 Each run's filenames carry their own timestamp, so repeated runs in the same CWD accumulate as separate files rather than colliding.
 
-Leave reports untracked but not gitignored — same convention as `spec_<slug>.md`/`plan_<slug>.md` — so they show in `git status` and never get auto-committed.
+Leave reports untracked but not gitignored — same convention as the spec and the plan — so they show in `git status` and never get auto-committed.
 
 ## Triage — report-only, no autonomous apply
 

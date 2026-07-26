@@ -88,7 +88,7 @@ This skill adds only what is specific to a PR, and never restates a rule `doc-st
 - Discover spec/plan in cwd by glob `spec_*.md plan_*.md` (top-level):
   - One spec / one plan → use whichever exist, auto-resolved. Multiple of either → open question **(A) Spec/plan choice**: list them numbered.
   - None found → proceed from the changes digest (below) only, auto-resolved.
-- **Resolve the output filename's `<slug>` and `<N>` (used in step 2)**: `<slug>` is the shared filename slug from the resolved `spec_<slug>.md`/`plan_<slug>.md`.
+- **Resolve the output filename's `<slug>` and `<N>` (used in step 2)**: `<slug>` is the shared filename slug from the resolved spec/plan filenames.
   - Fall back to the current branch name (`/` → `-`) when neither spec nor plan resolved.
   - Single PR plan or no plan resolved → omit `_pr<N>` entirely, auto-resolved.
   - Multiple `PR-N` entries in `## PR Breakdown` → open question **(B) Which PR-N**: set `<N>` to that number (e.g. `PR-2` → `2`).
@@ -96,7 +96,7 @@ This skill adds only what is specific to a PR, and never restates a rule `doc-st
   - They resolve different things — which source file to read, and which slice of a multi-PR plan this is — so one merged question would force two answers into one choice.
 
 - Once answered, create `./pr_<slug>_pr<N>.ideal.md` right away with an HTML comment logging each answer.
-  - Example: `<!-- step 1: spec=spec_foo.md; PR=2/3 -->` -- GitHub hides HTML comments in rendered bodies.
+  - Example: `<!-- step 1: spec=<resolved spec>; PR=2/3 -->` -- GitHub hides HTML comments in rendered bodies.
   - It is this skill's durable record, not a separate scratchpad -- it survives a mid-flow compaction that would drop the answers.
 - **Derive the appendix's section list — never ask the user for it** -- it is the resolved spec/plan minus every section the body already renders.
   - Excluded, because the body owns them at the same altitude: mermaid diagrams, Background/Context, Goals, User Stories, and the plan's task breakdown.
@@ -191,7 +191,7 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits. Anything refe
 - **Reuse rationale: ONE concrete future use, not a speculative list** -- name a specific use case with a ticket ref.
 - **Explain differences, not just names** -- introducing a new method/function, briefly say what makes it different from existing ones; don't list types/interfaces.
 - **"WARNING:" prefix on operational risks** -- prefix decisions/checklist items with "WARNING:" when they need human coordination (maintenance windows, on-call handoff, manual deploy steps, irreversible migrations).
-- **CRITICAL: ZERO references to untracked session docs** -- never name `spec_<slug>.md`, `plan_<slug>.md`, gitignored `.md`, internal task/AC numbers, commit SHAs in prose, or internal dependency files.
+- **CRITICAL: ZERO references to untracked session docs** -- never name the spec file, the plan file, gitignored `.md`, internal task/AC numbers, commit SHAs in prose, or internal dependency files.
   - The reviewer can't open them, so verify with `git ls-files <name>` first.
   - Substitute the value or delete if untracked — git-tracked repo files stay.
   - This outranks "copy reused content verbatim": pasted spec/plan text is stripped of every `AC-N`/`PR-N`/`D-N`/`R-N`/`OQ-N` token, in the appendix as much as the body.

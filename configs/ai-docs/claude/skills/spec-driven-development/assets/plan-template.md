@@ -1,13 +1,13 @@
 ---
 # performance-check budget override — DELETE this whole frontmatter block when you copy
-# this template into a real plan_<slug>.md. It is tooling metadata, not plan content.
+# this template into a real plan file. It is tooling metadata, not plan content.
 # Both consumers read this file and populate every section in one run, so splitting it would
 # only make the author read two files instead of one. Doubled from the 1024w bundled default.
 words-budget: 4096
 ---
 # Plan: [Title]
 
-Spec: [link or reference to the paired spec_<slug>.md]
+Spec: [link or reference to the paired spec file]
 
 ---
 ## Technical Approach & High Level Architecture

@@ -27,7 +27,7 @@ from the diff; pull full files only when you need broader context to decide.
   per `+` line).
 - **Commit messages**: branch-level commit messages describing intent.
 - **PR/branch context**: {pr_context}
-  (GH: PR title+body + optional Jira snippet. LOCAL: spec_<slug>.md + plan_<slug>.md.)
+  (GH: PR title+body + optional Jira snippet. LOCAL: the spec + the plan.)
 - **The rest of the codebase**: you may read any file under {repo_root}
   that helps you understand the change — callers, imports, related
   modules, tests. Use judgment; prefer targeted reads over broad exploration.

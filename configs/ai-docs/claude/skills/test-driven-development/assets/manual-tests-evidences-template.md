@@ -2,7 +2,7 @@
 Template for ./manual-tests-evidences.md at project root.
 
 Lifecycle: gitignored, session-scoped (delete or archive after PR — same as
-spec_<slug>.md / plan_<slug>.md).
+the spec and the plan).
 
 Format: bold one-liner per check (timestamp + what + outcome marker) plus an
 indented code block with the smallest verifiable artifact. Avoid screenshots

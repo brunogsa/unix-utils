@@ -74,8 +74,7 @@ Apply this decision tree:
 
 - **Zero matches** → set `<SPEC_PLAN_PATHS>=<none>`. Tell the user explicitly
   that the review will run without spec/plan context.
-- **Exactly one spec file AND exactly one plan file** (e.g. `spec_auth.md` +
-  `plan_auth.md`) → use both. Print the resolved paths; no prompt needed.
+- **Exactly one spec file AND exactly one plan file** (the spec and the plan) → use both. Print the resolved paths; no prompt needed.
 - **Any other shape** (multiple specs, multiple plans, only spec, only plan,
   mixed counts) → ALWAYS prompt the user with a numbered list and these
   options:
@@ -113,7 +112,7 @@ The code-review-pipeline expects these inputs:
     diff only.
   - Otherwise, the listed absolute paths must be read verbatim and their
     concatenated content used as `{pr_context}` for every specialist
-    (replacing the default `spec_<slug>.md` + `plan_<slug>.md` lookup).
+    (replacing the default lookup of the spec and the plan).
 
 With the inputs above resolved, always dispatch isolated: spawn
 `agent(subAgent=deep-reviewer, title=Review branch changes)`.

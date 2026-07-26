@@ -21,7 +21,7 @@ Load `debug-standards` via the Skill tool the moment a test goes red for the wro
 
 Before touching code:
 
-1. Pull your own context from CWD: full `plan_<slug>.md` and `spec_<slug>.md`, plus `git log <BATCH_BASE_SHA>..HEAD` for the prior tasks' *why* (rich commit bodies) and any `[Scout]` notes appended to the plan.
+1. Pull your own context from CWD: the full plan and spec, plus `git log <BATCH_BASE_SHA>..HEAD` for the prior tasks' *why* (rich commit bodies) and any `[Scout]` notes appended to the plan.
 2. Checklist file, at the caller-given path.
    - You write this file, from the caller's dispatch prompt — the orchestrator only checks it exists.
    - On a fresh dispatch, write your RED-GREEN decomposition before coding: one item per RED-GREEN cycle (per acceptance-criterion forcing case), plus the post-commit-verify and plan-update tail steps.

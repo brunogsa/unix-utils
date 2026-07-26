@@ -13,13 +13,13 @@ This skill picks *which* doc to write and routes you to its template and a worke
 - **`doc-standards`** — prose, comment, and density rules for the words inside any of these docs (also runs the density check).
 - **`mermaid-diagrams`** — for every diagram you embed: validation, the target renderer version, and the common parse traps.
 
-The toolbox: **ADR, HLD, LLD** (durable, committed in `docs/`) and **spec_<slug>.md, plan_<slug>.md** (throwaway, untracked, deleted after the PR).
+The toolbox: **ADR, HLD, LLD** (durable, committed in `docs/`) and **the spec, the plan** (throwaway, untracked, deleted after the PR).
 
 The split that matters most is **purpose**: HLD, LLD, and ADR are **decision & alignment** docs (for humans aligning); spec and plan are **AI-build** docs (spec-driven), fed from them.
 
 So durable docs carry tests, tasks, and launch at **alignment altitude** — strategy, titles, cross-team deps — while the plan carries the **concrete** version — commit-tasks, file paths, test titles.
 
-The spec_<slug>.md/plan_<slug>.md workflow — interviewing, drafting, refining — lives in the `brainstorm` skill, and their conventions and self-review gates in the `spec-driven-development` library; this skill only covers their shape and altitude.
+The spec/plan workflow — interviewing, drafting, refining — lives in the `brainstorm` skill, and their conventions and self-review gates in the `spec-driven-development` library; this skill only covers their shape and altitude.
 
 ## Who owns what (single source of truth)
 
@@ -27,15 +27,15 @@ When two docs could carry the same thing, this table says which one owns the ful
 
 | Concern | Owner | Others |
 |---|---|---|
-| Why / business context | HLD (epic) · spec_<slug>.md (feature) | recap + link |
+| Why / business context | HLD (epic) · the spec (feature) | recap + link |
 | Decision + alternatives | ADR; or HLD/LLD decision section / spec·plan log (minor) | recap + link the ADR |
 | Structure, contracts, data model, de/para | LLD | recap + link the LLD |
 | Diagrams — big-picture (C4L1, architecture; high-level flow/sequence/state) | HLD | recap + link, don't redraw |
 | Diagrams — detailed (code/component design, data-model & endpoint schemas, detailed flow/sequence/state, corner/failure) | LLD | recap + link, don't redraw |
 | Success metrics, UAT, test & launch strategy — high-level | HLD / LLD | spec/plan recap + link |
 | Task breakdown — titles only (estimates, parallelization, cross-team deps) | HLD / LLD | plan expands to commit-tasks |
-| Concrete testable acceptance criteria | spec_<slug>.md | HLD/LLD keep the high-level version + link |
-| Test titles, commit-sized tasks, file paths, commit sketch | plan_<slug>.md | — |
+| Concrete testable acceptance criteria | the spec | HLD/LLD keep the high-level version + link |
+| Test titles, commit-sized tasks, file paths, commit sketch | the plan | — |
 
 Diagram *type* isn't the discriminator — altitude is: the same flow/sequence/state diagram can serve an HLD at big-picture level and an LLD at detail level.
 
@@ -114,14 +114,14 @@ Shared mental model for which doc is which — not a step you need help running.
 | **ADR** | Durable | Decide — one significant decision + alternatives |
 | **HLD** | Durable | Design (system / epic) — what & why across alternatives |
 | **LLD** | Durable | Design (one component) — structure, contracts, data, de/para |
-| **spec_<slug>.md** | Throwaway | Why / What — requirements + acceptance criteria, one feature |
-| **plan_<slug>.md** | Throwaway | Build — tasks, files, commits, test titles, one feature |
+| **Spec** | Throwaway | Why / What — requirements + acceptance criteria, one feature |
+| **Plan** | Throwaway | Build — tasks, files, commits, test titles, one feature |
 
 **Significant** = hard to reverse OR cross-team blast radius.
 
-Not significant (cheap to reverse AND contained) → skip durable docs, go straight to `spec_<slug>.md` → `plan_<slug>.md`.
+Not significant (cheap to reverse AND contained) → skip durable docs, go straight to the spec → the plan.
 
-Significant → write the durable doc, then still produce `spec_<slug>.md` → `plan_<slug>.md` downstream to execute.
+Significant → write the durable doc, then still produce the spec → the plan downstream to execute.
 
 ```mermaid
 flowchart TD
@@ -133,8 +133,8 @@ flowchart TD
   hld["HLD — system / epic design<br/>what & why across alternatives"]
   lld["LLD — one component<br/>structure, contracts, data, de/para, diagrams"]
 
-  spec["spec_*.md (throwaway)<br/>why / what + acceptance criteria"]
-  plan["plan_*.md (throwaway)<br/>tasks, files, commits, test titles"]
+  spec["Spec (throwaway)<br/>why / what + acceptance criteria"]
+  plan["Plan (throwaway)<br/>tasks, files, commits, test titles"]
   build(["Build"])
 
   start --> q1
@@ -166,12 +166,12 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
   - See `references/example-good-lld.md` for a full worked example (numbered premises/decisions/risks/open-questions with `PR-`/`D-`/`R-`/`OQ-` tokens, de/para mappings as the core, call-sequence diagram, source/destination schemas in the appendix).
   - The top comment block holds the HLD↔LLD boundary rule.
 
-- spec_<slug>.md — do **not** improvise from this skill's altitude/ownership notes.
+- The spec — do **not** improvise from this skill's altitude/ownership notes.
   - Read `~/.claude/skills/spec-driven-development/SKILL.md` (by path — it is not Skill-invocable) and populate its `assets/spec-template.md`.
   - Sections: Bottom line, Since-your-last-review, Context Diagram, `### AC-N:` BDD acceptance criteria + boundary/failure coverage checklists, Functional Decisions log.
   - This skill owns only the spec's *altitude and ownership*; the section structure and self-review gates live in that library, and the interview workflow in `brainstorm`.
 
-- plan_<slug>.md — same rule: read that same library by path and populate its `assets/plan-template.md`.
+- The plan — same rule: read that same library by path and populate its `assets/plan-template.md`.
   - Sections: Reuse report, Side-effect report, Failure Handling & Consistency, Test Design AC↔"Covered by" table, structured Task Breakdown, PR Breakdown, Technical Decisions log.
   - Authoring a spec/plan from the altitude notes above instead of these templates is the known failure mode this route exists to prevent.
 
