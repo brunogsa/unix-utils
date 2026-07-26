@@ -67,20 +67,17 @@ Testing:
 ## Coverage check (when available)
 
 Coverage is a forcing function for catching corner-case gaps that title-only
-review misses. After the existing checks, try to obtain coverage for the diff:
+review misses. Wave 1 already ran it — read `$work_dir/coverage.txt`.
 
-1. **Repo-defined script first** — look for an existing coverage entry point.
-   Examples: `npm run coverage` / `npm run test:coverage`, `make coverage`,
-   `pytest --cov`, a `coverage.sh` in `scripts/`. Prefer this — the repo
-   already knows the right invocation.
-2. **Direct invocation** — if no script exists, run the project's test runner
-   with its native coverage flag (`go test -cover`, `pytest --cov`,
-   `cargo llvm-cov`, etc.) inferred from the project layout.
-3. **Existing artifact** — if running coverage isn't feasible (no test infra,
-   slow suite, sandboxed environment), read whatever's already on disk:
-   `coverage/lcov.info`, `coverage.xml`, `coverage.json`, etc.
+Never run a coverage command or a test runner yourself. You consume only Wave
+1's pre-built context, which is what keeps the review reproducible and
+idempotent; a suite you launch here is neither.
 
-If none work, **skip silently**. Never fail the review for missing coverage.
+**Skip this section silently** when either holds:
+- `coverage.txt` is absent — Wave 1 collects it in local mode only.
+- It reads `not-available: <reason>` — the repo emits no coverage.
+
+Never fail the review for missing coverage.
 
 For each uncovered **branch or condition** in code added/changed by this diff:
 - Flag as **RECOMMENDED** with `scope_tag = "testing"`.
