@@ -12,18 +12,11 @@ The invocation arg is PR-label mode when it matches `PR-N` or a comma-space list
 
 Anything else (bare numbers, a numeric comma-list) is the existing `<task-ids>` mode; §1.1–§9 run exactly as documented for it, unchanged.
 
-## Defensive DAG re-check, before resolving the first label
+## DAG re-check moved out — SKILL.md §1.3 owns it now
 
-Before resolving the first `PR-N` in the arg, re-run:
-
-```bash
-~/.claude/skills/spec-driven-development/scripts/check-pr-dag.sh <plan-file>
-```
-
-Self-review validated this DAG once, but the plan is symlinked and mutable for the rest of execution (§1.3).
-A later hand-edit could reintroduce a cycle, dangling reference, or duplicate label that self-review already caught and cleared.
-
-Exit 1 blocks with the script's own diagnostic on stderr, the same message self-review would have shown. Exit 0 (including the "Single PR." / absent-section trivial pass) proceeds.
+This file used to re-run `check-pr-dag.sh` before resolving the first label.
+That instruction moved to SKILL.md §1.3, which runs both DAG checkers once, for the whole invocation, before §2 seeds anything.
+So label resolution below never re-checks the DAG itself.
 
 ## Resolving each PR-N label
 
@@ -33,16 +26,20 @@ For each `PR-N` in the arg, in order, resolve its task-id list:
 ~/.claude/skills/implement/scripts/get-pr-tasks.sh <plan-file> <PR-N>
 ```
 
-Exit 0 prints the comma-space task-id list in the same format `<task-ids>` already expects — feed it straight into §1.6's exact-match loop.
+Exit 0 prints the comma-space task-id list in the same format `<task-ids>` already expects — feed it straight into §3.3's exact-match loop.
 Exit 1 (label not found) or exit 2 (usage/parse error) surfaces the diagnostic and stops before dispatching anything for that PR.
 
-## State-file keying (§1.5 widened)
+## State-file keying (§2.3 widened)
 
 Each PR in the list gets its **own** state file, keyed on both `slug` and this PR's own `pr_label` (never the whole list) — never on `slug` alone.
 This is what lets two worktrees running different PRs of the same plan avoid adopting each other's file.
 It's also what lets a multi-PR list's per-PR loop (below) tell its PRs' state files apart.
 
-A plain `<task-ids>` run writes `pr_label: ""` — see SKILL.md §1.5 for the exact lookup command and JSON shape.
+Every PR's file is created **now**, right after §2's TaskList is seeded — not lazily as each PR's turn comes up.
+That is what lets a halt on PR-2 still leave PR-3's file on disk with every task `pending`.
+It reads as a visible record of work that never started, rather than a file that never existed.
+
+A plain `<task-ids>` run writes `pr_label: ""` — see SKILL.md §2.3 for the exact lookup command and JSON shape.
 
 ## Branch creation (only when a checkout is needed)
 
@@ -52,7 +49,7 @@ Before dispatching a PR's tasks, ask:
 ~/.claude/skills/implement/scripts/need-git-checkout.sh <plan-file> <PR-N> <worktree-path>
 ```
 
-`<worktree-path>` is the directory this run operates in — the worktree from §1.3 if one was created, else CWD.
+`<worktree-path>` is the directory this run operates in — the worktree from §1.4 if one was created, else CWD.
 
 **Prints `no`** → dispatch this PR's tasks on the current branch.
 No `git checkout -b` runs.
@@ -60,7 +57,9 @@ No manifest write happens here either — this PR's own `branches_<slug>.md` ent
 
 **Prints `yes`** → resolve and create `<feat_branch>/pr<N>` before dispatching, following [`pr-branch-creation.md`](pr-branch-creation.md).
 
-That file carries the resume check for an already-existing branch, plus the zero-parent, single-parent, and diamond-dependency creation cases and their dependency guards. A `no` run never reads it.
+That file carries the existing-branch check for a branch already present.
+That case is legitimate — a halted run's fresh re-invocation can reach this same PR again and find its branch already there.
+It also carries the zero-parent, single-parent, and diamond-dependency creation cases and their dependency guards. A `no` run never reads it.
 
 ## Manifest writes (`branches_<slug>.md`)
 
@@ -70,25 +69,28 @@ Every PR — checkout-needed or not — writes its own entry once, at its own ba
 ~/.claude/skills/implement/scripts/append-branch-pr-entry.sh <worktree-path>/branches_<slug>.md <slug> <this-PR-label> <this-PR-branch>
 ```
 
-A `no`-checkout PR's branch is the `git branch --show-current` value from its own preflight; a checkout-needed PR's branch is whatever `checkout -b` (or the resume-check's plain `checkout`) resolved to above.
+A `no`-checkout PR's branch is the `git branch --show-current` value from its own preflight; a checkout-needed PR's branch is whatever `checkout -b` (or the existing-branch check's plain `checkout`) resolved to above.
 
 This is the *only* write for a given PR's entry.
 Nothing runs at that PR's own branch creation (see the guard step above), so there's no earlier write for this one to race against.
 A PR is simultaneously a later PR's recorded parent and the subject of its own batch-end write — that dual role is exactly what makes the guard's precondition always hold above.
-`append-branch-pr-entry.sh`'s idempotence still matters across re-runs of the *same* PR's batch-end (a resumed batch re-reaching §9), not across two different call sites.
+`append-branch-pr-entry.sh`'s idempotence still matters across two separate runs reaching the *same* PR's batch-end.
+Example: an earlier run halted mid-§9, and a fresh `/implement` re-invocation for this same PR reaches §9 again.
+It does not need to matter across two different call sites.
 
 ## The per-PR loop and fail-fast
 
-A PR-label list runs the existing §1.4–§9 batch once per PR, strictly in the order given.
+A PR-label list runs the existing §3–§9 batch once per PR, strictly in the order given.
 The whole pipeline from `BATCH_BASE_SHA` capture through batch-end and PR creation repeats per PR, so each PR's gate, tails, and diff scope to only that PR's own commits.
 
-§1.1 (locate plan/spec), §1.2 (interview), §1.3 (worktree setup), and §2 (TaskList seeding) run once for the whole list.
+§1.1 (locate plan/spec), §1.2 (interview), §1.3 (DAG re-check), §1.4 (worktree setup), §1.5 (label resolution, this file) and §2 (TaskList seeding, plus every unit's state file) run once for the whole list.
 
 §2 seeds **every** PR's entries upfront — each PR's tasks followed by that PR's five batch-end reminders, in the order the PRs execute.
 So the list reads as the whole run's timeline from the start.
 A fail-fast stop simply leaves the later PRs' entries `pending`.
 
-Before each PR's loop iteration: the defensive DAG re-check, label resolution, and checkout decision above, all run fresh for that PR.
+Before each PR's loop iteration, label resolution and the checkout decision above both run fresh for that PR.
+The DAG re-check does not — §1.3 already ran it once, for the whole invocation.
 
 **Stop predicate, checked after each PR's own §9 completes:** proceed to the next PR only if every one of that PR's tasks reached `[Done]` (none terminal-without-`[Done]`) AND §9.1's repo-green gate passed.
 Otherwise stop — do not create the next PR's branch, do not dispatch any of its tasks.

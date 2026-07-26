@@ -52,11 +52,18 @@ assert_true() {
   fi
 }
 
-# write_state - writes the given JSON body as the state file for session_id,
-# at the hook's fixed /tmp path.
+# write_state - writes the given JSON body as the plain-run state file for
+# session_id, at the hook's fixed /tmp path.
 write_state() {
   local session_id="$1" body="$2"
   printf '%s' "$body" > "/tmp/implement_$session_id.json"
+}
+
+# write_pr_state - writes the given JSON body as the state file for one PR
+# unit of session_id (the _pr<N> naming a multi-PR run uses).
+write_pr_state() {
+  local session_id="$1" pr_suffix="$2" body="$3"
+  printf '%s' "$body" > "/tmp/implement_${session_id}_${pr_suffix}.json"
 }
 
 # run_hook - invokes the hook with the given stdin JSON, capturing
@@ -95,12 +102,43 @@ it_should_block_with_a_reason_when_phase_is_tasks_gates_or_tails() {
 
 it_should_allow_the_stop_when_phase_is_presented_or_halted() {
   local phase
-  for phase in presented halted; do
+  for phase in presented halted blocked; do
     write_state "sess-$phase" "{\"phase\": \"$phase\"}"
     run_hook "{\"session_id\": \"sess-$phase\", \"stop_hook_active\": false}"
     assert_eq "should allow the stop when phase is $phase (exit code)" "0" "$HOOK_EXIT"
     assert_eq "should allow the stop when phase is $phase (no stdout)" "" "$HOOK_OUT"
   done
+}
+
+it_should_allow_the_stop_when_every_unit_of_a_multi_pr_run_is_halted() {
+  write_pr_state "sess-multi-halted" "pr1" '{"phase": "halted", "pr_label": "pr1"}'
+  write_pr_state "sess-multi-halted" "pr2" '{"phase": "blocked", "pr_label": "pr2"}'
+  run_hook '{"session_id": "sess-multi-halted", "stop_hook_active": false}'
+  assert_eq "should allow the stop when every unit of a multi-PR run is halted (exit code)" "0" "$HOOK_EXIT"
+  assert_eq "should allow the stop when every unit of a multi-PR run is halted (no stdout)" "" "$HOOK_OUT"
+}
+
+it_should_block_naming_the_second_pr_when_only_it_is_mid_flight() {
+  write_pr_state "sess-pr-second" "pr1" '{"phase": "presented", "pr_label": "pr1"}'
+  write_pr_state "sess-pr-second" "pr2" '{"phase": "gates", "pr_label": "pr2"}'
+  run_hook '{"session_id": "sess-pr-second", "stop_hook_active": false}'
+  local decision reason
+  decision=$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')
+  reason=$(printf '%s' "$HOOK_OUT" | jq -r '.reason // empty')
+  assert_eq "should block when only the second PR unit is mid-flight (decision)" "block" "$decision"
+  assert_true "should block when only the second PR unit is mid-flight (reason names pr2)" \
+    "$(printf '%s' "$reason" | grep -q "pr2" && echo true || echo false)"
+  assert_true "should block when only the second PR unit is mid-flight (reason does not name pr1)" \
+    "$(printf '%s' "$reason" | grep -q "pr1" && echo false || echo true)"
+}
+
+it_should_skip_a_corrupt_unit_and_still_block_on_a_valid_mid_flight_unit() {
+  write_pr_state "sess-pr-mixed" "pr1" "{not valid json"
+  write_pr_state "sess-pr-mixed" "pr2" '{"phase": "tasks", "pr_label": "pr2"}'
+  run_hook '{"session_id": "sess-pr-mixed", "stop_hook_active": false}'
+  local decision
+  decision=$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')
+  assert_eq "should skip a corrupt unit and still block on a valid mid-flight unit (decision)" "block" "$decision"
 }
 
 it_should_exit_silently_when_the_state_file_is_corrupt_json() {
@@ -132,6 +170,9 @@ it_should_exit_silently_when_stop_hook_active_is_true() {
 it_should_exit_silently_when_no_state_file_exists_for_the_session_id
 it_should_block_with_a_reason_when_phase_is_tasks_gates_or_tails
 it_should_allow_the_stop_when_phase_is_presented_or_halted
+it_should_allow_the_stop_when_every_unit_of_a_multi_pr_run_is_halted
+it_should_block_naming_the_second_pr_when_only_it_is_mid_flight
+it_should_skip_a_corrupt_unit_and_still_block_on_a_valid_mid_flight_unit
 it_should_exit_silently_when_the_state_file_is_corrupt_json
 it_should_exit_silently_when_jq_is_unavailable
 it_should_exit_silently_when_stop_hook_active_is_true

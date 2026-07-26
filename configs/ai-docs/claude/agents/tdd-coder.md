@@ -23,6 +23,7 @@ Before touching code:
 
 1. Pull your own context from CWD: full `plan_<slug>.md` and `spec_<slug>.md`, plus `git log <BATCH_BASE_SHA>..HEAD` for the prior tasks' *why* (rich commit bodies) and any `[Scout]` notes appended to the plan.
 2. Checklist file, at the caller-given path.
+   - You write this file, from the caller's dispatch prompt — the orchestrator only checks it exists.
    - On a fresh dispatch, write your RED-GREEN decomposition before coding: one item per RED-GREEN cycle (per acceptance-criterion forcing case), plus the post-commit-verify and plan-update tail steps.
    - On a re-dispatch, if the file exists, resume from the first unchecked item — never rewrite it; if it's missing (e.g. `/tmp` was cleared), write it fresh.
 
@@ -42,6 +43,14 @@ Execution:
   - **Hard** fork — you can't sensibly proceed; stop and return `blocked`, naming the open decision so the human can settle it.
 - Commit per `commit-standards`, including the `Co-Authored-By` trailer — the git-guard hook rejects commits without it.
 - Run the task's verification command yourself before reporting done.
+- Before reporting, append an **Evidence** section to the checklist file, with paste-ins — not summaries:
+  The reviewer that judges this dispatch never runs a command; it reads only this file and your report.
+  Unpasted output is the same as no evidence, so paste raw command output, not your account of it.
+  - **Commits**: the SHAs you created, with subjects, and the branch you committed on.
+  - **Verification**: the command you ran, verbatim, plus its exit code and output tail, pasted raw.
+  - **Planned tests**: one line per test title, each with the file path it landed in.
+  - **Unchecked items**: any checklist item you left unchecked, with why.
+  - **Deviations**: sub-steps inserted mid-flight, soft forks resolved (with the choice), Drift fixes folded in.
 
 Report back — structured text, never a silent "done" (this shape mirrors the implement skill's "Report back" contract; edit both together):
 

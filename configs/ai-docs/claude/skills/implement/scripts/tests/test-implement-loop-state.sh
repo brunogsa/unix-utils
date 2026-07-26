@@ -87,6 +87,24 @@ it_should_verdict_gates_when_every_task_in_the_batch_is_done() {
   assert_eq "should verdict gates when every task in the batch is done" "gates" "$(action_of)"
 }
 
+it_should_verdict_halted_when_current_task_passed_and_no_remaining_task_but_one_is_blocked() {
+  local fixture
+  fixture=$(write_fixture "halted-blocked" '{
+    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "batch_base_sha": "abc",
+    "tasks": [{"id": "1", "status": "done"}, {"id": "2", "status": "blocked"}],
+    "attempts": [
+      {"task": "2", "n": 1, "result": "blocked", "signature": "staging DB credentials are missing from the vault", "at": "2026-07-10T10:01:00Z"},
+      {"task": "1", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}
+    ],
+    "gate_dispatches": 0,
+    "tails": {"refactor_report": "", "auto_review_report": ""},
+    "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
+  }')
+  run_script "$fixture"
+  assert_eq "should verdict halted when the current task passed, nothing remains, but a task is blocked" "halted" "$(action_of)"
+}
+
 it_should_verdict_retry_when_a_task_failed_with_fewer_than_4_attempts_and_no_stuck_streak() {
   local fixture
   fixture=$(write_fixture "retry" '{
@@ -283,6 +301,7 @@ it_should_exit_non_zero_with_a_clear_message_when_the_state_file_is_missing_or_i
 
 it_should_verdict_next_task_when_current_task_passed_and_pending_tasks_remain
 it_should_verdict_gates_when_every_task_in_the_batch_is_done
+it_should_verdict_halted_when_current_task_passed_and_no_remaining_task_but_one_is_blocked
 it_should_verdict_retry_when_a_task_failed_with_fewer_than_4_attempts_and_no_stuck_streak
 it_should_verdict_stuck_on_the_very_first_blocked_attempt_instead_of_retrying
 it_should_verdict_stuck_when_a_task_records_its_4th_failed_attempt

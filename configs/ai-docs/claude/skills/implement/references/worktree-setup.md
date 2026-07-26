@@ -6,7 +6,7 @@ Call `EnterWorktree` with no `path` argument.
 
 `settings.json`'s `worktree.baseRef: "head"` makes the worktree branch from current HEAD, so this works from `main` or any feature branch — never from a fixed default branch.
 
-Then symlink into the worktree, from the original checkout: `plan_<slug>.md`, `spec_<slug>.md`, and `branches_<slug>.md` (all untracked, so `git worktree add`'s checkout never carries them).
+Then symlink into the worktree, from the original checkout: the plan, the spec, and `branches_<slug>.md` (all untracked, so `git worktree add`'s checkout never carries them).
 
 Use `ln -s <original-checkout-path>/<file> <worktree-path>/<file>` for each, using the original checkout's absolute path.
 

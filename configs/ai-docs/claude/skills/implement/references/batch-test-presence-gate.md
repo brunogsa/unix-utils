@@ -15,17 +15,18 @@ Use a fresh-context `deep-reviewer` dispatch: semantic title-matching across the
 
 ## Entry
 
-Run this when `phase` is `gates` — the state §5.3's queue-empty scan and §5.4's `gates` verdict both set.
+Run this when `phase` is `gates` — set **only** by §5.4's `gates` verdict from `implement-loop-state.sh`, and only when every task in the unit is `done`.
+§5.3's own dead-end scan never sets it: finding no runnable task there is a chain-abort, and that path goes to §5.5, not here.
 
-A `halt-budget` verdict never reaches here: it routes straight to §9 from §5.2/§5.4, upstream of this gate, so the gate has no budget branch of its own.
+Neither `halted` nor `halt-budget` ever reaches here: both verdicts route straight to §5.5's halt, before this gate would ever dispatch.
 
 ## Dispatch
 
 Spawn ONE `agent(subAgent=deep-reviewer, title=Test-presence gate for batch)` — fresh context.
 
-Pass it the resolved `plan_<slug>.md` path, the diff range `<BATCH_BASE_SHA>..HEAD`, and the batch's task IDs, read from the state file's `tasks[]`.
+Pass it the resolved plan path, the diff range `<BATCH_BASE_SHA>..HEAD`, and the batch's task IDs, read from the state file's `tasks[]`.
 
-`BATCH_BASE_SHA` here is this run's own base — the current PR's, captured fresh per §1.4 — never the whole PR-label list's start.
+`BATCH_BASE_SHA` here is this run's own base — the current PR's, captured fresh per §3.2 — never the whole PR-label list's start.
 
 ## What the deep-reviewer does
 
@@ -57,24 +58,35 @@ Return a per-title `found`/`missing` verdict plus the list of tasks that declare
 If every task was N/A, note the explicit TDD opt-out so §9's package can state it.
 Set `phase` to `tails` and proceed to §9.
 
-**Any missing — run one fix round, try-once.**
-For each task with missing titles, re-dispatch THAT task's subagent (fresh, per §4) with missing titles as feedback.
-The same 1-hour Monitor cap from §4 applies here too — every tdd-coder dispatch, including this gate-fix re-dispatch, gets it.
+**Any missing — fix in a loop, not once.**
+For each task with missing titles, re-dispatch THAT task's subagent (fresh, per §4) with the missing titles as feedback.
+The same 1-hour Monitor cap from §4 applies here too — every tdd-coder dispatch, including a gate-fix re-dispatch, gets it.
 The subagent owns writing them (RED → GREEN), never hand-write tests.
 Increment `gate_dispatches` in the state file by one per fix dispatch.
-Then re-gate ONCE — a second `deep-reviewer` pass, same contract.
+Then re-gate — another `deep-reviewer` pass, same contract.
 
-- Re-gate all found → pass; set `phase: "tails"` and go to §9.
-- Re-gate still missing → record the still-missing titles for §9's package, set `phase: "tails"`, go to §9 so the package surfaces them.
-  Do NOT loop, do NOT hand-fix.
+- Re-gate all found (or N/A) → pass; set `phase: "tails"` and go to §9.
+- Re-gate still missing → repeat: re-dispatch the same task again with the still-missing titles, then re-gate again.
+  A planned test the plan declared is not optional, so one failed fix round is no reason to accept its absence — only its own task's attempt cap is.
+
+Bound each task's fix-dispatch count by the same per-task cap the task loop enforces (`MAX_ATTEMPTS = 3` in `implement-loop-state.sh`).
+Track it yourself: the script can't verdict this — it only judges phase `"tasks"`, and by now phase is `"gates"` (see Budget note).
+
+**Attempts exhausted with titles still missing is a block, not a pass-through to §9.**
+Go to §5.5 and halt — record, per task, exactly which titles are still missing, so the human knows what to finish.
+There is no "proceed to §9 anyway so the package surfaces them" path any more: a batch that can't produce its own planned tests isn't ready for tails or a PR.
 
 ## Budget note
 
-This gate never calls `implement-loop-state.sh` — nor does §9, which runs linearly to the package.
+This gate never calls `implement-loop-state.sh` itself — nor does §9, which runs linearly to the package.
+The script only verdicts phase `"tasks"`; by the time this gate runs, phase is already `"gates"`, so a call here would just fail loud.
 
-The `gate_dispatches` it increments feed the script's phase-independent budget backstop.
-It fires on its next call (in practice, a resumed run's first verdict) returning `halt-budget` before anything else.
+`gate_dispatches` still feeds the script's phase-independent budget backstop: `total_dispatches` sums `attempts` and `gate_dispatches`
+**before** the script even reads `phase`, so every fix dispatch here raises that count for the whole state file, not only for this gate.
 
-A gate-fix overflow never halts the current batch — the gate is try-once, so overshoot is bounded at one dispatch per task.
+`halt-budget` itself — when the script emits it, during the task loop, before this gate is ever reached — now routes to §5.5, never to §9.
+A budget-exhausted unit halts for the human the same as any other blocked unit; it does not fall through to the batch-end flow.
+
+The fix loop here is bounded by the per-task attempt cap above, not by being try-once — overshoot on a single task is what halts it, not a shared dispatch count.
 
 Keeping the accounting in the script is the invariant — do not "helpfully" add a script call here.

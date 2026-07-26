@@ -13,65 +13,72 @@ Detail for /implement's batch-end steps. Load when the batch reaches its end.
 SKILL.md's `§9.1 → (§9.2 ∥ §9.3) → §9.4 → §9.5` is the running order, and the only place that sequence is written down.
 This file expands each of those steps; it never restates their order.
 
-The PR steps — manifest entry and the opt-in draft PR — live in [`batch-end-pr.md`](batch-end-pr.md), reached from Finalize below.
+The PR steps — manifest entry and opening the opt-in PR — live in [`batch-end-pr.md`](batch-end-pr.md), reached from Finalize below.
 Skip that file entirely when the run is neither a PR-label run nor an opted-in draft.
 
-## Repo-green check (§9.1)
+## Repo-green GATE, fixed in a loop (§9.1)
 
-Run this first, so the tails analyze green code. Run the repo's **full lint + full test suite** — not just the batch's files.
+Run this first, so the tails analyze green code.
+Run the repo's **full lint + full test suite**, repo-wide — never scoped to the batch's own files, since a batch can break a workspace it never edited.
 
-- **Cheap failures** (lint autofix, a trivial assertion update) → fix each in **its own commit**; list them under "Unexpected extras" in the package.
-- **Structural failures** (a real design break, not a one-line fix) → auto-queue a `[Scout]` TaskList item per finding; do **not** fix them.
-  - While any structural failure remains, the package explicitly flags **"repo not green"**.
+**Red repo → fix it in a loop, through subagents — the orchestrator never hand-fixes, and never scopes the gate down to make it pass:**
 
-This is the **only** auto-apply path at batch end. Tail findings are never applied here — the orchestrator triages them and you decide (below).
+- Dispatch `agent(subAgent=tdd-coder, title=Fix repo-green failure: <short failure name>)` per failure.
+- Same contract as §4: the same 1-hour Monitor cap, the same per-task attempt caps, each dispatch recorded as an attempt in the state file.
+- Re-run the **full** suite and lint after each fix, and read the fresh result — a fix nobody re-ran is a claim, not a green repo.
+- Repeat until every failure the batch is responsible for is gone.
+
+**A failure the batch did not cause is a `[Scout]`, not a blocker.** Record it, report it in the package, leave it unfixed, and let the gate pass on it.
+Fixing pre-existing red would blur this batch's diff with unrelated work, which is exactly what the Scout channel (§4.3) exists to prevent.
+
+Attempts exhausted with a batch-caused failure still red → §5.5, halt. The human clears it; this run does not ship around it.
+
+Record the final full-suite result (pass/fail + counts) into the package, so the human sees the gate actually ran over everything.
+
+This is the **only** auto-apply path at batch end. Tail findings (§9.2–§9.4) are never applied — not here, not anywhere in this run (see Triage below).
 
 ## The two tails (§9.2–§9.3)
 
 Full dispatch contract, preamble, failure handling, and overwrite policy: [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../../code-review-pipeline/references/deep-reviewer-tail-pair.md).
 
-`<BASE_REF>` = `<BATCH_BASE_SHA>` (captured in §1.4); `<SPEC_PLAN_PATHS>` = the resolved `spec_<slug>.md`/`plan_<slug>.md`.
+`<BASE_REF>` = `<BATCH_BASE_SHA>` (captured in §3.2); `<SPEC_PLAN_PATHS>` = the resolved spec and plan.
 
 What's specific to `/implement`:
 
 - The TaskList already carries this step as the `Batch-end 3/5` reminder seeded in §2.2 — flip that one entry, and don't queue a separate item per tail.
 - When a tail returns, confirm its report file exists at the assigned path, then record that **path** into `.tails.refactor_report` / `.tails.auto_review_report`.
-  - Record the path, never the content: a resumed run reads it back to see which reports already exist.
+  - Record the path, never the content: the state file is only the on-disk pointer that Triage (§9.4) and the package read back, not a copy of the report.
 
 ## Triage both reports (§9.4)
 
-Follow the shared reference's triage procedure: read both reports, synthesize one prioritized apply-offer summary.
+Read both reports and synthesize one prioritized summary into the package: every finding, including the ones that look low-risk, each pointing at the report file that carries its full text.
 This synthesis is **additive** to the two raw report paths — the package carries **both**.
 
-When the human names specific findings to apply after seeing the package, follow the shared reference's "Applying a single finding, on explicit request" — with one implement-specific routing choice:
+**This skill never applies a finding — not one, not a trivial one, not on request.** Triage here is report-only, end to end, with no exceptions and no opt-in.
 
-- This deliberately overrides the shared reference's generic routing (a single `general-purpose` subagent for every finding); the reference's own note cross-links back here.
-- **A refactor-lens finding** (from `verdict_refactor_*.md`) → dispatch `agent(subAgent=refactor, title=Apply refactor finding: <finding>)`.
-  Pass it the finding's scope and the caller's test command; it applies the change itself and confirms tests stay green before and after.
-- **An auto-review-lens finding** (from `verdict_auto-review_*.md`) → dispatch a fresh `agent(subAgent=tdd-coder, title=Apply review finding: <finding>)` per the §4 contract with strict TDD (RED before GREEN), unchanged.
-  The refactor agent refuses behavior changes, so a correctness fix can't route through it.
-- Verify the diff (§5.1) before trusting `done`, either way.
+The apply-a-finding path is removed entirely, not softened into an opt-in: deciding and applying a finding is a separate, human-initiated pass over the verdict files, started after this run ends.
 
-Once a fix lands, annotate its finding in the timestamped report file — `APPLIED` (with the fix commit SHA) or `SKIPPED` (with the reason).
-
-The report is the durable, on-disk ledger of what got fixed versus deferred; this is the **only** report-file write the orchestrator itself makes.
+Keeping apply out of the batch means the diff the human is about to review stays exactly the diff the tails reviewed.
+Folding fixes in after the fact would silently invalidate both reports and the repo-green result the package just claimed.
 
 ## The review package (§9.5)
 
 The package is the single async pass the human reviews — the replacement for the per-task handshake. Finalize prints it (below). It contains:
 
-- **Per-task outcomes** — each task labeled `done` / `blocked` / `stuck`, with its commit SHAs.
+A unit only ever reaches this package when every task is `[Done]` and §8's gate passed.
+A unit that couldn't finish halted at §5.5 instead — or §9.1's own gate may halt the run before a package is ever assembled.
+So there is exactly one package shape, never a partial one:
+
+- **Per-task outcomes** — every task, all `done`, with its commit SHAs.
 - **Both raw tail-report paths** (`verdict_refactor_<ts>.md`, `verdict_auto-review_<ts>.md`), plus any missing-report flag from failure handling.
-- **The triaged synthesis** (above), with its apply-offer.
-- **Every recorded `[Scout]` note and every block**, with what each needs to clear.
+- **The triaged synthesis** (above) — findings only, never an apply-offer.
+- **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §9.1) — reported, never fixed by this run.
 - **The literal diff range** — print `git diff BATCH_BASE_SHA..HEAD` with the actual SHA substituted, so the human can reproduce the range.
-- **"Unexpected extras"** — the repo-green cheap fixes committed above (and any completed Scout fixes), each with its commit.
-- **Repo-green status** — flag "repo not green" when any structural failure remains as a Scout.
+- **"Unexpected extras"** — the commits §9.1's fix-loop produced to reach green, each with its commit and the failure it fixed.
+- **Repo-green result** — the final full-suite pass/fail + counts from §9.1, plus any `[Scout]` failures left unfixed because the batch didn't cause them.
 - **TDD opt-out note** — when §8's gate passed as all-N/A, state the explicit opt-out.
 - **Worktree merge-back reminder** — only when a worktree exists (read its path + branch from the state file); omit entirely when the interview declined it.
   - The reminder ends the package: its path, its branch, and "nothing was merged or deleted — merge back and remove it yourself".
-
-On a **halted** batch — budget hit, or any task left `blocked` / `stuck` — present this as a **partial** package, still labeling each task `done` / `blocked` / `stuck`.
 
 ## Open the diff for review (neovim diffview)
 
@@ -89,13 +96,17 @@ After printing the summary, open the batch diff in a **side-by-side tmux pane** 
 
 ## Finalize — the step order inside §9.5
 
-1. **Assemble the package** (contents under "The review package") and **print it** to chat — the single async review pass.
-2. **Open the diffview pane** (see "Open the diff for review").
-3. **PR manifest entry & status marker**, on a PR-label run (see [`batch-end-pr.md`](batch-end-pr.md)).
-4. **Draft PR** if the interview opted in (see [`batch-end-pr.md`](batch-end-pr.md)'s "Draft PR (opt-in)").
-5. **Delete or keep the state file by terminal phase.** The phase set here is the Stop hook's release signal.
-   - The hook blocks stops while phase is `tasks` / `gates` / `tails`, and allows them once phase is `presented` or `halted`.
-   - **Every task `done`** → set `phase: presented` and **delete** the state file (a presented batch never resumes).
-   - **Budget hit, or any task `blocked` / `stuck`** → set `phase: halted` and **keep** it for resume; the printed package is the partial one.
+Each step presupposes the one before it succeeded; the package is never printed over a PR that failed to open.
 
-The PR lands after the diffview pane on purpose: that pane is editable, so a PR opened before it would ship a body the human never got to amend.
+1. **PR manifest entry & PR-level status marker**, on a PR-label run (see [`batch-end-pr.md`](batch-end-pr.md)).
+2. **Open the PR**, only when the interview opted in (`pr.wanted: true`) — see [`batch-end-pr.md`](batch-end-pr.md)'s "Open the PR (opt-in)".
+   - **Failing here is a §5.5 halt, not a partial package.** No `gh`, no remote, a rejected push, or a create that errored all route to §5.5.
+   - Name the failure, keep the state file, print nothing.
+   - Not requesting a PR (`pr.wanted: false`) is not a failure — step 3 proceeds normally.
+3. **Assemble the package** (contents under "The review package") and **print it** to chat — the single async review pass, reached only once step 2 succeeded or was never requested.
+4. **Open the diffview pane** (see "Open the diff for review").
+5. **Finalize the phase.** Reaching this point means every task is `[Done]`, the gate passed, and the PR (if wanted) is open — the only outcome left.
+   Set `phase: "presented"` and **delete** the state file. The Stop hook releases on this phase; a presented batch is never resumed.
+
+The PR lands **before** the package and the diffview pane on purpose: the package is presented only once the run actually succeeded.
+On a PR-wanted run, "succeeded" includes the PR being open — printing the package first would risk showing success for a PR that never got created.

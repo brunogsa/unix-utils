@@ -5,7 +5,7 @@
 #   implement-loop-state.sh <state-file>
 #
 # Reads a /implement run's JSON state file and prints one JSON verdict on stdout:
-#   {"action": "retry|stuck|next-task|gates|halt-budget", "task": "<id or empty>", "reason": "..."}
+#   {"action": "retry|stuck|next-task|gates|halted|halt-budget", "task": "<id or empty>", "reason": "..."}
 #
 # Examples:
 #   implement-loop-state.sh /tmp/implement_abc123.json
@@ -19,8 +19,9 @@
 # Design:
 #   - The "current task" is whichever task the LAST entry in `attempts[]`
 #     belongs to — not `tasks[].status`, which the orchestrator may lag on.
-#   - A task is "terminal" (no longer blocks the batch) once its `status` is
-#     "done" or "blocked".
+#   - A task is "terminal" (no longer blocks the per-task loop) once its
+#     `status` is "done" or "blocked" — but a "blocked" task still blocks the
+#     batch from reaching the gates; see the "halted" note below.
 #   - Failure-signature comparison lowercases, drops any whitespace-delimited
 #     token containing "/" (path-like), strips digits, then collapses
 #     whitespace — so two failures differing only by a line number or a tmp
@@ -31,13 +32,21 @@
 #     dispatch to reach the same wall. Routing it through the script (rather
 #     than letting the caller shortcut to "stuck" itself) keeps every attempt
 #     inside the same budget accounting.
+#   - The gates phase is reachable only when every task in the batch ended
+#     "done". Once the current task passes and no non-terminal task remains,
+#     the script checks for a "blocked" task among `tasks[]`: any found means
+#     the batch verdicts "halted" instead of "gates", so a run with an
+#     unresolved blocked task stops for the human rather than running gates
+#     over an incomplete batch.
 #   - The batch-wide dispatch budget (BATCH_CAP_MULT * task count +
 #     GATE_FIX_ALLOWANCE) is checked before any per-task logic: it is the
 #     backstop for a runaway gate-fixing loop (gate_dispatches piling up),
 #     since a single task alone can never exceed MAX_ATTEMPTS + 1 attempts
-#     before the per-task "stuck" verdict already caught it.
+#     before the per-task "stuck" verdict already caught it. Its caller halts
+#     the run and waits for the human — it does not proceed to the
+#     batch-end flow.
 #   - The script only knows how to verdict phase "tasks" (retry/stuck/
-#     next-task/gates). Any other phase is a caller misuse the script
+#     next-task/gates/halted). Any other phase is a caller misuse the script
 #     fails loud on rather than guess a verdict for — after the task
 #     loop, the gate and batch-end flow run linearly with no verdict call.
 #
@@ -60,7 +69,7 @@ usage() {
 usage: implement-loop-state.sh <state-file>
 
 Reads a /implement run's JSON state file and prints one JSON verdict:
-  {"action": "retry|stuck|next-task|gates|halt-budget", "task": "...", "reason": "..."}
+  {"action": "retry|stuck|next-task|gates|halted|halt-budget", "task": "...", "reason": "..."}
 
 Examples:
   implement-loop-state.sh /tmp/implement_abc123.json
@@ -131,7 +140,7 @@ budget_threshold=$((BATCH_CAP_MULT * task_count + GATE_FIX_ALLOWANCE))
 # design note above on why a single task alone can never trigger this first.
 if [ "$total_dispatches" -ge "$budget_threshold" ]; then
   emit_verdict "halt-budget" "" \
-    "total dispatches ($total_dispatches) reached the batch budget ($budget_threshold = ${BATCH_CAP_MULT}x${task_count} tasks + $GATE_FIX_ALLOWANCE gate allowance)"
+    "total dispatches ($total_dispatches) reached the batch budget ($budget_threshold = ${BATCH_CAP_MULT}x${task_count} tasks + $GATE_FIX_ALLOWANCE gate allowance); halting the run here and waiting for the human"
   exit 0
 fi
 
@@ -158,7 +167,13 @@ case "$last_result" in
       next_task=$(printf '%s' "$remaining_json" | jq -r '.[0].id')
       emit_verdict "next-task" "$next_task" "task $current_task passed; dispatch next pending task $next_task"
     else
-      emit_verdict "gates" "" "task $current_task passed and every other task is done or blocked; proceed to the test-presence gate"
+      blocked_count=$(jq '[.tasks[] | select(.status == "blocked")] | length' "$state_file")
+      if [ "$blocked_count" -gt 0 ]; then
+        emit_verdict "halted" "" \
+          "task $current_task passed but $blocked_count task(s) ended blocked; halting here for the human instead of reaching the gates"
+      else
+        emit_verdict "gates" "" "task $current_task passed and every task in the batch is done; proceed to the test-presence gate"
+      fi
     fi
     ;;
   blocked)

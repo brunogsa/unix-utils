@@ -2,14 +2,17 @@
 
 Read this only when `need-git-checkout.sh` printed `yes` for this PR — [`pr-awareness.md`](pr-awareness.md) owns that question and the `no` path, where no branch is ever created.
 
-It covers resolving `<feat_branch>/pr<N>`, the resume check for an already-existing branch, and the zero-parent / single-parent / diamond branch-creation cases with their dependency guards.
+It covers resolving `<feat_branch>/pr<N>`, the existing-branch check for a branch already present, and the zero-parent / single-parent / diamond branch-creation cases with their dependency guards.
 
 ## Resolving the branch name, and adopting one that already exists
 
 **Prints `yes`** → resolve `<feat_branch>/pr<N>` before dispatching:
 
 - `<feat_branch>` = `git branch --show-current`, with any trailing `/pr<digits>` suffix stripped. Stateless — no new persistent store, matching the plan's NFR.
-- **Resume check, first**: `git rev-parse --verify --quiet <feat_branch>/pr<N>`.
+- **Existing-branch check, first**: `git rev-parse --verify --quiet <feat_branch>/pr<N>`.
+  A branch can legitimately already exist here: an earlier run halted (§5.5) with this PR's branch already created, and there is no resume path.
+  Clearing that halt means a fresh `/implement` re-invocation of this same PR.
+  This check is what lets that fresh run find its branch already in place, instead of failing on `checkout -b`.
   Branch already exists → `git checkout <feat_branch>/pr<N>` (plain, no `-b`) and skip every step below.
   The guard already ran, and passed, the first time this branch was created — re-running it on an adopted branch is redundant, not merely safe-to-repeat.
   This guarantee holds for the diamond case too: its guard already ran by branch-creation time, in the diamond-specific position after the checkout and merges.
@@ -58,7 +61,7 @@ It covers resolving `<feat_branch>/pr<N>`, the resume check for an already-exist
       So calling it any earlier would always fail here, even when every parent legitimately is Done.
       Exit 1 surfaces the script's own stderr diagnostic verbatim and stops before dispatching any of this PR's tasks.
       Discard the half-built branch before stopping: `git checkout <first-listed-parent-branch>` then `git branch -D <feat_branch>/pr<N>`.
-      A left-over branch would let a later resume's "branch already exists → skip the guard" check adopt it — silently dispatching tasks on a parent that never actually passed.
+      A left-over branch would let a later re-invocation's existing-branch check adopt it — silently dispatching tasks on a parent that never actually passed.
       Re-running this PR from scratch redoes the same checkout, the same merges, and the same conflict resolution, so nothing is lost by discarding it.
       Exit 2 (usage/parse error) surfaces the same way, discarding the branch identically.
       Exit 0 → dispatch this PR's tasks, same as any other PR.
