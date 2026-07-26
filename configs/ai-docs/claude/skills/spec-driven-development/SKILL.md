@@ -145,7 +145,8 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
   - Short titles, one thought per bullet, terse Given/When/Then — optimize for a fast human read, not formal completeness.
   - Why: these are throwaway living docs, so verbosity taxes every re-read and buries the decisions that matter.
 
-- **Cross-references inside the planning doc spell out the behavior — never cite `AC-N` IDs** (doc-standards' no-ID-references rule; the `### AC-N:` headings defining ACs are anchors, not references).
+- **Cross-references inside the planning doc spell out the behavior — never cite `AC-N` IDs** (doc-standards' no-ID-references rule).
+  - Anchors, not references — exempt from the ban: the spec's `### AC-N:` definition headings, and the plan's `- **AC-N**` coverage-list headers that `scripts/check-ac-coverage.sh` joins on.
   - Why: specs/plans are scanned non-linearly; an ID reference adds lookup cost on every scan, while the behavior recap alone carries the meaning.
 
 - **CRITICAL: Keep spec and plan up to date** -- Stale docs degrade `/create-pr`.
