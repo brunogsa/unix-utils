@@ -88,7 +88,11 @@ Never do this as an unprompted default, and never as a repeating loop:
 - Verify the diff before trusting `done`.
 - Annotate the finding in its verdict file as `APPLIED` (with the fix commit SHA) or `SKIPPED` (with why).
 
-**Callers may override this generic routing.** `implement`'s `batch-end-review.md` routes by lens instead — refactor-lens findings to the `refactor` agent, auto-review-lens findings to `tdd-coder`.
+**Callers may override this generic routing.** The `address-verdicts` skill routes by lens instead — refactor-lens findings to the `refactor` agent, auto-review-lens findings to `tdd-coder`.
+
+Lens routing beats one generic applier because the `refactor` agent refuses behavior changes by design, so a correctness finding has to reach `tdd-coder` to get a test written for it at all.
+
+`implement` is not one of these callers: its batch end triages and presents, never applies.
 
 **Repeating this across rounds until the tails come back dry is `loop-auto-review`'s job, not this reference's**.
 
