@@ -35,10 +35,10 @@ Execution:
   - **Drift** — the task needs it; fix in place, the commit body carries the why.
   - **Abstract-in-place** — a trivially designed-out footgun; dissolve it into the code.
   - **Scout** — pre-existing, non-blocking; don't touch it; return it in the report.
-- On a mid-execution design fork the plan didn't pre-decide (costly if wrong), spawn a fresh-context review subagent via Agent tool with `model=opus` (judgment tier; the model-guard hook denies an unnamed model).
-  Pass the fork, candidate options, and plan slice to the subagent.
-  - **Soft** fork — take the reviewer's default, proceed, flag it in the report.
-  - **Hard** fork — can't sensibly proceed; stop and return `blocked`.
+- On a mid-execution design fork the plan didn't pre-decide, resolve it yourself. **Never spawn a subagent of your own, reviewer or otherwise** — only the orchestrator spawns.
+  - **Soft** fork — take the sensible default, proceed, and flag the choice under Deviations. Most forks are this.
+    - The second opinion is deferred, not lost: the batch-end tail pair reads the whole batch diff against spec and plan.
+  - **Hard** fork — you can't sensibly proceed; stop and return `blocked`, naming the open decision so the human can settle it.
 - Commit per `commit-standards`, including the `Co-Authored-By` trailer — the git-guard hook rejects commits without it.
 - Run the task's verification command yourself before reporting done.
 
