@@ -100,7 +100,11 @@ Move text out of SKILL.md into `references/` or `assets/` only when the move kee
 A "mandatory read" the main flow opens at invocation time on every run is a fake lazy-load.
 Keep that text in SKILL.md — get under the word budget with real trims, or set an honest `words-budget:` frontmatter override.
 
+Two bundled files that always load together are one file split in two — the same cheat, spread across two budget lines.
+If no run can read one without the other, that split is gaming the budget, not saving context: merge them back, then trim or override honestly.
+
 Why: an always-read reference loads the same words every run plus a Read round-trip — it saves nothing and hides the cost from the budget gate, which exists to measure that cost.
+A co-loading pair hides it twice, since each half now measures under a cap the pair itself never respected.
 
 ## Splitting, naming, and sizing bundled files
 
