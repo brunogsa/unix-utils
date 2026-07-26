@@ -33,11 +33,11 @@ flowchart TD
     tl_prompt["1.7 Ask user (TaskList has items):<br/>keep all / delete completed /<br/>delete all / cancel /implement"]:::gate
     mark_progress["3. TaskList: mark task in_progress<br/>+ breadcrumb (AC titles)"]:::state
     substeps["3. Subagent writes RED-GREEN<br/>checklist file:<br/>/tmp/implement_substeps_&lt;slug&gt;_&lt;id&gt;.md<br/>(a contract, not scratch)"]:::state
-    dispatch_task["4. Dispatch tdd-coder<br/>(sonnet pinned, maxTurns 128,<br/>background, SERIAL across tasks;<br/>preloads: test-driven-development,<br/>code-standards, test-standards,<br/>doc-standards, commit-standards)"]:::dispatch
-    hook_dispatch_guards["Hooks guarding this dispatch:<br/>subagent-model-guard (enforces<br/>pinned model) + git-guard (rejects<br/>a commit missing the<br/>Co-Authored-By trailer)"]:::hook
+    dispatch_task["4. Dispatch tdd-coder<br/>(sonnet pinned, maxTurns 128,<br/>background, SERIAL across tasks)"]:::dispatch
+    hook_dispatch_guards["Hooks guarding this dispatch:<br/>subagent-model-guard + git-guard"]:::hook
     timeout_stop["1h Monitor timeout expires:<br/>TaskStop the subagent<br/>(dispatch resolves as timeout)"]:::hook
     d_fork{"Mid-execution design fork?"}
-    fork_resolve["4.2 tdd-coder resolves it itself,<br/>NEVER spawning a subagent:<br/><br/>soft = take the default, flag it<br/>under Deviations;<br/>hard = return blocked"]
+    fork_resolve["4.2 tdd-coder resolves it itself,<br/>NEVER spawning a subagent<br/>(a hard fork returns blocked)"]
     d_report{"4.4 Subagent report status?"}
     verify["5.1 Verify commits, diff,<br/>checklist, verification command"]
     d_verify{"Verify passed?"}
@@ -52,7 +52,7 @@ flowchart TD
     d_gate{"All planned tests found<br/>(or every task N/A)?"}
     gate_fix["8. Re-dispatch task(s) with<br/>missing titles (tdd-coder, sonnet,<br/>try-once, same 1h Monitor cap<br/>as step 4)"]:::dispatch
     gate_regate["8. Re-gate once<br/>(deep-reviewer, opus, max)"]:::dispatch
-    hook_write_guard["Hook: deep-reviewer-write-guard<br/>(auto-approves only verdict_*.md<br/>/ /tmp writes, denies the rest)"]:::hook
+    hook_write_guard["Hook: deep-reviewer-write-guard"]:::hook
     skill_batch_end["Load references/batch-end-review.md<br/>(expands 9.1-9.5; routes on to<br/>batch-end-pr.md only when a PR<br/>is in play)"]:::skill
     green_gate["9.1 Repo-green gate: full suite<br/>+ lint; cheap failures fixed by<br/>the orchestrator itself, its own<br/>commit (autonomous, no human<br/>gate); structural failures become<br/>[Scout] items, unfixed"]:::gate
     d_green{"Repo green?"}
@@ -64,7 +64,7 @@ flowchart TD
     pr_manifest["9.5 branches_&lt;slug&gt;.md:<br/>append-branch-pr-entry.sh<br/>(PR-label runs only)"]:::state
     d_pr{"Draft PR requested<br/>AND repo green?"}
     pr_dispatch["9.5 Dispatch create-pr agent<br/>(sonnet, effort medium,<br/>draft-only scope)"]:::dispatch
-    push_pr["Push branch + gh pr create --draft<br/>(or PATCH existing PR body)"]:::gate
+    push_pr["Push branch + open or update<br/>the draft PR"]:::gate
     package["9.5 write presented_at; run<br/>implement-loop-metrics.sh; print the<br/>batch-end package; THEN open the<br/>nvim diffview pane (open-in-tmux);<br/>strike remaining [Reminder] steps"]
     d_pr_ok{"This PR/batch: all tasks Done<br/>AND gate passed?"}
   end
@@ -72,9 +72,9 @@ flowchart TD
   red_flag["Red repo: structural failures are<br/>[Scout] items; package still prints,<br/>flagged 'repo not green'; PR suppressed"]:::gate
   d_more_pr{"PR-label mode with<br/>PRs remaining?"}
   present_final(["Present final report<br/>(phase: presented or halted)"])
-  hook_stop["Stop hook: blocks session stop<br/>while phase is tasks, gates,<br/>or tails; releases at<br/>presented or halted"]:::hook
+  hook_stop["Stop hook: gates session stop<br/>on the run's phase"]:::hook
   d_apply{"User names findings to<br/>apply? (opt-in only,<br/>never a repeating loop)"}:::gate
-  apply_dispatch["Dispatch fix per named finding:<br/>refactor-lens to refactor agent<br/>(opus, high); auto-review-lens<br/>to tdd-coder (sonnet, full<br/>SS4 contract)"]:::dispatch
+  apply_dispatch["Dispatch fix per named finding:<br/>refactor-lens to refactor agent<br/>(opus, high); auto-review-lens<br/>to tdd-coder (sonnet, step 4<br/>contract)"]:::dispatch
   annotate["Annotate verdict_*.md:<br/>APPLIED (sha) or SKIPPED (reason)"]:::state
   end_done(["End of invocation"])
 
