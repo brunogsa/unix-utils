@@ -85,7 +85,11 @@ The whole pipeline from `BATCH_BASE_SHA` capture through batch-end and PR creati
 §1.1 (locate plan/spec), §1.2 (interview), §1.3 (worktree setup), and §2 (orchestration review) run once for the whole list.
 §2 reviews the list's PR ordering and dependencies as a whole, which is cheaper and more useful than reviewing each PR in isolation.
 
-**Exception: §2.2's TaskList task creation repeats per PR.** Before dispatching each PR's first task, create entries only for that PR's own resolved task-ids — never every PR's tasks upfront.
+**Exception: §2.1's `[Reminder]` seed and §2.2's TaskList task creation both repeat per PR.**
+
+§2.2: before dispatching each PR's first task, create entries only for that PR's own resolved task-ids — never every PR's tasks upfront.
+
+§2.1: seed one batch-end `[Reminder]` per PR, right after that PR's §1.4 captures its `BATCH_BASE_SHA`, because §9 runs once per PR and the reminder is struck `completed` at each §9.5.
 
 Before each PR's loop iteration: the defensive DAG re-check, label resolution, and checkout decision above, all run fresh for that PR.
 

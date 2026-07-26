@@ -14,14 +14,14 @@ flowchart TD
   worktree_setup["1.3 EnterWorktree + symlink<br/>plan/spec/branches files,<br/>copy .env*"]
   d_review{"Pre-dispatch review requested?"}
   orch_review["2. Orchestration review<br/>(deep-reviewer, opus, max;<br/>fresh-context, adversarial)"]:::dispatch
-  seed_remind["2.1 TaskList: seed ONE [Reminder] task<br/>(subject = arrow chain, survives<br/>compaction):<br/>test-presence to repo-green to<br/>tails(refactor par review) to<br/>triage to PR(create-pr, if wanted) to<br/>diffview; metadata tracks each<br/>step pending or done"]:::state
-  seed_tasks["2.2 TaskList: create matched tasks<br/>(this PR's only, if PR-label run);<br/>1st in_progress, rest pending;<br/>metadata: pr_label, attempt_count=0,<br/>gate_outcome=pending"]:::state
   d_prlabel{"Arg is PR-label(s)?"}
   skill_pr["Load references/pr-awareness.md<br/>(routes on to pr-branch-creation.md<br/>only when a checkout is needed)"]:::skill
 
   subgraph perunit ["Per unit: whole batch (task-ids run) or each PR (PR-label list)"]
     dag_recheck["Re-check PR DAG (check-pr-dag.sh),<br/>resolve PR-N to task-ids"]:::hook
     recap["1.4 Recap since base,<br/>capture BATCH_BASE_SHA"]
+    seed_remind["2.1 TaskList: seed ONE [Reminder] task<br/>PER PR, after 1.4 (subject = arrow<br/>chain with the real sha, survives<br/>compaction):<br/>test-presence to repo-green to<br/>tails(refactor par review) to triage to<br/>package to diffview to<br/>PR(create-pr, if wanted); metadata<br/>tracks each step pending or done"]:::state
+    seed_tasks["2.2 TaskList: create matched tasks<br/>(this PR's only, if PR-label run);<br/>1st in_progress, rest pending;<br/>metadata: pr_label, attempt_count=0,<br/>gate_outcome=pending"]:::state
     d_branch{"PR-label mode:<br/>checkout needed for this PR?"}
     branch_setup["Create/adopt PR branch,<br/>merge parents if diamond"]
     state_init["1.5 State-file init:<br/>/tmp/implement_&lt;session_id&gt;.json;<br/>found existing state file to adopt<br/>per references/preflight-state.md"]:::state
@@ -65,14 +65,14 @@ flowchart TD
     tails_record["Record tails report paths + tokens<br/>into state file; TaskUpdate tail<br/>TaskList metadata; strike this<br/>[Reminder] step"]:::state
     triage["9.4 Triage: synthesize +<br/>apply-offer both reports"]
     pr_manifest["9.5 branches_&lt;slug&gt;.md:<br/>append-branch-pr-entry.sh<br/>(PR-label runs only)"]:::state
-    d_pr{"Draft PR requested?"}
+    d_pr{"Draft PR requested<br/>AND repo green?"}
     pr_dispatch["9.5 Dispatch create-pr agent<br/>(sonnet, effort medium,<br/>draft-only scope)"]:::dispatch
     push_pr["Push branch + gh pr create --draft<br/>(or PATCH existing PR body)"]:::gate
-    package["9.5 Present batch-end package;<br/>run implement-loop-metrics.sh;<br/>strike remaining [Reminder] steps<br/>as they land; write presented_at"]
+    package["9.5 write presented_at; run<br/>implement-loop-metrics.sh; print the<br/>batch-end package; THEN open the<br/>nvim diffview pane (open-in-tmux);<br/>strike remaining [Reminder] steps"]
     d_pr_ok{"This PR/batch: all tasks Done<br/>AND gate passed?"}
   end
 
-  block_red(["Block: red repo —<br/>no package or PR"])
+  red_flag["Red repo: structural failures are<br/>[Scout] items; package still prints,<br/>flagged 'repo not green'; PR suppressed"]:::gate
   d_more_pr{"PR-label mode with<br/>PRs remaining?"}
   present_final(["Present final report<br/>(phase: presented or halted)"])
   hook_stop["Stop hook: blocks session stop<br/>while phase is tasks, gates,<br/>or tails; releases at<br/>presented or halted"]:::hook
@@ -87,12 +87,11 @@ flowchart TD
   interview --> d_worktree
   d_worktree -->|"yes"| skill_worktree --> worktree_setup --> d_review
   d_worktree -->|"no"| d_review
-  d_review -->|"yes"| orch_review --> seed_remind
-  d_review -->|"no"| seed_remind
-  seed_remind --> seed_tasks --> d_prlabel
+  d_review -->|"yes"| orch_review --> d_prlabel
+  d_review -->|"no"| d_prlabel
   d_prlabel -->|"yes"| skill_pr --> dag_recheck --> recap
   d_prlabel -->|"no"| recap
-  recap --> d_branch
+  recap --> seed_remind --> seed_tasks --> d_branch
   d_branch -->|"yes"| branch_setup --> state_init
   d_branch -->|"no / task-ids mode"| state_init
   state_init --> match_task
@@ -131,20 +130,18 @@ flowchart TD
   gate_regate -.->|"guards"| hook_write_guard
   skill_batch_end --> green_gate
   green_gate --> d_green
-  d_green -->|"no"| block_red
+  d_green -->|"no"| red_flag --> d_tails
   d_green -->|"yes"| d_tails
   d_tails -->|"yes"| tasklist_tails --> skill_tail_pair --> tails --> tails_record --> triage
   tails -.->|"guards"| hook_write_guard
   d_tails -->|"no"| triage
-  triage --> pr_manifest --> d_pr
-  d_pr -->|"yes"| pr_dispatch --> push_pr --> package
-  d_pr -->|"no"| package
-  package --> d_pr_ok
+  triage --> package --> pr_manifest --> d_pr
+  d_pr -->|"yes"| pr_dispatch --> push_pr --> d_pr_ok
+  d_pr -->|"no"| d_pr_ok
   d_pr_ok -->|"no"| present_final
   d_pr_ok -->|"yes"| d_more_pr
   d_more_pr -->|"yes"| dag_recheck
   d_more_pr -->|"no"| present_final
-  block_red --> present_final
   present_final -.->|"releases"| hook_stop
   present_final --> d_apply
   d_apply -->|"yes"| apply_dispatch --> annotate --> end_done

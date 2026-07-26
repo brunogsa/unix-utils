@@ -52,7 +52,7 @@ On no, this skill runs in the current checkout, and never merges or deletes a wo
 
 In a multi-task batch (`/implement 1, 2, 3`), **§1.1–§1.5 and §2 run once** at the start; **§1.6–§1.7 run once per task** as each becomes active.
 
-In a PR-label list (`/implement PR-1, PR-2`), the boundary shifts: §1.1–§1.3, §2, §2.1 run once for the whole list; §2.2 and §1.4–§9 repeat once per PR — see [`references/pr-awareness.md`](references/pr-awareness.md).
+In a PR-label list (`/implement PR-1, PR-2`), the boundary shifts: §1.1–§1.3 and §2 run once for the whole list; §2.1, §2.2 and §1.4–§9 repeat once per PR — see [`references/pr-awareness.md`](references/pr-awareness.md).
 
 ### 1.1. Locate the plan (and spec)
 
@@ -176,25 +176,32 @@ This is the orchestrator's only plan-level review; the task subagent has its own
 
 ### 2.1. Seed the batch-end `[Reminder]` task (survives compaction)
 
-Right after the review and before the first dispatch, create **one `[Reminder]` task per invocation** anchoring the whole §9 batch-end procedure in the TaskList.
-Create it once per invocation, never per task.
+Right after the review and before the first dispatch, create **one `[Reminder]` task per batch-end** anchoring the whole §9 batch-end procedure in the TaskList.
+Create it once per batch-end, never per task.
 This is the CLAUDE.md `[Reminder]` category — a durable reminder to run a later step, producing no commit of its own.
+
+**On a PR-label run this step repeats per PR**, seeded right after that PR's §1.4 captures its own `BATCH_BASE_SHA`, since §9 itself runs once per PR.
+One reminder for the whole list would be struck `completed` at PR-1's §9.5, leaving PRs 2…N to run their batch-end with no compaction-surviving anchor.
+This scenario — PRs 2…N lacking a compaction-surviving anchor — is the exact failure this task exists to prevent.
+Seeding it after §1.4 is also what lets the subject carry that PR's real sha instead of the `<BATCH_BASE_SHA>` placeholder.
 
 **Put the ordered step list in the task SUBJECT, not a description field** — only the subject re-surfaces in the turn-by-turn reminder.
 A description needs an explicit `TaskGet` to read back, so after compaction it's as lost as the doc.
 Encode the finalize checklist as an arrow chain in the subject — substituting the real sha for `<BATCH_BASE_SHA>`:
 
 ```
-[Reminder] Batch-end §8-9: test-presence → repo-green → tails(refactor∥review) → triage → PR(create-pr, if wanted) → nvim DiffviewOpen <BATCH_BASE_SHA>
+[Reminder] Batch-end §8-9: test-presence → repo-green → tails(refactor∥review) → triage → package → nvim DiffviewOpen <BATCH_BASE_SHA> → PR(create-pr, if wanted)
 ```
 
 The steps map to §8's test-presence gate, §9.1's repo-green gate, then the two parallel review tails (§9.2 ∥ §9.3).
-Triage runs (§9.4); the `create-pr` PR runs only when `pr.wanted`; `open-in-tmux` opens the diff (§9.5).
+Triage runs (§9.4); then §9.5 prints the package, `open-in-tmux` opens the diff, and the `create-pr` PR runs last, only when `pr.wanted`.
+That tail order is `references/batch-end-package.md`'s Finalize spine — the diff pane is editable, so a PR opened before it would ship a body the human never got to amend.
 
 As each step lands, `TaskUpdate` the subject to mark it done — strike it or prefix `✓`.
 This keeps showing which steps remain even after a compaction drops the doc-resident §9 steps from working memory.
 
-Alongside the strike, `TaskUpdate` this task's `metadata` with the same per-step outcome — keys `test_presence`/`gate`/`tails`/`triage`/`pr`/`diffview`, each `"pending"` or `"done"` (`"skipped"` for `pr` when not wanted).
+Alongside the strike, `TaskUpdate` this task's `metadata` with the same per-step outcome — keys `test_presence`/`gate`/`tails`/`triage`/`package`/`diffview`/`pr`, in that execution order.
+Each step's value is `"pending"` or `"done"` (`"skipped"` for `pr` when not wanted).
 Triage, PR, and diffview completion have no JSON state-file equivalent — this metadata is their only durable, machine-checkable record.
 
 Leave it `pending` through the task loop; flip it `in_progress` on entering §9 and `completed` only once the review package is presented (§9.5).
@@ -455,7 +462,10 @@ This is a checklist, not a summary line: do each stage, don't collapse them.
 
 ### 9.1. Repo-green GATE — full suite, non-negotiable
 
-Confirm the batch's final state is green before reviewing it. This is a hard GATE: the package (§9.5) and PR must not open while it is red or unrun.
+Confirm the batch's final state is green before reviewing it. This is a hard GATE on the **PR**: it must not open while the repo is red or unrun.
+
+The package (§9.5) still prints on a red repo — flagged "repo not green".
+So the human sees the tail reports, the Scouts, and the gate result instead of a silent halt.
 
 Run the **entire** repository's tests and lint — **not** scoped to touched files.
 Scoped runs are a mid-development convenience only; the batch-end gate always runs everything, because a batch can break a workspace it never edited (shared types, lib consumers, contract tests).
@@ -466,7 +476,9 @@ Scoped runs are a mid-development convenience only; the batch-end gate always ru
 - Full lint across **all** workspaces (the repo-wide lint target, not the per-workspace one).
 - Capture both to a file and verify exit code + tail (slow commands per CLAUDE.md).
 
-A red repo here is a batch-end block for the package, not something to hand-fix silently.
+A red repo here is never something to hand-fix silently — [`references/batch-end-review.md`](references/batch-end-review.md) owns the outcome split, and is the only place it is spelled out.
+Its split, recapped: cheap failures (lint autofix, a trivial assertion update) get their own commit; structural failures become `[Scout]` items, unfixed, and flag the package "repo not green".
+
 Record the full-suite result (pass/fail + counts) into the package so the human sees the gate actually ran over everything.
 
 ### 9.2-9.3. Deep-reviewer tail pair (mandatory, report-only)
@@ -494,7 +506,9 @@ This is either by naming findings to apply after seeing this package (the refere
 
 Print the batch-end package for the user's one-pass async review: commit-by-commit reading guide, the two tail reports (with your triage verdicts), any blocks/scouts, and the metrics summary.
 
-Open the draft PR only when §1.2 recorded `pr.wanted: true`, targeting the confirmed base branch. Opening the PR is the final step — it presupposes §9.1–§9.4 all ran.
+Open the draft PR only when §1.2 recorded `pr.wanted: true`, targeting the confirmed base branch, and only when §9.1's gate came back green.
+
+Opening the PR is the last of the batch-end steps — it runs after the package print and the diffview pane, and presupposes §9.1–§9.4 all ran.
 
 **Never hand-write the PR body — always generate it via a fresh `create-pr` agent dispatch (`subagent_type=create-pr`), scoped to drafting only.**
 The agent's own skill would push and create the PR itself; cap its dispatch to the drafted file so the orchestrator still owns the push and the existing-PR fallback.

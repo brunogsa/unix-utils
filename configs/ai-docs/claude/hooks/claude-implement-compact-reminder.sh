@@ -8,9 +8,9 @@
 #
 # Rationale:
 #   A long /implement batch passes through many compactions. Each one can
-#   summarize the doc-resident §9 finalize steps (gate, tails, triage, PR,
-#   diffview pane) out of working memory — the "orchestrator forgot the
-#   steps" failure. The batch-end [Reminder] task (implement skill §2.1) keeps
+#   summarize the doc-resident §9 finalize steps (gate, tails, triage,
+#   package, diffview pane, PR) out of working memory — the "orchestrator
+#   forgot the steps" failure. The batch-end [Reminder] task (implement skill §2.1) keeps
 #   them in view each turn, and the Stop hook (claude-implement-stop-hook.sh)
 #   blocks stopping before phase reaches 'presented'. This hook is the third
 #   guard: it fires at the compaction boundary itself — the one moment
@@ -68,7 +68,7 @@ read -r -d '' DIRECTIVE <<EOF || true
 A /implement batch for '$slug' is mid-flight (state phase: '$phase'). This compaction may have dropped the §9 batch-end steps from working memory — do NOT let the batch end at the last task's commit.
 
 Resume the §9 finalize procedure (implement skill §9). Remaining steps, in order:
-repo-green gate → refactor∥auto-review tails (parallel) → triage the two reports$pr_step → open the diff for review: nvim -c 'DiffviewOpen $sha_display' in a side tmux pane via the open-in-tmux skill.
+repo-green gate → refactor∥auto-review tails (parallel) → triage the two reports → print the batch-end package → open the diff for review: nvim -c 'DiffviewOpen $sha_display' in a side tmux pane via the open-in-tmux skill$pr_step.
 
 Verify the batch-end [Reminder] task is still in your TaskList; if this compaction dropped it, re-create it with the step checklist in its SUBJECT (§2.1). The run is done only when phase reaches 'presented'.
 EOF
