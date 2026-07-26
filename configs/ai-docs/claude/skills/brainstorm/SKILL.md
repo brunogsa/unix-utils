@@ -79,6 +79,11 @@ Why: a stale session loses the decomposition map, but `scopes.md` survives — s
 
 ### 4. Interview the user
 
+**Read the canonical coverage taxonomy (`~/.claude/skills/test-standards/references/coverage-taxonomy.md`) before the first round.**
+
+Why up front: its categories then shape every question you ask, instead of becoming a checklist swept at the end.
+By then the requirements are settled, so a boundary raised that late reopens answered questions rather than refining them.
+
 Write every answer that shapes the spec into the run scratchpad as the round closes, per step 1 — decisions with their why, alternatives with why they lost.
 
 Ask clarifying questions (Socratic style). Focus on:
@@ -99,7 +104,7 @@ Why: a look-up-able fact wastes an interview round on work the agent can do; a r
 
 **CRITICAL: For Testable Acceptance Criteria, actively probe for coverage gaps.** Happy-path scenarios are easy to elicit; corner cases and failure modes need pulling.
 
-Before generating the spec, always push the user through every category in the canonical coverage taxonomy (`~/.claude/skills/test-standards/references/coverage-taxonomy.md`). Illustrative probes:
+Push the user through every category of the taxonomy read at the top of this step — all of them, before the spec is generated. Illustrative probes:
 
 - **Corner cases** (e.g.): empty inputs, max sizes/limits, boundary values.
 - **Failure modes** (e.g.): downstream timeouts, partial failures, rate limits.
