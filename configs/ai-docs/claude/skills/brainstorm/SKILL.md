@@ -61,6 +61,13 @@ Why:
 
 ### 3. Interview the user
 
+**Before the first question round**, run the pre-flight toggle interview from `spec-driven-development/SKILL.md`'s "Pre-flight interview" section — one message, two yes/no toggles ("Every line traces to an AC?", "Right-sized plan?").
+Persist the answers immediately to `/tmp/sdd_<session_id>.json`, exactly as that section specifies.
+
+Why here, not at step 8: both toggles gate how strictly the eventual plan gets checked.
+Deciding on rigor before the plan exists closes off tuning rigor down after seeing what was produced.
+Step 8's self-review reads the persisted answers — never re-ask.
+
 At interview start, create `/tmp/brainstorm_<session_id>.md` — one brainstorm per session, so the session id alone keys the file.
 Persist each decision with its why, each discarded alternative with why it lost, and open questions — as they happen, not at the end.
 Why: a compaction mid-interview drops session memory entirely; the file survives, so you re-read it instead of re-deriving what was lost.
@@ -155,10 +162,15 @@ Why fresh context: this session already talked itself into the spec's choices du
 A planner that sees only the spec file — never the interview — tests whether the spec actually carries what a plan needs.
 It does this instead of quietly drawing on session memory the next reader won't have.
 
-### 8. Validate the plan, then hand off with `/clear`
+### 8. Run self-review, then hand off with `/clear`
 
-Once `plan-writer` returns a plan, read `plan_<slug>.md` in this session — a quick completeness check, not a redo of plan-writer's own self-review.
-Confirm the file exists and its Task/PR breakdown covers every AC and requirement in the spec.
+Once `plan-writer` returns a plan, run `spec-driven-development/SKILL.md`'s Lifecycle step 2 ("AI Self-review") in full, in this session.
+`plan-writer` never runs it itself, so nothing upstream has checked the plan yet.
+
+Dispatch the qualitative pass in order (`deep-reviewer` → `mermaid-fixer` → `density-fixer`, per that section's detail), then the seven formal checks.
+These checks include the five always-on checks, plus the two toggles resolved from the answers persisted at step 3.
+
+A blocking failure follows that section's iteration/recovery loops (delta-scoped re-review, formal-check recovery, snapshot hand-off): fix, then re-run only the failed check — never the whole seven-check block.
 
 Tell the user to run `/clear`, then invoke `/implement` — don't run `/implement` in this session.
 

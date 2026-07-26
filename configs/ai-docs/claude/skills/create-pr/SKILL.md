@@ -2,7 +2,6 @@
 name: create-pr
 description: "Create a GitHub PR with a rich description. Auto-detects spec_<slug>.md/plan_<slug>.md for context."
 disable-model-invocation: false
-words-budget: 2048
 ---
 
 # Create Pull Request
@@ -15,28 +14,26 @@ words-budget: 2048
 
 ### 1. Gather context
 
-- Discover spec/plan in cwd by glob `spec_*.md plan_*.md` (top-level; optional -- works without them):
+- Discover spec/plan in cwd by glob `spec_*.md plan_*.md` (top-level):
   - One spec / one plan → use whichever exist, auto-resolved. Multiple of either → open question **(A) Spec/plan choice**: list them numbered.
   - None found → proceed from the changes digest (below) only, auto-resolved.
-  - Extract every ` ```mermaid ``` ` fenced block from each resolved file.
-  - Include all diagrams in the PR description as collapsibles.
-  - Beyond diagrams, prefer a curated slice over the full file.
+  - Extract every ` ```mermaid ``` ` fenced block from each resolved file; include all diagrams as collapsibles.
+  - Beyond diagrams, prefer a curated slice over the full file — a full embed blows the body-size cap (step 2.6).
   - A spec/plan resolved → open question **(B) Sections to pull**: which `## ` sections matter, via `~/.claude/skills/create-pr/scripts/extract-md-sections.sh <file> "<section>" ["<section>" ...]`.
-  - A full embed blows the body-size cap (see step 2.6).
 - **Resolve the output filename's `<slug>` and `<N>` (used in step 2)**: `<slug>` is the shared filename slug from the resolved `spec_<slug>.md`/`plan_<slug>.md`.
   - Fall back to the current branch name (`/` → `-`) when neither spec nor plan resolved.
   - Single PR plan or no plan resolved → omit `<N>`, auto-resolved.
   - Multiple `PR-N` entries in `## PR Breakdown` → open question **(C) Which PR-N**: set `<N>` to that number (e.g. `PR-2` → `2`).
-- **Ask every open question (A/B/C) together, in one message, before continuing** -- skip any label that auto-resolved above; never dribble the rest one at a time.
+- **Ask every open question (A/B/C) together, in one message, before continuing** -- skip any label that auto-resolved above.
   - Once answered, resolve `<slug>`/`<N>` and create `pr-descr_<slug>_pr<N>.md` right away with an HTML comment logging each answer.
   - Example: `<!-- step 1: spec=spec_foo.md; sections=Architecture,Evidences; PR=2/3 -->` -- GitHub hides HTML comments in rendered bodies.
-  - This file, not a separate scratchpad, is this skill's durable record -- it survives a mid-flow compaction that would otherwise drop the answers.
+  - It is this skill's durable record, not a separate scratchpad -- it survives a mid-flow compaction that would drop the answers.
 - **Resolve the base branch (used below and in step 4)**: run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
-  - Same default `/implement`'s pre-flight interview uses.
   - Every PR targets this branch directly on GitHub, never a parent's branch.
   - Empty result (`origin/HEAD` unset) → omit `--base` in step 4; let it fall back to default.
 - Check if branch is pushed.
-- **Delegate diff/log reading to a subagent** -- dispatch one `general-purpose` Agent (`model: "sonnet"`, `description: "Gather PR changes digest"`), foreground (step 2 needs the result immediately).
+- **Delegate diff/log reading to a subagent** -- dispatch one Agent declared as `subagent_type=general-purpose`, `title=Gather PR changes digest`, `model=sonnet`, foreground (step 2 needs the result immediately).
+  - Render its `description` per CLAUDE.md's Agent-description form.
   - Give it the resolved base branch, the resolved spec/plan slices, and this skill's Writing Style section.
   - It reads git log vs base with **full commit bodies** -- the primary source for decisions, rationale, and scope changes (mining relies on `commit-standards`-shaped commits).
   - It reads git diff vs base, but returns only the **changes digest** (`references/changes-digest.md`), never the raw diff.
@@ -45,7 +42,7 @@ words-budget: 2048
 
 Write `./pr-descr_<slug>_pr<N>.md` in cwd -- `<slug>` and `<N>` resolved per step 1 (`_pr<N>` dropped for a single-PR plan).
 
-If step 1's batch already created this file with the resolved-answers comment, keep it and write the rest below.
+Keep the file step 1 created -- never overwrite its resolved-answers comment.
 
 Author from the changes digest (step 1), the curated spec/plan slices, and the template -- not the raw diff.
 
@@ -59,7 +56,6 @@ Author from the changes digest (step 1), the curated spec/plan slices, and the t
 
 **CRITICAL: Testable Acceptance Criteria and Evidences are MANDATORY** regardless of the template.
 - If absent, add `## Testable Acceptance Criteria` and `## Evidences` inside the template structure.
-- Format and locality per Writing Style, below.
 
 #### Default Template
 
@@ -77,12 +73,9 @@ A full worked example, including the curated spec/plan embed from step 1: [`refe
 
 The reviewer hasn't read your spec, plan, Jira ticket, or commits. Anything referenced must be self-contained or linked. Be concise but didactic.
 
-**Second meta-principle: a small PR earns a small description.**
+**Second meta-principle: a small PR earns a small description** — a guideline, not a hard cap.
 
-Not a hard cap:
-
-- **CRITICAL: Write the shortest version that still teaches** -- cut any sentence that doesn't help the reviewer decide.
-  - Test: would removing it lose reviewer-relevant information? If no, cut.
+- **CRITICAL: Write the shortest version that still teaches** -- cut every sentence whose removal loses no reviewer-relevant information.
   - A one-file, one-decision PR should read in under a minute.
 - **Never restate what the diff already shows** -- a sentence naming only a file, a line count, or "added X function" is noise the reviewer already sees.
   - Reserve prose for the *why* the diff can't show: the reasoning, the trade-off, the discarded alternative.
@@ -92,15 +85,9 @@ Not a hard cap:
 
 ##### Required structure & mandatory content
 
-- **Required PR structure (in this order)** -- canonical sections, all mandatory unless N/A. Translate to the team's language per the rule below.
-  1. Jira link
-  2. Context — business problem
-  3. Testable Acceptance Criteria — verbatim from spec; truth-criterion
-  4. Architecture — diagrams + Decisions as a subsection (don't promote Decisions to a peer)
-  5. Changes — Planned + Discovered along the way
-  6. Checklist — preserve the team's checklist verbatim
-  7. Evidences — value-add only; manual-test appendix lives here
-  8. References — last
+- **Required PR structure** -- [`references/pr-template.md`](references/pr-template.md) owns the section list and order; every section is mandatory unless genuinely N/A.
+  - It is ordered so the truth-criterion (Acceptance Criteria) precedes the design that satisfies it, and the appendices come last.
+  - Never re-enumerate that list here — one enumeration is what keeps the two files from drifting apart.
 - **Context section: business context + scannable layers, never one paragraph per ticket** -- extract the business problem from spec Background or commits.
   - Reviewers without ticket access need it to evaluate correctness.
   - Ordered layers:
@@ -108,18 +95,14 @@ Not a hard cap:
   2. Parent goal / epic.
   3. Neighboring dependencies' status.
   4. This PR's scope as bullets+sub-bullets per ticket.
-  - Multi-ticket PRs need one bullet per ticket — not a dense paragraph each.
 - **Testable Acceptance Criteria — verbatim from spec** -- copy BDD content (Given/When/Then/And) from `## Testable Acceptance Criteria`.
   - Drop only "AC-N:" prefix.
   - Each AC ends with a one-line `> Covered by ...` pointer (skeleton in `references/pr-template.md`).
-  - Use whichever link combination applies.
-- **Evidences section — value-add only** -- categories and layout live in `references/pr-template.md` (canonical).
 
 ##### Formatting & rendering
 
 - **Bullets** -- bold topic prefix (`**Topic** --`) so reviewers scan bold words first.
   - One short sentence per bullet, sub-bullets only when essential.
-  - Spacing and density cap follow doc-standards (step 2.5 verifies).
 - **One sentence per paragraph for dense factual prose** -- a paragraph stacking ≥2 atomic claims (e.g., CI status + scope + count) splits into separate short paragraphs.
 - **Section names AND body prose in the PR's primary language** -- translate headers and recurring body terms; engineering jargon stays English. Examples: [`references/decision-quality.md`](references/decision-quality.md).
 - **Blank line BEFORE every list** -- prevents CommonMark merging ordered lists that don't start at `1.` into the preceding paragraph.
@@ -132,15 +115,13 @@ Not a hard cap:
 
 ##### Content quality
 
-Mandatory while drafting `pr-descr_<slug>_pr<N>.md`. Same authority as the rules above.
-
-- **Separate planned from incidental** -- group items under `**Planned:**` (PT-BR: `**Descobertas durante o desenvolvimento, também endereçadas:**`), dropped when Architecture/Decisions already cover per-ticket scope.
+- **Separate planned from incidental** -- two groups in Changes: `**Planned:**` (PT-BR `**Planejado:**`) and `**Discovered along the way:**` (PT-BR `**Descobertas durante o desenvolvimento, também endereçadas:**`).
+  - Drop the incidental group when Architecture/Decisions already cover per-ticket scope.
   - Only incidentals that change shared state earn a bullet (docs, conventions, shared infra).
   - Skip diff/commit-visible items (merge resolutions, auto-review responses, refactors, cleanup) and group small fixes into one bullet.
   - Test: would a future contributor searching "why does X exist?" find it valuable?
 - **Decisions: title the user-visible surprise, not the internal mechanism** -- mechanism details go in sub-bullets.
   - Spell out the consequence if reversed, in plain language (e.g. "exposed to injection or DoS", not "fail-loud").
-  - Examples: [`decision-quality.md`](decision-quality.md).
 - **Reuse rationale: ONE concrete future use, not a speculative list** -- name a specific use case with a ticket ref.
 - **CRITICAL: ZERO references to untracked session docs** -- never name `spec_<slug>.md`, `plan_<slug>.md`, gitignored `.md`, internal task/AC numbers, commit SHAs in prose, or internal dependency files.
   - The reviewer can't open them, so verify with `git ls-files <name>` first.
@@ -190,22 +171,21 @@ Run `~/.claude/skills/create-pr/scripts/check-pr-body-size.sh pr-descr_<slug>_pr
 
 ### 3. Create the PR
 
-Once step 2.5 (density) and step 2.6 (body size) both pass, proceed directly — do not pause for user review of pr-descr_<slug>_pr<N>.md before pushing/creating the PR.
+Once steps 2.5 and 2.6 both pass, proceed directly — never pause for user review before pushing.
 
 - Push branch if needed (with -u)
-- Create PR as **draft** using `gh pr create --draft --body-file pr-descr_<slug>_pr<N>.md --base <base-branch>`, where `<base-branch>` is the value resolved in step 1.
-  - Resolved value was empty → drop `--base` from the command entirely, per step 1's fallback.
+- Create PR as **draft** using `gh pr create --draft --body-file pr-descr_<slug>_pr<N>.md --base <base-branch>`, where `<base-branch>` is the value resolved in step 1 (dropped entirely when empty).
 - **Updating an existing PR's body: never use `gh pr edit --body-file`** — it eagerly queries `repository.pullRequest.projectCards` (Projects classic).
-  - Where that's sunset, errors on the query and silently fails the write, sometimes without a non-zero exit.
+  - Where that's sunset it errors and silently fails the write, sometimes still exiting 0.
   - Write via the REST API instead, which touches no Projects data:
   ```bash
   gh api --method PATCH repos/<owner>/<repo>/pulls/<n> -F body=@pr-descr_<slug>_pr<N>.md
   ```
-  - After either path, read the PR body back (`gh pr view <n> --json body`) and confirm the first lines match pr-descr_<slug>_pr<N>.md.
+  - After either path, read the body back (`gh pr view <n> --json body`) and confirm it matches the file.
 - Return the PR URL
 
 ### 3.5. Learn from user feedback
 
-If the user later asks for changes to the pushed PR body (in chat, or by hand-editing pr-descr_<slug>_pr<N>.md), diff the edit against the version actually pushed.
-Infer the general rule behind each edit and propose updates to this skill's Writing Style for approval.
-Apply approved updates so future runs pick them up automatically — the skill self-improves.
+If the user later changes the pushed PR body — in chat, or by hand-editing pr-descr_<slug>_pr<N>.md — diff the edit against the pushed version.
+
+Per CLAUDE.md's infer-the-general-rule rule, propose the inferred rule as a Writing Style update, and apply it once approved.

@@ -26,15 +26,23 @@ file's turns — pass that older file's --session-id explicitly if you need it.
 Usage:
   extract-session-feedback.py [--session-id ID] [--project-dir DIR] [--cwd PATH]
 
-Transcript auto-detection: project dir = ~/.claude/projects/<slug>, where <slug>
-is --cwd (default: current directory) with every '/' and '.' mapped to '-'. Inside
-that dir the transcript is chosen by precedence: --session-id, then the live
-session's own id from $CLAUDE_CODE_SESSION_ID, then newest *.jsonl by mtime. The
-env-id step matters because "newest by mtime" mis-picks whenever a parallel session
-(a concurrent /auto-review, a queued sub-session) writes to the same dir a moment
-later — its fresher file wins and you get a transcript with none of the real
-feedback. Override the directory with --project-dir. The header's "selected by"
-line records which rule fired, so a heuristic (unverified) pick is never silent.
+Transcript auto-detection, by precedence: --session-id, then the live session's own
+id from $CLAUDE_CODE_SESSION_ID, then newest *.jsonl by mtime.
+
+Both id-based steps search every ~/.claude/projects/<slug>/ directory, because a
+session id is a UUID naming exactly one transcript globally. Only the mtime
+heuristic needs a directory to search: ~/.claude/projects/<slug>, where <slug> is
+--cwd (default: current directory) with every '/' and '.' mapped to '-'. Override
+it with --project-dir, which is also tried first by the id-based steps.
+
+Two ways the heuristic returns the wrong session, both of which the id steps avoid:
+a parallel session (a concurrent /auto-review, a queued sub-session) writes to the
+same dir a moment later and its fresher file wins; or the caller's cwd differs from
+the session's own — a Bash `cd` into a subdirectory that has its own project dir —
+so the search runs in another project entirely.
+
+The header's "selected by" line records which rule fired, so a heuristic
+(unverified) pick is never silent.
 """
 
 import argparse
@@ -42,6 +50,7 @@ import json
 import os
 import re
 import sys
+from typing import NoReturn
 
 USER_TURN_CHAR_CAP = 6000  # verbatim, but guard against a giant paste bloating output
 NEXT_TEXT_HEAD = 200        # chars of the following assistant text to show as context
@@ -53,7 +62,7 @@ NEXT_TEXT_HEAD = 200        # chars of the following assistant text to show as c
 LEARNING_RE = re.compile(r"^\s*[-*]?\s*`?\[Learning\]\s+said=")
 
 
-def die(msg, code=2):
+def die(msg, code=2) -> NoReturn:
     print(f"extract-session-feedback: {msg}", file=sys.stderr)
     sys.exit(code)
 
@@ -76,6 +85,32 @@ def resolve_project_dir(args):
     return d
 
 
+def find_transcript_by_session_id(session_id, preferred_dir=None):
+    """Return the path to <session_id>.jsonl, searching every project dir, or None.
+
+    A session id is a UUID that names exactly one transcript across all of
+    ~/.claude/projects/, so it identifies the file on its own. The cwd-derived
+    project dir is only a guess at which project that file was filed under, and
+    it is wrong whenever the caller's cwd differs from the session's own — a
+    Bash `cd` into a subdirectory that has its own project dir is enough.
+
+    preferred_dir is checked first so an explicit --project-dir still wins.
+    """
+    if preferred_dir:
+        path = os.path.join(preferred_dir, f"{session_id}.jsonl")
+        if os.path.isfile(path):
+            return path
+
+    projects_root = os.path.expanduser("~/.claude/projects")
+    if not os.path.isdir(projects_root):
+        return None
+    for slug in sorted(os.listdir(projects_root)):
+        path = os.path.join(projects_root, slug, f"{session_id}.jsonl")
+        if os.path.isfile(path):
+            return path
+    return None
+
+
 def resolve_transcript(args):
     """Return (transcript_path, selection_note).
 
@@ -83,6 +118,11 @@ def resolve_transcript(args):
       1. --session-id                      (explicit override)
       2. $CLAUDE_CODE_SESSION_ID           (the live session this Bash runs in)
       3. newest *.jsonl by mtime           (last-resort heuristic)
+
+    Steps 1 and 2 search ALL project dirs, because an id names its transcript
+    globally while the cwd-derived dir merely guesses where it sits. Filtering an
+    id through that guess is what silently downgraded a pinned session to step 3
+    and returned a DIFFERENT project's transcript.
 
     Step 2 exists because "newest by mtime" mis-picks whenever ANOTHER session
     writes to the same project dir at the same time — a parallel /auto-review or
@@ -92,21 +132,25 @@ def resolve_transcript(args):
     the running session's own id, so when this script is invoked from inside that
     session we can pin the exact file instead of guessing.
     """
-    project_dir = resolve_project_dir(args)
+    # Only the mtime heuristic needs the cwd-derived dir, and that lookup can die
+    # when the dir is absent — so resolve it lazily, after the id-based steps.
+    preferred_dir = os.path.expanduser(args.project_dir) if args.project_dir else None
+
     if args.session_id:
-        path = os.path.join(project_dir, f"{args.session_id}.jsonl")
-        if not os.path.isfile(path):
-            die(f"no transcript for session {args.session_id} at {path}")
+        path = find_transcript_by_session_id(args.session_id, preferred_dir)
+        if not path:
+            die(f"no transcript named {args.session_id}.jsonl under ~/.claude/projects/")
         return path, "explicit --session-id"
 
     env_id = os.environ.get("CLAUDE_CODE_SESSION_ID")
     if env_id:
-        path = os.path.join(project_dir, f"{env_id}.jsonl")
-        if os.path.isfile(path):
+        path = find_transcript_by_session_id(env_id, preferred_dir)
+        if path:
             return path, "live session ($CLAUDE_CODE_SESSION_ID)"
-        # env id set but not in this dir: a --project-dir/--cwd override points
-        # elsewhere, or a resumed session wrote a fresh file. Fall through.
+        # Id exported but no file anywhere: a brand-new session whose first write
+        # hasn't flushed. Fall through — the heuristic is all that's left.
 
+    project_dir = resolve_project_dir(args)
     jsonls = [
         os.path.join(project_dir, f)
         for f in os.listdir(project_dir)

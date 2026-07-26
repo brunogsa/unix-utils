@@ -24,7 +24,7 @@ flowchart TD
   tinyDecision{"added_lines less than 100?<br/>(tiny_pr)"}
   tinyFastPath["Tiny-PR fast-path:<br/>one pass, 2-sentence summary,<br/>skip guide writer and Wave 3"]
 
-  loadWave2Standards["Load code-standards, test-standards,<br/>doc-standards SKILL.md<br/>+ repo CLAUDE.md"]:::skill
+  loadWave2Standards["Invoke code-standards, test-standards,<br/>doc-standards via Skill tool<br/>+ read repo CLAUDE.md"]:::skill
   wave2ResumeDecision{"$work_dir/wave2-progress.txt<br/>exists?"}
   specialistLoop["Wave 2: run next specialist<br/>(8 total: correctness, corner-cases,<br/>testing, security, design, ai-slop,<br/>docs, performance)<br/><br/>60-80% confidence emitted as QUESTION tag;<br/>persist wave2-findings.json + progress.txt<br/>before each next specialist"]
 

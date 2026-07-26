@@ -1,3 +1,11 @@
+---
+# performance-check budget override, not part of the example LLD itself.
+# This file's size is set by the document it reproduces, so trimming it would make
+# the example unrealistic. Doubled from the 1024w/256l bundled defaults until it fits.
+words-budget: 16384
+lines-budget: 2048
+---
+
 # LLD — Tradutor SGE: Sync de Acordos PIC Arco 1.9 → SGE (de/para)
 
 Status: Draft.

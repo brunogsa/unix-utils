@@ -34,14 +34,16 @@ Fix: **self-consistency** — run 3 samples in parallel, keep only what ≥2 agr
 
 [Instruction] **Spawn the 3 children in parallel** — single message, 3 `Agent` tool calls. Serial fanout 3×s wall-clock latency for the same token cost.
 
+[Instruction] **Dispatch the `consistency-ensemble-child` agent type**, never `general-purpose` — its frontmatter pins opus at max effort, so pass no `model` param.
+
 [Instruction] **Forward scope verbatim** — whatever scope the user passed (`default`, `<path>`, `skill X`) goes into every child prompt unchanged.
 
 ### Orchestrator flow
 
 1. Detect mode: if the invocation prompt does NOT contain `ENSEMBLE_CHILD=true`, this is the orchestrator.
 2. Spawn 3 subagents in parallel via the `Agent` tool:
-   - `subagent_type: "general-purpose"`
-   - `description: "Consistency-check ensemble child <N>/3"`
+   - `subagent_type=consistency-ensemble-child`, `title=Consistency-check ensemble child <N>/3`
+   - `model=opus`, `effort=max` — both come from the agent's frontmatter, so pass no `model` param; render `description` per CLAUDE.md's Agent-description form
    - Prompt template:
      ```
      ENSEMBLE_CHILD=true. Scope: <forwarded-scope>.
@@ -54,14 +56,7 @@ Fix: **self-consistency** — run 3 samples in parallel, keep only what ≥2 agr
 
 ### 2/3 majority filter (deterministic match key)
 
-[Instruction] **Match key = `(section-group, primary-file, anchor)`.** Two findings match iff all three fields match exactly. Only the key counts for voting; confidence tier, line numbers, diff wording vary stochastically.
-
-- `section-group` — integer 1–7 from §Heuristics, normalized to `1-2` at merge time (sections 1 & 2 conflate at the boundary).
-- `primary-file` — lowest file path in the finding body that falls inside the audited scope; fall back to the lexicographically lowest path overall only when no path in the body is in-scope (not header; for multi-file findings, use the first in-scope file alphabetically).
-  - No line number in key — children anchor the same defect differently, so line-exact keys silently lose votes.
-  - Scope-first, not lexicographic-first: a cross-file finding that cites both a scope file and CLAUDE.md must key on the scope file — otherwise which file a child happens to quote first (not the defect itself) decides the key, splitting one real finding's votes across two keys.
-- `anchor` — the nearest enclosing heading in `primary-file` that contains the cited defect: its numbered section (`9.5`, `2.1`) on a file with SKILL.md-style numbered headings, else the heading text kebab-cased (`draft-pr-opt-in`). Exact string match only, no fuzzy comparison.
-  - A hub file cited by several unrelated defects (e.g. `implement/SKILL.md`, separately defective under `§2.1`, `§9.1`, and `§9.5`) would otherwise collapse those into one `(section-group, file)` key — the first-reported wording wins the vote and the other two defects silently vanish. The anchor keeps them as distinct keys.
+Findings are voted on by the key `(section-group, primary-file, anchor)`, not by their prose.
 
 [Instruction] **CRITICAL: Children MUST emit a machine-readable key line immediately under each finding ID.** Format is fixed and grep-able — no free-text parsing in the merge step.
 
@@ -73,26 +68,26 @@ Required emission (see §Report Format below for the full per-finding template):
    - <body bullets>
 ```
 
-Children emit their own section number, a line-free path, and the enclosing heading; the orchestrator does the `1-2` grouping — normalization is merge-side, so children stay grouping-agnostic.
+Children emit their own section number, a line-free path, and the enclosing heading; the orchestrator does the `1-2` grouping, so children stay grouping-agnostic.
 
-Why mandate this:
+[Instruction] **Derive `anchor` mechanically:** take the nearest `##` or `###` heading above the cited defect and emit it verbatim — never the `#` file title, never a bolded pseudo-heading.
 
-- Extracting `(section, file, anchor)` from free prose is itself LLM-stochastic — children would phrase the header differently and the vote would silently noop.
-- A fixed `[KEY]` line lets the orchestrator merge via `grep '^\[KEY\]'` with zero LLM judgment.
+- Where the file numbers its headings SKILL.md-style, emit the number alone (`9.5`, `2.1`).
+- Never kebab-case, abbreviate, or truncate it — the orchestrator normalizes casing and punctuation, but cannot recover words you dropped.
 
-Algorithm:
-1. `grep '^\[KEY\]'` over each child report → list of keys per child.
-2. Normalize each key: sections 1 and 2 become group `1-2`; strip any stray `:<line>` suffix a child left on the file path; anchor stays as emitted (exact match, no normalization).
-3. Count each normalized key once per child report — same-key duplicates within one report still count as one vote.
-4. Keep findings whose key appears in ≥2 reports. Drop the rest silently.
-5. For each kept key, emit the finding body from whichever child reported it with HIGHEST confidence; tie → lexicographically first child's wording.
-6. Re-number kept findings as `<section>.<index>` per §Lifecycle step 6 (numbering restarts at .1 within each section; a `1-2`-group finding renders under the winning body's own section).
+Why: this derivation rule used to live only in `references/majority-merge.md`, which children never load, so each child invented its own spelling.
 
-[Instruction] **Surface ensemble-vs-correlated distinction in handback.** 2/3 voting filters stochastic noise (samples disagree), NOT correlated false positives (every sample flags the same wrong thing).
+A 2026-07-25 run lost real findings to exactly that: `subagent-flow-opt-in` vs `Subagent flow (opt-in)` split one defect's votes across two keys.
 
-If a finding persists across rerun-and-fix cycles:
+Why: extracting the key from free prose is itself LLM-stochastic — children would phrase headers differently and the vote would silently noop.
 
-> "Finding survived 3/3 — likely correlated false positive. Tighten the heuristic wording or raise the confidence threshold, not just re-run."
+The fixed line lets the orchestrator merge via `grep '^\[KEY\]'` with zero LLM judgment.
+
+[Instruction] **Orchestrator only: read [`references/majority-merge.md`](references/majority-merge.md) at flow step 4.**
+
+It defines each key field, the anchor normalization the vote depends on, the merge algorithm, and the ensemble-vs-correlated-false-positive handback.
+
+Children never load it — they only emit the `[KEY]` line specified above.
 
 ## What this skill does NOT flag
 

@@ -22,7 +22,7 @@ flowchart TD
   skillDebug1c["Load debug-standards<br/>(Skill tool)"]:::skill
   abort1c["Abort: fix pre-existing<br/>breakage first"]
   step2["Step 2: Resolve owner/repo<br/>and own gh login"]
-  step3["Step 3: Dispatch subagent<br/>general-purpose &middot; sonnet &middot; medium<br/>background (single, serial)<br/><br/>Reads step-3-fetch-cluster-propose.md<br/>+ review-principles.md<br/>fetch, filter, cluster, rank, propose"]:::dispatch
+  step3["Step 3: Dispatch subagent<br/>general-purpose &middot; sonnet &middot; medium<br/>background (single, serial)<br/><br/>Reads fetch-cluster-propose.md<br/>+ review-principles.md<br/>fetch, filter, cluster, rank, propose"]:::dispatch
   chk3zero{"Subagent found<br/>zero matching comments?"}
   stop3["Stop - no clusters to address"]
   proposal["Return proposal block to user"]

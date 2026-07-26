@@ -13,8 +13,8 @@ Principles and paired examples for any documentation work. Each section pairs a 
 
 ### WHY at most — never history, never mechanics
 
-- [Instruction] Prefer tests and logs over comments.
-  - [Why] A comment isn't bound to the code, so it drifts out of sync and misleads; code, tests, and logs stay bound to behavior and document it for free.
+- [Instruction] Default to no comment — prefer tests and logs, and add a comment only when the WHY is genuinely non-obvious to names, types, and error/log messages.
+  - [Why] A comment isn't bound to the code, so it drifts and misleads; tests and logs stay bound to behavior, and reaching for a comment signals the names aren't self-describing.
 
 - [Instruction] When you must comment, the maximum scope is **why this code exists in its current shape** — never restate what the code shows (rename/restructure instead) or explain how it works.
   - [Why] History rots on commit, mechanics falsify on refactor, and a restatement drifts out of sync — only the reason the code exists like this survives all three.
@@ -39,25 +39,14 @@ Principles and paired examples for any documentation work. Each section pairs a 
 // Switching syntax silently degrades to Seq Scan on 1.2M rows.
 ```
 
-If the explanation would survive any future refactor of the surrounding code, it's a WHY and probably belongs. Otherwise it's the kind of comment this section says to drop.
-
-- [Instruction] Default to no comment — add one only when the WHY is genuinely non-obvious; if names, types, and error/log messages already convey intent, a comment is noise.
-  - [Why] Reaching for a comment signals the names, types, or logs aren't self-describing — fix those and the comment has no reason to exist.
-
 ### Phrasing that survives refactors
 
-- [Instruction] Write WHY comments about the *purpose* a thing serves, not its *current state*.
-  - [Why] A purpose survives refactors; a note about the current state goes stale the moment that state changes.
+- [Instruction] Write about the *purpose* a thing serves or the case a guard prevents, never its *current state* — and drop time-anchored vocabulary ("stays", "now", "currently", "as of today", "we just").
+  - [Why] Purpose survives refactors while a state note goes stale the moment that state changes, and time-anchored phrasing presumes the reader shares the author's "now".
+  - [Example] Bad: `// Value stays '_loadingDeadlineMs' — browser specs hardcode this URL literal` / Good: `// This constant exists so E2E tests can override the timeout, making tests faster`
 
 - [Instruction] Link a non-obvious domain rule or field to its durable design doc (LLD/spec/ADR) by file path or URL — only when the full rationale is worth the pointer.
   - [Why] The comment gives the local why in one line; the design doc holds the full rationale the code can't show — cite by durable path/URL, not a rot-prone number.
-
-- [Instruction] Avoid time-anchored vocabulary in comments — "stays", "now", "currently", "as of today", "we just".
-  - [Why] Time-anchored phrasing presumes the reader shares the author's "now" — the moment the context shifts, the phrasing becomes a lie.
-  - [Example] Bad: `// Value stays '_loadingDeadlineMs' — browser specs hardcode this URL literal` / Good: `// This constant exists so E2E tests can override the timeout, making tests faster`
-
-- [Instruction] When commenting near a non-obvious mechanism, name the case the guard prevents.
-  - [Why] A reviewer asks "why is this guard here?" — the comment should answer that, not paraphrase what the code already shows.
 
 [Example]
 ```ts
@@ -81,108 +70,22 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 - [Instruction] Put a blank comment line between distinct comment paragraphs, or after a phrase heavy or important enough to deserve visual isolation.
   - [Why] Without the gap, separate thoughts blur into one block; the blank line gives the eye a stopping point and lifts the heavy phrase out.
 
-- [Instruction] Cap every comment-touched physical line — standalone or with code in front of it — at 64 chars total; when a trailing comment would push the line over, move it above the code as its own line(s) instead. Verify with `scripts/check-comment-format.js <file>...` (`WIDTH` output).
-  - [Why] A fixed, narrow width keeps comments scannable in narrow diff panes and side-by-side review; squeezing an overflowing trailing comment onto the code line just relocates the overflow instead of fixing it — a regex/awk width check can't tell a real comment from a `//` inside a string literal, which is why the script uses the TypeScript compiler's own scanner.
+- [Instruction] Cap every comment-touched physical line — standalone or trailing code — at 64 chars total (`WIDTH`).
+  - [Why] A narrow fixed width keeps comments scannable in diff panes and side-by-side review, where a wide trailing comment scrolls out of sight.
 
-- [Instruction] Cap a standalone-comment paragraph (consecutive full-comment lines) at 4 lines before a blank comment line breaks it up. Verify with the same script (`PARAGRAPH` output).
+- [Instruction] Cap a standalone-comment paragraph (consecutive full-comment lines) at 4 lines before a blank comment line breaks it up (`PARAGRAPH`).
   - [Why] Same "one stopping point per thought" as the blank-line rule above, made checkable — 4 lines is about what a reader holds before needing a pause.
 
-- [Instruction] **CRITICAL: A paragraph break may only land where the preceding line ends a sentence or clause** (`.`/`;`, or `:` immediately introducing the bullet list that follows) — never mid-sentence. When aligning breaks to sentence ends still leaves a paragraph over 4 lines, trim the sentence or split it into two complete sentences instead of cutting at an arbitrary line count. Verify with the same script (`SENTENCE-BREAK` output).
-  - [Why] A break placed by line-count alone can land between a clause and its continuation (e.g. "...still" / blank line / "depends on."), forcing the reader to mentally rejoin two fragments the blank line visually severed.
+- [Instruction] **CRITICAL: A paragraph break may only land where the preceding line ends a sentence or clause** (`.`/`;`, or `:` introducing a bullet list) — never mid-sentence (`SENTENCE-BREAK`).
+  - [Why] A break placed by line-count alone can land between a clause and its continuation, forcing the reader to rejoin two fragments the blank line severed.
 
-- [Instruction] When a bullet or sub-bullet's text wraps across 2 or more physical lines, follow it with a blank comment line before the next bullet or prose.
-  - [Why] A short bullet reads as one visual unit on its own line; a wrapped one needs the same blank-line pause a paragraph gets, or its wrapped tail blurs into the next bullet.
-
-- [Instruction] Indent a top-level bullet marker with exactly one space after the comment prefix (` * - text`, `// - text`); reserve extra indentation for sub-bullets only, matching the file's own indent convention (tab, 2-space, or 4-space).
-  - [Why] Extra spaces before a top-level bullet imply a nesting level that doesn't exist, and inconsistent indentation across bullets in the same list reads as accidental rather than intentional.
-
-- [Instruction] When the WIDTH fix moves an over-width trailing comment above its code line, put a blank line above the promoted comment — unless one is already there or the comment is now the block's first line.
-  - [Why] A comment dropped directly onto the previous line's tail still reads as attached to that line's code; the blank line signals it now stands on its own, describing the line below it.
+- [Instruction] Verify the three caps above with `scripts/check-comment-format.js <file>...`, whose labels name the rule each violation broke.
+  - [Why] It reuses the TypeScript compiler's scanner, so unlike a regex width check it never mistakes a `//` inside a string literal for a comment.
 
 - [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments — use plain ASCII (`=`, `-`, `|`).
   - [Why] Humans don't type these by hand, so they look AI-written and get used inconsistently; they also break in terminals, diffs, and grep where ASCII works.
 
-[Example]
-```
-Bad:  // ── Helpers ───────────────────────
-Good: // Helpers
-      // ================================
-
-Bad (88 chars total; comment squeezed onto the code line):
-quantidadeVenda: 7, // 1058.33 / 7 = 151.19 exactly (LLD formula) vs 1058.33 (the code)
-
-Good (moved above, wrapped under 64 chars each):
-// 1058.33 / 7 = 151.19 exactly per the LLD formula,
-// vs 1058.33 in the code.
-quantidadeVenda: 7,
-
-Bad (7-line paragraph, no break):
-/**
- * Line 1
- * Line 2
- * Line 3
- * Line 4
- * Line 5
- * Line 6
- */
-
-Good (blank comment line splits it into two 3-line paragraphs):
-/**
- * Line 1
- * Line 2
- * Line 3
- *
- * Line 4
- * Line 5
- * Line 6
- */
-
-Bad (paragraph break lands mid-sentence — "still" / "depends on." is one clause):
-/**
- * `createDynamoTable` is idempotent (checks `ListTablesCommand`
- * first), so calling it here is safe either way — but this spec
- * deliberately does NOT call `deleteDynamoTable` in `afterAll`:
- * doing so would drop a table a sibling agent's run still
- *
- * depends on.
- */
-
-Good (rewritten as two complete sentences, break lands on the period):
-/**
- * `createDynamoTable` is idempotent (checks `ListTablesCommand`
- * first), so calling it here is safe either way.
- *
- * This spec deliberately skips `deleteDynamoTable` in `afterAll`:
- * dropping the table would break a sibling agent's run that
- * still depends on it.
- */
-
-Bad (bullet over-indented; no blank line after a 2-line-wrapped bullet):
- *   - Material 1 has 6 kits spread unevenly across all 4
- *     bimestres (3/1/1/1) — proves per-kit/bimestre line
- *     generation across an uneven split.
- *   - Material 2 carries a `suplementar` item.
-
-Good (single space before the dash; blank line after the wrapped bullet):
- * - Material 1 has 6 kits spread unevenly across all 4
- *   bimestres (3/1/1/1) — proves per-kit/bimestre line
- *   generation across an uneven split.
- *
- * - Material 2 carries a `suplementar` item.
-
-Bad (promoted comment glued to the previous line's code):
-quantidadeVenda: 7,
-// 1058.33 / 7 = 151.19 exactly per the LLD formula,
-// vs 1058.33 in the code.
-unitPrice: 151.19,
-
-Good (blank line separates the promoted comment from prior code):
-quantidadeVenda: 7,
-
-// 1058.33 / 7 = 151.19 exactly per the LLD formula,
-// vs 1058.33 in the code.
-unitPrice: 151.19,
-```
+When the script flags `WIDTH`, `PARAGRAPH`, or `SENTENCE-BREAK`, or when a comment carries bullets, read `references/comment-formatting.md` for the fix shapes and bad/good pairs.
 
 ### Section fencing in code files
 

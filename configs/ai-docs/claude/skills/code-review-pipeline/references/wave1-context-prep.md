@@ -71,7 +71,7 @@ bash ~/.claude/skills/code-review-pipeline/scripts/extract-skipped-files.sh \
 
 After the diff files are on disk, gather repo-wide signal (lint, typecheck, dead-code, circular, all test tiers, coverage) into `$work_dir/` for Wave 2 specialists to read alongside the diff.
 
-Full discovery + outputs table + consumption rules live in [`references/wave1-repo-wide-checks.md`](references/wave1-repo-wide-checks.md). Load on demand. Local mode only today.
+Full discovery + outputs table + consumption rules live in [`wave1-repo-wide-checks.md`](wave1-repo-wide-checks.md). Load on demand. Local mode only today.
 
 ## Tiny-PR fast-path
 

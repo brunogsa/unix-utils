@@ -21,7 +21,7 @@ set -eo pipefail
 # 260, not 200: the marker convention pairs a [Why] line under every [Instruction],
 # so ~100 instructions cost ~200 lines of pairs before any header/example/meta. The
 # old 200 assumed "1 line ≈ 1 instruction" (pre-markers) and now binds before the real
-# gate — the [Instruction] count (CLAUDE_INSTRUCTIONS_BUDGET). See research.md#claudemd-length.
+# gate — the [Instruction] count (CLAUDE_INSTRUCTIONS_BUDGET). See references/research-claudemd-budgets.md#claudemd-length.
 readonly CLAUDE_LINES_BUDGET=260
 readonly CLAUDE_WORDS_PER_LINE_BUDGET=32
 readonly SKILLS_COUNT_BUDGET=50
@@ -29,7 +29,17 @@ readonly SKILL_LINES_BUDGET=500
 readonly SKILL_WORDS_BUDGET=2048
 readonly SKILL_DESC_BUDGET=250
 readonly SKILL_NAME_BUDGET=64
-# Instruction-density budgets (see CLAUDE.md "Counting conventions" + references/research.md).
+# Bundled-resource budgets (references/ + assets/), the same fixed pair for every file.
+# Half of SKILL_WORDS_BUDGET on purpose: a reference is ONE focused topic, not a second
+# SKILL.md, so a file that outgrows this is usually two topics sharing one filename.
+# Remedy order is trim, then split by topic; the frontmatter override is the user's call.
+readonly BUNDLED_WORDS_BUDGET=1024
+readonly BUNDLED_LINES_BUDGET=256
+# Half the word budget. Past it, a flat file costs the reader a full scroll to find one
+# section, so it must carry at least one "## " landmark. Not overridable: unlike the size
+# budgets there is no file that legitimately needs to stay flat at this length.
+readonly BUNDLED_HEADINGS_THRESHOLD=512
+# Instruction-density budgets (see CLAUDE.md "Counting conventions" + references/research-instruction-load-budgets.md).
 # Two per-bucket budgets so each failure surface is independent and self-explanatory.
 # Both sit well under IFScale's 500-instruction adherence ceiling — deliberately tight
 # to preserve adherence headroom rather than burn it. 100 + 200 = 300, leaving ~200
@@ -78,32 +88,16 @@ extract_description() {
     ' "$1"
 }
 
-# Extract optional per-skill word-budget override (frontmatter `words-budget: N`)
-# Empty string = no override; caller falls back to SKILL_WORDS_BUDGET.
-extract_words_budget() {
-    awk '
+# Extract an optional numeric budget override from a file's YAML frontmatter.
+# Usage: extract_frontmatter_budget <key> <file>   e.g. "words-budget", "lines-budget"
+# Empty string = no override; every caller falls back to the matching global default.
+# One generic reader rather than one function per key: SKILL.md, references/, and
+# assets/ all declare overrides the same way, so the parse belongs in one place.
+extract_frontmatter_budget() {
+    awk -v key="$1" '
         /^---[[:space:]]*$/ { in_fm = !in_fm; if (!in_fm) exit; next }
-        in_fm && /^words-budget:[[:space:]]+[0-9]+[[:space:]]*$/ {
-            sub(/^words-budget:[[:space:]]+/, "")
-            sub(/[[:space:]]*$/, "")
-            print
-            exit
-        }
-    ' "$1"
-}
-
-# Extract optional per-skill instruction-count override (frontmatter `instructions-budget: N`).
-# Empty string = no override; the *-standards total budget still applies cross-skill.
-extract_instructions_budget() {
-    awk '
-        /^---[[:space:]]*$/ { in_fm = !in_fm; if (!in_fm) exit; next }
-        in_fm && /^instructions-budget:[[:space:]]+[0-9]+[[:space:]]*$/ {
-            sub(/^instructions-budget:[[:space:]]+/, "")
-            sub(/[[:space:]]*$/, "")
-            print
-            exit
-        }
-    ' "$1"
+        in_fm && NF == 2 && $1 == key ":" && $2 ~ /^[0-9]+$/ { print $2; exit }
+    ' "$2"
 }
 
 # Count [Instruction] markers (one per line). Always returns an integer.
@@ -181,7 +175,7 @@ if [ "$has_skills_dir" -eq 1 ]; then
 
         # Per-skill override beats default. Skills that legitimately pair
         # principles with inline examples opt in via `words-budget: N`.
-        skill_words_budget_override=$(extract_words_budget "$f")
+        skill_words_budget_override=$(extract_frontmatter_budget "words-budget" "$f")
         if [ -n "$skill_words_budget_override" ]; then
             skill_words_budget=$skill_words_budget_override
             words_overage_suffix=" (override; default=$SKILL_WORDS_BUDGET)"
@@ -224,7 +218,7 @@ if [ "$has_skills_dir" -eq 1 ]; then
                     [ "$skill_ratio_int" -gt "$CRITICAL_RATIO_BUDGET" ] && standards_ratio_over=1
 
                     # Per-skill instructions-budget override (frontmatter `instructions-budget: N`).
-                    instr_budget_override=$(extract_instructions_budget "$f")
+                    instr_budget_override=$(extract_frontmatter_budget "instructions-budget" "$f")
                     if [ -n "$instr_budget_override" ] && [ "$skill_instructions" -gt "$instr_budget_override" ]; then
                         standards_instr_overages+=$'\n'"- $name: $skill_instructions [Instruction] (>$instr_budget_override budget)"
                         standards_instr_over=1
@@ -233,6 +227,56 @@ if [ "$has_skills_dir" -eq 1 ]; then
                 ;;
         esac
     done
+
+    # Bundled resources (references/ + assets/) — same fixed pair of budgets per file.
+    # Without this, the trim hierarchy's "extract to references/" step could clear a
+    # SKILL.md overage by relocating words into a file nothing measured — budget
+    # cosmetics rather than a real lazy load.
+    bundled_overages=""
+    bundled_over=0
+    bundled_count=0
+    while IFS= read -r bf; do
+        [ -f "$bf" ] || continue
+        bundled_count=$((bundled_count + 1))
+        rel=${bf#"$SKILLS_DIR"/}
+        b_lines=$(grep -c '\S' "$bf")
+        b_words=$(wc -w < "$bf" | tr -d ' ')
+
+        b_words_override=$(extract_frontmatter_budget "words-budget" "$bf")
+        if [ -n "$b_words_override" ]; then
+            b_words_budget=$b_words_override
+            b_words_suffix=" (override; default=$BUNDLED_WORDS_BUDGET)"
+        else
+            b_words_budget=$BUNDLED_WORDS_BUDGET
+            b_words_suffix=""
+        fi
+
+        b_lines_override=$(extract_frontmatter_budget "lines-budget" "$bf")
+        if [ -n "$b_lines_override" ]; then
+            b_lines_budget=$b_lines_override
+            b_lines_suffix=" (override; default=$BUNDLED_LINES_BUDGET)"
+        else
+            b_lines_budget=$BUNDLED_LINES_BUDGET
+            b_lines_suffix=""
+        fi
+
+        b_issues=""
+        [ "$b_words" -gt "$b_words_budget" ] && b_issues+=" words=$b_words(>$b_words_budget$b_words_suffix)"
+        [ "$b_lines" -gt "$b_lines_budget" ] && b_issues+=" lines=$b_lines(>$b_lines_budget$b_lines_suffix)"
+
+        # Past the threshold, a file with no "## " landmark forces a full read to find one
+        # section. assets/flowchart.md is exempt: it is a single mermaid diagram by
+        # construction, so an inner heading would name nothing.
+        if [ "$b_words" -gt "$BUNDLED_HEADINGS_THRESHOLD" ] && [ "$(basename "$bf")" != "flowchart.md" ]; then
+            b_h2=$(grep -c '^## ' "$bf" || true)
+            [ "$b_h2" -eq 0 ] && b_issues+=" no-'## '-headings(words=$b_words>$BUNDLED_HEADINGS_THRESHOLD)"
+        fi
+
+        if [ -n "$b_issues" ]; then
+            bundled_overages+=$'\n'"- $rel:$b_issues"
+            bundled_over=$((bundled_over + 1))
+        fi
+    done < <(find -L "$SKILLS_DIR" -type f \( -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort)
 fi
 
 # Report
@@ -271,6 +315,10 @@ if [ "$has_skills_dir" -eq 1 ]; then
     [ "$skill_count" -gt "$SKILLS_COUNT_BUDGET" ] && overages=1
     [ -n "$skill_overages" ] && overages=1
 
+    # Bundled resources — one row for the whole references/ + assets/ population.
+    echo "| Bundled files failing size or heading checks (references/ + assets/) | $bundled_over of $bundled_count | 0 | $(status_of "$bundled_over" 0) |"
+    [ "$bundled_over" -gt 0 ] && overages=1
+
     # Instruction-density row (*-standards subtotal vs its dedicated budget).
     echo "| *-standards [Instruction] total | $standards_total_instructions | $STANDARDS_INSTRUCTIONS_BUDGET | $(status_of "$standards_total_instructions" "$STANDARDS_INSTRUCTIONS_BUDGET") |"
     [ "$standards_total_instructions" -gt "$STANDARDS_INSTRUCTIONS_BUDGET" ] && overages=1
@@ -292,6 +340,18 @@ fi
 if [ "$has_skills_dir" -eq 1 ] && [ -n "$skill_overages" ]; then
     echo "## Skills exceeding budgets (lines >$SKILL_LINES_BUDGET, words >$SKILL_WORDS_BUDGET, desc >${SKILL_DESC_BUDGET}c, name >${SKILL_NAME_BUDGET}c)"
     echo "$skill_overages"
+    echo
+fi
+
+if [ "$has_skills_dir" -eq 1 ] && [ -n "$bundled_overages" ]; then
+    echo "## Bundled resources failing size or heading checks"
+    echo
+    echo "Size: words >$BUNDLED_WORDS_BUDGET, lines >$BUNDLED_LINES_BUDGET. Headings: at least one \`## \` past $BUNDLED_HEADINGS_THRESHOLD words."
+    echo
+    echo "Remedy in order: drop redundancy, tighten wording, then split the file by topic."
+    echo "A missing-headings flag is fixed by adding \`## \` landmarks, never by trimming under the threshold."
+    echo "A \`words-budget:\`/\`lines-budget:\` YAML frontmatter override on the file is the user's call only — never AI's."
+    echo "$bundled_overages"
     echo
 fi
 

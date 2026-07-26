@@ -224,7 +224,9 @@ Load [`references/diagram-lifecycle.md`](references/diagram-lifecycle.md) — co
 
 System under design + external actors. High-level, `flowchart TD`.
 
-Load [`references/diagram-c4l1.md`](references/diagram-c4l1.md) when drawing one — covers example, edge-incidence rule, abstraction level (roles not fields), and uniform-pattern rule for N entities sharing a role.
+Load [`references/diagram-c4l1.md`](references/diagram-c4l1.md) when drawing one — a minimal example, edge-incidence, abstraction level (roles not fields), uniform-pattern for N entities in one role.
+
+It routes on to [`references/diagram-c4l1-strangler-fig-example.md`](references/diagram-c4l1-strangler-fig-example.md) only for a busy diagram — many third-party systems, or a legacy-vs-target split.
 
 ## C4L2 Container Diagram
 

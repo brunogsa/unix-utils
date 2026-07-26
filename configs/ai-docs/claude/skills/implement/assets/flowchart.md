@@ -13,11 +13,11 @@ flowchart TD
   skill_worktree["Load references/worktree-setup.md"]:::skill
   worktree_setup["1.3 EnterWorktree + symlink<br/>plan/spec/branches files,<br/>copy .env*"]
   d_review{"Pre-dispatch review requested?"}
-  orch_review["2. Orchestration review<br/>(deep-reviewer, opus, high;<br/>fresh-context, adversarial)"]:::dispatch
-  seed_remind["2.1 TaskList: seed ONE [Reminder] task<br/>(subject = arrow chain, survives<br/>compaction):<br/>gate to tails(refactor par review) to<br/>triage to PR(create-pr, if wanted) to<br/>diffview; metadata tracks each<br/>step pending or done"]:::state
+  orch_review["2. Orchestration review<br/>(deep-reviewer, opus, max;<br/>fresh-context, adversarial)"]:::dispatch
+  seed_remind["2.1 TaskList: seed ONE [Reminder] task<br/>(subject = arrow chain, survives<br/>compaction):<br/>test-presence to repo-green to<br/>tails(refactor par review) to<br/>triage to PR(create-pr, if wanted) to<br/>diffview; metadata tracks each<br/>step pending or done"]:::state
   seed_tasks["2.2 TaskList: create matched tasks<br/>(this PR's only, if PR-label run);<br/>1st in_progress, rest pending;<br/>metadata: pr_label, attempt_count=0,<br/>gate_outcome=pending"]:::state
   d_prlabel{"Arg is PR-label(s)?"}
-  skill_pr["Load references/pr-awareness.md"]:::skill
+  skill_pr["Load references/pr-awareness.md<br/>(routes on to pr-branch-creation.md<br/>only when a checkout is needed)"]:::skill
 
   subgraph perunit ["Per unit: whole batch (task-ids run) or each PR (PR-label list)"]
     dag_recheck["Re-check PR DAG (check-pr-dag.sh),<br/>resolve PR-N to task-ids"]:::hook
@@ -50,18 +50,18 @@ flowchart TD
     d_next_terminal{"Another non-done/blocked<br/>task pending?"}
     advance["5.5 Advance: plan_&lt;slug&gt;.md [Done];<br/>TaskUpdate metadata gate_outcome=green,<br/>fix_commit_shas, status=completed"]:::state
     d_verdict_pass{"5.5 Run implement-loop-state.sh:<br/>verdict?"}:::hook
-    gate_dispatch["8. Dispatch deep-reviewer:<br/>batch test-presence gate<br/>(opus, effort high, maxTurns 64)"]:::dispatch
+    gate_dispatch["8. Dispatch deep-reviewer:<br/>batch test-presence gate<br/>(opus, effort max, maxTurns 64)"]:::dispatch
     d_gate{"All planned tests found<br/>(or every task N/A)?"}
     gate_fix["8. Re-dispatch task(s) with<br/>missing titles (tdd-coder, sonnet,<br/>try-once, same 1h Monitor cap<br/>as step 4)"]:::dispatch
-    gate_regate["8. Re-gate once<br/>(deep-reviewer, opus, high)"]:::dispatch
+    gate_regate["8. Re-gate once<br/>(deep-reviewer, opus, max)"]:::dispatch
     hook_write_guard["Hook: deep-reviewer-write-guard<br/>(auto-approves only verdict_*.md<br/>/ /tmp writes, denies the rest)"]:::hook
-    skill_batch_end["Load references/batch-end.md<br/>(owns the whole batch-end flow)"]:::skill
+    skill_batch_end["Load references/batch-end-review.md<br/>(owns run order + steps 1-3; routes on<br/>to batch-end-package.md and,<br/>if a PR is in play, batch-end-pr.md)"]:::skill
     green_gate["9.1 Repo-green gate: full suite<br/>+ lint; cheap failures fixed by<br/>the orchestrator itself, its own<br/>commit (autonomous, no human<br/>gate); structural failures become<br/>[Scout] items, unfixed"]:::gate
     d_green{"Repo green?"}
     d_tails{"Tails requested?"}
     tasklist_tails["9.2-9.3 TaskList: create 2 [Side]<br/>tail tasks (simplification,<br/>correctness lenses)"]:::state
     skill_tail_pair["Load code-review-pipeline/<br/>references/deep-reviewer-tail-pair.md"]:::skill
-    tails["9.2 par 9.3 Dispatch refactor +<br/>auto-review deep-reviewer tails<br/>(BOTH opus, effort high, PARALLEL,<br/>mandatory, report-only)"]:::dispatch
+    tails["9.2 par 9.3 Dispatch refactor +<br/>auto-review deep-reviewer tails<br/>(BOTH opus, effort max, PARALLEL,<br/>mandatory, report-only)"]:::dispatch
     tails_record["Record tails report paths + tokens<br/>into state file; TaskUpdate tail<br/>TaskList metadata; strike this<br/>[Reminder] step"]:::state
     triage["9.4 Triage: synthesize +<br/>apply-offer both reports"]
     pr_manifest["9.5 branches_&lt;slug&gt;.md:<br/>append-branch-pr-entry.sh<br/>(PR-label runs only)"]:::state

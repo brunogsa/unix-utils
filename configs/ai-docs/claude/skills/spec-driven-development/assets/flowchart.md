@@ -13,7 +13,7 @@ flowchart TD
   specOnDisk{"spec_&lt;slug&gt;.md<br/>exists on disk?"}
   writeInSession["Write plan_&lt;slug&gt;.md in-session<br/>(spec-only prompt, exception path)"]
   dispatchPlanWriter["Dispatch plan-writer subagent<br/>(opus, high effort, serial):<br/>writes plan_&lt;slug&gt;.md from spec alone"]:::dispatch
-  qualitativePass["Dispatch deep-reviewer · opus · high<br/>(fresh-eyes, serial):<br/>placeholders, contradictions, scope,<br/>PR size, ambiguity, completeness,<br/>human-reviewable, artifacts, density"]:::dispatch
+  qualitativePass["Dispatch deep-reviewer · opus · max<br/>(fresh-eyes, serial):<br/>placeholders, contradictions, scope,<br/>PR size, ambiguity, completeness,<br/>human-reviewable, artifacts, density"]:::dispatch
   scopeHidden{"Hidden decomposition<br/>revealed by interview?"}
   brainstormSkill["Load brainstorm skill:<br/>scope-probe step"]:::skill
   writeScopes["Write/update scopes.md"]
@@ -25,7 +25,7 @@ flowchart TD
   dispatchDensityFixer["Dispatch density-fixer subagent<br/>(haiku, default effort, serial):<br/>runs check-density.sh until exit 0"]:::dispatch
   normalizeBreadcrumbs["scripts/normalize-list-breadcrumbs.sh:<br/>upgrade bare it() titles<br/>to breadcrumbs"]:::hook
   formalChecks["Run seven formal checks in sequence<br/>(5 always-on + 2 toggled)"]
-  checkACTest["Every AC has a test:<br/>check-ac-coverage.sh first;<br/>if it passes, dispatch<br/>deep-reviewer · opus · high<br/>for semantic match"]:::dispatch
+  checkACTest["Every AC has a test:<br/>check-ac-coverage.sh first;<br/>if it passes, dispatch<br/>deep-reviewer · opus · max<br/>for semantic match"]:::dispatch
   checkTestTask["Every test has a task:<br/>check-test-distribution.sh"]:::hook
   checkHowBreak["How would this break?<br/>checklist + inversion sweep<br/>(fail-closed, always runs)"]
   checkPRDag["PR dependencies form a DAG:<br/>check-pr-dag.sh"]:::hook
@@ -33,7 +33,7 @@ flowchart TD
   toggleTraceability{"Toggle: every line traces<br/>to an AC? (read from<br/>/tmp/sdd_&lt;session_id&gt;.json)"}
   checkTraceability["Check untraceable machinery<br/>(blocks if non-empty)"]
   toggleRightSized{"Toggle: right-sized<br/>plan check?"}
-  checkRightSized["Right-sized plan check:<br/>dispatch deep-reviewer · opus · high<br/>(advisory, never blocks)"]:::dispatch
+  checkRightSized["Right-sized plan check:<br/>dispatch deep-reviewer · opus · max<br/>(advisory, never blocks)"]:::dispatch
   allChecksPass{"All blocking<br/>checks pass?"}
   conflictSurfaced{"spec/plan<br/>disagree?"}
   resolveDrift["Surface each conflict to user<br/>and wait for their pick"]:::gate

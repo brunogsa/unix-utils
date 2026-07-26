@@ -88,82 +88,28 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 ### Self-review both spec and plan before handing it back (step 2 detail)
 
-First, a qualitative pass — dispatch the `deep-reviewer` agent to read both docs with fresh eyes and report findings (PR size below is the one blocking exception):
-- **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
-- **Contradictions**: do sections within the same doc disagree, or does plan_<slug>.md contradict spec_<slug>.md (e.g. spec assumptions overturned by planning, architectural choices superseding spec requirements)?
-- **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition? If yes, write/update `scopes.md` per the `brainstorm` skill's scope-probe step, then re-run this self-review.
-  - "This self-review" means the qualitative pass only — not the seven formal checks, which follow next regardless.
-- **PR size**: does the work fit one reviewable PR, or is it large enough to stage into several?
-  - If large, **PR Breakdown** must split the tasks into an ordered PR sequence — vertical splits, each shipping its own tests + code + docs — not one oversized PR.
-  - Blocking gate: an oversized PR blocks approval until the plan is split, or the user explicitly waives it for this run.
-  - Felt anchor: reviewer defect-detection drops past ~400 lines of diff and hard above ~600 (SmartBear/Cisco; Google small-CL) — no code exists yet, so estimate by feel, never invent a line count.
-- **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker for the user.
-- **Completeness**: does the Testable Acceptance Criteria section cover every Goal, Success Metric/KPI, User Story, and Non-Functional/Technical Requirement — and every corner case and failure mode?
-- **Human-Reviewable**: could a complete novice succeed with only this plan and the repo — no other context? Is the format pleasant to read enough to let the user verify you?
-- **Artifacts Valid**: If any mermaid diagram exists, are they valid, verified via `mmdc`?
-  - A failing check routes to the `mermaid-fixer` subagent on the resolved doc path — never fixed inline.
-- **Density**: spawn the `density-fixer` subagent on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check/rewrite density violations inline.
-  - Runs last in the qualitative pass, after every content check above (including mermaid validation), before the seven formal checks begin.
-  - The subagent runs `check-density.sh` and applies the `density-rules.md` rewrite patterns until exit 0, without dropping information.
+Step 2 runs a qualitative pass first, then the seven formal checks below.
+
+**Read [`references/self-review-checks.md`](references/self-review-checks.md) when you reach this step** — it carries the qualitative-pass checklist and, per formal check, what it means and what blocks.
 
 The two toggles were already asked at skill start — the "Pre-flight interview" section at the top of this SKILL.md — and persisted to `/tmp/sdd_<session_id>.json`.
 Read them from that file here; never re-ask them at this point.
 
 Seven formal checks run in sequence (five always-on + the two toggles above):
 
-| Check | Catches | Toggle? |
-|---|---|---|
-| Every AC has a test | AC↔Test Design coverage | Always on |
-| Every test has a task | Test Design↔per-task assignment | Always on |
-| How would this break? | checklist completeness + inversion sweep, merged | Always on |
-| PR dependencies form a DAG | cyclic, dangling, or duplicate PR-N label in the PR Breakdown | Always on |
-| Task dependencies form a DAG | cyclic, dangling, or duplicate task id in the Task Breakdown | Always on |
-| Every line traces to an AC | machinery↔AC traceability | Toggle |
-| Right-sized plan | scope vs. request, simplest design | Toggle |
+| Check | Run by | Catches | Toggle? |
+|---|---|---|---|
+| Every AC has a test | `check-ac-coverage.sh`, then `deep-reviewer` | AC↔Test Design coverage | Always on |
+| Every test has a task | `check-test-distribution.sh` | Test Design↔per-task assignment | Always on |
+| How would this break? | manual sweep | checklist completeness + inversion sweep, merged | Always on |
+| PR dependencies form a DAG | `check-pr-dag.sh` | cyclic, dangling, or duplicate PR-N label in the PR Breakdown | Always on |
+| Task dependencies form a DAG | `check-tasks-dag.sh` | cyclic, dangling, or duplicate task id in the Task Breakdown | Always on |
+| Every line traces to an AC | manual sweep | machinery↔AC traceability | Toggle |
+| Right-sized plan | `deep-reviewer` | scope vs. request, simplest design | Toggle |
 
 The five always-on checks, plus the Test Design authoring requirement itself, never become optional — they verify the plan is mechanically correct regardless of change size.
 
 A toggled-off check is omitted from that pass; self-review's output states explicitly which checks were skipped by request, so the reviewer never wonders why something is absent.
-
-- **Every AC has a test**: every `### AC-N:` in spec is proven by ≥1 test in the plan's AC-grouped coverage list.
-  - Mechanical half — `scripts/check-ac-coverage.sh <plan> <spec>`: completeness (every AC in the spec's Acceptance-Criteria section has a coverage header).
-    Honesty: every cited breadcrumb exists verbatim among Test Design breadcrumbs; a `…`-truncated or invented citation won't match.
-    Exit 1 blocks; the semantic half below runs only after this passes.
-  - Semantic half — runs only after the mechanical half passes (sequential, never parallel).
-    Dispatch `deep-reviewer` to judge whether each cited test actually *proves* its AC — the match no script can make.
-  - Output: orphan ACs + bogus citations (empty = pass). Block plan approval if non-empty.
-
-- **Every test has a task**: `scripts/check-test-distribution.sh <plan>` asserts set-equality between the Test Design breadcrumbs (A) and the union of tasks' `**Tests (planned)**:` lists (B).
-  Deterministic, so a script, not a subagent.
-  Output: `A \ B` (a designed test in no task) + `B \ A` (a task inventing a test); empty = pass.
-  Block if non-empty.
-
-- **Both checks share `scripts/extract-design-tests.sh`** to reconstruct the Test Design breadcrumb (`<describe> [> class] > it`), so the format lives in one place.
-
-  Each scans only its relevant sections — never the whole file.
-  Authors write the two lists with bare `it()` titles, then run `scripts/normalize-list-breadcrumbs.sh <plan>` (idempotent) to upgrade them to breadcrumbs before the checks run — never hand-typed.
-
-- **How would this break?**: the boundary and failure-category checklists (per `spec-template.md`) must each be present.
-  - Either instantiated with one row per coverage-taxonomy item marked `covered (<recap>)` / `N/A — <reason>`.
-  - Or replaced wholesale by the opt-out `**DECISION:** Skip ... checklist because <reason>`.
-  - A checklist section skipped outright — corner cases / failure modes written as flat ACs with neither checklist rows nor an opt-out line.
-  - Fails self-review exactly like an empty placeholder row would.
-  - Then, for every AC, ask "how would this break in production?" If no failure mode surfaces, flag as under-specified.
-  - Fail-closed; runs regardless of either toggle.
-
-- **PR dependencies form a DAG**: `scripts/check-pr-dag.sh <plan>` validates the PR Breakdown's `Depends on:` graph.
-  Passes trivially when the section reads `Single PR.` (nothing to validate). Exit 1 blocks.
-
-- **Task dependencies form a DAG**: `scripts/check-tasks-dag.sh <plan>` — the same three checks (cycle, dangling reference, duplicate label) over the Task Breakdown's `Depends on:` graph. Exit 1 blocks.
-
-- **Both checks share `scripts/dag-check-helper.sh`** for the cycle/dangling/duplicate-label detection algorithm — only the markdown parsing (PR Breakdown's single-line entries vs. Task Breakdown's heading + block) differs between the two.
-
-- **Every line traces to an AC** (toggle): every piece of machinery (abstraction, dependency, knob, extra layer) must trace to a spec AC or requirement.
-  - Output: untraceable items (empty = pass). Block if non-empty — cut or earn an AC.
-
-- **Right-sized plan** (toggle, advisory): dispatch the `deep-reviewer` agent with the user's request + spec + plan.
-  - Ask: does spec match request (no gold-plate), and is plan the simplest design meeting every AC?
-  - Advisory even when its toggle is "yes" — surface findings and let the user decide, never blocks.
 
 Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces only in implementation.
 

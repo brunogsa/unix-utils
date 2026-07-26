@@ -124,10 +124,6 @@ Put the resolved inputs in its prompt body, and tell it to read
 substituting deep-reviewer (opus) for the pipeline's default sonnet-pinned
 wrapper.
 
-Skip the pipeline's fresh-session check: that check exists only to pick
-between in-session and isolated, and auto-review never picks — it always
-isolates.
-
 After the pipeline finishes, the review is at
 `./verdict_auto-review_<timestamp>.md` or `.html` — extension per the html-artifacts
 router (Wave 6 summary contains the exact resolved path).

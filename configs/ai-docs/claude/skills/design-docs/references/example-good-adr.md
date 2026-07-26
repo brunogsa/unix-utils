@@ -1,3 +1,11 @@
+---
+# performance-check budget override, not part of the example ADR itself.
+# This file's size is set by the document it reproduces, so trimming it would make
+# the example unrealistic. Doubled from the 1024w bundled default until it fits.
+# No lines-budget: 135 non-blank lines already fits the 256 default.
+words-budget: 2048
+---
+
 ## Contexto
 
 No Sync de Acordos (PIC 1.9 → Integrador → ERPs 1.0), cada Acordo chega como eventos versionados (`versaoId` monotônico crescente por contrato).

@@ -1,7 +1,7 @@
 # Specialist: Testing & Type Design
 
 Sources:
-- `code-review-pipeline/references/review-checklists.md#Testing Checklist` + test design rules in `code-standards`.
+- `code-review-pipeline/references/review-checklists.md#Testing Checklist` + `test-standards`, which owns the test-design rules this pass judges against.
 - `code-review-pipeline/references/review-checklists.md#Type Design Checklist`.
 
 Why bundled: both are about making correctness provable before runtime.

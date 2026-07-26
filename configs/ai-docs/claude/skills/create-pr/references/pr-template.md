@@ -7,10 +7,15 @@
 [Generated per `~/.claude/skills/code-review-pipeline/references/reading-order-template.md` — translate to the team's language as needed.]
 </details>
 
-## Summary
-[From spec_<slug>.md Background + Goals (when available), cross-referenced with
-commit messages and diff to confirm what was actually delivered.
-Condensed to 2-3 bullets. Always ground in commits, not just docs.]
+## Jira link
+[Bullet list of the ticket(s) this PR closes. Omit only when the repo tracks no tickets.]
+
+## Context
+[Business context in scannable layers, per the "Context section" rule in SKILL.md (the rule is canonical; do not restate it here).
+
+Source it from spec_<slug>.md Background + Goals when available, cross-referenced with commit messages and the diff to confirm what was actually delivered.
+
+Always ground in commits, not just docs. This section carries the PR's summary — there is no separate Summary heading.]
 
 ## Testable Acceptance Criteria
 [Format follows the "Testable Acceptance Criteria — verbatim from spec_<slug>.md" rule in SKILL.md (the rule is canonical; do not restate it here). Skeleton:
@@ -50,10 +55,15 @@ Merge both sources, deduplicate if necessary.]
 [Compare git diff against plan_<slug>.md tasks (when available).
 Two groups:
 
-- **Planned changes**: tasks from the plan that were implemented.
-- **Discovered along the way**: modifications not in the plan -- side-effects,
+- `**Planned:**` — tasks from the plan that were implemented.
+- `**Discovered along the way:**` — modifications not in the plan: side-effects,
   cleanup, fixes discovered during implementation, scope adjustments.
   Without plan_<slug>.md: organize changes from diff and commit messages.]
+
+## Checklist
+[Preserve the team's existing checklist verbatim — never rewrite, reorder, or prune its items.
+Prefix an item with "WARNING:" when it needs human coordination (maintenance window, on-call handoff, manual deploy step, irreversible migration).
+Omit this section entirely when the repo has no team checklist.]
 
 ## Evidences
 

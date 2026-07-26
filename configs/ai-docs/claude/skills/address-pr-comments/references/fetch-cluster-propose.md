@@ -1,6 +1,6 @@
-# Step 3: Fetch, filter, cluster, rank, propose
+# Fetching, filtering, clustering, ranking, and proposing PR-comment replies
 
-Consumed only by the step-3 subagent dispatched from `SKILL.md` — main never reads this file. Execute the subsections below (3a-3e) for the PR and filters given in your dispatch prompt.
+Consumed only by the subagent [`address-pr-comments/SKILL.md`](../SKILL.md) dispatches for this work — main never reads this file. Execute the subsections below in order, for the PR and filters given in your dispatch prompt.
 
 ### 3a. Inline review comments via GraphQL (need `isResolved`)
 
@@ -63,4 +63,21 @@ Per comment field, once fetched and filtered: id, author, body, path, line, diff
 - Per cluster, propose a one-line drop reason — honest and specific (not
   "out of scope").
 
-Emit the proposal block exactly per the format in SKILL.md's "Output: proposal block format" section (`../SKILL.md#output-proposal-block-format`).
+### 3f. Emit the proposal block
+
+Return this single editable block as your final message — one `### Cluster N` section per cluster, nothing else:
+
+```
+## PR <n> — <total> unresolved comments in <K> clusters
+
+### Cluster 1: <short title> [action: apply]
+- Files: src/auth/login.ts, src/auth/session.ts
+- Comments:
+  - [c12345] (alice) src/auth/login.ts:42 — "the rate limit should also..."
+    <url>
+  - [c12389] (alice) src/auth/session.ts:88 — "same here"
+    <url>
+- Proposed drop reason (if flipped): rate-limit lives in the gateway, not the app
+```
+
+Top-level comments use `(top-level)` in `Files`; self-authored ones are labeled `(yours)`. For `[action: answer]` clusters, leave the `Answer:` line for the user to fill — clustering never writes their answers.

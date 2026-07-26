@@ -11,7 +11,7 @@ end-to-end. The pipeline runs serially — no nested fan-out — so the review
 stays within a predictable token budget. The output is a PENDING review on
 GitHub; you filter and submit manually.
 
-Execution mode (in-session vs. `--isolate` subagent) and the fresh-session check are shared across both review callers — see "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md`.
+Execution mode (in-session vs. `--isolate` subagent) is shared across both review callers, and the pipeline auto-decides it from the mode without ever asking — see "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md`.
 
 A running A/B experiment (below) currently overrides that shared default
 for pr-review only — see "A/B experiment: review-isolation".
@@ -49,10 +49,10 @@ Tracked in the `usage-audit` skill's `usage-history/experiments.md`
 - This "stop if contaminated" check encodes the user's standing policy
   that pr-review always runs in a fresh session.
 - Otherwise, walk every wave (0 → 6) inline, per code-review-pipeline's
-  "Default — calling session" dispatch.
+  "Inline — `Mode: github` without `--isolate`" dispatch.
 - **Arm B (fresh subagent):** dispatch per code-review-pipeline's
-  "Isolated — `--isolate`" path — spawn the sonnet-pinned wrapper
-  Agent, unconditionally.
+  "Isolated — `Mode: local`, or `--isolate` passed" path — spawn the
+  sonnet-pinned wrapper Agent, unconditionally.
 - A new Agent is inherently fresh, so no session check is needed here.
 
 ## Execution

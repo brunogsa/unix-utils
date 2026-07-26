@@ -1,3 +1,11 @@
+---
+# performance-check budget override, not part of the example HLD itself.
+# This file's size is set by the document it reproduces, so trimming it would make
+# the example unrealistic. Doubled from the 1024w/256l bundled defaults until it fits.
+words-budget: 16384
+lines-budget: 1024
+---
+
 # HLD — Sync de Acordos: PIC Arco → ERPs 1.0 (Fase 1)
 
 Issue raiz: [ITGD-2930](https://arco-educacao.atlassian.net/browse/ITGD-2930).  

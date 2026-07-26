@@ -1,6 +1,23 @@
+---
+# performance-check budget override. This file's size is set by the eight schemas it
+# documents, not by verbosity: trimming means deleting real fields, and splitting means
+# eight tiny files always read together. Doubled from the 1024w/256l bundled defaults.
+words-budget: 2048
+lines-budget: 512
+---
+
 # JSON Schemas
 
-This document defines the JSON schemas used by skill-creator.
+This document defines the JSON schemas used by skill-creator. Jump to the one you need — each section is self-contained.
+
+- [`evals.json`](#evalsjson) — the evals for a skill, at `evals/evals.json` inside the skill directory.
+- [`history.json`](#historyjson) — version progression in Improve mode, at workspace root.
+- [`grading.json`](#gradingjson) — the grader agent's output.
+- [`metrics.json`](#metricsjson) — the executor agent's output.
+- [`timing.json`](#timingjson) — wall-clock timing for one run.
+- [`benchmark.json`](#benchmarkjson) — Benchmark mode's output.
+- [`comparison.json`](#comparisonjson) — the blind comparator's output.
+- [`analysis.json`](#analysisjson) — the post-hoc analyzer's output.
 
 ---
 

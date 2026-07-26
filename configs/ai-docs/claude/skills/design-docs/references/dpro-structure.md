@@ -2,6 +2,8 @@
 
 The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open Questions. Keep those four sections clean with these rules.
 
+## Item shape and stable tokens
+
 - **One item, one sub-section — never a flat bullet list.** Give each Decision/Premise/Risk/Open-Question its own markdown heading, with the entry's body beneath it.
   - Applies uniformly to all four sections — don't leave one as a bullet list and another as sub-sections.
   - **The heading title is a scannable summary.** A reader skims the outline and opens a body only for details — so the title must carry the gist, not just the token.
@@ -10,6 +12,8 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
   - Cross-reference these items only by their stable `<TOKEN>`, never a `§N.M`-number.
     - Items get added/removed and `§`-numbers churn, while the token is a named anchor that tracks the item.
   - Tokens obey the reading-order rule above: cite them only from text after their registry section; earlier text recaps inline without the token.
+
+## Choosing which of the four sections an item belongs in
 
 - **Label by what you actually know.** A fact you've validated or assume true is a *Premise*; a genuine unknown is an *Open Question*.
   - Don't dress an unknown as a Premise, nor prematurely close a question you can't yet answer — both directions matter.
@@ -23,6 +27,8 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
 - **A fact already stated in Context isn't a Premise**, even if later sections cite it often or in a specific way.
   - Recap the Context fact inline instead of minting or reviving a registry token for it.
 
+## No duplicates, and Open Questions burn down to none
+
 - **Each fact lives once.** When a question is answered, move the answer into *Decisions*; don't leave decided content embedded inside the *Open Question*.
   - Drop any Open Question that a Premise already settles — no duplicate item across sections.
 
@@ -30,6 +36,8 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
   - When a question closes, **relocate** its content to the right home — a *Premise*, *Decision*, *Risk*, or embedded directly in the solution/mapping — and **remove** it from the Open Questions list.
   - Never leave a "[RESOLVIDA]" / "resolved" stub sitting in the Open Questions section — that defeats the burn-down and clutters the list.
   - When relocating, keep cross-references intact: repoint any `OQ-N` pointer to the item's new home (or state the fact inline), then grep the doc for dangling `OQ-/PR-/D-/R-` tokens before calling it done.
+
+## Granularity — what counts as one item
 
 - **One item, one idea — explode bundles.** An entry carrying two independently-falsifiable assumptions, two failure modes, or two decisions splits into one item per idea, each with its own token.
   - Test: if a reader could confirm one half while refuting the other, it is two items.
@@ -42,6 +50,8 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
 - **One logical decision, one Decision.** Consolidate; don't fragment a single choice across several `D-` items. Rejected options belong as *"discarded alternatives"* sub-bullets under the decision they lost to, not separate entries.
 
 - **Trade-offs as sub-bullets, not a table.** For a decision's pros/cons, nest bullets under each option — more scannable and easier to keep inside the density cap than a markdown table.
+
+## Ordering the items and opening with a roadmap
 
 - **Group items by theme, then order the groups along one stable narrative.** Don't leave the four sections in the accidental order the tokens were minted.
   - Pick a narrative the whole doc already follows and reuse it in every section — e.g. the payload/call flow (source-of-truth → header → items → response → read-back), or foundational-scope-first.

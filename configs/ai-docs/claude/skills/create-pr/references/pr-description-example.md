@@ -1,3 +1,11 @@
+---
+# performance-check budget override, not part of the example PR body itself.
+# This file's size is set by the PR description it reproduces, so trimming it would
+# make the example unrealistic. Doubled from the 1024w/256l bundled defaults until it fits.
+words-budget: 8192
+lines-budget: 1024
+---
+
 <details>
 <summary><strong>Guia de review</strong> (~15 min)</summary>
 

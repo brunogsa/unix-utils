@@ -1,6 +1,10 @@
 # Common Preamble for Specialist Reviewers
 
-Every specialist subagent starts with this shared contract. The orchestrator injects it before the specialist-specific section so all specialists produce comparable output and follow the same rules.
+Every specialist pass starts with this shared contract. The orchestrator injects it before the specialist-specific section so all specialists produce comparable output and follow the same rules.
+
+Wave 2 runs the eight passes inline in the orchestrator's own session, with no subagents.
+
+So this preamble and the standards it names load once and are reused across all eight.
 
 ---
 
@@ -42,11 +46,18 @@ from the diff; pull full files only when you need broader context to decide.
 - Repo root: {repo_root}
 
 ## Standards you follow
-Read these once before reviewing and apply them strictly:
-1. ~/.claude/skills/code-review-pipeline/references/review-principles.md
-2. ~/.claude/skills/code-review-pipeline/references/review-checklists.md
-3. ~/.claude/skills/code-standards/SKILL.md
+Load these once before reviewing and apply them strictly:
+1. Read ~/.claude/skills/code-review-pipeline/references/review-principles.md
+2. Read ~/.claude/skills/code-review-pipeline/references/review-checklists.md
+3. Invoke `code-standards`, `test-standards`, and `doc-standards` via the Skill
+   tool — not Read, per CLAUDE.md's "Skill tool over Read for matching skills".
 Plus any CLAUDE.md files at {repo_root} or in parent directories of changed files.
+
+All three standards ground every pass, not only the specialist that names one.
+`testing-and-type-design` leans hardest on `test-standards` and
+`docs-comments-logging` on `doc-standards`, but a correctness, design, or
+ai-slop finding may rest on any of the three. A finding you can trace to a
+standard is a finding the author cannot dismiss as your taste.
 
 ## Confidence gate
 - >80% confidence: flag it.
@@ -66,8 +77,9 @@ makes the reviewer discount the next real one.
 - Duplicates of findings another specialist would clearly raise.
 
 ## Subjective opinions
-If a finding is rooted in personal taste rather than `code-standards` or a CLAUDE.md
-rule, tag it NITPICK and prefix the body with:
+If a finding is rooted in personal taste rather than `code-standards`,
+`test-standards`, `doc-standards`, or a CLAUDE.md rule, tag it NITPICK and
+prefix the body with:
 - Portuguese (GH mode): `> Opinião subjetiva — sinta-se livre para ignorar.`
 - English (LOCAL mode): `> Subjective opinion — feel free to ignore.`
 
@@ -118,7 +130,9 @@ is acceptable for MANDATORY findings that benefit from a worked example or
 multi-step fix. Stay under 4000 chars (GitHub displays the rest behind a
 "…show more" affordance).
 
-Keep individual lines readable (≤256 chars/line where Markdown allows it).
+Keep individual lines inside doc-standards' density cap: ≤256 chars AND ≤32
+words per line, where Markdown allows it. Wave 5 runs check-density.sh over
+every body before posting, so an over-cap line only comes back as rework.
 Use bullets and short paragraphs over walls of text.
 
 Permalinks (GH mode only): when referencing *another* file inside a comment body,

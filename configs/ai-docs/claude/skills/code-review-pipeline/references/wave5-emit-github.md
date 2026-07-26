@@ -1,6 +1,8 @@
-# Wave 5 — Emit
+# Wave 5 — Emit (github mode)
 
-## github mode
+Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5-emit-local.md).
+
+## Prepare the payload inputs
 
 1. **Re-fetch the commit_sha** so it's fresh (avoids "stale commit_id" rejection):
    ```bash
@@ -15,19 +17,18 @@
    - Fix every flagged line so all files exit 0. Which path you take depends on whether this Wave 5 runs in the top-level session or inside a spawned subagent:
      - **Calling session (you were NOT spawned as a subagent):** delegate to the `density-fixer` agent and wait for it to report every file at exit 0.
        - Pass it the file list: `$work_dir`/wave5-comment-*.md plus `$work_dir/wave2-guide.md`.
-       - It splits over-cap lines and re-runs the script itself, and is contractually barred from rewording or dropping content.
-       - So each finding's wording stays verbatim — unlike an inline rewrite, which can drift the meaning while fixing density.
-     - **Isolated (`--isolate`, or the non-fresh-session dispatch that spawned you):** you are already a subagent, so do NOT spawn another.
+       - It splits over-cap lines and re-runs the script itself, and is contractually barred from rewording or dropping content — so each finding's wording stays verbatim.
+     - **Isolated (`--isolate` passed):** you are already a subagent, so do NOT spawn another.
        - Rewrite each flagged line in place per `~/.claude/skills/doc-standards/references/density-rules.md` — split into bullets/sub-bullets or shorter sentences, never drop information.
        - Re-run the script until it exits 0 for every file.
-   - Either way, the payload-build step below reads finding bodies from these now-clean files; the guide-posting step below reads the guide from `wave2-guide.md`.
+
+## Build and POST the pending review
 
 3. Build `$work_dir/review-payload.json` with jq for the inline comments only, sourcing each `body` from its density-clean `$work_dir/wave5-comment-<n>.md`.
    - **Leave the top-level `body` empty** — the Review Guide is delivered as a separate standalone PR comment in the guide-posting step below.
-     - Rationale: the pending-review body is not a good carrier for the guide; it gets buried behind the GitHub review filter and is hard for the human reviewer to find.
+     - Rationale: a guide in the pending-review body gets buried behind the GitHub review filter, where the human reviewer won't find it.
    - Every inline comment body gets the signature footer appended: two newlines + `— gerado por IA, revisado pelo usuário`.
-     - Rationale: the review posts under the human operator's own GitHub account (`gh api` authenticates as them).
-     - Without an explicit AI disclaimer, the comments read as if that person wrote them by hand.
+     - Rationale: `gh api` authenticates as the human operator, so without an explicit AI disclaimer the comments read as hand-written by them.
    - Include `start_line`/`start_side` only on multi-line ranges (`line > start_line`).
    - Target shape:
 
@@ -67,6 +68,8 @@
    - Posting some findings as always-visible, unreviewable comments while the rest wait in a pending review is worse than not posting those findings at all.
    - If the retry also fails, stop and report the 422 body to the user instead of degrading the contract further.
 
+## Confirm nothing submitted the review
+
 6. **Verify the review actually stayed pending** — a POST response of `"state": "PENDING"` is not proof by itself.
    - Re-fetch the same review a moment later and check again.
    - Something between POST and report-out (a stray follow-up call, a retry, a second Wave-5 run in the same session) can submit it without your noticing:
@@ -83,6 +86,8 @@
    - An unexpected extra comment or a mismatched count is the same signal as an unexpected state: stop and report, don't declare success.
    - **Never call anything that submits a review** — no `event` field on the POST, no follow-up call to `.../reviews/{id}/events`, no `gh pr review --comment/--approve/--request-changes`.
    - Submitting is the human's action alone; the pipeline's job ends at a verified-pending review.
+
+## Post the Review Guide as its own PR comment
 
 7. **Post the Review Guide as a standalone PR comment**, wrapped in a collapsed `<details>` block so it doesn't dominate the conversation feed but stays one click away.
    - Its content is `$work_dir/wave2-guide.md`, already made density-clean by the density-check step above — don't re-check it here.
@@ -113,20 +118,3 @@
    ```
 
    Print both `review_url` (pending review) and `guide_url` (standalone comment) in Wave 6.
-
-## local mode
-
-Consult the `html-artifacts` skill's decision tree, then write `${out_file}` — `${out_base}.md` or `${out_base}.html` per its verdict — to the current CWD.
-
-- The routing table's fixed verdict for this artifact type counts as standing approval — skip html-artifacts' propose-first gate here.
-  - Why: the pipeline may run unattended (isolated subagent, `/implement`'s batch-end tail), where no per-instance OK is possible; pausing to propose would stall the async run.
-- `${out_base}` is set in Wave 1 to `./verdict_auto-review_YYYY-MM-DD_HH:MM`; the timestamp preserves ordering when the user runs several reviews in one CWD. Only the extension is the router's call.
-- Either format follows the template at `references/local-review-template.md` — read it and expand its placeholders; an `.html` output renders those same sections under html-artifacts' non-negotiables.
-- Keep the template file as the single source of truth for the output shape; do not inline the template here.
-
-**Density check (after writing, `.md` output only).** Run `~/.claude/skills/doc-standards/scripts/check-density.sh "$out_file"`, then fix flagged lines by how this Wave 5 runs:
-
-- **Calling session (you were NOT spawned as a subagent):** delegate to the `density-fixer` agent, passing it `$out_file`; wait for it to report exit 0.
-  - It splits over-cap lines and re-runs the script itself, without rewording or dropping content.
-  - Unreachable in practice here — local mode always dispatches isolated (SKILL.md's dispatch rule), so only the isolated branch below ever runs.
-- **Isolated (`--isolate`, or the non-fresh-session dispatch that spawned you):** you are already a subagent — do NOT spawn another; rewrite each violation in place per `doc-standards/references/density-rules.md` and re-run until exit 0.

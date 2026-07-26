@@ -102,6 +102,32 @@ Keep that text in SKILL.md — get under the word budget with real trims, or set
 
 Why: an always-read reference loads the same words every run plus a Read round-trip — it saves nothing and hides the cost from the budget gate, which exists to measure that cost.
 
+## Splitting, naming, and sizing bundled files
+
+- [Instruction] Split a bundled file that carries two topics which never fire on the same run.
+  - [Why] A mixed file makes every consumer load the branch it will never take, so the unread half is pure context tax on every run.
+  - [Example] `wave5-emit.md` held `## github mode` and `## local mode` — mutually exclusive, so each run paid for the mode it never used. Now `wave5-emit-github.md` + `wave5-emit-local.md`.
+
+- [Instruction] Keep two topics in one file when every run reads both — split only when the skipped half outweighs the Read round-trip and pointer line it costs.
+  - [Why] Splitting is not free, so fragmenting co-firing content trades a smaller file for an extra round-trip and one more place a step can be skipped.
+  - [Example] `review-principles.md`'s twelve principles run ~100 words each and are always read together — that one is a trim, not a split.
+
+- [Instruction] Name every bundled file and every heading after what it contains, never after a position or number.
+  - [Why] It is the intent-revealing-name rule from clean code: a positional name tells the reader nothing without opening the file, and rots when steps are reordered.
+  - [Example] Bad: `batch-end-2.md`, "steps 4-7 live elsewhere". Good: `batch-end-package.md`, "the package, diffview, metrics, and finalize steps".
+
+- [Instruction] Break any bundled file past ~512 words into `## ` sections; `assets/flowchart.md` is the sole exemption, being one indivisible diagram.
+  - [Why] Without a landmark the reader must scan the whole file to find one section — and no size override fixes that, since a bigger budget leaves it as flat.
+
+- [Instruction] Set an honest `words-budget:`/`lines-budget:` override on a bundled file whose size is fixed by an artifact it reproduces — a schema, a filled-in template, a realistic worked example.
+  - [Why] Tightening cannot shrink a faithful reproduction, so a trim would only make the artifact wrong and a split would scatter one thing across files always read together.
+
+- [Instruction] Propose that override to the user alongside the trim and split alternatives — never apply one on your own initiative.
+  - [Why] The budget trade-off is the user's to own, the same user-only rule `performance-check-principles-and-skills` enforces for `words-budget` on a SKILL.md.
+
+- [Instruction] Move a worked example between files intact — never trim one to fit a budget.
+  - [Why] An example earns its keep by being realistic, and realism is the first thing a size-driven trim takes away.
+
 ## Procedural skills ship a human-facing assets/flowchart.md
 
 A step-shaped (procedural/orchestrator) skill should carry `assets/flowchart.md`: an H1 title, a preamble marking it human-facing and non-authoritative (SKILL.md's numbered steps win on conflict), then one mermaid flowchart of the control flow.
@@ -149,59 +175,12 @@ Why: `run_eval.py`'s own early-return bug (fixed in this skill's local copy) onc
 The harness decided "not triggered" from the first tool call instead of scanning the whole run.
 Rewriting the skill's description on that false signal would have fixed nothing and hidden the real defect.
 
-## Marker-authoring rules — global CLAUDE.md and `*-standards` skills
+## Marker-authoring rules live in a reference
 
-These rules govern every file that uses the `[Instruction]`/`[Why]`/`[Example]`/`CRITICAL` marker system: the global CLAUDE.md (`~/unix-utils/configs/ai-docs/claude/CLAUDE.md`, which defines the four markers) and the `*-standards` skills.
-This section itself obeys them.
+Editing the global CLAUDE.md or any `*-standards` skill? Read [`references/marker-authoring.md`](references/marker-authoring.md) before touching a line.
 
-Each marker sits at the margin; its [Why]/[Example] indent beneath; code fences sit at the margin (can't indent cleanly); instructions never nest under instructions.
+It carries the `[Instruction]`/`[Why]`/`[Example]`/`CRITICAL` rules: splitting a fused marker, one-why-per-instruction, flat-not-nested, and heading naming.
 
-- [Instruction] Write one constraint per instruction — merge near-duplicate facets, split only the truly independent ones.
-  - [Why] The count equals the real constraint count only if each tagged line carries exactly one; a bundled bullet hides rules the reader and the grep both miss.
+It also carries why the count stays low — instruction count and CRITICAL ratio both track adherence decay (IFScale + emphasis-salience research).
 
-- [Instruction] When a marker breaks the density cap, don't fix it like prose — an over-long marker is a signal of fused constraints, so split it into separate sibling instructions.
-  - [Why] A marker takes only a why or example as a child — it can't hold a sub-bullet — so a constraint that won't fit can only grow sideways into siblings.
-
-- [Instruction] A too-long why is the same signal one level down — its instruction does too much, so split the instruction and each part gets its own shorter why.
-  - [Why] A why can't split (one-why rule), so the only way to shrink it is to shrink what it justifies.
-
-- [Instruction] Never re-densify a line to save instruction count — decomposing for density may raise the count, and that's the right trade; reclaim budget only by genuine merges or cuts.
-  - [Why] Density and the count budget pull opposite ways; re-densifying buys a smaller number with a permanent reader tax — the wrong side of "scannable beats compact".
-
-- [Instruction] Keep instructions flat — never nest one instruction under another.
-  - [Why] A nested rule hides inside a parent the reader skims as a single rule.
-
-- [Instruction] A real parent — one stating a constraint you could violate on its own — keeps its tag, with its sub-constraints flattened to top-level siblings.
-  - [Why] The parent is itself a constraint, so flattening keeps each sub-constraint visible and separately counted.
-
-- [Instruction] A vacuous parent — one that only names a topic with no violable action — becomes an untagged header with its instructions nested beneath.
-  - [Why] A header groups related rules without being miscounted as a constraint, since a header isn't an instruction.
-
-- [Instruction] Cluster related instructions adjacently — a flattened group should still read as one topic in sequence.
-  - [Why] Flattening trades nesting for order, so colocality is what keeps a scattered group legible.
-
-- [Instruction] Put every rationale in its own why marker; never inline it after `--` (reads after "because" → why marker; restates the action → instruction body).
-  - [Why] Inline rationale is untagged, so the count silently misses it.
-
-- [Instruction] Treat untagged prose under a marker as a smell — it usually hides a buried instruction or second why; promote to an instruction/why pair or fold into the why.
-  - [Why] Buried directives escape the grep count and the reader's rule-scan; an untagged second rationale is a stacked why in disguise.
-
-- [Instruction] Give every instruction exactly one why — weave multiple reasons into that single bullet rather than stacking a second.
-  - [Why] Two why bullets under one instruction split the rationale and inflate the count; one woven why keeps it singular and tracked.
-
-- [Instruction] Make every why a real decision-shaping stake — if you can't name one, dig for it or ask, never ship filler.
-  - [Why] A rule whose stake isn't written gets misapplied by readers who can't see why it matters; if you can't name the stake, the rule itself is suspect.
-
-- [Instruction] Nest each why and example one level under its instruction, why first, then any examples (one why; examples may repeat).
-  - [Why] Attachment is resolved by what an entry sits under, so nesting beneath the right instruction is what binds it unambiguously.
-
-- [Instruction] Put a code-fence example at the left margin, not indented under its instruction.
-  - [Why] A fenced block doesn't indent cleanly under a bullet, so the margin is its only readable, parseable spot; order binds it to the nearest instruction above.
-
-- [Instruction] In the global CLAUDE.md and the `*-standards` skills, a heading names its topic, never a rule — the instructions below are the rules, so the heading must not restate one.
-  - [Why] A heading that echoes its instruction is dead duplication — it drifts on every edit and burns the reader's scan on a line that adds nothing.
-
-- [Instruction] Never give a heading exactly one instruction — cluster related lone rules under a shared topic, or nest them under a parent heading's sub-headings.
-  - [Why] A one-rule heading restates the rule as a title — wasted scan; clustering keeps each heading a real topic and shrinks the outline to ~16 per file, not 80.
-
-Keeping the count low is the point: instruction count and CRITICAL ratio both track adherence decay in modern LLMs (IFScale + emphasis-salience research).
+Skip it when authoring an ordinary skill — ordinary SKILL.md files carry prose, not markers.

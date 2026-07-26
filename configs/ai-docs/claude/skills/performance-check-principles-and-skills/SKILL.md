@@ -22,21 +22,24 @@ Examples:
 
 ## Budgets
 
-All limits sourced where possible. Full citations in [references/research.md](references/research.md).
+All limits sourced where possible. [`references/research.md`](references/research.md) indexes the citations; each row below deep-links to the sibling file holding its source.
 
 | Target | Budget | Rationale |
 |---|---|---|
-| CLAUDE.md non-blank lines | 260 | [Marker-convention re-derivation: [Why] pairs double lines-per-instruction; count is the real gate](references/research.md#claudemd-length) |
+| CLAUDE.md non-blank lines | 260 | [Marker-convention re-derivation: [Why] pairs double lines-per-instruction; count is the real gate](references/research-claudemd-budgets.md#claudemd-length) |
 | CLAUDE.md words per line | 32 | User preference — enforces "Prefer scannable shape" |
-| Skill total count | 50 | [Half of Anthropic's documented 100+ routing scale; preload negligible (~1% of context)](references/research.md#skill-count) |
-| Skill non-blank lines | 500 | [Anthropic official best practice](references/research.md#skill-size) |
+| Skill total count | 50 | [Half of Anthropic's documented 100+ routing scale; preload negligible (~1% of context)](references/research-skill-budgets.md#skill-count) |
+| Skill non-blank lines | 500 | [Anthropic official best practice](references/research-skill-budgets.md#skill-size) |
 | Skill words per SKILL.md | 2048 | User preference — co-binds with 500 lines at ~4 words/line |
-| Skill description chars | 250 | [Claude Code 2.1.86 `/skills` listing cap](references/research.md#skill-description-length) |
-| Skill name chars | 64 | [Anthropic frontmatter validation](references/research.md#skill-name-length) |
+| Skill description chars | 250 | [Claude Code 2.1.86 `/skills` listing cap](references/research-skill-budgets.md#skill-description-length) |
+| Skill name chars | 64 | [Anthropic frontmatter validation](references/research-skill-budgets.md#skill-name-length) |
+| Bundled file words (`references/*.md`, `assets/*.md`) | 1024 | User preference — half a SKILL.md, so one lazy load stays cheap |
+| Bundled file non-blank lines | 256 | User preference — co-binds with 1024 words at ~4 words/line |
+| Bundled file `## ` headings | 1 past 512 words | Landmarks so a partial read finds its section; `assets/flowchart.md` exempt |
 | Density violations across all .md | 0 | Density rule (256 chars / 32 words per line) — see `~/.claude/skills/doc-standards/scripts/check-density.sh` |
-| CLAUDE.md [Instruction] count | 100 | [Reserved share for always-loaded principles — deliberately tight vs. IFScale 500 ceiling](references/research.md#instruction-count-budgets) |
-| *-standards [Instruction] total (sum across `*-standards/SKILL.md`) | 200 | [Reserved share for lazy-loaded standards skills — deliberately tight vs. IFScale 500 ceiling](references/research.md#instruction-count-budgets) |
-| CRITICAL ratio per file ([Instruction] lines marked CRITICAL ÷ [Instruction] count) | 16% | [Emphasis-salience reasoning — not measured](references/research.md#critical-emphasis-ratio) |
+| CLAUDE.md [Instruction] count | 100 | [Reserved share for always-loaded principles — deliberately tight vs. IFScale 500 ceiling](references/research-instruction-load-budgets.md#instruction-count-budgets) |
+| *-standards [Instruction] total (sum across `*-standards/SKILL.md`) | 200 | [Reserved share for lazy-loaded standards skills — deliberately tight vs. IFScale 500 ceiling](references/research-instruction-load-budgets.md#instruction-count-budgets) |
+| CRITICAL ratio per file ([Instruction] lines marked CRITICAL ÷ [Instruction] count) | 16% | [Emphasis-salience reasoning — not measured](references/research-instruction-load-budgets.md#critical-emphasis-ratio) |
 
 Skills have no per-line length limit — the per-skill word cap covers overflow.
 
@@ -50,7 +53,7 @@ A CLAUDE.md or *-standards skill with zero [Instruction] markers fails the check
 
 It either hasn't been migrated to the marker convention, or no longer carries any instruction (in which case it shouldn't be a *-standards skill).
 
-### Per-skill word-budget override
+### Word- and line-budget overrides
 
 A skill can opt in to a higher word budget by adding `words-budget: N` to its YAML frontmatter:
 
@@ -70,9 +73,17 @@ The report stays quiet about overrides while the skill is under its custom budge
 
 Over-budget lines are annotated as `words=N(>budget (override; default=2048))` so the next reader knows the larger budget was intentional.
 
-Only `words-budget` is overridable today — line/desc/name budgets remain global.
+`references/*.md` and `assets/*.md` take the same keys in their own frontmatter: `words-budget:` against the 1024 default, `lines-budget:` against the 256 one. Description, name, and count budgets stay global.
 
-**CRITICAL: Only the user adds `words-budget`. AI must never autonomously set or raise it.**
+Double from the default until the file fits (1024 → 2048 → 4096), and set only the key actually over.
+
+A `lines-budget` on a file already under 256 lines is a no-op that reads as a real exemption.
+
+`check.sh` parses frontmatter with `NF == 2`, so a `#` comment line inside the block is skipped. Use one to record why the file resisted trimming, right where the override lives.
+
+The heading gate takes no override: a raised size budget still leaves the file flat, so the fix is always `## ` landmarks, never a knob.
+
+**CRITICAL: Only the user adds `words-budget` or `lines-budget`, in a SKILL.md or a bundled file. AI must never autonomously set or raise one.**
 
 - AI's job on a word-budget overflow is to trim: move examples to `references/`, drop redundant prose, tighten dense wording, or split a skill into two — in that order of preference.
 - AI may **propose** an override as one of several alternatives surfaced to the user, but never apply it silently. Cite the trim alternatives alongside it so the user picks deliberately.
@@ -118,29 +129,11 @@ The script measures with `grep`, `awk`, `wc`, and `find`.
 
 ## What the Report Looks Like
 
-```
-# Performance Check — user (~/.claude)
+A status table with one row per budget above, each `Measured | Budget | OK`-or-`OVER`.
 
-| Target | Measured | Budget | Status |
-|---|---|---|---|
-| CLAUDE.md non-blank lines | 128 | 260 | OK |
-| CLAUDE.md max words/line | 58 (line 114) | 32 | OVER |
-| Skill count | 27 | 50 | OK |
-| Max skill desc chars | 806 (consistency-check-principles-and-skills) | 250 | OVER |
-| Max skill name chars | 39 (consistency-check-principles-and-skills) | 64 | OK |
+Then one follow-up section per failing budget, naming the offending lines, skills, or bundled files — plus a per-skill CRITICAL-ratio table and the density total.
 
-## CLAUDE.md lines exceeding 32 words
-
-16: 39 words
-32: 35 words
-...
-
-## Skills exceeding budgets (lines >500, words >2048, desc >250c, name >64c)
-
-- auto-review: desc=563c
-- code-review-pipeline: words=2132 desc=458c
-...
-```
+Run the script rather than reproducing the shape here; a pasted sample drifts silently as budgets are added.
 
 ## Why Report-Only
 
@@ -208,7 +201,7 @@ Cite the research file when justifying cuts — grounded numbers are easier to d
 
 ## Why These Numbers
 
-Every budget row links into `references/research.md`. Short answers:
+Every budget row above deep-links to its citation in the `references/research-*.md` files. Short answers:
 
 - **CLAUDE.md length (260 lines)**: Jaroslawicz et al. 2025 (arXiv:2507.11538) found instruction-following peaks at 150–200 *instructions*, degrading to 68% at 500.
   - The old 200-*line* budget stood in for instruction count under "1 line ≈ 1 instruction" — true before the marker convention.

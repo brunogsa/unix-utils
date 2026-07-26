@@ -185,17 +185,16 @@ A description needs an explicit `TaskGet` to read back, so after compaction it's
 Encode the finalize checklist as an arrow chain in the subject — substituting the real sha for `<BATCH_BASE_SHA>`:
 
 ```
-[Reminder] Batch-end §9: gate → tails(refactor∥review) → triage → PR(create-pr, if wanted) → nvim DiffviewOpen <BATCH_BASE_SHA>
+[Reminder] Batch-end §8-9: test-presence → repo-green → tails(refactor∥review) → triage → PR(create-pr, if wanted) → nvim DiffviewOpen <BATCH_BASE_SHA>
 ```
 
-The steps map to: repo-green gate (§9.1) and the two parallel review tails (§9.2 ∥ §9.3).
-Triage runs (§9.4); the `create-pr` PR runs only when `pr.wanted`.
-Opening the diff in a side tmux pane runs via `open-in-tmux` (§9.5).
+The steps map to §8's test-presence gate, §9.1's repo-green gate, then the two parallel review tails (§9.2 ∥ §9.3).
+Triage runs (§9.4); the `create-pr` PR runs only when `pr.wanted`; `open-in-tmux` opens the diff (§9.5).
 
 As each step lands, `TaskUpdate` the subject to mark it done — strike it or prefix `✓`.
 This keeps showing which steps remain even after a compaction drops the doc-resident §9 steps from working memory.
 
-Alongside the strike, `TaskUpdate` this task's `metadata` with the same per-step outcome — keys `gate`/`tails`/`triage`/`pr`/`diffview`, each `"pending"` or `"done"` (`"skipped"` for `pr` when not wanted).
+Alongside the strike, `TaskUpdate` this task's `metadata` with the same per-step outcome — keys `test_presence`/`gate`/`tails`/`triage`/`pr`/`diffview`, each `"pending"` or `"done"` (`"skipped"` for `pr` when not wanted).
 Triage, PR, and diffview completion have no JSON state-file equivalent — this metadata is their only durable, machine-checkable record.
 
 Leave it `pending` through the task loop; flip it `in_progress` on entering §9 and `completed` only once the review package is presented (§9.5).
@@ -411,7 +410,7 @@ Either the subagent's commits stand as coherent work (status is a separate conce
 ### PR-level status markers (PR Breakdown line, PR-label runs only)
 
 One level up: a PR-label run's own PR Breakdown line gets the same `[<status>]` prefix at its own §9.
-Only `[Done]` in practice, inline, never scripted. Format/timing: `references/batch-end.md`'s "PR manifest entry & PR-level status marker".
+Only `[Done]` in practice, inline, never scripted. Format/timing: `references/batch-end-pr.md`'s "PR manifest entry & PR-level status marker".
 
 ## 7. Commit model
 
@@ -427,52 +426,15 @@ Never auto-invoke `/refactor` or `/auto-review` **mid-task** — those belong to
 
 ## 8. Batch test-presence gate
 
-This gate runs once after the loop, before §9's tails, and verifies every planned test the plan declared actually landed in the batch's commits.
+A mandatory GATE, once after the loop and before §9's tails: every planned test the plan declared must actually be present in the batch's final commits.
 
-§5.2's per-task check verified each task at its own commit point.
-It can't see what later tasks did to those tests afterward.
-This gate re-checks the batch's **final state**, catching a later task that renamed, gutted, or deleted an earlier task's tests.
-Use a fresh-context `deep-reviewer` dispatch: semantic title-matching across the whole batch diff deserves eyes carrying none of the loop's accumulated assumptions.
+§5.2 checked each task at its own commit point and can't see what later tasks did to those tests afterward.
 
-**Entry.**
-Run this when `phase` is `gates` — the state §5.4's queue-empty scan and §5.5's `gates` verdict both set.
-A `halt-budget` verdict never reaches here: it routes straight to §9 from §5.3/§5.5, upstream of this gate, so the gate has no budget branch of its own.
+**Entry: `phase` is `gates`** — the state §5.4's queue-empty scan and §5.5's `gates` verdict both set. Never skip it to reach §9 faster.
 
-**Dispatch.**
-Spawn ONE `deep-reviewer` subagent via the Agent tool — fresh context, that agent type's pinned model and effort (no override needed).
-Pass it the resolved `plan_<slug>.md` path, the diff range `<BATCH_BASE_SHA>..HEAD`, and the batch's task IDs, read from the state file's `tasks[]`.
-`BATCH_BASE_SHA` here is this run's own base — the current PR's, captured fresh per §1.4 — never the whole PR-label list's start.
+**Read [`references/batch-test-presence-gate.md`](references/batch-test-presence-gate.md) on entry** — it owns the `deep-reviewer` dispatch contract, that subagent's own title-matching procedure, the try-once fix round, and the budget invariant.
 
-**What the deep-reviewer does.**
-Iterate exactly the batch task IDs it was handed — never every `### N.` heading in the plan, which lists tasks other runs owned.
-For each ID `<N>`, run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <N>` to get planned-test titles.
-Exit-code handling matches the per-task procedure — see [`references/planned-test-verification.md`](references/planned-test-verification.md).
-Grep the `<BATCH_BASE_SHA>..HEAD` diff for each title as a deterministic pre-pass.
-Apply an AI semantic check ONLY to titles grep didn't match.
-Return a per-title `found`/`missing` verdict plus the list of tasks that declared `**Tests (planned)**: N/A`.
-
-**All found, or every task N/A — the gate passes.**
-If every task was N/A, note the explicit TDD opt-out so §9's package can state it.
-Set `phase` to `tails` and proceed to §9.
-
-**Any missing — run one fix round, try-once.**
-For each task with missing titles, re-dispatch THAT task's subagent (fresh, per §4) with missing titles as feedback.
-The same 1-hour Monitor cap from §4 applies here too — every tdd-coder dispatch, including this gate-fix re-dispatch, gets it.
-The subagent owns writing them (RED → GREEN), never hand-write tests.
-Increment `gate_dispatches` in the state file by one per fix dispatch.
-Add each dispatch's token count into `.tails.tokens.gate` — the metrics script sums it.
-Then re-gate ONCE — a second `deep-reviewer` pass, same contract.
-
-- Re-gate all found → pass; set `phase: "tails"` and go to §9.
-- Re-gate still missing → record the still-missing titles for §9's package, set `phase: "tails"`, go to §9 so the package surfaces them.
-  Do NOT loop, do NOT hand-fix.
-
-**Budget note.**
-This gate never calls `implement-loop-state.sh` — nor does §9, which runs linearly to the package.
-The `gate_dispatches` it increments feed the script's phase-independent budget backstop.
-It fires on its next call (in practice, a resumed run's first verdict) returning `halt-budget` before anything else.
-A gate-fix overflow never halts the current batch — the gate is try-once, so overshoot is bounded at one dispatch per task.
-Keeping the accounting in the script is the invariant — do not "helpfully" add a script call here.
+Either outcome — pass, or still-missing recorded for §9's package — ends with `phase: "tails"` and proceeds to §9.
 
 ## 9. Batch-end review & tail subagents
 
@@ -518,7 +480,7 @@ Record each report's **path** into `.tails.refactor_report`/`.tails.auto_review_
 If either tail's state field is still `""`, or the file it names is absent, that tail hasn't run.
 Go back and run it; do not reach §9.5 with a missing tail report.
 
-Implement-specific queuing/state-file mechanics: [`references/batch-end.md`](references/batch-end.md).
+Implement-specific queuing/state-file mechanics: [`references/batch-end-review.md`](references/batch-end-review.md).
 
 ### 9.4. Triage
 
@@ -536,15 +498,15 @@ Open the draft PR only when §1.2 recorded `pr.wanted: true`, targeting the conf
 
 **Never hand-write the PR body — always generate it via a fresh `create-pr` agent dispatch (`subagent_type=create-pr`), scoped to drafting only.**
 The agent's own skill would push and create the PR itself; cap its dispatch to the drafted file so the orchestrator still owns the push and the existing-PR fallback.
-A hand-authored body is a defect. Exact dispatch, conventions, and required content: `references/batch-end.md`'s "Draft PR (opt-in)".
+A hand-authored body is a defect. Exact dispatch, conventions, and required content: `references/batch-end-pr.md`'s "Draft PR (opt-in)".
 
 **Pass the exact `spec_<slug>.md` + `plan_<slug>.md` this batch resolved in §1.1, plus the resolved `PR-N` on a PR-label run — never auto-detected.**
 
-Set the terminal phase per `references/batch-end.md`'s Finalize step.
+Set the terminal phase per `references/batch-end-package.md`'s Finalize step.
 Use `presented` (and delete the state file) only when every task is `done`.
 Use `halted` (and keep it for resume) on a budget hit or any `blocked`/`stuck` task.
 
-Every step — ordering, spawn contract, failure handling, finalize — is owned in full by [`references/batch-end.md`](references/batch-end.md). Load at batch end.
+Every step — ordering, spawn contract, failure handling, finalize — is owned in full by [`references/batch-end-review.md`](references/batch-end-review.md), which routes on to its `batch-end-package.md` and `batch-end-pr.md` siblings. Load at batch end.
 
 ## Flowchart (human-facing)
 

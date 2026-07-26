@@ -6,16 +6,6 @@ disable-model-invocation: false
 
 # Address PR Comments
 
-Take a PR's unresolved review comments through the full address-and-respond loop:
-
-1. Fetch unresolved comments (filter by author and/or file).
-2. Semantic-cluster, sort by relevance, propose default per-cluster action (apply / answer / drop).
-3. **One round** of user editing on the proposal block (no per-cluster back-and-forth).
-4. One commit per applied cluster, one batch push at the end.
-5. Reply on every comment of every cluster — AI-signed — linking to commit, answering the question, or stating the drop reason.
-
-This skill **does not** mark threads resolved. The user closes them after reviewing the replies.
-
 ## Usage
 
 `/address-pr-comments <PR#> [filters]`
@@ -26,65 +16,45 @@ This skill **does not** mark threads resolved. The user closes them after review
 |---|---|
 | `by alice, bob` | keep only items **owned** by these gh logins (see "ownership" below) |
 | `in src/foo, src/bar` | keep only comments whose `path` matches these files/folders |
-| (omitted) | all unresolved comments from all authors on all files |
+| (omitted) | every unresolved comment, all authors, all files |
 
-**Ownership** (what `by` matches):
-- **inline thread** — owner = author of the thread's **first comment**. Replies don't transfer ownership.
-- **top-level conversation comment** — owner = author of the comment itself (no threading).
-- **review-summary body** — owner = author of the review.
+**Ownership** (what `by` matches) is the author of an inline thread's **first comment** (replies never transfer it), of a top-level comment itself, or of a review for its summary body. Rationale: `references/reply-patterns.md`.
 
-Why: see `references/reply-patterns.md` (Ownership rationale).
-
-Examples:
-- `/address-pr-comments 169`
-- `/address-pr-comments 169 by alice`
-- `/address-pr-comments 169 in src/auth, src/api/users.ts`
-- `/address-pr-comments 169 by alice, bob in src/auth`
-
-The PR number alone is enough — both filters are optional.
+Examples: `/address-pr-comments 169`, `/address-pr-comments 169 by alice`, `/address-pr-comments 169 by alice, bob in src/auth`.
 
 ## Scope
 
-- **Input**: live PR on the current repo's GitHub remote.
-- **Mutates**:
-  - The local working tree (one commit per applied cluster on the PR's branch).
-  - The remote (one batch `git push` after all commits).
-  - The PR (one reply per addressed comment, AI-signed).
-- **Does not**: resolve threads, request re-review, dismiss reviews, or touch other PRs.
-- **Self-comments are included** — the proposal block labels them `(yours)`.
+Operates on one live PR on the current repo's GitHub remote, self-comments included (labeled `(yours)`).
+
+Never resolves threads, requests re-review, dismisses reviews, or touches another PR.
+
+Leaving threads open is deliberate — the user closes them after reviewing the replies.
 
 ## Execution (Hybrid)
 
-Subagents can't post replies, commit, or push — permission UIs live in main. Fetching + filtering + clustering is heavy and read-only. Split:
+Subagents can't post replies, commit, or push — permission UIs live in main. Fetching + filtering + clustering is heavy and read-only.
 
-1. **Main context** — steps 0–2, 4–7 (pre-flight interview, preconditions, resolve repo/login, selection, commit, push, reply).
-2. **Subagent** (`general-purpose`, background — the default) — step 3 (fetch, filter, cluster, rank, propose actions and drop reasons). Returns only the proposal block — raw comment JSON never reaches main.
+So main runs steps 0–2 and 4–7, while step 3 goes to a background `general-purpose` subagent that returns only the proposal block — raw comment JSON never reaches main.
 
-Spawn the subagent with `model: "sonnet"`, `effort: "medium"`, and `description: "Fetch, cluster, and rank PR review comments"`.
+Declare it as `title=Fetch, cluster, and rank PR review comments`, `model=sonnet`, `effort=medium` — render `description` per CLAUDE.md's Agent-description form.
 
-If the subagent reports zero unresolved comments matching the filters, stop — don't proceed to step 4.
+If it reports zero unresolved comments matching the filters, stop — don't proceed to step 4.
 
 ## Run-state file + TaskList state
 
-At skill start, create `/tmp/address-pr-comments_<session_id>_<ts>.json` — this run's durable working-state file (`<ts>` = run-start timestamp `date +%Y%m%d-%H%M%S` — the skill can run several times per session).
+At skill start, create `/tmp/address-pr-comments_<session_id>_<ts>.json` — this run's durable working-state file (`<ts>` = `date +%Y%m%d-%H%M%S`, since the skill can run several times per session).
 
-JSON, not prose — the pre-flight answers and per-cluster state read back as structured fields, mirroring the implement skill's run-state file.
+Persist as produced, never at the end: pre-flight answers first, then each cluster's chosen action, drop/skip reason, and commit SHA.
 
-Persist as produced, never at the end: the pre-flight answers first, then per-cluster state as it's decided — chosen action, drop/skip reason, resulting commit SHA.
+On resume or after compaction, re-read it and trust it over recalled context.
 
-On resume or after compaction, re-read this file and trust it over recalled context — a summary loses detail the file keeps verbatim.
+Once step 4 approves the clusters, create one TaskList task per **applied** cluster — only those produce a commit, which is CLAUDE.md's test for a Task.
 
-Once the proposal step's clusters are approved (step 4), create one TaskList task per **applied** cluster — only those produce a commit, which is CLAUDE.md's test for what counts as a Task.
-
-Put machine-checkable state (`action`, `commit_sha`, `status`) in each task's `metadata` field; keep narrative rationale in the run-state file, not duplicated across both.
-
-Cross-reference the two surfaces by task id and file path only.
+Put machine-checkable state (`action`, `commit_sha`, `status`) in the task's `metadata`; keep narrative rationale in the run-state file. Cross-reference the two by task id and file path only, never duplicating content.
 
 ## Standards loaded on demand
 
-These standards skills shape the work at specific moments — load each as its scope opens, not upfront.
-
-Most load automatically via their description triggers; the explicit load points below guard against undertriggering:
+Load each as its scope opens, not upfront. Most fire automatically on their description triggers; these explicit load points guard against undertriggering:
 
 - `code-standards` — before production edits in step 5.
 - `test-standards` — when touching tests or needing a regression test (step 5).
@@ -92,31 +62,22 @@ Most load automatically via their description triggers; the explicit load points
 - `debug-standards` — when lint/test fails in step 1c or step 5.
 - `commit-standards` — at every commit boundary (step 1b, step 5).
 
-## Step 0: Pre-flight interview (main — the first thing, before any other step)
+## Step 0: Pre-flight interview (main — before any other step)
 
-Discover cheaply, then ask everything that applies in ONE message — mirrors the implement skill's up-front interview. Nothing else runs before this interview.
+Run `git status --porcelain` and probe for lint/test runners with 1c's table (read-only — run nothing yet). Then ask, in ONE message, only the questions whose condition holds:
 
-```bash
-git status --porcelain
-```
-
-Also probe for lint/test runners using 1c's table below (read-only — don't run anything yet).
-
-Ask, in one message, only the questions whose condition holds:
 - **Dirty tree** (only if git status printed output) — list the dirty files, ask whether to commit now.
 - **Green baseline check?** (yes/no, default no) — always asked. Opt-in: 1c runs only on a yes.
-- **Green baseline checker** (only if 1c's table matched multiple or none) — ask which lint/test commands establish 1c's baseline; mark it as relevant only on an opt-in yes.
+- **Green baseline checker** (only if 1c's table matched multiple or none) — which lint/test commands establish the baseline; relevant only on an opt-in yes.
 - **Refactor + auto-review tails after this batch?** (yes/no, default no) — always asked.
 
-The moment answers arrive, persist them to `/tmp/address-pr-comments_<session_id>_<ts>.json` — see "Run-state file + TaskList state" above. A mid-flow compaction must not lose them.
-
-Steps 1b, 1c, and 1d below consume these persisted answers; they don't ask again.
+Persist the answers to the run-state file the moment they arrive — a mid-flow compaction must not lose them. Steps 1b–1d consume them and never ask again.
 
 ## Step 1: Validate preconditions (main)
 
-Every applicable check must hold — 1c applies only when step 0 opted in. If any fails, abort with the suggested fix — don't try to recover automatically.
+Run 1a–1d in order, fail-fast on the first failure (1c only when step 0 opted in).
 
-Run 1a, 1b, 1c, 1d sequentially in that order; fail-fast on the first failure, not collected together.
+On a failure, abort with the suggested fix — never try to recover automatically.
 
 ### 1a. On the PR's branch
 
@@ -130,15 +91,13 @@ If `PR_BRANCH != CUR_BRANCH`, abort:
 
 ### 1b. Clean working tree
 
-Use the persisted step-0 answer — if the tree was dirty, it says whether to commit now via `commit-standards`.
+Never proceed with a dirty tree — uncommitted work risks getting bundled into a cluster commit.
 
-After the user commits or stashes, re-run the skill.
-
-Don't proceed with a dirty tree — uncommitted work risks getting bundled into a cluster commit.
+Step 0's persisted answer says whether to commit now via `commit-standards`; once the user commits or stashes, re-run the skill.
 
 ### 1c. Green baseline (lint + test — opt-in)
 
-Runs only when step 0's "Green baseline check?" was answered yes — when declined (or unanswered), skip this whole subsection and run no lint/test.
+Runs only on a yes to step 0's "Green baseline check?"; when declined or unanswered, skip this subsection entirely.
 
 Discover the runners (cheap probe, no full project scan):
 
@@ -149,9 +108,7 @@ Discover the runners (cheap probe, no full project scan):
 | `pyproject.toml` | `ruff check .` / `flake8` | `pytest` |
 | `Cargo.toml` | `cargo clippy` | `cargo test` |
 
-If multiple or no markers matched, use the persisted step-0 answer for which commands to use.
-
-Run lint then test:
+If multiple or no markers matched, use the persisted step-0 answer instead. Run lint then test:
 
 ```bash
 <lint-cmd> > /tmp/apc-lint.txt 2>&1; echo "exit: $?"; tail -20 /tmp/apc-lint.txt
@@ -162,9 +119,7 @@ If either is red, abort — fix pre-existing breakage first so cluster commits d
 
 ### 1d. Tails toggle
 
-Use the persisted step-0 answer for whether to run refactor + auto-review tails.
-
-This isn't a pass/fail precondition. The answer lives in `/tmp/address-pr-comments_<session_id>_<ts>.json` for step 7d, surviving compaction — default no if unanswered.
+Not a pass/fail precondition — just read step 0's persisted answer on refactor + auto-review tails, which step 7d consumes. Default no if unanswered.
 
 ## Step 2: Resolve repo + own login (main)
 
@@ -173,20 +128,17 @@ OWNER_REPO=$(gh repo view --json owner,name -q '.owner.login + "/" + .name')
 ME=$(gh api user -q .login)
 ```
 
-`OWNER_REPO` and `ME` go into the step-3 dispatch prompt — main never fetches comments itself.
-
-`ME` powers the `(yours)` label later — not a filter.
+Both go into the step-3 dispatch prompt — main never fetches comments itself. `ME` powers the `(yours)` label, not a filter.
 
 ## Step 3: Fetch, filter, cluster, rank, propose (subagent)
 
 Dispatch a `general-purpose` subagent (model `"sonnet"`, effort `"medium"`, background) with this prompt, filling in `<n>`, `OWNER_REPO`, `ME`, and the parsed filters:
 
 ```
-Read ~/.claude/skills/address-pr-comments/references/step-3-fetch-cluster-propose.md
-and execute it yourself for PR <n> in <OWNER_REPO>, then read SKILL.md's
-"Output: proposal block format" section and emit the result in that
-exact format. Ignore every other step in SKILL.md — those run in the
-caller's own session, not here.
+Read ~/.claude/skills/address-pr-comments/references/fetch-cluster-propose.md
+and execute it yourself for PR <n> in <OWNER_REPO>, emitting the proposal
+block in the exact format its final section gives. Ignore SKILL.md's other
+steps — those run in the caller's own session, not here.
 
 ME="<ME>". Filters: by=<logins or "none">, in=<paths or "none">.
 
@@ -198,46 +150,27 @@ Return ONLY the proposal block in your final message — never the raw
 fetched JSON.
 ```
 
-The subsections (fetch, filter, cluster, rank, propose — 3a through 3e) live in `references/step-3-fetch-cluster-propose.md`; only the dispatched subagent reads them.
+The subsections (fetch, filter, cluster, rank, propose — 3a through 3e) live in `references/fetch-cluster-propose.md`; only the dispatched subagent reads them.
 
-## Output: proposal block format
+## Output: the proposal block
 
-Return this single editable block. The user edits in place — flips action markers, edits drop reasons, deletes clusters to skip — then sends back. **One round.**
-
-```
-## PR <n> — <total> unresolved comments in <K> clusters
-
-### Cluster 1: <short title> [action: apply]
-- Files: src/auth/login.ts, src/auth/session.ts
-- Comments:
-  - [c12345] (alice) src/auth/login.ts:42 — "the rate limit should also..."
-    <url>
-  - [c12389] (alice) src/auth/session.ts:88 — "same here"
-    <url>
-- Proposed drop reason (if flipped): rate-limit lives in the gateway, not the app
-```
-
-For `[action: answer]`, add an `Answer:` line. Top-level comments use `(top-level)` in `Files`; self-authored ones are labeled `(yours)`. See "Editing rules" for the full set.
+The subagent returns one editable block of `### Cluster N` sections (template in `references/fetch-cluster-propose.md`). Relay it verbatim; the user edits it in place and sends it back. **One round.**
 
 ### Editing rules (state these to the user)
 
-- Change `[action: apply]` to `[action: answer]` or `[action: drop]` to flip.
-- Edit the drop-reason text directly — what's there is the proposal.
+- Flip `[action: apply]` to `[action: answer]` or `[action: drop]`.
+- Edit the drop-reason text directly — what's there is only the proposal.
 - Delete a whole `### Cluster N` section to skip it entirely (no commit, no reply).
-- For `answer`, add an `Answer:` line with the response text (the AI's clustering doesn't write your answers).
+- For `answer`, add an `Answer:` line — clustering doesn't write your answers.
 - Send the edited block back as a single message.
 
 ## Step 4: Parse the user's edited block (main)
 
-Parse the returned block. For each surviving cluster, record:
-- `action` ∈ {apply, answer, drop}
-- `comment_ids` (list of `databaseId`)
-- `urls` (for cross-linking in commit body)
-- `drop_reason` (if drop) or `answer_body` (if answer) or nothing (if apply)
+For each surviving cluster, record its `action`, `comment_ids` (`databaseId`), `urls` (for cross-linking in the commit body), and its `drop_reason` or `answer_body` where the action calls for one.
 
 If parse fails (mangled markers, missing `Answer:` for answer clusters), surface the exact issue and ask the user to re-send. Don't guess.
 
-Once parsing succeeds, create the TaskList tasks — see "Run-state file + TaskList state" above — one per applied cluster.
+Then create one TaskList task per applied cluster — see "Run-state file + TaskList state" above.
 
 ## Step 5: Per-cluster commits (main, applied clusters only)
 
@@ -247,48 +180,30 @@ For each `apply` cluster, **in the order the user left them**:
 
 1. Make the code changes that address the cluster's comments.
 2. Stage **only** files relevant to this cluster — see `commit-standards` for the `git add` rules.
-3. Commit using `commit-standards` (delegate via the Skill tool). Message body should reference the comments:
+3. Commit using `commit-standards` (delegate via the Skill tool), titling it `<type>(<scope>): <cluster title>` and listing the cluster's comment URLs under an `Addresses:` block in the body.
+4. Capture the commit SHA into the cluster's TaskList metadata and the run-state file — step 7's reply link needs it.
 
-   ```
-   <type>(<scope>): <cluster title>
+If a cluster's edits accidentally touch files outside its scope (drift), never silently absorb it.
 
-   Addresses:
-   - https://github.com/.../pull/169#discussion_r12345
-   - https://github.com/.../pull/169#discussion_r12389
-   ```
+Pause and ask the user whether to split it into a separate `[Drift]` commit per CLAUDE.md, or bundle it if trivial.
 
-4. Capture the commit SHA — needed for the reply link in step 7, and record it in the cluster's TaskList task metadata plus the run-state file.
-
-If a cluster's edits accidentally touch files outside its scope (drift), pause and ask the user whether to:
-
-- (a) split into a separate `[Drift]` commit per CLAUDE.md, or
-- (b) bundle if trivial.
-
-Don't silently absorb.
-
-Either way, flow resumes the current cluster's commit flow — the choice only decides where the drift fix commits — then continues to the next cluster.
+Either answer only decides where the drift fix commits; the cluster's own commit flow resumes, then continues to the next cluster.
 
 ## Step 6: Batch push (main)
 
-After all `apply` clusters are committed:
+After all `apply` clusters are committed, run a single `git push`. Confirm with the user first — it's irreversible, triggers CI, and notifies reviewers.
 
-```bash
-git push
-```
+This is the UNLESS case in CLAUDE.md's never-pre-ask rule: `git push` is commonly allowlisted, so this chat confirm is the only human gate.
 
-Single push. Confirm with the user before running — it's the irreversible step that triggers CI and notifies reviewers.
+If the push is rejected (remote moved), abort and surface it — the per-cluster commits stand as-is.
 
-This is the UNLESS case in CLAUDE.md's never-pre-ask rule: `git push` is commonly allowlisted, so this one chat confirm is the only human gate.
-
-If the push is rejected (remote moved), abort — stop and surface to the user; the per-cluster commits stand as-is.
-
-Ask the user to resolve the divergence manually (never auto-rebase), then re-attempt only the push — skip step 5's commit logic.
+Ask the user to resolve the divergence manually (never auto-rebase), then re-attempt only the push, skipping step 5.
 
 ## Step 7: Post replies (main)
 
 For **every comment in every surviving cluster** (apply/answer/drop), post a reply. Loop, don't batch — each reply is permission-gated.
 
-On a permission denial, skip that reply and list it in the final report (step 8).
+On a permission denial, skip that reply and list it in step 8's report.
 
 On a `gh api` failure, retry once, then skip and list it too. The loop always continues to the next comment — never stops.
 
@@ -296,15 +211,13 @@ On a `gh api` failure, retry once, then skip and list it too. The loop always co
 
 Reviewer wrote what they wrote. Acknowledge it landed, link the proof, move on. See `references/reply-patterns.md` for observed deletions and survivors.
 
-**Apply** — short ack + commit URL. Don't praise, don't re-explain, don't double-anchor the SHA.
+**Apply** — optional one-word ack + commit URL, nothing more. Don't praise, don't re-explain, don't double-anchor the SHA.
 
 ```
 <optional one-word ack> https://github.com/<OWNER_REPO>/pull/<n>/commits/<FULL_SHA>
 
 _via Claude Code (`address-pr-comments`)_
 ```
-
-Ack is optional — bare URL works.
 
 **Answer** — the user-supplied answer text, in the user's voice. **No AI signature** (see 7c).
 
@@ -328,33 +241,31 @@ _via Claude Code (`address-pr-comments`)_
 | top-level | `gh api -X POST repos/$OWNER_REPO/issues/<n>/comments -f body='@<author> re: <comment_url> — <body>'` |
 | review-summary | same as top-level (no per-review reply API) |
 
-For top-level / review-summary replies, prefix with `@<original_author> re: <link>` — pings the commenter and preserves thread context.
+That `@<author> re: <link>` prefix pings the commenter and preserves thread context.
 
 ### 7c. Signature rules — split by action
 
-- `apply` replies: AI signature **mandatory**.
-- `drop` replies: AI signature **mandatory**.
-- `answer` replies: **NO signature**.
-  - The answer carries the user's reasoning in the user's voice.
-  - Tagging as AI-assisted dilutes ownership (see `references/reply-patterns.md`).
-  - The inverse case — a comment addressed to Claude, answered in Claude's own voice with a mandatory `Claude:` prefix — belongs to `gh-answer-claude-mentions`, not here.
+`apply` and `drop` replies carry the AI signature **mandatorily**; `answer` replies carry **none**.
+
+An answer is the user's reasoning in the user's voice, and an AI tag dilutes that ownership (see `references/reply-patterns.md`).
+
+The inverse case — a comment addressed to Claude, answered in Claude's own voice — belongs to `gh-answer-claude-mentions`, not here.
 
 Signature literal: `_via Claude Code (`address-pr-comments`)_`. Plain text only — the global no-emoji rule applies to posted replies too.
 
 ### 7d. Optional refactor + auto-review tails (main, when step 1d's toggle is on)
 
-Skip this subsection entirely when the toggle is off — go straight to step 8.
+When the toggle is off, skip to step 8.
 
-Dispatch the shared deep-reviewer tail pair — [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md) — with `<BASE_REF>` = `<BATCH_BASE_SHA>`.
-No `<SPEC_PLAN_PATHS>` — this flow has no spec/plan.
+Otherwise dispatch the shared deep-reviewer tail pair — [`deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md).
 
-The `deep-reviewer-write-guard.sh` PreToolUse hook blocks writes during these report-only tails — detail in the reference above.
+Pass `<BASE_REF>` = `<BATCH_BASE_SHA>` and no `<SPEC_PLAN_PATHS>`, since this flow has no spec/plan.
 
-No new lint/test gate is needed — the tails are report-only, and when step 1c's opt-in check ran, it already covered this batch.
+The tails are report-only (the `deep-reviewer-write-guard.sh` PreToolUse hook enforces it), so they need no new lint/test gate.
 
 ## Step 8: Final report (main)
 
-Print a compact summary:
+Print:
 
 ```
 PR <n> address summary
@@ -367,8 +278,6 @@ PR <n> address summary
 ```
 
 When step 7d ran, append its two report paths and top findings to this summary so the user sees them in the same pass.
-
-The user resolves the threads themselves after eyeballing the replies — that's deliberate, not an oversight.
 
 ## Flowchart (human-facing)
 

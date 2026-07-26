@@ -23,7 +23,7 @@ emerge from noise.
 
 ## How it works
 
-The skill spawns a **subagent** (`general-purpose`) that runs the full
+The skill spawns the **`english-coach-analyst` subagent**, which runs the full
 analysis pipeline. The subagent reads the session JSONL on disk, so it
 doesn't need any of the parent session's history forwarded.
 
@@ -33,10 +33,13 @@ and the subagent's reasoning doesn't pollute the active conversation.
 
 ## Run
 
-1. Spawn an Agent with `subagent_type: general-purpose` and this prompt: "Read
-   `~/.claude/skills/english-coach/assets/subagent-prompt.md` and follow it."
-   Description: "English-coach analysis pass". The subagent reads its own
-   instructions from disk — the orchestrator never loads that file.
+1. Spawn an Agent declared as `subagent_type=english-coach-analyst`,
+   `title=English-coach analysis pass`, `model=opus`, `effort=high` — render its
+   `description` per CLAUDE.md's Agent-description form. Both `model` and `effort`
+   come from the agent's frontmatter, so pass no `model` param.
+   Prompt: "Run the English-coach analysis pass for the current session."
+   The subagent reads its own instructions from disk — the orchestrator never
+   loads `assets/subagent-prompt.md`.
 2. When the Agent reports back, share the output file path with the user
    along with its one-line summary of the top pattern.
 

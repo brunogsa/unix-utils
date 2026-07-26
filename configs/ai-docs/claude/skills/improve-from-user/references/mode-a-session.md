@@ -12,7 +12,13 @@ They survive in the session's JSONL transcript, which compaction only appends to
 python3 ~/.claude/skills/improve-from-user/scripts/extract-session-feedback.py
 ```
 
-It auto-detects the live session (newest transcript for the current cwd) and emits:
+It auto-detects the live session by its exported id, searching every project dir — so a Bash `cd` elsewhere can't misdirect it.
+
+Only with no id exported does it fall back to the newest transcript for the current cwd.
+
+The header's `selected by:` line names the rule that fired; an `(unverified)` value there means check the path before trusting the output.
+
+It emits:
 - **`[Learning]` markers** — learnings you pre-digested at correction time. Each pairs what the user did (`said`) with the rule you inferred (`rule`). Highest signal; treat every marker as a candidate.
 - **Verbatim user turns + next action** — raw feedback, recovered losslessly across compaction boundaries. Mine these for corrections no marker captured — your raw input is itself feedback.
 - **Compaction boundaries** — marked inline, so you see where memory was thinned.

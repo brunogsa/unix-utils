@@ -46,6 +46,9 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **CRITICAL: When uncertainty survives search, ask** -- never guess intent, requirements, or context only the user holds.
   - [Why] The worst outcome is confidently solving the wrong thing; asking to clear ambiguity is the highest-value help, never an interruption — and the gap is invisible to whoever introduced it.
 
+- [Instruction] Pair every question to me with your recommended option and the reasoning behind it.
+  - [Why] You hold the context the options came from, so an unranked menu pushes that analysis back onto me and makes the question cost more than it saves.
+
 - [Instruction] **Ambiguous-antecedent commands trigger a clarifying question** -- "Retry"/"yes"/"do that" without a clear antecedent must be confirmed before acting.
   - [Why] A bare "yes"/"retry" can bind to the wrong antecedent, silently applying the wrong action.
 
@@ -154,6 +157,9 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **Co-locate related artifacts** -- keep the rules, code, config, and docs on one topic physically adjacent so the topic reads as one contiguous unit.
   - [Why] A topic scattered across a file forces the reader to reassemble it from memory; adjacency makes it scannable in one place and surfaces gaps and duplicates.
 
+- [Instruction] When a file outgrows its budget, split it by topic before compressing the wording — compression is the fallback for when no clean topic boundary exists.
+  - [Why] Splitting keeps the words the reader needs while shrinking each load; compressing shrinks the file once and taxes every future read.
+
 - [Instruction] Point to a source only by file path, URL, or named anchor — never by a section or page number (`§X`, `ADR-N`, `page N`, `mitigação N`), even alongside a recap.
   - [Why] A number renumbers on the next edit and rots silently; a file path, URL, or named anchor tracks the thing itself and the recap already carries the meaning.
   - [Example] Bad: `see HLD §5.6` / `Fundação §6.2`; and even `recap… (HLD §5.4.14)` — the recap is fine, but the `§5.4.14` still drifts and invites a jump.
@@ -241,7 +247,6 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] **Serialize writes when they prompt for permission** -- one Edit/Write at a time, waiting for each result; in bypass-permissions/auto-accept mode, parallel writes are fine.
   - [Why] With prompts on, each write is a permission gate — one rejection re-issues all parallel writes; with prompts off, the gate is gone and parallel is just faster.
-  - [Example] Overrides the default 'parallelize independent tool calls' for write tools only.
 
 - [Instruction] Parallelize independent read-only calls (Read, Grep, Glob, read-only Bash) in one block — never serialize them.
   - [Why] Reads carry no permission gate and no write-ordering hazard, so batching them is pure latency saved; the serialize-writes default never extends to them.
@@ -370,8 +375,8 @@ rtk proxy <cmd>       # run <cmd> raw, bypassing rtk's filtering
 - [Instruction] Default to launching subagents in the background (`run_in_background`) — UNLESS the next step depends on the result, or the user must watch progress live: then run foreground.
   - [Why] Background keeps the loop free, but a result-gated background launch just stalls the turn — or tempts redoing the search inline, dumping what delegation was meant to keep out.
 
-- [Instruction] Give every Agent `description` the form `<title> - <model> <effort>` — no parens, no `<agent-type>` (the UI prepends it, so the full line reads `<agent-type> <title> - <model> <effort>`).
-  - [Why] That dispatch line is all the user sees live, so naming tier and effort lets them audit spawns in real time; repeating the type just doubles it (`general-purpose general-purpose …`).
+- [Instruction] Render every Agent `description` here as `<title> - <model> <effort>` from the values a skill declares — no parens, no `<agent-type>`, which the UI already prepends.
+  - [Why] That dispatch line is all the user sees live, so naming tier and effort lets them audit spawns in real time — one owner of the shape stops skills drifting.
 
 - [Instruction] **CRITICAL: Spawn a fresh-context subagent when writing-session bias would distort the check** -- verification, semantic match, or quality judgment over your own output.
   - [Why] In-session reading carries "I already convinced myself" residue; a subagent sees only the artifact + the question.
