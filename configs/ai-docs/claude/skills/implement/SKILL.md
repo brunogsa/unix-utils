@@ -154,7 +154,7 @@ Seed exactly these five, in this order, prefixed with the owning `PR-N ·` on a 
 [Reminder] Batch-end 1/5: planned-test presence gate (§8)
 [Reminder] Batch-end 2/5: repo-green gate — full suite + full lint, fix-loop until green (§9.1)
 [Reminder] Batch-end 3/5: review tails ∥ then triage (§9.2–§9.4)
-[Reminder] Batch-end 4/5: push + open the PR via create-pr (§9.5, only when pr.wanted)
+[Reminder] Batch-end 4/5: PR manifest entry; then push + open the PR via create-pr (§9.5, only when pr.wanted)
 [Reminder] Batch-end 5/5: package print, diffview pane (§9.5, success path only)
 ```
 
