@@ -4,13 +4,36 @@ Read this before writing or regenerating one.
 
 The file carries an H1 title, a preamble marking it human-facing and non-authoritative (SKILL.md's numbered steps win on conflict), then one mermaid flowchart of the control flow.
 
+## The diagram stands alone
+
+A human understands the entire skill from the diagram alone, never opening SKILL.md to decode a node.
+
+Spell out every step this skill owns.
+Never collapse a range into a pointer at the prose — "mirror steps 1-8 as TaskList entries".
+Never label a node with a bare section number the reader has to go look up.
+
+This does not contradict collapsing a callee (below). Collapse what belongs to *another* file's flow; never what belongs to this skill's own steps.
+
+Why: the flowchart is read *instead of* the numbered steps, not alongside them.
+A pointer back into SKILL.md hands the reader the very cross-reference the diagram existed to spare them, and it rots the moment a step is renumbered.
+
 ## What the flowchart covers
 
 - The trigger/invocation that starts the skill, its steps/phases, and every loop with its exit condition.
 - User-interaction points: the questions asked (interviews, toggles) and the manual gates where the human approves before flow continues.
-- Durable-state writes: TaskList usage (tasks created, `[Reminder]` entries) and scratchpad/run-state updates, each with a short why.
+- Durable-state writes: scratchpad/run-state updates, plus **one node per TaskList entry**, each with a short why.
 - Delegation: other skills loaded, and every subagent dispatch labeled with agent type, model, effort, and parallel (∥) vs serial.
 - Hooks/scripts that steer the flow (state machines, Stop hooks).
+
+## One node per TaskList entry
+
+Word each node as the entry it creates: `Add to TaskList a [Reminder] for Step 3: interview the user`.
+
+Wrap a statically-known set in a `subgraph` whose label carries the why — seeded upfront, before the first step runs, and surviving compaction.
+
+Keep a runtime-sized set — one entry per plan task, per review cluster — as a single node naming what one entry covers, since the count isn't knowable at authoring time.
+
+Why: the diagram is the human's audit of the run's whole timeline, so a collapsed range hides a step that could silently never be seeded.
 
 ## Scope it to this skill's own flow
 

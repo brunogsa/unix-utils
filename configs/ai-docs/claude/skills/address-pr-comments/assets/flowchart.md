@@ -6,7 +6,20 @@ Human-facing overview for auditing the flow at a glance. Non-authoritative — t
 flowchart TD
   invoke(["/address-pr-comments PR# [filters]"]):::start
   createState["Create run-state file<br/>/tmp/address-pr-comments_&lt;session_id&gt;_&lt;ts&gt;.json"]:::state
-  remindTask0["Global CLAUDE.md rule:<br/>add [Reminder] TaskList entry<br/>per remaining step (0-8)"]:::state
+
+  subgraph seedReminders["Seed the TaskList once, before Step 0 runs — one [Reminder] per remaining step (global CLAUDE.md rule).<br/>Update each as it completes; the TaskList survives compaction, so nothing is ever re-seeded."]
+    direction TB
+    rem0["Add to TaskList a [Reminder] for Step 0:<br/>Pre-flight interview"]:::state
+    rem1["Add to TaskList a [Reminder] for Step 1:<br/>Validate preconditions (1a-1d)"]:::state
+    rem2["Add to TaskList a [Reminder] for Step 2:<br/>Resolve repo + own login"]:::state
+    rem3["Add to TaskList a [Reminder] for Step 3:<br/>Fetch, filter, cluster, rank, propose"]:::state
+    rem4["Add to TaskList a [Reminder] for Step 4:<br/>Parse the user's edited block"]:::state
+    rem5["Add to TaskList a [Reminder] for Step 5:<br/>Per-cluster commits"]:::state
+    rem6["Add to TaskList a [Reminder] for Step 6:<br/>Batch push"]:::state
+    rem7["Add to TaskList a [Reminder] for Step 7:<br/>Post replies (7a-7d)"]:::state
+    rem8["Add to TaskList a [Reminder] for Step 8:<br/>Final report"]:::state
+    rem0 --> rem1 --> rem2 --> rem3 --> rem4 --> rem5 --> rem6 --> rem7 --> rem8
+  end
   probe0["Step 0: git status --porcelain;<br/>probe lint/test runner markers (read-only)"]
   askBatch["Step 0: Ask in ONE message<br/>(only conditions that hold)<br/><br/>- Dirty tree -&gt; commit now? (if dirty)<br/>- Green baseline check? (default no)<br/>- Runner pick (if ambiguous/none)<br/>- Tails after this batch? (default no)"]:::gate
   persistAnswers["Persist step-0 answers to<br/>run-state file - survives compaction"]:::state
@@ -60,8 +73,8 @@ flowchart TD
   step8["Step 8: Print final summary<br/>applied/answered/dropped/skipped counts"]
 
   invoke --> createState
-  createState --> remindTask0
-  remindTask0 --> probe0
+  createState --> rem0
+  rem8 --> probe0
   probe0 --> askBatch
   askBatch --> persistAnswers
   persistAnswers --> chk1a

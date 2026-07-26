@@ -16,7 +16,16 @@ flowchart TD
   skill_pr["Load references/pr-awareness.md<br/>(routes on to pr-branch-creation.md<br/>only when a checkout is needed)"]:::skill
   resolve_labels["1.8 Resolve EVERY PR-N in the arg<br/>to its task-id list (get-pr-tasks.sh),<br/>before any seeding"]
   seed_tasks["2.1 TaskList: one entry per task,<br/>ALL PRs upfront in execution order<br/>(PR-2 subjects prefixed 'PR-2 &middot;');<br/>1st in_progress, rest pending;<br/>status only, no metadata mirror"]:::state
-  seed_remind["2.2 TaskList: after each PR's tasks,<br/>seed its 5 SEPARATE [Reminder] entries<br/>(1/5 test-presence, 2/5 repo-green,<br/>3/5 tails+triage, 4/5 metrics+package<br/>+diffview, 5/5 draft PR);<br/>no run-specific values in subjects"]:::state
+
+  subgraph seedRemind["2.2 After each PR's task entries, seed that batch's 5 batch-end [Reminder]s — separate entries, never one chain.<br/>A combined entry has a single completed flag, so a step-level skip or failure would have nowhere to land.<br/>Prefixed 'PR-N &middot;' on a PR-label run; no run-specific values (BATCH_BASE_SHA lives in the state file)."]
+    direction TB
+    rem1["Add to TaskList a [Reminder] for<br/>Batch-end 1/5: planned-test presence gate"]:::state
+    rem2["Add to TaskList a [Reminder] for<br/>Batch-end 2/5: repo-green gate — full suite + full lint"]:::state
+    rem3["Add to TaskList a [Reminder] for<br/>Batch-end 3/5: review tails ∥ then triage"]:::state
+    rem4["Add to TaskList a [Reminder] for<br/>Batch-end 4/5: metrics, package print, diffview pane"]:::state
+    rem5["Add to TaskList a [Reminder] for<br/>Batch-end 5/5: draft PR via create-pr (only when pr.wanted)"]:::state
+    rem1 --> rem2 --> rem3 --> rem4 --> rem5
+  end
 
   subgraph perunit ["Per unit: whole batch (task-ids run) or each PR (PR-label list)"]
     dag_recheck["Re-check PR DAG (check-pr-dag.sh)<br/>for this PR"]:::hook
@@ -86,9 +95,9 @@ flowchart TD
   d_worktree -->|"no"| d_prlabel
   d_prlabel -->|"yes"| skill_pr --> resolve_labels --> seed_tasks
   d_prlabel -->|"no"| seed_tasks
-  seed_tasks --> seed_remind
-  seed_remind -->|"PR-label run"| dag_recheck --> recap
-  seed_remind -->|"task-ids run"| recap
+  seed_tasks --> rem1
+  rem5 -->|"PR-label run"| dag_recheck --> recap
+  rem5 -->|"task-ids run"| recap
   recap --> d_branch
   d_branch -->|"yes"| branch_setup --> state_init
   d_branch -->|"no / task-ids mode"| state_init

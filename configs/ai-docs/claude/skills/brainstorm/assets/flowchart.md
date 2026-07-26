@@ -5,7 +5,20 @@ Human-facing overview for auditing the flow at a glance. Non-authoritative — t
 ```mermaid
 flowchart TD
   start(["User runs /brainstorm [path/to/spec_&lt;slug&gt;.md]"]):::start
-  taskList["Mirror steps 1-8 as TaskList entries (category [Reminder]), once, at skill start;<br/>update each as it completes — TaskList itself survives compaction, no re-mirroring"]:::state
+
+  subgraph seedTaskList["Seed the TaskList once, at skill start — one [Reminder] per step, before step 1 runs.<br/>Update each as it completes; the TaskList survives compaction, so nothing is ever re-seeded."]
+    direction TB
+    tl1["Add to TaskList a [Reminder] for Step 1:<br/>Gather starting context"]:::state
+    tl2["Add to TaskList a [Reminder] for Step 2:<br/>Probe scope for decomposable sub-projects"]:::state
+    tl3["Add to TaskList a [Reminder] for Step 3:<br/>Interview the user (rigor toggles + Socratic rounds)"]:::state
+    tl4["Add to TaskList a [Reminder] for Step 4:<br/>Propose 2-3 approaches with trade-offs"]:::state
+    tl5["Add to TaskList a [Reminder] for Step 5:<br/>Generate/update spec_&lt;slug&gt;.md"]:::state
+    tl6["Add to TaskList a [Reminder] for Step 6:<br/>Present the spec for review"]:::state
+    tl7["Add to TaskList a [Reminder] for Step 7:<br/>Dispatch plan-writer to write plan_&lt;slug&gt;.md"]:::state
+    tl8["Add to TaskList a [Reminder] for Step 8:<br/>Run self-review, then hand off with /clear"]:::state
+    tl1 --> tl2 --> tl3 --> tl4 --> tl5 --> tl6 --> tl7 --> tl8
+  end
+
   d1{"Path provided?"}
   n1["Read the provided spec file"]
   n2["Glob spec_*.md in CWD (top-level)"]
@@ -19,8 +32,8 @@ flowchart TD
   d4{"User agrees to decompose?"}
   n7["Write scopes.md<br/><br/>One line per sub-project: name, purpose, dependency"]
 
-  preflightGate["Open interview with 2 yes/no rigor toggles:<br/>AC-traceability? Right-sized plan?<br/><br/>runs before the first question round;<br/>gates how strictly step 8's self-review checks run"]:::gate
-  persistToggles["Persist toggle answers to<br/>/tmp/sdd_&lt;session_id&gt;.json<br/><br/>step 8's self-review reads this file later, never re-asks"]:::state
+  preflightGate["Open interview with 2 yes/no rigor toggles:<br/>AC-traceability? Right-sized plan?<br/><br/>runs before the first question round;<br/>gates how strictly the self-review checks run, further below"]:::gate
+  persistToggles["Persist toggle answers to<br/>/tmp/sdd_&lt;session_id&gt;.json<br/><br/>the self-review reads this file later, never re-asks"]:::state
 
   n8["Create /tmp/brainstorm_&lt;session_id&gt;.md scratchpad<br/><br/>persist decisions+why, discarded alternatives+why, open questions as they happen<br/>on resume/after compaction: re-read this file first, trust over recalled context"]:::state
   n9["Interview: ask 2-3 Socratic questions per round<br/>(prefer AskUserQuestion tool, recommended answer + reasoning)<br/><br/>categories: Background • Goal/KPIs • User Stories • Acceptance Criteria (BDD) • NFR/Technical constraints • Open Questions<br/><br/>split facts (look up yourself) from decisions (ask user)"]:::gate
@@ -31,7 +44,7 @@ flowchart TD
   n11["Propose 2-3 approaches with trade-offs;<br/>lead with recommendation"]
   n12["Get directional pick from user;<br/>capture outcome + discarded alternatives in spec's Decisions section"]:::gate
 
-  skillLoad["Read spec-driven-development library by path<br/>(SKILL.md + assets/spec-template.md)<br/><br/>not Skill-invocable — disable-model-invocation: true<br/><br/>Guidelines: English regardless of conversation language,<br/>lean over exhaustive, no AC-N cross-references"]:::skill
+  skillLoad["Read spec-driven-development library by path<br/>(SKILL.md + assets/spec-template.md)"]:::skill
   d7{"spec_&lt;slug&gt;.md already exists?"}
   n13["Update spec in place;<br/>preserve user content, fill gaps, restructure to template"]
   n14["Derive kebab-case slug, confirm with user;<br/>write new spec_&lt;slug&gt;.md"]:::gate
@@ -40,23 +53,23 @@ flowchart TD
   n16["Present spec summary for review;<br/>ask if anything is missing or wrong"]:::gate
   d8{"User satisfied?"}
 
-  dispatch{{"Dispatch plan-writer · opus · high effort (serial, foreground)<br/><br/>model/effort come from the agent's own frontmatter pin — no model param passed<br/>inputs: spec path, plan_&lt;slug&gt;.md output path, planning-conventions file if any"}}:::dispatch
+  dispatch{{"Dispatch plan-writer · opus · high effort (serial, foreground)<br/><br/>inputs: spec path, plan_&lt;slug&gt;.md output path, planning-conventions file if any"}}:::dispatch
   d9{"plan-writer returned a numbered gap list?"}
   n18["Walk and close EVERY reported gap with user first; update spec_&lt;slug&gt;.md<br/><br/>then re-dispatch once (not once per gap); never invent the missing decision"]:::gate
-  refSelfReview["Read spec-driven-development/references/self-review-checks.md<br/><br/>what each gate means and what blocks;<br/>SKILL.md (read at step 5) carries the seven-check table"]:::skill
+  refSelfReview["Read spec-driven-development/references/self-review-checks.md<br/>(the checks run below are defined there)"]:::skill
   qualDispatch1{{"Dispatch deep-reviewer · opus · max effort (serial):<br/>qualitative pass — placeholders, contradictions,<br/>scope, PR size, ambiguity, completeness,<br/>human-reviewable, artifacts, density"}}:::dispatch
-  qualDispatch2{{"Dispatch mermaid-fixer · haiku · default effort (serial):<br/>fix diagrams until mmdc renders"}}:::dispatch
-  qualDispatch3{{"Dispatch density-fixer · haiku · default effort (serial):<br/>run check-density.sh until exit 0"}}:::dispatch
-  formalChecksNode["Run seven formal checks in sequence<br/>(5 always-on + 2 toggles read from<br/>/tmp/sdd_&lt;session_id&gt;.json persisted at step 3)<br/><br/>AC-test-coverage and right-sized checks each<br/>dispatch deep-reviewer · opus · max (serial)"]
+  qualDispatch2{{"Dispatch mermaid-fixer · haiku · default effort (serial)<br/>on every diagram in the spec + plan"}}:::dispatch
+  qualDispatch3{{"Dispatch density-fixer · haiku · default effort (serial)<br/>on the spec + plan files"}}:::dispatch
+  formalChecksNode["Run seven formal checks in sequence<br/>(5 always-on + 2 gated by the rigor toggles,<br/>read back from /tmp/sdd_&lt;session_id&gt;.json)<br/><br/>AC-test-coverage and right-sized checks each<br/>dispatch deep-reviewer · opus · max (serial)"]
   d10{"All blocking checks pass?"}
   fixLoop["Fix flagged issue directly;<br/>surface spec/plan conflicts to user first, if any"]:::gate
   snapshotLoop["Snapshot spec+plan to /tmp/sdd-snapshots/<br/>for the user's annotated-diff review<br/><br/>a fresh snapshot per round of AI fixes"]:::state
   d11{"User approves the snapshot?"}:::gate
   rerunCheck["Re-run only the failed check,<br/>plus a delta-scoped re-review of what the diff shows changed<br/><br/>never the whole seven-check block"]
-  done(["Tell user: run /clear, then invoke /implement<br/>(don't run /implement in this session)<br/><br/>rest is the user's to drive: /refactor → /auto-review →<br/>manual read → /create-pr → /improve-from-user + english-coach"]):::gate
+  done(["Hand off: tell the user to run /clear, then invoke /implement<br/><br/>brainstorm never runs /implement itself — everything downstream is the user's to drive"]):::gate
 
-  start --> taskList
-  taskList --> d1
+  start --> tl1
+  tl8 --> d1
   d1 -->|"yes"| n1
   d1 -->|"no"| n2
   n2 --> d2
