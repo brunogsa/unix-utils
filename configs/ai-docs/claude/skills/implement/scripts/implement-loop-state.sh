@@ -25,6 +25,12 @@
 #     token containing "/" (path-like), strips digits, then collapses
 #     whitespace — so two failures differing only by a line number or a tmp
 #     path count as the same signature.
+#   - A "blocked" attempt verdicts "stuck" on its first occurrence, with no
+#     retry and no signature comparison: it means the subagent hit something
+#     only a human can clear, so re-dispatching the same task would burn a
+#     dispatch to reach the same wall. Routing it through the script (rather
+#     than letting the caller shortcut to "stuck" itself) keeps every attempt
+#     inside the same budget accounting.
 #   - The batch-wide dispatch budget (BATCH_CAP_MULT * task count +
 #     GATE_FIX_ALLOWANCE) is checked before any per-task logic: it is the
 #     backstop for a runaway gate-fixing loop (gate_dispatches piling up),
@@ -155,6 +161,10 @@ case "$last_result" in
       emit_verdict "gates" "" "task $current_task passed and every other task is done or blocked; proceed to the test-presence gate"
     fi
     ;;
+  blocked)
+    emit_verdict "stuck" "$current_task" \
+      "task $current_task reported blocked; only the human can clear it, so no retry is issued"
+    ;;
   fail|timeout)
     task_attempts_json=$(jq -c --arg t "$current_task" '[.attempts[] | select(.task == $t)]' "$state_file")
     n_attempts=$(printf '%s' "$task_attempts_json" | jq 'length')
@@ -191,6 +201,6 @@ case "$last_result" in
     fi
     ;;
   *)
-    fail "unknown attempt result '$last_result' for task $current_task (expected pass, fail, or timeout)"
+    fail "unknown attempt result '$last_result' for task $current_task (expected pass, blocked, fail, or timeout)"
     ;;
 esac

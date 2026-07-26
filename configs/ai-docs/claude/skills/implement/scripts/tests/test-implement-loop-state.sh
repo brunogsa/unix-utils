@@ -106,6 +106,24 @@ it_should_verdict_retry_when_a_task_failed_with_fewer_than_4_attempts_and_no_stu
   assert_eq "should verdict retry when a task failed with fewer than 4 attempts and no stuck streak (task)" "1" "$(task_of)"
 }
 
+it_should_verdict_stuck_on_the_very_first_blocked_attempt_instead_of_retrying() {
+  local fixture
+  fixture=$(write_fixture "blocked-first-attempt" '{
+    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "batch_base_sha": "abc", "started_at": "2026-07-10T10:00:00Z", "presented_at": "",
+    "tasks": [{"id": "1", "status": "pending"}, {"id": "2", "status": "pending"}],
+    "attempts": [
+      {"task": "1", "n": 1, "result": "blocked", "signature": "staging DB credentials are missing from the vault", "tokens": 4200, "at": "2026-07-10T10:01:00Z"}
+    ],
+    "gate_dispatches": 0,
+    "tails": {"refactor_report": "", "auto_review_report": "", "tokens": {"gate": 0, "refactor": 0, "auto_review": 0}},
+    "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
+  }')
+  run_script "$fixture"
+  assert_eq "should verdict stuck on the very first blocked attempt instead of retrying (action)" "stuck" "$(action_of)"
+  assert_eq "should verdict stuck on the very first blocked attempt instead of retrying (task)" "1" "$(task_of)"
+}
+
 it_should_verdict_stuck_when_a_task_records_its_4th_failed_attempt() {
   local fixture
   fixture=$(write_fixture "stuck-4th" '{
@@ -266,6 +284,7 @@ it_should_exit_non_zero_with_a_clear_message_when_the_state_file_is_missing_or_i
 it_should_verdict_next_task_when_current_task_passed_and_pending_tasks_remain
 it_should_verdict_gates_when_every_task_in_the_batch_is_done
 it_should_verdict_retry_when_a_task_failed_with_fewer_than_4_attempts_and_no_stuck_streak
+it_should_verdict_stuck_on_the_very_first_blocked_attempt_instead_of_retrying
 it_should_verdict_stuck_when_a_task_records_its_4th_failed_attempt
 it_should_verdict_stuck_when_3_consecutive_identical_signatures_occur_before_the_attempt_cap
 it_should_not_verdict_stuck_when_identical_signatures_are_interrupted_by_a_different_one
