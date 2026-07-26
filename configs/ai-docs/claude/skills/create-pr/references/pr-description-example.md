@@ -168,9 +168,7 @@ O sandbox não está disponível no CI, então este cenário é a única prova p
 
 ### Apêndice — leitura opcional
 
-Leitura opcional: o diff mais a descrição acima já bastam para revisar.
-
-O corpo resume; aqui está o catálogo completo, para quem se aprofunda e para revisores de IA.
+Catálogo completo, opcional — o diff e a descrição já bastam para revisar.
 
 <details>
 <summary><strong>Referências</strong> — LLDs, HLD e ticket</summary>

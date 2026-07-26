@@ -1,6 +1,10 @@
 # Reading Order Template
 
-Used by `create-pr`, in PR descriptions as `Guia de review`. Portuguese is the default; the English variant below covers teams whose PR language is English.
+Used by `create-pr`, in PR descriptions as the review guide. Portuguese is the default; the English variant below covers teams whose PR language is English.
+
+Both templates are the *contents* of that block, never the block itself: `references/pr-template.md` owns the collapsed `<details>` wrapper, its `Review guide` label, and the estimated-time line inside its `<summary>`.
+
+That split is what keeps the guide costing 1 rendered line — a variant carrying its own heading or its own wrapper either renders expanded or nests a second `<details>`.
 
 Generate a **specific** reading order from the diff -- list real file paths, not generic placeholders.
 
@@ -27,9 +31,6 @@ Path heuristics: `controller/`, `consumer/` → orchestration. `use-case/`, `sha
 ### English -- when the team's PR language is English
 
 ```markdown
-<details>
-<summary><strong>Recommended Reading Order</strong> (estimated: {min}-{max} min)</summary>
-
 **Essential** (~{min}min):
 1. PR description (business context + decisions)
 2. `{controller_file}` — {brief role}
@@ -41,17 +42,11 @@ Path heuristics: `controller/`, `consumer/` → orchestration. `use-case/`, `sha
 6. Test bodies (unit)
 7. Test bodies (integration)
 8. Types/models in `{types_path}`
-
-</details>
 ```
 
 ### Portuguese -- the default (PR description "Guia de review")
 
 ```markdown
-### Guia de review
-
-Tempo estimado: {min}-{max} min
-
 **Essencial** (~{min}min):
 1. Descrição do PR (contexto de negócio + decisões)
 2. `{controller_file}` — {brief role}
@@ -69,10 +64,12 @@ Tempo estimado: {min}-{max} min
 
 When generating one variant from the other, use these label mappings:
 
+The first two rows translate `references/pr-template.md`'s `<summary>`; the rest translate the contents below it.
+
 | English | Portuguese |
 |---|---|
-| Recommended Reading Order | Guia de review |
-| estimated | Tempo estimado |
+| Review guide | Guia de review |
+| estimated time | tempo estimado |
 | Essential | Essencial |
 | Complete | Completo |
 | PR description | Descrição do PR |

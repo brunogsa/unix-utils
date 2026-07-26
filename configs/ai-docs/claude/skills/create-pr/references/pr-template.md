@@ -8,11 +8,13 @@ Each section below opens with its own line allowance. SKILL.md owns those budget
 
 Images, diagrams, blank lines, and collapsed content are free — a collapsed `<details>` costs only what its `<summary>` renders as.]
 
-[Review guide goes FIRST, before any content, collapsed by default:]
+[Budget: 1 line — this collapsed `<summary>`. It goes FIRST, before any content, and its one line is charged before the first heading rather than to a section below it.
+
+This file owns the `<details>` wrapper and the summary label; `references/reading-order-template.md` supplies only what goes inside.]
 
 <details>
 <summary><strong>Review guide</strong> (estimated time: {min}-{max} min)</summary>
-[Generated per `references/reading-order-template.md` — translate to the team's language as needed.]
+[Generated per `references/reading-order-template.md` — translate the wrapper's label and the contents to the team's language as needed.]
 </details>
 
 ## Jira link
@@ -39,7 +41,7 @@ Two groups, per the "Separate planned from incidental" rule in SKILL.md, which o
 Without plan_<slug>.md: derive the bullets from the diff and commit messages.]
 
 ## Decisions
-[Budget: 19 lines — 3 headings plus 8 bullets for Functional and 8 for Technical, with either subsection free to spend the other's unused allowance.
+[Budget: 18 lines — 3 headings plus 8 bullets for Functional and 7 for Technical, with either subsection free to spend the other's unused allowance.
 
 Decisions come BEFORE Architecture: the reviewer learns what was chosen, then sees it rendered in the diagrams.
 
@@ -78,7 +80,7 @@ Each diagram sits in its own `<details open><summary>One-line caption</summary> 
 Diagrams are the fastest thing in the PR to review, so they must not start collapsed.]
 
 ## Evidences
-[Budget: 4 lines — this heading, the counted-tests line, and up to 3 collapsed manual scenarios.
+[Budget: 5 lines — this heading, the counted-tests line, and up to 3 collapsed manual scenarios.
 
 Prove the change was tested, in the fewest words that still convince. Two parts, in this order: automated coverage, then manual evidence.
 
@@ -118,7 +120,7 @@ Manual-scenario layout:
 ]
 
 ## Appendix — optional reading
-[Budget: 6 lines — this heading, at most 2 lines of intro, and one collapsed block per subsection.
+[Budget: 5 lines — this heading, at most 1 line of intro, and one collapsed block per subsection.
 
 Collapsed by default, and explicitly labelled optional: the body plus the diff is the complete review. Its audience is deep divers and AI reviewers.
 

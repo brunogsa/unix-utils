@@ -42,17 +42,19 @@ This skill adds only what is specific to a PR, and never restates a rule `doc-st
 **The ideal description's visible text fits 64 rendered lines** -- a reviewer reaches the end of the story without scrolling, then scrolls only to read the diff.
 
 - **CRITICAL: The 64 lines are allocated per section, never spent first-come** -- a section that overruns is borrowing from one the reviewer still has to read.
+  - Review guide: **1** — its collapsed `<summary>`, which the script charges before the first heading rather than to a section below it.
   - Jira/Linear and related-PR links: **4**.
   - Context: **17** — the heading plus at most 4 paragraphs of at most 4 lines each.
-  - Changes: **9** — the heading plus 8 bullets or sub-bullets, counting the two group labels.
-  - Decisions: **19** — 3 headings plus 8 bullets for Functional and 8 for Technical.
+  - Changes: **9** — the heading plus 8 flat bullets, counting the two group labels.
+  - Decisions: **18** — 3 headings plus 8 bullets for Functional and 7 for Technical.
   - Architecture: **5** — the heading plus at most 4 diagrams, every one left expanded.
-  - Evidences: **4** — the heading, the counted-tests line, and up to 3 collapsed manual scenarios.
-  - Appendix: **6** — the heading, at most 2 lines of intro, and one collapsed block per subsection.
+  - Evidences: **5** — the heading, the counted-tests line, and up to 3 collapsed manual scenarios.
+  - Appendix: **5** — the heading, at most 1 line of intro, and one collapsed block per subsection.
+  - The eight entries sum to exactly 64, which is what makes "never spent first-come" checkable rather than aspirational.
 - **Unused Functional allowance transfers to Technical decisions, and back** -- 3 functional decisions free 5 more lines for technical ones.
   - No other pair transfers, since those two are the only sections whose split swings with the PR being mostly product or mostly implementation.
 - **Only rendered text counts** -- images, diagrams, blank lines, empty anchors, and collapsed content are free.
-  - A collapsed `<details>` costs only what its `<summary>` renders as, which is why the appendix fits in 6 lines however long it grows.
+  - A collapsed `<details>` costs only what its `<summary>` renders as, which is why the appendix fits in 5 lines however long it grows.
   - So the first lever is never "delete content" — it is "move content to where it costs nothing", which is what the appendix and the collapsed blocks exist for.
 - **CRITICAL: A line over ~95 rendered characters costs two** -- it wraps in GitHub's description column, so its cost doubles while the text still reads as one bullet.
   - This is invisible to the density check, whose cap is 256 characters — nearly three rendered lines of budget spent inside one compliant bullet.
@@ -68,7 +70,10 @@ This skill adds only what is specific to a PR, and never restates a rule `doc-st
   - Move a manual scenario's methodology prose inside its own collapsed block, where it costs nothing.
 - **Collapse what is consulted, never what is read** -- `doc-standards` owns this rule; applied here, manual scenarios and appendix subsections collapse, but Context, Changes, and Decisions never do.
   - Hiding a section a reviewer is supposed to read means nobody reviews it, which costs more than the lines it saved.
-- **A body still over budget after every cut ships anyway, with the overrun named** -- report which section overran and by how much, rather than silently raising the budget.
+- **A body over the 64 lines goes back through the cut order until it fits — it never ships over** -- re-cut, re-measure, repeat.
+  - Never raise the budget to close the gap, and never push the overrun with the overrunning section merely named.
+  - The cut order always has a next move, since every step relocates content to where it renders free instead of deleting it.
+  - That is why "irreducible" always means the cut order was not run to the end.
   - Splitting the PR is not the remedy: the diff is already written, the appendix carries the detail, and the code carries the rest.
 
 ## Process
@@ -230,9 +235,11 @@ Re-run both gates on `pr_<slug>_pr<N>.ideal.md` in the main session, even though
 
 - What is being confirmed is the artifact, not the agent's account of the artifact.
 - **Density** -- `~/.claude/skills/doc-standards/scripts/check-density.sh <file>` must print no violation.
-- **Page fit** -- `~/.claude/skills/create-pr/scripts/check-pr-page-fit.sh <file>` must exit 0.
-  - Read the per-section breakdown even on exit 0: a body can clear the 64-line total while one section has quietly eaten another's allowance.
+- **Page fit** -- `~/.claude/skills/create-pr/scripts/check-pr-page-fit.sh <file>` must not exit 3.
+  - Exit 0 → fits with room. Exit 2 → still fits, with under a fifth of the page left. Exit 3 → over the 64 lines, and the only failing outcome.
+  - Read the per-section breakdown on every outcome, pass included: a body can clear the 64-line total while one section has quietly eaten another's allowance.
 - Either gate failing → send the file back to the same `pr-writer` agent with the script output, and never hand-fix the prose in the main session.
+  - Loop that hand-off until the gate stops failing — a body over the budget is never pushed, per the one-page goal's cut-until-it-fits rule.
 
 **Never pause for user review** -- once both gates pass, continue straight to step 4.
 

@@ -56,9 +56,10 @@ The format has to stay stable, because the page-fit script can only hold a secti
    ~/.claude/skills/create-pr/scripts/check-pr-page-fit.sh <file>
    ```
 
-   Page-fit exit 0 means it fits, but read the per-section breakdown anyway and hold every section to its own budget.
+   Page-fit exit 0 and exit 2 both mean it fits — exit 2 only adds that under a fifth of the page is left. Exit 3 is the one failing outcome.
+   Read the per-section breakdown on every outcome anyway and hold every section to its own budget.
    A body can clear the total while one section has quietly eaten another's allowance.
-   Exit 2 or 3 means apply the cut order in the skill's one-page-goal section, in the order it lists, then re-run.
+   Exit 3, or any section over its own budget, means apply the cut order in the skill's one-page-goal section, in the order it lists, then re-run.
 
 ## Mode `final`
 
