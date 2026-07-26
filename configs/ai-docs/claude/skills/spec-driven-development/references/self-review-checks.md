@@ -6,6 +6,7 @@ SKILL.md carries the check table; this file carries what each check means and wh
 ## Contents
 
 - [Qualitative pass](#qualitative-pass)
+- [Artifact fixers](#artifact-fixers)
 - [Every AC has a test](#every-ac-has-a-test)
 - [Every test has a task](#every-test-has-a-task)
 - [How would this break?](#how-would-this-break)
@@ -16,6 +17,9 @@ SKILL.md carries the check table; this file carries what each check means and wh
 ## Qualitative pass
 
 Dispatch `agent(subAgent=deep-reviewer, title=Qualitative review of spec and plan)` to read both docs with fresh eyes and report findings. Only the PR-size item below blocks.
+
+**Skip this dispatch when the caller's qualitative-pass toggle is off** — read it back from `/tmp/sdd_<session_id>.json`, never re-ask.
+State in the output that it was skipped by request; the artifact fixers below still run.
 
 - **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
 - **Contradictions**: do sections within one doc disagree, or does plan_<slug>.md contradict spec_<slug>.md (spec assumptions overturned by planning, architectural choices superseding spec requirements)?
@@ -30,10 +34,19 @@ Dispatch `agent(subAgent=deep-reviewer, title=Qualitative review of spec and pla
 - **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker for the user.
 - **Completeness**: does the Testable Acceptance Criteria section cover every Goal, Success Metric/KPI, User Story, and Non-Functional/Technical Requirement — and every corner case and failure mode?
 - **Human-Reviewable**: could a complete novice succeed with only this plan and the repo — no other context? Is the format pleasant enough to read that the user can verify you?
+
+## Artifact fixers
+
+Two dispatches that repair rather than judge, run serially after the qualitative pass and before the seven formal checks.
+
 - **Artifacts Valid**: if any mermaid diagram exists, is it valid, verified via `mmdc`? A failing check routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)` on the resolved doc path — never fixed inline.
+
 - **Density**: spawn `agent(subAgent=density-fixer, title=Fix spec/plan density)` on the resolved `spec_<slug>.md` / `plan_<slug>.md` paths — never check or rewrite density violations inline.
-  - Runs last in the qualitative pass, after every content check above (including mermaid validation), before the seven formal checks begin.
-  - The subagent runs `check-density.sh` and applies the `density-rules.md` rewrite patterns until exit 0, without dropping information.
+  - Runs after mermaid validation, since repairing a diagram adds lines the density check must then measure.
+
+**No toggle switches these two off**, including the one that skips the qualitative pass.
+
+Why: they repair a mechanical defect rather than judge content, so a caller has no rigor to trade — and nothing else in the run catches an unrenderable diagram or an over-cap line.
 
 ## Every AC has a test
 
@@ -41,8 +54,8 @@ Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped co
 
 - Mechanical half — `scripts/check-ac-coverage.sh <plan> <spec>` checks completeness (every AC in the spec's Acceptance-Criteria section has a coverage header).
   - Honesty: every cited breadcrumb must exist verbatim among Test Design breadcrumbs; a `…`-truncated or invented citation won't match.
-  - Exit 1 blocks; the semantic half runs only after this passes.
-- Semantic half — sequential after the mechanical half, never parallel. Dispatch `agent(subAgent=deep-reviewer, title=Judge AC-to-test coverage)`.
+  - Exit 1 blocks.
+- Semantic half — runs only after the mechanical half passes, never in parallel with it. Dispatch `agent(subAgent=deep-reviewer, title=Judge AC-to-test coverage)`.
   - It judges whether each cited test actually *proves* its AC — the match no script can make.
 - Output: orphan ACs + bogus citations (empty = pass). Block plan approval if non-empty.
 
@@ -77,8 +90,6 @@ Fail-closed; runs regardless of either toggle.
 
 - `scripts/check-pr-dag.sh <plan>` validates the PR Breakdown's `Depends on:` graph. Passes trivially when the section reads `Single PR.` Exit 1 blocks.
 - `scripts/check-tasks-dag.sh <plan>` runs the same three checks (cycle, dangling reference, duplicate label) over the Task Breakdown's `Depends on:` graph. Exit 1 blocks.
-
-Both share `scripts/dag-check-helper.sh` for the detection algorithm — only the markdown parsing differs (PR Breakdown's single-line entries vs. Task Breakdown's heading + block).
 
 ## Every line traces to an AC (toggle)
 

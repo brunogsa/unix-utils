@@ -68,12 +68,15 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 ## Self-review gates
 
-Every plan passes a qualitative pass, then the seven formal checks below, before a human is asked to review it.
+Every plan passes a qualitative pass, then the artifact fixers, then the seven formal checks below, before a human is asked to review it.
 
-**Read [`references/self-review-checks.md`](references/self-review-checks.md) when you run these** — it carries the qualitative-pass checklist and, per formal check, what it means and what blocks.
+**Read [`references/self-review-checks.md`](references/self-review-checks.md) when you run these** — it carries the qualitative-pass checklist, the two artifact fixers, and, per formal check, what it means and what blocks.
 
-Two of the seven are toggles the caller resolves *before* the plan exists and persists to `/tmp/sdd_<session_id>.json`.
+Three toggles the caller resolves *before* the plan exists and persists to `/tmp/sdd_<session_id>.json`.
 Read the answers from that file when you reach the checks — never ask them here.
+
+- Two of them switch off one formal check each — the last two rows of the table below.
+- The third switches off the qualitative pass's `deep-reviewer` dispatch, and only that. The artifact fixers run regardless.
 
 Why: asking after the plan is written lets a check get waived because it failed, rather than because it never applied.
 
@@ -91,7 +94,7 @@ Seven formal checks run in sequence (five always-on + the two toggles above):
 
 The five always-on checks, plus the Test Design authoring requirement itself, never become optional — they verify the plan is mechanically correct regardless of change size.
 
-A toggled-off check is omitted from that pass; self-review's output states explicitly which checks were skipped by request, so the reviewer never wonders why something is absent.
+A toggled-off check or pass is omitted; self-review's output states explicitly what was skipped by request, so the reviewer never wonders why something is absent.
 
 Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces only in implementation.
 
