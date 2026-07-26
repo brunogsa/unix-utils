@@ -11,26 +11,11 @@ Help the user explore and refine an idea into a structured spec, then into a sel
 This skill owns the whole procedure end to end.
 The document conventions it writes against — naming, templates, guidelines, self-review gates — live in the `spec-driven-development` library.
 
-**This session reads from that library only at step 10**: `references/self-review-checks.md`, plus `references/delta-scoped-rereview.md` once self-review reaches a second round.
-
-Every other read happens inside a dispatched agent's own context, never this one:
-
-- **Step 6 (write the spec)**: the `fork` reads that library's `SKILL.md` plus its `assets/spec-template.md`.
-- **Step 7 (review the spec)**: the `deep-reviewer` reads one section of its `references/self-review-checks.md`.
-- **Step 9 (write the plan)**: `plan-writer` reads that library's `SKILL.md` plus its `assets/plan-template.md`.
-- **Steps 6 and 9 at depth `light` only**: each of those two agents also reads that library's `references/light-section-set.md`.
-
 Read that library by path — never via the Skill tool; its `disable-model-invocation: true` keeps it out of the skill listing entirely.
 
-Why the two lists: only the step-10 reads land in this session's context, so only those spend the budget this skill has to survive on.
+**Only step 10 reads it into this session's context.** Every other read happens inside a dispatched agent, and each step below names what its agent reads.
 
 Why nothing loads upfront: steps 1-5 are pure interview and need none of it, and that is the phase that burns the most context before any document exists.
-
-**At depth `none` this session reads that library not at all** — steps 6-10 never run, so even the step-10 reads are skipped.
-It reads this skill's own [`references/tasklist-only-mode.md`](references/tasklist-only-mode.md) instead, and nothing else.
-
-Why the depth gates the reads and not just the writing: step 10's gates are the single largest load this skill pays for.
-Every one of them parses a spec or a plan file, so a run that writes neither has nothing for them to read.
 
 ## Usage
 
@@ -44,14 +29,9 @@ Examples:
 
 **Before step 1 runs**, seed the TaskList with one `[Reminder]` per step 1-5, in order, and update each as it completes.
 
-Step 1 settles the run's depth, and that answer decides what comes after step 5 — so seed the remaining reminders the moment step 1 returns, before step 2 begins:
-
-- Depth `full` or `light` → one `[Reminder]` per step 6-10 below.
-- Depth `none` → one `[Reminder]` per named section of [`references/tasklist-only-mode.md`](references/tasklist-only-mode.md), which replaces steps 6-10 entirely.
+Step 6 seeds the rest, once the run's depth is settled — the tail differs by depth, and seeding steps the depth then cancels leaves reminders nobody can complete.
 
 Why: the TaskList survives compaction, so one entry per step keeps a step that would otherwise vanish with the summary visible as pending.
-
-Why the tail waits for step 1: seeding steps the depth then cancels leaves reminders nobody can complete, and a list carrying dead entries stops being a reliable read of what's left.
 
 ### 1. Pre-flight — settle the run's depth and toggles, and open its state
 
@@ -72,8 +52,6 @@ A single pass costs one round-trip; splitting it costs two on every run, to spar
 Persist all four answers immediately to `/tmp/sdd_<session_id>.json` — one brainstorm run per session, so the session id alone keys the file.
 The depth is the `mode` field, valued exactly `full`, `light`, or `none`; every step below reads it back from there and never re-asks.
 Answer them fresh each run: never reuse a previous run's answers, and never write any of them into the spec, the plan, or any committed file.
-
-At depth `none` the three toggles are recorded and then never read — nothing exists for them to gate. Don't act on them, and don't tell the user they were wasted.
 
 Why upfront: the depth decides whether documents exist at all, and the three toggles decide how strictly later steps check them.
 Settling both before any document exists closes off tuning either down after seeing what was produced.
@@ -106,15 +84,12 @@ If it looks decomposable, surface it:
 - Brainstorm only the first sub-project here — each remaining piece ideally gets its own spec→plan cycle.
 - If the user declines, brainstorm the whole original idea instead — no implicit narrowing to a first sub-project.
 
-**If the user agrees to decompose**: write a brief `scopes.md` next to where the spec will live.
+**If the user agrees to decompose**: record every sub-project as a `[Side]` TaskList entry, including the one being brainstormed now.
 
-- Under a `## Sub-projects` heading, one numbered line each, including the one being brainstormed now.
-- Format: `1. **<name>** — <one-sentence purpose>. Depends on: <none | #N>.`
+Give each entry a one-sentence purpose, plus the id of the sub-project it depends on where one exists.
 
-Why: a stale session loses the decomposition map, but `scopes.md` survives — so the next `/brainstorm` run picks up the queue instead of re-deriving the split.
-
-**At depth `none`, write no `scopes.md`** — record each deferred sub-project as a `[Side]` TaskList entry instead.
-Why: that depth writes no files, and a TaskList entry outlives the session just as well.
+Why the TaskList: a stale session loses the decomposition map, but an entry survives both the session and a compaction.
+The next `/brainstorm` run then picks up the queue instead of re-deriving the split.
 
 ### 4. Interview the user
 
@@ -158,17 +133,23 @@ Present 2-3 viable approaches conversationally.
 Lead with your recommendation and the reasoning. Cover the trade-off axes that matter for this idea (complexity, blast radius, reversibility, dependencies, time-to-first-value).
 
 Get a directional pick from the user before writing the spec.
-Capture the outcome in the run scratchpad, and — at depth `full` or `light` — in the spec's Decisions section too, as one marker with discarded alternatives as sub-bullets.
+Capture the outcome in the run scratchpad; step 6's fork folds it into the spec's Decisions section as one marker, with the discarded alternatives as sub-bullets.
 
 Why keep the discarded ones: naming what lost, and why, stops the next session re-deriving the same alternatives and re-litigating them.
 It also surfaces when the constraint that killed an alternative no longer applies.
 
-### 6. Dispatch a `fork` to write the spec
+### 6. Seed the tail, then dispatch a `fork` to write the spec
 
-**Steps 6 through 10 run only at depth `full` or `light`.**
-At depth `none`, read [`references/tasklist-only-mode.md`](references/tasklist-only-mode.md) now and follow it in place of all five — read the depth back from `/tmp/sdd_<session_id>.json`, never re-ask.
+**This is the run's only branch on depth.** Read it back from `/tmp/sdd_<session_id>.json`, never re-ask.
 
-Why the branch sits here: steps 2-5 are one interview regardless of depth, and step 6 is the first step that needs a document to exist.
+- **Depth `none`** → seed one `[Reminder]` per named section of [`references/tasklist-only-mode.md`](references/tasklist-only-mode.md).
+  - Then read that file and follow it in place of steps 6-10. Nothing below runs.
+
+- **Depth `full` or `light`** → seed one `[Reminder]` per step 6-10 below, then continue here.
+
+Why the branch sits here: steps 1-5 are one interview regardless of depth, and step 6 is the first step that needs a document to exist.
+
+Why `none` reads that file and nothing else: every step-10 gate parses a spec or a plan, so a run that writes neither has nothing for them to read.
 
 For a fresh idea, derive a short kebab-case `<slug>` from the feature yourself — never ask the user to confirm it.
 The plan later inherits that same slug — the shared slug is what pairs the two.
@@ -271,38 +252,13 @@ A planner that sees only the spec file tests whether the spec carries what a pla
 
 `plan-writer` never reviews its own output, so nothing upstream has checked the plan yet — this session runs every gate.
 
-**Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now** — it defines every gate below.
+**Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now** — it defines every gate, sorts them into a deterministic and a judged bucket, and gives each bucket's dispatch tier.
 
 **From the second round on, also read that library's `references/delta-scoped-rereview.md`** — it scopes each re-review to what `diff` shows changed, instead of both documents whole.
 
-Sort those gates into two buckets first, because every rule in this step turns on which bucket a gate is in:
-
-- **Deterministic** — a script or renderer returns the verdict, and re-running one costs nothing: the mermaid and density artifact fixers, `check-ac-coverage.sh`, `check-test-distribution.sh`, `check-pr-dag.sh`, `check-tasks-dag.sh`.
-  - Every agent dispatched here runs `model=sonnet, effort=high`, overriding the cheaper tier its own file pins.
-
-- **Non-deterministic** — a `deep-reviewer` judges: the qualitative pass, the semantic half of AC-to-test coverage, "how would this break?", and the two toggled checks.
-  - Every dispatch here runs opus at `effort=high` — opus comes from that agent's own pin, `high` overrides its `max`.
-
-Why the deterministic bucket is not on a trivial-transform tier: its fixers edit prose a human reads next, so a mangled sentence costs more than the cheaper tier saves.
-
-Why the judged bucket caps at `high`: the library keeps both documents deliberately lean, so `max` buys latency on a short read rather than accuracy.
-
-Why the split governs everything here: a deterministic gate is free to re-run and catches structural breakage, while each non-deterministic round costs a dispatch over both documents whole.
-So the deterministic ones run first and as often as needed, and the non-deterministic ones run as few times as the user will accept.
-
 #### 10.1 Run the deterministic gates
 
-Run them serially in this order:
-
-1. `agent(subAgent=mermaid-fixer, title=Fix diagrams in the spec and plan, model=sonnet, effort=high)`
-2. `agent(subAgent=density-fixer, title=Fix density in the spec and plan, model=sonnet, effort=high)`
-3. The four scripts.
-
-Fix each failure, then re-run that gate alone until it passes.
-
-The fixers lead because repairing a diagram adds lines the density cap must then measure.
-This step runs them before the qualitative pass, which is the reverse of the order that reference states.
-The reference sequences one pass over both buckets, while this step runs the cheap bucket to exhaustion first.
+Run that whole bucket to exhaustion, in the order the reference gives — fix each failure, then re-run that gate alone until it passes.
 
 #### 10.2 Close every Open Question before anything expensive runs
 
@@ -313,11 +269,11 @@ Then dispatch `agent(subAgent=fork, title=Close open questions)` to fold the ans
 
 Re-read both sections after each round. **Nothing below runs while a question is open.**
 
-Why gate here: every non-deterministic gate reads both documents whole, so running one over an unanswered question spends a dispatch reviewing a document that is about to change.
+Why gate here: every judged gate reads both documents whole, so running one over an unanswered question spends a dispatch reviewing a document that is about to change.
 
-#### 10.3 Run the non-deterministic gates once
+#### 10.3 Run the judged gates once
 
-Dispatch each one as `agent(subAgent=deep-reviewer, title=<the gate it judges>, effort=high)`, serially, per that reference.
+Dispatch each judged gate serially, per that reference, titling it after the gate it judges.
 
 Order: the qualitative pass first, then the remaining judged checks, including the two toggles read from `/tmp/sdd_<session_id>.json`. Never re-ask a toggle here.
 
@@ -335,7 +291,7 @@ Skip only the qualitative-pass dispatch when the pre-flight's self-review toggle
 
 5. **Hand the user a `diff` of each document against its snapshot** — that annotated diff is what they approve, and it also surfaces edits they made directly.
 
-6. **Ask the user whether to re-run the non-deterministic gates.** A yes returns to 10.3, scoped to that diff; a no accepts the documents as they stand.
+6. **Ask the user whether to re-run the judged gates.** A yes returns to 10.3, scoped to that diff; a no accepts the documents as they stand.
 
 Repeat until nothing blocks and the user approves the latest diff, or until they decline another round.
 

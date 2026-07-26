@@ -77,9 +77,14 @@ Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task
 
 ## Self-review gates
 
-Every plan passes a qualitative pass, then the artifact fixers, then the seven formal checks below, before a human is asked to review it.
+Every plan passes every gate below before a human is asked to review it.
 
-**Read [`references/self-review-checks.md`](references/self-review-checks.md) when you run these** — it carries the qualitative-pass checklist, the two artifact fixers, and, per formal check, what it means and what blocks.
+The gates split into two buckets: **deterministic** — a script or a renderer returns the verdict — and **judged**, where a `deep-reviewer` decides.
+
+Run the deterministic bucket first and as often as needed; the judged bucket runs as few times as the caller will accept.
+
+**Read [`references/self-review-checks.md`](references/self-review-checks.md) when you run these.**
+It carries the bucket membership and dispatch tiers, the qualitative-pass checklist, the two artifact fixers, and, per formal check, what it means and what blocks.
 
 Three toggles the caller resolves *before* the plan exists and persists to `/tmp/sdd_<session_id>.json`.
 Read the answers from that file when you reach the checks — never ask them here.

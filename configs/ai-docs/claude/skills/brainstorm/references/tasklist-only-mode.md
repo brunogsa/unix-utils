@@ -29,8 +29,7 @@ One entry per commit-sized unit of work, in the order they should execute, each 
 
 - Give each entry the `[Sub-Step]` category when it ships with its parent's commit rather than its own, so the commit boundary stays visible without a plan to consult.
 
-- Record any sub-project the user deferred in step 3 as a `[Side]` entry at the end of the list.
-  - **Write no `scopes.md`** — this depth writes no files, and a TaskList entry survives the session just as well.
+- Step 3 already recorded every deferred sub-project as a `[Side]` entry — leave those at the end of the list, and add none here.
 
 Cross-reference the two surfaces by task id and scratchpad path. Never copy the reasoning into a task, and never copy task status into the scratchpad.
 
@@ -59,7 +58,7 @@ Route rework to the earliest step the feedback invalidates, the same way step 8 
 
 ## Skip every document gate, and say so once
 
-None of step 10 runs: no `mermaid-fixer`, no `density-fixer`, none of the four scripts, none of the judged `deep-reviewer` passes.
+None of step 10 runs: no `mermaid-fixer`, no `markdown-standards-fixer`, none of the four scripts, none of the judged `deep-reviewer` passes.
 Every one of them reads a spec or a plan file, and neither exists.
 
 The pre-flight did ask the three rigor toggles, since it asks its whole set in one pass.

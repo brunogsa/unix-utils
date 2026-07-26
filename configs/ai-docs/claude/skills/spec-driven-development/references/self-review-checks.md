@@ -14,6 +14,7 @@ Without this note, the judged passes spend a whole round asking for sections the
 
 ## Contents
 
+- [The two buckets](#the-two-buckets)
 - [Qualitative pass](#qualitative-pass)
 - [Artifact fixers](#artifact-fixers)
 - [Every AC has a test](#every-ac-has-a-test)
@@ -22,6 +23,28 @@ Without this note, the judged passes spend a whole round asking for sections the
 - [PR and Task dependency DAGs](#pr-and-task-dependency-dags)
 - [Every line traces to an AC (toggle)](#every-line-traces-to-an-ac-toggle)
 - [Right-sized plan (toggle)](#right-sized-plan-toggle)
+
+## The two buckets
+
+Every check below sits in exactly one bucket, and the run order, the re-run policy and the dispatch tier all follow from which.
+
+**Deterministic** — a script or a renderer returns the verdict, so re-running one costs nothing.
+
+- Members: the two artifact fixers, plus `check-ac-coverage.sh`, `check-test-distribution.sh`, `check-pr-dag.sh` and `check-tasks-dag.sh`.
+
+- Dispatch each fixer at `model=sonnet, effort=high`, overriding the cheaper tier its own agent file pins.
+  - Why not a trivial-transform tier: a fixer edits prose a human reads next, so one mangled sentence costs more than the cheaper tier saves.
+
+**Judged** — a `deep-reviewer` decides, and each round costs one dispatch over both documents whole.
+
+- Members: the qualitative pass, the semantic half of "every AC has a test", "how would this break?", and the two toggled checks.
+
+- Dispatch each at `effort=high`, taking the model from that agent's own pin — `high` overrides its `max`.
+  - Why capped at `high`: both documents are deliberately lean, so `max` buys latency on a short read rather than accuracy.
+
+Run the deterministic bucket first, to exhaustion — fix each failure and re-run that gate alone until it passes. Only then dispatch the judged bucket.
+
+Why that order rather than the reverse: a deterministic gate is free to re-run, and it catches structural breakage a judged pass would spend a whole dispatch rediscovering.
 
 ## Qualitative pass
 
@@ -33,9 +56,9 @@ State in the output that it was skipped by request; the artifact fixers below st
 - **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
 - **Contradictions**: do sections within one doc disagree, or does the plan contradict the spec (spec assumptions overturned by planning, architectural choices superseding spec requirements)?
 - **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition?
-  - If decomposable, write/update `scopes.md` next to the spec — one line per sub-project, each giving its name, a one-sentence purpose, and which other sub-projects it depends on.
+  - If decomposable, record each sub-project as a `[Side]` TaskList entry — its name, a one-sentence purpose, and which other sub-projects it depends on.
   - Then re-run the qualitative pass only; the formal checks follow next regardless.
-  - Why the file: a stale session loses the decomposition map, so the next planning run re-derives the same split from scratch.
+  - Why the TaskList: a stale session loses the decomposition map, and the TaskList is the one surface that survives both the session and a compaction.
 - **PR size**: does the work fit one reviewable PR, or is it large enough to stage into several?
   - If large, **PR Breakdown** must split the tasks into an ordered PR sequence — vertical splits, each shipping its own tests + code + docs — not one oversized PR.
   - Blocking gate: an oversized PR blocks approval until the plan is split, or the user explicitly waives it for this run.
@@ -47,11 +70,11 @@ State in the output that it was skipped by request; the artifact fixers below st
 
 ## Artifact fixers
 
-Two dispatches that repair rather than judge, run serially after the qualitative pass and before the seven formal checks.
+Two dispatches that repair rather than judge. Both sit in the deterministic bucket, so they run before the judged bucket, never after it.
 
 - **Artifacts Valid**: if any mermaid diagram exists, is it valid, verified via `mmdc`? A failing check routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)` on the resolved doc path — never fixed inline.
 
-- **Density**: spawn `agent(subAgent=density-fixer, title=Fix spec/plan density)` on the resolved spec and plan paths — never check or rewrite density violations inline.
+- **Density**: spawn `agent(subAgent=markdown-standards-fixer, title=Fix spec/plan markdown)` on the resolved spec and plan paths — never check or rewrite density violations inline.
   - Runs after mermaid validation, since repairing a diagram adds lines the density check must then measure.
 
 **No toggle switches these two off**, including the one that skips the qualitative pass.
