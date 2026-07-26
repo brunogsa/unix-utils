@@ -43,7 +43,7 @@ Only when the interview opted into a draft PR (§1.2). Skip this section entirel
     - The REST endpoint touches no Projects data.
     - Read the body back afterward to confirm it landed.
 - Generate the description with `agent(subAgent=create-pr, title=Draft batch PR description)` from the spec/plan and commit bodies.
-  - Never dispatch `deep-reviewer` for this: its write-guard hook allows only `verdict_*.md` and `/tmp` writes, and denies a `pr-descr_*.md` write in CWD outright.
+  - Never dispatch `deep-reviewer` for this: its write-guard hook allows only `verdict_*.md` and `/tmp` writes, and denies a `pr_*.final.md` write in CWD outright.
   - Scope this dispatch to drafting only — the agent's own skill would otherwise push and create the PR itself, which the orchestrator owns instead (see "must not push" below).
   - **The dispatch prompt must spell out every one of these requirements explicitly — never just "follow create-pr's conventions" by bare reference.**
     The agent loads its own skill's conventions, but has no visibility into this batch's own specifics (output path, PR-label, draft-only scope) unless the prompt states them.
@@ -64,8 +64,9 @@ Only when the interview opted into a draft PR (§1.2). Skip this section entirel
   - Pass the resolved `<this-PR-label>` explicitly in the dispatch prompt, so the subagent writes one PR's description, never asks which PR it covers.
     The CWD may hold several spec/plan pairs, and a PR-label run may cover several PRs, so an unstated label binds to the wrong one.
   - Assign its output path explicitly:
-    - When `pr_label` is non-empty: `./pr-descr_<slug>_<this-PR-label-lowercase>.md` (e.g. `pr-descr_multi-pr-implement_pr2.md`).
-    - On a plain `<task-ids>` run (`pr_label` is `""`): drop the suffix entirely — `./pr-descr_<slug>.md` — matching create-pr's own single-PR-plan convention.
+    - When `pr_label` is non-empty: `./pr_<slug>_<this-PR-label-lowercase>.final.md` (e.g. `pr_multi-pr-implement_pr2.final.md`).
+    - On a plain `<task-ids>` run (`pr_label` is `""`): drop the label entirely — `./pr_<slug>.final.md` — matching create-pr's own single-PR-plan convention.
+    - `.final.md` is the file GitHub receives; create-pr's `.ideal.md` is an intermediate this flow never pushes.
     - The subagent writes that file directly; the orchestrator then reads it for `--body-file`.
   - It must not push or commit — the orchestrator owns the push.
 - Put completed Scout / repo-green fixes under an **"Unexpected extras"** section in the PR body.

@@ -68,23 +68,28 @@ This skill adds only what is specific to a PR, and never restates a rule `doc-st
   - Move a manual scenario's methodology prose inside its own collapsed block, where it costs nothing.
 - **Collapse what is consulted, never what is read** -- `doc-standards` owns this rule; applied here, manual scenarios and appendix subsections collapse, but Context, Changes, and Decisions never do.
   - Hiding a section a reviewer is supposed to read means nobody reviews it, which costs more than the lines it saved.
-- **A body that cannot fit after every cut is a PR that is too big** -- three screens of prose do not make a large diff reviewable.
-  - Say so to the user and recommend splitting the PR, rather than raising the budget silently.
+- **A body still over budget after every cut ships anyway, with the overrun named** -- report which section overran and by how much, rather than silently raising the budget.
+  - Splitting the PR is not the remedy: the diff is already written, the appendix carries the detail, and the code carries the rest.
 
 ## Process
+
+**Seed the TaskList before step 1 runs** -- one `[Reminder]` entry per step below, in execution order.
+
+- A skipped step then stays visible as pending across a compaction, which the numbered steps alone do not survive.
 
 ### 1. Gather context
 
 - Discover spec/plan in cwd by glob `spec_*.md plan_*.md` (top-level):
   - One spec / one plan → use whichever exist, auto-resolved. Multiple of either → open question **(A) Spec/plan choice**: list them numbered.
   - None found → proceed from the changes digest (below) only, auto-resolved.
-  - Extract every ` ```mermaid ``` ` fenced block from each resolved file — these become the Architecture section, and are excluded from the appendix.
 - **Resolve the output filename's `<slug>` and `<N>` (used in step 2)**: `<slug>` is the shared filename slug from the resolved `spec_<slug>.md`/`plan_<slug>.md`.
   - Fall back to the current branch name (`/` → `-`) when neither spec nor plan resolved.
-  - Single PR plan or no plan resolved → omit `<N>`, auto-resolved.
+  - Single PR plan or no plan resolved → omit `_pr<N>` entirely, auto-resolved.
   - Multiple `PR-N` entries in `## PR Breakdown` → open question **(B) Which PR-N**: set `<N>` to that number (e.g. `PR-2` → `2`).
-- **Ask every open question (A/B) together, in one message, before continuing** -- skip any label that auto-resolved above.
-  - Once answered, resolve `<slug>`/`<N>` and create `pr-descr_<slug>_pr<N>.md` right away with an HTML comment logging each answer.
+- **Ask (A) and (B) in ONE interview, as two separate questions** -- a single `AskUserQuestion` call carrying both; skip either label that auto-resolved above.
+  - They resolve different things — which source file to read, and which slice of a multi-PR plan this is — so one merged question would force two answers into one choice.
+
+- Once answered, create `./pr_<slug>_pr<N>.ideal.md` right away with an HTML comment logging each answer.
   - Example: `<!-- step 1: spec=spec_foo.md; PR=2/3 -->` -- GitHub hides HTML comments in rendered bodies.
   - It is this skill's durable record, not a separate scratchpad -- it survives a mid-flow compaction that would drop the answers.
 - **Derive the appendix's section list — never ask the user for it** -- it is the resolved spec/plan minus every section the body already renders.
@@ -92,32 +97,36 @@ This skill adds only what is specific to a PR, and never restates a rule `doc-st
   - Included: Testable Acceptance Criteria, Functional Decisions, Technical Decisions, Non-Functional/Technical Requirements, Test Design, and any section with no body counterpart.
   - Decisions stay here in FULL and verbatim — the body's Decisions section is a higher-altitude summary of the main ones, not a replacement.
   - `### References` joins them there as authored content, so the appendix survives even when no spec/plan resolved.
-  - Extract them with `~/.claude/skills/create-pr/scripts/extract-md-sections.sh <file> "<section>" ["<section>" ...]`.
-- **Resolve the base branch (used below and in step 5)**: run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
+
+- **CRITICAL: Both halves of a spec/plan reach the PR by script, never by re-authoring** -- the main session derives the list, and step 2's agent runs the extractors.
+  - Sections: `~/.claude/skills/create-pr/scripts/extract-md-sections.sh <file> "<section>" ["<section>" ...]`.
+  - Diagrams: `~/.claude/skills/create-pr/scripts/extract-mermaid-blocks.sh <file> [<file> ...]` — every fenced `mermaid` block becomes the Architecture section, and leaves the appendix.
+  - A re-summarized section or a re-drawn diagram diverges from what the spec/plan was reviewed against, and nothing downstream catches the divergence.
+- **Resolve the base branch (used in step 5)**: run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
   - Every PR targets this branch directly on GitHub, never a parent's branch.
   - Empty result (`origin/HEAD` unset) → omit `--base` in step 5; let it fall back to default.
-- Check if branch is pushed.
-- **Delegate diff/log reading to a subagent** -- dispatch `agent(subAgent=general-purpose, title=Gather PR changes digest, model=sonnet)`, foreground (step 2 needs the result immediately).
-  - Give it the resolved base branch, the resolved spec/plan slices, and this skill's Writing Style section.
-  - It reads git log vs base with **full commit bodies** -- the primary source for decisions, rationale, and scope changes (mining relies on `commit-standards`-shaped commits).
-  - It reads git diff vs base, but returns only the **changes digest** (`references/changes-digest.md`), never the raw diff.
+- **Ensure the branch is pushed** -- `git push -u origin <branch>` when it has no upstream, so step 5 only has to create the PR.
+- **Delegate diff/log reading to a subagent** -- dispatch `agent(subAgent=changes-gatherer, title=Gather PR changes digest)`, foreground (step 2 needs the result immediately).
+  - Give it the resolved base branch and a `/tmp` artifact path; it writes the full commit log and diff there and returns only the **changes digest** (`references/changes-digest.md`).
+  - The digest is what step 2 authors from, so the raw diff never enters the main session's context.
 
 ### 2. Compose the ideal description
 
-**CRITICAL: The main session orchestrates and never composes the prose itself** -- dispatch an Agent, then validate its output against the artifact.
+**CRITICAL: The main session orchestrates and never composes the prose itself** -- dispatch the agent, then validate its output against the artifact.
 
-- `agent(subAgent=general-purpose, title=Compose ideal PR description, model=sonnet)`, foreground (step 3 gates on the file it writes).
-  - Give it the changes digest, the derived appendix sections, the resolved `<slug>`/`<N>`, and this skill's one-page-goal, non-overlap, and Writing Style sections.
+- `agent(subAgent=pr-writer, title=Compose ideal PR description)` in mode `ideal`, foreground (step 3 gates on the file it writes).
+  - Give it four things: the changes digest, the resolved spec/plan paths, the derived appendix section list, and the output path `./pr_<slug>_pr<N>.ideal.md`.
+  - It loads this skill and `doc-standards` itself, runs the extractors, and loops on the density and page-fit gates before returning — none of that belongs in the dispatch prompt.
 
 **CRITICAL: It writes the IDEAL description in this skill's own format, ignoring any repo template** -- the repo's template is step 4's problem, not its.
 - The format has to stay stable, because `check-pr-page-fit.sh` can only hold a section to its budget when it recognizes that section.
 - The ideal description is never pushed as-is when a repo template exists; it is the single input step 4 builds the final body from.
 
-Output: `./pr-descr_<slug>_pr<N>.md` in cwd -- `<slug>` and `<N>` resolved per step 1 (`_pr<N>` dropped for a single-PR plan).
+Output: `./pr_<slug>_pr<N>.ideal.md` in cwd -- `<slug>` and `<N>` resolved per step 1 (`_pr<N>` dropped for a single-PR plan).
 
 Keep the file step 1 created -- never overwrite its resolved-answers comment.
 
-Author from the changes digest (step 1), the derived appendix sections, and the template -- not the raw diff.
+Author from the changes digest (step 1), the extracted spec/plan sections, and the template -- not the raw diff.
 
 **Escape hatch**: if the digest is insufficient for a specific section, read that file's targeted diff (`git diff <base> -- <path>`); never fall back to the full diff.
 
@@ -216,28 +225,27 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits. Anything refe
 
 ### 3. Verify the ideal description
 
-All three checks below must pass before step 4. Never pause for user review — once they pass, continue.
+Re-run both gates on `pr_<slug>_pr<N>.ideal.md` in the main session, even though the agent already looped on them.
 
-- **Resolve every TODO-Question** -- while drafting you may leave `// TODO: Question - <factual question>` markers for non-obvious behavior a reviewer would want clarified (example prompts: [`references/decision-quality.md`](references/decision-quality.md)).
-  - Answer adds reviewer value → investigate the code and replace the TODO with the answer inline, as concise prose rather than the full investigation.
-  - Internal-only → strip it entirely.
-  - A TODO must NEVER survive into the final PR push.
-- **Density** -- dispatch `agent(subAgent=density-fixer, title=Fix PR description density)` on `pr-descr_<slug>_pr<N>.md`; it must exit clean.
-- **Page fit** -- run `~/.claude/skills/create-pr/scripts/check-pr-page-fit.sh pr-descr_<slug>_pr<N>.md`.
-  - Exit 0 → fits, but still read the breakdown it prints and hold every section to its own budget.
-  - Exit 2 → close; trim the worst section in the breakdown.
-  - Exit 3 → over; apply the cuts in the one-page-goal rule above, then re-run.
+- What is being confirmed is the artifact, not the agent's account of the artifact.
+- **Density** -- `~/.claude/skills/doc-standards/scripts/check-density.sh <file>` must print no violation.
+- **Page fit** -- `~/.claude/skills/create-pr/scripts/check-pr-page-fit.sh <file>` must exit 0.
+  - Read the per-section breakdown even on exit 0: a body can clear the 64-line total while one section has quietly eaten another's allowance.
+- Either gate failing → send the file back to the same `pr-writer` agent with the script output, and never hand-fix the prose in the main session.
+
+**Never pause for user review** -- once both gates pass, continue straight to step 4.
 
 ### 4. Fit the ideal description to the repo's PR template
 
 **Check `.github/` for a PR template** (`pull_request_template.md`, `PULL_REQUEST_TEMPLATE.md`).
 
-**No template found → the ideal description IS the final body** -- skip the rest of this step; step 5 pushes `pr-descr_<slug>_pr<N>.md`.
+**No template found → copy the ideal description into the final body** -- `cp pr_<slug>_pr<N>.ideal.md pr_<slug>_pr<N>.final.md`, then skip the rest of this step.
+- The copy keeps one push path instead of two: step 5 always pushes the `.final.md`, whatever produced it.
 
-**Template found → dispatch a second Agent to merge the two** -- the main session again orchestrates rather than composing.
-- `agent(subAgent=general-purpose, title=Fit PR description to repo template, model=sonnet)`, foreground (step 5 gates on its output).
-- Give it exactly two inputs: the verified `pr-descr_<slug>_pr<N>.md` and the repo's template file.
-- It writes `./pr-body_<slug>_pr<N>.md`, and that file — not the ideal description — is what step 5 pushes.
+**Template found → dispatch the merge** -- the main session again orchestrates rather than composing.
+- `agent(subAgent=pr-writer, title=Fit PR description to repo template)` in mode `final`, foreground (step 5 gates on its output).
+- Give it exactly three paths: the verified `pr_<slug>_pr<N>.ideal.md`, the repo's template file, and the output `./pr_<slug>_pr<N>.final.md`.
+- It re-reads the rules below from this skill, and runs the body-size gate itself.
 
 **CRITICAL: The repo's template is the base structure, never the thing being replaced.**
 - Keep every section and checkbox, filling them from the ideal description rather than re-deriving content from the diff.
@@ -248,30 +256,31 @@ All three checks below must pass before step 4. Never pause for user review — 
 
 **CRITICAL: Never run the page-fit check on the final body** -- the budget was already enforced on the ideal description, the only source the final body draws content from.
 
-### 5. Create the PR
+### 5. Create the draft PR
 
 - **Body size** -- GitHub rejects a PR body over 65,536 characters, a hard API limit distinct from the density cap.
-  - Run `~/.claude/skills/create-pr/scripts/check-pr-body-size.sh <file>` on the file this step pushes, since the repo's template adds content the ideal description never carried.
+  - Run `~/.claude/skills/create-pr/scripts/check-pr-body-size.sh pr_<slug>_pr<N>.final.md`, which is the only gate the no-template copy path has ever run on that file.
   - Exit 0 → safe. Exit 2 → close to the cap, trim soon.
-  - Exit 3 → over the cap: drop the appendix's lowest-value sections (Test Design first, then Non-Functional Requirements) via `extract-md-sections.sh`, then re-run before proceeding.
-- Push branch if needed (with -u)
-- Create PR as **draft** using `gh pr create --draft --body-file <file> --base <base-branch>`.
-  - `<file>` is the one step 4 resolved; `<base-branch>` is the value step 1 resolved, dropped entirely when empty.
+  - Exit 3 → over the cap: send it back to `pr-writer`, which drops the appendix's lowest-value sections (Test Design first, then Non-Functional Requirements) and re-checks.
+- **Create the PR as a draft with no chat-side review gate** -- `gh pr create --draft --body-file pr_<slug>_pr<N>.final.md --base <base-branch>`.
+  - `<base-branch>` is the value step 1 resolved, dropped entirely when empty.
+  - The user reviews on GitHub, where the rendered body is the artifact they will actually judge; a chat-side approval would review a different one.
+- Return the PR URL.
+
+### 6. Apply post-push changes
+
+The user may hand-edit the body on GitHub, or ask for a change in chat. Either way:
+
+- **Pull GitHub's current body into the file first** -- `gh pr view <n> --json body`, so a hand-edit made there is not overwritten by the next push.
+- **Edit `pr_<slug>_pr<N>.final.md` only** -- the `.ideal.md` is deliberately left to drift once the PR exists.
+  - Re-deriving the final body from it would discard the user's own edits, and nobody reads the ideal description after the push.
+- **Confirm with the user before writing to GitHub** -- the local edit is cheap to revise; the pushed body notifies reviewers.
 - **Updating an existing PR's body: never use `gh pr edit --body-file`** — it eagerly queries `repository.pullRequest.projectCards` (Projects classic).
   - Where that's sunset it errors and silently fails the write, sometimes still exiting 0.
   - Write via the REST API instead, which touches no Projects data:
   ```bash
   gh api --method PATCH repos/<owner>/<repo>/pulls/<n> -F body=@<file>
   ```
-  - After either path, read the body back (`gh pr view <n> --json body`) and confirm it matches the file.
-- Return the PR URL
-
-### 6. Learn from user feedback
-
-If the user later changes the pushed PR body — in chat, or by hand-editing either `.md` — diff the edit against the pushed version.
-
-Apply the fix to `pr-descr_<slug>_pr<N>.md` first, then regenerate the final body from it, so the two never drift.
-
-Per CLAUDE.md's infer-the-general-rule rule, propose the inferred rule as a Writing Style update, and apply it once approved.
+  - Afterwards read the body back (`gh pr view <n> --json body`) and confirm it matches the file.
 
 [`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.

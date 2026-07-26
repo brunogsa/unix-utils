@@ -6,44 +6,57 @@ Human-facing overview for auditing the flow at a glance. Non-authoritative — t
 flowchart TD
   n1(["1. /create-pr — no flags"]):::start
   n2["2. Load doc-standards before drafting —<br/>a PR body is a standalone doc, so its density cap,<br/>BLUF ordering, and collapse rules all apply"]:::skill
-  n3["3. Step 1 · Glob cwd top-level for spec_*.md / plan_*.md;<br/>extract every mermaid fence from what resolved —<br/>those become Architecture, and leave the appendix"]
-  n4{"4. Anything left ambiguous?<br/>(A) several spec/plan files matched<br/>(B) several PR-N entries in the plan's PR Breakdown"}
-  n4a["4a. Ask (A) and (B) together in ONE message,<br/>before continuing; skip any label that auto-resolved"]:::gate
-  n5["5. Create ./pr-descr_&lt;slug&gt;_pr&lt;N&gt;.md right away, with an<br/>HTML comment logging each answer — this skill's durable<br/>record, surviving a mid-flow compaction that drops them"]:::state
-  n6["6. Derive the appendix's section list — never ask for it:<br/>the resolved spec/plan MINUS every section the body renders"]
-  n6a["6a. extract-md-sections.sh &lt;file&gt; &lt;section&gt; ..."]:::hook
-  n7["7. Resolve the base branch:<br/>git symbolic-ref refs/remotes/origin/HEAD;<br/>empty -&gt; omit --base in step 5. Check if the branch is pushed"]
-  n8[["8. Dispatch: Gather PR changes digest<br/>general-purpose · sonnet · effort inherits · foreground (step 2 gates on it)<br/>reads git log vs base with FULL commit bodies + git diff;<br/>returns only the changes digest, never the raw diff"]]:::dispatch
-  n9[["9. Step 2 · Dispatch: Compose ideal PR description<br/>general-purpose · sonnet · effort inherits · foreground (step 3 gates on it)<br/>main session orchestrates and never composes the prose itself"]]:::dispatch
-  n10["10. Ideal description written to ./pr-descr_&lt;slug&gt;_pr&lt;N&gt;.md<br/>in THIS skill's own format, ignoring any repo template —<br/>page-fit can only budget a section it recognizes"]:::state
-  n11["11. Step 3 · Resolve every // TODO: Question marker — answer it inline<br/>when that adds reviewer value, else strip it entirely.<br/>None may survive into the pushed body"]
-  n12[["12. Dispatch: density-fixer on the ideal description<br/>density-fixer · agent-pinned · foreground<br/>must exit clean: 256 chars / 32 words per line"]]:::dispatch
-  n13["13. check-pr-page-fit.sh pr-descr_&lt;slug&gt;_pr&lt;N&gt;.md<br/>— 64 rendered lines, allocated per section"]:::hook
-  n14{"14. Page-fit exit code?"}
-  n14a["14a. Apply the cut order: repack lines past the wrap width, drop bullets<br/>a diagram already encodes, cut Decisions to behavior/cost/risk,<br/>merge Changes bullets, move methodology inside its collapsed block"]
-  n14a1["14a1. A body that cannot fit after every cut is a PR that is too big:<br/>say so and recommend splitting the PR,<br/>rather than raising the budget silently"]:::gate
+
+  subgraph n3["3. Seed the TaskList before step 1 runs — a skipped step then stays<br/>visible as pending across a compaction, which the steps alone do not survive"]
+    n3a["3a. [Reminder] Step 1: gather context"]:::state
+    n3b["3b. [Reminder] Step 2: compose the ideal description"]:::state
+    n3c["3c. [Reminder] Step 3: verify the ideal description"]:::state
+    n3d["3d. [Reminder] Step 4: fit it to the repo's PR template"]:::state
+    n3e["3e. [Reminder] Step 5: create the draft PR"]:::state
+    n3f["3f. [Reminder] Step 6: apply post-push changes"]:::state
+  end
+
+  n4["4. Step 1 · Glob cwd top-level for spec_*.md / plan_*.md;<br/>none found -&gt; author from the changes digest alone"]
+  n5{"5. Anything left ambiguous?<br/>(A) several spec/plan files matched<br/>(B) several PR-N entries in the plan's PR Breakdown"}
+  n5a["5a. ONE AskUserQuestion carrying (A) and (B) as two<br/>SEPARATE questions — they resolve different things, so one<br/>merged question would force two answers into one choice"]:::gate
+  n6["6. Create ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md right away, with an<br/>HTML comment logging each answer — this skill's durable<br/>record, surviving a mid-flow compaction that drops them"]:::state
+  n7["7. Derive the appendix's section list — never ask for it:<br/>the resolved spec/plan MINUS every section the body renders.<br/>The list is handed to step 2's agent, which extracts sections with<br/>extract-md-sections.sh and diagrams with extract-mermaid-blocks.sh —<br/>a re-summarized section or re-drawn diagram diverges silently"]
+  n8["8. Resolve the base branch:<br/>git symbolic-ref refs/remotes/origin/HEAD;<br/>empty -&gt; omit --base when the PR is created"]
+  n9["9. Ensure the branch is pushed: git push -u origin &lt;branch&gt;<br/>when it has no upstream, so step 5 only has to create the PR"]
+  n10[["10. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · foreground (step 2 gates on it)<br/>writes the full commit log + diff to a /tmp artifact and returns<br/>only the digest, so the raw diff never enters the main session"]]:::dispatch
+
+  n11[["11. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · mode ideal · foreground (step 3 gates on it)<br/>main session orchestrates and never composes the prose itself"]]:::dispatch
+  n12["12. Ideal description written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md<br/>in THIS skill's own format, ignoring any repo template —<br/>page-fit can only budget a section it recognizes"]:::state
+
+  n13["13. Step 3 · Re-run both gates in the main session:<br/>check-density.sh and check-pr-page-fit.sh —<br/>what is confirmed is the artifact, not the agent's account of it"]:::hook
+  n14{"14. Both gates clean?<br/>density silent, page-fit exit 0"}
+  n14a[["14a. Dispatch: Fix the flagged ideal description<br/>pr-writer · agent-pinned · mode ideal · foreground<br/>hand it the script output; never hand-fix the prose in main"]]:::dispatch
+
   n15{"15. Step 4 · Does .github/ carry a PR template?<br/>(pull_request_template.md / PULL_REQUEST_TEMPLATE.md)"}
-  n15a["15a. No template -&gt; the ideal description IS the final body"]
-  n15b[["15b. Dispatch: Fit PR description to repo template<br/>general-purpose · sonnet · effort inherits · foreground (step 5 gates on it)<br/>exactly two inputs: the verified ideal description + the template"]]:::dispatch
-  n15c["15c. Final body written to ./pr-body_&lt;slug&gt;_pr&lt;N&gt;.md — the repo's<br/>template is the base structure, never the thing replaced.<br/>NEVER page-fit-checked: its structure is arbitrary, so the<br/>script cannot attribute its lines to a budgeted section"]:::state
-  n16["16. Step 5 · check-pr-body-size.sh on the file THIS step pushes —<br/>the repo's template adds content the ideal never carried"]:::hook
+  n15a["15a. No template -&gt; cp the ideal to ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md,<br/>so one push path serves both branches"]:::state
+  n15b[["15b. Dispatch: Fit PR description to repo template<br/>pr-writer · agent-pinned · mode final · foreground (step 5 gates on it)<br/>exactly three paths: the verified ideal, the template, the output"]]:::dispatch
+  n15c["15c. Final body written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md — the repo's<br/>template is the base structure, never the thing replaced.<br/>NEVER page-fit-checked: its structure is arbitrary, so the<br/>script cannot attribute its lines to a budgeted section"]:::state
+
+  n16["16. Step 5 · check-pr-body-size.sh on the .final.md —<br/>the only gate the no-template copy path has run on that file"]:::hook
   n17{"17. Body-size exit code?"}
-  n17a["17a. Drop the appendix's lowest-value sections via extract-md-sections.sh<br/>— Test Design first, then Non-Functional Requirements"]
-  n18["18. Push the branch with -u if needed; then<br/>gh pr create --draft --body-file &lt;file&gt; --base &lt;base-branch&gt;"]
+  n17a[["17a. Dispatch: Trim the oversized final body<br/>pr-writer · agent-pinned · mode final · foreground<br/>drops the appendix's lowest-value sections and re-checks"]]:::dispatch
+  n18["18. gh pr create --draft --body-file &lt;final&gt; --base &lt;base-branch&gt;,<br/>with NO chat-side review gate — the user reviews the rendered<br/>body on GitHub, which is the artifact they will actually judge"]
   n19["19. Return the PR URL"]
-  n20{"20. Step 6 · Does the user later change the pushed body,<br/>in chat or by hand-editing either .md?"}
-  n20a["20a. Apply the fix to pr-descr_&lt;slug&gt;_pr&lt;N&gt;.md FIRST, then<br/>regenerate the final body from it, so the two never drift"]:::state
-  n20b["20b. Infer the general rule behind the edit and propose it<br/>as a Writing Style update; apply it only once approved"]:::gate
+
+  n20{"20. Step 6 · Does the user hand-edit the body on GitHub,<br/>or ask for a change in chat?"}
+  n20a["20a. Pull GitHub's current body into the file first —<br/>gh pr view &lt;n&gt; --json body — so a hand-edit made<br/>there is not overwritten by the next push"]
+  n20b["20b. Edit ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md ONLY; the .ideal.md is<br/>deliberately left to drift, since re-deriving the final body<br/>would discard the user's own edits"]:::state
+  n20c["20c. Confirm with the user before writing to GitHub —<br/>the local edit is cheap to revise, the pushed body notifies reviewers"]:::gate
+  n20d["20d. gh api --method PATCH repos/&lt;owner&gt;/&lt;repo&gt;/pulls/&lt;n&gt; -F body=@&lt;file&gt;<br/>— never gh pr edit --body-file, which queries Projects-classic<br/>projectCards and can fail the write while still exiting 0.<br/>Read the body back and confirm it matches the file"]
   n21(["21. Done"])
 
   n1 --> n2
   n2 --> n3
   n3 --> n4
-  n4 -->|"yes"| n4a
-  n4 -->|"no, all auto-resolved"| n5
-  n4a --> n5
-  n5 --> n6
-  n6 -.->|"extracted with"| n6a
+  n4 --> n5
+  n5 -->|"yes"| n5a
+  n5 -->|"no, all auto-resolved"| n6
+  n5a --> n6
   n6 --> n7
   n7 --> n8
   n8 --> n9
@@ -52,11 +65,9 @@ flowchart TD
   n11 --> n12
   n12 --> n13
   n13 --> n14
-  n14 -->|"0 — fits, but still read the breakdown<br/>and hold every section to its own budget"| n15
-  n14 -->|"2 — close; trim the worst section"| n14a
-  n14 -->|"3 — over the 64-line budget"| n14a
+  n14 -->|"no"| n14a
   n14a --> n13
-  n14a -.->|"no cut left to make"| n14a1
+  n14 -->|"yes — never pause for user review"| n15
   n15 -->|"no"| n15a
   n15 -->|"yes"| n15b
   n15b --> n15c
@@ -71,7 +82,9 @@ flowchart TD
   n20 -->|"yes"| n20a
   n20 -->|"no"| n21
   n20a --> n20b
-  n20b --> n21
+  n20b --> n20c
+  n20c --> n20d
+  n20d --> n20
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px

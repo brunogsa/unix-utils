@@ -23,7 +23,7 @@
 # Usage:
 #   check-pr-page-fit.sh <file> [page-lines] [wrap-width]
 #
-#   <file>       Markdown file to measure (e.g. pr-descr_<slug>_pr<N>.md).
+#   <file>       Markdown file to measure (e.g. pr_<slug>_pr<N>.ideal.md).
 #   page-lines   Optional. Rendered lines the whole body may occupy. Default: 64,
 #                the sum of the per-section budgets in create-pr's SKILL.md,
 #                which is the authority on how those 64 lines are divided.
@@ -42,9 +42,9 @@
 #   3  over the budget (does not fit one page)
 #
 # Examples:
-#   check-pr-page-fit.sh pr-descr_<slug>_pr<N>.md
-#   check-pr-page-fit.sh pr-descr_<slug>_pr<N>.md 80      # taller screen
-#   check-pr-page-fit.sh pr-descr_<slug>_pr<N>.md 64 110  # wider column
+#   check-pr-page-fit.sh pr_<slug>_pr<N>.ideal.md
+#   check-pr-page-fit.sh pr_<slug>_pr<N>.ideal.md 80      # taller screen
+#   check-pr-page-fit.sh pr_<slug>_pr<N>.ideal.md 64 110  # wider column
 
 set -euo pipefail
 
