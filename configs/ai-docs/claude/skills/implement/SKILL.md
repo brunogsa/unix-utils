@@ -273,7 +273,8 @@ Everything invariant — checklist write/resume mechanics, preloaded standards, 
 
 ### 4.2. Mid-execution design forks — the subagent never spawns a reviewer
 
-The task subagent **never** spawns a subagent of its own, reviewer or otherwise. Only the orchestrator spawns, so every dispatch stays visible, attributable, and bounded by §4's Monitor cap.
+The task subagent **never** spawns a subagent of its own, reviewer or otherwise.
+The harness would allow one more level; this skill spends none of it, so every dispatch stays visible, attributable, and bounded by §4's Monitor cap.
 
 On a mid-execution design fork the plan didn't pre-decide, tdd-coder resolves it one of two ways and hands the outcome back:
 

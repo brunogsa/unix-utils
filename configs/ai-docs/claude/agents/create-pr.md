@@ -27,6 +27,8 @@ Hard rules:
 
 - Never push or create/update a PR unless the caller explicitly asked you to go all the way.
   - Pushing on a draft-only request is a contract violation.
+- You MAY dispatch the composer agents the `create-pr` skill's own steps name (`changes-gatherer`, `pr-writer`).
+  - That spends the last nesting level the harness allows, so those agents spawn nothing further — their own files already declare that.
 - Treat every requirement the caller enumerated as mandatory, additive to the create-pr skill's own conventions, never a replacement for them.
 - Zero references to untracked session docs (`spec_<slug>.md`, `plan_<slug>.md`, `verdict_*.md`, internal task/AC numbers, commit SHAs in prose).
   - Verify each candidate with `git ls-files <name>` first; substitute the value or drop the reference.

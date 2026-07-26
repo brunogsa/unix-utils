@@ -151,18 +151,24 @@ Give each follow-up step its own `[Reminder]` — never one entry standing for s
 Why: the list then reads as the run's whole timeline, and a skipped step stays visible as pending.
 Bundled into one reminder, that step hides behind a checkbox someone already flipped.
 
-## Pin the model on every dispatch, and keep spawning in the orchestrator
+## Pin the model on every dispatch, and spend the one nesting level deliberately
 
 Name the model in the dispatch instruction: `sonnet` for mechanical or tool-driving steps, `haiku` for trivial transforms.
 Omit the pin only when the step genuinely needs the session model's judgment — and say so in the skill.
 
 Why: an unpinned Agent call inherits the session's model — often the most expensive tier — so a scripted mechanical fan-out silently runs at top-tier pricing on every future invocation.
 
-Only the orchestrator spawns: a subagent the skill dispatches must never spawn one of its own.
-Say so in that agent's file, and route the second opinion it wanted to a review step the orchestrator already runs.
+Nesting runs two levels deep, not one: `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH: "2"` in `settings.json` permits main → subagent → subagent, and the harness refuses the third.
+So a subagent MAY spawn a worker it genuinely needs — an extractor, a fixer, a gatherer.
 
-Why: a nested spawn is invisible to the orchestrator's budget and token accounting, so the run's caps stop bounding it.
-It also judges one slice mid-flight, where the deferred whole-artifact review sees that question against the full batch.
+Treat that second level as a budget the skill spends once, and state in each agent's file whether it may spawn.
+A skill whose dispatched agent spawns has spent it, so no other flow can then dispatch that skill's agent as a subagent of its own without hitting the wall.
+
+Why: an agent file silent on spawning gets a rule invented for it by whoever reads it next, and the invented rule is wrong in whichever direction the reader guessed.
+
+A subagent still never spawns a second opinion on its own work — route that to a review step the orchestrator already runs.
+
+Why: a mid-flight self-review judges one slice, where the deferred whole-artifact review sees that same question against the full batch.
 
 ## When a skill step gets rushed, sharpen its completion criterion before adding process
 

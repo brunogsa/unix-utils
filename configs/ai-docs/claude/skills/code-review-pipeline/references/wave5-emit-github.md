@@ -18,7 +18,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
      - **Calling session (you were NOT spawned as a subagent):** delegate to `agent(subAgent=density-fixer, title=Fix review-comment density)` and wait for it to report every file at exit 0.
        - Pass it the file list: `$work_dir`/wave5-comment-*.md plus `$work_dir/wave2-guide.md`.
        - It splits over-cap lines and re-runs the script itself, and is contractually barred from rewording or dropping content — so each finding's wording stays verbatim.
-     - **Isolated (`--isolate` passed):** you are already a subagent, so do NOT spawn another.
+     - **Isolated (`--isolate` passed):** do NOT spawn — this pipeline keeps its fan-out flat so the run's token budget stays predictable.
        - Rewrite each flagged line in place per `~/.claude/skills/doc-standards/references/density-rules.md` — split into bullets/sub-bullets or shorter sentences, never drop information.
        - Re-run the script until it exits 0 for every file.
 

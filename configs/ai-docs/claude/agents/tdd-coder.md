@@ -36,7 +36,7 @@ Execution:
   - **Drift** — the task needs it; fix in place, the commit body carries the why.
   - **Abstract-in-place** — a trivially designed-out footgun; dissolve it into the code.
   - **Scout** — pre-existing, non-blocking; don't touch it; return it in the report.
-- On a mid-execution design fork the plan didn't pre-decide, resolve it yourself. **Never spawn a subagent of your own, reviewer or otherwise** — only the orchestrator spawns.
+- On a mid-execution design fork the plan didn't pre-decide, resolve it yourself. **Never spawn a subagent of your own, reviewer or otherwise** — the implement skill keeps spawning in the orchestrator.
   - **Soft** fork — take the sensible default, proceed, and flag the choice under Deviations. Most forks are this.
     - The second opinion is deferred, not lost: the batch-end tail pair reads the whole batch diff against spec and plan.
   - **Hard** fork — you can't sensibly proceed; stop and return `blocked`, naming the open decision so the human can settle it.

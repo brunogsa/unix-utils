@@ -15,4 +15,5 @@ Consult the `html-artifacts` skill's decision tree, then write `${out_file}` —
 - **Calling session (you were NOT spawned as a subagent):** delegate to `agent(subAgent=density-fixer, title=Fix review-output density)`, passing it `$out_file`; wait for it to report exit 0.
   - It splits over-cap lines and re-runs the script itself, without rewording or dropping content.
   - Unreachable in practice here — local mode always dispatches isolated (SKILL.md's dispatch rule), so only the isolated branch below ever runs.
-- **Isolated (`Mode: local`, or `--isolate` passed):** you are already a subagent — do NOT spawn another; rewrite each violation in place per `doc-standards/references/density-rules.md` and re-run until exit 0.
+- **Isolated (`Mode: local`, or `--isolate` passed):** do NOT spawn — this pipeline keeps its fan-out flat so the run's token budget stays predictable.
+  - Rewrite each violation in place per `doc-standards/references/density-rules.md` and re-run until exit 0.
