@@ -50,6 +50,15 @@ Resolve with this shared baseline:
 
 The remaining shapes (zero matches, only one kind) diverge per consumer because their needs differ — each skill's own Discovery section is canonical.
 
+### Section set — full by default, light on request
+
+Both templates below are the **full** section set, and a caller that asks for nothing gets them whole.
+
+A caller may instead ask for the **light** set — the same documents with the briefing sections omitted.
+Read [`references/light-section-set.md`](references/light-section-set.md) only when a caller names it; the full set never needs that file.
+
+Why the choice is the caller's: `brainstorm` settles it with the user before any document exists, so the depth is a declared intent rather than a per-section judgment made while writing.
+
 ### spec_<slug>.md (why / what)
 
 Captures background, goals, requirements, testable acceptance criteria and functional decisions.

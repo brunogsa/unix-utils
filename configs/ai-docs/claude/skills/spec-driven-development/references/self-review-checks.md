@@ -3,6 +3,15 @@
 Read this when self-review starts, once a plan exists and before any human is asked to review it.
 SKILL.md carries the check table; this file carries what each check means and what blocks.
 
+**A missing section may be a declared choice, not a defect.** The caller can request the light section set, described under SKILL.md's Section set heading.
+
+It omits the spec's Context Diagram, Goals/KPIs, User Stories and Non-Functional requirements, plus the plan's General Flow, Side-effect report and Failure Handling.
+
+Never report one of those absences as a finding, and don't ask for it back. Every check below still runs unchanged — light trims prose, never a gate.
+
+Why it matters here: those headings are the first thing a fresh reviewer misses.
+Without this note, the judged passes spend a whole round asking for sections the user already declined.
+
 ## Contents
 
 - [Qualitative pass](#qualitative-pass)
@@ -32,7 +41,8 @@ State in the output that it was skipped by request; the artifact fixers below st
   - Blocking gate: an oversized PR blocks approval until the plan is split, or the user explicitly waives it for this run.
   - Felt anchor: reviewer defect-detection drops past ~400 lines of diff and hard above ~600 (SmartBear/Cisco; Google small-CL) — no code exists yet, so estimate by feel, never invent a line count.
 - **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker for the user.
-- **Completeness**: does the Testable Acceptance Criteria section cover every Goal, Success Metric/KPI, User Story, and Non-Functional/Technical Requirement — and every corner case and failure mode?
+- **Completeness**: does the Testable Acceptance Criteria section cover every Goal, Success Metric/KPI, User Story, and Non-Functional/Technical Requirement the spec actually carries — and every corner case and failure mode?
+  - On a light-set spec most of those sections are absent by design, so judge coverage against what Background states plus the two checklists, which are never trimmed.
 - **Human-Reviewable**: could a complete novice succeed with only this plan and the repo — no other context? Is the format pleasant enough to read that the user can verify you?
 
 ## Artifact fixers

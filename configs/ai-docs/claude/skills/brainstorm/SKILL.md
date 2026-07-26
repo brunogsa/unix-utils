@@ -18,12 +18,19 @@ Every other read happens inside a dispatched agent's own context, never this one
 - **Step 6 (write the spec)**: the `fork` reads that library's `SKILL.md` plus its `assets/spec-template.md`.
 - **Step 7 (review the spec)**: the `deep-reviewer` reads one section of its `references/self-review-checks.md`.
 - **Step 9 (write the plan)**: `plan-writer` reads that library's `SKILL.md` plus its `assets/plan-template.md`.
+- **Steps 6 and 9 at depth `light` only**: each of those two agents also reads that library's `references/light-section-set.md`.
 
 Read that library by path — never via the Skill tool; its `disable-model-invocation: true` keeps it out of the skill listing entirely.
 
 Why the two lists: only the step-10 reads land in this session's context, so only those spend the budget this skill has to survive on.
 
 Why nothing loads upfront: steps 1-5 are pure interview and need none of it, and that is the phase that burns the most context before any document exists.
+
+**At depth `none` this session reads that library not at all** — steps 6-10 never run, so even the step-10 reads are skipped.
+It reads this skill's own [`references/tasklist-only-mode.md`](references/tasklist-only-mode.md) instead, and nothing else.
+
+Why the depth gates the reads and not just the writing: step 10's gates are the single largest load this skill pays for.
+Every one of them parses a spec or a plan file, so a run that writes neither has nothing for them to read.
 
 ## Usage
 
@@ -35,22 +42,41 @@ Examples:
 
 ## Process
 
-**Before step 1 runs**, seed the TaskList with one `[Reminder]` per step below, in order, and update each as it completes.
+**Before step 1 runs**, seed the TaskList with one `[Reminder]` per step 1-5, in order, and update each as it completes.
+
+Step 1 settles the run's depth, and that answer decides what comes after step 5 — so seed the remaining reminders the moment step 1 returns, before step 2 begins:
+
+- Depth `full` or `light` → one `[Reminder]` per step 6-10 below.
+- Depth `none` → one `[Reminder]` per named section of [`references/tasklist-only-mode.md`](references/tasklist-only-mode.md), which replaces steps 6-10 entirely.
 
 Why: the TaskList survives compaction, so one entry per step keeps a step that would otherwise vanish with the summary visible as pending.
 
-### 1. Pre-flight — settle the run's toggles and open its state
+Why the tail waits for step 1: seeding steps the depth then cancels leaves reminders nobody can complete, and a list carrying dead entries stops being a reliable read of what's left.
 
-**Ask all three yes/no toggles in one message, before any other question:**
+### 1. Pre-flight — settle the run's depth and toggles, and open its state
+
+**Ask all four questions in one message, in one `AskUserQuestion` call, before any other question.**
+
+Ask the full set even when the depth answer will make the three toggles moot.
+A single pass costs one round-trip; splitting it costs two on every run, to spare a rare one three dead questions.
+
+- **"How much spec/plan writing do you want?"** — the run's depth, one of three:
+  - **`full`** (default) — both documents with every section of the `spec-driven-development` templates, and every gate.
+  - **`light`** — the same two documents with the briefing sections dropped. Every gate still runs; only prose a human reads is trimmed.
+  - **`none`** — no spec and no plan. The interview's output lands on the TaskList, and every document gate is skipped.
 
 - **"Every line traces to an AC?"** — should self-review block on machinery that maps to no acceptance criterion?
 - **"Right-sized plan?"** — should a fresh reviewer judge the plan against the original request for gold-plating?
 - **"Fresh-eyes self-review?"** — should a `deep-reviewer` subagent read the spec (step 7) and the plan (step 10) before you do? Default yes; a no skips both.
 
-Persist all three answers immediately to `/tmp/sdd_<session_id>.json` — one brainstorm run per session, so the session id alone keys the file.
-Answer them fresh each run: never reuse a previous run's answers, and never write them into the spec, the plan, or any committed file.
+Persist all four answers immediately to `/tmp/sdd_<session_id>.json` — one brainstorm run per session, so the session id alone keys the file.
+The depth is the `mode` field, valued exactly `full`, `light`, or `none`; every step below reads it back from there and never re-asks.
+Answer them fresh each run: never reuse a previous run's answers, and never write any of them into the spec, the plan, or any committed file.
 
-Why upfront: all three gate how strictly later steps check the documents, so settling rigor before any document exists closes off tuning it down after seeing what was produced.
+At depth `none` the three toggles are recorded and then never read — nothing exists for them to gate. Don't act on them, and don't tell the user they were wasted.
+
+Why upfront: the depth decides whether documents exist at all, and the three toggles decide how strictly later steps check them.
+Settling both before any document exists closes off tuning either down after seeing what was produced.
 Why persisted: a compaction between here and self-review would lose them, so those steps read the file instead of re-asking.
 
 Then create the run scratchpad `/tmp/brainstorm_<session_id>.md`, keyed the same way.
@@ -86,6 +112,9 @@ If it looks decomposable, surface it:
 - Format: `1. **<name>** — <one-sentence purpose>. Depends on: <none | #N>.`
 
 Why: a stale session loses the decomposition map, but `scopes.md` survives — so the next `/brainstorm` run picks up the queue instead of re-deriving the split.
+
+**At depth `none`, write no `scopes.md`** — record each deferred sub-project as a `[Side]` TaskList entry instead.
+Why: that depth writes no files, and a TaskList entry outlives the session just as well.
 
 ### 4. Interview the user
 
@@ -128,12 +157,18 @@ If the user only describes the happy path, ask explicitly: "what should happen w
 Present 2-3 viable approaches conversationally.
 Lead with your recommendation and the reasoning. Cover the trade-off axes that matter for this idea (complexity, blast radius, reversibility, dependencies, time-to-first-value).
 
-Get a directional pick from the user before writing the spec. Capture the outcome in the spec's Decisions section as one marker with discarded alternatives as sub-bullets.
+Get a directional pick from the user before writing the spec.
+Capture the outcome in the run scratchpad, and — at depth `full` or `light` — in the spec's Decisions section too, as one marker with discarded alternatives as sub-bullets.
 
 Why keep the discarded ones: naming what lost, and why, stops the next session re-deriving the same alternatives and re-litigating them.
 It also surfaces when the constraint that killed an alternative no longer applies.
 
 ### 6. Dispatch a `fork` to write the spec
+
+**Steps 6 through 10 run only at depth `full` or `light`.**
+At depth `none`, read [`references/tasklist-only-mode.md`](references/tasklist-only-mode.md) now and follow it in place of all five — read the depth back from `/tmp/sdd_<session_id>.json`, never re-ask.
+
+Why the branch sits here: steps 2-5 are one interview regardless of depth, and step 6 is the first step that needs a document to exist.
 
 For a fresh idea, derive a short kebab-case `<slug>` from the feature yourself — never ask the user to confirm it.
 The plan later inherits that same slug — the shared slug is what pairs the two.
@@ -143,6 +178,10 @@ Why not confirm: the slug only names two files that always travel together, so a
 Then dispatch `agent(subAgent=fork, title=Write the spec)`, in the foreground — the next step needs the spec to exist. Instruct it to:
 
 - Read `~/.claude/skills/spec-driven-development/SKILL.md` and its `assets/spec-template.md`. That library's Guidelines govern what it writes — English regardless of the conversation's language, lean over exhaustive.
+
+- **At depth `light` only**: also read that library's `references/light-section-set.md`, and write only the spec sections it keeps.
+  - Omit each dropped heading outright, rather than filling it with the template's `N/A — <reason>` escape.
+
 - Read the run scratchpad `/tmp/brainstorm_<session_id>.md` and fold its decisions and discarded alternatives into the spec's Decisions section.
 - Write to the provided/discovered path, or for a fresh idea to the spec file in CWD.
 - If the file already exists, update it in place — preserve user content, fill gaps, restructure into the template.
@@ -198,6 +237,10 @@ Pass it:
 - The spec file's absolute path, plus the slug you derived in step 6.
 
 - Any planning-conventions file the user named (ADR/HLD/LLD), if one exists.
+
+- **At depth `light`, the instruction to read `~/.claude/skills/spec-driven-development/references/light-section-set.md`** and write only the plan sections it keeps.
+  - Omit each dropped heading outright, rather than filling it with an `N/A` escape.
+  - Keep `## PR Breakdown` even when it only reads `Single PR.` — `check-pr-dag.sh` passes on that literal, not on a missing section.
 
 - **Whether a plan already sits at the paired path** — per step 2, instruct `plan-writer` to update it in place if it does.
   - Preserve every task status marker and everything below the decisions divider.
