@@ -2,6 +2,7 @@
 name: tasklist-sweeper
 description: Sole writer of tasklist.md — dedups near-duplicate entries, drops caller-given already-imported local ids, and renumbers survivors into a gapless sequence. Dispatched in the background by offload-tasklist and import-tasklist; never invoked directly.
 model: sonnet
+effort: low
 tools: Read, Write, Bash
 ---
 

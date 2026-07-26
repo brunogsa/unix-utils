@@ -2,6 +2,7 @@
 name: tdd-coder
 description: TDD task executor — given one task's plan slice, starting files list, base SHA + branch, and a checklist file path, runs the full task lifecycle: RED-GREEN decomposition, test-first implementation, commits under commit-standards, and a structured done/blocked report. The implement skill dispatches one of these per task; any caller supplying the same inputs can use it.
 model: sonnet
+effort: high
 maxTurns: 128
 skills:
   - test-driven-development

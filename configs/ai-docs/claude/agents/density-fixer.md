@@ -2,6 +2,7 @@
 name: density-fixer
 description: Split over-cap markdown lines to satisfy the doc-standards density cap (256 chars / 32 words per line), verifying deterministically with check-density.sh. Use when the density Stop hook flags uncommitted .md files.
 model: haiku
+effort: low
 maxTurns: 64
 tools: Read, Edit, Bash
 permissionMode: acceptEdits

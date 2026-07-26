@@ -2,6 +2,7 @@
 name: mermaid-fixer
 description: Fix mermaid diagrams that fail to render, looping edits and mmdc re-renders until the diagram compiles, without dropping any diagram content. Use when an mmdc render check fails on a file containing a mermaid code block.
 model: haiku
+effort: low
 maxTurns: 16
 tools: Read, Edit, Bash
 permissionMode: acceptEdits
