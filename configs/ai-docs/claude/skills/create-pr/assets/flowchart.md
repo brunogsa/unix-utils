@@ -7,13 +7,12 @@ flowchart TD
   n1(["1. /create-pr — no flags"]):::start
   n2["2. Load doc-standards before drafting —<br/>a PR body is a standalone doc, so its density cap,<br/>BLUF ordering, and collapse rules all apply"]:::skill
 
-  subgraph n3["3. Seed the TaskList before step 1 runs — a skipped step then stays<br/>visible as pending across a compaction, which the steps alone do not survive"]
+  subgraph n3["3. Seed the TaskList before step 1 runs — a skipped step then stays<br/>visible as pending across a compaction, which the steps alone do not survive.<br/>Steps 1-5 only: step 6 runs only if the user asks after the push"]
     n3a["3a. [Reminder] Step 1: gather context"]:::state
     n3b["3b. [Reminder] Step 2: compose the ideal description"]:::state
     n3c["3c. [Reminder] Step 3: verify the ideal description"]:::state
     n3d["3d. [Reminder] Step 4: fit it to the repo's PR template"]:::state
     n3e["3e. [Reminder] Step 5: create the draft PR"]:::state
-    n3f["3f. [Reminder] Step 6: apply post-push changes"]:::state
   end
 
   n4["4. Step 1 · Glob cwd top-level for spec_*.md / plan_*.md;<br/>none found -&gt; author from the changes digest alone"]

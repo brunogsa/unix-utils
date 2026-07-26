@@ -73,9 +73,10 @@ This skill adds only what is specific to a PR, and never restates a rule `doc-st
 
 ## Process
 
-**Seed the TaskList before step 1 runs** -- one `[Reminder]` entry per step below, in execution order.
+**Seed the TaskList before step 1 runs** -- one `[Reminder]` entry for each of steps 1-5, in execution order.
 
 - A skipped step then stays visible as pending across a compaction, which the numbered steps alone do not survive.
+- Step 6 gets no entry -- it runs only if the user asks for a change after the push, so a pending reminder would never complete.
 
 ### 1. Gather context
 
