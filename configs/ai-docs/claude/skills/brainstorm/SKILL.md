@@ -48,7 +48,7 @@ Why persisted: a compaction between here and self-review would lose them, so tho
 
 Then create the run scratchpad `/tmp/brainstorm_<session_id>.md`, keyed the same way.
 
-- Persist each decision with its why, each discarded alternative with why it lost, open questions, and later each review finding with how it was resolved.
+- Persist each decision with its why, each discarded alternative with why it lost, and open questions.
 - Write as things happen, never at the end.
 - It stays alive for the whole run — through the spec, the plan, and self-review — so the plan phase can still see why the spec reads the way it does.
 - On resume or after a compaction, re-read it first and trust it over recalled context — compaction drops session memory, the file survives.
@@ -125,8 +125,10 @@ It also surfaces when the constraint that killed an alternative no longer applie
 
 ### 6. Dispatch a `fork` to write the spec
 
-For a fresh idea, derive a short kebab-case `<slug>` from the feature and confirm it with the user **before dispatching**.
+For a fresh idea, derive a short kebab-case `<slug>` from the feature yourself — never ask the user to confirm it.
 The plan later inherits that same slug — the shared slug is what pairs the two.
+
+Why not confirm: the slug only names two files that always travel together, so a wrong one costs a rename, and the user is about to read the spec anyway.
 
 Then dispatch `agent(subAgent=fork, title=Write spec_<slug>.md)`, in the foreground — the next step needs the spec to exist. Instruct it to:
 
@@ -145,14 +147,16 @@ A fresh agent would silently invent whatever a re-serialized prompt left out.
 
 ### 7. Self-review the spec with fresh eyes
 
-**Skip this step when the pre-flight's self-review toggle is off** — read it back from `/tmp/sdd_<session_id>.json`, never re-ask. Say so in step 8's summary.
+**Skip this step when the pre-flight's self-review toggle is off** — read it back from `/tmp/sdd_<session_id>.json`, never re-ask.
 
 Otherwise dispatch `agent(subAgent=deep-reviewer, title=Fresh-eyes review of spec)`, in the foreground, pointed at the spec file alone.
 
-Tell it to read the Qualitative pass section of `~/.claude/skills/spec-driven-development/references/self-review-checks.md` and apply every item that a spec alone can answer.
-No plan exists yet, so the PR-size and plan-contradiction items don't apply.
+Tell it to read the Qualitative pass section of `~/.claude/skills/spec-driven-development/references/self-review-checks.md` and apply these items only: placeholders, contradictions, ambiguity, completeness, human-reviewable.
 
-Then dispatch `agent(subAgent=fork, title=Apply spec review findings)` to apply every blocking finding, and record in the scratchpad what was flagged and how each was resolved.
+Exclude PR-size and plan-contradiction — no plan exists yet.
+Exclude Scope too: step 3 already asked the user about decomposition, and step 10's qualitative pass judges it again over both documents.
+
+Then dispatch `agent(subAgent=fork, title=Apply spec review findings)` to apply every blocking finding.
 
 **Run this review exactly once — never a second round.**
 The user reads the spec next and is the stronger judge of it.
@@ -164,7 +168,11 @@ Why not a fork for the review: a fork inherits exactly the session bias the revi
 
 ### 8. Present for review
 
-Show the spec summary, plus what step 7 flagged and how each finding was fixed (or that it was skipped by request). Ask if anything is missing or wrong.
+Give the user the spec's path and ask whether anything is missing or wrong. Nothing else — no summary of the spec, and no report of what step 7 flagged or fixed.
+
+Why nothing else: the user reads the spec itself, so a summary is a second version of the document that can contradict it.
+A fixed finding is already invisible in the text they're about to read.
+
 Route rework to the earliest step the feedback invalidates:
 
 - Wording/detail issues → re-dispatch the fork with the edits, then re-present.
@@ -180,9 +188,17 @@ Pass it:
 - The plan output path: `plan_<slug>.md` in CWD, same slug as the spec.
 - Any planning-conventions file the user named (ADR/HLD/LLD), if one exists.
 
-**If it returns a numbered list of gaps** instead of a plan, walk and close every reported gap with the user first, updating `spec_<slug>.md` through a `fork` per step 6.
+**A gap in the spec never withholds the plan.**
+Where the spec doesn't carry a decision the plan needs, `plan-writer` writes the plan around it and records it as a `**QUESTION:**` entry under the plan's Open Questions.
+
+Never close such a gap here, and never fill one yourself with an invented decision — that's exactly the author-bias this dispatch exists to catch.
+Both documents may therefore reach step 10 with Open Questions still open; step 10.2 is where they all close, in one batch.
+
+Why batch them there: a gap-by-gap walkthrough stops the run once per item.
+One pass at step 10.2 lets the user answer every question against a finished plan, where what each one actually decides is visible.
+
+Should it return a numbered gap list anyway instead of a plan, dispatch a `fork` to record those gaps as Open Questions in `spec_<slug>.md`.
 Then re-dispatch `plan-writer` once — not once per gap.
-Never fill a gap yourself with an invented decision — that's exactly the author-bias this dispatch exists to catch.
 
 Why fresh context: this session already talked itself into the spec's choices during the interview.
 A planner that sees only the spec file tests whether the spec carries what a plan needs, rather than drawing on session memory the next reader won't have.
@@ -193,16 +209,49 @@ A planner that sees only the spec file tests whether the spec carries what a pla
 
 **Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now** — it defines every gate below.
 
-Run the gates in this order, each one serial:
+Sort those gates into two buckets first, because every rule in this step turns on which bucket a gate is in:
 
-1. **Qualitative pass** — dispatch `agent(subAgent=deep-reviewer, title=Qualitative review of spec and plan)` per that reference. Skip only this dispatch when the pre-flight's self-review toggle is off, and say so in the output.
-2. **Artifact fixers** — `agent(subAgent=mermaid-fixer, ...)`, then `agent(subAgent=density-fixer, ...)`, per that reference. Both run regardless of any toggle.
-3. **The seven formal checks, in sequence** — the five always-on ones, plus the two toggles read from `/tmp/sdd_<session_id>.json`. Never re-ask a toggle here.
+- **Deterministic** — a script or renderer returns the verdict, and re-running one costs nothing: the mermaid and density artifact fixers, `check-ac-coverage.sh`, `check-test-distribution.sh`, `check-pr-dag.sh`, `check-tasks-dag.sh`.
+- **Non-deterministic** — a `deep-reviewer` judges: the qualitative pass, the semantic half of AC-to-test coverage, "how would this break?", and the two toggled checks.
 
-On a blocking failure, follow that library's iteration-and-drift loops: fix the issue, then snapshot both docs to `/tmp/sdd-snapshots/` for the user's annotated-diff review.
-Once they approve it, re-run only the failed check plus a delta-scoped re-review.
+Why the split governs everything here: a deterministic gate is free to re-run and catches structural breakage, while each non-deterministic round costs a dispatch over both documents whole.
+So the deterministic ones run first and as often as needed, and the non-deterministic ones run as few times as the user will accept.
 
-Once every blocking check passes, tell the user to run `/clear`, then invoke `/implement`. Don't run `/implement` in this session.
+#### 10.1 Run the deterministic gates
+
+Run them serially in this order: `mermaid-fixer`, then `density-fixer`, then the four scripts.
+Fix each failure, then re-run that gate alone until it passes.
+
+The fixers lead because repairing a diagram adds lines the density cap must then measure.
+This step runs them before the qualitative pass, which is the reverse of the order that reference states.
+The reference sequences one pass over both buckets, while this step runs the cheap bucket to exhaustion first.
+
+#### 10.2 Close every Open Question before anything expensive runs
+
+Read the Open Questions section of both `spec_<slug>.md` and `plan_<slug>.md`.
+
+While either still holds a `**QUESTION:**` entry, interview the user to settle them — `AskUserQuestion`, 2-3 at a time, recommended answer first, exactly as in step 4.
+Then dispatch `agent(subAgent=fork, title=Close open questions)` to fold the answers into both documents and leave each Open Questions section reading `None`.
+
+Re-read both sections after each round. **Nothing below runs while a question is open.**
+
+Why gate here: every non-deterministic gate reads both documents whole, so running one over an unanswered question spends a dispatch reviewing a document that is about to change.
+
+#### 10.3 Run the non-deterministic gates once
+
+Dispatch them serially, per that reference — the qualitative pass first, then the remaining judged checks, including the two toggles read from `/tmp/sdd_<session_id>.json`. Never re-ask a toggle here.
+Skip only the qualitative-pass dispatch when the pre-flight's self-review toggle is off, and say so in the output.
+
+#### 10.4 Loop on any blocking finding
+
+1. **Interview the user to resolve it** — never invent the resolution, and never resolve it silently.
+2. **Dispatch `agent(subAgent=fork, title=Apply self-review findings)`** to apply what the user decided to the spec, the plan, or both.
+3. **Re-run the deterministic gates only** — the fork's edits can break a DAG or an AC-coverage citation, and those are free to re-check.
+4. **Ask the user whether to re-run the non-deterministic gates.** A yes returns to 10.3; a no ends the loop and accepts the documents as they stand.
+
+Repeat until nothing blocks or the user declines another round.
+
+Then tell the user to run `/clear`, then invoke `/implement`. Don't run `/implement` in this session.
 
 Why: `/implement` re-grounds entirely from `spec_<slug>.md` and `plan_<slug>.md` on disk; carrying this session's conversation forward buys nothing and blurs cost attribution between planning and execution.
 
