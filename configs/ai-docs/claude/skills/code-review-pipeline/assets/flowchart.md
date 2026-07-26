@@ -4,154 +4,154 @@ Human-facing overview for auditing the flow at a glance. Non-authoritative — t
 
 ```mermaid
 flowchart TD
-  start(["Invoke /auto-review (local) or /pr-review (github)<br/>flag: --isolate forces isolated path"]):::start
-  dispatchDecision{"Mode local, or --isolate passed?"}
-  spawnIsolated["Dispatch general-purpose · sonnet · effort inherits<br/>serial -- one instance runs whole pipeline"]:::dispatch
-  runInline["Run inline in fresh main session<br/>(github, no --isolate)"]
-  parseHeader["Parse input header<br/>(mode, PR/branch, language)"]
-  loadWave0Refs["Load review-principles.md<br/>+ review-checklists.md<br/>(grounds every wave)"]:::skill
+  n1(["1. Invoke /auto-review (local) or /pr-review (github)<br/>flag: --isolate forces isolated path"]):::start
+  n2{"2. Mode local, or --isolate passed?"}
+  n2a["2a. Dispatch general-purpose · sonnet · effort inherits<br/>serial -- one instance runs whole pipeline"]:::dispatch
+  n2b["2b. Run inline in fresh main session<br/>(github, no --isolate)"]
+  n3["3. Parse input header<br/>(mode, PR/branch, language)"]
+  n4["4. Load review-principles.md<br/>+ review-checklists.md<br/>(grounds every wave)"]:::skill
 
-  wave0Guard{"Wave 0 (github-only): PR closed/merged,<br/>or prior review detected?"}
-  abortWave0(["Abort: PR closed/merged<br/>or prior review found"])
+  n5{"5. Wave 0 (github-only): PR closed/merged,<br/>or prior review detected?"}
+  n5a(["5a. Abort: PR closed/merged<br/>or prior review found"])
 
-  wave1["Wave 1: context prep<br/>create $work_dir, clone/diff,<br/>commentable-lines, skipped-files"]
-  wave1Scripts["extract-commentable-lines.sh<br/>extract-skipped-files.sh"]:::hook
-  wave1Jira["jira-cli skill: fetch-jira-review-context.sh<br/>(github + Jira URL given, optional)"]:::skill
-  wave1RepoWide["Repo-wide static checks<br/>lint/typecheck/dead-code/circular,<br/>tests, coverage (local mode only)"]:::hook
-  abortClone(["Abort: clone failed"])
-  wave1State["Persist to $work_dir:<br/>diff, changed-files, commit-messages,<br/>commentable-lines, skipped-files"]:::state
+  n6["6. Wave 1: context prep<br/>create $work_dir, clone/diff,<br/>commentable-lines, skipped-files"]
+  n7["7. extract-commentable-lines.sh<br/>extract-skipped-files.sh"]:::hook
+  n6a["6a. jira-cli skill: fetch-jira-review-context.sh<br/>(github + Jira URL given, optional)"]:::skill
+  n6b["6b. Repo-wide static checks<br/>lint/typecheck/dead-code/circular,<br/>tests, coverage (local mode only)"]:::hook
+  n6c(["6c. Abort: clone failed"])
+  n8["8. Persist to $work_dir:<br/>diff, changed-files, commit-messages,<br/>commentable-lines, skipped-files"]:::state
 
-  tinyDecision{"added_lines less than 100?<br/>(tiny_pr)"}
-  tinyFastPath["Tiny-PR fast-path:<br/>one pass, 2-sentence summary,<br/>skip guide writer and Wave 3"]
+  n9{"9. added_lines less than 100?<br/>(tiny_pr)"}
+  n9a["9a. Tiny-PR fast-path:<br/>one pass, 2-sentence summary,<br/>skip guide writer and Wave 3"]
 
-  loadWave2Standards["Invoke code-standards, test-standards,<br/>doc-standards via Skill tool<br/>+ read repo CLAUDE.md"]:::skill
-  wave2ResumeDecision{"$work_dir/wave2-progress.txt<br/>exists?"}
-  specialistLoop["Wave 2: run next specialist<br/>(8 total: correctness, corner-cases,<br/>testing, security, design, ai-slop,<br/>docs, performance)<br/><br/>60-80% confidence emitted as QUESTION tag;<br/>persist wave2-findings.json + progress.txt<br/>before each next specialist"]
+  n10["10. Invoke code-standards, test-standards,<br/>doc-standards via Skill tool<br/>+ read repo CLAUDE.md"]:::skill
+  n11{"11. $work_dir/wave2-progress.txt<br/>exists?"}
+  n12["12. Wave 2: run next specialist<br/>(8 total: correctness, corner-cases,<br/>testing, security, design, ai-slop,<br/>docs, performance)<br/><br/>60-80% confidence emitted as QUESTION tag;<br/>persist wave2-findings.json + progress.txt<br/>before each next specialist"]
 
-  guideModeDecision{"Mode local?"}
-  guideResumeDecision{"$work_dir/wave2-guide.md<br/>exists? (github only)"}
-  guideWriter["Write Review Guide<br/>(github only, max 400 words)<br/>persist wave2-guide.md"]
+  n13{"13. Mode local?"}
+  n13a{"13a. $work_dir/wave2-guide.md<br/>exists? (github only)"}
+  n13a1["13a1. Write Review Guide<br/>(github only, max 400 words)<br/>persist wave2-guide.md"]
 
-  wave3ResumeDecision{"$work_dir/wave3-findings.json<br/>exists?"}
-  wave3["Wave 3: batched validation<br/>(drop false positives, tighten lines)<br/>threshold LOW -- keep when in doubt<br/>persist wave3-findings.json + drop-log.txt"]
+  n14{"14. $work_dir/wave3-findings.json<br/>exists?"}
+  n14a["14a. Wave 3: batched validation<br/>(drop false positives, tighten lines)<br/>threshold LOW -- keep when in doubt<br/>persist wave3-findings.json + drop-log.txt"]
 
-  wave4ResumeDecision{"$work_dir/wave4-findings.json<br/>exists?"}
-  wave4["Wave 4: drop off-diff findings<br/>(anchor outside commentable-lines.txt)<br/>persist wave4-findings.json"]
+  n15{"15. $work_dir/wave4-findings.json<br/>exists?"}
+  n15a["15a. Wave 4: drop off-diff findings<br/>(anchor outside commentable-lines.txt)<br/>persist wave4-findings.json"]
 
-  findingsDecision{"Any findings survive Wave 4?"}
-  noFindingsModeDecision{"Mode?"}
-  noFindingsGithub["Skip pending review"]
-  noFindingsLocal["Write verdict file:<br/>'no findings'"]:::state
+  n16{"16. Any findings survive Wave 4?"}
+  n16a{"16a. Mode?"}
+  n16a1["16a1. Skip pending review"]
+  n16a2["16a2. Write verdict file:<br/>'no findings'"]:::state
 
-  wave5ModeDecision{"Mode?"}
+  n17{"17. Mode?"}
 
-  checkDensityGithub["check-density.sh on<br/>wave5-comment-*.md + wave2-guide.md<br/>(cap: 256 chars / 32 words per line)"]:::hook
-  dispatchDensityFixer["Dispatch density-fixer · agent-pinned · serial<br/>splits over-cap lines, loops<br/>internally until exit 0"]:::dispatch
-  selfFixDensity["Fix density violations inline<br/>(already a subagent, no re-spawn)<br/>loop until exit 0"]
+  n18["18. check-density.sh on<br/>wave5-comment-*.md + wave2-guide.md<br/>(cap: 256 chars / 32 words per line)"]:::hook
+  n18a1["18a1. Dispatch density-fixer · agent-pinned · serial<br/>splits over-cap lines, loops<br/>internally until exit 0"]:::dispatch
+  n18a2["18a2. Fix density violations inline<br/>(already a subagent, no re-spawn)<br/>loop until exit 0"]
 
-  buildPayloadPost["Build review-payload.json,<br/>POST pending review (single batch call)"]:::state
-  post422Decision{"POST returned 422?"}
-  retry422["Drop unresolvable anchors,<br/>retry once (same batch shape)"]
-  retryFailDecision{"Retry also failed?"}
-  abortReport422(["Stop: report 422 body to user"]):::gate
+  n19["19. Build review-payload.json,<br/>POST pending review (single batch call)"]:::state
+  n20{"20. POST returned 422?"}
+  n20a["20a. Drop unresolvable anchors,<br/>retry once (same batch shape)"]
+  n20a1{"20a1. Retry also failed?"}
+  n20a1a(["20a1a. Stop: report 422 body to user"]):::gate
 
-  verifyPendingDecision{"Re-fetched state is PENDING<br/>and comments match payload?"}
-  abortMismatch(["Stop: report mismatch,<br/>no GitHub cleanup without go-ahead"]):::gate
+  n21{"21. Re-fetched state is PENDING<br/>and comments match payload?"}
+  n21a(["21a. Stop: report mismatch,<br/>no GitHub cleanup without go-ahead"]):::gate
 
-  postGuideComment["Post Review Guide as<br/>standalone PR comment<br/>(guide-payload.json)"]:::state
+  n22["22. Post Review Guide as<br/>standalone PR comment<br/>(guide-payload.json)"]:::state
 
-  loadHtmlArtifacts["Consult html-artifacts skill<br/>routing table (.md vs .html)<br/>fixed verdict = standing approval"]:::skill
-  localHtmlDecision{"Router verdict: .md or .html?"}
-  writeVerdictFile["Write verdict_auto-review_TIMESTAMP<br/>file to CWD"]:::state
-  checkDensityLocal["check-density.sh on out_file<br/>(.md output only)"]:::hook
-  localDensityFix["Fix density violations inline<br/>(local mode is always isolated)<br/>loop until exit 0"]
+  n17a["17a. Consult html-artifacts skill<br/>routing table (.md vs .html)<br/>fixed verdict = standing approval"]:::skill
+  n17a1{"17a1. Router verdict: .md or .html?"}
+  n17a2["17a2. Write verdict_auto-review_TIMESTAMP<br/>file to CWD"]:::state
+  n17a3["17a3. check-density.sh on out_file<br/>(.md output only)"]:::hook
+  n17a3a["17a3a. Fix density violations inline<br/>(local mode is always isolated)<br/>loop until exit 0"]
 
-  wave6["Wave 6: print terminal summary"]
-  humanGate(["Pending review (github) or verdict file (local)<br/>awaits human read/submit -- nothing auto-submits"]):::gate
+  n23["23. Wave 6: print terminal summary"]
+  n24(["24. Pending review (github) or verdict file (local)<br/>awaits human read/submit -- nothing auto-submits"]):::gate
 
-  start --> dispatchDecision
-  dispatchDecision -->|"local, or --isolate"| spawnIsolated
-  dispatchDecision -->|"github, no --isolate"| runInline
-  spawnIsolated --> parseHeader
-  runInline --> parseHeader
-  parseHeader --> loadWave0Refs
-  loadWave0Refs --> wave0Guard
+  n1 --> n2
+  n2 -->|"local, or --isolate"| n2a
+  n2 -->|"github, no --isolate"| n2b
+  n2a --> n3
+  n2b --> n3
+  n3 --> n4
+  n4 --> n5
 
-  wave0Guard -->|"yes (github)"| abortWave0
-  wave0Guard -->|"no (github) / no-op (local)"| wave1
+  n5 -->|"yes (github)"| n5a
+  n5 -->|"no (github) / no-op (local)"| n6
 
-  wave1 --> wave1Scripts
-  wave1 -.->|"github + Jira URL given"| wave1Jira
-  wave1 -.->|"local mode only"| wave1RepoWide
-  wave1 -->|"clone fails (github-only)"| abortClone
-  wave1Scripts --> wave1State
-  wave1Jira --> wave1State
-  wave1RepoWide --> wave1State
-  wave1State --> tinyDecision
+  n6 --> n7
+  n6 -.->|"github + Jira URL given"| n6a
+  n6 -.->|"local mode only"| n6b
+  n6 -->|"clone fails (github-only)"| n6c
+  n7 --> n8
+  n6a --> n8
+  n6b --> n8
+  n8 --> n9
 
-  tinyDecision -->|"yes"| tinyFastPath
-  tinyDecision -->|"no"| loadWave2Standards
-  loadWave2Standards --> wave2ResumeDecision
-  wave2ResumeDecision -->|"yes -- resume after last<br/>completed specialist"| specialistLoop
-  wave2ResumeDecision -->|"no -- start at correctness"| specialistLoop
+  n9 -->|"yes"| n9a
+  n9 -->|"no"| n10
+  n10 --> n11
+  n11 -->|"yes -- resume after last<br/>completed specialist"| n12
+  n11 -->|"no -- start at correctness"| n12
 
-  specialistLoop -->|"next specialist"| specialistLoop
-  specialistLoop -->|"all 8 done"| guideModeDecision
+  n12 -->|"next specialist"| n12
+  n12 -->|"all 8 done"| n13
 
-  tinyFastPath --> wave4
+  n9a --> n15a
 
-  guideModeDecision -->|"yes, skip guide"| wave3ResumeDecision
-  guideModeDecision -->|"no, github"| guideResumeDecision
-  guideResumeDecision -->|"yes -- load persisted guide"| wave3ResumeDecision
-  guideResumeDecision -->|"no"| guideWriter
-  guideWriter --> wave3ResumeDecision
+  n13 -->|"yes, skip guide"| n14
+  n13 -->|"no, github"| n13a
+  n13a -->|"yes -- load persisted guide"| n14
+  n13a -->|"no"| n13a1
+  n13a1 --> n14
 
-  wave3ResumeDecision -->|"yes -- skip Wave 3"| wave4ResumeDecision
-  wave3ResumeDecision -->|"no"| wave3
-  wave3 --> wave4ResumeDecision
+  n14 -->|"yes -- skip Wave 3"| n15
+  n14 -->|"no"| n14a
+  n14a --> n15
 
-  wave4ResumeDecision -->|"yes -- skip Wave 4"| findingsDecision
-  wave4ResumeDecision -->|"no"| wave4
-  wave4 --> findingsDecision
+  n15 -->|"yes -- skip Wave 4"| n16
+  n15 -->|"no"| n15a
+  n15a --> n16
 
-  findingsDecision -->|"none (normal outcome)"| noFindingsModeDecision
-  findingsDecision -->|"some"| wave5ModeDecision
+  n16 -->|"none (normal outcome)"| n16a
+  n16 -->|"some"| n17
 
-  noFindingsModeDecision -->|"github"| noFindingsGithub
-  noFindingsModeDecision -->|"local"| noFindingsLocal
-  noFindingsGithub --> postGuideComment
-  noFindingsLocal --> wave6
+  n16a -->|"github"| n16a1
+  n16a -->|"local"| n16a2
+  n16a1 --> n22
+  n16a2 --> n23
 
-  wave5ModeDecision -->|"github"| checkDensityGithub
-  wave5ModeDecision -->|"local"| loadHtmlArtifacts
+  n17 -->|"github"| n18
+  n17 -->|"local"| n17a
 
-  checkDensityGithub -->|"violations found"| densityFixRoute{"Session is<br/>calling (not isolated)?"}
-  checkDensityGithub -->|"clean"| buildPayloadPost
-  densityFixRoute -->|"yes"| dispatchDensityFixer
-  densityFixRoute -->|"no, already isolated"| selfFixDensity
-  dispatchDensityFixer --> buildPayloadPost
-  selfFixDensity --> buildPayloadPost
+  n18 -->|"violations found"| n18a{"18a. Session is<br/>calling (not isolated)?"}
+  n18 -->|"clean"| n19
+  n18a -->|"yes"| n18a1
+  n18a -->|"no, already isolated"| n18a2
+  n18a1 --> n19
+  n18a2 --> n19
 
-  buildPayloadPost --> post422Decision
-  post422Decision -->|"no"| verifyPendingDecision
-  post422Decision -->|"yes"| retry422
-  retry422 --> retryFailDecision
-  retryFailDecision -->|"yes"| abortReport422
-  retryFailDecision -->|"no"| verifyPendingDecision
+  n19 --> n20
+  n20 -->|"no"| n21
+  n20 -->|"yes"| n20a
+  n20a --> n20a1
+  n20a1 -->|"yes"| n20a1a
+  n20a1 -->|"no"| n21
 
-  verifyPendingDecision -->|"yes"| postGuideComment
-  verifyPendingDecision -->|"no"| abortMismatch
+  n21 -->|"yes"| n22
+  n21 -->|"no"| n21a
 
-  postGuideComment --> wave6
+  n22 --> n23
 
-  loadHtmlArtifacts --> localHtmlDecision
-  localHtmlDecision --> writeVerdictFile
-  writeVerdictFile --> checkDensityLocal
-  checkDensityLocal -->|"violations found"| localDensityFix
-  checkDensityLocal -->|"clean"| wave6
-  localDensityFix --> wave6
+  n17a --> n17a1
+  n17a1 --> n17a2
+  n17a2 --> n17a3
+  n17a3 -->|"violations found"| n17a3a
+  n17a3 -->|"clean"| n23
+  n17a3a --> n23
 
-  wave6 --> humanGate
+  n23 --> n24
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px

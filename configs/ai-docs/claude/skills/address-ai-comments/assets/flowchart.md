@@ -4,64 +4,64 @@ Human-facing overview for auditing the flow at a glance. Non-authoritative — t
 
 ```mermaid
 flowchart TD
-  start(["/address-ai-comments &lt;path(s)&gt;<br/>or natural phrasing: 'raise/gather/check/find/see<br/>the AI?/AI! comments I left on &lt;path&gt;'"]):::start
-  preflight["1. Ask together (one message): 'Which file(s)/folder(s)<br/>to sweep?' + 'Run refactor/auto-review tails after? (default no)'"]:::gate
-  scratchpad["Create run-state file<br/>/tmp/address-ai-comments_&lt;session_id&gt;_&lt;ts&gt;.json;<br/>persist target(s) + toggle answer"]:::state
-  togglecheck{"Tails toggle on?"}
-  captureSha["Capture BATCH_BASE_SHA = git rev-parse HEAD;<br/>persist into run-state JSON immediately"]:::state
-  sizecheck{"Scan fits main session cheaply?<br/>(judged once, start of step 2,<br/>before grep+read pass begins)"}
-  gather["2. Grep -n for AI! and AI? in target(s)"]
-  readctx["Read surrounding context for each hit"]
-  classify{"Classify marker"}
-  actionType["AI! -&gt; action item"]
-  questionType["AI? -&gt; question item"]
-  cluster["Cluster markers into themes;<br/>append classification + theme to run-state file as produced"]:::state
-  subDispatch[["(optional, not default) Dispatch subagents in parallel (∥)<br/>pin: general-purpose · haiku · low<br/>one per subdirectory, mechanical locate+classify only"]]:::dispatch
-  taskcreate["3. Create one TaskList task per cluster —<br/>metadata: file:line refs + marker text;<br/>description: theme summary.<br/>Populate full list before executing any"]:::state
-  loopcheck{"Clusters remaining?<br/>(loop runs sequentially — inline in main<br/>session by design, nothing to parallelize)"}
-  markercheck{"Cluster's marker type?<br/>(mixed clusters: markers process in file order)"}
-  doAction["4a. AI!: perform the action/change first"]
-  doAnswer["4b. AI?: answer in chat first, never in the file"]
-  strip["Delete the marker from source once resolved"]
-  tailscheck{"Step 1 toggle was on?"}
-  tailsDispatch[["5. Dispatch deep-reviewer x2 · agent-pinned,<br/>in parallel (∥, same turn) — simplification + correctness lenses<br/>(ref: code-review-pipeline/references/deep-reviewer-tail-pair.md);<br/>diff BATCH_BASE_SHA..working tree"]]:::dispatch
-  hookNode["PreToolUse hook: deep-reviewer-write-guard.sh<br/>allows writes only to verdict_*.md or under /tmp;<br/>denies + aborts run otherwise"]:::hook
-  triage["Triage: read both verdict reports, synthesize<br/>prioritized summary, close with apply-offer<br/>(opt-in only — never auto-applied)"]:::gate
-  appendTails["Append tails' two report paths + top findings<br/>+ apply-offer to final report"]
-  report["6. Report tasks created/executed + file:line refs<br/>(single final report — no per-cluster reports)"]
-  done(["Done"])
+  n1(["1. /address-ai-comments &lt;path(s)&gt;<br/>or natural phrasing: 'raise/gather/check/find/see<br/>the AI?/AI! comments I left on &lt;path&gt;'"]):::start
+  n2["2. Step 1 · Ask together (one message): 'Which file(s)/folder(s)<br/>to sweep?' + 'Run refactor/auto-review tails after? (default no)'"]:::gate
+  n3["3. Create run-state file<br/>/tmp/address-ai-comments_&lt;session_id&gt;_&lt;ts&gt;.json;<br/>persist target(s) + toggle answer"]:::state
+  n4{"4. Tails toggle on?"}
+  n4a["4a. Capture BATCH_BASE_SHA = git rev-parse HEAD;<br/>persist into run-state JSON immediately"]:::state
+  n5{"5. Scan fits main session cheaply?<br/>(judged once, start of step 2,<br/>before grep+read pass begins)"}
+  n5a["5a. Step 2 · Grep -n for AI! and AI? in target(s)"]
+  n5b["5b. Read surrounding context for each hit"]
+  n5c{"5c. Classify marker"}
+  n5c1["5c1. AI! -&gt; action item"]
+  n5c2["5c2. AI? -&gt; question item"]
+  n6["6. Cluster markers into themes;<br/>append classification + theme to run-state file as produced"]:::state
+  n5d[["5d. (optional, not default) Dispatch subagents in parallel (∥)<br/>pin: general-purpose · haiku · low<br/>one per subdirectory, mechanical locate+classify only"]]:::dispatch
+  n7["7. Step 3 · Create one TaskList task per cluster —<br/>metadata: file:line refs + marker text;<br/>description: theme summary.<br/>Populate full list before executing any"]:::state
+  n8{"8. Clusters remaining?<br/>(loop runs sequentially — inline in main<br/>session by design, nothing to parallelize)"}
+  n8a{"8a. Cluster's marker type?<br/>(mixed clusters: markers process in file order)"}
+  n8a1["8a1. Step 4a · AI!: perform the action/change first"]
+  n8a2["8a2. Step 4b · AI?: answer in chat first, never in the file"]
+  n8b["8b. Delete the marker from source once resolved"]
+  n9{"9. Step 1 toggle was on?"}
+  n9a[["9a. Step 5 · Dispatch deep-reviewer x2 · agent-pinned,<br/>in parallel (∥, same turn) — simplification + correctness lenses<br/>(ref: code-review-pipeline/references/deep-reviewer-tail-pair.md);<br/>diff BATCH_BASE_SHA..working tree"]]:::dispatch
+  n9b["9b. PreToolUse hook: deep-reviewer-write-guard.sh<br/>allows writes only to verdict_*.md or under /tmp;<br/>denies + aborts run otherwise"]:::hook
+  n9c["9c. Triage: read both verdict reports, synthesize<br/>prioritized summary, close with apply-offer<br/>(opt-in only — never auto-applied)"]:::gate
+  n9d["9d. Append tails' two report paths + top findings<br/>+ apply-offer to final report"]
+  n10["10. Step 6 · Report tasks created/executed + file:line refs<br/>(single final report — no per-cluster reports)"]
+  n11(["11. Done"])
 
-  start --> preflight
-  preflight --> scratchpad
-  scratchpad --> togglecheck
-  togglecheck -->|"yes"| captureSha
-  togglecheck -->|"no"| sizecheck
-  captureSha --> sizecheck
-  sizecheck -->|"yes, fits (default)"| gather
-  sizecheck -->|"no, many files/large tree"| subDispatch
-  subDispatch --> cluster
-  gather --> readctx
-  readctx --> classify
-  classify -->|"AI!"| actionType
-  classify -->|"AI?"| questionType
-  actionType --> cluster
-  questionType --> cluster
-  cluster --> taskcreate
-  taskcreate --> loopcheck
-  loopcheck -->|"yes, cluster remains"| markercheck
-  markercheck -->|"AI!"| doAction
-  markercheck -->|"AI?"| doAnswer
-  doAction --> strip
-  doAnswer --> strip
-  strip --> loopcheck
-  loopcheck -->|"no, all clusters done"| tailscheck
-  tailscheck -->|"yes"| tailsDispatch
-  tailscheck -->|"no"| report
-  tailsDispatch -.->|"guarded by"| hookNode
-  tailsDispatch --> triage
-  triage --> appendTails
-  appendTails --> report
-  report --> done
+  n1 --> n2
+  n2 --> n3
+  n3 --> n4
+  n4 -->|"yes"| n4a
+  n4 -->|"no"| n5
+  n4a --> n5
+  n5 -->|"yes, fits (default)"| n5a
+  n5 -->|"no, many files/large tree"| n5d
+  n5d --> n6
+  n5a --> n5b
+  n5b --> n5c
+  n5c -->|"AI!"| n5c1
+  n5c -->|"AI?"| n5c2
+  n5c1 --> n6
+  n5c2 --> n6
+  n6 --> n7
+  n7 --> n8
+  n8 -->|"yes, cluster remains"| n8a
+  n8a -->|"AI!"| n8a1
+  n8a -->|"AI?"| n8a2
+  n8a1 --> n8b
+  n8a2 --> n8b
+  n8b --> n8
+  n8 -->|"no, all clusters done"| n9
+  n9 -->|"yes"| n9a
+  n9 -->|"no"| n10
+  n9a -.->|"guarded by"| n9b
+  n9a --> n9c
+  n9c --> n9d
+  n9d --> n10
+  n10 --> n11
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px
