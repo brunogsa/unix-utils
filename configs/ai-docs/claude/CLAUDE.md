@@ -67,7 +67,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
   - [Why] Re-correcting the same class of mistake drains my attention and caps your autonomy; a one-off fix that isn't generalized guarantees the next near-identical case repeats it.
 
 - [Instruction] Emit that inferred rule as a standalone `[Learning]` marker line the moment the correction lands, in the fixed format below — its own line, never mid-sentence.
-  - [Why] Compaction thins my in-context memory to a summary, but the on-disk transcript keeps assistant turns verbatim — a parseable marker there is a compaction-proof learning log the improve skill greps.
+  - [Why] Compaction thins my in-context memory to a summary, but the on-disk transcript keeps assistant turns verbatim — a parseable marker there is a compaction-proof learning log the `improve-from-user` skill greps.
 
 ```
 [Learning] said="<what you did — your verbatim words, or a summary of the edit you made>" | rule="<the general rule I inferred>"
@@ -119,7 +119,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 ### Scout discipline
 
-- [Instruction] **Scout rule** -- when you notice pre-existing issues, flag them AND auto-add to the task list as `[Scout]` items.
+- [Instruction] **Scout rule** -- when you notice pre-existing issues, auto-add them to the task list as `[Scout]` items.
   - [Why] Per-Scout confirmation friction tempts skipping; auto-add neutralizes the temptation and preserves commit discipline (absorbed issues derail the commit).
   - [Example] Stale comments, budget overruns, lint gaps, dead config, type-check failures, failing/skipped tests, circular deps, dead code.
 
@@ -143,9 +143,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **CRITICAL: Self-describing artifacts — no context-dependent shorthand** -- names, comments, tests, logs, and planning docs must stand alone for a future reader without today's mental model.
   - [Why] Decoding shorthand makes a future reader spend cognitive energy reconstructing context that may be gone — and that energy is the real bottleneck now, scarcer than compute.
 
-- [Instruction] State a claim inline so it stands alone; cite sources by URL or file path, never by a bare symbol.
-  - [Why] A URL or path the reader can just open; a bare symbol assumes they already know what it points to.
-
 ### Single source of truth, no orphans
 
 - [Instruction] **Patch gaps the moment they bite** -- when a missing or wrong doc, test, or script both costs you time and blocks the task, fix it inline.
@@ -164,6 +161,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
   - [Why] A number renumbers on the next edit and rots silently; a file path, URL, or named anchor tracks the thing itself and the recap already carries the meaning.
   - [Example] Bad: `see HLD §5.6` / `Fundação §6.2`; and even `recap… (HLD §5.4.14)` — the recap is fine, but the `§5.4.14` still drifts and invites a jump.
   - [Example] Good: `[HLD → Riscos](./hld.md#riscos)` (named anchor), or "…, per the HLD (`./hld.md`)" — file/anchor, no number.
+  - [Example] A bare symbol is none of the three: bad `see handleRetry`; good `handleRetry` in `src/net/retry.ts`.
 
 - [Instruction] Make each cross-reference self-contained — recap the fact inline so the reader understands without opening the target.
   - [Why] Fluid reading means not jumping between docs; the file/URL exists only for whoever wants the full detail, so if understanding *requires* following the pointer, the recap failed.
@@ -310,11 +308,8 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] On a leveraged tasklist, execute each task via a pinned subagent — main orchestrates and validates against artifacts with fresh eyes.
   - [Why] Inline task execution burns the main window that compactions are rationed by, and orchestrator-validates already governs `/implement`.
 
-- [Instruction] Pick the pin per task: haiku when the dispatch prompt carries the exact content to place (mechanical transform), sonnet when the subagent must compose or restructure under conventions.
+- [Instruction] Pick the pin per task: haiku when the dispatch prompt carries the exact content to place (trivial transform), sonnet when the subagent must compose or restructure under conventions.
   - [Why] Tier follows judgment required, not habit — haiku costs ~3x less than sonnet and suffices when nothing is left to decide.
-
-- [Instruction] Keep in main: permission-gated actions (commit, push, reply) and small edits whose inputs main already holds, while the session is shallow.
-  - [Why] Permission UIs only render in main, and a subagent re-reads from scratch what main holds warm — delegating there re-buys reads main already paid for.
 
 ### Slow commands
 
@@ -353,8 +348,9 @@ rtk proxy <cmd>       # run <cmd> raw, bypassing rtk's filtering
   - [Why] Silencing a failing check ships the defect it flagged and drops the guard for every future change — trading a real fix for a fake green.
   - [Example] Don't reach for `// eslint-disable`, `# type: ignore`, `--no-verify`, or editing the config to mute the rule.
 
-- [Instruction] **Don't replicate problematic patterns** -- pause and ask before copying one that either (a) contradicts the global rules or (b) is itself a smell (see examples).
+- [Instruction] **Don't replicate problematic patterns** -- pause and ask before copying one that either (a) contradicts the global rules or (b) is itself a smell.
   - [Why] Every replication compounds the bad pattern.
+
 - [Instruction] **Surface harness gaps** -- when fixing something a linter/test/hook/automation could catch, flag `[Harness] ...` so the harness can be used instead of AI.
   - [Why] A hand-fix a linter could make by rule is signal lost; tagging the gap makes the harness scale to the next caller for free, so the fix compounds.
 
@@ -371,6 +367,9 @@ rtk proxy <cmd>       # run <cmd> raw, bypassing rtk's filtering
 
 - [Instruction] Execute any TaskList item whose goal diverges from the main session's goal (e.g. `[Side]`/`[Scout]` entries) through a subagent — never inline in the main session.
   - [Why] Inline execution pulls the off-goal task's files and reasoning into the main context, taxing the compaction budget the actual goal needs and blurring the session's focus and audit trail.
+
+- [Instruction] Run a permission-gated action (commit, push, reply) in main even when its task is delegated — hand the subagent everything else.
+  - [Why] Permission UIs only render in main, so a subagent cannot complete one at all — a harness limit, not a preference to weigh against context economy.
 
 - [Instruction] Default to launching subagents in the background (`run_in_background`) — UNLESS the next step depends on the result, or the user must watch progress live: then run foreground.
   - [Why] Background keeps the loop free, but a result-gated background launch just stalls the turn — or tempts redoing the search inline, dumping what delegation was meant to keep out.
