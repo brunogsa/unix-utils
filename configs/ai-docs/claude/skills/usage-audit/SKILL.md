@@ -29,6 +29,10 @@ The three KPIs (defined in `./usage-history/README.md`): **session time up** (lo
 - [Instruction] Read the previous 2–3 files in `./usage-history/snapshots/` and compare KPIs against today's snapshot before interpreting anything.
   - [Why] A single snapshot has no direction; only the delta says whether an experiment moved its signal or the spend trend reversed.
 
+- [Instruction] Divide `user_messages`, `interruptions`, and `session_hours` by `window_days` before comparing them across snapshots.
+  - [Why] Those three are raw per-window totals, so a raw delta can invert the sign: 821 (7d) → 411 (1d) user messages reads as halved, yet per-day it tripled.
+  - [Example] Already normalized, compare directly: `kpis.cost_per_day`, `kpis.cost_per_user_message`, `by_day` entries.
+
 - [Instruction] For each `running` row in `./usage-history/experiments.md`, check its "watch signal" against the snapshot delta and settle it: `kept`, `reverted`, or leave `running` with a dated note.
   - [Why] Unsettled experiments pile up as permanent "running" rows — the repertoire stops teaching which tweaks actually worked.
 
@@ -45,7 +49,7 @@ The three KPIs (defined in `./usage-history/README.md`): **session time up** (lo
   - [Why] Pricing, model behavior, and best practices drift fast; a hypothesis built on stale recall wastes an observation window on a dead lever.
 
 - [Instruction] End the audit by offering to commit the snapshot + experiments.md changes (never commit without the user's ask).
-  - [Why] Uncommitted history dies with the working tree; but committing is the user's call per the global rule.
+  - [Why] Uncommitted history dies with the working tree, but this repertoire is the user's record, so the commit is theirs to authorize.
 
 ## Interpreting the output
 
@@ -65,4 +69,4 @@ The three KPIs (defined in `./usage-history/README.md`): **session time up** (lo
 
 The baseline snapshot and every experiment tried live in `./usage-history/` (`experiments.md` + `snapshots/`). Headline at baseline (2026-07): ~$4.2k/week list price, 83% main loop (fable/opus + always-thinking + 200k-context marathons), 17% subagents.
 
-Measurement caveats (list prices, wall-clock hours, block-based thinking share) are in `./usage-history/README.md` — read it before comparing snapshots.
+Measurement caveats (list prices, wall-clock hours, block-based thinking share, per-window totals that need dividing by `window_days`) are in `./usage-history/README.md` — read it before comparing snapshots.

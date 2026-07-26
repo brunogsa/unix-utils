@@ -11,7 +11,7 @@ Committed, durable record of Claude Code usage — the memory the `usage-audit` 
 
 1. **Session time** — longer autonomous stretches per human touch (`session_hours` up, relative to `user_messages`).
 2. **Money** — `kpis.cost_per_day` down (list-price estimate; shares and trends are the reliable signal, not absolute dollars).
-3. **User messages/corrections** — `user_messages` down for the same amount of work; `cost_per_user_message` tracks work-per-touch efficiency.
+3. **User messages/corrections** — `user_messages` and `interruptions` down for the same amount of work; `cost_per_user_message` tracks work-per-touch efficiency.
 
 ## Measurement caveats (read before comparing snapshots)
 
