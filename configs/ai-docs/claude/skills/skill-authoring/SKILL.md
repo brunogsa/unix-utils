@@ -130,21 +130,11 @@ Why: an always-read reference loads the same words every run plus a Read round-t
 
 ## Procedural skills ship a human-facing assets/flowchart.md
 
-A step-shaped (procedural/orchestrator) skill should carry `assets/flowchart.md`: an H1 title, a preamble marking it human-facing and non-authoritative (SKILL.md's numbered steps win on conflict), then one mermaid flowchart of the control flow.
+A step-shaped (procedural/orchestrator) skill carries `assets/flowchart.md`: one mermaid flowchart of its own control flow, parked in assets and never loaded by the model.
 
-The flowchart covers, at minimum:
+Scope it to that skill's own flow — a skill it loads, an agent it dispatches, or a hook that fires is one collapsed node, named and no more.
 
-- The trigger/invocation that starts the skill, its steps/phases, and every loop with its exit condition.
-- User-interaction points: the questions asked (interviews, toggles) and the manual gates where the human approves before flow continues.
-- Durable-state writes: TaskList usage (tasks created, `[Reminder]` entries) and scratchpad/run-state updates, each with a short why.
-- Delegation: other skills loaded, and every subagent dispatch labeled with agent type, model, effort, and parallel (∥) vs serial.
-- Hooks/scripts that steer the flow (state machines, Stop hooks).
-
-Mark node kinds with the shared classDef legend — `:::start` (trigger), `:::gate` (question/approval), `:::dispatch` (subagent), `:::state` (durable-state write), `:::skill` (skill load), `:::hook` (hook/script).
-Copy the classDef color block verbatim from any existing flowchart.md so all six kinds render identically across skills.
-
-Reference it from SKILL.md with a one-liner that tells the model NOT to load it.
-Regenerate it whenever the skill's flow changes, and validate the render with `mmdc` (dispatch the `mermaid-fixer` agent on failures); author it under the `mermaid-diagrams` skill.
+Writing or regenerating one? Read [`references/flowchart-authoring.md`](references/flowchart-authoring.md) first — what the diagram must cover, the collapse rule in full, the classDef legend, and the `mmdc` validation step.
 
 Why: to the model, mermaid is just a second text encoding of the numbered steps — a drift-prone second source of truth that would tax every trigger if in-body.
 The human gets an at-a-glance flow audit; parking it in assets keeps that value at zero context cost.
