@@ -56,7 +56,7 @@ Fix: **self-consistency** — run 3 samples in parallel, keep only what ≥2 agr
 
 ### 2/3 majority filter (deterministic match key)
 
-Findings are voted on by the key `(section-group, primary-file, anchor)`, not by their prose.
+Findings are voted on by the key `(section-group, primary-file, cited-lines)`, not by their prose.
 
 [Instruction] **CRITICAL: Children MUST emit a machine-readable key line immediately under each finding ID.** Format is fixed and grep-able — no free-text parsing in the merge step.
 
@@ -64,28 +64,26 @@ Required emission (see §Report Format below for the full per-finding template):
 
 ```
 **<section>.<index>** — <human-readable header>
-[KEY] section=<N> file=<path> anchor=<heading>
+[KEY] section=<N> file=<path> lines=<n>,<n>,…
    - <body bullets>
 ```
 
-Children emit their own section number, a line-free path, and the enclosing heading; the orchestrator does the `1-2` grouping, so children stay grouping-agnostic.
+Children emit their own section number and a line-free path; the orchestrator does the `1-2` grouping, so children stay grouping-agnostic.
 
-[Instruction] **Derive `anchor` mechanically:** take the nearest `##` or `###` heading above the cited defect and emit it verbatim — never the `#` file title, never a bolded pseudo-heading.
+[Instruction] **Emit `lines` as every line number the finding cites in `file`**, comma-separated and ascending — the defining line of each rule in the conflict, never a range.
 
-- Where the file numbers its headings SKILL.md-style, emit the number alone (`9.5`, `2.1`).
-- Never kebab-case, abbreviate, or truncate it — the orchestrator normalizes casing and punctuation, but cannot recover words you dropped.
+- A two-rule conflict emits both (`lines=316,372`); a single-site defect emits the one (`lines=356`).
+- Cite the `[Instruction]` line, not its `[Why]` or `[Example]` child — the orchestrator tolerates ±3, so a near miss still matches.
 
-Why: this derivation rule used to live only in `references/majority-merge.md`, which children never load, so each child invented its own spelling.
+Why: the cited lines identify the *defect*, while a heading identifies only the neighborhood it sits in — and headings are spelled differently by each child and shared by unrelated defects.
 
-A 2026-07-25 run lost real findings to exactly that: `subagent-flow-opt-in` vs `Subagent flow (opt-in)` split one defect's votes across two keys.
-
-Why: extracting the key from free prose is itself LLM-stochastic — children would phrase headers differently and the vote would silently noop.
+A 2026-07-25 run hit both failures: `subagent-flow-opt-in` vs `Subagent flow (opt-in)` split one defect's votes, and two unrelated defects under `TaskList discipline` merged into a fabricated 3-vote consensus.
 
 The fixed line lets the orchestrator merge via `grep '^\[KEY\]'` with zero LLM judgment.
 
 [Instruction] **Orchestrator only: read [`references/majority-merge.md`](references/majority-merge.md) at flow step 4.**
 
-It defines each key field, the anchor normalization the vote depends on, the merge algorithm, and the ensemble-vs-correlated-false-positive handback.
+It defines each key field, the line-overlap matching the vote depends on, the merge algorithm, and the ensemble-vs-correlated-false-positive handback.
 
 Children never load it — they only emit the `[KEY]` line specified above.
 
@@ -258,7 +256,7 @@ Summary table + per-heuristic sections. Seven heuristic rows (one per heuristic)
 ## 1. Contradictions
 
 **1.1** — `CLAUDE.md:67` vs `skills/foo/SKILL.md:12`
-[KEY] section=1 file=CLAUDE.md anchor=foundations
+[KEY] section=1 file=CLAUDE.md lines=67
    - <conflict description>
    - <place A>: 1-3 lines
    - <place B>: 1-3 lines

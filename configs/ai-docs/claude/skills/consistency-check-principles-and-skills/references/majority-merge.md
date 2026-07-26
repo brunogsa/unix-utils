@@ -4,35 +4,33 @@ Read this in the **orchestrator** at flow step 4, once the 3 child reports are b
 
 ## Match key
 
-**Match key = `(section-group, primary-file, anchor)`.** Two findings match iff all three fields match exactly.
+**Match key = `(section-group, primary-file, cited-lines)`.** Two findings match iff the first two fields are equal and their line sets overlap.
 
-Only the key counts for voting; confidence tier, line numbers, and diff wording all vary stochastically between children.
+Only the key counts for voting; confidence tier, header phrasing, and diff wording all vary stochastically between children.
 
 - `section-group` — integer 1–7 from §Heuristics, normalized to `1-2` at merge time (sections 1 & 2 conflate at the boundary).
 
 - `primary-file` — the lowest file path in the finding *body* (never its header) that falls inside the audited scope.
   - For multi-file findings, take the first in-scope file alphabetically.
   - Fall back to the lexicographically lowest path overall only when no body path is in scope.
-  - No line number in the key — children anchor the same defect differently, so line-exact keys silently lose votes.
   - Scope-first, not lexicographic-first: a finding citing both a scope file and CLAUDE.md must key on the scope file.
     - Otherwise whichever file a child happened to quote first — not the defect — decides the key, splitting one real finding's votes across two.
 
-- `anchor` — the heading in `primary-file` enclosing the cited defect, derived by the children per SKILL.md's `[KEY]` spec.
-  - That spec: the nearest `##`/`###` heading above the defect, verbatim — or the number alone (`9.5`, `2.1`) where the file numbers its headings.
-  - Never compare anchors as emitted — children spell the same heading differently, so an exact-string key silently loses those votes.
-    - Observed 2026-07-25: `subagent-flow-opt-in` vs `Subagent flow (opt-in)`; `repo-wide-static-checks` vs `repo-wide-static-checks-tests-coverage-local-mode`.
-  - Normalize before comparing: lowercase, then delete every character outside `a-z0-9` (`tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9'`).
-  - Two normalized anchors match iff they are equal, or one is a prefix of the other and that prefix is at least 12 characters long.
-    - The 12-char floor stops a stub anchor like `run` swallowing `running-the-pipeline` and fabricating a consensus no child actually reached.
-  - Without the anchor, a hub file cited by several unrelated defects collapses into one `(section-group, file)` key.
-    - Example: `implement/SKILL.md` separately defective under anchors `2.1`, `9.1`, and `9.5` — the first-reported wording wins the vote and the other two defects silently vanish.
+- `cited-lines` — the line numbers the finding cites in `primary-file`, emitted by the children per SKILL.md's `[KEY]` spec.
+  - Two line sets match iff any line in one falls within ±3 of any line in the other; the tolerance absorbs a child citing a `[Why]` instead of its `[Instruction]`.
+  - Match on overlap, never on set equality — children cite different subsets of the same conflict, so an exact-set key silently loses those votes.
+  - This field replaced an enclosing-`##`-heading `anchor`, which failed in both directions and needed spelling normalization to half-work.
+    - Split votes: one defect keyed `subagent-flow-opt-in` by one child and `Subagent flow (opt-in)` by another (observed 2026-07-25).
+    - Fabricated votes: a broad heading hosts unrelated defects, so `### TaskList discipline` merged a `:184`/`:301` finding with a `:316`/`:372` one into a bogus 3-vote consensus, emitting the wrong body (observed 2026-07-25).
+  - Lines identify the defect itself, so both failures dissolve — a heading only ever identified the neighborhood the defect sat in.
+  - Line numbers are safe to key on because all 3 children read the same static tree; never re-run a merge against an edited file.
 
 ## Algorithm
 
 1. `grep '^\[KEY\]'` over each child report → list of keys per child.
-2. Normalize each key: sections 1 and 2 become group `1-2`; strip any stray `:<line>` suffix a child left on the file path; lowercase the anchor and delete every character outside `a-z0-9`.
-3. Bucket the normalized keys by `(section-group, primary-file)`, then cluster the anchors inside each bucket by the equal-or-≥12-char-prefix rule above. Each cluster is one key.
-   - Clustering inside the bucket is what keeps the prefix rule safe — two anchors can only merge when they already share both a section group and a file.
+2. Normalize each key: sections 1 and 2 become group `1-2`; strip any stray `:<line>` suffix a child left on the file path; parse `lines=` into a set of integers.
+3. Bucket the normalized keys by `(section-group, primary-file)`, then cluster the line sets inside each bucket by the ±3-overlap rule above, merging transitively. Each cluster is one key.
+   - Clustering inside the bucket is what keeps the overlap rule safe — two line sets can only merge when they already share both a section group and a file.
 4. Count each clustered key once per child report — duplicates within one report still count as one vote.
 5. Keep findings whose key appears in ≥2 reports. Drop the rest silently.
 6. For each kept key, emit the finding body from whichever child reported it with HIGHEST confidence; tie → lexicographically first child's wording.
