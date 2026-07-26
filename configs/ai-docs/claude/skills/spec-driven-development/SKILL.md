@@ -15,6 +15,10 @@ The moment this skill starts — before any spec or plan work — ask one messag
 - **"Every line traces to an AC?"**
 - **"Right-sized plan?"**
 
+UNLESS `brainstorm` drives the run — it `@`-imports this skill at load time, so "starts" would otherwise mean brainstorm's first step.
+There the toggles fire at the top of brainstorm's "Interview the user" step instead, before its first question round.
+Why: brainstorm reads any existing spec and probes scope before that, and firing the toggles ahead of its scope probe splits one interview into two disjoint question moments.
+
 They govern the two toggleable self-review checks (see "Self-review both spec and plan" below).
 Answered fresh each run — never reused from a previous run, never written to `plan_<slug>.md` or any committed state file.
 
