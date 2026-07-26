@@ -88,9 +88,15 @@ Why: observation-only comments ("this is interesting...") leave the author in li
 
 **Skip**: formatting/style, linting errors, test failures, minor naming preferences, subjective refactoring.
 
+**UNLESS** Wave 1's repo-wide check outputs (`static-lint.txt`, `tests-*.txt`) show that lint error or test failure landing **inside the diff**.
+
+Those become findings at MANDATORY/RECOMMENDED severity, per `references/common-preamble.md`'s "Context you have" section.
+
 **DO** provide feedback on: typos (user-facing), misleading names, convention-breaking formatting.
 
 Why: a linter catches formatting — surface it there, not in a comment. Reviewer attention is the scarce resource; spend it on what tools can't catch.
+
+Why the UNLESS wins: a check failing inside the diff is evidence the author never ran it, so the tool this rule defers to has surfaced nothing.
 
 ## Reference format: file:line or file:line-range
 
