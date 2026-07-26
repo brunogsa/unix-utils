@@ -20,6 +20,9 @@ flowchart TD
   d4{"User agrees to decompose?"}
   n7["Write scopes.md<br/><br/>One line per sub-project: name, purpose, dependency"]
 
+  preflightGate["Pre-flight toggle interview (from spec-driven-development):<br/>2 yes/no toggles — AC-traceability? Right-sized plan?<br/><br/>runs before the first question round;<br/>gates how strictly step 8's self-review checks run"]:::gate
+  persistToggles["Persist toggle answers to<br/>/tmp/sdd_&lt;session_id&gt;.json<br/><br/>step 8's self-review reads this file later, never re-asks"]:::state
+
   n8["Create /tmp/brainstorm_&lt;session_id&gt;.md scratchpad<br/><br/>persist decisions+why, discarded alternatives+why, open questions as they happen<br/>on resume/after compaction: re-read this file first, trust over recalled context"]:::state
   n9["Interview: ask 2-3 Socratic questions per round<br/>(prefer AskUserQuestion tool, recommended answer + reasoning)<br/><br/>categories: Background • Goal/KPIs • User Stories • Acceptance Criteria (BDD) • NFR/Technical constraints • Open Questions<br/><br/>split facts (look up yourself) from decisions (ask user)"]:::gate
   refLoad["Load test-standards coverage-taxonomy reference<br/>(unconditional, every round, before spec generation)"]:::skill
@@ -37,10 +40,18 @@ flowchart TD
   n16["Present spec summary for review;<br/>ask if anything is missing or wrong"]:::gate
   d8{"User satisfied?"}
 
-  dispatch{{"Dispatch plan-writer subagent (serial, foreground)<br/><br/>subagent_type: plan-writer — model/effort inherits its own frontmatter pin<br/>inputs: spec path, plan_&lt;slug&gt;.md output path, planning-conventions file if any"}}:::dispatch
+  dispatch{{"Dispatch plan-writer · opus · high effort (serial, foreground)<br/><br/>model/effort come from the agent's own frontmatter pin — no model param passed<br/>inputs: spec path, plan_&lt;slug&gt;.md output path, planning-conventions file if any"}}:::dispatch
   d9{"plan-writer returned a numbered gap list?"}
   n18["Walk and close EVERY reported gap with user first; update spec_&lt;slug&gt;.md<br/><br/>then re-dispatch once (not once per gap); never invent the missing decision"]:::gate
-  n19["Validate plan_&lt;slug&gt;.md: file exists, Task/PR breakdown covers every AC + requirement"]
+  qualDispatch1{{"Dispatch deep-reviewer · opus · max effort (serial):<br/>qualitative pass — placeholders, contradictions,<br/>scope, PR size, ambiguity, completeness,<br/>human-reviewable, artifacts, density"}}:::dispatch
+  qualDispatch2{{"Dispatch mermaid-fixer · haiku · default effort (serial):<br/>fix diagrams until mmdc renders"}}:::dispatch
+  qualDispatch3{{"Dispatch density-fixer · haiku · default effort (serial):<br/>run check-density.sh until exit 0"}}:::dispatch
+  formalChecksNode["Run seven formal checks in sequence<br/>(5 always-on + 2 toggles read from<br/>/tmp/sdd_&lt;session_id&gt;.json persisted at step 3)<br/><br/>AC-test-coverage and right-sized checks each<br/>dispatch deep-reviewer · opus · max (serial)"]
+  d10{"All blocking checks pass?"}
+  fixLoop["Fix flagged issue directly;<br/>surface spec/plan conflicts to user first, if any"]:::gate
+  snapshotLoop["Delta-scoped re-review of the diff only;<br/>snapshot spec+plan to /tmp/sdd-snapshots/<br/>for the user's annotated-diff review"]:::state
+  d11{"User approves the snapshot?"}:::gate
+  rerunCheck["Re-run only the failed check<br/>(never the whole seven-check block)"]
   done(["Tell user: run /clear, then invoke /implement<br/>(don't run /implement in this session)"]):::gate
 
   start --> skillLoad
@@ -59,11 +70,13 @@ flowchart TD
   n5 --> d3
 
   d3 -->|"yes"| n6
-  d3 -->|"no"| n8
+  d3 -->|"no"| preflightGate
   n6 --> d4
   d4 -->|"yes"| n7
-  d4 -->|"no: whole idea, no narrowing"| n8
-  n7 --> n8
+  d4 -->|"no: whole idea, no narrowing"| preflightGate
+  n7 --> preflightGate
+  preflightGate --> persistToggles
+  persistToggles --> n8
 
   n8 --> n9
   n9 --> refLoad
@@ -89,8 +102,18 @@ flowchart TD
   dispatch --> d9
   d9 -->|"yes, gaps found"| n18
   n18 --> dispatch
-  d9 -->|"no, plan produced"| n19
-  n19 --> done
+  d9 -->|"no, plan produced"| qualDispatch1
+  qualDispatch1 --> qualDispatch2
+  qualDispatch2 --> qualDispatch3
+  qualDispatch3 --> formalChecksNode
+  formalChecksNode --> d10
+  d10 -->|"yes"| done
+  d10 -->|"no"| fixLoop
+  fixLoop --> snapshotLoop
+  snapshotLoop --> d11
+  d11 -->|"no: more fixes"| fixLoop
+  d11 -->|"yes"| rerunCheck
+  rerunCheck --> d10
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px
