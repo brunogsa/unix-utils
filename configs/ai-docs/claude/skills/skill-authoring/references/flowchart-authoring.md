@@ -17,6 +17,54 @@ This does not contradict collapsing a callee (below). Collapse what belongs to *
 Why: the flowchart is read *instead of* the numbered steps, not alongside them.
 A pointer back into SKILL.md hands the reader the very cross-reference the diagram existed to spare them, and it rots the moment a step is renumbered.
 
+## Every node carries an id — numbers down the main line, letters for branches
+
+Prefix each node's label with its id and a `. ` — `5. Persist all 3 answers to /tmp/sdd_&lt;session_id&gt;.json`.
+
+Ids are diagram-local and run in execution order, top to bottom: `1`, `2`, `3`, … one per node on the main line, trigger and decision nodes included.
+
+A node hanging off a decision takes that decision's number plus a letter — `5a`, `5b`, `5c`.
+The main line then resumes at `6`, where those branches rejoin.
+
+Where one branch terminates (abort, stop, skip) and another carries the flow onward, the onward branch IS the main line — only the terminal branch takes a letter.
+
+A branch running several nodes deep before it rejoins takes sequential letters — `5b`, `5c` — one per node down that path.
+
+Assign the letters depth-first: a multi-node branch consumes its whole run of letters before the next branch off that same decision starts.
+
+A loop body letters off its loop-check decision, and the loop's exit edge continues the main line.
+
+A node three or more branches converge on takes a plain main-line number, since no single decision owns it.
+
+A fork nested inside a lettered branch appends a digit instead: `5c1`, `5c2`.
+
+Deeper nesting keeps alternating letter and digit — `5c1a`, `5c1a1` — so each character is one level and the id stays parseable.
+Never append a digit to a digit: `5c11` is unreadable, and `5c1a` says the same thing.
+
+An offshoot that never rejoins the main line letters the same way even when it hangs off a plain node rather than a decision.
+
+Number a subgraph's members off the subgraph's own id when it holds a static set of siblings — a TaskList seed sitting at `2` holds `2a` … `2j`.
+
+A subgraph that merely groups a long stretch of the flow (a per-task loop body, a phase) takes no id, and its nodes number as ordinary main-line and branch nodes.
+Lettering fifty loop-body nodes off one id would need double letters and collide with the nested-fork digits — the opposite of what the ids are for.
+
+Keep the sequence gapless on every regeneration, renumbering whatever a flow change displaced.
+
+Name each mermaid node identifier after its id with an `n` prefix — `n5c1` — so the edge list reads in the same numbering as the labels.
+
+A node that maps to a numbered SKILL.md step keeps its `Step N ·` marker after the id: `9. Step 4 · Interview (Socratic rounds)`.
+The two numbers answer different questions — the id is where the node sits in this diagram, the marker is which step of the skill it implements.
+
+Normalize any bare `N. ` step marker into that `Step N ·` form, so no label ever opens with two bare numbers.
+
+Examples: `3. Step 1 · Glob the CWD`, never `3. 1. Glob the CWD`.
+
+Why: the id is how the human names the node they want changed, and "drop 5c1" is unambiguous where a quoted label is not.
+Numbering also makes the ordering readable outright, instead of something the eye reconstructs by following arrows.
+
+An id is a position inside one revision of one diagram, so it is never a durable reference.
+Never cite one from SKILL.md, another flowchart, a commit message, or a code comment — regeneration renumbers it silently.
+
 ## What the flowchart covers
 
 - The trigger/invocation that starts the skill, its steps/phases, and every loop with its exit condition.

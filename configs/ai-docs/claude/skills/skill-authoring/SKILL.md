@@ -138,7 +138,7 @@ A step-shaped (procedural/orchestrator) skill carries `assets/flowchart.md`: one
 
 Scope it to that skill's own flow — a skill it loads, an agent it dispatches, or a hook that fires is one collapsed node, named and no more.
 
-Writing or regenerating one? Read [`references/flowchart-authoring.md`](references/flowchart-authoring.md) first — what the diagram must cover, the collapse rule in full, the classDef legend, and the `mmdc` validation step.
+Writing or regenerating one? Read [`references/flowchart-authoring.md`](references/flowchart-authoring.md) first — what the diagram must cover, the node-numbering scheme, the collapse rule in full, the classDef legend, and the `mmdc` validation step.
 
 Why: to the model, mermaid is just a second text encoding of the numbered steps — a drift-prone second source of truth that would tax every trigger if in-body.
 The human gets an at-a-glance flow audit; parking it in assets keeps that value at zero context cost.
