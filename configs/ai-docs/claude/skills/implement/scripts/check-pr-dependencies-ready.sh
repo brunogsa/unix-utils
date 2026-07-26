@@ -3,8 +3,9 @@
 # parent PR named in PR-N's "Depends on:" list is safe to build on, before
 # /implement creates PR-N's own branch. Extracts the guard's core logic out
 # of inline /implement prose, mirroring the existing task-level chain-abort
-# pattern one level up (implement/SKILL.md's §5.4), per the spec's explicit
-# decision to make this specific check scriptable and unit-tested.
+# pattern one level up (implement/SKILL.md's "On stuck" step), per the
+# spec's explicit decision to make this specific check scriptable and
+# unit-tested.
 #
 # Usage:
 #   check-pr-dependencies-ready.sh <plan-file> <PR-N> <worktree-path>

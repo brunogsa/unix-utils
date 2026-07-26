@@ -18,7 +18,9 @@ jq --arg sid "<new_session_id>" \
   > /tmp/state.json && mv /tmp/state.json /tmp/implement_<new_session_id>.json
 ```
 
-`tasks[]`, `attempts[]`, `gate_dispatches`, `tails`, `worktree`, `pr`, `orchestration_review`, and `pr_label` all carry over verbatim.
+`tasks[]`, `attempts[]`, `gate_dispatches`, `tails`, `worktree`, `pr`, and `pr_label` all carry over verbatim.
+
+A pre-change state file may still carry an `orchestration_review` key from before that step was removed — leave it untouched and ignore it; nothing reads it.
 
 A pre-change state file predates `tails.wanted` and has no such key — treat its absence as `true`, matching the tails-mandatory behavior that file was created under.
 
@@ -30,8 +32,8 @@ A pre-change state file predates `pr_label` the same way — treat its absence a
 
 The adopted phase decides where the resumed run re-enters:
 
-- `tasks` → run the flow from §2 onward — the orchestration review runs once, then the task loop.
-- `gates` → skip straight to the §8 batch test-presence gate; the §2 review and the task loop already ran.
+- `tasks` → run the flow from §2 onward — re-seed any missing TaskList entries, then the task loop.
+- `gates` → skip straight to the §8 batch test-presence gate; the task loop already ran.
 - `tails` → skip straight to the §9 batch-end flow; check `.tails.*_report` for reports that already exist.
 
 A budget-halted resume still halts again at that first verdict — the carried `attempts[]` already exceed the ceiling; delete the state file (below) to truly start over.

@@ -25,13 +25,31 @@ There is no per-task human handshake — your batch-end review is the handshake.
 
 Two roles:
 
-- **Orchestrator** (this session) — pre-flight, plan review, TaskList (parent tasks only), dispatch, post-commit verification, batch-end report.
+- **Orchestrator** (this session) — pre-flight, TaskList, dispatch, post-commit verification, batch-end report.
   Holds only orchestration state, never task implementation context.
+  It is also the **only** role that spawns subagents; a task subagent never nests another one.
 
 - **Task subagent** — one fresh context per task, sequential: decompose into its own checklist file, RED-GREEN work, self-verify, commit, report.
   Each re-grounds from durable artifacts (plan_<slug>.md, spec_<slug>.md, `git log`), not session history.
 
 Run subagents on **Sonnet** (execution is mechanical); keep orchestrator on stronger model. Tasks run **sequentially** — each reads the prior task's commits + plan_<slug>.md notes first.
+
+### A PR-label run is the same batch flow, repeated once per PR
+
+`/implement PR-1, PR-2` resolves each label to its own task-id list, then runs the **whole** batch flow — §1.4 through §9 — once per PR, strictly in the order given.
+
+Only four steps are shared by the whole list and never repeat: §1.1 (locate plan/spec), §1.2 (interview), §1.3 (worktree setup), and §2 (TaskList seeding, which seeds every PR's entries upfront).
+
+Each PR's own iteration then runs in this order: resolve its label → capture its `BATCH_BASE_SHA` (§1.4) → decide and create its branch.
+From there: its task loop (§3–§7) → its gate (§8) → its batch-end and PR (§9).
+
+So every PR's gate, tails, diff range, and PR body scope to that PR's own commits alone, never the whole list's.
+
+Read this once here rather than as a caveat on each step below; the sections that follow assume it and don't restate it.
+
+**Fail-fast between PRs:** proceed to the next PR only when every one of the current PR's tasks reached `[Done]` and §9.1's repo-green gate passed. Otherwise stop — the remaining PRs stay untouched.
+
+Label resolution, branch creation, and manifest writes live in [`references/pr-awareness.md`](references/pr-awareness.md). Load it when the arg is a PR-label; a plain `<task-ids>` run never does.
 
 ### Chain-abort, with no human gate
 
@@ -41,7 +59,7 @@ A good spec/plan — required for any `/implement` run — makes mid-batch stall
   - Record it, **never guess past it**, leave that task where it stopped, and continue with tasks that don't depend on it.
   - Every block lands in the batch-end report for you to clear in one pass.
 
-- **Subagent's own work fails the orchestrator's post-commit verification** → re-dispatch the same task with the failure as feedback; the verdict script decides how many attempts it gets (§5.3).
+- **Subagent's own work fails the orchestrator's post-commit verification** → re-dispatch the same task with the failure as feedback; the verdict script decides how many attempts it gets (§5.2).
   - Surface it only if it still fails. Execution correctness is the AI's job, not yours.
 
 ## 1. Pre-flight (orchestrator)
@@ -51,8 +69,6 @@ On yes, §1.3 creates and populates it.
 On no, this skill runs in the current checkout, and never merges or deletes a worktree on its own either way.
 
 In a multi-task batch (`/implement 1, 2, 3`), **§1.1–§1.5 and §2 run once** at the start; **§1.6–§1.7 run once per task** as each becomes active.
-
-In a PR-label list (`/implement PR-1, PR-2`), the boundary shifts: §1.1–§1.3 and §2 run once for the whole list; §2.1, §2.2 and §1.4–§9 repeat once per PR — see [`references/pr-awareness.md`](references/pr-awareness.md).
 
 ### 1.1. Locate the plan (and spec)
 
@@ -81,11 +97,10 @@ Mid-run `.env` needs are self-served (copy from the original checkout) rather th
 - **Plan pick**, only when §1.1 found multiple candidates.
 - **Run in a git worktree?** (yes/no) — on yes, §1.3 creates it from HEAD and symlinks files in.
 - **Open a draft PR at batch end?** (yes/no).
-- **Run pre-dispatch orchestration review?** (yes/no, default no) — no skips §2, dispatching the first task after pre-flight.
 - **Run refactor + auto-review batch-end tails?** (yes/no, default yes) — no skips §9.2–§9.4; §9.1's gate always runs.
 - **Base-branch confirmation** — show `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'` as the default; let the user confirm or override.
 
-Record all answers (five, or six with plan-pick) before proceeding — §1.5 persists them to the state file.
+Record all answers (four, or five with plan-pick) before proceeding — §1.5 persists them to the state file.
 
 ### 1.3. Worktree setup (only when §1.2 answered yes)
 
@@ -97,7 +112,6 @@ When §1.2 answered no, skip this step; the batch-end package omits the merge-ba
 
 Capture HEAD as `BATCH_BASE_SHA` — the start of this invocation's commit range (reused in §4, §8, and §9).
 Capture it **after** §1.3, so a new worktree's HEAD (same commit, different working directory) is what gets recorded.
-In a PR-label list, capture it fresh per PR (right before that PR's branch decision), so each PR's gate/tails/diff scope to only its own commits — never the whole list's.
 
 Read **full commit messages** and give a 3–5 line summary. Don't dump the log; subagents re-derive context from `git log` at dispatch.
 
@@ -130,14 +144,13 @@ jq -r --arg slug "<slug>" --arg pr "<pr_label>" \
   "gate_dispatches": 0,
   "tails": { "wanted": true, "refactor_report": "", "auto_review_report": "", "tokens": { "gate": 0, "refactor": 0, "auto_review": 0 } },
   "worktree": { "created": false, "path": "", "branch": "" },
-  "pr": { "wanted": false },
-  "orchestration_review": { "wanted": false }
+  "pr": { "wanted": false }
 }
 ```
 
-- One `tasks[]` entry per matched task-id (`status: "pending"`); `worktree`/`pr`/`tails.wanted`/`orchestration_review.wanted` filled from §1.2's answers.
+- One `tasks[]` entry per matched task-id (`status: "pending"`); `worktree`/`pr`/`tails.wanted` filled from §1.2's answers.
   - `pr_label` is `""` for a plain `<task-ids>` run, else the `PR-N` this file belongs to (`references/pr-awareness.md`).
-  - §5.3/§5.5 append `attempts[]` entries as `{ "task", "n", "result", "signature", "tokens", "at" }`.
+  - §5.2/§5.4 append `attempts[]` entries as `{ "task", "n", "result", "signature", "tokens", "at" }`.
 - **Found** → load [`references/preflight-state.md`](references/preflight-state.md) for the JSON-adoption mechanics that restore attempt counts and completed-task status.
 
 ### 1.6. Match `<task-id>`
@@ -151,75 +164,61 @@ A clean first run skips this.
 The reconciliation mechanics live in [`references/resume-reconcile.md`](references/resume-reconcile.md) — how this differs from §1.5's silent JSON adoption, and the per-state prompts (re-execute / resume / restart / revive).
 Load it only on a resume or dirty run.
 
-### 1.8. PR-label resolution & per-PR loop (only when the arg is a PR-label)
+### 1.8. Resolve the PR-labels (only when the arg is a PR-label)
 
-Runs at the start of **each** PR's iteration, before that PR's own §1.4 — each PR runs its own full §1.4–§9 batch, in order (branch → tasks → gate → PR).
-Before the next PR's branch is created, every task in the batch must run and gate.
+Resolve every `PR-N` in the arg to its task-id list now, before §2 seeds anything, so §2 can see the whole run.
 
-Before resolving the PR-N label, re-run `check-pr-dag.sh` against the live plan — it's symlink-shared and mutable for the rest of execution (§1.3), so self-review's earlier pass can go stale.
+Resolution, the defensive DAG re-check that precedes it, and per-PR branch creation all live in [`references/pr-awareness.md`](references/pr-awareness.md). Load it here.
 
-Stop before the next PR on any task ending terminal-without-`[Done]`, or a §9.1 gate failure; never skip ahead.
+## 2. Seed the whole TaskList upfront, in execution order
 
-Full resolution, branch-creation, and stop-predicate mechanics live in [`references/pr-awareness.md`](references/pr-awareness.md). Load when the arg is a PR-label.
+Before dispatching anything, create every TaskList entry the run will need, top-to-bottom in the order they actually execute.
+Read from the top, the list *is* the run's timeline — nothing appears later, out of order, as it becomes relevant.
 
-## 2. Orchestration review — fresh-context subagent, once before any dispatch
+Within each batch that means **tasks first, then that batch's batch-end reminders**, because the reminders fire after the last task lands.
 
-Runs only when §1.2's toggle is yes; on no, skip to §2.1, dispatch the first task.
+On a PR-label list this covers **every** PR, in the order given: PR-1's tasks → PR-1's reminders → PR-2's tasks → PR-2's reminders, and so on.
+This is the one step the per-PR loop does not repeat — showing the whole run from the start is the entire point.
+A fail-fast stop simply leaves the later PRs' entries `pending`.
 
-Spawn a `deep-reviewer` subagent (Agent tool, `subagent_type=deep-reviewer` — its frontmatter pins model/effort, no override) once per invocation, after pre-flight and before dispatching.
-Conduct an adversarial review of the whole batch (not per-task).
-Fresh context: the plan was authored in-session, already convinced — reviewer sees only artifacts + question.
+### 2.1. One entry per task
 
-Challenge the batch as a whole: approach, ordering, dependencies, verification strategy. Take it seriously: fix the plan/batch if dependencies are missed; reconcile verification method challenges; skipping defeats the point.
+Create one entry for **every** task-id the run resolved — never just the first.
 
-This is the orchestrator's only plan-level review; the task subagent has its own mid-execution fork lever (§4.2).
+Mark the run's very first task `in_progress` and every other one `pending`.
 
-### 2.1. Seed the batch-end `[Reminder]` task (survives compaction)
+On a PR-label run, prefix each subject with its owning label — `PR-2 · 5. <task title>`.
+That keeps a task's PR readable in the list itself, rather than hidden in a metadata field.
 
-Right after the review and before the first dispatch, create **one `[Reminder]` task per batch-end** anchoring the whole §9 batch-end procedure in the TaskList.
-Create it once per batch-end, never per task.
-This is the CLAUDE.md `[Reminder]` category — a durable reminder to run a later step, producing no commit of its own.
+The TaskList carries **status only**. Attempt counts, gate outcomes, and fix SHAs live in the JSON state file (§1.5), which is the single machine-checkable record and the only one the scripts read.
 
-**On a PR-label run this step repeats per PR**, seeded right after that PR's §1.4 captures its own `BATCH_BASE_SHA`, since §9 itself runs once per PR.
-One reminder for the whole list would be struck `completed` at PR-1's §9.5, leaving PRs 2…N to run their batch-end with no compaction-surviving anchor.
-This scenario — PRs 2…N lacking a compaction-surviving anchor — is the exact failure this task exists to prevent.
-Seeding it after §1.4 is also what lets the subject carry that PR's real sha instead of the `<BATCH_BASE_SHA>` placeholder.
+### 2.2. One reminder per batch-end step (they survive compaction)
 
-**Put the ordered step list in the task SUBJECT, not a description field** — only the subject re-surfaces in the turn-by-turn reminder.
-A description needs an explicit `TaskGet` to read back, so after compaction it's as lost as the doc.
-Encode the finalize checklist as an arrow chain in the subject — substituting the real sha for `<BATCH_BASE_SHA>`:
+After a batch's task entries, seed its batch-end steps as **separate** `[Reminder]` entries — the CLAUDE.md `[Reminder]` category, durable reminders of a later step, each producing no commit of its own.
+
+One reminder per step, never one chain covering all of them.
+A task has a single `completed` flag, so a combined entry could only track its steps by rewriting its own subject, and a step-level skip or failure would have nowhere to land.
+
+Seed exactly these five, in this order, prefixed with the owning `PR-N ·` on a PR-label run:
 
 ```
-[Reminder] Batch-end §8-9: test-presence → repo-green → tails(refactor∥review) → triage → package → nvim DiffviewOpen <BATCH_BASE_SHA> → PR(create-pr, if wanted)
+[Reminder] Batch-end 1/5: planned-test presence gate (§8)
+[Reminder] Batch-end 2/5: repo-green gate — full suite + full lint (§9.1)
+[Reminder] Batch-end 3/5: review tails ∥ then triage (§9.2–§9.4)
+[Reminder] Batch-end 4/5: metrics, package print, diffview pane (§9.5)
+[Reminder] Batch-end 5/5: draft PR via create-pr (§9.5, only when pr.wanted)
 ```
 
-The steps map to §8's test-presence gate, §9.1's repo-green gate, then the two parallel review tails (§9.2 ∥ §9.3).
-Triage runs (§9.4); then §9.5 prints the package, `open-in-tmux` opens the diff, and the `create-pr` PR runs last, only when `pr.wanted`.
-That tail order is `references/batch-end-package.md`'s Finalize spine — the diff pane is editable, so a PR opened before it would ship a body the human never got to amend.
+The `N/5` prefix is the step order itself, so the sequence survives even if the list is re-sorted or partially rendered.
 
-As each step lands, `TaskUpdate` the subject to mark it done — strike it or prefix `✓`.
-This keeps showing which steps remain even after a compaction drops the doc-resident §9 steps from working memory.
+Flip each to `in_progress` when its step starts and `completed` when it lands; a step the interview turned off (tails, PR) completes with a one-line note that it was skipped by request.
 
-Alongside the strike, `TaskUpdate` this task's `metadata` with the same per-step outcome — keys `test_presence`/`gate`/`tails`/`triage`/`package`/`diffview`/`pr`, in that execution order.
-Each step's value is `"pending"` or `"done"` (`"skipped"` for `pr` when not wanted).
-Triage, PR, and diffview completion have no JSON state-file equivalent — this metadata is their only durable, machine-checkable record.
+Keep the subjects free of run-specific values like `BATCH_BASE_SHA` — the state file holds those, and a subject that needs them could not be seeded before the PR that captures them.
 
-Leave it `pending` through the task loop; flip it `in_progress` on entering §9 and `completed` only once the review package is presented (§9.5).
-On a resume, before dispatch, check the TaskList for this task — a new session may not carry it.
-If present, `TaskGet` its `metadata` first — the exact per-step record, sharper than `phase`'s coarse value.
-If absent, re-create it and pre-strike the steps the state-file `phase` shows already done, since no metadata survived to read.
+This complements the Stop hook: the hook blocks *stopping* before the batch is presented, while these entries keep the remaining steps *in view* so you run them unprompted.
 
-This complements the Stop hook: the hook blocks *stopping* before the batch is presented; this task keeps the steps *in view* so you run them unprompted.
-
-### 2.2. Create all matched tasks in the TaskList upfront
-
-Before dispatching task 1, create one TaskList entry for **every** task-id in this batch — not just the first one.
-In a PR-label run, **this batch** means only the current PR's task-ids — §1.8's per-PR loop repeats this step fresh entering each PR, never every PR's tasks upfront.
-
-Mark the first task `in_progress` and every other task `pending`. This shows the user the whole batch from the start, instead of tasks appearing one at a time as they activate.
-
-Init each task's `metadata` to `{"pr_label": "<this run's pr_label, "" if none>", "attempt_count": 0, "gate_outcome": "pending", "fix_commit_shas": []}`.
-§5.3–§5.5 update these fields as the task runs — never track them only in a prose subject/description or in chat scrollback.
+On a resume, check the TaskList for these five before dispatching — a new session may not carry them.
+If they are absent, re-create them and pre-complete the ones the state-file `phase` shows already done.
 
 ## 3. Sub-step decomposition (subagent-owned, per task)
 
@@ -227,7 +226,7 @@ Sub-steps live in a **durable checklist file the subagent owns** — a `/tmp` ma
 
 Two reasons: subagents have no TaskList/TodoWrite tool to create them, and keeping sub-steps off the orchestrator's list holds it at task-level macro visibility.
 
-The orchestrator, per task, does this and no more (the parent task itself was already created for the whole batch in §2.2):
+The orchestrator, per task, does this and no more (the parent task itself was already created for the whole run in §2.1):
 
 - Marks that task `in_progress` in the TaskList — task-level status, never sub-steps as separate items.
 - Gives that task a **breadcrumb** — a coarse outline of its sub-steps (e.g. the plan's acceptance-criteria titles).
@@ -254,11 +253,11 @@ Insertion mechanics live in [`references/mid-flight-substeps.md`](references/mid
 Spawn one fresh-context subagent per task via the **Agent tool** (`subagent_type=tdd-coder`, model omitted — the agent file pins sonnet and the subagent-model-guard hook enforces it), in the background (the default).
 
 Cap the dispatch with a 1-hour `Monitor` timeout (`timeout_ms: 3600000` — the tool's documented maximum).
-On expiry, call `TaskStop` on the subagent — the dispatch then resolves as a `timeout`, which §5.3 records and obeys exactly like a `fail`.
+On expiry, call `TaskStop` on the subagent — the dispatch then resolves as a `timeout`, which §5.2 records and obeys exactly like a `fail`.
 
 The harness re-invokes you with its report on completion, so you can still act on it.
 Note the token count the Agent result reports for the run, defaulting to `0` when absent.
-§5 records it into the attempt it creates — except on a self-reported block, which creates no attempt at all (§5.4).
+§5 records it into the attempt it creates, whatever that attempt's result turns out to be.
 Best-effort only; never gates the loop mid-run — overage surfaces later via the metrics script, not here.
 
 The subagent runs the **full per-task lifecycle**.
@@ -275,19 +274,18 @@ Its invariant discipline — TDD rules, preloaded standards, checklist mechanics
 
 Everything invariant — checklist write/resume mechanics, preloaded standards, commit rule, report shape, and pull-from-CWD items (plan/spec files, `git log`, source reads) — is baked into the tdd-coder agent definition; don't re-push it.
 
-### 4.2. On-demand fork review (subagent escape hatch)
+### 4.2. Mid-execution design forks — the subagent never spawns a reviewer
 
-The task subagent does **not** spawn a reviewer by default — the plan was already reviewed (§2).
+The task subagent **never** spawns a subagent of its own, reviewer or otherwise. Only the orchestrator spawns, so every dispatch stays visible, attributable, and bounded by §4's Monitor cap.
 
-The escape hatch itself lives in the agent definition.
-On a mid-execution design fork the plan didn't pre-decide, tdd-coder spawns a fresh-context reviewer with explicit `model=opus` (judgment tier; the subagent-model-guard hook denies an unnamed model on an unpinned agent type).
-This nested dispatch has no subagent_type pinned, so its turn bound is that agent definition's own maxTurns.
-Never the orchestrator's 1-hour Monitor cap — that wraps only §4's and §8's top-level dispatches.
+On a mid-execution design fork the plan didn't pre-decide, tdd-coder resolves it one of two ways and hands the outcome back:
 
-The orchestrator only sees the outcome:
+- **Soft** fork — it takes the sensible default, proceeds, and flags the choice under Deviations in its report (§4.4). Most forks are this.
+  - The second opinion isn't lost, just deferred: §9.2–§9.3's tail pair reads the whole batch diff against spec and plan.
+    That is a wider review than a mid-task reviewer seeing one fork in isolation.
 
-- **Soft** fork — the subagent took the reviewer's default and flagged the choice under Deviations in its report (§4.4). Most forks are this.
-- **Hard** fork — the subagent couldn't sensibly proceed and returned `blocked` (§4.4). Rare.
+- **Hard** fork — it cannot sensibly proceed and returns `blocked` (§4.4). Rare.
+  - This needs no new channel: a genuinely open decision is already what `blocked` means here, and it reaches you in the batch-end package like any other block.
 
 ### 4.3. Routing mid-execution discoveries
 
@@ -322,64 +320,54 @@ Per CLAUDE.md "verify subagent results against artifacts": confirm the reported 
 
 Also read the subagent's checklist file (§3): every sub-step should be checked off before you trust the `done` report.
 
-Unchecked items mean it stopped short of its own plan — treat that as a failed verify (§5.3) or a block (§5.4).
+Unchecked items mean it stopped short of its own plan — treat that as a failed verify (§5.2).
 
-### 5.2. Planned-test presence check (post-commit)
+Whatever the outcome, it becomes one recorded attempt and one script verdict — §5.2 for a failure or a block, §5.4 for a pass. There is no path that skips the script.
 
-Run the planned-test check against the subagent's commit range — the orchestrator didn't author the impl, so it can judge it inline; no nested subagent needed.
+### 5.2. On failure or a block — record the attempt, obey the verdict
 
-Full procedure in [`references/planned-test-verification.md`](references/planned-test-verification.md). Load on demand.
+A failed §5.1 verify, a §4 timeout, and a subagent's self-reported `blocked` (§4.4) all take the same path: record the attempt with `result` set to `fail`, `timeout`, or `blocked`, then run:
 
-### 5.3. On failure — record and obey the verdict
+```bash
+~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>
+```
 
-On a failed §5.1/§5.2 verify or a §4 timeout, record the attempt, then run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey its verdict — `retry`, `stuck`, or `halt-budget`.
-
-The script alone decides how many retries a task gets.
-
-Also `TaskUpdate` that task's TaskList `metadata`: increment `attempt_count` and set `gate_outcome: "red"` — mirrors the JSON attempt record so a `TaskGet` shows the same failure without opening the state file.
+Obey its verdict — `retry`, `stuck`, or `halt-budget`. The script alone decides how many retries a task gets, and a `blocked` attempt always verdicts `stuck`, since only the human can clear it.
 
 Full verdict semantics, attempt-recording fields, and the `debug-standards` load live in [`references/failure-verdict.md`](references/failure-verdict.md). Load only on a failed verify.
 
-### 5.4. Mark terminal, chain-abort dependents, advance
+### 5.3. On `stuck` — mark terminal, chain-abort dependents, advance
 
-A task becomes terminal without a `[Done]` two ways: the subagent self-reports `blocked` (§4.4), or §5.3's verdict is `stuck`. Handle both the same way from here.
+Set that task to `status: "blocked"`, with `reason: "blocked"` when the attempt was a self-reported block and `reason: "stuck"` when it was repeated failures.
 
-**A self-reported block bypasses the script entirely.** `implement-loop-state.sh` only accepts `result` of `pass`, `fail`, or `timeout` — recording `blocked` as an attempt result crashes it.
-So on a block, skip the attempt record and the script call: set `status: "blocked"` and `reason: "blocked"` on that task directly.
-Also `TaskUpdate` its TaskList `metadata.gate_outcome` to `"red"` directly — §5.3 never ran, so nothing set it yet.
-
-**A `stuck` verdict is already backed by a recorded fail/timeout attempt (§5.3).** Set that same task to `status: "blocked"` and `reason: "stuck"`.
 `status` drives flow — blocked tasks are excluded from the next pick — while `reason` keeps the finer stuck-vs-blocked label for the batch-end report.
 
-Either way, `TaskUpdate` that task's TaskList status to `completed` — the tool has no `blocked` state; `metadata.gate_outcome: "red"` is what a `TaskGet` reads to tell a blocked task from a passed one.
+`TaskUpdate` its TaskList status to `completed`; the tool has no `blocked` state, and the state file's `reason` is what distinguishes it.
 
 **Chain-abort the task's dependents, before picking what runs next.** Read `plan_<slug>.md`'s "Depends on" lines and walk them transitively.
-Any task that depends on the one just marked terminal — directly, or through another dependent — also gets `status: "blocked"` and `reason: "blocked-upstream"`.
-Mark it before the orchestrator looks for a next task so it can never be picked.
+Any task that depends on the one just marked terminal — directly, or through another dependent — also gets `status: "blocked"` and `reason: "blocked-upstream"`, plus TaskList status `completed`.
+Mark them before the orchestrator looks for a next task, so none can be picked.
 Flip `plan_<slug>.md` to `[Blocked]` for the terminal task and every dependent this just chain-aborted (§6).
-Also `TaskUpdate` each chain-aborted dependent's TaskList `metadata.gate_outcome` to `"red"` and status to `completed` — it never dispatched, so nothing else would ever close it out.
 
-**Pick the next task yourself — the script can't.** `next-task` only comes out of a `pass` attempt (§5.5), and this task didn't pass.
+**Pick the next task yourself — the script can't.** `next-task` only comes out of a `pass` attempt (§5.4), and this task didn't pass.
 Scan `tasks[]` in order for the first entry whose `status` is neither `done` nor `blocked`, and re-run §1.6–§1.7 + §3 on it.
 §1.7 here is a direct pick, not a resume — its resume-reconcile mechanics apply only to an actual stale or dirty run.
 Find none — every task is terminal. Set `phase: "gates"` and move to §8's batch test-presence gate.
 
-### 5.5. Advance
+### 5.4. On a clean verify — advance
 
-On a clean verify (§5.1, §5.2): record the attempt with `result: "pass"` and the token count noted at dispatch (§4).
+Record the attempt with `result: "pass"` and the token count noted at dispatch (§4).
 
 Flip that task to `status: "done"` and `reason: "done"` in the state file — before calling the verdict script, not after.
 The script picks the next task by `status`, so a passed task left `pending` would later be re-selected as another task's "next" and redundantly re-dispatched.
 
-Also flip `plan_<slug>.md` to `[Done]` (§6) and record the subagent's `[Scout]` notes there.
-
-Also `TaskUpdate` that task's TaskList `metadata`: `gate_outcome: "green"`, `fix_commit_shas` from §4.4's reported SHAs, then flip its TaskList status to `completed`.
+Also flip `plan_<slug>.md` to `[Done]` (§6), record the subagent's `[Scout]` notes there, and `TaskUpdate` its TaskList status to `completed`.
 
 Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey the verdict:
 
 - **`next-task`** → its `task` field names the next task-id; re-run §1.6–§1.7 + §3 on it. §1.1–§1.5 and §2 do not repeat.
 - **`gates`** → every task is terminal, and the last one to get there passed.
-  - Set `phase: "gates"` — the same phase §5.4's queue-empty scan reaches when the last task was blocked or stuck instead.
+  - Set `phase: "gates"` — the same phase §5.3's queue-empty scan reaches when the last task was blocked or stuck instead.
 - **`halt-budget`** → the batch's dispatch budget is exhausted. Halt the loop and go to §9's batch-end review with whatever work is done so far.
 
 ## 6. Status markers (plan_<slug>.md task title)
@@ -435,9 +423,11 @@ Never auto-invoke `/refactor` or `/auto-review` **mid-task** — those belong to
 
 A mandatory GATE, once after the loop and before §9's tails: every planned test the plan declared must actually be present in the batch's final commits.
 
-§5.2 checked each task at its own commit point and can't see what later tasks did to those tests afterward.
+This is the batch's **only** planned-test check.
+Checking per task would verify each one at its own commit point and still miss what a later task did to those tests afterward.
+So the batch's final state is the only state worth checking.
 
-**Entry: `phase` is `gates`** — the state §5.4's queue-empty scan and §5.5's `gates` verdict both set. Never skip it to reach §9 faster.
+**Entry: `phase` is `gates`** — the state §5.3's queue-empty scan and §5.4's `gates` verdict both set. Never skip it to reach §9 faster.
 
 **Read [`references/batch-test-presence-gate.md`](references/batch-test-presence-gate.md) on entry** — it owns the `deep-reviewer` dispatch contract, that subagent's own title-matching procedure, the try-once fix round, and the budget invariant.
 
@@ -516,11 +506,13 @@ A hand-authored body is a defect. Exact dispatch, conventions, and required cont
 
 **Pass the exact `spec_<slug>.md` + `plan_<slug>.md` this batch resolved in §1.1, plus the resolved `PR-N` on a PR-label run — never auto-detected.**
 
-Set the terminal phase per `references/batch-end-package.md`'s Finalize step.
+Set the terminal phase per `references/batch-end-review.md`'s Finalize step.
 Use `presented` (and delete the state file) only when every task is `done`.
 Use `halted` (and keep it for resume) on a budget hit or any `blocked`/`stuck` task.
 
-Every step — ordering, spawn contract, failure handling, finalize — is owned in full by [`references/batch-end-review.md`](references/batch-end-review.md), which routes on to its `batch-end-package.md` and `batch-end-pr.md` siblings. Load at batch end.
+The §9.1 → (§9.2 ∥ §9.3) → §9.4 → §9.5 order above is the only place the batch-end sequence is written down; the references expand each step rather than restating the order.
+
+Spawn contracts, failure handling, the package contents, and Finalize are owned by [`references/batch-end-review.md`](references/batch-end-review.md), which routes on to `batch-end-pr.md` for the PR. Load at batch end.
 
 ## Flowchart (human-facing)
 

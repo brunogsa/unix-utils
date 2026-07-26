@@ -8,20 +8,19 @@ flowchart TD
   locate["1.1 Locate plan_&lt;slug&gt;.md (+ spec)"]
   d_found{"Plan found?"}
   stop_noplan(["Stop: no plan given"])
-  interview["1.2 ONE up-front interview, before<br/>any dispatch (only round until<br/>the review package):<br/><br/>- Plan pick, if multiple candidates<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Pre-dispatch orchestration review?<br/>(default no)<br/>- Refactor+auto-review batch-end<br/>tails? (default yes)<br/>- Confirm base branch (shown default)"]:::gate
+  interview["1.2 ONE up-front interview, before<br/>any dispatch (only round until<br/>the review package):<br/><br/>- Plan pick, if multiple candidates<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Refactor+auto-review batch-end<br/>tails? (default yes)<br/>- Confirm base branch (shown default)"]:::gate
   d_worktree{"Worktree requested?"}
   skill_worktree["Load references/worktree-setup.md"]:::skill
   worktree_setup["1.3 EnterWorktree + symlink<br/>plan/spec/branches files,<br/>copy .env*"]
-  d_review{"Pre-dispatch review requested?"}
-  orch_review["2. Orchestration review<br/>(deep-reviewer, opus, max;<br/>fresh-context, adversarial)"]:::dispatch
   d_prlabel{"Arg is PR-label(s)?"}
   skill_pr["Load references/pr-awareness.md<br/>(routes on to pr-branch-creation.md<br/>only when a checkout is needed)"]:::skill
+  resolve_labels["1.8 Resolve EVERY PR-N in the arg<br/>to its task-id list (get-pr-tasks.sh),<br/>before any seeding"]
+  seed_tasks["2.1 TaskList: one entry per task,<br/>ALL PRs upfront in execution order<br/>(PR-2 subjects prefixed 'PR-2 &middot;');<br/>1st in_progress, rest pending;<br/>status only, no metadata mirror"]:::state
+  seed_remind["2.2 TaskList: after each PR's tasks,<br/>seed its 5 SEPARATE [Reminder] entries<br/>(1/5 test-presence, 2/5 repo-green,<br/>3/5 tails+triage, 4/5 metrics+package<br/>+diffview, 5/5 draft PR);<br/>no run-specific values in subjects"]:::state
 
   subgraph perunit ["Per unit: whole batch (task-ids run) or each PR (PR-label list)"]
-    dag_recheck["Re-check PR DAG (check-pr-dag.sh),<br/>resolve PR-N to task-ids"]:::hook
-    recap["1.4 Recap since base,<br/>capture BATCH_BASE_SHA"]
-    seed_remind["2.1 TaskList: seed ONE [Reminder] task<br/>PER PR, after 1.4 (subject = arrow<br/>chain with the real sha, survives<br/>compaction):<br/>test-presence to repo-green to<br/>tails(refactor par review) to triage to<br/>package to diffview to<br/>PR(create-pr, if wanted); metadata<br/>tracks each step pending or done"]:::state
-    seed_tasks["2.2 TaskList: create matched tasks<br/>(this PR's only, if PR-label run);<br/>1st in_progress, rest pending;<br/>metadata: pr_label, attempt_count=0,<br/>gate_outcome=pending"]:::state
+    dag_recheck["Re-check PR DAG (check-pr-dag.sh)<br/>for this PR"]:::hook
+    recap["1.4 Recap since base,<br/>capture BATCH_BASE_SHA<br/>(fresh per PR)"]
     d_branch{"PR-label mode:<br/>checkout needed for this PR?"}
     branch_setup["Create/adopt PR branch,<br/>merge parents if diamond"]
     state_init["1.5 State-file init:<br/>/tmp/implement_&lt;session_id&gt;.json;<br/>found existing state file to adopt<br/>per references/preflight-state.md"]:::state
@@ -38,31 +37,29 @@ flowchart TD
     hook_dispatch_guards["Hooks guarding this dispatch:<br/>subagent-model-guard (enforces<br/>pinned model) + git-guard (rejects<br/>a commit missing the<br/>Co-Authored-By trailer)"]:::hook
     timeout_stop["1h Monitor timeout expires:<br/>TaskStop the subagent<br/>(dispatch resolves as timeout)"]:::hook
     d_fork{"Mid-execution design fork?"}
-    fork_review["4.2 Fork reviewer (opus,<br/>fresh-context; no subagent_type<br/>pinned; bound by that agent's own<br/>maxTurns, not the 1h Monitor cap)"]:::dispatch
+    fork_resolve["4.2 tdd-coder resolves it itself,<br/>NEVER spawning a subagent:<br/><br/>soft = take the default, flag it<br/>under Deviations;<br/>hard = return blocked"]
     d_report{"4.4 Subagent report status?"}
-    verify["5.1-5.2 Verify diff, checklist,<br/>planned-test presence"]
-    skill_planned_test["Load references/<br/>planned-test-verification.md"]:::skill
+    verify["5.1 Verify commits, diff,<br/>checklist, verification command"]
     d_verify{"Verify passed?"}
-    record_attempt["Record attempt: result=fail/timeout,<br/>signature, tokens, into state<br/>file attempts[]"]:::state
+    record_attempt["5.2 Record attempt:<br/>result=fail/timeout/blocked,<br/>signature, tokens, into state<br/>file attempts[]"]:::state
     skill_failure["Load references/failure-verdict.md"]:::skill
-    d_verdict_fail{"5.3 Run implement-loop-state.sh:<br/>verdict?"}:::hook
-    terminal["5.4 Mark task terminal;<br/>chain-abort dependents;<br/>TaskUpdate metadata gate_outcome=red,<br/>status=completed (both)"]:::state
+    d_verdict_fail{"5.2 Run implement-loop-state.sh:<br/>verdict?"}:::hook
+    terminal["5.3 Mark task terminal in the state<br/>file; chain-abort dependents;<br/>TaskUpdate status=completed"]:::state
     d_next_terminal{"Another non-done/blocked<br/>task pending?"}
-    advance["5.5 Advance: plan_&lt;slug&gt;.md [Done];<br/>TaskUpdate metadata gate_outcome=green,<br/>fix_commit_shas, status=completed"]:::state
-    d_verdict_pass{"5.5 Run implement-loop-state.sh:<br/>verdict?"}:::hook
+    advance["5.4 Advance: state file status=done;<br/>plan_&lt;slug&gt;.md [Done];<br/>TaskUpdate status=completed"]:::state
+    d_verdict_pass{"5.4 Run implement-loop-state.sh:<br/>verdict?"}:::hook
     gate_dispatch["8. Dispatch deep-reviewer:<br/>batch test-presence gate<br/>(opus, effort max, maxTurns 64)"]:::dispatch
     d_gate{"All planned tests found<br/>(or every task N/A)?"}
     gate_fix["8. Re-dispatch task(s) with<br/>missing titles (tdd-coder, sonnet,<br/>try-once, same 1h Monitor cap<br/>as step 4)"]:::dispatch
     gate_regate["8. Re-gate once<br/>(deep-reviewer, opus, max)"]:::dispatch
     hook_write_guard["Hook: deep-reviewer-write-guard<br/>(auto-approves only verdict_*.md<br/>/ /tmp writes, denies the rest)"]:::hook
-    skill_batch_end["Load references/batch-end-review.md<br/>(owns run order + steps 1-3; routes on<br/>to batch-end-package.md and,<br/>if a PR is in play, batch-end-pr.md)"]:::skill
+    skill_batch_end["Load references/batch-end-review.md<br/>(expands 9.1-9.5; routes on to<br/>batch-end-pr.md only when a PR<br/>is in play)"]:::skill
     green_gate["9.1 Repo-green gate: full suite<br/>+ lint; cheap failures fixed by<br/>the orchestrator itself, its own<br/>commit (autonomous, no human<br/>gate); structural failures become<br/>[Scout] items, unfixed"]:::gate
     d_green{"Repo green?"}
     d_tails{"Tails requested?"}
-    tasklist_tails["9.2-9.3 TaskList: create 2 [Side]<br/>tail tasks (simplification,<br/>correctness lenses)"]:::state
     skill_tail_pair["Load code-review-pipeline/<br/>references/deep-reviewer-tail-pair.md"]:::skill
     tails["9.2 par 9.3 Dispatch refactor +<br/>auto-review deep-reviewer tails<br/>(BOTH opus, effort max, PARALLEL,<br/>mandatory, report-only)"]:::dispatch
-    tails_record["Record tails report paths + tokens<br/>into state file; TaskUpdate tail<br/>TaskList metadata; strike this<br/>[Reminder] step"]:::state
+    tails_record["Record tails report paths + tokens<br/>into the state file; complete the<br/>'Batch-end 3/5' [Reminder]"]:::state
     triage["9.4 Triage: synthesize +<br/>apply-offer both reports"]
     pr_manifest["9.5 branches_&lt;slug&gt;.md:<br/>append-branch-pr-entry.sh<br/>(PR-label runs only)"]:::state
     d_pr{"Draft PR requested<br/>AND repo green?"}
@@ -85,13 +82,14 @@ flowchart TD
   d_found -->|"no"| stop_noplan
   d_found -->|"yes"| interview
   interview --> d_worktree
-  d_worktree -->|"yes"| skill_worktree --> worktree_setup --> d_review
-  d_worktree -->|"no"| d_review
-  d_review -->|"yes"| orch_review --> d_prlabel
-  d_review -->|"no"| d_prlabel
-  d_prlabel -->|"yes"| skill_pr --> dag_recheck --> recap
-  d_prlabel -->|"no"| recap
-  recap --> seed_remind --> seed_tasks --> d_branch
+  d_worktree -->|"yes"| skill_worktree --> worktree_setup --> d_prlabel
+  d_worktree -->|"no"| d_prlabel
+  d_prlabel -->|"yes"| skill_pr --> resolve_labels --> seed_tasks
+  d_prlabel -->|"no"| seed_tasks
+  seed_tasks --> seed_remind
+  seed_remind -->|"PR-label run"| dag_recheck --> recap
+  seed_remind -->|"task-ids run"| recap
+  recap --> d_branch
   d_branch -->|"yes"| branch_setup --> state_init
   d_branch -->|"no / task-ids mode"| state_init
   state_init --> match_task
@@ -104,11 +102,10 @@ flowchart TD
   dispatch_task -.->|"guards"| hook_dispatch_guards
   dispatch_task -->|"1h timeout"| timeout_stop --> record_attempt
   dispatch_task --> d_fork
-  d_fork -->|"yes"| fork_review --> d_report
+  d_fork -->|"yes"| fork_resolve --> d_report
   d_fork -->|"no"| d_report
-  d_report -->|"blocked"| terminal
+  d_report -->|"blocked"| record_attempt
   d_report -->|"done"| verify
-  verify -.->|"on demand"| skill_planned_test
   verify --> d_verify
   d_verify -->|"pass"| advance --> d_verdict_pass
   d_verify -->|"fail"| record_attempt
@@ -132,7 +129,7 @@ flowchart TD
   green_gate --> d_green
   d_green -->|"no"| red_flag --> d_tails
   d_green -->|"yes"| d_tails
-  d_tails -->|"yes"| tasklist_tails --> skill_tail_pair --> tails --> tails_record --> triage
+  d_tails -->|"yes"| skill_tail_pair --> tails --> tails_record --> triage
   tails -.->|"guards"| hook_write_guard
   d_tails -->|"no"| triage
   triage --> package --> pr_manifest --> d_pr

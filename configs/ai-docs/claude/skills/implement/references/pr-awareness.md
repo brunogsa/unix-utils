@@ -82,14 +82,11 @@ A PR is simultaneously a later PR's recorded parent and the subject of its own b
 A PR-label list runs the existing §1.4–§9 batch once per PR, strictly in the order given.
 The whole pipeline from `BATCH_BASE_SHA` capture through batch-end and PR creation repeats per PR, so each PR's gate, tails, and diff scope to only that PR's own commits.
 
-§1.1 (locate plan/spec), §1.2 (interview), §1.3 (worktree setup), and §2 (orchestration review) run once for the whole list.
-§2 reviews the list's PR ordering and dependencies as a whole, which is cheaper and more useful than reviewing each PR in isolation.
+§1.1 (locate plan/spec), §1.2 (interview), §1.3 (worktree setup), and §2 (TaskList seeding) run once for the whole list.
 
-**Exception: §2.1's `[Reminder]` seed and §2.2's TaskList task creation both repeat per PR.**
-
-§2.2: before dispatching each PR's first task, create entries only for that PR's own resolved task-ids — never every PR's tasks upfront.
-
-§2.1: seed one batch-end `[Reminder]` per PR, right after that PR's §1.4 captures its `BATCH_BASE_SHA`, because §9 runs once per PR and the reminder is struck `completed` at each §9.5.
+§2 seeds **every** PR's entries upfront — each PR's tasks followed by that PR's five batch-end reminders, in the order the PRs execute.
+So the list reads as the whole run's timeline from the start.
+A fail-fast stop simply leaves the later PRs' entries `pending`.
 
 Before each PR's loop iteration: the defensive DAG re-check, label resolution, and checkout decision above, all run fresh for that PR.
 
@@ -97,7 +94,7 @@ Before each PR's loop iteration: the defensive DAG re-check, label resolution, a
 Otherwise stop — do not create the next PR's branch, do not dispatch any of its tasks.
 Report the batch as it stands; the remaining PRs in the list are untouched.
 
-This mirrors §5.4's task-level chain-abort but at the PR level.
+This mirrors §5.3's task-level chain-abort but at the PR level.
 A task failure inside one PR's batch already chain-aborts that PR's own dependents via the existing mechanism.
 This stop predicate is what additionally keeps a failed PR from starting the *next* PR in the list.
 A chain-aborted dependent (`reason: "blocked-upstream"`) is terminal-without-`[Done]` too — it fails this PR's every-task-`[Done]` check and halts here.

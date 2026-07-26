@@ -2,7 +2,7 @@
 
 Read this only when the batch is a PR-label run, or when the interview opted into a draft PR.
 
-When neither applies, go straight from "Run metrics" to "Finalize" in [`batch-end-package.md`](batch-end-package.md) — this whole file is skipped.
+When neither applies, [`batch-end-review.md`](batch-end-review.md)'s Finalize simply skips its two PR steps and goes on to the terminal-phase write — this whole file is never opened.
 
 ## PR manifest entry & PR-level status marker (PR-label runs only)
 

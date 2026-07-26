@@ -114,7 +114,7 @@ Why: an always-read reference loads the same words every run plus a Read round-t
 
 - [Instruction] Name every bundled file and every heading after what it contains, never after a position or number.
   - [Why] It is the intent-revealing-name rule from clean code: a positional name tells the reader nothing without opening the file, and rots when steps are reordered.
-  - [Example] Bad: `batch-end-2.md`, "steps 4-7 live elsewhere". Good: `batch-end-package.md`, "the package, diffview, metrics, and finalize steps".
+  - [Example] Bad: `batch-end-2.md`, "steps 4-7 live elsewhere". Good: `batch-end-review.md`, "the repo-green gate, tails, triage, package, and finalize steps".
 
 - [Instruction] Break any bundled file past ~512 words into `## ` sections; `assets/flowchart.md` is the sole exemption, being one indivisible diagram.
   - [Why] Without a landmark the reader must scan the whole file to find one section — and no size override fixes that, since a bigger budget leaves it as flat.

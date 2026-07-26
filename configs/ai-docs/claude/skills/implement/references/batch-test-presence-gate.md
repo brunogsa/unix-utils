@@ -4,20 +4,20 @@ Loaded by `implement`'s orchestrator when the state file's `phase` reaches `gate
 
 Verifies every planned test the plan declared actually landed in the batch's commits.
 
-## Why a second check exists
+## Why the check lands here and nowhere else
 
-§5.2's per-task check verified each task at its own commit point.
-It can't see what later tasks did to those tests afterward.
+This is the run's only planned-test check, and it reads the batch's **final state**.
 
-This gate re-checks the batch's **final state**, catching a later task that renamed, gutted, or deleted an earlier task's tests.
+A per-task check would verify each task at its own commit point and still miss what a later task did to those tests afterward.
+That means renaming, gutting, or deleting an earlier task's tests.
 
 Use a fresh-context `deep-reviewer` dispatch: semantic title-matching across the whole batch diff deserves eyes carrying none of the loop's accumulated assumptions.
 
 ## Entry
 
-Run this when `phase` is `gates` — the state §5.4's queue-empty scan and §5.5's `gates` verdict both set.
+Run this when `phase` is `gates` — the state §5.3's queue-empty scan and §5.4's `gates` verdict both set.
 
-A `halt-budget` verdict never reaches here: it routes straight to §9 from §5.3/§5.5, upstream of this gate, so the gate has no budget branch of its own.
+A `halt-budget` verdict never reaches here: it routes straight to §9 from §5.2/§5.4, upstream of this gate, so the gate has no budget branch of its own.
 
 ## Dispatch
 
@@ -31,9 +31,19 @@ Pass it the resolved `plan_<slug>.md` path, the diff range `<BATCH_BASE_SHA>..HE
 
 Iterate exactly the batch task IDs it was handed — never every `### N.` heading in the plan, which lists tasks other runs owned.
 
-For each ID `<N>`, run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <N>` to get planned-test titles.
+For each ID `<N>`, first check that task's own plan entry for a `**DECISION:** Skip planned-test check because <reason>` marker.
 
-Exit-code handling matches the per-task procedure — see [`planned-test-verification.md`](planned-test-verification.md).
+- Present → skip that task entirely and report it as opted out.
+  - Reserved for a task whose deliverable has no runtime to test against, such as a prompt-markdown skill or agent file.
+  - Test Design and the authoring-time coverage gates (`check-test-distribution.sh`, `check-ac-coverage.sh`) still apply in full; only this runtime check is bypassed.
+- Absent → run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <N>` for that task's planned-test titles.
+
+Handle its exit codes exactly this way — never fall back to inline AI judgment on a parse failure:
+
+- **Exit 2** (usage / parse error) → abort the gate: record the failure for §9's package, do not mark the gate passed.
+- **Exit 1** (plan malformed: missing `### N.` heading or missing `**Tests (planned)**:` bullet) → abort the same way; the plan must be fixed before a re-run.
+- **Exit 0, empty stdout** → that task declared `**Tests (planned)**: N/A`; skip it and report it in the N/A list.
+- **Exit 0, non-empty stdout** → titles captured; continue to the grep pass.
 
 Grep the `<BATCH_BASE_SHA>..HEAD` diff for each title as a deterministic pre-pass.
 
