@@ -25,6 +25,7 @@ Each entry is a header line indented one space, followed by a description body i
 - The header line matches exactly one leading space, digits, `. `, then `[`.
 - Every body line, including a blank one inside a body, carries exactly three leading spaces.
 - That fixed width lets a caller strip exactly three spaces and recover the body byte for byte, even when its own first line starts with two spaces of its own.
+
 - The three-space body indent is also what keeps a body line from ever being mistaken for a new entry's header.
 
 1. Read `tasklist.md`. If it does not exist, do nothing and report there was nothing to sweep.
@@ -44,6 +45,7 @@ Each entry is a header line indented one space, followed by a description body i
 Hard rules:
 
 - Never edit a task's title or description body while merging, beyond combining the two bodies of a merged pair — you are not a copy editor.
+
 - Never touch an entry you weren't told to remove and that isn't part of a merge.
   Removal, merging, and renumbering are the only changes you make.
 - Never add locking, retries, or a check for another sweeper already running.

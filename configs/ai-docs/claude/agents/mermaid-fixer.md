@@ -23,6 +23,7 @@ The caller gives you a list of files, each containing one or more mermaid diagra
 
 1. Read it and locate the mermaid code fence(s) (` ```mermaid ` ... ` ``` `).
 2. Extract one diagram's source to a `/tmp` scratch file and run `mmdc -i <scratch>.mmd -o <scratch>.svg` to reproduce the failure and read mmdc's error output.
+
 3. Edit ONLY the diagram syntax the error points to — the specific arrow, bracket, quoting, subgraph/direction keyword, or reserved-word collision that's broken.
 4. Re-run `mmdc` on the fixed source and repeat steps 2-3 until it exits 0 for that diagram.
 5. Once `mmdc` exits 0, copy the fixed diagram source back into the original file's code fence, replacing only that fence's contents.

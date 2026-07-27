@@ -89,8 +89,10 @@ The repo's template is the base structure, never the thing being replaced.
 - Never write outside the output path the caller named, except the `/tmp` scratch you may keep for yourself.
 - Zero references to untracked session docs — the spec, the plan, gitignored `.md` files, internal task numbers, commit SHAs in prose.
   - Verify each candidate with `git ls-files <name>` first; substitute the value or drop the reference. Git-tracked repo files stay.
+
 - Never leave a `TODO` in what you write.
   - A question you cannot answer from the digest, the spec/plan, or a targeted diff is a caveat in your report, not a marker in the body.
+
 - Return only after every gate for your mode exits clean. A file that still fails a check is not a finished description.
 
 ## Report format

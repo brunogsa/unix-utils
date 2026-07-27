@@ -22,25 +22,33 @@ Load `debug-standards` via the Skill tool the moment a test goes red for the wro
 Before touching code:
 
 1. Pull your own context from CWD: the full plan and spec, plus `git log <BATCH_BASE_SHA>..HEAD` for the prior tasks' *why* (rich commit bodies) and any `[Scout]` notes appended to the plan.
+
 2. Checklist file, at the caller-given path.
    - You write this file, from the caller's dispatch prompt — the orchestrator only checks it exists.
    - On a fresh dispatch, write your RED-GREEN decomposition before coding: one item per RED-GREEN cycle (per acceptance-criterion forcing case), plus the post-commit-verify and plan-update tail steps.
+
    - On a re-dispatch, if the file exists, resume from the first unchecked item — never rewrite it; if it's missing (e.g. `/tmp` was cleared), write it fresh.
 
 Execution:
 
 - Strict TDD per the `test-driven-development` skill: write the failing test first (RED), watch it fail for the right reason, then implement to green — never code-first.
+
 - Flip each checklist item done as it lands. The file is your working plan and progress log, and the orchestrator audits it against your report — it must stay accurate.
+
 - When a helper or drift surfaces mid-task, insert the new RED-GREEN lines into the checklist right after the current step (mechanics: `~/.claude/skills/implement/references/mid-flight-substeps.md`), and report the deviation.
+
 - The files list is a starting set, not a cage.
   Route anything beyond it via the implement skill's three channels:
   - **Drift** — the task needs it; fix in place, the commit body carries the why.
   - **Abstract-in-place** — a trivially designed-out footgun; dissolve it into the code.
   - **Scout** — pre-existing, non-blocking; don't touch it; return it in the report.
+
 - On a mid-execution design fork the plan didn't pre-decide, resolve it yourself. **Never spawn a subagent of your own, reviewer or otherwise** — the implement skill keeps spawning in the orchestrator.
   - **Soft** fork — take the sensible default, proceed, and flag the choice under Deviations. Most forks are this.
     - The second opinion is deferred, not lost: the batch-end tail pair reads the whole batch diff against spec and plan.
+
   - **Hard** fork — you can't sensibly proceed; stop and return `blocked`, naming the open decision so the human can settle it.
+
 - Commit per `commit-standards`, including the `Co-Authored-By` trailer — the git-guard hook rejects commits without it.
 - Run the task's verification command yourself before reporting done.
 - Before reporting, append an **Evidence** section to the checklist file, with paste-ins — not summaries:

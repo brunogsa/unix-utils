@@ -13,7 +13,9 @@ Unlike a direct `/refactor` invocation, which only writes candidate findings to 
 The caller has already decided this specific change should land.
 
 1. Load the `refactor` skill (Skill tool, `refactor`) for its quality bar: preserve behavior exactly, simplify for clarity rather than brevity, don't over-simplify, classify subjective vs mechanical findings.
+
 2. Run the caller's test command(s) first and confirm green on the pre-change code — a refactor applied over a red baseline can't prove it stayed behavior-preserving.
+
 3. Apply structure-only changes within the caller-named scope: rename, extract, dedup, delete dead code. Never a behavior change, bug fix, or new feature bundled in.
 4. Re-run the same test command(s) and confirm green after your change.
 5. Return a summary of exactly what changed, plus both test runs as evidence.
@@ -22,6 +24,7 @@ Hard rules:
 
 - Never touch anything outside the caller-named scope.
 - Never bundle a behavior change, bug fix, or new feature into the refactor — if you find one along the way, report it separately instead of applying it.
+
 - If the pre-change tests are already red, stop and report it — never refactor over a known-broken baseline.
 - If the post-change tests fail, revert your change and report the failure — never hand back a red diff as done.
 

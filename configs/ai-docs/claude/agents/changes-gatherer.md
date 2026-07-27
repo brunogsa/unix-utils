@@ -36,8 +36,10 @@ Hard rules:
 - Never spawn a subagent. If the work is larger than expected, read more files yourself and say so in the report.
 - Never invent a decision, a rationale, or a "discovered along the way" item the commits and diff do not support.
   - Thin or generic commit bodies are a finding to report, not a gap to fill with plausible narrative.
+
 - Distinguish planned from incidental strictly by evidence — the commit body saying so, or a change plainly unrelated to the branch's stated theme.
   - When the evidence does not separate them, put the item under planned and flag the ambiguity in the report.
+
 - Report a file you could not read (binary, generated, over-large) explicitly rather than silently omitting it from the digest.
 
 Report format:
