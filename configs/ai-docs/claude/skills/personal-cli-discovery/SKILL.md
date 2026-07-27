@@ -1,6 +1,6 @@
 ---
 name: personal-cli-discovery
-description: "Discover Bruno's personal CLI commands in ~/oh-my-zsh. USE when user says 'use my script/utility/func' for X, when a shell utility is needed (one likely exists), or for unknown command names."
+description: "Discover Bruno's personal CLI commands in ~/oh-my-zsh, plus the rtk command proxy. USE when user says 'use my script/utility/func' for X, when a shell utility is needed, for unknown command names, or for any `rtk` command (gain, discover, proxy)."
 user-invocable: false
 ---
 
@@ -41,3 +41,20 @@ These are hints to help you find the right tool -- not exhaustive documentation.
 - **Search before creating** -- before writing a new script, check if one already exists here.
 - **Don't read entire scripts to understand usage** -- use `--help` first, only read source if the help output is insufficient.
 - **Node.js scripts** (`.js` files) are invoked with `node` and accept `--help` too.
+
+## The rtk command proxy
+
+A `PreToolUse` hook rewrites every Bash call to run through `rtk`, so you write the plain command and never type the prefix yourself.
+
+rtk's own meta commands are the one exception — the hook only rewrites *other* tools' commands, so these have no unprefixed form and must be typed with `rtk`:
+
+```bash
+rtk gain              # token savings analytics
+rtk gain --history    # per-command usage history with savings
+rtk discover          # mine Claude Code history for missed opportunities
+rtk proxy <cmd>       # run <cmd> raw, bypassing rtk's filtering
+```
+
+Route a `find` carrying compound predicates (`-o`, `-a`, or parenthesized groups) through `rtk proxy find`.
+
+Why: `rtk find` rejects compound predicates outright, so the plain form just fails and `rtk proxy` is the documented way back to real `find`.

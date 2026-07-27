@@ -175,6 +175,19 @@ A subagent still never spawns a second opinion on its own work — route that to
 
 Why: a mid-flight self-review judges one slice, where the deferred whole-artifact review sees that same question against the full batch.
 
+Declare each spawn as `agent(subAgent=X, title=Y[, model=Z][, effort=W])`.
+Drop `model=` where the subagent's own frontmatter pins it, and `effort=` unless you are overriding the session default.
+
+- `agent(subAgent=deep-reviewer, title=verify auth gate)` → its frontmatter pins `opus`/`max`, so the dispatch line renders `verify auth gate - opus max`.
+- `agent(subAgent=fork, title=retry failing spec)` → a fork inherits the parent model, so `model=` never appears on one.
+
+Why: one fixed notation makes every declared tier greppable, and dropping a pinned value keeps a single owner — re-pinning the agent would otherwise leave stale copies in callers nobody re-reads.
+
+Never spell out in a skill how that dispatch line renders in the UI — the global CLAUDE.md owns that format.
+Restating it is a bug even when the restatement is correct.
+
+Why: a format copied into N skills becomes N formats after the first edit, and the drift shows up only in the live dispatch line, where nobody diffs it.
+
 ## When a skill step gets rushed, sharpen its completion criterion before adding process
 
 First rewrite the step's completion criterion to be checkable (a third party could verify it mechanically) and exhaustive (quantified over every item it covers).

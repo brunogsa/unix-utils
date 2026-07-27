@@ -338,21 +338,8 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 ### RTK command proxy
 
-- [Instruction] Never hand-prefix a Bash command with `rtk` — write the plain command and let the `PreToolUse` hook rewrite it.
+- [Instruction] Never hand-prefix another tool's command with `rtk` — write the plain command and let the `PreToolUse` hook rewrite it.
   - [Why] The hook rewrites every Bash call to `rtk` transparently at zero token overhead (60-90% savings on dev operations), so a manual prefix only risks double-prefixing what the hook rewrites anyway.
-
-- [Instruction] Invoke rtk's own meta commands with an explicit `rtk` prefix — they are the one case the hook never produces.
-  - [Why] The hook only rewrites *other* tools' commands, so rtk's analytics and its escape hatch have no unprefixed form to rewrite and must be typed directly.
-
-```bash
-rtk gain              # token savings analytics
-rtk gain --history    # per-command usage history with savings
-rtk discover          # mine Claude Code history for missed opportunities
-rtk proxy <cmd>       # run <cmd> raw, bypassing rtk's filtering
-```
-
-- [Instruction] Route a `find` carrying compound predicates (`-o`, `-a`, or parenthesized groups) through `rtk proxy find`.
-  - [Why] `rtk find` rejects compound predicates outright, so the plain form just fails and `rtk proxy` is the documented way back to real `find`.
 
 - [Instruction] Pass an explicit `-n <count>` to every `git log` you run as a Bash tool call.
   - [Why] rtk silently caps it at 10 commits (50 with `--pretty`), so a truncated head reads as the complete answer and a date-ranged log looks like it spans a single day.
@@ -395,15 +382,6 @@ rtk proxy <cmd>       # run <cmd> raw, bypassing rtk's filtering
 
 - [Instruction] Render every Agent `description` here as `<title> - <model> <effort>` from the values a skill declares — no parens, no `<agent-type>`, which the UI already prepends.
   - [Why] That dispatch line is all the user sees live, so naming tier and effort lets them audit spawns in real time.
-
-- [Instruction] Leave that shape to this file alone — a skill spelling out the `description` format is a bug even when it spells it out correctly.
-  - [Why] A format copied into N skills becomes N formats after the first edit here, and the drift surfaces only in the live dispatch line, where nobody diffs it.
-
-- [Instruction] Declare every skill's spawn as `agent(subAgent=X, title=Y[, model=Z][, effort=W])` — drop `model=` only where the subagent's frontmatter pins it, and `effort=` unless overriding.
-  - [Why] One fixed notation makes each declared tier greppable, and dropping a pinned one keeps a single owner — re-pinning the agent would otherwise leave stale copies in callers nobody re-reads.
-
-  - [Example] `agent(subAgent=deep-reviewer, title=verify auth gate)` → its frontmatter pins `opus`/`max`, so the description renders `verify auth gate - opus max`.
-  - [Example] `agent(subAgent=fork, title=retry failing spec)` → a fork inherits the parent model, so `model=` never appears on one.
 
 - [Instruction] **CRITICAL: Spawn a fresh-context subagent when writing-session bias would distort the check** -- verification, semantic match, or quality judgment over your own output.
   - [Why] In-session reading carries "I already convinced myself" residue; a subagent sees only the artifact + the question.
