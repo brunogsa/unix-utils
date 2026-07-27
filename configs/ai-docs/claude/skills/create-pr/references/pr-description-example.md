@@ -18,6 +18,7 @@ Ordem de leitura sugerida:
 2. [`classify-http-error.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/src/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/classify-http-error.ts) + [`errors/`](https://github.com/arco-cv/arco2-integrator/tree/feat/itgd-2947_sge-translator/core/src/modules/sales-agreements/sync-sales-agreement-pic-sge/errors) — a regra retryable/terminal.
 3. [`shared/mappers/`](https://github.com/arco-cv/arco2-integrator/tree/feat/itgd-2947_sge-translator/core/src/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/mappers) — o de/para campo-a-campo (header, itens, school, brand→sistema, séries).
 4. [`index.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/src/modules/sales-agreements/sync-sales-agreement-pic-sge/index.ts) — **a peça central**: `translate` (monta e valida os 3 DTOs) e `publish` (3 chamadas em série, com guarda de integridade contra sucesso parcial).
+
 5. [`consumer.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/src/modules/sales-agreements/sync-sales-agreement-pic-sge/consumer.ts) + [`sales-agreements.module.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/src/modules/sales-agreements/sales-agreements.module.ts) — o wiring.
 
 Se estiver com pouco tempo: **`index.ts`**, **`items.mapper.ts`**, **`series.mapper.ts`**, **`classify-http-error.ts`** — concentram o principal.
@@ -217,6 +218,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 - **Given** `pic.entrega.local` = school (`E`)
 - **When** the Orchestrator calls `translate` + `publish`
 - **Then** `translate` builds the **3 DTOs** (hub-mode school, header, items) and validates them locally; any local invalidity throws **before** `publish` sends any mutating call (integrity — minimizes partial success)
+
 - **And** the local validations in `translate` are: delivery outside the school (`M`/`O`) → **terminal** error; irreconcilable kit apportionment → **retryable** error.
 - **And** any unexpected value/payload from PIC or unmapped exception → **retryable** by default.
 - **And** only then does `publish` execute the 3 mutating calls in series: `PUT /v1/integrator-hub/schools` (school upsert), then the header in SGE, then `POST .../{chaveContrato}/itens`
@@ -295,6 +297,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 - **And** `pic.composicao[]` (standalone items) are **not** sent; `pic.suplementar` enters as an entry in the collection item's `produtoGraficasCompulsoriosVinculados` array, not a standalone item
 - **And** `quantidadeVenda`/`quantidadeBonificado` (renamed from `quantidadeBonificada`) only on the collection item — "fake" attrs SGE ignores this release, provisional names until the CR
 - **And** `siglaNivel`/`siglaSerie` come from the séries de/para keyed by `serie` alone (not passthrough): the table yields an SGE code, split on its first hyphen → before=`siglaNivel`, after=`siglaSerie` (`EI-G1`→`EI`/`G1`)
+
 - **And** `AVULSO` (bare) → both `siglaNivel` and `siglaSerie` `null`; `AVULSO INF`/`EF1`/`EF2`/`EM` (no-hyphen code) → `siglaNivel` set, `siglaSerie` `null`
 - **And** a `serie` with no de/para entry throws a terminal error (`shouldDeleteMessage: true`) rather than sending a wrong/blank level
 - **And** `modular` is **not** sent — removed from the payload; SGE reads it from the product master
@@ -312,6 +315,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 - **And** the price field is `precoTotal` per the swagger v2026.0625 item schema (`valorUnitario` doesn't exist there)
 - **And** the B2C vitrine has one line per SKU without quantity, so the line total is the resale price itself
 - **And** only the B2C side is used (`precoRevendaB2C`, `precoFinalLoja`); `voucher` is no longer sent (the ERP computes the discount); the B2B fields (`valorBruto`, `valorLiquido`, `percentualDesconto`) are **never** sent
+
 - **And** also does **not** send: `rateiov1..v4` (only an input to the kit apportionment), `listaPreco`/`tipo`/`status`/`digital`/`descricaoAmigavel` (no field in SGE), and `pic.composicao[].suplemento` (S/N flag, no destination)
 
 > Covered by [`items.mapper.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/mappers/items.mapper.spec.ts).
@@ -321,6 +325,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 **Boundary checklist** — one line per item of the corner-cases taxonomy (`~/.claude/skills/test-standards/references/coverage-taxonomy.md`):
 
 - empty / single / many: single/many **covered** (1 vs many `materiais`/kits; single-brand vs multi-brand); empty `materiais` = invalid payload → local validation before any call.
+
 - max-size / overflow: **N/A — no size limit relevant to the translator**.
 - null / undefined / missing: **covered** (absent `idContratoERP` → create; `percentualComissaoEscola` sent as `null`)
 - unicode / whitespace-only / leading-trailing spaces: **N/A — text (name/address) is passthrough from the CRM/PIC; shape validation belongs to the middleware/source**
@@ -391,12 +396,14 @@ The criteria below carry the field-by-field mapping (source → destination → 
 - Defensive guard: the 2-decimal reconciliation already forces an exact Σ by construction, so this error only fires on a reconciliation bug.
 - **When** apportioning
 - **Then** the apportionment is computed in `translate` (pre-flight), so throwing `SgeKitPriceIrreconcilableError` **retryable** (`shouldDeleteMessage: false`) blocks **all** 3 mutating calls (none is sent) → retry/DLQ
+
 - **And** it's a deterministic technical error (the price is derived by our own division), not bad data; the DLQ preserves visibility and allows redrive
 
 > Covered by [`items.mapper.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/mappers/items.mapper.spec.ts), [`errors.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/errors/errors.spec.ts), and [`index.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/index.spec.ts).
 
 #### Bad bimestre rateios (rateiov1..v4 ≠ 100%) → terminal
 - **Given** a material's `rateiov1..v4` for the bimesters that actually have kits do **not** sum to 100% (raw shares under- or over-allocate the collection price, checked **before** reconciliation)
+
 - **When** apportioning the collection price across the kits (`reconcileKitShares` pre-check)
 - **Then** throws `SgeAgreementRateioMismatchError` **terminal** (`shouldDeleteMessage: true`, 400) in `translate` (pre-flight), blocking **all** 3 mutating calls (none is sent)
 - **And** it's bad Agreement data (a malformed static payload a retry can't fix), so the base error-callback notifies PIC to fix and resend.
@@ -429,6 +436,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 - **And** on a duplicate the Translator matches the **stringified SGE `responseBody`** with a case-insensitive `/duplica/i` regex (duplicata/duplicado/duplicate).
   - The SGE's text arrives in the response body, not the error `message` (the client fixes that to `'SGE contract header request failed'`).
   - Logs a `warn` with the full SGE body and proceeds gracefully.
+
 - **And** the exact duplicate message (and whether the response returns the `chaveContrato` for the items) is pending SGE confirmation; the `/duplica/i` guard is the agreed interim stopgap (see Open Questions)
 
 > Covered by [`index.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/index.spec.ts).
@@ -457,10 +465,12 @@ Chronological log. Editable during refinement; after approval and an execution s
 
 - **DECISION:** __Chose__ to accept the assumptions in [`sge-duvidas.md`](./sge-duvidas.md) as fact.
     - Includes: term 01/03–31/12, `tipoEndereco` 3/1, `situacaoContrato`=1 (kept for now), the 4-key `sistema` mapping, séries de/para, quantities as ignored attrs, pre-registered SKUs, redrive idempotency.
+
     - __Because__ working agreement: build on the assumptions now, validate with the client later (LLD + `sge-duvidas.md`).
 
 - **DECISION:** __Chose__ to build and validate the **3 DTOs** in `translate` before `publish` sends any mutating call (PUT/POST), __because__ failing before the first write minimizes the partial-success scenario (non-integrity).
     - Reading the CRM (`GET`, read-only) happens in the inherited orchestrator, which passes the already-validated `School` to `translate`; the latter only builds the school DTO from it.
+
     - Only **server-side** rejections (unregistered SKU, HTTP 4xx/5xx) can generate partial success in the middle of the series.
     - Aligned with the `translate` (builds the payloads) / `publish` (makes the 3 calls) pair already defined in the LLD (`translate`/`publish`).
 
