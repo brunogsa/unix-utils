@@ -7,7 +7,9 @@ Always-loaded cross-cutting principles. Domain-specific principles + examples li
 Every list-bullet carries one marker for deterministic counting via `grep` — no LLM judgment. Headers, intro prose, fact notes carry no marker.
 
 - **`[Instruction]`** — one directive, exactly **one independently-violable constraint**, self-contained (reads without its heading). *Test: if you can obey one half while breaking the other, it is two.*
+
 - **`[Why]`** — the single rationale beneath an instruction; adds no constraint. *Test: it reads after "because."* Decision-shaping only; combine multiple reasons into one bullet rather than stacking two.
+
 - **`[Example]`** — a snippet, table, or bad/good contrast for the instruction or why. Never an abstract restatement, aphorism, or pointer.
 - **`CRITICAL`** — optional prefix flagging an instruction as a tiebreaker. Rare by design; the script caps the ratio.
 
@@ -159,7 +161,9 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 - [Instruction] Point to a source only by file path, URL, or named anchor — never by a section or page number (`§X`, `ADR-N`, `page N`, `mitigação N`), even alongside a recap.
   - [Why] A number renumbers on the next edit and rots silently; a file path, URL, or named anchor tracks the thing itself and the recap already carries the meaning.
+
   - [Example] Bad: `see HLD §5.6` / `Fundação §6.2`; and even `recap… (HLD §5.4.14)` — the recap is fine, but the `§5.4.14` still drifts and invites a jump.
+
   - [Example] Good: `[HLD → Riscos](./hld.md#riscos)` (named anchor), or "…, per the HLD (`./hld.md`)" — file/anchor, no number.
   - [Example] A bare symbol is none of the three: bad `see handleRetry`; good `handleRetry` in `src/net/retry.ts`.
 
@@ -171,6 +175,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 - [Instruction] Put ephemeral scratch — throwaway scripts, debug dumps, working notes — in /tmp, never the repo or CWD — UNLESS the user reviews it, then it lives gitignored in CWD.
   - [Why] Unreviewed scratch in the repo gets committed by accident or rots as orphan debt; a user-reviewed doc must sit where the user and downstream skills discover it.
+
   - [Example] User-reviewed → CWD: a `brainstorm` spec or plan, manual-verification `.md`. Never-reviewed → /tmp: debug dumps, one-off scripts, diff snapshots.
 
 - [Instruction] When a task earns TaskList entries or a procedural skill starts, create its `/tmp` scratchpad file and offload working state immediately.
@@ -192,6 +197,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 - [Instruction] **CRITICAL: Verify everything you build, accept, or claim** -- evidence over optimism, applied at every gate.
   - [Why] Unverified beliefs compound — a wrong assumption caught late costs N× a 30-second spike, an accepted limit propagates into bad design, and an unverified output ships the bug.
+
   - [Example] Before starting — dry-run or EXPLAIN to check your assumption holds.
   - [Example] Before claiming a count or "complete," grep/wc the actual file — a truncated snippet isn't proof.
 
@@ -216,7 +222,9 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] Load every `*-standards` skill whose trigger fires (`code/doc/test/commit/debug-standards`) — one change can fire several; when in doubt, load it.
   - [Why] They encode hard-won wisdom but lazy-load to save context; a change can span several concerns, and each standard you skip is wisdom the user must repeat by hand.
+
   - [Example] A change that touches code, its comments, and its tests fires three triggers at once — load code-standards, doc-standards, and test-standards.
+
 - [Instruction] Treat config files as code — editing one (e.g. `init.lua`) fires the same `*-standards` triggers a source file would.
   - [Why] Counting config as code loads code-standards on it, so its conventions apply instead of getting skipped as "just config".
 
@@ -251,16 +259,20 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] **Permission UIs are the asking. NEVER pre-ask in chat** -- issue the decided call directly, UNLESS it's an irreversible remote mutation that may be allowlisted, then confirm once in chat.
   - [Why] Pre-show + run = double-prompt and the UI renders cleaner than chat; but an allowlisted irreversible action fires no UI, so the one chat confirm is the only human gate.
+
   - [Example] DO NOT pre-show + ask: no "does this look good?", "want me to apply?", "confirm and I'll run it".
   - [Example] UNLESS case: the batch `git push` in `address-pr-comments` — irreversible (fires CI, notifies reviewers) and commonly allowlisted.
 
 - [Instruction] **CRITICAL: Preserve user work — prefer the least-destructive action, and never delete or overwrite an existing artifact without explicit instruction.**
   - [Why] Each step up the destruction ladder risks hallucinating a replacement or losing unrecoverable context; a deletion you can't justify is often one the user can't undo.
+
   - [Example] Move over write+delete; `git checkout -- <file>` over manual rewrite to revert; `git stash` over `git checkout` when you may still need the changes.
+
   - [Example] When a file holds others' uncommitted work, stage only your hunks with `git-hunk` rather than committing or reverting the whole file.
 
 - [Instruction] Modify only the exact lines/fields/keys/entries needed for the requested change.
   - [Why] Touching more than asked widens the blast radius and review surface, and incidental reformatting buries the real change and can trip linters or git blame.
+
   - [Example] Don't touch indentation, blank lines, whitespace, quotes, or semicolons you weren't asked to change.
 
 ### TaskList discipline
@@ -283,6 +295,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] `[Sub-Step]` — a child of a Task or another Sub-step; place it after its parent or a sibling (logical order); commits along with its Task ancestor.
   - [Why] A sub-step decomposes a task into ordered pieces without its own commit — it isn't independently shippable, so bundling it with its parent gives the reviewer one coherent change.
+
 - [Instruction] `[Side]` — deferred "side quest" / out-of-scope work (review feedback, mid-task requests, anything you uncover); file as a new task, don't pivot; own commit, end of list.
   - [Why] Filing deferred work as its own task instead of derailing the current one keeps each commit a single logical change.
 
@@ -294,6 +307,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] `[Reminder]` — a durable reminder of a process step to run later; the step may or may not produce a commit; stays pending until it runs, then completes.
   - [Why] The TaskList re-surfaces to the AI every turn and survives compaction, so a long unattended run through many compactions keeps the step visible instead of silently skipping it.
+
   - [Example] Batch-end procedure steps: run the repo-green gate, dispatch the review tails, finalize the PR, open the diff-review pane.
 
 - [Instruction] Persist machine-checkable task state — step counters, gate outcomes, attempt counts, decisions, artifact/experiment links — in the task's `metadata` field, not in prose subjects or descriptions.
@@ -315,6 +329,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] **Save slow command output, verify from the file** -- any command taking 4+ seconds: redirect full output to a stable, reused `/tmp/` path, then filter from the file.
   - [Why] A slow command is expensive to repeat; the file is a durable record you can re-filter without paying again, and a stable path lets the user keep tailing it.
+
   - [Example] `<slow-cmd> > /tmp/out.txt 2>&1; echo "exit: $?"; tail -<N> /tmp/out.txt;` — choose N to fit the command's summary.
   - [Example] Don't pipe it straight to `grep`/`head` — a wrong filter discards the output and forces the whole slow run again.
 
@@ -346,6 +361,7 @@ rtk proxy <cmd>       # run <cmd> raw, bypassing rtk's filtering
 
 - [Instruction] **When a static check fails, fix the underlying issue — never delete, disable, or silence the check.**
   - [Why] Silencing a failing check ships the defect it flagged and drops the guard for every future change — trading a real fix for a fake green.
+
   - [Example] Don't reach for `// eslint-disable`, `# type: ignore`, `--no-verify`, or editing the config to mute the rule.
 
 - [Instruction] **Don't replicate problematic patterns** -- pause and ask before copying one that either (a) contradicts the global rules or (b) is itself a smell.
@@ -382,6 +398,7 @@ rtk proxy <cmd>       # run <cmd> raw, bypassing rtk's filtering
 
 - [Instruction] Declare every skill's spawn as `agent(subAgent=X, title=Y[, model=Z][, effort=W])` — drop `model=` only where the subagent's frontmatter pins it, and `effort=` unless overriding.
   - [Why] One fixed notation makes each declared tier greppable, and dropping a pinned one keeps a single owner — re-pinning the agent would otherwise leave stale copies in callers nobody re-reads.
+
   - [Example] `agent(subAgent=deep-reviewer, title=verify auth gate)` → its frontmatter pins `opus`/`max`, so the description renders `verify auth gate - opus max`.
   - [Example] `agent(subAgent=fork, title=retry failing spec)` → a fork inherits the parent model, so `model=` never appears on one.
 
