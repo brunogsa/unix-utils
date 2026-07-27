@@ -164,6 +164,7 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
 
 - LLD — start from `assets/template-lld.md` (one component, implementation-ready: code design, data model, contracts, de/para mappings, error/concurrency, observability).
   - See `references/example-good-lld.md` for a full worked example (numbered premises/decisions/risks/open-questions with `PR-`/`D-`/`R-`/`OQ-` tokens, de/para mappings as the core, call-sequence diagram, source/destination schemas in the appendix).
+
   - The top comment block holds the HLD↔LLD boundary rule.
 
 - The spec — do **not** improvise from this skill's altitude/ownership notes.
@@ -180,5 +181,7 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
 
 - de/para (from → to) mapping — qualify every field by its system.
   - Prefix each field with its source/destination system (`pic.`, `sge.`, `hub.`, `crm.`, or `const` for a literal), so provenance stays clear when systems share field names.
+
   - Validate the mapping against a real production payload, not just the vendor's example — real data stress-tests edge cases the example misses before you finalize.
+
   - **If a field has no destination because that concept doesn't apply on the destination side, say so plainly — don't call it a gap.**

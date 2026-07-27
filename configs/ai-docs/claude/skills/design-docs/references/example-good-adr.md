@@ -18,6 +18,7 @@ Três fatos do ambiente tornam isso não-trivial:
 
 - **A entrega é at-least-once e pode ser concorrente.**
   - A fila SQS FIFO com `MessageGroupId = schoolDocNumber#brandSlug#agreementId` mantém apenas 1 mensagem em voo por grupo **até a mensagem ser deletada ou o visibility timeout expirar**
+
   - O consumer da fila estende a visibility por heartbeat enquanto está vivo.
   - Mas se o processo morre ou crasha, a mensagem é entregue a outra réplica e duas podem processar o mesmo Acordo ao mesmo tempo.
 
@@ -133,7 +134,9 @@ sequenceDiagram
 - [+] Sem ciclo de lock (acquire/release), menos round-trips no caminho feliz
 - [-] **Falha**: duas instâncias vivas (após redelivery por visibility timeout) leem o mesmo `stored_version`, ambas passam no check e escrevem no ERP em ordem indefinida.
   - A versão antiga pode ficar por último no ERP.
+
 - [-] O conditional write protege a linha do DynamoDB, mas **não** a ordem da escrita no ERP — janela de corrida maior que a do lock
+
 - [~] Janela menor na prática graças ao SQS FIFO, mas grande demais para um invariante crítico (acordo de vendas)
 
 ### C.) [Descartado] Notification + read-latest do PIC

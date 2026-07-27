@@ -10,6 +10,7 @@ How an LLD complements its HLD(s) (do NOT repeat them — an LLD may reference o
 - HLDs decide WHAT and WHY for the whole epic: scope, architecture ADRs, alternatives, consensus. Audience: stakeholders + all engineers.
 - LLD details HOW EXACTLY to build one component: code design, data model, contracts, mappings, error/concurrency, observability. Audience: the implementer + reviewer + tester.
 - Rule of thumb: if a detail would change WHICH approach we picked → it belongs in an HLD. If it changes the CODE but not the decision → it belongs here.
+
 - Do not rewrite the HLDs' architecture ADRs here. Link to them, and record only local, tactical Design Records (DRs).
 
 Keep it simple:

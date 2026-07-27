@@ -110,12 +110,14 @@ Itens [SHOULD] e [COULD] viram tarefas separadas no fim do backlog do épico —
 4. [MUST] Tradução de/para por ERP (modo ativo — Integrador entende ativamente o que ERP tem disponível para tradução).
 5. [MUST] Callback HTTP do Integrador → PIC Arco com status (sucesso/erro + mensagem) para refletir na UI do operador.
 6. [MUST] Persistência do **Institution ID** (ID da Escola no CGI — futuro sistema fonte da verdade para Escolas/Instituições) no ERP 1.0 junto com o Acordo.
+
 7. [MUST] Suporte a retry manual pelo operador via UI do PIC (para erros de negócio).
 8. **Acordos com Intermediador** (`tipoContrato = Comercializador`):
   - [MUST] Cada Acordo persistido no ERP 1.0 tem exatamente 1 endereço de entrega: PIC envia 1 POST por escola atendida.
   - Preservar endereços já cadastrados em upsert é responsabilidade de cada Tradutor (read-before-write ou PATCH conforme o ERP) e detalhado em seus LLDs.
 
 9. [SHOULD] Erros cadastrados na tabela `errors_callbacks` para visualização no Painel de Erros
+
 10. [MUST] **Fonte da verdade do endereço é o Acordo**: faturamento e entrega vêm do Acordo, nunca do cadastro de Escola — o Sync de Escolas não pode sobrescrevê-los.
   - Trava será implementada em outro épico.
 
@@ -132,6 +134,7 @@ Itens [SHOULD] e [COULD] viram tarefas separadas no fim do backlog do épico —
       - Preço
       - Desconto
       - Quantidade bonificada
+
     - Endereço de Faturamento (fonte da verdade: Acordo)
     - Endereço de Entrega (fonte da verdade: Acordo)
     - Infos de Frete
@@ -299,6 +302,7 @@ Premissas que o design abaixo trata como verdade. Se alguma cair, este doc preci
 #### P-02 — No PIC 1.9, qualquer alteração no Acordo incrementa `versaoId`.
 
 - **Cai no futuro** por dois vetores: (a) Andre Isaac — updates sem nova assinatura não incrementam versão; (b) rePIC — updates sem nova versão por design.
+
 - Em ambos, o evento chega com mesmo `versaoId` e `dataAlteracao` mais recente.
 
 #### P-03 — [SHOULD] Integrador gera receipt timestamp na entrada (API Gateway), separado dos critérios de dedup.
@@ -322,7 +326,9 @@ Premissas que o design abaixo trata como verdade. Se alguma cair, este doc preci
 - **Venda Padrão** = B2B direto (Acordo entre Arco e a Escola).
 - **Loja Virtual** = B2C (Acordo entre Arco e consumidor final via loja online).
 - **Comercializador** = B2B via Intermediador (a.k.a. Interveniente) — Acordo entre Arco e uma entidade que contrata material em nome de N escolas. Sempre B2B; não existe Intermediador no modelo B2C.
+
 - Implicação para roteamento `(brandSlug, tipoContrato)`: Comercializador é variante de B2B, então mapeia para o **mesmo ERP destino** do `Venda Padrão` da marca.
+
 - Os quirks de payload (Intermediador como conta no ERP, endereços de entrega por escola atendida) ficam no LLD por ERP.
 
 #### P-07 — ERPs 1.0 são idempotentes em PUT por `agreementId` (`idContratoERP`)
@@ -337,12 +343,15 @@ Premissas que o design abaixo trata como verdade. Se alguma cair, este doc preci
 #### P-09 — Premissas sobre o contrato PIC→Integrador para a Fase 1. Até confirmação formal do time PIC, o design adota:
 
 - **CNPJ**: tipo `string` 14 dígitos numéricos (regex `^[0-9]{14}$`), apesar do exemplo do PIC mostrar integer em alguns lugares.
+
 - **`dataAlteracao`**: string ISO 8601 UTC (`pattern: ^\d{4}-\d{2}-\d{2}T...Z$`).
   - **PRECISA** ser UTC — design dedup depende disso (segundo critério da chave composta após `versaoId`).
   - Risco aceito: se o PIC enviar timestamp errado, podemos descartar um evento legítimo.
+
 - **Callback ao PIC contém `timestamp`**: string ISO 8601 UTC; PIC ordena callbacks por este campo, não pela ordem de entrega (não garantida).
 - **`status = "Rascunho" em Acordos`**: aceito pelo schema (enum válido), mas descartado pelo Integrador — não sincroniza ao ERP, sem callback.
   - Premissa: PIC não emite Rascunho ao Integrador; se emitir, será descartado ou gerará 400 (Bad Request).
+
 - **Marcas Positivo e PIÁ**: Positivo é alias de SPE (mesmo destino de roteamento); PIÁ é selo de literatura dentro do Maralto (idem).
 - Os dois resolvem para um Tradutor existente; não há Tradutor dedicado. SPE = Positivo, PIÁ = Maralto.
 - **`materiais[].suplementar`**: quando preenchido, segue o **mesmo schema de um item de `materiais`** (estrutura recursiva).
@@ -410,18 +419,23 @@ Premissas que o design abaixo trata como verdade. Se alguma cair, este doc preci
 
 Apesar do Integrador gerar um timestamp próprio no API Gateway ao receber o evento pela primeira vez, por observabilidade, esse timestamp **não** entra no anti-OLD.
 
+
 **Por quê**:
 - **`versaoId` sozinho não basta no futuro**: Andre Isaac citou cenários e rePIC podem gerar eventos legítimos com mesmo `versaoId` e `dataAlteracao` mais recente.
   - Comparar os dois já cobre esse caso desde o início.
+
 - **`dataAlteracao` representa "quando a versão foi alterada no PIC"**, não "quando o operador clicou em Sync na UI do PIC".
   - Operador pode disparar Sync horas depois da edição.
   - Receipt-time do Integrador não distingue "qual a versão mais nova", apenas qual chegou mais recentemente.
+
 - O PIC é o dono da versão e da alteração; faz sentido que ele seja a fonte do critério.
 
 **Risco aceito**: se o PIC enviar `dataAlteracao` errado (clock skew, fuso, bug), o dedup pode descartar um evento legítimo como antigo.
 
 **Descartado**:
+
 - **Comparar só `versaoId`**: frágil ao cenário Andre Isaac/rePIC.
+
 - **Comparar pelo receipt timestamp do Integrador**: não distingue updates anteriores reenviados manualmente pelo operador.
 
 #### D-03 — Descarte de duplicatas e eventos antigos via DynamoDB
@@ -446,8 +460,10 @@ O dedup é reavaliado a cada consumo de fila (ingestão por ERP).
 
 **Descartado**:
 - **Dedup por timestamp interno do Integrador** (receipt-time): operador pode clicar Sync horas depois da edição; receipt-time não diferencia "qual a versão mais nova", mas sim qual foi sincronizada mais recentemente.
+
 - **Dedup só por `versaoId`** (sem tiebreaker): frágil ao cenário Andre Isaac/rePIC (updates sem nova versão; dois eventos legítimos compartilham `versaoId`).
   - O tiebreaker custa um campo a mais no item e nada no caminho feliz.
+
 - **Tabela relacional**: mais lenta, sem benefício no caso.
 - **Idempotência só no ERP**: depende de cada legado garantir; nem todos garantem.
 
@@ -509,6 +525,7 @@ A **tabela** `errors_callbacks` é usada para persistir erros do fluxo e produti
 
 - **Sync de Acordos (PIC Arco → Integrador → ERPs 1.0)**: campo **mandatório** no payload do webhook.
   - Integrador valida na entrada; payload sem `institutionId` é rejeitado.
+
 - **Sync de Escolas (CRM 2.0 → EventBridge → Integrador → ERPs 1.0)**: campo introduzido atrás de **feature flag**, desligada por padrão.
   - Quando a FF for habilitada, Integrador passa a validar e rejeitar eventos sem `institutionId`.
 
@@ -533,6 +550,7 @@ A **tabela** `errors_callbacks` é usada para persistir erros do fluxo e produti
 - **Time pressure / complexidade**: introduzir um formato intermediário é complexidade significativa para a janela atual.
   - Exigiria absorver campos PIC-específicos na canônica `SalesAgreement` existente
   - Risco alto para Fase 1.
+
 - **Trade-off de reuso aceito**: quando o rePIC entrar, vamos ter um **esforço pequeno** para suportar a nova interface HTTP.
   - Pequeno comparado ao risco de cronograma de fazer o canônico agora.
   - Existe a alternativa do rePIC implementar o mesmo formato do PIC 1.9 (somente ajuste de config nesse caso).
@@ -544,7 +562,9 @@ A **tabela** `errors_callbacks` é usada para persistir erros do fluxo e produti
 A Fundação tem dois componentes; cada Tradutor herda a orquestração da Fundação e implementa só a parte específica do ERP. Todos no módulo `agreements`:
 
 - **Roteador** — consome a fila de ingestão e roteia o evento por `(brandSlug, tipoContrato)` para o Tradutor/fila do ERP 1.0 alvo.
+
 - **Orquestrador** — **classe abstrata**; orquestra o fluxo comum a todos os ERPs 1.0: lock, anti-OLD/dedup, máquina de estados, delegação da tradução e callback ao PIC.
+
 - **Tradutores** — **subclasse concreta** do Orquestrador, 1 por ERP 1.0; implementa só o específico do ERP: a tradução de/para e a interação/publicação ao ERP 1.0.
 
 ![Code design do Sync de Acordos: middleware → Roteador → Orquestrador (classe abstrata) → N Tradutores (1 por ERP 1.0), com persistência em DynamoDB e callback ao PIC 1.9](./assets/sync-agreements-pic1.9_code-design.drawio.png)
@@ -562,6 +582,7 @@ O Tradutor chama o ERP 1.0 diretamente via HTTP síncrono; a Fundação emite o 
   - O Tradutor herda esse fluxo e só implementa a tradução do seu ERP.
 
 - **Custo de adicionar novo ERP 1.0 (previsto)**: 1 nova subclasse Tradutor + 1 entrada no mapa de roteamento da Fundação. Nenhum código de orquestração precisa ser duplicado.
+
 - **Fan-out por ERP**: ingestão única simplifica o contrato do middleware (um destino); o split em filas por ERP entrega bulkhead, redrive isolado e vazão independente por ERP.
 
 #### D-10 — HTTP direto ao ERP (sem `http-caller`); controle de vazão via filas FIFO por ERP
@@ -573,8 +594,11 @@ O Tradutor chama o ERP 1.0 diretamente via HTTP síncrono; a Fundação emite o 
 **Por quê**:
 - ERPs 1.0 respondem síncronamente e devolvem `idContratoERP` na resposta.
   - Um `http-caller` (Lambda fire-and-forget) não devolve esse corpo ao core sem um hop extra (Lambda → core) — implementação extra arriscada no tempo disponível da Fase 1.
+
 - As filas FIFO por ERP já existem para bulkhead; reaproveitá-las para vazão evita infra nova.
+
 - O `MessageGroupId = schoolDocNumber#agreementId#brandSlug` ordena por chave e mantém 1 mensagem em voo por grupo no caminho feliz, mas não serializa sob falha (redelivery após crash pode gerar processamento concorrente).
+
 - O processamento 1-a-1 por chave e o anti-OLD ficam garantidos pelo lock, não pela FIFO.
 
 **Descartado**:
@@ -606,6 +630,7 @@ Nesses casos o Integrador pode ter um **sucesso parcial**: parte das chamadas ef
 
 **Por quê (não SAGA agora)**:
 - SAGA tem complexidade alta — exige orquestrar transações de compensação (undo) para cada chamada ao ERP.
+
 - Não temos ainda os endpoints nem a documentação do time legado necessários para desenhar essas compensações; inviável no prazo da Fase 1.
 
 **Mitigações**:
@@ -613,7 +638,10 @@ Nesses casos o Integrador pode ter um **sucesso parcial**: parte das chamadas ef
   - O fluxo é async, então a latência extra não é problema.
 
 2. **Dado mais crítico por último**: informações sensíveis como o endereço de entrega são persistidas na última chamada da série — minimiza a chance de mexer nesse dado.
+
+
 3. **Todo ERP 1.0 idempotente em todas as chamadas**: retry e redrive reprocessam o evento inteiro e re-executam chamadas já bem-sucedidas sem duplicar registro nem gerar erro.
+
 4. **Retry do Integrador aos ERPs 1.0**: retentativas reduzem sucessos parciais causados por erros transitórios (partição de rede, timeout etc).
 5. **Sucesso parcial = erro do fluxo**: se qualquer chamada da série falha, o `last_success` no DynamoDB não é atualizado e o PIC recebe callback de erro.
   - Coerente com o tratamento de erro já definido antes, e habilita retries/redrives.
@@ -638,6 +666,7 @@ São eles: o Sync de Acordos (este HLD) e o Sync de Escolas (CRM 2.0, épico à 
 
 **Por quê**:
 - O endereço de entrega correto é definido no Acordo (por escola atendida); o cadastro genérico de Escola no CRM pode divergir.
+
 - Sem a trava, um Sync de Escolas posterior sobrescreve o endereço do Acordo → entrega em endereço errado, exatamente o problema que esta iniciativa resolve.
 
 #### D-14 — Campos mínimos syncados no ERP 1.0 (obrigatórios vs best-effort)
@@ -648,17 +677,20 @@ Se um campo é lido de volta, ele precisa ter sido gravado — senão o read-bac
 
 **Decisão**: Os campos do Acordo gravados no ERP 1.0 têm dois níveis de garantia:
 
+
 - **Obrigatórios (read-back)** — o conjunto lido de volta pelo Integrador para servir 2.0, idêntico para os 4 ERPs. **Sempre gravados.**
   - Se um ERP 1.0 não tem campo nativo para um obrigatório, um campo custom/extensão precisa ser adicionado ao ERP 1.0 — e alinhado com o time de 1.0.
 
 - **Best-effort** — os demais campos que o PIC fornece no payload.
   - Gravados quando o ERP 1.0 tem um campo disponível para aquilo; quando não há, são campos ignorados/descartados, documentados no LLD do ERP e registrados como risco.
+
   - Sem callback ao PIC por campo descartado.
 
 O ideal é gravar **tudo** que o PIC envia. O que cada ERP 1.0 consegue (ou não) armazenar é **alinhado com os times dos ERPs 1.0** e detalhado em cada LLD.
 
 **Por quê**:
 - O read-back 1.0 → 2.0 é um contrato implícito: o que o 2.0 lê tem de existir no ERP 1.0. Tornar isso explícito evita surpresas.
+
 - Nem todo campo do PIC tem correspondente no legado; best-effort assume isso sem travar a Fase 1.
 
 **Descartado**:
@@ -676,7 +708,9 @@ O PIC envia o endereço de entrega direto ao CRM (Salesforce) via SF Composite A
 
 **Por quê**:
 - **Sem capacity na Fase 1**: absorver mais um fluxo no Integrador agora estoura a janela do V1 Excelente.
+
 - **O rePIC (2.0) implementará essa integração direto com o CRM 2.0**: ambos são 2.0, então o Integrador não precisa ser a ponte — fazê-lo aqui seria descartado no rePIC.
+
 - O fallback manual cobre o caso de a SF Composite API falhar, então nenhum endereço se perde silenciosamente.
 
 ### 5.5. Diagramas TO-BE
@@ -917,7 +951,9 @@ sequenceDiagram
 #### R-04 — Payload PIC pode passar de 256KB do SQS quando `materiais` é grande.
 
 - O schema limita SKUs (≤300) mas **não** a contagem de materiais/kits, então em estrutura adversária o payload estoura o limite.
+
 - *Falha controlada*: SQS rejeita o envio > 256KB já na ingestão; o evento falha cedo e visível (callback de erro / alarme), não some silenciosamente nem chega a uma DLQ.
+
 - *Mitigação (risco aceito na Fase 1)*: o middleware loga o payload inteiro, então nada se perde.
   - Recuperação = habilitar o SQS Extended Client (payload em S3, ponteiro na fila) e/ou compressão e reprocessar manualmente a partir do log.
   - Mecanismo já disponível → correção rápida; default decidido na Tarefa Fundacional.
@@ -947,7 +983,9 @@ sequenceDiagram
 
 - O Integrador decide o comportamento do retry/DLQ pela classe do erro.
 - Essa classe é inferida em boa parte do status HTTP do ERP.
+
 - Mas muitos legados não respeitam a semântica HTTP: um `4XX` pode ser de fato um técnico transitório, e um `5XX` pode ser um Data Quality.
+
 - *Risco aceito*: ajustável ao longo do tempo.
 - Pior caso: um Data Quality retenta desnecessariamente, ou um técnico transitório não chega à DLQ.
 - Mas, em qualquer classificação, o erro **sempre gera callback e aparece na UI do PIC** — o operador nunca fica no escuro.
@@ -980,6 +1018,7 @@ sequenceDiagram
   - **Geekie** — plataforma adaptativa de IA para escolas; adquirida pela Arco.
   - **Nave à vela** — programa de cultura maker e inovação curricular; adquirido pela Arco.
   - **Positivo** — alias operacional de SPE (mesmo destino de roteamento; ver SPE).
+
 - **Integrador** — Serviço middleware da Arco que orquestra integrações entre sistemas 2.0 (CRM, PIC, 4MDG) e 1.0 (ERPs legados).
 - **Modo Hub** — Padrão do Integrador onde o ERP exporta endpoint padronizado e o Integrador apenas roteia.
 - **Modo Ativo** — Padrão do Integrador onde cada ERP tem contrato próprio e o Integrador implementa o de/para.
@@ -988,6 +1027,7 @@ sequenceDiagram
 - **De/Para** — Mapeamento de campos entre o formato 2.0 (PIC/CRM) e o formato 1.0 (ERP legado).
 - **Intermediador (a.k.a. Interveniente)** — Entidade que pode ter N endereços de entrega (1 por escola que atende).
   - Representado como conta nos ERPs 1.0, mesmo padrão das Escolas. Em alguns ERPs admite múltiplos registros.
+
 - **4MDG** — Sistema interno de Master Data Governance (catálogo de Produtos). Fonte da verdade de produtos consumida pelo Integrador e propagada aos ERPs 1.0.
 - **CGI** — Sistema novo (ainda não pronto) que será a futura fonte da verdade para Escolas/Instituições da Arco.
 - **Institution ID** — ID da Escola/Instituição no CGI. Carregado no payload de Acordo (mandatório) e no evento de Escola (atrás de FF).
@@ -1319,6 +1359,7 @@ Isso é o que o lock e o anti-OLD precisam: comparar versões na mesma linha. A 
 - **`sync-agreements-last-synced`** (Fase 1) — PK `{cpfCnpj}#{contratoId}#{marca}`; atributos `lastSyncedVersaoId` e `lastSyncedAt` (base do anti-OLD).
 - **`sync-agreements-state`** (Fase 1, ajuda na debugabilidade) — PK `{cpfCnpj}#{contratoId}#{marca}#{versaoId}`; atributos `errorMsg`, `createdAt`, `updatedAt`, `transactionId` e `state`.
   - `state` ∈ received | discarded | synced | synced-failed | notified | notification-failed.
+
 - **`sync-agreements-transitions`** (append-only, histórico — Futuro) — PK `{cpfCnpj}#{contratoId}#{marca}`; `transitionFrom`, `transitionTo`, `versionFrom`, `versionTo`, `transitionAt`, `transactionId`. Útil para debugabilidade.
 
 ![Sugestão de modelagem das tabelas DynamoDB: sync-agreements-lock, -last-synced e -state na Fase 1; sync-agreements-transitions (append-only, histórico) como evolução futura](./assets/sync-agreements-pic1.9_flowchart-dbs-modeling.drawio.png)

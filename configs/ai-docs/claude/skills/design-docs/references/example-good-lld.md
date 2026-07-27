@@ -92,6 +92,7 @@ Cada divergência resolvida vira uma Premissa ou Decisão (com o risco residual 
   - A classificação é por exceção, não por valor de retorno (contrato da classe abstrata):
     - **Terminal (dado ruim):** `shouldDeleteMessage: true` (`isRetryable=false`) → Orquestrador envia callback de erro ao PIC e **descarta**, sem retry/DLQ.
     - **Retryável (ERP indisponível):** `shouldDeleteMessage: false` (`isRetryable=true`) → Orquestrador **re-tenta** (SQS → DLQ); callback de erro só na última tentativa.
+
   - Os dois casos acima cobrem os 3 tipos de erro do HLD: **tipo 1** (não-técnico / Data Quality) é terminal.
   - **Tipos 2 e 3** (técnico transitório e técnico inesperado) caem ambos em retryável.
   - O Integrador não distingue transitório de bug no despacho.
@@ -145,8 +146,11 @@ Ignora `quantidadeBonificada` (brindes) e vouchers — usa o preço final de loj
 Quatro campos que o doc SGE marca obrigatórios, sem fonte no PIC, assumem valor fixo:
 
 - `percentualComissaoEscola` = `null` — sem fonte no PIC; payloads reais mostraram `7.45`, mas sem regra de cálculo conhecida adotamos `null`; provisória, a revalidar com o time 1.0.
+
 - `integraLoja` = `true` — fato, conforme doc.
+
 - `vendaBimestral` = `false` — B2C vende a coleção do ano inteiro; payloads reais sempre `false`.
+
 - `confissaoDivida` = `false`.
 
 ### PR-07 — Achatamento: só coleção e kits viram itens no SGE; avulsos não são enviados
@@ -358,6 +362,7 @@ O `/contratos-terceiro` referencia o endereço por CNPJ + `tipoEndereco`, então
 - **Falha nas 3 chamadas HTTP (Hub, cabeçalho, itens): mesma regra de classificação por status** (🟡 proposta a confirmar):
   - `5XX` → retryável (`shouldDeleteMessage: false`).
   - `4XX` → terminal (`shouldDeleteMessage: true`), **exceto** `429` (Too Many Requests) e `408` (Request Timeout), que são transitórios → retryáveis. O reprocesso (incl. backoff/`Retry-After`) é da Fundação, fora do Tradutor.
+
   - A Fundação ainda não documenta a chamada ao Hub (D-03 alarga o contrato dela); registrar lá a classificação quando este LLD fechar.
 
 - A sequência completa, incluindo o tratamento de sucesso parcial (cabeçalho criado, itens falham), está no fluxograma de chamadas, adiante.
@@ -380,12 +385,15 @@ O Tradutor **barra o envio ao SGE** se `Σ (valorUnitario dos kits)` não iguala
 Reúsa as **funções puras** de reconciliação (arredonda cada fatia a 2 casas, joga o resíduo em um único item) hoje no unpacking de kits B2C SAS (`unpackSasKitItems`/`toTwoDecimals`).
 
 - **As funções puras são movidas para um local compartilhado**, fora do módulo orders — os dois fluxos passam a depender de uma cópia única, sem import cross-módulo nem drift.
+
 - **Alternativa descartada — reusar in loco a partir do módulo orders:** criaria acoplamento cross-módulo; a lógica de precisão é genérica e não pertence a orders.
+
 - **Alternativa descartada — implementar guarda nova:** duplicaria lógica de precisão já validada em produção.
 
 Se ainda não reconciliar, lança `SgeKitPriceIrreconcilableError`, **retryável → DLQ** (`shouldDeleteMessage: false`), **não terminal**:
 
 - **Não é dado ruim:** o preço do kit é derivado por divisão nossa (PR-11), então um descasamento é bug/inconsistência de implementação (técnico, determinístico), não dado ruim do Acordo.
+
 - **Retryável → DLQ mesmo sendo determinístico:** o retry é fútil, mas o payload fica no DLQ para redrive após o fix e o erro permanece visível/alarmável.
   - Preferível a descartar um bug silenciosamente.
 
@@ -491,11 +499,13 @@ Se o SGE de fato retornar erro de duplicado, o redrive de um evento parcialmente
 
 - *Mitigação candidata:* confirmar a semântica de upsert com o time SGE 1.0; testar redrive contra o Swagger.
 
+
 ### R-10 — Obrigatório de read-back sem campo nativo confirmado no SGE
 
 Alguns obrigatórios do read-back 1.0→2.0 (alunado e quantidade bonificada) não têm campo nativo **confirmado** no SGE (matriz de cobertura, adiante).
 
 - *Mitigação (provisória, PR-20):* o Tradutor envia `quantidadeVenda`/`quantidadeBonificada` no item de coleção, assumindo que o endpoint de itens as aceita — a alinhar com o time SGE 1.0.
+
 - **Risco residual:** se o SGE **não** aceitar essas props, elas são descartadas e o read-back volta incompleto (sem `estimatedStudentCount`/`bonused`).
 
 ### R-11 — Campos best-effort descartados silenciosamente
@@ -536,7 +546,9 @@ Para tornar a procedência inequívoca, todo campo é qualificado pelo sistema. 
 Cada endpoint de/para (Hub, cabeçalho, itens, callback) é descrito por blocos de JSONC anotado, **um por prioridade de persistência**, um campo por linha:
 
 - A **chave** é o campo de destino (o payload do bloco — `sge.*` / `hub.*` / `callback.*`).
+
 - O **valor** `<pic.X>` / `<crm.X>` é a **origem**; constante fixa traz o valor literal.
+
 - O **comentário** traz o status (✅ / 🟡 / ❓) e a nota/OQ.
 
 **Prioridade de persistência no ERP 1.0** (base: obrigatórios de read-back do HLD):
@@ -544,6 +556,7 @@ Cada endpoint de/para (Hub, cabeçalho, itens, callback) é descrito por blocos 
 - 🔴 **Obrigatórios (read-back)** — sempre gravados nos ERPs 1.0; se faltar campo nativo, vira custom (R-10).
 - 🟢 **Desejáveis** — valor vem do PIC, gravado best-effort.
 - ⚪ **Descartáveis** — valor fixo, derivado ou sem fonte definida; não é dado de read-back. Ainda enviado ao SGE quando o schema exige; só não é dado do Acordo a rastrear.
+
 - 🚫 **Não enviados** — campo do PIC que o SGE não tem onde receber; descartado (R-11), não trafega. Listado no fim de cada mapeamento para não ser omitido em silêncio.
 
 **Status de cada campo (no comentário):** ✅ confirmado (doc SGE/premissa) · 🟡 proposta a confirmar com o time SGE 1.0 · ❓ sem fonte definida / remete a OQ.
@@ -556,9 +569,11 @@ A matriz de cobertura — todos os obrigatórios de read-back × onde gravamos, 
 
 Sem eles, o read-back 1.0→2.0 volta incompleto até o SGE aceitar as quantidades que enviamos (PR-20, provisória; R-10). O restante está coberto (✅) ou é premissa provisória a confirmar (🟡).
 
+
 A verificação tem duas frentes:
 
 1. **Read-back 1.0→2.0** — o que o 2.0 lê via `GET /v1/schools/{docNumber}/sales-agreements` (schema `SalesAgreement`) e `.../{id}/skus` (schema `Sku`) precisa ter sido gravado no SGE por uma das 3 chamadas.
+
 2. **Required das 3 chamadas** — todo campo obrigatório de cada `POST`/`PUT` precisa ter origem (PIC, CRM ou constante).
 
 **Frente 1 — obrigatórios de read-back (lista única do HLD) × onde gravamos no SGE:**
@@ -593,11 +608,13 @@ Se o SKU não existir no SGE, a chamada de itens retorna 4XX, reclassificado com
 **Frente 2 — required das 3 chamadas sem origem confirmada** (o SGE exige, mas falta fonte definida):
 
 - **`PUT /v1/integrator-hub/schools`:** `invoiceEmail`, `isTaxPayerType` — sem fonte no PIC; lidos do CRM (D-02); `isTaxPayerType` aplica a regra do enum `TaxPayerType`, com a leitura do CRM enriquecida para carregá-lo (D-05).
+
 - **`POST /api/contratos-terceiro` (cabeçalho):**
   - `valorContrato` — soma calculada pelo Tradutor (PR-05).
   - `percentualComissaoEscola`, `integraLoja`, `vendaBimestral`, `confissaoDivida` — valores fixos (PR-06).
   - `situacaoContrato` = 1 (fixo — PR-17).
   - Datas de vigência presumidas, timezone assumido (PR-02/R-01/PR-03/R-02).
+
 - **`POST /api/contratos-terceiro/{chaveContrato}/itens`:**
   - Preço: forma unitária `valorUnitario` + desconto (PR-09).
   - `siglaNivel`/`siglaSerie` — passthrough do PIC (PR-14); `sistema` — enum + de/para (PR-13).
@@ -705,6 +722,7 @@ Sucesso parcial (etapa 1 ok, etapa 2 falha) é erro do fluxo: redrive reprocessa
 ### 7.4. PIC → SGE `POST /api/contratos-terceiro` (cabeçalho)
 
 - **Guard B2C (D-06):** antes de qualquer chamada (primeiro passo do fluxograma de chamadas), o Tradutor rejeita `pic.entrega.local` ≠ escola (`M`/`O`) lançando `SgeAgreementDeliveryNotToSchoolError` (terminal), sem chamar Hub nem SGE.
+
 - **`tipoVenda` (PR-04):** `LNE` se o Acordo é mono-marca (só grupo PSD); `ESK` se multimarca.
   Cada POST traz 1 marca, então a detecção olha o conjunto de marcas dos materiais do Acordo (D-08).
 
@@ -1616,7 +1634,9 @@ Campos brutos correlatos de contribuinte no `Account` (não consumidos — o val
 ### 8.2. Terminologia
 
 - **`chaveContrato`** — identificador do contrato gerado pelo SGE na etapa 1; é o `idContratoERP` do callback. Usado no path da etapa 2 (itens) e no `update`.
+
 - **Etapa 1 / Etapa 2** — `POST /api/contratos-terceiro` (cabeçalho) e `POST /api/contratos-terceiro/{chaveContrato}/itens` (composição comercial).
+
 - **Hub (modo hub)** — endpoint padronizado `PUT /v1/integrator-hub/schools` que o ERP expõe para upsert de escola (contraste com o modo ativo do Acordo).
 - Demais termos (PIC 1.9, PSD/Positivo/Conquista/Maralto/PES e as siglas SPE/CQT, Acordo, de/para, Intermediador, CGI/Institution ID) no HLD.
 
