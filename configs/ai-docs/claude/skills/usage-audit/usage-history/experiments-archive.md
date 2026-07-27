@@ -124,3 +124,50 @@ The in-session default and the fresh-session check were both removed.
 
 - **Evidence**: 2026-07-23 — main-loop share of spend 83.8% → 72.3%; deep-reviewer average cost per run $7.40 (n=23) → $2.86 (n=15).
 - The sonnet default drove most of the main-share drop, so the isolation's own contribution is not separable from it.
+
+## 2026-07-16 — implement loop caps: `MAX_ATTEMPTS` 4→3, `GATE_FIX_ALLOWANCE` 4→2
+
+Settled 2026-07-27. First entry whose verdict rests on the corrected per-day series rather than the void aggregator.
+
+- **Hypothesis**: long retry tails burned marathon-session tokens without converging.
+- **Watch signal**: top-session cost tail in `/implement` sessions, via `by_skill`.
+- **Verdict**: `kept`, never settled.
+
+- **Evidence (corrected)**: `by_skill_marginal.implement` dedicated sessions read $28.23 on 2026-07-24 and $14.42 on 2026-07-25.
+- Earlier mixed estimates: $11.32 on 2026-07-17, $7.22 on 2026-07-18, $10.36 on 2026-07-22, $14.62 on 2026-07-23.
+- No trend in those figures is separable from batch size, and the caps bound attempt count rather than compaction count.
+
+- **Why it closed unsettled**: commit `55c576b` on 2026-07-26 rewrote implement so the script is the sole judge and halt the only exit.
+- That replaced the surface the caps sat on, so no number of further observation days could rescue the window.
+- The caps remain in force. A fresh entry against the rewritten skill is the honest successor.
+
+## 2026-07-16 — create-pr delegates diff/commit gathering to a sonnet digest subagent
+
+Settled 2026-07-27.
+
+- **Hypothesis**: the full batch diff landed in main at end-of-marathon when context is tightest; a digest carries what the prose needs for far fewer tokens.
+
+- **Watch signal**: end-of-batch session cost tail in sessions invoking create-pr.
+- **Verdict**: `kept`, on thin but favourable evidence.
+
+- **Evidence (corrected)**: the one dedicated create-pr session, 2026-07-23, cost $5.51. Three mixed sessions on 2026-07-17 totalled $29.64, roughly $9.88 each.
+- That is one dedicated session against three allocation estimates, so it is directional at best.
+
+- **What actually decided it**: commit `7d29daa` on 2026-07-26 extended the approach, moving body composition onto a script plus pinned agents.
+- Extending a design rather than reverting it is the verdict; the successor entry should measure the script-composed version.
+
+## 2026-07-23 — session model flipped from `sonnet` to `opus`
+
+Settled 2026-07-27. Reopened the same day under `experiments.md` → Proposed, blocked on a recording mechanism.
+
+- **Hypothesis**: opus costs more per token than sonnet, so the model mix should move `cost_per_day` roughly in proportion to opus share.
+- **Watch signal**: `by_family` opus-vs-sonnet share against `kpis.cost_per_day`.
+- **Verdict**: `kept`, unsettleable by design.
+
+- **Evidence (corrected)**: `by_family` opus was $9 of $171.64 on 2026-07-24, $184 of $215.91 on 2026-07-25, and $254 of $291.57 on 2026-07-26.
+- Over those three days `cost_per_day` tracked the opus share closely enough that model mix plausibly explains the entire rise.
+- The user confirmed on 2026-07-27 that the model was flipped mid-window on both 2026-07-25 and 2026-07-26, contaminating a second window after the first.
+
+- **Why it closed**: the repo deliberately leaves `model`, `advisorModel`, and `effortLevel` uncommitted, so the ledger cannot see this lever at all.
+- Two consecutive windows failed for that one structural reason, which more observation days cannot fix.
+- Recording the day-and-value is the prerequisite for any successor, so the successor sits under Proposed until a mechanism exists.

@@ -44,49 +44,11 @@ From 2026-07-27 onward, cite a specific day file (`snapshots/YYYY-MM-DD.json`) a
 
 ## Baseline
 
-There is no single baseline snapshot any more. The per-day series in `snapshots/` is the baseline, one closed local day per file, currently 2026-06-14 through 2026-07-25.
+There is no single baseline snapshot any more. The per-day series in `snapshots/` is the baseline, one closed local day per file, currently 2026-06-14 through 2026-07-26.
 
 State a comparison as two named days, never as "before/after" — that is what the overlapping-window design could not express and what made its deltas unsound.
 
 ## Enacted — change is in git, window open
-
-### 2026-07-16 — implement loop caps: `MAX_ATTEMPTS` 4→3, `GATE_FIX_ALLOWANCE` 4→2
-
-- **Surface**: `skill:implement`.
-- **Hypothesis**: long retry tails burned marathon-session tokens without converging.
-- **Watch signal**: top-session cost tail in `/implement` sessions, via `by_skill`.
-
-- **Log 2026-07-23**: unsettleable — no per-skill attribution existed; `by_skill` shipped the same day.
-- **Log 2026-07-25**: the first real `by_skill` delta argues against the caps working. Compactions/session rose 9.5 → 22.0 (+131%), cost $258.26 → $703.91 across one added session.
-
-- The caps bound attempt count, not compaction count, so a session can retry within-cap while compacting repeatedly.
-- **Next**: needs per-invocation attempt-count logging to separate cause from a merely bigger batch.
-
-### 2026-07-16 — create-pr delegates diff/commit gathering to a sonnet digest subagent
-
-Main authors prose from the digest, with a targeted per-file diff escape hatch.
-
-- **Surface**: `skill:create-pr`.
-- **Hypothesis**: the full batch diff landed in main at end-of-marathon when context is tightest; a digest carries what the prose needs for far fewer tokens.
-
-- **Watch signal**: end-of-batch session cost tail in sessions invoking create-pr.
-
-- **Log 2026-07-23**: unsettleable — `by_skill` shipped the same day. The proxy ran against it: top-5 session cost tail flat at $179.50 → $174.70/day while total spend fell 35%.
-
-- **Log 2026-07-25**: create-pr's `by_skill` row was byte-identical to 07-23 — zero new invocations, nothing to settle.
-
-### 2026-07-23 — session model flipped from `sonnet` to `opus`
-
-- **Surface**: `settings.json`, `model` key.
-- **CRITICAL: not ledger-verifiable.** The repo's CLAUDE.md deliberately leaves `model`, `advisorModel`, and `effortLevel` uncommitted, so no commit records this flip and the ledger cannot confirm it.
-
-- **Hypothesis**: opus costs 1.67× sonnet per token ($5/$25 vs $3/$15 per MTok), so the model mix should move `cost_per_day` roughly in proportion to opus share.
-
-- **Watch signal**: `by_family` opus-vs-sonnet share against `kpis.cost_per_day`.
-
-- **Log 2026-07-25**: opus 23.5% of spend, sonnet 53.1%; `cost_per_day` rose for the first time across three snapshots.
-- The window was contaminated — the tree flipped back to `sonnet` mid-window, so no clean single-model stretch exists.
-- **Next**: the per-day series can now isolate this, but only if the model in force each day is recorded somewhere. It is not.
 
 ### 2026-07-24 — review-isolation A/B instrumentation in pr-review
 
@@ -97,6 +59,15 @@ Arm A is a fresh main session, arm B a subagent; PR parity assigns the arm, and 
 - **Watch signal**: per-arm cost, interruptions, and findings-per-review from the script's `ab_tests` rollup.
 
 - **Log 2026-07-25**: the instrumentation shipped and the script parses the markers, but zero markers appear in any transcript. The harness works; no trial has run.
+
+- **Log 2026-07-27**: still zero `ab_tests` markers in every snapshot from 2026-07-24 through 2026-07-26. Third consecutive audit with no trial.
+
+- **Settled by the user 2026-07-27: keep watching, dormant.** The instrumentation is committed and costs nothing while idle, so reverting working harness would buy nothing.
+- No trial will be forced. What has failed is trial volume, not the design.
+- The arm is assigned by PR parity, so it only fires when pr-review runs on a PR, and it has not.
+
+- **Settle by**: waiting for pr-review to run on a PR in the normal course of work, then reading the `ab_tests` rollup.
+- Expect this entry to read zero markers again next audit. That is the accepted cost of not steering the trial.
 
 ### 2026-07-24 — PreToolUse hook hard-denies subagent dispatches with a wrong or missing model
 
@@ -110,9 +81,124 @@ Surfaced by the config-change ledger, not by a snapshot: commit `55dbdca feat(ho
 
 - **Next**: compare 2026-07-24 against 2026-07-25 and later days; the deny takes effect from the commit, so 07-25 onward is the treated period.
 
+- **Log 2026-07-27**: the entry's stated watch signal shows no usable trend. `by_subagent_type.general-purpose` cost per run ran $0.62 on 2026-07-24, $1.25 on 2026-07-25, $0.82 on 2026-07-26.
+
+- Those figures are corrected and supersede the void "$4.70 per spawn" this entry and open question 1 were built on.
+
+- **A tempting proxy was checked and rejected twice**: the apparent `UNMATCHED` collapse across 2026-07-24 to 2026-07-26 looked like unpinned spawns disappearing.
+
+- The run counts behind it carried the same aggregation defect as `session_count`: a day counted every session still open after it, so older days read inflated.
+
+- Corrected, `UNMATCHED` runs read 1 on 2026-07-24, 9 on 2026-07-25, and 1 on 2026-07-26. The collapse never happened.
+
+- `UNMATCHED` is what the aggregator records when no Agent tool call matches the subagent session, so even corrected it measures parser accuracy, not spawn behaviour.
+
+- Do not cite it as evidence for the hook, in either direction.
+
+- **Recommendation: keep watching**, because no snapshot field can settle it.
+- A hard deny at dispatch means a wrong-model spawn never produces a transcript record, so its success is an absence the aggregator cannot count.
+- **Settle by**: grepping transcripts from 2026-07-25 onward for deny events raised by the hook. Zero denials with normal spawn volume is the `kept` verdict.
+
+### 2026-07-26 — global CLAUDE.md trimmed, authoring-only rules moved into skills
+
+Seven commits: `8b85f2c`, `5866af5`, `89fe7be`, `c5d1897`, `3889121`, `9812afa`, `13503d4`.
+
+- **Surface**: `CLAUDE.md`, with `skill:skill-authoring` and `skill:personal-cli-discovery` as the move targets.
+- **Intent** (confirmed by the user 2026-07-27): cut always-on context cost.
+
+- **Hypothesis**: CLAUDE.md loads in every session, so moving lazy-loadable rules into skills shrinks the prefix every session pays for.
+- **Watch signal**: `tokens.input` and the two `tokens.cache_write_*` buckets per day, read against `user_messages` as the workload denominator.
+
+- **Log 2026-07-27**: not settleable. The commits landed 2026-07-26, so the first treated day is 2026-07-27, which has no snapshot until the next audit.
+- **Next**: compare 2026-07-26 against the first closed treated day at comparable `user_messages`.
+
+### 2026-07-26 — spec-driven-development split into a library, with full/light/none depths
+
+Seven commits: `871355a`, `0d25941`, `349f63e`, `75d30d9`, `52620a9`, `0947556`, `071c4b6`.
+
+- **Surface**: `skill:brainstorm`, `skill:spec-driven-development`, `agent:plan-writer`, `skill:design-docs`.
+- **Intent** (confirmed by the user 2026-07-27): cut brainstorm's cost, the largest single-skill line in the series.
+
+- **Hypothesis**: brainstorm loaded the full spec machinery for every task, so a depth selector lets a small task skip it.
+- **Second mechanism**: the library split keeps content only the subagent needs out of the skill body.
+- **Watch signal**: `by_skill_marginal.brainstorm` — `dedicated_cost` per dedicated session, or `mixed_cost_estimate` when no dedicated session exists.
+
+- **Baseline to beat** (corrected figures): 2026-07-23 `mixed_cost_estimate` $43.27 across 2 sessions; 2026-07-25 `dedicated_cost` $0.67 across 1 session.
+- **Log 2026-07-27**: not settleable. 2026-07-26 recorded no brainstorm invocation at all, and the change only takes effect from 2026-07-27.
+
+### 2026-07-26 — bullet-gap checker script plus a widened markdown Stop-hook gate
+
+Commits `618167c` (checker), `3790a32` (gate widened from density to markdown standards), `153a2ad` (wave 5 gated on both checkers), plus roughly fifteen mechanical `style(*): gap bullets` commits.
+
+- **Surface**: `hook:claude-markdown-standards-stop-hook.sh`, `hook:claude-stop-orchestrator.sh`, `settings.json`, `agent:markdown-standards-fixer`, `skill:doc-standards`.
+- **Intent** (confirmed by the user 2026-07-27): enforce doc-standards mechanically and improve skill readability, with the fixer agent's cost accepted as known overhead.
+
+- **Hypothesis**: moving a hand-applied formatting rule onto a deterministic checker converts a recurring correction into a gate.
+- **Watch signal, price**: `by_subagent_type.markdown-standards-fixer` cost and runs per day. First day 2026-07-26 read 14 runs for $5.82.
+- **Watch signal, payoff**: `interruptions` per day, and doc-standards corrections reaching the user.
+
+- **Log 2026-07-27**: the price side has one data point and the payoff side none.
+- The sweep and the gate landed the same day, so 2026-07-26's own formatting churn is not steady state.
+
+### Confounder notes — 2026-07-26 commits with no observation window
+
+The ledger counted 67 commits across 50 surfaces on 2026-07-26. The three entries above cover the clusters the user confirmed as deliberate KPI experiments.
+
+These remaining clusters still move the numbers, so any later delta spanning 2026-07-26 has to account for them.
+
+- **implement rewritten so the script is the sole judge and halt the only exit** — `55c576b`, `4512956`, `7ed1683`, `a299189`, `4576d42`, `2b5917e`, `dbb7085`, `d2d5afb`, `194c411`.
+  - This rewrites the very surface the 2026-07-16 loop-caps entry was measuring.
+
+- **create-pr composes the PR body by script and pinned agents** — `7d29daa`, `ff542db`, `51e7f9e`, `d02ab0d`, `0e9310c`.
+  - Extends the 2026-07-16 digest-subagent entry rather than replacing it.
+
+- **subagent pin and effort enforcement** — `cb902a7` pins effort on five agent files, `0482acd` declares every dispatch as `agent(...)`, `ee91ce5` sources dispatch tiers from the agent file.
+
+  - **The `UNMATCHED` drop once attributed to `0482acd` never happened**: those run counts carried the `session_count` aggregation bug, corrected on 2026-07-27.
+
+  - The real series reads 9 runs on 2026-07-25 and 1 on 2026-07-26, with no trend across the window. No measurement effect is attributable to this commit.
+
+- **usage-audit rebuilt onto per-day measurement plus a viewer** — `74a920b`, `11c2364`. Measurement only; cannot move a KPI.
+- **new skill `address-verdicts`** — `1da00b2`. No invocations recorded through 2026-07-26.
+- **flowchart and prose documentation** — `0dd530c`, `7bf0081`, `49a9d46`, `5d102e8`.
+
+### Confounder note — the main-session model flipped mid-window on 2026-07-25 and 2026-07-26
+
+- The user confirmed on 2026-07-27 that the model was mixed or flipped mid-window across both days, repeating the contamination the 2026-07-23 entry hit.
+- Evidence of the swing: `by_family` opus was $9 of $171.64 on 2026-07-24, $184 of $215.91 on 2026-07-25, and $254 of $291.57 on 2026-07-26.
+
+- Both days are unusable as either end of a model-lever delta, and any cost comparison spanning them reads model mix rather than the change under test.
+
+### Confounder note — a skill-routing eval ran on 2026-07-19 and inflated that day's counters
+
+- 180 sessions ran from `$HOME` that day: 20 realistic scenario prompts repeated 9 times each, every one killed before the model answered.
+- No API call means no cost, so 2026-07-19 remains citable for dollars. The eval is confined to that day and recurs nowhere else in the series.
+
+- **Any `user_messages` or `session_count` figure quoted for 2026-07-19 before 2026-07-27 is void.** The day read 284 sessions and 425 user messages; corrected it reads 97 and 239.
+
+- `cost_per_user_message` was hit hardest, reading $0.42 against a corrected $0.75 — a 79% error on a KPI.
+- The aggregator now skips any session with zero priced API calls, so a queued-but-abandoned prompt no longer enters a snapshot.
+
 ## Proposed — no change enacted yet
 
 Nothing here can be settled by a snapshot. An entry either becomes Enacted with a commit, or gets dropped.
+
+### 2026-07-27 — record the day's `model` and `effortLevel` so the three uncommitted levers become measurable
+
+Successor to the 2026-07-23 model-flip entry, closed the same day after two contaminated windows. See [`experiments-archive.md`](experiments-archive.md).
+
+- **Blocked prerequisite, not a hypothesis**: three levers — `model`, `advisorModel`, `effortLevel` — are deliberately uncommitted, so the ledger cannot see them.
+- Two experiments have now died on this: the model flip closed unsettleable, and the `effortLevel` entry below has never had a trial recorded.
+
+- **Why it matters more than the levers it blocks**: the corrected series shows opus share moving from 5% to 87% of spend in two days.
+
+- A swing that large dominates every other lever, so any delta spanning an unrecorded flip measures the model, not the change under test.
+
+- **Candidate mechanism**: derive the day's dominant model from `by_model` in the snapshot itself, rather than asking the user to record it by hand.
+- The aggregator already reads the model per API call, so the value is present and simply not summarized as "what was main running on".
+- A hand-kept log was tried implicitly and failed twice, which argues for deriving it rather than remembering it.
+
+- **Watch signal once enacted**: a per-day `main_model` field, letting `cost_per_day` be read against a known model rather than an assumed one.
 
 ### 2026-07-23 — drop `effortLevel` from `high` to `medium` for routine sessions
 
@@ -151,6 +237,45 @@ A signal to watch rather than a change to make; it stays here because nothing is
 - **Watch signal**: `by_subagent_type.general-purpose` run count and average cost per day, against any narrower agent's uptake.
 - **Log**: not started.
 
+### 2026-07-27 — enforce the already-settled sonnet-main default, which actual usage is not following
+
+- **This is not a new lever. It is a settled learning the data shows being violated**, which makes it higher-value than any untried tweak.
+- The User-settled learnings section below records "run the main session on sonnet with opus as advisor" as decided.
+- Yet `by_family` puts opus at 85% of spend on 2026-07-25 and 87% on 2026-07-26, and the user confirmed the model flipped mid-window on both days.
+
+- **Anthropic names this exact failure as the usual cause of surprise spend** (https://code.claude.com/docs/en/costs).
+- High bills "usually traces back to long sessions that were never cleared or to Opus left as the default model".
+
+- The same page advises reserving opus for complex architectural decisions and multi-step reasoning, with sonnet handling most coding tasks.
+
+- **Hypothesis**: holding main on sonnet for a full closed day moves `cost_per_day` more than every skill-authoring change of 2026-07-26 combined.
+- **Watch signal**: `by_family` opus share against `cost_per_day`, on a day where the model demonstrably did not flip.
+- **Blocked on**: the recording entry above. Without a per-day `main_model` field this trial fails the same way the last two did.
+
+### 2026-07-27 — add a `Compact instructions` section to CLAUDE.md
+
+- **Documented and entirely untouched**: compaction behaviour can be steered by a `Compact instructions` section in CLAUDE.md, or per-invocation via `/compact <focus>` (https://code.claude.com/docs/en/costs).
+- Nothing in `configs/ai-docs/claude/` currently uses either form.
+
+- **Why it targets the most expensive unit**: the docs describe compaction as "a large request since it reads the conversation it summarizes".
+- The corrected series puts a day's spend at $3.78 to $10.05 per compaction, and the costliest day in the series, 2026-07-10, ran 61 compactions across 58 hours for $455.
+
+- **Hypothesis**: steering what compaction preserves cuts the re-establishment work after each boundary, which is where post-compaction step-skipping and repeated corrections come from.
+- **Watch signal**: `compactions` per day against `cost_per_day`, plus corrections landing immediately after a `compact_boundary`.
+- **Also advances**: open question 7 below, which has no enacted probe of its own.
+
+### 2026-07-27 — verify whether context editing is reachable from Claude Code
+
+- **Verify before proposing.** Context editing automatically clears stale tool calls and results as the window fills, and Anthropic reports an 84% token reduction on a 100-turn eval (https://www.anthropic.com/news/context-management).
+
+- The claim is from the Claude Developer Platform announcement, not the Claude Code docs, so whether a Claude Code session can enable it is unconfirmed.
+
+- **First step is a spike, not a change**: establish whether Claude Code exposes context editing at all before opening an observation window.
+
+- **Why it is worth the spike anyway**: this usage is tool-call heavy, at 2,028 main plus 2,036 subagent API calls on 2026-07-26, which is exactly the shape stale-tool-result clearing targets.
+
+- **Watch signal if reachable**: `tokens.cache_read` and `compactions` per day, since clearing stale results should delay each compaction boundary.
+
 ## User-settled learnings
 
 Settled by the user's own experience (2026-07-24), outside the audit loop — treat as constraints, not open hypotheses.
@@ -168,6 +293,18 @@ The user's standing workflow questions (raised 2026-07-24). Each audit advances 
    - Third option (verified 2026-07-24): a `fork` subagent inherits the parent's full context and system prompt, sharing its cache prefix — near-zero cold start, but it cannot shed main's baggage (https://code.claude.com/docs/en/sub-agents.md).
 
    - Settle by: A/B a repeatable task class both ways; compare cost, compactions/day, and corrections at similar workload.
+
+   - **Advanced 2026-07-27 — the corrected series flips this question's working assumption.** Both figures above are void and both were far too high.
+   - Corrected cost per compaction, as day total over `compactions`: $3.78 to $10.05 across 2026-07-20 to 2026-07-26, rising with opus share. Not $13.40.
+   - Corrected cost per subagent run, excluding `UNMATCHED`: $0.47 to $1.11 over the same days. Not $4.70.
+
+   - The ratio is what moved. The void figures implied a compaction cost about 3 subagent spawns; the corrected ones put it near 10, and 13 on 2026-07-26.
+
+   - Read with care: cost per compaction divides a whole day's spend by its compaction count, so it attributes all main-loop work to compactions. It is a proxy, not a measurement.
+
+   - Even discounted as a proxy, a 10:1 ratio argues fan-out is cheaper than previously believed, which weakens the case for keeping work in main to avoid cold starts.
+
+   - **Next**: replace the proxy with real per-interval cost before acting — bill main-loop tokens between consecutive `compact_boundary` records.
 
 2. **Subagent model pins are not enforced — main can still spawn density-fixer on sonnet. Can pins be hard-enforced?**
    - **Enacted 2026-07-24** by commit `55dbdca`, catalogued as an Enacted entry above. This question is now an observation window, not an open design question.
@@ -201,7 +338,12 @@ The user's standing workflow questions (raised 2026-07-24). Each audit advances 
    - A row therefore reads "what the sessions invoking this skill cost", never the skill's own overhead. Quote `by_skill_marginal` instead, which was added to close that gap.
 
    - Healthy on that read: address-ai-comments $0.48/run, pr-review $9/run — both zero interruptions; auto-review runs isolated at roughly $2.86/run.
-   - Watch: brainstorm sessions averaged $161 with 15 compactions each, and held flat across two consecutive audits — stable and unimproved, not yet diagnosed as design-phase-appropriate or as skill bloat.
+   - The "$161 per brainstorm session with 15 compactions" logged here through 2026-07-26 is void — it came from `by_skill` whole-session attribution before the dedup fix.
+
+   - Watch instead: `brainstorm` never ran dedicated in the window. 2026-07-23 shows 0 dedicated sessions and 2 mixed, with a `mixed_cost_estimate` of $43.27.
+
+   - **Corrected 2026-07-27**: that $161 is void. Real `by_skill_marginal.brainstorm` figures are $43.27 across 2 mixed sessions on 2026-07-23, and $0.67 dedicated on 2026-07-25.
+   - Brainstorm is still the largest single-skill line, so the concern survives at a quarter of the stated size. The 2026-07-26 depth-selector entry above now targets it directly.
 
    - refactor: zero invocations across two consecutive audits. One more confirms the orphan-removal trigger.
 
