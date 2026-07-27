@@ -17,10 +17,15 @@ Hand-invented prompts encode the author's guess at real usage; transcripts are o
    - For each test case, spawn `agent(subAgent=general-purpose, title=Eval <id> with skill, model=sonnet)` together with `agent(subAgent=general-purpose, title=Eval <id> baseline, model=sonnet)`.
    - The baseline runs with no skill, or the pre-change skill snapshot — spawn both in the same turn, not with-skill first and baselines later.
    - Both carry `model=sonnet` for the reason "Skill evals target `sonnet`" gives in SKILL.md: the bar is the model driving most day-to-day sessions, not the stronger one running the loop.
+
    - Save outputs under `<skill-name>-workspace/iteration-<N>/eval-<id>/{with_skill,without_skill}/outputs/`.
+
 2. **While runs are in flight, draft assertions** — objectively verifiable checks with descriptive names. Subjective qualities (style, tone) are better judged by the human reviewer than forced into an assertion.
+
 3. **Capture timing from task notifications as they arrive** — `total_tokens` and `duration_ms` are only available in that notification, not persisted elsewhere; write them to `timing.json` in each run directory immediately.
+
 4. **Grade each run** with the `agents/grader.md` prompt (this directory's parent `agents/`). Its `grading.json` output must use the exact field names `text`/`passed`/`evidence` — the viewer depends on them.
+
 5. **Aggregate**: `python -m scripts.aggregate_benchmark <workspace>/iteration-N --skill-name <name>` (run from this skill's own directory so `scripts.*` resolves).
    Layout gotcha: `aggregate_benchmark.py` only counts a config dir as valid if it has a `run-N/` subdirectory nested inside it.
    It also reads pass/fail counts from a `summary` field in `grading.json` (not `expectations` alone) — add both before aggregating, or it silently reports all-zero stats.
@@ -34,6 +39,7 @@ Hand-invented prompts encode the author's guess at real usage; transcripts are o
   A skill run a million times across prompts you haven't seen needs the general fix, not a patch for today's example.
 - Keep the prompt lean — read the transcripts, not just outputs, and cut instructions that make the model do unproductive work.
 - Explain the *why* behind each instruction rather than issuing bare MUSTs — an ALL-CAPS directive with no reasoning is a sign the instruction should be reframed, not emphasized harder.
+
 - If multiple test-run transcripts independently reinvent the same helper (e.g. every run hand-writes a similar parsing script), bundle it into `scripts/` once.
   This avoids leaving every future run to reinvent it.
 

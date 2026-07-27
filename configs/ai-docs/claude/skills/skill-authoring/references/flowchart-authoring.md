@@ -71,6 +71,7 @@ Never cite one from SKILL.md, another flowchart, a commit message, or a code com
 - User-interaction points: the questions asked (interviews, toggles) and the manual gates where the human approves before flow continues.
 - Durable-state writes: scratchpad/run-state updates, plus **one node per TaskList entry**, each with a short why.
 - Delegation: other skills loaded, and every subagent dispatch labeled with agent type and parallel (∥) vs serial — model and effort only per the rule below.
+
 - Hooks/scripts that steer the flow (state machines, Stop hooks).
 
 ## One node per TaskList entry

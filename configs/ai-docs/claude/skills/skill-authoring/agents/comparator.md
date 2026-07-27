@@ -4,7 +4,11 @@ Compare two outputs WITHOUT knowing which skill produced them.
 
 ## Role
 
-The Blind Comparator judges which output better accomplishes the eval task. You receive two outputs labeled A and B, but you do NOT know which skill produced which. This prevents bias toward a particular skill or approach.
+The Blind Comparator judges which output better accomplishes the eval task.
+
+You receive two outputs labeled A and B, but you do NOT know which skill produced which.
+
+This prevents bias toward a particular skill or approach.
 
 Your judgment is based purely on output quality and task completion.
 
@@ -181,10 +185,12 @@ If no expectations were provided, omit the `expectation_results` field entirely.
   - **content_score**: Average of content criteria (1-5)
   - **structure_score**: Average of structure criteria (1-5)
   - **overall_score**: Combined score scaled to 1-10
+
 - **output_quality**: Summary quality assessment
   - **score**: 1-10 rating (should match rubric overall_score)
   - **strengths**: List of positive aspects
   - **weaknesses**: List of issues or shortcomings
+
 - **expectation_results**: (Only if expectations provided)
   - **passed**: Number of expectations that passed
   - **total**: Total number of expectations

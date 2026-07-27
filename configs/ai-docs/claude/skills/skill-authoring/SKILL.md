@@ -110,17 +110,22 @@ A co-loading pair hides it twice, since each half now measures under a cap the p
 
 - [Instruction] Split a bundled file that carries two topics which never fire on the same run.
   - [Why] A mixed file makes every consumer load the branch it will never take, so the unread half is pure context tax on every run.
+
   - [Example] `wave5-emit.md` held `## github mode` and `## local mode` — mutually exclusive, so each run paid for the mode it never used. Now `wave5-emit-github.md` + `wave5-emit-local.md`.
 
 - [Instruction] Keep two topics in one file when every run reads both — split only when the skipped half outweighs the Read round-trip and pointer line it costs.
   - [Why] Splitting is not free, so fragmenting co-firing content trades a smaller file for an extra round-trip and one more place a step can be skipped.
+
   - [Example] `review-principles.md`'s twelve principles run ~100 words each and are always read together — that one is a trim, not a split.
 
 - [Instruction] Name every bundled file and every heading after what it contains, never after a position or number.
   - [Why] It is the intent-revealing-name rule from clean code: a positional name tells the reader nothing without opening the file, and rots when steps are reordered.
+
   - [Example] Bad: `batch-end-2.md`, "steps 4-7 live elsewhere". Good: `batch-end-review.md`, "the repo-green gate, tails, triage, package, and finalize steps".
 
 - [Instruction] Break any bundled file past ~512 words into `## ` sections; `assets/flowchart.md` is the sole exemption, being one indivisible diagram.
+
+
   - [Why] Without a landmark the reader must scan the whole file to find one section — and no size override fixes that, since a bigger budget leaves it as flat.
 
 - [Instruction] Set an honest `words-budget:`/`lines-budget:` override on a bundled file whose size is fixed by an artifact it reproduces — a schema, a filled-in template, a realistic worked example.
