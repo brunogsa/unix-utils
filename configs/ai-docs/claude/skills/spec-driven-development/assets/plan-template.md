@@ -110,11 +110,11 @@ Each AC from the paired spec is a header; under it, the tests that prove it as s
 Format: `<describe> > <happy|corner|failure> > <it>`, or `<describe> > <it>` for a flat helper block with no class grouping:
 
 ```
-- **AC-1** <short AC title>
+- **AC-1** <AC title>
   - "SgeSyncUseCase > happy > verbatim it() title from Test Design"
   - "SgeSyncUseCase > failure > another verbatim it() title"
 
-- **AC-2** <short AC title>
+- **AC-2** <AC title>
   - "SomeHelper > verbatim helper it() title"
 ```
 
