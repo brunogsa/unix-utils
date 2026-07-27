@@ -168,3 +168,59 @@ It already reads `~/.claude/projects/<cwd-slug>/<session_id>.jsonl` transcripts 
 **Deliverable**: either a written decision to leave metrics out (with the reasoning above folded into it), or a transcript-only reporter that satisfies the no-state-file constraint, with tests.
 
 ---
+
+## 6. [Spike] Judge whether the EARS acceptance-criteria titles earn their keep
+
+**Status**: the title rule has ALREADY landed in `spec-template.md` — the AC title is now one EARS sentence, and nothing else in the spec changed.
+
+**Goal**: after writing 3-4 real specs under that rule, decide whether EARS bought anything beyond readability, or whether the title should go back to a free-form summary.
+
+**Why the title slot was the one to try**: the template already demanded a title that "summarize[s] the entire Given/When/Then body in one scannable line", and an EARS sentence is exactly that.
+
+So the change was a phrasing rule, not a structural one.
+The Given/When/Then body stayed untouched and keeps carrying the concrete example data EARS has no slot for.
+
+**Verified before landing — no script reads AC title text**, which is what made the change free to try and free to revert:
+
+- `check-ac-coverage.sh` greps `^### AC-[0-9]+:` in the spec and `^- \*\*AC-[0-9]+\*\*` in the plan, extracting only the `AC-N` token; everything after it is ignored.
+
+- No other script under `spec-driven-development/scripts/`, `create-pr/scripts/`, or `implement/scripts/` matches `AC-` at all.
+
+- Test Design breadcrumbs (`<describe> > it`) are compared verbatim by `check-test-distribution.sh`, and AC titles never enter that comparison.
+
+**The five patterns** live in the Title rule of `configs/ai-docs/claude/skills/spec-driven-development/assets/spec-template.md` — not restated here, so the two can't drift apart.
+
+What makes them checkable at all is that they are a closed keyword set in fixed clause order.
+
+**What it might buy — to be judged after the trial, never assumed**:
+
+- NOT failure-mode counting — `spec-template.md` already groups ACs under `#### Happy path` / `#### Corner cases` / `#### Failure modes`.
+  - Counting `### AC-N:` headings per group is available today, in awk, with no syntax change; don't credit EARS for it.
+  - Write that counter regardless of this spike's verdict — it is the cheap half of the "How would this break?" dispatch.
+
+- Compound-requirement lint: two `shall`s in one requirement is two independently-violable constraints, made greppable.
+  - Same splitting test CLAUDE.md already applies to `[Instruction]` markers, one altitude down.
+
+- A parseable `<trigger>` clause could let a later check derive expected tests from the ACs themselves.
+  - That gives `check-ac-coverage.sh` the direction it cannot check today: design ⊇ derived, not only cited ⊆ design.
+
+**Measure on the specs written under the rule**: classify their ACs by pattern, and count how many titles needed a reword to fit one.
+
+Healthy `If … then` counts mean the interview's coverage-taxonomy probing already did this job, so EARS buys only the lint — keep it for readability, build nothing on top.
+Near-zero counts mean the syntax exposed a real hole, and a `check-ac-syntax.sh` starts paying for itself.
+
+**Watch for the failure mode**: a title padded into EARS shape that says less than the free-form one it replaced.
+That is the signal to revert, and the reason the rule landed as a trial rather than as settled convention.
+
+**Known cost**: EARS carries no example data — its own examples are abstract ("If an invalid credit card number is entered").
+The template keeps Given/When/Then beneath the title for exactly that reason; watch that it does not decay into a restatement of the title.
+
+**Ecosystem status — a bet, not a consensus**: Kiro adopted EARS; spec-kit has an open request (`github/spec-kit#1356`, filed 2025-12) with no maintainer response; BMAD and OpenSpec don't use it.
+
+**Relation to #1**: that audit may simplify `spec-driven-development` — if it rewrites the Acceptance Criteria section, carry the Title rule through rather than dropping it by omission.
+
+**Deliverable**: a written verdict — keep the EARS titles / keep plus add a `check-ac-syntax.sh` / revert to free-form — backed by pattern-classification counts from real specs, not from reasoning alone.
+
+Sources: <https://alistairmavin.com/ears/> (official), <https://en.wikipedia.org/wiki/Easy_Approach_to_Requirements_Syntax>, <https://kiro.dev/docs/specs/>.
+
+---

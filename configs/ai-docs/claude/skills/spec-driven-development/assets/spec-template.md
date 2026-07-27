@@ -43,8 +43,27 @@ For simple input → output assertions on stateless endpoints, skip `Given`.
 
 **Coverage rule:** happy path + corner cases + failure modes — the checklists below enforce it; a spec with only happy-path ACs is incomplete.
 
-**Title rule:** the title must summarize the entire Given/When/Then body in one scannable line, not just name the scenario.
+**Title rule:** write the title as one EARS sentence summarizing the entire Given/When/Then body, not just naming the scenario.
 Readers scan titles only and open the body when they need detail, so a title that omits the outcome loses exactly what a scan-only read needs.
+
+EARS (Easy Approach to Requirements Syntax, <https://alistairmavin.com/ears/>) fixes the keyword and the clause order, so every title states trigger, actor, and outcome in the same shape:
+
+| Pattern | Template | Reach for it when |
+|---|---|---|
+| Event-driven | `When <trigger>, the <system> shall <response>` | something happens and the system responds — most happy-path ACs |
+| Unwanted behaviour | `If <trigger>, then the <system> shall <response>` | the trigger is an error, a violation, or anything undesired |
+| State-driven | `While <precondition>, the <system> shall <response>` | the behavior holds only during a state, with no discrete trigger |
+| Ubiquitous | `The <system> shall <response>` | an always-on invariant, true with no precondition at all |
+| Optional feature | `Where <feature is included>, the <system> shall <response>` | the behavior exists only when a flag or optional module is on |
+
+Combine when both apply: `While <precondition>, when <trigger>, the <system> shall <response>`.
+
+`<system>` is the concrete unit under test — the sync job, the `POST /agreements` handler, the retry wrapper — never a bare "the system".
+
+- Bad: `AC-3: Expired token` — names a scenario, states no outcome, and hides whether this is the happy path or a failure.
+- Good: `AC-3: If the stored token is expired, then the sync job shall refresh it once before retrying` — trigger, actor, and outcome, and `If` marks it as unwanted behaviour.
+
+**Only the title is EARS** -- the Given/When/Then body below it keeps the concrete example values, which EARS has no slot for.
 
 **Then rule:** the outcome must be a concrete, checkable assertion — such as a return value, status code, state change, or emitted event.
 Never use subjective language like "works correctly", "behaves as expected", or "handles it properly".
@@ -52,14 +71,14 @@ A vague `Then` can't be proven false, so it can't drive a test; self-review reje
 
 Format:
 
-### AC-N: <short scenario title>
+### AC-N: When <trigger>, the <system> shall <response>
 - **When** <action / request>
 - **Then** <observable outcome>
 - **And** <additional assertion, if any>
 
-Use **Given** when load-bearing:
+Use **Given** when load-bearing — the state it carries is what makes the title's `While` clause load-bearing too:
 
-### AC-N: <stateful scenario title>
+### AC-N: While <precondition>, when <trigger>, the <system> shall <response>
 - **Given** <state that must hold before the action>
 - **When** <action>
 - **Then** <observable outcome>
