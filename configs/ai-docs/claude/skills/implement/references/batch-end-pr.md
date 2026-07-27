@@ -62,6 +62,7 @@ Split across two owners, an orchestrator that dies between them leaves a pushed 
       Fall back to the REST-API body-update path below, targeting that existing PR number — a rerun of `/implement` on the same branch updates its own already-open PR instead of erroring.
     - **Updating an existing PR's body: use the REST API, never `gh pr edit --body-file`** — `gh api --method PATCH repos/<owner>/<repo>/pulls/<n> -F body=@<file>`.
       - `gh pr edit` eagerly queries Projects-classic `projectCards`; on repos where classic Projects is sunset it errors on that query and the write silently doesn't land.
+
       - The REST endpoint touches no Projects data.
       - Read the body back afterward to confirm it landed.
 

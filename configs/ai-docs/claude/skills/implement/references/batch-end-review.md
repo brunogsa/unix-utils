@@ -26,6 +26,7 @@ Run the repo's **full lint + full test suite**, repo-wide — never scoped to th
 - Dispatch `agent(subAgent=tdd-coder, title=Fix repo-green failure: <short failure name>)` per failure.
 - Same contract as §4: the same 1-hour Monitor cap, the same per-task attempt caps, each dispatch recorded as an attempt in the state file.
 - Re-run the **full** suite and lint after each fix, and read the fresh result — a fix nobody re-ran is a claim, not a green repo.
+
 - Repeat until every failure the batch is responsible for is gone.
 
 **A failure the batch did not cause is a `[Scout]`, not a blocker.** Record it, report it in the package, leave it unfixed, and let the gate pass on it.
@@ -46,6 +47,7 @@ Full dispatch contract, preamble, failure handling, and overwrite policy: [`code
 What's specific to `/implement`:
 
 - The TaskList already carries this step as the `Batch-end 3/5` reminder seeded in §2.2 — flip that one entry, and don't queue a separate item per tail.
+
 - When a tail returns, confirm its report file exists at the assigned path, then record that **path** into `.tails.refactor_report` / `.tails.auto_review_report`.
   - Record the path, never the content: the state file is only the on-disk pointer that Triage (§9.4) and the package read back, not a copy of the report.
 
@@ -89,9 +91,13 @@ After printing the summary, open the batch diff in a **side-by-side tmux pane** 
 ```
 
 - Mode `vertical` splits the current pane side-by-side (the user chose a pane, not a window).
+
 - The `cd` is mandatory: the pane inherits the orchestrator's cwd, which differs from the worktree when the interview chose one, so without it the diff opens against the wrong tree.
+
 - **Diff against the bare `<BATCH_BASE_SHA>`, never `<BATCH_BASE_SHA>..HEAD`** — the bare base compares base ⟷ working tree (right pane editable); `..HEAD` diffs two commits (both panes read-only).
+
 - On a clean batch the working tree equals HEAD, so the editable view shows exactly the batch; edits land as uncommitted changes atop the batch commits.
+
 - Outside tmux the skill exits non-zero and prints the full command for the human to run. Requires the `diffview.nvim` plugin.
 
 ## Finalize — the step order inside §9.5
@@ -101,10 +107,12 @@ Each step presupposes the one before it succeeded; the package is never printed 
 1. **PR manifest entry & PR-level status marker**, on a PR-label run (see [`batch-end-pr.md`](batch-end-pr.md)).
 2. **Open the PR**, only when the interview opted in (`pr.wanted: true`) — see [`batch-end-pr.md`](batch-end-pr.md)'s "Open the PR (opt-in)".
    - **Failing here is a §5.5 halt, not a partial package.** No `gh`, no remote, a rejected push, or a create that errored all route to §5.5.
+
    - Name the failure, keep the state file, print nothing.
    - Not requesting a PR (`pr.wanted: false`) is not a failure — step 3 proceeds normally.
 
 3. **Assemble the package** (contents under "The review package") and **print it** to chat — the single async review pass, reached only once step 2 succeeded or was never requested.
+
 4. **Open the diffview pane** (see "Open the diff for review").
 5. **Finalize the phase.** Reaching this point means every task is `[Done]`, the gate passed, and the PR (if wanted) is open — the only outcome left.
    Set `phase: "presented"` and **delete** the state file. The Stop hook releases on this phase; a presented batch is never resumed.

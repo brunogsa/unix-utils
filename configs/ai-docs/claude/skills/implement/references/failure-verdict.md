@@ -24,6 +24,7 @@ only ever needs to obey `retry`, `stuck`, and `halt-budget`.
 All three outcomes record one attempt; only `result` and `signature` differ.
 
 - **Verify failure** (diff mismatch, verification red, checklist items unchecked) → `result: "fail"`, `signature` set to the failure text verbatim — the error output as it was printed.
+
 - **Timeout** → `result: "timeout"`, `signature` the literal string `timeout` — there's no diff to inspect, since the subagent never reported back.
 - **Self-reported block** → `result: "blocked"`, `signature` the subagent's own blocker statement verbatim, so the batch-end package can quote what needs clearing.
 

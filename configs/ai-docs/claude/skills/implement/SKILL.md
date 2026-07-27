@@ -71,6 +71,7 @@ Resolve candidates with this decision tree — it only gathers candidates, never
 
 - **Exactly one plan and one spec** → use both; print the resolved paths, no prompt.
 - **Multiple plans (or multiple specs)** → the interview's plan-pick question lists the matches numbered; pair each plan with the spec sharing its `<slug>` when one exists.
+
 - **No plan found** → the interview asks for the path. If none provided, **stop**.
 - **Plan but no spec** → proceed plan-only; the spec is optional context.
 
@@ -259,6 +260,7 @@ Per task, as it becomes the active one — the only orchestrator work between tw
 
 - `TaskUpdate` that task to `in_progress`. Task-level status only; sub-steps never become TaskList items.
 - Give it a **breadcrumb** — a coarse outline of its sub-steps (e.g. the plan's acceptance-criteria titles), so the list conveys the task's gist without RED-GREEN detail.
+
 - Pick its checklist path, `/tmp/implement_substeps_<slug>_<id>.md`, and push that path into the dispatch prompt (§4.1).
 
 **The orchestrator never writes that checklist file.**
@@ -426,6 +428,7 @@ Then, wherever you came from:
   - The Stop hook globs the whole session and blocks on any unit still at `tasks`.
 
 - Write into the scratchpad, per blocked task, **exactly what a human must do to clear it** — that list is the whole point of stopping here.
+
 - Leave this unit's remaining batch-end `[Reminder]` entries `pending`. They didn't run, and a pending entry is the honest record of that.
 - **Run nothing further** — whichever of the gate, the tails, the triage, the package, the diffview, and the PR you hadn't reached yet stays unrun.
   - Each presupposes a finished batch: gating a partial one flags tests never meant to exist yet, and a package invites review of work that isn't there.
@@ -462,6 +465,7 @@ Single value, mutually exclusive — `[Blocked]` *replaces* `[Doing]`, never sta
 - `[Doing]` — actively in progress this session (dispatched, not yet verified-done).
 - `[Done]` — finished, verified by the orchestrator, committed by the subagent.
 - `[Blocked]` — external dependency unresolvable in this session (e.g., upstream API down, missing access). Pair with a `**QUESTION:**` marker that names what's needed to unblock.
+
 - `[Deferred]` — deliberately postponed to a later session, but still planned.
 - `[Dropped]` — decided not to do at all (scope reduction). Pair with `**DECISION (Task N):**` capturing the reason.
 

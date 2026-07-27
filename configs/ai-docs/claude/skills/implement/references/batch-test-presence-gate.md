@@ -44,6 +44,7 @@ Handle its exit codes exactly this way — never fall back to inline AI judgment
 
 - **Exit 2** (usage / parse error) → abort the gate: record the failure for §9's package, do not mark the gate passed.
 - **Exit 1** (plan malformed: missing `### N.` heading or missing `**Tests (planned)**:` bullet) → abort the same way; the plan must be fixed before a re-run.
+
 - **Exit 0, empty stdout** → that task declared `**Tests (planned)**: N/A`; skip it and report it in the N/A list.
 - **Exit 0, non-empty stdout** → titles captured; continue to the grep pass.
 
