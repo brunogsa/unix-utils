@@ -1,6 +1,6 @@
 ---
 name: create-pr
-description: "Create a GitHub PR with a rich description. Auto-detects spec_<slug>.md/plan_<slug>.md for context."
+description: "Create or update a GitHub PR with a rich description. Auto-detects spec_<slug>.md/plan_<slug>.md for context."
 disable-model-invocation: false
 ---
 
@@ -29,6 +29,18 @@ Read it before drafting or reviewing a PR body's content or length; `pr-writer` 
 
 ### 1. Gather context
 
+**CRITICAL: This step's interview is the only point in the whole skill where the user is asked anything.**
+
+Every step from here through step 5 runs to completion without pausing.
+
+A gap in evidence (a test that couldn't be run locally, a section the digest didn't cover) is recorded as an unchecked box or a caveat.
+
+Never pose a chat question that blocks composing or pushing.
+
+Resolve everything below BEFORE dispatching `changes-gatherer` at the end of this step.
+
+The one `AskUserQuestion` call is the single interruption in the entire run, and it lands before any subagent starts working.
+
 - Discover spec/plan in cwd by glob `spec_*.md plan_*.md` (top-level):
   - One spec / one plan → use whichever exist, auto-resolved. Multiple of either → open question **(A) Spec/plan choice**: list them numbered.
 
@@ -39,8 +51,13 @@ Read it before drafting or reviewing a PR body's content or length; `pr-writer` 
   - Single PR plan or no plan resolved → omit `_pr<N>` entirely, auto-resolved.
   - Multiple `PR-N` entries in `## PR Breakdown` → open question **(B) Which PR-N**: set `<N>` to that number (e.g. `PR-2` → `2`).
 
-- **Ask (A) and (B) in ONE interview, as two separate questions** -- a single `AskUserQuestion` call carrying both; skip either label that auto-resolved above.
-  - They resolve different things — which source file to read, and which slice of a multi-PR plan this is — so one merged question would force two answers into one choice.
+- **Ask (A) and (B) in ONE interview, as two separate questions, in a single pre-flight `AskUserQuestion` call**.
+  - Carry both; skip either label that auto-resolved above; skip the call entirely when both auto-resolved.
+  - They resolve different things: which source file to read, and which slice of a multi-PR plan this is.
+    - One merged question would force two answers into one choice, but landing both in one call means the user is interrupted once, not twice.
+
+  - Any other ambiguity this skill's later steps might hit (template fit, checklist evidence, body-size trims) is resolved by the rules those steps already give, not by a new question.
+    - If a step's rules don't cover a case, default to the least-destructive, most-conservative reading and note it as a caveat in the final report, never a mid-flow ask.
 
 - Once answered, create `./pr_<slug>_pr<N>.ideal.md` right away with an HTML comment logging each answer.
   - Example: `<!-- step 1: spec=<resolved spec>; PR=2/3 -->` -- GitHub hides HTML comments in rendered bodies.
@@ -145,6 +162,9 @@ Re-run both gates on `pr_<slug>_pr<N>.ideal.md` in the main session, even though
 - Preserve its checklist verbatim -- never rewrite, reorder, or prune the items; the default template carries no checklist, so the repo's is the only one.
 
 - Mark checklist items `[x]` when applicable.
+  - **An item with no local evidence to back it stays unchecked, reported as a caveat.**
+    - Example: an e2e/integration check that needs infra this session doesn't have.
+    - Never ask a chat question whether to go run that check first; leave it for the reviewer to verify and flip on GitHub.
 
 - Add whatever the ideal description carries that the template has no slot for WITHIN it (preferred) or as an appendix, **NEVER** replacing it.
 
