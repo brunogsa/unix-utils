@@ -358,8 +358,35 @@ class ReviewHandler(BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
+    def is_request_from_own_page(self) -> bool:
+        """True when a POST did not come from some other site's page.
+
+        This server binds 127.0.0.1, but that only stops other machines — any
+        page the user has open can still POST to localhost and overwrite
+        feedback.json. Browsers attach Origin to every cross-site POST, so
+        checking it is what closes that hole.
+
+        A missing Origin is allowed on purpose: browsers always send one on
+        POST, so no-Origin means curl or a script, which the attacker does not
+        control and which would otherwise lose the ability to seed feedback.
+        """
+        origin = self.headers.get("Origin")
+        if origin is None:
+            return True
+        # server_address covers unix sockets too, so it is not indexable in
+        # general. A bound TCP server always gives (host, port, ...); anything
+        # else fails closed rather than guessing which port to trust.
+        address = self.server.server_address
+        if not isinstance(address, tuple) or len(address) < 2:
+            return False
+        port = address[1]
+        return origin in (f"http://127.0.0.1:{port}", f"http://localhost:{port}")
+
     def do_POST(self) -> None:
         if self.path == "/api/feedback":
+            if not self.is_request_from_own_page():
+                self.send_error(403, "Cross-origin POST rejected")
+                return
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length)
             try:

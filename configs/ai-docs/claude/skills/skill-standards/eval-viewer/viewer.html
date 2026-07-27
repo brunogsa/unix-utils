@@ -798,19 +798,19 @@
           content.appendChild(pre);
         } else if (file.type === "image") {
           const img = document.createElement("img");
-          img.src = file.data_uri;
+          img.src = getSafeDataUri(file.data_uri);
           img.alt = file.name;
           content.appendChild(img);
         } else if (file.type === "pdf") {
           const iframe = document.createElement("iframe");
-          iframe.src = file.data_uri;
+          iframe.src = getSafeDataUri(file.data_uri);
           content.appendChild(iframe);
         } else if (file.type === "xlsx") {
           renderXlsx(content, file.data_b64);
         } else if (file.type === "binary") {
           const a = document.createElement("a");
           a.className = "download-link";
-          a.href = file.data_uri;
+          a.href = getSafeDataUri(file.data_uri);
           a.download = file.name;
           a.textContent = "Download " + file.name;
           content.appendChild(a);
@@ -827,6 +827,31 @@
     }
 
     // ---- XLSX rendering via SheetJS ----
+    // Built cell-by-cell instead of via XLSX.utils.sheet_to_html + innerHTML:
+    // that helper emits cell contents as live HTML, so a spreadsheet written
+    // into the eval workspace could run script in this page. textContent makes
+    // the same bytes inert, and the CSS at `.output-file-content table` already
+    // styles a plain table, so the rendering is unchanged.
+    function buildSheetTable(ws) {
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+      // sheet_to_json trims trailing empty cells per row, so pad every row to
+      // the widest one to keep the rectangular grid sheet_to_html used to draw.
+      const columnCount = rows.reduce((widest, row) => Math.max(widest, row.length), 0);
+
+      const table = document.createElement("table");
+      for (const row of rows) {
+        const tr = document.createElement("tr");
+        for (let col = 0; col < columnCount; col++) {
+          const cell = row[col];
+          const td = document.createElement("td");
+          td.textContent = cell == null ? "" : String(cell);
+          tr.appendChild(td);
+        }
+        table.appendChild(tr);
+      }
+      return table;
+    }
+
     function renderXlsx(container, b64Data) {
       try {
         const raw = Uint8Array.from(atob(b64Data), c => c.charCodeAt(0));
@@ -844,10 +869,7 @@
             container.appendChild(sheetLabel);
           }
 
-          const htmlStr = XLSX.utils.sheet_to_html(ws, { editable: false });
-          const wrapper = document.createElement("div");
-          wrapper.innerHTML = htmlStr;
-          container.appendChild(wrapper);
+          container.appendChild(buildSheetTable(ws));
         }
       } catch (err) {
         container.textContent = "Error rendering spreadsheet: " + err.message;
@@ -958,19 +980,19 @@
           fc.appendChild(pre);
         } else if (file.type === "image") {
           const img = document.createElement("img");
-          img.src = file.data_uri;
+          img.src = getSafeDataUri(file.data_uri);
           img.alt = file.name;
           fc.appendChild(img);
         } else if (file.type === "pdf") {
           const iframe = document.createElement("iframe");
-          iframe.src = file.data_uri;
+          iframe.src = getSafeDataUri(file.data_uri);
           fc.appendChild(iframe);
         } else if (file.type === "xlsx") {
           renderXlsx(fc, file.data_b64);
         } else if (file.type === "binary") {
           const a = document.createElement("a");
           a.className = "download-link";
-          a.href = file.data_uri;
+          a.href = getSafeDataUri(file.data_uri);
           a.download = file.name;
           a.textContent = "Download " + file.name;
           fc.appendChild(a);
@@ -1089,11 +1111,35 @@
     });
 
     // ---- Util ----
+    // Media types this page will hand a browser from an eval workspace. The
+    // omissions are the point: image/svg+xml and text/html both execute script
+    // when rendered, and anything outside a data: URI could be javascript:.
+    const SAFE_DATA_MEDIA_TYPES = new Set([
+      "image/png", "image/jpeg", "image/gif", "image/webp",
+      "application/pdf", "text/plain", "application/octet-stream",
+    ]);
+
+    // "#" rather than "" so a rejected URI stays a visibly dead link instead of
+    // silently re-resolving to this page.
+    const REJECTED_URI = "#";
+
+    function getSafeDataUri(uri) {
+      if (typeof uri !== "string" || !uri.startsWith("data:")) return REJECTED_URI;
+      // No comma means no payload separator, so there is no media type to trust.
+      const separatorAt = uri.indexOf(",");
+      if (separatorAt === -1) return REJECTED_URI;
+
+      const mediaType = uri.slice("data:".length, separatorAt).split(";")[0].toLowerCase();
+      return SAFE_DATA_MEDIA_TYPES.has(mediaType) ? uri : REJECTED_URI;
+    }
+
     function getDownloadUri(file) {
-      if (file.data_uri) return file.data_uri;
+      // Only data_uri is gated — it arrives from the workspace. The next two are
+      // built here from a fixed, already-safe media type.
+      if (file.data_uri) return getSafeDataUri(file.data_uri);
       if (file.data_b64) return "data:application/octet-stream;base64," + file.data_b64;
       if (file.type === "text") return "data:text/plain;charset=utf-8," + encodeURIComponent(file.content);
-      return "#";
+      return REJECTED_URI;
     }
 
     function escapeHtml(text) {
