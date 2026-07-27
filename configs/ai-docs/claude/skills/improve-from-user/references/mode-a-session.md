@@ -20,7 +20,9 @@ The header's `selected by:` line names the rule that fired; an `(unverified)` va
 
 It emits:
 - **`[Learning]` markers** — learnings you pre-digested at correction time. Each pairs what the user did (`said`) with the rule you inferred (`rule`). Highest signal; treat every marker as a candidate.
+
 - **Verbatim user turns + next action** — raw feedback, recovered losslessly across compaction boundaries. Mine these for corrections no marker captured — your raw input is itself feedback.
+
 - **Compaction boundaries** — marked inline, so you see where memory was thinned.
 
 Prefer the extractor's verbatim text over your memory wherever they disagree. Supplement it with the last turn or two still in context — the transcript can lag the live tail.
@@ -41,6 +43,7 @@ Then list moments covering:
 
 Per-item field hints (the unified format is documented in SKILL.md):
 - **Source** — the extractor's `[line N]` and timestamp, or the `[Learning]` marker it came from. If the moment was Claude-initiated with no user prompt, note that here.
+
 - **Verbatim** — exact user words. Do NOT paraphrase; preserve typos, casing, and emphasis. If Claude-initiated, write `(Claude-initiated — no user quote)`.
 - **Context** — what Claude was doing, what misunderstanding or gap existed, relevant file paths or commands.
 - **Outcome** — what actually changed (code edits, decisions, discoveries), not what was discussed.

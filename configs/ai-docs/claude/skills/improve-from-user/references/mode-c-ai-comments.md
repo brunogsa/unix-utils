@@ -20,6 +20,7 @@ Steps:
    - **Explicit paths** (`on X, Y, Z`): expand each entry.
      - File → use as-is. Skip if it doesn't exist; warn the user.
      - Folder → list files inside via `git ls-files <folder>` (tracked) plus `git ls-files --others --exclude-standard <folder>` (untracked, respects `.gitignore`). This avoids scanning `node_modules`, `dist`, build outputs, etc.
+
    - **Default** (no explicit paths): union of three sets — committed branch changes, working-tree edits, untracked files.
      ```bash
      git diff --name-only <base>...HEAD          # committed branch changes

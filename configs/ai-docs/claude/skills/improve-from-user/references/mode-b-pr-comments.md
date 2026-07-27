@@ -23,5 +23,6 @@ Per-item field hints:
 - **Source** — the comment's `html_url` (deep-link, stable across the PR's lifetime).
 - **Verbatim** — `body` exactly. Preserve formatting.
 - **Context** — `diff_hunk` if present (inline comments); otherwise the PR title plus `path`/`line` if available; for review summaries, note the review `state` (APPROVED / CHANGES_REQUESTED / COMMENTED).
+
 - **Outcome** — best-effort `still open` unless subsequent commits clearly addressed it. Do not deep-dive blame; if unsure, mark `still open`.
 - **Lesson drawn** — one sentence, generalizable.

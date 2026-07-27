@@ -75,6 +75,7 @@ If step 1 yields zero items (no quote-worthy session moments, no PR comments fro
 **Post-edit audits do NOT run inside this skill** — regardless of which flow ran steps 2-7.
 
 - Running `consistency-check-principles-and-skills` from inside the improve subagent would audit a half-applied edit set — its 3 ensemble children read the files exactly as they stand mid-flow.
+
 - Step 8 (main context) reminds the user to run the audits in a fresh session.
 
 ## Step 1: Extract User Feedback Items (main context)
@@ -103,6 +104,7 @@ Format each item as a top-level bullet with five sub-bullets — keep the struct
 In the main-context flow this list is the working input for steps 2-7. In the subagent flow it is passed verbatim into the subagent prompt as a `## User Feedback Items` section.
 
 - Richer input — especially verbatim quotes — matters most for the subagent, which can't see the parent conversation, the PR diff, or the working tree.
+
 - Paraphrases smooth over nuance; verbatim preserves it.
 
 ## Steps 2-7: Analyze, Present, Apply (main context by default; subagent on opt-in)
@@ -150,6 +152,7 @@ Why a reminder instead of an automatic run:
 
 - **The audit must read the final files.** `consistency-check` fans out 3 ensemble subagents; from inside the improve subagent they would sample a half-applied edit set.
   - Nesting itself works — the constraint is timing, not capability.
+
 - **User-in-the-loop triage.** In a fresh main-context session the user sees every finding turn-by-turn rather than a pre-digested embedded report.
 - **Batching wins.** One audit pass after several `/improve-*` invocations beats N redundant passes per micro-edit.
 
