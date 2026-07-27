@@ -354,6 +354,9 @@ rtk proxy <cmd>       # run <cmd> raw, bypassing rtk's filtering
 - [Instruction] Route a `find` carrying compound predicates (`-o`, `-a`, or parenthesized groups) through `rtk proxy find`.
   - [Why] `rtk find` rejects compound predicates outright, so the plain form just fails and `rtk proxy` is the documented way back to real `find`.
 
+- [Instruction] Pass an explicit `-n <count>` to every `git log` you run as a Bash tool call.
+  - [Why] rtk silently caps it at 10 commits (50 with `--pretty`), so a truncated head reads as the complete answer and a date-ranged log looks like it spans a single day.
+
 ### Harness caveats & hygiene
 
 - [Instruction] **Truncated file content in system reminders is not exhaustive** -- with `[N lines truncated]` or similar, treat the visible portion as a snippet.
