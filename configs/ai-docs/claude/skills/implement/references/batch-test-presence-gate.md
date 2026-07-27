@@ -15,10 +15,10 @@ Use a fresh-context `deep-reviewer` dispatch: semantic title-matching across the
 
 ## Entry
 
-Run this when `phase` is `gates` — set **only** by §5.4's `gates` verdict from `implement-loop-state.sh`, and only when every task in the unit is `done`.
-§5.3's own dead-end scan never sets it: finding no runnable task there is a chain-abort, and that path goes to §5.5, not here.
+Run this when `phase` is `gates` — set **only** by §5.4's `gates` verdict from `implement-loop-state.sh`, and only when every task in the unit is `done`. Never skip it to reach §9 faster.
+§5.3's own dead-end scan never sets it: finding no runnable task there is a chain-abort, and that path goes to [`failure-and-halt.md`](failure-and-halt.md)'s §5.5, not here.
 
-Neither `halted` nor `halt-budget` ever reaches here: both verdicts route straight to §5.5's halt, before this gate would ever dispatch.
+Neither `halted` nor `halt-budget` ever reaches here: both verdicts route straight to [`failure-and-halt.md`](failure-and-halt.md)'s §5.5 halt, before this gate would ever dispatch.
 
 ## Dispatch
 
@@ -75,7 +75,7 @@ Bound each task's fix-dispatch count by the same per-task cap the task loop enfo
 Track it yourself: the script can't verdict this — it only judges phase `"tasks"`, and by now phase is `"gates"` (see Budget note).
 
 **Attempts exhausted with titles still missing is a block, not a pass-through to §9.**
-Go to §5.5 and halt — record, per task, exactly which titles are still missing, so the human knows what to finish.
+Go to [`failure-and-halt.md`](failure-and-halt.md)'s §5.5 and halt — record, per task, exactly which titles are still missing, so the human knows what to finish.
 There is no "proceed to §9 anyway so the package surfaces them" path any more: a batch that can't produce its own planned tests isn't ready for tails or a PR.
 
 ## Budget note
@@ -86,7 +86,7 @@ The script only verdicts phase `"tasks"`; by the time this gate runs, phase is a
 `gate_dispatches` still feeds the script's phase-independent budget backstop: `total_dispatches` sums `attempts` and `gate_dispatches`
 **before** the script even reads `phase`, so every fix dispatch here raises that count for the whole state file, not only for this gate.
 
-`halt-budget` itself — when the script emits it, during the task loop, before this gate is ever reached — now routes to §5.5, never to §9.
+`halt-budget` itself — when the script emits it, during the task loop, before this gate is ever reached — now routes to [`failure-and-halt.md`](failure-and-halt.md)'s §5.5, never to §9.
 A budget-exhausted unit halts for the human the same as any other blocked unit; it does not fall through to the batch-end flow.
 
 The fix loop here is bounded by the per-task attempt cap above, not by being try-once — overshoot on a single task is what halts it, not a shared dispatch count.

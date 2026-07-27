@@ -1,9 +1,10 @@
 ---
 # performance-check budget override, not batch-end content.
-# This file merges what used to be two references, because every section fires on the same
-# run — a split would only re-fragment one sequence across two files always read together.
-# It carries no redundancy against SKILL.md's batch-end steps — only the per-step detail
-# those steps point at. Doubled from the 1024w bundled default.
+# This file merges what used to be two references, plus SKILL.md's own §9 condensed
+# bullets, because every section fires on the same run — a split would only re-fragment
+# one sequence across files always read together. SKILL.md's §9 now holds only the entry
+# condition and a pointer here, so there's no redundancy against it. Doubled from the
+# 1024w bundled default.
 words-budget: 2048
 ---
 # Batch-end — repo-green, tails, triage, package & finalize
@@ -32,13 +33,20 @@ Run the repo's **full lint + full test suite**, repo-wide — never scoped to th
 **A failure the batch did not cause is a `[Scout]`, not a blocker.** Record it, report it in the package, leave it unfixed, and let the gate pass on it.
 Fixing pre-existing red would blur this batch's diff with unrelated work, which is exactly what the Scout channel (§4.3) exists to prevent.
 
-Attempts exhausted with a batch-caused failure still red → §5.5, halt. The human clears it; this run does not ship around it.
+Attempts exhausted with a batch-caused failure still red → [`failure-and-halt.md`](failure-and-halt.md)'s §5.5, halt. The human clears it; this run does not ship around it.
 
 Record the final full-suite result (pass/fail + counts) into the package, so the human sees the gate actually ran over everything.
 
 This is the **only** auto-apply path at batch end. Tail findings (§9.2–§9.4) are never applied — not here, not anywhere in this run (see Triage below).
 
 ## The two tails (§9.2–§9.3)
+
+§9.1 always runs, regardless of the tails toggle (§1.2).
+The tails themselves dispatch only once §9.1 came back green — reviewing a diff about to change under a red repo wastes the pass.
+
+**Toggle yes (default):** dispatch both tails in the same turn (both `run_in_background`), wait for both, then Triage (§9.4). Both are **mandatory**; the PR must not open until both reports are recorded.
+
+**Toggle no:** skip both tails and Triage entirely — go straight to Finalize (§9.5) and state there that tails were skipped by request. No retroactive re-run; invoke `/refactor` or `/auto-review` manually later.
 
 Full dispatch contract, preamble, failure handling, and overwrite policy: [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../../code-review-pipeline/references/deep-reviewer-tail-pair.md).
 
@@ -106,7 +114,10 @@ Each step presupposes the one before it succeeded; the package is never printed 
 
 1. **PR manifest entry & PR-level status marker**, on a PR-label run (see [`batch-end-pr.md`](batch-end-pr.md)).
 2. **Open the PR**, only when the interview opted in (`pr.wanted: true`) — see [`batch-end-pr.md`](batch-end-pr.md)'s "Open the PR (opt-in)".
-   - **Failing here is a §5.5 halt, not a partial package.** No `gh`, no remote, a rejected push, or a create that errored all route to §5.5.
+   - Push into that dispatch's prompt the `spec_<slug>.md` + `plan_<slug>.md` §1.1 resolved, plus the resolved `PR-N` on a PR-label run.
+     - Never auto-detected, since the agent has no other way to know which PR this batch covers.
+
+   - **Failing here is a [`failure-and-halt.md`](failure-and-halt.md) §5.5 halt, not a partial package.** No `gh`, no remote, a rejected push, or a create that errored all route there.
 
    - Name the failure, keep the state file, print nothing.
    - Not requesting a PR (`pr.wanted: false`) is not a failure — step 3 proceeds normally.
