@@ -233,11 +233,15 @@ This is what an **ensemble child** executes (mode B). The orchestrator (mode A) 
 1. Resolve target paths (default: `~/.claude/CLAUDE.md` + `~/.claude/skills/`).
 2. Read CLAUDE.md and every `skills/*/SKILL.md` in full — cross-file is the whole point, no grep shortcuts.
    - Scoped runs (e.g., `skill X`) still load the full set; the scope filters which findings to report, not which files to read.
+
    - Load `skill-authoring` too — heuristics #3, #5 judge marker placement against its rules.
+
 3. For each heuristic, scan and collect *draft* findings against the rubric.
 4. **Adversarial sanity-check.** For each draft, write one sentence defending the current state.
    - If the defense cites the rule's actual mechanism, **downgrade one tier** (HIGH→MEDIUM, MEDIUM→LOW, LOW→drop).
+
    - Counters the 88% over-flag rate under adversarial framing (arXiv:2603.00539).
+
 5. Apply gates from §"Default state: no findings": drop LOW; survivors (MEDIUM/HIGH) need file:line + 1-line diff or drop.
 6. Render. Sections with no surviving findings → `(no findings)`. **Number findings as `<section>.<index>`**
    - By "section" I mean the headings I have numbered on this skill;
