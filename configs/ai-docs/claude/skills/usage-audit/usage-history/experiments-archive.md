@@ -4,7 +4,17 @@ Experiments that reached a verdict: `kept`, `reverted`, or `superseded`. Live ex
 
 An audit reads this file only to check whether a new hypothesis repeats a settled one. It is a lookup table, not part of the audit loop.
 
-## CRITICAL: every figure below predates the per-day snapshot rewrite
+## CRITICAL: every dollar and token figure below is VOID
+
+Beyond the window defects listed next, every figure here was produced by an aggregator that billed each API response once **per content block** instead of once.
+
+Claude Code writes one transcript record per block with the identical `message.usage` on each; the 2026-07-27 fix re-measured 2026-07-20 from $441.44 down to $130.23.
+
+The multiplier is the blocks-per-response count, so it rises with thinking and tool-call density — it does not cancel out of a delta between two of these figures, it creates one.
+
+Only the non-cost counters survive: `compactions`, `user_messages`, `interruptions`, `session_hours`, `thinking_blocks`. A verdict resting on dollars or tokens has no evidence behind it and must be re-derived from the rebuilt series.
+
+## Also: every figure below predates the per-day snapshot rewrite
 
 All evidence here was computed against the retired rolling-window snapshots, which had three defects that the 2026-07-26 rewrite fixed.
 

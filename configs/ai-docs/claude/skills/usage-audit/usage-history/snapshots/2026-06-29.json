@@ -1,48 +1,51 @@
 {
-  "generated_at": "2026-07-26T23:29:07-03:00",
+  "generated_at": "2026-07-27T01:10:37-03:00",
   "day": "2026-06-29",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 8.23,
+    "cost_per_day": 3.52,
     "user_messages": 0,
     "interruptions": 0,
     "session_hours": 0.0,
     "cost_per_user_message": 0.0
   },
-  "total": 8.23,
-  "main_cost": 8.23,
+  "total": 3.52,
+  "main_cost": 3.52,
   "subagent_cost": 0.0,
   "api_calls": {
-    "main": 25,
+    "main": 11,
     "sub": 0
   },
   "compactions": 0,
-  "session_count": 744,
-  "cache_hit_rate": 0.996,
+  "session_count": 751,
+  "cache_hit_rate": 0.997,
   "thinking_blocks": 7,
   "text_blocks": 8,
   "thinking_block_share": 0.467,
   "tokens": {
-    "input": 1211,
-    "output": 38350,
-    "cache_read": 13574469,
+    "input": 452,
+    "output": 13529,
+    "cache_read": 5980589,
     "cache_write_5m": 0,
-    "cache_write_1h": 47572
+    "cache_write_1h": 19127
   },
   "by_family": {
-    "opus": 8.23
+    "opus": 3.52
+  },
+  "by_model": {
+    "claude-opus-4-8": 3.52
   },
   "by_day": {
     "2026-06-29": {
-      "main": 8.23,
+      "main": 3.52,
       "sub": 0.0
     }
   },
   "by_subagent_type": {
     "UNMATCHED": {
       "cost": 0.0,
-      "runs": 887
+      "runs": 898
     }
   },
   "by_skill": {},
@@ -51,21 +54,21 @@
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/4daf36c6-148e-457c-957a-a876c4e1206f.jsonl",
       "title": "",
-      "cost": 8.23,
+      "cost": 3.52,
       "subagent_cost": 0.0,
-      "api_calls": 25,
+      "api_calls": 11,
       "duration_hours": 0.0,
       "compactions": 0,
       "user_messages": 0,
       "interruptions": 0,
       "tokens": {
-        "input": 1211,
-        "output": 38350,
-        "cache_read": 13574469,
+        "input": 452,
+        "output": 13529,
+        "cache_read": 5980589,
         "cache_write_5m": 0,
-        "cache_write_1h": 47572
+        "cache_write_1h": 19127
       },
-      "cache_hit_rate": 0.996,
+      "cache_hit_rate": 0.997,
       "skills": {}
     },
     {
@@ -90,6 +93,26 @@
     },
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/db1e5bcc-cd43-4054-bf74-b2a1606a4be3.jsonl",
+      "title": "",
+      "cost": 0.0,
+      "subagent_cost": 0.0,
+      "api_calls": 0,
+      "duration_hours": 0.0,
+      "compactions": 0,
+      "user_messages": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "cache_read": 0,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      },
+      "cache_hit_rate": 0.0,
+      "skills": {}
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/755bfc7f-b0e8-42e6-b49c-f94b1ba569f6.jsonl",
       "title": "",
       "cost": 0.0,
       "subagent_cost": 0.0,
@@ -187,26 +210,33 @@
       },
       "cache_hit_rate": 0.0,
       "skills": {}
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/68c3ee0a-d4e1-4d45-9adb-d5a39a1f514e.jsonl",
-      "title": "",
-      "cost": 0.0,
-      "subagent_cost": 0.0,
-      "api_calls": 0,
-      "duration_hours": 0.0,
-      "compactions": 0,
-      "user_messages": 0,
-      "interruptions": 0,
-      "tokens": {
-        "input": 0,
-        "output": 0,
-        "cache_read": 0,
-        "cache_write_5m": 0,
-        "cache_write_1h": 0
-      },
-      "cache_hit_rate": 0.0,
-      "skills": {}
     }
-  ]
+  ],
+  "reconciliation": {
+    "status": "ok",
+    "worst_delta_pct": 0.0,
+    "tokens": {
+      "input": {
+        "script": 452,
+        "ccusage": 452,
+        "delta_pct": 0.0
+      },
+      "output": {
+        "script": 13529,
+        "ccusage": 13529,
+        "delta_pct": 0.0
+      },
+      "cache_read": {
+        "script": 5980589,
+        "ccusage": 5980589,
+        "delta_pct": 0.0
+      },
+      "cache_write": {
+        "script": 19127,
+        "ccusage": 19127,
+        "delta_pct": 0.0
+      }
+    },
+    "ccusage_cost_untrusted": 3.45
+  }
 }

@@ -14,11 +14,33 @@ Entries are split by whether a change actually shipped, because the old flat log
 
 A `Log` line is dated because an entry is read across many audits; an undated observation cannot be placed against the change that caused it.
 
-## CRITICAL: figures logged on or before 2026-07-25 are not comparable
+## CRITICAL: every dollar figure logged before 2026-07-27 is VOID
 
-Everything logged up to 2026-07-25 was measured on the retired rolling-window snapshots, which overlapped, bucketed by UTC, and divided by the wrong day count.
+Not "directional", not "roughly right" — void. Do not re-cite one, and do not carry one into a new comparison. This supersedes the narrower window caveat below.
 
-The archive's header lists the three defects in full. From 2026-07-26 onward, cite a specific day file (`snapshots/YYYY-MM-DD.json`) and name both days a delta compares.
+`claude-usage-report.py` summed one transcript record per **content block**, and Claude Code stamps the identical `message.usage` on every block of a response.
+
+Every response was therefore billed once per block it emitted. 2026-07-20 read **$441.44**; re-measured after the 2026-07-27 fix it is **$130.16**.
+
+The reason this voids verdicts rather than merely shrinking them is that the multiplier is not a constant.
+
+It is the blocks-per-response count, so it climbs with thinking blocks and tool-call density — the exact behaviours these experiments tune.
+
+- An entry that "reduced cost" may have only reduced blocks per response, or vice versa. The bias does not cancel out of a before → after delta, it manufactures one.
+
+- A second, smaller error compounded it: Sonnet 5 was priced at its post-intro $3.00/$15.00 rate through a window where it actually billed $2.00/$10.00.
+
+**Non-cost counters are unaffected** and stay citable: `compactions`, `user_messages`, `interruptions`, `session_hours`, `thinking_blocks`. Only dollars and token totals moved.
+
+The pre-fix snapshots are recoverable from git (`74a920b`) if a figure ever needs re-deriving. Every snapshot from 2026-07-27 on carries a `reconciliation` block cross-checking its token counts against ccusage.
+
+## Superseded: the 2026-07-25 rolling-window caveat
+
+Everything logged up to 2026-07-25 was ALSO measured on the retired rolling-window snapshots, which overlapped, bucketed by UTC, and divided by the wrong day count.
+
+The archive's header lists those three defects in full. It is now a second reason those figures are unusable, not the only one.
+
+From 2026-07-27 onward, cite a specific day file (`snapshots/YYYY-MM-DD.json`) and name both days a delta compares.
 
 ## Baseline
 
