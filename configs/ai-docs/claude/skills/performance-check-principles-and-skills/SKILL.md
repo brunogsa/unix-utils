@@ -61,7 +61,7 @@ A skill can opt in to a higher word budget by adding `words-budget: N` to its YA
 ---
 name: example-skill
 description: "..."
-words-budget: 5096
+words-budget: 4096
 ---
 ```
 

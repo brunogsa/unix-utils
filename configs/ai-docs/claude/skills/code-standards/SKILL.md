@@ -2,7 +2,7 @@
 name: code-standards
 description: "USE PROACTIVELY when you write, edit, or review code — any language, including config that is itself code like init.lua, not just settings.json — even one-liners. Not for pure reading."
 user-invocable: false
-words-budget: 5096
+words-budget: 4096
 instructions-budget: 80
 ---
 

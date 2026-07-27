@@ -2,7 +2,7 @@
 name: test-standards
 description: "USE PROACTIVELY whenever you write, edit, or review tests — choosing test type (unit/integration/e2e), mocking, flakes, coverage gaps, regression tests, test titles. Any test edit, not pure reading."
 user-invocable: false
-words-budget: 5096
+words-budget: 4096
 instructions-budget: 60
 ---
 
