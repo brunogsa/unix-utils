@@ -9,7 +9,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
    commit_sha=$(gh pr view "$pr_number" --repo "$repo" --json headRefOid --jq '.headRefOid')
    ```
 
-2. **Density check.** Every comment body about to be posted must obey doc-standards' cap (≤256 chars / ≤32 words per line) before it goes anywhere near the payload.
+2. **doc-standards check.** Every comment body must obey doc-standards' line rules before it reaches the payload — the density cap, and the blank line a bullet needs before the next bullet.
    - GitHub's review UI renders a dense paragraph as one hard-to-scan block, with no line breaks to anchor a skim-read.
    - Write each Wave-4 finding's `body` to its own file, `$work_dir/wave5-comment-<n>.md` (one per finding, in finding order).
 
@@ -17,15 +17,19 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 
    - Run `~/.claude/skills/doc-standards/scripts/check-density.sh "$work_dir"/wave5-comment-*.md "$work_dir/wave2-guide.md"` in one call.
 
+   - Run `~/.claude/skills/doc-standards/scripts/check-bullet-gap.py "$work_dir"/wave5-comment-*.md "$work_dir/wave2-guide.md"` in one call too.
+
    - Fix every flagged line so all files exit 0. Which path you take depends on whether this Wave 5 runs in the top-level session or inside a spawned subagent:
      - **Calling session (you were NOT spawned as a subagent):** delegate to `agent(subAgent=markdown-standards-fixer, title=Fix review-comment markdown)` and wait for it to report every file at exit 0.
        - Pass it the file list: `$work_dir`/wave5-comment-*.md plus `$work_dir/wave2-guide.md`.
-       - It splits over-cap lines and re-runs the script itself, and is contractually barred from rewording or dropping content — so each finding's wording stays verbatim.
+       - It splits over-cap lines, gaps bullets missing their blank line, and re-runs both scripts itself, and is contractually barred from rewording or dropping content — so each finding's wording stays verbatim.
 
      - **Isolated (`--isolate` passed):** do NOT spawn — this pipeline keeps its fan-out flat so the run's token budget stays predictable.
-       - Rewrite each flagged line in place per `~/.claude/skills/doc-standards/references/density-rules.md` — split into bullets/sub-bullets or shorter sentences, never drop information.
+       - Rewrite each over-cap line in place per `~/.claude/skills/doc-standards/references/density-rules.md` — split into bullets/sub-bullets or shorter sentences, never drop information.
 
-       - Re-run the script until it exits 0 for every file.
+       - Insert a blank line after every bullet `check-bullet-gap.py` flags — the fix is the same for both of its labels, `sub-bullet` and `over-80pct`.
+
+       - Re-run both scripts until each exits 0 for every file.
 
 ## Build and POST the pending review
 

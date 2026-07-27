@@ -13,11 +13,11 @@ Consult the `html-artifacts` skill's decision tree, then write `${out_file}` —
 
 - Keep the template file as the single source of truth for the output shape; do not inline the template here.
 
-**Density check (after writing, `.md` output only).** Run `~/.claude/skills/doc-standards/scripts/check-density.sh "$out_file"`, then fix flagged lines by how this Wave 5 runs:
+**doc-standards check (after writing, `.md` output only).** Run both `check-density.sh` and `check-bullet-gap.py` from `~/.claude/skills/doc-standards/scripts/` on `$out_file`, then fix flagged lines by how this Wave 5 runs:
 
 - **Calling session (you were NOT spawned as a subagent):** delegate to `agent(subAgent=markdown-standards-fixer, title=Fix review-output markdown)`, passing it `$out_file`; wait for it to report exit 0.
-  - It splits over-cap lines and re-runs the script itself, without rewording or dropping content.
+  - It splits over-cap lines, gaps bullets missing their blank line, and re-runs both scripts itself, without rewording or dropping content.
   - Unreachable in practice here — local mode always dispatches isolated (SKILL.md's dispatch rule), so only the isolated branch below ever runs.
 
 - **Isolated (`Mode: local`, or `--isolate` passed):** do NOT spawn — this pipeline keeps its fan-out flat so the run's token budget stays predictable.
-  - Rewrite each violation in place per `doc-standards/references/density-rules.md` and re-run until exit 0.
+  - Rewrite each over-cap line in place per `doc-standards/references/density-rules.md`, insert a blank line after each bullet `check-bullet-gap.py` flags, and re-run both until each exits 0.

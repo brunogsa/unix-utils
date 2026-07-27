@@ -45,9 +45,9 @@ flowchart TD
 
   n17{"17. Mode?"}
 
-  n18["18. check-density.sh on<br/>wave5-comment-*.md + wave2-guide.md<br/>(cap: 256 chars / 32 words per line)"]:::hook
-  n18a1["18a1. Dispatch markdown-standards-fixer · agent-pinned · serial<br/>splits over-cap lines, loops<br/>internally until exit 0"]:::dispatch
-  n18a2["18a2. Fix density violations inline<br/>(already a subagent, no re-spawn)<br/>loop until exit 0"]
+  n18["18. check-density.sh + check-bullet-gap.py on<br/>wave5-comment-*.md + wave2-guide.md<br/>(cap: 256 chars / 32 words per line; gap at 80%)"]:::hook
+  n18a1["18a1. Dispatch markdown-standards-fixer · agent-pinned · serial<br/>splits over-cap lines and gaps bullets,<br/>loops internally until both exit 0"]:::dispatch
+  n18a2["18a2. Fix doc-standards violations inline<br/>(already a subagent, no re-spawn)<br/>loop until both exit 0"]
 
   n19["19. Build review-payload.json,<br/>POST pending review (single batch call)"]:::state
   n20{"20. POST returned 422?"}
