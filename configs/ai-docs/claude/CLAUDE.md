@@ -150,20 +150,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **Co-locate related artifacts** -- keep the rules, code, config, and docs on one topic physically adjacent so the topic reads as one contiguous unit.
   - [Why] A topic scattered across a file forces the reader to reassemble it from memory; adjacency makes it scannable in one place and surfaces gaps and duplicates.
 
-- [Instruction] When a file outgrows its budget, split it by topic before compressing the wording — compression is the fallback for when no clean topic boundary exists.
-  - [Why] Splitting keeps the words the reader needs while shrinking each load; compressing shrinks the file once and taxes every future read.
-
-- [Instruction] Point to a source only by file path, URL, or named anchor — never by a section or page number (`§X`, `ADR-N`, `page N`, `mitigação N`), even alongside a recap.
-  - [Why] A number renumbers on the next edit and rots silently; a file path, URL, or named anchor tracks the thing itself and the recap already carries the meaning.
-
-  - [Example] Bad: `see HLD §5.6` / `Fundação §6.2`; and even `recap… (HLD §5.4.14)` — the recap is fine, but the `§5.4.14` still drifts and invites a jump.
-
-  - [Example] Good: `[HLD → Riscos](./hld.md#riscos)` (named anchor), or "…, per the HLD (`./hld.md`)" — file/anchor, no number.
-  - [Example] A bare symbol is none of the three: bad `see handleRetry`; good `handleRetry` in `src/net/retry.ts`.
-
-- [Instruction] Make each cross-reference self-contained — recap the fact inline so the reader understands without opening the target.
-  - [Why] Fluid reading means not jumping between docs; the file/URL exists only for whoever wants the full detail, so if understanding *requires* following the pointer, the recap failed.
-
 - [Instruction] **CRITICAL: Remove unused artifacts** -- code, configs, mocks, env vars, scripts, docs. Trace back and remove all orphans.
   - [Why] Orphan code/configs/mocks accumulate as "is this still used?" debt — readers spend cycles auditing dead weight.
 

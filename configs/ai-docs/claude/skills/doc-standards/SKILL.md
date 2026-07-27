@@ -7,7 +7,7 @@ instructions-budget: 30
 
 # Doc Standards
 
-Principles and paired examples for any documentation work. Each section pairs a principle with its example. Principles without an example stand on their own.
+Principles and paired examples for any documentation work; not every principle needs one.
 
 ## What a comment may say
 
@@ -66,7 +66,7 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 ### Comment line formatting
 
 - [Instruction] **CRITICAL: One idea per comment-line** — split multi-clause lines at the next punctuation boundary (`,`, `.`, `;`) into separate lines or sub-bullets.
-  - [Why] A single-line comment scans as one "chunk"; comma-stacked clauses force re-parsing, and the punctuation boundary is the deterministic split point. Applies to any syntax (`//`, `#`).
+  - [Why] A single-line comment scans as one "chunk"; comma-stacked clauses force re-parsing, and the punctuation boundary is the deterministic split point.
 
 - [Instruction] Put a blank comment line between distinct comment paragraphs, or after a phrase heavy or important enough to deserve visual isolation.
   - [Why] Without the gap, separate thoughts blur into one block; the blank line gives the eye a stopping point and lifts the heavy phrase out.
@@ -75,7 +75,7 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
   - [Why] A narrow fixed width keeps comments scannable in diff panes and side-by-side review, where a wide trailing comment scrolls out of sight.
 
 - [Instruction] Cap a standalone-comment paragraph (consecutive full-comment lines) at 4 lines before a blank comment line breaks it up (`PARAGRAPH`).
-  - [Why] Same "one stopping point per thought" as the blank-line rule above, made checkable — 4 lines is about what a reader holds before needing a pause.
+  - [Why] Same "one stopping point per thought" as the blank-line rule, made checkable — 4 lines is roughly a reader's limit before needing a pause.
 
 - [Instruction] **CRITICAL: A paragraph break may only land where the preceding line ends a sentence or clause** (`.`/`;`, or `:` introducing a bullet list) — never mid-sentence (`SENTENCE-BREAK`).
   - [Why] A break placed by line-count alone can land between a clause and its continuation, forcing the reader to rejoin two fragments the blank line severed.
@@ -103,23 +103,16 @@ Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles �
   - [Example] Bad (lookup pointers — always follow the ban): `AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
   - [Example] OK (step order — exempted): `implement/SKILL.md` citing its own `§1.4–§9 repeat once per PR` — the numbers encode the loop's bounds.
 
+- [Instruction] Point to a source by file path, URL, or named anchor — a bare symbol name is none of the three.
+  - [Why] A path, URL, or anchor tracks the thing itself and survives edits; a bare name forces the reader to hunt for it and rots silently on rename.
+
+  - [Example] Bad: `see handleRetry`. Good: `handleRetry` in `src/net/retry.ts`, or `[HLD → Riscos](./hld.md#riscos)`.
+
 - [Instruction] Spell project-private acronyms: `SA` / `SAP` → `sales_agreement` / `sales_agreement_product`.
   - [Why] The private context behind the acronym can change, be forgotten, or never reach a new team member — leaving them to guess.
 
 - [Instruction] Prefer concrete example values: `"12345678000195" + "12.345.678/0001-95"` beats `digits + formatCnpj(digits)`.
   - [Why] A concrete value shows the intent directly; an abstract call shape makes the reader instantiate it mentally.
-
-[Example]
-```ts
-// Bad — design-doc item numbers rot on renumber and force a lookup
-valorUnitario: 1058.33, // precoRevendaB2C (PR-09)
-sistema: 'SPE',         // Positivo → SPE (PR-13)
-
-// Good — state the fact inline; cite the doc by file path only when the full rationale is needed
-valorUnitario: 1058.33, // precoRevendaB2C
-sistema: 'SPE',         // Positivo → SPE
-// Per the SGE LLD (docs/designs/sync-agreements_sge-translator_lld.md): this field is collection-only.
-```
 
 ## Standalone doc files
 
@@ -131,13 +124,8 @@ The two subsections below apply to any standalone doc — where it lives and wha
 
 ### Where docs live and ship
 
-- [Instruction] Module README lives in the module directory.
-  - [Why] Docs one directory from the code get updated with it as a unit; docs in a separate repo drift and get forgotten.
-
 - [Instruction] Locate and update related documentation inline with the change.
   - [Why] Deferring doc updates to "later" means they don't happen — the PR description, README, and touched comments are part of the change the reviewer needs synced.
-
-  - [Example] New diagram added to README → also add a pointer in `agents.md`/`CLAUDE.md`, reloaded fresh every AI turn but skimmed only once by a human.
 
 ### What a doc should and shouldn't contain
 
@@ -151,9 +139,6 @@ The two subsections below apply to any standalone doc — where it lives and wha
   - [Why] Collapsed content is content nobody opens, so hiding the part the doc exists to communicate buys a shorter page by trading away the reading it was written for.
 
   - [Example] Collapse an acceptance-criteria index or a 200-line payload; never collapse a PR's Context, Changes, or Decisions.
-
-- [Instruction] In a repo's CLAUDE.md, capture its purpose, dependencies, non-obvious gotchas, and load-bearing conventions.
-  - [Why] CLAUDE.md's value is what the code *can't* show — purpose, gotchas, and conventions live nowhere else.
 
 - [Instruction] Never inventory facts a tool generates on demand — file paths, callers, deps, file/function listings — in any doc or comment.
   - [Why] IDEs, grep, and doc tools regenerate these for free, so an inline copy adds nothing and goes stale the moment an item moves.
