@@ -35,6 +35,7 @@ That's deliberate: if the spec doesn't carry enough to plan from, that's a defec
 
 6. Write the plan at the resolved output path, following `plan-template.md`'s structure.
    Include: Technical Approach, General Flow, Reuse report, Side-effect report, Failure Handling & Consistency, Test Design (AC → test coverage), Task Breakdown, PR Breakdown, Open Questions, Technical Decisions.
+   When the caller names a section-set file (e.g. a light section set), that file's Keep/Drop lists win over this list — it only ever narrows the set, never widens it.
 
 Hard rules:
 
