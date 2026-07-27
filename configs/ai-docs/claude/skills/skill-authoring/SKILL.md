@@ -23,13 +23,11 @@ skill-name/
 
 ## Progressive disclosure — three loading levels, budgeted separately
 
-Keep the frontmatter (name + description) under ~100 words — it loads into every session regardless of whether the skill ends up triggering.
-Keep the body under ~500 lines.
-Past that, split a layer into `references/` with a pointer telling the model when to read it.
-Give any `references/` file over ~300 lines its own table of contents, so a partial read can find the relevant section instead of reading the whole thing.
+Keep the frontmatter (name + description) under ~100 words — it loads every session regardless of whether the skill triggers.
+Keep the body under ~500 lines; past that, split a layer into `references/` with a pointer telling the model when to read it.
+Give any `references/` file over ~300 lines its own table of contents, so a partial read finds the relevant section instead of reading the whole thing.
 
-Why: each layer is paid on a different cadence — metadata every session, body every trigger, references only on demand.
-The budget for each is set by how often it's paid, not by one global limit.
+Why: each layer is paid on a different cadence — metadata every session, body every trigger, references only on demand — so its budget follows that cadence, not one global limit.
 
 When a skill covers multiple domains or frameworks, split by variant instead of branching prose in the body:
 
@@ -44,21 +42,21 @@ cloud-deploy/
 
 ## This skill is self-sufficient — skill-creator is inspiration, not a dependency
 
-The eval/optimization scripts and agent prompts (`scripts/`, `agents/`, `references/schemas.md`, `eval-viewer/`, `assets/`) are absorbed locally from Anthropic's `skill-creator` plugin, not loaded from it at runtime.
-Don't load `skill-creator` before authoring or editing a SKILL.md — this skill already carries what matters.
+The eval/optimization scripts and agent prompts (`scripts/`, `agents/`, `references/schemas.md`, `eval-viewer/`, `assets/`) are absorbed locally from Anthropic's `skill-creator` plugin, not loaded at runtime.
+Don't load `skill-creator` before authoring or editing a SKILL.md — this skill carries what matters.
 
 Why: the plugin cache isn't version-controlled and can be silently overwritten by updates.
-A bug found in a local copy — `scripts/run_eval.py`'s early-return trigger-detection bug, fixed here — can be patched directly instead of waiting on upstream.
+A bug found locally — `scripts/run_eval.py`'s early-return trigger-detection bug, fixed here — can be patched directly instead of waiting on upstream.
 
-Skim skill-creator's own upstream changes occasionally for ideas worth stealing selectively — not a trigger to re-sync wholesale or treat it as a live dependency again.
+Skim skill-creator's upstream changes for ideas worth stealing, not to re-sync wholesale or treat it as a live dependency again.
 
 ## Skill evals target `sonnet`, not the session model
 
 Run this skill's own eval/optimization loop (`scripts/run_loop.py`, `scripts/run_eval.py`, `eval-viewer/generate_review.py`) with `--model claude-sonnet-5` as the pass/fail bar, even when the session driving the loop itself runs on a stronger model.
 See `references/eval-workflow.md` for the full run/grade/improve process.
 
-Why: opus- and fable-class models can trigger a skill more reliably than sonnet does, but the bar is sonnet specifically because it's the model driving most day-to-day sessions.
-Optimizing against a stronger model can make a skill look reliable when it validates the wrong population.
+Why: opus- and fable-class models trigger a skill more reliably than sonnet, but the bar is sonnet because it drives most day-to-day sessions.
+Optimizing against a stronger model can make a skill look reliable while validating the wrong population.
 
 ## Load `personal-environment` too — skills live behind a symlink
 
@@ -68,11 +66,11 @@ Why: `personal-environment` carries the symlink + canonical-path rules; without 
 
 ## Skill descriptions state goal + triggers, not an inventory
 
-State the skill's purpose and when to invoke it; don't enumerate what it covers — detail belongs in the body.
-Name concrete trigger phrases and contexts explicitly, even ones a user might phrase differently — bias toward over-triggering, not under.
+State the skill's purpose and when to invoke it, not an inventory of what it covers — detail belongs in the body.
+Name concrete trigger phrases and contexts explicitly, even non-obvious ones — bias toward over-triggering, not under.
 
-Why: only the first 250 chars participate in `/skills` routing (Claude Code 2.1.86+ cap), so an inventory burns budget that doesn't change the trigger decision.
-Models undertrigger skills by default; an abstract goal alone reads narrower than the skill's real applicability, so naming contexts explicitly closes that gap.
+Why: only the first 250 chars participate in `/skills` routing (Claude Code 2.1.86+ cap), so an inventory burns budget without changing the trigger decision.
+Models undertrigger by default, and an abstract goal reads narrower than the skill's real applicability, so naming contexts explicitly closes that gap.
 
 ## Writing patterns for output formats and examples
 
@@ -87,7 +85,7 @@ ALWAYS use this exact template:
 ## Recommendations
 ```
 
-For behavior patterns (e.g. commit message style), show input → output pairs instead of describing the transformation in prose — a worked example teaches the mapping faster than an explanation of it.
+For behavior patterns (e.g. commit message style), show input → output pairs instead of prose — a worked example teaches the mapping faster than an explanation of it.
 
 ## CRITICAL: references/assets must buy real context savings, never budget cosmetics
 
@@ -97,29 +95,28 @@ Move text out of SKILL.md into `references/` or `assets/` only when the move kee
 - Subagent-consumed files — prompts and checklists read by a spawned agent, never by the main session.
 - Late loads in marathon flows — content needed only near the end, read fresh after compactions would have dropped it.
 
-A "mandatory read" the main flow opens at invocation time on every run is a fake lazy-load.
-Keep that text in SKILL.md — get under the word budget with real trims, or set an honest `words-budget:` frontmatter override.
+A "mandatory read" opened at invocation time on every run is a fake lazy-load — keep that text in SKILL.md, trimmed under budget or covered by an honest `words-budget:` override.
 
-Two bundled files that always load together are one file split in two — the same cheat, spread across two budget lines.
-If no run can read one without the other, that split is gaming the budget, not saving context: merge them back, then trim or override honestly.
+Two bundled files that always load together are one file split in two, spreading the same cheat across two budget lines.
+If no run reads one without the other, merge them back, then trim or override honestly.
 
-Why: an always-read reference loads the same words every run plus a Read round-trip — it saves nothing and hides the cost from the budget gate, which exists to measure that cost.
-A co-loading pair hides it twice, since each half now measures under a cap the pair itself never respected.
+Why: an always-read reference loads the same words every run plus a Read round-trip, saving nothing while hiding the cost from the very gate meant to measure it.
+A co-loading pair hides it twice, since each half then measures under a cap neither half respected.
 
 ## Splitting, naming, and sizing bundled files
 
-- [Instruction] Split a bundled file that carries two topics which never fire on the same run.
-  - [Why] A mixed file makes every consumer load the branch it will never take, so the unread half is pure context tax on every run.
+- [Instruction] Split a bundled file whose two topics never fire on the same run.
+  - [Why] A mixed file makes every consumer load the branch it never takes — pure context tax on every run.
 
   - [Example] `wave5-emit.md` held `## github mode` and `## local mode` — mutually exclusive, so each run paid for the mode it never used. Now `wave5-emit-github.md` + `wave5-emit-local.md`.
 
-- [Instruction] Keep two topics in one file when every run reads both — split only when the skipped half outweighs the Read round-trip and pointer line it costs.
-  - [Why] Splitting is not free, so fragmenting co-firing content trades a smaller file for an extra round-trip and one more place a step can be skipped.
+- [Instruction] Keep two co-firing topics in one file — split only when the skipped half outweighs the Read round-trip and pointer line it costs.
+  - [Why] Splitting isn't free — fragmenting co-firing content trades a smaller file for an extra round-trip and one more skippable step.
 
   - [Example] `review-principles.md`'s twelve principles run ~100 words each and are always read together — that one is a trim, not a split.
 
 - [Instruction] Name every bundled file and every heading after what it contains, never after a position or number.
-  - [Why] It is the intent-revealing-name rule from clean code: a positional name tells the reader nothing without opening the file, and rots when steps are reordered.
+  - [Why] The intent-revealing-name rule from clean code: a positional name tells the reader nothing unopened, and rots when steps reorder.
 
   - [Example] Bad: `batch-end-2.md`, "steps 4-7 live elsewhere". Good: `batch-end-review.md`, "the repo-green gate, tails, triage, package, and finalize steps".
 
@@ -134,6 +131,15 @@ A co-loading pair hides it twice, since each half now measures under a cap the p
 - [Instruction] Propose that override to the user alongside the trim and split alternatives — never apply one on your own initiative.
   - [Why] The budget trade-off is the user's to own, the same user-only rule `performance-check-principles-and-skills` enforces for `words-budget` on a SKILL.md.
 
+- [Instruction] Raise an `assets/flowchart.md` budget without asking — the one exception, since the file is parked in assets and never loaded by the model.
+  - [Why] Its words cost no context, so the gate measures a spend that never happens — approving a non-cost is friction with nothing behind it.
+
+- [Instruction] Set every `words-budget:`/`lines-budget:` value to a power of 2 — 1024, 2048, 4096, 8192 — never a bespoke number like 5096.
+  - [Why] A round doubling reads as a deliberate tier; a bespoke number reads as whatever the file measured the day someone gave up, which no reader can audit.
+
+- [Instruction] Trim toward the lower power first, and propose the doubling only once the file still exceeds it after that trim.
+  - [Why] Doubling on a small overage buys 2× the budget for a handful of words, and the slack then absorbs every later addition unmeasured.
+
 - [Instruction] Move a worked example between files intact — never trim one to fit a budget.
   - [Why] An example earns its keep by being realistic, and realism is the first thing a size-driven trim takes away.
 
@@ -141,57 +147,39 @@ A co-loading pair hides it twice, since each half now measures under a cap the p
 
 A step-shaped (procedural/orchestrator) skill carries `assets/flowchart.md`: one mermaid flowchart of its own control flow, parked in assets and never loaded by the model.
 
-Scope it to that skill's own flow — a skill it loads, an agent it dispatches, or a hook that fires is one collapsed node, named and no more.
+Writing or regenerating one? Read [`references/flowchart-authoring.md`](references/flowchart-authoring.md) first — what the diagram must cover, the node-numbering scheme, the collapse rule, the classDef legend, and the `mmdc` validation step.
 
-Writing or regenerating one? Read [`references/flowchart-authoring.md`](references/flowchart-authoring.md) first — what the diagram must cover, the node-numbering scheme, the collapse rule in full, the classDef legend, and the `mmdc` validation step.
-
-Why: to the model, mermaid is just a second text encoding of the numbered steps — a drift-prone second source of truth that would tax every trigger if in-body.
-The human gets an at-a-glance flow audit; parking it in assets keeps that value at zero context cost.
+Why: to the model, mermaid is just a second, drift-prone encoding of the numbered steps that would tax every trigger if in-body.
+Parking it in assets keeps the human's at-a-glance flow audit at zero context cost.
 
 ## A procedural skill seeds its TaskList entries upfront, one per step
 
-Seed every unit of the run's work before the first one executes, in the order they execute.
-Give each follow-up step its own `[Reminder]` — never one entry standing for several.
-
-Why: the list then reads as the run's whole timeline, and a skipped step stays visible as pending.
-Bundled into one reminder, that step hides behind a checkbox someone already flipped.
+The global CLAUDE.md owns the TaskList-seeding rule for a step-shaped skill — don't restate it in a skill.
 
 ## Pin the model on every dispatch, and spend the one nesting level deliberately
 
-Name the model in the dispatch instruction: `sonnet` for mechanical or tool-driving steps, `haiku` for trivial transforms.
-Omit the pin only when the step genuinely needs the session model's judgment — and say so in the skill.
+Name the model per step: `sonnet` for mechanical/tool-driving steps, `haiku` for trivial transforms.
+Omit the pin only when the step needs the session model's own judgment, and say so in the skill.
 
-Why: an unpinned Agent call inherits the session's model — often the most expensive tier — so a scripted mechanical fan-out silently runs at top-tier pricing on every future invocation.
+Why: an unpinned Agent call inherits the session's model, often the priciest tier, so a mechanical fan-out silently runs at top-tier pricing on every future run.
 
-Nesting runs two levels deep, not one: `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH: "2"` in `settings.json` permits main → subagent → subagent, and the harness refuses the third.
-So a subagent MAY spawn a worker it genuinely needs — an extractor, a fixer, a gatherer.
-
+Nesting goes two levels deep, not one: `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH: "2"` in `settings.json` permits main → subagent → subagent; the harness refuses a third.
+A subagent MAY spawn a worker it genuinely needs — an extractor, a fixer, a gatherer.
 Treat that second level as a budget the skill spends once, and state in each agent's file whether it may spawn.
-A skill whose dispatched agent spawns has spent it, so no other flow can then dispatch that skill's agent as a subagent of its own without hitting the wall.
+A skill whose dispatched agent spawns has spent it: no other flow can then dispatch that agent as a subagent of its own without hitting the wall.
 
-Why: an agent file silent on spawning gets a rule invented for it by whoever reads it next, and the invented rule is wrong in whichever direction the reader guessed.
+Why: a file silent on spawning gets a rule invented by whoever reads it next, wrong in whichever direction they guessed.
 
 A subagent still never spawns a second opinion on its own work — route that to a review step the orchestrator already runs.
 
-Why: a mid-flight self-review judges one slice, where the deferred whole-artifact review sees that same question against the full batch.
+Why: a mid-flight self-review judges one slice, where the deferred whole-artifact review sees the same question against the full batch.
 
-Declare each spawn as `agent(subAgent=X, title=Y[, model=Z][, effort=W])`.
-Drop `model=` where the subagent's own frontmatter pins it, and `effort=` unless you are overriding the session default.
-
-- `agent(subAgent=deep-reviewer, title=verify auth gate)` → its frontmatter pins `opus`/`max`, so the dispatch line renders `verify auth gate - opus max`.
-- `agent(subAgent=fork, title=retry failing spec)` → a fork inherits the parent model, so `model=` never appears on one.
-
-Why: one fixed notation makes every declared tier greppable, and dropping a pinned value keeps a single owner — re-pinning the agent would otherwise leave stale copies in callers nobody re-reads.
-
-Never spell out in a skill how that dispatch line renders in the UI — the global CLAUDE.md owns that format.
-Restating it is a bug even when the restatement is correct.
-
-Why: a format copied into N skills becomes N formats after the first edit, and the drift shows up only in the live dispatch line, where nobody diffs it.
+The global CLAUDE.md owns the `agent(subAgent=…)` declaration notation and the dispatch-line render format — don't restate either in a skill.
 
 ## When a skill step gets rushed, sharpen its completion criterion before adding process
 
-First rewrite the step's completion criterion to be checkable (a third party could verify it mechanically) and exhaustive (quantified over every item it covers).
-Reach for heavier machinery — gates, fresh-context subagents, steps hidden behind a context boundary — only if the criterion is irreducibly fuzzy AND the rushing persists after the rewrite.
+First rewrite the step's completion criterion to be checkable (third-party verifiable) and exhaustive (covering every item it applies to).
+Reach for heavier machinery — gates, fresh-context subagents, steps behind a context boundary — only if the criterion is irreducibly fuzzy AND rushing persists after the rewrite.
 
 Example: "produce a review" → "list every modified function, each with its covering test or explicitly marked untested."
 
@@ -211,8 +199,6 @@ Rewriting the skill's description on that false signal would have fixed nothing 
 
 Editing the global CLAUDE.md or any `*-standards` skill? Read [`references/marker-authoring.md`](references/marker-authoring.md) before touching a line.
 
-It carries the `[Instruction]`/`[Why]`/`[Example]`/`CRITICAL` rules: splitting a fused marker, one-why-per-instruction, flat-not-nested, and heading naming.
-
-It also carries why the count stays low — instruction count and CRITICAL ratio both track adherence decay (IFScale + emphasis-salience research).
+It carries the `[Instruction]`/`[Why]`/`[Example]`/`CRITICAL` rules: splitting a fused marker, one-why-per-instruction, flat-not-nested, heading naming — and why the count stays low.
 
 Skip it when authoring an ordinary skill — ordinary SKILL.md files carry prose, not markers.
