@@ -86,7 +86,9 @@ The heading gate takes no override: a raised size budget still leaves the file f
 **CRITICAL: Only the user adds `words-budget` or `lines-budget`, in a SKILL.md or a bundled file. AI must never autonomously set or raise one.**
 
 - AI's job on a word-budget overflow is to trim: move examples to `references/`, drop redundant prose, tighten dense wording, or split a skill into two — in that order of preference.
+
 - AI may **propose** an override as one of several alternatives surfaced to the user, but never apply it silently. Cite the trim alternatives alongside it so the user picks deliberately.
+
 - Why: an override is a deliberate trade-off the user owns. AI applying it unilaterally hides the cost of complexity behind a config knob — exactly the drift performance-check exists to catch.
 
 ### Per-skill instructions-budget override
@@ -167,7 +169,9 @@ Apply in order, top to bottom. Each step is cheaper / less destructive than the 
 
 1. **Drop redundant content** — duplicate statements, decorative examples, restatements already covered elsewhere (other skills, common-preamble, commit log, spec decisions).
 2. **Tighten dense wording** — compact verbose prose; collapse multi-clause bullets into shorter ones; merge per-category sub-bullets into one comma-separated line when category-detail isn't decision-shaping.
+
 3. **Extract to `references/`** — **only if the extracted content is genuinely lazy-loadable**. Otherwise extraction is fake savings (see "References must earn their lazy load" below).
+
 4. **Split the skill** — when the body legitimately covers two distinct concerns that don't co-fire. Last structural option before override.
 5. **Override (`words-budget` / `instructions-budget`)** — **user's call only, after the four steps above are exhausted**. AI proposes alternatives; never applies silently.
 
@@ -192,9 +196,13 @@ When extraction doesn't pass the lazy test, prefer steps 1–2 (drop / tighten) 
 ### Per-overage moves
 
 - **Lines or words per line over in CLAUDE.md**: drop duplicate principles; collapse multi-example sub-bullets into one comma-separated line.
+
 - **Skill lines or words over**: apply the trim hierarchy above. Look for the redundancy and density wins first — references second.
+
 - **Skill description over 250 chars**: front-load triggers within the first 250 (the `/skills` listing only routes on those); move long enumerations of trigger phrases into the skill body, not the description.
+
 - **Skill name over 64 chars**: rename the skill directory (the `name` Claude Code uses); ensure replacement is still descriptive in gerund form.
+
 - **Skill count over**: merge near-duplicate skills or fold rarely-used ones into a broader sibling.
 
 Cite the research file when justifying cuts — grounded numbers are easier to defend than aesthetic preference.
@@ -207,7 +215,10 @@ Every budget row above deep-links to its citation in the `references/research-*.
   - The old 200-*line* budget stood in for instruction count under "1 line ≈ 1 instruction" — true before the marker convention.
   - Markers added a [Why] line under every [Instruction], so lines now ≈ 2× instructions + header/meta; the line cap no longer proxies the count.
   - The [Instruction] count (≤100) is the real adherence gate; the line budget only guards marker-overhead bloat — re-derived to 260.
+
 - **Skill lines**: Anthropic's own skill-authoring docs state "Keep SKILL.md body under 500 lines."
 - **Skill description chars**: Claude Code 2.1.86 caps the `/skills` listing at 250 chars per description; only those participate in routing. The 1024 frontmatter cap is the failure threshold, not the budget.
+
 - **Skill name chars**: Anthropic's frontmatter validation rejects names over 64 chars. We measure the directory `basename` because that's what Claude Code uses when no explicit `name` field is set.
+
 - **Other values**: user preferences where no authoritative source exists; kept deliberately so the skill can be dialled without re-citing research.

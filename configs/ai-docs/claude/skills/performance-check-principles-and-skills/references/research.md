@@ -11,12 +11,14 @@ The citations are split into three files so a reader loads one cluster, not all 
 - [`research-claudemd-budgets.md`](research-claudemd-budgets.md) — how big CLAUDE.md may get.
   - [CLAUDE.md length](research-claudemd-budgets.md#claudemd-length) — 260 non-blank lines.
   - [CLAUDE.md words per line](research-claudemd-budgets.md#claudemd-words-per-line) — 32 words.
+
 - [`research-skill-budgets.md`](research-skill-budgets.md) — everything measured per skill.
   - [Skill size](research-skill-budgets.md#skill-size) — 500 non-blank lines.
   - [Skill count](research-skill-budgets.md#skill-count) — 50 skills.
   - [Skill words per SKILL.md](research-skill-budgets.md#skill-words-per-skillmd) — 2048 words.
   - [Skill description length](research-skill-budgets.md#skill-description-length) — 250 chars.
   - [Skill name length](research-skill-budgets.md#skill-name-length) — 64 chars.
+
 - [`research-instruction-load-budgets.md`](research-instruction-load-budgets.md) — how many rules a file may carry.
   - [Instruction-count budgets](research-instruction-load-budgets.md#instruction-count-budgets) — 100 in CLAUDE.md, 200 across `*-standards`.
   - [CRITICAL emphasis ratio](research-instruction-load-budgets.md#critical-emphasis-ratio) — 16% per file.

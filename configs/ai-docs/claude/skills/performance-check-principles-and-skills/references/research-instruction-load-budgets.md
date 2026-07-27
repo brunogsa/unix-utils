@@ -29,8 +29,10 @@ The 500 ceiling is the absolute upper bound; beyond it, adherence collapses for 
 
 - **CLAUDE.md ≤ 100** — always-loaded principles compete with every system-prompt token.
   - Tightening to 100 (half the 200 line ceiling) forces the cross-cutting set to stay genuinely cross-cutting; domain-specific goes to a skill.
+
 - ***-standards ≤ 200** — covers lazy-loaded skills (`code-`, `test-`, `doc-`, `debug-`, `commit-standards`).
   - These enter context only when triggered, so per-load bandwidth is larger than CLAUDE.md's — but the cross-skill sum still must leave attention room.
+
 - **Why not budget the full 500?** — the IFScale 500 ceiling is where adherence has already started decaying.
   - Leaving ~200 of slack gives room for repo-level CLAUDE.md, ad-hoc rules, and marker drift. Burning to 500 puts you at the cliff with no headroom.
 

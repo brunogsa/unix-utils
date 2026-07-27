@@ -94,6 +94,7 @@ We don't budget against 1024 because the routing cap (250) is a much stricter ef
 
 Two concrete patterns for the description:
 - "Include both what the skill does AND specific contexts for when to use it. All 'when to use' info goes here, not in the body."
+
 - "Make the skill descriptions a little bit 'pushy'." Skills tend to **under-trigger**; explicit trigger contexts help.
 
 Per Anthropic's API docs the metadata layer (name + description) is "always in context":
@@ -104,6 +105,7 @@ Per Anthropic's API docs the metadata layer (name + description) is "always in c
 ### Why 250, not 1024
 
 - The 1024 cap is the *failure* threshold; the 250 cap is the *effective* trigger budget — only the first 250 chars are read by the router.
+
 - A description longer than 250 isn't broken, but the tail is wasted from a discovery standpoint and bloats the always-loaded metadata layer.
 - Aligning the budget with the routing-effective length keeps every char working.
 
