@@ -225,6 +225,13 @@ npm install -g trash-cli
 npm install -g beautiful-mermaid
 # mmdc — renders mermaid; used by compile-mermaid, the mermaid-diagrams skill, and md-to-html
 npm install -g @mermaid-js/mermaid-cli
+# ccusage — independent reader of the same ~/.claude transcripts. The usage-audit skill
+# cross-checks every snapshot's TOKEN counts against it, which is how a repeat of the
+# 2026-07-27 double-counting bug gets caught instead of quietly inflating the series.
+# Only its tokens are used: its bundled price table lags Anthropic's by whole models,
+# so `ccusage --offline` once priced a ~$130 day at $0.92. npm, not brew — brew is
+# macOS-only and this repo's cross-platform rule is a MUST.
+npm install -g ccusage
 
 # AI setup: Claude Code e OpenCode configuration
 npm install -g codeburn

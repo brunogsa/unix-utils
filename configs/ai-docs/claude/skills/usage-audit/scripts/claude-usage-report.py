@@ -3,14 +3,22 @@
 #
 # Usage:
 #   claude-usage-report.py --backfill              # write a snapshot per missing closed day
+#   claude-usage-report.py --backfill --rebuild    # also redo days already snapshotted
 #   claude-usage-report.py --day YYYY-MM-DD        # one calendar day
 #   claude-usage-report.py [--days N] [--top N]    # ad-hoc rolling window (never snapshots)
 #   claude-usage-report.py --json                  # machine-readable aggregates
 #
-# Reads every transcript under ~/.claude/projects and prices each API message at
-# Anthropic LIST prices (PRICES below). Answers: where did the spend go — main
-# loop vs subagents, model family, day, subagent type, skill (both whole-session
-# and marginal/non-overlapping), and the costliest sessions.
+# Reads every transcript under ~/.claude/projects and prices each API response at
+# Anthropic LIST prices (MODEL_PRICES below). Answers: where did the spend go —
+# main loop vs subagents, model family, day, subagent type, skill (both
+# whole-session and marginal/non-overlapping), and the costliest sessions.
+#
+# "Response", not "record": one API response is written as one transcript record
+# PER CONTENT BLOCK, each stamped with the same message.usage, so summing records
+# bills a response once per block it emitted. See billing_id() — this went
+# unnoticed long enough to inflate every snapshot written before 2026-07-27.
+# Every snapshot now carries a ccusage token cross-check so it cannot recur
+# silently; see the reconcile_tokens() block for why tokens and not dollars.
 #
 # The committed record is one snapshot per CLOSED LOCAL CALENDAR DAY. That unit
 # is what makes the history comparable, and each property below was a live bug
@@ -32,6 +40,8 @@ import bisect
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import time
 from collections import defaultdict
@@ -61,18 +71,56 @@ BUILTIN_SILENT_COMMANDS = {"clear", "compact", "login", "logout"}
 AB_MARKER_RE = re.compile(
     r"\[ABTest\] experiment=(\S+) arm=(\S+) pr=(\d+)(?: override=(manual))?")
 
-# Anthropic LIST prices, $/MTok — verified 2026-07-23 against the claude-api skill.
-# A stale table skews dollars, not shares — re-verify the numbers when models change.
-# family: (input, output, cache_read); cache write = input x1.25 (5m TTL) / x2 (1h TTL).
-# Sonnet 5 has an intro rate ($2.00/$10.00) through 2026-08-31; this table uses
-# the flat post-intro $3.00/$15.00 bucket, so sonnet dollars run slightly high
-# until that date.
-PRICES = {
+# Anthropic LIST prices, $/MTok — verified 2026-07-27 against
+# platform.claude.com/docs/en/about-claude/pricing.
+# (input, output, cache_read); cache write = input x1.25 (5m TTL) / x2 (1h TTL).
+#
+# Keyed by EXACT model, not by family. Family-level pricing was wrong in two
+# directions at once: Sonnet 5 bills below its family during its intro window,
+# and Opus bills DOUBLE its family under fast mode. Both are handled below.
+#
+# The generic family bucket survives only as the fallback for a model released
+# after this table was written — a new model prices at its family's rate rather
+# than crashing, and shows up in by_family so the omission is visible.
+FAMILY_PRICES = {
     "fable": (10.0, 50.0, 1.00),
     "opus": (5.0, 25.0, 0.50),
     "sonnet": (3.0, 15.0, 0.30),
     "haiku": (1.0, 5.0, 0.10),
 }
+MODEL_PRICES = {
+    "claude-fable-5": (10.0, 50.0, 1.00),
+    "claude-mythos-5": (10.0, 50.0, 1.00),
+    "claude-opus-5": (5.0, 25.0, 0.50),
+    "claude-opus-4-8": (5.0, 25.0, 0.50),
+    "claude-opus-4-7": (5.0, 25.0, 0.50),
+    "claude-opus-4-6": (5.0, 25.0, 0.50),
+    "claude-opus-4-5": (5.0, 25.0, 0.50),
+    "claude-sonnet-5": (3.0, 15.0, 0.30),
+    "claude-sonnet-4-6": (3.0, 15.0, 0.30),
+    "claude-sonnet-4-5": (3.0, 15.0, 0.30),
+    "claude-haiku-4-5": (1.0, 5.0, 0.10),
+}
+
+# Sonnet 5 launched on an introductory rate. It is a real discount on real days
+# already in the snapshot series, so pricing those days at the post-intro rate
+# overstates them by 50% — the largest single model in this workload.
+SONNET_5_INTRO_PRICES = (2.0, 10.0, 0.20)
+SONNET_5_INTRO_LAST_DAY = "2026-08-31"
+
+# Fast mode bills Opus 5 / Opus 4.8 at double list. Nothing in the token counts
+# reveals it; only usage.speed does, so a fast-mode day would silently read as a
+# standard-mode day at half the true cost.
+FAST_MODE_PRICES = (10.0, 50.0, 1.00)
+FAST_MODE_MODELS = {"claude-opus-5", "claude-opus-4-8"}
+
+# Model ids carry an optional release-date suffix (claude-haiku-4-5-20251001).
+MODEL_DATE_SUFFIX_RE = re.compile(r"-\d{8}$")
+
+
+def model_key(model):
+    """Model id stripped of its release-date suffix, for price lookup."""
+    return MODEL_DATE_SUFFIX_RE.sub("", (model or "").strip().lower())
 
 
 def price_family(model):
@@ -85,20 +133,65 @@ def price_family(model):
     return "sonnet"
 
 
+def message_rates(model, day, speed):
+    """(input, output, cache_read) $/MTok for one message, given its day and speed."""
+    key = model_key(model)
+    if speed == "fast" and key in FAST_MODE_MODELS:
+        return FAST_MODE_PRICES
+    if key == "claude-sonnet-5" and day and day <= SONNET_5_INTRO_LAST_DAY:
+        return SONNET_5_INTRO_PRICES
+    return MODEL_PRICES.get(key) or FAMILY_PRICES[price_family(model)]
+
+
+def billing_id(record, message):
+    """The key identifying ONE billed API response, or None when unidentifiable.
+
+    `uuid` cannot serve here: it is unique per transcript LINE, and one response
+    writes one line per content block. `message.id` is the API's own response id,
+    and `requestId` disambiguates the retry case where a response is re-delivered
+    under a fresh request. A record missing either is counted rather than dropped
+    — over-counting a rare malformed record beats silently deleting real spend.
+    """
+    message_id = message.get("id")
+    request_id = record.get("requestId")
+    if not message_id or not request_id:
+        return None
+    return (message_id, request_id)
+
+
 def cache_writes(usage):
-    """(5m, 1h) cache-write token counts of one usage record."""
+    """(5m, 1h) cache-write token counts of one usage record.
+
+    `cache_creation_input_tokens` is the billed total; the `cache_creation` dict
+    only says how that total splits across the two TTLs, which matters because
+    they bill at 1.25x and 2x input. A minority of records disagree with
+    themselves — the split sums to more or less than the total, in both
+    directions — so the total wins and the split is used only as a ratio.
+
+    Found by the ccusage token cross-check, which reads the flat field: 10 of 43
+    days drifted up to 2.5%, from 18-odd malformed records out of ~3,000 a day.
+    Trusting the split instead would silently bill tokens that were never billed.
+    """
+    total = usage.get("cache_creation_input_tokens", 0) or 0
     breakdown = usage.get("cache_creation") or {}
     write_5m = breakdown.get("ephemeral_5m_input_tokens", 0) or 0
     write_1h = breakdown.get("ephemeral_1h_input_tokens", 0) or 0
-    if not breakdown:
-        # Older records lack the TTL breakdown; Claude Code uses the 1h cache.
-        write_1h = usage.get("cache_creation_input_tokens", 0) or 0
-    return write_5m, write_1h
+    split = write_5m + write_1h
+    if split == total:
+        return write_5m, write_1h
+    if not split:
+        # No usable split — older records predate the breakdown entirely, and
+        # Claude Code writes to the 1h cache.
+        return 0, total
+    # Apportion the authoritative total by the split's own ratio, giving 1h the
+    # remainder so the two always re-sum to it exactly.
+    scaled_5m = round(total * write_5m / split)
+    return scaled_5m, total - scaled_5m
 
 
-def message_cost(model, usage):
+def message_cost(model, usage, day=None):
     """Dollar cost of one API message at list prices, split by cache-write TTL."""
-    p = PRICES[price_family(model)]
+    p = message_rates(model, day, usage.get("speed"))
     input_tokens = usage.get("input_tokens", 0) or 0
     output_tokens = usage.get("output_tokens", 0) or 0
     cache_read = usage.get("cache_read_input_tokens", 0) or 0
@@ -261,7 +354,7 @@ def iter_text_payloads(content):
                 yield item.get("text") or ""
 
 
-def scan_transcript(path, since_epoch, until_epoch):
+def scan_transcript(path, since_epoch, until_epoch, seen_messages):
     """Cost, tokens, call/turn counters, skills, and wall-clock bounds of one transcript.
 
     Both bounds are enforced per record, not per file. A file can clear the
@@ -269,10 +362,20 @@ def scan_transcript(path, since_epoch, until_epoch):
     window on either side (a long-running or resumed session), so `since_epoch`
     keeps older records out and `until_epoch` (exclusive) keeps newer ones out.
     The upper bound is what makes a past day recoverable at all.
+
+    `seen_messages` is the caller's billing-key set, shared across every file of
+    one run. Duplicates were measured as intra-file only, but a resumed or forked
+    session copies its parent's records verbatim into a new file, so a per-file
+    set would let that whole prefix bill twice.
+
+    That set is per-DAY, so it cannot see a response whose blocks straddle local
+    midnight — the `anchor_epoch` pre-pass below is what stops both days billing
+    one. It costs a second parse of each file, paid only on a full --rebuild.
     """
     stats = {
         "cost": 0.0,
         "by_family": defaultdict(float),
+        "by_model": defaultdict(float),
         "by_day": defaultdict(float),
         "first_prompt": "",
         "title": "",
@@ -304,6 +407,20 @@ def scan_transcript(path, since_epoch, until_epoch):
     # marker more than once (e.g. reprinted after a retry); dedupe to one trial
     # per distinct tuple, OR-ing the override flag across repeats.
     ab_seen = {}
+    # Earliest record epoch per billing key, over the WHOLE file — built before
+    # the window filter because its inputs must include records the window drops.
+    # See the anchor check in the pricing block for why.
+    anchor_epoch = {}
+    for record in iter_records(path):
+        message = record.get("message")
+        # This pass sees records the window filter drops, so it meets shapes the
+        # main loop never reaches — a non-dict `message` is skipped, not fatal.
+        if not isinstance(message, dict):
+            continue
+        epoch = parse_ts(record.get("timestamp"))
+        key = billing_id(record, message)
+        if epoch is not None and key is not None:
+            anchor_epoch[key] = min(anchor_epoch.get(key, epoch), epoch)
     for record_index, record in enumerate(iter_records(path)):
         epoch = parse_ts(record.get("timestamp"))
         # An unplaceable record is dropped rather than kept: with one scan per
@@ -378,18 +495,43 @@ def scan_transcript(path, since_epoch, until_epoch):
         model = message.get("model") or ""
         if not usage or model == "<synthetic>":
             continue
+        # ONE API response becomes N transcript records — one per content block —
+        # and Claude Code stamps the SAME message.usage on every one of them.
+        # Summing records therefore bills each response once per block it emitted.
+        #
+        # Measured on 2026-07-20: 6,989 priced records carried 3,345 distinct
+        # billing keys, inflating output tokens 3.64x and the day's dollars 2.97x
+        # against ccusage. Worse than a constant bias, the multiplier IS the
+        # blocks-per-response count, which rises with thinking and tool-call
+        # density — so it correlates with the very levers this report measures
+        # and does not cancel out of a day-over-day delta.
+        billing_key = billing_id(record, message)
+        if billing_key is not None:
+            if billing_key in seen_messages:
+                continue
+            # Those N records are written over a real interval, so they can
+            # straddle local midnight: msg_011Cd6t8KHRgiEBkBq9N9AYs wrote block 1
+            # at 2026-07-16 23:59:59 and blocks 2-4 within the next 1.5s. The
+            # dedup set above is per-day, so each side saw an unseen key and both
+            # billed the response in full. Charging it to the day of its EARLIEST
+            # record makes exactly one day claim it, whichever days are scanned.
+            if anchor_epoch.get(billing_key, epoch) != epoch:
+                continue
+            seen_messages.add(billing_key)
         stats["api_calls"] += 1
+        day = local_day(epoch)
         write_5m, write_1h = cache_writes(usage)
         stats["tokens"]["input"] += usage.get("input_tokens", 0) or 0
         stats["tokens"]["output"] += usage.get("output_tokens", 0) or 0
         stats["tokens"]["cache_read"] += usage.get("cache_read_input_tokens", 0) or 0
         stats["tokens"]["cache_write_5m"] += write_5m
         stats["tokens"]["cache_write_1h"] += write_1h
-        cost = message_cost(model, usage)
+        cost = message_cost(model, usage, day)
         stats["cost"] += cost
         stats["message_costs"].append((record_index, cost))
         stats["by_family"][price_family(model)] += cost
-        stats["by_day"][local_day(epoch)] += cost
+        stats["by_model"][model_key(model)] += cost
+        stats["by_day"][day] += cost
     # A command at end-of-file has no follower to disprove it — count it.
     for pending_index, name in pending_commands:
         stats["skills"][name] += 1
@@ -434,6 +576,8 @@ def merge_common(result, stats, side):
     result["text_blocks"] += stats["text_blocks"]
     for family, cost in stats["by_family"].items():
         result["by_family"][family] += cost
+    for model, cost in stats["by_model"].items():
+        result["by_model"][model] += cost
     for day, cost in stats["by_day"].items():
         result["by_day"][day][side] += cost
     for kind in TOKEN_KINDS:
@@ -453,6 +597,9 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
         "main_cost": 0.0,
         "subagent_cost": 0.0,
         "by_family": defaultdict(float),
+        # Per exact model, so a snapshot can be reconciled against ccusage's
+        # modelBreakdowns without re-deriving which family each model belongs to.
+        "by_model": defaultdict(float),
         "by_day": defaultdict(lambda: {"main": 0.0, "sub": 0.0}),
         "by_subagent_type": defaultdict(lambda: {"cost": 0.0, "runs": 0}),
         "by_skill": defaultdict(lambda: {
@@ -493,8 +640,11 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
         "compactions": 0,
         "session_seconds": 0.0,
     }
+    # One billing-key set for the whole run: a response is billed once no matter
+    # how many files or how many content blocks it appears across.
+    seen_messages = set()
     for path in subagent_files:
-        stats = scan_transcript(path, since_epoch, until_epoch)
+        stats = scan_transcript(path, since_epoch, until_epoch, seen_messages)
         result["subagent_cost"] += stats["cost"]
         merge_common(result, stats, "sub")
         parent = path.split("/subagents/")[0] + ".jsonl"
@@ -507,7 +657,7 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
         result["by_subagent_type"][spawn_type]["runs"] += 1
         result["subagents_per_session"][parent]["by_spawn"].append((spawn_index, stats["cost"]))
     for path in main_files:
-        stats = scan_transcript(path, since_epoch, until_epoch)
+        stats = scan_transcript(path, since_epoch, until_epoch, seen_messages)
         result["main_cost"] += stats["cost"]
         merge_common(result, stats, "main")
         duration = session_duration(stats)
@@ -657,6 +807,13 @@ def render_text(result, top_n):
     for family, cost in sorted(result["by_family"].items(), key=lambda kv: -kv[1]):
         print(f"{family}\t${cost:.2f}")
 
+    # Exact model, not just family: Sonnet 5 bills under its family during its
+    # intro window and fast-mode Opus bills double, so the family row alone can
+    # no longer be reconciled against a bill or against ccusage.
+    print("\n== BY MODEL ==")
+    for model, cost in sorted(result["by_model"].items(), key=lambda kv: -kv[1]):
+        print(f"{model}\t${cost:.2f}")
+
     print("\n== BY DAY (main / sub) ==")
     for day in sorted(result["by_day"]):
         split = result["by_day"][day]
@@ -722,7 +879,7 @@ def render_text(result, top_n):
               f"cache_hit={session['cache_hit_rate']:.1%}\t{short_name}")
 
 
-def build_payload(result, top_n, day=None, coverage="complete"):
+def build_payload(result, top_n, day=None, coverage="complete", reconciliation=None):
     """The machine-readable aggregate — shared by --json and --snapshot.
 
     `day` set marks a single closed local calendar day (the committed snapshot
@@ -730,6 +887,8 @@ def build_payload(result, top_n, day=None, coverage="complete"):
     `coverage` is "complete" when transcripts for the period are still on disk and
     "unretained" when they were pruned — an unretained day reads $0 but means
     "unmeasurable", not "idle", so no reader mistakes deleted history for a day off.
+    `reconciliation` is the ccusage token cross-check, present on snapshots only —
+    an ad-hoc window has no day for ccusage to be asked about.
     """
     grand = result["main_cost"] + result["subagent_cost"]
     derived = derived_metrics(result)
@@ -763,6 +922,8 @@ def build_payload(result, top_n, day=None, coverage="complete"):
         "thinking_block_share": round(derived["thinking_block_share"], 3),
         "tokens": dict(result["tokens"]),
         "by_family": {k: round(v, 2) for k, v in result["by_family"].items()},
+        "by_model": {k: round(v, 2) for k, v in
+                     sorted(result["by_model"].items(), key=lambda kv: -kv[1])},
         "by_day": {day: {k: round(v, 2) for k, v in split.items()}
                    for day, split in sorted(result["by_day"].items())},
         "by_subagent_type": {k: {"cost": round(v["cost"], 2), "runs": v["runs"]}
@@ -798,6 +959,11 @@ def build_payload(result, top_n, day=None, coverage="complete"):
             "skills": s["skills"],
         } for s in ranked_sessions],
     }
+    # Snapshots only. Carried IN the snapshot rather than printed once at run
+    # time so a day stays auditable years later: a reader can tell a figure that
+    # was cross-checked from one written while ccusage was missing or drifting.
+    if reconciliation is not None:
+        payload["reconciliation"] = reconciliation
     # Only present when at least one [ABTest] marker was found — mirrors
     # render_text's gate so a marker-free window's JSON stays unchanged too.
     if result["ab_tests"] or result["ab_contaminated"]:
@@ -854,14 +1020,113 @@ def day_range(first_day, last_day):
             for offset in range((end - start).days + 1)]
 
 
+# --- ccusage cross-check -----------------------------------------------------
+#
+# ccusage (github.com/ryoppippi/ccusage) reads the same transcripts and is the
+# nearest thing to an independent second opinion on this script. It is wired in
+# as a TOKEN oracle only, and that restriction is the whole design:
+#
+#   - Its token counts are exact. On 2026-07-20 its input, output and cache-read
+#     totals matched this script to the single token once the billing-key dedup
+#     landed. That makes it a live regression test for the one bug that had
+#     inflated this entire history ~3x, and for any future transcript-shape
+#     change that reintroduces it.
+#   - Its DOLLARS cannot be trusted. It prices from a LiteLLM snapshot bundled
+#     into the npm package, and on 2026-07-27 that snapshot was missing 4 of the
+#     5 models in this workload. An unknown model costs $0 with no warning, so
+#     `ccusage --offline` priced that same ~$130 day at $0.92. With network it
+#     fetches fresher prices but is not reproducible: $148.67 and $122.34 for
+#     the same closed day, one hour apart. Backed out of its own per-model
+#     totals, its implied input rates were $7.67/MTok for Opus 4.8 and
+#     $13.41/MTok for Fable 5, against Anthropic's published $5 and $10.
+#
+# So dollars stay computed here from the dated Anthropic table at the top, and
+# ccusage answers only the question it answers reliably: did you count the same
+# tokens? That is also what retires the old manual "re-verify PRICES before
+# quoting dollars" step — the check that actually catches regressions now runs
+# on every snapshot instead of on whoever remembers.
+CCUSAGE_TOKEN_TOLERANCE = 0.005
+
+# day -> ccusage token totals. Primed once per run over the whole backfill range
+# because ccusage rescans every transcript on each invocation; 42 single-day
+# calls cost 42 full scans.
+_ccusage_days = {}
+
+
+def prime_ccusage(first_day, last_day):
+    """Load ccusage's per-day totals for a range. False when it cannot run."""
+    if shutil.which("ccusage") is None:
+        return False
+    try:
+        out = subprocess.run(
+            ["ccusage", "daily", "--json",
+             "--since", first_day.replace("-", ""),
+             "--until", last_day.replace("-", "")],
+            capture_output=True, text=True, check=True, timeout=900)
+        entries = json.loads(out.stdout)["daily"]
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError) as err:
+        print(f"ccusage cross-check unavailable: {err}", file=sys.stderr)
+        return False
+    for entry in entries:
+        _ccusage_days[entry["date"]] = {
+            "input": entry.get("inputTokens", 0) or 0,
+            "output": entry.get("outputTokens", 0) or 0,
+            "cache_read": entry.get("cacheReadTokens", 0) or 0,
+            "cache_write": entry.get("cacheCreationTokens", 0) or 0,
+            "cost": entry.get("totalCost", 0.0) or 0.0,
+        }
+    # A day ccusage omits is a real zero, not a failed lookup — record it as one
+    # so an idle day reconciles "ok" instead of "unavailable".
+    empty = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "cost": 0.0}
+    for day in day_range(first_day, last_day):
+        _ccusage_days.setdefault(day, dict(empty))
+    return True
+
+
+def reconcile_tokens(result, day):
+    """This run's token totals for `day` against ccusage's, bucket by bucket."""
+    mine = {
+        "input": result["tokens"]["input"],
+        "output": result["tokens"]["output"],
+        "cache_read": result["tokens"]["cache_read"],
+        # ccusage reports one flat cache-creation figure; this script splits it
+        # by TTL because the two bill at different multiples. Sum to compare.
+        "cache_write": result["tokens"]["cache_write_5m"] + result["tokens"]["cache_write_1h"],
+    }
+    if day not in _ccusage_days and not prime_ccusage(day, day):
+        return {"status": "unavailable", "script_tokens": mine}
+    reference = _ccusage_days[day]
+    buckets = {}
+    worst = 0.0
+    for kind, count in mine.items():
+        other = reference[kind]
+        scale = max(count, other)
+        drift = 0.0 if not scale else (count - other) / scale
+        worst = max(worst, abs(drift))
+        buckets[kind] = {"script": count, "ccusage": other,
+                         "delta_pct": round(drift * 100, 3)}
+    return {
+        "status": "ok" if worst <= CCUSAGE_TOKEN_TOLERANCE else "drift",
+        "worst_delta_pct": round(worst * 100, 3),
+        "tokens": buckets,
+        # Recorded for visibility, never compared against: see the note above.
+        "ccusage_cost_untrusted": round(reference["cost"], 2),
+    }
+
+
 def snapshot_day(day, top_n, retention_floor):
-    """Aggregate one closed local day and commit it. Returns (path, total cost)."""
+    """Aggregate one closed local day and commit it.
+
+    Returns (path, total cost, ccusage reconciliation status).
+    """
     since_epoch, until_epoch = day_bounds(day)
     main_files, subagent_files = find_transcripts(since_epoch)
     result = aggregate(main_files, subagent_files, since_epoch, until_epoch)
     coverage = "complete" if retention_floor and day >= retention_floor else "unretained"
-    payload = build_payload(result, top_n, day=day, coverage=coverage)
-    return write_snapshot(payload, day), payload["total"]
+    reconciliation = reconcile_tokens(result, day)
+    payload = build_payload(result, top_n, day=day, coverage=coverage,
+                            reconciliation=reconciliation)
+    return write_snapshot(payload, day), payload["total"], reconciliation["status"]
 
 
 def run_backfill(args, last_closed_day):
@@ -880,15 +1145,38 @@ def run_backfill(args, last_closed_day):
         print(f"nothing to backfill: {first_day} is after the last closed day {last_day}.")
         return
     committed = existing_snapshot_days()
-    missing = [d for d in day_range(first_day, last_day) if d not in committed]
+    # --rebuild re-measures days that already have a snapshot. Normally skipping
+    # them is right — a closed day is immutable, so recomputing it is wasted
+    # work. But when the AGGREGATION changes, every existing file is wrong and
+    # skipping them is exactly the failure: the 2026-07-27 dedup fix left 42
+    # committed days overstated ~3x with no supported way to correct them short
+    # of deleting the series by hand.
+    missing = [d for d in day_range(first_day, last_day)
+               if args.rebuild or d not in committed]
     if not missing:
         print(f"up to date: every day {first_day}..{last_day} already has a snapshot.")
         return
-    print(f"backfilling {len(missing)} missing day(s) in {first_day}..{last_day} "
+    verb = "rebuilding" if args.rebuild else "backfilling"
+    print(f"{verb} {len(missing)} day(s) in {first_day}..{last_day} "
           f"(transcripts retained from {retention_floor or 'unknown'})")
+    # One ccusage call for the whole range: it rescans every transcript per
+    # invocation, so priming per day would multiply the backfill's cost by the
+    # number of days. A failure here is non-fatal — each day then records
+    # "unavailable" and the snapshot is still written.
+    prime_ccusage(first_day, last_day)
+    drifted = []
     for day in missing:
-        path, total = snapshot_day(day, args.top, retention_floor)
-        print(f"  {day}  ${total:>9,.2f}  {os.path.basename(path)}")
+        path, total, status = snapshot_day(day, args.top, retention_floor)
+        print(f"  {day}  ${total:>9,.2f}  ccusage:{status:<12} {os.path.basename(path)}")
+        if status == "drift":
+            drifted.append(day)
+    # Surfaced at the end because a per-day line scrolls past on a 40-day run,
+    # and a token disagreement means the aggregation itself is wrong — the one
+    # failure mode that silently poisons every comparison built on these files.
+    if drifted:
+        print(f"\nTOKEN DRIFT vs ccusage on {len(drifted)} day(s): {', '.join(drifted)}\n"
+              f"  Counting disagrees with an independent reader. Treat these days' "
+              f"figures as unverified until the cause is found.", file=sys.stderr)
 
 
 def main():
@@ -898,6 +1186,9 @@ def main():
     parser.add_argument("--backfill", action="store_true",
                         help="write a snapshot for every closed day that lacks one (default audit step)")
     parser.add_argument("--day", help="aggregate one local calendar day (YYYY-MM-DD) and snapshot it")
+    parser.add_argument("--rebuild", action="store_true",
+                        help="with --backfill, also re-measure days that already have a "
+                             "snapshot (use after an aggregation or pricing fix)")
     parser.add_argument("--since", help="earliest day to backfill (default: oldest retained transcript)")
     parser.add_argument("--until", help="latest day to backfill (default: yesterday)")
     parser.add_argument("--days", type=int, default=7,
@@ -923,8 +1214,8 @@ def main():
             print(f"refusing to snapshot {args.day}: the day has not closed "
                   f"(last closed day is {last_closed_day}).", file=sys.stderr)
             sys.exit(1)
-        path, total = snapshot_day(args.day, args.top, oldest_retained_day())
-        print(f"{args.day}  ${total:,.2f}  ->  {path}")
+        path, total, status = snapshot_day(args.day, args.top, oldest_retained_day())
+        print(f"{args.day}  ${total:,.2f}  ccusage:{status}  ->  {path}")
         return
 
     # Ad-hoc window: a human-readable read of recent activity. It deliberately

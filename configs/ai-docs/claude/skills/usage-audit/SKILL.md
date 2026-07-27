@@ -14,6 +14,7 @@ The three KPIs (defined in `./usage-history/README.md`): **session time up** (lo
 ```bash
 S=~/.claude/skills/usage-audit/scripts
 $S/claude-usage-report.py --backfill          # snapshot every missing CLOSED day  <- start here
+$S/claude-usage-report.py --backfill --rebuild # ALSO redo days already snapshotted
 $S/claude-usage-report.py --day 2026-07-24    # one calendar day
 $S/claude-usage-report.py --days 7 --json     # ad-hoc rolling report; writes no snapshot
 $S/config-change-ledger.py                    # what changed in the config, by day
@@ -130,9 +131,25 @@ Live entries sit in `./usage-history/experiments.md`, split into `## Enacted` (c
 
   - Subscription coverage and corporate rates change absolute dollars, not proportions.
 
-- **Verify the script's `PRICES` table against current Anthropic pricing before quoting dollars** (the built-in `claude-api` skill, or docs.claude.com), and update the table plus its dated comment on drift.
+- **Read each day's `reconciliation` block before quoting any figure from it**, and refuse to cite a day whose `status` is `drift` or `unavailable`.
 
-  - The first 2026-07 audit used stale prices and inflated Opus figures ~3×; prices drift silently across model generations.
+  - It cross-checks the day's four token buckets against ccusage, an independent reader of the same transcripts.
+
+  - `drift` means the counting disagrees — the failure that silently poisons every comparison built on that day.
+
+  - It replaced a manual "re-verify the price table" step, which ran only when someone remembered.
+
+    - That step never fired on the bug that mattered: the prices were fine, the record counting was 3× off.
+
+- **Ignore `ccusage_cost_untrusted`** — never quote it, never reconcile dollars against it.
+
+  - ccusage prices from a bundled LiteLLM snapshot that on 2026-07-27 was missing 4 of the 5 models in use, so `--offline` priced a ~$130 day at $0.92 with no warning.
+
+  - Its tokens are exact; its dollars are not.
+
+- **Re-run with `--backfill --rebuild` after any change to pricing or aggregation**, then say in the audit which days were rebuilt.
+
+  - Plain `--backfill` skips days that already have a file, so a fix silently reaches only the uncaptured tail and splits the series into two incomparable halves.
 
 ## Context: the history and the repertoire
 
@@ -146,6 +163,14 @@ For scale: the 2026-07 days run roughly $150–$620 each, with the main loop aro
 
   - It carries the caveats that decide whether a delta is real — list prices, local-day bucketing, wall-clock hours, block-based thinking share, and the retention floor.
 
-- **Treat every figure logged in the experiments files on or before 2026-07-25 as directional only**, never as a number to re-cite.
+- **Treat every dollar and token figure logged in the experiments files before 2026-07-27 as VOID** — not directional, not re-citable, not usable as one end of a new delta.
 
-  - Those came from the retired rolling-window snapshots, which overlapped, bucketed by UTC, and divided by the wrong day count — inflating one headline figure 2×.
+  - The aggregator billed each API response once per content block, inflating 2026-07-20 from a true $130.16 to $441.44.
+
+  - The multiplier was the blocks-per-response count, so it rose with thinking and tool-call density.
+
+    - It therefore does not cancel out of a before → after delta; it manufactures one.
+
+  - Non-cost counters from that era stay citable: `compactions`, `user_messages`, `interruptions`, `session_hours`, `thinking_blocks`.
+
+  - Only dollars and token totals moved.
