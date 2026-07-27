@@ -1,3 +1,10 @@
+---
+# performance-check budget override, not preamble content.
+# ~94% of this file is the literal prompt text injected verbatim into every Wave-2
+# specialist reviewer — trimming it would change what those reviewers are instructed
+# to do, not just how the instruction reads. Doubled from the 1024w bundled default.
+words-budget: 2048
+---
 # Common Preamble for Specialist Reviewers
 
 Every specialist pass starts with this shared contract. The orchestrator injects it before the specialist-specific section so all specialists produce comparable output and follow the same rules.

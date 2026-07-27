@@ -7,14 +7,14 @@ user-invocable: false
 # Reviewer Agent
 
 You orchestrate a 7-wave code review pipeline (Waves 0-6) shared by both
-modes — only Waves 1 and 5 differ in full, plus one guide-writer skip in Wave 2 for local mode.
+modes — only Waves 1 and 5 differ fully, plus one guide-writer skip in Wave 2 for local mode.
 
 **Architecture.** The pipeline runs **serially in one session** — no nested sub-Agents. Specialists run linearly so the prompt cache stays warm and later passes dedup what earlier ones raised.
 
-Whether that session is the caller's own or an isolated subagent is the caller's choice — see "How callers dispatch" below.
+Whether that session is the caller's own or an isolated subagent, see "How callers dispatch" below.
 
 **Compaction resilience.** Waves 2–4 persist their output to `$work_dir` as they complete (see each wave's "Resume check" / "Persist" notes below).
-If context gets compacted mid-pipeline, re-read this SKILL.md, then check `$work_dir` for the furthest-along wave/step output before redoing any work — load it instead of recomputing.
+If context gets compacted mid-pipeline, re-read this SKILL.md, then check `$work_dir` for the furthest-along wave/step output before redoing any work — load it instead.
 
 Specialist prompts and validator rubric live in `references/`; bash glue in `scripts/`.
 
@@ -29,7 +29,7 @@ Specialist prompts and validator rubric live in `references/`; bash glue in `scr
 - `Mode: github` (`/pr-review`) → **always run inline** — review happens after the code already landed, so the calling session did not write the diff.
   - `--isolate` still forces the isolated path when explicitly passed.
 
-**Order:** mode is known first, then this isolate-or-inline decision, then the chosen run parses the full input header below.
+**Order:** mode first, then isolate-or-inline, then the chosen run parses the full input header below.
 
 **Inline — `Mode: github` without `--isolate`:** Read this SKILL.md and walk every wave (0 → 6) yourself, treating the resolved inputs as the "Parse the input header" step below.
 
@@ -39,9 +39,9 @@ The one exception to the no-Agents rule: Wave 5's density fix, delegated to the 
 
 Put the resolved inputs in its prompt body, and tell it to read this SKILL.md and orchestrate from there.
 
-It runs the whole pipeline itself; the user sees only the final summary.
+It runs the pipeline itself; the user sees only the final summary.
 
-The sonnet pin trades some review depth for lower cost, an accepted limit of running the pipeline isolated.
+The sonnet pin trades review depth for lower cost — an accepted limit here.
 
 ## Before you start
 
@@ -62,7 +62,7 @@ The sonnet pin trades some review depth for lower cost, an accepted limit of run
 
 5. Read `CLAUDE.md` files at repo root / parents of changed files (Wave 2)
 
-Invoke the three standards, never Read their `SKILL.md` — CLAUDE.md's "Skill tool over Read" rule reserves Read for meta-work like auditing a skill, and these ground real judgments.
+Invoke the three standards, never Read their `SKILL.md` — CLAUDE.md's "Skill tool over Read" rule reserves Read for meta-work like auditing a skill.
 
 Specialists never hit GitHub or any external system; they process only Wave 1's pre-built context, keeping the review reproducible and idempotent.
 
@@ -188,7 +188,7 @@ line anchors, so you re-load each file at most once.
    - **Drop** only on clear, specific evidence the claim doesn't hold:
      the cited code doesn't exist; the code already does what was asked;
      the issue depends on a behavior the file explicitly prevents.
-   - **Keep** otherwise — including when uncertain. Err toward kept.
+   - **Keep** otherwise — including when uncertain.
 
 3. **Line-range check (kept findings only).** Is `start_line..line` the
    tightest range that captures the problem? If off by a few lines or too
@@ -236,9 +236,7 @@ Print a terminal summary using the template at `references/wave6-summary-templat
 
 - **gh api POST 422 (Wave 5 emit)**: retry once, same single-batch-POST call, after verifying line numbers against `commentable-lines.txt` and dropping findings whose anchors don't resolve.
   - If it still fails, stop and report the error.
-  - Never fall back to general comments or to the single-comment endpoint, and never split the batch into several POSTs.
-
-  - A finding that can't go through the batch endpoint gets dropped from this run, not posted a different way.
+  - Never fall back to general comments or the single-comment endpoint, never split the batch into several POSTs — a finding that can't go through drops from this run instead.
 
 - **Post-emit verification fails (Wave 5's pending-state verification step)**: if the re-fetched review isn't `PENDING`, or its comment count/lines don't match `review-payload.json`, stop.
   - Don't proceed to Wave 6's success summary.

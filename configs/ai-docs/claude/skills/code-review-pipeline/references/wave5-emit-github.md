@@ -9,7 +9,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
    commit_sha=$(gh pr view "$pr_number" --repo "$repo" --json headRefOid --jq '.headRefOid')
    ```
 
-2. **doc-standards check.** Every comment body must obey doc-standards' line rules before it reaches the payload — the density cap, and the blank line a bullet needs before the next bullet.
+2. **doc-standards check.** Every comment body must pass doc-standards' line rules before it reaches the payload — the density cap and the bullet blank-line rule.
    - GitHub's review UI renders a dense paragraph as one hard-to-scan block, with no line breaks to anchor a skim-read.
    - Write each Wave-4 finding's `body` to its own file, `$work_dir/wave5-comment-<n>.md` (one per finding, in finding order).
 
@@ -35,10 +35,10 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 
 3. Build `$work_dir/review-payload.json` with jq for the inline comments only, sourcing each `body` from its density-clean `$work_dir/wave5-comment-<n>.md`.
    - **Leave the top-level `body` empty** — the Review Guide is delivered as a separate standalone PR comment in the guide-posting step below.
-     - Rationale: a guide in the pending-review body gets buried behind the GitHub review filter, where the human reviewer won't find it.
+     - Rationale: a guide in the body gets buried behind GitHub's review filter.
 
    - Every inline comment body gets the signature footer appended: two newlines + `— gerado por IA, revisado pelo usuário`.
-     - Rationale: `gh api` authenticates as the human operator, so without an explicit AI disclaimer the comments read as hand-written by them.
+     - Rationale: `gh api` authenticates as the human operator, so comments need an explicit AI disclaimer.
 
    - Include `start_line`/`start_side` only on multi-line ranges (`line > start_line`).
    - Target shape:
@@ -74,9 +74,9 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 
 5. If the POST fails (422), re-read line numbers from `commentable-lines.txt` and drop findings whose anchors are unresolvable, then retry once **with the same single-batch-POST shape**.
    - Same endpoint, same one call, just a smaller `comments[]`.
-   - Never fall back to the single-comment endpoint (`POST .../pulls/{pull_number}/comments`) or to `gh pr review`, not even for the findings the retry couldn't place.
-   - Both endpoints submit immediately on creation — there is no way to keep their output pending.
-   - Posting some findings as always-visible, unreviewable comments while the rest wait in a pending review is worse than not posting those findings at all.
+   - Never fall back to the single-comment endpoint (`POST .../pulls/{pull_number}/comments`) or to `gh pr review`, even for findings the retry couldn't place.
+     - Both submit immediately with no way to stay pending, worse than not posting those findings at all.
+
    - If the retry also fails, stop and report the 422 body to the user instead of degrading the contract further.
 
 ## Confirm nothing submitted the review
@@ -91,16 +91,14 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 
    - Expect `{"state": "PENDING", "submitted_at": null}`.
    - Anything else — `COMMENTED`, `APPROVED`, `CHANGES_REQUESTED`, or a non-null `submitted_at` — means the review already went live.
-   - Do not report success; report the actual state to the user and stop.
 
    - A submitted review can't be put back to pending via the API (only its individual comments can be deleted, one by one, via `DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}`).
 
-   - Also re-fetch `.../reviews/"$review_id"/comments` and confirm the comment count and line numbers match `review-payload.json` exactly.
-   - An unexpected extra comment or a mismatched count is the same signal as an unexpected state: stop and report, don't declare success.
+   - Also re-fetch `.../reviews/"$review_id"/comments` and confirm the comment count and line numbers match `review-payload.json` exactly — an unexpected extra comment or mismatched count is the same signal as an unexpected state.
 
-   - **Never call anything that submits a review** — no `event` field on the POST, no follow-up call to `.../reviews/{id}/events`, no `gh pr review --comment/--approve/--request-changes`.
-
-   - Submitting is the human's action alone; the pipeline's job ends at a verified-pending review.
+   - **If either check comes back wrong, stop: don't declare success** — report the actual state (or the mismatch) to the user.
+     - Never call anything that submits a review (no `event` field on the POST, no follow-up call to `.../reviews/{id}/events`, no `gh pr review --comment/--approve/--request-changes`).
+     - Submitting is the human's action alone.
 
 ## Post the Review Guide as its own PR comment
 
