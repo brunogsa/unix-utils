@@ -48,6 +48,15 @@ readonly CLAUDE_INSTRUCTIONS_BUDGET=100         # CLAUDE.md alone
 readonly STANDARDS_INSTRUCTIONS_BUDGET=200      # Sum across *-standards skills
 readonly CRITICAL_RATIO_BUDGET=16               # Percent of [Instruction] count per file
 
+# *-standards skills excluded from STANDARDS_INSTRUCTIONS_BUDGET (space-separated).
+# That subtotal caps what ONE source change can pull in at once — touching code, its
+# comments, and its tests fires code/doc/test-standards together, so they share a budget.
+# skill-standards fires on a disjoint trigger (authoring a skill or CLAUDE.md itself) and
+# never rides along with that set, so charging it to the shared pool would cap unrelated
+# budgets against each other. It is still gated by its own frontmatter `instructions-budget:`
+# and still appears in the CRITICAL-ratio table below.
+readonly STANDARDS_SUBTOTAL_EXCLUDED="skill-standards"
+
 # Resolve targets
 if [ -z "${1:-}" ]; then
     CLAUDE_MD="$HOME/.claude/CLAUDE.md"
@@ -161,9 +170,14 @@ if [ "$has_skills_dir" -eq 1 ]; then
     standards_ratio_rows=""
     standards_unmigrated=""
     standards_ratio_over=0
-    # Per-skill instructions-budget override accumulators
-    standards_instr_overages=""
-    standards_instr_over=0
+    # Status-table rows for the *-standards skills the subtotal excludes. An excluded
+    # skill answers only to its own frontmatter `instructions-budget:`, and that gate is
+    # silent while passing — so without these rows the table names the exclusion but
+    # never shows the number or the limit that replaced the shared budget.
+    excluded_standards_rows=""
+    # Per-skill instructions-budget override accumulators (any skill, not just *-standards)
+    skill_instr_overages=""
+    skill_instr_over=0
     for f in "$SKILLS_DIR"/*/SKILL.md; do
         [ -f "$f" ] || continue
         name=$(basename "$(dirname "$f")")
@@ -203,25 +217,56 @@ if [ "$has_skills_dir" -eq 1 ]; then
             skill_overages+=$'\n'"- $name:$issues"
         fi
 
+        # `instructions-budget` is opt-in for ANY skill, not just *-standards:
+        # a skill that caps its own instruction count gets the gate without
+        # joining the *-standards subtotal or CRITICAL-ratio report below.
+        # No key declared means no cap — the check is silent, never a default.
+        skill_instructions=$(count_instructions "$f")
+        instr_budget_override=$(extract_frontmatter_budget "instructions-budget" "$f")
+        if [ -n "$instr_budget_override" ] && [ "$skill_instructions" -gt "$instr_budget_override" ]; then
+            skill_instr_overages+=$'\n'"- $name: $skill_instructions [Instruction] (>$instr_budget_override budget)"
+            skill_instr_over=1
+        fi
+
         # Instruction density — only *-standards skills participate
         case "$name" in
             *-standards)
-                skill_instructions=$(count_instructions "$f")
                 skill_criticals=$(count_critical_instructions "$f")
+
+                # Excluded skills still get a ratio row and status-table rows of their
+                # own; only the shared subtotal skips them.
+                is_subtotal_excluded=0
+                case " $STANDARDS_SUBTOTAL_EXCLUDED " in
+                    *" $name "*) is_subtotal_excluded=1 ;;
+                esac
+
+                # An excluded skill's cap is whatever its frontmatter declares. No key
+                # means no cap at all, which the row has to say out loud — a blank
+                # budget cell would read as "measured against something" and hide that
+                # the count is ungated.
+                if [ -n "$instr_budget_override" ]; then
+                    excluded_instr_budget=$instr_budget_override
+                    excluded_instr_status=$(status_of "$skill_instructions" "$instr_budget_override")
+                else
+                    excluded_instr_budget="none declared"
+                    excluded_instr_status="—"
+                fi
+
                 if [ "$skill_instructions" -eq 0 ]; then
                     standards_unmigrated+=$'\n'"- $name (0 [Instruction] markers)"
+                    if [ "$is_subtotal_excluded" -eq 1 ]; then
+                        excluded_standards_rows+=$'\n'"| $name [Instruction] count | 0 | $excluded_instr_budget | UNMIGRATED |"
+                        excluded_standards_rows+=$'\n'"| $name CRITICAL ratio | N/A | ${CRITICAL_RATIO_BUDGET}% | UNMIGRATED |"
+                    fi
                 else
-                    standards_total_instructions=$((standards_total_instructions + skill_instructions))
+                    [ "$is_subtotal_excluded" -eq 0 ] && standards_total_instructions=$((standards_total_instructions + skill_instructions))
                     skill_ratio_int=$(ratio_percent_int "$skill_criticals" "$skill_instructions")
                     ratio_status=$(status_of "$skill_ratio_int" "$CRITICAL_RATIO_BUDGET")
                     standards_ratio_rows+=$'\n'"| $name | $skill_instructions | $skill_criticals | ${skill_ratio_int}% | $ratio_status |"
                     [ "$skill_ratio_int" -gt "$CRITICAL_RATIO_BUDGET" ] && standards_ratio_over=1
-
-                    # Per-skill instructions-budget override (frontmatter `instructions-budget: N`).
-                    instr_budget_override=$(extract_frontmatter_budget "instructions-budget" "$f")
-                    if [ -n "$instr_budget_override" ] && [ "$skill_instructions" -gt "$instr_budget_override" ]; then
-                        standards_instr_overages+=$'\n'"- $name: $skill_instructions [Instruction] (>$instr_budget_override budget)"
-                        standards_instr_over=1
+                    if [ "$is_subtotal_excluded" -eq 1 ]; then
+                        excluded_standards_rows+=$'\n'"| $name [Instruction] count | $skill_instructions | $excluded_instr_budget | $excluded_instr_status |"
+                        excluded_standards_rows+=$'\n'"| $name CRITICAL ratio | ${skill_ratio_int}% ($skill_criticals/$skill_instructions) | ${CRITICAL_RATIO_BUDGET}% | $ratio_status |"
                     fi
                 fi
                 ;;
@@ -320,10 +365,15 @@ if [ "$has_skills_dir" -eq 1 ]; then
     [ "$bundled_over" -gt 0 ] && overages=1
 
     # Instruction-density row (*-standards subtotal vs its dedicated budget).
-    echo "| *-standards [Instruction] total | $standards_total_instructions | $STANDARDS_INSTRUCTIONS_BUDGET | $(status_of "$standards_total_instructions" "$STANDARDS_INSTRUCTIONS_BUDGET") |"
+    echo "| *-standards [Instruction] total (excl. $STANDARDS_SUBTOTAL_EXCLUDED) | $standards_total_instructions | $STANDARDS_INSTRUCTIONS_BUDGET | $(status_of "$standards_total_instructions" "$STANDARDS_INSTRUCTIONS_BUDGET") |"
     [ "$standards_total_instructions" -gt "$STANDARDS_INSTRUCTIONS_BUDGET" ] && overages=1
+
+    # Rows for the skills that subtotal excludes, placed right below it so the
+    # exclusion and the budget replacing it read as one unit. Their overages are
+    # already gated by `skill_instr_over` and `standards_ratio_over` below.
+    [ -n "$excluded_standards_rows" ] && printf '%s\n' "$excluded_standards_rows" | sed '/^$/d'
     [ "$standards_ratio_over" -eq 1 ] && overages=1
-    [ "$standards_instr_over" -eq 1 ] && overages=1
+    [ "$skill_instr_over" -eq 1 ] && overages=1
     [ -n "$standards_unmigrated" ] && overages=1
 else
     echo "| Skills directory | — | — | NOT FOUND at $SKILLS_DIR |"
@@ -366,10 +416,10 @@ if [ "$has_skills_dir" -eq 1 ] && [ -n "$standards_ratio_rows" ]; then
 fi
 
 # Per-skill instructions-budget overages (when frontmatter override is set and exceeded)
-if [ "$has_skills_dir" -eq 1 ] && [ -n "$standards_instr_overages" ]; then
-    echo "## *-standards skills over their \`instructions-budget\` frontmatter override"
+if [ "$has_skills_dir" -eq 1 ] && [ -n "$skill_instr_overages" ]; then
+    echo "## Skills over their \`instructions-budget\` frontmatter override"
     echo
-    echo "$standards_instr_overages"
+    echo "$skill_instr_overages"
     echo
 fi
 

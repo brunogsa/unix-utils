@@ -103,13 +103,13 @@ instructions-budget: 90
 ---
 ```
 
-The override is enforced **in addition to** the cross-skill `*-standards` total cap (200).
+The override is enforced **in addition to** the cross-skill `*-standards` total cap (200) — or **instead of** it for a skill that total exempts.
 
 It exists so the 200 budget can be intentionally allocated across the standards skills — e.g., weighting test-standards heavier than doc-standards because day-to-day testing fires that skill more often.
 
-When a skill exceeds its override, the report lists the offending count and the run fails.
+When a skill exceeds its override, the report lists the offending count.
 
-Skills without `instructions-budget` participate only in the *-standards total — the per-skill check is silent for them.
+Skills without `instructions-budget` participate only in the *-standards total — the per-skill check is silent for them, and an exempt one is then ungated entirely.
 
 **Same user-only rule applies**: AI must not set or raise `instructions-budget`.
 
