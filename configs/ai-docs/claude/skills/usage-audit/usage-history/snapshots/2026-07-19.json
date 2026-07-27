@@ -1,151 +1,759 @@
 {
-  "generated_at": "2026-07-19T16:59:19-03:00",
-  "window_days": 1,
+  "generated_at": "2026-07-26T23:30:29-03:00",
+  "day": "2026-07-19",
+  "coverage": "complete",
+  "observed_days": 1,
   "kpis": {
-    "cost_per_day": 571.22,
-    "user_messages": 411,
-    "interruptions": 8,
-    "session_hours": 31.6,
-    "cost_per_user_message": 1.39
+    "cost_per_day": 616.05,
+    "user_messages": 425,
+    "interruptions": 9,
+    "session_hours": 36.7,
+    "cost_per_user_message": 1.45
   },
-  "total": 571.22,
-  "main_cost": 404.97,
-  "subagent_cost": 166.25,
+  "total": 616.05,
+  "main_cost": 411.75,
+  "subagent_cost": 204.3,
   "api_calls": {
-    "main": 3771,
-    "sub": 3704
+    "main": 3340,
+    "sub": 3308
   },
-  "compactions": 50,
-  "session_count": 279,
-  "cache_hit_rate": 0.927,
-  "thinking_blocks": 2422,
-  "text_blocks": 1145,
-  "thinking_block_share": 0.679,
+  "compactions": 40,
+  "session_count": 450,
+  "cache_hit_rate": 0.914,
+  "thinking_blocks": 2106,
+  "text_blocks": 1057,
+  "thinking_block_share": 0.666,
   "tokens": {
-    "input": 38363,
-    "output": 5538636,
-    "cache_read": 641490280,
-    "cache_write_5m": 26148867,
-    "cache_write_1h": 24554716
+    "input": 34119,
+    "output": 4785895,
+    "cache_read": 556537203,
+    "cache_write_5m": 30533759,
+    "cache_write_1h": 22100208
   },
   "by_family": {
-    "haiku": 13.62,
-    "sonnet": 428.61,
-    "opus": 42.86,
-    "fable": 86.12
+    "haiku": 10.06,
+    "sonnet": 374.63,
+    "opus": 39.08,
+    "fable": 192.28
   },
   "by_day": {
-    "2026-07-18": {
-      "main": 50.64,
-      "sub": 6.8
-    },
     "2026-07-19": {
-      "main": 354.33,
-      "sub": 159.45
+      "main": 411.75,
+      "sub": 204.3
     }
   },
   "by_subagent_type": {
-    "density-fixer": {
-      "cost": 11.18,
-      "runs": 30
-    },
     "UNMATCHED": {
-      "cost": 3.36,
-      "runs": 7
+      "cost": 6.91,
+      "runs": 364
+    },
+    "density-fixer": {
+      "cost": 7.7,
+      "runs": 26
     },
     "general-purpose": {
-      "cost": 120.91,
-      "runs": 35
+      "cost": 171.63,
+      "runs": 40
     },
     "deep-reviewer": {
-      "cost": 23.96,
-      "runs": 12
+      "cost": 18.06,
+      "runs": 5
+    }
+  },
+  "by_skill": {
+    "skill-authoring": {
+      "cost": 380.76,
+      "invocations": 4,
+      "sessions": 3,
+      "compactions": 38,
+      "interruptions": 3,
+      "tokens": {
+        "input": 29080,
+        "output": 3518555,
+        "cache_read": 447997600,
+        "cache_write_5m": 15136399,
+        "cache_write_1h": 15122056
+      }
     },
-    "explore": {
-      "cost": 6.84,
-      "runs": 1
+    "doc-standards": {
+      "cost": 380.76,
+      "invocations": 3,
+      "sessions": 3,
+      "compactions": 38,
+      "interruptions": 3,
+      "tokens": {
+        "input": 29080,
+        "output": 3518555,
+        "cache_read": 447997600,
+        "cache_write_5m": 15136399,
+        "cache_write_1h": 15122056
+      }
+    },
+    "improve-from-user": {
+      "cost": 369.68,
+      "invocations": 2,
+      "sessions": 2,
+      "compactions": 36,
+      "interruptions": 3,
+      "tokens": {
+        "input": 28358,
+        "output": 3340441,
+        "cache_read": 429095632,
+        "cache_write_5m": 15023039,
+        "cache_write_1h": 14615251
+      }
+    },
+    "skill-creator": {
+      "cost": 369.68,
+      "invocations": 3,
+      "sessions": 2,
+      "compactions": 36,
+      "interruptions": 3,
+      "tokens": {
+        "input": 28358,
+        "output": 3340441,
+        "cache_read": 429095632,
+        "cache_write_5m": 15023039,
+        "cache_write_1h": 14615251
+      }
+    },
+    "performance-check-principles-and-skills": {
+      "cost": 253.76,
+      "invocations": 3,
+      "sessions": 3,
+      "compactions": 25,
+      "interruptions": 1,
+      "tokens": {
+        "input": 24638,
+        "output": 2500460,
+        "cache_read": 340923841,
+        "cache_write_5m": 16128794,
+        "cache_write_1h": 9482157
+      }
+    },
+    "commit-standards": {
+      "cost": 253.76,
+      "invocations": 3,
+      "sessions": 3,
+      "compactions": 25,
+      "interruptions": 1,
+      "tokens": {
+        "input": 24638,
+        "output": 2500460,
+        "cache_read": 340923841,
+        "cache_write_5m": 16128794,
+        "cache_write_1h": 9482157
+      }
+    },
+    "open-in-tmux": {
+      "cost": 223.44,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 25,
+      "interruptions": 1,
+      "tokens": {
+        "input": 23150,
+        "output": 2232962,
+        "cache_read": 305592293,
+        "cache_write_5m": 12368943,
+        "cache_write_1h": 8973066
+      }
+    },
+    "personal-environment": {
+      "cost": 223.44,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 25,
+      "interruptions": 1,
+      "tokens": {
+        "input": 23150,
+        "output": 2232962,
+        "cache_read": 305592293,
+        "cache_write_5m": 12368943,
+        "cache_write_1h": 8973066
+      }
+    },
+    "debug-standards": {
+      "cost": 149.27,
+      "invocations": 6,
+      "sessions": 6,
+      "compactions": 11,
+      "interruptions": 2,
+      "tokens": {
+        "input": 5280,
+        "output": 1128163,
+        "cache_read": 124835146,
+        "cache_write_5m": 2654096,
+        "cache_write_1h": 6028167
+      }
+    },
+    "usage-audit": {
+      "cost": 147.93,
+      "invocations": 4,
+      "sessions": 4,
+      "compactions": 11,
+      "interruptions": 2,
+      "tokens": {
+        "input": 5268,
+        "output": 1115992,
+        "cache_read": 124808820,
+        "cache_write_5m": 2654096,
+        "cache_write_1h": 5836908
+      }
+    },
+    "code-standards": {
+      "cost": 146.24,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 11,
+      "interruptions": 2,
+      "tokens": {
+        "input": 5208,
+        "output": 1107479,
+        "cache_read": 123503339,
+        "cache_write_5m": 2654096,
+        "cache_write_1h": 5642185
+      }
+    },
+    "consistency-check-principles-and-skills": {
+      "cost": 106.24,
+      "invocations": 3,
+      "sessions": 3,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 2126,
+        "output": 398746,
+        "cache_read": 53533843,
+        "cache_write_5m": 13309734,
+        "cache_write_1h": 756131
+      }
+    },
+    "html-artifacts": {
+      "cost": 72.82,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 2,
+      "interruptions": 0,
+      "tokens": {
+        "input": 824,
+        "output": 365420,
+        "cache_read": 22267827,
+        "cache_write_5m": 258529,
+        "cache_write_1h": 1666022
+      }
+    },
+    "spec-driven-development": {
+      "cost": 1.96,
+      "invocations": 3,
+      "sessions": 3,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 62,
+        "output": 12068,
+        "cache_read": 1417058,
+        "cache_write_5m": 0,
+        "cache_write_1h": 225403
+      }
+    },
+    "jira-cli": {
+      "cost": 1.58,
+      "invocations": 3,
+      "sessions": 3,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 54,
+        "output": 9840,
+        "cache_read": 1098389,
+        "cache_write_5m": 0,
+        "cache_write_1h": 183438
+      }
+    },
+    "address-ai-comments": {
+      "cost": 1.45,
+      "invocations": 3,
+      "sessions": 3,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 62,
+        "output": 9460,
+        "cache_read": 1500263,
+        "cache_write_5m": 0,
+        "cache_write_1h": 142854
+      }
+    },
+    "claude-api": {
+      "cost": 0.89,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 22,
+        "output": 6652,
+        "cache_read": 461299,
+        "cache_write_5m": 0,
+        "cache_write_1h": 107917
+      }
+    },
+    "debug-standards-skill-2a879560": {
+      "cost": 0.66,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 28,
+        "output": 5375,
+        "cache_read": 595444,
+        "cache_write_5m": 0,
+        "cache_write_1h": 66278
+      }
+    },
+    "debug-standards-skill-23791a7c": {
+      "cost": 0.62,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 22,
+        "output": 5801,
+        "cache_read": 448570,
+        "cache_write_5m": 0,
+        "cache_write_1h": 66811
+      }
+    },
+    "debug-standards-skill-5f19f219": {
+      "cost": 0.59,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 26,
+        "output": 3122,
+        "cache_read": 553775,
+        "cache_write_5m": 0,
+        "cache_write_1h": 62726
+      }
+    },
+    "debug-standards-skill-0ea88652": {
+      "cost": 0.5,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 24,
+        "output": 2858,
+        "cache_read": 516612,
+        "cache_write_5m": 0,
+        "cache_write_1h": 50014
+      }
+    },
+    "debug-standards-skill-0af32f44": {
+      "cost": 0.45,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 12,
+        "output": 2262,
+        "cache_read": 217554,
+        "cache_write_5m": 0,
+        "cache_write_1h": 59091
+      }
+    },
+    "debug-standards-skill-e2df5dcc": {
+      "cost": 0.42,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 10,
+        "output": 1923,
+        "cache_read": 172243,
+        "cache_write_5m": 0,
+        "cache_write_1h": 56007
+      }
+    },
+    "debug-standards-skill-1be5b146": {
+      "cost": 0.3,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 8,
+        "output": 1824,
+        "cache_read": 145058,
+        "cache_write_5m": 0,
+        "cache_write_1h": 38538
+      }
+    },
+    "debug-standards-skill-manualtest2": {
+      "cost": 0.28,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 6,
+        "output": 1222,
+        "cache_read": 139226,
+        "cache_write_5m": 0,
+        "cache_write_1h": 36522
+      }
+    }
+  },
+  "by_skill_marginal": {
+    "consistency-check-principles-and-skills": {
+      "dedicated_sessions": 2,
+      "dedicated_cost": 78.51,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 18.59
+    },
+    "html-artifacts": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 72.82,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "code-standards": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 60.07
+    },
+    "skill-creator": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 2,
+      "mixed_cost_estimate": 53.36
+    },
+    "doc-standards": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 3,
+      "mixed_cost_estimate": 50.19
+    },
+    "open-in-tmux": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 23.65
+    },
+    "performance-check-principles-and-skills": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 3,
+      "mixed_cost_estimate": 21.68
+    },
+    "skill-authoring": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 3,
+      "mixed_cost_estimate": 20.62
+    },
+    "debug-standards": {
+      "dedicated_sessions": 5,
+      "dedicated_cost": 3.03,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 11.04
+    },
+    "personal-environment": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 10.7
+    },
+    "improve-from-user": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 2,
+      "mixed_cost_estimate": 6.61
+    },
+    "usage-audit": {
+      "dedicated_sessions": 3,
+      "dedicated_cost": 1.69,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 4.27
+    },
+    "spec-driven-development": {
+      "dedicated_sessions": 3,
+      "dedicated_cost": 1.96,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "commit-standards": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 3,
+      "mixed_cost_estimate": 1.82
+    },
+    "jira-cli": {
+      "dedicated_sessions": 3,
+      "dedicated_cost": 1.58,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "address-ai-comments": {
+      "dedicated_sessions": 3,
+      "dedicated_cost": 1.45,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "claude-api": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 0.89,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "debug-standards-skill-2a879560": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 0.66,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "debug-standards-skill-23791a7c": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 0.62,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "debug-standards-skill-5f19f219": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 0.59,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "debug-standards-skill-0ea88652": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 0.5,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "debug-standards-skill-0af32f44": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 0.45,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "debug-standards-skill-e2df5dcc": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 0.42,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "debug-standards-skill-1be5b146": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 0.3,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "debug-standards-skill-manualtest2": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 0.28,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
     }
   },
   "top_sessions": [
     {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/9d1bc0e1-da0b-4aeb-b03b-d6a3ebaf43cc.jsonl",
+      "title": "",
+      "cost": 130.14,
+      "subagent_cost": 16.11,
+      "api_calls": 782,
+      "duration_hours": 9.5,
+      "compactions": 11,
+      "user_messages": 49,
+      "interruptions": 2,
+      "tokens": {
+        "input": 1596,
+        "output": 960257,
+        "cache_read": 97031724,
+        "cache_write_5m": 0,
+        "cache_write_1h": 5642185
+      },
+      "cache_hit_rate": 0.945,
+      "skills": {
+        "code-standards": 1,
+        "debug-standards": 1,
+        "doc-standards": 1,
+        "improve-from-user": 1,
+        "skill-authoring": 1,
+        "skill-creator": 1,
+        "usage-audit": 1
+      }
+    },
+    {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/cbf2be54-3b64-4c44-b362-6a820d92e0ec.jsonl",
-      "cost": 177.11,
-      "subagent_cost": 117.22,
-      "api_calls": 1737,
-      "duration_hours": 23.5,
-      "compactions": 34,
-      "user_messages": 80,
-      "interruptions": 3
+      "title": "",
+      "cost": 129.15,
+      "subagent_cost": 94.28,
+      "api_calls": 1289,
+      "duration_hours": 17.4,
+      "compactions": 25,
+      "user_messages": 52,
+      "interruptions": 1,
+      "tokens": {
+        "input": 2652,
+        "output": 1595083,
+        "cache_read": 171272458,
+        "cache_write_5m": 0,
+        "cache_write_1h": 8973066
+      },
+      "cache_hit_rate": 0.95,
+      "skills": {
+        "commit-standards": 1,
+        "doc-standards": 1,
+        "improve-from-user": 1,
+        "open-in-tmux": 1,
+        "performance-check-principles-and-skills": 1,
+        "personal-environment": 1,
+        "skill-authoring": 2,
+        "skill-creator": 2
+      }
     },
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/a97d17ac-cd17-4823-aad4-317fad680230.jsonl",
-      "cost": 86.12,
-      "subagent_cost": 7.32,
-      "api_calls": 260,
-      "duration_hours": 1.1,
-      "compactions": 2,
-      "user_messages": 13,
-      "interruptions": 0
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/9d1bc0e1-da0b-4aeb-b03b-d6a3ebaf43cc.jsonl",
-      "cost": 40.34,
-      "subagent_cost": 8.24,
-      "api_calls": 407,
-      "duration_hours": 2.7,
-      "compactions": 7,
-      "user_messages": 15,
-      "interruptions": 0
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/5ef2219a-fff7-4ea4-b007-967acf17980b.jsonl",
-      "cost": 20.28,
-      "subagent_cost": 2.77,
-      "api_calls": 286,
-      "duration_hours": 0.6,
-      "compactions": 3,
-      "user_messages": 1,
-      "interruptions": 1
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/b9a8321c-0f77-4d52-a608-34f6b85baa08.jsonl",
-      "cost": 11.09,
-      "subagent_cost": 8.51,
-      "api_calls": 97,
-      "duration_hours": 0.8,
+      "title": "",
+      "cost": 72.35,
+      "subagent_cost": 0.48,
+      "api_calls": 219,
+      "duration_hours": 1.0,
       "compactions": 2,
       "user_messages": 6,
-      "interruptions": 0
+      "interruptions": 0,
+      "tokens": {
+        "input": 438,
+        "output": 356086,
+        "cache_read": 21216137,
+        "cache_write_5m": 0,
+        "cache_write_1h": 1666022
+      },
+      "cache_hit_rate": 0.927,
+      "skills": {
+        "html-artifacts": 1
+      }
     },
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/b3bb1120-d198-4032-b423-3cc576c11536.jsonl",
+      "title": "",
       "cost": 10.71,
       "subagent_cost": 0.37,
       "api_calls": 153,
       "duration_hours": 1.3,
       "compactions": 2,
       "user_messages": 6,
-      "interruptions": 0
+      "interruptions": 0,
+      "tokens": {
+        "input": 318,
+        "output": 168768,
+        "cache_read": 17119626,
+        "cache_write_5m": 0,
+        "cache_write_1h": 506805
+      },
+      "cache_hit_rate": 0.971,
+      "skills": {
+        "doc-standards": 1,
+        "skill-authoring": 1
+      }
     },
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/63e5d032-8d93-4fc9-bad8-861f0e9784c9.jsonl",
+      "title": "",
       "cost": 6.68,
       "subagent_cost": 21.05,
       "api_calls": 109,
       "duration_hours": 0.4,
       "compactions": 0,
       "user_messages": 14,
-      "interruptions": 0
+      "interruptions": 0,
+      "tokens": {
+        "input": 216,
+        "output": 90842,
+        "cache_read": 10949524,
+        "cache_write_5m": 0,
+        "cache_write_1h": 338277
+      },
+      "cache_hit_rate": 0.97,
+      "skills": {
+        "commit-standards": 1,
+        "consistency-check-principles-and-skills": 1,
+        "performance-check-principles-and-skills": 1
+      }
     },
     {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/c70af05c-dd38-45c5-9314-8c33eebfe095.jsonl",
-      "cost": 4.11,
-      "subagent_cost": 0.0,
-      "api_calls": 67,
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils-configs-ai-docs-claude/1f8b2076-75b9-4df6-bcf2-3d6bbf045b45.jsonl",
+      "title": "",
+      "cost": 4.65,
+      "subagent_cost": 39.9,
+      "api_calls": 18,
       "duration_hours": 0.2,
       "compactions": 0,
-      "user_messages": 3,
-      "interruptions": 0
+      "user_messages": 5,
+      "interruptions": 0,
+      "tokens": {
+        "input": 36,
+        "output": 18028,
+        "cache_read": 825804,
+        "cache_write_5m": 0,
+        "cache_write_1h": 146231
+      },
+      "cache_hit_rate": 0.85,
+      "skills": {
+        "consistency-check-principles-and-skills": 1
+      }
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/7d0cc37f-5519-4446-9ece-565b81c2c42e.jsonl",
+      "title": "",
+      "cost": 2.86,
+      "subagent_cost": 0.0,
+      "api_calls": 9,
+      "duration_hours": 0.0,
+      "compactions": 0,
+      "user_messages": 1,
+      "interruptions": 0,
+      "tokens": {
+        "input": 24,
+        "output": 29529,
+        "cache_read": 555177,
+        "cache_write_5m": 294648,
+        "cache_write_1h": 0
+      },
+      "cache_hit_rate": 0.653,
+      "skills": {}
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/cb42a159-1d17-496b-a95c-c6d6b826fffe.jsonl",
+      "title": "",
+      "cost": 2.61,
+      "subagent_cost": 31.35,
+      "api_calls": 31,
+      "duration_hours": 5.7,
+      "compactions": 0,
+      "user_messages": 8,
+      "interruptions": 0,
+      "tokens": {
+        "input": 72,
+        "output": 21845,
+        "cache_read": 2168906,
+        "cache_write_5m": 0,
+        "cache_write_1h": 271623
+      },
+      "cache_hit_rate": 0.889,
+      "skills": {
+        "consistency-check-principles-and-skills": 1
+      }
     }
   ]
 }

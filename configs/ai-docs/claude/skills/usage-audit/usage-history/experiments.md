@@ -1,105 +1,206 @@
-# Experiments Repertoire
+# Experiments Repertoire — live
 
-Every cost/adherence tweak tried, with its hypothesis and measured outcome. The `usage-audit` skill appends new rows and settles `running` ones on each audit.
+Cost and adherence tweaks with an open observation window. Settled ones move to [`experiments-archive.md`](experiments-archive.md).
 
-Status values: `running` (observation window open), `kept` (signal moved as hypothesized), `reverted` (signal flat or worse), `superseded` (replaced by a later experiment).
+The `usage-audit` skill reads this file every run: it settles what the new snapshots can decide, and appends what the config-change ledger surfaced.
+
+## How to read this file
+
+Entries are split by whether a change actually shipped, because the old flat log let three ideas sit `running` for a week describing tweaks nobody had enacted.
+
+- **Enacted** — a commit exists under `configs/ai-docs/claude/`. Confirm any entry with `scripts/config-change-ledger.py --since <day> --until <day>`.
+
+- **Proposed** — no change has landed. Nothing can be settled from a snapshot, and the entry stays here until it is enacted or dropped.
+
+A `Log` line is dated because an entry is read across many audits; an undated observation cannot be placed against the change that caused it.
+
+## CRITICAL: figures logged on or before 2026-07-25 are not comparable
+
+Everything logged up to 2026-07-25 was measured on the retired rolling-window snapshots, which overlapped, bucketed by UTC, and divided by the wrong day count.
+
+The archive's header lists the three defects in full. From 2026-07-26 onward, cite a specific day file (`snapshots/YYYY-MM-DD.json`) and name both days a delta compares.
 
 ## Baseline
 
-Snapshot `snapshots/2026-07-16.json` (7-day window, per-record cutoff fix applied): $4,032.66/week list · 83.8% main / 16.2% sub · cache hit 93.3% · 211 compactions · 821 user messages · 74 interruptions.
+There is no single baseline snapshot any more. The per-day series in `snapshots/` is the baseline, one closed local day per file, currently 2026-06-14 through 2026-07-25.
 
-$4.91/user message · opus $2,830.69 + fable $661.64 + sonnet $503.49.
+State a comparison as two named days, never as "before/after" — that is what the overlapping-window design could not express and what made its deltas unsound.
 
-## Log
+## Enacted — change is in git, window open
 
-| Date | Change | Hypothesis | Watch signal | Status | Outcome |
-|---|---|---|---|---|---|
-| 2026-07-16 | Removed `alwaysThinkingEnabled` from settings.json (thinking follows session effort) | Always-on thinking inflated output tokens on turns that didn't need it | `tokens.output` and `thinking_block_share` down at similar workload | superseded | Superseded 2026-07-23 by the `effortLevel` row below. Output fell 5.05M → 3.70M tokens/day (−27%), but thinking blocks/day rose 1,411 → 1,553 (+10%) and share rose 58.2% → 64.8%. Removing the toggle handed thinking control to `effortLevel`, which sits at `high`, so the intended mechanism never fired |
-| 2026-07-16 | Shadow `agents/explore.md` pins Explore to sonnet | Explore inherited the session model (opus/fable) for mechanical searching | `by_subagent_type.Explore` avg cost down | kept | 2026-07-23: Explore avg cost per run $2.33 (n=21) → $1.17 (n=36), −50% |
-| 2026-07-16 | Pinned `model: sonnet` on mechanical spawns in address-pr-comments, improve-from-user, code-review-pipeline `--isolate`; skill-authoring now mandates pins | Unpinned general-purpose spawns silently ran at top-tier pricing | `by_subagent_type.general-purpose` avg cost down | kept | 2026-07-23: general-purpose avg cost per run $5.61 (n=67) → $4.70 (n=60), −16%. Volume grew 9.6 → 15.0 runs/day, so the line item still rose to $70.50/day — the largest single subagent cost, meaning spawns remain that carry no pin |
-| 2026-07-16 | implement loop caps: MAX_ATTEMPTS 4→3, GATE_FIX_ALLOWANCE 4→2 | Long retry tails burned marathon-session tokens without converging | top-session cost tail down in `/implement` sessions | running | 2026-07-23: was unsettleable — no per-skill attribution existed; `by_skill` added to the script same day, so the next audit can isolate `/implement` sessions. Proxy runs against it: top-5 session cost held at $179.50 → $174.70/day (−3%) while total spend fell 35%, so the marathon tail grew from 31% to 47% of all spend. 2026-07-25: first real `by_skill` delta, and it argues against the caps working — implement compactions/session rose 9.5 (19÷2) → 22.0 (66÷3), +131%, and cost rose $258.26 → $703.91 across one added session. The caps bound attempt count, not compaction count, so a session can still retry within-cap while compacting repeatedly; still running, needs per-invocation attempt-count logging to isolate cause from a merely bigger batch |
-| 2026-07-16 | CLAUDE.md rule: after every compaction, reload ALL previously loaded skills | Compaction silently drops loaded-skill guidance, causing corrections (official docs confirm instruction loss) | `user_messages` down per session; fewer post-compaction corrections | superseded | Replaced 2026-07-16 (same day) by lazy reload + [Reminder] scaffold before any observation data; user observed post-compaction step-skipping, so eager reload-all was solving the wrong half |
-| 2026-07-16 | De-faked always-read skill references (inlined content-quality, priority-rubric, status-markers; phase-gated SDD templates; english-coach subagent self-loads) | Always-read references cost the same words plus a Read round-trip and masked the budget gate | skill-invocation context down; no single snapshot signal — verify via budget gate staying green | kept | 2026-07-23: no snapshot signal exists for this row, so settle it by running the skill budget gate rather than by any KPI delta. 2026-07-25: no automated budget-gate script exists in this repo, so settled by direct inspection instead — `spec-driven-development/SKILL.md` (219 lines) and `address-ai-comments/SKILL.md` (105 lines) carry no `words-budget:` frontmatter override, both sit well under the 500-line body budget, and neither references an always-read file the main flow opens on every run. The inlining held |
-| 2026-07-16 | Flagged (not a config change yet): unix-utils session `cd929793` ran 455/609 main-loop calls on `fable` (highest-tier: $50/MTok output vs $15 sonnet, $25 opus) for 5.8h of skill/config-editing work, explaining $181.84 of the day's $420.46 (43%) — confirm with user whether this was a deliberate Fable trial or should be avoided for routine meta-work | Fable costs 2-3.3x sonnet per token; if it's reserved for cases needing its capability edge, defaulting long editing sessions to sonnet saves that multiple on the same workload | `by_family.fable` share of main-loop (non-explicit-trial) spend on future audits | kept | 2026-07-23: fable fell $94.52/day (16.4% of spend) → $24.46/day (6.5%), −74%. Fable is no longer the default for routine meta-work |
-| 2026-07-16 | Flagged (not a config change yet): arco2-integrator session `bee71a6f` (`/address-pr-comments`) hit 18 compactions in 6.3h vs 9 in a 5.8h session — each compaction re-triggers the CLAUDE.md "reload ALL previously loaded skills" rule | High compaction count in skill-heavy async loops multiplies the reload tax; worth checking whether the reload cost is now a top line item in high-compaction sessions, which would argue for a cheaper reload scope | output-token spike immediately after each `compact_boundary` in sessions with 10+ compactions, on future audits | kept | 2026-07-23: cost per compaction $19.11 → $13.40 (−30%); worst-session compaction density 2.47/h → 0.69/h. Anthropic's docs also refute the assumed mechanism — the compaction request shares the conversation prefix and reads cache, so the expense is generating the summary, not rebuilding after it (https://code.claude.com/docs/en/prompt-caching) |
-| 2026-07-16 | CLAUDE.md: post-compaction skill reload is now lazy (procedural skills reload at the step needing them, `*-standards` via triggers); step-shaped skills mirror remaining steps as `[Reminder]` TaskList entries at invocation | Eager reload-all taxed every compaction 10-30k tokens yet steps still got skipped; a TaskList scaffold survives compaction structurally while lazy reload pays only for remaining work | `user_messages` and post-compaction output spikes down in 10+ compaction sessions; no step-skipping corrections | kept | 2026-07-23: user messages 117.3 → 106.8/day (−9%), interruptions 10.6 → 5.5/day (−48%), cost per compaction $19.11 → $13.40 (−30%) |
-| 2026-07-16 | address-pr-comments: steps 2b-2e (raw PR-comment fetch + filters) folded into the step-3 sonnet subagent; raw JSON never lands in main | The raw payload (bodies + diffHunks) was the top main-context filler in the worst compaction offender (18 compactions/6.3h) | compactions per address-pr-comments session down vs the 2026-07-16 baseline | kept | 2026-07-23: was unsettleable — `by_skill` added same day (this window: 2 sessions, 34 compactions, $313.15). Proxy runs in its favour — worst-session compaction density 2.47/h → 0.69/h, compactions 30.1 → 28.0/day. 2026-07-25: first real `by_skill` delta — sessions 2 → 3, compactions held flat at 34, so compactions/session fell 17.0 → 11.3 (−34%); the new session added a full invocation ($6.52) but zero new compactions. Settling `kept` |
-| 2026-07-16 | create-pr: step-1 diff/commit gathering delegated to a sonnet digest subagent; main authors prose from the digest with a targeted per-file diff escape hatch | The full batch diff landed in main at end-of-marathon when context is tightest; a digest carries what the prose needs at a fraction of the tokens | end-of-batch session cost tail down in sessions invoking create-pr | running | 2026-07-23: was unsettleable — `by_skill` added same day (this window: 4 sessions, 47 compactions, $565.73). Proxy runs against it — the top-5 session cost tail stayed flat at $179.50 → $174.70/day while total spend fell 35%. 2026-07-25: create-pr's `by_skill` row is byte-identical to 2026-07-23 (same 4 sessions, 47 compactions, $565.73, exact token counts) — zero new invocations this window, so still nothing to settle |
-| 2026-07-16 | auto-review: pipeline now ALWAYS runs isolated in a deep-reviewer (opus) subagent (in-session default and fresh-session check removed) | The invoking session is usually the authoring session — self-review carries author bias, and the 8-specialist read load burned main context | auto-review main-session share of cost down; review-quality regressions watched via user corrections | kept | 2026-07-23: main-loop share of spend 83.8% → 72.3%; deep-reviewer avg cost per run $7.40 (n=23) → $2.86 (n=15). Confounded — the sonnet default drove most of the main-share drop, so the isolation's own contribution is not separable |
-| 2026-07-23 | Flagged (not a config change yet): the working tree flips `settings.json` `model` from `sonnet` to `opus` (set by `/model opus`, uncommitted). The whole 4-day measured window ran on the sonnet default | Opus costs 1.67x sonnet per token ($5/$25 vs $3/$15 per MTok), and the model shift supplied 25 of the 35 points of savings — the blended rate fell $4.82 → $3.62 per input-equivalent MTok while token volume fell only 13% | `by_family` opus-vs-sonnet share and `kpis.cost_per_day` on the next audit | running | 2026-07-25: opus is 23.5% of this window's $3,085.04 ($725.20), sonnet 53.1% ($1,639.25); `cost_per_day` rose $393.17 → $440.72 (+12%), the first rise across the three snapshots. The observation window itself is contaminated — the working tree flipped `model` back to `sonnet` again mid-window (this session's own `/model sonnet`), so no clean single-model stretch exists yet to attribute the rise to opus share vs. workload. Still running |
-| 2026-07-23 | Flagged: `effortLevel` sits at `high` in settings.json, and it is the live thinking lever now that `alwaysThinkingEnabled` is gone | Thinking bills as output tokens, and adaptive-reasoning models ignore `MAX_THINKING_TOKENS`, so effort level is the documented control (https://code.claude.com/docs/en/costs). Dropping to `medium` for routine sessions should cut output; set it at session start, since `/effort` mid-session invalidates the entire cache | `thinking_block_share` and `tokens.output` per day | running | 2026-07-25: no actual toggle has been tried yet, so nothing to settle. `thinking_block_share` held flat 64.7% → 66.3%, and `tokens.output`/day held flat 3.79M → 3.87M (+2%) versus the large drop already attributed to removing `alwaysThinkingEnabled`. Still running until a `medium` trial exists to compare |
-| 2026-07-23 | Cut the subagent cold-start tax by batching related work into fewer, larger spawns instead of many small ones | Every subagent builds its own cache at the 5-minute TTL and takes zero cache hits on its first call (https://code.claude.com/docs/en/prompt-caching), so each spawn pays a full cold prefix. Subagent API calls rose 37%/day and subagent cost is now 28% of spend across 169 spawns in 4 days | `by_subagent_type` runs against cost per day, and `tokens.cache_write_5m` per day | running | 2026-07-25: mixed signal, no batching change enacted yet. `general-purpose` runs/day rose 15.25 → 22.86 (more spawns, opposite of the hypothesized direction) while avg cost/run kept falling $4.67 → $3.68 (−21%); `cache_write_5m`/day rose 10.88M → 14.80M but stays well below the pre-fix baseline. Still running — no batching trial has actually landed |
-| 2026-07-24 | review-isolation A/B (pr-review): arm A fresh main session vs arm B subagent, PR-parity dice, `[ABTest]` transcript marker | Isolation architecture (main session vs. subagent) may shift review quality or cost independent of the sonnet pin already in place; PR-parity assignment is deterministic and needs no infra | per-arm cost + interruptions + findings-per-review once the usage script can group by the marker | running | 2026-07-25: confirmed via source read that the script already parses and rolls up `[ABTest]` markers into an `ab_tests` payload, but zero markers appear in this window's transcripts — no trials have run yet. Still running |
-| 2026-07-25 | New hypothesis: `cache_write_1h` share as an overage-billing proxy — no config change, a signal to watch | Per the official docs (https://code.claude.com/docs/en/prompt-caching), Claude Code on a subscription auto-requests the 1-hour TTL while usage stays inside the plan's included allowance, and auto-drops to 5-minute TTL once the user is drawing on paid overage credits. A rising 5m share therefore proxies rising *metered* spend, not just list-price totals | `tokens.cache_write_1h` share of total cache-write tokens, tracked per snapshot | running | 2026-07-25: 1h share fell 56.7% (07-23) → 50.5% (07-25) — a widening 5m share, consistent with more of this window running on metered overage than the prior one. No plan-usage data exists yet to confirm the mechanism directly |
-| 2026-07-25 | New hypothesis: audit whether rising `general-purpose` spawn volume (15.25 → 22.86 runs/day) includes mis-classified work that a narrower/cheaper agent type could handle | `general-purpose` is the catch-all — some of its 160 runs this window may fit `Explore`, `density-fixer`, or another pinned haiku/sonnet agent instead, which would cut cost further than the existing sonnet-pin experiment already did | `by_subagent_type.general-purpose` run count and avg cost per day, watched against any newly-introduced narrower agent's uptake | running | — |
+### 2026-07-16 — implement loop caps: `MAX_ATTEMPTS` 4→3, `GATE_FIX_ALLOWANCE` 4→2
+
+- **Surface**: `skill:implement`.
+- **Hypothesis**: long retry tails burned marathon-session tokens without converging.
+- **Watch signal**: top-session cost tail in `/implement` sessions, via `by_skill`.
+
+- **Log 2026-07-23**: unsettleable — no per-skill attribution existed; `by_skill` shipped the same day.
+- **Log 2026-07-25**: the first real `by_skill` delta argues against the caps working. Compactions/session rose 9.5 → 22.0 (+131%), cost $258.26 → $703.91 across one added session.
+
+- The caps bound attempt count, not compaction count, so a session can retry within-cap while compacting repeatedly.
+- **Next**: needs per-invocation attempt-count logging to separate cause from a merely bigger batch.
+
+### 2026-07-16 — create-pr delegates diff/commit gathering to a sonnet digest subagent
+
+Main authors prose from the digest, with a targeted per-file diff escape hatch.
+
+- **Surface**: `skill:create-pr`.
+- **Hypothesis**: the full batch diff landed in main at end-of-marathon when context is tightest; a digest carries what the prose needs for far fewer tokens.
+
+- **Watch signal**: end-of-batch session cost tail in sessions invoking create-pr.
+
+- **Log 2026-07-23**: unsettleable — `by_skill` shipped the same day. The proxy ran against it: top-5 session cost tail flat at $179.50 → $174.70/day while total spend fell 35%.
+
+- **Log 2026-07-25**: create-pr's `by_skill` row was byte-identical to 07-23 — zero new invocations, nothing to settle.
+
+### 2026-07-23 — session model flipped from `sonnet` to `opus`
+
+- **Surface**: `settings.json`, `model` key.
+- **CRITICAL: not ledger-verifiable.** The repo's CLAUDE.md deliberately leaves `model`, `advisorModel`, and `effortLevel` uncommitted, so no commit records this flip and the ledger cannot confirm it.
+
+- **Hypothesis**: opus costs 1.67× sonnet per token ($5/$25 vs $3/$15 per MTok), so the model mix should move `cost_per_day` roughly in proportion to opus share.
+
+- **Watch signal**: `by_family` opus-vs-sonnet share against `kpis.cost_per_day`.
+
+- **Log 2026-07-25**: opus 23.5% of spend, sonnet 53.1%; `cost_per_day` rose for the first time across three snapshots.
+- The window was contaminated — the tree flipped back to `sonnet` mid-window, so no clean single-model stretch exists.
+- **Next**: the per-day series can now isolate this, but only if the model in force each day is recorded somewhere. It is not.
+
+### 2026-07-24 — review-isolation A/B instrumentation in pr-review
+
+Arm A is a fresh main session, arm B a subagent; PR parity assigns the arm, and an `[ABTest]` chat marker records it.
+
+- **Surface**: `skill:pr-review`.
+- **Hypothesis**: isolation architecture may shift review quality or cost independently of the sonnet pin already in place.
+- **Watch signal**: per-arm cost, interruptions, and findings-per-review from the script's `ab_tests` rollup.
+
+- **Log 2026-07-25**: the instrumentation shipped and the script parses the markers, but zero markers appear in any transcript. The harness works; no trial has run.
+
+### 2026-07-24 — PreToolUse hook hard-denies subagent dispatches with a wrong or missing model
+
+Surfaced by the config-change ledger, not by a snapshot: commit `55dbdca feat(hooks): hard-deny subagent dispatches with wrong/missing model`.
+
+- **Surface**: `hook:*`, verified via `config-change-ledger.py --since 2026-07-24 --until 2026-07-24`.
+- **Hypothesis**: unpinned or wrongly-pinned spawns silently ran at the session's tier; a deny at dispatch makes the pin an invariant instead of a convention.
+- **Watch signal**: `by_subagent_type` average cost per run for `general-purpose`, plus the absence of wrong-model spawns in transcripts.
+
+- **Log 2026-07-26**: catalogued retroactively. It enacts open question 2 below, which stayed listed as unresolved for two days after the commit landed — exactly the gap the ledger exists to close.
+
+- **Next**: compare 2026-07-24 against 2026-07-25 and later days; the deny takes effect from the commit, so 07-25 onward is the treated period.
+
+## Proposed — no change enacted yet
+
+Nothing here can be settled by a snapshot. An entry either becomes Enacted with a commit, or gets dropped.
+
+### 2026-07-23 — drop `effortLevel` from `high` to `medium` for routine sessions
+
+- **Hypothesis**: thinking bills as output tokens and adaptive-reasoning models ignore `MAX_THINKING_TOKENS`, so effort level is the documented control (https://code.claude.com/docs/en/costs).
+- **Constraint**: set it at session start — `/effort` mid-session invalidates the entire cache.
+- **Watch signal**: `thinking_block_share` and `tokens.output` per day.
+
+- **Log 2026-07-25**: no toggle has been tried. Both signals held flat (share 64.7% → 66.3%, output 3.79M → 3.87M/day), which measures the status quo, not the experiment.
+
+- **Blocker**: same as the model flip — `effortLevel` is deliberately uncommitted, so a trial needs the day-and-value recorded by hand.
+
+### 2026-07-23 — batch related subagent work into fewer, larger spawns
+
+- **Hypothesis**: every subagent builds its own cache at the 5-minute TTL and takes zero hits on its first call (https://code.claude.com/docs/en/prompt-caching), so each spawn pays a full cold prefix.
+
+- **Watch signal**: `by_subagent_type` runs per day against cost per day, and `tokens.cache_write_5m` per day.
+
+- **Log 2026-07-25**: no batching change enacted. Spawns moved the opposite way — `general-purpose` runs/day 15.25 → 22.86 — while average cost/run kept falling $4.67 → $3.68.
+
+- The falling average is the sonnet pin, not batching. This entry has no evidence either way.
+
+### 2026-07-25 — track `cache_write_1h` share as an overage-billing proxy
+
+A signal to watch rather than a change to make; it stays here because nothing is enacted.
+
+- **Hypothesis**: Claude Code requests the 1-hour TTL while usage sits inside the plan's allowance and drops to 5-minute TTL on paid overage (https://code.claude.com/docs/en/prompt-caching).
+- **Watch signal**: `tokens.cache_write_1h` as a share of total cache-write tokens, per day.
+
+- **Log 2026-07-25**: 1h share fell 56.7% → 50.5%, consistent with more of the window running metered. No plan-usage data exists to confirm the mechanism.
+- **Next**: the per-day series makes this a real time-series instead of two window points. Plot it across 2026-06-14 onward before drawing any conclusion.
+
+### 2026-07-25 — audit `general-purpose` spawn volume for mis-classified work
+
+- **Hypothesis**: `general-purpose` is the catch-all, so some of its runs would fit `Explore`, `markdown-standards-fixer`, or another pinned haiku agent, cutting cost further than the sonnet pin already did.
+
+- **Watch signal**: `by_subagent_type.general-purpose` run count and average cost per day, against any narrower agent's uptake.
+- **Log**: not started.
 
 ## User-settled learnings
 
-Settled by the user's own experience (2026-07-24), outside the audit loop — treat as constraints, not open hypotheses:
+Settled by the user's own experience (2026-07-24), outside the audit loop — treat as constraints, not open hypotheses.
 
 - Cap the context window at 200k with auto-compact, rather than running a larger window.
-- Run the main session on sonnet with Opus as advisor, instead of full opus.
+- Run the main session on sonnet with opus as advisor, instead of full opus.
 - Haiku is enough for mechanical subagents like density-fixer.
 
 ## Open questions backlog
 
-The user's standing workflow questions (raised 2026-07-24). Each audit advances at least one: settle it with cited evidence, or promote it into a `running` row above with a watch signal.
+The user's standing workflow questions (raised 2026-07-24). Each audit advances at least one: settle it with cited evidence, or promote it into an Enacted entry with a watch signal.
 
-1. **At pinned quality, which is cheaper: more work in main (more compactions) or more subagent fan-out (cold-start context re-gathering)?**
-   - Known: cost per compaction $13.40; general-purpose spawn averages $4.70 and pays a cold cache-write prefix (https://code.claude.com/docs/en/prompt-caching).
-   - Third option (verified 2026-07-24): a `fork` subagent inherits the parent's FULL context and system prompt, sharing its cache prefix — near-zero cold start, but it can't shed main's baggage (https://code.claude.com/docs/en/sub-agents.md).
+1. **At pinned quality, which is cheaper: more work in main (more compactions), or more subagent fan-out (cold-start context re-gathering)?**
+   - Known: cost per compaction $13.40; a general-purpose spawn averages $4.70 and pays a cold cache-write prefix (https://code.claude.com/docs/en/prompt-caching).
+   - Third option (verified 2026-07-24): a `fork` subagent inherits the parent's full context and system prompt, sharing its cache prefix — near-zero cold start, but it cannot shed main's baggage (https://code.claude.com/docs/en/sub-agents.md).
+
    - Settle by: A/B a repeatable task class both ways; compare cost, compactions/day, and corrections at similar workload.
 
-2. **Subagent model pins are not enforced — main can still spawn density-fixer on sonnet. Can pins be hard-enforced, or main's choices constrained?**
-   - Verified 2026-07-24: the tool-call `model` parameter overrides frontmatter; precedence is `CLAUDE_CODE_SUBAGENT_MODEL` env var, then tool-call parameter, then frontmatter (https://code.claude.com/docs/en/sub-agents.md).
-   - Verified: a PreToolUse hook can match the `Task` tool and rewrite `tool_input` via `hookSpecificOutput.updatedInput`, or deny the call (https://code.claude.com/docs/en/hooks.md) — hard enforcement is buildable.
-   - Settle by: prototype the pin-enforcing hook, then grep transcripts for wrong-model spawns going to zero.
+2. **Subagent model pins are not enforced — main can still spawn density-fixer on sonnet. Can pins be hard-enforced?**
+   - **Enacted 2026-07-24** by commit `55dbdca`, catalogued as an Enacted entry above. This question is now an observation window, not an open design question.
+   - Verified 2026-07-24: the tool-call `model` parameter overrides frontmatter; precedence is `CLAUDE_CODE_SUBAGENT_MODEL`, then tool-call parameter, then frontmatter (https://code.claude.com/docs/en/sub-agents.md).
+   - Settle by: grep transcripts from 2026-07-25 onward for wrong-model spawns going to zero.
 
 3. **deep-reviewer: is effort `high` (with fresh context) enough, or does `xhigh` catch more?**
    - Hypothesis: fresh context does most of the unbiasing work; xhigh mostly buys thinking tokens.
    - Settle by: replay the same diffs at both efforts and compare found-issue sets against cost; historical diffs whose bugs escaped to review give ground truth for catch rate.
 
-4. **Should dispatch prompts carry more context (file paths, decisions, digests) to cut subagent re-gathering? Cheaper? Quality effect?**
+4. **Should dispatch prompts carry more context (file paths, decisions, digests) to cut subagent re-gathering?**
    - Verified 2026-07-24: a non-fork subagent starts with its agent prompt, the dispatch message, CLAUDE.md (skipped by built-in Explore/Plan), git status, and any `skills` frontmatter preloads — no conversation history (https://code.claude.com/docs/en/sub-agents.md).
+
    - Hypothesis: exact paths, constraints, and a done-criterion are cheap and cut turns; pasting whole file bodies is usually worse than letting the agent read.
    - Unexplored lever: the `skills` frontmatter field preloads a skill into an agent at spawn, replacing a dispatch-prompt paste.
-   - Settle by: measure turns and input tokens per spawn before/after richer dispatch prompts.
+   - Settle by: measure turns and input tokens per spawn before and after richer dispatch prompts.
 
 5. **Would the caveman skill inside subagents cut their cost, or does subagent spend come from context gathering?**
-   - Known (2026-04 benchmarks): caveman cuts 61–68% of discursive output text only, ~25% of a session; adds ~1–1.5k input tokens/turn; code and thinking untouched (https://andrew.ooo/posts/caveman-claude-code-skill-token-savings-review/).
-   - Verified 2026-07-24: output styles never apply inside non-fork subagents — each runs its own system prompt (https://code.claude.com/docs/en/output-styles.md) — so caveman would have to be baked into each agent's own prompt.
-   - Hypothesis: subagent spend is dominated by input/cache-write from gathering, so caveman moves little there.
+   - Known (2026-04 benchmarks): caveman cuts 61–68% of discursive output text only, roughly 25% of a session; adds ~1–1.5k input tokens/turn; code and thinking untouched (https://andrew.ooo/posts/caveman-claude-code-skill-token-savings-review/).
+
+   - Verified 2026-07-24: output styles never apply inside non-fork subagents — each runs its own system prompt (https://code.claude.com/docs/en/output-styles.md) — so caveman would have to be baked into each agent's prompt.
+
+   - Hypothesis: subagent spend is dominated by input and cache-write from gathering, so caveman moves little there.
    - Settle by: split subagent tokens input-vs-output per type from transcripts; trial caveman only if output share is material.
 
-6. **Are the procedural skills (brainstorm, spec-driven-development, implement, create-pr, address-ai-comments, address-pr-comments, refactor, auto-review, pr-review) effective, or over-engineered?**
+6. **Are the procedural skills effective, or over-engineered?**
+   - Covers brainstorm, spec-driven-development, implement, create-pr, address-ai-comments, address-pr-comments, refactor, auto-review, and pr-review.
    - Settle by: per-skill KPIs from `by_skill` (cost/run, compactions/run, corrections/run) plus the skill budget gate; flag any skill whose process cost outweighs the corrections it prevents.
-   - 2026-07-24 first `by_skill` read (7-day window): attribution is whole-session, so rows overlap — they sum to $11.6k against a $2.6k true total.
-   - A row therefore reads "what the sessions invoking this skill cost", never the skill's own overhead; a marginal-attribution script extension is filed to close that gap.
 
-   - Healthy on this read: address-ai-comments $0.48/run, pr-review $9/run — both zero interruptions; auto-review itself runs isolated (deep-reviewer ~$2.86/run).
-   - Watch: brainstorm sessions average $161 with 15 compactions each — heavy for a design phase; check whether they roll into implementation or the skill itself bloats context.
-   - 2026-07-25: brainstorm held flat at $161.30/session and 15.2 compactions/session (6 sessions, 91 compactions, $967.83) — a stable, unimproved footprint across two consecutive audits, not yet diagnosed as design-phase-appropriate or skill-bloat.
-   - refactor: zero invocations this window — if still unused after 2–3 more audits, it is an orphan-removal candidate.
-   - 2026-07-25: refactor still shows zero invocations — second consecutive audit at zero, one more confirms the orphan-removal trigger.
+   - 2026-07-24: `by_skill` attribution is whole-session, so rows overlap — they summed to $11.6k against a $2.6k true total.
+   - A row therefore reads "what the sessions invoking this skill cost", never the skill's own overhead. Quote `by_skill_marginal` instead, which was added to close that gap.
+
+   - Healthy on that read: address-ai-comments $0.48/run, pr-review $9/run — both zero interruptions; auto-review runs isolated at roughly $2.86/run.
+   - Watch: brainstorm sessions averaged $161 with 15 compactions each, and held flat across two consecutive audits — stable and unimproved, not yet diagnosed as design-phase-appropriate or as skill bloat.
+
+   - refactor: zero invocations across two consecutive audits. One more confirms the orphan-removal trigger.
 
 7. **How do procedural skills keep running across many compactions with no quality loss?**
-   - Known: lazy reload + `[Reminder]` TaskList mirroring is `kept` (interruptions −48%); residual post-compaction step-skipping is unmeasured.
-   - Settle by: count corrections landing right after `compact_boundary` in 10+-compaction sessions; if high, trial per-skill scratchpad state files.
+   - Known: lazy reload plus `[Reminder]` TaskList mirroring is `kept` (interruptions −48%); residual post-compaction step-skipping is unmeasured.
+   - Settle by: count corrections landing right after `compact_boundary` in sessions with 10+ compactions; if high, trial per-skill scratchpad state files.
 
-8. **Minimize user repetition/intervention — can improve-from-user trigger automatically on `/clear` or `/exit`?**
-   - Verified 2026-07-24: SessionEnd fires on `/clear` (reason `clear`) and `/exit` (reason `other`), receives `transcript_path`, and its output is side-effect-only — so it can background a headless `claude -p` improve-from-user pass (https://code.claude.com/docs/en/hooks.md).
-   - Settle by: prototype the hook, then watch `user_messages` and repeated-correction rate.
+8. **Minimize user repetition — can improve-from-user trigger automatically on `/clear` or `/exit`?**
+   - Verified 2026-07-24: SessionEnd fires on `/clear` (reason `clear`) and `/exit` (reason `other`), receives `transcript_path`, and its output is side-effect-only — so it can background a headless `claude -p` pass (https://code.claude.com/docs/en/hooks.md).
 
-9. **Is the spend (baseline ~$4k/week list) leverage at AI's limit, or misuse?**
-   - Settle by: add value denominators across snapshots — cost per merged PR, per commit, per user message — and read them against the correction-rate trend.
-     - Falling $/artifact with falling corrections = leverage.
+   - Settle by: prototype the hook, then watch `user_messages` and the repeated-correction rate.
+
+9. **Is the spend (roughly $4k/week list) leverage at AI's limit, or misuse?**
+   - Settle by: add value denominators across the per-day series — cost per merged PR, per commit, per user message — and read them against the correction-rate trend.
+
+   - Falling $/artifact with falling corrections means leverage.
 
    - External benchmarks (2026-07-24): Anthropic enterprise figures put AI coding near $13/dev per active day, with 90% of users under $30 (https://www.faros.ai/blog/claude-code-token-limits).
-   - A second survey reports ~$6/day average, 90% under $12/day (https://www.morphllm.com/ai-coding-costs).
-   - This week ran $376/day list — roughly 29× the enterprise mean — so the question must be judged by output value, not by comparison to median casual usage.
-   - Rejected proxies: token volume is the cost side of the ledger, and lines produced/deleted reward verbosity; keep artifact-level denominators (merged PRs, commits) instead.
-   - Trend so far argues leverage: cost/user-message $4.91 → $2.54 and interruptions 10.6 → 5.1/day across the three snapshots.
-   - 2026-07-25: the script's dollar totals are LIST prices assuming per-token billing on every cache write.
-   - The official docs (https://code.claude.com/docs/en/prompt-caching) confirm Claude Code auto-switches cache TTL by plan-usage status — 1-hour TTL while inside the plan's included allowance, 5-minute TTL once drawing on paid overage credits.
-   - So the true "AI's limit vs. misuse" answer depends on what fraction of this spend ran on metered overage, which the script cannot see directly.
-   - The `cache_write_1h` share (falling 56.7% → 50.5% across the last two snapshots, tracked as a new `running` row above) is the closest available proxy until real plan-usage data is added.
+   - A second survey reports roughly $6/day average, 90% under $12/day (https://www.morphllm.com/ai-coding-costs).
+   - This usage runs far above both, so the question must be judged by output value, not by comparison to median casual usage.
+   - Rejected proxies: token volume is the cost side of the ledger, and lines produced or deleted reward verbosity. Keep artifact-level denominators.
+   - The script's dollar totals are LIST prices assuming per-token billing on every cache write. The true answer depends on what fraction ran on metered overage, which the script cannot see.
+
+   - The `cache_write_1h` share is the closest available proxy until real plan-usage data is added.

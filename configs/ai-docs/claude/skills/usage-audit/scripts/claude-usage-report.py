@@ -2,19 +2,30 @@
 # claude-usage-report - Estimate Claude Code token spend from local transcripts.
 #
 # Usage:
-#   claude-usage-report.py [--days N] [--top N] [--json] [--snapshot]
+#   claude-usage-report.py --backfill              # write a snapshot per missing closed day
+#   claude-usage-report.py --day YYYY-MM-DD        # one calendar day
+#   claude-usage-report.py [--days N] [--top N]    # ad-hoc rolling window (never snapshots)
+#   claude-usage-report.py --json                  # machine-readable aggregates
 #
-# Examples:
-#   claude-usage-report.py                # last 7 days, human-readable
-#   claude-usage-report.py --days 30      # last 30 days
-#   claude-usage-report.py --json         # machine-readable aggregates
-#   claude-usage-report.py --snapshot     # also persist to ../usage-history/snapshots/
+# Reads every transcript under ~/.claude/projects and prices each API message at
+# Anthropic LIST prices (PRICES below). Answers: where did the spend go — main
+# loop vs subagents, model family, day, subagent type, skill (both whole-session
+# and marginal/non-overlapping), and the costliest sessions.
 #
-# Reads every transcript under ~/.claude/projects modified in the window and
-# prices each API message at Anthropic LIST prices (PRICES below).
-# Answers: where did the spend go — main loop vs subagents, model family,
-# day, subagent type, skill (both whole-session and marginal/non-overlapping),
-# and the costliest sessions.
+# The committed record is one snapshot per CLOSED LOCAL CALENDAR DAY. That unit
+# is what makes the history comparable, and each property below was a live bug
+# in the previous rolling-window design:
+#   - Immutable: a day's aggregate never changes once the day is over, so a
+#     backfilled day equals a day captured live. Windows captured mid-day did
+#     not — 2026-07-24 read $49 when sampled at 21:49 that day vs $413 once closed.
+#   - Non-overlapping: window snapshots double-counted. The 7-day 2026-07-25
+#     snapshot fully contained both the 2026-07-19 and 2026-07-23 snapshots, so
+#     every "before -> after" delta between them compared a set to its superset.
+#   - Self-dividing: cost_per_day is just the day's total, so the old divisor bug
+#     (total / nominal window_days, while cost spanned window_days + 1 buckets)
+#     cannot recur. It had inflated the 2026-07-19 snapshot 2x.
+#   - LOCAL, not UTC: bucketing on the raw UTC timestamp prefix misfiled 44.2%
+#     of priced records (12,693 sampled) for a UTC-3 user who works evenings.
 
 import argparse
 import bisect
@@ -24,7 +35,7 @@ import re
 import sys
 import time
 from collections import defaultdict
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 TRANSCRIPTS_ROOT = os.path.expanduser("~/.claude/projects")
 # realpath resolves the ~/.claude symlink so snapshots land in the repo checkout.
@@ -111,8 +122,32 @@ def parse_ts(iso_timestamp):
         return None
 
 
-def find_transcripts(cutoff_epoch):
-    """All .jsonl transcripts modified since cutoff, split main vs subagent."""
+def local_day(epoch):
+    """Epoch seconds -> 'YYYY-MM-DD' in the machine's LOCAL timezone.
+
+    Transcripts timestamp in UTC ('...Z'), so slicing the raw string buckets by
+    UTC day. For any user not on UTC that misfiles the tail of each local
+    evening into the next day — measured at 44.2% of priced records at UTC-3.
+    """
+    return datetime.fromtimestamp(epoch).strftime("%Y-%m-%d")
+
+
+def day_bounds(day):
+    """A 'YYYY-MM-DD' local day -> (start_epoch inclusive, end_epoch exclusive)."""
+    start = datetime.strptime(day, "%Y-%m-%d")
+    return start.timestamp(), (start + timedelta(days=1)).timestamp()
+
+
+def find_transcripts(since_epoch):
+    """All .jsonl transcripts that COULD hold records at/after since_epoch.
+
+    mtime is a file's LAST write, so a file older than since_epoch cannot hold a
+    record after it — a sound lower bound. There is deliberately no upper bound:
+    a file written today may still carry records from weeks ago (resumed or
+    long-running sessions), so the window's far end is enforced per record in
+    scan_transcript() instead. Skipping recent files here would silently drop
+    exactly the old records a backfill exists to recover.
+    """
     main_files, subagent_files = [], []
     for dirpath, _, names in os.walk(TRANSCRIPTS_ROOT):
         for name in names:
@@ -120,7 +155,7 @@ def find_transcripts(cutoff_epoch):
                 continue
             path = os.path.join(dirpath, name)
             try:
-                if os.path.getmtime(path) < cutoff_epoch:
+                if os.path.getmtime(path) < since_epoch:
                     continue
             except OSError:
                 continue
@@ -129,6 +164,27 @@ def find_transcripts(cutoff_epoch):
             else:
                 main_files.append(path)
     return main_files, subagent_files
+
+
+def oldest_retained_day():
+    """Local day of the oldest transcript still on disk, or None when there are none.
+
+    Claude Code prunes transcripts on `cleanupPeriodDays` (default 30), so days
+    before this are unmeasurable rather than idle — the difference a $0 snapshot
+    would otherwise erase. Feeds the `coverage` field in build_payload().
+    """
+    oldest = None
+    for dirpath, _, names in os.walk(TRANSCRIPTS_ROOT):
+        for name in names:
+            if not name.endswith(".jsonl"):
+                continue
+            try:
+                mtime = os.path.getmtime(os.path.join(dirpath, name))
+            except OSError:
+                continue
+            if oldest is None or mtime < oldest:
+                oldest = mtime
+    return local_day(oldest) if oldest is not None else None
 
 
 def iter_records(path):
@@ -205,13 +261,14 @@ def iter_text_payloads(content):
                 yield item.get("text") or ""
 
 
-def scan_transcript(path, cutoff_epoch):
+def scan_transcript(path, since_epoch, until_epoch):
     """Cost, tokens, call/turn counters, skills, and wall-clock bounds of one transcript.
 
-    A file can clear the mtime-based find_transcripts() gate (touched recently)
-    while still holding much older records (a long-running/resumed session) —
-    skip any record timestamped before cutoff_epoch so those don't leak into
-    a nominal N-day window.
+    Both bounds are enforced per record, not per file. A file can clear the
+    mtime-based find_transcripts() gate while holding records far outside the
+    window on either side (a long-running or resumed session), so `since_epoch`
+    keeps older records out and `until_epoch` (exclusive) keeps newer ones out.
+    The upper bound is what makes a past day recoverable at all.
     """
     stats = {
         "cost": 0.0,
@@ -249,7 +306,10 @@ def scan_transcript(path, cutoff_epoch):
     ab_seen = {}
     for record_index, record in enumerate(iter_records(path)):
         epoch = parse_ts(record.get("timestamp"))
-        if epoch is not None and epoch < cutoff_epoch:
+        # An unplaceable record is dropped rather than kept: with one scan per
+        # day, a record that matches no window would otherwise match EVERY
+        # window and be counted once per backfilled day.
+        if epoch is None or not (since_epoch <= epoch < until_epoch):
             continue
         if record.get("subtype") == "compact_boundary":
             stats["compactions"] += 1
@@ -257,11 +317,13 @@ def scan_transcript(path, cutoff_epoch):
         # progresses; the transcript's last one is the final title.
         if record.get("type") == "ai-title" and record.get("aiTitle"):
             stats["title"] = record["aiTitle"]
-        if epoch is not None:
-            if stats["first_epoch"] is None or epoch < stats["first_epoch"]:
-                stats["first_epoch"] = epoch
-            if stats["last_epoch"] is None or epoch > stats["last_epoch"]:
-                stats["last_epoch"] = epoch
+        # Every surviving record is timestamped and inside the window, so these
+        # bounds measure the session's wall-clock WITHIN the window — a session
+        # spanning midnight contributes its own slice to each day it touches.
+        if stats["first_epoch"] is None or epoch < stats["first_epoch"]:
+            stats["first_epoch"] = epoch
+        if stats["last_epoch"] is None or epoch > stats["last_epoch"]:
+            stats["last_epoch"] = epoch
         message = record.get("message") or {}
         content = message.get("content")
         if message.get("role") == "user":
@@ -327,7 +389,7 @@ def scan_transcript(path, cutoff_epoch):
         stats["cost"] += cost
         stats["message_costs"].append((record_index, cost))
         stats["by_family"][price_family(model)] += cost
-        stats["by_day"][(record.get("timestamp") or "")[:10]] += cost
+        stats["by_day"][local_day(epoch)] += cost
     # A command at end-of-file has no follower to disprove it — count it.
     for pending_index, name in pending_commands:
         stats["skills"][name] += 1
@@ -385,7 +447,7 @@ def session_duration(stats):
     return max(0.0, stats["last_epoch"] - stats["first_epoch"])
 
 
-def aggregate(main_files, subagent_files, cutoff_epoch):
+def aggregate(main_files, subagent_files, since_epoch, until_epoch):
     spawns = collect_agent_spawns(main_files)
     result = {
         "main_cost": 0.0,
@@ -432,7 +494,7 @@ def aggregate(main_files, subagent_files, cutoff_epoch):
         "session_seconds": 0.0,
     }
     for path in subagent_files:
-        stats = scan_transcript(path, cutoff_epoch)
+        stats = scan_transcript(path, since_epoch, until_epoch)
         result["subagent_cost"] += stats["cost"]
         merge_common(result, stats, "sub")
         parent = path.split("/subagents/")[0] + ".jsonl"
@@ -445,7 +507,7 @@ def aggregate(main_files, subagent_files, cutoff_epoch):
         result["by_subagent_type"][spawn_type]["runs"] += 1
         result["subagents_per_session"][parent]["by_spawn"].append((spawn_index, stats["cost"]))
     for path in main_files:
-        stats = scan_transcript(path, cutoff_epoch)
+        stats = scan_transcript(path, since_epoch, until_epoch)
         result["main_cost"] += stats["cost"]
         merge_common(result, stats, "main")
         duration = session_duration(stats)
@@ -660,16 +722,30 @@ def render_text(result, top_n):
               f"cache_hit={session['cache_hit_rate']:.1%}\t{short_name}")
 
 
-def build_payload(result, top_n, window_days):
-    """The machine-readable aggregate — shared by --json and --snapshot."""
+def build_payload(result, top_n, day=None, coverage="complete"):
+    """The machine-readable aggregate — shared by --json and --snapshot.
+
+    `day` set marks a single closed local calendar day (the committed snapshot
+    unit); left None it is an ad-hoc rolling window, which never gets snapshotted.
+    `coverage` is "complete" when transcripts for the period are still on disk and
+    "unretained" when they were pruned — an unretained day reads $0 but means
+    "unmeasurable", not "idle", so no reader mistakes deleted history for a day off.
+    """
     grand = result["main_cost"] + result["subagent_cost"]
     derived = derived_metrics(result)
     ranked_sessions = sorted(result["sessions"], key=lambda s: -s["cost"])[:top_n]
+    # Divide by the days actually observed, never a nominal window length. The
+    # old code divided by --days N while the cost spanned N+1 buckets (the cutoff
+    # lands mid-day, making the oldest bucket partial), which had inflated the
+    # 2026-07-19 snapshot's headline KPI 2x ($571.22 reported vs $285.61 true).
+    observed_days = len(result["by_day"]) or 1
     payload = {
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "window_days": window_days,
+        "day": day,
+        "coverage": coverage,
+        "observed_days": observed_days,
         "kpis": {
-            "cost_per_day": round(grand / window_days, 2) if window_days else 0.0,
+            "cost_per_day": round(grand / observed_days, 2),
             "user_messages": result["user_messages"],
             "interruptions": result["interruptions"],
             "session_hours": round(derived["session_hours"], 1),
@@ -741,46 +817,132 @@ def build_payload(result, top_n, window_days):
     return payload
 
 
-def write_snapshot(payload):
-    """Persist the aggregate to the committed usage-history folder; latest same-day run wins."""
-    snapshots_dir = os.path.join(HISTORY_DIR, "snapshots")
-    os.makedirs(snapshots_dir, exist_ok=True)
-    path = os.path.join(snapshots_dir, f"{time.strftime('%Y-%m-%d')}.json")
+SNAPSHOTS_DIR = os.path.join(HISTORY_DIR, "snapshots")
+SNAPSHOT_DAY_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})\.json$")
+
+
+def write_snapshot(payload, day):
+    """Persist one closed day's aggregate, named for the day it MEASURES.
+
+    The old naming used the run date, so a file said when it was captured rather
+    than what it covered — and a same-day rerun at a different --days silently
+    replaced a different period under an identical name. Keying on the measured
+    day makes a rewrite idempotent instead of destructive.
+    """
+    os.makedirs(SNAPSHOTS_DIR, exist_ok=True)
+    path = os.path.join(SNAPSHOTS_DIR, f"{day}.json")
     with open(path, "w") as fh:
         json.dump(payload, fh, indent=2)
         fh.write("\n")
-    print(f"snapshot written: {path}")
+    return path
+
+
+def existing_snapshot_days():
+    """Local days already committed under snapshots/."""
+    try:
+        names = os.listdir(SNAPSHOTS_DIR)
+    except OSError:
+        return set()
+    return {m.group(1) for m in (SNAPSHOT_DAY_RE.match(n) for n in names) if m}
+
+
+def day_range(first_day, last_day):
+    """Every local day from first_day to last_day inclusive, ascending."""
+    start = datetime.strptime(first_day, "%Y-%m-%d").date()
+    end = datetime.strptime(last_day, "%Y-%m-%d").date()
+    return [(start + timedelta(days=offset)).isoformat()
+            for offset in range((end - start).days + 1)]
+
+
+def snapshot_day(day, top_n, retention_floor):
+    """Aggregate one closed local day and commit it. Returns (path, total cost)."""
+    since_epoch, until_epoch = day_bounds(day)
+    main_files, subagent_files = find_transcripts(since_epoch)
+    result = aggregate(main_files, subagent_files, since_epoch, until_epoch)
+    coverage = "complete" if retention_floor and day >= retention_floor else "unretained"
+    payload = build_payload(result, top_n, day=day, coverage=coverage)
+    return write_snapshot(payload, day), payload["total"]
+
+
+def run_backfill(args, last_closed_day):
+    """Write a snapshot for every closed day in range that has none yet.
+
+    Each day runs the SAME single-day path a live capture uses, rather than one
+    pass bucketed across days. A 30-day rebuild costs a couple of minutes that
+    way, but a backfilled day and a live-captured day come out byte-identical by
+    construction — a second code path could drift from the first and silently
+    split the history into two incomparable halves.
+    """
+    retention_floor = oldest_retained_day()
+    first_day = args.since or retention_floor or last_closed_day
+    last_day = min(args.until or last_closed_day, last_closed_day)
+    if first_day > last_day:
+        print(f"nothing to backfill: {first_day} is after the last closed day {last_day}.")
+        return
+    committed = existing_snapshot_days()
+    missing = [d for d in day_range(first_day, last_day) if d not in committed]
+    if not missing:
+        print(f"up to date: every day {first_day}..{last_day} already has a snapshot.")
+        return
+    print(f"backfilling {len(missing)} missing day(s) in {first_day}..{last_day} "
+          f"(transcripts retained from {retention_floor or 'unknown'})")
+    for day in missing:
+        path, total = snapshot_day(day, args.top, retention_floor)
+        print(f"  {day}  ${total:>9,.2f}  {os.path.basename(path)}")
 
 
 def main():
     parser = argparse.ArgumentParser(
         description="Estimate Claude Code token spend from ~/.claude/projects transcripts "
                     "(list prices; shares matter more than absolute dollars).")
-    parser.add_argument("--days", type=int, default=7, help="lookback window in days (default: 7)")
+    parser.add_argument("--backfill", action="store_true",
+                        help="write a snapshot for every closed day that lacks one (default audit step)")
+    parser.add_argument("--day", help="aggregate one local calendar day (YYYY-MM-DD) and snapshot it")
+    parser.add_argument("--since", help="earliest day to backfill (default: oldest retained transcript)")
+    parser.add_argument("--until", help="latest day to backfill (default: yesterday)")
+    parser.add_argument("--days", type=int, default=7,
+                        help="ad-hoc rolling-window report, in days (default: 7); never snapshots")
     parser.add_argument("--top", type=int, default=8, help="how many top sessions to show (default: 8)")
     parser.add_argument("--json", action="store_true", help="emit machine-readable aggregates")
-    parser.add_argument("--snapshot", action="store_true",
-                        help="also write the aggregates to usage-history/snapshots/YYYY-MM-DD.json")
     args = parser.parse_args()
 
     if not os.path.isdir(TRANSCRIPTS_ROOT):
         print(f"transcripts dir not found: {TRANSCRIPTS_ROOT}", file=sys.stderr)
         sys.exit(1)
 
-    cutoff = time.time() - args.days * 86400
-    main_files, subagent_files = find_transcripts(cutoff)
+    # Yesterday, not today: a day is only immutable once it has ended. Sampling
+    # 2026-07-24 at 21:49 that day read $49; the closed day was $413.
+    last_closed_day = (date.today() - timedelta(days=1)).isoformat()
+
+    if args.backfill:
+        run_backfill(args, last_closed_day)
+        return
+
+    if args.day:
+        if args.day > last_closed_day:
+            print(f"refusing to snapshot {args.day}: the day has not closed "
+                  f"(last closed day is {last_closed_day}).", file=sys.stderr)
+            sys.exit(1)
+        path, total = snapshot_day(args.day, args.top, oldest_retained_day())
+        print(f"{args.day}  ${total:,.2f}  ->  {path}")
+        return
+
+    # Ad-hoc window: a human-readable read of recent activity. It deliberately
+    # cannot snapshot — an overlapping, variable-length window is exactly the
+    # unit the per-day record replaced.
+    since_epoch = time.time() - args.days * 86400
+    main_files, subagent_files = find_transcripts(since_epoch)
     if not main_files and not subagent_files:
         print(f"No transcripts modified in the last {args.days} days.")
         return
 
-    result = aggregate(main_files, subagent_files, cutoff)
+    result = aggregate(main_files, subagent_files, since_epoch, time.time())
     if args.json:
-        print(json.dumps(build_payload(result, args.top, args.days), indent=2))
+        print(json.dumps(build_payload(result, args.top), indent=2))
     else:
-        print(f"window: last {args.days} days · files: {len(main_files)} main + {len(subagent_files)} subagent\n")
+        print(f"window: last {args.days} days · files: {len(main_files)} main + "
+              f"{len(subagent_files)} subagent\n")
         render_text(result, args.top)
-    if args.snapshot:
-        write_snapshot(build_payload(result, args.top, args.days))
 
 
 if __name__ == "__main__":

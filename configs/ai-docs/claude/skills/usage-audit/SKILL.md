@@ -9,65 +9,143 @@ Deterministic KPI measurement over `~/.claude/projects` transcripts, plus a dura
 
 The three KPIs (defined in `./usage-history/README.md`): **session time up** (longer autonomous stretches per human touch), **money down** (`kpis.cost_per_day`), **user messages/corrections down** (`user_messages`, `interruptions`).
 
-## Run the script — never re-implement the aggregation
+## Run the scripts — never re-implement the aggregation
 
 ```bash
-~/.claude/skills/usage-audit/scripts/claude-usage-report.py                 # last 7 days
-~/.claude/skills/usage-audit/scripts/claude-usage-report.py --days 30      # custom window
-~/.claude/skills/usage-audit/scripts/claude-usage-report.py --json         # machine-readable
-~/.claude/skills/usage-audit/scripts/claude-usage-report.py --snapshot     # also write usage-history/snapshots/YYYY-MM-DD.json
+S=~/.claude/skills/usage-audit/scripts
+$S/claude-usage-report.py --backfill          # snapshot every missing CLOSED day  <- start here
+$S/claude-usage-report.py --day 2026-07-24    # one calendar day
+$S/claude-usage-report.py --days 7 --json     # ad-hoc rolling report; writes no snapshot
+$S/config-change-ledger.py                    # what changed in the config, by day
+$S/build-usage-viewer.py --open               # interactive chart of the whole series
 ```
 
-- [Instruction] Save the output to `/tmp/usage-report.txt` and read from the file (4+ second command on big windows).
-  - [Why] The slow-command rule: a wrong filter on piped output forces the whole slow run again.
+- **Start every audit with `--backfill`**, before reading anything.
 
-- [Instruction] On every audit run, use `--snapshot` so the run leaves a durable record (same-day rerun overwrites; latest wins).
-  - [Why] A report that lives only in /tmp can't be compared next month; the committed snapshot is the memory the loop runs on.
+  - A missing day is invisible — it reads as an idle day rather than an absent one, so backfilling first makes the history complete before you interpret it.
+
+- **Save the output to `/tmp/usage-report.txt` and read from the file** — a full backfill runs minutes.
+
+  - The slow-command rule: a wrong filter on piped output forces the whole slow run again.
+
+- **Never snapshot the current day**, and never work around the script's refusal to.
+
+  - A day is only immutable once it has ended: 2026-07-24 sampled mid-evening read $49 against $608.62 for the closed day, so a mid-day capture poisons every later comparison.
+
+- **Read git history through `config-change-ledger.py`**, never an ad-hoc `git log` typed into chat.
+
+  - The script gets day grouping and surface classification for free, and runs git as a subprocess — which sidesteps the `rtk` output cap the global rules warn about.
+
+- **Run the ledger over the same day range** as the snapshots and read the two side by side.
+
+  - A snapshot says what usage did; only commits say what changed to cause it. A config edit lands on day D and shows in the KPIs from D+1 onward.
+
+- **Rebuild the viewer after backfilling** and point the user at it, rather than pasting long tables into chat.
+
+  - A human reads a time series as a shape, not as rows. The chart also marks each day's config commits under the day they landed.
+
+- **Never commit `usage-history/viewer.html`**; it is gitignored.
+
+  - It is 330 KB of data inlined from `snapshots/`, fully reproducible from committed files, so committing it would churn the diff on every audit.
 
 ## The improvement loop — every audit runs it
 
-- [Instruction] Read the previous 2–3 files in `./usage-history/snapshots/` and compare KPIs against today's snapshot before interpreting anything.
-  - [Why] A single snapshot has no direction; only the delta says whether an experiment moved its signal or the spend trend reversed.
+### Reading the day series
 
-- [Instruction] Divide `user_messages`, `interruptions`, and `session_hours` by `window_days` before comparing them across snapshots.
-  - [Why] Those three are raw per-window totals, so a raw delta can invert the sign: 821 (7d) → 411 (1d) user messages reads as halved, yet per-day it tripled.
+- **Read a run of consecutive days** from `./usage-history/snapshots/`, not two isolated files.
 
-  - [Example] Already normalized, compare directly: `kpis.cost_per_day`, `kpis.cost_per_user_message`, `by_day` entries.
+  - Daily spend swings hard on workload alone — $156 to $616 in one week — so a two-point delta measures which two days you picked, not the trend.
 
-- [Instruction] For each `running` row in `./usage-history/experiments.md`, check its "watch signal" against the snapshot delta and settle it: `kept`, `reverted`, or leave `running` with a dated note.
-  - [Why] Unsettled experiments pile up as permanent "running" rows — the repertoire stops teaching which tweaks actually worked.
+- **Name both days explicitly** in every comparison you state.
 
-- [Instruction] Cite the concrete numbers (before → after) in the Outcome column when settling a row.
-  - [Why] "Worked" without numbers can't be audited later; the two figures make the verdict checkable from the snapshots alone.
+  - The snapshots are per-day and non-overlapping, so an unnamed "before → after" is unreproducible. Under the retired window design such deltas sometimes compared a set against its own superset.
 
-- [Instruction] Raise 1–3 new hypotheses per audit and append them as `running` rows — each with the config/skill/model tweak, its rationale, and the snapshot signal to watch.
-  - [Why] The loop only compounds if every audit feeds the next one; an audit that just reports numbers is a dead end.
+- **Skip any day whose `coverage` is not `"complete"`** when computing a delta.
 
-- [Instruction] Advance at least one item from the `Open questions backlog` in `./usage-history/experiments.md` per audit — settle it with cited evidence, or promote it into a `running` row.
-  - [Why] The backlog holds the user's standing questions; without a per-audit pull, fresh hypotheses crowd them out and they sit unanswered indefinitely.
+  - A day past the transcript retention floor reads near-zero because its transcripts were deleted, so including it manufactures a spending drop that never happened.
 
-- [Instruction] Back each new hypothesis with web search against current official sources (Anthropic docs/engineering blog, recent papers) — not training-data recall.
-  - [Why] Pricing, model behavior, and best practices drift fast; a hypothesis built on stale recall wastes an observation window on a dead lever.
+- **Compare per-day fields directly and never divide** by anything.
 
-- [Instruction] End the audit by offering to commit the snapshot + experiments.md changes (never commit without the user's ask).
-  - [Why] Uncommitted history dies with the working tree, but this repertoire is the user's record, so the commit is theirs to authorize.
+  - Each snapshot is exactly one day, so `cost_per_day` equals the day's total and `user_messages` is already daily. Re-applying the retired `window_days` divisor would halve or double real numbers.
+
+### Settling and raising experiments
+
+Live entries sit in `./usage-history/experiments.md`, split into `## Enacted` (change is in git, window open) and `## Proposed` (no change enacted yet).
+
+- **Settle every `## Enacted` entry** against the day run: `kept`, `reverted`, or a dated `Log` line.
+
+  - Unsettled experiments pile up, and the repertoire stops teaching which tweaks actually worked.
+
+- **Move each settled entry to `./usage-history/experiments-archive.md`** in the same edit that settles it.
+
+  - The live file is read in full on every audit, so a settled entry left there taxes each run to say something already decided.
+
+- **Verify with the ledger that every `## Enacted` entry really has a commit**, and demote it to `## Proposed` if it does not.
+
+  - Three entries sat `running` for over a week describing tweaks nobody had made, so their flat signals measured the status quo — a commit either exists or it does not.
+
+- **Cite before → after numbers with both day filenames** when settling an entry.
+
+  - "Worked" without numbers can't be audited later; the figures plus their source days make the verdict checkable from the snapshots alone.
+
+- **Catalogue any config commit the ledger shows that no entry covers** — as a new `## Enacted` entry, or a note saying why it cannot move a KPI.
+
+  - An unrecorded change is a confounder in every later delta. The model-pin deny hook shipped 2026-07-24, yet the log still listed it as an open question.
+
+- **Record by hand the day and value of any lever `settings.json` does not commit** — `model`, `advisorModel`, `effortLevel`.
+
+  - The repo deliberately leaves those three uncommitted, so the ledger cannot see them. Without a hand-written record, an experiment on one has no evidence at all.
+
+- **Raise 1–3 new hypotheses per audit** and append them under `## Proposed`, each with the tweak, its rationale, and the signal to watch.
+
+  - The loop only compounds if every audit feeds the next one; an audit that just reports numbers is a dead end.
+
+- **Keep a hypothesis under `## Proposed` until its change is committed** — never file an idea as enacted.
+
+  - Filing an unmade change as enacted opens an observation window over a period nothing happened in, and the resulting flat reading looks like a settled negative result.
+
+- **Advance at least one `Open questions backlog` item per audit** — settle it with cited evidence, or promote it into an entry with a watch signal.
+
+  - The backlog holds the user's standing questions; without a per-audit pull, fresh hypotheses crowd them out and they sit unanswered indefinitely.
+
+- **Back each new hypothesis with web search** against current official sources (Anthropic docs/engineering blog, recent papers) — not training-data recall.
+
+  - Pricing, model behavior, and best practices drift fast; a hypothesis built on stale recall wastes an observation window on a dead lever.
+
+- **End the audit by offering to commit** the new snapshots plus the experiments edits — never commit without the user's ask.
+
+  - Uncommitted history dies with the working tree, but this repertoire is the user's record, so the commit is theirs to authorize.
 
 ## Interpreting the output
 
-- [Instruction] Lead with the main-vs-subagent split — do not assume subagents dominate.
-  - [Why] The 2026-07 audit reversed that hypothesis: main loop was 83% of spend; `/usage`'s "subagent-heavy" label counts sessions that USE subagents, not subagent cost.
+- **Lead with the main-vs-subagent split** — do not assume subagents dominate.
 
-- [Instruction] Check the four known levers, in impact order: main-model tier (`settings.json → model`), marathon sessions (top-session list; compaction count), thinking share, unpinned subagent spawns (types priced at opus/fable).
-  - [Why] These four explained ~95% of the 2026-07 overage; new causes are possible but start where the money was.
+  - The 2026-07 audit reversed that hypothesis: main loop was 83% of spend. `/usage`'s "subagent-heavy" label counts sessions that USE subagents, not subagent cost.
 
-- [Instruction] Treat dollars as LIST-price estimates; shares and rankings are the reliable signal.
-  - [Why] Subscription coverage and corporate rates change absolute dollars, not proportions.
+- **Check the four known levers, in impact order**: main-model tier (`settings.json → model`), marathon sessions (top-session list, compaction count), thinking share, unpinned subagent spawns (types priced at opus/fable).
 
-- [Instruction] Before quoting dollar figures, verify the `PRICES` table in the script against current Anthropic pricing (the built-in `claude-api` skill, or docs.claude.com); update the table and its dated comment on drift.
-  - [Why] The first 2026-07 audit used stale prices and inflated Opus figures ~3×; prices drift silently across model generations.
+  - These four explained ~95% of the 2026-07 overage; new causes are possible, but start where the money was.
 
-## Context: the baseline and the repertoire
+- **Treat dollars as LIST-price estimates**; shares and rankings are the reliable signal.
 
-The baseline snapshot and every experiment tried live in `./usage-history/` (`experiments.md` + `snapshots/`). Headline at baseline (2026-07): ~$4.2k/week list price, 83% main loop (fable/opus + always-thinking + 200k-context marathons), 17% subagents.
+  - Subscription coverage and corporate rates change absolute dollars, not proportions.
 
-Measurement caveats (list prices, wall-clock hours, block-based thinking share, per-window totals that need dividing by `window_days`) are in `./usage-history/README.md` — read it before comparing snapshots.
+- **Verify the script's `PRICES` table against current Anthropic pricing before quoting dollars** (the built-in `claude-api` skill, or docs.claude.com), and update the table plus its dated comment on drift.
+
+  - The first 2026-07 audit used stale prices and inflated Opus figures ~3×; prices drift silently across model generations.
+
+## Context: the history and the repertoire
+
+Everything durable lives in `./usage-history/`: the per-day series in `snapshots/`, live experiments in `experiments.md`, and settled ones in `experiments-archive.md`.
+
+There is no single baseline file. The day series is the baseline, and any two closed days can be compared directly.
+
+For scale: the 2026-07 days run roughly $150–$620 each, with the main loop around 72–84% of spend.
+
+- **Read `./usage-history/README.md` before comparing snapshots.**
+
+  - It carries the caveats that decide whether a delta is real — list prices, local-day bucketing, wall-clock hours, block-based thinking share, and the retention floor.
+
+- **Treat every figure logged in the experiments files on or before 2026-07-25 as directional only**, never as a number to re-cite.
+
+  - Those came from the retired rolling-window snapshots, which overlapped, bucketed by UTC, and divided by the wrong day count — inflating one headline figure 2×.
