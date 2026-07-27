@@ -17,7 +17,6 @@ Audit CLAUDE.md file and skills for semantic coherence issues.
 Report findings; never auto-fix.
 
 LLM-driven (not a script): each heuristic requires cross-file reading.
-User can pair it with `performance-check-principles-and-skills` for the quantitative side (line/word budgets, density, marker counts).
 
 ## Modes (orchestrator vs ensemble child)
 
@@ -75,10 +74,6 @@ Children emit their own section number and a line-free path; the orchestrator do
 - Cite the `[Instruction]` line, not its `[Why]` or `[Example]` child — the orchestrator tolerates ±3, so a near miss still matches.
 
 Why: the cited lines identify the *defect*, while a heading identifies only the neighborhood it sits in — and headings are spelled differently by each child and shared by unrelated defects.
-
-A 2026-07-25 run hit both failures: `subagent-flow-opt-in` vs `Subagent flow (opt-in)` split one defect's votes, and two unrelated defects under `TaskList discipline` merged into a fabricated 3-vote consensus.
-
-The fixed line lets the orchestrator merge via `grep '^\[KEY\]'` with zero LLM judgment.
 
 [Instruction] **Orchestrator only: read [`references/majority-merge.md`](references/majority-merge.md) at flow step 4.**
 
@@ -226,6 +221,20 @@ Look for:
 Flag only when synonyms appear in contexts where the model must distinguish them to act AND the difference matters for behavior.
 Provide examples of the different usages to the user.
 
+### 8. Harness opportunities — automation over AI
+
+A rule or step asking Claude to judge what a script, hook, or linter could settle by rule — CLAUDE.md's `[Harness]` lens, turned on the rule corpus itself.
+
+Look for:
+- Steps that count, diff, or check presence/format — a `grep`/`awk`/script settles those for free.
+- A rule kept only by the model remembering it, where a `PreToolUse`/`Stop` hook would enforce it.
+- One manual procedure repeated across ≥2 skills — one shared `scripts/` entry replaces N prose copies.
+- Prose restating a check an existing script already runs (e.g. `check-density.sh`) instead of invoking it.
+
+Do NOT flag a judgment call (which rule wins, which example to prune) — automation gates those, never makes them.
+
+HIGH confidence requires naming the mechanism and its plug-in point: script path, hook event, or settings key.
+
 ## Lifecycle
 
 This is what an **ensemble child** executes (mode B). The orchestrator (mode A) only runs the flow in §"Orchestrator flow" above — it does not perform heuristic analysis itself.
@@ -234,7 +243,7 @@ This is what an **ensemble child** executes (mode B). The orchestrator (mode A) 
 2. Read CLAUDE.md and every `skills/*/SKILL.md` in full — cross-file is the whole point, no grep shortcuts.
    - Scoped runs (e.g., `skill X`) still load the full set; the scope filters which findings to report, not which files to read.
 
-   - Load `skill-authoring` too — heuristics #3, #5 judge marker placement against its rules.
+   - Load `skill-standards` too — heuristics #3, #5 judge marker placement against its rules.
 
 3. For each heuristic, scan and collect *draft* findings against the rubric.
 4. **Adversarial sanity-check.** For each draft, write one sentence defending the current state.
@@ -249,7 +258,7 @@ This is what an **ensemble child** executes (mode B). The orchestrator (mode A) 
 
 ## Report Format
 
-Summary table + per-heuristic sections. Seven heuristic rows (one per heuristic), each in the same fixed order as the §Heuristics list.
+Summary table + per-heuristic sections. Eight heuristic rows (one per heuristic), each in the same fixed order as the §Heuristics list.
 
 **Example with findings** (the `[KEY]` line is mandatory in child reports — see §"2/3 majority filter"):
 

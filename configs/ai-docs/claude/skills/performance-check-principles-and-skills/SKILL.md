@@ -153,7 +153,7 @@ So when the report shows overages, end it with an offer: delegate the **fix loop
 On the user's go-ahead, the main session spawns one haiku subagent (the `Agent` tool with `model: haiku`) that owns the whole loop in its own context:
 
 - Run `check.sh`, apply trim-hierarchy steps 1–4 to the offending files, re-run, repeat until green or stuck.
-- Load `skill-authoring` before editing any `SKILL.md` — it holds the marker-splitting/nesting rules a trim must not violate.
+- Load `skill-standards` before editing any `SKILL.md` — it holds the marker-splitting/nesting rules a trim must not violate.
 - Never the override step (`words-budget`/`instructions-budget`) — that's a budget trade-off the user owns, not a trim.
 - Return a concise summary plus a minimal diff so the user can review fast.
 

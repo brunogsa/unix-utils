@@ -8,7 +8,7 @@ Read this in the **orchestrator** at flow step 4, once the 3 child reports are b
 
 Only the key counts for voting; confidence tier, header phrasing, and diff wording all vary stochastically between children.
 
-- `section-group` — integer 1–7 from §Heuristics, normalized to `1-2` at merge time (sections 1 & 2 conflate at the boundary).
+- `section-group` — integer 1–8 from §Heuristics, normalized to `1-2` at merge time (sections 1 & 2 conflate at the boundary).
 
 - `primary-file` — the lowest file path in the finding *body* (never its header) that falls inside the audited scope.
   - For multi-file findings, take the first in-scope file alphabetically.
