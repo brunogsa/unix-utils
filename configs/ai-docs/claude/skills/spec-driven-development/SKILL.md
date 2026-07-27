@@ -160,7 +160,7 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
 
 - **After completing a task note deviations from the original plan**.
 
-- **CRITICAL: When a doc warrants a diagram, follow the `mermaid-diagrams` skill**.
+- **When a doc warrants a diagram, follow the `mermaid-diagrams` skill** — the self-review's Artifacts Valid check validates every diagram via `mmdc`.
 
-- **CRITICAL: Add a blank line between bullets (not sub-bullets)**:
-  - This improve A LOT the readability
+- **Bullet gaps follow `doc-standards`' rule** — gap any bullet that has a sub-bullet or exceeds 80% of the density cap.
+  - The self-review's `markdown-standards-fixer` dispatch verifies and repairs both this and the density cap deterministically.
