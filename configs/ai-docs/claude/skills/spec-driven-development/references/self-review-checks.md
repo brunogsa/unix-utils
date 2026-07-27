@@ -59,13 +59,17 @@ State in the output that it was skipped by request; the artifact fixers below st
   - If decomposable, record each sub-project as a `[Side]` TaskList entry — its name, a one-sentence purpose, and which other sub-projects it depends on.
   - Then re-run the qualitative pass only; the formal checks follow next regardless.
   - Why the TaskList: a stale session loses the decomposition map, and the TaskList is the one surface that survives both the session and a compaction.
+
 - **PR size**: does the work fit one reviewable PR, or is it large enough to stage into several?
   - If large, **PR Breakdown** must split the tasks into an ordered PR sequence — vertical splits, each shipping its own tests + code + docs — not one oversized PR.
+
   - Blocking gate: an oversized PR blocks approval until the plan is split, or the user explicitly waives it for this run.
   - Felt anchor: reviewer defect-detection drops past ~400 lines of diff and hard above ~600 (SmartBear/Cisco; Google small-CL) — no code exists yet, so estimate by feel, never invent a line count.
+
 - **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker for the user.
 - **Completeness**: does the Testable Acceptance Criteria section cover every Goal, Success Metric/KPI, User Story, and Non-Functional/Technical Requirement the spec actually carries — and every corner case and failure mode?
   - On a light-set spec most of those sections are absent by design, so judge coverage against what Background states plus the two checklists, which are never trimmed.
+
 - **Human-Reviewable**: could a complete novice succeed with only this plan and the repo — no other context? Is the format pleasant enough to read that the user can verify you?
 
 ## Artifact fixers
@@ -88,9 +92,12 @@ Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped co
 
 - Mechanical half — `scripts/check-ac-coverage.sh <plan> <spec>` checks completeness (every AC in the spec's Acceptance-Criteria section has a coverage header).
   - Honesty: every cited breadcrumb must exist verbatim among Test Design breadcrumbs; a `…`-truncated or invented citation won't match.
+
   - Exit 1 blocks.
+
 - Semantic half — runs only after the mechanical half passes, never in parallel with it. Dispatch `agent(subAgent=deep-reviewer, title=Judge AC-to-test coverage)`.
   - It judges whether each cited test actually *proves* its AC — the match no script can make.
+
 - Output: orphan ACs + bogus citations (empty = pass). Block plan approval if non-empty.
 
 ## Every test has a task

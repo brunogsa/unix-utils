@@ -17,6 +17,7 @@ Later rounds scope the gates to what actually changed — computed by `diff`, ne
 
 - **Re-check broken invariants**: each gate concentrates on the changed regions plus any invariant those changes break, even in UNCHANGED regions.
   - Deletions are the trap: removing an AC orphans the plan machinery tracing to it (Gate 3); removing a task orphans its owned test title (Gate 2).
+
   - Both orphans sit in unchanged regions the diff won't flag — this is what the full-doc backstop must catch.
   - The local case is easier: an edited AC or test re-runs that AC↔test coverage pair (Gate 1).
 

@@ -116,10 +116,13 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
 
 - **Delta-scoped re-review** — later self-review rounds scope the gates to what `diff` shows changed, not the whole doc again.
   - Load [`references/delta-scoped-rereview.md`](references/delta-scoped-rereview.md) on the second and later rounds.
+
 - **Formal-check recovery loop** — on a blocking failure, fix the issue, then re-run only that failed check plus the delta-scoped re-review above.
   - Never re-run the full seven-check block from the top — only the one check that failed, plus its delta re-review.
+
 - **Snapshot hand-off loop** — before re-running the failed check, snapshot the spec and the plan to `/tmp/sdd-snapshots/` for the user's annotated-diff review.
   - Each round of AI fixes produces a fresh snapshot; the loop exits only when the user approves it.
+
 - **Resolving spec/plan drift** — when the plan and the spec disagree, surface each conflict for the user before editing either doc.
   - Load [`references/resolving-drift.md`](references/resolving-drift.md) the moment a conflict first surfaces — any check, qualitative or formal; there is no fixed slot.
 
@@ -142,6 +145,7 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
 
 - **Cross-references inside the planning doc spell out the behavior — never cite `AC-N` IDs** (doc-standards' no-ID-references rule).
   - Anchors, not references — exempt from the ban: the spec's `### AC-N:` definition headings, and the plan's `- **AC-N**` coverage-list headers that `scripts/check-ac-coverage.sh` joins on.
+
   - Why: specs/plans are scanned non-linearly; an ID reference adds lookup cost on every scan, while the behavior recap alone carries the meaning.
 
 - **CRITICAL: Keep spec and plan up to date** -- Stale docs degrade `/create-pr`.
