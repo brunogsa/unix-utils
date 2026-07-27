@@ -63,7 +63,7 @@ $S/claude-usage-report.py --backfill --since <SINCE> > /tmp/usage-report.txt 2>&
 
 - **Never snapshot the current day**, and never work around the script's refusal to.
 
-  - A day is only immutable once it has ended: 2026-07-24 sampled mid-evening read $49 against $608.62 for the closed day, so a mid-day capture poisons every later comparison.
+  - A day is only immutable once it has ended: a mid-day sample counts only the sessions that already ran, so it reads low and poisons every comparison against a closed day.
 
 - **Re-run with `--backfill --rebuild` after any change to pricing or aggregation**, then say in the audit which days were rebuilt.
 
@@ -175,7 +175,7 @@ Steps 2, 5, and 6 quote figures; these rules bind every one.
 
 - **Read a run of consecutive days** from `./usage-history/snapshots/`, not two isolated files.
 
-  - Daily spend swings hard on workload alone — $156 to $616 in one week — so a two-point delta measures which two days you picked, not the trend.
+  - Daily spend swings hard on workload alone — $49.20 on 2026-07-21 against $291.57 on 2026-07-26 — so a two-point delta measures which two days you picked, not the trend.
 
 - **Name both days explicitly** in every comparison you state.
 
@@ -215,7 +215,7 @@ Everything durable lives in `./usage-history/`: the per-day series in `snapshots
 
 There is no single baseline file: the day series is the baseline, and any two closed days compare directly.
 
-For scale: the 2026-07 days run roughly $150–$620 each, with the main loop around 72–84% of spend.
+For scale: the 2026-07 days run roughly $20–$455 each with a median near $116, and the main loop is 54–98% of spend with a median of 81%.
 
 - **Read `./usage-history/README.md` before comparing snapshots.**
 

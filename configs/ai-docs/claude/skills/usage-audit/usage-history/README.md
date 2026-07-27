@@ -82,11 +82,11 @@ Committed, durable record of Claude Code usage — the memory the `usage-audit` 
 - Days are **local**, not UTC. A record is filed by the calendar day it happened in the machine's timezone.
 
   - This matters: bucketing on the raw UTC timestamp misfiled 44.2% of priced records (5,611 of 12,693) for a UTC-3 user who works evenings.
-  - So 2026-07-24 read $413 under UTC bucketing and $609 under local. The old snapshots carry the UTC numbers.
+  - The old snapshots carry the UTC numbers, so their per-day dollars are misfiled across midnight as well as inflated by the block bug.
 
 - Only **closed** days are snapshotted — the script refuses today. A day is not comparable until it has ended.
 
-  - 2026-07-24 sampled mid-evening on the 23rd read $49; the closed day was $608.62.
+  - A mid-day sample counts only the sessions that already ran, so it reads far below the same day's closed total.
 
 - Snapshots older than the transcript retention floor read `"coverage": "unretained"`, not `"complete"`.
 
