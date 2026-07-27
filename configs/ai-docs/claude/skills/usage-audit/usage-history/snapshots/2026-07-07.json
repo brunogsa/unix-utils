@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-07-27T01:11:45-03:00",
+  "generated_at": "2026-07-27T02:43:26-03:00",
   "day": "2026-07-07",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
     "cost_per_day": 93.12,
-    "user_messages": 138,
+    "user_messages": 123,
     "interruptions": 10,
     "session_hours": 10.8,
-    "cost_per_user_message": 0.67
+    "cost_per_user_message": 0.76
   },
   "total": 93.12,
   "main_cost": 77.69,
@@ -18,10 +18,10 @@
     "sub": 176
   },
   "compactions": 20,
-  "session_count": 702,
+  "session_count": 22,
   "cache_hit_rate": 0.95,
   "thinking_blocks": 914,
-  "text_blocks": 419,
+  "text_blocks": 418,
   "thinking_block_share": 0.686,
   "tokens": {
     "input": 250074,
@@ -57,10 +57,6 @@
     "general-purpose": {
       "cost": 13.36,
       "runs": 6
-    },
-    "UNMATCHED": {
-      "cost": 0.0,
-      "runs": 811
     },
     "density-fixer": {
       "cost": 0.26,
@@ -225,20 +221,6 @@
         "cache_write_5m": 0,
         "cache_write_1h": 68478
       }
-    },
-    "claude-api": {
-      "cost": 0.0,
-      "invocations": 1,
-      "sessions": 1,
-      "compactions": 0,
-      "interruptions": 0,
-      "tokens": {
-        "input": 0,
-        "output": 0,
-        "cache_read": 0,
-        "cache_write_5m": 0,
-        "cache_write_1h": 0
-      }
     }
   },
   "by_skill_marginal": {
@@ -306,12 +288,6 @@
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 0.0
-    },
-    "claude-api": {
-      "dedicated_sessions": 1,
-      "dedicated_cost": 0.0,
-      "mixed_sessions": 0,
       "mixed_cost_estimate": 0.0
     }
   },

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-27T01:13:02-03:00",
+  "generated_at": "2026-07-27T02:44:41-03:00",
   "day": "2026-07-20",
   "coverage": "complete",
   "observed_days": 1,
@@ -18,7 +18,7 @@
     "sub": 1913
   },
   "compactions": 28,
-  "session_count": 175,
+  "session_count": 23,
   "cache_hit_rate": 0.966,
   "thinking_blocks": 2187,
   "text_blocks": 1017,
@@ -50,10 +50,6 @@
     }
   },
   "by_subagent_type": {
-    "UNMATCHED": {
-      "cost": 1.77,
-      "runs": 312
-    },
     "general-purpose": {
       "cost": 46.4,
       "runs": 27
@@ -69,6 +65,10 @@
     "density-fixer": {
       "cost": 0.77,
       "runs": 9
+    },
+    "UNMATCHED": {
+      "cost": 1.77,
+      "runs": 3
     },
     "explore": {
       "cost": 1.12,

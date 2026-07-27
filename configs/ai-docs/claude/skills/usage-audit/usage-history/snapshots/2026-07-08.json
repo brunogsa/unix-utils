@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-07-27T01:11:53-03:00",
+  "generated_at": "2026-07-27T02:43:33-03:00",
   "day": "2026-07-08",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
     "cost_per_day": 20.39,
-    "user_messages": 38,
+    "user_messages": 37,
     "interruptions": 8,
     "session_hours": 3.8,
-    "cost_per_user_message": 0.54
+    "cost_per_user_message": 0.55
   },
   "total": 20.39,
   "main_cost": 19.91,
@@ -18,7 +18,7 @@
     "sub": 27
   },
   "compactions": 3,
-  "session_count": 675,
+  "session_count": 6,
   "cache_hit_rate": 0.965,
   "thinking_blocks": 226,
   "text_blocks": 125,
@@ -47,10 +47,6 @@
     }
   },
   "by_subagent_type": {
-    "UNMATCHED": {
-      "cost": 0.0,
-      "runs": 808
-    },
     "Explore": {
       "cost": 0.23,
       "runs": 1
@@ -359,46 +355,6 @@
       "skills": {
         "address-todo-comments": 1
       }
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/d4e454c5-fc34-4be8-b85e-a1c9e7f6c583.jsonl",
-      "title": "",
-      "cost": 0.0,
-      "subagent_cost": 0.0,
-      "api_calls": 0,
-      "duration_hours": 0.0,
-      "compactions": 0,
-      "user_messages": 0,
-      "interruptions": 0,
-      "tokens": {
-        "input": 0,
-        "output": 0,
-        "cache_read": 0,
-        "cache_write_5m": 0,
-        "cache_write_1h": 0
-      },
-      "cache_hit_rate": 0.0,
-      "skills": {}
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/db1e5bcc-cd43-4054-bf74-b2a1606a4be3.jsonl",
-      "title": "",
-      "cost": 0.0,
-      "subagent_cost": 0.0,
-      "api_calls": 0,
-      "duration_hours": 0.0,
-      "compactions": 0,
-      "user_messages": 0,
-      "interruptions": 0,
-      "tokens": {
-        "input": 0,
-        "output": 0,
-        "cache_read": 0,
-        "cache_write_5m": 0,
-        "cache_write_1h": 0
-      },
-      "cache_hit_rate": 0.0,
-      "skills": {}
     }
   ],
   "reconciliation": {

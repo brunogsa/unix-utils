@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-27T01:12:16-03:00",
+  "generated_at": "2026-07-27T02:43:55-03:00",
   "day": "2026-07-11",
   "coverage": "complete",
   "observed_days": 1,
@@ -18,7 +18,7 @@
     "sub": 280
   },
   "compactions": 9,
-  "session_count": 612,
+  "session_count": 6,
   "cache_hit_rate": 0.951,
   "thinking_blocks": 553,
   "text_blocks": 431,
@@ -48,10 +48,6 @@
     }
   },
   "by_subagent_type": {
-    "UNMATCHED": {
-      "cost": 0.0,
-      "runs": 666
-    },
     "density-fixer": {
       "cost": 1.18,
       "runs": 11
@@ -214,46 +210,6 @@
         "cache_write_1h": 36103
       },
       "cache_hit_rate": 0.859,
-      "skills": {}
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/d4e454c5-fc34-4be8-b85e-a1c9e7f6c583.jsonl",
-      "title": "",
-      "cost": 0.0,
-      "subagent_cost": 0.0,
-      "api_calls": 0,
-      "duration_hours": 0.0,
-      "compactions": 0,
-      "user_messages": 0,
-      "interruptions": 0,
-      "tokens": {
-        "input": 0,
-        "output": 0,
-        "cache_read": 0,
-        "cache_write_5m": 0,
-        "cache_write_1h": 0
-      },
-      "cache_hit_rate": 0.0,
-      "skills": {}
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/db1e5bcc-cd43-4054-bf74-b2a1606a4be3.jsonl",
-      "title": "",
-      "cost": 0.0,
-      "subagent_cost": 0.0,
-      "api_calls": 0,
-      "duration_hours": 0.0,
-      "compactions": 0,
-      "user_messages": 0,
-      "interruptions": 0,
-      "tokens": {
-        "input": 0,
-        "output": 0,
-        "cache_read": 0,
-        "cache_write_5m": 0,
-        "cache_write_1h": 0
-      },
-      "cache_hit_rate": 0.0,
       "skills": {}
     }
   ],

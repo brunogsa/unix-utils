@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-07-27T01:13:12-03:00",
+  "generated_at": "2026-07-27T02:44:51-03:00",
   "day": "2026-07-24",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
     "cost_per_day": 171.64,
-    "user_messages": 116,
+    "user_messages": 115,
     "interruptions": 5,
     "session_hours": 18.3,
-    "cost_per_user_message": 1.48
+    "cost_per_user_message": 1.49
   },
   "total": 171.64,
   "main_cost": 135.88,
@@ -18,7 +18,7 @@
     "sub": 1317
   },
   "compactions": 21,
-  "session_count": 101,
+  "session_count": 22,
   "cache_hit_rate": 0.948,
   "thinking_blocks": 1713,
   "text_blocks": 733,
@@ -50,10 +50,6 @@
     }
   },
   "by_subagent_type": {
-    "UNMATCHED": {
-      "cost": 0.16,
-      "runs": 131
-    },
     "claude-code-guide": {
       "cost": 0.95,
       "runs": 3
@@ -69,6 +65,10 @@
     "explore": {
       "cost": 1.13,
       "runs": 2
+    },
+    "UNMATCHED": {
+      "cost": 0.16,
+      "runs": 1
     },
     "deep-reviewer": {
       "cost": 3.66,

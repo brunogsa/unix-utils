@@ -645,6 +645,13 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
     seen_messages = set()
     for path in subagent_files:
         stats = scan_transcript(path, since_epoch, until_epoch, seen_messages)
+        # find_transcripts() only lower-bounds by mtime (see its docstring), so
+        # subagent_files can hold a run whose transcript wasn't touched again
+        # until well after this window. Gating on api_calls also drops a run
+        # that produced no priced response at all, so "runs" counts invocations
+        # that did work rather than every file passing the mtime filter.
+        if stats["api_calls"] == 0:
+            continue
         result["subagent_cost"] += stats["cost"]
         merge_common(result, stats, "sub")
         parent = path.split("/subagents/")[0] + ".jsonl"
@@ -658,6 +665,22 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
         result["subagents_per_session"][parent]["by_spawn"].append((spawn_index, stats["cost"]))
     for path in main_files:
         stats = scan_transcript(path, since_epoch, until_epoch, seen_messages)
+        # Same mtime-only-lower-bound gap as subagent_files above: main_files
+        # can include a session last touched after this window closed. Without
+        # a guard, result["sessions"] gained one entry per FILE regardless of
+        # whether it had any record inside the window, so session_count read as
+        # "sessions from this day forward" instead of "sessions active on this
+        # day" — it grew for every day still-open sessions would later touch,
+        # which is why older days showed inflated, monotonically higher counts.
+        #
+        # api_calls is the stricter gate: a prompt can be queued and its
+        # attachments resolved while the session ends before any API response
+        # comes back. Such a file carries a "user" record and no usage at all,
+        # so counting it inflates user_messages — a KPI meant to fall — and
+        # deflates cost_per_user_message, which divides by it. On 2026-07-19
+        # that was 186 of 284 files and roughly 187 of 425 user_messages.
+        if stats["api_calls"] == 0:
+            continue
         result["main_cost"] += stats["cost"]
         merge_common(result, stats, "main")
         duration = session_duration(stats)

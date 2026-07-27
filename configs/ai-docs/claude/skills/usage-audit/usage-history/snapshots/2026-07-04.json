@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-27T01:11:21-03:00",
+  "generated_at": "2026-07-27T02:43:02-03:00",
   "day": "2026-07-04",
   "coverage": "complete",
   "observed_days": 1,
@@ -18,7 +18,7 @@
     "sub": 79
   },
   "compactions": 0,
-  "session_count": 724,
+  "session_count": 7,
   "cache_hit_rate": 0.922,
   "thinking_blocks": 184,
   "text_blocks": 70,
@@ -47,10 +47,6 @@
     }
   },
   "by_subagent_type": {
-    "UNMATCHED": {
-      "cost": 0.0,
-      "runs": 854
-    },
     "general-purpose": {
       "cost": 24.9,
       "runs": 7
@@ -335,26 +331,6 @@
         "cache_write_1h": 0
       },
       "cache_hit_rate": 0.883,
-      "skills": {}
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/d4e454c5-fc34-4be8-b85e-a1c9e7f6c583.jsonl",
-      "title": "",
-      "cost": 0.0,
-      "subagent_cost": 0.0,
-      "api_calls": 0,
-      "duration_hours": 0.0,
-      "compactions": 0,
-      "user_messages": 0,
-      "interruptions": 0,
-      "tokens": {
-        "input": 0,
-        "output": 0,
-        "cache_read": 0,
-        "cache_write_5m": 0,
-        "cache_write_1h": 0
-      },
-      "cache_hit_rate": 0.0,
       "skills": {}
     }
   ],

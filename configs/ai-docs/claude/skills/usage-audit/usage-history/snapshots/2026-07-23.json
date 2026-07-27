@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-07-27T01:13:10-03:00",
+  "generated_at": "2026-07-27T02:44:49-03:00",
   "day": "2026-07-23",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
     "cost_per_day": 194.75,
-    "user_messages": 158,
+    "user_messages": 156,
     "interruptions": 10,
     "session_hours": 43.0,
-    "cost_per_user_message": 1.23
+    "cost_per_user_message": 1.25
   },
   "total": 194.75,
   "main_cost": 164.17,
@@ -18,7 +18,7 @@
     "sub": 1175
   },
   "compactions": 44,
-  "session_count": 134,
+  "session_count": 33,
   "cache_hit_rate": 0.956,
   "thinking_blocks": 2152,
   "text_blocks": 1262,
@@ -50,10 +50,6 @@
     }
   },
   "by_subagent_type": {
-    "UNMATCHED": {
-      "cost": 0.0,
-      "runs": 195
-    },
     "density-fixer": {
       "cost": 2.2,
       "runs": 19

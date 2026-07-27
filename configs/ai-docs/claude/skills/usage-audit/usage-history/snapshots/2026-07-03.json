@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-07-27T01:11:12-03:00",
+  "generated_at": "2026-07-27T02:42:54-03:00",
   "day": "2026-07-03",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
     "cost_per_day": 65.87,
-    "user_messages": 29,
+    "user_messages": 25,
     "interruptions": 0,
-    "session_hours": 11.5,
-    "cost_per_user_message": 2.27
+    "session_hours": 8.1,
+    "cost_per_user_message": 2.63
   },
   "total": 65.87,
   "main_cost": 45.02,
@@ -18,7 +18,7 @@
     "sub": 68
   },
   "compactions": 0,
-  "session_count": 730,
+  "session_count": 5,
   "cache_hit_rate": 0.93,
   "thinking_blocks": 160,
   "text_blocks": 80,
@@ -45,10 +45,6 @@
     }
   },
   "by_subagent_type": {
-    "UNMATCHED": {
-      "cost": 0.0,
-      "runs": 862
-    },
     "general-purpose": {
       "cost": 20.85,
       "runs": 6
@@ -273,66 +269,6 @@
       "skills": {
         "tech-debt-prioritizer": 1
       }
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/d4e454c5-fc34-4be8-b85e-a1c9e7f6c583.jsonl",
-      "title": "",
-      "cost": 0.0,
-      "subagent_cost": 0.0,
-      "api_calls": 0,
-      "duration_hours": 0.0,
-      "compactions": 0,
-      "user_messages": 0,
-      "interruptions": 0,
-      "tokens": {
-        "input": 0,
-        "output": 0,
-        "cache_read": 0,
-        "cache_write_5m": 0,
-        "cache_write_1h": 0
-      },
-      "cache_hit_rate": 0.0,
-      "skills": {}
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/db1e5bcc-cd43-4054-bf74-b2a1606a4be3.jsonl",
-      "title": "",
-      "cost": 0.0,
-      "subagent_cost": 0.0,
-      "api_calls": 0,
-      "duration_hours": 0.0,
-      "compactions": 0,
-      "user_messages": 0,
-      "interruptions": 0,
-      "tokens": {
-        "input": 0,
-        "output": 0,
-        "cache_read": 0,
-        "cache_write_5m": 0,
-        "cache_write_1h": 0
-      },
-      "cache_hit_rate": 0.0,
-      "skills": {}
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/755bfc7f-b0e8-42e6-b49c-f94b1ba569f6.jsonl",
-      "title": "",
-      "cost": 0.0,
-      "subagent_cost": 0.0,
-      "api_calls": 0,
-      "duration_hours": 0.0,
-      "compactions": 0,
-      "user_messages": 0,
-      "interruptions": 0,
-      "tokens": {
-        "input": 0,
-        "output": 0,
-        "cache_read": 0,
-        "cache_write_5m": 0,
-        "cache_write_1h": 0
-      },
-      "cache_hit_rate": 0.0,
-      "skills": {}
     }
   ],
   "reconciliation": {

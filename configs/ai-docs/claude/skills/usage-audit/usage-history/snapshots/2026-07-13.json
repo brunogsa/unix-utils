@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-07-27T01:12:29-03:00",
+  "generated_at": "2026-07-27T02:44:07-03:00",
   "day": "2026-07-13",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
     "cost_per_day": 149.12,
-    "user_messages": 103,
+    "user_messages": 100,
     "interruptions": 9,
     "session_hours": 26.6,
-    "cost_per_user_message": 1.45
+    "cost_per_user_message": 1.49
   },
   "total": 149.12,
   "main_cost": 132.16,
@@ -18,10 +18,10 @@
     "sub": 329
   },
   "compactions": 29,
-  "session_count": 581,
+  "session_count": 21,
   "cache_hit_rate": 0.946,
   "thinking_blocks": 1129,
-  "text_blocks": 959,
+  "text_blocks": 957,
   "thinking_block_share": 0.541,
   "tokens": {
     "input": 8176,
@@ -48,10 +48,6 @@
     }
   },
   "by_subagent_type": {
-    "UNMATCHED": {
-      "cost": 0.0,
-      "runs": 613
-    },
     "Explore": {
       "cost": 3.45,
       "runs": 6
@@ -62,7 +58,7 @@
     },
     "deep-reviewer": {
       "cost": 12.52,
-      "runs": 6
+      "runs": 5
     }
   },
   "by_skill": {
