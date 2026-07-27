@@ -34,6 +34,7 @@ Include each review's `body` (when non-empty) plus its `state` (`APPROVED` / `CH
 
 - **inline threads** — keep the thread iff `comments[0].author.login ∈ {logins}`. When kept, **include all comments in the thread**.
   - Replies provide context for addressing the thread, even if the user didn't write them.
+
 - **top-level comments** — keep where `user.login ∈ {logins}`.
 - **review-summary bodies** — keep where the review's `user.login ∈ {logins}`.
 
@@ -60,6 +61,7 @@ Per comment field, once fetched and filtered: id, author, body, path, line, diff
     request).
   - `apply` otherwise.
   - Never default to `drop` — that's always an explicit user choice.
+
 - Per cluster, propose a one-line drop reason — honest and specific (not
   "out of scope").
 

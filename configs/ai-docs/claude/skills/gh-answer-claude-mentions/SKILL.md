@@ -75,5 +75,7 @@ After posting, confirm to the user which comments were answered and link to the 
 ## Edge cases
 
 - **No comments addressed to Claude:** Tell the user and stop.
+
 - **Comment already has a Claude reply:** Show the existing reply and ask if the user wants to update it (PATCH) or add a new one.
+
 - **PR URL vs number:** Accept both. Extract from URL or use current repo.

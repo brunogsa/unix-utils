@@ -62,6 +62,7 @@ Then create the run scratchpad `/tmp/brainstorm_<session_id>.md`, keyed the same
 - Persist each decision with its why, each discarded alternative with why it lost, and open questions.
 - Write as things happen, never at the end.
 - It stays alive for the whole run — through the spec, the plan, and self-review — so the plan phase can still see why the spec reads the way it does.
+
 - On resume or after a compaction, re-read it first and trust it over recalled context — compaction drops session memory, the file survives.
 
 ### 2. Gather starting context

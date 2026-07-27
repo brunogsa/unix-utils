@@ -181,6 +181,7 @@ For each `apply` cluster, **in the order the user left them**:
 1. Make the code changes that address the cluster's comments.
 2. Stage **only** files relevant to this cluster — see `commit-standards` for the `git add` rules.
 3. Commit using `commit-standards` (delegate via the Skill tool), titling it `<type>(<scope>): <cluster title>` and listing the cluster's comment URLs under an `Addresses:` block in the body.
+
 4. Capture the commit SHA into the cluster's TaskList metadata and the run-state file — step 7's reply link needs it.
 
 If a cluster's edits accidentally touch files outside its scope (drift), never silently absorb it.

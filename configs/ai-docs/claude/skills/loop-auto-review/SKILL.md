@@ -19,6 +19,7 @@ That repeat-and-auto-apply behavior exists nowhere else and only fires behind a 
 ```
 
 - `<ref>` optional — resolves exactly like `open-in-tmux`'s `diffview-in-tmux.sh`: no arg diffs the working tree vs the repo's base branch (`origin/HEAD` → `main` → `master`); with an arg, diffs against that commit-ish.
+
 - Capture the resolved value once as `<BASE_REF>` for the whole run. Every round's tail pair diffs `<BASE_REF>..HEAD`, so a genuinely-fixed finding stops appearing while a badly-fixed one can resurface as new.
 
 ## Inputs to the shared reference
@@ -41,6 +42,7 @@ Each round:
    - RED confirmed on the pre-fix code, then GREEN, diff verified, committed (`commit-standards`: one fix per commit, `Co-Authored-By` trailer).
    - Annotate the verdict file `APPLIED` with the commit SHA, or `SKIPPED` with why.
    - Dispatch these **in sequence, not parallel** — fixes mutate the same working tree, and independent subagents editing it at once can clobber each other's changes.
+
 5. Loop back to step 1. The next round's tails diff `<BASE_REF>..HEAD` against the new HEAD, so applied fixes are back in scope for review too.
 
 ## Stopping

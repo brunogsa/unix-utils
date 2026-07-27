@@ -38,6 +38,7 @@ If no date range provided, default to current week Monday-Friday.
 
 - Title: action-oriented verb phrase. "Migrated X to Y" not "X migration project"
 - Tags: lowercase, kebab-case. Reuse existing tags from `~/brag/brag.md` before creating new ones. Common: #architecture, #leadership, #delivery, #incident, #mentoring, #process, #cost-savings, #cross-team, #debugging
+
 - Date: when it happened, not when logged. Best guess is fine.
 - Each STAR letter: single line (up to 3). No nested bullets. No paragraphs.
 - Language: English. Concrete, not corporate. Don't inflate. No weasel words.
@@ -81,6 +82,7 @@ Year and month sections are created as needed.
    - Task vs Action blurred → "What were you *supposed* to do vs what you *actually* did?"
    - Situation missing → "What was the problem or trigger?"
    - Scope unclear → "Solo, leading, or contributing?"
+
 4. Format the entry and write it directly to `~/brag/brag.md` under the correct year/month section. The user reviews it in the Edit tool approval.
 
 ## Workflow — Calendar Review (Format 4)
@@ -111,6 +113,7 @@ Both scripts output a JSON array of `{start, day, summary, duration_min}` sorted
 - **Accepted-only:** skips events the user declined, tentative, or didn't respond to
 - **All-day filter:** skips date-only events (calendar markers, not meetings)
 - **Overlap resolution:** resolves overlapping non-OO events; most recently created wins, falls back to later-starting. Overlap duration decremented from the losing event; events reduced to zero are dropped.
+
 - **`[OO]` / `[FT]` prefixes:** carried from the event title as-is (user adds these manually)
 
 Display the total event count and date range.
@@ -183,6 +186,7 @@ The user reviews each entry in the Edit tool approval — no separate confirmati
 
 After writing entries, adopt the perspective of a senior staff+ engineer coaching the user, with the AI age in mind. Provide:
 - **Practical feedback** on the week: what to do differently and why. Be specific — name the cluster, the pattern, or the decision. No generic advice.
+
 - **Reasoning** behind each suggestion — tie it to career growth, leverage, or effectiveness.
 - Keep it short (3-5 points max). Prioritize high-impact observations over nitpicks.
 

@@ -16,6 +16,7 @@ disable-model-invocation: false
 - A lens name, `refactor` or `auto-review` — every finding in that lens's file only.
 - A severity floor, e.g. `high` or `high+` — every finding at or above it.
   - Only when the report actually labels severity; see §2 for when it doesn't.
+
 - An explicit list of finding identifiers — numbers, titles, or file:line, exactly as the report names them.
 
 ## What this is
@@ -52,6 +53,7 @@ The timestamp is embedded in the filename (`verdict_<lens>_YYYY-MM-DD_HH:MM.md`)
   - Say so plainly in the closing report (§6).
   - If `<which ones>` explicitly named the missing lens, stop instead — say no report exists for it.
   - Never fabricate one by re-running the reviewer; that isn't this skill's job.
+
 - **Neither lens has any file**: stop with a clear message.
   - There is nothing to address yet — run `/refactor`, `/auto-review`, or `/implement`'s batch-end tails first.
 
@@ -94,6 +96,7 @@ Dispatch one subagent per finding, in the order seeded above:
   - `agent(subAgent=refactor, title=Apply refactor finding: <finding>)`.
   - Pass it the finding's scope and the test command from §2.
   - It applies the change itself and confirms tests are green before and after.
+
 - **Auto-review-lens finding** (from `verdict_auto-review_*.md`):
   - `agent(subAgent=tdd-coder, title=Apply review finding: <finding>)`.
   - Strict TDD: RED before GREEN, same as any other `tdd-coder` dispatch.

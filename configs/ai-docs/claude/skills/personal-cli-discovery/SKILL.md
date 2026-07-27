@@ -22,7 +22,9 @@ Commands in `commands/` define a shell function with the same name as the file (
 These are hints to help you find the right tool -- not exhaustive documentation. Always run `--help` for current usage.
 
 - **AI tools**: `ai-request`, `ai-changelog`, `aigitcommit`, `aicmd`, `aicopy`, `aiyank`, `aiappend`, `estimate_tokens`
+
 - **Data processing**: `jsonl-distribution-table.js`, `jsonl-merge-and-sort-by-field.js`, `anonymize-txt`, `gen-schema-from-json`, `json-deep-sort.js` (lives at `~/oh-my-zsh/json-deep-sort.js`, outside `commands/` and `lib/`)
+
 - **Diff/comparison**: `diff-sorted-jsons`, `diff-sorted-txt`
 - **Clipboard**: `copy` (cross-platform), `aicopy` (bulk file contents), `aiyank` (paths)
 - **Git/review**: `vimreview`, `git-worktree-add`

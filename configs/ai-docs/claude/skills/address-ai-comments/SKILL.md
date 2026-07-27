@@ -39,8 +39,10 @@ See "When a subagent might still help" below for the one case worth revisiting.
    - Target(s): one or more files, or a folder (recursive), that the user names. If no target is given, ask which files/folders to sweep.
    - Toggle: "Run refactor + auto-review tails after this batch? (default no)". Hold the answer for the optional tails step below; default no if unanswered.
    - The moment both answers arrive, create the run-state file `/tmp/address-ai-comments_<session_id>_<ts>.json` and persist them there (`<ts>` = run-start timestamp `date +%Y%m%d-%H%M%S` — the skill can run several times per session).
+
    - A mid-flow compaction must not lose them.
    - When the toggle is on, capture `BATCH_BASE_SHA=$(git rev-parse HEAD)` now — the tails diff against it later, whether or not this batch ends up committed.
+
    - Persist it into the run-state JSON immediately, never held only in context — a compaction drops context, which is why the file exists.
 
 2. **Gather every marker with `grep -n`, then read each hit's surrounding context directly.**
@@ -50,8 +52,10 @@ See "When a subagent might still help" below for the one case worth revisiting.
    - Search the target(s) for `AI!` and `AI?` literally.
    - For each hit, `Read` enough surrounding lines to classify it — don't stop at the grep line alone.
    - The comment's meaning depends on the field/code it annotates and on other parts of the same file (e.g. a design doc's Premises/Decisions/Open-Questions registries).
+
    - Classify each marker as action or question: `AI!` → always action, `AI?` → always question.
    - Cluster the markers into themes yourself as you read them — group by what they're really about (a field, a mechanism, a section), not by file order.
+
    - Be exhaustive: don't stop at the first few hits, don't skip content past a default read window — read whole files when the target is a single file.
 
 3. **Create one TaskList task per cluster** you identified — don't file a task per raw marker if several belong to one theme.
