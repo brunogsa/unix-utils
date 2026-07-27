@@ -41,7 +41,12 @@ DAY_FIELDS = (
     "coverage", "kpis", "total", "main_cost", "subagent_cost", "compactions",
     "session_count", "cache_hit_rate", "thinking_block_share", "tokens",
     "by_family", "by_subagent_type", "by_skill_marginal", "top_sessions",
+    "reconciliation",
 )
+
+# Only the verdict is rendered. The four per-bucket token counts behind it are
+# ~400 bytes a day the page never shows, and the day file keeps them anyway.
+RECONCILIATION_FIELDS = ("status", "worst_delta_pct")
 
 # Sessions shown per day, and the columns the page renders for each. Untrimmed,
 # `top_sessions` alone was 139 KB of the payload — full transcript paths and a
@@ -110,6 +115,13 @@ def load_days():
             continue
         entry = {k: payload[k] for k in DAY_FIELDS if k in payload}
         entry["top_sessions"] = trim_sessions(entry.get("top_sessions", []))
+        block = entry.get("reconciliation")
+        # A snapshot predating the gate has no block at all. Left absent, the page
+        # treats it as unverified rather than silently as verified — the day was
+        # measured by an aggregator no independent reader ever checked.
+        if isinstance(block, dict):
+            entry["reconciliation"] = {
+                k: block[k] for k in RECONCILIATION_FIELDS if k in block}
         days[day] = entry
     return days
 

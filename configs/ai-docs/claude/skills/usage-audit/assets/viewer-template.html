@@ -204,6 +204,18 @@ function drawChart() {
   });
 }
 
+// Empty when the day's token counts were confirmed by ccusage, an independent
+// reader of the same transcripts; otherwise the reason it was not. A day drawn
+// with no marking reads as verified, which is exactly how a miscount spreads
+// into every later comparison — so a missing block warns rather than passes.
+function recWarn(d) {
+  const rec = d.reconciliation;
+  if (!rec) return 'unverified: predates the ccusage check';
+  if (rec.status === 'ok') return '';
+  if (rec.status === 'unavailable') return 'unverified: ccusage unavailable';
+  return `unverified: token drift ${rec.worst_delta_pct}%`;
+}
+
 function tooltipFor(day) {
   const d = DATA.days[day], m = metricDef();
   const commits = DATA.ledger[day] || [];
@@ -211,6 +223,8 @@ function tooltipFor(day) {
   t += `\n${usd(d.total)}  ·  ${d.kpis.user_messages} msgs  ·  ${d.compactions} compactions`;
   if (commits.length) t += `\n${commits.length} config commit(s) — click to see them`;
   if (d.coverage !== 'complete') t += `\nCOVERAGE: ${d.coverage} — transcripts aged out`;
+  const warn = recWarn(d);
+  if (warn) t += `\n${warn.toUpperCase()} — do not cite this day's figures`;
   return t.replace(/"/g, '&quot;');
 }
 
@@ -278,8 +292,10 @@ function dayDetail(day) {
                num(s.compactions), num(s.user_messages), num(s.interruptions),
                escape_(topSkills(s.skills)) || '—']);
 
+  const warn = recWarn(d);
+
   return `
-  <h2>${day} ${d.coverage !== 'complete' ? `<span class="up">· coverage: ${d.coverage}</span>` : ''}</h2>
+  <h2>${day} ${d.coverage !== 'complete' ? `<span class="up">· coverage: ${d.coverage}</span>` : ''}${warn ? `<span class="up">· ${warn}</span>` : ''}</h2>
   <div class="strip">
     ${kv('Total', usd(d.total))}${kv('Main', usd(d.main_cost))}${kv('Subagents', usd(d.subagent_cost))}
     ${kv('User msgs', num(d.kpis.user_messages))}${kv('$/msg', usd(d.kpis.cost_per_user_message))}
@@ -312,7 +328,13 @@ function compare(a, b) {
   const causes = between.length
     ? between.map(d => `<h2>${d}</h2>${commitsBlock(d)}`).join('')
     : '<p class="empty">no config commits landed between these days</p>';
-  return `<h2>${a} → ${b}</h2>${tableOf(['Metric', a, b, 'Delta', 'Rel'], rows)}
+  // A delta IS a citation, so an unverified endpoint has to be visible here and
+  // not only in that day's own panel — the table below reads as fact otherwise.
+  const unverified = [a, b].filter(d => recWarn(DATA.days[d]));
+  const flag = unverified.length
+    ? `<p class="up">unverified: ${unverified.join(', ')} — this delta is not citable</p>`
+    : '';
+  return `<h2>${a} → ${b}</h2>${flag}${tableOf(['Metric', a, b, 'Delta', 'Rel'], rows)}
           <h2>Config changes in between</h2>${causes}`;
 }
 
