@@ -1,10 +1,10 @@
 ---
-name: skill-authoring
+name: skill-standards
 description: "Creating, editing, packaging, or evaluating a skill, or writing a SKILL.md description. Also load before editing CLAUDE.md or any *-standards skill (marker-authoring rules)."
 user-invocable: false
 ---
 
-# Skill Authoring
+# Skill Standards
 
 Rules for writing and maintaining Claude Code skills.
 
