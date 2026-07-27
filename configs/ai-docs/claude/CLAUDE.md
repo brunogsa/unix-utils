@@ -308,13 +308,12 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 ### Slow commands
 
 - [Instruction] **Save slow command output, verify from the file** -- any command taking 4+ seconds: redirect full output to a stable, reused `/tmp/` path, then filter from the file.
-  - [Why] A slow command is expensive to repeat; the file is a durable record you can re-filter without paying again, and a stable path lets the user keep tailing it.
+  - [Why] A slow command is expensive to repeat, and its exit code can lie — some runners exit 0 on partial failure, so only the file's tail shows the real summary.
 
   - [Example] `<slow-cmd> > /tmp/out.txt 2>&1; echo "exit: $?"; tail -<N> /tmp/out.txt;` — choose N to fit the command's summary.
+  - [Example] Bad: `<slow-cmd>; tail -<N> /tmp/out.txt; echo "exit: $?"` — that `echo` reports tail's `0`, not the command's.
+  - [Example] Reuse one path per concern (`/tmp/test-out.txt`) so the user can keep a `tail -f` open across your re-runs.
   - [Example] Don't pipe it straight to `grep`/`head` — a wrong filter discards the output and forces the whole slow run again.
-
-- [Instruction] Check both exit code and tail in one line, with `echo "exit: $?"` immediately after the slow command, before any `tail` — never trust exit code alone.
-  - [Why] Some runners exit 0 on partial failure and only the tail shows the real summary; an `echo` after `tail` captures tail's `0` and masks the real failure.
 
 ### RTK command proxy
 
