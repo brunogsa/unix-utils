@@ -125,11 +125,8 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
   - [Why] Per-Scout confirmation friction tempts skipping; auto-add neutralizes the temptation and preserves commit discipline (absorbed issues derail the commit).
   - [Example] Stale comments, budget overruns, lint gaps, dead config, type-check failures, failing/skipped tests, circular deps, dead code.
 
-- [Instruction] One TaskCreate per distinct Scout — never bundle findings under "investigate the failures" or similar umbrella. Each finding is independent triage.
-  - [Why] Bundled findings can't be triaged, prioritized, or commit-scoped independently.
-
-- [Instruction] **Don't pre-filter Scouts — surface every one, the user picks** -- list every issue you didn't introduce with your fix-or-skip prior. Include skipped tests, ignored lint, suppressed warnings.
-  - [Why] Only the human can triage a scout as now-vs-later, and only if they see it; pre-filtering silently kills both that awareness and that choice.
+- [Instruction] **Surface every Scout, one TaskCreate each** -- never pre-filter; give each your fix-or-skip prior, and never bundle findings under an umbrella like "investigate the failures".
+  - [Why] Only the human can triage a scout as now-vs-later, and only if they see it as its own entry — pre-filtering hides it, bundling blocks prioritizing.
 
 ### Robust, in-scope work
 
