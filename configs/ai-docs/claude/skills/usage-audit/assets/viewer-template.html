@@ -62,6 +62,13 @@
   .grid { stroke: var(--line); stroke-width: 1; }
   .axis { fill: var(--muted); font-size: 9px; }
   .selected { stroke: var(--accent); stroke-width: 2; }
+  .trend { fill: none; stroke: var(--accent); stroke-width: 2;
+           stroke-linejoin: round; stroke-linecap: round; }
+  .dot { cursor: pointer; fill: var(--main); }
+  .dot:hover { fill: var(--accent); }
+  .dot.selected { fill: var(--accent); stroke: var(--fg); stroke-width: 1.5; }
+  .fit { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 5 4; fill: none; }
+  .r { font-variant-numeric: tabular-nums; color: var(--fg); }
   table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
   th, td { text-align: left; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--line); }
   th { color: var(--muted); font-weight: 600; font-size: 11px;
@@ -97,10 +104,22 @@
   <label for="to">To</label><select id="to"></select>
   <button id="reset">Reset range</button>
   <button id="cmp">Compare selected days</button>
+  <button id="trend">7-day average</button>
   <span class="sub" id="hint" style="margin:0"></span>
 </div>
 
 <div class="chartwrap"><svg id="chart" viewBox="0 0 1000 300" preserveAspectRatio="none"></svg></div>
+
+<h2>How two metrics move together</h2>
+
+<div class="controls">
+  <label for="xm">X axis</label><select id="xm"></select>
+  <label for="ym">Y axis</label><select id="ym"></select>
+  <button id="zeros">Include idle days</button>
+  <span class="sub r" id="rlabel" style="margin:0"></span>
+</div>
+
+<div class="chartwrap"><svg id="scatter" viewBox="0 0 1000 320"></svg></div>
 
 <div id="detail"></div>
 <div id="tip"></div>
@@ -146,6 +165,10 @@ const state = {
   from: ALL_DAYS[0],
   to: ALL_DAYS[ALL_DAYS.length - 1],
   selected: [],   // up to 2 days, in click order — drives detail and compare
+  trend: true,    // 7-day moving average over the bars
+  xm: 'compact',  // scatter axes — default pair is the one open question 1 asks about
+  ym: 'cost',
+  zeros: false,   // whether idle days join the correlation; see scatterDays()
 };
 
 const $ = id => document.getElementById(id);
@@ -155,6 +178,24 @@ const visibleDays = () => ALL_DAYS.filter(d => d >= state.from && d <= state.to)
 /* ---------- chart ---------- */
 
 const W = 1000, H = 300, PAD_L = 54, PAD_R = 8, PAD_T = 12, PAD_B = 34;
+
+// Daily spend swings on workload alone — $49.20 on 2026-07-21 against $291.57
+// on 2026-07-26 — so the bars alone cannot show whether a level is moving.
+const MA_WINDOW = 7;
+
+// Averaged over the FULL series rather than the visible range: zooming to a
+// two-week window would otherwise restart the average from a partial window
+// and invent a rising left edge that is really just fewer terms.
+function movingAvg(m) {
+  const out = {};
+  ALL_DAYS.forEach((day, i) => {
+    const from = Math.max(0, i - MA_WINDOW + 1);
+    let sum = 0;
+    for (let j = from; j <= i; j++) sum += m.get(DATA.days[ALL_DAYS[j]]) || 0;
+    out[day] = sum / (i - from + 1);
+  });
+  return out;
+}
 
 function drawChart() {
   const days = visibleDays(), m = metricDef();
@@ -196,6 +237,16 @@ function drawChart() {
     }
   });
 
+  // Drawn after the bars so the line reads on top of them rather than behind.
+  if (state.trend && days.length > 1) {
+    const ma = movingAvg(m);
+    const pts = days.map((day, i) =>
+      `${(PAD_L + i * bw + Math.max(bw - 1.5, 1) / 2).toFixed(1)},${y(ma[day]).toFixed(1)}`
+    ).join(' ');
+    parts.push(`<polyline class="trend" points="${pts}"/>`);
+    parts.push(`<text class="axis" x="${W-PAD_R}" y="${PAD_T-3}" text-anchor="end" fill="var(--accent)">${MA_WINDOW}-day moving average</text>`);
+  }
+
   $('chart').innerHTML = parts.join('');
   $('chart').querySelectorAll('[data-day]').forEach(el => {
     el.addEventListener('click', () => selectDay(el.dataset.day));
@@ -236,6 +287,86 @@ function showTip(e, text) {
   tip.style.top = (e.clientY + 16) + 'px';
 }
 function hideTip(){ $('tip').style.opacity = 0; }
+
+/* ---------- correlation scatter ---------- */
+
+const SW = 1000, SH = 320, S_L = 62, S_R = 16, S_T = 16, S_B = 40;
+
+// An idle day sits at the origin of every metric pair, so a run of them drags
+// the fit toward the origin and inflates r while saying nothing about how the
+// two metrics move together. Days past the retention floor are dropped
+// outright rather than optionally: their transcripts are gone, so a near-zero
+// reading there is missing data wearing the costume of a quiet day.
+function scatterDays() {
+  return visibleDays().filter(day => {
+    const d = DATA.days[day];
+    if (d.coverage !== 'complete') return false;
+    return state.zeros || d.session_count > 0;
+  });
+}
+
+// Pearson r, plus the least-squares slope the fitted line is drawn from.
+// Returns null where the number would not mean anything: fewer than three
+// days, or a metric that never varies across them.
+function pearson(xs, ys) {
+  const n = xs.length;
+  if (n < 3) return null;
+  const mx = xs.reduce((a, b) => a + b, 0) / n;
+  const my = ys.reduce((a, b) => a + b, 0) / n;
+  let sxy = 0, sxx = 0, syy = 0;
+  for (let i = 0; i < n; i++) {
+    const a = xs[i] - mx, b = ys[i] - my;
+    sxy += a * b; sxx += a * a; syy += b * b;
+  }
+  if (!sxx || !syy) return null;
+  return { r: sxy / Math.sqrt(sxx * syy), slope: sxy / sxx, mx, my };
+}
+
+function drawScatter() {
+  const mX = METRICS.find(m => m.id === state.xm);
+  const mY = METRICS.find(m => m.id === state.ym);
+  const days = scatterDays();
+  const xs = days.map(d => mX.get(DATA.days[d]) || 0);
+  const ys = days.map(d => mY.get(DATA.days[d]) || 0);
+  const plotW = SW - S_L - S_R, plotH = SH - S_T - S_B;
+  const xMax = Math.max(...xs, 0) || 1, yMax = Math.max(...ys, 0) || 1;
+  const px = v => S_L + (v / xMax) * plotW;
+  const py = v => S_T + plotH - (v / yMax) * plotH;
+  const parts = [];
+
+  for (let i = 0; i <= 4; i++) {
+    const yy = S_T + plotH - plotH * i / 4;
+    parts.push(`<line class="grid" x1="${S_L}" x2="${SW-S_R}" y1="${yy}" y2="${yy}"/>`);
+    parts.push(`<text class="axis" x="${S_L-6}" y="${yy+3}" text-anchor="end">${mY.fmt(yMax*i/4)}</text>`);
+    parts.push(`<text class="axis" x="${S_L + plotW*i/4}" y="${SH-12}" text-anchor="middle">${mX.fmt(xMax*i/4)}</text>`);
+  }
+
+  const fit = pearson(xs, ys);
+  if (fit) {
+    const yAt = x => fit.my + fit.slope * (x - fit.mx);
+    parts.push(`<line class="fit" x1="${px(0)}" y1="${py(yAt(0))}" x2="${px(xMax)}" y2="${py(yAt(xMax))}"/>`);
+  }
+
+  days.forEach((day, i) => {
+    const sel = state.selected.includes(day) ? ' selected' : '';
+    const tip = `${day}\n${mX.label}: ${mX.fmt(xs[i])}\n${mY.label}: ${mY.fmt(ys[i])}`.replace(/"/g, '&quot;');
+    parts.push(`<circle class="dot${sel}" data-day="${day}" data-tip="${tip}" cx="${px(xs[i]).toFixed(1)}" cy="${py(ys[i]).toFixed(1)}" r="4.5"/>`);
+  });
+
+  $('scatter').innerHTML = parts.join('');
+  $('scatter').querySelectorAll('[data-day]').forEach(el => {
+    el.addEventListener('click', () => selectDay(el.dataset.day));
+    el.addEventListener('mousemove', e => showTip(e, el.dataset.tip));
+    el.addEventListener('mouseleave', hideTip);
+  });
+
+  // r is stated with its n because a strong r over four days is noise, and with
+  // the excluded count because a filtered day leaves no trace on the plot.
+  const dropped = visibleDays().length - days.length;
+  $('rlabel').textContent = fit
+    ? `r = ${fit.r.toFixed(2)} across ${days.length} days${dropped ? `, ${dropped} excluded` : ''} — correlation, not cause`
+    : `Too few varying days to correlate (${days.length} plotted)`;
+}
 
 /* ---------- selection ---------- */
 
@@ -366,6 +497,7 @@ function render() {
       : `Comparing ${state.selected[0]} → ${state.selected[1]}.`;
 
   drawChart();
+  drawScatter();
 
   if (state.selected.length === 2) {
     const [a, b] = [...state.selected].sort();
@@ -405,6 +537,21 @@ $('cmp').addEventListener('click', () => {
   if (state.selected.length < 2) state.selected = ALL_DAYS.slice(-2);
   render();
 });
+
+for (const [id, key] of [['trend', 'trend'], ['zeros', 'zeros']]) {
+  $(id).classList.toggle('on', state[key]);
+  $(id).addEventListener('click', () => {
+    state[key] = !state[key];
+    $(id).classList.toggle('on', state[key]);
+    render();
+  });
+}
+
+for (const id of ['xm', 'ym']) {
+  $(id).innerHTML = METRICS.map(m => `<option value="${m.id}">${m.label}</option>`).join('');
+  $(id).value = state[id];
+  $(id).addEventListener('change', e => { state[id] = e.target.value; render(); });
+}
 
 render();
 </script>
