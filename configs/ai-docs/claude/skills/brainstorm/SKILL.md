@@ -2,6 +2,11 @@
 name: brainstorm
 description: "Refine an idea into an approved spec_<slug>.md + plan_<slug>.md via Socratic interview, then self-review and hand off to /implement. USE when the user says 'let's brainstorm', or when planning a non-trivial feature or breaking work into commits."
 disable-model-invocation: false
+# Trim hierarchy exhausted at 2856 words: two passes cut 337 words of genuine cross-file
+# redundancy (CLAUDE.md, light-section-set.md, spec-driven-development). Every remaining step
+# fires on every run, so nothing earns a lazy load; spec and plan phases co-fire by contract,
+# so splitting would be two files that always load together. Override is the only honest step left.
+words-budget: 4096
 ---
 
 # Brainstorm
@@ -29,16 +34,14 @@ Examples:
 
 **Before step 1 runs**, seed the TaskList with one `[Reminder]` per step 1-5, in order, and update each as it completes.
 
-Step 6 seeds the rest, once the run's depth is settled — the tail differs by depth, and seeding steps the depth then cancels leaves reminders nobody can complete.
-
-Why: the TaskList survives compaction, so one entry per step keeps a step that would otherwise vanish with the summary visible as pending.
+Step 6 seeds the rest, once the run's depth is settled — seeding a step the depth later cancels would leave a reminder nobody can complete.
 
 ### 1. Pre-flight — settle the run's depth and toggles, and open its state
 
 **Ask all four questions in one message, in one `AskUserQuestion` call, before any other question.**
 
-Ask the full set even when the depth answer will make the three toggles moot.
-A single pass costs one round-trip; splitting it costs two on every run, to spare a rare one three dead questions.
+Ask the full set even when depth will make the toggles moot.
+One round-trip beats splitting into two, just to spare a rare run three dead questions.
 
 - **"How much spec/plan writing do you want?"** — the run's depth, one of three:
   - **`full`** (default) — both documents with every section of the `spec-driven-development` templates, and every gate.
@@ -53,17 +56,12 @@ Persist all four answers immediately to `/tmp/sdd_<session_id>.json` — one bra
 The depth is the `mode` field, valued exactly `full`, `light`, or `none`; every step below reads it back from there and never re-asks.
 Answer them fresh each run: never reuse a previous run's answers, and never write any of them into the spec, the plan, or any committed file.
 
-Why upfront: the depth decides whether documents exist at all, and the three toggles decide how strictly later steps check them.
-Settling both before any document exists closes off tuning either down after seeing what was produced.
-Why persisted: a compaction between here and self-review would lose them, so those steps read the file instead of re-asking.
+Why upfront: depth decides whether documents exist; toggles decide how strictly later steps check them.
+Settling both early closes off tuning either down after seeing the output.
+Why persisted: a compaction between here and self-review would lose them.
 
-Then create the run scratchpad `/tmp/brainstorm_<session_id>.md`, keyed the same way.
-
-- Persist each decision with its why, each discarded alternative with why it lost, and open questions.
-- Write as things happen, never at the end.
-- It stays alive for the whole run — through the spec, the plan, and self-review — so the plan phase can still see why the spec reads the way it does.
-
-- On resume or after a compaction, re-read it first and trust it over recalled context — compaction drops session memory, the file survives.
+Then create the run scratchpad `/tmp/brainstorm_<session_id>.md`, keyed the same way, per CLAUDE.md's scratchpad rules.
+It stays alive for the whole run — through the spec, the plan, and self-review — so the plan phase can still see why the spec reads the way it does.
 
 ### 2. Gather starting context
 
@@ -79,18 +77,7 @@ Record the answer in the run scratchpad: step 9 needs it to update that plan rat
 Before drilling into requirements, check whether the request describes multiple independent subsystems.
 Signals: multiple unrelated nouns, distinct user roles, separate persistence concerns, or features that could each ship independently.
 
-If it looks decomposable, surface it:
-
-- Name the candidate sub-projects, ask the user how they relate and which one ships first.
-- Brainstorm only the first sub-project here — each remaining piece ideally gets its own spec→plan cycle.
-- If the user declines, brainstorm the whole original idea instead — no implicit narrowing to a first sub-project.
-
-**If the user agrees to decompose**: record every sub-project as a `[Side]` TaskList entry, including the one being brainstormed now.
-
-Give each entry a one-sentence purpose, plus the id of the sub-project it depends on where one exists.
-
-Why the TaskList: a stale session loses the decomposition map, but an entry survives both the session and a compaction.
-The next `/brainstorm` run then picks up the queue instead of re-deriving the split.
+If it looks decomposable, follow [`references/decompose-scope.md`](references/decompose-scope.md) to surface it and handle the user's answer.
 
 ### 4. Interview the user
 
@@ -148,21 +135,20 @@ It also surfaces when the constraint that killed an alternative no longer applie
 
 - **Depth `full` or `light`** → seed one `[Reminder]` per step 6-10 below, then continue here.
 
-Why the branch sits here: steps 1-5 are one interview regardless of depth, and step 6 is the first step that needs a document to exist.
+Why here: steps 1-5 interview the same regardless of depth; step 6 is the first step needing a document.
 
-Why `none` reads that file and nothing else: every step-10 gate parses a spec or a plan, so a run that writes neither has nothing for them to read.
+Why `none` reads only that file: every step-10 gate parses a spec or plan, and a `none` run writes neither.
 
 For a fresh idea, derive a short kebab-case `<slug>` from the feature yourself — never ask the user to confirm it.
 The plan later inherits that same slug — the shared slug is what pairs the two.
 
-Why not confirm: the slug only names two files that always travel together, so a wrong one costs a rename, and the user is about to read the spec anyway.
+Why not confirm: the slug just names two paired files — a wrong one costs only a rename, and the user is about to read the spec anyway.
 
 Then dispatch `agent(subAgent=fork, title=Write the spec)`, in the foreground — the next step needs the spec to exist. Instruct it to:
 
-- Read `~/.claude/skills/spec-driven-development/SKILL.md` and its `assets/spec-template.md`. That library's Guidelines govern what it writes — English regardless of the conversation's language, lean over exhaustive.
+- Read `~/.claude/skills/spec-driven-development/SKILL.md` and its `assets/spec-template.md` — that library's Guidelines govern what it writes.
 
 - **At depth `light` only**: also read that library's `references/light-section-set.md`, and write only the spec sections it keeps.
-  - Omit each dropped heading outright, rather than filling it with the template's `N/A — <reason>` escape.
 
 - Read the run scratchpad `/tmp/brainstorm_<session_id>.md` and fold its decisions and discarded alternatives into the spec's Decisions section.
 - Write to the provided/discovered path, or for a fresh idea to the spec file in CWD.
@@ -171,9 +157,9 @@ Then dispatch `agent(subAgent=fork, title=Write the spec)`, in the foreground �
 
 **This session never writes the spec itself** — every later edit goes through another `agent(subAgent=fork, title=Apply spec edits)` carrying the exact changes to make.
 
-Why delegate: writing the spec costs whatever context loads the library and the template, and this session's is the one that must still survive both reviews and the plan hand-off.
+Why delegate: writing the spec costs the context to load the library and template — context this session still needs for both reviews and the hand-off.
 
-Why a fork: it inherits this session's full context, so it already carries the interview and the approach pick.
+Why a fork: it inherits this session's full context, already carrying the interview and the approach pick.
 A fresh agent would silently invent whatever a re-serialized prompt left out.
 
 ### 7. Self-review the spec with fresh eyes
@@ -221,8 +207,6 @@ Pass it:
 - Any planning-conventions file the user named (ADR/HLD/LLD), if one exists.
 
 - **At depth `light`, the instruction to read `~/.claude/skills/spec-driven-development/references/light-section-set.md`** and write only the plan sections it keeps.
-  - Omit each dropped heading outright, rather than filling it with an `N/A` escape.
-  - Keep `## PR Breakdown` even when it only reads `Single PR.` — `check-pr-dag.sh` passes on that literal, not on a missing section.
 
 - **Whether a plan already sits at the paired path** — per step 2, instruct `plan-writer` to update it in place if it does.
   - Preserve every task status marker and everything below the decisions divider.
@@ -230,24 +214,22 @@ Pass it:
 
 `plan-writer` resolves the output path itself from the slug — it reads the library that defines how a plan is named, so this session never spells that name out.
 
-Why that last one: `/brainstorm <spec path>` is a documented entry point for refining a spec mid-implementation, where the paired plan already carries `[Done]` markers and an append-only decisions log.
-
-A regenerated plan destroys both, and neither is recoverable — the two documents are untracked by design.
+Why that last one: `/brainstorm <spec path>` refines a spec mid-implementation, where the paired plan already carries `[Done]` markers and an append-only decisions log.
+A regenerated plan destroys both, unrecoverably, since the two documents are untracked by design.
 
 **A gap in the spec never withholds the plan.**
 Where the spec doesn't carry a decision the plan needs, `plan-writer` writes the plan around it and records it as a `**QUESTION:**` entry under the plan's Open Questions.
 
-Never close such a gap here, and never fill one yourself with an invented decision — that's exactly the author-bias this dispatch exists to catch.
-Both documents may therefore reach step 10 with Open Questions still open; step 10.2 is where they all close, in one batch.
+Never close a gap here, or fill one with an invented decision — that's the author-bias this dispatch exists to catch.
+Both documents may reach step 10 with Open Questions still open; step 10.2 closes them all, in one batch.
 
-Why batch them there: a gap-by-gap walkthrough stops the run once per item.
-One pass at step 10.2 lets the user answer every question against a finished plan, where what each one actually decides is visible.
+Why batch them there: a gap-by-gap walkthrough stops the run once per item, where one pass at step 10.2 lets the user decide every question against a finished plan.
 
 Should it return a numbered gap list anyway instead of a plan, dispatch a `fork` to record those gaps as Open Questions in the spec.
 Then re-dispatch `plan-writer` once — not once per gap.
 
-Why fresh context: this session already talked itself into the spec's choices during the interview.
-A planner that sees only the spec file tests whether the spec carries what a plan needs, rather than drawing on session memory the next reader won't have.
+Why fresh context: this session already talked itself into the spec's choices.
+A planner seeing only the spec file tests whether it carries what a plan needs, rather than leaning on session memory the next reader won't have.
 
 ### 10. Run self-review, then hand off with `/clear`
 
@@ -270,13 +252,13 @@ Then dispatch `agent(subAgent=fork, title=Close open questions)` to fold the ans
 
 Re-read both sections after each round. **Nothing below runs while a question is open.**
 
-Why gate here: every judged gate reads both documents whole, so running one over an unanswered question spends a dispatch reviewing a document that is about to change.
+Why gate here: judged gates read both documents whole, so running one over an open question wastes a dispatch reviewing a document about to change.
 
 #### 10.3 Run the judged gates once
 
 Dispatch each judged gate serially, per that reference, titling it after the gate it judges.
 
-Order: the qualitative pass first, then the remaining judged checks, including the two toggles read from `/tmp/sdd_<session_id>.json`. Never re-ask a toggle here.
+Order: qualitative pass first, then the remaining judged checks, including the two toggles read from `/tmp/sdd_<session_id>.json` — never re-asked here.
 
 Skip only the qualitative-pass dispatch when the pre-flight's self-review toggle is off, and say so in the output.
 

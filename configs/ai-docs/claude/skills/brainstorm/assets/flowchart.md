@@ -1,3 +1,12 @@
+---
+# performance-check budget override, not part of the diagram itself.
+# This file's size is fixed by the number of steps the skill actually has, so
+# trimming it would drop steps from the flow audit. Doubled from the 1024-word
+# bundled default; it stays the sole assets/flowchart.md exemption to the
+# ~512-word section-break rule, being one indivisible mermaid diagram.
+words-budget: 2048
+---
+
 # brainstorm — flow overview
 
 Human-facing flow audit. Non-authoritative — [`../SKILL.md`](../SKILL.md)'s numbered steps win on any conflict; regenerate whenever the flow changes.
