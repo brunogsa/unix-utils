@@ -21,6 +21,7 @@ Confidence governs reviewer behavior at two gates that pull in opposite directio
   - **>80% confidence** → emit a direct comment with clear reasoning.
   - **60-80% confidence** → emit as a clarifying question to reduce ambiguity.
   - **<60% confidence** → skip the comment entirely.
+
 - **Validation gate (Wave 3 self-check, post-emission):**
   - **When in doubt, KEEP.** Dropping a real finding erodes trust more than keeping noise.
     - Only drop on clear, specific evidence the claim doesn't hold (cited code doesn't exist; code already does what was asked; the issue depends on behavior the file explicitly prevents).
@@ -37,6 +38,7 @@ Every review comment opens with a bold, bracketed severity tag on its own line, 
 
 - **Severity tag**: one of the five under "Priority tags" below, bracketed and bold — `**[OBRIGATÓRIO]**` in PT-BR output, `**[MANDATORY]**` in English.
   - The tag must match the finding's `severity` field 1:1 — the visible tag and the machine-readable field can never disagree.
+
 - **O que** / **What**: the problem, stated concretely. Quote the relevant code (1-2 lines) inline.
 - **Por que** / **Why**: the impact — always include, it's what helps developers learn. For numeric/unit issues, use a worked example with concrete values.
 - **Sugestão** / **Suggestion**: the fix — a `suggestion` diff block when it fits a single hunk and you're confident in the exact replacement, otherwise a short bullet describing the change.
@@ -54,6 +56,7 @@ Keep bullets short, simple enough for an intern unfamiliar with the module, max 
 - **RECOMMENDED** (`RECOMENDADO`) — should address (code quality, performance, best practices).
 - **NITPICK** (`NITPICK`) — optional improvements (minor style, subjective). Friendly, non-pedantic tone.
 - **OPTIONAL** (`OPCIONAL`) — pre-existing issue surfaced for awareness only, not introduced or worsened by this diff. Drop it entirely if it is one of the [low-value kinds](#skip-low-value-comments): formatting, linting, subjective refactors.
+
 - **QUESTION** (`PERGUNTA`) — genuine design questions. Standalone: must be answered. Embedded in other tags: include inline.
 
 Why: a NITPICK with MANDATORY tone is hostile. A MANDATORY with NITPICK tone is ignored. Matching severity to tone keeps the signal honest.

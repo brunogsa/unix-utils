@@ -25,6 +25,7 @@ Specialist prompts and validator rubric live in `references/`; bash glue in `scr
 **Dispatch rule — auto-decided, no question asked.** The mode already determines whether the calling session is biased, so never ask the user:
 
 - `Mode: local` (`/auto-review`) → **always dispatch isolated** (subagent path below). `/auto-review` runs in the session that produced the diff, so CLAUDE.md's fresh-context-subagent rule always applies.
+
 - `Mode: github` (`/pr-review`) → **always run inline** — review happens after the code already landed, so the calling session did not write the diff.
   - `--isolate` still forces the isolated path when explicitly passed.
 
@@ -58,6 +59,7 @@ The sonnet pin trades some review depth for lower cost, an accepted limit of run
 2. Invoke `code-standards` via the Skill tool (Wave 2)
 3. Invoke `test-standards` via the Skill tool (Wave 2)
 4. Invoke `doc-standards` via the Skill tool (Wave 2; also Wave 5's density check)
+
 5. Read `CLAUDE.md` files at repo root / parents of changed files (Wave 2)
 
 Invoke the three standards, never Read their `SKILL.md` — CLAUDE.md's "Skill tool over Read" rule reserves Read for meta-work like auditing a skill, and these ground real judgments.
@@ -79,6 +81,7 @@ Deterministic check; no subagent needed. Only aborts on hard no-ops.
   If `prior_count > 0`, print `abort: prior review detected` and stop.
   - Every inline comment this pipeline posts carries the Wave 5 signature, so any match means a run already reviewed this PR.
   - The pattern matches the prior signature text too, catching PRs reviewed before that text changed.
+
 - **local**: always proceed — Wave 0 is a no-op here (both guards above are github-only). Empty diffs surface naturally — Wave 5 writes "auto-review: no findings".
 
 ---
@@ -123,21 +126,26 @@ Per-specialist loop:
 - **Resume check** (before the first iteration only): if `$work_dir/wave2-progress.txt` exists, read it.
   - One completed specialist name per line; load `$work_dir/wave2-findings.json` for their findings so far.
   - Start the loop at the first specialist NOT listed there instead of at `correctness`.
+
 - Read `references/specialists/<name>.md`. Combine with `common-preamble.md`.
 - Walk the diff through that specialist's rubric. Pull full files from
   `{repo_root}` only when the `-U20` diff context isn't enough to decide.
+
 - Emit that specialist's findings as a JSON array; `scope_tag` matches the
   file name (e.g., `"security"`).
 - **Skip issues already raised** by a previous specialist in this session —
   the scope_tag + the Problem sentence tell you. Distinct issues that share
   a line stay in.
+
 - Maintain a running findings list in working memory; append each pass.
+
 - **Persist**: overwrite `$work_dir/wave2-findings.json` with the full cumulative findings array, and append this specialist's name to `$work_dir/wave2-progress.txt` — both before moving to the next specialist.
 
 **Guide writer (after all 8 specialists):**
 
 - **Skip entirely when `Mode: local`** — go straight to Wave 3.
   - The guide only exists to post as a standalone PR comment (Wave 5, github mode); local reports drop it (see `references/local-review-template.md`).
+
 - **Resume check** (github mode only): if `$work_dir/wave2-guide.md` already exists, load it and skip straight to Wave 3.
 - Read `references/guide-writer.md`.
 - Produce the Review Guide Markdown (business context, decisions, where to
@@ -154,6 +162,7 @@ When `tiny_pr=true`, replace the per-specialist loop with:
 - Walk the diff once. Flag any issue matching a specialist's rubric; tag `scope_tag` with that specialist.
 - Skip the guide writer; emit a 2-sentence change summary instead.
 - **Persist**: write the summary to `$work_dir/wave2-guide.md` — same filename the full guide uses, so Wave 5's density check and guide-posting steps don't need tiny-PR-specific branching.
+
 - **Skip Wave 3 entirely.** At <100 added lines the change is in context; hallucinations are rare. Findings go straight to Wave 4.
 
 Artifact at the end of Wave 2: **one flat findings list + one Review Guide** (or 2-sentence summary on the fast-path).
@@ -180,6 +189,7 @@ line anchors, so you re-load each file at most once.
      the cited code doesn't exist; the code already does what was asked;
      the issue depends on a behavior the file explicitly prevents.
    - **Keep** otherwise — including when uncertain. Err toward kept.
+
 3. **Line-range check (kept findings only).** Is `start_line..line` the
    tightest range that captures the problem? If off by a few lines or too
    wide, update `start_line` and `line`. Don't widen/tighten just for
@@ -227,15 +237,21 @@ Print a terminal summary using the template at `references/wave6-summary-templat
 - **gh api POST 422 (Wave 5 emit)**: retry once, same single-batch-POST call, after verifying line numbers against `commentable-lines.txt` and dropping findings whose anchors don't resolve.
   - If it still fails, stop and report the error.
   - Never fall back to general comments or to the single-comment endpoint, and never split the batch into several POSTs.
+
   - A finding that can't go through the batch endpoint gets dropped from this run, not posted a different way.
+
 - **Post-emit verification fails (Wave 5's pending-state verification step)**: if the re-fetched review isn't `PENDING`, or its comment count/lines don't match `review-payload.json`, stop.
   - Don't proceed to Wave 6's success summary.
   - Report the mismatch (actual state, actual vs. expected comment list) to the user verbatim so they can decide whether to clean up live GitHub artifacts themselves.
+
   - Don't delete or edit anything on GitHub without their explicit go-ahead, since submitted reviews and comments are visible to every collaborator.
+
 - **Clone fails (Wave 1, github-only — `gh repo clone` never runs in local mode)**: abort with a clear error and `work_dir`'s path. Review cannot proceed without the code on disk.
+
 - **No findings at all**:
   - GH: skip the pending review entirely — don't post an empty review just to carry the guide.
     - Still post the Review Guide as a standalone PR comment (Wave 5's guide-posting step) so the human gets the context.
+
   - LOCAL: write `${out_file}` (the timestamped `./verdict_auto-review_<timestamp>` file) with "no findings" under Findings.
 
 ---
@@ -243,11 +259,16 @@ Print a terminal summary using the template at `references/wave6-summary-templat
 ## What NOT to do
 
 - Don't `gh pr checkout` into the user's working tree — isolation matters; always clone into `/tmp`.
+
 - Don't post inline comments via the single-comment endpoint (`POST .../pulls/{pull_number}/comments`) — always use the batch review endpoint, in one call, so the review stays atomic and pending.
+
 - Don't submit the review, ever, by any path: no `event` field on the create call, no `.../reviews/{id}/events` call, no `gh pr review --comment/--approve/--request-changes`.
   - Submitting is the human's decision; Wave 5's pending-state verification step confirms the review stayed pending.
+
 - Don't include a changelog. The Review Guide replaces it.
+
 - Don't spawn sub-Agents for specialists or the validator — see Architecture at top.
+
 - Don't invent flags. The CLI surface is deliberately minimal.
 
 ## Flowchart (human-facing)

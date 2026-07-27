@@ -2,13 +2,17 @@
 
 Sources:
 - `code-review-pipeline/references/review-checklists.md#Corner Cases to Verify` — empty / null / undefined / [] / {}, large inputs, boundary values (0, -1, max), invalid types, timeouts / retries, concurrency, i18n (encoding, locale, timezone).
+
 - `code-review-pipeline/references/review-checklists.md#Silent Failure Checklist`.
+
 - Side-effect hygiene — mutations, I/O, and hidden state changes the caller doesn't expect.
 
 Why bundled: all three are "things happening at runtime the caller didn't ask for".
 
 - **Silent failures are treated here as a kind of side-effect** — an error quietly mutating state or skipping work is exactly a side-effect the caller can't see from the signature.
+
 - Corner cases are the inputs that trigger these surprises.
+
 - One pass over the diff catches all three efficiently.
 
 ---

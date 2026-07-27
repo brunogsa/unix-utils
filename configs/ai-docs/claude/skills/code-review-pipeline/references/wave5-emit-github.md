@@ -12,14 +12,19 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 2. **Density check.** Every comment body about to be posted must obey doc-standards' cap (≤256 chars / ≤32 words per line) before it goes anywhere near the payload.
    - GitHub's review UI renders a dense paragraph as one hard-to-scan block, with no line breaks to anchor a skim-read.
    - Write each Wave-4 finding's `body` to its own file, `$work_dir/wave5-comment-<n>.md` (one per finding, in finding order).
+
    - Copy the guide's raw content from `$work_dir/wave2-guide.md` alongside them — it isn't wrapped in `<details>` yet, so it's still plain markdown the script can check.
+
    - Run `~/.claude/skills/doc-standards/scripts/check-density.sh "$work_dir"/wave5-comment-*.md "$work_dir/wave2-guide.md"` in one call.
+
    - Fix every flagged line so all files exit 0. Which path you take depends on whether this Wave 5 runs in the top-level session or inside a spawned subagent:
      - **Calling session (you were NOT spawned as a subagent):** delegate to `agent(subAgent=markdown-standards-fixer, title=Fix review-comment markdown)` and wait for it to report every file at exit 0.
        - Pass it the file list: `$work_dir`/wave5-comment-*.md plus `$work_dir/wave2-guide.md`.
        - It splits over-cap lines and re-runs the script itself, and is contractually barred from rewording or dropping content — so each finding's wording stays verbatim.
+
      - **Isolated (`--isolate` passed):** do NOT spawn — this pipeline keeps its fan-out flat so the run's token budget stays predictable.
        - Rewrite each flagged line in place per `~/.claude/skills/doc-standards/references/density-rules.md` — split into bullets/sub-bullets or shorter sentences, never drop information.
+
        - Re-run the script until it exits 0 for every file.
 
 ## Build and POST the pending review
@@ -27,8 +32,10 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 3. Build `$work_dir/review-payload.json` with jq for the inline comments only, sourcing each `body` from its density-clean `$work_dir/wave5-comment-<n>.md`.
    - **Leave the top-level `body` empty** — the Review Guide is delivered as a separate standalone PR comment in the guide-posting step below.
      - Rationale: a guide in the pending-review body gets buried behind the GitHub review filter, where the human reviewer won't find it.
+
    - Every inline comment body gets the signature footer appended: two newlines + `— gerado por IA, revisado pelo usuário`.
      - Rationale: `gh api` authenticates as the human operator, so without an explicit AI disclaimer the comments read as hand-written by them.
+
    - Include `start_line`/`start_side` only on multi-line ranges (`line > start_line`).
    - Target shape:
 
@@ -81,10 +88,14 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
    - Expect `{"state": "PENDING", "submitted_at": null}`.
    - Anything else — `COMMENTED`, `APPROVED`, `CHANGES_REQUESTED`, or a non-null `submitted_at` — means the review already went live.
    - Do not report success; report the actual state to the user and stop.
+
    - A submitted review can't be put back to pending via the API (only its individual comments can be deleted, one by one, via `DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}`).
+
    - Also re-fetch `.../reviews/"$review_id"/comments` and confirm the comment count and line numbers match `review-payload.json` exactly.
    - An unexpected extra comment or a mismatched count is the same signal as an unexpected state: stop and report, don't declare success.
+
    - **Never call anything that submits a review** — no `event` field on the POST, no follow-up call to `.../reviews/{id}/events`, no `gh pr review --comment/--approve/--request-changes`.
+
    - Submitting is the human's action alone; the pipeline's job ends at a verified-pending review.
 
 ## Post the Review Guide as its own PR comment

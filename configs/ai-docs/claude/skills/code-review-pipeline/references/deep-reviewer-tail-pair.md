@@ -21,6 +21,7 @@ Spawn both as `agent(subAgent=deep-reviewer, title=Simplification-lens review)` 
 They're independent report-only passes with no ordering dependency between them.
 
 - **Simplification lens**: duplication, dead code, over-abstraction, unclear naming, missed extractions, needless indirection, idioms inconsistent with surrounding code. Writes `./verdict_refactor_<YYYY-MM-DD_HH:MM>.md`.
+
 - **Correctness lens**: bugs, missed edge cases, contract mismatches between what the batch produces and what its callers expect, test gaps. Writes `./verdict_auto-review_<YYYY-MM-DD_HH:MM>.md`.
 - When `<SPEC_PLAN_PATHS>` is given, also checks spec conformance against it.
 
@@ -54,10 +55,14 @@ A `PreToolUse` hook (`~/.claude/hooks/deep-reviewer-write-guard.sh`) backs this 
 
 The subagent cannot physically touch repo source even if it tried.
 
+
+
 ## Failure handling
 
 - **Contract violation** (a mutation the hook didn't block, e.g. a `git commit` run through Bash) → abort the whole run; report it to the caller immediately.
+
 - **A tail errors, or returns nothing usable** → log it, let the other tail's report stand alone, and flag the missing one in the caller's own summary.
+
 - Never retry inline — a missing report is for the human to notice, not a retry loop.
 
 ## Overwrite policy
@@ -84,6 +89,7 @@ Never do this as an unprompted default, and never as a repeating loop:
 
 - Dispatch a fresh `agent(subAgent=general-purpose, title=Apply review finding, model=sonnet, effort=medium)`.
   - It writes the test, confirms it fails **RED** on the pre-fix code for the expected reason, then applies the fix and confirms **GREEN**.
+
 - A fix whose test was never shown RED first isn't trusted — re-dispatch.
 - Verify the diff before trusting `done`.
 - Annotate the finding in its verdict file as `APPLIED` (with the fix commit SHA) or `SKIPPED` (with why).
