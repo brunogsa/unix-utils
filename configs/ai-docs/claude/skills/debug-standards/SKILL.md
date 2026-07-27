@@ -114,6 +114,7 @@ Reveals: secrets reached the workflow ✓, but didn't propagate to the build scr
 
 - [Instruction] **CRITICAL: After three failed fixes, stop — escalate, not a fourth attempt, and widen the frame: ask whether the layer boundaries or data model are wrong, not just the code.**
   - [Why] Three failures is empirical evidence the model in your head doesn't match reality — and if each fix reveals a new symptom elsewhere, the pattern is broken, not the implementation.
+
   - [Example] Step one is a web search of the exact symptom — error message, stack-trace fragment, library + version, framework + error code.
 
 ### When there's no single root cause

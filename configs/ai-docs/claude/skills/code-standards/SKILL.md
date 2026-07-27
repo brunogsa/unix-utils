@@ -282,6 +282,7 @@ function buildAvulso({ parentKit, childSku, price, discount }) {
 
 - [Instruction] Drive optional behavior with an explicit flag the consumer sets, not a heuristic that infers intent from incidental state.
   - [Why] An inferred trigger couples behavior to a coincidence of the data, so it fires in cases the consumer never meant and the caller loses the choice.
+
 - [Example] Bad: `hasReadableDetail: detail !== undefined` — inferred from whether a field happened to parse. Good: a `shouldPrintResponse` flag the caller sets deliberately.
 
 - [Instruction] Pass a single `ctx` object for cross-cutting values (request ID, user, trace) that logging and tracing need but business logic doesn't — not a new param at every layer.

@@ -30,6 +30,7 @@ Principles for any git commit. Each rule is an instruction with its nested why; 
 
 - [Instruction] Keep a refactor commit to structure only — rename, restructure, extract, with green tests staying green.
   - [Why] Bundling behavior in hides it under mechanical noise, so reviewers can't separate the substantive diff from the cosmetic; isolation makes each reviewable in seconds.
+
   - [Example] A migration (move + update refs + delete) is structure-only — keep it as one isolated refactor commit.
 
 - [Instruction] **Split entangled commits by staging with `git-hunk`, never by editing code — committed content stays byte-identical to what was authored and reviewed.**

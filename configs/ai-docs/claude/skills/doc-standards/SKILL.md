@@ -43,6 +43,7 @@ Principles and paired examples for any documentation work. Each section pairs a 
 
 - [Instruction] Write about the *purpose* a thing serves or the case a guard prevents, never its *current state* — and drop time-anchored vocabulary ("stays", "now", "currently", "as of today", "we just").
   - [Why] Purpose survives refactors while a state note goes stale the moment that state changes, and time-anchored phrasing presumes the reader shares the author's "now".
+
   - [Example] Bad: `// Value stays '_loadingDeadlineMs' — browser specs hardcode this URL literal` / Good: `// This constant exists so E2E tests can override the timeout, making tests faster`
 
 - [Instruction] Link a non-obvious domain rule or field to its durable design doc (LLD/spec/ADR) by file path or URL — only when the full rationale is worth the pointer.
@@ -98,6 +99,7 @@ Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles �
 
 - [Instruction] Never cite a spec/design doc by a numbered token in code, docs, comments, or test titles — spell out the behavior inline instead; exempt a workflow/pipeline/loop's own step-order number.
   - [Why] A bare lookup number renumbers on edit and forces a lookup; a step-order number is different — it IS the sequence, not a pointer to it.
+
   - [Example] Bad (lookup pointers — always follow the ban): `AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
   - [Example] OK (step order — exempted): `implement/SKILL.md` citing its own `§1.4–§9 repeat once per PR` — the numbers encode the loop's bounds.
 
@@ -134,6 +136,7 @@ The two subsections below apply to any standalone doc — where it lives and wha
 
 - [Instruction] Locate and update related documentation inline with the change.
   - [Why] Deferring doc updates to "later" means they don't happen — the PR description, README, and touched comments are part of the change the reviewer needs synced.
+
   - [Example] New diagram added to README → also add a pointer in `agents.md`/`CLAUDE.md`, reloaded fresh every AI turn but skimmed only once by a human.
 
 ### What a doc should and shouldn't contain
@@ -146,6 +149,7 @@ The two subsections below apply to any standalone doc — where it lives and wha
 
 - [Instruction] Never collapse what the reader is meant to read — narrative, rationale, decisions, or anything a review depends on.
   - [Why] Collapsed content is content nobody opens, so hiding the part the doc exists to communicate buys a shorter page by trading away the reading it was written for.
+
   - [Example] Collapse an acceptance-criteria index or a 200-line payload; never collapse a PR's Context, Changes, or Decisions.
 
 - [Instruction] In a repo's CLAUDE.md, capture its purpose, dependencies, non-obvious gotchas, and load-bearing conventions.
@@ -171,6 +175,7 @@ The two subsections below apply to any standalone doc — where it lives and wha
 
 - [Instruction] In standalone markdown docs, keep each prose paragraph on a single physical line — never hard-wrap or insert manual line breaks mid-paragraph; rely on the editor's soft-wrap.
   - [Why] The density check flags over-long lines, but hard-wrapping a long paragraph into short lines makes each one pass while the reader's cognitive load stays just as high.
+
   - [Example] Bad: a 60-word paragraph wrapped into three 20-word lines, each passing the cap though it's still 60 words to read. Good: one line the cap can flag honestly.
 
 - [Instruction] Separate any bullet that has a sub-bullet or exceeds 80% of the density cap from the next bullet with a blank line.

@@ -314,6 +314,7 @@ it('shows expired badge when past deadline', () => {
 
 - [Instruction] **CRITICAL: Reference the same enums/constants as production code — in assertions, in mock factory bodies, and in fixture defaults.**
   - [Why] Hardcoding the literal means a refactor that renames the enum silently breaks production while the test still passes on the old literal — sharing the constant catches the drift.
+
   - [Example] A mock factory that hardcodes `'PLENO'` while production uses `BrandSlugs.PLENO = 'pleno'` passes against its own mock but never matches production's shape — and TypeScript can't catch it.
 
 - [Instruction] Never use an `as` cast in a test to inject a value the type or contract forbids; pass a valid domain value instead.
