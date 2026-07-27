@@ -19,6 +19,9 @@ Each marker sits at the margin; its [Why]/[Example] indent beneath; code fences 
 - [Instruction] Never re-densify a line to save instruction count — decomposing for density may raise the count, and that's the right trade; reclaim budget only by genuine merges or cuts.
   - [Why] Density and the count budget pull opposite ways; re-densifying buys a smaller number with a permanent reader tax — the wrong side of "scannable beats compact".
 
+- [Instruction] Cut any instruction the harness already enforces — one restated by Claude Code's system prompt, a tool description, or a hook is not load-bearing.
+  - [Why] The behavior survives the deletion, so the pair buys nothing and spends a slot from a budget where every added instruction lowers adherence to all the others.
+
 ## Nesting and flatness
 
 - [Instruction] Keep instructions flat — never nest one instruction under another.
