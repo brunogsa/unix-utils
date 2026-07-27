@@ -15,3 +15,6 @@ __pycache__/
 **/.DS_Store
 .claude
 report_*.md
+# Generated from snapshots/ by usage-audit's build-usage-viewer.py — 330 KB of
+# inlined data that is fully reproducible, so committing it is pure churn.
+configs/ai-docs/claude/skills/usage-audit/usage-history/viewer.html

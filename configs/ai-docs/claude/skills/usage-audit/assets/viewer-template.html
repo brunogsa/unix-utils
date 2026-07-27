@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code usage history</title>
+<!--
+  Template for usage-history/viewer.html. `scripts/build-usage-viewer.py` replaces
+  the __USAGE_DATA__ token below with the inlined snapshot + ledger payload.
+
+  The data is INLINED rather than fetched: a page opened over file:// cannot read
+  a sibling .json, so fetching would force a local web server just to look at a
+  chart. Inlining keeps it a double-click away with zero dependencies.
+
+  Everything here is vanilla JS and hand-rolled SVG for the same reason — a CDN
+  chart library is a network request this page must never need.
+-->
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --line: #e5e7eb;
+    --panel: #f9fafb; --main: #2563eb; --sub: #93c5fd; --accent: #b45309;
+    --warn: #dc2626; --ok: #059669;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --fg: #e7e9ee; --muted: #9aa1ad; --line: #262b35;
+      --panel: #161a21; --main: #60a5fa; --sub: #1e40af; --accent: #f59e0b;
+      --warn: #f87171; --ok: #34d399;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 18px 22px 60px; background: var(--bg); color: var(--fg);
+    font: 14px/1.5 ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+  }
+  h1 { font-size: 17px; margin: 0 0 2px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+       color: var(--muted); margin: 22px 0 8px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
+  .strip { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 12px; min-width: 118px;
+  }
+  .card .k { font-size: 11px; color: var(--muted); text-transform: uppercase;
+             letter-spacing: .05em; }
+  .card .v { font-size: 18px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+              margin-bottom: 10px; }
+  label { font-size: 12px; color: var(--muted); }
+  select, button {
+    background: var(--panel); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 5px 8px; font: inherit; font-size: 12px;
+  }
+  button { cursor: pointer; }
+  button:hover, button.on { border-color: var(--main); color: var(--main); }
+  .chartwrap { border: 1px solid var(--line); border-radius: 8px;
+               background: var(--panel); padding: 10px 6px 4px; overflow-x: auto; }
+  svg { display: block; width: 100%; height: auto; }
+  .bar { cursor: pointer; }
+  .bar:hover { opacity: .75; }
+  .grid { stroke: var(--line); stroke-width: 1; }
+  .axis { fill: var(--muted); font-size: 9px; }
+  .selected { stroke: var(--accent); stroke-width: 2; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { text-align: left; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 11px;
+       text-transform: uppercase; letter-spacing: .04em; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+          gap: 22px; align-items: start; }
+  .empty { color: var(--muted); font-style: italic; }
+  .up { color: var(--warn); } .down { color: var(--ok); }
+  .tag { display: inline-block; font-size: 10.5px; padding: 1px 6px; border-radius: 10px;
+         border: 1px solid var(--line); color: var(--muted); margin-right: 4px; }
+  code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .cmt { margin-bottom: 6px; }
+  .cmt .s { color: var(--muted); }
+  #tip {
+    position: fixed; pointer-events: none; opacity: 0; transition: opacity .08s;
+    background: var(--fg); color: var(--bg); padding: 6px 9px; border-radius: 6px;
+    font-size: 11.5px; max-width: 320px; z-index: 10; white-space: pre-line;
+  }
+</style>
+</head>
+<body>
+
+<h1>Claude Code usage history</h1>
+<div class="sub" id="range"></div>
+
+<div class="strip" id="totals"></div>
+
+<div class="controls">
+  <label for="metric">Metric</label>
+  <select id="metric"></select>
+  <label for="from">From</label><select id="from"></select>
+  <label for="to">To</label><select id="to"></select>
+  <button id="reset">Reset range</button>
+  <button id="cmp">Compare selected days</button>
+  <span class="sub" id="hint" style="margin:0"></span>
+</div>
+
+<div class="chartwrap"><svg id="chart" viewBox="0 0 1000 300" preserveAspectRatio="none"></svg></div>
+
+<div id="detail"></div>
+<div id="tip"></div>
+
+<script>
+const DATA = __USAGE_DATA__;
+
+// Metric accessors. `stack` splits a bar into main/sub; everything else is one bar.
+const METRICS = [
+  {id:'cost',      label:'Cost (USD)',            stack:true,  get:d=>d.total,                  fmt:usd},
+  {id:'msgs',      label:'User messages',         get:d=>d.kpis.user_messages,                  fmt:num},
+  {id:'cpm',       label:'Cost per user message', get:d=>d.kpis.cost_per_user_message,          fmt:usd},
+  {id:'interrupt', label:'Interruptions',         get:d=>d.kpis.interruptions,                  fmt:num},
+  {id:'compact',   label:'Compactions',           get:d=>d.compactions,                         fmt:num},
+  {id:'hours',     label:'Session hours',         get:d=>d.kpis.session_hours,                  fmt:n1},
+  {id:'sessions',  label:'Sessions',              get:d=>d.session_count,                       fmt:num},
+  {id:'output',    label:'Output tokens',         get:d=>d.tokens.output,                       fmt:tok},
+  {id:'cachew',    label:'Cache-write tokens',    get:d=>d.tokens.cache_write_5m+d.tokens.cache_write_1h, fmt:tok},
+  {id:'ttl1h',     label:'1h cache-write share',  get:ttl1h,                                    fmt:pct},
+  {id:'hit',       label:'Cache hit rate',        get:d=>d.cache_hit_rate,                      fmt:pct},
+  {id:'think',     label:'Thinking block share',  get:d=>d.thinking_block_share,                fmt:pct},
+  {id:'subshare',  label:'Subagent share of cost',get:d=>d.total?d.subagent_cost/d.total:0,     fmt:pct},
+];
+
+function ttl1h(d) {
+  const w = d.tokens.cache_write_5m + d.tokens.cache_write_1h;
+  return w ? d.tokens.cache_write_1h / w : 0;
+}
+function usd(v){ return '$' + (v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function num(v){ return (v||0).toLocaleString('en-US'); }
+function n1(v){ return (v||0).toFixed(1); }
+function pct(v){ return ((v||0)*100).toFixed(1) + '%'; }
+function tok(v){
+  if (v >= 1e9) return (v/1e9).toFixed(2)+'B';
+  if (v >= 1e6) return (v/1e6).toFixed(1)+'M';
+  if (v >= 1e3) return (v/1e3).toFixed(0)+'k';
+  return String(v||0);
+}
+
+const ALL_DAYS = Object.keys(DATA.days).sort();
+const state = {
+  metric: 'cost',
+  from: ALL_DAYS[0],
+  to: ALL_DAYS[ALL_DAYS.length - 1],
+  selected: [],   // up to 2 days, in click order — drives detail and compare
+};
+
+const $ = id => document.getElementById(id);
+const metricDef = () => METRICS.find(m => m.id === state.metric);
+const visibleDays = () => ALL_DAYS.filter(d => d >= state.from && d <= state.to);
+
+/* ---------- chart ---------- */
+
+const W = 1000, H = 300, PAD_L = 54, PAD_R = 8, PAD_T = 12, PAD_B = 34;
+
+function drawChart() {
+  const days = visibleDays(), m = metricDef();
+  const plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
+  const max = Math.max(...days.map(d => m.get(DATA.days[d])), 0) || 1;
+  const bw = plotW / Math.max(days.length, 1);
+  const y = v => PAD_T + plotH - (v / max) * plotH;
+  const parts = [];
+
+  // Four gridlines is enough to read a magnitude without turning into a table.
+  for (let i = 0; i <= 4; i++) {
+    const v = max * i / 4, yy = y(v);
+    parts.push(`<line class="grid" x1="${PAD_L}" x2="${W-PAD_R}" y1="${yy}" y2="${yy}"/>`);
+    parts.push(`<text class="axis" x="${PAD_L-6}" y="${yy+3}" text-anchor="end">${m.fmt(v)}</text>`);
+  }
+
+  days.forEach((day, i) => {
+    const d = DATA.days[day], v = m.get(d);
+    const x = PAD_L + i * bw, w = Math.max(bw - 1.5, 1);
+    const sel = state.selected.includes(day) ? ' selected' : '';
+    const tip = tooltipFor(day);
+    if (m.stack && d.total) {
+      const hMain = (d.main_cost / max) * plotH, hSub = (d.subagent_cost / max) * plotH;
+      parts.push(`<rect class="bar${sel}" data-day="${day}" data-tip="${tip}" x="${x}" y="${y(v)}" width="${w}" height="${hSub}" fill="var(--sub)"/>`);
+      parts.push(`<rect class="bar${sel}" data-day="${day}" data-tip="${tip}" x="${x}" y="${y(v)+hSub}" width="${w}" height="${hMain}" fill="var(--main)"/>`);
+    } else {
+      parts.push(`<rect class="bar${sel}" data-day="${day}" data-tip="${tip}" x="${x}" y="${y(v)}" width="${w}" height="${Math.max(plotH-(y(v)-PAD_T),0)}" fill="var(--main)"/>`);
+    }
+    // A day with config commits gets a marker, so a spend jump can be read
+    // against what shipped the day before it.
+    const commits = DATA.ledger[day];
+    if (commits && commits.length) {
+      parts.push(`<circle class="bar" data-day="${day}" data-tip="${tip}" cx="${x+w/2}" cy="${H-PAD_B+8}" r="${Math.min(2.5+commits.length/8,6)}" fill="var(--accent)"/>`);
+    }
+    // Label every Nth day so ticks never collide at 42+ days.
+    const step = Math.ceil(days.length / 14);
+    if (i % step === 0) {
+      parts.push(`<text class="axis" x="${x+w/2}" y="${H-8}" text-anchor="middle">${day.slice(5)}</text>`);
+    }
+  });
+
+  $('chart').innerHTML = parts.join('');
+  $('chart').querySelectorAll('[data-day]').forEach(el => {
+    el.addEventListener('click', () => selectDay(el.dataset.day));
+    el.addEventListener('mousemove', e => showTip(e, el.dataset.tip));
+    el.addEventListener('mouseleave', hideTip);
+  });
+}
+
+function tooltipFor(day) {
+  const d = DATA.days[day], m = metricDef();
+  const commits = DATA.ledger[day] || [];
+  let t = `${day}  ·  ${m.label}: ${m.fmt(m.get(d))}`;
+  t += `\n${usd(d.total)}  ·  ${d.kpis.user_messages} msgs  ·  ${d.compactions} compactions`;
+  if (commits.length) t += `\n${commits.length} config commit(s) — click to see them`;
+  if (d.coverage !== 'complete') t += `\nCOVERAGE: ${d.coverage} — transcripts aged out`;
+  return t.replace(/"/g, '&quot;');
+}
+
+function showTip(e, text) {
+  const tip = $('tip');
+  tip.textContent = text.replace(/&quot;/g, '"');
+  tip.style.opacity = 1;
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - 340) + 'px';
+  tip.style.top = (e.clientY + 16) + 'px';
+}
+function hideTip(){ $('tip').style.opacity = 0; }
+
+/* ---------- selection ---------- */
+
+function selectDay(day) {
+  const at = state.selected.indexOf(day);
+  if (at >= 0) state.selected.splice(at, 1);
+  else {
+    state.selected.push(day);
+    if (state.selected.length > 2) state.selected.shift();  // keep the last two
+  }
+  render();
+}
+
+/* ---------- detail + compare ---------- */
+
+function kv(k, v) {
+  return `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+}
+
+function tableOf(head, rows) {
+  if (!rows.length) return '<p class="empty">none</p>';
+  const th = head.map((h, i) => `<th class="${i ? 'n' : ''}">${h}</th>`).join('');
+  const tr = rows.map(r => '<tr>' + r.map((c, i) => `<td class="${i ? 'n' : ''}">${c}</td>`).join('') + '</tr>').join('');
+  return `<table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
+}
+
+function commitsBlock(day) {
+  const commits = DATA.ledger[day] || [];
+  if (!commits.length) return '<p class="empty">no config commits this day</p>';
+  return commits.map(c =>
+    `<div class="cmt"><code>${c.sha}</code> ${escape_(c.subject)}<br>` +
+    c.surfaces.map(s => `<span class="tag">${escape_(s)}</span>`).join('') + '</div>').join('');
+}
+
+function escape_(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// `skills` is a {name: invocations} map, not a list — show the busiest three.
+function topSkills(skills) {
+  return Object.entries(skills || {})
+    .sort((a, b) => b[1] - a[1]).slice(0, 3)
+    .map(([k, n]) => n > 1 ? `${k}×${n}` : k).join(', ');
+}
+
+function dayDetail(day) {
+  const d = DATA.days[day];
+  const fam = Object.entries(d.by_family).sort((a,b)=>b[1]-a[1])
+    .map(([k,v]) => [k, usd(v), pct(d.total ? v/d.total : 0)]);
+  const sub = Object.entries(d.by_subagent_type).sort((a,b)=>b[1].cost-a[1].cost)
+    .map(([k,v]) => [k, usd(v.cost), num(v.runs), usd(v.runs ? v.cost/v.runs : 0)]);
+  const skill = Object.entries(d.by_skill_marginal).sort((a,b)=>b[1].dedicated_cost-a[1].dedicated_cost)
+    .map(([k,v]) => [k, num(v.dedicated_sessions), usd(v.dedicated_cost), num(v.mixed_sessions), usd(v.mixed_cost_estimate)]);
+  const sess = d.top_sessions
+    .map(s => [escape_(s.title || s.id || '—'), usd(s.cost), n1(s.duration_hours),
+               num(s.compactions), num(s.user_messages), num(s.interruptions),
+               escape_(topSkills(s.skills)) || '—']);
+
+  return `
+  <h2>${day} ${d.coverage !== 'complete' ? `<span class="up">· coverage: ${d.coverage}</span>` : ''}</h2>
+  <div class="strip">
+    ${kv('Total', usd(d.total))}${kv('Main', usd(d.main_cost))}${kv('Subagents', usd(d.subagent_cost))}
+    ${kv('User msgs', num(d.kpis.user_messages))}${kv('$/msg', usd(d.kpis.cost_per_user_message))}
+    ${kv('Interruptions', num(d.kpis.interruptions))}${kv('Compactions', num(d.compactions))}
+    ${kv('Session hours', n1(d.kpis.session_hours))}${kv('Cache hit', pct(d.cache_hit_rate))}
+    ${kv('1h cache-write', pct(ttl1h(d)))}${kv('Thinking blocks', pct(d.thinking_block_share))}
+  </div>
+  <div class="cols">
+    <div><h2>By model family</h2>${tableOf(['Family','Cost','Share'], fam)}</div>
+    <div><h2>By subagent type</h2>${tableOf(['Type','Cost','Runs','$/run'], sub)}</div>
+    <div><h2>Config commits</h2>${commitsBlock(day)}</div>
+    <div><h2>By skill (marginal)</h2>${tableOf(['Skill','Dedic.','Dedic. $','Mixed','Mixed $'], skill)}</div>
+  </div>
+  <h2>Top sessions</h2>${tableOf(['Session','Cost','Hours','Compact.','Msgs','Interrupt.','Skills'], sess)}`;
+}
+
+function compare(a, b) {
+  const [x, y] = [DATA.days[a], DATA.days[b]];
+  const rows = METRICS.map(m => {
+    const va = m.get(x), vb = m.get(y);
+    const delta = vb - va;
+    const rel = va ? (delta / va) * 100 : 0;
+    const cls = Math.abs(rel) < 0.05 ? '' : (delta > 0 ? 'up' : 'down');
+    return [m.label, m.fmt(va), m.fmt(vb),
+            `<span class="${cls}">${delta > 0 ? '+' : ''}${m.fmt(delta)}</span>`,
+            `<span class="${cls}">${va ? (rel>0?'+':'') + rel.toFixed(1)+'%' : '—'}</span>`];
+  });
+  // Commits BETWEEN the two days are the candidate causes of the delta.
+  const between = ALL_DAYS.filter(d => d > a && d <= b && (DATA.ledger[d]||[]).length);
+  const causes = between.length
+    ? between.map(d => `<h2>${d}</h2>${commitsBlock(d)}`).join('')
+    : '<p class="empty">no config commits landed between these days</p>';
+  return `<h2>${a} → ${b}</h2>${tableOf(['Metric', a, b, 'Delta', 'Rel'], rows)}
+          <h2>Config changes in between</h2>${causes}`;
+}
+
+/* ---------- render ---------- */
+
+function render() {
+  const days = visibleDays();
+  const sum = k => days.reduce((t, d) => t + k(DATA.days[d]), 0);
+  const total = sum(d => d.total), msgs = sum(d => d.kpis.user_messages);
+
+  $('range').textContent =
+    `${ALL_DAYS[0]} → ${ALL_DAYS[ALL_DAYS.length-1]} · ${ALL_DAYS.length} closed days · ` +
+    `generated ${DATA.meta.generated_at} · one snapshot per closed LOCAL day`;
+
+  $('totals').innerHTML =
+    kv('Days shown', num(days.length)) +
+    kv('Total', usd(total)) +
+    kv('Mean / day', usd(days.length ? total / days.length : 0)) +
+    kv('Peak day', usd(Math.max(...days.map(d => DATA.days[d].total), 0))) +
+    kv('User msgs', num(msgs)) +
+    kv('$ / msg', usd(msgs ? total / msgs : 0)) +
+    kv('Compactions', num(sum(d => d.compactions))) +
+    kv('Config commits', num(days.reduce((t, d) => t + (DATA.ledger[d]||[]).length, 0)));
+
+  $('hint').textContent = state.selected.length === 0
+    ? 'Click a bar to inspect a day; click a second to compare.'
+    : state.selected.length === 1
+      ? `Selected ${state.selected[0]} — click another day to compare.`
+      : `Comparing ${state.selected[0]} → ${state.selected[1]}.`;
+
+  drawChart();
+
+  if (state.selected.length === 2) {
+    const [a, b] = [...state.selected].sort();
+    $('detail').innerHTML = compare(a, b) + dayDetail(b);
+  } else if (state.selected.length === 1) {
+    $('detail').innerHTML = dayDetail(state.selected[0]);
+  } else {
+    $('detail').innerHTML = '';
+  }
+}
+
+/* ---------- wiring ---------- */
+
+$('metric').innerHTML = METRICS.map(m => `<option value="${m.id}">${m.label}</option>`).join('');
+$('metric').value = state.metric;
+$('metric').addEventListener('change', e => { state.metric = e.target.value; render(); });
+
+for (const id of ['from', 'to']) {
+  $(id).innerHTML = ALL_DAYS.map(d => `<option value="${d}">${d}</option>`).join('');
+  $(id).value = state[id];
+  $(id).addEventListener('change', e => {
+    state[id] = e.target.value;
+    if (state.from > state.to) state[id === 'from' ? 'to' : 'from'] = e.target.value;
+    $('from').value = state.from; $('to').value = state.to;
+    render();
+  });
+}
+
+$('reset').addEventListener('click', () => {
+  state.from = ALL_DAYS[0]; state.to = ALL_DAYS[ALL_DAYS.length-1]; state.selected = [];
+  $('from').value = state.from; $('to').value = state.to;
+  render();
+});
+
+$('cmp').addEventListener('click', () => {
+  // Default comparison is the two most recent days, the question an audit asks first.
+  if (state.selected.length < 2) state.selected = ALL_DAYS.slice(-2);
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
