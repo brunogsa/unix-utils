@@ -44,12 +44,15 @@ Author against the locally-installed `mmdc` (`mmdc --version`); validate every d
 - **Unquoted parens / brackets inside pipe-delimited edge labels** — `A -->|label (with parens)| B` fails: mermaid reads `(` as the start of a node shape.
   - Fix: quote the whole label — `A -->|"label (with parens)"| B`.
   - Applies to `()`, `[]`, `{}`, and `(())` inside any pipe label.
+
 - **Special characters in node display text** — `:` `(` `)` `&` `/` are usually fine inside `["..."]` but break inside bare `[...]`.
   - When in doubt, wrap node text in double quotes: `node["Foo: Bar (v2)"]`.
+
 - **Reserved words as participant ids** — `end`, `note`, `loop` confuse the parser. Alias them: `participant E as end-state`.
 - **`<br/>` line breaks** — only work inside quoted strings. Bare `[Foo<br/>Bar]` fails; `["Foo<br/>Bar"]` works.
 - **Bare `%%` separator lines spawn a phantom node** — a line that is *only* `%%` renders as a stray node labelled `%%`, and passes `mmdc` with exit 0 (no error).
   - It's a junk box floating in the diagram — give every comment content (`%% --`, `%% ----`), never a lone `%%`.
+
 - **Arrow tokens inside `%%` comments leak into the parse** — a comment like `%% solid (-->) vs dashed (-.->)` emits a phantom `%%` node; the stripper misfires on `-->`/`-.->`.
   - Keep arrow syntax out of comment text — write "solid vs dashed", not the literal arrows.
   - Detection for both: after rendering, `grep -c 'nodeLabel">%%' out.svg` — must be `0`. Exit code alone won't catch these; they're silent.
@@ -67,6 +70,7 @@ Every node, box, or actor must name the actual component it represents — never
 - **Architecture / context diagrams** — name the actual system, service, or data store.
   - Good: `Integrator API`, `Arco SAS`, `Postgres: users_db`, `Redis cache`
   - Bad: `Service A`, `Backend`, `DB`
+
 - **Flow / sequence diagrams** — name the actual module, class, function, or service.
   - Good: `UserController`, `AuthService`, `Kafka: order-events`
   - Bad: `Module A`, `Handler`, `Queue`
@@ -76,7 +80,9 @@ Every node, box, or actor must name the actual component it represents — never
 When a node carries more than its name — vendor tag, responsibilities, status notes, bullets — split the label into a **header** (identity) and a **body** (details) with a blank line: `<br/><br/>`.
 
 - **Header** = what the node *is*: the name, plus an optional `« Vendor »` tech tag on its own line and/or a short alias like `(SeFaz)` / `(Configurador)`.
+
 - **Body** = what it *does* or what's notable: responsibilities, bullets, caveats, migration intent.
+
 - Put the blank line after the **whole** header block (name + vendor + alias), before the first detail.
 
 ~~~text
@@ -86,9 +92,12 @@ cgi["CGI (Cadastro Global)<br/><br/>Fonte da Verdade: Escolas, Faculdades<br/>ex
 
 [Why] The header answers "what is this?", the body "what does it do?". The blank line lets the eye grab the name first and drop into details only when needed.
 
+
+
 - Without the break the name blurs into the bullets — costs one `<br/>`, saves a re-scan per node.
 - **Identity-only nodes get no break.** A bare name, or name + short alias (`Receita Federal<br/>(SeFaz)`), has no body to separate — a blank line just floats a lonely subtitle.
   - Apply the break only where a real details/responsibilities block exists.
+
 - A single parenthetical that *renames or expands* the node (`(Loja B2C 2.0)`, `(Sistema Produção Gráfica)`) is part of the header, not the body — it stays attached, no break.
   - A parenthetical that *describes behavior* (a note, a sentence with a verb) is body — break before it.
 
@@ -130,6 +139,7 @@ When in doubt, **write the sequence diagram first**.
 Reviewer checklist:
 
 - For every edge `X --> Y`, ask: *does X execute the code that affects Y?* If "X provides data some other component then puts into Y", it's mis-sourced.
+
 - Cross-check against any sibling sequence diagram — if the sequence has `A->>B: data; B->>C: write`, the flowchart edge is `B --> C`, not `A --> C`.
 
 ## Diagram Type Selection
@@ -148,7 +158,9 @@ Reviewer checklist:
 - Aim for 5–10 nodes. More than 15 usually means it should be two diagrams.
 - Label edges when the relationship isn't obvious from node names alone.
 - Use `subgraph` to group related components, not just for visual decoration — but on dense graphs grouping is a trade-off (see Layout below).
+
 - Direction: default to `TD` (top-down) for small flowcharts. For larger / subgraph-heavy flowcharts, **render both `TD` and `LR` and pick the easier-to-read one** (see Layout below). Don't guess.
+
 - Omit flows that are obvious and add noise without adding insight.
 
 ### Layout: render alternatives and pick — don't guess
@@ -207,7 +219,9 @@ Conventions:
 - **Numbers (`1`, `2`, `3`)** mark sequence: step 2 starts after step 1 finishes.
 - **Letters (`1a`, `1b`, `1c`)** mark sibling sub-steps of one parent: parallel or any order within that step.
 - **Phase prefixes** (`1a`...`2a`...) when the diagram contains 2+ discrete flows triggered by different events (e.g., "on Apply" vs "on tab switch"). Phase number = major identifier; sub-letter = within-phase order.
+
 - **Dashed alternative within a step** — `"1c (fallback). on X failure"` signals alternative path within step 1c.
+
 - **Skip numbers** for pure-structure diagrams or tiny ones; numbers earn their place when there are ≥3 directed edges or branching.
 
 ### Don't over-color

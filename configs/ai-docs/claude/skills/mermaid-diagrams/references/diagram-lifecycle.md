@@ -22,8 +22,10 @@ Don't dash a future edge: dashed means "exists today, kill it later," the opposi
 
 - **State the convention in-diagram, not just in your head.** Put it in a `subgraph "Legend"` with one swatch per marker, or a `%%` comment block.
   - An unexplained red/green is a claim the reader can't verify. Copying a diagram's colors without knowing their meaning ("is green *new* or *good*?") — decode or ask first.
+
 - **Don't invent markers the source doesn't define.** If a diagram uses only the five above, don't add a sixth (e.g. a "problem" red) on a hunch.
   - Express "this should go away" with the tools you have — a dashed (deprecate) edge — not a new color.
+
 - `classDef` recipe:
   ~~~text
   classDef willCreate  fill:#d5e8d4,stroke:#82b366,stroke-dasharray:5 5
