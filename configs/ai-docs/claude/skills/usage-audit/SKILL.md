@@ -31,6 +31,7 @@ The three KPIs (defined in `./usage-history/README.md`): **session time up** (lo
 
 - [Instruction] Divide `user_messages`, `interruptions`, and `session_hours` by `window_days` before comparing them across snapshots.
   - [Why] Those three are raw per-window totals, so a raw delta can invert the sign: 821 (7d) → 411 (1d) user messages reads as halved, yet per-day it tripled.
+
   - [Example] Already normalized, compare directly: `kpis.cost_per_day`, `kpis.cost_per_user_message`, `by_day` entries.
 
 - [Instruction] For each `running` row in `./usage-history/experiments.md`, check its "watch signal" against the snapshot delta and settle it: `kept`, `reverted`, or leave `running` with a dated note.
