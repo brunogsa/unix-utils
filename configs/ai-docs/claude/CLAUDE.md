@@ -237,9 +237,6 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] On compaction, reload eagerly-first — before continuing the task — any procedural/orchestrator skill (e.g. `brainstorm`, `implement`) that still governs what you are doing.
   - [Why] These carry multi-step state that compaction drops, leaving the orchestrator blind until its procedure is re-established; a hook shows what was loaded, but you judge what applies.
 
-- [Instruction] Reload each `*-standards` skill lazily instead — when its trigger next fires, never on the compaction itself.
-  - [Why] Standards are stateless guidance, so reloading one before its trigger fires buys nothing and just re-taxes the context the compaction freed.
-
 - [Instruction] **Mirror remaining steps as TaskList entries** -- when a step-shaped skill starts, add each remaining step as a `[Reminder]` entry and complete it as it runs.
   - [Why] Steps were observed skipped after compaction; TaskList survives compaction and re-surfaces every turn, so the sequence can't vanish with the summary.
 
@@ -248,14 +245,8 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 ### Editing & permissions
 
-- [Instruction] **Prefer targeted edits over full rewrites** -- use the Edit tool over the Write tool (overwrite) whenever possible.
-  - [Why] A small diff is easier to review and verify; a full rewrite also widens the surface area for hallucination.
-
 - [Instruction] **Serialize writes when they prompt for permission** -- one Edit/Write at a time, waiting for each result; in bypass-permissions/auto-accept mode, parallel writes are fine.
   - [Why] With prompts on, each write is a permission gate — one rejection re-issues all parallel writes; with prompts off, the gate is gone and parallel is just faster.
-
-- [Instruction] Parallelize independent read-only calls (Read, Grep, Glob, read-only Bash) in one block — never serialize them.
-  - [Why] Reads carry no permission gate and no write-ordering hazard, so batching them is pure latency saved; the serialize-writes default never extends to them.
 
 - [Instruction] **Permission UIs are the asking. NEVER pre-ask in chat** -- issue the decided call directly, UNLESS it's an irreversible remote mutation that may be allowlisted, then confirm once in chat.
   - [Why] Pre-show + run = double-prompt and the UI renders cleaner than chat; but an allowlisted irreversible action fires no UI, so the one chat confirm is the only human gate.
@@ -293,22 +284,17 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
   - [Why] The category lets you and the reader triage tasks by kind at a glance — deferred, scout, ships-with-current, etc.
   - [Example] Final shape ` <id>. [#<returned-id>][<category>] <description>`. Default `[Task]`; also `[Feature]`, `[Spike]`, `[Debt]`, `[Refactor]`.
 
-- [Instruction] `[Sub-Step]` — a child of a Task or another Sub-step; place it after its parent or a sibling (logical order); commits along with its Task ancestor.
-  - [Why] A sub-step decomposes a task into ordered pieces without its own commit — it isn't independently shippable, so bundling it with its parent gives the reviewer one coherent change.
+  - [Example] The five placement categories — pick by the commit rule, which is the reason each exists:
 
-- [Instruction] `[Side]` — deferred "side quest" / out-of-scope work (review feedback, mid-task requests, anything you uncover); file as a new task, don't pivot; own commit, end of list.
-  - [Why] Filing deferred work as its own task instead of derailing the current one keeps each commit a single logical change.
+| Category | What it is | Commit & placement |
+|---|---|---|
+| `[Sub-Step]` | child of a Task or another Sub-step | with its Task ancestor, after its parent or a sibling. Not shippable alone, so the reviewer gets one coherent change. |
+| `[Side]` | deferred out-of-scope work you uncover — review feedback, mid-task requests | own commit, end of list. File it instead of pivoting, so each commit stays one logical change. |
+| `[Scout]` | pre-existing non-blocking issue, auto-queued with no approval | own commit, end of list. Absorbing a pre-existing fix would mix concerns. |
+| `[Drift]` | collateral fix the current task is blocked on mid-flight | base commit if trivial, else its own — a large drift burdens the goal's reviewer. |
+| `[Reminder]` | a process step to run later | may produce no commit; stays pending until it runs, so a long run can't skip it. |
 
-- [Instruction] `[Scout]` — pre-existing, non-blocking issue noticed in passing; auto-queued per the Scout rule (no per-Scout approval); its own commit, end of list by default.
-  - [Why] Absorbing a pre-existing fix into the current commit would mix concerns and derail it.
-
-- [Instruction] `[Drift]` — collateral fix the current task is blocked on (needed mid-flight to make it work); bundle into the base commit if trivial, else its own commit.
-  - [Why] Leave-it-better is worth it for small drifts that don't delay the real goal; a larger one burdens the goal's reviewer, so it earns its own commit or PR.
-
-- [Instruction] `[Reminder]` — a durable reminder of a process step to run later; the step may or may not produce a commit; stays pending until it runs, then completes.
-  - [Why] The TaskList re-surfaces to the AI every turn and survives compaction, so a long unattended run through many compactions keeps the step visible instead of silently skipping it.
-
-  - [Example] Batch-end procedure steps: run the repo-green gate, dispatch the review tails, finalize the PR, open the diff-review pane.
+  - [Example] `[Reminder]` in practice — batch-end steps: run the repo-green gate, dispatch the review tails, finalize the PR, open the diff-review pane.
 
 - [Instruction] Persist machine-checkable task state — step counters, gate outcomes, attempt counts, decisions, artifact/experiment links — in the task's `metadata` field, not in prose subjects or descriptions.
   - [Why] Metadata survives compaction with the task and reads back as structured fields, so a resumed skill checks exactly where it was instead of re-parsing prose.
@@ -362,11 +348,8 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 ### Subagents
 
-- [Instruction] **CRITICAL: Default to parallel fan-out** when a task splits into independent chunks (one per file/module/target/ERP/service).
+- [Instruction] **CRITICAL: Default to parallel fan-out** -- when a task splits into independent chunks (one per file/module/target/ERP/service), dispatch one subagent each, all in a single message.
   - [Why] Wall-clock time is the user's real cost, not token spend; independent chunks carry no ordering dependency, so serial execution just makes the user wait N× longer for free.
-
-- [Instruction] Dispatch one subagent per independent chunk in a single message rather than serially or inline.
-  - [Why] One subagent per chunk ensures independent execution; a single message minimizes dispatch overhead.
 
 - [Instruction] **Leverage Explore/Grep and other subagents to minimize compaction on main session** -- broad searches, fan-out reads, "where is X handled?" hunts, etc;
   - [Why] Main session is kept under a tight 200k tokens context window. Inline exploration dumps every touched file into the main context, triggering more compactions.
