@@ -56,6 +56,7 @@ Deduplicate and merge the lists. If no files are found, inform the user and stop
 **Before dispatch, mint the report path.** Run `date "+verdict_refactor_%Y-%m-%d_%H:%M.md"` once and treat the output as `$VERDICT_PATH` in CWD (NOT `/tmp/` — the user reviews it alongside the diff in their editor).
 
 - The `verdict_` prefix is mandatory, not cosmetic — see `~/.claude/hooks/deep-reviewer-write-guard.sh` for why (a reserved-prefix collision with the Claude Code harness itself, not our own guard).
+
 - Use that exact filename in every reference below. One file per `/refactor` invocation; never reuse a prior run's path.
 
 **Dispatch** `agent(subAgent=deep-reviewer, title=Refactor-lens review)` — report-only by construction. In the prompt:
@@ -68,15 +69,22 @@ Deduplicate and merge the lists. If no files are found, inform the user and stop
 #### Analysis constraints (passed to deep-reviewer)
 
 - Load and apply principles from `~/.claude/CLAUDE.md` and the `code-standards`, `test-standards`, `doc-standards` skills.
+
 - Focus only on code touched by unpushed commits or uncommitted changes — the recently-modified surface, nothing beyond it.
+
 - Preserve behavior exactly: propose changes to *how* the code reads, never *what* it does. No behavior changes, no formatting-only churn, no new features, no refactors outside the changed files.
+
 - Simplify for clarity, not brevity: reduce needless complexity and nesting, eliminate redundant code and dead abstractions, consolidate related logic, and drop comments that only restate the code.
+
 - Prefer explicit, readable code over compact code — avoid nested ternaries in favor of `if`/`else` or `switch` for multi-way branches.
+
 - Keep the balance — do NOT over-simplify: no clever one-liners, no merging unrelated concerns into one function, no stripping helpful abstractions, no trading readability for fewer lines.
+
 - Classify each finding as **subjective** or **mechanical**:
   - **Subjective**: naming, decomposition, architecture, layered-architecture violations, guideline alignment -- things only a context-aware reviewer can judge
   - **Mechanical**: unused imports/variables, dead code/exports, cyclomatic complexity, circular dependencies, missing type annotations -- things a linter could catch deterministically
   - For mechanical findings, prefix the **What** field with `[LINTER GAP]` to signal that the project's linter config should be improved to catch this automatically
+
 - Write the complete findings report to `$VERDICT_PATH` (overwrite if exists) per the schema below.
 
 #### Persist full findings to the file (avoid return-message truncation)
@@ -86,6 +94,7 @@ Subagent return messages are capped and **WILL truncate long lists** -- the user
 - The report file at `$VERDICT_PATH` is the source of truth (overwrite if exists).
 - The subagent's return must contain only: total count, file path, and one title line per finding.
   - Format: `1. <file>:<lines> — <one-line title>`. No code blocks, no Before/After in the return.
+
 - If the file is missing or empty after the agent returns, treat the run as failed and re-invoke (do not proceed from the truncated return alone).
 
 #### Per-finding schema (inside `$VERDICT_PATH`)
@@ -98,10 +107,13 @@ Each finding is a `## N. <one-line title>` section. Inside, use these labeled bl
 - **Category**: suggested TaskList category for the eventual commit -- `[Refactor]`, `[Debt]`, `[Drift]`, `[Scout]`, `[Sub-Step]` (see CLAUDE.md "Leverage TaskList proactively")
 - **What**: 2-4 sentences on the change. Name the construct (function, variable, type, test), what it does now, what it should become.
   - Avoid pronouns without antecedents ("it", "this") -- spell out the target.
+
 - **Why**: which principle, skill rule, or smell this addresses. Quote the exact bullet from `~/.claude/CLAUDE.md` or a `*-standards` skill.
   - Example: `CLAUDE.md › "Centralize repeated artifacts"`. Generic "improves readability" is not acceptable.
+
 - **Before** (fenced code block): the full current code with ≥3 lines of surrounding context above and below.
   - The reader shouldn't need to open the file. Mark target lines with a `// ← target` comment when helpful.
+
 - **After** (fenced code block): the **full** proposed code with the same surrounding context, so a side-by-side compare is trivial.
 - **Impact**: 1-2 sentences -- callers affected, tests that may need updating, blast radius. If isolated, say `isolated`.
 - **Risk**: `low` / `medium` / `high` plus a 1-sentence reason (e.g. `medium — touches a public export; downstream callers in 3 packages`).
@@ -116,7 +128,9 @@ After the agent returns:
 1. `Read` `$VERDICT_PATH` end-to-end — do **not** rely on the return summary, it is truncated by design.
 2. Present a **compact index** in chat: numbered list, one line per finding.
    - Format: `<file>:<lines> — <one-line title> [classification, risk, effort]`.
+
    - Do not inline Before/After -- the user has the full file open.
+
 3. Tell the user the full report is at `$VERDICT_PATH` and invite them to open it (`tail -f` or editor) for the rich detail.
 
 **Stop here — this skill does not apply findings.** The user decides later which to act on.
