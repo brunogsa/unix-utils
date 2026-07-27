@@ -5,6 +5,9 @@ Read this only when the pre-flight settled the depth at **none**, and read it in
 No spec and no plan is written, so nothing on disk holds the reasoning.
 The TaskList carries the work and the run scratchpad `/tmp/brainstorm_<session_id>.md` carries the why — exactly the split the global rules draw between those two surfaces.
 
+If a compaction lands mid-run, re-read the run scratchpad before continuing — trust it over recalled context, per the global rule.
+Full and light modes have a spec or plan file on disk to fall back on instead; this depth has only the scratchpad and the TaskList.
+
 Why the mode exists: a small, well-understood change can be worth an interview without being worth two living documents, and the documents are what every gate downstream reads.
 
 Why it costs something real: the interview's corner cases and failure modes normally land in the spec's Acceptance Criteria, where a script can prove each one has a test.
@@ -14,10 +17,12 @@ Here they have nowhere structural to live, so the sections below make placing th
 
 Interview the user until no question is left open — `AskUserQuestion`, 2-3 at a time, recommended answer first, exactly as in step 4.
 
+Write each answer to the run scratchpad the moment it closes, the same round-closing write step 4 does.
+
 Nothing below starts while a question is open.
 
 Why stricter than the document depths: those park an unresolved question under an Open Questions heading that a later step re-reads.
-Here there is no heading, so a question left open simply disappears with the session.
+Here there is no heading, so a question left open simply disappears with the session — the scratchpad write above is what stands in for that heading.
 
 ## Seed the work as TaskList entries
 
