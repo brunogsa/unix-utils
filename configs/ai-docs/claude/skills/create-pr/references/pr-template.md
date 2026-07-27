@@ -1,3 +1,13 @@
+---
+# performance-check budget override, not part of the template itself.
+# This file's size is set by the filled-in PR template it reproduces --
+# every section, budget note, and bracketed instruction is inherent to
+# the artifact, so trimming would make the template misleading rather
+# than smaller. Raised from the 1024-word bundled default to the next
+# power of two that fits.
+words-budget: 2048
+---
+
 [Template is in English. For non-English teams, translate section headers and body text to the team's primary language per the "Section names in the PR's primary language" rule in SKILL.md.]
 
 [Every section below obeys SKILL.md's non-overlap invariant: nothing rendered here may also appear in the appendix, and nothing in the appendix may repeat a body section.]

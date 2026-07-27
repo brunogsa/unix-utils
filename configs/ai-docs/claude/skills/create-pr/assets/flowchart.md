@@ -21,24 +21,24 @@ flowchart TD
   n6["6. Create ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md right away, with an<br/>HTML comment logging each answer — this skill's durable<br/>record, surviving a mid-flow compaction that drops them"]:::state
   n7["7. Derive the appendix's section list — never ask for it:<br/>the resolved spec/plan MINUS every section the body renders.<br/>The list is handed to step 2's agent, which extracts sections with<br/>extract-md-sections.sh and diagrams with extract-mermaid-blocks.sh —<br/>a re-summarized section or re-drawn diagram diverges silently"]
   n8["8. Resolve the base branch:<br/>git symbolic-ref refs/remotes/origin/HEAD;<br/>empty -&gt; omit --base when the PR is created"]
-  n9["9. Ensure the branch is pushed: git push -u origin &lt;branch&gt;<br/>when it has no upstream, so step 5 only has to create the PR"]
-  n10[["10. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · foreground (step 2 gates on it)<br/>writes the full commit log + diff to a /tmp artifact and returns<br/>only the digest, so the raw diff never enters the main session"]]:::dispatch
+  n9[["9. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · foreground (step 2 gates on it)<br/>writes the full commit log + diff to a /tmp artifact and returns<br/>only the digest, so the raw diff never enters the main session"]]:::dispatch
 
-  n11[["11. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · mode ideal · foreground (step 3 gates on it)<br/>main session orchestrates and never composes the prose itself"]]:::dispatch
-  n12["12. Ideal description written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md<br/>in THIS skill's own format, ignoring any repo template —<br/>page-fit can only budget a section it recognizes"]:::state
+  n10[["10. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · mode ideal · foreground (step 3 gates on it)<br/>main session orchestrates and never composes the prose itself"]]:::dispatch
+  n11["11. Ideal description written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md<br/>in THIS skill's own format, ignoring any repo template —<br/>page-fit can only budget a section it recognizes"]:::state
 
-  n13["13. Step 3 · Re-run both gates in the main session:<br/>check-density.sh and check-pr-page-fit.sh —<br/>what is confirmed is the artifact, not the agent's account of it"]:::hook
-  n14{"14. Both gates clean?<br/>density silent, page-fit exit 0"}
-  n14a[["14a. Dispatch: Fix the flagged ideal description<br/>pr-writer · agent-pinned · mode ideal · foreground<br/>hand it the script output; never hand-fix the prose in main"]]:::dispatch
+  n12["12. Step 3 · Re-run both gates in the main session:<br/>check-density.sh and check-pr-page-fit.sh —<br/>what is confirmed is the artifact, not the agent's account of it"]:::hook
+  n13{"13. Both gates clean?<br/>density silent, page-fit exit 0"}
+  n13a[["13a. Dispatch: Fix the flagged ideal description<br/>pr-writer · agent-pinned · mode ideal · foreground<br/>hand it the script output; never hand-fix the prose in main"]]:::dispatch
 
-  n15{"15. Step 4 · Does .github/ carry a PR template?<br/>(pull_request_template.md / PULL_REQUEST_TEMPLATE.md)"}
-  n15a["15a. No template -&gt; cp the ideal to ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md,<br/>so one push path serves both branches"]:::state
-  n15b[["15b. Dispatch: Fit PR description to repo template<br/>pr-writer · agent-pinned · mode final · foreground (step 5 gates on it)<br/>exactly three paths: the verified ideal, the template, the output"]]:::dispatch
-  n15c["15c. Final body written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md — the repo's<br/>template is the base structure, never the thing replaced.<br/>NEVER page-fit-checked: its structure is arbitrary, so the<br/>script cannot attribute its lines to a budgeted section"]:::state
+  n14{"14. Step 4 · Does .github/ carry a PR template?<br/>(pull_request_template.md / PULL_REQUEST_TEMPLATE.md)"}
+  n14a["14a. No template -&gt; cp the ideal to ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md,<br/>so one push path serves both branches"]:::state
+  n14b[["14b. Dispatch: Fit PR description to repo template<br/>pr-writer · agent-pinned · mode final · foreground (step 5 gates on it)<br/>exactly three paths: the verified ideal, the template, the output"]]:::dispatch
+  n14c["14c. Final body written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md — the repo's<br/>template is the base structure, never the thing replaced.<br/>NEVER page-fit-checked: its structure is arbitrary, so the<br/>script cannot attribute its lines to a budgeted section"]:::state
 
-  n16["16. Step 5 · check-pr-body-size.sh on the .final.md —<br/>the only gate the no-template copy path has run on that file"]:::hook
-  n17{"17. Body-size exit code?"}
-  n17a[["17a. Dispatch: Trim the oversized final body<br/>pr-writer · agent-pinned · mode final · foreground<br/>drops the appendix's lowest-value sections and re-checks"]]:::dispatch
+  n15["15. Step 5 · check-pr-body-size.sh on the .final.md —<br/>the only gate the no-template copy path has run on that file"]:::hook
+  n16{"16. Body-size exit code?"}
+  n16a[["16a. Dispatch: Trim the oversized final body<br/>pr-writer · agent-pinned · mode final · foreground<br/>drops the appendix's lowest-value sections and re-checks"]]:::dispatch
+  n17["17. Only NOW push: git push -u origin &lt;branch&gt; when it has no<br/>upstream. The push is the run's first outward-facing act — it fires<br/>CI and makes the branch visible, while every step above only wrote<br/>local files, so a failed compose or gate leaves nothing on the remote"]:::gate
   n18["18. gh pr create --draft --body-file &lt;final&gt; --base &lt;base-branch&gt;,<br/>with NO chat-side review gate — the user reviews the rendered<br/>body on GitHub, which is the artifact they will actually judge"]
   n19["19. Return the PR URL"]
 
@@ -63,19 +63,19 @@ flowchart TD
   n10 --> n11
   n11 --> n12
   n12 --> n13
-  n13 --> n14
+  n13 -->|"no"| n13a
+  n13a --> n12
+  n13 -->|"yes — never pause for user review"| n14
   n14 -->|"no"| n14a
-  n14a --> n13
-  n14 -->|"yes — never pause for user review"| n15
-  n15 -->|"no"| n15a
-  n15 -->|"yes"| n15b
-  n15b --> n15c
-  n15a --> n16
-  n15c --> n16
-  n16 --> n17
-  n17 -->|"0 or 2 — under the 65536-char API cap"| n18
-  n17 -->|"3 — over the cap"| n17a
-  n17a --> n16
+  n14 -->|"yes"| n14b
+  n14b --> n14c
+  n14a --> n15
+  n14c --> n15
+  n15 --> n16
+  n16 -->|"0 or 2 — under the 65536-char API cap"| n17
+  n16 -->|"3 — over the cap"| n16a
+  n16a --> n15
+  n17 --> n18
   n18 --> n19
   n19 --> n20
   n20 -->|"yes"| n20a

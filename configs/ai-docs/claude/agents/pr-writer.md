@@ -17,8 +17,10 @@ The caller does not check your prose, your line budget, or your body size — yo
 
 ## Load these before writing a line
 
-1. The `create-pr` skill (Skill tool, `create-pr`) — the authoritative structure, section order, non-overlap invariant, one-page budget, and writing style.
-2. The `doc-standards` skill — a PR description is a standalone doc, so its density cap, BLUF ordering, and collapse rules apply.
+1. The `create-pr` skill (Skill tool, `create-pr`) — the authoritative structure and section order.
+2. `~/.claude/skills/create-pr/references/pr-page-budget.md` — the non-overlap invariant and the one-page budget.
+3. `~/.claude/skills/create-pr/references/writing-style.md` — what to write, evidence, and formatting.
+4. The `doc-standards` skill — a PR description is a standalone doc, so its density cap, BLUF ordering, and collapse rules apply.
 
 Compose under those conventions rather than reconstructing them from memory.
 
