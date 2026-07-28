@@ -1,6 +1,156 @@
+---
+# performance-check budget overrides, not part of the diagram itself.
+# This file renders one flow twice — once as pseudo-code, once as a diagram — so
+# its size is fixed by the skill's step count, and trimming to the bundled defaults
+# would drop steps from the flow audit or drop a whole rendering.
+# Parked in assets/ and never loaded by the model, so its words cost no context.
+words-budget: 2048
+lines-budget: 512
+---
+
 # address-pr-comments — flow overview
 
 Human-facing overview for auditing the flow at a glance. Non-authoritative — the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
+
+Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comments in the pseudo-code are the diagram's node ids, so an id with no matching comment is drift.
+
+## Pseudo-code
+
+Python-shaped for readability only; nothing here runs, and the function names stand for steps this skill performs, not real APIs.
+
+```python
+# 1 · Entry: /address-pr-comments PR# [filters]
+def address_pr_comments(pr, filters):
+    state = create(f"/tmp/address-pr-comments_{session_id}_{ts}.json")   # 2
+
+    # 3 · Seed the TaskList ONCE, before Step 0 runs — one [Reminder] per
+    #     remaining step (global CLAUDE.md rule). Each is updated as it
+    #     completes; the TaskList survives compaction, so nothing is re-seeded.
+    TaskCreate("[Reminder] Step 0: Pre-flight interview")                # 3a
+    TaskCreate("[Reminder] Step 1: Validate preconditions (1a-1d)")      # 3b
+    TaskCreate("[Reminder] Step 2: Resolve repo + own login")            # 3c
+    TaskCreate("[Reminder] Step 3: Fetch, filter, cluster, rank, propose")  # 3d
+    TaskCreate("[Reminder] Step 4: Parse the user's edited block")       # 3e
+    TaskCreate("[Reminder] Step 5: Per-cluster commits")                 # 3f
+    TaskCreate("[Reminder] Step 6: Batch push")                          # 3g
+    TaskCreate("[Reminder] Step 7: Post replies (7a-7d)")                # 3h
+    TaskCreate("[Reminder] Step 8: Final report")                        # 3i
+
+    # 4 · Step 0 — read-only probing: is the tree dirty, and which runners exist?
+    dirty = git("status", "--porcelain")
+    runners = probe_lint_and_test_markers()
+
+    # 5 · Step 0 — ONE message, asking only the conditions that actually hold.
+    answers = ask_together(
+        "Dirty tree — commit now?" if dirty else None,
+        "Green baseline check?",          # default no
+        "Which runner?" if ambiguous(runners) else None,
+        "Tails after this batch?",        # default no
+    )
+    state.write(answers)   # 6 · persisted, so the answers survive compaction
+
+    # ---- Step 1 · 1a-1d run sequentially, fail-fast on the first failure ----
+    if not on_pr_branch(pr):                               # 7 · Step 1a
+        return abort("not on the PR branch — run gh pr checkout")        # 7a
+
+    if state.answers.tree_is_dirty:                        # 8 · Step 1b
+        load_skill("commit-standards")                     # 8a
+        user_commits_or_stashes()                          # 8b
+        return rerun_from_step_0()                         # 8c
+
+    if state.answers.baseline_check:                       # 9 · Step 1c
+        lint_result, test_result = run_lint(), run_test()  # 9a
+        if not both_green(lint_result, test_result):       # 9b
+            load_skill("debug-standards")                  # 9b1
+            return abort("fix the pre-existing breakage first")          # 9b2
+
+    owner_repo, my_login = resolve_repo_and_login()        # 10 · Step 2
+
+    # 11 · Step 3 — ONE subagent, general-purpose · sonnet · medium, background,
+    #      serial. It reads fetch-cluster-propose.md + review-principles.md and
+    #      does the fetch, filter, cluster, rank, and propose.
+    clusters = dispatch("general-purpose · sonnet · medium", background=True)
+
+    if not clusters:                                       # 12
+        return stop("no clusters to address")              # 12a
+
+    proposal = present(clusters)                           # 13
+
+    while True:
+        # 14 · ONE round: the user flips actions, edits reasons, deletes
+        #      clusters — per-cluster action approval.
+        edited = user_edits(proposal)
+        parsed = parse(edited)                             # 15 · Step 4
+        if parsed.ok:                                      # 16
+            break
+        surface_exact_issue(parsed.error)   # 16a · ask the user to re-send
+
+    for c in parsed.applied_clusters:                      # 17
+        TaskCreate(f"[Task] {c.title}")
+
+    # ---- Step 5 · one commit per cluster ----
+    while apply_clusters_remaining():                      # 18
+        c = next_apply_cluster()
+        load_skill("code-standards", "test-standards", "doc-standards")  # 18a
+        make_changes(c)                                    # 18b
+        git("add", only_files_in_scope_of(c))              # 18b
+        load_skill("commit-standards")                     # 18c
+        sha = git("commit")                                # 18d
+        # 18e · both surfaces updated: the [Task]'s metadata and the scratchpad.
+        TaskUpdate(c.task, metadata={"action": c.action, "commit_sha": sha,
+                                     "status": "done"})
+        state.write(c)
+
+        if touched_files_outside(c.scope):                 # 18f
+            # 18f1 · the answer resumes the CURRENT cluster, then moves on.
+            ask("a separate Drift commit, or bundle it?")  # 18f1
+
+    confirm_with_user("git push")   # 19 · Step 6 — the batch push gate
+    while True:
+        git("push")                                        # 20 · single batch push
+        if not push_rejected_remote_moved():               # 21
+            break
+        # 21a · stop and surface it. The per-cluster commits stand, and the user
+        #       resolves the divergence manually — never auto-rebase. Retrying
+        #       re-enters the push ONLY, never step 5's commit logic.
+        return abort("remote moved")                       # 21a
+
+    # ---- Step 7 · one reply per surviving comment ----
+    while comments_remaining_in_surviving_clusters():      # 22
+        # 22a · per templates 7a-7c (apply / answer / drop) and the signature
+        #       rules. Each reply is permission-gated.
+        result = post_reply(next_comment())                # 22a
+        if result.permission_denied:                       # 22b
+            skip_and_list_in_final_report()                # 22b1
+            continue
+        if result.gh_api_failed:                           # 22b2
+            retry = retry_gh_api_once()                    # 22b2a
+            if not retry.succeeded:                        # 22b2b
+                skip_and_list_in_final_report()            # 22b2b1
+
+    if state.answers.tails:                                # 23 · Step 7d
+        # 23a · Step 7d — 2x deep-reviewer · agent-pinned, parallel (∥),
+        #       background, reading deep-reviewer-tail-pair.md.
+        #       Lens A simplification → verdict_refactor_*.md
+        #       Lens B correctness   → verdict_auto-review_*.md
+        tails = dispatch_parallel("deep-reviewer", lenses=["A", "B"])
+        # 23b · PreToolUse hook: deep-reviewer-write-guard.sh auto-approves
+        #       writes to verdict_*.md or /tmp, and denies everything else.
+
+        # 23c · read BOTH reports, synthesize a prioritized summary,
+        #       and offer to apply — report-only by default.
+        summary = synthesize(read_all(tails))
+        if user_names_specific_findings():                 # 23d
+            for f in named_findings():
+                # 23d1 · a FRESH subagent per finding, general-purpose · sonnet ·
+                #        medium, serial. Test-first: confirm RED, apply, confirm GREEN.
+                dispatch("general-purpose · sonnet · medium", finding=f)
+
+    # 24 · Step 8 — applied / answered / dropped / skipped counts.
+    return print(final_summary())
+```
+
+## Flowchart
 
 ```mermaid
 flowchart TD

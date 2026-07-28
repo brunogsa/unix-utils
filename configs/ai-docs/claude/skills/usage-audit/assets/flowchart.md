@@ -1,6 +1,105 @@
+---
+# performance-check budget override, not part of the diagram itself.
+# This file renders one flow twice — once as pseudo-code, once as a diagram — so
+# its size is fixed by the skill's step count, and trimming to the bundled default
+# would drop steps from the flow audit or drop a whole rendering.
+# Parked in assets/ and never loaded by the model, so its words cost no context.
+words-budget: 2048
+---
+
 # usage-audit — flow overview
 
 Human-facing overview for auditing the flow at a glance. Non-authoritative — the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
+
+Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comments in the pseudo-code are the diagram's node ids, so an id with no matching comment is drift.
+
+## Pseudo-code
+
+Python-shaped for readability only; nothing here runs, and the function names stand for steps this skill performs, not real APIs.
+
+```python
+# 1 · Entry: /usage-audit — takes no arguments.
+def usage_audit(arg=None):
+    if arg is not None:                                    # 2
+        tell_user("the argument is ignored")               # 2a · then run the standard flow anyway
+
+    # 3 · Step 0 — seed the TaskList BEFORE any script runs. A minutes-long
+    #     backfill plus a multi-turn interview invites a mid-run compaction,
+    #     and the TaskList is the only surface that survives one.
+    TaskCreate("[Reminder] Step 1: find the last committed snapshot day")     # 3a
+    TaskCreate("[Reminder] Step 2: backfill snapshots up to yesterday")       # 3b
+    TaskCreate("[Reminder] Step 3: read the config-change ledger")            # 3c
+    TaskCreate("[Reminder] Step 4: interview the user on inferred intents")   # 3d
+    TaskCreate("[Reminder] Step 5: settle experiments, recommend closures")   # 3e
+    TaskCreate("[Reminder] Step 6: build and open the viewer")                # 3f
+    TaskCreate("[Reminder] Step 7: ask for new experiments, offer to commit") # 3g
+
+    # 4 · Step 1 — the committed tail, NOT the newest file on disk.
+    SINCE = last_line(git("ls-files", "usage-history/snapshots/"))
+    UNTIL = yesterday()          # every later step reuses this one range
+
+    if SINCE != UNTIL:                                     # 5
+        # 5a · Step 2 — output saved to /tmp/usage-report.txt and read back from
+        #      the file. The current day is never snapshotted.
+        run("claude-usage-report.py --backfill --since", SINCE, to="/tmp/usage-report.txt")
+
+    # 6 · Step 3 — the ONLY sanctioned way to read git history here.
+    ledger = run("config-change-ledger.py --since", SINCE, "--until", UNTIL)
+
+    # 7 · one candidate per commit or same-day cluster: the tweak, the surface it
+    #     touched, the KPI it could move. model / advisorModel / effortLevel are
+    #     hand-recorded, since those never commit.
+    candidates = [draft_intent(c) for c in commits_or_same_day_clusters(ledger)]
+
+    # 8 · Step 4 — ONE batched round, one question per candidate,
+    #     each carrying your reading and your confidence.
+    confirmed = ask_together([question_for(c) for c in candidates])
+
+    for intent in confirmed:                               # 9
+        if intent.is_incidental:
+            experiments_md.note_confounder(intent)
+        else:
+            experiments_md.enacted.add(intent, commit_day=..., watch_signal=...)
+
+    # 10 · Step 5 — every ## Enacted entry: before → after numbers with BOTH
+    #      source day filenames, plus one recommendation per entry.
+    for entry in experiments_md.enacted:
+        present(entry, before, after, recommend=one_of("kept", "reverted", "keep watching"))
+        if user_approves_closure(entry):                   # 11
+            experiments_archive_md.move(entry)             # 11a · same edit that settles it
+        # 11 · no → the watch window stays open
+
+    for entry in experiments_md.enacted:                   # 12
+        if not ledger.has_commit_for(entry):
+            experiments_md.demote_to_proposed(entry)
+
+    for commit in ledger.uncovered_by_any_entry():         # 13
+        experiments_md.add_enacted(commit) or note_why_it_cannot_move_a_kpi(commit)
+
+    run("build-usage-viewer.py --open")   # 14 · Step 6 — viewer.html is gitignored
+
+    # 15 · walk the user through the chart under "Reading the numbers":
+    #      the main-vs-subagent split first, then the four known levers.
+    walk_through(chart)
+
+    ask("Any new experiments to note?")                    # 16 · Step 7
+
+    # 17 · 1-3 hypotheses of your own, each backed by web search against
+    #      current official sources.
+    experiments_md.proposed.extend(web_backed_hypotheses(n=range(1, 4)))
+
+    # 18 · advance ONE Open-questions backlog item: settle it with cited
+    #      evidence, or promote it into an entry carrying a watch signal.
+    advance_one(open_questions_backlog)
+
+    offer("commit the new snapshots plus the experiments edits")   # 19
+    if user_authorizes():                                  # 20
+        commit_from_main_session()   # 20a · main is where the permission gate renders
+
+    return  # 21 · Done
+```
+
+## Flowchart
 
 ```mermaid
 flowchart TD

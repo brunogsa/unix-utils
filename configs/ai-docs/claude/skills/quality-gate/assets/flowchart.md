@@ -1,6 +1,121 @@
+---
+# performance-check budget override, not part of the diagram itself.
+# This file renders one flow twice — once as pseudo-code, once as a diagram — so
+# its size is fixed by the skill's step count, and trimming to the bundled default
+# would drop steps from the flow audit or drop a whole rendering.
+# Parked in assets/ and never loaded by the model, so its words cost no context.
+words-budget: 2048
+---
+
 # quality-gate — flow overview
 
 Human-facing overview for auditing the flow at a glance. Non-authoritative — the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
+
+Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comments in the pseudo-code are the diagram's node ids, so an id with no matching comment is drift.
+
+## Pseudo-code
+
+Python-shaped for readability only; nothing here runs, and the function names stand for steps this skill performs, not real APIs.
+
+```python
+# 1 · Entry: /quality-gate <spec> <plan> --tasks <ids> --auto-solve,
+#     or another skill's batch-end dispatch.
+def quality_gate(arg):
+    auto_solve = arg.auto_solve
+    if not auto_solve:                                     # 2
+        # 2a · Step 1 — ONE question, asked before anything else,
+        #      so nobody is surprised by commits.
+        auto_solve = ask("report only (default), or auto-solve?")
+
+    # 3 · Step 2 — arg paths by their spec_/plan_ prefix, else glob the CWD.
+    specs, plans = resolve_spec_and_plan(arg)
+    if len(specs) > 1 or len(plans) > 1:                   # 4
+        specs, plans = ask_numbered_list(specs, plans)     # 4a · the user picks
+
+    # 5 · Step 2 — from origin/HEAD, or the caller's base ref
+    #     (/implement passes BATCH_BASE_SHA).
+    BASE_BRANCH = arg.base_ref or git("symbolic-ref", "origin/HEAD")
+
+    # ---- 6 · Step 3 — dispatch every leg in the SAME turn. Independent
+    #      report-only passes, no ordering between them. Each leg IS the
+    #      fresh-context reviewer, so none of them spawns a nested one. ----
+    legs = dispatch_parallel("deep-reviewer", background=True, legs=[
+        ("refactor",    "refactor/SKILL.md",    f"verdict_refactor_{ts}.md"),      # 6a
+        ("auto-review", "auto-review/SKILL.md", f"verdict_auto-review_{ts}.md"),   # 6b
+        # 6c · scoped by --tasks, and dispatched ONLY when a plan resolved.
+        ("test-sdd",    "test-sdd/SKILL.md",    f"verdict_test-sdd_{ts}.md"),
+    ] if plans else [...])
+    # 6d · hook: deep-reviewer-write-guard — only verdict_*.md writes are approved.
+
+    for leg in legs:                                       # 7 · Step 4
+        if not present_and_non_empty(leg.verdict_path):
+            redispatch_once(leg)                           # 7a
+            if still_missing(leg):
+                flag(leg)   # 7a · the other legs still stand
+        # 7a · never report from a capped return message — always from the file
+
+    if not auto_solve:                                     # 8
+        # 8a · Step 5 — the compact index, one line per finding per leg, then STOP.
+        #      Nothing is applied, however safe it looks.
+        print(compact_index(legs))
+        return                                             # 8a
+
+    # 9 · Step 6.1 — read all three verdict files IN FULL, sort every finding
+    #     addressable vs not, and print both lists with reasons BEFORE applying.
+    addressable, not_addressable = sort_findings(read_in_full(legs))
+    print(addressable, not_addressable)
+
+    # 10 · Step 6.2 — seed the WHOLE TaskList upfront, before applying anything.
+    #      The list is this run's entire timeline.
+    for f in addressable:   # 10a · in execution order, breadcrumbed apply → commit → [Done]
+        TaskCreate(f"[Task] {f.title}", metadata={"steps": "apply → commit → mark [Done]"})
+    TaskCreate("[Reminder] Step 7: the closing report")   # 10b · a compaction cannot drop it
+
+    # ---- Step 6.3 — one finding at a time, SERIAL.
+    #      Two agents on overlapping scope would conflict unseen. ----
+    while True:
+        f = next_addressable()
+        TaskUpdate(f.task, status="in_progress")           # 11
+
+        match f.lens:                                      # 12
+            case "refactor":
+                # 12a · agent-pinned, given the scope + test command.
+                #       It refuses behavior changes by design.
+                dispatch("refactor", scope=f.scope, test_cmd=f.test_cmd)
+            case "auto-review" | "test-sdd":
+                # 12b · agent-pinned; the test goes RED before it goes GREEN.
+                dispatch("tdd-coder", finding=f)
+
+        # 13 · verify against the ARTIFACTS — the diff and the test output,
+        #      never the agent's summary.
+        applied_clean = verify(git_diff(), test_output())  # 13
+
+        if not applied_clean:                              # 14
+            # 14a · leave the entry open and the finding unmarked,
+            #       recording what it needs to retry.
+            record_failure(f, needs=...)
+        else:
+            # 15 · tdd-coder already committed, so confirm the SHA. The refactor
+            #      agent leaves its change uncommitted, so commit it HERE, in
+            #      session, where the permission prompt can render.
+            sha = confirm_sha(f) if f.lens != "refactor" else commit_in_session(f)
+
+            # 16 · mark it IMMEDIATELY as "### N. [Done][SEVERITY] title".
+            #      Batching this would leave a killed session with fixes and no ledger.
+            f.verdict_file.mark_done(f)
+            TaskUpdate(f.task, status="completed")         # 17
+
+        if not any_addressable_left():                     # 18
+            break
+
+    # 19 · Step 7 — close with the report: the three verdict paths, applied
+    #      findings with SHAs, findings judged not addressable with reasons,
+    #      failed applies with their retry needs, and a note that unmarked
+    #      findings are worked later by /address-verdicts.
+    return report(...)
+```
+
+## Flowchart
 
 ```mermaid
 flowchart TD

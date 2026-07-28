@@ -1,10 +1,11 @@
 ---
-# performance-check budget override, not part of the diagram itself.
-# This file's size is fixed by the number of steps the skill actually has, so
-# trimming it would drop steps from the flow audit. Doubled from the 1024-word
-# bundled default; it stays the sole assets/flowchart.md exemption to the
-# ~512-word section-break rule, being one indivisible mermaid diagram.
-words-budget: 2048
+# performance-check budget overrides, not part of the diagram itself.
+# This file renders one flow twice — once as pseudo-code, once as a diagram — so
+# its size is fixed by the skill's step count, and trimming to the bundled defaults
+# would drop steps from the flow audit or drop a whole rendering.
+# Parked in assets/ and never loaded by the model, so its words cost no context.
+words-budget: 4096
+lines-budget: 512
 ---
 
 # brainstorm — flow overview
@@ -12,6 +13,247 @@ words-budget: 2048
 Human-facing flow audit. Non-authoritative — [`../SKILL.md`](../SKILL.md)'s numbered steps win on any conflict; regenerate whenever the flow changes.
 
 Node labels state what happens; SKILL.md carries the reasoning behind each one.
+
+Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comments in the pseudo-code are the diagram's node ids, so an id with no matching comment is drift.
+
+## Pseudo-code
+
+Python-shaped for readability only; nothing here runs, and the function names stand for steps this skill performs, not real APIs.
+
+```python
+# 1 · Entry: /brainstorm [path/to/spec]
+def brainstorm(arg):
+    # 2 · Seed the TaskList before step 1 runs — the list survives compaction,
+    #     so a skipped step stays visible as pending.
+    #     Steps 1-5 only; step 6 seeds the tail.
+    TaskCreate("[Reminder] Step 1 · Pre-flight")                     # 2a
+    TaskCreate("[Reminder] Step 2 · Gather starting context")        # 2b
+    TaskCreate("[Reminder] Step 3 · Probe scope for sub-projects")   # 2c
+    TaskCreate("[Reminder] Step 4 · Interview")                      # 2d
+    TaskCreate("[Reminder] Step 5 · Propose 2-3 approaches")         # 2e
+
+    # 3 · Step 1 — all FOUR questions in ONE AskUserQuestion call, before any other.
+    answers = ask_user_question(
+        "How much spec/plan writing?",   # full (default) · light · none
+        "Every line traces to an AC?",
+        "Right-sized plan?",
+        "Fresh-eyes self-review?",       # default yes
+    )
+    # 4 · Step 1 — depth lands in the `mode` field. Every step reads this back
+    #     and never re-asks.
+    write(f"/tmp/sdd_{session_id}.json", answers)
+
+    # 5 · Step 1 — decisions, discarded alternatives and open questions are
+    #     written here as they happen, not at the end.
+    scratchpad = create(f"/tmp/brainstorm_{session_id}.md")
+
+    # 6 · Step 2 — the given path, else glob spec_*.md in the CWD's top level.
+    matches = [arg.path] if arg.path else glob("spec_*.md", top_level_of=CWD)
+    match len(matches):
+        case 1: spec = matches[0]                          # 6 · path given, or one match
+        case n if n > 1: spec = ask_which_to_refine(numbered(matches))   # 6a
+        case 0: spec = seed_from_session_context_and_codebase()          # 6b · fresh idea
+
+    # 7 · Step 2 — step 9 needs this to UPDATE that plan rather than overwrite it.
+    plan_already_exists = exists(paired_plan_path_of(spec))
+
+    # 8 · Step 3 — multiple nouns, roles, or independently-shippable features.
+    if looks_decomposable(request):
+        ask("How do these sub-projects relate, and which ships first?")  # 8a
+        if user_agrees_to_decompose():                     # 8b
+            # 8c · every sub-project becomes a [Side] entry, the current one
+            #      included: a one-sentence purpose plus the id it depends on.
+            #      Only the FIRST is brainstormed here.
+            for sp in sub_projects:
+                TaskCreate(f"[Side] {sp.purpose}", metadata={"depends_on": sp.dep})
+        # 8b · no → the whole idea stands, with no implicit narrowing
+
+    # 9 · Step 4 — read BEFORE the first round, so its categories shape the questions.
+    load_skill("test-standards", read="references/coverage-taxonomy.md")
+
+    while True:
+        # 10 · Step 4 — 2-3 Socratic questions per round via AskUserQuestion,
+        #      recommended answer first. Look facts up yourself; ask only
+        #      genuine decisions.
+        round_answers = ask_user_question(socratic_questions(n=range(2, 4)))
+        scratchpad.write(decisions, discarded_alternatives)              # 11
+
+        # 12 · Step 4 — push through EVERY taxonomy category: corner cases
+        #      (empty/max/boundary) and failure modes (timeouts/partial/rate-limit).
+        cover_every_taxonomy_category()
+
+        # 13 · Step 4 — exit only when the round added nothing new AND every
+        #      category is covered or explicitly ruled out.
+        if round_added_nothing_new() and every_category_settled():
+            break
+
+    approaches = propose(n=range(2, 4), trade_offs=True, recommendation_first=True)  # 14 · Step 5
+    pick = get_directional_pick(approaches)                # 15 · Step 5
+    scratchpad.write(pick)                                 # 15
+
+    # 16 · Step 6 — THE RUN'S ONLY BRANCH ON DEPTH.
+    if answers.depth == "none":
+        # 16a · seed one [Reminder] per named section of tasklist-only-mode.md
+        TaskCreate("[Reminder] Close every open question first")         # 16a1
+        TaskCreate("[Reminder] Seed the work as TaskList entries")       # 16a2
+        TaskCreate("[Reminder] Prove the interview's coverage landed")   # 16a3
+        TaskCreate("[Reminder] Present the list for approval")           # 16a4
+        TaskCreate("[Reminder] Skip every document gate, and say so once")  # 16a5
+        TaskCreate("[Reminder] Hand off without /implement")             # 16a6
+
+        # 16b · follow this reference IN PLACE OF steps 6-10.
+        read("references/tasklist-only-mode.md")
+
+        # 16c · no Open Questions heading exists in this mode, so one left open
+        #       disappears with the session.
+        close_every_open_question()
+
+        # 16d · one entry per commit-sized unit, in execution order. [Sub-Step]
+        #       when it ships with its parent; decision, files and verify command
+        #       go in metadata.
+        for unit in commit_sized_units(pick):
+            TaskCreate(unit.title, metadata={"decision": ..., "files": ...,
+                                             "verify": ...})
+
+        # 16e · one line per coverage-taxonomy category, each ending in the
+        #       owning task id, or "declined — the user's reason".
+        scratchpad.write(coverage_lines())
+
+        while True:
+            # 16f · present the TaskList plus those coverage lines.
+            present(tasklist, coverage_lines)
+            verdict = ask("Anything missing or wrong?")    # 16g
+            match verdict:
+                case "satisfied":                     break               # 16g
+                case "wording/ordering/task boundaries": edit_entries()   # 16g1 → 16f
+                case "missing/wrong requirements":    goto(10)            # 16g → back to the interview
+                case "approach concerns":             goto(14)            # 16g → back to the proposals
+
+        # 16h · no fixers, no scripts, no judged passes. State ONCE that they
+        #       were skipped because no documents were written.
+        skip_every_document_gate_and_say_so()
+
+        # 16i · execute from the TaskList, one task per subagent — or re-run
+        #       /brainstorm at light depth to get the documents after all.
+        #       /implement is NOT offered: it globs for a plan and stops on none.
+        return hand_off_without_implement()
+
+    # ---- 17 · depth full or light — seed one [Reminder] per step 6-10 ----
+    TaskCreate("[Reminder] Step 6 · fork writes the spec")            # 17a
+    TaskCreate("[Reminder] Step 7 · Fresh-eyes review of the spec")   # 17b
+    TaskCreate("[Reminder] Step 8 · Present the spec for review")     # 17c
+    TaskCreate("[Reminder] Step 9 · plan-writer writes the plan")     # 17d
+    TaskCreate("[Reminder] Step 10 · Self-review, then hand off")     # 17e
+
+    if not spec_exists():                                  # 18 · Step 6
+        # 18a · a short kebab-case slug, NEVER confirmed with the user. The plan
+        #       inherits it, and that shared slug is what pairs the two files.
+        slug = derive_kebab_slug()
+
+    # 19 · Step 6 — fork · serial · foreground. It reads the
+    #      spec-driven-development library + spec-template, plus
+    #      references/light-section-set.md at depth light, and folds the
+    #      scratchpad's decisions into the spec's Decisions section.
+    #      THIS session never writes the spec itself.
+    dispatch("fork", write_spec=True, slug=slug)
+
+    if answers.fresh_eyes:                                 # 20 · Step 7
+        # 20a · deep-reviewer · agent-pinned · serial · foreground, over the spec
+        #       file ALONE — no plan exists yet. Checks placeholders,
+        #       contradictions, ambiguity, completeness, human-reviewable.
+        #       NOT scope, NOT PR-size, NOT plan-contradiction.
+        #       Runs once per spec-writing pass, never twice over the same text.
+        findings = dispatch("deep-reviewer", target=spec)
+        # 20b · fork · serial · foreground, for every blocking finding.
+        dispatch("fork", apply=findings.blocking)
+
+    while True:
+        # 21 · Step 8 — give the user the spec's PATH and ask what is missing or
+        #      wrong. No summary of the spec, and no report of what step 7
+        #      flagged or fixed.
+        verdict = ask(spec.path, "What is missing or wrong?")   # 22
+        match verdict:
+            case "satisfied":                 break                       # 22
+            case "wording/detail":            dispatch("fork", edits=...)  # 22a → 21
+            case "missing/wrong requirements": goto(10)                    # 22 → the interview
+            case "approach concerns":          goto(14)                    # 22 → the proposals
+
+    while True:
+        # 23 · Step 9 — plan-writer · agent-pinned · serial · foreground.
+        #      In: the spec path + slug, any planning-conventions file,
+        #      light-section-set at depth light, and whether a plan already sits
+        #      at the paired path (from step 2). It resolves the output path
+        #      itself from the slug, and sees only the spec.
+        #      Updating in place preserves task status markers and the decisions
+        #      log. A spec gap never withholds the plan — it becomes a
+        #      **QUESTION:** entry.
+        result = dispatch("plan-writer", spec=spec, slug=slug,
+                          plan_exists=plan_already_exists)
+        if not result.is_gap_list:                         # 24
+            break
+        # 24a · fork · serial · foreground records the gaps as Open Questions in
+        #       the spec, then plan-writer is re-dispatched ONCE — not once per gap.
+        dispatch("fork", record_gaps_as_open_questions=result.gaps)
+
+    # 25 · Step 10 — this reference defines every gate, sorts them into the
+    #      deterministic and judged buckets, and gives each bucket's dispatch tier.
+    load_skill("spec-driven-development", read="references/self-review-checks.md")
+    if review_round >= 2:
+        # 25 · from round 2 on, this scopes each re-review to what the diff changed.
+        read("references/delta-scoped-rereview.md")
+
+    while True:
+        # 26 · Step 10.1 — in the order that reference gives: the mermaid +
+        #      density fixers, then the four scripts.
+        results = run_deterministic_bucket()
+        if all_pass(results):                              # 27
+            break
+        fix(results.first_failure)   # 27a · re-run THAT gate alone until it passes
+
+    while True:
+        # 28 · Step 10.2 — the Open Questions section of BOTH the spec and the plan.
+        open_qs = read_open_questions(spec) + read_open_questions(plan)
+        if not open_qs:                                    # 29 · both read None
+            break
+        # 29a · AskUserQuestion, 2-3 at a time, recommended answer first.
+        #       Nothing expensive runs while a question is open.
+        settled = ask_user_question(open_qs[:3])
+        # 29b · fork · serial · foreground; it leaves both sections reading None.
+        dispatch("fork", close_open_questions=settled)
+
+    if answers.fresh_eyes:                                 # 30 · Step 10.3
+        # 30a · deep-reviewer · agent-pinned · serial · foreground.
+        #       Same toggle answer as step 7, never re-asked.
+        dispatch("deep-reviewer", qualitative_pass_over=[spec, plan])
+    else:
+        note_in_output("the qualitative pass was skipped by request")     # 30b
+
+    # 31 · Step 10.3 — the remaining judged gates, dispatched SERIALLY:
+    #      deep-reviewer · agent-pinned · foreground. Semantic AC-to-test
+    #      coverage, "how would this break?", and the 2 toggled checks read
+    #      back from /tmp/sdd_<session_id>.json.
+    findings = dispatch_serial("deep-reviewer", gates=REMAINING_JUDGED_GATES)
+
+    if findings.blocking:                                  # 32
+        # 32a · Step 10.4 — snapshot BOTH documents into /tmp/sdd-snapshots/
+        #       before any fix lands.
+        snapshot([spec, plan], to="/tmp/sdd-snapshots/")
+        # 32b · never invent the resolution, never resolve it silently.
+        resolution = interview_user(findings.blocking)
+        # 32c · fork · serial · foreground — to the spec, the plan, or both.
+        dispatch("fork", apply=resolution)
+        run_deterministic_bucket()   # 32d · only these; they are free to re-check
+        show_diff_against_snapshots()                      # 32e
+        if ask("Re-run the judged gates, scoped to that diff?"):   # 32f
+            goto(30)
+        # 32f · no → accept the documents as they stand
+
+    # 33 · Hand off: tell the user to run /clear, then invoke /implement.
+    #      brainstorm never runs /implement itself.
+    return hand_off()
+```
+
+## Flowchart
 
 ```mermaid
 flowchart TD
