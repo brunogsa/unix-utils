@@ -51,6 +51,7 @@ Execution:
 
 - Commit per `commit-standards`, including the `Co-Authored-By` trailer — the git-guard hook rejects commits without it.
 - Run the task's verification command yourself before reporting done.
+- If that verification command runs long in the background, block on it with a synchronous Bash `until <check>; do sleep 2; done` loop rather than a single `Monitor` call — a bare Monitor call lets your turn end before its notification arrives, and the harness marks you complete while the command is still running, costing the orchestrator a manual resume round trip to recover you.
 - Before reporting, append an **Evidence** section to the checklist file, with paste-ins — not summaries:
   Nobody re-runs your commands per task, so this file is the only record that they ran and passed.
   Unpasted output is the same as no evidence, so paste raw command output, not your account of it.
