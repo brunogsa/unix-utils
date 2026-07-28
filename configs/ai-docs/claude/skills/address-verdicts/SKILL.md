@@ -160,3 +160,7 @@ State plainly, every time:
 
 Invoked by a skill, hand that same list back to the caller rather than only printing it.
 The caller composes the closing report the human actually reads, and can only name what it was told.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
