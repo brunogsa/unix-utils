@@ -32,21 +32,32 @@ Validation is expensive to abort — the work is done, and dropping it loses the
 
 Avoid speculative "maybe"/"possibly"/"consider" at the emission gate without strong justification. Don't compensate at validation.
 
-## Feedback structure: severity tag → O que → Por que → Sugestão
+## Feedback structure: severity tag → summary line → What's wrong → Why it matters → How to fix
 
-Every review comment opens with a bold, bracketed severity tag on its own line, then three bold-labeled sections, each a short bullet list (not paragraphs):
+Every review comment opens with a bold, bracketed severity tag on its own line, then a one-sentence plain summary, then three bold-labeled sections, each a short bullet list (not paragraphs):
 
 - **Severity tag**: one of the five under "Priority tags" below, bracketed and bold — `**[OBRIGATÓRIO]**` in PT-BR output, `**[MANDATORY]**` in English.
   - The tag must match the finding's `severity` field 1:1 — the visible tag and the machine-readable field can never disagree.
 
-- **O que** / **What**: the problem, stated concretely. Quote the relevant code (1-2 lines) inline.
-- **Por que** / **Why**: the impact — always include, it's what helps developers learn. For numeric/unit issues, use a worked example with concrete values.
-- **Sugestão** / **Suggestion**: the fix — a `suggestion` diff block when it fits a single hunk and you're confident in the exact replacement, otherwise a short bullet describing the change.
+- **Summary line**: one plain sentence naming the visible effect and its cause, with no bold label and no bullet.
+  - Example: *"Fees come out 100x too high because the rate unit is wrong."*
+  - It carries the whole finding on its own — a reader who stops there still knows whether this blocks them.
+
+- **O que está errado** / **What's wrong**: the problem, stated concretely. Quote the relevant code (1-2 lines) inline.
+- **Por que importa** / **Why it matters**: the impact — always include, it's what helps developers learn.
+  - For numeric/unit issues, use a worked example with concrete values.
+
+- **Como corrigir** / **How to fix**: the fix — a `suggestion` diff block when it fits a single hunk and you're confident in the exact replacement.
+  - Otherwise a short bullet describing the change.
   - Omit only for a QUESTION finding with no concrete fix to propose.
 
-Why: the problem alone leaves the author guessing about severity — the tag fixes that immediately, Why educates, and Suggestion removes ambiguity about what to do next.
+Why: the problem alone leaves the author guessing about severity, and the tag fixes that immediately.
 
-Suggestion gets its own bold section rather than folding into the problem prose, so each part stays independently scannable.
+The summary line tells the reader in one pass whether to care, Why it matters educates, and How to fix removes ambiguity about the next step.
+
+The fix gets its own bold section rather than folding into the problem prose, so each part stays independently scannable.
+
+The headers are phrased as questions the reader already has, so no one has to decode a label before reading the section under it.
 
 Keep bullets short, simple enough for an intern unfamiliar with the module, max 256 characters per line.
 

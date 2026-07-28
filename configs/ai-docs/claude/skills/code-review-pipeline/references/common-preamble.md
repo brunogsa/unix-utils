@@ -100,12 +100,13 @@ JSON. Each finding object:
   "line": 42,                        // inclusive; equal to start_line for single-line
   "side": "RIGHT",                   // always RIGHT; comments target new code
   "severity": "MANDATORY|RECOMMENDED|NITPICK|OPTIONAL|QUESTION",
-  "body": "**[OBRIGATÓRIO]**\n\n**O que:**\n- ...\n\n**Por que:**\n- ...\n\n**Sugestão:**\n- ...",
+  "body": "**[OBRIGATÓRIO]**\n\n<resumo de uma linha>\n\n**O que está errado:**\n- ...\n\n**Por que importa:**\n- ...\n\n**Como corrigir:**\n- ...",
   "confidence": 0.85,                // 0.0–1.0 self-reported
   "scope_tag": "<your specialist name>"  // e.g. "security"; used for dedup
 }
 
-Body follows the severity-tag → O que → Por que → Sugestão structure from
+Body follows the severity-tag → summary line → What's wrong → Why it
+matters → How to fix structure from
 `review-principles.md`. Write for a **low-context reviewer** — someone
 reading the comment as their first exposure to the issue, without having
 read the full PR or surrounding code. Each body must include enough
@@ -118,21 +119,26 @@ an intern unfamiliar with the module to follow.
   in GH/PT-BR mode; `**[MANDATORY]**` / `**[RECOMMENDED]**` / `**[NITPICK]**` /
   `**[OPTIONAL]**` / `**[QUESTION]**` in LOCAL/English mode. Must match the
   `severity` field 1:1 — the visible tag and the JSON field can never disagree.
-- **O que** / **What**: name the issue concretely, in bullets. Quote the
-  relevant code (1–2 lines) inline so the reader doesn't have to navigate
-  elsewhere.
-- **Por que** / **Why**: explain the runtime/user-facing impact, in bullets.
+- **Summary line** (second line, plain text, no bold label, no bullet): one
+  sentence naming the visible effect and its cause (e.g. *"Fees come out
+  100x too high because the rate unit is wrong."*). A reader who stops
+  here still knows whether this blocks them.
+- **O que está errado** / **What's wrong**: name the issue concretely, in
+  bullets. Quote the relevant code (1–2 lines) inline so the reader doesn't
+  have to navigate elsewhere.
+- **Por que importa** / **Why it matters**: explain the runtime/user-facing
+  impact, in bullets.
   For numeric/unit issues include a worked example with concrete values
   (e.g. *"subtotal R$200 × 3.11% should be R$6.22, but the function returns 622"*).
   For broader correctness issues, name the failure mode the reader will see.
-- **Sugestão** / **Suggestion**: the fix, in bullets — prefer `​`​`​`suggestion ... `​`​`​`
+- **Como corrigir** / **How to fix**: the fix, in bullets — prefer `​`​`​`suggestion ... `​`​`​`
   blocks when the change fits a single hunk and you're confident in the exact
   replacement text; otherwise a short bullet describing the change, with a
   fenced code snippet when it helps. Omit this section only for a QUESTION
   finding with no concrete fix to propose. Add a permalink reference (see
   below) only when genuinely needed.
 
-Length budget per body: target ~6–12 lines, ~800–1500 chars. Up to ~2500 chars
+Length budget per body: target ~8–14 lines, ~800–1500 chars. Up to ~2500 chars
 is acceptable for MANDATORY findings that benefit from a worked example or
 multi-step fix. Stay under 4000 chars (GitHub displays the rest behind a
 "…show more" affordance).
