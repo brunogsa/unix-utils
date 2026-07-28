@@ -1,7 +1,10 @@
 # Batch-end — PR manifest & the PR itself
 
 Read this only when the batch is a PR-label run, or when the interview opted into a PR.
-When neither applies, Finalize skips its two PR steps and this file is never opened.
+When neither applies, this file is never opened.
+
+**Dispatched from inside Finalize (§8.3), after the quality-gate tail has finished** (`batch-end-review.md`'s "Finalize" step 1).
+The PR body describes the batch's final diff, including whatever the quality gate applied, in one pass.
 
 ## PR manifest entry & PR-level status marker (PR-label runs only)
 
@@ -13,7 +16,7 @@ Skip this whole section on a plain `<task-ids>` run (no `PR-N` label, `pr_label`
   ```
   `<this-PR-branch>` is `git branch --show-current` right now. See `references/pr-awareness.md`'s "Manifest writes" for why this write belongs here and not at branch creation.
 - **PR-level status marker** — update this PR's own line in the plan's PR Breakdown to **`[Done]`**.
-  This step is reached only when every task is already `[Done]` and §8's gate passed.
+  This step is reached only when every task is already `[Done]`.
   A unit that couldn't finish halted at §5.5 long before it got here.
   This mirrors §6's task-level marker convention one level up:
   ```
@@ -66,7 +69,7 @@ Split across two owners, an orchestrator that dies between them leaves a pushed 
       - The REST endpoint touches no Projects data.
       - Read the body back afterward to confirm it landed.
 
-  - Put completed Scout / repo-green fix-loop (§9.1) commits under an **"Unexpected extras"** section in the PR body.
+  - Put completed Scout / repo-green fix-loop (§8.1) commits under an **"Unexpected extras"** section in the PR body.
   - Pass the resolved `<this-PR-label>` explicitly in the dispatch prompt, so the subagent writes and opens one PR, never asks which PR it covers.
     The CWD may hold several spec/plan pairs and a run may cover several PRs, so an unstated label binds to the wrong one.
   - Assign its body-file output path explicitly:

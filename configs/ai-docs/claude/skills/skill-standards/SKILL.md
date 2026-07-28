@@ -126,7 +126,7 @@ ALWAYS use this exact template:
 - [Instruction] Name every bundled file and every heading after what it contains, never after a position or number.
   - [Why] The intent-revealing-name rule from clean code: a positional name tells the reader nothing unopened, and rots when steps reorder.
 
-  - [Example] Bad: `batch-end-2.md`, "steps 4-7 live elsewhere". Good: `batch-end-review.md`, "the repo-green gate, tails, triage, package, and finalize steps".
+  - [Example] Bad: `batch-end-2.md`, "steps 4-7 live elsewhere". Good: `batch-end-review.md`, "the repo-green gate, quality-gate tail, package, and finalize steps".
 
 ### Sizing and budget overrides
 
@@ -155,6 +155,9 @@ ALWAYS use this exact template:
 
 - [Instruction] Ship an `assets/flowchart.md` with every step-shaped skill: one mermaid flowchart of its own control flow.
   - [Why] To the model mermaid is a second, drift-prone encoding of the numbered steps that would tax every trigger in-body, so parking it in assets keeps the human's flow audit free.
+
+- [Instruction] Render that control flow twice in the same file — a `## Pseudo-code` section above the `## Flowchart` diagram — tagging each pseudo-code step with its diagram node id.
+  - [Why] A diagram hides sequencing in arrow soup once branches nest, and pseudo-code can't show convergence at a glance, so each rendering is legible where the other is weakest — and the shared ids make drift between them greppable.
 
 - [Instruction] Read [`references/flowchart-authoring.md`](references/flowchart-authoring.md) before writing or regenerating a flowchart.
   - [Why] It carries what the diagram must cover, the node-numbering scheme, the collapse rule, the classDef legend, and the `mmdc` validation step.

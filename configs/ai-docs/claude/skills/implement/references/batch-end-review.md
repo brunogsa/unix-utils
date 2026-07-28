@@ -1,92 +1,119 @@
 ---
 # performance-check budget override, not batch-end content.
-# This file merges what used to be two references, plus SKILL.md's own §9 condensed
+# This file merges what used to be two references, plus SKILL.md's own §8 condensed
 # bullets, because every section fires on the same run — a split would only re-fragment
-# one sequence across files always read together. SKILL.md's §9 now holds only the entry
+# one sequence across files always read together. SKILL.md's §8 now holds only the entry
 # condition and a pointer here, so there's no redundancy against it. Doubled from the
 # 1024w bundled default.
 words-budget: 2048
 ---
-# Batch-end — repo-green, tails, triage, package & finalize
+# Batch-end — repo-green, quality gate, PR & package
 
 Detail for /implement's batch-end steps. Load when the batch reaches its end.
 
-SKILL.md's `§9.1 → (§9.2 ∥ §9.3) → §9.4 → §9.5` is the running order, and the only place that sequence is written down.
+SKILL.md's `§8.1 → §8.2 → §8.3` is the running order, and the only place that sequence is written down.
 This file expands each of those steps; it never restates their order.
 
-The PR steps — manifest entry and opening the opt-in PR — live in [`batch-end-pr.md`](batch-end-pr.md), reached from Finalize below.
+The PR steps — manifest entry and opening the opt-in PR — live in [`batch-end-pr.md`](batch-end-pr.md), reached from **Finalize** below, once the quality-gate tail (§8.2) has landed whatever it's landing.
 Skip that file entirely when the run is neither a PR-label run nor an opted-in draft.
 
-## Repo-green GATE, fixed in a loop (§9.1)
+## Repo-green GATE, fixed in a loop (§8.1)
 
-Run this first, so the tails analyze green code.
+**Entry: only when §1.2's repo-green-gate question was answered yes (`repo_green_gate.wanted: true`).**
+On no, skip this entire section — go straight to the quality-gate tail (§8.2).
+Have the package (§8.3) state the gate was skipped by request, with no repo-green result to show.
+
+Run this first, so every reviewer analyzes green code.
 Run the repo's **full lint + full test suite**, repo-wide — never scoped to the batch's own files, since a batch can break a workspace it never edited.
+
+**Decide "pre-existing" from the baseline when one exists, judgment otherwise:**
+
+- **`baseline.wanted: true` (§1.6 ran)** — a failure whose signature also appears in `baseline.failures` is pre-existing by evidence: record it as a `[Scout]`, citing the baseline log path.
+  - A failure NOT in `baseline.failures` is batch-caused and must be fixed.
+
+- **`baseline.wanted: false`** — no baseline was captured; fall back to judgment.
+  - Reason about whether the batch's diff could plausibly have caused the failure (unrelated module, a test the batch's files never touch) and record it as `[Scout]` on that basis instead.
 
 **Red repo → fix it in a loop, through subagents — the orchestrator never hand-fixes, and never scopes the gate down to make it pass:**
 
-- Dispatch `agent(subAgent=tdd-coder, title=Fix repo-green failure: <short failure name>)` per failure.
+- Dispatch `agent(subAgent=tdd-coder, title=Fix repo-green failure: <short failure name>)` per batch-caused failure.
 - Same contract as §4: the same 1-hour Monitor cap, the same per-task attempt caps, each dispatch recorded as an attempt in the state file.
 - Re-run the **full** suite and lint after each fix, and read the fresh result — a fix nobody re-ran is a claim, not a green repo.
 
 - Repeat until every failure the batch is responsible for is gone.
 
-**A failure the batch did not cause is a `[Scout]`, not a blocker.** Record it, report it in the package, leave it unfixed, and let the gate pass on it.
+A failure classified `[Scout]` above is never fixed here: report it in the package, leave it unfixed, and let the gate pass on it.
 Fixing pre-existing red would blur this batch's diff with unrelated work, which is exactly what the Scout channel (§4.3) exists to prevent.
 
 Attempts exhausted with a batch-caused failure still red → [`failure-and-halt.md`](failure-and-halt.md)'s §5.5, halt. The human clears it; this run does not ship around it.
 
 Record the final full-suite result (pass/fail + counts) into the package, so the human sees the gate actually ran over everything.
 
-This is the **only** auto-apply path at batch end. Tail findings (§9.2–§9.4) are never applied — not here, not anywhere in this run (see Triage below).
+On a green gate, set `phase: "tails"` before moving on — the resume path then knows the loop and the gate are both behind it.
 
-## The two tails (§9.2–§9.3)
+## The quality-gate tail (§8.2)
 
-§9.1 always runs, regardless of the tails toggle (§1.2).
-The tails themselves dispatch only once §9.1 came back green — reviewing a diff about to change under a red repo wastes the pass.
+**Entry: only when §1.2's quality-gate question was answered yes (`quality_gate.wanted: true`).**
+On no, skip this entire section — go straight to the PR branch and then Finalize (§8.3), and state there that the quality gate was skipped by request.
+No retroactive re-run; invoke `/quality-gate` manually later.
 
-**Toggle yes (default):** dispatch both tails in the same turn (both `run_in_background`), wait for both, then Triage (§9.4). Both are **mandatory**; the PR must not open until both reports are recorded.
+§8.1's gate toggle and this section's toggle are independent — either can be on while the other is off.
+When §8.1 ran, this dispatches only once it came back green; reviewing a diff about to change under a red repo wastes the pass.
+When §8.1 was skipped by request, this runs immediately instead, and the package notes that no repo-green pass preceded it.
 
-**Toggle no:** skip both tails and Triage entirely — go straight to Finalize (§9.5) and state there that tails were skipped by request. No retroactive re-run; invoke `/refactor` or `/auto-review` manually later.
+**Invoke the skill in this session** — `/quality-gate <spec> <plan> --tasks <this unit's task-ids> --auto-solve`, with `<BATCH_BASE_SHA>` handed over as the base ref instead of letting it resolve `origin/HEAD`.
 
-Full dispatch contract, preamble, failure handling, and overwrite policy: [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../../code-review-pipeline/references/deep-reviewer-tail-pair.md).
+Two reasons it runs here rather than inside a subagent:
 
-`<BASE_REF>` = `<BATCH_BASE_SHA>` (captured in §3.2); `<SPEC_PLAN_PATHS>` = the resolved spec and plan.
+- Its auto-solve commits the `refactor` agent's work itself, and a permission prompt only renders in the main session.
+- Its three review legs are already fresh-context subagents, so wrapping it would spend the harness's one nesting level on a layer that decides nothing.
 
-What's specific to `/implement`:
+`--auto-solve` is always passed: this run already asked its review questions in §1.2's interview, so a second prompt mid-batch would re-ask what the human answered.
 
-- The TaskList already carries this step as the `Batch-end 3/5` reminder seeded in §2.2 — flip that one entry, and don't queue a separate item per tail.
+`--tasks` scopes only the planned-test leg, to the task-ids of **this** unit. On a PR-label run that keeps PR-2's tail from reporting PR-3's unwritten tests as misses.
 
-- When a tail returns, confirm its report file exists at the assigned path, then record that **path** into `.tails.refactor_report` / `.tails.auto_review_report`.
-  - Record the path, never the content: the state file is only the on-disk pointer that Triage (§9.4) and the package read back, not a copy of the report.
+What `/quality-gate` owns, and this skill does not restate: the three verdict files, the triage call on which findings are addressable, the per-finding apply/commit/`[Done]` loop, and its closing report.
 
-## Triage both reports (§9.4)
+What this skill does with the result:
 
-Read both reports and synthesize one prioritized summary into the package: every finding, including the ones that look low-risk, each pointing at the report file that carries its full text.
-This synthesis is **additive** to the two raw report paths — the package carries **both**.
+- Record each verdict file **path** into `.quality_gate.reports`, never its content.
+  - The state file is the on-disk pointer the package reads back, not a copy of the report.
 
-**This skill never applies a finding — not one, not a trivial one, not on request.** Triage here is report-only, end to end, with no exceptions and no opt-in.
+- Carry its closing report into the package (§8.3) verbatim enough that the human sees which findings landed, which were skipped, and why.
+- Treat any finding it left unapplied as a `[Scout]`, so nothing it declined silently disappears.
 
-The apply-a-finding path is removed entirely, not softened into an opt-in: deciding and applying a finding is a separate, human-initiated pass over the verdict files, started after this run ends.
+- **If it applied anything, re-run §8.1's full suite + lint before the PR dispatches** — a fix nobody re-ran is a claim, not a green repo.
+  - Nothing applied → skip the re-run and say so in the package.
 
-Keeping apply out of the batch means the diff the human is about to review stays exactly the diff the tails reviewed.
-Folding fixes in after the fact would silently invalidate both reports and the repo-green result the package just claimed.
+The TaskList already carries this step as the `Batch-end 2/4` reminder seeded in §2.2 — flip that one entry. `/quality-gate` seeds its own per-finding entries underneath; don't duplicate them here.
 
-## The review package (§9.5)
+## The review package (§8.3)
 
 The package is the single async pass the human reviews — the replacement for the per-task handshake. Finalize prints it (below). It contains:
 
-A unit only ever reaches this package when every task is `[Done]` and §8's gate passed.
-A unit that couldn't finish halted at §5.5 instead — or §9.1's own gate may halt the run before a package is ever assembled.
+A unit only ever reaches this package when every task is `[Done]`.
+A unit that couldn't finish halted at §5.5 instead — or §8.1's own gate may halt the run before a package is ever assembled.
 So there is exactly one package shape, never a partial one:
 
 - **Per-task outcomes** — every task, all `done`, with its commit SHAs.
-- **Both raw tail-report paths** (`verdict_refactor_<ts>.md`, `verdict_auto-review_<ts>.md`), plus any missing-report flag from failure handling.
-- **The triaged synthesis** (above) — findings only, never an apply-offer.
-- **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §9.1) — reported, never fixed by this run.
+- **Dropped full-suite checks**, only when §8.1 was skipped by request.
+  - Any plan-declared full-suite/repo-wide verification command §4.1 stripped from a task's dispatch and that the gate would otherwise have re-covered, named explicitly so the human knows it never ran this batch.
+
+- **Every verdict file path** `/quality-gate` produced (`verdict_refactor_<ts>.md`, `verdict_auto-review_<ts>.md`, `verdict_test-sdd_<ts>.md`).
+  - Plus any leg it flagged as failed.
+
+- **The quality-gate outcome** — one line per finding: applied (with its commit SHA), judged not addressable (with the reason), or failed to apply (with what it needs to retry).
+  - State plainly whether §8.1 was re-run because something was applied.
+
+- **Missing planned tests** — the `test-sdd` leg's misses that auto-solve did not write, called out on their own line rather than buried in the finding list.
+  - A plan-declared test nobody wrote is the one gap this batch was supposed to close.
+
+- **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §8.1, §8.2) — reported, never fixed by this run.
 - **The literal diff range** — print `git diff BATCH_BASE_SHA..HEAD` with the actual SHA substituted, so the human can reproduce the range.
-- **"Unexpected extras"** — the commits §9.1's fix-loop produced to reach green, each with its commit and the failure it fixed.
-- **Repo-green result** — the final full-suite pass/fail + counts from §9.1, plus any `[Scout]` failures left unfixed because the batch didn't cause them.
-- **TDD opt-out note** — when §8's gate passed as all-N/A, state the explicit opt-out.
+- **"Unexpected extras"** — the commits §8.1's fix-loop produced to reach green, each with its commit and the failure it fixed.
+- **Repo-green result** — the final full-suite pass/fail + counts from §8.1, plus any `[Scout]` failures left unfixed because the batch didn't cause them.
+  - When §8.1 was skipped by request, this bullet instead states plainly that no repo-green pass ran this batch.
+
 - **Worktree merge-back reminder** — only when a worktree exists (read its path + branch from the state file); omit entirely when the interview declined it.
   - The reminder ends the package: its path, its branch, and "nothing was merged or deleted — merge back and remove it yourself".
 
@@ -108,25 +135,24 @@ After printing the summary, open the batch diff in a **side-by-side tmux pane** 
 
 - Outside tmux the skill exits non-zero and prints the full command for the human to run. Requires the `diffview.nvim` plugin.
 
-## Finalize — the step order inside §9.5
+## Finalize — the step order inside §8.3
 
-Each step presupposes the one before it succeeded; the package is never printed over a PR that failed to open.
+By the time Finalize starts, the quality-gate tail (§8.2) has already finished — Finalize's first job is to dispatch the PR branch, not to join anything.
 
-1. **PR manifest entry & PR-level status marker**, on a PR-label run (see [`batch-end-pr.md`](batch-end-pr.md)).
-2. **Open the PR**, only when the interview opted in (`pr.wanted: true`) — see [`batch-end-pr.md`](batch-end-pr.md)'s "Open the PR (opt-in)".
-   - Push into that dispatch's prompt the `spec_<slug>.md` + `plan_<slug>.md` §1.1 resolved, plus the resolved `PR-N` on a PR-label run.
-     - Never auto-detected, since the agent has no other way to know which PR this batch covers.
+1. **Dispatch the PR branch** (`pr.wanted: true` only) — manifest entry + `create-pr`, mechanics in [`batch-end-pr.md`](batch-end-pr.md).
+   By now the quality gate has applied whatever it applied and (if it applied anything) §8.1 has been re-run green, so the PR describes the batch's actual final diff in one pass.
+   - **Any failure here is a [`failure-and-halt.md`](failure-and-halt.md) §5.5 halt, not a partial package.**
+     - No `gh`, no remote, a rejected push, or a create that errored all route there — name the failure, keep the state file, print nothing.
 
-   - **Failing here is a [`failure-and-halt.md`](failure-and-halt.md) §5.5 halt, not a partial package.** No `gh`, no remote, a rejected push, or a create that errored all route there.
+   - Not requesting a PR (`pr.wanted: false`) is not a failure — proceed to step 2 with no PR outcome to report.
 
-   - Name the failure, keep the state file, print nothing.
-   - Not requesting a PR (`pr.wanted: false`) is not a failure — step 3 proceeds normally.
+2. **Assemble the package** (contents under "The review package") and **print it** to chat.
+   The single async review pass, reached only once the PR branch succeeded (or was never requested).
 
-3. **Assemble the package** (contents under "The review package") and **print it** to chat — the single async review pass, reached only once step 2 succeeded or was never requested.
-
-4. **Open the diffview pane** (see "Open the diff for review").
-5. **Finalize the phase.** Reaching this point means every task is `[Done]`, the gate passed, and the PR (if wanted) is open — the only outcome left.
+3. **Open the diffview pane** (see "Open the diff for review").
+4. **Finalize the phase.**
+   Reaching this point means every task is `[Done]`, the quality gate has run (or was declined), and the PR (if wanted) is open — the only outcome left.
    Set `phase: "presented"` and **delete** the state file. The Stop hook releases on this phase; a presented batch is never resumed.
 
-The PR lands **before** the package and the diffview pane on purpose: the package is presented only once the run actually succeeded.
-On a PR-wanted run, "succeeded" includes the PR being open — printing the package first would risk showing success for a PR that never got created.
+The package is presented only once the run actually succeeded — on a PR-wanted run, "succeeded" includes the PR being open.
+The PR is composed only after the quality-gate tail has finished, never before it.

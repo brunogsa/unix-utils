@@ -34,7 +34,7 @@ It covers resolving `<feat_branch>/pr<N>`, the existing-branch check for a branc
     That precondition is already satisfied by the time this guard runs, every time.
     The stop predicate — [`pr-awareness.md`](pr-awareness.md)'s "The per-PR loop and fail-fast" — starts the next PR only once every task of the previous one reached `[Done]` and its repo-green gate passed.
     This means the parent PR's own full batch already completed before this PR's pre-flight ever started.
-    That completed batch includes the parent's own §9 batch-end, where it wrote its own entry (see "Manifest writes" in [`pr-awareness.md`](pr-awareness.md) — that step is the only writer of a PR's manifest entry).
+    That completed batch includes the parent's own §8 batch-end, where it wrote its own entry (see "Manifest writes" in [`pr-awareness.md`](pr-awareness.md) — that step is the only writer of a PR's manifest entry).
     So this step writes nothing itself; only the parent's own batch-end write ever populates this entry, and it always got there first.
     Exit 0 → `git checkout -b <feat_branch>/pr<N>` with no explicit base ref, i.e. from current HEAD.
     Correct because a DAG-root PR's commits land directly on the pre-existing branch, so by the time a single dependent PR runs, HEAD already sits at its parent's tip.

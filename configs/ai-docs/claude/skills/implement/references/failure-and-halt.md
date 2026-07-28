@@ -16,7 +16,7 @@ but the table below is the whole set; any verdict not listed here belongs to §5
 | `retry` | a `fail`/`timeout` attempt, under the attempt cap, not yet a repeating signature | re-dispatch the same task (§4) |
 | `stuck` | a `blocked` attempt (first try), or a `fail`/`timeout` run that stopped converging | §5.3 below — mark terminal, chain-abort dependents |
 | `next-task` | a `pass` attempt, with another non-terminal task still pending | §3.4 — activate that task |
-| `gates` | a `pass` attempt, every task now `done`, none `blocked` | [`batch-test-presence-gate.md`](batch-test-presence-gate.md)'s §8 |
+| `gates` | a `pass` attempt, every task now `done`, none `blocked` | [`batch-end-review.md`](batch-end-review.md)'s §8.1 |
 | `halted` | a `pass` attempt, every task terminal, but at least one ended `blocked` | §5.5 below |
 | `halt-budget` | total dispatches (`attempts` + `gate_dispatches`) hit the batch cap, checked before anything else | §5.5 below |
 
@@ -44,7 +44,7 @@ Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` an
 
 - **`halt-budget`** → the batch's dispatch budget is exhausted. Go to §5.5 below.
   - This is the same backstop §5.4 can hit on a pass — it's checked before this call even looks at the attempt's result.
-  - It does **not** route to §9: a batch that burned its budget isn't finished, so there's nothing to gate or review yet.
+  - It does **not** route to §8: a batch that burned its budget isn't finished, so there's nothing to gate or review yet.
 
 Load `debug-standards` to diagnose why a task keeps failing before its next retry — a `blocked` attempt needs no diagnosis, straight to the human.
 
@@ -72,9 +72,8 @@ This is the single exit every dead end in the run routes to. Entry, from anywher
 
 - A `halted` or `halt-budget` verdict (§5.2 above, or §5.4).
 - §5.3's scan above finding nothing runnable while some task is terminal-without-`[Done]`.
-- [`batch-test-presence-gate.md`](batch-test-presence-gate.md)'s §8 gate exhausting its fix attempts with titles still missing.
-- [`batch-end-review.md`](batch-end-review.md)'s §9.1 repo-green gate exhausting its fix attempts with a batch-caused failure still red.
-- [`batch-end-review.md`](batch-end-review.md)'s §9.5 PR dispatch failing when a PR was requested.
+- [`batch-end-review.md`](batch-end-review.md)'s §8.1 repo-green gate exhausting its fix attempts with a batch-caused failure still red.
+- [`batch-end-review.md`](batch-end-review.md)'s §8.3 PR dispatch failing when a PR was requested.
 
 Regardless of entry:
 
@@ -83,8 +82,8 @@ Regardless of entry:
 - Write into the scratchpad, per blocked task, **exactly what a human must do to clear it** — that list is the whole point of stopping here.
 
 - Leave this unit's remaining batch-end `[Reminder]` entries `pending` — they didn't run, and pending is the honest record of that.
-- **Run nothing further** — gate, tails, triage, package, diffview, and PR all presuppose a finished batch.
-  - A partial gate flags tests that don't exist yet, and a package would invite review of unfinished work.
+- **Run nothing further** — the repo-green gate, the quality-gate tail, the package, the diffview, and the PR all presuppose a finished batch.
+  - A quality gate run mid-batch flags planned tests that don't exist yet, and a package would invite review of unfinished work.
 
 - On a PR-label run, the remaining PRs stay untouched — no branch, no dispatch.
 - Say it in one short message: which tasks are blocked, and what each one needs. Nothing else.

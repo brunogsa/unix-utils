@@ -2,7 +2,7 @@
 
 Shared dispatch for a two-lens, report-only review over a commit range: one `deep-reviewer` subagent with a simplification lens, one with a correctness lens.
 
-Consumed directly by path — `code-review-pipeline/references/deep-reviewer-tail-pair.md` — by `implement` (batch-end review), `address-pr-comments` (optional post-apply tails), and `address-ai-comments` (optional post-sweep tails).
+Consumed directly by path — `code-review-pipeline/references/deep-reviewer-tail-pair.md` — by `address-pr-comments` (optional post-apply tails), `address-ai-comments` (optional post-sweep tails), and `test-sdd` (its report-only preamble only).
 
 `loop-auto-review` also uses it for per-round dispatch inside its own loop.
 
@@ -98,7 +98,8 @@ Never do this as an unprompted default, and never as a repeating loop:
 
 Lens routing beats one generic applier because the `refactor` agent refuses behavior changes by design, so a correctness finding has to reach `tdd-coder` to get a test written for it at all.
 
-`implement` is not one of these callers: its batch end triages and presents, never applies.
+`implement`'s batch end now uses this same routing too (its Auto-solve step, `references/batch-end-review.md`), with one difference: the orchestrator itself names the findings to apply, in-run.
+It does not wait for a human to name them after seeing the package.
 
 **Repeating this across rounds until the tails come back dry is `loop-auto-review`'s job, not this reference's**.
 

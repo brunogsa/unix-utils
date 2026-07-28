@@ -10,7 +10,7 @@ A "Single PR." plan (the PR Breakdown's literal backward-compat escape string) n
 
 The invocation arg is PR-label mode when it matches `PR-N` or a comma-space list of them (`PR-1, PR-2`) — same one-space-after-comma convention as `<task-ids>`.
 
-Anything else (bare numbers, a numeric comma-list) is the existing `<task-ids>` mode; §1.1–§9 run exactly as documented for it, unchanged.
+Anything else (bare numbers, a numeric comma-list) is the existing `<task-ids>` mode; §1.1–§8 run exactly as documented for it, unchanged.
 
 ## DAG re-check moved out — SKILL.md §1.3 owns it now
 
@@ -63,7 +63,7 @@ It also carries the zero-parent, single-parent, and diamond-dependency creation 
 
 ## Manifest writes (`branches_<slug>.md`)
 
-Every PR — checkout-needed or not — writes its own entry once, at its own batch-end (§9, see `references/batch-end-pr.md`), never in this branch-creation step:
+Every PR — checkout-needed or not — writes its own entry once, at its own batch-end (§8.3, see `references/batch-end-pr.md`), never in this branch-creation step:
 
 ```bash
 ~/.claude/skills/implement/scripts/append-branch-pr-entry.sh <worktree-path>/branches_<slug>.md <slug> <this-PR-label> <this-PR-branch>
@@ -75,24 +75,24 @@ This is the *only* write for a given PR's entry.
 Nothing runs at that PR's own branch creation (see the guard step above), so there's no earlier write for this one to race against.
 A PR is simultaneously a later PR's recorded parent and the subject of its own batch-end write — that dual role is exactly what makes the guard's precondition always hold above.
 `append-branch-pr-entry.sh`'s idempotence still matters across two separate runs reaching the *same* PR's batch-end.
-Example: an earlier run halted mid-§9, and a fresh `/implement` re-invocation for this same PR reaches §9 again.
+Example: an earlier run halted mid-§8, and a fresh `/implement` re-invocation for this same PR reaches §8 again.
 It does not need to matter across two different call sites.
 
 ## The per-PR loop and fail-fast
 
-A PR-label list runs the existing §3–§9 batch once per PR, strictly in the order given.
-The whole pipeline from `BATCH_BASE_SHA` capture through batch-end and PR creation repeats per PR, so each PR's gate, tails, and diff scope to only that PR's own commits.
+A PR-label list runs the existing §3–§8 batch once per PR, strictly in the order given.
+The whole pipeline from `BATCH_BASE_SHA` capture through batch-end and PR creation repeats per PR, so each PR's repo-green gate, quality-gate tail, and diff scope to only that PR's own commits.
 
 §1.1 (locate plan/spec), §1.2 (interview), §1.3 (DAG re-check), §1.4 (worktree setup), §1.5 (label resolution, this file) and §2 (TaskList seeding, plus every unit's state file) run once for the whole list.
 
-§2 seeds **every** PR's entries upfront — each PR's tasks followed by that PR's five batch-end reminders, in the order the PRs execute.
+§2 seeds **every** PR's entries upfront — each PR's tasks followed by that PR's four batch-end reminders, in the order the PRs execute.
 So the list reads as the whole run's timeline from the start.
 A fail-fast stop simply leaves the later PRs' entries `pending`.
 
 Before each PR's loop iteration, label resolution and the checkout decision above both run fresh for that PR.
 The DAG re-check does not — §1.3 already ran it once, for the whole invocation.
 
-**Stop predicate, checked after each PR's own §9 completes:** proceed to the next PR only if every one of that PR's tasks reached `[Done]` (none terminal-without-`[Done]`) AND §9.1's repo-green gate passed.
+**Stop predicate, checked after each PR's own §8 completes:** proceed to the next PR only if every one of that PR's tasks reached `[Done]` (none terminal-without-`[Done]`) AND §8.1's repo-green gate passed.
 Otherwise stop — do not create the next PR's branch, do not dispatch any of its tasks.
 Report the batch as it stands; the remaining PRs in the list are untouched.
 

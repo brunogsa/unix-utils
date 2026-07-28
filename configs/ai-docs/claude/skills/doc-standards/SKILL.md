@@ -101,7 +101,7 @@ Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles �
   - [Why] A bare lookup number renumbers on edit and forces a lookup; a step-order number is different — it IS the sequence, not a pointer to it.
 
   - [Example] Bad (lookup pointers — always follow the ban): `AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
-  - [Example] OK (step order — exempted): `implement/SKILL.md` citing its own `§1.4–§9 repeat once per PR` — the numbers encode the loop's bounds.
+  - [Example] OK (step order — exempted): `implement/SKILL.md` citing its own `§3–§8 repeat once per PR` — the numbers encode the loop's bounds.
 
 - [Instruction] Point to a source by file path, URL, or named anchor — a bare symbol name is none of the three.
   - [Why] A path, URL, or anchor tracks the thing itself and survives edits; a bare name forces the reader to hunt for it and rots silently on rename.
