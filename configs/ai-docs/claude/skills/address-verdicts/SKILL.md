@@ -1,6 +1,6 @@
 ---
 name: address-verdicts
-description: "Apply findings from verdict_refactor_*.md / verdict_auto-review_*.md / verdict_test-sdd_*.md, annotating each APPLIED/SKIPPED in place. Trigger: /address-verdicts <which ones>, \"address the verdicts\", \"apply the review findings\", \"work through the refactor verdict\"."
+description: "Apply findings from any verdict_*.md on disk, whichever review lens wrote it, marking each APPLIED/SKIPPED in place. Triggers: /address-verdicts, 'address the verdicts', 'apply the review findings', 'work through the refactor verdict'."
 disable-model-invocation: false
 ---
 

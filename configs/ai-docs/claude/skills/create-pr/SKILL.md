@@ -12,34 +12,27 @@ disable-model-invocation: false
 
 Load the `doc-standards` skill before drafting — a PR description is a standalone doc, so its density cap, BLUF ordering, and collapse rules all apply.
 
-This skill adds only what is specific to a PR, and never restates a rule `doc-standards` already owns.
-
 ## PR body budget rules
 
 The non-overlap invariant and the one-page goal -- the 64-line-per-section budget, cut order, and measurement script -- live in [`references/pr-page-budget.md`](references/pr-page-budget.md).
 
-Read it before drafting or reviewing a PR body's content or length; `pr-writer` loads it on every dispatch.
+Read it before drafting or reviewing a PR body; `pr-writer` loads it every dispatch.
 
 ## Process
 
 **Seed the TaskList before step 1 runs** -- one `[Reminder]` entry for each of steps 1-5, in execution order.
 
-- A skipped step then stays visible as pending across a compaction, which the numbered steps alone do not survive.
 - Step 6 gets no entry -- it runs only if the user asks for a change after the push, so a pending reminder would never complete.
 
 ### 1. Gather context
 
 **CRITICAL: This step's interview is the only point in the whole skill where the user is asked anything.**
 
-Every step from here through step 5 runs to completion without pausing.
+Every step from here through step 5 runs to completion without pausing, and never poses a chat question that blocks composing or pushing.
 
-A gap in evidence (a test that couldn't be run locally, a section the digest didn't cover) is recorded as an unchecked box or a caveat.
-
-Never pose a chat question that blocks composing or pushing.
+A gap in evidence (a test that couldn't be run locally, a section the digest didn't cover) is recorded as an unchecked box or a caveat instead.
 
 Resolve everything below BEFORE dispatching `changes-gatherer` at the end of this step.
-
-The one `AskUserQuestion` call is the single interruption in the entire run, and it lands before any subagent starts working.
 
 - Discover spec/plan in cwd by glob `spec_*.md plan_*.md` (top-level):
   - One spec / one plan → use whichever exist, auto-resolved. Multiple of either → open question **(A) Spec/plan choice**: list them numbered.
@@ -53,11 +46,10 @@ The one `AskUserQuestion` call is the single interruption in the entire run, and
 
 - **Ask (A) and (B) in ONE interview, as two separate questions, in a single pre-flight `AskUserQuestion` call**.
   - Carry both; skip either label that auto-resolved above; skip the call entirely when both auto-resolved.
-  - They resolve different things: which source file to read, and which slice of a multi-PR plan this is.
-    - One merged question would force two answers into one choice, but landing both in one call means the user is interrupted once, not twice.
+  - They resolve different things — which source file to read, and which slice of a multi-PR plan this is — so merging them would force two answers into one choice.
 
-  - Any other ambiguity this skill's later steps might hit (template fit, checklist evidence, body-size trims) is resolved by the rules those steps already give, not by a new question.
-    - If a step's rules don't cover a case, default to the least-destructive, most-conservative reading and note it as a caveat in the final report, never a mid-flow ask.
+  - Any later ambiguity (template fit, checklist evidence, body-size trims) is resolved by that step's own rules, never by a new question.
+    - Uncovered case → take the most conservative reading and note it as a caveat in the final report.
 
 - Once answered, create `./pr_<slug>_pr<N>.ideal.md` right away with an HTML comment logging each answer.
   - Example: `<!-- step 1: spec=<resolved spec>; PR=2/3 -->` -- GitHub hides HTML comments in rendered bodies.
@@ -93,13 +85,8 @@ The one `AskUserQuestion` call is the single interruption in the entire run, and
 
 **CRITICAL: It writes the IDEAL description in this skill's own format, ignoring any repo template** -- the repo's template is step 4's problem, not its.
 - The format has to stay stable, because `check-pr-page-fit.sh` can only hold a section to its budget when it recognizes that section.
-- The ideal description is never pushed as-is when a repo template exists; it is the single input step 4 builds the final body from.
-
-Output: `./pr_<slug>_pr<N>.ideal.md` in cwd -- `<slug>` and `<N>` resolved per step 1 (`_pr<N>` dropped for a single-PR plan).
 
 Keep the file step 1 created -- never overwrite its resolved-answers comment.
-
-Author from the changes digest (step 1), the extracted spec/plan sections, and the template -- not the raw diff.
 
 **Escape hatch**: if the digest is insufficient for a specific section, read that file's targeted diff (`git diff <base> -- <path>`); never fall back to the full diff.
 
@@ -121,15 +108,12 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits. Anything refe
 
 **Second meta-principle: a small PR earns a small description** — a guideline, not a hard cap.
 
-The full rules for what to write, how to evidence it, and how to format it live in [`references/writing-style.md`](references/writing-style.md).
-
-Read it before drafting prose for any section; `pr-writer` loads it on every dispatch.
+What to write, how to evidence it, and how to format it: [`references/writing-style.md`](references/writing-style.md) — read it before drafting any section's prose; `pr-writer` loads it every dispatch.
 
 ### 3. Verify the ideal description
 
 Re-run both gates on `pr_<slug>_pr<N>.ideal.md` in the main session, even though the agent already looped on them.
 
-- What is being confirmed is the artifact, not the agent's account of the artifact.
 - **Density** -- `~/.claude/skills/doc-standards/scripts/check-density.sh <file>` must print no violation.
 - **Page fit** -- `~/.claude/skills/create-pr/scripts/check-pr-page-fit.sh <file>` must not exit 3.
 
@@ -164,7 +148,7 @@ Re-run both gates on `pr_<slug>_pr<N>.ideal.md` in the main session, even though
 - Mark checklist items `[x]` when applicable.
   - **An item with no local evidence to back it stays unchecked, reported as a caveat.**
     - Example: an e2e/integration check that needs infra this session doesn't have.
-    - Never ask a chat question whether to go run that check first; leave it for the reviewer to verify and flip on GitHub.
+    - Never ask whether to go run it; the reviewer verifies and flips it on GitHub.
 
 - Add whatever the ideal description carries that the template has no slot for WITHIN it (preferred) or as an appendix, **NEVER** replacing it.
 
@@ -184,9 +168,9 @@ Re-run both gates on `pr_<slug>_pr<N>.ideal.md` in the main session, even though
 
 - **Push the branch here, never earlier** -- `git push -u origin <branch>` when it has no upstream, immediately after the body-size gate passes.
 
-  - The push is the run's first outward-facing act: it fires CI and makes the branch visible, while every step above only writes local files.
+  - The push is the run's first outward-facing act — it fires CI and makes the branch visible, while every step above only writes local files.
 
-  - Pushing in step 1 would leave a remote branch behind whenever a compose or a gate failed, for a PR that was never created.
+  - Pushing in step 1 would leave a remote branch behind whenever a compose or gate failed.
 
 - **Create the PR as a draft with no chat-side review gate** -- `gh pr create --draft --body-file pr_<slug>_pr<N>.final.md --base <base-branch>`.
 

@@ -28,7 +28,22 @@ gh api repos/$OWNER_REPO/pulls/<n>/reviews
 
 Include each review's `body` (when non-empty) plus its `state` (`APPROVED` / `CHANGES_REQUESTED` / `COMMENTED`) — `state` feeds the rank rule below.
 
-### 3d. Apply user filters
+### 3d. Self-TODO gate (always applied, before user filters)
+
+A candidate item — inline thread, top-level comment, or review-summary body — proceeds only if BOTH hold:
+
+- **Not resolved.** Inline threads: `isResolved == false` (already required by 3a). Top-level comments and review-summary bodies have no resolved concept (3b/3c), so this half is automatically satisfied for them.
+- **Self-flagged.** At least one comment in the item is authored by `ME` (`is_self == true`) and its body contains `TODO:` (case-insensitive substring match).
+
+Drop anything failing either check — silently, before clustering.
+
+It's not a "dropped cluster" (no reply owed, no cluster entry at all): it's out of scope because you haven't yet triaged it into a promised follow-up.
+
+This is why a bot's own review-summary boilerplate ("I left N suggestions below") never survives this gate: `ME` never replies inside it, so it has no self-flagged TODO.
+
+That holds regardless of how many of its inline suggestions are still open.
+
+### 3e. Apply user filters
 
 `by <logins>` matches **ownership**, not participation. The unit of ownership differs by source — see the ownership table in SKILL.md's Usage section (`../SKILL.md#usage`). Concretely:
 
@@ -45,7 +60,7 @@ If the result is empty after filtering, report and stop — don't cluster an emp
 
 See `references/reply-patterns.md` (jq ownership query) for the inline-thread `by` filter pattern.
 
-### 3e. Cluster, rank, propose
+### 3f. Cluster, rank, propose
 
 Load `code-review-pipeline/references/review-principles.md` first — it governs severity, drop framing, and actionable-vs-informational calls below.
 
@@ -65,21 +80,33 @@ Per comment field, once fetched and filtered: id, author, body, path, line, diff
 - Per cluster, propose a one-line drop reason — honest and specific (not
   "out of scope").
 
-### 3f. Emit the proposal block
+- For `apply` clusters, synthesize a one-line **Planned change** — the
+  concrete edit that resolves the self-flagged TODO. Paraphrase or quote
+  the TODO's own wording; don't invent scope it didn't state. `apply`
+  alone doesn't tell the user what will actually change, and the TODO
+  already named the promised fix — surface it instead of making them
+  re-read the thread to find it.
+
+### 3g. Emit the proposal block
 
 Return this single editable block as your final message — one `### Cluster N` section per cluster, nothing else:
 
 ```
-## PR <n> — <total> unresolved comments in <K> clusters
+## PR <n> — <total> candidate comments in <K> clusters
 
 ### Cluster 1: <short title> [action: apply]
 - Files: src/auth/login.ts, src/auth/session.ts
+- Planned change: <one-line synthesis of the TODO's promised fix>
 - Comments:
   - [c12345] (alice) src/auth/login.ts:42 — "the rate limit should also..."
     <url>
-  - [c12389] (alice) src/auth/session.ts:88 — "same here"
+  - [c12389] (yours) src/auth/login.ts:44 — "TODO: <what you promised to fix>"
     <url>
 - Proposed drop reason (if flipped): rate-limit lives in the gateway, not the app
 ```
 
-Top-level comments use `(top-level)` in `Files`; self-authored ones are labeled `(yours)`. For `[action: answer]` clusters, leave the `Answer:` line for the user to fill — clustering never writes their answers.
+Top-level comments use `(top-level)` in `Files`; self-authored ones are labeled `(yours)`.
+
+`Planned change` appears only on `apply` clusters — `answer`/`drop` clusters have no code change to preview.
+
+For `[action: answer]` clusters, leave the `Answer:` line for the user to fill — clustering never writes their answers.

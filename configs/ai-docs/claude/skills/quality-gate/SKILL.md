@@ -1,6 +1,6 @@
 ---
 name: quality-gate
-description: "USE to run the full quality sweep over a branch — refactor lens, auto-review, and planned-test presence — in parallel, then optionally auto-solve the findings. Triggers: /quality-gate, 'run the quality gate', 'full review pass', or another skill's batch-end dispatch."
+description: "USE to run the full quality sweep over a branch — refactor lens, auto-review, planned-test presence — in parallel, then optionally auto-solve them. Triggers: /quality-gate, 'run the quality gate', 'full review pass', a batch-end dispatch."
 disable-model-invocation: false
 words-budget: 2048
 ---

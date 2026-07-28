@@ -1,6 +1,6 @@
 ---
 name: test-sdd
-description: "USE to check that every planned test a plan_<slug>.md declares actually exists in the repo — the standalone form of /implement's planned-test presence gate. Triggers: /test-sdd, 'are the planned tests there?', 'check the plan's test coverage', or another skill's dispatch."
+description: "USE to check that every planned test a plan_<slug>.md declares actually exists in the repo — the standalone form of /implement's planned-test presence gate. Triggers: /test-sdd, 'are the planned tests there?', or another skill's dispatch."
 disable-model-invocation: false
 ---
 

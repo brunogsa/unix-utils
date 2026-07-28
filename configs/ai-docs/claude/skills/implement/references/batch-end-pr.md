@@ -1,7 +1,6 @@
 # Batch-end — PR manifest & the PR itself
 
 Read this only when the batch is a PR-label run, or when the interview opted into a PR.
-When neither applies, this file is never opened.
 
 **Dispatched from inside Finalize (§8.3), after the quality-gate tail has finished** (`batch-end-review.md`'s "Finalize" step 1).
 The PR body describes the batch's final diff, including whatever the quality gate applied, in one pass.
@@ -32,8 +31,7 @@ Only when the interview opted into a PR (§1.2, `pr.wanted: true`). Skip this se
 
 **One dispatch owns the whole PR, start to finish: `agent(subAgent=create-pr, title=Open the batch PR)`.**
 It composes the body, pushes the branch, and creates (or updates) the PR itself — the orchestrator never writes a body and never pushes.
-Push and create belong in one dispatch because they are one intent with one failure mode.
-Split across two owners, an orchestrator that dies between them leaves a pushed branch and no PR, and no one owns cleaning that up.
+Push and create belong in one dispatch: split across two owners, an orchestrator that dies between them leaves a pushed branch and no PR, with no one owning the cleanup.
 
 - **CRITICAL: re-read this whole section fresh immediately before dispatching — never execute it from a compacted-summary recollection.**
   A post-compaction paraphrase like "generate the body via a subagent, following create-pr conventions" is lossy.
@@ -42,7 +40,7 @@ Split across two owners, an orchestrator that dies between them leaves a pushed 
 - Never dispatch `deep-reviewer` for this: its write-guard hook allows only `verdict_*.md` and `/tmp` writes, and denies a `pr_*.final.md` write in CWD outright.
 - **The dispatch prompt must spell out every one of these requirements explicitly — never just "follow create-pr's conventions" by bare reference.**
   The agent loads its own skill's conventions, but has no visibility into this batch's own specifics (output path, PR-label, base branch) unless the prompt states them.
-  A vague pointer produces the same silently-incomplete result this note exists to prevent — the requirements below all belong **in the dispatch prompt**, not left for the agent to infer:
+  Every requirement below belongs **in the dispatch prompt**, not left for the agent to infer:
   - Check `.github/PULL_REQUEST_TEMPLATE.md` / `.github/pull_request_template.md` first; if present it's the base structure — keep every section/checkbox, fill with rich content, never replace it.
   - The 8-section required order (drop any that are genuinely N/A, never silently):
     1. Jira link

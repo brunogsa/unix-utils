@@ -8,8 +8,9 @@ This is the common path for all three: record one attempt, then run the verdict 
 
 ### The full verdict set — for orientation
 
-`implement-loop-state.sh` emits exactly six verdicts. This section only obeys three — the ones a failed or blocked attempt can produce —
-but the table below is the whole set; any verdict not listed here belongs to §5.4 instead.
+`implement-loop-state.sh` emits exactly six verdicts, and the table below is the whole set.
+
+This file obeys only `retry`, `stuck`, and `halt-budget` — the ones a failed or blocked attempt can produce. The other three only ever follow a `pass`, so they belong to §5.4.
 
 | Verdict | When | Routes to |
 |---|---|---|
@@ -19,9 +20,6 @@ but the table below is the whole set; any verdict not listed here belongs to §5
 | `gates` | a `pass` attempt, every task now `done`, none `blocked` | [`batch-end-review.md`](batch-end-review.md)'s §8.1 |
 | `halted` | a `pass` attempt, every task terminal, but at least one ended `blocked` | §5.5 below |
 | `halt-budget` | total dispatches (`attempts` + `gate_dispatches`) hit the batch cap, checked before anything else | §5.5 below |
-
-`next-task`, `gates`, and `halted` only ever follow a `pass` (§5.4's own path, not this one) — so this file
-only obeys `retry`, `stuck`, and `halt-budget`.
 
 ### Record the attempt
 

@@ -57,10 +57,6 @@ $S/claude-usage-report.py --backfill --since <SINCE> > /tmp/usage-report.txt 2>&
 
 - **Never re-implement the aggregation**; `--rebuild` is the only other flag this flow uses.
 
-- **Save the output to `/tmp/usage-report.txt` and read from the file** — a full backfill runs minutes.
-
-  - The slow-command rule: a wrong filter on piped output forces the whole slow run again.
-
 - **Never snapshot the current day**, and never work around the script's refusal to.
 
   - A day is only immutable once it has ended: a mid-day sample counts only the sessions that already ran, so it reads low and poisons every comparison against a closed day.

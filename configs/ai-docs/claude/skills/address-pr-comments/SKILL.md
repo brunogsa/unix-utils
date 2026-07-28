@@ -16,9 +16,15 @@ disable-model-invocation: false
 |---|---|
 | `by alice, bob` | keep only items **owned** by these gh logins (see "ownership" below) |
 | `in src/foo, src/bar` | keep only comments whose `path` matches these files/folders |
-| (omitted) | every unresolved comment, all authors, all files |
+| (omitted) | every candidate comment (see gate below), all authors, all files |
 
 **Ownership** (what `by` matches) is the author of an inline thread's **first comment** (replies never transfer it), of a top-level comment itself, or of a review for its summary body. Rationale: `references/reply-patterns.md`.
+
+**Self-TODO gate (always applied, never a filter you pass):** an item is a candidate only if it is unresolved AND you (`ME`) already replied with `TODO:` somewhere in it.
+
+This mirrors your own review workflow — you triage reviewer comments by hand and leave a `TODO: ...` marking a promised follow-up.
+
+The skill executes those follow-ups; it never replies to fresh, untriaged reviewer comments on your behalf. Full rule: `references/fetch-cluster-propose.md#3d-self-todo-gate-always-applied-before-user-filters`.
 
 Examples: `/address-pr-comments 169`, `/address-pr-comments 169 by alice`, `/address-pr-comments 169 by alice, bob in src/auth`.
 
@@ -36,21 +42,17 @@ Subagents can't post replies, commit, or push — permission UIs live in main. F
 
 So main runs steps 0–2 and 4–7, while step 3 goes to a background `general-purpose` subagent that returns only the proposal block — raw comment JSON never reaches main.
 
-Declare it as `agent(subAgent=general-purpose, title=Fetch, cluster, and rank PR review comments, model=sonnet, effort=medium)`.
-
-If it reports zero unresolved comments matching the filters, stop — don't proceed to step 4.
+If it reports zero candidate comments, stop — don't proceed to step 4.
 
 ## Run-state file + TaskList state
 
 At skill start, create `/tmp/address-pr-comments_<session_id>_<ts>.json` — this run's durable working-state file (`<ts>` = `date +%Y%m%d-%H%M%S`, since the skill can run several times per session).
 
-Persist as produced, never at the end: pre-flight answers first, then each cluster's chosen action, drop/skip reason, and commit SHA.
-
-On resume or after compaction, re-read it and trust it over recalled context.
+Persist as produced, never at the end: pre-flight answers first, then each cluster's chosen action, planned change (apply clusters), drop/skip reason, and commit SHA.
 
 Once step 4 approves the clusters, create one TaskList task per **applied** cluster — only those produce a commit, which is CLAUDE.md's test for a Task.
 
-Put machine-checkable state (`action`, `commit_sha`, `status`) in the task's `metadata`; keep narrative rationale in the run-state file. Cross-reference the two by task id and file path only, never duplicating content.
+Put machine-checkable state (`action`, `commit_sha`, `status`) in the task's `metadata`; keep narrative rationale in the run-state file.
 
 ## Standards loaded on demand
 
@@ -71,7 +73,7 @@ Run `git status --porcelain` and probe for lint/test runners with 1c's table (re
 - **Green baseline checker** (only if 1c's table matched multiple or none) — which lint/test commands establish the baseline; relevant only on an opt-in yes.
 - **Refactor + auto-review tails after this batch?** (yes/no, default no) — always asked.
 
-Persist the answers to the run-state file the moment they arrive — a mid-flow compaction must not lose them. Steps 1b–1d consume them and never ask again.
+Persist the answers the moment they arrive; steps 1b–1d consume them and never ask again.
 
 ## Step 1: Validate preconditions (main)
 
@@ -97,7 +99,7 @@ Step 0's persisted answer says whether to commit now via `commit-standards`; onc
 
 ### 1c. Green baseline (lint + test — opt-in)
 
-Runs only on a yes to step 0's "Green baseline check?"; when declined or unanswered, skip this subsection entirely.
+Runs only on a yes to step 0's "Green baseline check?" — otherwise skip this subsection.
 
 Discover the runners (cheap probe, no full project scan):
 
@@ -150,7 +152,7 @@ Return ONLY the proposal block in your final message — never the raw
 fetched JSON.
 ```
 
-The subsections (fetch, filter, cluster, rank, propose — 3a through 3e) live in `references/fetch-cluster-propose.md`; only the dispatched subagent reads them.
+Subsections 3a–3g (fetch, gate, filter, cluster, rank, propose) live in `references/fetch-cluster-propose.md`; only the dispatched subagent reads them.
 
 ## Output: the proposal block
 
@@ -164,13 +166,17 @@ The subagent returns one editable block of `### Cluster N` sections (template in
 - For `answer`, add an `Answer:` line — clustering doesn't write your answers.
 - Send the edited block back as a single message.
 
-## Step 4: Parse the user's edited block (main)
+## Step 4: Parse the user's edited block, then create TaskList tasks (main)
 
-For each surviving cluster, record its `action`, `comment_ids` (`databaseId`), `urls` (for cross-linking in the commit body), and its `drop_reason` or `answer_body` where the action calls for one.
+For each surviving cluster, record its `action`, `comment_ids` (`databaseId`), and `urls` for cross-linking in the commit body.
+
+Add `planned_change` on apply clusters (it guides step 5's edit), plus whichever of `drop_reason` or `answer_body` the action needs.
 
 If parse fails (mangled markers, missing `Answer:` for answer clusters), surface the exact issue and ask the user to re-send. Don't guess.
 
-Then create one TaskList task per applied cluster — see "Run-state file + TaskList state" above.
+**Before touching any code or running any command in step 5**, create one TaskList task per applied cluster — see "Run-state file + TaskList state" above.
+
+This step ends only once every applied cluster has its task.
 
 ## Step 5: Per-cluster commits (main, applied clusters only)
 
@@ -188,13 +194,11 @@ If a cluster's edits accidentally touch files outside its scope (drift), never s
 
 Pause and ask the user whether to split it into a separate `[Drift]` commit per CLAUDE.md, or bundle it if trivial.
 
-Either answer only decides where the drift fix commits; the cluster's own commit flow resumes, then continues to the next cluster.
+Either answer only decides where the drift fix commits; the cluster's own flow then resumes.
 
 ## Step 6: Batch push (main)
 
 After all `apply` clusters are committed, run a single `git push`. Confirm with the user first — it's irreversible, triggers CI, and notifies reviewers.
-
-This is the UNLESS case in CLAUDE.md's never-pre-ask rule: `git push` is commonly allowlisted, so this chat confirm is the only human gate.
 
 If the push is rejected (remote moved), abort and surface it — the per-cluster commits stand as-is.
 
@@ -206,7 +210,7 @@ For **every comment in every surviving cluster** (apply/answer/drop), post a rep
 
 On a permission denial, skip that reply and list it in step 8's report.
 
-On a `gh api` failure, retry once, then skip and list it too. The loop always continues to the next comment — never stops.
+On a `gh api` failure, retry once, then skip and list it too — the loop never stops.
 
 ### 7a. Reply body templates — minimal by default
 
