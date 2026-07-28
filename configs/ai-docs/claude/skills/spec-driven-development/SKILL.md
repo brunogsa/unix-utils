@@ -1,6 +1,6 @@
 ---
 name: spec-driven-development
-description: "Self-review gates and living-doc conventions for spec_<slug>.md/plan_<slug>.md, run before a human reviews the plan. Read by path from brainstorm, design-docs, plan-writer — never model-invoked; run /brainstorm to produce the pair."
+description: "Self-review gates and living-doc conventions for spec_<slug>.md/plan_<slug>.md, run before a human reviews the plan. Read by path from brainstorm, design-docs, plan-writer — never model-invoked; run /brainstorm to produce them."
 disable-model-invocation: true
 ---
 
@@ -50,14 +50,21 @@ Resolve with this shared baseline:
 
 The remaining shapes (zero matches, only one kind) diverge per consumer because their needs differ — each skill's own Discovery section is canonical.
 
-### Section set — full by default, light on request
+### Every template section always gets written
 
-Both templates below are the **full** section set, and a caller that asks for nothing gets them whole.
+Both templates below are one fixed section set — there is no reduced variant, and a caller never picks which sections to write.
 
-A caller may instead ask for the **light** set — the same documents with the briefing sections omitted.
-Read [`references/light-section-set.md`](references/light-section-set.md) only when a caller names it; the full set never needs that file.
+Trim inside a section with its own `N/A — <reason>` escape instead, per the Guidelines' lean rule.
 
-Why the choice is the caller's: `brainstorm` settles it with the user before any document exists, so the depth is a declared intent rather than a per-section judgment made while writing.
+Why no variant: a dropped section is invisible to the reader, where an `N/A` line states that the author considered it and ruled it out.
+
+### A plan may exist without a spec
+
+A caller may write the plan alone — `brainstorm`'s `light` mode does exactly that.
+
+Such a plan writes `N/A — plan-only run` on its `Spec:` line, carries each task's acceptance criteria in that task's own `**Testable Acceptance criteria**` field, and cannot run `check-ac-coverage.sh`.
+
+Why the spec is the droppable one: every downstream consumer degrades gracefully to "no spec", while none of them runs at all without a plan.
 
 ### spec_<slug>.md (why / what)
 
@@ -89,6 +96,9 @@ It carries the bucket membership and dispatch tiers, the qualitative-pass checkl
 Three toggles the caller resolves *before* the plan exists and persists to `/tmp/sdd_<session_id>.json`.
 Read the answers from that file when you reach the checks — never ask them here.
 
+A caller may also resolve none of them and run the deterministic bucket alone — `brainstorm`'s `light` mode does.
+Treat all three as off in that case, and skip `check-ac-coverage.sh` too, since it takes both a plan and a spec.
+
 - Two of them switch off one formal check each — the last two rows of the table below.
 - The third switches off the qualitative pass's `deep-reviewer` dispatch, and only that. The artifact fixers run regardless.
 
@@ -114,14 +124,8 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
 
 ### Iteration rounds and drift (conditional — load only when they fire)
 
-- **Delta-scoped re-review** — later self-review rounds scope the gates to what `diff` shows changed, not the whole doc again.
-  - Load [`references/delta-scoped-rereview.md`](references/delta-scoped-rereview.md) on the second and later rounds.
-
-- **Formal-check recovery loop** — on a blocking failure, fix the issue, then re-run only that failed check plus the delta-scoped re-review above.
-  - Never re-run the full seven-check block from the top — only the one check that failed, plus its delta re-review.
-
-- **Snapshot hand-off loop** — before re-running the failed check, snapshot the spec and the plan to `/tmp/sdd-snapshots/` for the user's annotated-diff review.
-  - Each round of AI fixes produces a fresh snapshot; the loop exits only when the user approves it.
+- **Formal-check recovery loop** — on a blocking failure, fix the issue, then re-run only the check that failed.
+  - Never re-run the full seven-check block from the top; the other six already passed over text the fix didn't touch.
 
 - **Resolving spec/plan drift** — when the plan and the spec disagree, surface each conflict for the user before editing either doc.
   - Load [`references/resolving-drift.md`](references/resolving-drift.md) the moment a conflict first surfaces — any check, qualitative or formal; there is no fixed slot.

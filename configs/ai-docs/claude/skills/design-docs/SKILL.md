@@ -169,11 +169,15 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
 
 - The spec — do **not** improvise from this skill's altitude/ownership notes.
   - Read `~/.claude/skills/spec-driven-development/SKILL.md` (by path — it is not Skill-invocable) and populate its `assets/spec-template.md`.
-  - Sections: Bottom line, Since-your-last-review, Context Diagram, `### AC-N:` BDD acceptance criteria + boundary/failure coverage checklists, Functional Decisions log.
+  - Sections, in order: Background/Context, Goals and Success Metrics/KPIs, Context Diagram, User Stories.
+
+  - Then Non-Functional and Technical Requirements, Testable Acceptance Criteria (`### AC-N:` BDD entries plus boundary/failure checklists), Open Questions, Functional Decisions log.
+
   - This skill owns only the spec's *altitude and ownership*; the section structure and self-review gates live in that library, and the interview workflow in `brainstorm`.
 
 - The plan — same rule: read that same library by path and populate its `assets/plan-template.md`.
-  - Sections: Reuse report, Side-effect report, Failure Handling & Consistency, Test Design AC↔"Covered by" table, structured Task Breakdown, PR Breakdown, Technical Decisions log.
+  - Sections: Technical Approach & High Level Architecture, General Flow, Test Design with its AC → test coverage list, structured Task Breakdown, PR Breakdown, Open Questions, Technical Decisions log.
+
   - Authoring a spec/plan from the altitude notes above instead of these templates is the known failure mode this route exists to prevent.
 
 - Schema as JSONC — render request/response/event payloads as annotated JSONC (real values, each field tagged with type/required/constraints/description); copy `references/example-good-schema.jsonc`.

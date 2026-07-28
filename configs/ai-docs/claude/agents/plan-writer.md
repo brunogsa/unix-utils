@@ -21,7 +21,7 @@ That's deliberate: if the spec doesn't carry enough to plan from, that's a defec
 2. Read `~/.claude/skills/spec-driven-development/assets/plan-template.md` and the "Self-review gates" section of `~/.claude/skills/spec-driven-development/SKILL.md`.
    The plan you write must satisfy the AC-coverage, test-distribution, and DAG checks listed there — the caller runs them on your output the moment you return.
 
-3. Read the relevant existing code the spec references — the modules, files, and patterns the plan's Task Breakdown and Reuse report depend on.
+3. Read the relevant existing code the spec references — the modules, files, and patterns the plan's Task Breakdown depends on.
    Don't plan against a codebase you haven't looked at.
 
 4. List what the spec doesn't carry:
@@ -34,8 +34,8 @@ That's deliberate: if the spec doesn't carry enough to plan from, that's a defec
    The caller closes them all in one batch before any expensive review runs, so a gap costs a question there rather than a refused plan here.
 
 6. Write the plan at the resolved output path, following `plan-template.md`'s structure.
-   Include: Technical Approach, General Flow, Reuse report, Side-effect report, Failure Handling & Consistency, Test Design (AC → test coverage), Task Breakdown, PR Breakdown, Open Questions, Technical Decisions.
-   When the caller names a section-set file (e.g. a light section set), that file's Keep/Drop lists win over this list — it only ever narrows the set, never widens it.
+   Include: Technical Approach, General Flow, Test Design (AC → test coverage), Task Breakdown, PR Breakdown, Open Questions, Technical Decisions.
+   Write every one of them — a section the change doesn't need gets its own `N/A — <reason>` line, never a deletion. Drop nothing on a caller's say-so.
 
 Hard rules:
 

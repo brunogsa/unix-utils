@@ -2,21 +2,9 @@
 
 Read once a plan exists, before a human reviews it.
 
-**A missing section may be a declared choice, not a defect** — the caller may request the light section set (SKILL.md's Section set heading; `light-section-set.md` lists exactly what it drops).
+**A missing section is a defect** — the templates are one fixed set (SKILL.md), so flag an absent heading; only an `N/A — <reason>` line trims.
 
-Never report an absence as a finding or ask for it back — every check still runs unchanged; light trims prose, not gates.
-
-## Contents
-
-- [The two buckets](#the-two-buckets)
-- [Qualitative pass](#qualitative-pass)
-- [Artifact fixers](#artifact-fixers)
-- [Every AC has a test](#every-ac-has-a-test)
-- [Every test has a task](#every-test-has-a-task)
-- [How would this break?](#how-would-this-break)
-- [PR and Task dependency DAGs](#pr-and-task-dependency-dags)
-- [Every line traces to an AC (toggle)](#every-line-traces-to-an-ac-toggle)
-- [Right-sized plan (toggle)](#right-sized-plan-toggle)
+A run may write the plan alone, per SKILL.md — never report the absent spec as a finding, and never ask for one back.
 
 ## The two buckets
 
@@ -24,7 +12,7 @@ Every check sits in exactly one bucket; its run order, re-run policy and dispatc
 
 **Deterministic** — a script or renderer returns the verdict, so re-running costs nothing.
 
-- Members: the two artifact fixers, plus `check-ac-coverage.sh`, `check-test-distribution.sh`, `check-pr-dag.sh`, `check-tasks-dag.sh`.
+- Members: the two artifact fixers, plus `check-test-distribution.sh`, `check-pr-dag.sh`, `check-tasks-dag.sh`, and `check-ac-coverage.sh` whenever a spec exists.
 - Dispatch each fixer at `model=sonnet, effort=high`, overriding its agent file's cheaper pin.
   - Why: a fixer edits prose a human reads next, so a mangled sentence costs more than the cheaper tier saves.
 
@@ -53,7 +41,6 @@ Dispatch `agent(subAgent=deep-reviewer, title=Qualitative review of spec and pla
 
 - **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker.
 - **Completeness**: does the Testable Acceptance Criteria section cover every Goal, Success Metric/KPI, User Story, and Non-Functional/Technical Requirement the spec carries — and every corner case and failure mode?
-  - On a light-set spec, judge coverage against Background plus the two never-trimmed checklists.
 
 - **Human-Reviewable**: could a complete novice succeed with only this plan and the repo?
 
@@ -73,6 +60,8 @@ Why: they repair a mechanical defect rather than judge content, so nothing else 
 ## Every AC has a test
 
 Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped coverage list (format and authoring mechanics: `plan-template.md`).
+
+- No spec — skip both halves, saying so; a plan-only run has no AC-grouped list to check.
 
 - Mechanical half — `scripts/check-ac-coverage.sh <plan> <spec>` checks coverage completeness and citation honesty (no truncated or invented breadcrumb); exit 1 blocks.
 
@@ -98,6 +87,8 @@ The boundary and failure-category checklists must each be instantiated or opted 
 Flat ACs with neither checklist rows nor an opt-out line fail self-review like an empty placeholder row would.
 
 Then, for every AC, ask "how would this break in production?" — flag any AC with no surfaced failure mode as under-specified. Fail-closed; runs regardless of either toggle.
+
+With no spec, each task's `**Testable Acceptance criteria**` field is the AC set this reads.
 
 ## PR and Task dependency DAGs
 

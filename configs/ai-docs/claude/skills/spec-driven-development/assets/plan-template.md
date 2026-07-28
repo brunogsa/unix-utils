@@ -2,8 +2,8 @@
 # performance-check budget override — DELETE this whole frontmatter block when you copy
 # this template into a real plan file. It is tooling metadata, not plan content.
 # Both consumers read this file and populate every section in one run, so splitting it would
-# only make the author read two files instead of one. Doubled from the 1024w bundled default.
-words-budget: 4096
+# only make the author read two files instead of one. Raised from the 1024w bundled default.
+words-budget: 2048
 ---
 # Plan: [Title]
 
@@ -30,42 +30,6 @@ For a reader who does NOT know the codebase, the diagram plus minimal prose shou
 N/A escape: for a trivial or no-flow change, write "N/A — <reason>" and skip the diagram.
 
 Follow the `mermaid-diagrams` skill for conventions.
-
----
-## Reuse report
-
-What did you consider reusing or extending? Why did you discard it?
-
-Something simple in bullets and sub-bullets, easy for user to scan.
-The main goal is to create user awareness and enforce AI to exercise this.
-
-N/A escape: when there's nothing to reuse or extend, write bare `N/A` — no reason clause needed.
-
----
-## Side-effect report
-
-Is something a breaking change? For who? Do we know the blast radius? Can it be retrocompatible?
-
-Does rollout need ordering — DB migration (expand-contract), feature flag, or a safe rollback path?
-
-Something simple in bullets and sub-bullets, easy for user to scan.
-The main goal is to create user awareness and enforce AI to exercise this.
-
-N/A escape: when nothing here applies, write bare `N/A` — no reason clause needed.
-
----
-## Failure Handling & Consistency
-
-The design half of the spec's failure-mode checklist: the spec's ACs say WHAT happens on failure; this section says HOW the design delivers it.
-
-Cover only the bullets that apply, one line each, easy for the user to challenge:
-
-- **Timeouts**: budget per downstream call (API, DB, queue).
-- **Retries**: policy, and the idempotency mechanism that makes them safe — retries are the main source of duplicate work.
-- **Transactions**: boundary of each multi-write state change; what a crash between writes leaves behind (single transaction, outbox, saga).
-- **Ordering**: assumptions about event/message order, and the behavior when delivery is duplicated or reordered.
-
-N/A escape: no downstream calls, async flows, or multi-write state changes → bare `N/A`, no reason clause needed.
 
 ---
 ## Test Design
