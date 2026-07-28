@@ -1,6 +1,6 @@
 ---
 name: address-verdicts
-description: "Apply findings from verdict_refactor_*.md / verdict_auto-review_*.md, annotating each APPLIED/SKIPPED in place. Trigger: /address-verdicts <which ones>, \"address the verdicts\", \"apply the review findings\", \"work through the refactor verdict\"."
+description: "Apply findings from verdict_refactor_*.md / verdict_auto-review_*.md / verdict_test-sdd_*.md, annotating each APPLIED/SKIPPED in place. Trigger: /address-verdicts <which ones>, \"address the verdicts\", \"apply the review findings\", \"work through the refactor verdict\"."
 disable-model-invocation: false
 ---
 
@@ -13,7 +13,7 @@ disable-model-invocation: false
 `<which ones>` selects which findings to work. It matches, in this order:
 
 - `all` — every finding in every located verdict file. Default when the arg is empty.
-- A lens name, `refactor` or `auto-review` — every finding in that lens's file only.
+- A lens name, `refactor`, `auto-review`, or `test-sdd` — every finding in that lens's file only.
 - A severity floor, e.g. `high` or `high+` — every finding at or above it.
   - Only when the report actually labels severity; see §2 for when it doesn't.
 
@@ -21,14 +21,11 @@ disable-model-invocation: false
 
 ## What this is
 
-This is the apply step for the reports the deep-reviewer tail pair produces.
+This is the apply step for any `verdict_*.md` on disk, whichever lens wrote it: `/refactor`, `/auto-review`, `/test-sdd`, or a `/quality-gate` run that produced all three.
 
-That pair is shared: `/implement`'s batch-end review, `/refactor`, and `/auto-review` all dispatch it.
+It exists for the reports nobody applied. `/quality-gate --auto-solve` applies what it judges safe and marks those findings `[Done]`; everything it declined is left unmarked, on disk, for this skill.
 
-`/implement` never applies a finding itself — it triages, presents, and stops, leaving the reports on disk.
-
-It doesn't know this skill exists, and shouldn't.
-Deciding to act on a review verdict is the human's call, so the apply step is something you invoke — never something a batch triggers on its own.
+Deciding to act on a declined verdict is the human's call, so this is something you invoke — never something a batch triggers on its own.
 
 This skill is a standalone entry point.
 It discovers the verdict files itself, in a fresh session, whether or not `/implement` ran first.
@@ -41,7 +38,7 @@ The report keeps no record it was even considered.
 ## 1. Locate the verdict files
 
 ```bash
-ls -1 verdict_refactor_*.md verdict_auto-review_*.md 2>/dev/null
+ls -1 verdict_refactor_*.md verdict_auto-review_*.md verdict_test-sdd_*.md 2>/dev/null
 ```
 
 Several timestamped generations can exist per lens — e.g. two `verdict_refactor_*.md` files from different runs.
@@ -54,8 +51,8 @@ The timestamp is embedded in the filename (`verdict_<lens>_YYYY-MM-DD_HH:MM.md`)
   - If `<which ones>` explicitly named the missing lens, stop instead — say no report exists for it.
   - Never fabricate one by re-running the reviewer; that isn't this skill's job.
 
-- **Neither lens has any file**: stop with a clear message.
-  - There is nothing to address yet — run `/refactor`, `/auto-review`, or `/implement`'s batch-end tails first.
+- **No lens has any file**: stop with a clear message.
+  - There is nothing to address yet — run `/quality-gate`, or a single lens (`/refactor`, `/auto-review`, `/test-sdd`), first.
 
 ## 2. Resolve `<which ones>`, and the test command
 
@@ -97,12 +94,14 @@ Dispatch one subagent per finding, in the order seeded above:
   - Pass it the finding's scope and the test command from §2.
   - It applies the change itself and confirms tests are green before and after.
 
-- **Auto-review-lens finding** (from `verdict_auto-review_*.md`):
-  - `agent(subAgent=tdd-coder, title=Apply review finding: <finding>)`.
+- **Auto-review- or test-sdd-lens finding** (from `verdict_auto-review_*.md` / `verdict_test-sdd_*.md`):
+  - `agent(subAgent=tdd-coder, title=Apply <lens> finding: <finding>)`.
   - Strict TDD: RED before GREEN, same as any other `tdd-coder` dispatch.
+  - A test-sdd finding names a planned test the repo lacks, so writing that test IS the fix.
+    Pass the planned title verbatim so the test lands under the name the plan declared.
 
 Why the split: the `refactor` agent refuses any behavior change, by design.
-A correctness fix can't route through it — it needs `tdd-coder`'s test-first discipline instead.
+A correctness fix or a missing test can't route through it — both need `tdd-coder`'s test-first discipline instead.
 
 Verify each subagent's result against the artifacts — the diff, the test run — before trusting its "done."
 A subagent's summary describes intent; only the artifact shows what actually landed.
