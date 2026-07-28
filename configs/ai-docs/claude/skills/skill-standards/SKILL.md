@@ -148,6 +148,9 @@ ALWAYS use this exact template:
 - [Instruction] Trim toward the lower power first, and propose the doubling only once the file still exceeds it after that trim.
   - [Why] Doubling on a small overage buys 2× the budget for a handful of words, and the slack then absorbs every later addition unmeasured.
 
+- [Instruction] Skip that trim-first step for `assets/flowchart.md` — raise straight to whichever power of 2 fits its current size.
+  - [Why] The file costs no context (never loaded by the model), so trimming it first would only strip diagram/pseudo-code fidelity for a savings that doesn't exist.
+
 - [Instruction] Move a worked example between files intact — never trim one to fit a budget.
   - [Why] An example earns its keep by being realistic, and realism is the first thing a size-driven trim takes away.
 

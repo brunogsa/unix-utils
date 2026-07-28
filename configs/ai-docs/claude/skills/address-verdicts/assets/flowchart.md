@@ -4,7 +4,7 @@
 # its size is fixed by the skill's step count, and trimming to the bundled default
 # would drop steps from the flow audit or drop a whole rendering.
 # Parked in assets/ and never loaded by the model, so its words cost no context.
-words-budget: 2048
+words-budget: 4096
 ---
 
 # address-verdicts — flow overview
