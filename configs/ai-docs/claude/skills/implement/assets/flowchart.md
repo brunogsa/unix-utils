@@ -199,7 +199,7 @@ def run_unit(unit):
 
 def halt():
     load("references/failure-and-halt.md")                 # 34
-    state.phase = "halted"                                 # 35 · §5.5
+    set_halted_phase_on_all_units()                        # 35 · §5.5
     scratchpad.write(what_each_blocker_needs)
     leave_pending(remaining_reminders)
     # Run NOTHING further; wait for the human.
@@ -284,7 +284,7 @@ flowchart TD
 
   n33{"33. PR-label run with PRs remaining?"}
   n34["34. Load references/failure-and-halt.md"]:::skill
-  n35(["35. Step 5.5 · HALT and wait for the human:<br/>phase=halted; write what each blocker<br/>needs into the scratchpad; leave<br/>remaining [Reminder]s pending;<br/>run NOTHING further"]):::gate
+  n35(["35. Step 5.5 · HALT and wait for the human:<br/>phase=halted on all units; write what each blocker<br/>needs into the scratchpad; leave<br/>remaining [Reminder]s pending;<br/>run NOTHING further"]):::gate
   n36(["36. Invocation ends"])
   n36a["36a. Stop hook: releases only on<br/>phase presented or halted"]:::hook
 
