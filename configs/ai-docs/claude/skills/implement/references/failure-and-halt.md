@@ -4,8 +4,6 @@ Load this on an unresolvable reported commit (§5.1), a §4 timeout, a self-repo
 
 ## §5.2 — On failure or a block: record the attempt, obey the verdict
 
-This is the common path for all three: record one attempt, then run the verdict script and obey it.
-
 ### The full verdict set — for orientation
 
 `implement-loop-state.sh` emits exactly six verdicts, and the table below is the whole set.
@@ -42,7 +40,7 @@ Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` an
   - A `blocked` attempt always earns it on the first try: only the human can clear a real blocker, so retrying just burns a dispatch.
 
 - **`halt-budget`** → the batch's dispatch budget is exhausted. Go to §5.5 below.
-  - This is the same backstop §5.4 can hit on a pass — it's checked before this call even looks at the attempt's result.
+  - This is the same backstop §5.4 can hit on a pass.
   - It does **not** route to §8: a batch that burned its budget isn't finished, so there's nothing to gate or review yet.
 
 Load `debug-standards` to diagnose why a task keeps failing before its next retry — a `blocked` attempt needs no diagnosis, straight to the human.

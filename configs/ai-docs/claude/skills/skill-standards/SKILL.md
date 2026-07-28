@@ -28,10 +28,10 @@ skill-name/
 Each layer is paid on a different cadence — metadata every session, body every trigger, references only on demand — so each gets its own budget.
 
 - [Instruction] Keep a skill's frontmatter — name plus description — under ~100 words.
-  - [Why] Frontmatter loads every session whether or not the skill triggers, so it is the one layer every unrelated task pays for.
+  - [Why] Frontmatter loads whether or not the skill triggers, so every unrelated task pays for it.
 
 - [Instruction] Keep the SKILL.md body under ~500 lines, splitting a layer into `references/` with a pointer saying when to read it once it grows past that.
-  - [Why] The body loads on every trigger, so past ~500 lines each invocation pays for material most runs never reach.
+  - [Why] Past ~500 lines each invocation pays for material most runs never reach.
 
 - [Instruction] Give any `references/` file over ~300 lines its own table of contents.
   - [Why] A partial read then finds its section directly instead of pulling the whole file to locate one part.
@@ -116,7 +116,7 @@ ALWAYS use this exact template:
 - [Instruction] Split a bundled file whose two topics never fire on the same run.
   - [Why] A mixed file makes every consumer load the branch it never takes — pure context tax on every run.
 
-  - [Example] `wave5-emit.md` held `## github mode` and `## local mode` — mutually exclusive, so each run paid for the mode it never used. Now `wave5-emit-github.md` + `wave5-emit-local.md`.
+  - [Example] `wave5-emit.md` held mutually exclusive `## github mode` and `## local mode`; now `wave5-emit-github.md` + `wave5-emit-local.md`.
 
 - [Instruction] Keep two co-firing topics in one file — split only when the skipped half outweighs the Read round-trip and pointer line it costs.
   - [Why] Splitting isn't free — fragmenting co-firing content trades a smaller file for an extra round-trip and one more skippable step.
@@ -149,7 +149,7 @@ ALWAYS use this exact template:
   - [Why] Doubling on a small overage buys 2× the budget for a handful of words, and the slack then absorbs every later addition unmeasured.
 
 - [Instruction] Skip that trim-first step for `assets/flowchart.md` — raise straight to whichever power of 2 fits its current size.
-  - [Why] The file costs no context (never loaded by the model), so trimming it first would only strip diagram/pseudo-code fidelity for a savings that doesn't exist.
+  - [Why] It costs no context, so trimming it first strips diagram fidelity for a savings that doesn't exist.
 
 - [Instruction] Move a worked example between files intact — never trim one to fit a budget.
   - [Why] An example earns its keep by being realistic, and realism is the first thing a size-driven trim takes away.
