@@ -50,7 +50,7 @@ Otherwise ask one `AskUserQuestion`, before resolving files or dispatching anyth
 
 - **Report only** (recommended default) — the three verdict files land in CWD and the run stops. The human decides later, by hand or via `/address-verdicts`.
 
-- **Auto-solve** — after the reports land, this session triages them and applies the findings it judges safe, one commit each.
+- **Auto-solve** — after the reports land, this session triages them and hands the ones it judges safe to `/address-verdicts`, which applies them one commit each.
 
 Ask first rather than after the reports, so a human who wanted only a report is never surprised by commits, and one who wanted fixes never has to re-invoke.
 
@@ -116,7 +116,7 @@ When step 1 resolved to report-only, print a compact index and stop:
 
 **Nothing is applied on a report-only run**, including findings that look trivially safe. The opt-in came from step 1, and its absence is an answer.
 
-## 6. Auto-solve — triage, then apply one finding at a time
+## 6. Auto-solve — triage here, apply through `/address-verdicts`
 
 Entry: step 1 resolved to auto-solve, or `--auto-solve` was passed.
 
@@ -130,54 +130,44 @@ Read all three verdict files **in full** — not the return summaries — and so
 Print the accepted list before applying anything, one line per finding with the reason it was accepted, and the rejected list with the reason it was not.
 The relevance call is judgment, so it gets shown, not just its result.
 
-### 6.2. Seed the whole TaskList upfront
+### 6.2. Hand the accepted list to `/address-verdicts`
 
-Create one entry per addressable finding, in execution order, before applying any of them — the list is this run's whole timeline.
+**Applying is not this skill's job.** `/address-verdicts` is the apply step for every `verdict_*.md` on disk, whoever wrote it.
+This skill decides *which* findings deserve a fix; that one owns *how* every fix lands.
+
+Duplicating its loop here would mean two copies of the lens routing, the commit rule, and the annotation format.
+Two copies drift, leaving a human unable to tell which one their report followed.
+
+Resolve the repo's test command first — a `package.json` script, a Makefile target, the repo's own CLAUDE.md — then invoke, **in this session**:
 
 ```
- <id>. [#<returned-id>][Task] Apply <lens> finding <N>: <short description>
+/address-verdicts <accepted finding identifiers, with their verdict file paths> --no-ask --test-cmd <cmd>
 ```
 
-Give each entry a breadcrumb naming its three sub-steps: dispatch the apply agent, commit, mark `[Done]` on the finding.
+- **The accepted list is explicit**, naming each finding exactly as its report does, so nothing re-derives §6.1's triage from a severity floor and quietly widens the scope.
 
-Close with one `[Reminder]` entry for the final report (§7), so a mid-run compaction cannot silently drop the wrap-up.
+- **`--no-ask` is mandatory here.** An auto-solve run has no human standing by, and a prompt mid-batch would stall a `/implement` tail indefinitely.
 
-### 6.3. Work each finding, in series
+- **`--test-cmd` is passed** so its inference step has nothing left to guess about.
 
-One finding at a time, in the seeded order. Serial, never parallel: two agents editing overlapping scope produce a conflict neither can see.
+Two reasons it runs in this session rather than inside a subagent, the same two that put this skill in `/implement`'s main session:
 
-1. **`TaskUpdate` the entry to `in_progress`.**
+- It commits the `refactor` agent's work, and a permission prompt only renders in the main session.
+- Its per-finding apply agents are already fresh-context subagents, so wrapping it would spend the harness's one nesting level on a layer that decides nothing.
 
-2. **Dispatch the apply agent**, routed by the finding's lens:
-   - **Refactor lens** → `agent(subAgent=refactor, title=Apply refactor finding <N>: <short>)`, given the finding's scope and the repo's test command.
-   - **Auto-review or test-sdd lens** → `agent(subAgent=tdd-coder, title=Apply <lens> finding <N>: <short>)`, which writes the test RED before making it GREEN.
-
-   Why the split: the `refactor` agent refuses behavior changes by design, so a correctness fix or a missing test routed through it could never land.
-   And a pure structural finding has no failing test for `tdd-coder` to start from.
-
-3. **Verify against the artifacts** — read the diff and the agent's test output.
-   A summary describes intent; only the artifact shows what landed.
-   A failed or reverted apply is recorded as such, never as done.
-
-4. **Commit.** `tdd-coder` commits its own work under `commit-standards`; confirm the SHA exists.
-   The `refactor` agent leaves its change uncommitted, so commit it here, in this session, where the permission prompt can render.
-
-5. **Mark the finding `[Done]` in its verdict file, immediately** — insert the marker right after the finding's number, before any severity tag: `### 1. [Done][HIGH] <title>`.
-   - Same prefix-after-the-number convention `/implement` uses on plan task headings, so one rule covers both surfaces.
-   - Write it the moment the commit lands, never batched to the end. A killed session then still leaves an accurate ledger of what was fixed.
-
-6. **`TaskUpdate` the entry to `completed`**, and move to the next finding.
-
-A finding whose apply fails keeps its entry open, gets no `[Done]` marker, and is reported in §7 with exactly what it needs to retry.
+It returns the ledger §7 reports from: applied findings with SHAs, skipped findings with reasons, and failures with what each needs to retry.
 
 ## 7. Close with a report
 
+Compose this from the ledger `/address-verdicts` returned, not from a second reading of the verdict files:
+
 - The three verdict file paths, plus any leg that failed to produce one.
 - Applied findings, each with its commit SHA.
-- Findings judged not addressable, each with the reason — they stay unmarked in their verdict files.
+- Findings judged not addressable by §6.1, each with the reason — they stay unmarked in their verdict files.
 
+- Findings `/address-verdicts` skipped, each with its reason — an ambiguity or a missing test command under `--no-ask`.
 - Findings whose apply failed, each with what it needs to retry.
-- The plain statement that unmarked findings are untouched, and that `/address-verdicts` is how they get worked later.
+- The plain statement that unmarked findings are untouched, and that a later `/address-verdicts` run — this time with a human answering — is how they get worked.
 
 ## Flowchart (human-facing)
 

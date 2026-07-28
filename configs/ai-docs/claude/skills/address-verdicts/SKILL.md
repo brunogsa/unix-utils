@@ -7,7 +7,7 @@ disable-model-invocation: false
 ## Usage
 
 ```
-/address-verdicts <which ones>
+/address-verdicts <which ones> [--no-ask] [--test-cmd <cmd>]
 ```
 
 `<which ones>` selects which findings to work. It matches, in this order:
@@ -18,16 +18,27 @@ disable-model-invocation: false
   - Only when the report actually labels severity; see §2 for when it doesn't.
 
 - An explicit list of finding identifiers — numbers, titles, or file:line, exactly as the report names them.
+  - A verdict file path inside the list pins that exact generation, instead of §1's newest-per-lens default.
+
+`--no-ask` and `--test-cmd` exist for a skill caller, which has no human standing by to answer mid-run. Both are ignored on a human invocation.
+
+- `--no-ask` — never prompt. Any ambiguity §2 would have asked about becomes a `SKIPPED` finding with the ambiguity as its reason.
+- `--test-cmd <cmd>` — the repo's test command, supplied rather than inferred, so §2 has nothing left to ask about.
 
 ## What this is
 
-This is the apply step for any `verdict_*.md` on disk, whichever lens wrote it: `/refactor`, `/auto-review`, `/test-sdd`, or a `/quality-gate` run that produced all three.
+This is **the** apply step for any `verdict_*.md` on disk, whichever lens wrote it: `/refactor`, `/auto-review`, `/test-sdd`, or a `/quality-gate` run that produced all three.
 
-It exists for the reports nobody applied. `/quality-gate --auto-solve` applies what it judges safe and marks those findings `[Done]`; everything it declined is left unmarked, on disk, for this skill.
+It is the only place the apply loop lives.
+`/quality-gate --auto-solve` decides *which* findings are worth applying and calls this skill to apply them.
+The routing, commit, and annotation rules have one home rather than a copy per caller.
 
-Deciding to act on a declined verdict is the human's call, so this is something you invoke — never something a batch triggers on its own.
+Two ways in, and the difference is only who picks the findings:
 
-This skill is a standalone entry point.
+- **A human invokes it** — `<which ones>` is the selection, and §2 may ask a clarifying question.
+- **A skill invokes it** — the caller passes an explicit finding list plus `--no-ask`, having already triaged. Nothing prompts.
+
+This skill is a standalone entry point either way.
 It discovers the verdict files itself, in a fresh session, whether or not `/implement` ran first.
 
 It never re-runs either reviewer. It only consumes reports already on disk.
@@ -71,6 +82,11 @@ Applying an auto-review-lens finding also needs a test command, to run RED-then-
 Infer it first: a `package.json` test script, a Makefile target, the repo's own CLAUDE.md.
 Ask only when it can't be inferred — bundle that ask into §2's clarifying question if one already fires, otherwise ask it alone.
 
+**Under `--no-ask`, nothing above prompts.** Each ambiguity resolves to `SKIPPED (<the ambiguity>)` on that finding, and the run continues with the rest.
+
+Skipping beats guessing here because the caller can re-run the finding by hand once it reads the ledger, whereas a wrong guess lands a commit nobody asked for.
+A missing test command under `--no-ask` skips only the findings that need one — refactor-lens findings still apply, since the `refactor` agent brings its own green-before-and-after check.
+
 ## 3. Seed the whole TaskList upfront
 
 Before applying anything, create one entry per selected finding, in the order they will execute.
@@ -106,14 +122,29 @@ A correctness fix or a missing test can't route through it — both need `tdd-co
 Verify each subagent's result against the artifacts — the diff, the test run — before trusting its "done."
 A subagent's summary describes intent; only the artifact shows what actually landed.
 
+Then commit, one commit per finding, before starting the next:
+
+- `tdd-coder` commits its own work under `commit-standards` — confirm the SHA exists rather than re-committing.
+- The `refactor` agent leaves its change uncommitted by design, so commit it here, in this session, where the permission prompt can render.
+
+A finding whose apply failed or was reverted is recorded as failed, never as done, and never gets a commit.
+
 ## 5. Annotate the verdict file, the moment each finding lands
 
-Write the outcome in place, next to that finding — never batched to the end of the run:
+Write the outcome in place, next to that finding — never batched to the end of the run. Two marks per finding, and they do different jobs:
 
-- `APPLIED (<sha>)` — the fix commit's SHA.
-- `SKIPPED (<reason>)` — why it wasn't applied.
+- **In the finding's heading**, a `[Done]` prefix right after the number, before any severity tag: `### 1. [Done][HIGH] <title>`.
+  - Same prefix-after-the-number convention `/implement` uses on plan task headings, so one rule covers both surfaces.
+  - This one is the machine-checkable mark: it makes a re-run skip what already landed, and `grep` count it.
+
+- **In the finding's body**, the outcome and its evidence:
+  - `APPLIED (<sha>)` — the fix commit's SHA. Pairs with a `[Done]` heading.
+  - `SKIPPED (<reason>)` — why it wasn't applied. The heading stays unmarked, so a re-run reconsiders it.
 
 This is the durable, on-disk ledger of fixed-versus-deferred the user explicitly asked for.
+
+The heading marker alone can't say *why* or point at the fix, and the body line alone isn't greppable.
+A skipped finding then reads as unfinished from either surface, which is what a re-run needs.
 
 Annotating as you go means a killed session still leaves an accurate ledger.
 Batching it to the end would leave a pile of applied fixes with no record of which report entries they answer.
@@ -126,3 +157,6 @@ State plainly, every time:
 
 - Every finding not selected in §2 is untouched and carries no annotation.
 - This run never re-ran either reviewer — it only consumed their existing reports.
+
+Invoked by a skill, hand that same list back to the caller rather than only printing it.
+The caller composes the closing report the human actually reads, and can only name what it was told.

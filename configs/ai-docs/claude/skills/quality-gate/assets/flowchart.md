@@ -65,54 +65,34 @@ def quality_gate(arg):
     addressable, not_addressable = sort_findings(read_in_full(legs))
     print(addressable, not_addressable)
 
-    # 10 · Step 6.2 — seed the WHOLE TaskList upfront, before applying anything.
-    #      The list is this run's entire timeline.
-    for f in addressable:   # 10a · in execution order, breadcrumbed apply → commit → [Done]
-        TaskCreate(f"[Task] {f.title}", metadata={"steps": "apply → commit → mark [Done]"})
-    TaskCreate("[Reminder] Step 7: the closing report")   # 10b · a compaction cannot drop it
+    # 10 · Step 6.2 — infer the repo's test command (a package.json script, a
+    #      Makefile target, the repo's own CLAUDE.md) BEFORE delegating, so the
+    #      callee has nothing left to guess about.
+    test_cmd = resolve_test_command()
 
-    # ---- Step 6.3 — one finding at a time, SERIAL.
-    #      Two agents on overlapping scope would conflict unseen. ----
-    while True:
-        f = next_addressable()
-        TaskUpdate(f.task, status="in_progress")           # 11
+    # ---- 11 · Step 6.2 — APPLYING IS NOT THIS SKILL'S JOB. /address-verdicts is
+    #      the one apply step for every verdict_*.md on disk; this skill only
+    #      decides WHICH findings deserve a fix. Two copies of the loop would
+    #      drift, leaving a human unable to tell which one their report followed.
+    #
+    #      Runs IN THIS SESSION rather than in a subagent, for the same two
+    #      reasons /implement invokes this skill in its own main session:
+    #        - it commits the refactor agent's work, and a permission prompt
+    #          only renders in the main session;
+    #        - its per-finding apply agents are already fresh-context subagents,
+    #          so wrapping it spends the one nesting level on nothing. ----
+    ledger = skill("address-verdicts",                     # 11
+                   findings=explicit_ids(addressable),     # 11a · never a severity floor
+                   no_ask=True,                            # 11b · nobody is standing by
+                   test_cmd=test_cmd)                      # 11c · nothing left to infer
+    # 11d · it owns the TaskList seeding, the lens routing, the per-finding
+    #       verify, the commit, and the [Done] / APPLIED / SKIPPED annotation.
 
-        match f.lens:                                      # 12
-            case "refactor":
-                # 12a · agent-pinned, given the scope + test command.
-                #       It refuses behavior changes by design.
-                dispatch("refactor", scope=f.scope, test_cmd=f.test_cmd)
-            case "auto-review" | "test-sdd":
-                # 12b · agent-pinned; the test goes RED before it goes GREEN.
-                dispatch("tdd-coder", finding=f)
-
-        # 13 · verify against the ARTIFACTS — the diff and the test output,
-        #      never the agent's summary.
-        applied_clean = verify(git_diff(), test_output())  # 13
-
-        if not applied_clean:                              # 14
-            # 14a · leave the entry open and the finding unmarked,
-            #       recording what it needs to retry.
-            record_failure(f, needs=...)
-        else:
-            # 15 · tdd-coder already committed, so confirm the SHA. The refactor
-            #      agent leaves its change uncommitted, so commit it HERE, in
-            #      session, where the permission prompt can render.
-            sha = confirm_sha(f) if f.lens != "refactor" else commit_in_session(f)
-
-            # 16 · mark it IMMEDIATELY as "### N. [Done][SEVERITY] title".
-            #      Batching this would leave a killed session with fixes and no ledger.
-            f.verdict_file.mark_done(f)
-            TaskUpdate(f.task, status="completed")         # 17
-
-        if not any_addressable_left():                     # 18
-            break
-
-    # 19 · Step 7 — close with the report: the three verdict paths, applied
-    #      findings with SHAs, findings judged not addressable with reasons,
-    #      failed applies with their retry needs, and a note that unmarked
-    #      findings are worked later by /address-verdicts.
-    return report(...)
+    # 12 · Step 7 — close from the RETURNED ledger, not a second read of the
+    #      files: the verdict paths, applied findings with SHAs, findings 6.1
+    #      judged not addressable, findings the callee skipped, failed applies,
+    #      and that unmarked findings need a later human-answered run.
+    return report(ledger)
 ```
 
 ## Flowchart
@@ -141,29 +121,19 @@ flowchart TD
   n8a(["8a. Step 5 · Print the compact index — one line<br/>per finding, per leg — and STOP.<br/>Nothing is applied, however safe it looks"])
   n9["9. Step 6.1 · Read all three verdict files IN FULL;<br/>sort every finding addressable vs not;<br/>print both lists with reasons BEFORE applying"]
 
-  subgraph seed["10. Step 6.2 · Seed the whole TaskList upfront, before applying anything — the list is this run's entire timeline"]
+  n10["10. Step 6.2 · Resolve the repo's test command<br/>(package.json script, Makefile target, its CLAUDE.md)<br/>so the callee has nothing left to guess about"]
+
+  subgraph delegate["11. Step 6.2 · Applying is NOT this skill's job — /address-verdicts is the one apply step for every verdict_*.md on disk. Two copies of the loop would drift, leaving a human unable to tell which one their report followed."]
     direction TB
-    n10a["10a. Add to TaskList one [Task] per addressable<br/>finding, in execution order, each breadcrumbed<br/>apply → commit → mark [Done]"]:::state
-    n10b["10b. Add to TaskList a [Reminder] for Step 7:<br/>the closing report, so a compaction<br/>cannot drop the wrap-up"]:::state
-    n10a --> n10b
+    n11["11. Invoke /address-verdicts IN THIS SESSION,<br/>never wrapped in a subagent:<br/>it commits the refactor agent's work and permission<br/>prompts render only in the main session; and its apply<br/>agents are already fresh-context subagents, so wrapping<br/>it spends the one nesting level on nothing"]:::skill
+    n11a["11a. Pass the accepted findings as EXPLICIT ids,<br/>never a severity floor — nothing re-derives<br/>the triage and quietly widens the scope"]
+    n11b["11b. Pass --no-ask: an auto-solve run has no human<br/>standing by, and a prompt mid-batch would stall<br/>an /implement tail indefinitely"]:::gate
+    n11c["11c. Pass --test-cmd, so its own inference<br/>step has nothing left to guess"]
+    n11d["11d. It owns the TaskList seeding, the lens routing,<br/>the per-finding verify, the commit, and the<br/>[Done] / APPLIED / SKIPPED annotation"]:::state
+    n11 --> n11a --> n11b --> n11c --> n11d
   end
 
-  subgraph apply["Step 6.3 · One finding at a time, SERIAL — two agents on overlapping scope would conflict unseen"]
-    direction TB
-    n11["11. TaskUpdate this finding's entry to in_progress"]:::state
-    n12{"12. Which lens raised the finding?"}
-    n12a["12a. Refactor lens → dispatch the refactor agent<br/>(agent-pinned) with the scope + test command.<br/>It refuses behavior changes by design"]:::dispatch
-    n12b["12b. Auto-review or test-sdd lens → dispatch<br/>tdd-coder (agent-pinned): the test goes<br/>RED before it goes GREEN"]:::dispatch
-    n13["13. Verify against the ARTIFACTS — the diff and the<br/>test output, never the agent's summary"]
-    n14{"14. Applied clean?"}
-    n14a["14a. Record the failure; leave the entry open<br/>and the finding unmarked, with what<br/>it needs to retry"]:::state
-    n15["15. Commit: tdd-coder already committed, so confirm<br/>the SHA; the refactor agent leaves its change<br/>uncommitted, so commit it HERE, in session,<br/>where the permission prompt can render"]
-    n16["16. Mark the finding [Done] in its verdict file<br/>IMMEDIATELY — ### N. [Done][SEVERITY] title.<br/>Batching it would leave a killed session<br/>with fixes and no ledger"]:::state
-    n17["17. TaskUpdate this finding's entry to completed"]:::state
-    n18{"18. Any addressable finding left?"}
-  end
-
-  n19(["19. Step 7 · Close with the report: the three verdict<br/>paths, applied findings with SHAs, findings judged<br/>not addressable with reasons, failed applies with<br/>their retry needs, and that unmarked findings<br/>are worked later by /address-verdicts"])
+  n12(["12. Step 7 · Close from the RETURNED ledger, not a<br/>second read of the files: verdict paths, applied<br/>findings with SHAs, findings 6.1 judged not<br/>addressable, findings the callee skipped, failed<br/>applies, and that unmarked findings need<br/>a later human-answered run"])
 
   n1 --> n2
   n2 -->|"no"| n2a --> n3
@@ -183,15 +153,8 @@ flowchart TD
   n7 -->|"no"| n7a --> n8
   n7 -->|"yes"| n8
   n8 -->|"no"| n8a
-  n8 -->|"yes"| n9 --> n10a
-  n10b --> n11 --> n12
-  n12 -->|"refactor"| n12a --> n13
-  n12 -->|"correctness / missing test"| n12b --> n13
-  n13 --> n14
-  n14 -->|"no"| n14a --> n18
-  n14 -->|"yes"| n15 --> n16 --> n17 --> n18
-  n18 -->|"yes"| n11
-  n18 -->|"no"| n19
+  n8 -->|"yes"| n9 --> n10 --> n11
+  n11d --> n12
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px
