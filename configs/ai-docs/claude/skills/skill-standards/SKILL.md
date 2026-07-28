@@ -157,7 +157,7 @@ ALWAYS use this exact template:
   - [Why] To the model mermaid is a second, drift-prone encoding of the numbered steps that would tax every trigger in-body, so parking it in assets keeps the human's flow audit free.
 
 - [Instruction] Render that control flow twice in the same file — a `## Pseudo-code` section above the `## Flowchart` diagram — tagging each pseudo-code step with its diagram node id.
-  - [Why] A diagram hides sequencing in arrow soup once branches nest, and pseudo-code can't show convergence at a glance, so each rendering is legible where the other is weakest — and the shared ids make drift between them greppable.
+  - [Why] Each rendering is legible where the other is weakest, and the shared ids turn drift between them into something `grep` finds.
 
 - [Instruction] Read [`references/flowchart-authoring.md`](references/flowchart-authoring.md) before writing or regenerating a flowchart.
   - [Why] It carries what the diagram must cover, the node-numbering scheme, the collapse rule, the classDef legend, and the `mmdc` validation step.

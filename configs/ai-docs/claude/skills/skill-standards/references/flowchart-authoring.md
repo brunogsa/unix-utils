@@ -1,8 +1,21 @@
+---
+# performance-check budget override, approved by the user 2026-07-27.
+# This file governs both renderings a flowchart.md carries, and the two always
+# load together on the same run — so splitting it would create the co-loading
+# pair this skill's own rule forbids, and trimming to 1024 would delete the
+# pseudo-code rules rather than tighten them.
+words-budget: 2048
+---
+
 # Authoring a procedural skill's assets/flowchart.md
 
 Read this before writing or regenerating one.
 
-The file carries an H1 title, a human-facing non-authoritative preamble (SKILL.md's numbered steps win on conflict), and one mermaid flowchart of the control flow.
+The file carries an H1 title and a human-facing non-authoritative preamble (SKILL.md's numbered steps win on conflict).
+
+Then the control flow, rendered twice: a `## Pseudo-code` section, followed by a `## Flowchart` section holding one mermaid diagram.
+
+Both renderings are mandatory and cover the same steps. Write the diagram first — the pseudo-code cross-references its node ids.
 
 ## The diagram stands alone
 
@@ -54,6 +67,38 @@ Why: the id lets the human name the node they want changed unambiguously ("drop 
 
 An id is a position in one diagram revision, never a durable reference — never cite one from SKILL.md, another flowchart, a commit, or a code comment, since regeneration renumbers it silently.
 
+## The pseudo-code rendering
+
+Write it in a ```python fence — near-Python, so it syntax-highlights and reads without a legend. Nothing in it is runnable.
+
+Say so in one line under the `## Pseudo-code` heading: the function names stand for orchestrator actions, not real APIs. Otherwise a reader hunts for `implement_loop_state` in the repo.
+
+Tag every step with its diagram node id as a comment — `# 19c ·` before the line, or trailing it.
+
+Use the plain id, never the `n` prefix, which belongs to mermaid identifiers.
+
+That tagging is the whole point of the second rendering: the two encodings cross-check each other, and a node id with no matching comment is drift a `grep` finds.
+
+State that contract in the preamble, so a future editor knows the comments are load-bearing rather than decoration.
+
+Keep the same `Step N ·`/`§N` skill-step markers the diagram's labels carry, so all three surfaces line up.
+
+Model control flow with real Python control flow — `while` for a retry loop, `match` for a script verdict, early `return` for a halt.
+
+Prefer a named helper (`def halt():`) over duplicating a terminal branch at each of its call sites.
+
+Push what a node's label says into a comment rather than inventing a parameter for it.
+
+An invariant like "ONLY this script sends a unit to the gates" is a comment, since no expression carries it honestly.
+
+Where a diagram edge and a Python construct disagree, follow the diagram and note the seam.
+
+A retry edge pointing back at the dispatch node, not at activation, is an inner `while True` — write that, and say why in a comment.
+
+Why: prose and a diagram fail differently. A diagram hides sequencing inside arrow soup once branches nest, while pseudo-code cannot show convergence at a glance.
+
+Each rendering is legible exactly where the other is weakest, and pairing them costs no context, since the file is parked in assets and never loaded.
+
 ## What the flowchart covers
 
 - The trigger/invocation that starts the skill, its steps/phases, and every loop's exit condition.
@@ -101,8 +146,20 @@ Every hand-copied effort here had gone stale: two read "default effort" for agen
 
 Mark node kinds with the shared classDef legend (`:::start` trigger, `:::gate` question/approval, `:::dispatch` subagent, `:::state` durable-state write, `:::skill` skill load, `:::hook` hook/script).
 
-Copied verbatim from any existing flowchart.md so all six render identically across skills.
+Copied verbatim from any existing flowchart.md, so every skill's diagram renders identically.
 
 Reference the flowchart from SKILL.md with a one-liner telling the model NOT to load it.
 
 Regenerate it whenever the skill's flow changes, and validate the render with `mmdc` (on failures, dispatch `agent(subAgent=mermaid-fixer, title=Fix skill flowchart)`); author it under the `mermaid-diagrams` skill.
+
+## Verify both renderings before you finish
+
+Prove node coverage rather than eyeballing it: extract every declared mermaid node id, extract every id tagged in the pseudo-code, and diff the two sets.
+
+Anything under 100% is an unwritten step, not a formatting nit.
+
+Run `doc-standards/scripts/check-density.sh` on the file. Fenced blocks are skipped, so it only ever measures the preamble — a violation there is real and one sentence away from fixed.
+
+Both renderings count toward the same bundled-resource budgets, so a first pseudo-code pass roughly doubles the file.
+
+Raise `words-budget:`/`lines-budget:` to the next power of 2 only once the file exceeds the current one, per the sizing rules in `../SKILL.md`.
