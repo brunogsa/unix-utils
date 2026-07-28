@@ -315,7 +315,7 @@ Do not re-push it.
 
 ### 4.2. Mid-execution design forks — the subagent never spawns a reviewer
 
-This skill spends none of the harness's extra nesting level, keeping every dispatch visible, attributable, and bounded by §4's Monitor cap.
+This skill spends none of the harness's extra nesting levels, keeping every dispatch visible, attributable, and bounded by §4's Monitor cap.
 
 `tdd-coder.md` owns how it resolves a fork the plan didn't pre-decide; only the outcome reaches you (§4.4).
 A **soft** fork arrives as a Deviation; a rare **hard** one arrives as `blocked`, which is already what a genuinely open decision means here.

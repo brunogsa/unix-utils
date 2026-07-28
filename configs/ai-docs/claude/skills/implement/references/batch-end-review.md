@@ -66,7 +66,7 @@ When §8.1 was skipped by request, this runs immediately instead, and the packag
 Two reasons it runs here rather than inside a subagent:
 
 - Its auto-solve commits the `refactor` agent's work itself, and a permission prompt only renders in the main session.
-- Its three review legs are already fresh-context subagents, so wrapping it would spend the harness's one nesting level on a layer that decides nothing.
+- Its three review legs are already fresh-context subagents, so wrapping it would spend one of the harness's three nesting levels on a layer that decides nothing.
 
 `--auto-solve` is always passed: this run already asked its review questions in §1.2's interview, so a second prompt mid-batch would re-ask what the human answered.
 
