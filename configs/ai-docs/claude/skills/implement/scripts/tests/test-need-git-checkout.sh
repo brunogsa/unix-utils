@@ -42,14 +42,14 @@ assert_true() {
   fi
 }
 
-# run_script - invokes need-git-checkout.sh against a plan-file fixture, a
-# PR-N label, and a worktree path, capturing stdout/stderr/exit code into
+# run_script - invokes need-git-checkout.sh against a plan-file fixture and a
+# PR-N label, capturing stdout/stderr/exit code into
 # VERDICT_OUT/VERDICT_ERR/VERDICT_EXIT.
 run_script() {
-  local plan_file="$1" pr_label="$2" worktree_path="$3"
+  local plan_file="$1" pr_label="$2"
   local out_file="$work_dir/stdout.txt"
   local err_file="$work_dir/stderr.txt"
-  bash "$SCRIPT" "$plan_file" "$pr_label" "$worktree_path" >"$out_file" 2>"$err_file"
+  bash "$SCRIPT" "$plan_file" "$pr_label" >"$out_file" 2>"$err_file"
   VERDICT_EXIT=$?
   VERDICT_OUT=$(cat "$out_file")
   VERDICT_ERR=$(cat "$err_file")
@@ -65,55 +65,41 @@ write_plan() {
 }
 
 it_should_say_no_checkout_needed_on_the_first_invocation_targeting_a_dag_root_pr() {
-  local plan_file worktree_dir
+  local plan_file
   plan_file=$(write_plan "happy-root" '1. **PR-1** — Naming and validators. Tasks: 1, 2, 3. Depends on: none.
 2. **PR-2** — Core loop. Tasks: 4, 5. Depends on: PR-1.')
-  worktree_dir="$work_dir/happy-root-worktree"
-  mkdir -p "$worktree_dir"
 
-  run_script "$plan_file" "PR-1" "$worktree_dir"
+  run_script "$plan_file" "PR-1"
   assert_eq "should say no checkout needed on the first /implement invocation in a worktree targeting a DAG-root PR (exit code)" "0" "$VERDICT_EXIT"
   assert_eq "should say no checkout needed on the first /implement invocation in a worktree targeting a DAG-root PR (decision)" "no" "$VERDICT_OUT"
 }
 
-it_should_say_checkout_needed_when_the_worktree_already_has_a_completed_pr_batch() {
-  local plan_file worktree_dir branches_file
-  plan_file=$(write_plan "happy-completed-batch" '1. **PR-1** — Naming and validators. Tasks: 1, 2, 3. Depends on: none.
+it_should_say_checkout_needed_when_an_earlier_pr_already_recorded_its_branch() {
+  local plan_file
+  plan_file=$(write_plan "happy-completed-batch" '1. **[Done] PR-1** — Naming and validators. Tasks: 1, 2, 3. Depends on: none. Branch: `feat-foo/pr1`.
 2. **PR-2** — Core loop. Tasks: 4, 5. Depends on: none.')
-  worktree_dir="$work_dir/happy-completed-batch-worktree"
-  mkdir -p "$worktree_dir"
-  branches_file="$worktree_dir/branches_happy-completed-batch.md"
-  {
-    printf '# Branches: happy-completed-batch\n'
-    printf '\n'
-    printf -- '- **PR-1** — branch: `feat-foo/pr1`\n'
-  } > "$branches_file"
 
-  run_script "$plan_file" "PR-2" "$worktree_dir"
-  assert_eq "should say checkout needed when the worktree already has a completed PR batch (exit code)" "0" "$VERDICT_EXIT"
-  assert_eq "should say checkout needed when the worktree already has a completed PR batch (decision)" "yes" "$VERDICT_OUT"
+  run_script "$plan_file" "PR-2"
+  assert_eq "should say checkout needed when an earlier PR already recorded its branch on the plan (exit code)" "0" "$VERDICT_EXIT"
+  assert_eq "should say checkout needed when an earlier PR already recorded its branch on the plan (decision)" "yes" "$VERDICT_OUT"
 }
 
 it_should_say_checkout_needed_on_first_invocation_when_the_targeted_pr_has_a_dependency() {
-  local plan_file worktree_dir
+  local plan_file
   plan_file=$(write_plan "corner-dependent-first-run" '1. **PR-1** — Naming and validators. Tasks: 1, 2, 3. Depends on: none.
 2. **PR-2** — Core loop. Tasks: 4, 5. Depends on: PR-1.')
-  worktree_dir="$work_dir/corner-dependent-first-run-worktree"
-  mkdir -p "$worktree_dir"
 
-  run_script "$plan_file" "PR-2" "$worktree_dir"
+  run_script "$plan_file" "PR-2"
   assert_eq "should say checkout needed on the first invocation when the targeted PR has a dependency, even though it's the first run (exit code)" "0" "$VERDICT_EXIT"
   assert_eq "should say checkout needed on the first invocation when the targeted PR has a dependency, even though it's the first run (decision)" "yes" "$VERDICT_OUT"
 }
 
 it_should_error_when_the_requested_pr_n_label_is_absent_from_the_pr_breakdown() {
-  local plan_file worktree_dir
+  local plan_file
   plan_file=$(write_plan "failure-absent-label" '1. **PR-1** — First slice. Tasks: 1. Depends on: none.
 2. **PR-2** — Second slice. Tasks: 2. Depends on: PR-1.')
-  worktree_dir="$work_dir/failure-absent-label-worktree"
-  mkdir -p "$worktree_dir"
 
-  run_script "$plan_file" "PR-9" "$worktree_dir"
+  run_script "$plan_file" "PR-9"
   assert_eq "should error when given a PR-N label absent from the plan's PR Breakdown (exit code)" "1" "$VERDICT_EXIT"
   local has_diagnostic="false"
   [ -n "$VERDICT_ERR" ] && has_diagnostic="true"
@@ -121,7 +107,7 @@ it_should_error_when_the_requested_pr_n_label_is_absent_from_the_pr_breakdown() 
 }
 
 it_should_say_no_checkout_needed_on_the_first_invocation_targeting_a_dag_root_pr
-it_should_say_checkout_needed_when_the_worktree_already_has_a_completed_pr_batch
+it_should_say_checkout_needed_when_an_earlier_pr_already_recorded_its_branch
 it_should_say_checkout_needed_on_first_invocation_when_the_targeted_pr_has_a_dependency
 it_should_error_when_the_requested_pr_n_label_is_absent_from_the_pr_breakdown
 

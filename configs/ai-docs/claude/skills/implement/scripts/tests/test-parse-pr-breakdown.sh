@@ -60,7 +60,7 @@ it_should_emit_one_tsv_line_per_pr_n_entry_for_a_normal_multi_pr_plan() {
   run_script "$fixture"
   assert_eq "should emit one TSV line per PR-N entry for a normal multi-PR plan (exit code)" "0" "$VERDICT_EXIT"
   local expected
-  expected=$(printf 'PR-1\t1, 2, 3\t\nPR-2\t4\t\nPR-3\t5, 6, 7\tPR-1,PR-2')
+  expected=$(printf 'PR-1\t1, 2, 3\t\t\nPR-2\t4\t\t\nPR-3\t5, 6, 7\tPR-1,PR-2\t')
   assert_eq "should emit one TSV line per PR-N entry for a normal multi-PR plan (TSV body)" "$expected" "$VERDICT_OUT"
 }
 
@@ -77,7 +77,7 @@ it_should_emit_an_empty_deps_field_for_a_pr_with_no_dependencies() {
   fixture=$(write_plan "corner-no-deps" '1. **PR-1** — Naming and validators. Tasks: 1. Depends on: none.')
   run_script "$fixture"
   assert_eq "should emit an empty deps field for a PR with no dependencies (exit code)" "0" "$VERDICT_EXIT"
-  assert_eq "should emit an empty deps field for a PR with no dependencies (TSV body)" "$(printf 'PR-1\t1\t')" "$VERDICT_OUT"
+  assert_eq "should emit an empty deps field for a PR with no dependencies (TSV body)" "$(printf 'PR-1\t1\t\t')" "$VERDICT_OUT"
 }
 
 it_should_emit_every_dependency_for_a_pr_with_a_diamond_dependency() {
@@ -89,7 +89,26 @@ it_should_emit_every_dependency_for_a_pr_with_a_diamond_dependency() {
   assert_eq "should emit every dependency for a PR with a diamond dependency (exit code)" "0" "$VERDICT_EXIT"
   local diamond_line
   diamond_line=$(printf '%s\n' "$VERDICT_OUT" | awk -F'\t' '$1 == "PR-3" { print; exit }')
-  assert_eq "should emit every dependency for a PR with a diamond dependency (deps field)" "PR-3	3	PR-1,PR-2" "$diamond_line"
+  assert_eq "should emit every dependency for a PR with a diamond dependency (deps field)" "$(printf 'PR-3\t3\tPR-1,PR-2\t')" "$diamond_line"
+}
+
+it_should_emit_the_branch_name_from_a_pushed_prs_branch_clause() {
+  local fixture
+  fixture=$(write_plan "happy-branch-clause" '1. **[Done] PR-1** — Naming and validators. Tasks: 1. Depends on: none. Branch: `feat-naming/pr1`.
+2. **PR-2** — Core loop. Tasks: 2. Depends on: PR-1.')
+  run_script "$fixture"
+  assert_eq "should emit the branch name from a pushed PR Branch: clause (exit code)" "0" "$VERDICT_EXIT"
+  local expected
+  expected=$(printf 'PR-1\t1\t\tfeat-naming/pr1\nPR-2\t2\tPR-1\t')
+  assert_eq "should emit the branch name from a pushed PR Branch: clause, and an empty branch field for a PR that has not pushed (TSV body)" "$expected" "$VERDICT_OUT"
+}
+
+it_should_keep_a_branch_name_containing_periods_intact() {
+  local fixture
+  fixture=$(write_plan "corner-branch-with-periods" '1. **[Done] PR-1** — Release cut. Tasks: 1. Depends on: none. Branch: `release/1.2.3`.')
+  run_script "$fixture"
+  assert_eq "should keep a branch name containing periods intact (exit code)" "0" "$VERDICT_EXIT"
+  assert_eq "should keep a branch name containing periods intact (branch field)" "$(printf 'PR-1\t1\t\trelease/1.2.3')" "$VERDICT_OUT"
 }
 
 it_should_exit_1_when_no_pr_breakdown_section_exists() {
@@ -126,7 +145,7 @@ it_should_parse_a_pr_entry_with_no_tasks_or_depends_clauses() {
   run_script "$fixture"
   assert_eq "should parse PR with no Tasks or Depends fields (exit code)" "0" "$VERDICT_EXIT"
   local expected
-  expected=$(printf 'PR-1\t\t')
+  expected=$(printf 'PR-1\t\t\t')
   assert_eq "should parse PR with no Tasks or Depends fields (TSV body)" "$expected" "$VERDICT_OUT"
 }
 
@@ -134,6 +153,8 @@ it_should_emit_one_tsv_line_per_pr_n_entry_for_a_normal_multi_pr_plan
 it_should_report_nothing_to_parse_for_a_single_pr_plan
 it_should_emit_an_empty_deps_field_for_a_pr_with_no_dependencies
 it_should_emit_every_dependency_for_a_pr_with_a_diamond_dependency
+it_should_emit_the_branch_name_from_a_pushed_prs_branch_clause
+it_should_keep_a_branch_name_containing_periods_intact
 it_should_exit_1_when_no_pr_breakdown_section_exists
 it_should_exit_2_when_pr_breakdown_exists_but_no_pr_entries
 it_should_exit_2_on_wrong_arg_count

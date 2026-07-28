@@ -18,10 +18,10 @@
 #       ("### <id>. [<status>] <title>"; a task heading with no bracket at
 #       all counts as not-Done, same as the Task Breakdown template's
 #       pending/not-started convention).
-#   (b) the branch recorded for PR-M in
-#       <worktree-path>/branches_<slug>.md (written by
-#       append-branch-pr-entry.sh) is a real git ancestor of
-#       <worktree-path>'s current HEAD, via `git merge-base --is-ancestor`.
+#   (b) the branch PR-M's own PR Breakdown line records in its
+#       "Branch: `<name>`." clause (written by /implement when that PR
+#       pushed) is a real git ancestor of <worktree-path>'s current HEAD,
+#       via `git merge-base --is-ancestor`.
 #       A [Done] marker alone only proves the plan file's bookkeeping, not
 #       that this worktree's HEAD actually contains PR-M's commits - a
 #       dependent PR started from the wrong worktree must fail loudly here
@@ -63,8 +63,9 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # parse-pr-breakdown.sh does the section-extraction + entry-parse pipeline
 # shared with get-pr-tasks.sh and need-git-checkout.sh; this script consumes
-# both the Tasks: field (column 2) and the Depends on: field (column 3) of
-# its TSV output, where each sibling only needed one. Its non-zero exit
+# the Tasks: field (column 2), the Depends on: field (column 3), and the
+# Branch: field (column 4) of its TSV output, where each sibling needs
+# fewer. Its non-zero exit
 # codes distinguish a trivial section (1: absent/"Single PR."), which needs
 # this script's own $pr_label-specific diagnostic below, from a malformed
 # one (2: content present but unparsable), whose diagnostic
@@ -84,7 +85,7 @@ else
   fi
 fi
 
-# find_pr_entry - prints the pr_entries line (label\ttasks\tdeps) for the
+# find_pr_entry - prints the pr_entries line (label\ttasks\tdeps\tbranch) for the
 # given PR-N label, or nothing if absent. Bare awk, never a non-zero exit,
 # for the same set -e/bare-assignment reason noted throughout this script.
 # Defined before its first use below (the target PR-N lookup) since the
@@ -147,28 +148,14 @@ task_status_for() {
   fi
 }
 
-slug=$(basename "$plan_file" .md)
-slug="${slug#plan_}"
-branches_file="$worktree_path/branches_${slug}.md"
-
-# branch_for_pr - prints the branch name recorded for <label> in
-# branches_<slug>.md, or nothing if the file or the entry is absent. Bare
-# awk, never a non-zero exit, guarded by the file-exists check so awk is
-# never invoked against a missing path (which WOULD exit non-zero and abort
-# under set -e in this bare-assignment call site).
+# branch_for_pr - prints the branch name the plan records for <label> in its
+# "Branch: `<name>`." clause (column 4 of the shared parser's TSV), or
+# nothing when that PR has not pushed yet. Reuses find_pr_entry so the plan
+# is parsed once for every field this guard reads, rather than re-scanning
+# the file per parent.
 branch_for_pr() {
   local label="$1"
-  if [ ! -f "$branches_file" ]; then
-    return 0
-  fi
-  awk -v label="$label" '
-    index($0, "**" label "**") > 0 {
-      if (match($0, /branch: `[^`]*`/)) {
-        print substr($0, RSTART + 9, RLENGTH - 10)
-        exit
-      }
-    }
-  ' "$branches_file"
+  find_pr_entry "$label" | cut -f4
 }
 
 diagnostics=""
@@ -213,7 +200,7 @@ for raw_parent_label in "${dep_labels[@]}"; do
 
   parent_branch=$(branch_for_pr "$parent_label")
   if [ -z "$parent_branch" ]; then
-    add_diagnostic "error: $parent_label has no recorded branch in branches_${slug}.md (cannot verify ancestry)"
+    add_diagnostic "error: $parent_label has no Branch: clause on its PR Breakdown line (never pushed, so ancestry cannot be verified)"
     continue
   fi
 

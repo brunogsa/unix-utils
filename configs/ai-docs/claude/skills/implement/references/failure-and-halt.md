@@ -1,6 +1,6 @@
 # Failure, stuck & halt — detail for /implement's §5.2, §5.3 and §5.5
 
-Load this on a missing checklist file (§5.1), a §4 timeout, a self-reported `blocked` (§4.4), or any route to a halt. An accepted `done` skips this file (§5.4).
+Load this on an unresolvable reported commit (§5.1), a §4 timeout, a self-reported `blocked` (§4.4), or any route to a halt. An accepted `done` skips this file (§5.4).
 
 ## §5.2 — On failure or a block: record the attempt, obey the verdict
 
@@ -25,8 +25,8 @@ This file obeys only `retry`, `stuck`, and `halt-budget` — the ones a failed o
 
 All three outcomes record one attempt; only `result` and `signature` differ.
 
-- **Missing checklist file** (§5.1) → `result: "fail"`, `signature` the literal string `no-checklist`.
-  The subagent never wrote the file a real signature would be quoted from, so there is no failure text to record.
+- **A reported commit that doesn't resolve, or a `done` reporting none** (§5.1) → `result: "fail"`, `signature` the literal string `no-commits`.
+  The subagent reported success over commits this repo doesn't have, so there is no failure text of its own to quote.
 
 - **Timeout** → `result: "timeout"`, `signature` the literal string `timeout` — there's no diff to inspect, since the subagent never reported back.
 - **Self-reported block** → `result: "blocked"`, `signature` the subagent's own blocker statement verbatim, so the batch-end package can quote what needs clearing.
@@ -71,7 +71,8 @@ This is the single exit every dead end in the run routes to. Entry, from anywher
 
 - A `halted` or `halt-budget` verdict (§5.2 above, or §5.4).
 - §5.3's scan above finding nothing runnable while some task is terminal-without-`[Done]`.
-- [`batch-end-review.md`](batch-end-review.md)'s §8.1 repo-green gate exhausting its fix attempts with a batch-caused failure still red.
+- [`batch-end-review.md`](batch-end-review.md)'s §8.2 repo-green gate exhausting its fix attempts with a batch-caused failure still red.
+- [`batch-end-review.md`](batch-end-review.md)'s §8.3 push failing — no remote, a rejected non-fast-forward, missing credentials.
 - [`batch-end-review.md`](batch-end-review.md)'s §8.3 PR dispatch failing when a PR was requested.
 
 Regardless of entry:
@@ -81,7 +82,7 @@ Regardless of entry:
 - Write into the scratchpad, per blocked task, **exactly what a human must do to clear it** — that list is the whole point of stopping here.
 
 - Leave this unit's remaining batch-end `[Reminder]` entries `pending` — they didn't run, and pending is the honest record of that.
-- **Run nothing further** — the repo-green gate, the quality-gate tail, the package, the diffview, and the PR all presuppose a finished batch.
+- **Run nothing further** — the quality-gate tail, the repo-green gate, the push, the package, and the PR all presuppose a finished batch.
   - A quality gate run mid-batch flags planned tests that don't exist yet, and a package would invite review of unfinished work.
 
 - On a PR-label run, the remaining PRs stay untouched — no branch, no dispatch.

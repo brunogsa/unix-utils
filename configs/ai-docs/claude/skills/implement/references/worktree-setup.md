@@ -6,16 +6,12 @@ Call `EnterWorktree` with no `path` argument.
 
 `settings.json`'s `worktree.baseRef: "head"` makes the worktree branch from current HEAD, so this works from `main` or any feature branch — never from a fixed default branch.
 
-Then symlink into the worktree, from the original checkout: the plan, the spec, and `branches_<slug>.md` (all untracked, so `git worktree add`'s checkout never carries them).
+Then symlink into the worktree, from the original checkout: the plan and the spec (both untracked, so `git worktree add`'s checkout never carries them). A plan-only run symlinks just the plan.
 
 Use `ln -s <original-checkout-path>/<file> <worktree-path>/<file>` for each, using the original checkout's absolute path.
 
-A copy drifts the moment either worktree's session leaves a Scout note or a plan edit.
+A copy drifts the moment either worktree's session leaves a Scout note, a status marker, or a `Branch:` clause on the plan.
 
 The symlink keeps both worktrees reading and writing the same file, so an edit made in one is visible in the other immediately.
-
-`branches_<slug>.md` may not exist yet in the original checkout — it's created lazily on a PR's first batch-end.
-
-Symlink it anyway: a dangling symlink resolves the moment either worktree's manifest-append step first writes through it, landing the file at the original checkout's path.
 
 Also copy (not symlink) any `.env*` files — these are worktree-local by design, never shared state.

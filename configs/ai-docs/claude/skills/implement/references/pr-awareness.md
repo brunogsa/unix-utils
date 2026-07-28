@@ -1,4 +1,4 @@
-# PR-label input, label resolution, per-PR loop, and manifest writes
+# PR-label input, label resolution, per-PR loop, and branch recording
 
 Detail for `/implement`'s pre-flight when the invocation arg is a `PR-N` label or a `PR-N, PR-M, ...` list, instead of `<task-ids>`.
 
@@ -46,14 +46,14 @@ A plain `<task-ids>` run writes `pr_label: ""` — see SKILL.md §2.3 for the ex
 Before dispatching a PR's tasks, ask:
 
 ```bash
-~/.claude/skills/implement/scripts/need-git-checkout.sh <plan-file> <PR-N> <worktree-path>
+~/.claude/skills/implement/scripts/need-git-checkout.sh <plan-file> <PR-N>
 ```
 
-`<worktree-path>` is the directory this run operates in — the worktree from §1.4 if one was created, else CWD.
+It answers from the plan alone: this PR's `Depends on:` clause, plus whether any PR line already carries a `Branch:` clause from an earlier batch's push.
 
 **Prints `no`** → dispatch this PR's tasks on the current branch.
 No `git checkout -b` runs.
-No manifest write happens here either — this PR's own `branches_<slug>.md` entry is written later, at its own batch-end (see "Manifest writes", below), same as every other PR.
+Nothing is recorded on the plan line here either — this PR's `Branch:` clause is written later, at its own batch-end push (see "Branch recording", below), same as every other PR.
 
 **Prints `yes`** → resolve and create `<feat_branch>/pr<N>` before dispatching, following [`pr-branch-creation.md`](pr-branch-creation.md).
 
@@ -61,22 +61,25 @@ That file carries the existing-branch check for a branch already present.
 That case is legitimate — a halted run's fresh re-invocation can reach this same PR again and find its branch already there.
 It also carries the zero-parent, single-parent, and diamond-dependency creation cases and their dependency guards. A `no` run never reads it.
 
-## Manifest writes (`branches_<slug>.md`)
+## Branch recording (the plan's `Branch:` clause)
 
-Every PR — checkout-needed or not — writes its own entry once, at its own batch-end (§8.3, see `references/batch-end-pr.md`), never in this branch-creation step:
+Every PR — checkout-needed or not — records its own branch once, on its own PR Breakdown line, at its own batch-end push (§8.3, see `references/batch-end-pr.md`), never in this branch-creation step:
 
-```bash
-~/.claude/skills/implement/scripts/append-branch-pr-entry.sh <worktree-path>/branches_<slug>.md <slug> <this-PR-label> <this-PR-branch>
 ```
+N. **[Done] PR-N** — <title>. Tasks: <N, N>. Depends on: <none | PR-N>. Branch: `<branch-name>`.
+```
+
+Write it inline, in the same edit style as a status marker — never scripted. The backticks are load-bearing: `parse-pr-breakdown.sh` reads the name between them, so a branch containing periods survives.
 
 A `no`-checkout PR's branch is the `git branch --show-current` value from its own preflight; a checkout-needed PR's branch is whatever `checkout -b` (or the existing-branch check's plain `checkout`) resolved to above.
 
-This is the *only* write for a given PR's entry.
+This is the *only* write for a given PR's clause.
 Nothing runs at that PR's own branch creation (see the guard step above), so there's no earlier write for this one to race against.
 A PR is simultaneously a later PR's recorded parent and the subject of its own batch-end write — that dual role is exactly what makes the guard's precondition always hold above.
-`append-branch-pr-entry.sh`'s idempotence still matters across two separate runs reaching the *same* PR's batch-end.
+
+Re-writing the clause must stay idempotent across two separate runs reaching the *same* PR's batch-end — replace the existing clause rather than appending a second one.
 Example: an earlier run halted mid-§8, and a fresh `/implement` re-invocation for this same PR reaches §8 again.
-It does not need to matter across two different call sites.
+It does not need to be idempotent across two different call sites.
 
 ## The per-PR loop and fail-fast
 
@@ -92,7 +95,12 @@ A fail-fast stop simply leaves the later PRs' entries `pending`.
 Before each PR's loop iteration, label resolution and the checkout decision above both run fresh for that PR.
 The DAG re-check does not — §1.3 already ran it once, for the whole invocation.
 
-**Stop predicate, checked after each PR's own §8 completes:** proceed to the next PR only if every one of that PR's tasks reached `[Done]` (none terminal-without-`[Done]`) AND §8.1's repo-green gate passed.
+**Stop predicate, checked after each PR's own §8 completes:**
+Proceed to the next PR only if every one of that PR's tasks reached `[Done]` (none terminal-without-`[Done]`) and that PR's whole batch end completed.
+
+Both opt-in gates are part of "completed" only when the interview turned them on.
+A declined gate never ran, so requiring it to have passed would block every PR after the first.
+
 Otherwise stop — do not create the next PR's branch, do not dispatch any of its tasks.
 Report the batch as it stands; the remaining PRs in the list are untouched.
 

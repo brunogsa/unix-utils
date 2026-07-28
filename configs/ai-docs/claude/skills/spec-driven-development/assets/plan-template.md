@@ -7,7 +7,7 @@ words-budget: 4096
 ---
 # Plan: [Title]
 
-Spec: [link or reference to the paired spec file]
+Spec: [link or reference to the paired spec file — `N/A — plan-only run` when no spec was written]
 
 ---
 ## Technical Approach & High Level Architecture
@@ -249,6 +249,16 @@ No code exists yet, so estimate by feel from the task and file counts above — 
 **PR-level status marker** — `[<status>]` prefixes the PR-N label, mirroring the Task Breakdown's `### N. [<status>] Title` convention one level up: `[Doing]`, `[Done]`, `[Blocked]`, `[Deferred]`, `[Dropped]`.
 Absent for the pending/not-started state — a PR that hasn't started yet carries no bracket at all.
 Written inline by the orchestrating agent at PR batch-end, never scripted — same precedent as the task-level marker.
+
+**PR branch record** — a trailing `Branch:` clause on the same line, naming the branch that PR's commits live on, with the name wrapped in backticks:
+
+```
+1. **[Done] PR-1** — Extract the parser. Tasks: 1, 2. Depends on: none. Branch: `feat/parser/pr1`.
+```
+
+Written inline by the orchestrating agent when that PR's batch pushes, never by the plan author.
+Absent until that push happens — the absence is how tooling tells a PR that already ran from one that never did.
+The backticks are load-bearing: `parse-pr-breakdown.sh` reads the name between them, so a branch holding periods (`release/1.2`) survives a clause grammar that otherwise stops at the next period.
 
 **PR-dependency DAG diagram** — lead the numbered list below with a mermaid flowchart when any PR's `Depends on:` names a real PR (not `none`).
 One node per PR, edges following each `Depends on:` link — one abstraction level up from the Task Breakdown's own diagram.

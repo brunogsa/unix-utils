@@ -9,7 +9,7 @@ Run once, after worktree setup (§1.4) and PR-label resolution (§1.5) settle �
 
 ## What to run
 
-The same commands §8.1 runs at batch end: the repo's full lint + full test suite, repo-wide.
+The same commands §8.2 runs at batch end: the repo's full lint + full test suite, repo-wide.
 
 ## Where results go
 
@@ -18,8 +18,8 @@ The same commands §8.1 runs at batch end: the repo's full lint + full test suit
   - This follows the skill's general "record the path, not the content" convention (see `batch-end-review.md`'s verdict-file handling for the same pattern).
 
 - Extract the failing test/lint identifiers into `baseline.failures` — short signatures (file + test name, or lint rule + file).
-  - This is the set §8.1 diffs its own final failures against to tell pre-existing red from batch-caused red without guessing.
+  - This is the set §8.2 diffs its own final failures against to tell pre-existing red from batch-caused red without guessing.
 
 ## When skipped
 
-When §1.2 answered no, skip this step entirely — `baseline.wanted` stays `false`, `baseline.log_path` and `baseline.failures` stay empty, and §8.1 falls back to judgment for what counts as pre-existing.
+When §1.2 answered no, skip this step entirely — `baseline.wanted` stays `false`, `baseline.log_path` and `baseline.failures` stay empty, and §8.2 falls back to judgment for what counts as pre-existing.

@@ -13,16 +13,24 @@
 # field(s) it needs from stdout instead of re-deriving them.
 #
 # Each PR Breakdown entry line looks like:
-#   N. **[<status>] PR-N** — <title>. Tasks: <N, N>. Depends on: <none | PR-N, PR-M>.
+#   N. **[<status>] PR-N** — <title>. Tasks: <N, N>. Depends on: <none | PR-N, PR-M>. Branch: `<name>`.
 # The label sits in the line's first **...** span; the Tasks: and Depends
 # on: clauses each run up to the next period.
 #
+# The Branch: clause is delimited by backticks rather than by the next
+# period, because branch names legitimately contain periods
+# (release/1.2), which a period-terminated clause would truncate.
+# /implement writes it at push time, so it is absent until the PR's
+# batch has actually pushed.
+#
 # Output: one line per PR-N entry, printed to stdout as
-#   <label><TAB><tasks><TAB><deps>
+#   <label><TAB><tasks><TAB><deps><TAB><branch>
 # - <tasks> is the Tasks: clause verbatim (e.g. "5, 6, 7"), empty if absent.
 # - <deps> is a comma-separated list of PR-N tokens pulled from the Depends
 #   on: clause (e.g. "PR-1,PR-2"), empty when the clause reads "none" or is
 #   absent.
+# - <branch> is the backtick-wrapped name from the Branch: clause, empty
+#   when the clause is absent (this PR has not pushed yet).
 #
 # Exit codes:
 #   0 - one or more PR-N entries found; printed to stdout.
@@ -83,7 +91,14 @@ entries=$(printf '%s\n' "$section" | awk '
         clause = substr(clause, RSTART + RLENGTH)
       }
     }
-    print label "\t" tasks "\t" deps
+    branch = ""
+    if (match(line, /Branch:[ \t]*`[^`]*`/)) {
+      branch_clause = substr(line, RSTART, RLENGTH)
+      match(branch_clause, /`[^`]*`/)
+      branch = substr(branch_clause, RSTART + 1, RLENGTH - 2)
+    }
+
+    print label "\t" tasks "\t" deps "\t" branch
   }
 ')
 

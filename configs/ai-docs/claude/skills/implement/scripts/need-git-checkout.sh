@@ -4,18 +4,15 @@
 # otherwise live as inline /implement prose.
 #
 # Usage:
-#   need-git-checkout.sh <plan-file> <PR-N> <worktree-path>
+#   need-git-checkout.sh <plan-file> <PR-N>
 #
 # Prints "no" only when BOTH hold:
 #   - PR-N is a DAG root: its PR Breakdown entry reads "Depends on: none".
-#   - branches_<slug>.md doesn't exist yet in <worktree-path>, or exists but
-#     has no entries yet (an empty/header-only manifest counts as "not
-#     created yet" for this rule). <slug> is derived from <plan-file>'s own
-#     name (plan_<slug>.md -> <slug>), the same convention
-#     append-branch-pr-entry.sh and worktree-setup.md already use for
-#     branches_<slug>.md.
-# Prints "yes" otherwise: PR-N has any parent, or the manifest already has
-# at least one entry (this worktree already ran an earlier PR's batch).
+#   - no PR Breakdown entry carries a "Branch: `<name>`." clause yet.
+#     /implement writes that clause at push time, so its presence anywhere
+#     in the plan means an earlier PR's batch already pushed from this tree.
+# Prints "yes" otherwise: PR-N has any parent, or some PR already recorded
+# a branch (an earlier PR's batch has already run).
 #
 # Per the spec's narrowing decision, only the FIRST /implement invocation in
 # a worktree, targeting a DAG-root PR, skips the checkout - every later PR,
@@ -25,26 +22,20 @@
 # Exit codes:
 #   0 - PR-N found; "yes" or "no" printed to stdout.
 #   1 - PR-N not found in the plan's PR Breakdown (diagnostic on stderr).
-#   2 - usage error (wrong arg count, plan/worktree path missing, section unparsable).
+#   2 - usage error (wrong arg count, plan missing, section unparsable).
 
 set -eo pipefail
 
-if [ $# -ne 3 ]; then
-  echo "usage: $(basename "$0") <plan-file> <PR-N> <worktree-path>" >&2
+if [ $# -ne 2 ]; then
+  echo "usage: $(basename "$0") <plan-file> <PR-N>" >&2
   exit 2
 fi
 
 plan_file="$1"
 pr_label="$2"
-worktree_path="$3"
 
 if [ ! -f "$plan_file" ]; then
   echo "error: plan file not found: $plan_file" >&2
-  exit 2
-fi
-
-if [ ! -d "$worktree_path" ]; then
-  echo "error: worktree path not found: $worktree_path" >&2
   exit 2
 fi
 
@@ -52,7 +43,8 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # parse-pr-breakdown.sh does the section-extraction + entry-parse pipeline
 # shared with get-pr-tasks.sh and check-pr-dependencies-ready.sh; this script
-# only consumes the Depends on: field (column 3) of its TSV output. Its
+# consumes the Depends on: field (column 3) for the target PR and the
+# Branch: field (column 4) across every PR. Its
 # non-zero exit codes distinguish a trivial section (1: absent/"Single PR."),
 # which needs this script's own $pr_label-specific diagnostic below, from a
 # malformed one (2: content present but unparsable), whose diagnostic
@@ -91,14 +83,9 @@ if [ -n "$deps" ]; then
 fi
 
 # PR-N is a DAG root. Whether checkout is still needed now depends solely on
-# whether this worktree already has a manifest entry from an earlier PR's
-# batch-end. append-branch-pr-entry.sh writes each entry as a line starting
-# "- **"; a freshly-created header-only manifest has no such line yet.
-slug=$(basename "$plan_file" .md)
-slug="${slug#plan_}"
-branches_file="$worktree_path/branches_${slug}.md"
-
-if [ -f "$branches_file" ] && grep -q '^- \*\*' "$branches_file"; then
+# whether any earlier PR's batch already pushed, which the plan records as a
+# Branch: clause (column 4) on that PR's own PR Breakdown line.
+if printf '%s\n' "$entries" | cut -f4 | grep -q '[^[:space:]]'; then
   echo "yes"
 else
   echo "no"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# claude-implement-compact-reminder - After a compaction, re-inject the §9
+# claude-implement-compact-reminder - After a compaction, re-inject the §8
 #     batch-end checklist for THIS session's first mid-flight /implement unit.
 #
 # Usage (Claude Code SessionStart hook, matcher: compact):
@@ -11,20 +11,23 @@
 #   UNIT, all created upfront: /tmp/implement_<session_id>.json for a plain
 #   <task-ids> run, or /tmp/implement_<session_id>_pr<N>.json per PR on a
 #   PR-label run. A long batch passes through many compactions, each of
-#   which can summarize the doc-resident §9 finalize steps (gate, tails,
-#   triage, package, diffview pane, PR) out of working memory — the
+#   which can summarize the doc-resident §8 batch-end steps (quality-gate
+#   tail, repo-green gate, push, PR, package) out of working memory — the
 #   "orchestrator forgot the steps" failure. The batch-end [Reminder] task
 #   (implement skill §2.2) keeps them in view each turn, and the Stop hook
 #   (claude-implement-stop-hook.sh) blocks stopping while any unit is
 #   mid-flight. This hook is the third guard: it fires at the compaction
 #   boundary itself — the one moment working memory resets — and
-#   re-injects the remaining §9 checklist for the FIRST mid-flight unit so
+#   re-injects the remaining §8 checklist for the FIRST mid-flight unit so
 #   the batch never ends at the last task's commit.
 #
 #   The checklist is RECONSTRUCTED from the chosen unit's state file, not
 #   echoed from a stored string: the PR step appears only when pr.wanted,
-#   the diffview command carries the run's real batch_base_sha, and the
+#   the notification line carries the run's real batch_base_sha, and the
 #   unit is named by its pr_label when the run has one (a PR-label run).
+#
+#   The push step is NOT conditional — every batch end pushes, whether or
+#   not a PR was wanted, so it is always in the re-injected list.
 #
 # Session scoping — identical to claude-implement-stop-hook.sh:
 #   State file paths are keyed by session_id. No file matching this session
@@ -88,8 +91,10 @@ unit_desc="the plain run"
 [ -n "$pr_label" ] && unit_desc="PR '$pr_label'"
 
 # The PR step is conditional: only a run that opted into a PR writes one.
+# Its "create only" wording matters — the pr-creator agent runs the
+# create-pr skill, which pushes by default otherwise.
 pr_step=""
-[ "$pr_wanted" = "true" ] && pr_step=" → write the PR via the create-pr skill"
+[ "$pr_wanted" = "true" ] && pr_step=" → open the draft PR via the pr-creator agent (create only; step 3 already pushed)"
 
 # Fall back to a literal placeholder if the sha somehow wasn't recorded.
 sha_display="${base_sha:-<BATCH_BASE_SHA>}"
@@ -98,13 +103,13 @@ remaining_line=""
 [ "$pending_after" -gt 0 ] && remaining_line="$pending_after more unit(s) remain after this one."
 
 read -r -d '' DIRECTIVE <<EOF || true
-A /implement batch for '$slug' has $unit_desc mid-flight (state phase: '$phase'). This compaction may have dropped the §9 batch-end steps from working memory — do NOT let the batch end at the last task's commit.
+A /implement batch for '$slug' has $unit_desc mid-flight (state phase: '$phase'). This compaction may have dropped the §8 batch-end steps from working memory — do NOT let the batch end at the last task's commit.
 
-Resume the §9 finalize procedure (implement skill §9). Remaining steps, in order:
-repo-green gate → refactor∥auto-review tails (parallel) → triage the two reports → print the batch-end package → open the diff for review: nvim -c 'DiffviewOpen $sha_display' in a side tmux pane via the open-in-tmux skill$pr_step.
+Resume the §8 batch-end procedure (implement skill §8, detail in references/batch-end-review.md — re-read it, do not work from this summary). Remaining steps, in order:
+§8.1 quality-gate tail with --auto-solve (only when quality_gate.wanted) → §8.2 repo-green gate: full suite + full lint, fix-loop until green (only when repo_green_gate.wanted) → §8.3 push the branch with 'git push -u origin HEAD' (ALWAYS, no toggle) → record it as the Branch: clause on the plan's PR line$pr_step → print the batch-end package, closing with the review notification (review starts at $sha_display).
 $remaining_line
 
-Verify the batch-end [Reminder] task is still in your TaskList; if this compaction dropped it, re-create it with the step checklist in its SUBJECT (§2.1). The run is done only when phase reaches 'presented'; a 'halted' unit is waiting on the human and won't resume on its own.
+Verify the batch-end [Reminder] tasks are still in your TaskList; if this compaction dropped them, re-seed the four from §2.2. The run is done only when phase reaches 'presented'; a 'halted' unit is waiting on the human and won't resume on its own.
 EOF
 
 jq -n --arg ctx "$DIRECTIVE" \
