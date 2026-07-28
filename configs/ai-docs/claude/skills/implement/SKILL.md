@@ -89,8 +89,6 @@ Mid-run `.env` needs are self-served (copied from the original checkout) rather 
 - **Run the repo-green gate at batch end?** (yes/no, default yes) — on yes, §8.1 runs; on no, it's skipped and the package says so.
   - Independent of the quality-gate toggle and decided fresh each run, not a fixed default.
 
-- **Dispatch an independent subagent to verify each task?** (yes/no, default yes) — on no, §5.1's delegated verify is skipped per task; see §5.1's entry condition.
-
 - **Base-branch confirmation** — show `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'` as the default; let the user confirm or override.
 
 Record all answers before proceeding — §2.3 persists them to the state file.
@@ -201,7 +199,6 @@ Each state file has exactly this shape:
   "gate_dispatches": 0,
   "baseline": { "wanted": false, "log_path": "", "failures": [] },
   "repo_green_gate": { "wanted": true },
-  "verify_gate": { "wanted": true },
   "quality_gate": { "wanted": true, "reports": [] },
   "worktree": { "created": false, "path": "", "branch": "" },
   "pr": { "wanted": false }
@@ -211,7 +208,7 @@ Each state file has exactly this shape:
 - `start_sha` is `git rev-parse HEAD` taken **before any branch or dispatch**, identical in every unit's file — the run's anchor.
 
 - `batch_base_sha` stays `""` until that unit starts (§3.2) — a dependent PR branches off its parent, so its base does not exist yet.
-- One `tasks[]` entry per task-id that unit resolved, each `status: "pending"`; `worktree` / `pr` / `quality_gate.wanted` / `repo_green_gate.wanted` / `verify_gate.wanted` come from §1.2's answers.
+- One `tasks[]` entry per task-id that unit resolved, each `status: "pending"`; `worktree` / `pr` / `quality_gate.wanted` / `repo_green_gate.wanted` come from §1.2's answers.
 - `pr_label` is `""` on a plain run, else the `PR-N` that file belongs to.
 - §5.2/§5.4 append `attempts[]` entries as `{ "task", "n", "result", "signature", "at" }`.
 - `baseline.log_path` and `baseline.failures` are populated by §1.6, and stay empty when `baseline.wanted` is `false`.
@@ -276,7 +273,7 @@ Per task, as it becomes the active one — the only orchestrator work between tw
 The subagent writes it, from the dispatch prompt, before touching code — one item per RED-GREEN cycle, flipped done as each lands, plus an evidence section.
 Those mechanics live in `~/.claude/agents/tdd-coder.md`; edit that file and this section together.
 
-Your only interest: it **exists** and §5.1's reviewer can read it — a contract, not scratch, since the whole verify is judged on it.
+Your only interest: it **exists** at that path — §5.1's one check. Its content is the subagent's own working state and the human's audit trail, never something the orchestrator reads.
 
 ### 3.5. Mid-flight sub-steps
 
@@ -343,43 +340,32 @@ The subagent returns a structured report (text), never a silent "done" (shape mi
 - **Deviations**: sub-steps it inserted into its checklist mid-flight, soft design-forks resolved (with the choice), Drift fixes folded in.
 - **For the orchestrator to record**: `[Scout]` items to note on the plan; any block, with exactly what's needed to clear it.
 
-## 5. Verify, retry & advance (orchestrator)
+## 5. Accept, retry & advance (orchestrator)
 
-No human gate. By default, every `done` report is judged by a fresh pair of eyes before the loop advances — §5.1's verify toggle can turn that off per run.
+No human gate, and no per-task review — the loop advances on the subagent's own report.
+The batch's review happens once at the end instead, over the whole diff (§8.2).
 
-### 5.1. Verify the result — delegated, evidence-only
+### 5.1. Accept the result — one existence check
 
-**Entry: only when §1.2's verify toggle said yes (`verify_gate.wanted: true`).** On no, skip this whole section — [`references/trust-report-verify.md`](references/trust-report-verify.md) has the toggle-off path instead.
-Load it once, the first time this run hits a `done` report.
+**The orchestrator does not verify the work itself, re-runs nothing, and dispatches no reviewer.**
 
-**The orchestrator does not verify the work itself, and nothing is re-run.**
+Its one check: the checklist file exists at the path §3.4 assigned.
+A `done` report with no checklist behind it means the subagent never wrote the working plan it was told to write, so the report has nothing standing under it.
 
-Its own part is one cheap check: the checklist file exists at the path §3.4 assigned. A missing file is a straight `fail` — no dispatch needed.
+- **`done`, file present** → record the attempt as `result: "pass"`, `signature: "n/a"`, and go to §5.4.
+- **`done`, file missing** → §5.2, same as any other failure.
 
-Everything else goes to one `agent(subAgent=general-purpose, title=Verify task <N>: <task subject>, model=sonnet, effort=high)`, dispatched in the **foreground** — the loop cannot advance without its verdict.
-
-Push into its prompt: the checklist file path, the subagent's report text verbatim (§4.4), the task's plan slice, and `BATCH_BASE_SHA`.
-
-Ask for one `pass`/`fail` verdict, with the specific mismatch quoted on a fail. It judges exactly three things:
-
-- **Every checklist item is checked off** — unchecked means the subagent stopped short of its own plan.
-- **The evidence section stands on its own** — names the commits, pastes verification output showing the command passing.
-- **Report and evidence agree** — same commits, same tests, same deviations.
-
-Its only repo call is a `git log <BATCH_BASE_SHA>..HEAD` existence check on the named SHAs — no tests, no lint, no verification command re-run.
-The evidence is either sufficient on its face or it is not, and "not" is a `fail` — the pressure keeping tdd-coder's evidence honest, since summarizing instead of pasting fails the verify.
-
-Why delegate: the orchestrator wrote the dispatch and holds the batch's assumptions, so its own read would double the session-bias CLAUDE.md's fresh-context rule already guards against.
+A `blocked` report (§4.4) or a §4 timeout skips the check entirely and goes straight to §5.2.
 
 Either way the outcome becomes one recorded attempt and one script verdict — §5.2 on failure/block, §5.4 on pass. No path skips the script.
 
 ### 5.2. On failure or a block — record the attempt, obey the verdict
 
-Entry: a failed §5.1 verify, a §4 timeout, or a self-reported `blocked` (§4.4) — all three take the same path.
+Entry: a missing checklist file (§5.1), a §4 timeout, or a self-reported `blocked` (§4.4) — all three take the same path.
 
 Recording the attempt, running `implement-loop-state.sh`, and obeying its `retry` / `stuck` / `halt-budget` verdict live in [`references/failure-and-halt.md`](references/failure-and-halt.md).
 That file also covers the full verdict semantics, attempt-recording fields, and the `debug-standards` load.
-Load only on a failed verify.
+Load only on a failure or a block.
 
 ### 5.3. On `stuck` — mark terminal, chain-abort dependents, advance
 
@@ -388,7 +374,7 @@ Entry: `implement-loop-state.sh` verdicted `stuck` (§5.2).
 Marking the task terminal, chain-aborting its dependents transitively, flipping the plan to `[Blocked]`, and picking (or failing to pick) the next task all live in [`references/failure-and-halt.md`](references/failure-and-halt.md).
 Load only on a `stuck` verdict.
 
-### 5.4. On a clean verify — advance
+### 5.4. On an accepted `done` — advance
 
 Record the attempt with `result: "pass"`.
 

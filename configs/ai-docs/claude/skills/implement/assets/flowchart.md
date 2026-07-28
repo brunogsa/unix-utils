@@ -105,21 +105,19 @@ def run_unit(unit):
                 report.status = "timeout"
 
             if report.status == "done":                    # 17 · §4.4
-                # 18 · §5.1 — fresh general-purpose (sonnet · high), FOREGROUND.
-                #             It judges the checklist + evidence, re-running nothing.
-                verify = dispatch("general-purpose", checklist, report,
-                                  model="sonnet", effort="high", background=False)
+                # 18 · §5.1 — the orchestrator's whole part: no dispatch, no re-run.
+                accepted = exists(checklist)               # 19 · file present?
             else:
-                verify = "fail"   # `blocked` and `timeout` take the failure path too
+                accepted = False  # `blocked` and `timeout` take the failure path too
 
-            if verify == "pass":                           # 19
+            if accepted:
                 state.set(task, status="done")             # 20 · §5.4 — before the script
                 plan.mark(task, "[Done]")
                 record_scout_notes(report.scouts)
                 task_update(task, "completed")
             else:
                 load("references/failure-and-halt.md")     # 19a
-                state.record_attempt(task, verify, signature)    # 19b · §5.2
+                state.record_attempt(task, result, signature)    # 19b · §5.2
 
             # 19c / 21 · ONLY this script sends a unit to the gates. Never infer
             #            "gates" from an empty-looking queue — it empties two ways.
@@ -238,8 +236,8 @@ flowchart TD
     n16b["16b. 1h Monitor expires: TaskStop the<br/>subagent (resolves as timeout)"]:::hook
     n16c["16c. THE SUBAGENT writes its own RED-GREEN<br/>checklist + evidence:<br/>/tmp/implement_substeps_&lt;slug&gt;_&lt;id&gt;.md<br/>(the orchestrator only checks it exists)"]:::state
     n17{"17. Step 4.4 · Subagent report status?"}
-    n18["18. Step 5.1 · Delegate the verify to a fresh<br/>general-purpose (sonnet · high), FOREGROUND —<br/>it judges the checklist + evidence,<br/>re-running nothing"]:::dispatch
-    n19{"19. Verify verdict?"}
+    n18["18. Step 5.1 · Accept the result: the orchestrator<br/>dispatches no reviewer and re-runs nothing —<br/>its whole part is one existence check"]
+    n19{"19. Checklist file present at the assigned path?"}
     n19a["19a. Load references/failure-and-halt.md"]:::skill
     n19b["19b. Step 5.2 · Record the attempt<br/>(fail/timeout/blocked + signature)<br/>into the state file"]:::state
     n19c{"19c. Step 5.2 · implement-loop-state.sh:<br/>verdict?"}:::hook
@@ -295,8 +293,8 @@ flowchart TD
   n16 --> n17
   n17 -->|"blocked"| n19a
   n17 -->|"done"| n18 --> n19
-  n19 -->|"pass"| n20
-  n19 -->|"fail"| n19a
+  n19 -->|"yes"| n20
+  n19 -->|"no"| n19a
   n19a --> n19b --> n19c
   n19c -->|"retry (loads debug-standards)"| n16
   n19c -->|"stuck"| n19d --> n19e

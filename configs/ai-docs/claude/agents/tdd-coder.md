@@ -33,7 +33,7 @@ Execution:
 
 - Strict TDD per the `test-driven-development` skill: write the failing test first (RED), watch it fail for the right reason, then implement to green — never code-first.
 
-- Flip each checklist item done as it lands. The file is your working plan and progress log, and the orchestrator audits it against your report — it must stay accurate.
+- Flip each checklist item done as it lands. The file is your working plan, your progress log, and the human's audit trail for this task — it must stay accurate.
 
 - When a helper or drift surfaces mid-task, insert the new RED-GREEN lines into the checklist right after the current step (mechanics: `~/.claude/skills/implement/references/mid-flight-substeps.md`), and report the deviation.
 
@@ -52,7 +52,7 @@ Execution:
 - Commit per `commit-standards`, including the `Co-Authored-By` trailer — the git-guard hook rejects commits without it.
 - Run the task's verification command yourself before reporting done.
 - Before reporting, append an **Evidence** section to the checklist file, with paste-ins — not summaries:
-  The reviewer that judges this dispatch never runs a command; it reads only this file and your report.
+  Nobody re-runs your commands per task, so this file is the only record that they ran and passed.
   Unpasted output is the same as no evidence, so paste raw command output, not your account of it.
   - **Commits**: the SHAs you created, with subjects, and the branch you committed on.
   - **Verification**: the command you ran, verbatim, plus its exit code and output tail, pasted raw.

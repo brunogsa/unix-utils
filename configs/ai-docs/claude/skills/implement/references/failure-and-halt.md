@@ -1,6 +1,6 @@
 # Failure, stuck & halt — detail for /implement's §5.2, §5.3 and §5.5
 
-Load this on a failed §5.1 verify, a §4 timeout, a self-reported `blocked` (§4.4), or any route to a halt. A clean verify skips this file (§5.4).
+Load this on a missing checklist file (§5.1), a §4 timeout, a self-reported `blocked` (§4.4), or any route to a halt. An accepted `done` skips this file (§5.4).
 
 ## §5.2 — On failure or a block: record the attempt, obey the verdict
 
@@ -27,7 +27,8 @@ only obeys `retry`, `stuck`, and `halt-budget`.
 
 All three outcomes record one attempt; only `result` and `signature` differ.
 
-- **Verify failure** (diff mismatch, verification red, checklist items unchecked) → `result: "fail"`, `signature` set to the failure text verbatim — the error output as it was printed.
+- **Missing checklist file** (§5.1) → `result: "fail"`, `signature` the literal string `no-checklist`.
+  The subagent never wrote the file a real signature would be quoted from, so there is no failure text to record.
 
 - **Timeout** → `result: "timeout"`, `signature` the literal string `timeout` — there's no diff to inspect, since the subagent never reported back.
 - **Self-reported block** → `result: "blocked"`, `signature` the subagent's own blocker statement verbatim, so the batch-end package can quote what needs clearing.
