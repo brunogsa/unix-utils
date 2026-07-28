@@ -20,15 +20,15 @@ Read it before drafting or reviewing a PR body; `pr-writer` loads it every dispa
 
 ## Process
 
-**Seed the TaskList before step 1 runs** -- one `[Reminder]` entry for each of steps 1-5, in execution order.
+**Seed the TaskList before step 1 runs** -- one `[Reminder]` entry for each of steps 1-4, in execution order.
 
-- Step 6 gets no entry -- it runs only if the user asks for a change after the push, so a pending reminder would never complete.
+- Step 5 gets no entry -- it runs only if the user asks for a change after the push, so a pending reminder would never complete.
 
 ### 1. Gather context
 
 **CRITICAL: This step's interview is the only point in the whole skill where the user is asked anything.**
 
-Every step from here through step 5 runs to completion without pausing, and never poses a chat question that blocks composing or pushing.
+Every step from here through step 4 runs to completion without pausing, and never poses a chat question that blocks composing or pushing.
 
 A gap in evidence (a test that couldn't be run locally, a section the digest didn't cover) is recorded as an unchecked box or a caveat instead.
 
@@ -66,24 +66,28 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
   - Diagrams: `~/.claude/skills/create-pr/scripts/extract-mermaid-blocks.sh <file> [<file> ...]` — every fenced `mermaid` block becomes the Architecture section, and leaves the appendix.
   - A re-summarized section or a re-drawn diagram diverges from what the spec/plan was reviewed against, and nothing downstream catches the divergence.
 
-- **Resolve the base branch (used in step 5)**: run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
+- **Resolve the base branch (used in step 4)**: run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
   - Every PR targets this branch directly on GitHub, never a parent's branch.
-  - Empty result (`origin/HEAD` unset) → omit `--base` in step 5; let it fall back to default.
+  - Empty result (`origin/HEAD` unset) → omit `--base` in step 4; let it fall back to default.
 
 - **Delegate diff/log reading to a subagent** -- dispatch `agent(subAgent=changes-gatherer, title=Gather PR changes digest)`, foreground (step 2 needs the result immediately).
   - Give it the resolved base branch and a `/tmp` artifact path; it writes the full commit log and diff there and returns only the **changes digest** (`references/changes-digest.md`).
 
   - The digest is what step 2 authors from, so the raw diff never enters the main session's context.
 
-### 2. Compose the ideal description
+### 2. Compose the ideal description — density and page fit
 
-**CRITICAL: The main session orchestrates and never composes the prose itself** -- dispatch the agent, then validate its output against the artifact.
+**CRITICAL: The main session orchestrates and never composes the prose itself** -- dispatch the agent and let it hand back a finished file.
 
-- `agent(subAgent=pr-writer, title=Compose ideal PR description)` in mode `ideal`, foreground (step 3 gates on the file it writes).
+- `agent(subAgent=pr-writer, title=Compose ideal PR description - sonnet high)` in mode `ideal`, foreground (step 3 reads the file it writes).
   - Give it four things: the changes digest, the resolved spec/plan paths, the derived appendix section list, and the output path `./pr_<slug>_pr<N>.ideal.md`.
   - It loads this skill and `doc-standards` itself, runs the extractors, and loops on the density and page-fit gates before returning — none of that belongs in the dispatch prompt.
 
-**CRITICAL: It writes the IDEAL description in this skill's own format, ignoring any repo template** -- the repo's template is step 4's problem, not its.
+**Both gates belong to the agent — never re-run them here, and never hand-fix its prose.**
+
+- It returns only once `check-density.sh` and `check-pr-page-fit.sh` both pass, so a main-session re-run just measures a file that was already measured, and pays a whole second dispatch for anything it flags.
+
+**CRITICAL: It writes the IDEAL description in this skill's own format, ignoring any repo template** -- the repo's template is step 3's problem, not its.
 - The format has to stay stable, because `check-pr-page-fit.sh` can only hold a section to its budget when it recognizes that section.
 
 Keep the file step 1 created -- never overwrite its resolved-answers comment.
@@ -110,34 +114,21 @@ The reviewer hasn't read your spec, plan, Jira ticket, or commits. Anything refe
 
 What to write, how to evidence it, and how to format it: [`references/writing-style.md`](references/writing-style.md) — read it before drafting any section's prose; `pr-writer` loads it every dispatch.
 
-### 3. Verify the ideal description
+### 3. Compose the repo description — density and body size
 
-Re-run both gates on `pr_<slug>_pr<N>.ideal.md` in the main session, even though the agent already looped on them.
-
-- **Density** -- `~/.claude/skills/doc-standards/scripts/check-density.sh <file>` must print no violation.
-- **Page fit** -- `~/.claude/skills/create-pr/scripts/check-pr-page-fit.sh <file>` must not exit 3.
-
-  - Exit 0 → fits with room. Exit 2 → still fits, with under a fifth of the page left. Exit 3 → over the 64 lines, and the only failing outcome.
-
-  - Read the per-section breakdown on every outcome, pass included: a body can clear the 64-line total while one section has quietly eaten another's allowance.
-
-- Either gate failing → send the file back to the same `pr-writer` agent with the script output, and never hand-fix the prose in the main session.
-
-  - Loop that hand-off until the gate stops failing — a body over the budget is never pushed, per the one-page goal's cut-until-it-fits rule.
-
-**Never pause for user review** -- once both gates pass, continue straight to step 4.
-
-### 4. Fit the ideal description to the repo's PR template
+**Never pause for user review** -- the agent returns a gated file, so continue straight from step 2 into this one.
 
 **Check `.github/` for a PR template** (`pull_request_template.md`, `PULL_REQUEST_TEMPLATE.md`).
 
-**No template found → copy the ideal description into the final body** -- `cp pr_<slug>_pr<N>.ideal.md pr_<slug>_pr<N>.final.md`, then skip the rest of this step.
-- The copy keeps one push path instead of two: step 5 always pushes the `.final.md`, whatever produced it.
+**Dispatch the merge either way** -- `agent(subAgent=pr-writer, title=Compose repo PR description - sonnet high)` in mode `final`, foreground (step 4 pushes its output).
 
-**Template found → dispatch the merge** -- the main session again orchestrates rather than composing.
-- `agent(subAgent=pr-writer, title=Fit PR description to repo template)` in mode `final`, foreground (step 5 gates on its output).
-- Give it exactly three paths: the verified `pr_<slug>_pr<N>.ideal.md`, the repo's template file, and the output `./pr_<slug>_pr<N>.final.md`.
-- It re-reads the rules below from this skill, and runs the body-size gate itself.
+- Give it three paths: the `pr_<slug>_pr<N>.ideal.md` from step 2, the repo's template file, and the output `./pr_<slug>_pr<N>.final.md`.
+- No template found → say so instead of naming one; the agent then copies the ideal description verbatim into the final body.
+
+- **Dispatch even with no template, rather than copying the file here** -- the body-size gate runs inside the agent, and only the agent can trim what it flags.
+  - A `cp` in the main session would push a `.final.md` that no gate ever measured, on the very path most repos take.
+
+- It re-reads the rules below from this skill, and owns the density and body-size gates end to end — same as step 2, they are never re-run here.
 
 **CRITICAL: The repo's template is the base structure, never the thing being replaced.**
 
@@ -156,17 +147,16 @@ Re-run both gates on `pr_<slug>_pr<N>.ideal.md` in the main session, even though
 
 **CRITICAL: Never run the page-fit check on the final body** -- the budget was already enforced on the ideal description, the only source the final body draws content from.
 
-### 5. Create the draft PR
+### 4. Create the draft PR
 
-- **Body size** -- GitHub rejects a PR body over 65,536 characters, a hard API limit distinct from the density cap.
+- **Check the artifact, not the gates** -- `pr_<slug>_pr<N>.final.md` must exist and be non-empty before anything is pushed.
 
-  - Run `~/.claude/skills/create-pr/scripts/check-pr-body-size.sh pr_<slug>_pr<N>.final.md`, which is the only gate the no-template copy path has ever run on that file.
+  - Missing or empty means step 3's agent never finished; re-dispatch it, and never compose a replacement body here.
 
-  - Exit 0 → safe. Exit 2 → close to the cap, trim soon.
+  - Its density and body-size gates already ran inside that agent, and both ways the body can still be wrong announce themselves.
+    - An over-budget body is visible in the rendered PR, and an over-cap one makes `gh pr create` fail loudly at the API.
 
-  - Exit 3 → over the cap: send it back to `pr-writer`, which drops the appendix's lowest-value sections (Test Design first, then Non-Functional Requirements) and re-checks.
-
-- **Push the branch here, never earlier** -- `git push -u origin <branch>` when it has no upstream, immediately after the body-size gate passes.
+- **Push the branch here, never earlier** -- `git push -u origin <branch>` when it has no upstream.
 
   - The push is the run's first outward-facing act — it fires CI and makes the branch visible, while every step above only writes local files.
 
@@ -180,7 +170,7 @@ Re-run both gates on `pr_<slug>_pr<N>.ideal.md` in the main session, even though
 
 - Return the PR URL.
 
-### 6. Apply post-push changes
+### 5. Apply post-push changes
 
 The user may hand-edit the body on GitHub, or ask for a change in chat. Either way:
 

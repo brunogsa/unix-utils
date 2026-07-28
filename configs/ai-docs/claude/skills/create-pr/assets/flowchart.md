@@ -26,12 +26,11 @@ def create_pr():
 
     # 3 · Seed the TaskList before step 1 runs. A skipped step then stays visible
     #     as pending across a compaction, which the steps alone do not survive.
-    #     Steps 1-5 only: step 6 runs only if the user asks after the push.
-    TaskCreate("[Reminder] Step 1: gather context")                    # 3a
-    TaskCreate("[Reminder] Step 2: compose the ideal description")     # 3b
-    TaskCreate("[Reminder] Step 3: verify the ideal description")      # 3c
-    TaskCreate("[Reminder] Step 4: fit it to the repo's PR template")  # 3d
-    TaskCreate("[Reminder] Step 5: create the draft PR")               # 3e
+    #     Steps 1-4 only: step 5 runs only if the user asks after the push.
+    TaskCreate("[Reminder] Step 1: gather context")                       # 3a
+    TaskCreate("[Reminder] Step 2: compose the ideal description")        # 3b
+    TaskCreate("[Reminder] Step 3: compose the repo description")         # 3c
+    TaskCreate("[Reminder] Step 4: create the draft PR")                  # 3d
 
     # 4 · Step 1 — none found means authoring from the changes digest alone.
     sources = glob("spec_*.md", "plan_*.md", top_level_of=CWD)
@@ -63,80 +62,73 @@ def create_pr():
     #     the digest, so the raw diff never enters the main session.
     digest = dispatch("changes-gatherer")
 
-    # 10 · Step 2 — pr-writer · agent-pinned · mode ideal · foreground
-    #      (step 3 gates on it). Main orchestrates and never composes the prose.
+    # 10 · Step 2 — pr-writer · agent-pinned · mode ideal · foreground.
+    #      Main orchestrates and never composes the prose. The agent loops
+    #      check-density.sh and check-pr-page-fit.sh itself and returns only once
+    #      both pass, so nothing out here re-runs them or hand-fixes its prose.
     dispatch("pr-writer", mode="ideal", digest=digest, appendix=appendix_sections)
     # 11 · written in THIS skill's own format, ignoring any repo template —
     #      page-fit can only budget a section it recognizes.
 
-    while True:
-        # 12 · Step 3 — re-run BOTH gates in the main session. What is confirmed
-        #      is the artifact, not the agent's account of it.
-        density = run("check-density.sh", ideal_path)
-        page_fit = run("check-pr-page-fit.sh", ideal_path)
-        if density.silent and page_fit.exit_code == 0:     # 13
-            break                                          # 13 · never pause for user review
-        # 13a · pr-writer · agent-pinned · mode ideal · foreground, handed the
-        #       script output. Never hand-fix the prose in main.
-        dispatch("pr-writer", mode="ideal", fix=[density, page_fit])
+    # 12 · Step 3 — this check picks the agent's third input, and is NOT a branch
+    #      in this flow: a path when .github/ carries a template, an explicit
+    #      "no template" when it does not.
+    template = repo_pr_template()
 
-    # 14 · Step 4 — .github/pull_request_template.md or PULL_REQUEST_TEMPLATE.md
+    # 13 · pr-writer · agent-pinned · mode final · foreground. Dispatched either
+    #      way, because it owns density and body size end to end: with no template
+    #      it copies the ideal verbatim, and once the trim order is exhausted it
+    #      returns a blocking caveat rather than cutting into body content.
     final_path = f"./pr_{slug}_pr{N}.final.md"
-    if not repo_pr_template():
-        copy(ideal_path, final_path)   # 14a · one push path serves both branches
-    else:
-        # 14b · pr-writer · agent-pinned · mode final · foreground (step 5 gates
-        #       on it), given exactly three paths: the verified ideal, the
-        #       template, and the output.
+    dispatch("pr-writer", mode="final", ideal=ideal_path,
+             template=template, out=final_path)
+    # 14 · the repo's template is the BASE structure, never the thing replaced.
+    #      This file is NEVER page-fit-checked: its structure is arbitrary, so the
+    #      script cannot attribute lines to a budgeted section.
+
+    # 15 · Step 4 — an artifact check, never a re-run of the agent's gates: both
+    #      ways the body can still be wrong announce themselves, since an
+    #      over-budget body is visible in the rendered PR and an over-cap one
+    #      fails loudly at the gh pr create API.
+    while not exists_and_non_empty(final_path):
+        # 15a · missing or empty means step 3's agent never finished. Re-dispatch
+        #       it; never compose a replacement body out here.
         dispatch("pr-writer", mode="final", ideal=ideal_path,
-                 template=repo_pr_template(), out=final_path)
-        # 14c · the repo's template is the BASE structure, never the thing
-        #       replaced. This file is NEVER page-fit-checked: its structure is
-        #       arbitrary, so the script cannot attribute lines to a budgeted section.
+                 template=template, out=final_path)
 
-    while True:
-        # 15 · Step 5 — the only gate the no-template copy path has run on this file.
-        size = run("check-pr-body-size.sh", final_path)
-        match size.exit_code:                              # 16
-            case 0 | 2: break         # 16 · under the 65536-char API cap
-            case 3:                   # 16 · over the cap
-                # 16a · pr-writer · agent-pinned · mode final · foreground; it
-                #       drops the appendix's lowest-value sections and re-checks.
-                dispatch("pr-writer", mode="final", trim=True)
-
-    # 17 · Only NOW push, when the branch has no upstream. The push is the run's
+    # 16 · Only NOW push, when the branch has no upstream. The push is the run's
     #      first outward-facing act — it fires CI and makes the branch visible,
     #      while every step above only wrote local files, so a failed compose or
     #      gate leaves nothing on the remote.
     git("push", "-u", "origin", branch)
 
-    # 18 · NO chat-side review gate: the user reviews the rendered body on
+    # 17 · NO chat-side review gate: the user reviews the rendered body on
     #      GitHub, which is the artifact they will actually judge.
     url = gh("pr", "create", "--draft", "--body-file", final_path, "--base", base)
-    print(url)                                             # 19
+    print(url)                                             # 18
 
-    # 20 · Step 6 — runs only if the user hand-edits the body on GitHub
+    # 19 · Step 5 — runs only if the user hand-edits the body on GitHub
     #      or asks for a change in chat.
     while user_wants_a_change():
-        # 20a · pull GitHub's current body into the file FIRST, so a hand-edit
+        # 19a · pull GitHub's current body into the file FIRST, so a hand-edit
         #       made there is not overwritten by the next push.
         write(final_path, gh("pr", "view", n, "--json", "body"))
 
-        # 20b · edit the .final.md ONLY. The .ideal.md is deliberately left to
+        # 19b · edit the .final.md ONLY. The .ideal.md is deliberately left to
         #       drift, since re-deriving the final body would discard the
         #       user's own edits.
         edit(final_path)
 
-        # 20c · the local edit is cheap to revise; the pushed body notifies reviewers.
+        # 19c · the local edit is cheap to revise; the pushed body notifies reviewers.
         confirm_with_user()
 
-        # 20d · never `gh pr edit --body-file`, which queries Projects-classic
+        # 19d · never `gh pr edit --body-file`, which queries Projects-classic
         #       projectCards and can fail the write while still exiting 0.
         gh("api", "--method", "PATCH", f"repos/{owner}/{repo}/pulls/{n}",
            "-F", f"body=@{final_path}")
-        assert gh_body_read_back() == read(final_path)     # 20d
+        assert gh_body_read_back() == read(final_path)     # 19d
 
-    return  # 21 · Done
+    return  # 20 · Done
 ```
 
 ## Flowchart
@@ -146,12 +138,11 @@ flowchart TD
   n1(["1. /create-pr — no flags"]):::start
   n2["2. Load doc-standards before drafting —<br/>a PR body is a standalone doc, so its density cap,<br/>BLUF ordering, and collapse rules all apply"]:::skill
 
-  subgraph n3["3. Seed the TaskList before step 1 runs — a skipped step then stays<br/>visible as pending across a compaction, which the steps alone do not survive.<br/>Steps 1-5 only: step 6 runs only if the user asks after the push"]
+  subgraph n3["3. Seed the TaskList before step 1 runs — a skipped step then stays<br/>visible as pending across a compaction, which the steps alone do not survive.<br/>Steps 1-4 only: step 5 runs only if the user asks after the push"]
     n3a["3a. [Reminder] Step 1: gather context"]:::state
-    n3b["3b. [Reminder] Step 2: compose the ideal description"]:::state
-    n3c["3c. [Reminder] Step 3: verify the ideal description"]:::state
-    n3d["3d. [Reminder] Step 4: fit it to the repo's PR template"]:::state
-    n3e["3e. [Reminder] Step 5: create the draft PR"]:::state
+    n3b["3b. [Reminder] Step 2: compose the ideal description<br/>— density and page fit"]:::state
+    n3c["3c. [Reminder] Step 3: compose the repo description<br/>— density and body size"]:::state
+    n3d["3d. [Reminder] Step 4: create the draft PR"]:::state
   end
 
   n4["4. Step 1 · Glob cwd top-level for spec_*.md / plan_*.md;<br/>none found -&gt; author from the changes digest alone"]
@@ -162,31 +153,25 @@ flowchart TD
   n8["8. Resolve the base branch:<br/>git symbolic-ref refs/remotes/origin/HEAD;<br/>empty -&gt; omit --base when the PR is created"]
   n9[["9. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · foreground (step 2 gates on it)<br/>writes the full commit log + diff to a /tmp artifact and returns<br/>only the digest, so the raw diff never enters the main session"]]:::dispatch
 
-  n10[["10. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · mode ideal · foreground (step 3 gates on it)<br/>main session orchestrates and never composes the prose itself"]]:::dispatch
+  n10[["10. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · mode ideal · foreground<br/>it loops check-density.sh and check-pr-page-fit.sh itself and returns<br/>only once both pass — main never re-runs them, never hand-fixes its prose"]]:::dispatch
   n11["11. Ideal description written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md<br/>in THIS skill's own format, ignoring any repo template —<br/>page-fit can only budget a section it recognizes"]:::state
 
-  n12["12. Step 3 · Re-run both gates in the main session:<br/>check-density.sh and check-pr-page-fit.sh —<br/>what is confirmed is the artifact, not the agent's account of it"]:::hook
-  n13{"13. Both gates clean?<br/>density silent, page-fit exit 0"}
-  n13a[["13a. Dispatch: Fix the flagged ideal description<br/>pr-writer · agent-pinned · mode ideal · foreground<br/>hand it the script output; never hand-fix the prose in main"]]:::dispatch
+  n12["12. Step 3 · Check .github/ for pull_request_template.md /<br/>PULL_REQUEST_TEMPLATE.md — the result is the agent's third input,<br/>a template path or an explicit 'no template', not a branch here"]
+  n13[["13. Dispatch: Compose repo PR description<br/>pr-writer · agent-pinned · mode final · foreground<br/>dispatched either way: it owns density and body size end to end,<br/>copies the ideal verbatim when no template, and returns a blocking<br/>caveat once the trim order is exhausted instead of cutting deeper"]]:::dispatch
+  n14["14. Final body written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md — the repo's<br/>template is the base structure, never the thing replaced.<br/>NEVER page-fit-checked: its structure is arbitrary, so the<br/>script cannot attribute its lines to a budgeted section"]:::state
 
-  n14{"14. Step 4 · Does .github/ carry a PR template?<br/>(pull_request_template.md / PULL_REQUEST_TEMPLATE.md)"}
-  n14a["14a. No template -&gt; cp the ideal to ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md,<br/>so one push path serves both branches"]:::state
-  n14b[["14b. Dispatch: Fit PR description to repo template<br/>pr-writer · agent-pinned · mode final · foreground (step 5 gates on it)<br/>exactly three paths: the verified ideal, the template, the output"]]:::dispatch
-  n14c["14c. Final body written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md — the repo's<br/>template is the base structure, never the thing replaced.<br/>NEVER page-fit-checked: its structure is arbitrary, so the<br/>script cannot attribute its lines to a budgeted section"]:::state
+  n15{"15. Step 4 · Does the .final.md exist and carry content?<br/>an artifact check, never a re-run of the agent's gates —<br/>an over-budget body shows in the rendered PR, and an<br/>over-cap one fails loudly at the gh pr create API"}
+  n15a["15a. Missing or empty -&gt; step 3's agent never finished.<br/>Re-dispatch it; never compose a replacement body here"]:::state
+  n16["16. Only NOW push: git push -u origin &lt;branch&gt; when it has no<br/>upstream. The push is the run's first outward-facing act — it fires<br/>CI and makes the branch visible, while every step above only wrote<br/>local files, so a failed compose or gate leaves nothing on the remote"]:::gate
+  n17["17. gh pr create --draft --body-file &lt;final&gt; --base &lt;base-branch&gt;,<br/>with NO chat-side review gate — the user reviews the rendered<br/>body on GitHub, which is the artifact they will actually judge"]
+  n18["18. Return the PR URL"]
 
-  n15["15. Step 5 · check-pr-body-size.sh on the .final.md —<br/>the only gate the no-template copy path has run on that file"]:::hook
-  n16{"16. Body-size exit code?"}
-  n16a[["16a. Dispatch: Trim the oversized final body<br/>pr-writer · agent-pinned · mode final · foreground<br/>drops the appendix's lowest-value sections and re-checks"]]:::dispatch
-  n17["17. Only NOW push: git push -u origin &lt;branch&gt; when it has no<br/>upstream. The push is the run's first outward-facing act — it fires<br/>CI and makes the branch visible, while every step above only wrote<br/>local files, so a failed compose or gate leaves nothing on the remote"]:::gate
-  n18["18. gh pr create --draft --body-file &lt;final&gt; --base &lt;base-branch&gt;,<br/>with NO chat-side review gate — the user reviews the rendered<br/>body on GitHub, which is the artifact they will actually judge"]
-  n19["19. Return the PR URL"]
-
-  n20{"20. Step 6 · Does the user hand-edit the body on GitHub,<br/>or ask for a change in chat?"}
-  n20a["20a. Pull GitHub's current body into the file first —<br/>gh pr view &lt;n&gt; --json body — so a hand-edit made<br/>there is not overwritten by the next push"]
-  n20b["20b. Edit ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md ONLY; the .ideal.md is<br/>deliberately left to drift, since re-deriving the final body<br/>would discard the user's own edits"]:::state
-  n20c["20c. Confirm with the user before writing to GitHub —<br/>the local edit is cheap to revise, the pushed body notifies reviewers"]:::gate
-  n20d["20d. gh api --method PATCH repos/&lt;owner&gt;/&lt;repo&gt;/pulls/&lt;n&gt; -F body=@&lt;file&gt;<br/>— never gh pr edit --body-file, which queries Projects-classic<br/>projectCards and can fail the write while still exiting 0.<br/>Read the body back and confirm it matches the file"]
-  n21(["21. Done"])
+  n19{"19. Step 5 · Does the user hand-edit the body on GitHub,<br/>or ask for a change in chat?"}
+  n19a["19a. Pull GitHub's current body into the file first —<br/>gh pr view &lt;n&gt; --json body — so a hand-edit made<br/>there is not overwritten by the next push"]
+  n19b["19b. Edit ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md ONLY; the .ideal.md is<br/>deliberately left to drift, since re-deriving the final body<br/>would discard the user's own edits"]:::state
+  n19c["19c. Confirm with the user before writing to GitHub —<br/>the local edit is cheap to revise, the pushed body notifies reviewers"]:::gate
+  n19d["19d. gh api --method PATCH repos/&lt;owner&gt;/&lt;repo&gt;/pulls/&lt;n&gt; -F body=@&lt;file&gt;<br/>— never gh pr edit --body-file, which queries Projects-classic<br/>projectCards and can fail the write while still exiting 0.<br/>Read the body back and confirm it matches the file"]
+  n20(["20. Done"])
 
   n1 --> n2
   n2 --> n3
@@ -202,27 +187,20 @@ flowchart TD
   n10 --> n11
   n11 --> n12
   n12 --> n13
-  n13 -->|"no"| n13a
-  n13a --> n12
-  n13 -->|"yes — never pause for user review"| n14
-  n14 -->|"no"| n14a
-  n14 -->|"yes"| n14b
-  n14b --> n14c
-  n14a --> n15
-  n14c --> n15
-  n15 --> n16
-  n16 -->|"0 or 2 — under the 65536-char API cap"| n17
-  n16 -->|"3 — over the cap"| n16a
-  n16a --> n15
+  n13 --> n14
+  n14 --> n15
+  n15 -->|"no"| n15a
+  n15a --> n13
+  n15 -->|"yes — never pause for user review"| n16
+  n16 --> n17
   n17 --> n18
   n18 --> n19
-  n19 --> n20
-  n20 -->|"yes"| n20a
-  n20 -->|"no"| n21
-  n20a --> n20b
-  n20b --> n20c
-  n20c --> n20d
-  n20d --> n20
+  n19 -->|"yes"| n19a
+  n19 -->|"no"| n20
+  n19a --> n19b
+  n19b --> n19c
+  n19c --> n19d
+  n19d --> n19
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px

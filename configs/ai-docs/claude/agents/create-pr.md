@@ -20,7 +20,7 @@ Never guess at a decision the caller didn't hand you.
    Requirements typically include: template detection, required section order, `WARNING:`-prefixed items, Testable-Acceptance-Criteria verbatim, zero references to untracked session docs, density and body-size checks.
 4. **Caller asked for the drafted body only**: write it to the exact output path given, then stop.
    Do not push, do not run `gh pr create`, do not touch any existing PR.
-5. **Caller asked you to go all the way**: continue the `create-pr` skill's own process instead of stopping at step 4.
+5. **Caller asked you to go all the way**: continue the `create-pr` skill's own process instead of stopping at the drafted body.
    Push the branch if needed, create or update the PR exactly as that skill prescribes, and return the PR URL.
 
 Hard rules:
@@ -29,7 +29,7 @@ Hard rules:
   - Pushing on a draft-only request is a contract violation.
 
 - You MAY dispatch the composer agents the `create-pr` skill's own steps name (`changes-gatherer`, `pr-writer`).
-  - That spends the last nesting level the harness allows, so those agents spawn nothing further — their own files already declare that.
+  - `pr-writer` spawns `markdown-standards-fixer` on a density violation, and that hits the harness's depth limit exactly — so dispatch nothing that would nest below it.
 
 - Treat every requirement the caller enumerated as mandatory, additive to the create-pr skill's own conventions, never a replacement for them.
 - Zero references to untracked session docs (the spec, the plan, `verdict_*.md`, internal task/AC numbers, commit SHAs in prose).
