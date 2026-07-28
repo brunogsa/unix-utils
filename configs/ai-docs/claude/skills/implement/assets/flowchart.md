@@ -29,7 +29,8 @@ def implement(arg):
 
     # 4 · §1.2 — ONE up-front interview, the only round until the review package:
     #     plan pick · worktree · draft PR · quality-gate tail (default yes)
-    #     · repo-green gate (default yes) · confirm the base branch.
+    #     · full-suite green baseline · repo-green gate (default yes)
+    #     · confirm the base branch.
     answers = ask_everything_at_once()
 
     # 5 · §1.3 — re-validate BOTH graphs ONCE, before any execution.
@@ -202,7 +203,7 @@ flowchart TD
   n2["2. Step 1.1 · Locate plan_&lt;slug&gt;.md (+ spec)"]
   n3{"3. Plan found?"}
   n3a(["3a. Stop: no plan given"])
-  n4["4. Step 1.2 · ONE up-front interview —<br/>the only round until the<br/>review package:<br/><br/>- Plan pick, if multiple candidates<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Quality-gate tail? (default yes)<br/>- Repo-green gate? (default yes)<br/>- Confirm the base branch"]:::gate
+  n4["4. Step 1.2 · ONE up-front interview —<br/>the only round until the<br/>review package:<br/><br/>- Plan pick, if multiple candidates<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Quality-gate tail? (default yes)<br/>- Capture a full-suite green baseline first?<br/>- Repo-green gate? (default yes)<br/>- Confirm the base branch"]:::gate
   n5["5. Step 1.3 · Re-validate BOTH graphs ONCE,<br/>before any execution:<br/>check-tasks-dag.sh + check-pr-dag.sh"]:::hook
   n6{"6. Both graphs valid?"}
   n6a(["6a. Stop: surface the script's stderr;<br/>fix the plan, re-invoke"])
