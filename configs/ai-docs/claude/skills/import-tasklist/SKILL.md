@@ -23,25 +23,36 @@ agent's job, dispatched at the end of this skill.
 
 ## Entry format
 
-Each entry is a header line indented one space, followed by a
-description body indented three spaces — the same contract
-`offload-tasklist` writes and `tasklist-sweeper` maintains:
+Each entry is a Markdown header line, an optional Depends-on line, and
+a Description line — the same contract `offload-tasklist` writes and
+`tasklist-sweeper` maintains:
 
 ```
- <local-id>. [<category>] <title>
-   <description body, indented>
+### <local-id>. [<category>] <title>
+
+**Depends on**: <title>[; <title>...]
+
+**Description**: <description body>
 ```
 
-- Entry boundary: a line matches exactly one leading space, digits,
-  `. `, then `[`. That is the only signal that a new entry starts;
-  nothing else in the file marks a boundary.
-- Every body line, including a blank one inside a body, carries exactly
-  three leading spaces. Strip exactly three characters from each body
-  line to recover its original content — never a general whitespace
-  trim, which would eat a description's own leading spaces along with
-  the padding.
-- A body line's three-space indent is also why it can never be mistaken
-  for a new entry's header, whose own indent is exactly one space.
+- Entry boundary: a line matches exactly `### `, digits, `. `, then
+  `[`. That is the only signal that a new entry starts; nothing else in
+  the file marks a boundary — blank lines inside a body are not
+  boundaries.
+- The `**Depends on**` line is optional: present only when the task had
+  one or more dependencies at offload time, holding a `; `-separated
+  list of the titles it depends on. Absent entirely when it had none.
+- The `**Description**` line is always present. Its text starts right
+  after the label on that same line and continues, verbatim and
+  unindented, across every following line up to the next entry's
+  header (or EOF).
+- Exactly one blank line separates a description's end from the next
+  entry's header (or from EOF): `offload-tasklist` and
+  `tasklist-sweeper` both always write it, never zero, never two or
+  more. Strip exactly that one trailing blank line off the captured
+  span before treating it as `description` — this is what recovers
+  the original text byte-identical, regardless of whether the
+  description's own content happens to end in blank lines of its own.
 
 ## Scope selection
 
@@ -58,20 +69,24 @@ description body indented three spaces — the same contract
    there was nothing to import and stop here — no `TaskCreate` call, no
    sweeper spawn.
 
-2. Read the file and split it into entries on the leading-id line (the
+2. Read the file and split it into entries on the header line (the
    entry-boundary rule above). Apply the scope rule to pick the target
    entries. If nothing is selected, report and stop per Scope selection.
 
-3. For each selected entry, de-indent its body: strip exactly three
-   leading characters from every body line. The result is the task's
-   `description`, byte-identical to what `offload-tasklist` originally
-   wrote via `TaskGet`.
+3. For each selected entry, extract its two fields:
+   - Depends-on titles: if a `**Depends on**` line is present, split it
+     on `; ` into a list of titles. Absent line means an empty list.
+   - `description`: the text starting right after the `**Description**`
+     label on its own line, continuing verbatim across every following
+     line up to the entry's end, with the trailing one-blank-line
+     separator (Entry format above) stripped off. This is byte-identical
+     to what `offload-tasklist` originally wrote via `TaskGet`.
 
 4. `TaskCreate` the task. Its initial subject reuses the entry's own
    local id as the session-local numbering CLAUDE.md's TaskList
    convention expects: ` <local-id>. [<category>] <title>` — the
    `[<category>] <title>` portion is already the header line's remainder
-   after its leading ` <local-id>. `. Pass the de-indented body as
+   after its leading `### <local-id>. `. Pass the extracted
    `description`.
 
 5. Once `TaskCreate` returns its new id, `TaskUpdate` the subject to
@@ -90,13 +105,46 @@ description body indented three spaces — the same contract
    (`TaskCreate` returned an id, and its follow-up `TaskUpdate`
    returned `success: true`). An entry whose `TaskCreate` or
    `TaskUpdate` failed keeps its line in `tasklist.md` — it must never
-   appear in step 7's removal list. The two failures leave different
-   states behind: a failed `TaskCreate` means no task exists yet, so
-   the entry is the only record left; a failed `TaskUpdate` means a
-   task already exists with its subject still unfolded, so the entry
-   and the task now both exist side by side.
+   appear in step 8's removal list, nor in step 7's dependency
+   resolution. The two failures leave different states behind: a failed
+   `TaskCreate` means no task exists yet, so the entry is the only
+   record left; a failed `TaskUpdate` means a task already exists with
+   its subject still unfolded, so the entry and the task now both exist
+   side by side.
 
-7. Spawn `agent(subAgent=tasklist-sweeper, title=Sweep imported tasklist entries)`
+7. For every entry tracked as successful in step 6, resolve its
+   Depends-on titles (from step 3) back into a dependency edge:
+   a. Build one title→id-list map from a single fresh `TaskList` call,
+      made after every selected entry has been attempted (steps 4–5).
+      By then it already covers both a title that was never offloaded
+      (or was already reimported earlier) and this batch's own newly
+      created tasks, whose subjects were folded in back in step 5 — no
+      second source needed. Derive each task's bare `<title>` from its
+      subject the same way step 4 derives one from an entry's header:
+      strip the leading ` <id>. [#<returned-id>]`, then drop the
+      `[<category>]` that remains, keeping only `<title>` — matching
+      how `offload-tasklist` wrote each Depends-on title in the first
+      place. An entry that failed step 4 or 5 never got its subject
+      folded in, so it is never a resolution target even if some other
+      entry's Depends-on line names its title. Append to the list at a
+      title's key rather than overwriting it, since two live tasks can
+      share the same title.
+   b. For each Depends-on title, look it up in that map. If exactly one
+      id is listed, `TaskUpdate addBlockedBy` on the entry's own new
+      task id. Match on the exact title string only — never a fuzzy or
+      partial match.
+   c. A title with an empty id list is unresolved. A title whose id
+      list holds more than one entry (titles are not guaranteed
+      unique) is also unresolved — never guess which one was meant.
+      Either case:
+      name it in the report (see Reporting) rather than silently
+      dropping it. A no-match case is the one part of the original
+      dependency graph that cannot come back — the task it pointed to
+      no longer exists under that title anywhere this skill can see. An
+      ambiguous-match case can still be restored by hand once the
+      caller disambiguates.
+
+8. Spawn `agent(subAgent=tasklist-sweeper, title=Sweep imported tasklist entries)`
    in the background, passing the
    list of local ids from step 6 — successes only — as already-imported
    ids to remove. Spawn it once, after every selected entry has been
@@ -104,10 +152,12 @@ description body indented three spaces — the same contract
 
 ## What this skill never restores
 
-The task dependency graph (`blocks`/`blockedBy`) is not restored on
-import — `offload-tasklist` already dropped it when the task left its
-owning session, so there is nothing left to reconstruct. Every imported
-task starts as an independent entry with no dependency edges.
+A Depends-on title that resolves to no live task (step 7c) cannot be
+restored — the task it pointed to is gone under that title, and there
+is nothing left to match against. A title that resolves to more than
+one live task is restorable, but only by hand, since guessing which
+one was meant risks attaching the wrong dependency. Every other
+dependency edge captured by `offload-tasklist` is restored.
 
 ## The post-offload duplicate-id window
 
@@ -138,6 +188,13 @@ ambiguity that only affects id-based selection.
   unfolded subject) until the caller resolves it by hand — retrying
   would create a duplicate task.
 
+- A Depends-on title did not resolve (step 7c): name the importing
+  entry's local id and the unresolved title. If no task matched, note
+  that the caller must add the dependency back by hand with
+  `TaskUpdate addBlockedBy` once the task it refers to turns up. If
+  more than one task matched, name every matching task id and ask the
+  caller which one to attach the dependency to.
+
 - Missing file: report that there was nothing to import. No
   `TaskCreate` call was made, no sweeper was spawned.
 
@@ -149,11 +206,13 @@ ambiguity that only affects id-based selection.
 
 - Never edit, delete, or rewrite any line already in `tasklist.md` —
   this skill only reads it.
-- Never restore `blocks`/`blockedBy` — the dependency graph is gone for
-  good once a task has been through `offload-tasklist`.
-- Never strip more or less than exactly three leading characters from a
-  body line — a general trim is forbidden even when it would look
-  equivalent on a given entry.
+- Never resolve a Depends-on title with a fuzzy or partial match —
+  only an exact string match against step 7a's title→id map counts;
+  report anything else as unresolved instead of guessing.
+- Never call `TaskUpdate addBlockedBy` for an entry before its own
+  `TaskCreate` and subject-fold-in `TaskUpdate` (steps 4–5) have both
+  succeeded — an entry tracked as failed in step 6 has no task id to
+  attach a dependency to.
 - Never spawn `tasklist-sweeper` more than once per invocation, and
   never before every selected entry has been attempted.
 - Never skip inspecting a `TaskCreate` or `TaskUpdate` result for
@@ -162,3 +221,7 @@ ambiguity that only affects id-based selection.
   delete its only remaining record; a failed `TaskUpdate` leaves a task
   that already exists with an unfolded subject, so passing that entry's
   local id would hide the duplicate the caller still needs to resolve.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.

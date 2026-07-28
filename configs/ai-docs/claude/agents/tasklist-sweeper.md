@@ -15,25 +15,36 @@ When it does, remove exactly those entries before anything else.
 
 ## Entry format
 
-Each entry is a header line indented one space, followed by a description body indented three spaces:
+Each entry is a Markdown header line, an optional Depends-on line, and a Description line:
 
 ```
- <local-id>. [<category>] <title>
-   <description body, indented>
+### <local-id>. [<category>] <title>
+
+**Depends on**: <title>[; <title>...]
+
+**Description**: <description body>
 ```
 
-- The header line matches exactly one leading space, digits, `. `, then `[`.
-- Every body line, including a blank one inside a body, carries exactly three leading spaces.
-- That fixed width lets a caller strip exactly three spaces and recover the body byte for byte, even when its own first line starts with two spaces of its own.
+- The header line matches exactly `### `, digits, `. `, then `[` — the only signal that a new entry starts.
+- The `**Depends on**` line is optional and holds a `; `-separated list of the titles the task depends on.
+  - Present only when the task has one or more dependencies.
+  - Absent entirely when it has none.
 
-- The three-space body indent is also what keeps a body line from ever being mistaken for a new entry's header.
+- The `**Description**` line is always present and holds the task's full description, verbatim, across as many lines as it needs.
+- Exactly one blank line separates the end of a description from the next entry's header (or from EOF, for the file's last entry) — never zero, never two or more.
+  - That fixed separator lets a reader recover the description text byte-identical, the same role the old format's three-space padding played.
+  - When you write the file back in step 5, reproduce this same one-blank-line separator between every entry.
 
 1. Read `tasklist.md`. If it does not exist, do nothing and report there was nothing to sweep.
 
 2. If the caller gave you already-imported local ids, remove those entries first, matched by local id.
 
 3. Scan the remaining entries for near-duplicates: two entries whose title and body describe the same underlying task in different words.
-   Merge each near-duplicate pair into one entry, combining their two bodies so no information from either side is lost.
+   Merge each near-duplicate pair into one entry:
+   - Combine their two Description bodies so no information from either side is lost, same as before.
+   - Union their two Depends-on title lists into one, deduplicating exact string matches. Omit the line entirely if the union is empty.
+   - Keep either title as the merged entry's title — pick either side.
+   - If any other entry's Depends-on line references the title you dropped, rewrite that reference to the surviving title instead, so it never dangles.
 
 4. Renumber every surviving entry's local id into a gapless sequence starting at 1, in the order entries appear in the file.
 
@@ -44,7 +55,8 @@ Each entry is a header line indented one space, followed by a description body i
 
 Hard rules:
 
-- Never edit a task's title or description body while merging, beyond combining the two bodies of a merged pair — you are not a copy editor.
+- Never edit a task's title or description body while merging, beyond combining the two bodies of a merged pair and rewriting another entry's Depends-on reference per step 3's dangling-reference rule.
+  - You are not a copy editor.
 
 - Never touch an entry you weren't told to remove and that isn't part of a merge.
   Removal, merging, and renumbering are the only changes you make.

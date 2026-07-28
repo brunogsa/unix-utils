@@ -46,7 +46,10 @@ at the end of this skill.
 2. For each selected task, `TaskGet` it. `TaskList` alone returns
    `subject`, `status`, `owner`, `blockedBy`, and `id`, but never
    `description` — `TaskGet` is the only call that returns the body
-   this skill needs to write into the file.
+   this skill needs to write into the file. `TaskGet` also reports the
+   task's blockers as a `Blocked by: #<id>[, #<id>...]` line, omitted
+   when it has none — keep step 1's `TaskList` output on hand too;
+   step 3 needs it to resolve each blocking id to a title.
 
 3. Append one entry per selected task to `tasklist.md` in CWD (create
    the file if missing). Never read the file first — appending is the
@@ -60,22 +63,44 @@ at the end of this skill.
 
    Entry format, exactly (matches `tasklist-sweeper`'s own contract):
    ```
-    <local-id>. [<category>] <title>
-      <description body, indented>
+   ### <local-id>. [<category>] <title>
+
+   **Depends on**: <title>[; <title>...]
+
+   **Description**: <description body>
    ```
-   - Header line: one leading space, digits, `. `, then `[`.
-   - Body line: exactly three leading spaces, including on a blank
-     line inside the body. A heredoc leaves a truly-blank source line
-     at zero spaces — pad it to three explicitly, or the round-trip
-     strip-three-spaces step downstream stops being uniform across
-     every body line.
-   - `<category>` and `<title>`: a TaskList subject follows
-     ` <id>. [#<returned-id>][<category>] <description>`. Strip the
-     leading ` <id>. [#<returned-id>]`; what remains is
-     `[<category>] <title>`.
-   - `<description body>` is `TaskGet`'s `description` field, written
-     verbatim, split across as many three-space-indented lines as it
-     needs.
+   - Header line: `### `, then digits, `. `, then `[` — this is only
+     the file's own entry marker, distinct from the single-space
+     ` <id>. [#<returned-id>][<category>] <description>` TaskList
+     subject convention used elsewhere.
+   - `<category>` and `<title>`: derived the same way as before —
+     strip a TaskList subject's leading ` <id>. [#<returned-id>]`;
+     what remains is `[<category>] <title>`.
+   - `**Depends on**` line: include it only when `TaskGet` reported one
+     or more blockers. Resolve each blocking id to a title using step
+     1's `TaskList` output — apply the same `[<category>] <title>`
+     stripping to that id's subject, then keep only `<title>` (drop
+     the `[<category>]`). Join multiple titles with `; `, chosen over
+     `, ` because a title is far less likely to contain a semicolon
+     than a comma. Omit the whole line — never write
+     `**Depends on**: none` — when the task has no blockers.
+     - A blocking id absent from `TaskList`'s output (should not
+       happen, since it enumerates every task) falls back to writing
+       `task #<id>` as that reference's text, rather than failing the
+       whole entry.
+   - `**Description**` line: `TaskGet`'s `description` field, written
+     verbatim starting right after the label, continuing unindented
+     across as many lines as it needs. The header regex (`### `,
+     digits, `. `, `[`) is precise enough that a description's own
+     text colliding with it is effectively impossible — the same
+     precision philosophy as the original single-space header marker.
+   - After the description text, write exactly one blank line before
+     the next entry's header (or before EOF, for the batch's last
+     entry) — never zero, never two or more. That fixed one-line
+     separator is what lets `import-tasklist` strip exactly one
+     trailing blank line back off and recover the description
+     byte-identical, the same role the old format's three-space
+     padding played.
    - `<local-id>`: this skill never reads the file, so it cannot know
      the next free id. Write provisional ids starting at 1 for this
      batch — the sweeper is the sole renumbering authority and
@@ -124,3 +149,7 @@ at the end of this skill.
 - Never issue `TaskUpdate status=deleted` before that task's entry has
   been appended.
 - Never skip inspecting a `TaskUpdate` result's `success` field.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
