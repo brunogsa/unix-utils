@@ -1,7 +1,6 @@
 ---
 name: pr-review
 description: "USE for code review on a GitHub PR URL (no URL — use /auto-review on your local branch). Posts a PENDING review you filter and submit."
-disable-model-invocation: true
 ---
 
 # PR Review
