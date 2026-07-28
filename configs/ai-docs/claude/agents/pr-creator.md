@@ -1,6 +1,6 @@
 ---
 name: pr-creator
-description: Fresh-context PR composer — given a branch/base, spec/plan file paths, and explicit PR-body requirements, reads git diff/commits + spec/plan and composes a PR title/body under the create-pr skill's conventions. Returns the drafted body's path when asked to draft only, or pushes and returns the PR URL when asked to go all the way. Use for implement's batch-end PR-description dispatch, or any caller needing an isolated, attributable create-pr composer.
+description: Fresh-context PR composer — given a branch/base, spec/plan file paths, and explicit PR-body requirements, reads git diff/commits + spec/plan and composes a PR title/body under the create-pr skill's conventions. Returns the drafted body's path when asked to draft only, or pushes and returns the PR URL when asked to go all the way. Use for implement's batch-end PR-description dispatch, or any caller needing an isolated, attributable PR-body composer.
 model: sonnet
 effort: medium
 ---

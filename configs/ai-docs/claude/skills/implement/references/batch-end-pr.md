@@ -29,7 +29,7 @@ Skip this whole section on a plain `<task-ids>` run (no `PR-N` label, `pr_label`
 
 Only when the interview opted into a PR (§1.2, `pr.wanted: true`). Skip this section entirely otherwise.
 
-**One dispatch owns the whole PR, start to finish: `agent(subAgent=create-pr, title=Open the batch PR)`.**
+**One dispatch owns the whole PR, start to finish: `agent(subAgent=pr-creator, title=Open the batch PR)`.**
 It composes the body, pushes the branch, and creates (or updates) the PR itself — the orchestrator never writes a body and never pushes.
 Push and create belong in one dispatch: split across two owners, an orchestrator that dies between them leaves a pushed branch and no PR, with no one owning the cleanup.
 

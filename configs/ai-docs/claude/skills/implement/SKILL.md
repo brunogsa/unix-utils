@@ -159,7 +159,7 @@ Seed exactly these four, in this order, prefixed with the owning `PR-N ·` on a 
 ```
 [Reminder] Batch-end 1/4: repo-green gate — full suite + full lint, fix-loop until green (§8.1, only when opted in)
 [Reminder] Batch-end 2/4: quality-gate tail with --auto-solve (§8.2, only when opted in)
-[Reminder] Batch-end 3/4: PR manifest entry; then push + open the PR via create-pr (§8.3, only when pr.wanted)
+[Reminder] Batch-end 3/4: PR manifest entry; then push + open the PR via the pr-creator agent (§8.3, only when pr.wanted)
 [Reminder] Batch-end 4/4: package print, diffview pane (§8.3, success path only)
 ```
 

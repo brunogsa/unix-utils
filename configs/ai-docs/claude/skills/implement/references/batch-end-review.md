@@ -139,7 +139,7 @@ After printing the summary, open the batch diff in a **side-by-side tmux pane** 
 
 By the time Finalize starts, the quality-gate tail (§8.2) has already finished — Finalize's first job is to dispatch the PR branch, not to join anything.
 
-1. **Dispatch the PR branch** (`pr.wanted: true` only) — manifest entry + `create-pr`, mechanics in [`batch-end-pr.md`](batch-end-pr.md).
+1. **Dispatch the PR branch** (`pr.wanted: true` only) — manifest entry + `pr-creator`, mechanics in [`batch-end-pr.md`](batch-end-pr.md).
    By now the quality gate has applied whatever it applied and (if it applied anything) §8.1 has been re-run green, so the PR describes the batch's actual final diff in one pass.
    - **Any failure here is a [`failure-and-halt.md`](failure-and-halt.md) §5.5 halt, not a partial package.**
      - No `gh`, no remote, a rejected push, or a create that errored all route there — name the failure, keep the state file, print nothing.
