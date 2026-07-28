@@ -67,7 +67,7 @@ def implement(arg):
             task_create(f"[Reminder] {step}")
             # 11a · 1/4 repo-green gate, fix-loop until green
             # 11b · 2/4 quality-gate tail with --auto-solve
-            # 11c · 3/4 push + open the PR via create-pr
+            # 11c · 3/4 push + open the PR via pr-creator
             # 11d · 4/4 package print, diffview pane
             # Never one chain: a combined entry has one completed flag, so a
             # step-level skip would have nowhere to land.
@@ -185,7 +185,7 @@ def run_unit(unit):
                                          #      PR-label run nor an opted-in draft PR
     write_manifest_entry(branches_file)  # 29 · + PR-level status marker, PR-label only
     if answers.draft_pr:                                   # 30
-        pr = dispatch("create-pr", batch_diff)   # 30a · composes the body, pushes the
+        pr = dispatch("pr-creator", batch_diff)  # 30a · composes the body, pushes the
                                                  #       branch AND opens the PR
         if not pr.opened:                                  # 30b
             return halt()
@@ -232,7 +232,7 @@ flowchart TD
     direction TB
     n11a["11a. Add to TaskList a [Reminder] for<br/>Batch-end 1/4: repo-green gate, fix-loop until green"]:::state
     n11b["11b. Add to TaskList a [Reminder] for<br/>Batch-end 2/4: quality-gate tail with --auto-solve"]:::state
-    n11c["11c. Add to TaskList a [Reminder] for<br/>Batch-end 3/4: push + open the PR via create-pr"]:::state
+    n11c["11c. Add to TaskList a [Reminder] for<br/>Batch-end 3/4: push + open the PR via pr-creator"]:::state
     n11d["11d. Add to TaskList a [Reminder] for<br/>Batch-end 4/4: package print, diffview pane"]:::state
     n11a --> n11b --> n11c --> n11d
   end
@@ -276,7 +276,7 @@ flowchart TD
     n28["28. Load references/batch-end-pr.md<br/>(skip entirely when neither a PR-label<br/>run nor an opted-in draft PR)"]:::skill
     n29["29. Step 8.3 · branches_&lt;slug&gt;.md manifest<br/>entry + PR-level status marker<br/>(PR-label runs only)"]:::state
     n30{"30. Draft PR requested?"}
-    n30a["30a. Step 8.3 · Dispatch the create-pr agent<br/>(agent-pinned): it composes the body,<br/>pushes the branch AND opens the PR"]:::dispatch
+    n30a["30a. Step 8.3 · Dispatch the pr-creator agent<br/>(agent-pinned): it composes the body,<br/>pushes the branch AND opens the PR"]:::dispatch
     n30b{"30b. PR opened?"}
     n31["31. Step 8.3 · Print the review package,<br/>THEN the nvim diffview pane<br/>(open-in-tmux); complete the<br/>remaining [Reminder]s"]
     n32["32. Step 8.3 · phase=presented;<br/>DELETE this unit's state file"]:::state
