@@ -80,7 +80,7 @@ def quality_gate(arg):
     #        - it commits the refactor agent's work, and a permission prompt
     #          only renders in the main session;
     #        - its per-finding apply agents are already fresh-context subagents,
-    #          so wrapping it spends the one nesting level on nothing. ----
+    #          so wrapping it spends one of three nesting levels on nothing. ----
     ledger = skill("address-verdicts",                     # 11
                    findings=explicit_ids(addressable),     # 11a · never a severity floor
                    no_ask=True,                            # 11b · nobody is standing by
@@ -125,7 +125,7 @@ flowchart TD
 
   subgraph delegate["11. Step 6.2 · Applying is NOT this skill's job — /address-verdicts is the one apply step for every verdict_*.md on disk. Two copies of the loop would drift, leaving a human unable to tell which one their report followed."]
     direction TB
-    n11["11. Invoke /address-verdicts IN THIS SESSION,<br/>never wrapped in a subagent:<br/>it commits the refactor agent's work and permission<br/>prompts render only in the main session; and its apply<br/>agents are already fresh-context subagents, so wrapping<br/>it spends the one nesting level on nothing"]:::skill
+    n11["11. Invoke /address-verdicts IN THIS SESSION,<br/>never wrapped in a subagent:<br/>it commits the refactor agent's work and permission<br/>prompts render only in the main session; and its apply<br/>agents are already fresh-context subagents, so wrapping<br/>it spends one of three nesting levels on nothing"]:::skill
     n11a["11a. Pass the accepted findings as EXPLICIT ids,<br/>never a severity floor — nothing re-derives<br/>the triage and quietly widens the scope"]
     n11b["11b. Pass --no-ask: an auto-solve run has no human<br/>standing by, and a prompt mid-batch would stall<br/>an /implement tail indefinitely"]:::gate
     n11c["11c. Pass --test-cmd, so its own inference<br/>step has nothing left to guess"]

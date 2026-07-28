@@ -88,7 +88,7 @@ Spawn every leg as `agent(subAgent=deep-reviewer, …)`, all in the **same turn*
 
 **Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.**
 The leg already *is* the fresh-context reviewer those skills would otherwise dispatch.
-Nesting would buy a second opinion nobody asked for and spend the harness's only remaining nesting level.
+Nesting would buy a second opinion nobody asked for and spend a nesting level the harness caps at three.
 
 Tell each leg this explicitly in its prompt — the skills it reads describe dispatching a reviewer, and without the override it would follow that literally.
 
@@ -153,7 +153,7 @@ Resolve the repo's test command first — a `package.json` script, a Makefile ta
 Two reasons it runs in this session rather than inside a subagent, the same two that put this skill in `/implement`'s main session:
 
 - It commits the `refactor` agent's work, and a permission prompt only renders in the main session.
-- Its per-finding apply agents are already fresh-context subagents, so wrapping it would spend the harness's one nesting level on a layer that decides nothing.
+- Its per-finding apply agents are already fresh-context subagents, so wrapping it would spend one of the harness's three nesting levels on a layer that decides nothing.
 
 It returns the ledger §7 reports from: applied findings with SHAs, skipped findings with reasons, and failures with what each needs to retry.
 
