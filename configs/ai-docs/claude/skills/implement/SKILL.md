@@ -81,6 +81,7 @@ Ask everything at once, in a single round, before any dispatch — the only roun
 Mid-run `.env` needs are self-served (copied from the original checkout) rather than asked.
 
 - **Plan pick**, only when §1.1 found multiple candidates.
+- **Plan path**, only when §1.1 found no plan — if still not provided, stop (§1.1).
 - **Run in a git worktree?** (yes/no) — on yes, §1.4 creates it from HEAD and symlinks files in.
 - **Open a draft PR at batch end?** (yes/no).
 - **Run the quality-gate batch-end tail?** (yes/no, default yes) — on yes, §8.2 runs `/quality-gate --auto-solve`; on no, it's skipped and the package says so.
