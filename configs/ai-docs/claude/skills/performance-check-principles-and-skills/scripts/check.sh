@@ -5,15 +5,17 @@
 #   check.sh [path]
 #
 # No arg: audits ~/.claude/CLAUDE.md and ~/.claude/skills/
-# Path:   audits <path>/CLAUDE.md and <path>/.claude/skills/
+# Path:   audits <path>/CLAUDE.md; skills dir tried as
+#         <path>/.claude/skills/, then <path>/skills/
 #
 # Examples:
 #   check.sh                          # user config
 #   check.sh ~/work/my-project        # repo config
 #
 # Exit codes:
-#   0 — all budgets met
-#   1 — one or more overages
+#   0 - all budgets met
+#   1 - one or more overages, or a hard failure (e.g.
+#       missing skills directory)
 
 set -eo pipefail
 
@@ -61,20 +63,39 @@ readonly STANDARDS_SUBTOTAL_EXCLUDED="skill-standards"
 if [ -z "${1:-}" ]; then
     CLAUDE_MD="$HOME/.claude/CLAUDE.md"
     SKILLS_DIR="$HOME/.claude/skills"
+    SKILLS_DIR_TRIED="$SKILLS_DIR"
     TARGET_LABEL="user (~/.claude)"
 else
     CLAUDE_MD="$1/CLAUDE.md"
-    SKILLS_DIR="$1/.claude/skills"
+    # A path arg may name a repo laid out either way: nested
+    # <path>/.claude/skills/, or a sibling <path>/skills/
+    # (this repo's own layout). Try nested first, then fall
+    # back to the sibling.
+    skills_dir_nested="$1/.claude/skills"
+    skills_dir_sibling="$1/skills"
+    if [ -d "$skills_dir_nested" ]; then
+        SKILLS_DIR="$skills_dir_nested"
+    elif [ -d "$skills_dir_sibling" ]; then
+        SKILLS_DIR="$skills_dir_sibling"
+    else
+        SKILLS_DIR="$skills_dir_nested"
+    fi
+    SKILLS_DIR_TRIED="$skills_dir_nested, $skills_dir_sibling"
     TARGET_LABEL="repo ($1)"
 fi
 
 has_claude_md=0
-has_skills_dir=0
 [ -f "$CLAUDE_MD" ] && has_claude_md=1
-[ -d "$SKILLS_DIR" ] && has_skills_dir=1
 
-if [ "$has_claude_md" -eq 0 ] && [ "$has_skills_dir" -eq 0 ]; then
+if [ "$has_claude_md" -eq 0 ] && [ ! -d "$SKILLS_DIR" ]; then
     echo "ERROR: neither $CLAUDE_MD nor $SKILLS_DIR found" >&2
+    exit 1
+fi
+
+# A missing skills dir must hard-fail here, never fall
+# through to a green report that measured zero skills.
+if [ ! -d "$SKILLS_DIR" ]; then
+    echo "ERROR: no skills directory found (tried $SKILLS_DIR_TRIED)" >&2
     exit 1
 fi
 
@@ -156,173 +177,171 @@ if [ "$has_claude_md" -eq 1 ]; then
 fi
 
 # Skill measurements
-if [ "$has_skills_dir" -eq 1 ]; then
-    skill_count=$(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')
+skill_count=$(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')
 
-    skill_overages=""
-    max_desc=0
-    max_desc_skill="—"
-    max_name=0
-    max_name_skill="—"
+skill_overages=""
+max_desc=0
+max_desc_skill="—"
+max_name=0
+max_name_skill="—"
 
-    # Instruction-density accumulators (only *-standards skills participate)
-    standards_total_instructions=0
-    standards_ratio_rows=""
-    standards_unmigrated=""
-    standards_ratio_over=0
-    # Status-table rows for the *-standards skills the subtotal excludes. An excluded
-    # skill answers only to its own frontmatter `instructions-budget:`, and that gate is
-    # silent while passing — so without these rows the table names the exclusion but
-    # never shows the number or the limit that replaced the shared budget.
-    excluded_standards_rows=""
-    # Per-skill instructions-budget override accumulators (any skill, not just *-standards)
-    skill_instr_overages=""
-    skill_instr_over=0
-    for f in "$SKILLS_DIR"/*/SKILL.md; do
-        [ -f "$f" ] || continue
-        name=$(basename "$(dirname "$f")")
-        lines=$(grep -c '\S' "$f")
-        words=$(wc -w < "$f" | tr -d ' ')
-        desc=$(extract_description "$f")
-        desc_chars=$(printf '%s' "$desc" | LC_ALL=en_US.UTF-8 wc -m | tr -d ' ')
-        name_chars=${#name}
+# Instruction-density accumulators (only *-standards skills participate)
+standards_total_instructions=0
+standards_ratio_rows=""
+standards_unmigrated=""
+standards_ratio_over=0
+# Status-table rows for the *-standards skills the subtotal excludes. An excluded
+# skill answers only to its own frontmatter `instructions-budget:`, and that gate is
+# silent while passing — so without these rows the table names the exclusion but
+# never shows the number or the limit that replaced the shared budget.
+excluded_standards_rows=""
+# Per-skill instructions-budget override accumulators (any skill, not just *-standards)
+skill_instr_overages=""
+skill_instr_over=0
+for f in "$SKILLS_DIR"/*/SKILL.md; do
+    [ -f "$f" ] || continue
+    name=$(basename "$(dirname "$f")")
+    lines=$(grep -c '\S' "$f")
+    words=$(wc -w < "$f" | tr -d ' ')
+    desc=$(extract_description "$f")
+    desc_chars=$(printf '%s' "$desc" | LC_ALL=en_US.UTF-8 wc -m | tr -d ' ')
+    name_chars=${#name}
 
-        # Per-skill override beats default. Skills that legitimately pair
-        # principles with inline examples opt in via `words-budget: N`.
-        skill_words_budget_override=$(extract_frontmatter_budget "words-budget" "$f")
-        if [ -n "$skill_words_budget_override" ]; then
-            skill_words_budget=$skill_words_budget_override
-            words_overage_suffix=" (override; default=$SKILL_WORDS_BUDGET)"
-        else
-            skill_words_budget=$SKILL_WORDS_BUDGET
-            words_overage_suffix=""
-        fi
+    # Per-skill override beats default. Skills that legitimately pair
+    # principles with inline examples opt in via `words-budget: N`.
+    skill_words_budget_override=$(extract_frontmatter_budget "words-budget" "$f")
+    if [ -n "$skill_words_budget_override" ]; then
+        skill_words_budget=$skill_words_budget_override
+        words_overage_suffix=" (override; default=$SKILL_WORDS_BUDGET)"
+    else
+        skill_words_budget=$SKILL_WORDS_BUDGET
+        words_overage_suffix=""
+    fi
 
-        if [ "$desc_chars" -gt "$max_desc" ]; then
-            max_desc=$desc_chars
-            max_desc_skill=$name
-        fi
-        if [ "$name_chars" -gt "$max_name" ]; then
-            max_name=$name_chars
-            max_name_skill=$name
-        fi
+    if [ "$desc_chars" -gt "$max_desc" ]; then
+        max_desc=$desc_chars
+        max_desc_skill=$name
+    fi
+    if [ "$name_chars" -gt "$max_name" ]; then
+        max_name=$name_chars
+        max_name_skill=$name
+    fi
 
-        issues=""
-        [ "$lines" -gt "$SKILL_LINES_BUDGET" ] && issues+=" lines=$lines"
-        [ "$words" -gt "$skill_words_budget" ] && issues+=" words=$words(>$skill_words_budget$words_overage_suffix)"
-        [ "$desc_chars" -gt "$SKILL_DESC_BUDGET" ] && issues+=" desc=${desc_chars}c"
-        [ "$name_chars" -gt "$SKILL_NAME_BUDGET" ] && issues+=" name=${name_chars}c"
+    issues=""
+    [ "$lines" -gt "$SKILL_LINES_BUDGET" ] && issues+=" lines=$lines"
+    [ "$words" -gt "$skill_words_budget" ] && issues+=" words=$words(>$skill_words_budget$words_overage_suffix)"
+    [ "$desc_chars" -gt "$SKILL_DESC_BUDGET" ] && issues+=" desc=${desc_chars}c"
+    [ "$name_chars" -gt "$SKILL_NAME_BUDGET" ] && issues+=" name=${name_chars}c"
 
-        if [ -n "$issues" ]; then
-            skill_overages+=$'\n'"- $name:$issues"
-        fi
+    if [ -n "$issues" ]; then
+        skill_overages+=$'\n'"- $name:$issues"
+    fi
 
-        # `instructions-budget` is opt-in for ANY skill, not just *-standards:
-        # a skill that caps its own instruction count gets the gate without
-        # joining the *-standards subtotal or CRITICAL-ratio report below.
-        # No key declared means no cap — the check is silent, never a default.
-        skill_instructions=$(count_instructions "$f")
-        instr_budget_override=$(extract_frontmatter_budget "instructions-budget" "$f")
-        if [ -n "$instr_budget_override" ] && [ "$skill_instructions" -gt "$instr_budget_override" ]; then
-            skill_instr_overages+=$'\n'"- $name: $skill_instructions [Instruction] (>$instr_budget_override budget)"
-            skill_instr_over=1
-        fi
+    # `instructions-budget` is opt-in for ANY skill, not just *-standards:
+    # a skill that caps its own instruction count gets the gate without
+    # joining the *-standards subtotal or CRITICAL-ratio report below.
+    # No key declared means no cap — the check is silent, never a default.
+    skill_instructions=$(count_instructions "$f")
+    instr_budget_override=$(extract_frontmatter_budget "instructions-budget" "$f")
+    if [ -n "$instr_budget_override" ] && [ "$skill_instructions" -gt "$instr_budget_override" ]; then
+        skill_instr_overages+=$'\n'"- $name: $skill_instructions [Instruction] (>$instr_budget_override budget)"
+        skill_instr_over=1
+    fi
 
-        # Instruction density — only *-standards skills participate
-        case "$name" in
-            *-standards)
-                skill_criticals=$(count_critical_instructions "$f")
+    # Instruction density — only *-standards skills participate
+    case "$name" in
+        *-standards)
+            skill_criticals=$(count_critical_instructions "$f")
 
-                # Excluded skills still get a ratio row and status-table rows of their
-                # own; only the shared subtotal skips them.
-                is_subtotal_excluded=0
-                case " $STANDARDS_SUBTOTAL_EXCLUDED " in
-                    *" $name "*) is_subtotal_excluded=1 ;;
-                esac
+            # Excluded skills still get a ratio row and status-table rows of their
+            # own; only the shared subtotal skips them.
+            is_subtotal_excluded=0
+            case " $STANDARDS_SUBTOTAL_EXCLUDED " in
+                *" $name "*) is_subtotal_excluded=1 ;;
+            esac
 
-                # An excluded skill's cap is whatever its frontmatter declares. No key
-                # means no cap at all, which the row has to say out loud — a blank
-                # budget cell would read as "measured against something" and hide that
-                # the count is ungated.
-                if [ -n "$instr_budget_override" ]; then
-                    excluded_instr_budget=$instr_budget_override
-                    excluded_instr_status=$(status_of "$skill_instructions" "$instr_budget_override")
-                else
-                    excluded_instr_budget="none declared"
-                    excluded_instr_status="—"
+            # An excluded skill's cap is whatever its frontmatter declares. No key
+            # means no cap at all, which the row has to say out loud — a blank
+            # budget cell would read as "measured against something" and hide that
+            # the count is ungated.
+            if [ -n "$instr_budget_override" ]; then
+                excluded_instr_budget=$instr_budget_override
+                excluded_instr_status=$(status_of "$skill_instructions" "$instr_budget_override")
+            else
+                excluded_instr_budget="none declared"
+                excluded_instr_status="—"
+            fi
+
+            if [ "$skill_instructions" -eq 0 ]; then
+                standards_unmigrated+=$'\n'"- $name (0 [Instruction] markers)"
+                if [ "$is_subtotal_excluded" -eq 1 ]; then
+                    excluded_standards_rows+=$'\n'"| $name [Instruction] count | 0 | $excluded_instr_budget | UNMIGRATED |"
+                    excluded_standards_rows+=$'\n'"| $name CRITICAL ratio | N/A | ${CRITICAL_RATIO_BUDGET}% | UNMIGRATED |"
                 fi
-
-                if [ "$skill_instructions" -eq 0 ]; then
-                    standards_unmigrated+=$'\n'"- $name (0 [Instruction] markers)"
-                    if [ "$is_subtotal_excluded" -eq 1 ]; then
-                        excluded_standards_rows+=$'\n'"| $name [Instruction] count | 0 | $excluded_instr_budget | UNMIGRATED |"
-                        excluded_standards_rows+=$'\n'"| $name CRITICAL ratio | N/A | ${CRITICAL_RATIO_BUDGET}% | UNMIGRATED |"
-                    fi
-                else
-                    [ "$is_subtotal_excluded" -eq 0 ] && standards_total_instructions=$((standards_total_instructions + skill_instructions))
-                    skill_ratio_int=$(ratio_percent_int "$skill_criticals" "$skill_instructions")
-                    ratio_status=$(status_of "$skill_ratio_int" "$CRITICAL_RATIO_BUDGET")
-                    standards_ratio_rows+=$'\n'"| $name | $skill_instructions | $skill_criticals | ${skill_ratio_int}% | $ratio_status |"
-                    [ "$skill_ratio_int" -gt "$CRITICAL_RATIO_BUDGET" ] && standards_ratio_over=1
-                    if [ "$is_subtotal_excluded" -eq 1 ]; then
-                        excluded_standards_rows+=$'\n'"| $name [Instruction] count | $skill_instructions | $excluded_instr_budget | $excluded_instr_status |"
-                        excluded_standards_rows+=$'\n'"| $name CRITICAL ratio | ${skill_ratio_int}% ($skill_criticals/$skill_instructions) | ${CRITICAL_RATIO_BUDGET}% | $ratio_status |"
-                    fi
+            else
+                [ "$is_subtotal_excluded" -eq 0 ] && standards_total_instructions=$((standards_total_instructions + skill_instructions))
+                skill_ratio_int=$(ratio_percent_int "$skill_criticals" "$skill_instructions")
+                ratio_status=$(status_of "$skill_ratio_int" "$CRITICAL_RATIO_BUDGET")
+                standards_ratio_rows+=$'\n'"| $name | $skill_instructions | $skill_criticals | ${skill_ratio_int}% | $ratio_status |"
+                [ "$skill_ratio_int" -gt "$CRITICAL_RATIO_BUDGET" ] && standards_ratio_over=1
+                if [ "$is_subtotal_excluded" -eq 1 ]; then
+                    excluded_standards_rows+=$'\n'"| $name [Instruction] count | $skill_instructions | $excluded_instr_budget | $excluded_instr_status |"
+                    excluded_standards_rows+=$'\n'"| $name CRITICAL ratio | ${skill_ratio_int}% ($skill_criticals/$skill_instructions) | ${CRITICAL_RATIO_BUDGET}% | $ratio_status |"
                 fi
-                ;;
-        esac
-    done
+            fi
+            ;;
+    esac
+done
 
-    # Bundled resources (references/ + assets/) — same fixed pair of budgets per file.
-    # Without this, the trim hierarchy's "extract to references/" step could clear a
-    # SKILL.md overage by relocating words into a file nothing measured — budget
-    # cosmetics rather than a real lazy load.
-    bundled_overages=""
-    bundled_over=0
-    bundled_count=0
-    while IFS= read -r bf; do
-        [ -f "$bf" ] || continue
-        bundled_count=$((bundled_count + 1))
-        rel=${bf#"$SKILLS_DIR"/}
-        b_lines=$(grep -c '\S' "$bf")
-        b_words=$(wc -w < "$bf" | tr -d ' ')
+# Bundled resources (references/ + assets/) — same fixed pair of budgets per file.
+# Without this, the trim hierarchy's "extract to references/" step could clear a
+# SKILL.md overage by relocating words into a file nothing measured — budget
+# cosmetics rather than a real lazy load.
+bundled_overages=""
+bundled_over=0
+bundled_count=0
+while IFS= read -r bf; do
+    [ -f "$bf" ] || continue
+    bundled_count=$((bundled_count + 1))
+    rel=${bf#"$SKILLS_DIR"/}
+    b_lines=$(grep -c '\S' "$bf")
+    b_words=$(wc -w < "$bf" | tr -d ' ')
 
-        b_words_override=$(extract_frontmatter_budget "words-budget" "$bf")
-        if [ -n "$b_words_override" ]; then
-            b_words_budget=$b_words_override
-            b_words_suffix=" (override; default=$BUNDLED_WORDS_BUDGET)"
-        else
-            b_words_budget=$BUNDLED_WORDS_BUDGET
-            b_words_suffix=""
-        fi
+    b_words_override=$(extract_frontmatter_budget "words-budget" "$bf")
+    if [ -n "$b_words_override" ]; then
+        b_words_budget=$b_words_override
+        b_words_suffix=" (override; default=$BUNDLED_WORDS_BUDGET)"
+    else
+        b_words_budget=$BUNDLED_WORDS_BUDGET
+        b_words_suffix=""
+    fi
 
-        b_lines_override=$(extract_frontmatter_budget "lines-budget" "$bf")
-        if [ -n "$b_lines_override" ]; then
-            b_lines_budget=$b_lines_override
-            b_lines_suffix=" (override; default=$BUNDLED_LINES_BUDGET)"
-        else
-            b_lines_budget=$BUNDLED_LINES_BUDGET
-            b_lines_suffix=""
-        fi
+    b_lines_override=$(extract_frontmatter_budget "lines-budget" "$bf")
+    if [ -n "$b_lines_override" ]; then
+        b_lines_budget=$b_lines_override
+        b_lines_suffix=" (override; default=$BUNDLED_LINES_BUDGET)"
+    else
+        b_lines_budget=$BUNDLED_LINES_BUDGET
+        b_lines_suffix=""
+    fi
 
-        b_issues=""
-        [ "$b_words" -gt "$b_words_budget" ] && b_issues+=" words=$b_words(>$b_words_budget$b_words_suffix)"
-        [ "$b_lines" -gt "$b_lines_budget" ] && b_issues+=" lines=$b_lines(>$b_lines_budget$b_lines_suffix)"
+    b_issues=""
+    [ "$b_words" -gt "$b_words_budget" ] && b_issues+=" words=$b_words(>$b_words_budget$b_words_suffix)"
+    [ "$b_lines" -gt "$b_lines_budget" ] && b_issues+=" lines=$b_lines(>$b_lines_budget$b_lines_suffix)"
 
-        # Past the threshold, a file with no "## " landmark forces a full read to find one
-        # section. assets/flowchart.md is exempt: it is a single mermaid diagram by
-        # construction, so an inner heading would name nothing.
-        if [ "$b_words" -gt "$BUNDLED_HEADINGS_THRESHOLD" ] && [ "$(basename "$bf")" != "flowchart.md" ]; then
-            b_h2=$(grep -c '^## ' "$bf" || true)
-            [ "$b_h2" -eq 0 ] && b_issues+=" no-'## '-headings(words=$b_words>$BUNDLED_HEADINGS_THRESHOLD)"
-        fi
+    # Past the threshold, a file with no "## " landmark forces a full read to find one
+    # section. assets/flowchart.md is exempt: it is a single mermaid diagram by
+    # construction, so an inner heading would name nothing.
+    if [ "$b_words" -gt "$BUNDLED_HEADINGS_THRESHOLD" ] && [ "$(basename "$bf")" != "flowchart.md" ]; then
+        b_h2=$(grep -c '^## ' "$bf" || true)
+        [ "$b_h2" -eq 0 ] && b_issues+=" no-'## '-headings(words=$b_words>$BUNDLED_HEADINGS_THRESHOLD)"
+    fi
 
-        if [ -n "$b_issues" ]; then
-            bundled_overages+=$'\n'"- $rel:$b_issues"
-            bundled_over=$((bundled_over + 1))
-        fi
-    done < <(find -L "$SKILLS_DIR" -type f \( -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort)
-fi
+    if [ -n "$b_issues" ]; then
+        bundled_overages+=$'\n'"- $rel:$b_issues"
+        bundled_over=$((bundled_over + 1))
+    fi
+done < <(find -L "$SKILLS_DIR" -type f \( -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort)
 
 # Report
 echo "# Performance Check — $TARGET_LABEL"
@@ -353,31 +372,27 @@ else
     echo "| CLAUDE.md | — | — | NOT FOUND at $CLAUDE_MD |"
 fi
 
-if [ "$has_skills_dir" -eq 1 ]; then
-    echo "| Skill count | $skill_count | $SKILLS_COUNT_BUDGET | $(status_of "$skill_count" "$SKILLS_COUNT_BUDGET") |"
-    echo "| Max skill desc chars | $max_desc ($max_desc_skill) | $SKILL_DESC_BUDGET | $(status_of "$max_desc" "$SKILL_DESC_BUDGET") |"
-    echo "| Max skill name chars | $max_name ($max_name_skill) | $SKILL_NAME_BUDGET | $(status_of "$max_name" "$SKILL_NAME_BUDGET") |"
-    [ "$skill_count" -gt "$SKILLS_COUNT_BUDGET" ] && overages=1
-    [ -n "$skill_overages" ] && overages=1
+echo "| Skill count | $skill_count | $SKILLS_COUNT_BUDGET | $(status_of "$skill_count" "$SKILLS_COUNT_BUDGET") |"
+echo "| Max skill desc chars | $max_desc ($max_desc_skill) | $SKILL_DESC_BUDGET | $(status_of "$max_desc" "$SKILL_DESC_BUDGET") |"
+echo "| Max skill name chars | $max_name ($max_name_skill) | $SKILL_NAME_BUDGET | $(status_of "$max_name" "$SKILL_NAME_BUDGET") |"
+[ "$skill_count" -gt "$SKILLS_COUNT_BUDGET" ] && overages=1
+[ -n "$skill_overages" ] && overages=1
 
-    # Bundled resources — one row for the whole references/ + assets/ population.
-    echo "| Bundled files failing size or heading checks (references/ + assets/) | $bundled_over of $bundled_count | 0 | $(status_of "$bundled_over" 0) |"
-    [ "$bundled_over" -gt 0 ] && overages=1
+# Bundled resources — one row for the whole references/ + assets/ population.
+echo "| Bundled files failing size or heading checks (references/ + assets/) | $bundled_over of $bundled_count | 0 | $(status_of "$bundled_over" 0) |"
+[ "$bundled_over" -gt 0 ] && overages=1
 
-    # Instruction-density row (*-standards subtotal vs its dedicated budget).
-    echo "| *-standards [Instruction] total (excl. $STANDARDS_SUBTOTAL_EXCLUDED) | $standards_total_instructions | $STANDARDS_INSTRUCTIONS_BUDGET | $(status_of "$standards_total_instructions" "$STANDARDS_INSTRUCTIONS_BUDGET") |"
-    [ "$standards_total_instructions" -gt "$STANDARDS_INSTRUCTIONS_BUDGET" ] && overages=1
+# Instruction-density row (*-standards subtotal vs its dedicated budget).
+echo "| *-standards [Instruction] total (excl. $STANDARDS_SUBTOTAL_EXCLUDED) | $standards_total_instructions | $STANDARDS_INSTRUCTIONS_BUDGET | $(status_of "$standards_total_instructions" "$STANDARDS_INSTRUCTIONS_BUDGET") |"
+[ "$standards_total_instructions" -gt "$STANDARDS_INSTRUCTIONS_BUDGET" ] && overages=1
 
-    # Rows for the skills that subtotal excludes, placed right below it so the
-    # exclusion and the budget replacing it read as one unit. Their overages are
-    # already gated by `skill_instr_over` and `standards_ratio_over` below.
-    [ -n "$excluded_standards_rows" ] && printf '%s\n' "$excluded_standards_rows" | sed '/^$/d'
-    [ "$standards_ratio_over" -eq 1 ] && overages=1
-    [ "$skill_instr_over" -eq 1 ] && overages=1
-    [ -n "$standards_unmigrated" ] && overages=1
-else
-    echo "| Skills directory | — | — | NOT FOUND at $SKILLS_DIR |"
-fi
+# Rows for the skills that subtotal excludes, placed right below it so the
+# exclusion and the budget replacing it read as one unit. Their overages are
+# already gated by `skill_instr_over` and `standards_ratio_over` below.
+[ -n "$excluded_standards_rows" ] && printf '%s\n' "$excluded_standards_rows" | sed '/^$/d'
+[ "$standards_ratio_over" -eq 1 ] && overages=1
+[ "$skill_instr_over" -eq 1 ] && overages=1
+[ -n "$standards_unmigrated" ] && overages=1
 echo
 
 if [ "$has_claude_md" -eq 1 ] && [ -n "$claude_offending" ]; then
@@ -387,13 +402,13 @@ if [ "$has_claude_md" -eq 1 ] && [ -n "$claude_offending" ]; then
     echo
 fi
 
-if [ "$has_skills_dir" -eq 1 ] && [ -n "$skill_overages" ]; then
+if [ -n "$skill_overages" ]; then
     echo "## Skills exceeding budgets (lines >$SKILL_LINES_BUDGET, words >$SKILL_WORDS_BUDGET, desc >${SKILL_DESC_BUDGET}c, name >${SKILL_NAME_BUDGET}c)"
     echo "$skill_overages"
     echo
 fi
 
-if [ "$has_skills_dir" -eq 1 ] && [ -n "$bundled_overages" ]; then
+if [ -n "$bundled_overages" ]; then
     echo "## Bundled resources failing size or heading checks"
     echo
     echo "Size: words >$BUNDLED_WORDS_BUDGET, lines >$BUNDLED_LINES_BUDGET. Headings: at least one \`## \` past $BUNDLED_HEADINGS_THRESHOLD words."
@@ -406,7 +421,7 @@ if [ "$has_skills_dir" -eq 1 ] && [ -n "$bundled_overages" ]; then
 fi
 
 # *-standards CRITICAL ratio breakdown (only migrated skills)
-if [ "$has_skills_dir" -eq 1 ] && [ -n "$standards_ratio_rows" ]; then
+if [ -n "$standards_ratio_rows" ]; then
     echo "## *-standards CRITICAL ratio per skill"
     echo
     echo "| Skill | [Instruction] | CRITICAL | Ratio | Status |"
@@ -416,7 +431,7 @@ if [ "$has_skills_dir" -eq 1 ] && [ -n "$standards_ratio_rows" ]; then
 fi
 
 # Per-skill instructions-budget overages (when frontmatter override is set and exceeded)
-if [ "$has_skills_dir" -eq 1 ] && [ -n "$skill_instr_overages" ]; then
+if [ -n "$skill_instr_overages" ]; then
     echo "## Skills over their \`instructions-budget\` frontmatter override"
     echo
     echo "$skill_instr_overages"
@@ -424,7 +439,7 @@ if [ "$has_skills_dir" -eq 1 ] && [ -n "$skill_instr_overages" ]; then
 fi
 
 # Unmigrated *-standards skills — error condition
-if [ "$has_skills_dir" -eq 1 ] && [ -n "$standards_unmigrated" ]; then
+if [ -n "$standards_unmigrated" ]; then
     echo "## Unmigrated *-standards skills (FAIL)"
     echo
     echo "These skills have 0 [Instruction] markers. Either migrate them to the marker convention (see CLAUDE.md → \"Counting conventions\") or rename the directory so it no longer matches the \`*-standards\` glob."
@@ -437,11 +452,9 @@ density_script="$HOME/.claude/skills/doc-standards/scripts/check-density.sh"
 if [ -x "$density_script" ]; then
     density_targets=()
     [ "$has_claude_md" -eq 1 ] && density_targets+=("$CLAUDE_MD")
-    if [ "$has_skills_dir" -eq 1 ]; then
-        while IFS= read -r f; do density_targets+=("$f"); done < <(
-            find -L "$SKILLS_DIR" -type f \( -name "SKILL.md" -o -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort
-        )
-    fi
+    while IFS= read -r f; do density_targets+=("$f"); done < <(
+        find -L "$SKILLS_DIR" -type f \( -name "SKILL.md" -o -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort
+    )
     if [ "${#density_targets[@]}" -gt 0 ]; then
         density_out=$("$density_script" "${density_targets[@]}" 2>/dev/null || true)
         density_total=$(printf '%s\n' "$density_out" | awk '/^[0-9]/' | wc -l | tr -d ' ')
