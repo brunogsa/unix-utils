@@ -15,7 +15,7 @@ What we want to achieve (outcomes, not implementation).
 >
 > A validated picture is the fastest way for the reviewer to grasp the system boundary; add prose only for what it can't show.
 >
-> N/A escape: for a trivial or no-flow change (one-line config, copy tweak), write "N/A — <reason>" and skip the diagram.
+> N/A escape: for a trivial or no-flow change (one-line config, copy tweak), write "N/A — `<reason>`" and skip the diagram.
 >
 > Follow the `mermaid-diagrams` skill for conventions.
 
@@ -71,17 +71,17 @@ A vague `Then` can't be proven false, so it can't drive a test; self-review reje
 
 Format:
 
-### AC-N: When <trigger>, the <system> shall <response>
-- **When** <action / request>
-- **Then** <observable outcome>
-- **And** <additional assertion, if any>
+### AC-N: When `<trigger>`, the `<system>` shall `<response>`
+- **When** `<action / request>`
+- **Then** `<observable outcome>`
+- **And** `<additional assertion, if any>`
 
 Use **Given** when load-bearing — the state it carries is what makes the title's `While` clause load-bearing too:
 
-### AC-N: While <precondition>, when <trigger>, the <system> shall <response>
-- **Given** <state that must hold before the action>
-- **When** <action>
-- **Then** <observable outcome>
+### AC-N: While `<precondition>`, when `<trigger>`, the `<system>` shall `<response>`
+- **Given** `<state that must hold before the action>`
+- **When** `<action>`
+- **Then** `<observable outcome>`
 
 Group by category for scannability:
 
@@ -133,10 +133,22 @@ Once the user approves the plan and signals execution start, insert the divider 
 
 Revisions become new entries with `**Supersedes:**` references rather than in-place edits.
 
-- **DECISION:** __Chose__ <approach>, __because__ <reason>
-  - __Discarded__ **<alternative>**: <reason>
+Each decision is its own collapsed `<details>`, with the summary carrying a one-line gist.
+
+<details>
+<summary><strong>DECISION:</strong> &lt;one-line gist of the choice&gt;</summary>
+
+- **DECISION:** __Chose__ `<approach>`, __because__ `<reason>`
+  - __Discarded__ **`<alternative>`**: `<reason>`
+
+</details>
 
 <!-- ── execution begins below; entries above are frozen, append-only below ── -->
 
-- **DECISION (Task N):** __Chose__ <approach>, __because__ <reason>
-  - __Supersedes__ "<first ~60 chars of prior decision>" __because__ <reason>
+<details>
+<summary><strong>DECISION (Task N):</strong> &lt;one-line gist of the choice&gt;</summary>
+
+- **DECISION (Task N):** __Chose__ `<approach>`, __because__ `<reason>`
+  - __Supersedes__ "`<first ~60 chars of prior decision>`" __because__ `<reason>`
+
+</details>

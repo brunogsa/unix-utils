@@ -16,7 +16,7 @@ Spec: [link or reference to the paired spec file — `N/A — plan-only run` whe
 
 Add prose only for the trade-offs and architecture decisions the diagram can't convey.
 
-N/A escape: for a trivial or no-flow change, write "N/A — <reason>" and skip the diagram.
+N/A escape: for a trivial or no-flow change, write "N/A — `<reason>`" and skip the diagram.
 
 Follow the `mermaid-diagrams` skill for conventions.
 
@@ -27,7 +27,7 @@ Follow the `mermaid-diagrams` skill for conventions.
 
 For a reader who does NOT know the codebase, the diagram plus minimal prose should convey the high-level technical flow, as simply as possible, without code.
 
-N/A escape: for a trivial or no-flow change, write "N/A — <reason>" and skip the diagram.
+N/A escape: for a trivial or no-flow change, write "N/A — `<reason>`" and skip the diagram.
 
 Follow the `mermaid-diagrams` skill for conventions.
 
@@ -69,6 +69,11 @@ If this change is a pure refactor, config edit, or similar no-behavior-change wo
 
 **AC → test coverage — an AC-grouped nested list, not a table:**
 
+<details>
+<summary>Expand for the AC-grouped coverage list — it exists for the gate scripts and for an audit, not for the plan's human read.</summary>
+
+Keep this `<details>` wrapper in the real plan and author the AC list inside it, so the rendered plan stays scannable.
+
 Each AC from the paired spec is a header; under it, the tests that prove it as sub-bullets, each written as a Test Design breadcrumb.
 
 Format: `<describe> > <happy|corner|failure> > <it>`, or `<describe> > <it>` for a flat helper block with no class grouping:
@@ -82,22 +87,20 @@ Format: `<describe> > <happy|corner|failure> > <it>`, or `<describe> > <it>` for
   - "SomeHelper > verbatim helper it() title"
 ```
 
-A nested list, not a table, because one AC maps to many tests — a table jams N titles into one cell, forcing `…` truncation.
-Truncation is exactly where a gamed citation hides.
-One test per line keeps each line short and verbatim.
-The human cross-checks each against the Test Design by exact string.
+A nested list, not a table: one AC maps to many tests, and a table jams them into one cell where `…` truncation hides a gamed citation.
+One test per line stays verbatim, so the human cross-checks against Test Design by exact string.
 
 Spell out the AC title, not only its `AC-N` mnemonic, so the human verifies each group without a legend.
 
-The breadcrumb prefix (describe + class) makes each citation self-describing — its exact home in Test Design is visible without hunting.
-
-It keeps two same-named `it()` titles distinct, which a bare title would collapse under de-duplication, silently hiding a coverage gap.
+The breadcrumb prefix (describe + class) makes each citation self-describing and keeps two same-named `it()` titles distinct — bare titles collapse under de-duplication, hiding a coverage gap.
 
 Don't hand-type breadcrumbs — the prefix is derived from Test Design, so typing it in the lists duplicates a source and drifts.
 
-Author the AC and task lists with bare `it()` titles, then run `spec-driven-development/scripts/normalize-list-breadcrumbs.sh <plan>` to upgrade every list bullet to its breadcrumb in place.
+Author the AC and task lists with bare `it()` titles, then run `spec-driven-development/scripts/normalize-list-breadcrumbs.sh <plan>` to upgrade every bullet to its breadcrumb in place.
 
-It is idempotent and only rewrites titles that match a real Test Design test.
+Idempotent; it rewrites only titles matching a real Test Design test.
+
+</details>
 
 **Both coverage axes are verified by script, not by hand:**
 
@@ -232,9 +235,9 @@ N/A escape: for a "Single PR." plan, or a multi-PR plan where every PR is indepe
 
 Partition the tasks above — one line per PR:
 
-1. **[<status>] PR-1** — <title>. Tasks: <N, N>. Depends on: <none | PR-N, PR-M, ...>.
+1. **`[<status>]` PR-1** — `<title>`. Tasks: `<N, N>`. Depends on: `<none | PR-N, PR-M, ...>`.
 
-2. **[<status>] PR-2** — <title>. Tasks: <N, N>. Depends on: <none | PR-N, PR-M, ...>.
+2. **`[<status>]` PR-2** — `<title>`. Tasks: `<N, N>`. Depends on: `<none | PR-N, PR-M, ...>`.
 
 ---
 ## Open Questions
@@ -250,10 +253,22 @@ Once the user approves the plan and signals execution start, insert the divider 
 
 Revisions become new entries with `**Supersedes:**` references rather than in-place edits.
 
-- **DECISION:** __Chose__ <approach>, __because__ <reason>
-  - __Discarded__ **<alternative>**: <reason>
+Each decision is its own collapsed `<details>`, with the summary carrying a one-line gist.
+
+<details>
+<summary><strong>DECISION:</strong> &lt;one-line gist of the choice&gt;</summary>
+
+- **DECISION:** __Chose__ `<approach>`, __because__ `<reason>`
+  - __Discarded__ **`<alternative>`**: `<reason>`
+
+</details>
 
 <!-- ── execution begins below; entries above are frozen, append-only below ── -->
 
-- **DECISION (Task N):** __Chose__ <approach>, __because__ <reason>
-  - __Supersedes__ "<first ~60 chars of prior decision>" __because__ <reason>
+<details>
+<summary><strong>DECISION (Task N):</strong> &lt;one-line gist of the choice&gt;</summary>
+
+- **DECISION (Task N):** __Chose__ `<approach>`, __because__ `<reason>`
+  - __Supersedes__ "`<first ~60 chars of prior decision>`" __because__ `<reason>`
+
+</details>
