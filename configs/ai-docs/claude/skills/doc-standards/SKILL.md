@@ -132,13 +132,14 @@ The two subsections below apply to any standalone doc — where it lives and wha
 - [Instruction] Lead with the bottom line — state a doc's and each section's conclusion first, then its support (BLUF).
   - [Why] NN/g eye-tracking shows readers scan in an F-pattern and bail early, so a buried conclusion is one early-scanning readers never reach.
 
-- [Instruction] Collapse what the reader consults — a lookup table, an index, a raw payload, a full log — into a `<details>` or equivalent toggle.
+- [Instruction] Decide what to collapse from this document's own reader and what they came for — never from the content's type.
+  - [Why] A type-based rule gets one doc wrong every time — a PR's reviewer must read its decisions, while a brainstorm plan's author already made them.
+
+- [Instruction] Collapse into a `<details>` or equivalent toggle whatever that reader only consults or already holds.
   - [Why] Consulted content is read by whoever needs one row of it, so leaving it expanded spends every reader's attention to serve the few who came for it.
 
-- [Instruction] Never collapse what the reader is meant to read — narrative, rationale, decisions, or anything a review depends on.
+- [Instruction] Never collapse what that reader needs in order to form the judgment the document asks of them.
   - [Why] Collapsed content is content nobody opens, so hiding the part the doc exists to communicate buys a shorter page by trading away the reading it was written for.
-
-  - [Example] Collapse an acceptance-criteria index or a 200-line payload; never collapse a PR's Context, Changes, or Decisions.
 
 - [Instruction] Never inventory facts a tool generates on demand — file paths, callers, deps, file/function listings — in any doc or comment.
   - [Why] IDEs, grep, and doc tools regenerate these for free, so an inline copy adds nothing and goes stale the moment an item moves.
