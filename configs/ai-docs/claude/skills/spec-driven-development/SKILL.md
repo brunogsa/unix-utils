@@ -79,6 +79,9 @@ Technical approach and task breakdown. Generated from spec_<slug>.md (or directl
 
 Read `./assets/plan-template.md` when starting the plan phase, and populate it.
 
+The Task Breakdown and PR Breakdown sections follow the `task-breakdown` skill — task/PR ordering (unblockers first, riskiest with a proof of concept next), thin contract-task extraction, and sub-step splitting live there.
+The template points to it where each section is authored, so any plan author picks it up without this library saying more.
+
 Uses BDD/TDD by default: load the `test-driven-development` skill once per task, before implementing it.
 Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task itself).
 
