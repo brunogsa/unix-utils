@@ -69,6 +69,9 @@ ALWAYS use this exact template, one `###` entry per task, numbered in execution 
 - none | Task <N>
 
 **Brief Description**: What needs to be done, in 1-2 lines.
+
+**Testable Acceptance criteria**:
+- What "done" looks like for this task, checkable without the session that wrote it.
 ```
 
 Nothing more per task — what a task unlocks, what can run in parallel, and why it sits where it does are all derivable from the numbering and the `Depends on:` links, so extra fields only bloat the artifact.
