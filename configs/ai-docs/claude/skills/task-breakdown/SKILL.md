@@ -63,11 +63,12 @@ ALWAYS use this exact template, one `###` entry per task, numbered in execution 
 ```markdown
 # Task Breakdown: <title>
 
-### 1. <task title>
+### 1. [Task title] (optional: sub-step; sub-step; sub-step)
 
-- **Depends on**: none | task <N>, ...
-- **Unlocks**: none | task <N>, ...
-- **Priority rationale**: <unblocker | thin contract | risk PoC | dependency order> — <one line of why>
-- **Sub-steps (one commit each)**: none — single-commit task | <sub-step>; <sub-step>; ...
-- **Parallelizable with**: none | task <N>, ... (disjoint files, no shared dependency pending)
+**Depends on**:
+- none | Task <N>
+
+**Brief Description**: What needs to be done, in 1-2 lines.
 ```
+
+Nothing more per task — what a task unlocks, what can run in parallel, and why it sits where it does are all derivable from the numbering and the `Depends on:` links, so extra fields only bloat the artifact.
