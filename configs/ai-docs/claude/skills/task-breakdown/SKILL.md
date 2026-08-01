@@ -1,20 +1,23 @@
 ---
 name: task-breakdown
-description: "Order and split work before executing it: unblockers and riskiest-with-PoC first, thin contract tasks that fan work out in parallel, feature slices split into commit-sized sub-steps. USE when breaking work into tasks/subtasks, prioritizing or sequencing a backlog, planning parallel work, or authoring a plan's Task Breakdown or PR Breakdown."
+description: "Break a body of work into a prioritized, dependency-aware task breakdown — unblockers and riskiest-with-PoC first, thin contract tasks that fan work out in parallel, feature slices split into commit-sized sub-steps — emitted as a .md artifact in /tmp for the caller to consume. USE when breaking work into tasks/subtasks, prioritizing or sequencing a backlog, or planning parallel work."
 disable-model-invocation: false
 ---
 
 # Task Breakdown
 
-How to order and split a body of work into tasks, sub-steps, and PRs.
+Break a body of work into ordered, dependency-aware tasks, and emit the result as one standalone `.md` artifact.
+
+This skill is pure: it takes the work to break down — from the conversation, a document, or whatever the caller supplies — applies the rules below, and writes the artifact.
+It knows nothing about who consumes that artifact or what surface it feeds; the caller decides.
+
+Why an artifact instead of in-context advice: a file survives compaction, hands to any consumer unchanged, and keeps this skill reusable from any flow without coupling to any.
 
 A breakdown is not bookkeeping — it is the main lever on three outcomes at once:
 
 - **Quality** — a small, self-contained task runs in a small, fresh context, dodging the context rot that degrades long single-context runs.
 - **Speed** — a wide dependency graph lets independent tasks run in parallel; a chain forces everything to wait.
 - **Cost** — settling the parts that are cheap to write but expensive to be wrong (contracts, risky assumptions) first is what prevents rework, the most expensive waste.
-
-Consumers inside `spec-driven-development` flows read this file by path — `Read ~/.claude/skills/task-breakdown/SKILL.md`; everywhere else it triggers off its description.
 
 ## Ordering — what runs first
 
@@ -40,7 +43,7 @@ Sequence tasks in this priority order, not in the order the feature narrates its
 
 - **Keep independent tasks on disjoint files/modules** — two tasks editing the same file are sequential in disguise; re-cut the boundary so parallel workers never collide.
 
-- **A task must stand alone** — executable by a fresh-context agent from its brief, acceptance criteria, and file list, without the session that wrote the plan.
+- **A task must stand alone** — executable by a fresh-context agent from its brief, acceptance criteria, and file list, without the session that produced the breakdown.
   Why: the breakdown only buys its quality and speed wins if a task really can run in a fresh small context; a task needing tribal context drags the whole history back in.
 
 ## Sub-steps — splitting a feature slice
@@ -51,18 +54,20 @@ A feature slice too big for one commit splits into **sub-steps** (a.k.a. subtask
 
 - **Past ~4 sub-steps, split the task** — a slice that long is two tasks in disguise, and each task must stay independently dispatchable.
 
-- **In a `plan_<slug>.md`**, sub-steps surface as the task title's parenthetical breadcrumb and the task's `Commits (sketch, minimum)` list, per the plan template.
-- **On the TaskList**, they are `[Sub-Step]` entries under their parent, per the global CLAUDE.md categories.
+## Output artifact
 
-## PR ordering follows the same rule
+Write the breakdown to `/tmp/task-breakdown_<slug>.md` — derive a short kebab-case `<slug>` from the work — unless the caller names an output path. Report the resolved path back.
 
-When work splits into multiple PRs, partition and sequence them by the same priorities:
+ALWAYS use this exact template, one `###` entry per task, numbered in execution order (position 1 runs first):
 
-- **The earliest PRs ship the contract tasks and the riskiest proof of concept** — later PRs stack feature slices on an already de-risked, agreed base.
+```markdown
+# Task Breakdown: <title>
 
-- Why: a wrong contract or dead assumption discovered while reviewing PR-1 costs one small PR; discovered in PR-5 it reworks four merged ones — and reviewer attention is freshest early, exactly where the load-bearing decisions should sit.
+### 1. <task title>
 
-## Where this applies
-
-- The Task Breakdown and PR Breakdown sections of a `plan_<slug>.md` — plan authors (`plan-writer`, `brainstorm` forks) apply it via the plan template's pointers.
-- Any everyday breakdown at any scale: a TaskList for a multi-step request, a backlog ordering, a "what do we build first" call.
+- **Depends on**: none | task <N>, ...
+- **Unlocks**: none | task <N>, ...
+- **Priority rationale**: <unblocker | thin contract | risk PoC | dependency order> — <one line of why>
+- **Sub-steps (one commit each)**: none — single-commit task | <sub-step>; <sub-step>; ...
+- **Parallelizable with**: none | task <N>, ... (disjoint files, no shared dependency pending)
+```

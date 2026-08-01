@@ -121,9 +121,9 @@ See the gate process in the `spec-driven-development` SKILL.md for when and how 
 ---
 ## Task Breakdown
 
-**Read `~/.claude/skills/task-breakdown/SKILL.md` before authoring this section** — it owns task ordering (unblockers first, riskiest with a proof of concept next), thin contract-task extraction for parallel work, and sub-step splitting.
+**Load the `task-breakdown` skill before authoring this section** — it owns task ordering (unblockers first, riskiest with a proof of concept next), thin contract-task extraction for parallel work, and sub-step splitting, and it emits a breakdown artifact in `/tmp`.
 
-Number the tasks in that priority order — the numbering is the intended execution order, not the order the feature narrates itself.
+Populate this section from that artifact: its task order becomes the numbering here (the numbering is the intended execution order, not the order the feature narrates itself), its dependency links become each task's `Depends on:`, and its sub-steps become the task's title breadcrumb and commit sketch.
 
 **Task-dependency DAG diagram** — lead the section with a mermaid flowchart when any task's `Depends on:` names a real task (not empty/`none`): one node per task, edges following each `Depends on:` link.
 Validate with `mmdc` before pasting, per the `mermaid-diagrams` skill.
