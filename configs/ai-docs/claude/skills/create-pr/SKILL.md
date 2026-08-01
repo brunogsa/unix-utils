@@ -1,6 +1,6 @@
 ---
 name: create-pr
-description: "Create or update a GitHub PR with a rich description. Auto-detects spec_<slug>.md/plan_<slug>.md for context."
+description: "Create or update a GitHub PR with a rich description. Auto-detects spec_<slug>.md/plan_<slug>.md for context. Handles stacked PRs (base = parent PR's branch)."
 disable-model-invocation: false
 ---
 
@@ -44,15 +44,30 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
   - Single PR plan or no plan resolved → omit `_pr<N>` entirely, auto-resolved.
   - Multiple `PR-N` entries in `## PR Breakdown` → open question **(B) Which PR-N**: set `<N>` to that number (e.g. `PR-2` → `2`).
 
-- **Ask (A) and (B) in ONE interview, as two separate questions, in a single pre-flight `AskUserQuestion` call**.
-  - Carry both; skip either label that auto-resolved above; skip the call entirely when both auto-resolved.
-  - They resolve different things — which source file to read, and which slice of a multi-PR plan this is — so merging them would force two answers into one choice.
+- **Resolve the base branch (used by `changes-gatherer` below and by step 4)**: default is `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
+  - Empty result (`origin/HEAD` unset) → omit `--base` in step 4; let it fall back to default.
+  - A multi-PR plan alone is NOT a stack — its PRs target the default branch unless the branches actually chain off each other.
+
+- **Stacked-PR override**: when this branch stacks on a parent PR's branch, base = that parent branch — which is also what scopes the changes digest to this PR's own delta.
+  - Detect before the interview: stacked when the user or plan declares it, or when an open PR's head branch is an ancestor of HEAD.
+    - Candidates: `gh pr list --state open --json headRefName`, then `git merge-base --is-ancestor origin/<head> HEAD` per head.
+
+  - Exactly one ancestor candidate → parent auto-resolved. None → not stacked, keep the default base. Several → open question **(C) Stack parent**: list them numbered.
+
+  - Stacks are created bottom-up, so the parent PR must already exist; a declared stack whose parent branch has no open PR → run this skill for the parent branch first.
+
+  - Read `~/.claude/skills/gh-cli-usage/references/stacked-prs.md` before creating or restacking — it owns the chain mechanics (build order, `--update-refs` restacks, merge order, post-merge retargeting).
+
+- **Ask (A), (B), and (C) in ONE interview, as separate questions, in a single pre-flight `AskUserQuestion` call**.
+  - Carry all that apply; skip any label that auto-resolved above; skip the call entirely when everything auto-resolved.
+  - They resolve different things — which source file to read, which slice of a multi-PR plan this is, and which branch this PR stacks on.
+    - Merging them into one question would force several answers into one choice.
 
   - Any later ambiguity (template fit, checklist evidence, body-size trims) is resolved by that step's own rules, never by a new question.
     - Uncovered case → take the most conservative reading and note it as a caveat in the final report.
 
 - Once answered, create `./pr_<slug>_pr<N>.ideal.md` right away with an HTML comment logging each answer.
-  - Example: `<!-- step 1: spec=<resolved spec>; PR=2/3 -->` -- GitHub hides HTML comments in rendered bodies.
+  - Example: `<!-- step 1: spec=<resolved spec>; PR=2/3; base=<resolved base> -->` -- GitHub hides HTML comments in rendered bodies.
   - It is this skill's durable record, not a separate scratchpad -- it survives a mid-flow compaction that would drop the answers.
 
 - **Derive the appendix's section list — never ask the user for it** -- it is the resolved spec/plan minus every section the body already renders.
@@ -65,10 +80,6 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
   - Sections: `~/.claude/skills/create-pr/scripts/extract-md-sections.sh <file> "<section>" ["<section>" ...]`.
   - Diagrams: `~/.claude/skills/create-pr/scripts/extract-mermaid-blocks.sh <file> [<file> ...]` — every fenced `mermaid` block becomes the Architecture section, and leaves the appendix.
   - A re-summarized section or a re-drawn diagram diverges from what the spec/plan was reviewed against, and nothing downstream catches the divergence.
-
-- **Resolve the base branch (used in step 4)**: run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
-  - Every PR targets this branch directly on GitHub, never a parent's branch.
-  - Empty result (`origin/HEAD` unset) → omit `--base` in step 4; let it fall back to default.
 
 - **Delegate diff/log reading to a subagent** -- dispatch `agent(subAgent=changes-gatherer, title=Gather PR changes digest)`, foreground (step 2 needs the result immediately).
   - Give it the resolved base branch and a `/tmp` artifact path; it writes the full commit log and diff there and returns only the **changes digest** (`references/changes-digest.md`).
@@ -165,6 +176,7 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 - **Create the PR as a draft with no chat-side review gate** -- `gh pr create --draft --body-file pr_<slug>_pr<N>.final.md --base <base-branch>`.
 
   - `<base-branch>` is the value step 1 resolved, dropped entirely when empty.
+    - Stacked PR → that value is the parent PR's head branch; after any parent up the chain merges, the retarget-and-rebase steps live in `gh-cli-usage`'s `references/stacked-prs.md`, never re-derived here.
 
   - The user reviews on GitHub, where the rendered body is the artifact they will actually judge; a chat-side approval would review a different one.
 
