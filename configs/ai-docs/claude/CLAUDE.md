@@ -291,6 +291,31 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] Pick the pin per task: haiku when the dispatch prompt carries the exact content to place (trivial transform), sonnet when the subagent must compose or restructure under conventions.
   - [Why] Tier follows judgment required, not habit — haiku costs ~3x less than sonnet and suffices when nothing is left to decide.
 
+### Note-taking discipline
+
+Routing and upkeep for the two note surfaces — the rules that keep notes worth consulting.
+
+- [Instruction] **Write every note-worthy item to its surface the moment it appears — never carry it in working memory.**
+  - [Why] AI memory, like human memory, is lossy and silently so — unwritten items vanish on compaction or session end — and offloading them keeps the mind lean, which is what buys better reasoning.
+
+- [Instruction] Tasks and reminders go to the TaskList only — never into the scratchpad, not even as a copy.
+  - [Why] The TaskList is the one surface with a status that re-surfaces every turn; a scratchpad copy is a second version that drifts the moment the status flips.
+
+- [Instruction] Important conclusions, decisions, questions, concerns, corollaries, and insights go to the scratchpad.
+  - [Why] They shape later decisions but carry no status to track, so the scratchpad — read on demand — keeps them findable without taxing every turn the way TaskList noise would.
+
+- [Instruction] Note a reference — path, line range, link — only when strictly necessary: when you genuinely expect to re-read the details later.
+  - [Why] References are the easiest note to hoard and the least often re-read, so each unneeded one is noise burying the notes that matter.
+
+- [Instruction] Mark a task done the moment it completes.
+  - [Why] A TaskList showing finished work as pending stops being trusted, and an untrusted surface stops being consulted — currency is the system's whole value.
+
+- [Instruction] When a scratchpad question, concern, or insight becomes actionable, move it to the TaskList, deleting the scratchpad note.
+  - [Why] An actionable item in the scratchpad has no status to flip, so it silently never runs — and a left-behind copy drifts from the task it became.
+
+- [Instruction] Update or delete a note the moment reality diverges from it.
+  - [Why] A stale note re-read after compaction is trusted as current and steers the task wrong, where a missing note merely forces a cheap re-derivation.
+
 ### Slow commands
 
 - [Instruction] **Save slow command output, verify from the file** -- any command taking 4+ seconds: redirect full output to a stable, reused `/tmp/` path, then filter from the file.
