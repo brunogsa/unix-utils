@@ -1,6 +1,6 @@
 ---
 name: create-pr
-description: "Create or update a GitHub PR with a rich description. Auto-detects spec_<slug>.md/plan_<slug>.md for context. Handles stacked PRs (base = parent PR's branch)."
+description: "Create or update a GitHub PR with a rich description. Auto-detects spec_<slug>.md/plan_<slug>.md for context. Optional parent arg stacks it on another PR (base = parent's branch)."
 disable-model-invocation: false
 ---
 
@@ -8,7 +8,7 @@ disable-model-invocation: false
 
 ## Usage
 
-`/create-pr` — no flags needed.
+`/create-pr [<parent>]` — no flags; the optional `<parent>` (PR number or branch) stacks this PR on it (resolved in step 1).
 
 Load the `doc-standards` skill before drafting — a PR description is a standalone doc, so its density cap, BLUF ordering, and collapse rules all apply.
 
@@ -46,22 +46,18 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
 
 - **Resolve the base branch (used by `changes-gatherer` below and by step 4)**: default is `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
   - Empty result (`origin/HEAD` unset) → omit `--base` in step 4; let it fall back to default.
-  - A multi-PR plan alone is NOT a stack — its PRs target the default branch unless the branches actually chain off each other.
 
-- **Stacked-PR override**: when this branch stacks on a parent PR's branch, base = that parent branch — which is also what scopes the changes digest to this PR's own delta.
-  - Detect before the interview: stacked when the user or plan declares it, or when an open PR's head branch is an ancestor of HEAD.
-    - Candidates: `gh pr list --state open --json headRefName`, then `git merge-base --is-ancestor origin/<head> HEAD` per head.
+- **The optional `<parent>` arg is this skill's whole stacked-PR surface**: base = the parent's head branch instead of the default.
+  - That base also scopes the changes digest to this PR's own delta, so the parent's commits never leak into the description.
+  - A PR number resolves via `gh pr view <n> --json headRefName`; a branch name is used as-is.
+  - Never inferred: no plan entry, branch ancestry, or open-PR heuristic makes a PR stacked — only the explicit arg does.
+  - Hand the parent to step 2's agent: the body opens with a `Stacks on #<parent>` line right under the title, so the reviewer sees the dependency without leaving the page.
 
-  - Exactly one ancestor candidate → parent auto-resolved. None → not stacked, keep the default base. Several → open question **(C) Stack parent**: list them numbered.
+  - Chain workflow (propagation, merge order, post-merge sync) belongs to `implement`'s `references/stacked-prs.md`, never to this skill.
 
-  - Stacks are created bottom-up, so the parent PR must already exist; a declared stack whose parent branch has no open PR → run this skill for the parent branch first.
-
-  - Read [`references/stacked-prs.md`](references/stacked-prs.md) before creating or syncing a stack — it owns the chain mechanics (build order, merge-based propagation, merge order, post-merge retargeting).
-
-- **Ask (A), (B), and (C) in ONE interview, as separate questions, in a single pre-flight `AskUserQuestion` call**.
-  - Carry all that apply; skip any label that auto-resolved above; skip the call entirely when everything auto-resolved.
-  - They resolve different things — which source file to read, which slice of a multi-PR plan this is, and which branch this PR stacks on.
-    - Merging them into one question would force several answers into one choice.
+- **Ask (A) and (B) in ONE interview, as two separate questions, in a single pre-flight `AskUserQuestion` call**.
+  - Carry both; skip either label that auto-resolved above; skip the call entirely when both auto-resolved.
+  - They resolve different things — which source file to read, and which slice of a multi-PR plan this is — so merging them would force two answers into one choice.
 
   - Any later ambiguity (template fit, checklist evidence, body-size trims) is resolved by that step's own rules, never by a new question.
     - Uncovered case → take the most conservative reading and note it as a caveat in the final report.
@@ -176,7 +172,7 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 - **Create the PR as a draft with no chat-side review gate** -- `gh pr create --draft --body-file pr_<slug>_pr<N>.final.md --base <base-branch>`.
 
   - `<base-branch>` is the value step 1 resolved, dropped entirely when empty.
-    - Stacked PR → that value is the parent PR's head branch; after any parent up the chain merges, the retarget-and-sync steps live in [`references/stacked-prs.md`](references/stacked-prs.md), never re-derived here.
+    - A `<parent>` run → that value is the parent's head branch, resolved in step 1.
 
   - The user reviews on GitHub, where the rendered body is the artifact they will actually judge; a chat-side approval would review a different one.
 

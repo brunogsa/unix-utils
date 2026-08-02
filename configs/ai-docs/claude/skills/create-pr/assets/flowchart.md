@@ -35,25 +35,21 @@ def create_pr():
     # 4 · Step 1 — none found means authoring from the changes digest alone.
     sources = glob("spec_*.md", "plan_*.md", top_level_of=CWD)
 
-    # 5 · Resolve the base BEFORE the interview, so a stack ambiguity can join it.
-    #     Default: the repo's default branch; empty → omit --base at create time.
-    base = git("symbolic-ref", "refs/remotes/origin/HEAD") or None
-    #     Stacked override: an open PR's head branch that is an ancestor of HEAD
-    #     is the parent — base becomes that branch, which also scopes the changes
-    #     digest to this PR's own delta. One candidate auto-resolves; several
-    #     feed question (C); none → not stacked. Chain mechanics (build order,
-    #     merge-based propagation, merge order, retargeting) live in this
-    #     skill's references/stacked-prs.md — read before a stacked create.
-    if stack_parent := detect_stack_parent():
-        base = stack_parent
+    # 5 · Resolve the base branch. Default: the repo's default branch; empty →
+    #     omit --base at create time. The optional <parent> invocation arg is
+    #     this skill's whole stacked-PR surface: base becomes the parent's head
+    #     branch, which also scopes the changes digest to this PR's own delta.
+    #     Never inferred from ancestry or the plan — only the explicit arg
+    #     stacks a PR. Chain workflow lives in implement's stacked-prs.md.
+    base = parent_arg_head_branch() or git("symbolic-ref", "refs/remotes/origin/HEAD") or None
 
-    # 6 · (A) several spec/plan files matched, (B) several PR-N entries in the
-    #     plan's PR Breakdown, (C) several stack-parent candidates.
-    if ambiguous(sources, stack_parent):
-        # 6a · ONE AskUserQuestion carrying (A), (B), and (C) as SEPARATE
+    # 6 · (A) several spec/plan files matched, (B) several PR-N entries
+    #     in the plan's PR Breakdown.
+    if ambiguous(sources):
+        # 6a · ONE AskUserQuestion carrying (A) and (B) as two SEPARATE
         #      questions. They resolve different things, so merging them would
-        #      force several answers into a single choice.
-        answers = ask_user_question([question_A, question_B, question_C])
+        #      force two answers into a single choice.
+        answers = ask_user_question([question_A, question_B])
 
     # 7 · created right away, with an HTML comment logging each answer — spec,
     #     PR-N, and base — this skill's durable record, surviving a mid-flow
@@ -115,7 +111,7 @@ def create_pr():
 
     # 17 · NO chat-side review gate: the user reviews the rendered body on
     #      GitHub, which is the artifact they will actually judge.
-    #      Stacked PR → base is the parent PR's head branch, per step 1.
+    #      A <parent> run → base is the parent's head branch, per step 1.
     url = gh("pr", "create", "--draft", "--body-file", final_path, "--base", base)
     print(url)                                             # 18
 
@@ -158,9 +154,9 @@ flowchart TD
   end
 
   n4["4. Step 1 · Glob cwd top-level for spec_*.md / plan_*.md;<br/>none found -&gt; author from the changes digest alone"]
-  n5["5. Resolve the base branch BEFORE the interview: default is origin/HEAD<br/>(empty -&gt; omit --base at create time). Stacked override: an open PR's head<br/>branch that is an ancestor of HEAD is the parent — base becomes that branch,<br/>which also scopes the changes digest to this PR's own delta. One candidate<br/>auto-resolves; several feed question (C); none -&gt; not stacked.<br/>Chain mechanics live in this skill's references/stacked-prs.md"]
-  n6{"6. Anything left ambiguous?<br/>(A) several spec/plan files matched<br/>(B) several PR-N entries in the plan's PR Breakdown<br/>(C) several stack-parent candidates"}
-  n6a["6a. ONE AskUserQuestion carrying (A), (B), and (C) as SEPARATE<br/>questions — they resolve different things, so one merged question<br/>would force several answers into one choice"]:::gate
+  n5["5. Resolve the base branch: default is origin/HEAD (empty -&gt; omit --base<br/>at create time). The optional &lt;parent&gt; invocation arg is this skill's whole<br/>stacked-PR surface: base becomes the parent's head branch, which also scopes<br/>the changes digest to this PR's own delta. Never inferred from ancestry or<br/>the plan — only the explicit arg stacks a PR.<br/>Chain workflow lives in implement's references/stacked-prs.md"]
+  n6{"6. Anything left ambiguous?<br/>(A) several spec/plan files matched<br/>(B) several PR-N entries in the plan's PR Breakdown"}
+  n6a["6a. ONE AskUserQuestion carrying (A) and (B) as two SEPARATE<br/>questions — they resolve different things, so one merged question<br/>would force two answers into one choice"]:::gate
   n7["7. Create ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md right away, with an HTML<br/>comment logging each answer — spec, PR-N, and base — this skill's<br/>durable record, surviving a mid-flow compaction that drops them"]:::state
   n8["8. Derive the appendix's section list — never ask for it:<br/>the resolved spec/plan MINUS every section the body renders.<br/>The list is handed to step 2's agent, which extracts sections with<br/>extract-md-sections.sh and diagrams with extract-mermaid-blocks.sh —<br/>a re-summarized section or re-drawn diagram diverges silently"]
   n9[["9. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · foreground (step 2 gates on it)<br/>writes the full commit log + diff to a /tmp artifact and returns only<br/>the digest, so the raw diff never enters the main session — diffed against<br/>the resolved base, so a stacked PR digests only its own delta"]]:::dispatch
@@ -175,7 +171,7 @@ flowchart TD
   n15{"15. Step 4 · Does the .final.md exist and carry content?<br/>an artifact check, never a re-run of the agent's gates —<br/>an over-budget body shows in the rendered PR, and an<br/>over-cap one fails loudly at the gh pr create API"}
   n15a["15a. Missing or empty -&gt; step 3's agent never finished.<br/>Re-dispatch it; never compose a replacement body here"]:::state
   n16["16. Only NOW push: git push -u origin &lt;branch&gt; when it has no<br/>upstream. The push is the run's first outward-facing act — it fires<br/>CI and makes the branch visible, while every step above only wrote<br/>local files, so a failed compose or gate leaves nothing on the remote"]:::gate
-  n17["17. gh pr create --draft --body-file &lt;final&gt; --base &lt;base-branch&gt;,<br/>with NO chat-side review gate — the user reviews the rendered<br/>body on GitHub, which is the artifact they will actually judge.<br/>Stacked PR -&gt; base is the parent PR's head branch, per step 1"]
+  n17["17. gh pr create --draft --body-file &lt;final&gt; --base &lt;base-branch&gt;,<br/>with NO chat-side review gate — the user reviews the rendered<br/>body on GitHub, which is the artifact they will actually judge.<br/>A &lt;parent&gt; run -&gt; base is the parent's head branch, per step 1"]
   n18["18. Return the PR URL"]
 
   n19{"19. Step 5 · Does the user hand-edit the body on GitHub,<br/>or ask for a change in chat?"}
