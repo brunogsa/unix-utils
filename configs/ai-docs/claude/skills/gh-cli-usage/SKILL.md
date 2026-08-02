@@ -39,7 +39,7 @@ gh api -X PATCH repos/{owner}/{repo}/pulls/<n> -F base=<default-branch>
 gh pr list --base <branch>
 ```
 
-Read [`references/stacked-prs.md`](references/stacked-prs.md) before creating or restacking a stack — it owns the full workflow: bottom-up chain build, `--update-refs` restacks, merge order, and post-merge cleanup.
+Read [`references/stacked-prs.md`](references/stacked-prs.md) before creating or syncing a stack — it owns the full workflow: bottom-up chain build, merge-based propagation, merge order, and post-merge cleanup.
 
 ### Issues
 ```bash

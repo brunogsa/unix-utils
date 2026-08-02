@@ -4,7 +4,7 @@ A stack is a chain of branches, each cut from the previous one, with each PR bas
 
 Reach for a stack when a change is too big for one review but later work depends on earlier work.
 
-Keep stacks shallow (2-4 PRs): every extra level multiplies the restack cost of any change below it.
+Keep stacks shallow (2-4 PRs): every extra level adds one more branch to sync on every change below it.
 
 ## Build the chain (bottom-up)
 
@@ -25,17 +25,26 @@ Basing a child on the default branch instead of its parent makes reviewers re-re
 
 Cross-link the chain in each PR body (e.g. `Stack: #10 ← #11 ← #12 (this PR)`), so reviewers see position and merge order without opening the others.
 
-## Amend mid-stack: restack upward
+## Propagate changes by merging parent into child
 
-A new commit, amend, or rebase in a lower branch orphans every branch above it. Propagate in one rebase (Git ≥ 2.38):
+New commits anywhere in the stack propagate upward with plain merges, parent before child:
 
 ```bash
-git checkout feat-part2                # topmost branch of the stack
-git rebase master --update-refs        # rewrites feat-part1 in the same pass
-git push --force-with-lease origin feat-part1 feat-part2
+git checkout feat-part2 && git merge feat-part1
+git push origin feat-part1 feat-part2
 ```
 
-Always `--force-with-lease`, never bare `--force` — it aborts if the remote moved, e.g. a reviewer pushed a fixup to the branch since your last fetch.
+Merge, not rebase, is the default here: history stays append-only, so every push is plain and the server rejects any push that would drop someone else's commits.
+
+No branch ref ever moves out from under another worktree or agent.
+
+Merge-commit noise in the branches is the accepted cost; a squash or merge at PR-land time is what reviewers and history actually keep.
+
+A branch with several children (a fork in the stack) is no special case: each child merges the same shared parent.
+
+The shared commits stay shared by ancestry — nothing is ever duplicated or orphaned.
+
+A child that missed a sync round is merely behind; the next merge catches it up. There is no diverged-copy state to repair.
 
 ## Merge bottom-up
 
@@ -53,15 +62,16 @@ gh api -X PATCH repos/{owner}/{repo}/pulls/<child> -F base=master
 
 Retarget via REST, not `gh pr edit --base` — `gh pr edit` eagerly queries Projects-classic `projectCards`, the same deprecation hazard as `--body-file` (see the fallback section in [`../SKILL.md`](../SKILL.md)).
 
-3. A squash or rebase merge rewrites the parent's commits, so the child still carries the originals and shows them as its own diff. Rebase the child past them:
+3. Sync each remaining child with the new base — what it costs depends on how the repo merges:
+
+- **Merge-commit repos**: nothing to do — the parent's commits are now in the default branch, so each child's diff is already clean.
+- **Squash-merge repos**: the child's diff shows the parent's original commits until you `git merge master` into it. Both sides carry textually identical changes, so the merge normally auto-resolves.
 
 ```bash
 git fetch origin
-git rebase --onto origin/master feat-part1 feat-part2
-git push --force-with-lease origin feat-part2
+git checkout feat-part2 && git merge origin/master
+git push origin feat-part2
 ```
-
-With plain merge commits, `git merge origin/master` into the child works instead — no history was rewritten.
 
 4. Repeat for the next PR up until the stack is drained.
 
@@ -72,3 +82,31 @@ gh pr list --base <branch>                       # direct children of <branch>
 gh pr view <n> --json baseRefName,headRefName    # one PR's position
 gh pr list --state open --json number,headRefName,baseRefName   # map the chain
 ```
+
+## Appendix: rebase — only for rewriting history
+
+Merge propagation cannot amend, reorder, split, or move commits between PRs. Those are history rewrites, and rewrites need rebase — a case that never arises in a fix-forward-only workflow.
+
+If you do rewrite, propagate one **linear** leg at a time from its topmost branch (Git ≥ 2.38):
+
+```bash
+git checkout feat-part2
+git rebase master --update-refs        # rewrites feat-part1 in the same pass
+git push --force-with-lease --force-if-includes origin feat-part1 feat-part2
+```
+
+A fork in the stack is a second leg: rebase it onto the rewritten shared branch with `git rebase --onto <shared> <old-shared-tip> <leg-tip>`.
+
+Never run `--update-refs` a second time from the fork's leg — it replays stale copies of the shared commits.
+
+Always `--force-with-lease --force-if-includes`, never bare `--force` — the lease aborts if the remote moved since your last fetch.
+
+`--force-if-includes` closes the remaining gap: a fetch you never integrated updates the lease's reference point, letting the lease pass while still discarding those commits.
+
+Rebase moves branch refs, so it cannot move a branch checked out in another worktree — restack from one worktree with the stack's other branches not checked out anywhere.
+
+## GitHub's native stacked PRs (public preview) — not this workflow
+
+GitHub's native stacks (preview since 2026-07-30) are rebase-centric: propagation is a server-side cascading rebase that rewrites branches, the docs warn against manually merging stack branches, and stacks must be linear.
+
+All three conflict with this merge-based flow (append-only branches, merged forks, plain pushes) — skip the native feature while that holds, and revisit if it gains merge tolerance.
