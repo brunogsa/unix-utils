@@ -1,6 +1,6 @@
 ---
 name: gh-cli-usage
-description: "GitHub operations using gh CLI. Use when creating PRs (including stacked PRs), reviewing code, managing issues, checking CI status, or any GitHub API interaction."
+description: "GitHub operations using gh CLI. Use when creating PRs, reviewing code, managing issues, checking CI status, or any GitHub API interaction."
 user-invocable: false
 ---
 
@@ -24,22 +24,6 @@ gh pr view <number> [--json ...]
 gh pr merge <number> [--squash|--merge|--rebase]
 gh pr checks <number>
 ```
-
-### Stacked PRs
-
-```bash
-# A child PR targets its PARENT branch, never the default branch
-gh pr create --head <child-branch> --base <parent-branch> ...
-
-# Retarget a child after its parent merges (REST — gh pr edit --base shares
-# the projectCards hazard documented in the fallback section below)
-gh api -X PATCH repos/{owner}/{repo}/pulls/<n> -F base=<default-branch>
-
-# Direct children of a branch
-gh pr list --base <branch>
-```
-
-Read [`references/stacked-prs.md`](references/stacked-prs.md) before creating or syncing a stack — it owns the full workflow: bottom-up chain build, merge-based propagation, merge order, and post-merge cleanup.
 
 ### Issues
 ```bash

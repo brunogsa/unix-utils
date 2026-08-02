@@ -56,7 +56,7 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
 
   - Stacks are created bottom-up, so the parent PR must already exist; a declared stack whose parent branch has no open PR → run this skill for the parent branch first.
 
-  - Read `~/.claude/skills/gh-cli-usage/references/stacked-prs.md` before creating or syncing a stack — it owns the chain mechanics (build order, merge-based propagation, merge order, post-merge retargeting).
+  - Read [`references/stacked-prs.md`](references/stacked-prs.md) before creating or syncing a stack — it owns the chain mechanics (build order, merge-based propagation, merge order, post-merge retargeting).
 
 - **Ask (A), (B), and (C) in ONE interview, as separate questions, in a single pre-flight `AskUserQuestion` call**.
   - Carry all that apply; skip any label that auto-resolved above; skip the call entirely when everything auto-resolved.
@@ -176,7 +176,7 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 - **Create the PR as a draft with no chat-side review gate** -- `gh pr create --draft --body-file pr_<slug>_pr<N>.final.md --base <base-branch>`.
 
   - `<base-branch>` is the value step 1 resolved, dropped entirely when empty.
-    - Stacked PR → that value is the parent PR's head branch; after any parent up the chain merges, the retarget-and-sync steps live in `gh-cli-usage`'s `references/stacked-prs.md`, never re-derived here.
+    - Stacked PR → that value is the parent PR's head branch; after any parent up the chain merges, the retarget-and-sync steps live in [`references/stacked-prs.md`](references/stacked-prs.md), never re-derived here.
 
   - The user reviews on GitHub, where the rendered body is the artifact they will actually judge; a chat-side approval would review a different one.
 

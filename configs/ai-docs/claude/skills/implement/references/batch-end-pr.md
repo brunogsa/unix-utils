@@ -69,7 +69,7 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
     - A diamond PR (2+ parents) targets its **first-listed** parent's branch.
       GitHub renders one base per PR, so the other parents' commits stay in this PR's diff until they merge — note it in the PR body as a platform limit.
 
-    - Once a parent PR merges and its branch is deleted, GitHub retargets this PR automatically; verification and post-merge sync live in `gh-cli-usage`'s `references/stacked-prs.md`.
+    - Once a parent PR merges and its branch is deleted, GitHub retargets this PR automatically; verification and post-merge sync live in `create-pr`'s `references/stacked-prs.md`.
 
     - Every PR-label run needs this `--base`, dependent or not.
       Without it, `gh pr create` falls back to `branch.<name>.gh-merge-base` or the repo's default branch — never to a parent's branch by any ancestry heuristic.

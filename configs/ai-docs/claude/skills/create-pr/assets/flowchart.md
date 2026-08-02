@@ -42,8 +42,8 @@ def create_pr():
     #     is the parent — base becomes that branch, which also scopes the changes
     #     digest to this PR's own delta. One candidate auto-resolves; several
     #     feed question (C); none → not stacked. Chain mechanics (build order,
-    #     --update-refs restacks, merge order, retargeting) live in
-    #     gh-cli-usage references/stacked-prs.md — read before a stacked create.
+    #     merge-based propagation, merge order, retargeting) live in this
+    #     skill's references/stacked-prs.md — read before a stacked create.
     if stack_parent := detect_stack_parent():
         base = stack_parent
 
@@ -158,7 +158,7 @@ flowchart TD
   end
 
   n4["4. Step 1 · Glob cwd top-level for spec_*.md / plan_*.md;<br/>none found -&gt; author from the changes digest alone"]
-  n5["5. Resolve the base branch BEFORE the interview: default is origin/HEAD<br/>(empty -&gt; omit --base at create time). Stacked override: an open PR's head<br/>branch that is an ancestor of HEAD is the parent — base becomes that branch,<br/>which also scopes the changes digest to this PR's own delta. One candidate<br/>auto-resolves; several feed question (C); none -&gt; not stacked.<br/>Chain mechanics live in gh-cli-usage references/stacked-prs.md"]
+  n5["5. Resolve the base branch BEFORE the interview: default is origin/HEAD<br/>(empty -&gt; omit --base at create time). Stacked override: an open PR's head<br/>branch that is an ancestor of HEAD is the parent — base becomes that branch,<br/>which also scopes the changes digest to this PR's own delta. One candidate<br/>auto-resolves; several feed question (C); none -&gt; not stacked.<br/>Chain mechanics live in this skill's references/stacked-prs.md"]
   n6{"6. Anything left ambiguous?<br/>(A) several spec/plan files matched<br/>(B) several PR-N entries in the plan's PR Breakdown<br/>(C) several stack-parent candidates"}
   n6a["6a. ONE AskUserQuestion carrying (A), (B), and (C) as SEPARATE<br/>questions — they resolve different things, so one merged question<br/>would force several answers into one choice"]:::gate
   n7["7. Create ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md right away, with an HTML<br/>comment logging each answer — spec, PR-N, and base — this skill's<br/>durable record, surviving a mid-flow compaction that drops them"]:::state
