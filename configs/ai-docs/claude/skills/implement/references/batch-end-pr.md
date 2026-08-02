@@ -58,13 +58,22 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
   - `WARNING:`-prefixed items for any manual deploy prerequisite (new secrets, new Parameter-Store values) or other operationally-risky item needing human coordination.
   - Zero references to untracked session docs (`spec_<slug>.md`, `plan_<slug>.md`, `verdict_*.md`, internal task/AC numbers, commit SHAs in prose).
     Verify each candidate with `git ls-files <name>` first; substitute the value or drop the reference.
-  - **Create the draft PR only — never push, never force-push**: `gh pr create --draft --body-file <file> --base <base-branch>`, where `<base-branch>` is §1.2's confirmed base. Never auto-merge.
+  - **Create the draft PR only — never push, never force-push**: `gh pr create --draft --body-file <file> --base <base-branch>`. Never auto-merge.
 
     - State this in the dispatch prompt explicitly: left unsaid, the agent pushes by default, since its own skill covers the whole flow.
 
+    - **`<base-branch>` is the parent PR's branch for a dependent PR; §1.2's confirmed base for a zero-parent PR or a plain `<task-ids>` run.**
+      Read the parent's branch from its PR Breakdown line's `Branch:` clause — the fail-fast stop predicate guarantees the parent's batch-end push already wrote it.
+      Targeting the confirmed base instead shows the parent's commits inside this PR's diff until the parent merges — the reviewer burden a multi-PR split exists to remove.
+
+    - A diamond PR (2+ parents) targets its **first-listed** parent's branch.
+      GitHub renders one base per PR, so the other parents' commits stay in this PR's diff until they merge — note it in the PR body as a platform limit.
+
+    - Once a parent PR merges and its branch is deleted, GitHub retargets this PR automatically; verification and post-merge sync live in `gh-cli-usage`'s `references/stacked-prs.md`.
+
     - Every PR-label run needs this `--base`, dependent or not.
       Without it, `gh pr create` falls back to `branch.<name>.gh-merge-base` or the repo's default branch — never to a parent's branch by any ancestry heuristic.
-      That fallback is implicit, not the plan's confirmed choice.
+      That fallback is implicit, not the plan's resolved choice.
     - **Branch already has an open PR** (`gh pr create` errors that one exists) → not a failure.
       Fall back to the REST-API body-update path below, targeting that PR number, so a rerun of `/implement` updates its own open PR instead of erroring.
     - **Updating an existing PR's body: use the REST API, never `gh pr edit --body-file`** — `gh api --method PATCH repos/<owner>/<repo>/pulls/<n> -F body=@<file>`.
