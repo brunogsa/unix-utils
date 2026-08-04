@@ -1,6 +1,6 @@
 ---
 name: markdown-standards-fixer
-description: Fix doc-standards line violations in markdown - split over-cap lines (256 chars / 32 words) and gap bullets missing their blank line - verifying deterministically with check-density.sh and check-bullet-gap.py. Use when the markdown-standards Stop hook flags uncommitted .md files.
+description: Fix doc-standards line violations in markdown - split over-cap lines (256 chars / 32 words) and gap bullets missing their blank line - verifying deterministically with check-density.sh and check-bullet-gap.py. Use when the markdown-standards Stop hook flags uncommitted .md files, and ONLY after asking the user whether to run it — the flagged file may not be the user's own doc to hold to personal doc-standards (e.g. a company/vendor doc). If asking isn't possible in that context (no interactive channel), don't dispatch this agent at all.
 model: haiku
 effort: low
 maxTurns: 64

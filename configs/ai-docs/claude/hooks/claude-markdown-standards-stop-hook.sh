@@ -18,9 +18,13 @@
 #   doc back to the human to read. Formatting nits fixed inline (PostToolUse) fork
 #   the writing session's attention; fixed at commit they land too late (the human
 #   reads before the commit). So this gate fires at Stop: if changed markdown still
-#   violates, it blocks and tells the main agent to spawn a cheap Haiku subagent to
-#   fix the offending lines — off the main thread — so the human reads a clean doc
-#   with zero main-session churn.
+#   violates, it blocks and tells the main agent to ASK the user before spawning a
+#   cheap Haiku subagent to fix the offending lines — off the main thread — so the
+#   human reads a clean doc with zero main-session churn.
+#   Asking first (not auto-dispatching) matters because not every edited .md is the
+#   user's own doc to hold to personal doc-standards — e.g. a company/vendor file
+#   the user merely touched. If the main agent can't ask (no interactive channel),
+#   it skips the fixer rather than guessing.
 #
 # Scope — "everything THIS SESSION wrote/edited on .md", narrowed twice:
 #   - Working-tree filter: which lines changed. Untracked .md (new spec/plan) →
@@ -48,6 +52,17 @@
 #   the files or re-run the gate: doing so would pull the density detail back into the
 #   main context, defeating the whole point of offloading it to a subagent.
 #
+# Session memory:
+#   Per-file answers persist in /tmp/claude-md-fixer-decisions-<session_id> —
+#   one "delegate:<abs path>" or "skip:<abs path>" line per file, appended by
+#   the main session right after the user answers for that file. On a later
+#   Stop in the SAME session: a "skip" file is dropped from violations outright
+#   (never re-blocked), and a "delegate" file's block wording says to delegate
+#   directly instead of asking again. A file with no recorded answer is asked
+#   about exactly as before. This is why the memory is per-file, not per-session
+#   — one company doc being declined must not silence the gate for every other
+#   file this session.
+#
 # Safeguards (all silent no-ops — never break Claude on a tooling/context gap):
 #   - jq / git / awk / comm missing, or BOTH checkers unavailable → exit 0.
 #     One checker missing is not fatal: the other still gates on its own rule,
@@ -74,6 +89,16 @@ command -v comm >/dev/null 2>&1 || exit 0
 
 stop_hook_active=$(printf '%s' "$input" | jq -r '.stop_hook_active // false' 2>/dev/null || true)
 [ "$stop_hook_active" = "true" ] && exit 0
+
+# Per-file answer memory for this session (see "Session memory" below). Empty
+# session_id (or one with characters unsafe for a filename) just disables the
+# memory — the hook still gates, it only re-asks every time instead of once.
+session_id=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)
+decisions_file=""
+case "$session_id" in
+  "" | *[!A-Za-z0-9_-]*) : ;;
+  *) decisions_file="/tmp/claude-md-fixer-decisions-${session_id}" ;;
+esac
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 
@@ -194,16 +219,64 @@ violations=$(printf '%s\n' "$violations" | while IFS= read -r v; do
 done || true)
 [ -z "$violations" ] && exit 0
 
+# Drop files the user already declined this session — see "Session memory" above.
+decided_skip=""
+decided_delegate=""
+if [ -n "$decisions_file" ] && [ -f "$decisions_file" ]; then
+  decided_skip=$(awk -F: '$1 == "skip" {print $2}' "$decisions_file" 2>/dev/null | sort -u || true)
+  decided_delegate=$(awk -F: '$1 == "delegate" {print $2}' "$decisions_file" 2>/dev/null | sort -u || true)
+fi
+
+if [ -n "$decided_skip" ]; then
+  violations=$(printf '%s\n' "$violations" | while IFS= read -r v; do
+    [ -n "$v" ] || continue
+    vf_abs=$(to_abs "${v%%:*}")
+    printf '%s\n' "$decided_skip" | grep -qxF "$vf_abs" || printf '%s\n' "$v"
+  done || true)
+fi
+[ -z "$violations" ] && exit 0
+
 # Single-char delimiter: `paste -d` cycles through a multi-char list, so ', '
 # would alternate comma and space instead of joining with both.
 list=$(printf '%s\n' "$violations" | paste -sd ',' -)
+
+# Split the still-violating files into "already told us to delegate this
+# session" (ask nothing, just delegate) vs "no recorded answer yet" (ask once).
+new_files=""
+approved_files=""
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  f_abs=$(to_abs "$f")
+  if [ -n "$decided_delegate" ] && printf '%s\n' "$decided_delegate" | grep -qxF "$f_abs"; then
+    approved_files="${approved_files}${f}, "
+  else
+    new_files="${new_files}${f}, "
+  fi
+done <<< "$(printf '%s\n' "$violations" | awk -F: '{print $1}' | sort -u)"
+approved_files="${approved_files%, }"
+new_files="${new_files%, }"
 
 # Kept minimal on purpose: this string is injected into the MAIN session context on
 # every block, and a Stop can block repeatedly — a verbose reason would accumulate and
 # crowd out real work. WHICH rule each line broke is deliberately omitted: the fixer
 # re-runs both checkers anyway, so naming them here would only pad every block.
-reason="Markdown you edited this session is off doc-standards — ${list}. \
-Delegate to a Haiku (claude-haiku-4-5) markdown-standards-fixer subagent; it self-verifies \
-with check-density and check-bullet-gap. Do not re-read in this session — trust the subagent."
+reason="Markdown you edited this session is off doc-standards — ${list}."
+
+if [ -n "$approved_files" ]; then
+  reason="${reason} Already approved this session — delegate directly, no need to ask again: ${approved_files}."
+fi
+
+if [ -n "$new_files" ]; then
+  reason="${reason} Ask the user whether to delegate ${new_files} to a Haiku (claude-haiku-4-5) \
+markdown-standards-fixer subagent — some edited .md isn't yours to reformat (e.g. a company doc). \
+If you can't ask here, skip the fixer for it."
+  if [ -n "$decisions_file" ]; then
+    reason="${reason} Record the answer so it isn't asked again this session: append \
+'delegate:<abs path>' or 'skip:<abs path>' to ${decisions_file}."
+  fi
+fi
+
+reason="${reason} Delegated files self-verify with check-density and check-bullet-gap. Do not \
+re-read in this session — trust the subagent."
 
 jq -n --arg r "$reason" '{decision: "block", reason: $r}'
