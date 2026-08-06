@@ -151,6 +151,7 @@ Reviewer checklist:
 | Step-by-step interaction between components | `sequenceDiagram` |
 | Decision flow / branching logic | `flowchart TD` |
 | State transitions | `stateDiagram-v2` |
+| Data model — entities, keys, cardinality | `erDiagram` |
 
 ## Readability Rules
 
@@ -253,3 +254,11 @@ Load [`references/diagram-c4l2.md`](references/diagram-c4l2.md) when drawing one
 Execution path at module/function level. Actors must be actual code components. Always `autonumber`; split if >5 lanes.
 
 Load [`references/diagram-sequence.md`](references/diagram-sequence.md) when drawing one — covers examples and the fan-out / filter-parameter / external-hop rules for implementation contracts.
+
+## Entity Relationship Diagram
+
+Data model at entity level — tables/collections, their keys, and the cardinality between them. Entity names must be real table names, per Naming above.
+
+Load [`references/diagram-erd.md`](references/diagram-erd.md) when drawing one — covers the cardinality glyph table and which side each glyph describes.
+
+It also carries identifying vs non-identifying lines, the mandatory-label parse trap, and the scope rule that keeps the diagram off a full column dump.
