@@ -65,12 +65,16 @@ See "When a subagent might still help" below for the one case worth revisiting.
      A cluster that reads as quick to verify (a one-grep answer, an obvious fix) still tempts sliding straight into execution.
      File every cluster as a task first, so the list stays the complete, durable plan rather than a partial one reconstructed after the fact.
 
-4. **Execute, then strip the marker.**
-   - Loop over clusters strictly sequentially — this flow is inline in the main session by design, so there's nothing to parallelize.
-   - A task isn't done until its marker comment is gone from the source.
-   - For `AI!`/action items, perform the change first; for `AI?`/question items, answer in chat first (never in the file).
-   - Either way, delete the comment once resolved and treat the file like a burn-down list, not an archive of resolved notes.
-   - A cluster mixing both types processes its markers in file order, each under its own type rule above.
+4. **Batch order: answer every `AI?` first, across the whole run, THEN execute every `AI!` — never interleaved.**
+   - This holds batch-wide, not per-cluster: even a cluster mixing both types splits across the two passes below, rather than resolving its question and action back-to-back.
+
+   - **Q&A pass** — answer every `AI?` in one message, before touching any `AI!`: one line per question, with its cluster/file:line reference.
+     Batching them lets the human read every answer together instead of finding them scattered between diffs.
+     Strip each `AI?` marker the moment its answer is given.
+   - **Action pass** — only once every question is answered, execute every `AI!`, looping over clusters strictly sequentially.
+     This flow is inline in the main session by design, so there is nothing to parallelize.
+     A task isn't done until its marker comment is gone from the source; strip each `AI!` marker the moment its change lands.
+   - Treat the file like a burn-down list, not an archive of resolved notes, in both passes.
 
 5. **Optional refactor + auto-review tails (only when step 1's toggle is on).** Dispatch the shared deep-reviewer tail pair — [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md).
    - Set `<BASE_REF>` = `BATCH_BASE_SHA`, diffing against the working tree since this batch may be uncommitted.
