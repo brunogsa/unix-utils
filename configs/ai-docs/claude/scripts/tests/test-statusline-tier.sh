@@ -310,6 +310,120 @@ it_should_render_the_remaining_segments_when_the_cost_segment_has_no_data_yet
 it_should_render_nothing_and_exit_zero_when_ccstatusline_or_ccburn_is_not_installed
 
 # ============================================================
+# describe("StatusLineRealRender")
+# ============================================================
+# Unlike StatusLineRender above (which drives a FAKE ccstatusline that
+# extracts one raw value per widget into "[marker:value]" markers), this
+# test drives the REAL, installed `ccstatusline` npm binary against the
+# committed config. The fake binary models widget composition rather than
+# performing it, so it cannot catch a bug IN composition — a built-in
+# widget rendering its own label (e.g. "Ctx: ") alongside this config's
+# custom-text label, or a padding "merge" landing on the wrong widget. Only
+# the real binary's actual stdout proves those are absent.
+#
+# ccburn is still faked (pass-through) per this repo's hard rule: `ccburn
+# collect` reads and writes the maintainer's real usage-history file, so no
+# test may invoke it for real. The synthetic payload below supplies
+# rate_limits directly on stdin, which the real ccstatusline widgets read
+# straight from that JSON with no network fetch — confirmed by reading
+# ccstatusline's own extractUsageDataFromRateLimits()/
+# prefetchUsageDataIfNeeded(): the network path only runs when a
+# rate_limits field is still missing after this check.
+
+# real_ccstatusline_dir - the directory holding the actually-installed
+# ccstatusline binary (from install.sh's `npm install -g ccstatusline`), or
+# empty when it is not on PATH. Resolved once at file load, not inside the
+# test, so every use sees the same value.
+real_ccstatusline_dir() {
+  local bin
+  bin="$(command -v ccstatusline 2>/dev/null)" || return 0
+  dirname "$bin"
+}
+REAL_CCSTATUSLINE_DIR="$(real_ccstatusline_dir)"
+
+it_should_render_each_builtin_widget_raw_with_no_duplicate_label_and_no_stray_padding() {
+  if [ -z "$REAL_CCSTATUSLINE_DIR" ]; then
+    pass_count=$((pass_count + 1))
+    printf 'ok - StatusLineRealRender > happy > should render each builtin widget raw with no duplicate label and no stray padding # SKIP ccstatusline is not installed (run install.sh)\n'
+    return
+  fi
+
+  local sandbox bin_dir now resets_5h resets_7d payload raw_output output line2
+  sandbox="$(fresh_sandbox)"
+  bin_dir="$sandbox/bin"
+  mkdir -p "$bin_dir" "$sandbox/.claude/scripts" "$sandbox/.config/ccstatusline"
+  ln -s "$SCRIPT_UNDER_TEST" "$sandbox/.claude/scripts/statusline-tier.sh"
+  cp "$CCSTATUSLINE_CONFIG_SRC" "$sandbox/.config/ccstatusline/settings.json"
+  printf '{"subscriptionType":"max"}' >"$sandbox/.claude/.credentials.json"
+  printf '{"advisorModel":"opus"}' >"$sandbox/.claude/settings.json"
+  write_fake_ccburn "$bin_dir"
+
+  now=$(date +%s)
+  resets_5h=$((now + 5040))   # elapsed 12960s of an 18000s window -> expected 72%
+  resets_7d=$((now + 453600)) # elapsed 151200s of a 604800s window -> expected 25%
+  payload=$(cat <<JSON
+{
+  "model": {"display_name": "Sonnet 5"},
+  "effort": {"level": "high"},
+  "context_window": {"context_window_size": 200000, "used_percentage": 34},
+  "cost": {"total_cost_usd": 1.23, "total_duration_ms": 21600000},
+  "rate_limits": {
+    "five_hour": {"used_percentage": 40, "resets_at": $resets_5h},
+    "seven_day": {"used_percentage": 55, "resets_at": $resets_7d}
+  }
+}
+JSON
+  )
+
+  raw_output=$(
+    printf '%s' "$payload" | HOME="$sandbox" \
+      PATH="$bin_dir:$REAL_CCSTATUSLINE_DIR:/usr/bin:/bin:/opt/homebrew/bin" \
+      bash -c "$(configured_statusline_command)"
+  )
+  # Strip ANSI color/style codes (colorLevel:3 in the committed config), then
+  # normalize ccstatusline's own padding character - confirmed via a raw
+  # byte dump to be U+00A0 NO-BREAK SPACE (UTF-8 0xC2 0xA0), not a plain
+  # ASCII space - down to a plain space. A real terminal renders both
+  # identically, but a byte-literal " " pattern below would silently never
+  # match the actual output without this normalization.
+  output=$(
+    printf '%s\n' "$raw_output" \
+      | sed -E 's/\x1b\[[0-9;]*m//g' \
+      | sed $'s/\xc2\xa0/ /g'
+  )
+  line2=$(printf '%s\n' "$output" | sed -n '2p')
+
+  local doubled_labels stray_percent_space stray_duration_space six_h_present
+  # Each of these is a built-in widget's own label, rendered only when the
+  # widget lacks rawValue:true. None may appear: this config supplies its
+  # own custom-text labels ("Context", "Advisor", "$", "5h", "7d", ...)
+  # instead.
+  doubled_labels=$(printf '%s' "$output" | grep -cE \
+    'Ctx: |Ctx Used: |Ctx Left: |Cost: |Session: |Weekly: |Reset: |Weekly Reset: ')
+  # A digit followed by 1+ spaces then "%" is the
+  # merge:"no-padding"-is-missing symptom on expected5h/expected7d (e.g.
+  # the reported "29 %").
+  stray_percent_space=$(printf '%s' "$output" | grep -cE '[0-9][[:space:]]+%')
+  # A digit followed by 2+ spaces then "h" at end of line is the
+  # merge:"no-padding" flag sitting on the wrong widget (duration-unit, a
+  # no-op there, instead of duration) — the reported "6  h". Anchored to
+  # end-of-line so this doesn't false-positive on unrelated "<digit>  h..."
+  # text elsewhere on the line (e.g. "Sonnet 5  high").
+  stray_duration_space=$(printf '%s' "$output" | grep -cE '[0-9][[:space:]]{2,}h[[:space:]]*$')
+  six_h_present=no
+  printf '%s' "$output" | grep -qF '6h' && six_h_present=yes
+
+  assert_eq \
+    "StatusLineRealRender > happy > should render each builtin widget raw with no duplicate label and no stray padding" \
+    "0 0 0 yes" "$doubled_labels $stray_percent_space $stray_duration_space $six_h_present"
+
+  printf '# line2 (%d chars): %s\n' "${#line2}" "$line2" >&2
+  rm -rf "$sandbox"
+}
+
+it_should_render_each_builtin_widget_raw_with_no_duplicate_label_and_no_stray_padding
+
+# ============================================================
 # describe("StatusLineTierSegment")
 # ============================================================
 
