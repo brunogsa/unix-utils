@@ -234,7 +234,8 @@ npm install -g @mermaid-js/mermaid-cli
 npm install -g ccusage
 
 # AI setup: Claude Code e OpenCode configuration
-npm install -g codeburn
+npm install -g ccstatusline
+npm install -g ccburn
 
 # Python CLI tools (pipx) — git-hunk: non-interactive, content-hashed hunk staging for agent-driven
 # commit splitting (scriptable alternative to interactive `git add -p`; pipx is installed above).
