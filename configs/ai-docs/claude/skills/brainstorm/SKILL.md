@@ -67,6 +67,8 @@ Why persisted: a compaction between here and self-review would lose them.
 
 Then create the run scratchpad `/tmp/brainstorm_<session_id>.md`, keyed the same way, per CLAUDE.md's scratchpad rules.
 It stays alive for the whole run — through the spec, the plan, and self-review — so the plan phase can still see why the earlier steps decided what they did.
+It is also the sole context channel to every dispatched writing agent — each one starts with none of this session's context.
+Anything this file omits is invisible to the agent that writes the documents.
 
 ### 2. Gather starting context
 
@@ -134,7 +136,7 @@ Capture the outcome in the run scratchpad; the writing agent folds it into the d
 Why keep the discarded ones: naming what lost, and why, stops the next session re-deriving the same alternatives and re-litigating them.
 It also surfaces when the constraint that killed an alternative no longer applies.
 
-### 6. Derive the slug, then dispatch a `fork` to write the spec
+### 6. Derive the slug, then dispatch a `general-purpose` agent to write the spec
 
 **Full only.** At `light` skip to step 9, which derives its own slug.
 
@@ -143,19 +145,22 @@ The plan inherits that same slug at step 9 — the shared slug is what pairs the
 
 Why not confirm: the slug just names two paired files — a wrong one costs only a rename, and the user is about to read the spec anyway.
 
-Then dispatch `agent(subAgent=fork, title=Write the spec)`, in the foreground — the next step needs the spec to exist. Instruct it to:
+Then dispatch `agent(subAgent=general-purpose, model=sonnet, title=Write the spec)`, in the foreground — the next step needs the spec to exist. Instruct it to:
 
 - Read `~/.claude/skills/spec-driven-development/SKILL.md` and its `assets/spec-template.md` — that library's Guidelines govern what it writes, and every section of the template gets written.
 
-- Read the run scratchpad `/tmp/brainstorm_<session_id>.md` and fold its decisions and discarded alternatives into the spec's Functional Decisions section.
+- It has no inherited context — read the run scratchpad `/tmp/brainstorm_<session_id>.md` first.
+- Fold the scratchpad's decisions and discarded alternatives into the spec's Functional Decisions section.
 - Write `spec_<slug>.md` in CWD, and report back its resolved path plus a short summary of what it wrote.
 
-**This session never writes the spec itself** — every later edit goes through another `agent(subAgent=fork, title=Apply spec edits)` carrying the exact changes to make.
+**This session never writes the spec itself** — every later edit goes through another `agent(subAgent=general-purpose, model=sonnet, title=Apply spec edits)` carrying the exact changes to make.
 
 Why delegate: writing the spec costs the context to load the library and template — context this session still needs for both reviews and the hand-off.
 
-Why a fork: it inherits this session's full context, already carrying the interview and the approach pick.
-A fresh agent would silently invent whatever a re-serialized prompt left out.
+Why `general-purpose`: this agent inherits none of this session's context, unlike a fork, so it cannot lean on the interview or the approach pick.
+It must ground entirely from the run scratchpad `/tmp/brainstorm_<session_id>.md` instead.
+That is why the scratchpad has to be self-contained: the verbatim original request, every finding with its file:line evidence, and every decision with the alternatives it discarded.
+Leaving any of that out of the scratchpad makes it invisible to the agent that writes the spec, which would otherwise silently invent whatever is missing.
 
 ### 7. Self-review the spec once, with fresh eyes
 
@@ -173,7 +178,7 @@ A gap there passes every later gate untouched, and reaches implementation as a t
 Exclude PR-size and plan-contradiction — no plan exists yet.
 Exclude Scope too: step 3 already asked the user about decomposition.
 
-Then decide each finding yourself and dispatch `agent(subAgent=fork, title=Apply spec review findings)` with the ones you accept.
+Then decide each finding yourself and dispatch `agent(subAgent=general-purpose, model=sonnet, title=Apply spec review findings)` with the ones you accept.
 
 **Report the outcome to the user in one block before step 8** — each finding, and whether it was applied or skipped with the reason.
 
@@ -184,7 +189,7 @@ In the finished spec, a silently-applied fix and a gate that found nothing read 
 
 Why fresh eyes before the user: this session argued itself into every choice, so it reads its own spec as complete because it remembers what the spec never says.
 
-Why not a fork for the review: a fork inherits exactly the session bias the review exists to catch.
+Why not `general-purpose` for the review: it composes under conventions the way the spec-writing dispatch does, not the fresh-eyes judgment a review needs — that judgment is `deep-reviewer`'s job.
 
 ### 8. User review/approve spec
 
@@ -196,7 +201,7 @@ Give the user the spec's path, then ask via `AskUserQuestion` whether it is appr
 
 Route each round's rework to the earliest step the feedback invalidates:
 
-- Wording/detail issues → re-dispatch the fork with the edits, then re-ask.
+- Wording/detail issues → re-dispatch the `general-purpose` agent with the edits, then re-ask.
 - Missing or wrong requirements → back to the step 4 interview.
 - Approach concerns → back to the step 5 trade-off discussion.
 
@@ -219,10 +224,10 @@ Where the spec doesn't carry a decision the plan needs, `plan-writer` writes the
 
 Never close a gap here, or fill one with an invented decision — that's the author-bias this dispatch exists to catch. Step 12 closes them all, in one batch.
 
-Should it return a numbered gap list instead of a plan, dispatch a `fork` to record those gaps as Open Questions in the spec.
+Should it return a numbered gap list instead of a plan, dispatch `agent(subAgent=general-purpose, model=sonnet, title=Record plan gaps as spec Open Questions)` to record those gaps as Open Questions in the spec.
 Then re-dispatch `plan-writer` once — not once per gap.
 
-**At `light`** — dispatch `agent(subAgent=fork, title=Write the plan)` in the foreground instead. Instruct it to:
+**At `light`** — dispatch `agent(subAgent=general-purpose, model=sonnet, title=Write the plan)` in the foreground instead. Instruct it to:
 
 - Read `~/.claude/skills/spec-driven-development/SKILL.md` and its `assets/plan-template.md`, and write every section of that template.
 
@@ -233,9 +238,9 @@ Then re-dispatch `plan-writer` once — not once per gap.
 - Write `N/A — no spec` in place of the Test Design section's AC → test coverage list.
   - Why: `check-ac-coverage.sh` takes a plan and a spec, so with no spec there is nothing for that list to cite and no gate to read it.
 
-- Read the run scratchpad `/tmp/brainstorm_<session_id>.md` and fold its decisions and discarded alternatives into the plan's Technical Decisions section.
+- It has no inherited context — read the run scratchpad `/tmp/brainstorm_<session_id>.md` first, then fold its decisions and discarded alternatives into the plan's Technical Decisions section.
 
-Why a fork rather than `plan-writer` here: `plan-writer` reads a spec and nothing else, by contract, so with no spec it returns a plan of nothing but open questions.
+Why `general-purpose` rather than `plan-writer` here: `plan-writer` reads a spec and nothing else, by contract, so with no spec it returns a plan of nothing but open questions.
 Its fresh-eyes value is testing whether the spec carries what a plan needs — a test with no subject at `light`, where the interview is the only place the requirements live.
 
 ### 10. Self-review the plan once, with fresh eyes
@@ -251,7 +256,7 @@ Why that emphasis: `tdd-coder` builds each RED cycle straight from these titles,
 
 Also apply the qualitative pass from that same reference, plus the two rigor toggles read back from `/tmp/sdd_<session_id>.json` — never re-asked here.
 
-Then decide each finding yourself, dispatch `agent(subAgent=fork, title=Apply plan review findings)` with the ones you accept, and report applied-or-skipped to the user exactly as step 7 does.
+Then decide each finding yourself, dispatch `agent(subAgent=general-purpose, model=sonnet, title=Apply plan review findings)` with the ones you accept, and report applied-or-skipped to the user exactly as step 7 does.
 
 **Runs once per plan, never twice over the same text.**
 
@@ -260,7 +265,7 @@ Then decide each finding yourself, dispatch `agent(subAgent=fork, title=Apply pl
 Give the user the plan's path, then ask via `AskUserQuestion` whether it is approved or what to change.
 
 Same loop shape as step 8: apply, re-ask, and continue to step 12 automatically the moment they approve.
-Route rework the same way — plan-level edits go through a `fork`, requirement gaps back to step 4, approach concerns back to step 5.
+Route rework the same way — plan-level edits go through a `general-purpose` agent (`model=sonnet`), requirement gaps back to step 4, approach concerns back to step 5.
 
 **No self-review re-runs during this loop, in either mode.**
 
@@ -272,7 +277,7 @@ A second AI pass over text they are actively editing spends a dispatch on a movi
 Read the Open Questions section of the plan, and of the spec when one exists.
 
 While either still holds a `**QUESTION:**` entry, interview the user to settle them — `AskUserQuestion`, 2-3 at a time, recommended answer first, exactly as in step 4.
-Then dispatch `agent(subAgent=fork, title=Close open questions)` to fold the answers in and leave each Open Questions section reading `None`.
+Then dispatch `agent(subAgent=general-purpose, model=sonnet, title=Close open questions)` to fold the answers in and leave each Open Questions section reading `None`.
 
 Re-read after each round. **Step 13 does not run while a question is open.**
 

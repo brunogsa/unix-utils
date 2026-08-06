@@ -56,7 +56,7 @@ def brainstorm():
     TaskCreate("[Reminder] Step 4 · Interview")                          # 6c ·
     TaskCreate("[Reminder] Step 5 · Propose 2-3 approaches")             # 6d ·
     if mode == "full":
-        TaskCreate("[Reminder] Step 6 · fork writes the spec")           # 6e ·
+        TaskCreate("[Reminder] Step 6 · general-purpose agent writes the spec")  # 6e ·
         if toggles.fresh_eyes:
             TaskCreate("[Reminder] Step 7 · Review the spec")            # 6f ·
         TaskCreate("[Reminder] Step 8 · User review/approve spec")       # 6g ·
@@ -109,24 +109,26 @@ def brainstorm():
     scratchpad.write(pick)                                 # 15 ·
 
     if mode == "light":                                    # 16 ·
-        # 16a · Step 9 at light — fork · serial · foreground, NOT plan-writer:
-        #       plan-writer reads a spec and nothing else by contract, so with no
-        #       spec it would return a plan of pure open questions. The fork
-        #       carries the interview, the only place light's requirements live.
+        # 16a · Step 9 at light — general-purpose (sonnet) · serial · foreground,
+        #       NOT plan-writer: plan-writer reads a spec and nothing else by
+        #       contract, so with no spec it would return a plan of pure open
+        #       questions. This agent has no inherited context, so it grounds
+        #       from the run scratchpad, the only place light's requirements live.
         #       It derives its OWN kebab slug, writes "N/A — plan-only run" on the
         #       Spec: line, carries each task's ACs in that task's own field, and
         #       writes "N/A — no spec" for the AC → test coverage list.
-        plan = dispatch("fork", write_plan=True, derive_own_slug=True)
+        plan = dispatch("general-purpose", model="sonnet", write_plan=True, derive_own_slug=True)
     else:
         # 17 · Step 6 — a short kebab-case slug, NEVER confirmed with the user.
         #      The plan inherits it, and that shared slug is what pairs the files.
         slug = derive_kebab_slug()
 
-        # 18 · Step 6 — fork · serial · foreground. Reads the
-        #      spec-driven-development library + spec-template and writes EVERY
+        # 18 · Step 6 — general-purpose (sonnet) · serial · foreground. No
+        #      inherited context: reads the run scratchpad first, then the
+        #      spec-driven-development library + spec-template, and writes EVERY
         #      section; folds the scratchpad's decisions into Functional Decisions.
         #      THIS session never writes the spec itself.
-        spec = dispatch("fork", write_spec=True, slug=slug)
+        spec = dispatch("general-purpose", model="sonnet", write_spec=True, slug=slug)
 
         if toggles.fresh_eyes:                             # 19 ·
             # 19a · deep-reviewer · agent-pinned · serial · foreground, over the
@@ -134,8 +136,9 @@ def brainstorm():
             #       Then placeholders, contradictions, ambiguity, completeness,
             #       human-reviewable. NOT scope, NOT PR-size, NOT plan-contradiction.
             findings = dispatch("deep-reviewer", target=spec)
-            # 19b · fork · serial · foreground, with the findings YOU accepted.
-            dispatch("fork", apply=main_session_decides(findings))
+            # 19b · general-purpose (sonnet) · serial · foreground, with the
+            #       findings YOU accepted.
+            dispatch("general-purpose", model="sonnet", apply=main_session_decides(findings))
             # 19c · every finding, applied or skipped with the reason — the only
             #       way to judge whether this gate earns its cost.
             report_applied_and_skipped_to_user(findings)
@@ -146,7 +149,7 @@ def brainstorm():
             verdict = ask_user_question(spec.path, "Approved, or what changes?")
             match verdict:                                 # 21 ·
                 case "approved":                  break                    # → 22
-                case "wording/detail":            dispatch("fork", edits=...)  # 21a · → 20
+                case "wording/detail":            dispatch("general-purpose", model="sonnet", edits=...)  # 21a · → 20
                 case "missing/wrong requirements": goto(10)                # the interview
                 case "approach concerns":          goto(14)                # the proposals
 
@@ -159,16 +162,17 @@ def brainstorm():
             if not result.is_gap_list:                     # 23 ·
                 plan = result.plan
                 break
-            # 23a · fork · serial · foreground records the gaps as Open Questions
-            #       in the spec, then plan-writer is re-dispatched ONCE — not per gap.
-            dispatch("fork", record_gaps_as_open_questions=result.gaps)
+            # 23a · general-purpose (sonnet) · serial · foreground records the gaps
+            #       as Open Questions in the spec, then plan-writer is re-dispatched
+            #       ONCE — not per gap.
+            dispatch("general-purpose", model="sonnet", record_gaps_as_open_questions=result.gaps)
 
     if mode == "full" and toggles.fresh_eyes:              # 24 · Step 10
         # 24a · deep-reviewer · agent-pinned · serial · foreground, over the plan
         #       AND the spec. Test-design gaps are its FIRST job; then the
         #       qualitative pass plus the 2 rigor toggles read back from disk.
         findings = dispatch("deep-reviewer", target=[plan, spec])
-        dispatch("fork", apply=main_session_decides(findings))             # 24b ·
+        dispatch("general-purpose", model="sonnet", apply=main_session_decides(findings))  # 24b ·
         report_applied_and_skipped_to_user(findings)                       # 24c ·
         # Runs ONCE per plan, never twice over the same text.
 
@@ -178,7 +182,7 @@ def brainstorm():
         verdict = ask_user_question(plan.path, "Approved, or what changes?")
         match verdict:                                     # 26 ·
             case "approved":                  break                        # → 27
-            case "plan-level edits":          dispatch("fork", edits=...)   # 26a · → 25
+            case "plan-level edits":          dispatch("general-purpose", model="sonnet", edits=...)   # 26a · → 25
             case "missing/wrong requirements": goto(10)                    # the interview
             case "approach concerns":          goto(14)                    # the proposals
 
@@ -190,8 +194,9 @@ def brainstorm():
         # 28a · AskUserQuestion, 2-3 at a time, recommended answer first.
         #       Step 13 does not run while a question is open.
         settled = ask_user_question(open_qs[:3])
-        # 28b · fork · serial · foreground; leaves each section reading None.
-        dispatch("fork", close_open_questions=settled)
+        # 28b · general-purpose (sonnet) · serial · foreground; leaves each
+        #       section reading None.
+        dispatch("general-purpose", model="sonnet", close_open_questions=settled)
 
     # 29 · Step 13 — this reference defines every gate, sorts them into the
     #      deterministic and judged buckets, and gives each bucket's dispatch tier.
@@ -233,7 +238,7 @@ flowchart TD
     n6b["6b. [Reminder] Step 3 · Probe scope for sub-projects"]:::state
     n6c["6c. [Reminder] Step 4 · Interview"]:::state
     n6d["6d. [Reminder] Step 5 · Propose 2-3 approaches"]:::state
-    n6e["6e. [Reminder] Step 6 · fork writes the spec — full only"]:::state
+    n6e["6e. [Reminder] Step 6 · general-purpose agent writes the spec — full only"]:::state
     n6f["6f. [Reminder] Step 7 · Review the spec — full + fresh-eyes toggle only"]:::state
     n6g["6g. [Reminder] Step 8 · User review/approve spec — full only"]:::state
     n6h["6h. [Reminder] Step 9 · Write the plan"]:::state
@@ -262,37 +267,37 @@ flowchart TD
   n15["15. Step 5 · Get a directional pick; capture it in the scratchpad"]:::gate
 
   n16{"16. Which mode did step 1 settle?"}
-  n16a{{"16a. Step 9 at light · Dispatch: Write the plan<br/>fork · serial · foreground — NOT plan-writer<br/><br/>plan-writer reads a spec and nothing else by contract, so with no spec<br/>it would return a plan of pure open questions; the fork carries the<br/>interview, the only place light's requirements live<br/><br/>derives its OWN kebab slug · writes 'N/A — plan-only run' on the Spec: line ·<br/>carries each task's ACs in that task's own field ·<br/>writes 'N/A — no spec' for the AC → test coverage list"}}:::dispatch
+  n16a{{"16a. Step 9 at light · Dispatch: Write the plan<br/>general-purpose · sonnet · serial · foreground — NOT plan-writer<br/><br/>plan-writer reads a spec and nothing else by contract, so with no spec<br/>it would return a plan of pure open questions; this agent has no<br/>inherited context, so it grounds from the run scratchpad, the only<br/>place light's requirements live<br/><br/>derives its OWN kebab slug · writes 'N/A — plan-only run' on the Spec: line ·<br/>carries each task's ACs in that task's own field ·<br/>writes 'N/A — no spec' for the AC → test coverage list"}}:::dispatch
 
   n17["17. Step 6 · Derive a short kebab-case slug, never confirmed with the user;<br/>the plan inherits it, and the shared slug is what pairs the two files"]
-  n18{{"18. Step 6 · Dispatch: Write the spec<br/>fork · serial · foreground<br/><br/>reads the spec-driven-development library + spec-template and writes<br/>EVERY section; folds the scratchpad's decisions into Functional Decisions<br/><br/>this session never writes the spec itself"}}:::dispatch
+  n18{{"18. Step 6 · Dispatch: Write the spec<br/>general-purpose · sonnet · serial · foreground<br/><br/>no inherited context: reads the run scratchpad first, then the<br/>spec-driven-development library + spec-template, and writes EVERY<br/>section; folds the scratchpad's decisions into Functional Decisions<br/><br/>this session never writes the spec itself"}}:::dispatch
 
   n19{"19. Step 7 · Fresh-eyes self-review toggle on?<br/>(read back from /tmp/sdd_&lt;session_id&gt;.json)"}
   n19a{{"19a. Dispatch: Fresh-eyes review of the spec<br/>deep-reviewer · agent-pinned · serial · foreground<br/><br/>the spec ALONE — no plan exists yet<br/>AC gaps are its FIRST job, then placeholders · contradictions ·<br/>ambiguity · completeness · human-reviewable<br/>NOT scope, NOT PR-size, NOT plan-contradiction"}}:::dispatch
-  n19b{{"19b. Dispatch: Apply the spec review findings<br/>fork · serial · foreground · the findings the main session accepted"}}:::dispatch
+  n19b{{"19b. Dispatch: Apply the spec review findings<br/>general-purpose · sonnet · serial · foreground · the findings the main session accepted"}}:::dispatch
   n19c["19c. Report every finding to the user — applied, or skipped with the reason.<br/>The only way to judge whether this gate earns its cost.<br/>Runs ONCE per spec; the step-8 loop re-runs no review."]
 
   n20["20. Step 8 · Give the user the spec's PATH, then ask:<br/>approved, or what changes?"]:::gate
   n21{"21. User approved the spec?"}
-  n21a{{"21a. Dispatch: Apply the spec edits<br/>fork · serial · foreground · carrying the exact edits"}}:::dispatch
+  n21a{{"21a. Dispatch: Apply the spec edits<br/>general-purpose · sonnet · serial · foreground · carrying the exact edits"}}:::dispatch
 
   n22{{"22. Step 9 at full · Dispatch: Write the implementation plan<br/>plan-writer · agent-pinned · serial · foreground<br/><br/>in: the spec path + the step-17 slug, any planning-conventions file<br/>it resolves the output path itself, and sees only the spec<br/><br/>a spec gap never withholds the plan — it becomes a **QUESTION:** entry"}}:::dispatch
   n23{"23. Returned a gap list instead of a plan?"}
-  n23a{{"23a. Dispatch: Record the gaps as Open Questions in the spec<br/>fork · serial · foreground · then re-dispatch plan-writer ONCE, not once per gap"}}:::dispatch
+  n23a{{"23a. Dispatch: Record the gaps as Open Questions in the spec<br/>general-purpose · sonnet · serial · foreground · then re-dispatch plan-writer ONCE, not once per gap"}}:::dispatch
 
   n24{"24. Step 10 · Mode full AND the fresh-eyes toggle on?"}
   n24a{{"24a. Dispatch: Fresh-eyes review of the plan<br/>deep-reviewer · agent-pinned · serial · foreground<br/><br/>over the plan AND the spec<br/>test-design gaps are its FIRST job, then the qualitative pass<br/>plus the 2 rigor toggles read back from disk"}}:::dispatch
-  n24b{{"24b. Dispatch: Apply the plan review findings<br/>fork · serial · foreground · the findings the main session accepted"}}:::dispatch
+  n24b{{"24b. Dispatch: Apply the plan review findings<br/>general-purpose · sonnet · serial · foreground · the findings the main session accepted"}}:::dispatch
   n24c["24c. Report every finding to the user — applied, or skipped with the reason.<br/>Runs ONCE per plan, never twice over the same text."]
 
   n25["25. Step 11 · Give the user the plan's PATH, then ask:<br/>approved, or what changes?<br/>NO self-review re-runs inside this loop, in either mode."]:::gate
   n26{"26. User approved the plan?"}
-  n26a{{"26a. Dispatch: Apply the plan edits<br/>fork · serial · foreground · carrying the exact edits"}}:::dispatch
+  n26a{{"26a. Dispatch: Apply the plan edits<br/>general-purpose · sonnet · serial · foreground · carrying the exact edits"}}:::dispatch
 
   n27["27. Step 12 · Read the plan's Open Questions, and the spec's when one exists"]
   n28{"28. Any **QUESTION:** entry still open?"}
   n28a["28a. Interview the user to settle them — AskUserQuestion, 2-3 at a time,<br/>recommended answer first. Step 13 does not run while a question is open."]:::gate
-  n28b{{"28b. Dispatch: Close the open questions<br/>fork · serial · foreground · leaves each section reading None"}}:::dispatch
+  n28b{{"28b. Dispatch: Close the open questions<br/>general-purpose · sonnet · serial · foreground · leaves each section reading None"}}:::dispatch
 
   n29["29. Step 13 · Read spec-driven-development references/self-review-checks.md —<br/>it defines every gate, sorts them into the deterministic and judged buckets,<br/>and gives each bucket's dispatch tier"]:::skill
   n30["30. Step 13 · Run the DETERMINISTIC bucket only, in the reference's order<br/>(the mermaid + density fixers, then the scripts)<br/><br/>check-ac-coverage.sh is SKIPPED at light — it takes a plan and a spec<br/>NO judged gate runs here, in either mode: steps 7 and 10 already ran them<br/>once each, and the user has approved every document since"]
