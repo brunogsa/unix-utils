@@ -66,6 +66,8 @@ Load `code-review-pipeline/references/review-principles.md` first — it governs
 
 Per comment field, once fetched and filtered: id, author, body, path, line, diffHunk, url, source (`"inline"`/`"top-level"`/`"review-summary"`), state (review-summary only), is_self.
 
+Inline comments carry one more: `thread_id`, the enclosing thread's `PRRT_...` node id from 3a. Every comment flattened out of the same thread repeats it.
+
 - Semantic-cluster: group comments addressing one logical change. Same-file
   is a hint, not a rule; cross-file comments can share a cluster.
 - Rank: severity (CHANGES_REQUESTED > general > nit) → cluster size → file
@@ -96,6 +98,7 @@ Return this single editable block as your final message — one `### Cluster N` 
 
 ### Cluster 1: <short title> [action: apply]
 - Files: src/auth/login.ts, src/auth/session.ts
+- Threads: PRRT_kwDOAbc123, PRRT_kwDOAbc456
 - Planned change: <one-line synthesis of the TODO's promised fix>
 - Comments:
   - [c12345] (alice) src/auth/login.ts:42 — "the rate limit should also..."
@@ -106,6 +109,10 @@ Return this single editable block as your final message — one `### Cluster N` 
 ```
 
 Top-level comments use `(top-level)` in `Files`; self-authored ones are labeled `(yours)`.
+
+`Threads` lists each distinct `thread_id` in the cluster **once**, deduped — it is the cluster's reply-target list, and a thread contributing three comments still earns one entry.
+
+Omit the line entirely for a cluster with no inline comments; top-level and review-summary sources have no thread to reply into.
 
 `Planned change` appears only on `apply` clusters — `answer`/`drop` clusters have no code change to preview.
 

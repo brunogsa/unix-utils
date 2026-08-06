@@ -115,11 +115,15 @@ def address_pr_comments(pr, filters):
         #       re-enters the push ONLY, never step 5's commit logic.
         return abort("remote moved")                       # 21a
 
-    # ---- Step 7 · one reply per surviving comment ----
-    while comments_remaining_in_surviving_clusters():      # 22
+    # ---- Step 7 · one reply per surviving reply target ----
+    # A target is one thread_id, one top-level comment, or one review-summary —
+    # never a single comment inside a thread, which would post duplicates.
+    while targets_remaining_in_surviving_clusters():       # 22
         # 22a · per templates 7a-7c (apply / answer / drop) and the signature
         #       rules. Each reply is permission-gated.
-        result = post_reply(next_comment())                # 22a
+        #       inline -> GraphQL addPullRequestReviewThreadReply(thread_id)
+        #       top-level / review-summary -> REST issue comment
+        result = post_reply(next_target())                 # 22a
         if result.permission_denied:                       # 22b
             skip_and_list_in_final_report()                # 22b1
             continue
@@ -206,8 +210,8 @@ flowchart TD
   n20["20. git push - single batch push"]
   n21{"21. Push rejected<br/>remote moved?"}
   n21a["21a. Abort: stop, surface to user<br/>per-cluster commits stand<br/>user resolves divergence manually<br/>(never auto-rebase)"]
-  n22{"22. Step 7 &middot; More comments<br/>in surviving clusters?"}
-  n22a["22a. Post reply per 7a-7c templates<br/>apply/answer/drop, signature rules<br/>(permission-gated per reply)"]:::gate
+  n22{"22. Step 7 &middot; More reply targets<br/>in surviving clusters?<br/>(target = one thread_id, top-level, or review-summary)"}
+  n22a["22a. Post reply per 7a-7c templates<br/>apply/answer/drop, signature rules<br/>inline &rarr; GraphQL addPullRequestReviewThreadReply<br/>top-level/review-summary &rarr; REST issue comment<br/>(permission-gated per target)"]:::gate
   n22b{"22b. Permission<br/>denied?"}
   n22b1["22b1. Skip reply;<br/>list in final report"]
   n22b2{"22b2. gh api<br/>call failed?"}

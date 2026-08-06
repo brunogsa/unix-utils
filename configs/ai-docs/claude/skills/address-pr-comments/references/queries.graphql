@@ -4,6 +4,8 @@ query($owner: String!, $repo: String!, $n: Int!) {
     pullRequest(number: $n) {
       reviewThreads(first: 100) {
         nodes {
+          # PRRT_... node id — the reply unit for addPullRequestReviewThreadReply.
+          id
           isResolved
           comments(first: 50) {
             nodes {

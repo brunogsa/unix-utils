@@ -168,11 +168,13 @@ The subagent returns one editable block of `### Cluster N` sections (template in
 
 ## Step 4: Parse the user's edited block, then create TaskList tasks (main)
 
-For each surviving cluster, record its `action`, `comment_ids` (`databaseId`), and `urls` for cross-linking in the commit body.
+For each surviving cluster, record its `action`, `comment_ids` (`databaseId`), `thread_ids` (the deduped `Threads` line), and `urls` for cross-linking in the commit body.
+
+`thread_ids` drives step 7's replies; `comment_ids` and `urls` stay for the commit body and the top-level reply prefix.
 
 Add `planned_change` on apply clusters (it guides step 5's edit), plus whichever of `drop_reason` or `answer_body` the action needs.
 
-If parse fails (mangled markers, missing `Answer:` for answer clusters), surface the exact issue and ask the user to re-send. Don't guess.
+If parse fails (mangled markers, missing `Answer:` for answer clusters, missing `Threads` on a cluster holding inline comments), surface the exact issue and ask the user to re-send. Don't guess.
 
 **Before touching any code or running any command in step 5**, create one TaskList task per applied cluster — see "Run-state file + TaskList state" above.
 
@@ -206,7 +208,11 @@ Ask the user to resolve the divergence manually (never auto-rebase), then re-att
 
 ## Step 7: Post replies (main)
 
-For **every comment in every surviving cluster** (apply/answer/drop), post a reply. Loop, don't batch — each reply is permission-gated.
+For **every reply target in every surviving cluster** (apply/answer/drop), post one reply. Loop, don't batch — each reply is permission-gated.
+
+A reply target is one entry of the cluster's `thread_ids`, one top-level comment, or one review-summary body — never an individual comment inside an inline thread.
+
+Threads are the unit because a kept thread contributes all its comments (`references/fetch-cluster-propose.md#3e`); replying per comment would post the same body three times into one thread.
 
 On a permission denial, skip that reply and list it in step 8's report.
 
@@ -238,15 +244,33 @@ Dropping this one — <drop_reason>
 _via Claude Code (`address-pr-comments`)_
 ```
 
-### 7b. Reply API per comment source
+### 7b. Reply API per reply target
+
+**Inline** — one GraphQL mutation per `thread_id`:
+
+```bash
+gh api graphql -f query='
+mutation($tid: ID!, $body: String!) {
+  addPullRequestReviewThreadReply(
+    input: { pullRequestReviewThreadId: $tid, body: $body }
+  ) { comment { url } }
+}' -f tid="<thread_id>" -f body="<reply_body>"
+```
+
+The mutation takes a thread, not a comment, so the duplicate-reply mistake is unrepresentable rather than merely forbidden.
+
+It also matches step 3a, which already fetches these threads over GraphQL — `thread_id` costs one extra field there.
+
+**Top-level and review-summary** — REST, since GitHub exposes no thread object for either:
 
 | Source | gh command |
 |---|---|
-| inline | `gh api -X POST repos/$OWNER_REPO/pulls/<n>/comments/<comment_id>/replies -f body='...'` |
 | top-level | `gh api -X POST repos/$OWNER_REPO/issues/<n>/comments -f body='@<author> re: <comment_url> — <body>'` |
 | review-summary | same as top-level (no per-review reply API) |
 
 That `@<author> re: <link>` prefix pings the commenter and preserves thread context.
+
+These post a fresh conversation comment rather than threading. That is GitHub's model, not a shortcut — no API threads them.
 
 ### 7c. Signature rules — split by action
 
@@ -278,7 +302,7 @@ PR <n> address summary
 - Answered: <count> clusters → <count> replies
 - Dropped:  <count> clusters → <count> replies
 - Skipped (deleted from proposal): <count> clusters
-- Reply failures (permission/API skip): <count> comments
+- Reply failures (permission/API skip): <count> targets
 - Open threads remaining for you to resolve: <link to PR's "Files changed">
 ```
 
