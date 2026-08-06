@@ -46,28 +46,45 @@
 //   comment read as introducing the code below rather than trailing the
 //   code above.
 //
-//   Exempt when the preceding line OPENS the comment's scope, so the
-//   comment is that scope's first item rather than a sibling glued to
-//   a statement: a line ending in `{`, `(`, `[`, or a `case`/`default`
-//   label. Also exempt after a `#!` shebang, which a file's header
+//   Exempt when the preceding line OPENS the comment's scope,
+//   making the comment that scope's first item rather than a
+//   sibling glued to a statement.
+//
+//   What opens a scope is per-language -- `{`, `(`, `[` and a
+//   `case` label in TypeScript; `then`, `else`, `do`, `in` and
+//   a case pattern in shell; a trailing `:` in Python.
+//
+//   Also exempt after a `#!` shebang, which a file's header
 //   comment is meant to follow immediately.
 //
-// Comment detection uses the TypeScript compiler's own scanner (resolved
-// from each target file's nearest node_modules), so a `//` inside a string
-// literal (e.g. 'https://pic.test.local') is never mistaken for a comment —
-// a plain regex/awk pass cannot make that distinction reliably.
+// Comment detection lexes the file instead of grepping it, so
+// a `//` or `#` inside a string literal is never mistaken for
+// a comment -- which a regex or awk pass cannot do reliably.
+//
+// TypeScript and JavaScript use the TypeScript compiler's own
+// scanner; shell and Python use a small built-in lexer that
+// tracks quotes, heredocs, and triple-quoted strings.
+//
+// A Python docstring is a string rather than a comment, so it
+// is skipped -- a module's docstring header goes unmeasured.
+//
+// Language comes from the file extension, then from the `#!`
+// shebang, and `--lang` overrides both.
 //
 // Usage:
-//   check-comment-format.js [--max-chars N] [--max-lines N] <file> [<file>...]
+//   check-comment-format.js [--max-chars N] [--max-lines N]
+//                           [--lang typescript|shell|python]
+//                           <file> [<file>...]
 //
 // Exit codes:
 //   0  clean
 //   1  violations found
-//   2  usage error (bad flags, no files, or `typescript` unresolvable)
+//   2  usage error, or `typescript` not installed.
 //
 // Examples:
 //   check-comment-format.js path/to/spec.e2e.spec.ts
 //   check-comment-format.js --max-chars 80 --max-lines 6 src/**/*.ts
+//   check-comment-format.js --lang shell ~/.zshrc
 
 'use strict';
 
@@ -75,9 +92,59 @@ const fs = require('fs');
 const path = require('path');
 const { createRequire } = require('module');
 
+// Every check below the lexer works off comment ranges plus raw
+// line text, so a language is fully described by how its comments
+// are found and what one looks like once found.
+//
+// scopeOpeners lists the line endings that make a following
+// comment the first item of a scope rather than a sibling glued
+// to a statement -- see CODE-GAP.
+const LANGUAGES = {
+  typescript: {
+    extensions: ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'],
+    shebangRe: /\b(node|bun|deno|ts-node)\b/,
+    scan: (text, file) => scanTypescriptCommentRanges(loadTypescriptFor(file), text),
+    delimiterRe: /^(\/\*\*|\*\/|\/\*)$/,
+    blankRe: /^(\*|\/\/)$/,
+    prefixRe: /^(\*|\/\/)\s?/,
+
+    // The `case` label is matched narrowly, not by a bare
+    // `:` ending -- that would also catch a type annotation
+    // and a ternary branch, neither of which opens a scope.
+    scopeOpeners: [/[{([]$/, /^(case\b.*|default)\s*:$/],
+  },
+
+  shell: {
+    extensions: ['.sh', '.bash', '.zsh', '.ksh'],
+    shebangRe: /\b(bash|sh|zsh|ksh|dash)\b/,
+    scan: (text) => scanHashCommentRanges(text, shellDialect()),
+    delimiterRe: null,
+    blankRe: /^#$/,
+    prefixRe: /^#\s?/,
+
+    // A bare `)` ends a case pattern, which opens its body.
+    scopeOpeners: [/[{([]$/, /\b(then|else|do|in)$/, /\)$/],
+  },
+
+  python: {
+    extensions: ['.py', '.pyi'],
+    shebangRe: /\bpython[0-9.]*\b/,
+    scan: (text) => scanHashCommentRanges(text, pythonDialect()),
+    delimiterRe: null,
+    blankRe: /^#$/,
+    prefixRe: /^#\s?/,
+    scopeOpeners: [/:$/, /[{([]$/],
+  },
+};
+
+const USAGE =
+  'usage: check-comment-format.js [--max-chars N] [--max-lines N] ' +
+  `[--lang ${Object.keys(LANGUAGES).join('|')}] <file>...`;
+
 function parseArgs(argv) {
   let maxChars = 64;
   let maxLines = 4;
+  let lang = null;
   const files = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -85,6 +152,13 @@ function parseArgs(argv) {
       maxChars = Number(argv[++i]);
     } else if (arg === '--max-lines') {
       maxLines = Number(argv[++i]);
+    } else if (arg === '--lang') {
+      lang = argv[++i];
+      if (!Object.prototype.hasOwnProperty.call(LANGUAGES, lang)) {
+        console.error(`unknown --lang: ${lang}`);
+        console.error(USAGE);
+        process.exit(2);
+      }
     } else if (arg.startsWith('-')) {
       console.error(`unknown opt: ${arg}`);
       process.exit(2);
@@ -93,10 +167,30 @@ function parseArgs(argv) {
     }
   }
   if (files.length === 0) {
-    console.error('usage: check-comment-format.js [--max-chars N] [--max-lines N] <file>...');
+    console.error(USAGE);
     process.exit(2);
   }
-  return { maxChars, maxLines, files };
+  return { maxChars, maxLines, lang, files };
+}
+
+// The shebang is consulted after the extension, so an
+// extensionless hook script or a dotfile resolves on its own
+// instead of making every caller pass --lang.
+function resolveLanguage(file, text, override) {
+  if (override) return LANGUAGES[override];
+
+  const ext = path.extname(file).toLowerCase();
+  for (const lang of Object.values(LANGUAGES)) {
+    if (lang.extensions.includes(ext)) return lang;
+  }
+
+  const shebang = text.startsWith('#!') ? text.slice(0, text.indexOf('\n') + 1 || undefined) : '';
+  for (const lang of Object.values(LANGUAGES)) {
+    if (shebang && lang.shebangRe.test(shebang)) return lang;
+  }
+
+  console.error(`cannot tell what language ${file} is — pass --lang`);
+  process.exit(2);
 }
 
 // TypeScript 7's native port exports only `version`, with no
@@ -162,7 +256,7 @@ function lineIndexOf(offset, lineStarts) {
 // instead; templateBraceStack tracks, per nesting level, whether the next
 // CloseBraceToken closes a template substitution (true) or an ordinary
 // block/object (false), so plain braces are left alone.
-function scanCommentRanges(ts, text) {
+function scanTypescriptCommentRanges(ts, text) {
   const scanner = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.Standard, text);
   const ranges = [];
   const templateBraceStack = [];
@@ -191,6 +285,188 @@ function scanCommentRanges(ts, text) {
     kind = scanner.scan();
   }
   return ranges;
+}
+
+// `{` and `}` are deliberately absent: they would make the `#`
+// in `${#arr[@]}` open a comment, and a real comment always
+// has whitespace in front of it anyway.
+const WORD_SEPARATORS = new Set([...' \t;&|()<>']);
+
+// In a `#`-comment language the hard part is the strings, not
+// the comment: a `#` opens one only where no string is open.
+//
+// A dialect supplies exactly that -- how far a non-code run
+// reaches, and what a newline owes the line before it.
+function scanHashCommentRanges(text, dialect) {
+  const ranges = [];
+  let i = 0;
+  let atWordStart = true;
+
+  while (i < text.length) {
+    const skipped = dialect.skipNonCode(text, i);
+    if (skipped !== null) {
+      i = skipped;
+      atWordStart = false;
+      continue;
+    }
+
+    const ch = text[i];
+
+    if (ch === '#' && (atWordStart || !dialect.needsWordBoundary)) {
+      const start = i;
+      while (i < text.length && text[i] !== '\n') i++;
+      ranges.push({ start, end: i });
+      continue;
+    }
+
+    if (ch === '\n') {
+      i = dialect.afterNewline(text, i + 1);
+      atWordStart = true;
+      continue;
+    }
+
+    i++;
+    atWordStart = WORD_SEPARATORS.has(ch);
+  }
+
+  return ranges;
+}
+
+// Shell needs a word boundary before `#`, or `$#` and
+// `${v#pat}` would blank out the rest of their line.
+//
+// A heredoc body is data rather than code, so its `#` lines
+// are not comments either.
+//
+// But `<<` doubles as the arithmetic shift operator, so a
+// delimiter that never appears alone on a line is read as a
+// shift instead of swallowing the rest of the file.
+function shellDialect() {
+  const pendingHeredocs = [];
+
+  function skipQuoted(text, from, quote, honorEscapes) {
+    let j = from;
+    while (j < text.length) {
+      if (honorEscapes && text[j] === '\\') {
+        j += 2;
+        continue;
+      }
+      if (text[j] === quote) return j + 1;
+      j++;
+    }
+    return text.length;
+  }
+
+  function queueHeredoc(text, from) {
+    let j = from;
+    let stripTabs = false;
+    if (text[j] === '-') {
+      stripTabs = true;
+      j++;
+    }
+    while (text[j] === ' ' || text[j] === '\t') j++;
+
+    const quote = text[j] === "'" || text[j] === '"' ? text[j] : null;
+    if (quote) j++;
+
+    let delim = '';
+    while (j < text.length) {
+      const ch = text[j];
+      if (quote ? ch === quote : !/[\w.-]/.test(ch)) break;
+      delim += ch;
+      j++;
+    }
+    if (quote && text[j] === quote) j++;
+
+    if (delim) pendingHeredocs.push({ delim, stripTabs });
+    return j;
+  }
+
+  function findHeredocEnd(text, from, delim, stripTabs) {
+    let j = from;
+    while (j < text.length) {
+      const newline = text.indexOf('\n', j);
+      const line = text.slice(j, newline === -1 ? text.length : newline);
+      if ((stripTabs ? line.replace(/^\t+/, '') : line) === delim) {
+        return newline === -1 ? text.length : newline + 1;
+      }
+      if (newline === -1) return null;
+      j = newline + 1;
+    }
+    return null;
+  }
+
+  return {
+    needsWordBoundary: true,
+
+    skipNonCode(text, i) {
+      const ch = text[i];
+      if (ch === '\\') return i + 2;
+      if (ch === "'") return skipQuoted(text, i + 1, "'", false);
+      if (ch === '"') return skipQuoted(text, i + 1, '"', true);
+      if (ch === '$' && text[i + 1] === "'") return skipQuoted(text, i + 2, "'", true);
+
+      if (ch === '<' && text[i + 1] === '<') {
+        // `<<<` is a here-string -- one inline word, no body.
+        if (text[i + 2] === '<') return i + 3;
+        return queueHeredoc(text, i + 2);
+      }
+
+      return null;
+    },
+
+    afterNewline(text, from) {
+      let j = from;
+      while (pendingHeredocs.length) {
+        const { delim, stripTabs } = pendingHeredocs.shift();
+        const end = findHeredocEnd(text, j, delim, stripTabs);
+        if (end === null) {
+          pendingHeredocs.length = 0;
+          break;
+        }
+        j = end;
+      }
+      return j;
+    },
+  };
+}
+
+// Python's `#` needs no word boundary, since nothing else
+// in the language spells `#`.
+//
+// Its only multi-line construct is the triple-quoted string,
+// which has to be matched before the one-quote form it starts
+// with.
+function pythonDialect() {
+  function skipString(text, from, closer) {
+    let j = from;
+    while (j < text.length) {
+      if (text[j] === '\\') {
+        j += 2;
+        continue;
+      }
+      if (text.startsWith(closer, j)) return j + closer.length;
+      j++;
+    }
+    return text.length;
+  }
+
+  return {
+    needsWordBoundary: false,
+
+    skipNonCode(text, i) {
+      const ch = text[i];
+      if (ch !== "'" && ch !== '"') return null;
+
+      const triple = ch.repeat(3);
+      if (text.startsWith(triple, i)) return skipString(text, i + 3, triple);
+      return skipString(text, i + 1, ch);
+    },
+
+    afterNewline(_text, from) {
+      return from;
+    },
+  };
 }
 
 // A line is "fully" comment when the code before the comment's start (on its
@@ -229,18 +505,18 @@ function findWidthViolations(widthTouchedLines, lines, maxChars) {
 }
 
 // STRUCTURAL delimiters (`/**`, `*/`, `/*`) are prose-neutral: skip without
-// affecting the current run. A bare `*`/`//` is the paragraph-break marker.
+// affecting the current run. A bare `*`/`//`/`#` is the paragraph-break marker.
 // Anything else full-comment is prose CONTENT extending the current run.
 // Any non-full-comment line (code, or code+trailing-comment) ends the run.
-function classifyLine(lineIndex, fullCommentLines, lines) {
+function classifyLine(lineIndex, fullCommentLines, lines, lang) {
   if (!fullCommentLines.has(lineIndex)) return 'other';
   const trimmed = (lines[lineIndex] ?? '').trim();
-  if (trimmed === '/**' || trimmed === '*/' || trimmed === '/*') return 'delimiter';
-  if (trimmed === '*' || trimmed === '//') return 'blank';
+  if (lang.delimiterRe && lang.delimiterRe.test(trimmed)) return 'delimiter';
+  if (lang.blankRe.test(trimmed)) return 'blank';
   return 'content';
 }
 
-function findParagraphViolations(fullCommentLines, lines, maxLines) {
+function findParagraphViolations(fullCommentLines, lines, maxLines, lang) {
   const violations = [];
   let runStart = null;
   let runLen = 0;
@@ -254,7 +530,7 @@ function findParagraphViolations(fullCommentLines, lines, maxLines) {
   };
 
   for (let l = 0; l < lines.length; l++) {
-    const cls = classifyLine(l, fullCommentLines, lines);
+    const cls = classifyLine(l, fullCommentLines, lines, lang);
     if (cls === 'content') {
       if (runLen === 0) runStart = l;
       runLen++;
@@ -269,19 +545,11 @@ function findParagraphViolations(fullCommentLines, lines, maxLines) {
   return violations;
 }
 
-const SCOPE_OPENER_RE = /[{([]$/;
-
-// A `case`/`default` label opens its body the way `{` opens a block, so a
-// comment under one is that body's first line rather than a sibling glued
-// to a statement. Matched narrowly: a bare `:` line-ender would also catch
-// type annotations and ternary branches, which open no scope at all.
-const CASE_LABEL_RE = /^(case\b.*|default)\s*:$/;
-
 // Flags the FIRST line of each comment block, which is where the missing
 // blank line belongs — a block's later lines are already gapped from code
 // by the block itself. Any full-comment line class opens a block, so a
 // JSDoc `/**` delimiter counts the same as bare `//` prose.
-function findCodeGapViolations(fullCommentLines, lines) {
+function findCodeGapViolations(fullCommentLines, lines, lang) {
   const violations = [];
 
   for (let l = 1; l < lines.length; l++) {
@@ -289,7 +557,7 @@ function findCodeGapViolations(fullCommentLines, lines) {
 
     const prev = (lines[l - 1] ?? '').trim();
     if (prev === '' || prev.startsWith('#!')) continue;
-    if (SCOPE_OPENER_RE.test(prev) || CASE_LABEL_RE.test(prev)) continue;
+    if (lang.scopeOpeners.some((re) => re.test(prev))) continue;
 
     violations.push({ line: l + 1 });
   }
@@ -297,11 +565,11 @@ function findCodeGapViolations(fullCommentLines, lines) {
   return violations;
 }
 
-// Strips the comment-line prefix (`*` or `//`) and at most one following
-// space, leaving the prose text with any remaining indentation intact —
-// that leftover indentation is what the bullet checks below measure.
-function commentText(lineText) {
-  return (lineText ?? '').trim().replace(/^(\*|\/\/)\s?/, '');
+// Strips the comment-line prefix (`*`, `//`, or `#`) and at most one
+// following space, leaving the prose text with any remaining indentation
+// intact — that leftover indentation is what the bullet checks below measure.
+function commentText(lineText, lang) {
+  return (lineText ?? '').trim().replace(lang.prefixRe, '');
 }
 
 const SENTENCE_END_RE = /[.;][)"'\]`]*$/;
@@ -320,7 +588,7 @@ const BULLET_RE = /^(\s*)-\s/;
 //
 //   BULLET-BLANK — a bullet item spanning 2+ physical lines must be
 //   followed by a blank line before the next bullet or prose line.
-function findSentenceAndBulletViolations(fullCommentLines, lines) {
+function findSentenceAndBulletViolations(fullCommentLines, lines, lang) {
   const sentenceBreaks = [];
   const bulletSpacing = [];
   const bulletBlanks = [];
@@ -342,9 +610,10 @@ function findSentenceAndBulletViolations(fullCommentLines, lines) {
   const flushRun = (endedByBlank) => {
     if (runLen > 0 && endedByBlank) {
       const lastLine = runStart + runLen - 1;
-      const text = commentText(lines[lastLine]);
+      const text = commentText(lines[lastLine], lang);
       const nextLineText = lines[lastLine + 2];
-      const nextIsBullet = nextLineText !== undefined && BULLET_RE.test(commentText(nextLineText));
+      const nextIsBullet =
+        nextLineText !== undefined && BULLET_RE.test(commentText(nextLineText, lang));
       const ok = SENTENCE_END_RE.test(text) || (nextIsBullet && COLON_END_RE.test(text));
       if (!ok) sentenceBreaks.push({ line: lastLine + 1 });
     }
@@ -353,13 +622,13 @@ function findSentenceAndBulletViolations(fullCommentLines, lines) {
   };
 
   for (let l = 0; l < lines.length; l++) {
-    const cls = classifyLine(l, fullCommentLines, lines);
+    const cls = classifyLine(l, fullCommentLines, lines, lang);
 
     if (cls === 'content') {
       if (runLen === 0) runStart = l;
       runLen++;
 
-      const text = commentText(lines[l]);
+      const text = commentText(lines[l], lang);
       const bulletMatch = text.match(BULLET_RE);
       if (bulletMatch) {
         flushBulletItem(false); // a new bullet with no blank in between closes the prior item
@@ -391,11 +660,12 @@ function findSentenceAndBulletViolations(fullCommentLines, lines) {
   return { sentenceBreaks, bulletSpacing, bulletBlanks };
 }
 
-function checkFile(ts, file, maxChars, maxLines) {
+function checkFile(file, maxChars, maxLines, langOverride) {
   const text = fs.readFileSync(file, 'utf8');
+  const lang = resolveLanguage(file, text, langOverride);
   const lines = text.split('\n');
   const lineStarts = getLineStartOffsets(text);
-  const commentRanges = scanCommentRanges(ts, text);
+  const commentRanges = lang.scan(text, file);
   const { widthTouchedLines, fullCommentLines } = markTouchedAndFullCommentLines(
     commentRanges,
     lines,
@@ -404,12 +674,13 @@ function checkFile(ts, file, maxChars, maxLines) {
   const { sentenceBreaks, bulletSpacing, bulletBlanks } = findSentenceAndBulletViolations(
     fullCommentLines,
     lines,
+    lang,
   );
 
   return {
     widthViolations: findWidthViolations(widthTouchedLines, lines, maxChars),
-    paragraphViolations: findParagraphViolations(fullCommentLines, lines, maxLines),
-    codeGaps: findCodeGapViolations(fullCommentLines, lines),
+    paragraphViolations: findParagraphViolations(fullCommentLines, lines, maxLines, lang),
+    codeGaps: findCodeGapViolations(fullCommentLines, lines, lang),
     sentenceBreaks,
     bulletSpacing,
     bulletBlanks,
@@ -417,11 +688,10 @@ function checkFile(ts, file, maxChars, maxLines) {
 }
 
 function main() {
-  const { maxChars, maxLines, files } = parseArgs(process.argv.slice(2));
+  const { maxChars, maxLines, lang, files } = parseArgs(process.argv.slice(2));
   let anyHit = false;
 
   for (const file of files) {
-    const ts = loadTypescriptFor(file);
     const {
       widthViolations,
       paragraphViolations,
@@ -429,7 +699,7 @@ function main() {
       sentenceBreaks,
       bulletSpacing,
       bulletBlanks,
-    } = checkFile(ts, file, maxChars, maxLines);
+    } = checkFile(file, maxChars, maxLines, lang);
     const total =
       widthViolations.length +
       paragraphViolations.length +

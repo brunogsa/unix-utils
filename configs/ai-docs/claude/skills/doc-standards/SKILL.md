@@ -81,7 +81,11 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
   - [Why] A break placed by line-count alone can land between a clause and its continuation, forcing the reader to rejoin two fragments the blank line severed.
 
 - [Instruction] Verify the caps above with `scripts/check-comment-format.js <file>...`, whose labels name the rule each violation broke.
-  - [Why] It reuses the TypeScript compiler's scanner, so unlike a regex width check it never mistakes a `//` inside a string literal for a comment.
+  - [Why] It lexes the file instead of grepping it, so unlike a regex width check it never mistakes a `//` or `#` inside a string literal for a comment.
+
+It covers TypeScript/JavaScript, shell, and Python, taking the language from the file extension and then the `#!` shebang — pass `--lang` when a file has neither.
+
+A Python module docstring is a string rather than a comment, so it is skipped and its width goes unmeasured.
 
 - [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments — use plain ASCII (`=`, `-`, `|`).
   - [Why] Humans don't type these by hand, so they look AI-written and get used inconsistently; they also break in terminals, diffs, and grep where ASCII works.
