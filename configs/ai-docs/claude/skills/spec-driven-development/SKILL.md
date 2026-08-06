@@ -79,7 +79,8 @@ Technical approach and task breakdown. Generated from spec_<slug>.md (or directl
 
 Read `./assets/plan-template.md` when starting the plan phase, and populate it.
 
-The Task Breakdown section is populated from the artifact the `task-breakdown` skill emits — task ordering (unblockers first, riskiest with a proof of concept next), thin contract-task extraction, and sub-step splitting live in that skill.
+The Task Breakdown section is populated from the artifact the `task-breakdown` skill emits.
+That skill owns task ordering (unblockers first, riskiest with a proof of concept next), thin contract-task extraction, and sub-step splitting.
 The PR Breakdown mirrors the same priority order one level up.
 The template instructs loading it where each section is authored, so any plan author picks it up without this library saying more.
 
