@@ -27,7 +27,7 @@ These are hints to help you find the right tool -- not exhaustive documentation.
 
 - **Diff/comparison**: `diff-sorted-jsons`, `diff-sorted-txt`
 - **Clipboard**: `copy` (cross-platform), `aicopy` (bulk file contents), `aiyank` (paths)
-- **Git/review**: `vimreview`, `git-worktree-add`
+- **Git/review**: `vimreview`, `git-worktree-add`, `git-worktree-clean`
 - **Mermaid diagrams**: `render-ascii-mermaid`, `compile-mermaid`, `compile-gantt-mermaid`
 - **AWS**: `aws-get-dlq-summary`
 - **Vim/editor**: `search-replace-vim`
