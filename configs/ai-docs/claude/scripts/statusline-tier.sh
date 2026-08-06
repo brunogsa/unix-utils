@@ -159,7 +159,12 @@ read_subscription_tier_from_keychain() {
 
 stat_mtime_epoch() {
   local path="$1"
-  stat -f %m "$path" 2>/dev/null || stat -c %Y "$path" 2>/dev/null
+  # GNU coreutils first: its `-c %Y` fails cleanly on BSD (`-c` isn't a
+  # BSD stat flag), so BSD falls through to `-f %m` below. The reverse
+  # order is unsafe: GNU's `-f` isn't a format flag, it's the boolean
+  # `--file-system` flag, which succeeds and prints a multi-line
+  # filesystem dump instead of failing into the fallback.
+  stat -c %Y "$path" 2>/dev/null || stat -f %m "$path" 2>/dev/null
 }
 
 # credential_store_timestamp - the OS-appropriate invalidation signal:

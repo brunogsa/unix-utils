@@ -627,6 +627,83 @@ it_should_omit_the_tier_segment_rather_than_block_on_a_password_prompt
 it_should_never_write_the_raw_credential_value_anywhere
 
 # ============================================================
+# describe("StatMtimeEpoch")
+# ============================================================
+# stat_mtime_epoch tries BSD's `stat -f %m` before GNU's `stat -c %Y`.
+# On GNU coreutils, `-f` is not a format flag - it means the boolean
+# `--file-system` flag, so `stat -f %m path` succeeds (printing a
+# multi-line filesystem dump) and the `||` fallback to `stat -c %Y`
+# never fires (auto-review#F2). write_fake_gnu_stat reproduces that
+# divergence on this BSD/macOS dev host via a fake `stat` shim.
+
+# write_fake_gnu_stat - installs a fake `stat` binary at "$bin_dir/stat"
+# that mirrors GNU coreutils' own argument parsing: `-f` succeeds as
+# the boolean --file-system flag (a multi-line dump, exit 0) while
+# `-c %Y` is the real mtime-epoch format read.
+write_fake_gnu_stat() {
+  local bin_dir="$1"
+  cat >"$bin_dir/stat" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = "-f" ]; then
+  cat <<'DUMP'
+  File: "%m"
+    ID: 0        Namelen: 255     Type: fakefs
+Block size: 4096       Fundamental block size: 4096
+Blocks: Total: 100     Free: 50      Available: 50
+Inodes: Total: 100     Free: 50
+DUMP
+  exit 0
+elif [ "$1" = "-c" ] && [ "$2" = "%Y" ]; then
+  printf '1700000000\n'
+  exit 0
+fi
+exit 1
+EOF
+  chmod +x "$bin_dir/stat"
+}
+
+it_should_return_a_single_line_integer_epoch_when_the_hosts_stat_treats_dash_f_as_a_gnu_boolean_flag() {
+  local sandbox bin_dir target_file actual
+  sandbox="$(fresh_sandbox)"
+  bin_dir="$sandbox/bin"
+  mkdir -p "$bin_dir"
+  write_fake_gnu_stat "$bin_dir"
+  target_file="$sandbox/some-file"
+  printf 'irrelevant' >"$target_file"
+
+  actual=$(
+    PATH="$bin_dir:/usr/bin:/bin" \
+      bash -c 'source "$0"; stat_mtime_epoch "$1"' "$SCRIPT_UNDER_TEST" "$target_file"
+  )
+
+  assert_eq \
+    "StatMtimeEpoch > corner > should return a single-line integer epoch when the host's stat treats -f as a GNU boolean flag that succeeds" \
+    "1700000000" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_return_a_single_line_integer_epoch_from_the_real_stat_on_this_bsd_macos_host() {
+  local sandbox target_file expected actual
+  sandbox="$(fresh_sandbox)"
+  target_file="$sandbox/some-file"
+  printf 'irrelevant' >"$target_file"
+  expected=$(stat -f %m "$target_file" 2>/dev/null || stat -c %Y "$target_file" 2>/dev/null)
+
+  actual=$(
+    PATH="/usr/bin:/bin" \
+      bash -c 'source "$0"; stat_mtime_epoch "$1"' "$SCRIPT_UNDER_TEST" "$target_file"
+  )
+
+  assert_eq \
+    "StatMtimeEpoch > happy > should return a single-line integer epoch from the real stat on this BSD/macOS host" \
+    "$expected" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_return_a_single_line_integer_epoch_when_the_hosts_stat_treats_dash_f_as_a_gnu_boolean_flag
+it_should_return_a_single_line_integer_epoch_from_the_real_stat_on_this_bsd_macos_host
+
+# ============================================================
 # describe("StatusLinePacingSegment")
 # ============================================================
 
