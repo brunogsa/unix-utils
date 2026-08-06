@@ -3,7 +3,7 @@
 # this template into a real plan file. It is tooling metadata, not plan content.
 # Both consumers read this file and populate every section in one run, so splitting it would
 # only make the author read two files instead of one. Raised from the 1024w bundled default.
-words-budget: 2048
+words-budget: 4096
 ---
 # Plan: [Title]
 
