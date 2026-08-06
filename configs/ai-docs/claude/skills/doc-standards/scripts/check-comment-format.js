@@ -8,6 +8,7 @@
 //   SENTENCE-BREAK <line>             a blank comment line follows a non-sentence-ending line
 //   BULLET-SPACING <line>             top-level bullet has other than 1 space before `-`
 //   BULLET-BLANK <line>               a 2+-line-wrapped bullet has no blank line after it
+//   CODE-GAP <line>                   a comment block is glued to the code line above it
 //
 // Checks, run together (mirrors check-density.sh's chars+words combo):
 //
@@ -39,6 +40,17 @@
 //
 //   BULLET-BLANK — when a bullet's text wraps across 2+ physical lines, the
 //   line right after it must be blank before the next bullet or prose line.
+//
+//   CODE-GAP — a standalone comment block sitting directly under a code
+//   line, with no blank line between them. The gap is what makes the
+//   comment read as introducing the code below rather than trailing the
+//   code above.
+//
+//   Exempt when the preceding line OPENS the comment's scope, so the
+//   comment is that scope's first item rather than a sibling glued to
+//   a statement: a line ending in `{`, `(`, `[`, or a `case`/`default`
+//   label. Also exempt after a `#!` shebang, which a file's header
+//   comment is meant to follow immediately.
 //
 // Comment detection uses the TypeScript compiler's own scanner (resolved
 // from each target file's nearest node_modules), so a `//` inside a string
@@ -229,9 +241,38 @@ function findParagraphViolations(fullCommentLines, lines, maxLines) {
     } else if (cls === 'blank' || cls === 'other') {
       flush();
     }
+
     // 'delimiter' — structural noise, preserves current run state across it.
   }
   flush();
+
+  return violations;
+}
+
+const SCOPE_OPENER_RE = /[{([]$/;
+
+// A `case`/`default` label opens its body the way `{` opens a block, so a
+// comment under one is that body's first line rather than a sibling glued
+// to a statement. Matched narrowly: a bare `:` line-ender would also catch
+// type annotations and ternary branches, which open no scope at all.
+const CASE_LABEL_RE = /^(case\b.*|default)\s*:$/;
+
+// Flags the FIRST line of each comment block, which is where the missing
+// blank line belongs — a block's later lines are already gapped from code
+// by the block itself. Any full-comment line class opens a block, so a
+// JSDoc `/**` delimiter counts the same as bare `//` prose.
+function findCodeGapViolations(fullCommentLines, lines) {
+  const violations = [];
+
+  for (let l = 1; l < lines.length; l++) {
+    if (!fullCommentLines.has(l) || fullCommentLines.has(l - 1)) continue;
+
+    const prev = (lines[l - 1] ?? '').trim();
+    if (prev === '' || prev.startsWith('#!')) continue;
+    if (SCOPE_OPENER_RE.test(prev) || CASE_LABEL_RE.test(prev)) continue;
+
+    violations.push({ line: l + 1 });
+  }
 
   return violations;
 }
@@ -321,6 +362,7 @@ function findSentenceAndBulletViolations(fullCommentLines, lines) {
       flushBulletItem(false);
       listBaseIndent = null;
     }
+
     // 'delimiter' — structural noise, preserves run/list/item state across it.
   }
   flushRun(false);
@@ -347,6 +389,7 @@ function checkFile(ts, file, maxChars, maxLines) {
   return {
     widthViolations: findWidthViolations(widthTouchedLines, lines, maxChars),
     paragraphViolations: findParagraphViolations(fullCommentLines, lines, maxLines),
+    codeGaps: findCodeGapViolations(fullCommentLines, lines),
     sentenceBreaks,
     bulletSpacing,
     bulletBlanks,
@@ -359,11 +402,18 @@ function main() {
 
   for (const file of files) {
     const ts = loadTypescriptFor(file);
-    const { widthViolations, paragraphViolations, sentenceBreaks, bulletSpacing, bulletBlanks } =
-      checkFile(ts, file, maxChars, maxLines);
+    const {
+      widthViolations,
+      paragraphViolations,
+      codeGaps,
+      sentenceBreaks,
+      bulletSpacing,
+      bulletBlanks,
+    } = checkFile(ts, file, maxChars, maxLines);
     const total =
       widthViolations.length +
       paragraphViolations.length +
+      codeGaps.length +
       sentenceBreaks.length +
       bulletSpacing.length +
       bulletBlanks.length;
@@ -378,6 +428,7 @@ function main() {
     for (const v of sentenceBreaks) console.log(`SENTENCE-BREAK ${v.line}`);
     for (const v of bulletSpacing) console.log(`BULLET-SPACING ${v.line}`);
     for (const v of bulletBlanks) console.log(`BULLET-BLANK ${v.line}`);
+    for (const v of codeGaps) console.log(`CODE-GAP ${v.line}`);
   }
 
   process.exit(anyHit ? 1 : 0);

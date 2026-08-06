@@ -7,6 +7,7 @@ The caps themselves live in `SKILL.md`; this file holds the remedies and bad/goo
 ## Contents
 
 - [WIDTH — over-64-char lines](#width--over-64-char-lines)
+- [CODE-GAP — a comment block glued to the code above](#code-gap--a-comment-block-glued-to-the-code-above)
 - [PARAGRAPH and SENTENCE-BREAK — where a break may land](#paragraph-and-sentence-break--where-a-break-may-land)
 - [Bullets inside comments](#bullets-inside-comments)
 - [ASCII-only separators](#ascii-only-separators)
@@ -16,9 +17,6 @@ The caps themselves live in `SKILL.md`; this file holds the remedies and bad/goo
 - [Instruction] When a trailing comment pushes its physical line over 64 chars, move the comment above the code as its own line(s) rather than shortening it in place.
   - [Why] Squeezing an overflowing trailing comment onto the code line relocates the overflow instead of fixing it, and the reader still loses the comment in the right margin.
 
-- [Instruction] Put a blank line above a comment promoted off a code line — unless one is already there, or the comment is now the block's first line.
-  - [Why] A comment dropped onto the previous line's tail still reads as attached to that line's code; the blank line signals it now describes the line below.
-
 ```ts
 // Bad (88 chars total; comment squeezed onto the code line):
 quantidadeVenda: 7, // 1058.33 / 7 = 151.19 exactly (LLD formula) vs 1058.33 (the code)
@@ -27,7 +25,17 @@ quantidadeVenda: 7, // 1058.33 / 7 = 151.19 exactly (LLD formula) vs 1058.33 (th
 // 1058.33 / 7 = 151.19 exactly per the LLD formula,
 // vs 1058.33 in the code.
 quantidadeVenda: 7,
+```
 
+## CODE-GAP — a comment block glued to the code above
+
+- [Instruction] Put a blank line above any standalone comment block whose preceding physical line is code.
+  - [Why] A comment touching the code above still reads as attached to that line; the gap is what turns it into an introduction to the code below.
+
+- [Instruction] Skip that blank line when the preceding line OPENS the comment's scope — it ends in `{`, `(`, `[`, or is a `case`/`default` label — or is a `#!` shebang.
+  - [Why] Inside a freshly opened scope no sibling statement sits above the comment to confuse it with, so the gap would only separate it from the scope it opens.
+
+```ts
 // Bad (promoted comment glued to the previous line's code):
 quantidadeVenda: 7,
 // 1058.33 / 7 = 151.19 exactly per the LLD formula,
@@ -40,6 +48,13 @@ quantidadeVenda: 7,
 // 1058.33 / 7 = 151.19 exactly per the LLD formula,
 // vs 1058.33 in the code.
 unitPrice: 151.19,
+
+// Good (exempt: the comment opens the scope `{` just opened):
+const envOverrides = {
+    // Sibling ERPs' consumers stay disabled so this
+    // spec's assertions see only its own ERP's calls.
+    BATCH_SIZE_QUEUE_PIC_SGE_SYNC_AGREEMENT: '0',
+};
 ```
 
 ## PARAGRAPH and SENTENCE-BREAK — where a break may land

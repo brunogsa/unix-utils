@@ -80,13 +80,13 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 - [Instruction] **CRITICAL: A paragraph break may only land where the preceding line ends a sentence or clause** (`.`/`;`, or `:` introducing a bullet list) — never mid-sentence (`SENTENCE-BREAK`).
   - [Why] A break placed by line-count alone can land between a clause and its continuation, forcing the reader to rejoin two fragments the blank line severed.
 
-- [Instruction] Verify the three caps above with `scripts/check-comment-format.js <file>...`, whose labels name the rule each violation broke.
+- [Instruction] Verify the caps above with `scripts/check-comment-format.js <file>...`, whose labels name the rule each violation broke.
   - [Why] It reuses the TypeScript compiler's scanner, so unlike a regex width check it never mistakes a `//` inside a string literal for a comment.
 
 - [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments — use plain ASCII (`=`, `-`, `|`).
   - [Why] Humans don't type these by hand, so they look AI-written and get used inconsistently; they also break in terminals, diffs, and grep where ASCII works.
 
-When the script flags `WIDTH`, `PARAGRAPH`, or `SENTENCE-BREAK`, or when a comment carries bullets, read `references/comment-formatting.md` for the fix shapes and bad/good pairs.
+When the script flags `WIDTH`, `PARAGRAPH`, `SENTENCE-BREAK`, or `CODE-GAP`, or when a comment carries bullets, read `references/comment-formatting.md` for the fix shapes and bad/good pairs.
 
 ### Section fencing in code files
 
