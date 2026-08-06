@@ -1,50 +1,61 @@
 #!/usr/bin/env node
-// check-comment-format.js — flag code-comment lines that break width/paragraph caps.
+// Flag code-comment lines that break doc-standards' width,
+// paragraph, sentence, bullet, and code-gap caps.
 //
-// AI-consumed output (compact, parseable):
-//   == <filename>                     header (only when multiple files have hits)
-//   WIDTH <line>:<chars>              full physical line exceeds --max-chars
-//   PARAGRAPH <start>-<end>:<n>       a run of standalone comment lines exceeds --max-lines
-//   SENTENCE-BREAK <line>             a blank comment line follows a non-sentence-ending line
-//   BULLET-SPACING <line>             top-level bullet has other than 1 space before `-`
-//   BULLET-BLANK <line>               a 2+-line-wrapped bullet has no blank line after it
-//   CODE-GAP <line>                   a comment block is glued to the code line above it
+// Output is one violation per line, in the shapes below, under
+// a `== <filename>` header when several files have hits.
 //
-// Checks, run together (mirrors check-density.sh's chars+words combo):
+// WIDTH <line>:<chars>
+//   A physical line touched by a comment -- standalone, or
+//   code with a trailing comment -- whose full raw length
+//   exceeds --max-chars (default 64).
 //
-//   WIDTH — any physical line touched by a comment (a standalone `//`/`/* */`
-//   line, OR a line where code is followed by a trailing comment) whose full
-//   raw length — code, tabs/spaces, and comment together — exceeds the cap
-//   (default 64). A trailing comment that overflows belongs on its own
-//   line(s) above the code, not squeezed onto the same line.
+//   Code, indentation, and comment all count, so a trailing
+//   comment that overflows belongs on its own line above the
+//   code rather than squeezed beside it.
 //
-//   PARAGRAPH — any run of consecutive STANDALONE full-comment lines (a line
-//   that, once trimmed, is entirely comment: JSDoc ` * text`, bare `//` text,
-//   never code+comment) longer than the cap (default 4) without a blank
-//   comment line breaking it up. A bare `*` or bare `//` line is the "blank
-//   line" separator, matching doc-standards' comment-paragraph convention.
-//   Structural JSDoc delimiters (`/**`, `*/`, `/*`) are ignored — they aren't
-//   prose, so they neither extend nor reset a paragraph run.
+// PARAGRAPH <start>-<end>:<n>
+//   A run of consecutive standalone full-comment lines longer
+//   than --max-lines (default 4) with no blank comment line
+//   breaking it up.
 //
-//   SENTENCE-BREAK — a paragraph run that a blank comment line terminates
-//   must end its last content line in `.` or `;` (or `:` when the next
-//   non-blank line opens a bullet list). Anything else — a bare word, a
-//   dash, an arrow, a trailing backslash — means the blank line was dropped
-//   mid-sentence instead of at an actual sentence/clause boundary.
+//   Standalone means the trimmed line is entirely comment --
+//   JSDoc ` * text`, bare `// text`, never code+comment. A
+//   bare `*` or `//` is the blank separator, matching
+//   doc-standards' comment-paragraph convention.
 //
-//   BULLET-SPACING — a top-level bullet marker (` * - text`, `// - text`)
-//   must have exactly one space between the comment prefix and the `-`.
-//   A bullet indented deeper than the first bullet of its list is treated
-//   as a sub-bullet and is not checked (its indentation follows the file's
-//   own convention, which this script does not police).
+//   The `/**`, `*/`, and `/*` delimiters are structure rather
+//   than prose, so they neither extend nor reset a run.
 //
-//   BULLET-BLANK — when a bullet's text wraps across 2+ physical lines, the
-//   line right after it must be blank before the next bullet or prose line.
+// SENTENCE-BREAK <line>
+//   A paragraph run that a blank comment line terminates must
+//   end its last content line in `.` or `;`, or in `:` when
+//   the next non-blank line opens a bullet list.
 //
-//   CODE-GAP — a standalone comment block sitting directly under a code
-//   line, with no blank line between them. The gap is what makes the
-//   comment read as introducing the code below rather than trailing the
-//   code above.
+//   Anything else -- a bare word, a dash, an arrow, a
+//   trailing backslash -- means the blank line landed
+//   mid-sentence instead of at a clause boundary.
+//
+// BULLET-SPACING <line>
+//   A top-level bullet marker (` * - text`, `// - text`) must
+//   have exactly one space between the comment prefix and the
+//   `-` itself.
+//
+//   A bullet indented deeper than its list's first bullet is
+//   read as a sub-bullet and left alone, since its indent
+//   follows a convention this script does not police.
+//
+// BULLET-BLANK <line>
+//   A bullet whose text wraps across 2+ physical lines must
+//   be followed by a blank line before the next bullet or
+//   prose line.
+//
+// CODE-GAP <line>
+//   A standalone comment block sitting directly under a code
+//   line, with no blank line between them.
+//
+//   The gap is what makes the comment read as introducing
+//   the code below rather than trailing the code above.
 //
 //   Exempt when the preceding line OPENS the comment's scope,
 //   making the comment that scope's first item rather than a
@@ -83,7 +94,7 @@
 //
 // Examples:
 //   check-comment-format.js path/to/spec.e2e.spec.ts
-//   check-comment-format.js --max-chars 80 --max-lines 6 src/**/*.ts
+//   check-comment-format.js --max-chars 80 src/**/*.ts
 //   check-comment-format.js --lang shell ~/.zshrc
 
 'use strict';
@@ -92,9 +103,9 @@ const fs = require('fs');
 const path = require('path');
 const { createRequire } = require('module');
 
-// Every check below the lexer works off comment ranges plus raw
-// line text, so a language is fully described by how its comments
-// are found and what one looks like once found.
+// Every check below the lexer works off comment ranges plus
+// raw line text, so a language is fully described by how its
+// comments are found and what one looks like once found.
 //
 // scopeOpeners lists the line endings that make a following
 // comment the first item of a scope rather than a sibling glued
@@ -248,14 +259,18 @@ function lineIndexOf(offset, lineStarts) {
   return lo;
 }
 
-// A `${...}` template substitution's closing `}` scans as a plain
-// CloseBraceToken by default — the scanner then keeps lexing the template's
-// trailing text as code and desyncs for the rest of the file, silently
-// hiding every comment after the first interpolated template literal.
-// reScanTemplateToken() re-lexes that `}` as TemplateMiddle/TemplateTail
-// instead; templateBraceStack tracks, per nesting level, whether the next
-// CloseBraceToken closes a template substitution (true) or an ordinary
-// block/object (false), so plain braces are left alone.
+// A `${...}` template substitution's closing `}` scans as a
+// plain CloseBraceToken by default, and the scanner then keeps
+// lexing the template's trailing text as code -- silently
+// hiding every comment after the first template literal.
+//
+// reScanTemplateToken() re-lexes that `}` as TemplateMiddle or
+// TemplateTail instead.
+//
+// templateBraceStack tracks, per nesting level, whether the
+// next CloseBraceToken closes a template substitution (true)
+// or an ordinary block/object (false), so plain braces are
+// left alone.
 function scanTypescriptCommentRanges(ts, text) {
   const scanner = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.Standard, text);
   const ranges = [];
@@ -469,8 +484,9 @@ function pythonDialect() {
   };
 }
 
-// A line is "fully" comment when the code before the comment's start (on its
-// first line) and after the comment's end (on its last line) is whitespace only.
+// A line is "fully" comment when everything outside the
+// comment is whitespace -- before its start on the first
+// line, and after its end on the last.
 function markTouchedAndFullCommentLines(commentRanges, lines, lineStarts) {
   const widthTouchedLines = new Set();
   const fullCommentLines = new Set();
@@ -504,10 +520,12 @@ function findWidthViolations(widthTouchedLines, lines, maxChars) {
   return violations;
 }
 
-// STRUCTURAL delimiters (`/**`, `*/`, `/*`) are prose-neutral: skip without
-// affecting the current run. A bare `*`/`//`/`#` is the paragraph-break marker.
-// Anything else full-comment is prose CONTENT extending the current run.
-// Any non-full-comment line (code, or code+trailing-comment) ends the run.
+// The `/**`, `*/`, and `/*` delimiters are prose-neutral, so
+// they skip without affecting the current run.
+//
+// A bare `*`, `//`, or `#` is the paragraph-break marker, any
+// other full-comment line is prose content extending the run,
+// and any non-full-comment line ends it.
 function classifyLine(lineIndex, fullCommentLines, lines, lang) {
   if (!fullCommentLines.has(lineIndex)) return 'other';
   const trimmed = (lines[lineIndex] ?? '').trim();
@@ -538,17 +556,20 @@ function findParagraphViolations(fullCommentLines, lines, maxLines, lang) {
       flush();
     }
 
-    // 'delimiter' — structural noise, preserves current run state across it.
+    // 'delimiter' — structural noise, preserving the current
+    // run state across it.
   }
   flush();
 
   return violations;
 }
 
-// Flags the FIRST line of each comment block, which is where the missing
-// blank line belongs — a block's later lines are already gapped from code
-// by the block itself. Any full-comment line class opens a block, so a
-// JSDoc `/**` delimiter counts the same as bare `//` prose.
+// Flags the FIRST line of each comment block, because that is
+// where the missing blank line belongs -- a block's later
+// lines are already gapped from code by the block itself.
+//
+// Any full-comment line class opens a block, so a JSDoc `/**`
+// delimiter counts the same as bare `//` prose.
 function findCodeGapViolations(fullCommentLines, lines, lang) {
   const violations = [];
 
@@ -565,9 +586,12 @@ function findCodeGapViolations(fullCommentLines, lines, lang) {
   return violations;
 }
 
-// Strips the comment-line prefix (`*`, `//`, or `#`) and at most one
-// following space, leaving the prose text with any remaining indentation
-// intact — that leftover indentation is what the bullet checks below measure.
+// Strips the comment-line prefix (`*`, `//`, or `#`) and at
+// most one following space, leaving the prose text with any
+// remaining indentation intact.
+//
+// That leftover indentation is what the bullet checks below
+// measure.
 function commentText(lineText, lang) {
   return (lineText ?? '').trim().replace(lang.prefixRe, '');
 }
@@ -576,18 +600,22 @@ const SENTENCE_END_RE = /[.;][)"'\]`]*$/;
 const COLON_END_RE = /:[)"'\]`]*$/;
 const BULLET_RE = /^(\s*)-\s/;
 
-// One pass, sharing classifyLine's run tracking, covering 3 checks:
+// One pass sharing classifyLine's run tracking, covering the
+// three checks below.
 //
-//   SENTENCE-BREAK — a run the scanner ends with a blank separator line
-//   must end its last content line on a sentence/clause boundary; a colon
-//   is only accepted when the next line opens a bullet list.
+// SENTENCE-BREAK -- a run the scanner ends with a blank
+// separator line must end its last content line on a
+// sentence or clause boundary; a colon counts only when the
+// next line opens a bullet list.
 //
-//   BULLET-SPACING — a bullet-marker line's leftover indent (after the
-//   comment-prefix gap) must be 0 unless it sits deeper than its list's
-//   first bullet, in which case it's a sub-bullet and left unchecked.
+// BULLET-SPACING -- a bullet-marker line's leftover indent
+// (after the comment-prefix gap) must be 0, unless it sits
+// deeper than its list's first bullet and is therefore a
+// sub-bullet left unchecked.
 //
-//   BULLET-BLANK — a bullet item spanning 2+ physical lines must be
-//   followed by a blank line before the next bullet or prose line.
+// BULLET-BLANK -- a bullet item spanning 2+ physical lines
+// must be followed by a blank line before the next bullet or
+// prose line.
 function findSentenceAndBulletViolations(fullCommentLines, lines, lang) {
   const sentenceBreaks = [];
   const bulletSpacing = [];
@@ -631,7 +659,9 @@ function findSentenceAndBulletViolations(fullCommentLines, lines, lang) {
       const text = commentText(lines[l], lang);
       const bulletMatch = text.match(BULLET_RE);
       if (bulletMatch) {
-        flushBulletItem(false); // a new bullet with no blank in between closes the prior item
+        // a new bullet with no blank in between closes the
+        // prior item
+        flushBulletItem(false);
         const indent = bulletMatch[1].length;
         if (listBaseIndent === null || indent <= listBaseIndent) {
           listBaseIndent = indent;
@@ -652,7 +682,8 @@ function findSentenceAndBulletViolations(fullCommentLines, lines, lang) {
       listBaseIndent = null;
     }
 
-    // 'delimiter' — structural noise, preserves run/list/item state across it.
+    // 'delimiter' — structural noise, preserving the
+    // run/list/item state across it.
   }
   flushRun(false);
   flushBulletItem(false);
