@@ -35,7 +35,7 @@ Always edit `configs/ai-docs/claude/settings.json` directly. If the symlink has 
 
 Leave it dirty: don't flag it, don't ask whether to commit it, don't commit it. Every other `settings.json` key change still earns its own commit.
 
-The committed values are the declared defaults: `model` `sonnet`, `advisorModel` `opus`, `effortLevel` `high`. Restore them any time with `git checkout -- configs/ai-docs/claude/settings.json`.
+The committed values are the declared defaults: `model` `sonnet`, `effortLevel` `high`. Restore them any time with `git checkout -- configs/ai-docs/claude/settings.json`.
 
 The writes are documented at code.claude.com/docs/en/model-config.md and .../advisor.md.
 

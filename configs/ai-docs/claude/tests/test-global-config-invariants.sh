@@ -172,8 +172,27 @@ it_should_fail_when_the_committed_settings_json_carries_an_advisormodel_key() {
     "false" "$actual"
 }
 
+ROOT_CLAUDE_MD="$repo_root/CLAUDE.md"
+
+# declared_defaults_line - the "declared defaults" sentence in the repo's
+# own CLAUDE.md Editing section; /model, /effort and /advisor writes are
+# expected to diverge from it session by session, so only this one
+# sentence documents the checked-in baseline.
+declared_defaults_line() {
+  grep 'declared defaults' "$ROOT_CLAUDE_MD"
+}
+
+it_should_fail_when_the_repo_claude_md_declared_defaults_line_still_names_advisormodel_opus() {
+  local actual
+  declared_defaults_line | grep -q "advisorModel" && actual=true || actual=false
+  assert_eq \
+    "SettingsModelDefaults > failure > should fail when the repo CLAUDE.md declared-defaults line still names advisorModel opus" \
+    "false" "$actual"
+}
+
 it_should_record_model_as_sonnet_in_the_committed_settings_json
 it_should_fail_when_the_committed_settings_json_carries_an_advisormodel_key
+it_should_fail_when_the_repo_claude_md_declared_defaults_line_still_names_advisormodel_opus
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
