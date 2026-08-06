@@ -127,8 +127,10 @@ Read all three verdict files **in full** — not the return summaries — and so
 - **Addressable** — small, well-scoped, clearly evidenced, low blast radius: a missing planned test, a local simplification, a correctness fix with an obvious forcing case.
 - **Not addressable** — design tradeoffs, cross-cutting risk, anything a leg flagged as uncertain, anything whose fix needs a product decision.
 
-Print the accepted list before applying anything, one line per finding with the reason it was accepted, and the rejected list with the reason it was not.
+Print the accepted list before applying anything, one line per finding: `<lens>#N (<file>:<lines>) — <one-line recap> — accepted because <reason>`.
+Print the rejected list in the same shape, carrying the rejection reason instead.
 The relevance call is judgment, so it gets shown, not just its result.
+The recap keeps the list self-contained so a human never has to open the verdict file to know what was decided.
 
 ### 6.2. Hand the accepted list to `/address-verdicts`
 
@@ -162,11 +164,15 @@ It returns the ledger §7 reports from: applied findings with SHAs, skipped find
 Compose this from the ledger `/address-verdicts` returned, not from a second reading of the verdict files:
 
 - The three verdict file paths, plus any leg that failed to produce one.
-- Applied findings, each with its commit SHA.
-- Findings judged not addressable by §6.1, each with the reason — they stay unmarked in their verdict files.
+- **Every finding below carries its `<lens>#N (<file>:<lines>)` reference plus a one-line recap of what it says — never a bare id, count, or SHA alone.**
+  - §6.1 already composed this recap for the accepted/rejected lines; reuse it here instead of re-deriving it.
+  - A human reading the report should never have to open a verdict file to know what was decided.
 
-- Findings `/address-verdicts` skipped, each with its reason — an ambiguity or a missing test command under `--no-ask`.
-- Findings whose apply failed, each with what it needs to retry.
+- Applied findings, each with its recap/reference and its commit SHA.
+- Findings judged not addressable by §6.1, each with its recap/reference and the reason — they stay unmarked in their verdict files.
+
+- Findings `/address-verdicts` skipped, each with its recap/reference and its reason — an ambiguity or a missing test command under `--no-ask`.
+- Findings whose apply failed, each with its recap/reference and what it needs to retry.
 - The plain statement that unmarked findings are untouched, and that a later `/address-verdicts` run — this time with a human answering — is how they get worked.
 
 ## Flowchart (human-facing)

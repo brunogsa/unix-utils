@@ -106,7 +106,9 @@ So there is exactly one package shape, never a partial one:
 - **Every verdict file path** `/quality-gate` produced (`verdict_refactor_<ts>.md`, `verdict_auto-review_<ts>.md`, `verdict_test-sdd_<ts>.md`).
   - Plus any leg it flagged as failed.
 
-- **The quality-gate outcome** — one line per finding: applied (with its commit SHA), judged not addressable (with the reason), or failed to apply (with what it needs to retry).
+- **The quality-gate outcome** — one line per finding, never a bare id or count, in the form `<lens>#N (<file>:<lines>) — <one-line recap>`, plus its outcome.
+  - Outcome is applied (with its commit SHA), judged not addressable (with the reason), or failed to apply (with what it needs to retry).
+  - The recap is what lets the human skip opening the verdict file.
 
 - **Missing planned tests** — the `test-sdd` leg's misses that auto-solve did not write, called out on their own line rather than buried in the finding list.
   - A plan-declared test nobody wrote is the one gap this batch was supposed to close.

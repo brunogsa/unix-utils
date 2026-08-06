@@ -151,7 +151,13 @@ Batching it to the end would leave a pile of applied fixes with no record of whi
 
 ## 6. Close with a report
 
-List: applied findings (with SHA), skipped findings (with reason), and anything that failed to apply — with exactly what it needs to retry.
+One line per finding — never a bare id, count, or SHA alone: `<lens>#N (<file>:<lines>) — <one-line recap of what the finding says> → <outcome>`.
+The recap is mandatory even when the finding is already annotated in a verdict file on disk.
+The report is what the human actually reads, and a bare id forces them to open that file just to know what was decided.
+
+- **Applied** — outcome is `APPLIED (<sha>)`.
+- **Skipped** — outcome is `SKIPPED (<reason>)`.
+- **Failed to apply** — outcome names exactly what it needs to retry.
 
 State plainly, every time:
 
