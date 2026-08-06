@@ -1,6 +1,6 @@
 ---
 name: task-breakdown
-description: "Break a body of work into a prioritized, dependency-aware task breakdown — unblockers and riskiest-with-PoC first, thin contract tasks that fan work out in parallel, feature slices split into commit-sized sub-steps — emitted as a .md artifact in /tmp for the caller to consume. USE when breaking work into tasks/subtasks, prioritizing or sequencing a backlog, or planning parallel work."
+description: "Break a body of work into a prioritized, dependency-aware task breakdown, emitted as a .md artifact in /tmp for the caller to consume. USE when breaking work into tasks/subtasks, prioritizing or sequencing a backlog, or planning parallel work."
 disable-model-invocation: false
 ---
 
@@ -74,4 +74,6 @@ ALWAYS use this exact template, one `###` entry per task, numbered in execution 
 - What "done" looks like for this task, checkable without the session that wrote it.
 ```
 
-Nothing more per task — what a task unlocks, what can run in parallel, and why it sits where it does are all derivable from the numbering and the `Depends on:` links, so extra fields only bloat the artifact.
+Nothing more per task. What a task unlocks, what can run in parallel, and why it sits where it does are all derivable from the numbering and the `Depends on:` links.
+
+Extra fields only bloat the artifact.
