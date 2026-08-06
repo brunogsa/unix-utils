@@ -65,8 +65,17 @@ it_should_fail_when_the_orphaned_codeburn_npm_global_install_line_survives() {
     "0" "$codeburn_count"
 }
 
+it_should_install_or_symlink_statusline_tier_sh_via_install_sh() {
+  local statusline_tier_count
+  statusline_tier_count=$(grep -c 'statusline-tier.sh' "$INSTALL_SH")
+  assert_eq \
+    "InstallScriptContract > happy > should install or symlink statusline-tier.sh via install.sh" \
+    "true" "$([ "$statusline_tier_count" -gt 0 ] && echo true || echo false)"
+}
+
 it_should_install_ccstatusline_and_ccburn_as_npm_globals
 it_should_fail_when_the_orphaned_codeburn_npm_global_install_line_survives
+it_should_install_or_symlink_statusline_tier_sh_via_install_sh
 
 # ============================================================
 # describe("SettingsEnvContract")

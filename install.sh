@@ -289,6 +289,9 @@ rm -fr ~/.claude/commands ~/.claude/skills ~/.claude/scripts ~/.claude/agents
 rm -f ~/.claude/RTK.md
 ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/skills ~/.claude/
+# This directory-level symlink covers statusline-tier.sh (the
+# ccstatusline Custom Command widget script) too -- no separate ln -sf
+# line is needed for it specifically.
 ln -sf ~/unix-utils/configs/ai-docs/claude/scripts ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/agents ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/settings.json ~/.claude/
