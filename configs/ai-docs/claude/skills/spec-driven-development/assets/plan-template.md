@@ -124,6 +124,10 @@ See the gate process in the `spec-driven-development` SKILL.md for when and how 
 ---
 ## Task Breakdown
 
+**Load the `task-breakdown` skill before authoring this section** — it owns task ordering (unblockers first, riskiest with a proof of concept next), thin contract-task extraction for parallel work, and sub-step splitting, and it emits a breakdown artifact in `/tmp`.
+
+Populate this section from that artifact: its task order becomes the numbering here (the numbering is the intended execution order, not the order the feature narrates itself), its dependency links become each task's `Depends on:`, and its sub-steps become the task's title breadcrumb and commit sketch.
+
 **Task-dependency DAG diagram** — lead the section with a mermaid flowchart when any task's `Depends on:` names a real task (not empty/`none`): one node per task, edges following each `Depends on:` link.
 Validate with `mmdc` before pasting, per the `mermaid-diagrams` skill.
 
@@ -210,6 +214,8 @@ No code exists yet, so estimate by feel from the task and file counts above — 
 - **Prefer independent PRs; a dependent sequence is fine** — a series of manageable PRs beats one big PR when full independence isn't feasible.
 
 - **Each PR is independently reviewable and mergeable** — in order, if dependent.
+
+- **Sequence PRs by the `task-breakdown` skill's priorities** — the earliest PRs carry the contract/unblocker tasks and the riskiest proof of concept; feature slices stack behind them on the de-risked base.
 
 - **Don't over-split** — a PR under ~50 lines usually lacks the context to review. The failure mode to catch is the one giant PR, not many tiny ones.
 

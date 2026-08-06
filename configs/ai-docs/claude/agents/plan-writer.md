@@ -20,6 +20,8 @@ That's deliberate: if the spec doesn't carry enough to plan from, that's a defec
 
 2. Read `~/.claude/skills/spec-driven-development/assets/plan-template.md` and the "Self-review gates" section of `~/.claude/skills/spec-driven-development/SKILL.md`.
    The plan you write must satisfy the AC-coverage, test-distribution, and DAG checks listed there — the caller runs them on your output the moment you return.
+   Also load the `task-breakdown` skill and run it over the spec's work — it emits a prioritized breakdown artifact in `/tmp`.
+   Populate the plan's Task Breakdown section from that artifact, and sequence the PR Breakdown by the same priority order.
 
 3. Read the relevant existing code the spec references — the modules, files, and patterns the plan's Task Breakdown depends on.
    Don't plan against a codebase you haven't looked at.
