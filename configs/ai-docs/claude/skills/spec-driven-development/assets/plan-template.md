@@ -21,6 +21,25 @@ N/A escape: for a trivial or no-flow change, write "N/A — `<reason>`" and skip
 Follow the `mermaid-diagrams` skill for conventions.
 
 ---
+## Threat Model
+
+N/A escape: when the change crosses no trust boundary, write "N/A — `<reason>`" and skip the rest of this section.
+
+**Trust boundaries touched** — name each boundary this change introduces, moves, or weakens: where untrusted input enters, where privilege changes, where data leaves the system.
+
+Mark them on the architecture diagram above rather than drawing a second one — a boundary the reviewer can see on the flow they already read costs nothing extra to check.
+
+| Asset | Threat | Mitigation | AC |
+|---|---|---|---|
+| `<what an attacker wants>` | `<how they would get it>` | `<what stops them>` | `<the AC that proves it>` |
+
+Reuse the threat vocabulary from `code-review-pipeline/references/review-checklists.md#Security Checklist` — injection, output-encoding gaps, unsafe deserialization, authn/authz, secret exposure, SSRF, unsafe dynamic execution.
+
+A second taxonomy would drift from the one the review actually applies, so the same words have to survive from plan to review.
+
+A threat you cannot mitigate is an Open Question, not a table row — move it there so it blocks approval instead of shipping as an accepted risk nobody voted on.
+
+---
 ## General Flow
 
 **Lead with a diagram** — faster to scan than prose: a sequence diagram or flowchart showing where execution starts, what data it carries, and which modules/functions run in order.
