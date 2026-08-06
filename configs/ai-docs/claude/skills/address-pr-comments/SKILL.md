@@ -99,25 +99,7 @@ Step 0's persisted answer says whether to commit now via `commit-standards`; onc
 
 ### 1c. Green baseline (lint + test — opt-in)
 
-Runs only on a yes to step 0's "Green baseline check?" — otherwise skip this subsection.
-
-Discover the runners (cheap probe, no full project scan):
-
-| Marker present | Lint candidate | Test candidate |
-|---|---|---|
-| `package.json` | `npm run lint` if `scripts.lint` defined | `npm test` if `scripts.test` defined |
-| `Makefile` | `make lint` if `^lint:` target | `make test` if `^test:` target |
-| `pyproject.toml` | `ruff check .` / `flake8` | `pytest` |
-| `Cargo.toml` | `cargo clippy` | `cargo test` |
-
-If multiple or no markers matched, use the persisted step-0 answer instead. Run lint then test:
-
-```bash
-<lint-cmd> > /tmp/apc-lint.txt 2>&1; echo "exit: $?"; tail -20 /tmp/apc-lint.txt
-<test-cmd> > /tmp/apc-test.txt 2>&1; echo "exit: $?"; tail -30 /tmp/apc-test.txt
-```
-
-If either is red, abort — fix pre-existing breakage first so cluster commits don't conflate new regressions with old.
+On a yes to step 0's "Green baseline check?", load [`references/opt-in-gates.md`](references/opt-in-gates.md) for the runner-discovery table and the abort rule. Otherwise skip to 1d.
 
 ### 1d. Tails toggle
 
@@ -259,8 +241,6 @@ mutation($tid: ID!, $body: String!) {
 
 The mutation takes a thread, not a comment, so the duplicate-reply mistake is unrepresentable rather than merely forbidden.
 
-It also matches step 3a, which already fetches these threads over GraphQL — `thread_id` costs one extra field there.
-
 **Top-level and review-summary** — REST, since GitHub exposes no thread object for either:
 
 | Source | gh command |
@@ -284,13 +264,7 @@ Signature literal: `_via Claude Code (`address-pr-comments`)_`. Plain text only 
 
 ### 7d. Optional refactor + auto-review tails (main, when step 1d's toggle is on)
 
-When the toggle is off, skip to step 8.
-
-Otherwise dispatch the shared deep-reviewer tail pair — [`deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md).
-
-Pass `<BASE_REF>` = `<BATCH_BASE_SHA>` and no `<SPEC_PLAN_PATHS>`, since this flow has no spec/plan.
-
-The tails are report-only (the `deep-reviewer-write-guard.sh` PreToolUse hook enforces it), so they need no new lint/test gate.
+When the toggle is off, skip to step 8. Otherwise load [`references/opt-in-gates.md`](references/opt-in-gates.md) for the tail-pair dispatch and its arguments.
 
 ## Step 8: Final report (main)
 
