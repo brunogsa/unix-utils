@@ -1,0 +1,9 @@
+{
+  "name": "doc-standards-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pins the TypeScript that check-comment-format.js lexes comments with. TypeScript 7's native port exports no JS compiler API, so this must never float to latest.",
+  "dependencies": {
+    "typescript": "^5.9.3"
+  }
+}

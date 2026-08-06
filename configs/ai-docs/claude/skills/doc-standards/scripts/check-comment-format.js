@@ -99,20 +99,40 @@ function parseArgs(argv) {
   return { maxChars, maxLines, files };
 }
 
+// TypeScript 7's native port exports only `version`, with no
+// createScanner and no ScriptTarget.
+//
+// A package that resolves is therefore not a package that can
+// scan, so each candidate is probed for the scanner it must
+// supply rather than for its own presence.
+function hasScannerApi(ts) {
+  return Boolean(ts && typeof ts.createScanner === 'function' && ts.ScriptTarget);
+}
+
+// This script's own pinned copy is tried first, so a run's
+// verdict does not change with whichever TypeScript the file
+// under test happens to sit beside.
 function loadTypescriptFor(file) {
-  const req = createRequire(path.resolve(file));
-  try {
-    return req('typescript');
-  } catch {
+  const candidates = [
+    () => require('typescript'),
+    () => createRequire(path.resolve(file))('typescript'),
+  ];
+
+  for (const load of candidates) {
+    let ts;
     try {
-      return require('typescript');
+      ts = load();
     } catch {
-      console.error(
-        `typescript package not found for ${file} — run from within a repo with 'typescript' installed`,
-      );
-      process.exit(2);
+      continue;
     }
+    if (hasScannerApi(ts)) return ts;
   }
+
+  console.error(
+    `no TypeScript with a JS scanner API found for ${file} — ` +
+      "run install.sh, or 'npm install' in this script's own directory",
+  );
+  process.exit(2);
 }
 
 function getLineStartOffsets(text) {

@@ -18,3 +18,7 @@ report_*.md
 # Generated from snapshots/ by usage-audit's build-usage-viewer.py — 330 KB of
 # inlined data that is fully reproducible, so committing it is pure churn.
 configs/ai-docs/claude/skills/usage-audit/usage-history/viewer.html
+# Restored by install.sh from the committed package.json, which is where the
+# TypeScript version check-comment-format.js needs is actually pinned.
+configs/ai-docs/claude/skills/doc-standards/scripts/node_modules/
+configs/ai-docs/claude/skills/doc-standards/scripts/package-lock.json

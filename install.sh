@@ -233,6 +233,15 @@ npm install -g @mermaid-js/mermaid-cli
 # macOS-only and this repo's cross-platform rule is a MUST.
 npm install -g ccusage
 
+# doc-standards' check-comment-format.js lexes comments with
+# the TypeScript scanner, and TypeScript 7's native port ships
+# no JS compiler API at all.
+#
+# Installed beside the script instead of globally, so the `tsc`
+# on PATH stays whichever version the user wants for their own
+# work.
+npm install --prefix ~/unix-utils/configs/ai-docs/claude/skills/doc-standards/scripts
+
 # AI setup: Claude Code e OpenCode configuration
 npm install -g ccstatusline
 npm install -g ccburn
