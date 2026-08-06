@@ -296,6 +296,12 @@ ln -sf ~/unix-utils/configs/ai-docs/claude/scripts ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/agents ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/settings.json ~/.claude/
 
+# ccstatusline's own config (rendered via statusLine.command, no
+# env-var override exists for its settings path -- see ccstatusline's
+# getConfigPath(), so it must live at this exact default location).
+mkdir -p ~/.config/ccstatusline
+ln -sf ~/unix-utils/configs/ai-docs/claude/ccstatusline/settings.json ~/.config/ccstatusline/settings.json
+
 mkdir -p ~/.opencode
 rm -fr ~/.opencode/commands ~/.opencode/skills
 ln -sf ~/unix-utils/configs/ai-docs/claude/skills ~/.opencode/

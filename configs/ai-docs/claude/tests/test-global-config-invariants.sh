@@ -73,9 +73,31 @@ it_should_install_or_symlink_statusline_tier_sh_via_install_sh() {
     "true" "$([ "$statusline_tier_count" -gt 0 ] && echo true || echo false)"
 }
 
+it_should_stay_a_no_op_on_re_run_for_the_section_claude_hud_previously_occupied() {
+  local marketplace_add plugin_install mkdir_line symlink_line manual_echo
+  marketplace_add=$(grep -c 'claude plugin marketplace add jarrodwatts/claude-hud' "$INSTALL_SH")
+  plugin_install=$(grep -c 'claude plugin install claude-hud@claude-hud' "$INSTALL_SH")
+  mkdir_line=$(grep -c 'mkdir -p ~/.claude/plugins/claude-hud' "$INSTALL_SH")
+  symlink_line=$(grep -c 'plugins/claude-hud/config.json' "$INSTALL_SH")
+  manual_echo=$(grep -c 'claude-hud:setup' "$INSTALL_SH")
+  assert_eq \
+    "InstallScriptContract > corner > should stay a no-op on re-run for the section claude-hud previously occupied" \
+    "0 0 0 0 0" "$marketplace_add $plugin_install $mkdir_line $symlink_line $manual_echo"
+}
+
+it_should_fail_when_any_claude_hud_marketplace_plugin_or_symlink_step_survives() {
+  local any_claude_hud
+  any_claude_hud=$(grep -ci 'claude-hud' "$INSTALL_SH")
+  assert_eq \
+    "InstallScriptContract > failure > should fail when any claude-hud marketplace, plugin, or symlink step survives" \
+    "0" "$any_claude_hud"
+}
+
 it_should_install_ccstatusline_and_ccburn_as_npm_globals
 it_should_fail_when_the_orphaned_codeburn_npm_global_install_line_survives
 it_should_install_or_symlink_statusline_tier_sh_via_install_sh
+it_should_stay_a_no_op_on_re_run_for_the_section_claude_hud_previously_occupied
+it_should_fail_when_any_claude_hud_marketplace_plugin_or_symlink_step_survives
 
 # ============================================================
 # describe("SettingsEnvContract")
@@ -202,6 +224,62 @@ it_should_fail_when_the_repo_claude_md_declared_defaults_line_still_names_adviso
 it_should_record_model_as_sonnet_in_the_committed_settings_json
 it_should_fail_when_the_committed_settings_json_carries_an_advisormodel_key
 it_should_fail_when_the_repo_claude_md_declared_defaults_line_still_names_advisormodel_opus
+
+# ============================================================
+# describe("ClaudeHudRemoval")
+# ============================================================
+
+STATUSLINE_SH="$repo_root/configs/ai-docs/claude/scripts/statusline.sh"
+CLAUDE_HUD_CONFIG="$repo_root/configs/ai-docs/claude/plugins/claude-hud/config.json"
+
+it_should_point_statuslinecommand_at_the_ccstatusline_invocation() {
+  local command has_ccburn has_ccstatusline no_wrapper
+  command=$(committed_settings | jq -r '.statusLine.command')
+  printf '%s' "$command" | grep -q 'ccburn' && has_ccburn=true || has_ccburn=false
+  printf '%s' "$command" | grep -q 'ccstatusline' && has_ccstatusline=true || has_ccstatusline=false
+  printf '%s' "$command" | grep -q 'statusline.sh' && no_wrapper=false || no_wrapper=true
+  assert_eq \
+    "ClaudeHudRemoval > happy > should point statusLine.command at the ccstatusline invocation" \
+    "true true true" "$has_ccburn $has_ccstatusline $no_wrapper"
+}
+
+it_should_fail_when_scripts_statusline_sh_still_exists() {
+  local exists
+  [ -f "$STATUSLINE_SH" ] && exists=true || exists=false
+  assert_eq \
+    "ClaudeHudRemoval > failure > should fail when scripts/statusline.sh still exists" \
+    "false" "$exists"
+}
+
+it_should_fail_when_enabledplugins_still_lists_claude_hud() {
+  local actual
+  actual=$(committed_settings | jq -r '.enabledPlugins | has("claude-hud@claude-hud")')
+  assert_eq \
+    "ClaudeHudRemoval > failure > should fail when enabledPlugins still lists claude-hud" \
+    "false" "$actual"
+}
+
+it_should_fail_when_the_plugins_claude_hud_config_file_still_exists() {
+  local exists
+  [ -f "$CLAUDE_HUD_CONFIG" ] && exists=true || exists=false
+  assert_eq \
+    "ClaudeHudRemoval > failure > should fail when the plugins claude-hud config file still exists" \
+    "false" "$exists"
+}
+
+it_should_fail_when_extraknownmarketplaces_still_lists_claude_hud() {
+  local actual
+  actual=$(committed_settings | jq -r '.extraKnownMarketplaces | has("claude-hud")')
+  assert_eq \
+    "ClaudeHudRemoval > failure > should fail when extraKnownMarketplaces still lists claude-hud" \
+    "false" "$actual"
+}
+
+it_should_point_statuslinecommand_at_the_ccstatusline_invocation
+it_should_fail_when_scripts_statusline_sh_still_exists
+it_should_fail_when_enabledplugins_still_lists_claude_hud
+it_should_fail_when_the_plugins_claude_hud_config_file_still_exists
+it_should_fail_when_extraknownmarketplaces_still_lists_claude_hud
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

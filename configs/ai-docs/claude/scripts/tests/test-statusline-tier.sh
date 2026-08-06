@@ -19,6 +19,17 @@ set -uo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_UNDER_TEST="$script_dir/../statusline-tier.sh"
+repo_root="$(cd "$script_dir/../../../../.." && pwd)"
+SETTINGS_JSON="$repo_root/configs/ai-docs/claude/settings.json"
+CCSTATUSLINE_CONFIG_SRC="$repo_root/configs/ai-docs/claude/ccstatusline/settings.json"
+
+# configured_statusline_command - the live (working-tree, not committed)
+# statusLine.command from settings.json. Reading the working tree rather
+# than HEAD lets the StatusLineRender tests go RED before the wiring
+# commit lands and GREEN right after the Edit, with no commit in between.
+configured_statusline_command() {
+  jq -r '.statusLine.command' "$SETTINGS_JSON"
+}
 
 pass_count=0
 fail_count=0
@@ -65,6 +76,238 @@ esac
 EOF
   chmod +x "$bin_dir/security"
 }
+
+# write_fake_ccburn - installs a fake `ccburn` binary that mirrors the real
+# one's confirmed contract (`ccburn collect` reads Claude Code's stdin JSON,
+# side-effects a usage snapshot, and passes the same JSON through on
+# stdout unchanged) — here reduced to the pass-through half, since the
+# snapshot write is ccburn's own tested behavior, not this repo's.
+write_fake_ccburn() {
+  local bin_dir="$1"
+  cat >"$bin_dir/ccburn" <<'EOF'
+#!/usr/bin/env bash
+cat
+EOF
+  chmod +x "$bin_dir/ccburn"
+}
+
+# write_fake_ccstatusline - installs a fake `ccstatusline` binary that
+# reads the SAME config shape the real one reads from
+# "$HOME/.config/ccstatusline/settings.json" (confirmed via
+# ccstatusline.js's DEFAULT_SETTINGS_PATH) and the same stdin JSON payload
+# a Custom Command widget receives (confirmed via CustomCommand.tsx's
+# render(): the full payload piped to item.commandPath's stdin). For each
+# configured widget it either execs the real commandPath (custom-command
+# widgets — this is what actually proves our config wires statusline-tier.sh
+# correctly) or extracts a fixed jq path for the handful of built-in widget
+# types this repo's config uses (a stand-in for ccstatusline's own,
+# out-of-scope rendering). Each present value is emitted as "[id-or-type:
+# value]"; a widget whose value is empty is omitted entirely, mirroring the
+# real widget's documented "empty output -> segment omitted" behavior
+# (AC-11) without needing the real npm package as a test dependency.
+write_fake_ccstatusline() {
+  local bin_dir="$1"
+  cat >"$bin_dir/ccstatusline" <<'EOF'
+#!/usr/bin/env bash
+payload="$(cat)"
+config_file="$HOME/.config/ccstatusline/settings.json"
+out=""
+while IFS= read -r widget; do
+  type=$(printf '%s' "$widget" | jq -r '.type')
+  case "$type" in
+    custom-command)
+      marker=$(printf '%s' "$widget" | jq -r '.id')
+      cmd=$(printf '%s' "$widget" | jq -r '.commandPath')
+      val=$(printf '%s' "$payload" | eval "$cmd" 2>/dev/null)
+      ;;
+    custom-text)
+      marker="text"
+      val=$(printf '%s' "$widget" | jq -r '.customText')
+      ;;
+    model)
+      marker="$type"
+      val=$(printf '%s' "$payload" | jq -r '.model.display_name // .model // empty')
+      ;;
+    thinking-effort)
+      marker="$type"
+      val=$(printf '%s' "$payload" | jq -r '.effort.level // empty')
+      ;;
+    context-length)
+      marker="$type"
+      val=$(printf '%s' "$payload" | jq -r '.context_window.context_window_size // empty')
+      ;;
+    context-percentage)
+      marker="$type"
+      val=$(printf '%s' "$payload" | jq -r '.context_window.used_percentage // empty')
+      ;;
+    session-cost)
+      marker="$type"
+      val=$(printf '%s' "$payload" | jq -r '.cost.total_cost_usd // empty')
+      ;;
+    session-usage)
+      marker="$type"
+      val=$(printf '%s' "$payload" | jq -r '.rate_limits.five_hour.used_percentage // empty')
+      ;;
+    reset-timer)
+      marker="$type"
+      val=$(printf '%s' "$payload" | jq -r '.rate_limits.five_hour.resets_at // empty')
+      ;;
+    weekly-usage)
+      marker="$type"
+      val=$(printf '%s' "$payload" | jq -r '.rate_limits.seven_day.used_percentage // empty')
+      ;;
+    weekly-reset-timer)
+      marker="$type"
+      val=$(printf '%s' "$payload" | jq -r '.rate_limits.seven_day.resets_at // empty')
+      ;;
+    *)
+      marker="$type"
+      val=""
+      ;;
+  esac
+  [ -n "$val" ] && out="${out}[${marker}:${val}]"
+done < <(jq -c '.lines[][]' "$config_file")
+printf '%s\n' "$out"
+EOF
+  chmod +x "$bin_dir/ccstatusline"
+}
+
+# marker_value - extracts "value" from one "[marker:value]" chunk in a
+# render_status_line output string, or prints nothing if the marker is
+# absent (an omitted segment).
+marker_value() {
+  local output="$1" marker="$2"
+  printf '%s' "$output" | grep -oE "\[${marker}:[^]]*\]" | sed -E "s/\[${marker}:([^]]*)\]/\1/"
+}
+
+# ============================================================
+# describe("StatusLineRender")
+# ============================================================
+
+it_should_render_tier_model_effort_context_window_advisor_context_percent_cost_duration_and_both_windows() {
+  local sandbox bin_dir now resets_5h resets_7d payload output
+  sandbox="$(fresh_sandbox)"
+  bin_dir="$sandbox/bin"
+  mkdir -p "$bin_dir" "$sandbox/.claude/scripts" "$sandbox/.config/ccstatusline"
+  ln -s "$SCRIPT_UNDER_TEST" "$sandbox/.claude/scripts/statusline-tier.sh"
+  cp "$CCSTATUSLINE_CONFIG_SRC" "$sandbox/.config/ccstatusline/settings.json"
+  printf '{"subscriptionType":"max"}' >"$sandbox/.claude/.credentials.json"
+  printf '{"advisorModel":"opus"}' >"$sandbox/.claude/settings.json"
+  write_fake_ccburn "$bin_dir"
+  write_fake_ccstatusline "$bin_dir"
+
+  now=$(date +%s)
+  resets_5h=$((now + 5040))   # elapsed 12960s of an 18000s window -> expected 72%
+  resets_7d=$((now + 453600)) # elapsed 151200s of a 604800s window -> expected 25%
+  payload=$(cat <<JSON
+{
+  "model": {"display_name": "Sonnet 5"},
+  "effort": {"level": "high"},
+  "context_window": {"context_window_size": 200000, "used_percentage": 34},
+  "cost": {"total_cost_usd": 1.23, "total_duration_ms": 7500000},
+  "rate_limits": {
+    "five_hour": {"used_percentage": 40, "resets_at": $resets_5h},
+    "seven_day": {"used_percentage": 55, "resets_at": $resets_7d}
+  }
+}
+JSON
+  )
+
+  output=$(
+    printf '%s' "$payload" | HOME="$sandbox" PATH="$bin_dir:/usr/bin:/bin:/opt/homebrew/bin" \
+      bash -c "$(configured_statusline_command)"
+  )
+
+  local tier advisor duration exp5h exp7d builtins_present marker
+  tier=$(marker_value "$output" "tier")
+  advisor=$(marker_value "$output" "advisor")
+  duration=$(marker_value "$output" "duration")
+  exp5h=$(marker_value "$output" "expected5h")
+  exp7d=$(marker_value "$output" "expected7d")
+
+  builtins_present=true
+  for marker in model thinking-effort context-length context-percentage \
+    session-cost session-usage reset-timer weekly-usage weekly-reset-timer; do
+    [ -n "$(marker_value "$output" "$marker")" ] || builtins_present=false
+  done
+
+  assert_eq \
+    "StatusLineRender > happy > should render tier, model, effort, context window, advisor, context percent, cost, duration and both windows" \
+    "max opus 2 72 25 true" "$tier $advisor $duration $exp5h $exp7d $builtins_present"
+  rm -rf "$sandbox"
+}
+
+it_should_render_the_literal_none_for_the_advisor_field_when_no_advisormodel_is_configured() {
+  local sandbox bin_dir payload output advisor
+  sandbox="$(fresh_sandbox)"
+  bin_dir="$sandbox/bin"
+  mkdir -p "$bin_dir" "$sandbox/.claude/scripts" "$sandbox/.config/ccstatusline"
+  ln -s "$SCRIPT_UNDER_TEST" "$sandbox/.claude/scripts/statusline-tier.sh"
+  cp "$CCSTATUSLINE_CONFIG_SRC" "$sandbox/.config/ccstatusline/settings.json"
+  printf '{"subscriptionType":"max"}' >"$sandbox/.claude/.credentials.json"
+  # Deliberately no $sandbox/.claude/settings.json at all: read_advisor_field
+  # falls back to "none" when the file is missing, matching this repo's own
+  # committed default (no advisorModel key).
+  write_fake_ccburn "$bin_dir"
+  write_fake_ccstatusline "$bin_dir"
+
+  payload='{"model":{"display_name":"Sonnet 5"},"cost":{"total_duration_ms":0}}'
+  output=$(
+    printf '%s' "$payload" | HOME="$sandbox" PATH="$bin_dir:/usr/bin:/bin:/opt/homebrew/bin" \
+      bash -c "$(configured_statusline_command)"
+  )
+  advisor=$(marker_value "$output" "advisor")
+
+  assert_eq \
+    "StatusLineRender > happy > should render the literal none for the advisor field when no advisorModel is configured" \
+    "none" "$advisor"
+  rm -rf "$sandbox"
+}
+
+it_should_render_the_remaining_segments_when_the_cost_segment_has_no_data_yet() {
+  local sandbox bin_dir payload output tier cost_present
+  sandbox="$(fresh_sandbox)"
+  bin_dir="$sandbox/bin"
+  mkdir -p "$bin_dir" "$sandbox/.claude/scripts" "$sandbox/.config/ccstatusline"
+  ln -s "$SCRIPT_UNDER_TEST" "$sandbox/.claude/scripts/statusline-tier.sh"
+  cp "$CCSTATUSLINE_CONFIG_SRC" "$sandbox/.config/ccstatusline/settings.json"
+  printf '{"subscriptionType":"max"}' >"$sandbox/.claude/.credentials.json"
+  write_fake_ccburn "$bin_dir"
+  write_fake_ccstatusline "$bin_dir"
+
+  # No "cost" key at all: the session-cost segment's data is unavailable.
+  payload='{"model":{"display_name":"Sonnet 5"},"effort":{"level":"high"}}'
+  output=$(
+    printf '%s' "$payload" | HOME="$sandbox" PATH="$bin_dir:/usr/bin:/bin:/opt/homebrew/bin" \
+      bash -c "$(configured_statusline_command)"
+  )
+  tier=$(marker_value "$output" "tier")
+  cost_present=no
+  [ -n "$(marker_value "$output" "session-cost")" ] && cost_present=yes
+
+  assert_eq \
+    "StatusLineRender > corner > should render the remaining segments when the cost segment has no data yet" \
+    "max no" "$tier $cost_present"
+  rm -rf "$sandbox"
+}
+
+it_should_render_nothing_and_exit_zero_when_ccstatusline_or_ccburn_is_not_installed() {
+  local output status
+  output=$(
+    printf '{}' | PATH="/usr/bin:/bin" \
+      bash -c "$(configured_statusline_command)"
+  )
+  status=$?
+
+  assert_eq \
+    "StatusLineRender > failure > should render nothing and exit zero when ccstatusline or ccburn is not installed" \
+    " 0" "$output $status"
+}
+
+it_should_render_tier_model_effort_context_window_advisor_context_percent_cost_duration_and_both_windows
+it_should_render_the_literal_none_for_the_advisor_field_when_no_advisormodel_is_configured
+it_should_render_the_remaining_segments_when_the_cost_segment_has_no_data_yet
+it_should_render_nothing_and_exit_zero_when_ccstatusline_or_ccburn_is_not_installed
 
 # ============================================================
 # describe("StatusLineTierSegment")

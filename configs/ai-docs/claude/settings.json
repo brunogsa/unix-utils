@@ -197,7 +197,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "bash ~/.claude/scripts/statusline.sh"
+    "command": "bash -c 'command -v ccburn >/dev/null 2>&1 && command -v ccstatusline >/dev/null 2>&1 && ccburn collect | ccstatusline; true'"
   },
   "enabledPlugins": {
     "typescript-lsp@claude-plugins-official": true,
