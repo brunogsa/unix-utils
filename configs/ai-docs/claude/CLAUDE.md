@@ -296,7 +296,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 Routing and upkeep for the two note surfaces — the rules that keep notes worth consulting.
 
 - [Instruction] **Write every note-worthy item to its surface the moment it appears — never carry it in working memory.**
-  - [Why] AI memory, like human memory, is lossy and silently so — unwritten items vanish on compaction or session end — and offloading them keeps the mind lean, which is what buys better reasoning.
+  - [Why] AI memory is lossy and silently so — unwritten items vanish on compaction or session end — and offloading them keeps the mind lean, which is what buys better reasoning.
 
 - [Instruction] Tasks and reminders go to the TaskList only — never into the scratchpad, not even as a copy.
   - [Why] The TaskList is the one surface with a status that re-surfaces every turn; a scratchpad copy is a second version that drifts the moment the status flips.
