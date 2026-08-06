@@ -85,7 +85,7 @@
       "Read(~/.config/gh/**)"
     ]
   },
-  "model": "opus",
+  "model": "sonnet",
   "hooks": {
     "PreToolUse": [
       {

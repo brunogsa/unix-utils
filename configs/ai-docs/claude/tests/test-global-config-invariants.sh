@@ -152,5 +152,28 @@ it_should_fail_when_the_fan_out_bullet_claims_max_thinking_tokens_is_a_usable_co
 it_should_fail_when_the_fan_out_bullet_claims_effortlevel_high_is_an_above_default_multiplier
 it_should_fail_when_the_fan_out_bullet_claims_the_native_rate_limits_stdin_field_is_missing_data
 
+# ============================================================
+# describe("SettingsModelDefaults")
+# ============================================================
+
+it_should_record_model_as_sonnet_in_the_committed_settings_json() {
+  local actual
+  actual=$(committed_settings | jq -r '.model')
+  assert_eq \
+    "SettingsModelDefaults > happy > should record model as sonnet in the committed settings.json" \
+    "sonnet" "$actual"
+}
+
+it_should_fail_when_the_committed_settings_json_carries_an_advisormodel_key() {
+  local actual
+  actual=$(committed_settings | jq -r 'has("advisorModel")')
+  assert_eq \
+    "SettingsModelDefaults > failure > should fail when the committed settings.json carries an advisorModel key" \
+    "false" "$actual"
+}
+
+it_should_record_model_as_sonnet_in_the_committed_settings_json
+it_should_fail_when_the_committed_settings_json_carries_an_advisormodel_key
+
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
