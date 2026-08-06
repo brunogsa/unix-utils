@@ -16,7 +16,7 @@
 #   statusline-tier.sh expected7d  # 7d-window expected-pace percent, from
 #                                  # rate_limits.seven_day.resets_at on stdin
 #
-# Tier source follows claude-hud's precedent: if
+# Tier source: if
 # ~/.claude/.credentials.json exists (the Linux case), it is read
 # directly and its mtime is the cache-invalidation signal. Otherwise (the
 # macOS case: credentials live in the login Keychain, not that file),

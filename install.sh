@@ -329,18 +329,13 @@ claude plugin install explanatory-output-style@claude-plugins-official
 claude plugin install skill-creator@claude-plugins-official
 claude plugin install pyright-lsp@claude-plugins-official
 claude plugin install frontend-design@claude-plugins-official
-claude plugin marketplace add jarrodwatts/claude-hud
-claude plugin install claude-hud@claude-hud
 # Private repo, so this needs the machine's SSH key already authorized on GitHub.
 claude plugin marketplace add git@github.com:OlaIsaac/arco-ai-plugins.git
 claude plugin install core@arco-ai-plugins
 claude plugin install audit@arco-ai-plugins
 claude plugin install sdd@arco-ai-plugins
 claude plugin install sdk@arco-ai-plugins
-mkdir -p ~/.claude/plugins/claude-hud
-ln -sf ~/unix-utils/configs/ai-docs/claude/plugins/claude-hud/config.json ~/.claude/plugins/claude-hud/config.json
 echo "[MANUAL] Run :Lazy sync in neovim to install claudecode.nvim"
-echo "[MANUAL] Run /claude-hud:setup inside Claude Code to configure the statusLine"
 
 rm -fr ~/.claude/hooks
 ln -sf ~/unix-utils/configs/ai-docs/claude/hooks ~/.claude/
