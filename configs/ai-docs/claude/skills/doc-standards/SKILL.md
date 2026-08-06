@@ -16,7 +16,7 @@ Principles and paired examples for any documentation work; not every principle n
 - [Instruction] Default to no comment — prefer tests and logs, and add a comment only when the WHY is genuinely non-obvious to names, types, and error/log messages.
   - [Why] A comment isn't bound to the code, so it drifts and misleads; tests and logs stay bound to behavior, and reaching for a comment signals the names aren't self-describing.
 
-- [Instruction] When you must comment, the maximum scope is **why this code exists in its current shape** — never restate what the code shows (rename/restructure instead) or explain how it works.
+- [Instruction] **CRITICAL: When you must comment, the maximum scope is why this code exists in this shape** — never restate what the code shows (rename/restructure instead) or explain how it works.
   - [Why] History rots on commit, mechanics falsify on refactor, and a restatement drifts out of sync — only the reason the code exists like this survives all three.
 
 - [Instruction] Route history to the commit message body, not source — PR numbers, "main used to", and mid-refactor justifications like "(was previously inline)", "(moved here from X)".
