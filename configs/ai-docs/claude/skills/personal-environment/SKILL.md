@@ -1,6 +1,6 @@
 ---
 name: personal-environment
-description: "ALWAYS load when editing CLAUDE.md, SKILL.md, .zshrc, or any config in ~/.claude/, ~/oh-my-zsh/, ~/neovim/, ~/tmux/, ~/ghostty/, ~/unix-utils/. Symlink + canonical-path rules; macOS/Linux paths differ."
+description: "ALWAYS load when editing CLAUDE.md, SKILL.md, .zshrc, or any config in ~/.claude/, ~/oh-my-zsh/, ~/neovim/, ~/tmux/, ~/ghostty/, ~/unix-utils/, or when adding a new script or command. Symlink, canonical-path, ~/oh-my-zsh/-vs-skill placement rules."
 user-invocable: false
 ---
 
