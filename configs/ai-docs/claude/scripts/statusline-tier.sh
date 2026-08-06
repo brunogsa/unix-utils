@@ -146,7 +146,7 @@ read_subscription_tier_from_keychain() {
     return 1
   fi
 
-  tier="$(jq -r '.subscriptionType // empty' "$tmp_file" 2>/dev/null)"
+  tier="$(jq -r '.claudeAiOauth.subscriptionType // .subscriptionType // empty' "$tmp_file" 2>/dev/null)"
   rm -f "$tmp_file"
   [ -z "$tier" ] && return 1
   printf '%s\n' "$tier"
@@ -183,7 +183,7 @@ read_subscription_tier() {
   local creds_file
   creds_file="$(credentials_file_path)"
   if [ -f "$creds_file" ]; then
-    jq -r '.subscriptionType // empty' "$creds_file" 2>/dev/null
+    jq -r '.claudeAiOauth.subscriptionType // .subscriptionType // empty' "$creds_file" 2>/dev/null
   else
     read_subscription_tier_from_keychain
   fi

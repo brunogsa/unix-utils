@@ -333,7 +333,7 @@ it_should_read_subscriptiontype_from_the_credentials_file_when_one_exists() {
 it_should_read_subscriptiontype_from_the_login_keychain_when_no_credentials_file_exists() {
   local sandbox actual
   sandbox="$(fresh_sandbox)"
-  write_fake_security "$sandbox" "20260730082118Z" '{"subscriptionType":"max"}'
+  write_fake_security "$sandbox" "20260730082118Z" '{"claudeAiOauth":{"subscriptionType":"max"}}'
 
   actual=$(
     STATUSLINE_CREDENTIALS_FILE="$sandbox/nonexistent-credentials.json" \
@@ -354,7 +354,7 @@ it_should_invalidate_the_cached_tier_against_the_keychain_mdat_attribute_on_maco
   # branch is what actually forces the Keychain/mdat code path — see
   # decision #3 in /tmp/implement_substeps_claude-cost-controls_6.md for
   # why this is not gated on `uname`.
-  write_fake_security "$sandbox" "20260730082118Z" '{"subscriptionType":"max"}'
+  write_fake_security "$sandbox" "20260730082118Z" '{"claudeAiOauth":{"subscriptionType":"max"}}'
   printf '100 stale-tier\n' >"$sandbox/tier-cache"
 
   actual=$(
@@ -375,7 +375,7 @@ it_should_invalidate_the_cached_tier_against_the_credentials_file_mtime_on_linux
   sandbox="$(fresh_sandbox)"
   # This exercises the credentials-file/mtime branch via a faked file, not
   # a live Linux run (this dev host is macOS) — see decision #3.
-  printf '{"subscriptionType":"pro"}' >"$sandbox/credentials.json"
+  printf '{"claudeAiOauth":{"subscriptionType":"pro"}}' >"$sandbox/credentials.json"
   printf '100 stale-tier\n' >"$sandbox/tier-cache"
   touch -t "203001010000" "$sandbox/tier-cache" >/dev/null 2>&1
   touch "$sandbox/credentials.json"
@@ -481,7 +481,7 @@ it_should_never_write_the_raw_credential_value_anywhere() {
   local sandbox marker captured leaked_in_output leaked_in_tmp
   sandbox="$(fresh_sandbox)"
   marker="RAW-SECRET-MARKER-do-not-leak-9f31"
-  write_fake_security "$sandbox" "20260730082118Z" "{\"subscriptionType\":\"max\",\"raw\":\"$marker\"}"
+  write_fake_security "$sandbox" "20260730082118Z" "{\"claudeAiOauth\":{\"subscriptionType\":\"max\",\"raw\":\"$marker\"}}"
 
   mkdir -p "$sandbox/scoped-tmp"
   captured=$(
