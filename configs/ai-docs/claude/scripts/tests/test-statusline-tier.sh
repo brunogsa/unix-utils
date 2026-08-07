@@ -725,10 +725,10 @@ it_should_read_subscriptiontype_from_the_login_keychain_when_no_credentials_file
 it_should_invalidate_the_cached_tier_against_the_keychain_mdat_attribute_on_macos() {
   local sandbox actual
   sandbox="$(fresh_sandbox)"
-  # No credentials file at all: this host-independent, existence-based
-  # branch is what actually forces the Keychain/mdat code path — see
-  # decision #3 in /tmp/implement_substeps_claude-cost-controls_6.md for
-  # why this is not gated on `uname`.
+  # No credentials file at all: this forces the Keychain/mdat
+  # code path. Branching on the file's existence (not `uname`)
+  # means absence alone forces this path on any host — a
+  # `uname` guard would need the host OS faked too.
   write_fake_security "$sandbox" "20260730082118Z" '{"claudeAiOauth":{"subscriptionType":"max"}}'
   printf '100 stale-tier\n' >"$sandbox/tier-cache"
 
@@ -748,8 +748,10 @@ it_should_invalidate_the_cached_tier_against_the_keychain_mdat_attribute_on_maco
 it_should_invalidate_the_cached_tier_against_the_credentials_file_mtime_on_linux() {
   local sandbox actual
   sandbox="$(fresh_sandbox)"
-  # This exercises the credentials-file/mtime branch via a faked file, not
-  # a live Linux run (this dev host is macOS) — see decision #3.
+  # This exercises the credentials-file/mtime branch via a
+  # faked file, not a live Linux run (this dev host is macOS)
+  # — the branch is existence-based, not `uname`-based, so
+  # faking file presence is enough to force it on any host.
   printf '{"claudeAiOauth":{"subscriptionType":"pro"}}' >"$sandbox/credentials.json"
   printf '100 stale-tier\n' >"$sandbox/tier-cache"
   touch -t "203001010000" "$sandbox/tier-cache" >/dev/null 2>&1
