@@ -200,7 +200,7 @@ read_subscription_tier() {
 }
 
 # ------------------------------------------------------------------
-# Cache: <epoch-seconds-of-last-check> <tier-string>, one line
+# Cache: <credential-store-timestamp> <tier-string>, one line
 # ------------------------------------------------------------------
 
 write_tier_cache() {
