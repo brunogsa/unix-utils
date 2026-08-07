@@ -58,8 +58,17 @@ fresh_sandbox() {
 # format matching real `security find-generic-password` output). $mode
 # selects the -w (secret) response: a literal JSON blob, or "hang" to
 # simulate a blocking Keychain password-prompt dialog.
+#
+# $kill_parent, when passed the literal "kill-parent", makes the fake
+# send SIGTERM to its own parent PID right after writing the secret to
+# stdout, then sleep briefly before exiting. This deterministically
+# simulates an external kill (e.g. ccstatusline's own execSync timeout)
+# landing on the reading process after the secret has already left
+# `security` but before any cleanup on the caller's side has run - no
+# sleep-based race needed, since the signal is sent while the fake is
+# still alive (sleeping), guaranteeing delivery precedes its own exit.
 write_fake_security() {
-  local bin_dir="$1" mdat="$2" mode="$3"
+  local bin_dir="$1" mdat="$2" mode="$3" kill_parent="${4:-}"
   cat >"$bin_dir/security" <<EOF
 #!/usr/bin/env bash
 case "\$*" in
@@ -68,6 +77,10 @@ case "\$*" in
       exec sleep 999999
     fi
     printf '%s' '$mode'
+    if [ "$kill_parent" = "kill-parent" ]; then
+      kill -TERM "\$PPID" 2>/dev/null
+      sleep 1
+    fi
     ;;
   *)
     printf 'keychain: "Claude Code-credentials"\nclass: "genp"\nattributes:\n    "cdat"<timedate>=$mdat\n    "mdat"<timedate>=$mdat\n'
@@ -75,6 +88,26 @@ case "\$*" in
 esac
 EOF
   chmod +x "$bin_dir/security"
+}
+
+# write_fake_mktemp_scoped_to_tmpdir - installs a fake `mktemp` binary at
+# "$bin_dir/mktemp" ahead of PATH, forwarding to the real one but forcing
+# a no-template call into $TMPDIR. This works around a real discovery
+# made while testing the F7 fix: BSD mktemp on macOS (unlike GNU mktemp)
+# ignores the $TMPDIR env var for a bare `mktemp` call and always
+# resolves the OS-assigned per-user temp dir instead - so a test that
+# scopes TMPDIR to a sandbox and then greps that sandbox for a leaked
+# file would silently miss it on macOS, passing for the wrong reason.
+write_fake_mktemp_scoped_to_tmpdir() {
+  local bin_dir="$1"
+  cat >"$bin_dir/mktemp" <<'EOF'
+#!/usr/bin/env bash
+if [ "$#" -eq 0 ]; then
+  exec /usr/bin/mktemp "${TMPDIR:-/tmp}/tmp.XXXXXXXXXX"
+fi
+exec /usr/bin/mktemp "$@"
+EOF
+  chmod +x "$bin_dir/mktemp"
 }
 
 # write_fake_ccburn - installs a fake `ccburn` binary that mirrors the real
@@ -874,6 +907,95 @@ it_should_never_write_the_raw_credential_value_anywhere() {
   rm -rf "$sandbox"
 }
 
+# it_should_never_leave_the_raw_credential_on_disk_when_the_reading_process_is_killed_mid_read
+# - the test above only proves the happy/failure paths never write the
+# secret to disk; it says nothing about a read that gets interrupted
+# partway through. auto-review flagged that the prior implementation
+# wrote the secret to a mktemp file and relied on explicit `rm -f`
+# cleanup on each return path - cleanup that never runs if the process
+# itself is killed first (the realistic trigger: ccstatusline's own
+# execSync sends SIGTERM on its own timeout). This test reproduces
+# exactly that: the fake `security` sends SIGTERM to its own parent
+# right after handing over the secret, then the test checks whether
+# anything under the scoped TMPDIR ever held the marker.
+it_should_never_leave_the_raw_credential_on_disk_when_the_reading_process_is_killed_mid_read() {
+  local sandbox marker leaked_in_tmp
+  sandbox="$(fresh_sandbox)"
+  marker="RAW-SECRET-MARKER-do-not-leak-interrupted-4f2c"
+  write_fake_security "$sandbox" "20260730082118Z" \
+    "{\"claudeAiOauth\":{\"subscriptionType\":\"max\",\"raw\":\"$marker\"}}" \
+    "kill-parent"
+  write_fake_mktemp_scoped_to_tmpdir "$sandbox"
+
+  mkdir -p "$sandbox/scoped-tmp"
+
+  # Backgrounded + waited inside its own subshell (rather than run
+  # directly): a directly-run foreground command that dies by signal
+  # makes bash print an unsuppressable "Terminated: 15" job-control
+  # notice to the CALLING shell's own stderr, which no redirect on the
+  # command itself can catch. Wrapping in `( cmd & wait $! ) 2>/dev/null`
+  # makes the subshell (not this test function's shell) the one that
+  # waits, so its own redirect catches the notice instead.
+  (
+    STATUSLINE_CREDENTIALS_FILE="$sandbox/nonexistent-credentials.json" \
+      TMPDIR="$sandbox/scoped-tmp" \
+      PATH="$sandbox:/usr/bin:/bin" \
+      bash -c 'source "$0"; read_subscription_tier_from_keychain' \
+      "$SCRIPT_UNDER_TEST" &
+    wait $!
+  ) >/dev/null 2>&1
+
+  leaked_in_tmp="no"
+  grep -rl "$marker" "$sandbox/scoped-tmp" >/dev/null 2>&1 && leaked_in_tmp="yes"
+
+  assert_eq \
+    "StatusLineTierSegment > failure > should never leave the raw credential on disk when the reading process is killed mid-read (e.g. ccstatusline's own execSync timeout)" \
+    "no" "$leaked_in_tmp"
+  rm -rf "$sandbox"
+}
+
+# it_should_return_well_under_the_timeout_on_a_successful_keychain_read
+# - discovered while verifying the fix above (auto-review#F7): piping
+# `security ... -w` straight into `jq` (instead of writing it to a
+# temp file first) exposed a latent bug in run_with_timeout's watchdog
+# subshell. That subshell inherited this function's stdout unredirected;
+# on the success path, `kill "$watchdog_pid"` kills the subshell but not
+# its own `sleep "$timeout_secs"` grandchild, which is left orphaned
+# still holding the pipe's write end open - so `jq` never saw EOF until
+# the orphaned sleep elapsed, and a routine successful Keychain read
+# (rendered on every prompt) silently took the full configured timeout
+# instead of returning immediately. This test proves a successful read
+# stays fast regardless of how large the configured timeout is, the
+# same bounded-elapsed-time pattern already used above for the
+# password-prompt-hang test, just asserting the opposite direction
+# (fast-on-success rather than bounded-on-hang).
+it_should_return_well_under_the_timeout_on_a_successful_keychain_read() {
+  local sandbox start end elapsed actual
+  sandbox="$(fresh_sandbox)"
+  write_fake_security "$sandbox" "20260730082118Z" '{"claudeAiOauth":{"subscriptionType":"max"}}'
+
+  start=$(date +%s)
+  actual=$(
+    STATUSLINE_CREDENTIALS_FILE="$sandbox/nonexistent-credentials.json" \
+      STATUSLINE_KEYCHAIN_TIMEOUT_SECS=5 \
+      PATH="$sandbox:/usr/bin:/bin" \
+      bash -c 'source "$0"; read_subscription_tier_from_keychain' "$SCRIPT_UNDER_TEST"
+  )
+  end=$(date +%s)
+  elapsed=$((end - start))
+
+  if [ "$elapsed" -le 2 ] && [ "$actual" = "max" ]; then
+    actual="fast-and-correct"
+  else
+    actual="elapsed=${elapsed}s value=$actual"
+  fi
+
+  assert_eq \
+    "StatusLineTierSegment > happy > should return well under the configured timeout on a successful Keychain read" \
+    "fast-and-correct" "$actual"
+  rm -rf "$sandbox"
+}
+
 it_should_read_subscriptiontype_from_the_credentials_file_when_one_exists
 it_should_read_subscriptiontype_from_the_login_keychain_when_no_credentials_file_exists
 it_should_invalidate_the_cached_tier_against_the_keychain_mdat_attribute_on_macos
@@ -883,6 +1005,8 @@ it_should_re_read_subscriptiontype_when_the_invalidation_timestamp_is_newer_than
 it_should_omit_the_tier_segment_rather_than_block_on_a_password_prompt
 it_should_exit_zero_with_no_output_when_the_tier_is_unavailable
 it_should_never_write_the_raw_credential_value_anywhere
+it_should_never_leave_the_raw_credential_on_disk_when_the_reading_process_is_killed_mid_read
+it_should_return_well_under_the_timeout_on_a_successful_keychain_read
 
 # ============================================================
 # describe("StatMtimeEpoch")

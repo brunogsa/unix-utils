@@ -28,9 +28,10 @@
 #
 # SECURITY: the `-w` Keychain read returns a live secret. Only the derived
 # tier string extracted from it ever leaves this script - the raw
-# credential is never printed, logged, or left on disk. It touches disk
-# exactly once, in a chmod-600 mktemp file that a RETURN trap deletes the
-# moment the reading function returns, whether it succeeds or fails.
+# credential is never printed, logged, or left on disk, and it never
+# touches disk at all: `security ... -w` is piped straight into `jq`,
+# so there is no window - not even one an interrupted cleanup step
+# could miss - where the secret exists as a file.
 #
 # Sourced (not executed) by its test file to unit-test each function in
 # isolation, via the `(return 0 2>/dev/null)` sourced-detection idiom
@@ -66,6 +67,15 @@ claude_settings_path() {
 # own install.sh is not guaranteed to have coreutils installed). Backgrounds
 # the command, races a watchdog subshell that SIGTERMs it after N seconds,
 # and returns the command's own exit status when it finishes first.
+#
+# The watchdog is redirected to /dev/null on all three fds rather than
+# left to inherit the caller's. Without that, a caller piping this
+# function's stdout into another command (e.g. `security ... | jq`)
+# hands the watchdog a copy of the pipe's write end; killing the
+# watchdog's own pid on the success path does not reach its `sleep`
+# grandchild, which is then left orphaned still holding that write
+# end open, so the downstream reader blocks for the full timeout
+# waiting for EOF even though the real command already finished.
 # ------------------------------------------------------------------
 
 run_with_timeout() {
@@ -76,7 +86,7 @@ run_with_timeout() {
   (
     sleep "$timeout_secs"
     kill -0 "$cmd_pid" 2>/dev/null && kill -TERM "$cmd_pid" 2>/dev/null
-  ) &
+  ) </dev/null >/dev/null 2>&1 &
   local watchdog_pid=$!
   local status=0
   wait "$cmd_pid" 2>/dev/null || status=$?
@@ -121,33 +131,28 @@ keychain_mdat_epoch() {
   parse_keychain_timestamp "$mdat_raw"
 }
 
-# read_subscription_tier_from_keychain - the one place in this script that
-# uses the -w flag to read the actual secret. The secret is written only
-# to a chmod-600 mktemp file, piped straight through jq to extract
-# subscriptionType, and the file is removed on every exit path below,
-# including the timeout/failure paths. A bash `trap ... RETURN` was
-# considered here but rejected: it isn't function-scoped, so it keeps
-# firing on every later function return up the call stack (referencing
-# this function's now out-of-scope local and tripping `set -u`) -
-# explicit cleanup on each path is what actually guarantees "removed
-# once, right here." Nothing derived from the secret other than the tier
-# string is ever assigned to a variable, printed, or left on disk.
+# read_subscription_tier_from_keychain - the one place in this script
+# that uses the -w flag to read the actual secret. The secret is piped
+# straight from `security` into `jq` and never touches disk, closing a
+# gap an earlier chmod-600-mktemp-file version had: an external SIGTERM
+# (e.g. ccstatusline's own execSync timeout) landing between the write
+# and an explicit `rm -f` cleanup step would have left the secret on
+# disk, since bash runs no cleanup at all once a signal kills it.
+#
+# `set -o pipefail` (set once, at file scope) is what makes `status=$?`
+# below reflect either side of the pipe failing, not just jq's own.
+# Nothing derived from the secret other than the tier string is ever
+# assigned to a variable, printed, or left on disk.
 read_subscription_tier_from_keychain() {
-  local tmp_file tier status
-  tmp_file="$(mktemp)" || return 1
-  chmod 600 "$tmp_file"
-
-  run_with_timeout "$STATUSLINE_KEYCHAIN_TIMEOUT_SECS" \
-    security find-generic-password -s "$KEYCHAIN_SERVICE" -w \
-    </dev/null >"$tmp_file" 2>/dev/null
+  local tier status
+  tier="$(
+    run_with_timeout "$STATUSLINE_KEYCHAIN_TIMEOUT_SECS" \
+      security find-generic-password -s "$KEYCHAIN_SERVICE" -w \
+      </dev/null 2>/dev/null \
+      | jq -r '.claudeAiOauth.subscriptionType // .subscriptionType // empty' 2>/dev/null
+  )"
   status=$?
-  if [ "$status" -ne 0 ]; then
-    rm -f "$tmp_file"
-    return 1
-  fi
-
-  tier="$(jq -r '.claudeAiOauth.subscriptionType // .subscriptionType // empty' "$tmp_file" 2>/dev/null)"
-  rm -f "$tmp_file"
+  [ "$status" -ne 0 ] && return 1
   [ -z "$tier" ] && return 1
   printf '%s\n' "$tier"
 }
