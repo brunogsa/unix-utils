@@ -289,16 +289,20 @@ rm -fr ~/.claude/commands ~/.claude/skills ~/.claude/scripts ~/.claude/agents
 rm -f ~/.claude/RTK.md
 ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/skills ~/.claude/
-# This directory-level symlink covers statusline-tier.sh (the
-# ccstatusline Custom Command widget script) too -- no separate ln -sf
-# line is needed for it specifically.
+
+# This directory-level symlink covers statusline-tier.sh
+# (the ccstatusline Custom Command widget script) too.
+#
+# No separate ln -sf line is needed for it specifically.
 ln -sf ~/unix-utils/configs/ai-docs/claude/scripts ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/agents ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/settings.json ~/.claude/
 
-# ccstatusline's own config (rendered via statusLine.command, no
-# env-var override exists for its settings path -- see ccstatusline's
-# getConfigPath(), so it must live at this exact default location).
+# ccstatusline's own config, rendered via statusLine.command.
+#
+# No env-var override exists for its settings path
+# (see ccstatusline's getConfigPath()), so it must live
+# at this exact default location.
 mkdir -p ~/.config/ccstatusline
 ln -sf ~/unix-utils/configs/ai-docs/claude/ccstatusline/settings.json ~/.config/ccstatusline/settings.json
 

@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# test-subagent-model-guard.sh - plain-bash test file for
-# subagent-model-guard.py's pin resolution, in particular the built-in
-# Explore agent type's casing.
+# test-subagent-model-guard.sh - plain-bash test file
+# for subagent-model-guard.py's pin resolution, in
+# particular the built-in Explore agent type's casing.
+#
+# Exits 0 when every assertion passes, non-zero
+# otherwise.
+#
+# No bats dependency by design — a handful of small
+# scripts don't justify a new cross-platform
+# test-runner dependency in install.sh.
 #
 # Usage:
 #   bash test-subagent-model-guard.sh
-#
-# Exits 0 when every assertion passes, non-zero otherwise. No bats
-# dependency by design — a handful of small scripts don't justify a new
-# cross-platform test-runner dependency in install.sh.
 
 set -uo pipefail
 
@@ -18,7 +21,8 @@ SCRIPT="$script_dir/subagent-model-guard.py"
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected
+# vs actual, prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -30,12 +34,19 @@ assert_eq() {
   fi
 }
 
-# run_guard - pipes the given stdin JSON into subagent-model-guard.py and
-# sets HOOK_DECISION to "allow" (empty stdout, the guard's own allow
-# signal) or the JSON's hookSpecificOutput.permissionDecision otherwise.
-# An optional second arg overrides HOME for the invocation only, so a
-# tmp-only agents-dir fixture never touches the real ~/.claude/agents
-# (which is a live symlink into this repo's configs/ai-docs/claude/agents/).
+# run_guard - pipes the given stdin JSON into
+# subagent-model-guard.py;
+#
+# it then sets HOOK_DECISION to "allow" (empty stdout,
+# the guard's own allow signal) or the JSON's
+# hookSpecificOutput.permissionDecision otherwise.
+#
+# An optional second arg overrides HOME for the
+# invocation only, so a tmp-only agents-dir fixture
+# never touches the real ~/.claude/agents;
+#
+# that agents dir is a live symlink into this repo's
+# configs/ai-docs/claude/agents/.
 run_guard() {
   local json_input="$1" fake_home="${2:-}"
   if [ -n "$fake_home" ]; then
@@ -69,9 +80,10 @@ it_should_index_the_pin_under_both_frontmatter_name_and_filename_stem() {
   fixture_home=$(mktemp -d)
   mkdir -p "$fixture_home/.claude/agents"
 
-  # Deliberately differing name/stem — never lands under
-  # configs/ai-docs/claude/agents/, so it can never register as a real
-  # agent type in the live harness.
+  # Deliberately differing name/stem — never lands
+  # under configs/ai-docs/claude/agents/, so it can
+  # never register as a real agent type in the live
+  # harness.
   cat > "$fixture_home/.claude/agents/guard-fixture-thing.md" <<'EOF'
 ---
 name: GuardFixturePin

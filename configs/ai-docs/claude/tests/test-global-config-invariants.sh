@@ -1,20 +1,25 @@
 #!/usr/bin/env bash
-# test-global-config-invariants.sh - plain-bash test file guarding invariants
-# spread across install.sh, settings.json, and the global CLAUDE.md.
+# test-global-config-invariants.sh - plain-bash test file
+# guarding invariants spread across install.sh,
+# settings.json, and the global CLAUDE.md.
 #
 # Usage:
 #   bash test-global-config-invariants.sh
+
+# Exits 0 when every assertion passes, non-zero otherwise.
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
-# by design — a handful of small checks don't justify a new cross-platform
-# test-runner dependency in install.sh (same precedent as
+# No bats dependency by design — a handful of small checks
+# don't justify a new cross-platform test-runner dependency
+# in install.sh (same precedent as
 # configs/ai-docs/claude/hooks/tests/test-claude-git-guard.sh).
 #
-# Each "describe(...)" comment below marks one test group; bash has no
-# native describe/it, so the group name lives in a comment and each
-# assertion's description string carries the full "Group > case > it"
-# title. New groups append as a new "describe(...)" section plus a new
-# run block, right above the final pass/fail summary.
+# Each "describe(...)" comment below marks one test group;
+# bash has no native describe/it, so the group name lives in
+# a comment and each assertion's description string carries
+# the full "Group > case > it" title.
+#
+# New groups append as a new "describe(...)" section plus a
+# new run block, right above the final pass/fail summary.
 
 set -uo pipefail
 
@@ -22,9 +27,10 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../../../.." && pwd)"
 INSTALL_SH="$repo_root/install.sh"
 
-# committed_settings - the last-committed settings.json content, so
-# session-scoped /model, /effort and /advisor writes in the working
-# tree (repo convention: never committed) can never flap these tests.
+# committed_settings - the last-committed settings.json
+# content, so session-scoped /model, /effort and /advisor
+# writes in the working tree (repo convention: never
+# committed) can never flap these tests.
 committed_settings() {
   git -C "$repo_root" show "HEAD:configs/ai-docs/claude/settings.json"
 }
@@ -32,7 +38,8 @@ committed_settings() {
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs
+# actual, prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -138,9 +145,10 @@ it_should_fail_when_the_committed_env_block_defines_claude_code_subagent_model
 
 CLAUDE_MD="$repo_root/configs/ai-docs/claude/CLAUDE.md"
 
-# fan_out_block - the fan-out [Instruction] line plus its [Why] line; the
-# instruction is followed immediately by exactly one [Why] line, so a
-# fixed one-line lookahead captures the full qualified bullet.
+# fan_out_block - the fan-out [Instruction] line plus its
+# [Why] line; the instruction is followed immediately by
+# exactly one [Why] line, so a fixed one-line lookahead
+# captures the full qualified bullet.
 fan_out_block() {
   grep -A1 'CRITICAL: Default to parallel fan-out' "$CLAUDE_MD"
 }
@@ -205,9 +213,11 @@ it_should_fail_when_the_committed_settings_json_carries_an_advisormodel_key() {
 
 ROOT_CLAUDE_MD="$repo_root/CLAUDE.md"
 
-# declared_defaults_line - the "declared defaults" sentence in the repo's
-# own CLAUDE.md Editing section; /model, /effort and /advisor writes are
-# expected to diverge from it session by session, so only this one
+# declared_defaults_line - the "declared defaults" sentence
+# in the repo's own CLAUDE.md Editing section;
+#
+# /model, /effort and /advisor writes are expected to
+# diverge from it session by session, so only this one
 # sentence documents the checked-in baseline.
 declared_defaults_line() {
   grep 'declared defaults' "$ROOT_CLAUDE_MD"
