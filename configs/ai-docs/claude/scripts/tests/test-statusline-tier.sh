@@ -233,7 +233,7 @@ JSON
 
   assert_eq \
     "StatusLineRender > happy > should render tier, model, effort, context window, advisor, context percent, cost, duration and both windows" \
-    "max opus 2 72 25 true" "$tier $advisor $duration $exp5h $exp7d $builtins_present"
+    "Max opus 2 72 25 true" "$tier $advisor $duration $exp5h $exp7d $builtins_present"
   rm -rf "$sandbox"
 }
 
@@ -287,7 +287,7 @@ it_should_render_the_remaining_segments_when_the_cost_segment_has_no_data_yet() 
 
   assert_eq \
     "StatusLineRender > corner > should render the remaining segments when the cost segment has no data yet" \
-    "max no" "$tier $cost_present"
+    "Max no" "$tier $cost_present"
   rm -rf "$sandbox"
 }
 
@@ -365,7 +365,7 @@ it_should_render_each_builtin_widget_raw_with_no_duplicate_label_and_no_stray_pa
 {
   "model": {"display_name": "Sonnet 5"},
   "effort": {"level": "high"},
-  "context_window": {"context_window_size": 200000, "used_percentage": 34},
+  "context_window": {"context_window_size": 200000, "used_percentage": 47.86},
   "cost": {"total_cost_usd": 1.23, "total_duration_ms": 21600000},
   "rate_limits": {
     "five_hour": {"used_percentage": 40, "resets_at": $resets_5h},
@@ -417,6 +417,105 @@ JSON
     "StatusLineRealRender > happy > should render each builtin widget raw with no duplicate label and no stray padding" \
     "0 0 0 yes" "$doubled_labels $stray_percent_space $stray_duration_space $six_h_present"
 
+  # ---- maintainer-reviewed formatting fixup (six exact changes) ----
+  # Extended in place, on the same captured $output, rather than as
+  # separate it_ functions: this test is the only one that pays the cost
+  # of spinning up the real ccstatusline binary, and every assertion below
+  # reads that one already-captured render, so a second function would
+  # only duplicate the expensive setup for free extra assertions.
+  local line1 no_decimal_percent rounds_up_correctly max_tight ctx_shape \
+    duration_label_shape no_redundant_dollar_label token_count_untouched \
+    cost_untouched pacing_5h_shape pacing_7d_shape line1_closes_clean \
+    line2_closes_clean
+  line1=$(printf '%s\n' "$output" | sed -n '1p')
+
+  # 1. No "<digits>.<digits>%" survives anywhere: every percentage widget's
+  # ccstatusline toFixed(1) output must have gone through the awk rounding
+  # filter appended to statusLine.command.
+  no_decimal_percent=$(printf '%s' "$output" | grep -cE '[0-9]+\.[0-9]+%')
+  assert_eq \
+    "StatusLineRealRender > happy > no <digits>.<digits>% survives anywhere" \
+    "0" "$no_decimal_percent"
+
+  # 2. Rounding is real, not truncation: context_window.used_percentage is
+  # fed as 47.86, which ccstatusline's own toFixed(1) turns into "47.9" -
+  # only a real round-half-up filter prints "48%"; a truncating one would
+  # print "47%".
+  rounds_up_correctly=no
+  printf '%s' "$output" | grep -qF 'Ctx 48%' && rounds_up_correctly=yes
+  assert_eq \
+    "StatusLineRealRender > happy > rounding is real (a .5+ fixture rounds up, not truncates)" \
+    "yes" "$rounds_up_correctly"
+
+  # 3. [Max] replaces "[ max ]": capitalized, no padding inside the brackets.
+  max_tight=no
+  printf '%s' "$output" | grep -qF '[Max]' && max_tight=yes
+  assert_eq \
+    "StatusLineRealRender > happy > [Max] renders capitalized with no internal padding" \
+    "yes" "$max_tight"
+
+  # 4. Ctx replaces the Context label, tight single space before the value
+  # (same fixture value as assertion 2, so this doubles as the Ctx shape
+  # check).
+  ctx_shape=no
+  printf '%s' "$output" | grep -qF 'Ctx 48%' && ctx_shape=yes
+  assert_eq \
+    "StatusLineRealRender > happy > Ctx replaces Context with a tight single space" \
+    "yes" "$ctx_shape"
+
+  # 5. Duration gains a tight "⏱ " label ahead of it.
+  duration_label_shape=no
+  printf '%s' "$output" | grep -qF '⏱ 6h' && duration_label_shape=yes
+  assert_eq \
+    "StatusLineRealRender > happy > duration gains a tight ⏱ label" \
+    "yes" "$duration_label_shape"
+
+  # 6. The redundant "$" custom-text label is gone - session-cost's own "$"
+  # prefix is the only one left, so "$" is never followed by whitespace
+  # then another "$".
+  no_redundant_dollar_label=yes
+  printf '%s' "$output" | grep -qE '\$[[:space:]]+\$' && no_redundant_dollar_label=no
+  assert_eq \
+    "StatusLineRealRender > happy > the redundant \$ custom-text label is gone" \
+    "yes" "$no_redundant_dollar_label"
+
+  # 7. The token count (a "<digits>.<digits>k" shape, e.g. "95.7k") and the
+  # 2-decimal cost survive the % filter untouched - the filter must only
+  # ever match "<digits>.<digits>%", never a bare decimal with no percent
+  # sign. Matched by shape rather than a literal number: the exact token
+  # count is a function of this fixture's context_window_size/
+  # used_percentage, not a value the filter itself produces.
+  token_count_untouched=no
+  printf '%s' "$output" | grep -qE '[0-9]+\.[0-9]+k' && token_count_untouched=yes
+  cost_untouched=no
+  # shellcheck disable=SC2016 # literal grep -F pattern, not a shell expansion
+  printf '%s' "$output" | grep -qF '$1.23' && cost_untouched=yes
+  assert_eq \
+    "StatusLineRealRender > happy > the token-count decimal and the 2-decimal cost survive the % filter untouched" \
+    "yes yes" "$token_count_untouched $cost_untouched"
+
+  # 8. Pacing segments restructure to "<usage>% (of <expected>%, resets
+  # <reset>)" - same widget order as before, different literal separators.
+  pacing_5h_shape=no
+  printf '%s' "$output" | grep -qE '40% \(of 72%, resets [^)]+\)' && pacing_5h_shape=yes
+  pacing_7d_shape=no
+  printf '%s' "$output" | grep -qE '55% \(of 25%, resets [^)]+\)' && pacing_7d_shape=yes
+  assert_eq \
+    "StatusLineRealRender > happy > pacing segments restructure to '<usage>% (of <expected>%, resets <reset>)'" \
+    "yes yes" "$pacing_5h_shape $pacing_7d_shape"
+
+  # 9. Neither line is truncated at a realistic width: each ends on its
+  # actual last widget instead of being cut mid-token by ccstatusline's own
+  # flex/compact mode.
+  line1_closes_clean=no
+  [[ "$line1" == *6h ]] && line1_closes_clean=yes
+  line2_closes_clean=no
+  [[ "$line2" == *')' ]] && line2_closes_clean=yes
+  assert_eq \
+    "StatusLineRealRender > happy > neither line is truncated at a realistic width" \
+    "yes yes" "$line1_closes_clean $line2_closes_clean"
+
+  printf '# line1 (%d chars): %s\n' "${#line1}" "$line1" >&2
   printf '# line2 (%d chars): %s\n' "${#line2}" "$line2" >&2
   rm -rf "$sandbox"
 }

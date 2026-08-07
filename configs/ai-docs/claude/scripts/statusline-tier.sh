@@ -330,7 +330,14 @@ EOF
 main() {
   case "${1:-}" in
     tier)
-      resolve_tier
+      # Capitalized here, not inside resolve_tier(), so the cached/compared
+      # value stays lowercase (matching read_subscription_tier's raw
+      # subscriptionType) and only the CLI's rendered output changes -
+      # `awk` rather than bash's `${var^}` since this script targets both
+      # macOS's stock bash 3.2 (no `^` capitalization operator) and Linux.
+      local raw_tier
+      raw_tier="$(resolve_tier)" || return 1
+      printf '%s\n' "$raw_tier" | awk '{print toupper(substr($0,1,1)) substr($0,2)}'
       ;;
     advisor)
       read_advisor_field
