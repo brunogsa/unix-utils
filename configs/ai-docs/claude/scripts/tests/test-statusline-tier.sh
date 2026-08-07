@@ -824,6 +824,55 @@ it_should_re_read_subscriptiontype_when_the_invalidation_timestamp_is_newer_than
   rm -rf "$sandbox"
 }
 
+it_should_serve_the_cached_tier_without_re_reading_the_credential_store_when_the_cache_is_not_stale() {
+  local sandbox secret_read_sentinel actual
+  sandbox="$(fresh_sandbox)"
+  secret_read_sentinel="$sandbox/secret-read-sentinel"
+
+  # No credentials file: forces the Keychain branch, same fixture shape as
+  # the macOS-invalidation test above. Unlike write_fake_security, this
+  # fake distinguishes the plain mdat attribute read (which
+  # credential_store_timestamp() still performs on every call, cache hit
+  # or not) from the -w secret read: only the latter touches
+  # $secret_read_sentinel, so its absence proves the cache-hit branch
+  # never reached read_subscription_tier_from_keychain.
+  cat >"$sandbox/security" <<EOF
+#!/usr/bin/env bash
+case "\$*" in
+  *" -w"*)
+    touch "$secret_read_sentinel"
+    printf '%s' '{"claudeAiOauth":{"subscriptionType":"max"}}'
+    ;;
+  *)
+    printf 'keychain: "Claude Code-credentials"\nclass: "genp"\nattributes:\n    "cdat"<timedate>=20260730082118Z\n    "mdat"<timedate>=20260730082118Z\n'
+    ;;
+esac
+EOF
+  chmod +x "$sandbox/security"
+
+  # Cache epoch set far in the future: guaranteed not older than the
+  # Keychain mdat above (2026-07-30), so resolve_tier's
+  # "$store_ts" -le "$cached_epoch" comparison must take the cache-hit
+  # branch regardless of exact mdat-to-epoch parsing.
+  printf '9999999999 cached-tier\n' >"$sandbox/tier-cache"
+
+  actual=$(
+    STATUSLINE_CREDENTIALS_FILE="$sandbox/nonexistent-credentials.json" \
+      STATUSLINE_TIER_CACHE="$sandbox/tier-cache" \
+      PATH="$sandbox:/usr/bin:/bin" \
+      bash -c 'source "$0"; resolve_tier' "$SCRIPT_UNDER_TEST"
+  )
+
+  if [ -f "$secret_read_sentinel" ]; then
+    actual="CACHE-BYPASSED:$actual"
+  fi
+
+  assert_eq \
+    "StatusLineTierSegment > corner > should serve the cached tier without re-reading the credential store when the cache is not stale" \
+    "cached-tier" "$actual"
+  rm -rf "$sandbox"
+}
+
 it_should_omit_the_tier_segment_rather_than_block_on_a_password_prompt() {
   local sandbox start end elapsed actual status
   sandbox="$(fresh_sandbox)"
@@ -1002,6 +1051,7 @@ it_should_invalidate_the_cached_tier_against_the_keychain_mdat_attribute_on_maco
 it_should_invalidate_the_cached_tier_against_the_credentials_file_mtime_on_linux
 it_should_treat_a_missing_cache_as_infinitely_stale_and_perform_a_fresh_read
 it_should_re_read_subscriptiontype_when_the_invalidation_timestamp_is_newer_than_the_cache
+it_should_serve_the_cached_tier_without_re_reading_the_credential_store_when_the_cache_is_not_stale
 it_should_omit_the_tier_segment_rather_than_block_on_a_password_prompt
 it_should_exit_zero_with_no_output_when_the_tier_is_unavailable
 it_should_never_write_the_raw_credential_value_anywhere
