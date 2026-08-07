@@ -781,7 +781,7 @@ it_should_treat_a_missing_cache_as_infinitely_stale_and_perform_a_fresh_read() {
       PATH="/usr/bin:/bin" \
       bash -c 'source "$0"; resolve_tier' "$SCRIPT_UNDER_TEST"
   )
-  cache_contents=$(cat "$sandbox/nonexistent-cache" 2>/dev/null | awk '{print $2}')
+  cache_contents=$(awk '{print $2}' "$sandbox/nonexistent-cache" 2>/dev/null)
 
   assert_eq \
     "StatusLineTierSegment > corner > should treat a missing ~/.claude/.statusline-tier-cache as infinitely stale and perform a fresh read" \
