@@ -102,9 +102,15 @@ EOF
 # correctly) or extracts a fixed jq path for the handful of built-in widget
 # types this repo's config uses (a stand-in for ccstatusline's own,
 # out-of-scope rendering). Each present value is emitted as "[id-or-type:
-# value]"; a widget whose value is empty is omitted entirely, mirroring the
-# real widget's documented "empty output -> segment omitted" behavior
-# (AC-11) without needing the real npm package as a test dependency.
+# value]". For custom-command widgets specifically, this branches on EXIT
+# STATUS, matching ccstatusline's own CustomCommandWidget.render(): a
+# non-zero exit makes the real widget's execSync() throw, and its catch
+# block renders a visible "[Exit: N]" token regardless of any stdout the
+# process produced; only an exit-zero run with empty stdout reaches the
+# real widget's "return output || null" omission path (AC-11 auto-review
+# finding F3 - branching on stdout emptiness alone let a script that
+# exits non-zero on the unavailable path pass tests while the real widget
+# would still render "[Exit: N]" on screen).
 write_fake_ccstatusline() {
   local bin_dir="$1"
   cat >"$bin_dir/ccstatusline" <<'EOF'
@@ -119,6 +125,8 @@ while IFS= read -r widget; do
       marker=$(printf '%s' "$widget" | jq -r '.id')
       cmd=$(printf '%s' "$widget" | jq -r '.commandPath')
       val=$(printf '%s' "$payload" | eval "$cmd" 2>/dev/null)
+      status=$?
+      [ "$status" -ne 0 ] && val="[Exit: ${status}]"
       ;;
     custom-text)
       marker="text"
@@ -179,6 +187,53 @@ marker_value() {
   local output="$1" marker="$2"
   printf '%s' "$output" | grep -oE "\[${marker}:[^]]*\]" | sed -E "s/\[${marker}:([^]]*)\]/\1/"
 }
+
+# ============================================================
+# describe("FakeCcstatuslineExitStatus")
+# ============================================================
+# Isolated, fast, synthetic-command proofs that write_fake_ccstatusline
+# itself branches on the custom-command widget's EXIT STATUS the way the
+# real ccstatusline widget does - not on stdout emptiness (auto-review#F3).
+# These are deliberately independent of statusline-tier.sh: they exercise
+# only the fake's own branching logic, so a regression here is diagnosed
+# without also needing to reason about Keychain timeouts or caching.
+
+it_should_render_an_exit_n_token_when_a_custom_command_widget_exits_non_zero() {
+  local sandbox bin_dir output
+  sandbox="$(fresh_sandbox)"
+  bin_dir="$sandbox/bin"
+  mkdir -p "$bin_dir" "$sandbox/.config/ccstatusline"
+  write_fake_ccstatusline "$bin_dir"
+  printf '{"lines":[[{"type":"custom-command","id":"broken","commandPath":"exit 3"}]]}' \
+    >"$sandbox/.config/ccstatusline/settings.json"
+
+  output=$(printf '{}' | HOME="$sandbox" PATH="$bin_dir:/usr/bin:/bin" ccstatusline)
+
+  assert_eq \
+    "FakeCcstatuslineExitStatus > failure > should render an [Exit: N]-shaped token when a custom-command widget exits non-zero, matching ccstatusline's real execSync catch behavior" \
+    "[broken:[Exit: 3]]" "$output"
+  rm -rf "$sandbox"
+}
+
+it_should_omit_a_custom_command_widget_that_exits_zero_with_empty_stdout() {
+  local sandbox bin_dir output
+  sandbox="$(fresh_sandbox)"
+  bin_dir="$sandbox/bin"
+  mkdir -p "$bin_dir" "$sandbox/.config/ccstatusline"
+  write_fake_ccstatusline "$bin_dir"
+  printf '{"lines":[[{"type":"custom-command","id":"quiet","commandPath":"exit 0"}]]}' \
+    >"$sandbox/.config/ccstatusline/settings.json"
+
+  output=$(printf '{}' | HOME="$sandbox" PATH="$bin_dir:/usr/bin:/bin" ccstatusline)
+
+  assert_eq \
+    "FakeCcstatuslineExitStatus > happy > should omit a custom-command widget that exits zero with empty stdout, matching ccstatusline's real 'return output || null' path" \
+    "" "$output"
+  rm -rf "$sandbox"
+}
+
+it_should_render_an_exit_n_token_when_a_custom_command_widget_exits_non_zero
+it_should_omit_a_custom_command_widget_that_exits_zero_with_empty_stdout
 
 # ============================================================
 # describe("StatusLineRender")
@@ -304,10 +359,68 @@ it_should_render_nothing_and_exit_zero_when_ccstatusline_or_ccburn_is_not_instal
     " 0" "$output $status"
 }
 
+# it_should_omit_the_tier_segment_rather_than_surface_an_exit_n_token - the
+# integration-level proof for AC-11/AC-12 (auto-review#F3): drives the
+# committed config and the real statusline-tier.sh through the (now
+# exit-status-aware) fake ccstatusline, with the Keychain read forced past
+# its timeout so the tier segment's data is unavailable. Before the F3
+# fix, resolve_tier's internal failure propagated all the way out to the
+# script's own exit status, so the fixed fake would render "[tier:[Exit:
+# 1]]" here - exactly the "[Exit: 1]" the maintainer's screenshot showed
+# on screen. This is what proves the production fix, not just the fake
+# fix: the CLI-boundary test below already proves the script's own exit
+# code/stdout contract in isolation; this test proves that contract is
+# what the real widget-composition pipeline actually renders.
+it_should_omit_the_tier_segment_rather_than_surface_an_exit_n_token_when_tier_data_is_unavailable() {
+  local sandbox bin_dir payload output tier_marker model_marker
+  sandbox="$(fresh_sandbox)"
+  bin_dir="$sandbox/bin"
+  mkdir -p "$bin_dir" "$sandbox/.claude/scripts" "$sandbox/.config/ccstatusline"
+  ln -s "$SCRIPT_UNDER_TEST" "$sandbox/.claude/scripts/statusline-tier.sh"
+  cp "$CCSTATUSLINE_CONFIG_SRC" "$sandbox/.config/ccstatusline/settings.json"
+  # No credentials file: forces the Keychain branch. The fake `security`
+  # hangs on the -w (secret) read, so resolve_tier only succeeds if the
+  # bounded timeout below is honored; it fails either way, exercising the
+  # code path AC-12 requires the tier segment to be omitted for.
+  write_fake_security "$sandbox" "20260730082118Z" "hang"
+  write_fake_ccburn "$bin_dir"
+  write_fake_ccstatusline "$bin_dir"
+
+  payload='{"model":{"display_name":"Sonnet 5"}}'
+  output=$(
+    printf '%s' "$payload" | HOME="$sandbox" STATUSLINE_KEYCHAIN_TIMEOUT_SECS=1 \
+      PATH="$bin_dir:$sandbox:/usr/bin:/bin:/opt/homebrew/bin" \
+      bash -c "$(configured_statusline_command)"
+  )
+
+  tier_marker="absent"
+  printf '%s' "$output" | grep -q '\[tier:' && tier_marker="present:$(marker_value "$output" tier)"
+
+  assert_eq \
+    "StatusLineRender > failure > should omit the tier segment rather than surface an [Exit: N] token when tier data is unavailable" \
+    "absent" "$tier_marker"
+
+  # AC-11 is two-sided: "omitted while the rest of the line still renders".
+  # The assertion above only pins the omission half - it would also pass on
+  # a totally empty render (e.g. the whole pipeline crashing), which is a
+  # regression AC-11 forbids just as much as an [Exit: N] token. This
+  # sibling assertion pins the other half: an unrelated widget (model, fed
+  # from the payload above and never touching the unavailable Keychain
+  # path) must still render.
+  model_marker="absent"
+  printf '%s' "$output" | grep -q '\[model:' && model_marker="present:$(marker_value "$output" model)"
+
+  assert_eq \
+    "StatusLineRender > failure > should still render the model segment while the tier segment is omitted" \
+    "present:Sonnet 5" "$model_marker"
+  rm -rf "$sandbox"
+}
+
 it_should_render_tier_model_effort_context_window_advisor_context_percent_cost_duration_and_both_windows
 it_should_render_the_literal_none_for_the_advisor_field_when_no_advisormodel_is_configured
 it_should_render_the_remaining_segments_when_the_cost_segment_has_no_data_yet
 it_should_render_nothing_and_exit_zero_when_ccstatusline_or_ccburn_is_not_installed
+it_should_omit_the_tier_segment_rather_than_surface_an_exit_n_token_when_tier_data_is_unavailable
 
 # ============================================================
 # describe("StatusLineRealRender")
@@ -522,6 +635,22 @@ JSON
 
 it_should_render_each_builtin_widget_raw_with_no_duplicate_label_and_no_stray_padding
 
+# A real-binary proof for AC-11/AC-12 (driving the actual installed npm
+# ccstatusline, not the fake) was attempted here and dropped. It drove the
+# tier segment's unavailable path (fake `security -w` simulating a hung
+# Keychain prompt) through the real `execSync()` pipeline and hung
+# indefinitely: the fake's `sleep 999999` grandchild kept node's stdout
+# pipe held open after being SIGTERM'd, so the downstream `perl` stage
+# never saw EOF. A bounding timeout can't rescue this test either - its
+# assertion is "no [Exit: N] token present", which a timeout-killed,
+# empty pipeline also satisfies, so it would go green whether or not the
+# production fix is correct. Filed as a Scout (run_with_timeout leaves an
+# orphaned grandchild that outlives its SIGTERM) rather than fixed here -
+# out of scope for F3, and unproven against the real `security` binary,
+# only against this test's fake. The StatusLineRender-level test above
+# (via the corrected fake) and the CLI-boundary test below already prove
+# both AC-11/AC-12 halves without touching the real npm binary.
+
 # ============================================================
 # describe("StatusLineTierSegment")
 # ============================================================
@@ -690,6 +819,35 @@ it_should_omit_the_tier_segment_rather_than_block_on_a_password_prompt() {
   rm -rf "$sandbox"
 }
 
+# it_should_exit_zero_with_no_output_when_the_tier_is_unavailable - the
+# direct CLI-boundary proof for AC-11/AC-12 (auto-review#F3): the test
+# above only checks that the internal read_subscription_tier_from_keychain
+# helper is bounded and fails - that helper returning non-zero to its own
+# caller is fine and was never the bug. What ccstatusline actually
+# observes is this script's own process exit status when invoked as
+# `statusline-tier.sh tier`, which is what this test executes (not
+# sources), so a `return 1` anywhere inside main's "tier" case would fail
+# it exactly as it would fail against the real widget.
+it_should_exit_zero_with_no_output_when_the_tier_is_unavailable() {
+  local sandbox output status
+  sandbox="$(fresh_sandbox)"
+  write_fake_security "$sandbox" "20260730082118Z" "hang"
+
+  output=$(
+    STATUSLINE_CREDENTIALS_FILE="$sandbox/nonexistent-credentials.json" \
+      STATUSLINE_TIER_CACHE="$sandbox/nonexistent-cache" \
+      STATUSLINE_KEYCHAIN_TIMEOUT_SECS=1 \
+      PATH="$sandbox:/usr/bin:/bin" \
+      "$SCRIPT_UNDER_TEST" tier
+  )
+  status=$?
+
+  assert_eq \
+    "StatusLineTierSegment > failure > should exit zero with no output when the tier segment's data is unavailable (AC-11/AC-12 omission contract)" \
+    " 0" "$output $status"
+  rm -rf "$sandbox"
+}
+
 it_should_never_write_the_raw_credential_value_anywhere() {
   local sandbox marker captured leaked_in_output leaked_in_tmp
   sandbox="$(fresh_sandbox)"
@@ -723,6 +881,7 @@ it_should_invalidate_the_cached_tier_against_the_credentials_file_mtime_on_linux
 it_should_treat_a_missing_cache_as_infinitely_stale_and_perform_a_fresh_read
 it_should_re_read_subscriptiontype_when_the_invalidation_timestamp_is_newer_than_the_cache
 it_should_omit_the_tier_segment_rather_than_block_on_a_password_prompt
+it_should_exit_zero_with_no_output_when_the_tier_is_unavailable
 it_should_never_write_the_raw_credential_value_anywhere
 
 # ============================================================

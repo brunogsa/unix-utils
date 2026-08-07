@@ -335,8 +335,18 @@ main() {
       # subscriptionType) and only the CLI's rendered output changes -
       # `awk` rather than bash's `${var^}` since this script targets both
       # macOS's stock bash 3.2 (no `^` capitalization operator) and Linux.
+      #
+      # resolve_tier's failure exits 0 here, not 1: ccstatusline's Custom
+      # Command widget runs this script via execSync(), which THROWS on a
+      # non-zero exit and renders a visible "[Exit: N]" token in its catch
+      # block - only an exit-zero run with empty stdout reaches the
+      # widget's omission path. AC-11/AC-12 require the tier segment to be
+      # omitted (not surfaced as an error token) when its data is
+      # unavailable, so this CLI-boundary exit code must stay 0 even
+      # though resolve_tier's own internal failure return (1) is correct
+      # and unchanged (auto-review finding F3).
       local raw_tier
-      raw_tier="$(resolve_tier)" || return 1
+      raw_tier="$(resolve_tier)" || return 0
       printf '%s\n' "$raw_tier" | awk '{print toupper(substr($0,1,1)) substr($0,2)}'
       ;;
     advisor)
