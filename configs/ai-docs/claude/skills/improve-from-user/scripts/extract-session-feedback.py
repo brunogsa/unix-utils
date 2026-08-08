@@ -18,35 +18,9 @@ This script reads that file and emits three things:
   2. verbatim user turns  — each with a one-line note of what Claude did next
   3. compaction boundaries — marked inline so you see where memory was thinned
 
-Scope: single file = single session. In-session compaction stays in one file, so
-this fully covers the stated problem. It does NOT chain across files, so a session
-resumed via `claude --resume/--continue` into a fresh file won't recover the prior
-file's turns — pass that older file's --session-id explicitly if you need it.
-
-Usage:
-  extract-session-feedback.py [--session-id ID] [--project-dir DIR] [--cwd PATH]
-
-Transcript auto-detection, by precedence: --session-id, then the live session's own
-id from $CLAUDE_CODE_SESSION_ID, then newest *.jsonl by mtime.
-
-Both id-based steps search every ~/.claude/projects/<slug>/ directory, because a
-session id is a UUID naming exactly one transcript globally. Only the mtime
-heuristic needs a directory to search: ~/.claude/projects/<slug>, where <slug> is
---cwd (default: current directory) with every '/' and '.' mapped to '-'. Override
-it with --project-dir, which is also tried first by the id-based steps.
-
-Two ways the heuristic returns the wrong session, both of which the id steps avoid:
-a parallel session (a concurrent /auto-review, a queued sub-session) writes to the
-same dir a moment later and its fresher file wins; or the caller's cwd differs from
-the session's own — a Bash `cd` into a subdirectory that has its own project dir —
-so the search runs in another project entirely.
-
-The header's "selected by" line records which rule fired, so a heuristic
-(unverified) pick is never silent.
 """
 
 import argparse
-import json
 import os
 import re
 import sys
@@ -65,102 +39,6 @@ LEARNING_RE = re.compile(r"^\s*[-*]?\s*`?\[Learning\]\s+said=")
 def die(msg, code=2) -> NoReturn:
     print(f"extract-session-feedback: {msg}", file=sys.stderr)
     sys.exit(code)
-
-
-def resolve_project_dir(args):
-    if args.project_dir:
-        d = os.path.expanduser(args.project_dir)
-        if not os.path.isdir(d):
-            die(f"--project-dir does not exist: {d}")
-        return d
-    cwd = args.cwd or os.getcwd()
-    # Claude Code names the project dir after the cwd with '/' and '.' -> '-'.
-    slug = re.sub(r"[/.]", "-", cwd)
-    d = os.path.join(os.path.expanduser("~/.claude/projects"), slug)
-    if not os.path.isdir(d):
-        die(
-            f"no transcript dir for cwd {cwd!r} (looked for {d}). "
-            "Pass --project-dir or --cwd if you are running from elsewhere."
-        )
-    return d
-
-
-def find_transcript_by_session_id(session_id, preferred_dir=None):
-    """Return the path to <session_id>.jsonl, searching every project dir, or None.
-
-    A session id is a UUID that names exactly one transcript across all of
-    ~/.claude/projects/, so it identifies the file on its own. The cwd-derived
-    project dir is only a guess at which project that file was filed under, and
-    it is wrong whenever the caller's cwd differs from the session's own — a
-    Bash `cd` into a subdirectory that has its own project dir is enough.
-
-    preferred_dir is checked first so an explicit --project-dir still wins.
-    """
-    if preferred_dir:
-        path = os.path.join(preferred_dir, f"{session_id}.jsonl")
-        if os.path.isfile(path):
-            return path
-
-    projects_root = os.path.expanduser("~/.claude/projects")
-    if not os.path.isdir(projects_root):
-        return None
-    for slug in sorted(os.listdir(projects_root)):
-        path = os.path.join(projects_root, slug, f"{session_id}.jsonl")
-        if os.path.isfile(path):
-            return path
-    return None
-
-
-def resolve_transcript(args):
-    """Return (transcript_path, selection_note).
-
-    Precedence, most authoritative first:
-      1. --session-id                      (explicit override)
-      2. $CLAUDE_CODE_SESSION_ID           (the live session this Bash runs in)
-      3. newest *.jsonl by mtime           (last-resort heuristic)
-
-    Steps 1 and 2 search ALL project dirs, because an id names its transcript
-    globally while the cwd-derived dir merely guesses where it sits. Filtering an
-    id through that guess is what silently downgraded a pinned session to step 3
-    and returned a DIFFERENT project's transcript.
-
-    Step 2 exists because "newest by mtime" mis-picks whenever ANOTHER session
-    writes to the same project dir at the same time — a parallel /auto-review or
-    a queued sub-session. That neighbour's file can be seconds fresher than the
-    interactive session's, so the heuristic silently hands back the wrong
-    transcript (one with none of the user's real feedback). Claude Code exports
-    the running session's own id, so when this script is invoked from inside that
-    session we can pin the exact file instead of guessing.
-    """
-    # Only the mtime heuristic needs the cwd-derived dir, and that lookup can die
-    # when the dir is absent — so resolve it lazily, after the id-based steps.
-    preferred_dir = os.path.expanduser(args.project_dir) if args.project_dir else None
-
-    if args.session_id:
-        path = find_transcript_by_session_id(args.session_id, preferred_dir)
-        if not path:
-            die(f"no transcript named {args.session_id}.jsonl under ~/.claude/projects/")
-        return path, "explicit --session-id"
-
-    env_id = os.environ.get("CLAUDE_CODE_SESSION_ID")
-    if env_id:
-        path = find_transcript_by_session_id(env_id, preferred_dir)
-        if path:
-            return path, "live session ($CLAUDE_CODE_SESSION_ID)"
-        # Id exported but no file anywhere: a brand-new session whose first write
-        # hasn't flushed. Fall through — the heuristic is all that's left.
-
-    project_dir = resolve_project_dir(args)
-    jsonls = [
-        os.path.join(project_dir, f)
-        for f in os.listdir(project_dir)
-        if f.endswith(".jsonl")
-    ]
-    if not jsonls:
-        die(f"no *.jsonl transcripts in {project_dir}")
-    # Heuristic last resort: newest by mtime. May mis-pick under concurrent
-    # sessions — the header flags this so a wrong file is visible, not silent.
-    return max(jsonls, key=os.path.getmtime), "newest-by-mtime heuristic (unverified)"
 
 
 def is_real_user_prose(d):
@@ -211,62 +89,14 @@ def one_line(text, cap):
 def main():
     ap = argparse.ArgumentParser(add_help=True, description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--session-id")
-    ap.add_argument("--project-dir")
-    ap.add_argument("--cwd")
-    args = ap.parse_args()
+    ap.parse_args()
 
-    path, selection_note = resolve_transcript(args)
-
-    # Build an ordered event list; attach each assistant burst to the user turn it answers.
-    turns = []            # list of dicts: {ts, line, text, tools:set, next_text, boundaries_after}
-    learnings = []        # (line, marker-text)
-    boundaries = []       # line numbers of compaction boundaries
-    current = None        # the user turn currently collecting its "next action"
-
-    with open(path, encoding="utf-8") as fh:
-        for lineno, raw in enumerate(fh, 1):
-            raw = raw.strip()
-            if not raw:
-                continue
-            try:
-                d = json.loads(raw)
-            except json.JSONDecodeError:
-                continue
-
-            if d.get("type") == "system" and d.get("subtype") == "compact_boundary":
-                boundaries.append(lineno)
-                if current is not None:
-                    current["boundaries_after"].append(lineno)
-                continue
-
-            if is_real_user_prose(d):
-                current = {
-                    "ts": d.get("timestamp", ""),
-                    "line": lineno,
-                    "text": d["message"]["content"].strip(),
-                    "tools": [],
-                    "next_text": "",
-                    "boundaries_after": [],
-                }
-                turns.append(current)
-                continue
-
-            if d.get("type") == "assistant":
-                text, tools, marks = assistant_parts(d)
-                for m in marks:
-                    learnings.append((lineno, m))
-                if current is not None:
-                    for t in tools:
-                        if t not in current["tools"]:
-                            current["tools"].append(t)
-                    if not current["next_text"] and text:
-                        current["next_text"] = text
-
-    emit(path, turns, learnings, boundaries, selection_note)
+    raise NotImplementedError(
+        "Task 3 replaces single-file selection with the multi-session sweep"
+    )
 
 
-def emit(path, turns, learnings, boundaries, selection_note):
+def emit(path, turns, learnings, boundaries):
     out = sys.stdout
     mtime = ""
     try:
@@ -277,7 +107,6 @@ def emit(path, turns, learnings, boundaries, selection_note):
 
     out.write("# Session feedback extract (recovered from disk — survives compaction)\n")
     out.write(f"# transcript : {path}\n")
-    out.write(f"# selected by: {selection_note}\n")
     out.write(f"# modified   : {mtime}\n")
     out.write(f"# summary    : {len(turns)} user turns · "
               f"{len(learnings)} [Learning] markers · {len(boundaries)} compaction boundaries\n")
