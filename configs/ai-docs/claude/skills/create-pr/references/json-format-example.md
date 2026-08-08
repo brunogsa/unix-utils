@@ -1,4 +1,4 @@
-# JSON snippet format (referenced by SKILL.md "JSON snippets" rule)
+# JSON snippet format (referenced by writing-style.md's "JSON snippets" rule)
 
 Use `JSON.stringify(obj, null, 2)` style: each key on its own line, 2-space indentation, every nested object/array expanded vertically — including single-key objects. Only empty `[]` may stay on one line.
 

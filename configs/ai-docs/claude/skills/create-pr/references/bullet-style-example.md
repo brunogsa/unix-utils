@@ -1,4 +1,4 @@
-# Bullet style (referenced by SKILL.md "Bold topic prefix" + "Be concise" rules)
+# Bullet style (referenced by writing-style.md's "Bullets" rule)
 
 ## Hard to scan
 

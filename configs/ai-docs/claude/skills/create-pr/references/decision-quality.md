@@ -1,6 +1,6 @@
 # Decision quality — examples
 
-Examples for the create-pr SKILL.md rules covering decision titles, consequence sub-bullets, reuse rationale, and language consistency.
+Examples for the create-pr writing-style.md rules covering decision titles, consequence sub-bullets, reuse rationale, and language consistency.
 
 ## Decision titles — user-visible surprise, not internal mechanism
 
