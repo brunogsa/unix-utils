@@ -42,6 +42,36 @@ cmd = os.environ.get('CLAUDE_RM_CMD', '')
 if not cmd.strip():
     sys.exit(0)
 
+# Strip heredoc BODY lines (keeping the opener line, which may itself hold a
+# real command, and the closing delimiter line) before segment-splitting or
+# the final fail-closed regex ever see `cmd`. Body text between `<<'EOF'` and
+# the closing `EOF` marker is inert data fed to a redirect target, never
+# executed as a shell command — so prose in there (e.g. a commit message
+# describing a past `rm -f` incident) must not be scanned as if it were code.
+def strip_heredoc_bodies(c):
+    lines = c.split('\n')
+    out = []
+    i = 0
+    n = len(lines)
+    opener_re = re.compile(r'<<(-?)\s*(["\'])?([A-Za-z_][A-Za-z0-9_]*)\2')
+    while i < n:
+        line = lines[i]
+        out.append(line)
+        m = opener_re.search(line)
+        i += 1
+        if m:
+            dash, _quote, delim = m.groups()
+            while i < n:
+                probe = lines[i].lstrip('\t') if dash else lines[i]
+                if probe == delim:
+                    out.append(lines[i])
+                    i += 1
+                    break
+                i += 1
+    return '\n'.join(out)
+
+cmd = strip_heredoc_bodies(cmd)
+
 def git(args, cwd):
     return subprocess.run(['git'] + args, cwd=cwd,
                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
@@ -155,7 +185,11 @@ for seg in split_segments(cmd):
                 blocks.append(reason)
 
 # Fail closed: an rm we could not parse safely is treated as unrecoverable.
-if unparseable and re.search(r'\brm\b', cmd):
+# A bare `\b` treats `-` as a word boundary too, so `\brm\b` would false-match
+# "rm" inside a hyphenated identifier like "rm-guard" or "claude-rm-guard.sh".
+# The lookaround variant only matches "rm" when NOT adjacent to a word char
+# or hyphen, so real invocations (`rm -f`, `; rm `, `|rm|`) still match.
+if unparseable and re.search(r'(?<![\w-])rm(?![\w-])', cmd):
     rm_found = True
     blocks.append('could not parse an rm command safely (quoting?) — refusing to allow')
 
