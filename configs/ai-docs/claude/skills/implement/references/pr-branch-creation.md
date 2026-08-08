@@ -8,7 +8,9 @@ It covers resolving `<feat_branch>/pr<N>`, the existing-branch check for a branc
 
 **Prints `yes`** → resolve `<feat_branch>/pr<N>` before dispatching:
 
-- `<feat_branch>` = `git branch --show-current`, with any trailing `/pr<digits>` suffix stripped. Stateless — no new persistent store, matching the plan's NFR.
+- `<feat_branch>` = `git branch --show-current`, with any trailing `/t<digits>` layer suffix stripped first, then any trailing `/pr<digits>`.
+  - The `/t` strip exists because `Mode: native` leaves HEAD on a top layer. Stateless — no new persistent store, matching the plan's NFR.
+
 - **Existing-branch check, first**: `git rev-parse --verify --quiet <feat_branch>/pr<N>`.
   A branch can legitimately already exist here: an earlier run halted (§5.5) with this PR's branch already created, and there is no resume path.
   Clearing that halt means a fresh `/implement` re-invocation of this same PR.
