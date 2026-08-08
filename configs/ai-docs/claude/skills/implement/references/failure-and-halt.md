@@ -6,7 +6,7 @@ Load this on an unresolvable reported commit (§5.1), a §4 timeout, a self-repo
 
 ### The full verdict set — for orientation
 
-`implement-loop-state.sh` emits exactly six verdicts, and the table below is the whole set.
+`implement-loop-state.sh` emits exactly six verdicts; the table below is the whole set.
 
 This file obeys only `retry`, `stuck`, and `halt-budget` — the ones a failed or blocked attempt can produce. The other three only ever follow a `pass`, so they belong to §5.4.
 
@@ -24,14 +24,14 @@ This file obeys only `retry`, `stuck`, and `halt-budget` — the ones a failed o
 All three outcomes record one attempt; only `result` and `signature` differ.
 
 - **A reported commit that doesn't resolve, or a `done` reporting none** (§5.1) → `result: "fail"`, `signature` the literal string `no-commits`.
-  The subagent reported success over commits this repo doesn't have, so there is no failure text of its own to quote.
+  The subagent reported success over commits this repo doesn't have, so there's no failure text to quote.
 
 - **Timeout** → `result: "timeout"`, `signature` the literal string `timeout` — there's no diff to inspect, since the subagent never reported back.
 - **Self-reported block** → `result: "blocked"`, `signature` the subagent's own blocker statement verbatim, so the batch-end package can quote what needs clearing.
 
 ### Obey the verdict
 
-Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey the verdict — the script alone decides how many retries a task gets; no cap is written here.
+Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey the verdict — the script alone decides how many retries a task gets.
 
 - **`retry`** → re-dispatch the **same task** as a fresh subagent (§4), passing the recorded failure as feedback.
 - **`stuck`** → go to §5.3 below.
@@ -53,14 +53,15 @@ Set that task to `status: "blocked"` — `reason: "blocked"` for a self-reported
 
 `TaskUpdate` its TaskList status to `completed`; the tool has no `blocked` state, and the state file's `reason` is what distinguishes it.
 
-**Chain-abort the task's dependents, before picking what runs next.** Read each task's `depends_on` from the state file (§2.3) and walk them transitively — the same field the script itself uses, so this scan and `implement-loop-state.sh` never disagree.
-Any task depending on the one just marked terminal also gets `status: "blocked"`, `reason: "blocked-upstream"`, and TaskList status `completed`, marked before the next-task pick so none can be chosen.
+**Chain-abort the task's dependents, before picking what runs next.** Read each task's `depends_on` from the state file (§2.3) and walk them transitively.
+It's the same field the script uses, so this scan and `implement-loop-state.sh` never disagree.
+Any task depending on the one just marked terminal also gets `status: "blocked"`, `reason: "blocked-upstream"`, and TaskList status `completed`.
 Flip the plan to `[Blocked]` for the terminal task and every dependent this just chain-aborted (§6).
 
 **Pick the next task yourself — the script can't.** `next-task` only comes out of a `pass` attempt (§5.4), and this task didn't pass.
 Scan `tasks[]` for the lowest-id entry whose `status` is neither `done` nor `blocked` and whose every `depends_on` id is `done` (or absent from this unit's own `tasks[]`), and re-run §3.4 on it.
 
-Find none — nothing runnable remains (every remaining task is either terminal, or pending on an unmet dependency); at least one (this one) is terminal-without-`[Done]`.
+Find none — nothing runnable remains, and at least one task (this one) is terminal-without-`[Done]`.
 **Do not go to the gates** — go to §5.5 below.
 
 ## §5.5 — Halt: stop where you stand and wait for the human

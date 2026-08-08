@@ -205,7 +205,12 @@ Each state file has exactly this shape:
 
 - `batch_base_sha` stays `""` until that unit starts (§3.2) — a dependent PR branches off its parent, so its base does not exist yet.
 - One `tasks[]` entry per task-id that unit resolved, each `status: "pending"`; `worktree` / `pr` / `quality_gate.wanted` / `repo_green_gate.wanted` come from §1.2's answers.
-- Populate `depends_on` for every task from the plan's own Task Breakdown — the same `**Depends on**:` clause §1.3's `check-tasks-dag.sh` already validated — pulling each `Task N` line's number out as a bare id string (`["3", "5"]`; `none` → `[]`). `implement-loop-state.sh` reads it to pick only a DAG-eligible next task; leaving it unset silently degrades back to lowest-id-first, so seed it here, not later. An id not present in this unit's own `tasks[]` counts as already satisfied: it belongs to an earlier PR that `references/pr-awareness.md`'s stop predicate already required to be `[Done]` before this unit could start.
+- Populate `depends_on` for every task from the plan's Task Breakdown — the `**Depends on**:` clause `check-tasks-dag.sh` validated in §1.3 — as bare id strings (`["3", "5"]`; `none` → `[]`).
+
+- `implement-loop-state.sh` reads it to pick a DAG-eligible next task; unset, it silently degrades to lowest-id-first, so seed it here, not later.
+
+- An id absent from this unit's `tasks[]` counts as satisfied: it belongs to an earlier PR that `references/pr-awareness.md`'s stop predicate already required to be `[Done]`.
+
 - `pr_label` is `""` on a plain run, else the `PR-N` that file belongs to.
 - §5.2/§5.4 append `attempts[]` entries as `{ "task", "n", "result", "signature", "at" }`.
 - `baseline.log_path` and `baseline.failures` are populated by §1.6, empty when `baseline.wanted` is `false`.
@@ -382,7 +387,8 @@ Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` an
 
 - **`next-task`** → its `task` field names the next task-id; re-run §3.4 on it. §1, §2, and §3.1–§3.3 do not repeat.
 - **`gates`** → **every** task in this unit is `done`. Set `phase: "gates"` and go to §8's batch end.
-- **`halted`** → either every task is terminal but at least one ended blocked or stuck, or pending tasks remain and none has every `depends_on` id satisfied (a same-unit dependency deadlock). Go to §5.5.
+- **`halted`** → every task is terminal with at least one blocked or stuck, or a same-unit dependency deadlock leaves pending tasks with unsatisfied `depends_on`. Go to §5.5.
+
 - **`halt-budget`** → the unit's dispatch budget is exhausted. Go to §5.5.
 
 **Only this script sends a unit to the gates, and only when nothing is blocked.**
