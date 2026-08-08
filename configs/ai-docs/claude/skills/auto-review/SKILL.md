@@ -123,8 +123,10 @@ substituting deep-reviewer (opus) for the pipeline's default sonnet-pinned
 wrapper.
 
 After the pipeline finishes, the review is at
-`./verdict_auto-review_<timestamp>.md` or `.html` — extension per the html-artifacts
-router (Wave 6 summary contains the exact resolved path).
+`./verdict_auto-review_<timestamp>.md` (Wave 6 summary contains the exact
+resolved path). It is always Markdown — `address-verdicts` re-reads and
+annotates it, which is exactly what the html-artifacts router's Gate 1 excludes
+from an interactive page.
 Print the file path, per-severity counts, skipped files, and the
 Wave 6 summary. Multiple runs accumulate as separate timestamped files,
 preserving their order when the user runs several reviews in one CWD.

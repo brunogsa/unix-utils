@@ -157,7 +157,7 @@ Why: these are read-once, throwaway views. Committing one re-introduces the revi
 | README / CLAUDE.md / SKILL.md | Markdown | they are LLM context |
 | brag | Markdown | structured prose neovim renders; fails the capability test |
 | perf / consistency check-reports | Markdown | under the one-screen floor |
-| auto-review / pr-review report | Artifact (sortable/filterable findings) | interactivity neovim lacks; pick fixes by number, never commit it |
+| auto-review / pr-review report | Markdown | `address-verdicts` re-reads it and annotates APPLIED/SKIPPED in place |
 | deep-research synthesis | Artifact candidate | only if it clears the capability + size bar |
 | interactive explanation / dashboard | Artifact (with `dataviz` for charts) | interactivity is the point |
 | large zoom/pan image | Artifact | genuine zoom/pan/toggle need |
