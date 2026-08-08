@@ -1772,5 +1772,263 @@ it_should_render_a_cap_that_does_not_divide_evenly_with_both_cents
 it_should_render_nothing_when_the_account_has_extra_usage_disabled
 it_should_render_nothing_when_the_usage_cache_has_not_been_written_yet
 
+# ============================================================
+# describe("StatusLineSessionCost")
+# ============================================================
+
+# render_session_cost adds every sub-agent's spend to the
+# main-session figure Claude Code reports on its own.
+#
+# Each test drives a whole fake project directory, so the
+# maintainer's live transcripts are never read.
+
+# write_session_fixture - lays out one session's transcript
+# path plus the sub-agent directory that belongs to it, and
+# prints the main transcript path for the caller to feed in.
+write_session_fixture() {
+  local sandbox="$1"
+  mkdir -p "$sandbox/projects/a-project/a-session/subagents"
+  : >"$sandbox/projects/a-project/a-session.jsonl"
+  printf '%s\n' "$sandbox/projects/a-project/a-session.jsonl"
+}
+
+# statusline_json - the fields render_session_cost reads out
+# of the payload Claude Code pipes into the status line.
+statusline_json() {
+  local main_cost="$1" transcript_path="$2"
+  jq -nc --argjson c "$main_cost" --arg t "$transcript_path" \
+    '{cost: {total_cost_usd: $c}, transcript_path: $t}'
+}
+
+# write_subagent_transcript - one sub-agent's transcript,
+# repeating the same reply shape under distinct message ids.
+#
+# Repeating a realistic reply is what lets a fixture reach a
+# realistic session total, rather than inventing a single
+# reply larger than any model could actually return.
+write_subagent_transcript() {
+  local path="$1" model="$2" usage_json="$3" reply_count="$4" i
+  : >"$path"
+  for ((i = 1; i <= reply_count; i++)); do
+    printf '{"type":"assistant","message":{"id":"msg_%s_%02d","model":"%s","usage":%s}}\n' \
+      "$(basename "$path" .jsonl)" "$i" "$model" "$usage_json" >>"$path"
+  done
+}
+
+render_session_cost_for() {
+  local main_cost="$1" transcript_path="$2"
+  statusline_json "$main_cost" "$transcript_path" \
+    | bash "$SCRIPT_UNDER_TEST" session-cost
+}
+
+it_should_add_every_subagents_spend_to_the_main_session_figure() {
+  local sandbox transcript subagents actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  subagents="$sandbox/projects/a-project/a-session/subagents"
+
+  write_subagent_transcript "$subagents/agent-aa11.jsonl" claude-sonnet-5 \
+    '{"input_tokens":137,"output_tokens":4213,"cache_creation_input_tokens":38093,"cache_read_input_tokens":55125}' 6
+  write_subagent_transcript "$subagents/agent-bb22.jsonl" claude-haiku-4-5 \
+    '{"input_tokens":89,"output_tokens":1247,"cache_creation_input_tokens":17032,"cache_read_input_tokens":21908}' 4
+
+  actual="$(render_session_cost_for 1.37 "$transcript")"
+
+  # The two sub-agents add $1.01 to the $1.37 Claude Code
+  # reports for the orchestrator alone.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSessionCost > happy > should add every sub-agent's spend to the main session's own cost" \
+    '$2.38' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_bill_a_streamed_reply_once_at_its_final_token_count() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-cc33.jsonl"
+
+  # Claude Code appends a reply once per flush while it
+  # streams, so the same message id lands several times with
+  # a growing output count and unchanged cache counts.
+  printf '%s\n' \
+    '{"type":"assistant","message":{"id":"msg_stream","model":"claude-sonnet-5","usage":{"cache_read_input_tokens":190000,"output_tokens":8}}}' \
+    '{"type":"assistant","message":{"id":"msg_stream","model":"claude-sonnet-5","usage":{"cache_read_input_tokens":190000,"output_tokens":4213}}}' \
+    >"$agent"
+
+  actual="$(render_session_cost_for 0 "$transcript")"
+
+  # Billing both flushes would double the cache read and
+  # reach $0.12 instead.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSessionCost > corner > should bill a streamed reply once, at its final token count" \
+    '$0.08' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_price_a_dated_model_alias_at_its_base_models_rate() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-dd44.jsonl"
+
+  write_subagent_transcript "$agent" claude-haiku-4-5-20251001 \
+    '{"output_tokens":2800,"cache_read_input_tokens":190000}' 4
+
+  actual="$(render_session_cost_for 0 "$transcript")"
+
+  # Sonnet's rate would double this to $0.26, and no rate at
+  # all would report $0.00 with a floor marker.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSessionCost > corner > should price a dated model alias at its base model's rate" \
+    '$0.13' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_mark_the_total_as_a_floor_when_a_model_has_no_known_rate() {
+  local sandbox transcript subagents actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  subagents="$sandbox/projects/a-project/a-session/subagents"
+
+  write_subagent_transcript "$subagents/agent-ee55.jsonl" claude-sonnet-5 \
+    '{"output_tokens":4213,"cache_read_input_tokens":55125}' 2
+  write_subagent_transcript "$subagents/agent-ff66.jsonl" a-model-released-after-this-rate-table \
+    '{"output_tokens":4213,"cache_read_input_tokens":55125}' 3
+
+  actual="$(render_session_cost_for 0 "$transcript")"
+
+  # Reporting a bare $0.11 would read as the whole truth,
+  # which is how a stale rate table hides a whole sub-agent's
+  # spend behind a confident-looking number.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSessionCost > corner > should mark the total as a floor when a sub-agent ran on a model with no known rate" \
+    '$0.11+' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_bill_only_the_subagents_belonging_to_this_session() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  write_subagent_transcript \
+    "$sandbox/projects/a-project/a-session/subagents/agent-1177.jsonl" \
+    claude-sonnet-5 '{"output_tokens":31000}' 2
+
+  # Every session in a project shares this directory, so
+  # anything found here belongs to sibling sessions.
+  mkdir -p "$sandbox/projects/a-project/subagents"
+  write_subagent_transcript \
+    "$sandbox/projects/a-project/subagents/agent-2288.jsonl" \
+    claude-sonnet-5 '{"output_tokens":31000}' 2
+
+  actual="$(render_session_cost_for 0 "$transcript")"
+
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSessionCost > corner > should bill only the sub-agents belonging to this session, not a sibling session's" \
+    '$0.62' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_skip_a_request_that_came_back_as_an_api_error() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-3399.jsonl"
+
+  write_subagent_transcript "$agent" claude-sonnet-5 '{"output_tokens":31000}' 2
+  printf '%s\n' \
+    '{"type":"assistant","isApiErrorMessage":true,"message":{"id":"msg_failed","model":"claude-sonnet-5","usage":{"output_tokens":31000}}}' \
+    >>"$agent"
+
+  actual="$(render_session_cost_for 0 "$transcript")"
+
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSessionCost > corner > should skip a request that came back as an API error" \
+    '$0.62' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_keep_summing_when_a_live_transcripts_last_line_is_half_written() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-44aa.jsonl"
+
+  write_subagent_transcript "$agent" claude-sonnet-5 '{"output_tokens":31000}' 2
+
+  # The status line renders while a sub-agent is still
+  # writing, so it can catch a reply mid-append.
+  printf '%s' '{"type":"assistant","message":{"id":"msg_partial","mod' >>"$agent"
+
+  actual="$(render_session_cost_for 0 "$transcript")"
+
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSessionCost > corner > should keep summing when a live transcript's last line is only half written" \
+    '$0.62' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_fall_back_to_the_main_cost_when_the_session_spawned_no_subagents() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  actual="$(render_session_cost_for 2.25 "$transcript")"
+
+  # An empty slot would hide the figure entirely, so the
+  # main-session cost has to survive a missing sub-agent half.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSessionCost > failure > should fall back to the main session's own cost when the session spawned no sub-agents" \
+    '$2.25' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_render_nothing_when_the_session_has_no_cost_figure_yet() {
+  local actual status
+
+  # Claude Code omits total_cost_usd until the first reply
+  # lands, and a non-zero exit would render an "[Exit: N]"
+  # token in its place.
+  actual="$(printf '{}' | bash "$SCRIPT_UNDER_TEST" session-cost)"
+  status=$?
+
+  assert_eq \
+    "StatusLineSessionCost > failure > should render nothing and exit zero when the session has no cost figure yet" \
+    " 0" "$actual $status"
+}
+
+it_should_add_every_subagents_spend_to_the_main_session_figure
+it_should_bill_a_streamed_reply_once_at_its_final_token_count
+it_should_price_a_dated_model_alias_at_its_base_models_rate
+it_should_mark_the_total_as_a_floor_when_a_model_has_no_known_rate
+it_should_bill_only_the_subagents_belonging_to_this_session
+it_should_skip_a_request_that_came_back_as_an_api_error
+it_should_keep_summing_when_a_live_transcripts_last_line_is_half_written
+it_should_fall_back_to_the_main_cost_when_the_session_spawned_no_subagents
+it_should_render_nothing_when_the_session_has_no_cost_figure_yet
+
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

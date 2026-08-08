@@ -24,6 +24,10 @@
 #     the org's monthly extra-usage cap in dollars, read
 #     from ccstatusline's own usage cache.
 #
+#   statusline-tier.sh session-cost
+#     the session's total spend, main session plus every
+#     sub-agent it spawned.
+#
 # Usage (as the last stage of the statusLine.command pipe,
 # fed ccstatusline's RENDERED output rather than JSON).
 #
@@ -486,6 +490,157 @@ read_monthly_spend_limit() {
 }
 
 # ----------------------------------------------------------
+# Session cost, including sub-agent spend
+# ----------------------------------------------------------
+
+# MODEL_RATE_TABLE_JSON - dollars per token, per model.
+#
+# Claude Code's own cost.total_cost_usd counts only the
+# orchestrator's tokens.
+#
+# A sub-agent's tokens never reach that tracker, and
+# Anthropic closed the request to change it as "not
+# planned" (anthropics/claude-code#43945).
+#
+# So the sub-agent half has to be priced here from raw
+# transcript usage, which needs a rate per model.
+#
+# The rates are vendored rather than shelled out to a
+# local cost tool because ccusage, ccburn, and codeburn
+# were each checked and none of them reads the subagents/
+# directory at all.
+#
+# So none can produce this figure, whatever pricing data
+# it carries.
+#
+# Values mirror the rate table those tools build from,
+# model_prices_and_context_window.json in
+# github.com/BerriAI/litellm.
+#
+# Anthropic bills a cache write at 1.25x its model's input
+# rate and a cache read at 0.1x, which is why each pair
+# tracks the input rate rather than varying on its own.
+readonly MODEL_RATE_TABLE_JSON='{
+  "claude-opus-5":    { "input": 5e-6,  "output": 25e-6, "cache_write": 6.25e-6, "cache_read": 0.5e-6 },
+  "claude-sonnet-5":  { "input": 2e-6,  "output": 10e-6, "cache_write": 2.5e-6,  "cache_read": 0.2e-6 },
+  "claude-haiku-4-5": { "input": 1e-6,  "output": 5e-6,  "cache_write": 1.25e-6, "cache_read": 0.1e-6 },
+  "claude-fable-5":   { "input": 10e-6, "output": 50e-6, "cache_write": 12.5e-6, "cache_read": 1e-6 }
+}'
+
+: "${STATUSLINE_SUBAGENT_SCAN_TIMEOUT_SECS:=3}"
+
+# subagent_transcript_dir - where one session's sub-agent
+# transcripts live, derived from the main transcript path
+# Claude Code puts in its statusline JSON.
+#
+# ccstatusline's own sub-agent reader also accepts a
+# sibling <dir>/subagents, but that form is not scoped to a
+# session.
+#
+# Pricing it would bill this session for every other
+# session sharing the project directory, so only the
+# session-scoped form is accepted here.
+subagent_transcript_dir() {
+  local transcript_path="$1" dir stem
+  dir="$(dirname "$transcript_path")"
+  stem="$(basename "$transcript_path" .jsonl)"
+  printf '%s\n' "$dir/$stem/subagents"
+}
+
+# sum_subagent_cost - prints "<dollars> <unpriced-count>"
+# for every sub-agent transcript in the given directory.
+#
+# Entries are keyed by message id and the last one wins,
+# because a streamed reply is appended once per flush with
+# a growing output_tokens count.
+#
+# Summing the raw lines instead would bill the same reply
+# several times over.
+#
+# cache_creation_input_tokens is used rather than the
+# nested cache_creation breakdown, since older entries
+# carry the flat field alone and reading only the nested
+# form silently drops their cache writes.
+#
+# Lines are parsed with fromjson? so a half-written line at
+# the tail of a live transcript is skipped instead of
+# aborting the whole sum.
+sum_subagent_cost() {
+  local subagents_dir="$1"
+  [ -d "$subagents_dir" ] || return 1
+
+  local transcripts=("$subagents_dir"/agent-*.jsonl)
+  [ -e "${transcripts[0]:-}" ] || return 1
+
+  jq -Rnr --argjson rates "$MODEL_RATE_TABLE_JSON" '
+    def base_model: sub("-20[0-9]{6}$"; "");
+
+    reduce (inputs | fromjson? // empty) as $entry ({};
+      if $entry.type == "assistant"
+        and ($entry.isApiErrorMessage | not)
+        and ($entry.message.id != null)
+        and ($entry.message.usage != null)
+      then .[$entry.message.id] = $entry.message
+      else . end
+    )
+    | [ .[] | { rate: $rates[(.model // "") | base_model], usage } ]
+    | (map(select(.rate == null)) | length) as $unpriced
+    | (
+        map(
+          select(.rate != null)
+          | (.usage.input_tokens // 0) * .rate.input
+          + (.usage.output_tokens // 0) * .rate.output
+          + (.usage.cache_creation_input_tokens // 0) * .rate.cache_write
+          + (.usage.cache_read_input_tokens // 0) * .rate.cache_read
+        )
+        | add // 0
+      ) as $cost
+    | "\($cost) \($unpriced)"
+  ' "${transcripts[@]}" 2>/dev/null
+}
+
+# render_session_cost - the combined figure, formatted the
+# way ccstatusline's own Session Cost widget formats its
+# main-session-only one.
+#
+# A total carrying tokens from a model absent from
+# MODEL_RATE_TABLE_JSON is suffixed "+", marking it a floor
+# rather than the real number.
+#
+# ccusage is the cautionary case: its pinned rate table
+# predates claude-sonnet-5, so it reports a confident
+# $0.00 for an entire session on that model.
+#
+# Every failure below degrades to the main-session cost
+# rather than to nothing, since a figure missing its
+# sub-agent half still beats an empty slot.
+#
+# A missing total_cost_usd prints nothing and exits 0,
+# which is ccstatusline's omit-this-widget contract - a
+# non-zero exit renders a visible "[Exit: N]" token.
+render_session_cost() {
+  local payload main_cost transcript_path subagent_total
+  payload="$(cat)"
+
+  main_cost="$(printf '%s' "$payload" | jq -r '.cost.total_cost_usd // empty' 2>/dev/null)"
+  [ -z "$main_cost" ] && return 0
+
+  transcript_path="$(printf '%s' "$payload" | jq -r '.transcript_path // empty' 2>/dev/null)"
+  if [ -n "$transcript_path" ]; then
+    subagent_total="$(
+      run_with_timeout "$STATUSLINE_SUBAGENT_SCAN_TIMEOUT_SECS" \
+        sum_subagent_cost "$(subagent_transcript_dir "$transcript_path")"
+    )"
+  fi
+
+  awk -v main_cost="$main_cost" -v subagent_total="${subagent_total:-}" 'BEGIN {
+    split(subagent_total, parts, " ")
+    total = main_cost + parts[1]
+    printf "$%.2f%s\n", total, (parts[2] + 0 > 0 ? "+" : "")
+  }'
+}
+
+# ----------------------------------------------------------
 # Pacing arithmetic (pure functions, no I/O)
 # ----------------------------------------------------------
 
@@ -535,6 +690,14 @@ Usage:
                                 Print the org's monthly extra-usage cap as
                                  "$1000", read from ccstatusline's usage
                                  cache.
+  statusline-tier.sh session-cost
+                                Print total session spend as "$12.34", the
+                                 main session plus every sub-agent it
+                                 spawned, reading cost.total_cost_usd and
+                                 transcript_path from the Claude Code
+                                 statusline JSON on stdin. A "+" suffix
+                                 means some model had no known rate, so the
+                                 figure is a floor.
   statusline-tier.sh filter     Post-process ccstatusline's RENDERED output
                                  on stdin: round percents, trim edge
                                  padding, and keep only the second row this
@@ -593,6 +756,9 @@ main() {
       ;;
     spend-limit)
       read_monthly_spend_limit
+      ;;
+    session-cost)
+      render_session_cost
       ;;
     filter)
       filter_rendered_lines
