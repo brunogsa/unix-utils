@@ -150,6 +150,10 @@ elif [[ "$OS" == "linux" ]]; then
     sudo apt install -y gh
 fi
 
+# gh extensions — extra `gh` subcommands, needs gh installed.
+# Re-run safe: install exits 0 if already present.
+gh extension install github/gh-stack
+
 # Terraform
 if [[ "$OS" == "macos" ]]; then
     # I probably won't need it, so commenting it out
