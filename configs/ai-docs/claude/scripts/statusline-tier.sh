@@ -28,12 +28,16 @@
 #     7d-window expected-pace percent, from
 #     rate_limits.seven_day.resets_at on stdin.
 #
+#   statusline-tier.sh spend-limit
+#     the org's monthly extra-usage cap in dollars, read
+#     from ccstatusline's own usage cache.
+#
 # Usage (as the last stage of the statusLine.command pipe,
 # fed ccstatusline's RENDERED output rather than JSON).
 #
 #   ccburn collect | ccstatusline | statusline-tier.sh filter
-#     rounds percents, trims edge padding, and on
-#     Enterprise drops the 5h/7d pacing row.
+#     rounds percents, trims edge padding, and keeps whichever
+#     second row the account's tier can actually populate.
 #
 # Tier source: if ~/.claude/.credentials.json exists (the
 # Linux case), it is read directly and its mtime is the
@@ -90,6 +94,10 @@ tier_cache_path() {
 
 claude_settings_path() {
   printf '%s\n' "${STATUSLINE_SETTINGS_FILE:-$HOME/.claude/settings.json}"
+}
+
+usage_cache_path() {
+  printf '%s\n' "${STATUSLINE_USAGE_CACHE:-$HOME/.cache/ccstatusline/usage.json}"
 }
 
 # ----------------------------------------------------------
@@ -308,10 +316,18 @@ resolve_tier() {
 # Rendered-output filter
 # ----------------------------------------------------------
 
-# PACING_ROW_LINE_NUMBER - which rendered line carries the
-# 5h/7d pacing segments, per the `lines` array in
+# PACING_ROW_LINE_NUMBER / SPEND_ROW_LINE_NUMBER - which
+# rendered line carries the 5h/7d pacing segments and which
+# carries the monthly spend, per the `lines` array in
 # configs/ai-docs/claude/ccstatusline/settings.json.
 PACING_ROW_LINE_NUMBER=2
+SPEND_ROW_LINE_NUMBER=3
+
+# KEEP_EVERY_ROW - the sentinel for "drop nothing".
+#
+# 0 is safe as a sentinel because perl's `$.` numbers input
+# lines from 1, so it can never match a real row.
+KEEP_EVERY_ROW=0
 
 # filter_rendered_lines - post-processes ccstatusline's
 # rendered stdout on the way to Claude Code's status line.
@@ -323,17 +339,23 @@ PACING_ROW_LINE_NUMBER=2
 # padding that `defaultPaddingSide: left` leaves on each
 # line.
 #
-# Second, on Enterprise it drops the pacing row entirely.
+# Second, it keeps only the second row the account's plan can
+# actually populate, since each row is dead weight on the
+# other kind of plan.
 #
-# Enterprise plans get no `rate_limits` in the statusline
-# JSON, so every widget on that row renders a zeroed bar
-# against a reset timer that never resolves - "5h 0%
-# <empty bar> in [Loading]".
+# Enterprise gets no `rate_limits` in the statusline JSON, so
+# every pacing widget renders a zeroed bar against a reset
+# timer that never resolves - "5h 0% <empty bar> in
+# [Loading]".
 #
-# Letting ccstatusline drop the row on its own is not an
+# A plan without pay-as-you-go extra usage has no monthly cap
+# to spend against, so the spend row renders "n/a of "
+# instead.
+#
+# Letting ccstatusline drop either row on its own is not an
 # option: it only skips a line whose visible text is empty,
-# and that row's custom-text labels ("5h", "in", "7d")
-# always render, so the row survives with nothing in it.
+# and both rows carry custom-text labels ("5h", "in", "of")
+# that always render.
 #
 # The tier comes from resolve_tier - the same cached read
 # the `tier` subcommand uses - rather than from matching the
@@ -343,28 +365,31 @@ PACING_ROW_LINE_NUMBER=2
 # that label's format changes, and it has already changed
 # twice.
 filter_rendered_lines() {
-  local tier drop_pacing_row=0
+  local tier drop_row="$KEEP_EVERY_ROW"
 
-  # A failed tier read keeps every line: a status line
-  # missing its pacing row is a worse failure mode than one
-  # showing a stale row, since the row is the only place the
-  # 5h/7d budget appears.
   tier="$(resolve_tier)" || tier=""
 
   # resolve_tier caches `subscriptionType` verbatim, which
   # the credential store currently spells lowercase.
   #
   # Comparing case-insensitively costs one call and keeps a
-  # future casing change from silently restoring the row,
+  # future casing change from silently swapping the rows,
   # which nothing else would surface.
   tier="$(printf '%s' "$tier" | tr '[:upper:]' '[:lower:]')"
-  [ "$tier" = "enterprise" ] && drop_pacing_row=1
 
-  STATUSLINE_DROP_PACING_ROW="$drop_pacing_row" \
-    STATUSLINE_PACING_ROW_LINE="$PACING_ROW_LINE_NUMBER" \
+  # A failed tier read keeps both rows: showing one row that
+  # reads wrong beats hiding the only place either budget
+  # appears, and nothing downstream could tell the user which
+  # row went missing.
+  if [ "$tier" = "enterprise" ]; then
+    drop_row="$PACING_ROW_LINE_NUMBER"
+  elif [ -n "$tier" ]; then
+    drop_row="$SPEND_ROW_LINE_NUMBER"
+  fi
+
+  STATUSLINE_DROP_ROW_LINE="$drop_row" \
     perl -ne '
-      next if $ENV{STATUSLINE_DROP_PACING_ROW}
-        && $. == $ENV{STATUSLINE_PACING_ROW_LINE};
+      next if $. == $ENV{STATUSLINE_DROP_ROW_LINE};
       s/(\d+\.\d+)%/int($1+0.5)."%"/ge;
       s/^((?:\x1b\[[0-9;]*m)*)\xc2\xa0+/$1/;
       s/\xc2\xa0(?=(?:\x1b\[[0-9;]*m)*$)//g;
@@ -388,6 +413,55 @@ read_advisor_field() {
   else
     printf 'none\n'
   fi
+}
+
+# ----------------------------------------------------------
+# Monthly extra-usage spend cap
+# ----------------------------------------------------------
+
+# read_monthly_spend_limit - the org's monthly extra-usage
+# cap, formatted as "$1000".
+#
+# ccstatusline ships `extra-usage-used`, which renders the
+# dollars already spent, but no widget renders the cap on its
+# own - so only this half needs custom code.
+#
+# The number comes from ccstatusline's own usage cache rather
+# than a second call to /api/oauth/usage.
+#
+# That endpoint is rate-limited and lock-guarded, and the
+# status line re-renders on every event, so a private fetch
+# here would compete with ccstatusline's for the same quota.
+#
+# Whole dollars when the cap divides evenly, 2 decimals
+# otherwise: an org cap is set in round dollars, and printing
+# "$1000.00" beside a "$209.01" spend reads as false
+# precision.
+#
+# Anything unreadable prints nothing and exits 0, which is
+# ccstatusline's omit-this-widget contract - a non-zero exit
+# would render a visible "[Exit: N]" token instead.
+read_monthly_spend_limit() {
+  local cache_file limit_cents
+  cache_file="$(usage_cache_path)"
+  [ -f "$cache_file" ] || return 0
+
+  # An account with extra usage disabled has no cap to show,
+  # so the `false` case must omit the segment rather than
+  # print "$0".
+  limit_cents="$(
+    jq -r '
+      select(.extraUsageEnabled == true)
+      | .extraUsageLimit // empty
+    ' "$cache_file" 2>/dev/null
+  )"
+  [ -z "$limit_cents" ] && return 0
+
+  awk -v cents="$limit_cents" 'BEGIN {
+    dollars = cents / 100
+    if (dollars == int(dollars)) printf "$%d\n", dollars
+    else printf "$%.2f\n", dollars
+  }'
 }
 
 # ----------------------------------------------------------
@@ -463,10 +537,14 @@ Usage:
   statusline-tier.sh expected7d Print the 7d-window expected-pace percent,
                                  reading rate_limits.seven_day.resets_at
                                  from stdin.
+  statusline-tier.sh spend-limit
+                                Print the org's monthly extra-usage cap as
+                                 "$1000", read from ccstatusline's usage
+                                 cache.
   statusline-tier.sh filter     Post-process ccstatusline's RENDERED output
                                  on stdin: round percents, trim edge
-                                 padding, and drop the 5h/7d pacing row on
-                                 Enterprise.
+                                 padding, and keep only the second row this
+                                 account's tier can populate.
 
 Examples:
   statusline-tier.sh tier
@@ -534,6 +612,9 @@ main() {
       resets_at="$(printf '%s' "$payload" | jq -r '.rate_limits.seven_day.resets_at // empty' 2>/dev/null)"
       [ -z "$resets_at" ] && return 0
       expected_percent_from_resets_at "$resets_at" 604800
+      ;;
+    spend-limit)
+      read_monthly_spend_limit
       ;;
     filter)
       filter_rendered_lines

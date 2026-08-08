@@ -31,6 +31,11 @@
       { "id": "7d-bar", "type": "weekly-usage", "rawValue": true, "metadata": { "display": "slider-only", "cursor": "true" } },
       { "id": "7d-in", "type": "custom-text", "customText": "in" },
       { "id": "weekly-reset-timer", "type": "weekly-reset-timer", "rawValue": true }
+    ],
+    [
+      { "id": "spend-used", "type": "extra-usage-used", "rawValue": true },
+      { "id": "spend-of", "type": "custom-text", "customText": "of" },
+      { "id": "spend-limit", "type": "custom-command", "commandPath": "$HOME/.claude/scripts/statusline-tier.sh spend-limit" }
     ]
   ],
   "flexMode": "full-until-compact",

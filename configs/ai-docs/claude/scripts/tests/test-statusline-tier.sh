@@ -160,6 +160,38 @@ EOF
   chmod +x "$bin_dir/ccburn"
 }
 
+# write_usage_cache_fixture - seeds ccstatusline's own
+# usage cache inside a sandbox $HOME, so the spend row
+# renders from fixture data instead of the live API.
+#
+# ccstatusline fetches /api/oauth/usage for any configured
+# extra-usage widget, because `extra_usage` never appears
+# in the rate_limits the statusline JSON carries.
+#
+# Its fetch reads this file first and returns early when
+# the file is newer than the 180s cache age, which writing
+# it here satisfies.
+#
+# That early return only happens when the caller also
+# installs a fake `security`.
+#
+# The cache is accepted only if the CURRENT token is null,
+# and on macOS the token is read from the real login
+# Keychain no matter what $HOME says.
+#
+# $used_cents and $limit_cents are the API's own units -
+# `extra_usage.used_credits` and `extra_usage.monthly_limit`
+# are both cents.
+write_usage_cache_fixture() {
+  local sandbox="$1" used_cents="$2" limit_cents="$3"
+  mkdir -p "$sandbox/.cache/ccstatusline"
+  cat >"$sandbox/.cache/ccstatusline/usage.json" <<EOF
+{"sessionUsage":0,"weeklyUsage":0,"extraUsageEnabled":true,
+ "extraUsageLimit":$limit_cents,"extraUsageUsed":$used_cents,
+ "extraUsageCurrency":"USD"}
+EOF
+}
+
 # write_fake_ccstatusline - installs a fake `ccstatusline`
 # binary that reads the SAME config shape the real one
 # reads from "$HOME/.config/ccstatusline/settings.json"
@@ -618,6 +650,16 @@ it_should_render_each_builtin_widget_raw_with_no_duplicate_label_and_no_stray_pa
   printf '{"subscriptionType":"max"}' >"$sandbox/.claude/.credentials.json"
   printf '{"advisorModel":"opus"}' >"$sandbox/.claude/settings.json"
   write_fake_ccburn "$bin_dir"
+  write_fake_security "$bin_dir" "20260730082118Z" \
+    '{"claudeAiOauth":{"subscriptionType":"max"}}'
+
+  # Seeded even though this account's spend row gets
+  # dropped, so assertion 12 proves the filter drops a row
+  # that HAD data to render.
+  #
+  # Without the fixture the row would render empty anyway
+  # and the assertion would pass for the wrong reason.
+  write_usage_cache_fixture "$sandbox" 20901 100000
 
   now=$(date +%s)
 
@@ -870,6 +912,27 @@ JSON
     "StatusLineRealRender > happy > widgets are single-spaced and neither line is edge-padded" \
     "yes yes" "$single_spaced $edges_clean"
 
+  # 12. The monthly-spend row is dropped, leaving the tier
+  # row and the pacing row.
+  #
+  # A plan billed against 5h/7d windows has no
+  # pay-as-you-go cap to spend against, so that row is dead
+  # weight here - the mirror of the Enterprise case, where
+  # the pacing row is the dead one.
+  #
+  # The fixture above gave the row real data, so a surviving
+  # row would carry the cap and fail this.
+  local spend_row_dropped line_count
+  spend_row_dropped=yes
+
+  # literal grep -F pattern, not a shell expansion
+  # shellcheck disable=SC2016
+  printf '%s' "$output" | grep -qF 'of $1000' && spend_row_dropped=no
+  line_count=$(printf '%s\n' "$output" | wc -l | tr -d ' ')
+  assert_eq \
+    "StatusLineRealRender > happy > the monthly-spend row is dropped for a plan billed against 5h/7d windows" \
+    "yes 2" "$spend_row_dropped $line_count"
+
   printf '# line1 (%d chars): %s\n' "${#line1}" "$line1" >&2
   printf '# line2 (%d chars): %s\n' "${#line2}" "$line2" >&2
   rm -rf "$sandbox"
@@ -893,6 +956,17 @@ it_should_omit_the_pacing_row_for_an_enterprise_account() {
   printf '{"subscriptionType":"enterprise"}' >"$sandbox/.claude/.credentials.json"
   printf '{"advisorModel":"opus"}' >"$sandbox/.claude/settings.json"
   write_fake_ccburn "$bin_dir"
+  write_fake_security "$bin_dir" "20260730082118Z" \
+    '{"claudeAiOauth":{"subscriptionType":"enterprise"}}'
+
+  # $209.01 of $1000 - the live account's own shape, kept
+  # because both halves exercise a branch a round number
+  # would skip.
+  #
+  # The spend is non-round, so a lost cent shows up, and the
+  # cap divides evenly, so the whole-dollar path is the one
+  # under test.
+  write_usage_cache_fixture "$sandbox" 20901 100000
 
   # rate_limits is omitted deliberately: an Enterprise plan
   # has no 5h/7d budget, so Claude Code sends no such key.
@@ -921,29 +995,53 @@ JSON
       | sed $'s/\xc2\xa0/ /g'
   )
 
-  local line_count pacing_tokens tier_rendered
+  local line_count pacing_tokens tier_rendered spend_rendered line2
 
-  # 1. The pacing row is gone, leaving one rendered line.
+  # 1. The pacing row is gone, leaving the tier row and the
+  # spend row.
   #
   # Both halves are checked because either alone would pass
-  # against a broken filter: a line count of 1 could also
+  # against a broken filter: a line count of 2 could also
   # come from dropping the wrong line, and an absent "5h"
   # could come from the row rendering empty but present.
   line_count=$(printf '%s\n' "$output" | wc -l | tr -d ' ')
   pacing_tokens=$(printf '%s' "$output" | grep -cE '5h|7d|Loading')
   assert_eq \
     "StatusLineRealRender > enterprise > should omit the 5h/7d pacing row for an Enterprise account" \
-    "1 0" "$line_count $pacing_tokens"
+    "2 0" "$line_count $pacing_tokens"
 
-  # 2. The surviving line is the tier/model/cost row, not a
-  # stray fragment of the row that was dropped.
+  # 2. The first surviving line is the tier/model/cost row,
+  # not a stray fragment of the row that was dropped.
   tier_rendered=no
   printf '%s' "$output" | grep -qF '[Enterprise]' && tier_rendered=yes
   assert_eq \
     "StatusLineRealRender > enterprise > the tier row survives when the pacing row is dropped" \
     "yes" "$tier_rendered"
 
-  printf '# enterprise line (%d chars): %s\n' "${#output}" "$output" >&2
+  # 3. The spend row reads "<spent> of <monthly cap>".
+  #
+  # Pinned as the exact rendered string rather than a loose
+  # shape, because the two halves come from different
+  # sources and only their agreement is worth asserting.
+  #
+  # "$209.01" is ccstatusline's own extra-usage-used widget
+  # formatting the cache's used_credits, while "$1000" is
+  # this repo's spend-limit subcommand formatting the same
+  # file's monthly_limit.
+  #
+  # A shape-only match would pass while one side silently
+  # read a different field or dropped the cents.
+  line2=$(printf '%s\n' "$output" | sed -n '2p')
+  spend_rendered=no
+
+  # literal dollar signs, not a shell expansion
+  # shellcheck disable=SC2016
+  [ "$line2" = '$209.01 of $1000' ] && spend_rendered=yes
+  assert_eq \
+    "StatusLineRealRender > enterprise > the spend row renders the month's extra usage against its cap" \
+    "yes" "$spend_rendered"
+
+  printf '# enterprise render:\n%s\n' "$output" >&2
   rm -rf "$sandbox"
 }
 
@@ -1512,6 +1610,113 @@ it_should_report_session_duration_in_whole_hours_from_the_session_start_time() {
 it_should_compute_expected_percent_as_elapsed_divided_by_window_length
 it_should_report_expected_percent_as_zero_at_a_rolling_window_reset
 it_should_report_session_duration_in_whole_hours_from_the_session_start_time
+
+# ============================================================
+# describe("StatusLineSpendLimit")
+# ============================================================
+
+# read_monthly_spend_limit reads the pay-as-you-go cap out of
+# ccstatusline's own usage cache and renders it as dollars.
+#
+# The cache stores it in cents, so every case below is
+# expressed in the API's own units.
+#
+# STATUSLINE_USAGE_CACHE overrides the cache path so each
+# test drives a fixture instead of the maintainer's live
+# account data.
+
+# write_spend_limit_fixture - writes a usage cache carrying
+# just the two fields read_monthly_spend_limit consults.
+write_spend_limit_fixture() {
+  local path="$1" enabled="$2" limit_cents="$3"
+  cat >"$path" <<EOF
+{"extraUsageEnabled":$enabled,"extraUsageLimit":$limit_cents}
+EOF
+}
+
+it_should_render_a_whole_dollar_cap_without_cents() {
+  local sandbox cache actual
+  sandbox="$(fresh_sandbox)"
+  cache="$sandbox/usage.json"
+  write_spend_limit_fixture "$cache" true 100000
+
+  actual=$(
+    STATUSLINE_USAGE_CACHE="$cache" \
+      bash -c 'source "$0"; read_monthly_spend_limit' "$SCRIPT_UNDER_TEST"
+  )
+
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSpendLimit > happy > should render a whole-dollar cap with no trailing cents" \
+    '$1000' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_render_a_cap_that_does_not_divide_evenly_with_both_cents() {
+  local sandbox cache actual
+  sandbox="$(fresh_sandbox)"
+  cache="$sandbox/usage.json"
+  write_spend_limit_fixture "$cache" true 123456
+
+  actual=$(
+    STATUSLINE_USAGE_CACHE="$cache" \
+      bash -c 'source "$0"; read_monthly_spend_limit' "$SCRIPT_UNDER_TEST"
+  )
+
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSpendLimit > corner > should keep both cents on a cap that does not divide evenly into dollars" \
+    '$1234.56' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_render_nothing_when_the_account_has_extra_usage_disabled() {
+  local sandbox cache actual status
+  sandbox="$(fresh_sandbox)"
+  cache="$sandbox/usage.json"
+
+  # A disabled account still carries a limit value, so
+  # omitting the segment has to key off the enabled flag
+  # rather than off a missing cap.
+  write_spend_limit_fixture "$cache" false 100000
+
+  actual=$(
+    STATUSLINE_USAGE_CACHE="$cache" \
+      bash -c 'source "$0"; read_monthly_spend_limit' "$SCRIPT_UNDER_TEST"
+  )
+  status=$?
+
+  assert_eq \
+    "StatusLineSpendLimit > corner > should render nothing and exit zero when the account has extra usage disabled" \
+    " 0" "$actual $status"
+  rm -rf "$sandbox"
+}
+
+it_should_render_nothing_when_the_usage_cache_has_not_been_written_yet() {
+  local sandbox actual status
+  sandbox="$(fresh_sandbox)"
+
+  # ccstatusline writes this file only once it has fetched
+  # usage, so a first render on a cold cache must omit the
+  # segment instead of surfacing an "[Exit: N]" token.
+  actual=$(
+    STATUSLINE_USAGE_CACHE="$sandbox/never-written.json" \
+      bash -c 'source "$0"; read_monthly_spend_limit' "$SCRIPT_UNDER_TEST"
+  )
+  status=$?
+
+  assert_eq \
+    "StatusLineSpendLimit > failure > should render nothing and exit zero when the usage cache has not been written yet" \
+    " 0" "$actual $status"
+  rm -rf "$sandbox"
+}
+
+it_should_render_a_whole_dollar_cap_without_cents
+it_should_render_a_cap_that_does_not_divide_evenly_with_both_cents
+it_should_render_nothing_when_the_account_has_extra_usage_disabled
+it_should_render_nothing_when_the_usage_cache_has_not_been_written_yet
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
