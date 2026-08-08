@@ -168,20 +168,6 @@ ALWAYS use this exact template:
 - [Instruction] Never restate a rule the global CLAUDE.md already owns — TaskList seeding for step-shaped skills, the `agent(subAgent=…)` notation, the dispatch-line render format.
   - [Why] A restated rule drifts from its source on the next edit, leaving two versions and no way to tell which one binds.
 
-## Subagent dispatch
-
-- [Instruction] Name the model on every dispatch a skill declares: `sonnet` for mechanical or tool-driving steps, `haiku` for trivial transforms.
-  - [Why] An unpinned Agent call inherits the session's model, often the priciest tier, so a mechanical fan-out silently runs at top-tier pricing on every future run.
-
-- [Instruction] Omit the pin only when the step needs the session model's own judgment, and say so in the skill.
-  - [Why] An unexplained omission reads as an oversight, so the next editor pins it and silently changes what the step decides.
-
-- [Instruction] State in each agent's file whether that agent may spawn a worker of its own.
-  - [Why] `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH: "3"` permits main → subagent → subagent → subagent and no deeper, so a skill whose agent spawns consumes one of the three nesting levels other flows share.
-
-- [Instruction] Never let a subagent spawn a second opinion on its own work — route that to a review step the orchestrator already runs.
-  - [Why] A mid-flight self-review judges one slice, where the deferred whole-artifact review sees the same question against the full batch.
-
 ## When a skill underperforms
 
 - [Instruction] Rewrite a rushed step's completion criterion to be checkable by a third party and exhaustive over every item it covers, before adding any process.
