@@ -69,7 +69,7 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
 - **Derive the appendix's section list — never ask the user for it** -- it is the resolved spec/plan minus every section the body already renders.
   - Excluded, because the body owns them at the same altitude: mermaid diagrams, Background/Context, Goals, User Stories, and the plan's task breakdown.
   - Included: Testable Acceptance Criteria, Functional Decisions, Technical Decisions, Non-Functional/Technical Requirements, Test Design, and any section with no body counterpart.
-  - Decisions stay here in FULL and verbatim — the body's Decisions section is a higher-altitude summary of the main ones, not a replacement.
+  - Decisions stay here in FULL and verbatim, per the altitude rule in [`references/pr-page-budget.md`](references/pr-page-budget.md), which is canonical.
   - `### References` joins them there as authored content, so the appendix survives even when no spec/plan resolved.
 
 - **CRITICAL: Both halves of a spec/plan reach the PR by script, never by re-authoring** -- the main session derives the list, and step 2's agent runs the extractors.
