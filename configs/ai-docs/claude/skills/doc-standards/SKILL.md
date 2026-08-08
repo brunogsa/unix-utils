@@ -150,6 +150,12 @@ It picks which doc to write, hands you the template and a worked example, and ca
 - [Instruction] An FAQ/Q&A entry must add a distinct angle — new audience, framing, or context — not restate the body. Drop test: if cutting it loses only "Q&A format", cut it.
   - [Why] FAQs feel safe to grow, but one that restates the body forces the same edit in two places and bloats the doc.
 
+- [Instruction] When a doc points at a sibling file instead of restating a rule, name the file that authors that rule — never whichever file you happened to read it in.
+  - [Why] A pointer to the wrong file is worse than none: the reader follows it, finds nothing, and re-derives the rule locally, recreating the duplication the pointer exists to prevent.
+
+- [Instruction] Verify every such pointer with `scripts/check-rule-citations.py <file>...`, which resolves the cited filename and checks the rule is authored there.
+  - [Why] A wrong pointer looks satisfied on the page, so nothing short of resolving it against the cited file's own headings and bold spans catches it.
+
 ## Density
 
 - [Instruction] Every line/bullet ≤256 chars and ≤32 words; over the cap, split on a sentence boundary — never drop info to fit.
