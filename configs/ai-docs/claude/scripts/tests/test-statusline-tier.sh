@@ -371,12 +371,10 @@ JSON
       bash -c "$(configured_statusline_command)"
   )
 
-  local tier advisor duration exp5h exp7d builtins_present marker
+  local tier advisor duration builtins_present marker
   tier=$(marker_value "$output" "tier")
   advisor=$(marker_value "$output" "advisor")
   duration=$(marker_value "$output" "duration")
-  exp5h=$(marker_value "$output" "expected5h")
-  exp7d=$(marker_value "$output" "expected7d")
 
   builtins_present=true
   for marker in model thinking-effort context-length context-percentage \
@@ -384,9 +382,18 @@ JSON
     [ -n "$(marker_value "$output" "$marker")" ] || builtins_present=false
   done
 
+  # Only tier/advisor/duration are asserted by value here.
+  #
+  # The expected-pace percentages this config once rendered
+  # via two custom-command widgets are now drawn by the
+  # built-in usage widgets' own cursor, so no custom-command
+  # marker carries them any more.
+  #
+  # Their real values are pinned where they are now visible:
+  # the cursor-position assertion in StatusLineRealRender.
   assert_eq \
     "StatusLineRender > happy > should render tier, model, effort, context window, advisor, context percent, cost, duration and both windows" \
-    "Max opus 2 72 25 true" "$tier $advisor $duration $exp5h $exp7d $builtins_present"
+    "Max opus 2 true" "$tier $advisor $duration $builtins_present"
   rm -rf "$sandbox"
 }
 
@@ -790,33 +797,41 @@ JSON
     "StatusLineRealRender > happy > the token-count decimal and the 2-decimal cost survive the % filter untouched" \
     "yes yes" "$token_count_untouched $cost_untouched"
 
-  # 8. Pacing segments restructure to "<usage>% (of
-  # <expected>%, in <reset>)" - same widget order as before,
-  # different literal separators.
+  # 8. Each pacing segment renders "<usage>% <bar> in
+  # <reset>".
   #
-  # "in" replaces the word "resets": the reset value is a
-  # remaining duration, so "in" reads as "that long from
-  # now" while staying ASCII.
+  # The bar fills one cell per 10% used and draws a cursor
+  # at the window's elapsed percentage, so fill short of
+  # the cursor reads as under pace and fill past it as
+  # over pace.
   #
-  # ASCII is a hard constraint here, not a preference: the
-  # maintainer's terminal font renders U+27F3 as tofu, so a
-  # symbol that only reads right in a font we cannot verify
-  # is worse than a two-letter word.
+  # Pinned as exact bars rather than a loose shape: the
+  # cursor position is the whole feature, and it comes
+  # from ccstatusline's own window resolution - a second
+  # implementation of what statusline-tier.sh computes.
+  #
+  # This fixture is 40% used at 72% elapsed on 5h, and 55%
+  # used at 25% elapsed on 7d, so a drift between the two
+  # implementations moves a cursor and fails here.
   pacing_5h_shape=no
-  printf '%s' "$output" | grep -qE '40% \(of 72%, in [^)]+\)' && pacing_5h_shape=yes
+  printf '%s' "$output" | grep -qF '5h 40% ▓▓▓▓░░░│░░ in ' && pacing_5h_shape=yes
   pacing_7d_shape=no
-  printf '%s' "$output" | grep -qE '55% \(of 25%, in [^)]+\)' && pacing_7d_shape=yes
+  printf '%s' "$output" | grep -qF '7d 55% ▓▓│▓▓▓░░░░ in ' && pacing_7d_shape=yes
   assert_eq \
-    "StatusLineRealRender > happy > pacing segments restructure to '<usage>% (of <expected>%, in <reset>)'" \
+    "StatusLineRealRender > happy > each pacing segment renders usage% then a bar whose cursor marks the expected pace" \
     "yes yes" "$pacing_5h_shape $pacing_7d_shape"
 
   # 9. Neither line is truncated at a realistic width: each
   # ends on its actual last widget instead of being cut
   # mid-token by ccstatusline's own flex/compact mode.
+  #
+  # Line 2's last widget is the weekly reset countdown, so
+  # its clean close is a whole duration unit rather than a
+  # number stripped of its unit.
   line1_closes_clean=no
   [[ "$line1" == *6h ]] && line1_closes_clean=yes
   line2_closes_clean=no
-  [[ "$line2" == *')' ]] && line2_closes_clean=yes
+  [[ "$line2" =~ [0-9]+(d|hr|m)$ ]] && line2_closes_clean=yes
   assert_eq \
     "StatusLineRealRender > happy > neither line is truncated at a realistic width" \
     "yes yes" "$line1_closes_clean $line2_closes_clean"
