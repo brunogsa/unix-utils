@@ -58,13 +58,22 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
   - `WARNING:`-prefixed items for any manual deploy prerequisite (new secrets, new Parameter-Store values) or other operationally-risky item needing human coordination.
   - Zero references to untracked session docs (`spec_<slug>.md`, `plan_<slug>.md`, `verdict_*.md`, internal task/AC numbers, commit SHAs in prose).
     Verify each candidate with `git ls-files <name>` first; substitute the value or drop the reference.
-  - **Create the draft PR only — never push, never force-push**: `gh pr create --draft --body-file <file> --base <base-branch>`, where `<base-branch>` is §1.2's confirmed base. Never auto-merge.
+  - **Create the draft PR only — never push, never force-push**: `gh pr create --draft --body-file <file> --base <base-branch>`. Never auto-merge.
 
     - State this in the dispatch prompt explicitly: left unsaid, the agent pushes by default, since its own skill covers the whole flow.
 
+    - **`<base-branch>` is the parent PR's branch for a dependent PR; §1.2's confirmed base for a zero-parent PR or a plain `<task-ids>` run.**
+      Read the parent's branch from its PR Breakdown line's `Branch:` clause — the fail-fast stop predicate guarantees the parent's batch-end push already wrote it.
+      Targeting the confirmed base instead shows the parent's commits inside this PR's diff until the parent merges — the reviewer burden a multi-PR split exists to remove.
+
+    - A diamond PR (2+ parents) targets its **first-listed** parent's branch.
+      GitHub renders one base per PR, so the other parents' commits stay in this PR's diff until they merge — note it in the PR body as a platform limit.
+
+    - Once a parent PR merges and its branch is deleted, GitHub retargets this PR automatically; verification and post-merge sync live in [`stacked-prs.md`](stacked-prs.md).
+
     - Every PR-label run needs this `--base`, dependent or not.
       Without it, `gh pr create` falls back to `branch.<name>.gh-merge-base` or the repo's default branch — never to a parent's branch by any ancestry heuristic.
-      That fallback is implicit, not the plan's confirmed choice.
+      That fallback is implicit, not the plan's resolved choice.
     - **Branch already has an open PR** (`gh pr create` errors that one exists) → not a failure.
       Fall back to the REST-API body-update path below, targeting that PR number, so a rerun of `/implement` updates its own open PR instead of erroring.
     - **Updating an existing PR's body: use the REST API, never `gh pr edit --body-file`** — `gh api --method PATCH repos/<owner>/<repo>/pulls/<n> -F body=@<file>`.
@@ -83,3 +92,23 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
 **Any failure the agent reports — no `gh`, or a create/update that errored — is a run halt, not a partial package.**
 A push failure can't surface here: Finalize's step 1 owns the push and already halted if it failed.
 Go to §5.5: name the failure in one short message, keep the state file, print nothing further — there is nothing to present when the PR was never published.
+
+## Native mode: link the stack (run's last PR only)
+
+Only when the plan's PR Breakdown carries `Mode: native` (see "Stack mode" in [`pr-awareness.md`](pr-awareness.md)) AND this PR is the run's last label AND its PR was just created. Skip otherwise.
+
+Register the whole chain as a GitHub native stack:
+
+```bash
+gh stack link
+```
+
+Run it from this (topmost) branch; check `gh stack link --help` first — the extension is preview-stage and its flags still move.
+It reuses the already-created PRs (each already targets its parent) and only registers the stack with GitHub — no local tracking, no pushes.
+
+Linking runs last on purpose: an unlinked chain is just classic PRs GitHub never touches, so no branch can be server-rebased while the run is still writing to it.
+
+**A failed link is a downgrade, not a halt** — the one exemption from the halt rule above: flip the plan's line to `Mode: merge`, note it in the package, and continue.
+The PRs are already correctly based, so the stack simply stays classic. Common causes: the repo doesn't have the preview enabled, or the extension version drifted.
+
+Once linked, GitHub owns restacks — the native rulebook (sync-first, never merge stack branches) lives in [`stacked-prs.md`](stacked-prs.md).

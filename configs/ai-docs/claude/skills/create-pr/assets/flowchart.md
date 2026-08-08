@@ -35,31 +35,38 @@ def create_pr():
     # 4 · Step 1 — none found means authoring from the changes digest alone.
     sources = glob("spec_*.md", "plan_*.md", top_level_of=CWD)
 
-    # 5 · (A) several spec/plan files matched, (B) several PR-N entries
+    # 5 · Resolve the base branch. Default: the repo's default branch; empty →
+    #     omit --base at create time. The optional <parent> invocation arg is
+    #     this skill's whole stacked-PR surface: base becomes the parent's head
+    #     branch, which also scopes the changes digest to this PR's own delta.
+    #     Never inferred from ancestry or the plan — only the explicit arg
+    #     stacks a PR. Chain workflow lives in implement's stacked-prs.md.
+    base = parent_arg_head_branch() or git("symbolic-ref", "refs/remotes/origin/HEAD") or None
+
+    # 6 · (A) several spec/plan files matched, (B) several PR-N entries
     #     in the plan's PR Breakdown.
     if ambiguous(sources):
-        # 5a · ONE AskUserQuestion carrying (A) and (B) as two SEPARATE questions.
-        #      They resolve different things, so merging them would force two
-        #      answers into a single choice.
+        # 6a · ONE AskUserQuestion carrying (A) and (B) as two SEPARATE
+        #      questions. They resolve different things, so merging them would
+        #      force two answers into a single choice.
         answers = ask_user_question([question_A, question_B])
 
-    # 6 · created right away, with an HTML comment logging each answer — this
-    #     skill's durable record, surviving a mid-flow compaction that drops them.
+    # 7 · created right away, with an HTML comment logging each answer — spec,
+    #     PR-N, and base — this skill's durable record, surviving a mid-flow
+    #     compaction that drops them.
     ideal_path = write(f"./pr_{slug}_pr{N}.ideal.md", log_answers_as_html_comment())
 
-    # 7 · Never ask for this list: it is the resolved spec/plan MINUS every
+    # 8 · Never ask for this list: it is the resolved spec/plan MINUS every
     #     section the body renders. It is handed to step 2's agent, which pulls
     #     sections with extract-md-sections.sh and diagrams with
     #     extract-mermaid-blocks.sh — a re-summarized section or re-drawn
     #     diagram diverges silently.
     appendix_sections = sections_of(sources) - sections_rendered_by(body)
 
-    # 8 · empty means omit --base when the PR is created.
-    base = git("symbolic-ref", "refs/remotes/origin/HEAD") or None
-
     # 9 · changes-gatherer · agent-pinned · foreground (step 2 gates on it).
     #     It writes the full commit log + diff to a /tmp artifact and returns only
-    #     the digest, so the raw diff never enters the main session.
+    #     the digest, so the raw diff never enters the main session — diffed
+    #     against the resolved base, so a stacked PR digests only its own delta.
     digest = dispatch("changes-gatherer")
 
     # 10 · Step 2 — pr-writer · agent-pinned · mode ideal · foreground.
@@ -104,6 +111,7 @@ def create_pr():
 
     # 17 · NO chat-side review gate: the user reviews the rendered body on
     #      GitHub, which is the artifact they will actually judge.
+    #      A <parent> run → base is the parent's head branch, per step 1.
     url = gh("pr", "create", "--draft", "--body-file", final_path, "--base", base)
     print(url)                                             # 18
 
@@ -146,12 +154,12 @@ flowchart TD
   end
 
   n4["4. Step 1 · Glob cwd top-level for spec_*.md / plan_*.md;<br/>none found -&gt; author from the changes digest alone"]
-  n5{"5. Anything left ambiguous?<br/>(A) several spec/plan files matched<br/>(B) several PR-N entries in the plan's PR Breakdown"}
-  n5a["5a. ONE AskUserQuestion carrying (A) and (B) as two<br/>SEPARATE questions — they resolve different things, so one<br/>merged question would force two answers into one choice"]:::gate
-  n6["6. Create ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md right away, with an<br/>HTML comment logging each answer — this skill's durable<br/>record, surviving a mid-flow compaction that drops them"]:::state
-  n7["7. Derive the appendix's section list — never ask for it:<br/>the resolved spec/plan MINUS every section the body renders.<br/>The list is handed to step 2's agent, which extracts sections with<br/>extract-md-sections.sh and diagrams with extract-mermaid-blocks.sh —<br/>a re-summarized section or re-drawn diagram diverges silently"]
-  n8["8. Resolve the base branch:<br/>git symbolic-ref refs/remotes/origin/HEAD;<br/>empty -&gt; omit --base when the PR is created"]
-  n9[["9. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · foreground (step 2 gates on it)<br/>writes the full commit log + diff to a /tmp artifact and returns<br/>only the digest, so the raw diff never enters the main session"]]:::dispatch
+  n5["5. Resolve the base branch: default is origin/HEAD (empty -&gt; omit --base<br/>at create time). The optional &lt;parent&gt; invocation arg is this skill's whole<br/>stacked-PR surface: base becomes the parent's head branch, which also scopes<br/>the changes digest to this PR's own delta. Never inferred from ancestry or<br/>the plan — only the explicit arg stacks a PR.<br/>Chain workflow lives in implement's references/stacked-prs.md"]
+  n6{"6. Anything left ambiguous?<br/>(A) several spec/plan files matched<br/>(B) several PR-N entries in the plan's PR Breakdown"}
+  n6a["6a. ONE AskUserQuestion carrying (A) and (B) as two SEPARATE<br/>questions — they resolve different things, so one merged question<br/>would force two answers into one choice"]:::gate
+  n7["7. Create ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md right away, with an HTML<br/>comment logging each answer — spec, PR-N, and base — this skill's<br/>durable record, surviving a mid-flow compaction that drops them"]:::state
+  n8["8. Derive the appendix's section list — never ask for it:<br/>the resolved spec/plan MINUS every section the body renders.<br/>The list is handed to step 2's agent, which extracts sections with<br/>extract-md-sections.sh and diagrams with extract-mermaid-blocks.sh —<br/>a re-summarized section or re-drawn diagram diverges silently"]
+  n9[["9. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · foreground (step 2 gates on it)<br/>writes the full commit log + diff to a /tmp artifact and returns only<br/>the digest, so the raw diff never enters the main session — diffed against<br/>the resolved base, so a stacked PR digests only its own delta"]]:::dispatch
 
   n10[["10. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · mode ideal · foreground<br/>it loops check-density.sh and check-pr-page-fit.sh itself and returns<br/>only once both pass — main never re-runs them, never hand-fixes its prose"]]:::dispatch
   n11["11. Ideal description written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md<br/>in THIS skill's own format, ignoring any repo template —<br/>page-fit can only budget a section it recognizes"]:::state
@@ -163,7 +171,7 @@ flowchart TD
   n15{"15. Step 4 · Does the .final.md exist and carry content?<br/>an artifact check, never a re-run of the agent's gates —<br/>an over-budget body shows in the rendered PR, and an<br/>over-cap one fails loudly at the gh pr create API"}
   n15a["15a. Missing or empty -&gt; step 3's agent never finished.<br/>Re-dispatch it; never compose a replacement body here"]:::state
   n16["16. Only NOW push: git push -u origin &lt;branch&gt; when it has no<br/>upstream. The push is the run's first outward-facing act — it fires<br/>CI and makes the branch visible, while every step above only wrote<br/>local files, so a failed compose or gate leaves nothing on the remote"]:::gate
-  n17["17. gh pr create --draft --body-file &lt;final&gt; --base &lt;base-branch&gt;,<br/>with NO chat-side review gate — the user reviews the rendered<br/>body on GitHub, which is the artifact they will actually judge"]
+  n17["17. gh pr create --draft --body-file &lt;final&gt; --base &lt;base-branch&gt;,<br/>with NO chat-side review gate — the user reviews the rendered<br/>body on GitHub, which is the artifact they will actually judge.<br/>A &lt;parent&gt; run -&gt; base is the parent's head branch, per step 1"]
   n18["18. Return the PR URL"]
 
   n19{"19. Step 5 · Does the user hand-edit the body on GitHub,<br/>or ask for a change in chat?"}
@@ -177,10 +185,10 @@ flowchart TD
   n2 --> n3
   n3 --> n4
   n4 --> n5
-  n5 -->|"yes"| n5a
-  n5 -->|"no, all auto-resolved"| n6
-  n5a --> n6
-  n6 --> n7
+  n5 --> n6
+  n6 -->|"yes"| n6a
+  n6 -->|"no, all auto-resolved"| n7
+  n6a --> n7
   n7 --> n8
   n8 --> n9
   n9 --> n10

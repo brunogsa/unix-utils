@@ -1,6 +1,6 @@
 ---
 name: create-pr
-description: "Create or update a GitHub PR with a rich description. Auto-detects spec_<slug>.md/plan_<slug>.md for context."
+description: "Create or update a GitHub PR with a rich description. Auto-detects spec_<slug>.md/plan_<slug>.md for context. Optional parent arg stacks it on another PR (base = parent's branch)."
 disable-model-invocation: false
 ---
 
@@ -8,7 +8,7 @@ disable-model-invocation: false
 
 ## Usage
 
-`/create-pr` — no flags needed.
+`/create-pr [<parent>]` — no flags; the optional `<parent>` (PR number or branch) stacks this PR on it (resolved in step 1).
 
 Load the `doc-standards` skill before drafting — a PR description is a standalone doc, so its density cap, BLUF ordering, and collapse rules all apply.
 
@@ -44,6 +44,17 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
   - Single PR plan or no plan resolved → omit `_pr<N>` entirely, auto-resolved.
   - Multiple `PR-N` entries in `## PR Breakdown` → open question **(B) Which PR-N**: set `<N>` to that number (e.g. `PR-2` → `2`).
 
+- **Resolve the base branch (used by `changes-gatherer` below and by step 4)**: default is `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
+  - Empty result (`origin/HEAD` unset) → omit `--base` in step 4; let it fall back to default.
+
+- **The optional `<parent>` arg is this skill's whole stacked-PR surface**: base = the parent's head branch instead of the default.
+  - That base also scopes the changes digest to this PR's own delta, so the parent's commits never leak into the description.
+  - A PR number resolves via `gh pr view <n> --json headRefName`; a branch name is used as-is.
+  - Never inferred: no plan entry, branch ancestry, or open-PR heuristic makes a PR stacked — only the explicit arg does.
+  - Hand the parent to step 2's agent: the body opens with a `Stacks on #<parent>` line right under the title, so the reviewer sees the dependency without leaving the page.
+
+  - Chain workflow (propagation, merge order, post-merge sync) belongs to `implement`'s `references/stacked-prs.md`, never to this skill.
+
 - **Ask (A) and (B) in ONE interview, as two separate questions, in a single pre-flight `AskUserQuestion` call**.
   - Carry both; skip either label that auto-resolved above; skip the call entirely when both auto-resolved.
   - They resolve different things — which source file to read, and which slice of a multi-PR plan this is — so merging them would force two answers into one choice.
@@ -52,7 +63,7 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
     - Uncovered case → take the most conservative reading and note it as a caveat in the final report.
 
 - Once answered, create `./pr_<slug>_pr<N>.ideal.md` right away with an HTML comment logging each answer.
-  - Example: `<!-- step 1: spec=<resolved spec>; PR=2/3 -->` -- GitHub hides HTML comments in rendered bodies.
+  - Example: `<!-- step 1: spec=<resolved spec>; PR=2/3; base=<resolved base> -->` -- GitHub hides HTML comments in rendered bodies.
   - It is this skill's durable record, not a separate scratchpad -- it survives a mid-flow compaction that would drop the answers.
 
 - **Derive the appendix's section list — never ask the user for it** -- it is the resolved spec/plan minus every section the body already renders.
@@ -65,10 +76,6 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
   - Sections: `~/.claude/skills/create-pr/scripts/extract-md-sections.sh <file> "<section>" ["<section>" ...]`.
   - Diagrams: `~/.claude/skills/create-pr/scripts/extract-mermaid-blocks.sh <file> [<file> ...]` — every fenced `mermaid` block becomes the Architecture section, and leaves the appendix.
   - A re-summarized section or a re-drawn diagram diverges from what the spec/plan was reviewed against, and nothing downstream catches the divergence.
-
-- **Resolve the base branch (used in step 4)**: run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
-  - Every PR targets this branch directly on GitHub, never a parent's branch.
-  - Empty result (`origin/HEAD` unset) → omit `--base` in step 4; let it fall back to default.
 
 - **Delegate diff/log reading to a subagent** -- dispatch `agent(subAgent=changes-gatherer, title=Gather PR changes digest)`, foreground (step 2 needs the result immediately).
   - Give it the resolved base branch and a `/tmp` artifact path; it writes the full commit log and diff there and returns only the **changes digest** (`references/changes-digest.md`).
@@ -165,6 +172,7 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 - **Create the PR as a draft with no chat-side review gate** -- `gh pr create --draft --body-file pr_<slug>_pr<N>.final.md --base <base-branch>`.
 
   - `<base-branch>` is the value step 1 resolved, dropped entirely when empty.
+    - A `<parent>` run → that value is the parent's head branch, resolved in step 1.
 
   - The user reviews on GitHub, where the rendered body is the artifact they will actually judge; a chat-side approval would review a different one.
 

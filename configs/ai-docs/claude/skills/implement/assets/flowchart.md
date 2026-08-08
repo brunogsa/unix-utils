@@ -46,6 +46,11 @@ def implement(arg):
     if arg.is_pr_labels:                                   # 8
         load("references/pr-awareness.md")                 # 8a
         units = [get_pr_tasks(label) for label in arg.labels]   # 8b · §1.5
+        # 8c · §1.5 — decide the stack mode ONCE: a PR with 2+ parents
+        #      (diamond) → merge; linear AND the gh-stack extension installed
+        #      → native; else merge. Recorded as a Mode: line under the plan's
+        #      PR Breakdown heading — sticky for the stack's whole life.
+        plan.record_stack_mode(decide_stack_mode(units))
     else:
         units = [Unit(arg.task_ids)]                       # the whole batch is one unit
 
@@ -206,6 +211,13 @@ def run_unit(unit):
                                                      #       so it must never push
             if not pr.opened:                              # 32b
                 return halt()
+            # 32c · native mode + the run's last PR only: register the chain as
+            #       a native stack, reusing the already-created PRs. Linking
+            #       runs LAST so no branch is server-rebased mid-run; a failed
+            #       link downgrades Mode: to merge and continues — never a halt.
+            if plan.stack_mode == "native" and unit.is_last_label:
+                if not gh("stack", "link"):
+                    plan.record_stack_mode("merge")
 
     print_review_package()          # 33 · Finalize step 3 — the package, closing with
                                     #      the review notification: base SHA + its
@@ -242,6 +254,7 @@ flowchart TD
   n8{"8. Arg is PR-label(s)?"}
   n8a["8a. Load references/pr-awareness.md"]:::skill
   n8b["8b. Step 1.5 · Resolve EVERY PR-N to its<br/>task-id list (get-pr-tasks.sh),<br/>before any seeding"]
+  n8c["8c. Step 1.5 · Decide the stack mode ONCE:<br/>diamond (a PR with 2+ parents) -&gt; merge;<br/>linear AND gh-stack extension installed -&gt; native;<br/>else merge. Record a Mode: line under the plan's<br/>PR Breakdown heading — sticky for the stack's life"]:::state
   n9{"9. Full-suite baseline requested?"}
   n9a["9a. Load references/full-suite-baseline.md"]:::skill
   n9b["9b. Step 1.6 · Capture the baseline: full lint +<br/>full test suite, once worktree (7b) and<br/>PR-label resolution (8b) have settled;<br/>save the log PATH + failing signatures into<br/>state.baseline (never the log content)"]:::state
@@ -298,6 +311,7 @@ flowchart TD
     n32{"32. Draft PR requested?"}
     n32a["32a. Step 8.3 · Dispatch the pr-creator agent<br/>(agent-pinned): it composes the body and CREATES<br/>the PR ONLY — step 28 already pushed,<br/>so it must never push or force-push"]:::dispatch
     n32b{"32b. PR opened or updated?"}
+    n32c["32c. Native mode + the run's LAST PR only: gh stack link<br/>registers the chain as a native stack, reusing the<br/>already-created PRs. Linking runs LAST so no branch is<br/>server-rebased mid-run; a failed link downgrades the<br/>plan's Mode: to merge and continues — never a halt"]
     n33["33. Step 8.3 · Finalize step 3 · Print the review<br/>package, closing with the review notification:<br/>base SHA + its subject, then one line per unit —<br/>label · branch · commit count · PR URL when one<br/>exists; complete the remaining [Reminder]s"]
     n34["34. Step 8.3 · Finalize step 4 · phase=presented;<br/>DELETE this unit's state file"]:::state
   end
@@ -315,7 +329,7 @@ flowchart TD
   n6 -->|"yes"| n7
   n7 -->|"yes"| n7a --> n7b --> n8
   n7 -->|"no"| n8
-  n8 -->|"yes"| n8a --> n8b --> n9
+  n8 -->|"yes"| n8a --> n8b --> n8c --> n9
   n8 -->|"no"| n9
   n9 -->|"yes"| n9a --> n9b --> n10
   n9 -->|"no"| n10
@@ -359,7 +373,7 @@ flowchart TD
   n30 -->|"no"| n33
   n32 -->|"yes"| n32a --> n32b
   n32b -->|"no"| n36
-  n32b -->|"yes"| n33
+  n32b -->|"yes"| n32c --> n33
   n32 -->|"no"| n33
   n33 --> n34 --> n35
   n35 -->|"yes"| n13
