@@ -28,6 +28,13 @@
 #     7d-window expected-pace percent, from
 #     rate_limits.seven_day.resets_at on stdin.
 #
+# Usage (as the last stage of the statusLine.command pipe,
+# fed ccstatusline's RENDERED output rather than JSON).
+#
+#   ccburn collect | ccstatusline | statusline-tier.sh filter
+#     rounds percents, trims edge padding, and on
+#     Enterprise drops the 5h/7d pacing row.
+#
 # Tier source: if ~/.claude/.credentials.json exists (the
 # Linux case), it is read directly and its mtime is the
 # cache-invalidation signal.
@@ -298,6 +305,74 @@ resolve_tier() {
 }
 
 # ----------------------------------------------------------
+# Rendered-output filter
+# ----------------------------------------------------------
+
+# PACING_ROW_LINE_NUMBER - which rendered line carries the
+# 5h/7d pacing segments, per the `lines` array in
+# configs/ai-docs/claude/ccstatusline/settings.json.
+PACING_ROW_LINE_NUMBER=2
+
+# filter_rendered_lines - post-processes ccstatusline's
+# rendered stdout on the way to Claude Code's status line.
+#
+# It exists because ccstatusline's config language cannot
+# express either of these.
+#
+# First, it rounds "NN.N%" down to "NN%" and strips the edge
+# padding that `defaultPaddingSide: left` leaves on each
+# line.
+#
+# Second, on Enterprise it drops the pacing row entirely.
+#
+# Enterprise plans get no `rate_limits` in the statusline
+# JSON, so every widget on that row renders a zeroed bar
+# against a reset timer that never resolves - "5h 0%
+# <empty bar> in [Loading]".
+#
+# Letting ccstatusline drop the row on its own is not an
+# option: it only skips a line whose visible text is empty,
+# and that row's custom-text labels ("5h", "in", "7d")
+# always render, so the row survives with nothing in it.
+#
+# The tier comes from resolve_tier - the same cached read
+# the `tier` subcommand uses - rather than from matching the
+# rendered "[Enterprise]" token.
+#
+# Matching rendered text would re-break silently every time
+# that label's format changes, and it has already changed
+# twice.
+filter_rendered_lines() {
+  local tier drop_pacing_row=0
+
+  # A failed tier read keeps every line: a status line
+  # missing its pacing row is a worse failure mode than one
+  # showing a stale row, since the row is the only place the
+  # 5h/7d budget appears.
+  tier="$(resolve_tier)" || tier=""
+
+  # resolve_tier caches `subscriptionType` verbatim, which
+  # the credential store currently spells lowercase.
+  #
+  # Comparing case-insensitively costs one call and keeps a
+  # future casing change from silently restoring the row,
+  # which nothing else would surface.
+  tier="$(printf '%s' "$tier" | tr '[:upper:]' '[:lower:]')"
+  [ "$tier" = "enterprise" ] && drop_pacing_row=1
+
+  STATUSLINE_DROP_PACING_ROW="$drop_pacing_row" \
+    STATUSLINE_PACING_ROW_LINE="$PACING_ROW_LINE_NUMBER" \
+    perl -ne '
+      next if $ENV{STATUSLINE_DROP_PACING_ROW}
+        && $. == $ENV{STATUSLINE_PACING_ROW_LINE};
+      s/(\d+\.\d+)%/int($1+0.5)."%"/ge;
+      s/^((?:\x1b\[[0-9;]*m)*)\xc2\xa0+/$1/;
+      s/\xc2\xa0(?=(?:\x1b\[[0-9;]*m)*$)//g;
+      print;
+    '
+}
+
+# ----------------------------------------------------------
 # Advisor field
 # ----------------------------------------------------------
 
@@ -388,12 +463,17 @@ Usage:
   statusline-tier.sh expected7d Print the 7d-window expected-pace percent,
                                  reading rate_limits.seven_day.resets_at
                                  from stdin.
+  statusline-tier.sh filter     Post-process ccstatusline's RENDERED output
+                                 on stdin: round percents, trim edge
+                                 padding, and drop the 5h/7d pacing row on
+                                 Enterprise.
 
 Examples:
   statusline-tier.sh tier
   echo '{"cost":{"total_duration_ms":7500000}}' | statusline-tier.sh duration
   echo '{"rate_limits":{"five_hour":{"resets_at":1785405040}}}' \
     | statusline-tier.sh expected5h
+  ccburn collect | ccstatusline | statusline-tier.sh filter
 EOF
 }
 
@@ -454,6 +534,9 @@ main() {
       resets_at="$(printf '%s' "$payload" | jq -r '.rate_limits.seven_day.resets_at // empty' 2>/dev/null)"
       [ -z "$resets_at" ] && return 0
       expected_percent_from_resets_at "$resets_at" 604800
+      ;;
+    filter)
+      filter_rendered_lines
       ;;
     -h | --help)
       usage

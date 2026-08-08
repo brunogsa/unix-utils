@@ -877,6 +877,78 @@ JSON
 
 it_should_render_each_builtin_widget_raw_with_no_duplicate_label_and_no_stray_padding
 
+it_should_omit_the_pacing_row_for_an_enterprise_account() {
+  if [ -z "$REAL_CCSTATUSLINE_DIR" ]; then
+    pass_count=$((pass_count + 1))
+    printf 'ok - StatusLineRealRender > enterprise > should omit the 5h/7d pacing row for an Enterprise account # SKIP ccstatusline is not installed (run install.sh)\n'
+    return
+  fi
+
+  local sandbox bin_dir payload raw_output output
+  sandbox="$(fresh_sandbox)"
+  bin_dir="$sandbox/bin"
+  mkdir -p "$bin_dir" "$sandbox/.claude/scripts" "$sandbox/.config/ccstatusline"
+  ln -s "$SCRIPT_UNDER_TEST" "$sandbox/.claude/scripts/statusline-tier.sh"
+  cp "$CCSTATUSLINE_CONFIG_SRC" "$sandbox/.config/ccstatusline/settings.json"
+  printf '{"subscriptionType":"enterprise"}' >"$sandbox/.claude/.credentials.json"
+  printf '{"advisorModel":"opus"}' >"$sandbox/.claude/settings.json"
+  write_fake_ccburn "$bin_dir"
+
+  # rate_limits is omitted deliberately: an Enterprise plan
+  # has no 5h/7d budget, so Claude Code sends no such key.
+  #
+  # That absence is exactly what makes the row worth
+  # dropping - every widget on it renders a zeroed bar
+  # beside a reset timer that never resolves.
+  payload=$(cat <<'JSON'
+{
+  "model": {"display_name": "Sonnet 5"},
+  "effort": {"level": "high"},
+  "context_window": {"context_window_size": 200000, "used_percentage": 47.86},
+  "cost": {"total_cost_usd": 1.23, "total_duration_ms": 21600000}
+}
+JSON
+  )
+
+  raw_output=$(
+    printf '%s' "$payload" | HOME="$sandbox" \
+      PATH="$bin_dir:$REAL_CCSTATUSLINE_DIR:/usr/bin:/bin:/opt/homebrew/bin" \
+      bash -c "$(configured_statusline_command)"
+  )
+  output=$(
+    printf '%s\n' "$raw_output" \
+      | sed -E 's/\x1b\[[0-9;]*m//g' \
+      | sed $'s/\xc2\xa0/ /g'
+  )
+
+  local line_count pacing_tokens tier_rendered
+
+  # 1. The pacing row is gone, leaving one rendered line.
+  #
+  # Both halves are checked because either alone would pass
+  # against a broken filter: a line count of 1 could also
+  # come from dropping the wrong line, and an absent "5h"
+  # could come from the row rendering empty but present.
+  line_count=$(printf '%s\n' "$output" | wc -l | tr -d ' ')
+  pacing_tokens=$(printf '%s' "$output" | grep -cE '5h|7d|Loading')
+  assert_eq \
+    "StatusLineRealRender > enterprise > should omit the 5h/7d pacing row for an Enterprise account" \
+    "1 0" "$line_count $pacing_tokens"
+
+  # 2. The surviving line is the tier/model/cost row, not a
+  # stray fragment of the row that was dropped.
+  tier_rendered=no
+  printf '%s' "$output" | grep -qF '[Enterprise]' && tier_rendered=yes
+  assert_eq \
+    "StatusLineRealRender > enterprise > the tier row survives when the pacing row is dropped" \
+    "yes" "$tier_rendered"
+
+  printf '# enterprise line (%d chars): %s\n' "${#output}" "$output" >&2
+  rm -rf "$sandbox"
+}
+
+it_should_omit_the_pacing_row_for_an_enterprise_account
+
 # A real-binary proof for AC-11/AC-12 (driving the actual
 # installed npm ccstatusline, not the fake) was attempted
 # here and dropped.
