@@ -23,6 +23,12 @@
 #   third, compaction-specific push: re-assess the base right now, in this
 #   turn, because the counter having moved already proves scope may have too.
 #
+#   The directive insists on the CURRENT work alone because tmux-window-title.sh
+#   keeps the session's root anchor itself (see its `--help`): the title from
+#   before the first compaction is frozen in a pane option and re-attached on
+#   every render. Asking Claude to preserve it instead would ask it to recall
+#   the one thing a compaction reliably erases -- the session's first turn.
+#
 #   Kept as its own hook (not folded into claude-tmux-title-reminder.sh) to
 #   match the sibling compact-only hooks (claude-implement-compact-reminder.sh,
 #   claude-compact-skill-reload.sh): one concern per script.
@@ -50,7 +56,7 @@ fi
 read -r -d '' DIRECTIVE <<'EOF' || true
 A compaction just happened. The tmux window's compaction counter was already bumped mechanically (a companion hook does that unconditionally), but its BASE title was NOT re-derived -- that needs your judgment, not a shell script. Re-assess right now whether the base still reflects current work: scope can drift across many compacted turns even without an obvious topic switch. Refresh it via:
   ~/.claude/scripts/tmux-window-title.sh "<title>"
-This preserves the counter automatically -- pass only the base, never re-type the "[N]" suffix yourself. If the base still fits, no action needed, but make that a deliberate check, not a default assumption.
+Pass ONLY the current work, in at most 16 characters. Nothing is lost by narrowing it that way: on the first compaction the script froze the then-current title as this session's ROOT and re-attaches it on every later render, as "<root>/<current>[N]". So never type the root, the "/", or the "[N]" yourself -- the root is exactly what a compaction erases from your context, which is why the script keeps it instead of you. If the base still fits, no action needed, but make that a deliberate check, not a default assumption.
 EOF
 
 jq -n --arg ctx "$DIRECTIVE" \
