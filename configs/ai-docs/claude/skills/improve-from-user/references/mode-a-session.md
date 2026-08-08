@@ -2,6 +2,8 @@
 
 Load this only when Step 1 detected Mode A: the arg is empty, `this session`, `current session`, or anything semantically equivalent.
 
+## Extract session feedback and confirm the survey
+
 **Read feedback from on-disk transcripts, not your in-context memory.**
 
 Compaction thins your memory to a summary, so verbatim user corrections from earlier sessions are gone from context.
@@ -30,6 +32,8 @@ Confirm with the user that this estimate looks right before mining proceeds.
 
 A wide window burns a large run silently otherwise, and this is the one point where that's still cheap to catch.
 
+## Escalate large surveys to background subagents
+
 **Escalation on a large survey**: when the survey's estimated tokens exceed ~80k, don't read every qualifying transcript inline.
 
 Instead, dispatch background `general-purpose` subagents, one per file slice, each slice sized to a fixed ~40k-estimated-token budget.
@@ -46,6 +50,8 @@ If it fails again, report it as unmined together with its file list — a missin
 
 Below the ~80k threshold, nothing is dispatched — read every qualifying transcript's extractor output inline, the common case for the 7-day default.
 
+## What the extractor's output contains
+
 It emits, grouped per session in session order:
 - **`[Learning]` markers** — learnings you pre-digested at correction time. Each pairs what the user did (`said`) with the rule you inferred (`rule`). Highest signal; treat every marker as a candidate.
 
@@ -60,6 +66,8 @@ Supplement it with the last turn or two still in context — the transcript can 
 Clustering findings that recur across multiple sessions, and ranking them by how many sessions raised each one, happens after this read stage — in SKILL.md's steps 2-4, not here.
 
 That step lives there instead of here because the ranking spans all qualifying sessions rather than any single file.
+
+## Moments to capture and their fields
 
 Then list moments covering:
 - Bugs that were found and fixed
