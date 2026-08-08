@@ -662,8 +662,8 @@ JSON
   # rendered only when the widget lacks rawValue:true.
   #
   # None may appear: this config supplies its own
-  # custom-text labels ("Context", "Advisor", "$", "5h",
-  # "7d", ...) instead.
+  # custom-text labels ("Ctx ", "⏱ ", "5h", "7d", ...)
+  # instead.
   doubled_labels=$(printf '%s' "$output" | grep -cE \
     'Ctx: |Ctx Used: |Ctx Left: |Cost: |Session: |Weekly: |Reset: |Weekly Reset: ')
   # A digit followed by 1+ spaces then "%" is the
@@ -719,8 +719,14 @@ JSON
   #
   # Only a real round-half-up filter prints "48%"; a
   # truncating one would print "47%".
+  #
+  # The token count sits between the Ctx label and the
+  # percentage, matched by shape (see assertion 7) so the
+  # fixture's exact value stays free to change.
   rounds_up_correctly=no
-  printf '%s' "$output" | grep -qF 'Ctx 48%' && rounds_up_correctly=yes
+  printf '%s' "$output" \
+    | grep -qE 'Ctx [0-9]+\.[0-9]+k[[:space:]]+48%' \
+    && rounds_up_correctly=yes
   assert_eq \
     "StatusLineRealRender > happy > rounding is real (a .5+ fixture rounds up, not truncates)" \
     "yes" "$rounds_up_correctly"
@@ -734,10 +740,13 @@ JSON
     "yes" "$max_tight"
 
   # 4. Ctx replaces the Context label, tight single space
-  # before the value (same fixture value as assertion 2, so
-  # this doubles as the Ctx shape check).
+  # before the value it now leads: the token count.
+  #
+  # One literal space in the pattern, so the doubled
+  # padding a missing merge:"no-padding" would produce
+  # fails this.
   ctx_shape=no
-  printf '%s' "$output" | grep -qF 'Ctx 48%' && ctx_shape=yes
+  printf '%s' "$output" | grep -qE 'Ctx [0-9]+\.[0-9]+k' && ctx_shape=yes
   assert_eq \
     "StatusLineRealRender > happy > Ctx replaces Context with a tight single space" \
     "yes" "$ctx_shape"
