@@ -77,7 +77,7 @@ See [`references/eval-workflow.md`](references/eval-workflow.md) for the full ru
   - [Why] Only the first 250 chars participate in `/skills` routing (Claude Code 2.1.86+ cap), so an inventory burns that budget without changing the trigger decision.
 
 - [Instruction] Name concrete trigger phrases and contexts explicitly, including non-obvious ones — bias toward over-triggering.
-  - [Why] Models undertrigger by default and an abstract goal reads narrower than the skill's real applicability, so only explicit contexts close that gap.
+  - [Why] Models undertrigger by default and an abstract goal reads narrower than the skill's or agent's real applicability, so only explicit contexts close that gap.
 
 ## Output formats and examples
 

@@ -72,6 +72,8 @@ slice of subagent spend in usage telemetry and had no native turn cap.
 
 ## Descriptions
 
+The trigger-phrase rule in `skill-standards` › Descriptions applies verbatim to agent descriptions — it lives there, not here.
+
 - [Instruction] State an agent's purpose and when to dispatch it, never an inventory of its internal steps or procedure.
   - [Why] A caller decides whether to dispatch an agent from its description alone, so an inventory buries the one thing that decision needs.
 
@@ -80,9 +82,6 @@ slice of subagent spend in usage telemetry and had no native turn cap.
 
 - [Instruction] Name the INPUT the caller must supply to dispatch the agent — the specific data, file path, or decision it needs up front.
   - [Why] An agent that expects an input the description never named gets dispatched without it, and either stalls or guesses at context only the caller held.
-
-- [Instruction] Name concrete trigger phrases and contexts explicitly, including non-obvious ones — bias toward over-triggering.
-  - [Why] Models undertrigger by default and an abstract goal reads narrower than the agent's real applicability, so only explicit contexts close that gap.
 
 ## Subagent dispatch
 
