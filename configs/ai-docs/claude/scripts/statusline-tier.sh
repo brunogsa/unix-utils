@@ -24,9 +24,10 @@
 #     the org's monthly extra-usage cap in dollars, read
 #     from ccstatusline's own usage cache.
 #
-#   statusline-tier.sh session-cost
-#     the session's total spend, main session plus every
-#     sub-agent it spawned.
+#   statusline-tier.sh subagent-cost
+#     what every sub-agent this session spawned has spent,
+#     as an addendum to ccstatusline's own Session Cost
+#     widget: "+ $19.01".
 #
 # Usage (as the last stage of the statusLine.command pipe,
 # fed ccstatusline's RENDERED output rather than JSON).
@@ -628,26 +629,34 @@ sum_subagent_cost() {
   ' "${transcripts[@]}" 2>/dev/null
 }
 
-# render_session_cost - the combined figure, formatted the
-# way ccstatusline's own Session Cost widget formats its
-# main-session-only one.
+# render_subagent_cost - what this session's sub-agents
+# have spent, as an addendum to ccstatusline's own Session
+# Cost widget: "+ $19.01".
+#
+# The main half is left to that widget rather than
+# reproduced here, since it already formats the same
+# cost.total_cost_usd and omits itself when it is absent.
 #
 # A total carrying tokens from a model absent from
-# MODEL_RATE_TABLE_JSON is suffixed "+", marking it a floor
+# MODEL_RATE_TABLE_JSON is prefixed "~", marking it a floor
 # rather than the real number.
 #
 # ccusage is the cautionary case: its pinned rate table
 # predates claude-sonnet-5, so it reports a confident
 # $0.00 for an entire session on that model.
 #
-# Every failure below degrades to the main-session cost
-# rather than to nothing, since a figure missing its
-# sub-agent half still beats an empty slot.
+# Nothing prints when the main figure is missing, so this
+# addendum can never render alone in front of an empty
+# slot.
 #
-# A missing total_cost_usd prints nothing and exits 0,
-# which is ccstatusline's omit-this-widget contract - a
-# non-zero exit renders a visible "[Exit: N]" token.
-render_session_cost() {
+# Nothing prints either when the sub-agents cost too little
+# to show and every one of them was priced, since "+ $0.00"
+# widens the row to report no spend.
+#
+# Printing nothing and exiting 0 is ccstatusline's
+# omit-this-widget contract - a non-zero exit renders a
+# visible "[Exit: N]" token.
+render_subagent_cost() {
   local payload main_cost transcript_path subagent_total
   payload="$(cat)"
 
@@ -655,17 +664,21 @@ render_session_cost() {
   [ -z "$main_cost" ] && return 0
 
   transcript_path="$(printf '%s' "$payload" | jq -r '.transcript_path // empty' 2>/dev/null)"
-  if [ -n "$transcript_path" ]; then
-    subagent_total="$(
-      run_with_timeout "$STATUSLINE_SUBAGENT_SCAN_TIMEOUT_SECS" \
-        sum_subagent_cost "$(subagent_transcript_dir "$transcript_path")"
-    )"
-  fi
+  [ -z "$transcript_path" ] && return 0
 
-  awk -v main_cost="$main_cost" -v subagent_total="${subagent_total:-}" 'BEGIN {
+  subagent_total="$(
+    run_with_timeout "$STATUSLINE_SUBAGENT_SCAN_TIMEOUT_SECS" \
+      sum_subagent_cost "$(subagent_transcript_dir "$transcript_path")"
+  )"
+  [ -z "$subagent_total" ] && return 0
+
+  awk -v subagent_total="$subagent_total" 'BEGIN {
     split(subagent_total, parts, " ")
-    total = main_cost + parts[1]
-    printf "$%.2f%s\n", total, (parts[2] + 0 > 0 ? "+" : "")
+    cost = sprintf("%.2f", parts[1])
+    unpriced = parts[2] + 0
+    if (cost == "0.00" && unpriced == 0)
+      exit
+    printf "+ %s$%s\n", (unpriced > 0 ? "~" : ""), cost
   }'
 }
 
@@ -719,14 +732,14 @@ Usage:
                                 Print the org's monthly extra-usage cap as
                                  "$1000", read from ccstatusline's usage
                                  cache.
-  statusline-tier.sh session-cost
-                                Print total session spend as "$12.34", the
-                                 main session plus every sub-agent it
-                                 spawned, reading cost.total_cost_usd and
-                                 transcript_path from the Claude Code
-                                 statusline JSON on stdin. A "+" suffix
-                                 means some model had no known rate, so the
-                                 figure is a floor.
+  statusline-tier.sh subagent-cost
+                                Print what every sub-agent this session
+                                 spawned has spent as "+ $12.34", an
+                                 addendum to ccstatusline's own Session
+                                 Cost widget, reading transcript_path from
+                                 the Claude Code statusline JSON on stdin.
+                                 A "~" prefix means some model had no known
+                                 rate, so the figure is a floor.
   statusline-tier.sh filter     Post-process ccstatusline's RENDERED output
                                  on stdin: round percents, trim edge
                                  padding, and keep only the second row this
@@ -786,8 +799,8 @@ main() {
     spend-limit)
       read_monthly_spend_limit
       ;;
-    session-cost)
-      render_session_cost
+    subagent-cost)
+      render_subagent_cost
       ;;
     filter)
       filter_rendered_lines
