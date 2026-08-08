@@ -23,6 +23,14 @@
 # does not end the section — only another heading at the SAME <marker> depth
 # does, matching the per-script awk state machines this helper replaces.
 #
+# plan-template.md prescribes a trailing "---" divider line before every
+# "##"-depth heading, which otherwise lands inside the PRECEDING section's
+# extracted body (it sits before the next heading, not after it). That
+# divider, and any blank lines around it, is trimmed from the end of the
+# extracted body before printing, so callers doing exact-match checks against
+# a section's last line (e.g. check-pr-dag.sh's "Single PR." check) see the
+# body without the template's own formatting scaffolding.
+#
 # Exit codes:
 #   0 - always, including "no heading matched" (empty stdout, same as before
 #       this extraction). The awk itself can't fail on well-formed input;
@@ -54,5 +62,11 @@ awk -v marker="$marker" -v pat="$heading_pattern" '
     if (stripped ~ pat) { in_section = 1; next }
     next
   }
-  in_section { print }
+  in_section { buf[++n] = $0 }
+  END {
+    while (n > 0 && buf[n] ~ /^[[:space:]]*$/) n--
+    if (n > 0 && buf[n] ~ /^---[[:space:]]*$/) n--
+    while (n > 0 && buf[n] ~ /^[[:space:]]*$/) n--
+    for (i = 1; i <= n; i++) print buf[i]
+  }
 ' "$plan_file"
