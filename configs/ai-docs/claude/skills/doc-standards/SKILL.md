@@ -101,11 +101,12 @@ When the script flags `WIDTH`, `PARAGRAPH`, `SENTENCE-BREAK`, or `CODE-GAP`, or 
 
 Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles — concretely:
 
-- [Instruction] Never cite a spec/design doc by a numbered token in code, docs, comments, or test titles — spell out the behavior inline instead; exempt a workflow/pipeline/loop's own step-order number.
-  - [Why] A bare lookup number renumbers on edit and forces a lookup; a step-order number is different — it IS the sequence, not a pointer to it.
+- [Instruction] Never cite a spec/design doc by a numbered token in code, docs, comments, or test titles — spell out the behavior inline; exempt a doc's own step numbers and anchors.
+  - [Why] A bare lookup number renumbers on edit and forces lookup; a doc's own step numbers and anchors are different — they ARE its structure, not external pointers.
 
-  - [Example] Bad (lookup pointers — always follow the ban): `AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
+  - [Example] Bad (lookup pointers into another file): `AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
   - [Example] OK (step order — exempted): `implement/SKILL.md` citing its own `§3–§8 repeat once per PR` — the numbers encode the loop's bounds.
+  - [Example] OK (registry anchors — exempted): an HLD/LLD citing its own `D-`/`PR-`/`R-`/`OQ-` items inside that same doc, per `design-docs`.
 
 - [Instruction] Point to a source by file path, URL, or named anchor — a bare symbol name is none of the three.
   - [Why] A path, URL, or anchor tracks the thing itself and survives edits; a bare name forces the reader to hunt for it and rots silently on rename.
