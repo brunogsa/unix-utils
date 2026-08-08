@@ -10,11 +10,11 @@ words-budget: 2048
 
 [Template is in English. For non-English teams, translate section headers and body text to the team's primary language per the "Section names in the PR's primary language" rule in writing-style.md.]
 
-[Every section below obeys SKILL.md's non-overlap invariant: nothing rendered here may also appear in the appendix, and nothing in the appendix may repeat a body section.]
+[Every section below obeys pr-page-budget.md's non-overlap invariant: nothing rendered here may also appear in the appendix, and nothing in the appendix may repeat a body section.]
 
-[It also obeys SKILL.md's one-page goal: the whole file, appendix included, fits 64 rendered lines.
+[It also obeys pr-page-budget.md's one-page goal: the whole file, appendix included, fits 64 rendered lines.
 
-Each section below opens with its own line allowance. SKILL.md owns those budgets, the measurement, and the cut order; the numbers here are a recap, not a second source of truth.
+Each section below opens with its own line allowance. pr-page-budget.md owns those budgets, the measurement, and the cut order; the numbers here are a recap, not a second source of truth.
 
 Images, diagrams, blank lines, and collapsed content are free — a collapsed `<details>` costs only what its `<summary>` renders as.]
 
