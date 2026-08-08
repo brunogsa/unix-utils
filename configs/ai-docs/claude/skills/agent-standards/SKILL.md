@@ -34,8 +34,11 @@ Every non-shadow agent file carries these six `## ` headings, in this exact orde
 - [Instruction] Use `## ` (h2) for each of the six headings, never `### ` or deeper.
   - [Why] A deeper heading reads as a subsection of something else to both a human skimming the file and a script matching on heading level.
 
-- [Instruction] Verify every agent file with `scripts/check-agent-contract.sh <agents-directory>` after editing one.
-  - [Why] It settles frontmatter, heading order, level, and non-empty content deterministically, yet today runs only inside a `performance-check` audit — long after the edit that broke the contract.
+`scripts/check-agent-contract.sh <agents-directory>` settles every rule above deterministically — frontmatter, heading order, heading level, non-empty content.
+
+The `claude-agent-contract-stop-hook.sh` Stop gate runs it on each agent file a session edited.
+A broken contract blocks that stop instead of surviving to the next `performance-check` audit.
+No instruction here to remember it.
 
 ## Shadow-file carve-out
 

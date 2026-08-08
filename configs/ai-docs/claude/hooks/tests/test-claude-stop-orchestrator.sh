@@ -51,7 +51,8 @@ assert_eq() {
 # real implement gate, plus stubs for the three children whose behavior each
 # case controls. Prints the dir path.
 #
-# The markdown and sdd stubs block only when STUB_MD_BLOCKS / STUB_SDD_BLOCKS
+# The markdown, agent-contract and sdd stubs block only when STUB_MD_BLOCKS /
+# STUB_AGENT_CONTRACT_BLOCKS / STUB_SDD_BLOCKS
 # is 1 in the environment, so a case picks which gate fires without a second
 # fixture dir. The notify stub records its state argument in notify.log, which
 # is how every case answers "did the ping fire, and with which state?".
@@ -67,6 +68,13 @@ build_hook_dir() {
 #!/usr/bin/env bash
 cat > /dev/null
 [ "${STUB_MD_BLOCKS:-0}" = "1" ] && printf '%s\n' '{"decision": "block", "reason": "stub markdown gate"}'
+exit 0
+STUB
+
+  cat > "$dir/claude-agent-contract-stop-hook.sh" <<'STUB'
+#!/usr/bin/env bash
+cat > /dev/null
+[ "${STUB_AGENT_CONTRACT_BLOCKS:-0}" = "1" ] && printf '%s\n' '{"decision": "block", "reason": "stub agent-contract gate"}'
 exit 0
 STUB
 
@@ -117,6 +125,25 @@ it_should_block_without_notifying_when_the_markdown_gate_blocks() {
   assert_eq "should block without notifying when the markdown gate blocks (nothing notified)" "" "$NOTIFIED"
 }
 
+it_should_block_without_notifying_when_the_agent_contract_gate_blocks() {
+  STUB_AGENT_CONTRACT_BLOCKS=1 run_orchestrator '{"session_id": "sess-orch-agent", "stop_hook_active": false}'
+  assert_eq "should block without notifying when the agent-contract gate blocks (stdout carries the decision)" \
+    "block" "$(printf '%s' "$ORCH_OUT" | jq -r '.decision // empty')"
+  assert_eq "should block without notifying when the agent-contract gate blocks (nothing notified)" "" "$NOTIFIED"
+}
+
+# The markdown gate runs first, so its block must short-circuit before the
+# agent-contract gate is ever consulted — otherwise two gates could each emit a
+# decision and the orchestrator would print both, which is not valid hook output.
+it_should_pass_through_only_the_first_blocking_gates_decision() {
+  STUB_MD_BLOCKS=1 STUB_AGENT_CONTRACT_BLOCKS=1 \
+    run_orchestrator '{"session_id": "sess-orch-both", "stop_hook_active": false}'
+  assert_eq "should pass through only the first blocking gate's decision (markdown wins)" \
+    "stub markdown gate" "$(printf '%s' "$ORCH_OUT" | jq -r '.reason // empty')"
+  assert_eq "should pass through only the first blocking gate's decision (single JSON object)" \
+    "1" "$(printf '%s' "$ORCH_OUT" | grep -c 'decision')"
+}
+
 it_should_block_without_notifying_when_the_sdd_gate_blocks() {
   STUB_SDD_BLOCKS=1 run_orchestrator '{"session_id": "sess-orch-sdd", "stop_hook_active": false}'
   assert_eq "should block without notifying when the sdd gate blocks (stdout carries the decision)" \
@@ -157,6 +184,8 @@ it_should_notify_done_when_an_implement_run_halted_for_the_human() {
 
 it_should_notify_done_when_no_gate_blocks_and_no_implement_run_is_active
 it_should_block_without_notifying_when_the_markdown_gate_blocks
+it_should_block_without_notifying_when_the_agent_contract_gate_blocks
+it_should_pass_through_only_the_first_blocking_gates_decision
 it_should_block_without_notifying_when_the_sdd_gate_blocks
 it_should_block_without_notifying_when_an_implement_run_is_mid_batch
 it_should_stay_silent_when_an_implement_run_is_mid_batch_and_the_gates_loop_guard_has_disarmed_it
