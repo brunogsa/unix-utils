@@ -131,7 +131,7 @@ def main():
     except Exception:
         return  # fail open: malformed stdin or unreadable agents dir
 
-    if pinned_model:
+    if pin and pinned_model:
         pinned_effort = pin.get("effort", "inherited")
         if requested_model is None:
             return  # allow: omitted model takes the pin
