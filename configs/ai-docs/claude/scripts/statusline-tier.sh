@@ -127,22 +127,32 @@ usage_cache_path() {
 # TERM on timeout reaches its whole descendant tree via
 # `kill -TERM -$cmd_pid`, not just the direct child.
 #
-# Confirmed empirically (not merely reasoned): a command that
-# backgrounds a grandchild and exits leaves that grandchild
-# holding the caller's capture pipe open when only the direct
-# child is signaled - the caller then hangs indefinitely, well
-# past timeout_secs, instead of returning. Signaling the whole
-# process group kills the grandchild too and the caller
-# returns immediately. `security find-generic-password`
-# without `-w` was checked directly against this host's real
-# binary and spawns no child process at all, so it can't hit
-# this path either way; whether the `-w` secret read's
-# interactive "Always Allow" prompt (handled out-of-process by
-# SecurityAgent per Security.framework's XPC design, not a
-# fork of `security` itself - see `otool -L /usr/bin/security`)
-# could ever exhibit this shape wasn't directly testable in a
-# sandboxed environment, so the process-group fix is applied
-# defensively for that path rather than left unproven.
+# Confirmed empirically, not merely reasoned: a command
+# that backgrounds a grandchild and exits leaves that
+# grandchild holding the caller's capture pipe open when
+# only the direct child is signaled.
+#
+# The caller then hangs indefinitely, well past
+# timeout_secs, instead of returning.
+#
+# Signaling the whole process group kills the grandchild
+# too, and the caller returns immediately.
+#
+# `security find-generic-password` without `-w` was
+# checked directly against this host's real binary and
+# spawns no child process at all, so it cannot hit this
+# path either way.
+#
+# Whether the `-w` secret read's interactive "Always
+# Allow" prompt could ever exhibit this shape was not
+# directly testable in a sandboxed environment.
+#
+# That prompt is handled out-of-process by SecurityAgent
+# per Security.framework's XPC design, not by a fork of
+# `security` itself - see `otool -L /usr/bin/security`.
+#
+# So the process-group fix is applied defensively for
+# that path rather than left unproven.
 # ----------------------------------------------------------
 
 run_with_timeout() {
@@ -154,6 +164,7 @@ run_with_timeout() {
   set +m
   (
     sleep "$timeout_secs"
+
     # The plain-pid fallback only fires if the negated-pgid
     # form fails outright (no such process group) - it never
     # runs after a successful group kill, so it can't
