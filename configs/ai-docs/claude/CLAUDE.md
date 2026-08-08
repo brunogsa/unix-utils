@@ -200,7 +200,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] **Skill tool over Read for matching skills** -- invoke via Skill when description matches; use Read on `SKILL.md` only for meta-work (audit/edit/compare).
   - [Why] Skill activates guidance and counts toward metrics; Read merely shows the file.
 
-- [Instruction] Load every `*-standards` skill whose trigger fires (`code/doc/test/commit/debug/skill-standards`) — one change can fire several; when in doubt, load it.
+- [Instruction] Load every `*-standards` skill whose trigger fires (`agent/code/doc/test/commit/debug/skill-standards`) — one change can fire several; when in doubt, load it.
   - [Why] They encode hard-won wisdom but lazy-load to save context; a change can span several concerns, and each standard you skip is wisdom the user must repeat by hand.
 
   - [Example] A change that touches code, its comments, and its tests fires three triggers at once — load code-standards, doc-standards, and test-standards.
