@@ -1,35 +1,65 @@
-# Mode A — Current session (default)
+# Mode A — Session sweep (default)
 
 Load this only when Step 1 detected Mode A: the arg is empty, `this session`, `current session`, or anything semantically equivalent.
 
-**Read feedback from the on-disk transcript, not your in-context memory.**
+**Read feedback from on-disk transcripts, not your in-context memory.**
 
-Compaction thins your memory to a summary, so verbatim user corrections from earlier are gone from context.
+Compaction thins your memory to a summary, so verbatim user corrections from earlier sessions are gone from context.
 
-They survive in the session's JSONL transcript, which compaction only appends to. Run the extractor:
+They survive in each session's JSONL transcript, which compaction only appends to. Run the extractor:
 
 ```bash
 python3 ~/.claude/skills/improve-from-user/scripts/extract-session-feedback.py
 ```
 
-It auto-detects the live session by its exported id, searching every project dir — so a Bash `cd` elsewhere can't misdirect it.
+With no flags, this sweeps the last 7 days — wide enough to catch a correction that's still relevant days later, narrow enough to stay one context on a routine run.
 
-Only with no id exported does it fall back to the newest transcript for the current cwd.
+Pass `--since <days>` to widen or narrow the window, e.g. a deliberate quarterly sweep:
 
-The header's `selected by:` line names the rule that fired; an `(unverified)` value there means check the path before trusting the output.
+```bash
+python3 ~/.claude/skills/improve-from-user/scripts/extract-session-feedback.py --since 30
+```
 
-It emits:
+The running session's own transcript is always excluded, even when it otherwise qualifies.
+
+This is resolved via `$CLAUDE_CODE_SESSION_ID`, so mining a session for its own "go mine my sessions" request can't pollute the extract with meta-noise about itself.
+
+Before it emits any session content, the extractor prints a corpus survey: qualifying file count, real user turn count, and an estimated token count.
+
+Confirm with the user that this estimate looks right before mining proceeds.
+
+A wide window burns a large run silently otherwise, and this is the one point where that's still cheap to catch.
+
+**Escalation on a large survey**: when the survey's estimated tokens exceed ~80k, don't read every qualifying transcript inline.
+
+Instead, dispatch background `general-purpose` subagents, one per file slice, each slice sized to a fixed ~40k-estimated-token budget.
+
+That's half the escalation threshold, so no single agent's read comes near filling its own context.
+
+There is no separate cap on how many agents that produces; real parallelism is already bounded by the `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` setting.
+
+Each agent runs the extractor over its own slice and returns its unified-format items.
+
+A slice whose agent fails is retried once.
+
+If it fails again, report it as unmined together with its file list — a missing slice must never look identical to a slice that genuinely found nothing.
+
+Below the ~80k threshold, nothing is dispatched — read every qualifying transcript's extractor output inline, the common case for the 7-day default.
+
+It emits, grouped per session in session order:
 - **`[Learning]` markers** — learnings you pre-digested at correction time. Each pairs what the user did (`said`) with the rule you inferred (`rule`). Highest signal; treat every marker as a candidate.
 
 - **Verbatim user turns + next action** — raw feedback, recovered losslessly across compaction boundaries. Mine these for corrections no marker captured — your raw input is itself feedback.
 
-- **Compaction boundaries** — marked inline, so you see where memory was thinned.
+- **Compaction boundaries** — marked inline, so you see where memory was thinned within that session.
 
-Prefer the extractor's verbatim text over your memory wherever they disagree. Supplement it with the last turn or two still in context — the transcript can lag the live tail.
+Prefer the extractor's verbatim text over your memory wherever they disagree.
 
-If it errors — e.g. the session was resumed via `claude --resume` into a fresh file lacking the earlier turns — pass the older file with `--session-id <id>`.
+Supplement it with the last turn or two still in context — the transcript can lag the live tail of the running session, which this sweep excludes.
 
-It reads one file; it does not chain across them.
+Clustering findings that recur across multiple sessions, and ranking them by how many sessions raised each one, happens after this read stage — in SKILL.md's steps 2-4, not here.
+
+That step lives there instead of here because the ranking spans all qualifying sessions rather than any single file.
 
 Then list moments covering:
 - Bugs that were found and fixed
@@ -42,7 +72,7 @@ Then list moments covering:
 - Any user correction of the AI's approach or assumptions
 
 Per-item field hints (the unified format is documented in SKILL.md):
-- **Source** — the extractor's `[line N]` and timestamp, or the `[Learning]` marker it came from. If the moment was Claude-initiated with no user prompt, note that here.
+- **Source** — the extractor's session header and `[line N]`, or the `[Learning]` marker it came from. If the moment was Claude-initiated with no user prompt, note that here.
 
 - **Verbatim** — exact user words. Do NOT paraphrase; preserve typos, casing, and emphasis. If Claude-initiated, write `(Claude-initiated — no user quote)`.
 - **Context** — what Claude was doing, what misunderstanding or gap existed, relevant file paths or commands.
