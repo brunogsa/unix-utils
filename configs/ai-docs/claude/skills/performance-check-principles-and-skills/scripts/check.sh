@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check.sh - Audit CLAUDE.md and skills against performance budgets
+# check.sh - Audit CLAUDE.md and skills against budgets.
 #
 # Usage:
 #   check.sh [path]
@@ -19,11 +19,17 @@
 
 set -eo pipefail
 
-# Budgets — keep in sync with SKILL.md
-# 260, not 200: the marker convention pairs a [Why] line under every [Instruction],
-# so ~100 instructions cost ~200 lines of pairs before any header/example/meta. The
-# old 200 assumed "1 line ≈ 1 instruction" (pre-markers) and now binds before the real
-# gate — the [Instruction] count (CLAUDE_INSTRUCTIONS_BUDGET). See references/research-claudemd-budgets.md#claudemd-length.
+# Budgets — keep in sync with SKILL.md.
+#
+# 260, not 200: the marker convention pairs a [Why] line
+# under every [Instruction], so ~100 instructions cost ~200
+# lines of pairs before any header/example/meta.
+#
+# The old 200 assumed "1 line ≈ 1 instruction" (pre-markers)
+# and now binds before the real gate — the [Instruction]
+# count (CLAUDE_INSTRUCTIONS_BUDGET).
+#
+# See references/research-claudemd-budgets.md#claudemd-length
 readonly CLAUDE_LINES_BUDGET=260
 readonly CLAUDE_WORDS_PER_LINE_BUDGET=32
 readonly SKILLS_COUNT_BUDGET=50
@@ -31,24 +37,50 @@ readonly SKILL_LINES_BUDGET=500
 readonly SKILL_WORDS_BUDGET=2048
 readonly SKILL_DESC_BUDGET=250
 readonly SKILL_NAME_BUDGET=64
-# Bundled-resource budgets (references/ + assets/), the same fixed pair for every file.
-# Half of SKILL_WORDS_BUDGET on purpose: a reference is ONE focused topic, not a second
-# SKILL.md, so a file that outgrows this is usually two topics sharing one filename.
-# Remedy order is trim, then split by topic; the frontmatter override is the user's call.
+
+# Bundled-resource budgets (references/ + assets/), the
+# same fixed pair for every file.
+#
+# Half of SKILL_WORDS_BUDGET on purpose: a reference is ONE
+# focused topic, not a second SKILL.md, so a file that
+# outgrows this is usually two topics sharing one filename.
+#
+# Remedy order is trim, then split by topic; the frontmatter
+# override is the user's call.
 readonly BUNDLED_WORDS_BUDGET=1024
 readonly BUNDLED_LINES_BUDGET=256
-# Half the word budget. Past it, a flat file costs the reader a full scroll to find one
-# section, so it must carry at least one "## " landmark. Not overridable: unlike the size
-# budgets there is no file that legitimately needs to stay flat at this length.
+
+# Half the word budget. Past it, a flat file costs the
+# reader a full scroll to find one section, so it must
+# carry at least one "## " landmark.
+#
+# Not overridable: unlike the size budgets there is no file
+# that legitimately needs to stay flat at this length.
 readonly BUNDLED_HEADINGS_THRESHOLD=512
-# Instruction-density budgets (see CLAUDE.md "Counting conventions" + references/research-instruction-load-budgets.md).
-# Two per-bucket budgets so each failure surface is independent and self-explanatory.
-# Both sit well under IFScale's 500-instruction adherence ceiling — deliberately tight
-# to preserve adherence headroom rather than burn it. 100 + 200 = 300, leaving ~200
-# instructions of slack against the 500 cliff for repo-level CLAUDE.md and ad-hoc rules.
-readonly CLAUDE_INSTRUCTIONS_BUDGET=100         # CLAUDE.md alone
-readonly STANDARDS_INSTRUCTIONS_BUDGET=200      # Sum across *-standards skills
-readonly CRITICAL_RATIO_BUDGET=16               # Percent of [Instruction] count per file
+
+# Instruction-density budgets. See CLAUDE.md "Counting
+# conventions" plus
+# references/research-instruction-load-budgets.md.
+#
+# Two per-bucket budgets so each failure surface is
+# independent and self-explanatory.
+#
+# Both sit well under IFScale's 500-instruction adherence
+# ceiling — deliberately tight to preserve adherence
+# headroom rather than burn it.
+#
+# 100 + 200 = 300, leaving ~200 instructions of slack
+# against the 500 cliff for repo-level CLAUDE.md and
+# ad-hoc rules.
+
+# CLAUDE.md alone
+readonly CLAUDE_INSTRUCTIONS_BUDGET=100
+
+# Sum across *-standards skills
+readonly STANDARDS_INSTRUCTIONS_BUDGET=200
+
+# Percent of [Instruction] count per file
+readonly CRITICAL_RATIO_BUDGET=16
 
 # *-standards skills excluded from
 # STANDARDS_INSTRUCTIONS_BUDGET (space-separated).
@@ -75,6 +107,7 @@ if [ -z "${1:-}" ]; then
     TARGET_LABEL="user (~/.claude)"
 else
     CLAUDE_MD="$1/CLAUDE.md"
+
     # A path arg may name a repo laid out either way: nested
     # <path>/.claude/skills/, or a sibling <path>/skills/
     # (this repo's own layout). Try nested first, then fall
@@ -107,12 +140,17 @@ if [ ! -d "$SKILLS_DIR" ]; then
     exit 1
 fi
 
-# ── Helper functions ─────────────────────────────────────────────────────────
-# All defined up-front so any measurement block below can call them. Bash
-# resolves function names at call time, not at parse time — definitions must
-# precede their first call site in source order.
+# Helper functions
+# ==============================================================
+# All defined up-front so any measurement block below can
+# call them.
+#
+# Bash resolves function names at call time, not at parse
+# time — definitions must precede their first call site in
+# source order.
 
-# Extract single-line YAML frontmatter description (handles optional surrounding quotes)
+# Extract single-line YAML frontmatter description.
+# Handles optional surrounding quotes.
 extract_description() {
     awk '
         /^---[[:space:]]*$/ { in_fm = !in_fm; if (!in_fm) exit; next }
@@ -126,11 +164,18 @@ extract_description() {
     ' "$1"
 }
 
-# Extract an optional numeric budget override from a file's YAML frontmatter.
-# Usage: extract_frontmatter_budget <key> <file>   e.g. "words-budget", "lines-budget"
-# Empty string = no override; every caller falls back to the matching global default.
-# One generic reader rather than one function per key: SKILL.md, references/, and
-# assets/ all declare overrides the same way, so the parse belongs in one place.
+# Extract an optional numeric budget override from a
+# file's YAML frontmatter.
+#
+# Usage: extract_frontmatter_budget <key> <file>
+# Keys: "words-budget", "lines-budget".
+#
+# Empty string = no override; every caller falls back to
+# the matching global default.
+#
+# One generic reader rather than one function per key:
+# SKILL.md, references/, and assets/ all declare overrides
+# the same way, so the parse belongs in one place.
 extract_frontmatter_budget() {
     awk -v key="$1" '
         /^---[[:space:]]*$/ { in_fm = !in_fm; if (!in_fm) exit; next }
@@ -138,27 +183,34 @@ extract_frontmatter_budget() {
     ' "$2"
 }
 
-# Count [Instruction] markers (one per line). Always returns an integer.
-# Anchored to a leading tag — optional list marker (-, *, N.) then the bracket —
-# so prose mentions of the marker name and the glossary definition in the
-# CLAUDE.md Counting Conventions section are excluded, not counted as tags.
+# Count [Instruction] markers (one per line).
+# Always returns an integer.
+#
+# Anchored to a leading tag — optional list marker
+# (-, *, N.) then the bracket — so prose mentions of the
+# marker name and the glossary definition in CLAUDE.md's
+# Counting Conventions section are excluded, not counted.
 count_instructions() {
     awk '/^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*\[Instruction\]/ { c++ } END { print c+0 }' "$1"
 }
 
-# Count [Instruction] lines also marked CRITICAL. Always returns an integer.
+# Count [Instruction] lines also marked CRITICAL.
+# Always returns an integer.
 count_critical_instructions() {
     awk '/^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*\[Instruction\]/ && /CRITICAL/ { c++ } END { print c+0 }' "$1"
 }
 
-# Integer percentage, rounded to nearest (not truncated) — the single source
-# used for BOTH the displayed value and the pass/fail comparison, so what the
-# report shows is exactly what it verified. 0 when total is 0.
+# Integer percentage, rounded to nearest, not truncated.
+#
+# The single source used for BOTH the displayed value and
+# the pass/fail comparison, so what the report shows is
+# exactly what it verified. 0 when total is 0.
 ratio_percent_int() {
     awk -v c="$1" -v t="$2" 'BEGIN { if (t == 0) print 0; else printf "%d", (c*100)/t + 0.5 }'
 }
 
-# Compare a measured integer against a budget. Echo "OK" or "OVER".
+# Compare a measured integer against a budget.
+# Echo "OK" or "OVER".
 status_of() {
     local measured=$1
     local budget=$2
@@ -169,7 +221,8 @@ status_of() {
     fi
 }
 
-# ── Measurements ─────────────────────────────────────────────────────────────
+# Measurements
+# ==============================================================
 
 # CLAUDE.md measurements
 if [ "$has_claude_md" -eq 1 ]; then
@@ -178,7 +231,8 @@ if [ "$has_claude_md" -eq 1 ]; then
     claude_max_words_line=$(awk '{ if (NF > max) { max = NF; ln = NR } } END { print ln+0 }' "$CLAUDE_MD")
     claude_offending=$(awk -v b="$CLAUDE_WORDS_PER_LINE_BUDGET" '{ if (NF > b) print NR": "NF" words" }' "$CLAUDE_MD")
 
-    # Instruction-density measurements (transitional: 0 markers = unmigrated, skip ratio check)
+    # Instruction-density measurements.
+    # Transitional: 0 markers = unmigrated, skip ratio check.
     claude_instructions=$(count_instructions "$CLAUDE_MD")
     claude_criticals=$(count_critical_instructions "$CLAUDE_MD")
     claude_ratio_int=$(ratio_percent_int "$claude_criticals" "$claude_instructions")
@@ -193,17 +247,27 @@ max_desc_skill="—"
 max_name=0
 max_name_skill="—"
 
-# Instruction-density accumulators (only *-standards skills participate)
+# Instruction-density accumulators.
+# Only *-standards skills participate.
 standards_total_instructions=0
 standards_ratio_rows=""
 standards_unmigrated=""
 standards_ratio_over=0
-# Status-table rows for the *-standards skills the subtotal excludes. An excluded
-# skill answers only to its own frontmatter `instructions-budget:`, and that gate is
-# silent while passing — so without these rows the table names the exclusion but
-# never shows the number or the limit that replaced the shared budget.
+
+# Status-table rows for the *-standards skills the subtotal
+# excludes.
+#
+# An excluded skill answers only to its own frontmatter
+# `instructions-budget:`, and that gate is silent while
+# passing.
+#
+# Without these rows the table names the exclusion but never
+# shows the number or the limit that replaced the shared
+# budget.
 excluded_standards_rows=""
-# Per-skill instructions-budget override accumulators (any skill, not just *-standards)
+
+# Per-skill instructions-budget override accumulators.
+# Any skill, not just *-standards.
 skill_instr_overages=""
 skill_instr_over=0
 for f in "$SKILLS_DIR"/*/SKILL.md; do
@@ -215,8 +279,10 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
     desc_chars=$(printf '%s' "$desc" | LC_ALL=en_US.UTF-8 wc -m | tr -d ' ')
     name_chars=${#name}
 
-    # Per-skill override beats default. Skills that legitimately pair
-    # principles with inline examples opt in via `words-budget: N`.
+    # Per-skill override beats default.
+    #
+    # Skills that legitimately pair principles with
+    # inline examples opt in via `words-budget: N`.
     skill_words_budget_override=$(extract_frontmatter_budget "words-budget" "$f")
     if [ -n "$skill_words_budget_override" ]; then
         skill_words_budget=$skill_words_budget_override
@@ -245,10 +311,13 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
         skill_overages+=$'\n'"- $name:$issues"
     fi
 
-    # `instructions-budget` is opt-in for ANY skill, not just *-standards:
-    # a skill that caps its own instruction count gets the gate without
-    # joining the *-standards subtotal or CRITICAL-ratio report below.
-    # No key declared means no cap — the check is silent, never a default.
+    # `instructions-budget` is opt-in for ANY skill, not
+    # just *-standards: a skill that caps its own
+    # instruction count gets the gate without joining the
+    # *-standards subtotal or CRITICAL-ratio report below.
+    #
+    # No key declared means no cap — the check is silent,
+    # never a default.
     skill_instructions=$(count_instructions "$f")
     instr_budget_override=$(extract_frontmatter_budget "instructions-budget" "$f")
     if [ -n "$instr_budget_override" ] && [ "$skill_instructions" -gt "$instr_budget_override" ]; then
@@ -261,17 +330,21 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
         *-standards)
             skill_criticals=$(count_critical_instructions "$f")
 
-            # Excluded skills still get a ratio row and status-table rows of their
-            # own; only the shared subtotal skips them.
+            # Excluded skills still get a ratio row and
+            # status-table rows of their own; only the
+            # shared subtotal skips them.
             is_subtotal_excluded=0
             case " $STANDARDS_SUBTOTAL_EXCLUDED " in
                 *" $name "*) is_subtotal_excluded=1 ;;
             esac
 
-            # An excluded skill's cap is whatever its frontmatter declares. No key
-            # means no cap at all, which the row has to say out loud — a blank
-            # budget cell would read as "measured against something" and hide that
-            # the count is ungated.
+            # An excluded skill's cap is whatever its
+            # frontmatter declares.
+            #
+            # No key means no cap at all, which the row has
+            # to say out loud — a blank budget cell would
+            # read as "measured against something" and hide
+            # that the count is ungated.
             if [ -n "$instr_budget_override" ]; then
                 excluded_instr_budget=$instr_budget_override
                 excluded_instr_status=$(status_of "$skill_instructions" "$instr_budget_override")
@@ -301,9 +374,12 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
     esac
 done
 
-# Bundled resources (references/ + assets/) — same fixed pair of budgets per file.
-# Without this, the trim hierarchy's "extract to references/" step could clear a
-# SKILL.md overage by relocating words into a file nothing measured — budget
+# Bundled resources (references/ + assets/) — same fixed
+# pair of budgets per file.
+#
+# Without this, the trim hierarchy's "extract to
+# references/" step could clear a SKILL.md overage by
+# relocating words into a file nothing measured — budget
 # cosmetics rather than a real lazy load.
 bundled_overages=""
 bundled_over=0
@@ -337,9 +413,12 @@ while IFS= read -r bf; do
     [ "$b_words" -gt "$b_words_budget" ] && b_issues+=" words=$b_words(>$b_words_budget$b_words_suffix)"
     [ "$b_lines" -gt "$b_lines_budget" ] && b_issues+=" lines=$b_lines(>$b_lines_budget$b_lines_suffix)"
 
-    # Past the threshold, a file with no "## " landmark forces a full read to find one
-    # section. assets/flowchart.md is exempt: it is a single mermaid diagram by
-    # construction, so an inner heading would name nothing.
+    # Past the threshold, a file with no "## " landmark
+    # forces a full read to find one section.
+    #
+    # assets/flowchart.md is exempt: it is a single mermaid
+    # diagram by construction, so an inner heading would
+    # name nothing.
     if [ "$b_words" -gt "$BUNDLED_HEADINGS_THRESHOLD" ] && [ "$(basename "$bf")" != "flowchart.md" ]; then
         b_h2=$(grep -c '^## ' "$bf" || true)
         [ "$b_h2" -eq 0 ] && b_issues+=" no-'## '-headings(words=$b_words>$BUNDLED_HEADINGS_THRESHOLD)"
@@ -364,7 +443,8 @@ if [ "$has_claude_md" -eq 1 ]; then
     [ "$claude_lines" -gt "$CLAUDE_LINES_BUDGET" ] && overages=1
     [ "$claude_max_words" -gt "$CLAUDE_WORDS_PER_LINE_BUDGET" ] && overages=1
 
-    # Instruction-density rows (CLAUDE.md). A file with 0 [Instruction] markers fails.
+    # Instruction-density rows (CLAUDE.md).
+    # A file with 0 [Instruction] markers fails.
     if [ "$claude_instructions" -eq 0 ]; then
         echo "| CLAUDE.md [Instruction] count | 0 | $CLAUDE_INSTRUCTIONS_BUDGET | UNMIGRATED |"
         echo "| CLAUDE.md CRITICAL ratio | N/A | ${CRITICAL_RATIO_BUDGET}% | UNMIGRATED |"
@@ -386,17 +466,22 @@ echo "| Max skill name chars | $max_name ($max_name_skill) | $SKILL_NAME_BUDGET 
 [ "$skill_count" -gt "$SKILLS_COUNT_BUDGET" ] && overages=1
 [ -n "$skill_overages" ] && overages=1
 
-# Bundled resources — one row for the whole references/ + assets/ population.
+# Bundled resources — one row for the whole
+# references/ + assets/ population.
 echo "| Bundled files failing size or heading checks (references/ + assets/) | $bundled_over of $bundled_count | 0 | $(status_of "$bundled_over" 0) |"
 [ "$bundled_over" -gt 0 ] && overages=1
 
-# Instruction-density row (*-standards subtotal vs its dedicated budget).
+# Instruction-density row: *-standards subtotal against
+# its dedicated budget.
 echo "| *-standards [Instruction] total (excl. $STANDARDS_SUBTOTAL_EXCLUDED) | $standards_total_instructions | $STANDARDS_INSTRUCTIONS_BUDGET | $(status_of "$standards_total_instructions" "$STANDARDS_INSTRUCTIONS_BUDGET") |"
 [ "$standards_total_instructions" -gt "$STANDARDS_INSTRUCTIONS_BUDGET" ] && overages=1
 
-# Rows for the skills that subtotal excludes, placed right below it so the
-# exclusion and the budget replacing it read as one unit. Their overages are
-# already gated by `skill_instr_over` and `standards_ratio_over` below.
+# Rows for the skills that subtotal excludes, placed right
+# below it so the exclusion and the budget replacing it
+# read as one unit.
+#
+# Their overages are already gated by `skill_instr_over`
+# and `standards_ratio_over` below.
 [ -n "$excluded_standards_rows" ] && printf '%s\n' "$excluded_standards_rows" | sed '/^$/d'
 [ "$standards_ratio_over" -eq 1 ] && overages=1
 [ "$skill_instr_over" -eq 1 ] && overages=1
@@ -438,7 +523,8 @@ if [ -n "$standards_ratio_rows" ]; then
     echo
 fi
 
-# Per-skill instructions-budget overages (when frontmatter override is set and exceeded)
+# Per-skill instructions-budget overages, listed when the
+# frontmatter override is set and exceeded.
 if [ -n "$skill_instr_overages" ]; then
     echo "## Skills over their \`instructions-budget\` frontmatter override"
     echo
@@ -455,7 +541,8 @@ if [ -n "$standards_unmigrated" ]; then
     echo
 fi
 
-# Density check across CLAUDE.md + all SKILL.md + references + assets
+# Density check across CLAUDE.md + all SKILL.md
+# + references + assets
 density_script="$HOME/.claude/skills/doc-standards/scripts/check-density.sh"
 if [ -x "$density_script" ]; then
     density_targets=()
