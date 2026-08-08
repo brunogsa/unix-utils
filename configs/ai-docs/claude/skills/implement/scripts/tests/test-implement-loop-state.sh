@@ -69,6 +69,75 @@ it_should_verdict_next_task_when_current_task_passed_and_pending_tasks_remain() 
   assert_eq "should verdict next-task when the current task passed and pending tasks remain (task)" "2" "$(task_of)"
 }
 
+it_should_skip_a_lower_id_task_whose_dependency_is_not_yet_done() {
+  local fixture
+  # Chain T3 -> T5 -> T4 (T4 depends on T5, T5 depends on T3). T3 just
+  # passed; T4 has the lowest pending id but its dependency (T5) hasn't run
+  # yet, so the DAG-eligible pick must be T5, not T4.
+  fixture=$(write_fixture "dag-eligible" '{
+    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "batch_base_sha": "abc",
+    "tasks": [
+      {"id": "3", "status": "done", "depends_on": []},
+      {"id": "4", "status": "pending", "depends_on": ["5"]},
+      {"id": "5", "status": "pending", "depends_on": ["3"]}
+    ],
+    "attempts": [{"task": "3", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}],
+    "gate_dispatches": 0,
+    "tails": {"refactor_report": "", "auto_review_report": ""},
+    "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
+  }')
+  run_script "$fixture"
+  assert_eq "should pick the DAG-eligible task 5, not the lower-id but not-yet-eligible task 4 (action)" "next-task" "$(action_of)"
+  assert_eq "should pick the DAG-eligible task 5, not the lower-id but not-yet-eligible task 4 (task)" "5" "$(task_of)"
+}
+
+it_should_treat_a_depends_on_id_absent_from_this_units_tasks_as_already_satisfied() {
+  local fixture
+  # PR-label mode: this unit's own tasks[] only has 4 and 6. Task 4 depends
+  # on task 2, which belongs to an earlier, already-completed PR and so
+  # never appears in this unit's tasks[] at all — that absence must count
+  # as satisfied, not as a missing/unmet dependency.
+  fixture=$(write_fixture "dag-cross-pr-satisfied" '{
+    "version": 1, "session_id": "s1", "slug": "implement-loop", "pr_label": "PR-2", "phase": "tasks",
+    "batch_base_sha": "abc",
+    "tasks": [
+      {"id": "4", "status": "pending", "depends_on": ["2"]},
+      {"id": "6", "status": "done", "depends_on": []}
+    ],
+    "attempts": [{"task": "6", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}],
+    "gate_dispatches": 0,
+    "tails": {"refactor_report": "", "auto_review_report": ""},
+    "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
+  }')
+  run_script "$fixture"
+  assert_eq "should treat a depends_on id absent from this unit's own tasks as satisfied (action)" "next-task" "$(action_of)"
+  assert_eq "should treat a depends_on id absent from this unit's own tasks as satisfied (task)" "4" "$(task_of)"
+}
+
+it_should_verdict_halted_when_pending_tasks_remain_but_none_have_dependencies_satisfied() {
+  local fixture
+  # Task 3 just passed. Task 5 depends on task 4, which is blocked (should
+  # have been chain-aborted upstream but wasn't, in this fixture) — no
+  # remaining task is DAG-eligible, so this must halt for the human rather
+  # than dispatch an ineligible task or fail the script itself.
+  fixture=$(write_fixture "dag-deadlock" '{
+    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "batch_base_sha": "abc",
+    "tasks": [
+      {"id": "3", "status": "done", "depends_on": []},
+      {"id": "4", "status": "blocked", "depends_on": []},
+      {"id": "5", "status": "pending", "depends_on": ["4"]}
+    ],
+    "attempts": [{"task": "3", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}],
+    "gate_dispatches": 0,
+    "tails": {"refactor_report": "", "auto_review_report": ""},
+    "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
+  }')
+  run_script "$fixture"
+  assert_eq "should verdict halted when pending tasks remain but none have dependencies satisfied (action)" "halted" "$(action_of)"
+}
+
 it_should_verdict_gates_when_every_task_in_the_batch_is_done() {
   local fixture
   fixture=$(write_fixture "gates" '{
@@ -300,6 +369,9 @@ it_should_exit_non_zero_with_a_clear_message_when_the_state_file_is_missing_or_i
 }
 
 it_should_verdict_next_task_when_current_task_passed_and_pending_tasks_remain
+it_should_skip_a_lower_id_task_whose_dependency_is_not_yet_done
+it_should_treat_a_depends_on_id_absent_from_this_units_tasks_as_already_satisfied
+it_should_verdict_halted_when_pending_tasks_remain_but_none_have_dependencies_satisfied
 it_should_verdict_gates_when_every_task_in_the_batch_is_done
 it_should_verdict_halted_when_current_task_passed_and_no_remaining_task_but_one_is_blocked
 it_should_verdict_retry_when_a_task_failed_with_fewer_than_4_attempts_and_no_stuck_streak

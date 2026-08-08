@@ -16,7 +16,7 @@ This file obeys only `retry`, `stuck`, and `halt-budget` — the ones a failed o
 | `stuck` | a `blocked` attempt (first try), or a `fail`/`timeout` run that stopped converging | §5.3 below — mark terminal, chain-abort dependents |
 | `next-task` | a `pass` attempt, with another non-terminal task still pending | §3.4 — activate that task |
 | `gates` | a `pass` attempt, every task now `done`, none `blocked` | [`batch-end-review.md`](batch-end-review.md)'s §8.1 |
-| `halted` | a `pass` attempt, every task terminal, but at least one ended `blocked` | §5.5 below |
+| `halted` | a `pass` attempt, either every task terminal with at least one `blocked`, or pending tasks remain with none `depends_on`-eligible | §5.5 below |
 | `halt-budget` | total dispatches (`attempts` + `gate_dispatches`) hit the batch cap, checked before anything else | §5.5 below |
 
 ### Record the attempt
@@ -53,14 +53,14 @@ Set that task to `status: "blocked"` — `reason: "blocked"` for a self-reported
 
 `TaskUpdate` its TaskList status to `completed`; the tool has no `blocked` state, and the state file's `reason` is what distinguishes it.
 
-**Chain-abort the task's dependents, before picking what runs next.** Read the plan's "Depends on" lines and walk them transitively.
+**Chain-abort the task's dependents, before picking what runs next.** Read each task's `depends_on` from the state file (§2.3) and walk them transitively — the same field the script itself uses, so this scan and `implement-loop-state.sh` never disagree.
 Any task depending on the one just marked terminal also gets `status: "blocked"`, `reason: "blocked-upstream"`, and TaskList status `completed`, marked before the next-task pick so none can be chosen.
 Flip the plan to `[Blocked]` for the terminal task and every dependent this just chain-aborted (§6).
 
 **Pick the next task yourself — the script can't.** `next-task` only comes out of a `pass` attempt (§5.4), and this task didn't pass.
-Scan `tasks[]` in order for the first entry whose `status` is neither `done` nor `blocked`, and re-run §3.4 on it.
+Scan `tasks[]` for the lowest-id entry whose `status` is neither `done` nor `blocked` and whose every `depends_on` id is `done` (or absent from this unit's own `tasks[]`), and re-run §3.4 on it.
 
-Find none — every task is terminal, at least one (this one) terminal-without-`[Done]`.
+Find none — nothing runnable remains (every remaining task is either terminal, or pending on an unmet dependency); at least one (this one) is terminal-without-`[Done]`.
 **Do not go to the gates** — go to §5.5 below.
 
 ## §5.5 — Halt: stop where you stand and wait for the human

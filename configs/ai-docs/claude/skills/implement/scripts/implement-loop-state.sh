@@ -38,6 +38,19 @@
 #     the batch verdicts "halted" instead of "gates", so a run with an
 #     unresolved blocked task stops for the human rather than running gates
 #     over an incomplete batch.
+#   - "next-task" only ever names a DAG-eligible task: one whose `depends_on`
+#     ids (from the plan's "Depends on" clause, seeded verbatim at §2.3) are
+#     each either "done" in this unit's own `tasks[]`, or absent from it
+#     entirely. An absent id belongs to an earlier PR that pr-awareness.md's
+#     stop predicate already required to be `[Done]` before this unit could
+#     start, so treating "absent" as "satisfied" is deliberate, not a gap —
+#     it also means a seeding typo that mis-writes an id is swallowed rather
+#     than caught here. Among eligible tasks the lowest id wins, same
+#     tiebreak as before. If pending tasks remain but none are eligible (a
+#     same-unit dependency deadlock — e.g. every remaining task depends on
+#     one this run just marked "blocked"), the verdict is "halted", not a
+#     script failure: it is a real runtime dead end for the human, the same
+#     as the existing blocked-task halt below.
 #   - The batch-wide dispatch budget (BATCH_CAP_MULT * task count +
 #     GATE_FIX_ALLOWANCE) is checked before any per-task logic: it is the
 #     backstop for a runaway gate-fixing loop (gate_dispatches piling up),
@@ -164,8 +177,30 @@ case "$last_result" in
       "$state_file")
     remaining_count=$(printf '%s' "$remaining_json" | jq 'length')
     if [ "$remaining_count" -gt 0 ]; then
-      next_task=$(printf '%s' "$remaining_json" | jq -r '.[0].id')
-      emit_verdict "next-task" "$next_task" "task $current_task passed; dispatch next pending task $next_task"
+      # DAG-eligible: every declared depends_on id is either "done" in this
+      # unit's own tasks[], or absent from it (an earlier PR's task, already
+      # required done by the time this unit started — see the design note).
+      eligible_json=$(jq -c --arg cur "$current_task" '
+        (reduce .tasks[] as $t ({}; .[$t.id] = $t.status)) as $status_map
+        | [ .tasks[]
+            | select(.id != $cur)
+            | select(.status != "done" and .status != "blocked")
+            | select(
+                (.depends_on // []) as $deps
+                | all($deps[]; . as $d
+                    | if ($status_map | has($d)) then $status_map[$d] == "done" else true end)
+              )
+          ]
+        | sort_by(.id | tonumber)
+      ' "$state_file")
+      eligible_count=$(printf '%s' "$eligible_json" | jq 'length')
+      if [ "$eligible_count" -eq 0 ]; then
+        emit_verdict "halted" "" \
+          "task $current_task passed and $remaining_count task(s) remain, but none have every declared dependency satisfied (likely blocked upstream); halting here for the human instead of dispatching an ineligible task"
+      else
+        next_task=$(printf '%s' "$eligible_json" | jq -r '.[0].id')
+        emit_verdict "next-task" "$next_task" "task $current_task passed; dispatch next DAG-eligible pending task $next_task (lowest id among tasks whose dependencies are all done)"
+      fi
     else
       blocked_count=$(jq '[.tasks[] | select(.status == "blocked")] | length' "$state_file")
       if [ "$blocked_count" -gt 0 ]; then
