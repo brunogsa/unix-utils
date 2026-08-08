@@ -85,7 +85,7 @@ The trigger-phrase rule in `skill-standards` › Descriptions applies verbatim t
 
 ## Subagent dispatch
 
-- [Instruction] Name the model on every dispatch a skill declares: `sonnet` for mechanical or tool-driving steps, `haiku` for trivial transforms.
+- [Instruction] Name the model on every dispatch a skill declares, picking the tier by CLAUDE.md's "Pick the pin per task" rule.
   - [Why] An unpinned Agent call inherits the session's model, often the priciest tier, so a mechanical fan-out silently runs at top-tier pricing on every future run.
 
 - [Instruction] Omit the pin only when the step needs the session model's own judgment, and say so in the skill.

@@ -288,7 +288,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] On a leveraged tasklist, execute each task via a pinned subagent — main orchestrates and validates against artifacts with fresh eyes.
   - [Why] Inline task execution burns the main window that compactions are rationed by, and orchestrator-validates already governs `/implement`.
 
-- [Instruction] Pick the pin per task: haiku when the dispatch prompt carries the exact content to place (trivial transform), sonnet when the subagent must compose or restructure under conventions.
+- [Instruction] **Pick the pin per task** -- haiku when the dispatch prompt carries the exact content to place (trivial transform), sonnet when the subagent must compose or restructure under conventions.
   - [Why] Tier follows judgment required, not habit — haiku costs ~3x less than sonnet and suffices when nothing is left to decide.
 
 ### Note-taking discipline
