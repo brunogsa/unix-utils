@@ -86,7 +86,7 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
 
 **CRITICAL: The main session orchestrates and never composes the prose itself** -- dispatch the agent and let it hand back a finished file.
 
-- `agent(subAgent=pr-writer, title=Compose ideal PR description - sonnet high)` in mode `ideal`, foreground (step 3 reads the file it writes).
+- `agent(subAgent=pr-writer, title=Compose ideal PR description, model=sonnet, effort=high)` in mode `ideal`, foreground (step 3 reads the file it writes).
   - Give it four things: the changes digest, the resolved spec/plan paths, the derived appendix section list, and the output path `./pr_<slug>_pr<N>.ideal.md`.
   - It loads this skill and `doc-standards` itself, runs the extractors, and loops on the density and page-fit gates before returning — none of that belongs in the dispatch prompt.
 
@@ -127,7 +127,7 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
 **Check `.github/` for a PR template** (`pull_request_template.md`, `PULL_REQUEST_TEMPLATE.md`).
 
-**Dispatch the merge either way** -- `agent(subAgent=pr-writer, title=Compose repo PR description - sonnet high)` in mode `final`, foreground (step 4 pushes its output).
+**Dispatch the merge either way** -- `agent(subAgent=pr-writer, title=Compose repo PR description, model=sonnet, effort=high)` in mode `final`, foreground (step 4 pushes its output).
 
 - Give it three paths: the `pr_<slug>_pr<N>.ideal.md` from step 2, the repo's template file, and the output `./pr_<slug>_pr<N>.final.md`.
 - No template found → say so instead of naming one; the agent then copies the ideal description verbatim into the final body.
