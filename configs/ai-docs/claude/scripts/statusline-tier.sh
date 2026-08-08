@@ -20,14 +20,6 @@
 #     whole-hour session length, read from
 #     cost.total_duration_ms on stdin.
 #
-#   statusline-tier.sh expected5h
-#     5h-window expected-pace percent, from
-#     rate_limits.five_hour.resets_at on stdin.
-#
-#   statusline-tier.sh expected7d
-#     7d-window expected-pace percent, from
-#     rate_limits.seven_day.resets_at on stdin.
-#
 #   statusline-tier.sh spend-limit
 #     the org's monthly extra-usage cap in dollars, read
 #     from ccstatusline's own usage cache.
@@ -484,27 +476,6 @@ compute_expected_percent() {
   awk -v e="$elapsed_secs" -v w="$window_secs" 'BEGIN { printf "%.0f\n", (e / w) * 100 }'
 }
 
-# expected_percent_from_resets_at - converts a rolling
-# window's `resets_at` epoch into elapsed-so-far seconds,
-# then delegates to compute_expected_percent.
-#
-# `resets_at` is the only timestamp Claude Code's stdin
-# payload carries for rate_limits.{five_hour,seven_day} -
-# confirmed by reading ccstatusline's own StatusJSONSchema,
-# no elapsed/window-start field exists.
-#
-# A resets_at already in the past (elapsed would exceed
-# window_secs, e.g. a stale/late read) is clamped to
-# window_secs rather than reporting over 100%.
-expected_percent_from_resets_at() {
-  local resets_at="$1" window_secs="$2" now elapsed
-  now="$(date +%s)"
-  elapsed=$((window_secs - (resets_at - now)))
-  [ "$elapsed" -lt 0 ] && elapsed=0
-  [ "$elapsed" -gt "$window_secs" ] && elapsed="$window_secs"
-  compute_expected_percent "$elapsed" "$window_secs"
-}
-
 # compute_session_duration_hours - whole hours elapsed
 # between the session's start and now, floored (not rounded)
 # to match ccstatusline's own convention of truncating
@@ -531,12 +502,6 @@ Usage:
   statusline-tier.sh duration   Print whole-hour session duration, reading
                                  cost.total_duration_ms from the Claude
                                  Code statusline JSON on stdin.
-  statusline-tier.sh expected5h Print the 5h-window expected-pace percent,
-                                 reading rate_limits.five_hour.resets_at
-                                 from stdin.
-  statusline-tier.sh expected7d Print the 7d-window expected-pace percent,
-                                 reading rate_limits.seven_day.resets_at
-                                 from stdin.
   statusline-tier.sh spend-limit
                                 Print the org's monthly extra-usage cap as
                                  "$1000", read from ccstatusline's usage
@@ -549,8 +514,6 @@ Usage:
 Examples:
   statusline-tier.sh tier
   echo '{"cost":{"total_duration_ms":7500000}}' | statusline-tier.sh duration
-  echo '{"rate_limits":{"five_hour":{"resets_at":1785405040}}}' \
-    | statusline-tier.sh expected5h
   ccburn collect | ccstatusline | statusline-tier.sh filter
 EOF
 }
@@ -598,20 +561,6 @@ main() {
       now="$(date +%s)"
       start_epoch=$((now - duration_ms / 1000))
       compute_session_duration_hours "$start_epoch" "$now"
-      ;;
-    expected5h)
-      local payload resets_at
-      payload="$(cat)"
-      resets_at="$(printf '%s' "$payload" | jq -r '.rate_limits.five_hour.resets_at // empty' 2>/dev/null)"
-      [ -z "$resets_at" ] && return 0
-      expected_percent_from_resets_at "$resets_at" 18000
-      ;;
-    expected7d)
-      local payload resets_at
-      payload="$(cat)"
-      resets_at="$(printf '%s' "$payload" | jq -r '.rate_limits.seven_day.resets_at // empty' 2>/dev/null)"
-      [ -z "$resets_at" ] && return 0
-      expected_percent_from_resets_at "$resets_at" 604800
       ;;
     spend-limit)
       read_monthly_spend_limit
