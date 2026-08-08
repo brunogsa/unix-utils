@@ -8,7 +8,7 @@
 words-budget: 2048
 ---
 
-[Template is in English. For non-English teams, translate section headers and body text to the team's primary language per the "Section names in the PR's primary language" rule in SKILL.md.]
+[Template is in English. For non-English teams, translate section headers and body text to the team's primary language per the "Section names in the PR's primary language" rule in writing-style.md.]
 
 [Every section below obeys SKILL.md's non-overlap invariant: nothing rendered here may also appear in the appendix, and nothing in the appendix may repeat a body section.]
 
@@ -33,7 +33,7 @@ This file owns the `<details>` wrapper and the summary label; `references/readin
 ## Context
 [Budget: 17 lines — this heading plus at most 4 paragraphs of at most 4 lines each.
 
-Business context in scannable layers, per the "Context section" rule in SKILL.md (the rule is canonical; do not restate it here).
+Business context in scannable layers, per the "Context section" rule in writing-style.md (the rule is canonical; do not restate it here).
 
 Source it from the spec's Background + Goals when available, cross-referenced with commit messages and the diff to confirm what was actually delivered.
 
@@ -46,7 +46,7 @@ A changelog, not a narrative — read like game patch notes: one flat line per c
 
 Each bullet names the BEHAVIOR that changed, never the file that changed; the review guide already lists the files.
 
-Two groups, per the "Separate planned from incidental" rule in SKILL.md, which owns the group labels and what earns a bullet in each.
+Two groups, per the "Separate planned from incidental" rule in writing-style.md, which owns the group labels and what earns a bullet in each.
 
 Without the plan: derive the bullets from the diff and commit messages.]
 
@@ -136,7 +136,7 @@ Collapsed by default, and explicitly labelled optional: the body plus the diff i
 
 One `<details>` per subsection below. Omit the whole section only when it would be empty.
 
-Source-code links MUST be absolute GitHub URLs (relative paths are unreliable in PR descriptions — see the "Absolute GitHub URLs" rule in SKILL.md).]
+Source-code links MUST be absolute GitHub URLs (relative paths are unreliable in PR descriptions — see the "Absolute GitHub URLs" rule in writing-style.md).]
 
 ### References
 [Follow-ups, external docs, and related PRs.
