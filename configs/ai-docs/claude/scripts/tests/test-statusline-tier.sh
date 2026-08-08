@@ -791,14 +791,18 @@ JSON
     "yes yes" "$token_count_untouched $cost_untouched"
 
   # 8. Pacing segments restructure to "<usage>% (of
-  # <expected>%, resets <reset>)" - same widget order as
-  # before, different literal separators.
+  # <expected>%, + <reset>)" - same widget order as before,
+  # different literal separators.
+  #
+  # "+" replaces the word "resets": the reset value is a
+  # remaining duration, so "+" reads as "that long from
+  # now".
   pacing_5h_shape=no
-  printf '%s' "$output" | grep -qE '40% \(of 72%, resets [^)]+\)' && pacing_5h_shape=yes
+  printf '%s' "$output" | grep -qE '40% \(of 72%, \+ [^)]+\)' && pacing_5h_shape=yes
   pacing_7d_shape=no
-  printf '%s' "$output" | grep -qE '55% \(of 25%, resets [^)]+\)' && pacing_7d_shape=yes
+  printf '%s' "$output" | grep -qE '55% \(of 25%, \+ [^)]+\)' && pacing_7d_shape=yes
   assert_eq \
-    "StatusLineRealRender > happy > pacing segments restructure to '<usage>% (of <expected>%, resets <reset>)'" \
+    "StatusLineRealRender > happy > pacing segments restructure to '<usage>% (of <expected>%, + <reset>)'" \
     "yes yes" "$pacing_5h_shape $pacing_7d_shape"
 
   # 9. Neither line is truncated at a realistic width: each

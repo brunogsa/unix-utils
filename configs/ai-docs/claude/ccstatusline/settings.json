@@ -24,7 +24,7 @@
       { "id": "session-usage", "type": "session-usage", "rawValue": true, "merge": "no-padding" },
       { "id": "5h-of-expected", "type": "custom-text", "customText": " (of ", "merge": "no-padding" },
       { "id": "expected5h", "type": "custom-command", "commandPath": "$HOME/.claude/scripts/statusline-tier.sh expected5h", "merge": "no-padding" },
-      { "id": "5h-resets", "type": "custom-text", "customText": "%, resets ", "merge": "no-padding" },
+      { "id": "5h-resets", "type": "custom-text", "customText": "%, + ", "merge": "no-padding" },
       { "id": "reset-timer", "type": "reset-timer", "rawValue": true, "merge": "no-padding" },
       { "id": "5h-close", "type": "custom-text", "customText": ")" },
       { "id": "sep-5", "type": "custom-text", "customText": "·" },
@@ -32,7 +32,7 @@
       { "id": "weekly-usage", "type": "weekly-usage", "rawValue": true, "merge": "no-padding" },
       { "id": "7d-of-expected", "type": "custom-text", "customText": " (of ", "merge": "no-padding" },
       { "id": "expected7d", "type": "custom-command", "commandPath": "$HOME/.claude/scripts/statusline-tier.sh expected7d", "merge": "no-padding" },
-      { "id": "7d-resets", "type": "custom-text", "customText": "%, resets ", "merge": "no-padding" },
+      { "id": "7d-resets", "type": "custom-text", "customText": "%, + ", "merge": "no-padding" },
       { "id": "weekly-reset-timer", "type": "weekly-reset-timer", "rawValue": true, "merge": "no-padding" },
       { "id": "7d-close", "type": "custom-text", "customText": ")" }
     ]
