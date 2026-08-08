@@ -27,6 +27,28 @@ For each `PR-N` in the arg, in order, resolve its task-id list:
 Exit 0 prints the comma-space task-id list in the format `<task-ids>` expects — feed it straight into §3.3's exact-match loop.
 Exit 1 (label not found) or exit 2 (usage/parse error) surfaces the diagnostic and stops before dispatching anything for that PR.
 
+## Stack mode: merge or native (decided once, at §1.5)
+
+A PR-label run syncs its stack in one of two modes, decided once per invocation, right after label resolution:
+
+- **`merge`** — the default: branches stay append-only, synced by merging parent into child ([`stacked-prs.md`](stacked-prs.md)).
+- **`native`** — GitHub's native stacked PRs (public preview): GitHub owns restacks and retargeting, server-side, by rebase.
+
+Decide by shape first, availability second — both must pass for `native`:
+
+- Any PR with 2+ parents in its `Depends on:` clause (a diamond) → `merge`. Native stacks are linear-only, so a diamond is unrepresentable there.
+- Linear chain AND `gh stack --help` exits 0 (the `gh-stack` extension is installed) → `native`. Extension missing → `merge`.
+
+Record the decision as a `Mode: <merge|native>` line directly under the plan's `## PR Breakdown` heading — same inline edit style as a `Branch:` clause, idempotent on re-runs.
+
+The mode is sticky for the stack's whole life; later sessions (review fixes, post-merge sync) read it to pick their rulebook in [`stacked-prs.md`](stacked-prs.md):
+
+- `merge` branches must never be linked into a native stack — their merge commits already made the history non-linear.
+- `native` branches must never be manually merged into — one merge commit breaks the linearity the feature requires.
+
+Everything else in this file is mode-independent: branch creation, `Branch:` recording, the per-PR loop, and fail-fast run identically.
+The only `native` addition is one link step at the final PR's batch end — see "Native mode" in [`batch-end-pr.md`](batch-end-pr.md).
+
 ## State-file keying (§2.3 widened)
 
 Each PR gets its **own** state file, keyed on both `slug` and this PR's own `pr_label` — never the whole list, never `slug` alone.

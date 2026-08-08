@@ -105,8 +105,20 @@ Always `--force-with-lease --force-if-includes`, never bare `--force` — the le
 
 Rebase moves branch refs, so it cannot move a branch checked out in another worktree — restack from one worktree with the stack's other branches not checked out anywhere.
 
-## GitHub's native stacked PRs (public preview) — not this workflow
+## Native mode: GitHub's native stacked PRs (public preview)
 
-GitHub's native stacks (preview since 2026-07-30) are rebase-centric: propagation is a server-side cascading rebase that rewrites branches, the docs warn against manually merging stack branches, and stacks must be linear.
+`Mode: native` on a plan's PR Breakdown (decided at §1.5 — see `pr-awareness.md`) hands every sync above to GitHub.
 
-All three conflict with this merge-based flow (append-only branches, merged forks, plain pushes) — skip the native feature while that holds, and revisit if it gains merge tolerance.
+That buys: server-side cascading restacks, automatic retarget-and-rebase when a parent merges, one-click merge of a layer plus everything below it, and a stack map on every PR.
+
+Eligibility: linear chains only, with the `gh-stack` extension installed — a diamond stays `merge` forever, and a linked stack never mixes the two modes.
+
+The native rulebook inverts two habits from the merge sections above:
+
+- **Never merge one stack branch into another** — a merge commit breaks the linearity the feature requires, and GitHub then demands a stack-wide rebase.
+
+- **Run `gh stack sync` before touching any stack branch** — GitHub force-pushes rebased children after any change below them, so an unsynced local copy is diverged, not merely behind.
+  - Plain `git pull` is the wrong reconciliation there: it merges the rewritten branch into its own stale copy, duplicating history and breaking linearity.
+  - Sync also fast-forwards trunk, prunes local branches for merged PRs, and stops to ask when local and remote stacks truly diverged.
+
+Server-side rebase commits are unsigned — a repo requiring signed commits restacks locally via the `gh stack` CLI instead of the web button.
