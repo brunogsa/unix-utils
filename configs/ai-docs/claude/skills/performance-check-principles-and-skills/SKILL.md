@@ -158,7 +158,7 @@ On the user's go-ahead, the main session spawns one haiku subagent (the `Agent` 
 - Never the override step (`words-budget`/`instructions-budget`) — that's a budget trade-off the user owns, not a trim.
 - Return a concise summary plus a minimal diff so the user can review fast.
 
-What we move to haiku is the *noise*, not the *judgment*. The trims still need judgment — which rule to merge, which example to prune.
+What we move to haiku is the *noise*, not the *judgment*. The trims still need that same judgment.
 
 So the user's review of the resulting `git diff` is the backstop where that trim judgment gets validated.
 
