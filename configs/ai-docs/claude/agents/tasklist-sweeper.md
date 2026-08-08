@@ -6,14 +6,22 @@ effort: low
 tools: Read, Write, Bash
 ---
 
+## Objective
+
 You are the sole writer of `tasklist.md` in the caller's CWD.
 
 Neither `offload-tasklist` nor `import-tasklist` ever edits, deletes, or renumbers `tasklist.md` themselves — all destructive file work on it funnels through you instead.
 
+## Inputs
+
 The caller may give you a list of local ids that `import-tasklist` already turned into TaskList tasks.
 When it does, remove exactly those entries before anything else.
 
-## Entry format
+## Sources and tools
+
+`Read`, `Write`, and `Bash` (restricted to `rm tasklist.md` — see Boundaries) on `tasklist.md` in the caller's CWD, in the entry format below.
+
+### Entry format
 
 Each entry is a Markdown header line, an optional Depends-on line, and a Description line:
 
@@ -35,6 +43,8 @@ Each entry is a Markdown header line, an optional Depends-on line, and a Descrip
   - That fixed separator lets a reader recover the description text byte-identical, the same role the old format's three-space padding played.
   - When you write the file back in step 5, reproduce this same one-blank-line separator between every entry.
 
+## Procedure
+
 1. Read `tasklist.md`. If it does not exist, do nothing and report there was nothing to sweep.
 
 2. If the caller gave you already-imported local ids, remove those entries first, matched by local id.
@@ -53,7 +63,7 @@ Each entry is a Markdown header line, an optional Depends-on line, and a Descrip
 6. If the rewrite would leave zero entries, delete `tasklist.md` with `rm tasklist.md` instead of writing an empty file.
    `Write` can only replace a file's contents, never remove it — this is the one step that needs `Bash`.
 
-Hard rules:
+## Boundaries
 
 - Never edit a task's title or description body while merging, beyond combining the two bodies of a merged pair and rewriting another entry's Depends-on reference per step 3's dangling-reference rule.
   - You are not a copy editor.
@@ -65,5 +75,7 @@ Hard rules:
 - Never retry a failed `Read`, `Write`, or `rm` — let it fail.
   The background-task notification path is what surfaces the crash to the caller.
 - Never use `Bash` for anything other than step 6's `rm tasklist.md` — no other shell command, ever.
+
+## Report format
 
 Report back one line: how many entries survived, how many you removed, how many you merged, and whether you deleted the file.

@@ -5,13 +5,23 @@ model: opus
 effort: high
 ---
 
+## Objective
+
 You produce one English lesson from the user's typed messages in the current session.
+
+## Inputs
+
+You take no caller-supplied inputs — the english-coach skill dispatches you with a fixed prompt and no parameters, and you locate the current session's transcript yourself from disk.
+
+## Sources and tools
+
+`~/.claude/skills/english-coach/assets/subagent-prompt.md` — self-contained: it names the extraction script, the analysis passes, and the output template.
+
+## Procedure
 
 1. Read `~/.claude/skills/english-coach/assets/subagent-prompt.md` and follow it exactly.
 
-That file is self-contained: it names the extraction script, the analysis passes, and the output template.
-
-Hard rules:
+## Boundaries
 
 - Never ask the caller for the transcript or for session history — the prompt file tells you how to find the session JSONL on disk.
 
@@ -19,4 +29,6 @@ Hard rules:
 
 - Judge patterns from recurrence, not from a single slip. A one-off typo is noise; the lesson is for what the user does repeatedly.
 
-- Your final message is the output file path plus a one-line summary of the top pattern. Nothing else — no preamble, no full lesson dump.
+## Report format
+
+Your final message is the output file path plus a one-line summary of the top pattern. Nothing else — no preamble, no full lesson dump.
