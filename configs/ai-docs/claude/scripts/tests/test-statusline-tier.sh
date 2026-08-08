@@ -1362,22 +1362,27 @@ it_should_never_write_the_raw_credential_value_anywhere() {
   sandbox="$(fresh_sandbox)"
   marker="RAW-SECRET-MARKER-do-not-leak-9f31"
 
-  # A post-hoc scan of TMPDIR after the read returns only
-  # proves "absent after cleanup" - the exact shape of the
-  # historical F7 bug, which wrote the secret to a mktemp
-  # file and relied on an explicit `rm -f` on the normal
-  # return path. That cleanup runs fine on an uninterrupted
-  # read, so a scan taken only after the read completes would
+  # A post-hoc scan of TMPDIR after the read returns
+  # only proves "absent after cleanup" - the exact
+  # shape of the historical F7 bug: it wrote the secret
+  # to a mktemp file and cleaned up on the return path.
+  #
+  # That cleanup runs fine on an uninterrupted read, so
+  # a scan taken only after the read completes would
   # have stayed green through F7 too.
   #
-  # This test instead watches the scoped TMPDIR WHILE the
-  # read is still in flight: write_fake_mktemp_scoped_to_tmpdir
-  # forces any reintroduced bare `mktemp` call into a known
-  # directory, and the fake `security`'s delay_after_secret_secs
-  # keeps its stdout pipe open for 0.3s after handing over the
-  # secret - the read can't return until that pipe closes, so
-  # a concurrent poller gets many chances to observe a
-  # transient file before any cleanup step could remove it.
+  # This test instead watches the scoped TMPDIR
+  # while the read is in flight:
+  # write_fake_mktemp_scoped_to_tmpdir forces any
+  # reintroduced bare `mktemp` into a known directory.
+  #
+  # The fake `security`'s delay_after_secret_secs
+  # keeps its stdout pipe open for 0.3s after handing
+  # over the secret, so the read can't return until
+  # that pipe closes.
+  #
+  # That gives a concurrent poller many chances to
+  # observe a transient file before cleanup removes it.
   write_fake_security "$sandbox" "20260730082118Z" \
     "{\"claudeAiOauth\":{\"subscriptionType\":\"max\",\"raw\":\"$marker\"}}" "" "0.3"
   write_fake_mktemp_scoped_to_tmpdir "$sandbox"
