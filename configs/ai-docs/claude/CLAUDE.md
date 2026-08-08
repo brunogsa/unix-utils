@@ -353,7 +353,10 @@ Routing and upkeep for the two note surfaces — the rules that keep notes worth
 ### Subagents
 
 - [Instruction] **CRITICAL: Default to parallel fan-out** -- when a task splits into independent chunks (one per file/module/target/ERP/service), dispatch one subagent each, all in a single message.
-  - [Why] Wall-clock, not token spend, is the real cost of serializing independent chunks; width also multiplies subagent count by per-subagent cost, including inherited advisor cost — weigh both before fanning wide.
+  - [Why] Wall-clock, not token spend, is the real cost of serializing independent chunks.
+
+- [Instruction] Weigh total subagent count against per-subagent cost, inherited advisor cost included, before dispatching a wide fan-out.
+  - [Why] Width multiplies the two together, so fanning past the count of genuinely independent chunks buys no wall-clock and pays full price for the excess.
 
 - [Instruction] **Leverage Explore/Grep and other subagents to minimize compaction on main session** -- broad searches, fan-out reads, "where is X handled?" hunts, etc;
   - [Why] Main session is kept under a tight 200k tokens context window. Inline exploration dumps every touched file into the main context, triggering more compactions.
