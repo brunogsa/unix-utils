@@ -599,6 +599,7 @@ function commentText(lineText, lang) {
 const SENTENCE_END_RE = /[.;][)"'\]`]*$/;
 const COLON_END_RE = /:[)"'\]`]*$/;
 const BULLET_RE = /^(\s*)-\s/;
+const LEADING_WHITESPACE_RE = /^(\s*)/;
 
 // One pass sharing classifyLine's run tracking, covering the
 // three checks below.
@@ -607,6 +608,11 @@ const BULLET_RE = /^(\s*)-\s/;
 // separator line must end its last content line on a
 // sentence or clause boundary; a colon counts only when the
 // next line opens a bullet list.
+//
+// A non-bullet run's last line is also exempt when it sits
+// deeper than the run's shallowest line -- that marks it as
+// a set-off literal example (a "Usage:" header followed by
+// an indented command line), not a prose continuation.
 //
 // BULLET-SPACING -- a bullet-marker line's leftover indent
 // (after the comment-prefix gap) must be 0, unless it sits
@@ -623,6 +629,7 @@ function findSentenceAndBulletViolations(fullCommentLines, lines, lang) {
 
   let runStart = null;
   let runLen = 0;
+  let runMinIndent = null;
   let listBaseIndent = null;
   let bulletItemStart = null;
   let bulletItemLen = 0;
@@ -642,11 +649,15 @@ function findSentenceAndBulletViolations(fullCommentLines, lines, lang) {
       const nextLineText = lines[lastLine + 2];
       const nextIsBullet =
         nextLineText !== undefined && BULLET_RE.test(commentText(nextLineText, lang));
-      const ok = SENTENCE_END_RE.test(text) || (nextIsBullet && COLON_END_RE.test(text));
+      const lastIndent = text.match(LEADING_WHITESPACE_RE)[1].length;
+      const isSetOffExample = listBaseIndent === null && lastIndent > runMinIndent;
+      const ok =
+        isSetOffExample || SENTENCE_END_RE.test(text) || (nextIsBullet && COLON_END_RE.test(text));
       if (!ok) sentenceBreaks.push({ line: lastLine + 1 });
     }
     runStart = null;
     runLen = 0;
+    runMinIndent = null;
   };
 
   for (let l = 0; l < lines.length; l++) {
@@ -657,6 +668,9 @@ function findSentenceAndBulletViolations(fullCommentLines, lines, lang) {
       runLen++;
 
       const text = commentText(lines[l], lang);
+      const lineIndent = text.match(LEADING_WHITESPACE_RE)[1].length;
+      runMinIndent = runMinIndent === null ? lineIndent : Math.min(runMinIndent, lineIndent);
+
       const bulletMatch = text.match(BULLET_RE);
       if (bulletMatch) {
         // a new bullet with no blank in between closes the
