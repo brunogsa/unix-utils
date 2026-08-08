@@ -85,7 +85,7 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 
 It covers TypeScript/JavaScript, shell, and Python, taking the language from the file extension and then the `#!` shebang — pass `--lang` when a file has neither.
 
-A Python module docstring is a string rather than a comment, so it is skipped and its width goes unmeasured.
+A Python module docstring is a string, not a comment, so the script skips it and its width goes unmeasured.
 
 - [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments — use plain ASCII (`=`, `-`, `|`).
   - [Why] Humans don't type these by hand, so they look AI-written and get used inconsistently; they also break in terminals, diffs, and grep where ASCII works.
@@ -124,8 +124,6 @@ Authoring a full ADR / HLD / LLD / spec / plan, or rendering a payload schema as
 
 It picks which doc to write, hands you the template and a worked example, and carries the ownership + altitude rules that keep the five docs from overlapping.
 
-The two subsections below apply to any standalone doc — where it lives and what it should contain.
-
 ### Where docs live and ship
 
 - [Instruction] Locate and update related documentation inline with the change.
@@ -140,17 +138,17 @@ The two subsections below apply to any standalone doc — where it lives and wha
   - [Why] A type-based rule gets one doc wrong every time — a PR's reviewer must read its decisions, while a brainstorm plan's author already made them.
 
 - [Instruction] Collapse into a `<details>` or equivalent toggle whatever that reader only consults or already holds.
-  - [Why] Consulted content is read by whoever needs one row of it, so leaving it expanded spends every reader's attention to serve the few who came for it.
+  - [Why] Consulted content serves whoever needs one row, so leaving it expanded spends every reader's attention on those few.
 
 - [Instruction] Never collapse what that reader needs in order to form the judgment the document asks of them.
-  - [Why] Collapsed content is content nobody opens, so hiding the part the doc exists to communicate buys a shorter page by trading away the reading it was written for.
+  - [Why] Collapsed content is content nobody opens, so hiding what the doc exists to communicate trades away the reading it was written for.
 
 - [Instruction] Never inventory facts a tool generates on demand — file paths, callers, deps, file/function listings — in any doc or comment.
   - [Why] IDEs, grep, and doc tools regenerate these for free, so an inline copy adds nothing and goes stale the moment an item moves.
   - [Example] Bad: `// Used by: src/foo.ts, src/bar.ts, tests/baz.test.ts`. Good: omit the list entirely; the reader can grep.
 
 - [Instruction] An FAQ/Q&A entry must add a distinct angle — new audience, framing, or context — not restate the body. Drop test: if cutting it loses only "Q&A format", cut it.
-  - [Why] FAQs feel safe to grow, but one that restates the body forces the same edit in two places and bloats the doc for skim-readers who already read it.
+  - [Why] FAQs feel safe to grow, but one that restates the body forces the same edit in two places and bloats the doc.
 
 ## Density
 
@@ -169,4 +167,4 @@ The two subsections below apply to any standalone doc — where it lives and wha
   - [Example] Bad: a 60-word paragraph wrapped into three 20-word lines, each passing the cap though it's still 60 words to read. Good: one line the cap can flag honestly.
 
 - [Instruction] Separate any bullet that has a sub-bullet or exceeds 80% of the density cap from the next bullet with a blank line.
-  - [Why] A dense or parent bullet blurs into the next without a gap; the blank line gives the eye a stopping point between groups.
+  - [Why] A dense or parent bullet blurs into the next without a gap — the same stopping-point rule as comment paragraphs.
