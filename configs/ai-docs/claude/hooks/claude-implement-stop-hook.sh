@@ -3,9 +3,32 @@
 #                              is mid-batch in THIS session; allow the stop
 #                              once every unit has left tasks|gates|tails.
 #
-# Usage (Claude Code Stop hook):
+# Usage (Claude Code Stop hook — "gate mode", the default):
 #   stdin:  hook event JSON ({ session_id, stop_hook_active, ... })
 #   stdout: optional JSON ({ decision: "block", reason: "..." }) to keep Claude going
+#
+# Usage (--check, "query mode" — for claude-stop-orchestrator.sh only, never
+# wired to a hook event):
+#   stdin:  the same hook event JSON
+#   stdout: nothing
+#   exit 0: at least one unit of this session is mid-flight
+#   exit 1: nothing is mid-flight (also the fail-open answer on any tooling gap)
+#   exit 2: usage error — an argument other than --check
+#
+# Why query mode exists:
+#   Gate mode answers "should I block this stop?", which is NOT the same
+#   question as "is the batch still running". The stop_hook_active guard below
+#   makes gate mode stay silent on every stop that a previous block caused, so
+#   the orchestrator — which suppresses its "done" ping only when a gate blocks
+#   — pinged success once per task, mid-batch. Query mode answers the plain
+#   mid-flight question with no loop guard in the way, so the ping can be
+#   decided on the batch's real state instead of on the gate's block decision.
+#   The loop guard stays where it belongs: it suppresses the block, not the truth.
+#
+#   Exit 1 rather than 0 carries "not mid-flight" so the shell's own convention
+#   reads right at the call site (`if hook --check; then skip the ping; fi`),
+#   which leaves exit 2 for a usage error — conflating that with a real answer
+#   would silently notify or silently mute on a typo'd flag.
 #
 # Rationale:
 #   /implement's task loop (the implement skill) writes ONE state file PER
@@ -26,11 +49,15 @@
 # Escape hatch: deleting the session's state files instantly un-scopes the
 # session (the next Stop attempt finds no files and allows the stop).
 #
-# Safeguards (all silent no-ops — never break Claude on a tooling/state gap):
-#   - jq missing → exit 0.
-#   - stop_hook_active=true → exit 0 (mirrors claude-markdown-standards-stop-hook.sh's
-#     guard: an always-on hook must never spin an infinite stop-block loop).
-#   - No session_id, or no state files match it → exit 0.
+# Safeguards (all silent no-ops — never break Claude on a tooling/state gap;
+# each answers "nothing is mid-flight", which is exit 0 in gate mode and exit 1
+# under --check):
+#   - jq missing.
+#   - No session_id, or no state files match it.
+#   - stop_hook_active=true → exit 0, GATE MODE ONLY (mirrors
+#     claude-markdown-standards-stop-hook.sh's guard: an always-on hook must
+#     never spin an infinite stop-block loop). --check skips it on purpose —
+#     see "Why query mode exists" above.
 #   - A state file that is corrupt JSON is skipped (fail-open per-file), not
 #     treated as blocking.
 #   - A unit's phase other than tasks|gates|tails — including presented,
@@ -52,20 +79,40 @@
 
 set -eo pipefail
 
+mode="gate"
+if [ "${1:-}" = "--check" ]; then
+  mode="check"
+elif [ $# -gt 0 ]; then
+  echo "claude-implement-stop-hook: unknown argument '$1' (expected no argument, or --check)" >&2
+  exit 2
+fi
+
+# leave_not_mid_flight - exit with this mode's "no unit is mid-flight" answer.
+# Every safeguard below routes through it so a tooling gap fails open in both
+# modes at once: gate mode allows the stop, query mode lets the ping through.
+leave_not_mid_flight() {
+  [ "$mode" = "check" ] && exit 1
+  exit 0
+}
+
 input=$(cat)
 
-command -v jq >/dev/null 2>&1 || exit 0
+command -v jq >/dev/null 2>&1 || leave_not_mid_flight
 
-stop_hook_active=$(printf '%s' "$input" | jq -r '.stop_hook_active // false' 2>/dev/null || true)
-[ "$stop_hook_active" = "true" ] && exit 0
+# Loop guard, gate mode only: query mode is answering what is true, not deciding
+# whether to block, so it can never spin a stop-block loop of its own.
+if [ "$mode" = "gate" ]; then
+  stop_hook_active=$(printf '%s' "$input" | jq -r '.stop_hook_active // false' 2>/dev/null || true)
+  [ "$stop_hook_active" = "true" ] && exit 0
+fi
 
 session_id=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)
-[ -z "$session_id" ] && exit 0
+[ -z "$session_id" ] && leave_not_mid_flight
 
 shopt -s nullglob
 state_files=(/tmp/implement_"$session_id"*.json)
 shopt -u nullglob
-[ "${#state_files[@]}" -eq 0 ] && exit 0
+[ "${#state_files[@]}" -eq 0 ] && leave_not_mid_flight
 
 mid_flight_count=0
 first_unit_desc=""
@@ -92,7 +139,11 @@ for f in "${state_files[@]}"; do
   fi
 done
 
-[ "$mid_flight_count" -eq 0 ] && exit 0
+[ "$mid_flight_count" -eq 0 ] && leave_not_mid_flight
+
+# Query mode answers with the exit code alone — naming the unit and its phase is
+# the block reason's job, and the orchestrator has nothing to print it into.
+[ "$mode" = "check" ] && exit 0
 
 remaining=$((mid_flight_count - 1))
 remaining_note=""

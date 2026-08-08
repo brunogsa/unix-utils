@@ -80,6 +80,14 @@ run_hook() {
   HOOK_EXIT=$?
 }
 
+# run_check - same as run_hook, but in --check query mode: no stdout is
+# expected, and the exit code IS the answer (0 mid-flight, 1 not).
+run_check() {
+  local stdin_json="$1" path_override="${2:-$PATH}"
+  HOOK_OUT=$(printf '%s' "$stdin_json" | PATH="$path_override" "$bash_bin" "$SCRIPT" --check 2>/dev/null)
+  HOOK_EXIT=$?
+}
+
 it_should_exit_silently_when_no_state_file_exists_for_the_session_id() {
   run_hook '{"session_id": "sess-no-file", "stop_hook_active": false}'
   assert_eq "should exit silently when no state file exists for the session id (exit code)" "0" "$HOOK_EXIT"
@@ -167,6 +175,59 @@ it_should_exit_silently_when_stop_hook_active_is_true() {
   assert_eq "should exit silently when stop_hook_active is true (no stdout)" "" "$HOOK_OUT"
 }
 
+it_should_report_mid_flight_under_check_when_phase_is_tasks_gates_or_tails() {
+  local phase
+  for phase in tasks gates tails; do
+    write_state "sess-check-$phase" "{\"phase\": \"$phase\"}"
+    run_check "{\"session_id\": \"sess-check-$phase\", \"stop_hook_active\": false}"
+    assert_eq "should report mid-flight under --check when phase is $phase (exit code)" "0" "$HOOK_EXIT"
+    assert_eq "should report mid-flight under --check when phase is $phase (no stdout)" "" "$HOOK_OUT"
+  done
+}
+
+it_should_report_not_mid_flight_under_check_when_phase_is_presented_halted_or_blocked() {
+  local phase
+  for phase in presented halted blocked; do
+    write_state "sess-check-$phase" "{\"phase\": \"$phase\"}"
+    run_check "{\"session_id\": \"sess-check-$phase\", \"stop_hook_active\": false}"
+    assert_eq "should report not-mid-flight under --check when phase is $phase (exit code)" "1" "$HOOK_EXIT"
+  done
+}
+
+# The regression this whole mode exists for: gate mode goes silent on a stop
+# caused by its own previous block, and the orchestrator read that silence as
+# "the batch is done" and pinged success once per task.
+it_should_report_mid_flight_under_check_even_when_stop_hook_active_is_true() {
+  write_state "sess-check-active" '{"phase": "tasks"}'
+  run_check '{"session_id": "sess-check-active", "stop_hook_active": true}'
+  assert_eq "should report mid-flight under --check even when stop_hook_active is true (exit code)" "0" "$HOOK_EXIT"
+}
+
+it_should_report_not_mid_flight_under_check_when_no_state_file_exists_for_the_session_id() {
+  run_check '{"session_id": "sess-check-no-file", "stop_hook_active": false}'
+  assert_eq "should report not-mid-flight under --check when no state file exists for the session id (exit code)" "1" "$HOOK_EXIT"
+}
+
+it_should_report_not_mid_flight_under_check_when_jq_is_unavailable() {
+  write_state "sess-check-no-jq" '{"phase": "tasks"}'
+
+  local fake_bin="$work_dir/fake-bin-check"
+  mkdir -p "$fake_bin"
+  ln -sf "$(command -v cat)" "$fake_bin/cat"
+
+  run_check '{"session_id": "sess-check-no-jq", "stop_hook_active": false}' "$fake_bin"
+  assert_eq "should report not-mid-flight under --check when jq is unavailable (exit code)" "1" "$HOOK_EXIT"
+}
+
+it_should_reject_an_unknown_argument_with_a_usage_error() {
+  write_state "sess-bad-arg" '{"phase": "tasks"}'
+  local exit_code
+  printf '%s' '{"session_id": "sess-bad-arg", "stop_hook_active": false}' \
+    | "$bash_bin" "$SCRIPT" --chek >/dev/null 2>&1
+  exit_code=$?
+  assert_eq "should reject an unknown argument with a usage error rather than a mid-flight answer (exit code)" "2" "$exit_code"
+}
+
 it_should_exit_silently_when_no_state_file_exists_for_the_session_id
 it_should_block_with_a_reason_when_phase_is_tasks_gates_or_tails
 it_should_allow_the_stop_when_phase_is_presented_or_halted
@@ -176,6 +237,12 @@ it_should_skip_a_corrupt_unit_and_still_block_on_a_valid_mid_flight_unit
 it_should_exit_silently_when_the_state_file_is_corrupt_json
 it_should_exit_silently_when_jq_is_unavailable
 it_should_exit_silently_when_stop_hook_active_is_true
+it_should_report_mid_flight_under_check_when_phase_is_tasks_gates_or_tails
+it_should_report_not_mid_flight_under_check_when_phase_is_presented_halted_or_blocked
+it_should_report_mid_flight_under_check_even_when_stop_hook_active_is_true
+it_should_report_not_mid_flight_under_check_when_no_state_file_exists_for_the_session_id
+it_should_report_not_mid_flight_under_check_when_jq_is_unavailable
+it_should_reject_an_unknown_argument_with_a_usage_error
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

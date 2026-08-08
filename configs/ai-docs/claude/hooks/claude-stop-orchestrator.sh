@@ -18,6 +18,12 @@
 #   implement gate, then the spec-driven coverage gate; only if NONE blocks (the
 #   turn is genuinely over) do we run the notification. One ping, on the real stop.
 #
+#   "No gate blocked" is necessary but not sufficient, though: a gate that fails
+#   open (its loop guard, a missing script, absent jq) is silent for reasons that
+#   say nothing about the work being finished. So the last check before the ping
+#   asks the implement gate the plain mid-flight question via --check, and a
+#   /implement run still working its task loop stays silent. See step 7.
+#
 # This does NOT merge the child scripts:
 #   claude-markdown-standards-stop-hook.sh, claude-implement-stop-hook.sh,
 #   claude-sdd-stop-hook.sh, and claude-tmux-notification.sh stay standalone,
@@ -95,9 +101,26 @@ case "$sdd_out" in
     ;;
 esac
 
-# 7. All gates clean → this is the real stop → fire the "done" notification.
-#    Its stdout (none today; forward-safe if a future variant emits JSON) flows
-#    through as this hook's stdout.
+# 7. Mid-flight backstop for the notification. Steps 2/4/6 suppress the ping
+#    only when a gate CHOSE to block, which is not the same as the work being
+#    over: the implement gate's stop_hook_active loop guard makes it stay silent
+#    on every stop that its own previous block caused, so a /implement run pinged
+#    "done" once per task while the batch was still running (one block, then one
+#    un-gated stop while waiting on the task subagent). Ask the implement gate
+#    the plain mid-flight question instead, with no loop guard in the way, and
+#    stay silent while any unit is still in tasks|gates|tails.
+#
+#    halted and blocked units are NOT mid-flight, so a run that stopped FOR the
+#    human still pings — those are exactly the stops worth interrupting for.
+#    A missing or failing --check exits non-zero and the ping fires, matching
+#    every other fail-open path here.
+if [ -f "$implement_gate" ] && printf '%s' "$input" | bash "$implement_gate" --check 2>/dev/null; then
+  exit 0
+fi
+
+# 8. All gates clean and nothing mid-flight → this is the real stop → fire the
+#    "done" notification. Its stdout (none today; forward-safe if a future
+#    variant emits JSON) flows through as this hook's stdout.
 if [ -f "$notify" ]; then
   printf '%s' "$input" | bash "$notify" "done" 2>/dev/null || true
 fi
