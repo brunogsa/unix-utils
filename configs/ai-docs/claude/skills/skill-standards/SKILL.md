@@ -165,7 +165,7 @@ ALWAYS use this exact template:
 - [Instruction] Read [`references/flowchart-authoring.md`](references/flowchart-authoring.md) before writing or regenerating a flowchart.
   - [Why] It carries what the diagram must cover, the node-numbering scheme, the collapse rule, the classDef legend, and the `mmdc` validation step.
 
-- [Instruction] Never restate a rule the global CLAUDE.md already owns — TaskList seeding for step-shaped skills, the `agent(subAgent=…)` notation, the dispatch-line render format.
+- [Instruction] Never restate a rule the global CLAUDE.md already owns — TaskList seeding for step-shaped skills, the dispatch-line render format.
   - [Why] A restated rule drifts from its source on the next edit, leaving two versions and no way to tell which one binds.
 
 ## When a skill underperforms
