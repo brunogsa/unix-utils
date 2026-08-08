@@ -49,14 +49,16 @@ Fix: **self-consistency** — run 3 samples in parallel, keep only what ≥2 agr
      Run heuristics directly. DO NOT spawn further subagents.
      ```
 3. Collect the 3 reports.
-4. Apply the **2/3 majority filter** (see below).
+4. Apply the **2/3 majority filter** — tier 1 deterministic match, tier 2 orchestrator judgment (see below).
 5. Emit the merged report in §Report Format.
 
-### 2/3 majority filter (deterministic match key)
+### 2/3 majority filter (two-tier match)
 
-Findings are voted on by the key `(section-group, primary-file, cited-lines)`, not by their prose.
+Tier 1 clusters findings by the `[KEY]` line, deterministic — no judgment; tier 2 is orchestrator judgment over unmatched bodies, merging same-defect findings.
 
-[Instruction] **CRITICAL: Children MUST emit a machine-readable key line immediately under each finding ID.** Format is fixed and grep-able — no free-text parsing in the merge step.
+[Instruction] **Children MUST emit a machine-readable key line under each finding ID, unchanged from before.**
+
+It anchors and drives tier 1's match — a fast path, not the whole mechanism.
 
 Required emission (see §Report Format below for the full per-finding template):
 
@@ -71,13 +73,11 @@ Children emit their own section number and a line-free path; the orchestrator do
 [Instruction] **Emit `lines` as every line number the finding cites in `file`**, comma-separated and ascending — the defining line of each rule in the conflict, never a range.
 
 - A two-rule conflict emits both (`lines=316,372`); a single-site defect emits the one (`lines=356`).
-- Cite the `[Instruction]` line, not its `[Why]` or `[Example]` child — the orchestrator tolerates ±3, so a near miss still matches.
+- Cite the `[Instruction]` line, not its `[Why]` or `[Example]` child — tier 1 tolerates ±3.
 
-Why: the cited lines identify the *defect*, while a heading identifies only the neighborhood it sits in — and headings are spelled differently by each child and shared by unrelated defects.
+[Instruction] **CRITICAL: Tier 2 merges on the SAME DEFECT, never on mere proximity** — same file or same heading alone is NOT a match.
 
-[Instruction] **Orchestrator only: read [`references/majority-merge.md`](references/majority-merge.md) at flow step 4.**
-
-It defines each key field, the line-overlap matching the vote depends on, the merge algorithm, and the ensemble-vs-correlated-false-positive handback.
+[Instruction] **Orchestrator only: read [`references/majority-merge.md`](references/majority-merge.md) at flow step 4.** It defines both tiers, the guard, and the false-positive handback.
 
 Children never load it — they only emit the `[KEY]` line specified above.
 
