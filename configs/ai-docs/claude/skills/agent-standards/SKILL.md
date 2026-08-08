@@ -34,6 +34,9 @@ Every non-shadow agent file carries these six `## ` headings, in this exact orde
 - [Instruction] Use `## ` (h2) for each of the six headings, never `### ` or deeper.
   - [Why] A deeper heading reads as a subsection of something else to both a human skimming the file and a script matching on heading level.
 
+- [Instruction] Verify every agent file with `scripts/check-agent-contract.sh <agents-directory>` after editing one.
+  - [Why] It settles frontmatter, heading order, level, and non-empty content deterministically, yet today runs only inside a `performance-check` audit — long after the edit that broke the contract.
+
 ## Shadow-file carve-out
 
 A shadow file exists only to pin settings on a Claude Code built-in agent (e.g. `general-purpose`, `Explore`) — it never defines new behavior of its own.
