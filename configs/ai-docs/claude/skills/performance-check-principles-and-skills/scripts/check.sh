@@ -50,14 +50,22 @@ readonly CLAUDE_INSTRUCTIONS_BUDGET=100         # CLAUDE.md alone
 readonly STANDARDS_INSTRUCTIONS_BUDGET=200      # Sum across *-standards skills
 readonly CRITICAL_RATIO_BUDGET=16               # Percent of [Instruction] count per file
 
-# *-standards skills excluded from STANDARDS_INSTRUCTIONS_BUDGET (space-separated).
-# That subtotal caps what ONE source change can pull in at once — touching code, its
-# comments, and its tests fires code/doc/test-standards together, so they share a budget.
-# skill-standards fires on a disjoint trigger (authoring a skill or CLAUDE.md itself) and
-# never rides along with that set, so charging it to the shared pool would cap unrelated
-# budgets against each other. It is still gated by its own frontmatter `instructions-budget:`
-# and still appears in the CRITICAL-ratio table below.
-readonly STANDARDS_SUBTOTAL_EXCLUDED="skill-standards"
+# *-standards skills excluded from
+# STANDARDS_INSTRUCTIONS_BUDGET (space-separated).
+#
+# That subtotal caps what ONE source change can pull in at
+# once — touching code, its comments, and its tests fires
+# code/doc/test-standards together, so they share a budget.
+#
+# skill-standards and agent-standards fire on a disjoint
+# trigger — authoring the harness itself — and never ride
+# along with that set, so charging them to the shared pool
+# would cap unrelated budgets against each other.
+#
+# Each stays gated by its own frontmatter
+# `instructions-budget:` and still appears in the
+# CRITICAL-ratio table below.
+readonly STANDARDS_SUBTOTAL_EXCLUDED="skill-standards agent-standards"
 
 # Resolve targets
 if [ -z "${1:-}" ]; then

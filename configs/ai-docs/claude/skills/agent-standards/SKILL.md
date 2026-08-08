@@ -2,6 +2,7 @@
 name: agent-standards
 description: "Authoring an agent file under configs/ai-docs/claude/agents/*.md -- six mandatory headings, frontmatter validation, and the shadow-file carve-out. Also load when a skill dispatches a subagent or writes an agent description."
 user-invocable: false
+instructions-budget: 32
 ---
 
 # Agent Standards
