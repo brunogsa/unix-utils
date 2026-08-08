@@ -55,7 +55,7 @@ Without the plan: derive the bullets from the diff and commit messages.]
 
 Decisions come BEFORE Architecture: the reviewer learns what was chosen, then sees it rendered in the diagrams.
 
-This is a HIGH-LEVEL SUMMARY of the main decisions. The full catalog lives verbatim in the appendix — see SKILL.md's altitude rule, which is canonical.
+This is a HIGH-LEVEL SUMMARY of the main decisions. The full catalog lives verbatim in the appendix — see pr-page-budget.md's altitude rule, which is canonical.
 
 Source: [DECISION: ...] markers from the spec and the plan, merged and deduplicated, then cut down to the ones that change behavior, cost, or risk.
 
