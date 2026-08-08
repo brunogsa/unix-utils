@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# test-claude-git-guard.sh - plain-bash test file for claude-git-guard.sh.
+# Plain-bash test file for claude-git-guard.sh.
 #
 # Usage:
 #   bash test-claude-git-guard.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
-# by design — three small scripts don't justify a new cross-platform
+# Exits 0 when every assertion passes, non-zero
+# otherwise. No bats dependency by design — three
+# small scripts don't justify a new cross-platform
 # test-runner dependency in install.sh.
 
 set -uo pipefail
@@ -29,9 +30,10 @@ assert_eq() {
   fi
 }
 
-# run_hook - invokes the hook with the given command string wrapped into the
-# PreToolUse JSON shape, capturing exit code into HOOK_EXIT (0 = allowed,
-# 2 = blocked). stderr is discarded — no test here asserts on the message.
+# run_hook - invokes the hook with the given command
+# string, wrapped into the PreToolUse JSON shape.
+# Captures exit code into HOOK_EXIT (0 = allowed, 2 =
+# blocked); stderr is discarded, no test asserts on it.
 bash_bin="$(command -v bash)"
 
 run_hook() {
