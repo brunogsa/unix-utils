@@ -197,7 +197,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "bash -c 'command -v ccburn >/dev/null 2>&1 && command -v ccstatusline >/dev/null 2>&1 && ccburn collect | ccstatusline | perl -pe \"s/(\\d+\\.\\d+)%/int(\\$1+0.5).\\\"%\\\"/ge; s/\\xc2\\xa0(?=(?:\\x1b\\[[0-9;]*m)*\\$)//g\"; true'"
+    "command": "bash -c 'command -v ccburn >/dev/null 2>&1 && command -v ccstatusline >/dev/null 2>&1 && ccburn collect | ccstatusline | perl -pe \"s/(\\d+\\.\\d+)%/int(\\$1+0.5).\\\"%\\\"/ge; s/^((?:\\x1b\\[[0-9;]*m)*)\\xc2\\xa0+/\\$1/; s/\\xc2\\xa0(?=(?:\\x1b\\[[0-9;]*m)*\\$)//g\"; true'"
   },
   "enabledPlugins": {
     "typescript-lsp@claude-plugins-official": true,

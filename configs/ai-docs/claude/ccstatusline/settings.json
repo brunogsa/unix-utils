@@ -53,5 +53,6 @@
     "continueThemeAcrossLines": false,
     "theme": "nord-aurora"
   },
-  "defaultPadding": " "
+  "defaultPadding": " ",
+  "defaultPaddingSide": "left"
 }

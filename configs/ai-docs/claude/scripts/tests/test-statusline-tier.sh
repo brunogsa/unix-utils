@@ -701,7 +701,8 @@ JSON
   local line1 no_decimal_percent rounds_up_correctly max_tight ctx_shape \
     duration_label_shape no_redundant_dollar_label token_count_untouched \
     cost_untouched pacing_5h_shape pacing_7d_shape line1_closes_clean \
-    line2_closes_clean
+    line2_closes_clean no_redundant_advisor_label single_spaced edges_clean \
+    line
   line1=$(printf '%s\n' "$output" | sed -n '1p')
 
   # 1. No "<digits>.<digits>%" survives anywhere: every
@@ -810,6 +811,40 @@ JSON
   assert_eq \
     "StatusLineRealRender > happy > neither line is truncated at a realistic width" \
     "yes yes" "$line1_closes_clean $line2_closes_clean"
+
+  # 10. The redundant "Advisor" custom-text label is gone -
+  # advisor sits inside the tier/model/effort run, which
+  # reads without per-field labels.
+  #
+  # Same defect class assertion 6 guards for "$": a label
+  # duplicating what its neighbour already conveys. Both
+  # were caught by maintainer eyeball, not by the widget-
+  # label loop above, which only knows built-in labels.
+  no_redundant_advisor_label=yes
+  printf '%s' "$output" | grep -qF 'Advisor' && no_redundant_advisor_label=no
+  assert_eq \
+    "StatusLineRealRender > happy > the redundant Advisor custom-text label is gone" \
+    "yes" "$no_redundant_advisor_label"
+
+  # 11. Widgets are separated by exactly one space, and
+  # neither line is padded at its own edges.
+  #
+  # ccstatusline pads every widget on both sides by default,
+  # which doubles every separator and leaves one pad hanging
+  # off each end.
+  #
+  # defaultPaddingSide:"left" halves it; the
+  # statusLine.command filter strips the edge pad it leaves.
+  single_spaced=yes
+  printf '%s' "$output" | grep -qE '[^[:space:]][[:space:]]{2,}[^[:space:]]' \
+    && single_spaced=no
+  edges_clean=yes
+  for line in "$line1" "$line2"; do
+    [[ "$line" == [[:space:]]* || "$line" == *[[:space:]] ]] && edges_clean=no
+  done
+  assert_eq \
+    "StatusLineRealRender > happy > widgets are single-spaced and neither line is edge-padded" \
+    "yes yes" "$single_spaced $edges_clean"
 
   printf '# line1 (%d chars): %s\n' "${#line1}" "$line1" >&2
   printf '# line2 (%d chars): %s\n' "${#line2}" "$line2" >&2
