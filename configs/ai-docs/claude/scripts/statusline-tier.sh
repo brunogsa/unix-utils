@@ -522,6 +522,7 @@ read_monthly_spend_limit() {
 # tracks the input rate rather than varying on its own.
 readonly MODEL_RATE_TABLE_JSON='{
   "claude-opus-5":    { "input": 5e-6,  "output": 25e-6, "cache_write": 6.25e-6, "cache_read": 0.5e-6 },
+  "claude-opus-4-8":  { "input": 5e-6,  "output": 25e-6, "cache_write": 6.25e-6, "cache_read": 0.5e-6 },
   "claude-sonnet-5":  { "input": 2e-6,  "output": 10e-6, "cache_write": 2.5e-6,  "cache_read": 0.2e-6 },
   "claude-haiku-4-5": { "input": 1e-6,  "output": 5e-6,  "cache_write": 1.25e-6, "cache_read": 0.1e-6 },
   "claude-fable-5":   { "input": 10e-6, "output": 50e-6, "cache_write": 12.5e-6, "cache_read": 1e-6 }
@@ -565,6 +566,14 @@ subagent_transcript_dir() {
 # Lines are parsed with fromjson? so a half-written line at
 # the tail of a live transcript is skipped instead of
 # aborting the whole sum.
+#
+# An entry spending no tokens is never counted as unpriced,
+# whatever its model.
+#
+# Claude Code logs placeholders for turns that never reached
+# the API - "<synthetic>" among them - and letting those
+# raise the floor marker would report a complete figure as
+# incomplete.
 sum_subagent_cost() {
   local subagents_dir="$1"
   [ -d "$subagents_dir" ] || return 1
@@ -575,6 +584,12 @@ sum_subagent_cost() {
   jq -Rnr --argjson rates "$MODEL_RATE_TABLE_JSON" '
     def base_model: sub("-20[0-9]{6}$"; "");
 
+    def total_tokens:
+      (.input_tokens // 0)
+      + (.output_tokens // 0)
+      + (.cache_creation_input_tokens // 0)
+      + (.cache_read_input_tokens // 0);
+
     reduce (inputs | fromjson? // empty) as $entry ({};
       if $entry.type == "assistant"
         and ($entry.isApiErrorMessage | not)
@@ -584,7 +599,10 @@ sum_subagent_cost() {
       else . end
     )
     | [ .[] | { rate: $rates[(.model // "") | base_model], usage } ]
-    | (map(select(.rate == null)) | length) as $unpriced
+    | (
+        map(select(.rate == null and (.usage | total_tokens) > 0))
+        | length
+      ) as $unpriced
     | (
         map(
           select(.rate != null)

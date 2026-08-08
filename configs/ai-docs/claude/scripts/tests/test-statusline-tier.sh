@@ -2020,8 +2020,91 @@ it_should_render_nothing_when_the_session_has_no_cost_figure_yet() {
     " 0" "$actual $status"
 }
 
+it_should_carry_a_rate_for_every_model_subagents_run_on() {
+  local actual expected
+
+  # Pinned as a literal rather than read off the table,
+  # because a test that asks the table which models it holds
+  # can never notice one going missing.
+  #
+  # The list is what a sweep of every sub-agent transcript
+  # on this setup actually turned up.
+  #
+  #   jq -r 'select(.type=="assistant")|.message.model' \
+  #     ~/.claude/projects/*/*/subagents/*.jsonl | sort -u
+  expected='claude-fable-5 claude-haiku-4-5 claude-opus-4-8 claude-opus-5 claude-sonnet-5'
+
+  actual="$(bash -c 'source "$0"; printf "%s" "$MODEL_RATE_TABLE_JSON"' \
+    "$SCRIPT_UNDER_TEST" | jq -r 'keys | join(" ")')"
+
+  assert_eq \
+    "StatusLineSessionCost > happy > should carry a rate for every model this setup runs sub-agents on" \
+    "$expected" "$actual"
+}
+
+it_should_price_every_model_the_rate_table_advertises() {
+  local sandbox transcript subagents models model index actual has_marker
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  subagents="$sandbox/projects/a-project/a-session/subagents"
+
+  # Reading the table back rather than listing models here
+  # means a model added to it later is covered without
+  # anyone remembering to touch this test.
+  models="$(bash -c 'source "$0"; printf "%s" "$MODEL_RATE_TABLE_JSON"' \
+    "$SCRIPT_UNDER_TEST" | jq -r 'keys[]')"
+
+  index=0
+  while IFS= read -r model; do
+    index=$((index + 1))
+    write_subagent_transcript "$subagents/agent-priced$index.jsonl" \
+      "$model" '{"output_tokens":4213,"cache_read_input_tokens":55125}' 1
+  done <<<"$models"
+
+  actual="$(render_session_cost_for 0 "$transcript")"
+  has_marker="no"
+  case "$actual" in *+) has_marker="yes" ;; esac
+
+  assert_eq \
+    "StatusLineSessionCost > happy > should price every model the rate table advertises, with no floor marker" \
+    "no" "$has_marker"
+  rm -rf "$sandbox"
+}
+
+it_should_not_raise_the_floor_marker_for_a_turn_that_spent_no_tokens() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-55bb.jsonl"
+
+  write_subagent_transcript "$agent" claude-sonnet-5 '{"output_tokens":31000}' 2
+
+  # Claude Code logs a placeholder for a turn that never
+  # reached the API, under a model name no rate table can
+  # carry and with every token count at zero.
+  printf '%s\n' \
+    '{"type":"assistant","message":{"id":"msg_synthetic","model":"<synthetic>","usage":{"input_tokens":0,"output_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}' \
+    >>"$agent"
+
+  actual="$(render_session_cost_for 0 "$transcript")"
+
+  # Marking this total a floor would report a complete
+  # figure as incomplete, and a marker that cries wolf is one
+  # the reader learns to skip.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSessionCost > corner > should not raise the floor marker for a turn that spent no tokens" \
+    '$0.62' "$actual"
+  rm -rf "$sandbox"
+}
+
 it_should_add_every_subagents_spend_to_the_main_session_figure
+it_should_carry_a_rate_for_every_model_subagents_run_on
+it_should_price_every_model_the_rate_table_advertises
 it_should_bill_a_streamed_reply_once_at_its_final_token_count
+it_should_not_raise_the_floor_marker_for_a_turn_that_spent_no_tokens
 it_should_price_a_dated_model_alias_at_its_base_models_rate
 it_should_mark_the_total_as_a_floor_when_a_model_has_no_known_rate
 it_should_bill_only_the_subagents_belonging_to_this_session
