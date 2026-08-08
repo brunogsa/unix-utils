@@ -16,7 +16,8 @@ SCRIPT="$script_dir/claude-git-guard.sh"
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs
+# actual, prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
