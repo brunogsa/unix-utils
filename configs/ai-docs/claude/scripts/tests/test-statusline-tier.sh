@@ -93,8 +93,18 @@ fresh_sandbox() {
 # No sleep-based race is needed, since the signal is sent
 # while the fake is still alive (sleeping), guaranteeing
 # delivery precedes its own exit.
+#
+# $delay_after_secret_secs, when non-zero, keeps the fake
+# alive (and its stdout pipe open) for that many seconds
+# right after handing over the secret, before it exits
+# normally.
+#
+# This widens the window a concurrent watcher gets to observe
+# filesystem state while the read is still in flight, rather
+# than only after it returns - existing callers omit it and
+# see no behavior change (default 0 = no delay).
 write_fake_security() {
-  local bin_dir="$1" mdat="$2" mode="$3" kill_parent="${4:-}"
+  local bin_dir="$1" mdat="$2" mode="$3" kill_parent="${4:-}" delay_after_secret_secs="${5:-0}"
   cat >"$bin_dir/security" <<EOF
 #!/usr/bin/env bash
 case "\$*" in
@@ -106,6 +116,9 @@ case "\$*" in
     if [ "$kill_parent" = "kill-parent" ]; then
       kill -TERM "\$PPID" 2>/dev/null
       sleep 1
+    fi
+    if [ "$delay_after_secret_secs" != "0" ]; then
+      sleep "$delay_after_secret_secs"
     fi
     ;;
   *)
@@ -1344,18 +1357,54 @@ it_should_exit_zero_with_no_output_when_the_tier_is_unavailable() {
 }
 
 it_should_never_write_the_raw_credential_value_anywhere() {
-  local sandbox marker captured leaked_in_output leaked_in_tmp
+  local sandbox marker sentinel watch_pid captured
+  local observed_during_run leaked_in_output leaked_in_tmp
   sandbox="$(fresh_sandbox)"
   marker="RAW-SECRET-MARKER-do-not-leak-9f31"
-  write_fake_security "$sandbox" "20260730082118Z" "{\"claudeAiOauth\":{\"subscriptionType\":\"max\",\"raw\":\"$marker\"}}"
+
+  # A post-hoc scan of TMPDIR after the read returns only
+  # proves "absent after cleanup" - the exact shape of the
+  # historical F7 bug, which wrote the secret to a mktemp
+  # file and relied on an explicit `rm -f` on the normal
+  # return path. That cleanup runs fine on an uninterrupted
+  # read, so a scan taken only after the read completes would
+  # have stayed green through F7 too.
+  #
+  # This test instead watches the scoped TMPDIR WHILE the
+  # read is still in flight: write_fake_mktemp_scoped_to_tmpdir
+  # forces any reintroduced bare `mktemp` call into a known
+  # directory, and the fake `security`'s delay_after_secret_secs
+  # keeps its stdout pipe open for 0.3s after handing over the
+  # secret - the read can't return until that pipe closes, so
+  # a concurrent poller gets many chances to observe a
+  # transient file before any cleanup step could remove it.
+  write_fake_security "$sandbox" "20260730082118Z" \
+    "{\"claudeAiOauth\":{\"subscriptionType\":\"max\",\"raw\":\"$marker\"}}" "" "0.3"
+  write_fake_mktemp_scoped_to_tmpdir "$sandbox"
 
   mkdir -p "$sandbox/scoped-tmp"
+  sentinel="$sandbox/observed-marker-on-disk"
+  rm -f "$sandbox/read-done" "$sentinel"
+
+  (
+    while [ ! -f "$sandbox/read-done" ]; do
+      grep -rl "$marker" "$sandbox/scoped-tmp" >/dev/null 2>&1 && touch "$sentinel"
+      sleep 0.01
+    done
+  ) &
+  watch_pid=$!
+
   captured=$(
     STATUSLINE_CREDENTIALS_FILE="$sandbox/nonexistent-credentials.json" \
       TMPDIR="$sandbox/scoped-tmp" \
       PATH="$sandbox:/usr/bin:/bin" \
       bash -c 'source "$0"; read_subscription_tier_from_keychain' "$SCRIPT_UNDER_TEST" 2>&1
   )
+  touch "$sandbox/read-done"
+  wait "$watch_pid" 2>/dev/null
+
+  observed_during_run="no"
+  [ -f "$sentinel" ] && observed_during_run="yes"
 
   leaked_in_output="no"
   printf '%s' "$captured" | grep -q "$marker" && leaked_in_output="yes"
@@ -1364,8 +1413,8 @@ it_should_never_write_the_raw_credential_value_anywhere() {
   grep -rl "$marker" "$sandbox/scoped-tmp" >/dev/null 2>&1 && leaked_in_tmp="yes"
 
   assert_eq \
-    "StatusLineTierSegment > failure > should never write the raw credential value to stdout, stderr or any log" \
-    "max no no" "$captured $leaked_in_output $leaked_in_tmp"
+    "StatusLineTierSegment > failure > should never write the raw credential value to disk, even transiently, at any point during the read" \
+    "max no no no" "$captured $observed_during_run $leaked_in_output $leaked_in_tmp"
   rm -rf "$sandbox"
 }
 
