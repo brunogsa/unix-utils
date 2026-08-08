@@ -140,56 +140,63 @@ it_should_keep_the_three_pre_existing_env_keys_intact_alongside_the_new_cap
 it_should_fail_when_the_committed_env_block_defines_claude_code_subagent_model
 
 # ============================================================
-# describe("FanOutInstructionText")
+# describe("SubagentCostGuidance")
 # ============================================================
 
 CLAUDE_MD="$repo_root/configs/ai-docs/claude/CLAUDE.md"
 
-# fan_out_block - the fan-out [Instruction] line plus its
-# [Why] line; the instruction is followed immediately by
-# exactly one [Why] line, so a fixed one-line lookahead
-# captures the full qualified bullet.
-fan_out_block() {
-  grep -A1 'CRITICAL: Default to parallel fan-out' "$CLAUDE_MD"
+# subagents_section - the body of CLAUDE.md's "### Subagents"
+# section, from its heading to the next heading of any level.
+#
+# Scoped to the section rather than to the fan-out bullet
+# alone: the cost guidance has already been split into a
+# second bullet once, and a fixed one-line lookahead from the
+# fan-out instruction stopped covering the facts the moment
+# it moved. What these assertions actually guard is that the
+# subagent guidance states the real cost multiplier and never
+# resurrects a debunked lever — wherever in the section it is
+# written.
+subagents_section() {
+  awk '/^### Subagents$/ { inside = 1; next } inside && /^#/ { exit } inside' "$CLAUDE_MD"
 }
 
-it_should_state_the_subagent_count_times_per_subagent_cost_multiplier_in_the_fan_out_bullet() {
+it_should_state_the_subagent_count_times_per_subagent_cost_multiplier() {
   local has_subagent_count has_per_subagent_cost
-  fan_out_block | grep -q "subagent count" && has_subagent_count=true || has_subagent_count=false
-  fan_out_block | grep -q "per-subagent cost" && has_per_subagent_cost=true || has_per_subagent_cost=false
+  subagents_section | grep -q "subagent count" && has_subagent_count=true || has_subagent_count=false
+  subagents_section | grep -q "per-subagent cost" && has_per_subagent_cost=true || has_per_subagent_cost=false
   assert_eq \
-    "FanOutInstructionText > happy > should state the subagent-count times per-subagent-cost multiplier in the fan-out bullet" \
+    "SubagentCostGuidance > happy > should state the subagent-count times per-subagent-cost multiplier" \
     "true true" "$has_subagent_count $has_per_subagent_cost"
 }
 
-it_should_fail_when_the_fan_out_bullet_claims_max_thinking_tokens_is_a_usable_cost_lever() {
+it_should_fail_when_the_subagent_guidance_claims_max_thinking_tokens_is_a_usable_cost_lever() {
   local actual
-  fan_out_block | grep -q "MAX_THINKING_TOKENS" && actual=true || actual=false
+  subagents_section | grep -q "MAX_THINKING_TOKENS" && actual=true || actual=false
   assert_eq \
-    "FanOutInstructionText > failure > should fail when the fan-out bullet claims MAX_THINKING_TOKENS is a usable cost lever" \
+    "SubagentCostGuidance > failure > should fail when the subagent guidance claims MAX_THINKING_TOKENS is a usable cost lever" \
     "false" "$actual"
 }
 
-it_should_fail_when_the_fan_out_bullet_claims_effortlevel_high_is_an_above_default_multiplier() {
+it_should_fail_when_the_subagent_guidance_claims_effortlevel_high_is_an_above_default_multiplier() {
   local actual
-  fan_out_block | grep -q "effortLevel" && actual=true || actual=false
+  subagents_section | grep -q "effortLevel" && actual=true || actual=false
   assert_eq \
-    "FanOutInstructionText > failure > should fail when the fan-out bullet claims effortLevel high is an above-default multiplier" \
+    "SubagentCostGuidance > failure > should fail when the subagent guidance claims effortLevel high is an above-default multiplier" \
     "false" "$actual"
 }
 
-it_should_fail_when_the_fan_out_bullet_claims_the_native_rate_limits_stdin_field_is_missing_data() {
+it_should_fail_when_the_subagent_guidance_claims_the_native_rate_limits_stdin_field_is_missing_data() {
   local actual
-  fan_out_block | grep -q "rate_limits" && actual=true || actual=false
+  subagents_section | grep -q "rate_limits" && actual=true || actual=false
   assert_eq \
-    "FanOutInstructionText > failure > should fail when the fan-out bullet claims the native rate_limits stdin field is missing data" \
+    "SubagentCostGuidance > failure > should fail when the subagent guidance claims the native rate_limits stdin field is missing data" \
     "false" "$actual"
 }
 
-it_should_state_the_subagent_count_times_per_subagent_cost_multiplier_in_the_fan_out_bullet
-it_should_fail_when_the_fan_out_bullet_claims_max_thinking_tokens_is_a_usable_cost_lever
-it_should_fail_when_the_fan_out_bullet_claims_effortlevel_high_is_an_above_default_multiplier
-it_should_fail_when_the_fan_out_bullet_claims_the_native_rate_limits_stdin_field_is_missing_data
+it_should_state_the_subagent_count_times_per_subagent_cost_multiplier
+it_should_fail_when_the_subagent_guidance_claims_max_thinking_tokens_is_a_usable_cost_lever
+it_should_fail_when_the_subagent_guidance_claims_effortlevel_high_is_an_above_default_multiplier
+it_should_fail_when_the_subagent_guidance_claims_the_native_rate_limits_stdin_field_is_missing_data
 
 # ============================================================
 # describe("SettingsModelDefaults")
