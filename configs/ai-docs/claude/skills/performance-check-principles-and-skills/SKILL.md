@@ -67,7 +67,7 @@ words-budget: 4096
 
 Why: a few skills legitimately pair principles with inline examples (code-standards, test-standards), so they need ~2× the default budget.
 
-Hard-coding the exception list in the script would couple performance-check to specific skill names; an opt-in field keeps the override self-documenting and local to the skill that needs it.
+Hard-coding the exception list would couple performance-check to specific skill names; an opt-in field keeps the override self-documenting and local to the skill.
 
 The report stays quiet about overrides while the skill is under its custom budget — the override only surfaces when the skill blows past its own ceiling.
 
@@ -89,7 +89,7 @@ The heading gate takes no override: a raised size budget still leaves the file f
 
 - AI may **propose** an override as one of several alternatives surfaced to the user, but never apply it silently. Cite the trim alternatives alongside it so the user picks deliberately.
 
-- Why: an override is a deliberate trade-off the user owns. AI applying it unilaterally hides the cost of complexity behind a config knob — exactly the drift performance-check exists to catch.
+- Why: an override is a trade-off the user owns — AI applying it unilaterally hides complexity behind a config knob, exactly the drift performance-check exists to catch.
 
 ### Per-skill instructions-budget override
 
@@ -105,7 +105,7 @@ instructions-budget: 90
 
 The override is enforced **in addition to** the cross-skill `*-standards` total cap (200) — or **instead of** it for a skill that total exempts.
 
-It exists so the 200 budget can be intentionally allocated across the standards skills — e.g., weighting test-standards heavier than doc-standards because day-to-day testing fires that skill more often.
+It lets the 200 budget be allocated intentionally across standards skills — e.g., weighting test-standards over doc-standards since testing fires more often.
 
 When a skill exceeds its override, the report lists the offending count.
 
@@ -124,9 +124,10 @@ bash scripts/check.sh           # user mode
 bash scripts/check.sh <path>    # repo mode
 ```
 
-The script measures with `grep`, `awk`, `wc`, and `find`.
+The script measures with `grep`, `awk`, `wc`, `find`, and `readlink`.
 
 - It prints a markdown report to stdout: the status table, then follow-up sections listing offending lines in CLAUDE.md and over-budget skills if any.
+- Both modes also audit `agents/*.md` against the canonical `~/.claude/agents` dir (resolved via `readlink -f`), hard-failing if unresolvable.
 - Exit code is 0 when all budgets are met, 1 otherwise — handy for CI.
 
 ## What the Report Looks Like

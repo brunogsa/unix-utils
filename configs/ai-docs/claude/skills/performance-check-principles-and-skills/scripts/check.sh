@@ -140,6 +140,29 @@ if [ ! -d "$SKILLS_DIR" ]; then
     exit 1
 fi
 
+# The agent-contract row always targets the canonical
+# installed agents dir, never $1 or the no-arg default
+# above — the contract is about this config repo, not
+# whatever tree the caller pointed check.sh at.
+#
+# readlink -f (not a literal repo path) tracks wherever
+# install.sh actually pointed the symlink, so a clone at a
+# different location still resolves correctly.
+AGENT_CONTRACT_SCRIPT="$HOME/.claude/skills/agent-standards/scripts/check-agent-contract.sh"
+CANONICAL_AGENTS_DIR=$(readlink -f "$HOME/.claude/agents" 2>/dev/null || true)
+
+# A missing/broken symlink hard-fails here, mirroring the
+# missing-skills-dir check above — never a silent skip of
+# the agent-contract row in the report below.
+if [ -z "$CANONICAL_AGENTS_DIR" ] || [ ! -d "$CANONICAL_AGENTS_DIR" ]; then
+    echo "ERROR: cannot resolve ~/.claude/agents (readlink -f)" >&2
+    exit 1
+fi
+if [ ! -x "$AGENT_CONTRACT_SCRIPT" ]; then
+    echo "ERROR: agent-contract checker missing: $AGENT_CONTRACT_SCRIPT" >&2
+    exit 1
+fi
+
 # Helper functions
 # ==============================================================
 # All defined up-front so any measurement block below can
@@ -430,6 +453,12 @@ while IFS= read -r bf; do
     fi
 done < <(find -L "$SKILLS_DIR" -type f \( -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort)
 
+# Agent-contract measurement — always the canonical dir
+# resolved above, never $SKILLS_DIR or $1.
+agent_contract_out=$("$AGENT_CONTRACT_SCRIPT" "$CANONICAL_AGENTS_DIR" 2>&1 || true)
+agent_contract_offending=$(printf '%s\n' "$agent_contract_out" | grep -c '^== ' || true)
+agent_contract_total=$(find "$CANONICAL_AGENTS_DIR" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
+
 # Report
 echo "# Performance Check — $TARGET_LABEL"
 echo
@@ -471,6 +500,11 @@ echo "| Max skill name chars | $max_name ($max_name_skill) | $SKILL_NAME_BUDGET 
 echo "| Bundled files failing size or heading checks (references/ + assets/) | $bundled_over of $bundled_count | 0 | $(status_of "$bundled_over" 0) |"
 [ "$bundled_over" -gt 0 ] && overages=1
 
+# Agent-authoring contract — always $CANONICAL_AGENTS_DIR,
+# so this row is identical in user mode and repo mode.
+echo "| Agent-authoring contract failures ($CANONICAL_AGENTS_DIR) | $agent_contract_offending of $agent_contract_total | 0 | $(status_of "$agent_contract_offending" 0) |"
+[ "$agent_contract_offending" -gt 0 ] && overages=1
+
 # Instruction-density row: *-standards subtotal against
 # its dedicated budget.
 echo "| *-standards [Instruction] total (excl. $STANDARDS_SUBTOTAL_EXCLUDED) | $standards_total_instructions | $STANDARDS_INSTRUCTIONS_BUDGET | $(status_of "$standards_total_instructions" "$STANDARDS_INSTRUCTIONS_BUDGET") |"
@@ -498,6 +532,13 @@ fi
 if [ -n "$skill_overages" ]; then
     echo "## Skills exceeding budgets (lines >$SKILL_LINES_BUDGET, words >$SKILL_WORDS_BUDGET, desc >${SKILL_DESC_BUDGET}c, name >${SKILL_NAME_BUDGET}c)"
     echo "$skill_overages"
+    echo
+fi
+
+if [ "$agent_contract_offending" -gt 0 ]; then
+    echo "## Agent-authoring contract failures"
+    echo
+    echo "$agent_contract_out"
     echo
 fi
 
