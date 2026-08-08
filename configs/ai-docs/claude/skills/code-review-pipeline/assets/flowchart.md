@@ -122,15 +122,11 @@ def code_review_pipeline(arg):
                 post_review_guide()
 
             case "local":
-                # 17a · consult the html-artifacts routing table (.md vs .html).
-                #       A fixed verdict here is standing approval.
-                verdict = html_artifacts_router()          # 17a1 · .md or .html
-                out_file = write(f"verdict_auto-review_{ts}", to=CWD)   # 17a2
-                if out_file.endswith(".md"):               # 17a3 · .md output only
-                    # 17a3a · local mode is always isolated, so fix inline,
+                out_file = write(f"verdict_auto-review_{ts}", to=CWD)   # 17a
+                while not run("check-density.sh", out_file):            # 17a1
+                    # 17a1a · local mode is always isolated, so fix inline,
                     #         looping until exit 0.
-                    while not run("check-density.sh", out_file):
-                        fix_density_inline()
+                    fix_density_inline()
 
     print(terminal_summary())                              # 23 · Wave 6
 
@@ -199,11 +195,9 @@ flowchart TD
 
   n22["22. Post Review Guide as<br/>standalone PR comment<br/>(guide-payload.json)"]:::state
 
-  n17a["17a. Consult html-artifacts skill<br/>routing table (.md vs .html)<br/>fixed verdict = standing approval"]:::skill
-  n17a1{"17a1. Router verdict: .md or .html?"}
-  n17a2["17a2. Write verdict_auto-review_TIMESTAMP<br/>file to CWD"]:::state
-  n17a3["17a3. check-density.sh on out_file<br/>(.md output only)"]:::hook
-  n17a3a["17a3a. Fix density violations inline<br/>(local mode is always isolated)<br/>loop until exit 0"]
+  n17a["17a. Write verdict_auto-review_TIMESTAMP<br/>file to CWD"]:::state
+  n17a1["17a1. check-density.sh on out_file"]:::hook
+  n17a1a["17a1a. Fix density violations inline<br/>(local mode is always isolated)<br/>loop until exit 0"]
 
   n23["23. Wave 6: print terminal summary"]
   n24(["24. Pending review (github) or verdict file (local)<br/>awaits human read/submit -- nothing auto-submits"]):::gate
@@ -284,11 +278,9 @@ flowchart TD
   n22 --> n23
 
   n17a --> n17a1
-  n17a1 --> n17a2
-  n17a2 --> n17a3
-  n17a3 -->|"violations found"| n17a3a
-  n17a3 -->|"clean"| n23
-  n17a3a --> n23
+  n17a1 -->|"violations found"| n17a1a
+  n17a1 -->|"clean"| n23
+  n17a1a --> n23
 
   n23 --> n24
 
