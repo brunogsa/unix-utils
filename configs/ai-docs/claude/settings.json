@@ -214,7 +214,8 @@
     "core@arco-ai-plugins": true,
     "audit@arco-ai-plugins": true,
     "sdd@arco-ai-plugins": true,
-    "sdk@arco-ai-plugins": true
+    "sdk@arco-ai-plugins": true,
+    "linear@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "claude-code-lsps": {

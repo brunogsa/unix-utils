@@ -333,6 +333,7 @@ claude plugin install explanatory-output-style@claude-plugins-official
 claude plugin install skill-creator@claude-plugins-official
 claude plugin install pyright-lsp@claude-plugins-official
 claude plugin install frontend-design@claude-plugins-official
+claude plugin install linear@claude-plugins-official
 # Private repo, so this needs the machine's SSH key already authorized on GitHub.
 claude plugin marketplace add git@github.com:OlaIsaac/arco-ai-plugins.git
 claude plugin install core@arco-ai-plugins
