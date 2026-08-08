@@ -117,16 +117,45 @@ usage_cache_path() {
 # So the downstream reader blocks for the full timeout
 # waiting for EOF even though the real command already
 # finished.
+#
+# `$@` itself is started in its own process group (`set -m`
+# around the background start, restored right after) so the
+# TERM on timeout reaches its whole descendant tree via
+# `kill -TERM -$cmd_pid`, not just the direct child.
+#
+# Confirmed empirically (not merely reasoned): a command that
+# backgrounds a grandchild and exits leaves that grandchild
+# holding the caller's capture pipe open when only the direct
+# child is signaled - the caller then hangs indefinitely, well
+# past timeout_secs, instead of returning. Signaling the whole
+# process group kills the grandchild too and the caller
+# returns immediately. `security find-generic-password`
+# without `-w` was checked directly against this host's real
+# binary and spawns no child process at all, so it can't hit
+# this path either way; whether the `-w` secret read's
+# interactive "Always Allow" prompt (handled out-of-process by
+# SecurityAgent per Security.framework's XPC design, not a
+# fork of `security` itself - see `otool -L /usr/bin/security`)
+# could ever exhibit this shape wasn't directly testable in a
+# sandboxed environment, so the process-group fix is applied
+# defensively for that path rather than left unproven.
 # ----------------------------------------------------------
 
 run_with_timeout() {
   local timeout_secs="$1"
   shift
+  set -m
   "$@" &
   local cmd_pid=$!
+  set +m
   (
     sleep "$timeout_secs"
-    kill -0 "$cmd_pid" 2>/dev/null && kill -TERM "$cmd_pid" 2>/dev/null
+    # The plain-pid fallback only fires if the negated-pgid
+    # form fails outright (no such process group) - it never
+    # runs after a successful group kill, so it can't
+    # double-signal.
+    kill -0 "$cmd_pid" 2>/dev/null \
+      && { kill -TERM "-$cmd_pid" 2>/dev/null || kill -TERM "$cmd_pid" 2>/dev/null; }
   ) </dev/null >/dev/null 2>&1 &
   local watchdog_pid=$!
   local status=0
