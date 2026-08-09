@@ -10,8 +10,8 @@ A run may write the plan alone, per SKILL.md — never report the absent spec as
 
 - Members: the two artifact fixers, plus `check-sections.sh`, `check-test-distribution.sh`, `check-pr-dag.sh`, `check-tasks-dag.sh`, and — whenever a spec exists — `check-ac-coverage.sh` and `check-coverage-checklists.sh`.
 
-- Dispatch each fixer at `model=sonnet, effort=high`, overriding its agent file's cheaper pin.
-  - Why: a fixer edits prose a human reads next, so a mangled sentence costs more than the cheaper tier saves.
+- Dispatch each fixer at its agent file's pinned model — never name one here.
+  - Why: `subagent-model-guard.py` hard-denies a model override, so an instruction to override is one no caller can follow.
 
 **Judged** — a `deep-reviewer` decides; each round costs one dispatch over both documents whole.
 
