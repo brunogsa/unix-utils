@@ -28,13 +28,17 @@ Path heuristics: `controller/`, `consumer/` → orchestration. `use-case/`, `sha
 
 ## Templates
 
+The roles above rank the files; they never become the entry text.
+
+Each entry says what the reviewer *learns* there, per `SKILL.md`'s qualitative-not-taxonomic rule — the placeholders below are prompts to fill, not labels to paste.
+
 ### English -- when the team's PR language is English
 
 ```markdown
 **Essential** (~{min}min):
 1. PR description (business context + decisions)
-2. `{controller_file}` — {brief role}
-3. `{use_case_file}` — business logic
+2. `{controller_file}` — {what the reviewer learns here}
+3. `{use_case_file}` — {what the reviewer learns here}
 4. Test titles in `{unit_test_file}` ({N} tests)
 5. Test titles in `{integration_test_file}` ({N} tests)
 
@@ -49,8 +53,8 @@ Path heuristics: `controller/`, `consumer/` → orchestration. `use-case/`, `sha
 ```markdown
 **Essencial** (~{min}min):
 1. Descrição do PR (contexto de negócio + decisões)
-2. `{controller_file}` — {brief role}
-3. `{use_case_file}` — regra de negócio
+2. `{controller_file}` — {o que o revisor aprende aqui}
+3. `{use_case_file}` — {o que o revisor aprende aqui}
 4. Títulos dos testes em `{unit_test_file}` ({N} testes)
 5. Títulos dos testes em `{integration_test_file}` ({N} testes)
 
