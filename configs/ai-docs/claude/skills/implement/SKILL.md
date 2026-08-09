@@ -384,6 +384,7 @@ Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` an
 - **`next-task`** → its `task` field names the next task-id; re-run §3.4 on it. §1, §2, and §3.1–§3.3 do not repeat.
   - When `--eligible-set` returns several ids, dispatch them all at once instead: load the `parallel-worktrees` skill.
     - Its four inputs: that id set, each task's **Files (logical order)** list, this unit branch's HEAD at wave time (not `batch_base_sha`, §8's fixed review anchor), and the plan's `<slug>`.
+
     - Its ledger is this state file: it writes `in_progress`, `branch`, and `worktree_path` before each spawn — what `--eligible-set` reads to skip an in-flight task.
 
 - **`wait`** → a dispatched sibling hasn't reported yet. Dispatch nothing, take no halt action, and re-run this verdict once its report lands.
