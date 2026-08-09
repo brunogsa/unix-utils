@@ -83,8 +83,12 @@ Common REST equivalents:
 # Instead of:  gh pr view <num> --json mergeStateStatus,mergeable,...
 gh api repos/{owner}/{repo}/pulls/<num>
 
-# Instead of:  gh pr edit <num> --body-file ./body.md (fails on projectCards GraphQL deprecation)
+# Instead of:  gh pr edit <num> --body-file ./body.md
+#   gh pr edit eagerly queries repository.pullRequest.projectCards (Projects classic).
+#   Where that is sunset it errors and silently fails the write, sometimes still exiting 0 —
+#   which is why the read-back below is mandatory, not optional. REST touches no Projects data.
 gh api -X PATCH "repos/{owner}/{repo}/pulls/<num>" -F body=@./body.md
+gh pr view <num> --json body   # read-back: confirm the new body matches the file
 # Same shape for title:
 gh api -X PATCH "repos/{owner}/{repo}/pulls/<num>" -F title="New title"
 

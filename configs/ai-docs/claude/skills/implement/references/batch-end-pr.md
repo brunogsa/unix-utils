@@ -55,10 +55,8 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
       That fallback is implicit, not the plan's resolved choice.
     - **Branch already has an open PR** (`gh pr create` errors that one exists) → not a failure.
       Fall back to the REST-API body-update path below, targeting that PR number, so a rerun of `/implement` updates its own open PR instead of erroring.
-    - **Updating an existing PR's body: use the REST API, never `gh pr edit --body-file`** — `gh api --method PATCH repos/<owner>/<repo>/pulls/<n> -F body=@<file>`.
-      - `gh pr edit` queries Projects-classic `projectCards`; where classic Projects is sunset it errors on that query and the write silently doesn't land — the REST endpoint touches no Projects data.
-
-      - Read the body back afterward to confirm it landed.
+    - **Updating an existing PR's body: use the REST API, never `gh pr edit --body-file`** — the command and its mandatory read-back live in the `gh-cli-usage` skill, which authors that hazard.
+      - Name the skill in the dispatch prompt rather than pasting the command: a third copy drifts the next time GitHub changes the endpoint.
 
   - Put completed Scout / repo-green fix-loop (§8.2) commits under an **"Unexpected extras"** section in the PR body.
   - Pass the resolved `<this-PR-label>` explicitly in the dispatch prompt, so the subagent opens one PR and never asks which it covers.

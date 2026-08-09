@@ -183,12 +183,7 @@ The user may hand-edit the body on GitHub, or ask for a change in chat. Either w
   - Re-deriving the final body from it would discard the user's own edits, and nobody reads the ideal description after the push.
 
 - **Confirm with the user before writing to GitHub** -- the local edit is cheap to revise; the pushed body notifies reviewers.
-- **Updating an existing PR's body: never use `gh pr edit --body-file`** — it eagerly queries `repository.pullRequest.projectCards` (Projects classic).
-  - Where that's sunset it errors and silently fails the write, sometimes still exiting 0.
-  - Write via the REST API instead, which touches no Projects data:
-  ```bash
-  gh api --method PATCH repos/<owner>/<repo>/pulls/<n> -F body=@<file>
-  ```
-  - Afterwards read the body back (`gh pr view <n> --json body`) and confirm it matches the file.
+- **Updating an existing PR's body: never use `gh pr edit --body-file`** — take the REST command and its mandatory read-back from the `gh-cli-usage` skill, which authors that hazard.
+  - Restating the command here would be a third copy that drifts the next time GitHub changes the endpoint.
 
 [`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
