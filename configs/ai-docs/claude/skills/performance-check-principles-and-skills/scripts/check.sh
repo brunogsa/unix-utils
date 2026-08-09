@@ -223,6 +223,43 @@ count_critical_instructions() {
     awk '/^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*\[Instruction\]/ && /CRITICAL/ { c++ } END { print c+0 }' "$1"
 }
 
+# Print `- <file>:<line>` for every CRITICAL [Instruction]
+# with no [Why] among the next 3 non-blank lines.
+# Silent when the file is clean.
+#
+# CLAUDE.md's Counting Conventions make CRITICAL a
+# tiebreaker marker, and a tiebreaker with no stated
+# rationale can't be weighed against the rule it overrides.
+#
+# Three lines, because an [Example] and a second [Why]-less
+# sub-bullet may legitimately sit between the two.
+#
+# Anchored on the same leading-tag pattern as the counters
+# above.
+#
+# That anchoring is what a hand-run of this check lacks: a
+# [Why] line whose prose merely says CRITICAL reads as an
+# [Instruction] to the eye, never to the regex.
+#
+# Any later [Instruction] closes the window early: a [Why]
+# below it belongs to that instruction, never to the one
+# before it.
+missing_why_after_critical() {
+    awk '
+        function flush() {
+            if (pending) { printf "- %s:%d\n", FILENAME, pending; pending = 0 }
+        }
+        /^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*\[Instruction\]/ {
+            flush()
+            if ($0 ~ /CRITICAL/) { pending = FNR; seen = 0 }
+            next
+        }
+        pending && /^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*\[Why\]/ { pending = 0; next }
+        pending && NF > 0 { if (++seen >= 3) flush() }
+        END { flush() }
+    ' "$1"
+}
+
 # Integer percentage, rounded to nearest, not truncated.
 #
 # The single source used for BOTH the displayed value and
@@ -247,6 +284,12 @@ status_of() {
 # Measurements
 # ==============================================================
 
+# CRITICAL [Instruction] sites missing their [Why], across
+# CLAUDE.md + the *-standards skills — the same population
+# the CRITICAL-ratio check measures, since the marker
+# convention binds only there.
+missing_why_rows=""
+
 # CLAUDE.md measurements
 if [ "$has_claude_md" -eq 1 ]; then
     claude_lines=$(grep -c '\S' "$CLAUDE_MD")
@@ -259,6 +302,9 @@ if [ "$has_claude_md" -eq 1 ]; then
     claude_instructions=$(count_instructions "$CLAUDE_MD")
     claude_criticals=$(count_critical_instructions "$CLAUDE_MD")
     claude_ratio_int=$(ratio_percent_int "$claude_criticals" "$claude_instructions")
+
+    claude_missing_why=$(missing_why_after_critical "$CLAUDE_MD")
+    [ -n "$claude_missing_why" ] && missing_why_rows+=$'\n'"$claude_missing_why"
 fi
 
 # Skill measurements
@@ -352,6 +398,9 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
     case "$name" in
         *-standards)
             skill_criticals=$(count_critical_instructions "$f")
+
+            skill_missing_why=$(missing_why_after_critical "$f")
+            [ -n "$skill_missing_why" ] && missing_why_rows+=$'\n'"$skill_missing_why"
 
             # Excluded skills still get a ratio row and
             # status-table rows of their own; only the
@@ -510,6 +559,12 @@ echo "| Agent-authoring contract failures ($CANONICAL_AGENTS_DIR) | $agent_contr
 echo "| *-standards [Instruction] total (excl. $STANDARDS_SUBTOTAL_EXCLUDED) | $standards_total_instructions | $STANDARDS_INSTRUCTIONS_BUDGET | $(status_of "$standards_total_instructions" "$STANDARDS_INSTRUCTIONS_BUDGET") |"
 [ "$standards_total_instructions" -gt "$STANDARDS_INSTRUCTIONS_BUDGET" ] && overages=1
 
+# Budget is 0: every CRITICAL tiebreaker states its
+# rationale, or it is not a tiebreaker.
+missing_why_count=$(printf '%s' "$missing_why_rows" | grep -c '^- ' || true)
+echo "| CRITICAL [Instruction] missing [Why] | $missing_why_count | 0 | $(status_of "$missing_why_count" 0) |"
+[ "$missing_why_count" -gt 0 ] && overages=1
+
 # Rows for the skills that subtotal excludes, placed right
 # below it so the exclusion and the budget replacing it
 # read as one unit.
@@ -561,6 +616,16 @@ if [ -n "$standards_ratio_rows" ]; then
     echo "| Skill | [Instruction] | CRITICAL | Ratio | Status |"
     echo "|---|---|---|---|---|"
     printf '%s\n' "$standards_ratio_rows" | sed '/^$/d'
+    echo
+fi
+
+# Sites the ratio table cannot show: a CRITICAL that never
+# says why it outranks the rule it beats.
+if [ -n "$missing_why_rows" ]; then
+    echo "## CRITICAL [Instruction] lines with no [Why] in the next 3 non-blank lines"
+    echo
+    echo "Fix each by adding the missing \`[Why]\`, or by dropping the \`CRITICAL\` prefix — an unexplained tiebreaker cannot be weighed against the rule it overrides."
+    printf '%s\n' "$missing_why_rows" | sed '/^$/d'
     echo
 fi
 

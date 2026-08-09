@@ -40,6 +40,7 @@ All limits sourced where possible. [`references/research.md`](references/researc
 | CLAUDE.md [Instruction] count | 100 | [Reserved share for always-loaded principles — deliberately tight vs. IFScale 500 ceiling](references/research-instruction-load-budgets.md#instruction-count-budgets) |
 | *-standards [Instruction] total (sum across `*-standards/SKILL.md`) | 200 | [Reserved share for lazy-loaded standards skills — deliberately tight vs. IFScale 500 ceiling](references/research-instruction-load-budgets.md#instruction-count-budgets) |
 | CRITICAL ratio per file ([Instruction] lines marked CRITICAL ÷ [Instruction] count) | 16% | [Emphasis-salience reasoning — not measured](references/research-instruction-load-budgets.md#critical-emphasis-ratio) |
+| CRITICAL [Instruction] lines with no [Why] in the next 3 non-blank lines | 0 | A tiebreaker with no stated rationale can't be weighed against the rule it overrides |
 
 Skills have no per-line length limit — the per-skill word cap covers overflow.
 

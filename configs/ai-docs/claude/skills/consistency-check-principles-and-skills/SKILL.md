@@ -92,7 +92,7 @@ Children never load it — they only emit the `[KEY]` line specified above.
 | `[Instruction]` markers | counts vs. budget | finds untagged (heuristic #3) |
 | Frontmatter | char counts | semantic quality |
 | Density | line-by-line violations | (none) |
-| CRITICAL ratio | counts ratio | semantic placement + Missing `[Why]` (heuristic #5) |
+| CRITICAL ratio | counts ratio + Missing `[Why]` | semantic placement (heuristic #5) |
 | Cross-references | (future — exact-string subset) | semantic refs (heuristic #6) |
 
 Perf-check answers *"how many?"*; consistency-check answers *"are the right ones tagged the right way?"*.
@@ -191,12 +191,13 @@ Per Jaroslawicz 2025, adherence degrades past ~200 instructions — every merged
 
 Perf-check counts the CRITICAL ratio; this heuristic asks *whether the right rules carry CRITICAL*. Per Control Illusion (arXiv:2502.15851), WHICH instructions sit at the top matters more than HOW MANY.
 
-Look for:
-- **Under-marked** — a non-CRITICAL rule that other rules visibly defer to.
-- **Missing `[Why]`** — a CRITICAL `[Instruction]` with no `[Why]` clause within the next 3 non-blank lines (`[Example]` may sit between).
-   - Fix: add a `[Why]`, or demote from CRITICAL — no rationale means no tiebreaker authority.
+Look for **under-marked** rules — a non-CRITICAL rule that other rules visibly defer to.
 
-HIGH confidence requires citing the other rule(s) that defer to the rule in question, or; for **Missing `[Why]`**, the exact line range checked.
+Do NOT hand-check for a missing `[Why]` beneath a CRITICAL `[Instruction]` — `performance-check`'s `scripts/check.sh` settles that by anchored `awk`.
+
+An LLM reading the same 3-line window by eye mistakes a `[Why]` whose prose says "CRITICAL" for the instruction itself.
+
+HIGH confidence requires citing the other rule(s) that defer to the rule in question.
 
 ### 6. Stale or unnecessary references
 
