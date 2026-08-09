@@ -612,11 +612,10 @@ function commentText(lineText, lang) {
   return (lineText ?? '').trim().replace(lang.prefixRe, '');
 }
 
-// The lookbehind is what keeps a trailing ellipsis from
-// reading as a sentence end -- an elided fragment like
-// `"$(cat <<EOF ...)"` carries the thought into the next
-// line, so breaking after it severs a sentence the reader
-// then has to rejoin.
+// The lookbehind keeps a trailing ellipsis from reading as
+// a sentence end. An elided fragment like `"$(cat ...)"`
+// carries its thought into the next line, so a break there
+// severs a sentence the reader then has to rejoin.
 const SENTENCE_END_RE = /(?<!\.)[.;][)"'\]`]*$/;
 const COLON_END_RE = /:[)"'\]`]*$/;
 const BULLET_RE = /^(\s*)-\s/;
