@@ -51,7 +51,7 @@ Load it only on a PR-label run.
 
 ## 1. Pre-flight (orchestrator)
 
-This skill never merges or deletes a worktree on its own, whether §1.2 asked for one or not.
+This skill **never merges or deletes §1.2's worktree**. The per-task worktrees it creates for parallel work are its own, and it cleans those up.
 
 **§1.1–§1.6 and §2 run once per invocation**, in that order, before any execution; §3 then starts each unit.
 
