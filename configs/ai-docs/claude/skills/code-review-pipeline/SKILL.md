@@ -1,6 +1,6 @@
 ---
 name: code-review-pipeline
-description: "Shared reviewer orchestrator for /auto-review (local) and /pr-review (GitHub). Runs in caller's session by default; opt into subagent wrapping for bias isolation (--isolate). USE only via those callers — not directly."
+description: "Shared reviewer orchestrator for /auto-review (local) and /pr-review (GitHub). Local always dispatches an isolated subagent for bias isolation; GitHub runs inline unless --isolate. USE only via those callers — not directly."
 user-invocable: false
 ---
 
