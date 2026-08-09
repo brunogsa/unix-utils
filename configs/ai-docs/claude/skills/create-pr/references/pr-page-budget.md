@@ -35,7 +35,7 @@ Read before drafting a PR body. `pr-writer` loads this; `SKILL.md` points here.
 
 **The ideal description fits 64 rendered lines** -- reviewers reach the end without scrolling.
 
-- **CRITICAL: Allocate 64 lines per section** -- overruns borrow from pending sections.
+- **CRITICAL: Split those 64 lines across the sections** -- an overrun is recut per the cut order, never absorbed by a section still unwritten.
   - Review guide: **1** — its collapsed `<summary>`, charged before the first heading, not to any section below.
   - Jira/Linear and related-PR links: **4**.
   - Context: **17** — the heading plus at most 4 paragraphs of at most 4 lines each.
