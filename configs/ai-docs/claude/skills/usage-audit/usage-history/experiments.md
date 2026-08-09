@@ -274,6 +274,41 @@ Commit `769cce1`. Opened on the user's instruction, who picked this lever over t
 - **Known confounder**: the hook clears its counter on each denial, so a session that ignores one denial keeps searching after a single blocked call.
   - A flat Explore count therefore means either the rule was ignored or the threshold never fired — read run count against main `api_calls` to tell those apart.
 
+### 2026-08-09 — the rule-citation checker moved into the fixer agent that already owned the line checks
+
+Commits `f2961eb` and `4be0b46`. Opened on the user's instruction, who picked this lever alongside the Explore mandate.
+
+- **Surface**: `agent:markdown-standards-fixer`, `skill:doc-standards`, `skill:agent-standards`.
+
+- **Hypothesis**: `check-rule-citations.py` ran inline, so answering one "which file authors this rule?" question pulled every candidate sibling into main; one dispatch now clears all three doc rules instead of two.
+
+- **Pre-change baselines, the 7 complete days 2026-08-02..08-08** — every one reads `coverage: complete` and `reconciliation: ok`, checked at filing time:
+  - `doc-standards` is the top skill by spend: $330.83 over 10 invocations. `markdown-standards-fixer`: 13 runs for $2.94.
+  - Fan-out-excluded subagent share: 29.9%, from $662.27 total against $198.02 subagent.
+
+- **CRITICAL scope correction — the lever shipped for one checker of seven, and the other six were judged wrong for this shape.**
+
+- `spec-driven-development`'s five structural checkers stay inline deliberately.
+  - A missing `## ` heading or a cyclic PR DAG is a design defect in the artifact the session is authoring, not a mechanical row a haiku agent can repair.
+
+- Delegating those would hand a subagent editorial control over the deliverable the human reviews, which is a worse outcome than the context they cost.
+
+- `performance-check/check.sh` stays inline for the same reason: it reports repo-wide budgets the orchestrator must act on, with no per-file fix to delegate.
+
+- **Expected effect size is small, and smaller than the entry above.**
+  - The citation half is genuinely AI work: `check-rule-citations.py` has no `--fix` pass, so the agent reads both files to settle each row.
+
+- What moves is the re-read loop leaving main, not a cheap script absorbing the work the way `fix-density.py` does for the line rules.
+
+- **Second, smaller denominator effect**: `agent-standards` now budgets agent descriptions at ~250 chars. Agent descriptions are never truncated and load into every session, so the 8 still over budget cost every session.
+
+- **Watch signal**: `markdown-standards-fixer` run count per day against `doc-standards` invocations, plus main `api_calls` and `compactions` on days `doc-standards` is active.
+
+- **Settle by**: a standards-authoring day before and after, compared on main `api_calls` and `compactions` at comparable `kpis.user_messages`.
+
+- **Known confounder**: the Explore-mandate hook shipped the same day on the same kind of session, and both levers shrink main's context on a standards-authoring day.
+  - Reading them apart means checking `Explore` run count against `markdown-standards-fixer` run count, since neither hook fires the other.
+
 ### Confounder notes — 2026-07-27 to 2026-08-07 commits with no observation window
 
 The ledger counted 175 commits in this range. The user confirmed on 2026-08-08 that none of the four clusters below were deliberate KPI experiments, so each is a confounder, not an entry.
@@ -546,30 +581,6 @@ First of three answers to the user's standing question: how to raise the subagen
 - Never the 38.3% headline — a single `consistency-check` run masks a flat routine trend, which is exactly how this lever would look settled while nothing moved.
 
 - **Settle by**: two 7-day windows of `reconciliation: "ok"` days, one before the agent exists and one after, compared on that adjusted share and on compactions.
-
-### 2026-08-09 — give every remaining standards checker a fixer agent, the shape that already works
-
-- **The pattern is proven twice and is nearly free.** `markdown-standards-fixer` ran 13 times for $2.94 across 2026-08-02..08-08, against `general-purpose` at 36 runs for $43.07.
-
-- `comment-format-fixer` shipped the same shape for code comments on 2026-08-08 (`7c5c8c2`), backed by the `--fix` repair pass in `aebec8f`.
-
-- **Script-first is what makes it cheap**: the agent runs the deterministic fixer, then rewords only the rows the script refuses to repair. AI touches the residue, not the file.
-
-- **Inline in main today, run and fix alike**: `doc-standards/check-rule-citations.py`, `performance-check-principles-and-skills/scripts/check.sh`, and five `spec-driven-development` checkers no hook covers.
-
-- **A Stop hook already automates the run half elsewhere**: `claude-agent-contract-stop-hook.sh` runs `check-agent-contract.sh`, and `claude-sdd-stop-hook.sh` runs the test-distribution and AC-coverage checkers.
-  - Those hooks strengthen the case rather than weaken it: they prove the run is automatable, leaving the fix loop as the residual gap.
-
-- Either way the violation rows land in main, and the fix loop then re-reads the file just flagged — the same read-edit-recheck shape as the entry above.
-
-- **Hypothesis**: one fixer agent per checker family converts a noisy inline loop into a single dispatch, moving both the violation rows and the re-reads out of main.
-
-- **Watch signal**: `by_subagent_type` run counts for the fixer agents, against the fan-out-excluded share and main `api_calls` on the days those skills are active.
-
-- **Settle by**: a standards-authoring day before and after, compared on main `api_calls` and `compactions` at comparable `kpis.user_messages`.
-
-
-- **Settle by**: two `reconciliation: "ok"` days at comparable `user_messages`, one before the mechanism and one after.
 
 ## User-settled learnings
 
