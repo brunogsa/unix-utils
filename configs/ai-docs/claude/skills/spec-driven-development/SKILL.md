@@ -37,7 +37,7 @@ Why: a directory may hold several in-flight features at once, so a descriptive s
 
 ### Discovery (how consumers find these files)
 
-Downstream skills (`/implement`, `/auto-review`, `/create-pr`) discover the files by glob in CWD (top-level only):
+Downstream skills (`/implement`, `/auto-review`, `/create-pr`, `/quality-gate`) discover the files by glob in CWD (top-level only):
 
 ```bash
 ls -1 spec_*.md plan_*.md 2>/dev/null
@@ -46,9 +46,14 @@ ls -1 spec_*.md plan_*.md 2>/dev/null
 Resolve with this shared baseline:
 
 - **Exactly one spec and one plan** → use both; print the resolved paths, no prompt.
-- **Multiple specs or multiple plans** → list the matches numbered and ask the user which to use before proceeding.
+- **Multiple specs or multiple plans** → never guess; the matches get listed numbered for a human to pick from.
 
-The remaining shapes (zero matches, only one kind) diverge per consumer because their needs differ — each skill's own Discovery section is canonical.
+Everything else diverges per consumer: the bullets below name those divergences, and each consumer's own `SKILL.md` is canonical for anything they leave out.
+
+- **When and how that pick is asked.** `/auto-review` and `/quality-gate` prompt inline; `/implement` and `/create-pr` fold it into their one up-front interview instead.
+- **What happens with no human to ask** — `/quality-gate --auto-solve` proceeds without that kind rather than stalling on a prompt.
+
+- **Zero matches, or only one kind.** Only `/implement` stops without a plan; every other consumer degrades to the diff alone.
 
 ### Every template section always gets written
 
@@ -62,9 +67,12 @@ Why no variant: a dropped section is invisible to the reader, where an `N/A` lin
 
 A caller may write the plan alone — `brainstorm`'s `light` mode does exactly that.
 
-Such a plan writes `N/A — plan-only run` on its `Spec:` line, carries each task's acceptance criteria in that task's own `**Testable Acceptance criteria**` field, and cannot run `check-ac-coverage.sh`.
+Such a plan writes `N/A — plan-only run` on its `Spec:` line, and carries each task's acceptance criteria in that task's own `**Testable Acceptance criteria**` field.
+In place of the Test Design section's AC → test coverage list it writes `N/A — no spec`.
 
-Why the spec is the droppable one: every downstream consumer degrades gracefully to "no spec", while none of them runs at all without a plan.
+It cannot run `check-ac-coverage.sh`, which takes both documents — so with no spec there is nothing for that coverage list to cite and no gate left to read it.
+
+Why the spec is the droppable one: every downstream consumer degrades gracefully to "no spec", while `/implement` — the one that writes code — refuses to run without a plan.
 
 ### spec_<slug>.md (why / what)
 
@@ -85,7 +93,7 @@ The PR Breakdown mirrors the same priority order one level up.
 The template instructs loading it where each section is authored, so any plan author picks it up without this library saying more.
 
 Uses BDD/TDD by default: load the `test-driven-development` skill once per task, before implementing it.
-Opt-out per task with `**DECISION:** Skip TDD because <reason>` (inside the task itself).
+Opt out per task with `**Tests (planned)**: N/A — <reason>` inside the task — the one opt-out with a runner, which `scripts/extract-planned-tests-for-task.sh` short-circuits on.
 
 ## Self-review gates
 
@@ -104,15 +112,18 @@ Read the answers from that file when you reach the checks — never ask them her
 A caller may also resolve none of them and run the deterministic bucket alone — `brainstorm`'s `light` mode does.
 Treat all three as off in that case, and skip `check-ac-coverage.sh` too, since it takes both a plan and a spec.
 
-- Two of them switch off one formal check each — the last two rows of the table below.
-- The third switches off the qualitative pass's `deep-reviewer` dispatch, and only that. The artifact fixers run regardless.
+Name the three fields exactly `traces_to_ac`, `right_sized`, and `qualitative_pass`, so writer and reader never have to guess the same key.
+
+- The first two switch off one formal check each — the last two rows of the table below.
+- `qualitative_pass` switches off the qualitative pass's checklist, and only that. The artifact fixers run regardless, and so does every always-on check.
 
 Why: asking after the plan is written lets a check get waived because it failed, rather than because it never applied.
 
-Seven formal checks run in sequence (five always-on + the two toggles above):
+Eight formal checks run in sequence (six always-on + the two toggles above):
 
 | Check | Run by | Catches | Toggle? |
 |---|---|---|---|
+| Every template section is written | `check-sections.sh` | a dropped `## ` heading in either doc | Always on |
 | Every AC has a test | `check-ac-coverage.sh`, then `deep-reviewer` | AC↔Test Design coverage | Always on |
 | Every test has a task | `check-test-distribution.sh` | Test Design↔per-task assignment | Always on |
 | How would this break? | `deep-reviewer` | checklist completeness + inversion sweep, merged | Always on |
@@ -121,7 +132,10 @@ Seven formal checks run in sequence (five always-on + the two toggles above):
 | Every line traces to an AC | `deep-reviewer` | machinery↔AC traceability | Toggle |
 | Right-sized plan | `deep-reviewer` | scope vs. request, simplest design | Toggle |
 
-The five always-on checks, plus the Test Design authoring requirement itself, never become optional — they verify the plan is mechanically correct regardless of change size.
+The six always-on checks, plus the Test Design authoring requirement itself, never become optional — they verify the plan is mechanically correct regardless of change size.
+
+No toggle removes one, including the two judged ones — "How would this break?" and the semantic half of "Every AC has a test".
+The single way those two go unrun is the deterministic-bucket-alone run above, which has no judged bucket to run them in.
 
 A toggled-off check or pass is omitted; self-review's output states explicitly what was skipped by request, so the reviewer never wonders why something is absent.
 
@@ -130,7 +144,7 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
 ### Iteration rounds and drift (conditional — load only when they fire)
 
 - **Formal-check recovery loop** — on a blocking failure, fix the issue, then re-run only the check that failed.
-  - Never re-run the full seven-check block from the top; the other six already passed over text the fix didn't touch.
+  - Never re-run the full eight-check block from the top; the other seven already passed over text the fix didn't touch.
 
 - **Resolving spec/plan drift** — when the plan and the spec disagree, surface each conflict for the user before editing either doc.
   - Load [`references/resolving-drift.md`](references/resolving-drift.md) the moment a conflict first surfaces — any check, qualitative or formal; there is no fixed slot.
