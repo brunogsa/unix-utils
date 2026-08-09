@@ -105,7 +105,9 @@ def run_unit(unit):
     tasks = exact_match(unit.task_ids, plan.headings)      # 15 · §3.3
     # A prefix matching two headings means a malformed plan, not a question — stop.
 
-    while tasks.any_pending():
+    # `while True`, never "while something is pending": an empty-looking queue is
+    # NOT the gates. It empties two ways, and only 23's verdict can tell them apart.
+    while True:
         # 16 · §5.4 — ask --eligible-set, NEVER the plain verdict, while anything
         #      is in flight: the plain one assumes nothing is, so mid-wave it
         #      answers "halted" and stops the run to wait for a human.
@@ -124,7 +126,7 @@ def run_unit(unit):
         elif v == "gates":
             break                                          # every task in the unit is done
         else:                                              # "halted" | "halt-budget"
-            return halt()
+            halt()
 
     # ---- 24–28 · §8.1–§8.2 · the two opt-in gates, in that order ----
     load("references/batch-end-review.md")                 # 24
@@ -154,7 +156,7 @@ def run_unit(unit):
                 break
             # A failure the batch didn't cause is a [Scout], never a blocker.
             if not fix_attempts_left():                    # 28b
-                return halt()
+                halt()
             dispatch("tdd-coder", failure,                 # 28c · attempt recorded,
                      timeout_ms=3_600_000)                 #       RE-RUN THE FULL SUITE
 
@@ -162,7 +164,7 @@ def run_unit(unit):
     # 29 · Finalize step 1 — ALWAYS, on every batch end, whatever pr.wanted says.
     #      A pushed branch with no PR is the ordinary outcome, not a half state.
     if not git_push("-u", "origin", "HEAD"):               # 30 · no remote, a rejected
-        return halt()                                      #      non-fast-forward, no creds
+        halt()                                             #      non-fast-forward, no creds
 
     # The three batch-end-pr* files load under three separate conditions — each
     # `if` below reads only its own, so no run pays for a branch it skips.
@@ -179,7 +181,7 @@ def run_unit(unit):
                                                      #       CREATES ONLY — 29 pushed,
                                                      #       so it must never push
         if not pr.opened:                                  # 33c
-            return halt()
+            halt()
         # Native mode + the run's last PR only: register the chain as a native
         # stack, reusing the already-created PRs. Linking runs LAST so no branch
         # is server-rebased mid-run.
@@ -239,9 +241,9 @@ def run_one_task(task):
         plan.mark(task, "[Blocked]")
         task_update(task, "completed")
         if not next_runnable():                            # 21e
-            return halt()
+            halt()
     elif v in ("halted", "halt-budget"):
-        return halt()
+        halt()
 
 
 def advance(task, report):
@@ -296,7 +298,7 @@ def run_parallel_wave(wave):
         #       a sequential run's. The rebase runs INSIDE the worktree: git
         #       refuses to rebase a branch checked out elsewhere.
         if not git("-C", t.worktree, "rebase", base_branch):
-            return halt()      # the file-disjointness predicate was wrong for that pair
+            halt()             # the file-disjointness predicate was wrong for that pair
         git("merge", "--ff-only", t.branch)
         git_worktree_remove(t.worktree)                    # 16h · per merge, never batched
         git("branch", "-d", t.branch)                      #       to the end of the wave
@@ -304,13 +306,16 @@ def run_parallel_wave(wave):
 
 
 def halt():
+    # RAISES, never returns: every call site above is terminal at whatever depth
+    # it sits, and a returned halt would be discarded by run_one_task's caller
+    # and misread as the next `wave` by run_parallel_wave's.
     load("references/failure-and-halt.md")                 # 37
     set_halted_phase_on_all_units()                        # 38 · §5.5
     scratchpad.write(what_each_blocker_needs)
     leave_pending(remaining_reminders)
     # Cleanup stops entirely on the way out: an unmerged branch holds work only
     # a human can resolve, so every worktree stays and the halt names each one.
-    # Run NOTHING further; wait for the human.
+    raise Halted    # run NOTHING further; wait for the human
 ```
 
 ## Flowchart
