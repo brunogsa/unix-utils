@@ -32,7 +32,7 @@ set -euo pipefail
 
 HARD_LIMIT=65536
 
-usage() { sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; }
 
 case "${1:-}" in
     -h | --help)
