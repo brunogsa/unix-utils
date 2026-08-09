@@ -281,8 +281,6 @@ Those mechanics live in `~/.claude/agents/tdd-coder.md`; edit that file and this
 When a helper or drift surfaces mid-task, the subagent inserts new RED-GREEN lines into its checklist after the current step, then reports the deviation (§4.4).
 The orchestrator's TaskList never changes except the parent task's status.
 
-Insertion mechanics live in [`references/mid-flight-substeps.md`](references/mid-flight-substeps.md). Load on demand.
-
 ## 4. Dispatch the task subagent
 
 Spawn one fresh-context `agent(subAgent=tdd-coder, title=Implement task <N>: <task subject>)` per task, in the background — not CLAUDE.md's result-gated foreground, since only background carries the Monitor cap below.
