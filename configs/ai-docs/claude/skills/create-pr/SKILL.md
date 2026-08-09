@@ -10,8 +10,6 @@ disable-model-invocation: false
 
 `/create-pr [<parent>]` — no flags; the optional `<parent>` (PR number or branch) stacks this PR on it (resolved in step 1).
 
-Load the `doc-standards` skill before drafting — a PR description is a standalone doc, so its density cap, BLUF ordering, and collapse rules all apply.
-
 ## PR body budget rules
 
 The non-overlap invariant and the one-page goal -- the 64-line-per-section budget, cut order, and measurement script -- live in [`references/pr-page-budget.md`](references/pr-page-budget.md).
@@ -182,6 +180,9 @@ Two entry points: a change the user asks for after the push, or step 4 finding t
 
 - **Pull GitHub's current body into the file first** -- `gh pr view <n> --json body`, so a hand-edit made there is not overwritten by the next push.
   - Skip this on step 4's already-exists entry: the `.final.md` just composed IS the replacement, so pulling would overwrite it with the body it replaces.
+
+- **Load the `doc-standards` skill before editing** -- this body is the only prose the main session ever writes, so its density cap, BLUF ordering, and collapse rules apply here.
+  - Steps 1-4 never need it: `pr-writer` loads it every dispatch and owns both gates, and step 4 only checks the artifact exists.
 
 - **Edit `pr_<slug>_pr<N>.final.md` only** -- the `.ideal.md` is deliberately left to drift once the PR exists.
   - Re-deriving the final body from it would discard the user's own edits, and nobody reads the ideal description after the push.
