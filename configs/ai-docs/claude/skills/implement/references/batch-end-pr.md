@@ -26,18 +26,13 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
   The agent loads its own skill's conventions but can't see this batch's specifics (output path, PR-label, base branch) unless the prompt states them:
 
   - Check `.github/PULL_REQUEST_TEMPLATE.md` / `.github/pull_request_template.md` first; if present it's the base structure — keep every section/checkbox, fill with rich content, never replace it.
-  - The 8-section required order (drop any genuinely N/A, never silently):
-    1. Jira link
-    2. Context (business problem, layered)
-    3. Testable Acceptance Criteria (verbatim from spec, `AC-N:` prefix dropped, each ending in a `> Covered by ...` pointer)
-       - Plan-only run (§1.1 resolved no spec) → take them verbatim from each covered task's **Testable Acceptance criteria** list in the plan, same formatting.
-         The plan always carries them, so this section is never N/A merely for want of a spec.
+  - The body's section list and order are `create-pr`'s, owned by [`pr-template.md`](../../create-pr/references/pr-template.md).
+    This is the one item the prompt does NOT re-enumerate: the agent loads that file with its own skill.
+    A copy here would be a second enumeration that drifts, then silently outranks the original.
+    - Drop a section only when it is genuinely N/A for this batch, never silently.
 
-    4. Architecture (diagrams + a Decisions subsection)
-    5. Changes (Planned + Discovered)
-    6. Checklist (preserve the team's template checklist verbatim)
-    7. Evidences (value-add only, one line per claim)
-    8. References (last)
+    - Plan-only run (§1.1 resolved no spec) → the acceptance criteria the template puts in the appendix come verbatim from each covered task's **Testable Acceptance criteria** list in the plan, same formatting.
+      The plan always carries them, so they are never N/A merely for want of a spec.
 
   - `WARNING:`-prefixed items for any manual deploy prerequisite (new secrets, new Parameter-Store values) or other operationally-risky item needing human coordination.
   - Zero references to untracked session docs (`spec_<slug>.md`, `plan_<slug>.md`, `verdict_*.md`, internal task/AC numbers, commit SHAs in prose).
