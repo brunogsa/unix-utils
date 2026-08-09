@@ -53,7 +53,7 @@ Load it only on a PR-label run.
 
 This skill never merges or deletes a worktree on its own, whether §1.2 asked for one or not.
 
-**§1.1–§1.5 and §2 run once per invocation**, in that order, before any execution; §3 then starts each unit.
+**§1.1–§1.6 and §2 run once per invocation**, in that order, before any execution; §3 then starts each unit.
 
 ### 1.1. Locate the plan (and spec)
 
@@ -123,7 +123,7 @@ Resolution and per-PR branch creation live in [`references/pr-awareness.md`](ref
 
 ### 1.6. Capture the full-suite baseline (only when §1.2 answered yes)
 
-Commands, ordering rationale, and where the result gets recorded live in [`references/full-suite-baseline.md`](references/full-suite-baseline.md). Load when §1.2 answered yes.
+Commands, ordering, and result handling live in [`references/full-suite-baseline.md`](references/full-suite-baseline.md). Load it here.
 
 ## 2. Seed the whole TaskList upfront, in execution order
 
@@ -144,6 +144,7 @@ Mark the run's first task `in_progress` and every other one `pending`.
 On a PR-label run, prefix each subject with its owning label: `PR-2 · 5. <task title>` — the PR stays visible in the list, not hidden in metadata.
 
 The TaskList carries **status only**; attempt counts, gate outcomes, and fix SHAs live in the JSON state file (§2.3).
+CLAUDE.md's `metadata` rule yields here: the verdict script and Stop hook are shell processes, blind to TaskList metadata.
 
 ### 2.2. One reminder per batch-end step (they survive compaction)
 
@@ -282,7 +283,7 @@ Insertion mechanics live in [`references/mid-flight-substeps.md`](references/mid
 
 ## 4. Dispatch the task subagent
 
-Spawn one fresh-context `agent(subAgent=tdd-coder, title=Implement task <N>: <task subject>)` per task, in the background (the default).
+Spawn one fresh-context `agent(subAgent=tdd-coder, title=Implement task <N>: <task subject>)` per task, in the background — not CLAUDE.md's result-gated foreground, since only background carries the Monitor cap below.
 
 Model is omitted: the agent file pins sonnet and the subagent-model-guard hook enforces it.
 
@@ -335,7 +336,7 @@ The subagent returns a structured report (text), never a silent "done" (shape mi
 
 ## 5. Accept, retry & advance (orchestrator)
 
-No human gate, and no per-task review — the loop advances on the subagent's own report; the batch's review happens once at the end, over the whole diff (§8.1).
+The loop advances on the subagent's own report; §8.1 reviews the whole diff once, at the end.
 
 ### 5.1. Accept the result — the reported commits exist
 
@@ -352,7 +353,7 @@ Run it once per reported SHA; exit 0 on all of them is the pass.
 **Check that they exist, never what they contain** — no diff read, no message read, no count against the plan's commit sketch.
 It catches only a report naming commits that were never made; content is §8.1's job.
 
-- **`done`, every reported SHA resolves** → record the attempt as `result: "pass"`, `signature: "n/a"`, and go to §5.4.
+- **`done`, every reported SHA resolves** → §5.4, which records the attempt.
 - **`done`, any reported SHA missing** → §5.2, same as any other failure.
 - **`done` with no commits reported at all** → §5.2 as well; a task that changed nothing had nothing to report done.
 
@@ -376,7 +377,7 @@ Load only on a `stuck` verdict.
 
 ### 5.4. On an accepted `done` — advance
 
-Record the attempt with `result: "pass"`.
+Record the attempt with `result: "pass"`, `signature: "n/a"`.
 
 Flip that task to `status: "done"` and `reason: "done"` in the state file — before calling the verdict script, not after.
 The script picks the next task by `status`, so a passed task left `pending` gets re-selected and re-dispatched later.
@@ -449,8 +450,6 @@ Run the batch-end flow over `<BATCH_BASE_SHA>..HEAD`, then present the whole bat
 - **§8.2 — repo-green gate.** Full lint + full test suite, repo-wide, fixed in a loop until green. Skipped entirely when §1.2's gate toggle said no.
 
 - **§8.3 — push, branch record, PR, package & finalize.** The push is unconditional; only the PR is opt-in.
-
-§8.2 runs after §8.1 so the repo-green gate is the batch's last word: it measures a tree that already holds whatever `--auto-solve` applied.
 
 §8.3 runs last so the PR description is composed once against the batch's final diff, never as a pre-fix draft.
 

@@ -9,7 +9,7 @@
 # all parse this same section and entry grammar, differing only in which
 # field(s) each one consumes (Tasks / Depends on / both) - this script is
 # their one shared parser, invoked as a piped subprocess exactly like
-# dag-check-helper.sh (check-pr-dag.sh:82), so each caller just `cut`s the
+# dag-check-helper.sh (see check-pr-dag.sh), so each caller just `cut`s the
 # field(s) it needs from stdout instead of re-deriving them.
 #
 # Each PR Breakdown entry line looks like:

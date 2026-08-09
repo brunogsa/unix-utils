@@ -1,6 +1,6 @@
 # Mid-flight sub-steps — inserting into the checklist file
 
-Detail for /implement's mid-flight sub-steps step (under sub-step decomposition). Load only when a helper or drift surfaces mid-task and the subagent needs to add sub-steps to its checklist file.
+Detail for /implement's §3.5 Mid-flight sub-steps. Load only when a helper or drift surfaces mid-task and the subagent needs to add sub-steps to its checklist file.
 
 ## Insertion rule
 

@@ -5,7 +5,9 @@ words-budget: 1024
 
 Detail for /implement's optional pre-flight baseline capture. Load when §1.2 answered yes to "capture a full-suite green baseline before starting?".
 
-Run once, after worktree setup (§1.4) and PR-label resolution (§1.5) settle — the tree being measured needs `node_modules` installed and any per-PR branch already created, or the baseline measures the wrong tree.
+Run once, after worktree setup (§1.4) settles — the tree being measured needs `node_modules` installed, or the baseline measures the wrong tree.
+
+Every per-PR branch is created later, at §3.1, so this always measures the pre-branch tree — the same tree the whole run is diffed against.
 
 ## What to run
 

@@ -2,9 +2,9 @@
 # performance-check budget override, not batch-end content.
 # This file merges what used to be two references, plus SKILL.md's own §8 condensed
 # bullets, because every section fires on the same run — a split would only re-fragment
-# one sequence across files always read together. SKILL.md's §8 now holds only the entry
-# condition and a pointer here, so there's no redundancy against it. Doubled from the
-# 1024w bundled default.
+# one sequence across files always read together. SKILL.md's §8 holds the entry condition,
+# the stage order, and a pointer here; every dispatch contract, failure rule, and package
+# requirement lives only in this file. Doubled from the 1024w bundled default.
 words-budget: 2048
 ---
 # Batch-end — quality gate, repo-green, push, PR & package
@@ -24,7 +24,7 @@ On no, skip this entire section — go straight to the repo-green gate (§8.2), 
 No retroactive re-run; invoke `/quality-gate` manually later.
 
 This runs before §8.2's repo-green gate so that gate gets the last word — it measures a tree that already contains whatever `--auto-solve` applied.
-That ordering is what removes any "the gate applied something, so re-run the suite" rule: an applied fix is verified by construction, not by a conditional the run has to remember.
+That ordering removes any "the gate applied something, so re-run the suite" rule: an applied fix is verified by construction, not by a conditional the run must remember.
 
 This section's toggle and §8.2's are independent — either can be on while the other is off.
 When §8.2 is off, nothing re-runs the suite after this tail, and the package says so plainly.
@@ -56,7 +56,7 @@ What this skill does with the result:
 - Carry its closing report into the package (§8.3) verbatim enough that the human sees which findings landed, which were skipped, and why.
 - Treat any finding it left unapplied as a `[Scout]`, so nothing it declined silently disappears.
 
-With the tail behind it, set `phase: "tails"` — the resume path then knows the quality-gate tail already ran and must not run a second time.
+With the tail behind it, set `phase: "tails"` — `hooks/claude-implement-stop-hook.sh` keeps blocking while the phase reads `tails`, so the run cannot end before Finalize.
 
 The TaskList already carries this step as the `Batch-end 1/4` reminder seeded in §2.2 — flip that one entry. `/quality-gate` seeds its own per-finding entries underneath; don't duplicate them here.
 
@@ -79,7 +79,8 @@ Run the repo's **full lint + full test suite**, repo-wide — never scoped to th
 **Red repo → fix it in a loop, through subagents — the orchestrator never hand-fixes, and never scopes the gate down to make it pass:**
 
 - Dispatch `agent(subAgent=tdd-coder, title=Fix repo-green failure: <short failure name>)` per batch-caused failure.
-- Same contract as §4: the same 1-hour Monitor cap, the same per-task attempt caps, each dispatch recorded as an attempt in the state file.
+- Same contract as §4: the same 1-hour Monitor cap and the same timeout path.
+- Each dispatch increments `gate_dispatches`, never `attempts[]` — those entries are task-keyed, and a repo-green failure has no task id.
 - Re-run the **full** suite and lint after each fix, and read the fresh result — a fix nobody re-ran is a claim, not a green repo.
 
 - Repeat until every failure the batch is responsible for is gone.

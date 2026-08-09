@@ -60,7 +60,7 @@ gh pr view <child> --json baseRefName
 gh api -X PATCH repos/{owner}/{repo}/pulls/<child> -F base=master
 ```
 
-Retarget via REST, not `gh pr edit --base` — `gh pr edit` eagerly queries Projects-classic `projectCards`, the same deprecation hazard [`batch-end-pr.md`](batch-end-pr.md) documents for `--body-file`.
+Retarget via REST, not `gh pr edit --base` — the same `gh pr edit` deprecation hazard the `gh-cli-usage` skill authors.
 
 3. Sync each remaining child with the new base — what it costs depends on how the repo merges:
 
