@@ -83,6 +83,9 @@ Mid-run `.env` needs are self-served (copied from the original checkout) rather 
 - **Run in a git worktree?** (yes/no) — on yes, §1.4 creates it from HEAD and symlinks files in.
 - **Open a draft PR at batch end?** (yes/no) — this decides the PR only; §8.3 pushes the branch either way.
 
+- **Use GH stacked PRs?** (yes/no, default yes) — asked only on a PR-label run whose draft-PR answer was yes; a no keeps one PR per plan-PR, `Mode: merge`.
+  - On yes, §1.5's eligibility check still decides (`native` needs a linear PR DAG + the `gh-stack` extension); when it holds, every task ships as its own PR layer at batch end.
+
 - **Run the quality-gate batch-end tail?** (yes/no, default yes) — on yes, §8.1 runs `/quality-gate --auto-solve`; on no, it's skipped and the package says so.
 - **Capture a full-suite green baseline before starting?** (yes/no) — on yes, §1.6 runs the full suite now and records pre-existing failures for §8.2 to diff against.
 
@@ -190,7 +193,7 @@ Each state file has exactly this shape:
   "phase": "tasks",
   "start_sha": "<HEAD before this run touched anything>",
   "batch_base_sha": "",
-  "tasks": [{ "id": "1", "status": "pending" }],
+  "tasks": [{ "id": "1", "status": "pending", "commits": [] }],
   "attempts": [],
   "gate_dispatches": 0,
   "baseline": { "wanted": false, "log_path": "", "failures": [] },
@@ -205,6 +208,7 @@ Each state file has exactly this shape:
 
 - `batch_base_sha` stays `""` until that unit starts (§3.2) — a dependent PR branches off its parent, so its base does not exist yet.
 - One `tasks[]` entry per task-id that unit resolved, each `status: "pending"`; `worktree` / `pr` / `quality_gate.wanted` / `repo_green_gate.wanted` come from §1.2's answers.
+- §5.4 appends each accepted task's reported commit SHAs to its `commits` — `Mode: native` batch ends cut task-layer boundaries from them (`references/batch-end-pr.md`).
 - `pr_label` is `""` on a plain run, else the `PR-N` that file belongs to.
 - §5.2/§5.4 append `attempts[]` entries as `{ "task", "n", "result", "signature", "at" }`.
 - `baseline.log_path` and `baseline.failures` are populated by §1.6, empty when `baseline.wanted` is `false`.
@@ -370,7 +374,7 @@ Load only on a `stuck` verdict.
 
 ### 5.4. On an accepted `done` — advance
 
-Record the attempt with `result: "pass"`.
+Record the attempt with `result: "pass"`, and append the subagent's reported commit SHAs to that task's `commits` in the state file.
 
 Flip that task to `status: "done"` and `reason: "done"` in the state file — before calling the verdict script, not after.
 The script picks the next task by `status`, so a passed task left `pending` gets re-selected and re-dispatched later.

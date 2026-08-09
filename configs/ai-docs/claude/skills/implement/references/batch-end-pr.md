@@ -93,6 +93,32 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
 A push failure can't surface here: Finalize's step 1 owns the push and already halted if it failed.
 Go to §5.5: name the failure in one short message, keep the state file, print nothing further — there is nothing to present when the PR was never published.
 
+## Task-layer stacks (`Mode: native` only)
+
+In native mode a plan-PR ships as a stack segment: one PR layer per task, cut at batch end from the boundaries §5.4 recorded in the state file's `tasks[].commits`.
+
+Run this right after the Branch-record edits above and before the pr-creator dispatch; skip it entirely in `merge` mode.
+
+1. **Rename the unit branch into its top layer**: `git branch -m <feat_branch>/pr<N> <feat_branch>/pr<N>/t<last-task-id>`.
+   - Git forbids a branch `x` beside a branch `x/y`, so the flat unit name must vacate the namespace before any slash-named layer can exist.
+   - Rename before anything is pushed — only layer names ever reach the remote.
+   - Gate-fix commits (quality-gate tail, repo-green loop) sit after the last task's boundary, so they fold into this top layer.
+
+2. **Cut one branch per earlier task, at its recorded boundary**: `git branch <feat_branch>/pr<N>/t<id> <that-task's-last-commit>`, in plan order.
+   - Boundaries come from `tasks[].commits` only — never re-derived by eyeballing `git log`.
+
+3. **Push every layer in one command**: `git push -u origin <all layer branches>`.
+
+4. **Create the intermediate layer PRs bottom-up, with light bodies**: the task's plan heading, its Testable Acceptance Criteria, its commit subjects, and a `Stacks on #<parent>` first line.
+   - The first layer's base is this plan-PR's parent, per the `<base-branch>` rule above; each next layer's base is the previous layer.
+   - Light by design: the top PR carries the whole plan-PR's rich body, and N pr-writer pipelines per plan-PR would multiply dispatch cost for bodies each read once.
+
+5. **The pr-creator dispatch (above) then owns the TOP layer's PR** — its base is the last intermediate layer, not the plan-PR's parent; everything else about that dispatch is unchanged.
+
+6. **The `Branch:` clause records the top layer's branch** (the renamed unit branch), so a dependent plan-PR's first layer bases on it.
+
+A halt between the rename and the layer PRs leaves layer branches behind; there is no resume path, so a re-invocation recreates `<feat_branch>/pr<N>` fresh and the stale layers are deleted by hand.
+
 ## Native mode: link the stack (run's last PR only)
 
 Only when the plan's PR Breakdown carries `Mode: native` (see "Stack mode" in [`pr-awareness.md`](pr-awareness.md)) AND this PR is the run's last label AND its PR was just created. Skip otherwise.

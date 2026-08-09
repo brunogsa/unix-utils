@@ -31,6 +31,7 @@ def implement(arg):
 
     # 4 · §1.2 — ONE up-front interview, the only round until the review package:
     #     plan pick · plan path, if none found (§1.1) · worktree · draft PR
+    #     · use GH stacked PRs (default yes; PR-label + draft-PR runs only)
     #     · quality-gate tail (default yes) · full-suite green baseline
     #     · repo-green gate (default yes) · confirm the base branch.
     answers = ask_everything_at_once()
@@ -201,8 +202,15 @@ def run_unit(unit):
     if unit.is_pr or answers.draft_pr:                     # 30
         load("references/batch-end-pr.md")                 # 30a
         if unit.is_pr:
-            # 31 · Finalize step 2, PR-label runs only: the Branch: clause and the
-            #      PR-level [Done] marker, both on this PR's own plan line.
+            # 31 · Finalize step 2, PR-label runs only. Mode: native → first ship
+            #      the unit as task layers: rename the unit branch to its top
+            #      layer (pr<N>/t<last>), cut a branch per task at its recorded
+            #      commit boundary, push all layers, open the intermediate layer
+            #      PRs bottom-up with light bodies. Then the Branch: clause
+            #      (recording the TOP layer) and the PR-level [Done] marker,
+            #      both on this PR's own plan line.
+            if plan.stack_mode == "native":
+                ship_task_layers(unit)
             plan.record_branch_clause(unit.label, current_branch())
             plan.mark_pr(unit.label, "[Done]")
         if answers.draft_pr:                               # 32
@@ -244,7 +252,7 @@ flowchart TD
   n2["2. Step 1.1 · Locate plan_&lt;slug&gt;.md (+ the spec when one<br/>exists — a plan-only run is a supported mode)"]
   n3{"3. Plan found?"}
   n3a(["3a. Stop: no plan given"])
-  n4["4. Step 1.2 · ONE up-front interview —<br/>the only round until the<br/>review package:<br/><br/>- Plan pick, if multiple candidates<br/>- Plan path, if none found (§1.1)<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Quality-gate tail? (default yes)<br/>- Capture a full-suite green baseline first?<br/>- Repo-green gate? (default yes)<br/>- Confirm the base branch"]:::gate
+  n4["4. Step 1.2 · ONE up-front interview —<br/>the only round until the<br/>review package:<br/><br/>- Plan pick, if multiple candidates<br/>- Plan path, if none found (§1.1)<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Use GH stacked PRs? (default yes)<br/>- Quality-gate tail? (default yes)<br/>- Capture a full-suite green baseline first?<br/>- Repo-green gate? (default yes)<br/>- Confirm the base branch"]:::gate
   n5["5. Step 1.3 · Re-validate BOTH graphs ONCE,<br/>before any execution:<br/>check-tasks-dag.sh + check-pr-dag.sh"]:::hook
   n6{"6. Both graphs valid?"}
   n6a(["6a. Stop: surface the script's stderr;<br/>fix the plan, re-invoke"])
@@ -307,7 +315,7 @@ flowchart TD
     n29{"29. Push succeeded?<br/>(no remote / rejected non-fast-forward /<br/>missing credentials)"}
     n30{"30. PR-label run, or a draft PR requested?"}
     n30a["30a. Load references/batch-end-pr.md"]:::skill
-    n31["31. Step 8.3 · Finalize step 2 · Record the Branch:<br/>clause + the PR-level [Done] marker on this PR's<br/>own plan line (PR-label runs only)"]:::state
+    n31["31. Step 8.3 · Finalize step 2 · Mode: native -&gt; first ship the<br/>unit as task layers: rename the unit branch to its top layer<br/>(pr&lt;N&gt;/t&lt;last&gt;), cut a branch per task at its recorded commit<br/>boundary, push all layers, open intermediate layer PRs bottom-up<br/>(light bodies). Then record the Branch: clause (the TOP layer) +<br/>the PR-level [Done] marker on this PR's own plan line<br/>(PR-label runs only)"]:::state
     n32{"32. Draft PR requested?"}
     n32a["32a. Step 8.3 · Dispatch the pr-creator agent<br/>(agent-pinned): it composes the body and CREATES<br/>the PR ONLY — step 28 already pushed,<br/>so it must never push or force-push"]:::dispatch
     n32b{"32b. PR opened or updated?"}

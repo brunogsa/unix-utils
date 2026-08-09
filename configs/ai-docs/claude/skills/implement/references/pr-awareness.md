@@ -34,10 +34,13 @@ A PR-label run syncs its stack in one of two modes, decided once per invocation,
 - **`merge`** — the default: branches stay append-only, synced by merging parent into child ([`stacked-prs.md`](stacked-prs.md)).
 - **`native`** — GitHub's native stacked PRs (public preview): GitHub owns restacks and retargeting, server-side, by rebase.
 
-Decide by shape first, availability second — both must pass for `native`:
+Decide by consent first, shape second, availability third — all three must pass for `native`:
 
+- The §1.2 interview declined "Use GH stacked PRs?" → `merge`, no further checks.
 - Any PR with 2+ parents in its `Depends on:` clause (a diamond) → `merge`. Native stacks are linear-only, so a diamond is unrepresentable there.
 - Linear chain AND `gh stack --help` exits 0 (the `gh-stack` extension is installed) → `native`. Extension missing → `merge`.
+
+`native` also changes PR granularity: every task ships as its own PR layer, cut at batch end — mechanics in "Task-layer stacks" in [`batch-end-pr.md`](batch-end-pr.md).
 
 Record the decision as a `Mode: <merge|native>` line directly under the plan's `## PR Breakdown` heading — same inline edit style as a `Branch:` clause, idempotent on re-runs.
 
