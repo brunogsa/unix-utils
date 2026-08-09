@@ -222,17 +222,19 @@ Measured over 2026-06-14..2026-08-08: **150.4 hours across 23 attributable PRs, 
 
   - `status` is `ok` (within 0.5%), `drift` (counting disagrees — treat the day as unverified), or `unavailable` (ccusage not installed or failed).
 
-  - After the retention-race fix **19 of the 56 days read `ok` and 12 read `drift`**; the other 25 are `unretained` or `partial` and carry no verdict at all.
+  - After the peak-`cache_read` fix **26 of the 56 days read `ok` and 5 read `drift`**; the other 25 are `unretained` or `partial` and carry no verdict at all.
 
     - 2026-06-14's `drift` is the verdict of the run that measured it. Its transcripts are since pruned, so that day can never be re-checked either way.
 
   - Read a day's `status` before citing any figure from it; a `drift` day is not evidence in either direction.
 
-  - The residual drift is an open defect, not a tolerance, but it is confined to the two cache buckets and to under 2.6%.
+  - The residual drift is an open defect, not a tolerance, but it is now confined to `cache_write` alone and to under 2.6%.
 
-    - `cache_write` on 2026-07-23 (2.5% under) and `cache_read` on 2026-08-07 (1.4% under) are the widest. `input` and `output` reconcile exactly on every retained day.
+    - `cache_write` on 2026-07-23 (2.5% under) is the widest. `input`, `output` and `cache_read` reconcile exactly on every retained day.
 
-    - It runs in both directions — 2026-07-14 counts 1.0% ABOVE ccusage on `cache_write` — so it reads as a TTL-split rounding disagreement, not as records one side never opened.
+    - It runs in both directions — 2026-07-14 counts 1.0% ABOVE ccusage — so it reads as a TTL-split rounding disagreement, not as records one side never opened.
+
+    - The `cache_read` half of this drift WAS a real defect, and its sign gave it away: always negative, never positive. The anchor record of a response carries a partial `cache_read_input_tokens`, so pricing it under-billed the day. Billing the peak block instead matches ccusage to the token and flipped 7 days from `drift` to `ok`.
 
   - **The former 24-34% outlier on 2026-07-09 was never a counting bug: the retention prune ran mid-rebuild, between the one ccusage priming call and that day's scan.**
 
