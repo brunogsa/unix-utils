@@ -17,7 +17,10 @@ Return only after every script for your mode passes.
 
 The caller gives you an INPUT naming one of two modes, the output path to write, and the inputs for that mode:
 
-- **`ideal`** — the changes digest, the resolved spec and plan paths (when any resolved), and the appendix section titles to extract.
+- **`ideal`** — the changes digest, the resolved spec and plan paths (when any resolved), the appendix section titles to extract, and the resolved `<parent>` on a stacked run.
+
+  - A `<parent>` means the Jira/links section carries a `Stacks on #<parent>` bullet, which is what its 4-line budget is for.
+
 - **`final`** — the path of the `.ideal.md` to fit, plus either the repo's PR template path or an explicit statement that the repo has none.
 
 ## Sources and tools

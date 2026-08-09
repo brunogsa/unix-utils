@@ -74,7 +74,7 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
 **CRITICAL: The main session orchestrates and never composes the prose itself** -- dispatch the agent and let it hand back a finished file.
 
 - `agent(subAgent=pr-writer, title=Compose ideal PR description)` in mode `ideal`, foreground (step 3 reads the file it writes).
-  - Give it four things: the changes digest, the resolved spec/plan paths, the derived appendix section list, and the output path `./pr_<slug>_pr<N>.ideal.md`.
+  - Give it the changes digest, the resolved spec/plan paths, the appendix section list, the output path `./pr_<slug>_pr<N>.ideal.md`, and any resolved `<parent>`.
   - It loads this skill and `doc-standards` itself, runs the extractors, and loops on the density and page-fit gates before returning — none of that belongs in the dispatch prompt.
 
 **Both gates belong to the agent — never re-run them here, and never hand-fix its prose.**
