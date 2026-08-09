@@ -53,13 +53,14 @@
 # to remove.
 
 import argparse
+import glob
 import json
 import os
 import re
 import subprocess
 import sys
-from collections import Counter
-from datetime import date, timedelta
+from collections import Counter, defaultdict
+from datetime import date, datetime, timedelta, timezone
 
 SKILL_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 SNAPSHOTS_DIR = os.path.join(SKILL_DIR, "usage-history", "snapshots")
@@ -92,6 +93,17 @@ MAX_DEPTH = 5
 AUTHOR_PATTERNS = ("brunogsa", "Bruno G. Salomao Agostini", "brunoagostini")
 
 FIELD_SEP = "\x1f"
+
+# Where Claude Code writes one JSONL transcript per
+# session. This is the only record of WHEN a branch was
+# worked, since the checkout itself is gone by then.
+TRANSCRIPTS_ROOT = os.path.join(HOME, ".claude", "projects")
+
+# A gap longer than this reads as "walked away", not
+# "thinking". Half an hour is long enough to cover a
+# slow build or a code review and short enough that
+# lunch never bills as work.
+IDLE_CAP_SECONDS = 30 * 60
 
 
 def git(path, *args):
@@ -216,6 +228,189 @@ def merged_pull_requests(since_day, until_day):
     return rows, ""
 
 
+def pull_request_branches(repos, since_day, until_day):
+    """Merged PRs with their head branch, as dicts, plus a warning string.
+
+    A second gh call rather than a field on merged_pull_requests()' search:
+    `gh search prs` exposes no headRefName at all, so the head branch has to be
+    read per repo. The search still decides WHICH repos are asked, so a repo
+    with no merged PR in the window is never queried.
+    """
+    rows = []
+    failures = []
+    for full in repos:
+        cmd = ["gh", "pr", "list", "--repo", full, "--state", "merged",
+               "--author", "@me", "--limit", "200",
+               "--json", "number,headRefName,mergedAt,title"]
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            payload = json.loads(out.stdout)
+        except (OSError, subprocess.CalledProcessError, ValueError) as err:
+            failures.append(f"{full} ({err})")
+            continue
+        for pr in payload:
+            merged = pr.get("mergedAt") or ""
+            if len(merged) < 10 or not since_day <= merged[:10] <= until_day:
+                continue
+            rows.append({
+                "repo": full,
+                "number": pr.get("number"),
+                "branch": pr.get("headRefName") or "",
+                "title": pr.get("title", ""),
+                "merged_day": merged[:10],
+                "merged_epoch": parse_epoch(merged),
+            })
+    warning = ""
+    if failures:
+        warning = ("head branches unavailable, work time omitted for: "
+                   + ", ".join(failures))
+    return rows, warning
+
+
+def parse_epoch(stamp):
+    """An ISO-8601 timestamp as a UTC epoch, or None when it will not parse."""
+    try:
+        parsed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    except (AttributeError, ValueError):
+        return None
+    return parsed.astimezone(timezone.utc).timestamp()
+
+
+def branch_activity(branches, root=TRANSCRIPTS_ROOT):
+    """Record timestamps per branch name, over every transcript on this machine.
+
+    Keyed on the branch name ALONE, and deliberately so. Each ticket is worked
+    in its own checkout (`integrator-3280`, not `arco2-integrator`) which is
+    deleted once the PR merges, so neither the directory name nor its git
+    remote can name the repo by the time this runs. The branch name is the only
+    join key that outlives the work.
+
+    That narrowness is also the tooling filter: `master` in this config repo is
+    nobody's pull-request head ref, so only branches that actually shipped a PR
+    can match, and no cwd check is needed to keep tooling time out.
+
+    Personal-environment records are still dropped, for the one case the join
+    key cannot resolve: the same branch name used in both a work repo and this
+    one.
+    """
+    wanted = set(branches)
+    epochs = defaultdict(list)
+    if not wanted:
+        return epochs
+    pattern = os.path.join(root, "**", "*.jsonl")
+    for path in glob.glob(pattern, recursive=True):
+        try:
+            handle = open(path)
+        except OSError:
+            continue
+        with handle:
+            for line in handle:
+                # Cheap reject before the JSON parse: most
+                # records carry no branch, and parsing all
+                # of them costs minutes over ~1 GB.
+                if '"gitBranch"' not in line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except ValueError:
+                    continue
+                if not isinstance(record, dict):
+                    continue
+                branch = record.get("gitBranch")
+                if branch not in wanted:
+                    continue
+                if is_personal_env(record.get("cwd") or ""):
+                    continue
+                epoch = parse_epoch(record.get("timestamp") or "")
+                if epoch is not None:
+                    epochs[branch].append(epoch)
+    return epochs
+
+
+def is_personal_env(cwd):
+    """Whether a working directory sits inside the five tooling repos."""
+    return any(part in PERSONAL_ENV for part in cwd.split("/"))
+
+
+def active_seconds(epochs, cap=IDLE_CAP_SECONDS):
+    """Summed gaps between consecutive records, dropping gaps over the cap.
+
+    Summed gaps rather than last-minus-first, because a branch is worked in
+    several sittings across days: its span would count the nights between them.
+
+    The cap is what makes the sum mean attention rather than elapsed time. It
+    barely moves the total — the same series reads 51.6h at a 5-minute cap and
+    67.8h at 60 minutes — so the metric is not an artifact of where it is set.
+    """
+    ordered = sorted(epochs)
+    total = 0.0
+    for earlier, later in zip(ordered, ordered[1:]):
+        gap = later - earlier
+        if gap <= cap:
+            total += gap
+    return total
+
+
+def attribute_work_time(prs, activity):
+    """Per-PR work and lead time, plus the branches that could not be joined.
+
+    A branch that shipped two PRs has its time SPLIT between them rather than
+    counted once per PR: the pooled `work hours / merged PR` divides by every
+    merged PR, so crediting one branch's hours twice would inflate the KPI by
+    exactly the amount of the double-count.
+
+    Lead time is not split, because elapsed calendar time is not additive —
+    both PRs really did wait that long.
+    """
+    sharers = Counter(pr["branch"] for pr in prs)
+
+    # A branch name two repos both merged cannot be
+    # resolved: the deleted checkout is what would have
+    # said which repo a session was in.
+    #
+    # Attributing nothing is the honest answer, and the
+    # PR still counts in the denominator.
+    ambiguous = {branch for branch in sharers
+                 if len({pr["repo"] for pr in prs
+                         if pr["branch"] == branch}) > 1}
+
+    rows = []
+    warnings = []
+    for pr in sorted(prs, key=lambda p: (p["merged_day"], p["number"] or 0)):
+        branch = pr["branch"]
+        times = [] if branch in ambiguous else activity.get(branch, [])
+        row = {
+            "repo": pr["repo"],
+            "number": pr["number"],
+            "branch": branch,
+            "title": pr["title"],
+            "merged_day": pr["merged_day"],
+            "records": len(times),
+            "work_minutes": 0.0,
+            "lead_hours": 0.0,
+        }
+        if times:
+            shared_by = sharers[branch]
+            row["work_minutes"] = round(
+                active_seconds(times) / 60 / shared_by, 1)
+            if pr["merged_epoch"] is not None:
+                elapsed = pr["merged_epoch"] - min(times)
+                row["lead_hours"] = round(max(0.0, elapsed) / 3600, 1)
+        rows.append(row)
+
+    for branch in sorted(ambiguous):
+        warnings.append(f"branch {branch} was merged in more than one repo — "
+                        f"its work time is unattributable")
+    missing = [row for row in rows
+               if not row["records"] and row["branch"] not in ambiguous]
+    if missing:
+        warnings.append(
+            f"{len(missing)} of {len(rows)} merged PR(s) have no transcript "
+            f"records on their branch — transcripts aged out, so they are "
+            f"excluded from work time rather than read as zero")
+    return rows, warnings
+
+
 def build(since_day, until_day, root=HOME):
     """The whole ledger: per-day counts, the repos behind them, and caveats."""
     commits_by_day = Counter()
@@ -266,10 +461,26 @@ def build(since_day, until_day, root=HOME):
         warnings.append(
             f"{full}: {count} merged PR(s) but no shipped commits — {where}")
 
+    branch_rows, branch_warning = pull_request_branches(
+        sorted(pr_repos), since_day, until_day)
+    if branch_warning:
+        warnings.append(branch_warning)
+    activity = branch_activity({row["branch"] for row in branch_rows})
+    pull_requests, time_warnings = attribute_work_time(branch_rows, activity)
+    warnings.extend(time_warnings)
+
+    minutes_by_day = Counter()
+    for row in pull_requests:
+        minutes_by_day[row["merged_day"]] += row["work_minutes"]
+
     days = {}
     for day in sorted(set(commits_by_day) | set(prs_by_day)):
         days[day] = {"shipped_commits": commits_by_day[day],
-                     "merged_prs": prs_by_day[day]}
+                     "merged_prs": prs_by_day[day],
+                     "pr_work_minutes": round(minutes_by_day[day], 1)}
+
+    attributed = [row for row in pull_requests if row["records"]]
+    work_hours = sum(row["work_minutes"] for row in attributed) / 60
 
     return {
         "window": {"since": since_day, "until": until_day},
@@ -277,6 +488,20 @@ def build(since_day, until_day, root=HOME):
         "commit_repos": dict(sorted(per_repo.items(),
                                     key=lambda kv: -kv[1])),
         "pr_repos": dict(pr_repos.most_common()),
+        "pull_requests": pull_requests,
+        "work_time": {
+            "idle_cap_minutes": IDLE_CAP_SECONDS // 60,
+            "attributed_prs": len(attributed),
+            "unattributed_prs": len(pull_requests) - len(attributed),
+
+            # Divided by the ATTRIBUTED count, not every
+            # merged PR: a PR whose transcripts aged out
+            # contributed real hours nobody can read, so
+            # counting it would understate the true cost.
+            "work_hours": round(work_hours, 1),
+            "hours_per_merged_pr": (round(work_hours / len(attributed), 2)
+                                    if attributed else 0.0),
+        },
         "excluded_personal_env": list(PERSONAL_ENV),
         "warnings": warnings,
     }
@@ -327,11 +552,24 @@ def render_text(ledger):
             print(f"  {count:>5}  {name}")
         print()
 
+    work = ledger.get("work_time") or {}
+    if work.get("attributed_prs"):
+        print(f"work time (idle gaps over "
+              f"{work['idle_cap_minutes']}min dropped):")
+        print(f"  {work['work_hours']}h across "
+              f"{work['attributed_prs']} attributable PR(s)"
+              f"  ->  {work['hours_per_merged_pr']}h per merged PR")
+        if work.get("unattributed_prs"):
+            print(f"  {work['unattributed_prs']} PR(s) had no transcript "
+                  f"records and are excluded")
+        print()
+
     print("per day:")
     for day in sorted(days):
         row = days[day]
         print(f"  {day}  {row['shipped_commits']:>4} commit(s)"
-              f"  {row['merged_prs']:>3} PR(s)")
+              f"  {row['merged_prs']:>3} PR(s)"
+              f"  {row.get('pr_work_minutes', 0.0):>7.1f} PR-min")
 
     for warning in ledger["warnings"]:
         print(f"\nWARNING  {warning}", file=sys.stderr)

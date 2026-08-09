@@ -142,6 +142,38 @@ Four rows divide by what actually **shipped**, sourced from `delivered-work.json
 
 - Expect a thin sample: of the 17 citable days, 9 feed `Cost per shipped commit` and 10 feed `Cost per merged PR`.
 
+### Work time per merged PR
+
+`delivered-work.json` also carries `work_time` and a `pull_requests` list: how many hours of attended work each merged PR took, joined through the `gitBranch` field every transcript record carries.
+
+Measured over 2026-06-14..2026-08-08: **150.4 hours across 23 attributable PRs, or 6.54 hours per merged PR.**
+
+- **The join key is the branch name alone** — never the repository.
+
+  - Each ticket is worked in its own checkout (`integrator-3311`, not `arco2-integrator`), and that directory is deleted once the PR merges.
+
+  - The first probe matched the repository name as a path segment and read 15 of 25 branches as untouched. The data was there the whole time.
+
+  - The narrowness is also the tooling filter: `master` in this config repo is nobody's PR head ref, so only branches that actually shipped a PR can match.
+
+- **Work time is the sum of gaps between consecutive records, dropping any gap over 30 minutes** — not the span from first touch to last.
+
+  - A branch is picked up over several sittings across days, so its span would bill the nights between them: `feat/itgd-2947_sge-translator` spans 140.2 hours and holds 38.5 hours of attention.
+
+  - The cap barely moves the total: the same series reads 51.6h at a 5-minute cap and 67.8h at 60 minutes. The number is not an artifact of where the cap sits.
+
+- **A branch that shipped two PRs has its hours split between them**, because the pooled ratio divides by every merged PR and a double-count would inflate it by exactly that much.
+
+  - `test/itgd-3283` backs two merged PRs and reports 621.5 minutes on each, summing to the 1243 minutes actually spent.
+
+- **A PR whose transcripts aged out is excluded, not read as zero hours.** 4 of the 27 merged PRs fall outside transcript retention.
+
+  - `hours_per_merged_pr` divides by the 23 attributable PRs only: those 4 cost real hours nobody can read, so counting them would understate the true figure.
+
+- **A branch name two repositories both merged is attributed nothing**, and warns instead. The deleted checkout is what would have said which repo a session was in.
+
+- `gh search prs` exposes no head ref at all, so the branch comes from a second per-repo `gh pr list` call over the repos the search already named.
+
   - Read these two as a coarse sanity check on the input-side rows, not as a trend you can date a change against.
 
 ## Measurement caveats (read before comparing snapshots)

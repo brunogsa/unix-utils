@@ -244,5 +244,201 @@ class TestLoad(unittest.TestCase):
                 "crashing the viewer over it would lose the whole page")
 
 
+TICKET_CHECKOUT = "/Users/brunoagostini/workspace/code/team-engineering/integrator-3311"
+TOOLING_CHECKOUT = "/Users/brunoagostini/unix-utils"
+
+
+def _record(branch, stamp, cwd=TICKET_CHECKOUT):
+    return {"type": "assistant", "gitBranch": branch, "cwd": cwd,
+            "timestamp": stamp, "sessionId": "9f2bb171-4a9f-43f4-aee3"}
+
+
+def _write_transcript(root, name, records):
+    """Write one session transcript where Claude Code would put it."""
+    path = Path(root, "-Users-brunoagostini-workspace", f"{name}.jsonl")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as handle:
+        for record in records:
+            handle.write(json.dumps(record) + "\n")
+    return path
+
+
+def _pull_request(branch, number=2256, repo="arco-cv/arco2-integrator",
+                  merged="2026-07-16T15:00:00.000Z"):
+    return {"repo": repo, "number": number, "branch": branch,
+            "title": f"fix: something on {branch}",
+            "merged_day": merged[:10],
+            "merged_epoch": ledger.parse_epoch(merged)}
+
+
+class TestActiveSeconds(unittest.TestCase):
+    """Summing the gaps between touches is what turns a scatter of timestamps
+    into an hours-spent number the user can divide their spend by."""
+
+    def _epochs(self, *stamps):
+        return [ledger.parse_epoch(f"2026-07-14T{s}.000Z") for s in stamps]
+
+    def test_counts_the_time_between_consecutive_touches_as_work(self):
+        self.assertEqual(
+            ledger.active_seconds(self._epochs("09:00:00", "09:04:30",
+                                               "09:11:10")),
+            670.0,
+            msg="the gaps are the only evidence of attention — a count of "
+                "records would say a chatty minute beat a quiet hour")
+
+    def test_excludes_a_gap_longer_than_the_idle_cap_so_lunch_is_not_billed_as_work(self):
+        self.assertEqual(
+            ledger.active_seconds(self._epochs("09:00:00", "09:04:30",
+                                               "12:47:15")),
+            270.0,
+            msg="a branch is picked up over several sittings, so counting "
+                "every gap would bill the nights and breaks between them")
+
+    def test_reports_no_work_for_a_branch_touched_only_once(self):
+        self.assertEqual(
+            ledger.active_seconds(self._epochs("09:00:00")), 0.0,
+            msg="a single timestamp has no duration to read, and inventing "
+                "one would let a one-touch branch look like real effort")
+
+    def test_reads_touches_that_arrived_out_of_order_across_two_sessions(self):
+        self.assertEqual(
+            ledger.active_seconds(self._epochs("09:11:10", "09:00:00",
+                                               "09:04:30")),
+            670.0,
+            msg="two sessions on one branch are scanned in whichever order "
+                "the filesystem lists them, so unsorted input is the norm")
+
+
+class TestBranchActivity(unittest.TestCase):
+    """The branch name is the only join key that outlives the work: each ticket
+    gets its own checkout, and that directory is deleted once the PR merges."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = self.tmp.name
+        self.addCleanup(self.tmp.cleanup)
+
+    def test_finds_a_branch_worked_in_a_checkout_named_after_the_ticket(self):
+        _write_transcript(self.root, "session-a", [
+            _record("test/itgd-3311", "2026-07-14T09:00:00.000Z"),
+            _record("test/itgd-3311", "2026-07-14T09:05:00.000Z"),
+        ])
+
+        found = ledger.branch_activity({"test/itgd-3311"}, root=self.root)
+        self.assertEqual(
+            len(found["test/itgd-3311"]), 2,
+            msg="the checkout is integrator-3311, never arco2-integrator, so "
+                "any join through the repository name reads a real branch "
+                "as untouched")
+
+    def test_ignores_a_branch_nobody_shipped_a_pull_request_from(self):
+        _write_transcript(self.root, "session-a", [
+            _record("test/itgd-3311", "2026-07-14T09:00:00.000Z"),
+            _record("master", "2026-07-14T10:00:00.000Z"),
+        ])
+
+        found = ledger.branch_activity({"test/itgd-3311"}, root=self.root)
+        self.assertNotIn(
+            "master", found,
+            msg="scanning every branch would collect a gigabyte of time no "
+                "merged PR can claim")
+
+    def test_ignores_a_branch_of_the_same_name_worked_in_the_tooling_stack(self):
+        _write_transcript(self.root, "session-a", [
+            _record("fix/timeout", "2026-07-14T09:00:00.000Z"),
+            _record("fix/timeout", "2026-07-14T09:05:00.000Z",
+                    cwd=TOOLING_CHECKOUT),
+        ])
+
+        found = ledger.branch_activity({"fix/timeout"}, root=self.root)
+        self.assertEqual(
+            len(found["fix/timeout"]), 1,
+            msg="editing this config repo is the activity being measured, "
+                "not the delivery, so its hours must never land on a work PR")
+
+    def test_ignores_a_transcript_line_left_half_written_by_a_killed_session(self):
+        path = _write_transcript(self.root, "session-a", [
+            _record("test/itgd-3311", "2026-07-14T09:00:00.000Z"),
+        ])
+        with open(path, "a") as handle:
+            handle.write('{"gitBranch": "test/itgd-3311", "cwd": "/Users')
+
+        found = ledger.branch_activity({"test/itgd-3311"}, root=self.root)
+        self.assertEqual(
+            len(found["test/itgd-3311"]), 1,
+            msg="a session killed mid-write leaves a truncated last line, and "
+                "every scan after that day would crash on the same byte")
+
+
+class TestAttributeWorkTime(unittest.TestCase):
+    """Hours per merged PR is the KPI; these are the joins that can silently
+    inflate or deflate it."""
+
+    def _activity(self, branch, *stamps):
+        return {branch: [ledger.parse_epoch(f"2026-07-14T{s}.000Z")
+                         for s in stamps]}
+
+    def test_reports_the_hours_spent_on_the_branch_a_pull_request_was_merged_from(self):
+        rows, _ = ledger.attribute_work_time(
+            [_pull_request("test/itgd-3311")],
+            self._activity("test/itgd-3311", "09:00:00", "09:05:00",
+                           "09:12:00", "09:20:00"))
+
+        self.assertEqual(
+            rows[0]["work_minutes"], 20.0,
+            msg="this is the number the user divides their spend by, so it "
+                "must be the summed attention, not the calendar span")
+
+    def test_splits_a_branch_between_the_two_pull_requests_it_shipped(self):
+        branch = "test/itgd-3280"
+        rows, _ = ledger.attribute_work_time(
+            [_pull_request(branch, number=2256),
+             _pull_request(branch, number=2250)],
+            self._activity(branch, "09:00:00", "09:05:00", "09:12:00",
+                           "09:20:00"))
+
+        self.assertEqual(
+            [row["work_minutes"] for row in rows], [10.0, 10.0],
+            msg="the pooled KPI divides by every merged PR, so crediting one "
+                "branch's hours to both would inflate it by the double-count")
+
+    def test_reports_a_pull_request_whose_transcripts_aged_out_as_unattributed(self):
+        rows, warnings = ledger.attribute_work_time(
+            [_pull_request("design/hld-sync-agreements")], {})
+
+        self.assertEqual(rows[0]["records"], 0)
+        self.assertTrue(
+            any("aged out" in w for w in warnings),
+            msg="transcripts are deleted after a month, and reading that as a "
+                "zero-hour PR would drag the average down for free")
+
+    def test_refuses_to_attribute_a_branch_name_two_repositories_both_merged(self):
+        branch = "fix/timeout"
+        rows, warnings = ledger.attribute_work_time(
+            [_pull_request(branch, number=2256,
+                           repo="arco-cv/arco2-integrator"),
+             _pull_request(branch, number=41,
+                           repo="arco-cv/arco2-error-monitor")],
+            self._activity(branch, "09:00:00", "09:20:00"))
+
+        self.assertEqual([row["work_minutes"] for row in rows], [0.0, 0.0])
+        self.assertTrue(
+            any("more than one repo" in w for w in warnings),
+            msg="the deleted checkout is what would have said which repo a "
+                "session was in, so splitting the hours would be a guess "
+                "dressed up as a measurement")
+
+    def test_measures_lead_time_from_the_first_recorded_touch_to_the_merge(self):
+        rows, _ = ledger.attribute_work_time(
+            [_pull_request("test/itgd-3311",
+                           merged="2026-07-16T15:00:00.000Z")],
+            self._activity("test/itgd-3311", "09:00:00", "09:20:00"))
+
+        self.assertEqual(
+            rows[0]["lead_hours"], 54.0,
+            msg="lead time answers how long the work sat, which is a "
+                "different question from how long it took to do")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

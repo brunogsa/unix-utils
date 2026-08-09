@@ -8,78 +8,97 @@
   "days": {
     "2026-06-17": {
       "merged_prs": 1,
+      "pr_work_minutes": 0.0,
       "shipped_commits": 0
     },
     "2026-06-25": {
       "merged_prs": 1,
+      "pr_work_minutes": 0.0,
       "shipped_commits": 1
     },
     "2026-07-01": {
       "merged_prs": 0,
+      "pr_work_minutes": 0,
       "shipped_commits": 3
     },
     "2026-07-03": {
       "merged_prs": 0,
+      "pr_work_minutes": 0,
       "shipped_commits": 1
     },
     "2026-07-04": {
       "merged_prs": 1,
+      "pr_work_minutes": 0.0,
       "shipped_commits": 0
     },
     "2026-07-13": {
       "merged_prs": 1,
+      "pr_work_minutes": 714.2,
       "shipped_commits": 1
     },
     "2026-07-16": {
       "merged_prs": 1,
+      "pr_work_minutes": 2310.5,
       "shipped_commits": 1
     },
     "2026-07-17": {
       "merged_prs": 4,
+      "pr_work_minutes": 413.1,
       "shipped_commits": 4
     },
     "2026-07-21": {
       "merged_prs": 3,
+      "pr_work_minutes": 1187.1,
       "shipped_commits": 3
     },
     "2026-07-22": {
       "merged_prs": 1,
+      "pr_work_minutes": 2.9,
       "shipped_commits": 1
     },
     "2026-07-23": {
       "merged_prs": 3,
+      "pr_work_minutes": 796.3,
       "shipped_commits": 3
     },
     "2026-07-24": {
       "merged_prs": 1,
+      "pr_work_minutes": 402.1,
       "shipped_commits": 1
     },
     "2026-07-27": {
       "merged_prs": 2,
+      "pr_work_minutes": 790.2,
       "shipped_commits": 3
     },
     "2026-07-28": {
       "merged_prs": 3,
+      "pr_work_minutes": 1090.9,
       "shipped_commits": 2
     },
     "2026-07-29": {
       "merged_prs": 1,
+      "pr_work_minutes": 437.4,
       "shipped_commits": 1
     },
     "2026-07-30": {
       "merged_prs": 1,
+      "pr_work_minutes": 579.2,
       "shipped_commits": 1
     },
     "2026-08-03": {
       "merged_prs": 1,
+      "pr_work_minutes": 38.3,
       "shipped_commits": 4
     },
     "2026-08-04": {
       "merged_prs": 1,
+      "pr_work_minutes": 111.7,
       "shipped_commits": 30
     },
     "2026-08-05": {
       "merged_prs": 1,
+      "pr_work_minutes": 152.9,
       "shipped_commits": 0
     }
   },
@@ -95,11 +114,291 @@
     "arco-cv/arco2-integrator": 23,
     "arco-cv/b2b-store-front": 1
   },
+  "pull_requests": [
+    {
+      "branch": "feat/dbma-841-842",
+      "lead_hours": 0.0,
+      "merged_day": "2026-06-17",
+      "number": 219,
+      "records": 0,
+      "repo": "arco-cv/b2b-store-front",
+      "title": "[DBMA-841][DBMA-842] Erros de Sync: aba abre direto \u00e0 tabela de erros, com filtro de escola opcional",
+      "work_minutes": 0.0
+    },
+    {
+      "branch": "design/hld-sync-agreements-pic1.9",
+      "lead_hours": 0.0,
+      "merged_day": "2026-06-25",
+      "number": 2147,
+      "records": 0,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "docs(designs): add HLD for PIC 1.9 sync agreements to ERPs 1.0",
+      "work_minutes": 0.0
+    },
+    {
+      "branch": "feat/enable-unpack-prod",
+      "lead_hours": 0.0,
+      "merged_day": "2026-07-04",
+      "number": 2190,
+      "records": 0,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "feat(terraform): enable SAS product unpacking feature flag in prod",
+      "work_minutes": 0.0
+    },
+    {
+      "branch": "design/lld-sync-agreements-sge",
+      "lead_hours": 121.7,
+      "merged_day": "2026-07-13",
+      "number": 2191,
+      "records": 10585,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "[Sync Acordos PIC 1.9 > ERPs 1.0] LLD Tradutor SGE",
+      "work_minutes": 714.2
+    },
+    {
+      "branch": "feat/itgd-2947_sge-translator",
+      "lead_hours": 140.2,
+      "merged_day": "2026-07-16",
+      "number": 2212,
+      "records": 34486,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "Tradutor SGE para sync de acordos PIC",
+      "work_minutes": 2310.5
+    },
+    {
+      "branch": "fix/itgd-3288",
+      "lead_hours": 17.9,
+      "merged_day": "2026-07-17",
+      "number": 2233,
+      "records": 2030,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "fix(ITGD-3288): remove obrigatoriedade de pagamentos para Acordos B2C",
+      "work_minutes": 119.8
+    },
+    {
+      "branch": "build/skip_migrations-terraform-approval",
+      "lead_hours": 3.5,
+      "merged_day": "2026-07-17",
+      "number": 2237,
+      "records": 2512,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "feat(ci): switch infra approval-gate signal from terraform plan-diff to git diff",
+      "work_minutes": 186.6
+    },
+    {
+      "branch": "fix/b2c-agreements-pagamento-ignore",
+      "lead_hours": 0.3,
+      "merged_day": "2026-07-17",
+      "number": 2239,
+      "records": 700,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "Sync Agreements: OpenAPI ignores \"pagamento\" field on B2C agreements, instead of rejecting with 400",
+      "work_minutes": 31.1
+    },
+    {
+      "branch": "fix/sge-consumer",
+      "lead_hours": 1.3,
+      "merged_day": "2026-07-17",
+      "number": 2246,
+      "records": 909,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "fix: SGE consumer n\u00e3o estava sendo registrado em sales-agreements.module.ts",
+      "work_minutes": 75.6
+    },
+    {
+      "branch": "test/itgd-3283",
+      "lead_hours": 95.0,
+      "merged_day": "2026-07-21",
+      "number": 2241,
+      "records": 17725,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "test(ITGD-3283): add PIC\u2192ERP E2E specs for Oracle EBS, SAP B1, and Ra\u00edzes",
+      "work_minutes": 621.5
+    },
+    {
+      "branch": "test/itgd-3280",
+      "lead_hours": 19.7,
+      "merged_day": "2026-07-21",
+      "number": 2250,
+      "records": 6196,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "fix(ITGD-3280): stop mutating PIC marca casing, enforce brand enum in OpenAPI",
+      "work_minutes": 282.8
+    },
+    {
+      "branch": "test/itgd-3280",
+      "lead_hours": 23.7,
+      "merged_day": "2026-07-21",
+      "number": 2256,
+      "records": 6196,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "Resolve merge conflict na main",
+      "work_minutes": 282.8
+    },
+    {
+      "branch": "logs/smoke-test-lambda",
+      "lead_hours": 0.0,
+      "merged_day": "2026-07-22",
+      "number": 2262,
+      "records": 41,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "feat(smoke-tests): log response body and underlying fetch cause",
+      "work_minutes": 2.9
+    },
+    {
+      "branch": "test/itgd-3283",
+      "lead_hours": 146.4,
+      "merged_day": "2026-07-23",
+      "number": 2260,
+      "records": 17725,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "test(ITGD-3283): E2E mediador presence/absence + SGE reject + isolate e2e suite",
+      "work_minutes": 621.5
+    },
+    {
+      "branch": "test/itgd-3341",
+      "lead_hours": 25.9,
+      "merged_day": "2026-07-23",
+      "number": 2271,
+      "records": 1213,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "fix(ITGD-3341): detect Oracle EBS customer upsert failures masked by HTTP 200",
+      "work_minutes": 84.8
+    },
+    {
+      "branch": "test/itgd-3345",
+      "lead_hours": 24.6,
+      "merged_day": "2026-07-23",
+      "number": 2277,
+      "records": 1128,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "fix(sge): read chaveContrato from the real SGE response shape (ITGD-3345)",
+      "work_minutes": 90.0
+    },
+    {
+      "branch": "test/itgd-3340",
+      "lead_hours": 47.2,
+      "merged_day": "2026-07-24",
+      "number": 2279,
+      "records": 5568,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "[ITGD-3340] Payload de erro completo enviado ao PIC no callback de contrato",
+      "work_minutes": 402.1
+    },
+    {
+      "branch": "test/itgd-3311",
+      "lead_hours": 124.8,
+      "merged_day": "2026-07-27",
+      "number": 2282,
+      "records": 8994,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "feat(sales-agreements): bill from CRM, deliver from PIC (ITGD-3311)",
+      "work_minutes": 790.2
+    },
+    {
+      "branch": "chore/sf-update-script",
+      "lead_hours": 0.0,
+      "merged_day": "2026-07-27",
+      "number": 2288,
+      "records": 0,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "feat(salesforce): add update-sobject script and improve tooling",
+      "work_minutes": 0.0
+    },
+    {
+      "branch": "feat/itgd-3373",
+      "lead_hours": 10.1,
+      "merged_day": "2026-07-28",
+      "number": 2296,
+      "records": 4754,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "fix(sales-agreements): [ITGD-3373] recover from PIC\u2192SGE duplicate-contract errors via PUT-retry",
+      "work_minutes": 340.4
+    },
+    {
+      "branch": "feat/itgd-3374",
+      "lead_hours": 14.4,
+      "merged_day": "2026-07-28",
+      "number": 2297,
+      "records": 11522,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "fix(sales-agreements): correct SGE contract payload per QA capture (ITGD-3374)",
+      "work_minutes": 606.5
+    },
+    {
+      "branch": "fix/log-erro-sge",
+      "lead_hours": 7.0,
+      "merged_day": "2026-07-28",
+      "number": 2310,
+      "records": 1608,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "fix(sge-client): log resolvable duplicate-contract failures at info, not error",
+      "work_minutes": 144.0
+    },
+    {
+      "branch": "feat/itgd-3363",
+      "lead_hours": 24.1,
+      "merged_day": "2026-07-29",
+      "number": 2316,
+      "records": 5108,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "fix(ITGD-3363): remove dead multi-kit rateio branch from CollectionSplitPriceUseCase",
+      "work_minutes": 437.4
+    },
+    {
+      "branch": "feat/itgd-3372",
+      "lead_hours": 48.9,
+      "merged_day": "2026-07-30",
+      "number": 2319,
+      "records": 7686,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "ci(ITGD-3372): wire PIC\u2192ERP e2e suite into CI, repair stale specs",
+      "work_minutes": 579.2
+    },
+    {
+      "branch": "feat/ai-readiness",
+      "lead_hours": 4.9,
+      "merged_day": "2026-08-03",
+      "number": 64,
+      "records": 675,
+      "repo": "arco-cv/arco2-error-monitor",
+      "title": "chore: agent-onboard Tier Climb \u2014 tooling, CI coverage gates, and agent-readiness docs",
+      "work_minutes": 38.3
+    },
+    {
+      "branch": "docs/agent-readiness-silver",
+      "lead_hours": 0.4,
+      "merged_day": "2026-08-04",
+      "number": 65,
+      "records": 1007,
+      "repo": "arco-cv/arco2-error-monitor",
+      "title": "docs: auditoria Agent Readiness (Prata) + reconcilia\u00e7\u00e3o de docs",
+      "work_minutes": 111.7
+    },
+    {
+      "branch": "tests/add-e2e-boilerplate",
+      "lead_hours": 22.2,
+      "merged_day": "2026-08-05",
+      "number": 66,
+      "records": 3340,
+      "repo": "arco-cv/arco2-error-monitor",
+      "title": "test(frontend): add harness de e2e com Playwright para o dashboard",
+      "work_minutes": 152.9
+    }
+  ],
   "warnings": [
-    "arco-cv/b2b-store-front: 1 merged PR(s) but no shipped commits \u2014 last fetched 2026-06-03"
+    "arco-cv/b2b-store-front: 1 merged PR(s) but no shipped commits \u2014 last fetched 2026-06-03",
+    "4 of 27 merged PR(s) have no transcript records on their branch \u2014 transcripts aged out, so they are excluded from work time rather than read as zero"
   ],
   "window": {
     "since": "2026-06-14",
     "until": "2026-08-08"
+  },
+  "work_time": {
+    "attributed_prs": 23,
+    "hours_per_merged_pr": 6.54,
+    "idle_cap_minutes": 30,
+    "unattributed_prs": 4,
+    "work_hours": 150.4
   }
 }
