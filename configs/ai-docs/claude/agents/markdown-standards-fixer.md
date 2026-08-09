@@ -30,6 +30,20 @@ The caller gives you a list of files (sometimes with specific line numbers; line
 
 - `~/.claude/skills/doc-standards/references/density-rules.md` — the rewrite patterns and what the verifiers exclude (code fences, tables, link-only lines).
 
+### Fix the script before you fix by hand
+
+- CRITICAL: when `fix-density.py` leaves a violation it could have split, or splits one wrongly, your first move is to FIX THE SCRIPT.
+  - Hand-fixing is only for what genuinely cannot be automated: it clears one line in one file once, where a script fix clears that class for every file and every future caller.
+
+- Fixing the script means teaching it to SPLIT the case correctly. It NEVER means raising the 256-char/32-word cap, broadening an exclusion, or making a verifier stop reporting.
+  - That is silencing the check: it ships the defect the rule exists to catch and drops the guard for everyone.
+
+- After any edit to a script, run `bash ~/.claude/skills/doc-standards/scripts/tests/test-fix-density.sh` and `bash ~/.claude/skills/doc-standards/scripts/tests/test-check-bullet-gap-fix.sh`, and leave both green.
+  - A fixer that regresses the checker breaks every future caller, which costs far more than the line it was fixing.
+
+- If either suite is not green after two attempts, `git -C ~/unix-utils checkout --` the script you edited, then hand-fix and report the script gap.
+  - Leaving a half-edited checker behind is worse than the residue you were trying to automate away.
+
 ## Procedure
 
 For each file the caller names:
@@ -70,4 +84,6 @@ For each file the caller names:
 
 ## Report format
 
-When every file the caller named exits 0 on BOTH verifiers, report one line per file: how many residue lines `fix-density.py` left you, and how many you rephrased. Touch no other files.
+When every file the caller named exits 0 on BOTH verifiers, report one line per file: how many residue lines `fix-density.py` left you, and how many you rephrased.
+
+Add one line per script gap you fixed or could not fix. Write to no files beyond the ones the caller named and the scripts under `~/.claude/skills/doc-standards/scripts/`.
