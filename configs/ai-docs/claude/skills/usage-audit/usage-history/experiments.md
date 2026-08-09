@@ -429,6 +429,74 @@ Not a hypothesis. A checked-and-closed suspicion, recorded so no future audit sp
 - **Measured 2026-08-08 across every transcript**: 99,534 priced records carry `"speed":"standard"` and **zero** carry `"speed":"fast"`.
 - The whole series is therefore priced at standard rates, and every opus-share reading is a real tier choice rather than a billing multiplier.
 
+### 2026-08-09 — move the skill-authoring read-edit-recheck loop out of main, the largest undelegated block
+
+First of three answers to the user's standing question: how to raise the subagent share of spend by delegating more work, never by pinning subagents to pricier models.
+
+- **Measured baseline, the 7 complete days 2026-08-02..08-08**: total $751.94, subagent $287.69, a **38.3%** headline share.
+
+- **That headline overstates routine delegation.** `consistency-ensemble-child` alone is $89.67 across 21 runs, or 31.2% of all subagent spend, from one skill's fan-out on essentially one day.
+
+- Excluding it: $662.27 total against $198.02 subagent, a **29.9%** routine share. Reaching the user's 40% floor means moving **$66.89 per week** of main spend out.
+
+- **Where the undelegated spend sits**: bucketing `top_sessions` over 2026-08-03..08-08 by each session's own delegation share puts **$233.49 of $387.67 main spend, 60%, in sessions delegating under 10%**.
+
+- The `<10%` bucket is 7 sessions carrying 23 compactions — large, context-saturating sessions that barely delegate. The 0% bucket holds 22 sessions but only $105.12 and 10 compactions.
+
+- **What those sessions were doing**: the three costliest are all skill and standards authoring against this repo.
+
+| day | main $ | sub $ | compactions | api_calls | hours | skills active |
+|---|---|---|---|---|---|---|
+| 2026-08-06 | 57.21 | 0.00 | 7 | 543 | 6.5 | commit-standards, doc-standards, skill-standards |
+| 2026-08-08 | 44.06 | 0.20 | 10 | 295 | 5.0 | code-standards, doc-standards, offload-tasklist, test-standards |
+| 2026-08-04 | 42.00 | 0.76 | 6 | 326 | 8.5 | address-pr-comments, commit-standards, doc-standards, sdd:prd |
+
+- The loop is identical in all three: read the whole SKILL.md, edit it, re-run its checkers, re-read what changed. Every byte of it lands in main.
+
+- **Hypothesis**: main decides the edit, and an authoring agent applies it, drives that skill's own checkers to green, and returns only a diff summary.
+
+- Anthropic names this exact split — delegate work whose verbose output the main context does not need, keeping only the distilled summary (https://code.claude.com/docs/en/sub-agents).
+
+- **Watch signal**: the fan-out-excluded subagent share per day, computed as `subagent_cost` less `by_subagent_type.consistency-ensemble-child`, over `total` less the same figure.
+
+- Never the 38.3% headline — a single `consistency-check` run masks a flat routine trend, which is exactly how this lever would look settled while nothing moved.
+
+- **Settle by**: two 7-day windows of `reconciliation: "ok"` days, one before the agent exists and one after, compared on that adjusted share and on compactions.
+
+### 2026-08-09 — give every remaining standards checker a fixer agent, the shape that already works
+
+- **The pattern is proven twice and is nearly free.** `markdown-standards-fixer` ran 13 times for $2.94 across 2026-08-02..08-08, against `general-purpose` at 36 runs for $43.07.
+
+- `comment-format-fixer` shipped the same shape for code comments on 2026-08-08 (`7c5c8c2`), backed by the `--fix` repair pass in `aebec8f`.
+
+- **Script-first is what makes it cheap**: the agent runs the deterministic fixer, then rewords only the rows the script refuses to repair. AI touches the residue, not the file.
+
+- **Still running inline in main today**: `agent-standards/check-agent-contract.sh`, `doc-standards/check-rule-citations.py`, `performance-check-principles-and-skills/check.sh`, and seven `spec-driven-development` checkers.
+
+- Each prints one row per violation into main, and the fix loop then re-reads the file it just flagged — the same read-edit-recheck shape as the entry above.
+
+- **Hypothesis**: one fixer agent per checker family converts a noisy inline loop into a single dispatch, moving both the violation rows and the re-reads out of main.
+
+- **Watch signal**: `by_subagent_type` run counts for the fixer agents, against the fan-out-excluded share and main `api_calls` on the days those skills are active.
+
+- **Settle by**: a standards-authoring day before and after, compared on main `api_calls` and `compactions` at comparable `kpis.user_messages`.
+
+### 2026-08-09 — make the Explore mandate actually fire, since the rule exists and the data shows it ignored
+
+- **CLAUDE.md already mandates it**, under "Leverage Explore/Grep and other subagents to minimize compaction on main session".
+
+- **The data says it barely fires.** Across 2026-08-02..08-08, `Explore` plus `explore` total 10 runs for $4.23, against `general-purpose` at 36 runs for $43.07.
+
+- **This is the same structural failure as the sonnet-main entry above**: a settled rule with no enforcing mechanism, so every session re-decides it and most decide against.
+
+- **Why it earns its own entry**: a broad search is the most delegable unit of work there is, and its output is pure intermediate noise the main context never needs again.
+
+- **Hypothesis**: a mechanism rather than another rule — a hook, or a fixed threshold where a search past N files becomes a dispatch — moves that cost into a haiku-class agent.
+
+- **Watch signal**: `Explore` plus `explore` run count per day against `general-purpose` run count, plus main `api_calls` per `kpis.user_messages`.
+
+- **Settle by**: two `reconciliation: "ok"` days at comparable `user_messages`, one before the mechanism and one after.
+
 ## User-settled learnings
 
 Settled by the user's own experience (2026-07-24), outside the audit loop — treat as constraints, not open hypotheses.
