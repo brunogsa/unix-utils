@@ -6,11 +6,18 @@ The caps themselves live in `SKILL.md`; this file holds the remedies and bad/goo
 
 ## Contents
 
+- [What the script reads](#what-the-script-reads)
 - [WIDTH — over-64-char lines](#width--over-64-char-lines)
 - [CODE-GAP — a comment block glued to the code above](#code-gap--a-comment-block-glued-to-the-code-above)
 - [PARAGRAPH and SENTENCE-BREAK — where a break may land](#paragraph-and-sentence-break--where-a-break-may-land)
 - [Bullets inside comments](#bullets-inside-comments)
 - [ASCII-only separators](#ascii-only-separators)
+
+## What the script reads
+
+It covers TypeScript/JavaScript, shell, and Python, taking the language from the file extension and then the `#!` shebang — pass `--lang` when a file has neither.
+
+A Python module docstring is a string, not a comment, so the script skips it and its width goes unmeasured.
 
 ## WIDTH — over-64-char lines
 

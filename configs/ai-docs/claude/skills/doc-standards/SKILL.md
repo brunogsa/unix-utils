@@ -47,7 +47,7 @@ Principles and paired examples for any documentation work; not every principle n
   - [Example] Bad: `// Value stays '_loadingDeadlineMs' — browser specs hardcode this URL literal` / Good: `// This constant exists so E2E tests can override the timeout, making tests faster`
 
 - [Instruction] Link a non-obvious domain rule or field to its durable design doc (LLD/spec/ADR) by file path or URL — only when the full rationale is worth the pointer.
-  - [Why] The comment gives the local why in one line; the design doc holds the full rationale the code can't show — cite by durable path/URL, not a rot-prone number.
+  - [Why] The comment gives the local why in one line; the design doc holds the full rationale the code can't show.
 
 [Example]
 ```ts
@@ -83,14 +83,10 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 - [Instruction] Verify the caps above with `scripts/check-comment-format.js <file>...`, whose labels name the rule each violation broke.
   - [Why] It lexes the file instead of grepping it, so unlike a regex width check it never mistakes a `//` or `#` inside a string literal for a comment.
 
-It covers TypeScript/JavaScript, shell, and Python, taking the language from the file extension and then the `#!` shebang — pass `--lang` when a file has neither.
-
-A Python module docstring is a string, not a comment, so the script skips it and its width goes unmeasured.
-
 - [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments — use plain ASCII (`=`, `-`, `|`).
   - [Why] Humans don't type these by hand, so they look AI-written and get used inconsistently; they also break in terminals, diffs, and grep where ASCII works.
 
-When the script flags `WIDTH`, `PARAGRAPH`, `SENTENCE-BREAK`, or `CODE-GAP`, or when a comment carries bullets, read `references/comment-formatting.md` for the fix shapes and bad/good pairs.
+When the script flags `WIDTH`, `PARAGRAPH`, `SENTENCE-BREAK`, or `CODE-GAP`, or a comment carries bullets, read `references/comment-formatting.md` — fix shapes, bad/good pairs, language detection, Python caveat.
 
 ### Section fencing in code files
 
@@ -113,19 +109,14 @@ Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles �
 
   - [Example] Bad: `see handleRetry`. Good: `handleRetry` in `src/net/retry.ts`, or `[HLD → Riscos](./hld.md#riscos)`.
 
-- [Instruction] Spell project-private acronyms: `SA` / `SAP` → `sales_agreement` / `sales_agreement_product`.
-  - [Why] The private context behind the acronym can change, be forgotten, or never reach a new team member — leaving them to guess.
+- [Instruction] Write out any shorthand — a project-private acronym, an abstract call shape standing in for a value — instead of leaving the reader to decode it.
+  - [Why] Decoding costs the reader a step, and the context it takes can be forgotten or never reach a new team member.
 
-- [Instruction] Prefer concrete example values: `"12345678000195" + "12.345.678/0001-95"` beats `digits + formatCnpj(digits)`.
-  - [Why] A concrete value shows the intent directly; an abstract call shape makes the reader instantiate it mentally.
+  - [Example] `SA` / `SAP` → `sales_agreement` / `sales_agreement_product`; `"12345678000195" + "12.345.678/0001-95"` beats `digits + formatCnpj(digits)`.
 
 ## Standalone doc files
 
-Authoring a full ADR / HLD / LLD / spec / plan, or rendering a payload schema as JSONC? Load the **`design-docs`** skill.
-
-It picks which doc to write, hands you the template and a worked example, and carries the ownership + altitude rules that keep the five docs from overlapping.
-
-### Where docs live and ship
+Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`design-docs`** skill for which doc to write, its template, a worked example, and the ownership + altitude rules.
 
 - [Instruction] Locate and update related documentation inline with the change.
   - [Why] Deferring doc updates to "later" means they don't happen — the PR description, README, and touched comments are part of the change the reviewer needs synced.
@@ -135,11 +126,8 @@ It picks which doc to write, hands you the template and a worked example, and ca
 - [Instruction] Lead with the bottom line — state a doc's and each section's conclusion first, then its support (BLUF).
   - [Why] NN/g eye-tracking shows readers scan in an F-pattern and bail early, so a buried conclusion is one early-scanning readers never reach.
 
-- [Instruction] Decide what to collapse from this document's own reader and what they came for — never from the content's type.
-  - [Why] A type-based rule gets one doc wrong every time — a PR's reviewer must read its decisions, while a brainstorm plan's author already made them.
-
-- [Instruction] Collapse into a `<details>` or equivalent toggle whatever that reader only consults or already holds.
-  - [Why] Consulted content serves whoever needs one row, so leaving it expanded spends every reader's attention on those few.
+- [Instruction] Collapse into a `<details>` or equivalent toggle whatever this document's own reader only consults or already holds — judged from that reader, never from the content's type.
+  - [Why] Content the reader only consults taxes everyone when left expanded, and a type-based rule misjudges it — a PR reviewer must read decisions a plan's author already made.
 
 - [Instruction] Never collapse what that reader needs in order to form the judgment the document asks of them.
   - [Why] Collapsed content is content nobody opens, so hiding what the doc exists to communicate trades away the reading it was written for.
@@ -162,13 +150,13 @@ It picks which doc to write, hands you the template and a worked example, and ca
 - [Instruction] Every line/bullet ≤256 chars and ≤32 words; over the cap, split on a sentence boundary — never drop info to fit.
   - [Why] Dense prose drops adherence in LLM consumers and raises scan time for humans; the cap forces clarity.
 
-- [Instruction] Delegate verification and fixing of both line rules — the density cap and the blank-line gap — to `agent(subAgent=markdown-standards-fixer, title=Fix <doc> markdown)`, never inline in the main session.
-  - [Why] The subagent runs `scripts/check-density.sh`, `scripts/check-bullet-gap.py`, and `references/density-rules.md` deterministically with fresh eyes; inline fixing burns main-session context on mechanical splits, and eyeballing misses the violations.
+- [Instruction] Delegate verification and fixing of both line rules — the density cap and the blank-line gap — to `agent(subAgent=markdown-standards-fixer, title=Fix <doc> markdown)`, never inline.
+  - [Why] It runs `scripts/check-density.sh`, `scripts/check-bullet-gap.py`, and `references/density-rules.md` deterministically with fresh eyes; inline fixing burns main-session context, and eyeballing misses violations.
 
-- [Instruction] Separately verify each schema JSONC block against its ≤80-char/line rule (in the `design-docs` skill) — `check-density.sh` excludes fenced code, so it never measured them.
-  - [Why] A green density run reads as "the whole doc passes," yet a design doc can be half JSONC the script skipped — the over-long schema lines then ship unflagged.
+- [Instruction] Separately verify each schema JSONC block against its ≤80-char/line rule (in the `design-docs` skill).
+  - [Why] `check-density.sh` excludes fenced code, so a green run reads as "the whole doc passes" while a design doc's JSONC went unmeasured — its over-long schema lines ship unflagged.
 
-- [Instruction] In standalone markdown docs, keep each prose paragraph on a single physical line — never hard-wrap or insert manual line breaks mid-paragraph; rely on the editor's soft-wrap.
+- [Instruction] In standalone markdown docs, keep each prose paragraph on a single physical line — never hard-wrap mid-paragraph; rely on the editor's soft-wrap.
   - [Why] The density check flags over-long lines, but hard-wrapping a long paragraph into short lines makes each one pass while the reader's cognitive load stays just as high.
 
   - [Example] Bad: a 60-word paragraph wrapped into three 20-word lines, each passing the cap though it's still 60 words to read. Good: one line the cap can flag honestly.
