@@ -591,24 +591,17 @@ it_should_omit_an_in_progress_task_from_the_eligible_set_even_when_its_dependenc
   assert_eq "should omit the already-dispatched task 2 from the eligible set (in_progress)" "1" "$(in_progress_of)"
 }
 
-it_should_not_verdict_gates_while_the_only_unfinished_tasks_are_live_siblings() {
+it_should_verdict_wait_when_the_current_task_passed_and_only_live_sibling_tasks_remain() {
   local fixture
 
   # A wave with nothing downstream of it: task 1 just
   # passed, tasks 2 and 3 are still running, and no task
   # depends on either.
   #
-  # If "remaining" ever excluded in_progress, the count
-  # would read 0 here and the batch would gate while two
-  # subagents were still committing.
-  #
-  # The assertion is the negative on purpose. Which verdict
-  # this returns is not a designed contract -- the parallel
-  # flow asks --eligible-set while a wave is live and never
-  # reaches here.
-  #
-  # What must hold is only that a live wave can never be
-  # mistaken for a finished batch.
+  # Before the "wait" verdict existed, eligible_count==0
+  # here fell straight to "halted" without ever consulting
+  # in_progress_count, stopping a whole healthy wave for the
+  # human while its live siblings were still working.
   fixture=$(write_fixture "wave-with-no-downstream-task" '{
     "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
@@ -623,10 +616,38 @@ it_should_not_verdict_gates_while_the_only_unfinished_tasks_are_live_siblings() 
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
-  local action
-  action=$(action_of)
-  assert_eq "should not verdict gates while tasks 2 and 3 are still in progress" \
-    "not-gates" "$([ "$action" = "gates" ] && printf 'gates' || printf 'not-gates')"
+  assert_eq "should verdict wait when the current task passed and only live sibling tasks remain (action)" "wait" "$(action_of)"
+  assert_eq "should verdict wait when the current task passed and only live sibling tasks remain (in_progress named in reason)" "true" \
+    "$(printf '%s' "$VERDICT_OUT" | jq -r '.reason | contains("2")')"
+}
+
+it_should_verdict_wait_not_halted_when_a_live_sibling_remains_alongside_a_genuinely_blocked_task() {
+  local fixture
+
+  # Task 1 just passed. Task 2 is a live sibling still
+  # running; task 3 is genuinely blocked (needs a human) and
+  # unrelated to task 2. Because "remaining" already drops
+  # blocked tasks, task 3 never reaches the blocked_count
+  # halt check on this pass -- the verdict must still wait
+  # on task 2 rather than halting early on task 3's presence.
+  fixture=$(write_fixture "wait-with-blocked-sibling" '{
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "batch_base_sha": "abc",
+    "tasks": [
+      {"id": "1", "status": "done", "depends_on": []},
+      {"id": "2", "status": "in_progress", "depends_on": []},
+      {"id": "3", "status": "blocked", "depends_on": []}
+    ],
+    "attempts": [
+      {"task": "3", "n": 1, "result": "blocked", "signature": "staging DB credentials are missing from the vault", "at": "2026-07-10T10:01:00Z"},
+      {"task": "1", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}
+    ],
+    "gate_dispatches": 0,
+    "tails": {"refactor_report": "", "auto_review_report": ""},
+    "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
+  }')
+  run_script "$fixture"
+  assert_eq "should verdict wait, not halted, when a live sibling remains alongside a genuinely blocked task" "wait" "$(action_of)"
 }
 
 it_should_report_in_progress_alongside_a_next_eligible_task_of_none() {
@@ -715,7 +736,8 @@ it_should_report_none_eligible_when_no_task_is_pending
 it_should_break_ties_by_lowest_numeric_id_not_lexical_order
 it_should_treat_a_next_eligible_depends_on_id_absent_from_this_units_tasks_as_satisfied
 it_should_omit_an_in_progress_task_from_the_eligible_set_even_when_its_dependencies_are_done
-it_should_not_verdict_gates_while_the_only_unfinished_tasks_are_live_siblings
+it_should_verdict_wait_when_the_current_task_passed_and_only_live_sibling_tasks_remain
+it_should_verdict_wait_not_halted_when_a_live_sibling_remains_alongside_a_genuinely_blocked_task
 it_should_report_in_progress_alongside_a_next_eligible_task_of_none
 it_should_return_an_empty_eligible_set_once_the_batch_budget_is_spent
 

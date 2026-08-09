@@ -19,7 +19,7 @@ See [`references/pr-awareness.md`](references/pr-awareness.md), loaded whenever 
 
 ## Execution model — orchestrator + per-task subagents
 
-`/implement` is **fully async**: it runs the whole batch unattended and hands you the finished commits — the only handshake is the batch-end review.
+`/implement` is **fully async**: it runs the whole batch and hands you the finished commits — the only handshake is the batch-end review.
 
 Two roles:
 
@@ -251,7 +251,7 @@ Write it into this unit's state file as `batch_base_sha`; §5 and §8 both read 
 
 Then recap the work this unit builds on, in 3–5 lines, from `git log <base-branch>..HEAD`.
 
-**Read the commit messages, not the diff** — bodies carry the *why* a diff can't show. Open it only when a message can't tell you what it did.
+**Read the commit messages, not the diff** — bodies carry the *why*; open it only when a message can't tell you what it did.
 
 Don't dump the log into chat; each task subagent re-derives its own context from `git log` at dispatch.
 
@@ -346,7 +346,7 @@ git cat-file -e <sha>^{commit}
 
 Run it once per reported SHA; exit 0 on all of them is the pass.
 
-**Check that they exist, never what they contain** — no diff read, no message read, no count against the plan's commit sketch.
+**Check that they exist, never what they contain** — no diff or message read, no count against the plan's commit sketch.
 It catches only a report naming commits that were never made; content is §8.1's job.
 
 - **`done`, every reported SHA resolves** → §5.4, which records the attempt.
@@ -386,13 +386,14 @@ Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` an
     - Its four inputs: that id set, each task's **Files (logical order)** list, `batch_base_sha`, and the plan's `<slug>`.
     - Its ledger is this state file: it writes `in_progress`, `branch`, and `worktree_path` before each spawn — what `--eligible-set` reads to skip an in-flight task.
 
+- **`wait`** → a dispatched sibling hasn't reported yet. Dispatch nothing, take no halt action, and re-run this verdict once its report lands.
 - **`gates`** → **every** task in this unit is `done`. Set `phase: "gates"` and go to §8's batch end.
 - **`halted`** → every task is terminal with at least one blocked or stuck, or a same-unit dependency deadlock leaves pending tasks with unsatisfied `depends_on`. Go to §5.5.
 
 - **`halt-budget`** → the unit's dispatch budget is exhausted. Go to §5.5.
 
-**Only this script sends a unit to the gates, and only when nothing is blocked.**
-Never infer `gates` yourself from "the queue looks empty" — a queue empties for two different reasons; only the script can tell them apart.
+**Only this script sends a unit to `gates`.**
+Never infer it from "the queue looks empty" — the script alone distinguishes `wait`, `halted`, and `gates`.
 
 ### 5.5. Halt — stop where you stand and wait for the human
 

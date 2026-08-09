@@ -9,7 +9,7 @@
 #
 # With no flag, reads a /implement run's JSON state file and
 # prints one JSON verdict on stdout, for phase "tasks" only:
-#   {"action": "retry|stuck|next-task|gates|halted|halt-budget", "task": "<id or empty>", "reason": "..."}
+#   {"action": "retry|stuck|next-task|wait|gates|halted|halt-budget", "task": "<id or empty>", "reason": "..."}
 #
 # --budget, --next-eligible and --eligible-set are
 # phase-independent query modes; see "Design" below for what
@@ -24,7 +24,7 @@
 # Pure: no writes, no clock reads, deterministic — the same state file always
 # yields the same verdict. The orchestrator (main session AI) is the fallible
 # recorder of raw facts (attempt outcomes, phase, report paths); this script is
-# the infallible judge that turns those facts into one of six actions.
+# the infallible judge that turns those facts into one of seven actions.
 #
 # Design:
 #   - The "current task" is whichever task the LAST entry in `attempts[]`
@@ -56,11 +56,12 @@
 #     start, so treating "absent" as "satisfied" is deliberate, not a gap —
 #     it also means a seeding typo that mis-writes an id is swallowed rather
 #     than caught here. Among eligible tasks the lowest id wins, same
-#     tiebreak as before. If pending tasks remain but none are eligible (a
-#     same-unit dependency deadlock — e.g. every remaining task depends on
-#     one this run just marked "blocked"), the verdict is "halted", not a
-#     script failure: it is a real runtime dead end for the human, the same
-#     as the existing blocked-task halt below.
+#     tiebreak as before. If pending tasks remain but none are eligible, the
+#     verdict is "wait" when a sibling is still `in_progress` — it may
+#     become eligible once that sibling reports — or "halted" when
+#     in_progress is zero, a real same-unit dependency deadlock (e.g. every
+#     remaining task depends on one this run just marked "blocked") that is
+#     a runtime dead end for the human, not a script failure.
 #   - The batch-wide dispatch budget (BATCH_CAP_MULT * task count +
 #     GATE_FIX_ALLOWANCE) is checked before any per-task logic: it is the
 #     backstop for a runaway gate-fixing loop (gate_dispatches piling up),
@@ -70,7 +71,7 @@
 #     batch-end flow. `--budget` answers this same threshold
 #     question for a caller outside phase "tasks" (see below).
 #   - This no-flag mode only verdicts phase "tasks" (retry/stuck/
-#     next-task/gates/halted/halt-budget). Any other phase is a
+#     next-task/wait/gates/halted/halt-budget). Any other phase is a
 #     caller misuse it fails loud on rather than guess a verdict
 #     for. The gate and batch-end flow that run after the task
 #     loop are linear, but they DO call this script: `--budget`
@@ -106,7 +107,7 @@ usage: implement-loop-state.sh <state-file>
 
 With no flag, reads a /implement run's JSON state file at phase "tasks" and
 prints one JSON verdict:
-  {"action": "retry|stuck|next-task|gates|halted|halt-budget", "task": "...", "reason": "..."}
+  {"action": "retry|stuck|next-task|wait|gates|halted|halt-budget", "task": "...", "reason": "..."}
 
 --budget: is the batch's dispatch budget exhausted? Works at any phase.
   {"exhausted": true|false, "total_dispatches": N, "budget_threshold": N, "reason": "..."}
@@ -359,8 +360,19 @@ case "$last_result" in
       eligible_json=$(eligible_tasks_json "$state_file" "$current_task")
       eligible_count=$(printf '%s' "$eligible_json" | jq 'length')
       if [ "$eligible_count" -eq 0 ]; then
-        emit_verdict "halted" "" \
-          "task $current_task passed and $remaining_count task(s) remain, but none have every declared dependency satisfied (likely blocked upstream); halting here for the human instead of dispatching an ineligible task"
+        # No pending task is DAG-eligible right now, but that is not
+        # necessarily a dead end: a non-zero in_progress means one or more
+        # dispatched siblings just haven't reported yet, and dispatching
+        # more or halting the run would be premature — only a true zero
+        # in_progress means this really is a dependency deadlock.
+        running=$(in_progress_count "$state_file")
+        if [ "$running" -gt 0 ]; then
+          emit_verdict "wait" "" \
+            "task $current_task passed and $remaining_count task(s) remain, but $running sibling task(s) are still in_progress and haven't reported yet; dispatch nothing and wait for them before re-verdicting"
+        else
+          emit_verdict "halted" "" \
+            "task $current_task passed and $remaining_count task(s) remain, but none have every declared dependency satisfied (likely blocked upstream); halting here for the human instead of dispatching an ineligible task"
+        fi
       else
         next_task=$(printf '%s' "$eligible_json" | jq -r '.[0].id')
         emit_verdict "next-task" "$next_task" "task $current_task passed; dispatch next DAG-eligible pending task $next_task (lowest id among tasks whose dependencies are all done)"
