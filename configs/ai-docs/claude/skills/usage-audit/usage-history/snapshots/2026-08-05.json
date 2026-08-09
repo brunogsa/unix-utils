@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-09T05:13:08-03:00",
+  "generated_at": "2026-08-09T13:27:32-03:00",
   "day": "2026-08-05",
   "coverage": "complete",
   "observed_days": 1,
@@ -384,7 +384,7 @@
         "delta_pct": 0.0
       }
     },
-    "ccusage_cost_untrusted": 16.8
+    "ccusage_cost_untrusted": 4.24
   },
   "ab_tests": {
     "review-isolation": {

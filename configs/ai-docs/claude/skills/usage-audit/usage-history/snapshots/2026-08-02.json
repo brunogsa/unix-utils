@@ -1,53 +1,53 @@
 {
-  "generated_at": "2026-08-09T05:13:00-03:00",
+  "generated_at": "2026-08-09T13:27:24-03:00",
   "day": "2026-08-02",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 16.74,
+    "cost_per_day": 16.81,
     "user_messages": 2,
     "interruptions": 1,
     "session_hours": 1.9,
-    "cost_per_user_message": 8.37
+    "cost_per_user_message": 8.41
   },
-  "total": 16.74,
+  "total": 16.81,
   "main_cost": 4.51,
-  "subagent_cost": 12.23,
+  "subagent_cost": 12.3,
   "api_calls": {
     "main": 84,
     "sub": 298
   },
   "compactions": 2,
   "session_count": 2,
-  "cache_hit_rate": 0.951,
+  "cache_hit_rate": 0.952,
   "thinking_blocks": 256,
   "text_blocks": 90,
   "thinking_block_share": 0.74,
   "tokens": {
     "input": 465276,
     "output": 320210,
-    "cache_read": 35106108,
+    "cache_read": 35456527,
     "cache_write_5m": 1025377,
     "cache_write_1h": 303041
   },
   "by_family": {
-    "sonnet": 13.72,
+    "sonnet": 13.79,
     "opus": 3.02
   },
   "by_model": {
-    "claude-sonnet-5": 13.72,
+    "claude-sonnet-5": 13.79,
     "claude-opus-5": 3.02
   },
   "by_day": {
     "2026-08-02": {
       "main": 4.51,
-      "sub": 12.23
+      "sub": 12.3
     }
   },
   "by_repo_class": {
     "work": {
-      "cost": 16.74,
-      "subagent_cost": 12.23,
+      "cost": 16.81,
+      "subagent_cost": 12.3,
       "user_messages": 2,
       "interruptions": 1
     },
@@ -60,7 +60,7 @@
   },
   "by_subagent_type": {
     "core:agent-forger": {
-      "cost": 10.98,
+      "cost": 11.06,
       "runs": 4
     },
     "Explore": {
@@ -74,7 +74,7 @@
   },
   "by_skill": {
     "core:agent-onboard": {
-      "cost": 16.6,
+      "cost": 16.67,
       "invocations": 3,
       "sessions": 1,
       "compactions": 2,
@@ -82,13 +82,13 @@
       "tokens": {
         "input": 465274,
         "output": 319373,
-        "cache_read": 35076392,
+        "cache_read": 35426811,
         "cache_write_5m": 1025377,
         "cache_write_1h": 271053
       },
       "by_repo_class": {
         "work": {
-          "cost": 16.6,
+          "cost": 16.67,
           "invocations": 3,
           "sessions": 1
         },
@@ -100,7 +100,7 @@
       }
     },
     "core:agent-readiness": {
-      "cost": 16.6,
+      "cost": 16.67,
       "invocations": 1,
       "sessions": 1,
       "compactions": 2,
@@ -108,13 +108,13 @@
       "tokens": {
         "input": 465274,
         "output": 319373,
-        "cache_read": 35076392,
+        "cache_read": 35426811,
         "cache_write_5m": 1025377,
         "cache_write_1h": 271053
       },
       "by_repo_class": {
         "work": {
-          "cost": 16.6,
+          "cost": 16.67,
           "invocations": 1,
           "sessions": 1
         },
@@ -131,13 +131,13 @@
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 14.49,
+      "mixed_cost_estimate": 14.56,
       "by_repo_class": {
         "work": {
           "dedicated_sessions": 0,
           "dedicated_cost": 0.0,
           "mixed_sessions": 1,
-          "mixed_cost_estimate": 14.49
+          "mixed_cost_estimate": 14.56
         },
         "tooling": {
           "dedicated_sessions": 0,
@@ -173,7 +173,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-error-monitor/a5063804-4884-4e1e-8507-4061c7f5932a.jsonl",
       "title": "",
       "cost": 4.37,
-      "subagent_cost": 12.23,
+      "subagent_cost": 12.3,
       "api_calls": 83,
       "duration_hours": 1.9,
       "compactions": 2,
@@ -214,8 +214,8 @@
     }
   ],
   "reconciliation": {
-    "status": "drift",
-    "worst_delta_pct": 0.988,
+    "status": "ok",
+    "worst_delta_pct": 0.336,
     "tokens": {
       "input": {
         "script": 465276,
@@ -228,9 +228,9 @@
         "delta_pct": 0.0
       },
       "cache_read": {
-        "script": 35106108,
+        "script": 35456527,
         "ccusage": 35456527,
-        "delta_pct": -0.988
+        "delta_pct": 0.0
       },
       "cache_write": {
         "script": 1328418,
@@ -238,6 +238,6 @@
         "delta_pct": 0.336
       }
     },
-    "ccusage_cost_untrusted": 16.8
+    "ccusage_cost_untrusted": 16.02
   }
 }

@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-08-09T05:13:03-03:00",
+  "generated_at": "2026-08-09T13:27:27-03:00",
   "day": "2026-08-03",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 45.1,
+    "cost_per_day": 45.11,
     "user_messages": 32,
     "interruptions": 4,
     "session_hours": 18.1,
     "cost_per_user_message": 1.41
   },
-  "total": 45.1,
+  "total": 45.11,
   "main_cost": 31.73,
-  "subagent_cost": 13.37,
+  "subagent_cost": 13.38,
   "api_calls": {
     "main": 268,
     "sub": 613
@@ -26,31 +26,31 @@
   "tokens": {
     "input": 182591,
     "output": 597250,
-    "cache_read": 63917214,
+    "cache_read": 63970996,
     "cache_write_5m": 2038302,
     "cache_write_1h": 1754354
   },
   "by_family": {
     "haiku": 2.56,
-    "sonnet": 15.17,
+    "sonnet": 15.18,
     "opus": 27.37
   },
   "by_model": {
     "claude-opus-5": 26.03,
-    "claude-sonnet-5": 15.17,
+    "claude-sonnet-5": 15.18,
     "claude-haiku-4-5": 2.56,
     "claude-opus-4-7": 1.34
   },
   "by_day": {
     "2026-08-03": {
       "main": 31.73,
-      "sub": 13.37
+      "sub": 13.38
     }
   },
   "by_repo_class": {
     "work": {
-      "cost": 44.67,
-      "subagent_cost": 13.37,
+      "cost": 44.68,
+      "subagent_cost": 13.38,
       "user_messages": 31,
       "interruptions": 4
     },
@@ -71,7 +71,7 @@
       "runs": 2
     },
     "core:agent-forger": {
-      "cost": 0.78,
+      "cost": 0.79,
       "runs": 1
     },
     "changes-gatherer": {
@@ -145,7 +145,7 @@
       }
     },
     "core:agent-readiness": {
-      "cost": 8.35,
+      "cost": 8.36,
       "invocations": 1,
       "sessions": 1,
       "compactions": 2,
@@ -153,13 +153,13 @@
       "tokens": {
         "input": 177871,
         "output": 146066,
-        "cache_read": 15282767,
+        "cache_read": 15336549,
         "cache_write_5m": 451467,
         "cache_write_1h": 517420
       },
       "by_repo_class": {
         "work": {
-          "cost": 8.35,
+          "cost": 8.36,
           "invocations": 1,
           "sessions": 1
         },
@@ -171,7 +171,7 @@
       }
     },
     "commit-standards": {
-      "cost": 8.35,
+      "cost": 8.36,
       "invocations": 1,
       "sessions": 1,
       "compactions": 2,
@@ -179,13 +179,13 @@
       "tokens": {
         "input": 177871,
         "output": 146066,
-        "cache_read": 15282767,
+        "cache_read": 15336549,
         "cache_write_5m": 451467,
         "cache_write_1h": 517420
       },
       "by_repo_class": {
         "work": {
-          "cost": 8.35,
+          "cost": 8.36,
           "invocations": 1,
           "sessions": 1
         },
@@ -197,7 +197,7 @@
       }
     },
     "create-pr": {
-      "cost": 8.35,
+      "cost": 8.36,
       "invocations": 1,
       "sessions": 1,
       "compactions": 2,
@@ -205,13 +205,13 @@
       "tokens": {
         "input": 177871,
         "output": 146066,
-        "cache_read": 15282767,
+        "cache_read": 15336549,
         "cache_write_5m": 451467,
         "cache_write_1h": 517420
       },
       "by_repo_class": {
         "work": {
-          "cost": 8.35,
+          "cost": 8.36,
           "invocations": 1,
           "sessions": 1
         },
@@ -485,7 +485,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-error-monitor/a5063804-4884-4e1e-8507-4061c7f5932a.jsonl",
       "title": "",
       "cost": 5.09,
-      "subagent_cost": 3.27,
+      "subagent_cost": 3.28,
       "api_calls": 81,
       "duration_hours": 7.6,
       "compactions": 2,
@@ -607,9 +607,9 @@
         "delta_pct": -0.494
       },
       "cache_read": {
-        "script": 63917214,
+        "script": 63970996,
         "ccusage": 64133599,
-        "delta_pct": -0.337
+        "delta_pct": -0.254
       },
       "cache_write": {
         "script": 3792656,
@@ -617,6 +617,6 @@
         "delta_pct": 0.03
       }
     },
-    "ccusage_cost_untrusted": 45.26
+    "ccusage_cost_untrusted": 39.03
   }
 }

@@ -250,6 +250,35 @@ class TestBillingCorrectness(unittest.TestCase):
                 "the anchor block's 100 (under-bills) and not the sum 1400 "
                 "(over-bills)")
 
+    def test_a_response_with_growing_cache_read_tokens_bills_the_peak_not_the_anchor_or_the_sum(self):
+        """cache_read_input_tokens grows across a response's blocks on a
+        minority of responses, exactly as output_tokens does, so a response
+        whose blocks report 200, then 500, then 1200 cache-read tokens must
+        bill the peak (1200) — not the anchor block's 200, and not the sum
+        1900. Under-billing here left whole days below ccusage and cost them
+        their citable status. Regression for the bug fixed 2026-08-09."""
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        epoch = since + 3600
+        records = [
+            _assistant_record("msg_cache", "req_cache", epoch + i,
+                               input_tokens=1000, output_tokens=100,
+                               cache_read_tokens=read)
+            for i, read in enumerate([200, 500, 1200])
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "session.jsonl", records)
+            result = cur.aggregate([path], [], since, until)
+
+        price_in, price_out, price_cache_read = cur.SONNET_5_INTRO_PRICES
+        expected = (1000 * price_in + 100 * price_out
+                    + 1200 * price_cache_read) / 1e6
+        self.assertAlmostEqual(
+            result["main_cost"], expected, places=6,
+            msg="the response must bill its peak cache_read_input_tokens "
+                "(1200), not the anchor block's 200 (under-bills) and not "
+                "the sum 1900 (over-bills)")
+
     def test_a_response_straddling_local_midnight_bills_once_to_the_earlier_local_day(self):
         """A response whose content-block records straddle local midnight
         must bill entirely to the local day of its earliest record, and must

@@ -476,10 +476,15 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
     # the window filter because its inputs must include records the window drops.
     # See the anchor check in the pricing block for why.
     anchor_epoch = {}
-    # Highest output_tokens per billing key, same whole-file scope and for the
-    # same reason. Unlike the three request-side buckets, this one GROWS across a
-    # response's blocks — see the peak lookup in the pricing block.
+    # Highest output_tokens and cache_read_input_tokens
+    # per billing key, same whole-file scope and for the
+    # same reason as the anchor above.
+    #
+    # Both GROW across a response's blocks, so the anchor
+    # record holds only a partial figure for each — see
+    # the peak lookup in the pricing block.
     peak_output = {}
+    peak_cache_read = {}
 
     # An /advisor turn's second model per billing key,
     # hoisted for the same reason as peak_output.
@@ -501,6 +506,8 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
             usage = message.get("usage") or {}
             out = usage.get("output_tokens", 0) or 0
             peak_output[key] = max(peak_output.get(key, 0), out)
+            read = usage.get("cache_read_input_tokens", 0) or 0
+            peak_cache_read[key] = max(peak_cache_read.get(key, 0), read)
             if key not in advisor_entries:
                 found = [
                     iteration
@@ -609,20 +616,35 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
             if anchor_epoch.get(billing_key, epoch) != epoch:
                 continue
             seen_messages.add(billing_key)
-            # The three request-side buckets repeat identically on every block, so
-            # the anchor record already carries the response's true figures. But
-            # `output_tokens` is written CUMULATIVELY as the response streams, so
-            # the anchor holds a partial count and only the final block holds the
-            # total. Keeping the anchor's value under-bills exactly the priciest
-            # bucket, and by the blocks-per-response count — the mirror image of
-            # the 2026-07-27 over-billing bug, and just as correlated with the
-            # thinking and tool-call density these reports measure.
+            # `output_tokens` and `cache_read_input_tokens`
+            # are both written CUMULATIVELY as a response
+            # streams, so the anchor record holds a partial
+            # count and only the final block the total.
             #
-            # Measured on 2026-08-06: 385 of 1,490 responses carried a growing
-            # output_tokens. The anchor summed to 691,710 output tokens; the peak
-            # summed to 1,163,896, matching ccusage to the single token, while
-            # input, cache_read and cache_write already matched at 0.000%.
-            usage = dict(usage, output_tokens=peak_output.get(billing_key, 0))
+            # Keeping the anchor's value under-bills the two
+            # priciest buckets by a factor that tracks the
+            # blocks-per-response count.
+            #
+            # So the error grows with exactly the thinking
+            # and tool-call density these reports measure.
+            #
+            # Measured on 2026-08-06: 385 of 1,490 responses
+            # grew output_tokens, and the peak summed to
+            # 1,163,896 against the anchor's 691,710 —
+            # matching ccusage to the single token.
+            #
+            # cache_read grows on fewer responses but each
+            # carries more: 12 of 640 on 2026-08-07, and 17
+            # of 1,968 on 2026-07-12.
+            #
+            # The anchor left those two days 1.4% and 1.0%
+            # under ccusage; the peak matches exactly, which
+            # is what makes them citable at all.
+            usage = dict(
+                usage,
+                output_tokens=peak_output.get(billing_key, 0),
+                cache_read_input_tokens=peak_cache_read.get(billing_key, 0),
+            )
         stats["api_calls"] += 1
         day = local_day(epoch)
         write_5m, write_1h = cache_writes(usage)

@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-08-09T05:10:42-03:00",
+  "generated_at": "2026-08-09T13:25:10-03:00",
   "day": "2026-07-13",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 178.03,
+    "cost_per_day": 178.25,
     "user_messages": 100,
     "interruptions": 9,
     "session_hours": 26.6,
     "cost_per_user_message": 1.78
   },
-  "total": 178.03,
+  "total": 178.25,
   "main_cost": 150.61,
-  "subagent_cost": 27.42,
+  "subagent_cost": 27.64,
   "api_calls": {
     "main": 1123,
     "sub": 332
@@ -26,17 +26,17 @@
   "tokens": {
     "input": 2904421,
     "output": 1796407,
-    "cache_read": 125968599,
+    "cache_read": 126404011,
     "cache_write_5m": 2081721,
     "cache_write_1h": 5050642
   },
   "by_family": {
-    "opus": 175.01,
+    "opus": 175.22,
     "haiku": 1.35,
     "sonnet": 1.67
   },
   "by_model": {
-    "claude-opus-4-8": 173.44,
+    "claude-opus-4-8": 173.66,
     "claude-sonnet-5": 1.67,
     "claude-opus-4-7": 1.57,
     "claude-haiku-4-5": 1.35
@@ -44,13 +44,13 @@
   "by_day": {
     "2026-07-13": {
       "main": 150.61,
-      "sub": 27.42
+      "sub": 27.64
     }
   },
   "by_repo_class": {
     "work": {
-      "cost": 158.6,
-      "subagent_cost": 27.42,
+      "cost": 158.81,
+      "subagent_cost": 27.64,
       "user_messages": 78,
       "interruptions": 8
     },
@@ -71,13 +71,13 @@
       "runs": 7
     },
     "deep-reviewer": {
-      "cost": 21.52,
+      "cost": 21.74,
       "runs": 5
     }
   },
   "by_skill": {
     "code-standards": {
-      "cost": 124.51,
+      "cost": 124.73,
       "invocations": 4,
       "sessions": 4,
       "compactions": 22,
@@ -85,13 +85,13 @@
       "tokens": {
         "input": 2133757,
         "output": 1228537,
-        "cache_read": 86085595,
+        "cache_read": 86521007,
         "cache_write_5m": 1673917,
         "cache_write_1h": 3419063
       },
       "by_repo_class": {
         "work": {
-          "cost": 124.51,
+          "cost": 124.73,
           "invocations": 4,
           "sessions": 4
         },
@@ -103,7 +103,7 @@
       }
     },
     "doc-standards": {
-      "cost": 69.98,
+      "cost": 70.12,
       "invocations": 2,
       "sessions": 2,
       "compactions": 13,
@@ -111,13 +111,13 @@
       "tokens": {
         "input": 1265770,
         "output": 696861,
-        "cache_read": 49653313,
+        "cache_read": 49927187,
         "cache_write_5m": 753614,
         "cache_write_1h": 1851808
       },
       "by_repo_class": {
         "work": {
-          "cost": 69.98,
+          "cost": 70.12,
           "invocations": 2,
           "sessions": 2
         },
@@ -129,7 +129,7 @@
       }
     },
     "test-standards": {
-      "cost": 66.28,
+      "cost": 66.36,
       "invocations": 3,
       "sessions": 3,
       "compactions": 12,
@@ -137,13 +137,13 @@
       "tokens": {
         "input": 1144005,
         "output": 681417,
-        "cache_read": 40906620,
+        "cache_read": 41068158,
         "cache_write_5m": 920303,
         "cache_write_1h": 2005940
       },
       "by_repo_class": {
         "work": {
-          "cost": 66.28,
+          "cost": 66.36,
           "invocations": 3,
           "sessions": 3
         },
@@ -155,7 +155,7 @@
       }
     },
     "address-todo-comments": {
-      "cost": 58.23,
+      "cost": 58.37,
       "invocations": 1,
       "sessions": 1,
       "compactions": 10,
@@ -163,13 +163,13 @@
       "tokens": {
         "input": 989752,
         "output": 547120,
-        "cache_read": 45178975,
+        "cache_read": 45452849,
         "cache_write_5m": 753614,
         "cache_write_1h": 1413123
       },
       "by_repo_class": {
         "work": {
-          "cost": 58.23,
+          "cost": 58.37,
           "invocations": 1,
           "sessions": 1
         },
@@ -181,7 +181,7 @@
       }
     },
     "auto-review": {
-      "cost": 58.23,
+      "cost": 58.37,
       "invocations": 1,
       "sessions": 1,
       "compactions": 10,
@@ -189,13 +189,13 @@
       "tokens": {
         "input": 989752,
         "output": 547120,
-        "cache_read": 45178975,
+        "cache_read": 45452849,
         "cache_write_5m": 753614,
         "cache_write_1h": 1413123
       },
       "by_repo_class": {
         "work": {
-          "cost": 58.23,
+          "cost": 58.37,
           "invocations": 1,
           "sessions": 1
         },
@@ -207,7 +207,7 @@
       }
     },
     "commit-standards": {
-      "cost": 55.17,
+      "cost": 55.25,
       "invocations": 3,
       "sessions": 3,
       "compactions": 9,
@@ -215,13 +215,13 @@
       "tokens": {
         "input": 868005,
         "output": 533906,
-        "cache_read": 36878030,
+        "cache_read": 37039568,
         "cache_write_5m": 920303,
         "cache_write_1h": 1603606
       },
       "by_repo_class": {
         "work": {
-          "cost": 55.17,
+          "cost": 55.25,
           "invocations": 3,
           "sessions": 3
         },
@@ -336,13 +336,13 @@
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 18.44,
+      "mixed_cost_estimate": 18.58,
       "by_repo_class": {
         "work": {
           "dedicated_sessions": 0,
           "dedicated_cost": 0.0,
           "mixed_sessions": 1,
-          "mixed_cost_estimate": 18.44
+          "mixed_cost_estimate": 18.58
         },
         "tooling": {
           "dedicated_sessions": 0,
@@ -498,7 +498,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-integrator/e5e164bc-f455-4509-b611-35ff5e4d149d.jsonl",
       "title": "",
       "cost": 45.63,
-      "subagent_cost": 12.6,
+      "subagent_cost": 12.74,
       "api_calls": 366,
       "duration_hours": 3.9,
       "compactions": 10,
@@ -523,7 +523,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-integrator/28e73834-5854-4689-95b4-7ac5f75ae594.jsonl",
       "title": "",
       "cost": 26.64,
-      "subagent_cost": 11.38,
+      "subagent_cost": 11.47,
       "api_calls": 177,
       "duration_hours": 13.9,
       "compactions": 6,
@@ -690,9 +690,9 @@
         "delta_pct": 0.0
       },
       "cache_read": {
-        "script": 125968599,
+        "script": 126404011,
         "ccusage": 126404011,
-        "delta_pct": -0.344
+        "delta_pct": 0.0
       },
       "cache_write": {
         "script": 7132363,

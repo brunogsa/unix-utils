@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-08-09T05:12:51-03:00",
+  "generated_at": "2026-08-09T13:27:15-03:00",
   "day": "2026-07-30",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 63.95,
+    "cost_per_day": 64.24,
     "user_messages": 56,
     "interruptions": 2,
     "session_hours": 19.5,
-    "cost_per_user_message": 1.14
+    "cost_per_user_message": 1.15
   },
-  "total": 63.95,
+  "total": 64.24,
   "main_cost": 32.54,
-  "subagent_cost": 31.41,
+  "subagent_cost": 31.71,
   "api_calls": {
     "main": 420,
     "sub": 826
@@ -26,19 +26,19 @@
   "tokens": {
     "input": 1095265,
     "output": 882042,
-    "cache_read": 100283417,
+    "cache_read": 101127857,
     "cache_write_5m": 3282662,
     "cache_write_1h": 1847252
   },
   "by_family": {
     "haiku": 3.13,
-    "opus": 29.23,
-    "sonnet": 28.0,
+    "opus": 29.44,
+    "sonnet": 28.08,
     "fable": 3.59
   },
   "by_model": {
-    "claude-sonnet-5": 28.0,
-    "claude-opus-5": 25.04,
+    "claude-sonnet-5": 28.08,
+    "claude-opus-5": 25.25,
     "claude-opus-4-7": 4.19,
     "claude-fable-5": 3.59,
     "claude-haiku-4-5": 3.13
@@ -46,30 +46,30 @@
   "by_day": {
     "2026-07-30": {
       "main": 32.54,
-      "sub": 31.41
+      "sub": 31.71
     }
   },
   "by_repo_class": {
     "work": {
-      "cost": 36.16,
-      "subagent_cost": 10.76,
+      "cost": 36.22,
+      "subagent_cost": 10.83,
       "user_messages": 47,
       "interruptions": 1
     },
     "tooling": {
-      "cost": 27.79,
-      "subagent_cost": 20.65,
+      "cost": 28.02,
+      "subagent_cost": 20.88,
       "user_messages": 9,
       "interruptions": 1
     }
   },
   "by_subagent_type": {
     "UNMATCHED": {
-      "cost": 6.32,
+      "cost": 6.34,
       "runs": 8
     },
     "deep-reviewer": {
-      "cost": 5.07,
+      "cost": 5.16,
       "runs": 2
     },
     "general-purpose": {
@@ -77,11 +77,11 @@
       "runs": 4
     },
     "plan-writer": {
-      "cost": 6.73,
+      "cost": 6.84,
       "runs": 1
     },
     "fork": {
-      "cost": 3.09,
+      "cost": 3.11,
       "runs": 1
     },
     "markdown-standards-fixer": {
@@ -93,7 +93,7 @@
       "runs": 3
     },
     "pr-creator": {
-      "cost": 2.82,
+      "cost": 2.86,
       "runs": 1
     }
   },
@@ -336,7 +336,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-integrator-3372/9ae73668-37f1-44ca-a1b9-10c1c6df26b6.jsonl",
       "title": "",
       "cost": 8.71,
-      "subagent_cost": 7.27,
+      "subagent_cost": 7.33,
       "api_calls": 180,
       "duration_hours": 6.8,
       "compactions": 3,
@@ -356,7 +356,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/c9256d3d-362a-4f78-92fd-9bc823911df0.jsonl",
       "title": "",
       "cost": 7.14,
-      "subagent_cost": 20.65,
+      "subagent_cost": 20.88,
       "api_calls": 68,
       "duration_hours": 8.7,
       "compactions": 3,
@@ -499,8 +499,8 @@
     }
   ],
   "reconciliation": {
-    "status": "drift",
-    "worst_delta_pct": 0.835,
+    "status": "ok",
+    "worst_delta_pct": 0.18,
     "tokens": {
       "input": {
         "script": 1095265,
@@ -513,9 +513,9 @@
         "delta_pct": 0.0
       },
       "cache_read": {
-        "script": 100283417,
+        "script": 101127857,
         "ccusage": 101127857,
-        "delta_pct": -0.835
+        "delta_pct": 0.0
       },
       "cache_write": {
         "script": 5129914,
@@ -523,7 +523,7 @@
         "delta_pct": 0.18
       }
     },
-    "ccusage_cost_untrusted": 64.2
+    "ccusage_cost_untrusted": 54.39
   },
   "ab_tests": {
     "review-isolation": {

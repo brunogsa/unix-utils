@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-08-09T05:10:18-03:00",
+  "generated_at": "2026-08-09T13:24:48-03:00",
   "day": "2026-07-11",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 67.65,
+    "cost_per_day": 67.68,
     "user_messages": 46,
     "interruptions": 5,
     "session_hours": 8.9,
     "cost_per_user_message": 1.47
   },
-  "total": 67.65,
+  "total": 67.68,
   "main_cost": 54.72,
-  "subagent_cost": 12.93,
+  "subagent_cost": 12.96,
   "api_calls": {
     "main": 421,
     "sub": 281
@@ -26,31 +26,31 @@
   "tokens": {
     "input": 159017,
     "output": 782092,
-    "cache_read": 65813839,
+    "cache_read": 65961191,
     "cache_write_5m": 1486957,
     "cache_write_1h": 1881452
   },
   "by_family": {
     "haiku": 1.65,
     "opus": 61.26,
-    "sonnet": 4.73
+    "sonnet": 4.76
   },
   "by_model": {
     "claude-opus-4-8": 60.67,
-    "claude-sonnet-5": 4.73,
+    "claude-sonnet-5": 4.76,
     "claude-haiku-4-5": 1.65,
     "claude-opus-4-7": 0.59
   },
   "by_day": {
     "2026-07-11": {
       "main": 54.72,
-      "sub": 12.93
+      "sub": 12.96
     }
   },
   "by_repo_class": {
     "work": {
-      "cost": 64.22,
-      "subagent_cost": 12.85,
+      "cost": 64.25,
+      "subagent_cost": 12.88,
       "user_messages": 37,
       "interruptions": 5
     },
@@ -75,13 +75,13 @@
       "runs": 1
     },
     "general-purpose": {
-      "cost": 5.77,
+      "cost": 5.8,
       "runs": 3
     }
   },
   "by_skill": {
     "implement": {
-      "cost": 15.58,
+      "cost": 15.61,
       "invocations": 1,
       "sessions": 1,
       "compactions": 1,
@@ -89,13 +89,13 @@
       "tokens": {
         "input": 152471,
         "output": 147290,
-        "cache_read": 21199447,
+        "cache_read": 21346799,
         "cache_write_5m": 632104,
         "cache_write_1h": 368636
       },
       "by_repo_class": {
         "work": {
-          "cost": 15.58,
+          "cost": 15.61,
           "invocations": 1,
           "sessions": 1
         },
@@ -110,13 +110,13 @@
   "by_skill_marginal": {
     "implement": {
       "dedicated_sessions": 1,
-      "dedicated_cost": 15.58,
+      "dedicated_cost": 15.61,
       "mixed_sessions": 0,
       "mixed_cost_estimate": 0.0,
       "by_repo_class": {
         "work": {
           "dedicated_sessions": 1,
-          "dedicated_cost": 15.58,
+          "dedicated_cost": 15.61,
           "mixed_sessions": 0,
           "mixed_cost_estimate": 0.0
         },
@@ -154,7 +154,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-integrator/28e73834-5854-4689-95b4-7ac5f75ae594.jsonl",
       "title": "",
       "cost": 8.26,
-      "subagent_cost": 7.32,
+      "subagent_cost": 7.35,
       "api_calls": 58,
       "duration_hours": 5.3,
       "compactions": 1,
@@ -268,9 +268,9 @@
         "delta_pct": 0.0
       },
       "cache_read": {
-        "script": 65813839,
+        "script": 65961191,
         "ccusage": 65961191,
-        "delta_pct": -0.223
+        "delta_pct": 0.0
       },
       "cache_write": {
         "script": 3368409,
