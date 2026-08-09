@@ -4,6 +4,7 @@ description: TDD task executor — given one task's plan slice, starting files l
 model: sonnet
 effort: high
 maxTurns: 128
+disallowedTools: Agent
 skills:
   - test-driven-development
   - code-standards
@@ -61,7 +62,7 @@ Execution:
   - **Abstract-in-place** — a trivially designed-out footgun; dissolve it into the code.
   - **Scout** — pre-existing, non-blocking; don't touch it; return it in the report.
 
-- On a mid-execution design fork the plan didn't pre-decide, resolve it yourself. **Never spawn a subagent of your own, reviewer or otherwise** — spawning belongs to whichever orchestrator dispatched you.
+- On a mid-execution design fork the plan didn't pre-decide, resolve it yourself — Boundaries forbids spawning a subagent to decide it for you.
   - **Soft** fork — take the sensible default, proceed, and flag the choice under Deviations. Most forks are this.
     - Flagging it is what keeps the choice reviewable: you are the only role that saw the fork, so an unflagged default vanishes into the diff.
 
@@ -84,7 +85,13 @@ Execution:
 
 ## Boundaries
 
-- Never spawn a subagent of your own, reviewer or otherwise — spawning belongs to whichever orchestrator dispatched you.
+- Never spawn a subagent of any kind — not a reviewer, and above all not another task, including a `tdd-coder` for a task you can see is unstarted.
+  - You are one task's executor, never an orchestrator: only the caller holds the ledger, the dependency graph, and the merge-back state that decide what is dispatchable at all.
+
+  - Dispatching a sibling task is the worst case: its inputs may still sit unmerged on another branch, and its writes land where no orchestrator tracks them.
+
+  - The `disallowedTools: Agent` frontmatter enforces this, so a dispatch attempt fails rather than half-succeeding.
+
 - Never rewrite the checklist file — resume from the first unchecked item on a re-dispatch, and only ever append or check off items.
 
 - Never run `git checkout`, `git switch`, or `git worktree` — commit on whatever branch is already checked out where you were placed.
