@@ -11,13 +11,13 @@ The three KPIs (defined in `./usage-history/README.md`): **session time up** (lo
 
 ## The run order — Steps 0-7, every invocation, in order
 
-- **This skill takes no arguments.** Step 1 derives the day range; if the user passes a day, range, or flag anyway, say you are ignoring it and run the standard flow.
+- **This skill takes no arguments.** Step 1 derives the day range; if the user passes one anyway, say you are ignoring it and run the standard flow.
 
   - Deriving the range from committed state is what makes every run reproducible.
 
 - **Never reorder or drop a step**, even when a step looks like it has nothing to do.
 
-  - The steps a long run silently skips are the late ones — interview, close, viewer, new experiments — and skipping them leaves a report with no loop.
+  - A long run silently skips the late steps — interview, close, viewer, new experiments — leaving a report with no loop.
 
 ### Step 0 — Seed the TaskList before running anything
 
@@ -43,7 +43,7 @@ git ls-files configs/ai-docs/claude/skills/usage-audit/usage-history/snapshots/ 
 
 - **Read the committed tail, never the newest file on disk.**
 
-  - An aborted earlier run leaves an untracked snapshot behind, which would silently shrink the range to nothing.
+  - An aborted earlier run leaves an untracked snapshot behind, silently shrinking the range to nothing.
 
 - **When `SINCE` is already yesterday, say so and continue at Step 3** rather than ending the run.
 
@@ -105,7 +105,7 @@ $S/config-change-ledger.py --since <SINCE> --until <UNTIL>
 
 Live entries sit in `experiments.md`, split into `## Enacted` (change is in git, window open) and `## Proposed` (nothing enacted yet).
 
-- **Present every `## Enacted` entry** with its before → after numbers, both source day filenames, and your recommendation: close as `kept`, close as `reverted`, or keep watching.
+- **Present every `## Enacted` entry** with its before → after numbers, both source day filenames, and your recommendation: close as `kept` or `reverted`, or keep watching.
 
   - "Worked" without numbers cannot be audited later; the figures plus their source days make the verdict checkable from the snapshots alone.
 
@@ -115,7 +115,7 @@ Live entries sit in `experiments.md`, split into `## Enacted` (change is in git,
 
 - **Move each entry the user closes to `./usage-history/experiments-archive.md`** in the same edit that settles it.
 
-  - The live file is read in full on every audit, so a settled entry left there taxes each run to say something already decided.
+  - The live file is read in full on every audit, so a settled entry taxes each run to repeat a decision already made.
 
 - **Verify with the ledger that every `## Enacted` entry really has a commit**, and demote it to `## Proposed` if it does not.
 
@@ -134,7 +134,7 @@ $S/build-usage-viewer.py --open
 
 - **Refresh the delivered-work ledger before building**, and repeat any warning it prints.
 
-  - Unlike the config-commit markers, this half cannot be re-derived later: it needs the work repos still cloned here, and the network for the PR side.
+  - Unlike the config-commit markers, this half cannot be re-derived later: it needs the work repos still cloned, and the network for the PR side.
 
 - **Rebuild the viewer, open it, and walk the user through it under "Reading the numbers"**, rather than pasting long tables into chat.
 
@@ -142,7 +142,7 @@ $S/build-usage-viewer.py --open
 
 - **Never commit `usage-history/viewer.html`**; it is gitignored.
 
-  - It is 330 KB inlined from `snapshots/` and fully reproducible from committed files, so committing it would churn the diff on every audit.
+  - It is 330 KB inlined from `snapshots/` and fully reproducible, so committing it would churn the diff on every audit.
 
 ### Step 7 — Ask for new experiments, then offer to commit
 
@@ -152,7 +152,7 @@ $S/build-usage-viewer.py --open
 
 - **Raise 1-3 new hypotheses of your own** and append them under `## Proposed`, each with the tweak, its rationale, and the signal to watch.
 
-  - The loop only compounds if every audit feeds the next one; an audit that just reports numbers is a dead end.
+  - The loop compounds only if every audit feeds the next; an audit that just reports numbers is a dead end.
 
 - **Back each new hypothesis with web search** against current official sources (Anthropic docs/engineering blog, recent papers) — not training-data recall.
 
