@@ -23,7 +23,7 @@ Committed, durable record of Claude Code usage — the memory the `usage-audit` 
 
 - `viewer.html` — **generated and gitignored**. Build it with `../scripts/build-usage-viewer.py --open`.
 
-  - An interactive chart of the series across 13 metrics. Click a day to drill in, a second to compare; config commits are marked on the day they landed.
+  - An interactive chart of the series across 17 metrics. Click a day to drill in, a second to compare; config commits are marked on the day they landed.
 
   - It exists because a human reads a time series as a shape. These markdown files cannot show one, and a directory of JSON files is worse.
 
@@ -32,6 +32,34 @@ Committed, durable record of Claude Code usage — the memory the `usage-audit` 
 1. **Session time** — longer autonomous stretches per human touch (`session_hours` up, relative to `user_messages`).
 2. **Money** — `kpis.cost_per_day` down (list-price estimate; shares and trends are the reliable signal, not absolute dollars).
 3. **User messages/corrections** — `user_messages` and `interruptions` down for the same amount of work; `cost_per_user_message` tracks work-per-touch efficiency.
+
+### Normalized metrics — is a unit of work getting cheaper?
+
+A raw daily total tracks how much was asked for that day, not how efficiently it ran, so it cannot answer that on its own.
+
+Five rows in the viewer divide the day by a unit of work:
+
+| Row | Reads as |
+|---|---|
+| Cost per user message | spend per human touch — the stored `kpis.cost_per_user_message` |
+| Cost per session | spend per session started |
+| Cost per session hour | burn rate while working |
+| Autonomous min / user msg | KPI 1 directly: wall-clock earned per human touch |
+| Output tokens / user msg | work produced per human touch |
+
+- All five are derived **in the page**, never stored in a snapshot. Every input already ships, so they read correctly on days measured before they existed — no rebuild.
+
+  - Storing a quotient of two fields the snapshot already carries would give the same number two homes, and only one of them gets fixed when the numerator's definition changes.
+
+- Each divides by a count that is `0` on an idle day, and each returns `0` there rather than `NaN`.
+
+  - A `NaN` would poison the axis scale, the moving average, and the delta table at once.
+
+- Every dollar in them is the **whole** day: `total` is `main_cost + subagent_cost` with `/advisor`'s second model folded in, so a subagent-heavy day is priced in full.
+
+  - Worth stating because the split is wide — the subagent share of cost ranges from 2.7% to 73.1% across the series, so a main-only figure would understate some days nearly 4×.
+
+- Reported in minutes rather than hours because a typical day sits near 0.17 h/msg, where one decimal collapses the whole series into one bucket.
 
 ## Measurement caveats (read before comparing snapshots)
 
@@ -121,7 +149,14 @@ Committed, durable record of Claude Code usage — the memory the `usage-audit` 
   - The mechanism still holds even though the figure does not: cache writes are the biggest reason a dollar total looks "too high" against intuition built from output-token-dominated pricing.
 
 - `session_hours` is wall-clock from first to last transcript record — it includes idle gaps, so treat it as an upper bound.
-- `thinking_block_share` counts blocks, not tokens: transcripts persist thinking blocks with empty text (signature only), and thinking tokens hide inside `output_tokens`.
+- **Thinking spend is billed and counted, but no token-level thinking figure exists — not in the snapshots, and not derivable from these transcripts.**
+
+  - A record's `usage` object carries exactly four token buckets plus `service_tier`, `cache_creation`, `inference_geo`, `server_tool_use`, `iterations`, and `speed`. **No key names thinking or reasoning.**
+
+  - Responses carrying a thinking block report `output_tokens` normally — 44 of 45,042 report zero — so thinking is billed inside `output_tokens` and is already in every dollar figure here.
+
+  - `thinking_block_share` counts **blocks**, not tokens, and cannot stand in for a cost share: transcripts persist thinking blocks with the text stripped, 45,042 of them carrying 45,279 characters between them.
+
 - `user_messages` counts typed human turns (tool results and harness meta excluded); slash-command expansions may still inflate it slightly.
 - `compactions` counts `compact_boundary` records in main sessions.
 

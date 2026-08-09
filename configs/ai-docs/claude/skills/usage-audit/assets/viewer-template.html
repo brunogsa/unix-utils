@@ -128,10 +128,24 @@
 const DATA = __USAGE_DATA__;
 
 // Metric accessors. `stack` splits a bar into main/sub; everything else is one bar.
+//
+// The `d.total`-normalized rows answer "is a
+// unit of work getting cheaper?", which a raw
+// daily total cannot: spend tracks how much was
+// asked for that day, not how efficiently it ran.
+//
+// `d.total` already carries main + subagent +
+// advisor spend, and thinking is billed inside
+// `d.tokens.output`, so every row below prices
+// the whole day rather than the main loop alone.
 const METRICS = [
   {id:'cost',      label:'Cost (USD)',            stack:true,  get:d=>d.total,                  fmt:usd},
   {id:'msgs',      label:'User messages',         get:d=>d.kpis.user_messages,                  fmt:num},
   {id:'cpm',       label:'Cost per user message', get:d=>d.kpis.cost_per_user_message,          fmt:usd},
+  {id:'cpsess',    label:'Cost per session',      get:d=>per(d.total, d.session_count),         fmt:usd},
+  {id:'cphour',    label:'Cost per session hour', get:d=>per(d.total, d.kpis.session_hours),    fmt:usd},
+  {id:'autonomy',  label:'Autonomous min / user msg', get:autonomousMinutesPerUserMessage,      fmt:n1},
+  {id:'outmsg',    label:'Output tokens / user msg', get:d=>per(d.tokens.output, d.kpis.user_messages), fmt:tok},
   {id:'interrupt', label:'Interruptions',         get:d=>d.kpis.interruptions,                  fmt:num},
   {id:'compact',   label:'Compactions',           get:d=>d.compactions,                         fmt:num},
   {id:'hours',     label:'Session hours',         get:d=>d.kpis.session_hours,                  fmt:n1},
@@ -143,6 +157,20 @@ const METRICS = [
   {id:'think',     label:'Thinking block share',  get:d=>d.thinking_block_share,                fmt:pct},
   {id:'subshare',  label:'Subagent share of cost',get:d=>d.total?d.subagent_cost/d.total:0,     fmt:pct},
 ];
+
+// Every normalized row divides by a count that
+// is 0 on an idle day, and a NaN there would
+// silently poison the axis scale, the 7-day
+// average, and the delta table alike.
+function per(value, count) { return count ? value / count : 0; }
+
+// Reported in minutes because the hours form
+// rounds the whole series into one bucket: a
+// typical day sits near 0.17 h/msg, so a change
+// worth acting on disappears at one decimal.
+function autonomousMinutesPerUserMessage(d) {
+  return per(d.kpis.session_hours * 60, d.kpis.user_messages);
+}
 
 function ttl1h(d) {
   const w = d.tokens.cache_write_5m + d.tokens.cache_write_1h;
