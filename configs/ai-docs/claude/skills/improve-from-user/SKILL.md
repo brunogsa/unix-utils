@@ -76,7 +76,7 @@ If step 1 yields zero items (no quote-worthy session moments, no PR comments fro
 Mode A's read stage prints a corpus survey (file count, turn count, estimated tokens) and confirms it with the user before mining any content.
 
 - **Below ~80k estimated tokens** (the common case): read every qualifying transcript's extractor output inline, in the main context.
-- **Above ~80k estimated tokens**: dispatch background `general-purpose` subagents, one per file slice, each slice sized to a fixed ~40k-estimated-token budget.
+- **Above ~80k estimated tokens**: dispatch background `agent(subAgent=general-purpose, title=Extract feedback items from transcript slice, model=sonnet)`, one per file slice, each slice sized to a fixed ~40k-estimated-token budget.
   - Half the escalation threshold, so no single agent's read comes near filling its own context.
   - No separate cap on how many agents that produces; real parallelism is already bounded by the `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` setting.
 
