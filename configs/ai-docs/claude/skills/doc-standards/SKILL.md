@@ -80,17 +80,17 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 - [Instruction] **CRITICAL: A paragraph break may only land where the preceding line ends a sentence or clause** (`.`/`;`, or `:` introducing a bullet list) — never mid-sentence (`SENTENCE-BREAK`).
   - [Why] A break placed by line-count alone can land between a clause and its continuation, forcing the reader to rejoin two fragments the blank line severed.
 
-- [Instruction] Verify the caps above with `scripts/check-comment-format.js <file>...`, whose labels name the rule each violation broke.
-  - [Why] It lexes the file instead of grepping it, so unlike a regex width check it never mistakes a `//` or `#` inside a string literal for a comment.
+- [Instruction] Delegate every comment-format run — checking and fixing alike — to `agent(subAgent=comment-format-fixer, title=Fix <file> comments)`, never inline in the main session.
+  - [Why] It runs `scripts/check-comment-format.js --fix` and rewords only the residue, where an inline run floods main with one row per violation and re-derives re-wraps the script already does.
 
 - [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments — use plain ASCII (`=`, `-`, `|`).
   - [Why] Humans don't type these by hand, so they look AI-written and get used inconsistently; they also break in terminals, diffs, and grep where ASCII works.
 
-When the script flags `WIDTH`, `PARAGRAPH`, `SENTENCE-BREAK`, or `CODE-GAP`, or a comment carries bullets, read `references/comment-formatting.md` — fix shapes, bad/good pairs, language detection, Python caveat.
+That agent reads `references/comment-formatting.md` for the fix shapes, bad/good pairs, language detection, and Python docstring caveat — the main session never needs them.
 
 ### Section fencing in code files
 
-- [Instruction] Fence a section only when the file has multiple distinct sections worth separating — use `=` (ASCII, never `-`/`---`), sized by nesting: 64 chars top-level, 32 second, 16 third.
+- [Instruction] Fence a section only when the file has multiple distinct sections worth separating — use `=` (ASCII, never `-`/`---`), sized by nesting: a 64-char line top-level, 32 second, 16 third.
   - [Why] `=` carries visual weight and dodges `-`/`---` collisions with list, heading-underline, and front-matter syntax; consistent widths cue nesting depth; over-fencing hides the structure it should reveal.
 
 ## Self-describing comments
