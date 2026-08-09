@@ -20,22 +20,18 @@ Python-shaped for readability only; nothing here runs, and the function names st
 ```python
 # 1 · Entry: /create-pr — no flags.
 def create_pr():
-    # 2 · a PR body is a standalone doc, so its density cap, BLUF ordering,
-    #     and collapse rules all apply — load them BEFORE drafting.
-    load_skill("doc-standards")
-
-    # 3 · Seed the TaskList before step 1 runs. A skipped step then stays visible
+    # 2 · Seed the TaskList before step 1 runs. A skipped step then stays visible
     #     as pending across a compaction, which the steps alone do not survive.
     #     Steps 1-4 only: step 5 runs only if the user asks after the push.
-    TaskCreate("[Reminder] Step 1: gather context")                       # 3a
-    TaskCreate("[Reminder] Step 2: compose the ideal description")        # 3b
-    TaskCreate("[Reminder] Step 3: compose the repo description")         # 3c
-    TaskCreate("[Reminder] Step 4: create the draft PR")                  # 3d
+    TaskCreate("[Reminder] Step 1: gather context")                       # 2a
+    TaskCreate("[Reminder] Step 2: compose the ideal description")        # 2b
+    TaskCreate("[Reminder] Step 3: compose the repo description")        # 2c
+    TaskCreate("[Reminder] Step 4: create the draft PR")                  # 2d
 
-    # 4 · Step 1 — none found means authoring from the changes digest alone.
+    # 3 · Step 1 — none found means authoring from the changes digest alone.
     sources = glob("spec_*.md", "plan_*.md", top_level_of=CWD)
 
-    # 5 · Resolve the base branch. Default: the repo's default branch; empty →
+    # 4 · Resolve the base branch. Default: the repo's default branch; empty →
     #     omit --base at create time. The optional <parent> invocation arg is
     #     this skill's whole stacked-PR surface: base becomes the parent's head
     #     branch, which also scopes the changes digest to this PR's own delta.
@@ -43,100 +39,121 @@ def create_pr():
     #     stacks a PR. Chain workflow lives in implement's stacked-prs.md.
     base = parent_arg_head_branch() or git("symbolic-ref", "refs/remotes/origin/HEAD") or None
 
-    # 6 · (A) several spec/plan files matched, (B) several PR-N entries
+    # 5 · (A) several spec/plan files matched, (B) several PR-N entries
     #     in the plan's PR Breakdown.
     if ambiguous(sources):
-        # 6a · ONE AskUserQuestion carrying (A) and (B) as two SEPARATE
+        # 5a · ONE AskUserQuestion carrying (A) and (B) as two SEPARATE
         #      questions. They resolve different things, so merging them would
         #      force two answers into a single choice.
         answers = ask_user_question([question_A, question_B])
 
-    # 7 · created right away, with an HTML comment logging each answer — spec,
+    # 6 · created right away, with an HTML comment logging each answer — spec,
     #     PR-N, and base — this skill's durable record, surviving a mid-flow
     #     compaction that drops them.
     ideal_path = write(f"./pr_{slug}_pr{N}.ideal.md", log_answers_as_html_comment())
 
-    # 8 · Never ask for this list: it is the resolved spec/plan MINUS every
+    # 7 · Never ask for this list: it is the resolved spec/plan MINUS every
     #     section the body renders. It is handed to step 2's agent, which pulls
     #     sections with extract-md-sections.sh and diagrams with
     #     extract-mermaid-blocks.sh — a re-summarized section or re-drawn
     #     diagram diverges silently.
     appendix_sections = sections_of(sources) - sections_rendered_by(body)
 
-    # 9 · changes-gatherer · agent-pinned · foreground (step 2 gates on it).
+    # 8 · changes-gatherer · agent-pinned · foreground (step 2 gates on it).
     #     It writes the full commit log + diff to a /tmp artifact and returns only
     #     the digest, so the raw diff never enters the main session — diffed
     #     against the resolved base, so a stacked PR digests only its own delta.
     digest = dispatch("changes-gatherer")
 
-    # 10 · Step 2 — pr-writer · agent-pinned · mode ideal · foreground.
-    #      Main orchestrates and never composes the prose. The agent loops
-    #      check-density.sh and check-pr-page-fit.sh itself and returns only once
-    #      both pass, so nothing out here re-runs them or hand-fixes its prose.
+    # 9 · Step 2 — pr-writer · agent-pinned · mode ideal · foreground.
+    #     Main orchestrates and never composes the prose. The agent loads
+    #     doc-standards itself, loops check-density.sh and check-pr-page-fit.sh,
+    #     and returns only once both pass — nothing out here re-runs them.
     dispatch("pr-writer", mode="ideal", digest=digest, appendix=appendix_sections)
-    # 11 · written in THIS skill's own format, ignoring any repo template —
+    # 10 · written in THIS skill's own format, ignoring any repo template —
     #      page-fit can only budget a section it recognizes.
 
-    # 12 · Step 3 — this check picks the agent's third input, and is NOT a branch
+    # 11 · Step 3 — this check picks the agent's third input, and is NOT a branch
     #      in this flow: a path when .github/ carries a template, an explicit
     #      "no template" when it does not.
     template = repo_pr_template()
 
-    # 13 · pr-writer · agent-pinned · mode final · foreground. Dispatched either
+    # 12 · pr-writer · agent-pinned · mode final · foreground. Dispatched either
     #      way, because it owns density and body size end to end: with no template
     #      it copies the ideal verbatim, and once the trim order is exhausted it
     #      returns a blocking caveat rather than cutting into body content.
     final_path = f"./pr_{slug}_pr{N}.final.md"
     dispatch("pr-writer", mode="final", ideal=ideal_path,
              template=template, out=final_path)
-    # 14 · the repo's template is the BASE structure, never the thing replaced.
-    #      This file is NEVER page-fit-checked: its structure is arbitrary, so the
-    #      script cannot attribute lines to a budgeted section.
+    # 13 · the repo's template is the BASE structure, never the thing replaced.
+    #      This file is NEVER page-fit-checked, per pr-page-budget.md's
+    #      "Measure the ideal description, never the final body", which owns the
+    #      reason — restating it here would be a copy that drifts.
 
-    # 15 · Step 4 — an artifact check, never a re-run of the agent's gates: both
+    # 14 · Step 4 — an artifact check, never a re-run of the agent's gates: both
     #      ways the body can still be wrong announce themselves, since an
     #      over-budget body is visible in the rendered PR and an over-cap one
     #      fails loudly at the gh pr create API.
     while not exists_and_non_empty(final_path):
-        # 15a · missing or empty means step 3's agent never finished. Re-dispatch
+        # 14a · missing or empty means step 3's agent never finished. Re-dispatch
         #       it; never compose a replacement body out here.
         dispatch("pr-writer", mode="final", ideal=ideal_path,
                  template=template, out=final_path)
 
-    # 16 · Only NOW push, when the branch has no upstream. The push is the run's
+    # 15 · Only NOW push, when the branch has no upstream. The push is the run's
     #      first outward-facing act — it fires CI and makes the branch visible,
     #      while every step above only wrote local files, so a failed compose or
     #      gate leaves nothing on the remote.
     git("push", "-u", "origin", branch)
 
-    # 17 · NO chat-side review gate: the user reviews the rendered body on
+    # 16 · NO chat-side review gate: the user reviews the rendered body on
     #      GitHub, which is the artifact they will actually judge.
     #      A <parent> run → base is the parent's head branch, per step 1.
-    url = gh("pr", "create", "--draft", "--body-file", final_path, "--base", base)
-    print(url)                                             # 18
+    try:
+        url = gh("pr", "create", "--draft", "--body-file", final_path, "--base", base)
+        print(url)                                         # 17
+    except PullRequestAlreadyExists as e:
+        # 16a · NOT a failure — this is the "or update" half of the skill's
+        #       description. Take that PR's number and fall into step 5 against
+        #       it, rather than dead-ending after steps 1-3 already paid for two
+        #       agent dispatches.
+        n = e.existing_pr_number
+        apply_post_push_changes(n, entered_from_already_exists=True)
 
-    # 19 · Step 5 — runs only if the user hand-edits the body on GitHub
-    #      or asks for a change in chat.
+    # 18 · Step 5 — the other entry point: the user hand-edits the body on
+    #      GitHub or asks for a change in chat.
     while user_wants_a_change():
-        # 19a · pull GitHub's current body into the file FIRST, so a hand-edit
-        #       made there is not overwritten by the next push.
-        write(final_path, gh("pr", "view", n, "--json", "body"))
+        apply_post_push_changes(n, entered_from_already_exists=False)
 
-        # 19b · edit the .final.md ONLY. The .ideal.md is deliberately left to
-        #       drift, since re-deriving the final body would discard the
-        #       user's own edits.
-        edit(final_path)
+    return  # 19 · Done
 
-        # 19c · the local edit is cheap to revise; the pushed body notifies reviewers.
-        confirm_with_user()
 
-        # 19d · never `gh pr edit --body-file`, which queries Projects-classic
-        #       projectCards and can fail the write while still exiting 0.
-        gh("api", "--method", "PATCH", f"repos/{owner}/{repo}/pulls/{n}",
-           "-F", f"body=@{final_path}")
-        assert gh_body_read_back() == read(final_path)     # 19d
+def apply_post_push_changes(n, entered_from_already_exists):
+    # 18a · this body is the only prose the main session ever writes, so the
+    #       density cap, BLUF ordering, and collapse rules apply HERE — steps
+    #       1-4 never need them, since pr-writer owns both gates.
+    load_skill("doc-standards")
 
-    return  # 20 · Done
+    # 18b · pull GitHub's current body into the file FIRST, so a hand-edit made
+    #       there is not overwritten by the next push.
+    if not entered_from_already_exists:
+        write(final_path, gh("pr", "view", n, "--json", "body"))   # 18c
+    # 18b · skipped on the already-exists entry: the .final.md just composed IS
+    #       the replacement, so pulling would overwrite it with the body it
+    #       replaces.
+
+    # 18d · edit the .final.md ONLY. The .ideal.md is deliberately left to
+    #       drift, since re-deriving the final body would discard the
+    #       user's own edits.
+    edit(final_path)
+
+    # 18e · the local edit is cheap to revise; the pushed body notifies reviewers.
+    confirm_with_user()
+
+    # 18f · never `gh pr edit --body-file`. The REST body update and its
+    #       mandatory read-back come from the gh-cli-usage skill, which authors
+    #       that hazard — a copy here would be a third that drifts.
+    gh_patch_body_and_read_back(n, final_path)
 ```
 
 ## Flowchart
@@ -144,51 +161,53 @@ def create_pr():
 ```mermaid
 flowchart TD
   n1(["1. /create-pr — no flags"]):::start
-  n2["2. Load doc-standards before drafting —<br/>a PR body is a standalone doc, so its density cap,<br/>BLUF ordering, and collapse rules all apply"]:::skill
 
-  subgraph n3["3. Seed the TaskList before step 1 runs — a skipped step then stays<br/>visible as pending across a compaction, which the steps alone do not survive.<br/>Steps 1-4 only: step 5 runs only if the user asks after the push"]
-    n3a["3a. [Reminder] Step 1: gather context"]:::state
-    n3b["3b. [Reminder] Step 2: compose the ideal description<br/>— density and page fit"]:::state
-    n3c["3c. [Reminder] Step 3: compose the repo description<br/>— density and body size"]:::state
-    n3d["3d. [Reminder] Step 4: create the draft PR"]:::state
+  subgraph n2["2. Seed the TaskList before step 1 runs — a skipped step then stays<br/>visible as pending across a compaction, which the steps alone do not survive.<br/>Steps 1-4 only: step 5 runs only if the user asks after the push"]
+    n2a["2a. [Reminder] Step 1: gather context"]:::state
+    n2b["2b. [Reminder] Step 2: compose the ideal description<br/>— density and page fit"]:::state
+    n2c["2c. [Reminder] Step 3: compose the repo description<br/>— density and body size"]:::state
+    n2d["2d. [Reminder] Step 4: create the draft PR"]:::state
   end
 
-  n4["4. Step 1 · Glob cwd top-level for spec_*.md / plan_*.md;<br/>none found -&gt; author from the changes digest alone"]
-  n5["5. Resolve the base branch: default is origin/HEAD (empty -&gt; omit --base<br/>at create time). The optional &lt;parent&gt; invocation arg is this skill's whole<br/>stacked-PR surface: base becomes the parent's head branch, which also scopes<br/>the changes digest to this PR's own delta. Never inferred from ancestry or<br/>the plan — only the explicit arg stacks a PR.<br/>Chain workflow lives in implement's references/stacked-prs.md"]
-  n6{"6. Anything left ambiguous?<br/>(A) several spec/plan files matched<br/>(B) several PR-N entries in the plan's PR Breakdown"}
-  n6a["6a. ONE AskUserQuestion carrying (A) and (B) as two SEPARATE<br/>questions — they resolve different things, so one merged question<br/>would force two answers into one choice"]:::gate
-  n7["7. Create ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md right away, with an HTML<br/>comment logging each answer — spec, PR-N, and base — this skill's<br/>durable record, surviving a mid-flow compaction that drops them"]:::state
-  n8["8. Derive the appendix's section list — never ask for it:<br/>the resolved spec/plan MINUS every section the body renders.<br/>The list is handed to step 2's agent, which extracts sections with<br/>extract-md-sections.sh and diagrams with extract-mermaid-blocks.sh —<br/>a re-summarized section or re-drawn diagram diverges silently"]
-  n9[["9. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · foreground (step 2 gates on it)<br/>writes the full commit log + diff to a /tmp artifact and returns only<br/>the digest, so the raw diff never enters the main session — diffed against<br/>the resolved base, so a stacked PR digests only its own delta"]]:::dispatch
+  n3["3. Step 1 · Glob cwd top-level for spec_*.md / plan_*.md;<br/>none found -&gt; author from the changes digest alone"]
+  n4["4. Resolve the base branch: default is origin/HEAD (empty -&gt; omit --base<br/>at create time). The optional &lt;parent&gt; invocation arg is this skill's whole<br/>stacked-PR surface: base becomes the parent's head branch, which also scopes<br/>the changes digest to this PR's own delta. Never inferred from ancestry or<br/>the plan — only the explicit arg stacks a PR.<br/>Chain workflow lives in implement's references/stacked-prs.md"]
+  n5{"5. Anything left ambiguous?<br/>(A) several spec/plan files matched<br/>(B) several PR-N entries in the plan's PR Breakdown"}
+  n5a["5a. ONE AskUserQuestion carrying (A) and (B) as two SEPARATE<br/>questions — they resolve different things, so one merged question<br/>would force two answers into one choice"]:::gate
+  n6["6. Create ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md right away, with an HTML<br/>comment logging each answer — spec, PR-N, and base — this skill's<br/>durable record, surviving a mid-flow compaction that drops them"]:::state
+  n7["7. Derive the appendix's section list — never ask for it:<br/>the resolved spec/plan MINUS every section the body renders.<br/>The list is handed to step 2's agent, which extracts sections with<br/>extract-md-sections.sh and diagrams with extract-mermaid-blocks.sh —<br/>a re-summarized section or re-drawn diagram diverges silently"]
+  n8[["8. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · foreground (step 2 gates on it)<br/>writes the full commit log + diff to a /tmp artifact and returns only<br/>the digest, so the raw diff never enters the main session — diffed against<br/>the resolved base, so a stacked PR digests only its own delta"]]:::dispatch
 
-  n10[["10. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · mode ideal · foreground<br/>it loops check-density.sh and check-pr-page-fit.sh itself and returns<br/>only once both pass — main never re-runs them, never hand-fixes its prose"]]:::dispatch
-  n11["11. Ideal description written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md<br/>in THIS skill's own format, ignoring any repo template —<br/>page-fit can only budget a section it recognizes"]:::state
+  n9[["9. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · mode ideal · foreground<br/>it loads doc-standards itself and loops check-density.sh and<br/>check-pr-page-fit.sh, returning only once both pass —<br/>main never re-runs them, never hand-fixes its prose"]]:::dispatch
+  n10["10. Ideal description written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md<br/>in THIS skill's own format, ignoring any repo template —<br/>page-fit can only budget a section it recognizes"]:::state
 
-  n12["12. Step 3 · Check .github/ for pull_request_template.md /<br/>PULL_REQUEST_TEMPLATE.md — the result is the agent's third input,<br/>a template path or an explicit 'no template', not a branch here"]
-  n13[["13. Dispatch: Compose repo PR description<br/>pr-writer · agent-pinned · mode final · foreground<br/>dispatched either way: it owns density and body size end to end,<br/>copies the ideal verbatim when no template, and returns a blocking<br/>caveat once the trim order is exhausted instead of cutting deeper"]]:::dispatch
-  n14["14. Final body written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md — the repo's<br/>template is the base structure, never the thing replaced.<br/>NEVER page-fit-checked: its structure is arbitrary, so the<br/>script cannot attribute its lines to a budgeted section"]:::state
+  n11["11. Step 3 · Check .github/ for pull_request_template.md /<br/>PULL_REQUEST_TEMPLATE.md — the result is the agent's third input,<br/>a template path or an explicit 'no template', not a branch here"]
+  n12[["12. Dispatch: Compose repo PR description<br/>pr-writer · agent-pinned · mode final · foreground<br/>dispatched either way: it owns density and body size end to end,<br/>copies the ideal verbatim when no template, and returns a blocking<br/>caveat once the trim order is exhausted instead of cutting deeper"]]:::dispatch
+  n13["13. Final body written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md — the repo's<br/>template is the base structure, never the thing replaced.<br/>NEVER page-fit-checked, per pr-page-budget.md's 'Measure the ideal<br/>description, never the final body', which owns the reason"]:::state
 
-  n15{"15. Step 4 · Does the .final.md exist and carry content?<br/>an artifact check, never a re-run of the agent's gates —<br/>an over-budget body shows in the rendered PR, and an<br/>over-cap one fails loudly at the gh pr create API"}
-  n15a["15a. Missing or empty -&gt; step 3's agent never finished.<br/>Re-dispatch it; never compose a replacement body here"]:::state
-  n16["16. Only NOW push: git push -u origin &lt;branch&gt; when it has no<br/>upstream. The push is the run's first outward-facing act — it fires<br/>CI and makes the branch visible, while every step above only wrote<br/>local files, so a failed compose or gate leaves nothing on the remote"]:::gate
-  n17["17. gh pr create --draft --body-file &lt;final&gt; --base &lt;base-branch&gt;,<br/>with NO chat-side review gate — the user reviews the rendered<br/>body on GitHub, which is the artifact they will actually judge.<br/>A &lt;parent&gt; run -&gt; base is the parent's head branch, per step 1"]
-  n18["18. Return the PR URL"]
+  n14{"14. Step 4 · Does the .final.md exist and carry content?<br/>an artifact check, never a re-run of the agent's gates —<br/>an over-budget body shows in the rendered PR, and an<br/>over-cap one fails loudly at the gh pr create API"}
+  n14a["14a. Missing or empty -&gt; step 3's agent never finished.<br/>Re-dispatch it; never compose a replacement body here"]:::state
+  n15["15. Only NOW push: git push -u origin &lt;branch&gt; when it has no<br/>upstream. The push is the run's first outward-facing act — it fires<br/>CI and makes the branch visible, while every step above only wrote<br/>local files, so a failed compose or gate leaves nothing on the remote"]:::gate
+  n16{"16. gh pr create --draft --body-file &lt;final&gt; --base &lt;base-branch&gt;,<br/>with NO chat-side review gate — the user reviews the rendered body<br/>on GitHub, which is the artifact they will actually judge.<br/>A &lt;parent&gt; run -&gt; base is the parent's head branch, per step 1.<br/>Did it error that the branch already has an open PR?"}
+  n16a["16a. Branch already has an open PR -&gt; take that PR's number and fall<br/>into step 5 against it. NOT a failure: this is the 'or update' half of<br/>the skill's description, and dead-ending here would waste the two<br/>agent dispatches steps 1-3 already paid for"]:::state
+  n17["17. Return the PR URL"]
 
-  n19{"19. Step 5 · Does the user hand-edit the body on GitHub,<br/>or ask for a change in chat?"}
-  n19a["19a. Pull GitHub's current body into the file first —<br/>gh pr view &lt;n&gt; --json body — so a hand-edit made<br/>there is not overwritten by the next push"]
-  n19b["19b. Edit ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md ONLY; the .ideal.md is<br/>deliberately left to drift, since re-deriving the final body<br/>would discard the user's own edits"]:::state
-  n19c["19c. Confirm with the user before writing to GitHub —<br/>the local edit is cheap to revise, the pushed body notifies reviewers"]:::gate
-  n19d["19d. gh api --method PATCH repos/&lt;owner&gt;/&lt;repo&gt;/pulls/&lt;n&gt; -F body=@&lt;file&gt;<br/>— never gh pr edit --body-file, which queries Projects-classic<br/>projectCards and can fail the write while still exiting 0.<br/>Read the body back and confirm it matches the file"]
-  n20(["20. Done"])
+  n18{"18. Step 5 · Does the user hand-edit the body on GitHub,<br/>or ask for a change in chat?"}
+  n18a["18a. Load doc-standards — this body is the only prose the main<br/>session ever writes, so its density cap, BLUF ordering, and<br/>collapse rules apply here. Steps 1-4 never need it"]:::skill
+  n18b{"18b. Did we arrive straight from step 4's already-exists branch?"}
+  n18c["18c. Pull GitHub's current body into the file first —<br/>gh pr view &lt;n&gt; --json body — so a hand-edit made<br/>there is not overwritten by the next push"]
+  n18d["18d. Edit ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md ONLY; the .ideal.md is<br/>deliberately left to drift, since re-deriving the final body<br/>would discard the user's own edits"]:::state
+  n18e["18e. Confirm with the user before writing to GitHub —<br/>the local edit is cheap to revise, the pushed body notifies reviewers"]:::gate
+  n18f["18f. REST body update + its mandatory read-back, taken from the<br/>gh-cli-usage skill which authors that hazard — never gh pr edit<br/>--body-file. Copying the command here would be a third copy that drifts"]
+  n19(["19. Done"])
 
   n1 --> n2
   n2 --> n3
   n3 --> n4
   n4 --> n5
-  n5 --> n6
-  n6 -->|"yes"| n6a
-  n6 -->|"no, all auto-resolved"| n7
-  n6a --> n7
+  n5 -->|"yes"| n5a
+  n5 -->|"no, all auto-resolved"| n6
+  n5a --> n6
+  n6 --> n7
   n7 --> n8
   n8 --> n9
   n9 --> n10
@@ -196,19 +215,23 @@ flowchart TD
   n11 --> n12
   n12 --> n13
   n13 --> n14
-  n14 --> n15
-  n15 -->|"no"| n15a
-  n15a --> n13
-  n15 -->|"yes — never pause for user review"| n16
-  n16 --> n17
+  n14 -->|"no"| n14a
+  n14a --> n12
+  n14 -->|"yes — never pause for user review"| n15
+  n15 --> n16
+  n16 -->|"no — new draft PR created"| n17
+  n16 -->|"yes"| n16a
+  n16a --> n18a
   n17 --> n18
-  n18 --> n19
-  n19 -->|"yes"| n19a
-  n19 -->|"no"| n20
-  n19a --> n19b
-  n19b --> n19c
-  n19c --> n19d
-  n19d --> n19
+  n18 -->|"yes"| n18a
+  n18 -->|"no"| n19
+  n18a --> n18b
+  n18b -->|"no — a change asked for after the push"| n18c
+  n18b -->|"yes — the .final.md just composed IS the replacement,<br/>so pulling would overwrite it with the body it replaces"| n18d
+  n18c --> n18d
+  n18d --> n18e
+  n18e --> n18f
+  n18f --> n18
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px
