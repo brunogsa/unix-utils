@@ -44,8 +44,8 @@ It also gives you the output path to write to, and whether it wants the drafted 
   - `pr-writer` spawns `markdown-standards-fixer` on a density violation, and that hits the harness's depth limit exactly — so dispatch nothing that would nest below it.
 
 - Treat every requirement the caller enumerated as mandatory, additive to the create-pr skill's own conventions, never a replacement for them.
-- Zero references to untracked session docs (the spec, the plan, `verdict_*.md`, internal task/AC numbers, commit SHAs in prose).
-  - Verify each candidate with `git ls-files <name>` first; substitute the value or drop the reference.
+- Zero references to untracked session docs, per the "ZERO references to untracked session docs" rule in `writing-style.md`, which owns the artifact list and the `git ls-files` check.
+  - You load the `create-pr` skill rather than reconstructing its conventions, so that file reaches you already — a copy here would just drift out of step with it.
 
 - If the diff, commit log, or spec/plan you need is missing or unreachable, say so explicitly — never fabricate content to fill the gap.
 

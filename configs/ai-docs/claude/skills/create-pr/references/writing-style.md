@@ -45,7 +45,7 @@ Read before drafting PR-body prose, under `SKILL.md`'s two meta-principles: the 
 - **"WARNING:" prefix on operational risks** -- add to decisions/checklist items needing human coordination (maintenance windows, on-call handoff, manual deploy steps, irreversible migrations).
 
 - **CRITICAL: ZERO references to untracked session docs** -- never name the spec file, plan file, gitignored `.md`, internal task/AC numbers, commit SHAs in prose, or internal dependency files.
-  - Verify with `git ls-files <name>` first; substitute the value or delete if untracked.
+  - Verify with `git ls-files <name>` first; substitute the value or delete if untracked — a Git-tracked repo file stays.
 
   - Outranks "copy reused content verbatim": strip every `AC-N`/`PR-N`/`D-N`/`R-N`/`OQ-N` token from pasted spec/plan text, appendix included — replace it with the behavior it names, or drop it.
 
