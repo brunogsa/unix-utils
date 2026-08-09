@@ -116,6 +116,9 @@
 
 <div id="goaltable"></div>
 
+<div id="levertable"></div>
+<div class="sub" id="leverhint"></div>
+
 <details>
 <summary>Daily explorer — every metric, one day at a time</summary>
 
@@ -546,6 +549,75 @@ function goalTable() {
     `${citableDays(days).length}/${days.length}`,
     ...GOALS.map(g => goalCell(g, days))]);
   return `<h2>Week by week</h2>${tableOf(head, rows)}`;
+}
+
+/* ---------- the subagent-share lever ---------- */
+
+const subShare = d => (d.total ? d.subagent_cost / d.total : 0);
+
+// Ranked into three equal groups rather than cut at
+// fixed percentages, so each group holds enough days
+// to pool a ratio no matter how the share clusters.
+//
+// Only citable days can be ranked at all, since an
+// unreadable day has no share to place it by.
+function shareTerciles() {
+  const ranked = citableDays(GOAL_DAYS)
+    .slice()
+    .sort((a, b) => subShare(DATA.days[a]) - subShare(DATA.days[b]));
+  if (ranked.length < 3) return [];  // too few days to group
+  const at = i => Math.round((ranked.length * i) / 3);
+  const cuts = [ranked.slice(0, at(1)), ranked.slice(at(1), at(2)), ranked.slice(at(2))];
+  return ['Lower share', 'Middle', 'Higher share'].map((label, i) => ({
+    label,
+    days: cuts[i],
+    lo: subShare(DATA.days[cuts[i][0]]),
+    hi: subShare(DATA.days[cuts[i][cuts[i].length - 1]]),
+  }));
+}
+
+// Low against high, because the middle group exists
+// to show whether the move is steady or a reversal,
+// not to be one end of the comparison.
+function leverMove(g, buckets) {
+  const low = buckets[0].days, high = buckets[buckets.length - 1].days;
+  if (!hasReading(g, low) || !hasReading(g, high)) return '—';
+  const before = g.value(low), after = g.value(high);
+  if (!before) return '—';
+  const rel = ((after - before) / before) * 100;
+  const improved = g.better === 'down' ? after < before : after > before;
+  return `<span class="${improved ? 'good' : 'bad'}">` +
+         `${rel > 0 ? '+' : ''}${rel.toFixed(0)}%</span>`;
+}
+
+// Grouped and pooled rather than correlated, because
+// five weeks of data make a correlation coefficient
+// read as signal when it is noise.
+function leverTable(buckets) {
+  const head = ['KPI'].concat(buckets.map(b => b.label), ['Low → high']);
+  const rows = GOALS.map(g => [g.label,
+    ...buckets.map(b => goalCell(g, b.days)),
+    leverMove(g, buckets)]);
+  return `<h2>Does leaning on subagents help?</h2>${tableOf(head, rows)}`;
+}
+
+// The correlation against day spend is computed here
+// rather than written into the prose, because the
+// whole reading depends on the groups differing by
+// the lever and not by how big the day was.
+function leverHint(buckets) {
+  const days = citableDays(GOAL_DAYS);
+  const fit = pearson(days.map(d => subShare(DATA.days[d])),
+                      days.map(d => DATA.days[d].total));
+  const spread = buckets.map(b =>
+    `${b.label} ${pct(b.lo)}–${pct(b.hi)} (${b.days.length}d)`).join(', ');
+  return `Citable days ranked by subagent share of cost, then split ` +
+    `into three groups: ${spread}. Every cell pools its whole group ` +
+    `and counts only those days, unlike the cards above, which count ` +
+    `every calendar day. Share tracks day spend at ` +
+    `r=${fit ? fit.r.toFixed(2) : 'n/a'}, so the groups differ by the ` +
+    `lever rather than by how big the day was. Five or six days a ` +
+    `group is thin — read it as a shape forming, not a finding.`;
 }
 
 /* ---------- chart ---------- */
@@ -1004,6 +1076,13 @@ function render() {
     `${recent[0]}…${recent[recent.length-1]}. Green is the way you want it moving.`;
   $('goals').innerHTML = goalCards();
   $('goaltable').innerHTML = goalTable();
+
+// Both surfaces stay empty when there are too few
+// citable days to rank, rather than showing a header
+// over a table with nothing under it.
+const buckets = shareTerciles();
+$('levertable').innerHTML = buckets.length ? leverTable(buckets) : '';
+$('leverhint').textContent = buckets.length ? leverHint(buckets) : '';
   drawGoalChart();
 
   $('totals').innerHTML =
