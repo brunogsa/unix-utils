@@ -39,6 +39,16 @@ Committed, durable record of Claude Code usage — the memory the `usage-audit` 
 
   - This mattered more than a flat bias: the multiplier *is* the blocks-per-response count, so it tracked thinking and tool-call density — two of the levers being tuned.
 
+- **That correction then under-billed output until 2026-08-08, so figures from 2026-07-27 to 2026-08-07 are void too.** Only the 2026-08-08 rebuild is citable.
+
+  - Dedup kept the **anchor** record. `input`, `cache_read` and `cache_creation` repeat identically on every block, so the anchor is right for those three.
+
+  - `output_tokens` is written **cumulatively as the response streams**, so the anchor holds a partial count and only the final block holds the total.
+
+  - The script now takes the per-billing-key **peak**. On 2026-08-06, 385 of 1,490 responses were growing; the anchor summed 691,710 output tokens against a true 1,163,896.
+
+    - Same blocks-per-response multiplier as the over-billing bug, opposite sign, and on the priciest bucket — so it manufactured deltas rather than cancelling out of them.
+
   - A response is charged to the local day of its **earliest** record, because those blocks are written over a real interval and can straddle midnight.
 
     - The dedup set is per-day, so without that anchor both days saw an unseen key and billed the response in full.
@@ -49,7 +59,17 @@ Committed, durable record of Claude Code usage — the memory the `usage-audit` 
 
   - `status` is `ok` (within 0.5%), `drift` (counting disagrees — treat the day as unverified), or `unavailable` (ccusage not installed or failed).
 
-  - As of the 2026-07-27 rebuild all 43 days match at **0.000%** on all four buckets, so treat any nonzero delta as a real regression rather than expected noise.
+  - As of the 2026-08-08 rebuild **32 of 55 days read `ok` and 23 read `drift`**.
+
+  - Read a day's `status` before citing any figure from it; a `drift` day is not evidence in either direction.
+
+  - The residual drift is an open defect, not a tolerance: ccusage sees a population of **uncached** requests the aggregator never reads.
+
+    - On 2026-07-19 the script counts 8,363 input tokens against ccusage's 3,137,652; on 2026-08-07, 1,301 against 927,849.
+
+    - It is not a systematic parser error — 2026-07-20 and 2026-08-06 match at 0.000% on all four buckets.
+
+    - Suspects: cloud or remote agent sessions, `claude -p` headless runs, and record shapes `iter_records` filters out.
 
   - It has already earned its keep: on its first run it flagged 10 of 43 days, from records whose `cache_creation` TTL split disagrees with the `cache_creation_input_tokens` total it splits.
 

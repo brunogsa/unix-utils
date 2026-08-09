@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-07-27T02:43:40-03:00",
+  "generated_at": "2026-08-08T19:48:03-03:00",
   "day": "2026-07-09",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 102.01,
+    "cost_per_day": 108.33,
     "user_messages": 41,
     "interruptions": 5,
     "session_hours": 14.5,
-    "cost_per_user_message": 2.49
+    "cost_per_user_message": 2.64
   },
-  "total": 102.01,
+  "total": 108.33,
   "main_cost": 82.5,
-  "subagent_cost": 19.51,
+  "subagent_cost": 25.83,
   "api_calls": {
     "main": 322,
     "sub": 335
@@ -25,170 +25,170 @@
   "thinking_block_share": 0.703,
   "tokens": {
     "input": 393752,
-    "output": 381671,
+    "output": 649547,
     "cache_read": 59083743,
     "cache_write_5m": 1779555,
     "cache_write_1h": 2168438
   },
   "by_family": {
-    "haiku": 0.97,
-    "sonnet": 5.49,
-    "fable": 80.52,
-    "opus": 15.04
+    "haiku": 1.33,
+    "sonnet": 6.38,
+    "fable": 85.28,
+    "opus": 15.35
   },
   "by_model": {
-    "claude-fable-5": 80.52,
-    "claude-opus-4-8": 13.6,
-    "claude-sonnet-5": 5.49,
+    "claude-fable-5": 85.28,
+    "claude-opus-4-8": 13.91,
+    "claude-sonnet-5": 6.38,
     "claude-opus-4-7": 1.44,
-    "claude-haiku-4-5": 0.97
+    "claude-haiku-4-5": 1.33
   },
   "by_day": {
     "2026-07-09": {
       "main": 82.5,
-      "sub": 19.51
+      "sub": 25.83
     }
   },
   "by_subagent_type": {
     "general-purpose": {
-      "cost": 18.16,
+      "cost": 23.83,
       "runs": 15
     },
     "claude-code-guide": {
-      "cost": 0.17,
+      "cost": 0.19,
       "runs": 2
     },
     "density-fixer": {
-      "cost": 0.74,
+      "cost": 1.07,
       "runs": 7
     },
     "Explore": {
-      "cost": 0.44,
+      "cost": 0.75,
       "runs": 1
     }
   },
   "by_skill": {
     "doc-standards": {
-      "cost": 93.06,
+      "cost": 98.48,
       "invocations": 3,
       "sessions": 3,
       "compactions": 0,
       "interruptions": 5,
       "tokens": {
         "input": 255806,
-        "output": 322740,
+        "output": 498610,
         "cache_read": 46096386,
         "cache_write_5m": 1085459,
         "cache_write_1h": 1854545
       }
     },
     "personal-environment": {
-      "cost": 79.15,
+      "cost": 84.21,
       "invocations": 2,
       "sessions": 2,
       "compactions": 0,
       "interruptions": 1,
       "tokens": {
         "input": 206527,
-        "output": 207501,
+        "output": 361786,
         "cache_read": 33039328,
         "cache_write_5m": 940967,
         "cache_write_1h": 1428058
       }
     },
     "brainstorm": {
-      "cost": 65.13,
+      "cost": 68.8,
       "invocations": 2,
       "sessions": 2,
       "compactions": 0,
       "interruptions": 5,
       "tokens": {
         "input": 165913,
-        "output": 264818,
+        "output": 385498,
         "cache_read": 35398452,
         "cache_write_5m": 679791,
         "cache_write_1h": 1278548
       }
     },
     "mermaid-diagrams": {
-      "cost": 51.22,
+      "cost": 54.53,
       "invocations": 1,
       "sessions": 1,
       "compactions": 0,
       "interruptions": 1,
       "tokens": {
         "input": 116634,
-        "output": 149579,
+        "output": 248674,
         "cache_read": 22341394,
         "cache_write_5m": 535299,
         "cache_write_1h": 852061
       }
     },
     "performance-check-principles-and-skills": {
-      "cost": 51.22,
+      "cost": 54.53,
       "invocations": 1,
       "sessions": 1,
       "compactions": 0,
       "interruptions": 1,
       "tokens": {
         "input": 116634,
-        "output": 149579,
+        "output": 248674,
         "cache_read": 22341394,
         "cache_write_5m": 535299,
         "cache_write_1h": 852061
       }
     },
     "commit-standards": {
-      "cost": 27.93,
+      "cost": 29.68,
       "invocations": 1,
       "sessions": 1,
       "compactions": 0,
       "interruptions": 0,
       "tokens": {
         "input": 89893,
-        "output": 57922,
+        "output": 113112,
         "cache_read": 10697934,
         "cache_write_5m": 405668,
         "cache_write_1h": 575997
       }
     },
     "code-standards": {
-      "cost": 27.93,
+      "cost": 29.68,
       "invocations": 1,
       "sessions": 1,
       "compactions": 0,
       "interruptions": 0,
       "tokens": {
         "input": 89893,
-        "output": 57922,
+        "output": 113112,
         "cache_read": 10697934,
         "cache_write_5m": 405668,
         "cache_write_1h": 575997
       }
     },
     "implement": {
-      "cost": 4.87,
+      "cost": 5.59,
       "invocations": 1,
       "sessions": 1,
       "compactions": 0,
       "interruptions": 0,
       "tokens": {
         "input": 115866,
-        "output": 30352,
+        "output": 103920,
         "cache_read": 10779596,
         "cache_write_5m": 483254,
         "cache_write_1h": 256525
       }
     },
     "html-artifacts": {
-      "cost": 2.26,
+      "cost": 2.44,
       "invocations": 1,
       "sessions": 1,
       "compactions": 0,
       "interruptions": 0,
       "tokens": {
         "input": 17757,
-        "output": 10737,
+        "output": 29175,
         "cache_read": 1831287,
         "cache_write_5m": 80001,
         "cache_write_1h": 42005
@@ -200,35 +200,35 @@
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 38.86
+      "mixed_cost_estimate": 40.38
     },
     "code-standards": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 14.96
+      "mixed_cost_estimate": 15.01
     },
     "brainstorm": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 2,
-      "mixed_cost_estimate": 8.28
+      "mixed_cost_estimate": 10.07
     },
     "doc-standards": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 3,
-      "mixed_cost_estimate": 5.63
+      "mixed_cost_estimate": 5.73
     },
     "implement": {
       "dedicated_sessions": 1,
-      "dedicated_cost": 4.87,
+      "dedicated_cost": 5.59,
       "mixed_sessions": 0,
       "mixed_cost_estimate": 0.0
     },
     "html-artifacts": {
       "dedicated_sessions": 1,
-      "dedicated_cost": 2.26,
+      "dedicated_cost": 2.44,
       "mixed_sessions": 0,
       "mixed_cost_estimate": 0.0
     },
@@ -256,7 +256,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-neovim/08837d9d-6b9b-4e33-b59c-d51d21fae66f.jsonl",
       "title": "",
       "cost": 42.3,
-      "subagent_cost": 8.91,
+      "subagent_cost": 12.23,
       "api_calls": 99,
       "duration_hours": 5.1,
       "compactions": 0,
@@ -282,7 +282,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/e66dfd87-0353-4713-833c-d06859ba67a7.jsonl",
       "title": "",
       "cost": 21.33,
-      "subagent_cost": 6.6,
+      "subagent_cost": 8.35,
       "api_calls": 58,
       "duration_hours": 4.0,
       "compactions": 0,
@@ -307,7 +307,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/1e15e0be-0837-4504-9373-146799fa4759.jsonl",
       "title": "",
       "cost": 13.3,
-      "subagent_cost": 0.61,
+      "subagent_cost": 0.97,
       "api_calls": 109,
       "duration_hours": 1.4,
       "compactions": 0,
@@ -330,7 +330,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/71add74b-51d3-48bb-8113-6cb426122257.jsonl",
       "title": "",
       "cost": 2.02,
-      "subagent_cost": 2.85,
+      "subagent_cost": 3.57,
       "api_calls": 33,
       "duration_hours": 3.8,
       "compactions": 0,
@@ -352,7 +352,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/947ad222-6225-45e5-b5e8-28aac30b8b7c.jsonl",
       "title": "",
       "cost": 1.73,
-      "subagent_cost": 0.53,
+      "subagent_cost": 0.72,
       "api_calls": 7,
       "duration_hours": 0.2,
       "compactions": 0,
@@ -432,30 +432,30 @@
     }
   ],
   "reconciliation": {
-    "status": "ok",
-    "worst_delta_pct": 0.0,
+    "status": "drift",
+    "worst_delta_pct": 44.909,
     "tokens": {
       "input": {
         "script": 393752,
-        "ccusage": 393752,
-        "delta_pct": 0.0
+        "ccusage": 714731,
+        "delta_pct": -44.909
       },
       "output": {
-        "script": 381671,
-        "ccusage": 381671,
-        "delta_pct": 0.0
+        "script": 649547,
+        "ccusage": 689356,
+        "delta_pct": -5.775
       },
       "cache_read": {
         "script": 59083743,
-        "ccusage": 59083743,
-        "delta_pct": 0.0
+        "ccusage": 59192263,
+        "delta_pct": -0.183
       },
       "cache_write": {
         "script": 3947993,
-        "ccusage": 3947993,
-        "delta_pct": 0.0
+        "ccusage": 3937144,
+        "delta_pct": 0.275
       }
     },
-    "ccusage_cost_untrusted": 88.95
+    "ccusage_cost_untrusted": 110.85
   }
 }

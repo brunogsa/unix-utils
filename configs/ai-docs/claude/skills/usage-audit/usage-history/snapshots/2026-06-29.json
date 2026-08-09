@@ -1,97 +1,67 @@
 {
-  "generated_at": "2026-07-27T02:42:20-03:00",
+  "generated_at": "2026-08-08T19:46:15-03:00",
   "day": "2026-06-29",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 3.52,
+    "cost_per_day": 0.0,
     "user_messages": 0,
     "interruptions": 0,
     "session_hours": 0.0,
     "cost_per_user_message": 0.0
   },
-  "total": 3.52,
-  "main_cost": 3.52,
+  "total": 0.0,
+  "main_cost": 0.0,
   "subagent_cost": 0.0,
   "api_calls": {
-    "main": 11,
+    "main": 0,
     "sub": 0
   },
   "compactions": 0,
-  "session_count": 1,
-  "cache_hit_rate": 0.997,
-  "thinking_blocks": 7,
-  "text_blocks": 8,
-  "thinking_block_share": 0.467,
+  "session_count": 0,
+  "cache_hit_rate": 0.0,
+  "thinking_blocks": 0,
+  "text_blocks": 0,
+  "thinking_block_share": 0.0,
   "tokens": {
-    "input": 452,
-    "output": 13529,
-    "cache_read": 5980589,
+    "input": 0,
+    "output": 0,
+    "cache_read": 0,
     "cache_write_5m": 0,
-    "cache_write_1h": 19127
+    "cache_write_1h": 0
   },
-  "by_family": {
-    "opus": 3.52
-  },
-  "by_model": {
-    "claude-opus-4-8": 3.52
-  },
-  "by_day": {
-    "2026-06-29": {
-      "main": 3.52,
-      "sub": 0.0
-    }
-  },
+  "by_family": {},
+  "by_model": {},
+  "by_day": {},
   "by_subagent_type": {},
   "by_skill": {},
   "by_skill_marginal": {},
-  "top_sessions": [
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/4daf36c6-148e-457c-957a-a876c4e1206f.jsonl",
-      "title": "",
-      "cost": 3.52,
-      "subagent_cost": 0.0,
-      "api_calls": 11,
-      "duration_hours": 0.0,
-      "compactions": 0,
-      "user_messages": 0,
-      "interruptions": 0,
-      "tokens": {
-        "input": 452,
-        "output": 13529,
-        "cache_read": 5980589,
-        "cache_write_5m": 0,
-        "cache_write_1h": 19127
-      },
-      "cache_hit_rate": 0.997,
-      "skills": {}
-    }
-  ],
+  "top_sessions": [],
   "reconciliation": {
     "status": "ok",
     "worst_delta_pct": 0.0,
     "tokens": {
       "input": {
-        "script": 452,
-        "ccusage": 452,
+        "script": 0,
+        "ccusage": 0,
         "delta_pct": 0.0
       },
       "output": {
-        "script": 13529,
-        "ccusage": 13529,
+        "script": 0,
+        "ccusage": 0,
         "delta_pct": 0.0
       },
       "cache_read": {
-        "script": 5980589,
-        "ccusage": 5980589,
+        "script": 0,
+        "ccusage": 0,
         "delta_pct": 0.0
       },
       "cache_write": {
-        "script": 19127,
-        "ccusage": 19127,
+        "script": 0,
+        "ccusage": 0,
         "delta_pct": 0.0
       }
     },
-    "ccusage_cost_untrusted": 3.45
+    "ccusage_cost_untrusted": 0.0
   }
 }

@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-07-27T02:44:54-03:00",
+  "generated_at": "2026-08-08T19:50:14-03:00",
   "day": "2026-07-26",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 291.57,
+    "cost_per_day": 315.83,
     "user_messages": 144,
     "interruptions": 9,
     "session_hours": 26.2,
-    "cost_per_user_message": 2.02
+    "cost_per_user_message": 2.19
   },
-  "total": 291.57,
+  "total": 315.83,
   "main_cost": 234.08,
-  "subagent_cost": 57.49,
+  "subagent_cost": 81.76,
   "api_calls": {
     "main": 2028,
     "sub": 2036
@@ -25,120 +25,120 @@
   "thinking_block_share": 0.706,
   "tokens": {
     "input": 14115,
-    "output": 1984927,
+    "output": 3853954,
     "cache_read": 390281278,
     "cache_write_5m": 8205524,
     "cache_write_1h": 6937242
   },
   "by_family": {
-    "sonnet": 31.02,
-    "opus": 253.7,
-    "haiku": 6.85
+    "sonnet": 41.68,
+    "opus": 265.69,
+    "haiku": 8.46
   },
   "by_model": {
-    "claude-opus-5": 248.39,
-    "claude-sonnet-5": 31.02,
-    "claude-haiku-4-5": 6.85,
+    "claude-opus-5": 260.38,
+    "claude-sonnet-5": 41.68,
+    "claude-haiku-4-5": 8.46,
     "claude-opus-4-7": 5.31
   },
   "by_day": {
     "2026-07-26": {
       "main": 234.08,
-      "sub": 57.49
+      "sub": 81.76
     }
   },
   "by_subagent_type": {
     "general-purpose": {
-      "cost": 28.01,
+      "cost": 37.4,
       "runs": 34
     },
     "explore": {
-      "cost": 0.64,
+      "cost": 0.95,
       "runs": 3
     },
     "UNMATCHED": {
-      "cost": 2.85,
+      "cost": 3.92,
       "runs": 1
     },
     "consistency-ensemble-child": {
-      "cost": 19.62,
+      "cost": 31.61,
       "runs": 12
     },
     "density-fixer": {
-      "cost": 0.55,
+      "cost": 0.75,
       "runs": 7
     },
     "markdown-standards-fixer": {
-      "cost": 5.82,
+      "cost": 7.12,
       "runs": 14
     }
   },
   "by_skill": {
     "commit-standards": {
-      "cost": 216.04,
+      "cost": 234.6,
       "invocations": 18,
       "sessions": 18,
       "compactions": 22,
       "interruptions": 5,
       "tokens": {
         "input": 11828,
-        "output": 1443675,
+        "output": 2743152,
         "cache_read": 272006307,
         "cache_write_5m": 5629675,
         "cache_write_1h": 5531397
       }
     },
     "skill-authoring": {
-      "cost": 166.99,
+      "cost": 180.88,
       "invocations": 14,
       "sessions": 14,
       "compactions": 15,
       "interruptions": 5,
       "tokens": {
         "input": 6050,
-        "output": 1219950,
+        "output": 2265693,
         "cache_read": 219429556,
         "cache_write_5m": 3929708,
         "cache_write_1h": 4173639
       }
     },
     "doc-standards": {
-      "cost": 154.39,
+      "cost": 171.78,
       "invocations": 12,
       "sessions": 12,
       "compactions": 13,
       "interruptions": 2,
       "tokens": {
         "input": 8902,
-        "output": 1032077,
+        "output": 2208302,
         "cache_read": 201665300,
         "cache_write_5m": 5042134,
         "cache_write_1h": 3691970
       }
     },
     "consistency-check-principles-and-skills": {
-      "cost": 68.73,
+      "cost": 83.27,
       "invocations": 4,
       "sessions": 4,
       "compactions": 5,
       "interruptions": 0,
       "tokens": {
         "input": 7018,
-        "output": 328924,
+        "output": 1212828,
         "cache_read": 109832754,
         "cache_write_5m": 3708051,
         "cache_write_1h": 1425606
       }
     },
     "performance-check-principles-and-skills": {
-      "cost": 31.34,
+      "cost": 37.03,
       "invocations": 2,
       "sessions": 2,
       "compactions": 2,
       "interruptions": 1,
       "tokens": {
         "input": 1432,
-        "output": 195432,
+        "output": 764982,
         "cache_read": 73139365,
         "cache_write_5m": 1967399,
         "cache_write_1h": 488161
@@ -178,25 +178,25 @@
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 14,
-      "mixed_cost_estimate": 85.05
+      "mixed_cost_estimate": 93.02
     },
     "commit-standards": {
       "dedicated_sessions": 3,
       "dedicated_cost": 22.46,
       "mixed_sessions": 15,
-      "mixed_cost_estimate": 43.14
+      "mixed_cost_estimate": 44.49
     },
     "doc-standards": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 12,
-      "mixed_cost_estimate": 43.33
+      "mixed_cost_estimate": 46.27
     },
     "consistency-check-principles-and-skills": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 4,
-      "mixed_cost_estimate": 24.97
+      "mixed_cost_estimate": 36.95
     },
     "mermaid-diagrams": {
       "dedicated_sessions": 0,
@@ -208,7 +208,7 @@
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 2,
-      "mixed_cost_estimate": 1.22
+      "mixed_cost_estimate": 1.23
     },
     "stickers": {
       "dedicated_sessions": 0,
@@ -242,7 +242,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/436611bf-b0e4-4981-82b2-24990b93778f.jsonl",
       "title": "",
       "cost": 20.34,
-      "subagent_cost": 12.07,
+      "subagent_cost": 16.64,
       "api_calls": 157,
       "duration_hours": 2.6,
       "compactions": 3,
@@ -266,7 +266,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils-configs-ai-docs-claude-skills-implement/cff10e28-dd33-4df1-a68c-45a8c6191993.jsonl",
       "title": "",
       "cost": 18.19,
-      "subagent_cost": 3.63,
+      "subagent_cost": 4.81,
       "api_calls": 129,
       "duration_hours": 4.4,
       "compactions": 3,
@@ -384,7 +384,7 @@
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/2f8abb8f-0f97-4c7a-97de-f1b7dcf3a7ee.jsonl",
       "title": "",
       "cost": 11.32,
-      "subagent_cost": 18.2,
+      "subagent_cost": 23.9,
       "api_calls": 76,
       "duration_hours": 1.2,
       "compactions": 2,
@@ -414,8 +414,8 @@
         "delta_pct": 0.0
       },
       "output": {
-        "script": 1984927,
-        "ccusage": 1984927,
+        "script": 3853954,
+        "ccusage": 3853954,
         "delta_pct": 0.0
       },
       "cache_read": {
@@ -429,6 +429,6 @@
         "delta_pct": 0.0
       }
     },
-    "ccusage_cost_untrusted": 265.56
+    "ccusage_cost_untrusted": 315.83
   }
 }

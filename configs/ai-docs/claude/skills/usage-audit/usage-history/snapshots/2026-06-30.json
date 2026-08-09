@@ -1,112 +1,67 @@
 {
-  "generated_at": "2026-07-27T02:42:29-03:00",
+  "generated_at": "2026-08-08T19:46:26-03:00",
   "day": "2026-06-30",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 22.04,
-    "user_messages": 12,
-    "interruptions": 2,
-    "session_hours": 4.2,
-    "cost_per_user_message": 1.84
+    "cost_per_day": 0.0,
+    "user_messages": 0,
+    "interruptions": 0,
+    "session_hours": 0.0,
+    "cost_per_user_message": 0.0
   },
-  "total": 22.04,
-  "main_cost": 21.35,
-  "subagent_cost": 0.69,
+  "total": 0.0,
+  "main_cost": 0.0,
+  "subagent_cost": 0.0,
   "api_calls": {
-    "main": 65,
-    "sub": 58
+    "main": 0,
+    "sub": 0
   },
   "compactions": 0,
-  "session_count": 1,
-  "cache_hit_rate": 0.916,
-  "thinking_blocks": 58,
-  "text_blocks": 100,
-  "thinking_block_share": 0.367,
+  "session_count": 0,
+  "cache_hit_rate": 0.0,
+  "thinking_blocks": 0,
+  "text_blocks": 0,
+  "thinking_block_share": 0.0,
   "tokens": {
-    "input": 13937,
-    "output": 133162,
-    "cache_read": 15929221,
-    "cache_write_5m": 256940,
-    "cache_write_1h": 1182680
+    "input": 0,
+    "output": 0,
+    "cache_read": 0,
+    "cache_write_5m": 0,
+    "cache_write_1h": 0
   },
-  "by_family": {
-    "haiku": 0.69,
-    "opus": 21.35
-  },
-  "by_model": {
-    "claude-opus-4-8": 21.35,
-    "claude-haiku-4-5": 0.69
-  },
-  "by_day": {
-    "2026-06-30": {
-      "main": 21.35,
-      "sub": 0.69
-    }
-  },
-  "by_subagent_type": {
-    "general-purpose": {
-      "cost": 0.16,
-      "runs": 3
-    },
-    "density-fixer": {
-      "cost": 0.41,
-      "runs": 1
-    },
-    "claude-code-guide": {
-      "cost": 0.12,
-      "runs": 1
-    }
-  },
+  "by_family": {},
+  "by_model": {},
+  "by_day": {},
+  "by_subagent_type": {},
   "by_skill": {},
   "by_skill_marginal": {},
-  "top_sessions": [
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-integrator/e254add8-ec8c-4cfe-bdc7-057af83acd3c.jsonl",
-      "title": "",
-      "cost": 21.35,
-      "subagent_cost": 0.69,
-      "api_calls": 65,
-      "duration_hours": 4.2,
-      "compactions": 0,
-      "user_messages": 12,
-      "interruptions": 2,
-      "tokens": {
-        "input": 5093,
-        "output": 124879,
-        "cache_read": 12754367,
-        "cache_write_5m": 0,
-        "cache_write_1h": 1182680
-      },
-      "cache_hit_rate": 0.915,
-      "skills": {}
-    }
-  ],
+  "top_sessions": [],
   "reconciliation": {
     "status": "ok",
     "worst_delta_pct": 0.0,
     "tokens": {
       "input": {
-        "script": 13937,
-        "ccusage": 13937,
+        "script": 0,
+        "ccusage": 0,
         "delta_pct": 0.0
       },
       "output": {
-        "script": 133162,
-        "ccusage": 133162,
+        "script": 0,
+        "ccusage": 0,
         "delta_pct": 0.0
       },
       "cache_read": {
-        "script": 15929221,
-        "ccusage": 15929221,
+        "script": 0,
+        "ccusage": 0,
         "delta_pct": 0.0
       },
       "cache_write": {
-        "script": 1439620,
-        "ccusage": 1439620,
+        "script": 0,
+        "ccusage": 0,
         "delta_pct": 0.0
       }
     },
-    "ccusage_cost_untrusted": 17.61
+    "ccusage_cost_untrusted": 0.0
   }
 }

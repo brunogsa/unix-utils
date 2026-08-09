@@ -1,0 +1,175 @@
+{
+  "generated_at": "2026-08-08T19:50:29-03:00",
+  "day": "2026-08-02",
+  "coverage": "complete",
+  "observed_days": 1,
+  "kpis": {
+    "cost_per_day": 13.72,
+    "user_messages": 2,
+    "interruptions": 1,
+    "session_hours": 1.9,
+    "cost_per_user_message": 6.86
+  },
+  "total": 13.72,
+  "main_cost": 3.77,
+  "subagent_cost": 9.94,
+  "api_calls": {
+    "main": 83,
+    "sub": 295
+  },
+  "compactions": 2,
+  "session_count": 2,
+  "cache_hit_rate": 0.964,
+  "thinking_blocks": 256,
+  "text_blocks": 90,
+  "thinking_block_share": 0.74,
+  "tokens": {
+    "input": 758,
+    "output": 292128,
+    "cache_read": 35106108,
+    "cache_write_5m": 1025377,
+    "cache_write_1h": 303041
+  },
+  "by_family": {
+    "sonnet": 13.72
+  },
+  "by_model": {
+    "claude-sonnet-5": 13.72
+  },
+  "by_day": {
+    "2026-08-02": {
+      "main": 3.77,
+      "sub": 9.94
+    }
+  },
+  "by_subagent_type": {
+    "core:agent-forger": {
+      "cost": 8.7,
+      "runs": 4
+    },
+    "Explore": {
+      "cost": 0.41,
+      "runs": 3
+    },
+    "general-purpose": {
+      "cost": 0.84,
+      "runs": 2
+    }
+  },
+  "by_skill": {
+    "core:agent-onboard": {
+      "cost": 13.58,
+      "invocations": 3,
+      "sessions": 1,
+      "compactions": 2,
+      "interruptions": 0,
+      "tokens": {
+        "input": 756,
+        "output": 291291,
+        "cache_read": 35076392,
+        "cache_write_5m": 1025377,
+        "cache_write_1h": 271053
+      }
+    },
+    "core:agent-readiness": {
+      "cost": 13.58,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 2,
+      "interruptions": 0,
+      "tokens": {
+        "input": 756,
+        "output": 291291,
+        "cache_read": 35076392,
+        "cache_write_5m": 1025377,
+        "cache_write_1h": 271053
+      }
+    }
+  },
+  "by_skill_marginal": {
+    "core:agent-onboard": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 12.2
+    },
+    "core:agent-readiness": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 1.37
+    }
+  },
+  "top_sessions": [
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-error-monitor/a5063804-4884-4e1e-8507-4061c7f5932a.jsonl",
+      "title": "",
+      "cost": 3.63,
+      "subagent_cost": 9.94,
+      "api_calls": 82,
+      "duration_hours": 1.9,
+      "compactions": 2,
+      "user_messages": 1,
+      "interruptions": 0,
+      "tokens": {
+        "input": 166,
+        "output": 79803,
+        "cache_read": 8750495,
+        "cache_write_5m": 0,
+        "cache_write_1h": 271053
+      },
+      "cache_hit_rate": 0.97,
+      "skills": {
+        "core:agent-onboard": 3,
+        "core:agent-readiness": 1
+      }
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-integrator/a1e63f9f-cee5-4be2-824e-f3df65b4fef4.jsonl",
+      "title": "",
+      "cost": 0.14,
+      "subagent_cost": 0.0,
+      "api_calls": 1,
+      "duration_hours": 0.0,
+      "compactions": 0,
+      "user_messages": 1,
+      "interruptions": 1,
+      "tokens": {
+        "input": 2,
+        "output": 837,
+        "cache_read": 29716,
+        "cache_write_5m": 0,
+        "cache_write_1h": 31988
+      },
+      "cache_hit_rate": 0.482,
+      "skills": {}
+    }
+  ],
+  "reconciliation": {
+    "status": "drift",
+    "worst_delta_pct": 99.837,
+    "tokens": {
+      "input": {
+        "script": 758,
+        "ccusage": 465282,
+        "delta_pct": -99.837
+      },
+      "output": {
+        "script": 292128,
+        "ccusage": 320210,
+        "delta_pct": -8.77
+      },
+      "cache_read": {
+        "script": 35106108,
+        "ccusage": 35456527,
+        "delta_pct": -0.988
+      },
+      "cache_write": {
+        "script": 1328418,
+        "ccusage": 1323952,
+        "delta_pct": 0.336
+      }
+    },
+    "ccusage_cost_untrusted": 16.8
+  }
+}

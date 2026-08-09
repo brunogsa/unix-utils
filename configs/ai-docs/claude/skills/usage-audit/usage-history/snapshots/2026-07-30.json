@@ -1,0 +1,401 @@
+{
+  "generated_at": "2026-08-08T19:50:24-03:00",
+  "day": "2026-07-30",
+  "coverage": "complete",
+  "observed_days": 1,
+  "kpis": {
+    "cost_per_day": 56.64,
+    "user_messages": 56,
+    "interruptions": 2,
+    "session_hours": 19.5,
+    "cost_per_user_message": 1.01
+  },
+  "total": 56.64,
+  "main_cost": 31.12,
+  "subagent_cost": 25.51,
+  "api_calls": {
+    "main": 418,
+    "sub": 817
+  },
+  "compactions": 7,
+  "session_count": 15,
+  "cache_hit_rate": 0.951,
+  "thinking_blocks": 916,
+  "text_blocks": 441,
+  "thinking_block_share": 0.675,
+  "tokens": {
+    "input": 5788,
+    "output": 807507,
+    "cache_read": 100283417,
+    "cache_write_5m": 3282662,
+    "cache_write_1h": 1847252
+  },
+  "by_family": {
+    "haiku": 3.13,
+    "opus": 21.92,
+    "sonnet": 28.0,
+    "fable": 3.59
+  },
+  "by_model": {
+    "claude-sonnet-5": 28.0,
+    "claude-opus-5": 17.73,
+    "claude-opus-4-7": 4.19,
+    "claude-fable-5": 3.59,
+    "claude-haiku-4-5": 3.13
+  },
+  "by_day": {
+    "2026-07-30": {
+      "main": 31.12,
+      "sub": 25.51
+    }
+  },
+  "by_subagent_type": {
+    "UNMATCHED": {
+      "cost": 5.61,
+      "runs": 8
+    },
+    "deep-reviewer": {
+      "cost": 3.59,
+      "runs": 2
+    },
+    "general-purpose": {
+      "cost": 5.59,
+      "runs": 4
+    },
+    "plan-writer": {
+      "cost": 5.26,
+      "runs": 1
+    },
+    "fork": {
+      "cost": 2.27,
+      "runs": 1
+    },
+    "markdown-standards-fixer": {
+      "cost": 0.58,
+      "runs": 4
+    },
+    "Explore": {
+      "cost": 1.22,
+      "runs": 3
+    },
+    "pr-creator": {
+      "cost": 1.4,
+      "runs": 1
+    }
+  },
+  "by_skill": {
+    "doc-standards": {
+      "cost": 5.97,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 1,
+      "interruptions": 1,
+      "tokens": {
+        "input": 524,
+        "output": 55824,
+        "cache_read": 6685944,
+        "cache_write_5m": 74478,
+        "cache_write_1h": 211706
+      }
+    },
+    "artifact-design": {
+      "cost": 4.82,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 78,
+        "output": 47977,
+        "cache_read": 2857250,
+        "cache_write_5m": 47297,
+        "cache_write_1h": 194345
+      }
+    },
+    "dataviz": {
+      "cost": 4.82,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 78,
+        "output": 47977,
+        "cache_read": 2857250,
+        "cache_write_5m": 47297,
+        "cache_write_1h": 194345
+      }
+    },
+    "pr-review": {
+      "cost": 2.28,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 174,
+        "output": 36518,
+        "cache_read": 5168691,
+        "cache_write_5m": 194855,
+        "cache_write_1h": 41073
+      }
+    },
+    "code-review-pipeline": {
+      "cost": 2.28,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 0,
+      "tokens": {
+        "input": 174,
+        "output": 36518,
+        "cache_read": 5168691,
+        "cache_write_5m": 194855,
+        "cache_write_1h": 41073
+      }
+    }
+  },
+  "by_skill_marginal": {
+    "doc-standards": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 5.97,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "dataviz": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 3.81
+    },
+    "code-review-pipeline": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 1.82
+    },
+    "pr-review": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 0.46
+    },
+    "artifact-design": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 0.0
+    }
+  },
+  "top_sessions": [
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-integrator-3372/9ae73668-37f1-44ca-a1b9-10c1c6df26b6.jsonl",
+      "title": "",
+      "cost": 7.95,
+      "subagent_cost": 5.13,
+      "api_calls": 179,
+      "duration_hours": 6.8,
+      "compactions": 3,
+      "user_messages": 5,
+      "interruptions": 0,
+      "tokens": {
+        "input": 360,
+        "output": 75435,
+        "cache_read": 22662037,
+        "cache_write_5m": 0,
+        "cache_write_1h": 666782
+      },
+      "cache_hit_rate": 0.971,
+      "skills": {}
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/c9256d3d-362a-4f78-92fd-9bc823911df0.jsonl",
+      "title": "",
+      "cost": 6.49,
+      "subagent_cost": 16.88,
+      "api_calls": 67,
+      "duration_hours": 8.7,
+      "compactions": 3,
+      "user_messages": 9,
+      "interruptions": 1,
+      "tokens": {
+        "input": 136,
+        "output": 85002,
+        "cache_read": 7723185,
+        "cache_write_5m": 0,
+        "cache_write_1h": 622780
+      },
+      "cache_hit_rate": 0.925,
+      "skills": {}
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-integrator/b454a47f-0bc4-4882-a919-2738b138162f.jsonl",
+      "title": "",
+      "cost": 5.63,
+      "subagent_cost": 0.34,
+      "api_calls": 52,
+      "duration_hours": 0.3,
+      "compactions": 1,
+      "user_messages": 4,
+      "interruptions": 1,
+      "tokens": {
+        "input": 104,
+        "output": 38104,
+        "cache_read": 5110870,
+        "cache_write_5m": 0,
+        "cache_write_1h": 211706
+      },
+      "cache_hit_rate": 0.96,
+      "skills": {
+        "doc-standards": 1
+      }
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-integrator/a7bce7e4-e0fd-4c64-80f4-842f36de0e9d.jsonl",
+      "title": "",
+      "cost": 4.55,
+      "subagent_cost": 0.27,
+      "api_calls": 23,
+      "duration_hours": 2.5,
+      "compactions": 0,
+      "user_messages": 11,
+      "interruptions": 0,
+      "tokens": {
+        "input": 46,
+        "output": 41708,
+        "cache_read": 2416825,
+        "cache_write_5m": 0,
+        "cache_write_1h": 194345
+      },
+      "cache_hit_rate": 0.926,
+      "skills": {
+        "artifact-design": 1,
+        "dataviz": 1
+      }
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-integrator/8061a1e5-1526-4281-84c9-24399ad76818.jsonl",
+      "title": "",
+      "cost": 1.73,
+      "subagent_cost": 1.19,
+      "api_calls": 50,
+      "duration_hours": 0.7,
+      "compactions": 0,
+      "user_messages": 13,
+      "interruptions": 0,
+      "tokens": {
+        "input": 100,
+        "output": 32030,
+        "cache_read": 4848598,
+        "cache_write_5m": 0,
+        "cache_write_1h": 110566
+      },
+      "cache_hit_rate": 0.978,
+      "skills": {}
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-integrator-3372/b1a52a8a-67b2-40fd-bd30-a48152341ece.jsonl",
+      "title": "",
+      "cost": 1.3,
+      "subagent_cost": 0.0,
+      "api_calls": 12,
+      "duration_hours": 0.0,
+      "compactions": 0,
+      "user_messages": 1,
+      "interruptions": 0,
+      "tokens": {
+        "input": 17,
+        "output": 10303,
+        "cache_read": 861454,
+        "cache_write_5m": 98134,
+        "cache_write_1h": 0
+      },
+      "cache_hit_rate": 0.898,
+      "skills": {}
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-integrator-3372/9ff238d4-1040-42bf-a74e-da20c6a372fb.jsonl",
+      "title": "",
+      "cost": 1.07,
+      "subagent_cost": 0.0,
+      "api_calls": 8,
+      "duration_hours": 0.0,
+      "compactions": 0,
+      "user_messages": 1,
+      "interruptions": 0,
+      "tokens": {
+        "input": 13,
+        "output": 10429,
+        "cache_read": 426616,
+        "cache_write_5m": 94820,
+        "cache_write_1h": 0
+      },
+      "cache_hit_rate": 0.818,
+      "skills": {}
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-integrator-3372/e0cd425f-023a-4eb9-a5f1-100712c8f232.jsonl",
+      "title": "",
+      "cost": 0.89,
+      "subagent_cost": 0.0,
+      "api_calls": 8,
+      "duration_hours": 0.0,
+      "compactions": 0,
+      "user_messages": 1,
+      "interruptions": 0,
+      "tokens": {
+        "input": 13,
+        "output": 5182,
+        "cache_read": 507326,
+        "cache_write_5m": 81825,
+        "cache_write_1h": 0
+      },
+      "cache_hit_rate": 0.861,
+      "skills": {}
+    }
+  ],
+  "reconciliation": {
+    "status": "drift",
+    "worst_delta_pct": 99.472,
+    "tokens": {
+      "input": {
+        "script": 5788,
+        "ccusage": 1095283,
+        "delta_pct": -99.472
+      },
+      "output": {
+        "script": 807507,
+        "ccusage": 882042,
+        "delta_pct": -8.45
+      },
+      "cache_read": {
+        "script": 100283417,
+        "ccusage": 101127857,
+        "delta_pct": -0.835
+      },
+      "cache_write": {
+        "script": 5129914,
+        "ccusage": 5120688,
+        "delta_pct": 0.18
+      }
+    },
+    "ccusage_cost_untrusted": 64.2
+  },
+  "ab_tests": {
+    "review-isolation": {
+      "B": {
+        "trials": 1,
+        "sessions": 1,
+        "cost": 2.28,
+        "tokens": {
+          "input": 174,
+          "output": 36518,
+          "cache_read": 5168691,
+          "cache_write_5m": 194855,
+          "cache_write_1h": 41073
+        },
+        "overrides": 0
+      }
+    }
+  }
+}

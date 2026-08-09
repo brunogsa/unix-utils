@@ -411,6 +411,10 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
     # the window filter because its inputs must include records the window drops.
     # See the anchor check in the pricing block for why.
     anchor_epoch = {}
+    # Highest output_tokens per billing key, same whole-file scope and for the
+    # same reason. Unlike the three request-side buckets, this one GROWS across a
+    # response's blocks — see the peak lookup in the pricing block.
+    peak_output = {}
     for record in iter_records(path):
         message = record.get("message")
         # This pass sees records the window filter drops, so it meets shapes the
@@ -421,6 +425,9 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
         key = billing_id(record, message)
         if epoch is not None and key is not None:
             anchor_epoch[key] = min(anchor_epoch.get(key, epoch), epoch)
+        if key is not None:
+            out = (message.get("usage") or {}).get("output_tokens", 0) or 0
+            peak_output[key] = max(peak_output.get(key, 0), out)
     for record_index, record in enumerate(iter_records(path)):
         epoch = parse_ts(record.get("timestamp"))
         # An unplaceable record is dropped rather than kept: with one scan per
@@ -496,8 +503,8 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
         if not usage or model == "<synthetic>":
             continue
         # ONE API response becomes N transcript records — one per content block —
-        # and Claude Code stamps the SAME message.usage on every one of them.
-        # Summing records therefore bills each response once per block it emitted.
+        # and Claude Code stamps the same request-side `message.usage` figures on
+        # every one. Summing records bills each response once per block it emitted.
         #
         # Measured on 2026-07-20: 6,989 priced records carried 3,345 distinct
         # billing keys, inflating output tokens 3.64x and the day's dollars 2.97x
@@ -518,6 +525,20 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
             if anchor_epoch.get(billing_key, epoch) != epoch:
                 continue
             seen_messages.add(billing_key)
+            # The three request-side buckets repeat identically on every block, so
+            # the anchor record already carries the response's true figures. But
+            # `output_tokens` is written CUMULATIVELY as the response streams, so
+            # the anchor holds a partial count and only the final block holds the
+            # total. Keeping the anchor's value under-bills exactly the priciest
+            # bucket, and by the blocks-per-response count — the mirror image of
+            # the 2026-07-27 over-billing bug, and just as correlated with the
+            # thinking and tool-call density these reports measure.
+            #
+            # Measured on 2026-08-06: 385 of 1,490 responses carried a growing
+            # output_tokens. The anchor summed to 691,710 output tokens; the peak
+            # summed to 1,163,896, matching ccusage to the single token, while
+            # input, cache_read and cache_write already matched at 0.000%.
+            usage = dict(usage, output_tokens=peak_output.get(billing_key, 0))
         stats["api_calls"] += 1
         day = local_day(epoch)
         write_5m, write_1h = cache_writes(usage)
@@ -1087,17 +1108,30 @@ def prime_ccusage(first_day, last_day):
              "--until", last_day.replace("-", "")],
             capture_output=True, text=True, check=True, timeout=900)
         entries = json.loads(out.stdout)["daily"]
-    except (OSError, subprocess.SubprocessError, ValueError, KeyError) as err:
+        # Staged in a local dict so a mid-loop schema failure leaves the shared
+        # cache untouched rather than half-filled with an unusable range.
+        parsed = {}
+        for entry in entries:
+            # ccusage 20.x renamed this key `date` -> `period` and added an
+            # `agent` dimension whose non-"all" rows break the same day down per
+            # agent. Reading those on top of "all" would double-count the day,
+            # so keep only the aggregate row.
+            if entry.get("agent", "all") != "all":
+                continue
+            parsed[entry.get("period") or entry["date"]] = {
+                "input": entry.get("inputTokens", 0) or 0,
+                "output": entry.get("outputTokens", 0) or 0,
+                "cache_read": entry.get("cacheReadTokens", 0) or 0,
+                "cache_write": entry.get("cacheCreationTokens", 0) or 0,
+                "cost": entry.get("totalCost", 0.0) or 0.0,
+            }
+    # The entry loop sits inside the try because this is an advisory cross-check:
+    # the next schema rename must degrade the affected days to `reconciliation:
+    # "unavailable"`, never abort the measurement it only verifies.
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as err:
         print(f"ccusage cross-check unavailable: {err}", file=sys.stderr)
         return False
-    for entry in entries:
-        _ccusage_days[entry["date"]] = {
-            "input": entry.get("inputTokens", 0) or 0,
-            "output": entry.get("outputTokens", 0) or 0,
-            "cache_read": entry.get("cacheReadTokens", 0) or 0,
-            "cache_write": entry.get("cacheCreationTokens", 0) or 0,
-            "cost": entry.get("totalCost", 0.0) or 0.0,
-        }
+    _ccusage_days.update(parsed)
     # A day ccusage omits is a real zero, not a failed lookup — record it as one
     # so an idle day reconciles "ok" instead of "unavailable".
     empty = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "cost": 0.0}
