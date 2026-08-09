@@ -26,9 +26,9 @@ so it earns the top tier, unlike mechanical spawns, which pin sonnet.
 
 ## Usage
 
-`/auto-review [base-branch]`
+`/auto-review [base-ref]`
 
-- `base-branch` defaults to the repo's default branch (auto-detected; works
+- `base-ref` defaults to the repo's default branch (auto-detected; works
   for `main`, `master`, or anything else).
 
 Every invocation runs isolated — there is no in-session mode left to opt
@@ -70,18 +70,26 @@ Discover candidates in CWD (top-level only, not recursive):
 ls -1 spec_*.md plan_*.md 2>/dev/null
 ```
 
-Apply this decision tree:
+Apply this decision tree **per kind** — the spec and the plan resolve independently of each other:
 
-- **Zero matches** → set `<SPEC_PLAN_PATHS>=<none>`. Tell the user explicitly
-  that the review will run without spec/plan context.
-- **Exactly one spec file AND exactly one plan file** (the spec and the plan) → use both. Print the resolved paths; no prompt needed.
-- **Any other shape** (multiple specs, multiple plans, only spec, only plan,
-  mixed counts) → ALWAYS prompt the user with a numbered list and these
-  options:
+- **Exactly one of a kind** → use it. Print the resolved paths; no prompt needed.
+
+- **Zero of a kind** → proceed without it and say so plainly. No spec means no spec-conformance context; no plan means no planned-behavior context.
+  - Zero of both kinds sets `<SPEC_PLAN_PATHS>=<none>`, and the review runs on commit messages plus the diff.
+
+- **More than one of a kind** → prompt with a numbered list and these options; never guess which spec or plan was meant.
   - `all` — use every discovered file
   - one or more numbers (comma-separated, e.g. `1,3,5`) — use just those
   - `none` — skip spec/plan context entirely
   - `cancel` — abort the review
+
+A prompt is only worth its friction when the human has something to choose between. One candidate or none leaves nothing to pick, so the run proceeds and reports what it used.
+
+`/quality-gate` §2 resolves the same two files itself, then pushes the resolved paths into its `auto-review` leg — so a leg never reaches this step.
+
+That tree splits the same zero/one/many way but answers a multi-match differently — a single pick, and under `--auto-solve` neither file rather than a prompt.
+
+So one CWD can yield different spec/plan context depending on the entry point. Read `/quality-gate` §2 before assuming an edit here covers both.
 
 Render the prompt like:
 
@@ -105,7 +113,7 @@ or the literal string `<none>`).
 The code-review-pipeline expects these inputs:
 
 - **Mode:** `local`
-- **Base branch:** `<BASE_BRANCH>` (resolved above)
+- **Base ref:** `<BASE_REF>` (resolved above)
 - **Language:** English
 - **Spec/plan files for `{pr_context}`:** `<SPEC_PLAN_PATHS>` (resolved above)
   - If `<none>`, no spec/plan is available — proceed with commit messages +
@@ -133,6 +141,8 @@ preserving their order when the user runs several reviews in one CWD.
 
 **Report only — the skill stops here.** `/auto-review` produces the report and applies nothing.
 
-The user reads it and decides later which findings to act on — by hand, or by asking the AI to triage and apply a selected subset.
+Applying is `/address-verdicts`' job: it globs `verdict_auto-review_*.md` and routes each finding to the `tdd-coder` agent, which applies it RED-before-GREEN and commits under `commit-standards`.
+
+That is a test gate a reader sent to a generic "ask the AI to apply a subset" flow would have to reproduce by hand.
 
 Acting on findings is a separate, explicit step the user initiates — it is not part of this flow.
