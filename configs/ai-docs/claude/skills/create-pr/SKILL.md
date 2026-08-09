@@ -147,7 +147,7 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
 - **CRITICAL: `## Evidences` is MANDATORY** regardless of the template -- add it inside the template structure when absent.
 
-**CRITICAL: Never run the page-fit check on the final body** -- the budget was already enforced on the ideal description, the only source the final body draws content from.
+**Never page-fit the final body** -- the rule and its reason are [`references/pr-page-budget.md`](references/pr-page-budget.md)'s, which `pr-writer` loads every dispatch.
 
 ### 4. Create the draft PR
 

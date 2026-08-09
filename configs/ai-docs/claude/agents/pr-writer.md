@@ -96,8 +96,7 @@ The repo's template is the base structure, never the thing being replaced.
    Still exit 3 with both already dropped → stop and return a blocking caveat naming the character count, rather than cutting deeper.
    Everything left is body content the reviewer reads, so the caller decides what a body that large costs — you never silently delete it.
 
-5. Never run the page-fit check on the final body — a repo template's structure is arbitrary, so the script cannot attribute its lines to a budgeted section.
-   The budget was already enforced on the ideal description, which is the only source the final body draws content from.
+5. Never run the page-fit check on the final body — source 2's "Measure the ideal description, never the final body" rule carries the reason.
 
 ### Fixing what a gate flags
 
