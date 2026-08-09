@@ -150,6 +150,26 @@
             "command": "python3 ~/.claude/hooks/subagent-model-guard.py"
           }
         ]
+      },
+      {
+        "matcher": "Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/claude-explore-mandate-hook.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/claude-explore-mandate-hook.sh --reset"
+          }
+        ]
       }
     ],
     "Notification": [
