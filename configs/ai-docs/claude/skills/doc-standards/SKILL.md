@@ -142,8 +142,8 @@ Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`d
 - [Instruction] When a doc or script header points at a sibling file instead of restating a rule, name the file that authors it — never the file you read it in.
   - [Why] A pointer to the wrong file is worse than none: the reader follows it, finds nothing, and re-derives the rule locally, recreating the duplication the pointer exists to prevent.
 
-- [Instruction] Verify every such pointer with `scripts/check-rule-citations.py <file>...`, which resolves the cited filename and checks the rule is authored there.
-  - [Why] A wrong pointer looks satisfied on the page, so nothing short of resolving it against the cited file's own headings and bold spans catches it.
+- [Instruction] Delegate verifying and retargeting every such pointer to `agent(subAgent=markdown-standards-fixer, title=Fix <doc> markdown)`, never inline.
+  - [Why] It runs `scripts/check-rule-citations.py` and reads both files to settle each row, where inline running dumps every candidate sibling into the caller's context.
 
 ## Density
 
