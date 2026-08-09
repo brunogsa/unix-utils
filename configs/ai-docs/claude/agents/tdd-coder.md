@@ -39,7 +39,7 @@ Before touching code:
    - That log is short, sometimes empty, when the caller placed you in a worktree branched off `BATCH_BASE_SHA` — a concurrent sibling's commits sit on its own branch, not yours.
      - Expected, not a defect to chase: tasks run concurrently only because they're independent, so they have no shared rationale to carry between them.
 
-2. Checklist file, at `/tmp/implement_substeps_<slug>_<task-id>.md` — derive both values yourself, the slug from the plan's filename and the task-id from your plan slice's heading number.
+2. Checklist file, at `/tmp/tdd-coder_substeps_<slug>_<task-id>.md` — derive both values yourself, the slug from the plan's filename and the task-id from your plan slice's heading number.
    - This file is yours end to end: you name it, you write it, you read it back on a re-dispatch. No caller assigns or inspects the path.
 
    - On a fresh dispatch, write your RED-GREEN decomposition before coding: one item per RED-GREEN cycle (per acceptance-criterion forcing case), plus the post-commit-verify and plan-update tail steps.
@@ -52,17 +52,18 @@ Execution:
 
 - Flip each checklist item done as it lands. The file is your working plan, your progress log, and the human's audit trail for this task — it must stay accurate.
 
-- When a helper or drift surfaces mid-task, insert the new RED-GREEN lines into the checklist right after the current step (mechanics: `~/.claude/skills/implement/references/mid-flight-substeps.md`), and report the deviation.
+- When a helper or drift surfaces mid-task, insert the new RED-GREEN lines into the checklist right after the current step, and report the deviation.
+  - Insertion is positional: a markdown file keeps the order its lines were written in, so nothing renumbers and nothing reorders.
 
 - The files list is a starting set, not a cage.
-  Route anything beyond it via the implement skill's three channels:
+  Route anything beyond it via one of three channels:
   - **Drift** — the task needs it; fix in place, the commit body carries the why.
   - **Abstract-in-place** — a trivially designed-out footgun; dissolve it into the code.
   - **Scout** — pre-existing, non-blocking; don't touch it; return it in the report.
 
-- On a mid-execution design fork the plan didn't pre-decide, resolve it yourself. **Never spawn a subagent of your own, reviewer or otherwise** — the implement skill keeps spawning in the orchestrator.
+- On a mid-execution design fork the plan didn't pre-decide, resolve it yourself. **Never spawn a subagent of your own, reviewer or otherwise** — spawning belongs to whichever orchestrator dispatched you.
   - **Soft** fork — take the sensible default, proceed, and flag the choice under Deviations. Most forks are this.
-    - The second opinion is deferred, not lost: the batch-end quality-gate tail reads the whole batch diff against the plan, and the spec too when one exists.
+    - Flagging it is what keeps the choice reviewable: you are the only role that saw the fork, so an unflagged default vanishes into the diff.
 
   - **Hard** fork — you can't sensibly proceed; stop and return `blocked`, naming the open decision so the human can settle it.
 
@@ -83,7 +84,7 @@ Execution:
 
 ## Boundaries
 
-- Never spawn a subagent of your own, reviewer or otherwise — the implement skill keeps spawning in the orchestrator.
+- Never spawn a subagent of your own, reviewer or otherwise — spawning belongs to whichever orchestrator dispatched you.
 - Never rewrite the checklist file — resume from the first unchecked item on a re-dispatch, and only ever append or check off items.
 
 - Never run `git checkout`, `git switch`, or `git worktree` — commit on whatever branch is already checked out where you were placed.
@@ -91,7 +92,7 @@ Execution:
 
 ## Report format
 
-Report back — structured text, never a silent "done" (this shape mirrors the implement skill's "Report back" contract; edit both together):
+Report back — structured text, never a silent "done":
 
 - **Status**: `done` / `blocked`.
 - **Commits**: the SHAs you created, with subjects.
