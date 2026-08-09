@@ -537,6 +537,42 @@ class TestRepoClassSplit(unittest.TestCase):
             msg="the subagent's spend must join its parent's in the work "
                 "half, so delegation cannot hide cost from the PR denominator")
 
+    def test_the_delegated_share_of_a_halfs_spend_is_recorded_separately(self):
+        """Whether leaning on subagents helps is asked of the work half and the
+        tooling half separately, and a day-level subagent total cannot be split
+        back out per half once the two are summed."""
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        epoch = since + 3600
+        with tempfile.TemporaryDirectory() as tmp:
+            subagent_dir = os.path.join(tmp, "parent-session", "subagents")
+            os.makedirs(subagent_dir, exist_ok=True)
+            parent_path = _write_transcript(tmp, "parent-session.jsonl", [
+                _assistant_record("msg_parent", "req_parent", epoch,
+                                   input_tokens=1000, output_tokens=100,
+                                   cwd=self.WORK_CWD),
+                _assistant_record("msg_tooling", "req_tooling", epoch + 1,
+                                   input_tokens=2000, output_tokens=300,
+                                   cwd=self.TOOLING_CWD),
+            ])
+            child_path = _write_transcript(subagent_dir, "child.jsonl", [
+                _assistant_record("msg_child", "req_child", epoch + 2,
+                                   input_tokens=4000, output_tokens=800,
+                                   cwd=self.WORK_CWD),
+            ])
+            result = cur.aggregate([parent_path], [child_path], since, until)
+
+        price_in, price_out, _ = cur.SONNET_5_INTRO_PRICES
+        self.assertAlmostEqual(
+            result["by_repo_class"]["work"]["subagent_cost"],
+            (4000 * price_in + 800 * price_out) / 1e6, places=6,
+            msg="the delegated run's spend must be readable as the work "
+                "half's own subagent share, not only as part of its total")
+        self.assertAlmostEqual(
+            result["by_repo_class"]["tooling"]["subagent_cost"], 0.0, places=6,
+            msg="a half that delegated nothing must read as zero delegated "
+                "spend, never inherit the other half's subagent runs")
+
     def test_an_advisor_turns_second_model_bills_to_the_same_half_as_the_turn_it_rode_on(self):
         """The advisor's tokens live only in usage.iterations and are priced
         at a separate site from the main turn, so that site needs its own
@@ -638,7 +674,8 @@ class TestRepoClassSplit(unittest.TestCase):
 
         self.assertEqual(
             payload["by_repo_class"]["tooling"],
-            {"cost": 0.0, "user_messages": 0, "interruptions": 0},
+            {"cost": 0.0, "subagent_cost": 0.0,
+             "user_messages": 0, "interruptions": 0},
             msg="the untouched half must still be emitted at zero rather "
                 "than omitted, so its absence never reads as unmeasured")
 

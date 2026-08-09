@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-09T03:32:35-03:00",
+  "generated_at": "2026-08-09T04:42:46-03:00",
   "day": "2026-07-28",
   "coverage": "complete",
   "observed_days": 1,
@@ -50,11 +50,13 @@
   "by_repo_class": {
     "work": {
       "cost": 46.22,
+      "subagent_cost": 18.42,
       "user_messages": 64,
       "interruptions": 4
     },
     "tooling": {
       "cost": 91.74,
+      "subagent_cost": 14.69,
       "user_messages": 28,
       "interruptions": 2
     }

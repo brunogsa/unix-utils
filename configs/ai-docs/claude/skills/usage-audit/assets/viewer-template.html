@@ -116,6 +116,11 @@
 
 <div id="goaltable"></div>
 
+<div class="controls">
+  <label for="lens">Delegation measured in</label>
+  <select id="lens"></select>
+</div>
+
 <div id="levertable"></div>
 <div class="sub" id="leverhint"></div>
 
@@ -199,6 +204,8 @@ const METRICS = [
   {id:'hit',       label:'Cache hit rate',        get:d=>d.cache_hit_rate,                      fmt:pct},
   {id:'think',     label:'Thinking block share',  get:d=>d.thinking_block_share,                fmt:pct},
   {id:'subshare',  label:'Subagent share of cost',get:d=>d.total?d.subagent_cost/d.total:0,     fmt:pct},
+  {id:'worksub',   label:'Subagent share, work repos', get:d=>halfShare(d,'work'),    fmt:pct, needs:d=>workCost(d)},
+  {id:'toolsub',   label:'Subagent share, tooling repos', get:d=>halfShare(d,'tooling'), fmt:pct, needs:d=>toolingCost(d)},
 ];
 
 // Every normalized row divides by a count that
@@ -237,6 +244,7 @@ const state = {
   from: ALL_DAYS[0],
   to: ALL_DAYS[ALL_DAYS.length - 1],
   goal: 'total',  // which goal the weekly chart draws
+  lens: 'work',   // the lever's ranking half; see SHARE_LENSES
   selected: [],   // up to 2 days, in click order — drives detail and compare
   weekly: false,  // one median bar per week, not per day
   fit: true,      // least-squares line; see trendLine()
@@ -280,6 +288,14 @@ const workCost = d => repoClass(d, 'work').cost || 0;
 const toolingCost = d => repoClass(d, 'tooling').cost || 0;
 const workTouches = d => classTouches(d, 'work');
 const toolingTouches = d => classTouches(d, 'tooling');
+
+// Days predating the per-half split carry no
+// delegated figure, and all of them sit below the
+// retention floor, so none reaches a citable read.
+function halfShare(d, cls) {
+  const block = repoClass(d, cls);
+  return per(block.subagent_cost || 0, block.cost);
+}
 
 function citableDays(days) {
   return days.filter(day => isCitable(DATA.days[day]));
@@ -553,26 +569,41 @@ function goalTable() {
 
 /* ---------- the subagent-share lever ---------- */
 
-const subShare = d => (d.total ? d.subagent_cost / d.total : 0);
+// Which half's delegation the groups are ranked by.
+//
+// A day can run heavily delegated overall while its
+// work repos delegated nothing, so a whole-day share
+// answers the work KPIs with tooling behaviour.
+const SHARE_LENSES = [
+  {id: 'work', label: 'Work repos', scope: 'work-repo',
+   share: d => halfShare(d, 'work'), spent: workCost},
+  {id: 'tooling', label: 'Tooling repos', scope: 'tooling-repo',
+   share: d => halfShare(d, 'tooling'), spent: toolingCost},
+  {id: 'day', label: 'The whole day', scope: 'whole-day',
+   share: d => per(d.subagent_cost, d.total), spent: d => d.total},
+];
+
+const lensDef = () => SHARE_LENSES.find(l => l.id === state.lens);
 
 // Ranked into three equal groups rather than cut at
 // fixed percentages, so each group holds enough days
 // to pool a ratio no matter how the share clusters.
 //
-// Only citable days can be ranked at all, since an
-// unreadable day has no share to place it by.
-function shareTerciles() {
+// A day that spent nothing in the chosen half is
+// dropped: its 0% would rank as light delegation
+// when it is really no delegation to measure.
+function shareTerciles(lens) {
   const ranked = citableDays(GOAL_DAYS)
-    .slice()
-    .sort((a, b) => subShare(DATA.days[a]) - subShare(DATA.days[b]));
+    .filter(day => lens.spent(DATA.days[day]) > 0)
+    .sort((a, b) => lens.share(DATA.days[a]) - lens.share(DATA.days[b]));
   if (ranked.length < 3) return [];  // too few days to group
   const at = i => Math.round((ranked.length * i) / 3);
   const cuts = [ranked.slice(0, at(1)), ranked.slice(at(1), at(2)), ranked.slice(at(2))];
   return ['Lower share', 'Middle', 'Higher share'].map((label, i) => ({
     label,
     days: cuts[i],
-    lo: subShare(DATA.days[cuts[i][0]]),
-    hi: subShare(DATA.days[cuts[i][cuts[i].length - 1]]),
+    lo: lens.share(DATA.days[cuts[i][0]]),
+    hi: lens.share(DATA.days[cuts[i][cuts[i].length - 1]]),
   }));
 }
 
@@ -601,23 +632,28 @@ function leverTable(buckets) {
   return `<h2>Does leaning on subagents help?</h2>${tableOf(head, rows)}`;
 }
 
-// The correlation against day spend is computed here
+// The correlation against spend is computed here
 // rather than written into the prose, because the
-// whole reading depends on the groups differing by
-// the lever and not by how big the day was.
-function leverHint(buckets) {
-  const days = citableDays(GOAL_DAYS);
-  const fit = pearson(days.map(d => subShare(DATA.days[d])),
-                      days.map(d => DATA.days[d].total));
+// reading depends on the groups differing by the
+// lever and not by how big the days were.
+function leverHint(lens, buckets) {
+  const days = buckets.flatMap(b => b.days);
+  const fit = pearson(days.map(d => lens.share(DATA.days[d])),
+                      days.map(d => lens.spent(DATA.days[d])));
   const spread = buckets.map(b =>
     `${b.label} ${pct(b.lo)}–${pct(b.hi)} (${b.days.length}d)`).join(', ');
-  return `Citable days ranked by subagent share of cost, then split ` +
-    `into three groups: ${spread}. Every cell pools its whole group ` +
-    `and counts only those days, unlike the cards above, which count ` +
-    `every calendar day. Share tracks day spend at ` +
-    `r=${fit ? fit.r.toFixed(2) : 'n/a'}, so the groups differ by the ` +
-    `lever rather than by how big the day was. Five or six days a ` +
-    `group is thin — read it as a shape forming, not a finding.`;
+  const dropped = citableDays(GOAL_DAYS).length - days.length;
+  const thinnest = Math.min(...buckets.map(b => b.days.length));
+  return `Citable days ranked by the subagent share of ${lens.scope} ` +
+    `spend, then split into three groups: ${spread}. ` +
+    (dropped ? `${dropped} citable day(s) spent nothing there and sit ` +
+               `this reading out. ` : '') +
+    `Every cell pools its whole group and counts only those days, ` +
+    `unlike the cards above, which count every calendar day. Share ` +
+    `tracks that spend at r=${fit ? fit.r.toFixed(2) : 'n/a'} — the ` +
+    `closer to zero, the more the groups differ by the lever itself ` +
+    `rather than by how big the days were. ${thinnest} days in the ` +
+    `smallest group is thin — read it as a shape forming, not a finding.`;
 }
 
 /* ---------- chart ---------- */
@@ -1077,12 +1113,13 @@ function render() {
   $('goals').innerHTML = goalCards();
   $('goaltable').innerHTML = goalTable();
 
-// Both surfaces stay empty when there are too few
-// citable days to rank, rather than showing a header
-// over a table with nothing under it.
-const buckets = shareTerciles();
-$('levertable').innerHTML = buckets.length ? leverTable(buckets) : '';
-$('leverhint').textContent = buckets.length ? leverHint(buckets) : '';
+  // Both surfaces stay empty when there are too few
+  // citable days to rank, rather than showing a
+  // header over a table with nothing under it.
+  const lens = lensDef();
+  const buckets = shareTerciles(lens);
+  $('levertable').innerHTML = buckets.length ? leverTable(buckets) : '';
+  $('leverhint').textContent = buckets.length ? leverHint(lens, buckets) : '';
   drawGoalChart();
 
   $('totals').innerHTML =
@@ -1122,6 +1159,10 @@ $('leverhint').textContent = buckets.length ? leverHint(buckets) : '';
 $('goal').innerHTML = GOALS.map(g => `<option value="${g.id}">${g.label}</option>`).join('');
 $('goal').value = state.goal;
 $('goal').addEventListener('change', e => { state.goal = e.target.value; render(); });
+
+$('lens').innerHTML = SHARE_LENSES.map(l => `<option value="${l.id}">${l.label}</option>`).join('');
+$('lens').value = state.lens;
+$('lens').addEventListener('change', e => { state.lens = e.target.value; render(); });
 
 $('metric').innerHTML = METRICS.map(m => `<option value="${m.id}">${m.label}</option>`).join('');
 $('metric').value = state.metric;

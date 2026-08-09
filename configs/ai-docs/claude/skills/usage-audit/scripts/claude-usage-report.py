@@ -743,6 +743,13 @@ def merge_common(result, stats, side):
     # of the half that has to answer for it.
     for cls, cost in stats["by_repo_class"].items():
         result["by_repo_class"][cls]["cost"] += cost
+
+        # Kept as its own running total rather than
+        # left to be inferred, because the day-level
+        # subagent share cannot be split back out per
+        # half once the two are summed together.
+        if side == "sub":
+            result["by_repo_class"][cls]["subagent_cost"] += cost
     for kind in TOKEN_KINDS:
         result["tokens"][kind] += stats["tokens"][kind]
 
@@ -773,7 +780,8 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
         # PRs measured which repo the day was
         # spent in more than how well it went.
         "by_repo_class": defaultdict(lambda: {
-            "cost": 0.0, "user_messages": 0, "interruptions": 0}),
+            "cost": 0.0, "subagent_cost": 0.0,
+            "user_messages": 0, "interruptions": 0}),
         "by_subagent_type": defaultdict(lambda: {"cost": 0.0, "runs": 0}),
         "by_skill": defaultdict(lambda: {
             "cost": 0.0, "invocations": 0, "sessions": 0,
@@ -1136,6 +1144,8 @@ def build_payload(result, top_n, day=None, coverage="complete", reconciliation=N
         # from one never split at all.
         "by_repo_class": {
             cls: {"cost": round(result["by_repo_class"][cls]["cost"], 2),
+                  "subagent_cost": round(
+                      result["by_repo_class"][cls]["subagent_cost"], 2),
                   "user_messages": result["by_repo_class"][cls]["user_messages"],
                   "interruptions": result["by_repo_class"][cls]["interruptions"]}
             for cls in REPO_CLASSES},
