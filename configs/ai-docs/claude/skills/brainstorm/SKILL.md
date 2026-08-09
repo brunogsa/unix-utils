@@ -18,7 +18,8 @@ The document conventions it writes against — naming, templates, guidelines, se
 
 Read that library by path — never via the Skill tool; its `disable-model-invocation: true` keeps it out of the skill listing entirely.
 
-**Only step 13 reads it into this session's context.** Every other read happens inside a dispatched agent, and each step below names what its agent reads.
+**Only step 9 reads it into this session's context**, where the deterministic gates first run; step 13 re-runs them from what step 9 already loaded.
+Every other read happens inside a dispatched agent, and each step below names what its agent reads.
 
 Why nothing loads upfront: steps 1-5 are pure interview and need none of it, and that is the phase that burns the most context before any document exists.
 
@@ -42,7 +43,7 @@ Step 1 settles one of two. Every step below reads it back from `/tmp/sdd_<sessio
 
 **Once step 1 settles the mode**, seed the TaskList per CLAUDE.md's `[Reminder]` category — the mode decides which steps exist.
 
-Seed the step 7 and step 10 review reminders only at `full` with the self-review toggle on — a reminder no run can complete is one that stalls the list.
+Seed the step 6, 7, 8 and 10 reminders only at `full` — `light` runs none of them, so a reminder there is one that stalls the list.
 
 ### 1. Pre-flight — settle the mode, then its toggles
 
@@ -52,13 +53,17 @@ Seed the step 7 and step 10 review reminders only at `full` with the self-review
 
 - **"Every line traces to an AC?"** — should self-review block on machinery that maps to no acceptance criterion?
 - **"Right-sized plan?"** — should a fresh reviewer judge the plan against the original request for gold-plating?
-- **"Fresh-eyes self-review?"** — should a `deep-reviewer` subagent read the spec (step 7) and the plan (step 10) before you do? Default yes; a no skips both.
+- **"Qualitative pass?"** — should the fresh-eyes reviews at steps 7 and 10 also sweep the library's qualitative-pass checklist? Default yes.
+
+A no to that third one drops the checklist and nothing else.
+Steps 7 and 10 still dispatch, and still run the always-on judged checks the library marks fail-closed — no answer here can remove one.
 
 At `light`, skip phase 2 entirely and treat all three as off.
-Each one gates an AI review, and `light` runs none — so asking would spend a round-trip on three dead questions.
+`light` writes no spec and dispatches no judged gate at all, so asking would spend a round-trip on three dead questions.
 
 Persist the answers immediately to `/tmp/sdd_<session_id>.json` — one brainstorm run per session, so the session id alone keys the file.
-The mode is the `mode` field, valued exactly `full` or `light`.
+Four fields, named exactly: `mode`, valued `full` or `light`; then the booleans `traces_to_ac`, `right_sized`, and `qualitative_pass`, in the question order above.
+Why spell the field names here: every later step reads them back out of this file, so writer and reader would otherwise have to guess the same key.
 Answer them fresh each run: never reuse a previous run's answers, and never write any of them into the spec, the plan, or any committed file.
 
 Why upfront: the mode decides whether a spec exists, and the toggles decide how strictly later steps check what gets written.
@@ -164,16 +169,18 @@ Leaving any of that out of the scratchpad makes it invisible to the agent that w
 
 ### 7. Self-review the spec once, with fresh eyes
 
-**Full only, and only when the pre-flight's self-review toggle is on** — read it back from `/tmp/sdd_<session_id>.json`, never re-ask.
+**Full only.** Dispatch `agent(subAgent=deep-reviewer, effort=high, title=Fresh-eyes review of spec)`, in the foreground, pointed at the spec file alone.
 
-Dispatch `agent(subAgent=deep-reviewer, title=Fresh-eyes review of spec)`, in the foreground, pointed at the spec file alone.
+Point it at `~/.claude/skills/spec-driven-development/references/self-review-checks.md` and give it two jobs.
 
-Tell it to read the Qualitative pass section of `~/.claude/skills/spec-driven-development/references/self-review-checks.md` and apply these items only: placeholders, contradictions, ambiguity, completeness, human-reviewable.
+**Always, whatever the toggles say — its "How would this break?" check**, which the library marks fail-closed.
+Over the spec that means every boundary and failure-category checklist row instantiated or explicitly opted out, and every AC carrying a surfaced failure mode.
 
-**Make acceptance-criteria gaps its first job** — an AC whose `Then` isn't independently checkable, a happy path with no matching corner case or failure mode, an uninstantiated boundary or failure-category checklist row.
-
-Why that emphasis: the Testable Acceptance Criteria section is the only part of the spec a downstream script parses.
+Why it can't be waived: the Testable Acceptance Criteria section is the only part of the spec a downstream script parses.
 A gap there passes every later gate untouched, and reaches implementation as a test nobody wrote.
+
+**Then the Qualitative pass section, only when `qualitative_pass` is true** — read it back from `/tmp/sdd_<session_id>.json`, never re-ask.
+Apply these items only: placeholders, contradictions, ambiguity, completeness, human-reviewable.
 
 Exclude PR-size and plan-contradiction — no plan exists yet.
 Exclude Scope too: step 3 already asked the user about decomposition.
@@ -207,7 +214,7 @@ Route each round's rework to the earliest step the feedback invalidates:
 
 Why a loop: approval is rarely one round, and a step that ends the run on "not yet" makes the user re-invoke the skill to say what they meant.
 
-### 9. Write the plan
+### 9. Write the plan, then run the deterministic gates
 
 **At `full`** — dispatch `agent(subAgent=plan-writer, title=Write implementation plan from spec)` in the foreground, to write the plan from the spec alone. Pass it:
 
@@ -224,37 +231,46 @@ Where the spec doesn't carry a decision the plan needs, `plan-writer` writes the
 
 Never close a gap here, or fill one with an invented decision — that's the author-bias this dispatch exists to catch. Step 12 closes them all, in one batch.
 
-Should it return a numbered gap list instead of a plan, dispatch `agent(subAgent=general-purpose, model=sonnet, title=Record plan gaps as spec Open Questions)` to record those gaps as Open Questions in the spec.
-Then re-dispatch `plan-writer` once — not once per gap.
-
 **At `light`** — dispatch `agent(subAgent=general-purpose, model=sonnet, title=Write the plan)` in the foreground instead. Instruct it to:
 
 - Read `~/.claude/skills/spec-driven-development/SKILL.md` and its `assets/plan-template.md`, and write every section of that template.
 
 - Derive a short kebab-case `<slug>` from the feature itself, and write `plan_<slug>.md` in CWD.
 
-- Write `N/A — plan-only run` on the `Spec:` line, and carry each task's acceptance criteria in that task's own `**Testable Acceptance criteria**` field.
-
-- Write `N/A — no spec` in place of the Test Design section's AC → test coverage list.
-  - Why: `check-ac-coverage.sh` takes a plan and a spec, so with no spec there is nothing for that list to cite and no gate to read it.
+- Follow that library's *A plan may exist without a spec* section for the `Spec:` line, the per-task acceptance criteria, and the Test Design coverage list.
 
 - It has no inherited context — read the run scratchpad `/tmp/brainstorm_<session_id>.md` first, then fold its decisions and discarded alternatives into the plan's Technical Decisions section.
 
 Why `general-purpose` rather than `plan-writer` here: `plan-writer` reads a spec and nothing else, by contract, so with no spec it returns a plan of nothing but open questions.
 Its fresh-eyes value is testing whether the spec carries what a plan needs — a test with no subject at `light`, where the interview is the only place the requirements live.
 
+**Once the plan exists, in either mode: read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now** — it defines every gate, sorts them into a deterministic and a judged bucket, and gives each bucket's dispatch tier.
+
+Run the whole deterministic bucket to exhaustion, in the order the reference gives — fix each failure, then re-run that gate alone until it passes.
+
+**Skip `check-ac-coverage.sh` at `light`**: it takes a plan and a spec, and no spec exists.
+
+Why the scripts run here rather than after approval: they are free to re-run, so running them first costs nothing and is the order the library states.
+Step 10 would otherwise spend a `deep-reviewer` dispatch rediscovering a cyclic task DAG or a bogus AC citation.
+Step 11 would hand the user a plan whose graphs have never been parsed.
+
 ### 10. Self-review the plan once, with fresh eyes
 
-**Full only, and only when the pre-flight's self-review toggle is on** — read it back from `/tmp/sdd_<session_id>.json`, never re-ask.
+**Full only.** Dispatch `agent(subAgent=deep-reviewer, effort=high, title=Fresh-eyes review of plan)`, in the foreground, pointed at the plan and the spec.
 
-Dispatch `agent(subAgent=deep-reviewer, title=Fresh-eyes review of plan)`, in the foreground, pointed at the plan and the spec.
+**Always, whatever the toggles say — the semantic half of the library's "Every AC has a test" check**: does each cited test actually *prove* its AC?
+Step 9's `check-ac-coverage.sh` already settled that every AC is cited and every citation is real, so this pass judges only the match no script can make.
 
-**Make test-design gaps its first job** — a planned test title asserting nothing checkable, a thin scenario class, or an AC with no covering test.
-A task whose `**Tests (planned)**` list is empty without saying why counts too.
+Widen it to the rest of the test design while it is there.
+Flag a planned test title asserting nothing checkable, a thin scenario class, or a task whose `**Tests (planned)**` list is empty without saying why.
 
 Why that emphasis: `tdd-coder` builds each RED cycle straight from these titles, so a title that never got designed is a behavior that never gets a test.
 
-Also apply the qualitative pass from that same reference, plus the two rigor toggles read back from `/tmp/sdd_<session_id>.json` — never re-asked here.
+**Then, each read back from `/tmp/sdd_<session_id>.json` and never re-asked here**: the qualitative pass from that same reference when `qualitative_pass` is true.
+Add each rigor check whose own toggle — `traces_to_ac`, `right_sized` — is true.
+
+Step 7 already ran "How would this break?" over the spec's acceptance criteria, so it is not repeated here.
+Exclude Scope too: step 3 asked the user about decomposition, so re-asking here would reopen a question the user already settled.
 
 Then decide each finding yourself, dispatch `agent(subAgent=general-purpose, model=sonnet, title=Apply plan review findings)` with the ones you accept, and report applied-or-skipped to the user exactly as step 7 does.
 
@@ -279,21 +295,20 @@ Read the Open Questions section of the plan, and of the spec when one exists.
 While either still holds a `**QUESTION:**` entry, interview the user to settle them — `AskUserQuestion`, 2-3 at a time, recommended answer first, exactly as in step 4.
 Then dispatch `agent(subAgent=general-purpose, model=sonnet, title=Close open questions)` to fold the answers in and leave each Open Questions section reading `None`.
 
-Re-read after each round. **Step 13 does not run while a question is open.**
+Re-run `~/.claude/skills/spec-driven-development/scripts/check-open-questions.sh <plan> [<spec>]` after each round — never settle it by eye.
+**Step 13 does not run while that script exits non-zero.**
 
 Why after approval rather than during: one pass here lets the user decide every question against a finished plan, where a gap-by-gap walkthrough would stop the run once per item.
 
-### 13. Run the deterministic gates
+### 13. Re-run the deterministic gates
 
-**Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now** — it defines every gate, sorts them into a deterministic and a judged bucket, and gives each bucket's dispatch tier.
+Run the whole deterministic bucket again, exactly as step 9 ran it — same order, same `light` skip, same fix-and-re-run-that-gate-alone loop.
+The reference is already in this session's context from step 9; don't read it twice.
 
-Run the whole deterministic bucket to exhaustion, in the order the reference gives — fix each failure, then re-run that gate alone until it passes.
+**Run no judged gate here.** At `full`, steps 7 and 10 already ran them once each and the user has approved every document since.
+At `light` the run has no judged bucket at all.
 
-**Skip `check-ac-coverage.sh` at `light`**: it takes a plan and a spec, and no spec exists.
-
-**Run no judged gate here, in either mode.** Steps 7 and 10 already ran them once each, and the user has approved every document since.
-
-Why the deterministic bucket still runs: step 12 rewrote text, which can break a task DAG or an AC-coverage citation — and re-checking that costs nothing but a script run.
+Why the deterministic bucket runs a second time: step 12 rewrote text, which can break a task DAG or an AC-coverage citation — and re-checking that costs nothing but a script run.
 
 ### 14. Hand off with `/clear`
 
