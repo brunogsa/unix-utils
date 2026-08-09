@@ -83,8 +83,13 @@ The trigger-phrase rule in `skill-standards` › Descriptions applies verbatim t
 - [Instruction] State an agent's purpose and when to dispatch it, never an inventory of its internal steps or procedure.
   - [Why] A caller decides whether to dispatch an agent from its description alone, so an inventory buries the one thing that decision needs.
 
-- [Instruction] Treat a description that buries its trigger behind procedure — e.g. `markdown-standards-fixer`'s ~470-char description — as a drift to fix, not a passing check.
-  - [Why] Frontmatter validation only checks that `description:` is non-empty, so a technically-present but unhelpful description like this slips through undetected.
+- [Instruction] Treat a description that buries its trigger behind procedure as a drift to fix, not a passing check.
+  - [Why] Frontmatter validation only checks that `description:` is non-empty, so a technically-present but unhelpful description slips through undetected.
+
+- [Instruction] Keep every agent description under ~250 chars, exempting only a guard the caller must read BEFORE dispatching, such as an ask-the-user-first rule.
+  - [Why] Nothing truncates an agent description, where a skill's tail past 250 chars stops routing, so every extra word is both always-on context and live routing input.
+
+  - [Example] That exempt guard cannot move to the body: `## Boundaries` loads only after the dispatch decision the guard exists to gate.
 
 - [Instruction] Name the INPUT the caller must supply to dispatch the agent — the specific data, file path, or decision it needs up front.
   - [Why] An agent that expects an input the description never named gets dispatched without it, and either stalls or guesses at context only the caller held.
