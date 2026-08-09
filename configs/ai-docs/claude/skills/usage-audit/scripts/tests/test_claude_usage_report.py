@@ -69,7 +69,7 @@ def _advisor_iteration(*, input_tokens, output_tokens, model="claude-opus-5"):
 
 def _assistant_record(message_id, request_id, epoch, *, input_tokens, output_tokens,
                        cache_read_tokens=0, model="claude-sonnet-5", speed=None,
-                       advisor_iterations=None, cwd=None):
+                       advisor_iterations=None, cwd=None, skills=()):
     """One transcript line for a single content-block of an assistant
     response, shaped like a real Claude Code transcript record."""
     usage = {
@@ -93,7 +93,9 @@ def _assistant_record(message_id, request_id, epoch, *, input_tokens, output_tok
             "id": message_id,
             "role": "assistant",
             "model": model,
-            "content": [{"type": "text", "text": "..."}],
+            "content": [{"type": "text", "text": "..."}] + [
+                {"type": "tool_use", "name": "Skill", "input": {"skill": name}}
+                for name in skills],
             "usage": usage,
         },
     }
@@ -678,6 +680,140 @@ class TestRepoClassSplit(unittest.TestCase):
              "user_messages": 0, "interruptions": 0},
             msg="the untouched half must still be emitted at zero rather "
                 "than omitted, so its absence never reads as unmeasured")
+
+
+class TestSkillsPerRepoClass(unittest.TestCase):
+    """A skill's dollars and loads, read separately for work and tooling.
+
+    Averaged over every session alike, a skill that only ever fires while
+    tuning this config reads as a cost of shipping. The split is per session
+    rather than per record because a skill row counts sessions, and no
+    session-level counter could divide one row across two halves.
+    """
+
+    TOOLING_CWD = "/Users/brunoagostini/unix-utils/configs/ai-docs/claude"
+    WORK_CWD = "/Users/brunoagostini/workspace/code/isaac/contract-validation"
+
+    def test_a_skills_spend_and_loads_land_in_the_half_its_session_ran_in(self):
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "session.jsonl", [
+                _assistant_record("msg_a", "req_a", since + 3600,
+                                   input_tokens=1000, output_tokens=500,
+                                   cwd=self.TOOLING_CWD,
+                                   skills=["doc-standards", "doc-standards"]),
+            ])
+            result = cur.aggregate([path], [], since, until)
+
+        half = result["by_skill"]["doc-standards"]["by_repo_class"]["tooling"]
+        self.assertAlmostEqual(
+            half["cost"], result["main_cost"], places=6,
+            msg="a skill loaded only while editing this config must charge "
+                "its spend to the tooling half, never to shipped work")
+        self.assertEqual(
+            (half["invocations"], half["sessions"]), (2, 1),
+            msg="both loads and the one session they happened in belong to "
+                "that same half, so loads per session divides within a half")
+
+    def test_a_half_a_skill_never_ran_in_reports_zero_rather_than_nothing(self):
+        """A reader has to tell a skill that never fired in a half apart from
+        one whose split was never measured."""
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "session.jsonl", [
+                _assistant_record("msg_a", "req_a", since + 3600,
+                                   input_tokens=1000, output_tokens=500,
+                                   cwd=self.TOOLING_CWD, skills=["brainstorm"]),
+            ])
+            result = cur.aggregate([path], [], since, until)
+        payload = cur.build_payload(result, 5, day=day)
+
+        self.assertEqual(
+            payload["by_skill"]["brainstorm"]["by_repo_class"]["work"],
+            {"cost": 0.0, "invocations": 0, "sessions": 0},
+            msg="the untouched half must still be emitted at zero, so its "
+                "absence never reads as unmeasured")
+
+    def test_a_session_split_across_both_halves_charges_its_skills_to_the_costlier_one(self):
+        """Deliberate approximation: no session-level counter can divide a
+        skill row's sessions, so the whole row follows where the money was."""
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "session.jsonl", [
+                _assistant_record("msg_tooling", "req_tooling", since + 3600,
+                                   input_tokens=1000, output_tokens=100,
+                                   cwd=self.TOOLING_CWD, skills=["implement"]),
+                _assistant_record("msg_work", "req_work", since + 7200,
+                                   input_tokens=9000, output_tokens=2000,
+                                   cwd=self.WORK_CWD),
+            ])
+            result = cur.aggregate([path], [], since, until)
+
+        halves = result["by_skill"]["implement"]["by_repo_class"]
+        self.assertEqual(
+            halves["work"]["sessions"], 1,
+            msg="the half holding most of the session's spend owns the whole "
+                "skill row, so the two halves keep summing back to it")
+        self.assertEqual(
+            halves["tooling"]["sessions"], 0,
+            msg="charging the session to both halves would double-count the "
+                "one session its loads-per-session figure divides by")
+
+    def test_a_lone_skills_attributed_spend_lands_in_its_sessions_half(self):
+        """by_skill rows overlap across skills, so the attributable dollars a
+        per-skill average should divide come from the marginal partition."""
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "session.jsonl", [
+                _assistant_record("msg_a", "req_a", since + 3600,
+                                   input_tokens=1000, output_tokens=500,
+                                   cwd=self.WORK_CWD, skills=["implement"]),
+            ])
+            result = cur.aggregate([path], [], since, until)
+
+        halves = result["by_skill_marginal"]["implement"]["by_repo_class"]
+        self.assertAlmostEqual(
+            halves["work"]["dedicated_cost"], result["main_cost"], places=6,
+            msg="a session that invoked one skill attributes its whole cost "
+                "to that skill, inside the half the session ran in")
+        self.assertEqual(
+            halves["tooling"]["dedicated_sessions"], 0,
+            msg="no dedicated session may leak into the half it never ran in")
+
+    def test_a_multi_skill_sessions_estimated_split_stays_inside_one_half(self):
+        """The mixed branch divides a session across the skills it invoked;
+        every slice still belongs to the one half the session ran in."""
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "session.jsonl", [
+                _assistant_record("msg_a", "req_a", since + 3600,
+                                   input_tokens=1000, output_tokens=500,
+                                   cwd=self.TOOLING_CWD, skills=["brainstorm"]),
+                _assistant_record("msg_b", "req_b", since + 7200,
+                                   input_tokens=2000, output_tokens=800,
+                                   cwd=self.TOOLING_CWD, skills=["implement"]),
+            ])
+            result = cur.aggregate([path], [], since, until)
+
+        attributed = sum(
+            result["by_skill_marginal"][skill]["by_repo_class"]["tooling"]
+                  ["mixed_cost_estimate"]
+            for skill in ("brainstorm", "implement"))
+        self.assertAlmostEqual(
+            attributed, result["by_skill_marginal"]["brainstorm"]["mixed_cost_estimate"]
+            + result["by_skill_marginal"]["implement"]["mixed_cost_estimate"], places=6,
+            msg="the halves must account for every attributed dollar the "
+                "rows do, or a per-half average silently under-reads")
+        self.assertEqual(
+            result["by_skill_marginal"]["brainstorm"]["by_repo_class"]
+                  ["tooling"]["mixed_sessions"], 1,
+            msg="the shared session counts once under each skill it invoked, "
+                "in the half it ran in")
 
 
 class TestSnapshotMechanics(unittest.TestCase):

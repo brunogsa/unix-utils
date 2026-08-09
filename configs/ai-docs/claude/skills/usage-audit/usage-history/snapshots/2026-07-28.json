@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-09T04:42:46-03:00",
+  "generated_at": "2026-08-09T05:12:45-03:00",
   "day": "2026-07-28",
   "coverage": "complete",
   "observed_days": 1,
@@ -120,6 +120,18 @@
         "cache_read": 70087668,
         "cache_write_5m": 351975,
         "cache_write_1h": 2480200
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 2.54,
+          "invocations": 2,
+          "sessions": 2
+        },
+        "tooling": {
+          "cost": 73.58,
+          "invocations": 4,
+          "sessions": 4
+        }
       }
     },
     "commit-standards": {
@@ -134,6 +146,18 @@
         "cache_read": 70319402,
         "cache_write_5m": 710786,
         "cache_write_1h": 2190981
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        },
+        "tooling": {
+          "cost": 73.73,
+          "invocations": 4,
+          "sessions": 4
+        }
       }
     },
     "skill-standards": {
@@ -148,6 +172,18 @@
         "cache_read": 60172431,
         "cache_write_5m": 268499,
         "cache_write_1h": 2128254
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        },
+        "tooling": {
+          "cost": 69.04,
+          "invocations": 3,
+          "sessions": 3
+        }
       }
     },
     "personal-environment": {
@@ -162,6 +198,18 @@
         "cache_read": 43307523,
         "cache_write_5m": 105694,
         "cache_write_1h": 1572122
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        },
+        "tooling": {
+          "cost": 48.95,
+          "invocations": 2,
+          "sessions": 2
+        }
       }
     },
     "create-pr": {
@@ -176,6 +224,18 @@
         "cache_read": 25111542,
         "cache_write_5m": 1007494,
         "cache_write_1h": 655827
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 22.16,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "refactor": {
@@ -190,6 +250,18 @@
         "cache_read": 25111542,
         "cache_write_5m": 1007494,
         "cache_write_1h": 655827
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 22.16,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "address-verdicts": {
@@ -204,6 +276,18 @@
         "cache_read": 25111542,
         "cache_write_5m": 1007494,
         "cache_write_1h": 655827
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 22.16,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "performance-check-principles-and-skills": {
@@ -218,6 +302,18 @@
         "cache_read": 8680175,
         "cache_write_5m": 388475,
         "cache_write_1h": 63604
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        },
+        "tooling": {
+          "cost": 10.47,
+          "invocations": 1,
+          "sessions": 1
+        }
       }
     },
     "brainstorm": {
@@ -232,6 +328,18 @@
         "cache_read": 18980809,
         "cache_write_5m": 525624,
         "cache_write_1h": 378525
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 9.77,
+          "invocations": 2,
+          "sessions": 2
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "jira-cli": {
@@ -246,6 +354,18 @@
         "cache_read": 9634555,
         "cache_write_5m": 181925,
         "cache_write_1h": 297362
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 4.12,
+          "invocations": 4,
+          "sessions": 4
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "design-docs": {
@@ -260,6 +380,18 @@
         "cache_read": 5347121,
         "cache_write_5m": 0,
         "cache_write_1h": 123019
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 1.8,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     }
   },
@@ -268,67 +400,221 @@
       "dedicated_sessions": 1,
       "dedicated_cost": 4.54,
       "mixed_sessions": 5,
-      "mixed_cost_estimate": 20.09
+      "mixed_cost_estimate": 20.09,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 2,
+          "mixed_cost_estimate": 0.49
+        },
+        "tooling": {
+          "dedicated_sessions": 1,
+          "dedicated_cost": 4.54,
+          "mixed_sessions": 3,
+          "mixed_cost_estimate": 19.59
+        }
+      }
     },
     "personal-environment": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 2,
-      "mixed_cost_estimate": 23.83
+      "mixed_cost_estimate": 23.83,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 2,
+          "mixed_cost_estimate": 23.83
+        }
+      }
     },
     "commit-standards": {
       "dedicated_sessions": 1,
       "dedicated_cost": 4.69,
       "mixed_sessions": 3,
-      "mixed_cost_estimate": 15.88
+      "mixed_cost_estimate": 15.88,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        },
+        "tooling": {
+          "dedicated_sessions": 1,
+          "dedicated_cost": 4.69,
+          "mixed_sessions": 3,
+          "mixed_cost_estimate": 15.88
+        }
+      }
     },
     "performance-check-principles-and-skills": {
       "dedicated_sessions": 1,
       "dedicated_cost": 10.47,
       "mixed_sessions": 0,
-      "mixed_cost_estimate": 0.0
+      "mixed_cost_estimate": 0.0,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        },
+        "tooling": {
+          "dedicated_sessions": 1,
+          "dedicated_cost": 10.47,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "refactor": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 9.57
+      "mixed_cost_estimate": 9.57,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 9.57
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "brainstorm": {
       "dedicated_sessions": 1,
       "dedicated_cost": 7.63,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 1.73
+      "mixed_cost_estimate": 1.73,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 1,
+          "dedicated_cost": 7.63,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 1.73
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "address-verdicts": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 5.57
+      "mixed_cost_estimate": 5.57,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 5.57
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "create-pr": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 3.9
+      "mixed_cost_estimate": 3.9,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 3.9
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "jira-cli": {
       "dedicated_sessions": 2,
       "dedicated_cost": 1.25,
       "mixed_sessions": 2,
-      "mixed_cost_estimate": 0.44
+      "mixed_cost_estimate": 0.44,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 2,
+          "dedicated_cost": 1.25,
+          "mixed_sessions": 2,
+          "mixed_cost_estimate": 0.44
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "design-docs": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 0.52
+      "mixed_cost_estimate": 0.52,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 0.52
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "skill-standards": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 3,
-      "mixed_cost_estimate": 0.21
+      "mixed_cost_estimate": 0.21,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 3,
+          "mixed_cost_estimate": 0.21
+        }
+      }
     }
   },
   "top_sessions": [

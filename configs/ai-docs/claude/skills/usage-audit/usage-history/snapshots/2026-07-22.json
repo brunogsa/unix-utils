@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-09T04:42:11-03:00",
+  "generated_at": "2026-08-09T05:12:08-03:00",
   "day": "2026-07-22",
   "coverage": "complete",
   "observed_days": 1,
@@ -96,6 +96,18 @@
         "cache_read": 109733547,
         "cache_write_5m": 2546572,
         "cache_write_1h": 3023763
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 102.39,
+          "invocations": 3,
+          "sessions": 3
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "jira-cli": {
@@ -110,6 +122,18 @@
         "cache_read": 87034931,
         "cache_write_5m": 1085480,
         "cache_write_1h": 2954610
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 48.62,
+          "invocations": 7,
+          "sessions": 7
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "brainstorm": {
@@ -124,6 +148,18 @@
         "cache_read": 37822755,
         "cache_write_5m": 806469,
         "cache_write_1h": 621420
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 22.05,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "implement": {
@@ -138,6 +174,18 @@
         "cache_read": 37822755,
         "cache_write_5m": 806469,
         "cache_write_1h": 621420
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 22.05,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "code-standards": {
@@ -152,6 +200,18 @@
         "cache_read": 2742470,
         "cache_write_5m": 40349,
         "cache_write_1h": 104083
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 3.72,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "test-standards": {
@@ -166,6 +226,18 @@
         "cache_read": 2742470,
         "cache_write_5m": 40349,
         "cache_write_1h": 104083
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 3.72,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     }
   },
@@ -174,37 +246,121 @@
       "dedicated_sessions": 1,
       "dedicated_cost": 76.62,
       "mixed_sessions": 2,
-      "mixed_cost_estimate": 0.71
+      "mixed_cost_estimate": 0.71,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 1,
+          "dedicated_cost": 76.62,
+          "mixed_sessions": 2,
+          "mixed_cost_estimate": 0.71
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "jira-cli": {
       "dedicated_sessions": 6,
       "dedicated_cost": 26.57,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 0.46
+      "mixed_cost_estimate": 0.46,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 6,
+          "dedicated_cost": 26.57,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 0.46
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "implement": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 17.09
+      "mixed_cost_estimate": 17.09,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 17.09
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "brainstorm": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 3.86
+      "mixed_cost_estimate": 3.86,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 3.86
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "test-standards": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 1.34
+      "mixed_cost_estimate": 1.34,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 1.34
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "code-standards": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 0.0
+      "mixed_cost_estimate": 0.0,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 0.0
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     }
   },
   "top_sessions": [

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-09T04:42:56-03:00",
+  "generated_at": "2026-08-09T05:12:54-03:00",
   "day": "2026-07-31",
   "coverage": "complete",
   "observed_days": 1,
@@ -83,6 +83,18 @@
         "cache_read": 7432095,
         "cache_write_5m": 338966,
         "cache_write_1h": 524808
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        },
+        "tooling": {
+          "cost": 5.48,
+          "invocations": 1,
+          "sessions": 1
+        }
       }
     },
     "fill-crm-data-sync-agreements": {
@@ -97,6 +109,18 @@
         "cache_read": 1150262,
         "cache_write_5m": 0,
         "cache_write_1h": 46493
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 0.52,
+          "invocations": 3,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     }
   },
@@ -105,13 +129,41 @@
       "dedicated_sessions": 1,
       "dedicated_cost": 5.48,
       "mixed_sessions": 0,
-      "mixed_cost_estimate": 0.0
+      "mixed_cost_estimate": 0.0,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        },
+        "tooling": {
+          "dedicated_sessions": 1,
+          "dedicated_cost": 5.48,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "fill-crm-data-sync-agreements": {
       "dedicated_sessions": 1,
       "dedicated_cost": 0.52,
       "mixed_sessions": 0,
-      "mixed_cost_estimate": 0.0
+      "mixed_cost_estimate": 0.0,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 1,
+          "dedicated_cost": 0.52,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     }
   },
   "top_sessions": [

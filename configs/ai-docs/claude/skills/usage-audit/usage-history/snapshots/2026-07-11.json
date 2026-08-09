@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-09T04:40:28-03:00",
+  "generated_at": "2026-08-09T05:10:18-03:00",
   "day": "2026-07-11",
   "coverage": "complete",
   "observed_days": 1,
@@ -92,6 +92,18 @@
         "cache_read": 21199447,
         "cache_write_5m": 632104,
         "cache_write_1h": 368636
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 15.58,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     }
   },
@@ -100,7 +112,21 @@
       "dedicated_sessions": 1,
       "dedicated_cost": 15.58,
       "mixed_sessions": 0,
-      "mixed_cost_estimate": 0.0
+      "mixed_cost_estimate": 0.0,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 1,
+          "dedicated_cost": 15.58,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     }
   },
   "top_sessions": [

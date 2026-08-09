@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-09T04:43:07-03:00",
+  "generated_at": "2026-08-09T05:13:05-03:00",
   "day": "2026-08-04",
   "coverage": "complete",
   "observed_days": 1,
@@ -104,6 +104,18 @@
         "cache_read": 49836558,
         "cache_write_5m": 138629,
         "cache_write_1h": 2243066
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 56.12,
+          "invocations": 2,
+          "sessions": 2
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "commit-standards": {
@@ -118,6 +130,18 @@
         "cache_read": 49836558,
         "cache_write_5m": 138629,
         "cache_write_1h": 2243066
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 56.12,
+          "invocations": 2,
+          "sessions": 2
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "sdd:sdd-grill": {
@@ -132,6 +156,18 @@
         "cache_read": 38905019,
         "cache_write_5m": 101826,
         "cache_write_1h": 1870761
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 44.6,
+          "invocations": 3,
+          "sessions": 3
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "sdd:prd": {
@@ -146,6 +182,18 @@
         "cache_read": 38312861,
         "cache_write_5m": 101826,
         "cache_write_1h": 1713763
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 42.64,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "sdd:sdd-prd": {
@@ -160,6 +208,18 @@
         "cache_read": 38312861,
         "cache_write_5m": 101826,
         "cache_write_1h": 1713763
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 42.64,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "sdd:sdd-linker": {
@@ -174,6 +234,18 @@
         "cache_read": 38312861,
         "cache_write_5m": 101826,
         "cache_write_1h": 1713763
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 42.64,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "address-pr-comments": {
@@ -188,6 +260,18 @@
         "cache_read": 38312861,
         "cache_write_5m": 101826,
         "cache_write_1h": 1713763
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 42.64,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "quality-gate": {
@@ -202,6 +286,18 @@
         "cache_read": 51589698,
         "cache_write_5m": 1637257,
         "cache_write_1h": 389869
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 30.54,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "address-verdicts": {
@@ -216,6 +312,18 @@
         "cache_read": 51589698,
         "cache_write_5m": 1637257,
         "cache_write_1h": 389869
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 30.54,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "brainstorm": {
@@ -230,6 +338,18 @@
         "cache_read": 27415416,
         "cache_write_5m": 1566174,
         "cache_write_1h": 472466
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 29.49,
+          "invocations": 1,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "core:agent-readiness": {
@@ -244,6 +364,18 @@
         "cache_read": 11523697,
         "cache_write_5m": 36803,
         "cache_write_1h": 529303
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 13.48,
+          "invocations": 3,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     },
     "implement": {
@@ -258,6 +390,18 @@
         "cache_read": 24654756,
         "cache_write_5m": 408207,
         "cache_write_1h": 244305
+      },
+      "by_repo_class": {
+        "work": {
+          "cost": 9.3,
+          "invocations": 2,
+          "sessions": 1
+        },
+        "tooling": {
+          "cost": 0.0,
+          "invocations": 0,
+          "sessions": 0
+        }
       }
     }
   },
@@ -266,73 +410,241 @@
       "dedicated_sessions": 1,
       "dedicated_cost": 29.49,
       "mixed_sessions": 0,
-      "mixed_cost_estimate": 0.0
+      "mixed_cost_estimate": 0.0,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 1,
+          "dedicated_cost": 29.49,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "sdd:sdd-grill": {
       "dedicated_sessions": 2,
       "dedicated_cost": 1.96,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 13.13
+      "mixed_cost_estimate": 13.13,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 2,
+          "dedicated_cost": 1.96,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 13.13
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "quality-gate": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 13.71
+      "mixed_cost_estimate": 13.71,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 13.71
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "commit-standards": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 2,
-      "mixed_cost_estimate": 13.64
+      "mixed_cost_estimate": 13.64,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 2,
+          "mixed_cost_estimate": 13.64
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "sdd:sdd-linker": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 12.83
+      "mixed_cost_estimate": 12.83,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 12.83
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "address-verdicts": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 10.03
+      "mixed_cost_estimate": 10.03,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 10.03
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "implement": {
       "dedicated_sessions": 1,
       "dedicated_cost": 9.3,
       "mixed_sessions": 0,
-      "mixed_cost_estimate": 0.0
+      "mixed_cost_estimate": 0.0,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 1,
+          "dedicated_cost": 9.3,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "core:agent-readiness": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 8.46
+      "mixed_cost_estimate": 8.46,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 8.46
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "address-pr-comments": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 2.49
+      "mixed_cost_estimate": 2.49,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 2.49
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "doc-standards": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 2,
-      "mixed_cost_estimate": 2.19
+      "mixed_cost_estimate": 2.19,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 2,
+          "mixed_cost_estimate": 2.19
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "sdd:prd": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 1.19
+      "mixed_cost_estimate": 1.19,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 1.19
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     },
     "sdd:sdd-prd": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 0.71
+      "mixed_cost_estimate": 0.71,
+      "by_repo_class": {
+        "work": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 1,
+          "mixed_cost_estimate": 0.71
+        },
+        "tooling": {
+          "dedicated_sessions": 0,
+          "dedicated_cost": 0.0,
+          "mixed_sessions": 0,
+          "mixed_cost_estimate": 0.0
+        }
+      }
     }
   },
   "top_sessions": [

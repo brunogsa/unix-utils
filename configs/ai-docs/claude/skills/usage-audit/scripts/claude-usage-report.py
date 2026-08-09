@@ -754,6 +754,30 @@ def merge_common(result, stats, side):
         result["tokens"][kind] += stats["tokens"][kind]
 
 
+def new_marginal_counters():
+    """Zeroed by_skill_marginal counters, for a row or for one of its halves."""
+    return {"dedicated_sessions": 0, "dedicated_cost": 0.0,
+            "mixed_sessions": 0, "mixed_cost_estimate": 0.0}
+
+
+def session_repo_class(stats):
+    """The single half a whole session counts under.
+
+    Skill rows are per session, so splitting them per record would need a
+    denominator no session-level counter has. Across 328 transcripts over 14
+    days not one spanned both halves, so charging the whole session to its
+    costliest half costs nothing measurable and keeps the split summing back
+    to the row it refines.
+
+    Ties break toward work, matching repo_class()'s own bias: over-reporting
+    the work half can only make the KPI it feeds read worse, never better.
+    """
+    by_class = stats["by_repo_class"]
+    if not by_class:
+        return "work"
+    return max(by_class.items(), key=lambda kv: (kv[1], kv[0]))[0]
+
+
 def session_duration(stats):
     """Wall-clock seconds from first to last record (includes idle gaps)."""
     if stats["first_epoch"] is None or stats["last_epoch"] is None:
@@ -787,14 +811,22 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
             "cost": 0.0, "invocations": 0, "sessions": 0,
             "compactions": 0, "interruptions": 0,
             "tokens": dict.fromkeys(TOKEN_KINDS, 0),
+
+            # The same overlapping figures, refined to
+            # the half each session ran in.
+            #
+            # A skill that only ever fires while tuning
+            # this config must not read as a cost of
+            # shipping, and the row alone cannot say.
+            "by_repo_class": defaultdict(lambda: {
+                "cost": 0.0, "invocations": 0, "sessions": 0}),
         }),
         # Marginal counterpart to by_skill: partitions each session's cost across
         # the skills it invoked instead of letting rows overlap — see the
         # dedicated/mixed split in the main_files loop below.
-        "by_skill_marginal": defaultdict(lambda: {
-            "dedicated_sessions": 0, "dedicated_cost": 0.0,
-            "mixed_sessions": 0, "mixed_cost_estimate": 0.0,
-        }),
+        "by_skill_marginal": defaultdict(lambda: dict(
+            new_marginal_counters(),
+            by_repo_class=defaultdict(new_marginal_counters))),
         # [ABTest] marker rollup: ab_tests[experiment][arm] holds that arm's
         # trials/sessions/cost/tokens/overrides; ab_contaminated[experiment]
         # counts sessions that carried 2+ arms of the SAME experiment, whose
@@ -881,6 +913,7 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
         # overlap and don't sum to the total — they isolate, not partition.
         session_subagents = result["subagents_per_session"].get(
             path, {"cost": 0.0, "tokens": dict.fromkeys(TOKEN_KINDS, 0), "by_spawn": []})
+        session_class = session_repo_class(stats)
         for skill, invocation_count in stats["skills"].items():
             entry = result["by_skill"][skill]
             entry["cost"] += stats["cost"] + session_subagents["cost"]
@@ -890,6 +923,10 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
             entry["interruptions"] += stats["interruptions"]
             for kind in TOKEN_KINDS:
                 entry["tokens"][kind] += stats["tokens"][kind] + session_subagents["tokens"][kind]
+            half = entry["by_repo_class"][session_class]
+            half["cost"] += stats["cost"] + session_subagents["cost"]
+            half["invocations"] += invocation_count
+            half["sessions"] += 1
         # by_skill_marginal: a session with exactly one distinct skill is
         # "dedicated" to it — its whole cost (session + subagents) is a clean,
         # non-overlapping signal. A session with 2+ distinct skills is "mixed" —
@@ -901,8 +938,12 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
         distinct_skills = list(stats["skills"].keys())
         if len(distinct_skills) == 1:
             marginal = result["by_skill_marginal"][distinct_skills[0]]
+            dedicated_cost = stats["cost"] + session_subagents["cost"]
             marginal["dedicated_sessions"] += 1
-            marginal["dedicated_cost"] += stats["cost"] + session_subagents["cost"]
+            marginal["dedicated_cost"] += dedicated_cost
+            half = marginal["by_repo_class"][session_class]
+            half["dedicated_sessions"] += 1
+            half["dedicated_cost"] += dedicated_cost
         elif len(distinct_skills) >= 2:
             events = sorted(stats["skill_events"], key=lambda e: e[0])
             event_indices = [e[0] for e in events]
@@ -929,8 +970,12 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
                 # same as pre-invocation messages.
             for skill in distinct_skills:
                 marginal = result["by_skill_marginal"][skill]
+                skill_cost = mixed_cost_by_skill.get(skill, 0.0)
                 marginal["mixed_sessions"] += 1
-                marginal["mixed_cost_estimate"] += mixed_cost_by_skill.get(skill, 0.0)
+                marginal["mixed_cost_estimate"] += skill_cost
+                half = marginal["by_repo_class"][session_class]
+                half["mixed_sessions"] += 1
+                half["mixed_cost_estimate"] += skill_cost
         # [ABTest] markers: this session's full cost (+ its subagents')
         # attributes to each arm it carries, per experiment — a session with
         # unrelated experiments A and B contributes its whole cost to both.
@@ -1089,6 +1134,15 @@ def render_text(result, top_n):
               f"cache_hit={session['cache_hit_rate']:.1%}\t{short_name}")
 
 
+def skill_halves(row, per_half):
+    """One skill row's counters split per half, both halves always present.
+
+    Emitting the empty half rather than omitting it keeps every consumer on
+    one shape, so reading a skill that never ran in a half needs no guard.
+    """
+    return {cls: per_half(row["by_repo_class"][cls]) for cls in REPO_CLASSES}
+
+
 def build_payload(result, top_n, day=None, coverage="complete", reconciliation=None):
     """The machine-readable aggregate — shared by --json and --snapshot.
 
@@ -1154,7 +1208,11 @@ def build_payload(result, top_n, day=None, coverage="complete", reconciliation=N
         # Rows overlap — a session counts under every skill it invoked.
         "by_skill": {k: {"cost": round(v["cost"], 2), "invocations": v["invocations"],
                          "sessions": v["sessions"], "compactions": v["compactions"],
-                         "interruptions": v["interruptions"], "tokens": dict(v["tokens"])}
+                         "interruptions": v["interruptions"], "tokens": dict(v["tokens"]),
+                         "by_repo_class": skill_halves(v, lambda h: {
+                             "cost": round(h["cost"], 2),
+                             "invocations": h["invocations"],
+                             "sessions": h["sessions"]})}
                      for k, v in sorted(result["by_skill"].items(),
                                         key=lambda kv: -kv[1]["cost"])},
         # Non-overlapping counterpart to by_skill — dedicated_cost is exact,
@@ -1163,7 +1221,12 @@ def build_payload(result, top_n, day=None, coverage="complete", reconciliation=N
             k: {"dedicated_sessions": v["dedicated_sessions"],
                 "dedicated_cost": round(v["dedicated_cost"], 2),
                 "mixed_sessions": v["mixed_sessions"],
-                "mixed_cost_estimate": round(v["mixed_cost_estimate"], 2)}
+                "mixed_cost_estimate": round(v["mixed_cost_estimate"], 2),
+                "by_repo_class": skill_halves(v, lambda h: {
+                    "dedicated_sessions": h["dedicated_sessions"],
+                    "dedicated_cost": round(h["dedicated_cost"], 2),
+                    "mixed_sessions": h["mixed_sessions"],
+                    "mixed_cost_estimate": round(h["mixed_cost_estimate"], 2)})}
             for k, v in sorted(result["by_skill_marginal"].items(),
                                 key=lambda kv: -(kv[1]["dedicated_cost"] + kv[1]["mixed_cost_estimate"]))
         },
