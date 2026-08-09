@@ -145,7 +145,7 @@ Mark the run's first task `in_progress` and every other one `pending`.
 On a PR-label run, prefix each subject with its owning label: `PR-2 · 5. <task title>` — the PR stays visible in the list, not hidden in metadata.
 
 The TaskList carries **status only**; attempt counts, gate outcomes, and fix SHAs live in the JSON state file (§2.3).
-CLAUDE.md's `metadata` rule yields here: the verdict script and Stop hook are shell processes, blind to TaskList metadata.
+CLAUDE.md's `metadata` rule yields here: the verdict script and Stop hook are shell processes blind to it.
 
 ### 2.2. One reminder per batch-end step (they survive compaction)
 
@@ -230,9 +230,9 @@ The hooks and the verdict script read them, and a compaction or kill keeps only 
 
 ### 3.1. Check out this unit's branch — once, here, by the orchestrator
 
-**Only the orchestrator ever creates or switches a branch.** No task subagent ever checks anything out.
+**Only the orchestrator ever creates or switches a branch** — no task subagent checks anything out.
 Every task in the unit commits on the branch this step leaves checked out.
-Deciding once keeps a unit's commit range on one branch; a mid-loop checkout would split it across two.
+Deciding once keeps a unit's commit range on one branch, not split by a mid-loop checkout.
 
 On a plain `<task-ids>` run there is nothing to do: the run stays on the current branch.
 
@@ -383,7 +383,7 @@ Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` an
 
 - **`next-task`** → its `task` field names the next task-id; re-run §3.4 on it. §1, §2, and §3.1–§3.3 do not repeat.
   - When `--eligible-set` returns several ids, dispatch them all at once instead: load the `parallel-worktrees` skill.
-    - Its four inputs: that id set, each task's **Files (logical order)** list, `batch_base_sha`, and the plan's `<slug>`.
+    - Its four inputs: that id set, each task's **Files (logical order)** list, this unit branch's HEAD at wave time (not `batch_base_sha`, §8's fixed review anchor), and the plan's `<slug>`.
     - Its ledger is this state file: it writes `in_progress`, `branch`, and `worktree_path` before each spawn — what `--eligible-set` reads to skip an in-flight task.
 
 - **`wait`** → a dispatched sibling hasn't reported yet. Dispatch nothing, take no halt action, and re-run this verdict once its report lands.
@@ -421,7 +421,7 @@ Single value, mutually exclusive — `[Blocked]` *replaces* `[Doing]`, never sta
 - `[Deferred]` — deliberately postponed to a later session, but still planned.
 - `[Dropped]` — decided not to do at all (scope reduction). Pair with `**DECISION (Task N):**` capturing the reason.
 
-In all non-`[Done]` terminal states, do NOT leave partial code committed under a misleading status — either the subagent's commits stand as coherent work, or the WIP is reverted first.
+In all non-`[Done]` terminal states, do NOT leave partial code committed under a misleading status — either the commits stand as coherent work, or get reverted first.
 
 ### PR-level status markers (PR Breakdown line, PR-label runs only)
 
@@ -454,10 +454,10 @@ Run the batch-end flow over `<BATCH_BASE_SHA>..HEAD`, then present the whole bat
 §8.3 runs last so the PR description is composed once against the batch's final diff, never as a pre-fix draft.
 
 `/quality-gate` carries this run's **only** planned-test check, through its `test-sdd` leg, and that leg reads the batch's final state.
-A per-task check would verify each task at its own commit point and miss what a later task did to those tests.
+A per-task check would verify each task at its own commit point and miss later edits to those tests.
 
 Every dispatch contract, failure-handling rule, package content, and the Finalize step order live in [`references/batch-end-review.md`](references/batch-end-review.md).
-It covers §5.5 halts on a red repo, a failed push, or a failed PR dispatch, and routes to `batch-end-pr.md` for the PR.
+It covers §5.5 halts on a red repo, a failed push, or a failed PR dispatch, and routes to `batch-end-pr.md`.
 **Load on entry, read late** — by batch end, compaction has usually dropped whatever you read earlier.
 
 ## Flowchart (human-facing)
