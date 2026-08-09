@@ -70,7 +70,7 @@ Why: a few skills legitimately pair principles with inline examples (code-standa
 
 Hard-coding the exception list would couple performance-check to specific skill names; an opt-in field keeps the override self-documenting and local to the skill.
 
-The report stays quiet about overrides while the skill is under its custom budget — the override only surfaces when the skill blows past its own ceiling.
+The report stays quiet about an override until the skill blows past its own ceiling.
 
 Over-budget lines are annotated as `words=N(>budget (override; default=2048))` so the next reader knows the larger budget was intentional.
 
@@ -114,7 +114,7 @@ Skills without `instructions-budget` participate only in the *-standards total �
 
 **Same user-only rule applies**: AI must not set or raise `instructions-budget`.
 
-On an instruction-count overflow, AI's job is to merge near-duplicates, demote sub-bullets, or extract examples — and propose alternatives. The user owns the budget decision.
+On an instruction-count overflow, AI's job is to merge near-duplicates, demote sub-bullets, or extract examples.
 
 ## How to Run
 
@@ -211,7 +211,7 @@ Cite the research file when justifying cuts — grounded numbers are easier to d
 
 ## Why These Numbers
 
-Every budget row above deep-links to its citation in the `references/research-*.md` files. Short answers:
+Short answers:
 
 - **CLAUDE.md length (260 lines)**: Jaroslawicz et al. 2025 (arXiv:2507.11538) found instruction-following peaks at 150–200 *instructions*, degrading to 68% at 500.
   - The old 200-*line* budget stood in for instruction count under "1 line ≈ 1 instruction" — true before the marker convention.
