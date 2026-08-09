@@ -80,12 +80,12 @@ def code_review_pipeline(arg):
             # 14a · Wave 3 · batched validation: drop false positives, tighten
             #       lines. Threshold LOW — keep the finding when in doubt.
             findings = validate(findings)
-            persist(f"{work_dir}/wave3-findings.json", f"{work_dir}/drop-log.txt")
+            persist(f"{work_dir}/wave3-findings.json", f"{work_dir}/wave3-drop-log.txt")
 
     if not exists(f"{work_dir}/wave4-findings.json"):      # 15
         # 15a · Wave 4 · drop every finding anchored outside commentable-lines.txt.
-        findings = [f for f in findings if f.anchor in commentable_lines()]
-        persist(f"{work_dir}/wave4-findings.json", findings)
+        run("filter-off-diff-findings.sh")   # writes wave4-findings.json + wave4-drop-log.txt
+        findings = load(f"{work_dir}/wave4-findings.json")
 
     if not findings:                                       # 16 · the normal outcome
         match mode:                                        # 16a
@@ -168,10 +168,10 @@ flowchart TD
   n13a1["13a1. Write Review Guide<br/>(github only, max 400 words)<br/>persist wave2-guide.md"]
 
   n14{"14. $work_dir/wave3-findings.json<br/>exists?"}
-  n14a["14a. Wave 3: batched validation<br/>(drop false positives, tighten lines)<br/>threshold LOW -- keep when in doubt<br/>persist wave3-findings.json + drop-log.txt"]
+  n14a["14a. Wave 3: batched validation<br/>(drop false positives, tighten lines)<br/>threshold LOW -- keep when in doubt<br/>persist wave3-findings.json + wave3-drop-log.txt"]
 
   n15{"15. $work_dir/wave4-findings.json<br/>exists?"}
-  n15a["15a. Wave 4: drop off-diff findings<br/>(anchor outside commentable-lines.txt)<br/>persist wave4-findings.json"]
+  n15a["15a. Wave 4: filter-off-diff-findings.sh<br/>(anchor outside commentable-lines.txt)<br/>persist wave4-findings.json + wave4-drop-log.txt"]:::hook
 
   n16{"16. Any findings survive Wave 4?"}
   n16a{"16a. Mode?"}

@@ -207,13 +207,21 @@ Artifact: a reduced, range-tightened findings list + a drop log. **Persist**: wr
 
 **Resume check**: if `$work_dir/wave4-findings.json` already exists, load it and skip straight to Wave 5 — this wave already completed.
 
-For each surviving finding, drop it if `start_line..line` is not entirely within `commentable-lines.txt`.
+Run the filter — it keeps a finding only when every line from `start_line` through `line` appears in `commentable-lines.txt`:
 
-We don't comment on code outside the diff — that's noise the author didn't ask for and can't act on in this PR.
+```bash
+bash ~/.claude/skills/code-review-pipeline/scripts/filter-off-diff-findings.sh \
+  "$work_dir/wave3-findings.json" "$work_dir/commentable-lines.txt" \
+  > "$work_dir/wave4-findings.json" 2> "$work_dir/wave4-drop-log.txt"
+```
 
-**Persist**: write the surviving findings to `$work_dir/wave4-findings.json` before moving to Wave 5.
+We don't comment on code outside the diff — noise the author didn't ask for and can't act on in this PR.
 
-Zero surviving findings is a normal outcome — see Error handling for what Wave 5 emits.
+The script settles set membership; judging it by eye invites the partial-overlap miss — a finding spanning both a commentable and an off-diff line reads as in-diff.
+
+The redirects above are the persistence — Wave 5 reads the kept findings, Wave 6 reads `wave4-drop-log.txt`.
+
+Zero surviving findings is normal — see Error handling for what Wave 5 emits.
 
 ---
 
