@@ -177,7 +177,7 @@ Two artifacts, both written here and updated as the run goes:
   - `/tmp/implement_<session_id>.json` on a plain `<task-ids>` run.
   - `/tmp/implement_<session_id>_pr<n>.json` per PR on a PR-label run (`_pr1`, `_pr2`, …) — one per label in the arg, **all created now**, never lazily.
 
-- **One markdown scratchpad** — `/tmp/implement_<session_id>.md`, the narrative surface the JSON has no shape for, per CLAUDE.md's scratchpad conventions: blocked-task notes (§5.5) and `[Scout]` entries.
+- **One markdown scratchpad** — `/tmp/implement_<session_id>.md`, the narrative surface the JSON has no shape for, per CLAUDE.md's scratchpad conventions: blocked-task notes (§5.5).
 
 Each state file has exactly this shape:
 
@@ -321,7 +321,7 @@ Anything uncovered outside the task's core work routes through one of three chan
 
 There is no separate carry-forward digest: a Drift fix travels in its commit body, which the next subagent reads via `git log`.
 
-**Only Scouts need you.** Record each returned one as a `[Scout]` note on the plan's task breakdown.
+**Only Scouts need you.** `TaskCreate` one `[Scout]` task each, then cite that id on the plan — only a task carries a status the human can triage.
 
 ### 4.4. Report back
 
@@ -331,7 +331,7 @@ The subagent returns a structured report (text), never a silent "done" (shape mi
 - **Commits**: the SHAs it created, with subjects.
 - **Self-verification**: the verification command it ran and its result; the planned-test titles it added.
 - **Deviations**: sub-steps it inserted into its checklist mid-flight, soft design-forks resolved (with the choice), Drift fixes folded in.
-- **For the orchestrator to record**: `[Scout]` items to note on the plan; any block, with exactly what's needed to clear it.
+- **For the orchestrator to record**: `[Scout]` items to file per §4.3; any block, with exactly what's needed to clear it.
 
 ## 5. Accept, retry & advance (orchestrator)
 
@@ -381,7 +381,7 @@ Record the attempt with `result: "pass"`.
 Flip that task to `status: "done"` and `reason: "done"` in the state file — before calling the verdict script, not after.
 The script picks the next task by `status`, so a passed task left `pending` gets re-selected and re-dispatched later.
 
-Also flip the plan to `[Done]` (§6), record the subagent's `[Scout]` notes there, and `TaskUpdate` its TaskList status to `completed`.
+Also flip the plan to `[Done]` (§6), file the subagent's `[Scout]` items per §4.3, and `TaskUpdate` its TaskList status to `completed`.
 
 Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey the verdict:
 

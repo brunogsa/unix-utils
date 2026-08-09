@@ -133,7 +133,7 @@ def run_unit(unit):
             if accepted:
                 state.set(task, status="done")             # 21 · §5.4 — before the script
                 plan.mark(task, "[Done]")
-                record_scout_notes(report.scouts)
+                task_create_scouts(report.scouts)          # §4.3 — one task each
                 task_update(task, "completed")
             else:
                 load("references/failure-and-halt.md")     # 20a
@@ -290,7 +290,7 @@ flowchart TD
     n20c{"20c. Step 5.2 · implement-loop-state.sh:<br/>verdict?"}:::hook
     n20d["20d. Step 5.3 · Mark the task terminal;<br/>chain-abort dependents transitively;<br/>plan [Blocked]; TaskUpdate completed"]:::state
     n20e{"20e. Step 5.3 · Any runnable task left?"}
-    n21["21. Step 5.4 · Advance: state file status=done;<br/>plan [Done]; record [Scout] notes;<br/>TaskUpdate completed"]:::state
+    n21["21. Step 5.4 · Advance: state file status=done;<br/>plan [Done]; TaskCreate [Scout] items;<br/>TaskUpdate completed"]:::state
     n22{"22. Step 5.4 · implement-loop-state.sh: verdict?<br/>ONLY this script sends a unit to the gates"}:::hook
     n23["23. Load references/batch-end-review.md"]:::skill
     n24{"24. Quality-gate tail requested?"}
