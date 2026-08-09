@@ -104,7 +104,9 @@
   <label for="to">To</label><select id="to"></select>
   <button id="reset">Reset range</button>
   <button id="cmp">Compare selected days</button>
-  <button id="trend">7-day average</button>
+  <button id="weekly">Weekly medians</button>
+  <button id="trend">Moving average</button>
+  <button id="fit">Straight-line trend</button>
   <span class="sub" id="hint" style="margin:0"></span>
 </div>
 
@@ -138,10 +140,23 @@ const DATA = __USAGE_DATA__;
 // advisor spend, and thinking is billed inside
 // `d.tokens.output`, so every row below prices
 // the whole day rather than the main loop alone.
+//
+// The shipped-commit and merged-PR rows go a step
+// further. Every other divisor here counts INPUT
+// effort, so a fall in cost per message cannot be
+// told apart from having asked smaller questions.
+//
+// Dividing by what shipped measures the output
+// instead, which is the only form of the question
+// that "am I improving?" has a real answer to.
 const METRICS = [
   {id:'cost',      label:'Cost (USD)',            stack:true,  get:d=>d.total,                  fmt:usd},
   {id:'msgs',      label:'User messages',         get:d=>d.kpis.user_messages,                  fmt:num},
   {id:'cpm',       label:'Cost per user message', get:d=>d.kpis.cost_per_user_message,          fmt:usd},
+  {id:'cpship',    label:'Cost per shipped commit', get:d=>per(d.total, d.shipped_commits),     fmt:usd, needs:d=>d.shipped_commits},
+  {id:'cppr',      label:'Cost per merged PR',    get:d=>per(d.total, d.merged_prs),            fmt:usd, needs:d=>d.merged_prs},
+  {id:'shipped',   label:'Shipped commits',       get:d=>d.shipped_commits,                     fmt:num},
+  {id:'prs',       label:'Merged PRs',            get:d=>d.merged_prs,                          fmt:num},
   {id:'cpsess',    label:'Cost per session',      get:d=>per(d.total, d.session_count),         fmt:usd},
   {id:'cphour',    label:'Cost per session hour', get:d=>per(d.total, d.kpis.session_hours),    fmt:usd},
   {id:'autonomy',  label:'Autonomous min / user msg', get:autonomousMinutesPerUserMessage,      fmt:n1},
@@ -193,7 +208,9 @@ const state = {
   from: ALL_DAYS[0],
   to: ALL_DAYS[ALL_DAYS.length - 1],
   selected: [],   // up to 2 days, in click order — drives detail and compare
-  trend: true,    // 7-day moving average over the bars
+  weekly: false,  // one median bar per week, not per day
+  trend: true,    // 7-day moving average; see movingAvg()
+  fit: true,      // least-squares line; see trendLine()
   xm: 'compact',  // scatter axes — default pair is the one open question 1 asks about
   ym: 'cost',
   zeros: false,   // whether idle days join the correlation; see scatterDays()
@@ -207,31 +224,174 @@ const visibleDays = () => ALL_DAYS.filter(d => d >= state.from && d <= state.to)
 
 const W = 1000, H = 300, PAD_L = 54, PAD_R = 8, PAD_T = 12, PAD_B = 34;
 
-// Daily spend swings on workload alone — $49.20 on 2026-07-21 against $291.57
-// on 2026-07-26 — so the bars alone cannot show whether a level is moving.
-const MA_WINDOW = 7;
+// Daily spend swings on workload alone — $49.20
+// on 2026-07-21 against $291.57 on 2026-07-26 —
+// so the bars alone cannot show whether a level
+// is moving.
+//
+// The weekly window is shorter because a week
+// already absorbs the weekday cycle the 7-day
+// window exists to smooth, and 7 weeks would
+// flatten the whole series into one level.
+const MA_WINDOW = 7, MA_WEEKS = 3;
 
-// Averaged over the FULL series rather than the visible range: zooming to a
-// two-week window would otherwise restart the average from a partial window
-// and invent a rising left edge that is really just fewer terms.
-function movingAvg(m) {
-  const out = {};
-  ALL_DAYS.forEach((day, i) => {
-    const from = Math.max(0, i - MA_WINDOW + 1);
-    let sum = 0;
-    for (let j = from; j <= i; j++) sum += m.get(DATA.days[ALL_DAYS[j]]) || 0;
-    out[day] = sum / (i - from + 1);
+// Only a day whose transcripts had not yet aged
+// out, whose token counts ccusage confirmed, and
+// that had work in it can carry a trend.
+//
+// The other two kinds are missing data and a
+// structural zero, and both bend a trend down
+// exactly where the record stops rather than
+// where the spending did.
+function isCitable(d) {
+  return d.coverage === 'complete'
+      && recWarn(d) === ''
+      && d.session_count > 0;
+}
+
+// A cost-per-delivery row divides by something a
+// day can legitimately have none of, and per()
+// returns 0 there.
+//
+// That would draw the day that shipped nothing as
+// the CHEAPEST one on the chart, inverting what
+// the metric means.
+//
+// So a day without the denominator carries no
+// trend, the same treatment a pruned day gets.
+// Its bar still draws, because the calendar
+// should stay continuous.
+function hasDenominator(m, d) {
+  return !m.needs || m.needs(d) > 0;
+}
+
+// Monday-anchored, and formatted from the local
+// getters rather than through toISOString: a UTC
+// round-trip shifts the date by one east of
+// Greenwich, filing Monday under last week.
+function weekStart(day) {
+  const t = new Date(day + 'T00:00:00');
+  t.setDate(t.getDate() - ((t.getDay() + 6) % 7));
+  const month = String(t.getMonth() + 1).padStart(2, '0');
+  const date = String(t.getDate()).padStart(2, '0');
+  return `${t.getFullYear()}-${month}-${date}`;
+}
+
+// The median rather than the mean, because the
+// workload spread inside one week reaches 72x —
+// a single such day would pull a weekly mean
+// above every other day in that week.
+function median(values) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2
+    ? sorted[mid]
+    : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function weekGroups() {
+  const weeks = new Map();
+  for (const day of ALL_DAYS) {
+    const key = weekStart(day);
+    if (!weeks.has(key)) weeks.set(key, []);
+    weeks.get(key).push(day);
+  }
+  return [...weeks];
+}
+
+// One entry per bar, built over the FULL series
+// and flagged for visibility rather than sliced.
+//
+// The moving average needs the points before the
+// window: recomputing it from the visible range
+// restarts it on a partial window and invents a
+// rising left edge that is only fewer terms.
+function chartPoints(m) {
+  const groups = state.weekly
+    ? weekGroups()
+    : ALL_DAYS.map(day => [day, [day]]);
+  return groups.map(([key, days]) => {
+    const citableDays = days.filter(day => isCitable(DATA.days[day])
+                                        && hasDenominator(m, DATA.days[day]));
+
+    // A weekly bar medians only its citable days,
+    // so a pruned day shrinks the sample rather
+    // than voting $0.00 into the level.
+    const sample = state.weekly ? citableDays : days;
+    const values = sample.map(day => m.get(DATA.days[day]) || 0);
+    return {
+      key,
+      days,
+      citableDays,
+      value: state.weekly ? median(values) : (values[0] || 0),
+      citable: citableDays.length > 0,
+      inRange: days.some(day => day >= state.from && day <= state.to),
+    };
+  });
+}
+
+// A non-citable point contributes nothing to the
+// window instead of contributing a zero, and the
+// average holds its last value across the gap so
+// the line stays continuous over pruned days.
+function movingAvg(points, window) {
+  const out = new Array(points.length).fill(null);
+  const recent = [];
+  points.forEach((p, i) => {
+    if (p.citable) {
+      recent.push(p.value);
+      if (recent.length > window) recent.shift();
+    }
+    if (recent.length) {
+      out[i] = recent.reduce((a, b) => a + b, 0) / recent.length;
+    }
   });
   return out;
 }
 
+// The moving average tracks the local level; a
+// straight fit answers the different question of
+// which way the whole visible window points.
+//
+// Fitted against bar position rather than against
+// a count of citable points, so a run of pruned
+// days still costs the horizontal distance the
+// time it covers actually took.
+function trendLine(points) {
+  const citable = points
+    .map((p, i) => ({ i, value: p.value, citable: p.citable }))
+    .filter(p => p.citable);
+  const fit = pearson(citable.map(p => p.i), citable.map(p => p.value));
+  if (!fit) return null;
+  return { at: i => fit.my + fit.slope * (i - fit.mx), n: citable.length };
+}
+
 function drawChart() {
-  const days = visibleDays(), m = metricDef();
+  const m = metricDef();
+  const points = chartPoints(m);
+  const visible = points.filter(p => p.inRange);
+  const offset = points.indexOf(visible[0]);
   const plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
-  const max = Math.max(...days.map(d => m.get(DATA.days[d])), 0) || 1;
-  const bw = plotW / Math.max(days.length, 1);
-  const y = v => PAD_T + plotH - (v / max) * plotH;
+  const bw = plotW / Math.max(visible.length, 1);
   const parts = [];
+
+  const ma = state.trend
+    ? movingAvg(points, state.weekly ? MA_WEEKS : MA_WINDOW)
+    : null;
+  const fit = state.fit && visible.length > 1 ? trendLine(visible) : null;
+
+  // The overlays join the scale so a trend running
+  // above the tallest bar is drawn rather than
+  // clipped off the top of the plot.
+  const overlay = [];
+  visible.forEach((p, i) => {
+    if (ma && ma[offset + i] !== null) overlay.push(ma[offset + i]);
+    if (fit) overlay.push(fit.at(i));
+  });
+  const max = Math.max(...visible.map(p => p.value),
+                       ...overlay.filter(v => v > 0), 0) || 1;
+  const y = v => PAD_T + plotH - (Math.min(Math.max(v, 0), max) / max) * plotH;
 
   // Four gridlines is enough to read a magnitude without turning into a table.
   for (let i = 0; i <= 4; i++) {
@@ -240,46 +400,67 @@ function drawChart() {
     parts.push(`<text class="axis" x="${PAD_L-6}" y="${yy+3}" text-anchor="end">${m.fmt(v)}</text>`);
   }
 
-  days.forEach((day, i) => {
-    const d = DATA.days[day], v = m.get(d);
+  visible.forEach((p, i) => {
+    const day = state.weekly ? null : p.days[0];
+    const d = day ? DATA.days[day] : null;
     const x = PAD_L + i * bw, w = Math.max(bw - 1.5, 1);
-    const sel = state.selected.includes(day) ? ' selected' : '';
-    const tip = tooltipFor(day);
-    if (m.stack && d.total) {
+    const sel = day && state.selected.includes(day) ? ' selected' : '';
+
+    // A weekly bar has no single day to open, so it
+    // carries a tooltip without the click target.
+    const ref = day ? ` data-day="${day}"` : '';
+    const tip = state.weekly ? tooltipForWeek(p, m) : tooltipFor(day);
+    if (m.stack && d && d.total) {
       const hMain = (d.main_cost / max) * plotH, hSub = (d.subagent_cost / max) * plotH;
-      parts.push(`<rect class="bar${sel}" data-day="${day}" data-tip="${tip}" x="${x}" y="${y(v)}" width="${w}" height="${hSub}" fill="var(--sub)"/>`);
-      parts.push(`<rect class="bar${sel}" data-day="${day}" data-tip="${tip}" x="${x}" y="${y(v)+hSub}" width="${w}" height="${hMain}" fill="var(--main)"/>`);
+      parts.push(`<rect class="bar${sel}"${ref} data-tip="${tip}" x="${x}" y="${y(p.value)}" width="${w}" height="${hSub}" fill="var(--sub)"/>`);
+      parts.push(`<rect class="bar${sel}"${ref} data-tip="${tip}" x="${x}" y="${y(p.value)+hSub}" width="${w}" height="${hMain}" fill="var(--main)"/>`);
     } else {
-      parts.push(`<rect class="bar${sel}" data-day="${day}" data-tip="${tip}" x="${x}" y="${y(v)}" width="${w}" height="${Math.max(plotH-(y(v)-PAD_T),0)}" fill="var(--main)"/>`);
+      parts.push(`<rect class="bar${sel}"${ref} data-tip="${tip}" x="${x}" y="${y(p.value)}" width="${w}" height="${Math.max(plotH-(y(p.value)-PAD_T),0)}" fill="var(--main)"/>`);
     }
     // A day with config commits gets a marker, so a spend jump can be read
     // against what shipped the day before it.
-    const commits = DATA.ledger[day];
-    if (commits && commits.length) {
-      parts.push(`<circle class="bar" data-day="${day}" data-tip="${tip}" cx="${x+w/2}" cy="${H-PAD_B+8}" r="${Math.min(2.5+commits.length/8,6)}" fill="var(--accent)"/>`);
+    const commits = p.days.reduce((t, dd) => t + (DATA.ledger[dd]||[]).length, 0);
+    if (commits) {
+      parts.push(`<circle class="bar"${ref} data-tip="${tip}" cx="${x+w/2}" cy="${H-PAD_B+8}" r="${Math.min(2.5+commits/8,6)}" fill="var(--accent)"/>`);
     }
-    // Label every Nth day so ticks never collide at 42+ days.
-    const step = Math.ceil(days.length / 14);
+
+    // Label every Nth bar so ticks never collide at 42+ days.
+    const step = Math.ceil(visible.length / 14);
     if (i % step === 0) {
-      parts.push(`<text class="axis" x="${x+w/2}" y="${H-8}" text-anchor="middle">${day.slice(5)}</text>`);
+      parts.push(`<text class="axis" x="${x+w/2}" y="${H-8}" text-anchor="middle">${p.key.slice(5)}</text>`);
     }
   });
 
-  // Drawn after the bars so the line reads on top of them rather than behind.
-  if (state.trend && days.length > 1) {
-    const ma = movingAvg(m);
-    const pts = days.map((day, i) =>
-      `${(PAD_L + i * bw + Math.max(bw - 1.5, 1) / 2).toFixed(1)},${y(ma[day]).toFixed(1)}`
-    ).join(' ');
-    parts.push(`<polyline class="trend" points="${pts}"/>`);
-    parts.push(`<text class="axis" x="${W-PAD_R}" y="${PAD_T-3}" text-anchor="end" fill="var(--accent)">${MA_WINDOW}-day moving average</text>`);
+  // Drawn after the bars so the lines read on top
+  // of them rather than behind.
+  const legend = [];
+  if (ma) {
+    const pts = visible
+      .map((p, i) => [i, ma[offset + i]])
+      .filter(([, v]) => v !== null)
+      .map(([i, v]) => `${(PAD_L + i*bw + Math.max(bw-1.5,1)/2).toFixed(1)},${y(v).toFixed(1)}`);
+    if (pts.length > 1) {
+      parts.push(`<polyline class="trend" points="${pts.join(' ')}"/>`);
+      const unit = state.weekly ? `${MA_WEEKS}-week` : `${MA_WINDOW}-day`;
+      legend.push(`solid: ${unit} moving average`);
+    }
+  }
+  if (fit) {
+    const last = visible.length - 1;
+    parts.push(`<line class="fit" x1="${PAD_L+bw/2}" y1="${y(fit.at(0))}" x2="${(PAD_L+last*bw+bw/2).toFixed(1)}" y2="${y(fit.at(last))}"/>`);
+    legend.push(`dashed: straight-line trend over ${fit.n} citable`);
+  }
+  if (legend.length) {
+    parts.push(`<text class="axis" x="${W-PAD_R}" y="${PAD_T-3}" text-anchor="end" fill="var(--accent)">${legend.join('  ·  ')}</text>`);
   }
 
   $('chart').innerHTML = parts.join('');
-  $('chart').querySelectorAll('[data-day]').forEach(el => {
-    el.addEventListener('click', () => selectDay(el.dataset.day));
+  $('chart').querySelectorAll('[data-tip]').forEach(el => {
     el.addEventListener('mousemove', e => showTip(e, el.dataset.tip));
     el.addEventListener('mouseleave', hideTip);
+    if (el.dataset.day) {
+      el.addEventListener('click', () => selectDay(el.dataset.day));
+    }
   });
 }
 
@@ -301,9 +482,40 @@ function tooltipFor(day) {
   let t = `${day}  ·  ${m.label}: ${m.fmt(m.get(d))}`;
   t += `\n${usd(d.total)}  ·  ${d.kpis.user_messages} msgs  ·  ${d.compactions} compactions`;
   if (commits.length) t += `\n${commits.length} config commit(s) — click to see them`;
+
+  // Named "shipped" against the "config commit(s)"
+  // line above, which counts this repo's own edits
+  // — two different things that would otherwise
+  // read as one number split in half.
+  if (d.shipped_commits || d.merged_prs) {
+    t += `\nshipped ${d.shipped_commits} commit(s)`;
+    t += `, ${d.merged_prs} PR(s) merged`;
+  }
+  if (!hasDenominator(m, d)) {
+    t += `\nnothing shipped — no ${m.label.toLowerCase()} to read,`;
+    t += ` so this day is left out of both trends`;
+  }
   if (d.coverage !== 'complete') t += `\nCOVERAGE: ${d.coverage} — transcripts aged out`;
   const warn = recWarn(d);
   if (warn) t += `\n${warn.toUpperCase()} — do not cite this day's figures`;
+  return t.replace(/"/g, '&quot;');
+}
+
+// States the citable count rather than implying
+// it: a week's median is taken over that subset
+// alone, so 2-of-7 and 7-of-7 are very different
+// claims wearing the same bar.
+function tooltipForWeek(p, m) {
+  const spend = p.days.reduce((t, day) => t + DATA.days[day].total, 0);
+  const commits = p.days.reduce((t, day) => t + (DATA.ledger[day]||[]).length, 0);
+  let t = `week of ${p.key}  ·  median ${m.label}: ${m.fmt(p.value)}`;
+  t += `\n${usd(spend)} across ${p.days.length} day(s)`;
+  t += `\n${p.citableDays.length} of ${p.days.length} day(s) citable`;
+  t += ` — the median and both trends read only those`;
+  if (commits) t += `\n${commits} config commit(s) that week`;
+  const shipped = p.days.reduce((t, day) => t + DATA.days[day].shipped_commits, 0);
+  const prs = p.days.reduce((t, day) => t + DATA.days[day].merged_prs, 0);
+  if (shipped || prs) t += `\nshipped ${shipped} commit(s), ${prs} PR(s) merged`;
   return t.replace(/"/g, '&quot;');
 }
 
@@ -510,6 +722,7 @@ function render() {
 
   $('totals').innerHTML =
     kv('Days shown', num(days.length)) +
+    kv('Citable days', num(days.filter(d => isCitable(DATA.days[d])).length)) +
     kv('Total', usd(total)) +
     kv('Mean / day', usd(days.length ? total / days.length : 0)) +
     kv('Peak day', usd(Math.max(...days.map(d => DATA.days[d].total), 0))) +
@@ -518,7 +731,9 @@ function render() {
     kv('Compactions', num(sum(d => d.compactions))) +
     kv('Config commits', num(days.reduce((t, d) => t + (DATA.ledger[d]||[]).length, 0)));
 
-  $('hint').textContent = state.selected.length === 0
+  $('hint').textContent = state.weekly
+    ? 'Weekly bars are medians — switch back to daily to inspect a day.'
+    : state.selected.length === 0
     ? 'Click a bar to inspect a day; click a second to compare.'
     : state.selected.length === 1
       ? `Selected ${state.selected[0]} — click another day to compare.`
@@ -566,7 +781,8 @@ $('cmp').addEventListener('click', () => {
   render();
 });
 
-for (const [id, key] of [['trend', 'trend'], ['zeros', 'zeros']]) {
+for (const [id, key] of [['weekly', 'weekly'], ['trend', 'trend'],
+                         ['fit', 'fit'], ['zeros', 'zeros']]) {
   $(id).classList.toggle('on', state[key]);
   $(id).addEventListener('click', () => {
     state[key] = !state[key];

@@ -21,11 +21,39 @@ Committed, durable record of Claude Code usage — the memory the `usage-audit` 
 - `experiments.md` — live experiments: each tweak's hypothesis, the signal to watch, and whether a commit for it actually exists.
 - `experiments-archive.md` — experiments that reached a verdict. Consulted, not read on every audit.
 
+- `delivered-work.json` — shipped commits and merged PRs per day, written by `../scripts/delivered-work-ledger.py --refresh`.
+
+  - Committed rather than derived at build time, unlike the config-commit markers: its commit half needs the work repos still cloned on this machine and its PR half needs the network.
+
+  - So staleness is its failure mode. It records the window it measured, and `build-usage-viewer.py` warns when snapshots run past that window's end.
+
+  - A clone whose default branch is behind its remote silently under-counts. The ledger warns per repo where GitHub reports merged PRs but no commits were found.
+
+    - That mismatch is the only such gap checkable without fetching all 26 repos, since a dormant checkout looks identical to one with nothing to report.
+
+  - The window is what distinguishes *nothing shipped* from *nothing was looked at*. Reading coverage from the last delivering day would call every quiet weekend a stale file.
+
 - `viewer.html` — **generated and gitignored**. Build it with `../scripts/build-usage-viewer.py --open`.
 
-  - An interactive chart of the series across 17 metrics. Click a day to drill in, a second to compare; config commits are marked on the day they landed.
+  - An interactive chart of the series across 21 metrics. Click a day to drill in, a second to compare; config commits are marked on the day they landed.
 
   - It exists because a human reads a time series as a shape. These markdown files cannot show one, and a directory of JSON files is worse.
+
+  - **Both trend overlays read only citable days; the bars still draw every day.** `Citable days` in the totals strip is the count feeding them.
+
+    - Citable means `coverage: complete`, `reconciliation.status: ok`, and at least one session. Of the 56 days, **17** qualify — 24 `unretained`, 12 `drift`, 1 `partial`, 2 idle.
+
+    - A pruned day reads as `$0.00`, so averaging it in bends the line down where the record stops rather than where the spending did.
+
+  - **`Weekly medians` groups the bars into Monday-anchored calendar weeks**, taking each week's median over its citable days alone.
+
+    - The median, not the mean: the workload spread inside a single week reaches 72×, so one such day would pull a weekly mean above every other day in it.
+
+  - **`Straight-line trend` is a least-squares fit over the visible range; `Moving average` is a 7-day (3-week) window over the full series.** Both are drawn, because either alone misleads.
+
+    - The moving average hides a slow drift under week-to-week noise; the straight line hides a reversal inside the window.
+
+    - The average reads the full series so zooming does not restart it on a partial window and invent a rising left edge that is only fewer terms.
 
 ## The three KPIs
 
@@ -37,7 +65,7 @@ Committed, durable record of Claude Code usage — the memory the `usage-audit` 
 
 A raw daily total tracks how much was asked for that day, not how efficiently it ran, so it cannot answer that on its own.
 
-Five rows in the viewer divide the day by a unit of work:
+Five rows in the viewer divide the day by a proxy for the **effort put in**:
 
 | Row | Reads as |
 |---|---|
@@ -60,6 +88,61 @@ Five rows in the viewer divide the day by a unit of work:
   - Worth stating because the split is wide — the subagent share of cost ranges from 2.7% to 73.1% across the series, so a main-only figure would understate some days nearly 4×.
 
 - Reported in minutes rather than hours because a typical day sits near 0.17 h/msg, where one decimal collapses the whole series into one bucket.
+
+### Delivered-work metrics — did the spend produce anything?
+
+Every row above divides by input effort, so "cheaper per message" and "I asked smaller questions" read identically. That is the one question those five cannot separate.
+
+2026-08-02 is the proof: $8.37 per user message, the worst in the series, on 160,105 output tokens per message — 9× the median.
+
+That day was dense, not wasteful, and no input-side denominator can say so.
+
+Four rows divide by what actually **shipped**, sourced from `delivered-work.json`:
+
+| Row | Reads as |
+|---|---|
+| Cost per shipped commit | spend per commit that reached a default branch |
+| Cost per merged PR | spend per pull request GitHub reports as merged |
+| Shipped commits | the raw daily count, so the denominator is auditable |
+| Merged PRs | the same, for the PR side |
+
+- Shipped means **delivered, not written**: a commit reachable from its repo's default branch, and a PR in the merged state. Work on an unmerged branch is inventory.
+
+- Commits attribute to their **author** date, PRs to their merge date. Only the author date lines up with a daily spend series.
+
+  - Merge date would pile a week of work onto whichever day someone pressed the button.
+
+  - `git log --since/--until` filters on the *committer* date while printing the author date, so the window is applied in Python instead. A rebase moves those two dates weeks apart.
+
+- The five personal-environment repos (`unix-utils`, `neovim`, `tmux`, `oh-my-zsh`, `ghostty`) are excluded, along with vendored checkouts and any commit by another author.
+
+  - Editing your own tooling is the activity being measured. Counting it would let a day of config churn read as a day of shipped output.
+
+- **A day that shipped nothing draws its bar but feeds no trend** — the same treatment a non-citable day gets, for a different reason.
+
+  - Dividing by zero returns `0` here, which would draw the day that delivered nothing as the *cheapest* day on the chart, inverting what the metric means.
+
+- **CRITICAL: `Shipped commits` measures the repo's merge policy as much as your output.** Read `Cost per merged PR` as the primary delivered-work row.
+
+  - A squash-merge repo collapses a whole branch into one commit on its default branch.
+
+    - `arco2-integrator` has 247 of your commits authored in the window, but only 23 reachable from `origin/main` — one per merged PR, and it has exactly 23.
+
+  - `arco2-error-monitor` and `technical-refining` lose nothing to squashing, so their commits count individually.
+
+    - A day spent in the integrator therefore looks ~10× costlier per commit than a day in the other two, on merge policy alone.
+
+  - A pull request is one unit no matter how a repo merges, which is what makes the PR row comparable across them.
+
+- **A commit is not a fixed unit of work** even inside one repo, so the count tracks commit granularity too.
+
+  - 2026-08-04 alone carries 30 of the series' 60 commits, most of them one-line PRD wording fixes. A day that ships one large feature commit scores 1 against it.
+
+  - The raw-count rows exist so a suspicious quotient can be traced back to its denominator rather than trusted.
+
+- Expect a thin sample: of the 17 citable days, 9 feed `Cost per shipped commit` and 10 feed `Cost per merged PR`.
+
+  - Read these two as a coarse sanity check on the input-side rows, not as a trend you can date a change against.
 
 ## Measurement caveats (read before comparing snapshots)
 
