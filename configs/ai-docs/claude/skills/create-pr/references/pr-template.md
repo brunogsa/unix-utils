@@ -18,6 +18,14 @@ Each section below opens with its own line allowance. pr-page-budget.md owns tho
 
 Images, diagrams, blank lines, and collapsed content are free — a collapsed `<details>` costs only what its `<summary>` renders as.]
 
+[Heading levels are part of the contract, not a rendering preference: body sections are `##`, their subsections `###`.
+
+The appendix's subsections are `<details>` wrappers rather than headings, so `## Appendix — optional reading` is the nearest ancestor heading of everything inside them.
+
+Script-extracted spec/plan sections therefore demote to `###`, and each level nested inside them shifts down by the same one.
+
+`extract-md-sections.sh` prints level-2 headings verbatim, so pasted unshifted a spec section outranks the very appendix containing it.]
+
 [Budget: 1 line — this collapsed `<summary>`. It goes FIRST, before any content, and its one line is charged before the first heading rather than to a section below it.
 
 This file owns the `<details>` wrapper and the summary label; `references/reading-order-template.md` supplies only what goes inside.]
@@ -160,12 +168,12 @@ That is doc-standards' ban on citing a doc by a number that renumbers on the nex
 
 A criterion's own `AC-N:` heading prefix just disappears; a token cited inline is replaced by the behavior it names, or dropped when the sentence already names it.
 
-Keep the spec's own criterion grouping as `### ` headings, so each criterion nests one level under its group:
+Keep the spec's own criterion grouping as headings, shifted by the heading-level contract above so each criterion nests one level under its group:
 
 ```
-### <group from spec — e.g. Happy path / Corner cases / Failure modes>
+#### <group from spec — e.g. Happy path / Corner cases / Failure modes>
 
-#### <AC title from spec, "AC-N:" prefix removed>
+##### <AC title from spec, "AC-N:" prefix removed>
 - **Given** ...
 - **When** ...
 - **Then** ...

@@ -25,11 +25,11 @@ Se estiver com pouco tempo: **`index.ts`**, **`items.mapper.ts`**, **`series.map
 
 </details>
 
-### Link do Jira
+## Link do Jira
 
 - [ITGD-2947](https://arco-educacao.atlassian.net/browse/ITGD-2947)
 
-### Contexto do PR
+## Contexto do PR
 
 PIC Arco 1.9 é a fonte da verdade dos Acordos, mas os ERPs 1.0 ainda operam faturamento e expedição.
 Enquanto o estrangulamento não termina, todo Acordo aprovado no PIC precisa ser refletido no ERP 1.0 correto.
@@ -41,7 +41,7 @@ Sem ele, Acordos B2C PSD não chegam ao SGE: escola sem contrato e read-back do 
 
 A ordem `school → header → itens` das requests não é escolha nossa: o SGE referencia o endereço por CNPJ, então a escola precisa existir antes do contrato.
 
-### Mudanças
+## Mudanças
 
 **Planejado:**
 
@@ -55,9 +55,9 @@ A ordem `school → header → itens` das requests não é escolha nossa: o SGE 
 
 - Rateio arredondado virou lib compartilhada; fila SGE ganhou `batch_size_config` e env var.
 
-### Decisões
+## Decisões
 
-#### Funcionais
+### Funcionais
 
 - **Escola sincronizada por `PUT` do registro CRM inteiro** — idempotente, não zera campo ausente.
   - Considerado: `PATCH` campo a campo — as consultorias não teriam tempo de mapear o de/para.
@@ -65,7 +65,7 @@ A ordem `school → header → itens` das requests não é escolha nossa: o SGE 
 - **Respostas do dono do SGE valem como fato** — esperar a validação formal atrasa a Foundation.
   - Considerado: bloquear até confirmar — refazer um mapeamento depois custa menos que esperar.
 
-#### Técnicas
+### Técnicas
 
 - **`4XX` encerra a mensagem; `5XX`/`429`/`408` voltam para a DLQ** — dado ruim não melhora.
   - Considerado: tudo retryable — encheria a DLQ de mensagens que nunca vão passar.
@@ -80,7 +80,7 @@ A ordem `school → header → itens` das requests não é escolha nossa: o SGE 
 - **WARNING: criar à mão o secret `SGE_API_KEY` em QA, Stage e Prod** — o Terraform não cria.
   - `terraform/{env}.secrets` é gitignored; sem o secret o `SgeClient` não autentica.
 
-### Arquitetura
+## Arquitetura
 
 <details open>
 <summary>Context Diagram (C4L1): o SGE Translator (verde) é este PR; o Orchestrator (cinza) é herdado.</summary>
@@ -139,7 +139,7 @@ flowchart TD
 
 </details>
 
-### Evidências
+## Evidências
 
 **63 testes automatizados** cobrem os **18 critérios de aceite** — enunciados no apêndice.
 
@@ -167,7 +167,7 @@ O sandbox não está disponível no CI, então este cenário é a única prova p
 
 </details>
 
-### Apêndice — leitura opcional
+## Apêndice — leitura opcional
 
 Catálogo completo, opcional — o diff e a descrição já bastam para revisar.
 
@@ -183,7 +183,7 @@ Catálogo completo, opcional — o diff e a descrição já bastam para revisar.
 <details>
 <summary><strong>spec_sge-translator.md</strong> — requisitos não-funcionais e critérios de aceite</summary>
 
-## Non-Functional and Technical Requirements
+### Non-Functional and Technical Requirements
 
 1. **Foundation inheritance:** implement as a concrete subclass of `BaseSyncPicAgreementUseCase<TTranslated>`, overriding **only** `translate` and `publish`. Orchestration, retry/DLQ, callback, lock, and state machine are inherited.
 
@@ -206,15 +206,15 @@ Catálogo completo, opcional — o diff e a descrição já bastam para revisar.
    - Stage/HML resolved (`http://172.21.48.31:8099`, VPN-only, HTTP); **prod host + api-key is an open BLOCKER** (sge-duvidas Q20/Q21).
 
 ---
-## Testable Acceptance Criteria
+### Testable Acceptance Criteria
 
 Each criterion is observable and testable — the projection of the LLD's field mapping into behavior.
 
 The criteria below carry the field-by-field mapping (source → destination → value), for execution without reopening the LLD; the LLD ([Field mappings](./docs/designs/sync-agreements_sge-translator_lld.md)) remains the durable source.
 
-### Happy path
+#### Happy path
 
-#### B2C Agreement with delivery to the school publishes successfully to SGE
+##### B2C Agreement with delivery to the school publishes successfully to SGE
 - **Given** `pic.entrega.local` = school (`E`)
 - **When** the Orchestrator calls `translate` + `publish`
 - **Then** `translate` builds the **3 DTOs** (hub-mode school, header, items) and validates them locally; any local invalidity throws **before** `publish` sends any mutating call (integrity — minimizes partial success)
@@ -227,21 +227,21 @@ The criteria below carry the field-by-field mapping (source → destination → 
 
 > Covered by [manual tests](#scenario-1) and [`index.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/index.spec.ts).
 
-#### Create when `idContratoERP` is absent
+##### Create when `idContratoERP` is absent
 - **Given** `pic.idContratoERP` absent/`null`
 - **When** building the header
 - **Then** sends via `POST /api/contratos-terceiro` (create)
 
 > Covered by [`index.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/index.spec.ts) and [`client.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/lib/src/sge-client/src/test/client.spec.ts).
 
-#### Update when `idContratoERP` is present
+##### Update when `idContratoERP` is present
 - **Given** `pic.idContratoERP` present (`number`)
 - **When** building the header
 - **Then** sends via `PUT /api/contratos-terceiro/{chaveContrato}`, with the value normalized to `string` and used as `chaveContrato`
 
 > Covered by [`index.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/index.spec.ts) and [`client.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/lib/src/sge-client/src/test/client.spec.ts).
 
-#### School upsert always `PUT` (read-then-PUT from the CRM)
+##### School upsert always `PUT` (read-then-PUT from the CRM)
 - **When** performing the school upsert
 - **Then** uses `PUT /v1/integrator-hub/schools` **always** (without checking prior existence, without `PATCH`)
 - **And** resends the **complete** record read from the CRM, so as not to zero out missing fields
@@ -256,7 +256,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 
 > Covered by [`school-upsert.mapper.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/mappers/school-upsert.mapper.spec.ts) and [`client.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/lib/src/sge-client/src/test/client.spec.ts).
 
-#### `isTaxPayerType` derived from the `TaxPayerType` enum
+##### `isTaxPayerType` derived from the `TaxPayerType` enum
 - **Given** the (enriched) CRM record carries `TaxPayerType`
 - **When** building the school payload
 - **Then** `isTaxPayerType` = `true` if `CONTRIBUINTE`; `false` for `NÃO CONTRIBUINTE` or any other value
@@ -264,7 +264,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 
 > Covered by [`crm-schools.repository.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/schools/shared/repositories/crm-schools.repository.spec.ts).
 
-#### Header — derived fields
+##### Header — derived fields
 - **When** building the header
 - **Then** `sistema` derives from the brand via the 4-key SGE enum: `Positivo`→`SPE`, `Conquista`→`CONQUISTA`, `PES`→`PES`, `Maralto`/`PIÁ`→`MARALTO`
 - **And** a brand outside the PSD group has no SGE B2C store — the translator must not emit an SGE contract for it
@@ -290,7 +290,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 
 > Covered by [`header.mapper.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/mappers/header.mapper.spec.ts).
 
-#### Items — collection/kit flattening
+##### Items — collection/kit flattening
 - **When** building the items
 - **Then** each `pic.materiais[]` (collection) becomes 1 collection item: `produtoGrafica`=`skuColecao`, `anoProduto`=0, `bimestre`=0, `produtoGraficasVinculados`=the `skuKIT`s of its kits
 - **And** each `pic.composicaoAnual[]` (kit) becomes 1 "Produto" item: `produtoGrafica`=`skuKIT`, native `bimestre`, `anoProduto`=`pic.anoVigencia`
@@ -308,7 +308,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 
 > Covered by [`items.mapper.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/mappers/items.mapper.spec.ts) and [`series.mapper.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/mappers/series.mapper.spec.ts).
 
-#### Items — prices on the B2C side
+##### Items — prices on the B2C side
 - **When** calculating item values
 - **Then** collection item: `precoTotal`=`precoRevendaB2C` (gross, unit); `percentualDescontoProduto` is **not** sent — the ERP computes the discount from the standard price list
 - **And** kit item: `precoTotal`=the bimester apportionment share (`rateiov1..v4`-based, divided equally among the kits of that bimester); no discount field sent
@@ -320,7 +320,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 
 > Covered by [`items.mapper.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/mappers/items.mapper.spec.ts).
 
-### Corner cases
+#### Corner cases
 
 **Boundary checklist** — one line per item of the corner-cases taxonomy (`~/.claude/skills/test-standards/references/coverage-taxonomy.md`):
 
@@ -334,28 +334,28 @@ The criteria below carry the field-by-field mapping (source → destination → 
 - clock / timezone / DST boundaries: **covered** (term 01/03–31/12, as pure `YYYY-MM-DD` strings)
 - combined / composed filters: **N/A — no composed filters in this flow**
 
-#### Single-brand vs multi-brand Agreement
+##### Single-brand vs multi-brand Agreement
 - **Given** `pic.materiais[]` with a single brand vs multiple brands
 - **When** deriving `tipoVenda`
 - **Then** single-brand→`LNE`, multi-brand→`ESK`
 
 > Covered by [`header.mapper.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/mappers/header.mapper.spec.ts).
 
-#### Minimum-duration term (`duracao`=1)
+##### Minimum-duration term (`duracao`=1)
 - **Given** `pic.duracao` = 1
 - **When** calculating the term
 - **Then** `anoFinal`=`anoInicial`; `dataFimVigencia`=31/12 of the same year
 
 > Covered by [`header.mapper.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/mappers/header.mapper.spec.ts).
 
-#### Kit apportionment with residual (2-decimal reconciliation)
+##### Kit apportionment with residual (2-decimal reconciliation)
 - **Given** the collection price doesn't divide evenly among the bimester's kits
 - **When** apportioning
 - **Then** rounds to 2 decimal places and allocates the residual to one item, so that Σ(`precoTotal` of the kits) = the collection price
 
 > Covered by [`reconcile-rounded-shares.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/lib/src/shared/src/math/reconcile-rounded-shares.spec.ts) and [`items.mapper.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/mappers/items.mapper.spec.ts).
 
-### Failure modes
+#### Failure modes
 
 **Failure category checklist** — one line per item of the failure-modes taxonomy (`~/.claude/skills/test-standards/references/coverage-taxonomy.md`):
 
@@ -377,21 +377,21 @@ The criteria below carry the field-by-field mapping (source → destination → 
 - redelivery after partial processing: **covered** (redrive replays the whole sequence, header included)
 - poison message / dead-letter path: **covered** (retryable → DLQ; terminal → discard + callback)
 
-#### Delivery outside the school → terminal
+##### Delivery outside the school → terminal
 - **Given** `pic.entrega.local` ≠ school (`M`=Mediator or `O`=Other Unit)
 - **When** `translate` runs
 - **Then** throws `SgeAgreementDeliveryNotToSchoolError` **terminal** (`shouldDeleteMessage: true`), **without** calling SGE
 
 > Covered by [`index.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/index.spec.ts).
 
-#### Unregistered SKU → terminal (data quality)
+##### Unregistered SKU → terminal (data quality)
 - **Given** a `produtoGrafica` (`skuColecao`/`skuKIT`) not registered in SGE's product master
 - **When** sending the items
 - **Then** the items call returns 4XX; `publish` reclassifies that raw `SgeRequestError` via `checkIfDataQualityError` as a data-quality error → **terminal** (`shouldDeleteMessage: true`) — Agreement data quality, type 1 in the HLD
 
 > Covered by [`errors.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/errors/errors.spec.ts) and [`index.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/index.spec.ts).
 
-#### Irreconcilable kit apportionment → retryable/DLQ
+##### Irreconcilable kit apportionment → retryable/DLQ
 - **Given** Σ(`precoTotal` of the kits) ≠ collection price **even after** residual reconciliation.
 - Defensive guard: the 2-decimal reconciliation already forces an exact Σ by construction, so this error only fires on a reconciliation bug.
 - **When** apportioning
@@ -401,7 +401,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 
 > Covered by [`items.mapper.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/mappers/items.mapper.spec.ts), [`errors.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/errors/errors.spec.ts), and [`index.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/index.spec.ts).
 
-#### Bad bimestre rateios (rateiov1..v4 ≠ 100%) → terminal
+##### Bad bimestre rateios (rateiov1..v4 ≠ 100%) → terminal
 - **Given** a material's `rateiov1..v4` for the bimesters that actually have kits do **not** sum to 100% (raw shares under- or over-allocate the collection price, checked **before** reconciliation)
 
 - **When** apportioning the collection price across the kits (`reconcileKitShares` pre-check)
@@ -411,7 +411,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 
 > Covered by [`items.mapper.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/mappers/items.mapper.spec.ts) and [`index.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/index.spec.ts).
 
-#### HTTP classification of the 3 calls
+##### HTTP classification of the 3 calls
 - **Given** one of the 3 calls (school, header, or items) responds with an error
 - **When** classifying
 - **Then** `5XX` → retryable (`shouldDeleteMessage: false`); `4XX` → terminal (`true`); **except** `429` and `408`, which are transient → retryable
@@ -420,7 +420,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 
 > Covered by [`errors.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/errors/errors.spec.ts) and [`index.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/index.spec.ts).
 
-#### Partial success (header created, items fail) → not swallowed
+##### Partial success (header created, items fail) → not swallowed
 - **Given** the header was created (2XX) but the items call fails
 - **When** `publish` runs
 - **Then** throws the error (classified by the HTTP rule), does **not** return partial success
@@ -428,7 +428,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 
 > Covered by [`index.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/index.spec.ts).
 
-#### Redrive of a partially processed event
+##### Redrive of a partially processed event
 - **Given** a partially processed event is reprocessed (redrive); the message carries the original payload, with `pic.idContratoERP` still absent (no success callback occurred)
 - **When** executing the 3 calls again
 - **Then** school (`PUT`) and items (`POST` assumed idempotent) reprocess without duplicating
@@ -442,7 +442,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 > Covered by [`index.spec.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/test/modules/sales-agreements/sync-sales-agreement-pic-sge/index.spec.ts).
 
 ---
-## Functional Decisions
+### Functional Decisions
 
 Chronological log. Editable during refinement; after approval and an execution signal, it becomes append-only below the divider. The full rationale lives in the LLD (recap + link here).
 
@@ -481,7 +481,7 @@ Chronological log. Editable during refinement; after approval and an execution s
 <details>
 <summary><strong>plan_sge-translator.md</strong> — test design</summary>
 
-## Test Design
+### Test Design
 
 Titles designed before implementation; the bodies come in each RED-GREEN cycle. Behavioral titles (no `AC-N`), mirroring the criterion they prove.
 
@@ -638,7 +638,7 @@ describe("SgeSeriesMapper", () => {
 `spec-driven-development/scripts/check-ac-coverage.sh <plan> <spec>` verifies that every criterion has at least one test, and that every test it names exists.
 
 ---
-## Technical Decisions
+### Technical Decisions
 
 Chronological log. Editable while planning; after approval and the execution signal, becomes append-only below the divider.
 
