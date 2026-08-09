@@ -161,9 +161,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] When a task earns TaskList entries or a procedural skill starts, create its `/tmp` scratchpad file and offload working state immediately.
   - [Why] A transcript audit (2026-07-24) found 37 deep-compaction sessions with zero scratchpad writes, proving "long or multi-step work" is too fuzzy; TaskList is deterministic and always visible.
 
-- [Instruction] Working state includes findings, decisions, and intermediate results — persist these as you produce them, not at the end.
-  - [Why] Compaction summarizes context lossily mid-task, so state not yet persisted when it fires silently vanishes from the session.
-
 - [Instruction] Persist to the scratchpad only state that is expensive to reconstruct — counts, verdicts, decisions with their why, rejected approaches, artifact paths.
   - [Why] Notes carry real token cost, so cheap-to-rederive content buries the load-bearing state it was meant to protect (https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents).
 
@@ -301,7 +298,7 @@ Routing and upkeep for the two note surfaces — the rules that keep notes worth
 - [Instruction] Tasks and reminders go to the TaskList only — never into the scratchpad, not even as a copy.
   - [Why] The TaskList is the one surface with a status that re-surfaces every turn; a scratchpad copy is a second version that drifts the moment the status flips.
 
-- [Instruction] Important conclusions, decisions, questions, concerns, corollaries, and insights go to the scratchpad.
+- [Instruction] Important conclusions, decisions, questions, concerns, corollaries, insights, and intermediate results go to the scratchpad.
   - [Why] They shape later decisions but carry no status to track, so the scratchpad — read on demand — keeps them findable without taxing every turn the way TaskList noise would.
 
 - [Instruction] Note a reference — path, line range, link — only when strictly necessary: when you genuinely expect to re-read the details later.
