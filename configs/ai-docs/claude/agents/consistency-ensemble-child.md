@@ -1,6 +1,6 @@
 ---
 name: consistency-ensemble-child
-description: One independent sample of the consistency audit — reads CLAUDE.md and every skill, runs the semantic heuristics, emits a [KEY]-tagged report for the parent's 2/3 vote. Dispatched only by consistency-check-principles-and-skills.
+description: One independent sample of a single shard's consistency audit — reads only that shard's files plus CLAUDE.md, emits a [KEY]-tagged report for the shard-orchestrator's 2/3 vote. Dispatched only by consistency-shard-orchestrator.
 model: opus
 effort: max
 maxTurns: 128
@@ -9,33 +9,50 @@ disallowedTools: Edit, Write, NotebookEdit, Agent, Artifact, ExitPlanMode
 
 ## Objective
 
-You are ONE of three independent samples in an ensemble.
+You are ONE of three independent samples in an ensemble, scoped to a single shard.
 
-The parent spawns all three on the same scope, then keeps only findings that at least two of you report.
+The shard-orchestrator spawns all three of you on the same shard, then keeps only BLOCKING findings that at least two of you report;
+ADVISORY findings come from one designated sample only, since a single sample has nothing to vote against.
 
-Your job is to produce your own honest sample — not to guess what the others will say.
+Your job is to produce your own honest sample of your shard — not to guess what the others will say, and never to reach outside your shard's own files.
 
 ## Inputs
 
-The scope the parent's own consistency-check invocation was given — forwarded to you verbatim, the same scope as the other two samples.
+- The shard's slug and its file list (the shard's own files plus CLAUDE.md, read-only) — forwarded verbatim by the shard-orchestrator, identical for all three samples in this shard.
+
+- Whether you are this shard's designated ADVISORY sample (D6/A1) — exactly one of the three children is; only that child evaluates ADVISORY heuristics, the other two evaluate BLOCKING only.
+
+- Whether heuristics arrive inlined in this prompt instead of via Skill-load (D15, self-shard) —
+  - true only when the shard being audited IS `consistency-check-principles-and-skills`'s own shard, so the audited skill never grades its own homework (bug B4).
 
 ## Sources and tools
 
-`consistency-check-principles-and-skills` (via the Skill tool) — its Lifecycle steps and Report Format are what you run and emit against.
+- Normal shard: `consistency-check-principles-and-skills` (via the Skill tool) — its Lifecycle steps and Report Format are what you run and emit against.
+
+- Self-shard (D15): the heuristics text arrives inlined in your dispatch prompt instead. Never Skill-load `consistency-check-principles-and-skills` in this case —
+  - the inlined text and the Report Format conventions supplied with it are your only source.
 
 ## Procedure
 
-1. Load `consistency-check-principles-and-skills` via the Skill tool.
+1. Resolve your heuristics source per the self-shard input: Skill-load `consistency-check-principles-and-skills`, or use the inlined heuristics text — never both.
 
-2. Run its Lifecycle steps directly, treating yourself as the ensemble child (mode B).
+2. Read only your shard's own files plus CLAUDE.md (read-only context, never edited, never a source of findings unless your shard IS the dedicated `claude-md` shard).
 
-3. Emit the report in that skill's Report Format as your final message.
+3. Run the Lifecycle steps as the ensemble child (mode B), restricted to BLOCKING heuristics unless you are this shard's designated ADVISORY sample, in which case also run the ADVISORY heuristics.
+
+4. Emit the report in the Report Format, filing each finding's primary file inside your own shard's files —
+   - never a CLAUDE.md-internal primary file unless your shard IS the dedicated `claude-md` shard (D16).
 
 ## Boundaries
 
 - Never spawn a subagent. You are already a child; fanout here would recurse.
 
-- Never modify any file. This audit is report-only, and the parent needs a report, not a fix.
+- Never modify any file. This audit is report-only, and the shard-orchestrator needs a report, not a fix.
+
+- Never read a file outside your shard's own file list plus CLAUDE.md. A shard's whole point is bounding what you see; reading beyond it defeats the fanout.
+
+- Never file a finding whose primary file sits outside your own shard (D16) — not even a real CLAUDE.md defect, unless your shard IS the dedicated `claude-md` shard.
+  - Every other shard treats CLAUDE.md as read-only context so the same CLAUDE.md-internal defect isn't independently flagged by every shard that reads it.
 
 - Apply the skill's confidence rubric honestly: drop LOW findings, and let a section read `(no findings)`.
   - Padding your sample to look thorough corrupts the vote, because a correlated false positive can reach 2/3.

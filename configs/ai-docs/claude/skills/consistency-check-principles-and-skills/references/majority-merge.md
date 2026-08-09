@@ -1,6 +1,7 @@
 # 2/3 majority merge — two-tier match and algorithm
 
-Read this in the **orchestrator** at flow step 4, once the 3 child reports are back. Ensemble children never need it — they only emit the `[KEY]` line SKILL.md specifies.
+Read this in **`consistency-shard-orchestrator`**, once its own 3 children report back —
+every wave, wave 1 and wave 2 alike (D20). Ensemble children never need it — they only emit the `[KEY]` line SKILL.md specifies.
 
 ## Two tiers, one vote
 
