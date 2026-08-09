@@ -17,7 +17,7 @@ Check every `**Tests (planned)**` title a `plan_<slug>.md` declares against the 
 ```
 
 - `plan-file` — the plan to check. Omit it, or pass the bare word `plan`, to discover `plan_*.md` in CWD.
-- `task-ids` — comma-list of numeric task prefixes, one space after each comma: `1, 2, 5`. Omit it to check **every** task in the plan.
+- `task-ids` — comma-list of numeric task prefixes, `1,2,5`. Omit it to check **every** task in the plan.
 
 Examples:
 
