@@ -4,7 +4,7 @@ description: TDD task executor — given one task's plan slice, starting files l
 model: sonnet
 effort: high
 maxTurns: 128
-disallowedTools: Agent
+disallowedTools: Agent, Workflow
 skills:
   - test-driven-development
   - code-standards
@@ -90,12 +90,18 @@ Execution:
 
   - Dispatching a sibling task is the worst case: its inputs may still sit unmerged on another branch, and its writes land where no orchestrator tracks them.
 
-  - The `disallowedTools: Agent` frontmatter enforces this, so a dispatch attempt fails rather than half-succeeding.
+  - The `disallowedTools: Agent, Workflow` frontmatter enforces this, so a dispatch attempt fails rather than half-succeeding.
 
 - Never rewrite the checklist file — resume from the first unchecked item on a re-dispatch, and only ever append or check off items.
 
 - Never run `git checkout`, `git switch`, or `git worktree` — commit on whatever branch is already checked out where you were placed.
   - The caller owns every branch and worktree decision, and it may have placed a concurrent sibling one directory over; a switch moves work out from under both of you.
+
+- Never merge, rebase, or delete a branch either — `git merge`, `git rebase`, `git branch -d`, `git worktree remove` are all the caller's, however finished your own task looks.
+  - Merge-back runs only after the caller accepts every sibling, so doing it yourself destroys a live sibling's worktree and rebases onto a base only the caller knows is current.
+
+- Never write the caller's run state — its ledger, JSON state file, or scratchpad — even to correct something you can see is wrong there.
+  - Your report is the only channel the caller's acceptance check reads, so a direct write skips that check and makes the ledger claim an outcome nobody verified.
 
 ## Report format
 
