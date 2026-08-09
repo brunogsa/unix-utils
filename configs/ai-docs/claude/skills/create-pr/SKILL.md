@@ -24,9 +24,7 @@ Read it before drafting or reviewing a PR body; `pr-writer` loads it every dispa
 
 ### 1. Gather context
 
-**CRITICAL: This step's interview is the only point in steps 1-4 where the user is asked anything.**
-
-Steps 1-4 run to completion without pausing or posing a chat question that blocks composing or pushing.
+**CRITICAL: This step's interview is the only point in steps 1-4 where the user is asked anything** -- the rest run to completion without pausing on a blocking chat question.
 
 A gap in evidence (a test that couldn't run locally, a digest section left uncovered) becomes an unchecked box or caveat instead.
 
@@ -39,30 +37,30 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
 
 - **Resolve the output filename's `<slug>` and `<N>` (used in step 2)**: `<slug>` is the shared filename slug from the resolved spec/plan filenames.
   - Fall back to the current branch name (`/` → `-`) when neither spec nor plan resolved.
-  - Single PR plan or no plan resolved → omit `_pr<N>` entirely, auto-resolved.
+  - Single PR plan or no plan resolved → omit `_pr<N>`, auto-resolved.
   - Multiple `PR-N` entries in `## PR Breakdown` → open question **(B) Which PR-N**: set `<N>` to that number (e.g. `PR-2` → `2`).
 
 - **Resolve the base branch (used by `changes-gatherer` below and by step 4)**: default is `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
-  - Empty result (`origin/HEAD` unset) → omit `--base` in step 4; let it fall back to default.
+  - Empty result (`origin/HEAD` unset) → omit `--base` in step 4.
 
 - **The optional `<parent>` arg is this skill's whole stacked-PR surface** -- when given, base = the parent's head branch instead of the default.
-  - Resolution, digest-scoping, and hand-off rules (only relevant on a run that receives it): [`references/parent-arg.md`](references/parent-arg.md).
+  - Resolution, digest-scoping, and hand-off rules: [`references/parent-arg.md`](references/parent-arg.md).
 
 - **Ask (A) and (B) together, as two separate questions, in one pre-flight `AskUserQuestion` call**.
-  - Carry both; skip either label that auto-resolved above; skip the call entirely when both auto-resolved.
-  - They resolve different things — which source file to read, which plan slice this is — so merging them would force two answers into one choice.
+  - Carry both; skip either label that auto-resolved above; skip the call when both auto-resolved.
+  - They resolve different things — which source file to read, which plan slice this is — so merging would force two answers into one.
 
   - Any later ambiguity (template fit, checklist evidence, body-size trims) is resolved by that step's own rules, never by a new question.
     - Uncovered case → take the most conservative reading and note it as a caveat in the final report.
 
-- Once answered, create `./pr_<slug>_pr<N>.ideal.md` right away with an HTML comment logging each answer.
+- Once answered, create `./pr_<slug>_pr<N>.ideal.md` with an HTML comment logging each answer.
   - Example: `<!-- step 1: spec=<resolved spec>; PR=2/3; base=<resolved base> -->` -- GitHub hides HTML comments in rendered bodies.
   - It is this skill's durable record, not a separate scratchpad -- it survives a mid-flow compaction that would drop the answers.
 
 - **Derive the appendix's section list — never ask the user for it** -- it is the resolved spec/plan minus every section the body already renders.
   - Excluded, because the body owns them at the same altitude: mermaid diagrams, Background/Context, Goals, User Stories, and the plan's task breakdown.
   - Included: Testable Acceptance Criteria, Functional Decisions, Technical Decisions, Non-Functional/Technical Requirements, Test Design, and any section with no body counterpart.
-  - Decisions stay here in FULL and verbatim, per the altitude rule in [`references/pr-page-budget.md`](references/pr-page-budget.md), which is canonical.
+  - Decisions stay here in FULL and verbatim, per the altitude rule in [`references/pr-page-budget.md`](references/pr-page-budget.md).
   - `### References` joins them there as authored content, so the appendix survives even when no spec/plan resolved.
 
 - **CRITICAL: Both halves of a spec/plan reach the PR by script, never by re-authoring** -- the main session derives the list, and step 2's agent runs the extractors.
@@ -85,7 +83,7 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
 
 **Both gates belong to the agent — never re-run them here, and never hand-fix its prose.**
 
-- It returns only once `check-density.sh` and `check-pr-page-fit.sh` both pass, so a main-session re-run just re-measures an already-measured file and pays for a second dispatch on anything it flags.
+- It returns only once `check-density.sh` and `check-pr-page-fit.sh` both pass, so a main-session re-run re-measures an already-measured file and pays for a second dispatch on anything it flags.
 
 **CRITICAL: It writes the IDEAL description in this skill's own format, ignoring any repo template** -- the repo's template is step 3's problem, not its.
 - The format has to stay stable, because `check-pr-page-fit.sh` can only hold a section to its budget when it recognizes that section.
@@ -123,16 +121,16 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 **Dispatch the merge either way** -- `agent(subAgent=pr-writer, title=Compose repo PR description)` in mode `final`, foreground (step 4 pushes its output).
 
 - Give it three paths: the `pr_<slug>_pr<N>.ideal.md` from step 2, the repo's template file, and the output `./pr_<slug>_pr<N>.final.md`.
-- No template found → say so instead of naming one; the agent then copies the ideal description verbatim into the final body.
+- No template found → say so instead of naming one; the agent copies the ideal description verbatim into the final body.
 
-- **Dispatch even with no template, rather than copying the file here** -- the body-size gate runs inside the agent, and only the agent can trim what it flags.
-  - A `cp` in the main session would push a `.final.md` that no gate ever measured, on the very path most repos take.
+- **Never copy the file here instead** -- the body-size gate runs only inside the agent.
+  - A `cp` in the main session would push a `.final.md` no gate ever measured, on the path most repos take.
 
-- It re-reads the rules below from this skill, and owns the density and body-size gates end to end — same as step 2, they are never re-run here.
+- It re-reads the rules below from this skill, and owns the density and body-size gates end to end — same as step 2, they are never re-run.
 
 **CRITICAL: The repo's template is the base structure, never the thing being replaced.**
 
-- Keep every section and checkbox, filling them from the ideal description rather than re-deriving content from the diff.
+- Keep every section and checkbox, sourced from the ideal description, not re-derived from the diff.
 
 - Preserve its checklist verbatim -- never rewrite, reorder, or prune the items; the default template carries no checklist, so the repo's is the only one.
 
@@ -164,13 +162,13 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
 - **Create the PR as a draft with no chat-side review gate** -- `gh pr create --draft --body-file pr_<slug>_pr<N>.final.md --base <base-branch>`.
 
-  - `<base-branch>` is the value step 1 resolved, dropped entirely when empty.
+  - `<base-branch>` is the value step 1 resolved, dropped when empty.
     - A `<parent>` run → that value is the parent's head branch, resolved in step 1.
 
-  - The user reviews on GitHub, where the rendered body is the artifact they will actually judge; a chat-side approval would review a different one.
+  - The user reviews on GitHub, where the rendered body is the artifact they will judge; a chat-side approval would review a different one.
 
   - **Branch already has an open PR** (`gh pr create` errors that one exists) → not a failure: take that PR's number and continue into step 5 against it.
-    - This is the "or update" half of the description; without it a re-run dead-ends after steps 1-3 already paid for two agent dispatches.
+    - This is the "or update" half of the description; without it a re-run dead-ends, wasting steps 1-3's two paid dispatches.
 
 - Return the PR URL.
 
@@ -181,14 +179,14 @@ Two entry points: a change the user asks for after the push, or step 4 finding t
 - **Pull GitHub's current body into the file first** -- `gh pr view <n> --json body`, so a hand-edit made there is not overwritten by the next push.
   - Skip this on step 4's already-exists entry: the `.final.md` just composed IS the replacement, so pulling would overwrite it with the body it replaces.
 
-- **Load the `doc-standards` skill before editing** -- this body is the only prose the main session ever writes, so its density cap, BLUF ordering, and collapse rules apply here.
-  - Steps 1-4 never need it: `pr-writer` loads it every dispatch and owns both gates, and step 4 only checks the artifact exists.
+- **Load the `doc-standards` skill before editing** -- this is the only prose the main session writes, so density cap, BLUF ordering, and collapse rules apply.
+  - Steps 1-4 never need it: `pr-writer` already loads it and owns both gates; step 4 only checks the artifact exists.
 
 - **Edit `pr_<slug>_pr<N>.final.md` only** -- the `.ideal.md` is deliberately left to drift once the PR exists.
   - Re-deriving the final body from it would discard the user's own edits, and nobody reads the ideal description after the push.
 
 - **Confirm with the user before writing to GitHub** -- the local edit is cheap to revise; the pushed body notifies reviewers.
 - **Updating an existing PR's body: never use `gh pr edit --body-file`** — take the REST command and its mandatory read-back from the `gh-cli-usage` skill, which authors that hazard.
-  - Restating the command here would be a third copy that drifts the next time GitHub changes the endpoint.
+  - Restating the command would be a third copy that drifts the next time GitHub changes the endpoint.
 
 [`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.

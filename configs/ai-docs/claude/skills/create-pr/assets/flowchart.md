@@ -4,7 +4,9 @@
 # its size is fixed by the skill's step count, and trimming to the bundled default
 # would drop steps from the flow audit or drop a whole rendering.
 # Parked in assets/ and never loaded by the model, so its words cost no context.
-words-budget: 2048
+# Raised from 2048 once step 4 gained an already-exists branch and step 5 a
+# second entry point: both renderings must carry them, so the step count moved.
+words-budget: 4096
 ---
 
 # create-pr — flow overview
@@ -109,51 +111,42 @@ def create_pr():
     # 16 · NO chat-side review gate: the user reviews the rendered body on
     #      GitHub, which is the artifact they will actually judge.
     #      A <parent> run → base is the parent's head branch, per step 1.
-    try:
-        url = gh("pr", "create", "--draft", "--body-file", final_path, "--base", base)
-        print(url)                                         # 17
-    except PullRequestAlreadyExists as e:
-        # 16a · NOT a failure — this is the "or update" half of the skill's
-        #       description. Take that PR's number and fall into step 5 against
-        #       it, rather than dead-ending after steps 1-3 already paid for two
-        #       agent dispatches.
-        n = e.existing_pr_number
-        apply_post_push_changes(n, entered_from_already_exists=True)
+    # 16a · an error saying the branch already has an open PR is NOT a failure:
+    #       take that PR's number and fall into step 5 against it. That is the
+    #       "or update" half of this skill's description, and dead-ending here
+    #       would waste the two agent dispatches steps 1-3 already paid for.
+    n, already_existed = gh_pr_create_draft(final_path, base)
+    print(pr_url(n))                                       # 17
 
-    # 18 · Step 5 — the other entry point: the user hand-edits the body on
-    #      GitHub or asks for a change in chat.
-    while user_wants_a_change():
-        apply_post_push_changes(n, entered_from_already_exists=False)
+    # 18 · Step 5 — two entry points: 16a above, or the user hand-editing the
+    #      body on GitHub / asking for a change in chat.
+    while already_existed or user_wants_a_change():
+        # 18a · this body is the only prose the main session ever writes, so
+        #       its density cap, BLUF ordering, and collapse rules apply HERE.
+        #       Steps 1-4 never need them: pr-writer owns both gates.
+        load_skill("doc-standards")
+
+        # 18b · skipped on the 16a entry, where the .final.md just composed IS
+        #       the replacement, so pulling would overwrite it.
+        if not already_existed:
+            # 18c · so a hand-edit made on GitHub survives the next push.
+            write(final_path, gh("pr", "view", n, "--json", "body"))
+
+        # 18d · edit the .final.md ONLY. The .ideal.md is deliberately left to
+        #       drift, since re-deriving the final body would discard the
+        #       user's own edits.
+        edit(final_path)
+
+        # 18e · the local edit is cheap to revise; the pushed body notifies reviewers.
+        confirm_with_user()
+
+        # 18f · never `gh pr edit --body-file`. The REST body update and its
+        #       mandatory read-back come from the gh-cli-usage skill, which
+        #       authors that hazard — a copy here would be a third that drifts.
+        gh_patch_body_and_read_back(n, final_path)
+        already_existed = False
 
     return  # 19 · Done
-
-
-def apply_post_push_changes(n, entered_from_already_exists):
-    # 18a · this body is the only prose the main session ever writes, so the
-    #       density cap, BLUF ordering, and collapse rules apply HERE — steps
-    #       1-4 never need them, since pr-writer owns both gates.
-    load_skill("doc-standards")
-
-    # 18b · pull GitHub's current body into the file FIRST, so a hand-edit made
-    #       there is not overwritten by the next push.
-    if not entered_from_already_exists:
-        write(final_path, gh("pr", "view", n, "--json", "body"))   # 18c
-    # 18b · skipped on the already-exists entry: the .final.md just composed IS
-    #       the replacement, so pulling would overwrite it with the body it
-    #       replaces.
-
-    # 18d · edit the .final.md ONLY. The .ideal.md is deliberately left to
-    #       drift, since re-deriving the final body would discard the
-    #       user's own edits.
-    edit(final_path)
-
-    # 18e · the local edit is cheap to revise; the pushed body notifies reviewers.
-    confirm_with_user()
-
-    # 18f · never `gh pr edit --body-file`. The REST body update and its
-    #       mandatory read-back come from the gh-cli-usage skill, which authors
-    #       that hazard — a copy here would be a third that drifts.
-    gh_patch_body_and_read_back(n, final_path)
 ```
 
 ## Flowchart
@@ -188,7 +181,7 @@ flowchart TD
   n14a["14a. Missing or empty -&gt; step 3's agent never finished.<br/>Re-dispatch it; never compose a replacement body here"]:::state
   n15["15. Only NOW push: git push -u origin &lt;branch&gt; when it has no<br/>upstream. The push is the run's first outward-facing act — it fires<br/>CI and makes the branch visible, while every step above only wrote<br/>local files, so a failed compose or gate leaves nothing on the remote"]:::gate
   n16{"16. gh pr create --draft --body-file &lt;final&gt; --base &lt;base-branch&gt;,<br/>with NO chat-side review gate — the user reviews the rendered body<br/>on GitHub, which is the artifact they will actually judge.<br/>A &lt;parent&gt; run -&gt; base is the parent's head branch, per step 1.<br/>Did it error that the branch already has an open PR?"}
-  n16a["16a. Branch already has an open PR -&gt; take that PR's number and fall<br/>into step 5 against it. NOT a failure: this is the 'or update' half of<br/>the skill's description, and dead-ending here would waste the two<br/>agent dispatches steps 1-3 already paid for"]:::state
+  n16a["16a. Branch already has an open PR -&gt; take its number and fall into<br/>step 5 against it. NOT a failure: this is the 'or update' half of the<br/>skill's description, and dead-ending here would waste the two agent<br/>dispatches steps 1-3 already paid for"]:::state
   n17["17. Return the PR URL"]
 
   n18{"18. Step 5 · Does the user hand-edit the body on GitHub,<br/>or ask for a change in chat?"}
