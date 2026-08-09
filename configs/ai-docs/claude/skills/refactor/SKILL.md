@@ -10,6 +10,10 @@ Detect refactoring opportunities in unpushed/uncommitted code and write them to 
 
 **Report only** — this skill analyzes and reports; it never edits code. Applying selected findings is a separate step the user initiates.
 
+`refactor` names two things with opposite write contracts — this skill, and the `refactor` **agent** (`~/.claude/agents/refactor.md`), which applies one already-accepted finding under a test gate.
+
+A caller wanting this skill's report dispatches `subAgent=deep-reviewer`, never `subAgent=refactor` — the latter silently turns a report-only leg into an editing one.
+
 ## When to invoke
 
 Direct `/refactor` invocation, phrases like "refactor this" / "clean this up" / "simplify what I just wrote", or dispatch from another skill's flow (e.g. `/implement`'s batch-end tail).
@@ -55,11 +59,15 @@ git ls-files --others --exclude-standard
 
 Deduplicate and merge the lists. If no files are found, inform the user and stop.
 
+Without that fallback the unpushed half either dies on `fatal: no upstream configured` or yields nothing, and the run writes a near-empty report that reads as "nothing to refactor".
+
 ### 2. Dispatch deep-reviewer to detect opportunities
 
 **Before dispatch, mint the report path.** Run `date "+verdict_refactor_%Y-%m-%d_%H:%M.md"` once and treat the output as `$VERDICT_PATH` in CWD (NOT `/tmp/` — the user reviews it alongside the diff in their editor).
 
-- The `verdict_` prefix is mandatory, not cosmetic — see `~/.claude/hooks/deep-reviewer-write-guard.sh` for why (a reserved-prefix collision with the Claude Code harness itself, not our own guard).
+- The `verdict_` prefix is mandatory, not cosmetic — `~/.claude/hooks/deep-reviewer-write-guard.sh` denies every other basename at exit 2.
+
+- It reads `verdict_` and not `report_`/`findings_` because the Claude Code harness intercepts those two before any hook runs; the guard's own header records that.
 
 - Use that exact filename in every reference below. One file per `/refactor` invocation; never reuse a prior run's path.
 
@@ -139,6 +147,12 @@ After the agent returns:
 
 **Stop here — this skill does not apply findings.** The user decides later which to act on.
 
-That happens by hand, or by a follow-up ask that hands selected findings to the normal edit + TaskList + verification flow (the `test-standards` post-change suite gate applies then).
+Applying is `/address-verdicts`' job: it globs `verdict_refactor_*.md` and routes each finding to the `refactor` agent, which applies it under a test gate.
+
+A reader sent to a generic edit flow would have to reproduce that gate by hand.
 
 Do not create apply-tasks or edit code as part of `/refactor`.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
