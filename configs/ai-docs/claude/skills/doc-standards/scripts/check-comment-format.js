@@ -82,20 +82,33 @@
 // Language comes from the file extension, then from the `#!`
 // shebang, and `--lang` overrides both.
 //
+// --fix repairs the mechanically-safe subset in place, then
+// reports whatever it could not: WIDTH is re-wrapped only on
+// standalone comment lines, PARAGRAPH split only where a
+// sentence already ends inside the cap.
+//
+// A trailing comment's WIDTH and every SENTENCE-BREAK are
+// left untouched, because both are fixed by rewording or by
+// moving code -- judgment the script has no basis to make.
+//
+// Passes re-lex the file between rules and repeat until the
+// content stops changing, so a re-wrap that overflows a
+// paragraph gets that paragraph split on the next round.
+//
 // Usage:
-//   check-comment-format.js [--max-chars N] [--max-lines N]
-//                           [--lang typescript|shell|python]
-//                           <file> [<file>...]
+//   check-comment-format.js [--fix] [--max-chars N]
+//     [--max-lines N] [--lang typescript|shell|python]
+//     <file> [<file>...]
 //
 // Exit codes:
-//   0  clean
-//   1  violations found
+//   0  clean (or fully repaired by --fix)
+//   1  violations found, or residue --fix could not repair
 //   2  usage error, or `typescript` not installed.
 //
 // Examples:
 //   check-comment-format.js path/to/spec.e2e.spec.ts
-//   check-comment-format.js --max-chars 80 src/**/*.ts
 //   check-comment-format.js --lang shell ~/.zshrc
+//   check-comment-format.js --fix scripts/report.py
 
 'use strict';
 
@@ -149,17 +162,20 @@ const LANGUAGES = {
 };
 
 const USAGE =
-  'usage: check-comment-format.js [--max-chars N] [--max-lines N] ' +
+  'usage: check-comment-format.js [--fix] [--max-chars N] [--max-lines N] ' +
   `[--lang ${Object.keys(LANGUAGES).join('|')}] <file>...`;
 
 function parseArgs(argv) {
   let maxChars = 64;
   let maxLines = 4;
   let lang = null;
+  let fix = false;
   const files = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === '--max-chars') {
+    if (arg === '--fix') {
+      fix = true;
+    } else if (arg === '--max-chars') {
       maxChars = Number(argv[++i]);
     } else if (arg === '--max-lines') {
       maxLines = Number(argv[++i]);
@@ -181,7 +197,7 @@ function parseArgs(argv) {
     console.error(USAGE);
     process.exit(2);
   }
-  return { maxChars, maxLines, lang, files };
+  return { maxChars, maxLines, lang, fix, files };
 }
 
 // The shebang is consulted after the extension, so an
@@ -596,7 +612,12 @@ function commentText(lineText, lang) {
   return (lineText ?? '').trim().replace(lang.prefixRe, '');
 }
 
-const SENTENCE_END_RE = /[.;][)"'\]`]*$/;
+// The lookbehind is what keeps a trailing ellipsis from
+// reading as a sentence end -- an elided fragment like
+// `"$(cat <<EOF ...)"` carries the thought into the next
+// line, so breaking after it severs a sentence the reader
+// then has to rejoin.
+const SENTENCE_END_RE = /(?<!\.)[.;][)"'\]`]*$/;
 const COLON_END_RE = /:[)"'\]`]*$/;
 const BULLET_RE = /^(\s*)-\s/;
 const LEADING_WHITESPACE_RE = /^(\s*)/;
@@ -723,6 +744,9 @@ function checkFile(file, maxChars, maxLines, langOverride) {
   );
 
   return {
+    lang,
+    lines,
+    fullCommentLines,
     widthViolations: findWidthViolations(widthTouchedLines, lines, maxChars),
     paragraphViolations: findParagraphViolations(fullCommentLines, lines, maxLines, lang),
     codeGaps: findCodeGapViolations(fullCommentLines, lines, lang),
@@ -732,11 +756,295 @@ function checkFile(file, maxChars, maxLines, langOverride) {
   };
 }
 
+// A repair caps its own retries, so a rule that keeps
+// re-flagging a line it cannot actually change reports residue
+// instead of spinning.
+const MAX_FIX_ITERATIONS = 10;
+
+// Order matters. BULLET-SPACING edits in place, so it can
+// never invalidate a later pass, and CODE-GAP adds the blank
+// the width pass would otherwise re-measure around.
+//
+// PARAGRAPH runs last because re-wrapping is what lengthens
+// the runs it splits.
+const FIX_PASSES = ['bulletSpacing', 'codeGaps', 'width', 'bulletBlanks', 'paragraph'];
+
+// Splits a raw line into the three pieces a repair rebuilds
+// it from, or null when the line is not standalone comment --
+// code with a trailing comment, or a `/*` delimiter.
+//
+// `prose` keeps its own leading indent, exactly as
+// commentText() leaves it, because that indent is what marks
+// a bullet's nesting depth.
+function splitCommentLine(lineText, lang) {
+  const raw = lineText ?? '';
+  const trimmed = raw.trim();
+  const match = trimmed.match(lang.prefixRe);
+  if (!match) return null;
+
+  return {
+    indent: raw.match(LEADING_WHITESPACE_RE)[1],
+    marker: match[0].trimEnd(),
+    prose: trimmed.slice(match[0].length),
+  };
+}
+
+// Empty prose yields a bare marker, which is what every
+// language's blankRe recognizes as a paragraph separator.
+function renderCommentLine(indent, marker, prose) {
+  return prose === '' ? indent + marker : `${indent}${marker} ${prose}`;
+}
+
+// The consecutive comment lines one over-long line's sentence
+// is spread across, so a re-wrap re-flows the whole thought
+// instead of repacking one line and leaving ragged neighbours.
+//
+// Absorption stops at a sentence end, a blank or delimiter
+// line, a new bullet, a different comment prefix, or indented
+// prose -- each marks the start of something the re-flow has
+// no business merging into.
+//
+// `stopBefore` bounds the walk at the last line an earlier
+// repair in this same pass already moved, whose entry in
+// `fullCommentLines` no longer names the line now at that
+// index.
+function flowUnit(lines, start, lang, fullCommentLines, stopBefore) {
+  const head = splitCommentLine(lines[start], lang);
+  if (!head) return null;
+
+  const proseIndent = head.prose.match(LEADING_WHITESPACE_RE)[1];
+  const isBullet = BULLET_RE.test(head.prose);
+
+  // Indented non-bullet prose is a set-off literal example --
+  // a usage line, a command, an aligned table -- whose columns
+  // re-wrapping would destroy. Shortening one means rewriting
+  // the example, so it is reported rather than mangled.
+  if (proseIndent.length > 0 && !isBullet) return null;
+
+  const texts = [head.prose.trim()];
+  let end = start;
+  while (!SENTENCE_END_RE.test(texts[texts.length - 1])) {
+    const next = end + 1;
+    if (next >= stopBefore) break;
+    if (classifyLine(next, fullCommentLines, lines, lang) !== 'content') break;
+
+    const parts = splitCommentLine(lines[next], lang);
+    if (!parts || parts.indent !== head.indent || parts.marker !== head.marker) break;
+    if (parts.prose !== parts.prose.trimStart() || BULLET_RE.test(parts.prose)) break;
+
+    texts.push(parts.prose.trim());
+    end = next;
+  }
+
+  return { head, proseIndent, isBullet, end, text: texts.join(' ') };
+}
+
+// Greedy re-wrap of one flow unit to the cap, or null when it
+// cannot be improved.
+//
+// A continuation of a bullet is indented two further columns
+// so the wrapped text stays visually inside its own item
+// rather than reading as the next one.
+function wrapUnit(unit, maxChars) {
+  const { head, proseIndent, isBullet } = unit;
+  const { indent, marker } = head;
+  const words = unit.text.split(/\s+/).filter(Boolean);
+
+  // One word cannot be split without rewriting it, so an
+  // over-long path, URL, or identifier is left as residue.
+  if (words.length < 2) return null;
+
+  const continuationIndent = isBullet ? `${proseIndent}  ` : proseIndent;
+  const budgetFor = (pad) => maxChars - (indent.length + marker.length + 1 + pad.length);
+
+  // A following capital is what separates a real sentence end
+  // from an abbreviation like `e.g.`, whose period would
+  // otherwise break the line mid-thought.
+  const endsSentence = (index) => {
+    if (!SENTENCE_END_RE.test(words[index])) return false;
+    const next = words[index + 1];
+    return next === undefined || /^[A-Z(`"']/.test(next);
+  };
+
+  const wrapped = [];
+  let pad = proseIndent;
+  let current = [];
+
+  for (let i = 0; i < words.length; i++) {
+    const tentative = current.concat(words[i]).join(' ');
+    if (current.length > 0 && tentative.length > budgetFor(pad)) {
+      wrapped.push(pad + current.join(' '));
+      pad = continuationIndent;
+      current = [words[i]];
+    } else {
+      current.push(words[i]);
+    }
+
+    // Starting each sentence on its own line is doc-standards'
+    // one-idea-per-line rule, and it is also what leaves the
+    // paragraph pass a boundary it is allowed to break on.
+    if (i < words.length - 1 && endsSentence(i)) {
+      wrapped.push(pad + current.join(' '));
+      pad = continuationIndent;
+      current = [];
+    }
+  }
+  if (current.length > 0) wrapped.push(pad + current.join(' '));
+
+  return wrapped.map((text) => renderCommentLine(indent, marker, text));
+}
+
+// Where to insert the blank line that breaks one over-long
+// paragraph run, as a 0-based index, or null when the run
+// offers no safe break.
+//
+// The break only ever lands after a line SENTENCE-BREAK would
+// accept -- otherwise the split just trades one violation for
+// another the script cannot then repair.
+//
+// Preference goes to the latest such line inside the cap, so
+// the first half stays full. Failing that, the earliest one
+// anywhere in the run still splits it: both halves may stay
+// over cap, but each gets its own attempt on the next round,
+// and a run whose every sentence outruns the cap is residue a
+// human has to reword.
+function paragraphBreakIndex(violation, lines, lang, maxLines) {
+  const runStart = violation.startLine - 1;
+  const lastOffset = violation.length - 1;
+
+  const breaksAfter = (offset) => {
+    const lastOfFirstHalf = runStart + offset - 1;
+    const text = commentText(lines[lastOfFirstHalf], lang);
+    const next = commentText(lines[lastOfFirstHalf + 1], lang);
+    return SENTENCE_END_RE.test(text) || (BULLET_RE.test(next) && COLON_END_RE.test(text));
+  };
+
+  for (let offset = Math.min(maxLines, lastOffset); offset >= 1; offset--) {
+    if (breaksAfter(offset)) return runStart + offset;
+  }
+  for (let offset = maxLines + 1; offset <= lastOffset; offset++) {
+    if (breaksAfter(offset)) return runStart + offset;
+  }
+
+  return null;
+}
+
+// Every edit below is queued against line numbers the checker
+// just reported, so applying them bottom-to-top keeps the
+// still-queued numbers valid -- an insertion only ever shifts
+// lines after itself.
+function applyPass(pass, report, maxChars, maxLines) {
+  const { lang, lines } = report;
+  const descending = (a, b) => b - a;
+  const ascending = (a, b) => a - b;
+  let changed = false;
+
+  const insertBlankComment = (afterIndex, borrowFrom) => {
+    const parts = splitCommentLine(lines[borrowFrom], lang);
+    if (!parts) return;
+    lines.splice(afterIndex, 0, renderCommentLine(parts.indent, parts.marker, ''));
+    changed = true;
+  };
+
+  if (pass === 'bulletSpacing') {
+    for (const line of report.bulletSpacing.map((v) => v.line).sort(descending)) {
+      const parts = splitCommentLine(lines[line - 1], lang);
+      if (!parts) continue;
+      lines[line - 1] = renderCommentLine(parts.indent, parts.marker, parts.prose.trimStart());
+      changed = true;
+    }
+  }
+
+  if (pass === 'codeGaps') {
+    for (const line of report.codeGaps.map((v) => v.line).sort(descending)) {
+      lines.splice(line - 1, 0, '');
+      changed = true;
+    }
+  }
+
+  // A flow unit reaches forward across lines the checker never
+  // flagged, so every unit is measured against the untouched
+  // file first and only then spliced in bottom-to-top -- read
+  // and write interleaved would let one repair reach into text
+  // an earlier one had already rewritten.
+  //
+  // A re-flow that reproduces its own input is not progress,
+  // and counting it as one would keep convergence from ever
+  // settling.
+  if (pass === 'width') {
+    const repairs = [];
+    let absorbed = -1;
+
+    for (const line of report.widthViolations.map((v) => v.line).sort(ascending)) {
+      const start = line - 1;
+      if (start <= absorbed) continue;
+
+      const unit = flowUnit(lines, start, lang, report.fullCommentLines, lines.length);
+      if (!unit) continue;
+      absorbed = unit.end;
+
+      const wrapped = wrapUnit(unit, maxChars);
+      if (!wrapped) continue;
+      const original = lines.slice(start, unit.end + 1);
+      if (wrapped.join('\n') === original.join('\n')) continue;
+
+      repairs.push({ start, span: original.length, wrapped });
+    }
+
+    for (const repair of repairs.reverse()) {
+      lines.splice(repair.start, repair.span, ...repair.wrapped);
+      changed = true;
+    }
+  }
+
+  // The reported line is the bullet item's LAST line, so the
+  // blank belongs directly after it.
+  if (pass === 'bulletBlanks') {
+    for (const line of report.bulletBlanks.map((v) => v.line).sort(descending)) {
+      insertBlankComment(line, line - 1);
+    }
+  }
+
+  if (pass === 'paragraph') {
+    const ordered = [...report.paragraphViolations].sort((a, b) => b.startLine - a.startLine);
+    for (const violation of ordered) {
+      const at = paragraphBreakIndex(violation, lines, lang, maxLines);
+      if (at === null) continue;
+      insertBlankComment(at, at - 1);
+    }
+  }
+
+  return changed ? lines.join('\n') : null;
+}
+
+function fixFile(file, maxChars, maxLines, langOverride) {
+  let previous = fs.readFileSync(file, 'utf8');
+
+  for (let round = 0; round < MAX_FIX_ITERATIONS; round++) {
+    for (const pass of FIX_PASSES) {
+      const report = checkFile(file, maxChars, maxLines, langOverride);
+      const updated = applyPass(pass, report, maxChars, maxLines);
+      if (updated !== null) fs.writeFileSync(file, updated);
+    }
+
+    const current = fs.readFileSync(file, 'utf8');
+    if (current === previous) return;
+    previous = current;
+  }
+
+  console.error(
+    `check-comment-format.js: did not converge on ${file} ` +
+      `after ${MAX_FIX_ITERATIONS} rounds`,
+  );
+}
+
 function main() {
-  const { maxChars, maxLines, lang, files } = parseArgs(process.argv.slice(2));
+  const { maxChars, maxLines, lang, fix, files } = parseArgs(process.argv.slice(2));
   let anyHit = false;
 
   for (const file of files) {
+    if (fix) fixFile(file, maxChars, maxLines, lang);
+
     const {
       widthViolations,
       paragraphViolations,
