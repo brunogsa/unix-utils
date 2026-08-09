@@ -239,6 +239,14 @@ function tok(v){
 }
 
 const ALL_DAYS = Object.keys(DATA.days).sort();
+
+// Stamped so a metric accessor holding only the day
+// object can still name its own day.
+//
+// The goal ratios below are defined over day keys,
+// and a chart or scatter point carries the object.
+ALL_DAYS.forEach(day => { DATA.days[day].day = day; });
+
 const state = {
   metric: 'cost',
   from: ALL_DAYS[0],
@@ -446,6 +454,31 @@ function hasReading(g, days) {
 function goalCell(g, days) {
   return hasReading(g, days) ? g.fmt(g.value(days)) : '—';
 }
+
+// Two goals have no distinct one-day form: spend
+// per 7 days is that day's own total scaled, and
+// merged PRs per day is the count already listed.
+//
+// Offering either again would put one series on the
+// axis list twice under a second name.
+const DAILY_GOAL_SKIP = new Set(['total', 'prday']);
+
+// Published as daily metrics so a goal can be put
+// against any other metric in the scatter, not only
+// against the subagent-share groups above.
+//
+// A goal read over a single day divides that day
+// alone, so `needs` drops the days it has no
+// denominator for instead of plotting a zero.
+METRICS.push(...GOALS
+  .filter(g => !DAILY_GOAL_SKIP.has(g.id))
+  .map(g => ({
+    id: `goal-${g.id}`,
+    label: g.label,
+    fmt: g.fmt,
+    get: d => g.value([d.day]),
+    needs: d => g.denom([d.day]),
+  })));
 
 // Split by calendar position, not by citable
 // count.
@@ -913,10 +946,17 @@ const SW = 1000, SH = 320, S_L = 62, S_R = 16, S_T = 16, S_B = 40;
 // two metrics move together. Days past the retention floor are dropped
 // outright rather than optionally: their transcripts are gone, so a near-zero
 // reading there is missing data wearing the costume of a quiet day.
+//
+// A day that merged nothing has no cost per merged
+// PR at all, so an axis dividing by a count that day
+// lacks drops it rather than pinning it to zero and
+// bending the fit through a value it never had.
 function scatterDays() {
+  const axes = [state.xm, state.ym].map(id => METRICS.find(m => m.id === id));
   return visibleDays().filter(day => {
     const d = DATA.days[day];
     if (d.coverage !== 'complete') return false;
+    if (axes.some(m => m.needs && !m.needs(d))) return false;
     return state.zeros || d.session_count > 0;
   });
 }
