@@ -36,7 +36,9 @@ This file owns the `<details>` wrapper and the summary label; `references/readin
 </details>
 
 ## Jira link
-[Budget: 4 lines. Bullet list of the ticket(s) this PR closes, plus any related PR. Omit only when the repo tracks no tickets.]
+[Budget: 4 lines. Bullet list of the ticket(s) this PR closes, plus any related PR — including the `Stacks on #<parent>` pointer on a stacked run, per `references/parent-arg.md`.
+
+Omit only when the repo tracks no tickets and the run is not stacked.]
 
 ## Context
 [Budget: 17 lines — this heading plus at most 4 paragraphs of at most 4 lines each.
