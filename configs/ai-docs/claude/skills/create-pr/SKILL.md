@@ -26,7 +26,7 @@ Read it before drafting or reviewing a PR body; `pr-writer` loads it every dispa
 
 ### 1. Gather context
 
-**CRITICAL: This step's interview is the only point in the whole skill where the user is asked anything.**
+**CRITICAL: This step's interview is the only point in steps 1-4 where the user is asked anything.**
 
 Steps 1-4 run to completion without pausing or posing a chat question that blocks composing or pushing.
 
