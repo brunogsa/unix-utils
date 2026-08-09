@@ -198,26 +198,30 @@ def run_unit(unit):
     if not git_push("-u", "origin", "HEAD"):               # 29 · no remote, a rejected
         return halt()                                      #      non-fast-forward, no creds
 
-    if unit.is_pr or answers.draft_pr:                     # 30
-        load("references/batch-end-pr.md")                 # 30a
-        if unit.is_pr:
-            # 31 · Finalize step 2, PR-label runs only: the Branch: clause and the
-            #      PR-level [Done] marker, both on this PR's own plan line.
-            plan.record_branch_clause(unit.label, current_branch())
-            plan.mark_pr(unit.label, "[Done]")
-        if answers.draft_pr:                               # 32
-            pr = dispatch("pr-creator", batch_diff)  # 32a · composes the body and
+    # The three batch-end-pr* files load under three separate conditions — each
+    # `if` below reads only its own, so no run pays for a branch it skips.
+    if unit.is_pr:                                         # 30
+        load("references/batch-end-pr-branch-record.md")   # 30a
+        # 31 · Finalize step 2, PR-label runs only: the Branch: clause and the
+        #      PR-level [Done] marker, both on this PR's own plan line.
+        plan.record_branch_clause(unit.label, current_branch())
+        plan.mark_pr(unit.label, "[Done]")
+
+    if answers.draft_pr:                                   # 32
+        load("references/batch-end-pr.md")                 # 32a
+        pr = dispatch("pr-creator", batch_diff)      # 32b · composes the body and
                                                      #       CREATES ONLY — 28 pushed,
                                                      #       so it must never push
-            if not pr.opened:                              # 32b
-                return halt()
-            # 32c · native mode + the run's last PR only: register the chain as
-            #       a native stack, reusing the already-created PRs. Linking
-            #       runs LAST so no branch is server-rebased mid-run; a failed
-            #       link downgrades Mode: to merge and continues — never a halt.
-            if plan.stack_mode == "native" and unit.is_last_label:
-                if not gh("stack", "link"):
-                    plan.record_stack_mode("merge")
+        if not pr.opened:                                  # 32c
+            return halt()
+        # Native mode + the run's last PR only: register the chain as a native
+        # stack, reusing the already-created PRs. Linking runs LAST so no branch
+        # is server-rebased mid-run.
+        if plan.stack_mode == "native" and unit.is_last_label:
+            load("references/batch-end-pr-native-link.md") # 32d
+            if not gh("stack", "link"):                    # 32e · a failed link
+                plan.record_stack_mode("merge")            #       downgrades Mode:
+                                                           #       to merge, never halts
 
     print_review_package()          # 33 · Finalize step 3 — the package, closing with
                                     #      the review notification: base SHA + its
@@ -305,13 +309,15 @@ flowchart TD
     n27c["27c. Step 8.2 · Dispatch tdd-coder to fix it<br/>(agent-pinned, 1h Monitor cap, attempt<br/>recorded); RE-RUN THE FULL SUITE"]:::dispatch
     n28["28. Step 8.3 · Finalize step 1 · git push -u origin HEAD<br/>— ALWAYS, on every batch end, whatever pr.wanted<br/>says. A pushed branch with no PR is the ordinary<br/>outcome, not a half-finished state"]:::gate
     n29{"29. Push succeeded?<br/>(no remote / rejected non-fast-forward /<br/>missing credentials)"}
-    n30{"30. PR-label run, or a draft PR requested?"}
-    n30a["30a. Load references/batch-end-pr.md"]:::skill
+    n30{"30. PR-label run?"}
+    n30a["30a. Load references/batch-end-pr-branch-record.md"]:::skill
     n31["31. Step 8.3 · Finalize step 2 · Record the Branch:<br/>clause + the PR-level [Done] marker on this PR's<br/>own plan line (PR-label runs only)"]:::state
     n32{"32. Draft PR requested?"}
-    n32a["32a. Step 8.3 · Dispatch the pr-creator agent<br/>(agent-pinned): it composes the body and CREATES<br/>the PR ONLY — step 28 already pushed,<br/>so it must never push or force-push"]:::dispatch
-    n32b{"32b. PR opened or updated?"}
-    n32c["32c. Native mode + the run's LAST PR only: gh stack link<br/>registers the chain as a native stack, reusing the<br/>already-created PRs. Linking runs LAST so no branch is<br/>server-rebased mid-run; a failed link downgrades the<br/>plan's Mode: to merge and continues — never a halt"]
+    n32a["32a. Load references/batch-end-pr.md"]:::skill
+    n32b["32b. Step 8.3 · Dispatch the pr-creator agent<br/>(agent-pinned): it composes the body and CREATES<br/>the PR ONLY — step 28 already pushed,<br/>so it must never push or force-push"]:::dispatch
+    n32c{"32c. PR opened or updated?"}
+    n32d["32d. Native mode + the run's LAST PR only (skipped<br/>otherwise): load references/batch-end-pr-native-link.md"]:::skill
+    n32e["32e. gh stack link registers the chain as a native stack,<br/>reusing the already-created PRs. Linking runs LAST so no<br/>branch is server-rebased mid-run; a failed link downgrades<br/>the plan's Mode: to merge and continues — never a halt"]
     n33["33. Step 8.3 · Finalize step 3 · Print the review<br/>package, closing with the review notification:<br/>base SHA + its subject, then one line per unit —<br/>label · branch · commit count · PR URL when one<br/>exists; complete the remaining [Reminder]s"]
     n34["34. Step 8.3 · Finalize step 4 · phase=presented;<br/>DELETE this unit's state file"]:::state
   end
@@ -370,10 +376,10 @@ flowchart TD
   n29 -->|"no"| n36
   n29 -->|"yes"| n30
   n30 -->|"yes"| n30a --> n31 --> n32
-  n30 -->|"no"| n33
-  n32 -->|"yes"| n32a --> n32b
-  n32b -->|"no"| n36
-  n32b -->|"yes"| n32c --> n33
+  n30 -->|"no / task-ids run"| n32
+  n32 -->|"yes"| n32a --> n32b --> n32c
+  n32c -->|"no"| n36
+  n32c -->|"yes"| n32d --> n32e --> n33
   n32 -->|"no"| n33
   n33 --> n34 --> n35
   n35 -->|"yes"| n13

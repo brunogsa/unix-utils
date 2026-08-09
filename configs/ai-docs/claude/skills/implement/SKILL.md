@@ -425,7 +425,7 @@ In all non-`[Done]` terminal states, do NOT leave partial code committed under a
 ### PR-level status markers (PR Breakdown line, PR-label runs only)
 
 A PR-label run's own PR Breakdown line gets the same `[<status>]` prefix at its own §8.3.
-Only `[Done]` in practice, inline, never scripted. Format/timing: `references/batch-end-pr.md`'s "Branch record & PR-level status marker".
+Only `[Done]` in practice, inline, never scripted. Format/timing: `references/batch-end-pr-branch-record.md`'s "Branch record & PR-level status marker".
 
 ## 7. Commit model
 

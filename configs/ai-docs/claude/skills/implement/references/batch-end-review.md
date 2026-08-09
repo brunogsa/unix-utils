@@ -14,8 +14,8 @@ Detail for /implement's batch-end steps. Load when the batch reaches its end.
 SKILL.md's `§8.1 → §8.2 → §8.3` is the running order, and the only place that sequence is written down.
 This file expands each of those steps; it never restates their order.
 
-The branch record and the opt-in PR live in [`batch-end-pr.md`](batch-end-pr.md), reached from **Finalize** below, right after the push that Finalize always runs.
-Skip that file entirely when the run is neither a PR-label run nor an opted-in draft.
+The branch record lives in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) and the opt-in PR in [`batch-end-pr.md`](batch-end-pr.md), both reached from **Finalize** below, right after the push that Finalize always runs.
+Skip whichever file doesn't match the run: the branch-record file only fires on a PR-label run, the PR file only on an opted-in draft.
 
 ## The quality-gate tail (§8.1)
 
@@ -154,7 +154,7 @@ By the time Finalize starts, both opt-in stages are behind it — whichever ran,
    - **Any push failure is a [`failure-and-halt.md`](failure-and-halt.md) §5.5 halt** — no remote, a rejected non-fast-forward, missing credentials.
      - Name the failure, keep the state file, print nothing further. A notification pointing at a branch that never reached the remote is worse than a halt.
 
-2. **Record the branch, then open the PR** — mechanics in [`batch-end-pr.md`](batch-end-pr.md).
+2. **Record the branch, then open the PR** — mechanics in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) (branch record) and [`batch-end-pr.md`](batch-end-pr.md) (opt-in PR).
    The `Branch:` clause and the PR-level `[Done]` marker land on a PR-label run; the `pr-creator` dispatch runs only on `pr.wanted: true`.
    - Step 1 already pushed, so that dispatch creates the PR and must never push or force-push.
    - **Any failure there is a §5.5 halt too**, per that file's own closing rule.

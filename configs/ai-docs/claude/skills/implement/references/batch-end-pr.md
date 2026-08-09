@@ -1,26 +1,10 @@
-# Batch-end — branch record & the PR itself
+# Batch-end — open the PR
 
-Read this only when the batch is a PR-label run, or when the interview opted into a PR.
+Read this only when the interview opted into a PR.
+On a PR-label run, the branch-record and PR-level status-marker edits live in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) instead, reached from the same Finalize step regardless of whether a PR is also opened.
 
 **Dispatched from inside Finalize (§8.3), right after its always-run push** (`batch-end-review.md`'s "Finalize" step 2).
 The PR body then describes the batch's final diff — quality-gate and repo-green fixes included — in one pass.
-
-## Branch record & PR-level status marker (PR-label runs only)
-
-Skip this section on a plain `<task-ids>` run (no `PR-N` label, `pr_label` is `""`).
-
-Both edits below land on this PR's own line in the plan's PR Breakdown, in one pass:
-
-- **`Branch:` clause** — record this PR's branch (`git branch --show-current` right now), once, regardless of whether step 2 succeeds.
-  See `references/pr-awareness.md`'s "Branch recording" for why this write belongs here, not at branch creation.
-
-- **PR-level status marker** — set this PR's own line to **`[Done]`**, mirroring §6's task-level marker convention one level up:
-  ```
-  N. **[Done] PR-N** — <theme>. Tasks: <N, N>. Depends on: <none | PR-N>. Branch: `<branch-name>`.
-  ```
-  Write both inline, in a task-level marker's edit style — never scripted.
-  Reaching here means every task is `[Done]` — a unit that couldn't finish halted at §5.5.
-  The marker reflects the *code* being done: a PR that fails to open still halts the run (§5.5), but its work is finished.
 
 ## Open the PR (opt-in)
 
@@ -93,22 +77,4 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
 A push failure can't surface here: Finalize's step 1 owns the push and already halted if it failed.
 Go to §5.5: name the failure in one short message, keep the state file, print nothing further — there is nothing to present when the PR was never published.
 
-## Native mode: link the stack (run's last PR only)
-
-Only when the plan's PR Breakdown carries `Mode: native` (see "Stack mode" in [`pr-awareness.md`](pr-awareness.md)) AND this PR is the run's last label AND its PR was just created. Skip otherwise.
-
-Register the whole chain as a GitHub native stack:
-
-```bash
-gh stack link
-```
-
-Run it from this (topmost) branch; check `gh stack link --help` first — the extension is preview-stage and its flags still move.
-It reuses the already-created PRs (each already targets its parent) and only registers the stack with GitHub — no local tracking, no pushes.
-
-Linking runs last on purpose: an unlinked chain is just classic PRs GitHub never touches, so no branch can be server-rebased while the run is still writing to it.
-
-**A failed link is a downgrade, not a halt** — the one exemption from the halt rule above: flip the plan's line to `Mode: merge`, note it in the package, and continue.
-The PRs are already correctly based, so the stack simply stays classic. Common causes: the repo doesn't have the preview enabled, or the extension version drifted.
-
-Once linked, GitHub owns restacks — the native rulebook (sync-first, never merge stack branches) lives in [`stacked-prs.md`](stacked-prs.md).
+Once this run's last PR has just been created under `Mode: native`, continue to [`batch-end-pr-native-link.md`](batch-end-pr-native-link.md) to register the stack. Skip otherwise.
