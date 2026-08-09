@@ -192,6 +192,59 @@ Commit `95329ca`. Opened 2026-08-08 from the ledger. This is the one cluster in 
 
 - **Settle by**: reading depth from transcripts directly — count spawns whose path contains two or more `/subagents/` segments — rather than inferring depth from volume.
 
+### 2026-08-09 — markdown fixing became mostly script, not AI, unblocking brainstorm
+
+Commits `a1fba4ee` (fix-density.py), `cb78d663` (`--fix` on check-bullet-gap.py), `356e8b60` (split on `"; "`), `1c20046c`, `0aedb3ae` and `fb290055`.
+
+Opened on the user's instruction, who named this a bottleneck they expect to move the metrics.
+
+- **Surface**: `skill:doc-standards`, `agent:markdown-standards-fixer`.
+
+- **Hypothesis**: density and bullet-gap repair used to be AI rewriting prose turn by turn, and the mechanical splits are now one sub-second script pass.
+  - AI is left only the residue, the rows with no safe split boundary.
+
+- **Why brainstorm is the skill to watch**: it authors spec and plan docs, so it pays the doc-standards fix loop on every artifact it produces.
+
+- **Pre-change baselines, the 7 complete days 2026-08-02..08-08**:
+  - `by_skill.brainstorm`: $94.30 across 8 loads, or $11.79 per load.
+  - `by_subagent_type.markdown-standards-fixer`: $2.94 across 13 runs, or $0.226 per run.
+
+- **Watch signal**: `by_skill.brainstorm` cost per load, and `by_subagent_type.markdown-standards-fixer` cost per run.
+- The fixer's own cost per run is the sharper of the two, because it isolates the changed step from everything else brainstorm does.
+
+- **Settle by**: a window of `reconciliation: "ok"` days from 2026-08-10 onward that loads brainstorm at least three times, compared against the baselines above.
+
+- **Direction is not obvious and must not be assumed.** Cheaper per fix can raise total fixer spend if the cheaper agent simply gets dispatched more.
+  - Read cost per run first, and total only against run count.
+
+### 2026-08-09 — implement dispatches independent tasks as a parallel wave in git worktrees
+
+Commits `5960f31e` (`--eligible-set`), `075810d8` (parallel dispatch), `a1af49ee` (live, halt and cleanup gaps), `237bf1f4` (tdd-coder in a per-task worktree), and `82d9b588` (`parallel-worktrees` extracted as a skill).
+
+Plus `736d862c`, `5b0ba34d`, `617e90cd`, `a4c93125` and `25fc2165`. Opened on the user's instruction.
+
+- **Surface**: `skill:implement`, `skill:parallel-worktrees`, `agent:tdd-coder`.
+
+- **Hypothesis**: implement ran independent tasks serially because it never placed them in separate worktrees, so its wall-clock was the sum of every task rather than the longest chain.
+
+- **This targets wall-clock, not dollars.** Parallel work bills the same tokens; what changes is hours per batch, which is the KPI the user named.
+
+- **Pre-change baselines, the 7 complete days 2026-08-02..08-08**:
+  - `by_skill.implement`: $100.25 across 5 loads, or $20.05 per load.
+  - Sessions in `top_sessions` listing `implement`: 4 sessions, 5.3 hours, $38.12 — an average of 1.32 hours.
+
+- **The session figure is a floor, not a total.** `top_sessions` is a truncated ranking, so any implement session below the cutoff is missing from those 4.
+  - Compare it only against a later window read the same way.
+
+- **Watch signal**: `duration_hours` on sessions listing `implement`, against `by_skill.implement` cost per load. Rising cost at falling hours is the expected shape.
+
+- **Also watch the goal KPI directly**: work merged PRs per day. Parallelism only pays if batches close sooner, not merely if hours per session drop.
+
+- **Settle by**: a window of `reconciliation: "ok"` days from 2026-08-10 onward carrying at least three implement loads.
+
+- **Known confounder landing the same day**: `906334b7` raised the subagent concurrency cap to 16 for consistency-check sharding.
+  - It also caps how wide this wave can actually run, so the two levers are not separable from spend alone.
+
 ### Confounder notes — 2026-07-27 to 2026-08-07 commits with no observation window
 
 The ledger counted 175 commits in this range. The user confirmed on 2026-08-08 that none of the four clusters below were deliberate KPI experiments, so each is a confounder, not an entry.
