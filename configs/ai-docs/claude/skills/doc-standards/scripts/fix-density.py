@@ -69,7 +69,7 @@ def candidate_splits(line, max_chars, max_words):
     no-candidate-fits-both-caps case) break on how evenly the split
     balances the two halves, in characters.
     """
-    indent = re.match(r"[ \t]*", line).group()
+    indent = line[: len(line) - len(line.lstrip(" \t"))]
     safe = []
 
     for m in BOUNDARY.finditer(line):
