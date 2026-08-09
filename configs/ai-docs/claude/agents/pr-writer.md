@@ -52,8 +52,8 @@ The format has to stay stable, because the page-fit script can only hold a secti
    ~/.claude/skills/create-pr/scripts/extract-md-sections.sh <file> "<section>" ["<section>" ...]
    ```
 
-   Paste each extracted section verbatim inside its collapsed block, then strip every `AC-N` / `PR-N` / `D-N` / `R-N` / `OQ-N` token.
-   Replace such a token with the behavior it names, or drop it when the sentence already names that behavior.
+   Paste each extracted section verbatim inside its collapsed block, then apply the numbered-token strip that the "ZERO references to untracked session docs" rule in `writing-style.md` mandates for pasted spec/plan text.
+   You load that file as source 3 every dispatch, so it already reaches you with the token list and the replace-or-drop choice.
 
 4. Author the remaining sections from the changes digest, not from a raw diff.
    If the digest is insufficient for one section, read that file's targeted diff (`git diff <base> -- <path>`); never fall back to reading the full diff.

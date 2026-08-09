@@ -164,11 +164,11 @@ Acceptance criteria live here and ONLY here — the body's Evidences carries jus
 
 The decision catalog likewise lives here in full and verbatim, including the low-level entries the body's summary cut.
 
-Keep the spec's BDD content (Given/When/Then/And) verbatim EXCEPT for its numbered lookup tokens: strip every `AC-N`, `PR-N`, `D-N`, `R-N`, and `OQ-N`, wherever it sits.
+Keep the spec's BDD content (Given/When/Then/And) verbatim EXCEPT for the numbered lookup tokens the "ZERO references to untracked session docs" rule in `writing-style.md` strips.
 
-That is doc-standards' ban on citing a doc by a number that renumbers on the next edit, and it outranks the verbatim rule.
+That strip outranks the verbatim rule here: it is doc-standards' ban on citing a doc by a number that renumbers on the next edit.
 
-A criterion's own `AC-N:` heading prefix just disappears; a token cited inline is replaced by the behavior it names, or dropped when the sentence already names it.
+A criterion's own `AC-N:` heading prefix just disappears — the one part of the strip specific to this template's heading shape.
 
 Keep the spec's own criterion grouping as headings, shifted by the heading-level contract above so each criterion nests one level under its group:
 
