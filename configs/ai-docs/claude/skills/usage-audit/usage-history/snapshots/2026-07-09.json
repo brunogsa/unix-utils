@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-09T00:48:56-03:00",
+  "generated_at": "2026-08-09T01:24:04-03:00",
   "day": "2026-07-09",
-  "coverage": "complete",
+  "coverage": "partial",
   "observed_days": 1,
   "kpis": {
     "cost_per_day": 61.05,
@@ -233,30 +233,12 @@
     }
   ],
   "reconciliation": {
-    "status": "drift",
-    "worst_delta_pct": 34.161,
-    "tokens": {
-      "input": {
-        "script": 342450,
-        "ccusage": 450102,
-        "delta_pct": -23.917
-      },
-      "output": {
-        "script": 367757,
-        "ccusage": 510044,
-        "delta_pct": -27.897
-      },
-      "cache_read": {
-        "script": 33120990,
-        "ccusage": 45758731,
-        "delta_pct": -27.618
-      },
-      "cache_write": {
-        "script": 2127139,
-        "ccusage": 3230810,
-        "delta_pct": -34.161
-      }
-    },
-    "ccusage_cost_untrusted": 93.19
+    "status": "partial",
+    "script_tokens": {
+      "input": 342450,
+      "output": 367757,
+      "cache_read": 33120990,
+      "cache_write": 2127139
+    }
   }
 }

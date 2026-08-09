@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-09T00:48:08-03:00",
+  "generated_at": "2026-08-09T01:23:15-03:00",
   "day": "2026-07-05",
-  "coverage": "complete",
+  "coverage": "unretained",
   "observed_days": 1,
   "kpis": {
     "cost_per_day": 0.0,
@@ -38,30 +38,12 @@
   "by_skill_marginal": {},
   "top_sessions": [],
   "reconciliation": {
-    "status": "ok",
-    "worst_delta_pct": 0.0,
-    "tokens": {
-      "input": {
-        "script": 0,
-        "ccusage": 0,
-        "delta_pct": 0.0
-      },
-      "output": {
-        "script": 0,
-        "ccusage": 0,
-        "delta_pct": 0.0
-      },
-      "cache_read": {
-        "script": 0,
-        "ccusage": 0,
-        "delta_pct": 0.0
-      },
-      "cache_write": {
-        "script": 0,
-        "ccusage": 0,
-        "delta_pct": 0.0
-      }
-    },
-    "ccusage_cost_untrusted": 0.0
+    "status": "unretained",
+    "script_tokens": {
+      "input": 0,
+      "output": 0,
+      "cache_read": 0,
+      "cache_write": 0
+    }
   }
 }

@@ -280,6 +280,19 @@ def oldest_retained_day():
     return local_day(oldest) if oldest is not None else None
 
 
+def day_coverage(day, retention_floor):
+    """How much of `day` the transcripts on disk can still account for.
+
+    The floor day is "partial", never "complete": the prune cuts through it at
+    an hour, not at midnight, so its earlier sessions are already gone while the
+    ones that ran past the cut survive. Calling it complete is what let
+    2026-07-09 be measured at 68% of its real spend and read as a counting bug.
+    """
+    if not retention_floor or day < retention_floor:
+        return "unretained"
+    return "partial" if day == retention_floor else "complete"
+
+
 def iter_records(path):
     try:
         with open(path, errors="replace") as fh:
@@ -993,9 +1006,11 @@ def build_payload(result, top_n, day=None, coverage="complete", reconciliation=N
 
     `day` set marks a single closed local calendar day (the committed snapshot
     unit); left None it is an ad-hoc rolling window, which never gets snapshotted.
-    `coverage` is "complete" when transcripts for the period are still on disk and
-    "unretained" when they were pruned — an unretained day reads $0 but means
-    "unmeasurable", not "idle", so no reader mistakes deleted history for a day off.
+    `coverage` is "complete" when transcripts for the period are still on disk,
+    "partial" on the retention-floor day itself, whose earlier sessions are gone
+    while its later ones survive, and "unretained" once the whole day was pruned
+    — an unretained day reads $0 but means "unmeasurable", not "idle", so no
+    reader mistakes deleted history for a day off.
     `reconciliation` is the ccusage token cross-check, present on snapshots only —
     an ad-hoc window has no day for ccusage to be asked about.
     """
@@ -1110,6 +1125,31 @@ def write_snapshot(payload, day):
         json.dump(payload, fh, indent=2)
         fh.write("\n")
     return path
+
+
+def keep_richer_snapshot(payload, day, coverage):
+    """The existing snapshot's path when it outvalues `payload`, else None.
+
+    A rewrite is idempotent only while the day's transcripts are still on disk.
+    Once the prune reaches them the same code path becomes the most destructive
+    operation here: `--rebuild` is mandatory after any aggregation fix, and it
+    would replace a day measured while its records existed with a $0 reading of
+    their absence. Measured on 2026-08-09: rebuilding 2026-06-14 writes $0.00
+    over a committed $5.62, and 2026-07-10 drops $507.89 to $507.54.
+
+    Gated on coverage so a genuine correction still lands. The 2026-07-27 dedup
+    fix cut 2026-07-20 from $441.44 to $130.16 — a fully retained day measured
+    lower is the fix working, not history being lost.
+    """
+    if coverage == "complete":
+        return None
+    path = os.path.join(SNAPSHOTS_DIR, f"{day}.json")
+    try:
+        with open(path) as fh:
+            existing = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return path if existing.get("total", 0.0) > payload["total"] else None
 
 
 def existing_snapshot_days():
@@ -1236,18 +1276,48 @@ def reconcile_tokens(result, day):
     }
 
 
-def snapshot_day(day, top_n, retention_floor):
+def snapshot_day(day, top_n):
     """Aggregate one closed local day and commit it.
 
     Returns (path, total cost, ccusage reconciliation status).
+
+    The retention floor is read HERE, per day, rather than once per run. Claude
+    Code prunes transcripts on its own schedule, so a multi-minute rebuild can
+    straddle a prune and label every day it scans afterwards from a floor that
+    stopped being true partway through.
     """
     since_epoch, until_epoch = day_bounds(day)
     main_files, subagent_files = find_transcripts(since_epoch)
     result = aggregate(main_files, subagent_files, since_epoch, until_epoch)
-    coverage = "complete" if retention_floor and day >= retention_floor else "unretained"
-    reconciliation = reconcile_tokens(result, day)
+    coverage = day_coverage(day, oldest_retained_day())
+
+    # A day the prune has reached can only measure LOWER
+    # than it truly was, so its ccusage cross-check compares
+    # two different corpora and reports the deleted spend as
+    # a counting disagreement.
+    #
+    # Measured on 2026-07-09: the script read 342,450 input
+    # tokens against a ccusage figure of 450,102 primed
+    # minutes earlier, and re-running ccusage after the
+    # prune returned 342,452.
+    #
+    # Nothing miscounted; the transcripts went away mid-run.
+    if coverage == "complete":
+        reconciliation = reconcile_tokens(result, day)
+    else:
+        reconciliation = {"status": coverage,
+                          "script_tokens": {
+                              "input": result["tokens"]["input"],
+                              "output": result["tokens"]["output"],
+                              "cache_read": result["tokens"]["cache_read"],
+                              "cache_write": result["tokens"]["cache_write_5m"]
+                              + result["tokens"]["cache_write_1h"]}}
     payload = build_payload(result, top_n, day=day, coverage=coverage,
                             reconciliation=reconciliation)
+    kept = keep_richer_snapshot(payload, day, coverage)
+    if kept is not None:
+        with open(kept) as fh:
+            return kept, json.load(fh)["total"], "preserved"
     return write_snapshot(payload, day), payload["total"], reconciliation["status"]
 
 
@@ -1286,12 +1356,24 @@ def run_backfill(args, last_closed_day):
     # number of days. A failure here is non-fatal — each day then records
     # "unavailable" and the snapshot is still written.
     prime_ccusage(first_day, last_day)
-    drifted = []
+    drifted, preserved = [], []
     for day in missing:
-        path, total, status = snapshot_day(day, args.top, retention_floor)
+        path, total, status = snapshot_day(day, args.top)
         print(f"  {day}  ${total:>9,.2f}  ccusage:{status:<12} {os.path.basename(path)}")
         if status == "drift":
             drifted.append(day)
+        elif status == "preserved":
+            preserved.append(day)
+
+    # Named individually rather than counted: a preserved
+    # day is one this run could no longer measure, so the
+    # reader needs which days now rest on an older run.
+    if preserved:
+        print(f"\nKEPT the committed snapshot on {len(preserved)} day(s): "
+              f"{', '.join(preserved)}\n"
+              f"  Their transcripts have been pruned, so re-measuring would "
+              f"only have lowered a figure taken while the records existed.")
+
     # Surfaced at the end because a per-day line scrolls past on a 40-day run,
     # and a token disagreement means the aggregation itself is wrong — the one
     # failure mode that silently poisons every comparison built on these files.
@@ -1336,7 +1418,7 @@ def main():
             print(f"refusing to snapshot {args.day}: the day has not closed "
                   f"(last closed day is {last_closed_day}).", file=sys.stderr)
             sys.exit(1)
-        path, total, status = snapshot_day(args.day, args.top, oldest_retained_day())
+        path, total, status = snapshot_day(args.day, args.top)
         print(f"{args.day}  ${total:,.2f}  ccusage:{status}  ->  {path}")
         return
 

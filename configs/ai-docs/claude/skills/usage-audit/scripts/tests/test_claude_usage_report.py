@@ -506,29 +506,114 @@ class TestSnapshotMechanics(unittest.TestCase):
         """A day whose transcripts have already been pruned past Claude
         Code's retention floor must record coverage: "unretained", not
         "complete" — unretained means unmeasurable, not idle."""
-        day = "2026-06-01"
-        retention_floor = "2026-07-01"
-        cur._ccusage_days.clear()
-        with tempfile.TemporaryDirectory() as tmp:
-            transcripts_root = os.path.join(tmp, "projects")
-            os.makedirs(transcripts_root)
-            snapshots_dir = os.path.join(tmp, "snapshots")
-            with mock.patch.object(cur, "TRANSCRIPTS_ROOT", transcripts_root), \
-                 mock.patch.object(cur, "SNAPSHOTS_DIR", snapshots_dir), \
-                 mock.patch.object(cur.shutil, "which", return_value=None):
-                path, _, _ = cur.snapshot_day(day, top_n=8, retention_floor=retention_floor)
-            with open(path) as fh:
-                payload = json.load(fh)
+        payload = self._snapshot_against_floor(day="2026-06-01",
+                                               retention_floor="2026-07-01")
         self.assertEqual(
             payload["coverage"], "unretained",
             msg="a day older than the retention floor must be marked "
                 "unretained, not complete")
 
-    def test_a_day_at_the_retention_floor_writes_complete_coverage(self):
-        """The boundary day (day == retention_floor) is still within the
-        retained range and must record coverage: "complete"."""
-        day = "2026-07-01"
-        retention_floor = "2026-07-01"
+    def test_the_retention_floor_day_itself_writes_partial_coverage(self):
+        """The prune cuts through the floor day at an hour, not at
+        midnight, so its earlier sessions are gone while its later ones
+        survive — that day must read "partial", never "complete"."""
+        payload = self._snapshot_against_floor(day="2026-07-01",
+                                               retention_floor="2026-07-01")
+        self.assertEqual(
+            payload["coverage"], "partial",
+            msg="the retention-floor day is cut through mid-day by the "
+                "prune, so calling it complete overstates what its "
+                "transcripts can still account for")
+
+    def test_a_day_after_the_retention_floor_writes_complete_coverage(self):
+        """A day strictly newer than the floor still has all of its
+        transcripts on disk and must record coverage: "complete"."""
+        payload = self._snapshot_against_floor(day="2026-07-02",
+                                               retention_floor="2026-07-01")
+        self.assertEqual(
+            payload["coverage"], "complete",
+            msg="a day the prune has not reached must be marked complete "
+                "so it stays eligible for deltas and reconciliation")
+
+    def test_a_partially_retained_day_reports_no_ccusage_verdict(self):
+        """A day the prune has reached is measured against a shrunken
+        corpus, so its ccusage cross-check would compare two different
+        corpora — it must report the coverage word instead of ok/drift."""
+        payload = self._snapshot_against_floor(day="2026-07-01",
+                                               retention_floor="2026-07-01")
+        self.assertEqual(
+            payload["reconciliation"]["status"], "partial",
+            msg="reconciling a pruned day against ccusage reports deleted "
+                "spend as a counting disagreement, so no ok/drift verdict "
+                "may be issued for it")
+
+    def test_rebuilding_a_pruned_day_keeps_the_committed_snapshot(self):
+        """--rebuild is mandatory after an aggregation fix, but a day
+        whose transcripts are gone can only re-measure LOWER — the older,
+        richer measurement must survive the rebuild."""
+        day = "2026-06-01"
+        cur._ccusage_days.clear()
+        with tempfile.TemporaryDirectory() as tmp:
+            transcripts_root = os.path.join(tmp, "projects")
+            os.makedirs(transcripts_root)
+            snapshots_dir = os.path.join(tmp, "snapshots")
+            os.makedirs(snapshots_dir)
+            committed_path = os.path.join(snapshots_dir, f"{day}.json")
+            with open(committed_path, "w") as fh:
+                json.dump({"day": day, "total": 5.62, "coverage": "complete"}, fh)
+
+            with mock.patch.object(cur, "TRANSCRIPTS_ROOT", transcripts_root), \
+                 mock.patch.object(cur, "SNAPSHOTS_DIR", snapshots_dir), \
+                 mock.patch.object(cur, "oldest_retained_day",
+                                   return_value="2026-07-01"), \
+                 mock.patch.object(cur.shutil, "which", return_value=None):
+                _, total, status = cur.snapshot_day(day, top_n=8)
+
+            with open(committed_path) as fh:
+                after = json.load(fh)
+        self.assertEqual(
+            after["total"], 5.62,
+            msg="rebuilding a day past the retention floor must not "
+                "replace a real measurement with a $0 reading of the "
+                "transcripts' absence")
+        self.assertEqual(
+            (total, status), (5.62, "preserved"),
+            msg="the run must report the kept figure and say the day was "
+                "preserved, so the reader knows it rests on an older run")
+
+    def test_rebuilding_a_retained_day_overwrites_a_higher_committed_total(self):
+        """A fully retained day measuring lower is an aggregation fix
+        landing, not history being lost — the 2026-07-27 dedup fix cut
+        2026-07-20 from $441.44 to $130.16 and had to be allowed to."""
+        day = "2026-07-20"
+        cur._ccusage_days.clear()
+        with tempfile.TemporaryDirectory() as tmp:
+            transcripts_root = os.path.join(tmp, "projects")
+            os.makedirs(transcripts_root)
+            snapshots_dir = os.path.join(tmp, "snapshots")
+            os.makedirs(snapshots_dir)
+            committed_path = os.path.join(snapshots_dir, f"{day}.json")
+            with open(committed_path, "w") as fh:
+                json.dump({"day": day, "total": 441.44, "coverage": "complete"}, fh)
+
+            with mock.patch.object(cur, "TRANSCRIPTS_ROOT", transcripts_root), \
+                 mock.patch.object(cur, "SNAPSHOTS_DIR", snapshots_dir), \
+                 mock.patch.object(cur, "oldest_retained_day",
+                                   return_value="2026-07-01"), \
+                 mock.patch.object(cur.shutil, "which", return_value=None):
+                cur.snapshot_day(day, top_n=8)
+
+            with open(committed_path) as fh:
+                after = json.load(fh)
+        self.assertLess(
+            after["total"], 441.44,
+            msg="a correction on a day whose transcripts are all still on "
+                "disk must land, or no aggregation fix could ever reach "
+                "the committed series")
+
+    def _snapshot_against_floor(self, *, day, retention_floor):
+        """Snapshot `day` over an empty transcripts root, with the
+        retention floor pinned, and return the payload written."""
         cur._ccusage_days.clear()
         with tempfile.TemporaryDirectory() as tmp:
             transcripts_root = os.path.join(tmp, "projects")
@@ -536,14 +621,12 @@ class TestSnapshotMechanics(unittest.TestCase):
             snapshots_dir = os.path.join(tmp, "snapshots")
             with mock.patch.object(cur, "TRANSCRIPTS_ROOT", transcripts_root), \
                  mock.patch.object(cur, "SNAPSHOTS_DIR", snapshots_dir), \
+                 mock.patch.object(cur, "oldest_retained_day",
+                                   return_value=retention_floor), \
                  mock.patch.object(cur.shutil, "which", return_value=None):
-                path, _, _ = cur.snapshot_day(day, top_n=8, retention_floor=retention_floor)
+                path, _, _ = cur.snapshot_day(day, top_n=8)
             with open(path) as fh:
-                payload = json.load(fh)
-        self.assertEqual(
-            payload["coverage"], "complete",
-            msg="a day exactly at the retention floor must be marked "
-                "complete, not unretained")
+                return json.load(fh)
 
     def test_reconciliation_degrades_to_unavailable_when_ccusage_is_not_installed(self):
         """When the ccusage binary is absent, the token cross-check must

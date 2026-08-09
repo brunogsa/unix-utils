@@ -1,38 +1,38 @@
 {
-  "generated_at": "2026-08-09T00:49:08-03:00",
+  "generated_at": "2026-08-09T01:24:16-03:00",
   "day": "2026-07-10",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 507.89,
-    "user_messages": 256,
+    "cost_per_day": 507.54,
+    "user_messages": 254,
     "interruptions": 21,
     "session_hours": 56.4,
-    "cost_per_user_message": 1.98
+    "cost_per_user_message": 2.0
   },
-  "total": 507.89,
-  "main_cost": 408.92,
+  "total": 507.54,
+  "main_cost": 408.58,
   "subagent_cost": 98.96,
   "api_calls": {
-    "main": 2294,
+    "main": 2290,
     "sub": 1561
   },
   "compactions": 61,
-  "session_count": 40,
+  "session_count": 38,
   "cache_hit_rate": 0.918,
-  "thinking_blocks": 3215,
-  "text_blocks": 2280,
+  "thinking_blocks": 3212,
+  "text_blocks": 2278,
   "thinking_block_share": 0.585,
   "tokens": {
-    "input": 8967722,
-    "output": 5498209,
-    "cache_read": 334907402,
-    "cache_write_5m": 8496329,
+    "input": 8967708,
+    "output": 5495962,
+    "cache_read": 334822033,
+    "cache_write_5m": 8456654,
     "cache_write_1h": 12571464
   },
   "by_family": {
     "haiku": 7.88,
-    "opus": 344.93,
+    "opus": 344.58,
     "sonnet": 33.34,
     "fable": 121.74
   },
@@ -41,11 +41,11 @@
     "claude-fable-5": 121.74,
     "claude-sonnet-5": 33.34,
     "claude-haiku-4-5": 7.88,
-    "claude-opus-4-7": 6.84
+    "claude-opus-4-7": 6.49
   },
   "by_day": {
     "2026-07-10": {
-      "main": 408.92,
+      "main": 408.58,
       "sub": 98.96
     }
   },
@@ -599,29 +599,29 @@
   ],
   "reconciliation": {
     "status": "drift",
-    "worst_delta_pct": 3.452,
+    "worst_delta_pct": 0.756,
     "tokens": {
       "input": {
-        "script": 8967722,
-        "ccusage": 9001938,
-        "delta_pct": -0.38
+        "script": 8967708,
+        "ccusage": 8984198,
+        "delta_pct": -0.184
       },
       "output": {
-        "script": 5498209,
-        "ccusage": 5553087,
-        "delta_pct": -0.988
+        "script": 5495962,
+        "ccusage": 5495962,
+        "delta_pct": 0.0
       },
       "cache_read": {
-        "script": 334907402,
-        "ccusage": 346882395,
-        "delta_pct": -3.452
+        "script": 334822033,
+        "ccusage": 337372707,
+        "delta_pct": -0.756
       },
       "cache_write": {
-        "script": 21067793,
-        "ccusage": 21509812,
-        "delta_pct": -2.055
+        "script": 21028118,
+        "ccusage": 20924301,
+        "delta_pct": 0.494
       }
     },
-    "ccusage_cost_untrusted": 527.77
+    "ccusage_cost_untrusted": 507.59
   }
 }

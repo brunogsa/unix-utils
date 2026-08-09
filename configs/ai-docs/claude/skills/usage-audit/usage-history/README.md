@@ -10,6 +10,10 @@ Committed, durable record of Claude Code usage — the memory the `usage-audit` 
 
   - `--backfill` skips days that already have a file; `--backfill --rebuild` re-measures them.
 
+  - A rebuild that would LOWER a day whose transcripts are already pruned keeps the committed file instead, and names that day at the end of the run.
+
+    - Without that guard `--rebuild` is the most destructive operation here: it replaces a figure measured while the records existed with a $0 reading of their absence.
+
   - Rebuild after any aggregation or pricing change — otherwise the fix reaches only the days you had not captured yet.
 
   - A rerun is *close to* but not exactly reproducible: a session resumed days later appends records to its old day, and days past the retention floor lose their transcripts entirely.
@@ -75,17 +79,23 @@ Committed, durable record of Claude Code usage — the memory the `usage-audit` 
 
   - `status` is `ok` (within 0.5%), `drift` (counting disagrees — treat the day as unverified), or `unavailable` (ccusage not installed or failed).
 
-  - As of the 2026-08-09 rebuild **43 of 56 days read `ok` and 13 read `drift`**, against 32 and 23 before the advisor fix.
+  - After the retention-race fix **19 of the 56 days read `ok` and 12 read `drift`**; the other 25 are `unretained` or `partial` and carry no verdict at all.
+
+    - 2026-06-14's `drift` is the verdict of the run that measured it. Its transcripts are since pruned, so that day can never be re-checked either way.
 
   - Read a day's `status` before citing any figure from it; a `drift` day is not evidence in either direction.
 
-  - The residual drift is an open defect, not a tolerance, and the script always counts LOW — it has never exceeded ccusage on any bucket.
+  - The residual drift is an open defect, not a tolerance, but it is confined to the two cache buckets and to under 2.6%.
 
-    - Eleven of the thirteen sit under 3.5% and are cache-heavy: `cache_write` on 2026-07-23 (2.5%) and `cache_read` on 2026-08-07 (1.4%) are typical.
+    - `cache_write` on 2026-07-23 (2.5% under) and `cache_read` on 2026-08-07 (1.4% under) are the widest. `input` and `output` reconcile exactly on every retained day.
 
-    - 2026-07-09 is the outlier at 24-34% under on all four buckets at once, which reads as whole transcripts the script never opened rather than a field it misreads.
+    - It runs in both directions — 2026-07-14 counts 1.0% ABOVE ccusage on `cache_write` — so it reads as a TTL-split rounding disagreement, not as records one side never opened.
 
-    - Suspects for that shape: cloud or remote agent sessions, `claude -p` headless runs, and files `find_transcripts`' mtime lower bound excludes.
+  - **The former 24-34% outlier on 2026-07-09 was never a counting bug: the retention prune ran mid-rebuild, between the one ccusage priming call and that day's scan.**
+
+    - ccusage answered from the pre-prune corpus and the script from the post-prune one, so the gap was exactly the spend in the transcripts deleted in between.
+
+    - Re-running ccusage after the prune returned 342,452 input tokens against the script's 342,450, and matched `output` and `cache_write` to the token.
 
   - It has already earned its keep: on its first run it flagged 10 of 43 days, from records whose `cache_creation` TTL split disagrees with the `cache_creation_input_tokens` total it splits.
 
@@ -124,8 +134,14 @@ Committed, durable record of Claude Code usage — the memory the `usage-audit` 
 
   - A mid-day sample counts only the sessions that already ran, so it reads far below the same day's closed total.
 
-- Snapshots older than the transcript retention floor read `"coverage": "unretained"`, not `"complete"`.
+- `coverage` records how much of a day the transcripts could still account for when it was measured: `complete`, `partial`, or `unretained`.
 
-  - `cleanupPeriodDays` defaults to 30, so transcripts age out. An unretained day looks idle but is simply unmeasurable — never read a low figure there as a real drop.
+  - `cleanupPeriodDays` defaults to 30, so transcripts age out. An `unretained` day looks idle but is simply unmeasurable — never read a low figure there as a real drop.
+
+  - The floor day itself is `partial`, never `complete`: the prune cuts through it at an hour, not at midnight, so its earlier sessions are gone while its later ones survive.
+
+  - Only a `complete` day is cross-checked against ccusage. On the other two the two readers see different corpora, so a verdict would report deleted spend as a counting disagreement.
+
+  - Skip any day that is not `complete` when computing a delta — that is the same rule the skill applies, now with a boundary day it correctly excludes.
 
 - `--days N` still prints an ad-hoc rolling report, but it can no longer write a snapshot. Only whole closed days enter the committed record.
