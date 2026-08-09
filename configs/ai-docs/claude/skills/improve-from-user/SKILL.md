@@ -207,7 +207,7 @@ Why a reminder instead of an automatic run:
 
 Number each proposal so the user can approve/reject by number (e.g., "Apply 1 and 3").
 
-### CLAUDE.md > [Section: CODING/TESTING/WORKFLOW/etc.]
+### CLAUDE.md > [Section: Counting conventions/Foundations/Communication & Feedback/Task Approach/Tool Use]
 1. **[Guideline title]** - [Description]
 
 ### skills/[skill-name]/SKILL.md
