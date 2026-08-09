@@ -53,14 +53,18 @@ found_broken=0
 
 # GitHub-style heading-to-slug: drop the leading `#` marker,
 # lowercase, strip anything but letters/digits/spaces/hyphens/
-# underscores, then collapse each run of spaces to one hyphen.
+# underscores, then replace each space with a hyphen individually.
+#
+# GitHub replaces spaces one at a time, not as a collapsed run: a
+# stripped em-dash between two spaces leaves them adjacent, and each
+# becomes its own hyphen — producing a double hyphen, not one.
 slugify_heading() {
     local heading=$1
     heading="$(printf '%s' "$heading" | sed -E 's/^#{1,6}[[:space:]]+//')"
     printf '%s' "$heading" \
         | tr '[:upper:]' '[:lower:]' \
         | sed -E 's/[^a-z0-9 _-]//g' \
-        | sed -E 's/ +/-/g'
+        | sed -E 's/ /-/g'
 }
 
 # True (0) when $target_file has a heading whose slug is $anchor.
