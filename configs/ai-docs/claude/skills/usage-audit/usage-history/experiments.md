@@ -205,7 +205,7 @@ Opened on the user's instruction, who named this a bottleneck they expect to mov
 
 - **Why brainstorm is the skill to watch**: it authors spec and plan docs, so it pays the doc-standards fix loop on every artifact it produces.
 
-- **Pre-change baselines, the 7 complete days 2026-08-02..08-08**:
+- **Pre-change baselines, the 7 complete days 2026-08-02..08-08** — every one reads `coverage: complete` and `reconciliation: ok`, checked at filing time:
   - `by_skill.brainstorm`: $94.30 across 8 loads, or $11.79 per load.
   - `by_subagent_type.markdown-standards-fixer`: $2.94 across 13 runs, or $0.226 per run.
 
@@ -229,7 +229,7 @@ Plus `736d862c`, `5b0ba34d`, `617e90cd`, `a4c93125` and `25fc2165`. Opened on th
 
 - **This targets wall-clock, not dollars.** Parallel work bills the same tokens; what changes is hours per batch, which is the KPI the user named.
 
-- **Pre-change baselines, the 7 complete days 2026-08-02..08-08**:
+- **Pre-change baselines, the 7 complete days 2026-08-02..08-08** — every one reads `coverage: complete` and `reconciliation: ok`, checked at filing time:
   - `by_skill.implement`: $100.25 across 5 loads, or $20.05 per load.
   - Sessions in `top_sessions` listing `implement`: 4 sessions, 5.3 hours, $38.12 — an average of 1.32 hours.
 
@@ -488,6 +488,8 @@ First of three answers to the user's standing question: how to raise the subagen
 
 - **Measured baseline, the 7 complete days 2026-08-02..08-08**: total $751.94, subagent $287.69, a **38.3%** headline share.
 
+- Every day in that window reads `coverage: complete` and `reconciliation: ok`, checked at filing time — the retention floor makes that check unrepeatable later.
+
 - **That headline overstates routine delegation.** `consistency-ensemble-child` alone is $89.67 across 21 runs, or 31.2% of all subagent spend, from one skill's fan-out on essentially one day.
 
 - Excluding it: $662.27 total against $198.02 subagent, a **29.9%** routine share. Reaching the user's 40% floor means moving **$66.89 per week** of main spend out.
@@ -524,9 +526,12 @@ First of three answers to the user's standing question: how to raise the subagen
 
 - **Script-first is what makes it cheap**: the agent runs the deterministic fixer, then rewords only the rows the script refuses to repair. AI touches the residue, not the file.
 
-- **Still running inline in main today**: `agent-standards/check-agent-contract.sh`, `doc-standards/check-rule-citations.py`, `performance-check-principles-and-skills/check.sh`, and seven `spec-driven-development` checkers.
+- **Inline in main today, run and fix alike**: `doc-standards/check-rule-citations.py`, `performance-check-principles-and-skills/scripts/check.sh`, and five `spec-driven-development` checkers no hook covers.
 
-- Each prints one row per violation into main, and the fix loop then re-reads the file it just flagged — the same read-edit-recheck shape as the entry above.
+- **A Stop hook already automates the run half elsewhere**: `claude-agent-contract-stop-hook.sh` runs `check-agent-contract.sh`, and `claude-sdd-stop-hook.sh` runs the test-distribution and AC-coverage checkers.
+  - Those hooks strengthen the case rather than weaken it: they prove the run is automatable, leaving the fix loop as the residual gap.
+
+- Either way the violation rows land in main, and the fix loop then re-reads the file just flagged — the same read-edit-recheck shape as the entry above.
 
 - **Hypothesis**: one fixer agent per checker family converts a noisy inline loop into a single dispatch, moving both the violation rows and the re-reads out of main.
 
