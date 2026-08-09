@@ -257,7 +257,8 @@ Commit `769cce1`. Opened on the user's instruction, who picked this lever over t
 
 - **Pre-change baselines, the 7 complete days 2026-08-02..08-08** — every one reads `coverage: complete` and `reconciliation: ok`, checked at filing time:
   - `Explore` plus `explore`: 10 runs for $4.23. `general-purpose`: 36 runs for $43.07.
-  - Fan-out-excluded subagent share: 29.9%, from $662.27 total against $198.02 subagent.
+  - Subagent share is 38.3% raw — $287.69 of $751.94 across those 7 days.
+  - It falls to 29.9% — $198.02 of $662.27 — once the single `consistency-ensemble-child` fan-out is excluded from BOTH sides, which is the honest routine-delegation figure.
 
 - **CRITICAL framing correction — that run ratio is evidence, not the quantity being moved.** `general-purpose` spend is already subagent cost, so converting it to Explore lowers the numerator.
 
@@ -284,7 +285,8 @@ Commits `f2961eb` and `4be0b46`. Opened on the user's instruction, who picked th
 
 - **Pre-change baselines, the 7 complete days 2026-08-02..08-08** — every one reads `coverage: complete` and `reconciliation: ok`, checked at filing time:
   - `doc-standards` is the top skill by spend: $330.83 over 10 invocations. `markdown-standards-fixer`: 13 runs for $2.94.
-  - Fan-out-excluded subagent share: 29.9%, from $662.27 total against $198.02 subagent.
+  - Subagent share is 38.3% raw — $287.69 of $751.94 across those 7 days.
+  - It falls to 29.9% — $198.02 of $662.27 — once the single `consistency-ensemble-child` fan-out is excluded from BOTH sides, which is the honest routine-delegation figure.
 
 - **CRITICAL scope correction — the lever shipped for one checker of seven, and the other six were judged wrong for this shape.**
 
