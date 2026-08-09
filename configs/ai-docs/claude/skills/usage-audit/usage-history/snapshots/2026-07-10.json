@@ -1,70 +1,78 @@
 {
-  "generated_at": "2026-08-09T01:24:16-03:00",
+  "generated_at": "2026-08-09T03:30:09-03:00",
   "day": "2026-07-10",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 507.54,
-    "user_messages": 254,
-    "interruptions": 21,
-    "session_hours": 56.4,
-    "cost_per_user_message": 2.0
+    "cost_per_day": 483.88,
+    "user_messages": 234,
+    "interruptions": 19,
+    "session_hours": 55.4,
+    "cost_per_user_message": 2.07
   },
-  "total": 507.54,
-  "main_cost": 408.58,
-  "subagent_cost": 98.96,
+  "total": 483.88,
+  "main_cost": 395.27,
+  "subagent_cost": 88.61,
   "api_calls": {
-    "main": 2290,
-    "sub": 1561
+    "main": 2209,
+    "sub": 1356
   },
-  "compactions": 61,
-  "session_count": 38,
-  "cache_hit_rate": 0.918,
-  "thinking_blocks": 3212,
-  "text_blocks": 2278,
-  "thinking_block_share": 0.585,
+  "compactions": 60,
+  "session_count": 37,
+  "cache_hit_rate": 0.916,
+  "thinking_blocks": 2988,
+  "text_blocks": 2156,
+  "thinking_block_share": 0.581,
   "tokens": {
-    "input": 8967708,
-    "output": 5495962,
-    "cache_read": 334822033,
-    "cache_write_5m": 8456654,
-    "cache_write_1h": 12571464
+    "input": 8321836,
+    "output": 5171448,
+    "cache_read": 308050024,
+    "cache_write_5m": 7846987,
+    "cache_write_1h": 12134864
   },
   "by_family": {
-    "haiku": 7.88,
-    "opus": 344.58,
-    "sonnet": 33.34,
-    "fable": 121.74
+    "haiku": 7.31,
+    "opus": 326.13,
+    "fable": 121.74,
+    "sonnet": 28.71
   },
   "by_model": {
-    "claude-opus-4-8": 338.08,
+    "claude-opus-4-8": 319.64,
     "claude-fable-5": 121.74,
-    "claude-sonnet-5": 33.34,
-    "claude-haiku-4-5": 7.88,
+    "claude-sonnet-5": 28.71,
+    "claude-haiku-4-5": 7.31,
     "claude-opus-4-7": 6.49
   },
   "by_day": {
     "2026-07-10": {
-      "main": 408.58,
-      "sub": 98.96
+      "main": 395.27,
+      "sub": 88.61
+    }
+  },
+  "by_repo_class": {
+    "work": {
+      "cost": 195.22,
+      "user_messages": 109,
+      "interruptions": 12
+    },
+    "tooling": {
+      "cost": 288.66,
+      "user_messages": 125,
+      "interruptions": 7
     }
   },
   "by_subagent_type": {
     "density-fixer": {
-      "cost": 6.0,
-      "runs": 48
+      "cost": 5.43,
+      "runs": 46
     },
     "claude-code-guide": {
       "cost": 0.36,
       "runs": 3
     },
     "general-purpose": {
-      "cost": 67.3,
-      "runs": 31
-    },
-    "UNMATCHED": {
-      "cost": 2.11,
-      "runs": 1
+      "cost": 59.64,
+      "runs": 27
     },
     "deep-reviewer": {
       "cost": 17.04,
@@ -599,29 +607,29 @@
   ],
   "reconciliation": {
     "status": "drift",
-    "worst_delta_pct": 0.756,
+    "worst_delta_pct": 0.686,
     "tokens": {
       "input": {
-        "script": 8967708,
-        "ccusage": 8984198,
-        "delta_pct": -0.184
+        "script": 8321836,
+        "ccusage": 8321877,
+        "delta_pct": -0.0
       },
       "output": {
-        "script": 5495962,
-        "ccusage": 5495962,
+        "script": 5171448,
+        "ccusage": 5171448,
         "delta_pct": 0.0
       },
       "cache_read": {
-        "script": 334822033,
-        "ccusage": 337372707,
-        "delta_pct": -0.756
+        "script": 308050024,
+        "ccusage": 310178122,
+        "delta_pct": -0.686
       },
       "cache_write": {
-        "script": 21028118,
-        "ccusage": 20924301,
-        "delta_pct": 0.494
+        "script": 19981851,
+        "ccusage": 19879031,
+        "delta_pct": 0.515
       }
     },
-    "ccusage_cost_untrusted": 507.59
+    "ccusage_cost_untrusted": 483.74
   }
 }

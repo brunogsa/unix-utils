@@ -69,7 +69,7 @@ def _advisor_iteration(*, input_tokens, output_tokens, model="claude-opus-5"):
 
 def _assistant_record(message_id, request_id, epoch, *, input_tokens, output_tokens,
                        cache_read_tokens=0, model="claude-sonnet-5", speed=None,
-                       advisor_iterations=None):
+                       advisor_iterations=None, cwd=None):
     """One transcript line for a single content-block of an assistant
     response, shaped like a real Claude Code transcript record."""
     usage = {
@@ -85,7 +85,7 @@ def _assistant_record(message_id, request_id, epoch, *, input_tokens, output_tok
         # Real records carry the main model's own turn as a "message"
         # iteration alongside; only the advisor entries are extra spend.
         usage["iterations"] = [{"type": "message"}] + advisor_iterations
-    return {
+    record = {
         "type": "assistant",
         "timestamp": _iso(epoch),
         "requestId": request_id,
@@ -97,6 +97,25 @@ def _assistant_record(message_id, request_id, epoch, *, input_tokens, output_tok
             "usage": usage,
         },
     }
+
+    # Omitted rather than defaulted when no
+    # caller names a directory, so the
+    # no-cwd path stays exercised.
+    if cwd is not None:
+        record["cwd"] = cwd
+    return record
+
+
+def _user_record(epoch, text, *, cwd=None):
+    """One typed human turn, the shape is_human_message() accepts."""
+    record = {
+        "type": "user",
+        "timestamp": _iso(epoch),
+        "message": {"role": "user", "content": [{"type": "text", "text": text}]},
+    }
+    if cwd is not None:
+        record["cwd"] = cwd
+    return record
 
 
 def _write_transcript(dir_path, filename, records):
@@ -414,6 +433,214 @@ class TestBillingCorrectness(unittest.TestCase):
             result["subagent_cost"], expected_subagent, places=6,
             msg="advisor iterations living only on non-anchor blocks must "
                 "still bill (once), not be skipped with those blocks")
+
+
+class TestRepoClassSplit(unittest.TestCase):
+    """Coverage for splitting a day's spend and human touches into the work
+    half and the tooling half. Only the work half has a merged-PR
+    denominator — the delivered-work ledger excludes the personal-env repos
+    by design — so dividing TOTAL spend by PRs measured which repo the day
+    was spent in more than how efficiently it was spent.
+    """
+
+    TOOLING_CWD = "/Users/brunoagostini/unix-utils/configs/ai-docs/claude"
+    WORK_CWD = "/Users/brunoagostini/workspace/code/isaac/contract-validation"
+
+    def test_spend_in_a_personal_environment_repo_bills_to_the_tooling_half(self):
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "session.jsonl", [
+                _assistant_record("msg_tool", "req_tool", since + 3600,
+                                   input_tokens=1000, output_tokens=500,
+                                   cwd=self.TOOLING_CWD),
+            ])
+            result = cur.aggregate([path], [], since, until)
+
+        self.assertAlmostEqual(
+            result["by_repo_class"]["tooling"]["cost"], result["main_cost"], places=6,
+            msg="a session run inside unix-utils must bill entirely to the "
+                "tooling half, which has no merged-PR denominator")
+        self.assertEqual(
+            result["by_repo_class"]["work"]["cost"], 0.0,
+            msg="no work spend may leak from a session that never left a "
+                "personal-environment repo")
+
+    def test_spend_in_a_work_repo_bills_to_the_work_half(self):
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "session.jsonl", [
+                _assistant_record("msg_work", "req_work", since + 3600,
+                                   input_tokens=1000, output_tokens=500,
+                                   cwd=self.WORK_CWD),
+            ])
+            result = cur.aggregate([path], [], since, until)
+
+        self.assertAlmostEqual(
+            result["by_repo_class"]["work"]["cost"], result["main_cost"], places=6,
+            msg="a repo outside the five personal-environment ones is work "
+                "spend, mirroring how the ledger discovers work repos")
+
+    def test_a_session_that_moves_between_a_work_repo_and_a_tooling_repo_splits_across_both(self):
+        """Classification is per record, not per session: a session that cd's
+        from a work repo into this config must land in both halves, which
+        per-session tagging could only round to one of them."""
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "session.jsonl", [
+                _assistant_record("msg_a", "req_a", since + 3600,
+                                   input_tokens=1000, output_tokens=500,
+                                   cwd=self.WORK_CWD),
+                _assistant_record("msg_b", "req_b", since + 7200,
+                                   input_tokens=2000, output_tokens=900,
+                                   cwd=self.TOOLING_CWD),
+            ])
+            result = cur.aggregate([path], [], since, until)
+
+        price_in, price_out, _ = cur.SONNET_5_INTRO_PRICES
+        self.assertAlmostEqual(
+            result["by_repo_class"]["work"]["cost"],
+            (1000 * price_in + 500 * price_out) / 1e6, places=6,
+            msg="only the turn taken in the work repo may bill to the work half")
+        self.assertAlmostEqual(
+            result["by_repo_class"]["tooling"]["cost"],
+            (2000 * price_in + 900 * price_out) / 1e6, places=6,
+            msg="only the turn taken in this config may bill to the tooling half")
+
+    def test_delegating_to_a_subagent_keeps_its_cost_in_the_parents_repo_half(self):
+        """A subagent inherits the working directory it was spawned from, so
+        delegating work must not move its cost out of the half that has to
+        answer for it."""
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        epoch = since + 3600
+        with tempfile.TemporaryDirectory() as tmp:
+            subagent_dir = os.path.join(tmp, "parent-session", "subagents")
+            os.makedirs(subagent_dir, exist_ok=True)
+            parent_path = _write_transcript(tmp, "parent-session.jsonl", [
+                _assistant_record("msg_parent", "req_parent", epoch,
+                                   input_tokens=1000, output_tokens=100,
+                                   cwd=self.WORK_CWD),
+            ])
+            child_path = _write_transcript(subagent_dir, "child.jsonl", [
+                _assistant_record("msg_child", "req_child", epoch,
+                                   input_tokens=4000, output_tokens=800,
+                                   cwd=self.WORK_CWD),
+            ])
+            result = cur.aggregate([parent_path], [child_path], since, until)
+
+        self.assertAlmostEqual(
+            result["by_repo_class"]["work"]["cost"],
+            result["main_cost"] + result["subagent_cost"], places=6,
+            msg="the subagent's spend must join its parent's in the work "
+                "half, so delegation cannot hide cost from the PR denominator")
+
+    def test_an_advisor_turns_second_model_bills_to_the_same_half_as_the_turn_it_rode_on(self):
+        """The advisor's tokens live only in usage.iterations and are priced
+        at a separate site from the main turn, so that site needs its own
+        classification or the advisor's spend silently defaults to work."""
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "session.jsonl", [
+                _assistant_record(
+                    "msg_advisor", "req_advisor", since + 3600,
+                    input_tokens=1000, output_tokens=100,
+                    advisor_iterations=[
+                        _advisor_iteration(input_tokens=50000, output_tokens=800)],
+                    cwd=self.TOOLING_CWD),
+            ])
+            result = cur.aggregate([path], [], since, until)
+
+        self.assertAlmostEqual(
+            result["by_repo_class"]["tooling"]["cost"], result["main_cost"], places=6,
+            msg="the advisor model's spend must follow the turn's own "
+                "directory, not default into the work half")
+
+    def test_typed_turns_and_interruptions_count_against_the_half_they_were_sent_in(self):
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        epoch = since + 3600
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "session.jsonl", [
+                _user_record(epoch, "ship the agreement filter", cwd=self.WORK_CWD),
+
+                # A session whose prompts never got
+                # a reply is dropped whole, so the
+                # typed turns need one to count.
+                _assistant_record("msg_reply", "req_reply", epoch + 1,
+                                   input_tokens=1000, output_tokens=100,
+                                   cwd=self.WORK_CWD),
+                _user_record(epoch + 2, f"{cur.INTERRUPT_SENTINEL}]",
+                             cwd=self.WORK_CWD),
+                _user_record(epoch + 3, "tighten the density check",
+                             cwd=self.TOOLING_CWD),
+            ])
+            result = cur.aggregate([path], [], since, until)
+
+        self.assertEqual(
+            result["by_repo_class"]["work"]["user_messages"], 1,
+            msg="the one typed turn sent from the work repo must count there")
+        self.assertEqual(
+            result["by_repo_class"]["work"]["interruptions"], 1,
+            msg="an Escape press is attention spent on work, so it belongs "
+                "in the work half's touch count")
+        self.assertEqual(
+            result["by_repo_class"]["tooling"]["user_messages"], 1,
+            msg="the turn sent from this config must count against tooling, "
+                "not inflate the numerator of touches per merged PR")
+
+    def test_a_subagents_user_records_never_count_as_touches_in_either_half(self):
+        """A subagent's "user" records are its spawn prompt and tool results,
+        not the human typing — counting them would inflate the very
+        denominator touches-per-merged-PR divides by."""
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        epoch = since + 3600
+        with tempfile.TemporaryDirectory() as tmp:
+            subagent_dir = os.path.join(tmp, "parent-session", "subagents")
+            os.makedirs(subagent_dir, exist_ok=True)
+            parent_path = _write_transcript(tmp, "parent-session.jsonl", [
+                _user_record(epoch, "audit the skills", cwd=self.WORK_CWD),
+                _assistant_record("msg_parent", "req_parent", epoch + 1,
+                                   input_tokens=1000, output_tokens=100,
+                                   cwd=self.WORK_CWD),
+            ])
+            child_path = _write_transcript(subagent_dir, "child.jsonl", [
+                _user_record(epoch + 2, "You are auditing the skills directory.",
+                             cwd=self.WORK_CWD),
+                _assistant_record("msg_child", "req_child", epoch + 3,
+                                   input_tokens=4000, output_tokens=800,
+                                   cwd=self.WORK_CWD),
+            ])
+            result = cur.aggregate([parent_path], [child_path], since, until)
+
+        self.assertEqual(
+            result["by_repo_class"]["work"]["user_messages"], 1,
+            msg="only the human's own turn counts; the subagent's spawn "
+                "prompt must not become a second touch")
+
+    def test_the_snapshot_reports_both_halves_even_when_one_had_no_spend(self):
+        """A reader has to tell a day with no tooling spend apart from a day
+        whose split was never measured at all."""
+        day = "2026-07-20"
+        since, until = cur.day_bounds(day)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "session.jsonl", [
+                _assistant_record("msg_work", "req_work", since + 3600,
+                                   input_tokens=1000, output_tokens=500,
+                                   cwd=self.WORK_CWD),
+            ])
+            result = cur.aggregate([path], [], since, until)
+        payload = cur.build_payload(result, 5, day=day)
+
+        self.assertEqual(
+            payload["by_repo_class"]["tooling"],
+            {"cost": 0.0, "user_messages": 0, "interruptions": 0},
+            msg="the untouched half must still be emitted at zero rather "
+                "than omitted, so its absence never reads as unmeasured")
 
 
 class TestSnapshotMechanics(unittest.TestCase):

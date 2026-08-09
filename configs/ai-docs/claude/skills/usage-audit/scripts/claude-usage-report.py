@@ -37,6 +37,7 @@
 
 import argparse
 import bisect
+import importlib.util
 import json
 import os
 import re
@@ -52,7 +53,33 @@ TRANSCRIPTS_ROOT = os.path.expanduser("~/.claude/projects")
 HISTORY_DIR = os.path.normpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "usage-history"))
 
+
+def _load_personal_env():
+    """The ledger's PERSONAL_ENV tuple, imported by file path.
+
+    Its filename has dashes, so it is not importable as a
+    module name and needs the spec dance below.
+
+    Failing loudly beats defaulting: a silent fallback list
+    would drift from the ledger's, and the two would then
+    disagree about which spend has a PR denominator at all.
+    """
+    path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                        "delivered-work-ledger.py")
+    spec = importlib.util.spec_from_file_location("delivered_work_ledger", path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load PERSONAL_ENV from {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.PERSONAL_ENV
+
+
 TOKEN_KINDS = ("input", "output", "cache_read", "cache_write_5m", "cache_write_1h")
+# Read from the ledger rather than restated here, so the
+# spend split and the delivered-work denominator can never
+# disagree about which repos count as tooling.
+PERSONAL_ENV = _load_personal_env()
+REPO_CLASSES = ("work", "tooling")
 # The literal record Claude Code writes when the user presses Escape mid-turn.
 INTERRUPT_SENTINEL = "[Request interrupted by user"
 # Slash-command invocations land in user records as <command-name>/x</command-name>;
@@ -203,6 +230,23 @@ def message_cost(model, usage, day=None):
         + write_5m * p[0] * 1.25
         + write_1h * p[0] * 2.0
     ) / 1e6
+
+
+def repo_class(cwd):
+    """Which half of the ledger a record's working directory belongs to.
+
+    Everything outside the five personal-env repos counts as work, mirroring
+    delivered-work-ledger.py's find_repos(), which discovers work repos as
+    exactly that complement. Matching its rule is what lets work spend divide
+    by the merged-PR count that same ledger produces.
+
+    A missing cwd counts as work too: it can only under-report the tooling
+    side, and a third "unknown" class would need a denominator nothing emits.
+    """
+    for part in (cwd or "").split("/"):
+        if part in PERSONAL_ENV:
+            return "tooling"
+    return "work"
 
 
 def parse_ts(iso_timestamp):
@@ -390,6 +434,14 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
         "by_family": defaultdict(float),
         "by_model": defaultdict(float),
         "by_day": defaultdict(float),
+
+        # Per RECORD, not per session: a
+        # session that cd's between work and
+        # this config splits across both halves,
+        # not rounded to whichever it started in.
+        "by_repo_class": defaultdict(float),
+        "touches_by_repo_class": defaultdict(
+            lambda: {"user_messages": 0, "interruptions": 0}),
         "first_prompt": "",
         "title": "",
         "api_calls": 0,
@@ -501,11 +553,14 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
                             pending_commands.append((record_index, name))
         if message.get("role") == "user" and is_human_message(record, content):
             text = first_text(content)
+            touches = stats["touches_by_repo_class"][repo_class(record.get("cwd"))]
             # An Escape press is a correction event, not a typed turn — count it apart.
             if text.startswith(INTERRUPT_SENTINEL):
                 stats["interruptions"] += 1
+                touches["interruptions"] += 1
             else:
                 stats["user_messages"] += 1
+                touches["user_messages"] += 1
                 if not stats["first_prompt"]:
                     stats["first_prompt"] = text[:150]
         if message.get("role") == "assistant" and isinstance(content, list):
@@ -582,6 +637,7 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
         stats["by_family"][price_family(model)] += cost
         stats["by_model"][model_key(model)] += cost
         stats["by_day"][day] += cost
+        stats["by_repo_class"][repo_class(record.get("cwd"))] += cost
 
         # An /advisor turn bills a SECOND model beside the main
         # one, and Claude Code reports it only inside
@@ -631,6 +687,7 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
             stats["by_family"][price_family(advisor_model)] += advisor_cost
             stats["by_model"][model_key(advisor_model)] += advisor_cost
             stats["by_day"][day] += advisor_cost
+            stats["by_repo_class"][repo_class(record.get("cwd"))] += advisor_cost
     # A command at end-of-file has no follower to disprove it — count it.
     for pending_index, name in pending_commands:
         stats["skills"][name] += 1
@@ -679,6 +736,13 @@ def merge_common(result, stats, side):
         result["by_model"][model] += cost
     for day, cost in stats["by_day"].items():
         result["by_day"][day][side] += cost
+
+    # A subagent inherits the cwd it was spawned
+    # from, so its spend lands under the parent's
+    # repo — delegating work never moves cost out
+    # of the half that has to answer for it.
+    for cls, cost in stats["by_repo_class"].items():
+        result["by_repo_class"][cls]["cost"] += cost
     for kind in TOKEN_KINDS:
         result["tokens"][kind] += stats["tokens"][kind]
 
@@ -700,6 +764,16 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
         # modelBreakdowns without re-deriving which family each model belongs to.
         "by_model": defaultdict(float),
         "by_day": defaultdict(lambda: {"main": 0.0, "sub": 0.0}),
+
+        # Work vs tooling spend, plus the human
+        # touches spent on each.
+        #
+        # Only the work half has a merged-PR
+        # denominator, so dividing TOTAL spend by
+        # PRs measured which repo the day was
+        # spent in more than how well it went.
+        "by_repo_class": defaultdict(lambda: {
+            "cost": 0.0, "user_messages": 0, "interruptions": 0}),
         "by_subagent_type": defaultdict(lambda: {"cost": 0.0, "runs": 0}),
         "by_skill": defaultdict(lambda: {
             "cost": 0.0, "invocations": 0, "sessions": 0,
@@ -783,10 +857,16 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
         result["main_cost"] += stats["cost"]
         merge_common(result, stats, "main")
         duration = session_duration(stats)
-        # Human turns and compactions only make sense in main sessions;
-        # a subagent's "user" records are its spawn prompt and tool results.
+
+        # Human turns belong to main sessions
+        # only: a subagent's "user" records are
+        # its spawn prompt and tool results, so
+        # counting them inflates every divisor.
         result["user_messages"] += stats["user_messages"]
         result["interruptions"] += stats["interruptions"]
+        for cls, touches in stats["touches_by_repo_class"].items():
+            result["by_repo_class"][cls]["user_messages"] += touches["user_messages"]
+            result["by_repo_class"][cls]["interruptions"] += touches["interruptions"]
         result["compactions"] += stats["compactions"]
         result["session_seconds"] += duration
         # A session counts under EVERY skill it invoked, so by_skill rows
@@ -1050,6 +1130,15 @@ def build_payload(result, top_n, day=None, coverage="complete", reconciliation=N
                      sorted(result["by_model"].items(), key=lambda kv: -kv[1])},
         "by_day": {day: {k: round(v, 2) for k, v in split.items()}
                    for day, split in sorted(result["by_day"].items())},
+
+        # Every class emitted even at zero, so a
+        # day with no tooling spend reads apart
+        # from one never split at all.
+        "by_repo_class": {
+            cls: {"cost": round(result["by_repo_class"][cls]["cost"], 2),
+                  "user_messages": result["by_repo_class"][cls]["user_messages"],
+                  "interruptions": result["by_repo_class"][cls]["interruptions"]}
+            for cls in REPO_CLASSES},
         "by_subagent_type": {k: {"cost": round(v["cost"], 2), "runs": v["runs"]}
                              for k, v in result["by_subagent_type"].items()},
         # Rows overlap — a session counts under every skill it invoked.

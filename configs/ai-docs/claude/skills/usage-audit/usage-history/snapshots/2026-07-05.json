@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-09T01:23:15-03:00",
+  "generated_at": "2026-08-09T03:29:09-03:00",
   "day": "2026-07-05",
   "coverage": "unretained",
   "observed_days": 1,
@@ -33,6 +33,18 @@
   "by_family": {},
   "by_model": {},
   "by_day": {},
+  "by_repo_class": {
+    "work": {
+      "cost": 0.0,
+      "user_messages": 0,
+      "interruptions": 0
+    },
+    "tooling": {
+      "cost": 0.0,
+      "user_messages": 0,
+      "interruptions": 0
+    }
+  },
   "by_subagent_type": {},
   "by_skill": {},
   "by_skill_marginal": {},

@@ -525,3 +525,48 @@ The user's standing workflow questions (raised 2026-07-24). Each audit advances 
    - The script's dollar totals are LIST prices assuming per-token billing on every cache write. The true answer depends on what fraction ran on metered overage, which the script cannot see.
 
    - The `cache_write_1h` share is the closest available proxy until real plan-usage data is added.
+
+10. **What subagent cost share delivers most, and what is the true cost per merged PR?**
+   - Raised 2026-08-09. Two questions blocked by one flaw: every delivery ratio divides ALL spend, including days spent in the tooling repos the delivered-work ledger excludes by design.
+
+   - **Measured 2026-08-09 over the 17 citable days: subagent share shows no relationship to delivery, in either direction.**
+   - Pooled $/PR by share bucket reads $80 / $312 / $160 across 0-25% / 25-32% / 32-100% — non-monotonic, and the ordering reverses once the 7 zero-PR days are dropped.
+
+   - Per-day `r(share, $/PR)` is -0.17 over 10 days, and flips to +0.18 when any single day is removed.
+
+   - **The confound is which repo the day was spent in, not sample size.** Five zero-PR days cost $1,198, which is 49% of citable spend.
+   - Each of those five carries between 5 and 71 unix-utils commits, so no merged PR could ever have landed on them.
+
+   - **Fix without per-day tagging**: every transcript record carries a `cwd` field, so spend attributes to a repo with no manual step.
+   - Shipped 2026-08-09 inside the aggregator, so every priced record classifies and the two halves sum to the day's total exactly.
+   - Across the 17 citable days: work repos $1,018 (41%), personal-env tooling $1,437 (59%).
+
+   - Cost per merged PR reads $59.91 on work spend alone, against $144.41 when tooling days are left in.
+
+   - **Goal: carry both series per day — tooling cost and work cost — rather than filtering either away.**
+   - Tooling spend is investment in this repertoire, so it is real output that a PR count structurally cannot measure.
+
+   - **The metrics the user named on 2026-08-09**, every one of them pooled over a window rather than read per day:
+
+   - `work $ / merged PR` — the money each shipped PR costs, with tooling spend out of the numerator.
+   - `work touches / merged PR`, where a touch is one user message or one interruption — the human attention each shipped PR costs.
+
+   - `work merged PRs / day` — raw delivery throughput, and the only one of the set with no cost or attention term in it.
+   - It reads 1.0 over the 17 citable days, but 7 of those days shipped nothing, so the pooled mean hides a bimodal shape.
+
+   - `total weekly $`, tooling and work summed, watched for week-over-week movement.
+
+   - **Prefer that pair over the single composite `work $ / (merged PR / touches)`, which the user first proposed.**
+   - The composite carries units of dollar-touches per PR, which no reader can interpret, while the pair says the same thing in money and attention.
+
+   - Measured 2026-08-09 over the 17 citable days: **$59.91 per merged PR and 54.0 touches per merged PR**.
+   - The composite over the same days reads 54,972, a number with no scale to judge it against.
+
+   - **Cost per touch is the higher-resolution version of the same question**, since 1,742 touches landed where only 17 PRs did.
+   - It read $1.11 per work touch against $1.74 per tooling touch, and needs no delivery ledger at all.
+
+   - **The weekly total cannot be checked against the plan cap.** Snapshots price at LIST rates, whereas the cap is denominated in Anthropic's own usage units.
+
+   - Weekly list dollars ran $734 to $1,306 across the five weeks from 2026-07-06, so they track relative movement only.
+
+   - Settle by: split each day's spend by repo class in the aggregator, then compute these over rolling windows.
