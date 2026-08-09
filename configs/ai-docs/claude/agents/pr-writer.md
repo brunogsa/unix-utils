@@ -98,6 +98,10 @@ The repo's template is the base structure, never the thing being replaced.
 
 5. Never run the page-fit check on the final body — source 2's "Measure the ideal description, never the final body" rule carries the reason.
 
+6. Compose the PR title and return it in your report — imperative, no trailing period, and no `AC-N`/`PR-N` token or untracked filename, same as the body.
+   Derive it from the `## Context` section you just wrote, never from the branch name, which encodes the plan slice rather than the change.
+   The caller passes it to `gh pr create --title`, which has no other source: `gh` prompts for a title when none is given, and the caller runs non-interactively.
+
 ### Fixing what a gate flags
 
 - **Density** is the one fix you delegate: dispatch `agent(subAgent=markdown-standards-fixer, title=Fix PR description markdown - haiku low)` on the file, then re-run `check-density.sh` yourself.
@@ -123,6 +127,7 @@ The repo's template is the base structure, never the thing being replaced.
 ## Report format
 
 - **Mode** and **output path**.
+- **PR title** (`final` mode only): the one line the caller hands to `gh pr create --title`.
 - **Gate results**: the exit code of each script you ran, on its final run.
 - **Section budget**: the page-fit breakdown (`ideal` mode only), so the caller sees where the 64 lines went.
 - **Caveats**: anything the digest or spec/plan could not answer, and any content you dropped to fit a cap.

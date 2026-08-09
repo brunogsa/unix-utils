@@ -12,7 +12,7 @@ disable-model-invocation: false
 
 ## PR body budget rules
 
-The non-overlap invariant and the one-page goal -- the 64-line-per-section budget, cut order, and measurement script -- live in [`references/pr-page-budget.md`](references/pr-page-budget.md).
+The non-overlap invariant and the one-page goal -- the 64-line budget, its per-section split, cut order, and measurement script -- live in [`references/pr-page-budget.md`](references/pr-page-budget.md).
 
 Read it before drafting or reviewing a PR body; `pr-writer` loads it every dispatch.
 
@@ -20,13 +20,13 @@ Read it before drafting or reviewing a PR body; `pr-writer` loads it every dispa
 
 **Seed the TaskList before step 1 runs** -- steps 1-4 only, per CLAUDE.md's `[Reminder]` category.
 
-- Step 5 gets no entry -- it runs only if the user asks for a change after the push, so a pending reminder would never complete.
+- Step 5 gets no entry -- both its entry points are conditional, so a pending reminder would usually never complete.
 
 ### 1. Gather context
 
 **CRITICAL: This step's interview is the only point in steps 1-4 where the user is asked anything** -- the rest run to completion without pausing on a blocking chat question.
 
-A gap in evidence (a test that couldn't run locally, a digest section left uncovered) becomes an unchecked box or caveat instead.
+A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an unchecked box or a caveat — take the most conservative reading and keep going.
 
 Resolve everything below BEFORE dispatching `changes-gatherer` at the end of this step.
 
@@ -50,9 +50,6 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
   - Carry both; skip either label that auto-resolved above; skip the call when both auto-resolved.
   - They resolve different things — which source file to read, which plan slice this is — so merging would force two answers into one.
 
-  - Any later ambiguity (template fit, checklist evidence, body-size trims) is resolved by that step's own rules, never by a new question.
-    - Uncovered case → take the most conservative reading and note it as a caveat in the final report.
-
 - Once answered, create `./pr_<slug>_pr<N>.ideal.md` with an HTML comment logging each answer.
   - Example: `<!-- step 1: spec=<resolved spec>; PR=2/3; base=<resolved base> -->` -- GitHub hides HTML comments in rendered bodies.
   - It is this skill's durable record, not a separate scratchpad -- it survives a mid-flow compaction that would drop the answers.
@@ -64,8 +61,7 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
   - `### References` joins them there as authored content, so the appendix survives even when no spec/plan resolved.
 
 - **CRITICAL: Both halves of a spec/plan reach the PR by script, never by re-authoring** -- the main session derives the list, and step 2's agent runs the extractors.
-  - Sections: `~/.claude/skills/create-pr/scripts/extract-md-sections.sh <file> "<section>" ["<section>" ...]`.
-  - Diagrams: `~/.claude/skills/create-pr/scripts/extract-mermaid-blocks.sh <file> [<file> ...]` — every fenced `mermaid` block becomes the Architecture section, and leaves the appendix.
+  - Sections come from `scripts/extract-md-sections.sh`; diagrams from `scripts/extract-mermaid-blocks.sh`, whose every fenced `mermaid` block becomes the Architecture section and leaves the appendix.
   - A re-summarized section or a re-drawn diagram diverges from what the spec/plan was reviewed against, and nothing downstream catches the divergence.
 
 - **Delegate diff/log reading to a subagent** -- dispatch `agent(subAgent=changes-gatherer, title=Gather PR changes digest)`, foreground (step 2 needs the result immediately).
@@ -83,7 +79,7 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
 
 **Both gates belong to the agent — never re-run them here, and never hand-fix its prose.**
 
-- It returns only once `check-density.sh` and `check-pr-page-fit.sh` both pass, so a main-session re-run re-measures an already-measured file and pays for a second dispatch on anything it flags.
+- It returns only once `check-density.sh` and `check-pr-page-fit.sh` both pass, so a main-session re-run re-measures an already-measured file and pays for a second dispatch.
 
 **CRITICAL: It writes the IDEAL description in this skill's own format, ignoring any repo template** -- the repo's template is step 3's problem, not its.
 - The format has to stay stable, because `check-pr-page-fit.sh` can only hold a section to its budget when it recognizes that section.
@@ -128,6 +124,8 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
 - It re-reads the rules below from this skill, and owns the density and body-size gates end to end — same as step 2, they are never re-run.
 
+- **It also returns the PR title** -- carry that line to step 4's `--title`; the body file is the only other thing this step hands forward.
+
 **CRITICAL: The repo's template is the base structure, never the thing being replaced.**
 
 - Keep every section and checkbox, sourced from the ideal description, not re-derived from the diff.
@@ -143,7 +141,7 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
 - **CRITICAL: `## Evidences` is MANDATORY** regardless of the template -- add it inside the template structure when absent.
 
-**Never page-fit the final body** -- the rule and its reason are [`references/pr-page-budget.md`](references/pr-page-budget.md)'s, which `pr-writer` loads every dispatch.
+**Never page-fit the final body** -- the rule and its reason are [`references/pr-page-budget.md`](references/pr-page-budget.md)'s.
 
 ### 4. Create the draft PR
 
@@ -160,7 +158,10 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
   - Pushing in step 1 would leave a remote branch behind whenever a compose or gate failed.
 
-- **Create the PR as a draft with no chat-side review gate** -- `gh pr create --draft --body-file pr_<slug>_pr<N>.final.md --base <base-branch>`.
+- **Create the PR as a draft with no chat-side review gate** -- `gh pr create --draft --title "<title>" --body-file pr_<slug>_pr<N>.final.md --base <base-branch>`.
+
+  - `<title>` is the line step 3's agent returned; never compose one here, never drop the flag.
+    - Without it `gh` prompts for a title, and this session is not a TTY.
 
   - `<base-branch>` is the value step 1 resolved, dropped when empty.
     - A `<parent>` run → that value is the parent's head branch, resolved in step 1.
