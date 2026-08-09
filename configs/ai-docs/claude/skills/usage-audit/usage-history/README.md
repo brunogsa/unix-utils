@@ -39,7 +39,7 @@ Committed, durable record of Claude Code usage — the memory the `usage-audit` 
 
   - This mattered more than a flat bias: the multiplier *is* the blocks-per-response count, so it tracked thinking and tool-call density — two of the levers being tuned.
 
-- **That correction then under-billed output until 2026-08-08, so figures from 2026-07-27 to 2026-08-07 are void too.** Only the 2026-08-08 rebuild is citable.
+- **That correction then under-billed output until 2026-08-08, so figures from 2026-07-27 to 2026-08-07 are void too.**
 
   - Dedup kept the **anchor** record. `input`, `cache_read` and `cache_creation` repeat identically on every block, so the anchor is right for those three.
 
@@ -55,21 +55,37 @@ Committed, durable record of Claude Code usage — the memory the `usage-audit` 
 
     - One such response on 2026-07-17 was worth 0.5% of the day's cache-write tokens.
 
+- **Every snapshot written before the 2026-08-09 rebuild missed all `/advisor` spend, so only that rebuild is citable.** A day that never invoked `/advisor` is unaffected.
+
+  - `/advisor` bills a **second model** alongside the session's own, and Claude Code reports its tokens only inside `usage.iterations[]` entries of `type: "advisor_message"`.
+
+  - The top-level `message.usage` fields sum the `"message"` iterations alone, so that second model was structurally invisible to every field the script read.
+
+  - It hid for weeks because a day that never invoked `/advisor` reconciles at 0.000%, making the affected days read as noise rather than as one cause.
+
+  - The invisible spend sat in the priciest tiers: across the corpus `advisorModel` reads `claude-opus-4-8` on 49,414 records and `claude-opus-5` on 22,269.
+
+  - These entries are read from the same whole-file pre-pass as the output-token peak, not from the record being priced, because a **subagent** transcript never carries them on the anchor.
+
+    - On 2026-07-19 all 13 subagent advisor calls sat on a later block, against 12 of 64 main-session ones on the anchor.
+
+    - So a fix that read the record being priced recovered main sessions' 1,541,451 input tokens and none of the subagents' 1,574,019 — a half-repair that looks complete on a main-only day.
+
 - Every snapshot carries a `reconciliation` block cross-checking its four token buckets against [ccusage](https://github.com/ryoppippi/ccusage), an independent reader of the same transcripts.
 
   - `status` is `ok` (within 0.5%), `drift` (counting disagrees — treat the day as unverified), or `unavailable` (ccusage not installed or failed).
 
-  - As of the 2026-08-08 rebuild **32 of 55 days read `ok` and 23 read `drift`**.
+  - As of the 2026-08-09 rebuild **43 of 56 days read `ok` and 13 read `drift`**, against 32 and 23 before the advisor fix.
 
   - Read a day's `status` before citing any figure from it; a `drift` day is not evidence in either direction.
 
-  - The residual drift is an open defect, not a tolerance: ccusage sees a population of **uncached** requests the aggregator never reads.
+  - The residual drift is an open defect, not a tolerance, and the script always counts LOW — it has never exceeded ccusage on any bucket.
 
-    - On 2026-07-19 the script counts 8,363 input tokens against ccusage's 3,137,652; on 2026-08-07, 1,301 against 927,849.
+    - Eleven of the thirteen sit under 3.5% and are cache-heavy: `cache_write` on 2026-07-23 (2.5%) and `cache_read` on 2026-08-07 (1.4%) are typical.
 
-    - It is not a systematic parser error — 2026-07-20 and 2026-08-06 match at 0.000% on all four buckets.
+    - 2026-07-09 is the outlier at 24-34% under on all four buckets at once, which reads as whole transcripts the script never opened rather than a field it misreads.
 
-    - Suspects: cloud or remote agent sessions, `claude -p` headless runs, and record shapes `iter_records` filters out.
+    - Suspects for that shape: cloud or remote agent sessions, `claude -p` headless runs, and files `find_transcripts`' mtime lower bound excludes.
 
   - It has already earned its keep: on its first run it flagged 10 of 43 days, from records whose `cache_creation` TTL split disagrees with the `cache_creation_input_tokens` total it splits.
 

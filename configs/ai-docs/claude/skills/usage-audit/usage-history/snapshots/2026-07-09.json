@@ -1,113 +1,104 @@
 {
-  "generated_at": "2026-08-08T19:48:03-03:00",
+  "generated_at": "2026-08-09T00:48:56-03:00",
   "day": "2026-07-09",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 108.33,
-    "user_messages": 41,
-    "interruptions": 5,
-    "session_hours": 14.5,
-    "cost_per_user_message": 2.64
+    "cost_per_day": 61.05,
+    "user_messages": 14,
+    "interruptions": 1,
+    "session_hours": 8.9,
+    "cost_per_user_message": 4.36
   },
-  "total": 108.33,
-  "main_cost": 82.5,
-  "subagent_cost": 25.83,
+  "total": 61.05,
+  "main_cost": 44.32,
+  "subagent_cost": 16.73,
   "api_calls": {
-    "main": 322,
-    "sub": 335
+    "main": 132,
+    "sub": 199
   },
   "compactions": 0,
-  "session_count": 12,
-  "cache_hit_rate": 0.932,
-  "thinking_blocks": 539,
-  "text_blocks": 228,
-  "thinking_block_share": 0.703,
+  "session_count": 2,
+  "cache_hit_rate": 0.931,
+  "thinking_blocks": 275,
+  "text_blocks": 103,
+  "thinking_block_share": 0.728,
   "tokens": {
-    "input": 393752,
-    "output": 649547,
-    "cache_read": 59083743,
-    "cache_write_5m": 1779555,
-    "cache_write_1h": 2168438
+    "input": 342450,
+    "output": 367757,
+    "cache_read": 33120990,
+    "cache_write_5m": 1018553,
+    "cache_write_1h": 1108586
   },
   "by_family": {
-    "haiku": 1.33,
-    "sonnet": 6.38,
-    "fable": 85.28,
-    "opus": 15.35
+    "haiku": 0.64,
+    "sonnet": 5.52,
+    "opus": 0.93,
+    "fable": 53.96
   },
   "by_model": {
-    "claude-fable-5": 85.28,
-    "claude-opus-4-8": 13.91,
-    "claude-sonnet-5": 6.38,
-    "claude-opus-4-7": 1.44,
-    "claude-haiku-4-5": 1.33
+    "claude-fable-5": 53.96,
+    "claude-sonnet-5": 5.52,
+    "claude-opus-4-8": 0.93,
+    "claude-haiku-4-5": 0.64
   },
   "by_day": {
     "2026-07-09": {
-      "main": 82.5,
-      "sub": 25.83
+      "main": 44.32,
+      "sub": 16.73
     }
   },
   "by_subagent_type": {
     "general-purpose": {
-      "cost": 23.83,
-      "runs": 15
-    },
-    "claude-code-guide": {
-      "cost": 0.19,
-      "runs": 2
+      "cost": 16.15,
+      "runs": 11
     },
     "density-fixer": {
-      "cost": 1.07,
-      "runs": 7
-    },
-    "Explore": {
-      "cost": 0.75,
-      "runs": 1
+      "cost": 0.57,
+      "runs": 4
     }
   },
   "by_skill": {
-    "doc-standards": {
-      "cost": 98.48,
-      "invocations": 3,
-      "sessions": 3,
-      "compactions": 0,
-      "interruptions": 5,
-      "tokens": {
-        "input": 255806,
-        "output": 498610,
-        "cache_read": 46096386,
-        "cache_write_5m": 1085459,
-        "cache_write_1h": 1854545
-      }
-    },
     "personal-environment": {
-      "cost": 84.21,
-      "invocations": 2,
-      "sessions": 2,
+      "cost": 54.53,
+      "invocations": 1,
+      "sessions": 1,
       "compactions": 0,
       "interruptions": 1,
       "tokens": {
-        "input": 206527,
-        "output": 361786,
-        "cache_read": 33039328,
-        "cache_write_5m": 940967,
-        "cache_write_1h": 1428058
+        "input": 116634,
+        "output": 248674,
+        "cache_read": 22341394,
+        "cache_write_5m": 535299,
+        "cache_write_1h": 852061
       }
     },
     "brainstorm": {
-      "cost": 68.8,
-      "invocations": 2,
-      "sessions": 2,
+      "cost": 54.53,
+      "invocations": 1,
+      "sessions": 1,
       "compactions": 0,
-      "interruptions": 5,
+      "interruptions": 1,
       "tokens": {
-        "input": 165913,
-        "output": 385498,
-        "cache_read": 35398452,
-        "cache_write_5m": 679791,
-        "cache_write_1h": 1278548
+        "input": 116634,
+        "output": 248674,
+        "cache_read": 22341394,
+        "cache_write_5m": 535299,
+        "cache_write_1h": 852061
+      }
+    },
+    "doc-standards": {
+      "cost": 54.53,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 1,
+      "tokens": {
+        "input": 116634,
+        "output": 248674,
+        "cache_read": 22341394,
+        "cache_write_5m": 535299,
+        "cache_write_1h": 852061
       }
     },
     "mermaid-diagrams": {
@@ -138,60 +129,18 @@
         "cache_write_1h": 852061
       }
     },
-    "commit-standards": {
-      "cost": 29.68,
-      "invocations": 1,
-      "sessions": 1,
-      "compactions": 0,
-      "interruptions": 0,
-      "tokens": {
-        "input": 89893,
-        "output": 113112,
-        "cache_read": 10697934,
-        "cache_write_5m": 405668,
-        "cache_write_1h": 575997
-      }
-    },
-    "code-standards": {
-      "cost": 29.68,
-      "invocations": 1,
-      "sessions": 1,
-      "compactions": 0,
-      "interruptions": 0,
-      "tokens": {
-        "input": 89893,
-        "output": 113112,
-        "cache_read": 10697934,
-        "cache_write_5m": 405668,
-        "cache_write_1h": 575997
-      }
-    },
     "implement": {
-      "cost": 5.59,
+      "cost": 6.52,
       "invocations": 1,
       "sessions": 1,
       "compactions": 0,
       "interruptions": 0,
       "tokens": {
-        "input": 115866,
-        "output": 103920,
+        "input": 225816,
+        "output": 119083,
         "cache_read": 10779596,
         "cache_write_5m": 483254,
         "cache_write_1h": 256525
-      }
-    },
-    "html-artifacts": {
-      "cost": 2.44,
-      "invocations": 1,
-      "sessions": 1,
-      "compactions": 0,
-      "interruptions": 0,
-      "tokens": {
-        "input": 17757,
-        "output": 29175,
-        "cache_read": 1831287,
-        "cache_write_5m": 80001,
-        "cache_write_1h": 42005
       }
     }
   },
@@ -202,35 +151,23 @@
       "mixed_sessions": 1,
       "mixed_cost_estimate": 40.38
     },
-    "code-standards": {
-      "dedicated_sessions": 0,
-      "dedicated_cost": 0.0,
-      "mixed_sessions": 1,
-      "mixed_cost_estimate": 15.01
-    },
     "brainstorm": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
-      "mixed_sessions": 2,
-      "mixed_cost_estimate": 10.07
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 9.56
+    },
+    "implement": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 6.52,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
     },
     "doc-standards": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
-      "mixed_sessions": 3,
-      "mixed_cost_estimate": 5.73
-    },
-    "implement": {
-      "dedicated_sessions": 1,
-      "dedicated_cost": 5.59,
-      "mixed_sessions": 0,
-      "mixed_cost_estimate": 0.0
-    },
-    "html-artifacts": {
-      "dedicated_sessions": 1,
-      "dedicated_cost": 2.44,
-      "mixed_sessions": 0,
-      "mixed_cost_estimate": 0.0
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 2.26
     },
     "performance-check-principles-and-skills": {
       "dedicated_sessions": 0,
@@ -241,14 +178,8 @@
     "personal-environment": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
-      "mixed_sessions": 2,
-      "mixed_cost_estimate": 0.2
-    },
-    "commit-standards": {
-      "dedicated_sessions": 0,
-      "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 0.0
+      "mixed_cost_estimate": 0.2
     }
   },
   "top_sessions": [
@@ -279,58 +210,10 @@
       }
     },
     {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/e66dfd87-0353-4713-833c-d06859ba67a7.jsonl",
-      "title": "",
-      "cost": 21.33,
-      "subagent_cost": 8.35,
-      "api_calls": 58,
-      "duration_hours": 4.0,
-      "compactions": 0,
-      "user_messages": 6,
-      "interruptions": 0,
-      "tokens": {
-        "input": 27195,
-        "output": 57148,
-        "cache_read": 6683035,
-        "cache_write_5m": 0,
-        "cache_write_1h": 575997
-      },
-      "cache_hit_rate": 0.917,
-      "skills": {
-        "code-standards": 1,
-        "commit-standards": 1,
-        "doc-standards": 1,
-        "personal-environment": 1
-      }
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/1e15e0be-0837-4504-9373-146799fa4759.jsonl",
-      "title": "",
-      "cost": 13.3,
-      "subagent_cost": 0.97,
-      "api_calls": 109,
-      "duration_hours": 1.4,
-      "compactions": 0,
-      "user_messages": 11,
-      "interruptions": 4,
-      "tokens": {
-        "input": 30673,
-        "output": 115182,
-        "cache_read": 12434080,
-        "cache_write_5m": 0,
-        "cache_write_1h": 426487
-      },
-      "cache_hit_rate": 0.965,
-      "skills": {
-        "brainstorm": 1,
-        "doc-standards": 1
-      }
-    },
-    {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/71add74b-51d3-48bb-8113-6cb426122257.jsonl",
       "title": "",
       "cost": 2.02,
-      "subagent_cost": 3.57,
+      "subagent_cost": 4.5,
       "api_calls": 33,
       "duration_hours": 3.8,
       "compactions": 0,
@@ -347,115 +230,33 @@
       "skills": {
         "implement": 1
       }
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/947ad222-6225-45e5-b5e8-28aac30b8b7c.jsonl",
-      "title": "",
-      "cost": 1.73,
-      "subagent_cost": 0.72,
-      "api_calls": 7,
-      "duration_hours": 0.2,
-      "compactions": 0,
-      "user_messages": 3,
-      "interruptions": 0,
-      "tokens": {
-        "input": 10435,
-        "output": 9428,
-        "cache_read": 309581,
-        "cache_write_5m": 0,
-        "cache_write_1h": 42005
-      },
-      "cache_hit_rate": 0.855,
-      "skills": {
-        "html-artifacts": 1
-      }
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-private-tmp-se-spike/639b16e1-41e8-4f02-b32f-ab30c06a89e0.jsonl",
-      "title": "",
-      "cost": 0.38,
-      "subagent_cost": 0.0,
-      "api_calls": 1,
-      "duration_hours": 0.0,
-      "compactions": 0,
-      "user_messages": 1,
-      "interruptions": 0,
-      "tokens": {
-        "input": 4278,
-        "output": 349,
-        "cache_read": 15190,
-        "cache_write_5m": 0,
-        "cache_write_1h": 15363
-      },
-      "cache_hit_rate": 0.436,
-      "skills": {}
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/e9a1aed3-d2b9-4672-8486-3825f13c6ddb.jsonl",
-      "title": "",
-      "cost": 0.37,
-      "subagent_cost": 0.0,
-      "api_calls": 2,
-      "duration_hours": 0.0,
-      "compactions": 0,
-      "user_messages": 1,
-      "interruptions": 0,
-      "tokens": {
-        "input": 7,
-        "output": 6041,
-        "cache_read": 28483,
-        "cache_write_5m": 32334,
-        "cache_write_1h": 0
-      },
-      "cache_hit_rate": 0.468,
-      "skills": {}
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/458ff9bd-7bff-4f30-9d4d-561d8448e0a2.jsonl",
-      "title": "",
-      "cost": 0.36,
-      "subagent_cost": 0.0,
-      "api_calls": 3,
-      "duration_hours": 0.0,
-      "compactions": 0,
-      "user_messages": 1,
-      "interruptions": 0,
-      "tokens": {
-        "input": 8,
-        "output": 3321,
-        "cache_read": 66450,
-        "cache_write_5m": 38215,
-        "cache_write_1h": 0
-      },
-      "cache_hit_rate": 0.635,
-      "skills": {}
     }
   ],
   "reconciliation": {
     "status": "drift",
-    "worst_delta_pct": 44.909,
+    "worst_delta_pct": 34.161,
     "tokens": {
       "input": {
-        "script": 393752,
-        "ccusage": 714731,
-        "delta_pct": -44.909
+        "script": 342450,
+        "ccusage": 450102,
+        "delta_pct": -23.917
       },
       "output": {
-        "script": 649547,
-        "ccusage": 689356,
-        "delta_pct": -5.775
+        "script": 367757,
+        "ccusage": 510044,
+        "delta_pct": -27.897
       },
       "cache_read": {
-        "script": 59083743,
-        "ccusage": 59192263,
-        "delta_pct": -0.183
+        "script": 33120990,
+        "ccusage": 45758731,
+        "delta_pct": -27.618
       },
       "cache_write": {
-        "script": 3947993,
-        "ccusage": 3937144,
-        "delta_pct": 0.275
+        "script": 2127139,
+        "ccusage": 3230810,
+        "delta_pct": -34.161
       }
     },
-    "ccusage_cost_untrusted": 110.85
+    "ccusage_cost_untrusted": 93.19
   }
 }

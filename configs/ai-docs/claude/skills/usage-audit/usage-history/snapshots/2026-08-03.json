@@ -1,31 +1,31 @@
 {
-  "generated_at": "2026-08-08T19:50:30-03:00",
+  "generated_at": "2026-08-09T00:51:46-03:00",
   "day": "2026-08-03",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 43.95,
+    "cost_per_day": 45.1,
     "user_messages": 32,
     "interruptions": 4,
     "session_hours": 18.1,
-    "cost_per_user_message": 1.37
+    "cost_per_user_message": 1.41
   },
-  "total": 43.95,
-  "main_cost": 30.98,
-  "subagent_cost": 12.96,
+  "total": 45.1,
+  "main_cost": 31.73,
+  "subagent_cost": 13.37,
   "api_calls": {
-    "main": 267,
-    "sub": 612
+    "main": 268,
+    "sub": 613
   },
   "compactions": 5,
   "session_count": 12,
-  "cache_hit_rate": 0.944,
+  "cache_hit_rate": 0.941,
   "thinking_blocks": 695,
   "text_blocks": 271,
   "thinking_block_share": 0.719,
   "tokens": {
-    "input": 5381,
-    "output": 586636,
+    "input": 182591,
+    "output": 597250,
     "cache_read": 63917214,
     "cache_write_5m": 2038302,
     "cache_write_1h": 1754354
@@ -33,18 +33,18 @@
   "by_family": {
     "haiku": 2.56,
     "sonnet": 15.17,
-    "opus": 26.22
+    "opus": 27.37
   },
   "by_model": {
-    "claude-opus-5": 24.88,
+    "claude-opus-5": 26.03,
     "claude-sonnet-5": 15.17,
     "claude-haiku-4-5": 2.56,
     "claude-opus-4-7": 1.34
   },
   "by_day": {
     "2026-08-03": {
-      "main": 30.98,
-      "sub": 12.96
+      "main": 31.73,
+      "sub": 13.37
     }
   },
   "by_subagent_type": {
@@ -57,7 +57,7 @@
       "runs": 2
     },
     "core:agent-forger": {
-      "cost": 0.37,
+      "cost": 0.78,
       "runs": 1
     },
     "changes-gatherer": {
@@ -107,42 +107,42 @@
       }
     },
     "core:agent-readiness": {
-      "cost": 7.2,
+      "cost": 8.35,
       "invocations": 1,
       "sessions": 1,
       "compactions": 2,
       "interruptions": 1,
       "tokens": {
-        "input": 661,
-        "output": 135452,
+        "input": 177871,
+        "output": 146066,
         "cache_read": 15282767,
         "cache_write_5m": 451467,
         "cache_write_1h": 517420
       }
     },
     "commit-standards": {
-      "cost": 7.2,
+      "cost": 8.35,
       "invocations": 1,
       "sessions": 1,
       "compactions": 2,
       "interruptions": 1,
       "tokens": {
-        "input": 661,
-        "output": 135452,
+        "input": 177871,
+        "output": 146066,
         "cache_read": 15282767,
         "cache_write_5m": 451467,
         "cache_write_1h": 517420
       }
     },
     "create-pr": {
-      "cost": 7.2,
+      "cost": 8.35,
       "invocations": 1,
       "sessions": 1,
       "compactions": 2,
       "interruptions": 1,
       "tokens": {
-        "input": 661,
-        "output": 135452,
+        "input": 177871,
+        "output": 146066,
         "cache_read": 15282767,
         "cache_write_5m": 451467,
         "cache_write_1h": 517420
@@ -206,7 +206,7 @@
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 0.94
+      "mixed_cost_estimate": 1.68
     },
     "sdd:sdd-grill": {
       "dedicated_sessions": 1,
@@ -288,21 +288,21 @@
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-error-monitor/a5063804-4884-4e1e-8507-4061c7f5932a.jsonl",
       "title": "",
-      "cost": 4.34,
-      "subagent_cost": 2.86,
-      "api_calls": 80,
+      "cost": 5.09,
+      "subagent_cost": 3.27,
+      "api_calls": 81,
       "duration_hours": 7.6,
       "compactions": 2,
       "user_messages": 5,
       "interruptions": 1,
       "tokens": {
-        "input": 161,
-        "output": 55046,
+        "input": 122143,
+        "output": 60559,
         "cache_read": 8589369,
         "cache_write_5m": 0,
         "cache_write_1h": 517420
       },
-      "cache_hit_rate": 0.943,
+      "cache_hit_rate": 0.931,
       "skills": {
         "commit-standards": 1,
         "core:agent-readiness": 1,
@@ -397,18 +397,18 @@
     }
   ],
   "reconciliation": {
-    "status": "drift",
-    "worst_delta_pct": 97.053,
+    "status": "ok",
+    "worst_delta_pct": 0.494,
     "tokens": {
       "input": {
-        "script": 5381,
+        "script": 182591,
         "ccusage": 182595,
-        "delta_pct": -97.053
+        "delta_pct": -0.002
       },
       "output": {
-        "script": 586636,
+        "script": 597250,
         "ccusage": 600217,
-        "delta_pct": -2.263
+        "delta_pct": -0.494
       },
       "cache_read": {
         "script": 63917214,

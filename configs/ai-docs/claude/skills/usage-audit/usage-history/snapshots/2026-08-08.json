@@ -1,0 +1,631 @@
+{
+  "generated_at": "2026-08-09T00:51:55-03:00",
+  "day": "2026-08-08",
+  "coverage": "complete",
+  "observed_days": 1,
+  "kpis": {
+    "cost_per_day": 364.78,
+    "user_messages": 190,
+    "interruptions": 9,
+    "session_hours": 32.5,
+    "cost_per_user_message": 1.92
+  },
+  "total": 364.78,
+  "main_cost": 224.15,
+  "subagent_cost": 140.63,
+  "api_calls": {
+    "main": 1978,
+    "sub": 2031
+  },
+  "compactions": 33,
+  "session_count": 58,
+  "cache_hit_rate": 0.946,
+  "thinking_blocks": 2706,
+  "text_blocks": 982,
+  "thinking_block_share": 0.734,
+  "tokens": {
+    "input": 1557991,
+    "output": 3392342,
+    "cache_read": 402554390,
+    "cache_write_5m": 13566163,
+    "cache_write_1h": 7853217
+  },
+  "by_family": {
+    "haiku": 2.69,
+    "sonnet": 54.45,
+    "opus": 307.65
+  },
+  "by_model": {
+    "claude-opus-5": 293.85,
+    "claude-sonnet-5": 54.45,
+    "claude-opus-4-7": 13.8,
+    "claude-haiku-4-5": 2.69
+  },
+  "by_day": {
+    "2026-08-08": {
+      "main": 224.15,
+      "sub": 140.63
+    }
+  },
+  "by_subagent_type": {
+    "markdown-standards-fixer": {
+      "cost": 1.11,
+      "runs": 5
+    },
+    "tasklist-sweeper": {
+      "cost": 0.17,
+      "runs": 2
+    },
+    "general-purpose": {
+      "cost": 26.85,
+      "runs": 25
+    },
+    "tdd-coder": {
+      "cost": 22.36,
+      "runs": 11
+    },
+    "UNMATCHED": {
+      "cost": 0.48,
+      "runs": 1
+    },
+    "consistency-ensemble-child": {
+      "cost": 89.67,
+      "runs": 21
+    }
+  },
+  "by_skill": {
+    "commit-standards": {
+      "cost": 244.03,
+      "invocations": 8,
+      "sessions": 8,
+      "compactions": 18,
+      "interruptions": 2,
+      "tokens": {
+        "input": 938488,
+        "output": 2205763,
+        "cache_read": 271599914,
+        "cache_write_5m": 10020436,
+        "cache_write_1h": 4393859
+      }
+    },
+    "doc-standards": {
+      "cost": 201.12,
+      "invocations": 5,
+      "sessions": 5,
+      "compactions": 22,
+      "interruptions": 3,
+      "tokens": {
+        "input": 1308297,
+        "output": 1523554,
+        "cache_read": 196241106,
+        "cache_write_5m": 6779891,
+        "cache_write_1h": 4402578
+      }
+    },
+    "code-standards": {
+      "cost": 163.95,
+      "invocations": 8,
+      "sessions": 8,
+      "compactions": 23,
+      "interruptions": 3,
+      "tokens": {
+        "input": 1308419,
+        "output": 1425632,
+        "cache_read": 207341976,
+        "cache_write_5m": 3199338,
+        "cache_write_1h": 5095980
+      }
+    },
+    "skill-standards": {
+      "cost": 162.16,
+      "invocations": 4,
+      "sessions": 4,
+      "compactions": 9,
+      "interruptions": 1,
+      "tokens": {
+        "input": 3071,
+        "output": 1343498,
+        "cache_read": 147208452,
+        "cache_write_5m": 7528618,
+        "cache_write_1h": 2193063
+      }
+    },
+    "personal-environment": {
+      "cost": 139.93,
+      "invocations": 3,
+      "sessions": 3,
+      "compactions": 7,
+      "interruptions": 1,
+      "tokens": {
+        "input": 2389,
+        "output": 1104273,
+        "cache_read": 117048793,
+        "cache_write_5m": 6917906,
+        "cache_write_1h": 1648555
+      }
+    },
+    "consistency-check-principles-and-skills": {
+      "cost": 129.2,
+      "invocations": 3,
+      "sessions": 2,
+      "compactions": 6,
+      "interruptions": 0,
+      "tokens": {
+        "input": 2203,
+        "output": 1032267,
+        "cache_read": 106374195,
+        "cache_write_5m": 6917906,
+        "cache_write_1h": 1288825
+      }
+    },
+    "test-standards": {
+      "cost": 117.89,
+      "invocations": 5,
+      "sessions": 5,
+      "compactions": 20,
+      "interruptions": 2,
+      "tokens": {
+        "input": 1307149,
+        "output": 988605,
+        "cache_read": 139156921,
+        "cache_write_5m": 1796828,
+        "cache_write_1h": 4003923
+      }
+    },
+    "brainstorm": {
+      "cost": 47.17,
+      "invocations": 5,
+      "sessions": 5,
+      "compactions": 3,
+      "interruptions": 3,
+      "tokens": {
+        "input": 2858,
+        "output": 646324,
+        "cache_read": 64531612,
+        "cache_write_5m": 1586284,
+        "cache_write_1h": 1109234
+      }
+    },
+    "implement": {
+      "cost": 45.88,
+      "invocations": 2,
+      "sessions": 2,
+      "compactions": 3,
+      "interruptions": 0,
+      "tokens": {
+        "input": 245571,
+        "output": 599456,
+        "cache_read": 88091830,
+        "cache_write_5m": 2464951,
+        "cache_write_1h": 831474
+      }
+    },
+    "offload-tasklist": {
+      "cost": 44.31,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 10,
+      "interruptions": 1,
+      "tokens": {
+        "input": 372056,
+        "output": 218552,
+        "cache_read": 38354392,
+        "cache_write_5m": 96808,
+        "cache_write_1h": 1781912
+      }
+    },
+    "import-tasklist": {
+      "cost": 38.88,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 6,
+      "interruptions": 1,
+      "tokens": {
+        "input": 934223,
+        "output": 449430,
+        "cache_read": 60746650,
+        "cache_write_5m": 1089308,
+        "cache_write_1h": 1128322
+      }
+    },
+    "recap": {
+      "cost": 25.95,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 1,
+      "interruptions": 0,
+      "tokens": {
+        "input": 477,
+        "output": 269547,
+        "cache_read": 23976066,
+        "cache_write_5m": 1324131,
+        "cache_write_1h": 296458
+      }
+    },
+    "performance-check-principles-and-skills": {
+      "cost": 11.19,
+      "invocations": 2,
+      "sessions": 2,
+      "compactions": 1,
+      "interruptions": 1,
+      "tokens": {
+        "input": 192,
+        "output": 73283,
+        "cache_read": 10807764,
+        "cache_write_5m": 0,
+        "cache_write_1h": 395362
+      }
+    },
+    "usage-audit": {
+      "cost": 10.26,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 1,
+      "interruptions": 0,
+      "tokens": {
+        "input": 162,
+        "output": 79048,
+        "cache_read": 8992584,
+        "cache_write_5m": 0,
+        "cache_write_1h": 378322
+      }
+    },
+    "sdk:skill-or-rule": {
+      "cost": 3.76,
+      "invocations": 1,
+      "sessions": 1,
+      "compactions": 0,
+      "interruptions": 2,
+      "tokens": {
+        "input": 60,
+        "output": 42874,
+        "cache_read": 2956511,
+        "cache_write_5m": 0,
+        "cache_write_1h": 121040
+      }
+    },
+    "improve-from-user": {
+      "cost": 1.96,
+      "invocations": 2,
+      "sessions": 2,
+      "compactions": 0,
+      "interruptions": 1,
+      "tokens": {
+        "input": 20,
+        "output": 16534,
+        "cache_read": 805597,
+        "cache_write_5m": 183769,
+        "cache_write_1h": 0
+      }
+    }
+  },
+  "by_skill_marginal": {
+    "consistency-check-principles-and-skills": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 2,
+      "mixed_cost_estimate": 91.7
+    },
+    "commit-standards": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 8,
+      "mixed_cost_estimate": 39.32
+    },
+    "implement": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 14.52,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 24.19
+    },
+    "brainstorm": {
+      "dedicated_sessions": 3,
+      "dedicated_cost": 21.18,
+      "mixed_sessions": 2,
+      "mixed_cost_estimate": 14.4
+    },
+    "code-standards": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 8,
+      "mixed_cost_estimate": 27.27
+    },
+    "doc-standards": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 5,
+      "mixed_cost_estimate": 25.26
+    },
+    "import-tasklist": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 22.82
+    },
+    "personal-environment": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 3,
+      "mixed_cost_estimate": 11.48
+    },
+    "test-standards": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 5,
+      "mixed_cost_estimate": 11.14
+    },
+    "usage-audit": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 10.26,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "offload-tasklist": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 3.95
+    },
+    "skill-standards": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 4,
+      "mixed_cost_estimate": 2.12
+    },
+    "improve-from-user": {
+      "dedicated_sessions": 2,
+      "dedicated_cost": 1.96,
+      "mixed_sessions": 0,
+      "mixed_cost_estimate": 0.0
+    },
+    "sdk:skill-or-rule": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 1.21
+    },
+    "performance-check-principles-and-skills": {
+      "dedicated_sessions": 1,
+      "dedicated_cost": 0.45,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 0.53
+    },
+    "recap": {
+      "dedicated_sessions": 0,
+      "dedicated_cost": 0.0,
+      "mixed_sessions": 1,
+      "mixed_cost_estimate": 0.0
+    }
+  },
+  "top_sessions": [
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/c9256d3d-362a-4f78-92fd-9bc823911df0.jsonl",
+      "title": "",
+      "cost": 44.1,
+      "subagent_cost": 0.2,
+      "api_calls": 295,
+      "duration_hours": 5.0,
+      "compactions": 10,
+      "user_messages": 23,
+      "interruptions": 1,
+      "tokens": {
+        "input": 370588,
+        "output": 213604,
+        "cache_read": 38180996,
+        "cache_write_5m": 0,
+        "cache_write_1h": 1781912
+      },
+      "cache_hit_rate": 0.947,
+      "skills": {
+        "code-standards": 1,
+        "doc-standards": 1,
+        "offload-tasklist": 1,
+        "test-standards": 1
+      }
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/c17bc360-b39f-451e-880b-a7c78c7453bb.jsonl",
+      "title": "",
+      "cost": 28.0,
+      "subagent_cost": 75.25,
+      "api_calls": 213,
+      "duration_hours": 4.6,
+      "compactions": 5,
+      "user_messages": 14,
+      "interruptions": 0,
+      "tokens": {
+        "input": 426,
+        "output": 187100,
+        "cache_read": 26783754,
+        "cache_write_5m": 0,
+        "cache_write_1h": 992367
+      },
+      "cache_hit_rate": 0.964,
+      "skills": {
+        "commit-standards": 1,
+        "consistency-check-principles-and-skills": 1,
+        "doc-standards": 1,
+        "personal-environment": 1,
+        "skill-standards": 1
+      }
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/53be1ea0-dc9b-4bfa-8471-e3f479f431bc.jsonl",
+      "title": "",
+      "cost": 25.96,
+      "subagent_cost": 12.92,
+      "api_calls": 332,
+      "duration_hours": 2.2,
+      "compactions": 6,
+      "user_messages": 28,
+      "interruptions": 1,
+      "tokens": {
+        "input": 103463,
+        "output": 272205,
+        "cache_read": 39630323,
+        "cache_write_5m": 0,
+        "cache_write_1h": 1128322
+      },
+      "cache_hit_rate": 0.97,
+      "skills": {
+        "code-standards": 1,
+        "commit-standards": 1,
+        "doc-standards": 1,
+        "import-tasklist": 1,
+        "test-standards": 1
+      }
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/d939249d-71a2-43c4-ac21-4c3011295d95.jsonl",
+      "title": "",
+      "cost": 18.93,
+      "subagent_cost": 12.44,
+      "api_calls": 172,
+      "duration_hours": 2.0,
+      "compactions": 2,
+      "user_messages": 12,
+      "interruptions": 0,
+      "tokens": {
+        "input": 344,
+        "output": 125379,
+        "cache_read": 19740695,
+        "cache_write_5m": 0,
+        "cache_write_1h": 592080
+      },
+      "cache_hit_rate": 0.971,
+      "skills": {
+        "code-standards": 1,
+        "commit-standards": 1,
+        "implement": 1
+      }
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/e4a8a082-1c75-4d6f-a623-ce04c351ade8.jsonl",
+      "title": "",
+      "cost": 17.22,
+      "subagent_cost": 5.01,
+      "api_calls": 147,
+      "duration_hours": 2.6,
+      "compactions": 2,
+      "user_messages": 9,
+      "interruptions": 0,
+      "tokens": {
+        "input": 294,
+        "output": 135396,
+        "cache_read": 16782814,
+        "cache_write_5m": 0,
+        "cache_write_1h": 544508
+      },
+      "cache_hit_rate": 0.969,
+      "skills": {
+        "brainstorm": 1,
+        "code-standards": 1,
+        "commit-standards": 1,
+        "skill-standards": 1,
+        "test-standards": 1
+      }
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/c2a53374-8155-418c-8683-0ae02e00b628.jsonl",
+      "title": "",
+      "cost": 10.74,
+      "subagent_cost": 0.0,
+      "api_calls": 93,
+      "duration_hours": 1.3,
+      "compactions": 1,
+      "user_messages": 9,
+      "interruptions": 1,
+      "tokens": {
+        "input": 186,
+        "output": 72006,
+        "cache_read": 10674598,
+        "cache_write_5m": 0,
+        "cache_write_1h": 359730
+      },
+      "cache_hit_rate": 0.967,
+      "skills": {
+        "code-standards": 1,
+        "commit-standards": 1,
+        "doc-standards": 1,
+        "performance-check-principles-and-skills": 1,
+        "personal-environment": 1,
+        "skill-standards": 1
+      }
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/9f2bb171-4a9f-43f4-aee3-28e36603ee6d.jsonl",
+      "title": "",
+      "cost": 10.26,
+      "subagent_cost": 0.0,
+      "api_calls": 81,
+      "duration_hours": 6.8,
+      "compactions": 1,
+      "user_messages": 1,
+      "interruptions": 0,
+      "tokens": {
+        "input": 162,
+        "output": 79048,
+        "cache_read": 8992584,
+        "cache_write_5m": 0,
+        "cache_write_1h": 378322
+      },
+      "cache_hit_rate": 0.96,
+      "skills": {
+        "usage-audit": 1
+      }
+    },
+    {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/5c8ad684-25bd-482d-b90c-3a05242aa53d.jsonl",
+      "title": "",
+      "cost": 7.94,
+      "subagent_cost": 18.02,
+      "api_calls": 62,
+      "duration_hours": 0.9,
+      "compactions": 1,
+      "user_messages": 12,
+      "interruptions": 0,
+      "tokens": {
+        "input": 123,
+        "output": 67645,
+        "cache_read": 6561557,
+        "cache_write_5m": 0,
+        "cache_write_1h": 296458
+      },
+      "cache_hit_rate": 0.957,
+      "skills": {
+        "commit-standards": 1,
+        "consistency-check-principles-and-skills": 2,
+        "personal-environment": 1,
+        "recap": 1,
+        "skill-standards": 1
+      }
+    }
+  ],
+  "reconciliation": {
+    "status": "ok",
+    "worst_delta_pct": 0.262,
+    "tokens": {
+      "input": {
+        "script": 1557991,
+        "ccusage": 1558011,
+        "delta_pct": -0.001
+      },
+      "output": {
+        "script": 3392342,
+        "ccusage": 3392342,
+        "delta_pct": 0.0
+      },
+      "cache_read": {
+        "script": 402554390,
+        "ccusage": 403611715,
+        "delta_pct": -0.262
+      },
+      "cache_write": {
+        "script": 21419380,
+        "ccusage": 21413076,
+        "delta_pct": 0.029
+      }
+    },
+    "ccusage_cost_untrusted": 364.94
+  }
+}

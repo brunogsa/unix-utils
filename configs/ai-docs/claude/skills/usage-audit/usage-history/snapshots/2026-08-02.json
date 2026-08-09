@@ -1,50 +1,52 @@
 {
-  "generated_at": "2026-08-08T19:50:29-03:00",
+  "generated_at": "2026-08-09T00:51:44-03:00",
   "day": "2026-08-02",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 13.72,
+    "cost_per_day": 16.74,
     "user_messages": 2,
     "interruptions": 1,
     "session_hours": 1.9,
-    "cost_per_user_message": 6.86
+    "cost_per_user_message": 8.37
   },
-  "total": 13.72,
-  "main_cost": 3.77,
-  "subagent_cost": 9.94,
+  "total": 16.74,
+  "main_cost": 4.51,
+  "subagent_cost": 12.23,
   "api_calls": {
-    "main": 83,
-    "sub": 295
+    "main": 84,
+    "sub": 298
   },
   "compactions": 2,
   "session_count": 2,
-  "cache_hit_rate": 0.964,
+  "cache_hit_rate": 0.951,
   "thinking_blocks": 256,
   "text_blocks": 90,
   "thinking_block_share": 0.74,
   "tokens": {
-    "input": 758,
-    "output": 292128,
+    "input": 465276,
+    "output": 320210,
     "cache_read": 35106108,
     "cache_write_5m": 1025377,
     "cache_write_1h": 303041
   },
   "by_family": {
-    "sonnet": 13.72
+    "sonnet": 13.72,
+    "opus": 3.02
   },
   "by_model": {
-    "claude-sonnet-5": 13.72
+    "claude-sonnet-5": 13.72,
+    "claude-opus-5": 3.02
   },
   "by_day": {
     "2026-08-02": {
-      "main": 3.77,
-      "sub": 9.94
+      "main": 4.51,
+      "sub": 12.23
     }
   },
   "by_subagent_type": {
     "core:agent-forger": {
-      "cost": 8.7,
+      "cost": 10.98,
       "runs": 4
     },
     "Explore": {
@@ -58,28 +60,28 @@
   },
   "by_skill": {
     "core:agent-onboard": {
-      "cost": 13.58,
+      "cost": 16.6,
       "invocations": 3,
       "sessions": 1,
       "compactions": 2,
       "interruptions": 0,
       "tokens": {
-        "input": 756,
-        "output": 291291,
+        "input": 465274,
+        "output": 319373,
         "cache_read": 35076392,
         "cache_write_5m": 1025377,
         "cache_write_1h": 271053
       }
     },
     "core:agent-readiness": {
-      "cost": 13.58,
+      "cost": 16.6,
       "invocations": 1,
       "sessions": 1,
       "compactions": 2,
       "interruptions": 0,
       "tokens": {
-        "input": 756,
-        "output": 291291,
+        "input": 465274,
+        "output": 319373,
         "cache_read": 35076392,
         "cache_write_5m": 1025377,
         "cache_write_1h": 271053
@@ -91,34 +93,34 @@
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 12.2
+      "mixed_cost_estimate": 14.49
     },
     "core:agent-readiness": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 1.37
+      "mixed_cost_estimate": 2.11
     }
   },
   "top_sessions": [
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-error-monitor/a5063804-4884-4e1e-8507-4061c7f5932a.jsonl",
       "title": "",
-      "cost": 3.63,
-      "subagent_cost": 9.94,
-      "api_calls": 82,
+      "cost": 4.37,
+      "subagent_cost": 12.23,
+      "api_calls": 83,
       "duration_hours": 1.9,
       "compactions": 2,
       "user_messages": 1,
       "interruptions": 0,
       "tokens": {
-        "input": 166,
-        "output": 79803,
+        "input": 107658,
+        "output": 87716,
         "cache_read": 8750495,
         "cache_write_5m": 0,
         "cache_write_1h": 271053
       },
-      "cache_hit_rate": 0.97,
+      "cache_hit_rate": 0.959,
       "skills": {
         "core:agent-onboard": 3,
         "core:agent-readiness": 1
@@ -147,17 +149,17 @@
   ],
   "reconciliation": {
     "status": "drift",
-    "worst_delta_pct": 99.837,
+    "worst_delta_pct": 0.988,
     "tokens": {
       "input": {
-        "script": 758,
+        "script": 465276,
         "ccusage": 465282,
-        "delta_pct": -99.837
+        "delta_pct": -0.001
       },
       "output": {
-        "script": 292128,
+        "script": 320210,
         "ccusage": 320210,
-        "delta_pct": -8.77
+        "delta_pct": 0.0
       },
       "cache_read": {
         "script": 35106108,

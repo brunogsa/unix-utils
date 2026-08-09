@@ -415,6 +415,13 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
     # same reason. Unlike the three request-side buckets, this one GROWS across a
     # response's blocks — see the peak lookup in the pricing block.
     peak_output = {}
+
+    # An /advisor turn's second model per billing key,
+    # hoisted for the same reason as peak_output.
+    #
+    # The pricing block only ever sees the ANCHOR record,
+    # and a subagent transcript never puts these on it.
+    advisor_entries = {}
     for record in iter_records(path):
         message = record.get("message")
         # This pass sees records the window filter drops, so it meets shapes the
@@ -426,8 +433,17 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
         if epoch is not None and key is not None:
             anchor_epoch[key] = min(anchor_epoch.get(key, epoch), epoch)
         if key is not None:
-            out = (message.get("usage") or {}).get("output_tokens", 0) or 0
+            usage = message.get("usage") or {}
+            out = usage.get("output_tokens", 0) or 0
             peak_output[key] = max(peak_output.get(key, 0), out)
+            if key not in advisor_entries:
+                found = [
+                    iteration
+                    for iteration in usage.get("iterations") or []
+                    if iteration.get("type") == "advisor_message"
+                ]
+                if found:
+                    advisor_entries[key] = found
     for record_index, record in enumerate(iter_records(path)):
         epoch = parse_ts(record.get("timestamp"))
         # An unplaceable record is dropped rather than kept: with one scan per
@@ -553,6 +569,55 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
         stats["by_family"][price_family(model)] += cost
         stats["by_model"][model_key(model)] += cost
         stats["by_day"][day] += cost
+
+        # An /advisor turn bills a SECOND model beside the main
+        # one, and Claude Code reports it only inside
+        # `usage.iterations`. The top-level usage fields sum the
+        # `"message"` iterations alone.
+        #
+        # So an advisor call's tokens are structurally absent
+        # from every field read above. This was the whole
+        # residual ccusage drift: a day that never invoked
+        # /advisor reconciles at 0.000%, so it read as noise.
+        #
+        # Measured on 2026-07-19: the top-level fields carry
+        # 8,363 input tokens against ccusage's 3,137,652, and
+        # the advisor iterations hold the missing 3,115,470.
+        #
+        # Priced under the advisor's OWN model, a tier above the
+        # session's main one here. Billed inside the dedup gate
+        # because these entries repeat across a response's block
+        # records: 1,555 copies of 436 real calls.
+        #
+        # Read from the pre-pass, not from this record: a
+        # subagent transcript never carries them on the anchor.
+        #
+        # On 2026-07-19 all 13 subagent advisor calls sat on a
+        # later block, so reading `usage` here billed the main
+        # sessions' 1,541,451 input tokens and none of the
+        # subagents' 1,574,019.
+        #
+        # Taking whichever record carries them first is safe: of
+        # 436 keys, 216 appear on several records and none
+        # disagreed on list length or on any entry.
+        for iteration in advisor_entries.get(billing_key, ()):
+            advisor_model = iteration.get("model") or ""
+            advisor_5m, advisor_1h = cache_writes(iteration)
+            advisor_cost = message_cost(advisor_model, iteration, day)
+
+            # Counted as its own call so that any cost-per-call
+            # ratio stays true once its dollars are included.
+            stats["api_calls"] += 1
+            stats["tokens"]["input"] += iteration.get("input_tokens", 0) or 0
+            stats["tokens"]["output"] += iteration.get("output_tokens", 0) or 0
+            stats["tokens"]["cache_read"] += iteration.get("cache_read_input_tokens", 0) or 0
+            stats["tokens"]["cache_write_5m"] += advisor_5m
+            stats["tokens"]["cache_write_1h"] += advisor_1h
+            stats["cost"] += advisor_cost
+            stats["message_costs"].append((record_index, advisor_cost))
+            stats["by_family"][price_family(advisor_model)] += advisor_cost
+            stats["by_model"][model_key(advisor_model)] += advisor_cost
+            stats["by_day"][day] += advisor_cost
     # A command at end-of-file has no follower to disprove it — count it.
     for pending_index, name in pending_commands:
         stats["skills"][name] += 1

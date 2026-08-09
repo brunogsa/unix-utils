@@ -1,55 +1,55 @@
 {
-  "generated_at": "2026-08-08T19:50:22-03:00",
+  "generated_at": "2026-08-09T00:51:35-03:00",
   "day": "2026-07-29",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 142.04,
+    "cost_per_day": 151.75,
     "user_messages": 134,
     "interruptions": 9,
     "session_hours": 26.5,
-    "cost_per_user_message": 1.06
+    "cost_per_user_message": 1.13
   },
-  "total": 142.04,
-  "main_cost": 106.83,
-  "subagent_cost": 35.21,
+  "total": 151.75,
+  "main_cost": 114.47,
+  "subagent_cost": 37.28,
   "api_calls": {
-    "main": 1512,
-    "sub": 892
+    "main": 1522,
+    "sub": 896
   },
   "compactions": 32,
   "session_count": 20,
-  "cache_hit_rate": 0.958,
+  "cache_hit_rate": 0.951,
   "thinking_blocks": 1677,
   "text_blocks": 758,
   "thinking_block_share": 0.689,
   "tokens": {
-    "input": 7771,
-    "output": 1665144,
+    "input": 1614956,
+    "output": 1732069,
     "cache_read": 239825636,
     "cache_write_5m": 4611035,
     "cache_write_1h": 6013418
   },
   "by_family": {
     "sonnet": 66.6,
-    "opus": 73.29,
+    "opus": 83.0,
     "haiku": 2.15
   },
   "by_model": {
-    "claude-opus-5": 70.04,
+    "claude-opus-5": 79.75,
     "claude-sonnet-5": 66.6,
     "claude-opus-4-7": 3.25,
     "claude-haiku-4-5": 2.15
   },
   "by_day": {
     "2026-07-29": {
-      "main": 106.83,
-      "sub": 35.21
+      "main": 114.47,
+      "sub": 37.28
     }
   },
   "by_subagent_type": {
     "general-purpose": {
-      "cost": 8.03,
+      "cost": 9.58,
       "runs": 10
     },
     "refactor": {
@@ -69,7 +69,7 @@
       "runs": 5
     },
     "Explore": {
-      "cost": 2.15,
+      "cost": 2.67,
       "runs": 4
     },
     "deep-reviewer": {
@@ -91,98 +91,98 @@
   },
   "by_skill": {
     "improve-from-user": {
-      "cost": 102.02,
+      "cost": 111.06,
       "invocations": 4,
       "sessions": 2,
       "compactions": 28,
       "interruptions": 7,
       "tokens": {
-        "input": 6109,
-        "output": 1172256,
+        "input": 1503687,
+        "output": 1234299,
         "cache_read": 188201067,
         "cache_write_5m": 3294911,
         "cache_write_1h": 4648558
       }
     },
     "doc-standards": {
-      "cost": 83.29,
+      "cost": 92.33,
       "invocations": 3,
       "sessions": 3,
       "compactions": 23,
       "interruptions": 5,
       "tokens": {
-        "input": 2578,
-        "output": 836453,
+        "input": 1500156,
+        "output": 898496,
         "cache_read": 140150623,
         "cache_write_5m": 1260897,
         "cache_write_1h": 3984454
       }
     },
     "code-standards": {
-      "cost": 81.9,
+      "cost": 90.94,
       "invocations": 2,
       "sessions": 2,
       "compactions": 23,
       "interruptions": 5,
       "tokens": {
-        "input": 2500,
-        "output": 813604,
+        "input": 1500078,
+        "output": 875647,
         "cache_read": 136294711,
         "cache_write_5m": 1260897,
         "cache_write_1h": 3886744
       }
     },
     "skill-standards": {
-      "cost": 81.9,
+      "cost": 90.94,
       "invocations": 2,
       "sessions": 2,
       "compactions": 23,
       "interruptions": 5,
       "tokens": {
-        "input": 2500,
-        "output": 813604,
+        "input": 1500078,
+        "output": 875647,
         "cache_read": 136294711,
         "cache_write_5m": 1260897,
         "cache_write_1h": 3886744
       }
     },
     "personal-environment": {
-      "cost": 81.9,
+      "cost": 90.94,
       "invocations": 2,
       "sessions": 2,
       "compactions": 23,
       "interruptions": 5,
       "tokens": {
-        "input": 2500,
-        "output": 813604,
+        "input": 1500078,
+        "output": 875647,
         "cache_read": 136294711,
         "cache_write_5m": 1260897,
         "cache_write_1h": 3886744
       }
     },
     "commit-standards": {
-      "cost": 81.9,
+      "cost": 90.94,
       "invocations": 2,
       "sessions": 2,
       "compactions": 23,
       "interruptions": 5,
       "tokens": {
-        "input": 2500,
-        "output": 813604,
+        "input": 1500078,
+        "output": 875647,
         "cache_read": 136294711,
         "cache_write_5m": 1260897,
         "cache_write_1h": 3886744
       }
     },
     "debug-standards": {
-      "cost": 69.27,
+      "cost": 78.31,
       "invocations": 1,
       "sessions": 1,
       "compactions": 22,
       "interruptions": 5,
       "tokens": {
-        "input": 2146,
-        "output": 665918,
+        "input": 1499724,
+        "output": 727961,
         "cache_read": 120104992,
         "cache_write_5m": 842411,
         "cache_write_1h": 3581800
@@ -292,13 +292,13 @@
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 3,
-      "mixed_cost_estimate": 36.95
+      "mixed_cost_estimate": 42.95
     },
     "personal-environment": {
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 2,
-      "mixed_cost_estimate": 28.5
+      "mixed_cost_estimate": 31.02
     },
     "implement": {
       "dedicated_sessions": 0,
@@ -334,7 +334,7 @@
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 2,
-      "mixed_cost_estimate": 4.29
+      "mixed_cost_estimate": 4.81
     },
     "debug-standards": {
       "dedicated_sessions": 0,
@@ -377,21 +377,21 @@
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-integrator-3372/9ae73668-37f1-44ca-a1b9-10c1c6df26b6.jsonl",
       "title": "",
-      "cost": 63.3,
-      "subagent_cost": 5.97,
-      "api_calls": 864,
+      "cost": 70.27,
+      "subagent_cost": 8.05,
+      "api_calls": 873,
       "duration_hours": 10.4,
       "compactions": 22,
       "user_messages": 45,
       "interruptions": 5,
       "tokens": {
-        "input": 1746,
-        "output": 565922,
+        "input": 1159826,
+        "output": 612873,
         "cache_read": 105774963,
         "cache_write_5m": 0,
         "cache_write_1h": 3581800
       },
-      "cache_hit_rate": 0.967,
+      "cache_hit_rate": 0.957,
       "skills": {
         "code-standards": 1,
         "commit-standards": 1,
@@ -478,6 +478,26 @@
       }
     },
     {
+      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-neovim/9af9f9ba-718c-4daa-b71b-0654b6945db1.jsonl",
+      "title": "",
+      "cost": 3.06,
+      "subagent_cost": 0.0,
+      "api_calls": 64,
+      "duration_hours": 1.5,
+      "compactions": 1,
+      "user_messages": 12,
+      "interruptions": 2,
+      "tokens": {
+        "input": 109735,
+        "output": 54417,
+        "cache_read": 5115419,
+        "cache_write_5m": 0,
+        "cache_write_1h": 216786
+      },
+      "cache_hit_rate": 0.94,
+      "skills": {}
+    },
+    {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-integrator-3363/e8ac7a71-2b3f-474f-820f-92b88b7cd801.jsonl",
       "title": "",
       "cost": 2.69,
@@ -495,26 +515,6 @@
         "cache_write_1h": 233132
       },
       "cache_hit_rate": 0.965,
-      "skills": {}
-    },
-    {
-      "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-neovim/9af9f9ba-718c-4daa-b71b-0654b6945db1.jsonl",
-      "title": "",
-      "cost": 2.39,
-      "subagent_cost": 0.0,
-      "api_calls": 63,
-      "duration_hours": 1.5,
-      "compactions": 1,
-      "user_messages": 12,
-      "interruptions": 2,
-      "tokens": {
-        "input": 128,
-        "output": 49535,
-        "cache_read": 5115419,
-        "cache_write_5m": 0,
-        "cache_write_1h": 216786
-      },
-      "cache_hit_rate": 0.959,
       "skills": {}
     },
     {
@@ -562,18 +562,18 @@
     }
   ],
   "reconciliation": {
-    "status": "drift",
-    "worst_delta_pct": 99.519,
+    "status": "ok",
+    "worst_delta_pct": 0.176,
     "tokens": {
       "input": {
-        "script": 7771,
+        "script": 1614956,
         "ccusage": 1614964,
-        "delta_pct": -99.519
+        "delta_pct": -0.0
       },
       "output": {
-        "script": 1665144,
+        "script": 1732069,
         "ccusage": 1732069,
-        "delta_pct": -3.864
+        "delta_pct": 0.0
       },
       "cache_read": {
         "script": 239825636,
