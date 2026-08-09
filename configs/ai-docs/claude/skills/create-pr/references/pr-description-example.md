@@ -181,7 +181,7 @@ Catálogo completo, opcional — o diff e a descrição já bastam para revisar.
 </details>
 
 <details>
-<summary><strong>spec_sge-translator.md</strong> — requisitos não-funcionais e critérios de aceite</summary>
+<summary><strong>Requisitos não-funcionais e critérios de aceite</strong></summary>
 
 ### Non-Functional and Technical Requirements
 
@@ -479,7 +479,7 @@ Chronological log. Editable during refinement; after approval and an execution s
 </details>
 
 <details>
-<summary><strong>plan_sge-translator.md</strong> — test design</summary>
+<summary><strong>Test design</strong></summary>
 
 ### Test Design
 
