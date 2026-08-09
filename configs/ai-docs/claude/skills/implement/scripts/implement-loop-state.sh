@@ -3,18 +3,25 @@
 #
 # Usage:
 #   implement-loop-state.sh <state-file>
+#   implement-loop-state.sh --budget <state-file>
+#   implement-loop-state.sh --next-eligible <state-file>
 #
-# Reads a /implement run's JSON state file and prints one JSON verdict on stdout:
+# With no flag, reads a /implement run's JSON state file and
+# prints one JSON verdict on stdout, for phase "tasks" only:
 #   {"action": "retry|stuck|next-task|gates|halted|halt-budget", "task": "<id or empty>", "reason": "..."}
+#
+# --budget and --next-eligible are phase-independent query
+# modes; see "Design" below for what each answers and why.
 #
 # Examples:
 #   implement-loop-state.sh /tmp/implement_abc123.json
-#   implement-loop-state.sh --help
+#   implement-loop-state.sh --budget /tmp/implement_abc123.json
+#   implement-loop-state.sh --next-eligible /tmp/state.json
 #
 # Pure: no writes, no clock reads, deterministic — the same state file always
 # yields the same verdict. The orchestrator (main session AI) is the fallible
 # recorder of raw facts (attempt outcomes, phase, report paths); this script is
-# the infallible judge that turns those facts into one of five actions.
+# the infallible judge that turns those facts into one of six actions.
 #
 # Design:
 #   - The "current task" is whichever task the LAST entry in `attempts[]`
@@ -57,16 +64,26 @@
 #     since a single task alone can never exceed MAX_ATTEMPTS + 1 attempts
 #     before the per-task "stuck" verdict already caught it. Its caller halts
 #     the run and waits for the human — it does not proceed to the
-#     batch-end flow.
-#   - The script only knows how to verdict phase "tasks" (retry/stuck/
-#     next-task/gates/halted). Any other phase is a caller misuse the script
-#     fails loud on rather than guess a verdict for — after the task
-#     loop, the gate and batch-end flow run linearly with no verdict call.
+#     batch-end flow. `--budget` answers this same threshold
+#     question for a caller outside phase "tasks" (see below).
+#   - This no-flag mode only verdicts phase "tasks" (retry/stuck/
+#     next-task/gates/halted/halt-budget). Any other phase is a
+#     caller misuse it fails loud on rather than guess a verdict
+#     for. The gate and batch-end flow that run after the task
+#     loop are linear, but they DO call this script: `--budget`
+#     (the repo-green fix loop's stop condition) and
+#     `--next-eligible` (the stuck-task pick after a failed
+#     attempt) — both bypass the phase guard and the
+#     attempts[]-dependent logic entirely, since neither one
+#     judges a "tasks"-phase attempt.
 #
 # Exit codes:
-#   0 - verdict printed on stdout.
-#   1 - usage error, missing file, invalid JSON, or a state this script has
-#       no verdict for. Fail-loud by design: this is not the fail-open
+#   0 - answer printed on stdout: a verdict (no flag), or a
+#       budget/eligibility answer (--budget/--next-eligible).
+#
+#   1 - usage error, missing file, invalid JSON, or (no-flag
+#       mode only) a phase this script has no verdict for.
+#       Fail-loud by design: this is not the fail-open
 #       component — that's claude-implement-stop-hook.sh.
 
 set -eo pipefail
@@ -80,18 +97,36 @@ GATE_FIX_ALLOWANCE=2
 usage() {
   cat <<'EOF'
 usage: implement-loop-state.sh <state-file>
+       implement-loop-state.sh --budget <state-file>
+       implement-loop-state.sh --next-eligible <state-file>
 
-Reads a /implement run's JSON state file and prints one JSON verdict:
+With no flag, reads a /implement run's JSON state file at phase "tasks" and
+prints one JSON verdict:
   {"action": "retry|stuck|next-task|gates|halted|halt-budget", "task": "...", "reason": "..."}
+
+--budget: is the batch's dispatch budget exhausted? Works at any phase.
+  {"exhausted": true|false, "total_dispatches": N, "budget_threshold": N, "reason": "..."}
+
+--next-eligible: which pending task is DAG-eligible to dispatch next? Works
+at any phase, and does not depend on attempts[-1].result.
+  {"task": "<id or the literal string \"none\">", "reason": "..."}
 
 Examples:
   implement-loop-state.sh /tmp/implement_abc123.json
+  implement-loop-state.sh --budget /tmp/implement_abc123.json
+  implement-loop-state.sh --next-eligible /tmp/implement_abc123.json
 EOF
 }
 
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
   usage
   exit 0
+fi
+
+mode="verdict"
+if [ "${1:-}" = "--budget" ] || [ "${1:-}" = "--next-eligible" ]; then
+  mode="${1#--}"
+  shift
 fi
 
 if [ $# -ne 1 ]; then
@@ -138,16 +173,99 @@ emit_verdict() {
     '{action: $action, task: $task, reason: $reason}'
 }
 
+# emit_budget - JSON for --budget: same key-plus-reason
+# shape as emit_verdict, not a second ad hoc convention.
+emit_budget() {
+  local exhausted="$1" total="$2" threshold="$3" reason="$4"
+  jq -n --argjson exhausted "$exhausted" --argjson total "$total" \
+    --argjson threshold "$threshold" --arg reason "$reason" \
+    '{exhausted: $exhausted, total_dispatches: $total, budget_threshold: $threshold, reason: $reason}'
+}
+
+# emit_next_eligible - JSON for --next-eligible: reuses
+# emit_verdict's "task"/"reason" fields as one family.
+emit_next_eligible() {
+  local task="$1" reason="$2"
+  jq -n --arg task "$task" --arg reason "$reason" '{task: $task, reason: $reason}'
+}
+
 fail() {
   echo "error: $1" >&2
   exit 1
 }
 
-task_count=$(jq '.tasks | length' "$state_file")
-attempts_count=$(jq '.attempts | length' "$state_file")
-gate_dispatches=$(jq '.gate_dispatches // 0' "$state_file")
-total_dispatches=$((attempts_count + gate_dispatches))
-budget_threshold=$((BATCH_CAP_MULT * task_count + GATE_FIX_ALLOWANCE))
+# compute_budget_vars - sets task_count, total_dispatches,
+# budget_threshold from BATCH_CAP_MULT/GATE_FIX_ALLOWANCE.
+# Shared by the no-flag budget backstop below and --budget,
+# so both read one formula instead of two that can drift.
+compute_budget_vars() {
+  local sf="$1" attempts_n gate_n
+  task_count=$(jq '.tasks | length' "$sf")
+  attempts_n=$(jq '.attempts | length' "$sf")
+  gate_n=$(jq '.gate_dispatches // 0' "$sf")
+  total_dispatches=$((attempts_n + gate_n))
+  budget_threshold=$((BATCH_CAP_MULT * task_count + GATE_FIX_ALLOWANCE))
+}
+
+# eligible_tasks_json - DAG-eligible, non-terminal tasks,
+# lowest id first. Shared by the "pass" branch below and by
+# --next-eligible, so the eligibility rule is authored once.
+#
+# exclude_id: the "pass" branch's own current task, whose
+# tasks[].status may still read "pending" here — see the
+# design note above on tasks[].status lagging attempts[].
+# It needs an explicit exclusion on top of the status check.
+#
+# Pass "" for no exclusion.
+#
+# --next-eligible has no "current task": any task it should
+# exclude already carries a terminal status, set by its own
+# caller before asking what runs next (failure-and-halt.md's
+# §5.3) — the status check alone covers it there.
+eligible_tasks_json() {
+  local sf="$1" exclude_id="$2"
+  jq -c --arg cur "$exclude_id" '
+    (reduce .tasks[] as $t ({}; .[$t.id] = $t.status)) as $status_map
+    | [ .tasks[]
+        | select($cur == "" or .id != $cur)
+        | select(.status != "done" and .status != "blocked")
+        | select(
+            (.depends_on // []) as $deps
+            | all($deps[]; . as $d
+                | if ($status_map | has($d)) then $status_map[$d] == "done" else true end)
+              )
+      ]
+    | sort_by(.id | tonumber)
+  ' "$sf"
+}
+
+if [ "$mode" = "budget" ]; then
+  compute_budget_vars "$state_file"
+  if [ "$total_dispatches" -ge "$budget_threshold" ]; then
+    exhausted=true
+  else
+    exhausted=false
+  fi
+  emit_budget "$exhausted" "$total_dispatches" "$budget_threshold" \
+    "total dispatches ($total_dispatches) vs. the batch budget ($budget_threshold = ${BATCH_CAP_MULT}x${task_count} tasks + $GATE_FIX_ALLOWANCE gate allowance)"
+  exit 0
+fi
+
+if [ "$mode" = "next-eligible" ]; then
+  eligible_json=$(eligible_tasks_json "$state_file" "")
+  eligible_count=$(printf '%s' "$eligible_json" | jq 'length')
+  if [ "$eligible_count" -eq 0 ]; then
+    emit_next_eligible "none" \
+      "no pending task has every declared dependency satisfied (done, or absent from this unit's own tasks[])"
+  else
+    next_task=$(printf '%s' "$eligible_json" | jq -r '.[0].id')
+    emit_next_eligible "$next_task" \
+      "lowest-id pending task whose dependencies are all done (or absent from this unit's own tasks[])"
+  fi
+  exit 0
+fi
+
+compute_budget_vars "$state_file"
 
 # Batch-wide budget backstop, checked before any per-task logic — see the
 # design note above on why a single task alone can never trigger this first.
@@ -163,6 +281,7 @@ if [ "$phase" != "tasks" ]; then
   fail "no verdict defined for phase '$phase' (this script only verdicts phase 'tasks')"
 fi
 
+attempts_count=$(jq '.attempts | length' "$state_file")
 if [ "$attempts_count" -eq 0 ]; then
   fail "no attempts recorded yet; nothing to verdict for phase 'tasks'"
 fi
@@ -180,19 +299,7 @@ case "$last_result" in
       # DAG-eligible: every declared depends_on id is either "done" in this
       # unit's own tasks[], or absent from it (an earlier PR's task, already
       # required done by the time this unit started — see the design note).
-      eligible_json=$(jq -c --arg cur "$current_task" '
-        (reduce .tasks[] as $t ({}; .[$t.id] = $t.status)) as $status_map
-        | [ .tasks[]
-            | select(.id != $cur)
-            | select(.status != "done" and .status != "blocked")
-            | select(
-                (.depends_on // []) as $deps
-                | all($deps[]; . as $d
-                    | if ($status_map | has($d)) then $status_map[$d] == "done" else true end)
-              )
-          ]
-        | sort_by(.id | tonumber)
-      ' "$state_file")
+      eligible_json=$(eligible_tasks_json "$state_file" "$current_task")
       eligible_count=$(printf '%s' "$eligible_json" | jq 'length')
       if [ "$eligible_count" -eq 0 ]; then
         emit_verdict "halted" "" \

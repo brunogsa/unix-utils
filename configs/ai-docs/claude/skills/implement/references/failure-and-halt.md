@@ -59,9 +59,10 @@ Any task depending on the one just marked terminal also gets `status: "blocked"`
 Flip the plan to `[Blocked]` for the terminal task and every dependent this just chain-aborted (§6).
 
 **Pick the next task yourself — the script can't.** `next-task` only comes out of a `pass` attempt (§5.4), and this task didn't pass.
-Scan `tasks[]` for the lowest-id entry whose `status` is neither `done` nor `blocked` and whose every `depends_on` id is `done` (or absent from this unit's own `tasks[]`), and re-run §3.4 on it.
+Run `implement-loop-state.sh --next-eligible <state-file>` instead — it answers with the same DAG-eligibility rule §5.4's `next-task` uses, just without requiring a `pass` attempt to ask it.
+A `task` id in the result → re-run §3.4 on it.
 
-Find none — nothing runnable remains, and at least one task (this one) is terminal-without-`[Done]`.
+`task: "none"` — nothing runnable remains, and at least one task (this one) is terminal-without-`[Done]`.
 **Do not go to the gates** — go to §5.5 below.
 
 ## §5.5 — Halt: stop where you stand and wait for the human

@@ -87,7 +87,7 @@ Run the repo's **full lint + full test suite**, repo-wide — never scoped to th
 A failure classified `[Scout]` above is never fixed here: report it in the package, leave it unfixed, and let the gate pass on it.
 Fixing pre-existing red would blur this batch's diff with unrelated work, which is exactly what the Scout channel (§4.3) exists to prevent.
 
-Attempts exhausted with a batch-caused failure still red → [`failure-and-halt.md`](failure-and-halt.md)'s §5.5, halt. The human clears it; this run does not ship around it.
+After each fix-and-rerun, call `implement-loop-state.sh --budget <state-file>`. `exhausted: true` with a batch-caused failure still red → [`failure-and-halt.md`](failure-and-halt.md)'s §5.5, halt — the human clears it, not this run.
 
 Record the final full-suite result (pass/fail + counts) into the package, so the human sees the gate actually ran over everything.
 
