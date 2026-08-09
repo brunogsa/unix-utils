@@ -1,6 +1,6 @@
 ---
 name: consistency-check-principles-and-skills
-description: "Audit CLAUDE.md + skills for semantic coherence (contradictions, untagged constraints, stale cross-refs). Trigger: 'consistency check'. Heavy: orchestrator fans out 3 ensemble children, keeps only ≥2/3-vote findings. Report-only."
+description: "Audit CLAUDE.md + skills for semantic coherence (contradictions, untagged constraints, stale cross-refs). Trigger: 'consistency check'. Heavy: sharded two-wave fanout; BLOCKING findings script-verified, ADVISORY capped top 5. Report-only."
 ---
 
 ## Usage
@@ -18,49 +18,53 @@ Report findings; never auto-fix.
 
 LLM-driven (not a script): each heuristic requires cross-file reading.
 
-## Modes (orchestrator vs ensemble child)
+## Modes (main vs shard-orchestrator vs ensemble child)
 
-LLM cross-file reading is stochastic. A single sample over-flags.
+LLM cross-file reading is stochastic (over-flags) and the full corpus (~162 files) doesn't fit one context window.
+Fix: **shard, then self-consistency** — split the corpus into shards, sample each 3× in parallel, keep only what ≥2 agree on.
 
-Fix: **self-consistency** — run 3 samples in parallel, keep only what ≥2 agree on.
-
-| Mode | Trigger | Behavior |
+| Role | Trigger | Behavior |
 |---|---|---|
-| **Orchestrator** | invoked from main session (default) | spawns 3 ensemble children in parallel, filters their reports by 2/3 majority vote, emits the merged report |
-| **Ensemble child** | spawned by orchestrator; prompt contains `ENSEMBLE_CHILD=true` | runs §Lifecycle directly with no fanout, emits the raw report (parent does the voting) |
+| **Main** | invoked from the top-level session (default) | wave 1: shards the corpus, dispatches one `consistency-shard-orchestrator` per shard, in parallel; wave 2: pairs shards whose governed activities overlap, re-dispatches at union scope; merges every digest into the final report |
+| **Shard-orchestrator** | dispatched by main, once per shard per wave | spawns 3 `consistency-ensemble-child`, runs the 2/3 vote, returns a fixed-schema digest |
+| **Ensemble child** | dispatched by `consistency-shard-orchestrator` | runs §Lifecycle on its own shard only, emits the raw `[KEY]`-tagged report |
 
-[Instruction] **CRITICAL: Children must NOT spawn further children.** The orchestrator forbids fanout via `ENSEMBLE_CHILD=true` to prevent infinite recursion.
+[Instruction] **CRITICAL: an ensemble child must NOT spawn further children** — enforced structurally by its own `disallowedTools: Agent`, not by prompt convention.
 
-[Instruction] **Spawn the 3 children in parallel** — single message, 3 `Agent` tool calls. Serial fanout 3×s wall-clock latency for the same token cost.
+[Instruction] **Spawn siblings in parallel** — one message, N `Agent` calls, whether N shard-orchestrators per wave or 3 children per shard. Serial fanout N×s wall-clock for the same token cost.
 
-[Instruction] **Dispatch `subAgent=consistency-ensemble-child`**, never `general-purpose` — its frontmatter pins the opus-at-max-effort tier this audit needs.
+[Instruction] **Dispatch by name, never `general-purpose`** — `subAgent=consistency-shard-orchestrator` from main, `subAgent=consistency-ensemble-child` from a shard-orchestrator; each file's own frontmatter pins its model/effort tier.
 
-[Instruction] **Forward scope verbatim** — whatever scope the user passed (`default`, `<path>`, `skill X`) goes into every child prompt unchanged.
+[Instruction] **Forward each shard's own file list verbatim**, never the whole corpus — main to its shard-orchestrator, then unchanged again to its 3 children.
 
-### Orchestrator flow
+### Two-wave flow
 
-1. Detect mode: if the invocation prompt does NOT contain `ENSEMBLE_CHILD=true`, this is the orchestrator.
-2. Spawn 3 subagents in parallel via the `Agent` tool:
-   - `agent(subAgent=consistency-ensemble-child, title=Consistency-check ensemble child <N>/3)` — its frontmatter pins opus at max effort
-   - Prompt template:
-     ```
-     ENSEMBLE_CHILD=true. Scope: <forwarded-scope>.
-     Load consistency-check-principles-and-skills via Skill.
-     Run heuristics directly. DO NOT spawn further subagents.
-     ```
-3. Collect the 3 reports.
-4. Apply the **2/3 majority filter** — tier 1 deterministic match, tier 2 orchestrator judgment (see below).
-5. Emit the merged report in §Report Format.
+**Wave 1 — shard and sample.**
 
-### 2/3 majority filter (two-tier match)
+1. Run `gen-shard-manifest.sh [path]` — one `[SHARD] <slug>` block per skill dir plus a dedicated `claude-md` shard. A scoped invocation (`<path>`, `skill X`) dispatches only the matching shard(s); no-arg dispatches all.
 
-Tier 1 clusters findings by the `[KEY]` line, deterministic — no judgment; tier 2 is orchestrator judgment over unmatched bodies, merging same-defect findings.
+2. Dispatch one `consistency-shard-orchestrator` per shard, in parallel, forwarding that shard's file list — the skill's own shard additionally inlines heuristics for its children (fixes bug B4).
 
-[Instruction] **Children MUST emit a machine-readable key line under each finding ID, unchanged from before.**
+3. Collect each shard's digest: STATUS, BLOCKING count + lines, ADVISORY count, GOVERNS (see the agent's own Report format).
 
-It anchors and drives tier 1's match — a fast path, not the whole mechanism.
+**Wave 2 — cross-shard pairs.**
 
-Required emission (see §Report Format below for the full per-finding template):
+4. From the wave-1 GOVERNS fields, pair shards whose activities/paths overlap — capped at 5 pairs/run.
+5. Re-dispatch `consistency-shard-orchestrator` per pair at the union of both shards' file lists, same 3-child/2-of-3 vote; it dedups against both shards' wave-1 findings itself.
+
+**Merge and report.**
+
+6. Sum BLOCKING across every shard/pair that returned OK; emit a `[BLOCKING] count=N` trailer. Recommended: re-run after fixes until N=0, capped at 5 rounds, then hand back regardless of count.
+
+7. Take ADVISORY from every shard/pair, rank by confidence then heuristic priority, keep the top 5 for the whole run.
+8. **Fail loud, never silent:** a shard/pair whose children all died, whose digest is malformed, or whose BLOCKING findings all fail their citation gate —
+   - makes the run's STATUS `INCOMPLETE`, naming the shard(s), never reported as "0 BLOCKING".
+
+### `[KEY]` line and BLOCKING citations
+
+Children still emit the same `[KEY]` line under each finding — the shard-orchestrator runs the two-tier vote (see its own file and [references/majority-merge.md](references/majority-merge.md) for the algorithm); main never runs it directly.
+
+Required emission (full per-finding template in §Report Format):
 
 ```
 **<section>.<index>** — <human-readable header>
@@ -68,34 +72,16 @@ Required emission (see §Report Format below for the full per-finding template):
    - <body bullets>
 ```
 
-Children emit their own section number and a line-free path; the orchestrator does the `1-2` grouping, so children stay grouping-agnostic.
+[Instruction] **Emit `lines` as every line number the finding cites in `file`**, comma-separated and ascending —
+the defining line of each rule in the conflict, never a range. Cite the `[Instruction]` line, not its `[Why]`/`[Example]` child — the vote tolerates ±3.
 
-[Instruction] **Emit `lines` as every line number the finding cites in `file`**, comma-separated and ascending — the defining line of each rule in the conflict, never a range.
-
-- A two-rule conflict emits both (`lines=316,372`); a single-site defect emits the one (`lines=356`).
-- Cite the `[Instruction]` line, not its `[Why]` or `[Example]` child — tier 1 tolerates ±3.
-
-[Instruction] **CRITICAL: Tier 2 merges on the SAME DEFECT, never on mere proximity** — same file or same heading alone is NOT a match.
-
-[Instruction] **Orchestrator only: read [`references/majority-merge.md`](references/majority-merge.md) at flow step 4.** It defines both tiers, the guard, and the false-positive handback.
-
-Children never load it — they only emit the `[KEY]` line specified above.
+[Instruction] **CRITICAL: every BLOCKING finding (#1, #6a) carries a citation naming the script and result that verified it** —
+`verify-quote.sh <file>` (exit 0, both quoted sides) for #1, or a `check-refs.sh` output line for #6a. A BLOCKING finding without a passing citation is dropped, never filed on judgment alone.
 
 ## What this skill does NOT flag
 
-- Anything `performance-check` counts deterministically, or `skill-creator` already states.
-
-**Boundary:** `skill-creator` owns frontmatter/folder/description shape; this skill's surface is semantic relationships across files (table below).
-
-| Surface | performance-check | consistency-check |
-|---|---|---|
-| `[Instruction]` markers | counts vs. budget | finds untagged (heuristic #3) |
-| Frontmatter | char counts | semantic quality |
-| Density | line-by-line violations | (none) |
-| CRITICAL ratio | counts ratio + Missing `[Why]` | semantic placement (heuristic #5) |
-| Cross-references | (future — exact-string subset) | semantic refs (heuristic #6) |
-
-Perf-check answers *"how many?"*; consistency-check answers *"are the right ones tagged the right way?"*.
+Anything `performance-check` counts deterministically (marker counts, char budgets, density, CRITICAL ratio), or `skill-creator` already states (frontmatter/folder/description shape).
+This skill's surface is semantic relationships across files — contradictions, coupling, term drift — never counts or format.
 
 ## Default state: no findings
 
@@ -114,11 +100,13 @@ Findings trigger users to ignore the next run.
 - **MEDIUM** — overlapping scenarios, arguable interpretation. Ships as **REVIEW**.
 - **LOW** — stylistic preference, no specific defect. **Dropped silently.**
 
-(Research: I-CALM, Conformal Abstention, Silent Judge, Systematic Overcorrection — see [references/research.md](references/research.md).)
+(Research citations: [references/research.md](references/research.md).)
 
 ## Heuristics (priority order)
 
-### 1. Contradictions
+**BLOCKING** (script-verified, gates the fix-loop): #1, #6a. **ADVISORY** (report-only, never gates): #2, #3, #4, #5, #6b, #7, #8 — capped top 5/run, ranked by confidence then priority order.
+
+### 1. Contradictions — BLOCKING
 
 Two rules that disagree without a reconciling condition.
 
@@ -127,11 +115,11 @@ Look for:
 - A skill says "do Y" while CLAUDE.md says "do not Y" (or vice versa).
 - Two skills give opposing guidance on the same situation.
 
-Top priority because contradictions cause **behavioral drift** — Claude follows one rule today, the other tomorrow, no predictable trigger.
+Top priority: contradictions cause **behavioral drift** — Claude follows one rule today, the other tomorrow.
 
 When in doubt, **do not flag** — apply the confidence rubric. A vague contradiction without locatable file:line + concrete diff is LOW; drop it.
 
-### 2. Unresolved trade-off tensions
+### 2. Unresolved trade-off tensions — ADVISORY
 
 Two rules that BOTH apply to overlapping scenarios but pull in opposite directions, with no explicit arbitration clause.
 
@@ -142,17 +130,13 @@ Look for:
 - Scenario overlap (would both fire during the same refactor?).
 - No `UNLESS` / `when X prefer Y` / `BUT when` clause naming the other rule.
 
-Per ConInstruct (arXiv:2511.14342), models default to whichever rule has higher salience — explicit arbitration is the fix.
+Models default to the higher-salience rule absent explicit arbitration (ConInstruct, arXiv:2511.14342).
 
-Example of a *correctly* arbitrated pair (does NOT flag): "Centralize repeated artifacts (DRY) ... UNLESS extraction fails the readability + cognitive-load bars".
+Example of a *correctly* arbitrated pair (does NOT flag): "Centralize repeated artifacts (DRY) ... UNLESS extraction fails the readability + cognitive-load bars" — the `UNLESS` clause names exactly when DRY yields.
 
-The `UNLESS` clause names exactly when DRY yields — no flag.
+**Sub-check:** `UNLESS X` only counts as arbitration when X is testable — a glossary entry, measurable criterion, or concrete example (CNL-P, arXiv:2508.06942). Flag ambiguous prose like "UNLESS it's reasonable".
 
-**Sub-check: arbitration well-definedness.** Per CNL-P (arXiv:2508.06942, testable-predicate argument), `UNLESS X` is only useful when X is testable.
-
-Audit X for groundedness — does it point at a glossary entry, measurable criterion, or concrete example? Flag ambiguous prose like "UNLESS it's reasonable".
-
-### 3. Hidden instructions on CLAUDE.md or *standards skills
+### 3. Hidden instructions on CLAUDE.md or *standards skills — ADVISORY
 
 Skip this for other files.
 
@@ -163,15 +147,11 @@ Look for:
 - Multi-clause bullets joined by AND.
 - Lists buried inside Why/Example blocks.
 
-Hidden constraints inflate the actual instruction load beyond what `performance-check` measures.
-
-Fork (surface, user picks): **generalize/merge** when sub-bullets share the parent's mechanism; **split** when they stand on distinct mechanisms.
+Fork (surface, user picks): **generalize/merge** when sub-bullets share a mechanism; **split** when they don't.
 
 **Coherent-recipe carve-out** (do NOT flag): sub-`[Instruction]`s forming a coherent recipe under one parent mechanism may stay nested.
 
-Examples: TaskList category definitions; the 3 audit handles under "Make your reasoning verifiable".
-
-### 4. Merge or generalization opportunities
+### 4. Merge or generalization opportunities — ADVISORY
 
 Multiple rules / skills that could collapse into one stronger general rule.
 
@@ -183,48 +163,43 @@ Look for:
 - One principle with two distinct `[Why]` clauses on different mechanisms.
 
 Do NOT flag:
-- Progressive disclosure — same idea at different detail levels across files (intentional layering).
+- Progressive disclosure — same idea at different detail levels, intentionally layered.
 
-Per Jaroslawicz 2025, adherence degrades past ~200 instructions — every merged duplicate buys back attention.
+Merging duplicates buys back attention lost past ~200 instructions (Jaroslawicz 2025).
 
-### 5. Misplaced CRITICAL marker
+### 5. Misplaced CRITICAL marker — ADVISORY
 
-Perf-check counts the CRITICAL ratio; this heuristic asks *whether the right rules carry CRITICAL*. Per Control Illusion (arXiv:2502.15851), WHICH instructions sit at the top matters more than HOW MANY.
+Perf-check counts the CRITICAL ratio; this heuristic asks *whether the right rules carry it* — WHICH matters more than HOW MANY (Control Illusion, arXiv:2502.15851).
 
 Look for **under-marked** rules — a non-CRITICAL rule that other rules visibly defer to.
 
-Do NOT hand-check for a missing `[Why]` beneath a CRITICAL `[Instruction]` — `performance-check`'s `scripts/check.sh` settles that by anchored `awk`.
+Do NOT hand-check for a missing `[Why]` under a CRITICAL `[Instruction]` — `check.sh` already settles that by anchored `awk`; eyeballing risks mistaking a `[Why]` mentioning "CRITICAL" for the marker itself.
 
-An LLM reading the same 3-line window by eye mistakes a `[Why]` whose prose says "CRITICAL" for the instruction itself.
+HIGH confidence cites the other rule(s) that defer to it.
 
-HIGH confidence requires citing the other rule(s) that defer to the rule in question.
+### 6. Stale or unnecessary references — split
 
-### 6. Stale or unnecessary references
+Cross-file references ("see `<skill>`/`<section>`", "per CLAUDE.md's `<rule>`") rot when targets rename or move, and can carry unnecessary coupling.
 
-Skills reference each other ("see `<skill>`/`<section>`", "per CLAUDE.md's `<rule>`").
-These rot when targets rename, move, or get rewritten. Sometimes it also generate unnecessary coupling.
+**6a. Broken refs — BLOCKING, scripted.** Run `check-refs.sh <file>...` over the shard's files: every `<file>:<line> -> <target>` line is a BLOCKING finding, citation = that line.
+Never judge a ref by eye — the script is the gate.
 
-Look for:
-- Named-section refs where the heading no longer exists, or could be a file-reference.
-- `<file>:<N>` refs in general (avoid those).
-- Quoted-rule refs where no rule with that name exists at the cited location.
-- A coupling that could NOT exist and still keep that skill functioning.
+**6b. Unnecessary coupling — ADVISORY, judgment.** Look for a coupling that could NOT exist and still keep that skill functioning.
 
-### 7. Term consistency / glossary
+### 7. Term consistency / glossary — ADVISORY
 
-Same concept named differently across files breaks the prompt-as-API contract (CNL-P, arXiv:2508.06942, grammar-precision argument for cross-prompt term consistency).
+Same concept named differently across files breaks the prompt-as-API contract (CNL-P, arXiv:2508.06942).
 
 Look for:
 - Synonym proliferation in *imperative* contexts ("task" / "sub-step" / "work-item").
 - Drift between a defined term and its loose use elsewhere (e.g. `[Why]` marker vs casual "why" prose).
 - Term collisions (same word, different meaning across files).
 
-Flag only when synonyms appear in contexts where the model must distinguish them to act AND the difference matters for behavior.
-Provide examples of the different usages to the user.
+Flag only when synonyms appear where the model must distinguish them to act and the difference matters for behavior — cite the different usages.
 
-### 8. Harness opportunities — automation over AI
+### 8. Harness opportunities — automation over AI — ADVISORY
 
-A rule or step asking Claude to judge what a script, hook, or linter could settle by rule — CLAUDE.md's `[Harness]` lens, turned on the rule corpus itself.
+A rule asking Claude to judge what a script, hook, or linter could settle by rule — CLAUDE.md's `[Harness]` lens turned on the rule corpus itself.
 
 Look for:
 - Steps that count, diff, or check presence/format — a `grep`/`awk`/script settles those for free.
@@ -234,16 +209,15 @@ Look for:
 
 Do NOT flag a judgment call (which rule wins, which example to prune) — automation gates those, never makes them.
 
-HIGH confidence requires naming the mechanism and its plug-in point: script path, hook event, or settings key.
+HIGH confidence names the mechanism and plug-in point: script path, hook event, or settings key.
 
 ## Lifecycle
 
-This is what an **ensemble child** executes (mode B). The orchestrator (mode A) only runs the flow in §"Orchestrator flow" above — it does not perform heuristic analysis itself.
+The **ensemble child** executes this, scoped to its shard — main and the shard-orchestrator never run heuristics themselves (see §Two-wave flow).
 
-1. Resolve target paths (default: `~/.claude/CLAUDE.md` + `~/.claude/skills/`).
-2. Read CLAUDE.md and every `skills/*/SKILL.md` in full — cross-file is the whole point, no grep shortcuts.
-   - Scoped runs (e.g., `skill X`) still load the full set; the scope filters which findings to report, not which files to read.
+1. Use the shard's file list forwarded by the shard-orchestrator, plus CLAUDE.md (read-only) — never resolve paths yourself; scoping already happened at dispatch (§Two-wave flow step 1).
 
+2. Read every file in the shard's list, plus CLAUDE.md, in full — cross-file within the shard is the whole point, no grep shortcuts.
    - Load `skill-standards` too — heuristics #3, #5 judge marker placement against its rules.
 
 3. For each heuristic, scan and collect *draft* findings against the rubric.
@@ -253,18 +227,19 @@ This is what an **ensemble child** executes (mode B). The orchestrator (mode A) 
    - Counters the 88% over-flag rate under adversarial framing (arXiv:2603.00539).
 
 5. Apply gates from §"Default state: no findings": drop LOW; survivors (MEDIUM/HIGH) need file:line + 1-line diff or drop.
-6. Render. Sections with no surviving findings → `(no findings)`. **Number findings as `<section>.<index>`**
-   - By "section" I mean the headings I have numbered on this skill;
-   - Within each section, starting at `.1` (e.g., `2.1`, `2.2`). User references IDs to direct fixes (`apply 1.2, 3.1`).
+6. Render. Sections with no surviving findings → `(no findings)`. **Number findings as `<section>.<index>`** —
+   - `<section>` is the §Heuristics number, `<index>` starts at `.1` within it (e.g. `2.1`, `2.2`). User references IDs to direct fixes (`apply 1.2, 3.1`).
 
 ## Report Format
 
 Summary table + per-heuristic sections. Eight heuristic rows (one per heuristic), each in the same fixed order as the §Heuristics list.
 
-**Example with findings** (the `[KEY]` line is mandatory in child reports — see §"2/3 majority filter"):
+**Example with findings** (the `[KEY]` line is mandatory in child reports — see §"`[KEY]` line and BLOCKING citations"):
 
 ```
 # Consistency Check — user (~/.claude)
+
+[BLOCKING] count=1
 
 ## 1. Contradictions
 
@@ -282,8 +257,8 @@ Summary table + per-heuristic sections. Eight heuristic rows (one per heuristic)
 ## ...
 ```
 
-The orchestrator strips `[KEY]` lines before emitting the merged report to the user — they exist for the vote, not the human reader.
+`[KEY]` lines exist only for the shard-orchestrator's vote — strip them before any report a human reads, including main's final merged report.
 
-Status: **OK** (no findings), **REVIEW** (user judgment needed), **ISSUE** (high-confidence problem).
+Status: **OK** (no findings), **REVIEW** (user judgment needed), **ISSUE** (high-confidence problem), **INCOMPLETE** (a shard/pair failed to report — name it; never fold into "0 BLOCKING").
 
 Reference findings by ID: `apply 1.1, 4.2` or `skip 7.1`.
