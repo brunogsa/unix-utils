@@ -97,6 +97,48 @@ def load_ledger(since_day, until_day):
     return by_day
 
 
+def load_delivered(ordered):
+    """Per-day shipped-commit and merged-PR counts from the committed ledger.
+
+    Read from a committed file rather than rebuilt live like the config ledger,
+    because this one cannot be re-derived later: its commit half needs the work
+    repos still cloned on this machine and its PR half needs the network. The
+    config ledger reads this repo's own history, which travels with the checkout.
+
+    That makes staleness the failure mode, so an uncovered range warns instead of
+    quietly rendering zeros that would read as days which shipped nothing.
+    """
+    path = os.path.join(SCRIPTS_DIR, "delivered-work-ledger.py")
+    spec = importlib.util.spec_from_file_location("delivered_work_ledger", path)
+    if spec is None or spec.loader is None:
+        return {}
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+        ledger = module.load()
+    except Exception as err:
+        print(f"delivered-work ledger unavailable: {err}", file=sys.stderr)
+        return {}
+    if not ledger:
+        print("no delivered-work ledger yet — run "
+              "delivered-work-ledger.py --refresh to add the shipped-work "
+              "metrics", file=sys.stderr)
+        return {}
+
+    # Against the window the ledger declares, not its
+    # last delivering day.
+    #
+    # A stretch of days that shipped nothing is a real
+    # answer, so reading coverage from the last delivery
+    # would report every quiet tail as a stale file.
+    covered = ledger.get("window", {}).get("until", "")
+    if covered < ordered[-1]:
+        print(f"delivered-work ledger covers through {covered or '(no window)'} "
+              f"but snapshots reach {ordered[-1]} — re-run "
+              f"delivered-work-ledger.py --refresh", file=sys.stderr)
+    return ledger.get("days", {})
+
+
 def load_days():
     days = {}
     for path in sorted(glob.glob(os.path.join(SNAPSHOTS_DIR, "*.json"))):
@@ -140,6 +182,21 @@ def main():
         sys.exit(1)
 
     ordered = sorted(days)
+
+    # Folded into each day rather than kept as a sibling
+    # map, so the page's metric accessors all take the
+    # same day object — a shipped-work row then works in
+    # the chart, the scatter axes, and the delta table.
+    #
+    # A day the ledger never listed shipped nothing, so
+    # it gets an explicit 0 instead of being left absent
+    # for the page to read as undefined.
+    delivered = load_delivered(ordered)
+    for day in ordered:
+        row = delivered.get(day, {})
+        days[day]["shipped_commits"] = row.get("shipped_commits", 0)
+        days[day]["merged_prs"] = row.get("merged_prs", 0)
+
     payload = {
         "days": days,
         "ledger": load_ledger(ordered[0], ordered[-1]),
@@ -172,6 +229,9 @@ def main():
     print(f"wrote {out} ({size_kb:.0f} KB)")
     print(f"  {len(ordered)} days: {ordered[0]} .. {ordered[-1]}")
     print(f"  {marked} day(s) carry config-commit markers")
+    shipped = sum(days[d]["shipped_commits"] for d in ordered)
+    merged = sum(days[d]["merged_prs"] for d in ordered)
+    print(f"  {shipped} shipped commit(s), {merged} merged PR(s) as denominators")
 
     if args.open:
         webbrowser.open(f"file://{out}")

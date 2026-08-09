@@ -128,8 +128,13 @@ Live entries sit in `experiments.md`, split into `## Enacted` (change is in git,
 ### Step 6 — Build and open the viewer
 
 ```bash
+$S/delivered-work-ledger.py --refresh
 $S/build-usage-viewer.py --open
 ```
+
+- **Refresh the delivered-work ledger before building**, and repeat any warning it prints.
+
+  - Unlike the config-commit markers, this half cannot be re-derived later: it needs the work repos still cloned here, and the network for the PR side.
 
 - **Rebuild the viewer, open it, and walk the user through it under "Reading the numbers"**, rather than pasting long tables into chat.
 
@@ -207,7 +212,7 @@ Steps 2, 5, and 6 quote figures; these rules bind every one.
 
 ## Context: the history and the repertoire
 
-Everything durable lives in `./usage-history/`: the per-day series in `snapshots/`, live experiments in `experiments.md`, and settled ones in `experiments-archive.md`.
+Everything durable lives in `./usage-history/`: the per-day series in `snapshots/`, live experiments in `experiments.md`, settled ones in `experiments-archive.md`, and the shipped-work denominator in `delivered-work.json`.
 
 There is no single baseline file: the day series is the baseline, and any two closed days compare directly.
 
