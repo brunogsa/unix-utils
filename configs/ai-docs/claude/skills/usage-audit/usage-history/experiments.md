@@ -245,6 +245,35 @@ Plus `736d862c`, `5b0ba34d`, `617e90cd`, `a4c93125` and `25fc2165`. Opened on th
 - **Known confounder landing the same day**: `906334b7` raised the subagent concurrency cap to 16 for consistency-check sharding.
   - It also caps how wide this wave can actually run, so the two levers are not separable from spend alone.
 
+### 2026-08-09 — a PreToolUse hook denies the main-session search hunt that skipped Explore
+
+Commit `769cce1`. Opened on the user's instruction, who picked this lever over two others offered for raising the delegated share.
+
+- **Surface**: `hook:claude-explore-mandate-hook.sh`, `settings.json`.
+
+- **CLAUDE.md already mandates it**, under "Leverage Explore/Grep and other subagents to minimize compaction on main session".
+
+- **Hypothesis**: the rule had no enforcing mechanism, so every session re-decided it; a hard PreToolUse deny past 6 Grep/Glob calls in 10 minutes makes the dispatch the only way forward.
+
+- **Pre-change baselines, the 7 complete days 2026-08-02..08-08** — every one reads `coverage: complete` and `reconciliation: ok`, checked at filing time:
+  - `Explore` plus `explore`: 10 runs for $4.23. `general-purpose`: 36 runs for $43.07.
+  - Fan-out-excluded subagent share: 29.9%, from $662.27 total against $198.02 subagent.
+
+- **CRITICAL framing correction — that run ratio is evidence, not the quantity being moved.** `general-purpose` spend is already subagent cost, so converting it to Explore lowers the numerator.
+
+- What actually moves the share is main's own inline Grep-and-read loop leaving main entirely. That spend is invisible in `by_subagent_type` and shows up only as main `api_calls` and compactions.
+
+- **Expected effect size is small on dollars and larger on context.** Explore is cheap by design, so this lever shrinks the denominator far more than it grows the numerator.
+
+- It cannot close the $66.89-per-week gap to the user's 40% floor on its own, and a settle reading near 32% is the success case here, not a failure.
+
+- **Watch signal**: `Explore` plus `explore` run count per day against `general-purpose` run count, plus main `api_calls` and `compactions` at comparable `kpis.user_messages`.
+
+- **Settle by**: a window of `reconciliation: "ok"` days from 2026-08-10 onward, compared against the baselines above.
+
+- **Known confounder**: the hook clears its counter on each denial, so a session that ignores one denial keeps searching after a single blocked call.
+  - A flat Explore count therefore means either the rule was ignored or the threshold never fired — read run count against main `api_calls` to tell those apart.
+
 ### Confounder notes — 2026-07-27 to 2026-08-07 commits with no observation window
 
 The ledger counted 175 commits in this range. The user confirmed on 2026-08-08 that none of the four clusters below were deliberate KPI experiments, so each is a confounder, not an entry.
@@ -539,19 +568,6 @@ First of three answers to the user's standing question: how to raise the subagen
 
 - **Settle by**: a standards-authoring day before and after, compared on main `api_calls` and `compactions` at comparable `kpis.user_messages`.
 
-### 2026-08-09 — make the Explore mandate actually fire, since the rule exists and the data shows it ignored
-
-- **CLAUDE.md already mandates it**, under "Leverage Explore/Grep and other subagents to minimize compaction on main session".
-
-- **The data says it barely fires.** Across 2026-08-02..08-08, `Explore` plus `explore` total 10 runs for $4.23, against `general-purpose` at 36 runs for $43.07.
-
-- **This is the same structural failure as the sonnet-main entry above**: a settled rule with no enforcing mechanism, so every session re-decides it and most decide against.
-
-- **Why it earns its own entry**: a broad search is the most delegable unit of work there is, and its output is pure intermediate noise the main context never needs again.
-
-- **Hypothesis**: a mechanism rather than another rule — a hook, or a fixed threshold where a search past N files becomes a dispatch — moves that cost into a haiku-class agent.
-
-- **Watch signal**: `Explore` plus `explore` run count per day against `general-purpose` run count, plus main `api_calls` per `kpis.user_messages`.
 
 - **Settle by**: two `reconciliation: "ok"` days at comparable `user_messages`, one before the mechanism and one after.
 
