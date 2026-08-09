@@ -91,11 +91,13 @@ The trigger-phrase rule in `skill-standards` › Descriptions applies verbatim t
 
 ## Subagent dispatch
 
-- [Instruction] Name the model on every dispatch a skill declares, picking the tier by CLAUDE.md's "Pick the pin per task" rule.
-  - [Why] An unpinned Agent call inherits the session's model, often the priciest tier, so a mechanical fan-out silently runs at top-tier pricing on every future run.
+- [Instruction] Name the model on every dispatch to an unpinned agent type — one with no file, or a file omitting `model:` — by CLAUDE.md's "Pick the pin per task" rule.
+  - [Why] `subagent-model-guard.py` denies an omitted model only there, since that call alone inherits the session's model and runs a mechanical fan-out at the priciest tier forever.
 
-- [Instruction] Omit the pin only when the step needs the session model's own judgment, and say so in the skill.
-  - [Why] An unexplained omission reads as an oversight, so the next editor pins it and silently changes what the step decides.
+- [Instruction] Omit the model on a dispatch to a pinned agent type, letting that file's `model:` bind.
+  - [Why] The guard accepts a pinned type's model only when absent or matching the file, so naming it is redundant today and denied the moment that pin changes.
+
+  - [Example] `agent(subAgent=deep-reviewer, …)` — pinned, so no `model=`. `agent(subAgent=general-purpose, …, model=sonnet)` — unpinned, so the tier must be named.
 
 - [Instruction] State in each agent's file whether that agent may spawn a worker of its own.
   - [Why] `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH: "3"` permits main → subagent → subagent → subagent and no deeper, so a skill whose agent spawns consumes one of the three nesting levels other flows share.
