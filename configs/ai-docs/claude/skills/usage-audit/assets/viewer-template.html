@@ -45,6 +45,14 @@
   .card .k { font-size: 11px; color: var(--muted); text-transform: uppercase;
              letter-spacing: .05em; }
   .card .v { font-size: 18px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .goalcard { min-width: 216px; flex: 1 1 216px; }
+  .goalcard .d { font-size: 11.5px; font-variant-numeric: tabular-nums;
+                 margin-top: 3px; }
+  .goalcard .n { font-size: 10.5px; color: var(--muted); line-height: 1.35;
+                 margin-top: 5px; }
+  details { margin-top: 30px; border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted);
+            text-transform: uppercase; letter-spacing: .06em; }
   .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
               margin-bottom: 10px; }
   label { font-size: 12px; color: var(--muted); }
@@ -62,8 +70,6 @@
   .grid { stroke: var(--line); stroke-width: 1; }
   .axis { fill: var(--muted); font-size: 9px; }
   .selected { stroke: var(--accent); stroke-width: 2; }
-  .trend { fill: none; stroke: var(--accent); stroke-width: 2;
-           stroke-linejoin: round; stroke-linecap: round; }
   .dot { cursor: pointer; fill: var(--main); }
   .dot:hover { fill: var(--accent); }
   .dot.selected { fill: var(--accent); stroke: var(--fg); stroke-width: 1.5; }
@@ -78,6 +84,7 @@
           gap: 22px; align-items: start; }
   .empty { color: var(--muted); font-style: italic; }
   .up { color: var(--warn); } .down { color: var(--ok); }
+  .good { color: var(--ok); } .bad { color: var(--warn); }
   .tag { display: inline-block; font-size: 10.5px; padding: 1px 6px; border-radius: 10px;
          border: 1px solid var(--line); color: var(--muted); margin-right: 4px; }
   code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -95,6 +102,23 @@
 <h1>Claude Code usage history</h1>
 <div class="sub" id="range"></div>
 
+<h2>Am I getting more done for less?</h2>
+<div class="sub" id="halves"></div>
+<div class="strip" id="goals"></div>
+
+<div class="controls">
+  <label for="goal">Weekly chart</label>
+  <select id="goal"></select>
+  <span class="sub" id="goalhint" style="margin:0"></span>
+</div>
+
+<div class="chartwrap"><svg id="goalchart" viewBox="0 0 1000 300" preserveAspectRatio="none"></svg></div>
+
+<div id="goaltable"></div>
+
+<details>
+<summary>Daily explorer — every metric, one day at a time</summary>
+
 <div class="strip" id="totals"></div>
 
 <div class="controls">
@@ -105,7 +129,6 @@
   <button id="reset">Reset range</button>
   <button id="cmp">Compare selected days</button>
   <button id="weekly">Weekly medians</button>
-  <button id="trend">Moving average</button>
   <button id="fit">Straight-line trend</button>
   <span class="sub" id="hint" style="margin:0"></span>
 </div>
@@ -124,6 +147,8 @@
 <div class="chartwrap"><svg id="scatter" viewBox="0 0 1000 320"></svg></div>
 
 <div id="detail"></div>
+</details>
+
 <div id="tip"></div>
 
 <script>
@@ -175,8 +200,8 @@ const METRICS = [
 
 // Every normalized row divides by a count that
 // is 0 on an idle day, and a NaN there would
-// silently poison the axis scale, the 7-day
-// average, and the delta table alike.
+// silently poison the axis scale, the fitted
+// line, and the delta table alike.
 function per(value, count) { return count ? value / count : 0; }
 
 // Reported in minutes because the hours form
@@ -194,6 +219,7 @@ function ttl1h(d) {
 function usd(v){ return '$' + (v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function num(v){ return (v||0).toLocaleString('en-US'); }
 function n1(v){ return (v||0).toFixed(1); }
+function n2(v){ return (v||0).toFixed(2); }
 function pct(v){ return ((v||0)*100).toFixed(1) + '%'; }
 function tok(v){
   if (v >= 1e9) return (v/1e9).toFixed(2)+'B';
@@ -207,9 +233,9 @@ const state = {
   metric: 'cost',
   from: ALL_DAYS[0],
   to: ALL_DAYS[ALL_DAYS.length - 1],
+  goal: 'total',  // which goal the weekly chart draws
   selected: [],   // up to 2 days, in click order — drives detail and compare
   weekly: false,  // one median bar per week, not per day
-  trend: true,    // 7-day moving average; see movingAvg()
   fit: true,      // least-squares line; see trendLine()
   xm: 'compact',  // scatter axes — default pair is the one open question 1 asks about
   ym: 'cost',
@@ -220,20 +246,311 @@ const $ = id => document.getElementById(id);
 const metricDef = () => METRICS.find(m => m.id === state.metric);
 const visibleDays = () => ALL_DAYS.filter(d => d >= state.from && d <= state.to);
 
+/* ---------- the goal metrics ---------- */
+
+// The answer zone. Everything below this section
+// exists to explain one number from it.
+//
+// Every ratio is POOLED — one numerator sum over
+// one denominator sum across the whole period.
+//
+// Averaging per-day ratios instead would let a
+// single 1-PR day swing cost per PR from $16.80
+// to $189.60, then weigh that outlier as much as
+// a full week.
+
+// The work/tooling split each snapshot carries:
+// spend and human touches in the ticket repos,
+// against the same in the five tooling repos.
+function repoClass(d, cls) {
+  return (d.by_repo_class && d.by_repo_class[cls]) || {};
+}
+
+// A touch is any moment the human had to engage:
+// a message typed, or an answer interrupted.
+function classTouches(d, cls) {
+  const block = repoClass(d, cls);
+  return (block.user_messages || 0) + (block.interruptions || 0);
+}
+
+const workCost = d => repoClass(d, 'work').cost || 0;
+const toolingCost = d => repoClass(d, 'tooling').cost || 0;
+const workTouches = d => classTouches(d, 'work');
+const toolingTouches = d => classTouches(d, 'tooling');
+
+function citableDays(days) {
+  return days.filter(day => isCitable(DATA.days[day]));
+}
+
+function sumDays(days, pick) {
+  return days.reduce((total, day) => total + (pick(DATA.days[day]) || 0), 0);
+}
+
+// Scaled to a full week, so a part-week at either
+// edge of the record reads as the rate it ran at
+// rather than as a cheap week.
+function weekRate(days, pick) {
+  return per(sumDays(days, pick) * 7, days.length);
+}
+
+// The goal zone starts at the first day the record
+// can answer for, not at the first snapshot.
+//
+// Everything earlier sits past the transcript
+// retention floor and reads near zero, so a
+// before/after split across it would measure when
+// the transcripts were deleted.
+const GOAL_DAYS = ALL_DAYS.slice(
+  ALL_DAYS.findIndex(day => isCitable(DATA.days[day])));
+
+// Both halves of a ratio have to come from the
+// same days, or a PR merged on an unreadable day
+// divides a cost nobody was able to measure.
+function citableSum(days, pick) {
+  return sumDays(citableDays(days), pick);
+}
+
+function pooledOverCitable(days, numerator, denominator) {
+  return per(citableSum(days, numerator), citableSum(days, denominator));
+}
+
+// A PR whose branch transcripts aged out leaves
+// BOTH sides of the ratio, rather than entering
+// the denominator as a PR that took zero hours.
+function attributedPRs(days) {
+  const span = new Set(days);
+  return DATA.pull_requests.filter(
+    pr => pr.records > 0 && span.has(pr.merged_day));
+}
+
+// `value` takes the period's CALENDAR days and
+// narrows them itself, because the right basis
+// differs per row.
+//
+// A snapshot-derived figure can only read a
+// citable day, while merged PRs come from GitHub
+// and are complete on every day.
+//
+// `better` is the direction that means progress,
+// and is the only thing that decides whether a
+// half-over-half move is coloured green or red.
+//
+// `denom` counts what the ratio divided by, so a
+// span that divided by nothing prints a dash
+// instead of a $0.00 that reads as free.
+const GOALS = [
+  {
+    id: 'costpr', label: 'Work $ per merged PR', short: '$/PR',
+    fmt: usd, better: 'down',
+    note: 'What one shipped pull request costs. If it falls, the money is buying more delivery.',
+    value: days => pooledOverCitable(days, workCost, d => d.merged_prs),
+    denom: days => citableSum(days, d => d.merged_prs),
+  },
+  {
+    id: 'touchpr', label: 'Work touches per merged PR', short: 'Touch/PR',
+    fmt: n1, better: 'down',
+    note: 'Messages plus interruptions per shipped PR. Falls when the model needs less steering.',
+    value: days => pooledOverCitable(days, workTouches, d => d.merged_prs),
+    denom: days => citableSum(days, d => d.merged_prs),
+  },
+  {
+    id: 'hourspr', label: 'Work hours per merged PR', short: 'Hours/PR',
+    fmt: n1, better: 'down',
+    note: 'Hours worked on the branch per shipped PR. Falls when a ticket takes less of your day.',
+    value: days => {
+      const rows = attributedPRs(days);
+      return per(rows.reduce((t, pr) => t + pr.work_minutes, 0) / 60, rows.length);
+    },
+    denom: days => attributedPRs(days).length,
+  },
+  {
+    id: 'prday', label: 'Merged PRs per day', short: 'PRs/day',
+    fmt: n2, better: 'up',
+    note: 'Delivery rate over every calendar day. The one number here that has to go up.',
+    value: days => per(sumDays(days, d => d.merged_prs), days.length),
+
+    // Every calendar day counts, so a week that
+    // shipped nothing reads as a real 0.00 rather
+    // than as a week nobody could measure.
+    denom: days => days.length,
+  },
+  {
+    id: 'total', label: 'Spend per 7 days, tooling included', short: '$/week',
+    fmt: usd, better: 'down',
+    note: 'Everything spent at list price, scaled to a full week. This is the figure that has to fit the plan cap comfortably.',
+    value: days => weekRate(days, d => d.total),
+    denom: days => days.length,
+
+    // The pale half is the REMAINDER, not the
+    // tooling figure, so the two segments always
+    // add up to the bar.
+    //
+    // Two snapshots predate the work/tooling
+    // split; taking tooling directly would draw
+    // their spend as no segment at all.
+    stack: days => {
+      const work = weekRate(days, workCost);
+      return [work, weekRate(days, d => d.total) - work];
+    },
+  },
+  {
+    id: 'workunit', label: 'Work $ per work touch', short: '$/work touch',
+    fmt: usd, better: 'down',
+    note: 'What one work touch costs. Separates a cheaper run from simply having asked for less.',
+    value: days => pooledOverCitable(days, workCost, workTouches),
+    denom: days => citableSum(days, workTouches),
+  },
+  {
+    id: 'toolunit', label: 'Tooling $ per tooling touch', short: '$/tool touch',
+    fmt: usd, better: 'down',
+    note: 'The same for the config repos, so tuning the setup never hides inside the delivery numbers.',
+    value: days => pooledOverCitable(days, toolingCost, toolingTouches),
+    denom: days => citableSum(days, toolingTouches),
+  },
+  {
+    id: 'autonomy', label: 'Autonomous minutes per user message', short: 'Auton. min',
+    fmt: n1, better: 'up',
+    note: 'Minutes the model ran per message you sent. Rises as sessions get more autonomous.',
+    value: days => pooledOverCitable(
+      days, d => d.kpis.session_hours * 60, d => d.kpis.user_messages),
+    denom: days => citableSum(days, d => d.kpis.user_messages),
+  },
+];
+
+// A span that divided by nothing has no reading at
+// all, and a formatted 0 would be indistinguishable
+// from the real thing.
+function hasReading(g, days) {
+  return g.denom(days) > 0;
+}
+
+function goalCell(g, days) {
+  return hasReading(g, days) ? g.fmt(g.value(days)) : '—';
+}
+
+// Split by calendar position, not by citable
+// count.
+//
+// The question is whether the recent half of the
+// record beats the older half, and a balanced
+// split would move the boundary off the calendar
+// and make it unquotable.
+function halves() {
+  const mid = Math.ceil(GOAL_DAYS.length / 2);
+  return [GOAL_DAYS.slice(0, mid), GOAL_DAYS.slice(mid)];
+}
+
+// A half with no reading shows no verdict, because
+// a before of 0 would render every move as a
+// meaningless -100% or +infinity.
+function goalCards() {
+  const [older, recent] = halves();
+  return GOALS.map(g => {
+    const paired = hasReading(g, older) && hasReading(g, recent);
+    const before = g.value(older), after = g.value(recent);
+    const rel = paired && before ? ((after - before) / before) * 100 : 0;
+    const improved = g.better === 'down' ? after < before : after > before;
+    const cls = rel ? (improved ? 'good' : 'bad') : '';
+    const move = paired
+      ? `${g.fmt(before)} → ${g.fmt(after)}  ${rel > 0 ? '+' : ''}${rel.toFixed(0)}%`
+      : 'no reading in one half';
+    return `<div class="card goalcard"><div class="k">${g.label}</div>` +
+           `<div class="v">${goalCell(g, GOAL_DAYS)}</div>` +
+           `<div class="d ${cls}">${move}</div>` +
+           `<div class="n">${g.note}</div></div>`;
+  }).join('');
+}
+
+function goalWeeks(g) {
+  return weekGroups(GOAL_DAYS).map(([key, days]) => {
+    const value = g.value(days);
+    return {
+      key, days, value,
+      read: citableDays(days).length,
+
+      // A week that divided by nothing draws no bar
+      // and stays out of the fitted line, rather
+      // than pulling the trend toward a zero it
+      // never actually measured.
+      citable: hasReading(g, days),
+    };
+  });
+}
+
+function goalTip(g, p) {
+  let t = `week of ${p.key}  ·  ${g.label}: ${goalCell(g, p.days)}`;
+  t += `\n${sumDays(p.days, d => d.merged_prs)} PR(s) merged`;
+  t += `, ${usd(sumDays(p.days, d => d.total))} spent`;
+  t += `\n${p.read} of ${p.days.length} day(s) citable`;
+  if (!p.citable) t += `\nno reading this week — left out of the trend`;
+  return t.replace(/"/g, '&quot;');
+}
+
+function drawGoalChart() {
+  const g = GOALS.find(x => x.id === state.goal);
+  const points = goalWeeks(g);
+  const plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
+  const bw = plotW / Math.max(points.length, 1);
+  const fit = points.length > 1 ? trendLine(points) : null;
+  const overlay = fit ? points.map((p, i) => fit.at(i)) : [];
+  const max = Math.max(...points.map(p => p.value),
+                       ...overlay.filter(v => v > 0), 0) || 1;
+  const y = v => PAD_T + plotH - (Math.min(Math.max(v, 0), max) / max) * plotH;
+  const parts = [];
+
+  for (let i = 0; i <= 4; i++) {
+    const v = max * i / 4, yy = y(v);
+    parts.push(`<line class="grid" x1="${PAD_L}" x2="${W-PAD_R}" y1="${yy}" y2="${yy}"/>`);
+    parts.push(`<text class="axis" x="${PAD_L-6}" y="${yy+3}" text-anchor="end">${g.fmt(v)}</text>`);
+  }
+
+  points.forEach((p, i) => {
+    const x = PAD_L + i * bw, w = Math.max(bw - 4, 1);
+    const tip = goalTip(g, p);
+    const split = g.stack ? g.stack(p.days) : null;
+    if (split && p.value) {
+      const hTooling = (split[1] / max) * plotH;
+      parts.push(`<rect class="bar" data-tip="${tip}" x="${x}" y="${y(p.value)}" width="${w}" height="${hTooling}" fill="var(--sub)"/>`);
+      parts.push(`<rect class="bar" data-tip="${tip}" x="${x}" y="${y(p.value)+hTooling}" width="${w}" height="${(split[0]/max)*plotH}" fill="var(--main)"/>`);
+    } else {
+      parts.push(`<rect class="bar" data-tip="${tip}" x="${x}" y="${y(p.value)}" width="${w}" height="${Math.max(plotH-(y(p.value)-PAD_T),0)}" fill="var(--main)"/>`);
+    }
+    parts.push(`<text class="axis" x="${x+w/2}" y="${H-8}" text-anchor="middle">${p.key.slice(5)}</text>`);
+  });
+
+  if (fit) {
+    const last = points.length - 1;
+    parts.push(`<line class="fit" x1="${PAD_L+bw/2}" y1="${y(fit.at(0))}" x2="${(PAD_L+last*bw+bw/2).toFixed(1)}" y2="${y(fit.at(last))}"/>`);
+  }
+
+  $('goalchart').innerHTML = parts.join('');
+  $('goalchart').querySelectorAll('[data-tip]').forEach(el => {
+    el.addEventListener('mousemove', e => showTip(e, el.dataset.tip));
+    el.addEventListener('mouseleave', hideTip);
+  });
+
+  const basis = g.stack
+    ? 'work repos in blue, everything else in pale blue'
+    : g.note;
+  $('goalhint').textContent =
+    `${basis}${fit ? ` · dashed line fits ${fit.n} week(s) with a reading` : ''}`;
+}
+
+// The citable column travels with the row because
+// every ratio in it was pooled over those days
+// alone — 2-of-7 and 7-of-7 are very different
+// claims wearing the same number.
+function goalTable() {
+  const head = ['Week', 'Citable'].concat(GOALS.map(g => g.short));
+  const rows = weekGroups(GOAL_DAYS).map(([key, days]) => [key,
+    `${citableDays(days).length}/${days.length}`,
+    ...GOALS.map(g => goalCell(g, days))]);
+  return `<h2>Week by week</h2>${tableOf(head, rows)}`;
+}
+
 /* ---------- chart ---------- */
 
 const W = 1000, H = 300, PAD_L = 54, PAD_R = 8, PAD_T = 12, PAD_B = 34;
-
-// Daily spend swings on workload alone — $49.20
-// on 2026-07-21 against $291.57 on 2026-07-26 —
-// so the bars alone cannot show whether a level
-// is moving.
-//
-// The weekly window is shorter because a week
-// already absorbs the weekday cycle the 7-day
-// window exists to smooth, and 7 weeks would
-// flatten the whole series into one level.
-const MA_WINDOW = 7, MA_WEEKS = 3;
 
 // Only a day whose transcripts had not yet aged
 // out, whose token counts ccusage confirmed, and
@@ -290,9 +607,9 @@ function median(values) {
     : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-function weekGroups() {
+function weekGroups(days = ALL_DAYS) {
   const weeks = new Map();
-  for (const day of ALL_DAYS) {
+  for (const day of days) {
     const key = weekStart(day);
     if (!weeks.has(key)) weeks.set(key, []);
     weeks.get(key).push(day);
@@ -301,12 +618,9 @@ function weekGroups() {
 }
 
 // One entry per bar, built over the FULL series
-// and flagged for visibility rather than sliced.
-//
-// The moving average needs the points before the
-// window: recomputing it from the visible range
-// restarts it on a partial window and invents a
-// rising left edge that is only fewer terms.
+// and flagged for visibility rather than sliced,
+// so narrowing the range never rebuilds the week
+// groupings a bar was placed into.
 function chartPoints(m) {
   const groups = state.weekly
     ? weekGroups()
@@ -331,29 +645,6 @@ function chartPoints(m) {
   });
 }
 
-// A non-citable point contributes nothing to the
-// window instead of contributing a zero, and the
-// average holds its last value across the gap so
-// the line stays continuous over pruned days.
-function movingAvg(points, window) {
-  const out = new Array(points.length).fill(null);
-  const recent = [];
-  points.forEach((p, i) => {
-    if (p.citable) {
-      recent.push(p.value);
-      if (recent.length > window) recent.shift();
-    }
-    if (recent.length) {
-      out[i] = recent.reduce((a, b) => a + b, 0) / recent.length;
-    }
-  });
-  return out;
-}
-
-// The moving average tracks the local level; a
-// straight fit answers the different question of
-// which way the whole visible window points.
-//
 // Fitted against bar position rather than against
 // a count of citable points, so a run of pruned
 // days still costs the horizontal distance the
@@ -371,24 +662,16 @@ function drawChart() {
   const m = metricDef();
   const points = chartPoints(m);
   const visible = points.filter(p => p.inRange);
-  const offset = points.indexOf(visible[0]);
   const plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
   const bw = plotW / Math.max(visible.length, 1);
   const parts = [];
 
-  const ma = state.trend
-    ? movingAvg(points, state.weekly ? MA_WEEKS : MA_WINDOW)
-    : null;
   const fit = state.fit && visible.length > 1 ? trendLine(visible) : null;
 
-  // The overlays join the scale so a trend running
-  // above the tallest bar is drawn rather than
-  // clipped off the top of the plot.
-  const overlay = [];
-  visible.forEach((p, i) => {
-    if (ma && ma[offset + i] !== null) overlay.push(ma[offset + i]);
-    if (fit) overlay.push(fit.at(i));
-  });
+  // The fitted line joins the scale so a trend
+  // running above the tallest bar is drawn rather
+  // than clipped off the top of the plot.
+  const overlay = fit ? visible.map((p, i) => fit.at(i)) : [];
   const max = Math.max(...visible.map(p => p.value),
                        ...overlay.filter(v => v > 0), 0) || 1;
   const y = v => PAD_T + plotH - (Math.min(Math.max(v, 0), max) / max) * plotH;
@@ -431,27 +714,12 @@ function drawChart() {
     }
   });
 
-  // Drawn after the bars so the lines read on top
+  // Drawn after the bars so the line reads on top
   // of them rather than behind.
-  const legend = [];
-  if (ma) {
-    const pts = visible
-      .map((p, i) => [i, ma[offset + i]])
-      .filter(([, v]) => v !== null)
-      .map(([i, v]) => `${(PAD_L + i*bw + Math.max(bw-1.5,1)/2).toFixed(1)},${y(v).toFixed(1)}`);
-    if (pts.length > 1) {
-      parts.push(`<polyline class="trend" points="${pts.join(' ')}"/>`);
-      const unit = state.weekly ? `${MA_WEEKS}-week` : `${MA_WINDOW}-day`;
-      legend.push(`solid: ${unit} moving average`);
-    }
-  }
   if (fit) {
     const last = visible.length - 1;
     parts.push(`<line class="fit" x1="${PAD_L+bw/2}" y1="${y(fit.at(0))}" x2="${(PAD_L+last*bw+bw/2).toFixed(1)}" y2="${y(fit.at(last))}"/>`);
-    legend.push(`dashed: straight-line trend over ${fit.n} citable`);
-  }
-  if (legend.length) {
-    parts.push(`<text class="axis" x="${W-PAD_R}" y="${PAD_T-3}" text-anchor="end" fill="var(--accent)">${legend.join('  ·  ')}</text>`);
+    parts.push(`<text class="axis" x="${W-PAD_R}" y="${PAD_T-3}" text-anchor="end" fill="var(--accent)">dashed: straight-line trend over ${fit.n} citable</text>`);
   }
 
   $('chart').innerHTML = parts.join('');
@@ -511,7 +779,7 @@ function tooltipForWeek(p, m) {
   let t = `week of ${p.key}  ·  median ${m.label}: ${m.fmt(p.value)}`;
   t += `\n${usd(spend)} across ${p.days.length} day(s)`;
   t += `\n${p.citableDays.length} of ${p.days.length} day(s) citable`;
-  t += ` — the median and both trends read only those`;
+  t += ` — the median and the trend read only those`;
   if (commits) t += `\n${commits} config commit(s) that week`;
   const shipped = p.days.reduce((t, day) => t + DATA.days[day].shipped_commits, 0);
   const prs = p.days.reduce((t, day) => t + DATA.days[day].merged_prs, 0);
@@ -720,6 +988,24 @@ function render() {
     `${ALL_DAYS[0]} → ${ALL_DAYS[ALL_DAYS.length-1]} · ${ALL_DAYS.length} closed days · ` +
     `generated ${DATA.meta.generated_at} · one snapshot per closed LOCAL day`;
 
+  // Both halves are named outright, because a
+  // delta IS a citation and an unnamed before →
+  // after cannot be reproduced from the snapshots.
+  //
+  // The window is named too, since it starts later
+  // than the chart below it and a reader would
+  // otherwise read these cards as the whole record.
+  const [older, recent] = halves();
+  $('halves').textContent =
+    `${GOAL_DAYS[0]} onward — ${citableDays(GOAL_DAYS).length} of ` +
+    `${GOAL_DAYS.length} days readable; earlier ones lost their transcripts. ` +
+    `Each card pools that whole span, then compares ` +
+    `${older[0]}…${older[older.length-1]} against ` +
+    `${recent[0]}…${recent[recent.length-1]}. Green is the way you want it moving.`;
+  $('goals').innerHTML = goalCards();
+  $('goaltable').innerHTML = goalTable();
+  drawGoalChart();
+
   $('totals').innerHTML =
     kv('Days shown', num(days.length)) +
     kv('Citable days', num(days.filter(d => isCitable(DATA.days[d])).length)) +
@@ -754,6 +1040,10 @@ function render() {
 
 /* ---------- wiring ---------- */
 
+$('goal').innerHTML = GOALS.map(g => `<option value="${g.id}">${g.label}</option>`).join('');
+$('goal').value = state.goal;
+$('goal').addEventListener('change', e => { state.goal = e.target.value; render(); });
+
 $('metric').innerHTML = METRICS.map(m => `<option value="${m.id}">${m.label}</option>`).join('');
 $('metric').value = state.metric;
 $('metric').addEventListener('change', e => { state.metric = e.target.value; render(); });
@@ -781,8 +1071,8 @@ $('cmp').addEventListener('click', () => {
   render();
 });
 
-for (const [id, key] of [['weekly', 'weekly'], ['trend', 'trend'],
-                         ['fit', 'fit'], ['zeros', 'zeros']]) {
+for (const [id, key] of [['weekly', 'weekly'], ['fit', 'fit'],
+                         ['zeros', 'zeros']]) {
   $(id).classList.toggle('on', state[key]);
   $(id).addEventListener('click', () => {
     state[key] = !state[key];

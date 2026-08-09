@@ -40,8 +40,8 @@ DATA_TOKEN = "__USAGE_DATA__"
 DAY_FIELDS = (
     "coverage", "kpis", "total", "main_cost", "subagent_cost", "compactions",
     "session_count", "cache_hit_rate", "thinking_block_share", "tokens",
-    "by_family", "by_subagent_type", "by_skill_marginal", "top_sessions",
-    "reconciliation",
+    "by_family", "by_repo_class", "by_subagent_type", "by_skill_marginal",
+    "top_sessions", "reconciliation",
 )
 
 # Only the verdict is rendered. The four per-bucket token counts behind it are
@@ -98,7 +98,7 @@ def load_ledger(since_day, until_day):
 
 
 def load_delivered(ordered):
-    """Per-day shipped-commit and merged-PR counts from the committed ledger.
+    """The whole committed delivered-work ledger: per-day counts and per-PR rows.
 
     Read from a committed file rather than rebuilt live like the config ledger,
     because this one cannot be re-derived later: its commit half needs the work
@@ -136,7 +136,7 @@ def load_delivered(ordered):
         print(f"delivered-work ledger covers through {covered or '(no window)'} "
               f"but snapshots reach {ordered[-1]} — re-run "
               f"delivered-work-ledger.py --refresh", file=sys.stderr)
-    return ledger.get("days", {})
+    return ledger
 
 
 def load_days():
@@ -193,12 +193,17 @@ def main():
     # for the page to read as undefined.
     delivered = load_delivered(ordered)
     for day in ordered:
-        row = delivered.get(day, {})
+        row = delivered.get("days", {}).get(day, {})
         days[day]["shipped_commits"] = row.get("shipped_commits", 0)
         days[day]["merged_prs"] = row.get("merged_prs", 0)
 
+    # The per-PR rows ride along beside the per-day counts
+    # because hours-per-PR cannot be pooled from a daily
+    # sum: 4 of 27 PRs have no readable work time, and only
+    # the row itself says which ones.
     payload = {
         "days": days,
+        "pull_requests": delivered.get("pull_requests", []),
         "ledger": load_ledger(ordered[0], ordered[-1]),
         "meta": {
             "generated_at": datetime.now().astimezone().strftime("%Y-%m-%d %H:%M"),
