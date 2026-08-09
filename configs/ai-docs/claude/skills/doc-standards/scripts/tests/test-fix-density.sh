@@ -389,8 +389,94 @@ EOF
   run_density_check
   assert_eq 'should split at the pre-existing sentence boundary despite a later semicolon (independently re-verified clean by check-density.sh)' "0" "$DENSITY_EXIT"
 }
+it_should_split_an_over_cap_top_level_bullet_into_a_parent_bullet_and_an_indented_sub_bullet() {
+  new_fixture bullet-top-level.md
+  cat > "$FIXTURE" <<'EOF'
+# Top-level bullet fixture
+
+- This clause exists to push the line length past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents. This second clause continues the thought after the boundary so the split can balance both halves reasonably well.
+EOF
+
+  run_fix
+  assert_eq 'should split a top-level bullet (exit code, fully resolved)' "0" "$FIX_EXIT"
+
+  # Same heredoc-straight-to-file rule as new_fixture's comment: this
+  # body carries an apostrophe, so it cannot be built through a nested
+  # command substitution.
+  local expected_file="$work_dir/bullet-top-level-expected.md"
+  cat > "$expected_file" <<'EOF'
+# Top-level bullet fixture
+
+- This clause exists to push the line length past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents.
+  - This second clause continues the thought after the boundary so the split can balance both halves reasonably well.
+EOF
+  local expected
+  expected="$(cat "$expected_file")"
+  assert_eq 'should split a top-level bullet (second half is a real sub-bullet, not a continuation line)' "$expected" "$(cat "$FIXTURE")"
+
+  run_density_check
+  assert_eq 'should split a top-level bullet (independently re-verified clean by check-density.sh)' "0" "$DENSITY_EXIT"
+
+  run_fix
+  assert_eq 'should split a top-level bullet (second run makes no further changes)' "$expected" "$(cat "$FIXTURE")"
+}
+
+it_should_nest_a_split_sub_bullet_one_level_under_an_already_indented_parent_bullet() {
+  new_fixture bullet-already-nested.md
+  cat > "$FIXTURE" <<'EOF'
+# Already-nested bullet fixture
+
+  - This clause exists to push the line length past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents. This second clause continues the thought after the boundary so the split can balance both halves reasonably well.
+EOF
+
+  run_fix
+  assert_eq 'should nest under an already-indented parent (exit code, fully resolved)' "0" "$FIX_EXIT"
+
+  local expected_file="$work_dir/bullet-already-nested-expected.md"
+  cat > "$expected_file" <<'EOF'
+# Already-nested bullet fixture
+
+  - This clause exists to push the line length past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents.
+    - This second clause continues the thought after the boundary so the split can balance both halves reasonably well.
+EOF
+  local expected
+  expected="$(cat "$expected_file")"
+  assert_eq 'should nest under an already-indented parent (sub-bullet sits one level deeper, not at the top level)' "$expected" "$(cat "$FIXTURE")"
+
+  run_density_check
+  assert_eq 'should nest under an already-indented parent (independently re-verified clean by check-density.sh)' "0" "$DENSITY_EXIT"
+}
+
+it_should_split_an_ordered_list_item_at_a_real_sentence_boundary_rather_than_at_its_own_marker() {
+  new_fixture bullet-ordered-list.md
+  cat > "$FIXTURE" <<'EOF'
+# Ordered-list fixture
+
+1. This clause exists to push the line length past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents. This second clause continues the thought after the boundary so the split can balance both halves reasonably well.
+EOF
+
+  run_fix
+  assert_eq 'should split an ordered-list item (exit code, fully resolved)' "0" "$FIX_EXIT"
+
+  local expected_file="$work_dir/bullet-ordered-list-expected.md"
+  cat > "$expected_file" <<'EOF'
+# Ordered-list fixture
+
+1. This clause exists to push the line length past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents.
+   - This second clause continues the thought after the boundary so the split can balance both halves reasonably well.
+EOF
+  local expected
+  expected="$(cat "$expected_file")"
+  assert_eq 'should split an ordered-list item (the item number keeps its own text instead of being stranded alone)' "$expected" "$(cat "$FIXTURE")"
+
+  run_density_check
+  assert_eq 'should split an ordered-list item (independently re-verified clean by check-density.sh)' "0" "$DENSITY_EXIT"
+}
 
 it_should_split_an_over_cap_line_at_a_sentence_boundary_with_both_halves_under_the_caps
+it_should_split_an_over_cap_top_level_bullet_into_a_parent_bullet_and_an_indented_sub_bullet
+it_should_nest_a_split_sub_bullet_one_level_under_an_already_indented_parent_bullet
+it_should_split_an_ordered_list_item_at_a_real_sentence_boundary_rather_than_at_its_own_marker
 it_should_leave_an_over_cap_line_with_no_safe_boundary_untouched_and_exit_1_reporting_residue
 it_should_leave_a_fenced_code_block_untouched_even_with_an_over_cap_line_inside_it
 it_should_leave_a_mermaid_block_untouched_even_with_an_over_cap_line_inside_it

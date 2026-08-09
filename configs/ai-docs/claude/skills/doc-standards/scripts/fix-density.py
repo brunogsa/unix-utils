@@ -8,15 +8,20 @@ Never reimplements check-bullet-gap.py's or check-density.sh's skip logic
 out to both and only acts on the lines they report as violations, so the two
 checkers stay the single source of truth for what counts as "prose" here.
 
+A split bullet's second half is emitted as its own indented sub-bullet,
+never as a bare continuation line. A continuation line joins the parent's
+rendered bullet, so it would shorten the physical line and turn the check
+green while leaving the reader exactly as much to read.
+
 Splitting is conservative: a line is split only at a recognized boundary
-(". ", " — ", " -- ", "; ") whose remainder doesn't start with a markdown
-structural token (a bullet/heading/table/blockquote/ordered-list marker) -
-that remainder would silently become a new structural element instead of
-continuation prose - and whose first half doesn't strand an unclosed "(",
-"[", or an odd number of "`" code-span delimiters, which would break a
-bracket pair or a code span across the two resulting lines. When no such
-boundary exists on a line, the line is left fully untouched and reported
-as residue - never deleted, truncated, or reworded.
+(". ", " — ", " -- ", "; ") whose remainder doesn't already start with a
+markdown structural token (a bullet/heading/table/blockquote/ordered-list
+marker) - re-marking an already-marked remainder would double its marker
+or nest it under the wrong parent - and whose first half doesn't strand an
+unclosed "(", "[", or an odd number of "`" code-span delimiters, which
+would break a bracket pair or a code span across the two resulting lines.
+When no such boundary exists on a line, the line is left fully untouched
+and reported as residue - never deleted, truncated, or reworded.
 
 Runs check-bullet-gap.py --fix and one split pass to convergence (a pass
 that changes nothing), capped at MAX_ITERATIONS passes per file, so a split
@@ -47,6 +52,7 @@ MAX_ITERATIONS = 10
 
 BOUNDARY = re.compile(r"\. | — | -- |; ")
 STRUCTURAL_TOKEN = re.compile(r"^(?:[-*+#|>]|\d+\.)")
+BULLET_MARKER = re.compile(r"^([ \t]*)([-*+] |\d+\. )")
 URL = re.compile(r"\(https?://[^)]*\)")
 DATA_URI = re.compile(r"[(<]data:[^)>]*[)>]")
 
@@ -74,22 +80,42 @@ def is_first_half_balanced(first_half):
     return first_half.count("`") % 2 == 0
 
 
+def continuation_prefix(line):
+    """The prefix `line`'s second half carries so it renders as its own
+    element rather than joining the first half's. A bullet's second half
+    nests one level under it, aligned past the parent's own marker; any
+    other line carries the parent's indent alone."""
+    marker = BULLET_MARKER.match(line)
+    if marker:
+        return marker.group(1) + " " * len(marker.group(2)) + "- "
+    return line[: len(line) - len(line.lstrip(" \t"))]
+
+
 def candidate_splits(line, max_chars, max_words):
     """Every safe (first_half, second_half) split of `line`, best first.
 
-    "Safe" rejects a remainder starting with a markdown structural token -
-    that would silently turn continuation prose into a new bullet, heading,
-    table row, blockquote, or ordered-list item - and rejects a first half
+    "Safe" rejects a remainder that already starts with a markdown
+    structural token - re-marking it as a sub-bullet would double its
+    marker or nest it under the wrong parent - and rejects a first half
     that would strand an unclosed "(", "[", or an odd number of "`"
     code-span delimiters, breaking a bracket pair or code span across the
     split. Among the safe candidates, one where both halves land at/under
     the caps sorts first; ties (and the no-candidate-fits-both-caps case)
     break on how evenly the split balances the two halves, in characters.
+
+    Each half is measured exactly as it will be emitted, prefix included,
+    so a candidate ranked as fitting both caps still fits once written.
     """
-    indent = line[: len(line) - len(line.lstrip(" \t"))]
+    prefix = continuation_prefix(line)
+    marker = BULLET_MARKER.match(line)
+    marker_end = marker.end() if marker else 0
     safe = []
 
     for m in BOUNDARY.finditer(line):
+        # An ordered-list marker ends in ". ", which is also a boundary -
+        # splitting there would strand "1." as a bullet with no content.
+        if m.end() <= marker_end:
+            continue
         first = line[: m.end()].rstrip()
         remainder = line[m.end() :].lstrip()
         if not remainder or STRUCTURAL_TOKEN.match(remainder):
@@ -97,7 +123,7 @@ def candidate_splits(line, max_chars, max_words):
         if not is_first_half_balanced(first):
             continue
 
-        second = indent + remainder
+        second = prefix + remainder
         first_chars, first_words = measure(first)
         second_chars, second_words = measure(second)
         both_under_cap = (
