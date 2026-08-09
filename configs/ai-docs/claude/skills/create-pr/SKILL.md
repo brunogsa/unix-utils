@@ -38,7 +38,7 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
 - **Resolve the output filename's `<slug>` and `<N>` (used in step 2)**: `<slug>` is the shared filename slug from the resolved spec/plan filenames.
   - Fall back to the current branch name (`/` → `-`) when neither spec nor plan resolved.
   - Single PR plan or no plan resolved → omit `_pr<N>`, auto-resolved.
-  - Multiple `PR-N` entries in `## PR Breakdown` → open question **(B) Which PR-N**: set `<N>` to that number (e.g. `PR-2` → `2`).
+  - Count the entries with `~/.claude/skills/implement/scripts/parse-pr-breakdown.sh <plan>`, one line per `PR-N`; 2+ → open question **(B) Which PR-N**, setting `<N>` to that number.
 
 - **Resolve the base branch (used by `changes-gatherer` below and by step 4)**: default is `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
   - Empty result (`origin/HEAD` unset) → omit `--base` in step 4.
