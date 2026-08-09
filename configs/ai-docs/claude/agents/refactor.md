@@ -1,6 +1,6 @@
 ---
 name: refactor
-description: Fresh-context refactorer — given a caller-named scope and the test command(s) to run, loads the refactor skill's quality bar, applies structure-only changes to that scope, and verifies tests stay green before and after. Use when a caller (e.g. implement's batch-end apply-a-finding step) has already decided a specific simplification/refactor finding should land and needs it applied in isolated context with test evidence — not just reported for a human to apply later.
+description: Applies structure-only changes in isolated context, verifying tests stay green before and after. Dispatch when a caller has decided a refactor finding should land and wants it applied, not just reported. Input: the scope and the test command.
 model: opus
 effort: high
 ---

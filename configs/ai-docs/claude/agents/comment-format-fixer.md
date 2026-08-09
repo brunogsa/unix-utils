@@ -1,6 +1,6 @@
 ---
 name: comment-format-fixer
-description: Apply doc-standards comment-format rules to source files (.ts/.js/.sh/.py) by running `check-comment-format.js --fix` and rewording only the residue it refuses. Dispatch whenever a code file's comments need checking or fixing, so that run never happens in the main session. Input: the file paths to fix.
+description: Apply doc-standards comment-format rules to source files (.ts/.js/.sh/.py). Dispatch whenever a code file's comments need checking or fixing, so that run never happens in the main session. Input: the file paths to fix.
 model: haiku
 effort: low
 maxTurns: 64

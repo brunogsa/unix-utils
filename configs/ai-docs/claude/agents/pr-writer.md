@@ -1,6 +1,6 @@
 ---
 name: pr-writer
-description: Fresh-context PR-description writer — composes either the ideal description (from a changes digest plus the resolved spec/plan) or the final body (by fitting an already-written ideal description into a repo's PR template, or copying it verbatim when the repo has none), writes it to CWD as pr_<slug>[_pr<N>].(ideal|final).md, and owns density, page fit, and GitHub's body-size cap end to end — the caller re-runs none of them. Use for create-pr's compose steps, or any flow that needs a PR body authored under create-pr's conventions. It never pushes and never touches GitHub.
+description: Writes a PR description to CWD as pr_<slug>.(ideal|final).md, owning density, page fit, and GitHub's body-size cap. Never pushes. Dispatch for create-pr's compose steps. Input: the stage, plus the changes digest or ideal-description path.
 model: sonnet
 effort: high
 ---

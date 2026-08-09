@@ -1,6 +1,6 @@
 ---
 name: deep-reviewer
-description: General-purpose deep-review agent — given an artifact plus a specific review question, reads what it needs, reasons at max effort, and returns a structured verdict backed by evidence. Use as a fresh-context, unbiased judge for self-review gates, batch-end review, or test-presence checks.
+description: Fresh-context, unbiased judge — returns a structured verdict backed by evidence, reasoning at max effort. Dispatch for self-review gates, batch-end review, or test-presence checks. Input: the artifact and the specific review question.
 model: opus
 effort: max
 maxTurns: 64

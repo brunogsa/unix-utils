@@ -1,6 +1,6 @@
 ---
 name: changes-gatherer
-description: Fresh-context change reader — given a base ref and a branch, reads the full git log (complete commit bodies) and the diff, writes the whole gathered artifact to a caller-named file, and returns only a compact changes digest. Use when a caller needs to know what a branch changed without pulling the raw diff into its own context — create-pr's context-gathering step, or any flow composing a description, changelog, or review brief from a branch.
+description: Reads a branch's git log and diff, writes the gathered artifact to a caller-named file, and returns only a compact digest. Dispatch when a caller needs what a branch changed without the raw diff in its context. Input: base ref, branch, output path.
 model: sonnet
 effort: high
 ---
