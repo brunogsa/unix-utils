@@ -28,9 +28,9 @@ Read it before drafting or reviewing a PR body; `pr-writer` loads it every dispa
 
 **CRITICAL: This step's interview is the only point in the whole skill where the user is asked anything.**
 
-Every step from here through step 4 runs to completion without pausing, and never poses a chat question that blocks composing or pushing.
+Steps 1-4 run to completion without pausing or posing a chat question that blocks composing or pushing.
 
-A gap in evidence (a test that couldn't be run locally, a section the digest didn't cover) is recorded as an unchecked box or a caveat instead.
+A gap in evidence (a test that couldn't run locally, a digest section left uncovered) becomes an unchecked box or caveat instead.
 
 Resolve everything below BEFORE dispatching `changes-gatherer` at the end of this step.
 
@@ -47,17 +47,12 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
 - **Resolve the base branch (used by `changes-gatherer` below and by step 4)**: default is `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
   - Empty result (`origin/HEAD` unset) → omit `--base` in step 4; let it fall back to default.
 
-- **The optional `<parent>` arg is this skill's whole stacked-PR surface**: base = the parent's head branch instead of the default.
-  - That base also scopes the changes digest to this PR's own delta, so the parent's commits never leak into the description.
-  - A PR number resolves via `gh pr view <n> --json headRefName`; a branch name is used as-is.
-  - Never inferred: no plan entry, branch ancestry, or open-PR heuristic makes a PR stacked — only the explicit arg does.
-  - Hand the parent to step 2's agent: the body opens with a `Stacks on #<parent>` line right under the title, so the reviewer sees the dependency without leaving the page.
+- **The optional `<parent>` arg is this skill's whole stacked-PR surface** -- when given, base = the parent's head branch instead of the default.
+  - Resolution, digest-scoping, and hand-off rules (only relevant on a run that receives it): [`references/parent-arg.md`](references/parent-arg.md).
 
-  - Chain workflow (propagation, merge order, post-merge sync) belongs to `implement`'s `references/stacked-prs.md`, never to this skill.
-
-- **Ask (A) and (B) in ONE interview, as two separate questions, in a single pre-flight `AskUserQuestion` call**.
+- **Ask (A) and (B) together, as two separate questions, in one pre-flight `AskUserQuestion` call**.
   - Carry both; skip either label that auto-resolved above; skip the call entirely when both auto-resolved.
-  - They resolve different things — which source file to read, and which slice of a multi-PR plan this is — so merging them would force two answers into one choice.
+  - They resolve different things — which source file to read, which plan slice this is — so merging them would force two answers into one choice.
 
   - Any later ambiguity (template fit, checklist evidence, body-size trims) is resolved by that step's own rules, never by a new question.
     - Uncovered case → take the most conservative reading and note it as a caveat in the final report.
@@ -92,7 +87,7 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
 
 **Both gates belong to the agent — never re-run them here, and never hand-fix its prose.**
 
-- It returns only once `check-density.sh` and `check-pr-page-fit.sh` both pass, so a main-session re-run just measures a file that was already measured, and pays a whole second dispatch for anything it flags.
+- It returns only once `check-density.sh` and `check-pr-page-fit.sh` both pass, so a main-session re-run just re-measures an already-measured file and pays for a second dispatch on anything it flags.
 
 **CRITICAL: It writes the IDEAL description in this skill's own format, ignoring any repo template** -- the repo's template is step 3's problem, not its.
 - The format has to stay stable, because `check-pr-page-fit.sh` can only hold a section to its budget when it recognizes that section.
@@ -115,7 +110,7 @@ A full worked example, including the derived appendix from step 1: [`references/
 
 **Meta-principle: reader has no context — provide it.**
 
-The reviewer hasn't read your spec, plan, Jira ticket, or commits. Anything referenced must be self-contained or linked. Be concise but didactic.
+The reviewer hasn't read your spec, plan, ticket, or commits — anything referenced must be self-contained or linked. Be concise but didactic.
 
 **Second meta-principle: a small PR earns a small description** — a guideline, not a hard cap.
 
@@ -158,10 +153,10 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
 - **Check the artifact, not the gates** -- `pr_<slug>_pr<N>.final.md` must exist and be non-empty before anything is pushed.
 
-  - Missing or empty means step 3's agent never finished; re-dispatch it, and never compose a replacement body here.
+  - Missing or empty means step 3's agent never finished; re-dispatch it, never compose a replacement body here.
 
-  - Its density and body-size gates already ran inside that agent, and both ways the body can still be wrong announce themselves.
-    - An over-budget body is visible in the rendered PR, and an over-cap one makes `gh pr create` fail loudly at the API.
+  - Its density and body-size gates already ran inside that agent; a failure still announces itself.
+    - An over-budget body shows in the rendered PR; an over-cap one makes `gh pr create` fail loudly at the API.
 
 - **Push the branch here, never earlier** -- `git push -u origin <branch>` when it has no upstream.
 
