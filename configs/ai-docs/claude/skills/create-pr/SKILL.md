@@ -171,13 +171,17 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
   - The user reviews on GitHub, where the rendered body is the artifact they will actually judge; a chat-side approval would review a different one.
 
+  - **Branch already has an open PR** (`gh pr create` errors that one exists) → not a failure: take that PR's number and continue into step 5 against it.
+    - This is the "or update" half of the description; without it a re-run dead-ends after steps 1-3 already paid for two agent dispatches.
+
 - Return the PR URL.
 
 ### 5. Apply post-push changes
 
-The user may hand-edit the body on GitHub, or ask for a change in chat. Either way:
+Two entry points: a change the user asks for after the push, or step 4 finding the branch already had an open PR. Either way:
 
 - **Pull GitHub's current body into the file first** -- `gh pr view <n> --json body`, so a hand-edit made there is not overwritten by the next push.
+  - Skip this on step 4's already-exists entry: the `.final.md` just composed IS the replacement, so pulling would overwrite it with the body it replaces.
 
 - **Edit `pr_<slug>_pr<N>.final.md` only** -- the `.ideal.md` is deliberately left to drift once the PR exists.
   - Re-deriving the final body from it would discard the user's own edits, and nobody reads the ideal description after the push.
