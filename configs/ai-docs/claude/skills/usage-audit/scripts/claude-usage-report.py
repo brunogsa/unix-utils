@@ -189,31 +189,31 @@ def billing_id(record, message):
 def cache_writes(usage):
     """(5m, 1h) cache-write token counts of one usage record.
 
-    `cache_creation_input_tokens` is the billed total; the `cache_creation` dict
-    only says how that total splits across the two TTLs, which matters because
-    they bill at 1.25x and 2x input. A minority of records disagree with
-    themselves — the split sums to more or less than the total, in both
-    directions — so the total wins and the split is used only as a ratio.
+    The `cache_creation` breakdown is authoritative, not the flat
+    `cache_creation_input_tokens` beside it, which a minority of
+    records zero out while the breakdown keeps the real figure.
 
-    Found by the ccusage token cross-check, which reads the flat field: 10 of 43
-    days drifted up to 2.5%, from 18-odd malformed records out of ~3,000 a day.
-    Trusting the split instead would silently bill tokens that were never billed.
+    Those records carry every flat field at 0 and an `iterations`
+    entry of type `message` holding the true usage, so trusting the
+    flat total drops their cache writes entirely.
+
+    Reading the breakdown instead reconciles cache_write to 0.0000%
+    against ccusage on all 28 retained days (measured 2026-08-09).
+    Trusting the flat total left 4 of them drifting up to 2.5%, in
+    BOTH directions — the sign varies because some records zero the
+    total while others carry one the breakdown no longer matches.
+
+    The split also decides price, not just the count: the two TTLs
+    bill at 1.25x and 2x input.
     """
-    total = usage.get("cache_creation_input_tokens", 0) or 0
     breakdown = usage.get("cache_creation") or {}
     write_5m = breakdown.get("ephemeral_5m_input_tokens", 0) or 0
     write_1h = breakdown.get("ephemeral_1h_input_tokens", 0) or 0
-    split = write_5m + write_1h
-    if split == total:
+    if write_5m or write_1h:
         return write_5m, write_1h
-    if not split:
-        # No usable split — older records predate the breakdown entirely, and
-        # Claude Code writes to the 1h cache.
-        return 0, total
-    # Apportion the authoritative total by the split's own ratio, giving 1h the
-    # remainder so the two always re-sum to it exactly.
-    scaled_5m = round(total * write_5m / split)
-    return scaled_5m, total - scaled_5m
+    # No breakdown at all — older records predate the field, and
+    # Claude Code writes to the 1h cache.
+    return 0, usage.get("cache_creation_input_tokens", 0) or 0
 
 
 def message_cost(model, usage, day=None):

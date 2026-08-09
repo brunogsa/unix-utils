@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-09T13:26:59-03:00",
+  "generated_at": "2026-08-09T13:44:55-03:00",
   "day": "2026-07-26",
   "coverage": "complete",
   "observed_days": 1,
@@ -625,6 +625,6 @@
         "delta_pct": 0.0
       }
     },
-    "ccusage_cost_untrusted": 168.24
+    "ccusage_cost_untrusted": 209.87
   }
 }

@@ -1,17 +1,17 @@
 {
-  "generated_at": "2026-08-09T13:27:15-03:00",
+  "generated_at": "2026-08-09T13:45:11-03:00",
   "day": "2026-07-30",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 64.24,
+    "cost_per_day": 64.2,
     "user_messages": 56,
     "interruptions": 2,
     "session_hours": 19.5,
     "cost_per_user_message": 1.15
   },
-  "total": 64.24,
-  "main_cost": 32.54,
+  "total": 64.2,
+  "main_cost": 32.5,
   "subagent_cost": 31.71,
   "api_calls": {
     "main": 420,
@@ -28,16 +28,16 @@
     "output": 882042,
     "cache_read": 101127857,
     "cache_write_5m": 3282662,
-    "cache_write_1h": 1847252
+    "cache_write_1h": 1838026
   },
   "by_family": {
     "haiku": 3.13,
     "opus": 29.44,
-    "sonnet": 28.08,
+    "sonnet": 28.04,
     "fable": 3.59
   },
   "by_model": {
-    "claude-sonnet-5": 28.08,
+    "claude-sonnet-5": 28.04,
     "claude-opus-5": 25.25,
     "claude-opus-4-7": 4.19,
     "claude-fable-5": 3.59,
@@ -45,19 +45,19 @@
   },
   "by_day": {
     "2026-07-30": {
-      "main": 32.54,
+      "main": 32.5,
       "sub": 31.71
     }
   },
   "by_repo_class": {
     "work": {
-      "cost": 36.22,
+      "cost": 36.21,
       "subagent_cost": 10.83,
       "user_messages": 47,
       "interruptions": 1
     },
     "tooling": {
-      "cost": 28.02,
+      "cost": 27.99,
       "subagent_cost": 20.88,
       "user_messages": 9,
       "interruptions": 1
@@ -347,15 +347,15 @@
         "output": 81931,
         "cache_read": 22662037,
         "cache_write_5m": 0,
-        "cache_write_1h": 666782
+        "cache_write_1h": 665657
       },
-      "cache_hit_rate": 0.966,
+      "cache_hit_rate": 0.967,
       "skills": {}
     },
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/c9256d3d-362a-4f78-92fd-9bc823911df0.jsonl",
       "title": "",
-      "cost": 7.14,
+      "cost": 7.11,
       "subagent_cost": 20.88,
       "api_calls": 68,
       "duration_hours": 8.7,
@@ -367,9 +367,9 @@
         "output": 89854,
         "cache_read": 7723185,
         "cache_write_5m": 0,
-        "cache_write_1h": 622780
+        "cache_write_1h": 614679
       },
-      "cache_hit_rate": 0.914,
+      "cache_hit_rate": 0.915,
       "skills": {}
     },
     {
@@ -500,7 +500,7 @@
   ],
   "reconciliation": {
     "status": "ok",
-    "worst_delta_pct": 0.18,
+    "worst_delta_pct": 0.002,
     "tokens": {
       "input": {
         "script": 1095265,
@@ -518,12 +518,12 @@
         "delta_pct": 0.0
       },
       "cache_write": {
-        "script": 5129914,
+        "script": 5120688,
         "ccusage": 5120688,
-        "delta_pct": 0.18
+        "delta_pct": 0.0
       }
     },
-    "ccusage_cost_untrusted": 54.39
+    "ccusage_cost_untrusted": 52.21
   },
   "ab_tests": {
     "review-isolation": {

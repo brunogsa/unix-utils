@@ -1,17 +1,17 @@
 {
-  "generated_at": "2026-08-09T13:26:32-03:00",
+  "generated_at": "2026-08-09T13:44:28-03:00",
   "day": "2026-07-22",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 132.96,
+    "cost_per_day": 133.1,
     "user_messages": 106,
     "interruptions": 2,
     "session_hours": 30.1,
-    "cost_per_user_message": 1.25
+    "cost_per_user_message": 1.26
   },
-  "total": 132.96,
-  "main_cost": 104.13,
+  "total": 133.1,
+  "main_cost": 104.27,
   "subagent_cost": 28.83,
   "api_calls": {
     "main": 1117,
@@ -28,28 +28,28 @@
     "output": 1750615,
     "cache_read": 163798675,
     "cache_write_5m": 3087133,
-    "cache_write_1h": 5551728
+    "cache_write_1h": 5566653
   },
   "by_family": {
     "haiku": 1.67,
-    "opus": 86.93,
-    "sonnet": 44.36
+    "opus": 87.05,
+    "sonnet": 44.37
   },
   "by_model": {
-    "claude-opus-4-8": 84.53,
-    "claude-sonnet-5": 44.36,
+    "claude-opus-4-8": 84.65,
+    "claude-sonnet-5": 44.37,
     "claude-opus-4-7": 2.4,
     "claude-haiku-4-5": 1.67
   },
   "by_day": {
     "2026-07-22": {
-      "main": 104.13,
+      "main": 104.27,
       "sub": 28.83
     }
   },
   "by_repo_class": {
     "work": {
-      "cost": 132.96,
+      "cost": 133.1,
       "subagent_cost": 28.83,
       "user_messages": 106,
       "interruptions": 2
@@ -85,7 +85,7 @@
   },
   "by_skill": {
     "commit-standards": {
-      "cost": 102.5,
+      "cost": 102.62,
       "invocations": 3,
       "sessions": 3,
       "compactions": 18,
@@ -95,11 +95,11 @@
         "output": 1271737,
         "cache_read": 110148508,
         "cache_write_5m": 2546572,
-        "cache_write_1h": 3023763
+        "cache_write_1h": 3034864
       },
       "by_repo_class": {
         "work": {
-          "cost": 102.5,
+          "cost": 102.62,
           "invocations": 3,
           "sessions": 3
         },
@@ -111,7 +111,7 @@
       }
     },
     "jira-cli": {
-      "cost": 48.73,
+      "cost": 48.74,
       "invocations": 7,
       "sessions": 7,
       "compactions": 14,
@@ -121,11 +121,11 @@
         "output": 749652,
         "cache_read": 87449892,
         "cache_write_5m": 1085480,
-        "cache_write_1h": 2954610
+        "cache_write_1h": 2957236
       },
       "by_repo_class": {
         "work": {
-          "cost": 48.73,
+          "cost": 48.74,
           "invocations": 7,
           "sessions": 7
         },
@@ -147,7 +147,7 @@
         "output": 328900,
         "cache_read": 38237716,
         "cache_write_5m": 806469,
-        "cache_write_1h": 621420
+        "cache_write_1h": 620222
       },
       "by_repo_class": {
         "work": {
@@ -173,7 +173,7 @@
         "output": 328900,
         "cache_read": 38237716,
         "cache_write_5m": 806469,
-        "cache_write_1h": 621420
+        "cache_write_1h": 620222
       },
       "by_repo_class": {
         "work": {
@@ -244,13 +244,13 @@
   "by_skill_marginal": {
     "commit-standards": {
       "dedicated_sessions": 1,
-      "dedicated_cost": 76.62,
+      "dedicated_cost": 76.74,
       "mixed_sessions": 2,
       "mixed_cost_estimate": 0.71,
       "by_repo_class": {
         "work": {
           "dedicated_sessions": 1,
-          "dedicated_cost": 76.62,
+          "dedicated_cost": 76.74,
           "mixed_sessions": 2,
           "mixed_cost_estimate": 0.71
         },
@@ -264,13 +264,13 @@
     },
     "jira-cli": {
       "dedicated_sessions": 6,
-      "dedicated_cost": 26.57,
+      "dedicated_cost": 26.59,
       "mixed_sessions": 1,
       "mixed_cost_estimate": 0.46,
       "by_repo_class": {
         "work": {
           "dedicated_sessions": 6,
-          "dedicated_cost": 26.57,
+          "dedicated_cost": 26.59,
           "mixed_sessions": 1,
           "mixed_cost_estimate": 0.46
         },
@@ -286,13 +286,13 @@
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 17.19,
+      "mixed_cost_estimate": 17.18,
       "by_repo_class": {
         "work": {
           "dedicated_sessions": 0,
           "dedicated_cost": 0.0,
           "mixed_sessions": 1,
-          "mixed_cost_estimate": 17.19
+          "mixed_cost_estimate": 17.18
         },
         "tooling": {
           "dedicated_sessions": 0,
@@ -367,7 +367,7 @@
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-integrator-3283/dac6fb26-d84e-468b-b656-e856fd69535b.jsonl",
       "title": "",
-      "cost": 63.8,
+      "cost": 63.93,
       "subagent_cost": 12.81,
       "api_calls": 440,
       "duration_hours": 8.8,
@@ -379,9 +379,9 @@
         "output": 617124,
         "cache_read": 50776116,
         "cache_write_5m": 0,
-        "cache_write_1h": 2298260
+        "cache_write_1h": 2310559
       },
-      "cache_hit_rate": 0.957,
+      "cache_hit_rate": 0.956,
       "skills": {
         "commit-standards": 1
       }
@@ -401,7 +401,7 @@
         "output": 105248,
         "cache_read": 20656717,
         "cache_write_5m": 0,
-        "cache_write_1h": 621420
+        "cache_write_1h": 620222
       },
       "cache_hit_rate": 0.965,
       "skills": {
@@ -414,7 +414,7 @@
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-integrator-3341/0a7a10ad-5e2c-423f-aa05-4c7cc0733c14.jsonl",
       "title": "",
-      "cost": 7.92,
+      "cost": 7.95,
       "subagent_cost": 0.22,
       "api_calls": 144,
       "duration_hours": 4.9,
@@ -426,7 +426,7 @@
         "output": 106709,
         "cache_read": 16743339,
         "cache_write_5m": 0,
-        "cache_write_1h": 710731
+        "cache_write_1h": 716242
       },
       "cache_hit_rate": 0.953,
       "skills": {
@@ -470,7 +470,7 @@
         "output": 82466,
         "cache_read": 9407730,
         "cache_write_5m": 0,
-        "cache_write_1h": 355934
+        "cache_write_1h": 354014
       },
       "cache_hit_rate": 0.952,
       "skills": {
@@ -492,7 +492,7 @@
         "output": 52480,
         "cache_read": 3538483,
         "cache_write_5m": 0,
-        "cache_write_1h": 197397
+        "cache_write_1h": 197630
       },
       "cache_hit_rate": 0.895,
       "skills": {
@@ -548,7 +548,7 @@
   ],
   "reconciliation": {
     "status": "ok",
-    "worst_delta_pct": 0.172,
+    "worst_delta_pct": 0.001,
     "tokens": {
       "input": {
         "script": 1143371,
@@ -566,9 +566,9 @@
         "delta_pct": 0.0
       },
       "cache_write": {
-        "script": 8638861,
+        "script": 8653786,
         "ccusage": 8653786,
-        "delta_pct": -0.172
+        "delta_pct": 0.0
       }
     },
     "ccusage_cost_untrusted": 133.1

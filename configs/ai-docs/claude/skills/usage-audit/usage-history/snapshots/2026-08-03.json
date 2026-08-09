@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-09T13:27:27-03:00",
+  "generated_at": "2026-08-09T13:45:23-03:00",
   "day": "2026-08-03",
   "coverage": "complete",
   "observed_days": 1,
@@ -19,7 +19,7 @@
   },
   "compactions": 5,
   "session_count": 12,
-  "cache_hit_rate": 0.941,
+  "cache_hit_rate": 0.942,
   "thinking_blocks": 695,
   "text_blocks": 271,
   "thinking_block_share": 0.719,
@@ -28,16 +28,16 @@
     "output": 597250,
     "cache_read": 63970996,
     "cache_write_5m": 2038302,
-    "cache_write_1h": 1754354
+    "cache_write_1h": 1753217
   },
   "by_family": {
     "haiku": 2.56,
-    "sonnet": 15.18,
-    "opus": 27.37
+    "sonnet": 15.17,
+    "opus": 27.38
   },
   "by_model": {
-    "claude-opus-5": 26.03,
-    "claude-sonnet-5": 15.18,
+    "claude-opus-5": 26.04,
+    "claude-sonnet-5": 15.17,
     "claude-haiku-4-5": 2.56,
     "claude-opus-4-7": 1.34
   },
@@ -155,7 +155,7 @@
         "output": 146066,
         "cache_read": 15336549,
         "cache_write_5m": 451467,
-        "cache_write_1h": 517420
+        "cache_write_1h": 515400
       },
       "by_repo_class": {
         "work": {
@@ -181,7 +181,7 @@
         "output": 146066,
         "cache_read": 15336549,
         "cache_write_5m": 451467,
-        "cache_write_1h": 517420
+        "cache_write_1h": 515400
       },
       "by_repo_class": {
         "work": {
@@ -207,7 +207,7 @@
         "output": 146066,
         "cache_read": 15336549,
         "cache_write_5m": 451467,
-        "cache_write_1h": 517420
+        "cache_write_1h": 515400
       },
       "by_repo_class": {
         "work": {
@@ -441,7 +441,7 @@
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-integrator/50b695a2-f159-41ee-9623-8957f7eeebb7.jsonl",
       "title": "",
-      "cost": 6.88,
+      "cost": 6.89,
       "subagent_cost": 0.0,
       "api_calls": 48,
       "duration_hours": 0.8,
@@ -453,9 +453,9 @@
         "output": 46492,
         "cache_read": 5318604,
         "cache_write_5m": 0,
-        "cache_write_1h": 305669
+        "cache_write_1h": 306552
       },
-      "cache_hit_rate": 0.946,
+      "cache_hit_rate": 0.945,
       "skills": {}
     },
     {
@@ -484,7 +484,7 @@
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-error-monitor/a5063804-4884-4e1e-8507-4061c7f5932a.jsonl",
       "title": "",
-      "cost": 5.09,
+      "cost": 5.08,
       "subagent_cost": 3.28,
       "api_calls": 81,
       "duration_hours": 7.6,
@@ -496,7 +496,7 @@
         "output": 60559,
         "cache_read": 8589369,
         "cache_write_5m": 0,
-        "cache_write_1h": 517420
+        "cache_write_1h": 515400
       },
       "cache_hit_rate": 0.931,
       "skills": {
@@ -612,11 +612,11 @@
         "delta_pct": -0.254
       },
       "cache_write": {
-        "script": 3792656,
+        "script": 3791519,
         "ccusage": 3791519,
-        "delta_pct": 0.03
+        "delta_pct": 0.0
       }
     },
-    "ccusage_cost_untrusted": 39.03
+    "ccusage_cost_untrusted": 19.48
   }
 }

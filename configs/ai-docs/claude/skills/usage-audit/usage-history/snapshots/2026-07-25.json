@@ -1,17 +1,17 @@
 {
-  "generated_at": "2026-08-09T13:26:54-03:00",
+  "generated_at": "2026-08-09T13:44:49-03:00",
   "day": "2026-07-25",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 247.58,
+    "cost_per_day": 247.44,
     "user_messages": 157,
     "interruptions": 20,
     "session_hours": 17.0,
     "cost_per_user_message": 1.58
   },
-  "total": 247.58,
-  "main_cost": 175.15,
+  "total": 247.44,
+  "main_cost": 175.01,
   "subagent_cost": 72.43,
   "api_calls": {
     "main": 1687,
@@ -28,24 +28,24 @@
     "output": 2453610,
     "cache_read": 253467331,
     "cache_write_5m": 5280269,
-    "cache_write_1h": 6443217
+    "cache_write_1h": 6422621
   },
   "by_family": {
-    "opus": 213.82,
+    "opus": 213.72,
     "haiku": 1.26,
-    "sonnet": 29.58,
+    "sonnet": 29.54,
     "fable": 2.92
   },
   "by_model": {
-    "claude-opus-5": 210.0,
-    "claude-sonnet-5": 29.58,
+    "claude-opus-5": 209.9,
+    "claude-sonnet-5": 29.54,
     "claude-opus-4-7": 3.82,
     "claude-fable-5": 2.92,
     "claude-haiku-4-5": 1.26
   },
   "by_day": {
     "2026-07-25": {
-      "main": 175.15,
+      "main": 175.01,
       "sub": 72.43
     }
   },
@@ -57,7 +57,7 @@
       "interruptions": 0
     },
     "tooling": {
-      "cost": 247.58,
+      "cost": 247.44,
       "subagent_cost": 72.43,
       "user_messages": 157,
       "interruptions": 20
@@ -281,7 +281,7 @@
       }
     },
     "usage-audit": {
-      "cost": 38.79,
+      "cost": 38.7,
       "invocations": 1,
       "sessions": 1,
       "compactions": 9,
@@ -291,7 +291,7 @@
         "output": 305816,
         "cache_read": 40276191,
         "cache_write_5m": 39916,
-        "cache_write_1h": 1742401
+        "cache_write_1h": 1732828
       },
       "by_repo_class": {
         "work": {
@@ -300,14 +300,14 @@
           "sessions": 0
         },
         "tooling": {
-          "cost": 38.79,
+          "cost": 38.7,
           "invocations": 1,
           "sessions": 1
         }
       }
     },
     "implement": {
-      "cost": 22.52,
+      "cost": 22.48,
       "invocations": 1,
       "sessions": 1,
       "compactions": 3,
@@ -317,7 +317,7 @@
         "output": 326755,
         "cache_read": 39485041,
         "cache_write_5m": 1413573,
-        "cache_write_1h": 531871
+        "cache_write_1h": 520848
       },
       "by_repo_class": {
         "work": {
@@ -326,7 +326,7 @@
           "sessions": 0
         },
         "tooling": {
-          "cost": 22.52,
+          "cost": 22.48,
           "invocations": 1,
           "sessions": 1
         }
@@ -454,7 +454,7 @@
     },
     "usage-audit": {
       "dedicated_sessions": 1,
-      "dedicated_cost": 38.79,
+      "dedicated_cost": 38.7,
       "mixed_sessions": 0,
       "mixed_cost_estimate": 0.0,
       "by_repo_class": {
@@ -466,7 +466,7 @@
         },
         "tooling": {
           "dedicated_sessions": 1,
-          "dedicated_cost": 38.79,
+          "dedicated_cost": 38.7,
           "mixed_sessions": 0,
           "mixed_cost_estimate": 0.0
         }
@@ -494,7 +494,7 @@
     },
     "implement": {
       "dedicated_sessions": 1,
-      "dedicated_cost": 22.52,
+      "dedicated_cost": 22.48,
       "mixed_sessions": 0,
       "mixed_cost_estimate": 0.0,
       "by_repo_class": {
@@ -506,7 +506,7 @@
         },
         "tooling": {
           "dedicated_sessions": 1,
-          "dedicated_cost": 22.52,
+          "dedicated_cost": 22.48,
           "mixed_sessions": 0,
           "mixed_cost_estimate": 0.0
         }
@@ -682,7 +682,7 @@
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/4cc3c70f-cd89-49fb-b18d-aec5e8c7ee16.jsonl",
       "title": "",
-      "cost": 38.65,
+      "cost": 38.55,
       "subagent_cost": 0.15,
       "api_calls": 347,
       "duration_hours": 2.7,
@@ -694,7 +694,7 @@
         "output": 296238,
         "cache_read": 39787853,
         "cache_write_5m": 0,
-        "cache_write_1h": 1742401
+        "cache_write_1h": 1732828
       },
       "cache_hit_rate": 0.941,
       "skills": {
@@ -754,7 +754,7 @@
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/9f787938-243b-4d08-b62e-0865570ba3d5.jsonl",
       "title": "",
-      "cost": 7.91,
+      "cost": 7.87,
       "subagent_cost": 14.61,
       "api_calls": 146,
       "duration_hours": 3.1,
@@ -766,7 +766,7 @@
         "output": 106301,
         "cache_read": 16072004,
         "cache_write_5m": 0,
-        "cache_write_1h": 531871
+        "cache_write_1h": 520848
       },
       "cache_hit_rate": 0.952,
       "skills": {
@@ -847,7 +847,7 @@
   ],
   "reconciliation": {
     "status": "ok",
-    "worst_delta_pct": 0.176,
+    "worst_delta_pct": 0.002,
     "tokens": {
       "input": {
         "script": 2004774,
@@ -865,11 +865,11 @@
         "delta_pct": 0.0
       },
       "cache_write": {
-        "script": 11723486,
+        "script": 11702890,
         "ccusage": 11702890,
-        "delta_pct": 0.176
+        "delta_pct": 0.0
       }
     },
-    "ccusage_cost_untrusted": 195.35
+    "ccusage_cost_untrusted": 147.88
   }
 }

@@ -140,7 +140,7 @@ Four rows divide by what actually **shipped**, sourced from `delivered-work.json
 
   - The raw-count rows exist so a suspicious quotient can be traced back to its denominator rather than trusted.
 
-- Expect a thin sample: of the 17 citable days, 9 feed `Cost per shipped commit` and 10 feed `Cost per merged PR`.
+- Expect a thin sample: of the 27 citable days, 13 feed `Cost per shipped commit` and 14 feed `Cost per merged PR`.
 
 ### Work time per merged PR
 
@@ -222,19 +222,27 @@ Measured over 2026-06-14..2026-08-08: **150.4 hours across 23 attributable PRs, 
 
   - `status` is `ok` (within 0.5%), `drift` (counting disagrees — treat the day as unverified), or `unavailable` (ccusage not installed or failed).
 
-  - After the peak-`cache_read` fix **26 of the 56 days read `ok` and 5 read `drift`**; the other 25 are `unretained` or `partial` and carry no verdict at all.
+  - After the peak-`cache_read` and breakdown-`cache_write` fixes **every one of the 30 retained days reads `ok`**, all four buckets at 0.0000%.
 
-    - 2026-06-14's `drift` is the verdict of the run that measured it. Its transcripts are since pruned, so that day can never be re-checked either way.
+    - The other 26 days are `unretained` or `partial` and carry no verdict at all.
+
+    - 2026-06-14 is the lone `drift`, and that is the verdict of the run that measured it. Its transcripts are since pruned, so that day can never be re-checked either way.
 
   - Read a day's `status` before citing any figure from it; a `drift` day is not evidence in either direction.
 
-  - The residual drift is an open defect, not a tolerance, but it is now confined to `cache_write` alone and to under 2.6%.
+  - Two real defects produced every drift the retained window ever showed, and the sign of each gave it away.
 
-    - `cache_write` on 2026-07-23 (2.5% under) is the widest. `input`, `output` and `cache_read` reconcile exactly on every retained day.
+    - `cache_read` drifted one way only, always negative, because the anchor record of a response carries a partial `cache_read_input_tokens` and pricing it under-billed the day.
 
-    - It runs in both directions — 2026-07-14 counts 1.0% ABOVE ccusage — so it reads as a TTL-split rounding disagreement, not as records one side never opened.
+      - Billing the peak block instead matches ccusage to the token and flipped 7 days from `drift` to `ok`.
 
-    - The `cache_read` half of this drift WAS a real defect, and its sign gave it away: always negative, never positive. The anchor record of a response carries a partial `cache_read_input_tokens`, so pricing it under-billed the day. Billing the peak block instead matches ccusage to the token and flipped 7 days from `drift` to `ok`.
+    - `cache_write` drifted in BOTH directions, up to 2.5%, which ruled out that same under-billing class and pointed at the value read rather than the records counted.
+
+    - The cause: a minority of records zero every flat usage field while the `cache_creation` breakdown keeps the real figure, alongside an `iterations` entry of type `message` holding the true usage.
+
+      - Summing the breakdown rather than trusting `cache_creation_input_tokens` reconciles all 30 retained days exactly, and flipped the last 4 to `ok`.
+
+    - That correction moved the 56-day total by $1.67 (+0.03%) — it buys citability, not dollars, because `cache_write` runs 7-20M tokens a day against `cache_read`'s 126-310M.
 
   - **The former 24-34% outlier on 2026-07-09 was never a counting bug: the retention prune ran mid-rebuild, between the one ccusage priming call and that day's scan.**
 

@@ -1,17 +1,17 @@
 {
-  "generated_at": "2026-08-09T13:24:48-03:00",
+  "generated_at": "2026-08-09T13:42:43-03:00",
   "day": "2026-07-11",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 67.68,
+    "cost_per_day": 67.76,
     "user_messages": 46,
     "interruptions": 5,
     "session_hours": 8.9,
     "cost_per_user_message": 1.47
   },
-  "total": 67.68,
-  "main_cost": 54.72,
+  "total": 67.76,
+  "main_cost": 54.81,
   "subagent_cost": 12.96,
   "api_calls": {
     "main": 421,
@@ -28,28 +28,28 @@
     "output": 782092,
     "cache_read": 65961191,
     "cache_write_5m": 1486957,
-    "cache_write_1h": 1881452
+    "cache_write_1h": 1890101
   },
   "by_family": {
     "haiku": 1.65,
-    "opus": 61.26,
+    "opus": 61.35,
     "sonnet": 4.76
   },
   "by_model": {
-    "claude-opus-4-8": 60.67,
+    "claude-opus-4-8": 60.75,
     "claude-sonnet-5": 4.76,
     "claude-haiku-4-5": 1.65,
     "claude-opus-4-7": 0.59
   },
   "by_day": {
     "2026-07-11": {
-      "main": 54.72,
+      "main": 54.81,
       "sub": 12.96
     }
   },
   "by_repo_class": {
     "work": {
-      "cost": 64.25,
+      "cost": 64.34,
       "subagent_cost": 12.88,
       "user_messages": 37,
       "interruptions": 5
@@ -133,7 +133,7 @@
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-integrator/c59967ca-5765-4285-ac16-6a157812b434.jsonl",
       "title": "",
-      "cost": 41.95,
+      "cost": 42.04,
       "subagent_cost": 5.53,
       "api_calls": 300,
       "duration_hours": 3.2,
@@ -145,9 +145,9 @@
         "output": 438516,
         "cache_read": 34449747,
         "cache_write_5m": 0,
-        "cache_write_1h": 1375963
+        "cache_write_1h": 1384612
       },
-      "cache_hit_rate": 0.962,
+      "cache_hit_rate": 0.961,
       "skills": {}
     },
     {
@@ -255,7 +255,7 @@
   ],
   "reconciliation": {
     "status": "ok",
-    "worst_delta_pct": 0.256,
+    "worst_delta_pct": 0.001,
     "tokens": {
       "input": {
         "script": 159017,
@@ -273,9 +273,9 @@
         "delta_pct": 0.0
       },
       "cache_write": {
-        "script": 3368409,
+        "script": 3377058,
         "ccusage": 3377058,
-        "delta_pct": -0.256
+        "delta_pct": 0.0
       }
     },
     "ccusage_cost_untrusted": 67.76

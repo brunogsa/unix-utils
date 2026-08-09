@@ -1,17 +1,17 @@
 {
-  "generated_at": "2026-08-09T13:27:24-03:00",
+  "generated_at": "2026-08-09T13:45:20-03:00",
   "day": "2026-08-02",
   "coverage": "complete",
   "observed_days": 1,
   "kpis": {
-    "cost_per_day": 16.81,
+    "cost_per_day": 16.8,
     "user_messages": 2,
     "interruptions": 1,
     "session_hours": 1.9,
-    "cost_per_user_message": 8.41
+    "cost_per_user_message": 8.4
   },
-  "total": 16.81,
-  "main_cost": 4.51,
+  "total": 16.8,
+  "main_cost": 4.49,
   "subagent_cost": 12.3,
   "api_calls": {
     "main": 84,
@@ -28,25 +28,25 @@
     "output": 320210,
     "cache_read": 35456527,
     "cache_write_5m": 1025377,
-    "cache_write_1h": 303041
+    "cache_write_1h": 298575
   },
   "by_family": {
-    "sonnet": 13.79,
+    "sonnet": 13.77,
     "opus": 3.02
   },
   "by_model": {
-    "claude-sonnet-5": 13.79,
+    "claude-sonnet-5": 13.77,
     "claude-opus-5": 3.02
   },
   "by_day": {
     "2026-08-02": {
-      "main": 4.51,
+      "main": 4.49,
       "sub": 12.3
     }
   },
   "by_repo_class": {
     "work": {
-      "cost": 16.81,
+      "cost": 16.8,
       "subagent_cost": 12.3,
       "user_messages": 2,
       "interruptions": 1
@@ -74,7 +74,7 @@
   },
   "by_skill": {
     "core:agent-onboard": {
-      "cost": 16.67,
+      "cost": 16.65,
       "invocations": 3,
       "sessions": 1,
       "compactions": 2,
@@ -84,11 +84,11 @@
         "output": 319373,
         "cache_read": 35426811,
         "cache_write_5m": 1025377,
-        "cache_write_1h": 271053
+        "cache_write_1h": 266587
       },
       "by_repo_class": {
         "work": {
-          "cost": 16.67,
+          "cost": 16.65,
           "invocations": 3,
           "sessions": 1
         },
@@ -100,7 +100,7 @@
       }
     },
     "core:agent-readiness": {
-      "cost": 16.67,
+      "cost": 16.65,
       "invocations": 1,
       "sessions": 1,
       "compactions": 2,
@@ -110,11 +110,11 @@
         "output": 319373,
         "cache_read": 35426811,
         "cache_write_5m": 1025377,
-        "cache_write_1h": 271053
+        "cache_write_1h": 266587
       },
       "by_repo_class": {
         "work": {
-          "cost": 16.67,
+          "cost": 16.65,
           "invocations": 1,
           "sessions": 1
         },
@@ -151,13 +151,13 @@
       "dedicated_sessions": 0,
       "dedicated_cost": 0.0,
       "mixed_sessions": 1,
-      "mixed_cost_estimate": 2.11,
+      "mixed_cost_estimate": 2.09,
       "by_repo_class": {
         "work": {
           "dedicated_sessions": 0,
           "dedicated_cost": 0.0,
           "mixed_sessions": 1,
-          "mixed_cost_estimate": 2.11
+          "mixed_cost_estimate": 2.09
         },
         "tooling": {
           "dedicated_sessions": 0,
@@ -172,7 +172,7 @@
     {
       "path": "/Users/brunoagostini/.claude/projects/-Users-brunoagostini-workspace-code-team-engineering-arco2-error-monitor/a5063804-4884-4e1e-8507-4061c7f5932a.jsonl",
       "title": "",
-      "cost": 4.37,
+      "cost": 4.35,
       "subagent_cost": 12.3,
       "api_calls": 83,
       "duration_hours": 1.9,
@@ -184,7 +184,7 @@
         "output": 87716,
         "cache_read": 8750495,
         "cache_write_5m": 0,
-        "cache_write_1h": 271053
+        "cache_write_1h": 266587
       },
       "cache_hit_rate": 0.959,
       "skills": {
@@ -215,7 +215,7 @@
   ],
   "reconciliation": {
     "status": "ok",
-    "worst_delta_pct": 0.336,
+    "worst_delta_pct": 0.001,
     "tokens": {
       "input": {
         "script": 465276,
@@ -233,11 +233,11 @@
         "delta_pct": 0.0
       },
       "cache_write": {
-        "script": 1328418,
+        "script": 1323952,
         "ccusage": 1323952,
-        "delta_pct": 0.336
+        "delta_pct": 0.0
       }
     },
-    "ccusage_cost_untrusted": 16.02
+    "ccusage_cost_untrusted": 15.28
   }
 }

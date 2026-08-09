@@ -69,15 +69,24 @@ def _advisor_iteration(*, input_tokens, output_tokens, model="claude-opus-5"):
 
 def _assistant_record(message_id, request_id, epoch, *, input_tokens, output_tokens,
                        cache_read_tokens=0, model="claude-sonnet-5", speed=None,
-                       advisor_iterations=None, cwd=None, skills=()):
+                       advisor_iterations=None, cwd=None, skills=(),
+                       cache_write_5m=0, cache_write_1h=0,
+                       cache_creation_total=None):
     """One transcript line for a single content-block of an assistant
-    response, shaped like a real Claude Code transcript record."""
+    response, shaped like a real Claude Code transcript record.
+
+    `cache_creation_total` defaults to the two TTL buckets' sum, which
+    is what a well-formed record carries; pass it explicitly only to
+    build the malformed shape where the flat field disagrees."""
+    if cache_creation_total is None:
+        cache_creation_total = cache_write_5m + cache_write_1h
     usage = {
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
         "cache_read_input_tokens": cache_read_tokens,
-        "cache_creation_input_tokens": 0,
-        "cache_creation": {"ephemeral_5m_input_tokens": 0, "ephemeral_1h_input_tokens": 0},
+        "cache_creation_input_tokens": cache_creation_total,
+        "cache_creation": {"ephemeral_5m_input_tokens": cache_write_5m,
+                           "ephemeral_1h_input_tokens": cache_write_1h},
     }
     if speed is not None:
         usage["speed"] = speed
@@ -278,6 +287,52 @@ class TestBillingCorrectness(unittest.TestCase):
             msg="the response must bill its peak cache_read_input_tokens "
                 "(1200), not the anchor block's 200 (under-bills) and not "
                 "the sum 1900 (over-bills)")
+
+    def test_a_response_whose_flat_cache_creation_field_is_zeroed_still_bills_the_ttl_breakdown(self):
+        """A minority of records zero every flat usage field while the
+        cache_creation breakdown keeps the real figure, so a response
+        reporting 0 in cache_creation_input_tokens but 8000 1h-TTL tokens
+        in the breakdown must bill those 8000. Trusting the flat field
+        dropped them entirely and left 4 days drifting below ccusage.
+        Regression for the bug fixed 2026-08-09."""
+        day = "2026-07-23"
+        since, until = cur.day_bounds(day)
+        record = _assistant_record(
+            "msg_zeroed", "req_zeroed", since + 3600,
+            input_tokens=0, output_tokens=0,
+            cache_write_1h=8000, cache_creation_total=0)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "session.jsonl", [record])
+            result = cur.aggregate([path], [], since, until)
+
+        price_in = cur.SONNET_5_INTRO_PRICES[0]
+        self.assertAlmostEqual(
+            result["main_cost"], 8000 * price_in * 2 / 1e6, places=6,
+            msg="the breakdown's 8000 1h-TTL tokens must bill at 2x input, "
+                "not be dropped because the flat field reads 0")
+        self.assertEqual(
+            result["tokens"]["cache_write_1h"], 8000,
+            msg="the 1h bucket must carry the breakdown's own figure")
+
+    def test_a_response_with_no_cache_creation_breakdown_bills_its_flat_total_as_one_hour_tokens(self):
+        """Records predating the cache_creation breakdown carry only the
+        flat total, and Claude Code writes to the 1h cache, so a record
+        with an all-zero breakdown and 5000 flat tokens must still bill
+        those 5000 at the 1h rate rather than vanish."""
+        day = "2026-07-23"
+        since, until = cur.day_bounds(day)
+        record = _assistant_record(
+            "msg_flatonly", "req_flatonly", since + 3600,
+            input_tokens=0, output_tokens=0, cache_creation_total=5000)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "session.jsonl", [record])
+            result = cur.aggregate([path], [], since, until)
+
+        self.assertEqual(
+            (result["tokens"]["cache_write_5m"],
+             result["tokens"]["cache_write_1h"]), (0, 5000),
+            msg="with no breakdown to read, the flat total is the only "
+                "figure available and belongs to the 1h bucket")
 
     def test_a_response_straddling_local_midnight_bills_once_to_the_earlier_local_day(self):
         """A response whose content-block records straddle local midnight
