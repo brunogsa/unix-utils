@@ -21,9 +21,9 @@ The three KPIs (defined in `./usage-history/README.md`): **session time up** (lo
 
 ### Step 0 — Seed the TaskList before running anything
 
-- **Create one `[Reminder]` TaskList entry per remaining step (1 through 7)** before the first script runs.
+- **Seed steps 1 through 7 before the first script runs**, per CLAUDE.md's `[Reminder]` category.
 
-  - A backfill runs minutes and the interview several turns, so a compaction lands mid-run; the TaskList is the only surface that survives it.
+  - A backfill runs minutes and the interview several turns, so a compaction reliably lands mid-run here.
 
 - **Never collapse the seven into one "run the audit" entry.**
 

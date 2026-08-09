@@ -40,7 +40,7 @@ Step 1 settles one of two. Every step below reads it back from `/tmp/sdd_<sessio
 
 ## Process
 
-**Once step 1 settles the mode**, seed the TaskList with one `[Reminder]` per remaining step, in order, and update each as it completes.
+**Once step 1 settles the mode**, seed the TaskList per CLAUDE.md's `[Reminder]` category — the mode decides which steps exist.
 
 Seed the step 7 and step 10 review reminders only at `full` with the self-review toggle on — a reminder no run can complete is one that stalls the list.
 

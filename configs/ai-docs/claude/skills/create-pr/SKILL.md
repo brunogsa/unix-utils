@@ -20,7 +20,7 @@ Read it before drafting or reviewing a PR body; `pr-writer` loads it every dispa
 
 ## Process
 
-**Seed the TaskList before step 1 runs** -- one `[Reminder]` entry for each of steps 1-4, in execution order.
+**Seed the TaskList before step 1 runs** -- steps 1-4 only, per CLAUDE.md's `[Reminder]` category.
 
 - Step 5 gets no entry -- it runs only if the user asks for a change after the push, so a pending reminder would never complete.
 
