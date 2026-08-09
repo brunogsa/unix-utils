@@ -617,6 +617,143 @@ EOF
   assert_nonempty "should exit 1 when a non-shadow file's frontmatter has no model key (diagnostic present)" "$VERDICT_OUT"
 }
 
+it_should_exit_0_when_a_description_lands_on_exactly_the_character_budget() {
+  local dir="$work_dir/happy-description-at-cap"
+  mkdir -p "$dir"
+  cat > "$dir/at-cap-description-agent.md" <<'EOF'
+---
+name: at-cap-description-agent
+description: Sample agent used for fixture testing, with a description written deliberately to land on exactly the two-hundred-and-fifty character budget so the length gate has its permitted boundary pinned, padded with filler carrying no meaning.................
+model: sonnet
+---
+
+## Objective
+
+Search the codebase for a pattern and report every match.
+
+## Inputs
+
+- The search query string.
+
+## Sources and tools
+
+- Grep and Glob for search.
+
+## Procedure
+
+1. Run the search.
+2. Summarize the results.
+
+## Boundaries
+
+- Never modify any file found during the search.
+
+## Report format
+
+- **Matches**: file:line pairs found, or none.
+EOF
+  run_script "$dir"
+  assert_eq "should exit 0 when a description lands on exactly the character budget" "0" "$VERDICT_EXIT"
+}
+
+it_should_exit_1_when_a_non_shadow_description_exceeds_the_character_budget() {
+  local dir="$work_dir/failure-long-description"
+  mkdir -p "$dir"
+  cat > "$dir/long-description-agent.md" <<'EOF'
+---
+name: long-description-agent
+description: Sample agent used for fixture testing, with a description written deliberately past the two-hundred-and-fifty character budget so the length gate has something real to flag, padded here with filler that carries no meaning at all beyond its own length.
+model: sonnet
+---
+
+## Objective
+
+Search the codebase for a pattern and report every match.
+
+## Inputs
+
+- The search query string.
+
+## Sources and tools
+
+- Grep and Glob for search.
+
+## Procedure
+
+1. Run the search.
+2. Summarize the results.
+
+## Boundaries
+
+- Never modify any file found during the search.
+
+## Report format
+
+- **Matches**: file:line pairs found, or none.
+EOF
+  run_script "$dir"
+  assert_eq "should exit 1 when a non-shadow description exceeds the character budget (exit code)" "1" "$VERDICT_EXIT"
+  assert_nonempty "should exit 1 when a non-shadow description exceeds the character budget (diagnostic present)" "$VERDICT_OUT"
+}
+
+it_should_exit_0_when_a_shadow_files_description_exceeds_the_character_budget() {
+  local dir="$work_dir/happy-long-shadow-description"
+  mkdir -p "$dir"
+  cat > "$dir/long-description-shadow.md" <<'EOF'
+---
+name: long-description-shadow
+description: Sample agent used for fixture testing, with a description written deliberately past the two-hundred-and-fifty character budget so the length gate has something real to flag, padded here with filler that carries no meaning at all beyond its own length.
+---
+
+## Shadows
+
+Shadows the built-in sample agent, overriding maxTurns: 64 as a
+runaway-loop backstop.
+EOF
+  run_script "$dir"
+  assert_eq "should exit 0 when a shadow file's description exceeds the character budget" "0" "$VERDICT_EXIT"
+}
+
+it_should_exit_0_when_an_exempt_named_agents_description_exceeds_the_character_budget() {
+  local dir="$work_dir/happy-exempt-description"
+  mkdir -p "$dir"
+  cat > "$dir/markdown-standards-fixer.md" <<'EOF'
+---
+name: markdown-standards-fixer
+description: Sample agent used for fixture testing, with a description written deliberately past the two-hundred-and-fifty character budget so the length gate has something real to flag, padded here with filler that carries no meaning at all beyond its own length.
+model: haiku
+---
+
+## Objective
+
+Search the codebase for a pattern and report every match.
+
+## Inputs
+
+- The search query string.
+
+## Sources and tools
+
+- Grep and Glob for search.
+
+## Procedure
+
+1. Run the search.
+2. Summarize the results.
+
+## Boundaries
+
+- Never modify any file found during the search.
+
+## Report format
+
+- **Matches**: file:line pairs found, or none.
+EOF
+  run_script "$dir"
+  assert_eq "should exit 0 when an exempt-named agent's description exceeds the character budget" "0" "$VERDICT_EXIT"
+}
+
+
 it_should_exit_0_when_a_file_has_all_six_required_headings_in_canonical_order_with_non_empty_content
 it_should_exit_0_when_a_shadow_file_carries_only_a_shadows_heading_with_non_empty_content
 it_should_exit_0_when_frontmatter_has_a_name_matching_the_filename_non_empty_description_and_a_model_key
@@ -632,6 +769,10 @@ it_should_exit_1_when_an_h3_objective_is_used_instead_of_h2_objective
 it_should_exit_1_when_frontmatter_name_does_not_match_the_filename
 it_should_exit_1_when_frontmatter_description_is_missing_or_empty
 it_should_exit_1_when_a_non_shadow_files_frontmatter_has_no_model_key
+it_should_exit_1_when_a_non_shadow_description_exceeds_the_character_budget
+it_should_exit_0_when_a_description_lands_on_exactly_the_character_budget
+it_should_exit_0_when_a_shadow_files_description_exceeds_the_character_budget
+it_should_exit_0_when_an_exempt_named_agents_description_exceeds_the_character_budget
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

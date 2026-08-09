@@ -4,8 +4,9 @@
 #
 # For every *.md file in <agents-directory> (non-.md files skipped):
 #   - frontmatter: name: matches the filename, description: is
-#     non-empty, model: is present. A shadow file is exempt from the
-#     model: check only.
+#     non-empty and within MAX_DESC_CHARS, model: is present. A
+#     shadow file is exempt from the model: and description-budget
+#     checks; DESC_BUDGET_EXEMPT names the other exemptions.
 #   - body (fenced code blocks stripped first): either exactly one
 #     non-empty "## Shadows" heading (a shadow file), or all six
 #     canonical headings -- Objective, Inputs, Sources and tools,
@@ -37,14 +38,56 @@ if [ ! -d "$dir" ]; then
   exit 2
 fi
 
+# Nothing truncates an agent description, so every char is both
+# always-on context in every session and live routing input.
+MAX_DESC_CHARS=250
+
+# Names exempt from MAX_DESC_CHARS, space-separated. Each needs a
+# reason the budget's own rationale never covered — a longer
+# description alone is never one.
+#
+#   markdown-standards-fixer - carries an ask-the-user-first guard
+#     the caller must read BEFORE dispatching. It cannot move to
+#     ## Boundaries, which loads only after that decision is made.
+DESC_BUDGET_EXEMPT="markdown-standards-fixer"
+
+# description_chars - character count of a file's frontmatter
+# description, independent of locale and of awk's byte-oriented
+# length().
+#
+# An em dash is 3 UTF-8 bytes, so a byte count would flag a
+# description that routes fine. Under LC_ALL=C, tr drops every
+# continuation byte (0x80-0xBF); each byte left is one character.
+description_chars() {
+  awk '
+    FNR == 1 && /^---[ \t]*$/ { in_fm = 1; next }
+    in_fm && /^---[ \t]*$/    { exit }
+    in_fm && /^description:[ \t]*/ {
+      sub(/^description:[ \t]*/, "")
+      gsub(/^[ \t"]+|[ \t"]+$/, "")
+      print
+      exit
+    }
+  ' "$1" | LC_ALL=C tr -d '\200-\277' | LC_ALL=C wc -c | tr -d ' '
+}
+
 any_failed=0
 
 for file in "$dir"/*.md; do
   [ -e "$file" ] || continue
   base="$(basename "$file" .md)"
 
-  reasons=$(awk -v fname="$base" '
+  # wc -c counts the trailing newline awk's print adds.
+  desc_chars=$(( $(description_chars "$file") - 1 ))
+
+  reasons=$(awk -v fname="$base" \
+                -v maxdesc="$MAX_DESC_CHARS" \
+                -v desclen="$desc_chars" \
+                -v exempt_names="$DESC_BUDGET_EXEMPT" '
     BEGIN {
+      nexempt = split(exempt_names, ex, " ")
+      for (e = 1; e <= nexempt; e++) exempt_set[ex[e]] = 1
+
       ncanon = 6
       canon[1] = "## Objective"
       canon[2] = "## Inputs"
@@ -137,6 +180,14 @@ for file in "$dir"/*.md; do
       } else {
         if (model_present == 0) {
           reasons = reasons "frontmatter model: key is missing\n"
+        }
+
+        # A shadow file skips this: its description must mirror the
+        # built-in it shadows, so trimming would diverge the routing
+        # the shadow exists to leave untouched.
+        if (!(fname in exempt_set) && desclen > maxdesc) {
+          reasons = reasons "frontmatter description is " desclen \
+                    " chars, over the " maxdesc "-char budget\n"
         }
 
         nseq = 0
