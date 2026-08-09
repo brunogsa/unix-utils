@@ -18,8 +18,9 @@ Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comm
 Python-shaped for readability only; nothing here runs, and the function names stand for steps this skill performs, not real APIs.
 
 ```python
-# 1 · Entry: /quality-gate <spec> <plan> --tasks <ids> --auto-solve,
-#     or another skill's batch-end dispatch.
+# 1 · Entry: /quality-gate <spec> <plan> --tasks <ids>
+#     --base-ref <ref> --auto-solve, or another skill's
+#     batch-end dispatch.
 def quality_gate(arg):
     auto_solve = arg.auto_solve
     if not auto_solve:                                     # 2
@@ -30,11 +31,19 @@ def quality_gate(arg):
     # 3 · Step 2 — arg paths by their spec_/plan_ prefix, else glob the CWD.
     specs, plans = resolve_spec_and_plan(arg)
     if len(specs) > 1 or len(plans) > 1:                   # 4
-        specs, plans = ask_numbered_list(specs, plans)     # 4a · the user picks
+        if auto_solve:                                     # 4x
+            # 4a · No human is standing by, so a prompt would stall
+            #      an /implement tail forever. Drop the multi-matched
+            #      kind and say so, exactly as a zero match resolves.
+            specs, plans = drop_multi_matched_kind(specs, plans)
+        else:
+            specs, plans = ask_numbered_list(specs, plans) # 4b · the user picks
 
-    # 5 · Step 2 — from origin/HEAD, or the caller's base ref
-    #     (/implement passes BATCH_BASE_SHA).
-    BASE_BRANCH = arg.base_ref or git("symbolic-ref", "origin/HEAD")
+    # 5 · Step 2 — from --base-ref when the caller passed one
+    #     (/implement's batch-end tail passes BATCH_BASE_SHA that
+    #     way), else resolve-base-ref.sh: origin/HEAD, then local
+    #     main, then local master.
+    BASE_REF = arg.base_ref or sh("~/.claude/scripts/resolve-base-ref.sh")
 
     # ---- 6 · Step 3 — dispatch every leg in the SAME turn. Independent
     #      report-only passes, no ordering between them. Each leg IS the
@@ -45,7 +54,11 @@ def quality_gate(arg):
         # 6c · scoped by --tasks, and dispatched ONLY when a plan resolved.
         ("test-sdd",    "test-sdd/SKILL.md",    f"verdict_test-sdd_{ts}.md"),
     ] if plans else [...])
-    # 6d · hook: deep-reviewer-write-guard — only verdict_*.md writes are approved.
+    # 6d · hook: deep-reviewer-write-guard — approves verdict_*.md and
+    #      verdict_*.html, AND any write under /tmp; everything else denied.
+    #      Each leg is told the /tmp half too: a leg believing only
+    #      verdict_* is writable skips the $work_dir persistence its
+    #      compaction-resume depends on.
 
     for leg in legs:                                       # 7 · Step 4
         if not present_and_non_empty(leg.verdict_path):
@@ -60,8 +73,9 @@ def quality_gate(arg):
         print(compact_index(legs))
         return                                             # 8a
 
-    # 9 · Step 6.1 — read all three verdict files IN FULL, sort every finding
-    #     addressable vs not, and print both lists with reasons BEFORE applying.
+    # 9 · Step 6.1 — read EVERY verdict file this run produced IN FULL
+    #     (three legs, or two when no plan resolved), sort every finding
+    #     addressable vs not, print both lists with reasons BEFORE applying.
     addressable, not_addressable = sort_findings(read_in_full(legs))
     print(addressable, not_addressable)
 
@@ -99,13 +113,15 @@ def quality_gate(arg):
 
 ```mermaid
 flowchart TD
-  n1(["1. /quality-gate &lt;spec&gt; &lt;plan&gt;<br/>--tasks &lt;ids&gt; --auto-solve<br/><br/>or another skill's batch-end dispatch"]):::start
+  n1(["1. /quality-gate &lt;spec&gt; &lt;plan&gt;<br/>--tasks &lt;ids&gt; --base-ref &lt;ref&gt; --auto-solve<br/><br/>or another skill's batch-end dispatch"]):::start
   n2{"2. --auto-solve passed?"}
   n2a["2a. Step 1 · ONE question, before anything else:<br/>report only (default) or auto-solve?<br/>Asked first so no one is surprised by commits"]:::gate
   n3["3. Step 2 · Resolve spec + plan: arg paths by<br/>spec_/plan_ prefix, else glob CWD"]
   n4{"4. More than one spec, or more than one plan?"}
-  n4a["4a. Prompt with a numbered list;<br/>the user picks which files feed the run"]:::gate
-  n5["5. Step 2 · Resolve BASE_BRANCH from<br/>origin/HEAD, or take the caller's base ref<br/>(/implement passes BATCH_BASE_SHA)"]
+  n4x{"4x. Running under --auto-solve?"}
+  n4a["4a. Drop the multi-matched kind and say so,<br/>exactly as a zero match resolves.<br/>No human is standing by, so a prompt here<br/>would stall an /implement tail forever"]:::gate
+  n4b["4b. Prompt with a numbered list;<br/>the user picks which files feed the run"]:::gate
+  n5["5. Step 2 · Resolve BASE_REF from --base-ref when the<br/>caller passed one (/implement's batch-end tail passes<br/>BATCH_BASE_SHA that way), else resolve-base-ref.sh:<br/>origin/HEAD, then local main, then local master"]
 
   subgraph legs["6. Step 3 · Dispatch every leg in the SAME turn — independent report-only passes, no ordering between them. Each leg IS the fresh-context reviewer, so none spawns a nested one."]
     direction TB
@@ -114,12 +130,12 @@ flowchart TD
     n6c["6c. deep-reviewer · reads test-sdd/SKILL.md,<br/>scoped by --tasks (agent-pinned, background, ∥)<br/>→ verdict_test-sdd_&lt;ts&gt;.md<br/>ONLY when a plan resolved"]:::dispatch
   end
 
-  n6d["6d. Hook: deep-reviewer-write-guard<br/>(only verdict_*.md writes are approved)"]:::hook
+  n6d["6d. Hook: deep-reviewer-write-guard — approves verdict_*.md<br/>and verdict_*.html, AND any write under /tmp; else denied.<br/>Each leg is told the /tmp half too: a leg believing only<br/>verdict_* is writable skips the $work_dir persistence<br/>its compaction-resume depends on"]:::hook
   n7{"7. Step 4 · Each leg's verdict file<br/>present and non-empty?"}
   n7a["7a. Re-dispatch that leg ONCE; still missing,<br/>flag it and let the others stand.<br/>Never report from a capped return message"]:::dispatch
   n8{"8. Auto-solve chosen?"}
   n8a(["8a. Step 5 · Print the compact index — one line<br/>per finding, per leg — and STOP.<br/>Nothing is applied, however safe it looks"])
-  n9["9. Step 6.1 · Read all three verdict files IN FULL;<br/>sort every finding addressable vs not;<br/>print both lists with reasons BEFORE applying"]
+  n9["9. Step 6.1 · Read EVERY verdict file this run produced IN FULL<br/>— three legs, or two when no plan resolved;<br/>sort every finding addressable vs not;<br/>print both lists with reasons BEFORE applying"]
 
   n10["10. Step 6.2 · Resolve the repo's test command<br/>(package.json script, Makefile target, its CLAUDE.md)<br/>so the callee has nothing left to guess about"]
 
@@ -139,8 +155,10 @@ flowchart TD
   n2 -->|"no"| n2a --> n3
   n2 -->|"yes"| n3
   n3 --> n4
-  n4 -->|"yes"| n4a --> n5
+  n4 -->|"yes"| n4x
   n4 -->|"no"| n5
+  n4x -->|"yes"| n4a --> n5
+  n4x -->|"no"| n4b --> n5
   n5 --> n6a
   n5 --> n6b
   n5 --> n6c

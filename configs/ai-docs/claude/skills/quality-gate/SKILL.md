@@ -2,7 +2,6 @@
 name: quality-gate
 description: "USE to run the full quality sweep over a branch — refactor lens, auto-review, planned-test presence — in parallel, then optionally auto-solve them. Triggers: /quality-gate, 'run the quality gate', 'full review pass', a batch-end dispatch."
 disable-model-invocation: false
-words-budget: 2048
 ---
 
 # Quality Gate
@@ -22,12 +21,14 @@ The third leg runs only when a plan resolves — without a plan there are no pla
 ## Usage
 
 ```
-/quality-gate [spec] [plan] [--tasks <ids>] [--auto-solve]
+/quality-gate [spec] [plan] [--tasks <ids>] [--base-ref <ref>] [--auto-solve]
 ```
 
 - `spec` / `plan` — paths, in either order; each is recognised by its `spec_`/`plan_` filename prefix, so position never decides which is which. Omit either to discover it in CWD.
 
 - `--tasks <ids>` — comma-list of plan task ids, `1,2,5`, forwarded to the `test-sdd` leg to narrow its scope. Omitted, that leg checks every task in the plan.
+
+- `--base-ref <ref>` — review from this ref instead of `origin/HEAD`. Any branch, tag, or SHA. A caller that already knows its own range passes it here.
 
 - `--auto-solve` — skip the opening interview and go straight to applying findings.
 
@@ -69,6 +70,9 @@ ls -1 spec_*.md plan_*.md 2>/dev/null
 
 - **More than one of a kind** → prompt with a numbered list and let the user pick; never guess which spec or plan was meant.
 
+- **Under `--auto-solve`, never prompt on a multi-match** → proceed without that kind and say so, exactly as a zero match resolves.
+  - An auto-solve run has no human standing by — the same premise §6.2 uses to force `--no-ask` — so a prompt here stalls the `/implement` tail indefinitely.
+
 Also resolve `<BASE_REF>` for the `auto-review` leg:
 
 ```bash
@@ -103,7 +107,13 @@ Tell each leg this explicitly in its prompt — the skills it invokes describe d
 
 Every leg mints its own `verdict_*.md` timestamp per its own skill, so repeated runs accumulate rather than collide.
 
-The `deep-reviewer-write-guard.sh` hook backs the report-only contract at the tool layer: a write to a `verdict_*.md` basename is auto-approved, everything else denied.
+The `deep-reviewer-write-guard.sh` hook backs the report-only contract at the tool layer.
+
+Its exact terms live in [`deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md), the single home for that wording — read them there rather than restating them here.
+
+Tell each leg the `/tmp` half of it too — the `auto-review` leg's waves persist there.
+
+A leg that believes only `verdict_*` is writable skips the `$work_dir` persistence its compaction-resume depends on.
 
 ## 4. Collect the reports
 
@@ -120,7 +130,8 @@ When each leg returns, confirm its verdict file exists in CWD and is non-empty. 
 When step 1 resolved to report-only, print a compact index and stop:
 
 - One section per leg: its verdict file path and its finding count.
-- One line per finding: `<lens> #N [severity] <file>:<lines> — <one-line title>`.
+- One line per finding: `<lens> #N [severity] <file>:<lines> — <one-line title>`; omit `[severity]` for a lens that labels none, as `refactor` does — it emits `Risk` and `Effort`.
+
 - The closing line: findings are applied by `/address-verdicts`, or by re-running `/quality-gate --auto-solve`.
 
 **Nothing is applied on a report-only run**, including findings that look trivially safe. The opt-in came from step 1, and its absence is an answer.
@@ -131,7 +142,9 @@ Entry: step 1 resolved to auto-solve, or `--auto-solve` was passed.
 
 ### 6.1. Decide which findings are addressable
 
-Read all three verdict files **in full** — not the return summaries — and sort every finding into addressable or not.
+Read every verdict file this run produced **in full** — not the return summaries — and sort each finding into addressable or not.
+
+That is three files on a full run and two when §2 found no plan, so a run that reads exactly three is skipping nothing only when the `test-sdd` leg actually dispatched.
 
 - **Addressable** — small, well-scoped, clearly evidenced, low blast radius: a missing planned test, a local simplification, a correctness fix with an obvious forcing case.
 - **Not addressable** — design tradeoffs, cross-cutting risk, anything a leg flagged as uncertain, anything whose fix needs a product decision.
@@ -172,7 +185,8 @@ It returns the ledger §7 reports from: applied findings with SHAs, skipped find
 
 Compose this from the ledger `/address-verdicts` returned, not from a second reading of the verdict files:
 
-- The three verdict file paths, plus any leg that failed to produce one.
+- Every verdict file path this run produced, plus any leg that failed to produce one, and the `test-sdd` leg when §2 resolved no plan to dispatch it with.
+
 - **Every finding below carries its `<lens>#N (<file>:<lines>)` reference plus a one-line recap of what it says — never a bare id, count, or SHA alone.**
   - §6.1 already composed this recap for the accepted/rejected lines; reuse it here instead of re-deriving it.
   - A human reading the report should never have to open a verdict file to know what was decided.
