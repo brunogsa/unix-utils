@@ -19,7 +19,7 @@ See [`references/pr-awareness.md`](references/pr-awareness.md), loaded whenever 
 
 ## Execution model — orchestrator + per-task subagents
 
-`/implement` is **fully async**: it runs the whole batch unattended and hands you the finished commits — no per-task human handshake, only the batch-end review.
+`/implement` is **fully async**: it runs the whole batch unattended and hands you the finished commits — the only handshake is the batch-end review.
 
 Two roles:
 
@@ -31,7 +31,8 @@ Two roles:
   Each re-grounds from durable artifacts (the plan, the spec when one exists, `git log`), not session history.
 
 Run subagents on **Sonnet** (mechanical); keep orchestrator on stronger model.
-Tasks run **sequentially** — each reads the prior task's commits + the plan's notes first.
+Tasks with satisfied dependencies and no shared files run **in parallel**, one git worktree each, per [`references/parallel-worktree-execution.md`](references/parallel-worktree-execution.md).
+Every other task runs sequentially, reading the prior task's commits first.
 
 ### A PR-label run is the same batch flow, repeated once per PR
 
@@ -105,7 +106,7 @@ Run both checkers on the resolved plan, before §2 seeds anything and before the
 **Both run once per invocation, PR-label or not** — never again per task, per PR, or on retry.
 `check-pr-dag.sh` passes trivially on a plan with no PR Breakdown, or with the literal "Single PR." escape, so there is no mode to branch on.
 
-The plan stays hand-editable, so a later edit can reintroduce a cycle, dangling dependency, or duplicate id — and §5.3's chain-abort and each PR's parent lookup never re-check it.
+The plan stays hand-editable, so a later edit can reintroduce a cycle, dangling dependency, or duplicate id — and nothing downstream re-checks it.
 
 A non-zero exit stops the run: surface the script's own stderr diagnostic verbatim and fix the plan before re-invoking.
 
@@ -184,14 +185,14 @@ Each state file has exactly this shape:
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "session_id": "<session_id>",
   "slug": "<slug>",
   "pr_label": "",
   "phase": "tasks",
   "start_sha": "<HEAD before this run touched anything>",
   "batch_base_sha": "",
-  "tasks": [{ "id": "1", "status": "pending", "depends_on": [] }],
+  "tasks": [{ "id": "1", "status": "pending", "depends_on": [], "branch": "", "worktree_path": "" }],
   "attempts": [],
   "gate_dispatches": 0,
   "baseline": { "wanted": false, "log_path": "", "failures": [] },
@@ -205,7 +206,9 @@ Each state file has exactly this shape:
 - `start_sha` is `git rev-parse HEAD` taken **before any branch or dispatch**, identical in every unit's file — the run's anchor.
 
 - `batch_base_sha` stays `""` until that unit starts (§3.2) — a dependent PR branches off its parent, so its base does not exist yet.
-- One `tasks[]` entry per task-id that unit resolved, each `status: "pending"`; `worktree` / `pr` / `quality_gate.wanted` / `repo_green_gate.wanted` come from §1.2's answers.
+- One `tasks[]` entry per task-id that unit resolved, each `status: "pending"`, flipped to `"in_progress"` at dispatch;
+`branch` / `worktree_path` are set only for a per-task worktree; `worktree` / `pr` / `quality_gate.wanted` / `repo_green_gate.wanted` come from §1.2's answers.
+
 - Populate `depends_on` for every task from the plan's Task Breakdown — the `**Depends on**:` clause `check-tasks-dag.sh` validated in §1.3 — as bare id strings (`["3", "5"]`; `none` → `[]`).
 
 - `implement-loop-state.sh` reads it to pick a DAG-eligible next task; unset, it silently degrades to lowest-id-first, so seed it here, not later.
@@ -219,7 +222,7 @@ Each state file has exactly this shape:
 **Update both artifacts as they go** — every flip, attempt, verdict, report path, and block, the moment it happens.
 The hooks and the verdict script read them, and a compaction or kill keeps only what's on disk.
 
-**There is no resume path.** A leftover state file is stale and never adopted: delete it and start over — re-deriving half-finished state costs more than re-running it.
+**There is no resume path.** A leftover state file is stale: delete it and start over — re-deriving half-finished state costs more than re-running it.
 
 ## 3. Start a unit (once per PR, or once for a `<task-ids>` run)
 
@@ -227,7 +230,7 @@ The hooks and the verdict script read them, and a compaction or kill keeps only 
 
 ### 3.1. Check out this unit's branch — once, here, by the orchestrator
 
-**Only the orchestrator ever creates or switches a branch, and only here** — no task subagent ever checks anything out.
+**Only the orchestrator ever creates or switches a branch** — here, and per task when parallelising. No task subagent ever checks anything out.
 Every task in the unit commits on the branch this step leaves checked out.
 Deciding once keeps a unit's commit range on one branch; a mid-loop checkout would split it across two.
 
@@ -248,8 +251,7 @@ Write it into this unit's state file as `batch_base_sha`; §5 and §8 both read 
 
 Then recap the work this unit builds on, in 3–5 lines, from `git log <base-branch>..HEAD`.
 
-**Read the commit messages, not the diff** — bodies carry the *why* a diff can't show.
-Open the diff only when a message alone can't tell you what it did.
+**Read the commit messages, not the diff** — bodies carry the *why* a diff can't show. Open it only when a message can't tell you what it did.
 
 Don't dump the log into chat; each task subagent re-derives its own context from `git log` at dispatch.
 
@@ -354,12 +356,11 @@ Run it once per reported SHA; exit 0 on all of them is the pass.
 It catches only a report naming commits that were never made; content is §8.1's job.
 
 - **`done`, every reported SHA resolves** → §5.4, which records the attempt.
-- **`done`, any reported SHA missing** → §5.2, same as any other failure.
-- **`done` with no commits reported at all** → §5.2 as well; a task that changed nothing had nothing to report done.
+- **`done`, any SHA missing or none reported at all** → §5.2, like any other failure; a task that changed nothing had nothing to report done.
 
-A `blocked` report (§4.4) or a §4 timeout skips the check entirely and goes straight to §5.2.
+A `blocked` report (§4.4) or a §4 timeout skips the check and goes straight to §5.2.
 
-Either way the outcome becomes one recorded attempt and one script verdict — §5.2 on failure/block, §5.4 on pass. No path skips the script.
+Every path ends in one recorded attempt and one script verdict.
 
 ### 5.2. On failure or a block — record the attempt, obey the verdict
 
@@ -380,13 +381,15 @@ Load only on a `stuck` verdict.
 Record the attempt with `result: "pass"`, `signature: "n/a"`.
 
 Flip that task to `status: "done"` and `reason: "done"` in the state file — before calling the verdict script, not after.
-The script picks the next task by `status`, so a passed task left `pending` gets re-selected and re-dispatched later.
+The script picks by `status`, so a passed task left `pending` gets re-dispatched later.
 
 Also flip the plan to `[Done]` (§6), file the subagent's `[Scout]` items per §4.3, and `TaskUpdate` its TaskList status to `completed`.
 
 Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey the verdict:
 
 - **`next-task`** → its `task` field names the next task-id; re-run §3.4 on it. §1, §2, and §3.1–§3.3 do not repeat.
+  - When `--eligible-set` returns several ids, dispatch them all at once instead, per [`references/parallel-worktree-execution.md`](references/parallel-worktree-execution.md).
+
 - **`gates`** → **every** task in this unit is `done`. Set `phase: "gates"` and go to §8's batch end.
 - **`halted`** → every task is terminal with at least one blocked or stuck, or a same-unit dependency deadlock leaves pending tasks with unsatisfied `depends_on`. Go to §5.5.
 
