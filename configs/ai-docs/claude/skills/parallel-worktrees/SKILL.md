@@ -1,6 +1,6 @@
 ---
 name: parallel-worktrees
-description: "Run independent items concurrently, one git worktree each, then merge them back so history reads as if they ran one at a time. Trigger: an orchestrator holds 2+ dispatchable items and wants them fanned out at once — implement's parallel wave, or any fan-out whose agents would otherwise share one index."
+description: "Run independent items concurrently, one git worktree each, then merge back so history reads sequential. Trigger: an orchestrator has 2+ dispatchable items to fan out — implement's parallel wave, or any fan-out that would share one index."
 disable-model-invocation: false
 ---
 
