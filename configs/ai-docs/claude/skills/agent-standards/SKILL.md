@@ -100,7 +100,7 @@ The trigger-phrase rule in `skill-standards` › Descriptions applies verbatim t
   - [Example] `agent(subAgent=deep-reviewer, …)` — pinned, so no `model=`. `agent(subAgent=general-purpose, …, model=sonnet)` — unpinned, so the tier must be named.
 
 - [Instruction] State in each agent's file whether that agent may spawn a worker of its own.
-  - [Why] `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH: "3"` permits main → subagent → subagent → subagent and no deeper, so a skill whose agent spawns consumes one of the three nesting levels other flows share.
+  - [Why] `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH: "4"` permits main → subagent → subagent → subagent → subagent and no deeper, so an agent that spawns consumes one of the four levels other flows share.
 
 - [Instruction] Never let a subagent spawn a second opinion on its own work — route that to a review step the orchestrator already runs.
   - [Why] A mid-flight self-review judges one slice, where the deferred whole-artifact review sees the same question against the full batch.

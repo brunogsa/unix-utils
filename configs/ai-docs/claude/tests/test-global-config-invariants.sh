@@ -110,12 +110,12 @@ it_should_fail_when_any_claude_hud_marketplace_plugin_or_symlink_step_survives
 # describe("SettingsEnvContract")
 # ============================================================
 
-it_should_set_max_concurrent_subagents_to_the_string_8_in_the_committed_env_block() {
+it_should_set_max_concurrent_subagents_to_the_string_16_in_the_committed_env_block() {
   local actual
   actual=$(committed_settings | jq -r '.env.CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS')
   assert_eq \
-    "SettingsEnvContract > happy > should set CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS to the string 8 in the committed env block" \
-    "8" "$actual"
+    "SettingsEnvContract > happy > should set CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS to the string 16 in the committed env block" \
+    "16" "$actual"
 }
 
 it_should_keep_the_three_pre_existing_env_keys_intact_alongside_the_new_cap() {
@@ -124,7 +124,7 @@ it_should_keep_the_three_pre_existing_env_keys_intact_alongside_the_new_cap() {
     '[.env.CLAUDE_CODE_DISABLE_1M_CONTEXT, .env.CLAUDE_CODE_AUTO_COMPACT_WINDOW, .env.CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH] | join(" ")')
   assert_eq \
     "SettingsEnvContract > corner > should keep the three pre-existing env keys intact alongside the new cap" \
-    "1 200000 3" "$actual"
+    "1 200000 4" "$actual"
 }
 
 it_should_fail_when_the_committed_env_block_defines_claude_code_subagent_model() {
@@ -135,7 +135,7 @@ it_should_fail_when_the_committed_env_block_defines_claude_code_subagent_model()
     "false" "$actual"
 }
 
-it_should_set_max_concurrent_subagents_to_the_string_8_in_the_committed_env_block
+it_should_set_max_concurrent_subagents_to_the_string_16_in_the_committed_env_block
 it_should_keep_the_three_pre_existing_env_keys_intact_alongside_the_new_cap
 it_should_fail_when_the_committed_env_block_defines_claude_code_subagent_model
 
