@@ -81,16 +81,17 @@ If detection fails, ask which branch to diff against rather than guessing. A cal
 
 Spawn every leg as `agent(subAgent=deep-reviewer, …)`, all in the **same turn**, all in the background. They are independent report-only passes with no ordering dependency.
 
-- `agent(subAgent=deep-reviewer, title=Refactor-lens review)` — reads `~/.claude/skills/refactor/SKILL.md` and executes it.
-- `agent(subAgent=deep-reviewer, title=Auto-review pipeline)` — reads `~/.claude/skills/auto-review/SKILL.md` and orchestrates from there, with `<BASE_BRANCH>` and the resolved spec/plan paths pushed in so it needs no interactive resolution.
+- `agent(subAgent=deep-reviewer, title=Refactor-lens review)` — invokes the `refactor` skill via the Skill tool and executes it.
+- `agent(subAgent=deep-reviewer, title=Auto-review pipeline)` — invokes the `auto-review` skill via the Skill tool and orchestrates from there, with `<BASE_BRANCH>` and the resolved spec/plan paths pushed in so it needs no interactive resolution.
 
-- `agent(subAgent=deep-reviewer, title=Planned-test presence check)` — reads `~/.claude/skills/test-sdd/SKILL.md` and executes it, with the resolved plan path and any `--tasks` ids pushed in. Only when a plan resolved.
+- `agent(subAgent=deep-reviewer, title=Planned-test presence check)` — invokes the `test-sdd` skill via the Skill tool and executes it, with the resolved plan path and any `--tasks` ids pushed in.
+  - Dispatch this leg only when a plan resolved.
 
 **Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.**
 The leg already *is* the fresh-context reviewer those skills would otherwise dispatch.
 Nesting would buy a second opinion nobody asked for and spend a nesting level the harness caps at three.
 
-Tell each leg this explicitly in its prompt — the skills it reads describe dispatching a reviewer, and without the override it would follow that literally.
+Tell each leg this explicitly in its prompt — the skills it invokes describe dispatching a reviewer, and without the override it would follow that literally.
 
 Every leg mints its own `verdict_*.md` timestamp per its own skill, so repeated runs accumulate rather than collide.
 
