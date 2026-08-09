@@ -254,54 +254,40 @@ def advance(task, report):
 
 
 def run_parallel_wave(wave):
-    # A worktree exists ONLY to keep concurrent siblings off one index, so
-    # nothing else ever earns one. Parallelism is derived from the plan's own
-    # DAG, never asked — which is why §1.2's interview stays the length it is.
-    load("references/parallel-worktree-execution.md")      # 16a
+    # Everything a worktree is for lives in the parallel-worktrees skill: the two
+    # file predicates, the cap, the branch layout, the in_progress-before-spawn
+    # guard, the merge order, the cleanup. Parallelism is still derived from the
+    # plan's DAG rather than asked, which is why §1.2's interview never grew a
+    # question for it. This function only supplies inputs and judges reports.
+    load_skill("parallel-worktrees")                       # 16a
 
-    # 16b · --eligible-set checks the DAG and nothing else, so the orchestrator
-    #       clears the two file predicates itself: disjoint from each sibling's
-    #       Files list, and from the main tree's uncommitted paths. On overlap
-    #       keep the lowest id. Cap at 4 — past that the worktrees contend for
-    #       one disk and one test runner while the merge queue grows.
-    wave = cap(file_disjoint(wave, main_tree=git_status_porcelain()), 4)
+    # 16b · A DAG says ordering, never shared files, so the skill re-filters the
+    #       set against each sibling's Files list AND the main tree's uncommitted
+    #       paths, then caps at 4. Below 2 there are no concurrent siblings to
+    #       keep off one index, so the leftover task falls through to 17 and no
+    #       worktree is created at all.
+    wave = parallel_worktrees.filter(wave, files_by_task,
+                                     base=state.batch_base_sha, slug=slug)
     if len(wave) < 2:
         return wave        # falls back to 17 — no worktree for a single task
 
-    for t in wave:
-        # 16c · Branch from BATCH_BASE_SHA, not HEAD: one common base is what
-        #       makes the merge-back order below deterministic. §6 keeps the
-        #       orchestrator the only writer of plan status, so N worktrees
-        #       are N readers of one file.
-        git_worktree_add(branch=f"implement/{slug}/t{t.id}",
-                         path=f"/tmp/implement-wt/{slug}/t{t.id}",
-                         start=state.batch_base_sha)
-        symlink_into(t.worktree, [plan, spec])             # per worktree-setup.md
-        state.set(t, status="in_progress",                 # 16d · BEFORE the spawn: this
-                  branch=t.branch, worktree_path=t.path)   #       flip is the only thing
-        task_update(t, "in_progress", breadcrumb=...)      #       stopping a double dispatch
+    # 16c · The skill writes in_progress + branch + worktree_path into OUR state
+    #       file before each spawn. Its ledger is ours by necessity: --eligible-set
+    #       is what reads that mark back to skip a task already in flight.
+    reports = parallel_worktrees.create_and_dispatch(wave, agent="tdd-coder")
 
-    # 16e · §4 — ONE message for the whole set, so they run concurrently; one
-    #       message per agent serializes the fan-out and gives back the
-    #       wall-clock the worktrees just bought.
-    reports = dispatch_all_in_one_message(
-        [("tdd-coder", t, cwd=t.worktree) for t in wave], timeout_ms=3_600_000)
-
-    for r in reports:                                      # 16f · §5.1 per report, as each
+    for r in reports:                                      # 16d · §5.1 per report, as each
         if all_reported_commits_resolve(r):                #       lands — so a failure
             advance(r.task, r)                             #       re-dispatches (into its
         else:                                              #       OWN worktree) while its
             handle_failure(r)   # 21a-21e, unchanged       #       siblings still work
 
-    for t in sorted(wave, key=lambda t: int(t.id)):
-        # 16g · ASCENDING task-id order makes the resulting history identical to
-        #       a sequential run's. The rebase runs INSIDE the worktree: git
-        #       refuses to rebase a branch checked out elsewhere.
-        if not git("-C", t.worktree, "rebase", base_branch):
-            halt()             # the file-disjointness predicate was wrong for that pair
-        git("merge", "--ff-only", t.branch)
-        git_worktree_remove(t.worktree)                    # 16h · per merge, never batched
-        git("branch", "-d", t.branch)                      #       to the end of the wave
+    # 16e · Ascending task-id order, rebase inside each worktree then --ff-only in
+    #       the main tree, cleanup per merge. A conflict means a file predicate was
+    #       wrong for that pair, and the skill keeps every worktree on the way out
+    #       — halt() below is already the no-cleanup path, so nothing extra here.
+    if not parallel_worktrees.merge_back(wave):
+        halt()
     return []
 
 
@@ -360,14 +346,11 @@ flowchart TD
     n14["14. Step 3.2 · Capture BATCH_BASE_SHA into<br/>the state file; recap the base from<br/>COMMIT MESSAGES, not the diff"]:::state
     n15["15. Step 3.3 · Exact-match this unit's task-ids<br/>(a collision means a malformed plan)"]
     n16{"16. Step 5.4 · How many tasks are eligible right now?<br/>(implement-loop-state.sh --eligible-set — NEVER the plain<br/>verdict while anything is in flight: the plain one assumes<br/>nothing is, so mid-wave it answers 'halted' and stops the<br/>run to wait for a human)"}:::hook
-    n16a["16a. Load references/parallel-worktree-execution.md"]:::skill
-    n16b["16b. --eligible-set checks the DAG and nothing else, so clear<br/>the two file predicates here: disjoint from each sibling's<br/>Files list, and from the main tree's uncommitted paths<br/>(git status --porcelain). On overlap keep the lowest id.<br/>Cap at 4 — past that the worktrees contend for one disk<br/>and one test runner while the merge queue grows"]
-    n16c["16c. One worktree + branch per task, off BATCH_BASE_SHA<br/>rather than HEAD: one common base is what makes 16g's<br/>merge order deterministic. Symlink the plan and spec in<br/>(§6 keeps the orchestrator the only writer of plan<br/>status, so N worktrees are N readers of one file)"]
-    n16d["16d. Set each task in_progress with its branch and<br/>worktree_path — BEFORE the spawn, never after: the script<br/>excludes in_progress from the eligible set, and that flip<br/>is the only thing stopping a later turn from dispatching<br/>the same task into a second worktree"]:::state
-    n16e["16e. Step 4 · Dispatch the whole set in ONE message:<br/>one tdd-coder per task (agent-pinned, background, ∥),<br/>each pointed at its own worktree. One message per<br/>agent serializes the fan-out and gives back the<br/>wall-clock the worktrees just bought"]:::dispatch
-    n16f["16f. Step 5.1 · Accept each report as it lands, so a failure<br/>re-dispatches — into its OWN worktree — while its siblings<br/>still work. A failure or block is that task's alone"]
-    n16g["16g. Merge back once every task in the set is accepted:<br/>rebase INSIDE the worktree (git refuses to rebase a branch<br/>checked out elsewhere), then merge --ff-only in the main<br/>tree, in ASCENDING task-id order — which is what makes the<br/>resulting history identical to a sequential run's"]
-    n16h["16h. Remove the worktree and delete its branch as that branch<br/>merges — per merge, never batched to the end of the wave.<br/>git branch -d refuses an unmerged branch, so the delete<br/>cannot outrun the merge. §1.2's per-unit worktree is never<br/>touched: it exists for a human and must outlive the run"]:::state
+    n16a["16a. Load the parallel-worktrees skill, handing it the eligible<br/>ids, each task's Files list, batch_base_sha and the plan slug.<br/>Every worktree, branch, dispatch and merge below is its flow,<br/>authored in its own file: this run supplies those four inputs<br/>and judges the reports, and owns nothing else in the wave"]:::skill
+    n16b{"16b. After its own two file predicates and its cap of 4,<br/>does the set still hold 2 or more? (a DAG says ordering,<br/>never shared files, so undeclared-independent tasks can<br/>still collide — and 1 task needs no worktree at all)"}
+    n16c["16c. It opens one worktree + branch per task and dispatches<br/>one tdd-coder into each (agent-pinned, background, ∥),<br/>marking every task in_progress in THIS state file first —<br/>its ledger is ours, because --eligible-set is what reads<br/>that mark back to skip a task already in flight"]:::dispatch
+    n16d["16d. Step 5.1 · Accept each report as it lands, so a failure<br/>re-dispatches — into its OWN worktree — while its siblings<br/>still work. A failure or block is that task's alone"]
+    n16e["16e. Once every task is accepted it merges each branch back<br/>in ascending task-id order and removes that worktree per<br/>merge, leaving history identical to a sequential run's"]:::state
     n17["17. Step 3.4 · Activate a task: TaskUpdate<br/>in_progress + breadcrumb.<br/>NO checklist path is assigned"]:::state
     n18["18. Step 4 · Dispatch tdd-coder (agent-pinned,<br/>background, 1h Monitor cap). One task, so it runs<br/>in the main tree: a worktree exists only to keep<br/>concurrent siblings off one index, and there are none"]:::dispatch
     n18a["18a. Hooks: subagent-model-guard + git-guard"]:::hook
@@ -431,11 +414,11 @@ flowchart TD
   n13 -->|"yes"| n13a --> n13b --> n14
   n13 -->|"no / task-ids run"| n14
   n14 --> n15 --> n16
-  n16 -->|"2 or more"| n16a --> n16b --> n16c --> n16d --> n16e --> n16f --> n16g
-  n16b -->|"filtered down to 1 — no worktree"| n17
-  n16f -->|"a task fails, blocks or times out"| n21a
-  n16g -->|"rebase conflict: the file-disjointness<br/>predicate was wrong for that pair"| n37
-  n16g --> n16h --> n22
+  n16 -->|"2 or more"| n16a --> n16b
+  n16b -->|"no — filtered down to 1"| n17
+  n16b -->|"yes"| n16c --> n16d --> n16e --> n22
+  n16d -->|"a task fails, blocks or times out"| n21a
+  n16e -->|"it hits a rebase conflict and halts: the<br/>file-disjointness predicate was wrong for<br/>that pair, so it keeps every worktree"| n37
   n16 -->|"1 (or a run with no independent tasks)"| n17 --> n18
   n18 -.->|"guards"| n18a
   n18 -.->|"owns"| n18c

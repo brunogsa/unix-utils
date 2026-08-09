@@ -31,7 +31,7 @@ Two roles:
   Each re-grounds from durable artifacts (the plan, the spec when one exists, `git log`), not session history.
 
 Run subagents on **Sonnet** (mechanical); keep orchestrator on stronger model.
-Tasks with satisfied dependencies and no shared files run **in parallel**, one git worktree each, per [`references/parallel-worktree-execution.md`](references/parallel-worktree-execution.md).
+Tasks with satisfied dependencies and no shared files run **in parallel**, one git worktree each, via the `parallel-worktrees` skill (§5.4 hands it the set).
 Every other task runs sequentially, reading the prior task's commits first.
 
 ### A PR-label run is the same batch flow, repeated once per PR
@@ -52,7 +52,7 @@ Load it only on a PR-label run.
 
 ## 1. Pre-flight (orchestrator)
 
-This skill **never merges or deletes §1.2's worktree**. The per-task worktrees it creates for parallel work are its own, and it cleans those up.
+This skill **never merges or deletes §1.2's worktree**; the `parallel-worktrees` skill carves the same exception for it.
 
 **§1.1–§1.6 and §2 run once per invocation**, in that order, before any execution; §3 then starts each unit.
 
@@ -230,7 +230,7 @@ The hooks and the verdict script read them, and a compaction or kill keeps only 
 
 ### 3.1. Check out this unit's branch — once, here, by the orchestrator
 
-**Only the orchestrator ever creates or switches a branch** — here, and per task when parallelising. No task subagent ever checks anything out.
+**Only the orchestrator ever creates or switches a branch.** No task subagent ever checks anything out.
 Every task in the unit commits on the branch this step leaves checked out.
 Deciding once keeps a unit's commit range on one branch; a mid-loop checkout would split it across two.
 
@@ -326,13 +326,9 @@ There is no separate carry-forward digest: a Drift fix travels in its commit bod
 
 ### 4.4. Report back
 
-The subagent returns a structured report (text), never a silent "done" (shape mirrored in `~/.claude/agents/tdd-coder.md` — edit both together):
+`~/.claude/agents/tdd-coder.md` authors the report's shape — restating its five fields here would be a second copy to keep in sync, so read it there.
 
-- **Status**: `done` / `blocked`.
-- **Commits**: the SHAs it created, with subjects.
-- **Self-verification**: the verification command it ran and its result; the planned-test titles it added.
-- **Deviations**: sub-steps it inserted into its checklist mid-flight, soft design-forks resolved (with the choice), Drift fixes folded in.
-- **For the orchestrator to record**: `[Scout]` items to file per §4.3; any block, with exactly what's needed to clear it.
+Two of them drive this section: **Commits**, the SHAs §5.1 resolves, and **For the orchestrator to record**, whose `[Scout]` items you file per §4.3 and whose block names what clears it.
 
 ## 5. Accept, retry & advance (orchestrator)
 
@@ -386,7 +382,9 @@ Also flip the plan to `[Done]` (§6), file the subagent's `[Scout]` items per §
 Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey the verdict:
 
 - **`next-task`** → its `task` field names the next task-id; re-run §3.4 on it. §1, §2, and §3.1–§3.3 do not repeat.
-  - When `--eligible-set` returns several ids, dispatch them all at once instead, per [`references/parallel-worktree-execution.md`](references/parallel-worktree-execution.md).
+  - When `--eligible-set` returns several ids, dispatch them all at once instead: load the `parallel-worktrees` skill.
+    - Its four inputs: that id set, each task's **Files (logical order)** list, `batch_base_sha`, and the plan's `<slug>`.
+    - Its ledger is this state file: it writes `in_progress`, `branch`, and `worktree_path` before each spawn — what `--eligible-set` reads to skip an in-flight task.
 
 - **`gates`** → **every** task in this unit is `done`. Set `phase: "gates"` and go to §8's batch end.
 - **`halted`** → every task is terminal with at least one blocked or stuck, or a same-unit dependency deadlock leaves pending tasks with unsatisfied `depends_on`. Go to §5.5.
