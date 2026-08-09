@@ -104,7 +104,7 @@ Each finding is a `## N. <one-line title>` section. Inside, use these labeled bl
 - **File**: absolute or repo-relative path
 - **Lines**: precise line range (e.g. `42-67`), not approximate
 - **Classification**: `subjective` or `mechanical` (prefix `[LINTER GAP]` on the title when mechanical)
-- **Category**: suggested TaskList category for the eventual commit -- `[Refactor]`, `[Debt]`, `[Drift]`, `[Scout]`, `[Sub-Step]` (see CLAUDE.md "Leverage TaskList proactively")
+- **Category**: suggested TaskList category for the eventual commit -- `[Refactor]`, `[Debt]`, `[Drift]`, `[Scout]`, `[Sub-Step]` (see CLAUDE.md "Prefix every task subject with a category")
 - **What**: 2-4 sentences on the change. Name the construct (function, variable, type, test), what it does now, what it should become.
   - Avoid pronouns without antecedents ("it", "this") -- spell out the target.
 

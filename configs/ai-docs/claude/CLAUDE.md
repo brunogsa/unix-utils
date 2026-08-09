@@ -260,7 +260,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] A **Task** is anything that produces one or more small, isolated commits.
   - [Why] Producing its own commit is the test that separates a Task from a Sub-Step; without it an AI mislabels Sub-Steps as Tasks and fragments the plan.
 
-- [Instruction] Prefix every task subject with a category placed between `[#<returned-id>]` and the description.
+- [Instruction] **Prefix every task subject with a category** placed between `[#<returned-id>]` and the description.
   - [Why] The category lets you and the reader triage tasks by kind at a glance — deferred, scout, ships-with-current, etc.
   - [Example] Final shape ` <id>. [#<returned-id>][<category>] <description>`. Default `[Task]`; also `[Feature]`, `[Spike]`, `[Debt]`, `[Refactor]`.
 
