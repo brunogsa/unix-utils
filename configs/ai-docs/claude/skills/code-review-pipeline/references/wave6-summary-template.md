@@ -21,7 +21,7 @@ Findings posted: <N>
 
 Dropped findings (one line each, for validation):
   [Wave 3 FP ]  path:line — <first 80 chars of body> — dropped because <reason>
-  [Wave 4 off]  path:line — <first 80 chars of body>
+  [Wave 4 off]  path:start-end — <first 80 chars of body>
 
 Totals: <y> false positives, <z> off-diff dropped.
 
@@ -31,6 +31,10 @@ Skipped files (not reviewed):
 
 Open <pr-url>/files to filter and submit.
 ```
+
+Both drop lists are read from disk, not from memory: `$work_dir/wave3-drop-log.txt`
+and `$work_dir/wave4-drop-log.txt`. A compaction between Wave 3 and here costs
+nothing that way.
 
 The per-finding drop list exists so you can sanity-check the filter while the
 threshold is tuned LOW. If real findings are disappearing, tighten Wave 3. If

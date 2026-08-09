@@ -19,7 +19,7 @@ The guide only exists to post as a standalone PR comment in github mode.
 ## Findings
 
 <for each finding, numbered sequentially by severity order>
-**#N [SEVERITY]** `path:start_line-line`
+### N. [SEVERITY] `path:start_line-line`
 <body>
 ```
 

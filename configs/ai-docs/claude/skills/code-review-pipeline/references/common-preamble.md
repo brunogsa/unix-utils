@@ -43,10 +43,10 @@ from the diff; pull full files only when you need broader context to decide.
   `static-circular.txt`, `tests-unit.txt`, `tests-integration.txt`,
   `tests-e2e.txt`, `coverage.txt`, `discovered-commands.txt`. Failures
   **inside the diff** become findings (MANDATORY/RECOMMENDED per severity);
-  failures **outside the diff** are reported as `[Pre-existing]` and the
-  orchestrator files each via CLAUDE.md's Scout rule. A `not-available:
-  <reason>` line means the project does not expose that check — do not
-  invent findings to fill the gap.
+  failures **outside the diff** are not findings — Wave 4 drops anything
+  outside `commentable-lines.txt`, and Wave 6's drop log is where they
+  surface. A `not-available: <reason>` line means the project does not
+  expose that check — do not invent findings to fill the gap.
 
 ## Shared inputs
 - Mode: {mode}  (github or local)

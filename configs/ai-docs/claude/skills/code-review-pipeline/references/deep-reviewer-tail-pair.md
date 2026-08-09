@@ -51,7 +51,11 @@ YOU MUST:
 Violating any of the MUST NOT items aborts the whole run.
 ```
 
-A `PreToolUse` hook (`~/.claude/hooks/deep-reviewer-write-guard.sh`) backs this at the tool layer: it auto-approves a write whose basename matches `verdict_*.md` or whose path is under `/tmp`, and denies (exit 2) everything else.
+A `PreToolUse` hook (`~/.claude/hooks/deep-reviewer-write-guard.sh`) backs this at the tool layer.
+
+It auto-approves a write whose basename matches `verdict_*.md` or `verdict_*.html`, and any write under `/tmp`; everything else is denied (exit 2).
+
+Tell each lens about the `/tmp` half — a lens that believes only `verdict_*` is writable skips the `$work_dir` persistence its compaction-resume depends on.
 
 The subagent cannot physically touch repo source even if it tried.
 
@@ -98,7 +102,9 @@ Never do this as an unprompted default, and never as a repeating loop:
 
 Lens routing beats one generic applier because the `refactor` agent refuses behavior changes by design, so a correctness finding has to reach `tdd-coder` to get a test written for it at all.
 
-`implement`'s batch end now uses this same routing too (its Auto-solve step, `references/batch-end-review.md`), with one difference: the orchestrator itself names the findings to apply, in-run.
+`implement`'s batch end reaches this same routing indirectly. Its quality-gate tail (`implement/references/batch-end-review.md`) invokes `/quality-gate --auto-solve`, whose triage step names the findings and hands them to `address-verdicts`.
+
+One difference: the orchestrator names them in-run.
 It does not wait for a human to name them after seeing the package.
 
 **Repeating this across rounds until the tails come back dry is `loop-auto-review`'s job, not this reference's**.

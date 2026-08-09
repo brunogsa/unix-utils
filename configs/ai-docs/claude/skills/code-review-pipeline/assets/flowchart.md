@@ -23,7 +23,12 @@ Python-shaped for readability only; nothing here runs, and the function names st
 def code_review_pipeline(arg):
     if arg.mode == "local" or arg.isolate:                 # 2
         # 2a · one instance runs the WHOLE pipeline, serial.
-        return dispatch("general-purpose · sonnet · effort inherits", arg)
+        #      Each mode pins its own tier: local's caller
+        #      (/auto-review) buys opus judgment, and the
+        #      sonnet default covers only github --isolate.
+        pin = ("deep-reviewer · opus" if arg.mode == "local"
+               else "general-purpose · sonnet · effort inherits")
+        return dispatch(pin, arg)
     # 2b · github with no --isolate: run inline in a fresh main session.
 
     mode, target, language = parse_input_header(arg)       # 3
@@ -49,7 +54,11 @@ def code_review_pipeline(arg):
     #     commentable-lines, skipped-files.
     persist(work_dir, diff, changed_files, commit_messages, commentable, skipped)
 
-    if added_lines() < 100:                                # 9 · tiny_pr
+    # 9b · persisted so a compaction before Wave 2 can't lose which path resumes.
+    tiny_pr = added_lines() < 100
+    persist(f"{work_dir}/tiny-pr.txt", tiny_pr)
+
+    if tiny_pr:                                            # 9 · tiny_pr
         # 9a · tiny-PR fast-path: one pass, a 2-sentence summary,
         #      skipping the guide writer AND Wave 3 — it jumps straight to 15a.
         findings = one_pass_review()
@@ -141,7 +150,7 @@ def code_review_pipeline(arg):
 flowchart TD
   n1(["1. Invoke /auto-review (local) or /pr-review (github)<br/>flag: --isolate forces isolated path"]):::start
   n2{"2. Mode local, or --isolate passed?"}
-  n2a["2a. Dispatch general-purpose · sonnet · effort inherits<br/>serial -- one instance runs whole pipeline"]:::dispatch
+  n2a["2a. Dispatch isolated, serial -- one instance runs whole pipeline<br/>local: deep-reviewer · opus (pinned by /auto-review)<br/>github --isolate: general-purpose · sonnet · effort inherits"]:::dispatch
   n2b["2b. Run inline in fresh main session<br/>(github, no --isolate)"]
   n3["3. Parse input header<br/>(mode, PR/branch, language)"]
   n4["4. Load review-principles.md<br/>+ review-checklists.md<br/>(grounds every wave)"]:::skill
@@ -156,7 +165,8 @@ flowchart TD
   n6c(["6c. Abort: clone failed"])
   n8["8. Persist to $work_dir:<br/>diff, changed-files, commit-messages,<br/>commentable-lines, skipped-files"]:::state
 
-  n9{"9. added_lines less than 100?<br/>(tiny_pr)"}
+  n9b["9b. tiny_pr = added_lines less than 100,<br/>persisted to $work_dir/tiny-pr.txt<br/>(survives compaction before Wave 2)"]:::state
+  n9{"9. tiny_pr?"}
   n9a["9a. Tiny-PR fast-path:<br/>one pass, 2-sentence summary,<br/>skip guide writer and Wave 3"]
 
   n10["10. Invoke code-standards, test-standards,<br/>doc-standards via Skill tool<br/>+ read repo CLAUDE.md"]:::skill
@@ -220,8 +230,9 @@ flowchart TD
   n7 --> n8
   n6a --> n8
   n6b --> n8
-  n8 --> n9
+  n8 --> n9b
 
+  n9b --> n9
   n9 -->|"yes"| n9a
   n9 -->|"no"| n10
   n10 --> n11

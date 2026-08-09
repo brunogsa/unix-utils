@@ -36,4 +36,6 @@ Run independent commands in parallel.
 
 This collection is **local mode only** today.
 
-github mode runs from a `/tmp` work dir without a code checkout. Extending would need an extra checkout step — out of scope; revisit if github reviews need the same signal.
+github mode's clone is `--depth=50 --filter=blob:none` with no dependency install, so the project's own lint, typecheck, and test commands can't run there.
+
+Extending would need an install step — out of scope; revisit if github reviews need the same signal.

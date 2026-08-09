@@ -4,7 +4,7 @@ Purpose: assemble everything every specialist will need on disk, so specialists 
 
 **Work dir**:
 - github: `/tmp/pr-review-<n>/`; create fresh (`rm -rf && mkdir -p`).
-- local: `$(mktemp -d /tmp/auto-review.XXXXXX)` for scratch; the review lands in a timestamped `./verdict_auto-review_<timestamp>` file in CWD (`out_base` set below; extension decided in Wave 5).
+- local: `$(mktemp -d /tmp/auto-review.XXXXXX)` for scratch; the review lands in a timestamped `./verdict_auto-review_<timestamp>` file in CWD (`out_base` set below; always `.md`, per the html-artifacts Gate 1 note in `auto-review/SKILL.md`).
 
 **Specialists receive the context listed in `references/common-preamble.md#Context you have`** — ensure Wave 1 produces all of it on disk. Commit messages are fetched in both modes; only `{pr_context}` differs:
 
@@ -52,13 +52,27 @@ Teardown: work dir stays in `/tmp` for macOS's periodic cleanup. On failure, pri
 
 Repo root for specialists is the user's CWD; the work dir is scratch for diff/context files.
 
+`base_ref` is supplied by the caller — `auto-review`'s resolved `<BASE_REF>`, or `/implement`'s `BATCH_BASE_SHA` — and may be a branch name, a commit SHA, or `HEAD~N`.
+
 ```bash
 work_dir=$(mktemp -d /tmp/auto-review.XXXXXX)
 out_base="./verdict_auto-review_$(date +%Y-%m-%d_%H:%M)"
-git fetch origin "$base_branch"
-git diff -U20 "origin/$base_branch...HEAD"             > "$work_dir/diff"
-git diff      "origin/$base_branch...HEAD" --name-only > "$work_dir/changed-files.txt"
-git log  "origin/$base_branch..HEAD" --format='%B%n---%n' > "$work_dir/commit-messages.txt"
+
+# A branch on origin diffs against the freshly fetched remote copy, so a
+# stale local branch never silently narrows the diff. Anything else must
+# already resolve locally (SHA, HEAD~N, tag).
+if git ls-remote --exit-code --heads origin "$base_ref" >/dev/null 2>&1; then
+  git fetch origin "$base_ref"
+  base_rev="origin/$base_ref"
+else
+  git rev-parse --verify --quiet "$base_ref^{commit}" >/dev/null \
+    || { echo "base ref '$base_ref' is neither a branch on origin nor a local commit-ish"; exit 1; }
+  base_rev="$base_ref"
+fi
+
+git diff -U20 "$base_rev...HEAD"             > "$work_dir/diff"
+git diff      "$base_rev...HEAD" --name-only > "$work_dir/changed-files.txt"
+git log  "$base_rev..HEAD" --format='%B%n---%n' > "$work_dir/commit-messages.txt"
 
 bash ~/.claude/skills/code-review-pipeline/scripts/extract-commentable-lines.sh \
   "$work_dir/diff" > "$work_dir/commentable-lines.txt"
@@ -80,6 +94,8 @@ After the diff is on disk (both modes), count added lines:
 ```bash
 diff_file="$work_dir/pr.diff"; [ -f "$diff_file" ] || diff_file="$work_dir/diff"
 added_lines=$(grep -c '^+[^+]' "$diff_file" || echo 0)
+tiny_pr=false; [ "$added_lines" -lt 100 ] && tiny_pr=true
+echo "$tiny_pr" > "$work_dir/tiny-pr.txt"
 ```
 
 If `added_lines < 100`, set the `tiny_pr=true` flag. Waves 2 and 3 collapse
@@ -87,3 +103,8 @@ into a single combined pass (see Wave 2 below). At this scale the whole diff
 fits comfortably in context, serial expansion buys little, and the
 per-finding validator adds more cost than it saves. Otherwise leave
 `tiny_pr=false` and run the full pipeline.
+
+**Persist it to `$work_dir/tiny-pr.txt`** (in the block above) so Wave 2
+can recover the flag from disk instead of trusting working memory after a
+mid-pipeline compaction. Without it, a resumed tiny PR reruns through the
+full 8-specialist loop the fast-path exists to skip.

@@ -40,8 +40,11 @@ Is `start_line..line` the tightest range that captures the problem?
 - Range is fine as-is → **leave alone**.
 
 Constraint: the final range must be contained in `commentable-lines.txt`.
-EXCEPTION: if severity is OPTIONAL, the range may fall outside — snap it to
-the closest commentable line in the same hunk.
+Wave 4 drops any finding whose range falls outside it, at every severity —
+the filter reads no `severity` field, so OPTIONAL buys no exemption.
+
+So an OPTIONAL finding about pre-existing code must be snapped to the closest
+commentable line in the same hunk. Left off-diff, it never reaches Wave 5.
 
 Do **not** adjust just for style — only when the current anchor actually
 misleads the reader about where the issue is.
