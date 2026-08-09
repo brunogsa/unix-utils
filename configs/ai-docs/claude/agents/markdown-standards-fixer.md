@@ -12,12 +12,12 @@ hooks:
       hooks:
         - type: command
           command: |
-            jq -e '(.tool_input.command // "") | test("check-density|check-bullet-gap")' >/dev/null 2>&1 && echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}' || true
+            jq -e '(.tool_input.command // "") | test("check-density|check-bullet-gap|fix-density")' >/dev/null 2>&1 && echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}' || true
 ---
 
 ## Objective
 
-You fix doc-standards line violations in markdown: you split over-cap lines, and you insert the blank line a bullet needs before the next bullet.
+You fix doc-standards line violations in markdown: a script clears every mechanical one, and you rephrase only the residue it cannot split safely.
 
 ## Inputs
 
@@ -26,7 +26,7 @@ The caller gives you a list of files (sometimes with specific line numbers; line
 ## Sources and tools
 
 - Your Edits auto-approve.
-- The ONLY Bash you may run is the two verifiers under `~/.claude/skills/doc-standards/scripts/` — `check-density.sh` and `check-bullet-gap.py`. Any other command will prompt, so never rely on one.
+- The ONLY Bash you may run is the three scripts under `~/.claude/skills/doc-standards/scripts/` — `fix-density.py`, `check-density.sh`, and `check-bullet-gap.py`. Any other command will prompt, so never rely on one.
 
 - `~/.claude/skills/doc-standards/references/density-rules.md` — the rewrite patterns and what the verifiers exclude (code fences, tables, link-only lines).
 
@@ -35,8 +35,17 @@ The caller gives you a list of files (sometimes with specific line numbers; line
 For each file the caller names:
 
 1. Read it. Read `~/.claude/skills/doc-standards/references/density-rules.md` once for the rewrite patterns and what the verifiers exclude (code fences, tables, link-only lines).
-2. Split every prose line/bullet that exceeds 256 characters OR 32 words.
-3. Insert a blank line after every bullet `check-bullet-gap.py` reports — the fix is the same for both of its labels, `sub-bullet` and `over-80pct`.
+2. Run `fix-density.py <file>` FIRST, before reading or editing anything.
+
+   - It clears every mechanically-fixable violation in one pass: safe sentence-boundary splits, and the blank line each gapped bullet needs.
+   - It exits 0 when nothing is left. That file is then DONE — do not read it, do not edit it, move to the next file.
+
+   - It exits 1 having printed the lines it refused to touch, as `<line>:<chars>:<words>` residue rows. Those, and only those, are yours.
+
+   - Why script-first: it is deterministic and sub-second, where hand-splitting the same lines burns turns and risks mangling prose it should only have re-wrapped.
+
+3. Hand-fix ONLY the residue lines it reported. Each is a line with no safe split boundary, so it needs genuine rephrasing rather than a split.
+
 4. Run BOTH `check-density.sh <file>` and `check-bullet-gap.py <file>` from `~/.claude/skills/doc-standards/scripts/`, and iterate on that file until each exits 0.
    - Re-run both after every edit round: splitting a long line adds bullets, which can open a new gap, and gapping a bullet never fixes a density hit.
 
@@ -61,4 +70,4 @@ For each file the caller names:
 
 ## Report format
 
-When every file the caller named exits 0 on BOTH verifiers, report one line per file: how many lines you split and how many gaps you inserted. Touch no other files.
+When every file the caller named exits 0 on BOTH verifiers, report one line per file: how many residue lines `fix-density.py` left you, and how many you rephrased. Touch no other files.
