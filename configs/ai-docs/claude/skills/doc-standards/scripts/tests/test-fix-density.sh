@@ -283,6 +283,113 @@ it_should_exit_2_when_given_an_unknown_flag() {
   assert_eq 'should exit 2 when given an unknown flag' "2" "$?"
 }
 
+it_should_leave_an_over_cap_line_untouched_when_an_unclosed_bracket_precedes_the_only_boundary() {
+  new_fixture ac12-unclosed-bracket.md
+  cat > "$FIXTURE" <<'EOF'
+# AC12 fixture
+
+Check [the reference material without a closing bracket anywhere before the sentence boundary point right here. This continuation clause exists solely to push total length well past caps enforced elsewhere in this fixture for the test scenario at hand today truly indeed
+EOF
+
+  local before
+  before="$(cat "$FIXTURE")"
+  run_fix
+  assert_eq 'should leave an unclosed-bracket line untouched (exit code reports residue)' "1" "$FIX_EXIT"
+  assert_eq 'should leave an unclosed-bracket line untouched (file content byte-identical)' "$before" "$(cat "$FIXTURE")"
+  assert_contains 'should leave an unclosed-bracket line untouched (residue row)' "$FIX_OUT" '3:269:42'
+}
+
+it_should_leave_an_over_cap_line_untouched_when_its_only_boundary_sits_inside_a_code_span() {
+  new_fixture ac13-code-span-boundary.md
+  cat > "$FIXTURE" <<'EOF'
+# AC13 fixture
+
+Run the `first step of setup. Then continue with the configuration` before moving further along in this particularly long winded deployment procedure that keeps dragging on for quite some time here today certainly for sure absolutely without any doubt whatsoever really
+EOF
+
+  local before
+  before="$(cat "$FIXTURE")"
+  run_fix
+  assert_eq 'should leave a code-span-boundary line untouched (exit code reports residue)' "1" "$FIX_EXIT"
+  assert_eq 'should leave a code-span-boundary line untouched (file content byte-identical)' "$before" "$(cat "$FIXTURE")"
+  assert_contains 'should leave a code-span-boundary line untouched (residue row)' "$FIX_OUT" '3:269:41'
+}
+
+it_should_leave_an_over_cap_line_untouched_when_its_only_semicolon_boundary_sits_inside_parentheses() {
+  new_fixture ac14-semicolon-in-parens.md
+  cat > "$FIXTURE" <<'EOF'
+# AC14 fixture
+
+This bullet point wraps up nicely and cannot possibly reach the cap easily today (structurally this cannot ever reach zero completely; reports stay capped every run and simply never gate anything at all around here).
+EOF
+
+  local before
+  before="$(cat "$FIXTURE")"
+  run_fix
+  assert_eq 'should leave a semicolon-in-parens line untouched (exit code reports residue)' "1" "$FIX_EXIT"
+  assert_eq 'should leave a semicolon-in-parens line untouched (file content byte-identical)' "$before" "$(cat "$FIXTURE")"
+  assert_contains 'should leave a semicolon-in-parens line untouched (residue row)' "$FIX_OUT" '3:216:35'
+}
+
+it_should_split_an_over_cap_line_at_a_semicolon_boundary_outside_any_brackets_and_stay_idempotent_on_a_second_run() {
+  new_fixture ac15-semicolon-outside-brackets.md
+  cat > "$FIXTURE" <<'EOF'
+# AC15 fixture
+
+This first independent clause exists purely to push the overall line length well past the two hundred fifty six character density cap enforced here today for sure absolutely; this second clause continues the thought cleanly right after the semicolon boundary point without any issue.
+EOF
+
+  run_fix
+  assert_eq 'should split at a semicolon boundary outside brackets (exit code, fully resolved)' "0" "$FIX_EXIT"
+
+  local expected_file="$work_dir/ac15-expected.md"
+  cat > "$expected_file" <<'EOF'
+# AC15 fixture
+
+This first independent clause exists purely to push the overall line length well past the two hundred fifty six character density cap enforced here today for sure absolutely;
+this second clause continues the thought cleanly right after the semicolon boundary point without any issue.
+EOF
+  local expected
+  expected="$(cat "$expected_file")"
+  local first_run_content
+  first_run_content="$(cat "$FIXTURE")"
+  assert_eq 'should split at a semicolon boundary outside brackets (file content, both halves under the caps)' "$expected" "$first_run_content"
+
+  run_density_check
+  assert_eq 'should split at a semicolon boundary outside brackets (independently re-verified clean by check-density.sh)' "0" "$DENSITY_EXIT"
+
+  run_fix
+  assert_eq 'should split at a semicolon boundary outside brackets (second run makes no further changes)' "$first_run_content" "$(cat "$FIXTURE")"
+}
+
+it_should_split_at_the_same_sentence_boundary_when_a_semicolon_also_appears_later_in_the_line() {
+  new_fixture ac16-both-boundaries.md
+  cat > "$FIXTURE" <<'EOF'
+# AC16 fixture
+
+This clause exists purely to push the line length well past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents. This second clause continues the thought after the boundary so the split can balance both halves; yes indeed for sure certainly absolutely today.
+EOF
+
+  run_fix
+  assert_eq 'should split at the pre-existing sentence boundary despite a later semicolon (exit code, fully resolved)' "0" "$FIX_EXIT"
+
+  # Written to a file first, then read back - see the comment on AC4's
+  # expected_file above for why (apostrophe in "repository's").
+  local expected_file="$work_dir/ac16-expected.md"
+  cat > "$expected_file" <<'EOF'
+# AC16 fixture
+
+This clause exists purely to push the line length well past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents.
+This second clause continues the thought after the boundary so the split can balance both halves; yes indeed for sure certainly absolutely today.
+EOF
+  local expected
+  expected="$(cat "$expected_file")"
+  assert_eq 'should split at the pre-existing sentence boundary despite a later semicolon (file content, same split point as before the semicolon boundary existed)' "$expected" "$(cat "$FIXTURE")"
+
+  run_density_check
+  assert_eq 'should split at the pre-existing sentence boundary despite a later semicolon (independently re-verified clean by check-density.sh)' "0" "$DENSITY_EXIT"
+}
+
 it_should_split_an_over_cap_line_at_a_sentence_boundary_with_both_halves_under_the_caps
 it_should_leave_an_over_cap_line_with_no_safe_boundary_untouched_and_exit_1_reporting_residue
 it_should_leave_a_fenced_code_block_untouched_even_with_an_over_cap_line_inside_it
@@ -294,6 +401,11 @@ it_should_repair_hits_at_many_line_numbers_in_one_invocation
 it_should_leave_an_already_clean_file_unchanged_and_exit_0
 it_should_exit_2_when_given_a_missing_file
 it_should_exit_2_when_given_an_unknown_flag
+it_should_leave_an_over_cap_line_untouched_when_an_unclosed_bracket_precedes_the_only_boundary
+it_should_leave_an_over_cap_line_untouched_when_its_only_boundary_sits_inside_a_code_span
+it_should_leave_an_over_cap_line_untouched_when_its_only_semicolon_boundary_sits_inside_parentheses
+it_should_split_an_over_cap_line_at_a_semicolon_boundary_outside_any_brackets_and_stay_idempotent_on_a_second_run
+it_should_split_at_the_same_sentence_boundary_when_a_semicolon_also_appears_later_in_the_line
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

@@ -9,12 +9,14 @@ out to both and only acts on the lines they report as violations, so the two
 checkers stay the single source of truth for what counts as "prose" here.
 
 Splitting is conservative: a line is split only at a recognized boundary
-(". ", " — ", " -- ") whose remainder doesn't start with a markdown
+(". ", " — ", " -- ", "; ") whose remainder doesn't start with a markdown
 structural token (a bullet/heading/table/blockquote/ordered-list marker) -
 that remainder would silently become a new structural element instead of
-continuation prose. When no such boundary exists on a line, the line is left
-fully untouched and reported as residue - never deleted, truncated, or
-reworded.
+continuation prose - and whose first half doesn't strand an unclosed "(",
+"[", or an odd number of "`" code-span delimiters, which would break a
+bracket pair or a code span across the two resulting lines. When no such
+boundary exists on a line, the line is left fully untouched and reported
+as residue - never deleted, truncated, or reworded.
 
 Runs check-bullet-gap.py --fix and one split pass to convergence (a pass
 that changes nothing), capped at MAX_ITERATIONS passes per file, so a split
@@ -43,7 +45,7 @@ MAX_CHARS = 256
 MAX_WORDS = 32
 MAX_ITERATIONS = 10
 
-BOUNDARY = re.compile(r"\. | — | -- ")
+BOUNDARY = re.compile(r"\. | — | -- |; ")
 STRUCTURAL_TOKEN = re.compile(r"^(?:[-*+#|>]|\d+\.)")
 URL = re.compile(r"\(https?://[^)]*\)")
 DATA_URI = re.compile(r"[(<]data:[^)>]*[)>]")
@@ -59,15 +61,30 @@ def measure(text):
     return len(s), len(s.split())
 
 
+def is_first_half_balanced(first_half):
+    """False when `first_half` would strand an unclosed "(", "[", or an
+    odd number of "`" code-span delimiters on this line of the split -
+    splitting there would break a bracket pair or a code span across the
+    two resulting lines. Checked on the raw first half, before measure()'s
+    strips - those strips are about display length, not split safety."""
+    if first_half.count("(") > first_half.count(")"):
+        return False
+    if first_half.count("[") > first_half.count("]"):
+        return False
+    return first_half.count("`") % 2 == 0
+
+
 def candidate_splits(line, max_chars, max_words):
     """Every safe (first_half, second_half) split of `line`, best first.
 
     "Safe" rejects a remainder starting with a markdown structural token -
     that would silently turn continuation prose into a new bullet, heading,
-    table row, blockquote, or ordered-list item. Among the safe candidates,
-    one where both halves land at/under the caps sorts first; ties (and the
-    no-candidate-fits-both-caps case) break on how evenly the split
-    balances the two halves, in characters.
+    table row, blockquote, or ordered-list item - and rejects a first half
+    that would strand an unclosed "(", "[", or an odd number of "`"
+    code-span delimiters, breaking a bracket pair or code span across the
+    split. Among the safe candidates, one where both halves land at/under
+    the caps sorts first; ties (and the no-candidate-fits-both-caps case)
+    break on how evenly the split balances the two halves, in characters.
     """
     indent = line[: len(line) - len(line.lstrip(" \t"))]
     safe = []
@@ -76,6 +93,8 @@ def candidate_splits(line, max_chars, max_words):
         first = line[: m.end()].rstrip()
         remainder = line[m.end() :].lstrip()
         if not remainder or STRUCTURAL_TOKEN.match(remainder):
+            continue
+        if not is_first_half_balanced(first):
             continue
 
         second = indent + remainder
