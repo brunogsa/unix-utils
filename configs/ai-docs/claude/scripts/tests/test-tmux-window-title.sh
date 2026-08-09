@@ -190,6 +190,49 @@ it_should_keep_the_root_immutable_across_many_retitles() {
   stop_server
 }
 
+it_should_drop_root_words_from_the_current_work() {
+  start_server
+
+  title "tmux-titles"
+  title --bump-counter
+  title "tmux-titles-cap"
+
+  # The root already spells "tmux-titles" out, so repeating
+  # it would cost the cap the only new word.
+  assert_eq \
+    "TmuxWindowTitle > root > should drop from the current work every word the root already carries" \
+    "tmux-titles/cap[1]" "$(window_name)"
+  stop_server
+}
+
+it_should_drop_only_whole_words_of_the_root() {
+  start_server
+
+  title "auth"
+  title --bump-counter
+  title "authz-fix"
+
+  # "authz" merely starts with the root — dropping it would
+  # lose the word the current work is actually about.
+  assert_eq \
+    "TmuxWindowTitle > root > should keep a current-work word that only starts with a root word" \
+    "auth/authz-fix[1]" "$(window_name)"
+  stop_server
+}
+
+it_should_render_bare_when_the_root_covers_every_word() {
+  start_server
+
+  title "auth-fix"
+  title --bump-counter
+  title "auth"
+
+  assert_eq \
+    "TmuxWindowTitle > root > should render bare when the root already covers every word of the current work" \
+    "auth-fix[1]" "$(window_name)"
+  stop_server
+}
+
 it_should_render_bare_when_the_title_matches_the_root() {
   start_server
 
@@ -215,7 +258,7 @@ it_should_fold_a_caller_supplied_separator_into_a_hyphen() {
   # already-rooted string must not nest one root in another.
   assert_eq \
     "TmuxWindowTitle > root > should fold a caller-supplied slash into a hyphen" \
-    "auth-fix/auth-fix-tok[1]" "$(window_name)"
+    "auth-fix/token-refres[1]" "$(window_name)"
   stop_server
 }
 
@@ -448,6 +491,9 @@ it_should_root_a_retitle_that_follows_a_compaction
 it_should_freeze_the_root_at_the_last_pre_compaction_title
 it_should_keep_the_root_stable_across_later_compactions
 it_should_keep_the_root_immutable_across_many_retitles
+it_should_drop_root_words_from_the_current_work
+it_should_drop_only_whole_words_of_the_root
+it_should_render_bare_when_the_root_covers_every_word
 it_should_render_bare_when_the_title_matches_the_root
 it_should_fold_a_caller_supplied_separator_into_a_hyphen
 it_should_not_root_a_pane_claude_never_titled

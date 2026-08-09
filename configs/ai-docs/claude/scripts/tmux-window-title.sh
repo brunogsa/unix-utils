@@ -29,8 +29,14 @@
 #   So the first --bump-counter freezes the then-current base as the session's
 #   ROOT, in the pane option @claude_root_title. Every later title renders as
 #   "<root>/<current>[N]" -- the anchor the user scans for, plus where the work
-#   has actually moved. A current base equal to the root renders bare, so an
-#   undrifted session never reads "auth-fix/auth-fix[2]".
+#   has actually moved.
+#
+#   The current half AGGREGATES over the root rather than repeating it: any
+#   hyphen-separated word the root already carries is dropped from it, so
+#   "tmux-titles" plus "tmux-titles-cap" reads "tmux-titles/cap[1]". Repeating
+#   a word already on screen would spend the cap truncating the work that is
+#   actually new. A base the root fully covers leaves nothing to add and
+#   renders bare, so an undrifted session never reads "auth-fix/auth-fix[2]".
 #
 #   The root is stored in tmux, not left to Claude's memory, precisely because
 #   compaction is what erases the first turn: after it, Claude no longer knows
@@ -67,7 +73,9 @@
 #   tmux-window-title.sh --bump-counter   # "tmux-titles" -> "tmux-titles[1]"
 #   tmux-window-title.sh --reset-counter  # "tmux-titles[1]" -> "tmux-titles"
 #   tmux-window-title.sh "hook-tests"     # after that bump, roots the title:
-#                                         #   "tmux-titles/hook-tests[1]"
+#                                         #   "tmux-title/hook-tests[1]"
+#   tmux-window-title.sh "tmux-titles-cap" # the root's own words drop out:
+#                                          #   "tmux-titles/cap[1]"
 
 set -euo pipefail
 
@@ -145,13 +153,39 @@ fit_rooted_pair() {
     "$(truncate_segment "$base" "$base_room")"
 }
 
+# Echo `base` with every hyphen-separated word the root already carries
+# dropped, in the order the survivors appeared. Echoes nothing when the root
+# covers every word.
+#
+# This is what makes a rooted title aggregate instead of repeat: the root is
+# already on screen, so re-printing one of its words buys the reader nothing
+# while the cap truncates away the work that IS new.
+drop_words_already_in_root() {
+  local root=$1 remaining=$2 kept="" word
+
+  while [ -n "$remaining" ]; do
+    word="${remaining%%-*}"
+    remaining="${remaining#"$word"}"
+    remaining="${remaining#-}"
+
+    # Both sides wrapped in hyphens so only whole words match -- an "auth"
+    # in the root must not swallow "authz" from the current work.
+    case "-$root-" in
+      *"-$word-"*) continue ;;
+    esac
+
+    kept="${kept:+$kept-}$word"
+  done
+
+  printf '%s' "$kept"
+}
+
 # Render the window title, capped per MAX_LEN_PLAIN / MAX_LEN_COMPACTED. The
 # counter is kept whole and the text truncated to make room, so the count stays
 # visible even as the title shrinks.
 #
-# The root is prepended only when there is one AND the base has actually
-# drifted away from it -- an undrifted session renders the bare base, never a
-# doubled "auth-fix/auth-fix".
+# The root is prepended only when there is one AND the base still says
+# something the root does not.
 render_title() {
   local base=$1 count=$2 root=${3:-} suffix=""
   [ -n "$count" ] && suffix="[$count]"
@@ -161,10 +195,19 @@ render_title() {
 
   local budget=$(( max_len - ${#suffix} ))
 
-  if [ -n "$root" ] && [ "$root" != "$base" ]; then
-    local available=$(( budget - ${#ROOT_SEPARATOR} ))
-    printf '%s%s' "$(fit_rooted_pair "$root" "$base" "$available")" "$suffix"
-    return
+  if [ -n "$root" ]; then
+    local new_work
+    new_work=$(drop_words_already_in_root "$root" "$base")
+
+    if [ -n "$new_work" ]; then
+      local available=$(( budget - ${#ROOT_SEPARATOR} ))
+      printf '%s%s' "$(fit_rooted_pair "$root" "$new_work" "$available")" "$suffix"
+      return
+    fi
+
+    # Nothing survived: the root already spells the current work out, so it
+    # renders alone rather than as "auth-fix/auth-fix" or "auth-fix/auth".
+    base=$root
   fi
 
   printf '%s%s' "$(truncate_segment "$base" "$budget")" "$suffix"
