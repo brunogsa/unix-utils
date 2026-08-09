@@ -150,11 +150,8 @@ Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`d
 - [Instruction] Every line/bullet ≤256 chars and ≤32 words; over the cap, split on a sentence boundary — never drop info to fit.
   - [Why] Dense prose drops adherence in LLM consumers and raises scan time for humans; the cap forces clarity.
 
-- [Instruction] Run `scripts/fix-density.py <doc>` before fixing either line rule by hand or by dispatch — the density cap and the blank-line gap alike.
-  - [Why] It repairs every mechanically-fixable violation in one sub-second pass, where an AI fixer burns turns re-deriving the same splits and can mangle the prose it should only re-wrap.
-
-- [Instruction] Delegate only the residue it prints, to `agent(subAgent=markdown-standards-fixer, title=Fix <doc> markdown)`, never inline.
-  - [Why] Residue is the class with no safe split boundary, so it needs real rephrasing with fresh eyes; inline fixing burns main-session context, and eyeballing misses violations.
+- [Instruction] Delegate every density and bullet-gap run — checking and fixing alike — to `agent(subAgent=markdown-standards-fixer, title=Fix <doc> markdown)`, never inline in the main session.
+  - [Why] It runs `scripts/fix-density.py` for the mechanical splits and rephrases only the residue with fresh eyes, where an inline run burns main-session context re-deriving those splits and eyeballs the rest.
 
 - [Instruction] Separately verify each schema JSONC block against its ≤80-char/line rule (in the `design-docs` skill).
   - [Why] `check-density.sh` excludes fenced code, so a green run reads as "the whole doc passes" while a design doc's JSONC went unmeasured — its over-long schema lines ship unflagged.
