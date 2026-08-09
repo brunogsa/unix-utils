@@ -171,3 +171,75 @@ Settled 2026-07-27. Reopened the same day under `experiments.md` → Proposed, b
 - **Why it closed**: the repo deliberately leaves `model`, `advisorModel`, and `effortLevel` uncommitted, so the ledger cannot see this lever at all.
 - Two consecutive windows failed for that one structural reason, which more observation days cannot fix.
 - Recording the day-and-value is the prerequisite for any successor, so the successor sits under Proposed until a mechanism exists.
+
+## Everything from here down was measured AFTER the 2026-08-08 output-token fix
+
+The two VOID warnings at the top of this file apply only to the entries above. Rows below were re-derived from the series rebuilt on 2026-08-08.
+
+Each figure below names its source day, and every named day carries `reconciliation: "ok"` — cross-checked against ccusage at 0.000% on all four token buckets.
+
+## 2026-07-24 — PreToolUse hook hard-denies subagent dispatches with a wrong or missing model
+
+Commit `55dbdca`. **Settled 2026-08-08 by the user: `kept`.**
+
+- **Verdict rests on falsifying the entry's own settle-by criterion.** It predicted denials would decay to zero as the pin became habit, and read zero as the `kept` signal.
+
+- Denials never decayed. Grepping every transcript for the two literal reason strings in `hooks/subagent-model-guard.py:140,150` gives unpinned-model denials per local day:
+
+- `07-24: 16`, `07-25: 5`, `07-26: 3`, `07-27: 7`, `07-28: 7`, `07-29: 12`, `07-30: 9`, `07-31: 3`, `08-02: 6`, `08-03: 2`, `08-04: 1`, `08-06: 5`.
+- The pinned-mismatch arm fires as well, in 27 transcript files.
+
+- **A steady fire rate is stronger evidence for the hook than silence would have been.** Silence is ambiguous — it reads equally as "habit formed" or "hook broken".
+
+- Thirteen straight days of catches means the convention never became habit, so reverting the hook would reintroduce session-tier spawns immediately.
+
+- **Do not re-use "zero events = kept" for any guard whose success is an absence.** Instrument the guard's own fire rate instead, and read a non-zero rate as the guard working.
+
+- **Corroboration, not evidence**: `2026-08-06` recorded no `general-purpose` and no `UNMATCHED` runs at all — only pinned types.
+- The entry itself forbids citing `UNMATCHED` as hook evidence in either direction, because it measures parser accuracy rather than spawn behaviour. That still holds.
+
+## 2026-07-26 — global CLAUDE.md trimmed, authoring-only rules moved into skills
+
+Seven commits: `8b85f2c`, `5866af5`, `89fe7be`, `c5d1897`, `3889121`, `9812afa`, `13503d4`. **Settled 2026-08-08 by the user: `kept`.**
+
+Compared `snapshots/2026-07-26.json` (last untreated day) against `snapshots/2026-08-06.json` (first citable treated day). Both read `reconciliation: "ok"`.
+
+| signal | 2026-07-26 | 2026-08-06 |
+|---|---|---|
+| `tokens.cache_write` total | 15,142,766 | 6,251,006 |
+| `tokens.input` (uncached) | 14,115 | 10,322 |
+| `kpis.user_messages` | 144 | 67 |
+| cache-write per user message | 105.2k | 93.3k |
+
+- **The measured effect is −11.3% cache-write per user message**, using the workload denominator this entry named when it opened.
+
+- Raw cache-write fell 58.7% while workload fell 53.5%, so nearly all of the raw drop is workload. Quoting the raw drop as the trim's effect would be wrong by roughly 5×.
+
+- **−11.3% is a ceiling on the trim's isolated effect, not a point estimate.** Three changes landed inside the same window and two push the opposite way.
+
+- Same direction: the 2026-07-27 and 2026-07-28 budget-trim wave kept shrinking always-on text.
+- Opposite direction: `c0c1b00` added a note-taking discipline section back into CLAUDE.md on 2026-08-01.
+- Opposite direction: `3b4f628` enabled four plugins on 2026-08-06, each adding always-on tool surface.
+
+- **Closed rather than kept open because the mechanism was never in doubt** — a shorter always-on prefix costs less to cache — and the window existed only to size it.
+
+## 2026-07-26 — bullet-gap checker script plus a widened markdown Stop-hook gate
+
+Commits `618167c`, `3790a32`, `153a2ad`, plus roughly fifteen mechanical `style(*): gap bullets` commits. **Settled 2026-08-08 by the user: `kept`.**
+
+Price side, read from `by_subagent_type.markdown-standards-fixer`. Both endpoints carry `reconciliation: "ok"`; the middle days are `drift` and contribute shape only.
+
+| day | status | runs | cost |
+|---|---|---|---|
+| `snapshots/2026-07-26.json` | ok | 14 | $7.12 |
+| 2026-07-27 → 2026-08-04 | drift | 32 → 8 → 5 → 4 → 5 → 2 | shape only |
+| `snapshots/2026-08-05.json` | ok | 1 | $0.34 |
+
+- **The curve is what a correctly-built gate looks like**: a 32-run spike as the pre-existing backlog drains, then a floor of 1–4 runs per day.
+
+- Payoff side: `kpis.interruptions` read 9 on `2026-07-26` and 3 on `2026-08-06`, with 0 on `2026-08-05`.
+
+- **The entry's own logged baseline was wrong and is superseded.** It recorded $5.82 for 2026-07-26; the 2026-08-08 rebuild corrects that day to $7.12.
+
+- **Confounder, sized and dismissed**: `b7e4714` made the fixer ask before delegating on 2026-08-04.
+- The decline starts 2026-07-28, six days earlier, so that commit explains the tail rather than the drop.

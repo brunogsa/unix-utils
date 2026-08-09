@@ -34,6 +34,35 @@ It is the blocks-per-response count, so it climbs with thinking blocks and tool-
 
 The pre-fix snapshots are recoverable from git (`74a920b`) if a figure ever needs re-deriving. Every snapshot from 2026-07-27 on carries a `reconciliation` block cross-checking its token counts against ccusage.
 
+## CRITICAL: the 2026-07-27 correction itself under-billed, and was re-fixed on 2026-08-08
+
+Every dollar and token figure logged between 2026-07-27 and 2026-08-07 is **also void**. The whole series was rebuilt on 2026-08-08; only figures dated from that rebuild are citable.
+
+The 2026-07-27 fix deduplicated a response to its **anchor** record — the earliest of the N records one response writes, one per content block.
+
+That is correct for three of the four token buckets and wrong for the fourth.
+
+`input`, `cache_read`, and `cache_creation` repeat identically on every block, so the anchor carries the response's true figure.
+
+But `output_tokens` is written **cumulatively as the response streams**, so only the final block holds the total.
+
+Keeping the anchor's value therefore under-billed the single most expensive bucket, by the blocks-per-response count — the exact mirror image of the bug it replaced.
+
+- **The error correlates with thinking and tool-call density**, same as the over-billing bug, so it manufactures deltas rather than cancelling out of one.
+
+- Measured on 2026-08-06: 385 of 1,490 responses carried a growing `output_tokens`. The anchor summed to 691,710 output tokens against a true 1,163,896.
+
+- The fix takes the per-billing-key **peak** `output_tokens`, which matched ccusage to the single token while the other three buckets already matched at 0.000%.
+
+- **Read `reconciliation.status` before citing any day.** After the rebuild 32 of 55 days read `ok` and 23 read `drift`; a `drift` day is not citable, in either direction.
+
+- Only six non-idle days are citable as of 2026-08-08: 2026-07-20, 2026-07-21, 2026-07-26, 2026-07-31, 2026-08-05, 2026-08-06.
+
+- The residual drift on the other 23 is an open defect, not an accepted tolerance.
+  - ccusage sees a population of uncached requests the aggregator does not.
+
+- On 2026-07-19 the script reads 8,363 input tokens against ccusage's 3,137,652. Suspects are cloud/remote agent sessions, `claude -p` headless runs, and record shapes the reader filters out.
+
 ## Superseded: the 2026-07-25 rolling-window caveat
 
 Everything logged up to 2026-07-25 was ALSO measured on the retired rolling-window snapshots, which overlapped, bucketed by UTC, and divided by the wrong day count.
@@ -44,7 +73,7 @@ From 2026-07-27 onward, cite a specific day file (`snapshots/YYYY-MM-DD.json`) a
 
 ## Baseline
 
-There is no single baseline snapshot any more. The per-day series in `snapshots/` is the baseline, one closed local day per file, currently 2026-06-14 through 2026-07-26.
+There is no single baseline snapshot any more. The per-day series in `snapshots/` is the baseline, one closed local day per file, currently 2026-06-14 through 2026-08-07.
 
 State a comparison as two named days, never as "before/after" — that is what the overlapping-window design could not express and what made its deltas unsound.
 
@@ -69,48 +98,33 @@ Arm A is a fresh main session, arm B a subagent; PR parity assigns the arm, and 
 - **Settle by**: waiting for pr-review to run on a PR in the normal course of work, then reading the `ab_tests` rollup.
 - Expect this entry to read zero markers again next audit. That is the accepted cost of not steering the trial.
 
-### 2026-07-24 — PreToolUse hook hard-denies subagent dispatches with a wrong or missing model
+- **Log 2026-08-08 — the dormancy ended. Trials are running, and the instrument is not yet trustworthy.** Settled by the user: keep watching.
 
-Surfaced by the config-change ledger, not by a snapshot: commit `55dbdca feat(hooks): hard-deny subagent dispatches with wrong/missing model`.
+| day | status | arm A (fresh main) | arm B (subagent) |
+|---|---|---|---|
+| 2026-07-27 | drift | 3 trials, $8.22 | 1 trial, $2.57 |
+| 2026-07-30 | drift | — | 1 trial, $2.28 |
+| `snapshots/2026-08-05.json` | ok | 1 trial, $12.27 | 1 trial, $4.52 |
 
-- **Surface**: `hook:*`, verified via `config-change-ledger.py --since 2026-07-24 --until 2026-07-24`.
-- **Hypothesis**: unpinned or wrongly-pinned spawns silently ran at the session's tier; a deny at dispatch makes the pin an invariant instead of a convention.
-- **Watch signal**: `by_subagent_type` average cost per run for `general-purpose`, plus the absence of wrong-model spawns in transcripts.
+- Only 2026-08-05 is citable, at n=1 per arm, with `overrides: 0` in every arm on every day. B leads on all three days, which is direction without significance.
 
-- **Log 2026-07-26**: catalogued retroactively. It enacts open question 2 below, which stayed listed as unresolved for two days after the commit landed — exactly the gap the ledger exists to close.
+- **A missing-subagent-cost hypothesis was raised and disproved, so do not re-raise it.** `by_subagent_type` cost already rolls into each arm at `claude-usage-report.py:784`.
 
-- **Next**: compare 2026-07-24 against 2026-07-25 and later days; the deny takes effect from the commit, so 07-25 onward is the treated period.
+- `subagents_per_session` keys on `path.split("/subagents/")[0]`, so a subagent at any nesting depth attributes to its top-level session. Cluster J's depth-3 raise opens no hole here.
 
-- **Log 2026-07-27**: the entry's stated watch signal shows no usable trend. `by_subagent_type.general-purpose` cost per run ran $0.62 on 2026-07-24, $1.25 on 2026-07-25, $0.82 on 2026-07-26.
+- Confirmed from `top_sessions` on 2026-08-05: arm B's session `cae5b091` reads own cost $0.63 plus `subagent_cost` $3.90, and the arm records $4.52.
 
-- Those figures are corrected and supersede the void "$4.70 per spawn" this entry and open question 1 were built on.
+- **The real defect is the opposite one — arm A has no scope boundary, so its number is the whole session.** There is one `[ABTest]` marker and no paired end-marker.
 
-- **A tempting proxy was checked and rejected twice**: the apparent `UNMATCHED` collapse across 2026-07-24 to 2026-07-26 looked like unpinned spawns disappearing.
+- Arm A's 2026-08-05 session ran 89 API calls, 5 user messages, **2 compactions**, and loaded 5 skills, inside 0.6 hours.
+- Arm B's dispatcher ran 4 API calls, 1 user message, 0 compactions, and 2 skills, so its figure is almost purely the review.
 
-- The run counts behind it carried the same aggregation defect as `session_count`: a day counted every session still open after it, so older days read inflated.
+- Two compactions inside one 0.6-hour review means that session did more than the review, and every bit of it billed to arm A.
 
-- Corrected, `UNMATCHED` runs read 1 on 2026-07-24, 9 on 2026-07-25, and 1 on 2026-07-26. The collapse never happened.
+- **Precondition before any further trial counts**: emit a paired end-marker so cost scopes to the review span in both arms, rather than to the session.
 
-- `UNMATCHED` is what the aggregator records when no Agent tool call matches the subagent session, so even corrected it measures parser accuracy, not spawn behaviour.
-
-- Do not cite it as evidence for the hook, in either direction.
-
-- **Recommendation: keep watching**, because no snapshot field can settle it.
-- A hard deny at dispatch means a wrong-model spawn never produces a transcript record, so its success is an absence the aggregator cannot count.
-- **Settle by**: grepping transcripts from 2026-07-25 onward for deny events raised by the hook. Zero denials with normal spawn volume is the `kept` verdict.
-
-### 2026-07-26 — global CLAUDE.md trimmed, authoring-only rules moved into skills
-
-Seven commits: `8b85f2c`, `5866af5`, `89fe7be`, `c5d1897`, `3889121`, `9812afa`, `13503d4`.
-
-- **Surface**: `CLAUDE.md`, with `skill:skill-authoring` and `skill:personal-cli-discovery` as the move targets.
-- **Intent** (confirmed by the user 2026-07-27): cut always-on context cost.
-
-- **Hypothesis**: CLAUDE.md loads in every session, so moving lazy-loadable rules into skills shrinks the prefix every session pays for.
-- **Watch signal**: `tokens.input` and the two `tokens.cache_write_*` buckets per day, read against `user_messages` as the workload denominator.
-
-- **Log 2026-07-27**: not settleable. The commits landed 2026-07-26, so the first treated day is 2026-07-27, which has no snapshot until the next audit.
-- **Next**: compare 2026-07-26 against the first closed treated day at comparable `user_messages`.
+- **Settle by**: the paired-marker change landing, then at least three trials per arm on days that read `reconciliation: "ok"`.
+- Do not settle this on the pre-boundary trials above, in either direction.
 
 ### 2026-07-26 — spec-driven-development split into a library, with full/light/none depths
 
@@ -123,22 +137,106 @@ Seven commits: `871355a`, `0d25941`, `349f63e`, `75d30d9`, `52620a9`, `0947556`,
 - **Second mechanism**: the library split keeps content only the subagent needs out of the skill body.
 - **Watch signal**: `by_skill_marginal.brainstorm` — `dedicated_cost` per dedicated session, or `mixed_cost_estimate` when no dedicated session exists.
 
-- **Baseline to beat** (corrected figures): 2026-07-23 `mixed_cost_estimate` $43.27 across 2 sessions; 2026-07-25 `dedicated_cost` $0.67 across 1 session.
+- **Baseline to beat** (superseded — see the 2026-08-08 log): 2026-07-23 `mixed_cost_estimate` $43.27 across 2 sessions; 2026-07-25 `dedicated_cost` $0.67 across 1 session.
 - **Log 2026-07-27**: not settleable. 2026-07-26 recorded no brainstorm invocation at all, and the change only takes effect from 2026-07-27.
 
-### 2026-07-26 — bullet-gap checker script plus a widened markdown Stop-hook gate
+- **Log 2026-08-08 — still not settleable, and now for a structural reason.** Settled by the user: keep watching, with the watch signal rewritten below.
 
-Commits `618167c` (checker), `3790a32` (gate widened from density to markdown standards), `153a2ad` (wave 5 gated on both checkers), plus roughly fifteen mechanical `style(*): gap bullets` commits.
+- **Every day in the whole 55-day series that carries a `by_skill_marginal.brainstorm` row reads `reconciliation: "drift"`**, so not one data point is citable.
 
-- **Surface**: `hook:claude-markdown-standards-stop-hook.sh`, `hook:claude-stop-orchestrator.sh`, `settings.json`, `agent:markdown-standards-fixer`, `skill:doc-standards`.
-- **Intent** (confirmed by the user 2026-07-27): enforce doc-standards mechanically and improve skill readability, with the fixer agent's cost accepted as known overhead.
+- Uncitable rows, listed only to show the window is not empty:
+  - 2026-07-28 `dedicated_cost` $7.63 across 1 session.
+  - 2026-08-03 $2.81 across 1.
+  - 2026-08-04 $29.49 across 1.
 
-- **Hypothesis**: moving a hand-applied formatting rule onto a deterministic checker converts a recurring correction into a gate.
-- **Watch signal, price**: `by_subagent_type.markdown-standards-fixer` cost and runs per day. First day 2026-07-26 read 14 runs for $5.82.
-- **Watch signal, payoff**: `interruptions` per day, and doc-standards corrections reaching the user.
+- Both baselines this entry named are `drift` days too, so the comparison has no valid end at either side.
 
-- **Log 2026-07-27**: the price side has one data point and the payoff side none.
-- The sweep and the gate landed the same day, so 2026-07-26's own formatting churn is not steady state.
+- **Directional flag, explicitly not a finding**: 2026-08-04's $29.49 per dedicated session exceeds 2026-07-23's $21.64 per mixed session — the opposite of the hypothesis.
+
+- **Rewritten watch signal**: `by_skill_marginal.brainstorm` on a day that runs brainstorm **and** reads `reconciliation: "ok"`. That combination has not occurred once in 55 days.
+
+- **Blocked on** the residual input-token drift described in the second CRITICAL section above. This entry cannot settle until that defect is fixed, no matter how many days pass.
+
+### 2026-07-27 — pr-writer pinned to sonnet instead of opus
+
+Commit `4c189cf`. Opened 2026-08-08 from the ledger, on the user's instruction to open windows only on clusters with an isolatable cost mechanism.
+
+- **Surface**: `agent:pr-writer`.
+- **Hypothesis**: PR-body composition is writing under fixed conventions, not architectural judgment, so the opus tier bought nothing the sonnet tier does not.
+- **Watch signal**: `by_subagent_type.pr-writer` cost per run.
+
+- **Baseline is contaminated and must not be used as the "before" end.** The pin landed 2026-07-27, and that day's 3 runs at $9.64 straddle it.
+
+- Post-pin readings so far, all on `drift` days and therefore uncitable:
+  - 2026-07-28 2 runs at $1.40.
+  - 2026-08-03 2 runs at $1.41 — roughly $0.70 per run.
+
+- **Settle by**: a day that invokes pr-writer and reads `reconciliation: "ok"`. None has occurred yet.
+
+- **Note the agent split**: `pr-creator` and `core:pr-creator` are separate rows and a separate tier decision. Do not merge them into this entry's numbers.
+
+### 2026-07-28 — subagent spawn depth raised to 3
+
+Commit `95329ca`. Opened 2026-08-08 from the ledger. This is the one cluster in the range expected to push cost **up**.
+
+- **Surface**: `settings.json`.
+- **Hypothesis**: deeper nesting multiplies spawn count, and every non-fork spawn pays a full cold cache-write prefix (https://code.claude.com/docs/en/prompt-caching).
+- **Watch signal**: total `by_subagent_type` runs per day against `subagent_cost` per day.
+
+- **Citable endpoints, both `reconciliation: "ok"`**: `snapshots/2026-07-26.json` reads 71 runs for $81.76; `snapshots/2026-08-06.json` reads 15 runs for $30.27.
+
+- That is cost per run rising $1.15 → $2.02 while volume fell, which is the shape deeper nesting would produce — and equally the shape a heavier per-spawn task would produce.
+
+- **Confounded from the day it landed** by the 2026-08-06 concurrency cap of 8, which the user filed as incidental.
+  - The two levers move spawn count in opposite directions.
+
+- **Settle by**: reading depth from transcripts directly — count spawns whose path contains two or more `/subagents/` segments — rather than inferring depth from volume.
+
+### Confounder notes — 2026-07-27 to 2026-08-07 commits with no observation window
+
+The ledger counted 175 commits in this range. The user confirmed on 2026-08-08 that none of the four clusters below were deliberate KPI experiments, so each is a confounder, not an entry.
+
+Any later delta spanning these days has to account for all of them.
+
+- **2026-08-06 settings cluster** — `ea55036` reconciled the committed `model` default to sonnet, `b4a484f` dropped `advisorModel` from the declared defaults, `4dcff6d` capped concurrent subagents at 8.
+
+  - User's words: *"skip this one, incidental"*. It is nonetheless the largest confounder in the range, because it touches two of the four known cost levers at once.
+
+  - `dc12ba1` belongs with it: it qualified the CLAUDE.md parallel-fan-out rule with its cost multiplier.
+
+- **`1e4654a` — brainstorm writes its docs via a general-purpose subagent instead of `fork`.** User's words: *"fork subagent simply did not work"*.
+
+  - This is a bug workaround, not a tier or cost decision, and it kills the `fork` option in open question 1 below.
+
+- **`3b4f628` — the arco-ai-plugins marketplace and its four plugins enabled.** User's words: *"No, capability decision"*.
+  - It still adds always-on tool and context surface from 2026-08-06 onward, pushing the opposite way to every context-trim entry.
+
+- **`b7e4714` — markdown-standards-fixer asks before delegating and remembers the answer per file.** User's words: *"Control — it was fixing files it shouldn't"*.
+  - Optimised for correctness of scope, not cost. It lands 2026-08-04, six days after that agent's run count had already fallen.
+
+These further clusters have no isolatable signal, so they are recorded rather than measured:
+
+- **`c0c1b00` (2026-08-01) added a note-taking discipline section to global CLAUDE.md** — grows the always-on prefix, directly opposing the 2026-07-26 trim.
+- **Quality-gate restructured (2026-07-27)** — `1c76ce1`, `74528d3`, `963f354`: three review lenses run in parallel then auto-solve, batch-end review routed through it, per-task delegated verify dropped.
+
+- **Budget-trim wave** — `8735535`, `cfb0348`, `fb242ce`, `a4f31ee`, `a9230c9`, `e10420d`, `1ff1cf6`, `b8f9fe0` (2026-07-27, 2026-07-28), plus `289b422` and `0445bcd` (2026-08-06).
+
+  - Same direction as the archived CLAUDE.md trim, which is why that entry's −11.3% is recorded as a ceiling rather than a point estimate.
+
+- **task-breakdown skill added and wired into SDD planning (2026-08-01)** — `bdf784e`, `d3fe27c`, `ca7908c`, `a52ab20`.
+  - A new skill is new always-on surface plus a new step.
+
+- **Statusline rebuilt on ccstatusline and ccburn (2026-08-06, 2026-08-07)**, claude-hud plugin removed. Shell-only with no API cost, but ccburn surfaces live spend — a meta-lever on the user's own behaviour.
+
+- **doc-standards comment-format checking extended to shell and python (2026-08-06)** — `a807a2a`, `740f6da`, `fea48d2`, `365717c`. More Stop-hook gating means more fixer runs.
+- **`ca92a6a` (2026-08-06) resolved the Explore pin under the built-in capitalized agent type** — the pin was silently not applying before this, so pre-2026-08-06 Explore spawns ran at the session tier.
+
+- **Measurement-only, cannot move a KPI**: the 2026-07-27 usage-audit rebuild cluster — `98fc2f0`, `3953a8f`, `711fc5d`, `99eed57`, `f3cd645`, `e3d3b60`, `bd86621`, `4846e5d`.
+
+  - Also measurement-only: the flowchart and pseudo-code doc commits, `0ca363d` renaming skill-authoring to skill-standards, and the 2026-08-07 statusline-tier hardening.
+
+- **`3aca873` (2026-07-28) carries an accidental commit subject** — *"Anthropic error (authentication_error): x-api-key header is required"*.
+  - It is a real `settings.json` and `skill:pr-review` change. Flagged for the record; the change itself is unclassified.
 
 ### Confounder notes — 2026-07-26 commits with no observation window
 
@@ -210,6 +308,15 @@ Successor to the 2026-07-23 model-flip entry, closed the same day after two cont
 
 - **Blocker**: same as the model flip — `effortLevel` is deliberately uncommitted, so a trial needs the day-and-value recorded by hand.
 
+- **Log 2026-08-08 — the lever has more settings than this entry assumes, and thinking is a smaller target than it assumed.**
+
+- There are now four effort levels: `low`, `medium`, `high` (the default), and `max` (https://code.claude.com/docs/en/costs). This entry was written against a narrower set.
+
+- `thinking_block_share` sits between 0.4% and 0.7% on every one of the 55 days, so thinking blocks are a near-constant sliver rather than a swing factor.
+
+- That does not clear extended thinking of cost — thinking bills as output tokens, and block share counts blocks, not tokens.
+- **Revised watch signal**: `tokens.output` per day against `kpis.user_messages`. Block share has proven flat enough to carry no information.
+
 ### 2026-07-23 — batch related subagent work into fewer, larger spawns
 
 - **Hypothesis**: every subagent builds its own cache at the 5-minute TTL and takes zero hits on its first call (https://code.claude.com/docs/en/prompt-caching), so each spawn pays a full cold prefix.
@@ -252,6 +359,24 @@ A signal to watch rather than a change to make; it stays here because nothing is
 - **Watch signal**: `by_family` opus share against `cost_per_day`, on a day where the model demonstrably did not flip.
 - **Blocked on**: the recording entry above. Without a per-day `main_model` field this trial fails the same way the last two did.
 
+- **Log 2026-08-08 — this entry now has citable evidence, and it says the learning is still being violated.** Opus share on the six `reconciliation: "ok"` days:
+
+- 2026-07-20 6.6%, 2026-07-21 24.1%, 2026-07-26 84.1%, 2026-07-31 0.0%, 2026-08-05 74.8%, **2026-08-06 78.0%**.
+
+- **2026-08-06 is the load-bearing reading.** `ea55036` reconciled the committed `model` default to sonnet on that very day, and opus still took 78% of spend.
+
+- The user filed that commit as incidental, which makes the reading cleaner rather than weaker: nobody was steering the model, and it still landed on opus.
+
+- **A committed default is not an enforcement mechanism.**
+  - `/model` writes the key session by session, so the declared default describes intent and never constrains a session.
+
+- This is the same structural failure as the two dead model experiments — the lever is real, but nothing makes it stick.
+
+- **Fast mode is ruled out as an alternative explanation** by the confounder note below:
+  - zero fast-mode records exist, so 78% is a genuine tier choice.
+
+- **Next**: this needs a mechanism, not another observation window. A SessionStart check that reports the resolved model would at least make each day's tier self-recording.
+
 ### 2026-07-27 — add a `Compact instructions` section to CLAUDE.md
 
 - **Documented and entirely untouched**: compaction behaviour can be steered by a `Compact instructions` section in CLAUDE.md, or per-invocation via `/compact <focus>` (https://code.claude.com/docs/en/costs).
@@ -276,6 +401,34 @@ A signal to watch rather than a change to make; it stays here because nothing is
 
 - **Watch signal if reachable**: `tokens.cache_read` and `compactions` per day, since clearing stale results should delay each compaction boundary.
 
+### 2026-08-08 — cut global CLAUDE.md to under 200 lines, the figure Anthropic now documents
+
+Successor to the archived 2026-07-26 trim, which measured −11.3% cache-write per user message and closed `kept`. Same lever, now with an official target.
+
+- **The file is 381 lines and 5,111 words today**, so roughly half of it would still have to move into skills to reach the documented figure.
+
+- **Anthropic's cost guidance names the number**: keep CLAUDE.md under 200 lines, because it loads at session start while skills load on demand (https://code.claude.com/docs/en/costs).
+
+- **Hypothesis**: the archived trim moved the right lever but stopped less than halfway, so the remaining 181 lines are still billed on every session of every repo.
+
+- **Why this outranks a new lever**: it is the only always-on cost in the system, paid before the first user message of every session.
+  - It is also the one lever the vendor publishes a target for, so success is checkable without an experiment.
+
+- **Watch signal**: `tokens.cache_write_5m` and `tokens.cache_write_1h` per day against `kpis.user_messages`, identical to the archived entry so the two are directly comparable.
+- **Settle by**: two days that read `reconciliation: "ok"` at comparable `user_messages`, one before the cut and one after.
+
+- **Known counter-pressure**: `c0c1b00` grew the file on 2026-08-01, so the trim has to beat a moving target rather than a static one.
+
+### 2026-08-08 — confounder eliminated: fast mode is not in play, so no day's dollars are a tier artifact
+
+Not a hypothesis. A checked-and-closed suspicion, recorded so no future audit spends time on it again.
+
+- **Fast-mode Opus bills double**, at $10.00 input and $50.00 output per MTok.
+  - Nothing in the transcript reveals it except `usage.speed`, so a fast-mode day would read as a workload spike rather than a tier change.
+
+- **Measured 2026-08-08 across every transcript**: 99,534 priced records carry `"speed":"standard"` and **zero** carry `"speed":"fast"`.
+- The whole series is therefore priced at standard rates, and every opus-share reading is a real tier choice rather than a billing multiplier.
+
 ## User-settled learnings
 
 Settled by the user's own experience (2026-07-24), outside the audit loop — treat as constraints, not open hypotheses.
@@ -290,7 +443,11 @@ The user's standing workflow questions (raised 2026-07-24). Each audit advances 
 
 1. **At pinned quality, which is cheaper: more work in main (more compactions), or more subagent fan-out (cold-start context re-gathering)?**
    - Known: cost per compaction $13.40; a general-purpose spawn averages $4.70 and pays a cold cache-write prefix (https://code.claude.com/docs/en/prompt-caching).
-   - Third option (verified 2026-07-24): a `fork` subagent inherits the parent's full context and system prompt, sharing its cache prefix — near-zero cold start, but it cannot shed main's baggage (https://code.claude.com/docs/en/sub-agents.md).
+   - ~~Third option (verified 2026-07-24): a `fork` subagent inherits the parent's full context and system prompt, sharing its cache prefix — near-zero cold start.~~
+
+   - **The `fork` option is dead as of 2026-08-08, on the user's report: *"fork subagent simply did not work"***, which is why `1e4654a` moved brainstorm's doc writing to a general-purpose subagent.
+
+   - The docs still describe the mechanism (https://code.claude.com/docs/en/sub-agents.md), so this is an observed failure in practice, not a documentation change. Treat the question as two-way until fork is re-verified.
 
    - Settle by: A/B a repeatable task class both ways; compare cost, compactions/day, and corrections at similar workload.
 
