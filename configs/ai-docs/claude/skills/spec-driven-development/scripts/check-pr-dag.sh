@@ -8,12 +8,16 @@
 # PR-N dependency graph via dag-check-helper.sh: no cycle, no dangling
 # reference to a PR-N label absent from the breakdown, no duplicate PR-N
 # label. A section that literally reads "Single PR." (the plan template's
-# backward-compat escape for a single-PR plan) has nothing to validate and
-# passes trivially, same as a plan with no PR Breakdown section at all.
+# backward-compat escape for a single-PR plan), or that yields no PR-N
+# entry at all while carrying the general per-section "N/A" escape
+# (documented in references/self-review-checks.md), has nothing to
+# validate and passes trivially, same as a plan with no PR Breakdown
+# section at all.
 #
 # Exit codes:
-#   0 - PR Breakdown is absent, reads "Single PR.", or its dependency graph
-#       is a valid DAG with no duplicate labels.
+#   0 - PR Breakdown is absent, reads "Single PR.", parses to no PR-N
+#       entry under the "N/A" escape, or its dependency graph is a valid
+#       DAG with no duplicate labels.
 #   1 - cycle, dangling reference, or duplicate label found (diagnostic on stderr).
 #   2 - usage error (wrong arg count, plan file missing, section unparsable).
 
@@ -37,8 +41,13 @@ section=$("$script_dir/plan-section.sh" "$plan_file" "##" '^PR Breakdown[[:space
 
 trimmed=$(printf '%s' "$section" | sed '/^[[:space:]]*$/d')
 
-if [ -z "$trimmed" ] || [ "$trimmed" = "Single PR." ]; then
-  echo "OK: PR Breakdown has nothing to validate (absent or Single PR.)."
+if [ -z "$trimmed" ]; then
+  echo "OK: PR Breakdown has nothing to validate (section absent)."
+  exit 0
+fi
+
+if [ "$trimmed" = "Single PR." ]; then
+  echo "OK: PR Breakdown has nothing to validate (reads 'Single PR.')."
   exit 0
 fi
 
@@ -68,6 +77,19 @@ edges=$(printf '%s\n' "$section" | awk '
 ')
 
 if [ -z "$edges" ]; then
+  # General per-section escape: an "N/A" body (case-insensitive,
+  # word-boundary so "N/Ax" misses) has nothing to validate. Mirrors
+  # extract-planned-tests-for-task.sh's own N/A short-circuit.
+  #
+  # It is tested HERE, after parsing, rather than against the raw body:
+  # plan-template.md puts "N/A — no PR dependencies" in place of the
+  # dependency DIAGRAM, which leads a real PR list. Testing the body
+  # would let that line wave the whole list through unvalidated.
+  if printf '%s' "$trimmed" | grep -qiE '^N/A([^a-zA-Z]|$)'; then
+    echo "OK: PR Breakdown has nothing to validate (reads 'N/A — ...')."
+    exit 0
+  fi
+
   echo "error: PR Breakdown section found but no PR-N entries could be parsed from it" >&2
   exit 2
 fi

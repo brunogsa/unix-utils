@@ -76,6 +76,33 @@ it_should_pass_when_every_pr_is_independent_no_depends_on_entries() {
   assert_eq "should pass when every PR is independent (no Depends on entries)" "0" "$VERDICT_EXIT"
 }
 
+it_should_pass_when_the_plan_reads_the_n_a_escape_for_a_no_pr_repo() {
+  local path="$work_dir/n-a-escape.md"
+  printf '## PR Breakdown\n\nN/A — sole-maintainer repo commits directly to master, no PR is opened.\n' > "$path"
+  run_script "$path"
+  assert_eq "should pass when the plan reads the N/A — <reason> escape for a no-PR repo" "0" "$VERDICT_EXIT"
+}
+
+# plan-template.md tells authors to write "N/A — no PR dependencies" in
+# place of the dependency diagram, which leads the numbered PR list. The
+# escape must not disarm validation of the entries that follow it.
+it_should_still_validate_pr_entries_that_follow_the_n_a_in_place_of_the_diagram() {
+  local fixture
+  fixture=$(write_plan "n-a-then-cycle" 'N/A — no PR dependencies
+
+1. **PR-1** — First. Tasks: 1. Depends on: PR-2.
+2. **PR-2** — Second. Tasks: 2. Depends on: PR-1.')
+  run_script "$fixture"
+  assert_eq "should still validate PR entries that follow an N/A written in place of the diagram" "1" "$VERDICT_EXIT"
+}
+
+it_should_fail_when_the_section_has_prose_but_no_pr_n_entries_and_no_escape() {
+  local path="$work_dir/malformed.md"
+  printf '## PR Breakdown\n\nWe will ship this in a couple of pull requests, details TBD.\n' > "$path"
+  run_script "$path"
+  assert_eq "should fail when the section has prose but no PR-N entries and no N/A or Single PR. escape" "2" "$VERDICT_EXIT"
+}
+
 it_should_detect_a_two_pr_cycle_when_pr_1_depends_on_pr_2_and_pr_2_depends_on_pr_1() {
   local fixture
   fixture=$(write_plan "cycle" '1. **PR-1** — First. Tasks: 1. Depends on: PR-2.
@@ -124,6 +151,9 @@ it_should_detect_a_duplicate_label_when_two_pr_breakdown_entries_share_the_same_
 it_should_pass_when_every_pr_dependency_resolves_to_a_real_non_cyclic_pr_label
 it_should_pass_when_the_plan_reads_single_pr_nothing_to_validate
 it_should_pass_when_every_pr_is_independent_no_depends_on_entries
+it_should_pass_when_the_plan_reads_the_n_a_escape_for_a_no_pr_repo
+it_should_still_validate_pr_entries_that_follow_the_n_a_in_place_of_the_diagram
+it_should_fail_when_the_section_has_prose_but_no_pr_n_entries_and_no_escape
 it_should_detect_a_two_pr_cycle_when_pr_1_depends_on_pr_2_and_pr_2_depends_on_pr_1
 it_should_detect_a_dangling_reference_when_a_pr_depends_on_a_pr_n_label_absent_from_the_pr_breakdown
 it_should_detect_a_duplicate_label_when_two_pr_breakdown_entries_share_the_same_pr_n_label
