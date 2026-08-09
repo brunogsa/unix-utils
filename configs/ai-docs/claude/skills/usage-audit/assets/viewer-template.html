@@ -124,6 +124,23 @@
 <div id="levertable"></div>
 <div class="sub" id="leverhint"></div>
 
+<h2>What each skill costs</h2>
+
+<div id="skilltable"></div>
+<div class="sub" id="skillhint"></div>
+
+<div class="controls">
+  <label for="skill">Track</label>
+  <select id="skill"></select>
+  <label for="skillmetric">as</label>
+  <select id="skillmetric"></select>
+  <label for="skillhalf">in</label>
+  <select id="skillhalf"></select>
+  <span class="sub r" id="skillfit" style="margin:0"></span>
+</div>
+
+<div class="chartwrap"><svg id="skillchart" viewBox="0 0 1000 320"></svg></div>
+
 <details>
 <summary>Daily explorer — every metric, one day at a time</summary>
 
@@ -258,6 +275,13 @@ const state = {
   fit: true,      // least-squares line; see trendLine()
   xm: 'compact',  // scatter axes — default pair is the one open question 1 asks about
   ym: 'cost',
+
+  // The per-skill trend. `skill` is filled in from
+  // SKILL_NAMES once the skills are ranked, since
+  // the costliest one is the one worth opening on.
+  skill: '',
+  skillMetric: 'cost_session',
+  skillHalf: 'work',
   zeros: false,   // whether idle days join the correlation; see scatterDays()
 };
 
@@ -687,6 +711,195 @@ function leverHint(lens, buckets) {
     `closer to zero, the more the groups differ by the lever itself ` +
     `rather than by how big the days were. ${thinnest} days in the ` +
     `smallest group is thin — read it as a shape forming, not a finding.`;
+}
+
+/* ---------- per-skill economics ---------- */
+
+// Loads and sessions come from by_skill, whose rows
+// overlap: a session counts under every skill it
+// invoked, so the rows isolate rather than partition.
+//
+// The dollars come from the marginal map instead,
+// which divides each session across the skills it
+// ran, so no session's cost is billed twice.
+function skillHalf(day, name, cls) {
+  const d = DATA.days[day];
+  const loads = ((d.by_skill || {})[name] || {}).by_repo_class || {};
+  const money = ((d.by_skill_marginal || {})[name] || {}).by_repo_class || {};
+  const counts = loads[cls] || {};
+  return {
+    invocations: counts.invocations || 0,
+    sessions: counts.sessions || 0,
+    cost: (money[cls] || {}).cost || 0,
+  };
+}
+
+// Pooled the same way the goal cards are: one sum
+// over another, never a mean of per-day ratios.
+function skillTotals(days, name, cls) {
+  return days.reduce((total, day) => {
+    const half = skillHalf(day, name, cls);
+    return {
+      cost: total.cost + half.cost,
+      invocations: total.invocations + half.invocations,
+      sessions: total.sessions + half.sessions,
+    };
+  }, {cost: 0, invocations: 0, sessions: 0});
+}
+
+// A skill can fire several times inside one session,
+// so these answer two different questions: what one
+// use of it costs, and how hard it gets leaned on.
+const SKILL_METRICS = [
+  {id: 'cost_session', label: '$ per session', fmt: usd,
+   value: t => per(t.cost, t.sessions)},
+  {id: 'loads_session', label: 'Loads per session', fmt: n2,
+   value: t => per(t.invocations, t.sessions)},
+  {id: 'cost_load', label: '$ per load', fmt: usd,
+   value: t => per(t.cost, t.invocations)},
+];
+
+const skillMetricDef = () =>
+  SKILL_METRICS.find(m => m.id === state.skillMetric);
+
+// The two halves each skill row is split into, in the
+// order the table's columns read them.
+const REPO_HALVES = [
+  {id: 'work', label: 'Work repos'},
+  {id: 'tooling', label: 'Tooling repos'},
+];
+
+// Ranked by what each skill was charged over the
+// window, so the table opens on the money and the
+// selector defaults to the skill worth watching.
+const SKILL_NAMES = (() => {
+  const spend = new Map();
+  citableDays(GOAL_DAYS).forEach(day => {
+    const rows = DATA.days[day].by_skill_marginal || {};
+    Object.entries(rows).forEach(([name, row]) => {
+      spend.set(name, (spend.get(name) || 0)
+        + row.dedicated_cost + row.mixed_cost_estimate);
+    });
+  });
+  return [...spend.keys()].sort((a, b) => spend.get(b) - spend.get(a));
+})();
+
+state.skill = SKILL_NAMES[0] || '';
+
+// Every skill gets a row and every row gets both
+// halves, so a skill that never fired in one of them
+// reads as a measured zero rather than as a gap.
+function skillRow(days, name) {
+  const cells = REPO_HALVES.flatMap(half => {
+    const totals = skillTotals(days, name, half.id);
+    if (!totals.sessions) return [num(0), '—', '—'];
+    return [num(totals.sessions),
+            usd(per(totals.cost, totals.sessions)),
+            n2(per(totals.invocations, totals.sessions))];
+  });
+  return [escape_(name)].concat(cells);
+}
+
+function skillTable() {
+  const days = citableDays(GOAL_DAYS);
+  const head = ['Skill',
+    'Work sessions', 'Work $/session', 'Work loads/session',
+    'Tooling sessions', 'Tooling $/session', 'Tooling loads/session'];
+  return tableOf(head, SKILL_NAMES.map(name => skillRow(days, name)));
+}
+
+function skillHint() {
+  const days = citableDays(GOAL_DAYS);
+  return `${SKILL_NAMES.length} skills across ${days.length} citable days ` +
+    `from ${days[0]}, every one of them listed. Sessions and loads are ` +
+    `exact counts. The dollars are a split: a session that invoked one ` +
+    `skill charges it the whole cost, and one that invoked several ` +
+    `divides it across them by invocation span — so the columns sum back ` +
+    `to the day rather than billing one session to three skills.`;
+}
+
+// One point per citable day the skill actually ran in
+// the chosen half.
+//
+// A day it sat out leaves a gap instead of a zero,
+// which the fit would otherwise read as the skill
+// getting cheaper.
+function skillPoints() {
+  const metric = skillMetricDef();
+  return citableDays(GOAL_DAYS)
+    .map((day, index) => ({
+      day, index, totals: skillTotals([day], state.skill, state.skillHalf)}))
+    .filter(point => point.totals.sessions > 0)
+    .map(point => ({
+      day: point.day, index: point.index,
+      value: metric.value(point.totals)}));
+}
+
+// Placed by its position among the citable days, not
+// by its position among the days that have a reading,
+// so a fortnight's silence costs the horizontal
+// distance a fortnight takes.
+function drawSkillChart() {
+  const metric = skillMetricDef();
+  const window_ = citableDays(GOAL_DAYS);
+  const points = state.skill ? skillPoints() : [];
+  const plotW = SW - S_L - S_R, plotH = SH - S_T - S_B;
+  const yMax = Math.max(...points.map(p => p.value), 0) || 1;
+  const lastIndex = Math.max(window_.length - 1, 1);
+  const px = i => S_L + (i / lastIndex) * plotW;
+  const py = v => S_T + plotH - (v / yMax) * plotH;
+  const parts = [];
+
+  for (let i = 0; i <= 4; i++) {
+    const yy = S_T + plotH - plotH * i / 4;
+    parts.push(`<line class="grid" x1="${S_L}" x2="${SW-S_R}" y1="${yy}" y2="${yy}"/>`);
+    parts.push(`<text class="axis" x="${S_L-6}" y="${yy+3}" text-anchor="end">${metric.fmt(yMax*i/4)}</text>`);
+  }
+
+  const step = Math.ceil(Math.max(window_.length, 1) / 8);
+  window_.forEach((day, i) => {
+    if (i % step) return;
+    parts.push(`<text class="axis" x="${px(i).toFixed(1)}" y="${SH-12}" text-anchor="middle">${day.slice(5)}</text>`);
+  });
+
+  const fit = pearson(points.map(p => p.index), points.map(p => p.value));
+  if (fit) {
+    const yAt = i => fit.my + fit.slope * (i - fit.mx);
+    const first = points[0].index, last = points[points.length-1].index;
+    parts.push(`<line class="fit" x1="${px(first).toFixed(1)}" y1="${py(yAt(first)).toFixed(1)}" x2="${px(last).toFixed(1)}" y2="${py(yAt(last)).toFixed(1)}"/>`);
+  }
+
+  points.forEach(point => {
+    const sel = state.selected.includes(point.day) ? ' selected' : '';
+    const totals = skillTotals([point.day], state.skill, state.skillHalf);
+    const tip = (`${point.day}\n${state.skill} · ${state.skillHalf}\n` +
+      `${metric.label}: ${metric.fmt(point.value)}\n` +
+      `${totals.sessions} session(s), ${totals.invocations} load(s), ` +
+      `${usd(totals.cost)}`).replace(/"/g, '&quot;');
+    parts.push(`<circle class="dot${sel}" data-day="${point.day}" data-tip="${tip}" cx="${px(point.index).toFixed(1)}" cy="${py(point.value).toFixed(1)}" r="4.5"/>`);
+  });
+
+  $('skillchart').innerHTML = parts.join('');
+  $('skillchart').querySelectorAll('[data-day]').forEach(el => {
+    el.addEventListener('click', () => selectDay(el.dataset.day));
+    el.addEventListener('mousemove', e => showTip(e, el.dataset.tip));
+    el.addEventListener('mouseleave', hideTip);
+  });
+  $('skillfit').textContent = skillFitLabel(fit, points.length, metric);
+}
+
+// The slope is quoted per 7 READABLE days, not per
+// calendar week, because the axis skips the days no
+// snapshot can answer for.
+function skillFitLabel(fit, plotted, metric) {
+  if (!state.skill) return 'no skills recorded in this window';
+  if (!fit) {
+    return `${plotted} day(s) with a reading — too few, or too flat, to fit`;
+  }
+  const weekly = fit.slope * 7;
+  return `${plotted} days · trending ${weekly >= 0 ? 'up' : 'down'} ` +
+    `${metric.fmt(Math.abs(weekly))} per 7 readable days · ` +
+    `r = ${fit.r.toFixed(2)} — a shape, not a verdict`;
 }
 
 /* ---------- chart ---------- */
@@ -1162,6 +1375,10 @@ function render() {
   $('leverhint').textContent = buckets.length ? leverHint(lens, buckets) : '';
   drawGoalChart();
 
+  $('skilltable').innerHTML = skillTable();
+  $('skillhint').textContent = skillHint();
+  drawSkillChart();
+
   $('totals').innerHTML =
     kv('Days shown', num(days.length)) +
     kv('Citable days', num(days.filter(d => isCitable(DATA.days[d])).length)) +
@@ -1203,6 +1420,18 @@ $('goal').addEventListener('change', e => { state.goal = e.target.value; render(
 $('lens').innerHTML = SHARE_LENSES.map(l => `<option value="${l.id}">${l.label}</option>`).join('');
 $('lens').value = state.lens;
 $('lens').addEventListener('change', e => { state.lens = e.target.value; render(); });
+
+$('skill').innerHTML = SKILL_NAMES.map(name => `<option value="${name}">${escape_(name)}</option>`).join('');
+$('skill').value = state.skill;
+$('skill').addEventListener('change', e => { state.skill = e.target.value; render(); });
+
+$('skillmetric').innerHTML = SKILL_METRICS.map(m => `<option value="${m.id}">${m.label}</option>`).join('');
+$('skillmetric').value = state.skillMetric;
+$('skillmetric').addEventListener('change', e => { state.skillMetric = e.target.value; render(); });
+
+$('skillhalf').innerHTML = REPO_HALVES.map(h => `<option value="${h.id}">${h.label}</option>`).join('');
+$('skillhalf').value = state.skillHalf;
+$('skillhalf').addEventListener('change', e => { state.skillHalf = e.target.value; render(); });
 
 $('metric').innerHTML = METRICS.map(m => `<option value="${m.id}">${m.label}</option>`).join('');
 $('metric').value = state.metric;

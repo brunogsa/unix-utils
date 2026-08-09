@@ -40,9 +40,18 @@ DATA_TOKEN = "__USAGE_DATA__"
 DAY_FIELDS = (
     "coverage", "kpis", "total", "main_cost", "subagent_cost", "compactions",
     "session_count", "cache_hit_rate", "thinking_block_share", "tokens",
-    "by_family", "by_repo_class", "by_subagent_type", "by_skill_marginal",
-    "top_sessions", "reconciliation",
+    "by_family", "by_repo_class", "by_subagent_type", "by_skill",
+    "by_skill_marginal", "top_sessions", "reconciliation",
 )
+
+# Per-skill counters the page reads, at the row and
+# at each half. `tokens` is five counters nothing
+# renders, repeated for every skill on every day.
+#
+# by_skill's dollars go with them: its rows overlap,
+# so a per-skill average has to divide the marginal
+# map's partitioned cost instead.
+SKILL_FIELDS = ("invocations", "sessions")
 
 # Only the verdict is rendered. The four per-bucket token counts behind it are
 # ~400 bytes a day the page never shows, and the day file keeps them anyway.
@@ -54,6 +63,36 @@ RECONCILIATION_FIELDS = ("status", "worst_delta_pct")
 TOP_SESSIONS = 8
 SESSION_FIELDS = ("title", "cost", "duration_hours", "compactions",
                   "user_messages", "interruptions", "skills")
+
+
+def trim_marginal_skills(skills):
+    """Marginal rows kept whole, with each half summed to cost and sessions.
+
+    A per-skill average divides one by the other, so the dedicated/mixed split
+    only has to survive at the row level, where the day panel still shows it —
+    and where the reader can see how much of the total was estimated.
+    """
+    out = {}
+    for name, row in skills.items():
+        halves = {}
+        for cls, half in row.get("by_repo_class", {}).items():
+            halves[cls] = {
+                "cost": round(half["dedicated_cost"] + half["mixed_cost_estimate"], 2),
+                "sessions": half["dedicated_sessions"] + half["mixed_sessions"]}
+        out[name] = {k: v for k, v in row.items() if k != "by_repo_class"}
+        out[name]["by_repo_class"] = halves
+    return out
+
+
+def trim_skills(skills):
+    """Each by_skill row and each of its halves, reduced to what the page renders."""
+    out = {}
+    for name, row in skills.items():
+        halves = {cls: {k: half[k] for k in SKILL_FIELDS if k in half}
+                  for cls, half in row.get("by_repo_class", {}).items()}
+        out[name] = {k: row[k] for k in SKILL_FIELDS if k in row}
+        out[name]["by_repo_class"] = halves
+    return out
 
 
 def trim_sessions(sessions):
@@ -157,6 +196,9 @@ def load_days():
             continue
         entry = {k: payload[k] for k in DAY_FIELDS if k in payload}
         entry["top_sessions"] = trim_sessions(entry.get("top_sessions", []))
+        entry["by_skill"] = trim_skills(entry.get("by_skill", {}))
+        entry["by_skill_marginal"] = trim_marginal_skills(
+            entry.get("by_skill_marginal", {}))
         block = entry.get("reconciliation")
         # A snapshot predating the gate has no block at all. Left absent, the page
         # treats it as unverified rather than silently as verified — the day was

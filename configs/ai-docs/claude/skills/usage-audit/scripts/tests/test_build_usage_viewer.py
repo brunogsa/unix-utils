@@ -80,6 +80,70 @@ class TestTrimSessions(unittest.TestCase):
                 f"({cur.TOP_SESSIONS}) even when given more sessions than that")
 
 
+class TestTrimSkills(unittest.TestCase):
+    """trim_skills() and trim_marginal_skills() reduce the two per-skill maps
+    to what the page's per-skill table and trend chart actually divide."""
+
+    BY_SKILL_ROW = {
+        "commit-standards": {
+            "cost": 41.30, "invocations": 6, "sessions": 4, "compactions": 2,
+            "interruptions": 1, "tokens": {"input": 1200, "output": 900},
+            "by_repo_class": {
+                "work": {"cost": 30.10, "invocations": 4, "sessions": 3},
+                "tooling": {"cost": 11.20, "invocations": 2, "sessions": 1},
+            },
+        },
+    }
+
+    MARGINAL_ROW = {
+        "commit-standards": {
+            "dedicated_sessions": 2, "dedicated_cost": 18.40,
+            "mixed_sessions": 2, "mixed_cost_estimate": 9.75,
+            "by_repo_class": {
+                "work": {"dedicated_sessions": 1, "dedicated_cost": 12.15,
+                         "mixed_sessions": 2, "mixed_cost_estimate": 9.75},
+                "tooling": {"dedicated_sessions": 1, "dedicated_cost": 6.25,
+                            "mixed_sessions": 0, "mixed_cost_estimate": 0.0},
+            },
+        },
+    }
+
+    def test_keeps_only_the_load_counters_the_per_skill_table_renders(self):
+        trimmed = cur.trim_skills(self.BY_SKILL_ROW)["commit-standards"]
+        self.assertEqual(
+            set(trimmed) - {"by_repo_class"}, set(cur.SKILL_FIELDS),
+            msg="by_skill rows overlap, so the page divides the marginal "
+                "map's dollars instead — this row must carry only the "
+                "loads and sessions it is the exact source for, not its "
+                "cost, compactions, or five-counter token dict")
+
+    def test_trims_each_half_of_a_skill_row_the_same_way_as_the_row(self):
+        trimmed = cur.trim_skills(self.BY_SKILL_ROW)["commit-standards"]
+        self.assertEqual(
+            trimmed["by_repo_class"]["work"], {"invocations": 4, "sessions": 3},
+            msg="a half carries the same counters as its row, so the work "
+                "and tooling columns of the per-skill table read from one "
+                "shape rather than two")
+
+    def test_sums_a_marginal_halfs_dedicated_and_mixed_spend_into_one_cost(self):
+        trimmed = cur.trim_marginal_skills(self.MARGINAL_ROW)["commit-standards"]
+        self.assertEqual(
+            trimmed["by_repo_class"]["work"], {"cost": 21.90, "sessions": 3},
+            msg="a per-skill average divides cost by sessions, so each half "
+                "sums its exact dedicated spend and its estimated mixed "
+                "share into the one figure that average needs")
+
+    def test_keeps_the_estimated_share_visible_at_the_marginal_row_level(self):
+        trimmed = cur.trim_marginal_skills(self.MARGINAL_ROW)["commit-standards"]
+        self.assertEqual(
+            {k: v for k, v in trimmed.items() if k != "by_repo_class"},
+            {"dedicated_sessions": 2, "dedicated_cost": 18.40,
+             "mixed_sessions": 2, "mixed_cost_estimate": 9.75},
+            msg="the row keeps its dedicated/mixed split so the day panel "
+                "can still show how much of a skill's attributed spend was "
+                "measured exactly and how much was estimated")
+
+
 class TestLoadDays(unittest.TestCase):
     """load_days() reads every usage-history/snapshots/*.json, trims each to
     the fields the viewer renders, and skips what it cannot use."""
