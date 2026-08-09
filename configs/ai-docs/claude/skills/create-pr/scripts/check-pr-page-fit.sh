@@ -25,15 +25,17 @@
 #
 #   <file>       Markdown file to measure (e.g. pr_<slug>_pr<N>.ideal.md).
 #   page-lines   Optional. Rendered lines the whole body may occupy. Default: 64,
-#                the sum of the per-section budgets in create-pr's SKILL.md,
-#                which is the authority on how those 64 lines are divided.
+#                the sum of the per-section budgets in create-pr's
+#                references/pr-page-budget.md, which is the authority on how
+#                those 64 lines are divided.
 #   wrap-width   Optional. Chars per rendered line before wrapping. Default: 95 —
 #                GitHub's ~860px description column at 14px/1.5 body type.
 #
 # Output: a verdict line, then a breakdown per heading — top-level sections
 # worst-first, each subsection indented under its parent and included in its
-# total. Compare it against the per-section budgets in create-pr's SKILL.md:
-# a body can pass the total while one section has eaten another's allowance.
+# total. Compare it against the per-section budgets in create-pr's
+# references/pr-page-budget.md: a body can pass the total while one section has
+# eaten another's allowance.
 #
 # Exit codes:
 #   0  fits on one page
