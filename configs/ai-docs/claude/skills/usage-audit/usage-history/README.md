@@ -242,6 +242,8 @@ Measured over 2026-06-14..2026-08-08: **150.4 hours across 23 attributable PRs, 
 
       - Summing the breakdown rather than trusting `cache_creation_input_tokens` reconciles all 30 retained days exactly, and flipped the last 4 to `ok`.
 
+      - Those same records still report 0 `input`, `output`, and `cache_read`, and neither this script nor ccusage recovers them, so both readers share one identical small under-count that reconciliation cannot see.
+
     - That correction moved the 56-day total by $1.67 (+0.03%) — it buys citability, not dollars, because `cache_write` runs 7-20M tokens a day against `cache_read`'s 126-310M.
 
   - **The former 24-34% outlier on 2026-07-09 was never a counting bug: the retention prune ran mid-rebuild, between the one ccusage priming call and that day's scan.**
