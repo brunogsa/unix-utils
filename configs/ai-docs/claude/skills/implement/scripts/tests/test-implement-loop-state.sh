@@ -44,10 +44,13 @@ run_script() {
 action_of() { printf '%s' "$VERDICT_OUT" | jq -r '.action'; }
 task_of() { printf '%s' "$VERDICT_OUT" | jq -r '.task'; }
 exhausted_of() { printf '%s' "$VERDICT_OUT" | jq -r '.exhausted'; }
+in_progress_of() { printf '%s' "$VERDICT_OUT" | jq -r '.in_progress'; }
+tasks_of() { printf '%s' "$VERDICT_OUT" | jq -rc '.tasks'; }
 
 # run_script_flag - invokes the verdict script with a query flag
-# (--budget or --next-eligible) against a state-file fixture,
-# capturing stdout/stderr/exit code the same way run_script does.
+# (--budget, --next-eligible or --eligible-set) against a
+# state-file fixture, capturing stdout/stderr/exit code the
+# same way run_script does.
 run_script_flag() {
   local flag="$1" state_file="$2"
   local err_file="$work_dir/stderr.txt"
@@ -68,7 +71,7 @@ write_fixture() {
 it_should_verdict_next_task_when_current_task_passed_and_pending_tasks_remain() {
   local fixture
   fixture=$(write_fixture "next-task" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "done"}, {"id": "2", "status": "pending"}],
     "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}],
@@ -87,7 +90,7 @@ it_should_skip_a_lower_id_task_whose_dependency_is_not_yet_done() {
   # passed; T4 has the lowest pending id but its dependency (T5) hasn't run
   # yet, so the DAG-eligible pick must be T5, not T4.
   fixture=$(write_fixture "dag-eligible" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [
       {"id": "3", "status": "done", "depends_on": []},
@@ -111,7 +114,7 @@ it_should_treat_a_depends_on_id_absent_from_this_units_tasks_as_already_satisfie
   # never appears in this unit's tasks[] at all — that absence must count
   # as satisfied, not as a missing/unmet dependency.
   fixture=$(write_fixture "dag-cross-pr-satisfied" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "pr_label": "PR-2", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "pr_label": "PR-2", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [
       {"id": "4", "status": "pending", "depends_on": ["2"]},
@@ -134,7 +137,7 @@ it_should_verdict_halted_when_pending_tasks_remain_but_none_have_dependencies_sa
   # remaining task is DAG-eligible, so this must halt for the human rather
   # than dispatch an ineligible task or fail the script itself.
   fixture=$(write_fixture "dag-deadlock" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [
       {"id": "3", "status": "done", "depends_on": []},
@@ -153,7 +156,7 @@ it_should_verdict_halted_when_pending_tasks_remain_but_none_have_dependencies_sa
 it_should_verdict_gates_when_every_task_in_the_batch_is_done() {
   local fixture
   fixture=$(write_fixture "gates" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "done"}, {"id": "2", "status": "done"}],
     "attempts": [
@@ -171,7 +174,7 @@ it_should_verdict_gates_when_every_task_in_the_batch_is_done() {
 it_should_verdict_halted_when_current_task_passed_and_no_remaining_task_but_one_is_blocked() {
   local fixture
   fixture=$(write_fixture "halted-blocked" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "done"}, {"id": "2", "status": "blocked"}],
     "attempts": [
@@ -189,7 +192,7 @@ it_should_verdict_halted_when_current_task_passed_and_no_remaining_task_but_one_
 it_should_verdict_retry_when_a_task_failed_with_fewer_than_4_attempts_and_no_stuck_streak() {
   local fixture
   fixture=$(write_fixture "retry" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "pending"}],
     "attempts": [
@@ -208,7 +211,7 @@ it_should_verdict_retry_when_a_task_failed_with_fewer_than_4_attempts_and_no_stu
 it_should_verdict_stuck_on_the_very_first_blocked_attempt_instead_of_retrying() {
   local fixture
   fixture=$(write_fixture "blocked-first-attempt" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "pending"}, {"id": "2", "status": "pending"}],
     "attempts": [
@@ -226,7 +229,7 @@ it_should_verdict_stuck_on_the_very_first_blocked_attempt_instead_of_retrying() 
 it_should_verdict_stuck_when_a_task_records_its_4th_failed_attempt() {
   local fixture
   fixture=$(write_fixture "stuck-4th" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "pending"}],
     "attempts": [
@@ -247,7 +250,7 @@ it_should_verdict_stuck_when_a_task_records_its_4th_failed_attempt() {
 it_should_verdict_stuck_when_3_consecutive_identical_signatures_occur_before_the_attempt_cap() {
   local fixture
   fixture=$(write_fixture "stuck-consecutive" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "pending"}],
     "attempts": [
@@ -266,7 +269,7 @@ it_should_verdict_stuck_when_3_consecutive_identical_signatures_occur_before_the
 it_should_not_verdict_stuck_when_identical_signatures_are_interrupted_by_a_different_one() {
   local fixture
   fixture=$(write_fixture "not-stuck-interrupted" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "pending"}],
     "attempts": [
@@ -285,7 +288,7 @@ it_should_not_verdict_stuck_when_identical_signatures_are_interrupted_by_a_diffe
 it_should_treat_signatures_as_identical_when_they_differ_only_by_digits_paths_or_whitespace() {
   local fixture
   fixture=$(write_fixture "normalize-identical" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "pending"}],
     "attempts": [
@@ -304,7 +307,7 @@ it_should_treat_signatures_as_identical_when_they_differ_only_by_digits_paths_or
 it_should_count_a_timeout_signature_attempt_as_a_failed_attempt() {
   local fixture
   fixture=$(write_fixture "timeout-counts" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "pending"}],
     "attempts": [
@@ -325,7 +328,7 @@ it_should_verdict_halt_budget_when_total_dispatches_reach_4x_task_count_plus_the
   local fixture
   # 2 tasks -> threshold = 4*2 + 4 = 12. 2 attempts (both pass) + 10 gate_dispatches = 12.
   fixture=$(write_fixture "halt-budget" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "gates",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "gates",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "done"}, {"id": "2", "status": "done"}],
     "attempts": [
@@ -343,7 +346,7 @@ it_should_verdict_halt_budget_when_total_dispatches_reach_4x_task_count_plus_the
 it_should_exit_non_zero_when_phase_is_anything_other_than_tasks() {
   local fixture
   fixture=$(write_fixture "non-tasks-phase" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tails",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tails",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "done"}],
     "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}],
@@ -384,7 +387,7 @@ it_should_report_budget_not_exhausted_at_phase_tails_when_dispatches_are_under_t
   local fixture
   # 1 task -> threshold = 4*1 + 2 = 6. 1 attempt + 2 gate_dispatches = 3 < 6.
   fixture=$(write_fixture "budget-tails-under" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tails",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tails",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "done"}],
     "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}],
@@ -401,7 +404,7 @@ it_should_report_budget_exhausted_at_phase_tails_when_dispatches_reach_threshold
   local fixture
   # 1 task -> threshold = 4*1 + 2 = 6. 1 attempt + 5 gate_dispatches = 6 >= 6.
   fixture=$(write_fixture "budget-tails-over" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tails",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tails",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "done"}],
     "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}],
@@ -418,7 +421,7 @@ it_should_report_budget_not_exhausted_at_phase_gates_when_dispatches_are_under_t
   local fixture
   # Same threshold math as the phase-tails case above, at phase gates instead.
   fixture=$(write_fixture "budget-gates-under" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "gates",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "gates",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "done"}],
     "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}],
@@ -434,7 +437,7 @@ it_should_report_budget_not_exhausted_at_phase_gates_when_dispatches_are_under_t
 it_should_report_budget_exhausted_at_phase_gates_when_dispatches_reach_threshold() {
   local fixture
   fixture=$(write_fixture "budget-gates-over" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "gates",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "gates",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "done"}],
     "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}],
@@ -453,7 +456,7 @@ it_should_pick_the_unmet_dependency_itself_over_the_task_still_waiting_on_it() {
   # unmet, so --next-eligible must skip past it to 5, the task that
   # actually unblocks the chain.
   fixture=$(write_fixture "next-eligible-unmet-dep" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [
       {"id": "4", "status": "pending", "depends_on": ["5"]},
@@ -472,7 +475,7 @@ it_should_pick_the_unmet_dependency_itself_over_the_task_still_waiting_on_it() {
 it_should_pick_a_pending_task_once_its_dependency_is_done() {
   local fixture
   fixture=$(write_fixture "next-eligible-met-dep" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [
       {"id": "3", "status": "done", "depends_on": []},
@@ -493,7 +496,7 @@ it_should_report_none_eligible_when_the_only_path_to_a_pending_task_is_a_blocked
   # can never become eligible through it, and task 1 itself is excluded as
   # terminal, so no candidate is runnable.
   fixture=$(write_fixture "next-eligible-blocked-dep" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [
       {"id": "1", "status": "blocked", "depends_on": []},
@@ -511,7 +514,7 @@ it_should_report_none_eligible_when_the_only_path_to_a_pending_task_is_a_blocked
 it_should_report_none_eligible_when_no_task_is_pending() {
   local fixture
   fixture=$(write_fixture "next-eligible-nothing-pending" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [{"id": "1", "status": "done"}, {"id": "2", "status": "blocked"}],
     "attempts": [],
@@ -528,7 +531,7 @@ it_should_break_ties_by_lowest_numeric_id_not_lexical_order() {
   # "10" sorts before "2" lexically but not numerically -- this pins the
   # eligibility pick to sort_by(.id | tonumber), not string order.
   fixture=$(write_fixture "next-eligible-numeric-tiebreak" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [
       {"id": "10", "status": "pending", "depends_on": []},
@@ -550,7 +553,7 @@ it_should_treat_a_next_eligible_depends_on_id_absent_from_this_units_tasks_as_sa
   # appears in this unit's own tasks[] -- that absence must count as
   # satisfied, same rule the no-flag "pass" branch already applies.
   fixture=$(write_fixture "next-eligible-cross-pr-satisfied" '{
-    "version": 1, "session_id": "s1", "slug": "implement-loop", "pr_label": "PR-2", "phase": "tasks",
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "pr_label": "PR-2", "phase": "tasks",
     "batch_base_sha": "abc",
     "tasks": [{"id": "4", "status": "pending", "depends_on": ["2"]}],
     "attempts": [],
@@ -560,6 +563,122 @@ it_should_treat_a_next_eligible_depends_on_id_absent_from_this_units_tasks_as_sa
   }')
   run_script_flag "--next-eligible" "$fixture"
   assert_eq "should treat a --next-eligible depends_on id absent from this unit's tasks as satisfied" "4" "$(task_of)"
+}
+
+it_should_omit_an_in_progress_task_from_the_eligible_set_even_when_its_dependencies_are_done() {
+  local fixture
+
+  # Task 2 is already dispatched. Its dependencies are
+  # satisfied, so only the "in_progress" status keeps it out
+  # of the set -- and that exclusion is the only thing
+  # stopping a second dispatch into a second worktree.
+  fixture=$(write_fixture "eligible-set-omits-in-progress" '{
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "batch_base_sha": "abc",
+    "tasks": [
+      {"id": "1", "status": "done", "depends_on": []},
+      {"id": "2", "status": "in_progress", "depends_on": ["1"]},
+      {"id": "3", "status": "pending", "depends_on": []},
+      {"id": "4", "status": "pending", "depends_on": ["1"]}
+    ],
+    "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}],
+    "gate_dispatches": 0,
+    "tails": {"refactor_report": "", "auto_review_report": ""},
+    "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
+  }')
+  run_script_flag "--eligible-set" "$fixture"
+  assert_eq "should omit the already-dispatched task 2 from the eligible set (tasks)" '["3","4"]' "$(tasks_of)"
+  assert_eq "should omit the already-dispatched task 2 from the eligible set (in_progress)" "1" "$(in_progress_of)"
+}
+
+it_should_not_verdict_gates_while_the_only_unfinished_tasks_are_live_siblings() {
+  local fixture
+
+  # A wave with nothing downstream of it: task 1 just
+  # passed, tasks 2 and 3 are still running, and no task
+  # depends on either.
+  #
+  # If "remaining" ever excluded in_progress, the count
+  # would read 0 here and the batch would gate while two
+  # subagents were still committing.
+  #
+  # "halted" is the safe answer, not the ideal one: the
+  # parallel flow asks --eligible-set while a wave is live,
+  # so only a caller that lost track of the wave lands here.
+  fixture=$(write_fixture "wave-with-no-downstream-task" '{
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "batch_base_sha": "abc",
+    "tasks": [
+      {"id": "1", "status": "done", "depends_on": []},
+      {"id": "2", "status": "in_progress", "depends_on": []},
+      {"id": "3", "status": "in_progress", "depends_on": []}
+    ],
+    "attempts": [{"task": "1", "n": 1, "result": "pass", "signature": "", "at": "2026-07-10T10:05:00Z"}],
+    "gate_dispatches": 0,
+    "tails": {"refactor_report": "", "auto_review_report": ""},
+    "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
+  }')
+  run_script "$fixture"
+  assert_eq "should not verdict gates while tasks 2 and 3 are still in progress" "halted" "$(action_of)"
+}
+
+it_should_report_in_progress_alongside_a_next_eligible_task_of_none() {
+  local fixture
+
+  # Task 2's only dependency is the live task 1, so nothing
+  # is dispatchable. "none" here means wait for task 1, not
+  # halt -- the non-zero in_progress tells the two apart,
+  # and failure-and-halt.md's stuck path reads it.
+  fixture=$(write_fixture "next-eligible-none-with-live-sibling" '{
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "batch_base_sha": "abc",
+    "tasks": [
+      {"id": "1", "status": "in_progress", "depends_on": []},
+      {"id": "2", "status": "pending", "depends_on": ["1"]}
+    ],
+    "attempts": [],
+    "gate_dispatches": 0,
+    "tails": {"refactor_report": "", "auto_review_report": ""},
+    "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
+  }')
+  run_script_flag "--next-eligible" "$fixture"
+  assert_eq "should report no eligible task while its only dependency is live (task)" "none" "$(task_of)"
+  assert_eq "should report no eligible task while its only dependency is live (in_progress)" "1" "$(in_progress_of)"
+}
+
+it_should_return_an_empty_eligible_set_once_the_batch_budget_is_spent() {
+  local fixture
+
+  # 2 tasks -> threshold 4x2 + 2 = 10. At 10 dispatches
+  # --eligible-set must name nothing, or a wave of retries
+  # would run past the cap that stops a runaway loop.
+  #
+  # The plain verdict's halt-budget backstop never runs when
+  # the orchestrator decides dispatch from this mode alone.
+  fixture=$(write_fixture "eligible-set-budget-spent" '{
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "batch_base_sha": "abc",
+    "tasks": [
+      {"id": "1", "status": "pending", "depends_on": []},
+      {"id": "2", "status": "pending", "depends_on": []}
+    ],
+    "attempts": [
+      {"task": "1", "n": 1, "result": "fail", "signature": "a", "at": "2026-07-10T10:00:00Z"},
+      {"task": "1", "n": 2, "result": "fail", "signature": "b", "at": "2026-07-10T10:01:00Z"},
+      {"task": "1", "n": 3, "result": "fail", "signature": "c", "at": "2026-07-10T10:02:00Z"},
+      {"task": "1", "n": 4, "result": "fail", "signature": "d", "at": "2026-07-10T10:03:00Z"},
+      {"task": "2", "n": 1, "result": "fail", "signature": "e", "at": "2026-07-10T10:04:00Z"},
+      {"task": "2", "n": 2, "result": "fail", "signature": "f", "at": "2026-07-10T10:05:00Z"},
+      {"task": "2", "n": 3, "result": "fail", "signature": "g", "at": "2026-07-10T10:06:00Z"},
+      {"task": "2", "n": 4, "result": "fail", "signature": "h", "at": "2026-07-10T10:07:00Z"}
+    ],
+    "gate_dispatches": 2,
+    "tails": {"refactor_report": "", "auto_review_report": ""},
+    "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
+  }')
+  run_script_flag "--eligible-set" "$fixture"
+  assert_eq "should return an empty eligible set once the batch budget is spent (tasks)" "[]" "$(tasks_of)"
+  assert_eq "should return an empty eligible set once the batch budget is spent (exhausted)" "true" "$(exhausted_of)"
 }
 
 it_should_verdict_next_task_when_current_task_passed_and_pending_tasks_remain
@@ -588,6 +707,10 @@ it_should_report_none_eligible_when_the_only_path_to_a_pending_task_is_a_blocked
 it_should_report_none_eligible_when_no_task_is_pending
 it_should_break_ties_by_lowest_numeric_id_not_lexical_order
 it_should_treat_a_next_eligible_depends_on_id_absent_from_this_units_tasks_as_satisfied
+it_should_omit_an_in_progress_task_from_the_eligible_set_even_when_its_dependencies_are_done
+it_should_not_verdict_gates_while_the_only_unfinished_tasks_are_live_siblings
+it_should_report_in_progress_alongside_a_next_eligible_task_of_none
+it_should_return_an_empty_eligible_set_once_the_batch_budget_is_spent
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

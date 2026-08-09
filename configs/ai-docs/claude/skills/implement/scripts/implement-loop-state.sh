@@ -5,18 +5,21 @@
 #   implement-loop-state.sh <state-file>
 #   implement-loop-state.sh --budget <state-file>
 #   implement-loop-state.sh --next-eligible <state-file>
+#   implement-loop-state.sh --eligible-set <state-file>
 #
 # With no flag, reads a /implement run's JSON state file and
 # prints one JSON verdict on stdout, for phase "tasks" only:
 #   {"action": "retry|stuck|next-task|gates|halted|halt-budget", "task": "<id or empty>", "reason": "..."}
 #
-# --budget and --next-eligible are phase-independent query
-# modes; see "Design" below for what each answers and why.
+# --budget, --next-eligible and --eligible-set are
+# phase-independent query modes; see "Design" below for what
+# each answers and why.
 #
 # Examples:
 #   implement-loop-state.sh /tmp/implement_abc123.json
 #   implement-loop-state.sh --budget /tmp/implement_abc123.json
 #   implement-loop-state.sh --next-eligible /tmp/state.json
+#   implement-loop-state.sh --eligible-set /tmp/state.json
 #
 # Pure: no writes, no clock reads, deterministic — the same state file always
 # yields the same verdict. The orchestrator (main session AI) is the fallible
@@ -99,6 +102,7 @@ usage() {
 usage: implement-loop-state.sh <state-file>
        implement-loop-state.sh --budget <state-file>
        implement-loop-state.sh --next-eligible <state-file>
+       implement-loop-state.sh --eligible-set <state-file>
 
 With no flag, reads a /implement run's JSON state file at phase "tasks" and
 prints one JSON verdict:
@@ -108,13 +112,20 @@ prints one JSON verdict:
   {"exhausted": true|false, "total_dispatches": N, "budget_threshold": N, "reason": "..."}
 
 --next-eligible: which pending task is DAG-eligible to dispatch next? Works
-at any phase, and does not depend on attempts[-1].result.
-  {"task": "<id or the literal string \"none\">", "reason": "..."}
+at any phase, and does not depend on attempts[-1].result. "none" with a
+non-zero in_progress means wait for a live sibling, not halt.
+  {"task": "<id or the literal string \"none\">", "in_progress": N, "reason": "..."}
+
+--eligible-set: every task dispatchable right now, for a parallel wave. Works
+at any phase. Empty tasks[] with in_progress > 0 means wait; empty with
+in_progress 0 means the wave drained. exhausted true forces tasks[] empty.
+  {"tasks": ["<id>", ...], "in_progress": N, "exhausted": true|false, "reason": "..."}
 
 Examples:
   implement-loop-state.sh /tmp/implement_abc123.json
   implement-loop-state.sh --budget /tmp/implement_abc123.json
   implement-loop-state.sh --next-eligible /tmp/implement_abc123.json
+  implement-loop-state.sh --eligible-set /tmp/implement_abc123.json
 EOF
 }
 
@@ -124,7 +135,8 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
 fi
 
 mode="verdict"
-if [ "${1:-}" = "--budget" ] || [ "${1:-}" = "--next-eligible" ]; then
+if [ "${1:-}" = "--budget" ] || [ "${1:-}" = "--next-eligible" ] \
+  || [ "${1:-}" = "--eligible-set" ]; then
   mode="${1#--}"
   shift
 fi
@@ -185,8 +197,28 @@ emit_budget() {
 # emit_next_eligible - JSON for --next-eligible: reuses
 # emit_verdict's "task"/"reason" fields as one family.
 emit_next_eligible() {
-  local task="$1" reason="$2"
-  jq -n --arg task "$task" --arg reason "$reason" '{task: $task, reason: $reason}'
+  local task="$1" running="$2" reason="$3"
+  jq -n --arg task "$task" --argjson in_progress "$running" \
+    --arg reason "$reason" \
+    '{task: $task, in_progress: $in_progress, reason: $reason}'
+}
+
+# emit_eligible_set - JSON for --eligible-set: the whole
+# dispatchable set, plus the two counts its caller needs to
+# tell "wait for a sibling" from "the wave drained".
+emit_eligible_set() {
+  local tasks="$1" running="$2" exhausted="$3" reason="$4"
+  jq -n --argjson tasks "$tasks" --argjson in_progress "$running" \
+    --argjson exhausted "$exhausted" --arg reason "$reason" \
+    '{tasks: $tasks, in_progress: $in_progress, exhausted: $exhausted, reason: $reason}'
+}
+
+# in_progress_count - how many tasks are dispatched but not
+# yet reported. The script owns this count rather than
+# leaving the caller to jq it, so the orchestrator stays the
+# recorder of raw facts and never becomes a second judge.
+in_progress_count() {
+  jq '[.tasks[] | select(.status == "in_progress")] | length' "$1"
 }
 
 fail() {
@@ -222,6 +254,11 @@ compute_budget_vars() {
 # exclude already carries a terminal status, set by its own
 # caller before asking what runs next (failure-and-halt.md's
 # §5.3) — the status check alone covers it there.
+#
+# "in_progress" is excluded as a third non-terminal status
+# because it means already dispatched. That exclusion is the
+# only thing stopping a parallel wave from dispatching one
+# task into two worktrees.
 eligible_tasks_json() {
   local sf="$1" exclude_id="$2"
   jq -c --arg cur "$exclude_id" '
@@ -229,6 +266,7 @@ eligible_tasks_json() {
     | [ .tasks[]
         | select($cur == "" or .id != $cur)
         | select(.status != "done" and .status != "blocked")
+        | select(.status != "in_progress")
         | select(
             (.depends_on // []) as $deps
             | all($deps[]; . as $d
@@ -252,16 +290,35 @@ if [ "$mode" = "budget" ]; then
 fi
 
 if [ "$mode" = "next-eligible" ]; then
+  running=$(in_progress_count "$state_file")
   eligible_json=$(eligible_tasks_json "$state_file" "")
   eligible_count=$(printf '%s' "$eligible_json" | jq 'length')
   if [ "$eligible_count" -eq 0 ]; then
-    emit_next_eligible "none" \
-      "no pending task has every declared dependency satisfied (done, or absent from this unit's own tasks[])"
+    emit_next_eligible "none" "$running" \
+      "no pending task has every declared dependency satisfied (done, or absent from this unit's own tasks[]); a non-zero in_progress means wait for those siblings instead of halting"
   else
     next_task=$(printf '%s' "$eligible_json" | jq -r '.[0].id')
-    emit_next_eligible "$next_task" \
+    emit_next_eligible "$next_task" "$running" \
       "lowest-id pending task whose dependencies are all done (or absent from this unit's own tasks[])"
   fi
+  exit 0
+fi
+
+# --eligible-set is the only dispatch decider in a parallel
+# wave, so it carries the batch budget the plain verdict
+# path checks. Without it a wave of retries runs past the
+# cap that exists to stop a runaway loop.
+if [ "$mode" = "eligible-set" ]; then
+  running=$(in_progress_count "$state_file")
+  compute_budget_vars "$state_file"
+  if [ "$total_dispatches" -ge "$budget_threshold" ]; then
+    emit_eligible_set "[]" "$running" true \
+      "total dispatches ($total_dispatches) reached the batch budget ($budget_threshold = ${BATCH_CAP_MULT}x${task_count} tasks + $GATE_FIX_ALLOWANCE gate allowance); dispatch nothing further and let any live sibling finish"
+    exit 0
+  fi
+  set_json=$(eligible_tasks_json "$state_file" "" | jq -c '[.[].id]')
+  emit_eligible_set "$set_json" "$running" false \
+    "every task whose declared dependencies are all done and which is not already dispatched, lowest id first"
   exit 0
 fi
 
