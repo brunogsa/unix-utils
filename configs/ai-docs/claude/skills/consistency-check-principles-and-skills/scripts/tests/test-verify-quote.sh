@@ -53,6 +53,27 @@ EOF
     rm -rf "$d"
 }
 
+it_should_pass_a_quote_that_is_a_fragment_of_a_longer_line() {
+    echo "verify-quote.sh > happy > should pass a quote that is a fragment of a longer line"
+    local d; d=$(mktemp -d)
+    local f="$d/notes.md"
+    # doc-standards mandates one prose paragraph per physical line, so
+    # real files are made of long single-line bullets — an auditor
+    # quoting "the exact text" will usually hand back a fragment of
+    # such a line, not the whole line. grep -F semantics (the AC's own
+    # words) match a fixed string anywhere inside a line, not only a
+    # full-line match, so this must pass.
+    write_file "$f" <<'EOF'
+Intro line.
+- [Instruction] Prefer CLI scripts + skills over MCP servers — use MCP only for capabilities CLI + skills can't provide.
+Outro line.
+EOF
+    printf '%s' "Prefer CLI scripts + skills over MCP servers" | bash "$VERIFY" "$f" >/dev/null 2>"$STDERR_FILE"
+    local status=$?
+    assert_status "exits 0 for a substring fragment of a longer line" "0" "$status"
+    rm -rf "$d"
+}
+
 it_should_pass_a_multi_line_quote_present_as_a_contiguous_block() {
     echo "verify-quote.sh > happy > should pass a multi line quote present as a contiguous block"
     local d; d=$(mktemp -d)
@@ -126,7 +147,13 @@ Block line two.
 EOF
     printf '%s\n%s' "Block line one." "Block line two." | bash "$VERIFY" "$f" >/dev/null 2>"$STDERR_FILE"
     local status=$?
-    assert_status "exits 1" "1" "$status"
+    assert_status "exits 1 for lines separated by an unrelated line" "1" "$status"
+
+    # AC #6's other named sub-case: the same two lines present but
+    # reordered (no interleaving line at all) must fail too.
+    printf '%s\n%s' "Block line two." "Block line one." | bash "$VERIFY" "$f" >/dev/null 2>"$STDERR_FILE"
+    status=$?
+    assert_status "exits 1 for lines present but reordered" "1" "$status"
     rm -rf "$d"
 }
 
@@ -142,6 +169,7 @@ it_should_fail_loud_when_the_target_file_does_not_exist() {
 }
 
 it_should_pass_a_single_line_quote_present_verbatim
+it_should_pass_a_quote_that_is_a_fragment_of_a_longer_line
 it_should_pass_a_multi_line_quote_present_as_a_contiguous_block
 it_should_normalize_trailing_whitespace_before_comparing
 it_should_treat_the_quote_as_a_literal_substring_not_a_regex

@@ -50,61 +50,33 @@ if [ ! -f "$TARGET_FILE" ]; then
 fi
 
 # Strip trailing whitespace per line only — leading whitespace is
-# part of the quoted content and is compared as-is.
-#
-# No `mapfile`/`readarray` (bash 4+, absent from macOS's stock bash
-# 3.2) — a plain `read` loop instead, matching gen-shard-manifest.sh.
-#
-# `|| [ -n "$line" ]` keeps the loop running one more iteration when
-# `read` hits EOF without a trailing newline, so a final line still
-# gets appended instead of silently dropped — e.g. a single-line
-# quote piped in via `printf '%s'` has no trailing newline.
-quote_lines=()
-while IFS= read -r line || [ -n "$line" ]; do
-    quote_lines+=("$line")
-done < <(sed 's/[[:space:]]*$//')
+# part of the quoted content and is compared as-is. Join each side
+# back into one newline-joined blob rather than comparing per-line:
+# `grep -F` semantics (the spec's own words, D5/A4) match a fixed
+# string anywhere *inside* a line, not only a whole-line match — and
+# doc-standards keeps this repo's own prose one paragraph per physical
+# line, so a real quote is routinely a fragment of a longer bullet,
+# never the full line.
+quote_blob="$(sed 's/[[:space:]]*$//')"
+file_blob="$(sed 's/[[:space:]]*$//' "$TARGET_FILE")"
 
-file_lines=()
-while IFS= read -r line || [ -n "$line" ]; do
-    file_lines+=("$line")
-done < <(sed 's/[[:space:]]*$//' "$TARGET_FILE")
-
-quote_len=${#quote_lines[@]}
-file_len=${#file_lines[@]}
-
-if [ "$quote_len" -eq 0 ]; then
+if [ -z "$quote_blob" ]; then
     echo "ERROR: empty quote given on stdin" >&2
     exit 1
 fi
 
-# Slide a window of quote_len lines across the file's lines and
-# compare each window to the quote line-by-line with plain string
-# equality — never a regex match — so a contiguous block match is the
-# only way to succeed, and metacharacters in the quote (., *, [, ])
-# are compared literally rather than interpreted as a pattern.
-match_found=0
-max_start=$((file_len - quote_len))
-start=0
-while [ "$start" -le "$max_start" ]; do
-    window_matches=1
-    i=0
-    while [ "$i" -lt "$quote_len" ]; do
-        if [ "${file_lines[$((start + i))]}" != "${quote_lines[$i]}" ]; then
-            window_matches=0
-            break
-        fi
-        i=$((i + 1))
-    done
-    if [ "$window_matches" -eq 1 ]; then
-        match_found=1
-        break
-    fi
-    start=$((start + 1))
-done
-
-if [ "$match_found" -eq 1 ]; then
-    exit 0
-fi
+# A single literal substring test replaces the old line-array sliding
+# window: contiguity still holds because a multi-line quote's internal
+# newlines must line up with the file's, so a reordered or
+# interleaved quote still can't match. Quoting the expansion inside
+# the `case` pattern makes bash compare it byte-for-byte rather than
+# interpreting it as a glob, so metacharacters in the quote (., *, [,
+# ]) are never treated as a pattern — only the bare `*` either side of
+# it is a real wildcard, meaning "anything before/after".
+case "$file_blob" in
+    *"$quote_blob"*)
+        exit 0 ;;
+esac
 
 echo "ERROR: quote not found verbatim (as a contiguous block) in $TARGET_FILE" >&2
 exit 1
