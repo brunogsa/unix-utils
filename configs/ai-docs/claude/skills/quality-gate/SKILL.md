@@ -69,20 +69,28 @@ ls -1 spec_*.md plan_*.md 2>/dev/null
 
 - **More than one of a kind** → prompt with a numbered list and let the user pick; never guess which spec or plan was meant.
 
-Also resolve `<BASE_BRANCH>` for the `auto-review` leg:
+Also resolve `<BASE_REF>` for the `auto-review` leg:
 
 ```bash
-git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'
+~/.claude/scripts/resolve-base-ref.sh
 ```
 
-If detection fails, ask which branch to diff against rather than guessing. A caller dispatching this skill may pass its own base ref instead — `/implement` passes `BATCH_BASE_SHA`.
+The script falls back from origin/HEAD to local main to local master, so a failed detection here means genuinely none of the three exist.
+
+If detection fails, ask which branch to diff against rather than guessing.
+
+Under `--auto-solve` there is nobody to ask: stop the run and print what failed.
+
+A missing base has no safe default the way a missing spec does, so proceeding would review the wrong range.
+
+A caller dispatching this skill may pass its own base ref instead, via `--base-ref` — `/implement`'s batch-end tail passes `BATCH_BASE_SHA` that way.
 
 ## 3. Dispatch the legs in parallel
 
 Spawn every leg as `agent(subAgent=deep-reviewer, …)`, all in the **same turn**, all in the background. They are independent report-only passes with no ordering dependency.
 
 - `agent(subAgent=deep-reviewer, title=Refactor-lens review)` — invokes the `refactor` skill via the Skill tool and executes it.
-- `agent(subAgent=deep-reviewer, title=Auto-review pipeline)` — invokes the `auto-review` skill via the Skill tool and orchestrates from there, with `<BASE_BRANCH>` and the resolved spec/plan paths pushed in so it needs no interactive resolution.
+- `agent(subAgent=deep-reviewer, title=Auto-review pipeline)` — invokes the `auto-review` skill via the Skill tool and orchestrates from there, with `<BASE_REF>` and the resolved spec/plan paths pushed in so it needs no interactive resolution.
 
 - `agent(subAgent=deep-reviewer, title=Planned-test presence check)` — invokes the `test-sdd` skill via the Skill tool and executes it, with the resolved plan path and any `--tasks` ids pushed in.
   - Dispatch this leg only when a plan resolved.

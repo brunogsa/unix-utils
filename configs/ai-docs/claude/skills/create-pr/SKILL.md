@@ -40,8 +40,8 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
   - Single PR plan or no plan resolved → omit `_pr<N>`, auto-resolved.
   - Count the entries with `~/.claude/skills/implement/scripts/parse-pr-breakdown.sh <plan>`, one line per `PR-N`; 2+ → open question **(B) Which PR-N**, setting `<N>` to that number.
 
-- **Resolve the base branch (used by `changes-gatherer` below and by step 4)**: default is `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`.
-  - Empty result (`origin/HEAD` unset) → omit `--base` in step 4.
+- **Resolve the base branch (used by `changes-gatherer` below and by step 4)**: default is `~/.claude/scripts/resolve-base-ref.sh`, which falls back from origin/HEAD to local main to local master.
+  - Empty result (none of the three resolve) → omit `--base` in step 4.
 
 - **The optional `<parent>` arg is this skill's whole stacked-PR surface** -- when given, base = the parent's head branch instead of the default.
   - Resolution, digest-scoping, and hand-off rules: [`references/parent-arg.md`](references/parent-arg.md).

@@ -89,7 +89,7 @@ Mid-run `.env` needs are self-served (copied from the original checkout) rather 
 - **Run the repo-green gate at batch end?** (yes/no, default yes) — on yes, §8.2 runs; on no, it's skipped and the package says so.
   - Independent of the quality-gate toggle, decided fresh each run.
 
-- **Base-branch confirmation** — show `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'` as the default; let the user confirm or override.
+- **Base-branch confirmation** — show `~/.claude/scripts/resolve-base-ref.sh`'s output (origin/HEAD, falling back to local main, then local master) as the default; let the user confirm or override.
 
 Record all answers before proceeding — §2.3 persists them to the state file.
 

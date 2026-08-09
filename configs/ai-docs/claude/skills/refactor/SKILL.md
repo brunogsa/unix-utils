@@ -39,8 +39,12 @@ If the user provided a path/glob argument, use that directly.
 Otherwise, collect files from both unpushed commits and uncommitted changes:
 
 ```bash
-# Unpushed commits
-git diff --name-only @{upstream}..HEAD
+# Unpushed commits — @{upstream} when the branch tracks a
+# remote, else the repo default branch, which is all a fresh
+# /implement branch has: its tail runs before the first push.
+base=$(git rev-parse --abbrev-ref --symbolic-full-name @{upstream} 2>/dev/null) \
+  || base=$(~/.claude/scripts/resolve-base-ref.sh)
+git diff --name-only "$base"..HEAD
 
 # Uncommitted changes (staged + unstaged)
 git diff --name-only HEAD

@@ -12,9 +12,9 @@ Steps:
 
 1. Resolve the base branch (same primitive as `auto-review`):
    ```bash
-   git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'
+   ~/.claude/scripts/resolve-base-ref.sh
    ```
-   If detection fails (no `origin/HEAD` set), ask the user which base to diff against rather than guessing.
+   It falls back from origin/HEAD to local main to local master. If detection fails (none of the three resolve), ask the user which base to diff against rather than guessing.
 
 2. Resolve the file list:
    - **Explicit paths** (`on X, Y, Z`): expand each entry.

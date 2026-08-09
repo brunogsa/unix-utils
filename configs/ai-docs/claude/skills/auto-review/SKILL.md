@@ -49,13 +49,13 @@ The base argument accepts any git ref (commit SHA, branch name, `HEAD~N`), so yo
 
 ## Execution
 
-Resolve `<BASE_BRANCH>`:
+Resolve `<BASE_REF>`:
 
 - If the user passed an argument, use it as-is.
-- Else run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`
-  and use that.
-- If detection fails (no `origin/HEAD` set), ask the user which branch to
-  diff against rather than guessing.
+- Else run `~/.claude/scripts/resolve-base-ref.sh` and use that. It falls
+  back from origin/HEAD to local main to local master.
+- If detection fails (none of the three resolve), ask the user which branch
+  to diff against rather than guessing.
 
 ### Resolve `<SPEC_PLAN_PATHS>` (local-mode `{pr_context}` source)
 
