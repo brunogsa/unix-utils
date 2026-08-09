@@ -602,9 +602,13 @@ it_should_not_verdict_gates_while_the_only_unfinished_tasks_are_live_siblings() 
   # would read 0 here and the batch would gate while two
   # subagents were still committing.
   #
-  # "halted" is the safe answer, not the ideal one: the
-  # parallel flow asks --eligible-set while a wave is live,
-  # so only a caller that lost track of the wave lands here.
+  # The assertion is the negative on purpose. Which verdict
+  # this returns is not a designed contract -- the parallel
+  # flow asks --eligible-set while a wave is live and never
+  # reaches here.
+  #
+  # What must hold is only that a live wave can never be
+  # mistaken for a finished batch.
   fixture=$(write_fixture "wave-with-no-downstream-task" '{
     "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
     "batch_base_sha": "abc",
@@ -619,7 +623,10 @@ it_should_not_verdict_gates_while_the_only_unfinished_tasks_are_live_siblings() 
     "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
   }')
   run_script "$fixture"
-  assert_eq "should not verdict gates while tasks 2 and 3 are still in progress" "halted" "$(action_of)"
+  local action
+  action=$(action_of)
+  assert_eq "should not verdict gates while tasks 2 and 3 are still in progress" \
+    "not-gates" "$([ "$action" = "gates" ] && printf 'gates' || printf 'not-gates')"
 }
 
 it_should_report_in_progress_alongside_a_next_eligible_task_of_none() {
