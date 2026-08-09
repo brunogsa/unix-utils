@@ -15,7 +15,11 @@ Policy:
   - PINNED subagent_type (frontmatter has `model:`): the dispatched
     tool_input.model must be absent or match the pin (aliases sonnet/opus/
     haiku/fable match any full model ID of that family, e.g. claude-sonnet-5).
-    A present-but-mismatched model is denied.
+    A present-but-mismatched model is denied -- the frontmatter outranks any
+    skill or reference instructing a caller to override the pin, so such a
+    doc is a conflict to surface rather than grounds to allow the dispatch.
+    Only `model` is gated; `effort` is reported in the deny reason for
+    context but never enforced, so overriding a pinned effort is legal.
   - UNPINNED subagent_type (no matching agent file, or a file without
     `model:`): tool_input.model must be present -- an omitted model on an
     unpinned type silently inherits the session's (possibly expensive) model,
@@ -139,9 +143,14 @@ def main():
             return  # allow: explicit model matches the pin
         deny(
             f"subagent '{subagent_type}' is pinned to model={pinned_model} "
-            f"effort={pinned_effort} — omit the model param or pass the "
-            f"pinned model; pick a different agent type if you need a "
-            f"different tier."
+            f"(effort={pinned_effort}, which this guard does not gate — "
+            f"override effort freely). That frontmatter is the only place a "
+            f"model tier is decided, so it outranks any skill or reference "
+            f"telling you to override the pin. Either omit the model param "
+            f"and take the pin, or dispatch a different agent type when you "
+            f"need another tier. If a doc told you to override, that is a "
+            f"real conflict, not your misreading — surface it so the pin or "
+            f"the doc gets changed, and do not retry this dispatch."
         )
         return
 
