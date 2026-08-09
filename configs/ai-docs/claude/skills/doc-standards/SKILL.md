@@ -139,7 +139,7 @@ Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`d
 - [Instruction] An FAQ/Q&A entry must add a distinct angle — new audience, framing, or context — not restate the body. Drop test: if cutting it loses only "Q&A format", cut it.
   - [Why] FAQs feel safe to grow, but one that restates the body forces the same edit in two places and bloats the doc.
 
-- [Instruction] When a doc points at a sibling file instead of restating a rule, name the file that authors that rule — never whichever file you happened to read it in.
+- [Instruction] When a doc or script header points at a sibling file instead of restating a rule, name the file that authors it — never the file you read it in.
   - [Why] A pointer to the wrong file is worse than none: the reader follows it, finds nothing, and re-derives the rule locally, recreating the duplication the pointer exists to prevent.
 
 - [Instruction] Verify every such pointer with `scripts/check-rule-citations.py <file>...`, which resolves the cited filename and checks the rule is authored there.

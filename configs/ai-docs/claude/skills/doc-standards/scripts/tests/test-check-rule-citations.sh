@@ -237,6 +237,26 @@ EOF
     '1:unresolved-rule:SKILL.md:"JSON snippets"'
 }
 
+it_should_flag_a_quoted_name_authored_nowhere_in_a_sh_scripts_comment_header() {
+  new_skill sh-comment-header
+  cat > "$SKILL_DIR/references/writing-style.md" <<'EOF'
+# Writing style
+
+- **Bullets** -- one thought per bullet.
+EOF
+  mkdir -p "$SKILL_DIR/scripts"
+  cat > "$SKILL_DIR/scripts/check-something.sh" <<'EOF'
+#!/usr/bin/env bash
+# check-something.sh - example script.
+#
+# Group changes per the "Separate planned from incidental" rule in writing-style.md.
+EOF
+  run_script "$SKILL_DIR/scripts/check-something.sh"
+  assert_eq 'should flag a quoted name authored nowhere in a .sh script comment header (exit code)' "1" "$VERDICT_EXIT"
+  assert_contains 'should flag a quoted name authored nowhere in a .sh script comment header (row)' \
+    '4:unresolved-rule:writing-style.md:"Separate planned from incidental"'
+}
+
 it_should_flag_a_descriptive_slug_whose_words_appear_nowhere_in_the_cited_file() {
   new_skill slug-absent
   cat > "$SKILL_DIR/references/writing-style.md" <<'EOF'
@@ -308,6 +328,7 @@ it_should_skip_a_file_citing_itself
 it_should_flag_a_quoted_name_authored_nowhere_in_the_cited_file
 it_should_flag_a_quoted_name_the_cited_file_only_mentions_in_body_prose
 it_should_flag_a_quoted_name_cited_without_a_possessive
+it_should_flag_a_quoted_name_authored_nowhere_in_a_sh_scripts_comment_header
 it_should_flag_a_descriptive_slug_whose_words_appear_nowhere_in_the_cited_file
 it_should_flag_a_descriptive_slug_the_cited_file_only_forwards_to_another_file
 it_should_resolve_a_claude_md_citation_against_the_config_root_above_the_skill

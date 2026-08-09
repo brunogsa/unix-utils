@@ -9,12 +9,12 @@ user-invocable: false
 You orchestrate a 7-wave code review pipeline (Waves 0-6) shared by both
 modes — only Waves 1 and 5 differ fully, plus one guide-writer skip in Wave 2 for local mode.
 
-**Architecture.** The pipeline runs **serially in one session** — no nested sub-Agents. Specialists run linearly so the prompt cache stays warm and later passes dedup what earlier ones raised.
+**Architecture.** The pipeline runs **serially in one session** — the caller's own or an isolated subagent, per "How callers dispatch" below — with no nested sub-Agents.
 
-Whether that session is the caller's own or an isolated subagent, see "How callers dispatch" below.
+Specialists run linearly so the prompt cache stays warm and later passes dedup what earlier ones raised.
 
-**Compaction resilience.** Waves 2–4 persist their output to `$work_dir` as they complete (see each wave's "Resume check" / "Persist" notes below).
-If context gets compacted mid-pipeline, re-read this SKILL.md, then check `$work_dir` for the furthest-along wave/step output before redoing any work — load it instead.
+**Compaction resilience.** Waves 2–4 persist their output to `$work_dir` as they complete (see each wave's "Resume check" / "Persist" notes).
+After a mid-pipeline compaction, re-read this SKILL.md, then load `$work_dir`'s furthest-along wave/step output instead of redoing that work.
 
 Specialist prompts and validator rubric live in `references/`; bash glue in `scripts/`.
 
@@ -82,13 +82,13 @@ Deterministic check; no subagent needed. Only aborts on hard no-ops.
   - Every inline comment this pipeline posts carries the Wave 5 signature, so any match means a run already reviewed this PR.
   - The pattern matches the prior signature text too, catching PRs reviewed before that text changed.
 
-- **local**: always proceed — Wave 0 is a no-op here (both guards above are github-only). Empty diffs surface naturally — Wave 5 writes "auto-review: no findings".
+- **local**: always proceed — Wave 0 is a no-op here (both guards are github-only). Empty diffs surface naturally — Wave 5 writes "auto-review: no findings".
 
 ---
 
 ## Wave 1 — Context prep
 
-Assemble everything every specialist needs on disk from GitHub PR or local repo.
+Assemble everything specialists need on disk from GitHub PR or local repo.
 Implementation: github & local modes, tiny-PR fast-path — see [`references/wave1-context-prep.md`](./references/wave1-context-prep.md).
 
 This is where the `tiny_pr` flag (`added_lines < 100`) gets set.
@@ -133,8 +133,8 @@ Per-specialist loop:
 
 - Emit that specialist's findings as a JSON array; `scope_tag` matches the
   file name (e.g., `"security"`).
-- **Skip issues already raised** by a previous specialist in this session —
-  the scope_tag + the Problem sentence tell you. Distinct issues that share
+- **Skip issues already raised** by a previous specialist this session —
+  the scope_tag plus the Problem sentence tell you. Distinct issues sharing
   a line stay in.
 
 - Maintain a running findings list in working memory; append each pass.
@@ -152,16 +152,16 @@ Per-specialist loop:
   focus, incidental changes). 400 words max.
 - **Persist**: write the guide to `$work_dir/wave2-guide.md`.
 
-Resolve placeholders in each reference file against Wave 1 paths and values as you read them.
+Resolve placeholders in each reference file against Wave 1 paths and values.
 
 ### Tiny-PR fast-path body
 
 When `tiny_pr=true`, replace the per-specialist loop with:
 
-- Read `common-preamble.md` and all 8 specialist files once — combined prompt still fits at <100 added lines.
+- Read `common-preamble.md` and all 8 specialist files once — combined prompt fits at <100 added lines.
 - Walk the diff once. Flag any issue matching a specialist's rubric; tag `scope_tag` with that specialist.
 - Skip the guide writer; emit a 2-sentence change summary instead.
-- **Persist**: write the summary to `$work_dir/wave2-guide.md` — same filename the full guide uses, so Wave 5's density check and guide-posting steps don't need tiny-PR-specific branching.
+- **Persist**: write the summary to `$work_dir/wave2-guide.md` — same filename the full guide uses, so Wave 5 needs no tiny-PR-specific branching.
 
 - **Skip Wave 3 entirely.** At <100 added lines the change is in context; hallucinations are rare. Findings go straight to Wave 4.
 
@@ -171,9 +171,8 @@ Artifact at the end of Wave 2: **one flat findings list + one Review Guide** (or
 
 ## Wave 3 — Batched validation pass (self-check)
 
-Before emitting, re-read each finding against its actual file. This single pass
-catches hallucinations (specialist mis-remembered the code) **and** tightens
-line anchors, so you re-load each file at most once.
+Before emitting, re-read each finding against its actual file. One pass catches
+hallucinations **and** tightens line anchors, so you re-load each file at most once.
 
 **Resume check**: if `$work_dir/wave3-findings.json` already exists, load it (and `$work_dir/wave3-drop-log.txt`) and skip straight to Wave 4 — this wave already completed.
 
@@ -191,9 +190,8 @@ line anchors, so you re-load each file at most once.
    - **Keep** otherwise — including when uncertain.
 
 3. **Line-range check (kept findings only).** Is `start_line..line` the
-   tightest range that captures the problem? If off by a few lines or too
-   wide, update `start_line` and `line`. Don't widen/tighten just for
-   style — only when the current anchor actually misleads.
+   tightest range capturing the problem? If not, update both — but only
+   when the current anchor actually misleads, never for style.
 
 **Threshold: LOW (conservative).** Dropping a real finding erodes trust
 more than keeping noise. Record every drop with a one-sentence reason for
@@ -228,7 +226,7 @@ Implementation details — read only the file matching this run's mode: [`wave5-
 
 ## Wave 6 — Summary
 
-Print a terminal summary using the template at `references/wave6-summary-template.md`. Both modes share the structure; only the output path / review URL differ.
+Print a terminal summary using `references/wave6-summary-template.md`. Both modes share the structure; only the output path / review URL differ.
 
 ---
 
@@ -236,15 +234,15 @@ Print a terminal summary using the template at `references/wave6-summary-templat
 
 - **gh api POST 422 (Wave 5 emit)**: retry once, same single-batch-POST call, after verifying line numbers against `commentable-lines.txt` and dropping findings whose anchors don't resolve.
   - If it still fails, stop and report the error.
-  - Never fall back to general comments or the single-comment endpoint, never split the batch into several POSTs — a finding that can't go through drops from this run instead.
+  - Never fall back to general comments or the single-comment endpoint — a finding that can't go through drops from this run instead.
 
 - **Post-emit verification fails (Wave 5's pending-state verification step)**: if the re-fetched review isn't `PENDING`, or its comment count/lines don't match `review-payload.json`, stop.
   - Don't proceed to Wave 6's success summary.
-  - Report the mismatch (actual state, actual vs. expected comment list) to the user verbatim so they can decide whether to clean up live GitHub artifacts themselves.
+  - Report the mismatch verbatim — actual state, actual vs. expected comment list — so the user can decide whether to clean up live GitHub artifacts.
 
   - Don't delete or edit anything on GitHub without their explicit go-ahead, since submitted reviews and comments are visible to every collaborator.
 
-- **Clone fails (Wave 1, github-only — `gh repo clone` never runs in local mode)**: abort with a clear error and `work_dir`'s path. Review cannot proceed without the code on disk.
+- **Clone fails (Wave 1, github-only — `gh repo clone` never runs in local mode)**: abort with a clear error and `work_dir`'s path — review can't proceed without the code on disk.
 
 - **No findings at all**:
   - GH: skip the pending review entirely — don't post an empty review just to carry the guide.
@@ -264,8 +262,6 @@ Print a terminal summary using the template at `references/wave6-summary-templat
   - Submitting is the human's decision; Wave 5's pending-state verification step confirms the review stayed pending.
 
 - Don't include a changelog. The Review Guide replaces it.
-
-- Don't spawn sub-Agents for specialists or the validator — see Architecture at top.
 
 - Don't invent flags. The CLI surface is deliberately minimal.
 

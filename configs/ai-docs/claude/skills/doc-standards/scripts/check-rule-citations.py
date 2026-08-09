@@ -49,7 +49,8 @@ extra homes so there is one owner to cite.
 
 Usage:
   check-rule-citations.py <file> [<file>...]
-  find ~/.claude/skills -name '*.md' -print0 | xargs -0 check-rule-citations.py
+  find ~/.claude/skills \\( -name '*.md' -o -name '*.sh' -o -name '*.py' \\) \\
+    -print0 | xargs -0 check-rule-citations.py
 
 Exit codes:
   0  clean
