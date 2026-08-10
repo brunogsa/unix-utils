@@ -11,6 +11,7 @@ Usage:
 import json
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -51,7 +52,24 @@ def _single_result(result):
     return json.loads(lines[0])
 
 
-class TestClassifyConversionHappy(unittest.TestCase):
+class _TempDirTestCase(unittest.TestCase):
+    """Gives each test its own temp dir, reachable as `self._tmp()`.
+    Written once and inherited by all three classes here, so a change
+    to how the temp dir is created or torn down can't land in one
+    class and silently miss the other two."""
+
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self._tmp_path = self._tmpdir.name
+
+    def tearDown(self):
+        self._tmpdir.cleanup()
+
+    def _tmp(self):
+        return Path(self._tmp_path)
+
+
+class TestClassifyConversionHappy(_TempDirTestCase):
     def test_should_return_py_as_the_target_language_when_the_script_carries_no_requires_npm_header(self):
         tmp_path = self._tmp()
 
@@ -200,30 +218,8 @@ class TestClassifyConversionHappy(unittest.TestCase):
         self.assertEqual(by_name["stays.sh"]["verdict"], "stays-sh")
         self.assertEqual(by_name["stays.sh"]["tree_root"], str(repo_b))
 
-    def _tmp(self):
-        return Path(self._tmp_path)
 
-    def setUp(self):
-        import tempfile
-        self._tmpdir = tempfile.TemporaryDirectory()
-        self._tmp_path = self._tmpdir.name
-
-    def tearDown(self):
-        self._tmpdir.cleanup()
-
-
-class TestClassifyConversionCorner(unittest.TestCase):
-    def setUp(self):
-        import tempfile
-        self._tmpdir = tempfile.TemporaryDirectory()
-        self._tmp_path = self._tmpdir.name
-
-    def tearDown(self):
-        self._tmpdir.cleanup()
-
-    def _tmp(self):
-        return Path(self._tmp_path)
-
+class TestClassifyConversionCorner(_TempDirTestCase):
     def test_should_classify_stays_sh_when_no_risky_construct_appears_and_the_file_is_exactly_128_lines(self):
         tmp_path = self._tmp()
         script = _script_with_line_count(tmp_path, "exactly-cap.sh", LINE_CAP)
@@ -273,18 +269,7 @@ class TestClassifyConversionCorner(unittest.TestCase):
             )
 
 
-class TestClassifyConversionFailure(unittest.TestCase):
-    def setUp(self):
-        import tempfile
-        self._tmpdir = tempfile.TemporaryDirectory()
-        self._tmp_path = self._tmpdir.name
-
-    def tearDown(self):
-        self._tmpdir.cleanup()
-
-    def _tmp(self):
-        return Path(self._tmp_path)
-
+class TestClassifyConversionFailure(_TempDirTestCase):
     def test_should_exit_non_zero_when_a_scripts_requires_npm_header_names_no_npm_package_or_carries_an_empty_stdlib_gap(self):
         tmp_path = self._tmp()
         no_package = _write_script(tmp_path, "no-package.sh", [
