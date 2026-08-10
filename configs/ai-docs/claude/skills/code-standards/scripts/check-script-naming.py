@@ -167,6 +167,19 @@ def collect_tree_scripts(tree_root):
     return found
 
 
+def report_script(path, lexicon, label=None):
+    """Evaluate one script and print its result line, returning
+    whether it failed. An excluded path prints nothing and never
+    counts. Both argument modes route through here, so a change to
+    the skip/evaluate/print sequence can't land in one mode and
+    silently miss the other."""
+    if is_excluded(path):
+        return False
+    reasons = evaluate_name(path, lexicon)
+    print(format_result(path, reasons, label=label))
+    return bool(reasons)
+
+
 def main():
     parser = argparse.ArgumentParser(add_help=True)
     parser.add_argument(
@@ -187,21 +200,15 @@ def main():
 
     for file_arg in args.files:
         path = Path(file_arg).expanduser().resolve()
-        if is_excluded(path):
-            continue
-        reasons = evaluate_name(path, lexicon)
-        any_failed = any_failed or bool(reasons)
-        print(format_result(path, reasons))
+        if report_script(path, lexicon):
+            any_failed = True
 
     for tree_arg in args.tree:
         tree_root = Path(tree_arg).expanduser().resolve()
         label = tree_root.name
         for path in collect_tree_scripts(tree_root):
-            if is_excluded(path):
-                continue
-            reasons = evaluate_name(path, lexicon)
-            any_failed = any_failed or bool(reasons)
-            print(format_result(path, reasons, label=label))
+            if report_script(path, lexicon, label=label):
+                any_failed = True
 
     return 1 if any_failed else 0
 
