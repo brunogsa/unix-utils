@@ -17,8 +17,8 @@ Usage:
 
 import re
 import unittest
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
 # unix-utils repo root: this test file's own checkout,
 # seven levels above scripts/tests/.
