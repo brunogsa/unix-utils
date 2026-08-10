@@ -47,18 +47,22 @@ assert_eq() {
   fi
 }
 
-# build_hook_dir - assembles a temp hooks dir: the real orchestrator and the
-# real implement gate, plus stubs for the four children
-# whose behavior each
-# case controls. Prints the dir path.
+# build_hook_dir - assembles a temp hooks dir: the real
+# orchestrator and the real implement gate, plus stubs for
+# the four children whose behavior each case controls.
+# Prints the dir path.
 #
 # The markdown, agent-contract, comment-format and sdd
-# stubs block only when STUB_MD_BLOCKS /
-# STUB_AGENT_CONTRACT_BLOCKS / STUB_COMMENT_FORMAT_BLOCKS
-# / STUB_SDD_BLOCKS
-# is 1 in the environment, so a case picks which gate fires without a second
-# fixture dir. The notify stub records its state argument in notify.log, which
-# is how every case answers "did the ping fire, and with which state?".
+# stubs block only when STUB_MD_BLOCKS,
+# STUB_AGENT_CONTRACT_BLOCKS, STUB_COMMENT_FORMAT_BLOCKS or
+# STUB_SDD_BLOCKS is 1 in the environment.
+#
+# That lets a case pick which gate fires without a second
+# fixture dir.
+#
+# The notify stub records its state argument in notify.log,
+# which is how every case answers "did the ping fire, and
+# with which state?".
 build_hook_dir() {
   local dir="$work_dir/hooks"
   rm -rf "$dir"
