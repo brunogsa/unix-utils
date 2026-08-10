@@ -148,7 +148,37 @@ it_should_detect_a_duplicate_label_when_two_pr_breakdown_entries_share_the_same_
   fi
 }
 
+it_should_pass_when_a_heading_per_pr_plans_dependencies_all_resolve() {
+  local fixture
+  fixture=$(write_plan "happy-heading-grammar" '### PR-1. Naming and validators
+
+**Depends on**: none
+
+### PR-2. [Done] Core loop
+
+**Depends on**: PR-1
+
+Sequenced behind the validators so the riskiest conversion lands on a checked base.')
+  run_script "$fixture"
+  assert_eq "should pass when a plan writing one heading per PR has every dependency resolve" "0" "$VERDICT_EXIT"
+}
+
+it_should_detect_a_cycle_between_two_prs_written_as_headings() {
+  local fixture
+  fixture=$(write_plan "cycle-heading-grammar" '### PR-1. First
+
+**Depends on**: PR-2
+
+### PR-2. Second
+
+**Depends on**: PR-1')
+  run_script "$fixture"
+  assert_eq "should detect a cycle between two PRs written as headings" "1" "$VERDICT_EXIT"
+}
+
 it_should_pass_when_every_pr_dependency_resolves_to_a_real_non_cyclic_pr_label
+it_should_pass_when_a_heading_per_pr_plans_dependencies_all_resolve
+it_should_detect_a_cycle_between_two_prs_written_as_headings
 it_should_pass_when_the_plan_reads_single_pr_nothing_to_validate
 it_should_pass_when_every_pr_is_independent_no_depends_on_entries
 it_should_pass_when_the_plan_reads_the_n_a_escape_for_a_no_pr_repo

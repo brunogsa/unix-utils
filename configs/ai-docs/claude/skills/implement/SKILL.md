@@ -167,7 +167,7 @@ Seed exactly these four, in this order, prefixed with the owning `PR-N ·` on a 
 ```
 [Reminder] Batch-end 1/4: quality-gate tail with --auto-solve (§8.1, only when opted in)
 [Reminder] Batch-end 2/4: repo-green gate — full suite + full lint, fix-loop until green (§8.2, only when opted in)
-[Reminder] Batch-end 3/4: push the branch; record it on the PR line; open the PR via the pr-creator agent when pr.wanted (§8.3)
+[Reminder] Batch-end 3/4: push the branch; record it in the PR entry; open the PR via the pr-creator agent when pr.wanted (§8.3)
 [Reminder] Batch-end 4/4: package print, closing review notification (§8.3, success path only)
 ```
 
@@ -433,9 +433,9 @@ Single value, mutually exclusive — `[Blocked]` *replaces* `[Doing]`, never sta
 
 In all non-`[Done]` terminal states, do NOT leave partial code committed under a misleading status — either the commits stand as coherent work, or get reverted first.
 
-### PR-level status markers (PR Breakdown line, PR-label runs only)
+### PR-level status markers (PR Breakdown heading, PR-label runs only)
 
-A PR-label run's own PR Breakdown line gets the same `[<status>]` prefix at its own §8.3.
+A PR-label run's own PR Breakdown heading gets the same `[<status>]` prefix at its own §8.3.
 Only `[Done]` in practice, inline, never scripted. Format/timing: `references/batch-end-pr-branch-record.md`'s "Branch record & PR-level status marker".
 
 ## 7. Commit model

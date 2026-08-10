@@ -5,39 +5,15 @@
 # Usage:
 #   parse-pr-breakdown.sh <plan-file>
 #
-# get-pr-tasks.sh, need-git-checkout.sh, and check-pr-dependencies-ready.sh
-# all parse this same section and entry grammar, differing only in which
-# field(s) each one consumes (Tasks / Depends on / both) - this script is
-# their one shared parser, invoked as a piped subprocess exactly like
-# dag-check-helper.sh (see check-pr-dag.sh), so each caller just `cut`s the
-# field(s) it needs from stdout instead of re-deriving them.
-#
-# Each PR Breakdown entry line looks like:
-#   N. **[<status>] PR-N** — <title>. Tasks: <N, N>. Depends on: <none | PR-N, PR-M>. Branch: `<name>`.
-# The label sits in the line's first **...** span; the Tasks: and Depends
-# on: clauses each run up to the next period.
-#
-# The Branch: clause is delimited by backticks rather than by the next
-# period, because branch names legitimately contain periods
-# (release/1.2), which a period-terminated clause would truncate.
-# /implement writes it at push time, so it is absent until the PR's
-# batch has actually pushed.
-#
-# Output: one line per PR-N entry, printed to stdout as
+# stdin: unused
+# stdout: one line per PR-N entry, as
 #   <label><TAB><tasks><TAB><deps><TAB><branch>
-# - <tasks> is the Tasks: clause verbatim (e.g. "5, 6, 7"), empty if absent.
-# - <deps> is a comma-separated list of PR-N tokens pulled from the Depends
-#   on: clause (e.g. "PR-1,PR-2"), empty when the clause reads "none" or is
-#   absent.
-# - <branch> is the backtick-wrapped name from the Branch: clause, empty
-#   when the clause is absent (this PR has not pushed yet).
+# exit: 0 entries printed; 1 section absent or "Single PR."; 2 usage error,
+#       or the section has content but no PR-N entry could be parsed.
 #
-# Exit codes:
-#   0 - one or more PR-N entries found; printed to stdout.
-#   1 - PR Breakdown section is absent, or reads "Single PR." (nothing to
-#       parse - the plan's backward-compat single-PR escape hatch).
-#   2 - usage error (wrong arg count, plan file missing), or the section has
-#       content but no PR-N entries could be parsed from it.
+# The entry grammar is authored by the spec-driven-development skill's
+# assets/plan-template.md; how each caller uses these fields is in
+# implement/references/pr-awareness.md.
 
 set -eo pipefail
 
@@ -68,38 +44,90 @@ if [ -z "$trimmed" ] || [ "$trimmed" = "Single PR." ]; then
   exit 1
 fi
 
-entries=$(printf '%s\n' "$section" | awk '
-  {
-    line = $0
-    if (!match(line, /\*\*[^*]*PR-[0-9]+[^*]*\*\*/)) next
-    seg = substr(line, RSTART, RLENGTH)
-    if (!match(seg, /PR-[0-9]+/)) next
-    label = substr(seg, RSTART, RLENGTH)
+# A plan authored before the heading grammar labels its PRs in a bold span on
+# a list line instead. Picking the boundary from what the section actually
+# contains keeps those plans parsable through their own execution, and stops a
+# bolded PR-N inside a heading-grammar plan's prose from opening a phantom entry.
+if printf '%s\n' "$section" | grep -qE '^###[[:space:]].*PR-[0-9]+'; then
+  entry_boundary="heading"
+else
+  entry_boundary="bold-span"
+fi
 
-    tasks = ""
-    if (match(line, /Tasks:[^.]*/)) {
-      tasks = substr(line, RSTART + 6, RLENGTH - 6)
-      gsub(/^[ \t]+|[ \t]+$/, "", tasks)
+entries=$(printf '%s\n' "$section" | awk -v entry_boundary="$entry_boundary" '
+  # The label opening a new entry, or "" when this line opens none.
+  function entry_label(line,   span) {
+    if (entry_boundary == "heading") {
+      if (line !~ /^###[ \t]/) return ""
+      if (!match(line, /PR-[0-9]+/)) return ""
+      return substr(line, RSTART, RLENGTH)
     }
+    if (!match(line, /\*\*[^*]*PR-[0-9]+[^*]*\*\*/)) return ""
+    span = substr(line, RSTART, RLENGTH)
+    if (!match(span, /PR-[0-9]+/)) return ""
+    return substr(span, RSTART, RLENGTH)
+  }
 
-    deps = ""
-    if (match(line, /Depends on:[^.]*/)) {
-      clause = substr(line, RSTART + 11, RLENGTH - 11)
-      while (match(clause, /PR-[0-9]+/)) {
-        tok = substr(clause, RSTART, RLENGTH)
-        deps = (deps == "" ? tok : deps "," tok)
-        clause = substr(clause, RSTART + RLENGTH)
+  # A named field with or without its bold markers, up to the next period or
+  # the end of the line - whichever comes first. Both terminators are needed:
+  # the heading grammar ends a field at the line break, while the older
+  # one-line grammar packs every field onto one line, separated by periods.
+  function field(line, name,   raw) {
+    if (!match(line, "\\*?\\*?" name "\\*?\\*?:[^.]*")) return ""
+    raw = substr(line, RSTART, RLENGTH)
+    sub(/^[^:]*:/, "", raw)
+    gsub(/^[ \t]+|[ \t]+$/, "", raw)
+    return raw
+  }
+
+  function pr_tokens(clause,   tokens, token) {
+    tokens = ""
+    while (match(clause, /PR-[0-9]+/)) {
+      token = substr(clause, RSTART, RLENGTH)
+      tokens = (tokens == "" ? token : tokens "," token)
+      clause = substr(clause, RSTART + RLENGTH)
+    }
+    return tokens
+  }
+
+  function branch_name(line,   clause) {
+    if (!match(line, /\*?\*?Branch\*?\*?:[ \t]*`[^`]*`/)) return ""
+    clause = substr(line, RSTART, RLENGTH)
+    match(clause, /`[^`]*`/)
+    return substr(clause, RSTART + 1, RLENGTH - 2)
+  }
+
+  function flush() {
+    if (label != "") print label "\t" tasks "\t" deps "\t" branch
+  }
+
+  {
+    opening_label = entry_label($0)
+    if (opening_label != "") {
+      flush()
+      label = opening_label
+      tasks = ""; deps = ""; branch = ""
+      seen_tasks = 0; seen_deps = 0
+    }
+    if (label == "") next
+
+    # First occurrence wins: past the fields, an entry runs into free prose
+    # that may name a task or a PR without redefining either.
+    if (!seen_tasks) {
+      tasks = field($0, "Tasks")
+      if (tasks != "") seen_tasks = 1
+    }
+    if (!seen_deps) {
+      deps_clause = field($0, "Depends on")
+      if (deps_clause != "") {
+        deps = pr_tokens(deps_clause)
+        seen_deps = 1
       }
     }
-    branch = ""
-    if (match(line, /Branch:[ \t]*`[^`]*`/)) {
-      branch_clause = substr(line, RSTART, RLENGTH)
-      match(branch_clause, /`[^`]*`/)
-      branch = substr(branch_clause, RSTART + 1, RLENGTH - 2)
-    }
-
-    print label "\t" tasks "\t" deps "\t" branch
+    if (branch == "") branch = branch_name($0)
   }
+
+  END { flush() }
 ')
 
 if [ -z "$entries" ]; then

@@ -65,9 +65,71 @@ HAPPY_PR_BODY = """\
 2. **PR-2** — Second slice. Tasks: 3. Depends on: PR-1.
 """
 
+HAPPY_HEADING_PR_BODY = """\
+### PR-1. First slice
+
+**Tasks**: 1, 2
+
+**Depends on**: none
+
+### PR-2. [Done] Second slice
+
+**Tasks**: 3
+
+**Depends on**: PR-1
+"""
+
 
 def test_should_exit_0_when_every_task_lands_in_its_own_pr_or_an_ancestor_pr(tmp_path):
     plan = _write_plan(tmp_path, task_body=HAPPY_TASK_BODY, pr_body=HAPPY_PR_BODY)
+    result = _run(plan)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.startswith("OK:")
+
+
+def test_should_exit_0_when_each_pr_is_its_own_heading_and_every_task_lands_in_its_own_or_an_ancestor_pr(tmp_path):
+    plan = _write_plan(tmp_path, task_body=HAPPY_TASK_BODY, pr_body=HAPPY_HEADING_PR_BODY)
+    result = _run(plan)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.startswith("OK:")
+
+
+def test_should_report_a_cross_level_task_dependency_when_each_pr_is_its_own_heading(tmp_path):
+    # Same defect as the one-line-entry case below, written in
+    # the heading grammar: Task 3 sits in PR-1 but depends on
+    # Task 2 in PR-2, which PR-1 does not depend on.
+    pr_body = (
+        "### PR-1. First slice\n\n"
+        "**Tasks**: 1, 3\n\n"
+        "**Depends on**: none\n\n"
+        "### PR-2. Second slice\n\n"
+        "**Tasks**: 2\n\n"
+        "**Depends on**: none\n"
+    )
+    plan = _write_plan(tmp_path, task_body=HAPPY_TASK_BODY, pr_body=pr_body)
+    result = _run(plan)
+    assert result.returncode == 1
+    assert "Task 3" in result.stderr
+    assert "Task 2" in result.stderr
+    assert "PR-2" in result.stderr
+
+
+def test_should_ignore_a_bolded_pr_label_and_a_second_depends_on_written_in_an_entrys_prose(tmp_path):
+    # The prose below a PR's fields may discuss another PR
+    # without claiming a dependency on it — only the first
+    # Depends on field of the entry counts, and a bolded label
+    # opens no new entry.
+    pr_body = (
+        "### PR-1. First slice\n\n"
+        "**Tasks**: 1, 2\n\n"
+        "**Depends on**: none\n\n"
+        "Sequenced ahead of **PR-2** so the validators land first. "
+        "Depends on: PR-2 is the shape we rejected.\n\n"
+        "### PR-2. Second slice\n\n"
+        "**Tasks**: 3\n\n"
+        "**Depends on**: PR-1\n"
+    )
+    plan = _write_plan(tmp_path, task_body=HAPPY_TASK_BODY, pr_body=pr_body)
     result = _run(plan)
     assert result.returncode == 0, result.stderr
     assert result.stdout.startswith("OK:")

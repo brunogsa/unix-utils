@@ -42,7 +42,7 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
     - State this in the dispatch prompt explicitly: left unsaid, the agent pushes by default, since its own skill covers the whole flow.
 
     - **`<base-branch>` is the parent PR's branch for a dependent PR; §1.2's confirmed base for a zero-parent PR or a plain `<task-ids>` run.**
-      Read the parent's branch from its PR Breakdown line's `Branch:` clause — the fail-fast stop predicate guarantees the parent's batch-end push already wrote it.
+      Read the parent's branch from its PR Breakdown entry's `Branch:` field — the fail-fast stop predicate guarantees the parent's batch-end push already wrote it.
       Targeting the confirmed base instead shows the parent's commits inside this PR's diff until the parent merges — the reviewer burden a multi-PR split exists to remove.
 
     - A diamond PR (2+ parents) targets its **first-listed** parent's branch.

@@ -57,7 +57,7 @@ That leftover file is a visible record of work that never started.
 
 ## Branch creation (only when a checkout is needed)
 
-`need-git-checkout.sh` (SKILL.md §3.1) answers from the plan alone: this PR's `Depends on:` clause, plus whether any PR line already carries a `Branch:` clause from an earlier batch's push.
+`need-git-checkout.sh` (SKILL.md §3.1) answers from the plan alone: this PR's `Depends on:` field, plus whether any PR entry already carries a `Branch:` field from an earlier batch's push.
 
 On `no`, this PR's `Branch:` clause isn't written here — see "Branch recording", below.
 
@@ -65,11 +65,21 @@ On `yes`, [`pr-branch-creation.md`](pr-branch-creation.md) owns resolving and cr
 
 ## Branch recording (the plan's `Branch:` clause)
 
-Every PR — checkout-needed or not — records its branch once, on its PR Breakdown line, at its own batch-end push (§8.3, `references/batch-end-pr-branch-record.md`), never at branch creation:
+Every PR — checkout-needed or not — records its branch once, in its own PR Breakdown entry, at its own batch-end push (§8.3, `references/batch-end-pr-branch-record.md`), never at branch creation:
 
 ```
-N. **[Done] PR-N** — <title>. Tasks: <N, N>. Depends on: <none | PR-N>. Branch: `<branch-name>`.
+### PR-N. [Done] <title>
+
+**Tasks**: <N, N>
+
+**Depends on**: <none | PR-N>
+
+**Branch**: `<branch-name>`
 ```
+
+Each PR is its own `###` heading and each field its own line, per the grammar the `spec-driven-development` skill's `assets/plan-template.md` authors.
+
+A plan written before that grammar packs the same fields onto one numbered-list line; `parse-pr-breakdown.sh` reads either, so edit whichever shape the plan already uses.
 
 Write it inline, same edit style as a status marker — never scripted. The backticks are load-bearing: `parse-pr-breakdown.sh` reads the name between them, so a branch containing periods survives.
 

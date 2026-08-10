@@ -242,31 +242,46 @@ No code exists yet, so estimate by feel from the task and file counts above — 
 
 - **Don't over-split** — a PR under ~50 lines usually lacks the context to review. The failure mode to catch is the one giant PR, not many tiny ones.
 
-**PR-level status marker** — `[<status>]` prefixes the PR-N label, mirroring the Task Breakdown's `### N. [<status>] Title` convention one level up: `[Doing]`, `[Done]`, `[Blocked]`, `[Deferred]`, `[Dropped]`.
+**One heading per PR** — each PR gets its own `### PR-N.` heading, mirroring the Task Breakdown's `### N.` shape one abstraction level up.
+
+A heading gives every PR an anchor to link and a stop in the document outline, which is what keeps a fifteen-PR plan navigable where a flat numbered list forces the reader to scan for the boundaries.
+
+**PR-level status marker** — `[<status>]` sits after the `PR-N.` in the heading, mirroring the Task Breakdown's `### N. [<status>] Title` convention: `[Doing]`, `[Done]`, `[Blocked]`, `[Deferred]`, `[Dropped]`.
 Absent for the pending/not-started state — a PR that hasn't started yet carries no bracket at all.
 Written inline by the orchestrating agent at PR batch-end, never scripted — same precedent as the task-level marker.
 
-**PR branch record** — a trailing `Branch:` clause on the same line, naming the branch that PR's commits live on, with the name wrapped in backticks:
-
-```
-1. **[Done] PR-1** — Extract the parser. Tasks: 1, 2. Depends on: none. Branch: `feat/parser/pr1`.
-```
+**PR branch record** — a `**Branch**:` field naming the branch that PR's commits live on, with the name wrapped in backticks.
 
 Written inline by the orchestrating agent when that PR's batch pushes, never by the plan author.
 Absent until that push happens — the absence is how tooling tells a PR that already ran from one that never did.
 The backticks are load-bearing: `parse-pr-breakdown.sh` reads the name between them, so a branch holding periods (`release/1.2`) survives a clause grammar that otherwise stops at the next period.
 
-**PR-dependency DAG diagram** — lead the numbered list below with a mermaid flowchart when any PR's `Depends on:` names a real PR (not `none`).
+**Each field is its own line, and the parsers read only the first one they find per PR.**
+Anything after the fields is free prose for the human — why these tasks group here, what the reviewer should look at first — so it may wrap across as many lines as it needs.
+
+**PR-dependency DAG diagram** — lead the PR headings below with a mermaid flowchart when any PR's `Depends on:` names a real PR (not `none`).
 One node per PR, edges following each `Depends on:` link — one abstraction level up from the Task Breakdown's own diagram.
 Validate with `mmdc` before pasting, per the `mermaid-diagrams` skill.
 
 N/A escape: for a "Single PR." plan, or a multi-PR plan where every PR is independent, write `N/A — no PR dependencies` in place of the diagram and skip it.
 
-Partition the tasks above — one line per PR:
+Partition the tasks above — one heading per PR:
 
-1. **`[<status>]` PR-1** — `<title>`. Tasks: `<N, N>`. Depends on: `<none | PR-N, PR-M, ...>`.
+### PR-1. [<status>] <title>
 
-2. **`[<status>]` PR-2** — `<title>`. Tasks: `<N, N>`. Depends on: `<none | PR-N, PR-M, ...>`.
+**Tasks**: <N, N>
+
+**Depends on**: <none | PR-N, PR-M, ...>
+
+**Branch**: `<branch-name>`
+
+### PR-2. [<status>] <title>
+
+**Tasks**: <N, N>
+
+**Depends on**: <none | PR-N, PR-M, ...>
+
+**Branch**: `<branch-name>`
 
 ---
 ## Open Questions

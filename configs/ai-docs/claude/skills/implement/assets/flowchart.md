@@ -73,7 +73,7 @@ def implement(arg):
             task_create(f"[Reminder] {step}")
             # 11a · 1/4 quality-gate tail with --auto-solve (opt-in)
             # 11b · 2/4 repo-green gate, fix-loop until green (opt-in)
-            # 11c · 3/4 push the branch; record it on the PR line; PR when wanted
+            # 11c · 3/4 push the branch; record it in the PR entry; PR when wanted
             # 11d · 4/4 package print, closing review notification
             # Never one chain: a combined entry has one completed flag, so a
             # step-level skip would have nowhere to land.
@@ -332,7 +332,7 @@ flowchart TD
     direction TB
     n11a["11a. Add to TaskList a [Reminder] for<br/>Batch-end 1/4: quality-gate tail with --auto-solve<br/>(only when opted in)"]:::state
     n11b["11b. Add to TaskList a [Reminder] for<br/>Batch-end 2/4: repo-green gate, fix-loop until green<br/>(only when opted in)"]:::state
-    n11c["11c. Add to TaskList a [Reminder] for<br/>Batch-end 3/4: push the branch; record it on the<br/>PR line; open the PR via pr-creator when wanted"]:::state
+    n11c["11c. Add to TaskList a [Reminder] for<br/>Batch-end 3/4: push the branch; record it in the<br/>PR entry; open the PR via pr-creator when wanted"]:::state
     n11d["11d. Add to TaskList a [Reminder] for<br/>Batch-end 4/4: package print,<br/>closing review notification"]:::state
     n11a --> n11b --> n11c --> n11d
   end

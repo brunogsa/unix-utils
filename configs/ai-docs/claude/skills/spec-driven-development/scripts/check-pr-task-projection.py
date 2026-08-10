@@ -42,15 +42,19 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 PLAN_SECTION = SCRIPT_DIR / "plan-section.sh"
 
-# A PR label's bold span tolerates the optional "[<status>] "
-# prefix plan-template.md documents (e.g. "**[Done] PR-1**"),
-# mirroring check-pr-dag.sh's own permissive label regex.
-PR_ENTRY_RE = re.compile(
-    r"\*\*[^*]*PR-(?P<pid>\d+)[^*]*\*\*(?P<body>.*?)"
-    r"Depends on:\s*(?P<deps>[^.]*)\.",
-    re.S,
-)
-TASKS_CLAUSE_RE = re.compile(r"Tasks:\s*(?P<tasks>[\d,\s]+)\.")
+# One "### PR-N." heading opens each entry. A plan authored before that
+# grammar labels its PRs in a bold span on a list line instead, so both
+# boundaries are recognized - which one applies is decided per section in
+# parse_pr_entries, mirroring check-pr-dag.sh's own boundary choice.
+# Either shape tolerates the optional "[<status>]" marker around the label.
+PR_HEADING_SPLIT_RE = re.compile(r"^###[ \t]+[^\n]*?PR-(\d+)", re.M)
+PR_BOLD_SPAN_SPLIT_RE = re.compile(r"\*\*[^*]*PR-(\d+)[^*]*\*\*")
+
+# A field ends at the next period or the line break, whichever comes
+# first: the heading grammar gives each field its own line, while the
+# older one-line grammar separates them with periods.
+TASKS_FIELD_RE = re.compile(r"\*?\*?Tasks\*?\*?:\s*(?P<tasks>[^.\n]*)")
+DEPENDS_FIELD_RE = re.compile(r"\*?\*?Depends on\*?\*?:\s*(?P<deps>[^.\n]*)")
 
 # Task headings split the section into per-task chunks so a
 # dependency block can never leak into a neighboring task,
@@ -78,13 +82,21 @@ def extract_section(plan_file: Path, heading_pattern: str) -> str:
 def parse_pr_entries(section: str):
     """Return (pr_tasks, pr_deps): PR-id -> claimed task ids, and
     PR-id -> the PR ids it depends on."""
+    split_re = (
+        PR_HEADING_SPLIT_RE
+        if PR_HEADING_SPLIT_RE.search(section)
+        else PR_BOLD_SPAN_SPLIT_RE
+    )
+    chunks = split_re.split(section)
     pr_tasks: dict[str, list[str]] = {}
     pr_deps: dict[str, list[str]] = {}
-    for match in PR_ENTRY_RE.finditer(section):
-        pid = match.group("pid")
-        tasks_match = TASKS_CLAUSE_RE.search(match.group("body"))
+    for pid, body in zip(chunks[1::2], chunks[2::2]):
+        # First occurrence wins: past its fields, an entry runs into
+        # free prose that may name a task or a PR without claiming it.
+        tasks_match = TASKS_FIELD_RE.search(body)
+        deps_match = DEPENDS_FIELD_RE.search(body)
         pr_tasks[pid] = re.findall(r"\d+", tasks_match.group("tasks")) if tasks_match else []
-        pr_deps[pid] = re.findall(r"PR-(\d+)", match.group("deps"))
+        pr_deps[pid] = re.findall(r"PR-(\d+)", deps_match.group("deps")) if deps_match else []
     return pr_tasks, pr_deps
 
 

@@ -19,7 +19,7 @@ It covers resolving `<feat_branch>/pr<N>`, the existing-branch check for a branc
   That run validated ancestry against every parent, not just one, so an adopted diamond branch inherits the same completed guarantee.
 ## Creating the branch — zero, one, or many parents
 
-- Branch doesn't exist yet (first time through) → count `PR-N`'s parents from its PR Breakdown line's `Depends on:` clause (already open from §1.1):
+- Branch doesn't exist yet (first time through) → count `PR-N`'s parents from its PR Breakdown entry's `Depends on:` field (already open from §1.1):
   - **Zero parents** (a second independent root reached after an earlier PR's batch already ran) → branch explicitly from the confirmed base branch (§1.2): `git checkout -b <feat_branch>/pr<N> <base-branch>`.
     Never from current HEAD — HEAD may sit at an unrelated PR's tip.
     No parent to guard against or record.
@@ -30,7 +30,7 @@ It covers resolving `<feat_branch>/pr<N>`, the existing-branch check for a branc
     Exit 1 refuses to create this PR's branch or dispatch any of its tasks.
     Surface the script's own stderr diagnostic verbatim and stop; do not retry.
     Exit 2 (usage/parse error) surfaces the same way.
-    The guard's own `branch_for_pr()` hard-requires the parent's PR Breakdown line to already carry a `Branch:` clause — no fallback ancestry source, absence is always a hard block.
+    The guard's own `branch_for_pr()` hard-requires the parent's PR Breakdown entry to already carry a `Branch:` field — no fallback ancestry source, absence is always a hard block.
     That precondition is already satisfied by the time this guard runs, every time.
     The stop predicate — [`pr-awareness.md`](pr-awareness.md)'s "The per-PR loop and fail-fast" — starts the next PR only once every task of the previous one reached `[Done]` and its batch end completed.
     This means the parent PR's own full batch already completed before this PR's pre-flight ever started.
@@ -40,7 +40,7 @@ It covers resolving `<feat_branch>/pr<N>`, the existing-branch check for a branc
     Exit 0 → `git checkout -b <feat_branch>/pr<N>` with no explicit base ref, i.e. from current HEAD.
     Correct because a DAG-root PR's commits land directly on the pre-existing branch, so by the time a single dependent PR runs, HEAD already sits at its parent's tip.
     That is the `no`-checkout case, owned by [`pr-awareness.md`](pr-awareness.md) — a DAG root needs no branch of its own, so nothing was ever created for it to diverge onto.
-  - **Two or more parents** (diamond dependency) → resolve each parent's branch name from its own PR Breakdown line first, in the order listed in `Depends on:`.
+  - **Two or more parents** (diamond dependency) → resolve each parent's branch name from its own PR Breakdown entry first, in the order listed in `Depends on:`.
     Read it from column 4 of `parse-pr-breakdown.sh <plan-file>`, the same field `check-pr-dependencies-ready.sh`'s own `branch_for_pr()` uses internally.
     Every parent's clause is guaranteed to already exist here, by the same reasoning as the single-parent case above.
     Each parent's own batch already completed and pushed, writing its own `Branch:` clause before this PR's pre-flight could start.

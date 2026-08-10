@@ -149,7 +149,55 @@ it_should_parse_a_pr_entry_with_no_tasks_or_depends_clauses() {
   assert_eq "should parse PR with no Tasks or Depends fields (TSV body)" "$expected" "$VERDICT_OUT"
 }
 
+it_should_emit_one_tsv_line_per_pr_when_each_pr_is_its_own_heading() {
+  local fixture
+  fixture=$(write_plan "happy-heading-grammar" '### PR-1. Naming and validators
+
+**Tasks**: 1, 2, 3
+
+**Depends on**: none
+
+### PR-2. [Done] Core loop
+
+**Tasks**: 4
+
+**Depends on**: PR-1
+
+**Branch**: `feat-core/pr2`')
+  run_script "$fixture"
+  assert_eq "should emit one TSV line per PR when each PR is its own heading (exit code)" "0" "$VERDICT_EXIT"
+  local expected
+  expected=$(printf 'PR-1\t1, 2, 3\t\t\nPR-2\t4\tPR-1\tfeat-core/pr2')
+  assert_eq "should emit one TSV line per PR when each PR is its own heading, with every field on its own line (TSV body)" "$expected" "$VERDICT_OUT"
+}
+
+it_should_ignore_a_bolded_pr_label_inside_an_entrys_prose() {
+  local fixture
+  fixture=$(write_plan "corner-bolded-pr-in-prose" '### PR-1. Naming and validators
+
+**Tasks**: 1
+
+**Depends on**: none
+
+Sequenced ahead of **PR-4** so the validators land first. Depends on: PR-7 is the shape we rejected.')
+  run_script "$fixture"
+  assert_eq "should ignore a bolded PR label inside an entry prose paragraph (exit code)" "0" "$VERDICT_EXIT"
+  assert_eq "should ignore a bolded PR label inside an entry prose paragraph, and the dependency it names (TSV body)" "$(printf 'PR-1\t1\t\t')" "$VERDICT_OUT"
+}
+
+it_should_read_a_legacy_one_line_entry_whose_clauses_wrap_to_the_next_line() {
+  local fixture
+  fixture=$(write_plan "corner-legacy-wrapped-entry" '1. **PR-1** — Decision tooling, grouped so the riskiest conversion lands first.
+Tasks: 3, 4, 10. Depends on: PR-2.')
+  run_script "$fixture"
+  assert_eq "should read a legacy one-line entry whose clauses wrap to the next physical line (exit code)" "0" "$VERDICT_EXIT"
+  assert_eq "should read a legacy one-line entry whose clauses wrap to the next physical line (TSV body)" "$(printf 'PR-1\t3, 4, 10\tPR-2\t')" "$VERDICT_OUT"
+}
+
 it_should_emit_one_tsv_line_per_pr_n_entry_for_a_normal_multi_pr_plan
+it_should_emit_one_tsv_line_per_pr_when_each_pr_is_its_own_heading
+it_should_ignore_a_bolded_pr_label_inside_an_entrys_prose
+it_should_read_a_legacy_one_line_entry_whose_clauses_wrap_to_the_next_line
 it_should_report_nothing_to_parse_for_a_single_pr_plan
 it_should_emit_an_empty_deps_field_for_a_pr_with_no_dependencies
 it_should_emit_every_dependency_for_a_pr_with_a_diamond_dependency

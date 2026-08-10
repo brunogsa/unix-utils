@@ -51,29 +51,73 @@ if [ "$trimmed" = "Single PR." ]; then
   exit 0
 fi
 
-# Each PR Breakdown entry line looks like:
-#   N. **[<status>] PR-N** — <title>. Tasks: <N, N>. Depends on: <none | PR-N, PR-M>.
-# The label sits in the line's first **...** span; every PR-N token inside
-# the "Depends on:" clause (up to the next period) becomes one dependency.
-edges=$(printf '%s\n' "$section" | awk '
-  {
-    line = $0
-    if (!match(line, /\*\*[^*]*PR-[0-9]+[^*]*\*\*/)) next
-    seg = substr(line, RSTART, RLENGTH)
-    if (!match(seg, /PR-[0-9]+/)) next
-    label = substr(seg, RSTART, RLENGTH)
+# The entry grammar this parses - PR headings, their "Depends on" field, and
+# the older one-line form still found in plans already under execution - is
+# documented in assets/plan-template.md's PR Breakdown section.
+#
+# implement/scripts/parse-pr-breakdown.sh reads the same grammar for a
+# different field set; the two stay in step by hand rather than by import,
+# so that neither skill's checks depend on the other skill being installed.
+if printf '%s\n' "$section" | grep -qE '^###[[:space:]].*PR-[0-9]+'; then
+  entry_boundary="heading"
+else
+  entry_boundary="bold-span"
+fi
 
-    deps = ""
-    if (match(line, /Depends on:[^.]*/)) {
-      clause = substr(line, RSTART + 11, RLENGTH - 11)
-      while (match(clause, /PR-[0-9]+/)) {
-        tok = substr(clause, RSTART, RLENGTH)
-        deps = (deps == "" ? tok : deps "," tok)
-        clause = substr(clause, RSTART + RLENGTH)
-      }
+edges=$(printf '%s\n' "$section" | awk -v entry_boundary="$entry_boundary" '
+  # The label opening a new entry, or "" when this line opens none.
+  function entry_label(line,   span) {
+    if (entry_boundary == "heading") {
+      if (line !~ /^###[ \t]/) return ""
+      if (!match(line, /PR-[0-9]+/)) return ""
+      return substr(line, RSTART, RLENGTH)
     }
-    print label "\t" deps
+    if (!match(line, /\*\*[^*]*PR-[0-9]+[^*]*\*\*/)) return ""
+    span = substr(line, RSTART, RLENGTH)
+    if (!match(span, /PR-[0-9]+/)) return ""
+    return substr(span, RSTART, RLENGTH)
   }
+
+  # The "Depends on" field with or without its bold markers, up to the next
+  # period or the end of the line - whichever comes first. Both terminators
+  # are needed: the heading grammar ends the field at the line break, while
+  # the one-line grammar separates its fields with periods.
+  function depends_clause(line,   raw) {
+    if (!match(line, /\*?\*?Depends on\*?\*?:[^.]*/)) return ""
+    raw = substr(line, RSTART, RLENGTH)
+    sub(/^[^:]*:/, "", raw)
+    gsub(/^[ \t]+|[ \t]+$/, "", raw)
+    return raw
+  }
+
+  function flush() {
+    if (label != "") print label "\t" deps
+  }
+
+  {
+    opening_label = entry_label($0)
+    if (opening_label != "") {
+      flush()
+      label = opening_label
+      deps = ""
+      seen_deps = 0
+    }
+    if (label == "" || seen_deps) next
+
+    clause = depends_clause($0)
+    if (clause == "") next
+    seen_deps = 1
+
+    # First occurrence wins: past its fields, an entry runs into free prose
+    # that may name a PR without depending on it.
+    while (match(clause, /PR-[0-9]+/)) {
+      token = substr(clause, RSTART, RLENGTH)
+      deps = (deps == "" ? token : deps "," token)
+      clause = substr(clause, RSTART + RLENGTH)
+    }
+  }
+
+  END { flush() }
 ')
 
 if [ -z "$edges" ]; then
