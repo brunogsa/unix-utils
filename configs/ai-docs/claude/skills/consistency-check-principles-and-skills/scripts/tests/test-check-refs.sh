@@ -213,6 +213,44 @@ it_should_report_zero_broken_refs_against_the_real_jira_cli_skill_file() {
     assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
 }
 
+it_should_still_report_a_genuinely_broken_relative_file_ref_alongside_an_unflagged_git_ref_mention() {
+    echo "it_should_still_report_a_genuinely_broken_relative_file_ref_alongside_an_unflagged_git_ref_mention"
+    local d; d=$(new_fixture)
+    printf '%s\n' \
+        'Diff against `origin/main` before you touch anything.' \
+        'See `references/does-not-exist.md` for details.' \
+        > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 1" "1" "$status"
+    assert_eq "only the real broken ref is reported" "1" "$(grep -c ' -> ' /tmp/check-refs-out.txt)"
+    assert_eq "the real broken ref is reported" "1" "$(grep -c 'references/does-not-exist.md' /tmp/check-refs-out.txt)"
+    assert_eq "the git ref mention is not reported" "0" "$(grep -c 'origin/main' /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
+it_should_not_flag_common_remote_tracking_git_ref_mentions_as_broken_refs() {
+    echo "it_should_not_flag_common_remote_tracking_git_ref_mentions_as_broken_refs"
+    local d; d=$(new_fixture)
+    printf '%s\n' \
+        'Falls back from `origin/HEAD` to local main.' \
+        'Diff against `origin/main` before you touch anything.' \
+        > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 0" "0" "$status"
+    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
+it_should_not_flag_a_conventional_commit_prefixed_branch_name_mention_as_a_broken_ref() {
+    echo "it_should_not_flag_a_conventional_commit_prefixed_branch_name_mention_as_a_broken_ref"
+    local d; d=$(new_fixture)
+    printf 'PR-2 — branch `feat/parser/pr2` — 4 commits to review.\n' > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 0" "0" "$status"
+    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
 it_should_pass_a_markdown_link_ref_that_resolves
 it_should_pass_a_backtick_path_ref_that_resolves
 it_should_pass_a_ref_whose_anchor_heading_exists_in_the_target
@@ -228,6 +266,9 @@ it_should_pass_a_ref_to_an_existing_directory_without_a_trailing_slash
 it_should_not_flag_a_broken_looking_link_shown_as_an_example_inside_a_fenced_code_block
 it_should_fail_a_ref_whose_anchor_matches_only_a_heading_line_inside_a_fenced_code_block
 it_should_report_zero_broken_refs_against_the_real_jira_cli_skill_file
+it_should_still_report_a_genuinely_broken_relative_file_ref_alongside_an_unflagged_git_ref_mention
+it_should_not_flag_common_remote_tracking_git_ref_mentions_as_broken_refs
+it_should_not_flag_a_conventional_commit_prefixed_branch_name_mention_as_a_broken_ref
 
 echo
 echo "$passed passed, $failed failed"

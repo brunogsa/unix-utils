@@ -137,6 +137,29 @@ is_real_absolute_path_candidate() {
     [ -d "/$first_segment" ]
 }
 
+# True (0) when $path's shape matches a git revision name rather
+# than a file path: a remote-tracking ref (`origin/HEAD`,
+# `upstream/main`) or a conventional-commit-prefixed branch name
+# (`feat/parser/pr2`, `release/1.2`, `test/itgd-3283`).
+#
+# Prose routinely names these refs in backticks — base-ref fallback
+# docs, PR handoff notes — and none of them resolve on disk, so
+# without this check every mention becomes a permanent, unfixable
+# BLOCKING finding. The prefix list mirrors this repo's own
+# Conventional Commits types (commit-standards) plus the two remote
+# names and branch conventions actually seen in this corpus.
+is_git_revision_shape() {
+    local path=$1 first_segment="${path%%/*}"
+    case "$first_segment" in
+        origin|upstream) return 0 ;;
+    esac
+    case "$path" in
+        feat/*|fix/*|chore/*|docs/*|refactor/*|perf/*|test/*|build/*|ci/*|style/*|revert/*|release/*|hotfix/*|bugfix/*)
+            return 0 ;;
+    esac
+    return 1
+}
+
 # Resolve $path relative to $referencing_file's own directory (or as
 # an absolute/home path). Existence is NOT checked here — that's the
 # caller's job, since an unresolved path is exactly the broken-ref
@@ -162,8 +185,9 @@ report_broken() {
 # or — given an anchor — when no heading in the target slugifies to
 # it. Silently does nothing for a candidate that isn't a real
 # file-ref target: an in-page `#anchor`-only link, a URL scheme, a
-# trailing-slash directory mention (`scripts/`), or prose caught by
-# an over-eager backtick/link match. Those aren't the blocking
+# trailing-slash directory mention (`scripts/`), a git revision name
+# (`origin/HEAD`, `feat/parser/pr2`), or prose caught by an
+# over-eager backtick/link match. Those aren't the blocking
 # heuristic's cross-file-reference target, so they're not refs to
 # begin with, not refs that happen to resolve.
 check_candidate() {
@@ -179,6 +203,7 @@ check_candidate() {
 
     case "$path" in
         /*) is_real_absolute_path_candidate "$path" || return 0 ;;
+        */*) is_git_revision_shape "$path" && return 0 ;;
     esac
 
     resolved="$(resolve_target_path "$file" "$path")"
