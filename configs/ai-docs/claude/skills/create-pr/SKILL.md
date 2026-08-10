@@ -64,7 +64,7 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
   - Sections come from `scripts/extract-md-sections.sh`; diagrams from `scripts/extract-mermaid-blocks.sh`, whose every fenced `mermaid` block becomes the Architecture section and leaves the appendix.
   - A re-summarized section or a re-drawn diagram diverges from what the spec/plan was reviewed against, and nothing downstream catches the divergence.
 
-- **Delegate diff/log reading to a subagent** -- dispatch `agent(subAgent=changes-gatherer, title=Gather PR changes digest)`, foreground (step 2 needs the result immediately).
+- **Delegate diff/log reading to a subagent** -- dispatch `agent(subAgent=changes-gatherer, title=Gather PR changes digest)` in the background, waiting for it — step 2 needs its digest immediately.
   - Give it the resolved base branch and a `/tmp` artifact path; it writes the full commit log and diff there and returns only the **changes digest** (`references/changes-digest.md`).
 
   - The digest is what step 2 authors from, so the raw diff never enters the main session's context.
@@ -73,7 +73,7 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
 
 **CRITICAL: The main session orchestrates and never composes the prose itself** -- dispatch the agent and let it hand back a finished file.
 
-- `agent(subAgent=pr-writer, title=Compose ideal PR description)` in mode `ideal`, foreground (step 3 reads the file it writes).
+- `agent(subAgent=pr-writer, title=Compose ideal PR description)` in mode `ideal`, in the background, waiting for it — step 3 reads the file it writes.
   - Give it the changes digest, the resolved spec/plan paths, the appendix section list, the output path `./pr_<slug>_pr<N>.ideal.md`, and any resolved `<parent>`.
   - It loads this skill and `doc-standards` itself, runs the extractors, and loops on the density and page-fit gates before returning — none of that belongs in the dispatch prompt.
 
@@ -114,7 +114,7 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
 **Check `.github/` for a PR template** (`pull_request_template.md`, `PULL_REQUEST_TEMPLATE.md`).
 
-**Dispatch the merge either way** -- `agent(subAgent=pr-writer, title=Compose repo PR description)` in mode `final`, foreground (step 4 pushes its output).
+**Dispatch the merge either way** -- `agent(subAgent=pr-writer, title=Compose repo PR description)` in mode `final`, in the background, waiting for it — step 4 pushes its output.
 
 - Give it three paths: the `pr_<slug>_pr<N>.ideal.md` from step 2, the repo's template file, and the output `./pr_<slug>_pr<N>.final.md`.
 - No template found → say so instead of naming one; the agent copies the ideal description verbatim into the final body.

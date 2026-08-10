@@ -61,13 +61,13 @@ def create_pr():
     #     diagram diverges silently.
     appendix_sections = sections_of(sources) - sections_rendered_by(body)
 
-    # 8 · changes-gatherer · agent-pinned · foreground (step 2 gates on it).
+    # 8 · changes-gatherer · agent-pinned · background (step 2 gates on it).
     #     It writes the full commit log + diff to a /tmp artifact and returns only
     #     the digest, so the raw diff never enters the main session — diffed
     #     against the resolved base, so a stacked PR digests only its own delta.
     digest = dispatch("changes-gatherer")
 
-    # 9 · Step 2 — pr-writer · agent-pinned · mode ideal · foreground.
+    # 9 · Step 2 — pr-writer · agent-pinned · mode ideal · background.
     #     Main orchestrates and never composes the prose. The agent loads
     #     doc-standards itself, loops check-density.sh and check-pr-page-fit.sh,
     #     and returns only once both pass — nothing out here re-runs them.
@@ -80,7 +80,7 @@ def create_pr():
     #      "no template" when it does not.
     template = repo_pr_template()
 
-    # 12 · pr-writer · agent-pinned · mode final · foreground. Dispatched either
+    # 12 · pr-writer · agent-pinned · mode final · background. Dispatched either
     #      way, because it owns density and body size end to end: with no template
     #      it copies the ideal verbatim, and once the trim order is exhausted it
     #      returns a blocking caveat rather than cutting into body content.
@@ -168,13 +168,13 @@ flowchart TD
   n5a["5a. ONE AskUserQuestion carrying (A) and (B) as two SEPARATE<br/>questions — they resolve different things, so one merged question<br/>would force two answers into one choice"]:::gate
   n6["6. Create ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md right away, with an HTML<br/>comment logging each answer — spec, PR-N, and base — this skill's<br/>durable record, surviving a mid-flow compaction that drops them"]:::state
   n7["7. Derive the appendix's section list — never ask for it:<br/>the resolved spec/plan MINUS every section the body renders.<br/>The list is handed to step 2's agent, which extracts sections with<br/>extract-md-sections.sh and diagrams with extract-mermaid-blocks.sh —<br/>a re-summarized section or re-drawn diagram diverges silently"]
-  n8[["8. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · foreground (step 2 gates on it)<br/>writes the full commit log + diff to a /tmp artifact and returns only<br/>the digest, so the raw diff never enters the main session — diffed against<br/>the resolved base, so a stacked PR digests only its own delta"]]:::dispatch
+  n8[["8. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · background (step 2 gates on it)<br/>writes the full commit log + diff to a /tmp artifact and returns only<br/>the digest, so the raw diff never enters the main session — diffed against<br/>the resolved base, so a stacked PR digests only its own delta"]]:::dispatch
 
-  n9[["9. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · mode ideal · foreground<br/>it loads doc-standards itself and loops check-density.sh and<br/>check-pr-page-fit.sh, returning only once both pass —<br/>main never re-runs them, never hand-fixes its prose"]]:::dispatch
+  n9[["9. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · mode ideal · background<br/>it loads doc-standards itself and loops check-density.sh and<br/>check-pr-page-fit.sh, returning only once both pass —<br/>main never re-runs them, never hand-fixes its prose"]]:::dispatch
   n10["10. Ideal description written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md<br/>in THIS skill's own format, ignoring any repo template —<br/>page-fit can only budget a section it recognizes"]:::state
 
   n11["11. Step 3 · Check .github/ for pull_request_template.md /<br/>PULL_REQUEST_TEMPLATE.md — the result is the agent's third input,<br/>a template path or an explicit 'no template', not a branch here"]
-  n12[["12. Dispatch: Compose repo PR description<br/>pr-writer · agent-pinned · mode final · foreground<br/>dispatched either way: it owns density and body size end to end,<br/>copies the ideal verbatim when no template, and returns a blocking<br/>caveat once the trim order is exhausted instead of cutting deeper"]]:::dispatch
+  n12[["12. Dispatch: Compose repo PR description<br/>pr-writer · agent-pinned · mode final · background<br/>dispatched either way: it owns density and body size end to end,<br/>copies the ideal verbatim when no template, and returns a blocking<br/>caveat once the trim order is exhausted instead of cutting deeper"]]:::dispatch
   n13["13. Final body written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md — the repo's<br/>template is the base structure, never the thing replaced.<br/>NEVER page-fit-checked, per pr-page-budget.md's 'Measure the ideal<br/>description, never the final body', which owns the reason"]:::state
 
   n14{"14. Step 4 · Does the .final.md exist and carry content?<br/>an artifact check, never a re-run of the agent's gates —<br/>an over-budget body shows in the rendered PR, and an<br/>over-cap one fails loudly at the gh pr create API"}
