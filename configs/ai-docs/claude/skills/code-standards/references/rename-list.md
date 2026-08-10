@@ -23,7 +23,7 @@ python3 configs/ai-docs/claude/skills/code-standards/scripts/check-script-naming
 ```
 
 against the file's target path (not yet created) — file mode resolves the
-path but never stats it, so this validates the name alone. Exit 0, 69/69 OK.
+path but never stats it, so this validates the name alone. Exit 0, 72/72 OK.
 
 ## Snapshot provenance
 
@@ -40,7 +40,7 @@ checker invocation will reproduce byte-for-byte on a later run.
 |---|---|---|---|---|
 | 13 | `hooks/` + `scripts/` (Task 13) | `unix-utils` | 23 | 22 |
 | 14 | `skills/*/scripts/`, excludes vendored `skill-standards/scripts/` + `eval-viewer/` (Task 14) | `unix-utils` | 55 | 19 |
-| 15 | `commands/` + `lib/` (Task 15) | `oh-my-zsh` | 28 | 28 |
+| 15 | `commands/` + `lib/` + root (Task 15) | `oh-my-zsh` | 31 | 31 |
 
 No failing script in either tree-mode/file-mode sweep falls outside these
 three scopes — every FAIL line below is assigned to exactly one batch.
@@ -104,9 +104,13 @@ produced a FAIL in the tree-mode sweep, so there was nothing to drop.
 | `usage-audit/scripts/config-change-ledger.py` | 'config' is not a recognized verb | `build-config-change-ledger.py` |
 | `usage-audit/scripts/delivered-work-ledger.py` | 'delivered' is not a recognized verb | `build-delivered-work-ledger.py` |
 
-## Batch 15 — `oh-my-zsh` `commands/` + `lib/`
+## Batch 15 — `oh-my-zsh` `commands/` + `lib/` + root
 
-Paths relative to the `oh-my-zsh` repo root.
+Paths relative to the `oh-my-zsh` repo root. Includes three scripts sitting
+directly at that root (Scout #89: the checker no longer blanket-skips every
+root-level file, only the named `install.sh`/`run-tests.sh` entrypoints —
+`install.sh` is present at this root and stays exempt, so it does not appear
+below).
 
 | Current path | Reason | Proposed name |
 |---|---|---|
@@ -138,10 +142,13 @@ Paths relative to the `oh-my-zsh` repo root.
 | `lib/estimate_tokens.sh` | name is not kebab-case | `get-token-estimate.sh` |
 | `lib/list-project-paths.sh` | 'list' is not a recognized verb | `extract-project-paths.sh` |
 | `lib/tmux-pane-words-picker.sh` | 'tmux' is not a recognized verb | `extract-tmux-pane-selection.sh` |
+| `json-deep-sort.js` | 'json' is not a recognized verb | `normalize-json-deep-sort.js` |
+| `perf-check.sh` | 'perf' is not a recognized verb | `check-shell-startup-latency.sh` |
+| `profiler.sh` | 'profiler' is not a recognized verb; verb carries no object | `extract-startup-time-breakdown.sh` |
 
 ## Collision check
 
-All 69 proposed basenames are pairwise distinct, and none matches an
+All 72 proposed basenames are pairwise distinct, and none matches an
 existing file at its proposed target path — checked mechanically (`sort |
 uniq -d` on basenames, plus an existence test on every proposed path)
 alongside the checker re-validation above.

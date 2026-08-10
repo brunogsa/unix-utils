@@ -31,6 +31,12 @@ VENDORED_DIR_SEGMENTS = ("skill-standards", "scripts")
 VENDORED_SINGLE_FILE = ("eval-viewer", "generate_review.py")
 STALE_WORKTREE_MARKER = "worktrees/stacked-prs-pr2"
 
+# Conventional bootstrap/entrypoint basenames, exempted wherever
+# they appear (file mode and tree mode alike) rather than by a
+# blanket "anything sitting at a tree's root" rule — the blanket
+# rule also hid genuinely bad root-level names (Scout #89).
+ROOT_ENTRYPOINT_NAMES = ("install.sh", "run-tests.sh")
+
 SCRIPT_EXTENSIONS = (".sh", ".py", ".js")
 
 
@@ -44,11 +50,14 @@ def load_lexicon(path=LEXICON_PATH):
 
 
 def is_excluded(path):
-    """Return True when path falls under one of the three standing
-    exclusions (vendored cluster, node_modules, stale worktree), so
-    the caller skips it with no output at all — never a reason to
-    report, never mixed into a pass/fail count."""
+    """Return True when path falls under one of the standing
+    exclusions (named bootstrap/entrypoint scripts, vendored
+    cluster, node_modules, stale worktree), so the caller skips it
+    with no output at all — never a reason to report, never mixed
+    into a pass/fail count."""
     parts = path.parts
+    if path.name in ROOT_ENTRYPOINT_NAMES:
+        return True
     if "node_modules" in parts:
         return True
     if STALE_WORKTREE_MARKER in path.as_posix():
@@ -146,24 +155,22 @@ def format_result(path, reasons, label=None):
 
 
 def collect_tree_scripts(tree_root):
-    """Recurse tree_root for .sh/.py/.js files nested under some
-    subdirectory, skipping tests/, __pycache__ and node_modules along
-    the way. No directory-name allowlist: a corpus can organize its
-    scripts under any directory (this repo's scripts/hooks,
-    oh-my-zsh's commands/lib/bin, ...), so is_excluded (already
-    applied by both call sites) is what filters vendored/stale
-    content, not where a script happens to live.
-
-    A file sitting directly in tree_root (no subdirectory) is
-    skipped: this checker polices organized script corpora, not
-    one-off utility scripts that were never grouped into one."""
+    """Recurse tree_root for .sh/.py/.js files anywhere below it,
+    including directly at its root, skipping tests/, __pycache__ and
+    node_modules along the way. No directory-name allowlist: a corpus
+    can organize its scripts under any directory (this repo's
+    scripts/hooks, oh-my-zsh's commands/lib/bin, ...), so is_excluded
+    (already applied by both call sites) is what filters vendored/
+    stale/named-entrypoint content, not where a script happens to
+    live — a root-level script is swept in and evaluated like any
+    other, unless is_excluded names it specifically (Scout #89: a
+    blanket "skip anything at root" rule used to hide genuinely bad
+    root-level names, not just conventional entrypoints)."""
     found = []
     for path in sorted(tree_root.rglob("*")):
         if not path.is_file() or path.suffix not in SCRIPT_EXTENSIONS:
             continue
         relative_parts = path.relative_to(tree_root).parts
-        if len(relative_parts) < 2:
-            continue
         if any(
             part in ("tests", "__pycache__", "node_modules")
             for part in relative_parts[:-1]

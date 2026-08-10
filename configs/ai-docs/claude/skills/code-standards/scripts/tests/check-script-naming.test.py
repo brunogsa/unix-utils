@@ -228,6 +228,38 @@ class TestCheckScriptNamingTreeMode:
         assert "aicmd" in result.stdout
 
 
+class TestCheckScriptNamingRootLevelScripts:
+    def test_should_report_a_badly_named_script_sitting_directly_at_the_tree_root(self, tmp_path):
+        # Regression this guards: collect_tree_scripts used to skip
+        # any file with fewer than 2 relative path parts under
+        # tree_root, silently exempting every root-level script from
+        # tree mode regardless of name — a corpus's bootstrap/
+        # entrypoint scripts are the common case, but an arbitrary
+        # badly-named root-level script must still surface.
+        repo = tmp_path / "myrepo"
+        _write(repo / "notaverb.sh")
+
+        result = _run("--tree", str(repo))
+
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert "notaverb" in result.stdout
+
+    def test_should_still_exempt_install_sh_and_run_tests_sh_at_the_tree_root(self, tmp_path):
+        # install.sh and run-tests.sh are conventional bootstrap/
+        # entrypoint names, exempted by basename (mirroring
+        # classify-conversion.py's is_excluded) rather than by a
+        # blanket "anything at root" rule — the blanket rule also
+        # hid genuinely bad root-level names (see the sibling test).
+        repo = tmp_path / "myrepo"
+        _write(repo / "install.sh")
+        _write(repo / "run-tests.sh")
+
+        result = _run("--tree", str(repo))
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert result.stdout.strip() == ""
+
+
 class TestCheckScriptNamingStaleWorktreeExclusion:
     def test_should_scan_a_corpus_nested_under_a_worktrees_ancestor_that_is_not_the_stale_checkout(self, tmp_path):
         # Regression this guards: is_excluded used to treat any
@@ -269,15 +301,25 @@ class TestCheckScriptNamingRealCorpusRegression:
         not OH_MY_ZSH_ROOT.is_dir(),
         reason=f"no oh-my-zsh checkout at {OH_MY_ZSH_ROOT}",
     )
-    def test_should_report_exactly_the_28_oh_my_zsh_commands_and_lib_scripts_known_to_fail_naming(self):
+    def test_should_report_exactly_the_31_oh_my_zsh_commands_lib_and_root_scripts_known_to_fail_naming(self):
         # Batch 15 in rename-list.md (`## Batch 15 — oh-my-zsh
-        # commands/ + lib/`) is this same checker run in file
-        # mode against oh-my-zsh's real globs, before this fix
-        # existed — the correct answer, recorded in advance.
+        # commands/ + lib/ + root`) is this same checker run in
+        # file mode against oh-my-zsh's real globs — the correct
+        # answer, recorded in advance.
         #
         # Hand-coded here instead of parsed from that file, so
         # this test's expectation stays independent of it.
+        #
+        # 28 commands/+lib/ paths plus 3 root-level scripts (Scout
+        # #89: collect_tree_scripts no longer blanket-skips
+        # anything sitting directly at tree_root — only the named
+        # install.sh/run-tests.sh entrypoints stay exempt, and
+        # oh-my-zsh's install.sh is the only one of those two
+        # present at this root).
         expected_relative_fail_paths = {
+            "json-deep-sort.js",
+            "perf-check.sh",
+            "profiler.sh",
             "commands/ai-changelog.sh",
             "commands/ai-request.sh",
             "commands/aiappend.sh",
