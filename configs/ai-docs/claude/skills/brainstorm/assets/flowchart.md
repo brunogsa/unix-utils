@@ -118,7 +118,7 @@ def brainstorm():
     scratchpad.write(pick)                                 # 15 ·
 
     if mode == "light":                                    # 16 ·
-        # 16a · Step 9 at light — general-purpose (sonnet) · serial · foreground,
+        # 16a · Step 9 at light — general-purpose (sonnet) · serial · background,
         #       NOT plan-writer: plan-writer reads a spec and nothing else by
         #       contract, so with no spec it would return a plan of pure open
         #       questions. This agent has no inherited context, so it grounds
@@ -132,14 +132,14 @@ def brainstorm():
         #      The plan inherits it, and that shared slug is what pairs the files.
         slug = derive_kebab_slug()
 
-        # 18 · Step 6 — general-purpose (sonnet) · serial · foreground. No
+        # 18 · Step 6 — general-purpose (sonnet) · serial · background. No
         #      inherited context: reads the run scratchpad first, then the
         #      spec-driven-development library + spec-template, and writes EVERY
         #      section; folds the scratchpad's decisions into Functional Decisions.
         #      THIS session never writes the spec itself.
         spec = dispatch("general-purpose", model="sonnet", write_spec=True, slug=slug)
 
-        # 19 · Step 7 — deep-reviewer · agent-pinned · serial · foreground, over
+        # 19 · Step 7 — deep-reviewer · agent-pinned · serial · background, over
         #      the spec ALONE — full only, and ALWAYS dispatched (no toggle gates
         #      the dispatch itself anymore).
         #      ALWAYS runs "How would this break?" (fail-closed): every
@@ -151,7 +151,7 @@ def brainstorm():
         #      NOT PR-size, NOT plan-contradiction (no plan yet), NOT Scope
         #      (step 3 already asked the user about decomposition).
         findings = dispatch("deep-reviewer", target=spec)
-        # 20 · general-purpose (sonnet) · serial · foreground, with the
+        # 20 · general-purpose (sonnet) · serial · background, with the
         #      findings YOU accepted.
         dispatch("general-purpose", model="sonnet", apply=main_session_decides(findings))
         # 21 · every finding, applied or skipped with the reason — the only
@@ -168,7 +168,7 @@ def brainstorm():
                 case "missing/wrong requirements": goto(10)                # the interview
                 case "approach concerns":          goto(14)                # the proposals
 
-        # 24 · Step 9 at full — plan-writer · agent-pinned · serial · foreground.
+        # 24 · Step 9 at full — plan-writer · agent-pinned · serial · background.
         #      In: the spec path + the step-17 slug, any planning-conventions
         #      file. It resolves the output path itself, and sees only the spec.
         #      A spec gap never withholds the plan — it becomes a **QUESTION:**.
@@ -190,7 +190,7 @@ def brainstorm():
         fix(results.first_failure)   # 28a · re-run THAT gate alone until it passes
 
     if mode == "full":                                     # 29 ·
-        # 29a · Step 10 — deep-reviewer · agent-pinned · serial · foreground,
+        # 29a · Step 10 — deep-reviewer · agent-pinned · serial · background,
         #       over the plan AND the spec — full only, and ALWAYS dispatched.
         #       ALWAYS runs the semantic half of "Every AC has a test": does
         #       each cited test actually PROVE its AC? (step 9's script
@@ -226,7 +226,7 @@ def brainstorm():
         # 33a · AskUserQuestion, 2-3 at a time, recommended answer first.
         #       Step 13 does not run while a question is open.
         settled = ask_user_question(open_qs[:3])
-        # 33b · general-purpose (sonnet) · serial · foreground; leaves each
+        # 33b · general-purpose (sonnet) · serial · background; leaves each
         #       section reading None.
         dispatch("general-purpose", model="sonnet", close_open_questions=settled)
 
@@ -297,20 +297,20 @@ flowchart TD
   n15["15. Step 5 · Get a directional pick; capture it in the scratchpad"]:::gate
 
   n16{"16. Which mode did step 1 settle?"}
-  n16a{{"16a. Step 9 at light · Dispatch: Write the plan<br/>general-purpose · sonnet · serial · foreground — NOT plan-writer<br/><br/>plan-writer reads a spec and nothing else by contract, so with no spec<br/>it would return a plan of pure open questions; this agent has no<br/>inherited context, so it grounds from the run scratchpad, the only<br/>place light's requirements live<br/><br/>derives its OWN kebab slug · writes 'N/A — plan-only run' on the Spec: line ·<br/>carries each task's ACs in that task's own field ·<br/>writes 'N/A — no spec' for the AC → test coverage list"}}:::dispatch
+  n16a{{"16a. Step 9 at light · Dispatch: Write the plan<br/>general-purpose · sonnet · serial · background — NOT plan-writer<br/><br/>plan-writer reads a spec and nothing else by contract, so with no spec<br/>it would return a plan of pure open questions; this agent has no<br/>inherited context, so it grounds from the run scratchpad, the only<br/>place light's requirements live<br/><br/>derives its OWN kebab slug · writes 'N/A — plan-only run' on the Spec: line ·<br/>carries each task's ACs in that task's own field ·<br/>writes 'N/A — no spec' for the AC → test coverage list"}}:::dispatch
 
   n17["17. Step 6 · Derive a short kebab-case slug, never confirmed with the user;<br/>the plan inherits it, and the shared slug is what pairs the two files"]
-  n18{{"18. Step 6 · Dispatch: Write the spec<br/>general-purpose · sonnet · serial · foreground<br/><br/>no inherited context: reads the run scratchpad first, then the<br/>spec-driven-development library + spec-template, and writes EVERY<br/>section; folds the scratchpad's decisions into Functional Decisions<br/><br/>this session never writes the spec itself"}}:::dispatch
+  n18{{"18. Step 6 · Dispatch: Write the spec<br/>general-purpose · sonnet · serial · background<br/><br/>no inherited context: reads the run scratchpad first, then the<br/>spec-driven-development library + spec-template, and writes EVERY<br/>section; folds the scratchpad's decisions into Functional Decisions<br/><br/>this session never writes the spec itself"}}:::dispatch
 
-  n19{{"19. Step 7 · Dispatch: Fresh-eyes review of the spec<br/>deep-reviewer · agent-pinned · serial · foreground — full only, ALWAYS dispatched<br/><br/>ALWAYS: 'How would this break?' (fail-closed) — every boundary/failure-category<br/>checklist row instantiated or opted out, every AC carrying a surfaced failure mode<br/><br/>THEN, only when qualitative_pass is true (read from /tmp/sdd_&lt;session_id&gt;.json):<br/>also sweeps placeholders · contradictions · ambiguity · completeness · human-reviewable<br/>NOT PR-size, NOT plan-contradiction (no plan yet), NOT Scope (step 3 already asked)"}}:::dispatch
-  n20{{"20. Dispatch: Apply the spec review findings<br/>general-purpose · sonnet · serial · foreground · the findings the main session accepted"}}:::dispatch
+  n19{{"19. Step 7 · Dispatch: Fresh-eyes review of the spec<br/>deep-reviewer · agent-pinned · serial · background — full only, ALWAYS dispatched<br/><br/>ALWAYS: 'How would this break?' (fail-closed) — every boundary/failure-category<br/>checklist row instantiated or opted out, every AC carrying a surfaced failure mode<br/><br/>THEN, only when qualitative_pass is true (read from /tmp/sdd_&lt;session_id&gt;.json):<br/>also sweeps placeholders · contradictions · ambiguity · completeness · human-reviewable<br/>NOT PR-size, NOT plan-contradiction (no plan yet), NOT Scope (step 3 already asked)"}}:::dispatch
+  n20{{"20. Dispatch: Apply the spec review findings<br/>general-purpose · sonnet · serial · background · the findings the main session accepted"}}:::dispatch
   n21["21. Report every finding to the user — applied, or skipped with the reason.<br/>The only way to judge whether this gate earns its cost.<br/>Runs ONCE per spec; the step-8 loop re-runs no review."]
 
   n22["22. Step 8 · Give the user the spec's PATH, then ask:<br/>approved, or what changes?"]:::gate
   n23{"23. User approved the spec?"}
-  n23a{{"23a. Dispatch: Apply the spec edits<br/>general-purpose · sonnet · serial · foreground · carrying the exact edits"}}:::dispatch
+  n23a{{"23a. Dispatch: Apply the spec edits<br/>general-purpose · sonnet · serial · background · carrying the exact edits"}}:::dispatch
 
-  n24{{"24. Step 9 at full · Dispatch: Write the implementation plan<br/>plan-writer · agent-pinned · serial · foreground<br/><br/>in: the spec path + the step-17 slug, any planning-conventions file<br/>it resolves the output path itself, and sees only the spec<br/><br/>a spec gap never withholds the plan — it becomes a **QUESTION:** entry"}}:::dispatch
+  n24{{"24. Step 9 at full · Dispatch: Write the implementation plan<br/>plan-writer · agent-pinned · serial · background<br/><br/>in: the spec path + the step-17 slug, any planning-conventions file<br/>it resolves the output path itself, and sees only the spec<br/><br/>a spec gap never withholds the plan — it becomes a **QUESTION:** entry"}}:::dispatch
 
   n26["26. Step 9, both modes · Read spec-driven-development references/self-review-checks.md —<br/>it defines every gate, sorts them into the deterministic and judged buckets, and gives<br/>each bucket's dispatch tier. Read here, the FIRST time, right after the plan exists."]:::skill
 
@@ -319,18 +319,18 @@ flowchart TD
   n28a["28a. Fix the failure, then re-run that gate ALONE until it passes"]
 
   n29{"29. Step 10 · Mode is full?"}
-  n29a{{"29a. Dispatch: Fresh-eyes review of the plan<br/>deep-reviewer · agent-pinned · serial · foreground, over the plan AND the spec —<br/>full only, ALWAYS dispatched<br/><br/>ALWAYS: the semantic half of 'Every AC has a test' — does each cited test<br/>actually PROVE its AC? (step 9's script already checked citation existence/validity)<br/>Widens to the rest of test design: an untestable planned-test title,<br/>a thin scenario class, an empty Tests-planned list<br/><br/>THEN adds the qualitative pass (qualitative_pass) and the 2 rigor checks<br/>(traces_to_ac, right_sized), each read back from disk, each independent<br/>Step 7 already ran 'How would this break?' over the spec — not repeated here"}}:::dispatch
-  n29b{{"29b. Dispatch: Apply the plan review findings<br/>general-purpose · sonnet · serial · foreground · the findings the main session accepted"}}:::dispatch
+  n29a{{"29a. Dispatch: Fresh-eyes review of the plan<br/>deep-reviewer · agent-pinned · serial · background, over the plan AND the spec —<br/>full only, ALWAYS dispatched<br/><br/>ALWAYS: the semantic half of 'Every AC has a test' — does each cited test<br/>actually PROVE its AC? (step 9's script already checked citation existence/validity)<br/>Widens to the rest of test design: an untestable planned-test title,<br/>a thin scenario class, an empty Tests-planned list<br/><br/>THEN adds the qualitative pass (qualitative_pass) and the 2 rigor checks<br/>(traces_to_ac, right_sized), each read back from disk, each independent<br/>Step 7 already ran 'How would this break?' over the spec — not repeated here"}}:::dispatch
+  n29b{{"29b. Dispatch: Apply the plan review findings<br/>general-purpose · sonnet · serial · background · the findings the main session accepted"}}:::dispatch
   n29c["29c. Report every finding to the user — applied, or skipped with the reason.<br/>Runs ONCE per plan, never twice over the same text."]
 
   n30["30. Step 11 · Give the user the plan's PATH, then ask:<br/>approved, or what changes?<br/>NO self-review re-runs inside this loop, in either mode."]:::gate
   n31{"31. User approved the plan?"}
-  n31a{{"31a. Dispatch: Apply the plan edits<br/>general-purpose · sonnet · serial · foreground · carrying the exact edits"}}:::dispatch
+  n31a{{"31a. Dispatch: Apply the plan edits<br/>general-purpose · sonnet · serial · background · carrying the exact edits"}}:::dispatch
 
   n32["32. Step 12 · Run check-open-questions.sh over the plan, and the spec when one exists"]
   n33{"33. Script exits non-zero — any **QUESTION:** entry still open?"}
   n33a["33a. Interview the user to settle them — AskUserQuestion, 2-3 at a time,<br/>recommended answer first. Step 13 does not run while a question is open."]:::gate
-  n33b{{"33b. Dispatch: Close the open questions<br/>general-purpose · sonnet · serial · foreground · leaves each section reading None"}}:::dispatch
+  n33b{{"33b. Dispatch: Close the open questions<br/>general-purpose · sonnet · serial · background · leaves each section reading None"}}:::dispatch
 
   n34["34. Step 13 · Run the DETERMINISTIC bucket AGAIN, same order and same light skip-rule as step 9.<br/>The reference is already in this session's context from step 9 (node 26) — don't read it twice.<br/><br/>NO judged gate runs here, in either mode: at full, steps 7 and 10 already ran their judged<br/>checks once each and the user has approved every document since; at light there is no<br/>judged bucket at all"]
   n35{"35. All deterministic gates pass?"}

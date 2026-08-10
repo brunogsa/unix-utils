@@ -150,7 +150,7 @@ The plan inherits that same slug at step 9 — the shared slug is what pairs the
 
 Why not confirm: the slug just names two paired files — a wrong one costs only a rename, and the user is about to read the spec anyway.
 
-Then dispatch `agent(subAgent=general-purpose, model=sonnet, title=Write the spec)`, in the foreground — the next step needs the spec to exist. Instruct it to:
+Then dispatch `agent(subAgent=general-purpose, model=sonnet, title=Write the spec)` in the background, waiting for it — the next step needs the spec to exist. Instruct it to:
 
 - Read `~/.claude/skills/spec-driven-development/SKILL.md` and its `assets/spec-template.md` — that library's Guidelines govern what it writes, and every section of the template gets written.
 
@@ -169,7 +169,7 @@ Leaving any of that out of the scratchpad makes it invisible to the agent that w
 
 ### 7. Self-review the spec once, with fresh eyes
 
-**Full only.** Dispatch `agent(subAgent=deep-reviewer, effort=high, title=Fresh-eyes review of spec)`, in the foreground, pointed at the spec file alone.
+**Full only.** Dispatch `agent(subAgent=deep-reviewer, effort=high, title=Fresh-eyes review of spec)` in the background, waiting for it, pointed at the spec file alone.
 
 Point it at `~/.claude/skills/spec-driven-development/references/self-review-checks.md` and give it two jobs.
 
@@ -216,7 +216,7 @@ Why a loop: approval is rarely one round, and a step that ends the run on "not y
 
 ### 9. Write the plan, then run the deterministic gates
 
-**At `full`** — dispatch `agent(subAgent=plan-writer, title=Write implementation plan from spec)` in the foreground, to write the plan from the spec alone. Pass it:
+**At `full`** — dispatch `agent(subAgent=plan-writer, title=Write implementation plan from spec)` in the background, waiting for it, to write the plan from the spec alone. Pass it:
 
 - The spec file's absolute path, plus the slug derived in step 6.
 - Any planning-conventions file the user named (ADR/HLD/LLD), if one exists.
@@ -231,7 +231,7 @@ Where the spec doesn't carry a decision the plan needs, `plan-writer` writes the
 
 Never close a gap here, or fill one with an invented decision — that's the author-bias this dispatch exists to catch. Step 12 closes them all, in one batch.
 
-**At `light`** — dispatch `agent(subAgent=general-purpose, model=sonnet, title=Write the plan)` in the foreground instead. Instruct it to:
+**At `light`** — dispatch `agent(subAgent=general-purpose, model=sonnet, title=Write the plan)` in the background instead, waiting for it. Instruct it to:
 
 - Read `~/.claude/skills/spec-driven-development/SKILL.md` and its `assets/plan-template.md`, and write every section of that template.
 
@@ -256,7 +256,7 @@ Step 11 would hand the user a plan whose graphs have never been parsed.
 
 ### 10. Self-review the plan once, with fresh eyes
 
-**Full only.** Dispatch `agent(subAgent=deep-reviewer, effort=high, title=Fresh-eyes review of plan)`, in the foreground, pointed at the plan and the spec.
+**Full only.** Dispatch `agent(subAgent=deep-reviewer, effort=high, title=Fresh-eyes review of plan)` in the background, waiting for it, pointed at the plan and the spec.
 
 **Always, whatever the toggles say — the semantic half of the library's "Every AC has a test" check**: does each cited test actually *prove* its AC?
 Step 9's `check-ac-coverage.sh` already settled that every AC is cited and every citation is real, so this pass judges only the match no script can make.
