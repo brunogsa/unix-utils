@@ -23,6 +23,21 @@ System setup and configuration versioning repo. Part of a five-repo tooling stac
 
 Idempotent; safe to re-run. Uses inline OS detection (unlike the other stack repos that source `detect-os.sh` from oh-my-zsh) because this is the base repo with no external dependencies.
 
+## Testing
+
+Two commands cover the whole repo — run both:
+
+```bash
+./run-tests.sh   # every bash suite, across all four test trees
+pytest           # every python suite, collected by the repo-root pytest.ini
+```
+
+`run-tests.sh` discovers suites by glob, so a new `test-*.sh` under any of the four trees is picked up with no registration step.
+
+It runs every suite even after one fails, prints the failing suites' output, and exits non-zero if any failed.
+
+Never compose an ad-hoc `for t in .../test-*.sh` loop instead — that is exactly how ten hook suites ended up with nothing enumerating them.
+
 ## Editing
 
 Always edit source in `configs/`, never the symlink targets.
