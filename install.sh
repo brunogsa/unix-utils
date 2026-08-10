@@ -255,7 +255,7 @@ npm install -g ccburn
 # git-hunk: non-interactive, content-hashed hunk staging for
 # agent-driven commit splitting (scriptable alternative to
 # interactive `git add -p`; pipx is installed above).
-if command -v git-hunk &> /dev/null; then
+if pipx list --short 2>/dev/null | grep -q '^git-hunk '; then
     echo "git-hunk already installed, skipping"
 else
     pipx install git-hunk
@@ -263,7 +263,7 @@ fi
 
 # pytest — the test runner for every .py script in
 # configs/ai-docs/claude, per pytest.ini's discovery config.
-if command -v pytest &> /dev/null; then
+if pipx list --short 2>/dev/null | grep -q '^pytest '; then
     echo "pytest already installed, skipping"
 else
     pipx install pytest
