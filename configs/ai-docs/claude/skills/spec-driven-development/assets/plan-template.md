@@ -121,7 +121,8 @@ Idempotent; it rewrites only titles matching a real Test Design test.
 
 </details>
 
-**Both coverage axes are verified by script, not by hand:**
+<details>
+<summary><strong>Both coverage axes are verified by script, not by hand</strong> — expand for the two gates' contract; it is tooling detail, not plan content.</summary>
 
 - `spec-driven-development/scripts/check-ac-coverage.sh <plan> <spec>`:
   - COMPLETENESS: every `AC-N` defined in the spec's Acceptance-Criteria section has a header.
@@ -139,6 +140,8 @@ Idempotent; it rewrites only titles matching a real Test Design test.
 
 Both gates are fail-closed and run before the first human review, then again on every test change (add / remove / title edit).
 See the gate process in the `spec-driven-development` SKILL.md for when and how they run.
+
+</details>
 
 ---
 ## Task Breakdown
