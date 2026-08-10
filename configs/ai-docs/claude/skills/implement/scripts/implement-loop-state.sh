@@ -69,7 +69,10 @@
 #     before the per-task "stuck" verdict already caught it. Its caller halts
 #     the run and waits for the human — it does not proceed to the
 #     batch-end flow. `--budget` answers this same threshold
-#     question for a caller outside phase "tasks" (see below).
+#     question for a caller outside phase "tasks" (see below), and
+#     `--next-eligible`/`--eligible-set` apply the identical check
+#     before ever naming a task, so neither one can pick a task once
+#     the budget is already spent.
 #   - This no-flag mode only verdicts phase "tasks" (retry/stuck/
 #     next-task/wait/gates/halted/halt-budget). Any other phase is a
 #     caller misuse it fails loud on rather than guess a verdict
@@ -113,8 +116,11 @@ prints one JSON verdict:
   {"exhausted": true|false, "total_dispatches": N, "budget_threshold": N, "reason": "..."}
 
 --next-eligible: which pending task is DAG-eligible to dispatch next? Works
-at any phase, and does not depend on attempts[-1].result. "none" with a
-non-zero in_progress means wait for a live sibling, not halt.
+at any phase, and does not depend on attempts[-1].result. Checks the same
+batch dispatch budget --budget and --eligible-set check; once it's
+exhausted this answers "none" regardless of eligibility (reason names the
+budget). Otherwise "none" with a non-zero in_progress means wait for a live
+sibling, not halt.
   {"task": "<id or the literal string \"none\">", "in_progress": N, "reason": "..."}
 
 --eligible-set: every task dispatchable right now, for a parallel wave. Works
@@ -240,6 +246,18 @@ compute_budget_vars() {
   budget_threshold=$((BATCH_CAP_MULT * task_count + GATE_FIX_ALLOWANCE))
 }
 
+# is_budget_exhausted - true (exit 0) once total_dispatches has
+# reached budget_threshold. Calls compute_budget_vars as a side
+# effect, so a caller can build its own reason string from the
+# same task_count/total_dispatches/budget_threshold afterward
+# without recomputing them. Shared by --budget, --eligible-set,
+# --next-eligible, and the no-flag backstop below, so the one
+# comparison can't drift into four slightly different ones.
+is_budget_exhausted() {
+  compute_budget_vars "$1"
+  [ "$total_dispatches" -ge "$budget_threshold" ]
+}
+
 # eligible_tasks_json - DAG-eligible, non-terminal tasks,
 # lowest id first. Shared by the "pass" branch below and by
 # --next-eligible, so the eligibility rule is authored once.
@@ -279,8 +297,7 @@ eligible_tasks_json() {
 }
 
 if [ "$mode" = "budget" ]; then
-  compute_budget_vars "$state_file"
-  if [ "$total_dispatches" -ge "$budget_threshold" ]; then
+  if is_budget_exhausted "$state_file"; then
     exhausted=true
   else
     exhausted=false
@@ -290,8 +307,16 @@ if [ "$mode" = "budget" ]; then
   exit 0
 fi
 
+# --next-eligible shares is_budget_exhausted with --eligible-set (below)
+# and the no-flag backstop, so its sequential caller (failure-and-halt.md
+# §5.3) never dispatches a task past the same cap a parallel wave respects.
 if [ "$mode" = "next-eligible" ]; then
   running=$(in_progress_count "$state_file")
+  if is_budget_exhausted "$state_file"; then
+    emit_next_eligible "none" "$running" \
+      "total dispatches ($total_dispatches) reached the batch budget ($budget_threshold = ${BATCH_CAP_MULT}x${task_count} tasks + $GATE_FIX_ALLOWANCE gate allowance); dispatch nothing further and let any live sibling finish"
+    exit 0
+  fi
   eligible_json=$(eligible_tasks_json "$state_file" "")
   eligible_count=$(printf '%s' "$eligible_json" | jq 'length')
   if [ "$eligible_count" -eq 0 ]; then
@@ -305,14 +330,14 @@ if [ "$mode" = "next-eligible" ]; then
   exit 0
 fi
 
-# --eligible-set is the only dispatch decider in a parallel
-# wave, so it carries the batch budget the plain verdict
-# path checks. Without it a wave of retries runs past the
-# cap that exists to stop a runaway loop.
+# --eligible-set and --next-eligible (above) are the two direct dispatch
+# deciders (parallel wave, sequential pick), so both carry the batch budget
+# the plain verdict path checks. Without it a wave of retries, or a
+# sequential loop through repeated stuck picks, runs past the cap that
+# exists to stop a runaway loop.
 if [ "$mode" = "eligible-set" ]; then
   running=$(in_progress_count "$state_file")
-  compute_budget_vars "$state_file"
-  if [ "$total_dispatches" -ge "$budget_threshold" ]; then
+  if is_budget_exhausted "$state_file"; then
     emit_eligible_set "[]" "$running" true \
       "total dispatches ($total_dispatches) reached the batch budget ($budget_threshold = ${BATCH_CAP_MULT}x${task_count} tasks + $GATE_FIX_ALLOWANCE gate allowance); dispatch nothing further and let any live sibling finish"
     exit 0
@@ -323,11 +348,9 @@ if [ "$mode" = "eligible-set" ]; then
   exit 0
 fi
 
-compute_budget_vars "$state_file"
-
 # Batch-wide budget backstop, checked before any per-task logic — see the
 # design note above on why a single task alone can never trigger this first.
-if [ "$total_dispatches" -ge "$budget_threshold" ]; then
+if is_budget_exhausted "$state_file"; then
   emit_verdict "halt-budget" "" \
     "total dispatches ($total_dispatches) reached the batch budget ($budget_threshold = ${BATCH_CAP_MULT}x${task_count} tasks + $GATE_FIX_ALLOWANCE gate allowance); halting the run here and waiting for the human"
   exit 0

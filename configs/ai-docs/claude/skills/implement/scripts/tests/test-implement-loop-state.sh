@@ -674,6 +674,33 @@ it_should_report_in_progress_alongside_a_next_eligible_task_of_none() {
   assert_eq "should report no eligible task while its only dependency is live (in_progress)" "1" "$(in_progress_of)"
 }
 
+it_should_report_none_eligible_once_the_batch_dispatch_budget_is_spent() {
+  local fixture
+  # 1 task -> threshold = 4*1 + 2 = 6. 4 attempts + 2 gate_dispatches = 6 >=
+  # 6. Task 1 is otherwise DAG-eligible (pending, no depends_on) -- an
+  # exhausted budget must still answer "none", the same way --eligible-set
+  # answers an empty set, so a caller of --next-eligible never dispatches
+  # past the cap that stops a runaway loop.
+  fixture=$(write_fixture "next-eligible-budget-spent" '{
+    "version": 3, "session_id": "s1", "slug": "implement-loop", "phase": "tasks",
+    "batch_base_sha": "abc",
+    "tasks": [{"id": "1", "status": "pending", "depends_on": []}],
+    "attempts": [
+      {"task": "1", "n": 1, "result": "fail", "signature": "a", "at": "2026-07-10T10:00:00Z"},
+      {"task": "1", "n": 2, "result": "fail", "signature": "b", "at": "2026-07-10T10:01:00Z"},
+      {"task": "1", "n": 3, "result": "fail", "signature": "c", "at": "2026-07-10T10:02:00Z"},
+      {"task": "1", "n": 4, "result": "fail", "signature": "d", "at": "2026-07-10T10:03:00Z"}
+    ],
+    "gate_dispatches": 2,
+    "tails": {"refactor_report": "", "auto_review_report": ""},
+    "worktree": {"created": false, "path": "", "branch": ""}, "pr": {"wanted": false}
+  }')
+  run_script_flag "--next-eligible" "$fixture"
+  assert_eq "should report none eligible once the batch dispatch budget is spent (task)" "none" "$(task_of)"
+  assert_eq "should report none eligible once the batch dispatch budget is spent (reason names the budget)" "true" \
+    "$(printf '%s' "$VERDICT_OUT" | jq -r '.reason | contains("budget")')"
+}
+
 it_should_return_an_empty_eligible_set_once_the_batch_budget_is_spent() {
   local fixture
 
@@ -739,6 +766,7 @@ it_should_omit_an_in_progress_task_from_the_eligible_set_even_when_its_dependenc
 it_should_verdict_wait_when_the_current_task_passed_and_only_live_sibling_tasks_remain
 it_should_verdict_wait_not_halted_when_a_live_sibling_remains_alongside_a_genuinely_blocked_task
 it_should_report_in_progress_alongside_a_next_eligible_task_of_none
+it_should_report_none_eligible_once_the_batch_dispatch_budget_is_spent
 it_should_return_an_empty_eligible_set_once_the_batch_budget_is_spent
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"

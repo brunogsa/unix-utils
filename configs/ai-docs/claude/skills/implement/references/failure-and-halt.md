@@ -62,7 +62,7 @@ Flip the plan to `[Blocked]` for the terminal task and every dependent this just
 Run `implement-loop-state.sh --next-eligible <state-file>` instead — it answers with the same DAG-eligibility rule §5.4's `next-task` uses, just without requiring a `pass` attempt to ask it.
 A `task` id in the result → re-run §3.4 on it.
 
-`task: "none"` — nothing runnable remains, and at least one task (this one) is terminal-without-`[Done]`.
+`task: "none"` — nothing runnable remains: either at least one task (this one) is terminal-without-`[Done]` and no dependency path around it is open, or the batch's dispatch budget is already exhausted (the `reason` field names the budget when that's why).
 **Do not go to the gates** — go to §5.5 below.
 
 ## §5.5 — Halt: stop where you stand and wait for the human
