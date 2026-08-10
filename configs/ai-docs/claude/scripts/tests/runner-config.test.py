@@ -52,6 +52,22 @@ class TestRunnerConfigHappy(unittest.TestCase):
                 msg=f"hyphenated-stem fixture did not pass:\n{result.stdout}{result.stderr}")
             self.assertIn("1 passed", result.stdout)
 
+    def test_should_collect_and_run_a_suffix_named_test_file_under_the_configured_python_files_pattern(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            (tmp_path / "pytest.ini").write_text(PYTEST_INI.read_text())
+            (tmp_path / "sample_check_test.py").write_text(FIXTURE_PY_BODY)
+
+            result = subprocess.run(
+                [sys.executable, "-m", "pytest", "-q"],
+                cwd=tmp_path, capture_output=True, text=True,
+            )
+
+            self.assertEqual(
+                result.returncode, 0,
+                msg=f"suffix-named fixture did not pass:\n{result.stdout}{result.stderr}")
+            self.assertIn("1 passed", result.stdout)
+
     def test_should_collect_and_run_a_stem_test_js_file_under_node_test_with_no_added_configuration(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
