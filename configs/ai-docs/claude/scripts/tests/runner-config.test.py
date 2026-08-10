@@ -1,10 +1,14 @@
-#!/usr/bin/env python3
 """Prove the pytest/node test-discovery configuration this repo ships.
 
 Exercises the repo's own `pytest.ini` plus Node's built-in `node --test`
 discovery, both as real subprocesses against throwaway fixture files, so a
 regression in either config shows up here instead of silently
 de-collecting a suite on the next `pytest` run.
+
+Run only via pytest, never `python3 <file>` directly: these
+tests shell out to `sys.executable -m pytest`, which only
+resolves pytest inside the pipx-managed interpreter that
+pytest itself launches.
 
 Usage:
   pytest configs/ai-docs/claude/scripts/tests/runner-config.test.py
@@ -142,7 +146,3 @@ class TestRunnerConfigCorner(unittest.TestCase):
                     f"\n{combined_output}")
             self.assertNotIn("ModuleNotFoundError", combined_output)
             self.assertNotIn("import file mismatch", combined_output)
-
-
-if __name__ == "__main__":
-    unittest.main()
