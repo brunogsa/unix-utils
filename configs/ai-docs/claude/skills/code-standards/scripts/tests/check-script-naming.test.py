@@ -46,6 +46,20 @@ class TestCheckScriptNamingHappy:
         assert result.returncode == 0, result.stdout + result.stderr
         assert "OK" in result.stdout
 
+    def test_should_not_flag_a_skill_directory_that_only_occurs_as_a_substring_of_a_longer_token(self, tmp_path):
+        # The 'pr' skill directory occurs inside 'preview' as a character
+        # run, not as a repeated token — 'preview' != 'pr'. A substring
+        # test wrongly matches 'pr' in 'preview'; the rule is about a
+        # repeated whole token in the hyphen-split name.
+        script = _write(
+            tmp_path / "skills" / "pr" / "scripts" / "check-preview-output.py"
+        )
+
+        result = _run(str(script))
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "OK" in result.stdout
+
 
 class TestCheckScriptNamingFailure:
     def test_should_fail_a_name_whose_verb_carries_no_object(self, tmp_path):
@@ -73,6 +87,20 @@ class TestCheckScriptNamingFailure:
 
         assert result.returncode == 1, result.stdout + result.stderr
         assert "coverage" in (result.stdout + result.stderr).lower()
+
+    def test_should_fail_a_name_that_repeats_a_multi_word_skill_directory_token_by_token(self, tmp_path):
+        # The skill directory itself is hyphenated ('open-in-tmux').
+        # The repeat check must match its tokens as a contiguous run
+        # in the stem, not just a single token — otherwise a script
+        # literally named after its multi-word skill slips through.
+        script = _write(
+            tmp_path / "skills" / "open-in-tmux" / "scripts" / "open-in-tmux.py"
+        )
+
+        result = _run(str(script))
+
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert "open-in-tmux" in (result.stdout + result.stderr).lower()
 
     def test_should_fail_a_name_carrying_an_abbreviation_outside_the_allowlist(self, tmp_path):
         script = _write(tmp_path / "scripts" / "check-sa-summary.py")

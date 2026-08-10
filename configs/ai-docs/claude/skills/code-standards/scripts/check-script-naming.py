@@ -61,6 +61,22 @@ def is_excluded(path):
     return False
 
 
+def repeats_skill_tokens(skill, tokens):
+    """Return True when skill's own hyphen-split tokens appear as a
+    contiguous run inside tokens (the stem's hyphen-split tokens).
+    A single-token skill ('coverage') matches one token; a
+    multi-token skill ('open-in-tmux') matches only when all of its
+    tokens appear together, in order — so a short skill name never
+    matches merely because its characters happen to run inside a
+    longer, unrelated token (e.g. 'pr' inside 'preview')."""
+    skill_tokens = skill.split("-")
+    window = len(skill_tokens)
+    return any(
+        tokens[i : i + window] == skill_tokens
+        for i in range(len(tokens) - window + 1)
+    )
+
+
 def find_skill_name(path):
     """Return the skill directory name when path sits under a
     skills/<name>/scripts/... tree, else None. Root-level
@@ -110,7 +126,7 @@ def evaluate_name(path, lexicon):
             reasons.append(f"'{token}' is an abbreviation outside the allowlist")
 
     skill = find_skill_name(path)
-    if skill and skill in stem:
+    if skill and repeats_skill_tokens(skill, tokens):
         reasons.append(f"repeats its own skill directory '{skill}'")
 
     return reasons
