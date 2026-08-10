@@ -15,10 +15,14 @@ detect_os() {
 OS=$(detect_os)
 echo "Detected OS: $OS"
 
-# Git configuration — symlink the versioned ~/.gitconfig from the repo.
-# Holds user identity, editor, and the gh credential helper (portable `!gh ...`, no hardcoded path).
-# NOTE: never run `git config --global` after this — it rewrites via lock+rename and replaces the
-# symlink with a regular file, detaching it from the repo (same caveat as settings.json).
+# Git configuration — symlink the versioned ~/.gitconfig from
+# the repo.
+# Holds user identity, editor, and the gh credential helper
+# (portable `!gh ...`, no hardcoded path).
+#
+# NOTE: never run `git config --global` after this — it rewrites
+# via lock+rename and replaces the symlink with a regular file,
+# detaching it from the repo (same caveat as settings.json).
 ln -sf ~/unix-utils/configs/git/.gitconfig ~/.gitconfig
 
 # Install package manager if needed (macOS only)
@@ -42,10 +46,14 @@ elif [[ "$OS" == "linux" ]]; then
     sudo apt-get install -y fd-find jq datamash shellcheck libnotify-bin
 fi
 
-# Sound cues for the Claude Code tmux notification hook (done/notification tones).
-# macOS needs nothing -- afplay and /System/Library/Sounds are built in.
+# Sound cues for the Claude Code tmux notification hook
+# (done/notification tones).
+# macOS needs nothing -- afplay and /System/Library/Sounds are
+# built in.
 if [[ "$OS" == "linux" ]]; then
-    # sound-theme-freedesktop -> /usr/share/sounds/freedesktop/*.oga; pulseaudio-utils -> paplay
+    # sound-theme-freedesktop ->
+    # /usr/share/sounds/freedesktop/*.oga; pulseaudio-utils ->
+    # paplay
     sudo apt-get install -y sound-theme-freedesktop pulseaudio-utils
 fi
 
@@ -56,7 +64,9 @@ fi
 
 # CopyQ clipboard manager
 if [[ "$OS" == "macos" ]]; then
-    # System Preferences -> Security & Privacy -> General (tab) -> You should see a warning that CopyQ was blocked, override it here and you should be good
+    # System Preferences -> Security & Privacy -> General (tab)
+    # -> You should see a warning that CopyQ was blocked,
+    # override it here and you should be good
     brew install --cask copyq
     xattr -d com.apple.quarantine /Applications/CopyQ.app 2>/dev/null || true
     codesign --force --deep --sign - /Applications/CopyQ.app
@@ -136,7 +146,8 @@ elif [[ "$OS" == "linux" ]]; then
     rm -fr awscliv2.zip aws
 fi
 
-# GitHub CLI (gh) — backs the credential helper in configs/git/.gitconfig (`!gh auth git-credential`).
+# GitHub CLI (gh) — backs the credential helper in
+# configs/git/.gitconfig (`!gh auth git-credential`).
 if command -v gh &> /dev/null; then
     echo "gh already installed, skipping"
 elif [[ "$OS" == "macos" ]]; then
@@ -168,7 +179,8 @@ elif [[ "$OS" == "linux" ]]; then
     fi
 fi
 
-# macOS-specific: qView image viewer + set as default for PNG/JPEG
+# macOS-specific: qView image viewer + set as default for
+# PNG/JPEG
 if [[ "$OS" == "macos" ]]; then
     brew install --cask qview
     brew install duti
@@ -214,8 +226,11 @@ elif [[ "$OS" == "linux" ]]; then
 
     # deno
     curl -fsSL https://deno.land/install.sh | sh
-    # shellcheck disable=SC2016  # single quotes intentional: match literal string in ~/.zshrc
+
+    # shellcheck disable=SC2016 # single quotes intentional:
+    # match literal string in ~/.zshrc
     grep -q 'DENO_INSTALL' ~/.zshrc || echo 'export DENO_INSTALL="$HOME/.deno"' >> ~/.zshrc
+
     # shellcheck disable=SC2016
     grep -q 'DENO_INSTALL/bin' ~/.zshrc || echo 'export PATH="$DENO_INSTALL/bin:$PATH"' >> ~/.zshrc
 fi
@@ -227,13 +242,22 @@ npm install -g @google/gemini-cli
 npm install -g opencode-ai
 npm install -g trash-cli
 npm install -g beautiful-mermaid
-# mmdc — renders mermaid; used by compile-mermaid, the mermaid-diagrams skill, and md-to-html
+
+# mmdc — renders mermaid; used by compile-mermaid, the
+# mermaid-diagrams skill, and md-to-html
 npm install -g @mermaid-js/mermaid-cli
-# ccusage — independent reader of the same ~/.claude transcripts. The usage-audit skill
-# cross-checks every snapshot's TOKEN counts against it, which is how a repeat of the
-# 2026-07-27 double-counting bug gets caught instead of quietly inflating the series.
-# Only its tokens are used: its bundled price table lags Anthropic's by whole models,
-# so `ccusage --offline` once priced a ~$130 day at $0.92. npm, not brew — brew is
+
+# ccusage — independent reader of the same ~/.claude
+# transcripts.
+#
+# The usage-audit skill cross-checks every snapshot's TOKEN
+# counts against it, which is how a repeat of the 2026-07-27
+# double-counting bug gets caught instead of quietly inflating
+# the series.
+#
+# Only its tokens are used: its bundled price table lags
+# Anthropic's by whole models, so `ccusage --offline` once
+# priced a ~$130 day at $0.92. npm, not brew — brew is
 # macOS-only and this repo's cross-platform rule is a MUST.
 npm install -g ccusage
 
@@ -287,17 +311,22 @@ if command -v rtk &> /dev/null; then
 elif [[ "$OS" == "macos" ]]; then
     brew install rtk
 elif [[ "$OS" == "linux" ]]; then
-    # Installs to ~/.local/bin (no sudo). Ensure it is on PATH so the hook can find rtk.
+    # Installs to ~/.local/bin (no sudo).
+    # Ensure it is on PATH so the hook can find rtk.
     curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/master/install.sh | sh
-    # shellcheck disable=SC2016  # single quotes intentional: match literal string in ~/.zshrc
+
+    # shellcheck disable=SC2016 # single quotes intentional:
+    # match literal string in ~/.zshrc
     grep -q '.local/bin' ~/.zshrc || echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
 fi
 
 mkdir -p ~/.claude
-# commands/ has no matching `ln -sf` below by design: it was migrated into
-# skills/ (see git log), so this only cleans up leftover dirs from machines
-# set up before that migration.
+
+# commands/ has no matching `ln -sf` below by design: it was
+# migrated into skills/ (see git log), so this only cleans up
+# leftover dirs from machines set up before that migration.
 rm -fr ~/.claude/commands ~/.claude/skills ~/.claude/scripts ~/.claude/agents
+
 # RTK.md has no matching `ln -sf` below by design: its rules
 # now live inline in CLAUDE.md (see git log), so this only
 # clears the stale symlink on machines set up before that.
@@ -349,7 +378,9 @@ claude plugin install skill-creator@claude-plugins-official
 claude plugin install pyright-lsp@claude-plugins-official
 claude plugin install frontend-design@claude-plugins-official
 claude plugin install linear@claude-plugins-official
-# Private repo, so this needs the machine's SSH key already authorized on GitHub.
+
+# Private repo, so this needs the machine's SSH key already
+# authorized on GitHub.
 claude plugin marketplace add git@github.com:OlaIsaac/arco-ai-plugins.git
 claude plugin install core@arco-ai-plugins
 claude plugin install audit@arco-ai-plugins
@@ -360,7 +391,8 @@ echo "[MANUAL] Run :Lazy sync in neovim to install claudecode.nvim"
 rm -fr ~/.claude/hooks
 ln -sf ~/unix-utils/configs/ai-docs/claude/hooks ~/.claude/
 
-# AI setup: Gemini CLI configuration (shares CLAUDE.md + skills with Claude Code)
+# AI setup: Gemini CLI configuration (shares CLAUDE.md + skills
+# with Claude Code)
 mkdir -p ~/.gemini
 rm -f ~/.gemini/GEMINI.md
 rm -fr ~/.gemini/skills
