@@ -94,17 +94,26 @@ Mid-run `.env` needs are self-served (copied from the original checkout) rather 
 
 Record all answers before proceeding — §2.3 persists them to the state file.
 
-### 1.3. Re-validate both dependency graphs — once, before any execution
+### 1.3. Re-validate all three dependency checks — once, before any execution
 
-Run both checkers on the resolved plan, before §2 seeds anything and before the first dispatch:
+Run all three checkers on the resolved plan, before §2 seeds anything and before the first dispatch:
 
 ```bash
 ~/.claude/skills/spec-driven-development/scripts/check-tasks-dag.sh <plan-file>
 ~/.claude/skills/spec-driven-development/scripts/check-pr-dag.sh <plan-file>
+~/.claude/skills/spec-driven-development/scripts/check-pr-task-projection.py <plan-file>
 ```
 
-**Both run once per invocation, PR-label or not** — never again per task, per PR, or on retry.
-`check-pr-dag.sh` passes trivially on a plan with no PR Breakdown, or with the literal "Single PR." escape, so there is no mode to branch on.
+The first two each validate one graph in isolation — the Task Breakdown's own dependency graph, and the PR Breakdown's own.
+
+A plan can pass both while still being wrong: a task in an early PR can depend on a task that lives in a later PR never listed as a dependency.
+
+§2.3's "absent id counts as satisfied" rule then assumes the dependency is in an earlier PR, and dispatches the task before its real prerequisite has run.
+
+`check-pr-task-projection.py` is the third check because it validates the PROJECTION of the task graph onto the PR partition — the composition the first two never cross-check.
+
+**All three run once per invocation, PR-label or not** — never again per task, per PR, or on retry.
+`check-pr-dag.sh` and `check-pr-task-projection.py` both pass trivially on a plan with no PR Breakdown, or with the literal "Single PR." escape, so there is no mode to branch on.
 
 The plan stays hand-editable, so a later edit can reintroduce a cycle, dangling dependency, or duplicate id — and nothing downstream re-checks it.
 
