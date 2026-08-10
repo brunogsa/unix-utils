@@ -29,7 +29,7 @@ KEBAB_RE = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 # stale worktree checkout (D7).
 VENDORED_DIR_SEGMENTS = ("skill-standards", "scripts")
 VENDORED_SINGLE_FILE = ("eval-viewer", "generate_review.py")
-STALE_WORKTREE_SEGMENT = "worktrees"
+STALE_WORKTREE_MARKER = "worktrees/stacked-prs-pr2"
 
 SCRIPT_EXTENSIONS = (".sh", ".py", ".js")
 
@@ -51,7 +51,7 @@ def is_excluded(path):
     parts = path.parts
     if "node_modules" in parts:
         return True
-    if STALE_WORKTREE_SEGMENT in parts:
+    if STALE_WORKTREE_MARKER in path.as_posix():
         return True
     for i in range(len(parts) - 1):
         if parts[i : i + 2] == VENDORED_DIR_SEGMENTS:

@@ -132,6 +132,33 @@ class TestCheckScriptNamingTreeMode:
         assert "aicmd" in result.stdout
 
 
+class TestCheckScriptNamingStaleWorktreeExclusion:
+    def test_should_scan_a_corpus_nested_under_a_worktrees_ancestor_that_is_not_the_stale_checkout(self, tmp_path):
+        # Regression this guards: is_excluded used to treat any
+        # ancestor directory literally named "worktrees" as the
+        # stale checkout, silently skipping every script beneath
+        # it (exit 0, no output) -- indistinguishable from "fully
+        # compliant". Only the one named checkout,
+        # worktrees/stacked-prs-pr2, is stale; a sibling worktree
+        # directory holds a live corpus that must still be swept.
+        repo = tmp_path / "worktrees" / "myrepo"
+        _write(repo / "scripts" / "check.py")
+
+        result = _run("--tree", str(repo))
+
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert "check.py" in result.stdout
+
+    def test_should_still_skip_the_one_named_stale_worktree_checkout(self, tmp_path):
+        repo = tmp_path / "worktrees" / "stacked-prs-pr2" / "myrepo"
+        _write(repo / "scripts" / "check.py")
+
+        result = _run("--tree", str(repo))
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert result.stdout.strip() == ""
+
+
 class TestCheckScriptNamingRealCorpusRegression:
     """Pins the checker's output against two real, on-disk repos, so
     a future change to collect_tree_scripts can't silently narrow or
