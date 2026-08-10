@@ -79,10 +79,13 @@ class TestRunnerConfigHappy(unittest.TestCase):
                 "test('fixture passes', () => { assert.strictEqual(1 + 1, 2); });\n"
             )
 
-            # No path argument: node --test auto-discovers files under a
-            # tests/ directory relative to cwd. Passing "tests/" explicitly
-            # makes node treat it as a single module path to require, which
-            # fails with MODULE_NOT_FOUND — the opposite of "no added
+            # No path argument: node --test discovers
+            # files by name — **/*.test.js by default —
+            # not by directory, wherever they sit under cwd.
+            #
+            # Passing "tests/" makes node require() it as
+            # a single module path, failing with
+            # MODULE_NOT_FOUND — the opposite of "no added
             # configuration" this test is proving.
             result = subprocess.run(
                 ["node", "--test"],
