@@ -304,3 +304,37 @@ class TestClassifyConversionFailure(unittest.TestCase):
             msg=f"{script} was expected to fail but exited 0: {result.stdout}",
         )
         self.assertTrue(result.stderr.strip(), msg=f"{script} exit had no stderr message")
+
+    def test_should_still_report_the_well_formed_scripts_when_one_tree_member_has_a_malformed_requires_npm_header(self):
+        tmp_path = self._tmp()
+        _write_script(tmp_path, "well-formed-a.sh", [
+            "#!/usr/bin/env bash", "echo a",
+        ])
+        _write_script(tmp_path, "well-formed-b.sh", [
+            "#!/usr/bin/env bash", "awk '{print}' a",
+        ])
+        _write_script(tmp_path, "malformed-header.sh", [
+            "#!/usr/bin/env bash",
+            "# Requires-npm: typescript",
+            "echo broken",
+        ])
+
+        result = _run("--tree", tmp_path)
+
+        # The malformed header must still fail the run — losing
+        # this signal would trade one silent failure for another.
+        self.assertNotEqual(
+            result.returncode, 0,
+            msg=f"expected non-zero exit but got 0: {result.stdout}",
+        )
+        self.assertTrue(result.stderr.strip(), msg="malformed header produced no stderr message")
+
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        payloads = [json.loads(line) for line in lines]
+        by_name = {Path(p["path"]).name: p for p in payloads}
+
+        self.assertIn("well-formed-a.sh", by_name)
+        self.assertIn("well-formed-b.sh", by_name)
+        self.assertNotIn("malformed-header.sh", by_name)
+        self.assertEqual(by_name["well-formed-a.sh"]["verdict"], "stays-sh")
+        self.assertEqual(by_name["well-formed-b.sh"]["verdict"], "convert")

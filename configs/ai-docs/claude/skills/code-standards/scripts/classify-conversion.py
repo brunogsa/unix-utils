@@ -164,13 +164,6 @@ def classify_file(path: Path, tree_root: Path | None = None) -> dict:
     return result
 
 
-def classify_tree(root: Path) -> list:
-    """Classify every .sh script under `root`, tagging each result
-    with the tree it came from so multiple --tree roots stay
-    distinguishable once their results are combined."""
-    return [classify_file(path, tree_root=root) for path in sorted(root.rglob("*.sh"))]
-
-
 def main(argv):
     parser = argparse.ArgumentParser(
         description="Classify a script (or a tree of scripts) under "
@@ -196,28 +189,39 @@ def main(argv):
         )
         return 1
 
-    try:
-        if args.tree:
-            results = []
-            for tree_arg in args.tree:
-                root = Path(tree_arg).expanduser()
-                if not root.is_dir():
-                    print(f"error: no such directory: {root}", file=sys.stderr)
-                    return 1
-                results.extend(classify_tree(root))
-        else:
-            target = Path(args.path).expanduser()
-            if not target.is_file():
-                print(f"error: no such file: {target}", file=sys.stderr)
+    results = []
+    errors = []
+
+    if args.tree:
+        for tree_arg in args.tree:
+            root = Path(tree_arg).expanduser()
+            if not root.is_dir():
+                print(f"error: no such directory: {root}", file=sys.stderr)
                 return 1
+            # Isolate each file's ValueError so one malformed
+            # header doesn't discard verdicts already computed
+            # for its tree-mates.
+            for path in sorted(root.rglob("*.sh")):
+                try:
+                    results.append(classify_file(path, tree_root=root))
+                except ValueError as exc:
+                    errors.append(f"error: {path}: {exc}")
+    else:
+        target = Path(args.path).expanduser()
+        if not target.is_file():
+            print(f"error: no such file: {target}", file=sys.stderr)
+            return 1
+        try:
             results = [classify_file(target)]
-    except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 1
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
 
     for result in results:
         print(json.dumps(result))
-    return 0
+    for error in errors:
+        print(error, file=sys.stderr)
+    return 1 if errors else 0
 
 
 if __name__ == "__main__":
