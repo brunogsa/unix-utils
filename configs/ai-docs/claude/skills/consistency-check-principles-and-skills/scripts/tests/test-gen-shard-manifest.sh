@@ -146,6 +146,65 @@ EOF
     rm -rf "$d"
 }
 
+# A path shown purely as an illustrative example inside a fenced
+# code block is not a genuine cross-reference — skills quote example
+# paths constantly, and resolving those would silently widen exactly
+# what sharding exists to narrow (Scout #48).
+it_should_not_pull_in_a_cross_reference_shown_only_inside_a_fenced_code_block() {
+    echo "it_should_not_pull_in_a_cross_reference_shown_only_inside_a_fenced_code_block"
+    local d; d=$(new_fixture)
+    write_skill_file "$d" "other-skill" "references/example-only.md" <<'EOF'
+Shared reference content.
+EOF
+    write_skill_file "$d" "demo-skill" "SKILL.md" <<'EOF'
+---
+name: demo-skill
+description: "Demo."
+---
+Example (illustrative only, not a real reference):
+
+```
+See `skills/other-skill/references/example-only.md` for details.
+```
+EOF
+    local output; output=$(run_gen "$d")
+    local actual; actual=$(shard_files "$output" "demo-skill")
+    assert_eq "fenced-only reference excluded" "0" "$(printf '%s\n' "$actual" | grep -c "other-skill/references/example-only.md")"
+    rm -rf "$d"
+}
+
+# Companion to the fenced-block exclusion above: a genuine reference
+# outside the fence, in the same file that also contains a fenced
+# example, must still resolve — proving the fix narrows detection
+# instead of disabling it.
+it_should_still_pull_in_a_cross_reference_that_appears_outside_a_fenced_code_block_in_the_same_file() {
+    echo "it_should_still_pull_in_a_cross_reference_that_appears_outside_a_fenced_code_block_in_the_same_file"
+    local d; d=$(new_fixture)
+    write_skill_file "$d" "other-skill" "references/example-only.md" <<'EOF'
+Shared reference content.
+EOF
+    write_skill_file "$d" "other-skill" "references/shared.md" <<'EOF'
+Shared reference content.
+EOF
+    write_skill_file "$d" "demo-skill" "SKILL.md" <<'EOF'
+---
+name: demo-skill
+description: "Demo."
+---
+Example (illustrative only, not a real reference):
+
+```
+See `skills/other-skill/references/example-only.md` for details.
+```
+
+See `skills/other-skill/references/shared.md` for the real reference.
+EOF
+    local output; output=$(run_gen "$d")
+    local actual; actual=$(shard_files "$output" "demo-skill")
+    assert_eq "unfenced reference still included" "1" "$(printf '%s\n' "$actual" | grep -c "other-skill/references/shared.md")"
+    rm -rf "$d"
+}
+
 # Regression: a skill's own vendored `node_modules/` (e.g. a scripts/
 # dependency tree, gitignored and never skill content) must not be
 # walked into the shard's own-file list. Before the fix, `find -L`
@@ -442,6 +501,8 @@ it_should_hard_fail_when_the_skills_directory_is_missing() {
 it_should_emit_one_shard_per_skill_directory_including_every_file_in_it
 it_should_include_agent_files_a_skill_dispatches_by_name_in_its_shard
 it_should_include_cross_referenced_paths_outside_the_skill_dir_in_its_shard
+it_should_not_pull_in_a_cross_reference_shown_only_inside_a_fenced_code_block
+it_should_still_pull_in_a_cross_reference_that_appears_outside_a_fenced_code_block_in_the_same_file
 it_should_exclude_files_under_a_node_modules_directory_from_a_skills_own_file_list
 it_should_not_pull_in_cross_references_found_inside_a_node_modules_directory
 it_should_exclude_files_under_a_pycache_directory_from_a_skills_own_file_list

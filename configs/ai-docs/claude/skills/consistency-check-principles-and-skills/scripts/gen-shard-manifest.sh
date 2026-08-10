@@ -221,25 +221,74 @@ list_dispatched_agents() {
     done < <(find -L "$AGENTS_DIR" -maxdepth 1 -type f -name '*.md' | LC_ALL=C sort)
 }
 
-# Emit every raw ref-candidate span found in $target_file,
-# delimiters stripped: both `](path)` markdown-link targets
-# and backtick-quoted spans. Resolving each candidate to a
-# real file is the caller's job.
+# True (0) when $line opens or closes a fenced code
+# block (``` or ~~~, optional leading whitespace).
+# Mirrors check-refs.sh's own is_fence_delimiter().
+#
+# A separate copy, not a shared library: this file's
+# resolve_candidate()/check_candidate() comments already
+# cover why the two scripts' predicates diverge even
+# where their shapes match.
+is_fence_delimiter() {
+    local line=$1
+    [[ "$line" =~ ^[[:space:]]*('```'|'~~~') ]]
+}
+
+# Emit every raw ref-candidate span found in
+# $target_file, delimiters stripped: both `](path)`
+# markdown-link targets and backtick-quoted spans.
+#
+# A span whose line falls inside a fenced code block
+# is skipped — skills quote example paths constantly,
+# and those aren't genuine cross-references.
+#
+# Resolving each candidate to a real file stays the
+# caller's job.
+#
+# Strips fenced lines with one bash read loop — a
+# builtin, no subprocess per line.
+#
+# Kept lines go into an array, not a growing string:
+# repeated string concatenation copies the whole
+# string on every line, turning a large file
+# quadratic.
+#
+# The array joins via printf -v, a builtin, so no
+# extra subshell forks per file.
+#
+# Then greps the stripped text with the same two
+# whole-file patterns as before: one subprocess per
+# file, same as always, never one per line.
+#
+# A per-line grep call is exactly the fork-
+# amplification shape that once caused a multi-minute
+# hang on this same scan (Scout #42).
 list_file_ref_candidates() {
-    local target_file=$1 match candidate
+    local target_file=$1 match candidate line in_fence=0 stripped
+    local -a kept=()
+    while IFS= read -r line || [ -n "$line" ]; do
+        if is_fence_delimiter "$line"; then
+            in_fence=$((1 - in_fence))
+            continue
+        fi
+        [ "$in_fence" -eq 1 ] && continue
+        kept+=("$line")
+    done < "$target_file"
+    printf -v stripped '%s\n' "${kept[@]}"
+
     while IFS= read -r match; do
         [ -n "$match" ] || continue
         candidate="${match#\]\(}"
         candidate="${candidate%)}"
         printf '%s\n' "$candidate"
-    done < <(grep -oE '\]\([^)]+\)' "$target_file" 2>/dev/null || true)
+    done < <(grep -oE '\]\([^)]+\)' <<<"$stripped" 2>/dev/null || true)
 
     while IFS= read -r match; do
         [ -n "$match" ] || continue
         candidate="${match#\`}"
         candidate="${candidate%\`}"
         printf '%s\n' "$candidate"
-    done < <(grep -oE '`[^`]+`' "$target_file" 2>/dev/null || true)
+    done < <(grep -oE '`[^`]+`' <<<"$stripped" 2>/dev/null || true)
 }
 
 # Every in-repo path a skill's own files reference outside their own
