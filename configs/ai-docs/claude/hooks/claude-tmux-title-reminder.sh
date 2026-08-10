@@ -47,7 +47,7 @@ You are running inside tmux. Keep the tmux window titled with the SHORTEST name 
 Set it now from the user's first request. Then overwrite it (the script replaces the title outright -- no stacking) on either of these triggers:
   1. You judge the conversation has shifted to a new topic -- do this proactively, on your own initiative, without waiting to be asked.
   2. The user explicitly asks to update the window/pane/tmux title.
-Always pass ONLY the current work, never a composed title. Once this session has survived a compaction the script prefixes the title it froze beforehand, rendering "<root>/<current>[N]" inside a wider 24-character cap -- so never type a "/" or a "[N]" yourself, and never try to restate the original title from memory. The script owns that composition; handing it "<root>/<current>" would nest a second root inside the first.
+Always pass ONLY the current work, never a composed title. Once this session has survived a compaction the script prefixes the title it froze beforehand, rendering "<root>/<current>[M+S]" inside a wider 24-character cap -- M is this session's own compactions, S is subagent compactions (S is dropped entirely when zero) -- so never type a "/" or a "[M+S]" yourself, and never try to restate the original title from memory. The script owns that composition; handing it "<root>/<current>" would nest a second root inside the first.
 This applies only to you, the top-level session -- sub-agents spawned via the Agent/Task tool must never call tmux-window-title.sh or be told to, since their fragment would clobber the window's real title.
 EOF
 

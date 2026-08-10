@@ -56,7 +56,7 @@ fi
 read -r -d '' DIRECTIVE <<'EOF' || true
 A compaction just happened. The tmux window's compaction counter was already bumped mechanically (a companion hook does that unconditionally), but its BASE title was NOT re-derived -- that needs your judgment, not a shell script. Re-assess right now whether the base still reflects current work: scope can drift across many compacted turns even without an obvious topic switch. Refresh it via:
   ~/.claude/scripts/tmux-window-title.sh "<title>"
-Pass ONLY the current work, in at most 16 characters. Nothing is lost by narrowing it that way: on the first compaction the script froze the then-current title as this session's ROOT and re-attaches it on every later render, as "<root>/<current>[N]". So never type the root, the "/", or the "[N]" yourself -- the root is exactly what a compaction erases from your context, which is why the script keeps it instead of you. If the base still fits, no action needed, but make that a deliberate check, not a default assumption.
+Pass ONLY the current work, in at most 16 characters. Nothing is lost by narrowing it that way: on the first compaction the script froze the then-current title as this session's ROOT and re-attaches it on every later render, as "<root>/<current>[M+S]" -- M is this session's own compactions, S is subagent compactions (dropped entirely when zero). So never type the root, the "/", or the "[M+S]" yourself -- the root is exactly what a compaction erases from your context, which is why the script keeps it instead of you. If the base still fits, no action needed, but make that a deliberate check, not a default assumption.
 EOF
 
 jq -n --arg ctx "$DIRECTIVE" \
