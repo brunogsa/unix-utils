@@ -104,9 +104,12 @@ class TestRunnerConfigCorner(unittest.TestCase):
             )
 
             combined_output = result.stdout + result.stderr
+            self.assertEqual(
+                result.returncode, 0,
+                msg="hyphenated stem failed under importlib:"
+                    f"\n{combined_output}")
             self.assertNotIn("ModuleNotFoundError", combined_output)
             self.assertNotIn("import file mismatch", combined_output)
-            self.assertEqual(result.returncode, 0)
 
 
 if __name__ == "__main__":
