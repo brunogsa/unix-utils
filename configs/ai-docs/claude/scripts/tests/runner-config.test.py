@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Prove the pytest/node test-discovery configuration this repo ships.
 
 Exercises the repo's own `pytest.ini` plus Node's built-in `node --test`
