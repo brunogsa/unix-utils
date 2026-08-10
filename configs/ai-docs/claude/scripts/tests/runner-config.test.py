@@ -31,12 +31,6 @@ PRE_EXISTING_SUITES = [
 
 FIXTURE_PY_BODY = "def test_fixture_passes():\n    assert 1 + 1 == 2\n"
 
-FIXTURE_JS_BODY = (
-    "const { test } = require('node:test');\n"
-    "const assert = require('node:assert');\n"
-    "test('fixture passes', () => { assert.strictEqual(1 + 1, 2); });\n"
-)
-
 
 class TestRunnerConfigHappy(unittest.TestCase):
     def test_should_collect_and_run_a_hyphenated_stem_test_file_under_the_configured_python_files_pattern(self):
@@ -60,7 +54,11 @@ class TestRunnerConfigHappy(unittest.TestCase):
             tmp_path = Path(tmp)
             tests_dir = tmp_path / "tests"
             tests_dir.mkdir()
-            (tests_dir / "sample-check.test.js").write_text(FIXTURE_JS_BODY)
+            (tests_dir / "sample-check.test.js").write_text(
+                "const { test } = require('node:test');\n"
+                "const assert = require('node:assert');\n"
+                "test('fixture passes', () => { assert.strictEqual(1 + 1, 2); });\n"
+            )
 
             # No path argument: node --test auto-discovers files under a
             # tests/ directory relative to cwd. Passing "tests/" explicitly
