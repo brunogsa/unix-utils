@@ -2,6 +2,7 @@
 name: tdd-coder
 description: TDD task executor — runs one task's lifecycle test-first, commits, and reports done or blocked. Dispatch one per task with its plan slice, starting files list, and base SHA + branch. Not implement-only; any caller with those inputs works.
 model: sonnet
+allowedModelOverrides: opus
 effort: high
 maxTurns: 128
 disallowedTools: Agent, Workflow

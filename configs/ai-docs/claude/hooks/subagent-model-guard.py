@@ -20,6 +20,13 @@ Policy:
     doc is a conflict to surface rather than grounds to allow the dispatch.
     Only `model` is gated; `effort` is reported in the deny reason for
     context but never enforced, so overriding a pinned effort is legal.
+  - PINNED WITH DECLARED OVERRIDES (frontmatter also has
+    `allowedModelOverrides:`): the pin still binds when the caller names no
+    model, but a model matching any listed family is allowed too. This is how
+    an agent whose default tier fits most dispatches opts into a second tier
+    for the minority that need it, without the escape hatch leaking to every
+    other pinned agent. Declaring it in frontmatter keeps this hook free of an
+    allowlist of its own -- the agent file stays the single source of truth.
   - UNPINNED subagent_type (no matching agent file, or a file without
     `model:`): tool_input.model must be present -- an omitted model on an
     unpinned type silently inherits the session's (possibly expensive) model,
@@ -36,6 +43,8 @@ Examples:
     | subagent-model-guard.py                          # allowed (omitted model, pinned)
   echo '{"tool_name":"Agent","tool_input":{"subagent_type":"deep-reviewer","model":"haiku"}}' \
     | subagent-model-guard.py                          # denied (wrong model for the pin)
+  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"tdd-coder","model":"opus"}}' \
+    | subagent-model-guard.py                          # allowed (declared override tier)
   echo '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose"}}' \
     | subagent-model-guard.py                          # denied (unpinned, no model named)
 """
@@ -47,7 +56,7 @@ from pathlib import Path
 
 AGENTS_DIR = Path.home() / ".claude" / "agents"
 MODEL_ALIASES = ("sonnet", "opus", "haiku", "fable")
-FRONTMATTER_KEYS = ("name", "model", "effort")
+FRONTMATTER_KEYS = ("name", "model", "effort", "allowedModelOverrides")
 
 
 def normalize_model(value):
@@ -65,6 +74,22 @@ def normalize_model(value):
         if alias in lowered:
             return alias
     return lowered
+
+
+def parse_allowed_overrides(value):
+    """Normalize an `allowedModelOverrides:` value into its family aliases.
+
+    Accepts both spellings the frontmatter can carry -- a comma-separated
+    scalar (`opus` / `opus, fable`) and YAML's inline flow list
+    (`[opus, fable]`) -- because the agent file is hand-edited and neither
+    form is wrong there. An absent or empty key yields no overrides, which
+    is what keeps every agent that never declares one strictly pinned.
+    """
+    if not value:
+        return ()
+    entries = value.strip().strip("[]").split(",")
+    aliases = [normalize_model(entry) for entry in entries if entry.strip()]
+    return tuple(alias for alias in aliases if alias)
 
 
 def parse_agent_frontmatter(path):
@@ -133,28 +158,41 @@ def main():
         pin = pins.get(subagent_type)
         pinned_model = pin.get("model") if pin else None
     except Exception:
-        return  # fail open: malformed stdin or unreadable agents dir
+        # fail open: malformed stdin or unreadable agents dir
+        return
 
     if pin and pinned_model:
         pinned_effort = pin.get("effort", "inherited")
+        allowed_overrides = parse_allowed_overrides(pin.get("allowedModelOverrides"))
         if requested_model is None:
             return  # allow: omitted model takes the pin
         if normalize_model(requested_model) == normalize_model(pinned_model):
             return  # allow: explicit model matches the pin
+        if normalize_model(requested_model) in allowed_overrides:
+            # allow: the agent file declares this tier
+            # as a legal override
+            return
+        override_note = (
+            f"It declares allowedModelOverrides={','.join(allowed_overrides)}, "
+            f"and the model you named is not among them. "
+            if allowed_overrides
+            else ""
+        )
         deny(
             f"subagent '{subagent_type}' is pinned to model={pinned_model} "
             f"(effort={pinned_effort}, which this guard does not gate — "
-            f"override effort freely). That frontmatter is the only place a "
-            f"model tier is decided, so it outranks any skill or reference "
-            f"telling you to override the pin. Either omit the model param "
-            f"and take the pin, or dispatch a different agent type when you "
-            f"need another tier. If a doc told you to override, that is a "
+            f"override effort freely). {override_note}That frontmatter is the "
+            f"only place a model tier is decided, so it outranks any skill or "
+            f"reference telling you to override the pin. Either omit the model "
+            f"param and take the pin, or dispatch a different agent type when "
+            f"you need another tier. If a doc told you to override, that is a "
             f"real conflict, not your misreading — surface it so the pin or "
             f"the doc gets changed, and do not retry this dispatch."
         )
         return
 
-    # Unpinned: no agent file matched subagent_type, or its file has no model:
+    # Unpinned: no agent file matched subagent_type, or its file
+    # has no model:
     if requested_model is None:
         deny(
             f"agent type '{subagent_type}' has no frontmatter model pin — "
@@ -162,7 +200,9 @@ def main():
             f"sonnet = compose under conventions, opus/fable = judgment); "
             f"an omitted model silently inherits the session's expensive tier."
         )
-    # else: allow: unpinned type with an explicit model — the invoker decides
+
+    # else: allow: unpinned type with an explicit model — the
+    # invoker decides
 
 
 if __name__ == "__main__":

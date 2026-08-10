@@ -76,6 +76,11 @@ slice of subagent spend in usage telemetry and had no native turn cap.
 - [Instruction] Exempt a shadow file from the `model:` requirement only — its `name:`/`description:` still must pass.
   - [Why] A shadow file's whole purpose can be leaving the model deliberately unpinned (`general-purpose.md`), so forcing `model:` there would break the exact behavior it exists to preserve.
 
+- [Instruction] Add `allowedModelOverrides:` to an agent file only when a minority of its dispatches genuinely need a tier the pin doesn't give, listing each by family alias.
+  - [Why] `subagent-model-guard.py` reads that list verbatim as the pin's only escape hatch, so every alias listed there becomes a tier any future caller may spend from.
+
+  - [Example] `tdd-coder.md` pins `model: sonnet` for ordinary task execution and declares `allowedModelOverrides: opus` for the `[Harness]`-task dispatches CLAUDE.md routes to it.
+
 ## Descriptions
 
 The trigger-phrase rule in `skill-standards` › Descriptions applies verbatim to agent descriptions — it lives there, not here.
@@ -107,8 +112,16 @@ Any other exemption is a deliberate edit to that script's `DESC_BUDGET_EXEMPT` l
 
   - [Example] `agent(subAgent=deep-reviewer, …)` — pinned, so no `model=`. `agent(subAgent=general-purpose, …, model=sonnet)` — unpinned, so the tier must be named.
 
+- [Instruction] Name a model on a dispatch to a pinned agent type only when that file's `allowedModelOverrides:` lists it, and only for the dispatch that needs the other tier.
+  - [Why] The guard accepts exactly the pin plus that declared list, so an undeclared tier is denied and a declared one taken by habit spends the higher tier on routine work.
+
+  - [Example] `agent(subAgent=tdd-coder, …)` runs its sonnet pin; `agent(subAgent=tdd-coder, …, model=opus)` is legal only because that file declares `allowedModelOverrides: opus`.
+
 - [Instruction] State in each agent's file whether that agent may spawn a worker of its own.
   - [Why] `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH: "4"` permits main → subagent → subagent → subagent → subagent and no deeper, so an agent that spawns consumes one of the four levels other flows share.
 
 - [Instruction] Never let a subagent spawn a second opinion on its own work — route that to a review step the orchestrator already runs.
   - [Why] A mid-flight self-review judges one slice, where the deferred whole-artifact review sees the same question against the full batch.
+
+- [Instruction] Confine every subagent's writes to the slice it was dispatched for — never session-global state like the tmux window title, and never files outside its assigned scope.
+  - [Why] Concurrent subagents share one working tree and one session, so a write beyond the assigned slice races with siblings that know nothing about it.

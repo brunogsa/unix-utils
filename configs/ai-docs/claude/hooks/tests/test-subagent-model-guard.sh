@@ -73,6 +73,21 @@ it_should_allow_explore_when_model_matches_the_sonnet_pin() {
   assert_eq "should allow the dispatch when subagent_type is Explore and the model matches the sonnet pin" "allow" "$HOOK_DECISION"
 }
 
+it_should_allow_tdd_coder_with_no_model_given() {
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"tdd-coder"}}'
+  assert_eq "should allow the dispatch when subagent_type is tdd-coder and no model is given, so its sonnet default binds" "allow" "$HOOK_DECISION"
+}
+
+it_should_allow_tdd_coder_when_the_model_is_the_opus_override_its_file_declares() {
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"tdd-coder","model":"opus"}}'
+  assert_eq "should allow the dispatch when subagent_type is tdd-coder and the model is the opus override its agent file declares" "allow" "$HOOK_DECISION"
+}
+
+it_should_allow_a_declared_override_named_as_a_full_model_id() {
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"tdd-coder","model":"claude-opus-5"}}'
+  assert_eq "should allow the dispatch when the declared override is named as a full model ID rather than its family alias" "allow" "$HOOK_DECISION"
+}
+
 # --- corner cases ---
 
 it_should_index_the_pin_under_both_frontmatter_name_and_filename_stem() {
@@ -102,6 +117,37 @@ EOF
   rm -rf "$fixture_home"
 }
 
+it_should_accept_every_entry_of_a_multi_entry_override_declaration() {
+  local fixture_home
+  fixture_home=$(mktemp -d)
+  mkdir -p "$fixture_home/.claude/agents"
+
+  # Inline-flow-list spelling with two entries — the
+  # live agents dir has only the single-entry scalar
+  # form, so a fixture is the only place both the list
+  # syntax and a second entry get exercised.
+  cat > "$fixture_home/.claude/agents/guard-fixture-overrides.md" <<'EOF'
+---
+name: guard-fixture-overrides
+model: haiku
+allowedModelOverrides: [sonnet, opus]
+---
+Fixture agent for SubagentModelGuardOverrideParsing's multi-entry test.
+Exists only under a tmp HOME.
+EOF
+
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"guard-fixture-overrides","model":"sonnet"}}' "$fixture_home"
+  assert_eq "should accept every entry of a multi-entry override declaration written as an inline list (first entry)" "allow" "$HOOK_DECISION"
+
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"guard-fixture-overrides","model":"opus"}}' "$fixture_home"
+  assert_eq "should accept every entry of a multi-entry override declaration written as an inline list (last entry)" "allow" "$HOOK_DECISION"
+
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"guard-fixture-overrides","model":"fable"}}' "$fixture_home"
+  assert_eq "should still deny a model absent from a multi-entry override declaration" "deny" "$HOOK_DECISION"
+
+  rm -rf "$fixture_home"
+}
+
 it_should_deny_retired_lowercase_explore_with_no_model_given() {
   run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"explore"}}'
   assert_eq "should deny the dispatch when the guard is invoked directly with subagent_type explore (retired lowercase, no pin resolves) and no model is given" "deny" "$HOOK_DECISION"
@@ -114,11 +160,21 @@ it_should_deny_explore_when_model_contradicts_the_sonnet_pin() {
   assert_eq "should deny the dispatch when subagent_type is Explore and the model contradicts the sonnet pin" "deny" "$HOOK_DECISION"
 }
 
+it_should_deny_tdd_coder_when_the_model_is_neither_the_pin_nor_a_declared_override() {
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"tdd-coder","model":"haiku"}}'
+  assert_eq "should deny the dispatch when subagent_type is tdd-coder and the model is neither its sonnet pin nor a declared override" "deny" "$HOOK_DECISION"
+}
+
 it_should_allow_explore_with_no_model_given
 it_should_allow_explore_when_model_matches_the_sonnet_pin
+it_should_allow_tdd_coder_with_no_model_given
+it_should_allow_tdd_coder_when_the_model_is_the_opus_override_its_file_declares
+it_should_allow_a_declared_override_named_as_a_full_model_id
 it_should_index_the_pin_under_both_frontmatter_name_and_filename_stem
+it_should_accept_every_entry_of_a_multi_entry_override_declaration
 it_should_deny_retired_lowercase_explore_with_no_model_given
 it_should_deny_explore_when_model_contradicts_the_sonnet_pin
+it_should_deny_tdd_coder_when_the_model_is_neither_the_pin_nor_a_declared_override
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
