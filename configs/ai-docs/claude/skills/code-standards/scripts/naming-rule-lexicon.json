@@ -1,0 +1,36 @@
+{
+  "verbs": [
+    "build",
+    "check",
+    "extract",
+    "fetch",
+    "filter",
+    "fix",
+    "get",
+    "implement",
+    "need",
+    "normalize",
+    "open",
+    "parse",
+    "resolve",
+    "verify"
+  ],
+  "category_object_denylist": [
+    "shared",
+    "utilities",
+    "helper"
+  ],
+  "abbreviation_allowlist": [
+    "ac",
+    "dag",
+    "fit",
+    "for",
+    "gap",
+    "git",
+    "in",
+    "md",
+    "off",
+    "pr",
+    "ref"
+  ]
+}
