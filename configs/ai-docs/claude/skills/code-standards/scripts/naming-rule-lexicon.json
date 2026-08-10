@@ -24,13 +24,19 @@
     "ac",
     "dag",
     "fit",
-    "for",
     "gap",
     "git",
-    "in",
     "md",
-    "off",
     "pr",
     "ref"
+  ],
+  "common_short_words": [
+    "add",
+    "and",
+    "by",
+    "for",
+    "in",
+    "off",
+    "to"
   ]
 }

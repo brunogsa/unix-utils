@@ -36,9 +36,9 @@ SCRIPT_EXTENSIONS = (".sh", ".py", ".js")
 
 def load_lexicon(path=LEXICON_PATH):
     """Return the naming-rule-lexicon.json content: the verb list, the
-    category-object denylist, and the abbreviation allowlist — the
-    single source code-standards/SKILL.md points readers at instead
-    of restating any of the three inline."""
+    category-object denylist, the abbreviation allowlist, and the
+    common-short-words list — the single source code-standards/SKILL.md
+    points readers at instead of restating any of the four inline."""
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
@@ -105,6 +105,7 @@ def evaluate_name(path, lexicon):
             len(token) <= 3
             and token not in lexicon["abbreviation_allowlist"]
             and token not in lexicon["category_object_denylist"]
+            and token not in lexicon["common_short_words"]
         ):
             reasons.append(f"'{token}' is an abbreviation outside the allowlist")
 

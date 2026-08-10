@@ -82,6 +82,27 @@ class TestCheckScriptNamingFailure:
         assert result.returncode == 1, result.stdout + result.stderr
         assert "sa" in (result.stdout + result.stderr).lower()
 
+    @pytest.mark.parametrize(
+        "script_name",
+        [
+            "check-item-to-summary.py",
+            "check-add-item.py",
+            "check-and-report.py",
+            "check-summary-by-user.py",
+        ],
+    )
+    def test_should_not_flag_ordinary_short_english_words_as_abbreviations(self, tmp_path, script_name):
+        # Live false positives from the L3 finding: 'to', 'add', 'and', 'by'
+        # are whole words, not abbreviations. Every other token here is a
+        # recognized verb or a >3-char object, so the abbreviation branch
+        # is the only rule these names could still trip.
+        script = _write(tmp_path / "scripts" / script_name)
+
+        result = _run(str(script))
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "OK" in result.stdout
+
     def test_should_skip_excluded_and_vendored_paths_entirely_with_no_reporting(self, tmp_path):
         # A deliberately bad name (no object) under the vendored
         # skill-standards/scripts cluster — the one standing
