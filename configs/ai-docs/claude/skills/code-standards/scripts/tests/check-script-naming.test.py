@@ -74,6 +74,17 @@ class TestCheckScriptNamingHappy:
         assert result.returncode == 0, result.stdout + result.stderr
         assert "OK" in result.stdout
 
+    def test_should_pass_a_name_built_on_the_capture_verb(self, tmp_path):
+        # 'capture' is a genuine imperative verb distinct from every
+        # other lexicon entry — this locks in that the lexicon
+        # recognizes it, not just that some other rule stays silent.
+        script = _write(tmp_path / "scripts" / "capture-script-behavior.py")
+
+        result = _run(str(script))
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "OK" in result.stdout
+
 
 class TestCheckScriptNamingFailure:
     def test_should_fail_a_name_whose_verb_carries_no_object(self, tmp_path):

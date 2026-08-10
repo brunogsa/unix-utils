@@ -1,6 +1,7 @@
 {
   "verbs": [
     "build",
+    "capture",
     "check",
     "extract",
     "fetch",
