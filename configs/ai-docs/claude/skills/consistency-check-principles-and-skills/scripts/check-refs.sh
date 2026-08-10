@@ -6,8 +6,9 @@
 # Scans each given file for markdown links `[text](path#anchor)`
 # and backtick paths like `references/foo.md`, resolves each
 # target relative to the referencing file's own directory, confirms
-# the target file exists, and — when the ref carries a `#anchor` —
-# that a heading in the target slugifies (GitHub-style) to it.
+# the target exists (file or directory), and — when the ref carries
+# a `#anchor` — that a heading in the target slugifies (GitHub-style)
+# to it.
 #
 # Usage:
 #   check-refs.sh <file> [file...]
@@ -96,6 +97,20 @@ heading_exists() {
     return 1
 }
 
+# True (0) when $path starts with `/` and its first path segment
+# is a real directory entry on this filesystem (e.g. `/tmp`, `/Users`).
+#
+# A slash-command mention like `/implement` also starts with `/` but
+# resolves to no real top-level entry, so without this check it gets
+# treated as a filesystem-absolute ref and reported broken — it is
+# prose, not a path.
+is_real_absolute_path_candidate() {
+    local path=$1 first_segment
+    first_segment="${path#/}"
+    first_segment="${first_segment%%/*}"
+    [ -d "/$first_segment" ]
+}
+
 # Resolve $path relative to $referencing_file's own directory (or as
 # an absolute/home path). Existence is NOT checked here — that's the
 # caller's job, since an unresolved path is exactly the broken-ref
@@ -136,8 +151,12 @@ check_candidate() {
         *[!A-Za-z0-9_./~-]*|''|*/) return 0 ;;
     esac
 
+    case "$path" in
+        /*) is_real_absolute_path_candidate "$path" || return 0 ;;
+    esac
+
     resolved="$(resolve_target_path "$file" "$path")"
-    if [ ! -f "$resolved" ]; then
+    if [ ! -e "$resolved" ]; then
         report_broken "$file" "$line" "$raw"
         return 0
     fi
