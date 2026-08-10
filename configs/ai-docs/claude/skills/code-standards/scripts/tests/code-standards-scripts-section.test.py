@@ -108,8 +108,16 @@ class TestCodeStandardsScriptsSectionHappy(unittest.TestCase):
         # Invocation forms: an explicit "Usage:" block with
         # 2+ forms.
         usage_match = re.search(r"Usage:\n((?:#.*\n?)+)", fence_text)
-        self.assertIsNotNone(
-            usage_match, msg="example must carry a 'Usage:' block")
+
+        # Guard before .group(): a missing Usage: block is the
+        # regression this test catches, so it must fail naming
+        # the absent content and its file, not AttributeError.
+        if usage_match is None:
+            self.fail(
+                msg="example must carry a 'Usage:' block — no "
+                    "'Usage:' line followed by comment lines in the "
+                    "first fenced block of the '## Scripts' section "
+                    f"of {SKILL_MD}")
         usage_form_lines = [
             line for line in usage_match.group(1).splitlines()
             if line.strip().lstrip("#").strip()
