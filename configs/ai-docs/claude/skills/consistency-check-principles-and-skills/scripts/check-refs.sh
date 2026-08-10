@@ -218,6 +218,31 @@ check_candidate() {
     fi
 }
 
+# Emit every raw ref-candidate span found in $line, delimiters
+# stripped: both `](path)` markdown-link targets and
+# backtick-quoted spans.
+#
+# A backtick match is additionally required to contain `/` —
+# bare backtick text like `` `README` `` is prose, not a path.
+list_line_ref_candidates() {
+    local line=$1 match candidate
+    while IFS= read -r match; do
+        [ -n "$match" ] || continue
+        candidate="${match#\]\(}"
+        candidate="${candidate%)}"
+        printf '%s\n' "$candidate"
+    done < <(grep -oE '\]\([^)]+\)' <<<"$line" 2>/dev/null || true)
+
+    while IFS= read -r match; do
+        [ -n "$match" ] || continue
+        candidate="${match#\`}"
+        candidate="${candidate%\`}"
+        case "$candidate" in
+            */*) printf '%s\n' "$candidate" ;;
+        esac
+    done < <(grep -oE '`[^`]+`' <<<"$line" 2>/dev/null || true)
+}
+
 for file in "$@"; do
     line_num=0
     in_fence=0
@@ -230,21 +255,9 @@ for file in "$@"; do
         fi
         [ "$in_fence" -eq 1 ] && continue
 
-        while IFS= read -r match; do
-            [ -n "$match" ] || continue
-            candidate="${match#\]\(}"
-            candidate="${candidate%)}"
+        while IFS= read -r candidate; do
             check_candidate "$file" "$line_num" "$candidate"
-        done < <(grep -oE '\]\([^)]+\)' <<<"$line" 2>/dev/null || true)
-
-        while IFS= read -r match; do
-            [ -n "$match" ] || continue
-            candidate="${match#\`}"
-            candidate="${candidate%\`}"
-            case "$candidate" in
-                */*) check_candidate "$file" "$line_num" "$candidate" ;;
-            esac
-        done < <(grep -oE '`[^`]+`' <<<"$line" 2>/dev/null || true)
+        done < <(list_line_ref_candidates "$line")
     done < "$file"
 done
 

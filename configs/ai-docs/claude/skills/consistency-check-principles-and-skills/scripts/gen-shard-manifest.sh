@@ -198,6 +198,27 @@ list_dispatched_agents() {
     done < <(find -L "$AGENTS_DIR" -maxdepth 1 -type f -name '*.md' | LC_ALL=C sort)
 }
 
+# Emit every raw ref-candidate span found in $target_file,
+# delimiters stripped: both `](path)` markdown-link targets
+# and backtick-quoted spans. Resolving each candidate to a
+# real file is the caller's job.
+list_file_ref_candidates() {
+    local target_file=$1 match candidate
+    while IFS= read -r match; do
+        [ -n "$match" ] || continue
+        candidate="${match#\]\(}"
+        candidate="${candidate%)}"
+        printf '%s\n' "$candidate"
+    done < <(grep -oE '\]\([^)]+\)' "$target_file" 2>/dev/null || true)
+
+    while IFS= read -r match; do
+        [ -n "$match" ] || continue
+        candidate="${match#\`}"
+        candidate="${candidate%\`}"
+        printf '%s\n' "$candidate"
+    done < <(grep -oE '`[^`]+`' "$target_file" 2>/dev/null || true)
+}
+
 # Every in-repo path a skill's own files reference outside their own
 # directory — markdown links `](path)` and backtick spans `` `path` ``
 # that resolve to a real file. Existence-checked resolution is the
@@ -212,26 +233,12 @@ list_cross_refs() {
     local skill_dir=$1 own_dir_physical=$1 f candidate resolved
     while IFS= read -r f; do
         while IFS= read -r candidate; do
-            [ -n "$candidate" ] || continue
-            candidate="${candidate#\]\(}"
-            candidate="${candidate%)}"
             resolved="$(resolve_candidate "$f" "$candidate")" || continue
             case "$resolved" in
                 "$own_dir_physical"/*) continue ;;
             esac
             printf '%s\n' "$resolved"
-        done < <(grep -oE '\]\([^)]+\)' "$f" 2>/dev/null || true)
-
-        while IFS= read -r candidate; do
-            [ -n "$candidate" ] || continue
-            candidate="${candidate#\`}"
-            candidate="${candidate%\`}"
-            resolved="$(resolve_candidate "$f" "$candidate")" || continue
-            case "$resolved" in
-                "$own_dir_physical"/*) continue ;;
-            esac
-            printf '%s\n' "$resolved"
-        done < <(grep -oE '`[^`]+`' "$f" 2>/dev/null || true)
+        done < <(list_file_ref_candidates "$f")
     done < <(list_skill_files "$skill_dir")
 }
 
