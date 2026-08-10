@@ -102,6 +102,11 @@ fi
 # the symlink) passes through untouched and yields two spellings of
 # one file. No `readlink -f` (GNU-only, absent on BSD/macOS readlink)
 # — walk plain `readlink` instead, which both ship.
+#
+# scripts/check-refs.sh has no counterpart: it only ever
+# tests `[ -e "$resolved" ]`, which already follows symlinks
+# on its own, so it never needs one canonical spelling of a
+# path the way this script's dedup and containment checks do.
 physical_file() {
     local target=$1 link
     while [ -L "$target" ]; do
@@ -135,6 +140,23 @@ fi
 # returns 0 on success; returns 1 for anything that isn't a real file
 # (prose captured by an over-eager backtick/link match included) —
 # that failure is the filter, not an error condition.
+#
+# scripts/check-refs.sh's check_candidate() takes the
+# opposite contract on purpose: it REPORTS an unresolved
+# candidate rather than dropping it, so it needs the escape
+# hatches this function doesn't.
+#
+# Those hatches are the absolute-path check, the git-
+# revision-shape check, and anchor/heading validation.
+#
+# This function instead carries extra resolution logic
+# those hatches make unnecessary elsewhere: the skills/*
+# and CLAUDE.md special-case bases, symlink-walking via
+# physical_file(), and the containment check below.
+#
+# Its resolved path becomes an actual shard read-
+# authorization entry, not just a yes/no for reporting, so
+# it must land on one canonical, provably in-repo spelling.
 resolve_candidate() {
     local referencing_file=$1 candidate=$2 base resolved_dir resolved
     candidate="${candidate%%#*}"

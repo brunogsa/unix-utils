@@ -75,6 +75,11 @@ slugify_heading() {
 # `heading_exists` skip a fenced line: example markdown/shell text
 # inside a fence is not a real ref, and a `#`-prefixed shell comment
 # inside a fence is not a real heading.
+#
+# scripts/gen-shard-manifest.sh tracks no fence state: its
+# resolve_candidate() strips anything after `#` and never
+# reads headings, so a fenced `#`-line can't be mistaken for
+# one there.
 is_fence_delimiter() {
     local line=$1
     [[ "$line" =~ ^[[:space:]]*('```'|'~~~') ]]
@@ -92,6 +97,11 @@ is_fence_delimiter() {
 # Reads $target_file as a line loop (not a single grep) so it can
 # track fence state and skip a `#`-prefixed line inside a fence —
 # a shell comment like `# Usage: ...` is not a real heading.
+#
+# scripts/gen-shard-manifest.sh has no counterpart function:
+# its resolve_candidate() only needs a target file to exist,
+# never a heading inside it, so anchor validation never
+# applies there.
 heading_exists() {
     local target_file=$1 anchor=$2 heading slug repeat_count
     local anchor_candidate seen_slug line in_fence
@@ -130,6 +140,11 @@ heading_exists() {
 # resolves to no real top-level entry, so without this check it gets
 # treated as a filesystem-absolute ref and reported broken — it is
 # prose, not a path.
+#
+# scripts/gen-shard-manifest.sh's resolve_candidate() has no
+# equivalent check: its own $CLAUDE_ROOT containment check
+# already fails a bogus absolute path silently, with nothing
+# to falsely report.
 is_real_absolute_path_candidate() {
     local path=$1 first_segment
     first_segment="${path#/}"
@@ -148,6 +163,11 @@ is_real_absolute_path_candidate() {
 # BLOCKING finding. The prefix list mirrors this repo's own
 # Conventional Commits types (commit-standards) plus the two remote
 # names and branch conventions actually seen in this corpus.
+#
+# scripts/gen-shard-manifest.sh's resolve_candidate() needs no
+# such shape check: a git revision name never resolves to a
+# real file, so it is already silently dropped by the same
+# existence check every other non-path candidate fails.
 is_git_revision_shape() {
     local path=$1
     local first_segment="${path%%/*}"
@@ -165,6 +185,10 @@ is_git_revision_shape() {
 # an absolute/home path). Existence is NOT checked here — that's the
 # caller's job, since an unresolved path is exactly the broken-ref
 # case this script exists to report, not a case to filter out.
+#
+# scripts/gen-shard-manifest.sh's resolve_candidate() checks
+# existence itself instead, since dropping what doesn't exist
+# is its filter, not its caller's job.
 resolve_target_path() {
     local referencing_file=$1 path=$2
     case "$path" in
@@ -191,6 +215,11 @@ report_broken() {
 # over-eager backtick/link match. Those aren't the blocking
 # heuristic's cross-file-reference target, so they're not refs to
 # begin with, not refs that happen to resolve.
+#
+# scripts/gen-shard-manifest.sh's resolve_candidate() takes
+# the opposite contract on purpose: an unresolved candidate
+# there is silently dropped, never reported, so it needs none
+# of the escape hatches below this point.
 check_candidate() {
     local file=$1 line=$2 raw=$3 path anchor resolved
     case "$raw" in
