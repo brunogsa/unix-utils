@@ -85,10 +85,7 @@ if [[ "$OS" == "macos" ]]; then
     # No peek for macOS, using kap instead
     brew install --cask kap
 elif [[ "$OS" == "linux" ]]; then
-    # TODO: fix me
-    # sudo add-apt-repository ppa:peek-developers/stable -y
-    # sudo apt update
-    # sudo apt install -y peek
+    # No Linux screen recorder chosen yet (macOS uses kap)
     :
 fi
 
@@ -126,7 +123,7 @@ if [[ "$OS" == "macos" ]]; then
         echo "[WARN] docker and docker-compose installation will be finished after starting docker for the first time via Finder"
     fi
 elif [[ "$OS" == "linux" ]]; then
-    # TODO
+    # No Docker install chosen for Linux yet
     :
 fi
 
@@ -167,7 +164,7 @@ gh extension install github/gh-stack
 
 # Terraform
 if [[ "$OS" == "macos" ]]; then
-    # I probably won't need it, so commenting it out
+    # No Terraform on macOS -- not needed on this machine
     :
 elif [[ "$OS" == "linux" ]]; then
     if command -v terraform &> /dev/null; then
