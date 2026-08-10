@@ -32,6 +32,9 @@ Your job is to produce your own honest sample of your shard — not to guess wha
 - Self-shard (D15): the heuristics text arrives inlined in your dispatch prompt instead. Never Skill-load `consistency-check-principles-and-skills` in this case —
   - the inlined text and the Report Format conventions supplied with it are your only source.
 
+- `verify-quote.sh` / `check-refs.sh` — run them yourself to produce the citation every BLOCKING finding must carry (SKILL.md:78-79):
+  - A BLOCKING finding without a passing citation is dropped, never filed on judgment alone.
+
 ## Procedure
 
 1. Resolve your heuristics source per the self-shard input: Skill-load `consistency-check-principles-and-skills`, or use the inlined heuristics text — never both.
