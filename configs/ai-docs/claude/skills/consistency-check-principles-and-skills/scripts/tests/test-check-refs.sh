@@ -2,7 +2,8 @@
 # test-check-refs.sh - Tests check-refs.sh's ref resolution: markdown
 # links and backtick paths, file-existence checking, GitHub-style
 # anchor-heading matching, relative-path resolution, and the
-# report-every-broken-ref guarantee.
+# report-every-broken-ref guarantee. Also runs it against one real
+# skill file as an integration regression guard.
 #
 # Usage:
 #   bash test-check-refs.sh
@@ -204,6 +205,14 @@ it_should_fail_a_ref_whose_anchor_matches_only_a_heading_line_inside_a_fenced_co
     rm -rf "$d"
 }
 
+it_should_report_zero_broken_refs_against_the_real_jira_cli_skill_file() {
+    echo "it_should_report_zero_broken_refs_against_the_real_jira_cli_skill_file"
+    local target="$SCRIPT_DIR/../../../jira-cli/SKILL.md"
+    local status; bash "$CHECK" "$target" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 0" "0" "$status"
+    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+}
+
 it_should_pass_a_markdown_link_ref_that_resolves
 it_should_pass_a_backtick_path_ref_that_resolves
 it_should_pass_a_ref_whose_anchor_heading_exists_in_the_target
@@ -218,6 +227,7 @@ it_should_not_flag_a_slash_command_mention_as_a_broken_ref
 it_should_pass_a_ref_to_an_existing_directory_without_a_trailing_slash
 it_should_not_flag_a_broken_looking_link_shown_as_an_example_inside_a_fenced_code_block
 it_should_fail_a_ref_whose_anchor_matches_only_a_heading_line_inside_a_fenced_code_block
+it_should_report_zero_broken_refs_against_the_real_jira_cli_skill_file
 
 echo
 echo "$passed passed, $failed failed"
