@@ -23,7 +23,7 @@ python3 configs/ai-docs/claude/skills/code-standards/scripts/check-script-naming
 ```
 
 against the file's target path (not yet created) — file mode resolves the
-path but never stats it, so this validates the name alone. Exit 0, 72/72 OK.
+path but never stats it, so this validates the name alone. Exit 0, 73/73 OK.
 
 ## Snapshot provenance
 
@@ -38,7 +38,7 @@ checker invocation will reproduce byte-for-byte on a later run.
 
 | Batch | Scope (Task) | Repo | Files | Failing |
 |---|---|---|---|---|
-| 13 | `hooks/` + `scripts/` (Task 13) | `unix-utils` | 23 | 22 |
+| 13 | `hooks/` + `scripts/` (Task 13) | `unix-utils` | 24 | 23 |
 | 14 | `skills/*/scripts/`, excludes vendored `skill-standards/scripts/` + `eval-viewer/` (Task 14) | `unix-utils` | 55 | 19 |
 | 15 | `commands/` + `lib/` + root (Task 15) | `oh-my-zsh` | 31 | 31 |
 
@@ -61,6 +61,7 @@ Paths relative to `configs/ai-docs/claude/`.
 | `hooks/claude-implement-compact-reminder.sh` | 'claude' is not a recognized verb | `build-implement-resume-reminder.sh` |
 | `hooks/claude-implement-stop-hook.sh` | 'claude' is not a recognized verb | `check-implement-progress.sh` |
 | `hooks/claude-markdown-standards-stop-hook.sh` | 'claude' is not a recognized verb | `check-markdown-standards-stop.sh` |
+| `hooks/claude-rename-guard-stop-hook.sh` | 'claude' is not a recognized verb | `check-rename-guard-stop.sh` |
 | `hooks/claude-rm-guard.sh` | 'claude' is not a recognized verb; 'rm' is an abbreviation outside the allowlist | `check-delete-safety.sh` |
 | `hooks/claude-sdd-stop-hook.sh` | 'claude' is not a recognized verb; 'sdd' is an abbreviation outside the allowlist | `check-spec-coverage-drift.sh` |
 | `hooks/claude-stop-orchestrator.sh` | 'claude' is not a recognized verb | `resolve-stop-sequence.sh` |
