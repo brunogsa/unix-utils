@@ -21,9 +21,11 @@ import re
 import unittest
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[7]
+# unix-utils repo root: this test file's own checkout,
+# seven levels above scripts/tests/.
+UNIX_UTILS_ROOT = Path(__file__).resolve().parents[7]
 VERDICTS_MD = (
-    REPO_ROOT
+    UNIX_UTILS_ROOT
     / "configs/ai-docs/claude/skills/code-standards/references"
     / "conversion-verdicts.md"
 )
