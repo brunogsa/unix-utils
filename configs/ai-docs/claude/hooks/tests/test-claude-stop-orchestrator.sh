@@ -52,10 +52,11 @@ assert_eq() {
 # the four children whose behavior each case controls.
 # Prints the dir path.
 #
-# The markdown, agent-contract, comment-format and sdd
-# stubs block only when STUB_MD_BLOCKS,
-# STUB_AGENT_CONTRACT_BLOCKS, STUB_COMMENT_FORMAT_BLOCKS or
-# STUB_SDD_BLOCKS is 1 in the environment.
+# The markdown, agent-contract, comment-format, sdd and
+# rename-guard stubs block only when STUB_MD_BLOCKS,
+# STUB_AGENT_CONTRACT_BLOCKS, STUB_COMMENT_FORMAT_BLOCKS,
+# STUB_SDD_BLOCKS or STUB_RENAME_GUARD_BLOCKS is 1 in the
+# environment.
 #
 # That lets a case pick which gate fires without a second
 # fixture dir.
@@ -96,6 +97,13 @@ STUB
 #!/usr/bin/env bash
 cat > /dev/null
 [ "${STUB_SDD_BLOCKS:-0}" = "1" ] && printf '%s\n' '{"decision": "block", "reason": "stub sdd gate"}'
+exit 0
+STUB
+
+  cat > "$dir/claude-rename-guard-stop-hook.sh" <<'STUB'
+#!/usr/bin/env bash
+cat > /dev/null
+[ "${STUB_RENAME_GUARD_BLOCKS:-0}" = "1" ] && printf '%s\n' '{"decision": "block", "reason": "stub rename-guard gate"}'
 exit 0
 STUB
 
@@ -172,6 +180,13 @@ it_should_block_without_notifying_when_the_sdd_gate_blocks() {
   assert_eq "should block without notifying when the sdd gate blocks (nothing notified)" "" "$NOTIFIED"
 }
 
+it_should_block_without_notifying_when_the_rename_guard_gate_blocks() {
+  STUB_RENAME_GUARD_BLOCKS=1 run_orchestrator '{"session_id": "sess-orch-rename", "stop_hook_active": false}'
+  assert_eq "should block without notifying when the rename-guard gate blocks (stdout carries the decision)" \
+    "block" "$(printf '%s' "$ORCH_OUT" | jq -r '.decision // empty')"
+  assert_eq "should block without notifying when the rename-guard gate blocks (nothing notified)" "" "$NOTIFIED"
+}
+
 it_should_block_without_notifying_when_an_implement_run_is_mid_batch() {
   write_state "sess-orch-mid" '{"phase": "tasks"}'
   run_orchestrator '{"session_id": "sess-orch-mid", "stop_hook_active": false}'
@@ -209,6 +224,7 @@ it_should_block_without_notifying_when_the_agent_contract_gate_blocks
 it_should_pass_through_only_the_first_blocking_gates_decision
 it_should_block_without_notifying_when_the_comment_format_gate_blocks
 it_should_block_without_notifying_when_the_sdd_gate_blocks
+it_should_block_without_notifying_when_the_rename_guard_gate_blocks
 it_should_block_without_notifying_when_an_implement_run_is_mid_batch
 it_should_stay_silent_when_an_implement_run_is_mid_batch_and_the_gates_loop_guard_has_disarmed_it
 it_should_notify_done_when_an_implement_run_halted_for_the_human

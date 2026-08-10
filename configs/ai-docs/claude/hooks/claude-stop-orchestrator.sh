@@ -17,7 +17,8 @@
 #   Sequencing them here fixes it: run the
 #   markdown-standards gate, then the agent-contract gate,
 #   then the comment-format gate, then the session-scoped
-#   implement gate, then the spec-driven coverage gate.
+#   implement gate, then the spec-driven coverage gate,
+#   then the rename-reference guard.
 #
 #   Only if NONE blocks — the turn is genuinely over — do
 #   we run the notification. One ping, on the real stop.
@@ -33,7 +34,8 @@
 #   claude-markdown-standards-stop-hook.sh, claude-agent-contract-stop-hook.sh,
 #   claude-comment-format-stop-hook.sh,
 #   claude-implement-stop-hook.sh,
-#   claude-sdd-stop-hook.sh, and claude-tmux-notification.sh stay standalone,
+#   claude-sdd-stop-hook.sh, claude-rename-guard-stop-hook.sh, and
+#   claude-tmux-notification.sh stay standalone,
 #   independently testable, and
 #   usable on their own events (the notification is still wired directly to the
 #   Notification event elsewhere). This orchestrator only sequences them for the
@@ -54,6 +56,7 @@ agent_contract="$dir/claude-agent-contract-stop-hook.sh"
 comment_format="$dir/claude-comment-format-stop-hook.sh"
 implement_gate="$dir/claude-implement-stop-hook.sh"
 sdd_gate="$dir/claude-sdd-stop-hook.sh"
+rename_guard="$dir/claude-rename-guard-stop-hook.sh"
 notify="$dir/claude-tmux-notification.sh"
 
 # 1. Markdown-standards gate first. It prints a {decision:"block"} JSON (and
@@ -166,9 +169,37 @@ case "$sdd_out" in
     ;;
 esac
 
-# 11. Mid-flight backstop for the notification.
+# 11. Rename-reference guard. Runs AFTER the sdd gate for the same reason
+#    that gate sits after the implement gate: a mid-batch rename is
+#    transient WIP, and blocking on it churns. It prints a
+#    {decision:"block"} JSON when check-rename-references.py finds a
+#    dangling FAIL-severity reference (settings.json or an install.sh)
+#    anywhere across the covered repos.
 #
-#    Steps 2/4/6/8/10 suppress the ping only when a gate
+#    Unlike the four gates above, this one is NOT session-scoped: the
+#    checker scans a fixed corpus, not "what this session touched", so a
+#    dangling reference blocks every session's stop, including one that
+#    never touched the offending file. The checker's own severity split
+#    (FAIL only on settings.json/install.sh, WARN on markdown) is what
+#    keeps that survivable — WARN-only findings stay silent.
+rename_guard_out=""
+if [ -f "$rename_guard" ]; then
+  rename_guard_out=$(printf '%s' "$input" | bash "$rename_guard" 2>/dev/null || true)
+fi
+
+# 12. Gate blocked → pass its decision straight through
+#     and STOP here, same as steps 2, 4, 6, 8 and 10:
+#     the dangling reference still needs fixing, so do NOT notify.
+case "$rename_guard_out" in
+  *'"decision"'*)
+    printf '%s\n' "$rename_guard_out"
+    exit 0
+    ;;
+esac
+
+# 13. Mid-flight backstop for the notification.
+#
+#    Steps 2/4/6/8/10/12 suppress the ping only when a gate
 #    CHOSE to block, which is not the same as the work being
 #    over: the implement gate's stop_hook_active loop guard makes it stay silent
 #    on every stop that its own previous block caused, so a /implement run pinged
@@ -185,7 +216,7 @@ if [ -f "$implement_gate" ] && printf '%s' "$input" | bash "$implement_gate" --c
   exit 0
 fi
 
-# 12. All gates clean and nothing mid-flight → this is the
+# 14. All gates clean and nothing mid-flight → this is the
 #    real stop → fire the "done" notification.
 #
 #    Its stdout (none today; forward-safe if a future

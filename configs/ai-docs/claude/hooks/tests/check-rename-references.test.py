@@ -205,6 +205,51 @@ class TestCheckRenameReferencesCorner:
         assert elapsed < 2.0, f"took {elapsed:.2f}s:\n{result.stdout}{result.stderr}"
         assert result.returncode in (0, 1), result.stdout + result.stderr
 
+    def test_should_be_reachable_from_the_stop_hook_entry_in_settings_json_through_the_orchestrator_at_its_own_resolved_path(self):
+        # [Drift] Task 26's own working title for this test assumed
+        # settings.json would name this checker directly in its Stop
+        # array. Reading claude-stop-orchestrator.sh (Task 26's design
+        # investigation) found every Stop-event gate dispatches through
+        # that single orchestrator instead of a direct settings.json
+        # entry -- a second, independent blocking Stop entry would race
+        # the orchestrator's own "done" notification (Stop hooks run in
+        # parallel with no short-circuit) and reintroduce the
+        # double-notify bug the orchestrator's header docstring says it
+        # exists to prevent.
+        #
+        # This test asserts the real chain instead: settings.json's Stop
+        # array names the orchestrator; the orchestrator names this
+        # checker's wrapper (claude-rename-guard-stop-hook.sh) at a path
+        # that resolves to a real file; the wrapper names this checker
+        # (SCRIPT, imported above) at its own resolved path.
+        #
+        # Reads the real repo files on purpose -- the second explicit
+        # exception to this suite's fixtures-only convention, alongside
+        # the 2-second-budget corner test above.
+        repo_root = SCRIPT.parents[4]
+        settings_path = repo_root / "configs" / "ai-docs" / "claude" / "settings.json"
+        hooks_dir = SCRIPT.parent
+        orchestrator_path = hooks_dir / "claude-stop-orchestrator.sh"
+        wrapper_path = hooks_dir / "claude-rename-guard-stop-hook.sh"
+
+        settings = json.loads(settings_path.read_text(encoding="utf-8"))
+        stop_commands = " ".join(
+            hook.get("command", "")
+            for group in settings.get("hooks", {}).get("Stop", [])
+            for hook in group.get("hooks", [])
+        )
+        assert "claude-stop-orchestrator.sh" in stop_commands, stop_commands
+
+        assert orchestrator_path.is_file(), orchestrator_path
+        orchestrator_src = orchestrator_path.read_text(encoding="utf-8")
+        assert "claude-rename-guard-stop-hook.sh" in orchestrator_src
+
+        assert wrapper_path.is_file(), wrapper_path
+        wrapper_src = wrapper_path.read_text(encoding="utf-8")
+        assert "check-rename-references.py" in wrapper_src
+
+        assert SCRIPT.is_file(), SCRIPT
+
     def test_should_not_extract_a_bare_extension_glob_mention_as_a_reference(self, tmp_path):
         # [Drift] regression: a real-corpus run against production
         # surfaced '.py'/'*.py' prose mentions ("the .py extension")
