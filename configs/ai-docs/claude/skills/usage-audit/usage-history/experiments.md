@@ -302,7 +302,9 @@ Commits `f2961eb` and `4be0b46`. Opened on the user's instruction, who picked th
 
 - What moves is the re-read loop leaving main, not a cheap script absorbing the work the way `fix-density.py` does for the line rules.
 
-- **Second, smaller denominator effect**: `agent-standards` now budgets agent descriptions at ~250 chars. Agent descriptions are never truncated and load into every session, so the 8 still over budget cost every session.
+- **Second, smaller denominator effect**: `agent-standards` now budgets agent descriptions at ~250 chars. Agent descriptions are never truncated and load into every session, so each one over budget costs every session.
+
+  - Eight were over on 2026-08-08; the sweep that day left one, `plan-writer.md` at 481 chars, held open by a concurrent session.
 
 - **Watch signal**: `markdown-standards-fixer` run count per day against `doc-standards` invocations, plus main `api_calls` and `compactions` on days `doc-standards` is active.
 
