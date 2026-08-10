@@ -368,8 +368,8 @@ Routing and upkeep for the two note surfaces — the rules that keep notes worth
 - [Instruction] Run a permission-gated action (commit, push, reply) in main even when its task is delegated — hand the subagent everything else.
   - [Why] Permission UIs only render in main, so a subagent cannot complete one at all — a harness limit, not a preference to weigh against context economy.
 
-- [Instruction] Default to launching subagents in the background (`run_in_background`) — UNLESS the next step depends on the result, or the user must watch progress live: then run foreground.
-  - [Why] Background keeps the loop free, but a result-gated background launch just stalls the turn — or tempts redoing the search inline, dumping what delegation was meant to keep out.
+- [Instruction] Launch every subagent in the background (`run_in_background`) — when the next step needs its result, wait for its completion notification rather than switching to foreground.
+  - [Why] A foreground agent blocks the harness's cost computing for its whole run, while the background wait costs the same wall-clock and leaves that accounting free.
 
 - [Instruction] Render every Agent `description` here as `<title> - <model> <effort>` from the values a skill declares — no parens, no `<agent-type>`, which the UI already prepends.
   - [Why] That dispatch line is all the user sees live, so naming tier and effort lets them audit spawns in real time.
