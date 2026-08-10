@@ -131,6 +131,9 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **Surface every Scout, one TaskCreate each** -- never pre-filter; give each your fix-or-skip prior, and never bundle findings under an umbrella like "investigate the failures".
   - [Why] Only the human can triage a scout as now-vs-later, and only if they see it as its own entry — pre-filtering hides it, bundling blocks prioritizing.
 
+- [Instruction] Fix every approved `[Scout]` through the `tdd-coder` agent, however trivial the fix looks.
+  - [Why] One test-first executor gives each scout its own RED-GREEN cycle and commit, which is what stops a "too small to test" fix from landing unguarded.
+
 ### Robust, in-scope work
 
 - [Instruction] **CRITICAL: Handle failures, corner cases, unexpected states** -- applies to code paths, user flows, scripts, processes, integrations — anything you build.
