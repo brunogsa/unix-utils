@@ -48,6 +48,9 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **CRITICAL: When uncertainty survives search, ask** -- never guess intent, requirements, or context only the user holds.
   - [Why] The worst outcome is confidently solving the wrong thing; asking to clear ambiguity is the highest-value help, never an interruption — and the gap is invisible to whoever introduced it.
 
+- [Instruction] Never ask a question whose answer the invocation context, a prior answer, or an already-corrected pattern already determines — resolve it and act.
+  - [Why] The ask-when-uncertain rule has no counterweight, so it drifts into asking what you could have read — costing me a turn and signalling my earlier answers weren't retained.
+
 - [Instruction] Pair every question to me with your recommended option and the reasoning behind it.
   - [Why] You hold the context the options came from, so an unranked menu pushes that analysis back onto me and makes the question cost more than it saves.
 
@@ -96,6 +99,9 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 - [Instruction] Don't repeat in chat what a commit, scratchpad, or verification `.md` already records — say the outcome and what went differently, then point at the file.
   - [Why] The evidence is already saved, so a chat copy adds nothing, goes stale, and buries the outcome the reader came for.
+
+- [Instruction] In an evidence, verification, or reproduction artifact, paste payloads, commands, and outputs in full — the brevity rules above do not apply there.
+  - [Why] Brevity elsewhere saves the reader time, but a truncated payload destroys that artifact's only job: being checkable against reality later.
 
 ## Task Approach
 
@@ -177,6 +183,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
   - [Example] Before starting — dry-run or EXPLAIN to check your assumption holds.
   - [Example] Before claiming a count or "complete," grep/wc the actual file — a truncated snippet isn't proof.
+  - [Example] A README saying a service runs in staging isn't evidence — read the terraform/`.env`/manifest that actually sets it.
 
 - [Instruction] **Fresh evidence only** -- re-run verification if stale since your latest change; re-read the actual code on contradiction.
   - [Why] Prior-turn output proves the past state, not the current one; stale evidence ships the regression you just introduced.
@@ -341,11 +348,20 @@ Routing and upkeep for the two note surfaces — the rules that keep notes worth
 
   - [Example] Don't reach for `// eslint-disable`, `# type: ignore`, `--no-verify`, or editing the config to mute the rule.
 
+- [Instruction] When a check genuinely misfires on content its rationale never covered, carve a narrow explicit exception rather than loosening the threshold for everyone.
+  - [Why] Forbidding silence says nothing about a check that is genuinely wrong, so the pressure escapes into a raised limit that drops the guard everywhere.
+
 - [Instruction] **Don't replicate problematic patterns** -- pause and ask before copying one that either (a) contradicts the global rules or (b) is itself a smell.
   - [Why] Every replication compounds the bad pattern.
 
-- [Instruction] **Surface harness gaps** -- when fixing something a linter/test/hook/automation could catch, flag `[Harness] ...` so the harness can be used instead of AI.
+- [Instruction] **Surface harness gaps** -- when fixing something a linter/test/hook/automation could catch, file a `[Harness]` TaskList entry so the harness can be used instead of AI.
   - [Why] A hand-fix a linter could make by rule is signal lost; tagging the gap makes the harness scale to the next caller for free, so the fix compounds.
+
+- [Instruction] Close a `[Harness]` task within the session that surfaced it, never in a later batch.
+  - [Why] Deferred harness work never outranks feature work, so the gap keeps charging every future session the same hand-fix the tag was raised to eliminate.
+
+- [Instruction] Pin the subagent executing a `[Harness]` task to opus, above the haiku/sonnet tiers.
+  - [Why] Closing a gap means authoring a rule that must fire on cases nobody has written yet, and a wrong-but-green check is worse than none.
 
 - [Instruction] On this machine's Bash tool (zsh, not bash), never rely on an unquoted `$VAR` to split a space-separated path list — use an array or literal paths instead.
   - [Why] zsh has word-splitting off by default, so an unquoted multi-path variable collapses to one argument, and the failure reads as a wrong path, not a shell difference.
