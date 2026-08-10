@@ -166,7 +166,9 @@ By the time Finalize starts, both opt-in stages are behind it — whichever ran,
 
 4. **Finalize the phase.**
    Reaching this point means every task is `[Done]`, both opt-in stages ran or were declined, the branch is pushed, and the PR (if wanted) is open.
-   Set `phase: "presented"` and **delete** the state file. The Stop hook releases on this phase; a presented batch is never resumed.
+   Set `phase: "presented"`, then dispose of the state file with `trash <state-file>`, never `rm`.
+   The state file lives in `/tmp`, outside any git repo, which is exactly what `claude-rm-guard.sh` blocks `rm` on — and `trash` is the way through it names.
+   The Stop hook releases on this phase; a presented batch is never resumed.
 
 The PR is composed only after the quality-gate tail and the repo-green gate have both finished.
 Its body describes the batch's actual final diff in one pass — never a pre-fix draft needing a second one.
