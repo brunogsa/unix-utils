@@ -92,10 +92,14 @@ class TestRunnerConfigHappy(unittest.TestCase):
             cwd=REPO_ROOT, capture_output=True, text=True,
         )
 
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"repo-root collection failed:\n{result.stdout}{result.stderr}")
+
         for suite in PRE_EXISTING_SUITES:
             self.assertIn(
-                suite, result.stdout,
-                msg=f"{suite} missing from --collect-only output — the "
+                f"{suite}::", result.stdout,
+                msg=f"{suite} collected no tests — the "
                     f"python_files config de-collected a pre-existing suite")
 
 
