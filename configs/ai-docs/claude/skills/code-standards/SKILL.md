@@ -480,28 +480,44 @@ function assertSgeSiglaNivel(value: string): asserts value is SgeSiglaNivel {
 - [Instruction] Route help to stdout with exit 0, bad input to stderr with exit 1.
   - [Why] Conventional streams and exit codes let callers and pipes tell success from misuse without parsing output.
 
+- [Instruction] Keep the header to exactly four things — the script's name, its one-line purpose, its invocation forms, and its stdin/stdout/exit-code I/O contract.
+  - [Why] Rationale, background, and worked examples belong in the owning skill's `SKILL.md`; a header padded with them stops being brief and simple to scan.
+
 - [Example]
-```bash
-#!/usr/bin/env bash
-# extract-field - Extract a field from JSON lines
+```python
+#!/usr/bin/env python3
+# extract-field.py - Extract a field from JSON lines
 #
 # Usage:
-#   extract-field <field> [file]
-#   cat data.jsonl | extract-field .name
+#   extract-field.py <field> [file]
+#   cat data.jsonl | extract-field.py .name
 #
-# Examples:
-#   extract-field .email users.jsonl          # extract email from file
-#   extract-field '.address.city' users.jsonl # nested field
-#   cat api-response.json | extract-field .id # from stdin
+# stdin: JSON lines, when no file argument is given
+# stdout: the extracted field value, one per line
+# exit: 0 on success, 1 on bad input
 ```
 
-### Scripts: language & composition
+### Scripts: language, conversion & naming
 
-- [Instruction] Pick the right script language — Bash for linear/glue, Node.js for structured data or complex flow.
-  - [Why] Bash excels at process composition but degrades on structured data — pick the grain that matches.
+- [Instruction] Default every script's target language to Python; pick `.js` only when its header carries a `# Requires-npm: <package> — <stdlib gap>` line naming an npm package Python's stdlib cannot substitute.
+  - [Why] Python's stdlib already covers process glue, JSON, and file work, so an unstated npm reach forks the toolchain for no real gain; the header names the one genuine exception.
+
+- [Instruction] Convert a `.sh` script to its target language when it embeds `awk`, `jq`, `sed -E`, or a here-doc, or when it exceeds 128 lines with none of those four.
+  - [Why] Either signal marks a script a junior developer can no longer read end-to-end — the same bar measured 54 of 82 real scripts across this repo needing conversion.
+
+- [Instruction] Exempt a hook that fires on every tool call from that verdict — it stays `.sh` regardless; exclude `install.sh` from the bar entirely.
+  - [Why] A per-tool-call hook pays a fresh interpreter cold start on every turn, and `install.sh` bootstraps the interpreters a conversion would make it depend on.
+
+- [Instruction] Name every script `<verb>-<object>[-<qualifier>]` in kebab-case, sourcing the verb list, category denylist, and abbreviation allowlist from `scripts/naming-rule-lexicon.json` — never restate them here.
+  - [Why] A lexicon file keeps the verb list, denylist, and allowlist a single edit instead of a prose rewrite scattered across every rule change.
 
 - [Instruction] **CRITICAL: Follow the Unix philosophy — make each script do one thing well and compose via stdin/stdout pipes.**
   - [Why] A small, pipeable tool composes into pipelines; a monolithic script becomes a private API nobody reuses.
 
 - [Instruction] Accept behavior as parameters rather than hardcoding it.
   - [Why] Parameterized behavior lets the next caller reuse the script unchanged; hardcoded choices force a fork.
+
+### Scripts: tests
+
+- [Instruction] Test every `.py` script with `pytest` and every `.js` script with `node:test`, in a `<stem>.test.<ext>` file inside a `tests/` directory beside the script.
+  - [Why] A shared runner and one filename convention retire the hand-rolled bash test harnesses this repo used to write per script, one framework instead of many.
