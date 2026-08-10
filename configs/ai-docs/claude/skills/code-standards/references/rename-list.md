@@ -13,9 +13,7 @@ python3 configs/ai-docs/claude/skills/code-standards/scripts/check-script-naming
   --tree ~/unix-utils --tree ~/oh-my-zsh
 ```
 
-Exit code 1 (failures found), no crash, on both trees — but the run reports
-**zero** `oh-my-zsh` lines, OK or FAIL. See "Tree-mode gap" below; Batch 15
-was scoped from a second, supplementary invocation of the same checker.
+Exit code 1 (failures found), no crash, on both trees.
 
 Every proposed name in this file was independently re-validated with:
 
@@ -26,26 +24,6 @@ python3 configs/ai-docs/claude/skills/code-standards/scripts/check-script-naming
 
 against the file's target path (not yet created) — file mode resolves the
 path but never stats it, so this validates the name alone. Exit 0, 69/69 OK.
-
-## Tree-mode gap (Scout)
-
-`collect_tree_scripts` only descends into a path whose parts include a
-literal `scripts` or `hooks` component. `oh-my-zsh`'s script trees are
-`commands/`, `lib/`, and `bin/` — none named `scripts` or `hooks` — so
-`--tree ~/oh-my-zsh` silently walks past every file in the repo and reports
-nothing, pass or fail. This is a real gap in the checker's tree-mode
-directory filter, not a crash, and it was not fixed here (Task 11 forbids
-editing the checker) — recorded for a future task to pick up.
-
-Batch 15 below was scoped instead from a file-mode sweep of the checker,
-unmodified, against oh-my-zsh's actual script globs:
-
-```bash
-python3 configs/ai-docs/claude/skills/code-standards/scripts/check-script-naming.py \
-  ~/oh-my-zsh/commands/*.sh ~/oh-my-zsh/commands/*.js ~/oh-my-zsh/lib/*.sh
-```
-
-28 files, 28 FAIL, 0 OK — every script in scope for Batch 15 currently fails.
 
 ## Snapshot provenance
 
@@ -128,8 +106,7 @@ produced a FAIL in the tree-mode sweep, so there was nothing to drop.
 
 ## Batch 15 — `oh-my-zsh` `commands/` + `lib/`
 
-Paths relative to the `oh-my-zsh` repo root. Scoped from the file-mode
-supplement (see "Tree-mode gap"), not the plan's literal `--tree` command.
+Paths relative to the `oh-my-zsh` repo root.
 
 | Current path | Reason | Proposed name |
 |---|---|---|
