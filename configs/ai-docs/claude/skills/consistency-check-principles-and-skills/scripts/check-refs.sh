@@ -75,11 +75,6 @@ slugify_heading() {
 # `heading_exists` skip a fenced line: example markdown/shell text
 # inside a fence is not a real ref, and a `#`-prefixed shell comment
 # inside a fence is not a real heading.
-#
-# scripts/gen-shard-manifest.sh tracks no fence state: its
-# resolve_candidate() strips anything after `#` and never
-# reads headings, so a fenced `#`-line can't be mistaken for
-# one there.
 is_fence_delimiter() {
     local line=$1
     [[ "$line" =~ ^[[:space:]]*('```'|'~~~') ]]
