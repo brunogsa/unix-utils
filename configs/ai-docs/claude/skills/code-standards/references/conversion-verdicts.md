@@ -259,13 +259,54 @@ runs higher than this number, not lower.
 | 20 — oh-my-zsh | `commands/`, `lib/` | 9 | 1,488 | over on both axes; the plan already anticipates this ("may split into peer batches") |
 
 **Every one of the five already-scoped batches exceeds the ~6-script
-cap** once measured against the real verdict counts — this is a finding
-to report, not something re-partitioned here (re-scoping five committed
-plan tasks is outside this task's authority).
+cap** once measured against the real verdict counts.
 
 One more gap: `configs/ai-docs/claude/tests/test-global-config-invariants.sh`
 carries a `convert` verdict (302 lines, `awk`+`jq`) but sits outside every
-directory named in Tasks 16-20's Files lists — it is not
+directory named in Tasks 16-20's original hand-listed Files entries — it is not
 `hooks/`, not any named skill's `scripts/`, and not
-`configs/ai-docs/claude/scripts/`. No currently-scoped batch would pick
-it up.
+`configs/ai-docs/claude/scripts/`. No hand-listed batch would pick it up.
+
+## The re-partition rule Tasks 16-20 resolve against
+
+Both findings above have the same root cause: the batches were written
+from a hand-listed set of directories, while the classifier walks the
+tree. Re-listing directories reproduces the bug on the next directory
+anyone adds. So Tasks 16-20 no longer carry a frozen file list at all —
+each carries a tree filter, and resolves its own scope from this table
+at execution time, against the paths that exist then.
+
+**Scope query.** A script is in a batch's scope when all three hold:
+
+1. its row in the table above carries verdict `convert`;
+2. its row's Harness-fate cell does **not** begin with `Delete` — a
+   `Delete alongside subject's conversion` row is a `test-<stem>.sh`
+   removed by its subject's commit, never itself converted;
+3. its path falls under that batch's tree filter.
+
+**Cap reading — diff lines, not current lines.** The cap is ~6 scripts /
+~600 **diff** lines. A conversion removes the whole `.sh` and adds a
+whole `.py`, so estimate diff lines as `current lines x 2`. That makes
+~300 current lines the practical per-script ceiling, and it is the line
+cap — not the script cap — that binds nearly everywhere.
+
+**Sub-batches.** A task whose scope exceeds either axis splits into
+ordered sub-batches inside that same task, one characterize+convert
+commit pair each, every sub-batch under both caps. The task id does not
+change; only the number of commits under it does.
+
+**Named exception for an unsplittable script.** A single script whose
+own estimated diff already exceeds ~600 lines cannot fit any sub-batch.
+It ships as a sub-batch of one, with the exception named in that
+commit's body. Do not raise the cap to accommodate it — the cap exists
+to bound one reviewer's sitting, and a raised threshold drops that guard
+for every other batch too.
+
+**As-of snapshot, for sizing only — recompute at execution.** At the
+time this rule was written the table held 96 `convert` rows, 33 of them
+delete-fate harnesses, leaving 63 real conversions (54 unix-utils, 9
+oh-my-zsh) totalling 11,448 current lines. Under the diff reading that
+lands near 38 sub-batches, and 9 scripts already exceed ~300 current
+lines on their own. Treat those as magnitudes, not as the plan: Tasks
+13-15 rename these same trees first, so every path here is a
+pre-rename path by the time a conversion batch runs.
