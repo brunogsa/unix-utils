@@ -33,9 +33,21 @@
 #   match the sibling compact-only hooks (claude-implement-compact-reminder.sh,
 #   claude-compact-skill-reload.sh): one concern per script.
 #
+# Why this hook skips a subagent's compaction:
+#   The directive below forbids a subagent from
+#   calling tmux-window-title.sh -- handing it TO
+#   a subagent breaks the very rule it states.
+#
+#   agent_id (falling back to agent_type) scopes the
+#   directive to the top-level session only. Same
+#   precedent as claude-explore-mandate-hook.sh and
+#   claude-stopfailure-resume.sh.
+#
 # Safeguards:
 #   - Outside tmux, or a headless/programmatic invocation (same guard as
 #     claude-tmux-title-reminder.sh) -- silent no-op, no directive.
+#   - agent_id or agent_type non-empty (a subagent's compaction) -- silent
+#     no-op, no directive.
 #
 # Examples:
 #   bash claude-tmux-title-compact-reminder.sh   # emits the directive in tmux
@@ -52,6 +64,14 @@ fi
 if [ -n "${CLAUDE_CODE_ENTRYPOINT:-}" ] && [ "${CLAUDE_CODE_ENTRYPOINT}" != "cli" ]; then
   exit 0
 fi
+
+input=$(cat)
+
+# Only the top-level session may be told to retitle the
+# window -- see the header. A subagent's compaction carries
+# agent_id (or agent_type as a fallback) on stdin.
+agent=$(printf '%s' "$input" | jq -r '.agent_id // .agent_type // empty' 2>/dev/null || true)
+[ -n "$agent" ] && exit 0
 
 read -r -d '' DIRECTIVE <<'EOF' || true
 A compaction just happened. The tmux window's compaction counter was already bumped mechanically (a companion hook does that unconditionally), but its BASE title was NOT re-derived -- that needs your judgment, not a shell script. Re-assess right now whether the base still reflects current work: scope can drift across many compacted turns even without an obvious topic switch. Refresh it via:
