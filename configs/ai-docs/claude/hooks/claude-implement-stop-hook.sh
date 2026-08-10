@@ -49,11 +49,60 @@
 # Escape hatch: deleting the session's state files instantly un-scopes the
 # session (the next Stop attempt finds no files and allows the stop).
 #
+# §2.3-skip guard — telling the two empty-glob cases apart:
+#   An empty glob used to mean one thing here, and it silently covered two. On
+#   2026-08-10 a whole six-task batch ran with NO state file: §2.3 was skipped,
+#   every downstream guard read the empty glob as "no /implement here", and the
+#   run had to be reconstructed by hand at batch close.
+#
+#   The session-scoping silence above is CORRECT and stays exactly as it was —
+#   it is what keeps unrelated sessions free. What was missing is the bit that
+#   separates the cases, and it cannot be recovered from state this hook owns.
+#   build-implement-invocation-marker.sh (UserPromptSubmit) supplies it: on a
+#   typed /implement it writes /tmp/implement_<session_id>.expected, from the
+#   literal prompt text, before Claude reads the prompt — so the orchestrator
+#   cannot forget it the way it forgot §2.3.
+#
+#   - Marker absent → unchanged: silent exit 0, one failed glob and nothing else.
+#   - Marker present, and no §2.3 witness → block, naming the exact missing path
+#     and both fixes (write the state file; or trash the marker if no run is
+#     actually in flight).
+#
+#   Two artifacts count as a §2.3 witness, because §2.3 writes two:
+#   - Any /tmp/implement_<session_id>*.json state file.
+#   - /tmp/implement_<session_id>.md, the scratchpad — NEWER than the marker.
+#     §8.3 trashes the state file but nothing disposes of the scratchpad, so it
+#     is the only witness left at the batch-end Stop of a run that ended no turn
+#     mid-flight. The newer-than test is what stops a leftover scratchpad from
+#     an earlier /implement in the same session from disarming a later one.
+#
+#   No grace stop, on purpose: a design that let the first qualifying Stop pass
+#   would eat the only Stop such a batch ever makes, and miss the exact failure
+#   this guard exists for. The one-extra-turn cap comes from stop_hook_active,
+#   like every other block here.
+#
+#   Marker removal happens here and nowhere else, in GATE MODE ONLY, the moment
+#   a witness appears. A marker outliving its run would false-block every later
+#   Stop in the session; query mode stays read-only because the orchestrator
+#   calls it after the gate, and it must not mutate what the gate decided on.
+#
+#   Query mode is deliberately untouched by all of this: a run with no state
+#   file is not mid-flight, which is what --check answers. The orchestrator
+#   calls the gate first (claude-stop-orchestrator.sh:129) and a block
+#   short-circuits the chain before the --check call ever runs.
+#
 # Safeguards (all silent no-ops — never break Claude on a tooling/state gap;
 # each answers "nothing is mid-flight", which is exit 0 in gate mode and exit 1
 # under --check):
 #   - jq missing.
-#   - No session_id, or no state files match it.
+#   - No session_id.
+#   - No state files match it AND no marker is armed (an armed marker is the
+#     one case that is NOT a no-op — see the §2.3-skip guard above).
+#   - A marker path that is not a regular file (a directory left there, say) is
+#     ignored rather than treated as armed: no hook wrote it, so blocking on it
+#     would be a false block whose disarm could never succeed.
+#   - The marker removal is best-effort (`rm -f ... || true`); a removal that
+#     fails costs at most one more armed Stop, never a broken hook.
 #   - stop_hook_active=true → exit 0, GATE MODE ONLY (mirrors
 #     claude-markdown-standards-stop-hook.sh's guard: an always-on hook must
 #     never spin an infinite stop-block loop). --check skips it on purpose —
@@ -112,7 +161,49 @@ session_id=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || 
 shopt -s nullglob
 state_files=(/tmp/implement_"$session_id"*.json)
 shopt -u nullglob
-[ "${#state_files[@]}" -eq 0 ] && leave_not_mid_flight
+
+# The two §2.3 witnesses, and the marker that makes them meaningful. See the
+# "§2.3-skip guard" block in the header for why each one is here.
+marker="/tmp/implement_${session_id}.expected"
+scratchpad="/tmp/implement_${session_id}.md"
+
+if [ "${#state_files[@]}" -eq 0 ]; then
+  # Marker absent → no /implement was invoked in this session: the original
+  # behavior, one failed glob and nothing else. Query mode never blocks, so it
+  # takes this path too.
+  if [ "$mode" != "gate" ] || [ ! -f "$marker" ]; then
+    leave_not_mid_flight
+  fi
+
+  # §8.3 trashes the state file but leaves the scratchpad, so a completed run
+  # whose only Stop is the batch-end one still has a witness. It must be NEWER
+  # than the marker: a leftover scratchpad from an earlier /implement in the
+  # same session would otherwise disarm this run permanently.
+  if [ -f "$scratchpad" ] && [ "$scratchpad" -nt "$marker" ]; then
+    rm -f "$marker" 2>/dev/null || true
+    exit 0
+  fi
+
+  reason="Implement run (session $session_id): /implement was invoked in this \
+session, but no state file exists at /tmp/implement_${session_id}.json (nor any \
+/tmp/implement_${session_id}_pr<N>.json). The implement skill's §2.3 was \
+skipped, so implement-loop-state.sh, this Stop gate and the compact reminder \
+are all blind and the batch can run to the end unrecorded. Write the §2.3 state \
+file now — its version-3 shape is in the implement skill — before doing anything \
+else. If /implement is NOT running here (pre-flight aborted at §1.1 or §1.3, or \
+the invocation never started the skill), clear the guard instead with: trash \
+/tmp/implement_${session_id}.expected"
+  jq -n --arg r "$reason" '{decision: "block", reason: $r}' 2>/dev/null || exit 0
+  exit 0
+fi
+
+# A real state file witnesses §2.3: the guard has done its job for this run, and
+# every later Stop is driven by the phase logic below. Gate mode only — query
+# mode is a read-only question the orchestrator asks after the gate has already
+# decided, so it must not mutate what that decision was based on.
+if [ "$mode" = "gate" ] && [ -f "$marker" ]; then
+  rm -f "$marker" 2>/dev/null || true
+fi
 
 mid_flight_count=0
 first_unit_desc=""
