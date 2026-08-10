@@ -67,12 +67,31 @@ slugify_heading() {
         | sed -E 's/ /-/g'
 }
 
-# True (0) when $target_file has a heading whose slug is $anchor.
+# True (0) when $target_file has a heading whose GitHub-style anchor is
+# $anchor. GitHub disambiguates repeated headings by appending -1, -2,
+# ... to the second and later occurrences of an identical slug, so a
+# raw slug match alone would miss those suffixed anchors.
+#
+# Tracks occurrences with a plain indexed array, not an associative
+# array (`declare -A`) — macOS ships bash 3.2, which lacks it, and
+# this repo must run on that stock bash.
 heading_exists() {
-    local target_file=$1 anchor=$2 heading slug
+    local target_file=$1 anchor=$2 heading slug repeat_count
+    local anchor_candidate seen_slug
+    local seen_slugs=()
     while IFS= read -r heading; do
         slug="$(slugify_heading "$heading")"
-        [ "$slug" = "$anchor" ] && return 0
+        repeat_count=0
+        for seen_slug in "${seen_slugs[@]}"; do
+            [ "$seen_slug" = "$slug" ] && repeat_count=$((repeat_count + 1))
+        done
+        if [ "$repeat_count" -eq 0 ]; then
+            anchor_candidate="$slug"
+        else
+            anchor_candidate="${slug}-${repeat_count}"
+        fi
+        seen_slugs+=("$slug")
+        [ "$anchor_candidate" = "$anchor" ] && return 0
     done < <(grep -E '^#{1,6}[[:space:]]' "$target_file" 2>/dev/null || true)
     return 1
 }

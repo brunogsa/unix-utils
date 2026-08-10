@@ -138,6 +138,17 @@ it_should_pass_a_ref_whose_anchor_matches_an_em_dash_heading_github_style() {
     rm -rf "$d"
 }
 
+it_should_pass_a_ref_whose_anchor_matches_the_second_occurrence_of_a_duplicate_heading() {
+    echo "it_should_pass_a_ref_whose_anchor_matches_the_second_occurrence_of_a_duplicate_heading"
+    local d; d=$(new_fixture)
+    printf '# Target\n## Dupe\nBody one.\n## Dupe\nBody two.\n' > "$d/target.md"
+    printf 'See [target](target.md#dupe-1) for details.\n' > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 0" "0" "$status"
+    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
 it_should_pass_a_markdown_link_ref_that_resolves
 it_should_pass_a_backtick_path_ref_that_resolves
 it_should_pass_a_ref_whose_anchor_heading_exists_in_the_target
@@ -147,6 +158,7 @@ it_should_not_flag_a_trailing_slash_directory_mention_as_a_broken_ref
 it_should_fail_a_ref_to_a_nonexistent_file
 it_should_fail_a_ref_whose_anchor_heading_does_not_exist_in_an_existing_target
 it_should_pass_a_ref_whose_anchor_matches_an_em_dash_heading_github_style
+it_should_pass_a_ref_whose_anchor_matches_the_second_occurrence_of_a_duplicate_heading
 
 echo
 echo "$passed passed, $failed failed"
