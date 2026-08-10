@@ -34,9 +34,38 @@
 #   id → silent exit 0. A compaction keeps the same session_id, so the files
 #   the run created are the ones this hook finds.
 #
+# Why a subagent's compaction is skipped (agent_id/agent_type guard):
+#   session_id alone CANNOT tell the orchestrator apart from its subagents —
+#   a subagent inherits the parent's session_id, so the glob below matches the
+#   ORCHESTRATOR's state file during a SUBAGENT's compaction. Observed twice on
+#   disk: a tdd-coder (agent a99fe40a2c619d271, session f02f2530) and a
+#   general-purpose agent (a1d3da5f0f1c345be, session aa2eba71) each absorbed
+#   this directive into their own compaction summary and read it as their own
+#   mandate.
+#
+#   That is a real hazard, not just noise. This text orders a
+#   'git push -u origin HEAD'. A task subagent is scoped to one task's commit
+#   (see agents/tdd-coder.md) and cannot know what else the worktree holds —
+#   a worktree shared with a concurrent session would have its unreviewed
+#   commits pushed to the remote by an obedient subagent. Both observed
+#   subagents happened to refuse, but relying on a subagent to talk itself out
+#   of a system-reminder is not a guard; the state must not reach it.
+#
+#   So the discriminator is ownership of the state file, and agent_id (falling
+#   back to agent_type) is what expresses it: non-empty means this compaction
+#   belongs to a subagent, not to the session that created the file. Same
+#   precedent as claude-tmux-compact-bump.py — which routes the very same
+#   SessionStart:compact event — plus claude-explore-mandate-hook.sh and
+#   claude-stopfailure-resume.sh.
+#
+#   Do NOT relax this back to a session_id-only check: the orchestrator still
+#   needs the reminder (a batch really did nearly end at the last task's
+#   commit), so the fix is scoping it, never dropping it.
+#
 # Safeguards (all silent no-ops — never break Claude on a tooling/state gap):
 #   - jq missing → exit 0.
 #   - No session_id, or no state files match it → exit 0.
+#   - agent_id or agent_type non-empty (a subagent's compaction) → exit 0.
 #   - A state file that is corrupt JSON is skipped (fail-open per-file).
 #   - No unit's phase is tasks|gates|tails (e.g. all presented/halted/
 #     blocked) → exit 0: nothing mid-flight to re-inject.
@@ -49,6 +78,12 @@ command -v jq >/dev/null 2>&1 || exit 0
 
 session_id=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)
 [ -z "$session_id" ] && exit 0
+
+# Only the session that OWNS the state file may be reminded of §8 -- see the
+# header. A subagent shares its parent's session_id, so this is the one field
+# that separates the orchestrator from the agents it spawned.
+agent=$(printf '%s' "$input" | jq -r '.agent_id // .agent_type // empty' 2>/dev/null || true)
+[ -n "$agent" ] && exit 0
 
 shopt -s nullglob
 state_files=(/tmp/implement_"$session_id"*.json)
