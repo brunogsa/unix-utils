@@ -1,6 +1,6 @@
 ---
 name: plan-writer
-description: Fresh-context planner — turns a finished spec_<slug>.md into an implementation plan_<slug>.md, without carrying forward the bias of the session that wrote the spec. Use once a spec is approved and no plan exists yet, whether dispatched from `brainstorm` or any other spec-authoring flow. Input: spec file path, plan output path, optional planning-conventions file. If the spec lacks what the plan needs, it records that as an Open Question in the plan instead of inventing content.
+description: Fresh-context planner that turns an approved spec_<slug>.md into an implementation plan_<slug>.md. Dispatch once a spec is approved and no plan exists yet. Input: spec file path and plan output path.
 model: opus
 effort: high
 ---
