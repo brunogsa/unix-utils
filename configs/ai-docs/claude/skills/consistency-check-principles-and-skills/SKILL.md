@@ -25,13 +25,14 @@ Fix: **shard, then self-consistency** — split the corpus into shards, sample e
 
 | Role | Trigger | Behavior |
 |---|---|---|
-| **Main** | invoked from the top-level session (default) | wave 1: shards the corpus, dispatches one `consistency-shard-orchestrator` per shard, in parallel; wave 2: pairs shards whose governed activities overlap, re-dispatches at union scope; merges every digest into the final report |
+| **Main** | invoked from the top-level session (default) | wave 1: shards the corpus, dispatches shard-orchestrators in batches of ≤4; wave 2: pairs shards whose governed activities overlap, re-dispatches at union scope; merges every digest into the final report |
 | **Shard-orchestrator** | dispatched by main, once per shard per wave | spawns 3 `consistency-ensemble-child`, runs the 2/3 vote, returns a fixed-schema digest |
 | **Ensemble child** | dispatched by `consistency-shard-orchestrator` | runs §Lifecycle on its own shard only, emits the raw `[KEY]`-tagged report |
 
 [Instruction] **CRITICAL: an ensemble child must NOT spawn further children** — enforced structurally by its own `disallowedTools: Agent`, not by prompt convention.
 
-[Instruction] **Spawn siblings in parallel** — one message, N `Agent` calls, whether N shard-orchestrators per wave or 3 children per shard. Serial fanout N×s wall-clock for the same token cost.
+[Instruction] **Batch shard-orchestrator dispatch at ≤4 per message, next batch only after digests land; 3 children per shard stay one uncapped message.**
+4×3=16, the `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` cap — safe whether a waiting parent holds its slot against its own children (4+12=16) or not (12); the hazard is deadlock, not slowness.
 
 [Instruction] **Dispatch by name, never `general-purpose`** — `subAgent=consistency-shard-orchestrator` from main, `subAgent=consistency-ensemble-child` from a shard-orchestrator; each file's own frontmatter pins its model/effort tier.
 
@@ -41,28 +42,28 @@ Fix: **shard, then self-consistency** — split the corpus into shards, sample e
 
 **Wave 1 — shard and sample.**
 
-1. Run `gen-shard-manifest.sh [path]` — one `[SHARD] <slug>` block per skill dir plus a dedicated `claude-md` shard. A scoped invocation (`<path>`, `skill X`) dispatches only the matching shard(s); no-arg dispatches all.
+1. Run `gen-shard-manifest.sh [path]` — one `[SHARD] <slug>` block per skill dir plus a dedicated `claude-md` shard. A scoped invocation dispatches only matching shard(s); no-arg dispatches all.
 
-2. Dispatch one `consistency-shard-orchestrator` per shard, in parallel, forwarding that shard's file list — the skill's own shard additionally inlines heuristics for its children (fixes bug B4).
+2. Dispatch `consistency-shard-orchestrator` per shard, batched per the ≤4 cap above, forwarding that shard's file list — the skill's own shard additionally inlines heuristics for its children.
 
 3. Collect each shard's digest: STATUS, BLOCKING count + lines, ADVISORY count, GOVERNS (see the agent's own Report format).
 
 **Wave 2 — cross-shard pairs.**
 
 4. From the wave-1 GOVERNS fields, pair shards whose activities/paths overlap — capped at 5 pairs/run.
-5. Re-dispatch `consistency-shard-orchestrator` per pair at the union of both shards' file lists, same 3-child/2-of-3 vote; it dedups against both shards' wave-1 findings itself.
+5. Re-dispatch `consistency-shard-orchestrator` per pair (same ≤4 batch cap) at the union of both shards' file lists, same 3-child/2-of-3 vote; it dedups against both shards' wave-1 findings.
 
 **Merge and report.**
 
-6. Sum BLOCKING across every shard/pair that returned OK; emit a `[BLOCKING] count=N` trailer. Recommended: re-run after fixes until N=0, capped at 5 rounds, then hand back regardless of count.
+6. Sum BLOCKING across every shard/pair that returned OK; emit a `[BLOCKING] count=N` trailer. Recommended: re-run after fixes until N=0 (cap 5 rounds), then hand back regardless.
 
 7. Take ADVISORY from every shard/pair, rank by confidence then heuristic priority, keep the top 5 for the whole run.
-8. **Fail loud, never silent:** a shard/pair whose children all died, whose digest is malformed, or whose BLOCKING findings all fail their citation gate —
+8. **Fail loud, never silent:** a shard/pair whose children all died, digest is malformed, or BLOCKING findings all fail their citation gate —
    - makes the run's STATUS `INCOMPLETE`, naming the shard(s), never reported as "0 BLOCKING".
 
 ### `[KEY]` line and BLOCKING citations
 
-Children still emit the same `[KEY]` line under each finding — the shard-orchestrator runs the two-tier vote (see its own file and [references/majority-merge.md](references/majority-merge.md) for the algorithm); main never runs it directly.
+Children still emit the same `[KEY]` line under each finding — the shard-orchestrator runs the two-tier vote (see its own file and [references/majority-merge.md](references/majority-merge.md)); main never runs it directly.
 
 Required emission (full per-finding template in §Report Format):
 
@@ -215,7 +216,7 @@ HIGH confidence names the mechanism and plug-in point: script path, hook event, 
 
 The **ensemble child** executes this, scoped to its shard — main and the shard-orchestrator never run heuristics themselves (see §Two-wave flow).
 
-1. Use the shard's file list forwarded by the shard-orchestrator, plus CLAUDE.md (read-only) — never resolve paths yourself; scoping already happened at dispatch (§Two-wave flow step 1).
+1. Use the shard's file list forwarded by the shard-orchestrator, plus CLAUDE.md (read-only) — never resolve paths yourself; scoping happened at dispatch (§Two-wave flow step 1).
 
 2. Read every file in the shard's list, plus CLAUDE.md, in full — cross-file within the shard is the whole point, no grep shortcuts.
    - Load `skill-standards` too — heuristics #3, #5 judge marker placement against its rules.
@@ -232,7 +233,7 @@ The **ensemble child** executes this, scoped to its shard — main and the shard
 
 ## Report Format
 
-Summary table + per-heuristic sections. Eight heuristic rows (one per heuristic), each in the same fixed order as the §Heuristics list.
+Summary table + per-heuristic sections. Eight heuristic rows, each in the same fixed order as the §Heuristics list.
 
 **Example with findings** (the `[KEY]` line is mandatory in child reports — see §"`[KEY]` line and BLOCKING citations"):
 
