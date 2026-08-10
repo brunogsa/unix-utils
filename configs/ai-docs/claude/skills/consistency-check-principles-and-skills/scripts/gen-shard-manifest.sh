@@ -172,6 +172,16 @@ resolve_candidate() {
     printf '%s\n' "$resolved"
 }
 
+# Every file under a skill dir, skipping any node_modules directory —
+# that's a vendored dependency tree (gitignored, never skill content),
+# and walking into one risks exactly the multi-minute hang this
+# script's cross-ref scan once hit on a real vendored bundle: each
+# file scanned spawns a subprocess per candidate span, and a single
+# multi-megabyte minified file yields thousands of them.
+list_skill_files() {
+    find -L "$1" \( -name node_modules -type d -prune \) -o -type f -print | LC_ALL=C sort
+}
+
 # Every file a skill dispatches by `agent(subAgent=<name>...` or bare
 # `subAgent=<name>` text, matched against agents/*.md basenames. A
 # trailing non-name character (or end of match) is required so
@@ -182,7 +192,7 @@ list_dispatched_agents() {
     [ -n "$AGENTS_DIR" ] || return 0
     while IFS= read -r agent_file; do
         name="$(basename "$agent_file" .md)"
-        if grep -RlE "subAgent=${name}([^A-Za-z0-9_.:-]|\$)" "$skill_dir" >/dev/null 2>&1; then
+        if grep -RlE --exclude-dir=node_modules "subAgent=${name}([^A-Za-z0-9_.:-]|\$)" "$skill_dir" >/dev/null 2>&1; then
             printf '%s\n' "$agent_file"
         fi
     done < <(find -L "$AGENTS_DIR" -maxdepth 1 -type f -name '*.md' | LC_ALL=C sort)
@@ -222,7 +232,7 @@ list_cross_refs() {
             esac
             printf '%s\n' "$resolved"
         done < <(grep -oE '`[^`]+`' "$f" 2>/dev/null || true)
-    done < <(find -L "$skill_dir" -type f | LC_ALL=C sort)
+    done < <(list_skill_files "$skill_dir")
 }
 
 emit_shard() {
@@ -235,7 +245,7 @@ emit_shard() {
 
 while IFS= read -r skill_dir; do
     slug="$(basename "$skill_dir")"
-    own_files_str="$(find -L "$skill_dir" -type f | LC_ALL=C sort)"
+    own_files_str="$(list_skill_files "$skill_dir")"
     [ -n "$own_files_str" ] || continue
 
     dispatched_str="$(list_dispatched_agents "$skill_dir")"

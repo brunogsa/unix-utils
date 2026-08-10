@@ -146,6 +146,60 @@ EOF
     rm -rf "$d"
 }
 
+# Regression: a skill's own vendored `node_modules/` (e.g. a scripts/
+# dependency tree, gitignored and never skill content) must not be
+# walked into the shard's own-file list. Before the fix, `find -L`
+# descended into it unconditionally — harmless for a tiny fixture, but
+# this repo's doc-standards/scripts/node_modules/typescript ships
+# multi-megabyte minified bundles that turned this same walk into a
+# multi-minute hang ending in SIGBUS (Scout #42).
+it_should_exclude_files_under_a_node_modules_directory_from_a_skills_own_file_list() {
+    echo "it_should_exclude_files_under_a_node_modules_directory_from_a_skills_own_file_list"
+    local d; d=$(new_fixture)
+    write_skill_file "$d" "demo-skill" "SKILL.md" <<'EOF'
+---
+name: demo-skill
+description: "Demo."
+---
+Demo skill body.
+EOF
+    write_skill_file "$d" "demo-skill" "node_modules/some-dep/index.js" <<'EOF'
+module.exports = function noop() {};
+EOF
+    local output; output=$(run_gen "$d")
+    local actual; actual=$(shard_files "$output" "demo-skill" | grep -c "node_modules")
+    assert_eq "node_modules file excluded from own-file list" "0" "$actual"
+    rm -rf "$d"
+}
+
+# Regression: the cross-reference scan must not read files under
+# node_modules either — otherwise a vendored file that happens to
+# contain a backtick or markdown-link span pulls in whatever it
+# resolves to, and (per the Scout #42 hang) the scan itself is the
+# expensive part: it forks a subprocess per candidate span, and a
+# single real-world vendored bundle can yield thousands of spans.
+it_should_not_pull_in_cross_references_found_inside_a_node_modules_directory() {
+    echo "it_should_not_pull_in_cross_references_found_inside_a_node_modules_directory"
+    local d; d=$(new_fixture)
+    write_skill_file "$d" "other-skill" "references/shared.md" <<'EOF'
+Shared reference content.
+EOF
+    write_skill_file "$d" "demo-skill" "SKILL.md" <<'EOF'
+---
+name: demo-skill
+description: "Demo."
+---
+Demo skill body.
+EOF
+    write_skill_file "$d" "demo-skill" "node_modules/some-dep/notes.md" <<'EOF'
+See `skills/other-skill/references/shared.md` for details.
+EOF
+    local output; output=$(run_gen "$d")
+    local actual; actual=$(shard_files "$output" "demo-skill")
+    assert_eq "cross-ref found only inside node_modules is not pulled in" "0" "$(printf '%s\n' "$actual" | grep -c "other-skill/references/shared.md")"
+    rm -rf "$d"
+}
+
 it_should_emit_a_dedicated_claude_md_only_shard() {
     echo "it_should_emit_a_dedicated_claude_md_only_shard"
     local d; d=$(new_fixture)
@@ -340,6 +394,8 @@ it_should_hard_fail_when_the_skills_directory_is_missing() {
 it_should_emit_one_shard_per_skill_directory_including_every_file_in_it
 it_should_include_agent_files_a_skill_dispatches_by_name_in_its_shard
 it_should_include_cross_referenced_paths_outside_the_skill_dir_in_its_shard
+it_should_exclude_files_under_a_node_modules_directory_from_a_skills_own_file_list
+it_should_not_pull_in_cross_references_found_inside_a_node_modules_directory
 it_should_emit_a_dedicated_claude_md_only_shard
 it_should_add_claude_md_to_every_other_shards_file_list
 it_should_emit_no_empty_shard
