@@ -194,8 +194,12 @@ list_dispatched_agents() {
 # filter: prose like `` `git status` `` or `subAgent=<name>` never
 # resolves to a real file relative to the referencing file, so it's
 # dropped without needing a separate extension allowlist.
+#
+# The skill dir is both what gets scanned and what gets excluded
+# from the result: a reference to a sibling inside the same shard
+# is not a CROSS-shard reference.
 list_cross_refs() {
-    local own_dir_physical=$1 f candidate resolved
+    local skill_dir=$1 own_dir_physical=$1 f candidate resolved
     while IFS= read -r f; do
         while IFS= read -r candidate; do
             [ -n "$candidate" ] || continue
@@ -218,7 +222,7 @@ list_cross_refs() {
             esac
             printf '%s\n' "$resolved"
         done < <(grep -oE '`[^`]+`' "$f" 2>/dev/null || true)
-    done < <(find -L "$1" -type f | LC_ALL=C sort)
+    done < <(find -L "$skill_dir" -type f | LC_ALL=C sort)
 }
 
 emit_shard() {
