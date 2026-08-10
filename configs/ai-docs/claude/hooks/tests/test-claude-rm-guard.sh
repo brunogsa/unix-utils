@@ -50,6 +50,10 @@ setup_sandbox() {
     printf 'export const x = 1;\n' > src/index.ts
     git add src/index.ts
     git commit -q -m "init"
+    # Untracked-and-not-ignored fixture, reused by the "still BLOCKED" tests
+    # below: this is the exact case the guard exists to catch (real work with
+    # exactly one copy on disk, no git recovery).
+    printf 'draft notes, never committed\n' > untracked.md
   )
 }
 
@@ -129,12 +133,76 @@ OUTER
   assert_eq "should still block a real rm -f invocation that appears on a heredoc opener line" "2" "$HOOK_EXIT"
 }
 
+# Bug 3 (Scout #45, real, hit live this session): split_segments() splits the
+# raw command text on `;`, `|`, `&`, `&&`, `||`, and newline with no
+# quote-awareness. The plain text "rm -rf" alone, with no separator-shaped
+# character alongside it, never actually shattered split_segments() — this
+# case already passed before the fix and is kept here as a regression guard,
+# not a bug demonstration. The genuine break needs a separator character
+# (`;`, `|`, ...) sitting INSIDE the quotes too, which is what the next test
+# reproduces.
+it_should_allow_a_grep_search_for_the_double_quoted_string_rm_dash_rf() {
+  run_hook 'grep -rn "rm -rf" configs/'
+  assert_eq "should allow a grep search whose double-quoted pattern text is 'rm -rf'" "0" "$HOOK_EXIT"
+}
+
+# The actual reproduction of bug 3: the "rm -rf" text alone (no shell
+# metacharacter alongside it) never tripped split_segments — it takes a
+# separator-shaped character (here, `;`) sitting INSIDE the quotes to make
+# the quote-unaware regex split cut the command in two mid-string, which is
+# what turned this into an unparseable, fail-closed block live this session.
+it_should_allow_a_grep_pattern_containing_a_semicolon_inside_double_quotes() {
+  run_hook 'grep -rn "rm -rf; keep looking" configs/'
+  assert_eq "should allow a grep search whose double-quoted pattern contains a semicolon" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_grep_alternation_pattern_containing_a_pipe_inside_double_quotes() {
+  run_hook 'grep -E -n "rm -rf|delete now" configs/'
+  assert_eq "should allow a grep -E search whose double-quoted alternation pattern contains a pipe" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_grep_search_for_the_single_quoted_string_rm() {
+  run_hook "grep -rn 'rm ' ."
+  assert_eq "should allow a grep search whose single-quoted pattern text is 'rm '" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_an_echo_of_a_sentence_that_mentions_rm() {
+  run_hook 'echo "use rm carefully"'
+  assert_eq "should allow an echo whose double-quoted argument merely mentions rm" "0" "$HOOK_EXIT"
+}
+
+it_should_block_rm_of_a_real_untracked_and_not_ignored_file() {
+  run_hook "rm untracked.md"
+  assert_eq "should block rm of a real untracked-and-not-ignored file (sanity baseline)" "2" "$HOOK_EXIT"
+}
+
+# The quoted "rm" in the grep clause must stay inert data (bug 3 above);
+# the real rm after && must still be recognized and blocked (its target is
+# the untracked, not-ignored fixture from setup_sandbox — no git copy).
+it_should_block_a_real_rm_after_a_command_that_only_quotes_the_word_rm() {
+  run_hook 'grep -rn "rm" . && rm untracked.md'
+  assert_eq "should still block a real rm after && following a command that only quotes the word rm" "2" "$HOOK_EXIT"
+}
+
+it_should_block_an_unterminated_double_quote_that_contains_rm() {
+  run_hook 'grep -rn "rm -rf configs/'
+  assert_eq "should fail closed and block a command with an unterminated double quote mentioning rm" "2" "$HOOK_EXIT"
+}
+
 setup_sandbox
 
 it_should_allow_a_plain_rm_of_a_tracked_file
 it_should_allow_a_commit_heredoc_whose_body_only_mentions_rm_dash_f_in_prose
 it_should_allow_a_hyphenated_identifier_that_merely_contains_rm
 it_should_still_block_a_real_rm_invocation_on_a_heredoc_opener_line
+it_should_allow_a_grep_search_for_the_double_quoted_string_rm_dash_rf
+it_should_allow_a_grep_pattern_containing_a_semicolon_inside_double_quotes
+it_should_allow_a_grep_alternation_pattern_containing_a_pipe_inside_double_quotes
+it_should_allow_a_grep_search_for_the_single_quoted_string_rm
+it_should_allow_an_echo_of_a_sentence_that_mentions_rm
+it_should_block_rm_of_a_real_untracked_and_not_ignored_file
+it_should_block_a_real_rm_after_a_command_that_only_quotes_the_word_rm
+it_should_block_an_unterminated_double_quote_that_contains_rm
 
 teardown_sandbox
 

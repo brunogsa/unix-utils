@@ -79,9 +79,60 @@ def git(args, cwd):
 def is_repo(cwd):
     return git(['rev-parse', '--is-inside-work-tree'], cwd).returncode == 0
 
-# Split a compound command into segments on shell separators. Longest ops first.
+# Split a compound command into segments on shell separators (`&&`, `||`,
+# `;`, `\n`, `&`, `|`) — but never on one of those characters sitting INSIDE
+# a quoted argument. A regex-based split can't tell the difference, so a
+# search pattern like `grep -rn "rm -rf; keep looking" .` used to shatter
+# into fragments mid-string: one fragment lost its closing quote, shlex
+# rejected it as unparseable, and the final fail-closed regex then found
+# "rm" inside what was really inert grep-pattern data — blocking a plain
+# search that never invoked rm. Mirrors strip_heredoc_bodies() above: a
+# single scan over `cmd` that keeps quoted DATA out of the segments before
+# anything downstream treats it as command structure.
+#
+# An unterminated quote leaves `quote` still set at end-of-string; the
+# unclosed fragment is appended as-is, so shlex.split() on it still raises
+# ValueError downstream and the command still fails closed as unparseable —
+# exactly like the pre-existing heredoc/unbalanced-quote cases below.
 def split_segments(c):
-    return re.split(r'&&|\|\||[;\n&|]', c)
+    segments = []
+    current = []
+    quote = None  # None, "'", or '"' — which quote (if any) we're inside.
+    i, n = 0, len(c)
+    while i < n:
+        ch = c[i]
+        if quote == "'":
+            current.append(ch)
+            if ch == "'":
+                quote = None
+            i += 1
+        elif quote == '"':
+            if ch == '\\' and i + 1 < n and c[i + 1] in ('"', '\\'):
+                current.append(ch)
+                current.append(c[i + 1])
+                i += 2
+                continue
+            current.append(ch)
+            if ch == '"':
+                quote = None
+            i += 1
+        elif ch in ("'", '"'):
+            quote = ch
+            current.append(ch)
+            i += 1
+        elif c[i:i + 2] in ('&&', '||'):
+            segments.append(''.join(current))
+            current = []
+            i += 2
+        elif ch in (';', '\n', '&', '|'):
+            segments.append(''.join(current))
+            current = []
+            i += 1
+        else:
+            current.append(ch)
+            i += 1
+    segments.append(''.join(current))
+    return segments
 
 # Parse one segment -> (exe_basename_or_None, args_list). '__UNPARSEABLE__' on quote errors.
 def parse_seg(seg):
