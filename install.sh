@@ -258,9 +258,9 @@ else
     pipx install git-hunk
 fi
 
-# pytest — the test runner for every .py script in configs/ai-docs/claude,
-# per pytest.ini's discovery config. Same pipx pattern as git-hunk above,
-# on both OSes.
+# pytest — the test runner for every .py script in
+# configs/ai-docs/claude, per pytest.ini's discovery config.
+# Same pipx pattern as git-hunk above, on both OSes.
 if command -v pytest &> /dev/null; then
     echo "pytest already installed, skipping"
 else
