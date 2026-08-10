@@ -15,18 +15,22 @@
 #   aren't watching, that's a misleading double-notify.
 #
 #   Sequencing them here fixes it: run the markdown-standards gate, then the
-#   agent-contract gate, then the session-scoped implement gate, then the
-#   spec-driven coverage gate; only if NONE blocks (the
+#   agent-contract gate, then the comment-format
+#   gate, then the session-scoped implement gate,
+#   then the spec-driven coverage gate; only if
+#   NONE blocks (the
 #   turn is genuinely over) do we run the notification. One ping, on the real stop.
 #
 #   "No gate blocked" is necessary but not sufficient, though: a gate that fails
 #   open (its loop guard, a missing script, absent jq) is silent for reasons that
 #   say nothing about the work being finished. So the last check before the ping
 #   asks the implement gate the plain mid-flight question via --check, and a
-#   /implement run still working its task loop stays silent. See step 7.
+#   /implement run still working its task loop stays
+#   silent. See step 9.
 #
 # This does NOT merge the child scripts:
 #   claude-markdown-standards-stop-hook.sh, claude-agent-contract-stop-hook.sh,
+#   claude-comment-format-stop-hook.sh,
 #   claude-implement-stop-hook.sh,
 #   claude-sdd-stop-hook.sh, and claude-tmux-notification.sh stay standalone,
 #   independently testable, and
@@ -46,6 +50,7 @@ input=$(cat)
 dir=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd) || dir="$HOME/.claude/hooks"
 md_standards="$dir/claude-markdown-standards-stop-hook.sh"
 agent_contract="$dir/claude-agent-contract-stop-hook.sh"
+comment_format="$dir/claude-comment-format-stop-hook.sh"
 implement_gate="$dir/claude-implement-stop-hook.sh"
 sdd_gate="$dir/claude-sdd-stop-hook.sh"
 notify="$dir/claude-tmux-notification.sh"
@@ -72,7 +77,8 @@ esac
 #    silent for every session that touched no agent file. Placed beside the
 #    markdown gate because both are cheap session-scoped standards checks on
 #    what the turn just wrote — and before the implement gate for the same
-#    reason step 5 sits before step 7: a mid-batch block would defer this until
+#    reason step 7 sits before step 9: a mid-batch
+#    block would defer this until
 #    the batch ends, long after the edit.
 agent_contract_out=""
 if [ -f "$agent_contract" ]; then
@@ -88,7 +94,32 @@ case "$agent_contract_out" in
     ;;
 esac
 
-# 5. Session-scoped implement gate. It prints a {decision:"block"} JSON when
+# 5. Comment-format gate. It prints a {decision:"block"}
+#    JSON when source comments THIS session wrote break
+#    a doc-standards comment-format cap; stays silent
+#    for every session that edited no source file.
+#
+#    Beside the two gates above for the same reason they
+#    sit beside each other: all three are cheap
+#    session-scoped standards checks on what the turn
+#    just wrote.
+comment_format_out=""
+if [ -f "$comment_format" ]; then
+  comment_format_out=$(printf '%s' "$input" | bash "$comment_format" 2>/dev/null || true)
+fi
+
+# 6. Gate blocked → pass its decision straight through
+#    and STOP here, same as steps 2 and 4: the comments
+#    still need fixing, so do NOT notify.
+case "$comment_format_out" in
+  *'"decision"'*)
+    printf '%s\n' "$comment_format_out"
+    exit 0
+    ;;
+esac
+
+# 7. Session-scoped implement gate. It prints a
+#    {decision:"block"} JSON when
 #    THIS session has a /implement run still mid-batch; stays silent for every
 #    other session (no state file for the session id).
 implement_out=""
@@ -96,8 +127,9 @@ if [ -f "$implement_gate" ]; then
   implement_out=$(printf '%s' "$input" | bash "$implement_gate" 2>/dev/null || true)
 fi
 
-# 6. Gate blocked → pass its decision straight through and STOP here, same as
-#    steps 2 and 4: the batch isn't done, so do NOT notify.
+# 8. Gate blocked → pass its decision straight through
+#    and STOP here, same as steps 2, 4 and 6: the batch
+#    isn't done, so do NOT notify.
 case "$implement_out" in
   *'"decision"'*)
     printf '%s\n' "$implement_out"
@@ -105,7 +137,8 @@ case "$implement_out" in
     ;;
 esac
 
-# 7. Spec-driven coverage gate. Runs AFTER the implement gate on purpose: that
+# 9. Spec-driven coverage gate. Runs AFTER the implement
+#    gate on purpose: that
 #    gate blocks every mid-batch stop, and the plan_/spec_ docs are the batch's
 #    own WIP — gating their coverage earlier would churn on transient mid-batch
 #    drift. It prints a {decision:"block"} JSON reporting the itemized drift for the
@@ -116,8 +149,9 @@ if [ -f "$sdd_gate" ]; then
   sdd_out=$(printf '%s' "$input" | bash "$sdd_gate" 2>/dev/null || true)
 fi
 
-# 8. Gate blocked → pass its decision straight through and STOP here, same as
-#    steps 2, 4 and 6: coverage still needs reconciling, so do NOT notify.
+# 10. Gate blocked → pass its decision straight through
+#     and STOP here, same as steps 2, 4, 6 and 8:
+#     coverage still needs reconciling, so do NOT notify.
 case "$sdd_out" in
   *'"decision"'*)
     printf '%s\n' "$sdd_out"
@@ -125,7 +159,8 @@ case "$sdd_out" in
     ;;
 esac
 
-# 9. Mid-flight backstop for the notification. Steps 2/4/6/8 suppress the ping
+# 11. Mid-flight backstop for the notification. Steps
+#    2/4/6/8/10 suppress the ping
 #    only when a gate CHOSE to block, which is not the same as the work being
 #    over: the implement gate's stop_hook_active loop guard makes it stay silent
 #    on every stop that its own previous block caused, so a /implement run pinged
@@ -142,7 +177,8 @@ if [ -f "$implement_gate" ] && printf '%s' "$input" | bash "$implement_gate" --c
   exit 0
 fi
 
-# 10. All gates clean and nothing mid-flight → this is the real stop → fire the
+# 12. All gates clean and nothing mid-flight → this is
+#    the real stop → fire the
 #    "done" notification. Its stdout (none today; forward-safe if a future
 #    variant emits JSON) flows through as this hook's stdout.
 if [ -f "$notify" ]; then

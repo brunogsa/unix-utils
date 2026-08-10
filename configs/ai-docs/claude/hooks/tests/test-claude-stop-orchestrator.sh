@@ -48,11 +48,14 @@ assert_eq() {
 }
 
 # build_hook_dir - assembles a temp hooks dir: the real orchestrator and the
-# real implement gate, plus stubs for the three children whose behavior each
+# real implement gate, plus stubs for the four children
+# whose behavior each
 # case controls. Prints the dir path.
 #
-# The markdown, agent-contract and sdd stubs block only when STUB_MD_BLOCKS /
-# STUB_AGENT_CONTRACT_BLOCKS / STUB_SDD_BLOCKS
+# The markdown, agent-contract, comment-format and sdd
+# stubs block only when STUB_MD_BLOCKS /
+# STUB_AGENT_CONTRACT_BLOCKS / STUB_COMMENT_FORMAT_BLOCKS
+# / STUB_SDD_BLOCKS
 # is 1 in the environment, so a case picks which gate fires without a second
 # fixture dir. The notify stub records its state argument in notify.log, which
 # is how every case answers "did the ping fire, and with which state?".
@@ -75,6 +78,13 @@ STUB
 #!/usr/bin/env bash
 cat > /dev/null
 [ "${STUB_AGENT_CONTRACT_BLOCKS:-0}" = "1" ] && printf '%s\n' '{"decision": "block", "reason": "stub agent-contract gate"}'
+exit 0
+STUB
+
+  cat > "$dir/claude-comment-format-stop-hook.sh" <<'STUB'
+#!/usr/bin/env bash
+cat > /dev/null
+[ "${STUB_COMMENT_FORMAT_BLOCKS:-0}" = "1" ] && printf '%s\n' '{"decision": "block", "reason": "stub comment-format gate"}'
 exit 0
 STUB
 
@@ -144,6 +154,13 @@ it_should_pass_through_only_the_first_blocking_gates_decision() {
     "1" "$(printf '%s' "$ORCH_OUT" | grep -c 'decision')"
 }
 
+it_should_block_without_notifying_when_the_comment_format_gate_blocks() {
+  STUB_COMMENT_FORMAT_BLOCKS=1 run_orchestrator '{"session_id": "sess-orch-comment", "stop_hook_active": false}'
+  assert_eq "should block without notifying when the comment-format gate blocks (stdout carries the decision)" \
+    "block" "$(printf '%s' "$ORCH_OUT" | jq -r '.decision // empty')"
+  assert_eq "should block without notifying when the comment-format gate blocks (nothing notified)" "" "$NOTIFIED"
+}
+
 it_should_block_without_notifying_when_the_sdd_gate_blocks() {
   STUB_SDD_BLOCKS=1 run_orchestrator '{"session_id": "sess-orch-sdd", "stop_hook_active": false}'
   assert_eq "should block without notifying when the sdd gate blocks (stdout carries the decision)" \
@@ -186,6 +203,7 @@ it_should_notify_done_when_no_gate_blocks_and_no_implement_run_is_active
 it_should_block_without_notifying_when_the_markdown_gate_blocks
 it_should_block_without_notifying_when_the_agent_contract_gate_blocks
 it_should_pass_through_only_the_first_blocking_gates_decision
+it_should_block_without_notifying_when_the_comment_format_gate_blocks
 it_should_block_without_notifying_when_the_sdd_gate_blocks
 it_should_block_without_notifying_when_an_implement_run_is_mid_batch
 it_should_stay_silent_when_an_implement_run_is_mid_batch_and_the_gates_loop_guard_has_disarmed_it
