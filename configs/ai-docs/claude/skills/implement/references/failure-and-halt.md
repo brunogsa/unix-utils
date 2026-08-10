@@ -6,7 +6,7 @@ Load this on an unresolvable reported commit (§5.1), a §4 timeout, a self-repo
 
 ### The full verdict set — for orientation
 
-`implement-loop-state.sh` emits exactly six verdicts; the table below is the whole set.
+`implement-loop-state.sh` emits six verdicts; the table below is the whole set.
 
 This file obeys only `retry`, `stuck`, and `halt-budget` — the ones a failed or blocked attempt can produce. The other three only ever follow a `pass`, so they belong to §5.4.
 
@@ -24,7 +24,7 @@ This file obeys only `retry`, `stuck`, and `halt-budget` — the ones a failed o
 All three outcomes record one attempt; only `result` and `signature` differ.
 
 - **A reported commit that doesn't resolve, or a `done` reporting none** (§5.1) → `result: "fail"`, `signature` the literal string `no-commits`.
-  The subagent reported success over commits this repo doesn't have, so there's no failure text to quote.
+  The subagent reported success over commits this repo doesn't have — no failure text to quote.
 
 - **Timeout** → `result: "timeout"`, `signature` the literal string `timeout` — there's no diff to inspect, since the subagent never reported back.
 - **Self-reported block** → `result: "blocked"`, `signature` the subagent's own blocker statement verbatim, so the batch-end package can quote what needs clearing.
@@ -41,7 +41,7 @@ Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` an
 
 - **`halt-budget`** → the batch's dispatch budget is exhausted. Go to §5.5 below.
   - This is the same backstop §5.4 can hit on a pass.
-  - It does **not** route to §8: a batch that burned its budget isn't finished, so there's nothing to gate or review yet.
+  - It does **not** route to §8: a batch that burned its budget isn't finished — nothing to gate or review yet.
 
 Load `debug-standards` to diagnose why a task keeps failing before its next retry — a `blocked` attempt needs no diagnosis, straight to the human.
 
@@ -49,7 +49,7 @@ Load `debug-standards` to diagnose why a task keeps failing before its next retr
 
 Set that task to `status: "blocked"` — `reason: "blocked"` for a self-reported block, `reason: "stuck"` for repeated failures.
 
-`status` drives flow — blocked tasks are excluded from the next pick — while `reason` keeps the finer stuck-vs-blocked label for the batch-end report.
+`status` drives flow — blocked tasks are excluded from the next pick — while `reason` keeps the stuck-vs-blocked label for the batch-end report.
 
 `TaskUpdate` its TaskList status to `completed`; the tool has no `blocked` state, and the state file's `reason` is what distinguishes it.
 
@@ -62,7 +62,7 @@ Flip the plan to `[Blocked]` for the terminal task and every dependent this just
 Run `implement-loop-state.sh --next-eligible <state-file>` instead — it answers with the same DAG-eligibility rule §5.4's `next-task` uses, just without requiring a `pass` attempt to ask it.
 A `task` id in the result → re-run §3.4 on it.
 
-`task: "none"` — nothing runnable remains: either at least one task (this one) is terminal-without-`[Done]` and no dependency path around it is open, or the batch's dispatch budget is already exhausted (the `reason` field names the budget when that's why).
+`task: "none"` — nothing runnable remains: this task is terminal-without-`[Done]` with no open dependency path around it, or the batch's dispatch budget is exhausted; `reason` names which.
 **Do not go to the gates** — go to §5.5 below.
 
 ## §5.5 — Halt: stop where you stand and wait for the human
@@ -79,7 +79,7 @@ Regardless of entry:
 
 - Set `phase: "halted"` in this unit's state file, and every remaining unit's file too — the Stop hook globs the whole session and blocks on any unit still at `tasks`.
 
-- Write into the scratchpad, per blocked task, **exactly what a human must do to clear it** — that list is the whole point of stopping here.
+- Write into the scratchpad, per blocked task, **exactly what a human must do to clear it** — the whole point of stopping here.
 
 - Leave this unit's remaining batch-end `[Reminder]` entries `pending` — they didn't run, and pending is the honest record of that.
 - **Run nothing further** — the quality-gate tail, the repo-green gate, the push, the package, and the PR all presuppose a finished batch.

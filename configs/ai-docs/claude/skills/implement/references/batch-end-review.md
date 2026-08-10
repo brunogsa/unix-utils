@@ -14,7 +14,7 @@ Detail for /implement's batch-end steps. Load when the batch reaches its end.
 SKILL.md's `§8.1 → §8.2 → §8.3` is the running order, and the only place that sequence is written down.
 This file expands each of those steps; it never restates their order.
 
-The branch record lives in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) and the opt-in PR in [`batch-end-pr.md`](batch-end-pr.md), both reached from **Finalize** below, right after the push that Finalize always runs.
+The branch record lives in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) and the opt-in PR in [`batch-end-pr.md`](batch-end-pr.md), both reached from **Finalize** below, right after Finalize's push.
 Skip whichever file doesn't match the run: the branch-record file only fires on a PR-label run, the PR file only on an opted-in draft.
 
 ## The quality-gate tail (§8.1)
@@ -66,7 +66,7 @@ The TaskList already carries this step as the `Batch-end 1/4` reminder seeded in
 On no, skip this entire section — go straight to Finalize (§8.3).
 Have the package (§8.3) state the gate was skipped by request, with no repo-green result to show.
 
-Run the repo's **full lint + full test suite**, repo-wide — never scoped to the batch's own files, since a batch can break a workspace it never edited.
+Run the repo's **full lint + full test suite** — never scoped to the batch's own files, since a batch can break a workspace it never edited.
 
 **Decide "pre-existing" from the baseline when one exists, judgment otherwise:**
 
@@ -74,7 +74,7 @@ Run the repo's **full lint + full test suite**, repo-wide — never scoped to th
   - A failure NOT in `baseline.failures` is batch-caused and must be fixed.
 
 - **`baseline.wanted: false`** — no baseline was captured; fall back to judgment.
-  - Reason about whether the batch's diff could plausibly have caused the failure (unrelated module, a test the batch's files never touch) and record it as `[Scout]` on that basis instead.
+  - Reason about whether the batch's diff could plausibly have caused the failure (unrelated module, a test the batch's files never touch) and record it as `[Scout]` on that basis.
 
 **Red repo → fix it in a loop, through subagents — the orchestrator never hand-fixes, and never scopes the gate down to make it pass:**
 
@@ -86,23 +86,23 @@ Run the repo's **full lint + full test suite**, repo-wide — never scoped to th
 - Repeat until every failure the batch is responsible for is gone.
 
 A failure classified `[Scout]` above is never fixed here: report it in the package, leave it unfixed, and let the gate pass on it.
-Fixing pre-existing red would blur this batch's diff with unrelated work, which is exactly what the Scout channel (§4.3) exists to prevent.
+Fixing pre-existing red would blur this batch's diff with unrelated work, which is what the Scout channel (§4.3) exists to prevent.
 
 After each fix-and-rerun, call `implement-loop-state.sh --budget <state-file>`. `exhausted: true` with a batch-caused failure still red → [`failure-and-halt.md`](failure-and-halt.md)'s §5.5, halt — the human clears it, not this run.
 
-Record the final full-suite result (pass/fail + counts) into the package, so the human sees the gate actually ran over everything.
+Record the final full-suite result (pass/fail + counts) into the package, so the human sees the gate ran over everything.
 
 ## The review package (§8.3)
 
 The package is the single async pass the human reviews — the replacement for the per-task handshake. Finalize prints it (below). It contains:
 
 A unit only ever reaches this package when every task is `[Done]`.
-A unit that couldn't finish halted at §5.5 instead — or §8.2's own gate may halt the run before a package is ever assembled.
+A unit that couldn't finish halted at §5.5 instead — or §8.2's own gate may halt the run before a package is assembled.
 So there is exactly one package shape, never a partial one:
 
 - **Per-task outcomes** — every task, all `done`, with its commit SHAs.
 - **Dropped full-suite checks**, only when §8.2 was skipped by request.
-  - Any plan-declared full-suite/repo-wide verification command §4.1 stripped from a task's dispatch and that the gate would otherwise have re-covered, named explicitly so the human knows it never ran this batch.
+  - Any plan-declared full-suite/repo-wide verification command §4.1 stripped from a task's dispatch and that the gate would otherwise have re-covered, so the human knows it never ran this batch.
 
 - **Every verdict file path** `/quality-gate` produced (`verdict_refactor_<ts>.md`, `verdict_auto-review_<ts>.md`, `verdict_test-sdd_<ts>.md`).
   - Plus any leg it flagged as failed.
@@ -115,17 +115,17 @@ So there is exactly one package shape, never a partial one:
   - A plan-declared test nobody wrote is the one gap this batch was supposed to close.
 
 - **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §8.1, §8.2) — reported, never fixed by this run.
-- **The literal diff range** — print `git diff BATCH_BASE_SHA..HEAD` with the actual SHA substituted, so the human can reproduce the range.
+- **The literal diff range** — print `git diff BATCH_BASE_SHA..HEAD` with the SHA substituted, so the human can reproduce the range.
 - **"Unexpected extras"** — the commits §8.2's fix-loop produced to reach green, each with its commit and the failure it fixed.
 - **Repo-green result** — the final full-suite pass/fail + counts from §8.2, plus any `[Scout]` failures left unfixed because the batch didn't cause them.
   - When §8.2 was skipped by request, this bullet instead states plainly that no repo-green pass ran this batch.
 
-- **Worktree merge-back reminder** — only when a worktree exists (read its path + branch from the state file); omit entirely when the interview declined it.
+- **Worktree merge-back reminder** — only when a worktree exists (read its path + branch from the state file); omit when the interview declined it.
   - Its path, its branch, and "nothing was merged or deleted — merge back and remove it yourself".
 
 ## The review notification — the package's closing block
 
-Printed last, after every other package section, so the human's eye lands on where to go review.
+Printed last, after every other package section, so the human knows where to review.
 It is the pointer to the work, not a second summary of it — no findings, no counts beyond the commit count.
 
 Print, in this order:
@@ -151,7 +151,7 @@ By the time Finalize starts, both opt-in stages are behind it — whichever ran,
 
 1. **Push the branch — always, on every batch end, regardless of `pr.wanted`.**
    Use `git push -u origin HEAD`, which covers both a fresh PR branch with no upstream and a plain run's branch that already has one.
-   A pushed branch with no PR is this skill's ordinary outcome, not a half-finished state — it is what the notification points the human at.
+   A pushed branch with no PR is this skill's ordinary outcome, not a half-finished state — what the notification points the human at.
    - **Any push failure is a [`failure-and-halt.md`](failure-and-halt.md) §5.5 halt** — no remote, a rejected non-fast-forward, missing credentials.
      - Name the failure, keep the state file, print nothing further. A notification pointing at a branch that never reached the remote is worse than a halt.
 
@@ -166,9 +166,8 @@ By the time Finalize starts, both opt-in stages are behind it — whichever ran,
 
 4. **Finalize the phase.**
    Reaching this point means every task is `[Done]`, both opt-in stages ran or were declined, the branch is pushed, and the PR (if wanted) is open.
-   Set `phase: "presented"`, then dispose of the state file with `trash <state-file>`, never `rm`.
-   The state file lives in `/tmp`, outside any git repo, which is exactly what `claude-rm-guard.sh` blocks `rm` on — and `trash` is the way through it names.
+   Set `phase: "presented"`, then dispose of the state file with `trash <state-file>`, never `rm` — it lives in `/tmp`, outside any git repo, the unrecoverable case `claude-rm-guard.sh` blocks `rm` on.
    The Stop hook releases on this phase; a presented batch is never resumed.
 
 The PR is composed only after the quality-gate tail and the repo-green gate have both finished.
-Its body describes the batch's actual final diff in one pass — never a pre-fix draft needing a second one.
+Its body describes the batch's final diff in one pass — never a pre-fix draft needing a second one.
