@@ -63,7 +63,12 @@ STALE_WORKTREE_MARKER = "worktrees/stacked-prs-pr2"
 
 # The header line a script uses to opt into .js instead of
 # the default .py.
-REQUIRES_NPM_HEADER = re.compile(r"^#\s*Requires-npm:\s*(.*)$", re.MULTILINE)
+#
+# The gap after the colon is [ \t]*, not \s* — \s matches
+# newline too, so under re.MULTILINE it would let an empty
+# header's capture group cross into the following line and
+# read an unrelated comment as the header's own content.
+REQUIRES_NPM_HEADER = re.compile(r"^#\s*Requires-npm:[ \t]*(.*)$", re.MULTILINE)
 REQUIRES_NPM_SEPARATOR = "—"
 
 

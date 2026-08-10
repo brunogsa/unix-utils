@@ -283,3 +283,24 @@ class TestClassifyConversionFailure(unittest.TestCase):
                 msg=f"{path} was expected to fail but exited 0: {result.stdout}",
             )
             self.assertTrue(result.stderr.strip(), msg=f"{path} exit had no stderr message")
+
+    def test_should_exit_non_zero_when_the_requires_npm_header_is_empty_even_if_a_later_comment_line_contains_an_em_dash(self):
+        tmp_path = self._tmp()
+
+        # The header line has nothing after the colon. A regex
+        # that lets \s* cross the newline reads the em-dash
+        # comment below as the header's own content instead of
+        # treating the header as empty.
+        script = _write_script(tmp_path, "leaks-into-next-line.sh", [
+            "#!/usr/bin/env bash",
+            "# Requires-npm:",
+            "# see docs — this script has no npm need at all",
+            "echo hi",
+        ])
+
+        result = _run(script)
+        self.assertNotEqual(
+            result.returncode, 0,
+            msg=f"{script} was expected to fail but exited 0: {result.stdout}",
+        )
+        self.assertTrue(result.stderr.strip(), msg=f"{script} exit had no stderr message")
