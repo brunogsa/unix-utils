@@ -323,6 +323,37 @@ else
     echo "WARNING: no pipx pytest site-packages found; pyrightconfig.json not written" >&2
 fi
 
+# PyYAML — skill-standards's quick_validate.py (the SKILL.md
+# frontmatter validator invoked via `python -m scripts.package_skill`)
+# does `import yaml` and calls yaml.safe_load/yaml.YAMLError for real,
+# not incidentally. Confirmed missing on a bare machine: running
+# package_skill.py raises "ModuleNotFoundError: No module named
+# 'yaml'" before any linter gets a say — this installs the actual
+# runtime dependency, not just quiets Pyright.
+#
+# Installed with --user, not pipx: PyYAML is a library dependency of
+# an ad hoc script, not a standalone CLI app, so pipx (which isolates
+# a whole venv per app) is the wrong tool here. Homebrew's own
+# externally-managed-environment error message recommends a venv or
+# --user for exactly this case; --break-system-packages is the
+# documented opt-in PEP 668 added for that same --user path, tried
+# only as a fallback so plain --user still works unmodified on
+# systems that predate PEP 668.
+#
+# No pyrightconfig.json entry needed for this one: --user installs
+# into the interpreter's own user site-packages, which is already on
+# that interpreter's sys.path (unlike pipx's isolated per-app venv),
+# so Pyright resolves it via the default python environment with no
+# extraPaths edit — verified with a whole-repo `pyright` run.
+if python3 -c 'import yaml' &> /dev/null; then
+    echo "PyYAML already importable, skipping"
+elif python3 -m pip install --user pyyaml &> /dev/null \
+    || python3 -m pip install --user --break-system-packages pyyaml; then
+    echo "PyYAML installed to user site-packages"
+else
+    echo "WARNING: PyYAML install failed; quick_validate.py will fail to import yaml" >&2
+fi
+
 # RTK (Rust Token Killer) — CLI proxy that compresses Bash
 # output to cut Claude Code token burn.
 #
