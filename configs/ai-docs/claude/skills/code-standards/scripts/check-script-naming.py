@@ -127,7 +127,6 @@ def evaluate_name(path, lexicon):
         if (
             len(token) <= 3
             and token not in lexicon["abbreviation_allowlist"]
-            and token not in lexicon["category_object_denylist"]
             and token not in lexicon["common_short_words"]
         ):
             reasons.append(f"'{token}' is an abbreviation outside the allowlist")

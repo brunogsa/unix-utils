@@ -91,6 +91,11 @@ class TestCheckScriptNamingFailure:
 
         assert result.returncode == 1, result.stdout + result.stderr
         assert "category" in (result.stdout + result.stderr).lower()
+        # "shared" is 6 characters, well past the abbreviation branch's
+        # own len<=3 gate, so it can never also be flagged as an
+        # abbreviation — this is the true invariant the abbreviation
+        # loop's now-removed (dead) denylist re-check never changed.
+        assert "abbreviation" not in result.stdout.lower()
 
     def test_should_fail_a_name_that_repeats_the_skill_directory_the_script_already_lives_in(self, tmp_path):
         script = _write(
