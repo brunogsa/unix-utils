@@ -115,6 +115,9 @@ it('should filter by assignee', ...);
 - [Instruction] For scripts (where we usually don't write tests), start with the usage syntax + examples in the comment header — the contract, written before the code.
   - [Why] A script has no `it()` titles to design first, so its comment-header usage line is the contract you write before coding — the same role test titles play.
 
+- [Instruction] Before rewriting a `.sh` script, capture its behavior with `scripts/capture-script-behavior.py` — every row's stdout/stderr/exit code and fixture post-state as golden — then replay the table against the rewrite.
+  - [Why] A script has no existing test suite to lean on, so capture-then-replay is the only way to prove the rewrite is behaviorally equivalent before the original is deleted.
+
 ### Descriptive titles (BDD-like)
 
 - [Instruction] **CRITICAL: Write test titles in domain language a non-engineer (PM, QA, designer) could understand — observable behavior, not internal field names or implementation tokens.**
