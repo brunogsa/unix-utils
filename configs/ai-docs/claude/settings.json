@@ -181,6 +181,16 @@
         ]
       }
     ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/build-implement-invocation-marker.sh"
+          }
+        ]
+      }
+    ],
     "Notification": [
       {
         "hooks": [
