@@ -45,106 +45,111 @@ carries a `Requires-npm` header, so none opted into `js`.
 
 ## `unix-utils` — 98 non-excluded scripts
 
-| Path | Verdict | Target | Triggering reason |
-|---|---|---|---|
-| `configs/ai-docs/claude/hooks/claude-agent-contract-stop-hook.sh` | convert | py | awk+jq; 156 lines (>128) |
-| `configs/ai-docs/claude/hooks/claude-comment-format-stop-hook.sh` | convert | py | awk+jq; 270 lines (>128) |
-| `configs/ai-docs/claude/hooks/claude-compact-skill-reload.sh` | convert | py | jq+sed -E+here-doc |
-| `configs/ai-docs/claude/hooks/claude-explore-mandate-hook.sh` | convert | py | awk+jq+here-doc |
-| `configs/ai-docs/claude/hooks/claude-git-guard.sh` | stays-sh | py | per-call hook exemption (fires every tool call) |
-| `configs/ai-docs/claude/hooks/claude-implement-compact-reminder.sh` | convert | py | jq+here-doc; 188 lines (>128) |
-| `configs/ai-docs/claude/hooks/claude-implement-stop-hook.sh` | convert | py | jq; 159 lines (>128) |
-| `configs/ai-docs/claude/hooks/claude-markdown-standards-stop-hook.sh` | convert | py | awk+jq; 282 lines (>128) |
-| `configs/ai-docs/claude/hooks/claude-rm-guard.sh` | stays-sh | py | per-call hook exemption (fires every tool call) |
-| `configs/ai-docs/claude/hooks/claude-sdd-stop-hook.sh` | convert | py | jq |
-| `configs/ai-docs/claude/hooks/claude-stop-orchestrator.sh` | convert | py | jq; 197 lines (>128) |
-| `configs/ai-docs/claude/hooks/claude-stopfailure-resume.sh` | convert | py | jq; 193 lines (>128) |
-| `configs/ai-docs/claude/hooks/claude-tmux-notification.sh` | convert | py | jq; 174 lines (>128) |
-| `configs/ai-docs/claude/hooks/claude-tmux-title-compact-reminder.sh` | convert | py | jq+here-doc |
-| `configs/ai-docs/claude/hooks/claude-tmux-title-reminder.sh` | convert | py | jq+here-doc |
-| `configs/ai-docs/claude/hooks/claude-tmux-title-restore.sh` | convert | py | jq |
-| `configs/ai-docs/claude/hooks/deep-reviewer-write-guard.sh` | stays-sh | py | per-call hook exemption (fires every tool call) |
-| `configs/ai-docs/claude/hooks/tests/test-claude-agent-contract-stop-hook.sh` | convert | py | jq; 167 lines (>128) |
-| `configs/ai-docs/claude/hooks/tests/test-claude-comment-format-stop-hook.sh` | convert | py | jq; 255 lines (>128) |
-| `configs/ai-docs/claude/hooks/tests/test-claude-compact-skill-reload.sh` | convert | py | jq |
-| `configs/ai-docs/claude/hooks/tests/test-claude-explore-mandate-hook.sh` | convert | py | jq; 177 lines (>128) |
-| `configs/ai-docs/claude/hooks/tests/test-claude-git-guard.sh` | convert | py | jq+here-doc; 142 lines (>128) |
-| `configs/ai-docs/claude/hooks/tests/test-claude-implement-compact-reminder.sh` | convert | py | jq+here-doc; 313 lines (>128) |
-| `configs/ai-docs/claude/hooks/tests/test-claude-implement-stop-hook.sh` | convert | py | jq; 248 lines (>128) |
-| `configs/ai-docs/claude/hooks/tests/test-claude-rm-guard.sh` | convert | py | jq+here-doc; 210 lines (>128) |
-| `configs/ai-docs/claude/hooks/tests/test-claude-stop-orchestrator.sh` | convert | py | jq+here-doc; 217 lines (>128) |
-| `configs/ai-docs/claude/hooks/tests/test-claude-stopfailure-resume.sh` | convert | py | awk+here-doc; 296 lines (>128) |
-| `configs/ai-docs/claude/hooks/tests/test-claude-tmux-compact-bump.sh` | convert | py | here-doc; 153 lines (>128) |
-| `configs/ai-docs/claude/hooks/tests/test-claude-tmux-title-compact-reminder.sh` | convert | py | jq |
-| `configs/ai-docs/claude/hooks/tests/test-subagent-disallowed-tools-guard.sh` | convert | py | jq+here-doc; 156 lines (>128) |
-| `configs/ai-docs/claude/hooks/tests/test-subagent-model-guard.sh` | convert | py | jq+here-doc |
-| `configs/ai-docs/claude/scripts/resolve-base-ref.sh` | stays-sh | py | no risky construct, <=128 lines |
-| `configs/ai-docs/claude/scripts/statusline-tier.sh` | convert | py | awk+jq+here-doc; 827 lines (>128) |
-| `configs/ai-docs/claude/scripts/tests/test-resolve-base-ref.sh` | convert | py | 157 lines (>128) |
-| `configs/ai-docs/claude/scripts/tests/test-statusline-tier.sh` | convert | py | awk+jq+sed -E+here-doc; 2164 lines (>128) |
-| `configs/ai-docs/claude/scripts/tests/test-tmux-window-title.sh` | convert | py | 742 lines (>128) |
-| `configs/ai-docs/claude/scripts/tmux-window-title.sh` | convert | py | awk+sed -E; 526 lines (>128) |
-| `configs/ai-docs/claude/skills/agent-standards/scripts/check-agent-contract.sh` | convert | py | awk; 252 lines (>128) |
-| `configs/ai-docs/claude/skills/agent-standards/scripts/tests/test-check-agent-contract.sh` | convert | py | here-doc; 778 lines (>128) |
-| `configs/ai-docs/claude/skills/code-review-pipeline/scripts/extract-commentable-lines.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/code-review-pipeline/scripts/extract-skipped-files.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/code-review-pipeline/scripts/filter-off-diff-findings.sh` | convert | py | jq |
-| `configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/check-refs.sh` | convert | py | sed -E; 288 lines (>128) |
-| `configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/gen-shard-manifest.sh` | convert | py | awk+here-doc; 323 lines (>128) |
-| `configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/tests/test-check-refs.sh` | convert | py | 275 lines (>128) |
-| `configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/tests/test-gen-shard-manifest.sh` | convert | py | awk+here-doc; 522 lines (>128) |
-| `configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/tests/test-verify-quote.sh` | convert | py | here-doc; 182 lines (>128) |
-| `configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/verify-quote.sh` | stays-sh | py | no risky construct, <=128 lines |
-| `configs/ai-docs/claude/skills/create-pr/scripts/check-pr-body-size.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/create-pr/scripts/check-pr-page-fit.sh` | convert | py | awk+sed -E; 245 lines (>128) |
-| `configs/ai-docs/claude/skills/create-pr/scripts/extract-md-sections.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/create-pr/scripts/extract-mermaid-blocks.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/doc-standards/scripts/check-density.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/doc-standards/scripts/tests/test-check-bullet-gap-fix.sh` | convert | py | here-doc; 131 lines (>128) |
-| `configs/ai-docs/claude/skills/doc-standards/scripts/tests/test-check-comment-format.sh` | convert | py | awk+here-doc; 296 lines (>128) |
-| `configs/ai-docs/claude/skills/doc-standards/scripts/tests/test-check-rule-citations.sh` | convert | py | here-doc; 338 lines (>128) |
-| `configs/ai-docs/claude/skills/doc-standards/scripts/tests/test-fix-density.sh` | convert | py | here-doc; 589 lines (>128) |
-| `configs/ai-docs/claude/skills/english-coach/scripts/extract-user-messages.sh` | convert | py | jq |
-| `configs/ai-docs/claude/skills/implement/scripts/check-pr-dependencies-ready.sh` | convert | py | awk; 218 lines (>128) |
-| `configs/ai-docs/claude/skills/implement/scripts/get-pr-tasks.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/implement/scripts/implement-loop-state.sh` | convert | py | awk+jq+here-doc; 455 lines (>128) |
-| `configs/ai-docs/claude/skills/implement/scripts/need-git-checkout.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/implement/scripts/parse-pr-breakdown.sh` | convert | py | awk; 138 lines (>128) |
-| `configs/ai-docs/claude/skills/implement/scripts/tests/test-check-pr-dependencies-ready.sh` | convert | py | 270 lines (>128) |
-| `configs/ai-docs/claude/skills/implement/scripts/tests/test-get-pr-tasks.sh` | stays-sh | py | no risky construct, <=128 lines |
-| `configs/ai-docs/claude/skills/implement/scripts/tests/test-implement-loop-state.sh` | convert | py | jq; 773 lines (>128) |
-| `configs/ai-docs/claude/skills/implement/scripts/tests/test-need-git-checkout.sh` | stays-sh | py | no risky construct, <=128 lines |
-| `configs/ai-docs/claude/skills/implement/scripts/tests/test-parse-pr-breakdown.sh` | convert | py | awk; 213 lines (>128) |
-| `configs/ai-docs/claude/skills/improve-from-user/scripts/tests/test-extract-session-feedback.sh` | convert | py | here-doc; 347 lines (>128) |
-| `configs/ai-docs/claude/skills/improve-from-user/scripts/tests/test-resolve-repo-targets.sh` | convert | py | 400 lines (>128) |
-| `configs/ai-docs/claude/skills/jira-cli/scripts/fetch-jira-review-context.sh` | convert | py | jq |
-| `configs/ai-docs/claude/skills/jira-cli/scripts/jira-utilities.sh` | convert | py | jq; 587 lines (>128) |
-| `configs/ai-docs/claude/skills/jira-cli/scripts/jira.sh` | convert | py | jq |
-| `configs/ai-docs/claude/skills/open-in-tmux/scripts/diffview-in-tmux.sh` | stays-sh | py | no risky construct, <=128 lines |
-| `configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/performance-check-principles-and-skills/scripts/check.sh` | convert | py | awk; 685 lines (>128) |
-| `configs/ai-docs/claude/skills/performance-check-principles-and-skills/scripts/tests/test-check-missing-why.sh` | convert | py | awk+here-doc; 232 lines (>128) |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/check-ac-coverage.sh` | convert | py | awk; 147 lines (>128) |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/check-coverage-checklists.sh` | convert | py | awk; 224 lines (>128) |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/check-open-questions.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/check-pr-dag.sh` | convert | py | awk; 141 lines (>128) |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/check-sections.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/check-tasks-dag.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/check-test-distribution.sh` | stays-sh | py | no risky construct, <=128 lines |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/dag-check-helper.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/extract-design-tests.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/normalize-list-breadcrumbs.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/plan-section.sh` | convert | py | awk |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-ac-coverage.sh` | convert | py | 186 lines (>128) |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-coverage-checklists.sh` | convert | py | here-doc; 243 lines (>128) |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-open-questions.sh` | stays-sh | py | no risky construct, <=128 lines |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-pr-dag.sh` | convert | py | 192 lines (>128) |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-sections.sh` | convert | py | 214 lines (>128) |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-tasks-dag.sh` | convert | py | 160 lines (>128) |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-plan-section.sh` | convert | py | awk |
-| `configs/ai-docs/claude/tests/test-global-config-invariants.sh` | convert | py | awk+jq; 302 lines (>128) |
-| `run-tests.sh` | stays-sh | py | no risky construct, <=128 lines |
+- **Harness fate** (last column, `test-*.sh` rows only): delete alongside the subject's conversion, or port cases to pytest when the subject stays `.sh`.
+- Converting the harness itself to Python is neither fate — see `spec_script-overhaul.md` for the rule.
+- The fate follows the *subject's* verdict, not the harness's own: three rows below carry their own `stays-sh` verdict but still say delete, because their subject converts.
+- Non-harness rows leave the column as `—`.
+
+| Path | Verdict | Target | Triggering reason | Harness fate |
+|---|---|---|---|---|
+| `configs/ai-docs/claude/hooks/claude-agent-contract-stop-hook.sh` | convert | py | awk+jq; 156 lines (>128) | — |
+| `configs/ai-docs/claude/hooks/claude-comment-format-stop-hook.sh` | convert | py | awk+jq; 270 lines (>128) | — |
+| `configs/ai-docs/claude/hooks/claude-compact-skill-reload.sh` | convert | py | jq+sed -E+here-doc | — |
+| `configs/ai-docs/claude/hooks/claude-explore-mandate-hook.sh` | convert | py | awk+jq+here-doc | — |
+| `configs/ai-docs/claude/hooks/claude-git-guard.sh` | stays-sh | py | per-call hook exemption (fires every tool call) | — |
+| `configs/ai-docs/claude/hooks/claude-implement-compact-reminder.sh` | convert | py | jq+here-doc; 188 lines (>128) | — |
+| `configs/ai-docs/claude/hooks/claude-implement-stop-hook.sh` | convert | py | jq; 159 lines (>128) | — |
+| `configs/ai-docs/claude/hooks/claude-markdown-standards-stop-hook.sh` | convert | py | awk+jq; 282 lines (>128) | — |
+| `configs/ai-docs/claude/hooks/claude-rm-guard.sh` | stays-sh | py | per-call hook exemption (fires every tool call) | — |
+| `configs/ai-docs/claude/hooks/claude-sdd-stop-hook.sh` | convert | py | jq | — |
+| `configs/ai-docs/claude/hooks/claude-stop-orchestrator.sh` | convert | py | jq; 197 lines (>128) | — |
+| `configs/ai-docs/claude/hooks/claude-stopfailure-resume.sh` | convert | py | jq; 193 lines (>128) | — |
+| `configs/ai-docs/claude/hooks/claude-tmux-notification.sh` | convert | py | jq; 174 lines (>128) | — |
+| `configs/ai-docs/claude/hooks/claude-tmux-title-compact-reminder.sh` | convert | py | jq+here-doc | — |
+| `configs/ai-docs/claude/hooks/claude-tmux-title-reminder.sh` | convert | py | jq+here-doc | — |
+| `configs/ai-docs/claude/hooks/claude-tmux-title-restore.sh` | convert | py | jq | — |
+| `configs/ai-docs/claude/hooks/deep-reviewer-write-guard.sh` | stays-sh | py | per-call hook exemption (fires every tool call) | — |
+| `configs/ai-docs/claude/hooks/tests/test-claude-agent-contract-stop-hook.sh` | convert | py | jq; 167 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/hooks/tests/test-claude-comment-format-stop-hook.sh` | convert | py | jq; 255 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/hooks/tests/test-claude-compact-skill-reload.sh` | convert | py | jq | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/hooks/tests/test-claude-explore-mandate-hook.sh` | convert | py | jq; 177 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/hooks/tests/test-claude-git-guard.sh` | convert | py | jq+here-doc; 142 lines (>128) | Port to pytest — subject stays `.sh` |
+| `configs/ai-docs/claude/hooks/tests/test-claude-implement-compact-reminder.sh` | convert | py | jq+here-doc; 313 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/hooks/tests/test-claude-implement-stop-hook.sh` | convert | py | jq; 248 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/hooks/tests/test-claude-rm-guard.sh` | convert | py | jq+here-doc; 210 lines (>128) | Port to pytest — subject stays `.sh` |
+| `configs/ai-docs/claude/hooks/tests/test-claude-stop-orchestrator.sh` | convert | py | jq+here-doc; 217 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/hooks/tests/test-claude-stopfailure-resume.sh` | convert | py | awk+here-doc; 296 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/hooks/tests/test-claude-tmux-compact-bump.sh` | convert | py | here-doc; 153 lines (>128) | Delete — subject already converted to `claude-tmux-compact-bump.py` |
+| `configs/ai-docs/claude/hooks/tests/test-claude-tmux-title-compact-reminder.sh` | convert | py | jq | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/hooks/tests/test-subagent-disallowed-tools-guard.sh` | convert | py | jq+here-doc; 156 lines (>128) | Delete — subject already converted to `subagent-disallowed-tools-guard.py` |
+| `configs/ai-docs/claude/hooks/tests/test-subagent-model-guard.sh` | convert | py | jq+here-doc | Delete — subject already converted to `subagent-model-guard.py` |
+| `configs/ai-docs/claude/scripts/resolve-base-ref.sh` | stays-sh | py | no risky construct, <=128 lines | — |
+| `configs/ai-docs/claude/scripts/statusline-tier.sh` | convert | py | awk+jq+here-doc; 827 lines (>128) | — |
+| `configs/ai-docs/claude/scripts/tests/test-resolve-base-ref.sh` | convert | py | 157 lines (>128) | Port to pytest — subject stays `.sh` |
+| `configs/ai-docs/claude/scripts/tests/test-statusline-tier.sh` | convert | py | awk+jq+sed -E+here-doc; 2164 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/scripts/tests/test-tmux-window-title.sh` | convert | py | 742 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/scripts/tmux-window-title.sh` | convert | py | awk+sed -E; 526 lines (>128) | — |
+| `configs/ai-docs/claude/skills/agent-standards/scripts/check-agent-contract.sh` | convert | py | awk; 252 lines (>128) | — |
+| `configs/ai-docs/claude/skills/agent-standards/scripts/tests/test-check-agent-contract.sh` | convert | py | here-doc; 778 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/skills/code-review-pipeline/scripts/extract-commentable-lines.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/code-review-pipeline/scripts/extract-skipped-files.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/code-review-pipeline/scripts/filter-off-diff-findings.sh` | convert | py | jq | — |
+| `configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/check-refs.sh` | convert | py | sed -E; 288 lines (>128) | — |
+| `configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/gen-shard-manifest.sh` | convert | py | awk+here-doc; 323 lines (>128) | — |
+| `configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/tests/test-check-refs.sh` | convert | py | 275 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/tests/test-gen-shard-manifest.sh` | convert | py | awk+here-doc; 522 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/tests/test-verify-quote.sh` | convert | py | here-doc; 182 lines (>128) | Port to pytest — subject stays `.sh` |
+| `configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/verify-quote.sh` | stays-sh | py | no risky construct, <=128 lines | — |
+| `configs/ai-docs/claude/skills/create-pr/scripts/check-pr-body-size.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/create-pr/scripts/check-pr-page-fit.sh` | convert | py | awk+sed -E; 245 lines (>128) | — |
+| `configs/ai-docs/claude/skills/create-pr/scripts/extract-md-sections.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/create-pr/scripts/extract-mermaid-blocks.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/doc-standards/scripts/check-density.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/doc-standards/scripts/tests/test-check-bullet-gap-fix.sh` | convert | py | here-doc; 131 lines (>128) | Delete — subject already converted to `check-bullet-gap.py` |
+| `configs/ai-docs/claude/skills/doc-standards/scripts/tests/test-check-comment-format.sh` | convert | py | awk+here-doc; 296 lines (>128) | Delete — subject already converted to `check-comment-format.js` |
+| `configs/ai-docs/claude/skills/doc-standards/scripts/tests/test-check-rule-citations.sh` | convert | py | here-doc; 338 lines (>128) | Delete — subject already converted to `check-rule-citations.py` |
+| `configs/ai-docs/claude/skills/doc-standards/scripts/tests/test-fix-density.sh` | convert | py | here-doc; 589 lines (>128) | Delete — subject already converted to `fix-density.py` |
+| `configs/ai-docs/claude/skills/english-coach/scripts/extract-user-messages.sh` | convert | py | jq | — |
+| `configs/ai-docs/claude/skills/implement/scripts/check-pr-dependencies-ready.sh` | convert | py | awk; 218 lines (>128) | — |
+| `configs/ai-docs/claude/skills/implement/scripts/get-pr-tasks.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/implement/scripts/implement-loop-state.sh` | convert | py | awk+jq+here-doc; 455 lines (>128) | — |
+| `configs/ai-docs/claude/skills/implement/scripts/need-git-checkout.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/implement/scripts/parse-pr-breakdown.sh` | convert | py | awk; 138 lines (>128) | — |
+| `configs/ai-docs/claude/skills/implement/scripts/tests/test-check-pr-dependencies-ready.sh` | convert | py | 270 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/skills/implement/scripts/tests/test-get-pr-tasks.sh` | stays-sh | py | no risky construct, <=128 lines | Delete — subject `get-pr-tasks.sh` converts (own stays-sh is stale) |
+| `configs/ai-docs/claude/skills/implement/scripts/tests/test-implement-loop-state.sh` | convert | py | jq; 773 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/skills/implement/scripts/tests/test-need-git-checkout.sh` | stays-sh | py | no risky construct, <=128 lines | Delete — subject `need-git-checkout.sh` converts (own stays-sh is stale) |
+| `configs/ai-docs/claude/skills/implement/scripts/tests/test-parse-pr-breakdown.sh` | convert | py | awk; 213 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/skills/improve-from-user/scripts/tests/test-extract-session-feedback.sh` | convert | py | here-doc; 347 lines (>128) | Delete — subject already converted to `extract-session-feedback.py` |
+| `configs/ai-docs/claude/skills/improve-from-user/scripts/tests/test-resolve-repo-targets.sh` | convert | py | 400 lines (>128) | Delete — subject already converted to `resolve-repo-targets.py` |
+| `configs/ai-docs/claude/skills/jira-cli/scripts/fetch-jira-review-context.sh` | convert | py | jq | — |
+| `configs/ai-docs/claude/skills/jira-cli/scripts/jira-utilities.sh` | convert | py | jq; 587 lines (>128) | — |
+| `configs/ai-docs/claude/skills/jira-cli/scripts/jira.sh` | convert | py | jq | — |
+| `configs/ai-docs/claude/skills/open-in-tmux/scripts/diffview-in-tmux.sh` | stays-sh | py | no risky construct, <=128 lines | — |
+| `configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/performance-check-principles-and-skills/scripts/check.sh` | convert | py | awk; 685 lines (>128) | — |
+| `configs/ai-docs/claude/skills/performance-check-principles-and-skills/scripts/tests/test-check-missing-why.sh` | convert | py | awk+here-doc; 232 lines (>128) | Delete — subject is `check.sh` (converts), not a same-stem file |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/check-ac-coverage.sh` | convert | py | awk; 147 lines (>128) | — |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/check-coverage-checklists.sh` | convert | py | awk; 224 lines (>128) | — |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/check-open-questions.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/check-pr-dag.sh` | convert | py | awk; 141 lines (>128) | — |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/check-sections.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/check-tasks-dag.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/check-test-distribution.sh` | stays-sh | py | no risky construct, <=128 lines | — |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/dag-check-helper.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/extract-design-tests.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/normalize-list-breadcrumbs.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/plan-section.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-ac-coverage.sh` | convert | py | 186 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-coverage-checklists.sh` | convert | py | here-doc; 243 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-open-questions.sh` | stays-sh | py | no risky construct, <=128 lines | Delete — subject `check-open-questions.sh` converts (own stays-sh is stale) |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-pr-dag.sh` | convert | py | 192 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-sections.sh` | convert | py | 214 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-tasks-dag.sh` | convert | py | 160 lines (>128) | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-plan-section.sh` | convert | py | awk | Delete alongside subject's conversion |
+| `configs/ai-docs/claude/tests/test-global-config-invariants.sh` | convert | py | awk+jq; 302 lines (>128) | Port to pytest — spans install.sh/settings.json/CLAUDE.md, no single subject |
+| `run-tests.sh` | stays-sh | py | no risky construct, <=128 lines | — |
 
 ## `oh-my-zsh` — all 29 scripts
 
