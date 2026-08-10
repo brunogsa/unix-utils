@@ -127,6 +127,73 @@ it_should_increment_the_counter_on_later_compactions() {
   stop_server
 }
 
+it_should_render_a_subagent_bump_alone_as_zero_plus_one() {
+  start_server
+
+  title "auth-fix"
+  title --bump-subagent-counter
+
+  assert_eq \
+    "TmuxWindowTitle > counter > should render a subagent bump alone as [0+1] when no main compaction happened yet" \
+    "auth-fix[0+1]" "$(window_name)"
+  stop_server
+}
+
+it_should_render_main_then_subagent_bumps_as_one_plus_one() {
+  start_server
+
+  title "auth-fix"
+  title --bump-counter
+  title --bump-subagent-counter
+
+  assert_eq \
+    "TmuxWindowTitle > counter > should render [1+1] after a main compaction followed by a subagent compaction" \
+    "auth-fix[1+1]" "$(window_name)"
+  stop_server
+}
+
+it_should_render_subagent_then_main_bumps_as_one_plus_one() {
+  start_server
+
+  title "auth-fix"
+  title --bump-subagent-counter
+  title --bump-counter
+
+  assert_eq \
+    "TmuxWindowTitle > counter > should render [1+1] after a subagent compaction followed by a main compaction" \
+    "auth-fix[1+1]" "$(window_name)"
+  stop_server
+}
+
+it_should_render_two_subagent_bumps_as_zero_plus_two() {
+  start_server
+
+  title "auth-fix"
+  title --bump-subagent-counter
+  title --bump-subagent-counter
+
+  assert_eq \
+    "TmuxWindowTitle > counter > should render [0+2] after two subagent compactions with no main compaction" \
+    "auth-fix[0+2]" "$(window_name)"
+  stop_server
+}
+
+it_should_preserve_a_split_counter_across_a_retitle() {
+  start_server
+
+  title "auth-fix"
+  title --bump-subagent-counter
+  title "db-store"
+
+  # No main bump ever landed, so no root is frozen -- this
+  # isolates counter preservation from the rooting behavior
+  # covered separately below.
+  assert_eq \
+    "TmuxWindowTitle > counter > should preserve an existing [M+S] counter when the title is reset to a new base" \
+    "db-store[0+1]" "$(window_name)"
+  stop_server
+}
+
 it_should_root_a_retitle_that_follows_a_compaction() {
   start_server
 
@@ -277,6 +344,31 @@ it_should_not_root_a_pane_claude_never_titled() {
   stop_server
 }
 
+it_should_freeze_the_root_at_the_title_current_when_the_main_bump_lands() {
+  start_server
+
+  title "auth-fix"
+  title --bump-subagent-counter
+  title "db-store"
+
+  # A subagent bump never freezes a root, so the retitle above
+  # lands on a still-rootless pane and just carries the counter.
+  assert_eq \
+    "TmuxWindowTitle > root > should freeze no root from a subagent bump alone" \
+    "db-store[0+1]" "$(window_name)"
+
+  title --bump-counter
+
+  # The main bump freezes whatever title is current AT THIS
+  # MOMENT ("db-store"), not the session's original title
+  # ("auth-fix") -- a bare render (no "auth-fix/" prefix) is
+  # only possible when the root equals "db-store" exactly.
+  assert_eq \
+    "TmuxWindowTitle > root > should freeze the root at the retitled base current when the main bump lands, not the session's original title" \
+    "db-store[1+1]" "$(window_name)"
+  stop_server
+}
+
 it_should_cap_a_plain_title_at_sixteen_chars() {
   start_server
 
@@ -343,13 +435,14 @@ it_should_keep_the_counter_whole_when_truncating() {
   title "verylongcurrentwork"
 
   # Drive the counter to two digits: the suffix must stay
-  # intact and the text absorb the extra character.
+  # intact and the current-work half absorbs the extra
+  # character, since the root keeps its fixed entitlement.
   for _ in 1 2 3 4 5 6 7 8 9; do title --bump-counter; done
 
   local actual; actual=$(window_name)
   assert_eq \
     "TmuxWindowTitle > cap > should keep a two-digit counter whole and shrink the text instead" \
-    "verylongr/verylongcu[10]" "$actual"
+    "verylongro/verylongc[10]" "$actual"
   stop_server
 }
 
@@ -366,6 +459,127 @@ it_should_drop_a_trailing_hyphen_left_by_truncation() {
   stop_server
 }
 
+it_should_keep_a_split_counter_suffix_whole_when_truncating() {
+  start_server
+
+  title "verylongrootname"
+  title --bump-counter
+  title "verylongcurrentwork"
+  title --bump-counter
+  title --bump-counter
+  title --bump-subagent-counter
+  title --bump-subagent-counter
+
+  # The [3+2] suffix is two chars wider than a plain [1], but
+  # the root keeps its fixed entitlement -- only the
+  # current-work half gives up the extra room, and the suffix
+  # itself stays whole either way.
+  local actual; actual=$(window_name)
+  assert_eq \
+    "TmuxWindowTitle > cap > should shrink the text further to keep a two-half [M+S] suffix whole" \
+    "verylongro/verylong[3+2]" "$actual"
+  assert_eq \
+    "TmuxWindowTitle > cap > should render a split-counter title exactly 24 chars wide" \
+    "24" "${#actual}"
+  stop_server
+}
+
+it_should_hold_the_root_at_its_fixed_entitlement_as_a_wide_split_counter_grows() {
+  start_server
+
+  title "aaaa-bbbb-cccc-d"
+  title --bump-counter
+  title "eeee-ffff-gggg-h"
+
+  local baseline; baseline=$(window_name)
+  assert_eq \
+    "TmuxWindowTitle > cap > should render the minimal [1] counter as the fixed-entitlement baseline" \
+    "aaaa-bbbb/eeee-ffff[1]" "$baseline"
+
+  # Looping --bump-subagent-counter 345 times to reach [12+345]
+  # for real would make the test itself absurd -- inject the
+  # wide counter directly, the same device already used above
+  # for "should not freeze a root from the user's pre-Claude
+  # window name".
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "aaaa-bbbb-cccc-d[12+345]"
+  title "eeee-ffff-gggg-h"
+
+  local widened; widened=$(window_name)
+  assert_eq \
+    "TmuxWindowTitle > cap > should shrink only the current-work half as the split counter widens" \
+    "aaaa-bbbb/eeee[12+345]" "$widened"
+
+  assert_eq \
+    "TmuxWindowTitle > cap > should keep the root segment exactly as wide as the [1] baseline" \
+    "${baseline%%/*}" "${widened%%/*}"
+  stop_server
+}
+
+it_should_stay_within_the_twentyfour_char_cap_as_the_split_counter_keeps_widening() {
+  start_server
+
+  title "aaaa-bbbb-cccc-d"
+  title --bump-counter
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "aaaa-bbbb-cccc-d[123+4567]"
+  title "eeee-ffff-gggg-h"
+
+  local actual; actual=$(window_name)
+  assert_eq \
+    "TmuxWindowTitle > cap > should render an even wider split counter without breaking the root" \
+    "aaaa-bbbb/eee[123+4567]" "$actual"
+
+  local within_cap=yes
+  [ "${#actual}" -le 24 ] || within_cap=no
+  assert_eq \
+    "TmuxWindowTitle > cap > should stay at or under 24 chars however wide the counter grows" \
+    "yes" "$within_cap"
+  stop_server
+}
+
+it_should_survive_an_absurdly_wide_counter_that_alone_exceeds_the_cap() {
+  start_server
+
+  title "aaaa-bbbb-cccc-d"
+  title --bump-counter
+  local absurd="123456789012345678901234567890"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "aaaa-bbbb-cccc-d[${absurd}]"
+
+  local status=0
+  title "eeee-ffff-gggg-h" >/dev/null 2>&1 || status=$?
+
+  assert_eq \
+    "TmuxWindowTitle > cap > should not crash when the counter suffix alone already exceeds the cap" \
+    "0" "$status"
+
+  assert_eq \
+    "TmuxWindowTitle > cap > should drop the text entirely rather than mangle it when the counter alone overflows the cap" \
+    "[${absurd}]" "$(window_name)"
+  stop_server
+}
+
+# No --bump-counter here on purpose: freezing a root routes
+# render_title through fit_rooted_pair instead, which has its
+# own independent clamp on `available`. Only an unrooted title
+# reaches the plain `budget` clamp this test exists to pin down.
+it_should_survive_an_absurdly_wide_counter_with_no_root_frozen() {
+  start_server
+
+  local absurd="123456789012345678901234567890"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "seed[${absurd}]"
+
+  local stderr_out
+  stderr_out=$(title "newbase" 2>&1 >/dev/null)
+
+  assert_eq \
+    "TmuxWindowTitle > cap > should not print a bash substring error when an unrooted counter alone overflows the cap" \
+    "" "$stderr_out"
+
+  assert_eq \
+    "TmuxWindowTitle > cap > should drop the text entirely rather than mangle it when there is no root to fall back on" \
+    "[${absurd}]" "$(window_name)"
+  stop_server
+}
+
 it_should_drop_the_counter_and_the_root_on_reset() {
   start_server
 
@@ -377,6 +591,30 @@ it_should_drop_the_counter_and_the_root_on_reset() {
   assert_eq \
     "TmuxWindowTitle > reset > should shed both the counter and the root prefix" \
     "db-store" "$(window_name)"
+  stop_server
+}
+
+it_should_shed_a_split_counter_and_release_the_root_on_reset() {
+  start_server
+
+  title "auth-fix"
+  title --bump-counter
+  title --bump-subagent-counter
+  title "db-store"
+  title --reset-counter
+
+  assert_eq \
+    "TmuxWindowTitle > reset > should shed both halves of a split [M+S] counter on reset" \
+    "db-store" "$(window_name)"
+
+  title --bump-counter
+  title "api-cache"
+
+  # The released root must not still be "auth-fix" -- the
+  # post-reset base ("db-store") becomes the next root instead.
+  assert_eq \
+    "TmuxWindowTitle > reset > should release the frozen root so the post-reset base becomes the next root" \
+    "db-store/api-cache[1]" "$(window_name)"
   stop_server
 }
 
@@ -487,6 +725,11 @@ it_should_set_a_plain_title_before_any_compaction
 it_should_hyphenate_whitespace_in_a_title
 it_should_start_the_counter_at_one_on_the_first_compaction
 it_should_increment_the_counter_on_later_compactions
+it_should_render_a_subagent_bump_alone_as_zero_plus_one
+it_should_render_main_then_subagent_bumps_as_one_plus_one
+it_should_render_subagent_then_main_bumps_as_one_plus_one
+it_should_render_two_subagent_bumps_as_zero_plus_two
+it_should_preserve_a_split_counter_across_a_retitle
 it_should_root_a_retitle_that_follows_a_compaction
 it_should_freeze_the_root_at_the_last_pre_compaction_title
 it_should_keep_the_root_stable_across_later_compactions
@@ -497,13 +740,20 @@ it_should_render_bare_when_the_root_covers_every_word
 it_should_render_bare_when_the_title_matches_the_root
 it_should_fold_a_caller_supplied_separator_into_a_hyphen
 it_should_not_root_a_pane_claude_never_titled
+it_should_freeze_the_root_at_the_title_current_when_the_main_bump_lands
 it_should_cap_a_plain_title_at_sixteen_chars
 it_should_cap_a_rooted_title_at_twentyfour_chars_including_the_counter
 it_should_give_a_short_root_s_slack_to_the_current_work
 it_should_give_a_short_current_work_s_slack_to_the_root
 it_should_keep_the_counter_whole_when_truncating
 it_should_drop_a_trailing_hyphen_left_by_truncation
+it_should_keep_a_split_counter_suffix_whole_when_truncating
+it_should_hold_the_root_at_its_fixed_entitlement_as_a_wide_split_counter_grows
+it_should_stay_within_the_twentyfour_char_cap_as_the_split_counter_keeps_widening
+it_should_survive_an_absurdly_wide_counter_that_alone_exceeds_the_cap
+it_should_survive_an_absurdly_wide_counter_with_no_root_frozen
 it_should_drop_the_counter_and_the_root_on_reset
+it_should_shed_a_split_counter_and_release_the_root_on_reset
 it_should_let_a_new_root_be_frozen_after_a_reset
 it_should_release_the_root_even_when_no_counter_is_present
 it_should_leave_an_untitled_window_alone_on_reset

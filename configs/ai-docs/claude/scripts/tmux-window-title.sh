@@ -8,18 +8,37 @@
 #
 # Usage:
 #   tmux-window-title.sh <title>       # set the base title
-#   tmux-window-title.sh --bump-counter  # +1 to the compaction counter
-#   tmux-window-title.sh --reset-counter # drop the compaction counter
 #   tmux-window-title.sh --help
 #
+#   Counter bumps, one per kind of compaction:
+#     --bump-subagent-counter   # +1 subagent compaction
+#     --bump-counter            # +1 main-session compaction
+#     --reset-counter           # drop the counter entirely
+#
 # Compaction counter:
-#   The title carries an optional trailing "[N]" -- the number of context
-#   compactions this Claude session has survived, e.g. "auth-fix[3]". It gives
-#   the user at-a-glance visibility into how churned a session's context is.
-#   The count lives in the title itself (single source of truth), managed by
-#   SessionStart hooks: --bump-counter on `compact`, --reset-counter on
-#   `startup`/`clear`. Setting a base title PRESERVES an existing counter, so
-#   Claude re-titling on a topic shift does not reset the count.
+#   The title carries an optional trailing counter -- how many
+#   context compactions this Claude session has survived. It
+#   gives the user at-a-glance visibility into how churned a
+#   session's context is.
+#
+#   It has two halves, because the two kinds of compaction do
+#   not mean the same thing. "auth-fix[3]" is three MAIN-session
+#   compactions, the ones that erase this window's own
+#   conversation. "auth-fix[3+9]" adds nine subagent
+#   compactions -- churn the session delegated away rather than
+#   absorbed, which says its subagents are running hot while
+#   its own context is not.
+#
+#   A zero subagent half renders as nothing at all: a session
+#   whose subagents never compacted reads "[3]", never "[3+0]".
+#   The "+" costs two of a 24-char budget, so it appears only
+#   once it carries information.
+#
+#   The count lives in the title itself (single source of
+#   truth), managed by SessionStart hooks: a bump on `compact`,
+#   --reset-counter on `startup`/`clear`. Setting a base title
+#   PRESERVES an existing counter, so Claude re-titling on a
+#   topic shift does not reset the count.
 #
 # Root anchor:
 #   The title the user learned to recognize is the one the window carried
@@ -37,6 +56,14 @@
 #   a word already on screen would spend the cap truncating the work that is
 #   actually new. A base the root fully covers leaves nothing to add and
 #   renders bare, so an undrifted session never reads "auth-fix/auth-fix[2]".
+#
+#   The root's own room in that pair is a FIXED entitlement:
+#   half of what the NARROWEST possible counter would leave,
+#   not half of whatever counter is actually on screen.
+#
+#   A widening counter then only ever eats into the current
+#   half, so the anchor the user scans for never shrinks past
+#   what any real counter could force on it.
 #
 #   The root is stored in tmux, not left to Claude's memory, precisely because
 #   compaction is what erases the first turn: after it, Claude no longer knows
@@ -68,14 +95,20 @@
 #     clobber the captured original. A separate SessionEnd hook restores it.
 #
 # Examples:
-#   tmux-window-title.sh "fix-auth-bug"   # spaces are converted to hyphens too
+#   tmux-window-title.sh "fix-auth-bug"
+#     spaces are converted to hyphens too
 #   tmux-window-title.sh "tmux-titles"
-#   tmux-window-title.sh --bump-counter   # "tmux-titles" -> "tmux-titles[1]"
-#   tmux-window-title.sh --reset-counter  # "tmux-titles[1]" -> "tmux-titles"
-#   tmux-window-title.sh "hook-tests"     # after that bump, roots the title:
-#                                         #   "tmux-title/hook-tests[1]"
-#   tmux-window-title.sh "tmux-titles-cap" # the root's own words drop out:
-#                                          #   "tmux-titles/cap[1]"
+#   tmux-window-title.sh --bump-counter
+#     "tmux-titles" -> "tmux-titles[1]"
+#   tmux-window-title.sh --bump-subagent-counter
+#     "tmux-titles[1]" -> "tmux-titles[1+1]"
+#   tmux-window-title.sh --reset-counter
+#     "tmux-titles[1+1]" -> "tmux-titles"
+#   tmux-window-title.sh "hook-tests"
+#     after that bump, roots the title:
+#     "tmux-title/hook-tests[1]"
+#   tmux-window-title.sh "tmux-titles-cap"
+#     the root's own words drop out: "tmux-titles/cap[1]"
 
 set -euo pipefail
 
@@ -95,22 +128,95 @@ MAX_LEN_COMPACTED=24
 # Separates the frozen root from the current work in a rooted title.
 ROOT_SEPARATOR="/"
 
-# Parse a trailing compaction counter "[N]" from a title. Echoes N when
-# present, nothing otherwise. Strict -- only digits inside brackets at the very
-# end count, so a base title never picks up a stray "[x]" as a counter.
+# Narrowest a counter suffix can ever be: a single-digit main
+# count with no subagent half, e.g. "[1]".
+MIN_COUNTER_SUFFIX_LEN=3
+
+# The root's fixed entitlement inside a rooted title's text
+# budget: half of what the NARROWEST possible counter would
+# leave, not half of whatever counter is actually rendered.
+#
+# A counter wider than the minimum then only ever eats into
+# the current-work half -- the anchor itself never shrinks
+# below what any real counter could force on it.
+ROOT_ROOM=$(( (MAX_LEN_COMPACTED - MIN_COUNTER_SUFFIX_LEN - ${#ROOT_SEPARATOR}) / 2 ))
+
+# Parse a trailing compaction counter from a title. Echoes the
+# counter BODY without its brackets -- "3" or "3+2" -- and
+# nothing when there is none. Strict: only digits (with at most
+# one "+" between them) inside brackets at the very end count,
+# so a base title never picks up a stray "[x]" as a counter.
 parse_counter() {
-  if [[ "$1" =~ \[([0-9]+)\]$ ]]; then
+  if [[ "$1" =~ \[([0-9]+(\+[0-9]+)?)\]$ ]]; then
     printf '%s' "${BASH_REMATCH[1]}"
   fi
 }
 
-# Echo the base title with a trailing numeric "[N]" removed (unchanged if none).
+# Echo the base title with a trailing counter removed
+# (unchanged if none).
 strip_counter() {
-  if [[ "$1" =~ ^(.*)\[[0-9]+\]$ ]]; then
+  if [[ "$1" =~ ^(.*)\[[0-9]+(\+[0-9]+)?\]$ ]]; then
     printf '%s' "${BASH_REMATCH[1]}"
   else
     printf '%s' "$1"
   fi
+}
+
+# Echo the main-session half of a counter body.
+#
+# A body with no "+" is a main count alone, which is also how
+# every title written before the split reads -- so an existing
+# "[3]" on a live window keeps meaning three main compactions
+# instead of being reinterpreted when this script updates.
+main_count() {
+  local body=${1:-}
+
+  if [ -z "$body" ]; then
+    printf '0'
+    return
+  fi
+
+  printf '%s' "${body%%+*}"
+}
+
+# Echo the subagent half of a counter body, or 0 when the body
+# carries no "+" half at all.
+subagent_count() {
+  local body=${1:-}
+
+  case "$body" in
+    *+*) printf '%s' "${body#*+}" ;;
+    *)   printf '0' ;;
+  esac
+}
+
+# Compose a counter body from its two halves.
+#
+# A zero subagent half is dropped entirely rather than rendered
+# as "+0": the suffix competes with the title text for a 24-char
+# budget, so it earns its two characters only once a subagent
+# has actually compacted.
+compose_counter() {
+  local main=$1 sub=$2
+
+  if [ "$sub" -gt 0 ]; then
+    printf '%s+%s' "$main" "$sub"
+    return
+  fi
+
+  printf '%s' "$main"
+}
+
+# Recover the current-work half of an already-rendered title.
+#
+# The window name is a RENDERED title, and rendering is not
+# idempotent -- feeding "<root>/<current>" back in would compose
+# a second root onto it and squeeze both halves again. On a
+# pre-root title there is no separator and this is a no-op.
+current_base() {
+  local base
+  base=$(strip_counter "$1")
+  printf '%s' "${base##*"$ROOT_SEPARATOR"}"
 }
 
 # Cut a title segment down to `max` chars, dropping a trailing hyphen the cut
@@ -124,10 +230,14 @@ truncate_segment() {
   printf '%s' "$text"
 }
 
-# Split `available` chars between the root and the current base. Each side is
-# entitled to half, but a side shorter than its half hands the slack to the
-# other -- so a short root never wastes room a long current base could use.
-# Echoes the two fitted segments separated by ROOT_SEPARATOR.
+# Split `available` chars between the root and the current
+# base. The root gets the fixed ROOT_ROOM, clamped down only
+# when `available` itself is narrower than that.
+#
+# A side shorter than its room still hands the slack to the
+# other -- so a short root never wastes room a long current
+# base could use. Echoes the two fitted segments separated
+# by ROOT_SEPARATOR.
 fit_rooted_pair() {
   local root=$1 base=$2 available=$3
 
@@ -136,13 +246,14 @@ fit_rooted_pair() {
     return
   fi
 
-  local half=$(( available / 2 ))
-  local root_room=$half base_room=$(( available - half ))
+  local root_room=$ROOT_ROOM
+  [ "$root_room" -gt "$available" ] && root_room=$available
+  local base_room=$(( available - root_room ))
 
-  if [ "${#root}" -lt "$half" ]; then
+  if [ "${#root}" -lt "$root_room" ]; then
     root_room=${#root}
     base_room=$(( available - root_room ))
-  elif [ "${#base}" -lt "$(( available - half ))" ]; then
+  elif [ "${#base}" -lt "$base_room" ]; then
     base_room=${#base}
     root_room=$(( available - base_room ))
   fi
@@ -187,13 +298,19 @@ drop_words_already_in_root() {
 # The root is prepended only when there is one AND the base still says
 # something the root does not.
 render_title() {
-  local base=$1 count=$2 root=${3:-} suffix=""
-  [ -n "$count" ] && suffix="[$count]"
+  local base=$1 counter=$2 root=${3:-} suffix=""
+  [ -n "$counter" ] && suffix="[$counter]"
 
   local max_len=$MAX_LEN_PLAIN
-  [ -n "$count" ] && max_len=$MAX_LEN_COMPACTED
+  [ -n "$counter" ] && max_len=$MAX_LEN_COMPACTED
 
   local budget=$(( max_len - ${#suffix} ))
+  # An absurdly wide counter can outgrow the whole cap by
+  # itself. A negative budget fed into truncate_segment's
+  # "${text:0:max}" is a bash version trap: bash < 4.2 errors,
+  # bash >= 4.2 reads a negative length as "N chars off the
+  # end" and returns MORE text, not less -- clamp it away.
+  [ "$budget" -lt 0 ] && budget=0
 
   if [ -n "$root" ]; then
     local new_work
@@ -201,6 +318,15 @@ render_title() {
 
     if [ -n "$new_work" ]; then
       local available=$(( budget - ${#ROOT_SEPARATOR} ))
+      [ "$available" -lt 0 ] && available=0
+
+      # No room for either half of the pair -- render the
+      # counter alone rather than a bare "/[N]" separator.
+      if [ "$available" -eq 0 ]; then
+        printf '%s' "$suffix"
+        return
+      fi
+
       printf '%s%s' "$(fit_rooted_pair "$root" "$new_work" "$available")" "$suffix"
       return
     fi
@@ -314,26 +440,43 @@ fi
 
 case "$MODE" in
   --bump-counter)
-    # A compaction happened: increment the counter (absent -> starts at 1).
+    # A MAIN-session compaction: increment the left half
+    # (absent -> starts at 1).
     current=$(current_title)
-    count=$(parse_counter "$current")
-    next=$(( ${count:-0} + 1 ))
+    body=$(parse_counter "$current")
+    main=$(main_count "$body")
     capture_prev_state
 
-    # The window name is a RENDERED title, and rendering is not idempotent --
-    # feeding "<root>/<current>" back in would compose a second root onto it
-    # and squeeze both halves again. Recover the current-work half first; on a
-    # pre-root title there is no separator and this is a no-op.
-    base=$(strip_counter "$current")
-    base="${base##*"$ROOT_SEPARATOR"}"
+    base=$(current_base "$current")
 
-    # Freeze the root on the FIRST compaction only: `base` is still the
-    # pre-compaction title, which is the anchor the user already recognizes.
-    if [ -z "$count" ]; then
+    # Freeze the root on the FIRST MAIN compaction only: `base`
+    # is still the pre-compaction title, which is the anchor the
+    # user already recognizes. Subagent bumps never reach here,
+    # so a session whose subagents compacted first still anchors
+    # to the title it carried into its OWN first compaction.
+    if [ "$main" -eq 0 ]; then
       freeze_root_title "$base"
     fi
 
-    apply_title "$(render_title "$base" "$next" "$(root_title)")"
+    counter=$(compose_counter "$(( main + 1 ))" "$(subagent_count "$body")")
+    apply_title "$(render_title "$base" "$counter" "$(root_title)")"
+    ;;
+
+  --bump-subagent-counter)
+    # A subagent compacted its own context: increment the right
+    # half, and freeze no root. A subagent's compaction erases
+    # nothing this session remembers, so there is no anchor at
+    # risk -- the root exists to survive an erasure that did not
+    # happen here.
+    current=$(current_title)
+    body=$(parse_counter "$current")
+    sub=$(subagent_count "$body")
+    capture_prev_state
+
+    base=$(current_base "$current")
+
+    counter=$(compose_counter "$(main_count "$body")" "$(( sub + 1 ))")
+    apply_title "$(render_title "$base" "$counter" "$(root_title)")"
     ;;
 
   --reset-counter)
@@ -353,8 +496,7 @@ case "$MODE" in
     # Shed the now-released root too, keeping only the current work -- carrying
     # "<root>/" into a counter-less title would anchor the new session to the
     # old one's identity, which is what the reset just revoked.
-    base=$(strip_counter "$current")
-    base="${base##*"$ROOT_SEPARATOR"}"
+    base=$(current_base "$current")
     capture_prev_state
     apply_title "$(render_title "$base" "")"
     ;;
