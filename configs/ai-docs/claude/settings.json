@@ -255,7 +255,7 @@
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/scripts/tmux-window-title.sh --bump-counter"
+            "command": "python3 ~/.claude/hooks/claude-tmux-compact-bump.py"
           }
         ]
       }
