@@ -12,7 +12,7 @@ hooks:
       hooks:
         - type: command
           command: |
-            jq -e '(.tool_input.command // "") | test("check-density|check-bullet-gap|fix-density|check-rule-citations")' >/dev/null 2>&1 && echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}' || true
+            jq -e '(.tool_input.command // "") | test("check-density|check-bullet-gap|check-hard-wrap|fix-density|check-rule-citations")' >/dev/null 2>&1 && echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}' || true
 ---
 
 ## Objective
@@ -33,7 +33,8 @@ The caller gives you a list of files (sometimes with specific line numbers; line
 ## Sources and tools
 
 - Your Edits auto-approve.
-- The ONLY Bash you may run is the four scripts under `~/.claude/skills/doc-standards/scripts/` — `fix-density.py`, `check-density.sh`, `check-bullet-gap.py`, and `check-rule-citations.py`. Any other command will prompt, so never rely on one.
+- The ONLY Bash you may run is the five scripts under `~/.claude/skills/doc-standards/scripts/` — `fix-density.py`, `check-density.sh`, `check-bullet-gap.py`, `check-hard-wrap.py`, and `check-rule-citations.py`.
+  - Any other command will prompt, so never rely on one.
 
 - Read is unrestricted, which is what lets you settle a citation: the cited file's own headings and bold spans are the only evidence of which file authors a rule.
 
@@ -111,6 +112,11 @@ For each file the caller names:
 - Preserve every technical term, identifier, field name, backtick code-span, and link verbatim.
 
 - Keep each paragraph on ONE physical line — never hard-wrap mid-sentence. Splitting means genuinely separate sentences or bullets, not inserted line breaks.
+  - `check-hard-wrap.py <file>` reports every wrap, so run it to confirm YOUR OWN edits added none. Compare its output before and after your edits; only the lines you touched are yours.
+
+  - Do NOT clear the wraps it reported before you started, and never join lines to silence it.
+    - Most docs here are hard-wrapped throughout, and unwrapping them is a separate tracked task.
+    - A join alone recreates the over-cap lines `check-density.sh` rejects, so clearing a wrap means join-THEN-split at a sentence boundary — the authorial call that task exists to make.
 
 - Separate any bullet that has a sub-bullet, or exceeds ~80% of the cap (~205 chars / 26 words), from the next bullet with a blank line.
 
