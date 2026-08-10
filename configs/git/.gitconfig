@@ -3,6 +3,19 @@
 	name = Bruno G. Salomao Agostini
 [core]
 	editor = nvim
+[rebase]
+	updateRefs = true
+[rerere]
+	# autoUpdate stays off: rerere replays a past conflict
+	# resolution silently, and leaving the replay unstaged is
+	# the only moment you get to notice it happened.
+	enabled = true
+	autoUpdate = false
+[alias]
+	# force-if-includes rejects the push unless the remote tip
+	# you are overwriting is one you actually fetched, which is
+	# what --force-with-lease alone fails to guarantee.
+	pushf = push --force-with-lease --force-if-includes
 [credential "https://github.com"]
 	helper =
 	helper = !gh auth git-credential
