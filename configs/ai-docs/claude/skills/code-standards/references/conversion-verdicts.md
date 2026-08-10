@@ -1,8 +1,16 @@
 # Conversion verdicts — classify-conversion.py swept across both repos
 
 This is the committed input Tasks 16-20 of `plan_script-overhaul.md` scope
-their conversion batches from. Every row is exactly what
-`classify-conversion.py` returned; nothing here was hand-adjusted.
+their conversion batches from. Per row, the `Path`, `Verdict`, and
+`Target` columns are exactly what `classify-conversion.py` returned —
+none of those three was hand-adjusted.
+
+The `Triggering reason` and `Harness fate` columns are hand-derived: the
+classifier emits only four keys (`path`, `target_language`, `tree_root`,
+`verdict`) and has no reason or harness-fate field, so a human wrote
+those two columns' cell values — and the explanatory notes around the
+tables, including the harness-fate note above the `unix-utils` table —
+by reading the classifier's evidence, not by copying its output.
 
 ## How this was generated
 
@@ -25,6 +33,17 @@ reproduce byte-for-byte on a later run. Four of the files below
 `claude-tmux-title-reminder.sh`, `tmux-window-title.sh`, and their four new
 paired `test-*.sh` files) were mid-edit or newly-added and uncommitted
 in that session at capture time.
+
+The `Target` column is stale in a second, narrower way: at capture time
+`classify-conversion.py` unconditionally emitted `py` for every row,
+`stays-sh` rows included. Commit `d012ceb9` (landed after capture)
+changed that function to emit `None` for any non-`convert` verdict,
+since a script that stays `.sh` is never converted and a target language
+is moot for it. Every `stays-sh` row below still shows `py` in `Target`
+— that was the tool's real output at capture time, not a hand-adjustment
+— but a fresh run today would emit no target for those rows. Read
+`Target` on a `stays-sh` row as "what the classifier said before
+`d012ceb9`," not as what the classifier says now.
 
 ## Summary
 
