@@ -16,6 +16,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+# This file sits at configs/ai-docs/claude/scripts/tests/, so
+# the repo root is five parents up: tests -> scripts -> claude
+# -> ai-docs -> configs -> repo root.
 REPO_ROOT = Path(__file__).resolve().parents[5]
 PYTEST_INI = REPO_ROOT / "pytest.ini"
 
