@@ -478,3 +478,50 @@ class TestCaptureScriptBehaviorFailure(_TempDirTestCase):
         self.assertEqual(updated["expected_stdout"], "changed\n")
         text = emitted.read_text()
         self.assertIn("# DIVERGENCE: greeting message rewritten for clarity", text)
+
+    def test_should_report_the_unreadable_harness_path_when_the_generated_test_cannot_load_its_harness(self):
+        # The emitted file reaches its harness through a relative
+        # `../../../` walk, which breaks the moment either file is
+        # relocated. The reader's first question is then "which
+        # harness path could it not load?", so that path has to be
+        # in the message the failure prints.
+        fake_repo = self.tmp_path / "fake-repo"
+        harness_copy = fake_repo / "test-standards" / "scripts" / "capture-script-behavior.py"
+        harness_copy.parent.mkdir(parents=True)
+        harness_copy.write_text(SCRIPT.read_text())
+        harness_copy.chmod(0o755)
+
+        script_path = fake_repo / "implement" / "scripts" / "toy.sh"
+        script_path.parent.mkdir(parents=True)
+        script = _write_executable(script_path, "#!/bin/sh\necho hi\nexit 0\n")
+        emitted = fake_repo / "implement" / "scripts" / "tests" / "toy.test.py"
+        emitted.parent.mkdir(parents=True)
+        table = _write_table(self.tmp_path / "table.json", [
+            {"name": "only-row", "argv": [], "stdin": "", "branch": None,
+             "fixture_files": {}, "git_init": False},
+        ])
+
+        capture_result = subprocess.run(
+            [sys.executable, str(harness_copy), "capture",
+             "--script", str(script), "--table", str(table), "--out", str(emitted)],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(capture_result.returncode, 0, msg=capture_result.stderr)
+
+        # Delete only the harness, leaving the emitted test where it
+        # was captured — the exact state a relocated or renamed
+        # harness leaves behind.
+        harness_copy.unlink()
+
+        replay_result = subprocess.run(
+            [sys.executable, "-m", "pytest", "--import-mode=importlib", str(emitted), "-q"],
+            capture_output=True, text=True,
+        )
+        output = replay_result.stdout + replay_result.stderr
+
+        self.assertNotEqual(replay_result.returncode, 0)
+        self.assertIn(str(harness_copy), output)
+        self.assertIn("ImportError", output)
+        # An AttributeError from inside importlib names its own
+        # internals rather than the file the reader has to go fix.
+        self.assertNotIn("AttributeError", output)

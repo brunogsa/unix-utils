@@ -267,7 +267,15 @@ from pathlib import Path
 SCRIPT_UNDER_TEST = str({script_repr})
 
 _HARNESS_PATH = {harness_repr}
+if not _HARNESS_PATH.is_file():
+    raise ImportError(
+        f"capture-script-behavior.py harness not found at {{_HARNESS_PATH}}"
+        f" — this generated test locates the harness relative to its own"
+        f" path, so relocating either file breaks the link."
+    )
 _spec = importlib.util.spec_from_file_location("capture_script_behavior", _HARNESS_PATH)
+if _spec is None or _spec.loader is None:
+    raise ImportError(f"no import spec for the harness at {{_HARNESS_PATH}}")
 _harness = importlib.util.module_from_spec(_spec)
 sys.modules["capture_script_behavior"] = _harness
 _spec.loader.exec_module(_harness)
