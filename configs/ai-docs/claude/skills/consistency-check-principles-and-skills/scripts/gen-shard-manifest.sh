@@ -136,7 +136,7 @@ fi
 # (prose captured by an over-eager backtick/link match included) —
 # that failure is the filter, not an error condition.
 resolve_candidate() {
-    local referencing_file=$1 candidate=$2 base resolved_dir
+    local referencing_file=$1 candidate=$2 base resolved_dir resolved
     candidate="${candidate%%#*}"
     case "$candidate" in
         *[!A-Za-z0-9_./~-]*|'')
@@ -159,7 +159,17 @@ resolve_candidate() {
     resolved_dir="$(cd "$resolved_dir" && pwd -P)"
     base="$resolved_dir/$(basename "$base")"
     [ -f "$base" ] || return 1
-    physical_file "$base"
+    resolved="$(physical_file "$base")"
+    # The header's contract is "in-repo" only — a `~/` or
+    # `/`-absolute candidate resolves against the real
+    # filesystem, not the root argument, so without this
+    # check an out-of-repo personal file would land in a
+    # shard's authorized read set.
+    case "$resolved" in
+        "$CLAUDE_ROOT"/*) ;;
+        *) return 1 ;;
+    esac
+    printf '%s\n' "$resolved"
 }
 
 # Every file a skill dispatches by `agent(subAgent=<name>...` or bare

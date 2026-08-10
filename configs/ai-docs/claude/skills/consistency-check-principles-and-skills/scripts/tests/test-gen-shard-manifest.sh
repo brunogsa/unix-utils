@@ -290,6 +290,42 @@ EOF
     rm -rf "$d"
 }
 
+it_should_exclude_a_tilde_prefixed_reference_to_a_file_outside_the_repo_root() {
+    echo "it_should_exclude_a_tilde_prefixed_reference_to_a_file_outside_the_repo_root"
+    local d; d=$(new_fixture)
+    local outside; outside=$(mktemp -d)
+    printf 'Personal notes.\n' > "$outside/notes.md"
+    write_skill_file "$d" "demo-skill" "SKILL.md" <<'EOF'
+---
+name: demo-skill
+description: "Demo."
+---
+See `~/notes.md` for details.
+EOF
+    local output; output=$(HOME="$outside" bash "$GEN" "$d/configs/ai-docs/claude" 2>/dev/null)
+    local actual; actual=$(shard_files "$output" "demo-skill" | grep -c "notes.md")
+    assert_eq "tilde reference outside repo root is excluded" "0" "$actual"
+    rm -rf "$d" "$outside"
+}
+
+it_should_exclude_an_absolute_path_reference_to_a_file_outside_the_repo_root() {
+    echo "it_should_exclude_an_absolute_path_reference_to_a_file_outside_the_repo_root"
+    local d; d=$(new_fixture)
+    local outside; outside=$(mktemp -d)
+    printf 'Personal notes.\n' > "$outside/notes.md"
+    write_skill_file "$d" "demo-skill" "SKILL.md" <<EOF
+---
+name: demo-skill
+description: "Demo."
+---
+See \`$outside/notes.md\` for details.
+EOF
+    local output; output=$(run_gen "$d")
+    local actual; actual=$(shard_files "$output" "demo-skill" | grep -c "notes.md")
+    assert_eq "absolute-path reference outside repo root is excluded" "0" "$actual"
+    rm -rf "$d" "$outside"
+}
+
 it_should_hard_fail_when_the_skills_directory_is_missing() {
     echo "it_should_hard_fail_when_the_skills_directory_is_missing"
     local d; d=$(mktemp -d)
@@ -310,6 +346,8 @@ it_should_emit_no_empty_shard
 it_should_produce_deterministic_output_on_repeated_runs
 it_should_resolve_a_repo_path_argument_the_same_way_check_sh_does
 it_should_collapse_a_symlinked_claude_md_to_one_physical_path
+it_should_exclude_a_tilde_prefixed_reference_to_a_file_outside_the_repo_root
+it_should_exclude_an_absolute_path_reference_to_a_file_outside_the_repo_root
 it_should_hard_fail_when_the_skills_directory_is_missing
 
 echo
