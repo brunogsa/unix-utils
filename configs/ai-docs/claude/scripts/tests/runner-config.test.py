@@ -25,11 +25,11 @@ PYTEST_INI = REPO_ROOT / "pytest.ini"
 # The five suites that predate this work's *.test.py convention and must
 # keep collecting once python_files also matches the new pattern.
 PRE_EXISTING_SUITES = [
-    "skills/brag/scripts/tests/test_parsers_parity.py",
-    "skills/usage-audit/scripts/tests/test_build_usage_viewer.py",
-    "skills/usage-audit/scripts/tests/test_claude_usage_report.py",
-    "skills/usage-audit/scripts/tests/test_config_change_ledger.py",
-    "skills/usage-audit/scripts/tests/test_delivered_work_ledger.py",
+    "configs/ai-docs/claude/skills/brag/scripts/tests/test_parsers_parity.py",
+    "configs/ai-docs/claude/skills/usage-audit/scripts/tests/test_build_usage_viewer.py",
+    "configs/ai-docs/claude/skills/usage-audit/scripts/tests/test_claude_usage_report.py",
+    "configs/ai-docs/claude/skills/usage-audit/scripts/tests/test_config_change_ledger.py",
+    "configs/ai-docs/claude/skills/usage-audit/scripts/tests/test_delivered_work_ledger.py",
 ]
 
 FIXTURE_PY_BODY = "def test_fixture_passes():\n    assert 1 + 1 == 2\n"
@@ -77,6 +77,14 @@ class TestRunnerConfigHappy(unittest.TestCase):
                 result.returncode, 0,
                 msg=f"node --test did not discover the fixture:\n{result.stdout}{result.stderr}")
             self.assertIn("# pass 1", result.stdout)
+
+    def test_should_list_each_pre_existing_suite_as_a_path_that_resolves_under_the_repo_root(self):
+        for suite in PRE_EXISTING_SUITES:
+            self.assertTrue(
+                (REPO_ROOT / suite).is_file(),
+                msg=f"{suite} does not resolve to a real file under "
+                    f"{REPO_ROOT} — PRE_EXISTING_SUITES entries must be "
+                    f"repo-root-relative paths, not substrings")
 
     def test_should_still_list_all_five_pre_existing_test_prefixed_suites_after_the_config_change(self):
         result = subprocess.run(
