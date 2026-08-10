@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# claude-implement-compact-reminder - After a compaction, re-inject the §8
-#     batch-end checklist for THIS session's first mid-flight /implement unit.
+# claude-implement-compact-reminder - After a compaction,
+#     re-inject what THIS session's first mid-flight
+#     /implement unit still owes.
+#
+#     That is the task loop while a task is unfinished, or
+#     the §8 batch-end checklist once every task is done.
 #
 # Usage (Claude Code SessionStart hook, matcher: compact):
 #   stdin:  hook event JSON ({ session_id, source, ... })
@@ -26,8 +30,29 @@
 #   the notification line carries the run's real batch_base_sha, and the
 #   unit is named by its pr_label when the run has one (a PR-label run).
 #
-#   The push step is NOT conditional — every batch end pushes, whether or
-#   not a PR was wanted, so it is always in the re-injected list.
+#   Within that §8 list the push step is NOT conditional —
+#   every batch end pushes, whether or not a PR was wanted
+#   — so it is always present once the list is due.
+#
+# Why task state, not phase, picks which directive is due:
+#   Phase 'tasks' covers the WHOLE task loop, so keying the
+#   §8 directive on phase alone handed the batch-end
+#   procedure to a unit with five tasks still unfinished.
+#
+#   That misfires twice. It ends the batch early: §8 falls
+#   due only once implement-loop-state.sh verdicts the unit
+#   to 'gates', which it does only after every task has
+#   left the loop.
+#
+#   And its 'git push' step targets a branch that a
+#   concurrent session may have loaded with its own
+#   unreviewed commits — the same harm the subagent guard
+#   below exists to prevent, reached down a second path.
+#
+#   claude-implement-stop-hook.sh answers the neighbouring
+#   question ("is any unit mid-flight?") off the same
+#   files, and its block reason is the wording the
+#   task-loop branch here reuses, so the two read alike.
 #
 # Session scoping — identical to claude-implement-stop-hook.sh:
 #   State file paths are keyed by session_id. No file matching this session
@@ -137,6 +162,30 @@ sha_display="${base_sha:-<BATCH_BASE_SHA>}"
 remaining_line=""
 [ "$pending_after" -gt 0 ] && remaining_line="$pending_after more unit(s) remain after this one."
 
+# Which directive is due — see the header. "Unfinished" is
+# every task the loop has not recorded as done, so a
+# blocked or unreadable status lands in the task-loop
+# branch, which withholds the push instead of guessing.
+#
+# A unit carrying no tasks[] at all counts zero unfinished
+# and takes the §8 branch: that is the honest answer at
+# phase gates|tails, where the loop has already drained.
+unfinished_ids=$(jq -r '[.tasks[]? | select(.status != "done") | .id] | join(", ")' \
+  "$chosen_file" 2>/dev/null || true)
+unfinished_count=$(jq '[.tasks[]? | select(.status != "done")] | length' \
+  "$chosen_file" 2>/dev/null || true)
+
+if [ -n "$unfinished_ids" ]; then
+
+read -r -d '' DIRECTIVE <<EOF || true
+A /implement batch for '$slug' has $unit_desc still in phase '$phase', with $unfinished_count task(s) not yet done: $unfinished_ids. The batch isn't done yet, and this compaction may have dropped that from working memory.
+
+Keep working the task loop (see the implement skill and implement-loop-state.sh) instead of winding the batch down: ask implement-loop-state.sh for the unit's next verdict and dispatch from there. Do NOT start the batch-end procedure — it falls due only when that verdict moves this unit to phase 'gates', which cannot happen while a task is still unfinished.
+$remaining_line
+EOF
+
+else
+
 read -r -d '' DIRECTIVE <<EOF || true
 A /implement batch for '$slug' has $unit_desc mid-flight (state phase: '$phase'). This compaction may have dropped the §8 batch-end steps from working memory — do NOT let the batch end at the last task's commit.
 
@@ -146,6 +195,8 @@ $remaining_line
 
 Verify the batch-end [Reminder] tasks are still in your TaskList; if this compaction dropped them, re-seed the four from §2.2. The run is done only when phase reaches 'presented'; a 'halted' unit is waiting on the human and won't resume on its own.
 EOF
+
+fi
 
 jq -n --arg ctx "$DIRECTIVE" \
   '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $ctx}}'
