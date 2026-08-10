@@ -70,9 +70,16 @@ def _classify_header_comment_lines(comment_lines):
     invocation-form lines, the stdin/stdout/exit I/O-contract
     lines, and bare '#' separator lines. Anything left over is a
     fifth element AC-18 forbids.
+
+    A Usage: continuation line only counts as an invocation form
+    when indented 2+ spaces past the '#' (real forms carry 3).
+    A same-indent line like '# Examples:' or '# Background:'
+    closes the block instead of being swept in, so content AC-18
+    excludes can't hide inside Usage: before any separator.
     """
     name_purpose_pattern = re.compile(r"^#\s*[\w.-]+\s*[-—]\s*\S")
     usage_header_pattern = re.compile(r"^#\s*Usage:\s*$")
+    usage_continuation_pattern = re.compile(r"^#\s{2,}\S")
     io_contract_pattern = re.compile(r"^#\s*(stdin|stdout|exit):")
     bare_separator_pattern = re.compile(r"^#\s*$")
 
@@ -91,8 +98,14 @@ def _classify_header_comment_lines(comment_lines):
             in_usage_block = False
             continue
 
-        if in_usage_block and line.startswith("#"):
-            continue
+        if in_usage_block:
+            if usage_continuation_pattern.match(line):
+                continue
+            # Falls through on a clean slate: a same-indent line
+            # (e.g. "# Examples:") closes the block instead of
+            # being swept in as an invocation form, so it still
+            # gets classified on its own merits below.
+            in_usage_block = False
 
         if io_contract_pattern.match(line):
             in_usage_block = False
@@ -283,6 +296,59 @@ class TestCodeStandardsScriptsSectionGuardHelpers(unittest.TestCase):
                 "roles (name+purpose, Usage:, I/O contract, bare "
                 "'#' separators) must be reported, not silently "
                 f"accepted: {unclassified_lines}")
+
+    def test_should_report_a_worked_example_block_placed_inside_the_usage_block_before_any_separator(self):
+        fixture_header_lines_with_examples_inside_usage = [
+            "# extract-field.py - Extract a field from JSON lines",
+            "#",
+            "# Usage:",
+            "#   extract-field.py <field> [file]",
+            "#   cat data.jsonl | extract-field.py .name",
+            "# Examples:",
+            "#   extract-field.py .id data.jsonl",
+            "#",
+            "# stdin: JSON lines, when no file argument is given",
+            "# stdout: the extracted field value, one per line",
+            "# exit: 0 on success, 1 on bad input",
+        ]
+
+        unclassified_lines = _classify_header_comment_lines(
+            fixture_header_lines_with_examples_inside_usage)
+
+        self.assertEqual(
+            unclassified_lines,
+            ["# Examples:", "#   extract-field.py .id data.jsonl"],
+            msg="a worked-example block slipped inside the 'Usage:' "
+                "block, before any bare '#' separator closes it, "
+                "must still be reported, not silently swept in as "
+                f"an invocation form: {unclassified_lines}")
+
+    def test_should_report_a_rationale_line_placed_inside_the_usage_block_before_any_separator(self):
+        fixture_header_lines_with_rationale_inside_usage = [
+            "# extract-field.py - Extract a field from JSON lines",
+            "#",
+            "# Usage:",
+            "#   extract-field.py <field> [file]",
+            "#   cat data.jsonl | extract-field.py .name",
+            "# Background: written because jq was unavailable on "
+            "the build box.",
+            "#",
+            "# stdin: JSON lines, when no file argument is given",
+            "# stdout: the extracted field value, one per line",
+            "# exit: 0 on success, 1 on bad input",
+        ]
+
+        unclassified_lines = _classify_header_comment_lines(
+            fixture_header_lines_with_rationale_inside_usage)
+
+        self.assertEqual(
+            unclassified_lines,
+            ["# Background: written because jq was unavailable on "
+             "the build box."],
+            msg="a rationale/background line slipped inside the "
+                "'Usage:' block, before any bare '#' separator "
+                "closes it, must still be reported, not silently "
+                f"swept in as an invocation form: {unclassified_lines}")
 
 
 if __name__ == "__main__":
