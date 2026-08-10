@@ -8,10 +8,36 @@ Never reimplements check-bullet-gap.py's or check-density.sh's skip logic
 out to both and only acts on the lines they report as violations, so the two
 checkers stay the single source of truth for what counts as "prose" here.
 
-A split bullet's second half is emitted as its own indented sub-bullet,
-never as a bare continuation line. A continuation line joins the parent's
-rendered bullet, so it would shorten the physical line and turn the check
-green while leaving the reader exactly as much to read.
+Both halves of a split are emitted as their own rendered element: a
+bullet's second half becomes an indented sub-bullet, a paragraph's becomes
+a second paragraph separated by a blank line. Neither may be a bare
+continuation line - a continuation joins the first half's rendered element,
+so it would shorten the physical line and turn the check green while
+leaving the reader exactly as much to read.
+
+That asymmetry narrows where a paragraph may split. A bullet splits at any
+recognized boundary because the sub-bullet's indent expresses subordination,
+so a clause boundary reads correctly under it. A paragraph break asserts a
+new thought instead, which only a sentence boundary ". " delivers - split a
+paragraph at "; " or " — " and the second half opens mid-sentence, severing
+one sentence into two paragraphs rather than separating two. So a paragraph
+whose only boundary is a clause boundary is left alone and reported.
+
+Two shapes are refused BY DESIGN rather than split, and reported as residue
+for a human to resolve - they are NOT gaps in this script to close:
+
+  - A bullet carrying a counting marker ([Instruction]/[Why]/[Example]).
+    Every list-bullet in CLAUDE.md and the *-standards skills carries one,
+    so the sub-bullet needs a marker of its own, and only the author knows
+    whether the second half is a second constraint (a sibling [Instruction])
+    or an elaboration (which has no marker at all). Guessing is not merely
+    inelegant: performance-check/check.sh counts marker totals and ratios,
+    so a fabricated marker inflates the counts and shifts the CRITICAL ratio
+    the convention exists to make measurable.
+
+  - A blockquote line. Its second half would need its own "> ", and the
+    blank line a paragraph split relies on ends the quote rather than
+    extending it.
 
 Splitting is conservative: a line is split only at a recognized boundary
 (". ", " — ", " -- ", "; ") whose remainder doesn't already start with a
@@ -53,6 +79,11 @@ MAX_ITERATIONS = 10
 BOUNDARY = re.compile(r"\. | — | -- |; ")
 STRUCTURAL_TOKEN = re.compile(r"^(?:[-*+#|>]|\d+\.)")
 BULLET_MARKER = re.compile(r"^([ \t]*)([-*+] |\d+\. )")
+BLOCKQUOTE = re.compile(r"^[ \t]*>")
+# Matched against a bullet's text, past its own marker. The leading class
+# absorbs the bold/backtick wrapping CLAUDE.md's own counting-conventions
+# section uses, e.g. "- **`[Instruction]`** - one directive, ...".
+COUNTING_MARKER = re.compile(r"^[*_`]*\[(?:Instruction|Why|Example)\]")
 URL = re.compile(r"\(https?://[^)]*\)")
 DATA_URI = re.compile(r"[(<]data:[^)>]*[)>]")
 
@@ -80,13 +111,22 @@ def is_first_half_balanced(first_half):
     return first_half.count("`") % 2 == 0
 
 
-def continuation_prefix(line):
+def second_half_prefix(line):
     """The prefix `line`'s second half carries so it renders as its own
-    element rather than joining the first half's. A bullet's second half
-    nests one level under it, aligned past the parent's own marker; any
-    other line carries the parent's indent alone."""
+    element rather than joining the first half's, or None when no prefix
+    can make it one without a choice only the author can make - see the
+    module docstring for why a marker-carrying bullet and a blockquote
+    are both refused rather than guessed at.
+
+    A bullet's second half nests one level under it, aligned past the
+    parent's own marker; any other line carries the parent's indent alone
+    and relies on split_line's blank line to become its own paragraph."""
+    if BLOCKQUOTE.match(line):
+        return None
     marker = BULLET_MARKER.match(line)
     if marker:
+        if COUNTING_MARKER.match(line[marker.end() :]):
+            return None
         return marker.group(1) + " " * len(marker.group(2)) + "- "
     return line[: len(line) - len(line.lstrip(" \t"))]
 
@@ -105,13 +145,20 @@ def candidate_splits(line, max_chars, max_words):
 
     Each half is measured exactly as it will be emitted, prefix included,
     so a candidate ranked as fitting both caps still fits once written.
+    Empty when `line` is a shape second_half_prefix refuses outright.
     """
-    prefix = continuation_prefix(line)
+    prefix = second_half_prefix(line)
+    if prefix is None:
+        return []
     marker = BULLET_MARKER.match(line)
     marker_end = marker.end() if marker else 0
     safe = []
 
     for m in BOUNDARY.finditer(line):
+        # A paragraph's halves become two paragraphs, and only a sentence
+        # boundary yields two well-formed ones - see the module docstring.
+        if marker is None and m.group() != ". ":
+            continue
         # An ordered-list marker ends in ". ", which is also a boundary -
         # splitting there would strand "1." as a bullet with no content.
         if m.end() <= marker_end:
@@ -140,9 +187,18 @@ def candidate_splits(line, max_chars, max_words):
 
 
 def split_line(line, max_chars, max_words):
-    """The single best safe split for `line`, or None when no boundary is safe."""
+    """The lines that replace `line` at its single best safe split, or None
+    when no split is safe. A bullet yields two lines - the parent and its
+    sub-bullet - while a paragraph yields three, the blank line between the
+    halves being what makes the second one a paragraph of its own instead
+    of a hard wrap of the first."""
     candidates = candidate_splits(line, max_chars, max_words)
-    return candidates[0] if candidates else None
+    if not candidates:
+        return None
+    first, second = candidates[0]
+    if BULLET_MARKER.match(line):
+        return [first, second]
+    return [first, "", second]
 
 
 def get_density_hits(path, max_chars, max_words):
@@ -187,13 +243,11 @@ def split_pass(path, max_chars, max_words):
     changed = False
     residue = []
     for line_no, chars, words in sorted(hits, reverse=True):
-        split = split_line(lines[line_no - 1], max_chars, max_words)
-        if split is None:
+        replacement = split_line(lines[line_no - 1], max_chars, max_words)
+        if replacement is None:
             residue.append((line_no, chars, words))
             continue
-        first, second = split
-        lines[line_no - 1] = first
-        lines.insert(line_no, second)
+        lines[line_no - 1 : line_no] = replacement
         changed = True
 
     if changed:

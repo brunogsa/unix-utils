@@ -73,7 +73,21 @@ For each file the caller names:
 
    - Why script-first: it is deterministic and sub-second, where hand-splitting the same lines burns turns and risks mangling prose it should only have re-wrapped.
 
-3. Hand-fix ONLY the residue lines it reported. Each is a line with no safe split boundary, so it needs genuine rephrasing rather than a split.
+3. Hand-fix ONLY the residue lines it reported. A residue row is one of two kinds, and the fix differs:
+
+   - A line with no safe split boundary — no boundary at all, or every one sitting inside a bracket pair or code span. Rephrase it; there is nothing to split at.
+
+   - A shape the script refuses BY DESIGN, because splitting it takes an authorial decision no script can make. Make that decision and split by hand.
+
+   - The three refused shapes:
+
+     - A bullet carrying an `[Instruction]`/`[Why]`/`[Example]` marker. Only you know whether the second half is a second constraint, earning a sibling marker, or an elaboration, which carries no marker at all.
+
+     - A blockquote line. Its second half needs its own `> `, and the blank line a paragraph split relies on would end the quote instead of extending it.
+
+     - A paragraph whose only boundary is a clause boundary — `; `, ` — `, ` -- ` — rather than `. `. Breaking there severs one sentence into two paragraphs.
+
+   - Never "fix" the script to split these instead. `fix-density.py`'s module docstring records why each refusal is deliberate, and a fabricated marker corrupts the counts `performance-check/check.sh` measures.
 
 4. Run BOTH `check-density.sh <file>` and `check-bullet-gap.py <file>` from `~/.claude/skills/doc-standards/scripts/`, and iterate on that file until each exits 0.
    - Re-run both after every edit round: splitting a long line adds bullets, which can open a new gap, and gapping a bullet never fixes a density hit.

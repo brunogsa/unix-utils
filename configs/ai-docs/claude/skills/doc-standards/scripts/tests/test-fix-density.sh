@@ -94,11 +94,12 @@ EOF
 # AC4 fixture
 
 This clause exists purely to push the line length well past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents.
+
 This second clause continues the thought after the boundary so the split can balance both halves reasonably well.
 EOF
   local expected
   expected="$(cat "$expected_file")"
-  assert_eq 'should split an over-cap line at a sentence boundary (file content, both halves under the caps)' "$expected" "$(cat "$FIXTURE")"
+  assert_eq 'should split an over-cap line at a sentence boundary (file content, the halves render as two separate paragraphs rather than one hard-wrapped one)' "$expected" "$(cat "$FIXTURE")"
 
   run_density_check
   assert_eq 'should split an over-cap line at a sentence boundary (independently re-verified clean by check-density.sh)' "0" "$DENSITY_EXIT"
@@ -235,16 +236,19 @@ EOF
 # AC10 fixture
 
 Alpha sentence exists purely to push alpha's line length well past the two hundred and fifty six character density cap enforced elsewhere in this fixture file.
+
 Alpha continuation clause finishes the alpha thought after the boundary point here.
 
 Short filler paragraph one.
 
 Beta sentence exists purely to push beta's line length well past the two hundred and fifty six character density cap enforced elsewhere in this fixture file.
+
 Beta continuation clause finishes the beta thought after the boundary point here.
 
 Short filler paragraph two.
 
 Gamma sentence exists purely to push gamma's line length well past the two hundred and fifty six character density cap enforced elsewhere in this fixture file.
+
 Gamma continuation clause finishes the gamma thought after the boundary point here.
 EOF
   local expected
@@ -331,35 +335,51 @@ EOF
   assert_contains 'should leave a semicolon-in-parens line untouched (residue row)' "$FIX_OUT" '3:216:35'
 }
 
-it_should_split_an_over_cap_line_at_a_semicolon_boundary_outside_any_brackets_and_stay_idempotent_on_a_second_run() {
-  new_fixture ac15-semicolon-outside-brackets.md
+it_should_refuse_to_split_a_paragraph_whose_only_boundary_is_a_semicolon_and_report_it_as_residue() {
+  new_fixture paragraph-semicolon-only.md
   cat > "$FIXTURE" <<'EOF'
-# AC15 fixture
+# Semicolon-only paragraph fixture
 
 This first independent clause exists purely to push the overall line length well past the two hundred fifty six character density cap enforced here today for sure absolutely; this second clause continues the thought cleanly right after the semicolon boundary point without any issue.
 EOF
 
+  local before
+  before="$(cat "$FIXTURE")"
   run_fix
-  assert_eq 'should split at a semicolon boundary outside brackets (exit code, fully resolved)' "0" "$FIX_EXIT"
+  assert_eq 'should refuse to split a paragraph whose only boundary is a semicolon (exit code reports residue)' "1" "$FIX_EXIT"
+  assert_eq 'should refuse to split a paragraph whose only boundary is a semicolon (file content byte-identical, no second paragraph opening mid-sentence)' "$before" "$(cat "$FIXTURE")"
+  assert_contains 'should refuse to split a paragraph whose only boundary is a semicolon (residue row)' "$FIX_OUT" '3:283:44'
+}
 
-  local expected_file="$work_dir/ac15-expected.md"
+it_should_split_an_over_cap_bullet_at_a_semicolon_boundary_outside_any_brackets_and_stay_idempotent_on_a_second_run() {
+  new_fixture bullet-semicolon-outside-brackets.md
+  cat > "$FIXTURE" <<'EOF'
+# Semicolon bullet fixture
+
+- This first independent clause exists purely to push the overall line length well past the two hundred fifty six character density cap enforced here today for sure absolutely; this second clause continues the thought cleanly right after the semicolon boundary point.
+EOF
+
+  run_fix
+  assert_eq 'should split a bullet at a semicolon boundary outside brackets (exit code, fully resolved)' "0" "$FIX_EXIT"
+
+  local expected_file="$work_dir/bullet-semicolon-expected.md"
   cat > "$expected_file" <<'EOF'
-# AC15 fixture
+# Semicolon bullet fixture
 
-This first independent clause exists purely to push the overall line length well past the two hundred fifty six character density cap enforced here today for sure absolutely;
-this second clause continues the thought cleanly right after the semicolon boundary point without any issue.
+- This first independent clause exists purely to push the overall line length well past the two hundred fifty six character density cap enforced here today for sure absolutely;
+  - this second clause continues the thought cleanly right after the semicolon boundary point.
 EOF
   local expected
   expected="$(cat "$expected_file")"
   local first_run_content
   first_run_content="$(cat "$FIXTURE")"
-  assert_eq 'should split at a semicolon boundary outside brackets (file content, both halves under the caps)' "$expected" "$first_run_content"
+  assert_eq 'should split a bullet at a semicolon boundary outside brackets (file content, the second half subordinated as a sub-bullet)' "$expected" "$first_run_content"
 
   run_density_check
-  assert_eq 'should split at a semicolon boundary outside brackets (independently re-verified clean by check-density.sh)' "0" "$DENSITY_EXIT"
+  assert_eq 'should split a bullet at a semicolon boundary outside brackets (independently re-verified clean by check-density.sh)' "0" "$DENSITY_EXIT"
 
   run_fix
-  assert_eq 'should split at a semicolon boundary outside brackets (second run makes no further changes)' "$first_run_content" "$(cat "$FIXTURE")"
+  assert_eq 'should split a bullet at a semicolon boundary outside brackets (second run makes no further changes)' "$first_run_content" "$(cat "$FIXTURE")"
 }
 
 it_should_split_at_the_same_sentence_boundary_when_a_semicolon_also_appears_later_in_the_line() {
@@ -380,6 +400,7 @@ EOF
 # AC16 fixture
 
 This clause exists purely to push the line length well past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents.
+
 This second clause continues the thought after the boundary so the split can balance both halves; yes indeed for sure certainly absolutely today.
 EOF
   local expected
@@ -473,10 +494,61 @@ EOF
   assert_eq 'should split an ordered-list item (independently re-verified clean by check-density.sh)' "0" "$DENSITY_EXIT"
 }
 
+it_should_refuse_to_split_a_bullet_carrying_a_counting_marker_and_report_it_as_residue() {
+  new_fixture bullet-counting-marker.md
+  cat > "$FIXTURE" <<'EOF'
+# Counting-marker bullet fixture
+
+- [Instruction] This clause exists to push the line length past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents. This second clause continues the thought after the boundary so the split can balance both halves reasonably well.
+EOF
+
+  local before
+  before="$(cat "$FIXTURE")"
+  run_fix
+  assert_eq 'should refuse to split a bullet carrying a counting marker (exit code reports residue)' "1" "$FIX_EXIT"
+  assert_eq 'should refuse to split a bullet carrying a counting marker (file content byte-identical, no unmarked sub-bullet invented)' "$before" "$(cat "$FIXTURE")"
+  assert_contains 'should refuse to split a bullet carrying a counting marker (residue row)' "$FIX_OUT" '3:319:50'
+}
+
+it_should_refuse_to_split_a_bullet_whose_counting_marker_is_wrapped_in_bold_and_backticks() {
+  new_fixture bullet-wrapped-counting-marker.md
+  cat > "$FIXTURE" <<'EOF'
+# Wrapped counting-marker bullet fixture
+
+- **`[Instruction]`** This clause exists to push the line length past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents. This second clause continues the thought after the boundary so the split can balance both halves reasonably well.
+EOF
+
+  local before
+  before="$(cat "$FIXTURE")"
+  run_fix
+  assert_eq 'should refuse to split a bold-and-backtick-wrapped counting marker (exit code reports residue)' "1" "$FIX_EXIT"
+  assert_eq 'should refuse to split a bold-and-backtick-wrapped counting marker (file content byte-identical)' "$before" "$(cat "$FIXTURE")"
+  assert_contains 'should refuse to split a bold-and-backtick-wrapped counting marker (residue row)' "$FIX_OUT" '3:325:50'
+}
+
+it_should_refuse_to_split_a_blockquote_line_and_report_it_as_residue() {
+  new_fixture blockquote.md
+  cat > "$FIXTURE" <<'EOF'
+# Blockquote fixture
+
+> This clause exists to push the line length past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents. This second clause continues the thought after the boundary so the split can balance both halves reasonably well.
+EOF
+
+  local before
+  before="$(cat "$FIXTURE")"
+  run_fix
+  assert_eq 'should refuse to split a blockquote line (exit code reports residue)' "1" "$FIX_EXIT"
+  assert_eq 'should refuse to split a blockquote line (file content byte-identical, the quote never broken by an inserted blank line)' "$before" "$(cat "$FIXTURE")"
+  assert_contains 'should refuse to split a blockquote line (residue row)' "$FIX_OUT" '3:307:49'
+}
+
 it_should_split_an_over_cap_line_at_a_sentence_boundary_with_both_halves_under_the_caps
 it_should_split_an_over_cap_top_level_bullet_into_a_parent_bullet_and_an_indented_sub_bullet
 it_should_nest_a_split_sub_bullet_one_level_under_an_already_indented_parent_bullet
 it_should_split_an_ordered_list_item_at_a_real_sentence_boundary_rather_than_at_its_own_marker
+it_should_refuse_to_split_a_bullet_carrying_a_counting_marker_and_report_it_as_residue
+it_should_refuse_to_split_a_bullet_whose_counting_marker_is_wrapped_in_bold_and_backticks
+it_should_refuse_to_split_a_blockquote_line_and_report_it_as_residue
 it_should_leave_an_over_cap_line_with_no_safe_boundary_untouched_and_exit_1_reporting_residue
 it_should_leave_a_fenced_code_block_untouched_even_with_an_over_cap_line_inside_it
 it_should_leave_a_mermaid_block_untouched_even_with_an_over_cap_line_inside_it
@@ -490,7 +562,8 @@ it_should_exit_2_when_given_an_unknown_flag
 it_should_leave_an_over_cap_line_untouched_when_an_unclosed_bracket_precedes_the_only_boundary
 it_should_leave_an_over_cap_line_untouched_when_its_only_boundary_sits_inside_a_code_span
 it_should_leave_an_over_cap_line_untouched_when_its_only_semicolon_boundary_sits_inside_parentheses
-it_should_split_an_over_cap_line_at_a_semicolon_boundary_outside_any_brackets_and_stay_idempotent_on_a_second_run
+it_should_refuse_to_split_a_paragraph_whose_only_boundary_is_a_semicolon_and_report_it_as_residue
+it_should_split_an_over_cap_bullet_at_a_semicolon_boundary_outside_any_brackets_and_stay_idempotent_on_a_second_run
 it_should_split_at_the_same_sentence_boundary_when_a_semicolon_also_appears_later_in_the_line
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
