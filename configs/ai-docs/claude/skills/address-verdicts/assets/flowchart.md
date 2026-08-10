@@ -172,8 +172,8 @@ flowchart TD
   n10["10. Step 3 · Add to TaskList one closing [Reminder] entry<br/>for step 6's report, so a mid-run compaction cannot<br/>silently skip the wrap-up"]:::state
   n11{"11. Step 4 · Which lens wrote this finding?<br/>The refactor agent refuses any behavior change BY DESIGN,<br/>so a correctness fix or a test the repo lacks cannot<br/>route through it — both need tdd-coder's test-first<br/>discipline instead"}
 
-  n11a["11a. Dispatch refactor (agent-pinned, foreground, serial)<br/>with the finding's scope and step 2's test command.<br/>It applies the change itself and confirms the tests<br/>are green before and after"]:::dispatch
-    n11b["11b. Dispatch tdd-coder (agent-pinned, foreground, serial):<br/>strict TDD, RED before GREEN. For a test-sdd finding the<br/>missing test IS the fix, so pass the planned title<br/>verbatim and it lands under the name the plan declared"]:::dispatch
+  n11a["11a. Dispatch refactor (agent-pinned, background, serial)<br/>with the finding's scope and step 2's test command.<br/>It applies the change itself and confirms the tests<br/>are green before and after"]:::dispatch
+    n11b["11b. Dispatch tdd-coder (agent-pinned, background, serial):<br/>strict TDD, RED before GREEN. For a test-sdd finding the<br/>missing test IS the fix, so pass the planned title<br/>verbatim and it lands under the name the plan declared"]:::dispatch
 
   n12["12. Step 4 · Verify the result against the artifacts —<br/>the diff, the test run — before trusting its done.<br/>A summary describes intent; only the artifact<br/>shows what actually landed"]
   n13{"13. Step 4 · Did the apply land?"}
