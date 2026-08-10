@@ -283,7 +283,7 @@ The orchestrator's TaskList never changes except the parent task's status.
 
 ## 4. Dispatch the task subagent
 
-Spawn one fresh-context `agent(subAgent=tdd-coder, title=Implement task <N>: <task subject>)` per task, in the background — not CLAUDE.md's result-gated foreground, since only background carries the Monitor cap below.
+Spawn one fresh-context `agent(subAgent=tdd-coder, title=Implement task <N>: <task subject>)` per task, in the background — only a background dispatch can carry the Monitor cap below.
 
 Model is omitted: the agent file pins sonnet and the subagent-model-guard hook enforces it.
 
