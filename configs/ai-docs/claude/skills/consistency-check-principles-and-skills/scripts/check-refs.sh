@@ -149,7 +149,8 @@ is_real_absolute_path_candidate() {
 # Conventional Commits types (commit-standards) plus the two remote
 # names and branch conventions actually seen in this corpus.
 is_git_revision_shape() {
-    local path=$1 first_segment="${path%%/*}"
+    local path=$1
+    local first_segment="${path%%/*}"
     case "$first_segment" in
         origin|upstream) return 0 ;;
     esac
