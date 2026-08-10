@@ -68,6 +68,18 @@ slugify_heading() {
         | sed -E 's/ /-/g'
 }
 
+# True (0) when $line opens or closes a fenced code block (```` ``` ````
+# or ```` ~~~ ````, optionally after leading whitespace).
+#
+# Toggling an `in_fence` flag on this lets both the main scan loop and
+# `heading_exists` skip a fenced line: example markdown/shell text
+# inside a fence is not a real ref, and a `#`-prefixed shell comment
+# inside a fence is not a real heading.
+is_fence_delimiter() {
+    local line=$1
+    [[ "$line" =~ ^[[:space:]]*('```'|'~~~') ]]
+}
+
 # True (0) when $target_file has a heading whose GitHub-style anchor is
 # $anchor. GitHub disambiguates repeated headings by appending -1, -2,
 # ... to the second and later occurrences of an identical slug, so a
@@ -76,11 +88,25 @@ slugify_heading() {
 # Tracks occurrences with a plain indexed array, not an associative
 # array (`declare -A`) — macOS ships bash 3.2, which lacks it, and
 # this repo must run on that stock bash.
+#
+# Reads $target_file as a line loop (not a single grep) so it can
+# track fence state and skip a `#`-prefixed line inside a fence —
+# a shell comment like `# Usage: ...` is not a real heading.
 heading_exists() {
     local target_file=$1 anchor=$2 heading slug repeat_count
-    local anchor_candidate seen_slug
+    local anchor_candidate seen_slug line in_fence
     local seen_slugs=()
-    while IFS= read -r heading; do
+    in_fence=0
+    while IFS= read -r line || [ -n "$line" ]; do
+        if is_fence_delimiter "$line"; then
+            in_fence=$((1 - in_fence))
+            continue
+        fi
+        [ "$in_fence" -eq 1 ] && continue
+
+        [[ "$line" =~ ^#{1,6}[[:space:]] ]] || continue
+        heading="$line"
+
         slug="$(slugify_heading "$heading")"
         repeat_count=0
         for seen_slug in "${seen_slugs[@]}"; do
@@ -93,7 +119,7 @@ heading_exists() {
         fi
         seen_slugs+=("$slug")
         [ "$anchor_candidate" = "$anchor" ] && return 0
-    done < <(grep -E '^#{1,6}[[:space:]]' "$target_file" 2>/dev/null || true)
+    done < "$target_file"
     return 1
 }
 
@@ -168,8 +194,15 @@ check_candidate() {
 
 for file in "$@"; do
     line_num=0
+    in_fence=0
     while IFS= read -r line || [ -n "$line" ]; do
         line_num=$((line_num + 1))
+
+        if is_fence_delimiter "$line"; then
+            in_fence=$((1 - in_fence))
+            continue
+        fi
+        [ "$in_fence" -eq 1 ] && continue
 
         while IFS= read -r match; do
             [ -n "$match" ] || continue

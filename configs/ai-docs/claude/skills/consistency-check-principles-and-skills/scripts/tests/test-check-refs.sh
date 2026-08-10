@@ -170,6 +170,40 @@ it_should_pass_a_ref_to_an_existing_directory_without_a_trailing_slash() {
     rm -rf "$d"
 }
 
+it_should_not_flag_a_broken_looking_link_shown_as_an_example_inside_a_fenced_code_block() {
+    echo "it_should_not_flag_a_broken_looking_link_shown_as_an_example_inside_a_fenced_code_block"
+    local d; d=$(new_fixture)
+    printf '%s\n' \
+        'Example usage:' \
+        '```markdown' \
+        'See [target](does-not-exist.md) for details.' \
+        '```' \
+        'End of example.' \
+        > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 0" "0" "$status"
+    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
+it_should_fail_a_ref_whose_anchor_matches_only_a_heading_line_inside_a_fenced_code_block() {
+    echo "it_should_fail_a_ref_whose_anchor_matches_only_a_heading_line_inside_a_fenced_code_block"
+    local d; d=$(new_fixture)
+    printf '%s\n' \
+        '# Target' \
+        'Real content.' \
+        '```bash' \
+        '# Usage: some comment' \
+        '```' \
+        'More body.' \
+        > "$d/target.md"
+    printf 'See [target](target.md#usage-some-comment) for details.\n' > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 1" "1" "$status"
+    assert_eq "broken ref listed" "1" "$(grep -c 'target.md#usage-some-comment' /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
 it_should_pass_a_markdown_link_ref_that_resolves
 it_should_pass_a_backtick_path_ref_that_resolves
 it_should_pass_a_ref_whose_anchor_heading_exists_in_the_target
@@ -182,6 +216,8 @@ it_should_pass_a_ref_whose_anchor_matches_an_em_dash_heading_github_style
 it_should_pass_a_ref_whose_anchor_matches_the_second_occurrence_of_a_duplicate_heading
 it_should_not_flag_a_slash_command_mention_as_a_broken_ref
 it_should_pass_a_ref_to_an_existing_directory_without_a_trailing_slash
+it_should_not_flag_a_broken_looking_link_shown_as_an_example_inside_a_fenced_code_block
+it_should_fail_a_ref_whose_anchor_matches_only_a_heading_line_inside_a_fenced_code_block
 
 echo
 echo "$passed passed, $failed failed"
