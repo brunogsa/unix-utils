@@ -8,7 +8,7 @@ a regression fixture. That plan is session-scoped and untracked, so the
 test skips rather than fails once the session that wrote it is gone.
 
 Usage:
-  pytest scripts/tests/test_check_pr_task_projection.py
+  pytest scripts/tests/check-pr-task-projection.test.py
 """
 
 import subprocess
