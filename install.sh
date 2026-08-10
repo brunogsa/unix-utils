@@ -250,8 +250,11 @@ npm install --prefix ~/unix-utils/configs/ai-docs/claude/skills/doc-standards/sc
 npm install -g ccstatusline
 npm install -g ccburn
 
-# Python CLI tools (pipx) — git-hunk: non-interactive, content-hashed hunk staging for agent-driven
-# commit splitting (scriptable alternative to interactive `git add -p`; pipx is installed above).
+# Python CLI tools (pipx)
+
+# git-hunk: non-interactive, content-hashed hunk staging for
+# agent-driven commit splitting (scriptable alternative to
+# interactive `git add -p`; pipx is installed above).
 if command -v git-hunk &> /dev/null; then
     echo "git-hunk already installed, skipping"
 else
@@ -260,7 +263,6 @@ fi
 
 # pytest — the test runner for every .py script in
 # configs/ai-docs/claude, per pytest.ini's discovery config.
-# Same pipx pattern as git-hunk above, on both OSes.
 if command -v pytest &> /dev/null; then
     echo "pytest already installed, skipping"
 else
