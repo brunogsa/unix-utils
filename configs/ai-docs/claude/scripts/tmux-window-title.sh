@@ -416,6 +416,47 @@ apply_title() {
   tmux rename-window -t "$TMUX_PANE" -- "$1"
 }
 
+# Shared preamble + render for --bump-counter and --bump-subagent-counter:
+# read the live title's counter body, capture pre-Claude state, resolve the
+# base, increment the half named by `half` ("main" or "subagent"), and
+# re-render. The two callers differ only in which half increments and
+# whether the root freezes (main-only -- see freeze_root_title's header).
+#
+# capture_prev_state only writes the @claude_prev_window_name /
+# @claude_prev_auto_rename pane options (first-set-wins, see its own
+# header) -- it never calls apply_title and never touches the counter
+# body, so reading main_count/subagent_count before or after it is
+# provably equivalent. This helper reads both together, after.
+bump_counter() {
+  local half=$1
+  local current body base main sub counter
+
+  current=$(current_title)
+  body=$(parse_counter "$current")
+  capture_prev_state
+  base=$(current_base "$current")
+
+  main=$(main_count "$body")
+  sub=$(subagent_count "$body")
+
+  if [ "$half" = main ]; then
+    # Freeze the root on the FIRST MAIN compaction only: `base`
+    # is still the pre-compaction title, which is the anchor the
+    # user already recognizes. Subagent bumps never reach here,
+    # so a session whose subagents compacted first still anchors
+    # to the title it carried into its OWN first compaction.
+    if [ "$main" -eq 0 ]; then
+      freeze_root_title "$base"
+    fi
+    main=$(( main + 1 ))
+  else
+    sub=$(( sub + 1 ))
+  fi
+
+  counter=$(compose_counter "$main" "$sub")
+  apply_title "$(render_title "$base" "$counter" "$(root_title)")"
+}
+
 MODE="${1:-}"
 
 case "$MODE" in
@@ -441,25 +482,10 @@ fi
 case "$MODE" in
   --bump-counter)
     # A MAIN-session compaction: increment the left half
-    # (absent -> starts at 1).
-    current=$(current_title)
-    body=$(parse_counter "$current")
-    main=$(main_count "$body")
-    capture_prev_state
-
-    base=$(current_base "$current")
-
-    # Freeze the root on the FIRST MAIN compaction only: `base`
-    # is still the pre-compaction title, which is the anchor the
-    # user already recognizes. Subagent bumps never reach here,
-    # so a session whose subagents compacted first still anchors
-    # to the title it carried into its OWN first compaction.
-    if [ "$main" -eq 0 ]; then
-      freeze_root_title "$base"
-    fi
-
-    counter=$(compose_counter "$(( main + 1 ))" "$(subagent_count "$body")")
-    apply_title "$(render_title "$base" "$counter" "$(root_title)")"
+    # (absent -> starts at 1). Freezes the root on the FIRST
+    # main compaction only -- see bump_counter's header and
+    # freeze_root_title's for the full reasoning.
+    bump_counter main
     ;;
 
   --bump-subagent-counter)
@@ -468,15 +494,7 @@ case "$MODE" in
     # nothing this session remembers, so there is no anchor at
     # risk -- the root exists to survive an erasure that did not
     # happen here.
-    current=$(current_title)
-    body=$(parse_counter "$current")
-    sub=$(subagent_count "$body")
-    capture_prev_state
-
-    base=$(current_base "$current")
-
-    counter=$(compose_counter "$(main_count "$body")" "$(( sub + 1 ))")
-    apply_title "$(render_title "$base" "$counter" "$(root_title)")"
+    bump_counter subagent
     ;;
 
   --reset-counter)
