@@ -347,6 +347,10 @@ Routing and upkeep for the two note surfaces — the rules that keep notes worth
 - [Instruction] **Surface harness gaps** -- when fixing something a linter/test/hook/automation could catch, flag `[Harness] ...` so the harness can be used instead of AI.
   - [Why] A hand-fix a linter could make by rule is signal lost; tagging the gap makes the harness scale to the next caller for free, so the fix compounds.
 
+- [Instruction] On this machine's Bash tool (zsh, not bash), never rely on an unquoted `$VAR` to split a space-separated path list — use an array or literal paths instead.
+  - [Why] zsh has word-splitting off by default, so an unquoted multi-path variable collapses to one argument, and the failure reads as a wrong path, not a shell difference.
+  - [Example] Bad: `FILES="a.md b.md"; git add $FILES` → fails, pathspec matches nothing. Good: `files=(a.md b.md); git add "${files[@]}"`.
+
 ### Subagents
 
 - [Instruction] **CRITICAL: Default to parallel fan-out** -- when a task splits into independent chunks (one per file/module/target/ERP/service), dispatch one subagent each, all in a single message.
