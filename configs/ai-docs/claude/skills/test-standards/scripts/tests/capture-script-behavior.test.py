@@ -103,10 +103,62 @@ class TestCaptureScriptBehaviorHappy(_TempDirTestCase):
         self.assertTrue(emitted.exists())
         text = emitted.read_text()
         self.assertIn("SCRIPT_UNDER_TEST", text)
-        self.assertIn(str(script), text)
+        # Relative-to-__file__, not the absolute path captured here —
+        # see test_should_emit_a_relocatable_test_file_with_no_hardcoded_absolute_paths
+        # for why (this test only checks the emitted file still works
+        # from where it was captured).
+        self.assertNotIn(str(script), text)
+        self.assertIn("Path(__file__).resolve().parent", text)
 
         replay_result = subprocess.run(
             [sys.executable, "-m", "pytest", "--import-mode=importlib", str(emitted), "-q"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(replay_result.returncode, 0, msg=replay_result.stdout + replay_result.stderr)
+
+    def test_should_emit_a_relocatable_test_file_with_no_hardcoded_absolute_paths(self):
+        # A committed <stem>.test.py is cloned onto other machines
+        # (CLAUDE.md's cross-platform MUST) and CI runners with a
+        # different home-dir root. Both SCRIPT_UNDER_TEST and the
+        # harness import path must resolve via the emitted file's
+        # own __file__, not a path literal baked in at capture time
+        # on this machine.
+        fake_repo = self.tmp_path / "fake-repo"
+        harness_copy = fake_repo / "test-standards" / "scripts" / "capture-script-behavior.py"
+        harness_copy.parent.mkdir(parents=True)
+        harness_copy.write_text(SCRIPT.read_text())
+        harness_copy.chmod(0o755)
+
+        script_path = fake_repo / "implement" / "scripts" / "toy.sh"
+        script_path.parent.mkdir(parents=True)
+        script = _write_executable(script_path, "#!/bin/sh\necho hi\nexit 0\n")
+        emitted = fake_repo / "implement" / "scripts" / "tests" / "toy.test.py"
+        emitted.parent.mkdir(parents=True)
+        table = _write_table(self.tmp_path / "table.json", [
+            {"name": "only-row", "argv": [], "stdin": "", "branch": None,
+             "fixture_files": {}, "git_init": False},
+        ])
+
+        capture_result = subprocess.run(
+            [sys.executable, str(harness_copy), "capture",
+             "--script", str(script), "--table", str(table), "--out", str(emitted)],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(capture_result.returncode, 0, msg=capture_result.stderr)
+        text = emitted.read_text()
+        self.assertNotIn(str(fake_repo), text)
+
+        # Move the whole fake repo to a new absolute root — same
+        # internal layout, different mount point, like a fresh
+        # clone on another machine.
+        import shutil
+        relocated_repo = self.tmp_path / "relocated" / "elsewhere" / "fake-repo"
+        relocated_repo.parent.mkdir(parents=True)
+        shutil.move(str(fake_repo), str(relocated_repo))
+        relocated_emitted = relocated_repo / "implement" / "scripts" / "tests" / "toy.test.py"
+
+        replay_result = subprocess.run(
+            [sys.executable, "-m", "pytest", "--import-mode=importlib", str(relocated_emitted), "-q"],
             capture_output=True, text=True,
         )
         self.assertEqual(replay_result.returncode, 0, msg=replay_result.stdout + replay_result.stderr)
