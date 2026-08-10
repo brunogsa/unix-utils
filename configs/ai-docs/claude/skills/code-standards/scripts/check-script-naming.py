@@ -94,7 +94,14 @@ def evaluate_name(path, lexicon):
     the order the rule is stated: kebab-case shape, recognized verb,
     object presence, category objects, abbreviations, then the
     skill-directory-repeat check. Empty list means the name passes."""
+    # Path.stem strips only the final extension, so a suite named
+    # "foo.test.py" has stem "foo.test" — the literal "." trips the
+    # kebab-case check below even when "foo" itself is fine. A test
+    # suite is not exempt from the naming rule; it is judged on its
+    # real stem, with the ".test" marker set aside first.
     stem = path.stem
+    if stem.endswith(".test"):
+        stem = stem[: -len(".test")]
     reasons = []
 
     if not KEBAB_RE.fullmatch(stem):

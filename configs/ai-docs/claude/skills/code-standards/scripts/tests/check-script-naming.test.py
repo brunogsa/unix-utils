@@ -160,6 +160,34 @@ class TestCheckScriptNamingFailure:
         assert result.stderr.strip() == ""
 
 
+class TestCheckScriptNamingTestSuiteStem:
+    def test_should_pass_a_test_suite_whose_underlying_stem_is_valid_kebab_case(self, tmp_path):
+        # Regression this guards: path.stem on "check-density.test.py"
+        # is "check-density.test" (Path.stem strips only the final
+        # ".py"), and the literal "." inside that stem trips
+        # KEBAB_RE — a false positive on every *.test.py suite in
+        # this repo, regardless of whether its real stem is valid.
+        script = _write(tmp_path / "scripts" / "check-density.test.py")
+
+        result = _run(str(script))
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "OK" in result.stdout
+
+    def test_should_still_fail_a_test_suite_whose_underlying_stem_violates_the_naming_rule(self, tmp_path):
+        # A *.test.py suite is not exempt from the naming rule — its
+        # real stem (with the trailing ".test" stripped) must still
+        # obey it, and the reported reason must be a real rule
+        # violation ("object"), never "name is not kebab-case".
+        script = _write(tmp_path / "scripts" / "check.test.py")
+
+        result = _run(str(script))
+
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert "object" in (result.stdout + result.stderr).lower()
+        assert "not kebab-case" not in (result.stdout + result.stderr).lower()
+
+
 class TestCheckScriptNamingTreeMode:
     def test_should_accumulate_results_across_repeated_tree_flags_and_label_each_trees_result(self, tmp_path):
         repo_a = tmp_path / "repo-a"
