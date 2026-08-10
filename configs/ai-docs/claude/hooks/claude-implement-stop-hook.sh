@@ -187,7 +187,7 @@ if [ "${#state_files[@]}" -eq 0 ]; then
   reason="Implement run (session $session_id): /implement was invoked in this \
 session, but no state file exists at /tmp/implement_${session_id}.json (nor any \
 /tmp/implement_${session_id}_pr<N>.json). The implement skill's §2.3 was \
-skipped, so implement-loop-state.sh, this Stop gate and the compact reminder \
+skipped, so implement-loop-state.py, this Stop gate and the compact reminder \
 are all blind and the batch can run to the end unrecorded. Write the §2.3 state \
 file now — its version-3 shape is in the implement skill — before doing anything \
 else. If /implement is NOT running here (pre-flight aborted at §1.1 or §1.3, or \
@@ -242,7 +242,7 @@ remaining_note=""
 
 reason="Implement run (session $session_id): $first_unit_desc is still in phase \
 '$first_phase'$remaining_note — the batch isn't done yet. Keep working the task \
-loop (see the implement skill and implement-loop-state.sh) instead of stopping; \
+loop (see the implement skill and implement-loop-state.py) instead of stopping; \
 each unit finishes on its own once its phase reaches presented, or halts for the \
 human (halted/blocked)."
 jq -n --arg r "$reason" '{decision: "block", reason: $r}'

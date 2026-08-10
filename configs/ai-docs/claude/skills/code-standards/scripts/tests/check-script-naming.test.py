@@ -408,7 +408,7 @@ class TestCheckScriptNamingRealCorpusRegression:
             "configs/ai-docs/claude/skills/brag/scripts/shared.py",
             "configs/ai-docs/claude/skills/code-standards/scripts/classify-conversion.py",
             "configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/gen-shard-manifest.sh",
-            "configs/ai-docs/claude/skills/implement/scripts/implement-loop-state.sh",
+            "configs/ai-docs/claude/skills/implement/scripts/implement-loop-state.py",
             "configs/ai-docs/claude/skills/jira-cli/scripts/jira-utilities.sh",
             "configs/ai-docs/claude/skills/jira-cli/scripts/jira.sh",
             "configs/ai-docs/claude/skills/jira-cli/scripts/md-to-adf.py",

@@ -88,7 +88,7 @@ Run the repo's **full lint + full test suite** — never scoped to the batch's o
 A failure classified `[Scout]` above is never fixed here: report it in the package, leave it unfixed, and let the gate pass on it.
 Fixing pre-existing red would blur this batch's diff with unrelated work, which is what the Scout channel (§4.3) exists to prevent.
 
-After each fix-and-rerun, call `implement-loop-state.sh --budget <state-file>`. `exhausted: true` with a batch-caused failure still red → [`failure-and-halt.md`](failure-and-halt.md)'s §5.5, halt — the human clears it, not this run.
+After each fix-and-rerun, call `implement-loop-state.py --budget <state-file>`. `exhausted: true` with a batch-caused failure still red → [`failure-and-halt.md`](failure-and-halt.md)'s §5.5, halt — the human clears it, not this run.
 
 Record the final full-suite result (pass/fail + counts) into the package, so the human sees the gate ran over everything.
 

@@ -19,7 +19,7 @@
 #   before the first task dispatch. On 2026-08-10 an entire six-task batch ran
 #   with no state file at all and nothing detected it — it had to be
 #   reconstructed by hand at batch close. Every downstream guard was blind:
-#   implement-loop-state.sh errors correctly on a missing path but nothing
+#   implement-loop-state.py errors correctly on a missing path but nothing
 #   called it, and claude-implement-stop-hook.sh's session scoping reads an
 #   empty state-file glob as "no /implement in this session" and exits silently.
 #

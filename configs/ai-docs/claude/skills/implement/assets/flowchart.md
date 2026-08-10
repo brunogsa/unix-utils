@@ -345,7 +345,7 @@ flowchart TD
     n13b["13b. Step 3.1 · Orchestrator creates this<br/>PR's branch — ONCE, here; never<br/>mid-loop, never by a subagent"]
     n14["14. Step 3.2 · Capture BATCH_BASE_SHA into<br/>the state file; recap the base from<br/>COMMIT MESSAGES, not the diff"]:::state
     n15["15. Step 3.3 · Exact-match this unit's task-ids<br/>(a collision means a malformed plan)"]
-    n16{"16. Step 5.4 · How many tasks are eligible right now?<br/>(implement-loop-state.sh --eligible-set — NEVER the plain<br/>verdict while anything is in flight: the plain one assumes<br/>nothing is, so mid-wave it answers 'halted' and stops the<br/>run to wait for a human)"}:::hook
+    n16{"16. Step 5.4 · How many tasks are eligible right now?<br/>(implement-loop-state.py --eligible-set — NEVER the plain<br/>verdict while anything is in flight: the plain one assumes<br/>nothing is, so mid-wave it answers 'halted' and stops the<br/>run to wait for a human)"}:::hook
     n16a["16a. Load the parallel-worktrees skill, handing it the eligible<br/>ids, each task's Files list, batch_base_sha and the plan slug.<br/>Every worktree, branch, dispatch and merge below is its flow,<br/>authored in its own file: this run supplies those four inputs<br/>and judges the reports, and owns nothing else in the wave"]:::skill
     n16b{"16b. After its own two file predicates and its cap of 4,<br/>does the set still hold 2 or more? (a DAG says ordering,<br/>never shared files, so undeclared-independent tasks can<br/>still collide — and 1 task needs no worktree at all)"}
     n16c["16c. It opens one worktree + branch per task and dispatches<br/>one tdd-coder into each (agent-pinned, background, ∥),<br/>marking every task in_progress in THIS state file first —<br/>its ledger is ours, because --eligible-set is what reads<br/>that mark back to skip a task already in flight"]:::dispatch
@@ -361,11 +361,11 @@ flowchart TD
     n21{"21. Every reported commit resolves?<br/>(a 'done' reporting none fails too;<br/>existence only, never content)"}
     n21a["21a. Load references/failure-and-halt.md"]:::skill
     n21b["21b. Step 5.2 · Record the attempt<br/>(fail/timeout/blocked + signature)<br/>into the state file"]:::state
-    n21c{"21c. Step 5.2 · implement-loop-state.sh:<br/>verdict?"}:::hook
+    n21c{"21c. Step 5.2 · implement-loop-state.py:<br/>verdict?"}:::hook
     n21d["21d. Step 5.3 · Mark the task terminal;<br/>chain-abort dependents transitively;<br/>plan [Blocked]; TaskUpdate completed"]:::state
     n21e{"21e. Step 5.3 · Any runnable task left?"}
     n22["22. Step 5.4 · Advance: state file status=done<br/>(flipped BEFORE the verdict script, which picks by<br/>status — a passed task left pending is re-dispatched);<br/>plan [Done]; TaskCreate [Scout] items; TaskUpdate completed"]:::state
-    n23{"23. Step 5.4 · implement-loop-state.sh: verdict?<br/>ONLY this script sends a unit to the gates"}:::hook
+    n23{"23. Step 5.4 · implement-loop-state.py: verdict?<br/>ONLY this script sends a unit to the gates"}:::hook
     n24["24. Load references/batch-end-review.md"]:::skill
     n25{"25. Quality-gate tail requested?"}
     n26["26. Step 8.1 · Invoke /quality-gate [&lt;spec&gt;] &lt;plan&gt;<br/>--tasks &lt;this unit's ids&gt; --auto-solve,<br/>base ref = BATCH_BASE_SHA. The spec argument goes in<br/>only when §1.1 resolved one.<br/>IN THIS SESSION, never wrapped in a subagent:<br/>its legs are already fresh-context reviewers, and<br/>its commits need a prompt only main can render"]:::skill

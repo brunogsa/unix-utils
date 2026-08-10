@@ -9,7 +9,7 @@ import json
 import sys
 from pathlib import Path
 
-SCRIPT_UNDER_TEST = str((Path(__file__).resolve().parent / '../implement-loop-state.sh').resolve())
+SCRIPT_UNDER_TEST = str((Path(__file__).resolve().parent / '../implement-loop-state.py').resolve())
 
 _HARNESS_PATH = (Path(__file__).resolve().parent / '../../../test-standards/scripts').resolve() / "capture-script-behavior.py"
 _spec = importlib.util.spec_from_file_location("capture_script_behavior", _HARNESS_PATH)

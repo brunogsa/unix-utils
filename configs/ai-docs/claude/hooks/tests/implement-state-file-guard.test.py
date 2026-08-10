@@ -4,7 +4,7 @@ The gap this suite covers, end to end:
 
   implement/SKILL.md §2.3 requires writing /tmp/implement_<session_id>.json
   before the first task dispatch. On 2026-08-10 a whole six-task batch ran with
-  NO state file and nothing noticed — implement-loop-state.sh already errors on
+  NO state file and nothing noticed — implement-loop-state.py already errors on
   a missing path, but nothing ever called it, and
   claude-implement-stop-hook.sh's session scoping treats an empty glob as
   "no /implement in this session" and exits silently.

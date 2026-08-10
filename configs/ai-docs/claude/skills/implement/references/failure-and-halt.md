@@ -6,7 +6,7 @@ Load this on an unresolvable reported commit (§5.1), a §4 timeout, a self-repo
 
 ### The full verdict set — for orientation
 
-`implement-loop-state.sh` emits six verdicts; the table below is the whole set.
+`implement-loop-state.py` emits six verdicts; the table below is the whole set.
 
 This file obeys only `retry`, `stuck`, and `halt-budget` — the ones a failed or blocked attempt can produce. The other three only ever follow a `pass`, so they belong to §5.4.
 
@@ -31,7 +31,7 @@ All three outcomes record one attempt; only `result` and `signature` differ.
 
 ### Obey the verdict
 
-Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey the verdict — the script alone decides how many retries a task gets.
+Run `~/.claude/skills/implement/scripts/implement-loop-state.py <state-file>` and obey the verdict — the script alone decides how many retries a task gets.
 
 - **`retry`** → re-dispatch the **same task** as a fresh subagent (§4), passing the recorded failure as feedback.
 - **`stuck`** → go to §5.3 below.
@@ -54,12 +54,12 @@ Set that task to `status: "blocked"` — `reason: "blocked"` for a self-reported
 `TaskUpdate` its TaskList status to `completed`; the tool has no `blocked` state, and the state file's `reason` is what distinguishes it.
 
 **Chain-abort the task's dependents, before picking what runs next.** Read each task's `depends_on` from the state file (§2.3) and walk them transitively.
-It's the same field the script uses, so this scan and `implement-loop-state.sh` never disagree.
+It's the same field the script uses, so this scan and `implement-loop-state.py` never disagree.
 Any task depending on the one just marked terminal also gets `status: "blocked"`, `reason: "blocked-upstream"`, and TaskList status `completed`.
 Flip the plan to `[Blocked]` for the terminal task and every dependent this just chain-aborted (§6).
 
 **Pick the next task yourself — the script can't.** `next-task` only comes out of a `pass` attempt (§5.4), and this task didn't pass.
-Run `implement-loop-state.sh --next-eligible <state-file>` instead — it answers with the same DAG-eligibility rule §5.4's `next-task` uses, just without requiring a `pass` attempt to ask it.
+Run `implement-loop-state.py --next-eligible <state-file>` instead — it answers with the same DAG-eligibility rule §5.4's `next-task` uses, just without requiring a `pass` attempt to ask it.
 A `task` id in the result → re-run §3.4 on it.
 
 `task: "none"` — nothing runnable remains: this task is terminal-without-`[Done]` with no open dependency path around it, or the batch's dispatch budget is exhausted; `reason` names which.

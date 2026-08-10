@@ -220,7 +220,7 @@ Each state file has exactly this shape:
 
 - Populate `depends_on` for every task from the plan's Task Breakdown — the `**Depends on**:` clause `check-tasks-dag.sh` validated in §1.3 — as bare id strings (`["3", "5"]`; `none` → `[]`).
 
-- `implement-loop-state.sh` reads it to pick a DAG-eligible next task; unset, it silently degrades to lowest-id-first, so seed it here, not later.
+- `implement-loop-state.py` reads it to pick a DAG-eligible next task; unset, it silently degrades to lowest-id-first, so seed it here, not later.
 
 - An id absent from this unit's `tasks[]` counts as satisfied: it belongs to an earlier PR that `references/pr-awareness.md`'s stop predicate already required to be `[Done]`.
 
@@ -369,12 +369,12 @@ Every path ends in one recorded attempt and one script verdict.
 
 Entry: a reported commit that doesn't resolve (§5.1), a §4 timeout, or a self-reported `blocked` (§4.4) — all three take the same path.
 
-Recording the attempt, running `implement-loop-state.sh`, and obeying its `retry` / `stuck` / `halt-budget` verdict live in [`references/failure-and-halt.md`](references/failure-and-halt.md).
+Recording the attempt, running `implement-loop-state.py`, and obeying its `retry` / `stuck` / `halt-budget` verdict live in [`references/failure-and-halt.md`](references/failure-and-halt.md).
 That file also covers verdict semantics, attempt-recording fields, and the `debug-standards` load. Load only on a failure or a block.
 
 ### 5.3. On `stuck` — mark terminal, chain-abort dependents, advance
 
-Entry: `implement-loop-state.sh` verdicted `stuck` (§5.2).
+Entry: `implement-loop-state.py` verdicted `stuck` (§5.2).
 
 Marking the task terminal, chain-aborting its dependents transitively, flipping the plan to `[Blocked]`, and picking (or failing to pick) the next task all live in [`references/failure-and-halt.md`](references/failure-and-halt.md).
 Load only on a `stuck` verdict.
@@ -388,7 +388,7 @@ The script picks by `status`, so a passed task left `pending` gets re-dispatched
 
 Also flip the plan to `[Done]` (§6), file the subagent's `[Scout]` items per §4.3, and `TaskUpdate` its TaskList status to `completed`.
 
-Run `~/.claude/skills/implement/scripts/implement-loop-state.sh <state-file>` and obey the verdict:
+Run `~/.claude/skills/implement/scripts/implement-loop-state.py <state-file>` and obey the verdict:
 
 - **`next-task`** → its `task` field names the next task-id; re-run §3.4 on it. §1, §2, and §3.1–§3.3 do not repeat.
   - When `--eligible-set` returns several ids, dispatch them all at once instead: load the `parallel-worktrees` skill.
