@@ -37,6 +37,20 @@ def _write(path, content="# fixture script, body not read by the checker\n"):
     return path
 
 
+def _relative_fail_paths(result, tree_root):
+    """Return the paths named on the run's FAIL lines, relative to
+    tree_root. Only the actual-output side is shared: each test still
+    hand-codes its own expected set, which is what keeps the two
+    expectations independent of each other and of rename-list.md."""
+    fail_lines = [
+        line for line in result.stdout.splitlines() if "FAIL" in line
+    ]
+    return {
+        str(Path(line.split("FAIL: ", 1)[1].split(": ", 1)[0]).relative_to(tree_root))
+        for line in fail_lines
+    }
+
+
 class TestCheckScriptNamingHappy:
     def test_should_pass_a_name_built_as_verb_then_specific_object_in_kebab_case(self, tmp_path):
         script = _write(tmp_path / "scripts" / "check-density.py")
@@ -264,14 +278,7 @@ class TestCheckScriptNamingRealCorpusRegression:
         result = _run("--tree", str(OH_MY_ZSH_ROOT))
 
         assert result.returncode == 1, result.stdout + result.stderr
-        fail_lines = [
-            line for line in result.stdout.splitlines() if "FAIL" in line
-        ]
-        actual_relative_fail_paths = {
-            str(Path(line.split("FAIL: ", 1)[1].split(": ", 1)[0]).relative_to(OH_MY_ZSH_ROOT))
-            for line in fail_lines
-        }
-        assert actual_relative_fail_paths == expected_relative_fail_paths
+        assert _relative_fail_paths(result, OH_MY_ZSH_ROOT) == expected_relative_fail_paths
         assert "OK" not in result.stdout
 
     @pytest.mark.skipif(
@@ -334,11 +341,4 @@ class TestCheckScriptNamingRealCorpusRegression:
         result = _run("--tree", str(UNIX_UTILS_ROOT))
 
         assert result.returncode == 1, result.stdout + result.stderr
-        fail_lines = [
-            line for line in result.stdout.splitlines() if "FAIL" in line
-        ]
-        actual_relative_fail_paths = {
-            str(Path(line.split("FAIL: ", 1)[1].split(": ", 1)[0]).relative_to(UNIX_UTILS_ROOT))
-            for line in fail_lines
-        }
-        assert actual_relative_fail_paths == expected_relative_fail_paths
+        assert _relative_fail_paths(result, UNIX_UTILS_ROOT) == expected_relative_fail_paths
