@@ -143,8 +143,10 @@ def get_target_language(text: str) -> str:
 
 def classify_file(path: Path, tree_root: Path | None = None) -> dict:
     """Classify a single script and return its verdict + target
-    language as one JSON-ready dict. Excluded scripts get no target
-    language — they are never converted, so the question is moot.
+    language as one JSON-ready dict. Excluded and stays-sh scripts
+    get no target language — neither is ever converted, so the
+    question is moot for both, the same way it already is for
+    excluded scripts.
 
     `tree_root` is only set in tree-sweep mode, to tag the result
     with which root it came from; a single-file classification has
@@ -159,8 +161,14 @@ def classify_file(path: Path, tree_root: Path | None = None) -> dict:
         return result
 
     text = path.read_text(encoding="utf-8")
-    result["verdict"] = compute_verdict(path, text)
-    result["target_language"] = get_target_language(text)
+    verdict = compute_verdict(path, text)
+    result["verdict"] = verdict
+
+    # Still parsed unconditionally so a malformed Requires-npm
+    # header fails the run even on a script that stays shell —
+    # only the reported value is withheld for a non-convert verdict.
+    target_language = get_target_language(text)
+    result["target_language"] = target_language if verdict == "convert" else None
     return result
 
 

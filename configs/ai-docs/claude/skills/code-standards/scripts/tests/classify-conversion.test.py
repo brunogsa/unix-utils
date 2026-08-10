@@ -54,22 +54,44 @@ def _single_result(result):
 class TestClassifyConversionHappy(unittest.TestCase):
     def test_should_return_py_as_the_target_language_when_the_script_carries_no_requires_npm_header(self):
         tmp_path = self._tmp()
+
+        # Also embeds awk so this row's verdict is convert — only
+        # a convert row keeps its target_language (a stays-sh row
+        # gets None regardless of what get_target_language would
+        # have returned).
         script = _write_script(tmp_path, "plain.sh", [
-            "#!/usr/bin/env bash", "echo hello",
+            "#!/usr/bin/env bash",
+            "awk '{print}' x",
+            "echo hello",
         ])
         payload = _single_result(_run(script))
+        self.assertEqual(payload["verdict"], "convert")
         self.assertEqual(payload["target_language"], "py")
 
     def test_should_return_js_as_the_target_language_when_the_scripts_requires_npm_header_names_an_npm_package_pythons_stdlib_cannot_replace(self):
         tmp_path = self._tmp()
+
+        # Also embeds awk so this row's verdict is convert — see
+        # the sibling py-target test above for why that matters.
         script = _write_script(tmp_path, "needs-lexer.sh", [
             "#!/usr/bin/env bash",
             "# Requires-npm: typescript — needs a real TS lexer to tell",
             "# a comment from // inside a string literal",
+            "awk '{print}' x",
             "echo hello",
         ])
         payload = _single_result(_run(script))
+        self.assertEqual(payload["verdict"], "convert")
         self.assertEqual(payload["target_language"], "js")
+
+    def test_should_return_no_target_language_when_the_script_stays_sh_and_is_never_converted(self):
+        tmp_path = self._tmp()
+        script = _write_script(tmp_path, "short-glue.sh", [
+            "#!/usr/bin/env bash", "echo hello",
+        ])
+        payload = _single_result(_run(script))
+        self.assertEqual(payload["verdict"], "stays-sh")
+        self.assertIsNone(payload["target_language"])
 
     def test_should_classify_convert_when_an_embedded_awk_appears_below_the_line_cap(self):
         tmp_path = self._tmp()
