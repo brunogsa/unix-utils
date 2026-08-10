@@ -293,6 +293,36 @@ else
     pipx install pytest
 fi
 
+# pyrightconfig.json — point the type checker at the pipx
+# pytest venv's site-packages.
+#
+# pipx isolates pytest in its own venv, on no interpreter
+# path Pyright resolves against, so every test file that
+# imports pytest reports "Import 'pytest' could not be
+# resolved" — noise that buries real import errors.
+#
+# Generated here, not committed: the path embeds the pipx
+# home and the CPython minor version, both machine- and
+# OS-specific. Pyright does not expand ${env:HOME} inside
+# pyrightconfig.json, so no committed literal fits both.
+pytest_site_packages_matches=(
+    "$(pipx environment --value PIPX_LOCAL_VENVS)"/pytest/lib/python*/site-packages
+)
+pytest_site_packages="${pytest_site_packages_matches[${#pytest_site_packages_matches[@]}-1]}"
+
+if [[ -d "$pytest_site_packages" ]]; then
+    cat > ~/unix-utils/pyrightconfig.json <<EOF
+{
+  "extraPaths": ["$pytest_site_packages"]
+}
+EOF
+    echo "pyrightconfig.json -> $pytest_site_packages"
+else
+    # Unresolvable rather than silently wrong: a stale config
+    # would keep reporting the import error it exists to fix.
+    echo "WARNING: no pipx pytest site-packages found; pyrightconfig.json not written" >&2
+fi
+
 # RTK (Rust Token Killer) — CLI proxy that compresses Bash
 # output to cut Claude Code token burn.
 #
