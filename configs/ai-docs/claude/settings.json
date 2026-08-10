@@ -152,6 +152,15 @@
         ]
       },
       {
+        "matcher": "Agent|Workflow",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/subagent-disallowed-tools-guard.py"
+          }
+        ]
+      },
+      {
         "matcher": "Grep|Glob",
         "hooks": [
           {
