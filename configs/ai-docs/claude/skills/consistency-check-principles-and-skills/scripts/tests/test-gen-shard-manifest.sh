@@ -200,6 +200,54 @@ EOF
     rm -rf "$d"
 }
 
+# Regression: a skill's own `__pycache__/` (Python bytecode cache,
+# gitignored and never skill content) must not be walked into the
+# shard's own-file list — same defect class node_modules already
+# has a prune for (Scout #47).
+it_should_exclude_files_under_a_pycache_directory_from_a_skills_own_file_list() {
+    echo "it_should_exclude_files_under_a_pycache_directory_from_a_skills_own_file_list"
+    local d; d=$(new_fixture)
+    write_skill_file "$d" "demo-skill" "SKILL.md" <<'EOF'
+---
+name: demo-skill
+description: "Demo."
+---
+Demo skill body.
+EOF
+    write_skill_file "$d" "demo-skill" "scripts/__pycache__/helper.cpython-314.pyc" <<'EOF'
+placeholder bytecode-cache content
+EOF
+    local output; output=$(run_gen "$d")
+    local actual; actual=$(shard_files "$output" "demo-skill" | grep -c "__pycache__")
+    assert_eq "pycache file excluded from own-file list" "0" "$actual"
+    rm -rf "$d"
+}
+
+# Regression: an agent-dispatch match found only inside a skill's own
+# `__pycache__/` must not authorize that agent — the dispatched-agent
+# scan greps skill_dir recursively, so an unpruned pycache dir can
+# surface a false dispatch the same way an unpruned node_modules
+# already could (Scout #47).
+it_should_not_pull_in_a_dispatched_agent_match_found_only_inside_a_pycache_directory() {
+    echo "it_should_not_pull_in_a_dispatched_agent_match_found_only_inside_a_pycache_directory"
+    local d; d=$(new_fixture)
+    write_skill_file "$d" "demo-skill" "SKILL.md" <<'EOF'
+---
+name: demo-skill
+description: "Demo."
+---
+Demo skill body.
+EOF
+    write_skill_file "$d" "demo-skill" "scripts/__pycache__/stale.txt" <<'EOF'
+agent(subAgent=tdd-coder, title=Do it)
+EOF
+    write_agent "$d" "tdd-coder"
+    local output; output=$(run_gen "$d")
+    local actual; actual=$(shard_files "$output" "demo-skill")
+    assert_eq "dispatched agent found only in pycache not included" "0" "$(printf '%s\n' "$actual" | grep -c "agents/tdd-coder.md")"
+    rm -rf "$d"
+}
+
 it_should_emit_a_dedicated_claude_md_only_shard() {
     echo "it_should_emit_a_dedicated_claude_md_only_shard"
     local d; d=$(new_fixture)
@@ -396,6 +444,8 @@ it_should_include_agent_files_a_skill_dispatches_by_name_in_its_shard
 it_should_include_cross_referenced_paths_outside_the_skill_dir_in_its_shard
 it_should_exclude_files_under_a_node_modules_directory_from_a_skills_own_file_list
 it_should_not_pull_in_cross_references_found_inside_a_node_modules_directory
+it_should_exclude_files_under_a_pycache_directory_from_a_skills_own_file_list
+it_should_not_pull_in_a_dispatched_agent_match_found_only_inside_a_pycache_directory
 it_should_emit_a_dedicated_claude_md_only_shard
 it_should_add_claude_md_to_every_other_shards_file_list
 it_should_emit_no_empty_shard
