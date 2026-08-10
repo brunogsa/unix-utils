@@ -309,7 +309,7 @@ def test_clean_document_exits_zero_and_prints_nothing(tmp_path):
     assert result.returncode == 0
 
 
-def test_no_arguments_is_a_usage_error(tmp_path):
+def test_no_arguments_is_a_usage_error():
     result = subprocess.run(
         [sys.executable, str(SCRIPT)], capture_output=True, text=True
     )
