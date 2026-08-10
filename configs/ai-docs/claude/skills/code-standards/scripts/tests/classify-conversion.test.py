@@ -60,13 +60,12 @@ class _TempDirTestCase(unittest.TestCase):
 
     def setUp(self):
         self._tmpdir = tempfile.TemporaryDirectory()
-        self._tmp_path = self._tmpdir.name
 
     def tearDown(self):
         self._tmpdir.cleanup()
 
     def _tmp(self):
-        return Path(self._tmp_path)
+        return Path(self._tmpdir.name)
 
 
 class TestClassifyConversionHappy(_TempDirTestCase):
