@@ -22,8 +22,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[5]
 PYTEST_INI = REPO_ROOT / "pytest.ini"
 
-# The five suites that predate this work's *.test.py convention and must
-# keep collecting once python_files also matches the new pattern.
+# The five suites that predate this work's *.test.py convention
+# and must keep collecting once python_files also matches the
+# new pattern.
 PRE_EXISTING_SUITES = [
     "configs/ai-docs/claude/skills/brag/scripts/tests/test_parsers_parity.py",
     "configs/ai-docs/claude/skills/usage-audit/scripts/tests/test_build_usage_viewer.py",
