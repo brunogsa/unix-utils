@@ -123,20 +123,28 @@ def format_result(path, reasons, label=None):
 
 
 def collect_tree_scripts(tree_root):
-    """Recurse tree_root for .sh/.py/.js files living under a
-    directory literally named scripts/ or hooks/ — the two
-    directories the corpus's real scripts live under — skipping
-    tests/, __pycache__ and node_modules along the way."""
+    """Recurse tree_root for .sh/.py/.js files nested under some
+    subdirectory, skipping tests/, __pycache__ and node_modules along
+    the way. No directory-name allowlist: a corpus can organize its
+    scripts under any directory (this repo's scripts/hooks,
+    oh-my-zsh's commands/lib/bin, ...), so is_excluded (already
+    applied by both call sites) is what filters vendored/stale
+    content, not where a script happens to live.
+
+    A file sitting directly in tree_root (no subdirectory) is
+    skipped: this checker polices organized script corpora, not
+    one-off utility scripts that were never grouped into one."""
     found = []
     for path in sorted(tree_root.rglob("*")):
         if not path.is_file() or path.suffix not in SCRIPT_EXTENSIONS:
             continue
+        relative_parts = path.relative_to(tree_root).parts
+        if len(relative_parts) < 2:
+            continue
         if any(
             part in ("tests", "__pycache__", "node_modules")
-            for part in path.relative_to(tree_root).parts[:-1]
+            for part in relative_parts[:-1]
         ):
-            continue
-        if not any(part in ("scripts", "hooks") for part in path.parts):
             continue
         found.append(path)
     return found

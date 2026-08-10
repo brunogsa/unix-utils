@@ -13,7 +13,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPT = Path(__file__).parent.parent / "check-script-naming.py"
+
+# unix-utils repo root: this test file's own checkout,
+# seven levels above scripts/tests/.
+UNIX_UTILS_ROOT = Path(__file__).resolve().parents[7]
+OH_MY_ZSH_ROOT = Path.home() / "oh-my-zsh"
 
 
 def _run(*args):
@@ -107,3 +114,155 @@ class TestCheckScriptNamingTreeMode:
         # (repo-b) must show up under their own tree's label.
         assert "check-density" in result.stdout
         assert "check.py" in result.stdout or "check " in result.stdout.lower()
+
+    def test_should_report_a_badly_named_script_under_a_commands_or_lib_dir_not_named_scripts_or_hooks(self, tmp_path):
+        # oh-my-zsh keeps its scripts under commands/ and lib/,
+        # never under a directory literally named scripts/ or
+        # hooks/.
+        #
+        # Regression this guards: --tree used to walk past every
+        # file in such a tree and silently report zero lines
+        # (exit 0), indistinguishable from "fully compliant".
+        repo = tmp_path / "oh-my-zsh"
+        _write(repo / "commands" / "aicmd.sh")
+
+        result = _run("--tree", str(repo))
+
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert "aicmd" in result.stdout
+
+
+class TestCheckScriptNamingRealCorpusRegression:
+    """Pins the checker's output against two real, on-disk repos, so
+    a future change to collect_tree_scripts can't silently narrow or
+    widen its scope again without a test catching the count drift —
+    the same silent-zero failure mode this fix exists to close.
+
+    Skipped when a checkout is absent (e.g. a machine without the
+    oh-my-zsh sibling repo) rather than failing on missing fixtures
+    this suite doesn't own."""
+
+    @pytest.mark.skipif(
+        not OH_MY_ZSH_ROOT.is_dir(),
+        reason=f"no oh-my-zsh checkout at {OH_MY_ZSH_ROOT}",
+    )
+    def test_should_report_exactly_the_28_oh_my_zsh_commands_and_lib_scripts_known_to_fail_naming(self):
+        # Batch 15 in rename-list.md (`## Batch 15 — oh-my-zsh
+        # commands/ + lib/`) is this same checker run in file
+        # mode against oh-my-zsh's real globs, before this fix
+        # existed — the correct answer, recorded in advance.
+        #
+        # Hand-coded here instead of parsed from that file, so
+        # this test's expectation stays independent of it.
+        expected_relative_fail_paths = {
+            "commands/ai-changelog.sh",
+            "commands/ai-request.sh",
+            "commands/aiappend.sh",
+            "commands/aicmd.sh",
+            "commands/aigitcommit.sh",
+            "commands/anonymize-txt.sh",
+            "commands/aws-get-dlq-summary.sh",
+            "commands/compile-gantt-mermaid.sh",
+            "commands/compile-mermaid.sh",
+            "commands/copy.sh",
+            "commands/diff-sorted-jsons.sh",
+            "commands/diff-sorted-txt.sh",
+            "commands/gen-schema-from-json.sh",
+            "commands/git-worktree-add.sh",
+            "commands/git-worktree-clean.sh",
+            "commands/jsonl-distribution-table.js",
+            "commands/jsonl-merge-and-sort-by-field.js",
+            "commands/notify.sh",
+            "commands/render-ascii-mermaid.sh",
+            "commands/search-replace-vim.sh",
+            "commands/vimreview.sh",
+            "lib/aicopy.sh",
+            "lib/aiyank.sh",
+            "lib/command-exists.sh",
+            "lib/detect-os.sh",
+            "lib/estimate_tokens.sh",
+            "lib/list-project-paths.sh",
+            "lib/tmux-pane-words-picker.sh",
+        }
+
+        result = _run("--tree", str(OH_MY_ZSH_ROOT))
+
+        assert result.returncode == 1, result.stdout + result.stderr
+        fail_lines = [
+            line for line in result.stdout.splitlines() if "FAIL" in line
+        ]
+        actual_relative_fail_paths = {
+            str(Path(line.split("FAIL: ", 1)[1].split(": ", 1)[0]).relative_to(OH_MY_ZSH_ROOT))
+            for line in fail_lines
+        }
+        assert actual_relative_fail_paths == expected_relative_fail_paths
+        assert "OK" not in result.stdout
+
+    @pytest.mark.skipif(
+        not UNIX_UTILS_ROOT.is_dir(),
+        reason=f"no unix-utils checkout at {UNIX_UTILS_ROOT}",
+    )
+    def test_should_keep_reporting_the_same_41_unix_utils_scripts_known_to_fail_naming(self):
+        # Batch 13 (`hooks/`+`scripts/`, 22 rows) + Batch 14
+        # (`skills/*/scripts/`, 19 rows) in rename-list.md were
+        # measured with the pre-fix checker — the regression
+        # bar this fix must not cross.
+        #
+        # Widening collect_tree_scripts must not sweep in
+        # unrelated unix-utils scripts out of scope for those
+        # two batches.
+        expected_relative_fail_paths = {
+            "configs/ai-docs/claude/hooks/claude-agent-contract-stop-hook.sh",
+            "configs/ai-docs/claude/hooks/claude-comment-format-stop-hook.sh",
+            "configs/ai-docs/claude/hooks/claude-compact-skill-reload.sh",
+            "configs/ai-docs/claude/hooks/claude-explore-mandate-hook.sh",
+            "configs/ai-docs/claude/hooks/claude-git-guard.sh",
+            "configs/ai-docs/claude/hooks/claude-implement-compact-reminder.sh",
+            "configs/ai-docs/claude/hooks/claude-implement-stop-hook.sh",
+            "configs/ai-docs/claude/hooks/claude-markdown-standards-stop-hook.sh",
+            "configs/ai-docs/claude/hooks/claude-rm-guard.sh",
+            "configs/ai-docs/claude/hooks/claude-sdd-stop-hook.sh",
+            "configs/ai-docs/claude/hooks/claude-stop-orchestrator.sh",
+            "configs/ai-docs/claude/hooks/claude-stopfailure-resume.sh",
+            "configs/ai-docs/claude/hooks/claude-tmux-compact-bump.py",
+            "configs/ai-docs/claude/hooks/claude-tmux-notification.sh",
+            "configs/ai-docs/claude/hooks/claude-tmux-title-compact-reminder.sh",
+            "configs/ai-docs/claude/hooks/claude-tmux-title-reminder.sh",
+            "configs/ai-docs/claude/hooks/claude-tmux-title-restore.sh",
+            "configs/ai-docs/claude/hooks/deep-reviewer-write-guard.sh",
+            "configs/ai-docs/claude/hooks/subagent-disallowed-tools-guard.py",
+            "configs/ai-docs/claude/hooks/subagent-model-guard.py",
+            "configs/ai-docs/claude/scripts/statusline-tier.sh",
+            "configs/ai-docs/claude/scripts/tmux-window-title.sh",
+            "configs/ai-docs/claude/skills/brag/scripts/parse_gcal_mcp.py",
+            "configs/ai-docs/claude/skills/brag/scripts/parse_ics.py",
+            "configs/ai-docs/claude/skills/brag/scripts/shared.py",
+            "configs/ai-docs/claude/skills/code-standards/scripts/classify-conversion.py",
+            "configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/gen-shard-manifest.sh",
+            "configs/ai-docs/claude/skills/implement/scripts/implement-loop-state.sh",
+            "configs/ai-docs/claude/skills/jira-cli/scripts/jira-utilities.sh",
+            "configs/ai-docs/claude/skills/jira-cli/scripts/jira.sh",
+            "configs/ai-docs/claude/skills/jira-cli/scripts/md-to-adf.py",
+            "configs/ai-docs/claude/skills/markdown-to-google-docs/scripts/gdoc_upload.py",
+            "configs/ai-docs/claude/skills/markdown-to-google-docs/scripts/render_and_build.py",
+            "configs/ai-docs/claude/skills/open-in-tmux/scripts/diffview-in-tmux.sh",
+            "configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh",
+            "configs/ai-docs/claude/skills/performance-check-principles-and-skills/scripts/check.sh",
+            "configs/ai-docs/claude/skills/spec-driven-development/scripts/dag-check-helper.sh",
+            "configs/ai-docs/claude/skills/spec-driven-development/scripts/plan-section.sh",
+            "configs/ai-docs/claude/skills/usage-audit/scripts/claude-usage-report.py",
+            "configs/ai-docs/claude/skills/usage-audit/scripts/config-change-ledger.py",
+            "configs/ai-docs/claude/skills/usage-audit/scripts/delivered-work-ledger.py",
+        }
+
+        result = _run("--tree", str(UNIX_UTILS_ROOT))
+
+        assert result.returncode == 1, result.stdout + result.stderr
+        fail_lines = [
+            line for line in result.stdout.splitlines() if "FAIL" in line
+        ]
+        actual_relative_fail_paths = {
+            str(Path(line.split("FAIL: ", 1)[1].split(": ", 1)[0]).relative_to(UNIX_UTILS_ROOT))
+            for line in fail_lines
+        }
+        assert actual_relative_fail_paths == expected_relative_fail_paths
