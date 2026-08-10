@@ -44,6 +44,65 @@ def _read_scripts_section():
     return text[start:end]
 
 
+def _find_unix_philosophy_instruction_lines(text):
+    """Return every '- [Instruction]' bullet line in `text` that
+    mentions the Unix philosophy.
+
+    Takes raw text rather than reading SKILL_MD itself, so the
+    same AC-32 counting rule can run against the whole file and
+    against an inline fixture — the fixture is what proves the
+    rule actually counts file-wide, not just within one section.
+    """
+    return [
+        line for line in text.splitlines()
+        if line.strip().startswith("- [Instruction]")
+        and "Unix philosophy" in line
+    ]
+
+
+def _classify_header_comment_lines(comment_lines):
+    """Partition a script header's comment lines (the shebang
+    line excluded) into the four roles AC-18 permits, returning
+    whichever lines match none of them.
+
+    The four permitted roles: the name+purpose line right after
+    the shebang, the 'Usage:' header plus its indented
+    invocation-form lines, the stdin/stdout/exit I/O-contract
+    lines, and bare '#' separator lines. Anything left over is a
+    fifth element AC-18 forbids.
+    """
+    name_purpose_pattern = re.compile(r"^#\s*[\w.-]+\s*[-—]\s*\S")
+    usage_header_pattern = re.compile(r"^#\s*Usage:\s*$")
+    io_contract_pattern = re.compile(r"^#\s*(stdin|stdout|exit):")
+    bare_separator_pattern = re.compile(r"^#\s*$")
+
+    unclassified_lines = []
+    in_usage_block = False
+
+    for index, line in enumerate(comment_lines):
+        if index == 0 and name_purpose_pattern.match(line):
+            continue
+
+        if usage_header_pattern.match(line):
+            in_usage_block = True
+            continue
+
+        if bare_separator_pattern.match(line):
+            in_usage_block = False
+            continue
+
+        if in_usage_block and line.startswith("#"):
+            continue
+
+        if io_contract_pattern.match(line):
+            in_usage_block = False
+            continue
+
+        unclassified_lines.append(line)
+
+    return unclassified_lines
+
+
 def _extract_first_fenced_block(section_text):
     """Return the content lines of the first fenced code block in
     the section (the usage-header example), excluding the fence
@@ -56,19 +115,16 @@ def _extract_first_fenced_block(section_text):
 
 
 class TestCodeStandardsScriptsSectionHappy(unittest.TestCase):
-    def test_should_carry_exactly_one_unix_philosophy_instruction(self):
-        section = _read_scripts_section()
+    def test_should_carry_exactly_one_unix_philosophy_instruction_in_the_whole_file(self):
+        whole_file_text = SKILL_MD.read_text()
 
-        instruction_lines_with_unix_philosophy = [
-            line for line in section.splitlines()
-            if line.strip().startswith("- [Instruction]")
-            and "Unix philosophy" in line
-        ]
+        instruction_lines_with_unix_philosophy = (
+            _find_unix_philosophy_instruction_lines(whole_file_text))
 
         self.assertEqual(
             len(instruction_lines_with_unix_philosophy), 1,
             msg="expected exactly one [Instruction] bullet mentioning "
-                "'Unix philosophy' in the '## Scripts' section, found: "
+                "'Unix philosophy' in the whole SKILL.md, found: "
                 f"{instruction_lines_with_unix_philosophy}")
 
     def test_should_keep_the_rewritten_usage_header_example_under_the_shortest_measured_baseline(self):
@@ -132,6 +188,21 @@ class TestCodeStandardsScriptsSectionHappy(unittest.TestCase):
         self.assertIn("stdout", fence_text.lower())
         self.assertIn("exit", fence_text.lower())
 
+        # Upper bound: partition every comment line after the
+        # shebang into one of the four permitted roles; anything
+        # left over is a fifth element AC-18 forbids.
+        comment_lines = fence_lines[1:]
+        while comment_lines and comment_lines[-1].strip() == "":
+            comment_lines.pop()
+
+        unclassified_lines = _classify_header_comment_lines(
+            comment_lines)
+        self.assertEqual(
+            unclassified_lines, [],
+            msg="header carries lines outside the four permitted "
+                "roles (name+purpose, Usage:, I/O contract, bare "
+                f"'#' separators): {unclassified_lines}")
+
     def test_should_state_the_python_default_language_rule_with_no_surviving_bash_or_node_contradiction(self):
         section = _read_scripts_section()
 
@@ -155,6 +226,63 @@ class TestCodeStandardsScriptsSectionHappy(unittest.TestCase):
             section, r"stdlib\s+cannot",
             msg="section must require the Requires-npm line to name "
                 "a gap Python's stdlib cannot cover")
+
+
+class TestCodeStandardsScriptsSectionGuardHelpers(unittest.TestCase):
+    """Prove the AC-32 and AC-18 counting/partitioning helpers
+    genuinely detect the violations those ACs forbid, against
+    inline fixtures the real (already-compliant) SKILL.md can
+    never exercise on its own."""
+
+    def test_should_report_a_second_unix_philosophy_instruction_found_outside_the_scripts_section(self):
+        fixture_text = (
+            "## Scripts\n"
+            "\n"
+            "- [Instruction] **CRITICAL: Follow the Unix "
+            "philosophy — make each script do one thing well.**\n"
+            "\n"
+            "## Naming\n"
+            "\n"
+            "- [Instruction] **CRITICAL: Follow the Unix "
+            "philosophy — name things by purpose.**\n"
+        )
+
+        instruction_lines_with_unix_philosophy = (
+            _find_unix_philosophy_instruction_lines(fixture_text))
+
+        self.assertEqual(
+            len(instruction_lines_with_unix_philosophy), 2,
+            msg="a whole-file guard must count both the "
+                "'## Scripts' instruction and the duplicate added "
+                "in a different section, not stop at the first one "
+                f"found: {instruction_lines_with_unix_philosophy}")
+
+    def test_should_report_header_lines_outside_the_four_permitted_roles(self):
+        fixture_header_lines_with_a_fifth_element = [
+            "# extract-field.py - Extract a field from JSON lines",
+            "#",
+            "# Usage:",
+            "#   extract-field.py <field> [file]",
+            "#   cat data.jsonl | extract-field.py .name",
+            "#",
+            "# stdin: JSON lines, when no file argument is given",
+            "# stdout: the extracted field value, one per line",
+            "# exit: 0 on success, 1 on bad input",
+            "#",
+            "# Examples:",
+            "#   extract-field.py .id data.jsonl",
+        ]
+
+        unclassified_lines = _classify_header_comment_lines(
+            fixture_header_lines_with_a_fifth_element)
+
+        self.assertEqual(
+            unclassified_lines,
+            ["# Examples:", "#   extract-field.py .id data.jsonl"],
+            msg="an 'Examples:' block added past the four permitted "
+                "roles (name+purpose, Usage:, I/O contract, bare "
+                "'#' separators) must be reported, not silently "
+                f"accepted: {unclassified_lines}")
 
 
 if __name__ == "__main__":
