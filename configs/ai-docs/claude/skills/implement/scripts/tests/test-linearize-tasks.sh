@@ -64,6 +64,19 @@ write_plan() {
   printf '%s' "$path"
 }
 
+# run_verify_script - invokes linearize-tasks.sh in --verify mode against a
+# plan-file fixture and a candidate task-order list, capturing
+# stdout/stderr/exit code into VERDICT_OUT/VERDICT_ERR/VERDICT_EXIT.
+run_verify_script() {
+  local plan_file="$1" candidate_order="$2"
+  local out_file="$work_dir/verify-stdout.txt"
+  local err_file="$work_dir/verify-stderr.txt"
+  bash "$SCRIPT" --verify "$plan_file" "$candidate_order" >"$out_file" 2>"$err_file"
+  VERDICT_EXIT=$?
+  VERDICT_OUT=$(cat "$out_file")
+  VERDICT_ERR=$(cat "$err_file")
+}
+
 it_should_print_a_linear_order_for_a_simple_chain_of_dependencies() {
   local fixture
   fixture=$(write_plan "chain" '### 1. First task
@@ -325,6 +338,187 @@ it_should_error_when_the_plan_has_no_task_breakdown_section() {
   assert_true "should error when the plan has no Task Breakdown section (diagnostic present)" "$([ -n "$VERDICT_ERR" ] && echo true || echo false)"
 }
 
+it_should_accept_a_valid_non_obvious_reorder_under_verify_that_is_not_the_lowest_id_order() {
+  local fixture
+  fixture=$(write_plan "verify-valid-reorder" '### 1. First task
+
+**Depends on**: none
+
+### 2. Second task
+
+**Depends on**: none
+
+### 3. Third task
+
+**Depends on**:
+- Task 1
+
+### 4. Fourth task
+
+**Depends on**:
+- Task 1')
+  run_verify_script "$fixture" "2, 1, 3, 4"
+  assert_eq "should accept a valid non-obvious reorder under --verify (exit code)" "0" "$VERDICT_EXIT"
+  assert_eq "should accept a valid non-obvious reorder under --verify (no output)" "" "$VERDICT_OUT"
+}
+
+it_should_reject_under_verify_a_task_ordered_before_its_dependency() {
+  local fixture
+  fixture=$(write_plan "verify-single-violation" '### 1. First task
+
+**Depends on**: none
+
+### 3. Third task
+
+**Depends on**:
+- Task 1')
+  run_verify_script "$fixture" "3, 1"
+  assert_eq "should reject under --verify a task ordered before its dependency (exit code)" "1" "$VERDICT_EXIT"
+  case "$VERDICT_ERR" in
+  *"task 3 is ordered before its dependency task 1"*)
+    pass_count=$((pass_count + 1))
+    printf 'ok - should reject under --verify a task ordered before its dependency (diagnostic names the pair)\n'
+    ;;
+  *)
+    fail_count=$((fail_count + 1))
+    printf 'not ok - should reject under --verify a task ordered before its dependency (diagnostic names the pair)\n  actual stderr: %s\n' "$VERDICT_ERR"
+    ;;
+  esac
+}
+
+it_should_report_every_offending_pair_under_verify_when_multiple_tasks_precede_their_dependencies() {
+  local fixture
+  fixture=$(write_plan "verify-multiple-violations" '### 1. First task
+
+**Depends on**: none
+
+### 2. Second task
+
+**Depends on**:
+- Task 1
+
+### 3. Third task
+
+**Depends on**: none
+
+### 4. Fourth task
+
+**Depends on**:
+- Task 3')
+  run_verify_script "$fixture" "2, 1, 4, 3"
+  assert_eq "should report every offending pair under --verify (exit code)" "1" "$VERDICT_EXIT"
+  case "$VERDICT_ERR" in
+  *"task 2 is ordered before its dependency task 1"*"task 4 is ordered before its dependency task 3"*)
+    pass_count=$((pass_count + 1))
+    printf 'ok - should report every offending pair under --verify (both pairs named, ascending id order)\n'
+    ;;
+  *)
+    fail_count=$((fail_count + 1))
+    printf 'not ok - should report every offending pair under --verify (both pairs named, ascending id order)\n  actual stderr: %s\n' "$VERDICT_ERR"
+    ;;
+  esac
+}
+
+it_should_reject_a_join_under_verify_regardless_of_the_candidate_order() {
+  local fixture
+  fixture=$(write_plan "verify-join" '### 1. First task
+
+**Depends on**: none
+
+### 2. Second task
+
+**Depends on**:
+- Task 1
+
+### 3. Third task
+
+**Depends on**:
+- Task 1
+
+### 4. Fourth task
+
+**Depends on**:
+- Task 2
+- Task 3')
+  run_verify_script "$fixture" "4, 3, 2, 1"
+  assert_eq "should reject a join under --verify regardless of the candidate order (exit code)" "1" "$VERDICT_EXIT"
+  case "$VERDICT_ERR" in
+  *"task 4 depends on 2 in-set tasks (2, 3)"*)
+    pass_count=$((pass_count + 1))
+    printf 'ok - should reject a join under --verify regardless of the candidate order (names both parents)\n'
+    ;;
+  *)
+    fail_count=$((fail_count + 1))
+    printf 'not ok - should reject a join under --verify regardless of the candidate order (names both parents)\n  actual stderr: %s\n' "$VERDICT_ERR"
+    ;;
+  esac
+}
+
+it_should_error_under_verify_when_the_candidate_order_repeats_an_id() {
+  local fixture
+  fixture=$(write_plan "verify-duplicate" '### 1. First task
+
+**Depends on**: none
+
+### 2. Second task
+
+**Depends on**:
+- Task 1')
+  run_verify_script "$fixture" "1, 1, 2"
+  assert_eq "should error under --verify when the candidate order repeats an id (exit code)" "2" "$VERDICT_EXIT"
+  case "$VERDICT_ERR" in
+  *"1"*)
+    pass_count=$((pass_count + 1))
+    printf 'ok - should error under --verify when the candidate order repeats an id (names the repeated id)\n'
+    ;;
+  *)
+    fail_count=$((fail_count + 1))
+    printf 'not ok - should error under --verify when the candidate order repeats an id (names the repeated id)\n  actual stderr: %s\n' "$VERDICT_ERR"
+    ;;
+  esac
+}
+
+it_should_error_under_verify_when_the_candidate_order_omits_a_task_breakdown_id() {
+  local fixture
+  fixture=$(write_plan "verify-missing" '### 1. First task
+
+**Depends on**: none
+
+### 2. Second task
+
+**Depends on**:
+- Task 1
+
+### 3. Third task
+
+**Depends on**:
+- Task 2')
+  run_verify_script "$fixture" "1, 2"
+  assert_eq "should error under --verify when the candidate order omits a Task Breakdown id (exit code)" "2" "$VERDICT_EXIT"
+  case "$VERDICT_ERR" in
+  *"3"*)
+    pass_count=$((pass_count + 1))
+    printf 'ok - should error under --verify when the candidate order omits a Task Breakdown id (names the missing id)\n'
+    ;;
+  *)
+    fail_count=$((fail_count + 1))
+    printf 'not ok - should error under --verify when the candidate order omits a Task Breakdown id (names the missing id)\n  actual stderr: %s\n' "$VERDICT_ERR"
+    ;;
+  esac
+}
+
+it_should_error_when_verify_is_invoked_with_the_wrong_number_of_arguments() {
+  local fixture
+  fixture=$(write_plan "verify-wrong-args" '### 1. First task
+
+**Depends on**: none')
+  local err_file="$work_dir/verify-wrong-args-stderr.txt"
+  bash "$SCRIPT" --verify "$fixture" >/dev/null 2>"$err_file"
+  local exit_code=$?
+  assert_eq "should error when --verify is invoked with the wrong number of arguments (exit code)" "2" "$exit_code"
+  assert_true "should error when --verify is invoked with the wrong number of arguments (diagnostic present)" "$([ -s "$err_file" ] && echo true || echo false)"
+}
+
 it_should_print_a_linear_order_for_a_simple_chain_of_dependencies
 it_should_print_a_linear_order_for_a_fork_where_one_task_has_two_independent_children
 it_should_print_every_id_in_lowest_id_order_for_a_fully_disconnected_task_set
@@ -338,6 +532,13 @@ it_should_error_when_the_plan_file_does_not_exist
 it_should_error_when_invoked_with_the_wrong_number_of_arguments
 it_should_error_when_a_requested_task_id_does_not_exist_in_the_task_breakdown
 it_should_error_when_the_plan_has_no_task_breakdown_section
+it_should_accept_a_valid_non_obvious_reorder_under_verify_that_is_not_the_lowest_id_order
+it_should_reject_under_verify_a_task_ordered_before_its_dependency
+it_should_report_every_offending_pair_under_verify_when_multiple_tasks_precede_their_dependencies
+it_should_reject_a_join_under_verify_regardless_of_the_candidate_order
+it_should_error_under_verify_when_the_candidate_order_repeats_an_id
+it_should_error_under_verify_when_the_candidate_order_omits_a_task_breakdown_id
+it_should_error_when_verify_is_invoked_with_the_wrong_number_of_arguments
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

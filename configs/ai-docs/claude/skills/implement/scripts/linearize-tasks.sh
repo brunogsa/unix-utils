@@ -1,35 +1,59 @@
 #!/usr/bin/env bash
 # linearize-tasks.sh - decide whether a set of plan tasks can ship as a
 # linear stack of PRs (one PR per task, each branch cut from the previous
-# one), and if so print the stacking order.
+# one). Two invocation forms: print the order, or verify a candidate order.
 #
 # Usage:
 #   linearize-tasks.sh <plan-file> <task-ids>
+#   linearize-tasks.sh --verify <plan-file> <task-ids>
 #
-# <task-ids> is the same comma-space "N, N" list get-pr-tasks.sh prints and
-# /implement's own <task-ids> argument accepts (missing spaces after a comma
-# are tolerated). This script restricts the plan's Task Breakdown dependency
-# graph to that id set, dropping any parent id NOT in the set — an out-of-set
-# parent belongs to an earlier, already-merged unit and can never create a
-# join inside THIS stack (implement/SKILL.md §2.3's "an id absent from this
-# unit's tasks[] counts as satisfied" rule). If, after that restriction, any
-# task in the set still has 2+ in-set parents, the set cannot be a single
-# linear stack (a stack layer has exactly one parent) and this script refuses.
-# Otherwise it prints a topological order, breaking ties by lowest numeric id
-# (Kahn's algorithm; matches implement-loop-state.py's documented lowest-id
-# degradation, and determinism is what makes the order assertable).
+# First form - <task-ids> is the same comma-space "N, N" list get-pr-tasks.sh
+# prints and /implement's own <task-ids> argument accepts (missing spaces
+# after a comma are tolerated). This script restricts the plan's Task
+# Breakdown dependency graph to that id set, dropping any parent id NOT in
+# the set — an out-of-set parent belongs to an earlier, already-merged unit
+# and can never create a join inside THIS stack (implement/SKILL.md §2.3's
+# "an id absent from this unit's tasks[] counts as satisfied" rule). If,
+# after that restriction, any task in the set still has 2+ in-set parents,
+# the set cannot be a single linear stack (a stack layer has exactly one
+# parent) and this script refuses. Otherwise it prints a topological order,
+# breaking ties by lowest numeric id (Kahn's algorithm; matches
+# implement-loop-state.py's documented lowest-id degradation, and
+# determinism is what makes the order assertable).
+#
+# Second form (--verify) - <task-ids> is instead a CANDIDATE order (same
+# comma-space list, same tolerance), typically a user-supplied reordering of
+# what the first form printed. It answers "is this a valid stack-layer order
+# for this task set?": the same join restriction applies, plus every task
+# must be listed after all of its in-set parents, and the candidate must be
+# an exact permutation of the plan's Task Breakdown id set (no id omitted,
+# none repeated). On success nothing is printed.
 #
 # Exit codes:
-#   0 - order printed to stdout, comma-space "N, N" list.
+#   0 - <task-ids> form: order printed to stdout, comma-space "N, N" list.
+#       --verify form: the candidate order is valid; nothing is printed.
 #   1 - a task in the set has 2+ in-set parents (diagnostic on stderr, names
-#       every offending task and its parents).
+#       every offending task and its parents) - both forms; or, --verify
+#       form only, a task is ordered before one of its in-set parents
+#       (diagnostic on stderr names every offending pair).
 #   2 - usage error: wrong arg count, plan file missing, Task Breakdown
-#       section absent/unparsable, or a requested task id absent from it.
+#       section absent/unparsable, a requested task id absent from it, or
+#       (--verify form only) the candidate order omits or repeats an id.
 
 set -eo pipefail
 
+mode="order"
+if [ "${1-}" = "--verify" ]; then
+  mode="verify"
+  shift
+fi
+
 if [ $# -ne 2 ]; then
-  echo "usage: $(basename "$0") <plan-file> <task-ids>" >&2
+  if [ "$mode" = "verify" ]; then
+    echo "usage: $(basename "$0") --verify <plan-file> <task-ids>" >&2
+  else
+    echo "usage: $(basename "$0") <plan-file> <task-ids>" >&2
+  fi
   exit 2
 fi
 
@@ -102,14 +126,18 @@ if [ -z "$edges" ]; then
 fi
 
 # Normalize <task-ids> into one bare numeric id per line, tolerant of
-# missing spaces after a comma ("1,2,3" as well as "1, 2, 3").
-ids=$(printf '%s' "$task_ids_arg" | awk -F',' '{
+# missing spaces after a comma ("1,2,3" as well as "1, 2, 3"). raw_ids keeps
+# duplicates and the caller's original order (the --verify form needs both
+# to detect a repeated id and to check the candidate's actual ordering); ids
+# is the deduped, sorted set both forms use for id lookups.
+raw_ids=$(printf '%s' "$task_ids_arg" | awk -F',' '{
   for (i = 1; i <= NF; i++) {
     s = $i
     gsub(/^[ \t]+|[ \t]+$/, "", s)
     if (s != "") print s
   }
 }')
+ids=$(printf '%s\n' "$raw_ids" | sort -u)
 
 # Every requested id must resolve to a real Task Breakdown entry. Looked up
 # via plain string match against the parsed labels (never a failing grep
@@ -130,13 +158,38 @@ if [ -n "$missing" ]; then
   exit 2
 fi
 
-ids_csv=$(printf '%s' "$ids" | paste -sd, -)
+# --verify only: the candidate order must be an exact permutation of the
+# Task Breakdown's own id set - every id from the Task Breakdown present
+# exactly once. Both checks run independently and are reported together
+# (not fail-fast on whichever is found first), matching the join-offender
+# reporting convention below.
+if [ "$mode" = "verify" ]; then
+  duplicates=$(printf '%s\n' "$raw_ids" | sort | uniq -d)
+  omitted=$(comm -23 <(printf '%s\n' "$labels") <(printf '%s\n' "$ids"))
+
+  if [ -n "$duplicates" ] || [ -n "$omitted" ]; then
+    if [ -n "$duplicates" ]; then
+      echo "error: task id(s) appear more than once in the candidate order:" >&2
+      printf '%s\n' "$duplicates" | sed 's/^/  - /' >&2
+    fi
+    if [ -n "$omitted" ]; then
+      echo "error: task id(s) from the Task Breakdown are missing from the candidate order:" >&2
+      printf '%s\n' "$omitted" | sed 's/^/  - /' >&2
+    fi
+    exit 2
+  fi
+fi
+
+# The set to restrict the graph to: the requested/candidate id set for the
+# <task-ids> form, or (--verify form) the Task Breakdown's own id set - by
+# this point already proven identical in content to the validated candidate.
+restrict_ids_csv=$(printf '%s' "$ids" | paste -sd, -)
 
 # Restrict the graph to the requested set: for every requested id, keep only
 # the deps that are ALSO in the requested set (its in-set parents). An
 # out-of-set parent belongs to an earlier, already-merged unit and is
 # dropped rather than counted.
-filtered=$(printf '%s\n' "$edges" | awk -F'\t' -v idscsv="$ids_csv" '
+filtered=$(printf '%s\n' "$edges" | awk -F'\t' -v idscsv="$restrict_ids_csv" '
   BEGIN {
     n = split(idscsv, arr, ",")
     for (i = 1; i <= n; i++) requested["Task " arr[i]] = 1
@@ -177,6 +230,33 @@ if [ -n "$offenders" ]; then
     echo "error: task $id depends on $cnt in-set tasks ($parents_display) — a stack layer can have only one parent" >&2
   done <<<"$offenders"
   exit 1
+fi
+
+if [ "$mode" = "verify" ]; then
+  # Past the join gate, every task in $filtered has 0 or 1 in-set parent, so
+  # checking "is my parent already placed" is a single lookup per task, not
+  # a loop over multiple parents. FNR == NR is the standard awk idiom for
+  # "this is the first of two input files": raw_ids (the candidate's actual
+  # order) builds the position map, then filtered (the parent-per-task
+  # graph) is scanned against it.
+  violations=$(awk -F'\t' '
+    FNR == NR { pos[$0] = FNR; next }
+    {
+      id = $1
+      parent = $2
+      if (parent == "") next
+      if (pos[parent] > pos[id]) print id "\t" parent
+    }
+  ' <(printf '%s\n' "$raw_ids") <(printf '%s\n' "$filtered") | sort -t $'\t' -k1,1n)
+
+  if [ -n "$violations" ]; then
+    while IFS=$'\t' read -r id parent; do
+      echo "error: task $id is ordered before its dependency task $parent" >&2
+    done <<<"$violations"
+    exit 1
+  fi
+
+  exit 0
 fi
 
 # Kahn's algorithm over the filtered (in-set-only) graph, tie-broken by
