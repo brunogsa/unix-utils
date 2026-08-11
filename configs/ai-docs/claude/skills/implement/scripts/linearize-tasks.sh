@@ -5,7 +5,7 @@
 #
 # Usage:
 #   linearize-tasks.sh <plan-file> <task-ids>
-#   linearize-tasks.sh --verify <plan-file> <task-ids>
+#   linearize-tasks.sh --verify <plan-file> <task-ids> <candidate-order>
 #
 # First form - <task-ids> is the same comma-space "N, N" list get-pr-tasks.sh
 # prints and /implement's own <task-ids> argument accepts (missing spaces
@@ -21,13 +21,16 @@
 # implement-loop-state.py's documented lowest-id degradation, and
 # determinism is what makes the order assertable).
 #
-# Second form (--verify) - <task-ids> is instead a CANDIDATE order (same
-# comma-space list, same tolerance), typically a user-supplied reordering of
-# what the first form printed. It answers "is this a valid stack-layer order
-# for this task set?": the same join restriction applies, plus every task
-# must be listed after all of its in-set parents, and the candidate must be
-# an exact permutation of the plan's Task Breakdown id set (no id omitted,
-# none repeated). On success nothing is printed.
+# Second form (--verify) - <task-ids> is the SAME in-scope set the first
+# form was (or would be) called with — the set the user was shown.
+# <candidate-order> is what the user typed back: a reordering of
+# <task-ids> (same comma-space list, same tolerance). It answers "is this a
+# valid stack-layer order for this task set?": the same join restriction
+# applies to <task-ids>, plus every in-scope task must be listed after all
+# of its in-set parents, and <candidate-order> must be an exact permutation
+# of <task-ids> (no id omitted, none repeated) — an id belonging to a
+# DIFFERENT PR-Breakdown entry / task-ids set is out of scope and never
+# checked or named. On success nothing is printed.
 #
 # Exit codes:
 #   0 - <task-ids> form: order printed to stdout, comma-space "N, N" list.
@@ -38,7 +41,8 @@
 #       (diagnostic on stderr names every offending pair).
 #   2 - usage error: wrong arg count, plan file missing, Task Breakdown
 #       section absent/unparsable, a requested task id absent from it, or
-#       (--verify form only) the candidate order omits or repeats an id.
+#       (--verify form only) the candidate order omits or repeats an
+#       in-scope id.
 
 set -eo pipefail
 
@@ -48,9 +52,9 @@ if [ "${1-}" = "--verify" ]; then
   shift
 fi
 
-if [ $# -ne 2 ]; then
+if { [ "$mode" = "verify" ] && [ $# -ne 3 ]; } || { [ "$mode" = "order" ] && [ $# -ne 2 ]; }; then
   if [ "$mode" = "verify" ]; then
-    echo "usage: $(basename "$0") --verify <plan-file> <task-ids>" >&2
+    echo "usage: $(basename "$0") --verify <plan-file> <task-ids> <candidate-order>" >&2
   else
     echo "usage: $(basename "$0") <plan-file> <task-ids>" >&2
   fi
@@ -59,6 +63,7 @@ fi
 
 plan_file="$1"
 task_ids_arg="$2"
+candidate_order_arg="${3-}"
 
 if [ ! -f "$plan_file" ]; then
   echo "error: plan file not found: $plan_file" >&2
@@ -125,19 +130,25 @@ if [ -z "$edges" ]; then
   exit 2
 fi
 
-# Normalize <task-ids> into one bare numeric id per line, tolerant of
-# missing spaces after a comma ("1,2,3" as well as "1, 2, 3"). raw_ids keeps
-# duplicates and the caller's original order (the --verify form needs both
-# to detect a repeated id and to check the candidate's actual ordering); ids
-# is the deduped, sorted set both forms use for id lookups.
-raw_ids=$(printf '%s' "$task_ids_arg" | awk -F',' '{
-  for (i = 1; i <= NF; i++) {
-    s = $i
-    gsub(/^[ \t]+|[ \t]+$/, "", s)
-    if (s != "") print s
-  }
-}')
-ids=$(printf '%s\n' "$raw_ids" | sort -u)
+# normalize_ids - splits a comma-space "N, N" list (tolerant of missing
+# spaces after a comma) into one bare numeric id per line on stdout.
+# Preserves order and duplicates - dedup/sort is left to the caller, since
+# --verify's duplicate and position checks need the original order and
+# repeats, while other callers only need the deduped set.
+normalize_ids() {
+  awk -F',' '{
+    for (i = 1; i <= NF; i++) {
+      s = $i
+      gsub(/^[ \t]+|[ \t]+$/, "", s)
+      if (s != "") print s
+    }
+  }'
+}
+
+# ids is the deduped, sorted in-scope task-id set - the same set the
+# <task-ids> form has always restricted its graph to. --verify reuses it
+# unchanged as the scope its own checks below are restricted to.
+ids=$(printf '%s' "$task_ids_arg" | normalize_ids | sort -u)
 
 # Every requested id must resolve to a real Task Breakdown entry. Looked up
 # via plain string match against the parsed labels (never a failing grep
@@ -146,7 +157,20 @@ ids=$(printf '%s\n' "$raw_ids" | sort -u)
 # regardless of the loop running in a subshell.
 labels=$(printf '%s\n' "$edges" | cut -f1 | sed 's/^Task //' | sort -u)
 
-missing=$(printf '%s\n' "$ids" | while IFS= read -r id; do
+# --verify only: candidate_ids_raw keeps the candidate's own order and
+# duplicates (needed for the position and duplicate-id checks below);
+# candidate_ids is its deduped, sorted form. ids_to_validate widens the
+# unknown-id check (below) to cover ids from either list - an id typo'd in
+# the candidate is exactly as much a usage error as one typo'd in
+# <task-ids>.
+ids_to_validate="$ids"
+if [ "$mode" = "verify" ]; then
+  candidate_ids_raw=$(printf '%s' "$candidate_order_arg" | normalize_ids)
+  candidate_ids=$(printf '%s\n' "$candidate_ids_raw" | sort -u)
+  ids_to_validate=$(printf '%s\n%s\n' "$ids" "$candidate_ids" | sort -u)
+fi
+
+missing=$(printf '%s\n' "$ids_to_validate" | while IFS= read -r id; do
   if ! printf '%s\n' "$labels" | grep -qxF "$id"; then
     echo "$id"
   fi
@@ -158,14 +182,15 @@ if [ -n "$missing" ]; then
   exit 2
 fi
 
-# --verify only: the candidate order must be an exact permutation of the
-# Task Breakdown's own id set - every id from the Task Breakdown present
-# exactly once. Both checks run independently and are reported together
-# (not fail-fast on whichever is found first), matching the join-offender
-# reporting convention below.
+# --verify only: the candidate order must be an exact permutation of
+# <task-ids> - the in-scope set the user was shown - not of the whole Task
+# Breakdown. A task from a DIFFERENT PR-Breakdown entry's stack is out of
+# scope here and must never be named as missing. Both checks run
+# independently and are reported together (not fail-fast on whichever is
+# found first), matching the join-offender reporting convention below.
 if [ "$mode" = "verify" ]; then
-  duplicates=$(printf '%s\n' "$raw_ids" | sort | uniq -d)
-  omitted=$(comm -23 <(printf '%s\n' "$labels") <(printf '%s\n' "$ids"))
+  duplicates=$(printf '%s\n' "$candidate_ids_raw" | sort | uniq -d)
+  omitted=$(comm -23 <(printf '%s\n' "$ids") <(printf '%s\n' "$candidate_ids"))
 
   if [ -n "$duplicates" ] || [ -n "$omitted" ]; then
     if [ -n "$duplicates" ]; then
@@ -173,16 +198,16 @@ if [ "$mode" = "verify" ]; then
       printf '%s\n' "$duplicates" | sed 's/^/  - /' >&2
     fi
     if [ -n "$omitted" ]; then
-      echo "error: task id(s) from the Task Breakdown are missing from the candidate order:" >&2
+      echo "error: task id(s) from the requested task set are missing from the candidate order:" >&2
       printf '%s\n' "$omitted" | sed 's/^/  - /' >&2
     fi
     exit 2
   fi
 fi
 
-# The set to restrict the graph to: the requested/candidate id set for the
-# <task-ids> form, or (--verify form) the Task Breakdown's own id set - by
-# this point already proven identical in content to the validated candidate.
+# The set to restrict the graph to - the in-scope <task-ids> set, for both
+# forms (--verify's candidate order is by this point already proven an
+# exact permutation of it).
 restrict_ids_csv=$(printf '%s' "$ids" | paste -sd, -)
 
 # Restrict the graph to the requested set: for every requested id, keep only
@@ -236,9 +261,10 @@ if [ "$mode" = "verify" ]; then
   # Past the join gate, every task in $filtered has 0 or 1 in-set parent, so
   # checking "is my parent already placed" is a single lookup per task, not
   # a loop over multiple parents. FNR == NR is the standard awk idiom for
-  # "this is the first of two input files": raw_ids (the candidate's actual
-  # order) builds the position map, then filtered (the parent-per-task
-  # graph) is scanned against it.
+  # "this is the first of two input files": candidate_ids_raw (the
+  # candidate's actual order) builds the position map, then filtered (the
+  # parent-per-task graph, already restricted to <task-ids>) is scanned
+  # against it.
   violations=$(awk -F'\t' '
     FNR == NR { pos[$0] = FNR; next }
     {
@@ -247,7 +273,7 @@ if [ "$mode" = "verify" ]; then
       if (parent == "") next
       if (pos[parent] > pos[id]) print id "\t" parent
     }
-  ' <(printf '%s\n' "$raw_ids") <(printf '%s\n' "$filtered") | sort -t $'\t' -k1,1n)
+  ' <(printf '%s\n' "$candidate_ids_raw") <(printf '%s\n' "$filtered") | sort -t $'\t' -k1,1n)
 
   if [ -n "$violations" ]; then
     while IFS=$'\t' read -r id parent; do

@@ -65,13 +65,14 @@ write_plan() {
 }
 
 # run_verify_script - invokes linearize-tasks.sh in --verify mode against a
-# plan-file fixture and a candidate task-order list, capturing
+# plan-file fixture, the in-scope task-ids set (what the user was shown),
+# and a candidate task-order list (what the user typed back), capturing
 # stdout/stderr/exit code into VERDICT_OUT/VERDICT_ERR/VERDICT_EXIT.
 run_verify_script() {
-  local plan_file="$1" candidate_order="$2"
+  local plan_file="$1" task_ids="$2" candidate_order="$3"
   local out_file="$work_dir/verify-stdout.txt"
   local err_file="$work_dir/verify-stderr.txt"
-  bash "$SCRIPT" --verify "$plan_file" "$candidate_order" >"$out_file" 2>"$err_file"
+  bash "$SCRIPT" --verify "$plan_file" "$task_ids" "$candidate_order" >"$out_file" 2>"$err_file"
   VERDICT_EXIT=$?
   VERDICT_OUT=$(cat "$out_file")
   VERDICT_ERR=$(cat "$err_file")
@@ -357,7 +358,7 @@ it_should_accept_a_valid_non_obvious_reorder_under_verify_that_is_not_the_lowest
 
 **Depends on**:
 - Task 1')
-  run_verify_script "$fixture" "2, 1, 3, 4"
+  run_verify_script "$fixture" "1, 2, 3, 4" "2, 1, 3, 4"
   assert_eq "should accept a valid non-obvious reorder under --verify (exit code)" "0" "$VERDICT_EXIT"
   assert_eq "should accept a valid non-obvious reorder under --verify (no output)" "" "$VERDICT_OUT"
 }
@@ -372,7 +373,7 @@ it_should_reject_under_verify_a_task_ordered_before_its_dependency() {
 
 **Depends on**:
 - Task 1')
-  run_verify_script "$fixture" "3, 1"
+  run_verify_script "$fixture" "1, 3" "3, 1"
   assert_eq "should reject under --verify a task ordered before its dependency (exit code)" "1" "$VERDICT_EXIT"
   case "$VERDICT_ERR" in
   *"task 3 is ordered before its dependency task 1"*)
@@ -405,7 +406,7 @@ it_should_report_every_offending_pair_under_verify_when_multiple_tasks_precede_t
 
 **Depends on**:
 - Task 3')
-  run_verify_script "$fixture" "2, 1, 4, 3"
+  run_verify_script "$fixture" "1, 2, 3, 4" "2, 1, 4, 3"
   assert_eq "should report every offending pair under --verify (exit code)" "1" "$VERDICT_EXIT"
   case "$VERDICT_ERR" in
   *"task 2 is ordered before its dependency task 1"*"task 4 is ordered before its dependency task 3"*)
@@ -440,7 +441,7 @@ it_should_reject_a_join_under_verify_regardless_of_the_candidate_order() {
 **Depends on**:
 - Task 2
 - Task 3')
-  run_verify_script "$fixture" "4, 3, 2, 1"
+  run_verify_script "$fixture" "1, 2, 3, 4" "4, 3, 2, 1"
   assert_eq "should reject a join under --verify regardless of the candidate order (exit code)" "1" "$VERDICT_EXIT"
   case "$VERDICT_ERR" in
   *"task 4 depends on 2 in-set tasks (2, 3)"*)
@@ -464,7 +465,7 @@ it_should_error_under_verify_when_the_candidate_order_repeats_an_id() {
 
 **Depends on**:
 - Task 1')
-  run_verify_script "$fixture" "1, 1, 2"
+  run_verify_script "$fixture" "1, 2" "1, 1, 2"
   assert_eq "should error under --verify when the candidate order repeats an id (exit code)" "2" "$VERDICT_EXIT"
   case "$VERDICT_ERR" in
   *"1"*)
@@ -493,7 +494,7 @@ it_should_error_under_verify_when_the_candidate_order_omits_a_task_breakdown_id(
 
 **Depends on**:
 - Task 2')
-  run_verify_script "$fixture" "1, 2"
+  run_verify_script "$fixture" "1, 2, 3" "1, 2"
   assert_eq "should error under --verify when the candidate order omits a Task Breakdown id (exit code)" "2" "$VERDICT_EXIT"
   case "$VERDICT_ERR" in
   *"3"*)
@@ -503,6 +504,100 @@ it_should_error_under_verify_when_the_candidate_order_omits_a_task_breakdown_id(
   *)
     fail_count=$((fail_count + 1))
     printf 'not ok - should error under --verify when the candidate order omits a Task Breakdown id (names the missing id)\n  actual stderr: %s\n' "$VERDICT_ERR"
+    ;;
+  esac
+}
+
+it_should_accept_a_pr_subset_reorder_under_verify_when_the_plan_has_other_prs_tasks_outside_the_scope() {
+  local fixture
+  fixture=$(write_plan "verify-pr-subset" '### 1. First task
+
+**Depends on**: none
+
+### 2. Second task
+
+**Depends on**: none
+
+### 3. Third task
+
+**Depends on**:
+- Task 1
+
+### 4. Fourth task
+
+**Depends on**:
+- Task 3')
+  run_verify_script "$fixture" "1, 2" "2, 1"
+  assert_eq "should accept a PR-subset reorder under --verify when the plan has other PRs' tasks outside the scope (exit code)" "0" "$VERDICT_EXIT"
+  assert_eq "should accept a PR-subset reorder under --verify when the plan has other PRs' tasks outside the scope (no output)" "" "$VERDICT_OUT"
+}
+
+it_should_scope_the_omission_diagnostic_to_the_in_scope_task_ids_under_verify() {
+  local fixture
+  fixture=$(write_plan "verify-scoped-omission" '### 1. First task
+
+**Depends on**: none
+
+### 2. Second task
+
+**Depends on**: none
+
+### 3. Third task
+
+**Depends on**:
+- Task 1
+
+### 4. Fourth task
+
+**Depends on**:
+- Task 3')
+  run_verify_script "$fixture" "1, 2" "2"
+  assert_eq "should scope the omission diagnostic to the in-scope task ids under --verify (exit code)" "2" "$VERDICT_EXIT"
+  case "$VERDICT_ERR" in
+  *"3"* | *"4"*)
+    fail_count=$((fail_count + 1))
+    printf 'not ok - should scope the omission diagnostic to the in-scope task ids under --verify (names only the in-scope id)\n  actual stderr: %s\n' "$VERDICT_ERR"
+    ;;
+  *"1"*)
+    pass_count=$((pass_count + 1))
+    printf 'ok - should scope the omission diagnostic to the in-scope task ids under --verify (names only the in-scope id)\n'
+    ;;
+  *)
+    fail_count=$((fail_count + 1))
+    printf 'not ok - should scope the omission diagnostic to the in-scope task ids under --verify (names only the in-scope id)\n  actual stderr: %s\n' "$VERDICT_ERR"
+    ;;
+  esac
+}
+
+it_should_reject_a_parent_ordering_violation_within_a_pr_subset_under_verify() {
+  local fixture
+  fixture=$(write_plan "verify-subset-violation" '### 1. First task
+
+**Depends on**: none
+
+### 2. Second task
+
+**Depends on**: none
+
+### 3. Third task
+
+**Depends on**:
+- Task 1
+
+### 4. Fourth task
+
+**Depends on**:
+- Task 3')
+  run_verify_script "$fixture" "1, 3" "3, 1"
+  assert_eq "should reject a parent-ordering violation within a PR subset under --verify (exit code)" "1" "$VERDICT_EXIT"
+  case "$VERDICT_ERR" in
+  *"task 3 is ordered before its dependency task 1"*)
+    pass_count=$((pass_count + 1))
+    printf 'ok - should reject a parent-ordering violation within a PR subset under --verify (diagnostic names the pair)\n'
+    ;;
+  *)
+    fail_count=$((fail_count + 1))
+    printf 'not ok - should reject a parent-ordering violation within a PR subset under --verify (diagnostic names the pair)\n  actual stderr: %s\n' "$VERDICT_ERR"
     ;;
   esac
 }
@@ -538,6 +633,9 @@ it_should_report_every_offending_pair_under_verify_when_multiple_tasks_precede_t
 it_should_reject_a_join_under_verify_regardless_of_the_candidate_order
 it_should_error_under_verify_when_the_candidate_order_repeats_an_id
 it_should_error_under_verify_when_the_candidate_order_omits_a_task_breakdown_id
+it_should_accept_a_pr_subset_reorder_under_verify_when_the_plan_has_other_prs_tasks_outside_the_scope
+it_should_scope_the_omission_diagnostic_to_the_in_scope_task_ids_under_verify
+it_should_reject_a_parent_ordering_violation_within_a_pr_subset_under_verify
 it_should_error_when_verify_is_invoked_with_the_wrong_number_of_arguments
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
