@@ -57,6 +57,28 @@ new_fixture() {
   FIXTURE="$work_dir/$1"
 }
 
+# new_repo - creates an empty git repo under work_dir and prints its
+# path, matching test-check-density.sh's own --changed-only fixture
+# convention. Identity is set locally so the fixture commit never
+# depends on the machine's global git config.
+new_repo() {
+  local dir="$work_dir/$1"
+  mkdir -p "$dir"
+  git -C "$dir" init -q .
+  git -C "$dir" config user.email test@example.com
+  git -C "$dir" config user.name test
+  printf '%s' "$dir"
+}
+
+# run_fix_changed_only - invokes fix-density.py --changed-only on
+# FIXTURE from within REPO_DIR, capturing exit code into FIX_EXIT and
+# stdout+stderr into FIX_OUT. FIXTURE must be relative to REPO_DIR,
+# matching how check-density.sh's own --changed-only tests invoke it.
+run_fix_changed_only() {
+  FIX_OUT=$(cd "$REPO_DIR" && python3 "$SCRIPT" --changed-only "$FIXTURE" 2>&1)
+  FIX_EXIT=$?
+}
+
 # run_fix - invokes fix-density.py on FIXTURE, capturing the exit code
 # into FIX_EXIT and stdout+stderr into FIX_OUT.
 run_fix() {
@@ -382,6 +404,173 @@ EOF
   assert_eq 'should split a bullet at a semicolon boundary outside brackets (second run makes no further changes)' "$first_run_content" "$(cat "$FIXTURE")"
 }
 
+it_should_resolve_an_untracked_files_violation_with_changed_only_matching_the_no_flag_result() {
+  REPO_DIR=$(new_repo repo-untracked)
+  FIXTURE=untracked.md
+  cat > "$REPO_DIR/$FIXTURE" <<'EOF'
+# AC4 fixture
+
+This clause exists purely to push the line length well past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents. This second clause continues the thought after the boundary so the split can balance both halves reasonably well.
+EOF
+
+  run_fix_changed_only
+  assert_eq 'should resolve an untracked file violation with --changed-only (exit code, fully resolved same as no-flag mode)' \
+    "0" "$FIX_EXIT"
+
+  local expected_file="$work_dir/untracked-expected.md"
+  cat > "$expected_file" <<'EOF'
+# AC4 fixture
+
+This clause exists purely to push the line length well past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents.
+
+This second clause continues the thought after the boundary so the split can balance both halves reasonably well.
+EOF
+  local expected
+  expected="$(cat "$expected_file")"
+  assert_eq 'should resolve an untracked file violation with --changed-only (file content, every line in scope matches the no-flag split)' \
+    "$expected" "$(cat "$REPO_DIR/$FIXTURE")"
+
+  local density_exit
+  (cd "$REPO_DIR" && "$DENSITY_SCRIPT" "$FIXTURE" >/dev/null 2>&1)
+  density_exit=$?
+  assert_eq 'should resolve an untracked file violation with --changed-only (independently re-verified clean by check-density.sh)' \
+    "0" "$density_exit"
+}
+
+it_should_split_only_a_newly_added_violation_and_leave_a_pre_existing_violation_untouched_with_changed_only() {
+  REPO_DIR=$(new_repo repo-selective)
+  FIXTURE=selective.md
+  cat > "$REPO_DIR/$FIXTURE" <<'EOF'
+# Selective fixture
+
+This line deliberately avoids every recognized split boundary so the fixer has nowhere safe to break it and must leave it fully untouched while reporting it as residue instead of mutating anything inside it here
+EOF
+  git -C "$REPO_DIR" add "$FIXTURE"
+  git -C "$REPO_DIR" commit -q -m base
+
+  cat >> "$REPO_DIR/$FIXTURE" <<'EOF'
+
+This clause exists purely to push the line length well past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents. This second clause continues the thought after the boundary so the split can balance both halves reasonably well.
+EOF
+
+  local pre_existing_line
+  pre_existing_line="$(sed -n '3p' "$REPO_DIR/$FIXTURE")"
+
+  run_fix_changed_only
+  assert_eq 'should split only the newly added violation with --changed-only (exit code, fully resolved - the pre-existing one sits outside scope)' \
+    "0" "$FIX_EXIT"
+
+  local expected_file="$work_dir/selective-expected.md"
+  cat > "$expected_file" <<EOF
+# Selective fixture
+
+$pre_existing_line
+
+This clause exists purely to push the line length well past the two hundred and fifty six character density cap that check-density.sh enforces on every prose line in this repository's markdown documents.
+
+This second clause continues the thought after the boundary so the split can balance both halves reasonably well.
+EOF
+  local expected
+  expected="$(cat "$expected_file")"
+  assert_eq 'should split only the newly added violation with --changed-only (file content, new paragraph split, pre-existing line byte-identical)' \
+    "$expected" "$(cat "$REPO_DIR/$FIXTURE")"
+}
+
+it_should_split_a_freshly_split_half_that_enters_scope_on_the_very_next_convergence_pass_with_changed_only() {
+  REPO_DIR=$(new_repo repo-convergence)
+  FIXTURE=conv.md
+  cat > "$REPO_DIR/$FIXTURE" <<'EOF'
+# Convergence fixture
+
+Short filler paragraph.
+EOF
+  git -C "$REPO_DIR" add "$FIXTURE"
+  git -C "$REPO_DIR" commit -q -m base
+
+  cat > "$REPO_DIR/$FIXTURE" <<'EOF'
+# Convergence fixture
+
+Alpha sentence exists purely to push alpha's line length well past the two hundred and fifty six character density cap enforced elsewhere in this fixture file. Beta sentence exists purely to push beta's line length well past the two hundred and fifty six character density cap enforced elsewhere in this fixture file. Gamma sentence continues the thought after the second boundary point right here today.
+EOF
+
+  run_fix_changed_only
+  assert_eq 'should split a freshly split half that enters scope on the next convergence pass with --changed-only (exit code, fully resolved across two internal split passes)' \
+    "0" "$FIX_EXIT"
+
+  local expected_file="$work_dir/conv-expected.md"
+  cat > "$expected_file" <<'EOF'
+# Convergence fixture
+
+Alpha sentence exists purely to push alpha's line length well past the two hundred and fifty six character density cap enforced elsewhere in this fixture file.
+
+Beta sentence exists purely to push beta's line length well past the two hundred and fifty six character density cap enforced elsewhere in this fixture file.
+
+Gamma sentence continues the thought after the second boundary point right here today.
+EOF
+  local expected
+  expected="$(cat "$expected_file")"
+  assert_eq 'should split a freshly split half that enters scope on the next convergence pass with --changed-only (file content, all three clauses become their own paragraphs)' \
+    "$expected" "$(cat "$REPO_DIR/$FIXTURE")"
+
+  local density_exit
+  (cd "$REPO_DIR" && "$DENSITY_SCRIPT" "$FIXTURE" >/dev/null 2>&1)
+  density_exit=$?
+  assert_eq 'should split a freshly split half that enters scope on the next convergence pass with --changed-only (independently re-verified clean by check-density.sh)' \
+    "0" "$density_exit"
+}
+
+it_should_relay_changed_only_to_the_bullet_gap_fix_call_leaving_a_pre_existing_bullet_gap_violation_untouched() {
+  # Isolates the check-bullet-gap.py --fix relay from the check-density.sh
+  # relay the three tests above already cover: every line here is short, so
+  # the only violations possible are bullet-gap ones (a bullet immediately
+  # followed by a shallower/same-indent sibling with no separating blank
+  # line), never a density/line-length violation.
+  REPO_DIR=$(new_repo repo-bullet-gap)
+  FIXTURE=bullet-gap.md
+  cat > "$REPO_DIR/$FIXTURE" <<'EOF'
+Intro paragraph.
+
+- Old Parent
+  - old child
+- Old Sibling
+
+Filler paragraph to keep blocks separated.
+EOF
+  git -C "$REPO_DIR" add "$FIXTURE"
+  git -C "$REPO_DIR" commit -q -m base
+
+  cat >> "$REPO_DIR/$FIXTURE" <<'EOF'
+
+- New Parent
+  - new child
+- New Sibling
+EOF
+
+  run_fix_changed_only
+  assert_eq 'should relay --changed-only to the bullet-gap fix call (exit code, fully resolved - only the new block sits in scope)' \
+    "0" "$FIX_EXIT"
+
+  local expected_file="$work_dir/bullet-gap-expected.md"
+  cat > "$expected_file" <<'EOF'
+Intro paragraph.
+
+- Old Parent
+  - old child
+- Old Sibling
+
+Filler paragraph to keep blocks separated.
+
+- New Parent
+  - new child
+
+- New Sibling
+EOF
+  local expected
+  expected="$(cat "$expected_file")"
+  assert_eq 'should relay --changed-only to the bullet-gap fix call (file content, pre-existing block byte-identical, new block gets its blank line)' \
+    "$expected" "$(cat "$REPO_DIR/$FIXTURE")"
+}
+
 it_should_split_at_the_same_sentence_boundary_when_a_semicolon_also_appears_later_in_the_line() {
   new_fixture ac16-both-boundaries.md
   cat > "$FIXTURE" <<'EOF'
@@ -584,6 +773,10 @@ it_should_leave_an_over_cap_line_untouched_when_its_only_semicolon_boundary_sits
 it_should_refuse_to_split_a_paragraph_whose_only_boundary_is_a_semicolon_and_report_it_as_residue
 it_should_split_an_over_cap_bullet_at_a_semicolon_boundary_outside_any_brackets_and_stay_idempotent_on_a_second_run
 it_should_split_at_the_same_sentence_boundary_when_a_semicolon_also_appears_later_in_the_line
+it_should_resolve_an_untracked_files_violation_with_changed_only_matching_the_no_flag_result
+it_should_split_only_a_newly_added_violation_and_leave_a_pre_existing_violation_untouched_with_changed_only
+it_should_split_a_freshly_split_half_that_enters_scope_on_the_very_next_convergence_pass_with_changed_only
+it_should_relay_changed_only_to_the_bullet_gap_fix_call_leaving_a_pre_existing_bullet_gap_violation_untouched
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

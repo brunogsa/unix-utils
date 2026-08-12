@@ -61,7 +61,12 @@ that leaves one half still over cap gets a further pass at splitting that
 half again on the next iteration.
 
 Usage:
-  fix-density.py [--max-chars N] [--max-words N] <file> [<file>...]
+  fix-density.py [--max-chars N] [--max-words N] [--changed-only] <file> [<file>...]
+
+--changed-only relays straight through to both inner scripts' own
+--changed-only flag (check-density.sh and check-bullet-gap.py) - it
+never re-derives changed-vs-HEAD scoping itself, so a file outside a
+git work tree fails exactly as those two scripts already define.
 
 Exit codes:
   0  fully clean (or fully resolved by fixing)
@@ -208,20 +213,19 @@ def split_line(line, max_chars, max_words):
     return [first, "", second]
 
 
-def get_density_hits(path, max_chars, max_words):
+def get_density_hits(path, max_chars, max_words, changed_only):
     """Parse check-density.sh's <line>:<chars>:<words> rows for one file."""
-    result = subprocess.run(
-        [
-            str(DENSITY_SCRIPT),
-            "--max-chars",
-            str(max_chars),
-            "--max-words",
-            str(max_words),
-            str(path),
-        ],
-        capture_output=True,
-        text=True,
-    )
+    args = [
+        str(DENSITY_SCRIPT),
+        "--max-chars",
+        str(max_chars),
+        "--max-words",
+        str(max_words),
+    ]
+    if changed_only:
+        args.append("--changed-only")
+    args.append(str(path))
+    result = subprocess.run(args, capture_output=True, text=True)
     hits = []
     for row in result.stdout.splitlines():
         m = DENSITY_HIT.match(row)
@@ -230,7 +234,7 @@ def get_density_hits(path, max_chars, max_words):
     return hits
 
 
-def split_pass(path, max_chars, max_words):
+def split_pass(path, max_chars, max_words, changed_only):
     """One bottom-to-top split pass over the file's current density hits.
 
     Bottom-to-top means an earlier (higher-line-number) insertion never
@@ -238,7 +242,7 @@ def split_pass(path, max_chars, max_words):
     guarantee check-bullet-gap.py's fix() relies on - so a single pass over
     one density-check's hit list is always enough per pass.
     """
-    hits = get_density_hits(path, max_chars, max_words)
+    hits = get_density_hits(path, max_chars, max_words, changed_only)
     if not hits:
         return [], False
 
@@ -264,31 +268,36 @@ def split_pass(path, max_chars, max_words):
     return residue, changed
 
 
-def converge(path, max_chars, max_words):
+def converge(path, max_chars, max_words, changed_only):
     """Alternate bullet-gap --fix and a split pass until a pass changes
     nothing, capped at MAX_ITERATIONS - see the module docstring for why a
     single split pass isn't always enough (a freshly split half can still
-    be over cap and need its own further split on the next pass)."""
+    be over cap and need its own further split on the next pass).
+
+    changed_only is re-relayed to both inner scripts on every iteration,
+    not just the first - get-changed-lines.sh recomputes its changed-vs-HEAD
+    scope fresh per invocation (see check-density.sh's own docs), so a
+    freshly split half only enters scope once this pass re-asks it."""
     with open(path, encoding="utf-8") as fh:
         previous_content = fh.read()
 
+    bullet_gap_args = [
+        sys.executable,
+        str(BULLET_GAP_SCRIPT),
+        "--fix",
+        "--max-chars",
+        str(max_chars),
+        "--max-words",
+        str(max_words),
+    ]
+    if changed_only:
+        bullet_gap_args.append("--changed-only")
+    bullet_gap_args.append(str(path))
+
     residue = []
     for _ in range(MAX_ITERATIONS):
-        subprocess.run(
-            [
-                sys.executable,
-                str(BULLET_GAP_SCRIPT),
-                "--fix",
-                "--max-chars",
-                str(max_chars),
-                "--max-words",
-                str(max_words),
-                str(path),
-            ],
-            capture_output=True,
-            text=True,
-        )
-        residue, _ = split_pass(path, max_chars, max_words)
+        subprocess.run(bullet_gap_args, capture_output=True, text=True)
+        residue, _ = split_pass(path, max_chars, max_words, changed_only)
 
         with open(path, encoding="utf-8") as fh:
             current_content = fh.read()
@@ -305,6 +314,7 @@ def converge(path, max_chars, max_words):
 
 def main(argv):
     max_chars, max_words = MAX_CHARS, MAX_WORDS
+    changed_only = False
     files = []
 
     i = 0
@@ -316,6 +326,9 @@ def main(argv):
         elif arg == "--max-words":
             max_words = int(argv[i + 1])
             i += 2
+        elif arg == "--changed-only":
+            changed_only = True
+            i += 1
         elif arg == "--":
             files.extend(argv[i + 1 :])
             break
@@ -328,7 +341,8 @@ def main(argv):
 
     if not files:
         print(
-            "usage: fix-density.py [--max-chars N] [--max-words N] <file>...",
+            "usage: fix-density.py [--max-chars N] [--max-words N] "
+            "[--changed-only] <file>...",
             file=sys.stderr,
         )
         return 2
@@ -336,7 +350,7 @@ def main(argv):
     total_residue = 0
     for path in files:
         try:
-            residue = converge(path, max_chars, max_words)
+            residue = converge(path, max_chars, max_words, changed_only)
         except OSError as err:
             print(f"cannot read {path}: {err}", file=sys.stderr)
             return 2
