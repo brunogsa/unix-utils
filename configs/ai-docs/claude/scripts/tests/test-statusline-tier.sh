@@ -1846,7 +1846,7 @@ it_should_report_every_subagents_spend_as_one_addendum() {
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > happy > should report every sub-agent's spend as a single addendum term" \
-    '+ $1.01' "$actual"
+    '+ $1.46' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -1867,13 +1867,13 @@ it_should_bill_a_streamed_reply_once_at_its_final_token_count() {
   actual="$(render_subagent_cost_for 0 "$transcript")"
 
   # Billing both flushes would double the cache read and
-  # reach $0.12 instead.
+  # reach $0.18 instead.
   #
   # literal dollar sign, not a shell expansion
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should bill a streamed reply once, at its final token count" \
-    '+ $0.08' "$actual"
+    '+ $0.12' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -1888,7 +1888,7 @@ it_should_price_a_dated_model_alias_at_its_base_models_rate() {
 
   actual="$(render_subagent_cost_for 0 "$transcript")"
 
-  # Sonnet's rate would double this to $0.26, and no rate at
+  # Sonnet's rate would triple this to $0.40, and no rate at
   # all would report $0.00 with a floor marker.
   #
   # literal dollar sign, not a shell expansion
@@ -1920,7 +1920,7 @@ it_should_mark_the_total_as_a_floor_when_a_model_has_no_known_rate() {
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should mark the total as a floor when a sub-agent ran on a model with no known rate" \
-    '+ ~$0.11' "$actual"
+    '+ ~$0.16' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -1946,7 +1946,7 @@ it_should_bill_only_the_subagents_belonging_to_this_session() {
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should bill only the sub-agents belonging to this session, not a sibling session's" \
-    '+ $0.62' "$actual"
+    '+ $0.93' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -1967,7 +1967,7 @@ it_should_skip_a_request_that_came_back_as_an_api_error() {
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should skip a request that came back as an API error" \
-    '+ $0.62' "$actual"
+    '+ $0.93' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -1989,7 +1989,7 @@ it_should_keep_summing_when_a_live_transcripts_last_line_is_half_written() {
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should keep summing when a live transcript's last line is only half written" \
-    '+ $0.62' "$actual"
+    '+ $0.93' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2145,11 +2145,80 @@ it_should_not_raise_the_floor_marker_for_a_turn_that_spent_no_tokens() {
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should not raise the floor marker for a turn that spent no tokens" \
-    '+ $0.62' "$actual"
+    '+ $0.93' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_bill_a_1hour_cache_write_at_double_the_5minute_rate() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-1h88.jsonl"
+
+  # The flat field carries 87 tokens above the nested 1-hour
+  # bucket, mirroring the live transcript's own residue - the
+  # untyped remainder still has to enter the sum, billed at
+  # the 5-minute rate.
+  printf '%s\n' \
+    '{"type":"assistant","message":{"id":"msg_1h","model":"claude-sonnet-5","usage":{"input_tokens":53,"output_tokens":612,"cache_read_input_tokens":9188,"cache_creation_input_tokens":48300,"cache_creation":{"ephemeral_1h_input_tokens":48213,"ephemeral_5m_input_tokens":0}}}}' \
+    >"$agent"
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+
+  # A 1-hour cache write bills at 6e-6 (2x sonnet's input
+  # rate). Billing it at the 5-minute rate (3.75e-6) instead
+  # would under-price this entry to $0.19.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSubagentCost > corner > should bill a 1-hour cache write at double the 5-minute rate" \
+    '+ $0.30' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_bill_a_5minute_cache_write_at_its_own_lower_rate() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-5m77.jsonl"
+
+  printf '%s\n' \
+    '{"type":"assistant","message":{"id":"msg_5m","model":"claude-sonnet-5","usage":{"input_tokens":41,"output_tokens":389,"cache_read_input_tokens":6720,"cache_creation_input_tokens":22150,"cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":22150}}}}' \
+    >"$agent"
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+
+  assert_eq \
+    "StatusLineSubagentCost > corner > should bill a 5-minute cache write at its own lower rate" \
+    '+ $0.09' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_bill_a_legacy_entrys_flat_cache_field_at_the_5minute_rate() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-leg66.jsonl"
+
+  # An older entry with no nested cache_creation breakdown at
+  # all - the whole flat field has to land in the sum, or a
+  # pre-TTL-split transcript's cache writes silently vanish.
+  write_subagent_transcript "$agent" claude-sonnet-5 \
+    '{"input_tokens":19,"output_tokens":274,"cache_read_input_tokens":5031,"cache_creation_input_tokens":15820}' 1
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+
+  assert_eq \
+    "StatusLineSubagentCost > corner > should bill a legacy entry's flat cache field at the 5-minute rate when it carries no TTL breakdown" \
+    '+ $0.07' "$actual"
   rm -rf "$sandbox"
 }
 
 it_should_report_every_subagents_spend_as_one_addendum
+it_should_bill_a_1hour_cache_write_at_double_the_5minute_rate
+it_should_bill_a_5minute_cache_write_at_its_own_lower_rate
+it_should_bill_a_legacy_entrys_flat_cache_field_at_the_5minute_rate
 it_should_carry_a_rate_for_every_model_subagents_run_on
 it_should_price_every_model_the_rate_table_advertises
 it_should_render_nothing_when_the_session_spawned_no_subagents
@@ -2204,14 +2273,14 @@ it_should_price_the_sessions_own_transcript_rather_than_trust_the_reported_figur
   status=$?
 
   # The payload reports 0 - exactly what a resumed session
-  # sends - so anything but the transcript's own $0.62 means
+  # sends - so anything but the transcript's own $0.93 means
   # the reset counter won.
   #
   # literal dollar sign, not a shell expansion
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSessionCost > happy > should price the session's own transcript so a resumed session keeps its spend" \
-    '$0.62 0' "$actual $status"
+    '$0.93 0' "$actual $status"
   rm -rf "$sandbox"
 }
 
@@ -2236,7 +2305,7 @@ it_should_mark_the_session_total_as_a_floor_when_a_model_has_no_known_rate() {
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSessionCost > corner > should mark the session total as a floor when the session ran on a model with no known rate" \
-    '~$0.62 0' "$actual $status"
+    '~$0.93 0' "$actual $status"
   rm -rf "$sandbox"
 }
 

@@ -605,19 +605,24 @@ read_monthly_spend_limit() {
 # So none can produce this figure, whatever pricing data
 # it carries.
 #
-# Values mirror the rate table those tools build from,
-# model_prices_and_context_window.json in
-# github.com/BerriAI/litellm.
+# Every rate here was solved rather than vendored: four
+# single-process, never-resumed --output-format json probes
+# each report an authoritative total_cost_usd for their own
+# usage, one equation per probe in the rate variables.
 #
-# Anthropic bills a cache write at 1.25x its model's input
-# rate and a cache read at 0.1x, which is why each pair
-# tracks the input rate rather than varying on its own.
+# A cache write bills at 2x its model's input rate under the
+# 1-hour TTL, or 1.25x under the 5-minute TTL - this setup's
+# sessions use the 1-hour cache exclusively, which is why
+# that rate dominates a real transcript's total.
+#
+# A cache read bills at 0.1x input, the one ratio that does
+# not vary by TTL.
 readonly MODEL_RATE_TABLE_JSON='{
-  "claude-opus-5":    { "input": 5e-6,  "output": 25e-6, "cache_write": 6.25e-6, "cache_read": 0.5e-6 },
-  "claude-opus-4-8":  { "input": 5e-6,  "output": 25e-6, "cache_write": 6.25e-6, "cache_read": 0.5e-6 },
-  "claude-sonnet-5":  { "input": 2e-6,  "output": 10e-6, "cache_write": 2.5e-6,  "cache_read": 0.2e-6 },
-  "claude-haiku-4-5": { "input": 1e-6,  "output": 5e-6,  "cache_write": 1.25e-6, "cache_read": 0.1e-6 },
-  "claude-fable-5":   { "input": 10e-6, "output": 50e-6, "cache_write": 12.5e-6, "cache_read": 1e-6 }
+  "claude-opus-5":    { "input": 5e-6,  "output": 25e-6, "cache_write_5m": 6.25e-6, "cache_write_1h": 10e-6, "cache_read": 0.5e-6 },
+  "claude-opus-4-8":  { "input": 5e-6,  "output": 25e-6, "cache_write_5m": 6.25e-6, "cache_write_1h": 10e-6, "cache_read": 0.5e-6 },
+  "claude-sonnet-5":  { "input": 3e-6,  "output": 15e-6, "cache_write_5m": 3.75e-6, "cache_write_1h": 6e-6,  "cache_read": 0.3e-6 },
+  "claude-haiku-4-5": { "input": 1e-6,  "output": 5e-6,  "cache_write_5m": 1.25e-6, "cache_write_1h": 2e-6,  "cache_read": 0.1e-6 },
+  "claude-fable-5":   { "input": 10e-6, "output": 50e-6, "cache_write_5m": 12.5e-6, "cache_write_1h": 20e-6, "cache_read": 1e-6 }
 }'
 
 : "${STATUSLINE_TRANSCRIPT_SCAN_TIMEOUT_SECS:=3}"
@@ -665,10 +670,14 @@ subagent_transcript_dir() {
 # Summing the raw lines instead would bill the same reply
 # several times over.
 #
-# cache_creation_input_tokens is used rather than the
-# nested cache_creation breakdown, since older entries
-# carry the flat field alone and reading only the nested
-# form silently drops their cache writes.
+# A cache write's TTL comes from the nested
+# cache_creation breakdown, and the flat
+# cache_creation_input_tokens field still enters
+# the sum as the residual above that breakdown.
+#
+# Older entries carry the flat field alone, so
+# reading only the nested form would silently
+# drop their cache writes.
 #
 # Lines are parsed with fromjson? so a half-written line at
 # the tail of a live transcript is skipped instead of
@@ -696,6 +705,19 @@ price_transcripts() {
       + (.cache_creation_input_tokens // 0)
       + (.cache_read_input_tokens // 0);
 
+    # A cache write bills at its 1-hour or 5-minute TTL rate
+    # depending on which bucket the tokens landed in.
+    #
+    # The untyped residue (flat total minus both typed
+    # buckets) is billed at the 5-minute rate, which keeps a
+    # legacy entry that carries only the flat field, with no
+    # nested buckets at all, priced exactly as before.
+    def cache_write_cost:
+      (.usage.cache_creation.ephemeral_1h_input_tokens // 0) as $h
+      | (.usage.cache_creation.ephemeral_5m_input_tokens // 0) as $m
+      | ([0, ((.usage.cache_creation_input_tokens // 0) - $h - $m)] | max) as $x
+      | $h * .rate.cache_write_1h + ($m + $x) * .rate.cache_write_5m;
+
     reduce (inputs | fromjson? // empty) as $entry ({};
       if $entry.type == "assistant"
         and ($entry.isApiErrorMessage | not)
@@ -714,8 +736,8 @@ price_transcripts() {
           select(.rate != null)
           | (.usage.input_tokens // 0) * .rate.input
           + (.usage.output_tokens // 0) * .rate.output
-          + (.usage.cache_creation_input_tokens // 0) * .rate.cache_write
           + (.usage.cache_read_input_tokens // 0) * .rate.cache_read
+          + cache_write_cost
         )
         | add // 0
       ) as $cost
