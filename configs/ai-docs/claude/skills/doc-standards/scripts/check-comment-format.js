@@ -95,26 +95,46 @@
 // content stops changing, so a re-wrap that overflows a
 // paragraph gets that paragraph split on the next round.
 //
+// --changed-only scopes every rule to the lines
+// changed-lines.sh reports vs HEAD for that file.
+//
+// A single-line row (WIDTH, SENTENCE-BREAK, BULLET-SPACING,
+// BULLET-BLANK, CODE-GAP) is in scope when its own line
+// changed; the PARAGRAPH range row is in scope only when every
+// line in its range changed.
+//
+// Out-of-scope violations are invisible -- not printed, not
+// counted, not touched by --fix -- so a caller looping "until
+// clean" never re-fights a violation that predates its own
+// edits.
+//
 // Usage:
-//   check-comment-format.js [--fix] [--max-chars N]
-//     [--max-lines N] [--lang typescript|shell|python]
-//     <file> [<file>...]
+//   check-comment-format.js [--fix] [--changed-only]
+//     [--max-chars N] [--max-lines N]
+//     [--lang typescript|shell|python] <file> [<file>...]
 //
 // Exit codes:
 //   0  clean (or fully repaired by --fix)
 //   1  violations found, or residue --fix could not repair
-//   2  usage error, or `typescript` not installed.
+//
+//   2  usage error, `typescript` not installed, or
+//      changed-lines.sh failed to determine a file's scope.
 //
 // Examples:
 //   check-comment-format.js path/to/spec.e2e.spec.ts
 //   check-comment-format.js --lang shell ~/.zshrc
+//
 //   check-comment-format.js --fix scripts/report.py
+//   check-comment-format.js --fix --changed-only report.py
 
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const { createRequire } = require('module');
+
+const CHANGED_LINES_SCRIPT = path.join(__dirname, 'changed-lines.sh');
 
 // Every check below the lexer works off comment ranges plus
 // raw line text, so a language is fully described by how its
@@ -162,7 +182,7 @@ const LANGUAGES = {
 };
 
 const USAGE =
-  'usage: check-comment-format.js [--fix] [--max-chars N] [--max-lines N] ' +
+  'usage: check-comment-format.js [--fix] [--changed-only] [--max-chars N] [--max-lines N] ' +
   `[--lang ${Object.keys(LANGUAGES).join('|')}] <file>...`;
 
 function parseArgs(argv) {
@@ -170,11 +190,14 @@ function parseArgs(argv) {
   let maxLines = 4;
   let lang = null;
   let fix = false;
+  let changedOnly = false;
   const files = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--fix') {
       fix = true;
+    } else if (arg === '--changed-only') {
+      changedOnly = true;
     } else if (arg === '--max-chars') {
       maxChars = Number(argv[++i]);
     } else if (arg === '--max-lines') {
@@ -197,7 +220,69 @@ function parseArgs(argv) {
     console.error(USAGE);
     process.exit(2);
   }
-  return { maxChars, maxLines, lang, fix, files };
+  return { maxChars, maxLines, lang, fix, changedOnly, files };
+}
+
+// Shells out to changed-lines.sh rather than re-deriving git's
+// diff locally, so every doc-standards checker agrees on what
+// "changed" means.
+//
+// A non-zero exit there (no git repo, file outside the work
+// tree, ...) is never treated as clean or as
+// whole-file-in-scope -- it propagates as exit 2 here too.
+//
+// changed-lines.sh finds its repo from the CWD it runs in, not
+// from the file argument, so cwd is pinned to the file's own
+// directory -- otherwise it would resolve against whatever repo
+// this process happened to be launched from.
+function getChangedLineSet(file) {
+  let stdout;
+  try {
+    stdout = execFileSync(CHANGED_LINES_SCRIPT, [file], {
+      encoding: 'utf8',
+      cwd: path.dirname(path.resolve(file)),
+    });
+  } catch (err) {
+    console.error(`check-comment-format.js: could not determine changed lines for ${file}`);
+    const detail = (err.stderr ?? '').toString().trim();
+    if (detail) console.error(detail);
+    process.exit(2);
+  }
+
+  const changedLines = new Set();
+  for (const raw of stdout.split('\n')) {
+    const trimmed = raw.trim();
+    if (trimmed !== '') changedLines.add(Number(trimmed));
+  }
+  return changedLines;
+}
+
+// A single-line row is in scope by its own line; the PARAGRAPH
+// range row needs every line in [start, end] to be changed.
+//
+// Stricter on purpose: fixing a range that reaches into
+// untouched lines is exactly the churn --changed-only exists to
+// prevent.
+function filterToChangedScope(report, changedLines) {
+  const inScope = (line) => changedLines.has(line);
+  const rangeInScope = (start, end) => {
+    for (let l = start; l <= end; l++) {
+      if (!changedLines.has(l)) return false;
+    }
+    return true;
+  };
+
+  return {
+    ...report,
+    widthViolations: report.widthViolations.filter((v) => inScope(v.line)),
+    paragraphViolations: report.paragraphViolations.filter((v) =>
+      rangeInScope(v.startLine, v.endLine),
+    ),
+    codeGaps: report.codeGaps.filter((v) => inScope(v.line)),
+    sentenceBreaks: report.sentenceBreaks.filter((v) => inScope(v.line)),
+    bulletSpacing: report.bulletSpacing.filter((v) => inScope(v.line)),
+    bulletBlanks: report.bulletBlanks.filter((v) => inScope(v.line)),
+  };
 }
 
 // The shebang is consulted after the extension, so an
@@ -725,7 +810,7 @@ function findSentenceAndBulletViolations(fullCommentLines, lines, lang) {
   return { sentenceBreaks, bulletSpacing, bulletBlanks };
 }
 
-function checkFile(file, maxChars, maxLines, langOverride) {
+function checkFile(file, maxChars, maxLines, langOverride, changedOnly) {
   const text = fs.readFileSync(file, 'utf8');
   const lang = resolveLanguage(file, text, langOverride);
   const lines = text.split('\n');
@@ -742,7 +827,7 @@ function checkFile(file, maxChars, maxLines, langOverride) {
     lang,
   );
 
-  return {
+  const report = {
     lang,
     lines,
     fullCommentLines,
@@ -753,6 +838,13 @@ function checkFile(file, maxChars, maxLines, langOverride) {
     bulletSpacing,
     bulletBlanks,
   };
+
+  // Scope is re-derived from the file on disk on every call, so
+  // a line an earlier --fix pass just inserted is itself
+  // eligible for the next pass to reconsider -- never a scope
+  // cached from an earlier round.
+  if (!changedOnly) return report;
+  return filterToChangedScope(report, getChangedLineSet(file));
 }
 
 // A repair caps its own retries, so a rule that keeps
@@ -1016,12 +1108,12 @@ function applyPass(pass, report, maxChars, maxLines) {
   return changed ? lines.join('\n') : null;
 }
 
-function fixFile(file, maxChars, maxLines, langOverride) {
+function fixFile(file, maxChars, maxLines, langOverride, changedOnly) {
   let previous = fs.readFileSync(file, 'utf8');
 
   for (let round = 0; round < MAX_FIX_ITERATIONS; round++) {
     for (const pass of FIX_PASSES) {
-      const report = checkFile(file, maxChars, maxLines, langOverride);
+      const report = checkFile(file, maxChars, maxLines, langOverride, changedOnly);
       const updated = applyPass(pass, report, maxChars, maxLines);
       if (updated !== null) fs.writeFileSync(file, updated);
     }
@@ -1038,11 +1130,11 @@ function fixFile(file, maxChars, maxLines, langOverride) {
 }
 
 function main() {
-  const { maxChars, maxLines, lang, fix, files } = parseArgs(process.argv.slice(2));
+  const { maxChars, maxLines, lang, fix, changedOnly, files } = parseArgs(process.argv.slice(2));
   let anyHit = false;
 
   for (const file of files) {
-    if (fix) fixFile(file, maxChars, maxLines, lang);
+    if (fix) fixFile(file, maxChars, maxLines, lang, changedOnly);
 
     const {
       widthViolations,
@@ -1051,7 +1143,7 @@ function main() {
       sentenceBreaks,
       bulletSpacing,
       bulletBlanks,
-    } = checkFile(file, maxChars, maxLines, lang);
+    } = checkFile(file, maxChars, maxLines, lang, changedOnly);
     const total =
       widthViolations.length +
       paragraphViolations.length +

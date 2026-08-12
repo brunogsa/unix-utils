@@ -292,5 +292,249 @@ assert_eq "should exit 2 when given an unknown flag" "2" "$?"
 node "$SCRIPT" >/dev/null 2>&1
 assert_eq "should exit 2 when given no files" "2" "$?"
 
+# ========================================================
+# --changed-only: scope every rule to the session's own diff.
+#
+# Each case builds a throwaway git repo, since scope only means
+# something relative to git history -- same reasoning as
+# test-changed-lines.sh, which this flag shells out to.
+
+# new_git_repo - creates an empty git repo under work_dir and
+# prints its path. Identity is set locally so a fixture commit
+# never depends on the machine's global git config.
+new_git_repo() {
+  local dir="$work_dir/$1"
+  mkdir -p "$dir"
+  git -C "$dir" init -q .
+  git -C "$dir" config user.email test@example.com
+  git -C "$dir" config user.name test
+  printf '%s' "$dir"
+}
+
+# commit_all - stages and commits every file already written
+# into the given repo, so a later edit reads as "modified"
+# rather than "new".
+commit_all() {
+  git -C "$1" add -A
+  git -C "$1" commit -q -m base
+}
+
+# --- untracked file: --changed-only matches the unscoped report
+# ---
+
+repo=$(new_git_repo untracked)
+cat >"$repo/untracked.py" <<'EOF'
+#!/usr/bin/env python3
+# The aggregator collapses the many records one response emits into a single billed unit.
+VALUE = 1
+EOF
+node "$SCRIPT" "$repo/untracked.py" >"$work_dir/plain.out" 2>&1
+plain_exit=$?
+node "$SCRIPT" --changed-only "$repo/untracked.py" >"$work_dir/scoped.out" 2>&1
+scoped_exit=$?
+assert_eq "should exit the same on an untracked file with or without --changed-only" \
+  "$plain_exit" "$scoped_exit"
+assert_eq "should report the same violations on an untracked file with or without --changed-only" \
+  "$(cat "$work_dir/plain.out")" "$(cat "$work_dir/scoped.out")"
+
+# --- single-line rows: only a changed line's violation is
+# visible ---
+
+repo=$(new_git_repo widthscope)
+cat >"$repo/scope.py" <<'EOF'
+#!/usr/bin/env python3
+# The aggregator collapses the many records one response emits into a single billed unit.
+VALUE = 1
+EOF
+commit_all "$repo"
+cat >"$repo/scope.py" <<'EOF'
+#!/usr/bin/env python3
+# The aggregator collapses the many records one response emits into a single billed unit.
+VALUE = 1
+# The aggregator collapses the many records one response emits into a single billed unit.
+OTHER = 2
+EOF
+
+node "$SCRIPT" --changed-only "$repo/scope.py" >"$work_dir/scope-check.out" 2>&1
+scope_check_exit=$?
+scope_check_out=$(cat "$work_dir/scope-check.out")
+assert_absent "should hide a WIDTH violation on a line that predates the session's edit" \
+  "$scope_check_out" "WIDTH 2:"
+assert_contains "should report a WIDTH violation on a line the session's edit added" \
+  "$scope_check_out" "WIDTH 4:"
+assert_eq "should exit 1 when only the in-scope WIDTH violation remains" \
+  "1" "$scope_check_exit"
+
+cp "$repo/scope.py" "$work_dir/scope-baseline.py"
+node "$SCRIPT" --fix --changed-only "$repo/scope.py" >/dev/null 2>&1
+assert_eq "should leave a pre-existing violation's line untouched by a scoped fix" \
+  "$(sed -n '2p' "$work_dir/scope-baseline.py")" "$(sed -n '2p' "$repo/scope.py")"
+
+node "$SCRIPT" "$repo/scope.py" >"$work_dir/scope-after-fix-full.out" 2>&1
+assert_contains "should still report the untouched pre-existing violation whole-file" \
+  "$(cat "$work_dir/scope-after-fix-full.out")" "WIDTH 2:"
+
+node "$SCRIPT" --changed-only "$repo/scope.py" >/dev/null 2>&1
+assert_eq "should exit 0 in scope once the changed-line violation is repaired" \
+  "0" "$?"
+
+# --- a codeGaps insertion shifts a later line down; scope must
+# be re-derived so the shifted WIDTH violation is still reached
+# ---
+
+repo=$(new_git_repo shift)
+cat >"$repo/shift.py" <<'EOF'
+#!/usr/bin/env python3
+VALUE = 1
+OTHER = 2
+EOF
+commit_all "$repo"
+cat >"$repo/shift.py" <<'EOF'
+#!/usr/bin/env python3
+VALUE = 1
+# The aggregator collapses the many records one response emits into a single billed unit.
+OTHER = 2
+EOF
+
+node "$SCRIPT" --fix --changed-only "$repo/shift.py" >/dev/null 2>&1
+node "$SCRIPT" "$repo/shift.py" >"$work_dir/shift-after-fix.out" 2>&1
+assert_eq "should repair a WIDTH violation that a codeGaps insertion shifted to a new line number" \
+  "0" "$?"
+
+# --- PARAGRAPH: a fully-covered range is in scope ---
+
+repo=$(new_git_repo paragraph-full)
+cat >"$repo/full.py" <<'EOF'
+#!/usr/bin/env python3
+VALUE = 1
+EOF
+commit_all "$repo"
+cat >"$repo/full.py" <<'EOF'
+#!/usr/bin/env python3
+VALUE = 1
+# Line one of a wholly new paragraph past the line cap here.
+# Line two of a wholly new paragraph past the line cap here.
+# Line three of a wholly new paragraph past the line cap here.
+# Line four of a wholly new paragraph past the line cap here.
+# Line five of a wholly new paragraph past the line cap here.
+OTHER = 2
+EOF
+node "$SCRIPT" --changed-only "$repo/full.py" >"$work_dir/paragraph-full.out" 2>&1
+assert_contains "should report a PARAGRAPH range every one of whose lines is new" \
+  "$(cat "$work_dir/paragraph-full.out")" "PARAGRAPH"
+node "$SCRIPT" --fix --changed-only "$repo/full.py" >/dev/null 2>&1
+node "$SCRIPT" --changed-only "$repo/full.py" >/dev/null 2>&1
+assert_eq "should split a fully-covered PARAGRAPH range under a scoped fix" \
+  "0" "$?"
+
+# --- PARAGRAPH: a partially-covered range is entirely out of
+# scope ---
+
+repo=$(new_git_repo paragraph-partial)
+cat >"$repo/partial.py" <<'EOF'
+#!/usr/bin/env python3
+# Line one of a paragraph that will grow past the cap.
+# Line two of a paragraph that will grow past the cap.
+# Line three of a paragraph that will grow past the cap.
+VALUE = 1
+EOF
+commit_all "$repo"
+cat >"$repo/partial.py" <<'EOF'
+#!/usr/bin/env python3
+# Line one of a paragraph that will grow past the cap.
+# Line two of a paragraph that will grow past the cap.
+# Line three of a paragraph that will grow past the cap.
+# Line four of a paragraph that will grow past the cap.
+# Line five of a paragraph that will grow past the cap.
+VALUE = 1
+EOF
+node "$SCRIPT" "$repo/partial.py" >"$work_dir/paragraph-partial-plain.out" 2>&1
+assert_contains "should report a PARAGRAPH range whole-file when only some lines are new" \
+  "$(cat "$work_dir/paragraph-partial-plain.out")" "PARAGRAPH"
+
+cp "$repo/partial.py" "$work_dir/paragraph-partial-baseline.py"
+node "$SCRIPT" --changed-only "$repo/partial.py" >"$work_dir/paragraph-partial-scoped.out" 2>&1
+assert_eq "should exit 0 on a PARAGRAPH range only partially covered by the diff" \
+  "0" "$?"
+assert_eq "should print nothing for a partially-covered PARAGRAPH range" \
+  "" "$(cat "$work_dir/paragraph-partial-scoped.out")"
+
+node "$SCRIPT" --fix --changed-only "$repo/partial.py" >/dev/null 2>&1
+assert_eq "should never fix a PARAGRAPH range only partially covered by the diff" \
+  "" "$(diff "$work_dir/paragraph-partial-baseline.py" "$repo/partial.py")"
+
+# --- tracked and unmodified: an empty diff hides every
+# violation ---
+
+repo=$(new_git_repo unmodified)
+cat >"$repo/clean.py" <<'EOF'
+#!/usr/bin/env python3
+# The aggregator collapses the many records one response emits into a single billed unit.
+VALUE = 1
+EOF
+commit_all "$repo"
+node "$SCRIPT" --changed-only "$repo/clean.py" >"$work_dir/unmodified.out" 2>&1
+assert_eq "should exit 0 on an unmodified tracked file despite a pre-existing violation" \
+  "0" "$?"
+assert_eq "should print nothing for an unmodified tracked file under --changed-only" \
+  "" "$(cat "$work_dir/unmodified.out")"
+
+cp "$repo/clean.py" "$work_dir/unmodified-baseline.py"
+node "$SCRIPT" --fix --changed-only "$repo/clean.py" >/dev/null 2>&1
+assert_eq "should never mutate an unmodified tracked file under a scoped fix" \
+  "" "$(diff "$work_dir/unmodified-baseline.py" "$repo/clean.py")"
+
+# --- changed-lines.sh failure: propagate exit 2, never fake
+# green ---
+
+plain_dir="$work_dir/not-a-repo"
+mkdir -p "$plain_dir"
+cat >"$plain_dir/orphan.py" <<'EOF'
+#!/usr/bin/env python3
+VALUE = 1
+EOF
+node "$SCRIPT" --changed-only "$plain_dir/orphan.py" \
+  >"$work_dir/notrepo-check.out" 2>&1
+assert_eq "should exit 2 in check mode when changed-lines.sh cannot run" \
+  "2" "$?"
+assert_contains "should name the file in the exit-2 stderr message" \
+  "$(cat "$work_dir/notrepo-check.out")" "orphan.py"
+
+node "$SCRIPT" --fix --changed-only "$plain_dir/orphan.py" \
+  >"$work_dir/notrepo-fix.out" 2>&1
+assert_eq "should exit 2 in fix mode when changed-lines.sh cannot run" \
+  "2" "$?"
+
+# --- multiple files: --changed-only scopes each one
+# independently ---
+
+repo=$(new_git_repo multi)
+cat >"$repo/a.py" <<'EOF'
+#!/usr/bin/env python3
+VALUE = 1
+EOF
+cat >"$repo/b.py" <<'EOF'
+#!/usr/bin/env python3
+# The aggregator collapses the many records one response emits into a single billed unit.
+VALUE = 1
+EOF
+commit_all "$repo"
+cat >"$repo/a.py" <<'EOF'
+#!/usr/bin/env python3
+VALUE = 1
+# The aggregator collapses the many records one response emits into a single billed unit.
+EOF
+
+node "$SCRIPT" --changed-only "$repo/a.py" "$repo/b.py" \
+  >"$work_dir/multi.out" 2>&1
+multi_exit=$?
+multi_out=$(cat "$work_dir/multi.out")
+assert_contains "should report the changed file's own in-scope violation" \
+  "$multi_out" "== $repo/a.py"
+assert_absent "should hide the unmodified file's pre-existing violation" \
+  "$multi_out" "== $repo/b.py"
+assert_eq "should exit 1 when only one of two files has an in-scope violation" \
+  "1" "$multi_exit"
+
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
