@@ -45,6 +45,19 @@ assert_contains() {
   fi
 }
 
+# assert_not_contains - passes when VERDICT_OUT does NOT carry the given
+# literal row - the --changed-only contract's "entirely invisible" check.
+assert_not_contains() {
+  local description="$1" needle="$2"
+  if printf '%s\n' "$VERDICT_OUT" | grep -qF -- "$needle"; then
+    fail_count=$((fail_count + 1))
+    printf 'not ok - %s\n  unexpected row: %s\n  actual:\n%s\n' "$description" "$needle" "$VERDICT_OUT"
+  else
+    pass_count=$((pass_count + 1))
+    printf 'ok - %s\n' "$description"
+  fi
+}
+
 # new_skill - builds an isolated fixture skill, nested so that the skill
 # root's grandparent is a config root that can hold a CLAUDE.md.
 # Sets SKILL_DIR (the skill root) and CONFIG_ROOT.
@@ -64,6 +77,27 @@ run_script() {
   python3 "$SCRIPT" "$target_file" >"$out_file" 2>&1
   VERDICT_EXIT=$?
   VERDICT_OUT=$(cat "$out_file")
+}
+
+# run_script_args - invokes check-rule-citations.py with arbitrary args
+# (a flag plus one or more files), capturing stdout+stderr/exit code
+# into VERDICT_OUT/VERDICT_EXIT - same contract as run_script, for the
+# --changed-only cases that need more than a single bare file argument.
+run_script_args() {
+  local out_file="$work_dir/stdout.txt"
+  python3 "$SCRIPT" "$@" >"$out_file" 2>&1
+  VERDICT_EXIT=$?
+  VERDICT_OUT=$(cat "$out_file")
+}
+
+# git_init_at - initializes a throwaway git repo at $1 with a local
+# identity, so a --changed-only fixture never depends on the machine's
+# global git config.
+git_init_at() {
+  local dir="$1"
+  git -C "$dir" init -q .
+  git -C "$dir" config user.email test@example.com
+  git -C "$dir" config user.name test
 }
 
 it_should_accept_a_quoted_name_authored_as_a_bold_span_in_the_cited_file() {
@@ -316,6 +350,113 @@ it_should_exit_2_when_given_no_files() {
   assert_eq 'should exit 2 when given no files' "2" "$?"
 }
 
+it_should_flag_an_untracked_files_hit_under_changed_only_same_as_without_the_flag() {
+  new_skill changed-only-untracked
+  git_init_at "$CONFIG_ROOT"
+  cat > "$SKILL_DIR/references/writing-style.md" <<'EOF'
+# Writing style
+
+- **Bullets** -- one thought per bullet.
+EOF
+  cat > "$SKILL_DIR/references/pr-template.md" <<'EOF'
+Group changes per the "Separate planned from incidental" rule in writing-style.md.
+EOF
+  run_script_args --changed-only "$SKILL_DIR/references/pr-template.md"
+  assert_eq 'should flag an untracked files hit under --changed-only same as without the flag (exit code)' \
+    "1" "$VERDICT_EXIT"
+  assert_contains 'should flag an untracked files hit under --changed-only same as without the flag (row)' \
+    '1:unresolved-rule:writing-style.md:"Separate planned from incidental"'
+}
+
+it_should_hide_a_pre_existing_hit_on_an_unmodified_tracked_file_under_changed_only() {
+  new_skill changed-only-unmodified
+  git_init_at "$CONFIG_ROOT"
+  cat > "$SKILL_DIR/references/writing-style.md" <<'EOF'
+# Writing style
+
+- **Bullets** -- one thought per bullet.
+EOF
+  cat > "$SKILL_DIR/references/pr-template.md" <<'EOF'
+Group changes per the "Separate planned from incidental" rule in writing-style.md.
+EOF
+  git -C "$CONFIG_ROOT" add -A
+  git -C "$CONFIG_ROOT" commit -q -m fixture
+  run_script_args --changed-only "$SKILL_DIR/references/pr-template.md"
+  assert_eq 'should hide a pre-existing hit on an unmodified tracked file under --changed-only (exit code)' \
+    "0" "$VERDICT_EXIT"
+  assert_eq 'should hide a pre-existing hit on an unmodified tracked file under --changed-only (no rows)' \
+    "" "$VERDICT_OUT"
+}
+
+it_should_report_only_the_hit_on_a_line_the_session_changed_under_changed_only() {
+  new_skill changed-only-modified
+  git_init_at "$CONFIG_ROOT"
+  cat > "$SKILL_DIR/references/writing-style.md" <<'EOF'
+# Writing style
+
+- **Bullets** -- one thought per bullet.
+EOF
+  cat > "$SKILL_DIR/references/pr-template.md" <<'EOF'
+Group changes per the "Separate planned from incidental" rule in writing-style.md.
+EOF
+  git -C "$CONFIG_ROOT" add -A
+  git -C "$CONFIG_ROOT" commit -q -m fixture
+  cat >> "$SKILL_DIR/references/pr-template.md" <<'EOF'
+Keep the changelog flat, per the "Another missing" rule in writing-style.md.
+EOF
+  run_script_args --changed-only "$SKILL_DIR/references/pr-template.md"
+  assert_eq 'should report only the changed-line hit under --changed-only (exit code)' "1" "$VERDICT_EXIT"
+  assert_contains 'should report the hit on the newly appended line under --changed-only' \
+    '2:unresolved-rule:writing-style.md:"Another missing"'
+  assert_not_contains 'should hide the pre-existing hit on the unchanged first line under --changed-only' \
+    '1:unresolved-rule:writing-style.md:"Separate planned from incidental"'
+}
+
+it_should_scope_changed_only_independently_per_file_when_multiple_files_are_given() {
+  new_skill changed-only-multi
+  git_init_at "$CONFIG_ROOT"
+  cat > "$SKILL_DIR/references/writing-style.md" <<'EOF'
+# Writing style
+
+- **Bullets** -- one thought per bullet.
+EOF
+  cat > "$SKILL_DIR/references/pr-template-tracked.md" <<'EOF'
+Group changes per the "Separate planned from incidental" rule in writing-style.md.
+EOF
+  git -C "$CONFIG_ROOT" add -A
+  git -C "$CONFIG_ROOT" commit -q -m fixture
+  cat > "$SKILL_DIR/references/pr-template-untracked.md" <<'EOF'
+Cite sources per writing-style.md's provenance rule.
+EOF
+  run_script_args --changed-only \
+    "$SKILL_DIR/references/pr-template-tracked.md" \
+    "$SKILL_DIR/references/pr-template-untracked.md"
+  assert_eq 'should scope --changed-only independently per file (exit code)' "1" "$VERDICT_EXIT"
+  assert_contains 'should still flag the untracked files hit' \
+    '1:unknown-topic:writing-style.md:provenance rule'
+  assert_not_contains 'should hide the tracked-unmodified files pre-existing hit' \
+    '1:unresolved-rule:writing-style.md:"Separate planned from incidental"'
+}
+
+it_should_exit_2_and_name_the_file_when_changed_lines_sh_cannot_determine_scope() {
+  new_skill changed-only-not-a-repo
+  # Deliberately no git_init_at - the fixture sits outside any git work
+  # tree, so changed-lines.sh itself exits 2 and this must propagate
+  # rather than read as clean or fall back to whole-file scope.
+  cat > "$SKILL_DIR/references/writing-style.md" <<'EOF'
+# Writing style
+
+- **Bullets** -- one thought per bullet.
+EOF
+  cat > "$SKILL_DIR/references/pr-template.md" <<'EOF'
+Group changes per the "Separate planned from incidental" rule in writing-style.md.
+EOF
+  run_script_args --changed-only "$SKILL_DIR/references/pr-template.md"
+  assert_eq 'should exit 2 when changed-lines.sh cannot determine scope' "2" "$VERDICT_EXIT"
+  assert_contains 'should name the file in the exit-2 stderr message' \
+    "$SKILL_DIR/references/pr-template.md"
+}
+
 it_should_accept_a_quoted_name_authored_as_a_bold_span_in_the_cited_file
 it_should_accept_a_quoted_name_authored_as_a_heading_in_the_cited_file
 it_should_accept_a_citation_that_compresses_the_authored_rule_name
@@ -333,6 +474,11 @@ it_should_flag_a_descriptive_slug_whose_words_appear_nowhere_in_the_cited_file
 it_should_flag_a_descriptive_slug_the_cited_file_only_forwards_to_another_file
 it_should_resolve_a_claude_md_citation_against_the_config_root_above_the_skill
 it_should_exit_2_when_given_no_files
+it_should_flag_an_untracked_files_hit_under_changed_only_same_as_without_the_flag
+it_should_hide_a_pre_existing_hit_on_an_unmodified_tracked_file_under_changed_only
+it_should_report_only_the_hit_on_a_line_the_session_changed_under_changed_only
+it_should_scope_changed_only_independently_per_file_when_multiple_files_are_given
+it_should_exit_2_and_name_the_file_when_changed_lines_sh_cannot_determine_scope
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

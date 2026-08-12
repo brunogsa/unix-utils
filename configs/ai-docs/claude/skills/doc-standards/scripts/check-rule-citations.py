@@ -47,21 +47,31 @@ The fix is the same for every hit: retarget the citation at the file that really
 authors the rule, or - if the rule is stated in more than one place - delete the
 extra homes so there is one owner to cite.
 
+--changed-only scopes every reported row to lines the current git session
+changed vs HEAD, via the shared changed-lines.sh helper (never reimplemented
+here). Every row is single-line-anchored to the line carrying the citation
+pointer, so a row is in scope iff that line number is in the changed-lines
+set; an out-of-scope hit is entirely invisible, not merely deprioritized.
+Scope is recomputed fresh per file, per invocation - never cached.
+
 Usage:
-  check-rule-citations.py <file> [<file>...]
+  check-rule-citations.py [--changed-only] <file> [<file>...]
   find ~/.claude/skills \\( -name '*.md' -o -name '*.sh' -o -name '*.py' \\) \\
     -print0 | xargs -0 check-rule-citations.py
 
 Exit codes:
   0  clean
   1  citations found that don't resolve
-  2  usage error
+  2  usage error, or changed-lines.sh could not determine changed lines
 """
 
 import re
+import subprocess
 import sys
 from functools import lru_cache
 from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 FENCE = re.compile(r"^\s*(```|~~~)")
 FRONTMATTER = re.compile(r"^---\s*$")
@@ -126,6 +136,32 @@ def iter_prose_lines(path):
             continue
 
         yield index + 1, line
+
+
+class ChangedLinesError(Exception):
+    """changed-lines.sh could not determine a file's changed lines (not a
+    git work tree, missing file, etc). Never caught into a clean result or
+    a whole-file-in-scope fallback - the caller propagates it as exit 2."""
+
+
+def changed_line_numbers(path):
+    """Line numbers `path` has changed vs git HEAD, via changed-lines.sh -
+    the one shared helper every --changed-only checker shells out to,
+    rather than reimplementing its git/awk logic locally.
+
+    cwd is pinned to the file's own directory so the helper's git-rooted
+    lookup resolves against that file's real repo, regardless of whatever
+    directory this script itself happened to be invoked from.
+    """
+    result = subprocess.run(
+        [str(SCRIPT_DIR / "changed-lines.sh"), str(path)],
+        cwd=str(Path(path).resolve().parent),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise ChangedLinesError(result.stderr.strip() or "changed-lines.sh failed")
+    return {int(line) for line in result.stdout.split()}
 
 
 def find_skill_root(path):
@@ -233,13 +269,22 @@ def cited_names(line):
         yield cited, slug.strip(), False
 
 
-def check(path):
-    """Report unresolved citations in one file; returns the violation count."""
+def check(path, changed_only=False):
+    """Report unresolved citations in one file; returns the violation count.
+
+    changed_only restricts every emitted row to a line changed_line_numbers
+    reports as changed vs HEAD - an out-of-scope hit is skipped before it
+    can ever reach `hits`, so it is never printed and never counted toward
+    the exit code.
+    """
     skill_root = find_skill_root(path)
     hits = []
     seen = set()
+    changed_lines = changed_line_numbers(path) if changed_only else None
 
     for line_no, line in iter_prose_lines(path):
+        if changed_lines is not None and line_no not in changed_lines:
+            continue
         for cited, name, is_quoted in cited_names(line):
             if (line_no, cited, name) in seen:
                 continue
@@ -276,18 +321,34 @@ def check(path):
 
 
 def main(argv):
-    files = [arg for arg in argv if not arg.startswith("-")]
+    changed_only = False
+    files = []
 
-    if not files or len(files) != len(argv):
-        print("usage: check-rule-citations.py <file> [<file>...]", file=sys.stderr)
+    for arg in argv:
+        if arg == "--changed-only":
+            changed_only = True
+        elif arg.startswith("-"):
+            files = None
+            break
+        else:
+            files.append(arg)
+
+    if not files:
+        print(
+            "usage: check-rule-citations.py [--changed-only] <file> [<file>...]",
+            file=sys.stderr,
+        )
         return 2
 
     total = 0
     for path in files:
         try:
-            total += check(path)
+            total += check(path, changed_only=changed_only)
         except OSError as err:
             print(f"cannot read {path}: {err}", file=sys.stderr)
+            return 2
+        except ChangedLinesError as err:
+            print(f"cannot determine changed lines for {path}: {err}", file=sys.stderr)
             return 2
 
     return 1 if total else 0
