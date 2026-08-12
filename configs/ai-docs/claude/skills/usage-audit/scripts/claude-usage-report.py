@@ -7,6 +7,7 @@
 #   claude-usage-report.py --day YYYY-MM-DD        # one calendar day
 #   claude-usage-report.py [--days N] [--top N]    # ad-hoc rolling window (never snapshots)
 #   claude-usage-report.py --json                  # machine-readable aggregates
+#   claude-usage-report.py --session SID --json    # one session id (never snapshots)
 #
 # Reads every transcript under ~/.claude/projects and prices each API response at
 # Anthropic LIST prices (MODEL_PRICES below). Answers: where did the spend go —
@@ -37,6 +38,7 @@
 
 import argparse
 import bisect
+import glob
 import importlib.util
 import json
 import os
@@ -301,6 +303,26 @@ def find_transcripts(since_epoch):
             else:
                 main_files.append(path)
     return main_files, subagent_files
+
+
+def project_directories():
+    """Every ~/.claude/projects/*/ directory, sorted for stable --session error output."""
+    return sorted(entry.path for entry in os.scandir(TRANSCRIPTS_ROOT) if entry.is_dir())
+
+
+def find_session_transcripts(sid):
+    """(main_path, subagent_paths) for one session id, searched across every
+    project directory rather than only the caller's cwd project — a --session
+    audit commonly targets a past run made from a different working directory
+    than the one auditing it now. main_path is None when no project directory
+    holds "<sid>.jsonl"; subagent_paths is [] in that case.
+    """
+    for project_dir in project_directories():
+        main_path = os.path.join(project_dir, f"{sid}.jsonl")
+        if os.path.isfile(main_path):
+            subagent_glob = os.path.join(project_dir, sid, "subagents", "*.jsonl")
+            return main_path, sorted(glob.glob(subagent_glob))
+    return None, []
 
 
 def oldest_retained_day():
@@ -1583,6 +1605,10 @@ def main():
                         help="ad-hoc rolling-window report, in days (default: 7); never snapshots")
     parser.add_argument("--top", type=int, default=8, help="how many top sessions to show (default: 8)")
     parser.add_argument("--json", action="store_true", help="emit machine-readable aggregates")
+    parser.add_argument("--session", metavar="SID",
+                        help="aggregate one session id (its main transcript plus its "
+                             "subagent runs), found under any ~/.claude/projects/*/ "
+                             "directory; always emits JSON; never snapshots")
     args = parser.parse_args()
 
     if not os.path.isdir(TRANSCRIPTS_ROOT):
@@ -1604,6 +1630,23 @@ def main():
             sys.exit(1)
         path, total, status = snapshot_day(args.day, args.top)
         print(f"{args.day}  ${total:,.2f}  ccusage:{status}  ->  {path}")
+        return
+
+    if args.session:
+        # One session's own transcripts, not a date window — the far bound is
+        # unbounded (float("inf")) so a session spanning multiple calendar days
+        # is captured whole. Never touches snapshot_day()/run_backfill(): a
+        # mid-session read is inherently partial and must not be mistaken for
+        # the immutable closed-day record those two produce.
+        main_path, subagent_files = find_session_transcripts(args.session)
+        if main_path is None:
+            print(f"session {args.session!r} not found. Searched project directories:",
+                  file=sys.stderr)
+            for project_dir in project_directories():
+                print(f"  {project_dir}", file=sys.stderr)
+            sys.exit(1)
+        result = aggregate([main_path], subagent_files, 0, float("inf"))
+        print(json.dumps(build_payload(result, args.top), indent=2))
         return
 
     # Ad-hoc window: a human-readable read of recent activity. It deliberately

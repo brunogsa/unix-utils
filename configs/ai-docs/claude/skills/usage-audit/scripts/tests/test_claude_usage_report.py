@@ -18,7 +18,9 @@ Usage:
 """
 
 import argparse
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import subprocess
@@ -1142,6 +1144,305 @@ class TestSnapshotMechanics(unittest.TestCase):
             status["status"], "unavailable",
             msg="an unrecognized ccusage schema must degrade to "
                 "unavailable, not raise an exception or report ok")
+
+
+class TestSessionMode(unittest.TestCase):
+    """--session SID --json: the existing aggregate()/build_payload() pipeline
+    run over one session id's own transcripts (its main file plus any
+    subagent runs under it), found by searching every ~/.claude/projects/*/
+    directory rather than only the caller's cwd project — a --session audit
+    commonly targets a past run made from elsewhere. Never touches
+    snapshot_day()/run_backfill(): a mid-session read is inherently partial
+    and must not be written under usage-history/snapshots/.
+    """
+
+    def _run_session_json(self, transcripts_root, sid, *, top=8):
+        """Run `--session sid --json` against a mocked TRANSCRIPTS_ROOT and
+        return the parsed stdout payload."""
+        argv = ["claude-usage-report.py", "--session", sid, "--json", "--top", str(top)]
+        buf = io.StringIO()
+        with mock.patch.object(cur, "TRANSCRIPTS_ROOT", transcripts_root), \
+             mock.patch.object(sys, "argv", argv), \
+             contextlib.redirect_stdout(buf):
+            cur.main()
+        return json.loads(buf.getvalue())
+
+    def test_emits_a_json_payload_for_a_session_id_found_in_the_local_projects_transcript_directory(self):
+        """The common case: the session's main transcript lives directly
+        under one of the project directories."""
+        day = "2026-07-20"
+        since, _ = cur.day_bounds(day)
+        epoch = since + 3600
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = os.path.join(tmp, "-Users-brunoagostini-work-project")
+            os.makedirs(project_dir)
+            _write_transcript(project_dir, "sess-abc123.jsonl", [
+                _assistant_record("msg_a", "req_a", epoch,
+                                   input_tokens=1_000_000, output_tokens=500_000),
+            ])
+            payload = self._run_session_json(tmp, "sess-abc123")
+
+        price_in, price_out, _ = cur.SONNET_5_INTRO_PRICES
+        expected_total = round((1_000_000 * price_in + 500_000 * price_out) / 1e6, 2)
+        self.assertEqual(
+            payload["total"], expected_total,
+            msg="the --session payload must total the one priced response "
+                "found under the session's own project directory")
+
+    def test_includes_the_main_vs_subagent_cost_split_for_a_session_that_has_subagent_runs(self):
+        """A session that delegated to a subagent must report the two
+        halves separately, not just their sum — main_cost and
+        subagent_cost using distinct token counts so a swapped key would
+        be caught rather than masked by equal totals."""
+        day = "2026-07-20"
+        since, _ = cur.day_bounds(day)
+        epoch = since + 3600
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = os.path.join(tmp, "-Users-brunoagostini-work-project")
+            subagent_dir = os.path.join(project_dir, "sess-with-sub", "subagents")
+            os.makedirs(subagent_dir)
+            _write_transcript(project_dir, "sess-with-sub.jsonl", [
+                _assistant_record("msg_main", "req_main", epoch,
+                                   input_tokens=1_000_000, output_tokens=500_000),
+            ])
+            _write_transcript(subagent_dir, "child.jsonl", [
+                _assistant_record("msg_child", "req_child", epoch,
+                                   input_tokens=500_000, output_tokens=1_000_000),
+            ])
+            payload = self._run_session_json(tmp, "sess-with-sub")
+
+        price_in, price_out, _ = cur.SONNET_5_INTRO_PRICES
+        expected_main = round((1_000_000 * price_in + 500_000 * price_out) / 1e6, 2)
+        expected_sub = round((500_000 * price_in + 1_000_000 * price_out) / 1e6, 2)
+        self.assertEqual(
+            payload["main_cost"], expected_main,
+            msg="main_cost must reflect only the session's own main-transcript spend")
+        self.assertEqual(
+            payload["subagent_cost"], expected_sub,
+            msg="subagent_cost must reflect only its subagent runs' spend")
+
+    def test_reports_zero_subagent_cost_never_fails_when_the_session_has_no_subagents_directory(self):
+        """A session that never delegated has no subagents/ directory at
+        all on disk — that must read as zero cost, not raise."""
+        day = "2026-07-20"
+        since, _ = cur.day_bounds(day)
+        epoch = since + 3600
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = os.path.join(tmp, "-Users-brunoagostini-work-project")
+            os.makedirs(project_dir)
+            _write_transcript(project_dir, "sess-solo.jsonl", [
+                _assistant_record("msg_solo", "req_solo", epoch,
+                                   input_tokens=1_000_000, output_tokens=500_000),
+            ])
+            payload = self._run_session_json(tmp, "sess-solo")
+
+        self.assertEqual(
+            payload["subagent_cost"], 0.0,
+            msg="a session with no subagents/ directory on disk must report "
+                "zero subagent cost, not raise")
+        self.assertEqual(payload["total"], payload["main_cost"])
+
+    def test_omits_the_reconciliation_field_in_session_mode_exactly_as_the_existing_ad_hoc_window_omits_it(self):
+        """--session never asks ccusage for a cross-check: reconciliation is
+        a snapshot-only concept (one closed day to cross-check against),
+        and a session may span partial or multiple days."""
+        day = "2026-07-20"
+        since, _ = cur.day_bounds(day)
+        epoch = since + 3600
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = os.path.join(tmp, "-Users-brunoagostini-work-project")
+            os.makedirs(project_dir)
+            _write_transcript(project_dir, "sess-recon.jsonl", [
+                _assistant_record("msg_recon", "req_recon", epoch,
+                                   input_tokens=1_000_000, output_tokens=500_000),
+            ])
+            payload = self._run_session_json(tmp, "sess-recon")
+
+        self.assertNotIn(
+            "reconciliation", payload,
+            msg="--session mode must never carry a reconciliation field, "
+                "the same as the existing ad-hoc rolling window")
+
+    def test_still_returns_correct_totals_when_the_sessions_transcript_spans_a_single_record(self):
+        """A one-line transcript (no separate human-turn record at all) is
+        the minimal real-world shape and must not trip an off-by-one in the
+        per-file scan."""
+        day = "2026-07-20"
+        since, _ = cur.day_bounds(day)
+        epoch = since + 3600
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = os.path.join(tmp, "-Users-brunoagostini-work-project")
+            os.makedirs(project_dir)
+            _write_transcript(project_dir, "sess-single.jsonl", [
+                _assistant_record("msg_single", "req_single", epoch,
+                                   input_tokens=200_000, output_tokens=100_000),
+            ])
+            payload = self._run_session_json(tmp, "sess-single")
+
+        price_in, price_out, _ = cur.SONNET_5_INTRO_PRICES
+        expected_total = round((200_000 * price_in + 100_000 * price_out) / 1e6, 2)
+        self.assertEqual(payload["total"], expected_total)
+        self.assertEqual(payload["api_calls"]["main"], 1)
+
+    def test_dedupes_per_content_block_records_via_billing_id_before_summing_cost(self):
+        """A response written as 2 content-block records sharing one
+        message.id/requestId must bill once, the same billing_id() dedup
+        the ad-hoc window and snapshots already rely on."""
+        day = "2026-07-20"
+        since, _ = cur.day_bounds(day)
+        epoch = since + 3600
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = os.path.join(tmp, "-Users-brunoagostini-work-project")
+            os.makedirs(project_dir)
+            _write_transcript(project_dir, "sess-dedup.jsonl", [
+                _assistant_record("msg_dedup", "req_dedup", epoch,
+                                   input_tokens=1_000_000, output_tokens=500_000)
+                for _ in range(2)
+            ])
+            payload = self._run_session_json(tmp, "sess-dedup")
+
+        price_in, price_out, _ = cur.SONNET_5_INTRO_PRICES
+        expected_total = round((1_000_000 * price_in + 500_000 * price_out) / 1e6, 2)
+        self.assertEqual(
+            payload["total"], expected_total,
+            msg="two content-block records of the same response must bill "
+                "once, not twice")
+        self.assertEqual(payload["api_calls"]["main"], 1)
+
+    def test_reuses_local_day_and_parse_ts_for_any_date_bucketed_figures_instead_of_reimplementing_them(self):
+        """A response stamped just after UTC midnight, still before local
+        midnight in America/Sao_Paulo (UTC-3), must bucket under its LOCAL
+        day in by_day — proof --session calls the shared local_day()/
+        parse_ts() rather than re-deriving day bucketing from the raw
+        UTC timestamp."""
+        original_tz = os.environ.get("TZ")
+        os.environ["TZ"] = "America/Sao_Paulo"
+        time.tzset()
+        try:
+            epoch = cur.parse_ts("2026-07-21T01:00:00Z")
+            with tempfile.TemporaryDirectory() as tmp:
+                project_dir = os.path.join(tmp, "-Users-brunoagostini-work-project")
+                os.makedirs(project_dir)
+                _write_transcript(project_dir, "sess-midnight.jsonl", [
+                    _assistant_record("msg_midnight", "req_midnight", epoch,
+                                       input_tokens=100_000, output_tokens=50_000),
+                ])
+                payload = self._run_session_json(tmp, "sess-midnight")
+        finally:
+            if original_tz is None:
+                os.environ.pop("TZ", None)
+            else:
+                os.environ["TZ"] = original_tz
+            time.tzset()
+
+        self.assertIn(
+            "2026-07-20", payload["by_day"],
+            msg="a response stamped 2026-07-21T01:00:00Z must bucket under "
+                "its local day 2026-07-20 in America/Sao_Paulo")
+        self.assertNotIn(
+            "2026-07-21", payload["by_day"],
+            msg="the raw UTC calendar day must never appear as a by_day key")
+
+    def test_exits_non_zero_naming_every_project_directory_searched_when_the_given_session_id_matches_no_transcript(self):
+        """An unknown session id must fail loudly and name every directory
+        that was searched, so the reader can tell a typo'd sid from a
+        transcript that was pruned or never existed."""
+        with tempfile.TemporaryDirectory() as tmp:
+            dir_a = os.path.join(tmp, "-Users-x-project-a")
+            dir_b = os.path.join(tmp, "-Users-x-project-b")
+            os.makedirs(dir_a)
+            os.makedirs(dir_b)
+            _write_transcript(dir_a, "other-session.jsonl", [
+                _assistant_record("msg_other", "req_other", time.time(),
+                                   input_tokens=1000, output_tokens=500),
+            ])
+            argv = ["claude-usage-report.py", "--session", "nonexistent-sid", "--json"]
+            stderr_buf = io.StringIO()
+            with mock.patch.object(cur, "TRANSCRIPTS_ROOT", tmp), \
+                 mock.patch.object(sys, "argv", argv), \
+                 contextlib.redirect_stderr(stderr_buf):
+                with self.assertRaises(SystemExit) as ctx:
+                    cur.main()
+            stderr_text = stderr_buf.getvalue()
+
+        self.assertNotEqual(
+            ctx.exception.code, 0,
+            msg="a session id matching no transcript must exit non-zero")
+        self.assertIn(dir_a, stderr_text,
+                       msg="every searched project directory must be named, "
+                           "including ones that held unrelated sessions")
+        self.assertIn(dir_b, stderr_text,
+                       msg="every searched project directory must be named, "
+                           "including one that held nothing at all")
+
+    def test_never_writes_to_usage_history_snapshots_when_run_in_session_mode(self):
+        """--session must never create the snapshots directory, and must
+        never reach snapshot_day()/run_backfill() at all — a mid-session
+        read is inherently partial and must not be mistaken for the
+        immutable closed-day record those two produce."""
+        day = "2026-07-20"
+        since, _ = cur.day_bounds(day)
+        epoch = since + 3600
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = os.path.join(tmp, "-Users-brunoagostini-work-project")
+            os.makedirs(project_dir)
+            _write_transcript(project_dir, "sess-nosnap.jsonl", [
+                _assistant_record("msg_nosnap", "req_nosnap", epoch,
+                                   input_tokens=1_000_000, output_tokens=500_000),
+            ])
+            snapshots_dir = os.path.join(tmp, "snapshots")
+            argv = ["claude-usage-report.py", "--session", "sess-nosnap", "--json"]
+            with mock.patch.object(cur, "TRANSCRIPTS_ROOT", tmp), \
+                 mock.patch.object(cur, "SNAPSHOTS_DIR", snapshots_dir), \
+                 mock.patch.object(cur, "snapshot_day",
+                                   side_effect=AssertionError(
+                                       "--session mode must never call snapshot_day()")), \
+                 mock.patch.object(cur, "run_backfill",
+                                   side_effect=AssertionError(
+                                       "--session mode must never call run_backfill()")), \
+                 mock.patch.object(sys, "argv", argv), \
+                 contextlib.redirect_stdout(io.StringIO()):
+                cur.main()
+
+        self.assertFalse(
+            os.path.exists(snapshots_dir),
+            msg="--session mode must never create the usage-history/snapshots/ directory")
+
+    def test_leaves_the_backfill_and_day_code_paths_producing_identical_output_to_before_the_session_flag_was_added(self):
+        """Regression guard: --day's snapshot pipeline (aggregate() ->
+        build_payload() -> snapshot_day()) must still produce the exact
+        pre-change dollar figure and coverage/reconciliation verdict —
+        proven against a hand-computed expected value, not f(X) === f(X),
+        so a real drift in the shared pipeline would be caught here."""
+        day = "2026-07-20"
+        since, _ = cur.day_bounds(day)
+        epoch = since + 3600
+        cur._ccusage_days.clear()
+        with tempfile.TemporaryDirectory() as tmp:
+            transcripts_root = os.path.join(tmp, "projects")
+            os.makedirs(transcripts_root)
+            snapshots_dir = os.path.join(tmp, "snapshots")
+            _write_transcript(transcripts_root, "session.jsonl", [
+                _assistant_record("msg_regress", "req_regress", epoch,
+                                   input_tokens=1_000_000, output_tokens=500_000),
+            ])
+            with mock.patch.object(cur, "TRANSCRIPTS_ROOT", transcripts_root), \
+                 mock.patch.object(cur, "SNAPSHOTS_DIR", snapshots_dir), \
+                 mock.patch.object(cur, "oldest_retained_day", return_value="2026-07-01"), \
+                 mock.patch.object(cur.shutil, "which", return_value=None):
+                path, total, status = cur.snapshot_day(day, top_n=8)
+            with open(path) as fh:
+                payload = json.load(fh)
+
+        price_in, price_out, _ = cur.SONNET_5_INTRO_PRICES
+        expected_total = round((1_000_000 * price_in + 500_000 * price_out) / 1e6, 2)
+        self.assertEqual(
+            (total, status), (expected_total, "unavailable"),
+            msg="--day's snapshot_day() must still return the hand-computed "
+                "total and the ccusage-absent status, unchanged by adding --session")
+        self.assertEqual(payload["total"], expected_total)
+        self.assertEqual(payload["coverage"], "complete")
+        self.assertEqual(payload["reconciliation"]["status"], "unavailable")
 
 
 if __name__ == "__main__":
