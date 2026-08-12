@@ -18,6 +18,17 @@
 #
 #   Skipped entirely outside tmux -- no window to title, so no point nagging.
 #
+# Why this hook skips a subagent's SessionStart:
+#   The directive below forbids a subagent from
+#   calling tmux-window-title.sh -- handing it TO
+#   a subagent breaks the very rule it states.
+#
+#   session_id can't discriminate the two: a
+#   subagent inherits its parent's session_id, so
+#   only agent_id (falling back to agent_type) tells
+#   the orchestrator apart from the agents it spawned.
+#   Same precedent as claude-tmux-title-compact-reminder.sh.
+#
 # Examples:
 #   bash claude-tmux-title-reminder.sh   # emits the directive when in tmux
 
@@ -40,6 +51,14 @@ fi
 if [ -n "${CLAUDE_CODE_ENTRYPOINT:-}" ] && [ "${CLAUDE_CODE_ENTRYPOINT}" != "cli" ]; then
   exit 0
 fi
+
+input=$(cat)
+
+# Only the top-level session may be told to retitle the
+# window -- see the header. A subagent's SessionStart
+# carries agent_id (or agent_type as a fallback) on stdin.
+agent=$(printf '%s' "$input" | jq -r '.agent_id // .agent_type // empty' 2>/dev/null || true)
+[ -n "$agent" ] && exit 0
 
 read -r -d '' DIRECTIVE <<'EOF' || true
 You are running inside tmux. Keep the tmux window titled with the SHORTEST name that still conveys the current work. Rules: hyphen-separated (no spaces), no prefixes, at most 16 characters (the script truncates longer ones), and shorter is always better -- prefer "auth-fix" over "fix-the-auth-bug". Set or refresh it by running:
