@@ -520,11 +520,10 @@ EOF
 }
 
 it_should_exit_2_and_name_the_file_when_changed_only_is_used_outside_any_git_work_tree() {
-  # Mirrors check-density.sh's own contract: get-changed-lines.sh exits 2
-  # when the file's directory has no .git anywhere in its ancestry, and
-  # that failure must surface here, not be swallowed into a false "fully
-  # clean" (exit 0) result - see the module docstring's own account of
-  # this exact bug in get_density_hits() and converge().
+  # Mirrors check-density.sh: exits 2 when the file has no .git
+  # anywhere in its ancestry. That failure must surface here,
+  # not a false "fully clean" - see the module docstring's
+  # account of this bug in get_density_hits() and converge().
   local plain_dir="$work_dir/plain-outside-git"
   mkdir -p "$plain_dir"
   cat > "$plain_dir/plain.md" <<'EOF'
@@ -542,6 +541,7 @@ EOF
   assert_eq 'should exit non-zero when --changed-only is used outside any git work tree (scoping failure surfaced, not swallowed into a false clean result)' \
     "2" "$FIX_EXIT"
   assert_contains 'should name the file in stderr when scoping fails outside a git work tree' "$FIX_OUT" 'plain.md'
+  assert_contains 'should name the failing inner script in stderr when scoping fails outside a git work tree' "$FIX_OUT" 'check-bullet-gap.py'
   assert_eq 'should leave the file untouched when scoping fails outside a git work tree' "$before" "$(cat "$plain_dir/plain.md")"
 }
 
