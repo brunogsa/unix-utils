@@ -65,8 +65,12 @@ Usage:
 
 --changed-only relays straight through to both inner scripts' own
 --changed-only flag (check-density.sh and check-bullet-gap.py) - it
-never re-derives changed-vs-HEAD scoping itself, so a file outside a
-git work tree fails exactly as those two scripts already define.
+never re-derives changed-vs-HEAD scoping itself. Neither inner call's
+exit status is inspected (both are pre-existing subprocess.run calls
+this flag only adds an argument to), so a file outside a git work
+tree - where each inner script would itself exit 2 - is NOT surfaced
+as a failure here: it reads back as zero hits and this script reports
+a false "fully clean" instead.
 
 Exit codes:
   0  fully clean (or fully resolved by fixing)
