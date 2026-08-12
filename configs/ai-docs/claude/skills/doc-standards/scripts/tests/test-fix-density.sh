@@ -519,6 +519,32 @@ EOF
     "0" "$density_exit"
 }
 
+it_should_exit_2_and_name_the_file_when_changed_only_is_used_outside_any_git_work_tree() {
+  # Mirrors check-density.sh's own contract: get-changed-lines.sh exits 2
+  # when the file's directory has no .git anywhere in its ancestry, and
+  # that failure must surface here, not be swallowed into a false "fully
+  # clean" (exit 0) result - see the module docstring's own account of
+  # this exact bug in get_density_hits() and converge().
+  local plain_dir="$work_dir/plain-outside-git"
+  mkdir -p "$plain_dir"
+  cat > "$plain_dir/plain.md" <<'EOF'
+# Plain fixture
+
+Short filler paragraph.
+EOF
+
+  local before
+  before="$(cat "$plain_dir/plain.md")"
+
+  REPO_DIR="$plain_dir"
+  FIXTURE=plain.md
+  run_fix_changed_only
+  assert_eq 'should exit non-zero when --changed-only is used outside any git work tree (scoping failure surfaced, not swallowed into a false clean result)' \
+    "2" "$FIX_EXIT"
+  assert_contains 'should name the file in stderr when scoping fails outside a git work tree' "$FIX_OUT" 'plain.md'
+  assert_eq 'should leave the file untouched when scoping fails outside a git work tree' "$before" "$(cat "$plain_dir/plain.md")"
+}
+
 it_should_relay_changed_only_to_the_bullet_gap_fix_call_leaving_a_pre_existing_bullet_gap_violation_untouched() {
   # Isolates the check-bullet-gap.py --fix relay from the check-density.sh
   # relay the three tests above already cover: every line here is short, so
@@ -777,6 +803,7 @@ it_should_resolve_an_untracked_files_violation_with_changed_only_matching_the_no
 it_should_split_only_a_newly_added_violation_and_leave_a_pre_existing_violation_untouched_with_changed_only
 it_should_split_a_freshly_split_half_that_enters_scope_on_the_very_next_convergence_pass_with_changed_only
 it_should_relay_changed_only_to_the_bullet_gap_fix_call_leaving_a_pre_existing_bullet_gap_violation_untouched
+it_should_exit_2_and_name_the_file_when_changed_only_is_used_outside_any_git_work_tree
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

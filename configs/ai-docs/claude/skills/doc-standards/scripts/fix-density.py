@@ -65,17 +65,18 @@ Usage:
 
 --changed-only relays straight through to both inner scripts' own
 --changed-only flag (check-density.sh and check-bullet-gap.py) - it
-never re-derives changed-vs-HEAD scoping itself. Neither inner call's
-exit status is inspected (both are pre-existing subprocess.run calls
-this flag only adds an argument to), so a file outside a git work
-tree - where each inner script would itself exit 2 - is NOT surfaced
-as a failure here: it reads back as zero hits and this script reports
-a false "fully clean" instead.
+never re-derives changed-vs-HEAD scoping itself. Each inner call's
+returncode IS inspected: 0 (clean) and 1 (violations found/handled)
+are both normal outcomes, but anything else - e.g. 2, which each inner
+script uses for a usage or scoping error, such as a file outside any
+git work tree - is a hard failure surfaced as a RuntimeError naming
+the file and the inner script, never silently read back as zero hits.
 
 Exit codes:
   0  fully clean (or fully resolved by fixing)
   1  residue remains - printed as <line>:<chars>:<words>, one per line
-  2  usage error
+  2  usage error, or an inner script (check-density.sh or
+     check-bullet-gap.py) itself failed - message names the file
 """
 
 import re
@@ -218,7 +219,12 @@ def split_line(line, max_chars, max_words):
 
 
 def get_density_hits(path, max_chars, max_words, changed_only):
-    """Parse check-density.sh's <line>:<chars>:<words> rows for one file."""
+    """Parse check-density.sh's <line>:<chars>:<words> rows for one file.
+
+    Raises RuntimeError, naming `path`, when check-density.sh itself exits
+    outside {0, 1} - e.g. 2, a usage or --changed-only scoping error (a
+    file outside any git work tree) - rather than reading that failure
+    back as zero hits, a false "fully clean" result."""
     args = [
         str(DENSITY_SCRIPT),
         "--max-chars",
@@ -230,6 +236,11 @@ def get_density_hits(path, max_chars, max_words, changed_only):
         args.append("--changed-only")
     args.append(str(path))
     result = subprocess.run(args, capture_output=True, text=True)
+    if result.returncode not in (0, 1):
+        raise RuntimeError(
+            f"fix-density.py: check-density.sh failed for {path}: "
+            f"{result.stderr.strip()}"
+        )
     hits = []
     for row in result.stdout.splitlines():
         m = DENSITY_HIT.match(row)
@@ -300,7 +311,14 @@ def converge(path, max_chars, max_words, changed_only):
 
     residue = []
     for _ in range(MAX_ITERATIONS):
-        subprocess.run(bullet_gap_args, capture_output=True, text=True)
+        bullet_gap_result = subprocess.run(
+            bullet_gap_args, capture_output=True, text=True
+        )
+        if bullet_gap_result.returncode not in (0, 1):
+            raise RuntimeError(
+                f"fix-density.py: check-bullet-gap.py --fix failed for "
+                f"{path}: {bullet_gap_result.stderr.strip()}"
+            )
         residue, _ = split_pass(path, max_chars, max_words, changed_only)
 
         with open(path, encoding="utf-8") as fh:
@@ -357,6 +375,9 @@ def main(argv):
             residue = converge(path, max_chars, max_words, changed_only)
         except OSError as err:
             print(f"cannot read {path}: {err}", file=sys.stderr)
+            return 2
+        except RuntimeError as err:
+            print(str(err), file=sys.stderr)
             return 2
 
         if residue:
