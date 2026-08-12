@@ -32,16 +32,27 @@ Both reasons are violations. They are counted separately so the unwrap diff
 stays auditable, not because one is tolerated.
 
 Usage:
-  check-hard-wrap.py <file> [<file>...]
+  check-hard-wrap.py [--changed-only] <file> [<file>...]
+
+--changed-only scopes every reported hit to the lines changed-lines.sh
+reports as changed vs HEAD for that same file, so a fixer's convergence
+loop never re-reports a violation that predates the session's own edits.
+The scope check is the CONTINUATION line's own number (the line already
+printed), never the line it continues - see find_hits()'s docstring.
 
 Exit codes:
   0  clean
   1  violations found
-  2  usage error
+  2  usage error, or (with --changed-only) changed-lines.sh failed
 """
 
 import re
+import subprocess
 import sys
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+CHANGED_LINES_SCRIPT = SCRIPT_DIR / "changed-lines.sh"
 
 BULLET = re.compile(r"^(\s*)([-*+]|\d+\.)\s")
 FENCE = re.compile(r"^\s*(```|~~~)")
@@ -148,11 +159,36 @@ def find_hits(lines):
     return hits
 
 
-def check(path):
+class ChangedLinesError(Exception):
+    """changed-lines.sh failed to determine scope for one file."""
+
+
+def get_changed_line_numbers(path):
+    """The set of line numbers changed-lines.sh reports as changed for
+    `path` vs HEAD. Never reimplements its git/awk logic - shells out to
+    the one shared helper every doc-standards checker's --changed-only
+    scopes itself against, so they can never disagree on what "changed"
+    means. Raises ChangedLinesError on a non-zero exit rather than
+    treating failure as clean or as whole-file-in-scope."""
+    result = subprocess.run(
+        [str(CHANGED_LINES_SCRIPT), str(path)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise ChangedLinesError(path)
+    return {int(line) for line in result.stdout.splitlines() if line.strip()}
+
+
+def check(path, changed_only=False):
     with open(path, encoding="utf-8") as fh:
         lines = fh.read().splitlines()
 
     hits = find_hits(lines)
+
+    if changed_only:
+        changed = get_changed_line_numbers(path)
+        hits = [(line_no, reason) for line_no, reason in hits if line_no in changed]
 
     if hits:
         print(f"== {path}")
@@ -164,6 +200,7 @@ def check(path):
 
 def main(argv):
     files = []
+    changed_only = False
 
     i = 0
     while i < len(argv):
@@ -171,6 +208,10 @@ def main(argv):
         if arg == "--":
             files.extend(argv[i + 1:])
             break
+        if arg == "--changed-only":
+            changed_only = True
+            i += 1
+            continue
         if arg.startswith("-"):
             print(f"unknown opt: {arg}", file=sys.stderr)
             return 2
@@ -178,15 +219,21 @@ def main(argv):
         i += 1
 
     if not files:
-        print("usage: check-hard-wrap.py <file> [<file>...]", file=sys.stderr)
+        print(
+            "usage: check-hard-wrap.py [--changed-only] <file> [<file>...]",
+            file=sys.stderr,
+        )
         return 2
 
     total = 0
     for path in files:
         try:
-            total += check(path)
+            total += check(path, changed_only)
         except OSError as err:
             print(f"cannot read {path}: {err}", file=sys.stderr)
+            return 2
+        except ChangedLinesError as err:
+            print(f"changed-lines.sh failed for {err}", file=sys.stderr)
             return 2
 
     return 1 if total else 0

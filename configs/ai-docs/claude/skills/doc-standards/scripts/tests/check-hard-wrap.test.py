@@ -338,6 +338,284 @@ def test_unreadable_file_is_a_usage_error(tmp_path):
     assert result.returncode == 2
 
 
+def init_repo(tmp_path, name):
+    """Create a throwaway git repo under tmp_path and return its path.
+
+    Mirrors test-changed-lines.sh's new_repo(): every --changed-only case
+    needs a real git history underneath it, since changed-lines.sh (the
+    helper --changed-only shells out to) refuses to run outside one.
+    Identity is set locally so the fixture commit never depends on the
+    machine's global git config.
+    """
+    repo = tmp_path / name
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "."], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True
+    )
+    subprocess.run(["git", "config", "user.name", "test"], cwd=repo, check=True)
+    return repo
+
+
+def commit_all(repo, message="base"):
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", message], cwd=repo, check=True)
+
+
+def run_changed_only(repo, *filenames):
+    """Run check-hard-wrap.py --changed-only with cwd=repo.
+
+    changed-lines.sh resolves the repo root from the invoking process's
+    OWN cwd (git rev-parse --show-toplevel), not from the file argument's
+    path - test-changed-lines.sh invokes it the same way (`cd "$repo" &&
+    "$SCRIPT" file`). A caller running from anywhere else would have this
+    helper report every file as outside the work tree, matching how a
+    real fixer agent always runs from inside the repo it is editing.
+    """
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), "--changed-only"]
+        + [str(repo / name) for name in filenames],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_changed_only_hides_a_pre_existing_violation_outside_the_diff(tmp_path):
+    """The core scoping contract: a hit that predates the session's edit
+    must disappear under --changed-only, while a hit the edit introduces
+    still shows - proven against the same file's full, unscoped scan."""
+    repo = init_repo(tmp_path, "repo")
+    doc = repo / "doc.md"
+    doc.write_text(
+        "Pre-existing wrapped line one,\n"
+        "pre-existing wrapped line two.\n",
+        encoding="utf-8",
+    )
+    commit_all(repo)
+
+    doc.write_text(
+        "Pre-existing wrapped line one,\n"
+        "pre-existing wrapped line two.\n"
+        "\n"
+        "New wrapped line one,\n"
+        "new wrapped line two.\n",
+        encoding="utf-8",
+    )
+
+    full_scan = subprocess.run(
+        [sys.executable, str(SCRIPT), str(doc)], capture_output=True, text=True
+    )
+    assert hits(full_scan) == [(2, "continues-prose"), (5, "continues-prose")]
+
+    scoped = run_changed_only(repo, "doc.md")
+    assert hits(scoped) == [(5, "continues-prose")]
+    assert scoped.returncode == 1
+
+
+def test_changed_only_reports_nothing_when_every_hit_predates_the_change(tmp_path):
+    """An out-of-scope hit must be entirely invisible - not printed, not
+    counted toward the exit code - even when it is the file's only hit."""
+    repo = init_repo(tmp_path, "repo")
+    doc = repo / "doc.md"
+    doc.write_text(
+        "Pre-existing wrapped line one,\n"
+        "pre-existing wrapped line two.\n"
+        "\n"
+        "A stable single-line paragraph untouched by this session.\n",
+        encoding="utf-8",
+    )
+    commit_all(repo)
+
+    doc.write_text(
+        "Pre-existing wrapped line one,\n"
+        "pre-existing wrapped line two.\n"
+        "\n"
+        "A revised single-line paragraph edited by this session.\n",
+        encoding="utf-8",
+    )
+
+    scoped = run_changed_only(repo, "doc.md")
+    assert scoped.stdout == ""
+    assert scoped.returncode == 0
+
+
+def test_changed_only_ignores_a_hit_when_only_the_continued_line_changed(tmp_path):
+    """Pins the anchor rule: scope is decided by the reported CONTINUATION
+    line's own number, never by whether the line it continues changed.
+
+    Only line 1 (the continued-from line) is edited here; line 2 (the
+    continuation, and the line the report is anchored to) is untouched -
+    so the hit must stay out of scope."""
+    repo = init_repo(tmp_path, "repo")
+    doc = repo / "doc.md"
+    doc.write_text(
+        "Original opening line of a paragraph,\n"
+        "its continuation staying on the second line.\n",
+        encoding="utf-8",
+    )
+    commit_all(repo)
+
+    doc.write_text(
+        "Revised opening line of that same paragraph,\n"
+        "its continuation staying on the second line.\n",
+        encoding="utf-8",
+    )
+
+    full_scan = subprocess.run(
+        [sys.executable, str(SCRIPT), str(doc)], capture_output=True, text=True
+    )
+    assert hits(full_scan) == [(2, "continues-prose")]
+
+    scoped = run_changed_only(repo, "doc.md")
+    assert scoped.stdout == ""
+    assert scoped.returncode == 0
+
+
+def test_changed_only_reports_a_hit_when_only_the_continuation_line_is_new(tmp_path):
+    """The converse anchor-rule pin: the continued-from line 1 predates the
+    session untouched, but the continuation line 2 is brand new - so the
+    hit, anchored on line 2, is in scope."""
+    repo = init_repo(tmp_path, "repo")
+    doc = repo / "doc.md"
+    doc.write_text(
+        "Stable first line of the paragraph, untouched by this session.\n",
+        encoding="utf-8",
+    )
+    commit_all(repo)
+
+    doc.write_text(
+        "Stable first line of the paragraph, untouched by this session.\n"
+        "a wrapped continuation appended by this session.\n",
+        encoding="utf-8",
+    )
+
+    scoped = run_changed_only(repo, "doc.md")
+    assert hits(scoped) == [(2, "continues-prose")]
+    assert scoped.returncode == 1
+
+
+def test_changed_only_on_an_untracked_file_matches_the_full_scan(tmp_path):
+    """changed-lines.sh reports every line of an untracked file as changed,
+    so --changed-only there must be identical to a plain full-file scan -
+    no special-casing needed in this script for that shape."""
+    repo = init_repo(tmp_path, "repo")
+    subprocess.run(
+        ["git", "commit", "-q", "--allow-empty", "-m", "base"], cwd=repo, check=True
+    )
+    doc = repo / "new.md"
+    doc.write_text(
+        "A brand new file never added to git,\n"
+        "wrapped across two physical lines.\n",
+        encoding="utf-8",
+    )
+
+    full_scan = subprocess.run(
+        [sys.executable, str(SCRIPT), str(doc)], capture_output=True, text=True
+    )
+    scoped = run_changed_only(repo, "new.md")
+
+    assert hits(scoped) == hits(full_scan) == [(2, "continues-prose")]
+    assert scoped.returncode == full_scan.returncode == 1
+
+
+def test_changed_only_propagates_a_changed_lines_failure_as_exit_2(tmp_path):
+    """When changed-lines.sh cannot determine scope (here: no git work tree
+    underneath tmp_path at all), that failure must propagate as exit 2 -
+    never as a fake-clean 0, never as a silent whole-file fallback."""
+    doc = tmp_path / "doc.md"
+    doc.write_text(
+        "A paragraph wrapped across two lines,\n"
+        "outside of any git work tree.\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--changed-only", str(doc)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2
+    assert str(doc) in result.stderr
+
+
+def test_changed_only_scopes_each_of_multiple_files_independently(tmp_path):
+    """One file's hit predates the session and stays hidden; the other
+    file's hit is new and shows - each file's scope is computed on its
+    own, not shared or unioned across the argument list."""
+    repo = init_repo(tmp_path, "repo")
+    scoped_out = repo / "scoped-out.md"
+    scoped_out.write_text(
+        "Pre-existing wrapped line one,\n"
+        "pre-existing wrapped line two.\n",
+        encoding="utf-8",
+    )
+    scoped_in = repo / "scoped-in.md"
+    scoped_in.write_text(
+        "Another pre-existing wrapped line one,\n"
+        "another pre-existing wrapped line two.\n",
+        encoding="utf-8",
+    )
+    commit_all(repo)
+
+    scoped_out.write_text(
+        "Pre-existing wrapped line one,\n"
+        "pre-existing wrapped line two.\n"
+        "\n"
+        "An unrelated stable line this session leaves alone.\n",
+        encoding="utf-8",
+    )
+    scoped_in.write_text(
+        "Another pre-existing wrapped line one,\n"
+        "another pre-existing wrapped line two.\n"
+        "\n"
+        "New wrapped line one,\n"
+        "new wrapped line two.\n",
+        encoding="utf-8",
+    )
+
+    result = run_changed_only(repo, "scoped-out.md", "scoped-in.md")
+
+    assert result.stdout.splitlines() == [
+        f"== {scoped_in}",
+        "5:continues-prose",
+    ]
+    assert result.returncode == 1
+
+
+def test_changed_only_scopes_a_continues_bullet_hit_the_same_as_prose(tmp_path):
+    """The filter is reason-agnostic, so continues-bullet must scope
+    identically to continues-prose - a pre-existing bullet wrap stays
+    hidden while a new one, appended by this session, is reported."""
+    repo = init_repo(tmp_path, "repo")
+    doc = repo / "doc.md"
+    doc.write_text(
+        "- A bullet whose text runs past where the author wrapped it,\n"
+        "pre-existing continuation of that first bullet.\n",
+        encoding="utf-8",
+    )
+    commit_all(repo)
+
+    doc.write_text(
+        "- A bullet whose text runs past where the author wrapped it,\n"
+        "pre-existing continuation of that first bullet.\n"
+        "- A second bullet added by this session, also wrapped\n"
+        "onto a new continuation line this session introduces.\n",
+        encoding="utf-8",
+    )
+
+    full_scan = subprocess.run(
+        [sys.executable, str(SCRIPT), str(doc)], capture_output=True, text=True
+    )
+    assert hits(full_scan) == [(2, "continues-bullet"), (4, "continues-bullet")]
+
+    scoped = run_changed_only(repo, "doc.md")
+    assert hits(scoped) == [(4, "continues-bullet")]
+    assert scoped.returncode == 1
+
+
 def test_each_hitting_file_gets_its_own_header(tmp_path):
     """Matches the MEASURED behaviour of both sibling checkers.
 
