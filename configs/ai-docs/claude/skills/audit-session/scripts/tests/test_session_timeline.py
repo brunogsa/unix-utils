@@ -1,0 +1,486 @@
+#!/usr/bin/env python3
+"""Tests for session-timeline.py: the time-and-work-done extractor that
+builds timeline.json for one Claude Code session.
+
+Fixtures: none on disk — every transcript is a handful of hand-readable
+records built in code via _human_record()/_tool_use_record()/
+_tool_result_record()/_turn_duration_record()/_write_transcript() below, each
+small enough that expected durations/percentages can be verified by hand.
+Every filesystem path used (transcripts root, tasks root) is a
+tempfile.TemporaryDirectory(); this file never reads or writes
+~/.claude/projects or ~/.claude/tasks.
+
+Usage:
+  pytest scripts/tests/test_session_timeline.py
+"""
+
+import contextlib
+import importlib.util
+import io
+import json
+import os
+import tempfile
+import time
+import unittest
+from datetime import datetime, timezone
+from pathlib import Path
+from unittest import mock
+
+SCRIPTS = Path(__file__).parent.parent
+
+
+def _load_module(filename, module_name):
+    """Import a dash-named script (not a valid module name) by file path."""
+    spec = importlib.util.spec_from_file_location(module_name, SCRIPTS / filename)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {filename} from {SCRIPTS}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+sti = _load_module("session-timeline.py", "session_timeline")
+
+
+def _iso(epoch):
+    """Epoch seconds -> UTC ISO-8601 string, the shape parse_ts() expects."""
+    return datetime.fromtimestamp(epoch, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _human_record(epoch, text="do the thing"):
+    """One typed human turn, the shape is_human_message() accepts."""
+    return {
+        "type": "user",
+        "timestamp": _iso(epoch),
+        "message": {"role": "user", "content": [{"type": "text", "text": text}]},
+    }
+
+
+def _turn_duration_record(end_epoch, duration_ms):
+    """A turn_duration system record: the span ends AT end_epoch and started
+    duration_ms milliseconds earlier."""
+    return {
+        "type": "system",
+        "subtype": "turn_duration",
+        "timestamp": _iso(end_epoch),
+        "durationMs": duration_ms,
+    }
+
+
+def _tool_use_record(epoch, tool_id, name, command=None):
+    """One assistant tool_use block, e.g. a Bash call or a Task/Agent spawn."""
+    tool_input = {"command": command} if command is not None else {}
+    return {
+        "type": "assistant",
+        "timestamp": _iso(epoch),
+        "message": {"role": "assistant", "content": [
+            {"type": "tool_use", "id": tool_id, "name": name, "input": tool_input}]},
+    }
+
+
+def _tool_result_record(epoch, tool_id):
+    """The user-turn tool_result that closes a tool_use's wall-clock span."""
+    return {
+        "type": "user",
+        "timestamp": _iso(epoch),
+        "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": tool_id, "content": "ok"}]},
+    }
+
+
+def _write_transcript(dir_path, filename, records):
+    """Write one record per line to dir_path/filename; returns the path."""
+    path = os.path.join(dir_path, filename)
+    with open(path, "w") as fh:
+        for record in records:
+            fh.write(json.dumps(record) + "\n")
+    return path
+
+
+def _make_session(tmp, sid, main_records, subagent_files=None):
+    """Lay out tmp/<escaped-project>/<sid>.jsonl (+ subagents/*.jsonl) the way
+    find_session_transcripts() expects, and return the sid unchanged."""
+    project_dir = os.path.join(tmp, "-Users-x-project")
+    os.makedirs(project_dir, exist_ok=True)
+    _write_transcript(project_dir, f"{sid}.jsonl", main_records)
+    if subagent_files:
+        subagent_dir = os.path.join(project_dir, sid, "subagents")
+        os.makedirs(subagent_dir, exist_ok=True)
+        for filename, records in subagent_files.items():
+            _write_transcript(subagent_dir, filename, records)
+    return sid
+
+
+class TestSessionTimeline(unittest.TestCase):
+
+    def _build(self, tmp, sid, *, tasks_root=None):
+        """build_timeline_payload(sid) with TRANSCRIPTS_ROOT (and optionally
+        TASKS_ROOT) mocked to this test's temp directory."""
+        patches = [mock.patch.object(sti.usage_report, "TRANSCRIPTS_ROOT", tmp)]
+        if tasks_root is not None:
+            patches.append(mock.patch.object(sti, "TASKS_ROOT", tasks_root))
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            return sti.build_timeline_payload(sid)
+
+    def test_attributes_engaged_time_to_main_api_tool_exec_and_agent_occupied_buckets_that_partition_wall_clock(self):
+        """The core D5 partition: a tool call and a subagent run that both
+        fall inside one turn's span must be carved out of main-API time, not
+        double-counted on top of it, and the four buckets must sum exactly to
+        the session's wall clock."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-buckets", [
+                _human_record(1000),
+                _tool_use_record(1010, "tu_bash", "Bash", command="pytest ."),
+                _tool_result_record(1030, "tu_bash"),
+                _tool_use_record(1040, "tu_task", "Task"),
+                _tool_result_record(1090, "tu_task"),
+                _turn_duration_record(1100, duration_ms=100_000),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        self.assertEqual(payload["time_partition"]["wall_clock_seconds"], 100.0)
+        self.assertEqual(buckets["agent_occupied"]["seconds"], 50.0,
+                          msg="the Task call's own 1040-1090 span is agent-occupied")
+        self.assertEqual(buckets["tool_exec"]["seconds"], 20.0,
+                          msg="the Bash call's own 1010-1030 span is tool-exec")
+        self.assertEqual(buckets["main_api"]["seconds"], 30.0,
+                          msg="the turn's 1000-1100 span minus the 20s tool-exec "
+                              "and 50s agent-occupied carved out of it")
+        self.assertEqual(buckets["human_idle"]["seconds"], 0.0)
+        total_seconds = sum(buckets[name]["seconds"] for name in buckets)
+        self.assertEqual(total_seconds, 100.0,
+                          msg="the four buckets must be a true partition of wall clock")
+
+
+    def test_reconciles_every_wall_clock_percentage_to_100_after_rounding(self):
+        """A 6-second wall clock split 2/1/2/1 across the four buckets forces
+        two of them (16.667%, 33.333%) to round unevenly — the largest-
+        remainder method must still land the four shares on exactly 100."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-pct", [
+                _human_record(0),
+                _tool_use_record(1, "tu_bash", "Bash", command="pytest ."),
+                _tool_result_record(2, "tu_bash"),
+                _tool_use_record(3, "tu_task", "Task"),
+                _tool_result_record(5, "tu_task"),
+                _turn_duration_record(5, duration_ms=5_000),
+                _human_record(6),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        self.assertEqual(buckets["main_api"]["pct"], 33.0)
+        self.assertEqual(buckets["tool_exec"]["pct"], 17.0)
+        self.assertEqual(buckets["agent_occupied"]["pct"], 33.0)
+        self.assertEqual(buckets["human_idle"]["pct"], 17.0)
+        total_pct = sum(buckets[name]["pct"] for name in buckets)
+        self.assertEqual(total_pct, 100.0,
+                          msg="the rounded percentages must reconcile to exactly 100")
+
+    def test_guards_every_duration_percentage_against_division_by_zero_for_a_zero_duration_or_single_record_session(self):
+        """A session with only one record ever written has no span to divide
+        by — every bucket must come back as 0, never raise ZeroDivisionError."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-single", [
+                _human_record(1000),
+            ])
+            payload = self._build(tmp, sid)
+
+        self.assertEqual(payload["time_partition"]["wall_clock_seconds"], 0.0)
+        for name, bucket in payload["time_partition"]["buckets"].items():
+            self.assertEqual(bucket["seconds"], 0.0, msg=f"{name} seconds")
+            self.assertEqual(bucket["pct"], 0.0, msg=f"{name} pct")
+
+
+    def test_builds_a_chronological_timeline_of_turn_duration_spans_tool_calls_and_git_commits_for_a_session(self):
+        """The payload's `timeline` feed must merge all three event kinds
+        into one timestamp-ordered list, whatever order each kind's own
+        section (turns/buckets/commits) happens to build them in."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-chrono", [
+                _human_record(1000),
+                _tool_use_record(1005, "tu_commit", "Bash", command="git commit -m 'feat'"),
+                _tool_result_record(1007, "tu_commit"),
+                _turn_duration_record(1010, duration_ms=10_000),
+                _human_record(2000),
+                _tool_use_record(2002, "tu_task", "Task"),
+                _tool_result_record(2010, "tu_task"),
+                _turn_duration_record(2015, duration_ms=15_000),
+            ])
+            payload = self._build(tmp, sid)
+
+        timeline = payload["timeline"]
+        timestamps = [entry["timestamp"] for entry in timeline]
+        self.assertEqual(timestamps, sorted(timestamps),
+                          msg="the timeline must be sorted chronologically")
+        types = [entry["type"] for entry in timeline]
+        self.assertEqual(types.count("turn"), 2)
+        self.assertEqual(types.count("tool_call"), 2)
+        self.assertEqual(types.count("commit"), 1)
+        commit_entry = next(entry for entry in timeline if entry["type"] == "commit")
+        self.assertIn("git commit", commit_entry["command"])
+        self.assertEqual(commit_entry["source"], "main")
+
+    def test_sorts_records_by_timestamp_before_computing_any_span_even_when_the_transcript_holds_out_of_order_entries(self):
+        """The tool_result line is written to the file BEFORE its tool_use
+        line, even though it happened later in real time — pairing must
+        still succeed once records are sorted by timestamp, not file order."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-outoforder", [
+                _human_record(1000),
+                _tool_result_record(1030, "tu_bash"),
+                _tool_use_record(1010, "tu_bash", "Bash", command="pytest ."),
+                _turn_duration_record(1040, duration_ms=40_000),
+            ])
+            payload = self._build(tmp, sid)
+
+        self.assertEqual(payload["time_partition"]["buckets"]["tool_exec"]["seconds"], 20.0,
+                          msg="the 1010-1030 span must be recovered despite the "
+                              "tool_result line preceding its tool_use line on disk")
+
+    def test_falls_back_to_a_computed_span_and_says_which_measure_produced_it_when_turn_duration_records_are_sparse_or_absent(self):
+        """No turn_duration record exists at all — the turn's span must fall
+        back to its own human-message window, and the payload must say so."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-nofallback", [
+                _human_record(0),
+                _human_record(2),
+            ])
+            payload = self._build(tmp, sid)
+
+        first_turn = payload["turns"][0]
+        self.assertEqual(first_turn["measure"], "computed")
+        self.assertEqual(first_turn["duration_seconds"], 2.0)
+
+    def test_emits_a_too_early_to_rank_note_instead_of_a_ranked_timeline_when_the_session_has_only_one_turn(self):
+        """A single-turn session has nothing to rank against — the payload
+        must say so explicitly rather than emit a degenerate one-item ranking."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-oneturn", [
+                _human_record(1000),
+                _turn_duration_record(1010, duration_ms=10_000),
+            ])
+            payload = self._build(tmp, sid)
+
+        self.assertTrue(payload["turn_ranking"]["too_early_to_rank"])
+        self.assertIn("note", payload["turn_ranking"])
+        self.assertNotIn("ranked_turn_indices", payload["turn_ranking"])
+
+
+    def test_lists_completed_and_pending_tasks_from_the_sessions_task_store_ordered_by_file_mtime(self):
+        """Ordered by file mtime, not filename — b.json's mtime is set
+        earlier than a.json's, and the task list must reflect that, not
+        alphabetical order."""
+        with tempfile.TemporaryDirectory() as transcripts_tmp, \
+             tempfile.TemporaryDirectory() as tasks_tmp:
+            sid = _make_session(transcripts_tmp, "sess-tasks", [_human_record(1000)])
+            tasks_dir = os.path.join(tasks_tmp, sid)
+            os.makedirs(tasks_dir)
+            path_b = os.path.join(tasks_dir, "b.json")
+            path_a = os.path.join(tasks_dir, "a.json")
+            with open(path_b, "w") as fh:
+                json.dump({"id": "b", "subject": "first done", "status": "completed"}, fh)
+            with open(path_a, "w") as fh:
+                json.dump({"id": "a", "subject": "second, still open", "status": "pending"}, fh)
+            now = time.time()
+            os.utime(path_b, (now - 100, now - 100))
+            os.utime(path_a, (now - 10, now - 10))
+
+            payload = self._build(transcripts_tmp, sid, tasks_root=tasks_tmp)
+
+        task_ids = [task["id"] for task in payload["tasks"]["tasks"]]
+        self.assertEqual(task_ids, ["b", "a"],
+                          msg="tasks must be ordered by file mtime, oldest first")
+
+    def test_reports_no_tasks_tracked_never_fail_when_the_sessions_task_store_directory_is_empty(self):
+        """Covers both trigger shapes of the same outcome: a task-store
+        directory that was never created, and one that exists but is empty —
+        neither may raise, and both must report the same note."""
+        with tempfile.TemporaryDirectory() as transcripts_tmp, \
+             tempfile.TemporaryDirectory() as tasks_tmp:
+            sid = _make_session(transcripts_tmp, "sess-notasks", [_human_record(1000)])
+
+            absent_payload = self._build(transcripts_tmp, sid, tasks_root=tasks_tmp)
+            self.assertEqual(absent_payload["tasks"], {"note": "no tasks tracked", "tasks": []},
+                              msg="a task-store directory that was never created")
+
+            os.makedirs(os.path.join(tasks_tmp, sid))
+            empty_payload = self._build(transcripts_tmp, sid, tasks_root=tasks_tmp)
+            self.assertEqual(empty_payload["tasks"], {"note": "no tasks tracked", "tasks": []},
+                              msg="a task-store directory that exists but holds no task files")
+
+
+    def test_parses_only_git_commit_tool_calls_from_the_main_and_subagent_transcripts_and_says_the_commit_list_may_be_incomplete(self):
+        """A plain `git status` call must not be mistaken for a commit; a
+        `git commit` call in a subagent transcript must be attributed to
+        that subagent, not folded into main's list; the payload must say the
+        list may be incomplete (D10 — hook/amend commits leave no tool call)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-commits", [
+                _human_record(1000),
+                _tool_use_record(1005, "tu_status", "Bash", command="git status"),
+                _tool_result_record(1006, "tu_status"),
+                _tool_use_record(1010, "tu_commit", "Bash", command="git commit -m 'feat'"),
+                _tool_result_record(1012, "tu_commit"),
+                _turn_duration_record(1020, duration_ms=20_000),
+            ], subagent_files={"agent-sub.jsonl": [
+                _tool_use_record(1013, "tu_sub_commit", "Bash", command="git commit -m 'sub change'"),
+                _tool_result_record(1014, "tu_sub_commit"),
+            ]})
+            payload = self._build(tmp, sid)
+
+        commits = payload["commits"]
+        self.assertEqual(len(commits["items"]), 2,
+                          msg="the `git status` call must not be counted as a commit")
+        sources = {item["source"] for item in commits["items"]}
+        self.assertEqual(sources, {"main", "agent-sub"})
+        main_commit = next(item for item in commits["items"] if item["source"] == "main")
+        self.assertEqual(main_commit["turn_index"], 0)
+        self.assertIn("hook", commits["note"])
+        self.assertIn("amend", commits["note"])
+
+    def test_labels_a_subagent_runs_agent_type_and_model_as_unknown_without_inventing_a_tier_when_its_meta_json_sidecar_is_missing(self):
+        """agent-nometa.jsonl has no agent-nometa.meta.json sidecar on disk —
+        the run must still be reported, labeled unknown rather than guessed."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-nometa", [
+                _human_record(1000),
+                _turn_duration_record(1010, duration_ms=10_000),
+            ], subagent_files={"agent-nometa.jsonl": [
+                _tool_use_record(1001, "tu_inner", "Bash", command="ls"),
+                _tool_result_record(1006, "tu_inner"),
+            ]})
+            payload = self._build(tmp, sid)
+
+        run = payload["agent_runs"][0]
+        self.assertEqual(run["agent_type"], "unknown")
+        self.assertEqual(run["model"], "unknown")
+        self.assertEqual(run["duration_seconds"], 5.0,
+                          msg="timing still comes from the subagent's own first/last "
+                              "record, independent of the missing sidecar")
+
+    def test_renders_every_duration_in_the_users_local_timezone_by_reusing_parse_ts_and_local_day_never_re_deriving_them(self):
+        """A UTC timestamp just after midnight must fall on the PREVIOUS
+        local day at UTC-3 — the exact behavior local_day() implements —
+        proving this script reused it rather than re-deriving its own."""
+        old_tz = os.environ.get("TZ")
+        os.environ["TZ"] = "America/Sao_Paulo"
+        time.tzset()
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                sid = _make_session(tmp, "sess-tz", [
+                    _human_record(1000),
+                    _turn_duration_record(1010, duration_ms=10_000),
+                ])
+                payload = self._build(tmp, sid)
+        finally:
+            if old_tz is None:
+                os.environ.pop("TZ", None)
+            else:
+                os.environ["TZ"] = old_tz
+            time.tzset()
+
+        expected_day = sti.usage_report.local_day(1000)
+        self.assertEqual(payload["local_day"], expected_day)
+
+
+    def test_exits_non_zero_naming_every_project_directory_searched_when_the_given_session_id_matches_no_transcript(self):
+        """An unknown session id must fail loudly and name every directory
+        that was searched, so the reader can tell a typo'd sid from a
+        transcript that was pruned or never existed."""
+        with tempfile.TemporaryDirectory() as tmp:
+            dir_a = os.path.join(tmp, "-Users-x-project-a")
+            dir_b = os.path.join(tmp, "-Users-x-project-b")
+            os.makedirs(dir_a)
+            os.makedirs(dir_b)
+            _write_transcript(dir_a, "other-session.jsonl", [_human_record(1000)])
+            stderr_buf = io.StringIO()
+            with mock.patch.object(sti.usage_report, "TRANSCRIPTS_ROOT", tmp), \
+                 contextlib.redirect_stderr(stderr_buf):
+                with self.assertRaises(SystemExit) as ctx:
+                    sti.build_timeline_payload("nonexistent-sid")
+            stderr_text = stderr_buf.getvalue()
+
+        self.assertNotEqual(ctx.exception.code, 0,
+                             msg="a session id matching no transcript must exit non-zero")
+        self.assertIn(dir_a, stderr_text,
+                       msg="every searched project directory must be named, "
+                           "including ones that held unrelated sessions")
+        self.assertIn(dir_b, stderr_text,
+                       msg="every searched project directory must be named, "
+                           "including one that held nothing at all")
+
+    def test_skips_a_torn_final_line_without_failing_when_the_transcript_is_still_being_written(self):
+        """The last line is a truncated, mid-write JSON fragment (no closing
+        brace) — the run must still succeed using every valid line before it."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-torn", [
+                _human_record(1000),
+                _turn_duration_record(1010, duration_ms=10_000),
+            ])
+            project_dir = os.path.join(tmp, "-Users-x-project")
+            path = os.path.join(project_dir, f"{sid}.jsonl")
+            with open(path, "a") as fh:
+                fh.write('{"type": "assistant", "timestamp": "2026-0')  # torn, no trailing newline
+
+            payload = self._build(tmp, sid)
+
+        self.assertEqual(len(payload["turns"]), 1)
+        self.assertEqual(payload["turns"][0]["duration_seconds"], 10.0)
+
+    def test_streams_a_multi_thousand_record_transcript_without_loading_it_fully_into_memory(self):
+        """5,000 filler records plus the one real turn — wrapping the
+        transcript's file handle to forbid read()/readlines() proves the
+        parse path only ever iterates it line-by-line, never materializes
+        the whole file."""
+        class _ForbidWholeFileRead:
+            """Delegates iteration to the real handle; raises on any call
+            that would load the whole remaining file into memory at once."""
+
+            def __init__(self, fh):
+                self._fh = fh
+
+            def __iter__(self):
+                return iter(self._fh)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc_info):
+                return self._fh.__exit__(*exc_info)
+
+            def read(self, *args, **kwargs):
+                raise AssertionError("must not call read() — that loads the whole file into memory")
+
+            def readlines(self, *args, **kwargs):
+                raise AssertionError("must not call readlines() — that loads the whole file into memory")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            filler = [{"type": "assistant", "timestamp": _iso(500 + i),
+                       "message": {"role": "assistant", "content": [{"type": "text", "text": "..."}]}}
+                      for i in range(5000)]
+            sid = _make_session(tmp, "sess-huge", [
+                _human_record(0),
+                *filler,
+                _turn_duration_record(1010, duration_ms=10_000),
+            ])
+            transcript_path = os.path.join(tmp, "-Users-x-project", f"{sid}.jsonl")
+            real_open = open
+
+            def guarded_open(path, *args, **kwargs):
+                fh = real_open(path, *args, **kwargs)
+                if os.path.abspath(path) == os.path.abspath(transcript_path):
+                    return _ForbidWholeFileRead(fh)
+                return fh
+
+            with mock.patch("builtins.open", side_effect=guarded_open):
+                payload = self._build(tmp, sid)
+
+        self.assertEqual(payload["turns"][0]["duration_seconds"], 10.0)
+
+
+if __name__ == "__main__":
+    unittest.main()
