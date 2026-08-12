@@ -14,7 +14,9 @@
 #     cached/fresh subscriptionType.
 #
 #   statusline-tier.sh advisor
-#     advisorModel, or the literal "none".
+#     the advisor family that ran on this session's newest
+#     turn ("opus"), or the literal "none", read from the
+#     transcript_path on stdin.
 #
 #   statusline-tier.sh duration
 #     whole-hour session length, read from
@@ -438,11 +440,73 @@ filter_rendered_lines() {
 # Advisor field
 # ----------------------------------------------------------
 
-# read_advisor_field - the configured advisorModel, or the
+# How much of a live transcript's tail the advisor read
+# covers - enough for the newest main-chain assistant entry,
+# whose tool_use blocks can run long.
+#
+# Bounded because a long session's transcript reaches tens
+# of megabytes, and the status line re-renders constantly.
+: "${STATUSLINE_ADVISOR_TAIL_BYTES:=1048576}"
+
+# read_advisor_field - the advisor this session's newest turn
+# actually ran, as a bare model family ("opus"), or "none".
+#
+# Reads the session transcript, not advisorModel in
+# settings.json: /advisor in any other session rewrites that
+# file, and every running session re-derives from it.
+#
+# So the setting answers "configured globally", never "ran
+# here" - and --advisor at launch never writes it at all.
+read_advisor_field() {
+  local payload transcript_path advisor
+  payload="$(cat)"
+  transcript_path="$(printf '%s' "$payload" | jq -r '.transcript_path // empty' 2>/dev/null)"
+
+  if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
+    advisor="$(read_effective_advisor "$transcript_path")"
+    if [ -n "$advisor" ]; then
+      model_family_label "$advisor"
+      return 0
+    fi
+  fi
+
+  model_family_label "$(read_configured_advisor)"
+}
+
+# read_effective_advisor - the advisorModel stamped on the
+# newest main-chain assistant entry, "none" when that entry
+# carries no advisor, and empty when the transcript holds no
+# such entry yet.
+#
+# Claude Code stamps the RESOLVED advisor per assistant
+# message, so the absent-field case also covers a configured
+# advisor that could not advise that turn's request model.
+read_effective_advisor() {
+  local transcript_path="$1"
+
+  # A sub-agent's turns land in this same file and can be the
+  # newest entries in it, so isSidechain is what separates
+  # the main session's own advisor from theirs.
+  #
+  # fromjson? skips both a tail-truncated first line and a
+  # half-written last line rather than aborting the read
+  # while Claude Code is mid-append.
+  tail -c "$STATUSLINE_ADVISOR_TAIL_BYTES" "$transcript_path" 2>/dev/null \
+    | jq -Rnr '
+      reduce (inputs | fromjson? // empty) as $entry (null;
+        if $entry.type == "assistant" and ($entry.isSidechain | not)
+        then $entry
+        else . end
+      )
+      | if . == null then empty else (.advisorModel // "none") end
+    '
+}
+
+# read_configured_advisor - the advisorModel setting, or the
 # literal string "none" when unset (matches this repo's own
 # default: the committed settings.json carries no
 # advisorModel key).
-read_advisor_field() {
+read_configured_advisor() {
   local settings_file
   settings_file="$(claude_settings_path)"
   if [ -f "$settings_file" ]; then
@@ -450,6 +514,17 @@ read_advisor_field() {
   else
     printf 'none\n'
   fi
+}
+
+# model_family_label - a model id reduced to its family, so
+# the field reads at one width whichever source answered it:
+# "claude-opus-5" and "opus" both render "opus".
+#
+# An id matching neither shape prints verbatim, surfacing
+# something unrecognized instead of mangling it.
+model_family_label() {
+  local model="${1##*claude-}"
+  printf '%s\n' "${model%%-[0-9]*}"
 }
 
 # ----------------------------------------------------------
@@ -724,7 +799,12 @@ Command widget
 
 Usage:
   statusline-tier.sh tier       Print the cached/fresh subscriptionType.
-  statusline-tier.sh advisor    Print advisorModel, or "none" if unset.
+  statusline-tier.sh advisor    Print the advisor family that ran on this
+                                 session's newest turn as "opus", or "none",
+                                 reading transcript_path from the Claude
+                                 Code statusline JSON on stdin. Falls back
+                                 to the advisorModel setting before the
+                                 session's first reply lands.
   statusline-tier.sh duration   Print whole-hour session duration, reading
                                  cost.total_duration_ms from the Claude
                                  Code statusline JSON on stdin.

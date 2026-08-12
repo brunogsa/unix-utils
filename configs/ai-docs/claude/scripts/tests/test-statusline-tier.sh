@@ -2160,5 +2160,143 @@ it_should_skip_a_request_that_came_back_as_an_api_error
 it_should_keep_summing_when_a_live_transcripts_last_line_is_half_written
 it_should_render_nothing_when_the_session_has_no_cost_figure_yet
 
+# ============================================================
+# describe("StatusLineAdvisorSegment")
+# ============================================================
+
+# The advisor field reports the advisor that actually ran on
+# this session's newest turn, read out of the session
+# transcript rather than the advisorModel setting.
+#
+# Each test drives a whole fake project directory plus an
+# explicit settings-file override, so the maintainer's live
+# transcripts and real settings.json are never read.
+
+# read_advisor_for - the advisor field as ccstatusline would
+# render it, for one transcript and one settings file.
+read_advisor_for() {
+  local transcript_path="$1" settings_file="$2"
+  jq -nc --arg t "$transcript_path" '{transcript_path: $t}' \
+    | STATUSLINE_SETTINGS_FILE="$settings_file" bash "$SCRIPT_UNDER_TEST" advisor
+}
+
+it_should_report_the_advisor_that_ran_on_the_most_recent_turn() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  printf '%s\n' \
+    '{"type":"user","isSidechain":false,"message":{"role":"user"}}' \
+    '{"type":"assistant","isSidechain":false,"advisorModel":"claude-opus-5","message":{"id":"msg_014Qk"}}' \
+    '{"type":"assistant","isSidechain":false,"advisorModel":"claude-opus-5","message":{"id":"msg_015Rm"}}' \
+    >"$transcript"
+
+  # Deliberately a settings file carrying a different value:
+  # a stale settings read would surface "sonnet" here.
+  printf '{"advisorModel":"sonnet"}' >"$sandbox/settings.json"
+
+  actual="$(read_advisor_for "$transcript" "$sandbox/settings.json")"
+
+  assert_eq \
+    "StatusLineAdvisorSegment > happy > should report the advisor that ran on the session's most recent turn" \
+    "opus" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_report_no_advisor_after_the_advisor_is_turned_off_mid_session() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  # The turns before the operator ran /advisor off still carry
+  # their advisor, and only the newest turn reports the state
+  # the field is meant to show.
+  printf '%s\n' \
+    '{"type":"assistant","isSidechain":false,"advisorModel":"claude-opus-5","message":{"id":"msg_016Sn"}}' \
+    '{"type":"assistant","isSidechain":false,"message":{"id":"msg_017To"}}' \
+    >"$transcript"
+
+  printf '{"advisorModel":"opus"}' >"$sandbox/settings.json"
+
+  actual="$(read_advisor_for "$transcript" "$sandbox/settings.json")"
+
+  assert_eq \
+    "StatusLineAdvisorSegment > corner > should report no advisor once the operator turns the advisor off mid-session" \
+    "none" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_report_the_main_sessions_advisor_rather_than_a_subagents() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  # A sub-agent's turns land in this same transcript and can
+  # be the newest entries in it, while running an advisor of
+  # their own that says nothing about the main session.
+  printf '%s\n' \
+    '{"type":"assistant","isSidechain":false,"advisorModel":"claude-opus-5","message":{"id":"msg_018Up"}}' \
+    '{"type":"assistant","isSidechain":true,"advisorModel":"claude-sonnet-5","message":{"id":"msg_019Vq"}}' \
+    >"$transcript"
+
+  actual="$(read_advisor_for "$transcript" "$sandbox/absent-settings.json")"
+
+  assert_eq \
+    "StatusLineAdvisorSegment > corner > should report the main session's own advisor rather than a sub-agent's" \
+    "opus" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_fall_back_to_the_configured_advisor_before_the_first_reply_lands() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  # A session's whole first turn has no reply in its
+  # transcript yet, so the configured value is the only answer
+  # available.
+  printf '%s\n' \
+    '{"type":"user","isSidechain":false,"message":{"role":"user"}}' \
+    >"$transcript"
+
+  printf '{"advisorModel":"opus"}' >"$sandbox/settings.json"
+
+  actual="$(read_advisor_for "$transcript" "$sandbox/settings.json")"
+
+  assert_eq \
+    "StatusLineAdvisorSegment > corner > should fall back to the configured advisor before the session's first reply lands" \
+    "opus" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_keep_reading_the_advisor_when_the_live_transcripts_last_line_is_half_written() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  # The status line re-renders while Claude Code is appending,
+  # so the tail can be a fragment.
+  #
+  # Aborting on it would drop the field to the settings value
+  # for exactly as long as the write is in flight.
+  printf '%s\n' \
+    '{"type":"assistant","isSidechain":false,"advisorModel":"claude-opus-5","message":{"id":"msg_020Wr"}}' \
+    >"$transcript"
+  printf '{"type":"assistant","isSidechain":false,"advis' >>"$transcript"
+
+  actual="$(read_advisor_for "$transcript" "$sandbox/absent-settings.json")"
+
+  assert_eq \
+    "StatusLineAdvisorSegment > corner > should keep reading the advisor when the live transcript's last line is half-written" \
+    "opus" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_report_the_advisor_that_ran_on_the_most_recent_turn
+it_should_report_no_advisor_after_the_advisor_is_turned_off_mid_session
+it_should_report_the_main_sessions_advisor_rather_than_a_subagents
+it_should_fall_back_to_the_configured_advisor_before_the_first_reply_lands
+it_should_keep_reading_the_advisor_when_the_live_transcripts_last_line_is_half_written
+
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
