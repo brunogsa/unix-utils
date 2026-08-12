@@ -505,8 +505,8 @@ function assertSgeSiglaNivel(value: string): asserts value is SgeSiglaNivel {
 - [Instruction] Convert a `.sh` script to its target language when it embeds `awk`, `jq`, `sed -E`, or a here-doc, or when it exceeds 128 lines with none of those four.
   - [Why] Either signal marks a script a junior developer can no longer read end-to-end — the same bar measured 54 of 82 real scripts across this repo needing conversion.
 
-- [Instruction] Exempt a hook that fires on every tool call from that verdict — it stays `.sh` regardless; exclude `install.sh` from the bar entirely.
-  - [Why] A per-tool-call hook pays a fresh interpreter cold start on every turn, and `install.sh` bootstraps the interpreters a conversion would make it depend on.
+- [Instruction] Exempt a script from that verdict when a per-invocation cold start is measurable — a per-tool-call hook, or a ccstatusline widget command; exclude `install.sh` from the bar entirely.
+  - [Why] A script re-entered on every tool call or every status-line render pays that cold start each time, and `install.sh` bootstraps the interpreters a conversion would make it depend on.
 
 - [Instruction] Name every script `<verb>-<object>[-<qualifier>]` in kebab-case, sourcing the verb list, category denylist, and abbreviation allowlist from `scripts/naming-rule-lexicon.json` — never restate them here.
   - [Why] A lexicon file keeps the verb list, denylist, and allowlist a single edit instead of a prose rewrite scattered across every rule change.

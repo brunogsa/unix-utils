@@ -38,16 +38,22 @@ RISKY_CONSTRUCT_PATTERNS = (
     re.compile(r"<<[-~]?\s*['\"]?[A-Za-z_][A-Za-z0-9_]*"),
 )
 
-# These hooks fire on every tool call, so an interpreter cold
-# start per call is measurable — they stay .sh regardless of
-# their own construct/line-cap verdict.
+# Every script here runs on a path hot enough that a fresh
+# interpreter cold start per invocation is measurable, so it
+# stays .sh regardless of its own construct/line-cap verdict.
 #
-# A hook firing once per event (Stop, SessionStart) is not in
-# this set and takes the ordinary verdict below.
-PER_CALL_HOOK_BASENAMES = frozenset({
+# Two invocation shapes qualify: a hook firing on every tool
+# call, and a ccstatusline Custom Command firing once per
+# widget on every status-line render.
+#
+# A script invoked once per event (a Stop or SessionStart
+# hook, a one-shot CLI helper) is not in this set and takes
+# the ordinary verdict below.
+COLD_START_SENSITIVE_BASENAMES = frozenset({
     "claude-git-guard.sh",
     "claude-rm-guard.sh",
     "deep-reviewer-write-guard.sh",
+    "statusline-tier.sh",
 })
 
 # Three standing exclusions apply with no exception: the
@@ -101,9 +107,9 @@ def has_risky_construct(text: str) -> bool:
 def compute_verdict(path: Path, text: str) -> str:
     """Return "convert" or "stays-sh" for a non-excluded script:
     a risky construct or an over-cap line count converts it,
-    except a per-call hook always stays shell regardless of
-    either trigger."""
-    if path.name in PER_CALL_HOOK_BASENAMES:
+    except a cold-start-sensitive script always stays shell
+    regardless of either trigger."""
+    if path.name in COLD_START_SENSITIVE_BASENAMES:
         return "stays-sh"
     if has_risky_construct(text):
         return "convert"

@@ -193,6 +193,34 @@ class TestClassifyConversionHappy(_TempDirTestCase):
         payload = _single_result(_run(script))
         self.assertEqual(payload["verdict"], "convert")
 
+    def test_should_classify_stays_sh_for_the_statusline_widget_invoked_once_per_widget_on_every_status_line_render(self):
+        tmp_path = self._tmp()
+
+        # Same trap as the per-tool-call hook above: risky
+        # construct + over-cap body. ccstatusline invokes this
+        # script once per widget it wires, on every render, so
+        # a conversion would pay one interpreter cold start per
+        # widget per render.
+        body = ["awk '{print}' x"] + [f"echo {i}" for i in range(LINE_CAP)]
+        script = _write_script(tmp_path, "statusline-tier.sh", ["#!/usr/bin/env bash", *body])
+        payload = _single_result(_run(script))
+        self.assertEqual(payload["verdict"], "stays-sh")
+
+    def test_should_classify_convert_for_a_sibling_of_the_statusline_widget_that_no_render_invokes_under_the_ordinary_line_cap_trigger(self):
+        tmp_path = self._tmp()
+
+        # Fixture sits in the widget's own directory under the
+        # widget's own name prefix, and still converts: the
+        # exemption is keyed on the exact basenames measured to
+        # run per render, so a directory- or prefix-shaped
+        # widening would sweep in neighbours nobody evaluated.
+        script = _script_with_line_count(
+            tmp_path, "configs/ai-docs/claude/scripts/statusline-resolve-base-ref.sh",
+            LINE_CAP + 1,
+        )
+        payload = _single_result(_run(script))
+        self.assertEqual(payload["verdict"], "convert")
+
     def test_should_accumulate_results_across_multiple_tree_roots_when_the_tree_flag_is_repeated(self):
         tmp_path = self._tmp()
         repo_a = tmp_path / "repo-a"
