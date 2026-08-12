@@ -49,7 +49,10 @@ MAX_DESC_CHARS=250
 #   markdown-standards-fixer - carries an ask-the-user-first guard
 #     the caller must read BEFORE dispatching. It cannot move to
 #     ## Boundaries, which loads only after that decision is made.
-DESC_BUDGET_EXEMPT="markdown-standards-fixer"
+#   comment-format-fixer - same ask-the-user-first guard, same
+#     reason: the file may not be the caller's to hold to these
+#     standards, and that must be read before dispatch, not after.
+DESC_BUDGET_EXEMPT="markdown-standards-fixer comment-format-fixer"
 
 # description_chars - character count of a file's frontmatter
 # description, independent of locale and of awk's byte-oriented

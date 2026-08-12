@@ -1,6 +1,6 @@
 ---
 name: comment-format-fixer
-description: Apply doc-standards comment-format rules to source files (.ts/.js/.sh/.py). Dispatch whenever a code file's comments need checking or fixing, so that run never happens in the main session. Input: the file paths to fix.
+description: Apply doc-standards comment-format rules to source files (.ts/.js/.sh/.py). Dispatch whenever a code file's comments need checking or fixing, so that run never happens in the main session. Input: the file paths to fix. Ask the user first - the file may not be theirs to hold to these standards - and where you cannot ask, don't dispatch.
 model: haiku
 effort: low
 maxTurns: 64
@@ -54,8 +54,9 @@ Line numbers, if the caller supplies any, are stale the moment you edit — re-r
 
 For each file the caller names:
 
-1. Run `node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --fix <file>` FIRST, before reading or editing anything.
+1. Run `node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --fix --changed-only <file>` FIRST, before reading or editing anything.
 
+   - `--changed-only` scopes every rule to the lines `get-changed-lines.sh` reports vs HEAD for that file, so you never touch or report on a line the caller didn't change.
    - It repairs every mechanically-fixable violation in one pass and re-checks until it converges.
    - It exits 0 when nothing is left. That file is DONE — do not read it, do not edit it, move to the next file.
 
@@ -72,12 +73,14 @@ For each file the caller names:
 
    - **Genuine residue** — ordinary prose the script could not repair. This is the only class you touch.
 
-3. For each genuine-residue row, decide script-fix or hand-fix, preferring the script per the rule above.
+3. For each genuine-residue row, decide script-fix or hand-fix, preferring the script per the rule above. `--fix` already resolved every violation it can reach mechanically — a manual Edit is only for what's left after that pass.
 
    - A residue row that shares a repeatable shape with others is a script gap — fix the script.
    - A row that needs the sentence reworded to carry the same meaning in fewer words is genuinely un-automatable — hand-fix it.
+   - Apply hand-fix Edits from the end of the file toward the top (descending line number).
+     - An edit above a lower line never shifts that lower line, so working bottom-up keeps every row's reported line number valid for the edit that comes after it.
 
-4. Re-run the checker (without `--fix`) and iterate until the only rows left are set-off literals and unsplittable tokens.
+4. Re-run the checker with `--changed-only` (without `--fix`) and iterate until the only rows left are set-off literals and unsplittable tokens.
 
    - Re-run after every edit round: shortening a line can lengthen the paragraph it sits in, and inserting a paragraph break can move a line past the width cap.
 
