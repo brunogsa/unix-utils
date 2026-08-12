@@ -124,6 +124,20 @@ class TestSessionTimeline(unittest.TestCase):
                 stack.enter_context(patch)
             return sti.build_timeline_payload(sid)
 
+    def _assert_partition_reconciles(self, payload):
+        """The D5 partition invariant: the four buckets' seconds sum exactly
+        to wall clock, and their rounded percentages sum to exactly 100.
+        Excludes a zero-duration session, where there is no span to divide by
+        and every bucket comes back 0 — that fixture asserts its own totals."""
+        partition = payload["time_partition"]
+        buckets = partition["buckets"]
+        total_seconds = sum(buckets[name]["seconds"] for name in buckets)
+        self.assertEqual(total_seconds, partition["wall_clock_seconds"],
+                          msg="the four buckets must be a true partition of wall clock")
+        total_pct = sum(buckets[name]["pct"] for name in buckets)
+        self.assertEqual(total_pct, 100.0,
+                          msg="the rounded percentages must reconcile to exactly 100")
+
     def test_attributes_engaged_time_to_main_api_tool_exec_and_agent_occupied_buckets_that_partition_wall_clock(self):
         """The core D5 partition: a tool call and a subagent run that both
         fall inside one turn's span must be carved out of main-API time, not
@@ -150,9 +164,7 @@ class TestSessionTimeline(unittest.TestCase):
                           msg="the turn's 1000-1100 span minus the 20s tool-exec "
                               "and 50s agent-occupied carved out of it")
         self.assertEqual(buckets["human_idle"]["seconds"], 0.0)
-        total_seconds = sum(buckets[name]["seconds"] for name in buckets)
-        self.assertEqual(total_seconds, 100.0,
-                          msg="the four buckets must be a true partition of wall clock")
+        self._assert_partition_reconciles(payload)
 
 
     def test_unions_two_overlapping_bash_calls_into_one_tool_exec_span_instead_of_double_counting_their_overlap(self):
@@ -175,13 +187,7 @@ class TestSessionTimeline(unittest.TestCase):
         self.assertEqual(buckets["tool_exec"]["seconds"], 70.0,
                           msg="the overlapping 1010-1060 and 1030-1080 spans "
                               "must union to 70s, not sum to 100s")
-        total_seconds = sum(buckets[name]["seconds"] for name in buckets)
-        self.assertEqual(total_seconds, payload["time_partition"]["wall_clock_seconds"],
-                          msg="the four buckets must still be a true partition of wall clock")
-        total_pct = sum(buckets[name]["pct"] for name in buckets)
-        self.assertEqual(total_pct, 100.0,
-                          msg="percentages must reconcile to 100 on this "
-                              "overlapping fixture too, not only the hand-picked one")
+        self._assert_partition_reconciles(payload)
 
     def test_carves_a_concurrent_bash_call_entirely_out_of_tool_exec_when_it_falls_inside_a_subagent_run(self):
         """A Bash call (1020-1080) running concurrently INSIDE a Task span
@@ -204,13 +210,7 @@ class TestSessionTimeline(unittest.TestCase):
                           msg="the Bash call's 1020-1080 span sits entirely "
                               "inside the Task's 1010-1090 span")
         self.assertEqual(buckets["agent_occupied"]["seconds"], 80.0)
-        total_seconds = sum(buckets[name]["seconds"] for name in buckets)
-        self.assertEqual(total_seconds, payload["time_partition"]["wall_clock_seconds"],
-                          msg="the four buckets must still be a true partition of wall clock")
-        total_pct = sum(buckets[name]["pct"] for name in buckets)
-        self.assertEqual(total_pct, 100.0,
-                          msg="percentages must reconcile to 100 on this "
-                              "overlapping fixture too, not only the hand-picked one")
+        self._assert_partition_reconciles(payload)
 
     def test_labels_both_task_and_agent_tool_use_names_as_agent_occupied_time(self):
         """AGENT_TOOL_NAMES must recognize both "Task" and "Agent" as a
@@ -279,14 +279,7 @@ class TestSessionTimeline(unittest.TestCase):
                           msg="wall clock must widen to the turn's 910-1010 span, "
                               "not stay at the 1000-1010 record range")
         self.assertEqual(buckets["main_api"]["seconds"], 100.0)
-        total_seconds = sum(buckets[name]["seconds"] for name in buckets)
-        self.assertEqual(total_seconds, 100.0,
-                          msg="the four buckets must still be a true partition "
-                              "of the widened wall clock")
-        total_pct = sum(buckets[name]["pct"] for name in buckets)
-        self.assertEqual(total_pct, 100.0,
-                          msg="percentages must reconcile to 100 even when a "
-                              "span precedes the earliest record timestamp")
+        self._assert_partition_reconciles(payload)
 
     def test_reconciles_every_wall_clock_percentage_to_100_after_rounding(self):
         """A 6-second wall clock split 2/1/2/1 across the four buckets forces
@@ -309,9 +302,7 @@ class TestSessionTimeline(unittest.TestCase):
         self.assertEqual(buckets["tool_exec"]["pct"], 17.0)
         self.assertEqual(buckets["agent_occupied"]["pct"], 33.0)
         self.assertEqual(buckets["human_idle"]["pct"], 17.0)
-        total_pct = sum(buckets[name]["pct"] for name in buckets)
-        self.assertEqual(total_pct, 100.0,
-                          msg="the rounded percentages must reconcile to exactly 100")
+        self._assert_partition_reconciles(payload)
 
     def test_guards_every_duration_percentage_against_division_by_zero_for_a_zero_duration_or_single_record_session(self):
         """A session with only one record ever written has no span to divide
