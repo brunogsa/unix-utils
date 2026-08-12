@@ -126,7 +126,9 @@ For each file the caller names:
 - Preserve every technical term, identifier, field name, backtick code-span, and link verbatim.
 
 - Keep each paragraph on ONE physical line — never hard-wrap mid-sentence. Splitting means genuinely separate sentences or bullets, not inserted line breaks.
-  - `check-hard-wrap.py <file>` reports every wrap, so run it to confirm YOUR OWN edits added none. Compare its output before and after your edits; only the lines you touched are yours.
+  - Run `check-hard-wrap.py --changed-only <file>` to confirm YOUR OWN edits added no wrap.
+
+  - `--changed-only` scopes every hit to lines `get-changed-lines.sh` reports as changed, so it never reports a wrap you did not introduce.
 
   - Do NOT clear the wraps it reported before you started, and never join lines to silence it.
     - Most docs here are hard-wrapped throughout, and unwrapping them is a separate tracked task.
