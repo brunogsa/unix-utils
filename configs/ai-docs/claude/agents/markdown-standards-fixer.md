@@ -65,16 +65,24 @@ The caller gives you a list of files (sometimes with specific line numbers; line
 For each file the caller names:
 
 1. Read it. Read `~/.claude/skills/doc-standards/references/density-rules.md` once for the rewrite patterns and what the verifiers exclude (code fences, tables, link-only lines).
-2. Run `fix-density.py <file>` FIRST, before reading or editing anything.
+2. Run `fix-density.py --changed-only <file>` FIRST, before reading or editing anything.
+
+   - `--changed-only` scopes every rule to the lines `get-changed-lines.sh` reports vs HEAD for that file, so you never touch or report on a line the caller didn't change.
 
    - It clears every mechanically-fixable violation in one pass: safe sentence-boundary splits, and the blank line each gapped bullet needs.
    - It exits 0 when nothing is left. That file is then DONE — do not read it, do not edit it, move to the next file.
 
    - It exits 1 having printed the lines it refused to touch, as `<line>:<chars>:<words>` residue rows. Those, and only those, are yours.
 
+   - It exits 2 when `get-changed-lines.sh` cannot scope the file — not a git work tree, or a missing file. Report that file and move on; re-running never clears it.
+
    - Why script-first: it is deterministic and sub-second, where hand-splitting the same lines burns turns and risks mangling prose it should only have re-wrapped.
 
-3. Hand-fix ONLY the residue lines it reported. A residue row is one of two kinds, and the fix differs:
+3. Hand-fix ONLY the residue lines it reported.
+
+   `fix-density.py` already resolved every violation it can reach mechanically — density splits, bullet-gap insertions — so a manual Edit is only for residue those passes can't fix.
+
+   A residue row is one of two kinds, and the fix differs:
 
    - A line with no safe split boundary — no boundary at all, or every one sitting inside a bracket pair or code span. Rephrase it; there is nothing to split at.
 
@@ -88,12 +96,15 @@ For each file the caller names:
 
      - A paragraph whose only boundary is a clause boundary — `; `, ` — `, ` -- ` — rather than `. `. Breaking there severs one sentence into two paragraphs.
 
+   - Apply hand-fix Edits from the end of the file toward the top (descending line number).
+     - An edit above a lower line never shifts that lower line, so working bottom-up keeps every row's reported line number valid for the edit that comes after it.
+
    - Never "fix" the script to split these instead. `fix-density.py`'s module docstring records why each refusal is deliberate, and a fabricated marker corrupts the counts `performance-check/check.sh` measures.
 
-4. Run BOTH `check-density.sh <file>` and `check-bullet-gap.py <file>` from `~/.claude/skills/doc-standards/scripts/`, and iterate on that file until each exits 0.
+4. Run BOTH `check-density.sh --changed-only <file>` and `check-bullet-gap.py --changed-only <file>` from `~/.claude/skills/doc-standards/scripts/`, and iterate on that file until each exits 0.
    - Re-run both after every edit round: splitting a long line adds bullets, which can open a new gap, and gapping a bullet never fixes a density hit.
 
-5. Run `check-rule-citations.py <file>` LAST, once the line rules are green, and fix each row it reports.
+5. Run `check-rule-citations.py --changed-only <file>` LAST, once the line rules are green, and fix each row it reports.
 
    - Running it last is deliberate: splitting a long line can move a rule pointer onto a new line, so a citation pass done first reports line numbers that no longer exist.
 
@@ -103,7 +114,10 @@ For each file the caller names:
 
    - `forwarded` — the cited file only points onward. Retarget at the file that ends the chain, so the reader takes one hop instead of two.
 
-   - Re-run it until it exits 0. Then re-run `check-density.sh` once more, since a retargeted pointer can push its line back over the cap.
+   - Fix rows from the end of the file toward the top (descending line number).
+     - An edit above a lower line never shifts that lower line, so working bottom-up keeps every row's reported line number valid for the edit that comes after it.
+
+   - Re-run it until it exits 0. Then re-run `check-density.sh --changed-only` once more, since a retargeted pointer can push its line back over the cap.
 
 ## Boundaries
 
