@@ -23,7 +23,7 @@ paragraph at "; " or " — " and the second half opens mid-sentence, severing
 one sentence into two paragraphs rather than separating two. So a paragraph
 whose only boundary is a clause boundary is left alone and reported.
 
-Two shapes are refused BY DESIGN rather than split, and reported as residue
+Three shapes are refused BY DESIGN rather than split, and reported as residue
 for a human to resolve - they are NOT gaps in this script to close:
 
   - A bullet carrying a counting marker ([Instruction]/[Why]/[Example]).
@@ -38,6 +38,12 @@ for a human to resolve - they are NOT gaps in this script to close:
   - A blockquote line. Its second half would need its own "> ", and the
     blank line a paragraph split relies on ends the quote rather than
     extending it.
+
+  - An ATX heading line. Its second half can be neither a heading of its
+    own - that invents a section check-sections.sh would then assert on -
+    nor a paragraph, which severs the heading's own text into body prose
+    below it, silently renaming the section. Only the author can decide
+    how a heading shortens, so the whole line is left for them.
 
 Splitting is conservative: a line is split only at a recognized boundary
 (". ", " — ", " -- ", "; ") whose remainder doesn't already start with a
@@ -80,6 +86,7 @@ BOUNDARY = re.compile(r"\. | — | -- |; ")
 STRUCTURAL_TOKEN = re.compile(r"^(?:[-*+#|>]|\d+\.)")
 BULLET_MARKER = re.compile(r"^([ \t]*)([-*+] |\d+\. )")
 BLOCKQUOTE = re.compile(r"^[ \t]*>")
+HEADING = re.compile(r"^[ \t]*#{1,6} ")
 # Matched against a bullet's text, past its own marker. The leading class
 # absorbs the bold/backtick wrapping CLAUDE.md's own counting-conventions
 # section uses, e.g. "- **`[Instruction]`** - one directive, ...".
@@ -115,13 +122,13 @@ def second_half_prefix(line):
     """The prefix `line`'s second half carries so it renders as its own
     element rather than joining the first half's, or None when no prefix
     can make it one without a choice only the author can make - see the
-    module docstring for why a marker-carrying bullet and a blockquote
-    are both refused rather than guessed at.
+    module docstring for why a marker-carrying bullet, a blockquote and
+    a heading are all refused rather than guessed at.
 
     A bullet's second half nests one level under it, aligned past the
     parent's own marker; any other line carries the parent's indent alone
     and relies on split_line's blank line to become its own paragraph."""
-    if BLOCKQUOTE.match(line):
+    if BLOCKQUOTE.match(line) or HEADING.match(line):
         return None
     marker = BULLET_MARKER.match(line)
     if marker:

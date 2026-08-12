@@ -542,6 +542,24 @@ EOF
   assert_contains 'should refuse to split a blockquote line (residue row)' "$FIX_OUT" '3:307:49'
 }
 
+it_should_refuse_to_split_an_over_cap_heading_and_report_it_as_residue() {
+  new_fixture heading.md
+  cat > "$FIXTURE" <<'EOF'
+# Heading fixture
+
+### How the harness normalizes a non-deterministic captured value such as a duration. Every one of them passes through one single shared mask set before any comparison between the expected and actual output happens.
+
+Body text.
+EOF
+
+  local before
+  before="$(cat "$FIXTURE")"
+  run_fix
+  assert_eq 'should refuse to split an over-cap heading (exit code reports residue)' "1" "$FIX_EXIT"
+  assert_eq 'should refuse to split an over-cap heading (file content byte-identical, the heading text never severed into body prose below it)' "$before" "$(cat "$FIXTURE")"
+  assert_contains 'should refuse to split an over-cap heading (residue row)' "$FIX_OUT" '3:215:34'
+}
+
 it_should_split_an_over_cap_line_at_a_sentence_boundary_with_both_halves_under_the_caps
 it_should_split_an_over_cap_top_level_bullet_into_a_parent_bullet_and_an_indented_sub_bullet
 it_should_nest_a_split_sub_bullet_one_level_under_an_already_indented_parent_bullet
@@ -549,6 +567,7 @@ it_should_split_an_ordered_list_item_at_a_real_sentence_boundary_rather_than_at_
 it_should_refuse_to_split_a_bullet_carrying_a_counting_marker_and_report_it_as_residue
 it_should_refuse_to_split_a_bullet_whose_counting_marker_is_wrapped_in_bold_and_backticks
 it_should_refuse_to_split_a_blockquote_line_and_report_it_as_residue
+it_should_refuse_to_split_an_over_cap_heading_and_report_it_as_residue
 it_should_leave_an_over_cap_line_with_no_safe_boundary_untouched_and_exit_1_reporting_residue
 it_should_leave_a_fenced_code_block_untouched_even_with_an_over_cap_line_inside_it
 it_should_leave_a_mermaid_block_untouched_even_with_an_over_cap_line_inside_it
