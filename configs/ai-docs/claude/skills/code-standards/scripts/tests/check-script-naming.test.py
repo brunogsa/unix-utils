@@ -343,7 +343,7 @@ class TestCheckScriptNamingRealCorpusRegression:
         not OH_MY_ZSH_ROOT.is_dir(),
         reason=f"no oh-my-zsh checkout at {OH_MY_ZSH_ROOT}",
     )
-    def test_should_report_exactly_the_31_oh_my_zsh_commands_lib_and_root_scripts_known_to_fail_naming(self):
+    def test_should_report_exactly_the_30_oh_my_zsh_commands_lib_and_root_scripts_known_to_fail_naming(self):
         # Batch 15 in rename-list.md (`## Batch 15 — oh-my-zsh
         # commands/ + lib/ + root`) is this same checker run in
         # file mode against oh-my-zsh's real globs — the correct
@@ -352,12 +352,19 @@ class TestCheckScriptNamingRealCorpusRegression:
         # Hand-coded here instead of parsed from that file, so
         # this test's expectation stays independent of it.
         #
-        # 28 commands/+lib/ paths plus 3 root-level scripts (Scout
+        # 27 commands/+lib/ paths plus 3 root-level scripts (Scout
         # #89: collect_tree_scripts no longer blanket-skips
         # anything sitting directly at tree_root — only the named
         # install.sh/run-tests.sh entrypoints stay exempt, and
         # oh-my-zsh's install.sh is the only one of those two
         # present at this root).
+        #
+        # commands/render-ascii-mermaid.sh dropped out of this set
+        # once the shared naming-rule-lexicon.json learned the verb
+        # 'render' (unix-utils commit 1c48a12) — the lexicon is
+        # shared across the whole five-repo stack, so a verb added
+        # for one repo's script can legitimately un-fail another
+        # repo's script that used the same verb correctly.
         expected_relative_fail_paths = {
             "json-deep-sort.js",
             "perf-check.sh",
@@ -380,7 +387,6 @@ class TestCheckScriptNamingRealCorpusRegression:
             "commands/jsonl-distribution-table.js",
             "commands/jsonl-merge-and-sort-by-field.js",
             "commands/notify.sh",
-            "commands/render-ascii-mermaid.sh",
             "commands/search-replace-vim.sh",
             "commands/vimreview.sh",
             "lib/aicopy.sh",
@@ -396,7 +402,13 @@ class TestCheckScriptNamingRealCorpusRegression:
 
         assert result.returncode == 1, result.stdout + result.stderr
         assert _relative_fail_paths(result, OH_MY_ZSH_ROOT) == expected_relative_fail_paths
-        assert "OK" not in result.stdout
+
+        # Every other discovered script in this corpus must still
+        # fail naming -- render-ascii-mermaid.sh is the one
+        # legitimate pass now that the lexicon knows 'render'.
+        ok_lines = [line for line in result.stdout.splitlines() if "OK: " in line]
+        assert len(ok_lines) == 1
+        assert ok_lines[0].endswith("commands/render-ascii-mermaid.sh")
 
     @pytest.mark.skipif(
         not UNIX_UTILS_ROOT.is_dir(),
