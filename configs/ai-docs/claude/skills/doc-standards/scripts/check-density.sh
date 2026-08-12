@@ -3,7 +3,7 @@
 #
 # AI-consumed output (compact, parseable):
 #   <line>:<chars>:<words>      one per violation
-#   == <filename>               header (only when multiple files have hits)
+#   == <filename>               header (for each file that has hits)
 #
 # Caps default to 256 chars / 32 words per line (override with flags).
 #
