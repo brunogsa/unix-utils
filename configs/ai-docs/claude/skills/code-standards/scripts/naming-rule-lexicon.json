@@ -14,6 +14,7 @@
     "open",
     "parse",
     "post",
+    "render",
     "resolve",
     "verify"
   ],
