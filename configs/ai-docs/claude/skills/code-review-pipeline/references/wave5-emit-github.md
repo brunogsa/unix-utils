@@ -20,7 +20,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
    - Run `~/.claude/skills/doc-standards/scripts/check-bullet-gap.py "$work_dir"/wave5-comment-*.md "$work_dir/wave2-guide.md"` in one call too.
 
    - Fix every flagged line so all files exit 0. Which path you take depends on whether this Wave 5 runs in the top-level session or inside a spawned subagent:
-     - **Calling session (you were NOT spawned as a subagent):** delegate to `agent(subAgent=markdown-standards-fixer, title=Fix review-comment markdown)` and wait for it to report every file at exit 0.
+     - **Calling session (you were NOT spawned as a subagent):** delegate to `agent(subAgent=markdown-standards-fixer, title=Fix review-comment markdown - haiku low)` and wait for it to report every file at exit 0.
        - Pass it the file list: `$work_dir`/wave5-comment-*.md plus `$work_dir/wave2-guide.md`.
        - It splits over-cap lines, gaps bullets missing their blank line, and re-runs both scripts itself, and is contractually barred from rewording or dropping content — so each finding's wording stays verbatim.
 

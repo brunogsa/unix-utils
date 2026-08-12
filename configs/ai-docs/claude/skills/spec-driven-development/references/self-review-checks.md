@@ -49,7 +49,7 @@ Two dispatches that repair rather than judge — never inline, in either case.
 
 - **Artifacts Valid**: if any mermaid diagram exists, is it valid per `mmdc`? A failure routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)` on the resolved doc path.
 
-- **Density**: spawn `agent(subAgent=markdown-standards-fixer, title=Fix spec/plan markdown)` on the resolved spec and plan paths.
+- **Density**: spawn `agent(subAgent=markdown-standards-fixer, title=Fix spec/plan markdown - haiku low)` on the resolved spec and plan paths.
   - Runs after mermaid validation, since repairing a diagram adds lines density must then measure.
 
 **No toggle switches these two off.**
