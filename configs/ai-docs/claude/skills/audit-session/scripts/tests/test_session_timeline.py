@@ -155,6 +155,111 @@ class TestSessionTimeline(unittest.TestCase):
                           msg="the four buckets must be a true partition of wall clock")
 
 
+    def test_unions_two_overlapping_bash_calls_into_one_tool_exec_span_instead_of_double_counting_their_overlap(self):
+        """Two Bash calls of the SAME kind whose spans overlap (1010-1060 and
+        1030-1080) must be merged into their union (1010-1080 = 70s), never
+        summed naively (which would double-count the 1030-1060 overlap and
+        push the partition's total past wall clock)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-bash-overlap", [
+                _human_record(1000),
+                _tool_use_record(1010, "tu_bash1", "Bash", command="pytest ."),
+                _tool_result_record(1060, "tu_bash1"),
+                _tool_use_record(1030, "tu_bash2", "Bash", command="pytest ."),
+                _tool_result_record(1080, "tu_bash2"),
+                _turn_duration_record(1100, duration_ms=100_000),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        self.assertEqual(buckets["tool_exec"]["seconds"], 70.0,
+                          msg="the overlapping 1010-1060 and 1030-1080 spans "
+                              "must union to 70s, not sum to 100s")
+        total_seconds = sum(buckets[name]["seconds"] for name in buckets)
+        self.assertEqual(total_seconds, payload["time_partition"]["wall_clock_seconds"],
+                          msg="the four buckets must still be a true partition of wall clock")
+        total_pct = sum(buckets[name]["pct"] for name in buckets)
+        self.assertEqual(total_pct, 100.0,
+                          msg="percentages must reconcile to 100 on this "
+                              "overlapping fixture too, not only the hand-picked one")
+
+    def test_carves_a_concurrent_bash_call_entirely_out_of_tool_exec_when_it_falls_inside_a_subagent_run(self):
+        """A Bash call (1020-1080) running concurrently INSIDE a Task span
+        (1010-1090) is agent-occupied time, not tool-exec — cross-kind
+        overlap must subtract fully, leaving tool_exec at 0, not the Bash
+        call's own 60s."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-crosskind-overlap", [
+                _human_record(1000),
+                _tool_use_record(1010, "tu_task", "Task"),
+                _tool_use_record(1020, "tu_bash", "Bash", command="pytest ."),
+                _tool_result_record(1080, "tu_bash"),
+                _tool_result_record(1090, "tu_task"),
+                _turn_duration_record(1100, duration_ms=100_000),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        self.assertEqual(buckets["tool_exec"]["seconds"], 0.0,
+                          msg="the Bash call's 1020-1080 span sits entirely "
+                              "inside the Task's 1010-1090 span")
+        self.assertEqual(buckets["agent_occupied"]["seconds"], 80.0)
+        total_seconds = sum(buckets[name]["seconds"] for name in buckets)
+        self.assertEqual(total_seconds, payload["time_partition"]["wall_clock_seconds"],
+                          msg="the four buckets must still be a true partition of wall clock")
+        total_pct = sum(buckets[name]["pct"] for name in buckets)
+        self.assertEqual(total_pct, 100.0,
+                          msg="percentages must reconcile to 100 on this "
+                              "overlapping fixture too, not only the hand-picked one")
+
+    def test_labels_both_task_and_agent_tool_use_names_as_agent_occupied_time(self):
+        """AGENT_TOOL_NAMES must recognize both "Task" and "Agent" as a
+        subagent run occupying wall clock, not just one of the two names."""
+        for agent_tool_name in ("Task", "Agent"):
+            with self.subTest(agent_tool_name=agent_tool_name):
+                with tempfile.TemporaryDirectory() as tmp:
+                    sid = _make_session(tmp, f"sess-agentname-{agent_tool_name.lower()}", [
+                        _human_record(1000),
+                        _tool_use_record(1010, "tu_agent", agent_tool_name),
+                        _tool_result_record(1090, "tu_agent"),
+                        _turn_duration_record(1100, duration_ms=100_000),
+                    ])
+                    payload = self._build(tmp, sid)
+                buckets = payload["time_partition"]["buckets"]
+                self.assertEqual(buckets["agent_occupied"]["seconds"], 80.0,
+                                  msg=f'a "{agent_tool_name}" tool_use/tool_result '
+                                      f"span must be agent-occupied")
+
+    def test_reports_the_agent_hours_vs_wall_clock_occupied_pair_explicitly(self):
+        """Two 60s subagent runs whose main-side Task spans overlap
+        (1010-1070 and 1040-1100, unioning to 90s of wall-clock-occupied
+        time) must still report their own 60+60=120s of agent_hours_seconds
+        independently — nothing else in the payload pins this pair, so a
+        deleted or zeroed key would otherwise ship silently."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-agent-hours", [
+                _human_record(1000),
+                _tool_use_record(1010, "tu_task1", "Task"),
+                _tool_result_record(1070, "tu_task1"),
+                _tool_use_record(1040, "tu_task2", "Task"),
+                _tool_result_record(1100, "tu_task2"),
+                _turn_duration_record(1110, duration_ms=110_000),
+            ], subagent_files={
+                "agent-a.jsonl": [
+                    _tool_use_record(2000, "tu_a", "Bash", command="ls"),
+                    _tool_result_record(2060, "tu_a"),
+                ],
+                "agent-b.jsonl": [
+                    _tool_use_record(3000, "tu_b", "Bash", command="ls"),
+                    _tool_result_record(3060, "tu_b"),
+                ],
+            })
+            payload = self._build(tmp, sid)
+
+        self.assertEqual(
+            payload["time_partition"]["agent_hours_vs_wall_clock_occupied"],
+            {"agent_hours_seconds": 120.0, "wall_clock_occupied_seconds": 90.0})
+
     def test_widens_wall_clock_to_cover_a_turn_duration_span_that_starts_before_the_transcripts_first_record(self):
         """A turn_duration record's measured duration can exceed the elapsed
         time since the session's first record (e.g. a slow first turn) —
@@ -294,7 +399,10 @@ class TestSessionTimeline(unittest.TestCase):
             payload = self._build(tmp, sid)
 
         self.assertTrue(payload["turn_ranking"]["too_early_to_rank"])
-        self.assertIn("note", payload["turn_ranking"])
+        self.assertEqual(payload["turn_ranking"]["note"],
+                          "only 1 turn(s) recorded; nothing to rank yet",
+                          msg="key presence alone doesn't pin the note's actual "
+                              "text — an empty note must fail this")
         self.assertNotIn("ranked_turn_indices", payload["turn_ranking"])
 
 
@@ -370,6 +478,35 @@ class TestSessionTimeline(unittest.TestCase):
         self.assertIn("hook", commits["note"])
         self.assertIn("amend", commits["note"])
 
+    def test_attributes_a_main_commit_to_the_second_turn_when_its_the_only_turn_containing_it(self):
+        """A single-turn fixture can't prove turn attribution — index 0
+        would be the only index that exists whether or not the code reads
+        span containment at all. Two turns, with the sole commit landing
+        only inside the SECOND turn's span, is what actually pins it."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-turnindex", [
+                _human_record(1000),
+                _turn_duration_record(1100, duration_ms=100_000),
+                _human_record(2000),
+                _tool_use_record(2010, "tu_commit", "Bash", command="git commit -m 'feat'"),
+                _tool_result_record(2011, "tu_commit"),
+                _tool_use_record(1500, "tu_gap_commit", "Bash", command="git commit -m 'gap'"),
+                _tool_result_record(1501, "tu_gap_commit"),
+                _turn_duration_record(2100, duration_ms=100_000),
+            ])
+            payload = self._build(tmp, sid)
+
+        commits_by_timestamp = {item["timestamp"]: item for item in payload["commits"]["items"]}
+        turn1_commit = commits_by_timestamp[_iso(2010)]
+        self.assertEqual(turn1_commit["turn_index"], 1,
+                          msg="the commit at 2010 falls inside turn 1's 2000-2100 "
+                              "span, not turn 0's 1000-1100 span")
+        gap_commit = commits_by_timestamp[_iso(1500)]
+        self.assertIsNone(gap_commit["turn_index"],
+                           msg="a commit at 1500 falls in the gap between turn 0's "
+                               "1000-1100 span and turn 1's 2000-2100 span — no "
+                               "turn's span contains it")
+
     def test_labels_a_subagent_runs_agent_type_and_model_as_unknown_without_inventing_a_tier_when_its_meta_json_sidecar_is_missing(self):
         """agent-nometa.jsonl has no agent-nometa.meta.json sidecar on disk —
         the run must still be reported, labeled unknown rather than guessed."""
@@ -414,6 +551,30 @@ class TestSessionTimeline(unittest.TestCase):
         expected_day = sti.usage_report.local_day(1000)
         self.assertEqual(payload["local_day"], expected_day)
 
+
+    def test_resolves_a_sid_against_a_later_project_directory_when_it_is_not_in_the_first_one_searched(self):
+        """The failure-path test only proves every directory gets NAMED when
+        none of them match. This is the success-path counterpart: the
+        transcript lives ONLY in the second of two project directories, so
+        resolution must not stop after checking the first one."""
+        with tempfile.TemporaryDirectory() as tmp:
+            dir_a = os.path.join(tmp, "-Users-x-project-a")
+            dir_b = os.path.join(tmp, "-Users-x-project-b")
+            os.makedirs(dir_a)
+            os.makedirs(dir_b)
+            _write_transcript(dir_a, "other-session.jsonl", [_human_record(1000)])
+            sid = "sess-only-in-dir-b"
+            _write_transcript(dir_b, f"{sid}.jsonl", [
+                _human_record(1000),
+                _turn_duration_record(1010, duration_ms=10_000),
+            ])
+            with mock.patch.object(sti.usage_report, "TRANSCRIPTS_ROOT", tmp):
+                payload = sti.build_timeline_payload(sid)
+
+        self.assertEqual(payload["sid"], sid,
+                          msg="the payload must build from dir_b's transcript "
+                              "even though dir_a was searched first and had "
+                              "no match")
 
     def test_exits_non_zero_naming_every_project_directory_searched_when_the_given_session_id_matches_no_transcript(self):
         """An unknown session id must fail loudly and name every directory
