@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# test-linearize-tasks.sh - plain-bash test file for linearize-tasks.sh.
+# test-resolve-task-order.sh - plain-bash test file for resolve-task-order.sh.
 #
 # Usage:
-#   bash test-linearize-tasks.sh
+#   bash test-resolve-task-order.sh
 #
 # Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
 # by design, matching the other scripts in this skill's test suite.
@@ -10,7 +10,7 @@
 set -uo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCRIPT="$script_dir/linearize-tasks.sh"
+SCRIPT="$script_dir/resolve-task-order.sh"
 
 work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT
@@ -42,7 +42,7 @@ assert_true() {
   fi
 }
 
-# run_script - invokes linearize-tasks.sh against a plan-file fixture and a
+# run_script - invokes resolve-task-order.sh against a plan-file fixture and a
 # task-ids list, capturing stdout/stderr/exit code into
 # VERDICT_OUT/VERDICT_ERR/VERDICT_EXIT.
 run_script() {
@@ -64,7 +64,7 @@ write_plan() {
   printf '%s' "$path"
 }
 
-# run_verify_script - invokes linearize-tasks.sh in --verify mode against a
+# run_verify_script - invokes resolve-task-order.sh in --verify mode against a
 # plan-file fixture, the in-scope task-ids set (what the user was shown),
 # and a candidate task-order list (what the user typed back), capturing
 # stdout/stderr/exit code into VERDICT_OUT/VERDICT_ERR/VERDICT_EXIT.

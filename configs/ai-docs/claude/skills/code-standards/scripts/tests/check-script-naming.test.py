@@ -85,6 +85,20 @@ class TestCheckScriptNamingHappy:
         assert result.returncode == 0, result.stdout + result.stderr
         assert "OK" in result.stdout
 
+    def test_should_pass_a_name_built_on_the_verb_for_writing_to_a_remote(self, tmp_path):
+        # Every other lexicon verb reads or transforms locally, so a
+        # script that writes to a remote had no verb it could be named
+        # after — and a checker with no word for what a script does
+        # pressures the author to rename a precise name into a vague
+        # one. 'post' closes that hole for every such script, not just
+        # the one that surfaced it.
+        script = _write(tmp_path / "scripts" / "post-jira-comment.sh")
+
+        result = _run(str(script))
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "OK" in result.stdout
+
 
 class TestCheckScriptNamingFailure:
     def test_should_fail_a_name_whose_verb_carries_no_object(self, tmp_path):
@@ -155,6 +169,23 @@ class TestCheckScriptNamingFailure:
         # recognized verb or a >3-char object, so the abbreviation branch
         # is the only rule these names could still trip.
         script = _write(tmp_path / "scripts" / script_name)
+
+        result = _run(str(script))
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "OK" in result.stdout
+
+    def test_should_not_flag_the_atlassian_document_format_acronym_as_an_abbreviation(self, tmp_path):
+        # 'adf' is the Atlassian Document Format — a format acronym
+        # with no spelled-out form anyone writes, exactly like the
+        # already-allowlisted 'dag'. Naming the format is what makes
+        # such a script's name precise, so the allowlist has to carry
+        # it or the rule pushes the author toward a vaguer name.
+        #
+        # 'build' is a recognized verb and 'payload' is past the
+        # len<=3 gate, so the abbreviation branch is the only rule
+        # this name could still trip.
+        script = _write(tmp_path / "scripts" / "build-adf-payload.py")
 
         result = _run(str(script))
 

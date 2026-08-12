@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# linearize-tasks.sh - decide whether a set of plan tasks can ship as a
+# resolve-task-order.sh - decide whether a set of plan tasks can ship as a
 # linear stack of PRs (one PR per task, each branch cut from the previous
 # one). Two invocation forms: print the order, or verify a candidate order.
 #
 # Usage:
-#   linearize-tasks.sh <plan-file> <task-ids>
-#   linearize-tasks.sh --verify <plan-file> <task-ids> <candidate-order>
+#   resolve-task-order.sh <plan-file> <task-ids>
+#   resolve-task-order.sh --verify <plan-file> <task-ids> <candidate-order>
 #
 # First form - <task-ids> is the same comma-space "N, N" list get-pr-tasks.sh
 # prints and /implement's own <task-ids> argument accepts (missing spaces

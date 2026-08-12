@@ -13,6 +13,7 @@
     "normalize",
     "open",
     "parse",
+    "post",
     "resolve",
     "verify"
   ],
@@ -23,6 +24,7 @@
   ],
   "abbreviation_allowlist": [
     "ac",
+    "adf",
     "dag",
     "fit",
     "gap",
