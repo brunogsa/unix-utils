@@ -27,7 +27,6 @@ import importlib.util
 import json
 import os
 import re
-import sys
 from datetime import datetime, timezone
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -64,14 +63,12 @@ usage_report = _load_usage_report()
 def resolve_session(sid):
     """(main_path, subagent_paths) for sid, or exit(1) naming every searched
     project directory — delegates entirely to find_session_transcripts() /
-    project_directories() so sid resolution never drifts from
-    claude-usage-report.py's own --session behavior."""
+    project_directories() / exit_session_not_found() so sid resolution AND its
+    failure message never drift from claude-usage-report.py's own --session
+    behavior."""
     main_path, subagent_paths = usage_report.find_session_transcripts(sid)
     if main_path is None:
-        print(f"session {sid!r} not found. Searched project directories:", file=sys.stderr)
-        for project_dir in usage_report.project_directories():
-            print(f"  {project_dir}", file=sys.stderr)
-        sys.exit(1)
+        usage_report.exit_session_not_found(sid)
     return main_path, subagent_paths
 
 

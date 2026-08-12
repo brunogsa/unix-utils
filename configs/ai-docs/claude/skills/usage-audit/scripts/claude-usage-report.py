@@ -325,6 +325,18 @@ def find_session_transcripts(sid):
     return None, []
 
 
+def exit_session_not_found(sid):
+    """Exit 1 naming every project directory searched — the one failure path
+    for a sid that matches no transcript. Shared with
+    extract-session-timeline.py, which imports this module rather than
+    re-deriving the message: two copies would let the two entry points drift
+    into reporting the same failure differently."""
+    print(f"session {sid!r} not found. Searched project directories:", file=sys.stderr)
+    for project_dir in project_directories():
+        print(f"  {project_dir}", file=sys.stderr)
+    sys.exit(1)
+
+
 def oldest_retained_day():
     """Local day of the oldest transcript still on disk, or None when there are none.
 
@@ -1640,11 +1652,7 @@ def main():
         # the immutable closed-day record those two produce.
         main_path, subagent_files = find_session_transcripts(args.session)
         if main_path is None:
-            print(f"session {args.session!r} not found. Searched project directories:",
-                  file=sys.stderr)
-            for project_dir in project_directories():
-                print(f"  {project_dir}", file=sys.stderr)
-            sys.exit(1)
+            exit_session_not_found(args.session)
         result = aggregate([main_path], subagent_files, 0, float("inf"))
         print(json.dumps(build_payload(result, args.top), indent=2))
         return
