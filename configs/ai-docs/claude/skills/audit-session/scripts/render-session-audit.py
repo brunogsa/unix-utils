@@ -114,10 +114,13 @@ def _render_cost_summary(cost):
 def _render_time_partition(timeline):
     partition = timeline.get("time_partition", {})
     buckets = partition.get("buckets", {})
-    # `pct` is printed exactly as supplied -- session-timeline.py already
-    # reconciled every bucket's share to sum to 100 after rounding; a
-    # renderer that recomputed from seconds could disagree with that
-    # reconciled number and print two different answers for one figure.
+    # `pct` is printed exactly as supplied --
+    # extract-session-timeline.py already reconciled every
+    # bucket's share to sum to 100 after rounding;
+    #
+    # a renderer that recomputed from seconds could disagree
+    # with that reconciled number and print two different
+    # answers for one figure.
     rows = "".join(
         f"<li>{_escape(name)}: {_escape(bucket.get('seconds', 0))}s "
         f"({_escape(bucket.get('pct', 0))}%)</li>\n"
@@ -180,11 +183,11 @@ def render_audit_html(cost, timeline, narrative, template=None):
 
 def _sanitize_sid_for_filename(sid):
     """A session id must never carry a path separator into the output
-    filename -- session-timeline.py/claude-usage-report.py both treat sid
-    as an opaque token, never a path, but a malformed or adversarial one
-    (e.g. containing "../") must not be able to steer write_audit_html's
-    output outside the requested out_dir, such as into
-    usage-history/snapshots/ (AC5)."""
+    filename -- extract-session-timeline.py/claude-usage-report.py both
+    treat sid as an opaque token, never a path, but a malformed or
+    adversarial one (e.g. containing "../") must not be able to steer
+    write_audit_html's output outside the requested out_dir, such as
+    into usage-history/snapshots/ (AC5)."""
     return re.sub(r"[/\\]", "_", sid)
 
 

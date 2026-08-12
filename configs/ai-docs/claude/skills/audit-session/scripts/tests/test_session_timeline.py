@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Tests for session-timeline.py: the time-and-work-done extractor that
-builds timeline.json for one Claude Code session.
+"""Tests for extract-session-timeline.py: the time-and-work-done extractor
+that builds timeline.json for one Claude Code session.
 
 Fixtures: none on disk — every transcript is a handful of hand-readable
 records built in code via _human_record()/_tool_use_record()/
@@ -39,7 +39,7 @@ def _load_module(filename, module_name):
     return module
 
 
-sti = _load_module("session-timeline.py", "session_timeline")
+sti = _load_module("extract-session-timeline.py", "session_timeline")
 
 
 def _iso(epoch):

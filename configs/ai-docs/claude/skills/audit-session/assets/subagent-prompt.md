@@ -25,7 +25,7 @@ merging them.
 2. Run `claude-usage-report.py --session <sid> --json` and save its stdout
    to `/tmp/audit-session-<sid>/cost.json`.
 
-3. Run `session-timeline.py <sid>` and save its stdout to
+3. Run `extract-session-timeline.py <sid>` and save its stdout to
    `/tmp/audit-session-<sid>/timeline.json`.
 
 4. Dispatch the 4 fixed shards below, in parallel, all in one message. Each

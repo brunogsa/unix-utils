@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-# session-timeline - Build timeline.json: the time-and-work-done extractor for
-# one Claude Code session.
+# extract-session-timeline - Build timeline.json: the time-and-work-done
+# extractor for one Claude Code session.
 #
 # Usage:
-#   session-timeline.py <sid>
+#   extract-session-timeline.py <sid>
 #
 # stdin: none. stdout: the timeline.json payload (pretty-printed JSON) — a
 # chronological event feed, the D5 wall-clock time partition (main-API /

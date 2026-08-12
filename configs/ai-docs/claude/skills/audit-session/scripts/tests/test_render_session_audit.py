@@ -5,9 +5,10 @@ timeline.json + narrative.json.
 
 Fixtures: hand-built dicts shaped like the real producers' output —
 cost.json mirrors claude-usage-report.py's build_payload() (see its
-TestSessionMode suite), timeline.json mirrors session-timeline.py's
-build_timeline_payload(). No fixture reads real ~/.claude data; every test
-passes in-memory payloads directly to render_audit_html()/write_audit_html().
+TestSessionMode suite), timeline.json mirrors
+extract-session-timeline.py's build_timeline_payload(). No fixture reads
+real ~/.claude data; every test passes in-memory payloads directly to
+render_audit_html()/write_audit_html().
 
 Usage:
   pytest scripts/tests/test_render_session_audit.py
@@ -53,7 +54,7 @@ def _cost_fixture(**overrides):
 
 def _timeline_fixture(**overrides):
     """A trimmed but realistically-shaped timeline.json, matching
-    session-timeline.py's build_timeline_payload() key names."""
+    extract-session-timeline.py's build_timeline_payload() key names."""
     base = {
         "sid": "sess-abc123",
         "local_day": "2026-08-10",
@@ -237,7 +238,7 @@ class TestSessionAuditRendererEscaping(unittest.TestCase):
 
 class TestSessionAuditRendererReconciledPercentages(unittest.TestCase):
     def test_should_render_the_reconciled_wall_clock_percentages_from_the_timeline_payload_without_re_deriving_them(self):
-        """session-timeline.py's _percentages_summing_to_100() already
+        """extract-session-timeline.py's _percentages_summing_to_100() already
         reconciles every bucket's pct via largest-remainder rounding so the
         buckets sum to exactly 100. A renderer that recomputed
         seconds/wall_clock_seconds itself could print a different, naively-
