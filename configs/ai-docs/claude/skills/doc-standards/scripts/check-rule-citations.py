@@ -48,9 +48,9 @@ authors the rule, or - if the rule is stated in more than one place - delete the
 extra homes so there is one owner to cite.
 
 --changed-only scopes every reported row to lines the current git session
-changed vs HEAD, via the shared changed-lines.sh helper (never reimplemented
+changed vs HEAD, via the shared get-changed-lines.sh helper (never reimplemented
 here). Every row is single-line-anchored to the line carrying the citation
-pointer, so a row is in scope iff that line number is in the changed-lines
+pointer, so a row is in scope iff that line number is in the get-changed-lines
 set; an out-of-scope hit is entirely invisible, not merely deprioritized.
 Scope is recomputed fresh per file, per invocation - never cached.
 
@@ -62,7 +62,7 @@ Usage:
 Exit codes:
   0  clean
   1  citations found that don't resolve
-  2  usage error, or changed-lines.sh could not determine changed lines
+  2  usage error, or get-changed-lines.sh could not determine changed lines
 """
 
 import re
@@ -139,13 +139,13 @@ def iter_prose_lines(path):
 
 
 class ChangedLinesError(Exception):
-    """changed-lines.sh could not determine a file's changed lines (not a
+    """get-changed-lines.sh could not determine a file's changed lines (not a
     git work tree, missing file, etc). Never caught into a clean result or
     a whole-file-in-scope fallback - the caller propagates it as exit 2."""
 
 
 def changed_line_numbers(path):
-    """Line numbers `path` has changed vs git HEAD, via changed-lines.sh -
+    """Line numbers `path` has changed vs git HEAD, via get-changed-lines.sh -
     the one shared helper every --changed-only checker shells out to,
     rather than reimplementing its git/awk logic locally.
 
@@ -154,13 +154,13 @@ def changed_line_numbers(path):
     directory this script itself happened to be invoked from.
     """
     result = subprocess.run(
-        [str(SCRIPT_DIR / "changed-lines.sh"), str(path)],
+        [str(SCRIPT_DIR / "get-changed-lines.sh"), str(path)],
         cwd=str(Path(path).resolve().parent),
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
-        raise ChangedLinesError(result.stderr.strip() or "changed-lines.sh failed")
+        raise ChangedLinesError(result.stderr.strip() or "get-changed-lines.sh failed")
     return {int(line) for line in result.stdout.split()}
 
 

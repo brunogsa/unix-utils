@@ -341,8 +341,8 @@ def test_unreadable_file_is_a_usage_error(tmp_path):
 def init_repo(tmp_path, name):
     """Create a throwaway git repo under tmp_path and return its path.
 
-    Mirrors test-changed-lines.sh's new_repo(): every --changed-only case
-    needs a real git history underneath it, since changed-lines.sh (the
+    Mirrors test-get-changed-lines.sh's new_repo(): every --changed-only case
+    needs a real git history underneath it, since get-changed-lines.sh (the
     helper --changed-only shells out to) refuses to run outside one.
     Identity is set locally so the fixture commit never depends on the
     machine's global git config.
@@ -365,9 +365,9 @@ def commit_all(repo, message="base"):
 def run_changed_only(repo, *filenames):
     """Run check-hard-wrap.py --changed-only with cwd=repo.
 
-    changed-lines.sh resolves the repo root from the invoking process's
+    get-changed-lines.sh resolves the repo root from the invoking process's
     OWN cwd (git rev-parse --show-toplevel), not from the file argument's
-    path - test-changed-lines.sh invokes it the same way (`cd "$repo" &&
+    path - test-get-changed-lines.sh invokes it the same way (`cd "$repo" &&
     "$SCRIPT" file`). A caller running from anywhere else would have this
     helper report every file as outside the work tree, matching how a
     real fixer agent always runs from inside the repo it is editing.
@@ -496,7 +496,7 @@ def test_changed_only_reports_a_hit_when_only_the_continuation_line_is_new(tmp_p
 
 
 def test_changed_only_on_an_untracked_file_matches_the_full_scan(tmp_path):
-    """changed-lines.sh reports every line of an untracked file as changed,
+    """get-changed-lines.sh reports every line of an untracked file as changed,
     so --changed-only there must be identical to a plain full-file scan -
     no special-casing needed in this script for that shape."""
     repo = init_repo(tmp_path, "repo")
@@ -520,7 +520,7 @@ def test_changed_only_on_an_untracked_file_matches_the_full_scan(tmp_path):
 
 
 def test_changed_only_propagates_a_changed_lines_failure_as_exit_2(tmp_path):
-    """When changed-lines.sh cannot determine scope (here: no git work tree
+    """When get-changed-lines.sh cannot determine scope (here: no git work tree
     underneath tmp_path at all), that failure must propagate as exit 2 -
     never as a fake-clean 0, never as a silent whole-file fallback."""
     doc = tmp_path / "doc.md"

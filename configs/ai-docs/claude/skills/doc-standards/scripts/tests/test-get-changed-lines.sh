@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# test-changed-lines.sh - plain-bash test file for
-# changed-lines.sh.
+# test-get-changed-lines.sh - plain-bash test file for
+# get-changed-lines.sh.
 #
 # Usage:
-#   bash test-changed-lines.sh
+#   bash test-get-changed-lines.sh
 #
 # Exits 0 when every assertion passes, non-zero otherwise.
 # No bats dependency by design, matching this skill area's other
@@ -16,7 +16,7 @@
 set -uo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCRIPT="$script_dir/changed-lines.sh"
+SCRIPT="$script_dir/get-changed-lines.sh"
 
 # pwd -P resolves /var -> /private/var on macOS.
 # The script anchors on `git rev-parse --show-toplevel`, always
@@ -92,7 +92,7 @@ assert_eq "staged-but-uncommitted new file reports every line" "$(printf '1\n2')
 # --- Case 5: file missing -> exit 2 ---
 repo=$(new_repo repo5)
 git -C "$repo" commit -q --allow-empty -m base
-(cd "$repo" && "$SCRIPT" missing.txt) >/tmp/changed-lines-missing.out 2>&1
+(cd "$repo" && "$SCRIPT" missing.txt) >/tmp/get-changed-lines-missing.out 2>&1
 rc=$?
 assert_eq "missing file exits 2" "2" "$rc"
 
@@ -100,12 +100,12 @@ assert_eq "missing file exits 2" "2" "$rc"
 plain_dir="$work_dir/plain"
 mkdir -p "$plain_dir"
 printf 'x\n' > "$plain_dir/file.txt"
-(cd "$plain_dir" && "$SCRIPT" file.txt) >/tmp/changed-lines-norepo.out 2>&1
+(cd "$plain_dir" && "$SCRIPT" file.txt) >/tmp/get-changed-lines-norepo.out 2>&1
 rc=$?
 assert_eq "outside a git work tree exits 2" "2" "$rc"
 
 # --- Case 7: no argument -> usage error, exit 2 ---
-"$SCRIPT" >/tmp/changed-lines-noargs.out 2>&1
+"$SCRIPT" >/tmp/get-changed-lines-noargs.out 2>&1
 rc=$?
 assert_eq "no argument exits 2" "2" "$rc"
 

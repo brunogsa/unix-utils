@@ -34,7 +34,7 @@ stays auditable, not because one is tolerated.
 Usage:
   check-hard-wrap.py [--changed-only] <file> [<file>...]
 
---changed-only scopes every reported hit to the lines changed-lines.sh
+--changed-only scopes every reported hit to the lines get-changed-lines.sh
 reports as changed vs HEAD for that same file, so a fixer's convergence
 loop never re-reports a violation that predates the session's own edits.
 The scope check is the CONTINUATION line's own number (the line already
@@ -43,7 +43,7 @@ printed), never the line it continues - see find_hits()'s docstring.
 Exit codes:
   0  clean
   1  violations found
-  2  usage error, or (with --changed-only) changed-lines.sh failed
+  2  usage error, or (with --changed-only) get-changed-lines.sh failed
 """
 
 import re
@@ -52,7 +52,7 @@ import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-CHANGED_LINES_SCRIPT = SCRIPT_DIR / "changed-lines.sh"
+CHANGED_LINES_SCRIPT = SCRIPT_DIR / "get-changed-lines.sh"
 
 BULLET = re.compile(r"^(\s*)([-*+]|\d+\.)\s")
 FENCE = re.compile(r"^\s*(```|~~~)")
@@ -160,11 +160,11 @@ def find_hits(lines):
 
 
 class ChangedLinesError(Exception):
-    """changed-lines.sh failed to determine scope for one file."""
+    """get-changed-lines.sh failed to determine scope for one file."""
 
 
 def get_changed_line_numbers(path):
-    """The set of line numbers changed-lines.sh reports as changed for
+    """The set of line numbers get-changed-lines.sh reports as changed for
     `path` vs HEAD. Never reimplements its git/awk logic - shells out to
     the one shared helper every doc-standards checker's --changed-only
     scopes itself against, so they can never disagree on what "changed"
@@ -233,7 +233,7 @@ def main(argv):
             print(f"cannot read {path}: {err}", file=sys.stderr)
             return 2
         except ChangedLinesError as err:
-            print(f"changed-lines.sh failed for {err}", file=sys.stderr)
+            print(f"get-changed-lines.sh failed for {err}", file=sys.stderr)
             return 2
 
     return 1 if total else 0

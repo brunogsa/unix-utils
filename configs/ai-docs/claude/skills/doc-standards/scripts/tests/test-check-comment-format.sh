@@ -297,7 +297,7 @@ assert_eq "should exit 2 when given no files" "2" "$?"
 #
 # Each case builds a throwaway git repo, since scope only means
 # something relative to git history -- same reasoning as
-# test-changed-lines.sh, which this flag shells out to.
+# test-get-changed-lines.sh, which this flag shells out to.
 
 # new_git_repo - creates an empty git repo under work_dir and
 # prints its path. Identity is set locally so a fixture commit
@@ -484,7 +484,7 @@ node "$SCRIPT" --fix --changed-only "$repo/clean.py" >/dev/null 2>&1
 assert_eq "should never mutate an unmodified tracked file under a scoped fix" \
   "" "$(diff "$work_dir/unmodified-baseline.py" "$repo/clean.py")"
 
-# --- changed-lines.sh failure: propagate exit 2, never fake
+# --- get-changed-lines.sh failure: propagate exit 2, never fake
 # green ---
 
 plain_dir="$work_dir/not-a-repo"
@@ -495,14 +495,14 @@ VALUE = 1
 EOF
 node "$SCRIPT" --changed-only "$plain_dir/orphan.py" \
   >"$work_dir/notrepo-check.out" 2>&1
-assert_eq "should exit 2 in check mode when changed-lines.sh cannot run" \
+assert_eq "should exit 2 in check mode when get-changed-lines.sh cannot run" \
   "2" "$?"
 assert_contains "should name the file in the exit-2 stderr message" \
   "$(cat "$work_dir/notrepo-check.out")" "orphan.py"
 
 node "$SCRIPT" --fix --changed-only "$plain_dir/orphan.py" \
   >"$work_dir/notrepo-fix.out" 2>&1
-assert_eq "should exit 2 in fix mode when changed-lines.sh cannot run" \
+assert_eq "should exit 2 in fix mode when get-changed-lines.sh cannot run" \
   "2" "$?"
 
 # --- multiple files: --changed-only scopes each one

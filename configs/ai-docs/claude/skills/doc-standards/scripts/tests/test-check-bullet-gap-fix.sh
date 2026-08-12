@@ -14,10 +14,10 @@ set -uo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$script_dir/check-bullet-gap.py"
 
-# pwd -P resolves /var -> /private/var on macOS. changed-lines.sh anchors on
+# pwd -P resolves /var -> /private/var on macOS. get-changed-lines.sh anchors on
 # `git rev-parse --show-toplevel`, always physical, so an unresolved work_dir
 # would make its relative-path comparison miss - same caveat as
-# test-changed-lines.sh.
+# test-get-changed-lines.sh.
 work_dir=$(cd "$(mktemp -d)" && pwd -P)
 trap 'rm -rf "$work_dir"' EXIT
 
@@ -60,8 +60,8 @@ run_check() {
 
 # new_repo - creates an empty git repo under work_dir and prints its path.
 # Identity is set locally so the fixture commit never depends on the
-# machine's global git config. Mirrors test-changed-lines.sh's helper,
-# since --changed-only's whole contract is "what does changed-lines.sh
+# machine's global git config. Mirrors test-get-changed-lines.sh's helper,
+# since --changed-only's whole contract is "what does get-changed-lines.sh
 # report" - there is nothing to assert without a real repo underneath it.
 new_repo() {
   local dir="$work_dir/$1"
@@ -144,7 +144,7 @@ it_should_exit_2_when_given_an_unknown_flag() {
 # Every fixture below shares one violation shape: a parent bullet with a
 # nested child right below it, followed by a sibling bullet flush against
 # the child (no gap) - the same sub-bullet hit the two tests above already
-# exercise, just placed inside a real git repo so changed-lines.sh has
+# exercise, just placed inside a real git repo so get-changed-lines.sh has
 # something to diff against.
 
 it_should_hide_a_pre_existing_violation_and_still_report_a_newly_added_one_under_changed_only() {
@@ -284,9 +284,9 @@ it_should_exit_2_when_changed_lines_sh_fails_outside_a_git_work_tree_in_check_mo
   local err rc
   err=$(cd "$plain_dir" && python3 "$SCRIPT" --changed-only plain.md 2>&1 1>/dev/null)
   rc=$?
-  assert_eq 'should exit 2 in check mode when changed-lines.sh fails outside a git work tree' '2' "$rc"
-  assert_eq 'should name the file in stderr when changed-lines.sh fails (check mode)' \
-    'changed-lines.sh failed for plain.md: changed-lines.sh: not inside a git work tree' "$err"
+  assert_eq 'should exit 2 in check mode when get-changed-lines.sh fails outside a git work tree' '2' "$rc"
+  assert_eq 'should name the file in stderr when get-changed-lines.sh fails (check mode)' \
+    'get-changed-lines.sh failed for plain.md: get-changed-lines.sh: not inside a git work tree' "$err"
 }
 
 it_should_exit_2_when_changed_lines_sh_fails_outside_a_git_work_tree_in_fix_mode() {
@@ -302,10 +302,10 @@ it_should_exit_2_when_changed_lines_sh_fails_outside_a_git_work_tree_in_fix_mode
   before="$(cat "$plain_dir/plain.md")"
   err=$(cd "$plain_dir" && python3 "$SCRIPT" --fix --changed-only plain.md 2>&1 1>/dev/null)
   rc=$?
-  assert_eq 'should exit 2 in --fix mode when changed-lines.sh fails outside a git work tree' '2' "$rc"
-  assert_eq 'should name the file in stderr when changed-lines.sh fails (--fix mode)' \
-    'changed-lines.sh failed for plain.md: changed-lines.sh: not inside a git work tree' "$err"
-  assert_eq 'should never insert into the file when changed-lines.sh fails (no fake fix on error)' \
+  assert_eq 'should exit 2 in --fix mode when get-changed-lines.sh fails outside a git work tree' '2' "$rc"
+  assert_eq 'should name the file in stderr when get-changed-lines.sh fails (--fix mode)' \
+    'get-changed-lines.sh failed for plain.md: get-changed-lines.sh: not inside a git work tree' "$err"
+  assert_eq 'should never insert into the file when get-changed-lines.sh fails (no fake fix on error)' \
     "$before" "$(cat "$plain_dir/plain.md")"
 }
 

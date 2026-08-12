@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# changed-lines.sh - Print changed line numbers vs HEAD
+# get-changed-lines.sh - Print changed line numbers vs HEAD
 # to enable --changed-only scoping in doc-standards checkers.
 #
 # Usage:
-#   changed-lines.sh <file>
+#   get-changed-lines.sh <file>
 #
 # Output: one changed line number per line, ascending, unique,
 # to stdout.
@@ -40,7 +40,7 @@
 set -eo pipefail
 
 usage() {
-  echo "usage: changed-lines.sh <file>" >&2
+  echo "usage: get-changed-lines.sh <file>" >&2
   exit 2
 }
 
@@ -48,12 +48,12 @@ usage() {
 file=$1
 
 command -v git >/dev/null 2>&1 || {
-  echo "changed-lines.sh: git not found" >&2
+  echo "get-changed-lines.sh: git not found" >&2
   exit 2
 }
 
 [ -f "$file" ] || {
-  echo "changed-lines.sh: no such file: $file" >&2
+  echo "get-changed-lines.sh: no such file: $file" >&2
   exit 2
 }
 
@@ -65,7 +65,7 @@ file_dir=$(cd "$(dirname "$file")" && pwd -P)
 abs_file="$file_dir/$(basename "$file")"
 
 git -C "$file_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
-  echo "changed-lines.sh: not inside a git work tree" >&2
+  echo "get-changed-lines.sh: not inside a git work tree" >&2
   exit 2
 }
 
@@ -73,7 +73,7 @@ repo_root=$(git -C "$file_dir" rev-parse --show-toplevel)
 
 rel_file=${abs_file#"$repo_root"/}
 if [ "$rel_file" = "$abs_file" ]; then
-  echo "changed-lines.sh: $file is outside the git work tree" >&2
+  echo "get-changed-lines.sh: $file is outside the git work tree" >&2
   exit 2
 fi
 

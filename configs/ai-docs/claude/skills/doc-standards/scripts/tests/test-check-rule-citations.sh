@@ -441,7 +441,7 @@ EOF
 it_should_exit_2_and_name_the_file_when_changed_lines_sh_cannot_determine_scope() {
   new_skill changed-only-not-a-repo
   # Deliberately no git_init_at - the fixture sits outside any git work
-  # tree, so changed-lines.sh itself exits 2 and this must propagate
+  # tree, so get-changed-lines.sh itself exits 2 and this must propagate
   # rather than read as clean or fall back to whole-file scope.
   cat > "$SKILL_DIR/references/writing-style.md" <<'EOF'
 # Writing style
@@ -452,7 +452,7 @@ EOF
 Group changes per the "Separate planned from incidental" rule in writing-style.md.
 EOF
   run_script_args --changed-only "$SKILL_DIR/references/pr-template.md"
-  assert_eq 'should exit 2 when changed-lines.sh cannot determine scope' "2" "$VERDICT_EXIT"
+  assert_eq 'should exit 2 when get-changed-lines.sh cannot determine scope' "2" "$VERDICT_EXIT"
   assert_contains 'should name the file in the exit-2 stderr message' \
     "$SKILL_DIR/references/pr-template.md"
 }

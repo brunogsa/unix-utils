@@ -23,11 +23,11 @@
 # Usage:
 #   check-density.sh [--max-chars N] [--max-words N] [--changed-only] <file> [<file>...]
 #
-# --changed-only scopes violations to lines changed-lines.sh reports as
-# changed vs git HEAD (see that script's own docstring for what counts
-# as changed) — an out-of-scope violation is never printed and never
-# counts toward the exit code. Scope is recomputed fresh per file on
-# every run; nothing is cached. When changed-lines.sh itself fails for
+# --changed-only scopes violations to lines get-changed-lines.sh reports
+# as changed vs git HEAD (see that script's own docstring for what
+# counts as changed) — an out-of-scope violation is never printed and
+# never counts toward the exit code. Scope is recomputed fresh per file
+# on every run; nothing is cached. When get-changed-lines.sh itself fails for
 # a file (not a git repo, missing file), this script exits 2 and names
 # the file, rather than treating that file as clean or as fully in
 # scope.
@@ -112,7 +112,7 @@ prev_had_hit=0
 for f in "${FILES[@]}"; do
   changed_csv=""
   if [[ $CHANGED_ONLY -eq 1 ]]; then
-    if ! lines=$("$script_dir/changed-lines.sh" "$f" 2>"$err_file"); then
+    if ! lines=$("$script_dir/get-changed-lines.sh" "$f" 2>"$err_file"); then
       echo "check-density.sh: cannot scope $f: $(cat "$err_file")" >&2
       exit 2
     fi

@@ -96,7 +96,7 @@
 // paragraph gets that paragraph split on the next round.
 //
 // --changed-only scopes every rule to the lines
-// changed-lines.sh reports vs HEAD for that file.
+// get-changed-lines.sh reports vs HEAD for that file.
 //
 // A single-line row (WIDTH, SENTENCE-BREAK, BULLET-SPACING,
 // BULLET-BLANK, CODE-GAP) is in scope when its own line
@@ -118,7 +118,7 @@
 //   1  violations found, or residue --fix could not repair
 //
 //   2  usage error, `typescript` not installed, or
-//      changed-lines.sh failed to determine a file's scope.
+//      get-changed-lines.sh failed to determine a file's scope.
 //
 // Examples:
 //   check-comment-format.js path/to/spec.e2e.spec.ts
@@ -134,7 +134,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { createRequire } = require('module');
 
-const CHANGED_LINES_SCRIPT = path.join(__dirname, 'changed-lines.sh');
+const CHANGED_LINES_SCRIPT = path.join(__dirname, 'get-changed-lines.sh');
 
 // Every check below the lexer works off comment ranges plus
 // raw line text, so a language is fully described by how its
@@ -223,7 +223,7 @@ function parseArgs(argv) {
   return { maxChars, maxLines, lang, fix, changedOnly, files };
 }
 
-// Shells out to changed-lines.sh rather than re-deriving git's
+// Shells out to get-changed-lines.sh rather than re-deriving git's
 // diff locally, so every doc-standards checker agrees on what
 // "changed" means.
 //
@@ -231,7 +231,7 @@ function parseArgs(argv) {
 // tree, ...) is never treated as clean or as
 // whole-file-in-scope -- it propagates as exit 2 here too.
 //
-// changed-lines.sh finds its repo from the CWD it runs in, not
+// get-changed-lines.sh finds its repo from the CWD it runs in, not
 // from the file argument, so cwd is pinned to the file's own
 // directory -- otherwise it would resolve against whatever repo
 // this process happened to be launched from.

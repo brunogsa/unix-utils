@@ -32,7 +32,7 @@ The fix is the same for every hit: insert a blank line AFTER the reported line.
 pass repairs every hit without a hit's own insertion shifting the line
 numbers of hits still queued above it.
 
---changed-only scopes both modes to the lines changed-lines.sh reports as
+--changed-only scopes both modes to the lines get-changed-lines.sh reports as
 changed vs HEAD for that file. A hit whose reported line isn't in that set is
 entirely invisible - not printed, not counted toward the exit code, and not
 inserted-into by --fix - so a caller looping "until exit 0" never spins on a
@@ -46,7 +46,7 @@ Usage:
 Exit codes:
   0  clean
   1  violations found (or, with --fix, violations remained after fixing)
-  2  usage error, or changed-lines.sh itself failed (not a git work tree,
+  2  usage error, or get-changed-lines.sh itself failed (not a git work tree,
      missing file)
 """
 
@@ -56,7 +56,7 @@ import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-CHANGED_LINES_SCRIPT = SCRIPT_DIR / "changed-lines.sh"
+CHANGED_LINES_SCRIPT = SCRIPT_DIR / "get-changed-lines.sh"
 
 # Defaults mirror check-density.sh's caps; this script gates at 80% of them.
 MAX_CHARS = 256
@@ -130,7 +130,7 @@ def find_hits(lines, max_chars, max_words):
 
 
 def get_changed_line_set(path):
-    """Line numbers `path` changed vs HEAD, per changed-lines.sh's own
+    """Line numbers `path` changed vs HEAD, per get-changed-lines.sh's own
     contract (docstring at the top of that script): every line for an
     untracked file, only `git diff -U0 HEAD`'s added lines for a tracked
     and modified one, empty for a tracked and unmodified one.
@@ -140,7 +140,7 @@ def get_changed_line_set(path):
     --fix in a convergence loop always scopes against the file's current
     diff, not a stale one from an earlier pass.
 
-    Raises RuntimeError, naming `path`, when changed-lines.sh itself exits
+    Raises RuntimeError, naming `path`, when get-changed-lines.sh itself exits
     non-zero (not a git work tree, missing file) - the caller must treat
     that as a hard failure, never as "clean" or "whole file in scope"."""
     result = subprocess.run(
@@ -150,13 +150,13 @@ def get_changed_line_set(path):
     )
     if result.returncode != 0:
         raise RuntimeError(
-            f"changed-lines.sh failed for {path}: {result.stderr.strip()}"
+            f"get-changed-lines.sh failed for {path}: {result.stderr.strip()}"
         )
     return {int(line) for line in result.stdout.split()}
 
 
 def in_scope_hits(hits, path, changed_only):
-    """`hits` filtered to changed-lines.sh's changed-line set for `path`,
+    """`hits` filtered to get-changed-lines.sh's changed-line set for `path`,
     or `hits` unchanged when --changed-only wasn't requested."""
     if not changed_only:
         return hits

@@ -8,7 +8,7 @@
 #
 # Exits 0 when every assertion passes, non-zero otherwise. No bats
 # dependency by design, matching this skill area's other test suites
-# (test-check-bullet-gap-fix.sh, test-changed-lines.sh).
+# (test-check-bullet-gap-fix.sh, test-get-changed-lines.sh).
 
 set -uo pipefail
 
@@ -16,7 +16,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$script_dir/check-density.sh"
 
 # pwd -P resolves /var -> /private/var on macOS, matching
-# test-changed-lines.sh's own reasoning: changed-lines.sh anchors on
+# test-get-changed-lines.sh's own reasoning: get-changed-lines.sh anchors on
 # `git rev-parse --show-toplevel`, always physical.
 work_dir=$(cd "$(mktemp -d)" && pwd -P)
 trap 'rm -rf "$work_dir"' EXIT
@@ -63,7 +63,7 @@ LONG_WORDCOUNT_LINE=$(printf 'word %.0s' $(seq 1 40))
 
 # new_fixture - writes $2 into a fresh tmp file under a plain
 # (non-git) directory, sets FIXTURE to its path. Used by the baseline
-# whole-file tests, which never invoke changed-lines.sh so cwd/git
+# whole-file tests, which never invoke get-changed-lines.sh so cwd/git
 # state is irrelevant to them.
 new_fixture() {
   local name="$1" content="$2"
@@ -75,7 +75,7 @@ new_fixture() {
 
 # new_repo - creates an empty git repo under work_dir and prints its
 # path. Identity is set locally so the fixture commit never depends on
-# the machine's global git config, matching test-changed-lines.sh.
+# the machine's global git config, matching test-get-changed-lines.sh.
 new_repo() {
   local dir="$work_dir/$1"
   mkdir -p "$dir"
