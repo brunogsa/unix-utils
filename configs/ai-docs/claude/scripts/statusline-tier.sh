@@ -19,9 +19,12 @@
 #     transcript_path on stdin.
 #
 #   statusline-tier.sh duration
-#     whole-hour session length, measured from the earliest
-#     timestamp in the transcript_path on stdin, falling back
-#     to cost.total_duration_ms.
+#     the decorated segment "· ⏱ <N>h" for the whole-hour
+#     session length, measured from the earliest timestamp in
+#     the transcript_path on stdin, falling back to
+#     cost.total_duration_ms. Prints its own separator and
+#     clock label so the group appears or vanishes as one
+#     unit; empty stdout when neither source has a duration.
 #
 #   statusline-tier.sh spend-limit
 #     the org's monthly extra-usage cap in dollars, read
@@ -931,6 +934,49 @@ compute_session_duration_hours() {
   printf '%d\n' $((elapsed_secs / 3600))
 }
 
+# render_session_duration - the whole session-duration row
+# segment, "· ⏱ 90h", replacing ccstatusline's own separator
+# and label widgets for this figure.
+#
+# This widget prints its own leading separator and clock
+# label rather than leaving them to ccstatusline's config,
+# because ccstatusline has no cross-widget dependency: a
+# decoration-only widget renders whether or not the figure
+# beside it did. Split across widgets, an omitted figure
+# still strands a bare "· ⏱  h" on the line. Printing the
+# whole group from one widget is what lets it appear or
+# vanish as a single unit.
+#
+# Precedent: render_subagent_cost prints its own "+" prefix
+# for the same reason.
+render_session_duration() {
+  local payload transcript_path now start_epoch duration_ms hours
+  payload="$(cat)"
+  now="$(date +%s)"
+
+  transcript_path="$(printf '%s' "$payload" | jq -r '.transcript_path // empty' 2>/dev/null)"
+  start_epoch=""
+  [ -n "$transcript_path" ] && start_epoch="$(session_start_epoch "$transcript_path")"
+
+  # The reported elapsed time is only consulted when the
+  # transcript cannot be read, since it restarts at zero
+  # on every "claude --continue".
+  if [ -z "$start_epoch" ]; then
+    duration_ms="$(printf '%s' "$payload" | jq -r '.cost.total_duration_ms // empty' 2>/dev/null)"
+
+    # No transcript and no reported elapsed time means the
+    # widget has nothing to say, and exiting 0 with empty
+    # stdout is how ccstatusline is told to omit it - the
+    # whole decorated segment along with it, since nothing
+    # else in the config renders this group's decoration.
+    [ -z "$duration_ms" ] && return 0
+    start_epoch=$((now - duration_ms / 1000))
+  fi
+
+  hours="$(compute_session_duration_hours "$start_epoch" "$now")"
+  printf '· ⏱ %sh\n' "$hours"
+}
+
 # ----------------------------------------------------------
 # CLI entry point
 # ----------------------------------------------------------
@@ -948,13 +994,16 @@ Usage:
                                  Code statusline JSON on stdin. Falls back
                                  to the advisorModel setting before the
                                  session's first reply lands.
-  statusline-tier.sh duration   Print whole-hour session duration, measured
-                                 from the earliest timestamp in the
-                                 transcript named by transcript_path in the
-                                 Claude Code statusline JSON on stdin.
-                                 Falls back to that JSON's
-                                 cost.total_duration_ms when the transcript
-                                 cannot be read.
+  statusline-tier.sh duration   Print the decorated segment "· ⏱ 3h" for the
+                                 whole-hour session duration, measured from
+                                 the earliest timestamp in the transcript
+                                 named by transcript_path in the Claude Code
+                                 statusline JSON on stdin. Falls back to
+                                 that JSON's cost.total_duration_ms when the
+                                 transcript cannot be read. Prints its own
+                                 separator and clock label so the group
+                                 appears or vanishes as one unit; empty
+                                 stdout when neither source has a duration.
   statusline-tier.sh spend-limit
                                 Print the org's monthly extra-usage cap as
                                  "$1000", read from ccstatusline's usage
@@ -1025,28 +1074,7 @@ main() {
       read_advisor_field
       ;;
     duration)
-      local payload transcript_path now start_epoch duration_ms
-      payload="$(cat)"
-      now="$(date +%s)"
-
-      transcript_path="$(printf '%s' "$payload" | jq -r '.transcript_path // empty' 2>/dev/null)"
-      start_epoch=""
-      [ -n "$transcript_path" ] && start_epoch="$(session_start_epoch "$transcript_path")"
-
-      # The reported elapsed time is only consulted when the
-      # transcript cannot be read, since it restarts at zero
-      # on every "claude --continue".
-      if [ -z "$start_epoch" ]; then
-        duration_ms="$(printf '%s' "$payload" | jq -r '.cost.total_duration_ms // empty' 2>/dev/null)"
-
-        # No transcript and no reported elapsed time means the
-        # widget has nothing to say, and exiting 0 with empty
-        # stdout is how ccstatusline is told to omit it.
-        [ -z "$duration_ms" ] && return 0
-        start_epoch=$((now - duration_ms / 1000))
-      fi
-
-      compute_session_duration_hours "$start_epoch" "$now"
+      render_session_duration
       ;;
     spend-limit)
       read_monthly_spend_limit

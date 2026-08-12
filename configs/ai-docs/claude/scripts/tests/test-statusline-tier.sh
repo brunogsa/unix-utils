@@ -438,7 +438,7 @@ JSON
   # the cursor-position assertion in StatusLineRealRender.
   assert_eq \
     "StatusLineRender > happy > should render tier, model, effort, context window, advisor, context percent, cost, duration and both windows" \
-    "Max opus 2 true" "$tier $advisor $duration $builtins_present"
+    "Max opus · ⏱ 2h true" "$tier $advisor $duration $builtins_present"
   rm -rf "$sandbox"
 }
 
@@ -2425,8 +2425,8 @@ it_should_report_hours_since_the_transcripts_first_entry() {
   # The payload reports 0 ms - exactly what a resumed session
   # sends - so anything but 3h means the reset counter won.
   assert_eq \
-    "StatusLineSessionDuration > happy > should report the hours since the session's first transcript entry so a resumed session keeps its age" \
-    "3 0" "$actual $status"
+    "StatusLineSessionDuration > happy > should render the decorated segment · ⏱ Nh with hours since the session's first transcript entry so a resumed session keeps its age" \
+    "· ⏱ 3h 0" "$actual $status"
   rm -rf "$sandbox"
 }
 
@@ -2447,8 +2447,8 @@ it_should_report_hours_from_the_earliest_entry_when_the_transcript_is_out_of_ord
   # Concurrent sub-agent writes interleave entries, so the
   # first line is not reliably the earliest one.
   assert_eq \
-    "StatusLineSessionDuration > corner > should report hours from the earliest entry when the transcript's entries are out of chronological order" \
-    "3" "$actual"
+    "StatusLineSessionDuration > corner > should render the decorated segment from the earliest entry when the transcript's entries are out of chronological order" \
+    "· ⏱ 3h" "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2470,8 +2470,8 @@ it_should_report_hours_from_the_earliest_entry_when_the_transcript_opens_untimes
   # field, so reading line 1 would find no start at all and
   # fall back to the reset counter.
   assert_eq \
-    "StatusLineSessionDuration > corner > should report hours from the earliest timestamped entry when the transcript opens with an entry carrying none" \
-    "3" "$actual"
+    "StatusLineSessionDuration > corner > should render the decorated segment from the earliest timestamped entry when the transcript opens with an entry carrying none" \
+    "· ⏱ 3h" "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2482,8 +2482,8 @@ it_should_report_the_duration_claude_code_sent_when_the_transcript_cannot_be_rea
   actual="$(render_duration_for 21600000 "$sandbox/a-session-that-was-never-written.jsonl")"
 
   assert_eq \
-    "StatusLineSessionDuration > failure > should report the duration Claude Code sent when the session transcript cannot be read" \
-    "6" "$actual"
+    "StatusLineSessionDuration > failure > should render the decorated segment using the duration Claude Code sent when the session transcript cannot be read" \
+    "· ⏱ 6h" "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2496,8 +2496,13 @@ it_should_render_no_duration_when_neither_the_transcript_nor_the_payload_has_one
   actual="$(printf '{}' | bash "$SCRIPT_UNDER_TEST" duration)"
   status=$?
 
+  # Regression guard: the whole decorated segment (separator,
+  # clock label, figure, unit) must be absent, not merely the
+  # figure - ccstatusline has no cross-widget dependency, so a
+  # decoration-only widget left rendering on its own would
+  # strand "· ⏱  h" on the line even though this figure is gone.
   assert_eq \
-    "StatusLineSessionDuration > failure > should render nothing and exit zero when neither the transcript nor Claude Code offers a duration" \
+    "StatusLineSessionDuration > failure > should render the whole decorated segment as absent, not merely the figure, when neither the transcript nor Claude Code offers a duration" \
     " 0" "$actual $status"
 }
 

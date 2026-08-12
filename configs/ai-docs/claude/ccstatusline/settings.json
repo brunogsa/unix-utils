@@ -15,10 +15,7 @@
       { "id": "sep-2", "type": "custom-text", "customText": "·" },
       { "id": "session-cost", "type": "custom-command", "commandPath": "$HOME/.claude/scripts/statusline-tier.sh session-cost", "timeout": 4000, "color": "green" },
       { "id": "subagent-cost", "type": "custom-command", "commandPath": "$HOME/.claude/scripts/statusline-tier.sh subagent-cost", "timeout": 4000 },
-      { "id": "sep-3", "type": "custom-text", "customText": "·" },
-      { "id": "duration-label", "type": "custom-text", "customText": "⏱ ", "merge": "no-padding" },
-      { "id": "duration", "type": "custom-command", "commandPath": "$HOME/.claude/scripts/statusline-tier.sh duration", "merge": "no-padding" },
-      { "id": "duration-unit", "type": "custom-text", "customText": "h" }
+      { "id": "duration", "type": "custom-command", "commandPath": "$HOME/.claude/scripts/statusline-tier.sh duration" }
     ],
     [
       { "id": "5h-label", "type": "custom-text", "customText": "5h" },
