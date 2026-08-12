@@ -1793,12 +1793,12 @@ write_session_fixture() {
   printf '%s\n' "$sandbox/projects/a-project/a-session.jsonl"
 }
 
-# statusline_json - the fields render_subagent_cost reads out
-# of the payload Claude Code pipes into the status line.
+# statusline_json - the fields the two cost subcommands read
+# out of the payload Claude Code pipes into the status line.
 #
-# The main cost stays in the payload even though the figure
-# is no longer printed, because a missing one still
-# suppresses the addendum.
+# The reported cost stays in the payload because
+# render_session_cost falls back to it whenever the
+# transcript cannot be priced.
 statusline_json() {
   local main_cost="$1" transcript_path="$2"
   jq -nc --argjson c "$main_cost" --arg t "$transcript_path" \
@@ -2051,17 +2051,21 @@ it_should_still_report_a_floor_when_unpriced_subagents_cost_under_a_cent() {
   rm -rf "$sandbox"
 }
 
-it_should_render_nothing_when_the_session_has_no_cost_figure_yet() {
+it_should_render_no_addendum_when_the_session_has_no_transcript_to_price() {
   local actual status
 
-  # Claude Code omits total_cost_usd until the first reply
-  # lands, and a non-zero exit would render an "[Exit: N]"
-  # token in its place.
+  # The addendum needs a transcript path to locate the
+  # sub-agent directory at all, and a non-zero exit would
+  # render an "[Exit: N]" token in its place.
+  #
+  # This is also what keeps the addendum from rendering in
+  # front of an empty main figure, since render_session_cost
+  # is silent on the same missing field.
   actual="$(printf '{}' | bash "$SCRIPT_UNDER_TEST" subagent-cost)"
   status=$?
 
   assert_eq \
-    "StatusLineSubagentCost > failure > should render nothing and exit zero when the session has no cost figure yet" \
+    "StatusLineSubagentCost > failure > should render nothing and exit zero when the session has no transcript to price" \
     " 0" "$actual $status"
 }
 
@@ -2158,7 +2162,281 @@ it_should_still_report_a_floor_when_unpriced_subagents_cost_under_a_cent
 it_should_bill_only_the_subagents_belonging_to_this_session
 it_should_skip_a_request_that_came_back_as_an_api_error
 it_should_keep_summing_when_a_live_transcripts_last_line_is_half_written
-it_should_render_nothing_when_the_session_has_no_cost_figure_yet
+it_should_render_no_addendum_when_the_session_has_no_transcript_to_price
+
+# ============================================================
+# describe("StatusLineSessionCost")
+# ============================================================
+
+# render_session_cost prices this session's own transcript,
+# because the figure Claude Code reports is an in-process
+# counter that restarts at zero on "claude --continue" and
+# then reads $0.00 for a session that has already spent.
+#
+# The transcript is the durable record of that spend, so
+# pricing it is what makes the number survive a resume.
+
+# write_main_transcript - the session's own transcript, in
+# the same priced-reply shape a sub-agent's carries.
+#
+# Named apart from the sub-agent helper because which file a
+# fixture lands in is the whole distinction the two disjoint
+# scans rest on, and a call site reading "subagent" at the
+# main transcript's path would hide that.
+write_main_transcript() {
+  write_subagent_transcript "$@"
+}
+
+render_session_cost_for() {
+  local main_cost="$1" transcript_path="$2"
+  statusline_json "$main_cost" "$transcript_path" \
+    | bash "$SCRIPT_UNDER_TEST" session-cost
+}
+
+it_should_price_the_sessions_own_transcript_rather_than_trust_the_reported_figure() {
+  local sandbox transcript actual status
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  write_main_transcript "$transcript" claude-sonnet-5 '{"output_tokens":31000}' 2
+
+  actual="$(render_session_cost_for 0 "$transcript")"
+  status=$?
+
+  # The payload reports 0 - exactly what a resumed session
+  # sends - so anything but the transcript's own $0.62 means
+  # the reset counter won.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSessionCost > happy > should price the session's own transcript so a resumed session keeps its spend" \
+    '$0.62 0' "$actual $status"
+  rm -rf "$sandbox"
+}
+
+it_should_mark_the_session_total_as_a_floor_when_a_model_has_no_known_rate() {
+  local sandbox transcript actual status
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  write_main_transcript "$transcript" claude-sonnet-5 '{"output_tokens":31000}' 2
+  printf '%s\n' \
+    '{"type":"assistant","message":{"id":"msg_main_unrated","model":"a-model-released-after-this-rate-table","usage":{"output_tokens":31000}}}' \
+    >>"$transcript"
+
+  actual="$(render_session_cost_for 0 "$transcript")"
+  status=$?
+
+  # The rate table ages every time Anthropic ships a model,
+  # so the total has to say "at least this much" rather than
+  # quietly bill the new model at nothing.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSessionCost > corner > should mark the session total as a floor when the session ran on a model with no known rate" \
+    '~$0.62 0' "$actual $status"
+  rm -rf "$sandbox"
+}
+
+it_should_report_the_cost_claude_code_sent_when_the_transcript_cannot_be_read() {
+  local sandbox actual
+  sandbox="$(fresh_sandbox)"
+
+  actual="$(render_session_cost_for 4.75 "$sandbox/a-session-that-was-never-written.jsonl")"
+
+  # Falling back keeps the widget on screen through a failed
+  # scan. Dropping to nothing would be worse than the reset
+  # figure this pricing replaces, because the reader cannot
+  # tell a vanished widget from a free session.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSessionCost > failure > should report the cost Claude Code sent when the session transcript cannot be read" \
+    '$4.75' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_render_no_session_cost_when_neither_the_transcript_nor_the_payload_has_one() {
+  local actual status
+
+  # Claude Code omits the cost block until the first reply
+  # lands, and a non-zero exit would render an "[Exit: N]"
+  # token in its place.
+  actual="$(printf '{}' | bash "$SCRIPT_UNDER_TEST" session-cost)"
+  status=$?
+
+  assert_eq \
+    "StatusLineSessionCost > failure > should render nothing and exit zero when neither the transcript nor Claude Code offers a cost" \
+    " 0" "$actual $status"
+}
+
+it_should_price_nothing_rather_than_wait_on_stdin_when_given_no_transcripts() {
+  local actual status
+
+  # jq reads stdin when it is handed no file arguments, so an
+  # empty transcript list would hang the widget until its
+  # timeout rather than fail fast.
+  actual="$(printf '' | bash -c 'source "$0"; price_transcripts' "$SCRIPT_UNDER_TEST")"
+  status=$?
+
+  assert_eq \
+    "StatusLineSessionCost > failure > should price nothing rather than wait on stdin when asked to price no transcripts at all" \
+    "1 " "$status $actual"
+}
+
+it_should_price_the_sessions_own_transcript_rather_than_trust_the_reported_figure
+it_should_mark_the_session_total_as_a_floor_when_a_model_has_no_known_rate
+it_should_report_the_cost_claude_code_sent_when_the_transcript_cannot_be_read
+it_should_render_no_session_cost_when_neither_the_transcript_nor_the_payload_has_one
+it_should_price_nothing_rather_than_wait_on_stdin_when_given_no_transcripts
+
+# ============================================================
+# describe("StatusLineSessionDuration")
+# ============================================================
+
+# The duration subcommand reads the session's start from its
+# transcript for the same reason the cost does: the elapsed
+# figure Claude Code reports sits in the same in-process
+# block and restarts at zero on "claude --continue".
+
+# iso8601_utc - an epoch second as the fractional-second UTC
+# stamp Claude Code writes into a transcript entry.
+#
+# Both date flavours are tried because BSD date takes -r and
+# GNU date takes -d, and the suites run on macOS and Linux.
+iso8601_utc() {
+  local epoch="$1"
+  date -u -r "$epoch" '+%Y-%m-%dT%H:%M:%S.123Z' 2>/dev/null \
+    || date -u -d "@$epoch" '+%Y-%m-%dT%H:%M:%S.123Z' 2>/dev/null
+}
+
+# write_timestamped_transcript - a transcript carrying one
+# entry per given ISO-8601 stamp, in the order given.
+#
+# The literal "-" writes a file-history-snapshot entry
+# instead. A real transcript often opens with one, and it
+# carries no timestamp at all, so reading the first line
+# rather than the earliest would find nothing there.
+write_timestamped_transcript() {
+  local path="$1" stamp
+  shift
+  : >"$path"
+  for stamp in "$@"; do
+    if [ "$stamp" = "-" ]; then
+      printf '{"type":"file-history-snapshot","messageId":"msg_snapshot","snapshot":{}}\n' >>"$path"
+    else
+      printf '{"type":"assistant","timestamp":"%s","message":{"id":"msg_%s"}}\n' \
+        "$stamp" "$stamp" >>"$path"
+    fi
+  done
+}
+
+render_duration_for() {
+  local duration_ms="$1" transcript_path="$2"
+  jq -nc --argjson d "$duration_ms" --arg t "$transcript_path" \
+    '{cost: {total_duration_ms: $d}, transcript_path: $t}' \
+    | bash "$SCRIPT_UNDER_TEST" duration
+}
+
+it_should_report_hours_since_the_transcripts_first_entry() {
+  local sandbox transcript now start actual status
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  now="$(date +%s)"
+  start=$((now - 3 * 3600 - 900))
+
+  write_timestamped_transcript "$transcript" "$(iso8601_utc "$start")"
+
+  actual="$(render_duration_for 0 "$transcript")"
+  status=$?
+
+  # The payload reports 0 ms - exactly what a resumed session
+  # sends - so anything but 3h means the reset counter won.
+  assert_eq \
+    "StatusLineSessionDuration > happy > should report the hours since the session's first transcript entry so a resumed session keeps its age" \
+    "3 0" "$actual $status"
+  rm -rf "$sandbox"
+}
+
+it_should_report_hours_from_the_earliest_entry_when_the_transcript_is_out_of_order() {
+  local sandbox transcript now start actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  now="$(date +%s)"
+  start=$((now - 3 * 3600 - 900))
+
+  write_timestamped_transcript "$transcript" \
+    "$(iso8601_utc $((start + 7200)))" \
+    "$(iso8601_utc "$start")" \
+    "$(iso8601_utc $((start + 3600)))"
+
+  actual="$(render_duration_for 0 "$transcript")"
+
+  # Concurrent sub-agent writes interleave entries, so the
+  # first line is not reliably the earliest one.
+  assert_eq \
+    "StatusLineSessionDuration > corner > should report hours from the earliest entry when the transcript's entries are out of chronological order" \
+    "3" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_report_hours_from_the_earliest_entry_when_the_transcript_opens_untimestamped() {
+  local sandbox transcript now start actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  now="$(date +%s)"
+  start=$((now - 3 * 3600 - 900))
+
+  write_timestamped_transcript "$transcript" \
+    "-" \
+    "$(iso8601_utc "$start")" \
+    "$(iso8601_utc $((start + 7200)))"
+
+  actual="$(render_duration_for 0 "$transcript")"
+
+  # A file-history-snapshot opening line carries no timestamp
+  # field, so reading line 1 would find no start at all and
+  # fall back to the reset counter.
+  assert_eq \
+    "StatusLineSessionDuration > corner > should report hours from the earliest timestamped entry when the transcript opens with an entry carrying none" \
+    "3" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_report_the_duration_claude_code_sent_when_the_transcript_cannot_be_read() {
+  local sandbox actual
+  sandbox="$(fresh_sandbox)"
+
+  actual="$(render_duration_for 21600000 "$sandbox/a-session-that-was-never-written.jsonl")"
+
+  assert_eq \
+    "StatusLineSessionDuration > failure > should report the duration Claude Code sent when the session transcript cannot be read" \
+    "6" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_render_no_duration_when_neither_the_transcript_nor_the_payload_has_one() {
+  local actual status
+
+  # Claude Code omits the cost block until the first reply
+  # lands, and a non-zero exit would render an "[Exit: N]"
+  # token in its place.
+  actual="$(printf '{}' | bash "$SCRIPT_UNDER_TEST" duration)"
+  status=$?
+
+  assert_eq \
+    "StatusLineSessionDuration > failure > should render nothing and exit zero when neither the transcript nor Claude Code offers a duration" \
+    " 0" "$actual $status"
+}
+
+it_should_report_hours_since_the_transcripts_first_entry
+it_should_report_hours_from_the_earliest_entry_when_the_transcript_is_out_of_order
+it_should_report_hours_from_the_earliest_entry_when_the_transcript_opens_untimestamped
+it_should_report_the_duration_claude_code_sent_when_the_transcript_cannot_be_read
+it_should_render_no_duration_when_neither_the_transcript_nor_the_payload_has_one
 
 # ============================================================
 # describe("StatusLineAdvisorSegment")

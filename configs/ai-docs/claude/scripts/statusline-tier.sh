@@ -19,17 +19,22 @@
 #     transcript_path on stdin.
 #
 #   statusline-tier.sh duration
-#     whole-hour session length, read from
-#     cost.total_duration_ms on stdin.
+#     whole-hour session length, measured from the earliest
+#     timestamp in the transcript_path on stdin, falling back
+#     to cost.total_duration_ms.
 #
 #   statusline-tier.sh spend-limit
 #     the org's monthly extra-usage cap in dollars, read
 #     from ccstatusline's own usage cache.
 #
+#   statusline-tier.sh session-cost
+#     what this session has spent, priced from the
+#     transcript_path on stdin and falling back to
+#     cost.total_cost_usd: "$19.01".
+#
 #   statusline-tier.sh subagent-cost
 #     what every sub-agent this session spawned has spent,
-#     as an addendum to ccstatusline's own Session Cost
-#     widget: "+ $19.01".
+#     as an addendum to that figure: "+ $19.01".
 #
 # Usage (as the last stage of the statusLine.command pipe,
 # fed ccstatusline's RENDERED output rather than JSON).
@@ -615,7 +620,18 @@ readonly MODEL_RATE_TABLE_JSON='{
   "claude-fable-5":   { "input": 10e-6, "output": 50e-6, "cache_write": 12.5e-6, "cache_read": 1e-6 }
 }'
 
-: "${STATUSLINE_SUBAGENT_SCAN_TIMEOUT_SECS:=3}"
+: "${STATUSLINE_TRANSCRIPT_SCAN_TIMEOUT_SECS:=3}"
+
+# How far into a transcript to look for the session's start.
+#
+# Concurrent sub-agent writes interleave entries locally, so
+# the earliest stamp is near the head rather than exactly on
+# it - a window, not the first line.
+#
+# 200 lines was checked against a full scan of all 8 live
+# transcripts, including a 10-day one and a 27 MB one, and
+# returned the exact same minimum on every one.
+readonly SESSION_START_SCAN_LINES=200
 
 # subagent_transcript_dir - where one session's sub-agent
 # transcripts live, derived from the main transcript path
@@ -635,8 +651,12 @@ subagent_transcript_dir() {
   printf '%s\n' "$dir/$stem/subagents"
 }
 
-# sum_subagent_cost - prints "<dollars> <unpriced-count>"
-# for every sub-agent transcript in the given directory.
+# price_transcripts - prints "<dollars> <unpriced-count>"
+# for the transcript files given as arguments.
+#
+# It takes files rather than a directory so both callers can
+# share it: the main session's cost is one transcript, and
+# the sub-agent addendum is a directory's worth.
 #
 # Entries are keyed by message id and the last one wins,
 # because a streamed reply is appended once per flush with
@@ -661,12 +681,11 @@ subagent_transcript_dir() {
 # the API - "<synthetic>" among them - and letting those
 # raise the floor marker would report a complete figure as
 # incomplete.
-sum_subagent_cost() {
-  local subagents_dir="$1"
-  [ -d "$subagents_dir" ] || return 1
-
-  local transcripts=("$subagents_dir"/agent-*.jsonl)
-  [ -e "${transcripts[0]:-}" ] || return 1
+price_transcripts() {
+  # jq reads stdin when it is given no file arguments, so an
+  # empty list would block on the status line's own payload
+  # until the widget timed out rather than fail here.
+  [ "$#" -gt 0 ] || return 1
 
   jq -Rnr --argjson rates "$MODEL_RATE_TABLE_JSON" '
     def base_model: sub("-20[0-9]{6}$"; "");
@@ -701,16 +720,92 @@ sum_subagent_cost() {
         | add // 0
       ) as $cost
     | "\($cost) \($unpriced)"
-  ' "${transcripts[@]}" 2>/dev/null
+  ' "$@" 2>/dev/null
+}
+
+# sum_subagent_cost - price every sub-agent transcript in the
+# given directory, as "<dollars> <unpriced-count>".
+#
+# The glob is guarded rather than passed straight through,
+# because an unmatched glob would reach jq as a literal
+# "agent-*.jsonl" path and read as a scan failure instead of
+# the ordinary case of a session that spawned no sub-agents.
+sum_subagent_cost() {
+  local subagents_dir="$1"
+  [ -d "$subagents_dir" ] || return 1
+
+  local transcripts=("$subagents_dir"/agent-*.jsonl)
+  [ -e "${transcripts[0]:-}" ] || return 1
+
+  price_transcripts "${transcripts[@]}"
+}
+
+# render_session_cost - what this session has spent, as
+# "$19.01", replacing ccstatusline's own Session Cost widget.
+#
+# That widget renders cost.total_cost_usd, which Claude Code
+# keeps as an in-process counter with no reset path. Running
+# "claude --continue" restarts the process, so a session that
+# has already spent $42 renders $0.00 from then on
+# (anthropics/claude-code#78136).
+#
+# The transcript is the durable record of that spend, so
+# pricing it locally is what makes the figure survive a
+# resume.
+#
+# Pricing the main transcript cannot double-count the
+# sub-agent addendum: main transcripts carry no isSidechain
+# assistant entries, so the two file sets are disjoint.
+#
+# A total carrying tokens from a model absent from
+# MODEL_RATE_TABLE_JSON is prefixed "~", marking it a floor
+# rather than the real number.
+#
+# On any scan failure the figure Claude Code sent is printed
+# instead. That number is wrong after a resume, but a wrong
+# number still reads as a session that has spent something,
+# where a vanished widget cannot be told apart from a free
+# one.
+#
+# Unlike the sub-agent addendum, a priced $0.00 is printed
+# rather than suppressed: this is the row's main figure, and
+# a main figure that disappears at zero is the same
+# ambiguity the fallback exists to avoid.
+#
+# Printing nothing and exiting 0 is ccstatusline's
+# omit-this-widget contract - a non-zero exit renders a
+# visible "[Exit: N]" token.
+render_session_cost() {
+  local payload transcript_path session_total="" main_cost
+  payload="$(cat)"
+
+  transcript_path="$(printf '%s' "$payload" | jq -r '.transcript_path // empty' 2>/dev/null)"
+  if [ -n "$transcript_path" ] && [ -r "$transcript_path" ]; then
+    session_total="$(
+      run_with_timeout "$STATUSLINE_TRANSCRIPT_SCAN_TIMEOUT_SECS" \
+        price_transcripts "$transcript_path"
+    )"
+  fi
+
+  if [ -n "$session_total" ]; then
+    awk -v session_total="$session_total" 'BEGIN {
+      split(session_total, parts, " ")
+      printf "%s$%.2f\n", (parts[2] + 0 > 0 ? "~" : ""), parts[1]
+    }'
+    return 0
+  fi
+
+  main_cost="$(printf '%s' "$payload" | jq -r '.cost.total_cost_usd // empty' 2>/dev/null)"
+  [ -n "$main_cost" ] && awk -v c="$main_cost" 'BEGIN { printf "$%.2f\n", c }'
+
+  # Explicit, because the guard above is the last command and
+  # its own status would otherwise leak out as the exit code.
+  return 0
 }
 
 # render_subagent_cost - what this session's sub-agents
-# have spent, as an addendum to ccstatusline's own Session
-# Cost widget: "+ $19.01".
-#
-# The main half is left to that widget rather than
-# reproduced here, since it already formats the same
-# cost.total_cost_usd and omits itself when it is absent.
+# have spent, as an addendum to the main figure
+# render_session_cost prints: "+ $19.01".
 #
 # A total carrying tokens from a model absent from
 # MODEL_RATE_TABLE_JSON is prefixed "~", marking it a floor
@@ -720,9 +815,9 @@ sum_subagent_cost() {
 # predates claude-sonnet-5, so it reports a confident
 # $0.00 for an entire session on that model.
 #
-# Nothing prints when the main figure is missing, so this
-# addendum can never render alone in front of an empty
-# slot.
+# Nothing prints without a transcript path, which is the one
+# input both halves of the row need - so this addendum can
+# never render alone in front of an empty main figure.
 #
 # Nothing prints either when the sub-agents cost too little
 # to show and every one of them was priced, since "+ $0.00"
@@ -732,17 +827,14 @@ sum_subagent_cost() {
 # omit-this-widget contract - a non-zero exit renders a
 # visible "[Exit: N]" token.
 render_subagent_cost() {
-  local payload main_cost transcript_path subagent_total
+  local payload transcript_path subagent_total
   payload="$(cat)"
-
-  main_cost="$(printf '%s' "$payload" | jq -r '.cost.total_cost_usd // empty' 2>/dev/null)"
-  [ -z "$main_cost" ] && return 0
 
   transcript_path="$(printf '%s' "$payload" | jq -r '.transcript_path // empty' 2>/dev/null)"
   [ -z "$transcript_path" ] && return 0
 
   subagent_total="$(
-    run_with_timeout "$STATUSLINE_SUBAGENT_SCAN_TIMEOUT_SECS" \
+    run_with_timeout "$STATUSLINE_TRANSCRIPT_SCAN_TIMEOUT_SECS" \
       sum_subagent_cost "$(subagent_transcript_dir "$transcript_path")"
   )"
   [ -z "$subagent_total" ] && return 0
@@ -777,6 +869,35 @@ compute_expected_percent() {
   awk -v e="$elapsed_secs" -v w="$window_secs" 'BEGIN { printf "%.0f\n", (e / w) * 100 }'
 }
 
+# session_start_epoch - when this session began, in epoch
+# seconds, read from the head of its transcript.
+#
+# Claude Code's own cost.total_duration_ms sits in the same
+# in-process block as its cost counter and resets the same
+# way, so a resumed session reports 0h however long it has
+# been running.
+#
+# The minimum stamp is taken rather than the first line's,
+# for two independent reasons: a transcript often opens with
+# a file-history-snapshot entry carrying no timestamp field
+# at all, and concurrent sub-agent writes interleave the
+# entries that follow.
+#
+# The conversion is done inside jq rather than with date(1),
+# because the BSD and GNU flags differ and this avoids the
+# two-flavour fallback parse_keychain_timestamp needs.
+session_start_epoch() {
+  local transcript_path="$1"
+  [ -r "$transcript_path" ] || return 1
+
+  head -n "$SESSION_START_SCAN_LINES" "$transcript_path" 2>/dev/null | jq -Rnr '
+    [ inputs | fromjson? // empty | .timestamp // empty ]
+    | min // empty
+    | sub("\\.[0-9]+Z$"; "Z")
+    | fromdateiso8601
+  ' 2>/dev/null
+}
+
 # compute_session_duration_hours - whole hours elapsed
 # between the session's start and now, floored (not rounded)
 # to match ccstatusline's own convention of truncating
@@ -805,21 +926,34 @@ Usage:
                                  Code statusline JSON on stdin. Falls back
                                  to the advisorModel setting before the
                                  session's first reply lands.
-  statusline-tier.sh duration   Print whole-hour session duration, reading
-                                 cost.total_duration_ms from the Claude
-                                 Code statusline JSON on stdin.
+  statusline-tier.sh duration   Print whole-hour session duration, measured
+                                 from the earliest timestamp in the
+                                 transcript named by transcript_path in the
+                                 Claude Code statusline JSON on stdin.
+                                 Falls back to that JSON's
+                                 cost.total_duration_ms when the transcript
+                                 cannot be read.
   statusline-tier.sh spend-limit
                                 Print the org's monthly extra-usage cap as
                                  "$1000", read from ccstatusline's usage
                                  cache.
+  statusline-tier.sh session-cost
+                                Print what this session has spent as
+                                 "$12.34", priced from the transcript named
+                                 by transcript_path in the Claude Code
+                                 statusline JSON on stdin. Falls back to
+                                 that JSON's cost.total_cost_usd when the
+                                 transcript cannot be read. A "~" prefix
+                                 means some model had no known rate, so the
+                                 figure is a floor.
   statusline-tier.sh subagent-cost
                                 Print what every sub-agent this session
                                  spawned has spent as "+ $12.34", an
-                                 addendum to ccstatusline's own Session
-                                 Cost widget, reading transcript_path from
-                                 the Claude Code statusline JSON on stdin.
-                                 A "~" prefix means some model had no known
-                                 rate, so the figure is a floor.
+                                 addendum to the session-cost figure,
+                                 reading transcript_path from the Claude
+                                 Code statusline JSON on stdin. A "~"
+                                 prefix means some model had no known rate,
+                                 so the figure is a floor.
   statusline-tier.sh filter     Post-process ccstatusline's RENDERED output
                                  on stdin: round percents, trim edge
                                  padding, and keep only the second row this
@@ -869,15 +1003,34 @@ main() {
       read_advisor_field
       ;;
     duration)
-      local payload duration_ms now start_epoch
+      local payload transcript_path now start_epoch duration_ms
       payload="$(cat)"
-      duration_ms="$(printf '%s' "$payload" | jq -r '.cost.total_duration_ms // 0' 2>/dev/null)"
       now="$(date +%s)"
-      start_epoch=$((now - duration_ms / 1000))
+
+      transcript_path="$(printf '%s' "$payload" | jq -r '.transcript_path // empty' 2>/dev/null)"
+      start_epoch=""
+      [ -n "$transcript_path" ] && start_epoch="$(session_start_epoch "$transcript_path")"
+
+      # The reported elapsed time is only consulted when the
+      # transcript cannot be read, since it restarts at zero
+      # on every "claude --continue".
+      if [ -z "$start_epoch" ]; then
+        duration_ms="$(printf '%s' "$payload" | jq -r '.cost.total_duration_ms // empty' 2>/dev/null)"
+
+        # No transcript and no reported elapsed time means the
+        # widget has nothing to say, and exiting 0 with empty
+        # stdout is how ccstatusline is told to omit it.
+        [ -z "$duration_ms" ] && return 0
+        start_epoch=$((now - duration_ms / 1000))
+      fi
+
       compute_session_duration_hours "$start_epoch" "$now"
       ;;
     spend-limit)
       read_monthly_spend_limit
+      ;;
+    session-cost)
+      render_session_cost
       ;;
     subagent-cost)
       render_subagent_cost
