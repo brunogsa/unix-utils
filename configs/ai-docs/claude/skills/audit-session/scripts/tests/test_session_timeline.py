@@ -155,6 +155,34 @@ class TestSessionTimeline(unittest.TestCase):
                           msg="the four buckets must be a true partition of wall clock")
 
 
+    def test_widens_wall_clock_to_cover_a_turn_duration_span_that_starts_before_the_transcripts_first_record(self):
+        """A turn_duration record's measured duration can exceed the elapsed
+        time since the session's first record (e.g. a slow first turn) —
+        span_start = end - duration then lands before first_epoch. That is
+        evidence the session began earlier than its first record shows, so
+        wall clock must widen to cover it rather than clamping engaged time,
+        or the four shares stop reconciling to 100% (AC 1)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-overrun", [
+                _human_record(1000),
+                _turn_duration_record(1010, duration_ms=100_000),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        self.assertEqual(payload["time_partition"]["wall_clock_seconds"], 100.0,
+                          msg="wall clock must widen to the turn's 910-1010 span, "
+                              "not stay at the 1000-1010 record range")
+        self.assertEqual(buckets["main_api"]["seconds"], 100.0)
+        total_seconds = sum(buckets[name]["seconds"] for name in buckets)
+        self.assertEqual(total_seconds, 100.0,
+                          msg="the four buckets must still be a true partition "
+                              "of the widened wall clock")
+        total_pct = sum(buckets[name]["pct"] for name in buckets)
+        self.assertEqual(total_pct, 100.0,
+                          msg="percentages must reconcile to 100 even when a "
+                              "span precedes the earliest record timestamp")
+
     def test_reconciles_every_wall_clock_percentage_to_100_after_rounding(self):
         """A 6-second wall clock split 2/1/2/1 across the four buckets forces
         two of them (16.667%, 33.333%) to round unevenly — the largest-

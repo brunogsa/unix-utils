@@ -194,6 +194,25 @@ def _interval_seconds(intervals):
     return sum(end - start for start, end in intervals)
 
 
+def _window_bounds(first_epoch, last_epoch, *interval_lists):
+    """(window_start, window_end) covering first_epoch, last_epoch, and
+    every interval's own start/end, or (None, None) when nothing is
+    timestamped at all. A turn_duration record's measured duration can
+    reach earlier than the transcript's first record (its own end minus a
+    long duration) — that is evidence the session began before its first
+    record, not a reason to clamp the measured span. Widening the window
+    here is what keeps wall_clock_seconds >= every bucket it is later
+    divided into, so the percentages can still reconcile to 100 (AC 1)."""
+    points = [epoch for epoch in (first_epoch, last_epoch) if epoch is not None]
+    for intervals in interval_lists:
+        for start, end in intervals:
+            points.append(start)
+            points.append(end)
+    if not points:
+        return None, None
+    return min(points), max(points)
+
+
 def _build_turns(human_epochs, turn_duration_events, last_epoch):
     """One entry per human turn, each carrying the engaged span used for the
     main-API bucket. When an in-window turn_duration record exists it is
@@ -227,9 +246,13 @@ def _build_turns(human_epochs, turn_duration_events, last_epoch):
 
 def _percentages_summing_to_100(seconds_by_bucket, total_seconds):
     """Round each bucket's share of total_seconds to a whole percent so the
-    buckets sum to exactly 100 (the largest-remainder method), guarding the
-    division by returning all-zero when total_seconds is 0 (a zero-duration
-    or single-record session)."""
+    buckets sum to exactly 100 (the largest-remainder method) whenever
+    total_seconds is nonzero.
+
+    A zero-duration or single-record session has no span to take a share
+    of at all, so a percentage of it is undefined rather than "100 split
+    some way" — this deliberately returns all-zero (summing to 0, not 100)
+    for that one case instead of dividing by zero."""
     if not total_seconds:
         return {name: 0.0 for name in seconds_by_bucket}
     raw = {name: (seconds / total_seconds) * 100 for name, seconds in seconds_by_bucket.items()}
@@ -350,8 +373,11 @@ def build_timeline_payload(sid):
     agent_seconds = _interval_seconds(agent_merged)
     tool_seconds = _interval_seconds(tool_merged)
     main_seconds = _interval_seconds(main_merged)
-    wall_clock_seconds = (max(0.0, last_epoch - first_epoch)
-                          if first_epoch is not None and last_epoch is not None else 0.0)
+    window_start, window_end = _window_bounds(
+        first_epoch, last_epoch,
+        main_api_intervals, tool_exec_intervals, agent_occupied_intervals)
+    wall_clock_seconds = (max(0.0, window_end - window_start)
+                          if window_start is not None else 0.0)
     engaged_seconds = agent_seconds + tool_seconds + main_seconds
     human_idle_seconds = max(0.0, wall_clock_seconds - engaged_seconds)
 
