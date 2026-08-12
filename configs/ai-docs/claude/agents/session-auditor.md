@@ -1,6 +1,6 @@
 ---
 name: session-auditor
-description: Orchestrates one Claude Code session's audit end to end -- runs the cost and timeline extractors, fans out to 4 fixed general-purpose shards, merges their digests, and renders the self-contained audit_session-<sid>.html. Dispatched by audit-session/SKILL.md with only a session id.
+description: Orchestrates one Claude Code session's audit end to end -- runs the cost and timeline extractors, fans out to 4 fixed general-purpose shards, merges their digests, and renders the self-contained audit_session-<sid>.html.
 model: opus
 effort: high
 ---
@@ -22,6 +22,29 @@ a document.
 - A session id (`sid`) -- the only thing `audit-session/SKILL.md` passes
   you. Nothing else is forwarded; you resolve everything else yourself,
   from disk, per the routine below.
+
+## Sources and tools
+
+- `configs/ai-docs/claude/skills/audit-session/assets/subagent-prompt.md`
+  -- the full routine (Procedure step 1); the working-directory layout,
+  shard table, and digest schema all live there, not here.
+
+- `claude-usage-report.py --session <sid> --json`
+  (`skills/usage-audit/scripts/`) -- the cost extractor; its stdout
+  becomes `cost.json`.
+
+- `extract-session-timeline.py <sid>` (`skills/audit-session/scripts/`)
+  -- the timeline extractor; its stdout becomes `timeline.json`.
+
+- `Agent` -- to dispatch the 4 fixed `general-purpose` shards (S1-S4) in
+  parallel, each with its own model/effort tier and output path.
+
+- Each shard's own `shard-*.json` digest file -- read back once the
+  shard returns; never the shard's raw transcript (see Boundaries).
+
+- `render-session-audit.py` (`skills/audit-session/scripts/`) -- renders
+  `cost.json` + `timeline.json` + the merged `narrative.json` into the
+  final self-contained HTML artifact.
 
 ## Procedure
 
