@@ -22,8 +22,9 @@
 #
 # This hook adds one more surface the sibling does
 # not have: per-file decision memory at
-# /tmp/claude-md-fixer-decisions-<session_id>, so
-# this file also covers new-file-asks, skip-drops,
+# /tmp/claude-md-fixer-decisions-<session_id>.
+#
+# So this file also covers new-file-asks, skip-drops,
 # delegate-skips-the-ask, a mixed skip+new file set,
 # and the session-id-disables-memory corner.
 #
@@ -46,12 +47,15 @@ HOOK="$hooks_dir/claude-markdown-standards-stop-hook.sh"
 # every block case would become a false pass.
 work_dir=$(cd "$(mktemp -d)" && pwd -P)
 
-# Decision-memory files live at a fixed /tmp path keyed only by
-# session_id (the hook does not accept an override), so every test
-# that writes one picks its own session_id and this list is swept
-# both before and after the run — a leftover file from an
-# interrupted earlier run would silently change "no recorded
-# answer" into "already decided" for the same session_id.
+# Decision-memory files live at a fixed /tmp path keyed
+# only by session_id (the hook does not accept an
+# override), so every test that writes one picks its
+# own session_id.
+#
+# This list is swept both before and after the run — a
+# leftover file from an interrupted earlier run would
+# silently change "no recorded answer" into "already
+# decided" for the same session_id.
 decision_session_ids=(
   new skip delegate mixed
 )
@@ -102,6 +106,24 @@ assert_contains() {
   esac
 }
 
+# assert_not_contains - the inverse of assert_contains
+# (used to prove a reason text does NOT re-ask or
+# re-mention record instructions once a decision is
+# already known).
+assert_not_contains() {
+  local description="$1" haystack="$2" needle="$3"
+  case "$haystack" in
+    *"$needle"*)
+      fail_count=$((fail_count + 1))
+      printf 'not ok - %s\n  expected to NOT contain: %s\n  actual:                  %s\n' "$description" "$needle" "$haystack"
+      ;;
+    *)
+      pass_count=$((pass_count + 1))
+      printf 'ok - %s\n' "$description"
+      ;;
+  esac
+}
+
 # new_repo - creates an empty git repo under
 # work_dir and prints its path. Identity is set
 # locally so the fixture commit never depends on
@@ -127,9 +149,11 @@ write_clean_base() {
 
 # write_base_with_violation - writes a markdown file
 # whose base commit ALREADY contains a density
-# violation, so a later clean append is the only
-# thing git reports as added while the violation
-# itself predates this session.
+# violation.
+#
+# A later clean append is the only thing git reports
+# as added, while the violation itself predates this
+# session.
 write_base_with_violation() {
   local repo="$1" name="$2"
   printf '# Title\n\n%s\n' "$(wide_line)" > "$repo/$name"
@@ -158,6 +182,20 @@ append_clean_line() {
   printf '\nAnother short clean line.\n' >> "$1/$2"
 }
 
+# write_bullet_gap_violation - writes a markdown file
+# whose only violation is a nested sub-bullet flush
+# against its parent's sibling — the bullet-gap
+# checker's own rule, not the density checker's.
+#
+# No line here is over the density cap, so only
+# check-bullet-gap.py can make this fixture block —
+# proving the hook's second checker is actually wired
+# in, not just present in the script.
+write_bullet_gap_violation() {
+  local repo="$1" name="$2"
+  printf '# Doc\n\n- parent\n  - child\n- next parent\n' > "$repo/$name"
+}
+
 # write_transcript - writes a transcript naming the
 # given absolute paths as this session's own Edit
 # tool calls. Prints the transcript path.
@@ -172,10 +210,11 @@ write_transcript() {
 }
 
 # decisions_file_path - the fixed /tmp path the hook
-# reads and writes for a given session_id. Tests
-# write directly to it to simulate "the main session
-# already recorded an answer for this file", since
-# the hook itself never writes this file — only
+# reads and writes for a given session_id.
+#
+# Tests write directly to it to simulate "the main
+# session already recorded an answer for this file",
+# since the hook itself never writes this file — only
 # reads it.
 decisions_file_path() {
   printf '/tmp/claude-md-fixer-decisions-%s\n' "$1"
@@ -211,6 +250,21 @@ it_should_block_on_an_untracked_markdown_file_this_session_wrote() {
     "1" "$(printf '%s' "$HOOK_REASON" | grep -c 'new\.md')"
 }
 
+# Two checkers feed one gate: this proves
+# check-bullet-gap.py alone can trigger a block, on a
+# fixture the density checker stays clean on (verified
+# directly against both checkers before writing this).
+it_should_block_on_a_bullet_gap_violation_the_density_checker_would_miss() {
+  local repo; repo=$(new_repo bullet-gap)
+  write_clean_base "$repo" base.md
+  write_bullet_gap_violation "$repo" new.md
+  local t; t=$(write_transcript "$repo/transcript.jsonl" "$repo/new.md")
+  run_hook "$repo" "{\"session_id\":\"bullet-gap-case\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
+
+  assert_eq "should block on a bullet-gap violation the density checker would miss" \
+    "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
+}
+
 # The diff filter's positive case: a violation the
 # session actually added to a tracked file is in
 # git's added-lines set, so it gates.
@@ -229,10 +283,12 @@ it_should_block_on_a_violation_added_to_a_tracked_markdown_file() {
 
 # The diff filter's negative case: the violation
 # already sat in HEAD before this session touched the
-# file, so intersecting it with git's added-lines set
-# for the session's own (clean) append drops it —
-# a pre-existing long line in a file you merely
-# touched must never block.
+# file.
+#
+# Intersecting it with git's added-lines set for the
+# session's own (clean) append drops it — a
+# pre-existing long line in a file you merely touched
+# must never block.
 it_should_stay_silent_on_a_preexisting_violation_the_session_did_not_add() {
   local repo; repo=$(new_repo tracked-preexisting)
   write_base_with_violation "$repo" tracked.md
@@ -295,10 +351,11 @@ it_should_stay_silent_when_the_session_touched_no_markdown_file() {
 }
 
 # Decision memory, case 1: a file with no recorded
-# answer this session is asked about, and — because a
-# valid session_id gives the hook a place to persist
-# the answer — the reason also tells the main session
-# where to record it.
+# answer this session is asked about.
+#
+# Because a valid session_id gives the hook a place to
+# persist the answer, the reason also tells the main
+# session where to record it.
 it_should_ask_about_a_file_with_no_recorded_decision_this_session() {
   local repo; repo=$(new_repo new-file)
   write_clean_base "$repo" tracked.md
@@ -344,16 +401,8 @@ it_should_delegate_directly_for_a_file_recorded_as_delegate_this_session() {
     "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
   assert_contains "should delegate directly for a file recorded as delegate this session (says already approved)" \
     "$HOOK_REASON" "Already approved this session — delegate directly, no need to ask again"
-  case "$HOOK_REASON" in
-    *"Ask the user whether to delegate"*)
-      fail_count=$((fail_count + 1))
-      printf 'not ok - should delegate directly for a file recorded as delegate this session (does not ask again)\n  reason: %s\n' "$HOOK_REASON"
-      ;;
-    *)
-      pass_count=$((pass_count + 1))
-      printf 'ok - should delegate directly for a file recorded as delegate this session (does not ask again)\n'
-      ;;
-  esac
+  assert_not_contains "should delegate directly for a file recorded as delegate this session (does not ask again)" \
+    "$HOOK_REASON" "Ask the user whether to delegate"
 }
 
 # Decision memory, case 4: a skip decision is
@@ -379,10 +428,11 @@ it_should_only_ask_about_the_undecided_file_when_one_of_two_is_skipped() {
 }
 
 # A missing session_id disables the memory feature
-# entirely (case "" in the hook's own guard) — the
-# gate still fires every time, it just never learns a
-# file was already decided and never tells the main
-# session where to persist an answer.
+# entirely (case "" in the hook's own guard).
+#
+# The gate still fires every time, it just never
+# learns a file was already decided and never tells
+# the main session where to persist an answer.
 it_should_never_reference_decision_memory_when_session_id_is_missing() {
   local repo; repo=$(new_repo no-session-id)
   write_clean_base "$repo" tracked.md
@@ -394,19 +444,12 @@ it_should_never_reference_decision_memory_when_session_id_is_missing() {
     "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
   assert_contains "should never reference decision memory when session_id is missing (still asks)" \
     "$HOOK_REASON" "Ask the user whether to delegate"
-  case "$HOOK_REASON" in
-    *"Record the answer"*)
-      fail_count=$((fail_count + 1))
-      printf 'not ok - should never reference decision memory when session_id is missing (no record instruction)\n  reason: %s\n' "$HOOK_REASON"
-      ;;
-    *)
-      pass_count=$((pass_count + 1))
-      printf 'ok - should never reference decision memory when session_id is missing (no record instruction)\n'
-      ;;
-  esac
+  assert_not_contains "should never reference decision memory when session_id is missing (no record instruction)" \
+    "$HOOK_REASON" "Record the answer"
 }
 
 it_should_block_on_an_untracked_markdown_file_this_session_wrote
+it_should_block_on_a_bullet_gap_violation_the_density_checker_would_miss
 it_should_block_on_a_violation_added_to_a_tracked_markdown_file
 it_should_stay_silent_on_a_preexisting_violation_the_session_did_not_add
 it_should_not_block_on_a_violating_file_this_session_never_touched
