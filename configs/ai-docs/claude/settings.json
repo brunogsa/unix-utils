@@ -286,7 +286,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "bash -c 'command -v ccburn >/dev/null 2>&1 && command -v ccstatusline >/dev/null 2>&1 && ccburn collect | ccstatusline | \"$HOME/.claude/scripts/statusline-tier.sh\" filter; true'"
+    "command": "bash -c 'p=\"$(cat)\"; command -v ccburn >/dev/null 2>&1 && (printf \"%s\" \"$p\" | ccburn collect >/dev/null 2>&1 &); command -v ccstatusline >/dev/null 2>&1 && printf \"%s\" \"$p\" | ccstatusline | \"$HOME/.claude/scripts/statusline-tier.sh\" filter; true'"
   },
   "enabledPlugins": {
     "typescript-lsp@claude-plugins-official": true,

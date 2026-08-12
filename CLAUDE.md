@@ -67,6 +67,19 @@ This is the same hazard as `settings.json`, but easier to trip since `git config
 
 Always edit `configs/git/.gitconfig` directly. If the symlink has been broken, re-run `install.sh` to restore it.
 
+**`ccburn collect` runs beside the statusline pipe, not inside it**: `statusLine.command` buffers the payload once, hands a copy to
+`ccburn collect` in a detached subshell (`( ... & )`, output discarded), and pipes the same copy through `ccstatusline | statusline-tier.sh filter`.
+
+`collect` is a byte-identical passthrough, so it never contributed to the rendered line — but it costs 3.4–8.5s per exec (ccburn's fixed
+startup stall, near-zero CPU, not work it performs). Inline that blew past Claude Code's 300ms statusline debounce, which **cancels the
+in-flight script**, so during active work every render was killed and the stale previous line stayed on screen. Detached, the render returns
+in ~0.9s and `collect` still finishes.
+
+**Why keep it at all**: `collect` records rate-limit snapshots into `~/.ccburn/history.db` for ccburn's own burn-rate TUI. It has recorded
+nothing since 2026-08-10T23:51Z because Claude Code's statusline payload stopped carrying a `rate_limits` key — check
+`~/.ccburn/collect_last.json` for `"has_rate_limits": false`. It is dormant, not dead: if Claude Code restores the field, `collect` resumes
+with no change here. Revisit dropping it only if that flag is still `false` after a ccburn or Claude Code release that claims to fix it.
+
 ## Conventions
 
 - **Cross-platform is a MUST; cross-tool is a should-have** -- **Claude Code is the primary tool and MUST work** on both OSes (macOS + Linux).

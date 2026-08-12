@@ -34,7 +34,7 @@
 # Usage (as the last stage of the statusLine.command pipe,
 # fed ccstatusline's RENDERED output rather than JSON).
 #
-#   ccburn collect | ccstatusline | statusline-tier.sh filter
+#   ccstatusline | statusline-tier.sh filter
 #     rounds percents, trims edge padding, and keeps whichever
 #     second row the account's tier can actually populate.
 #
