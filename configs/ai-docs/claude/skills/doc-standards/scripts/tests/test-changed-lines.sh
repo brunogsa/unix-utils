@@ -117,6 +117,24 @@ ln -s "$repo" "$link"
 out=$(cd "$link" && "$SCRIPT" mod.txt)
 assert_eq "file reached via a symlinked dir still resolves" "3" "$out"
 
+# --- Case 9: invoked from an unrelated repo's cwd, targeting a file that
+# lives in a DIFFERENT repo via an absolute path -> must resolve against
+# the file's OWN repo, not the invoker's cwd repo. Regression test for the
+# bug where `git rev-parse --is-inside-work-tree` / `--show-toplevel` ran
+# bare and silently picked up the invoker's cwd instead of the target
+# file's repo.
+repo_a=$(new_repo repo9a)
+git -C "$repo_a" commit -q --allow-empty -m base
+
+repo_b=$(new_repo repo9b)
+printf 'one\ntwo\nthree\n' > "$repo_b/mod.txt"
+git -C "$repo_b" add mod.txt
+git -C "$repo_b" commit -q -m base
+printf 'one\ntwo\nthree\nfour\n' > "$repo_b/mod.txt"
+
+out=$(cd "$repo_a" && "$SCRIPT" "$repo_b/mod.txt")
+assert_eq "file in a different repo than the invoker's cwd still resolves against its own repo" "4" "$out"
+
 echo
 echo "$pass_count passed, $fail_count failed"
 [ "$fail_count" -eq 0 ]

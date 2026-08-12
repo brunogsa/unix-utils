@@ -45,19 +45,23 @@ command -v git >/dev/null 2>&1 || {
   exit 2
 }
 
-git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
-  echo "changed-lines.sh: not inside a git work tree" >&2
-  exit 2
-}
-
 [ -f "$file" ] || {
   echo "changed-lines.sh: no such file: $file" >&2
   exit 2
 }
 
-repo_root=$(git rev-parse --show-toplevel)
+# Resolve against the FILE's own directory, never the invoker's cwd - a
+# caller `cd`'d into one repo while pointing at a file that lives in a
+# different one must still see that other repo's git state, not its own.
+file_dir=$(cd "$(dirname "$file")" && pwd -P)
+abs_file="$file_dir/$(basename "$file")"
 
-abs_file=$(cd "$(dirname "$file")" && pwd -P)/$(basename "$file")
+git -C "$file_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
+  echo "changed-lines.sh: not inside a git work tree" >&2
+  exit 2
+}
+
+repo_root=$(git -C "$file_dir" rev-parse --show-toplevel)
 
 rel_file=${abs_file#"$repo_root"/}
 if [ "$rel_file" = "$abs_file" ]; then
