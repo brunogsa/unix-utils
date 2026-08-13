@@ -384,8 +384,8 @@ def iter_records(path):
 
 
 def collect_agent_spawns(main_files):
-    """session file -> [(subagent_type, full dispatch prompt, record_index)] for
-    subagent attribution.
+    """session file -> [(subagent_type, full dispatch prompt, record_index,
+    tool_use_id)] for subagent attribution.
 
     record_index is this record's position in the SAME iter_records(path) sequence
     scan_transcript() enumerates below, so a spawn's index lines up with the
@@ -397,6 +397,11 @@ def collect_agent_spawns(main_files):
     compare candidates past whatever prefix length they happen to share — a
     150-char cut here would silently reintroduce the same collision it exists
     to resolve, just at a longer prefix.
+
+    tool_use_id is the tool_use block's own "id" — what a subagent's
+    .meta.json sidecar's "toolUseId" resolves against in
+    find_spawn_by_tool_use_id(), the exact (non-heuristic) link
+    attribute_subagent() prefers over prompt-prefix matching.
     """
     spawns = defaultdict(list)
     for path in main_files:
@@ -413,6 +418,7 @@ def collect_agent_spawns(main_files):
                     spawn_input.get("subagent_type") or "general-purpose",
                     spawn_input.get("prompt") or "",
                     record_index,
+                    item.get("id"),
                 ))
     return spawns
 
@@ -763,9 +769,10 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
 
 def match_spawn(prompt, session_spawns):
     """(subagent_type, spawn record_index) for the Task/Agent call that started this
-    subagent transcript, matched by prompt prefix. Feeds both by_subagent_type
-    (type only) and by_skill_marginal (record_index, to place the subagent's cost
-    into the skill span it was spawned in). ("UNMATCHED", None) if no call matches.
+    subagent transcript, matched by prompt prefix. The fallback attribute_subagent()
+    uses only when a subagent's .meta.json sidecar is absent or unreadable (older
+    sessions predate sidecars) — see attribute_subagent()'s docstring for the
+    primary, non-heuristic mechanism. ("UNMATCHED", None) if no call matches.
 
     A spawn is a candidate when either string prefixes the other over at least
     the first 100 characters — kept as the recall floor so a transcript whose
@@ -782,7 +789,7 @@ def match_spawn(prompt, session_spawns):
     """
     best_index = None
     best_common_len = -1
-    for index, (spawn_type, spawn_prompt, record_index) in enumerate(session_spawns):
+    for index, (spawn_type, spawn_prompt, record_index, _tool_use_id) in enumerate(session_spawns):
         if not spawn_prompt:
             continue
         is_candidate = (
@@ -797,8 +804,72 @@ def match_spawn(prompt, session_spawns):
             best_index = index
     if best_index is None:
         return "UNMATCHED", None
-    spawn_type, _, record_index = session_spawns.pop(best_index)
+    spawn_type, _, record_index, _tool_use_id = session_spawns.pop(best_index)
     return spawn_type, record_index
+
+
+def sidecar_path(subagent_path):
+    """The .meta.json sidecar path Claude Code writes beside a subagent
+    transcript, e.g. agent-<agentId>.jsonl -> agent-<agentId>.meta.json."""
+    return os.path.splitext(subagent_path)[0] + ".meta.json"
+
+
+def read_sidecar(subagent_path):
+    """subagent_path's sidecar as a dict, or None when it's absent or
+    unreadable — a missing file (older sessions predate sidecars) and a
+    malformed one are treated identically, both falling through to
+    attribute_subagent()'s prompt-matching fallback."""
+    path = sidecar_path(subagent_path)
+    if not os.path.isfile(path):
+        return None
+    try:
+        with open(path) as fh:
+            return json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def find_spawn_by_tool_use_id(tool_use_id, session_spawns):
+    """record_index for the Task/Agent dispatch record whose captured
+    tool_use_id matches tool_use_id, consuming that entry from
+    session_spawns (mutated in place, same reason match_spawn() consumes its
+    winner: without it, a later prompt-prefix fallback for a different
+    subagent could re-claim the dispatch record this sidecar already
+    resolved). None when tool_use_id is falsy or resolves to no record in
+    this session's main transcript — 11 of 39 subagent runs on a real
+    session carry a toolUseId with no matching dispatch record at all.
+    """
+    if not tool_use_id:
+        return None
+    for index, (_spawn_type, _prompt, record_index, spawn_tool_use_id) in enumerate(session_spawns):
+        if spawn_tool_use_id == tool_use_id:
+            session_spawns.pop(index)
+            return record_index
+    return None
+
+
+def attribute_subagent(subagent_path, prompt, session_spawns):
+    """(subagent_type, record_index) for one subagent run.
+
+    The .meta.json sidecar's "agentType" is authoritative whenever the
+    sidecar exists and is readable — it's the filesystem link Claude Code
+    itself writes, not a heuristic. record_index comes from resolving the
+    sidecar's "toolUseId" against session_spawns (needed only for
+    by_skill_marginal's span placement); a toolUseId that resolves to no
+    record yields record_index=None but NEVER falls back to "UNMATCHED" —
+    a missing dispatch record must not destroy an attribution the sidecar
+    already answered.
+
+    match_spawn()'s prompt-prefix heuristic is the fallback, used only when
+    the sidecar is absent or unreadable (older sessions predate sidecars).
+    """
+    meta = read_sidecar(subagent_path)
+    if meta is not None:
+        agent_type = meta.get("agentType")
+        if agent_type:
+            record_index = find_spawn_by_tool_use_id(meta.get("toolUseId"), session_spawns)
+            return agent_type, record_index
+    return match_spawn(prompt, session_spawns)
 
 
 def span_owner(sorted_events, event_indices, position):
@@ -962,7 +1033,7 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
         result["subagents_per_session"][parent]["runs"] += 1
         for kind in TOKEN_KINDS:
             result["subagents_per_session"][parent]["tokens"][kind] += stats["tokens"][kind]
-        spawn_type, spawn_index = match_spawn(stats["first_prompt"], spawns.get(parent, []))
+        spawn_type, spawn_index = attribute_subagent(path, stats["first_prompt"], spawns.get(parent, []))
         result["by_subagent_type"][spawn_type]["cost"] += stats["cost"]
         result["by_subagent_type"][spawn_type]["runs"] += 1
         result["subagents_per_session"][parent]["by_spawn"].append((spawn_index, stats["cost"]))

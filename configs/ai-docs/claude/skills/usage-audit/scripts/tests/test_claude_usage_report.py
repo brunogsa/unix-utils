@@ -1446,30 +1446,43 @@ class TestSessionMode(unittest.TestCase):
 
 
 class TestSpawnAttribution(unittest.TestCase):
-    """Pure unit tests of collect_agent_spawns()/match_spawn() -- the
-    prompt-matching link between a Task/Agent dispatch record in the main
-    transcript and the subagent transcript it spawned. Claude Code records
-    no other link (agentId only appears in tool_result prose, unrelated to
-    the subagent transcript's own filename), so prompt-prefix matching is
-    the only mechanism available, and every case here is about that
-    mechanism degrading gracefully instead of silently mis-crediting.
+    """Pure unit tests of collect_agent_spawns()/match_spawn()/
+    attribute_subagent() -- how a subagent transcript is linked back to the
+    Task/Agent dispatch record that started it.
+
+    attribute_subagent() is the primary mechanism: the .meta.json sidecar
+    Claude Code writes beside a subagent transcript carries the real
+    "agentType" directly, and its "toolUseId" resolves to the exact dispatch
+    record for by_skill_marginal's span placement -- no heuristic needed.
+    match_spawn()'s prompt-prefix matching is the fallback, used only when a
+    sidecar is absent or unreadable (older sessions predate sidecars), and
+    every case here about it degrading gracefully instead of silently
+    mis-crediting still applies to that fallback path.
     """
 
-    def _spawn_record(self, epoch, subagent_type, prompt):
+    def _spawn_record(self, epoch, subagent_type, prompt, tool_use_id=None):
         """One assistant record dispatching a Task/Agent subagent -- the
         shape collect_agent_spawns() scans for."""
+        content = {
+            "type": "tool_use",
+            "name": "Task",
+            "input": {"subagent_type": subagent_type, "prompt": prompt},
+        }
+        if tool_use_id is not None:
+            content["id"] = tool_use_id
         return {
             "type": "assistant",
             "timestamp": _iso(epoch),
-            "message": {
-                "role": "assistant",
-                "content": [{
-                    "type": "tool_use",
-                    "name": "Task",
-                    "input": {"subagent_type": subagent_type, "prompt": prompt},
-                }],
-            },
+            "message": {"role": "assistant", "content": [content]},
         }
+
+    def _sidecar(self, subagent_path, **fields):
+        """Writes subagent_path's .meta.json sidecar -- the filesystem link
+        attribute_subagent() reads before falling back to prompt matching."""
+        meta_path = os.path.splitext(subagent_path)[0] + ".meta.json"
+        with open(meta_path, "w") as fh:
+            json.dump(fields, fh)
+        return meta_path
 
     def test_collect_agent_spawns_stores_the_full_dispatch_prompt_not_truncated_to_150_characters(self):
         long_prompt = "Investigate the flaky checkout test " + "and confirm the root cause " * 6
@@ -1486,10 +1499,25 @@ class TestSpawnAttribution(unittest.TestCase):
             msg="collect_agent_spawns must keep the dispatched prompt in full so "
                 "match_spawn can discriminate collisions past the old 150-char cut")
 
+    def test_collect_agent_spawns_captures_the_dispatch_records_tool_use_id(self):
+        """The Task/Agent tool_use block's own "id" must be captured too --
+        it's what attribute_subagent() resolves a sidecar's toolUseId
+        against to find this spawn's record_index."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "main.jsonl", [
+                self._spawn_record(1_700_000_000, "tdd-coder", "do the thing", tool_use_id="toolu_xyz"),
+            ])
+            spawns = cur.collect_agent_spawns([path])
+
+        self.assertEqual(
+            spawns[path][0][3], "toolu_xyz",
+            msg="the 4th tuple element must be the dispatch record's own "
+                "tool_use id, unchanged from what the transcript recorded")
+
     def test_match_spawn_treats_a_short_transcript_prompt_as_a_candidate_when_it_prefixes_a_longer_spawn_prompt(self):
         spawn_prompt = "Refactor the pricing module " * 6  # > 150 chars, one dispatch
         transcript_prompt = spawn_prompt[:40]  # shorter than the 100-char floor
-        session_spawns = [("refactor", spawn_prompt, 3)]
+        session_spawns = [("refactor", spawn_prompt, 3, "toolu_refactor")]
 
         spawn_type, record_index = cur.match_spawn(transcript_prompt, session_spawns)
 
@@ -1508,8 +1536,8 @@ class TestSpawnAttribution(unittest.TestCase):
         refactor_prompt = shared_opening + "then apply the structure-only cleanup yourself."
         tdd_prompt = shared_opening + "then write the RED test before any fix lands."
         session_spawns = [
-            ("refactor", refactor_prompt, 10),
-            ("tdd-coder", tdd_prompt, 11),
+            ("refactor", refactor_prompt, 10, "toolu_refactor"),
+            ("tdd-coder", tdd_prompt, 11, "toolu_tdd"),
         ]
 
         spawn_type, record_index = cur.match_spawn(tdd_prompt, session_spawns)
@@ -1528,8 +1556,8 @@ class TestSpawnAttribution(unittest.TestCase):
         refactor_prompt = shared_opening + "then apply the structure-only cleanup yourself."
         tdd_prompt = shared_opening + "then write the RED test before any fix lands."
         session_spawns = [
-            ("refactor", refactor_prompt, 10),
-            ("tdd-coder", tdd_prompt, 11),
+            ("refactor", refactor_prompt, 10, "toolu_refactor"),
+            ("tdd-coder", tdd_prompt, 11, "toolu_tdd"),
         ]
 
         first_match = cur.match_spawn(refactor_prompt, session_spawns)
@@ -1549,8 +1577,8 @@ class TestSpawnAttribution(unittest.TestCase):
     def test_match_spawn_resolves_byte_identical_candidates_to_the_earliest_unconsumed_one(self):
         retried_prompt = "Re-run the export job for the July closing batch, unchanged."
         session_spawns = [
-            ("tdd-coder", retried_prompt, 20),
-            ("tdd-coder", retried_prompt, 27),
+            ("tdd-coder", retried_prompt, 20, "toolu_first"),
+            ("tdd-coder", retried_prompt, 27, "toolu_second"),
         ]
 
         first_match = cur.match_spawn(retried_prompt, session_spawns)
@@ -1564,6 +1592,99 @@ class TestSpawnAttribution(unittest.TestCase):
             second_match, ("tdd-coder", 27),
             msg="once the earliest spawn is consumed, the second identical "
                 "transcript must fall through to the remaining one, not UNMATCHED")
+
+    def test_attribute_subagent_uses_the_sidecars_agent_type_over_a_mismatched_prompt_match(self):
+        """The sidecar's real "agentType" must win even when the transcript's
+        first_prompt happens to prompt-prefix-match a spawn recorded under a
+        DIFFERENT subagent_type -- the sidecar is the filesystem link Claude
+        Code itself writes, not a heuristic to be overridden by a coincidence
+        in prompt text."""
+        with tempfile.TemporaryDirectory() as tmp:
+            subagent_path = os.path.join(tmp, "agent-abc123.jsonl")
+            self._sidecar(subagent_path, agentType="Explore", toolUseId="toolu_explore")
+            session_spawns = [("general-purpose", "Investigate the flaky test", 4, "toolu_explore")]
+
+            spawn_type, record_index = cur.attribute_subagent(
+                subagent_path, "Investigate the flaky test", session_spawns)
+
+        self.assertEqual(
+            (spawn_type, record_index), ("Explore", 4),
+            msg="the sidecar names Explore even though the only candidate spawn "
+                "is recorded under general-purpose -- the sidecar must win, and "
+                "record_index still resolves via the matching toolUseId")
+        self.assertEqual(
+            session_spawns, [],
+            msg="the resolved spawn must be consumed so a later prompt-prefix "
+                "fallback for a different subagent can't re-claim the same "
+                "dispatch record")
+
+    def test_attribute_subagent_keeps_the_sidecars_agent_type_when_its_tool_use_id_resolves_to_no_dispatch_record(self):
+        """11 of 39 subagent runs on a real session carry a toolUseId with no
+        matching Task/Agent record in the main transcript at all. That must
+        NOT destroy the sidecar's own agentType -- only record_index (used
+        for by_skill_marginal's span placement) goes missing."""
+        with tempfile.TemporaryDirectory() as tmp:
+            subagent_path = os.path.join(tmp, "agent-def456.jsonl")
+            self._sidecar(subagent_path, agentType="tdd-coder", toolUseId="toolu_nowhere")
+            session_spawns = []
+
+            spawn_type, record_index = cur.attribute_subagent(
+                subagent_path, "some dispatch prompt", session_spawns)
+
+        self.assertEqual(
+            (spawn_type, record_index), ("tdd-coder", None),
+            msg="a missing dispatch record must not conflate into UNMATCHED -- "
+                "the sidecar's real agentType is kept, only record_index is None")
+
+    def test_attribute_subagent_falls_back_to_match_spawn_when_the_sidecar_is_missing(self):
+        """Older sessions predate the .meta.json sidecar -- attribute_subagent
+        must fall back to match_spawn()'s prompt-prefix matching rather than
+        reporting UNMATCHED just because no sidecar exists on disk."""
+        with tempfile.TemporaryDirectory() as tmp:
+            subagent_path = os.path.join(tmp, "agent-nosidecar.jsonl")
+            prompt = "Refactor the checkout pricing module end to end."
+            session_spawns = [("refactor", prompt, 6, "toolu_refactor")]
+
+            spawn_type, record_index = cur.attribute_subagent(subagent_path, prompt, session_spawns)
+
+        self.assertEqual(
+            (spawn_type, record_index), ("refactor", 6),
+            msg="no sidecar on disk -- attribute_subagent must fall back to "
+                "match_spawn's prompt-prefix matching and resolve normally")
+
+    def test_attribute_subagent_falls_back_to_match_spawn_when_the_sidecar_is_unreadable(self):
+        """A sidecar that fails to parse as JSON must be treated the same as
+        a missing one -- fall back to prompt matching, not a hard failure."""
+        with tempfile.TemporaryDirectory() as tmp:
+            subagent_path = os.path.join(tmp, "agent-badmeta.jsonl")
+            meta_path = os.path.splitext(subagent_path)[0] + ".meta.json"
+            with open(meta_path, "w") as fh:
+                fh.write("{not valid json")
+            prompt = "Refactor the checkout pricing module end to end."
+            session_spawns = [("refactor", prompt, 6, "toolu_refactor")]
+
+            spawn_type, record_index = cur.attribute_subagent(subagent_path, prompt, session_spawns)
+
+        self.assertEqual(
+            (spawn_type, record_index), ("refactor", 6),
+            msg="an unparseable sidecar must fall back to prompt matching the "
+                "same as a missing sidecar, not raise or silently go UNMATCHED")
+
+    def test_attribute_subagent_reports_unmatched_only_when_both_the_sidecar_and_the_prompt_fallback_fail(self):
+        """UNMATCHED must stay the label of last resort: no sidecar on disk
+        AND no spawn whose prompt the transcript's first_prompt prefixes (or
+        is prefixed by)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            subagent_path = os.path.join(tmp, "agent-orphan.jsonl")
+            session_spawns = [("tdd-coder", "Write the export job tests", 1, "toolu_export")]
+
+            spawn_type, record_index = cur.attribute_subagent(
+                subagent_path, "Completely unrelated dispatch text", session_spawns)
+
+        self.assertEqual(
+            (spawn_type, record_index), ("UNMATCHED", None),
+            msg="no sidecar and no prompt-prefix candidate -- UNMATCHED is the "
+                "correct last-resort label, not a wrong guess")
 
 
 if __name__ == "__main__":
