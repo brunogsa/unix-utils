@@ -69,6 +69,27 @@ RUNNER_AGENT_MARKER='subAgent=repo-green-runner'
 BASELINE_MODE_MARKER='mode: baseline'
 GATE_MODE_MARKER='mode: gate'
 
+# §1.2 used to ask the baseline and the gate as two
+# independent yes/no questions, which admitted the reachable
+# combination gate=yes, baseline=no. Under it the repo-green
+# gate has no baseline to diff against and HALTs a finished
+# batch with every commit still local.
+#
+# The two questions are now one: SKILL_MERGED_GATE_MARKER is
+# the bullet's bold heading text, and it is the ONLY toggle
+# §1.2 may declare governing the baseline - so a still-present
+# old baseline question is the regression this section-scoped
+# check exists to catch.
+SKILL_MERGED_GATE_MARKER='^- \*\*Run the repo-green gate at batch end\?\*\*'
+SKILL_OLD_BASELINE_QUESTION_MARKER='^- \*\*Capture a full-suite green baseline before starting\?\*\*'
+
+# The state object's `baseline` key used to carry its own
+# `wanted` boolean, redundant with `repo_green_gate.wanted`
+# once the two questions merged. A leftover reference to it
+# anywhere under skills/implement/ is drift from a doc the
+# merge should have retargeted.
+BASELINE_WANTED_STRING='baseline.wanted'
+
 pass_count=0
 fail_count=0
 
@@ -185,6 +206,62 @@ check_dispatches() {
   fi
   if [ -z "$mode_line" ]; then
     printf 'dispatch in %s never names %s\n' "$file" "$mode_pattern"
+    return 1
+  fi
+  return 0
+}
+
+# check_absent <file> <fixed-string> - returns 0 only when
+# the string never occurs in the file. Fixed-string,
+# case-insensitive match (grep -Fi), so a caller passing a
+# literal dotted key never needs its own escaping, and prose
+# that capitalizes the same word (e.g. "Auto-solve") still
+# gets caught.
+check_absent() {
+  local file="$1" needle="$2"
+  if [ ! -f "$file" ]; then
+    printf 'missing: %s\n' "$file"
+    return 1
+  fi
+  if grep -qFi "$needle" "$file"; then
+    printf 'found forbidden string %s in %s\n' "$needle" "$file"
+    return 1
+  fi
+  return 0
+}
+
+# check_single_interview_toggle <file> - returns 0 only when
+# SKILL.md's §1.2 section declares the merged gate/baseline
+# toggle exactly once and carries no leftover separate
+# baseline question.
+#
+# Two independent yes/no questions admit gate=yes,
+# baseline=no - a combination the repo-green-runner agent
+# HALTs on, stranding a finished batch's commits unpushed.
+# One toggle makes that combination unreachable.
+check_single_interview_toggle() {
+  local file="$1"
+  if [ ! -f "$file" ]; then
+    printf 'missing: %s\n' "$file"
+    return 1
+  fi
+  local start_line end_line section merged_count old_count
+  start_line=$(grep -n -m1 -E '^### 1\.2\.' "$file" | cut -d: -f1)
+  end_line=$(grep -n -m1 -E '^### 1\.3\.' "$file" | cut -d: -f1)
+  if [ -z "$start_line" ] || [ -z "$end_line" ]; then
+    printf 'section 1.2 boundaries not found in %s\n' "$file"
+    return 1
+  fi
+  section=$(sed -n "${start_line},${end_line}p" "$file")
+  merged_count=$(printf '%s\n' "$section" | grep -c -E "$SKILL_MERGED_GATE_MARKER")
+  old_count=$(printf '%s\n' "$section" | grep -c -E "$SKILL_OLD_BASELINE_QUESTION_MARKER")
+  if [ "$merged_count" -ne 1 ]; then
+    printf 'expected exactly one merged gate/baseline toggle in section 1.2 of %s, found %s\n' \
+      "$file" "$merged_count"
+    return 1
+  fi
+  if [ "$old_count" -ne 0 ]; then
+    printf 'old separate baseline question still present in section 1.2 of %s\n' "$file"
     return 1
   fi
   return 0
@@ -320,6 +397,50 @@ it_should_fail_when_a_dispatch_names_no_mode() {
   rm -f "$tmp_file"
 }
 
+it_should_assert_skill_md_never_mentions_baseline_wanted() {
+  assert_eq "should assert SKILL.md contains no baseline.wanted occurrence" \
+    "passed" "$(run_check check_absent "$SKILL_FILE" "$BASELINE_WANTED_STRING")"
+}
+
+it_should_assert_section_1_2_declares_exactly_one_merged_toggle() {
+  assert_eq "should assert section 1.2 declares exactly one toggle governing both baseline and gate" \
+    "passed" "$(run_check check_single_interview_toggle "$SKILL_FILE")"
+}
+
+it_should_fail_when_skill_md_still_mentions_baseline_wanted() {
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  # Reintroduce the leftover dotted key SKILL.md's prose
+  # used to carry, so the check fails on a file that
+  # regressed back to referencing it. Must be the exact
+  # dotted form check_absent searches for, not merely a
+  # JSON key/value pair that happens to sit nearby.
+  { cat "$SKILL_FILE"; printf 'empty when `%s` is `false`.\n' "$BASELINE_WANTED_STRING"; } > "$tmp_file"
+  assert_eq "should fail when SKILL.md still mentions baseline.wanted" \
+    "failed" "$(run_check check_absent "$tmp_file" "$BASELINE_WANTED_STRING")"
+  rm -f "$tmp_file"
+}
+
+it_should_fail_when_section_1_2_still_declares_two_separate_questions() {
+  local tmp_file line_num
+  tmp_file="$(mktemp)"
+  line_num=$(grep -n -m1 -E "$SKILL_MERGED_GATE_MARKER" "$SKILL_FILE" | cut -d: -f1)
+
+  # Reconstruct the pre-merge shape: re-insert the old,
+  # separate baseline question right after the merged
+  # toggle bullet, so section 1.2 declares both again -
+  # the exact combination that let gate=yes, baseline=no
+  # reach the repo-green-runner agent's HALT rule.
+  {
+    head -n "$line_num" "$SKILL_FILE"
+    printf -- '- **Capture a full-suite green baseline before starting?** (yes/no) — on yes, section 1.6 runs the full suite first.\n'
+    tail -n "+$((line_num + 1))" "$SKILL_FILE"
+  } > "$tmp_file"
+  assert_eq "should fail when section 1.2 still declares two separate baseline/gate questions" \
+    "failed" "$(run_check check_single_interview_toggle "$tmp_file")"
+  rm -f "$tmp_file"
+}
 it_should_assert_the_push_stage_is_declared_before_the_quality_gate_tail_stage
 it_should_assert_the_push_stage_is_declared_before_the_repo_green_gate_stage
 it_should_assert_the_pre_flight_baseline_is_dispatched_to_the_repo_green_runner
@@ -332,6 +453,10 @@ it_should_fail_when_a_batch_end_file_is_missing
 it_should_fail_when_the_push_step_is_moved_back_behind_a_gate
 it_should_fail_when_the_run_is_marked_presented_before_the_gates_run
 it_should_fail_when_the_run_never_marks_itself_presented
+it_should_assert_skill_md_never_mentions_baseline_wanted
+it_should_assert_section_1_2_declares_exactly_one_merged_toggle
+it_should_fail_when_skill_md_still_mentions_baseline_wanted
+it_should_fail_when_section_1_2_still_declares_two_separate_questions
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
