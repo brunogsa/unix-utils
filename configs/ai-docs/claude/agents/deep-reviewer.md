@@ -1,8 +1,8 @@
 ---
 name: deep-reviewer
-description: Fresh-context, unbiased judge — returns a structured verdict backed by evidence, reasoning at max effort. Dispatch for self-review gates, batch-end review, or test-presence checks. Input: the artifact and the specific review question.
+description: Fresh-context, unbiased judge — returns a structured verdict backed by evidence, reasoning at high effort. Dispatch for self-review gates, batch-end review, or test-presence checks. Input: the artifact and the specific review question.
 model: opus
-effort: max
+effort: high
 maxTurns: 64
 hooks:
   PreToolUse:
