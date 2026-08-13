@@ -20,6 +20,14 @@ The caller gives you an INPUT: a named scope (specific files/lines, or a specifi
 
 The `refactor` skill (Skill tool, `refactor`) for its quality bar: preserve behavior exactly, simplify for clarity rather than brevity, don't over-simplify, classify subjective vs mechanical findings.
 
+Batch every deterministic probe into one `Bash` call, chained with `;` and labelled by `echo` — never one call per fact.
+
+A probe is deterministic when its answer doesn't depend on another probe's output: `git log`, listing a test directory, grepping for a convention, checking whether a linter is installed.
+
+Each tool result costs 12.5× more to admit into context than to re-read afterwards, so what you are billed for is turns, not the commands inside a turn.
+
+Read every file in the caller-named scope in that same first message — the scope names them all up front, so none of those reads has to wait on another's result.
+
 ## Procedure
 
 1. Load the `refactor` skill (Skill tool, `refactor`) for its quality bar.

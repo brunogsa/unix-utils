@@ -29,6 +29,16 @@ The caller gives you an INPUT — an artifact (a diff, a file, a spec/plan doc, 
 Read the artifact(s) the caller points you to — related source files, prior versions, tests, referenced docs, whatever the question needs.
 Don't stop at the artifact alone if answering the question requires broader context.
 
+Batch every deterministic probe into one `Bash` call, chained with `;` and labelled by `echo` — never one call per fact.
+
+A probe is deterministic when its answer doesn't depend on another probe's output: `git log`, listing a test directory, grepping for a convention, checking whether a linter is installed.
+
+Each tool result costs 12.5× more to admit into context than to re-read afterwards, so what you are billed for is turns, not the commands inside a turn.
+
+Issue independent `Read` calls in the same message for the same reason.
+
+Keep a follow-up turn for what a batch's own output revealed — a file a grep hit named, a test you now know exists.
+
 ## Procedure
 
 1. Read the artifact(s) the caller points you to.
