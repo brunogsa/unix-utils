@@ -57,7 +57,6 @@ configs/ai-docs/claude/skills/audit-session/scripts/extract-session-timeline.py
 configs/ai-docs/claude/skills/audit-session/scripts/render-session-audit.py
 configs/ai-docs/claude/skills/audit-session/scripts/tests/test_render_session_audit.py
 configs/ai-docs/claude/skills/audit-session/scripts/tests/test_session_timeline.py
-configs/ai-docs/claude/skills/audit-session/scripts/tests/test-audit-session-shard-tiers.sh
 configs/ai-docs/claude/skills/audit-session/scripts/tests/test-session-auditor-frontmatter.sh
 configs/ai-docs/claude/skills/brag/scripts/parse_gcal_mcp.py
 configs/ai-docs/claude/skills/brag/scripts/parse_ics.py

@@ -3,14 +3,14 @@
 # guarding the per-shard model/effort tiers that
 # assets/subagent-prompt.md declares in prose.
 #
-# Only the auditor agent's own model:opus pin is
-# hook-enforced (subagent-model-guard.py gates model
-# only, never effort); the five shard model values and
-# five effort values live in prose a later edit could
-# change silently. This suite is that guard: it extracts
-# each shard's dispatch line from the one committed
-# fixed-schema table and checks it against the tier the
-# plan assigns.
+# Only the auditor agent's own model:opus pin is hook-enforced
+# (subagent-model-guard.py gates model only, never effort); the
+# five shard model and effort values live in prose a later edit
+# could change silently.
+#
+# This suite is that guard: it extracts each shard's dispatch
+# line from the one committed fixed-schema table and checks it
+# against the tier the plan assigns.
 #
 # Exits 0 when every assertion passes, non-zero otherwise.
 #
@@ -59,11 +59,13 @@ shard_effort() {
   printf '%s' "$1" | grep -oE 'effort=[a-z]+' | head -n1 | cut -d= -f2
 }
 
-# check_shard_tiers <file> - verifies the file exists and
-# every one of S1..S5 names an explicit model matching its
-# assigned tier below. Prints the first mismatch reason to
-# stdout and returns 1 on any failure; returns 0 only when
-# all five shards match exactly.
+# check_shard_tiers <file> - verifies the file exists and every
+# one of S1..S5 names an explicit model matching its assigned
+# tier below.
+#
+# Prints the first mismatch reason to stdout and returns 1 on
+# any failure; returns 0 only when all five shards match
+# exactly.
 check_shard_tiers() {
   local file="$1"
   if [ ! -f "$file" ]; then
@@ -154,6 +156,7 @@ it_should_fail_when_subagent_prompt_is_missing() {
 it_should_fail_when_a_shard_tier_is_altered() {
   local tmp_file result
   tmp_file="$(mktemp)"
+
   # S2 (Money) is assigned effort=max -- downgrade it to
   # effort=high to simulate a later edit silently drifting
   # the tier away from what the plan assigned.
@@ -171,6 +174,7 @@ it_should_fail_when_a_shard_tier_is_altered() {
 it_should_fail_when_a_shard_dispatch_omits_its_model() {
   local tmp_file result
   tmp_file="$(mktemp)"
+
   # S3 (Work done) loses its ", model=opus" clause entirely
   # -- simulates a dispatch line edited down to the unpinned
   # general-purpose default the guard hook would deny.
