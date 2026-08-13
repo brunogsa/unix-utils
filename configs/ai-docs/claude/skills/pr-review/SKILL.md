@@ -6,9 +6,9 @@ description: "USE for code review on a GitHub PR URL (no URL — use /auto-revie
 # PR Review
 
 Orchestrate a GitHub PR review by running the `code-review-pipeline` pipeline
-end-to-end. The pipeline runs serially — no nested fan-out — so the review
-stays within a predictable token budget. The output is a PENDING review on
-GitHub; you filter and submit manually.
+end-to-end. Every wave but Wave 2 runs in one session; Wave 2 fans its eight
+specialists out concurrently, one rubric each. The output is a PENDING review
+on GitHub; you filter and submit manually.
 
 Execution mode (in-session vs. `--isolate` subagent) is shared across both review callers, and the pipeline auto-decides it from the mode without ever asking — see "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md`.
 

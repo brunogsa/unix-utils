@@ -1,10 +1,15 @@
 #!/bin/bash
-# PreToolUse guard for the deep-reviewer subagent (referenced from its frontmatter).
+# PreToolUse guard for the reviewer agents that reference it from their
+# frontmatter: deep-reviewer and review-specialist.
 #
-# deep-reviewer is a read-only judge. Its write affordances are exactly two:
-#   1. persisting its own verdict to a caller-assigned verdict file, and
+# Both are read-only judges. Their write affordances are exactly two:
+#   1. persisting a verdict to a caller-assigned verdict file, and
 #   2. scratch under /tmp — the review pipeline (auto-review) persists its wave
 #      artifacts to a mktemp dir there, and /tmp is never repo source.
+#
+# A Wave 2 review-specialist uses only the second: its findings JSON lands in
+# that same mktemp dir, so eight of them writing at once still cannot reach
+# repo source even when their parent runs under bypassPermissions.
 #
 # Both `.md` and `.html` count as a verdict file: the html-artifacts router
 # picks the extension per artifact type, and it routes a review report to an
@@ -32,7 +37,7 @@ BASENAME=${FILE_PATH##*/}
 
 if [[ "$BASENAME" == verdict_*.md || "$BASENAME" == verdict_*.html ]]; then
   # Auto-approve: bypasses the permission prompt the background subagent can't answer.
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"deep-reviewer may persist its verdict to its verdict file (%s)"}}\n' "$BASENAME"
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"this reviewer may persist its verdict to its verdict file (%s)"}}\n' "$BASENAME"
   exit 0
 fi
 
@@ -40,10 +45,10 @@ fi
 # e.g. /tmp/auto-review.XXXXXX). Reject any path containing `..` first, so a
 # traversal like /tmp/../<repo>/file can't escape /tmp back into repo source.
 if [[ "$FILE_PATH" != *..* && ( "$FILE_PATH" == /tmp/* || "$FILE_PATH" == /private/tmp/* ) ]]; then
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"deep-reviewer may write scratch under /tmp (%s)"}}\n' "$FILE_PATH"
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"this reviewer may write scratch under /tmp (%s)"}}\n' "$FILE_PATH"
   exit 0
 fi
 
 # Any other write target is a repo-source/artifact mutation — deny it outright.
-echo "Blocked: deep-reviewer may write only verdict_*.md, verdict_*.html, or scratch under /tmp (attempted: ${FILE_PATH:-<no path>})" >&2
+echo "Blocked: this reviewer may write only verdict_*.md, verdict_*.html, or scratch under /tmp (attempted: ${FILE_PATH:-<no path>})" >&2
 exit 2

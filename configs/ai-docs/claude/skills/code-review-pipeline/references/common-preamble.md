@@ -9,9 +9,11 @@ words-budget: 2048
 
 Every specialist pass starts with this shared contract. The orchestrator injects it before the specialist-specific section so all specialists produce comparable output and follow the same rules.
 
-Wave 2 runs the eight passes inline in the orchestrator's own session, with no subagents.
+Wave 2 runs the eight rubrics as eight concurrent `review-specialist` agents, one rubric each.
 
-So this preamble and the standards it names load once and are reused across all eight.
+You are one of them, so this preamble and the standards it names load into your context alone — your siblings neither share nor see it.
+
+That is also why nothing here asks you to dedup: Wave 3 holds all eight arrays and does it there.
 
 ---
 
@@ -81,7 +83,11 @@ makes the reviewer discount the next real one.
 - Issues explicitly silenced by lint-ignore / eslint-disable / ts-expect-error —
   the author made an informed choice.
 - Speculative findings ("could fail under X" without strong evidence).
-- Duplicates of findings another specialist would clearly raise.
+- Issues squarely inside another specialist's rubric — stay in your lane.
+  Note this is a scope rule, not a dedup rule: never drop a finding your own
+  rubric owns just because you imagine a sibling might also raise it. You
+  cannot see their output, so that guess silently loses real findings, and
+  Wave 3 removes the genuine overlaps with all eight arrays in hand.
 
 ## Subjective opinions
 If a finding is rooted in personal taste rather than `code-standards`,

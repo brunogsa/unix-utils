@@ -8,6 +8,36 @@ finding, not twice.
 
 ---
 
+## Pre-pass — dedup across specialists
+
+Run this once over the whole list, before any per-finding check. It reads no files, so doing it first spares you from validating a finding you are about to drop.
+
+Wave 2's eight specialists run concurrently and cannot see each other, so two of them raising the same defect is expected, not a bug. You are the first step that can tell.
+
+Two findings are duplicates when **all three** hold:
+
+- Same `path`.
+- `start_line..line` ranges overlap by at least one line.
+- The summary line (the second line of `body`) describes the same underlying defect — not merely the same symptom or the same function.
+
+Different `scope_tag` values do **not** make them distinct. Two specialists reaching one defect from different rubrics is the exact case this pre-pass exists for.
+
+Distinct defects that happen to share a line both stay. A null check and a unit-conversion bug on the same line are two findings, not one.
+
+Keep exactly one of each duplicate set, by this order:
+
+1. Highest severity — `MANDATORY` > `RECOMMENDED` > `NITPICK` > `OPTIONAL` > `QUESTION`.
+2. Still tied → highest `confidence`.
+3. Still tied → the one appearing first in the merged array.
+
+Record each dropped duplicate: `path:line — <first 80 chars of body> — duplicate of <kept scope_tag>`.
+
+Log them even though they are routine. The drop log is the only place the cost of running the specialists in isolation becomes visible.
+
+Wave 6 surfaces that log, so a rising duplicate count is where you would notice the isolation starting to cost more than it saves.
+
+---
+
 ## Per-finding checks
 
 ### Check 1 — False positive?

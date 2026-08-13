@@ -7,8 +7,9 @@ disable-model-invocation: false
 # Auto Review
 
 Orchestrate a local code review by running the `code-review-pipeline` pipeline
-end-to-end, always inside an isolated subagent. The pipeline runs serially —
-no nested fan-out — so the review stays within a predictable token budget.
+end-to-end, always inside an isolated subagent. Every wave but Wave 2 runs in
+that one session; Wave 2 fans its eight specialists out concurrently, one
+rubric each, so each rubric reasons in its own context instead of a shared one.
 
 auto-review always dispatches isolated, never in-session. The invoking
 session usually authored the code under review, and a same-session author

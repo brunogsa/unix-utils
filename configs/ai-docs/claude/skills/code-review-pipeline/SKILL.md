@@ -9,9 +9,15 @@ user-invocable: false
 You orchestrate a 7-wave code review pipeline (Waves 0-6) shared by both
 modes — only Waves 1 and 5 differ fully, plus one guide-writer skip in Wave 2 for local mode.
 
-**Architecture.** The pipeline runs **serially in one session** — the caller's own or an isolated subagent, per "How callers dispatch" below — with no nested sub-Agents.
+**Architecture.** The orchestrator runs in one session — the caller's own or an isolated subagent, per "How callers dispatch" below — and every wave but Wave 2 runs inside it.
 
-Specialists run linearly so the prompt cache stays warm and later passes dedup what earlier ones raised.
+Wave 2 fans its eight specialists out as concurrent `review-specialist` agents, one rubric each.
+
+Serial passes shared one warm cache but grew one context: measured runs sat at ~100k resident tokens median and 157k at p90, re-reading all of it every turn.
+
+Eight isolated contexts each carry one rubric instead of eight, and that read saving is what pays for the eight base-context writes the fan-out adds.
+
+Dedup moved to Wave 3 along with it — a specialist that cannot see its siblings cannot skip what they raised.
 
 **Compaction resilience.** Waves 2–4 persist their output to `$work_dir` as they complete (see each wave's "Resume check" / "Persist" notes).
 After a mid-pipeline compaction, re-read this SKILL.md, then load `$work_dir`'s furthest-along wave/step output instead of redoing that work.
@@ -61,13 +67,16 @@ The sonnet pin covers the github isolated path — an accepted cost/depth tradeo
 - `Base ref` (local only; a branch name, commit SHA, or `HEAD~N` — defaults to the repo's detected default branch)
 - `Language`: `Portuguese (Brazil)` (github) or `English` (local)
 
-**Load lazily, by wave; keep loaded after.** They ground every specialist and validation decision:
+**Load lazily, by wave; keep loaded after.** They ground your own validation and emit decisions:
 
 1. Read `~/.claude/skills/code-review-pipeline/references/review-principles.md` + `review-checklists.md` (Wave 0+)
-2. Invoke `code-standards`, `test-standards`, and `doc-standards` via the Skill tool (Wave 2; `doc-standards` again for Wave 5's density check)
-3. Read `CLAUDE.md` files at repo root / parents of changed files (Wave 2)
+2. Invoke `doc-standards` via the Skill tool (Wave 5's density check)
 
-Invoke those three standards via Skill, never Read — CLAUDE.md's Skill-tool-over-Read rule (meta-work only).
+Invoke that standard via Skill, never Read — CLAUDE.md's Skill-tool-over-Read rule (meta-work only).
+
+You no longer load `code-standards`, `test-standards`, the specialist rubrics, or the changed files' `CLAUDE.md` — each Wave 2 specialist loads its own, scoped to its rubric.
+
+Carrying all of them here meant every later wave re-read all of them on every turn, for material only Wave 2 ever used.
 
 Specialists never hit GitHub or any external system — pre-built Wave 1 context only, keeping review reproducible and idempotent.
 
@@ -100,23 +109,24 @@ This is where the `tiny_pr` flag (`added_lines < 100`) gets set.
 
 ---
 
-## Wave 2 — Specialist review + guide writer (serial, in this session)
+## Wave 2 — Specialist review + guide writer (parallel fan-out)
 
 **If `tiny_pr=true`, use the fast-path at the end of this section instead
-of the per-specialist loop below.** If a mid-pipeline compaction dropped
+of the fan-out below.** If a mid-pipeline compaction dropped
 `tiny_pr` from memory, the Resume check below recovers it from disk.
 
+Dispatch all eight specialists in **one turn**, as eight `agent(subAgent=review-specialist, title=Review: <name>)` calls.
 
-You run the specialist review yourself, in this session — no sub-Agents (rationale at top).
+Each loads its own preamble, rubric, and standards and writes its own JSON array — you load none of them, and you never see a finding until the merge.
 
-**Loaded once, reused across all passes:**
+- **Resume check** (before dispatching): list `$work_dir/specialist-*.json` and dispatch only the specialists with no file there.
 
-- `references/common-preamble.md` — the shared reviewer contract.
-- Wave 1 outputs: diff, changed-files list, commentable-lines, commit messages,
-  `{pr_context}`.
-- The standards files (per the mapping in "Before you start").
+  - A finished specialist's array is already on disk. Re-running it spends a second opus context to reproduce a file you can just read.
 
-**Specialist order (do them one at a time):**
+  - Also read `$work_dir/tiny-pr.txt`, if present, and use it as `tiny_pr` instead of the in-memory value.
+  - Wave 1 persists it there so a mid-pipeline compaction can't lose which path a resumed run takes.
+
+**The eight rubrics** — order no longer matters, since they run concurrently:
 
 1. `correctness`
 2. `corner-cases-and-side-effects`
@@ -127,27 +137,28 @@ You run the specialist review yourself, in this session — no sub-Agents (ratio
 7. `docs-comments-logging`
 8. `performance`
 
-Per-specialist loop:
+**Each dispatch's prompt carries exactly these** — `review-specialist.md` states everything else:
 
-- **Resume check** (before the first iteration only): if `$work_dir/wave2-progress.txt` exists, read it.
-  - One completed specialist name per line; load `$work_dir/wave2-findings.json` for their findings so far.
-  - Start the loop at the first specialist NOT listed there.
-  - Also read `$work_dir/tiny-pr.txt`, if present, and use it as `tiny_pr` instead of the in-memory value.
-  - Wave 1 persists it there so a mid-pipeline compaction can't lose which path a resumed run takes.
+- **Rubric name**: the list entry, matching `references/specialists/<name>.md`.
+- **Work dir**: `$work_dir`.
+- **Repo root**: `{repo_root}`.
+- **Mode**: `github` or `local` — it decides body language and whether permalinks apply.
+- **`{pr_context}`**: the resolved PR title/body plus optional Jira snippet, or the local spec and plan paths.
+- **Output path**: `$work_dir/specialist-<name>.json`.
 
-- Read `references/specialists/<name>.md`. Combine with `common-preamble.md`.
-- Walk the diff through that specialist's rubric. Pull full files from
-  `{repo_root}` only when the `-U20` diff context isn't enough to decide.
+**Merge, once every dispatch has returned:**
 
-- Emit that specialist's findings as a JSON array; `scope_tag` matches the
-  file name (e.g., `"security"`).
-- **Skip issues already raised** by a previous specialist this session —
-  the scope_tag plus the Problem sentence tell you. Distinct issues sharing
-  a line stay in.
+```bash
+n=$(ls "$work_dir"/specialist-*.json 2>/dev/null | wc -l | tr -d ' ')
+[ "$n" -eq 8 ] || { echo "wave2: expected 8 specialist outputs, found $n"; exit 1; }
+jq -s 'add' "$work_dir"/specialist-*.json > "$work_dir/wave2-findings.json"
+```
 
-- Maintain a running findings list in working memory; append each pass.
+The count guard is the point of that block: an absent file and an empty array are indistinguishable downstream.
 
-- **Persist**: overwrite `$work_dir/wave2-findings.json` with the full cumulative findings array, and append this specialist's name to `$work_dir/wave2-progress.txt` — both before moving to the next specialist.
+Without it, a specialist that died silently reads as a rubric that found nothing.
+
+Dedup is **not** done here. Eight isolated specialists cannot see each other, so overlapping findings are expected and Wave 3 resolves them with all eight arrays in hand.
 
 **Guide writer (after all 8 specialists):**
 
@@ -166,6 +177,10 @@ Resolve placeholders in each reference file against Wave 1 paths and values.
 When `tiny_pr=true`, replace the per-specialist loop with:
 
 - Read `common-preamble.md` and all 8 specialist files once — combined prompt fits at <100 added lines.
+- Invoke `code-standards` and `test-standards` via the Skill tool here, plus any `CLAUDE.md` above a changed file.
+
+  - Startup skips those because only Wave 2 needs them, and on this path you *are* Wave 2.
+
 - Walk the diff once. Flag any issue matching a specialist's rubric; tag `scope_tag` with that specialist.
 - Skip the guide writer; emit a 2-sentence change summary instead.
 - **Persist**: write the summary to `$work_dir/wave2-guide.md` — same filename the full guide uses, so Wave 5 needs no tiny-PR-specific branching.
@@ -186,9 +201,11 @@ hallucinations **and** tightens line anchors, so you re-load each file at most o
 
 **Resume check**: if `$work_dir/wave3-findings.json` already exists, load it (and `$work_dir/wave3-drop-log.txt`) and skip straight to Wave 4 — this wave already completed.
 
-**Read `references/validator.md` once, then apply it to every finding in the flat list.**
+**Read `references/validator.md` once, then apply it to the flat list.**
 
-It authors both checks — false positive, then line range — the conservative-keep threshold, and the hard rules, so nothing restates them here.
+It authors the cross-specialist dedup pre-pass, both per-finding checks — false positive, then line range — the conservative-keep threshold, and the hard rules, so nothing restates them here.
+
+Dedup lands here rather than in Wave 2 because this is the first step holding all eight arrays at once, and it already loads every finding.
 
 Artifact: a reduced, range-tightened findings list + a drop log. **Persist**: write both to `$work_dir/wave3-findings.json` and `$work_dir/wave3-drop-log.txt` before moving to Wave 4.
 

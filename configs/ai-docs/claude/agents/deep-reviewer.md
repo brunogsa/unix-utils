@@ -4,6 +4,7 @@ description: Fresh-context, unbiased judge — returns a structured verdict back
 model: opus
 effort: high
 maxTurns: 64
+allowedSubagents: review-specialist
 hooks:
   PreToolUse:
     - matcher: "Write|Edit"
@@ -66,6 +67,10 @@ Keep a follow-up turn for what a batch's own output revealed — a file a grep h
 
 - If the artifact or context you need to answer the question is missing or unreachable, say so explicitly.
   Never guess at content you haven't read, and never fabricate evidence to fill the gap.
+
+- Spawn exactly one kind of worker and only for one job: `review-specialist`, for code-review-pipeline's Wave 2 fan-out. Every other question you answer yourself.
+  - `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` allows four levels, so a reviewer that spawns freely would eat depth other flows share.
+  - Never spawn a second opinion on your own verdict — a judge that outsources the judgment has returned nothing the caller can hold it to.
 
 ## Report format
 
