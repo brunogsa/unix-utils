@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """subagent-disallowed-tools-guard - PreToolUse hard-deny gate that
-evaluates a subagent's disallowedTools frontmatter at call time.
+evaluates a subagent's disallowedTools/allowedSubagents frontmatter
+at call time.
 
 Usage (Claude Code PreToolUse hook, matcher "Agent|Workflow"):
   Reads the tool-call JSON from stdin, resolves the CALLING agent's
   file (not the dispatch target named in tool_input), and denies the
   call when the invoked tool_name appears in that caller's
-  disallowedTools list. Exits 0 in every case (Claude Code's
-  PreToolUse "deny" is expressed via JSON on stdout, not via exit
-  code -- see the deny() calls below).
+  disallowedTools list, or (for Agent calls specifically) when the
+  requested subagent_type is absent from that caller's
+  allowedSubagents list, if declared. Exits 0 in every case (Claude
+  Code's PreToolUse "deny" is expressed via JSON on stdout, not via
+  exit code -- see the deny() calls below).
 
 Why this hook exists:
   Claude Code reads and caches an agent file's frontmatter at SESSION
@@ -29,6 +32,16 @@ Policy:
   - agent_type resolves to a file that reads and parses cleanly:
     deny iff tool_name is one of the comma-separated names in its
     disallowedTools: field; allow otherwise.
+  - That same file additionally declares allowedSubagents: for
+    Agent calls (never Workflow, which carries no subagent_type):
+    deny unless the call's subagent_type is one of the
+    comma-separated names in that list. subagent_type missing
+    entirely, and allowedSubagents present-but-empty, both fail
+    closed for the same reason as the frontmatter-parse-failure
+    case below: a carve-out that can be silently bypassed by
+    omitting a value would defeat the reason this hook exists. No
+    allowedSubagents: key at all leaves this axis unrestricted, same
+    as no disallowedTools: key.
   - agent_type resolves to a file that CANNOT be read or whose
     frontmatter cannot be parsed (I/O error, decode error, truncated
     frontmatter that never closes): DENY, failing closed. This is
@@ -54,6 +67,8 @@ Examples:
     | subagent-disallowed-tools-guard.py   # allowed (Explore has no disallowedTools pin)
   echo '{"tool_name":"Agent"}' \
     | subagent-disallowed-tools-guard.py   # allowed (main session, no calling agent)
+  echo '{"tool_name":"Agent","agent_type":"tdd-coder","subagent_type":"Grep"}' \
+    | subagent-disallowed-tools-guard.py   # denied once tdd-coder declares allowedSubagents: Explore
 """
 
 import json
@@ -63,7 +78,7 @@ from pathlib import Path
 
 AGENTS_DIR = Path.home() / ".claude" / "agents"
 GATED_TOOLS = ("Agent", "Workflow")
-FRONTMATTER_KEYS = ("name", "disallowedTools")
+FRONTMATTER_KEYS = ("name", "disallowedTools", "allowedSubagents")
 
 
 def parse_agent_frontmatter(path):
@@ -93,6 +108,16 @@ def parse_agent_frontmatter(path):
     if not closed:
         raise ValueError(f"{path} frontmatter never closes")
     return fields
+
+
+def parse_comma_list(raw):
+    """Split a comma-separated frontmatter value into stripped names.
+
+    Shared by disallowedTools and allowedSubagents -- both are the
+    same flat comma-list shape, just gating a different axis (tool
+    name vs. dispatched subagent_type).
+    """
+    return [name.strip() for name in raw.split(",") if name.strip()]
 
 
 def resolve_agent_file(agent_type):
@@ -169,11 +194,7 @@ def main():
         )
         return
 
-    disallowed = [
-        name.strip()
-        for name in fields.get("disallowedTools", "").split(",")
-        if name.strip()
-    ]
+    disallowed = parse_comma_list(fields.get("disallowedTools", ""))
     if tool_name in disallowed:
         deny(
             f"'{agent_type}' ({agent_file}) disallows the {tool_name} "
@@ -185,7 +206,31 @@ def main():
             f"that owns this subagent's dispatch (its orchestrator) "
             f"can decide to widen the frontmatter."
         )
-    # else: allow -- tool_name is not in this caller's disallowedTools
+        return
+
+    # else: allow -- tool_name isn't in disallowedTools
+
+    if tool_name == "Agent" and "allowedSubagents" in fields:
+        allowed_subagents = parse_comma_list(fields["allowedSubagents"])
+        requested_subagent_type = payload.get("subagent_type")
+        if requested_subagent_type not in allowed_subagents:
+            deny(
+                f"'{agent_type}' ({agent_file}) declares "
+                f"allowedSubagents in its frontmatter, restricting "
+                f"which subagent_type it may dispatch via Agent. The "
+                f"requested subagent_type "
+                f"({requested_subagent_type!r}) is not in that list "
+                f"-- this includes the case where subagent_type is "
+                f"missing entirely, since an unnamed target can never "
+                f"be confirmed as permitted. Failing closed rather "
+                f"than assuming permitted mirrors this hook's posture "
+                f"on unparseable disallowedTools. Report this block "
+                f"instead of retrying: only the caller that owns this "
+                f"agent's frontmatter can widen allowedSubagents to "
+                f"permit this dispatch."
+            )
+
+        # else: allow -- subagent_type is in allowedSubagents
 
 
 if __name__ == "__main__":
