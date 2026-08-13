@@ -77,6 +77,12 @@ Ask ONE clarifying question, with your recommended reading, on any of these:
 
 Never guess past an ambiguity like these — a wrong guess silently works the wrong finding.
 
+A severity floor compares the ordinal `HIGH` / `MEDIUM` / `LOW` tag each lens stamps in its finding headings, so all three filter alike.
+
+A `[QUESTION]` finding carries no ordinal, so no floor filters it out — it is always selected.
+
+Report it to the human instead of dispatching it, since a question names no fix an apply agent could land.
+
 Applying an auto-review-lens finding also needs a test command, to run RED-then-GREEN (§4).
 
 Infer it first: a `package.json` test script, a Makefile target, the repo's own CLAUDE.md.

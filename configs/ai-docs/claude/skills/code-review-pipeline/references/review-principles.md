@@ -61,16 +61,34 @@ The headers are phrased as questions the reader already has, so no one has to de
 
 Keep bullets short, simple enough for an intern unfamiliar with the module, max 256 characters per line.
 
-## Priority tags — match severity to tone
+## Priority tags — match severity to tone, and each tag to an ordinal rank
 
-- **MANDATORY** (`OBRIGATÓRIO`) — must fix before merge (correctness, security, critical bugs). Direct, assertive tone.
-- **RECOMMENDED** (`RECOMENDADO`) — should address (code quality, performance, best practices).
-- **NITPICK** (`NITPICK`) — optional improvements (minor style, subjective). Friendly, non-pedantic tone.
-- **OPTIONAL** (`OPCIONAL`) — pre-existing issue surfaced for awareness only, not introduced or worsened by this diff. Drop it entirely if it is one of the [low-value kinds](#skip-low-value-comments): formatting, linting, subjective refactors.
+The tag sets the tone. The ordinal rank beside it is what a severity floor compares.
 
-- **QUESTION** (`PERGUNTA`) — genuine design questions. Standalone: must be answered. Embedded in other tags: include inline.
+`/address-verdicts` §2 takes floor arguments like `high` and `high+`, and a tone vocabulary orders nothing on its own.
+
+- **MANDATORY** (`OBRIGATÓRIO`) — ordinal severity `HIGH`. Must fix before merge (correctness, security, critical bugs). Direct, assertive tone.
+
+- **RECOMMENDED** (`RECOMENDADO`) — ordinal severity `MEDIUM`. Should address (code quality, performance, best practices).
+
+- **NITPICK** (`NITPICK`) — ordinal severity `LOW`. Optional improvements (minor style, subjective). Friendly, non-pedantic tone.
+
+- **OPTIONAL** (`OPCIONAL`) — ordinal severity `LOW`. Pre-existing issue surfaced for awareness only, not introduced or worsened by this diff.
+  - Drop it entirely if it is one of the [low-value kinds](#skip-low-value-comments): formatting, linting, subjective refactors.
+
+- **QUESTION** (`PERGUNTA`) — no ordinal severity, so it passes every severity floor instead of ranking under one. Standalone: must be answered. Embedded in other tags: include inline.
 
 Why: a NITPICK with MANDATORY tone is hostile. A MANDATORY with NITPICK tone is ignored. Matching severity to tone keeps the signal honest.
+
+Why these four ranks: the ordinal scale measures the cost of leaving a finding undone, which is the axis the tags already carry.
+
+`HIGH` is a defect that ships or persists, `MEDIUM` a maintenance cost that compounds on the next touch, `LOW` no practical cost ever.
+
+OPTIONAL joins NITPICK at `LOW` because an issue this diff neither introduced nor worsened costs this change nothing.
+
+Why QUESTION is exempt rather than ranked: it asks for information instead of naming work, so it has no cost-of-leaving-it-undone to compare.
+
+Ranking it low would let a `high` floor silently swallow a standalone question that must be answered; ranking it high would route a finding with no fix to an apply agent.
 
 ## Review in priority order — most critical first
 

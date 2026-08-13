@@ -146,6 +146,22 @@ The pipeline always runs isolated here, so its own TaskList write never
 reaches the user — this session is the first that can raise those flags, and
 repairing a flagged line stays the user's call.
 
+### Severity in the verdict headings
+
+Each finding heading stamps an ordinal severity right after the number: `### N. [HIGH] path:lines`.
+
+That is the same shape `/test-sdd` and `/refactor` emit, so `/address-verdicts` parses all three lenses identically.
+
+The reviewer still reasons in the five priority tags: `MANDATORY`, `RECOMMENDED`, `NITPICK`, `OPTIONAL`, `QUESTION`.
+
+The heading carries the ordinal each of those maps to, per the "Priority tags" section of `~/.claude/skills/code-review-pipeline/references/review-principles.md`, which owns that mapping.
+
+A `QUESTION` finding heads `### N. [QUESTION] …` instead, carrying no ordinal at all.
+
+`/address-verdicts`' severity floor therefore never filters it out, so a question that must be answered can't vanish under a `high` floor.
+
+Emitting a priority tag where the ordinal belongs is what silently drops this lens out of every floored selection, since a floor has nothing to compare it against.
+
 **Report only — the skill stops here.** `/auto-review` produces the report and applies nothing.
 
 Applying is `/address-verdicts`' job: it globs `verdict_auto-review_*.md` and routes each finding to the `tdd-coder` agent, which applies it RED-before-GREEN and commits under `commit-standards`.
