@@ -1445,5 +1445,126 @@ class TestSessionMode(unittest.TestCase):
         self.assertEqual(payload["reconciliation"]["status"], "unavailable")
 
 
+class TestSpawnAttribution(unittest.TestCase):
+    """Pure unit tests of collect_agent_spawns()/match_spawn() -- the
+    prompt-matching link between a Task/Agent dispatch record in the main
+    transcript and the subagent transcript it spawned. Claude Code records
+    no other link (agentId only appears in tool_result prose, unrelated to
+    the subagent transcript's own filename), so prompt-prefix matching is
+    the only mechanism available, and every case here is about that
+    mechanism degrading gracefully instead of silently mis-crediting.
+    """
+
+    def _spawn_record(self, epoch, subagent_type, prompt):
+        """One assistant record dispatching a Task/Agent subagent -- the
+        shape collect_agent_spawns() scans for."""
+        return {
+            "type": "assistant",
+            "timestamp": _iso(epoch),
+            "message": {
+                "role": "assistant",
+                "content": [{
+                    "type": "tool_use",
+                    "name": "Task",
+                    "input": {"subagent_type": subagent_type, "prompt": prompt},
+                }],
+            },
+        }
+
+    def test_collect_agent_spawns_stores_the_full_dispatch_prompt_not_truncated_to_150_characters(self):
+        long_prompt = "Investigate the flaky checkout test " + "and confirm the root cause " * 6
+        self.assertGreater(len(long_prompt), 150)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_transcript(tmp, "main.jsonl", [
+                self._spawn_record(1_700_000_000, "tdd-coder", long_prompt),
+            ])
+            spawns = cur.collect_agent_spawns([path])
+
+        stored_prompt = spawns[path][0][1]
+        self.assertEqual(
+            stored_prompt, long_prompt,
+            msg="collect_agent_spawns must keep the dispatched prompt in full so "
+                "match_spawn can discriminate collisions past the old 150-char cut")
+
+    def test_match_spawn_treats_a_short_transcript_prompt_as_a_candidate_when_it_prefixes_a_longer_spawn_prompt(self):
+        spawn_prompt = "Refactor the pricing module " * 6  # > 150 chars, one dispatch
+        transcript_prompt = spawn_prompt[:40]  # shorter than the 100-char floor
+        session_spawns = [("refactor", spawn_prompt, 3)]
+
+        spawn_type, record_index = cur.match_spawn(transcript_prompt, session_spawns)
+
+        self.assertEqual(
+            (spawn_type, record_index), ("refactor", 3),
+            msg="a transcript's captured first_prompt shorter than 100 chars must "
+                "still match a spawn it fully prefixes -- candidacy is symmetric, "
+                "not just prompt.startswith(spawn_prompt)")
+
+    def test_match_spawn_picks_the_candidate_with_the_longest_common_prefix_when_two_spawns_share_their_first_100_characters(self):
+        shared_opening = (
+            "You are dispatched to review the checkout service PR for "
+            "correctness bugs and reuse or simplification opportunities, "
+        )
+        self.assertGreaterEqual(len(shared_opening), 100)
+        refactor_prompt = shared_opening + "then apply the structure-only cleanup yourself."
+        tdd_prompt = shared_opening + "then write the RED test before any fix lands."
+        session_spawns = [
+            ("refactor", refactor_prompt, 10),
+            ("tdd-coder", tdd_prompt, 11),
+        ]
+
+        spawn_type, record_index = cur.match_spawn(tdd_prompt, session_spawns)
+
+        self.assertEqual(
+            (spawn_type, record_index), ("tdd-coder", 11),
+            msg="both spawns share the first 100+ chars, but only tdd_prompt's own "
+                "text is an exact match past that point -- the longest common "
+                "prefix must break the tie the old 100-char key collided on")
+
+    def test_match_spawn_falls_through_to_the_remaining_weaker_candidate_once_its_exact_match_is_consumed(self):
+        shared_opening = (
+            "You are dispatched to review the checkout service PR for "
+            "correctness bugs and reuse or simplification opportunities, "
+        )
+        refactor_prompt = shared_opening + "then apply the structure-only cleanup yourself."
+        tdd_prompt = shared_opening + "then write the RED test before any fix lands."
+        session_spawns = [
+            ("refactor", refactor_prompt, 10),
+            ("tdd-coder", tdd_prompt, 11),
+        ]
+
+        first_match = cur.match_spawn(refactor_prompt, session_spawns)
+        second_match = cur.match_spawn(refactor_prompt, session_spawns)
+
+        self.assertEqual(
+            first_match, ("refactor", 10),
+            msg="the exact match (idx 0) must win over the shared-opening-only "
+                "candidate (idx 1) on the first call")
+        self.assertEqual(
+            second_match, ("tdd-coder", 11),
+            msg="idx 0 is already consumed, so a second transcript reusing that "
+                "exact prompt must fall through to the remaining shared-opening "
+                "candidate rather than re-matching the consumed one or going "
+                "UNMATCHED -- consumption must never cause a false UNMATCHED")
+
+    def test_match_spawn_resolves_byte_identical_candidates_to_the_earliest_unconsumed_one(self):
+        retried_prompt = "Re-run the export job for the July closing batch, unchanged."
+        session_spawns = [
+            ("tdd-coder", retried_prompt, 20),
+            ("tdd-coder", retried_prompt, 27),
+        ]
+
+        first_match = cur.match_spawn(retried_prompt, session_spawns)
+        second_match = cur.match_spawn(retried_prompt, session_spawns)
+
+        self.assertEqual(
+            first_match, ("tdd-coder", 20),
+            msg="two byte-identical retries: the first transcript must claim the "
+                "earliest (lowest record_index) unconsumed spawn")
+        self.assertEqual(
+            second_match, ("tdd-coder", 27),
+            msg="once the earliest spawn is consumed, the second identical "
+                "transcript must fall through to the remaining one, not UNMATCHED")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

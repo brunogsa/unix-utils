@@ -384,13 +384,19 @@ def iter_records(path):
 
 
 def collect_agent_spawns(main_files):
-    """session file -> [(subagent_type, prompt prefix, record_index)] for subagent attribution.
+    """session file -> [(subagent_type, full dispatch prompt, record_index)] for
+    subagent attribution.
 
     record_index is this record's position in the SAME iter_records(path) sequence
     scan_transcript() enumerates below, so a spawn's index lines up with the
     skill-invocation and message-cost positions scan_transcript records for that
     file — that alignment is what lets by_skill_marginal place a subagent into
     the skill span it was spawned in.
+
+    The prompt is stored in full, not truncated, because match_spawn() needs to
+    compare candidates past whatever prefix length they happen to share — a
+    150-char cut here would silently reintroduce the same collision it exists
+    to resolve, just at a longer prefix.
     """
     spawns = defaultdict(list)
     for path in main_files:
@@ -405,7 +411,7 @@ def collect_agent_spawns(main_files):
                 spawn_input = item.get("input") or {}
                 spawns[path].append((
                     spawn_input.get("subagent_type") or "general-purpose",
-                    (spawn_input.get("prompt") or "")[:150],
+                    spawn_input.get("prompt") or "",
                     record_index,
                 ))
     return spawns
@@ -760,11 +766,39 @@ def match_spawn(prompt, session_spawns):
     subagent transcript, matched by prompt prefix. Feeds both by_subagent_type
     (type only) and by_skill_marginal (record_index, to place the subagent's cost
     into the skill span it was spawned in). ("UNMATCHED", None) if no call matches.
+
+    A spawn is a candidate when either string prefixes the other over at least
+    the first 100 characters — kept as the recall floor so a transcript whose
+    captured prompt is shorter than the dispatch prompt (or vice versa) still
+    qualifies. Among candidates, the one with the longest common prefix wins,
+    ties going to the earliest (lowest-index) candidate.
+
+    The winner is REMOVED from session_spawns (it's the caller's own list,
+    mutated in place): two spawns can share an opening long enough to collide
+    at the 100-char floor, and a verbatim retry collides even at the full
+    prompt. Without consuming the winner, every later transcript sharing that
+    opening would re-match the same first spawn, over-crediting one
+    subagent_type for runs that belong to others.
     """
-    for spawn_type, prompt_prefix, record_index in session_spawns:
-        if prompt_prefix and prompt.startswith(prompt_prefix[:100]):
-            return spawn_type, record_index
-    return "UNMATCHED", None
+    best_index = None
+    best_common_len = -1
+    for index, (spawn_type, spawn_prompt, record_index) in enumerate(session_spawns):
+        if not spawn_prompt:
+            continue
+        is_candidate = (
+            prompt.startswith(spawn_prompt[:100])
+            or spawn_prompt.startswith(prompt[:100])
+        )
+        if not is_candidate:
+            continue
+        common_len = len(os.path.commonprefix([prompt, spawn_prompt]))
+        if common_len > best_common_len:
+            best_common_len = common_len
+            best_index = index
+    if best_index is None:
+        return "UNMATCHED", None
+    spawn_type, _, record_index = session_spawns.pop(best_index)
+    return spawn_type, record_index
 
 
 def span_owner(sorted_events, event_indices, position):
