@@ -127,7 +127,9 @@ def cat_only_bin(tmp_dir: Path) -> Path:
     """
     fake_bin = tmp_dir / "fake-bin"
     fake_bin.mkdir(parents=True, exist_ok=True)
-    (fake_bin / "cat").symlink_to(shutil.which("cat"))
+    cat_path = shutil.which("cat")
+    assert cat_path is not None, "cat must be on PATH for this fixture to work"
+    (fake_bin / "cat").symlink_to(cat_path)
     return fake_bin
 
 
@@ -289,6 +291,7 @@ class StopHookStateFileGuardTestCase(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         decision = self.decision(result)
         self.assertIsNotNone(decision, msg="expected a block decision on stdout")
+        assert decision is not None
         self.assertEqual(decision["decision"], "block")
         self.assertIn(
             str(state_path(self.sid)), decision["reason"],
@@ -299,6 +302,7 @@ class StopHookStateFileGuardTestCase(unittest.TestCase):
 
         decision = self.decision(run_stop_hook(sid=self.sid))
 
+        assert decision is not None, "expected a block decision on stdout"
         self.assertIn("2.3", decision["reason"])
         self.assertIn(
             f"trash {marker_path(self.sid)}", decision["reason"],
@@ -351,6 +355,7 @@ class StopHookStateFileGuardTestCase(unittest.TestCase):
             decision,
             msg="a second /implement in the same session must not be disarmed by "
                 "the first run's leftover scratchpad")
+        assert decision is not None
         self.assertEqual(decision["decision"], "block")
 
     def test_should_keep_blocking_a_mid_flight_batch_when_the_state_file_says_phase_tasks(self):
@@ -360,6 +365,7 @@ class StopHookStateFileGuardTestCase(unittest.TestCase):
         decision = self.decision(run_stop_hook(sid=self.sid))
 
         self.assertIsNotNone(decision, msg="existing mid-flight behavior must survive")
+        assert decision is not None
         self.assertEqual(decision["decision"], "block")
         self.assertIn("phase", decision["reason"])
 
