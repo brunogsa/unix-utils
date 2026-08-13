@@ -10,8 +10,14 @@ Write `${out_file}` (`${out_base}.md`) to the current CWD.
 
 - Keep the template file as the single source of truth for the output shape; do not inline the template here.
 
-**doc-standards check (after writing).** Run both `check-density.sh` and `check-bullet-gap.py` from `~/.claude/skills/doc-standards/scripts/` on `$out_file`, then fix any flagged lines yourself:
+**doc-standards check (after writing).** Run both `check-density.sh` and `check-bullet-gap.py` from `~/.claude/skills/doc-standards/scripts/` on `$out_file`, then report what they flag:
 
-- Don't spawn a subagent — this pipeline keeps its fan-out flat so the run's token budget stays predictable, and local mode always runs isolated (SKILL.md's dispatch rule).
+- Report what they flag; never repair it, and never dispatch `markdown-standards-fixer`.
+  - Reflowing prose is a judgment call that has already split sentences mid-phrase across bullet boundaries and damaged a document.
 
-- Rewrite each over-cap line in place per `doc-standards/references/density-rules.md`, insert a blank line after each bullet `check-bullet-gap.py` flags, and re-run both until each exits 0.
+- Local mode always runs isolated (SKILL.md's dispatch rule), so this step can neither ask the user nor file the `[Scout]` those flags earn.
+  - A subagent's TaskList write never reaches the user who triages it.
+
+- Carry every flagged line into your Wave 6 summary's doc-standards-flags block instead, naming `$out_file` and what is off standard. The calling session files the `[Scout]` from there.
+
+- Either way, `${out_file}` ships exactly as written. An over-cap verdict file still stands, because the user alone decides if and when that Scout runs.

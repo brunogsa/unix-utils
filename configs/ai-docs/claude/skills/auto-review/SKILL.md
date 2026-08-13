@@ -139,6 +139,13 @@ Print the file path, per-severity counts, skipped files, and the
 Wave 6 summary. Multiple runs accumulate as separate timestamped files,
 preserving their order when the user runs several reviews in one CWD.
 
+File one `[Scout]` TaskList entry per file listed in that summary's
+doc-standards-flags block, naming the file and what is off standard.
+
+The pipeline always runs isolated here, so its own TaskList write never
+reaches the user — this session is the first that can raise those flags, and
+repairing a flagged line stays the user's call.
+
 **Report only — the skill stops here.** `/auto-review` produces the report and applies nothing.
 
 Applying is `/address-verdicts`' job: it globs `verdict_auto-review_*.md` and routes each finding to the `tdd-coder` agent, which applies it RED-before-GREEN and commits under `commit-standards`.

@@ -133,10 +133,13 @@ def code_review_pipeline(arg):
 
             case "local":
                 out_file = write(f"verdict_auto-review_{ts}", to=CWD)   # 17a
-                while not run("check-density.sh", out_file):            # 17a1
-                    # 17a1a · local mode is always isolated, so fix inline,
-                    #         looping until exit 0.
-                    fix_density_inline()
+                # 17a1 · measures only — nothing here reflows the verdict file.
+                clean = run("check-density.sh", "check-bullet-gap.py",
+                            on=[out_file])
+                if not clean:
+                    # 17a1a · local mode is always isolated, so its own TaskList
+                    #         write would never reach the user who triages it.
+                    carry_scouts_into_wave6_summary()
 
     print(terminal_summary())                              # 23 · Wave 6
 
@@ -207,8 +210,8 @@ flowchart TD
   n22["22. Post Review Guide as<br/>standalone PR comment<br/>(guide-payload.json)"]:::state
 
   n17a["17a. Write verdict_auto-review_TIMESTAMP<br/>file to CWD"]:::state
-  n17a1["17a1. check-density.sh on out_file"]:::hook
-  n17a1a["17a1a. Fix density violations inline<br/>(local mode is always isolated)<br/>loop until exit 0"]
+  n17a1["17a1. check-density.sh + check-bullet-gap.py on out_file<br/>(measure only -- nothing reflows the verdict file)"]:::hook
+  n17a1a["17a1a. Carry the flagged lines into the Wave 6 summary<br/>(local mode is always isolated -- its TaskList<br/>write never reaches the user who triages it)"]
 
   n23["23. Wave 6: print terminal summary"]
   n24(["24. Pending review (github) or verdict file (local)<br/>awaits human read/submit -- nothing auto-submits"]):::gate

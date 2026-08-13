@@ -29,8 +29,15 @@ Skipped files (not reviewed):
   binary: <list from work_dir/skipped-binary.txt>
   deleted: <list from work_dir/skipped-deleted.txt>
 
+doc-standards flags (report only — nothing was reflowed):
+  <path>:<line> — over-cap line | bullet missing its blank-line gap
+
 Open <pr-url>/files to filter and submit.
 ```
+
+The doc-standards-flags block carries every line Wave 5's density and bullet-gap check flagged, verbatim. Print `none` when both scripts exited 0.
+
+An isolated run cannot file the `[Scout]` those flags earn, so the session reading this summary files it — one entry per offending file, naming what is off standard.
 
 Both drop lists are read from disk, not from memory: `$work_dir/wave3-drop-log.txt`
 and `$work_dir/wave4-drop-log.txt`. A compaction between Wave 3 and here costs
@@ -44,3 +51,6 @@ noise is surviving, loosen.
 
 Same structure as github mode, but with `${out_file}` (the timestamped path)
 as the output path and no review URL or review ID line.
+
+Its doc-standards-flags block lists `${out_file}`'s own flagged lines, where
+github mode lists the comment bodies' and the guide's.

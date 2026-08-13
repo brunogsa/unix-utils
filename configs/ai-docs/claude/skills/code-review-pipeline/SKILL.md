@@ -43,6 +43,10 @@ See [`wave5-emit-github.md`](./references/wave5-emit-github.md) step 2.
 
 Put the resolved inputs in its prompt body and tell it to read this SKILL.md and orchestrate from there; the user sees only its final summary.
 
+Whatever Wave 5's doc-standards check flagged comes back in that summary's doc-standards-flags block, and this calling session files the `[Scout]` each offending file earns.
+
+The isolated run cannot: a subagent's TaskList write never reaches the user who triages it.
+
 The sonnet pin covers the github isolated path — an accepted cost/depth tradeoff, reached by `--isolate` or by the A/B's parity assignment.
 
 `Mode: local` never reaches it: `/auto-review`, the sole local caller, pins `deep-reviewer` (opus) instead, because review judgment is the product it ships (see `auto-review/SKILL.md`).
