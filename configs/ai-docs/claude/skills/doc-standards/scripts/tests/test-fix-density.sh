@@ -4,9 +4,10 @@
 # Usage:
 #   bash test-fix-density.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats
-# dependency by design, matching this skill area's other test suites
-# (test-check-rule-citations.sh, test-check-bullet-gap-fix.sh).
+# Exits 0 when every assertion passes, non-zero otherwise.
+# No bats dependency by design, matching this skill area's other
+# test suites (test-check-rule-citations.sh,
+# test-check-bullet-gap-fix.sh).
 
 set -uo pipefail
 
@@ -33,7 +34,8 @@ assert_eq() {
   fi
 }
 
-# assert_contains - passes when the haystack carries the given literal row.
+# assert_contains - passes when the haystack carries the given
+# literal row.
 assert_contains() {
   local description="$1" haystack="$2" needle="$3"
   if printf '%s\n' "$haystack" | grep -qF -- "$needle"; then
@@ -45,22 +47,25 @@ assert_contains() {
   fi
 }
 
-# new_fixture - points FIXTURE at a fresh path under work_dir. Write its
-# content right after calling this with `cat > "$FIXTURE" <<'EOF' ... EOF`
-# (a heredoc straight into the file, not built through a `"$(cat <<EOF
-# ...)"` string first) - bash's parser mis-tracks quote state across a
-# heredoc body nested inside a command substitution once the body holds an
-# apostrophe (e.g. "repository's"), misreading it as an unterminated
-# single-quote and failing the whole script with a syntax error at parse
-# time. Heredoc-straight-to-file sidesteps that entirely.
+# new_fixture - points FIXTURE at a fresh path under work_dir.
+#
+# Write its content with `cat > "$FIXTURE" <<'EOF' ... EOF`
+# (a heredoc straight to the file, never `"$(cat <<...)"` nested
+# in a command substitution).
+#
+# Bash's parser mis-tracks quote state in nested heredocs when
+# the body holds an apostrophe (e.g. "repository's"), causing a
+# syntax error at parse.
 new_fixture() {
   FIXTURE="$work_dir/$1"
 }
 
-# new_repo - creates an empty git repo under work_dir and prints its
-# path, matching test-check-density.sh's own --changed-only fixture
-# convention. Identity is set locally so the fixture commit never
-# depends on the machine's global git config.
+# new_repo - creates an empty git repo under work_dir and prints
+# its path, matching test-check-density.sh's own --changed-only
+# fixture convention.
+#
+# Identity is set locally so the fixture commit never depends on
+# the machine's global git config.
 new_repo() {
   local dir="$work_dir/$1"
   mkdir -p "$dir"
@@ -70,17 +75,19 @@ new_repo() {
   printf '%s' "$dir"
 }
 
-# run_fix_changed_only - invokes fix-density.py --changed-only on
-# FIXTURE from within REPO_DIR, capturing exit code into FIX_EXIT and
-# stdout+stderr into FIX_OUT. FIXTURE must be relative to REPO_DIR,
-# matching how check-density.sh's own --changed-only tests invoke it.
+# run_fix_changed_only - invokes fix-density.py --changed-only
+# on FIXTURE from within REPO_DIR, capturing exit code into
+# FIX_EXIT and stdout+stderr into FIX_OUT.
+#
+# FIXTURE must be relative to REPO_DIR, matching how
+# check-density.sh's own --changed-only tests invoke it.
 run_fix_changed_only() {
   FIX_OUT=$(cd "$REPO_DIR" && python3 "$SCRIPT" --changed-only "$FIXTURE" 2>&1)
   FIX_EXIT=$?
 }
 
-# run_fix - invokes fix-density.py on FIXTURE, capturing the exit code
-# into FIX_EXIT and stdout+stderr into FIX_OUT.
+# run_fix - invokes fix-density.py on FIXTURE, capturing the
+# exit code into FIX_EXIT and stdout+stderr into FIX_OUT.
 run_fix() {
   python3 "$SCRIPT" "$FIXTURE" >"$work_dir/fix-stdout.txt" 2>&1
   FIX_EXIT=$?
@@ -88,9 +95,10 @@ run_fix() {
 }
 
 # run_density_check - independently re-verifies FIXTURE against
-# check-density.sh directly (not through fix-density.py), so a passing
-# fix is confirmed by the same tool an AI/human would run to check it,
-# not just by re-reading fix-density.py's own opinion of itself.
+# check-density.sh directly (not through fix-density.py).
+#
+# Confirms a passing fix by the same tool an AI/human would run,
+# not just by re-reading fix-density.py's opinion of itself.
 run_density_check() {
   "$DENSITY_SCRIPT" "$FIXTURE" >"$work_dir/density-stdout.txt" 2>&1
   DENSITY_EXIT=$?
@@ -107,10 +115,10 @@ EOF
   run_fix
   assert_eq 'should split an over-cap line at a sentence boundary (exit code, fully resolved)' "0" "$FIX_EXIT"
 
-  # Written to a file first, then read back into $expected - assigning
-  # straight from `expected="$(cat <<'EOF' ...)"` hits the same nested
-  # heredoc-in-command-substitution parser quirk new_fixture's comment
-  # above describes, since this body also carries an apostrophe.
+  # Written to a file first, then read back into $expected.
+  # Direct assignment `expected="$(cat <<'EOF' ...)"` hits a
+  # nested heredoc-in-command-substitution parser quirk when the
+  # body holds an apostrophe (see new_fixture's comment).
   local expected_file="$work_dir/ac4-expected.md"
   cat > "$expected_file" <<'EOF'
 # AC4 fixture
@@ -251,8 +259,9 @@ EOF
   run_fix
   assert_eq 'should repair hits at many line numbers in one invocation (exit code, fully resolved)' "0" "$FIX_EXIT"
 
-  # Written to a file first, then read back - see the comment on AC4's
-  # expected_file above for why (apostrophes in "alpha's"/"beta's"/"gamma's").
+  # Written to a file first, then read back - see the comment on
+  # AC4's expected_file above for why (apostrophes in
+  # "alpha's"/"beta's"/"gamma's").
   local expected_file="$work_dir/ac10-expected.md"
   cat > "$expected_file" <<'EOF'
 # AC10 fixture
@@ -546,11 +555,10 @@ EOF
 }
 
 it_should_relay_changed_only_to_the_bullet_gap_fix_call_leaving_a_pre_existing_bullet_gap_violation_untouched() {
-  # Isolates the check-bullet-gap.py --fix relay from the check-density.sh
-  # relay the three tests above already cover: every line here is short, so
-  # the only violations possible are bullet-gap ones (a bullet immediately
-  # followed by a shallower/same-indent sibling with no separating blank
-  # line), never a density/line-length violation.
+  # Isolates the check-bullet-gap.py --fix relay from
+  # check-density.sh: every line here is short, so only
+  # bullet-gap violations are possible, never
+  # density/line-length violations.
   REPO_DIR=$(new_repo repo-bullet-gap)
   FIXTURE=bullet-gap.md
   cat > "$REPO_DIR/$FIXTURE" <<'EOF'
@@ -608,8 +616,9 @@ EOF
   run_fix
   assert_eq 'should split at the pre-existing sentence boundary despite a later semicolon (exit code, fully resolved)' "0" "$FIX_EXIT"
 
-  # Written to a file first, then read back - see the comment on AC4's
-  # expected_file above for why (apostrophe in "repository's").
+  # Written to a file first, then read back - see the comment on
+  # AC4's expected_file above for why (apostrophe in
+  # "repository's").
   local expected_file="$work_dir/ac16-expected.md"
   cat > "$expected_file" <<'EOF'
 # AC16 fixture
@@ -636,9 +645,9 @@ EOF
   run_fix
   assert_eq 'should split a top-level bullet (exit code, fully resolved)' "0" "$FIX_EXIT"
 
-  # Same heredoc-straight-to-file rule as new_fixture's comment: this
-  # body carries an apostrophe, so it cannot be built through a nested
-  # command substitution.
+  # Same heredoc-straight-to-file rule as new_fixture's comment:
+  # this body carries an apostrophe, so it cannot be built
+  # through a nested command substitution.
   local expected_file="$work_dir/bullet-top-level-expected.md"
   cat > "$expected_file" <<'EOF'
 # Top-level bullet fixture

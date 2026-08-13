@@ -97,9 +97,11 @@ STRUCTURAL_TOKEN = re.compile(r"^(?:[-*+#|>]|\d+\.)")
 BULLET_MARKER = re.compile(r"^([ \t]*)([-*+] |\d+\. )")
 BLOCKQUOTE = re.compile(r"^[ \t]*>")
 HEADING = re.compile(r"^[ \t]*#{1,6} ")
-# Matched against a bullet's text, past its own marker. The leading class
-# absorbs the bold/backtick wrapping CLAUDE.md's own counting-conventions
-# section uses, e.g. "- **`[Instruction]`** - one directive, ...".
+
+# Matched against a bullet's text, past its own marker.
+# The leading class absorbs the bold/backtick wrapping
+# CLAUDE.md's own counting-conventions section uses, e.g.
+# "- **`[Instruction]`** - one directive, ...".
 COUNTING_MARKER = re.compile(r"^[*_`]*\[(?:Instruction|Why|Example)\]")
 URL = re.compile(r"\(https?://[^)]*\)")
 DATA_URI = re.compile(r"[(<]data:[^)>]*[)>]")
@@ -172,12 +174,15 @@ def candidate_splits(line, max_chars, max_words):
     safe = []
 
     for m in BOUNDARY.finditer(line):
-        # A paragraph's halves become two paragraphs, and only a sentence
-        # boundary yields two well-formed ones - see the module docstring.
+        # A paragraph's halves become two paragraphs, and only a
+        # sentence boundary yields two well-formed ones - see
+        # the module docstring.
         if marker is None and m.group() != ". ":
             continue
-        # An ordered-list marker ends in ". ", which is also a boundary -
-        # splitting there would strand "1." as a bullet with no content.
+
+        # An ordered-list marker ends in ".
+        # ", which is also a boundary - splitting there would
+        # strand "1." as a bullet with no content.
         if m.end() <= marker_end:
             continue
         first = line[: m.end()].rstrip()
