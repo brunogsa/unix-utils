@@ -138,3 +138,7 @@ Any other exemption is a deliberate edit to that script's `DESC_BUDGET_EXEMPT` l
 
 - [Instruction] Confine every subagent's writes to the slice it was dispatched for — never session-global state like the tmux window title, and never files outside its assigned scope.
   - [Why] Concurrent subagents share one working tree and one session, so a write beyond the assigned slice races with siblings that know nothing about it.
+
+- [Instruction] When dispatching a subagent that must persist an artifact, pick a basename outside the harness's reserved stems — or have the orchestrator accept the returned text and write it itself.
+  - [Why] The `Write` tool silently intercepts a subagent write whose basename starts, case-insensitively, with `report`, `findings`, `analysis`, or `summary` and ends in `.md`.
+  - [Example] Interception raises no error and substitutes a "return as text" message. Blocked: `report_x.md`, `Findings.md`, `ANALYSIS.md`. Allowed: other extensions (`.txt`, `.html`), non-reserved stems (`verdict_`, `plan_`, `spec_`).

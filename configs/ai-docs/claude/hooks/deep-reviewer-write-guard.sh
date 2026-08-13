@@ -17,14 +17,13 @@
 # repo source, even under a bypassPermissions parent).
 #
 # Why `verdict_` and not `report_`/`findings_`: the Claude Code harness itself
-# intercepts any subagent Write whose basename starts with `report_` or
-# `findings_`, before this hook ever runs, and silently substitutes "return
-# findings as text" instead of performing the write. Confirmed empirically
-# across path (/tmp and repo-relative) and subagent type (deep-reviewer and
-# plain general-purpose) — the block is keyed purely on basename prefix.
-# `verdict_` sidesteps that reserved prefix; every skill dispatching
-# deep-reviewer for a persisted verdict must name its output `verdict_*.md`
-# or `verdict_*.html`.
+# intercepts a subagent Write whose basename matches a reserved stem, before
+# this hook ever runs, and silently substitutes "return findings as text"
+# instead of performing the write. `verdict_` sidesteps that reserved set.
+#
+# The full trigger (all four stems, the `.md`-only scope, case-insensitivity,
+# start-anchoring) is documented once, in agent-standards' "Subagent
+# dispatch" section — see that skill rather than re-deriving it here.
 
 INPUT=$(cat)
 
