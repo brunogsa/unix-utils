@@ -76,7 +76,8 @@ It stays alive for the whole run — through the spec, the plan, and self-review
 So the plan phase can still see why the earlier steps decided what they did.
 
 `<scratchpad>/brainstorm-brief.md`, that same directory's zero-context hand-off, does not exist yet at this point.
-Step 5 composes it once the interview closes, before step 6 dispatches — never continuously during the interview, and never merely because a dispatch is imminent.
+Step 5 composes it once the interview closes, before the first dispatch that reads it — step 6 at `full`, step 9 at `light`.
+Never continuously during the interview, and never merely because a dispatch is imminent.
 It is the sole context channel to every dispatched writing agent — each one starts with none of this session's context.
 Anything the brief omits is invisible to the agent that writes the documents.
 
@@ -146,11 +147,12 @@ Capture the outcome under `notes.md`'s `## Decisions` heading; the writing agent
 Why keep the discarded ones: naming what lost, and why, stops the next session re-deriving the same alternatives and re-litigating them.
 It also surfaces when the constraint that killed an alternative no longer applies.
 
-**The interview closes here.** Before step 6 dispatches, compose `<scratchpad>/brainstorm-brief.md` — the verbatim original request, every finding with its `file:line` evidence, and every decision with the alternatives it discarded.
+**The interview closes here.** Compose `<scratchpad>/brainstorm-brief.md` before the first dispatch that reads it — step 6 at `full`, step 9 at `light`.
+It carries the verbatim original request, every finding with its `file:line` evidence, and every decision with the alternatives it discarded.
 It is elaborated past what `notes.md`'s density guide allows, since the brief's zero-context reader needs detail that guide deliberately omits.
 
 Why now and not earlier: composing it before the interview and approach pick finish would hand off unfinished results.
-Why not later: step 6 needs it to already exist the moment it dispatches.
+Why not later: the first dispatch that reads it — step 6 at `full`, step 9 at `light` — needs it to already exist the moment it dispatches.
 
 ### 6. Derive the slug, then dispatch a `general-purpose` agent to write the spec
 
