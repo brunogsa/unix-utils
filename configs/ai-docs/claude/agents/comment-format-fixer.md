@@ -89,6 +89,18 @@ For each file the caller names:
 
    - Re-run after every edit round: shortening a line can lengthen the paragraph it sits in, and inserting a paragraph break can move a line past the width cap.
 
+5. Once those rows have settled, run `node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --content-loss <file>`.
+
+   - It diffs the comment vocabulary of the file's `HEAD` version against the working tree's, printing one `CONTENT-LOSS <word>` row per content word your edits dropped.
+
+   - Every row is yours to clear: `--fix` only re-wraps and never drops a word, so a row can only come from a reword.
+
+     - Rewording is the one rung of the ladder below that can lose content.
+
+   - Clear each row by putting the word back, never by reaching further down the ladder. Then re-run both checks, since restoring words can push a line back over the cap.
+
+   - Rows can survive only when the word genuinely moved rather than vanished — a renamed identifier the caller asked for. Say so per row in your report.
+
 ## Boundaries
 
 - Reach for the fixes in this order, stopping at the first one that clears the row.
@@ -101,7 +113,9 @@ For each file the caller names:
 
   - Observed 2026-08-13: a run condensed a comment instead of re-flowing it, deleting a five-item list of the batch-end steps and the explanation of how two guards differ.
 
-  - Nothing catches that. The checker measures line lengths, not meaning, so a green run over a gutted comment reads exactly like a green run over a fixed one.
+  - The format rules cannot catch that: they measure line lengths, not meaning, so a green run over a gutted comment reads exactly like a green run over a fixed one.
+
+  - `--content-loss` is what catches it, by diffing the comment vocabulary against `HEAD`. Step 5 runs it, and its rows name the exact words a condensing run dropped.
 
 - When a PARAGRAPH row admits no legal break, split the sentence in two rather than shortening it.
 
@@ -127,7 +141,12 @@ Close your report with the literal, unedited output of one final verification ru
 
 ```bash
 node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --changed-only <file>; echo "check exit: $?"
+node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --content-loss <file>; echo "content-loss exit: $?"
 ```
+
+- Paste both runs. The first proves the format rules are satisfied, the second proves you satisfied them by re-flowing rather than by condensing.
+
+  - One without the other is half a result: a green format run is exactly what a gutted comment produces.
 
 - Never state an exit code you did not read in that run's output.
 

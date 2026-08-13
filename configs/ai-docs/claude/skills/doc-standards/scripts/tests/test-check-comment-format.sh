@@ -536,5 +536,214 @@ assert_absent "should hide the unmodified file's pre-existing violation" \
 assert_eq "should exit 1 when only one of two files has an in-scope violation" \
   "1" "$multi_exit"
 
+# ========================================================
+# --content-loss: the comment words an edit dropped vs HEAD.
+#
+# The format rules measure line lengths, so a comment gutted of
+# its meaning reports exactly like a correctly re-flowed one.
+# These cases pin the vocabulary diff that tells them apart.
+
+# run_content_loss - runs report-only content-loss mode on one
+# file, capturing its exit code into LOSS_EXIT and its
+# stdout+stderr into LOSS_OUT.
+run_content_loss() {
+  node "$SCRIPT" --content-loss "$1" >"$work_dir/content-loss.out" 2>&1
+  LOSS_EXIT=$?
+  LOSS_OUT=$(cat "$work_dir/content-loss.out")
+}
+
+# --- a reword that condenses instead of re-flowing ---
+
+repo=$(new_git_repo reword)
+cat >"$repo/reword.py" <<'EOF'
+#!/usr/bin/env python3
+# The batch-end gate runs five steps: lint, unit, contract,
+# integration, and smoke.
+VALUE = 1
+EOF
+commit_all "$repo"
+cat >"$repo/reword.py" <<'EOF'
+#!/usr/bin/env python3
+# The batch-end gate runs several steps.
+VALUE = 1
+EOF
+cp "$repo/reword.py" "$work_dir/reword-baseline.py"
+
+run_content_loss "$repo/reword.py"
+assert_contains "should report each content word a reworded comment dropped" \
+  "$LOSS_OUT" "CONTENT-LOSS integration"
+assert_contains "should report a later dropped word from the same enumeration" \
+  "$LOSS_OUT" "CONTENT-LOSS smoke"
+assert_contains "should name the file whose comment lost content" \
+  "$LOSS_OUT" "== $repo/reword.py"
+assert_absent "should keep quiet about a word the reword kept" \
+  "$LOSS_OUT" "CONTENT-LOSS gate"
+assert_eq "should exit 1 when a reword dropped content words" "1" "$LOSS_EXIT"
+assert_eq "should never mutate the file it reports content loss on" "" \
+  "$(diff "$work_dir/reword-baseline.py" "$repo/reword.py")"
+
+# --- a mechanical --fix re-flow drops nothing ---
+
+repo=$(new_git_repo reflowed)
+cat >"$repo/reflowed.py" <<'EOF'
+#!/usr/bin/env python3
+# The aggregator collapses the many records one response emits into a single billed unit.
+VALUE = 1
+EOF
+commit_all "$repo"
+node "$SCRIPT" --fix "$repo/reflowed.py" >/dev/null 2>&1
+run_content_loss "$repo/reflowed.py"
+assert_eq "should exit 0 when a re-flow preserved every comment word" \
+  "0" "$LOSS_EXIT"
+assert_eq "should print nothing when a re-flow preserved every comment word" \
+  "" "$LOSS_OUT"
+
+# --- no HEAD version: nothing to compare against ---
+
+repo=$(new_git_repo untracked-loss)
+cat >"$repo/fresh.py" <<'EOF'
+#!/usr/bin/env python3
+# A brand new comment with no committed version behind it.
+VALUE = 1
+EOF
+run_content_loss "$repo/fresh.py"
+assert_eq "should exit 0 on a file with no HEAD version to compare against" \
+  "0" "$LOSS_EXIT"
+assert_eq "should print nothing for a file with no HEAD version" "" "$LOSS_OUT"
+
+# --- outside a git work tree: no baseline either ---
+
+loss_plain_dir="$work_dir/content-loss-not-a-repo"
+mkdir -p "$loss_plain_dir"
+cat >"$loss_plain_dir/orphan.py" <<'EOF'
+#!/usr/bin/env python3
+# A comment in a file no git repo tracks.
+VALUE = 1
+EOF
+run_content_loss "$loss_plain_dir/orphan.py"
+assert_eq "should exit 0 outside a git work tree" "0" "$LOSS_EXIT"
+assert_eq "should print nothing outside a git work tree" "" "$LOSS_OUT"
+
+# --- unchanged vs HEAD ---
+
+repo=$(new_git_repo unchanged-loss)
+cat >"$repo/same.py" <<'EOF'
+#!/usr/bin/env python3
+# A comment committed and then left entirely alone.
+VALUE = 1
+EOF
+commit_all "$repo"
+run_content_loss "$repo/same.py"
+assert_eq "should exit 0 on a file identical to its HEAD version" \
+  "0" "$LOSS_EXIT"
+
+# --- a comment deleted wholesale reports every one of its words
+# ---
+
+repo=$(new_git_repo deleted)
+cat >"$repo/deleted.py" <<'EOF'
+#!/usr/bin/env python3
+# The retry budget exists because the upstream rate-limits a
+# burst of replays.
+VALUE = 1
+EOF
+commit_all "$repo"
+cat >"$repo/deleted.py" <<'EOF'
+#!/usr/bin/env python3
+VALUE = 1
+EOF
+run_content_loss "$repo/deleted.py"
+assert_contains "should report the leading word of a comment deleted wholesale" \
+  "$LOSS_OUT" "CONTENT-LOSS retry"
+assert_contains "should report the closing word of a comment deleted wholesale" \
+  "$LOSS_OUT" "CONTENT-LOSS replays"
+
+# --- a dropped negation inverts meaning, so no short-word floor
+# ---
+
+repo=$(new_git_repo negation)
+cat >"$repo/negation.py" <<'EOF'
+#!/usr/bin/env python3
+# A blocked gate does not stop its sibling hooks.
+VALUE = 1
+EOF
+commit_all "$repo"
+cat >"$repo/negation.py" <<'EOF'
+#!/usr/bin/env python3
+# A blocked gate stops its sibling hooks.
+VALUE = 1
+EOF
+run_content_loss "$repo/negation.py"
+assert_contains "should report a dropped negation despite it being three letters" \
+  "$LOSS_OUT" "CONTENT-LOSS not"
+
+# --- a backtick code-span is one token, not its loose words ---
+
+repo=$(new_git_repo codespan)
+cat >"$repo/codespan.py" <<'EOF'
+#!/usr/bin/env python3
+# Pass `--changed-only` to skip the untouched lines.
+VALUE = 1
+EOF
+commit_all "$repo"
+cat >"$repo/codespan.py" <<'EOF'
+#!/usr/bin/env python3
+# Skip the untouched lines.
+VALUE = 1
+EOF
+run_content_loss "$repo/codespan.py"
+assert_contains "should report a dropped backtick code-span as one token" \
+  "$LOSS_OUT" 'CONTENT-LOSS `--changed-only`'
+
+# --- a re-wrap may split a span across lines; the indent it
+# gains is not content ---
+
+repo=$(new_git_repo spanwrap)
+cat >"$repo/spanwrap.py" <<'EOF'
+#!/usr/bin/env python3
+# Only the lines `git diff -U0 HEAD` reports as added.
+VALUE = 1
+EOF
+commit_all "$repo"
+cat >"$repo/spanwrap.py" <<'EOF'
+#!/usr/bin/env python3
+# Only the lines `git diff -U0
+#   HEAD` reports as added.
+VALUE = 1
+EOF
+run_content_loss "$repo/spanwrap.py"
+assert_eq "should print nothing when a re-wrap split a backtick span across lines" \
+  "" "$LOSS_OUT"
+assert_eq "should exit 0 when a re-wrap split a backtick span across lines" \
+  "0" "$LOSS_EXIT"
+
+# --- normalization: a legal sentence split changes punctuation
+# and case only ---
+
+repo=$(new_git_repo normalize)
+cat >"$repo/normalize.py" <<'EOF'
+#!/usr/bin/env python3
+# The guard fires before the write; a partial batch never
+# reaches disk.
+VALUE = 1
+EOF
+commit_all "$repo"
+cat >"$repo/normalize.py" <<'EOF'
+#!/usr/bin/env python3
+# The guard fires before the write. A partial batch never
+# reaches disk.
+VALUE = 1
+EOF
+run_content_loss "$repo/normalize.py"
+assert_eq "should print nothing when a sentence split changed only punctuation and case" \
+  "" "$LOSS_OUT"
+assert_eq "should exit 0 when a sentence split changed only punctuation and case" \
+  "0" "$LOSS_EXIT"
+
+# --- reporting never doubles as repairing ---
+
+node "$SCRIPT" --content-loss --fix "$repo/normalize.py" >/dev/null 2>&1
+assert_eq "should exit 2 when --content-loss is combined with --fix" "2" "$?"
+
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

@@ -68,6 +68,32 @@
 //   Also exempt after a `#!` shebang, which a file's header
 //   comment is meant to follow immediately.
 //
+// CONTENT-LOSS <word>
+//   Only under --content-loss: a content word the file's
+//   comments carried at HEAD and carry no longer.
+//
+//   Every rule above measures line lengths, so a comment
+//   condensed rather than re-flowed reports exactly like a
+//   correctly repaired one. This row is what separates them.
+//
+//   The comparison is a word SET, lowercased with edge
+//   punctuation stripped, so a re-wrap and a legal sentence
+//   split are both invisible to it.
+//
+//   A set also reports a word only once its last occurrence is
+//   gone, which is what keeps ordinary re-flow churn quiet.
+//
+//   A backtick span counts as one token, and no word is too
+//   short to count -- dropping `not` inverts a comment rather
+//   than shortening it.
+//
+//   An untracked file and a file outside a git repo have no
+//   baseline to compare against, so both report nothing.
+//
+//   HEAD is the baseline rather than a snapshot taken at
+//   startup, because --fix only re-wraps: the actor that can
+//   drop a word is the hand-edit round that follows it.
+//
 // Comment detection lexes the file instead of grepping it, so
 // a `//` or `#` inside a string literal is never mistaken for
 // a comment -- which a regex or awk pass cannot do reliably.
@@ -108,14 +134,23 @@
 // clean" never re-fights a violation that predates its own
 // edits.
 //
+// --content-loss reports that one row instead of the rules
+// above, and never rewrites -- pairing it with --fix is a usage
+// error rather than a flag it quietly ignores.
+//
 // Usage:
 //   check-comment-format.js [--fix] [--changed-only]
 //     [--max-chars N] [--max-lines N]
 //     [--lang typescript|shell|python] <file> [<file>...]
 //
+//   check-comment-format.js --content-loss
+//     [--lang typescript|shell|python] <file> [<file>...]
+//
 // Exit codes:
 //   0  clean (or fully repaired by --fix)
-//   1  violations found, or residue --fix could not repair
+//
+//   1  violations found, residue --fix could not repair, or
+//      comment content lost since HEAD
 //
 //   2  usage error, `typescript` not installed, or
 //      get-changed-lines.sh failed to determine a file's scope.
@@ -123,6 +158,7 @@
 // Examples:
 //   check-comment-format.js path/to/spec.e2e.spec.ts
 //   check-comment-format.js --lang shell ~/.zshrc
+//   check-comment-format.js --content-loss report.py
 //
 //   check-comment-format.js --fix scripts/report.py
 //   check-comment-format.js --fix --changed-only report.py
@@ -182,7 +218,8 @@ const LANGUAGES = {
 };
 
 const USAGE =
-  'usage: check-comment-format.js [--fix] [--changed-only] [--max-chars N] [--max-lines N] ' +
+  'usage: check-comment-format.js [--fix] [--changed-only] [--content-loss] ' +
+  '[--max-chars N] [--max-lines N] ' +
   `[--lang ${Object.keys(LANGUAGES).join('|')}] <file>...`;
 
 function parseArgs(argv) {
@@ -191,6 +228,7 @@ function parseArgs(argv) {
   let lang = null;
   let fix = false;
   let changedOnly = false;
+  let contentLoss = false;
   const files = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -198,6 +236,8 @@ function parseArgs(argv) {
       fix = true;
     } else if (arg === '--changed-only') {
       changedOnly = true;
+    } else if (arg === '--content-loss') {
+      contentLoss = true;
     } else if (arg === '--max-chars') {
       maxChars = Number(argv[++i]);
     } else if (arg === '--max-lines') {
@@ -220,7 +260,15 @@ function parseArgs(argv) {
     console.error(USAGE);
     process.exit(2);
   }
-  return { maxChars, maxLines, lang, fix, changedOnly, files };
+
+  // Rejected rather than ignored, so a caller can never read a
+  // clean --fix run as proof the content it dropped came back.
+  if (contentLoss && fix) {
+    console.error('--content-loss reports only; it cannot be combined with --fix');
+    process.exit(2);
+  }
+
+  return { maxChars, maxLines, lang, fix, changedOnly, contentLoss, files };
 }
 
 // Shells out to get-changed-lines.sh rather than re-deriving git's
@@ -1129,11 +1177,122 @@ function fixFile(file, maxChars, maxLines, langOverride, changedOnly) {
   );
 }
 
+// What opens each line of a comment, stripped so only the
+// prose the reader sees is measured.
+const COMMENT_MARKER_RE = /^\s*(\/\*\*|\*\/|\/\/|\/\*|#|\*)\s?/;
+
+// A backtick span counts as one token, so a dropped
+// `--changed-only` reports as the thing it names rather than as
+// loose words.
+//
+// It is matched over the whole joined prose rather than per
+// line, because a re-wrap may split a multi-word span across
+// two comment lines.
+const BACKTICK_SPAN_RE = /`[^`]*`/g;
+
+// Only the edges of a word are stripped, which folds `run.`
+// into `run` and `The` into `the` while leaving a path, an
+// identifier, or a hyphenated flag whole.
+//
+// A sentence split is the correct repair for an over-long line,
+// so the punctuation and the capital it introduces must not
+// read as content that went missing.
+const EDGE_PUNCTUATION_RE = /^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu;
+
+// A span's inner whitespace is collapsed before it counts as a
+// token, because a re-wrap that splits one across two comment
+// lines leaves the second line's indent inside it.
+function addProseWords(prose, words) {
+  for (const span of prose.match(BACKTICK_SPAN_RE) ?? []) {
+    words.add(span.replace(/\s+/g, ' ').toLowerCase());
+  }
+
+  for (const raw of prose.replace(BACKTICK_SPAN_RE, ' ').split(/\s+/)) {
+    const word = raw.replace(EDGE_PUNCTUATION_RE, '').toLowerCase();
+    if (word !== '') words.add(word);
+  }
+}
+
+// A set rather than a multiset: a word is reported only once
+// its LAST occurrence is gone.
+//
+// That immunizes `the`, `a`, and every other high-frequency
+// word against ordinary re-flow churn, while a deleted
+// enumeration or explanation still reports, since what it takes
+// with it is vocabulary nothing else in the file uses.
+//
+// Comment ranges are the unit, so code, string literals, and a
+// Python docstring are all outside what this measures.
+function getCommentWordSet(text, file, langOverride) {
+  const lang = resolveLanguage(file, text, langOverride);
+  const proseLines = [];
+
+  for (const range of lang.scan(text, file)) {
+    for (const line of text.slice(range.start, range.end).split('\n')) {
+      proseLines.push(line.replace(COMMENT_MARKER_RE, ''));
+    }
+  }
+
+  const words = new Set();
+  addProseWords(proseLines.join(' '), words);
+  return words;
+}
+
+// The committed version of one file, or null when git has none
+// to give -- an untracked file, a repo with no commit yet, or
+// no repo at all.
+//
+// `HEAD:./name` resolves against the cwd git runs in, which is
+// pinned to the file's own directory for the same reason
+// getChangedLineSet pins it.
+function getHeadVersion(file) {
+  try {
+    return execFileSync('git', ['show', `HEAD:./${path.basename(file)}`], {
+      encoding: 'utf8',
+      cwd: path.dirname(path.resolve(file)),
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    return null;
+  }
+}
+
+// Reports every content word the file's comments carried at
+// HEAD and no longer carry, and returns whether it found any.
+//
+// The baseline is HEAD rather than a snapshot taken here,
+// because --fix only ever re-wraps: the actor that can drop a
+// word is the hand-edit round that follows it, and a snapshot
+// taken inside this process would start after that round.
+//
+// A missing baseline is silence, not a finding -- with nothing
+// committed there is no vocabulary to have lost.
+function reportContentLoss(file, langOverride) {
+  const headText = getHeadVersion(file);
+  if (headText === null) return false;
+
+  const headWords = getCommentWordSet(headText, file, langOverride);
+  const currentWords = getCommentWordSet(fs.readFileSync(file, 'utf8'), file, langOverride);
+  const lostWords = [...headWords].filter((word) => !currentWords.has(word));
+  if (lostWords.length === 0) return false;
+
+  console.log(`== ${file}`);
+  for (const word of lostWords) console.log(`CONTENT-LOSS ${word}`);
+  return true;
+}
+
 function main() {
-  const { maxChars, maxLines, lang, fix, changedOnly, files } = parseArgs(process.argv.slice(2));
+  const { maxChars, maxLines, lang, fix, changedOnly, contentLoss, files } = parseArgs(
+    process.argv.slice(2),
+  );
   let anyHit = false;
 
   for (const file of files) {
+    if (contentLoss) {
+      if (reportContentLoss(file, lang)) anyHit = true;
+      continue;
+    }
+
     if (fix) fixFile(file, maxChars, maxLines, lang, changedOnly);
 
     const {
