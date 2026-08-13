@@ -8,27 +8,43 @@
 #
 # Usage (Claude Code SessionStart hook, matcher: compact):
 #   stdin:  hook event JSON ({ session_id, source, ... })
-#   stdout: optional JSON ({ hookSpecificOutput: { additionalContext } })
+#   stdout: optional JSON
+#           ({ hookSpecificOutput: { additionalContext } })
 #
 # Rationale:
-#   /implement's task loop (the implement skill) writes ONE state file PER
-#   UNIT, all created upfront: /tmp/implement_<session_id>.json for a plain
-#   <task-ids> run, or /tmp/implement_<session_id>_pr<N>.json per PR on a
-#   PR-label run. A long batch passes through many compactions, each of
-#   which can summarize the doc-resident §8 batch-end steps (quality-gate
-#   tail, repo-green gate, push, PR, package) out of working memory — the
-#   "orchestrator forgot the steps" failure. The batch-end [Reminder] task
-#   (implement skill §2.2) keeps them in view each turn, and the Stop hook
-#   (claude-implement-stop-hook.sh) blocks stopping while any unit is
-#   mid-flight. This hook is the third guard: it fires at the compaction
-#   boundary itself — the one moment working memory resets — and
-#   re-injects the remaining §8 checklist for the FIRST mid-flight unit so
-#   the batch never ends at the last task's commit.
+#   /implement's task loop (the implement skill) writes ONE
+#   state file PER UNIT, all created upfront.
 #
-#   The checklist is RECONSTRUCTED from the chosen unit's state file, not
-#   echoed from a stored string: the PR step appears only when pr.wanted,
-#   the notification line carries the run's real batch_base_sha, and the
-#   unit is named by its pr_label when the run has one (a PR-label run).
+#   A plain <task-ids> run gets
+#   /tmp/implement_<session_id>.json; a PR-label run gets
+#   /tmp/implement_<session_id>_pr<N>.json per PR.
+#
+#   A long batch passes through many compactions, each of
+#   which can summarize the doc-resident §8 batch-end steps
+#   (quality-gate tail, repo-green gate, push, PR, package)
+#   out of working memory.
+#
+#   That is the "orchestrator forgot the steps" failure.
+#
+#   The batch-end [Reminder] task (implement skill §2.2) keeps
+#   them in view each turn, and the Stop hook
+#   (claude-implement-stop-hook.sh) blocks stopping while any
+#   unit is mid-flight.
+#
+#   This hook is the third guard.
+#
+#   It fires at the compaction boundary itself — the one moment
+#   working memory resets — and re-injects the remaining §8
+#   checklist for the FIRST mid-flight unit so the batch never
+#   ends at the last task's commit.
+#
+#   The checklist is RECONSTRUCTED from the chosen unit's state
+#   file, not echoed from a stored string.
+#
+#   The PR step appears only when pr.wanted, the notification
+#   line carries the run's real batch_base_sha, and the unit
+#   is named by its pr_label when the run has one (a PR-label
+#   run).
 #
 #   Within that §8 list the push step is NOT conditional —
 #   every batch end pushes, whether or not a PR was wanted
@@ -55,9 +71,11 @@
 #   task-loop branch here reuses, so the two read alike.
 #
 # Session scoping — identical to claude-implement-stop-hook.sh:
-#   State file paths are keyed by session_id. No file matching this session
-#   id → silent exit 0. A compaction keeps the same session_id, so the files
-#   the run created are the ones this hook finds.
+#   State file paths are keyed by session_id. No file matching
+#   this session id → silent exit 0.
+#
+#   A compaction keeps the same session_id, so the files the
+#   run created are the ones this hook finds.
 #
 # Why this hook skips a subagent's compaction:
 #   A subagent inherits its parent's session_id,
@@ -74,9 +92,11 @@
 #   precedent as claude-explore-mandate-hook.sh and
 #   claude-stopfailure-resume.sh.
 #
-# Safeguards (all silent no-ops — never break Claude on a tooling/state gap):
+# Safeguards (all silent no-ops — never break Claude on a
+# tooling/state gap):
 # - jq missing → exit 0.
 # - No session_id, or no state files match it → exit 0.
+#
 # - agent_id or agent_type non-empty (a subagent's
 #   compaction) → exit 0.
 #
@@ -97,9 +117,12 @@ command -v jq >/dev/null 2>&1 || exit 0
 session_id=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)
 [ -z "$session_id" ] && exit 0
 
-# Only the session that OWNS the state file may be reminded of §8 -- see the
-# header. A subagent shares its parent's session_id, so this is the one field
-# that separates the orchestrator from the agents it spawned.
+# Only the session that OWNS the state file may be reminded of
+# §8 -- see the header.
+#
+# A subagent shares its parent's session_id, so this is the one
+# field that separates the orchestrator from the agents it
+# spawned.
 agent=$(printf '%s' "$input" | jq -r '.agent_id // .agent_type // empty' 2>/dev/null || true)
 [ -n "$agent" ] && exit 0
 
@@ -112,7 +135,8 @@ chosen_file=""
 phase=""
 
 for f in "${state_files[@]}"; do
-  jq empty "$f" >/dev/null 2>&1 || continue   # corrupt JSON: skip, fail-open
+  # corrupt JSON: skip, fail-open
+  jq empty "$f" >/dev/null 2>&1 || continue
 
   p=$(jq -r '.phase // empty' "$f" 2>/dev/null || true)
   case "$p" in
@@ -124,9 +148,11 @@ for f in "${state_files[@]}"; do
   esac
 done
 
-[ -z "$chosen_file" ] && exit 0   # nothing mid-flight — nothing to remind
+# nothing mid-flight — nothing to remind
+[ -z "$chosen_file" ] && exit 0
 
-# Count other units still pending (not yet presented), for the "remaining" note.
+# Count other units still pending (not yet presented), for the
+# "remaining" note.
 pending_after=0
 for f in "${state_files[@]}"; do
   [ "$f" = "$chosen_file" ] && continue
@@ -143,13 +169,15 @@ pr_label=$(jq -r '.pr_label // empty' "$chosen_file" 2>/dev/null || true)
 unit_desc="the plain run"
 [ -n "$pr_label" ] && unit_desc="PR '$pr_label'"
 
-# The PR step is conditional: only a run that opted into a PR writes one.
-# Its "create only" wording matters — the pr-creator agent runs the
-# create-pr skill, which pushes by default otherwise.
+# The PR step is conditional: only a run that opted into a PR
+# writes one.
+# Its "create only" wording matters — the pr-creator agent runs
+# the create-pr skill, which pushes by default otherwise.
 pr_step=""
 [ "$pr_wanted" = "true" ] && pr_step=" → open the draft PR via the pr-creator agent (create only; step 3 already pushed)"
 
-# Fall back to a literal placeholder if the sha somehow wasn't recorded.
+# Fall back to a literal placeholder if the sha somehow wasn't
+# recorded.
 sha_display="${base_sha:-<BATCH_BASE_SHA>}"
 
 remaining_line=""
