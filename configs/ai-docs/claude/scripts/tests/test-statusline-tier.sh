@@ -66,8 +66,85 @@ fresh_sandbox() {
   mktemp -d "${TMPDIR:-/tmp}/statusline-tier-test.XXXXXX"
 }
 
-# write_fake_security - installs a fake `security` binary
-# at "$bin_dir/security" ahead of PATH so tests never shell
+# One `security` fake serves every test, symlinked into
+# each sandbox, because an endpoint-security agent
+# (SentinelOne on this machine) scans a newly written
+# script the FIRST time it is executed.
+#
+# Measured here: 7.8-12.3s for a fresh shell script,
+# against 0.04s for every exec after it, and 0.05s through
+# a symlink to an already-scanned one.
+#
+# The scan keys on the file, not its bytes, so writing the
+# same fake into a fresh sandbox per test pays full price
+# every time (measured: 8.5s for a byte-identical copy).
+#
+# That matters because the production Keychain read is
+# bounded at 3s (STATUSLINE_KEYCHAIN_TIMEOUT_SECS): a
+# per-test fake gets scanned INSIDE that window, so the
+# watchdog kills it before it ever prints.
+#
+# Five tests failed exactly that way - four on an empty
+# read, one on elapsed=5s - and the suite spent ~1m50s of
+# its runtime being scanned.
+#
+# Production never pays this: the real `security` is a
+# Mach-O binary macOS scanned long ago (measured: 0.03s).
+SHARED_FAKE_BIN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/statusline-tier-shared-fakes.XXXXXX")"
+trap 'rm -rf "$SHARED_FAKE_BIN_DIR"' EXIT
+
+# The per-test fixture is read from the directory the fake
+# was invoked THROUGH rather than baked into its text,
+# which is what lets a single scanned file serve every
+# test.
+#
+# $0 is the symlink PATH resolved to, not its target, so
+# dirname lands on the calling test's own sandbox.
+#
+# Fields are read positionally, one per line, so a JSON
+# secret carrying quotes needs no escaping on either side.
+cat >"$SHARED_FAKE_BIN_DIR/security" <<'SHARED_FAKE_SECURITY'
+#!/usr/bin/env bash
+{
+  read -r fake_mdat
+  read -r fake_kill_parent
+  read -r fake_delay_after_secret_secs
+  read -r fake_secret_read_sentinel
+  read -r fake_mode
+} < "$(dirname "$0")/security-fixture"
+
+case "$*" in
+  *" -w"*)
+    if [ "$fake_mode" = "hang" ]; then
+      exec sleep 999999
+    fi
+    [ -n "$fake_secret_read_sentinel" ] && touch "$fake_secret_read_sentinel"
+    printf '%s' "$fake_mode"
+    if [ "$fake_kill_parent" = "kill-parent" ]; then
+      kill -TERM "$PPID" 2>/dev/null
+      sleep 1
+    fi
+    if [ "$fake_delay_after_secret_secs" != "0" ]; then
+      sleep "$fake_delay_after_secret_secs"
+    fi
+    ;;
+  *)
+    printf 'keychain: "Claude Code-credentials"\nclass: "genp"\nattributes:\n    "cdat"<timedate>=%s\n    "mdat"<timedate>=%s\n' "$fake_mdat" "$fake_mdat"
+    ;;
+esac
+SHARED_FAKE_SECURITY
+chmod +x "$SHARED_FAKE_BIN_DIR/security"
+
+# Pay the scan once, here, outside any bounded read.
+#
+# The warm-up argument must not contain " -w", so it takes
+# the attribute branch and runs none of the mode-specific
+# paths a real test selects.
+printf '\n\n0\n\n\n' >"$SHARED_FAKE_BIN_DIR/security-fixture"
+"$SHARED_FAKE_BIN_DIR/security" warm-up >/dev/null 2>&1 </dev/null
+
+# write_fake_security - points "$bin_dir/security" at the
+# shared fake above, ahead of PATH, so tests never shell
 # out to the real macOS Keychain.
 #
 # $mdat is the attribute-read fixture value
@@ -103,30 +180,17 @@ fresh_sandbox() {
 # filesystem state while the read is still in flight, rather
 # than only after it returns - existing callers omit it and
 # see no behavior change (default 0 = no delay).
+#
+# $secret_read_sentinel, when non-empty, is touched on the
+# -w read only, so a test can prove whether a cache hit
+# reached the secret read at all - the attribute read
+# happens either way and must not be mistaken for it.
 write_fake_security() {
-  local bin_dir="$1" mdat="$2" mode="$3" kill_parent="${4:-}" delay_after_secret_secs="${5:-0}"
-  cat >"$bin_dir/security" <<EOF
-#!/usr/bin/env bash
-case "\$*" in
-  *" -w"*)
-    if [ "$mode" = "hang" ]; then
-      exec sleep 999999
-    fi
-    printf '%s' '$mode'
-    if [ "$kill_parent" = "kill-parent" ]; then
-      kill -TERM "\$PPID" 2>/dev/null
-      sleep 1
-    fi
-    if [ "$delay_after_secret_secs" != "0" ]; then
-      sleep "$delay_after_secret_secs"
-    fi
-    ;;
-  *)
-    printf 'keychain: "Claude Code-credentials"\nclass: "genp"\nattributes:\n    "cdat"<timedate>=$mdat\n    "mdat"<timedate>=$mdat\n'
-    ;;
-esac
-EOF
-  chmod +x "$bin_dir/security"
+  local bin_dir="$1" mdat="$2" mode="$3" kill_parent="${4:-}" delay_after_secret_secs="${5:-0}" secret_read_sentinel="${6:-}"
+  printf '%s\n%s\n%s\n%s\n%s\n' \
+    "$mdat" "$kill_parent" "$delay_after_secret_secs" "$secret_read_sentinel" "$mode" \
+    >"$bin_dir/security-fixture"
+  ln -sf "$SHARED_FAKE_BIN_DIR/security" "$bin_dir/security"
 }
 
 # write_fake_mktemp_scoped_to_tmpdir - installs a fake
@@ -1246,27 +1310,15 @@ it_should_serve_the_cached_tier_without_re_reading_the_credential_store_when_the
   # No credentials file: forces the Keychain branch, same
   # fixture shape as the macOS-invalidation test above.
   #
-  # Unlike write_fake_security, this fake distinguishes the
-  # plain mdat attribute read (which
-  # credential_store_timestamp() still performs on every
-  # call, cache hit or not) from the -w secret read.
+  # The sentinel is touched on the -w secret read only, not
+  # on the plain mdat attribute read that
+  # credential_store_timestamp() performs on every call,
+  # cache hit or not.
   #
-  # Only the latter touches $secret_read_sentinel, so its
-  # absence proves the cache-hit branch never reached
-  # read_subscription_tier_from_keychain.
-  cat >"$sandbox/security" <<EOF
-#!/usr/bin/env bash
-case "\$*" in
-  *" -w"*)
-    touch "$secret_read_sentinel"
-    printf '%s' '{"claudeAiOauth":{"subscriptionType":"max"}}'
-    ;;
-  *)
-    printf 'keychain: "Claude Code-credentials"\nclass: "genp"\nattributes:\n    "cdat"<timedate>=20260730082118Z\n    "mdat"<timedate>=20260730082118Z\n'
-    ;;
-esac
-EOF
-  chmod +x "$sandbox/security"
+  # So its absence proves the cache-hit branch never
+  # reached read_subscription_tier_from_keychain.
+  write_fake_security "$sandbox" "20260730082118Z" \
+    '{"claudeAiOauth":{"subscriptionType":"max"}}' "" "0" "$secret_read_sentinel"
 
   # Cache epoch set far in the future: guaranteed not older
   # than the Keychain mdat above (2026-07-30).
