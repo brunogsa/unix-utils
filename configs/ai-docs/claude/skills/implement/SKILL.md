@@ -303,7 +303,9 @@ Per task, as it becomes the active one — the only orchestrator work between tw
 - `TaskUpdate` that task to `in_progress`. Task-level status only; sub-steps never become TaskList items.
 - Give it a **breadcrumb** — a coarse outline of its sub-steps (e.g. the plan's acceptance-criteria titles), so the list conveys the task's gist without RED-GREEN detail.
 
-**The checklist file is the subagent's, end to end — the orchestrator neither names it, writes it, nor reads it back.**
+**The checklist file is the subagent's, end to end.** The orchestrator supplies only the `<run-label>` key that names it — never the file, its contents, or a read-back.
+
+That key becomes the path `/tmp/tdd-coder_substeps_<run-label>.md`, per §4.1.
 
 Its path, contents, and re-dispatch resume live in `~/.claude/agents/tdd-coder.md`; edit that file and this section together.
 
@@ -329,17 +331,27 @@ The prompt pushes only the per-task data below.
 
 ### 4.1. Context contract
 
-**Push** — embed verbatim in the prompt (the per-task data only the orchestrator holds):
+**Push** — embed a `Context`/`Units`/`Verification`/`Optional` block verbatim in the prompt, using the exact field names `tdd-coder.md`'s Inputs section defines; the subagent pulls nothing from CWD to begin.
 
-- The task's plan slice: heading, brief, acceptance criteria, planned-test titles, and its **task-scoped verification commands only**.
+- **Context**: the task's heading and brief description — what the task does and why, in the plan's own words.
+- **Units**: the task's acceptance criteria and planned-test titles, one unit per forcing case, in the plan slice's own order.
+- **Verification**: the task's **task-scoped verification commands only**.
   - Strip any repo-wide/full-suite command (e.g. a full `test:agentic` run, a repo-wide `yarn lint`) before pushing. A subagent verifies only its own change, never the whole repo.
 
   - A stripped requirement isn't dropped silently: §8.2's gate re-covers it when on; when off, the batch-end package (§8.3) names what full-suite checks never ran.
 
-- The task's **Files (logical order)** list as the **starting set** — not a cage; touch more when needed, routing the delta per §4.3.
-- `BATCH_BASE_SHA` and the base branch, so the subagent can scope its own `git log`.
+- **Optional**:
+  - `files:` — the task's **Files (logical order)** list as the **starting set** — not a cage; touch more when needed, routing the delta per §4.3.
 
-Everything invariant is baked into `tdd-coder.md` — checklist mechanics, preloaded standards, commit rule, report shape — as are its pull-from-CWD items (plan, spec, `git log`, source reads).
+  - `references:` — `plan_<slug>.md`, plus `spec_<slug>.md` when one exists.
+  - `base:` — `BATCH_BASE_SHA` and the base branch, so the subagent can scope its own `git log`.
+  - `worktree:` — named here for completeness, but this contract leaves it unset.
+    - A single-worktree run already sits inside that worktree by §1.4, before any dispatch, so the subagent inherits it via CWD.
+    - A per-task worktree instead routes through `parallel-worktrees`'s own separate four-input contract (§5.4), never through this one.
+
+  - `<run-label>` — this task's number, so its checklist and evidence files key uniquely among any siblings dispatched concurrently.
+
+Everything invariant is baked into `tdd-coder.md` — checklist mechanics, preloaded standards, commit rule, report shape.
 
 Don't re-push any of it.
 
@@ -359,9 +371,13 @@ There's no separate carry-forward digest: a Drift fix travels in its commit body
 
 ### 4.4. Report back
 
-`~/.claude/agents/tdd-coder.md` authors the report's shape; restating its five fields here would be a second copy to keep in sync.
+`~/.claude/agents/tdd-coder.md` authors the report's full shape — `Status`, `Commits`, `Units`, `Deviations`, `Scouts`, `Blocked on`, `Evidence`, `Checklist`; restating it here would be a second copy to keep in sync.
 
-Two drive this section: **Commits**, the SHAs §5.1 resolves, and **For the orchestrator to record**, whose `[Scout]` items you file per §4.3 and whose block names what clears it.
+Three of its fields drive this section:
+
+- **Commits** — the SHAs §5.1 resolves.
+- **Scouts** — the `[Scout]` items you file per §4.3.
+- **Blocked on** — present only on a `blocked` `Status`; names what clears it for §5.2.
 
 ## 5. Accept, retry & advance (orchestrator)
 
