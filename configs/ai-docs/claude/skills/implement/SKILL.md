@@ -203,7 +203,7 @@ Create the run's durable state **immediately after §2.2's reminders land**, nev
   - `/tmp/implement_<session_id>.json` on a plain `<task-ids>` run.
   - `/tmp/implement_<session_id>_pr<n>.json` per PR on a PR-label run (`_pr1`, `_pr2`, …) — one per label in the arg, **all created now**, never lazily.
 
-- **`<scratchpad>/notes.md`**, in the harness scratchpad directory this session's own system prompt names, per CLAUDE.md's Note-taking discipline — never an invented `/tmp` path. Holds what the JSON has no shape for: blocked-task notes (§5.5).
+- **`<scratchpad>/notes.md`**, in the scratchpad directory this session's system prompt names, per CLAUDE.md's Note-taking discipline — never an invented `/tmp` path. Holds what the JSON cannot: blocked-task notes (§5.5).
 
 Each state file has exactly this shape:
 

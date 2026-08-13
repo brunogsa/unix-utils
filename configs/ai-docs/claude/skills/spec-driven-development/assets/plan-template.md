@@ -247,7 +247,7 @@ No code exists yet, so estimate by feel from the task and file counts above — 
 
 **One heading per PR** — each PR gets its own `### PR-N.` heading, mirroring the Task Breakdown's `### N.` shape one abstraction level up.
 
-A heading gives every PR an anchor to link and a stop in the document outline, which is what keeps a fifteen-PR plan navigable where a flat numbered list forces the reader to scan for the boundaries.
+A heading gives every PR an anchor and an outline stop, keeping long plans navigable where flat lists force scanning.
 
 **PR-level status marker** — `[<status>]` sits after the `PR-N.` in the heading, mirroring the Task Breakdown's `### N. [<status>] Title` convention: `[Doing]`, `[Done]`, `[Blocked]`, `[Deferred]`, `[Dropped]`.
 Absent for the pending/not-started state — a PR that hasn't started yet carries no bracket at all.
@@ -260,7 +260,7 @@ Absent until that push happens — the absence is how tooling tells a PR that al
 The backticks are load-bearing: `parse-pr-breakdown.sh` reads the name between them, so a branch holding periods (`release/1.2`) survives a clause grammar that otherwise stops at the next period.
 
 **Each field is its own line, and the parsers read only the first one they find per PR.**
-Anything after the fields is free prose for the human — why these tasks group here, what the reviewer should look at first — so it may wrap across as many lines as it needs.
+Anything after the fields is free prose for the human — why these tasks group here, what the reviewer should look at first. It may wrap across as many lines as needed.
 
 **PR-dependency DAG diagram** — lead the PR headings below with a mermaid flowchart when any PR's `Depends on:` names a real PR (not `none`).
 One node per PR, edges following each `Depends on:` link — one abstraction level up from the Task Breakdown's own diagram.
