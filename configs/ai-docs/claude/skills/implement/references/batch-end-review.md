@@ -11,8 +11,7 @@ words-budget: 2048
 
 Detail for /implement's batch-end steps. Load when the batch reaches its end.
 
-SKILL.md's `§8.1 → §8.2 → §8.3` is the running order, and the only place that sequence is written down.
-This file expands each of those steps; it never restates their order.
+SKILL.md's `§8.1 → §8.2 → §8.3` is the running order and the only place it is written down; this file expands each step without restating it.
 
 The branch record lives in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) and the opt-in PR in [`batch-end-pr.md`](batch-end-pr.md), both reached from **Finalize** below, right after Finalize's push.
 Skip whichever file doesn't match the run: the branch-record file only fires on a PR-label run, the PR file only on an opted-in draft.
@@ -23,19 +22,17 @@ Skip whichever file doesn't match the run: the branch-record file only fires on 
 On no, skip this entire section — go straight to the repo-green gate (§8.2), and have the package state that the quality gate was skipped by request.
 No retroactive re-run; invoke `/quality-gate` manually later.
 
-This runs before §8.2's repo-green gate so that gate gets the last word — it measures a tree that already contains whatever this tail applied.
-That ordering removes any "the gate applied something, so re-run the suite" rule: an applied fix is verified by construction, not by a conditional the run must remember.
+This runs before §8.2's repo-green gate so that gate gets the last word — it measures a tree already carrying whatever this tail applied, making an applied fix verified by construction.
 
-It holds whether or not `--auto-solve` goes along: the `test-sdd` leg writes the plan's missing tests on every run of this tail, so the tree changes either way.
+That holds with or without `--auto-solve`: the `test-sdd` leg writes the plan's missing tests on every run of this tail, so the tree changes either way.
 
-This section's toggle and §8.2's are independent — either can be on while the other is off.
-When §8.2 is off, nothing re-runs the suite after this tail, and the package says so plainly.
+The two toggles are independent — when §8.2 is off, nothing re-runs the suite after this tail, and the package says so plainly.
 
 **Invoke the skill in this session** — `/quality-gate [<spec>] <plan> --tasks <this unit's task-ids> --base-ref <BATCH_BASE_SHA> <--auto-solve|--report-only>`.
 
-Pass the `<spec>` path only when §1.1 resolved one; a plan-only run passes just the plan and nothing else changes.
-`/quality-gate` recognizes each path by its `spec_`/`plan_` filename prefix rather than by position, so the missing argument needs no placeholder.
-Its `auto-review` leg then runs without spec-conformance context — that is its documented plan-only behavior, not a degraded invocation to work around.
+Pass the `<spec>` path only when §1.1 resolved one; `/quality-gate` recognizes each path by its `spec_`/`plan_` filename prefix rather than by position, so the missing argument needs no placeholder.
+
+Its `auto-review` leg then runs without spec-conformance context — its documented plan-only behavior, not a degraded invocation to work around.
 
 That `--base-ref` is what stops it resolving `origin/HEAD` and reviewing a range this batch never touched.
 
@@ -49,8 +46,6 @@ Two reasons it runs here rather than inside a subagent:
 **Never omit both.** Either flag skips `/quality-gate`'s own opening interview; with neither, it asks the human a question §1.2 already answered and the batch stalls on a prompt nobody is watching.
 
 On `--report-only` nothing else about the invocation changes: the same three legs run, and only the `refactor` and `auto-review` verdict files land unapplied for the human to work through later.
-
-The planned-test leg writes its misses under either flag, so `--report-only` costs the batch its refactor and correctness fixes, never its plan-declared tests.
 
 `--tasks` scopes only the planned-test leg, to the task-ids of **this** unit. On a PR-label run that keeps PR-2's tail from reporting PR-3's unwritten tests as misses.
 
@@ -104,9 +99,7 @@ Record the final full-suite result (pass/fail + counts) into the package, so the
 
 The package is the single async pass the human reviews — the replacement for the per-task handshake. Finalize prints it (below). It contains:
 
-A unit only ever reaches this package when every task is `[Done]`.
-A unit that couldn't finish halted at §5.5 instead — or §8.2's own gate may halt the run before a package is assembled.
-So there is exactly one package shape, never a partial one:
+A unit only reaches this package with every task `[Done]` — anything that couldn't finish halted at §5.5 instead, so there is exactly one package shape, never a partial one:
 
 - **Per-task outcomes** — every task, all `done`, with its commit SHAs.
 - **Dropped full-suite checks**, only when §8.2 was skipped by request.
@@ -120,8 +113,7 @@ So there is exactly one package shape, never a partial one:
   - The recap is what lets the human skip opening the verdict file.
 
 - **Missing planned tests** — the `test-sdd` leg's misses the tail did not manage to write, called out on their own line rather than buried in the finding list.
-  - A plan-declared test nobody wrote is the one gap this batch was supposed to close.
-  - The tail attempts every one of them on every run, so anything on this line is a failure or a skip, never a run that declined to try.
+  - A plan-declared test nobody wrote is the one gap this batch was supposed to close, and the tail attempts every one of them on every run.
 
 - **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §8.1, §8.2) — reported, never fixed by this run.
 - **The literal diff range** — print `git diff BATCH_BASE_SHA..HEAD` with the SHA substituted, so the human can reproduce the range.
@@ -140,8 +132,8 @@ It is the pointer to the work, not a second summary of it — no findings, no co
 Print, in this order:
 
 - **Review starts at `<BATCH_BASE_SHA>`** — its short SHA plus that commit's subject line, so the human recognizes it without a lookup.
-  - On a single-unit run this is the commit the whole `/implement` invocation started from.
-  - On a multi-PR run each unit prints its own base, which is the previous unit's tip — each notification covers only its own unit.
+  - On a multi-PR run each unit prints its own base, the previous unit's tip, so each notification covers only its own unit;
+    - on a single-unit run it is where the invocation started.
 
 - **One line for the unit just finished**, carrying its label, its pushed branch, its commit count, and the PR URL when there is one:
 
@@ -177,6 +169,3 @@ By the time Finalize starts, both opt-in stages are behind it — whichever ran,
    Reaching this point means every task is `[Done]`, both opt-in stages ran or were declined, the branch is pushed, and the PR (if wanted) is open.
    Set `phase: "presented"`, then dispose of the state file with `trash <state-file>`, never `rm` — it lives in `/tmp`, outside any git repo, the unrecoverable case `claude-rm-guard.sh` blocks `rm` on.
    The Stop hook releases on this phase; a presented batch is never resumed.
-
-The PR is composed only after the quality-gate tail and the repo-green gate have both finished.
-Its body describes the batch's final diff in one pass — never a pre-fix draft needing a second one.
