@@ -26,6 +26,14 @@
 # assert the hook's filtering, and a stub that
 # always reports a violation would assert the
 # filters away.
+#
+# This hook also carries per-file decision memory at
+# /tmp/claude-comment-fixer-decisions-<session_id>, the
+# same mechanism the markdown-standards sibling has.
+#
+# So this file also covers new-file-asks, skip-drops,
+# delegate-skips-the-ask, a mixed skip+new file set, and
+# the session-id-disables-memory corner.
 
 set -uo pipefail
 
@@ -40,7 +48,31 @@ HOOK="$hooks_dir/claude-comment-format-stop-hook.sh"
 # An unresolved work_dir would match nothing, so
 # every block case would become a false pass.
 work_dir=$(cd "$(mktemp -d)" && pwd -P)
-trap 'rm -rf "$work_dir"' EXIT
+
+# Decision-memory files live at a fixed /tmp path
+# keyed only by session_id (the hook does not accept
+# an override), so every test that writes one picks
+# its own session_id.
+#
+# This list is swept both before and after the run —
+# a leftover file from an interrupted earlier run
+# would silently change "no recorded answer" into
+# "already decided" for the same session_id.
+decision_session_ids=(
+  new skip delegate mixed
+)
+sweep_decision_files() {
+  local sid
+  for sid in "${decision_session_ids[@]}"; do
+    rm -f "/tmp/claude-comment-fixer-decisions-${sid}"
+  done
+}
+cleanup() {
+  rm -rf "$work_dir"
+  sweep_decision_files
+}
+trap cleanup EXIT
+sweep_decision_files
 
 pass_count=0
 fail_count=0
@@ -56,6 +88,42 @@ assert_eq() {
     fail_count=$((fail_count + 1))
     printf 'not ok - %s\n  expected: %s\n  actual:   %s\n' "$description" "$expected" "$actual"
   fi
+}
+
+# assert_contains - inline assert helper: passes
+# when needle is a substring of haystack (used for
+# reason-text checks, where the exact string is long
+# and mostly not the point of the assertion).
+assert_contains() {
+  local description="$1" haystack="$2" needle="$3"
+  case "$haystack" in
+    *"$needle"*)
+      pass_count=$((pass_count + 1))
+      printf 'ok - %s\n' "$description"
+      ;;
+    *)
+      fail_count=$((fail_count + 1))
+      printf 'not ok - %s\n  expected to contain: %s\n  actual:              %s\n' "$description" "$needle" "$haystack"
+      ;;
+  esac
+}
+
+# assert_not_contains - the inverse of assert_contains
+# (used to prove a reason text does NOT re-ask or
+# re-mention record instructions once a decision is
+# already known).
+assert_not_contains() {
+  local description="$1" haystack="$2" needle="$3"
+  case "$haystack" in
+    *"$needle"*)
+      fail_count=$((fail_count + 1))
+      printf 'not ok - %s\n  expected to NOT contain: %s\n  actual:                  %s\n' "$description" "$needle" "$haystack"
+      ;;
+    *)
+      pass_count=$((pass_count + 1))
+      printf 'ok - %s\n' "$description"
+      ;;
+  esac
 }
 
 # new_repo - creates an empty git repo under
@@ -111,6 +179,17 @@ write_transcript() {
     printf '{"message":{"content":[{"type":"tool_use","name":"Edit","input":{"file_path":"%s"}}]}}\n' "$p" >> "$out"
   done
   printf '%s' "$out"
+}
+
+# decisions_file_path - the fixed /tmp path the hook
+# reads and writes for a given session_id.
+#
+# Tests write directly to it to simulate "the main
+# session already recorded an answer for this file",
+# since the hook itself never writes this file — only
+# reads it.
+decisions_file_path() {
+  printf '/tmp/claude-comment-fixer-decisions-%s\n' "$1"
 }
 
 # run_hook - runs the hook from inside the given
@@ -242,6 +321,106 @@ it_should_stay_silent_when_the_session_touched_no_source_file() {
   assert_eq "should stay silent when the session touched no source file" "" "$HOOK_OUT"
 }
 
+# Decision memory, case 1: a file with no recorded
+# answer this session is asked about.
+#
+# Because a valid session_id gives the hook a place to
+# persist the answer, the reason also tells the main
+# session where to record it.
+it_should_ask_about_a_file_with_no_recorded_decision_this_session() {
+  local repo; repo=$(new_repo new-file)
+  write_clean_base "$repo" tracked.sh
+  append_wide_comment "$repo" tracked.sh
+  local t; t=$(write_transcript "$repo/transcript.jsonl" "$repo/tracked.sh")
+  run_hook "$repo" "{\"session_id\":\"new\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
+
+  assert_eq "should ask about a file with no recorded decision (decision)" \
+    "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
+  assert_contains "should ask about a file with no recorded decision (asks the user)" \
+    "$HOOK_REASON" "Ask the user whether to delegate"
+  assert_contains "should ask about a file with no recorded decision (tells where to record the answer)" \
+    "$HOOK_REASON" "append 'delegate:<abs path>' or 'skip:<abs path>' to $(decisions_file_path new)"
+}
+
+# Decision memory, case 2: a file the user already
+# declined this session is dropped from violations
+# outright.
+#
+# A vendored/generated source file declined once must
+# never be re-blocked for the rest of the session.
+it_should_stay_silent_on_a_file_recorded_as_skip_this_session() {
+  local repo; repo=$(new_repo skip-file)
+  write_clean_base "$repo" tracked.sh
+  append_wide_comment "$repo" tracked.sh
+  local t; t=$(write_transcript "$repo/transcript.jsonl" "$repo/tracked.sh")
+  printf 'skip:%s/tracked.sh\n' "$repo" > "$(decisions_file_path skip)"
+  run_hook "$repo" "{\"session_id\":\"skip\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
+
+  assert_eq "should stay silent on a file recorded as skip this session" "" "$HOOK_OUT"
+}
+
+# Decision memory, case 3: a file already approved for
+# delegation this session is delegated directly — the
+# reason must not ask again.
+it_should_delegate_directly_for_a_file_recorded_as_delegate_this_session() {
+  local repo; repo=$(new_repo delegate-file)
+  write_clean_base "$repo" tracked.sh
+  append_wide_comment "$repo" tracked.sh
+  local t; t=$(write_transcript "$repo/transcript.jsonl" "$repo/tracked.sh")
+  printf 'delegate:%s/tracked.sh\n' "$repo" > "$(decisions_file_path delegate)"
+  run_hook "$repo" "{\"session_id\":\"delegate\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
+
+  assert_eq "should delegate directly for a file recorded as delegate this session (decision)" \
+    "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
+  assert_contains "should delegate directly for a file recorded as delegate this session (says already approved)" \
+    "$HOOK_REASON" "Already approved this session — delegate directly, no need to ask again"
+  assert_not_contains "should delegate directly for a file recorded as delegate this session (does not ask again)" \
+    "$HOOK_REASON" "Ask the user whether to delegate"
+}
+
+# Decision memory, case 4: a skip decision is
+# per-file, not per-session — one declined vendored
+# file must not silence the gate for a second file
+# with no recorded answer.
+it_should_only_ask_about_the_undecided_file_when_one_of_two_is_skipped() {
+  local repo; repo=$(new_repo mixed-file)
+  write_clean_base "$repo" skipped.sh
+  append_wide_comment "$repo" skipped.sh
+  write_clean_base "$repo" pending.sh
+  append_wide_comment "$repo" pending.sh
+  local t; t=$(write_transcript "$repo/transcript.jsonl" "$repo/skipped.sh" "$repo/pending.sh")
+  printf 'skip:%s/skipped.sh\n' "$repo" > "$(decisions_file_path mixed)"
+  run_hook "$repo" "{\"session_id\":\"mixed\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
+
+  assert_eq "should only ask about the undecided file when one of two is skipped (decision)" \
+    "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
+  assert_eq "should only ask about the undecided file when one of two is skipped (names the pending file)" \
+    "1" "$(printf '%s' "$HOOK_REASON" | grep -c 'pending\.sh')"
+  assert_eq "should only ask about the undecided file when one of two is skipped (never names the skipped file)" \
+    "0" "$(printf '%s' "$HOOK_REASON" | grep -c 'skipped\.sh')"
+}
+
+# A missing session_id disables the memory feature
+# entirely (case "" in the hook's own guard).
+#
+# The gate still fires every time, it just never
+# learns a file was already decided and never tells
+# the main session where to persist an answer.
+it_should_never_reference_decision_memory_when_session_id_is_missing() {
+  local repo; repo=$(new_repo no-session-id)
+  write_clean_base "$repo" tracked.sh
+  append_wide_comment "$repo" tracked.sh
+  local t; t=$(write_transcript "$repo/transcript.jsonl" "$repo/tracked.sh")
+  run_hook "$repo" "{\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
+
+  assert_eq "should never reference decision memory when session_id is missing (still blocks)" \
+    "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
+  assert_contains "should never reference decision memory when session_id is missing (still asks)" \
+    "$HOOK_REASON" "Ask the user whether to delegate"
+  assert_not_contains "should never reference decision memory when session_id is missing (no record instruction)" \
+    "$HOOK_REASON" "Record the answer"
+}
+
 it_should_block_on_an_untracked_source_file_this_session_wrote
 it_should_block_on_a_paragraph_violation_in_an_untracked_file
 it_should_block_on_a_width_violation_added_to_a_tracked_file
@@ -250,6 +429,11 @@ it_should_not_block_on_a_violating_file_this_session_never_touched
 it_should_stay_silent_when_its_own_block_caused_this_stop
 it_should_stay_silent_when_the_transcript_is_missing
 it_should_stay_silent_when_the_session_touched_no_source_file
+it_should_ask_about_a_file_with_no_recorded_decision_this_session
+it_should_stay_silent_on_a_file_recorded_as_skip_this_session
+it_should_delegate_directly_for_a_file_recorded_as_delegate_this_session
+it_should_only_ask_about_the_undecided_file_when_one_of_two_is_skipped
+it_should_never_reference_decision_memory_when_session_id_is_missing
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
