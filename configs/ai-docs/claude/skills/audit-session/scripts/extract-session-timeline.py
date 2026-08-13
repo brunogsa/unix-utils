@@ -339,21 +339,42 @@ def _percentages_summing_to_100(seconds_by_bucket, total_seconds):
 
 
 def _subagent_run_label(subagent_path):
-    """{"agent_type", "model"} from the subagent's .meta.json sidecar, or
-    "unknown" for both fields — never a guessed tier — when the sidecar is
-    missing or unreadable."""
+    """{"agent_type", "model"} for one subagent run.
+
+    Sidecar present and readable -> today's behavior, unchanged: both fields
+    come from <subagent>.meta.json ("agentType"/"model").
+
+    Sidecar missing or unreadable -> model falls back to the LAST "model"
+    carried by the subagent transcript's own assistant records (present on
+    every priced response even without the sidecar; the LAST one, because a
+    mid-run model switch means the run finished on that model). agent_type
+    has no such fallback — nothing else in the transcript names the
+    dispatched subagent_type — so it stays "unknown", never guessed."""
     meta_path = os.path.splitext(subagent_path)[0] + ".meta.json"
-    if not os.path.isfile(meta_path):
-        return {"agent_type": "unknown", "model": "unknown"}
-    try:
-        with open(meta_path) as fh:
-            meta = json.load(fh)
-    except (OSError, json.JSONDecodeError):
-        return {"agent_type": "unknown", "model": "unknown"}
-    return {
-        "agent_type": meta.get("agentType") or "unknown",
-        "model": meta.get("model") or "unknown",
-    }
+    if os.path.isfile(meta_path):
+        try:
+            with open(meta_path) as fh:
+                meta = json.load(fh)
+            return {
+                "agent_type": meta.get("agentType") or "unknown",
+                "model": meta.get("model") or "unknown",
+            }
+        except (OSError, json.JSONDecodeError):
+            pass
+    return {"agent_type": "unknown", "model": _last_transcript_model(subagent_path)}
+
+
+def _last_transcript_model(subagent_path):
+    """The `model` on the LAST assistant record that carries one, scanning
+    subagent_path's own transcript; "unknown" when none do — the fallback
+    source for _subagent_run_label() when the .meta.json sidecar is missing
+    or unreadable."""
+    model = "unknown"
+    for record in usage_report.iter_records(subagent_path):
+        record_model = (record.get("message") or {}).get("model")
+        if record_model:
+            model = record_model
+    return model
 
 
 def list_tasks(sid):

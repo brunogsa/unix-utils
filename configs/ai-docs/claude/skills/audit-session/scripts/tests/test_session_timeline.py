@@ -79,13 +79,21 @@ def _away_summary_record(epoch):
     }
 
 
-def _assistant_text_record(epoch, text="here is what I found"):
+def _assistant_text_record(epoch, text="here is what I found", model=None):
     """A plain assistant reply carrying no tool_use — the assistant producing
-    output, which is what ends a turn's engaged span."""
+    output, which is what ends a turn's engaged span.
+
+    `model` is omitted by default, matching a real record's shape only
+    loosely; pass it to build the "message.model" a real assistant record
+    always carries, needed for the meta.json-sidecar-missing model fallback.
+    """
+    message = {"role": "assistant", "content": [{"type": "text", "text": text}]}
+    if model is not None:
+        message["model"] = model
     return {
         "type": "assistant",
         "timestamp": _iso(epoch),
-        "message": {"role": "assistant", "content": [{"type": "text", "text": text}]},
+        "message": message,
     }
 
 
@@ -998,6 +1006,78 @@ class TestSessionTimeline(unittest.TestCase):
         self.assertEqual(run["duration_seconds"], 5.0,
                           msg="timing still comes from the subagent's own first/last "
                               "record, independent of the missing sidecar")
+
+    def test_falls_back_to_the_subagent_transcripts_own_model_field_when_its_meta_json_sidecar_is_missing(self):
+        """No agent-nosidecar.meta.json exists on disk, but the subagent
+        transcript's own assistant record does carry a "model" -- the field
+        Claude Code stopped writing into the sidecar but still writes onto
+        every priced response. agent_type still has no such source and must
+        stay "unknown"."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-nosidecar", [
+                _human_record(1000),
+                _turn_duration_record(1010, duration_ms=10_000),
+            ], subagent_files={"agent-nosidecar.jsonl": [
+                _tool_use_record(1001, "tu_inner", "Bash", command="ls"),
+                _tool_result_record(1006, "tu_inner"),
+                _assistant_text_record(1007, model="claude-opus-4-7"),
+            ]})
+            payload = self._build(tmp, sid)
+
+        run = payload["agent_runs"][0]
+        self.assertEqual(run["model"], "claude-opus-4-7",
+                          msg="the sidecar is gone, but the transcript's own "
+                              "assistant record still names the real model")
+        self.assertEqual(run["agent_type"], "unknown",
+                          msg="nothing in the transcript names the dispatched "
+                              "subagent_type, so it must stay unknown, not guessed")
+
+    def test_uses_the_last_assistant_records_model_when_the_subagent_switched_models_mid_run(self):
+        """Two assistant records disagree on model -- the run must be
+        labeled by whichever model it FINISHED on, not the one it started
+        with, since a mid-run switch means the earlier model no longer
+        describes the run as a whole."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-modelswitch", [
+                _human_record(1000),
+                _turn_duration_record(1020, duration_ms=20_000),
+            ], subagent_files={"agent-switch.jsonl": [
+                _assistant_text_record(1001, model="claude-sonnet-5"),
+                _tool_use_record(1002, "tu_inner", "Bash", command="ls"),
+                _tool_result_record(1006, "tu_inner"),
+                _assistant_text_record(1007, model="claude-opus-4-7"),
+            ]})
+            payload = self._build(tmp, sid)
+
+        run = payload["agent_runs"][0]
+        self.assertEqual(run["model"], "claude-opus-4-7",
+                          msg="the run finished on opus, so that must be the "
+                              "reported model even though it started on sonnet")
+
+    def test_falls_back_to_the_subagent_transcripts_own_model_field_when_its_meta_json_sidecar_is_unreadable(self):
+        """agent-badmeta.meta.json exists but is not valid JSON -- this must
+        be treated the same as a missing sidecar (fall back to the
+        transcript), not as a hard failure and not as "unknown" the way a
+        merely-missing-field sidecar would be."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-badmeta", [
+                _human_record(1000),
+                _turn_duration_record(1010, duration_ms=10_000),
+            ], subagent_files={"agent-badmeta.jsonl": [
+                _tool_use_record(1001, "tu_inner", "Bash", command="ls"),
+                _tool_result_record(1006, "tu_inner"),
+                _assistant_text_record(1007, model="claude-opus-4-7"),
+            ]})
+            subagent_dir = os.path.join(tmp, "-Users-x-project", sid, "subagents")
+            with open(os.path.join(subagent_dir, "agent-badmeta.meta.json"), "w") as fh:
+                fh.write("{not valid json")
+            payload = self._build(tmp, sid)
+
+        run = payload["agent_runs"][0]
+        self.assertEqual(run["model"], "claude-opus-4-7",
+                          msg="a sidecar that fails to parse must fall back to the "
+                              "transcript's own model, the same as a missing sidecar")
+        self.assertEqual(run["agent_type"], "unknown")
 
     def test_renders_every_duration_in_the_users_local_timezone_by_reusing_parse_ts_and_local_day_never_re_deriving_them(self):
         """A UTC timestamp just after midnight must fall on the PREVIOUS
