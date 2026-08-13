@@ -348,10 +348,24 @@ The prompt pushes only the per-task data below.
 
   - Give a later chunk's **Context** a one-line summary of what the earlier chunks landed, plus `base:`, so it can `git log` the *why* instead of rediscovering it.
 
-- **Verification**: the task's **task-scoped verification commands only**.
+- **Verification**: the task's **task-scoped verification commands only**, when the plan names any.
   - Strip any repo-wide/full-suite command (e.g. a full `test:agentic` run, a repo-wide `yarn lint`) before pushing. A subagent verifies only its own change, never the whole repo.
 
   - A stripped requirement isn't dropped silently: §8.2's gate re-covers it when on; when off, the batch-end package (§8.3) names what full-suite checks never ran.
+
+  - When the plan names no command for the task, **omit the field** rather than inventing one.
+
+    - `tdd-coder.md` derives it from a file that declares the repo's entry point, and reports both the command and the source file it read it from.
+
+    - An invented command is the one case its derivation can't audit: a caller-supplied command is trusted outright, so a bad guess here reaches the evidence file unchallenged.
+
+  - Read that derived command back off the subagent's report and check it actually covers the task.
+    - A wrong one is a plan gap, not a subagent fault — push the correct command on the re-dispatch.
+
+    - Write it into the plan's task slice too, so the next task doesn't re-derive the same wrong thing.
+
+  - Never substitute a full-suite command for a missing task-scoped one.
+    - The subagent budgets the full suite at two runs per dispatch, so a stand-in burns that whole budget proving nothing about this task.
 
 - **Optional**:
   - `files:` — the task's **Files (logical order)** list as the **starting set** — not a cage; touch more when needed, routing the delta per §4.3.
