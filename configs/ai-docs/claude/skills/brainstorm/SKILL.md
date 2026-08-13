@@ -70,10 +70,15 @@ Why upfront: the mode decides whether a spec exists, and the toggles decide how 
 Settling both before anything is written closes off tuning either down after seeing the output.
 Why persisted: a compaction between here and self-review would lose them.
 
-Then create the run scratchpad `/tmp/brainstorm_<session_id>.md`, keyed the same way, per CLAUDE.md's scratchpad rules.
-It stays alive for the whole run — through the spec, the plan, and self-review — so the plan phase can still see why the earlier steps decided what they did.
-It is also the sole context channel to every dispatched writing agent — each one starts with none of this session's context.
-Anything this file omits is invisible to the agent that writes the documents.
+Then create `<scratchpad>/notes.md` in the harness scratchpad directory named in this session's own system prompt, per CLAUDE.md's Note-taking discipline.
+Never an invented ad-hoc per-skill `/tmp` path — that is what this step used to write.
+It stays alive for the whole run — through the spec, the plan, and self-review — under the five fixed headings that discipline defines.
+So the plan phase can still see why the earlier steps decided what they did.
+
+`<scratchpad>/brainstorm-brief.md`, that same directory's zero-context hand-off, does not exist yet at this point.
+Step 5 composes it once the interview closes, before step 6 dispatches — never continuously during the interview, and never merely because a dispatch is imminent.
+It is the sole context channel to every dispatched writing agent — each one starts with none of this session's context.
+Anything the brief omits is invisible to the agent that writes the documents.
 
 ### 2. Gather starting context
 
@@ -97,7 +102,7 @@ If it looks decomposable, follow [`references/decompose-scope.md`](references/de
 Why up front: its categories then shape every question you ask, instead of becoming a checklist swept at the end.
 By then the requirements are settled, so a boundary raised that late reopens answered questions rather than refining them.
 
-Write every answer that shapes the documents into the run scratchpad as the round closes, per step 1 — decisions with their why, alternatives with why they lost.
+Write every answer that shapes the documents into `notes.md` as the round closes, per step 1 — decisions under `## Decisions` with their why, alternatives under `## Rejected` with why they lost.
 
 Ask clarifying questions (Socratic style). Focus on:
 - What problem are we solving? (Background)
@@ -136,10 +141,16 @@ Present 2-3 viable approaches conversationally.
 Lead with your recommendation and the reasoning. Cover the trade-off axes that matter for this idea (complexity, blast radius, reversibility, dependencies, time-to-first-value).
 
 Get a directional pick from the user before writing anything.
-Capture the outcome in the run scratchpad; the writing agent folds it into the document's Decisions section as one marker, with the discarded alternatives as sub-bullets.
+Capture the outcome under `notes.md`'s `## Decisions` heading; the writing agent folds it into the document's Decisions section as one marker, with the discarded alternatives as sub-bullets.
 
 Why keep the discarded ones: naming what lost, and why, stops the next session re-deriving the same alternatives and re-litigating them.
 It also surfaces when the constraint that killed an alternative no longer applies.
+
+**The interview closes here.** Before step 6 dispatches, compose `<scratchpad>/brainstorm-brief.md` — the verbatim original request, every finding with its `file:line` evidence, and every decision with the alternatives it discarded.
+It is elaborated past what `notes.md`'s density guide allows, since the brief's zero-context reader needs detail that guide deliberately omits.
+
+Why now and not earlier: composing it before the interview and approach pick finish would hand off unfinished results.
+Why not later: step 6 needs it to already exist the moment it dispatches.
 
 ### 6. Derive the slug, then dispatch a `general-purpose` agent to write the spec
 
@@ -154,8 +165,10 @@ Then dispatch `agent(subAgent=general-purpose, model=sonnet, title=Write the spe
 
 - Read `~/.claude/skills/spec-driven-development/SKILL.md` and its `assets/spec-template.md` — that library's Guidelines govern what it writes, and every section of the template gets written.
 
-- It has no inherited context — read the run scratchpad `/tmp/brainstorm_<session_id>.md` first.
-- Fold the scratchpad's decisions and discarded alternatives into the spec's Functional Decisions section.
+- It has no inherited context — read `brainstorm-brief.md` first, passing this session's resolved absolute path to it explicitly in the dispatch prompt.
+- A dispatched subagent gets its own, different scratchpad directory, so an unstated path would leave it with no way to find this session's brief at all.
+
+- Fold the brief's decisions and discarded alternatives into the spec's Functional Decisions section.
 - Write `spec_<slug>.md` in CWD, and report back its resolved path plus a short summary of what it wrote.
 
 **This session never writes the spec itself** — every later edit goes through another `agent(subAgent=general-purpose, model=sonnet, title=Apply spec edits)` carrying the exact changes to make.
@@ -163,9 +176,9 @@ Then dispatch `agent(subAgent=general-purpose, model=sonnet, title=Write the spe
 Why delegate: writing the spec costs the context to load the library and template — context this session still needs for both reviews and the hand-off.
 
 Why `general-purpose`: this agent inherits none of this session's context, unlike a fork, so it cannot lean on the interview or the approach pick.
-It must ground entirely from the run scratchpad `/tmp/brainstorm_<session_id>.md` instead.
-That is why the scratchpad has to be self-contained: the verbatim original request, every finding with its file:line evidence, and every decision with the alternatives it discarded.
-Leaving any of that out of the scratchpad makes it invisible to the agent that writes the spec, which would otherwise silently invent whatever is missing.
+It must ground entirely from `brainstorm-brief.md` instead — that is why the brief, not `notes.md`, has to be self-contained.
+That means the verbatim original request, every finding with its file:line evidence, and every decision with the alternatives it discarded.
+Leaving any of that out of the brief makes it invisible to the agent that writes the spec, which would otherwise silently invent whatever is missing.
 
 ### 7. Self-review the spec once, with fresh eyes
 
@@ -249,10 +262,13 @@ That reviewer tests the plan itself, rather than only testing whether the spec c
 
 - Follow that library's *A plan may exist without a spec* section for the `Spec:` line, the per-task acceptance criteria, and the Test Design coverage list.
 
-- It has no inherited context — read the run scratchpad `/tmp/brainstorm_<session_id>.md` first, then fold its decisions and discarded alternatives into the plan's Technical Decisions section.
+- It has no inherited context — read `brainstorm-brief.md` first, passing this session's resolved absolute path to it explicitly in the dispatch prompt.
+- A dispatched subagent gets its own, different scratchpad directory, so an unstated path would leave it with no way to find this session's brief at all.
+
+- Fold its decisions and discarded alternatives into the plan's Technical Decisions section.
 
 Why `general-purpose` rather than the fork here: a fork carries the entire interview and runs at the main session's tier, which is the opposite of what `light` is for.
-The run scratchpad already holds those decisions in condensed form, so a sonnet agent reading it plans from the same material at a fraction of the cost.
+The brief already holds those decisions in condensed form, so a sonnet agent reading it plans from the same material at a fraction of the cost.
 
 **Once the plan exists, in either mode: read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now** — it defines every gate, sorts them into a deterministic and a judged bucket, and gives each bucket's dispatch tier.
 

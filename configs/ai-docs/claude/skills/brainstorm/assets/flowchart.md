@@ -55,9 +55,13 @@ def brainstorm():
         "qualitative_pass": toggles.qualitative_pass,
     })
 
-    # 5 · Step 1 — decisions, discarded alternatives and open questions are
-    #     written here as they happen, not at the end. Lives the whole run.
-    scratchpad = create(f"/tmp/brainstorm_{session_id}.md")
+    # 5 · Step 1 — <scratchpad>/notes.md, the harness scratchpad directory's
+    #     working-notes file (named in this session's own system prompt):
+    #     decisions, rejected alternatives, findings, open questions, under
+    #     5 fixed headings, written as they happen. brainstorm-brief.md,
+    #     that directory's zero-context hand-off, does NOT exist yet — node
+    #     16 composes it once the interview closes, before step 6 dispatches.
+    notes = create(f"{scratchpad_dir}/notes.md")
 
     # 6 · Seed the TaskList NOW — the mode is already settled, so nothing is
     #     seeded that a later branch cancels. One [Reminder] per step 2-14.
@@ -100,7 +104,7 @@ def brainstorm():
         #      recommended answer first. Look facts up yourself; ask only
         #      genuine decisions.
         round_answers = ask_user_question(socratic_questions(n=range(2, 4)))
-        scratchpad.write(decisions, discarded_alternatives)              # 11 ·
+        notes.write(decisions, rejected_alternatives)                    # 11 ·
 
         # 12 · Step 4 — push through EVERY taxonomy category: corner cases
         #      (empty/max/boundary) and failure modes (timeouts/partial/rate-limit).
@@ -115,31 +119,42 @@ def brainstorm():
 
     approaches = propose(n=range(2, 4), trade_offs=True, recommendation_first=True)  # 14 · Step 5
     pick = get_directional_pick(approaches)                # 15 · Step 5
-    scratchpad.write(pick)                                 # 15 ·
+    notes.write(pick)                                      # 15 ·
 
-    if mode == "light":                                    # 16 ·
-        # 16a · Step 9 at light — general-purpose (sonnet) · serial · background,
+    # 16 · Step 5 — the interview closes here. Before step 6 dispatches,
+    #      compose brainstorm-brief.md: the verbatim original request, every
+    #      finding with its file:line evidence, every decision with the
+    #      alternatives it discarded — elaborated past what notes.md's
+    #      density guide allows, since a zero-context reader needs it.
+    brief = compose(f"{scratchpad_dir}/brainstorm-brief.md")
+
+    if mode == "light":                                    # 17 ·
+        # 17a · Step 9 at light — general-purpose (sonnet) · serial · background,
         #       NOT the fork used at full: a fork carries the whole interview and
         #       runs at the main session's tier, which is what light exists to
-        #       avoid. This agent has no inherited context, so it grounds from the
-        #       run scratchpad, which holds those decisions in condensed form.
+        #       avoid. This agent has no inherited context, so it reads
+        #       brainstorm-brief.md, passing this session's resolved absolute
+        #       path to it explicitly — a dispatched agent's own scratchpad
+        #       directory differs from this session's.
         #       It derives its OWN kebab slug, writes "N/A — plan-only run" on the
         #       Spec: line, carries each task's ACs in that task's own field, and
         #       writes "N/A — no spec" for the AC → test coverage list.
         plan = dispatch("general-purpose", model="sonnet", write_plan=True, derive_own_slug=True)
     else:
-        # 17 · Step 6 — a short kebab-case slug, NEVER confirmed with the user.
+        # 18 · Step 6 — a short kebab-case slug, NEVER confirmed with the user.
         #      The plan inherits it, and that shared slug is what pairs the files.
         slug = derive_kebab_slug()
 
-        # 18 · Step 6 — general-purpose (sonnet) · serial · background. No
-        #      inherited context: reads the run scratchpad first, then the
-        #      spec-driven-development library + spec-template, and writes EVERY
-        #      section; folds the scratchpad's decisions into Functional Decisions.
+        # 19 · Step 6 — general-purpose (sonnet) · serial · background. No
+        #      inherited context: reads brainstorm-brief.md first, passing this
+        #      session's resolved absolute path to it explicitly — its own
+        #      scratchpad directory differs — then the spec-driven-development
+        #      library + spec-template, and writes EVERY section; folds the
+        #      brief's decisions into Functional Decisions.
         #      THIS session never writes the spec itself.
         spec = dispatch("general-purpose", model="sonnet", write_spec=True, slug=slug)
 
-        # 19 · Step 7 — deep-reviewer · agent-pinned · serial · background, over
+        # 20 · Step 7 — deep-reviewer · agent-pinned · serial · background, over
         #      the spec ALONE — full only, and ALWAYS dispatched (no toggle gates
         #      the dispatch itself anymore).
         #      ALWAYS runs "How would this break?" (fail-closed): every
@@ -151,26 +166,26 @@ def brainstorm():
         #      NOT PR-size, NOT plan-contradiction (no plan yet), NOT Scope
         #      (step 3 already asked the user about decomposition).
         findings = dispatch("deep-reviewer", target=spec)
-        # 20 · general-purpose (sonnet) · serial · background, with the
+        # 21 · general-purpose (sonnet) · serial · background, with the
         #      findings YOU accepted.
         dispatch("general-purpose", model="sonnet", apply=main_session_decides(findings))
-        # 21 · every finding, applied or skipped with the reason — the only
+        # 22 · every finding, applied or skipped with the reason — the only
         #      way to judge whether this gate earns its cost.
         #      Runs ONCE per spec; the step-8 loop below re-runs no review.
         report_applied_and_skipped_to_user(findings)
 
         while True:
-            # 22 · Step 8 — give the user the spec's PATH, then ask.
+            # 23 · Step 8 — give the user the spec's PATH, then ask.
             verdict = ask_user_question(spec.path, "Approved, or what changes?")
-            match verdict:                                 # 23 ·
-                case "approved":                  break                    # → 24
-                case "wording/detail":            dispatch("general-purpose", model="sonnet", edits=...)  # 23a · → 22
+            match verdict:                                 # 24 ·
+                case "approved":                  break                    # → 25
+                case "wording/detail":            dispatch("general-purpose", model="sonnet", edits=...)  # 24a · → 23
                 case "missing/wrong requirements": goto(10)                # the interview
                 case "approach concerns":          goto(14)                # the proposals
 
-        # 24 · Step 9 at full — fork · main-session model · serial · background.
+        # 25 · Step 9 at full — fork · main-session model · serial · background.
         #      In: the plan-writing reference's path (a fork loads no definition
-        #      file, so the procedure must be named), the spec path + the step-17
+        #      file, so the procedure must be named), the spec path + the step-18
         #      slug, any planning-conventions file. It resolves the output path
         #      itself, and inherits this whole session.
         #      A spec gap never withholds the plan — it becomes a **QUESTION:**,
@@ -264,7 +279,7 @@ flowchart TD
   n3b["3b. light skips phase 2 entirely and treats all three as off —<br/>light writes no spec and dispatches no judged gate at all,<br/>so asking would spend a round-trip on three dead questions"]
 
   n4["4. Step 1 · Persist mode, traces_to_ac, right_sized, qualitative_pass<br/>to /tmp/sdd_&lt;session_id&gt;.json — every later step reads these back and never<br/>re-asks; fresh each run, never written into any committed file"]:::state
-  n5["5. Step 1 · Create the run scratchpad /tmp/brainstorm_&lt;session_id&gt;.md<br/>decisions, discarded alternatives, open questions — written as they happen"]:::state
+  n5["5. Step 1 · Create &lt;scratchpad&gt;/notes.md in the harness scratchpad directory<br/>named in this session's own system prompt — decisions, rejected alternatives,<br/>findings, open questions, under 5 fixed headings, written as they happen<br/><br/>brainstorm-brief.md, that same directory's zero-context hand-off, does NOT exist<br/>yet — node 16 composes it once the interview closes, before step 6 dispatches"]:::state
 
   subgraph n6["6. Seed the TaskList NOW — the mode is already settled, so nothing is seeded<br/>that a later branch cancels. One [Reminder] per step 2-14."]
     direction TB
@@ -293,28 +308,29 @@ flowchart TD
 
   n9["9. Step 4 · Read test-standards references/coverage-taxonomy.md<br/>before the FIRST round, so its categories shape the questions"]:::skill
   n10["10. Step 4 · Interview: 2-3 Socratic questions per round via AskUserQuestion,<br/>recommended answer first. Look facts up yourself; ask only genuine decisions."]:::gate
-  n11["11. Step 4 · Write the round's decisions and discarded alternatives to the scratchpad"]:::state
+  n11["11. Step 4 · Write the round's decisions and rejected alternatives to notes.md<br/>(Decisions / Rejected headings)"]:::state
   n12["12. Step 4 · Push through every taxonomy category — corner cases<br/>(empty/max/boundary) and failure modes (timeouts/partial/rate-limit)"]:::gate
   n13{"13. Step 4 · Exit criterion met?<br/>round added nothing new AND every category covered or ruled out<br/>AND nothing this step raised is still open<br/>(questions surfacing later, while writing, are fine — step 12 owns those)"}
 
   n14["14. Step 5 · Propose 2-3 approaches with trade-offs, recommendation first"]
-  n15["15. Step 5 · Get a directional pick; capture it in the scratchpad"]:::gate
+  n15["15. Step 5 · Get a directional pick; capture it in notes.md's Decisions heading"]:::gate
+  n16["16. Step 5 · The interview closes here. Before step 6 dispatches, compose<br/>&lt;scratchpad&gt;/brainstorm-brief.md — the verbatim original request, every finding<br/>with its file:line evidence, every decision with the alternatives it discarded,<br/>elaborated past what notes.md's density guide allows"]:::state
 
-  n16{"16. Which mode did step 1 settle?"}
-  n16a{{"16a. Step 9 at light · Dispatch: Write the plan<br/>general-purpose · sonnet · serial · background — NOT the fork used at full<br/><br/>a fork carries the whole interview and runs at the main session's tier,<br/>which is what light exists to avoid; this agent has no inherited<br/>context, so it grounds from the run scratchpad, which holds those<br/>decisions in condensed form<br/><br/>derives its OWN kebab slug · writes 'N/A — plan-only run' on the Spec: line ·<br/>carries each task's ACs in that task's own field ·<br/>writes 'N/A — no spec' for the AC → test coverage list"}}:::dispatch
+  n17{"17. Which mode did step 1 settle?"}
+  n17a{{"17a. Step 9 at light · Dispatch: Write the plan<br/>general-purpose · sonnet · serial · background — NOT the fork used at full<br/><br/>a fork carries the whole interview and runs at the main session's tier,<br/>which is what light exists to avoid; this agent has no inherited context,<br/>so it reads brainstorm-brief.md, passing this session's resolved absolute<br/>path to it explicitly — a dispatched agent's own scratchpad directory<br/>differs from this session's<br/><br/>derives its OWN kebab slug · writes 'N/A — plan-only run' on the Spec: line ·<br/>carries each task's ACs in that task's own field ·<br/>writes 'N/A — no spec' for the AC → test coverage list"}}:::dispatch
 
-  n17["17. Step 6 · Derive a short kebab-case slug, never confirmed with the user;<br/>the plan inherits it, and the shared slug is what pairs the two files"]
-  n18{{"18. Step 6 · Dispatch: Write the spec<br/>general-purpose · sonnet · serial · background<br/><br/>no inherited context: reads the run scratchpad first, then the<br/>spec-driven-development library + spec-template, and writes EVERY<br/>section; folds the scratchpad's decisions into Functional Decisions<br/><br/>this session never writes the spec itself"}}:::dispatch
+  n18["18. Step 6 · Derive a short kebab-case slug, never confirmed with the user;<br/>the plan inherits it, and the shared slug is what pairs the two files"]
+  n19{{"19. Step 6 · Dispatch: Write the spec<br/>general-purpose · sonnet · serial · background<br/><br/>no inherited context: reads brainstorm-brief.md first, passing this session's<br/>resolved absolute path to it explicitly — its own scratchpad directory differs —<br/>then the spec-driven-development library + spec-template, and writes EVERY<br/>section; folds the brief's decisions into Functional Decisions<br/><br/>this session never writes the spec itself"}}:::dispatch
 
-  n19{{"19. Step 7 · Dispatch: Fresh-eyes review of the spec<br/>deep-reviewer · agent-pinned · serial · background — full only, ALWAYS dispatched<br/><br/>ALWAYS: 'How would this break?' (fail-closed) — every boundary/failure-category<br/>checklist row instantiated or opted out, every AC carrying a surfaced failure mode<br/><br/>THEN, only when qualitative_pass is true (read from /tmp/sdd_&lt;session_id&gt;.json):<br/>also sweeps placeholders · contradictions · ambiguity · completeness · human-reviewable<br/>NOT PR-size, NOT plan-contradiction (no plan yet), NOT Scope (step 3 already asked)"}}:::dispatch
-  n20{{"20. Dispatch: Apply the spec review findings<br/>general-purpose · sonnet · serial · background · the findings the main session accepted"}}:::dispatch
-  n21["21. Report every finding to the user — applied, or skipped with the reason.<br/>The only way to judge whether this gate earns its cost.<br/>Runs ONCE per spec; the step-8 loop re-runs no review."]
+  n20{{"20. Step 7 · Dispatch: Fresh-eyes review of the spec<br/>deep-reviewer · agent-pinned · serial · background — full only, ALWAYS dispatched<br/><br/>ALWAYS: 'How would this break?' (fail-closed) — every boundary/failure-category<br/>checklist row instantiated or opted out, every AC carrying a surfaced failure mode<br/><br/>THEN, only when qualitative_pass is true (read from /tmp/sdd_&lt;session_id&gt;.json):<br/>also sweeps placeholders · contradictions · ambiguity · completeness · human-reviewable<br/>NOT PR-size, NOT plan-contradiction (no plan yet), NOT Scope (step 3 already asked)"}}:::dispatch
+  n21{{"21. Dispatch: Apply the spec review findings<br/>general-purpose · sonnet · serial · background · the findings the main session accepted"}}:::dispatch
+  n22["22. Report every finding to the user — applied, or skipped with the reason.<br/>The only way to judge whether this gate earns its cost.<br/>Runs ONCE per spec; the step-8 loop re-runs no review."]
 
-  n22["22. Step 8 · Give the user the spec's PATH, then ask:<br/>approved, or what changes?"]:::gate
-  n23{"23. User approved the spec?"}
-  n23a{{"23a. Dispatch: Apply the spec edits<br/>general-purpose · sonnet · serial · background · carrying the exact edits"}}:::dispatch
+  n23["23. Step 8 · Give the user the spec's PATH, then ask:<br/>approved, or what changes?"]:::gate
+  n24{"24. User approved the spec?"}
+  n24a{{"24a. Dispatch: Apply the spec edits<br/>general-purpose · sonnet · serial · background · carrying the exact edits"}}:::dispatch
 
-  n24{{"24. Step 9 at full · Dispatch: Write the implementation plan<br/>fork · main-session model · serial · background<br/><br/>in: the plan-writing reference's path — a fork loads no definition file,<br/>so the procedure must be named — the spec path + the step-17 slug,<br/>any planning-conventions file<br/>it resolves the output path itself, and inherits this whole session<br/><br/>a spec gap never withholds the plan — it becomes a **QUESTION:** entry,<br/>including a decision the interview settled but the spec never got"}}:::dispatch
+  n25{{"25. Step 9 at full · Dispatch: Write the implementation plan<br/>fork · main-session model · serial · background<br/><br/>in: the plan-writing reference's path — a fork loads no definition file,<br/>so the procedure must be named — the spec path + the step-18 slug,<br/>any planning-conventions file<br/>it resolves the output path itself, and inherits this whole session<br/><br/>a spec gap never withholds the plan — it becomes a **QUESTION:** entry,<br/>including a decision the interview settled but the spec never got"}}:::dispatch
 
   n26["26. Step 9, both modes · Read spec-driven-development references/self-review-checks.md —<br/>it defines every gate, sorts them into the deterministic and judged buckets, and gives<br/>each bucket's dispatch tier. Read here, the FIRST time, right after the plan exists."]:::skill
 
@@ -360,22 +376,22 @@ flowchart TD
   n9 --> n10 --> n11 --> n12 --> n13
   n13 -->|"no, more rounds"| n10
   n13 -->|"yes"| n14
-  n14 --> n15 --> n16
+  n14 --> n15 --> n16 --> n17
 
-  n16 -->|"light"| n16a
-  n16a --> n26
+  n17 -->|"light"| n17a
+  n17a --> n26
 
-  n16 -->|"full"| n17
-  n17 --> n18 --> n19 --> n20 --> n21 --> n22
+  n17 -->|"full"| n18
+  n18 --> n19 --> n20 --> n21 --> n22 --> n23
 
-  n22 --> n23
-  n23 -->|"no: wording/detail"| n23a
-  n23a --> n22
-  n23 -->|"no: missing/wrong requirements"| n10
-  n23 -->|"no: approach concerns"| n14
-  n23 -->|"yes"| n24
+  n23 --> n24
+  n24 -->|"no: wording/detail"| n24a
+  n24a --> n23
+  n24 -->|"no: missing/wrong requirements"| n10
+  n24 -->|"no: approach concerns"| n14
+  n24 -->|"yes"| n25
 
-  n24 --> n26
+  n25 --> n26
 
   n26 --> n27 --> n28
   n28 -->|"no"| n28a
