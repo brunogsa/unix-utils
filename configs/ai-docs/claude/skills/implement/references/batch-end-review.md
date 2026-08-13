@@ -92,9 +92,9 @@ That dispatch increments `gate_dispatches`, never `attempts[]` — those entries
 
 Never hand-fix a failure the runner handed back.
 
-**A gate run needs §1.6's baseline.** With `baseline.wanted: false` both keys are empty, so the runner returns `HALT` on its own missing-input rule rather than guess which red is pre-existing.
+**A gate run needs §1.6's baseline.** §1.2's single toggle makes a gate-without-baseline unreachable by construction — yes runs both, no runs neither.
 
-Answer §1.2's baseline question yes whenever this gate is on.
+This HALT still guards a baseline dispatch that itself halted or timed out, leaving both keys empty despite the toggle saying yes.
 
 **What this section does with the verdict it gets back:**
 

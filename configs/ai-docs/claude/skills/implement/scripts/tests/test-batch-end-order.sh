@@ -39,6 +39,8 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKILL_FILE="$script_dir/../SKILL.md"
 REVIEW_FILE="$script_dir/../references/batch-end-review.md"
 BASELINE_FILE="$script_dir/../references/full-suite-baseline.md"
+FLOWCHART_FILE="$script_dir/../assets/flowchart.md"
+IMPLEMENT_DIR="$script_dir/.."
 
 # SKILL.md's four stage-summary bullets. Loose enough to
 # match the old order too, so a run against the pre-reorder
@@ -89,6 +91,16 @@ SKILL_OLD_BASELINE_QUESTION_MARKER='^- \*\*Capture a full-suite green baseline b
 # anywhere under skills/implement/ is drift from a doc the
 # merge should have retargeted.
 BASELINE_WANTED_STRING='baseline.wanted'
+
+# The interview used to ask a third, independent toggle -
+# "Auto-solve its findings?" - that a prior commit removed
+# from the skill body without updating this diagram, which
+# stays authoritative for the flow it depicts. check_absent
+# matches case-insensitively, but "auto-solve" and
+# "auto_solve" are still two distinct fixed strings, so both
+# are checked.
+AUTO_SOLVE_MARKER='auto-solve'
+AUTO_SOLVE_UNDERSCORE_MARKER='auto_solve'
 
 pass_count=0
 fail_count=0
@@ -225,6 +237,29 @@ check_absent() {
   fi
   if grep -qFi "$needle" "$file"; then
     printf 'found forbidden string %s in %s\n' "$needle" "$file"
+    return 1
+  fi
+  return 0
+}
+
+# check_absent_in_tree <dir> <fixed-string> - same contract as
+# check_absent, scanned recursively over every file under dir.
+#
+# Excludes this guard script's own basename: it legitimately
+# carries the needle as literal test data (constants, function
+# names), and that self-reference is not the regression this
+# scan exists to catch.
+check_absent_in_tree() {
+  local dir="$1" needle="$2"
+  if [ ! -d "$dir" ]; then
+    printf 'missing directory: %s\n' "$dir"
+    return 1
+  fi
+  local self_name hit
+  self_name=$(basename "${BASH_SOURCE[0]}")
+  hit=$(grep -rlFi "$needle" "$dir" 2>/dev/null | grep -v "/${self_name}$")
+  if [ -n "$hit" ]; then
+    printf 'found forbidden string %s under %s:\n%s\n' "$needle" "$dir" "$hit"
     return 1
   fi
   return 0
@@ -441,6 +476,42 @@ it_should_fail_when_section_1_2_still_declares_two_separate_questions() {
     "failed" "$(run_check check_single_interview_toggle "$tmp_file")"
   rm -f "$tmp_file"
 }
+
+it_should_assert_no_baseline_wanted_reference_anywhere_under_implement() {
+  assert_eq "should assert no file under skills/implement/ references baseline.wanted" \
+    "passed" "$(run_check check_absent_in_tree "$IMPLEMENT_DIR" "$BASELINE_WANTED_STRING")"
+}
+
+it_should_assert_flowchart_carries_no_auto_solve_reference() {
+  assert_eq "should assert flowchart.md carries no auto-solve reference" \
+    "passed" "$(run_check check_absent "$FLOWCHART_FILE" "$AUTO_SOLVE_MARKER")"
+  assert_eq "should assert flowchart.md carries no auto_solve reference" \
+    "passed" "$(run_check check_absent "$FLOWCHART_FILE" "$AUTO_SOLVE_UNDERSCORE_MARKER")"
+}
+
+it_should_fail_when_a_file_under_implement_still_mentions_baseline_wanted() {
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+
+  # A single leftover file anywhere under the tree is the
+  # regression this dir-wide scan exists to catch, so seed
+  # exactly one such file.
+  printf '%s\n' "$BASELINE_WANTED_STRING" > "$tmp_dir/leftover-reference.md"
+  assert_eq "should fail when a file under the scanned tree still mentions baseline.wanted" \
+    "failed" "$(run_check check_absent_in_tree "$tmp_dir" "$BASELINE_WANTED_STRING")"
+  rm -rf "$tmp_dir"
+}
+
+it_should_fail_when_flowchart_still_mentions_auto_solve() {
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  { cat "$FLOWCHART_FILE"; printf '\n- Auto-solve its findings? (default yes)\n'; } > "$tmp_file"
+  assert_eq "should fail when flowchart.md still mentions auto-solve" \
+    "failed" "$(run_check check_absent "$tmp_file" "$AUTO_SOLVE_MARKER")"
+  rm -f "$tmp_file"
+}
+
 it_should_assert_the_push_stage_is_declared_before_the_quality_gate_tail_stage
 it_should_assert_the_push_stage_is_declared_before_the_repo_green_gate_stage
 it_should_assert_the_pre_flight_baseline_is_dispatched_to_the_repo_green_runner
@@ -457,6 +528,10 @@ it_should_assert_skill_md_never_mentions_baseline_wanted
 it_should_assert_section_1_2_declares_exactly_one_merged_toggle
 it_should_fail_when_skill_md_still_mentions_baseline_wanted
 it_should_fail_when_section_1_2_still_declares_two_separate_questions
+it_should_assert_no_baseline_wanted_reference_anywhere_under_implement
+it_should_assert_flowchart_carries_no_auto_solve_reference
+it_should_fail_when_a_file_under_implement_still_mentions_baseline_wanted
+it_should_fail_when_flowchart_still_mentions_auto_solve
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

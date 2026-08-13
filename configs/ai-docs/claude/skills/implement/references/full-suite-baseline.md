@@ -3,7 +3,7 @@ words-budget: 1024
 ---
 # Full-suite baseline (§1.6)
 
-Detail for /implement's optional pre-flight baseline capture. Load when §1.2 answered yes to "capture a full-suite green baseline before starting?".
+Detail for /implement's optional pre-flight baseline capture. Load when §1.2's single repo-green gate toggle answered yes — the same answer that also enables §8.3's batch-end gate.
 
 Run once, after worktree setup (§1.4) settles — the tree being measured needs `node_modules` installed, or the baseline measures the wrong tree.
 
@@ -29,7 +29,7 @@ Fixing red here would erase the very signatures that evidence is made of.
 
 ## When skipped
 
-When §1.2 answered no, skip this step entirely — `baseline.wanted` stays `false`, and `baseline.log_path` and `baseline.failures` stay empty.
+When §1.2's repo-green gate toggle answered no, skip this step entirely — `baseline.log_path` and `baseline.failures` stay empty.
 
 A dispatch that halts or times out leaves both keys empty too, so treat it the same way from there.
 

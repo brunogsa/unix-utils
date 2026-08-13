@@ -31,8 +31,9 @@ def implement(arg):
 
     # 4 · §1.2 — ONE up-front interview, the only round until the review package:
     #     plan pick · plan path, if none found (§1.1) · worktree · draft PR
-    #     · quality-gate tail (default yes, always --report-only) · full-suite
-    #     green baseline · repo-green gate (default yes) · confirm base branch
+    #     · quality-gate tail (default yes, always --report-only) · repo-green
+    #     gate (default yes, runs BOTH the full-suite baseline AND the
+    #     batch-end gate, or neither) · confirm base branch
     #     · PLUS 'Deliver each task as its own stacked PR?' — default NO.
     answers = ask_everything_at_once()                      # 4
 
@@ -91,9 +92,10 @@ def implement(arg):
     else:
         units = [Unit(arg.task_ids)]                        # the whole batch is one unit
 
-    # 14 · §1.6 — capture a full-suite green baseline, only when §1.2 said yes;
-    #     runs once worktree (12b) and PR-label resolution (13b) have settled.
-    if answers.baseline:                                    # 14
+    # 14 · §1.6 — capture a full-suite green baseline, only when §1.2's
+    #     repo-green gate toggle said yes; runs once worktree (12b) and
+    #     PR-label resolution (13b) have settled.
+    if answers.repo_green_gate:                             # 14
         load("references/full-suite-baseline.md")           # 14a
         state.baseline = capture_full_suite_baseline()       # 14b · full lint + full test
                                                               #      suite; log PATH + failing
@@ -438,7 +440,7 @@ flowchart TD
   n2["2. Step 1.1 · Locate plan_&lt;slug&gt;.md (+ the spec when one<br/>exists — a plan-only run is a supported mode)"]
   n3{"3. Plan found?"}
   n3a(["3a. Stop: no plan given"])
-  n4["4. Step 1.2 · ONE up-front interview, one call:<br/><br/>- Plan pick, if multiple candidates<br/>- Plan path, if none found (§1.1)<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Quality-gate tail? (default yes)<br/>- Auto-solve its findings? (default yes,<br/>read only when the tail is on)<br/>- Capture a full-suite green baseline first?<br/>- Repo-green gate? (default yes)<br/>- Confirm the base branch<br/>- Deliver each task as its own stacked PR?<br/>(yes/no, default NO)"]:::gate
+  n4["4. Step 1.2 · ONE up-front interview, one call:<br/><br/>- Plan pick, if multiple candidates<br/>- Plan path, if none found (§1.1)<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Quality-gate tail? (default yes)<br/>- Repo-green gate? (default yes,<br/>runs both the full-suite baseline<br/>and the batch-end gate, or neither)<br/>- Confirm the base branch<br/>- Deliver each task as its own stacked PR?<br/>(yes/no, default NO)"]:::gate
   n5{"5. Step 1.2 · Stacked answered yes? Stacked is<br/>OPT-IN because it turns the whole unit strictly<br/>sequential — no parallel dispatch for the run"}
   n5a["5a. Default 'no': the unit ships as ONE PR,<br/>its tasks commits inside it — nothing else in<br/>step 1.2 runs, and stacked-by-task.md is<br/>never loaded"]
   n6["6. Step 1.2 · Load references/stacked-by-task.md<br/>— only on a 'yes', before its two gates below"]:::skill
@@ -458,7 +460,7 @@ flowchart TD
   n13a["13a. Load references/pr-awareness.md"]:::skill
   n13b["13b. Step 1.5 · Resolve EVERY PR-N to its<br/>task-id list (get-pr-tasks.sh),<br/>before any seeding"]
   n13c["13c. Step 1.5 · Decide the CROSS-UNIT stack mode<br/>ONCE — between PR-N units, independent of 5-9's<br/>per-task stack choice within one unit: diamond<br/>(a PR with 2+ parents) -&gt; merge; linear AND<br/>gh-stack extension installed -&gt; native; else merge.<br/>Record a Mode: line under the plan's PR Breakdown<br/>heading — sticky for the stack's whole life"]:::state
-  n14{"14. Full-suite baseline requested?"}
+  n14{"14. §1.2's repo-green gate toggle answered yes?"}
   n14a["14a. Load references/full-suite-baseline.md"]:::skill
   n14b["14b. Step 1.6 · Capture the baseline: full lint +<br/>full test suite, once worktree (12b) and<br/>PR-label resolution (13b) have settled;<br/>save the log PATH + failing signatures into<br/>state.baseline (never the log content)"]:::state
   n15["15. Step 2.1 · TaskList: one entry per task,<br/>ALL PRs upfront in execution order<br/>(subjects prefixed 'PR-2 &middot;');<br/>1st in_progress, rest pending;<br/>status only"]:::state
