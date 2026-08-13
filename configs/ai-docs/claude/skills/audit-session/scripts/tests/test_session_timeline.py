@@ -505,6 +505,110 @@ class TestSessionTimeline(unittest.TestCase):
                               "40000-40010 turn")
         self._assert_partition_reconciles(payload)
 
+    def test_bounds_a_computed_turns_span_at_an_away_summary_marker_when_the_assistant_resumed_hours_later_after_the_human_stepped_away(self):
+        """The human writes at 0, an away-summary is written 3 minutes later
+        (the human stepped away), and the assistant's only reply lands at
+        80000 — generated when the human came back the next day, not while
+        it was being produced. Last-activity alone would still charge the
+        whole 80000s gap to main-API; the away-summary at 180 is itself
+        evidence the assistant had stopped by then, so the span must end
+        there instead."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-away-bounds-computed", [
+                _human_record(0),
+                _away_summary_record(180),
+                _assistant_text_record(80000),
+                _human_record(80010),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        first_turn = payload["turns"][0]
+        self.assertEqual(first_turn["measure"], "computed")
+        self.assertEqual(first_turn["duration_seconds"], 180.0,
+                          msg="span ends at the away-summary (180), not the "
+                              "assistant's resumed reply 80000s later")
+        self.assertEqual(buckets["main_api"]["seconds"], 180.0,
+                          msg="turn 0's 0-180 span; turn 1 (80010-80010) "
+                              "collapses to zero, no activity in its window")
+        self.assertEqual(buckets["human_idle"]["seconds"], 79830.0,
+                          msg="the 180-to-80010 absence belongs to human_idle")
+        self._assert_partition_reconciles(payload)
+
+    def test_never_bounds_a_turn_duration_measured_span_by_an_away_summary_marker_inside_its_window(self):
+        """A recorded turn_duration is authoritative regardless of what else
+        the transcript shows inside its span (bd3293ec's rule) — an
+        away-summary at 50, squarely inside the measured 0-100 span, must not
+        shrink it, and must not leak from the computed branch this task adds
+        into the turn_duration branch it must leave untouched."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-away-inside-measured-span", [
+                _human_record(0),
+                _away_summary_record(50),
+                _turn_duration_record(100, duration_ms=100_000),
+                _human_record(40000),
+                _assistant_text_record(40010),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        first_turn = payload["turns"][0]
+        self.assertEqual(first_turn["measure"], "turn_duration")
+        self.assertEqual(first_turn["duration_seconds"], 100.0,
+                          msg="the away-summary at 50 sits inside the "
+                              "measured 0-100 span but must not shrink it")
+        self.assertEqual(buckets["main_api"]["seconds"], 110.0,
+                          msg="the measured 100s turn plus the computed "
+                              "40000-40010 turn")
+        self._assert_partition_reconciles(payload)
+
+    def test_ignores_an_away_summary_marker_that_falls_outside_a_computed_turns_own_window(self):
+        """One away-summary at 0 lands before turn 0 even starts (its
+        timestamp is a record no turn owns), and another at 510 lands after
+        turn 0's own window closes at 500 (it belongs to turn 1's window
+        instead) — neither may bound turn 0, which must still end at its own
+        last activity (150)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-away-outside-window", [
+                _away_summary_record(0),
+                _human_record(100),
+                _assistant_text_record(150),
+                _human_record(500),
+                _away_summary_record(510),
+                _assistant_text_record(9000),
+                _human_record(9010),
+            ])
+            payload = self._build(tmp, sid)
+
+        first_turn = payload["turns"][0]
+        self.assertEqual(first_turn["measure"], "computed")
+        self.assertEqual(first_turn["duration_seconds"], 50.0,
+                          msg="neither the away-summary before turn 0's own "
+                              "start (0) nor the one after its window ends "
+                              "(510) may bound its 100-150 span")
+
+    def test_bounds_a_computed_turns_span_at_the_earliest_of_multiple_away_summary_markers_in_its_window(self):
+        """Two away-summaries fall inside the same window (300 and 700), well
+        before the assistant's actual last event at 5000 — the span must
+        stop at the FIRST away-summary (300), not the second, so a human who
+        stepped away twice during one long turn isn't charged for the whole
+        stretch up to the later marker either."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-away-multiple-markers", [
+                _human_record(0),
+                _away_summary_record(300),
+                _away_summary_record(700),
+                _assistant_text_record(5000),
+                _human_record(5010),
+            ])
+            payload = self._build(tmp, sid)
+
+        first_turn = payload["turns"][0]
+        self.assertEqual(first_turn["measure"], "computed")
+        self.assertEqual(first_turn["duration_seconds"], 300.0,
+                          msg="the span ends at the first away-summary (300), "
+                              "not the second (700) or the last activity (5000)")
+
     def test_emits_a_too_early_to_rank_note_instead_of_a_ranked_timeline_when_the_session_has_only_one_turn(self):
         """A single-turn session has nothing to rank against — the payload
         must say so explicitly rather than emit a degenerate one-item ranking."""

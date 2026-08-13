@@ -83,19 +83,25 @@ def _extract_raw_events(path, source_label):
     kind needs, so a multi-thousand-record transcript stays cheap even though
     every line gets looked at once.
 
-    Returns (events, activity_epochs, commits, first_epoch, last_epoch):
-    `events` is a list of (epoch, kind, payload) tuples for turn_duration/
-    tool_use/tool_result/human_message records, NOT yet sorted (the caller
-    sorts once, so pairing tool_use with tool_result is correct regardless of
-    on-disk record order — AC #5). `activity_epochs` is the sorted list of
-    moments the assistant was producing something (an assistant record, or a
-    tool_result coming back), which is what tells a computed turn when the
-    assistant stopped rather than when the human next spoke.
+    Returns (events, activity_epochs, away_summary_epochs, commits,
+    first_epoch, last_epoch): `events` is a list of (epoch, kind, payload)
+    tuples for turn_duration/tool_use/tool_result/human_message records, NOT
+    yet sorted (the caller sorts once, so pairing tool_use with tool_result
+    is correct regardless of on-disk record order — AC #5). `activity_epochs`
+    is the sorted list of moments the assistant was producing something (an
+    assistant record, or a tool_result coming back), which is what tells a
+    computed turn when the assistant stopped rather than when the human next
+    spoke. `away_summary_epochs` is the sorted list of moments Claude Code
+    recorded a system/away_summary record — written when it detects the
+    human stepped away, so its timestamp is itself evidence the assistant
+    had already stopped by then, tighter evidence than activity_epochs alone
+    when the assistant's next event lands long after the human returns.
     first_epoch/last_epoch span every record in the file that carries a
     parseable timestamp, whether or not it produced an event.
     """
     events = []
     activity_epochs = []
+    away_summary_epochs = []
     commits = []
     first_epoch = None
     last_epoch = None
@@ -111,6 +117,8 @@ def _extract_raw_events(path, source_label):
         rtype = record.get("type")
         if rtype == "assistant":
             activity_epochs.append(epoch)
+        if rtype == "system" and record.get("subtype") == "away_summary":
+            away_summary_epochs.append(epoch)
         if rtype == "system" and record.get("subtype") == "turn_duration":
             events.append((epoch, "turn_duration", {"duration_ms": record.get("durationMs") or 0}))
             continue
@@ -141,7 +149,8 @@ def _extract_raw_events(path, source_label):
                         activity_epochs.append(epoch)
     events.sort(key=lambda event: event[0])
     activity_epochs.sort()
-    return events, activity_epochs, commits, first_epoch, last_epoch
+    away_summary_epochs.sort()
+    return events, activity_epochs, away_summary_epochs, commits, first_epoch, last_epoch
 
 
 def _pair_tool_spans(events):
@@ -231,7 +240,21 @@ def _last_activity_in_window(activity_epochs, window_start, window_end):
     return activity_epochs[index]
 
 
-def _build_turns(human_epochs, turn_duration_events, last_epoch, activity_epochs):
+def _first_away_summary_in_window(away_summary_epochs, window_start, window_end):
+    """The earliest sorted away_summary epoch inside [window_start,
+    window_end], or None when no away_summary record falls there. Written
+    when Claude Code detects the human stepped away, so its own timestamp is
+    evidence the assistant had already stopped by then — narrower evidence
+    than _last_activity_in_window alone when the assistant's next recorded
+    event doesn't land until the human returns, possibly hours later."""
+    index = bisect.bisect_left(away_summary_epochs, window_start)
+    if index < len(away_summary_epochs) and away_summary_epochs[index] <= window_end:
+        return away_summary_epochs[index]
+    return None
+
+
+def _build_turns(human_epochs, turn_duration_events, last_epoch,
+                  activity_epochs, away_summary_epochs):
     """One entry per human turn, each carrying the engaged span used for the
     main-API bucket. When an in-window turn_duration record exists it is
     authoritative (measure="turn_duration"); otherwise the span runs from the
@@ -242,7 +265,15 @@ def _build_turns(human_epochs, turn_duration_events, last_epoch, activity_epochs
     A computed span must end where the assistant stopped producing events, NOT
     at the window's end: the window closes at the NEXT human message (or the
     transcript's last record), so a human who steps away overnight would
-    otherwise charge every hour of that absence to main-API time."""
+    otherwise charge every hour of that absence to main-API time.
+
+    An away_summary record inside that window narrows the span further still:
+    it fires when the human is detected as away, so a turn holding only ONE
+    assistant record — generated when the human comes back and resumes, not
+    while it was produced — would otherwise still bill the whole absence to
+    main-API even after the last-activity clamp above. This narrowing never
+    applies to the turn_duration branch, whose recorded duration stays
+    authoritative regardless of what else the window contains."""
     human_epochs = sorted(human_epochs)
     turn_duration_events = sorted(turn_duration_events)
     turns = []
@@ -259,7 +290,10 @@ def _build_turns(human_epochs, turn_duration_events, last_epoch, activity_epochs
                 "span_start": end_epoch - duration_seconds, "span_end": end_epoch,
             })
         else:
-            span_end = _last_activity_in_window(activity_epochs, start, window_end)
+            last_activity = _last_activity_in_window(activity_epochs, start, window_end)
+            first_away_summary = _first_away_summary_in_window(away_summary_epochs, start, window_end)
+            span_end = (min(last_activity, first_away_summary)
+                       if first_away_summary is not None else last_activity)
             turns.append({
                 "index": index, "measure": "computed",
                 "duration_seconds": max(0.0, span_end - start),
@@ -376,14 +410,15 @@ def _build_timeline_entries(turns, tool_spans, commits):
 def build_timeline_payload(sid):
     main_path, subagent_paths = resolve_session(sid)
 
-    (main_events, main_activity_epochs, main_commits,
+    (main_events, main_activity_epochs, main_away_summary_epochs, main_commits,
      first_epoch, last_epoch) = _extract_raw_events(main_path, "main")
     tool_spans = _pair_tool_spans(main_events)
     turn_duration_events = [(epoch, payload["duration_ms"])
                              for epoch, kind, payload in main_events if kind == "turn_duration"]
     human_epochs = [epoch for epoch, kind, _ in main_events if kind == "human_message"]
 
-    turns = _build_turns(human_epochs, turn_duration_events, last_epoch, main_activity_epochs)
+    turns = _build_turns(human_epochs, turn_duration_events, last_epoch,
+                         main_activity_epochs, main_away_summary_epochs)
 
     tool_exec_intervals = [(s, e) for s, e, kind in tool_spans if kind == "tool-exec"]
     agent_occupied_intervals = [(s, e) for s, e, kind in tool_spans if kind == "agent-occupied"]
@@ -417,7 +452,7 @@ def build_timeline_payload(sid):
     agent_runs = []
     for subagent_path in subagent_paths:
         label = os.path.splitext(os.path.basename(subagent_path))[0]
-        (_sub_events, _sub_activity_epochs, sub_commits,
+        (_sub_events, _sub_activity_epochs, _sub_away_summary_epochs, sub_commits,
          sub_first, sub_last) = _extract_raw_events(subagent_path, label)
         commit_items.extend(sub_commits)
         duration = (max(0.0, sub_last - sub_first)
