@@ -64,8 +64,13 @@ For each file the caller names:
 
 2. Read the file around each residue row and sort every row into one of three classes.
 
-   - **Set-off literal** — indented non-bullet prose: a usage block, an aligned table, a command example, a hanging-indent continuation, a one-item-per-line list.
+   - **Set-off literal** — indented content whose horizontal position carries meaning: a usage block, an aligned table, a command example, a one-item-per-line list.
+
      - LEAVE THESE EXACTLY AS THEY ARE. The script refuses them deliberately, because re-wrapping destroys the alignment that carries their meaning.
+
+     - Indentation alone never makes a line a literal. A `#   `-indented prose paragraph sitting under a section header is ordinary prose, and re-wraps like any other.
+
+     - Test: move one word onto the next line. If the block still reads correctly, it is prose you must fix, not a literal you may refuse.
 
    - **Unsplittable token** — a single over-cap path, URL, or identifier with no space to break on. Leave it; shortening it means renaming the thing.
 
@@ -76,7 +81,7 @@ For each file the caller names:
 3. For each genuine-residue row, decide script-fix or hand-fix, preferring the script per the rule above. `--fix` already resolved every violation it can reach mechanically — a manual Edit is only for what's left after that pass.
 
    - A residue row that shares a repeatable shape with others is a script gap — fix the script.
-   - A row that needs the sentence reworded to carry the same meaning in fewer words is genuinely un-automatable — hand-fix it.
+   - A row that needs a sentence boundary the author never wrote is genuinely un-automatable — hand-fix it under the Boundaries ladder below.
    - Apply hand-fix Edits from the end of the file toward the top (descending line number).
      - An edit above a lower line never shifts that lower line, so working bottom-up keeps every row's reported line number valid for the edit that comes after it.
 
@@ -86,7 +91,25 @@ For each file the caller names:
 
 ## Boundaries
 
-- Preserve the meaning of every comment. Reword to say the same thing in fewer words — NEVER drop a clause, a caveat, or a reason to fit the cap.
+- Reach for the fixes in this order, stopping at the first one that clears the row.
+
+  - Move the line break, insert a blank comment line, relocate a trailing comment above its code, then reword.
+
+  - Every step before rewording leaves the words untouched, so it cannot lose content. Rewording is the only one that can, which is why it is last.
+
+- Reword only to add the sentence boundary the rule needs — NEVER drop a clause, a caveat, an enumeration, or a reason to fit the cap.
+
+  - Observed 2026-08-13: a run condensed a comment instead of re-flowing it, deleting a five-item list of the batch-end steps and the explanation of how two guards differ.
+
+  - Nothing catches that. The checker measures line lengths, not meaning, so a green run over a gutted comment reads exactly like a green run over a fixed one.
+
+- When a PARAGRAPH row admits no legal break, split the sentence in two rather than shortening it.
+
+  - A break may only follow a line ending in `.` or `;` (or `:` before a bullet list).
+
+  - A 200-char sentence whose only internal punctuation is a colon or an em-dash therefore has no legal wrap at any width.
+
+  - Turn that colon or em-dash into a full stop and carry every fact across the two sentences. The paragraph gets longer, not shorter, and that is the correct outcome.
 
 - Never delete a comment, or shorten it into a restatement of what the code already shows, to make a violation go away.
 
@@ -100,8 +123,20 @@ For each file the caller names:
 
 ## Report format
 
-When every file the caller named is down to its irreducible rows, report one line per file: how many violations `--fix` cleared, how many you hand-fixed, and how many remain.
+Close your report with the literal, unedited output of one final verification run per file — the checker's own rows and its exit code, pasted rather than described:
 
-Split that remaining count into `set-off-literal` and `unsplittable-token`, so a recurring residue reads as refused-by-design rather than as the automation failing.
+```bash
+node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --changed-only <file>; echo "check exit: $?"
+```
+
+- Never state an exit code you did not read in that run's output.
+
+  - Observed 2026-08-13: a report claimed `exit 0` while its own body listed 14 remaining rows. The real code was 1, and only the caller re-running the checker caught it.
+
+  - A pasted exit code cannot contradict the pasted rows above it, which is the whole reason the paste replaces a summary here.
+
+- Above the paste, give one line per file: how many violations `--fix` cleared, how many you hand-fixed, and how many remain, split into `set-off-literal` and `unsplittable-token`.
+
+- Say plainly when rows remain. A truthful "6 rows left, here they are" is a usable result; a clean run that is not clean costs the caller their whole review.
 
 Add one line per script gap you fixed or could not fix. Touch no other files.
