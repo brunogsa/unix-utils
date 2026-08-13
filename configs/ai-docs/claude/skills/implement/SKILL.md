@@ -89,18 +89,18 @@ Mid-run `.env` needs are self-served (copied from the original checkout) rather 
 - **Plan pick**, only when §1.1 found multiple candidates.
 - **Plan path**, only when §1.1 found no plan — if still not provided, stop (§1.1).
 - **Run in a git worktree?** (yes/no) — on yes, §1.4 creates it from HEAD and symlinks files in.
-- **Open a draft PR at batch end?** (yes/no) — decides the PR only; §8.3 pushes the branch either way.
+- **Open a draft PR at batch end?** (yes/no) — decides the PR only; §8.1 pushes the branch either way.
 - **Deliver each task as its own stacked PR?** (yes/no, default no) — opt-in, because a stacked unit gives up §5.4's parallel dispatch for the whole run.
   - On `yes` only, load [`references/stacked-by-task.md`](references/stacked-by-task.md): it owns two gates that can overrule the yes, the layer order, and every mechanic that branch changes.
 
   - Both run in a **follow-up** `AskUserQuestion` call, still before any dispatch; a `no` loads nothing and changes nothing downstream.
 
-- **Run the quality-gate batch-end tail?** (yes/no, default yes) — decides whether §8.1 runs `/quality-gate` at all, always `--report-only`.
+- **Run the quality-gate batch-end tail?** (yes/no, default yes) — decides whether §8.2 runs `/quality-gate` at all, always `--report-only`.
   - The human applies its refactor and auto-review verdicts manually afterward, via `/address-verdicts` — never this run.
 
-- **Capture a full-suite green baseline before starting?** (yes/no) — on yes, §1.6 runs the full suite and records pre-existing failures for §8.2 to diff against.
+- **Capture a full-suite green baseline before starting?** (yes/no) — on yes, §1.6 runs the full suite and records pre-existing failures for §8.3 to diff against.
 
-- **Run the repo-green gate at batch end?** (yes/no, default yes, independent of the quality-gate toggle, decided fresh each run) — decides whether §8.2 runs.
+- **Run the repo-green gate at batch end?** (yes/no, default yes, independent of the quality-gate toggle, decided fresh each run) — decides whether §8.3 runs.
 
 - **Base-branch confirmation** — show `~/.claude/scripts/resolve-base-ref.sh`'s output (origin/HEAD, falling back to local main, then local master) as the default; let the user confirm or override.
 
@@ -172,26 +172,26 @@ After a batch's task entries, seed a **separate** `[Reminder]` entry per CLAUDE.
 
 Never one shared chain, since one `completed` flag per task would hide step-level skips and failures.
 
-**A step the interview toggled off gets no entry at all** — not seeded, not seeded-then-skipped. Four steps exist; the first two are conditional, the last two always run:
+**A step the interview toggled off gets no entry at all** — not seeded, not seeded-then-skipped. Four steps exist; the first and last always run, the middle two are conditional:
 
 ```
-quality-gate tail, always report-only (§8.1) — seed only when quality_gate.wanted
-repo-green gate — full suite + full lint, fix-loop until green (§8.2) — seed only when repo_green_gate.wanted
-push the branch; record it in the PR entry; open the PR via the pr-creator agent when pr.wanted (§8.3) — always seed
-package print, closing review notification (§8.3, success path only) — always seed
+push the branch; record it in the PR entry; open the draft PR via the pr-creator agent when pr.wanted (§8.1) — always seed
+quality-gate tail, always report-only (§8.2) — seed only when quality_gate.wanted
+repo-green gate — full suite + full lint, fix-loop until green (§8.3) — seed only when repo_green_gate.wanted
+re-push and refresh the PR description when the gates landed commits; package print, closing review notification (§8.4, success path only) — always seed
 ```
 
 Number the entries actually seeded as `Batch-end <i>/<N>` in the fixed order above.
 
 `N` is however many of the four apply this run (2, 3, or 4); `i` is that step's position among the seeded ones.
 
-A run with both gates off seeds exactly two: `Batch-end 1/2` (push) and `Batch-end 2/2` (package).
+A run with both gates off seeds exactly two: `Batch-end 1/2` (push and PR) and `Batch-end 2/2` (package) — the two that always run, now first and last.
 
 Prefix each with the owning `PR-N ·` on a PR-label run.
 
 Flip each to `in_progress` when its step starts and `completed` when it lands. The push step has no toggle, so that reminder never completes as skipped.
 
-A toggled-off step's skip is recorded only in the batch-end package (§8.3), never as a TaskList entry.
+A toggled-off step's skip is recorded only in the batch-end package (§8.4), never as a TaskList entry.
 
 Keep the subjects free of run-specific values like `BATCH_BASE_SHA` — a subject needing them could not be seeded upfront.
 
@@ -346,7 +346,7 @@ The prompt pushes only the per-task data below.
 - **Verification**: the task's **task-scoped verification commands only**, when the plan names any.
   - Strip any repo-wide/full-suite command (e.g. a full `test:agentic` run, a repo-wide `yarn lint`) before pushing. A subagent verifies only its own change, never the whole repo.
 
-  - A stripped requirement isn't dropped silently: §8.2's gate re-covers it when on; when off, the batch-end package (§8.3) names what full-suite checks never ran.
+  - A stripped requirement isn't dropped silently: §8.3's gate re-covers it when on; when off, the batch-end package (§8.4) names what full-suite checks never ran.
 
   - When the plan names no command for the task, **omit the field** rather than inventing one.
 
@@ -381,7 +381,7 @@ Don't re-push any of it.
 
 `tdd-coder.md` owns how it resolves a fork the plan didn't pre-decide; only the outcome reaches you (§4.4) — a **soft** fork as a Deviation, a rare **hard** one as `blocked`.
 
-The second opinion isn't lost, just deferred to §8.1's quality-gate tail, which reads the whole batch diff against the plan and spec.
+The second opinion isn't lost, just deferred to §8.2's quality-gate tail, which reads the whole batch diff against the plan and spec.
 
 ### 4.3. Routing mid-execution discoveries
 
@@ -403,7 +403,7 @@ Three of its fields drive this section:
 
 ## 5. Accept, retry & advance (orchestrator)
 
-The loop advances on the subagent's own report; §8.1 reviews the whole diff once, at the end.
+The loop advances on the subagent's own report; §8.2 reviews the whole diff once, at the end.
 
 ### 5.1. Accept the result — the reported commits exist
 
@@ -415,7 +415,7 @@ Its one check: every SHA the subagent reported under **Commits** (§4.4) resolve
 git cat-file -e <sha>^{commit}
 ```
 
-Run it once per reported SHA; exit 0 on all of them is the pass — existence only, never content, since content review is §8.1's job.
+Run it once per reported SHA; exit 0 on all of them is the pass — existence only, never content, since content review is §8.2's job.
 
 - **`done`, every reported SHA resolves** → §5.4, which records the attempt.
 - **`done`, any SHA missing or none reported at all** → §5.2, like any other failure; a task that changed nothing had nothing to report done.
@@ -494,9 +494,9 @@ In all non-`[Done]` terminal states, do NOT leave partial code committed under a
 
 ### PR-level status markers (PR Breakdown heading, PR-label runs only)
 
-A PR-label run's own PR Breakdown heading gets the same `[<status>]` prefix at its own §8.3. Only `[Done]` in practice, inline, never scripted. Format/timing: `references/batch-end-pr-branch-record.md`'s "Branch record & PR-level status marker".
+A PR-label run's own PR Breakdown heading gets the same `[<status>]` prefix at its own §8.1. Only `[Done]` in practice, inline, never scripted. Format/timing: `references/batch-end-pr-branch-record.md`'s "Branch record & PR-level status marker".
 
-On a stacked run each task heading additionally carries its own layer `**Branch**:` field, written at that same §8.3 — see [`references/stacked-by-task-batch-end.md`](references/stacked-by-task-batch-end.md)'s "Where the branch gets recorded".
+On a stacked run each task heading additionally carries its own layer `**Branch**:` field, written at that same §8.1 — see [`references/stacked-by-task-batch-end.md`](references/stacked-by-task-batch-end.md)'s "Where the branch gets recorded".
 
 ## 7. Commit model
 
@@ -506,24 +506,32 @@ RED + GREEN share one commit (tests + impl together); a refactor lands as its ow
 
 Scouts are never committed by the subagent — they route to the orchestrator per §4.3.
 
-Never auto-invoke `/refactor`, `/auto-review`, `/test-sdd`, or `/quality-gate` **mid-task** — those belong to the user, or to §8.1's batch-end quality-gate tail.
+Never auto-invoke `/refactor`, `/auto-review`, `/test-sdd`, or `/quality-gate` **mid-task** — those belong to the user, or to §8.2's batch-end quality-gate tail.
 
-## 8. Batch end — quality gate, repo-green gate, push, PR & package
+## 8. Batch end — push, PR, quality gate, repo-green gate & package
 
 **Entry: `phase` is `gates`**, set only by §5.4's `gates` verdict, and only when every task in this unit is `done`.
 
 Run the batch-end flow over `<BATCH_BASE_SHA>..HEAD`, then present the whole batch for your async review.
 
-**Stage order: §8.1 → §8.2 → §8.3**, strictly serial, each waiting for the previous to land:
+**Stage order: §8.1 → §8.2 → §8.3 → §8.4**, strictly serial, each waiting for the previous to land:
 
-- **§8.1 — the quality-gate tail.** One `/quality-gate` run scoped to this unit's task-ids, always carrying `--report-only`. Skipped entirely when §1.2's toggle said no.
+- **§8.1 — push the branch, record it, open the draft PR.** The push is unconditional; only the PR is opt-in.
+
+- **§8.2 — the quality-gate tail.** One `/quality-gate` run scoped to this unit's task-ids, always carrying `--report-only`. Skipped entirely when §1.2's toggle said no.
   - The human applies its verdicts manually afterward, via `/address-verdicts` — never this run.
 
-- **§8.2 — repo-green gate.** Full lint + full test suite, repo-wide, fixed in a loop until green. Skipped entirely when §1.2's gate toggle said no.
+- **§8.3 — repo-green gate.** Full lint + full test suite, repo-wide, fixed in a loop until green. Skipped entirely when §1.2's gate toggle said no.
 
-- **§8.3 — push, branch record, PR, package & finalize.** The push is unconditional; only the PR is opt-in.
+- **§8.4 — re-push, refresh the PR description, package & finalize.** Both refreshes are skipped when §8.2 and §8.3 landed no commits.
 
-§8.3 runs last so the PR description is composed once against the batch's final diff, never as a pre-fix draft.
+§8.1 runs first because the PR it opens is a **draft**, and §8.4 refreshes that draft's description against the final diff.
+
+A draft PR that exists beats a description composed once: two audited batches proved the old order strands every commit locally when a gate never terminates.
+
+Both stalled with the repo-green gate `in_progress` and no verdict, leaving 9 and 16 commits unpushed across ~40 hours of the human being away.
+
+A gate that cannot terminate must not be able to strand delivered work, so nothing that can hang sits between a finished batch and its remote.
 
 `/quality-gate`'s `test-sdd` leg carries this run's **only** planned-test check, read against the batch's final state.
 

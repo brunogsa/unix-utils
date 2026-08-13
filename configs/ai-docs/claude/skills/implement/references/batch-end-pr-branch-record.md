@@ -2,7 +2,7 @@
 
 Read this only on a PR-label run (`pr_label` is not `""`) — skip entirely on a plain `<task-ids>` run.
 
-**Dispatched from inside Finalize (§8.3), right after its always-run push** (`batch-end-review.md`'s "Finalize" step 2) — the separate opt-in PR step reached from the same place lives in [`batch-end-pr.md`](batch-end-pr.md).
+**Dispatched from inside §8.1, right after its always-run push** (`batch-end-review.md`'s §8.1 step 2) — the separate opt-in PR step reached from the same place lives in [`batch-end-pr.md`](batch-end-pr.md).
 
 ## Branch record & PR-level status marker
 

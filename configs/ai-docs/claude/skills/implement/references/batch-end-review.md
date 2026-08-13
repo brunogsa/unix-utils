@@ -7,26 +7,47 @@
 # requirement lives only in this file. Doubled from the 1024w bundled default.
 words-budget: 2048
 ---
-# Batch-end — quality gate, repo-green, push, PR & package
+# Batch-end — push, PR, quality gate, repo-green & package
 
 Detail for /implement's batch-end steps. Load when the batch reaches its end.
 
-SKILL.md's `§8.1 → §8.2 → §8.3` is the running order and the only place it is written down; this file expands each step without restating it.
+SKILL.md's `§8.1 → §8.2 → §8.3 → §8.4` is the running order and the only place it is written down; this file expands each step without restating it.
 
-The branch record lives in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) and the opt-in PR in [`batch-end-pr.md`](batch-end-pr.md), both reached from **Finalize** below, right after Finalize's push.
-Skip whichever file doesn't match the run: the branch-record file only fires on a PR-label run, the PR file only on an opted-in draft.
+The branch record ([`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md)) and the opt-in PR ([`batch-end-pr.md`](batch-end-pr.md)) are both reached from **§8.1** below, right after its push — skip whichever the run doesn't match.
 
-## The quality-gate tail (§8.1)
+## Push, branch record & the draft PR (§8.1)
+
+**Entry: unconditional — this is the first thing batch end does, before either gate.**
+
+Delivered work reaches the remote before anything that can stall gets a turn — SKILL.md's §8 records the two audited batches that stranded commits when push sat behind a gate.
+
+1. **Push the branch — always, on every batch end, regardless of `pr.wanted`.**
+   Use `git push -u origin HEAD`, which covers both a fresh PR branch with no upstream and a plain run's branch that already has one.
+   A pushed branch with no PR is this skill's ordinary outcome, not a half-finished state — what the notification points the human at.
+   - **Any push failure is a [`failure-and-halt.md`](failure-and-halt.md) §5.5 halt** — no remote, a rejected non-fast-forward, missing credentials.
+     - Name the failure, keep the state file, print nothing further. A notification pointing at a branch that never reached the remote is worse than a halt.
+
+2. **Record the branch, then open the draft PR** — mechanics in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) (branch record) and [`batch-end-pr.md`](batch-end-pr.md) (opt-in PR).
+   The `Branch:` clause and the PR-level `[Done]` marker land on a PR-label run; the `pr-creator` dispatch runs only on `pr.wanted: true`.
+   - Step 1 already pushed, so that dispatch creates the PR and must never push or force-push.
+   - **Any failure there is a §5.5 halt too**, per that file's own closing rule.
+   - Not requesting a PR (`pr.wanted: false`) is not a failure — proceed to §8.2 with no PR outcome to report.
+
+The PR opens as a **draft**, so a body describing the pre-gate diff is no defect: §8.4 refreshes that description once the gates land.
+
+`phase` stays `gates` throughout this section: `hooks/claude-implement-stop-hook.sh` blocks on `gates`, so publishing this early never lets the run end early.
+
+## The quality-gate tail (§8.2)
 
 **Entry: only when §1.2's quality-gate question was answered yes (`quality_gate.wanted: true`).**
-On no, skip this entire section — go straight to the repo-green gate (§8.2), and have the package state that the quality gate was skipped by request.
+On no, skip this entire section — go straight to the repo-green gate (§8.3), and have the package state that the quality gate was skipped by request.
 No retroactive re-run; invoke `/quality-gate` manually later.
 
-This runs before §8.2's repo-green gate so that gate gets the last word — it measures a tree already carrying the `test-sdd` leg's written tests.
+This runs before §8.3's repo-green gate so that gate gets the last word — it measures a tree already carrying the `test-sdd` leg's written tests.
 
 The `refactor` and `auto-review` legs are always report-only: their findings land as verdict files for the human to apply manually afterward, via `/address-verdicts`.
 
-The two toggles are independent — when §8.2 is off, nothing re-runs the suite after this tail, and the package says so plainly.
+The two toggles are independent — when §8.3 is off, nothing re-runs the suite after this tail, and the package says so plainly.
 
 **Invoke the skill in this session** — `/quality-gate [<spec>] <plan> --tasks <this unit's task-ids> --base-ref <BATCH_BASE_SHA> --report-only`.
 
@@ -56,18 +77,18 @@ What this skill does with the result:
 - Record each verdict file **path** into `.quality_gate.reports`, never its content.
   - The state file is the on-disk pointer the package reads back, not a copy of the report.
 
-- Carry its closing report into the package (§8.3) verbatim enough that the human sees which findings landed, which were skipped, and why.
+- Carry its closing report into the package (§8.4) verbatim enough that the human sees which findings landed, which were skipped, and why.
 - Treat any finding it left unapplied as a `[Scout]`, so nothing it declined silently disappears.
 
 With the tail behind it, set `phase: "tails"` — `hooks/claude-implement-stop-hook.sh` keeps blocking while the phase reads `tails`, so the run cannot end before Finalize.
 
 The TaskList already carries this step as a `Batch-end` reminder seeded in §2.2 (only when `quality_gate.wanted`) — flip that one entry. `/quality-gate` seeds its own per-finding entries underneath; don't duplicate them here.
 
-## Repo-green GATE, fixed in a loop (§8.2)
+## Repo-green GATE, fixed in a loop (§8.3)
 
 **Entry: only when §1.2's repo-green-gate question was answered yes (`repo_green_gate.wanted: true`).**
-On no, skip this entire section — go straight to Finalize (§8.3).
-Have the package (§8.3) state the gate was skipped by request, with no repo-green result to show.
+On no, skip this entire section — go straight to Finalize (§8.4).
+Have the package (§8.4) state the gate was skipped by request, with no repo-green result to show.
 
 Run the repo's **full lint + full test suite** — never scoped to the batch's own files, since a batch can break a workspace it never edited.
 
@@ -95,14 +116,14 @@ After each fix-and-rerun, call `implement-loop-state.py --budget <state-file>`. 
 
 Record the final full-suite result (pass/fail + counts) into the package, so the human sees the gate ran over everything.
 
-## The review package (§8.3)
+## The review package (§8.4)
 
 The package is the single async pass the human reviews — the replacement for the per-task handshake. Finalize prints it (below). It contains:
 
 A unit only reaches this package with every task `[Done]` — anything that couldn't finish halted at §5.5 instead, so there is exactly one package shape, never a partial one:
 
 - **Per-task outcomes** — every task, all `done`, with its commit SHAs.
-- **Dropped full-suite checks**, only when §8.2 was skipped by request.
+- **Dropped full-suite checks**, only when §8.3 was skipped by request.
   - Any plan-declared full-suite/repo-wide verification command §4.1 stripped from a task's dispatch and that the gate would otherwise have re-covered, so the human knows it never ran this batch.
 
 - **Every verdict file path** `/quality-gate` produced (`verdict_refactor_<ts>.md`, `verdict_auto-review_<ts>.md`, `verdict_test-sdd_<ts>.md`).
@@ -115,11 +136,11 @@ A unit only reaches this package with every task `[Done]` — anything that coul
 - **Missing planned tests** — the `test-sdd` leg's misses the tail did not manage to write, called out on their own line rather than buried in the finding list.
   - A plan-declared test nobody wrote is the one gap this batch was supposed to close, and the tail attempts every one of them on every run.
 
-- **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §8.1, §8.2) — reported, never fixed by this run.
+- **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §8.2, §8.3) — reported, never fixed by this run.
 - **The literal diff range** — print `git diff BATCH_BASE_SHA..HEAD` with the SHA substituted, so the human can reproduce the range.
-- **"Unexpected extras"** — the commits §8.2's fix-loop produced to reach green, each with its commit and the failure it fixed.
-- **Repo-green result** — the final full-suite pass/fail + counts from §8.2, plus any `[Scout]` failures left unfixed because the batch didn't cause them.
-  - When §8.2 was skipped by request, this bullet instead states plainly that no repo-green pass ran this batch.
+- **"Unexpected extras"** — the commits §8.3's fix-loop produced to reach green, each with its commit and the failure it fixed.
+- **Repo-green result** — the final full-suite pass/fail + counts from §8.3, plus any `[Scout]` failures left unfixed because the batch didn't cause them.
+  - When §8.3 was skipped by request, this bullet instead states plainly that no repo-green pass ran this batch.
 
 - **Worktree merge-back reminder** — only when a worktree exists (read its path + branch from the state file); omit when the interview declined it.
   - Its path, its branch, and "nothing was merged or deleted — merge back and remove it yourself".
@@ -143,29 +164,30 @@ PR-2 — branch `feat/parser/pr2` — 4 commits to review — https://github.com
 
 - The label is this unit's `<this-PR-label>`, or `this batch` on a plain `<task-ids>` run that has none.
 - The count comes from `git rev-list --count <BATCH_BASE_SHA>..HEAD` — run it, never estimate it from the per-task outcomes.
-- The URL appears only when Finalize's opt-in PR-creation step opened or updated a draft PR.
+- The URL appears only when §8.1's opt-in PR-creation step opened or updated a draft PR.
   - A push-only run ends the line at the commit count: the branch is on the remote, and reviewing means reading it there or locally.
 
-## Finalize — the step order inside §8.3
+## Finalize — the step order inside §8.4
 
-By the time Finalize starts, both opt-in stages are behind it — whichever ran, ran, and the tree is final.
+By the time Finalize starts, both opt-in gates are behind it — whichever ran, ran, and the tree is final.
 
-1. **Push the branch — always, on every batch end, regardless of `pr.wanted`.**
-   Use `git push -u origin HEAD`, which covers both a fresh PR branch with no upstream and a plain run's branch that already has one.
-   A pushed branch with no PR is this skill's ordinary outcome, not a half-finished state — what the notification points the human at.
-   - **Any push failure is a [`failure-and-halt.md`](failure-and-halt.md) §5.5 halt** — no remote, a rejected non-fast-forward, missing credentials.
-     - Name the failure, keep the state file, print nothing further. A notification pointing at a branch that never reached the remote is worse than a halt.
+1. **Re-push and refresh the PR description — only when §8.2 or §8.3 landed commits.**
+   Decide from the tree, not from memory: `git rev-list --count <the SHA HEAD was at when §8.1 pushed>..HEAD` above zero is the trigger.
+   - **Nothing landed → skip both halves outright.** Never re-push an unmoved branch, and never rewrite a description whose diff is unchanged.
+     - Either no-op costs the reviewer a diff to discover it said nothing.
 
-2. **Record the branch, then open the PR** — mechanics in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) (branch record) and [`batch-end-pr.md`](batch-end-pr.md) (opt-in PR).
-   The `Branch:` clause and the PR-level `[Done]` marker land on a PR-label run; the `pr-creator` dispatch runs only on `pr.wanted: true`.
-   - Step 1 already pushed, so that dispatch creates the PR and must never push or force-push.
-   - **Any failure there is a §5.5 halt too**, per that file's own closing rule.
-   - Not requesting a PR (`pr.wanted: false`) is not a failure — proceed to step 3 with no PR outcome to report.
+   - **Something landed → `git push` first**, so the remote carries the gate fixes before anything describes them.
+     - Any push failure here is a §5.5 halt, on §8.1's terms.
 
-3. **Assemble the package** (contents under "The review package") and **print it** to chat, closing with the review notification.
-   The single async review pass, reached only once the push — and the PR, when one was requested — succeeded.
+   - **Then update the PR body**, only when `pr.wanted: true` and §8.1 opened one — via the `pr-creator` dispatch and REST-API path [`batch-end-pr.md`](batch-end-pr.md) owns.
+     - The gate commits belong under its **"Unexpected extras"** section.
 
-4. **Finalize the phase.**
-   Reaching this point means every task is `[Done]`, both opt-in stages ran or were declined, the branch is pushed, and the PR (if wanted) is open.
+2. **Assemble the package** (contents under "The review package") and **print it** to chat, closing with the review notification.
+   The single async review pass, reached only once every gate has run and the remote matches the tree.
+
+3. **Finalize the phase.**
+   Reaching this point means every task is `[Done]`, both opt-in gates ran or were declined, the branch is pushed, and the PR (if wanted) is open and described against the final diff.
    Set `phase: "presented"`, then dispose of the state file with `trash <state-file>`, never `rm` — it lives in `/tmp`, outside any git repo, the unrecoverable case `claude-rm-guard.sh` blocks `rm` on.
    The Stop hook releases on this phase; a presented batch is never resumed.
+   - **`presented` is written here and nowhere earlier.**
+     - Written before the gates, it would let a run stop with its gates unrun and its PR already open — the state §8.1's early push otherwise makes reachable.

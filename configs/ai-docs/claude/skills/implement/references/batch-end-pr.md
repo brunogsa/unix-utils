@@ -1,10 +1,10 @@
 # Batch-end — open the PR
 
 Read this only when the interview opted into a PR.
-On a PR-label run, the branch-record and PR-level status-marker edits live in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) instead, reached from the same Finalize step regardless of whether a PR is also opened.
+On a PR-label run, the branch-record and PR-level status-marker edits live in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) instead, reached from the same §8.1 step regardless of whether a PR is also opened.
 
-**Dispatched from inside Finalize (§8.3), right after its always-run push** (`batch-end-review.md`'s "Finalize" step 2).
-The PR body then describes the batch's final diff — quality-gate and repo-green fixes included — in one pass.
+**Dispatched from inside §8.1, right after its always-run push** (`batch-end-review.md`'s §8.1 step 2), before either gate runs.
+The body therefore describes the pre-gate diff, and §8.4 refreshes it once the quality-gate and repo-green fixes have landed — which is why the PR opens as a draft.
 
 ## Open the PR (opt-in)
 
@@ -13,7 +13,7 @@ Only when the interview opted into a PR (§1.2, `pr.wanted: true`). Skip this se
 **One dispatch owns the PR: `agent(subAgent=pr-creator, title=Open the batch PR)`.**
 It composes the body and creates (or updates) the PR — the orchestrator never writes a body.
 
-**The branch is already on the remote — Finalize's step 1 pushed it before this section is reached.**
+**The branch is already on the remote — §8.1's step 1 pushed it before this section is reached.**
 Push and create are split owners: pushing no longer depends on a PR being wanted, so a pushed branch with no PR is a normal outcome, not an inconsistent state needing cleanup.
 
 - **CRITICAL: re-read this whole section fresh immediately before dispatching — never execute it from a compacted-summary recollection.**
@@ -58,7 +58,7 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
     - **Updating an existing PR's body: use the REST API, never `gh pr edit --body-file`** — the command and its mandatory read-back live in the `gh-cli-usage` skill, which authors that hazard.
       - Name the skill in the dispatch prompt rather than pasting the command: a third copy drifts the next time GitHub changes the endpoint.
 
-  - Put completed Scout / repo-green fix-loop (§8.2) commits under an **"Unexpected extras"** section in the PR body.
+  - Put completed Scout / repo-green fix-loop (§8.3) commits under an **"Unexpected extras"** section in the PR body.
   - Pass the resolved `<this-PR-label>` explicitly in the dispatch prompt, so the subagent opens one PR and never asks which it covers.
     The CWD may hold several spec/plan pairs, so an unstated label binds to the wrong one.
   - Assign its body-file output path explicitly:
@@ -67,7 +67,7 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
     - `.final.md` is the file GitHub receives; create-pr's `.ideal.md` is an intermediate this flow never pushes.
 
 **Any failure the agent reports — no `gh`, or a create/update that errored — is a run halt, not a partial package.**
-A push failure can't surface here: Finalize's step 1 owns the push and already halted if it failed.
+A push failure can't surface here: §8.1's step 1 owns the push and already halted if it failed.
 Go to §5.5: name the failure in one short message, keep the state file, print nothing further — there is nothing to present when the PR was never published.
 
 Once this run's last PR has just been created under `Mode: native`, continue to [`batch-end-pr-native-link.md`](batch-end-pr-native-link.md) to register the stack. Skip otherwise.
