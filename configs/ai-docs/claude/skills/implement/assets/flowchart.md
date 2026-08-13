@@ -29,49 +29,47 @@ def implement(arg):
     # A plan with no spec is a supported mode, not a missing input: a plan-only
     # run works unchanged, and the spec is simply passed nowhere.
 
-    # 4 · §1.2 — loaded here, on every run, before its own two pre-flight gates.
-    load("references/stacked-by-task.md")                  # 4
-
-    # 5-9 · §1.2 — a unit (one PR-N entry, or the whole <task-ids> run when the
-    #      plan has no PR Breakdown) delivers stacked (one PR per task, layered)
-    #      unless one of two gates overrules it. Neither gate is overridable by
-    #      a later 'yes' — that's why the question is skipped entirely, not
-    #      asked-then-ignored.
-    if not gh("stack", "--help"):                           # 5 · exits non-zero:
-        stack_choice = forced_non_stacked(                  # 5a   extension missing
-            reason="gh-stack extension not installed")
-    else:
-        verdict = run("resolve-task-order.sh", plan, arg.task_ids)   # 6
-        if verdict.exit_code == 1:
-            stack_choice = forced_non_stacked(              # 6a · a task has 2+
-                reason=verdict.stderr)                      #      in-scope parents
-                                                              #      (a true join);
-                                                              #      surfaced verbatim
-        elif verdict.exit_code == 2:
-            return stop(verdict.stderr)                     # 6b · usage/parse error,
-                                                              #      same as any other
-                                                              #      pre-flight failure
-        else:
-            stack_choice = ask_stacked_question(             # 7 · both gates passed;
-                layer_order=verdict.stdout)                  #     topo order, ties
-                                                              #     lowest-id-first;
-                                                              #     user may reorder,
-                                                              #     but only into
-                                                              #     another DAG-valid
-                                                              #     order
-    if stack_choice.forced:                                 # 8 · 5a or 6a's merge:
-        stack_choice = confirm_forced_non_stacked(          #     name which gate
-            stack_choice.reason)                            #     fired, in the SAME
-                                                              #     interview call —
-                                                              #     never a separate round
-
-    # 9 · §1.2 — ONE up-front interview, the only round until the review package:
+    # 4 · §1.2 — ONE up-front interview, the only round until the review package:
     #     plan pick · plan path, if none found (§1.1) · worktree · draft PR
     #     · quality-gate tail (default yes) · auto-solve its findings (default
     #     yes, read only when the tail is on) · full-suite green baseline
     #     · repo-green gate (default yes) · confirm the base branch
-    #     · PLUS, in this same call, whichever of 7/8 stack_choice resolved to.
-    answers = ask_everything_at_once(stack_choice)
+    #     · PLUS 'Deliver each task as its own stacked PR?' — default NO.
+    answers = ask_everything_at_once()                      # 4
+
+    # 5-9 · §1.2 — stacked delivery (one PR per task, layered) is OPT-IN: it
+    #      turns the whole unit strictly sequential, so only a run that asked
+    #      for the stack pays that. On the default 'no' nothing below runs and
+    #      the reference is never loaded.
+    if not answers.stacked:                                 # 5
+        stack_choice = not_stacked()                        # 5a · the unit ships as
+                                                              #      ONE PR, its tasks
+                                                              #      commits inside it
+    else:
+        load("references/stacked-by-task.md")               # 6 · only on a 'yes'
+        if not gh("stack", "--help"):                       # 7 · exits non-zero:
+            stack_choice = forced_non_stacked(              # 7a   extension missing
+                reason="gh-stack extension not installed")
+        else:
+            verdict = run("resolve-task-order.sh", plan, arg.task_ids)   # 8
+            if verdict.exit_code == 1:
+                stack_choice = forced_non_stacked(          # 8a · a task has 2+
+                    reason=verdict.stderr)                  #      in-scope parents
+                                                              #      (a true join);
+                                                              #      surfaced verbatim
+            elif verdict.exit_code == 2:
+                return stop(verdict.stderr)                 # 8b · usage/parse error,
+                                                              #      same as any other
+                                                              #      pre-flight failure
+            else:
+                stack_choice = stacked(layer_order=verdict.stdout)
+
+        # 9 · §1.2 — a SECOND AskUserQuestion call, still before any dispatch:
+        #     confirm or reorder the topological layer order (ties lowest-id-
+        #     first; only another DAG-valid order is accepted), or — when 7a/8a
+        #     fired — confirm the forced non-stacked run, naming which gate did
+        #     it. Neither gate is overridable by the 'yes' already given.
+        stack_choice = confirm_in_follow_up_call(stack_choice)   # 9
 
     # 10 · §1.3 — re-validate ALL THREE checks ONCE, before any execution.
     if not (check_tasks_dag(plan) and check_pr_dag(plan)     # 11
@@ -87,7 +85,7 @@ def implement(arg):
         units = [get_pr_tasks(label) for label in arg.labels]   # 13b · §1.5
         # 13c · §1.5 — decide the CROSS-UNIT stack mode ONCE: a PR with 2+ parents
         #      (diamond) → merge; linear AND the gh-stack extension installed
-        #      → native; else merge. Independent of 7/8's per-task stack_choice,
+        #      → native; else merge. Independent of 5-9's per-task stack_choice,
         #      which decides delivery WITHIN one unit, not chaining BETWEEN units.
         #      Recorded as a Mode: line under the plan's PR Breakdown heading.
         plan.record_stack_mode(decide_cross_unit_stack_mode(units))
@@ -418,15 +416,16 @@ flowchart TD
   n2["2. Step 1.1 · Locate plan_&lt;slug&gt;.md (+ the spec when one<br/>exists — a plan-only run is a supported mode)"]
   n3{"3. Plan found?"}
   n3a(["3a. Stop: no plan given"])
-  n4["4. Step 1.2 · Load references/stacked-by-task.md<br/>— here, on every run, before its own two<br/>pre-flight gates below"]:::skill
-  n5{"5. Step 1.2 · Gate 1 · Does 'gh stack --help'<br/>exit 0? (gh-stack extension installed —<br/>without it a stack can be built but never registered)"}:::hook
-  n5a["5a. Gate 1 fired: gh-stack extension not installed"]
-  n6{"6. Step 1.2 · Gate 2 (checked only once Gate 1<br/>passes) · resolve-task-order.sh &lt;plan-file&gt; &lt;task-ids&gt;<br/>— exit code?"}:::hook
-  n6a["6a. Gate 2 fired (exit 1): a task in scope has<br/>2+ in-scope parents (a true join) — surface every<br/>offending task + its parents verbatim"]
-  n6b(["6b. Stop (exit 2): usage/parse error —<br/>fix the plan/args and re-invoke, like any<br/>other pre-flight failure"])
-  n7["7. Step 1.2 · Ask 'Deliver each task as its own<br/>stacked PR?' (yes/no, default yes) in the SAME<br/>interview call, showing resolve-task-order.sh's<br/>topological layer order (ties lowest-id-first)<br/>for the user to confirm or reorder — an order that<br/>puts a task before an in-scope parent is rejected"]:::gate
-  n8["8. Step 1.2 · Either gate fired: confirm the<br/>forced non-stacked run (naming which gate),<br/>in the SAME interview call instead of asking 7 —<br/>a 'yes' answer cannot override either gate"]:::gate
-  n9["9. Step 1.2 · Rest of the up-front interview,<br/>same call:<br/><br/>- Plan pick, if multiple candidates<br/>- Plan path, if none found (§1.1)<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Quality-gate tail? (default yes)<br/>- Auto-solve its findings? (default yes,<br/>read only when the tail is on)<br/>- Capture a full-suite green baseline first?<br/>- Repo-green gate? (default yes)<br/>- Confirm the base branch<br/><br/>PLUS whichever of 7 / 8 this run resolved to"]:::gate
+  n4["4. Step 1.2 · ONE up-front interview, one call:<br/><br/>- Plan pick, if multiple candidates<br/>- Plan path, if none found (§1.1)<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Quality-gate tail? (default yes)<br/>- Auto-solve its findings? (default yes,<br/>read only when the tail is on)<br/>- Capture a full-suite green baseline first?<br/>- Repo-green gate? (default yes)<br/>- Confirm the base branch<br/>- Deliver each task as its own stacked PR?<br/>(yes/no, default NO)"]:::gate
+  n5{"5. Step 1.2 · Stacked answered yes? Stacked is<br/>OPT-IN because it turns the whole unit strictly<br/>sequential — no parallel dispatch for the run"}
+  n5a["5a. Default 'no': the unit ships as ONE PR,<br/>its tasks commits inside it — nothing else in<br/>step 1.2 runs, and stacked-by-task.md is<br/>never loaded"]
+  n6["6. Step 1.2 · Load references/stacked-by-task.md<br/>— only on a 'yes', before its two gates below"]:::skill
+  n7{"7. Step 1.2 · Gate 1 · Does 'gh stack --help'<br/>exit 0? (gh-stack extension installed —<br/>without it a stack can be built but never registered)"}:::hook
+  n7a["7a. Gate 1 fired: gh-stack extension not installed"]
+  n8{"8. Step 1.2 · Gate 2 (checked only once Gate 1<br/>passes) · resolve-task-order.sh &lt;plan-file&gt; &lt;task-ids&gt;<br/>— exit code?"}:::hook
+  n8a["8a. Gate 2 fired (exit 1): a task in scope has<br/>2+ in-scope parents (a true join) — surface every<br/>offending task + its parents verbatim"]
+  n8b(["8b. Stop (exit 2): usage/parse error —<br/>fix the plan/args and re-invoke, like any<br/>other pre-flight failure"])
+  n9["9. Step 1.2 · A SECOND AskUserQuestion call,<br/>still before any dispatch: confirm or reorder<br/>resolve-task-order.sh's topological layer order<br/>(ties lowest-id-first; an order putting a task<br/>before an in-scope parent is rejected) — or, when<br/>7a / 8a fired, confirm the forced non-stacked run<br/>naming that gate, which the 'yes' cannot override"]:::gate
   n10["10. Step 1.3 · Re-validate ALL THREE checks ONCE,<br/>before any execution: check-tasks-dag.sh +<br/>check-pr-dag.sh + check-pr-task-projection.py"]:::hook
   n11{"11. All three checks valid?"}
   n11a(["11a. Stop: surface the script's stderr;<br/>fix the plan, re-invoke"])
@@ -436,7 +435,7 @@ flowchart TD
   n13{"13. Arg is PR-label(s)?"}
   n13a["13a. Load references/pr-awareness.md"]:::skill
   n13b["13b. Step 1.5 · Resolve EVERY PR-N to its<br/>task-id list (get-pr-tasks.sh),<br/>before any seeding"]
-  n13c["13c. Step 1.5 · Decide the CROSS-UNIT stack mode<br/>ONCE — between PR-N units, independent of 7's<br/>per-task stack choice within one unit: diamond<br/>(a PR with 2+ parents) -&gt; merge; linear AND<br/>gh-stack extension installed -&gt; native; else merge.<br/>Record a Mode: line under the plan's PR Breakdown<br/>heading — sticky for the stack's whole life"]:::state
+  n13c["13c. Step 1.5 · Decide the CROSS-UNIT stack mode<br/>ONCE — between PR-N units, independent of 5-9's<br/>per-task stack choice within one unit: diamond<br/>(a PR with 2+ parents) -&gt; merge; linear AND<br/>gh-stack extension installed -&gt; native; else merge.<br/>Record a Mode: line under the plan's PR Breakdown<br/>heading — sticky for the stack's whole life"]:::state
   n14{"14. Full-suite baseline requested?"}
   n14a["14a. Load references/full-suite-baseline.md"]:::skill
   n14b["14b. Step 1.6 · Capture the baseline: full lint +<br/>full test suite, once worktree (12b) and<br/>PR-label resolution (13b) have settled;<br/>save the log PATH + failing signatures into<br/>state.baseline (never the log content)"]:::state
@@ -451,7 +450,7 @@ flowchart TD
     n16a --> n16b --> n16c --> n16d
   end
 
-  n17["17. Step 2.3 · Write durable state NOW,<br/>kept current as the run goes:<br/>one /tmp/implement_&lt;session_id&gt;[_prN].json<br/>per unit (phase=tasks, start_sha=HEAD,<br/>stack: {wanted, order, refused} from 7/8/9)<br/>+ /tmp/implement_&lt;session_id&gt;.md scratchpad.<br/>NO resume path — a leftover file is stale"]:::state
+  n17["17. Step 2.3 · Write durable state NOW,<br/>kept current as the run goes:<br/>one /tmp/implement_&lt;session_id&gt;[_prN].json<br/>per unit (phase=tasks, start_sha=HEAD,<br/>stack: {wanted, order, refused} from 4-9)<br/>+ /tmp/implement_&lt;session_id&gt;.md scratchpad.<br/>NO resume path — a leftover file is stale"]:::state
 
   subgraph perunit ["Per unit: the whole batch (task-ids run), or each PR in turn (PR-label list)"]
     n18{"18. PR-label run: checkout needed?<br/>(need-git-checkout.sh)"}:::hook
@@ -525,13 +524,13 @@ flowchart TD
   n1 --> n2 --> n3
   n3 -->|"no"| n3a
   n3 -->|"yes"| n4 --> n5
-  n5 -->|"no"| n5a --> n8
-  n5 -->|"yes"| n6
-  n6 -->|"1 (join)"| n6a --> n8
-  n6 -->|"2 (usage/parse error)"| n6b
-  n6 -->|"0 (pass)"| n7
-  n7 --> n9
-  n8 --> n9
+  n5 -->|"no (default)"| n5a --> n10
+  n5 -->|"yes"| n6 --> n7
+  n7 -->|"no"| n7a --> n9
+  n7 -->|"yes"| n8
+  n8 -->|"1 (join)"| n8a --> n9
+  n8 -->|"2 (usage/parse error)"| n8b
+  n8 -->|"0 (pass)"| n9
   n9 --> n10 --> n11
   n11 -->|"no"| n11a
   n11 -->|"yes"| n12

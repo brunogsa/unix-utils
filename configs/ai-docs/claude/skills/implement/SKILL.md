@@ -38,7 +38,9 @@ Every other task runs sequentially, reading the prior task's commits first.
 
 A **unit** is one `PR-N` entry, or the whole `<task-ids>` run when the plan has no PR Breakdown.
 
-**Stacked** (the default) makes each task its own PR, layered into one stack; **not stacked** makes the unit one PR whose tasks are commits inside it.
+**Not stacked** (the default) makes the unit one PR whose tasks are commits inside it; **stacked** is opt-in and makes each task its own PR, layered into one stack.
+
+Stacked is opt-in because it turns the whole unit strictly sequential — every layer branches off the previous layer's tip, so §5.4's parallel dispatch is off for the run.
 
 The plan reads the same either way — [`references/stacked-by-task.md`](references/stacked-by-task.md) owns the choice and everything it changes.
 
@@ -90,8 +92,10 @@ Mid-run `.env` needs are self-served (copied from the original checkout) rather 
 - **Plan path**, only when §1.1 found no plan — if still not provided, stop (§1.1).
 - **Run in a git worktree?** (yes/no) — on yes, §1.4 creates it from HEAD and symlinks files in.
 - **Open a draft PR at batch end?** (yes/no) — decides the PR only; §8.3 pushes the branch either way.
-- **Deliver each task as its own stacked PR?** (yes/no, default yes) — asked with the layer order for the user to confirm or reorder.
-  - Two gates run *before* the question and overrule a `yes`; they, the question, and every mechanic the `yes` branch changes live in [`references/stacked-by-task.md`](references/stacked-by-task.md). Load it here, every run.
+- **Deliver each task as its own stacked PR?** (yes/no, default no) — opt-in, because a stacked unit gives up §5.4's parallel dispatch for the whole run.
+  - On `yes` only, load [`references/stacked-by-task.md`](references/stacked-by-task.md): it owns two gates that can still overrule the yes, the layer order, and every mechanic the yes branch changes.
+
+  - Its gates and its layer-order confirmation run in a **follow-up** `AskUserQuestion` call, still before any dispatch; a `no` loads nothing and changes nothing downstream.
 
 - **Run the quality-gate batch-end tail?** (yes/no, default yes) — on yes, §8.1 runs `/quality-gate`; on no, skipped, package says so.
 
@@ -221,7 +225,7 @@ Each state file has exactly this shape:
   "quality_gate": { "wanted": true, "auto_solve": true, "reports": [] },
   "worktree": { "created": false, "path": "", "branch": "" },
   "pr": { "wanted": false },
-  "stack": { "wanted": true, "order": ["1", "2"], "refused": "" }
+  "stack": { "wanted": false, "order": [], "refused": "" }
 }
 ```
 
@@ -239,6 +243,7 @@ Each state file has exactly this shape:
 
 - `stack.order` is this unit's confirmed layer order (§1.2), and is what §3.4 advances through when `stack.wanted` is true —
   - it overrides the verdict script's own ordering, which knows the DAG but not the user's reordering.
+  - Both keep their seeded values on a default run — §1.2 fills them only after a `yes`.
 
 - `stack.refused` names the gate that forced `wanted: false` against a `yes` answer (`""` when none did), so the batch-end package can say why the run wasn't stacked.
 

@@ -1,6 +1,8 @@
 # Stacked-by-task delivery — one PR per task
 
-Read this whenever §1.2 asked the stacked question, which is every run. It owns the question itself, the two gates that can overrule the answer, and everything the `yes` branch changes.
+Read this only once §1.2's stacked question came back `yes` — never on a default run, which never needs a word of it.
+
+It owns the two gates that can still overrule that yes, the layer order, and everything the yes branch changes.
 
 The mechanics of a stack once it exists — propagation, bottom-up merge, retarget, the native rulebook — stay in [`stacked-prs.md`](stacked-prs.md). This file only says how a unit becomes one.
 
@@ -21,9 +23,13 @@ A plan with `PR-1` and `PR-2` delivers **two** stacks, each registered separatel
 
 ## §1.2's question, and the two gates that can overrule it
 
-Ask it as an opt-out — **"Deliver each task as its own stacked PR?" (yes/no, default yes)**.
+Ask it as an opt-in — **"Deliver each task as its own stacked PR?" (yes/no, default no)**.
 
-Run both gates **before** asking, and when either fires, do not ask the question at all: report which one fired and confirm the forced non-stacked run via the same `AskUserQuestion` call.
+It is opt-in because a stacked unit runs strictly sequentially ("Stacked mode is strictly sequential" below), and no run should pay that wall-clock unless the user asked for the stack.
+
+Run both gates the moment the yes arrives, **before** composing the follow-up `AskUserQuestion` call — their outcome is what decides whether that call asks about the layer order at all.
+
+When either fires the unit is not stacked: report which one fired and confirm the forced downgrade in that follow-up call.
 
 - **`gh stack` is not installed** — `gh stack --help` exits non-zero. Without it a stack can be built but never registered.
 - **A task in scope has two or more in-scope parents** — a true join:
@@ -48,7 +54,7 @@ Forks and disconnected tasks are not joins and never block.
 
 ## The layer order is the user's to set
 
-Exit 0 prints a topological order — a task never precedes one it depends on, ties broken lowest-id-first. Show that order in the same interview call and let the user reorder it.
+Exit 0 prints a topological order — a task never precedes one it depends on, ties broken lowest-id-first. Show that order in the follow-up call and let the user reorder it.
 
 Never judge a reordering by eye — put the user's candidate back through the same script:
 
@@ -97,6 +103,8 @@ An earlier halted run may have left the branch behind, and since there is no res
 Each layer's branch is cut from the previous layer's tip, so a task cannot start until the one before it has committed.
 
 Two tasks running in parallel worktrees have no single tip to stack the next layer on.
+
+This serialization is why §1.2 asks the question as an opt-in: a unit whose independent tasks could have run side by side gives that up for the whole run.
 
 ## Batch end
 
