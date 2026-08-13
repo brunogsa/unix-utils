@@ -216,20 +216,30 @@ Why a loop: approval is rarely one round, and a step that ends the run on "not y
 
 ### 9. Write the plan, then run the deterministic gates
 
-**At `full`** — dispatch `agent(subAgent=plan-writer, title=Write implementation plan from spec)` in the background, waiting for it, to write the plan from the spec alone. Pass it:
+**At `full`** — dispatch `agent(subAgent=fork, title=Write implementation plan from spec)`, waiting for it, to write the plan. Pass it:
 
+- The instruction to follow `~/.claude/skills/spec-driven-development/references/plan-writing.md`, which holds the whole procedure.
 - The spec file's absolute path, plus the slug derived in step 6.
 - Any planning-conventions file the user named (ADR/HLD/LLD), if one exists.
 
-`plan-writer` resolves the output path itself from the slug — it reads the library that defines how a plan is named, so this session never spells that name out.
+A fork loads no definition file of its own, so the procedure has to be named by path here — that reference is the only place it lives.
 
-Why fresh context: this session already talked itself into the spec's choices.
-A planner seeing only the spec file tests whether it carries what a plan needs, rather than leaning on session memory the next reader won't have.
+It resolves the output path itself from the slug, so this session never spells that name out.
+
+Why a fork rather than a fresh agent: the planner inherits this whole session, so it plans against the interview that produced the spec instead of re-deriving it.
+
+Its model is the main session's, whatever `/model` holds — a fork's tier can't be pinned.
 
 **A gap in the spec never withholds the plan.**
-Where the spec doesn't carry a decision the plan needs, `plan-writer` writes the plan around it and records it as a `**QUESTION:**` entry under the plan's Open Questions.
+Where the spec doesn't carry a decision the plan needs, the fork writes the plan around it and records it as a `**QUESTION:**` entry under the plan's Open Questions.
 
-Never close a gap here, or fill one with an invented decision — that's the author-bias this dispatch exists to catch. Step 12 closes them all, in one batch.
+A decision this session settled in the interview but never wrote into the spec is exactly that kind of gap, inherited context or not.
+
+The spec is the artifact the next reader gets, so quietly planning on a remembered decision leaves it wrong forever. Step 12 closes them all, in one batch.
+
+Fresh eyes have not been dropped, they moved one step later: step 10 sends the finished plan to a `deep-reviewer` that never saw this session.
+
+That reviewer tests the plan itself, rather than only testing whether the spec carried enough to plan from.
 
 **At `light`** — dispatch `agent(subAgent=general-purpose, model=sonnet, title=Write the plan)` in the background instead, waiting for it. Instruct it to:
 
@@ -241,8 +251,8 @@ Never close a gap here, or fill one with an invented decision — that's the aut
 
 - It has no inherited context — read the run scratchpad `/tmp/brainstorm_<session_id>.md` first, then fold its decisions and discarded alternatives into the plan's Technical Decisions section.
 
-Why `general-purpose` rather than `plan-writer` here: `plan-writer` reads a spec and nothing else, by contract, so with no spec it returns a plan of nothing but open questions.
-Its fresh-eyes value is testing whether the spec carries what a plan needs — a test with no subject at `light`, where the interview is the only place the requirements live.
+Why `general-purpose` rather than the fork here: a fork carries the entire interview and runs at the main session's tier, which is the opposite of what `light` is for.
+The run scratchpad already holds those decisions in condensed form, so a sonnet agent reading it plans from the same material at a fraction of the cost.
 
 **Once the plan exists, in either mode: read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now** — it defines every gate, sorts them into a deterministic and a judged bucket, and gives each bucket's dispatch tier.
 

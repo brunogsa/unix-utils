@@ -1,6 +1,6 @@
 ---
 name: spec-driven-development
-description: "Self-review gates and living-doc conventions for spec_<slug>.md/plan_<slug>.md, run before a human reviews the plan. Read by path from brainstorm, design-docs, plan-writer — never model-invoked; run /brainstorm to produce them."
+description: "Self-review gates and living-doc conventions for spec_<slug>.md/plan_<slug>.md, run before a human reviews the plan. Read by path from brainstorm, design-docs, plan-writing — never model-invoked; run /brainstorm to produce them."
 disable-model-invocation: true
 ---
 

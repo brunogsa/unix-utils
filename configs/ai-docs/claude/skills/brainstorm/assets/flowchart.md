@@ -119,10 +119,10 @@ def brainstorm():
 
     if mode == "light":                                    # 16 ·
         # 16a · Step 9 at light — general-purpose (sonnet) · serial · background,
-        #       NOT plan-writer: plan-writer reads a spec and nothing else by
-        #       contract, so with no spec it would return a plan of pure open
-        #       questions. This agent has no inherited context, so it grounds
-        #       from the run scratchpad, the only place light's requirements live.
+        #       NOT the fork used at full: a fork carries the whole interview and
+        #       runs at the main session's tier, which is what light exists to
+        #       avoid. This agent has no inherited context, so it grounds from the
+        #       run scratchpad, which holds those decisions in condensed form.
         #       It derives its OWN kebab slug, writes "N/A — plan-only run" on the
         #       Spec: line, carries each task's ACs in that task's own field, and
         #       writes "N/A — no spec" for the AC → test coverage list.
@@ -168,11 +168,15 @@ def brainstorm():
                 case "missing/wrong requirements": goto(10)                # the interview
                 case "approach concerns":          goto(14)                # the proposals
 
-        # 24 · Step 9 at full — plan-writer · agent-pinned · serial · background.
-        #      In: the spec path + the step-17 slug, any planning-conventions
-        #      file. It resolves the output path itself, and sees only the spec.
-        #      A spec gap never withholds the plan — it becomes a **QUESTION:**.
-        plan = dispatch("plan-writer", spec=spec, slug=slug)
+        # 24 · Step 9 at full — fork · main-session model · serial · background.
+        #      In: the plan-writing reference's path (a fork loads no definition
+        #      file, so the procedure must be named), the spec path + the step-17
+        #      slug, any planning-conventions file. It resolves the output path
+        #      itself, and inherits this whole session.
+        #      A spec gap never withholds the plan — it becomes a **QUESTION:**,
+        #      including a decision the interview settled but the spec never got.
+        plan = dispatch("fork", procedure="spec-driven-development/references/plan-writing.md",
+                        spec=spec, slug=slug)
 
     # 26 · Step 9, both modes — this reference defines every gate, sorts them
     #      into the deterministic and judged buckets, and gives each bucket's
@@ -297,7 +301,7 @@ flowchart TD
   n15["15. Step 5 · Get a directional pick; capture it in the scratchpad"]:::gate
 
   n16{"16. Which mode did step 1 settle?"}
-  n16a{{"16a. Step 9 at light · Dispatch: Write the plan<br/>general-purpose · sonnet · serial · background — NOT plan-writer<br/><br/>plan-writer reads a spec and nothing else by contract, so with no spec<br/>it would return a plan of pure open questions; this agent has no<br/>inherited context, so it grounds from the run scratchpad, the only<br/>place light's requirements live<br/><br/>derives its OWN kebab slug · writes 'N/A — plan-only run' on the Spec: line ·<br/>carries each task's ACs in that task's own field ·<br/>writes 'N/A — no spec' for the AC → test coverage list"}}:::dispatch
+  n16a{{"16a. Step 9 at light · Dispatch: Write the plan<br/>general-purpose · sonnet · serial · background — NOT the fork used at full<br/><br/>a fork carries the whole interview and runs at the main session's tier,<br/>which is what light exists to avoid; this agent has no inherited<br/>context, so it grounds from the run scratchpad, which holds those<br/>decisions in condensed form<br/><br/>derives its OWN kebab slug · writes 'N/A — plan-only run' on the Spec: line ·<br/>carries each task's ACs in that task's own field ·<br/>writes 'N/A — no spec' for the AC → test coverage list"}}:::dispatch
 
   n17["17. Step 6 · Derive a short kebab-case slug, never confirmed with the user;<br/>the plan inherits it, and the shared slug is what pairs the two files"]
   n18{{"18. Step 6 · Dispatch: Write the spec<br/>general-purpose · sonnet · serial · background<br/><br/>no inherited context: reads the run scratchpad first, then the<br/>spec-driven-development library + spec-template, and writes EVERY<br/>section; folds the scratchpad's decisions into Functional Decisions<br/><br/>this session never writes the spec itself"}}:::dispatch
@@ -310,7 +314,7 @@ flowchart TD
   n23{"23. User approved the spec?"}
   n23a{{"23a. Dispatch: Apply the spec edits<br/>general-purpose · sonnet · serial · background · carrying the exact edits"}}:::dispatch
 
-  n24{{"24. Step 9 at full · Dispatch: Write the implementation plan<br/>plan-writer · agent-pinned · serial · background<br/><br/>in: the spec path + the step-17 slug, any planning-conventions file<br/>it resolves the output path itself, and sees only the spec<br/><br/>a spec gap never withholds the plan — it becomes a **QUESTION:** entry"}}:::dispatch
+  n24{{"24. Step 9 at full · Dispatch: Write the implementation plan<br/>fork · main-session model · serial · background<br/><br/>in: the plan-writing reference's path — a fork loads no definition file,<br/>so the procedure must be named — the spec path + the step-17 slug,<br/>any planning-conventions file<br/>it resolves the output path itself, and inherits this whole session<br/><br/>a spec gap never withholds the plan — it becomes a **QUESTION:** entry,<br/>including a decision the interview settled but the spec never got"}}:::dispatch
 
   n26["26. Step 9, both modes · Read spec-driven-development references/self-review-checks.md —<br/>it defines every gate, sorts them into the deterministic and judged buckets, and gives<br/>each bucket's dispatch tier. Read here, the FIRST time, right after the plan exists."]:::skill
 
