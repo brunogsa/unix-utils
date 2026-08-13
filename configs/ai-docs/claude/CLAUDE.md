@@ -162,22 +162,10 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **CRITICAL: Remove unused artifacts** -- code, configs, mocks, env vars, scripts, docs. Trace back and remove all orphans.
   - [Why] Orphan code/configs/mocks accumulate as "is this still used?" debt — readers spend cycles auditing dead weight.
 
-- [Instruction] Put ephemeral scratch — throwaway scripts, debug dumps, working notes — in /tmp, never the repo or CWD — UNLESS the user reviews it, then it lives gitignored in CWD.
+- [Instruction] Put ephemeral scratch — throwaway scripts, debug dumps — in /tmp, never the repo or CWD, UNLESS user-reviewed, then gitignored in CWD; see Note-taking discipline.
   - [Why] Unreviewed scratch in the repo gets committed by accident or rots as orphan debt; a user-reviewed doc must sit where the user and downstream skills discover it.
 
   - [Example] User-reviewed → CWD: a `brainstorm` spec or plan, manual-verification `.md`. Never-reviewed → /tmp: debug dumps, one-off scripts, diff snapshots.
-
-- [Instruction] When a task earns TaskList entries or a procedural skill starts, create its `/tmp` scratchpad file and offload working state immediately.
-  - [Why] A transcript audit (2026-07-24) found 37 deep-compaction sessions with zero scratchpad writes, proving "long or multi-step work" is too fuzzy; TaskList is deterministic and always visible.
-
-- [Instruction] Persist to the scratchpad only state that is expensive to reconstruct — counts, verdicts, decisions with their why, rejected approaches, artifact paths.
-  - [Why] Notes carry real token cost, so cheap-to-rederive content buries the load-bearing state it was meant to protect (https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents).
-
-- [Instruction] Reference large payloads — tool outputs, file contents — by path and line range; never copy them into the scratchpad.
-  - [Why] A copy goes stale the moment its source changes, while a pointer re-reads fresh — the "store references, not payloads" pattern from deep-agents practice (https://docs.langchain.com/oss/python/deepagents/context-engineering).
-
-- [Instruction] On resume or after compaction, re-ground from the scratchpad — re-read the file and trust it over recalled context.
-  - [Why] Post-compaction recall feels complete but is a summary; the file re-reads verbatim, turning "I think I checked X" into a checkable fact.
 
 ### Verify before done
 
@@ -300,28 +288,45 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 ### Note-taking discipline
 
-Routing and upkeep for the two note surfaces — the rules that keep notes worth consulting.
+Routing and upkeep for the two note surfaces, plus the two scratchpad files each session carries — the rules that keep notes worth consulting.
+
+- [Instruction] Use the scratchpad directory named in your own system prompt as this session's note home — never invent an ad-hoc per-skill `/tmp` file path.
+  - [Why] That harness-provided directory is already session- and cwd-scoped, so no path of your own needs remembering or can be forgotten.
+
+- [Instruction] Within that directory, keep two files with two contracts: `notes.md` for terse, continuous working notes, and `<skill>-brief.md` for a zero-context hand-off.
+  - [Why] One file serving both a terse-memory reader and a zero-context-agent reader at once inflated notes past what the first reader wants.
+
+`notes.md` is organized under five fixed headings: `## Findings`, `## Decisions`, `## Rejected`, `## Open questions`, `## Artifacts`.
+
+- [Instruction] Route each note under its matching fixed heading as a trigger plus a short why after an em dash, aiming for ~128 chars as an unenforced guide.
+  - [Why] Headings keep findings, decisions, rejected paths, and open questions findable without taxing every turn, and a hard cap would fight a rare longer note.
 
 - [Instruction] **Write every note-worthy item to its surface the moment it appears — never carry it in working memory.**
   - [Why] AI memory is lossy and silently so — unwritten items vanish on compaction or session end — and offloading them keeps the mind lean, which is what buys better reasoning.
 
-- [Instruction] Tasks and reminders go to the TaskList only — never into the scratchpad, not even as a copy.
+- [Instruction] Tasks and reminders go to the TaskList only — never into `notes.md`, not even as a copy.
   - [Why] The TaskList is the one surface with a status that re-surfaces every turn; a scratchpad copy is a second version that drifts the moment the status flips.
-
-- [Instruction] Important conclusions, decisions, questions, concerns, corollaries, insights, and intermediate results go to the scratchpad.
-  - [Why] They shape later decisions but carry no status to track, so the scratchpad — read on demand — keeps them findable without taxing every turn the way TaskList noise would.
 
 - [Instruction] Note a reference — path, line range, link — only when strictly necessary: when you genuinely expect to re-read the details later.
   - [Why] References are the easiest note to hoard and the least often re-read, so each unneeded one is noise burying the notes that matter.
 
-- [Instruction] Mark a task done the moment it completes.
-  - [Why] A TaskList showing finished work as pending stops being trusted, and an untrusted surface stops being consulted — currency is the system's whole value.
+- [Instruction] Persist to `notes.md` only state expensive to reconstruct — counts, verdicts, decisions, rejected approaches — and reference large payloads by path instead of copying them in.
+  - [Why] Cheap-to-rederive content or a copied payload buries what notes exist to protect, and a copy goes stale where a pointer re-reads fresh.
 
-- [Instruction] When a scratchpad question, concern, or insight becomes actionable, move it to the TaskList, deleting the scratchpad note.
-  - [Why] An actionable item in the scratchpad has no status to flip, so it silently never runs — and a left-behind copy drifts from the task it became.
+- [Instruction] Mark a task done the moment it completes, and update or delete a `notes.md` entry the moment reality diverges from it.
+  - [Why] A stale entry or a pending-looking finished task gets trusted as current and steers work wrong — currency is what keeps either surface worth consulting.
 
-- [Instruction] Update or delete a note the moment reality diverges from it.
-  - [Why] A stale note re-read after compaction is trusted as current and steers the task wrong, where a missing note merely forces a cheap re-derivation.
+- [Instruction] When a `notes.md` question, concern, or insight becomes actionable, move it to the TaskList, deleting the note.
+  - [Why] An actionable item left in `notes.md` has no status to flip, so it silently never runs, and a left-behind copy drifts from the task it became.
+
+- [Instruction] On resume or after compaction, re-ground from `notes.md` — re-read the file and trust it over recalled context.
+  - [Why] Post-compaction recall feels complete but is a summary; the file re-reads verbatim, turning "I think I checked X" into a checkable fact.
+
+- [Instruction] Write `<skill>-brief.md` once the work unit it records has finished — never continuously, and never merely because a dispatch is imminent.
+  - [Why] Composing it before the unit finishes hands off unfinished results, and a zero-context reader needs elaboration `notes.md` deliberately omits, exempt from its density guide.
+
+- [Instruction] A dispatched subagent gets its own, different scratchpad directory — pass your own resolved path explicitly in its dispatch prompt if it must read yours.
+  - [Why] Its environment carries only its own directory, so an unstated path leaves it with no way to find your notes at all.
 
 ### Slow commands
 
