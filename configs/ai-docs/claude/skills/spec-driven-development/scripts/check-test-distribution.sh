@@ -20,8 +20,20 @@
 # Reuses extract-planned-tests-for-task.sh (sibling) for B, so bullet/quote/[on-demand]/[skip]
 # normalization stays in one place. N/A tasks contribute nothing (correct).
 #
+# A Test Design section whose body reads "N/A — <reason>"
+# designs no test at all, so it has nothing to distribute.
+# plan-template.md sanctions that escape for a pure
+# refactor, config edit, or similar no-behavior-change work.
+#
+# That escape is a CONJUNCTION, granted only when B is empty
+# too - both regions must agree nothing is testable here.
+#
+# An N/A design over a task that still plans a real test is
+# drift, not an escape, and keeps failing as B \ A.
+#
 # Exit codes:
 #   0  - A == B. Every designed test is distributed to a task; no task invents a test.
+#        Also the "N/A" Test Design escape, when no task plans a test either.
 #   1  - A != B (diffs printed to stderr), OR a task is missing its `**Tests (planned)**:` bullet.
 #   2  - usage error (wrong arg count, plan file not found, sibling script missing).
 
@@ -42,8 +54,9 @@ fi
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 extract="$script_dir/extract-planned-tests-for-task.sh"
 design_extract="$script_dir/extract-design-tests.sh"
+section_slice="$script_dir/plan-section.sh"
 
-for sib in "$extract" "$design_extract"; do
+for sib in "$extract" "$design_extract" "$section_slice"; do
   if [ ! -x "$sib" ]; then
     echo "error: sibling script not found or not executable: $sib" >&2
     exit 2
@@ -52,9 +65,40 @@ done
 
 # A: Test Design breadcrumbs (<describe> [> class] > it), reconstructed by the shared extractor
 # so the breadcrumb format lives in ONE place (check-ac-coverage.sh reconstructs via the same script).
-if ! set_a=$("$design_extract" "$plan"); then
-  echo "error: could not extract Test Design breadcrumbs from $plan (see above)" >&2
-  exit 1
+#
+# Its diagnostic is held back until the "N/A" escape below is ruled out: on an
+# N/A Test Design, "no it() titles found" is the expected reading, not a defect.
+design_err=$(mktemp)
+trap 'rm -f "$design_err"' EXIT
+
+is_design_na=false
+
+if ! set_a=$("$design_extract" "$plan" 2>"$design_err"); then
+  # Per-section escape sanctioned by plan-template.md: a
+  # Test Design body reading "N/A" (case-insensitive,
+  # word-boundary so "N/Ax" misses) designs no test, so
+  # there is no distribution to check. Mirrors the same
+  # escape in check-pr-dag.sh.
+  #
+  # Tested HERE, after extraction, not against the raw
+  # body: the AC -> test coverage list shares this
+  # section, so a plan carrying real it() titles keeps
+  # facing the full set-equality check below.
+  #
+  # An absent section slices to an empty body, which no
+  # escape matches - so a missing Test Design still fails.
+  design_body=$("$section_slice" "$plan" "##" '^Test Design[[:space:]]*$' | sed '/^[[:space:]]*$/d')
+
+  if printf '%s' "$design_body" | grep -qiE '^N/A([^a-zA-Z]|$)'; then
+    # The verdict is deferred, not granted: the escape is a
+    # claim about BOTH regions, so it stands only once set B
+    # below is known to be empty too.
+    is_design_na=true
+  else
+    cat "$design_err" >&2
+    echo "error: could not extract Test Design breadcrumbs from $plan (see above)" >&2
+    exit 1
+  fi
 fi
 
 # B: union of every task's Tests (planned) list. Iterate the task numbers, reuse the sibling extractor.
@@ -77,9 +121,36 @@ for n in $task_nums; do
   fi
 done
 
-# Sorted, de-duplicated views for set comparison.
+# Blank lines are dropped with sed, not `grep -v`: an all-N/A
+# breakdown leaves set B empty, and grep's "no match" exit 1
+# would trip `set -eo pipefail` and kill the run with no
+# diagnostic at all.
+sorted_b=$(printf '%s\n' "$set_b" | sed '/^[[:space:]]*$/d' | sort -u)
+
+# The deferred "N/A" verdict, now that both regions are known.
+#
+# The escape is a CONJUNCTION - Test Design claims no test
+# exists AND no task plans one - so it is granted only on an
+# empty set B.
+#
+# A task still planning a test against an N/A design is
+# genuine drift between the two regions, which is precisely
+# what this gate exists to catch. Waving it through on the
+# design's say-so alone would turn the escape into a hole
+# any plan could opt into.
+if [ "$is_design_na" = true ]; then
+  if [ -n "$sorted_b" ]; then
+    echo "FAIL: Test Design reads 'N/A' but tasks still plan tests (Tests-planned \\ Test Design):" >&2
+    printf '%s\n' "$sorted_b" | sed 's/^/  - /' >&2
+    exit 1
+  fi
+
+  echo "OK: Test Design has nothing to distribute (reads 'N/A — ...'), and no task plans a test."
+  exit 0
+fi
+
+# Sorted, de-duplicated view of A for set comparison.
 sorted_a=$(printf '%s\n' "$set_a" | sort -u)
-sorted_b=$(printf '%s\n' "$set_b" | grep -v '^$' | sort -u)
 
 a_only=$(comm -23 <(printf '%s\n' "$sorted_a") <(printf '%s\n' "$sorted_b"))
 b_only=$(comm -13 <(printf '%s\n' "$sorted_a") <(printf '%s\n' "$sorted_b"))
