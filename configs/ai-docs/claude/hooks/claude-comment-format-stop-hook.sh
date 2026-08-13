@@ -32,19 +32,20 @@
 #   the file.
 #
 #   Once a still-violating file clears the two scope filters
-#   below, the hook blocks and asks the main agent to delegate
-#   the fix.
+#   below, the hook blocks and tells the main agent to file
+#   ONE [Scout] TaskList entry per offending file.
 #
-#   Delegating off the main thread lets the human read a
-#   clean file with zero main-session churn.
+#   Reporting rather than dispatching matters because not
+#   every edited source file is the user's own code to hold
+#   to personal comment-format caps - e.g. a vendored or
+#   generated file the user merely touched.
 #
-#   Asking first matters because not every edited source
-#   file is the user's own code to hold to personal
-#   comment-format caps - e.g. a vendored or generated
-#   file the user merely touched.
+#   Asking at hook time is no substitute: a Stop hook has no
+#   interactive channel, so "ask the user" degrades into the
+#   agent guessing.
 #
-#   If the main agent can't ask (no interactive channel),
-#   it skips the fixer rather than guessing.
+#   A [Scout] hands the whole call to the human, who triages
+#   if and when it ever runs.
 #
 # Scope - "source comments THIS SESSION wrote", narrowed
 # twice, the same two filters the markdown gate uses:
@@ -58,9 +59,9 @@
 #     transcript_path.
 #
 #   Without the session filter every concurrent session sees
-#   the same shared working-tree violations and each spawns
-#   its own fixer for files it never touched - a race
-#   between two fixers editing one file.
+#   the same shared working-tree violations and each files
+#   its own [Scout] for files it never touched - duplicate
+#   TaskList entries for one violation.
 #
 # Which rules gate on a changed line:
 #   A tracked file admits only the rules whose fix stays on
@@ -83,42 +84,48 @@
 #   reaches this gate.
 #
 #   Widening the discovery source to the working tree would
-#   bring back the cross-session race the session filter
-#   exists to stop, so the narrower reach is a deliberate
-#   trade, shared with both sibling gates.
+#   bring back the cross-session duplication the session
+#   filter exists to stop, so the narrower reach is a
+#   deliberate trade, shared with both sibling gates.
 #
 # Session memory:
-#   Per-file answers persist in /tmp/claude-comment-fixer-
-#   decisions-<session_id> as one "delegate:<abs path>" or
-#   "skip:<abs path>" line per file.
+#   Per-file reports persist in /tmp/claude-comment-fixer-
+#   decisions-<session_id> as one "skip:<abs path>" line per
+#   file.
 #
-#   Appended by the main session right after the user
-#   answers for that file.
+#   Appended by the main session right after it files that
+#   file's [Scout].
 #
-#   On a later Stop in the SAME session: a "skip" file is
-#   dropped from violations outright (never re-blocked), and a
-#   "delegate" file's block wording says to delegate directly
-#   instead of asking again.
+#   "skip" means "already reported as a Scout, do not raise
+#   again this session" - NOT "the user declined to have it
+#   reformatted", which is what it meant under the removed
+#   approval flow.
 #
-#   A file with no recorded answer is asked about exactly as
-#   before.
+#   On a later Stop in the SAME session a skip-listed file is
+#   dropped from violations outright.
 #
-#   This is per-file, not per-session - one vendored file being
-#   declined must not silence the gate for every other file this
-#   session.
+#   This is per-file, not per-session - one reported file must
+#   not silence the gate for every other file this session.
 #
 # Enforcement vs. loop-safety:
 #   Honors stop_hook_active=true, bowing out so an always-on
-#   global hook can never spin an infinite stop-block loop.
+#   global hook can never spin an infinite stop-block loop
+#   within one turn.
 #
-#   The guard bails on the post-fix stop, so this hook can
-#   never re-verify its own fix - the fixer subagent re-runs
-#   the checker and confirms clean before returning.
+#   Across turns the skip record is what breaks the loop, not
+#   that guard: the fix now happens whenever the human runs
+#   the Scout, which can be days later or never, so the
+#   violation outlives the block that reported it.
 #
 # Safeguards (silent no-ops - never break Claude on a
 # tooling or context gap):
 # - jq / git / awk / comm / node missing, or the checker
 #     missing, exits 0.
+#
+# - No session_id, or one with characters unsafe for a
+#     filename, exits 0: there is nowhere to record the skip,
+#     and blocking without it would re-file the same Scout on
+#     every later Stop.
 #
 # - Not inside a git work tree exits 0: no reliable
 #     "what changed" signal.
@@ -148,18 +155,23 @@ command -v node >/dev/null 2>&1 || exit 0
 stop_hook_active=$(printf '%s' "$input" | jq -r '.stop_hook_active // false' 2>/dev/null || true)
 [ "$stop_hook_active" = "true" ] && exit 0
 
-# Per-file answer memory for this session (see the Session
-# memory section below).
+# Per-file report memory for this session (see the Session
+# memory section above).
 #
-# Empty session_id (or one with characters unsafe for a
-# filename) just disables the memory - the hook still
-# gates, it only re-asks every time instead of once.
+# An empty session_id, or one with characters unsafe for a
+# filename, leaves the hook nowhere to record that a file was
+# already reported - and that record is the only thing that
+# stops the next Stop from re-blocking.
+#
+# So it bows out entirely rather than re-file the same
+# [Scout] every turn.
 session_id=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)
 decisions_file=""
 case "$session_id" in
   "" | *[!A-Za-z0-9_-]*) : ;;
   *) decisions_file="/tmp/claude-comment-fixer-decisions-${session_id}" ;;
 esac
+[ -n "$decisions_file" ] || exit 0
 
 CHECKER="$HOME/.claude/skills/doc-standards/scripts/check-comment-format.js"
 [ -f "$CHECKER" ] || exit 0
@@ -285,13 +297,15 @@ violations=$(printf '%s\n' "$violations" | while IFS= read -r v; do
 done || true)
 [ -z "$violations" ] && exit 0
 
-# Drop files the user already declined this session - see
+# Drop files already reported as a [Scout] this session - see
 # "Session memory" above.
+#
+# A "delegate:" line from a session that ran the older
+# approval flow parses to no verb this hook knows, so it is
+# inert rather than special-cased away.
 decided_skip=""
-decided_delegate=""
-if [ -n "$decisions_file" ] && [ -f "$decisions_file" ]; then
+if [ -f "$decisions_file" ]; then
   decided_skip=$(awk -F: '$1 == "skip" {print $2}' "$decisions_file" 2>/dev/null | sort -u || true)
-  decided_delegate=$(awk -F: '$1 == "delegate" {print $2}' "$decisions_file" 2>/dev/null | sort -u || true)
 fi
 
 if [ -n "$decided_skip" ]; then
@@ -320,57 +334,27 @@ list=$(printf '%s\n' "$violations" | awk -F: '
   }
 ')
 
-# Split the still-violating files into "already told us to
-# delegate this session" (ask nothing, fix + delegate
-# directly) vs "no recorded answer yet" (ask once, fix
-# nothing until approved).
-new_files=""
-approved_files=""
-while IFS= read -r f; do
-  [ -n "$f" ] || continue
-  f_abs=$(to_abs "$f")
-  if [ -n "$decided_delegate" ] && printf '%s\n' "$decided_delegate" | grep -qxF "$f_abs"; then
-    approved_files="${approved_files}${f} "
-  else
-    new_files="${new_files}${f} "
-  fi
-done <<< "$(printf '%s\n' "$violations" | awk -F: '{print $1}' | sort -u)"
-approved_files="${approved_files% }"
-new_files="${new_files% }"
-
 # Kept minimal on purpose: this string is injected into the
 # MAIN session context on every block, and a Stop can block
 # repeatedly - a verbose reason would accumulate and crowd
 # out real work.
-reason="Source comments you edited this session break doc-standards' comment-format caps — ${list}."
-
-# --fix runs before the subagent for the same reason
-# doc-standards puts fix-density.py before its markdown
-# fixer.
 #
-# It repairs the mechanical subset in one pass, where an
-# AI fixer burns turns re-deriving the same edits.
+# The --fix command rides inside the Scout's description
+# rather than running here.
 #
-# Only approved files get this - an undecided file must
-# not be mutated before the user has said it is theirs
-# to reformat.
-if [ -n "$approved_files" ]; then
-  reason="${reason} Already approved this session — delegate directly, no need to ask again: ${approved_files}. \
-Run: node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --fix ${approved_files} \
-Then dispatch a Haiku (claude-haiku-4-5) comment-format-fixer subagent for whatever it still reports."
-fi
-
-if [ -n "$new_files" ]; then
-  reason="${reason} Ask the user whether to delegate ${new_files} to a Haiku (claude-haiku-4-5) \
-comment-format-fixer subagent — some edited source file isn't yours to reformat (e.g. a vendored \
-or generated file). If you can't ask here, skip the fixer for it."
-  if [ -n "$decisions_file" ]; then
-    reason="${reason} Record the answer so it isn't asked again this session: append \
-'delegate:<abs path>' or 'skip:<abs path>' to ${decisions_file}."
-  fi
-fi
-
-reason="${reason} Delegated files self-verify with check-comment-format.js. Do not re-read in this \
-session — trust the subagent."
+# Same reason doc-standards puts fix-density.py before its
+# markdown fixer: it repairs the mechanical subset in one
+# pass, where an AI fixer burns turns re-deriving the same
+# edits.
+#
+# Carrying it in the description is what keeps that
+# deterministic first pass available to whoever runs the
+# Scout, now that no branch of this hook runs it.
+reason="Source comments you edited this session break doc-standards' comment-format caps — ${list}. \
+File ONE [Scout] TaskList entry per file, describing the broken caps and its repair: run \
+'node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --fix <file>' first, then a Haiku \
+(claude-haiku-4-5) comment-format-fixer subagent for whatever it still reports. Dispatch nothing now, \
+run nothing now, and ask nothing — the user alone decides if and when a Scout runs. Then append \
+'skip:<abs path>' for each file to ${decisions_file}."
 
 jq -n --arg r "$reason" '{decision: "block", reason: $r}'

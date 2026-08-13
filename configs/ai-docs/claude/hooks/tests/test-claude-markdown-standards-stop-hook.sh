@@ -24,9 +24,10 @@
 # not have: per-file decision memory at
 # /tmp/claude-md-fixer-decisions-<session_id>.
 #
-# So this file also covers new-file-asks, skip-drops,
-# delegate-skips-the-ask, a mixed skip+new file set,
-# and the session-id-disables-memory corner.
+# So this file also covers the Scout the reason asks
+# for, skip-drops, a stale delegate line staying
+# inert, a mixed skip+new file set, and the
+# no-place-to-record corner.
 #
 # The checkers themselves are NOT stubbed: these
 # tests assert the hook's filtering and memory
@@ -351,24 +352,34 @@ it_should_stay_silent_when_the_session_touched_no_markdown_file() {
 }
 
 # Decision memory, case 1: a file with no recorded
-# answer this session is asked about.
+# answer this session is reported as a [Scout].
 #
-# Because a valid session_id gives the hook a place to
-# persist the answer, the reason also tells the main
-# session where to record it.
-it_should_ask_about_a_file_with_no_recorded_decision_this_session() {
+# The user alone decides if and when a Scout runs, so
+# the reason must file one and dispatch nothing — it
+# must not ask at hook time either, since a Stop hook
+# has no interactive channel to ask through.
+#
+# A valid session_id gives the hook a place to persist
+# the suppression, so the reason also names it.
+it_should_tell_the_session_to_file_a_scout_for_a_file_with_no_recorded_decision() {
   local repo; repo=$(new_repo new-file)
   write_clean_base "$repo" tracked.md
   append_wide_line "$repo" tracked.md
   local t; t=$(write_transcript "$repo/transcript.jsonl" "$repo/tracked.md")
   run_hook "$repo" "{\"session_id\":\"new\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
 
-  assert_eq "should ask about a file with no recorded decision (decision)" \
+  assert_eq "should tell the session to file a Scout for a file with no recorded decision (decision)" \
     "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
-  assert_contains "should ask about a file with no recorded decision (asks the user)" \
-    "$HOOK_REASON" "Ask the user whether to delegate"
-  assert_contains "should ask about a file with no recorded decision (tells where to record the answer)" \
-    "$HOOK_REASON" "append 'delegate:<abs path>' or 'skip:<abs path>' to $(decisions_file_path new)"
+  assert_contains "should tell the session to file a Scout for a file with no recorded decision (names the Scout category)" \
+    "$HOOK_REASON" "[Scout]"
+  assert_not_contains "should tell the session to file a Scout for a file with no recorded decision (never asks the user)" \
+    "$HOOK_REASON" "Ask the user"
+  assert_not_contains "should tell the session to file a Scout for a file with no recorded decision (never says delegate)" \
+    "$HOOK_REASON" "delegate"
+  assert_contains "should tell the session to file a Scout for a file with no recorded decision (forbids dispatching now)" \
+    "$HOOK_REASON" "Dispatch nothing now"
+  assert_contains "should tell the session to file a Scout for a file with no recorded decision (tells where to append the skip)" \
+    "$HOOK_REASON" "append 'skip:<abs path>' for each file to $(decisions_file_path new)"
 }
 
 # Decision memory, case 2: a file the user already
@@ -386,10 +397,15 @@ it_should_stay_silent_on_a_file_recorded_as_skip_this_session() {
   assert_eq "should stay silent on a file recorded as skip this session" "" "$HOOK_OUT"
 }
 
-# Decision memory, case 3: a file already approved
-# for delegation this session is delegated directly —
-# the reason must not ask again.
-it_should_delegate_directly_for_a_file_recorded_as_delegate_this_session() {
+# Decision memory, case 3: `delegate:` was the
+# approval flow's verb, and nothing writes it any
+# more.
+#
+# A line left over from a session that ran the old
+# hook must be inert: `skip:` is now the only verb
+# that suppresses, so a `delegate:` file still gets
+# its Scout filed.
+it_should_ignore_a_stale_delegate_line_left_by_the_removed_approval_flow() {
   local repo; repo=$(new_repo delegate-file)
   write_clean_base "$repo" tracked.md
   append_wide_line "$repo" tracked.md
@@ -397,19 +413,19 @@ it_should_delegate_directly_for_a_file_recorded_as_delegate_this_session() {
   printf 'delegate:%s/tracked.md\n' "$repo" > "$(decisions_file_path delegate)"
   run_hook "$repo" "{\"session_id\":\"delegate\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
 
-  assert_eq "should delegate directly for a file recorded as delegate this session (decision)" \
+  assert_eq "should ignore a stale delegate line left by the removed approval flow (still blocks)" \
     "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
-  assert_contains "should delegate directly for a file recorded as delegate this session (says already approved)" \
-    "$HOOK_REASON" "Already approved this session — delegate directly, no need to ask again"
-  assert_not_contains "should delegate directly for a file recorded as delegate this session (does not ask again)" \
-    "$HOOK_REASON" "Ask the user whether to delegate"
+  assert_not_contains "should ignore a stale delegate line left by the removed approval flow (never says already approved)" \
+    "$HOOK_REASON" "Already approved"
+  assert_contains "should ignore a stale delegate line left by the removed approval flow (still tells to file a Scout)" \
+    "$HOOK_REASON" "[Scout]"
 }
 
 # Decision memory, case 4: a skip decision is
-# per-file, not per-session — one declined company
+# per-file, not per-session — one already-reported
 # doc must not silence the gate for a second file
 # with no recorded answer.
-it_should_only_ask_about_the_undecided_file_when_one_of_two_is_skipped() {
+it_should_only_file_a_scout_for_the_undecided_file_when_one_of_two_is_skipped() {
   local repo; repo=$(new_repo mixed-file)
   write_clean_base "$repo" skipped.md
   append_wide_line "$repo" skipped.md
@@ -419,33 +435,30 @@ it_should_only_ask_about_the_undecided_file_when_one_of_two_is_skipped() {
   printf 'skip:%s/skipped.md\n' "$repo" > "$(decisions_file_path mixed)"
   run_hook "$repo" "{\"session_id\":\"mixed\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
 
-  assert_eq "should only ask about the undecided file when one of two is skipped (decision)" \
+  assert_eq "should only file a Scout for the undecided file when one of two is skipped (decision)" \
     "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
-  assert_eq "should only ask about the undecided file when one of two is skipped (names the pending file)" \
+  assert_eq "should only file a Scout for the undecided file when one of two is skipped (names the pending file)" \
     "1" "$(printf '%s' "$HOOK_REASON" | grep -c 'pending\.md')"
-  assert_eq "should only ask about the undecided file when one of two is skipped (never names the skipped file)" \
+  assert_eq "should only file a Scout for the undecided file when one of two is skipped (never names the skipped file)" \
     "0" "$(printf '%s' "$HOOK_REASON" | grep -c 'skipped\.md')"
 }
 
-# A missing session_id disables the memory feature
-# entirely (case "" in the hook's own guard).
+# A missing session_id leaves the hook nowhere to
+# persist the `skip:` record (case "" in its own
+# guard).
 #
-# The gate still fires every time, it just never
-# learns a file was already decided and never tells
-# the main session where to persist an answer.
-it_should_never_reference_decision_memory_when_session_id_is_missing() {
+# `skip:` is the only thing that stops a block from
+# repeating, so blocking without it would re-file the
+# same Scout on every later Stop. The gate goes
+# silent instead.
+it_should_stay_silent_when_session_id_gives_it_nowhere_to_record_the_skip() {
   local repo; repo=$(new_repo no-session-id)
   write_clean_base "$repo" tracked.md
   append_wide_line "$repo" tracked.md
   local t; t=$(write_transcript "$repo/transcript.jsonl" "$repo/tracked.md")
   run_hook "$repo" "{\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
 
-  assert_eq "should never reference decision memory when session_id is missing (still blocks)" \
-    "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
-  assert_contains "should never reference decision memory when session_id is missing (still asks)" \
-    "$HOOK_REASON" "Ask the user whether to delegate"
-  assert_not_contains "should never reference decision memory when session_id is missing (no record instruction)" \
-    "$HOOK_REASON" "Record the answer"
+  assert_eq "should stay silent when session_id gives it nowhere to record the skip" "" "$HOOK_OUT"
 }
 
 it_should_block_on_an_untracked_markdown_file_this_session_wrote
@@ -456,11 +469,11 @@ it_should_not_block_on_a_violating_file_this_session_never_touched
 it_should_stay_silent_when_its_own_block_caused_this_stop
 it_should_stay_silent_when_the_transcript_is_missing
 it_should_stay_silent_when_the_session_touched_no_markdown_file
-it_should_ask_about_a_file_with_no_recorded_decision_this_session
+it_should_tell_the_session_to_file_a_scout_for_a_file_with_no_recorded_decision
 it_should_stay_silent_on_a_file_recorded_as_skip_this_session
-it_should_delegate_directly_for_a_file_recorded_as_delegate_this_session
-it_should_only_ask_about_the_undecided_file_when_one_of_two_is_skipped
-it_should_never_reference_decision_memory_when_session_id_is_missing
+it_should_ignore_a_stale_delegate_line_left_by_the_removed_approval_flow
+it_should_only_file_a_scout_for_the_undecided_file_when_one_of_two_is_skipped
+it_should_stay_silent_when_session_id_gives_it_nowhere_to_record_the_skip
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

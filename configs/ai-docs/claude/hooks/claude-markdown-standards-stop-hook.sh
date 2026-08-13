@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # claude-markdown-standards-stop-hook - At review handoff, gate on doc-standards
 #                            violations the AI/human just wrote in markdown, and
-#                            delegate the fix to Haiku.
+#                            report each offending file as a [Scout] task.
 #
 # Usage (Claude Code Stop hook):
 #   stdin:  hook event JSON ({ session_id, stop_hook_active, ... })
@@ -18,13 +18,13 @@
 #   doc back to the human to read. Formatting nits fixed inline (PostToolUse) fork
 #   the writing session's attention; fixed at commit they land too late (the human
 #   reads before the commit). So this gate fires at Stop: if changed markdown still
-#   violates, it blocks and tells the main agent to ASK the user before spawning a
-#   cheap Haiku subagent to fix the offending lines — off the main thread — so the
-#   human reads a clean doc with zero main-session churn.
-#   Asking first (not auto-dispatching) matters because not every edited .md is the
-#   user's own doc to hold to personal doc-standards — e.g. a company/vendor file
-#   the user merely touched. If the main agent can't ask (no interactive channel),
-#   it skips the fixer rather than guessing.
+#   violates, it blocks and tells the main agent to FILE ONE [Scout] TaskList entry
+#   per offending file, naming what is off standard and which fixer would repair it.
+#   Reporting (not dispatching, and not asking) is the point: not every edited .md
+#   is the user's own doc to hold to personal doc-standards — e.g. a company/vendor
+#   file the user merely touched — and a Stop hook has no interactive channel to ask
+#   through, so an "ask the user" instruction just becomes the AI guessing. A [Scout]
+#   defers the whole decision to the human, who triages if and when it ever runs.
 #
 # Scope — "everything THIS SESSION wrote/edited on .md", narrowed twice:
 #   - Working-tree filter: which lines changed. Untracked .md (new spec/plan) →
@@ -37,31 +37,32 @@
 #     tree but never opened by this session's tools — another session's WIP, or
 #     the human's own manual edit — is silently skipped.
 #   Without the session filter, every concurrent session/subagent sees the same
-#   shared working-tree violations and each independently spawns a Haiku fixer
-#   for files it never touched — redundant work at best, a race between two
-#   fixers editing the same file at worst. Scoping to this session's own tool
-#   calls is the deterministic fix: only the session that actually wrote the
-#   violation is ever told to clean it up.
+#   shared working-tree violations and each independently files a [Scout] for
+#   files it never touched — duplicate TaskList entries for one violation.
+#   Scoping to this session's own tool calls is the deterministic fix: only the
+#   session that actually wrote the violation is ever told to report it.
 #
 # Enforcement vs. loop-safety:
 #   Honors stop_hook_active=true → bows out, so an always-on global hook can never
-#   spin an infinite stop-block loop. Because the guard bails on the post-fix stop,
-#   the hook itself can't re-verify the fix — so the Haiku subagent re-runs both
-#   checkers and confirms clean BEFORE returning. Verification lives in the
-#   subagent — NOT the main session, which must trust the subagent and never re-read
-#   the files or re-run the gate: doing so would pull the density detail back into the
-#   main context, defeating the whole point of offloading it to a subagent.
+#   spin an infinite stop-block loop within one turn. Across turns the loop is
+#   broken by the skip record below, NOT by the guard: the fix now happens whenever
+#   the human runs the Scout, which can be days later or never, so the violation
+#   itself outlives the block that reported it.
 #
 # Session memory:
-#   Per-file answers persist in /tmp/claude-md-fixer-decisions-<session_id> —
-#   one "delegate:<abs path>" or "skip:<abs path>" line per file, appended by
-#   the main session right after the user answers for that file. On a later
-#   Stop in the SAME session: a "skip" file is dropped from violations outright
-#   (never re-blocked), and a "delegate" file's block wording says to delegate
-#   directly instead of asking again. A file with no recorded answer is asked
-#   about exactly as before. This is why the memory is per-file, not per-session
-#   — one company doc being declined must not silence the gate for every other
-#   file this session.
+#   Per-file reports persist in /tmp/claude-md-fixer-decisions-<session_id> — one
+#   "skip:<abs path>" line per file, appended by the main session right after it
+#   files that file's [Scout]. "skip" means "already reported as a Scout, do not
+#   raise again this session" — NOT "the user declined to have it reformatted",
+#   which is what it meant under the removed approval flow. On a later Stop in the
+#   SAME session a skip-listed file is dropped from violations outright. The memory
+#   is per-file, not per-session, so one reported doc never silences the gate for
+#   every other file this session.
+#
+#   No session_id (or one with characters unsafe for a filename) means there is
+#   nowhere to write that record, so this hook exits 0 instead of blocking: with no
+#   way to suppress, every later Stop would re-block and the AI would file the same
+#   Scout again each turn. A silent gate beats a duplicate-Scout loop.
 #
 # Safeguards (all silent no-ops — never break Claude on a tooling/context gap):
 #   - jq / git / awk / comm missing, or BOTH checkers unavailable → exit 0.
@@ -90,15 +91,19 @@ command -v comm >/dev/null 2>&1 || exit 0
 stop_hook_active=$(printf '%s' "$input" | jq -r '.stop_hook_active // false' 2>/dev/null || true)
 [ "$stop_hook_active" = "true" ] && exit 0
 
-# Per-file answer memory for this session (see "Session memory" below). Empty
-# session_id (or one with characters unsafe for a filename) just disables the
-# memory — the hook still gates, it only re-asks every time instead of once.
+# Per-file report memory for this session (see "Session memory" above).
+#
+# An empty session_id, or one with characters unsafe for a filename, leaves the
+# hook nowhere to record that a file was already reported — and that record is the
+# only thing that stops the next Stop from re-blocking. So it bows out entirely
+# rather than re-file the same [Scout] every turn.
 session_id=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)
 decisions_file=""
 case "$session_id" in
   "" | *[!A-Za-z0-9_-]*) : ;;
   *) decisions_file="/tmp/claude-md-fixer-decisions-${session_id}" ;;
 esac
+[ -n "$decisions_file" ] || exit 0
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 
@@ -216,12 +221,12 @@ violations=$(printf '%s\n' "$violations" | while IFS= read -r v; do
 done || true)
 [ -z "$violations" ] && exit 0
 
-# Drop files the user already declined this session — see "Session memory" above.
+# Drop files already reported as a [Scout] this session — see "Session memory"
+# above. A "delegate:" line from a session that ran the older approval flow parses
+# to no verb this hook knows, so it is inert rather than special-cased away.
 decided_skip=""
-decided_delegate=""
-if [ -n "$decisions_file" ] && [ -f "$decisions_file" ]; then
+if [ -f "$decisions_file" ]; then
   decided_skip=$(awk -F: '$1 == "skip" {print $2}' "$decisions_file" 2>/dev/null | sort -u || true)
-  decided_delegate=$(awk -F: '$1 == "delegate" {print $2}' "$decisions_file" 2>/dev/null | sort -u || true)
 fi
 
 if [ -n "$decided_skip" ]; then
@@ -237,43 +242,14 @@ fi
 # would alternate comma and space instead of joining with both.
 list=$(printf '%s\n' "$violations" | paste -sd ',' -)
 
-# Split the still-violating files into "already told us to delegate this
-# session" (ask nothing, just delegate) vs "no recorded answer yet" (ask once).
-new_files=""
-approved_files=""
-while IFS= read -r f; do
-  [ -n "$f" ] || continue
-  f_abs=$(to_abs "$f")
-  if [ -n "$decided_delegate" ] && printf '%s\n' "$decided_delegate" | grep -qxF "$f_abs"; then
-    approved_files="${approved_files}${f}, "
-  else
-    new_files="${new_files}${f}, "
-  fi
-done <<< "$(printf '%s\n' "$violations" | awk -F: '{print $1}' | sort -u)"
-approved_files="${approved_files%, }"
-new_files="${new_files%, }"
-
 # Kept minimal on purpose: this string is injected into the MAIN session context on
 # every block, and a Stop can block repeatedly — a verbose reason would accumulate and
-# crowd out real work. WHICH rule each line broke is deliberately omitted: the fixer
-# re-runs both checkers anyway, so naming them here would only pad every block.
-reason="Markdown you edited this session is off doc-standards — ${list}."
-
-if [ -n "$approved_files" ]; then
-  reason="${reason} Already approved this session — delegate directly, no need to ask again: ${approved_files}."
-fi
-
-if [ -n "$new_files" ]; then
-  reason="${reason} Ask the user whether to delegate ${new_files} to a Haiku (claude-haiku-4-5) \
-markdown-standards-fixer subagent — some edited .md isn't yours to reformat (e.g. a company doc). \
-If you can't ask here, skip the fixer for it."
-  if [ -n "$decisions_file" ]; then
-    reason="${reason} Record the answer so it isn't asked again this session: append \
-'delegate:<abs path>' or 'skip:<abs path>' to ${decisions_file}."
-  fi
-fi
-
-reason="${reason} Delegated files self-verify with check-density and check-bullet-gap. Do not \
-re-read in this session — trust the subagent."
+# crowd out real work. WHICH rule each line broke is deliberately omitted: whoever runs
+# the Scout re-runs both checkers anyway, so naming them here would only pad every block.
+reason="Markdown you edited this session is off doc-standards — ${list}. \
+File ONE [Scout] TaskList entry per file, describing what is off standard and that a Haiku \
+(claude-haiku-4-5) markdown-standards-fixer subagent is what repairs it. Dispatch nothing now \
+and ask nothing — the user alone decides if and when a Scout runs. Then append \
+'skip:<abs path>' for each file to ${decisions_file}."
 
 jq -n --arg r "$reason" '{decision: "block", reason: $r}'
