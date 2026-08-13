@@ -140,7 +140,7 @@ Each dispatch carries **all** of the findings assigned to it at once, each with 
 
 When either entry contributes more than ~10 findings, split it into multiple sequential `tdd-coder` dispatches for that lens — still serial, same branch, same seeded order, never one uncapped batch.
 
-The `refactor` entry is exempt: it dispatches to the `refactor` agent below, not `tdd-coder`, so this guide doesn't apply to it.
+The `refactor` entry is exempt: it dispatches to the `refactor` agent named above, not `tdd-coder`, so this guide doesn't apply to it.
 
 Why the refactor lens keeps its own agent rather than joining the other two on `tdd-coder`: that agent refuses any behavior change, by design.
 A correctness fix or a missing test can't route through it — both need `tdd-coder`'s test-first discipline instead.
