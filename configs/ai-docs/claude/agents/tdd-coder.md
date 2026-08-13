@@ -9,10 +9,6 @@ disallowedTools: Workflow
 allowedSubagents: Explore
 skills:
   - test-driven-development
-  - code-standards
-  - test-standards
-  - doc-standards
-  - commit-standards
 ---
 
 ## Objective
@@ -51,22 +47,54 @@ Any other optional field missing or unusable: proceed without it, note that once
 
 ## Sources and tools
 
-Your standards come preloaded via this file's `skills` frontmatter — their full content is already in your context; don't re-invoke them via the Skill tool.
+Only `test-driven-development` is preloaded, via this file's `skills` frontmatter — its content is already in your context, so never re-invoke it via the Skill tool.
 
-Load `debug-standards` via the Skill tool the moment a test goes red for the wrong reason — it's the one skill left lazy, since most dispatches never debug.
+Every other standard is lazy. Load it via the Skill tool when its trigger fires, once per dispatch, and never ahead of the trigger:
+
+- `test-standards` — before writing this batch's first test.
+- `code-standards` — before this batch's first production edit.
+- `doc-standards` — only if the batch touches a `.md`, a comment, a docstring, or a log line.
+- `commit-standards` — at the start of PHASE COMMIT.
+- `debug-standards` — the moment a test goes red for the wrong reason.
+
+Preloading all five spent ~18.5k tokens in 100% of past dispatches, and 52% of those then paid a ~176s auto-compaction stall.
+
+At-trigger loading carries exactly the same guidance, and skips whatever a given batch never touches.
 
 `allowedSubagents: Explore` lets you dispatch exactly one subagent type, `Explore`, for read-only fan-out or broad "where is X handled?" searches that would otherwise flood your own context.
 
 No other `subagent_type` is reachable — the disallowed-tools guard denies it before it runs.
+
+## Context discipline
+
+Your context window is this batch's real budget: dispatches that auto-compact ran ~3.7× longer than those that didn't (18.4m vs 5.0m median).
+
+Compaction fires on total context, not on how hard the work was — so what you read costs the same as what you write.
+
+- Never `Read` a file whole past ~400 lines — `grep -n` to the lines that matter, then `Read` with `offset`/`limit` around them.
+  - `Read` results were 59% of all tool-output bytes across past dispatches, and 47% of those reads were whole-file.
+
+- Never re-`Read` a path already in your context; after a successful `Edit`, re-read nothing.
+  - Re-read a bounded range only when an `Edit` actually failed — 603 redundant re-reads were measured across past dispatches, each one buying nothing.
+
+- Route any broad "where is X handled?" sweep to `Explore` — its fan-out fills its context instead of yours, and you get back only the conclusion.
+
+- Issue every *independent* tool call in the same message, since a turn costs ~15s of wall time whatever it carries.
+  - 94% of past API turns issued exactly one call, so wall time tracked turn count almost perfectly: batching is the cheapest speedup available to you.
+
+  - Batch the reads that open a unit, the greps that locate a symbol, and the `git status`/`git diff` pair.
+  - Keep sequential only what depends on the prior result: an `Edit` whose content comes from the `Read` before it, or a Verification run that must follow the edit it tests.
 
 ## Procedure
 
 Before touching code:
 
 1. Read the caller's Context/Units/Verification/Optional block.
-   - When `references:` names a plan or spec, read it.
-   - When `base:` is given, run `git log <base-sha>..HEAD` for prior tasks' *why*.
+   - When `references:` names a plan or spec, `grep -n` it for this batch's section and read only that slice — never the whole file (see Inputs).
+
+   - When `base:` is given, run `git log -n 20 <base-sha>..HEAD` for prior tasks' *why*.
    - Both are supplementary — proceed without either if omitted, noting it once.
+   - Nothing here depends on anything else here, so issue the grep and the `git log` in one message, not two turns.
 
 2. Checklist file, at `/tmp/tdd-coder_substeps_<run-label>.md`, keyed by the caller's `<run-label>` or one you derive per Inputs above.
    - On a fresh dispatch, author the checklist inline yourself.
