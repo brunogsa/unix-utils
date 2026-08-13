@@ -34,7 +34,7 @@ It ends up holding: `cost.json`, `timeline.json`, one `shard-s1-time.json` .. `s
 
 ## Never write into usage-history/snapshots/
 
-A live or mid-session read is inherently partial, so neither this procedure, `claude-usage-report.py --session` mode, nor `session-timeline.py` may ever write under `usage-history/snapshots/` — that series depends on days being immutable and closed.
+A live or mid-session read is inherently partial, so neither this procedure, `claude-usage-report.py --session` mode, nor `extract-session-timeline.py` may ever write under `usage-history/snapshots/` — that series depends on days being immutable and closed.
 
 ## The digest schema every shard writes
 
