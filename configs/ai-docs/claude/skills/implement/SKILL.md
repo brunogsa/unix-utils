@@ -343,6 +343,10 @@ The prompt pushes only the per-task data below.
 
   - Give a later chunk's **Context** a one-line summary of what the earlier chunks landed, plus `base:`, so it can `git log` the *why* instead of rediscovering it.
 
+  - A test and the change it covers are **one unit, never two**.
+
+    - `tdd-coder` commits one commit per unit, so splitting a test from its change lands a commit whose test fails standing alone, which commit-standards forbids.
+
 - **Verification**: the task's **task-scoped verification commands only**, when the plan names any.
   - Strip any repo-wide/full-suite command (e.g. a full `test:agentic` run, a repo-wide `yarn lint`) before pushing. A subagent verifies only its own change, never the whole repo.
 
