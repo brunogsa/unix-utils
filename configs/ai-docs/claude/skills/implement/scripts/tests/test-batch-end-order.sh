@@ -17,6 +17,13 @@
 # that could legally stop with its gates unrun, having
 # already opened a PR.
 #
+# It also pins that both full-suite runs - the pre-flight
+# baseline and the batch-end gate - are dispatched to the
+# repo-green-runner agent, each naming its mode.
+#
+# Running them inline is what let those two sessions stall
+# with no verdict and no separable cost.
+#
 # Assertions anchor on prose markers and compare their line
 # offsets, never on hardcoded line numbers, so ordinary
 # edits above a marker do not fail the suite.
@@ -31,6 +38,7 @@ set -uo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKILL_FILE="$script_dir/../SKILL.md"
 REVIEW_FILE="$script_dir/../references/batch-end-review.md"
+BASELINE_FILE="$script_dir/../references/full-suite-baseline.md"
 
 # SKILL.md's four stage-summary bullets. Loose enough to
 # match the old order too, so a run against the pre-reorder
@@ -46,6 +54,20 @@ REVIEW_PUSH_MARKER='\*\*Push the branch — always'
 REVIEW_QUALITY_MARKER='^## The quality-gate tail'
 REVIEW_GREEN_MARKER='^## Repo-green GATE'
 REVIEW_PRESENTED_MARKER='phase: "presented"'
+REVIEW_PACKAGE_MARKER='^## The review package'
+
+# Both suite runs are dispatched to the repo-green-runner
+# agent rather than run inline.
+#
+# Two audited sessions stalled on an inline gate that never
+# emitted a verdict, so the dispatch is what makes a verdict
+# mandatory and gives the run its own usage-report line.
+#
+# The mode markers are matched without their surrounding
+# markdown backticks, so the prose can format them freely.
+RUNNER_AGENT_MARKER='subAgent=repo-green-runner'
+BASELINE_MODE_MARKER='mode: baseline'
+GATE_MODE_MARKER='mode: gate'
 
 pass_count=0
 fail_count=0
@@ -141,6 +163,33 @@ check_presented_after_gates() {
   return 0
 }
 
+# check_dispatches <file> <mode-regex> - returns 0 only when
+# the file both names the repo-green-runner agent and states
+# the mode it dispatches that agent in.
+#
+# Naming the agent without its mode is the failure worth
+# catching: the runner behaves differently per mode, and it
+# infers nothing the caller left unsaid.
+check_dispatches() {
+  local file="$1" mode_pattern="$2"
+  local agent_line mode_line
+  if [ ! -f "$file" ]; then
+    printf 'missing: %s\n' "$file"
+    return 1
+  fi
+  agent_line=$(line_of "$file" "$RUNNER_AGENT_MARKER")
+  mode_line=$(line_of "$file" "$mode_pattern")
+  if [ -z "$agent_line" ]; then
+    printf 'no repo-green-runner dispatch in %s\n' "$file"
+    return 1
+  fi
+  if [ -z "$mode_line" ]; then
+    printf 'dispatch in %s never names %s\n' "$file" "$mode_pattern"
+    return 1
+  fi
+  return 0
+}
+
 # run_check <check-fn> <args...> - "passed" or "failed", so
 # a negative control asserts on the verdict rather than on
 # the reason text.
@@ -227,8 +276,57 @@ it_should_fail_when_the_run_never_marks_itself_presented() {
   rm -f "$tmp_file"
 }
 
+it_should_assert_the_pre_flight_baseline_is_dispatched_to_the_repo_green_runner() {
+  assert_eq "should assert the baseline step dispatches the repo-green-runner in baseline mode" \
+    "passed" "$(run_check check_dispatches "$BASELINE_FILE" "$BASELINE_MODE_MARKER")"
+}
+
+it_should_assert_the_repo_green_gate_is_dispatched_to_the_repo_green_runner() {
+  assert_eq "should assert the repo-green gate dispatches the repo-green-runner in gate mode" \
+    "passed" "$(run_check check_dispatches "$REVIEW_FILE" "$GATE_MODE_MARKER")"
+}
+
+it_should_assert_the_gate_dispatch_sits_inside_the_repo_green_gate_section() {
+  assert_eq "should assert the gate dispatch is written below the repo-green gate heading" \
+    "passed" "$(run_check check_precedes "$REVIEW_FILE" "$REVIEW_GREEN_MARKER" "$RUNNER_AGENT_MARKER")"
+  assert_eq "should assert the gate dispatch is written above the review-package section" \
+    "passed" "$(run_check check_precedes "$REVIEW_FILE" "$RUNNER_AGENT_MARKER" "$REVIEW_PACKAGE_MARKER")"
+}
+
+it_should_fail_when_a_suite_run_names_no_repo_green_runner_dispatch() {
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  # Dropping the dispatch is the pre-agent shape: the suite
+  # runs inline in the main session, where nothing forces a
+  # verdict and the cost hides inside the session's own.
+  grep -v -E "$RUNNER_AGENT_MARKER" "$REVIEW_FILE" > "$tmp_file"
+  assert_eq "should fail when the repo-green gate names no repo-green-runner dispatch" \
+    "failed" "$(run_check check_dispatches "$tmp_file" "$GATE_MODE_MARKER")"
+  rm -f "$tmp_file"
+}
+
+it_should_fail_when_a_dispatch_names_no_mode() {
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  # The runner reads its mode from the caller and infers
+  # nothing, so a dispatch missing it would run the wrong
+  # half of the agent - baseline fixing nothing where a gate
+  # was wanted, or a gate fixing where a baseline was.
+  grep -v -E "$GATE_MODE_MARKER" "$REVIEW_FILE" > "$tmp_file"
+  assert_eq "should fail when the repo-green gate dispatch never names gate mode" \
+    "failed" "$(run_check check_dispatches "$tmp_file" "$GATE_MODE_MARKER")"
+  rm -f "$tmp_file"
+}
+
 it_should_assert_the_push_stage_is_declared_before_the_quality_gate_tail_stage
 it_should_assert_the_push_stage_is_declared_before_the_repo_green_gate_stage
+it_should_assert_the_pre_flight_baseline_is_dispatched_to_the_repo_green_runner
+it_should_assert_the_repo_green_gate_is_dispatched_to_the_repo_green_runner
+it_should_assert_the_gate_dispatch_sits_inside_the_repo_green_gate_section
+it_should_fail_when_a_suite_run_names_no_repo_green_runner_dispatch
+it_should_fail_when_a_dispatch_names_no_mode
 it_should_assert_the_run_is_marked_presented_only_after_both_gates_have_run
 it_should_fail_when_a_batch_end_file_is_missing
 it_should_fail_when_the_push_step_is_moved_back_behind_a_gate

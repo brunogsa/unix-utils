@@ -2,9 +2,7 @@
 # performance-check budget override, not batch-end content.
 # This file merges what used to be two references, plus SKILL.md's own §8 condensed
 # bullets, because every section fires on the same run — a split would only re-fragment
-# one sequence across files always read together. SKILL.md's §8 holds the entry condition,
-# the stage order, and a pointer here; every dispatch contract, failure rule, and package
-# requirement lives only in this file. Doubled from the 1024w bundled default.
+# one sequence across files always read together. Doubled from the 1024w bundled default.
 words-budget: 2048
 ---
 # Batch-end — push, PR, quality gate, repo-green & package
@@ -12,8 +10,6 @@ words-budget: 2048
 Detail for /implement's batch-end steps. Load when the batch reaches its end.
 
 SKILL.md's `§8.1 → §8.2 → §8.3 → §8.4` is the running order and the only place it is written down; this file expands each step without restating it.
-
-The branch record ([`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md)) and the opt-in PR ([`batch-end-pr.md`](batch-end-pr.md)) are both reached from **§8.1** below, right after its push — skip whichever the run doesn't match.
 
 ## Push, branch record & the draft PR (§8.1)
 
@@ -27,13 +23,11 @@ Delivered work reaches the remote before anything that can stall gets a turn —
    - **Any push failure is a [`failure-and-halt.md`](failure-and-halt.md) §5.5 halt** — no remote, a rejected non-fast-forward, missing credentials.
      - Name the failure, keep the state file, print nothing further. A notification pointing at a branch that never reached the remote is worse than a halt.
 
-2. **Record the branch, then open the draft PR** — mechanics in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) (branch record) and [`batch-end-pr.md`](batch-end-pr.md) (opt-in PR).
+2. **Record the branch, then open the draft PR** — mechanics in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) and [`batch-end-pr.md`](batch-end-pr.md).
    The `Branch:` clause and the PR-level `[Done]` marker land on a PR-label run; the `pr-creator` dispatch runs only on `pr.wanted: true`.
    - Step 1 already pushed, so that dispatch creates the PR and must never push or force-push.
    - **Any failure there is a §5.5 halt too**, per that file's own closing rule.
    - Not requesting a PR (`pr.wanted: false`) is not a failure — proceed to §8.2 with no PR outcome to report.
-
-The PR opens as a **draft**, so a body describing the pre-gate diff is no defect: §8.4 refreshes that description once the gates land.
 
 `phase` stays `gates` throughout this section: `hooks/claude-implement-stop-hook.sh` blocks on `gates`, so publishing this early never lets the run end early.
 
@@ -46,8 +40,6 @@ No retroactive re-run; invoke `/quality-gate` manually later.
 This runs before §8.3's repo-green gate so that gate gets the last word — it measures a tree already carrying the `test-sdd` leg's written tests.
 
 The `refactor` and `auto-review` legs are always report-only: their findings land as verdict files for the human to apply manually afterward, via `/address-verdicts`.
-
-The two toggles are independent — when §8.3 is off, nothing re-runs the suite after this tail, and the package says so plainly.
 
 **Invoke the skill in this session** — `/quality-gate [<spec>] <plan> --tasks <this unit's task-ids> --base-ref <BATCH_BASE_SHA> --report-only`.
 
@@ -62,11 +54,11 @@ Two reasons it runs here rather than inside a subagent:
 - Its `test-sdd` leg writes the plan's missing tests into the tree, and the permission prompt authorizing those writes only renders in the main session.
 - Its three review legs are already fresh-context subagents, so wrapping it would spend one of the harness's three nesting levels on a layer that decides nothing.
 
-**`--report-only` is always passed** — the tail never applies a finding itself; the human applies verdicts manually afterward, via `/address-verdicts`.
+**`--report-only` is always passed, never omitted.** It skips `/quality-gate`'s own opening interview.
 
-**Never omit it.** Passing `--report-only` skips `/quality-gate`'s own opening interview; omit it, and `/quality-gate` asks the human a question this run already answered, stalling the batch on a prompt nobody is watching.
+Omit it, and `/quality-gate` asks the human a question this run already answered, stalling the batch on a prompt nobody is watching.
 
-All three legs run regardless: the tail never skips `refactor` or `auto-review`, it simply never applies what they find.
+All three legs run regardless — the tail never skips one, it only never applies what they find.
 
 `--tasks` scopes only the planned-test leg, to the task-ids of **this** unit. On a PR-label run that keeps PR-2's tail from reporting PR-3's unwritten tests as misses.
 
@@ -84,41 +76,39 @@ With the tail behind it, set `phase: "tails"` — `hooks/claude-implement-stop-h
 
 The TaskList already carries this step as a `Batch-end` reminder seeded in §2.2 (only when `quality_gate.wanted`) — flip that one entry. `/quality-gate` seeds its own per-finding entries underneath; don't duplicate them here.
 
-## Repo-green GATE, fixed in a loop (§8.3)
+## Repo-green GATE, run by the repo-green-runner agent (§8.3)
 
 **Entry: only when §1.2's repo-green-gate question was answered yes (`repo_green_gate.wanted: true`).**
 On no, skip this entire section — go straight to Finalize (§8.4).
 Have the package (§8.4) state the gate was skipped by request, with no repo-green result to show.
 
-Run the repo's **full lint + full test suite** — never scoped to the batch's own files, since a batch can break a workspace it never edited.
+Dispatch ONE fresh-context `agent(subAgent=repo-green-runner, title=Repo-green gate)`, handing it `mode: gate`, the repo's full lint + full test commands repo-wide, and the state file's `baseline.failures` + `baseline.log_path`.
 
-**Decide "pre-existing" from the baseline when one exists, judgment otherwise:**
+Same contract as §4 — background, its 1-hour `Monitor` cap, its `TaskStop`-on-expiry timeout path — with model omitted so the agent file's own pin applies.
 
-- **`baseline.wanted: true` (§1.6 ran)** — a failure whose signature also appears in `baseline.failures` is pre-existing by evidence: record it as a `[Scout]`, citing the baseline log path.
-  - A failure NOT in `baseline.failures` is batch-caused and must be fixed.
+That dispatch increments `gate_dispatches`, never `attempts[]` — those entries are task-keyed, and a repo-green failure has no task id.
 
-- **`baseline.wanted: false`** — no baseline was captured; fall back to judgment.
-  - Reason about whether the batch's diff could plausibly have caused the failure (unrelated module, a test the batch's files never touch) and record it as `[Scout]` on that basis.
+`~/.claude/agents/repo-green-runner.md` owns everything inside the gate — classifying red, the per-failure fix loop and its 3-cycle budget, and the rule that pre-existing red is reported and never fixed.
 
-**Red repo → fix it in a loop, through subagents — the orchestrator never hand-fixes, and never scopes the gate down to make it pass:**
+Never hand-fix a failure the runner handed back.
 
-- Dispatch `agent(subAgent=tdd-coder, title=Fix repo-green failure: <short failure name>)` per batch-caused failure.
-- Same contract as §4: the same 1-hour Monitor cap and the same timeout path.
-- Each dispatch increments `gate_dispatches`, never `attempts[]` — those entries are task-keyed, and a repo-green failure has no task id.
-- Re-run the **full** suite and lint after each fix, and read the fresh result — a fix nobody re-ran is a claim, not a green repo.
+**A gate run needs §1.6's baseline.** With `baseline.wanted: false` both keys are empty, so the runner returns `HALT` on its own missing-input rule rather than guess which red is pre-existing.
 
-- Repeat until every failure the batch is responsible for is gone.
+Answer §1.2's baseline question yes whenever this gate is on.
 
-A failure classified `[Scout]` above is never fixed here: report it in the package, leave it unfixed, and let the gate pass on it.
-Fixing pre-existing red would blur this batch's diff with unrelated work, which is what the Scout channel (§4.3) exists to prevent.
+**What this section does with the verdict it gets back:**
 
-After each fix-and-rerun, call `implement-loop-state.py --budget <state-file>`. `exhausted: true` with a batch-caused failure still red → [`failure-and-halt.md`](failure-and-halt.md)'s §5.5, halt — the human clears it, not this run.
+- `GREEN` — proceed to Finalize (§8.4).
+- `GREEN-WITH-EXCEPTIONS` — proceed to §8.4, carrying the runner's Scout list into the package as `[Scout]` notes, so nothing it declined to fix disappears.
+- `HALT` — [`failure-and-halt.md`](failure-and-halt.md)'s §5.5, halt, with the runner's surviving red set named. The human clears it, not this run.
 
-Record the final full-suite result (pass/fail + counts) into the package, so the human sees the gate ran over everything.
+Then call `implement-loop-state.py --budget <state-file>`: `exhausted: true` on any verdict but `GREEN`/`GREEN-WITH-EXCEPTIONS` is a §5.5 halt too.
+
+That budget is the outer bound over the whole run; the runner's own 3-cycle-per-signature budget is an inner one and never replaces it.
 
 ## The review package (§8.4)
 
-The package is the single async pass the human reviews — the replacement for the per-task handshake. Finalize prints it (below). It contains:
+The package is the single async pass the human reviews — the replacement for the per-task handshake. It contains:
 
 A unit only reaches this package with every task `[Done]` — anything that couldn't finish halted at §5.5 instead, so there is exactly one package shape, never a partial one:
 
@@ -138,8 +128,8 @@ A unit only reaches this package with every task `[Done]` — anything that coul
 
 - **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §8.2, §8.3) — reported, never fixed by this run.
 - **The literal diff range** — print `git diff BATCH_BASE_SHA..HEAD` with the SHA substituted, so the human can reproduce the range.
-- **"Unexpected extras"** — the commits §8.3's fix-loop produced to reach green, each with its commit and the failure it fixed.
-- **Repo-green result** — the final full-suite pass/fail + counts from §8.3, plus any `[Scout]` failures left unfixed because the batch didn't cause them.
+- **"Unexpected extras"** — §8.3's runner's Fixed list: each commit it produced to reach green, with the failure that commit closed.
+- **Repo-green result** — §8.3's verdict, the runner's log path and final pass/fail + counts, and its Scout list of failures left unfixed because the batch didn't cause them.
   - When §8.3 was skipped by request, this bullet instead states plainly that no repo-green pass ran this batch.
 
 - **Worktree merge-back reminder** — only when a worktree exists (read its path + branch from the state file); omit when the interview declined it.
@@ -169,8 +159,6 @@ PR-2 — branch `feat/parser/pr2` — 4 commits to review — https://github.com
 
 ## Finalize — the step order inside §8.4
 
-By the time Finalize starts, both opt-in gates are behind it — whichever ran, ran, and the tree is final.
-
 1. **Re-push and refresh the PR description — only when §8.2 or §8.3 landed commits.**
    Decide from the tree, not from memory: `git rev-list --count <the SHA HEAD was at when §8.1 pushed>..HEAD` above zero is the trigger.
    - **Nothing landed → skip both halves outright.** Never re-push an unmoved branch, and never rewrite a description whose diff is unchanged.
@@ -183,7 +171,6 @@ By the time Finalize starts, both opt-in gates are behind it — whichever ran, 
      - The gate commits belong under its **"Unexpected extras"** section.
 
 2. **Assemble the package** (contents under "The review package") and **print it** to chat, closing with the review notification.
-   The single async review pass, reached only once every gate has run and the remote matches the tree.
 
 3. **Finalize the phase.**
    Reaching this point means every task is `[Done]`, both opt-in gates ran or were declined, the branch is pushed, and the PR (if wanted) is open and described against the final diff.
