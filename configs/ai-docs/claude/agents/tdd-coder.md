@@ -5,6 +5,7 @@ model: sonnet
 allowedModelOverrides: opus
 effort: high
 maxTurns: 256
+tools: Bash, Read, Edit, Write, Grep, Glob, Skill, Agent, WebSearch, WebFetch
 disallowedTools: Workflow
 allowedSubagents: Explore
 skills:
@@ -74,6 +75,14 @@ Every other standard is lazy. Load it via the Skill tool when its trigger fires,
 Preloading all five spent ~18.5k tokens in 100% of past dispatches, and 52% of those then paid a ~176s auto-compaction stall.
 
 At-trigger loading carries exactly the same guidance, and skips whatever a given batch never touches.
+
+The `tools:` frontmatter is an allowlist, not a default: every tool measured in use across 205 past dispatches, plus `WebSearch`/`WebFetch` for a wall the repo's own files can't clear.
+
+Tool schemas are re-sent on every turn, so an unused one is a per-turn tax, not a one-time cost.
+
+A same-repo agent holding only `Read, Edit, Bash` opened at an 18.3k-token context, against 33.5-36.1k for peers granted every tool.
+
+Reach for a `Bash` equivalent or `Explore` before adding a name back to that list.
 
 `allowedSubagents: Explore` lets you dispatch exactly one subagent type, `Explore`, for read-only fan-out or broad "where is X handled?" searches that would otherwise flood your own context.
 
