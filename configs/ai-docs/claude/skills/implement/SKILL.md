@@ -171,24 +171,32 @@ The TaskList carries **status only** — attempt counts, gate outcomes, and fix 
 
 CLAUDE.md's `metadata` rule yields here: the verdict script and Stop hook are shell processes blind to it.
 
-### 2.2. One reminder per batch-end step (they survive compaction)
+### 2.2. One reminder per batch-end step this run will perform (they survive compaction)
 
-After a batch's task entries, seed each batch-end step as a **separate** `[Reminder]` entry per CLAUDE.md's category.
+After a batch's task entries, seed a **separate** `[Reminder]` entry per CLAUDE.md's category for each batch-end step this run will actually perform.
 
 Never one shared chain, since one `completed` flag per task would hide step-level skips and failures.
 
-Seed exactly these four, in this order, prefixed with the owning `PR-N ·` on a PR-label run:
+**A step the interview toggled off gets no entry at all** — not seeded, not seeded-then-skipped. Four steps exist; the first two are conditional, the last two always run:
 
 ```
-[Reminder] Batch-end 1/4: quality-gate tail, --auto-solve per its own toggle (§8.1, only when opted in)
-[Reminder] Batch-end 2/4: repo-green gate — full suite + full lint, fix-loop until green (§8.2, only when opted in)
-[Reminder] Batch-end 3/4: push the branch; record it in the PR entry; open the PR via the pr-creator agent when pr.wanted (§8.3)
-[Reminder] Batch-end 4/4: package print, closing review notification (§8.3, success path only)
+quality-gate tail, --auto-solve per its own toggle (§8.1) — seed only when quality_gate.wanted
+repo-green gate — full suite + full lint, fix-loop until green (§8.2) — seed only when repo_green_gate.wanted
+push the branch; record it in the PR entry; open the PR via the pr-creator agent when pr.wanted (§8.3) — always seed
+package print, closing review notification (§8.3, success path only) — always seed
 ```
 
-Flip each to `in_progress` when its step starts and `completed` when it lands; a step the interview turned off (quality-gate tail, repo-green gate, PR) completes with a one-line skipped-by-request note.
+Number the entries actually seeded as `Batch-end <i>/<N>` in the fixed order above.
 
-The push inside 3/4 has no toggle, so that reminder never completes as skipped.
+`N` is however many of the four apply this run (2, 3, or 4); `i` is that step's position among the seeded ones.
+
+A run with both gates off seeds exactly two: `Batch-end 1/2` (push) and `Batch-end 2/2` (package).
+
+Prefix each with the owning `PR-N ·` on a PR-label run.
+
+Flip each to `in_progress` when its step starts and `completed` when it lands. The push step has no toggle, so that reminder never completes as skipped.
+
+A toggled-off step's skip is recorded only in the batch-end package (§8.3), never as a TaskList entry.
 
 Keep the subjects free of run-specific values like `BATCH_BASE_SHA` — a subject needing them could not be seeded upfront.
 

@@ -61,7 +61,7 @@ What this skill does with the result:
 
 With the tail behind it, set `phase: "tails"` — `hooks/claude-implement-stop-hook.sh` keeps blocking while the phase reads `tails`, so the run cannot end before Finalize.
 
-The TaskList already carries this step as the `Batch-end 1/4` reminder seeded in §2.2 — flip that one entry. `/quality-gate` seeds its own per-finding entries underneath; don't duplicate them here.
+The TaskList already carries this step as a `Batch-end` reminder seeded in §2.2 (only when `quality_gate.wanted`) — flip that one entry. `/quality-gate` seeds its own per-finding entries underneath; don't duplicate them here.
 
 ## Repo-green GATE, fixed in a loop (§8.2)
 
