@@ -67,6 +67,28 @@ def _turn_duration_record(end_epoch, duration_ms):
     }
 
 
+def _away_summary_record(epoch):
+    """A system record Claude Code writes while the human is away — carries a
+    timestamp, so it extends the transcript's last_epoch, but is not the
+    assistant producing anything."""
+    return {
+        "type": "system",
+        "subtype": "away_summary",
+        "timestamp": _iso(epoch),
+        "content": "waiting on the operator",
+    }
+
+
+def _assistant_text_record(epoch, text="here is what I found"):
+    """A plain assistant reply carrying no tool_use — the assistant producing
+    output, which is what ends a turn's engaged span."""
+    return {
+        "type": "assistant",
+        "timestamp": _iso(epoch),
+        "message": {"role": "assistant", "content": [{"type": "text", "text": text}]},
+    }
+
+
 def _tool_use_record(epoch, tool_id, name, command=None):
     """One assistant tool_use block, e.g. a Bash call or a Task/Agent spawn."""
     tool_input = {"command": command} if command is not None else {}
@@ -367,17 +389,121 @@ class TestSessionTimeline(unittest.TestCase):
 
     def test_falls_back_to_a_computed_span_and_says_which_measure_produced_it_when_turn_duration_records_are_sparse_or_absent(self):
         """No turn_duration record exists at all — the turn's span must fall
-        back to its own human-message window, and the payload must say so."""
+        back to the stretch the assistant was actually producing output over
+        (0 to its last event at 2), and the payload must say which measure
+        produced it. The next human message lands at 5, so a span that ran to
+        the next message instead would read 5.0 here."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-nofallback", [
                 _human_record(0),
-                _human_record(2),
+                _assistant_text_record(2),
+                _human_record(5),
             ])
             payload = self._build(tmp, sid)
 
         first_turn = payload["turns"][0]
         self.assertEqual(first_turn["measure"], "computed")
         self.assertEqual(first_turn["duration_seconds"], 2.0)
+
+    def test_stops_a_computed_turns_span_at_the_assistants_last_event_so_an_overnight_human_absence_is_never_charged_to_main_api(self):
+        """The human writes at 0, the assistant answers and finishes at 40,
+        then the human is away until 40000. Charging that absence to main-API
+        time is what made a real 42-hour session report 97% main-API — the
+        turn's engaged span must end at 40, leaving the 11-hour gap in
+        human_idle."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-overnight-gap", [
+                _human_record(0),
+                _tool_use_record(10, "tu_bash", "Bash", command="pytest ."),
+                _tool_result_record(30, "tu_bash"),
+                _assistant_text_record(40),
+                _human_record(40000),
+                _tool_use_record(40010, "tu_bash2", "Bash", command="git status"),
+                _tool_result_record(40030, "tu_bash2"),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        self.assertEqual(payload["turns"][0]["duration_seconds"], 40.0,
+                          msg="the turn ends at the assistant's last event (40), "
+                              "not at the next human message (40000)")
+        self.assertEqual(buckets["main_api"]["seconds"], 30.0,
+                          msg="turn 0's 0-40 span and turn 1's 40000-40030 span, "
+                              "each minus the 20s Bash call carved out of it")
+        self.assertEqual(buckets["human_idle"]["seconds"], 39960.0,
+                          msg="the 40-to-40000 absence belongs to human_idle")
+        self._assert_partition_reconciles(payload)
+
+    def test_collapses_a_computed_turns_span_to_zero_when_the_human_message_drew_no_assistant_activity_at_all(self):
+        """The human writes at 0 and gets no answer before writing again an
+        hour later — there is no engaged time to attribute, so the turn's span
+        must collapse rather than swallow the whole hour."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-unanswered-turn", [
+                _human_record(0),
+                _human_record(3600),
+                _assistant_text_record(3610),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        self.assertEqual(payload["turns"][0]["duration_seconds"], 0.0,
+                          msg="no assistant event followed the message at 0")
+        self.assertEqual(buckets["main_api"]["seconds"], 10.0,
+                          msg="only the answered second turn's 3600-3610 span "
+                              "is main-API time")
+        self.assertEqual(buckets["human_idle"]["seconds"], 3600.0)
+        self._assert_partition_reconciles(payload)
+
+    def test_stops_the_final_computed_turns_span_at_its_last_activity_rather_than_at_the_transcripts_last_record(self):
+        """The final turn takes its window end from the transcript's last
+        record instead of a next human message, and that last record can be an
+        away-summary written two hours after the assistant stopped — the same
+        activity-based end must apply there, not a silent pass-through of the
+        old behavior."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-final-turn", [
+                _human_record(0),
+                _assistant_text_record(20),
+                _away_summary_record(7200),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        self.assertEqual(payload["turns"][0]["duration_seconds"], 20.0,
+                          msg="the final turn ends at the assistant's last event "
+                              "(20), not at the away-summary record (7200)")
+        self.assertEqual(payload["time_partition"]["wall_clock_seconds"], 7200.0,
+                          msg="wall clock still spans every timestamped record")
+        self.assertEqual(buckets["main_api"]["seconds"], 20.0)
+        self.assertEqual(buckets["human_idle"]["seconds"], 7180.0)
+        self._assert_partition_reconciles(payload)
+
+    def test_keeps_a_turn_duration_measured_span_at_its_recorded_duration_even_when_no_assistant_event_falls_inside_it(self):
+        """A recorded turn_duration is authoritative: its span stays
+        end-minus-duration wide whatever the transcript's own records show, so
+        narrowing computed spans to observed activity must not leak into this
+        branch and shrink a measured 100s turn that has no assistant record of
+        its own."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-measured-then-away", [
+                _human_record(0),
+                _turn_duration_record(100, duration_ms=100_000),
+                _human_record(40000),
+                _assistant_text_record(40010),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        first_turn = payload["turns"][0]
+        self.assertEqual(first_turn["measure"], "turn_duration")
+        self.assertEqual(first_turn["duration_seconds"], 100.0,
+                          msg="the recorded duration stands on its own, with no "
+                              "assistant record inside the 0-100 span")
+        self.assertEqual(buckets["main_api"]["seconds"], 110.0,
+                          msg="the measured 100s turn plus the computed "
+                              "40000-40010 turn")
+        self._assert_partition_reconciles(payload)
 
     def test_emits_a_too_early_to_rank_note_instead_of_a_ranked_timeline_when_the_session_has_only_one_turn(self):
         """A single-turn session has nothing to rank against — the payload
