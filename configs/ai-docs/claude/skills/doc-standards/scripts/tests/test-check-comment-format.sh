@@ -537,6 +537,73 @@ assert_eq "should exit 1 when only one of two files has an in-scope violation" \
   "1" "$multi_exit"
 
 # ========================================================
+# --changed-only: path resolution must not depend on how many
+# segments the caller's path argument has.
+#
+# get-changed-lines.sh runs with its cwd pinned to the target
+# file's own directory, so a caller's relative path must be
+# reduced to a basename before being handed to it.
+#
+# Otherwise a multi-segment or ".."-bearing path resolves
+# against the wrong directory once cwd has already moved
+# there.
+
+repo=$(new_git_repo pathscope)
+mkdir -p "$repo/sub"
+cat >"$repo/sub/target.py" <<'EOF'
+#!/usr/bin/env python3
+VALUE = 1
+EOF
+commit_all "$repo"
+cat >"$repo/sub/target.py" <<'EOF'
+#!/usr/bin/env python3
+VALUE = 1
+# The aggregator collapses the many records one response emits into a single billed unit.
+EOF
+
+# --- baseline: an absolute path detects the in-scope WIDTH
+# violation ---
+
+node "$SCRIPT" --changed-only "$repo/sub/target.py" >"$work_dir/abs.out" 2>&1
+abs_exit=$?
+abs_violations=$(grep -v '^==' "$work_dir/abs.out")
+assert_contains "should detect the in-scope WIDTH violation via an absolute path" \
+  "$abs_violations" "WIDTH 3:"
+
+# --- multi-segment relative path must reach the same verdict
+# as the absolute path ---
+
+(cd "$work_dir" && node "$SCRIPT" --changed-only "pathscope/sub/target.py") \
+  >"$work_dir/multiseg.out" 2>&1
+multiseg_exit=$?
+assert_eq "should exit the same for a multi-segment relative path as for an absolute path" \
+  "$abs_exit" "$multiseg_exit"
+assert_eq "should detect the same in-scope violation via a multi-segment relative path as via an absolute path" \
+  "$abs_violations" "$(grep -v '^==' "$work_dir/multiseg.out")"
+
+# --- single-segment relative path already worked pre-fix; kept
+# as a regression guard ---
+
+(cd "$repo/sub" && node "$SCRIPT" --changed-only "target.py") \
+  >"$work_dir/singleseg.out" 2>&1
+singleseg_exit=$?
+assert_eq "should exit the same for a single-segment relative path as for an absolute path" \
+  "$abs_exit" "$singleseg_exit"
+assert_eq "should detect the same in-scope violation via a single-segment relative path as via an absolute path" \
+  "$abs_violations" "$(grep -v '^==' "$work_dir/singleseg.out")"
+
+# --- a path containing a ".." segment must also reach the same
+# verdict ---
+
+(cd "$work_dir" && node "$SCRIPT" --changed-only "pathscope/sub/../sub/target.py") \
+  >"$work_dir/dotdot.out" 2>&1
+dotdot_exit=$?
+assert_eq "should exit the same for a path containing a .. segment as for an absolute path" \
+  "$abs_exit" "$dotdot_exit"
+assert_eq "should detect the same in-scope violation via a path containing a .. segment as via an absolute path" \
+  "$abs_violations" "$(grep -v '^==' "$work_dir/dotdot.out")"
+
+# ========================================================
 # --content-loss: the comment words an edit dropped vs HEAD.
 #
 # The format rules measure line lengths, so a comment gutted of

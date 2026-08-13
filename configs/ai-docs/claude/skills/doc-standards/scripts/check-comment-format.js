@@ -283,10 +283,18 @@ function parseArgs(argv) {
 // from the file argument, so cwd is pinned to the file's own
 // directory -- otherwise it would resolve against whatever repo
 // this process happened to be launched from.
+//
+// The caller's own file argument is not what gets passed on
+// though: cwd has already moved to that argument's directory,
+// so a multi-segment or ".."-bearing relative path would then
+// resolve a second time from there.
+//
+// path.basename(file) is passed instead, mirroring
+// getHeadVersion()'s same fix below.
 function getChangedLineSet(file) {
   let stdout;
   try {
-    stdout = execFileSync(CHANGED_LINES_SCRIPT, [file], {
+    stdout = execFileSync(CHANGED_LINES_SCRIPT, [path.basename(file)], {
       encoding: 'utf8',
       cwd: path.dirname(path.resolve(file)),
     });
