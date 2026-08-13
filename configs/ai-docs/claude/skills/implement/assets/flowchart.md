@@ -31,9 +31,8 @@ def implement(arg):
 
     # 4 · §1.2 — ONE up-front interview, the only round until the review package:
     #     plan pick · plan path, if none found (§1.1) · worktree · draft PR
-    #     · quality-gate tail (default yes) · auto-solve its findings (default
-    #     yes, read only when the tail is on) · full-suite green baseline
-    #     · repo-green gate (default yes) · confirm the base branch
+    #     · quality-gate tail (default yes, always --report-only) · full-suite
+    #     green baseline · repo-green gate (default yes) · confirm base branch
     #     · PLUS 'Deliver each task as its own stacked PR?' — default NO.
     answers = ask_everything_at_once()                      # 4
 
@@ -109,7 +108,7 @@ def implement(arg):
             # TaskList carries status ONLY — attempts, gates and SHAs live in the JSON.
         for step in BATCH_END_STEPS:      # FOUR separate entries:
             task_create(f"[Reminder] {step}")
-            # 16a · 1/4 quality-gate tail, --auto-solve per its own toggle (opt-in)
+            # 16a · 1/4 quality-gate tail, always report-only (opt-in)
             # 16b · 2/4 repo-green gate, fix-loop until green (opt-in)
             # 16c · 3/4 push the branch(es); record it in the PR entry; PR when wanted
             # 16d · 4/4 package print, closing review notification
@@ -203,10 +202,11 @@ def run_unit(unit):
         #     §1.1 resolved one — the skill matches paths by spec_/plan_ prefix.
         run_skill("/quality-gate", spec_if_resolved, plan,
                   tasks=unit.task_ids, base_ref=state.batch_base_sha,
-                  # EXACTLY ONE of auto_solve/report_only always goes along —
-                  # omitting both drops into /quality-gate's own interview,
-                  # stalling on a prompt nobody is watching.
-                  auto_solve=answers.quality_gate_auto_solve)
+                  # ALWAYS report_only — omitting it drops into
+                  # /quality-gate's own interview, stalling on a
+                  # prompt nobody is watching. The human applies
+                  # verdicts manually afterward via /address-verdicts.
+                  report_only=True)
         # 32a · inside it: refactor ∥ auto-review ∥ test-sdd legs → three
         #       verdict_*.md, then per-finding apply → commit → mark [Done].
         # 32b · hook: deep-reviewer-write-guard (only verdict_*.md writes approved).
@@ -443,7 +443,7 @@ flowchart TD
 
   subgraph seedRemind["16. Step 2.2 · After each PR's task entries, seed that batch's 4 batch-end [Reminder]s — separate entries, never one chain:<br/>a combined entry has one completed flag, so a step-level skip would have nowhere to land."]
     direction TB
-    n16a["16a. Add to TaskList a [Reminder] for<br/>Batch-end 1/4: quality-gate tail, --auto-solve<br/>per its own toggle (only when opted in)"]:::state
+    n16a["16a. Add to TaskList a [Reminder] for<br/>Batch-end 1/4: quality-gate tail, always<br/>report-only (only when opted in)"]:::state
     n16b["16b. Add to TaskList a [Reminder] for<br/>Batch-end 2/4: repo-green gate, fix-loop until green<br/>(only when opted in)"]:::state
     n16c["16c. Add to TaskList a [Reminder] for<br/>Batch-end 3/4: push the branch(es); record it in the<br/>PR entry; open the PR via pr-creator when wanted"]:::state
     n16d["16d. Add to TaskList a [Reminder] for<br/>Batch-end 4/4: package print,<br/>closing review notification"]:::state
@@ -485,12 +485,12 @@ flowchart TD
     n29{"29. Step 5.4 · implement-loop-state.py: verdict?<br/>ONLY this script sends a unit to the gates"}:::hook
     n30["30. Load references/batch-end-review.md"]:::skill
     n31{"31. Quality-gate tail requested?"}
-    n32["32. Step 8.1 · Invoke /quality-gate [&lt;spec&gt;] &lt;plan&gt;<br/>--tasks &lt;this unit's ids&gt;, base ref = BATCH_BASE_SHA,<br/>carrying EXACTLY ONE of --auto-solve / --report-only<br/>per §1.2's second toggle (never neither — that drops<br/>/quality-gate into its own interview and stalls the<br/>batch on an unwatched prompt). Spec argument goes in<br/>only when §1.1 resolved one.<br/>IN THIS SESSION, never wrapped in a subagent:<br/>its legs are already fresh-context reviewers, and<br/>its commits need a prompt only main can render"]:::skill
+    n32["32. Step 8.1 · Invoke /quality-gate [&lt;spec&gt;] &lt;plan&gt;<br/>--tasks &lt;this unit's ids&gt;, base ref = BATCH_BASE_SHA,<br/>always carrying --report-only (never omitted — that<br/>drops /quality-gate into its own interview and stalls<br/>the batch on an unwatched prompt). The human applies<br/>verdicts manually afterward via /address-verdicts.<br/>Spec argument goes in only when §1.1 resolved one.<br/>IN THIS SESSION, never wrapped in a subagent:<br/>its legs are already fresh-context reviewers, and<br/>its commits need a prompt only main can render"]:::skill
     n32a["32a. Inside it: refactor ∥ auto-review ∥ test-sdd leg<br/>→ three verdict_*.md, then per-finding<br/>apply → commit → mark [Done]"]:::dispatch
     n32b["32b. Hook: deep-reviewer-write-guard<br/>(only verdict_*.md writes are approved)"]:::hook
     n32c["32c. Record each verdict PATH into the state file<br/>(never its content); every finding it declined<br/>becomes a [Scout]; then phase=tails"]:::state
     n33{"33. Repo-green gate requested?"}
-    n34["34. Step 8.2 · Repo-green GATE: full lint + full test<br/>suite, repo-wide, never scoped to the batch's own<br/>files. Runs AFTER the quality gate, so it measures a<br/>tree already holding whatever this tail applied — true<br/>under EITHER --auto-solve or --report-only, since the<br/>test-sdd leg writes the plan's missing tests on every<br/>run. Why no 'it applied something, so re-run the<br/>suite' rule exists"]:::gate
+    n34["34. Step 8.2 · Repo-green GATE: full lint + full test<br/>suite, repo-wide, never scoped to the batch's own<br/>files. Runs AFTER the quality gate, so it measures a<br/>tree already holding the test-sdd leg's written tests<br/>— the tail's other two legs, refactor and auto-review,<br/>are always report-only and never touch the tree. Why<br/>no 'it applied something, so re-run the suite' rule<br/>exists"]:::gate
     n34a{"34a. Green? (a failure the batch didn't<br/>cause is a [Scout], never a blocker)"}
     n34b{"34b. Fix attempts left?"}
     n34c["34c. Step 8.2 · Dispatch tdd-coder to fix it<br/>(agent-pinned, 1h Monitor cap, attempt<br/>recorded); RE-RUN THE FULL SUITE"]:::dispatch

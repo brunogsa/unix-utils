@@ -95,13 +95,8 @@ Mid-run `.env` needs are self-served (copied from the original checkout) rather 
 
   - Both run in a **follow-up** `AskUserQuestion` call, still before any dispatch; a `no` loads nothing and changes nothing downstream.
 
-- **Run the quality-gate batch-end tail?** (yes/no, default yes) — decides whether §8.1 runs `/quality-gate` at all.
-
-- **Auto-solve the refactor and auto-review findings?** (yes/no, default yes) — picks only the flag §8.1 hands `/quality-gate`, `--auto-solve` or `--report-only`.
-  - On no, both lenses' verdict files land unapplied for you to work later.
-  - Record it even when the tail is off — the interview ships as one batch, and §8.1 then never reads it.
-
-  - It never governs the planned-test leg, which is why the two questions are not one: `/quality-gate` writes the plan's missing tests on every run it makes.
+- **Run the quality-gate batch-end tail?** (yes/no, default yes) — decides whether §8.1 runs `/quality-gate` at all, always `--report-only`.
+  - The human applies its refactor and auto-review verdicts manually afterward, via `/address-verdicts` — never this run.
 
 - **Capture a full-suite green baseline before starting?** (yes/no) — on yes, §1.6 runs the full suite and records pre-existing failures for §8.2 to diff against.
 
@@ -180,7 +175,7 @@ Never one shared chain, since one `completed` flag per task would hide step-leve
 **A step the interview toggled off gets no entry at all** — not seeded, not seeded-then-skipped. Four steps exist; the first two are conditional, the last two always run:
 
 ```
-quality-gate tail, --auto-solve per its own toggle (§8.1) — seed only when quality_gate.wanted
+quality-gate tail, always report-only (§8.1) — seed only when quality_gate.wanted
 repo-green gate — full suite + full lint, fix-loop until green (§8.2) — seed only when repo_green_gate.wanted
 push the branch; record it in the PR entry; open the PR via the pr-creator agent when pr.wanted (§8.3) — always seed
 package print, closing review notification (§8.3, success path only) — always seed
@@ -226,7 +221,7 @@ Each state file has exactly this shape:
   "gate_dispatches": 0,
   "baseline": { "wanted": false, "log_path": "", "failures": [] },
   "repo_green_gate": { "wanted": true },
-  "quality_gate": { "wanted": true, "auto_solve": true, "reports": [] },
+  "quality_gate": { "wanted": true, "reports": [] },
   "worktree": { "created": false, "path": "", "branch": "" },
   "pr": { "wanted": false },
   "stack": { "wanted": false, "order": [], "refused": "" }
@@ -236,9 +231,7 @@ Each state file has exactly this shape:
 - `start_sha` is `git rev-parse HEAD` taken **before any branch or dispatch**, identical in every unit's file — the run's anchor.
 - `batch_base_sha` stays `""` until that unit starts (§3.2) — a dependent PR branches off its parent, so its base doesn't exist yet.
 - One `tasks[]` entry per task-id that unit resolved, each `status: "pending"`, flipped to `"in_progress"` at dispatch.
-  - `branch` / `worktree_path` are set only for a per-task worktree; `worktree`, `pr`, `repo_green_gate.wanted`, and both `quality_gate` flags come from §1.2's answers.
-
-- `quality_gate.auto_solve` is read only when `quality_gate.wanted` is true — §8.1 turns it into the `--auto-solve` flag, and nothing else consults it.
+  - `branch` / `worktree_path` are set only for a per-task worktree; `worktree`, `pr`, `repo_green_gate.wanted`, and `quality_gate.wanted` come from §1.2's answers.
 
 - Populate `depends_on` from the plan's `**Depends on**:` clause that §1.3's `check-tasks-dag.sh` validated, as bare id strings (`["3", "5"]`; `none` → `[]`).
   - `implement-loop-state.py` reads it to pick a DAG-eligible next task; unset, it silently degrades to lowest-id-first, so seed it here, not later.
@@ -521,7 +514,8 @@ Run the batch-end flow over `<BATCH_BASE_SHA>..HEAD`, then present the whole bat
 
 **Stage order: §8.1 → §8.2 → §8.3**, strictly serial, each waiting for the previous to land:
 
-- **§8.1 — the quality-gate tail.** One `/quality-gate` run scoped to this unit's task-ids, carrying `--auto-solve` or `--report-only` per §1.2's second toggle. Skipped entirely when its first toggle said no.
+- **§8.1 — the quality-gate tail.** One `/quality-gate` run scoped to this unit's task-ids, always carrying `--report-only`. Skipped entirely when §1.2's toggle said no.
+  - The human applies its verdicts manually afterward, via `/address-verdicts` — never this run.
 
 - **§8.2 — repo-green gate.** Full lint + full test suite, repo-wide, fixed in a loop until green. Skipped entirely when §1.2's gate toggle said no.
 
@@ -533,7 +527,7 @@ Run the batch-end flow over `<BATCH_BASE_SHA>..HEAD`, then present the whole bat
 
 A per-task check would verify each task at its own commit point and miss later edits to those tests.
 
-That leg **writes** the tests it finds missing on every run of the tail, `--auto-solve` or not.
+That leg **writes** the tests it finds missing on every run of the tail.
 
 Every dispatch contract, package content, the Finalize step order, and the §5.5 halts on a red repo, a failed push, or a failed PR dispatch live in [`references/batch-end-review.md`](references/batch-end-review.md).
 

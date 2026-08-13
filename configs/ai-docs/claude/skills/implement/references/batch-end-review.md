@@ -22,13 +22,13 @@ Skip whichever file doesn't match the run: the branch-record file only fires on 
 On no, skip this entire section — go straight to the repo-green gate (§8.2), and have the package state that the quality gate was skipped by request.
 No retroactive re-run; invoke `/quality-gate` manually later.
 
-This runs before §8.2's repo-green gate so that gate gets the last word — it measures a tree already carrying whatever this tail applied, making an applied fix verified by construction.
+This runs before §8.2's repo-green gate so that gate gets the last word — it measures a tree already carrying the `test-sdd` leg's written tests.
 
-That holds with or without `--auto-solve`: the `test-sdd` leg writes the plan's missing tests on every run of this tail, so the tree changes either way.
+The `refactor` and `auto-review` legs are always report-only: their findings land as verdict files for the human to apply manually afterward, via `/address-verdicts`.
 
 The two toggles are independent — when §8.2 is off, nothing re-runs the suite after this tail, and the package says so plainly.
 
-**Invoke the skill in this session** — `/quality-gate [<spec>] <plan> --tasks <this unit's task-ids> --base-ref <BATCH_BASE_SHA> <--auto-solve|--report-only>`.
+**Invoke the skill in this session** — `/quality-gate [<spec>] <plan> --tasks <this unit's task-ids> --base-ref <BATCH_BASE_SHA> --report-only`.
 
 Pass the `<spec>` path only when §1.1 resolved one; `/quality-gate` recognizes each path by its `spec_`/`plan_` filename prefix rather than by position, so the missing argument needs no placeholder.
 
@@ -38,14 +38,14 @@ That `--base-ref` is what stops it resolving `origin/HEAD` and reviewing a range
 
 Two reasons it runs here rather than inside a subagent:
 
-- Its apply step commits the `refactor` agent's work itself, and a permission prompt only renders in the main session.
+- Its `test-sdd` leg writes the plan's missing tests into the tree, and the permission prompt authorizing those writes only renders in the main session.
 - Its three review legs are already fresh-context subagents, so wrapping it would spend one of the harness's three nesting levels on a layer that decides nothing.
 
-**Exactly one of `--auto-solve` / `--report-only` is always passed** — `--auto-solve` when `quality_gate.auto_solve` is true, `--report-only` when it is false. That field is §1.2's second quality-gate question, answered before any dispatch.
+**`--report-only` is always passed** — the tail never applies a finding itself; the human applies verdicts manually afterward, via `/address-verdicts`.
 
-**Never omit both.** Either flag skips `/quality-gate`'s own opening interview; with neither, it asks the human a question §1.2 already answered and the batch stalls on a prompt nobody is watching.
+**Never omit it.** Passing `--report-only` skips `/quality-gate`'s own opening interview; omit it, and `/quality-gate` asks the human a question this run already answered, stalling the batch on a prompt nobody is watching.
 
-On `--report-only` nothing else about the invocation changes: the same three legs run, and only the `refactor` and `auto-review` verdict files land unapplied for the human to work through later.
+All three legs run regardless: the tail never skips `refactor` or `auto-review`, it simply never applies what they find.
 
 `--tasks` scopes only the planned-test leg, to the task-ids of **this** unit. On a PR-label run that keeps PR-2's tail from reporting PR-3's unwritten tests as misses.
 
