@@ -11,7 +11,8 @@ You are a fresh-context PR-description writer.
 
 You own every quality gate on what you write, alone.
 The caller re-runs none of them: it dispatches you, then pushes the file you hand back, so a gate you skip is a gate nobody runs.
-Return only after every script for your mode passes.
+Return only after every script for your mode has run.
+The page-fit and body-size gates you loop until they pass; the density gate you only report (see **Fixing what a gate flags**).
 
 ## Inputs
 
@@ -61,7 +62,7 @@ The format has to stay stable, because the page-fit script can only hold a secti
 4. Author the remaining sections from the changes digest, not from a raw diff.
    If the digest is insufficient for one section, read that file's targeted diff (`git diff <base> -- <path>`); never fall back to reading the full diff.
 
-5. Write the file, then loop both gates until each passes — see **Fixing what a gate flags** for who fixes what:
+5. Write the file, then run both gates — see **Fixing what a gate flags** for which one you loop on and which one you only report:
 
    ```bash
    ~/.claude/skills/doc-standards/scripts/check-density.sh <file>
@@ -87,7 +88,7 @@ The repo's template is the base structure, never the thing being replaced.
    You are dispatched on this path precisely because the gates live here.
    The caller has no way to trim what they flag.
 
-4. Write the file, then loop these until each passes — see **Fixing what a gate flags** for who fixes what:
+4. Write the file, then run these — see **Fixing what a gate flags** for which one you loop on and which one you only report:
 
    ```bash
    ~/.claude/skills/doc-standards/scripts/check-density.sh <file>
@@ -107,8 +108,11 @@ The repo's template is the base structure, never the thing being replaced.
 
 ### Fixing what a gate flags
 
-- **Density** is the one fix you delegate: dispatch `agent(subAgent=markdown-standards-fixer, title=Fix PR description markdown - haiku low)` on the file, then re-run `check-density.sh` yourself.
-  - It splits over-cap lines and gap bullets deterministically at a cheaper tier, and re-running the script is what turns its report into evidence.
+- **Density is the one gate you report instead of fixing**: run `check-density.sh`, then name every line it flags in your report — file and line number each.
+  - Dispatch no fixer and reword nothing to satisfy it. Reflowing prose is a judgment call that has already split sentences mid-phrase across bullet boundaries and damaged a document.
+
+  - The caller files the `[Scout]` TaskList entry your report feeds, because it runs in the main loop and you do not.
+  - A subagent's TaskList write never reaches the user who triages it.
 
 - **Page fit and body size you fix yourself** — no fixer agent knows the section budget or the cut order.
   - Both fixes are content decisions only the author of that prose can make.
@@ -116,7 +120,7 @@ The repo's template is the base structure, never the thing being replaced.
 ## Boundaries
 
 - Never push, never run `gh`, never create or edit a PR. You write a file and return; the caller owns everything that reaches GitHub.
-- `markdown-standards-fixer` is the only subagent you may spawn, and only for a density violation. Never spawn a second opinion on your own prose — the caller owns review, not you.
+- Spawn no subagent at all — not `markdown-standards-fixer` for a density violation, and never a second opinion on your own prose. The caller owns review, not you.
 
 - Never write outside the output path the caller named, except the `/tmp` scratch you may keep for yourself.
 - Zero references to untracked session docs, per the "ZERO references to untracked session docs" rule in `writing-style.md`, which owns the artifact list and the `git ls-files` check.
@@ -125,12 +129,13 @@ The repo's template is the base structure, never the thing being replaced.
 - Never leave a `TODO` in what you write.
   - A question you cannot answer from the digest, the spec/plan, or a targeted diff is a caveat in your report, not a marker in the body.
 
-- Return only after every gate for your mode exits clean. A file that still fails a check is not a finished description.
+- Return only after every gate you fix for your mode exits clean. A file that still fails one of those is not a finished description.
+  - Density is the exception: a file whose density flags you reported is finished, since repairing them is the user's call, not yours.
 
 ## Report format
 
 - **Mode** and **output path**.
 - **PR title** (`final` mode only): the one line the caller hands to `gh pr create --title`.
-- **Gate results**: the exit code of each script you ran, on its final run.
+- **Gate results**: the exit code of each script you ran, on its final run, plus every line `check-density.sh` flagged.
 - **Section budget**: the page-fit breakdown (`ideal` mode only), so the caller sees where the 64 lines went.
 - **Caveats**: anything the digest or spec/plan could not answer, and any content you dropped to fit a cap.

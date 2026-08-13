@@ -9,7 +9,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
    commit_sha=$(gh pr view "$pr_number" --repo "$repo" --json headRefOid --jq '.headRefOid')
    ```
 
-2. **doc-standards check.** Every comment body must pass doc-standards' line rules before it reaches the payload — the density cap and the bullet blank-line rule.
+2. **doc-standards check.** Every comment body is measured against doc-standards' line rules before it reaches the payload — the density cap and the bullet blank-line rule.
    - GitHub's review UI renders a dense paragraph as one hard-to-scan block, with no line breaks to anchor a skim-read.
    - Write each Wave-4 finding's `body` to its own file, `$work_dir/wave5-comment-<n>.md` (one per finding, in finding order).
 
@@ -19,21 +19,20 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 
    - Run `~/.claude/skills/doc-standards/scripts/check-bullet-gap.py "$work_dir"/wave5-comment-*.md "$work_dir/wave2-guide.md"` in one call too.
 
-   - Fix every flagged line so all files exit 0. Which path you take depends on whether this Wave 5 runs in the top-level session or inside a spawned subagent:
-     - **Calling session (you were NOT spawned as a subagent):** delegate to `agent(subAgent=markdown-standards-fixer, title=Fix review-comment markdown - haiku low)` and wait for it to report every file at exit 0.
-       - Pass it the file list: `$work_dir`/wave5-comment-*.md plus `$work_dir/wave2-guide.md`.
-       - It splits over-cap lines, gaps bullets missing their blank line, and re-runs both scripts itself, and is contractually barred from rewording or dropping content — so each finding's wording stays verbatim.
+   - Report what they flag; never repair it, and never dispatch `markdown-standards-fixer`.
+     - Reflowing prose is a judgment call that has already split sentences mid-phrase across bullet boundaries and damaged a document, and this step has no channel to ask the user.
 
-     - **Isolated (`--isolate` passed):** do NOT spawn — this pipeline keeps its fan-out flat so the run's token budget stays predictable.
-       - Rewrite each over-cap line in place per `~/.claude/skills/doc-standards/references/density-rules.md` — split into bullets/sub-bullets or shorter sentences, never drop information.
+   - The report is ONE `[Scout]` TaskList entry per offending file, naming the file and what is off standard.
+   - Where that entry lands depends on whether this Wave 5 was spawned as a subagent:
+     - **Calling session (you were NOT spawned as a subagent):** file those `[Scout]` entries yourself.
+     - **Isolated (you WERE spawned as a subagent):** carry them into your Wave 6 summary instead, for the calling session to file.
+       - A subagent's TaskList write never reaches the user who triages it.
 
-       - Insert a blank line after every bullet `check-bullet-gap.py` flags — the fix is the same for both of its labels, `sub-bullet` and `over-80pct`.
-
-       - Re-run both scripts until each exits 0 for every file.
+   - Either way, build the payload from the bodies exactly as written. An over-cap comment still posts, because the user alone decides if and when that Scout runs.
 
 ## Build and POST the pending review
 
-3. Build `$work_dir/review-payload.json` with jq for the inline comments only, sourcing each `body` from its density-clean `$work_dir/wave5-comment-<n>.md`.
+3. Build `$work_dir/review-payload.json` with jq for the inline comments only, sourcing each `body` verbatim from its `$work_dir/wave5-comment-<n>.md`.
    - **Leave the top-level `body` empty** — the Review Guide is delivered as a separate standalone PR comment in the guide-posting step below.
      - Rationale: a guide in the body gets buried behind GitHub's review filter.
 
@@ -103,7 +102,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 ## Post the Review Guide as its own PR comment
 
 7. **Post the Review Guide as a standalone PR comment**, wrapped in a collapsed `<details>` block so it doesn't dominate the conversation feed but stays one click away.
-   - Its content is `$work_dir/wave2-guide.md`, already made density-clean by the density-check step above — don't re-check it here.
+   - Its content is `$work_dir/wave2-guide.md`, already measured by the density-check step above — don't re-check it here.
    - Use the issue-comments endpoint (PR conversation comments share the issue API):
 
    ```bash

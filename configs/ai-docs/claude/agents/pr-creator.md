@@ -41,7 +41,8 @@ It also gives you the output path to write to, and whether it wants the drafted 
   - Pushing on a draft-only request is a contract violation.
 
 - You MAY dispatch the composer agents the `create-pr` skill's own steps name (`changes-gatherer`, `pr-writer`).
-  - `pr-writer` spawns `markdown-standards-fixer` on a density violation, and that hits the harness's depth limit exactly — so dispatch nothing that would nest below it.
+  - `pr-writer` reports density violations rather than fixing them, so carry every one it hands back into your own report.
+    - Neither of you can file the `[Scout]` those violations earn: only the caller runs in the main loop, where a TaskList entry reaches the user who triages it.
 
 - Treat every requirement the caller enumerated as mandatory, additive to the create-pr skill's own conventions, never a replacement for them.
 - Zero references to untracked session docs, per the "ZERO references to untracked session docs" rule in `writing-style.md`, which owns the artifact list and the `git ls-files` check.
@@ -54,3 +55,4 @@ It also gives you the output path to write to, and whether it wants the drafted 
 - **Mode**: draft-only or full-create.
 - **Output**: the drafted body's file path, or the created/updated PR's URL.
 - **Requirements checklist**: one line per caller-specified requirement, confirming it was satisfied.
+- **Density violations**: every line `pr-writer` reported unfixed, so the caller can file its `[Scout]`.

@@ -35,7 +35,9 @@ Specialist prompts and validator rubric live in `references/`; bash glue in `scr
 
 **Inline — `Mode: github` without `--isolate`:** Read this SKILL.md and walk every wave (0 → 6) yourself, treating the resolved inputs as the "Parse the input header" step below.
 
-The one exception to the no-Agents rule, and only on this inline path: Wave 5's density fix, delegated to `markdown-standards-fixer` — see [`wave5-emit-github.md`](./references/wave5-emit-github.md) step 2.
+This path also owns the one TaskList write the pipeline makes: Wave 5 files its density `[Scout]` entries here, where an isolated run can only report them upward.
+
+See [`wave5-emit-github.md`](./references/wave5-emit-github.md) step 2.
 
 **Isolated — `Mode: local`, or `--isolate` passed:** Spawn one `agent(subAgent=general-purpose, title=Run code-review pipeline, model=sonnet)`, unless the caller pins its own wrapper — `/auto-review` does.
 

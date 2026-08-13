@@ -150,8 +150,11 @@ Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`d
 - [Instruction] Every line/bullet ≤256 chars and ≤32 words; over the cap, split on a sentence boundary — never drop info to fit.
   - [Why] Dense prose drops adherence in LLM consumers and raises scan time for humans; the cap forces clarity.
 
-- [Instruction] Delegate every density and bullet-gap run — checking and fixing alike — to `agent(subAgent=markdown-standards-fixer, title=Fix <doc> markdown)`, never inline in the main session.
-  - [Why] It runs `scripts/fix-density.py` for the mechanical splits and rephrases only the residue with fresh eyes, where an inline run burns main-session context re-deriving those splits and eyeballs the rest.
+- [Instruction] Run `scripts/check-density.sh` and `scripts/check-bullet-gap.py` inline in the main session, never delegating the check to a subagent.
+  - [Why] Both only report line numbers, so an inline run costs one command and its verdict, where a subagent round-trip pays a full dispatch for the same rows.
+
+- [Instruction] Report every line they flag as ONE `[Scout]` TaskList entry naming the file and what is off standard, dispatching no fixer and asking nothing.
+  - [Why] Reflowing prose is a judgment call that has already split sentences mid-phrase across bullet boundaries and damaged a plan, so the user alone decides if and when `markdown-standards-fixer` repairs it.
 
 - [Instruction] Separately verify each schema JSONC block against its ≤80-char/line rule (in the `design-docs` skill).
   - [Why] `check-density.sh` excludes fenced code, so a green run reads as "the whole doc passes" while a design doc's JSONC went unmeasured — its over-long schema lines ship unflagged.

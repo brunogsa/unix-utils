@@ -104,17 +104,18 @@ def code_review_pipeline(arg):
         match mode:                                        # 17
             case "github":
                 # 18 · cap 256 chars / 32 words per line; gap bullets at 80%.
+                #      Measures only — nothing here reflows a comment body.
                 clean = run("check-density.sh", "check-bullet-gap.py",
                             on=["wave5-comment-*.md", "wave2-guide.md"])
                 if not clean:
                     if session_is_calling_not_isolated():  # 18a
-                        # 18a1 · agent-pinned, serial; splits over-cap lines and
-                        #        gaps bullets, looping internally until both exit 0.
-                        dispatch("markdown-standards-fixer")
+                        # 18a1 · one entry per offending file; the user alone
+                        #        decides if and when the repair ever runs.
+                        file_scout_per_offending_file()
                     else:
-                        # 18a2 · already a subagent, so no re-spawn — fix inline,
-                        #        looping until both exit 0.
-                        fix_inline_until_clean()
+                        # 18a2 · a subagent's TaskList write never reaches the
+                        #        user, so hand them up for the caller to file.
+                        carry_scouts_into_wave6_summary()
 
                 # 19 · one single batch call.
                 post_pending_review(build("review-payload.json"))
@@ -190,9 +191,9 @@ flowchart TD
 
   n17{"17. Mode?"}
 
-  n18["18. check-density.sh + check-bullet-gap.py on<br/>wave5-comment-*.md + wave2-guide.md<br/>(cap: 256 chars / 32 words per line; gap at 80%)"]:::hook
-  n18a1["18a1. Dispatch markdown-standards-fixer · agent-pinned · serial<br/>splits over-cap lines and gaps bullets,<br/>loops internally until both exit 0"]:::dispatch
-  n18a2["18a2. Fix doc-standards violations inline<br/>(already a subagent, no re-spawn)<br/>loop until both exit 0"]
+  n18["18. check-density.sh + check-bullet-gap.py on<br/>wave5-comment-*.md + wave2-guide.md<br/>(measure only -- nothing reflows a comment body)"]:::hook
+  n18a1["18a1. File ONE Scout TaskList entry per offending file<br/>naming the file and what is off standard<br/>(user alone decides if the repair ever runs)"]:::state
+  n18a2["18a2. Carry the same Scouts into the Wave 6 summary<br/>(already a subagent -- its TaskList write<br/>never reaches the user who triages it)"]
 
   n19["19. Build review-payload.json,<br/>POST pending review (single batch call)"]:::state
   n20{"20. POST returned 422?"}
