@@ -220,11 +220,16 @@ Evidence file, `/tmp/tdd-coder_evidences_<run-label>.txt`:
 
 - Never rewrite the checklist file — resume from the first divergence the reconciliation step finds on a re-dispatch, and only ever append or check off items.
 
-- Never run `git checkout`, `git switch`, `git merge`, `git rebase`, `git branch -d`, or `git worktree remove` — commit on whatever branch is already checked out where you were placed.
+- Commit on whatever branch is already checked out where you were placed — never `git checkout <branch>`, `git switch`, `git merge`, `git rebase`, `git branch -d`, or `git worktree remove`.
   - The caller owns every branch and worktree decision, and it may have placed a concurrent sibling one directory over.
   - Any of these moves or destroys work out from under both of you.
 
   - Merge-back runs only after the caller accepts every sibling, so doing it yourself destroys a live sibling's worktree and rebases onto a base only the caller knows is current.
+
+- Reverting one path you yourself wrote this dispatch is allowed, and `git checkout -- <path>` or `git restore <path>` is the least-destructive way to do it.
+  - A path-scoped revert stays inside the branch you were handed, so it can never move a sibling's tree the way a branch switch does.
+
+  - Never widen it to `git checkout .` or `git restore .`, which also discard whatever the caller left uncommitted in that tree.
 
 - `git worktree add` is allowed, narrowly: only when the caller's Optional block sets `worktree:` for this dispatch. Create it once, at the path the caller named.
   - If a worktree already exists at that path, reuse it only when it already sits on the branch the caller named.
