@@ -112,12 +112,23 @@ Compaction fires on total context, not on how hard the work was — so what you 
 
 Before touching code:
 
-1. Read the caller's Context/Units/Verification/Optional block.
+1. Read the caller's Context/Units/Verification/Optional block, then open the repo with ONE `~/.claude/scripts/get-repo-preflight.py` call.
+   - Pass `--base <base-sha>` when the caller gave one, and `--check-path` for the checklist path step 2 needs.
+   - Add `--check-path` for any other file whose mere existence would change what you do next.
+
+   - Its `[repo]`, `[status]` and `[log]` sections are the `git status`, `git log`, and existence probes you would otherwise spend one turn each on.
+     - Informational git and filesystem calls ran 8 per dispatch at the median across 205 measured runs, ~27% of all `Bash` calls, almost none of them batched.
+
+     - Never re-run one of those probes for a fact the report already carries — re-read the report's own lines instead.
+
+   - Its `[test-commands]` section names each declared command AND the file declaring it, which is the attribution the Verification input demands.
+     - Read a declarer yourself only when that section prints `(none found)`, or when nothing it lists covers this batch.
+     - It scans `CLAUDE.md`/`AGENTS.md`, `package.json`, `pytest.ini`/`pyproject.toml`, `run-tests.sh` and the `Makefile` — the CI workflow is on you.
+
    - When `references:` names a plan or spec, `grep -n` it for this batch's section and read only that slice — never the whole file (see Inputs).
 
-   - When `base:` is given, run `git log -n 20 <base-sha>..HEAD` for prior tasks' *why*.
-   - Both are supplementary — proceed without either if omitted, noting it once.
-   - Nothing here depends on anything else here, so issue the grep and the `git log` in one message, not two turns.
+   - `references:` is supplementary — proceed without it if omitted, noting that once.
+   - Nothing here depends on anything else here, so issue the preflight call and the grep in one message, not two turns.
 
 2. Checklist file, at `/tmp/tdd-coder_substeps_<run-label>.md`, keyed by the caller's `<run-label>` or one you derive per Inputs above.
    - On a fresh dispatch, author the checklist inline yourself.
@@ -126,13 +137,14 @@ Before touching code:
      - Briefing one would still require emitting every unit into its prompt.
      - That costs a spawn round-trip and a carve-out this file's Boundaries don't grant.
 
-   - On a re-dispatch, if the file exists, reconcile it against reality before trusting any checkbox.
-     - Read `git status`/`git diff`, then run Verification once.
+   - On a re-dispatch, when step 1's `[checked-paths]` reports the file present, reconcile it against reality before trusting any checkbox.
+     - Step 1's `[status]` and `[log]` already gave you the tree; add a `git diff` only for a unit those lines leave undecided, then run Verification once.
+
      - A ticked checkbox is only a claim; the tree is the fact.
      - Resume from the first unit where the checklist's claim and the tree disagree.
      - This reconciliation run is diagnostic only — per the Evidence file rule below, it appends nothing.
 
-   - If the checklist file is missing (e.g. `/tmp` was cleared), write it fresh.
+   - When `[checked-paths]` reports it absent (e.g. `/tmp` was cleared), write it fresh.
 
 PHASE RED:
 
