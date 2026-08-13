@@ -54,6 +54,12 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] Pair every question to me with your recommended option and the reasoning behind it.
   - [Why] You hold the context the options came from, so an unranked menu pushes that analysis back onto me and makes the question cost more than it saves.
 
+- [Instruction] Cluster every decision that is open at the same moment into one `AskUserQuestion` call, rather than asking them one at a time.
+  - [Why] One audited session lost 3h9m to 12 separate blocking prompts, and each extra prompt costs a full round-trip of my attention no matter how small the question inside it is.
+
+- [Instruction] Before blocking on a question, dispatch every piece of work that does not depend on its answer.
+  - [Why] A question asked while subagents run costs no wall-clock; asked with nothing in flight it costs the entire wait — two prompts alone carried 88% of that session's lost time.
+
 - [Instruction] **Ambiguous-antecedent commands trigger a clarifying question** -- "Retry"/"yes"/"do that" without a clear antecedent must be confirmed before acting.
   - [Why] A bare "yes"/"retry" can bind to the wrong antecedent, silently applying the wrong action.
 
@@ -395,6 +401,12 @@ Routing and upkeep for the two note surfaces, plus the two scratchpad files each
 
 - [Instruction] Launch every subagent in the background (`run_in_background`) — when the next step needs its result, wait for its completion notification rather than switching to foreground.
   - [Why] A foreground agent blocks the harness's cost computing for its whole run, while the background wait costs the same wall-clock and leaves that accounting free.
+
+- [Instruction] Never poll a running subagent — no blocking `TaskOutput` call, no Bash `sleep`/`until` busy-wait, no `kill -0`/`pgrep` wait loop — wait for its completion notification instead.
+  - [Why] One audited session burned 33 minutes on 6 blocking `TaskOutput` calls — three hit the ceiling, returning nothing — plus 12 minutes busy-waiting, vs 0.1s backgrounded.
+
+- [Instruction] Give a recurring, repeatable unit of work its own dedicated agent type, rather than running it inline in the main session.
+  - [Why] Inline work reads as the session's spend, and can't be budgeted, compared, or shown to have stalled — a dedicated type makes it its own row in the usage report.
 
 - [Instruction] Render every Agent `description` here as `<title> - <model> <effort>` from the values a skill declares — no parens, no `<agent-type>`, which the UI already prepends.
   - [Why] That dispatch line is all the user sees live, so naming tier and effort lets them audit spawns in real time.
