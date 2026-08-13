@@ -164,6 +164,8 @@ esac
 CHECKER="$HOME/.claude/skills/doc-standards/scripts/check-comment-format.js"
 [ -f "$CHECKER" ] || exit 0
 
+CHANGED_LINES="$HOME/.claude/skills/doc-standards/scripts/get-changed-lines.sh"
+
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 
 transcript_path=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/null || true)
@@ -240,14 +242,10 @@ collect_file() {
     return 0
   fi
 
+  # Missing/failing helper narrows this file to no diff hits,
+  # never drops the gate for other files (whole-mode is safe).
   local added
-  added=$(git diff -U0 HEAD -- "$f" 2>/dev/null | awk '
-    /^@@ / {
-      plus = $3; sub(/^\+/, "", plus);
-      n = split(plus, a, ",");
-      start = a[1] + 0; cnt = (n > 1 ? a[2] + 0 : 1);
-      for (i = 0; i < cnt; i++) print start + i;
-    }' || true)
+  added=$("$CHANGED_LINES" "$f" 2>/dev/null || true)
   [ -n "$added" ] || return 0
 
   comm -12 \

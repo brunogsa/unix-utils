@@ -137,6 +137,7 @@ to_abs() {
 SCRIPTS="$HOME/.claude/skills/doc-standards/scripts"
 DENSITY="$SCRIPTS/check-density.sh"
 BULLET_GAP="$SCRIPTS/check-bullet-gap.py"
+CHANGED_LINES="$SCRIPTS/get-changed-lines.sh"
 
 # Each checker is gated on its own availability, so one missing interpreter
 # narrows the gate rather than dropping it.
@@ -171,14 +172,10 @@ collect_file() {
     return 0
   fi
 
+  # Missing/failing helper narrows this file to no diff hits, same
+  # "narrow, don't drop" gate as the checkers above (whole-mode is safe).
   local added
-  added=$(git diff -U0 HEAD -- "$f" 2>/dev/null | awk '
-    /^@@ / {
-      plus = $3; sub(/^\+/, "", plus);
-      n = split(plus, a, ",");
-      start = a[1] + 0; cnt = (n > 1 ? a[2] + 0 : 1);
-      for (i = 0; i < cnt; i++) print start + i;
-    }' || true)
+  added=$("$CHANGED_LINES" "$f" 2>/dev/null || true)
   [ -n "$added" ] || return 0
 
   comm -12 \
