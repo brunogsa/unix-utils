@@ -200,7 +200,7 @@ A toggled-off step's skip is recorded only in the batch-end package (§8.3), nev
 
 Keep the subjects free of run-specific values like `BATCH_BASE_SHA` — a subject needing them could not be seeded upfront.
 
-### 2.3. Write the state files and the scratchpad — now, then keep them current
+### 2.3. Write the state files and notes.md — now, then keep them current
 
 Create the run's durable state **immediately after §2.2's reminders land**, never at the end. Two artifacts, created here:
 
@@ -208,7 +208,7 @@ Create the run's durable state **immediately after §2.2's reminders land**, nev
   - `/tmp/implement_<session_id>.json` on a plain `<task-ids>` run.
   - `/tmp/implement_<session_id>_pr<n>.json` per PR on a PR-label run (`_pr1`, `_pr2`, …) — one per label in the arg, **all created now**, never lazily.
 
-- **One markdown scratchpad** — `/tmp/implement_<session_id>.md`, for what the JSON has no shape for: blocked-task notes (§5.5).
+- **`<scratchpad>/notes.md`**, in the harness scratchpad directory this session's own system prompt names, per CLAUDE.md's Note-taking discipline — never an invented `/tmp` path. Holds what the JSON has no shape for: blocked-task notes (§5.5).
 
 Each state file has exactly this shape:
 
@@ -475,7 +475,7 @@ Run `~/.claude/skills/implement/scripts/implement-loop-state.py <state-file>` an
 
 The single exit every dead end in the run routes to.
 
-The full entry list, state-file phase, scratchpad notes, which remaining steps stay unrun, and the release condition all live in [`references/failure-and-halt.md`](references/failure-and-halt.md). Load it on any dead end.
+The full entry list, state-file phase, notes.md's blocked-task record, which remaining steps stay unrun, and the release condition all live in [`references/failure-and-halt.md`](references/failure-and-halt.md). Load it on any dead end.
 
 ## 6. Status markers (plan task title)
 

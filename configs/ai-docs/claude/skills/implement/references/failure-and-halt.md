@@ -79,7 +79,7 @@ Regardless of entry:
 
 - Set `phase: "halted"` in this unit's state file, and every remaining unit's file too — the Stop hook globs the whole session and blocks on any unit still at `tasks`.
 
-- Write into the scratchpad, per blocked task, **exactly what a human must do to clear it** — the whole point of stopping here.
+- Write into `<scratchpad>/notes.md`, per blocked task, **exactly what a human must do to clear it** — the whole point of stopping here.
 
 - Leave this unit's remaining batch-end `[Reminder]` entries `pending` — they didn't run, and pending is the honest record of that.
 - **Run nothing further** — the quality-gate tail, the repo-green gate, the push, the package, and the PR all presuppose a finished batch.

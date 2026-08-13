@@ -124,7 +124,7 @@ def implement(arg):
                           "order": stack_choice.layer_order,    # layer order (§3.4 advances
                           "refused": stack_choice.forced_reason})  # through it) + which gate,
                                                                      # if any, forced it off
-    write_scratchpad(f"/tmp/implement_{session_id}.md")
+    notes = create(f"{scratchpad_dir}/notes.md")  # harness scratchpad dir, never /tmp
     # NO resume path — a leftover state file is stale: delete it and start over.
 
     # 45 · a task-ids run has one unit; a PR-label run repeats §3–§8 per PR, in order.
@@ -401,7 +401,7 @@ def halt():
     # and misread as the next `wave` by run_parallel_wave's.
     load("references/failure-and-halt.md")                 # 46
     set_halted_phase_on_all_units()                        # 47 · §5.5
-    scratchpad.write(what_each_blocker_needs)
+    notes.write(what_each_blocker_needs)  # <scratchpad>/notes.md, per blocked task
     leave_pending(remaining_reminders)
     # Cleanup stops entirely on the way out: an unmerged branch holds work only
     # a human can resolve, so every worktree stays and the halt names each one.
@@ -450,7 +450,7 @@ flowchart TD
     n16a --> n16b --> n16c --> n16d
   end
 
-  n17["17. Step 2.3 · Write durable state NOW,<br/>kept current as the run goes:<br/>one /tmp/implement_&lt;session_id&gt;[_prN].json<br/>per unit (phase=tasks, start_sha=HEAD,<br/>stack: {wanted, order, refused} from 4-9)<br/>+ /tmp/implement_&lt;session_id&gt;.md scratchpad.<br/>NO resume path — a leftover file is stale"]:::state
+  n17["17. Step 2.3 · Write durable state NOW,<br/>kept current as the run goes:<br/>one /tmp/implement_&lt;session_id&gt;[_prN].json<br/>per unit (phase=tasks, start_sha=HEAD,<br/>stack: {wanted, order, refused} from 4-9)<br/>+ &lt;scratchpad&gt;/notes.md in the harness<br/>scratchpad directory (never /tmp).<br/>NO resume path — a leftover file is stale"]:::state
 
   subgraph perunit ["Per unit: the whole batch (task-ids run), or each PR in turn (PR-label list)"]
     n18{"18. PR-label run: checkout needed?<br/>(need-git-checkout.sh)"}:::hook
@@ -517,7 +517,7 @@ flowchart TD
 
   n45{"45. PR-label run with PRs remaining?"}
   n46["46. Load references/failure-and-halt.md"]:::skill
-  n47(["47. Step 5.5 · HALT and wait for the human:<br/>phase=halted on all units; write what each blocker<br/>needs into the scratchpad; leave remaining<br/>[Reminder]s pending. Cleanup stops entirely here —<br/>an unmerged branch holds work only a human can<br/>resolve, so every worktree stays and the halt names<br/>each one; run NOTHING further"]):::gate
+  n47(["47. Step 5.5 · HALT and wait for the human:<br/>phase=halted on all units; write what each blocker<br/>needs into &lt;scratchpad&gt;/notes.md; leave remaining<br/>[Reminder]s pending. Cleanup stops entirely here —<br/>an unmerged branch holds work only a human can<br/>resolve, so every worktree stays and the halt names<br/>each one; run NOTHING further"]):::gate
   n48(["48. Invocation ends"])
   n48a["48a. Stop hook: releases only on<br/>phase presented or halted"]:::hook
 
