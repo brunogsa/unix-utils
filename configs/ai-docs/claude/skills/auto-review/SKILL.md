@@ -87,7 +87,7 @@ A prompt is only worth its friction when the human has something to choose betwe
 
 `/quality-gate` §2 resolves the same two files itself, then pushes the resolved paths into its `auto-review` leg — so a leg never reaches this step.
 
-That tree splits the same zero/one/many way but answers a multi-match differently — a single pick, and under `--auto-solve` neither file rather than a prompt.
+That tree splits the same zero/one/many way but answers a multi-match differently — a single pick, and under either `--auto-solve` or `--report-only` neither file rather than a prompt.
 
 So one CWD can yield different spec/plan context depending on the entry point. Read `/quality-gate` §2 before assuming an edit here covers both.
 

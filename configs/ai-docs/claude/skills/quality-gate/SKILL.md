@@ -1,12 +1,12 @@
 ---
 name: quality-gate
-description: "USE to run the full quality sweep over a branch — refactor lens, auto-review, planned-test presence — in parallel, then optionally auto-solve them. Triggers: /quality-gate, 'run the quality gate', 'full review pass', a batch-end dispatch."
+description: "USE to run the full quality sweep over a branch — refactor lens, auto-review, planned-test presence — in parallel, always writing the plan's missing tests and optionally auto-solving the other two. Triggers: /quality-gate, 'run the quality gate', 'full review pass', a batch-end dispatch."
 disable-model-invocation: false
 ---
 
 # Quality Gate
 
-Run every review lens this setup has over one branch, in parallel, then either hand the reports to the human or apply what is safely applicable.
+Run every review lens this setup has over one branch, in parallel, then write the planned tests the plan is missing. When asked, also apply whatever else is safely applicable.
 
 Three legs, each a fresh-context reviewer writing its own timestamped verdict file in CWD:
 
@@ -21,7 +21,7 @@ The third leg runs only when a plan resolves — without a plan there are no pla
 ## Usage
 
 ```
-/quality-gate [spec] [plan] [--tasks <ids>] [--base-ref <ref>] [--auto-solve]
+/quality-gate [spec] [plan] [--tasks <ids>] [--base-ref <ref>] [--auto-solve | --report-only]
 ```
 
 - `spec` / `plan` — paths, in either order; each is recognised by its `spec_`/`plan_` filename prefix, so position never decides which is which. Omit either to discover it in CWD.
@@ -30,30 +30,45 @@ The third leg runs only when a plan resolves — without a plan there are no pla
 
 - `--base-ref <ref>` — review from this ref instead of `origin/HEAD`. Any branch, tag, or SHA. A caller that already knows its own range passes it here.
 
-- `--auto-solve` — skip the opening interview and go straight to applying findings.
+- `--auto-solve` — skip the opening interview and apply the `refactor` and `auto-review` findings this run judges safe.
+  - It does not govern the `test-sdd` lens, whose findings are applied on every run that dispatches that leg (§5.1).
+
+- `--report-only` — skip the opening interview the other way: leave every `refactor` and `auto-review` finding unapplied.
+  - A skill caller that has already asked its human passes one of the two flags, never neither, so §1 can never stall a batch on a prompt nobody is watching.
+
+  - Both flags at once is a contradiction, not a precedence puzzle: stop and say so rather than picking a winner.
 
 Examples:
 
-- `/quality-gate` — discover spec and plan in CWD, ask before applying anything.
-- `/quality-gate spec_itgd-3374.md plan_itgd-3374.md --auto-solve` — explicit paths, apply without asking.
+- `/quality-gate` — discover spec and plan in CWD, ask before applying any refactor or auto-review finding.
+- `/quality-gate spec_itgd-3374.md plan_itgd-3374.md --auto-solve` — explicit paths, apply all three lenses without asking.
 - `/quality-gate --tasks 1,2 --auto-solve` — check only tasks 1 and 2 for planned tests; used by `/implement` to scope the leg to its own batch.
+- `/quality-gate --base-ref abc1234 --report-only` — the same three legs, but only the plan's missing tests get written.
 
 ## When to invoke
 
 Direct `/quality-gate` invocation, phrases like "run the quality gate" / "full review pass" / "review and fix what's safe", or dispatch from another skill's flow.
-`/implement`'s batch-end tail runs this with `--auto-solve`.
+`/implement`'s batch-end tail runs this, passing `--auto-solve` only when its own interview asked for it.
 
 ## 1. Ask about auto-solve — first, before anything else
 
-**Skip this step entirely when `--auto-solve` was passed.** The flag is the answer.
+**The question covers the `refactor` and `auto-review` lenses only.** The `test-sdd` lens is outside it — see the note closing this section.
+
+**Skip this step entirely when either `--auto-solve` or `--report-only` was passed.** The flag is the answer.
 
 Otherwise ask one `AskUserQuestion`, before resolving files or dispatching anything:
 
-- **Report only** (recommended default) — the three verdict files land in CWD and the run stops. The human decides later, by hand or via `/address-verdicts`.
+- **Report only** (recommended default) — the verdict files land in CWD and no refactor or auto-review finding is touched. The human decides those later, by hand or via `/address-verdicts`.
 
-- **Auto-solve** — after the reports land, this session triages them and hands the ones it judges safe to `/address-verdicts`, which applies them one commit each.
+- **Auto-solve** — after the reports land, this session triages both lenses and hands the findings it judges safe to `/address-verdicts`.
 
 Ask first rather than after the reports, so a human who wanted only a report is never surprised by commits, and one who wanted fixes never has to re-invoke.
+
+**The `test-sdd` lens is applied on every run that dispatches it**, report-only included, and `--auto-solve` neither enables nor suppresses it (§5.1).
+
+A planned-test miss carries no design call to triage: the plan already declared that test, and the human already approved the plan.
+
+So the only thing gating it behind this question could add is a round-trip in front of a decision that was made before the run started.
 
 ## 2. Resolve the spec and the plan
 
@@ -70,8 +85,9 @@ ls -1 spec_*.md plan_*.md 2>/dev/null
 
 - **More than one of a kind** → prompt with a numbered list and let the user pick; never guess which spec or plan was meant.
 
-- **Under `--auto-solve`, never prompt on a multi-match** → proceed without that kind and say so, exactly as a zero match resolves.
-  - An auto-solve run has no human standing by — the same premise §6.2 uses to force `--no-ask` — so a prompt here stalls the `/implement` tail indefinitely.
+- **Under `--auto-solve` or `--report-only`, never prompt on a multi-match** → proceed without that kind and say so, exactly as a zero match resolves.
+  - Either flag marks a run dispatched by a skill with nobody standing by —
+    - the same premise §6 uses to force `--no-ask` — so a prompt here stalls the `/implement` tail indefinitely.
 
 Also resolve `<BASE_REF>` for the `auto-review` leg:
 
@@ -83,7 +99,7 @@ The script falls back from origin/HEAD to local main to local master, so a faile
 
 If detection fails, ask which branch to diff against rather than guessing.
 
-Under `--auto-solve` there is nobody to ask: stop the run and print what failed.
+Under either flag there is nobody to ask: stop the run and print what failed.
 
 A missing base has no safe default the way a missing spec does, so proceeding would review the wrong range.
 
@@ -125,28 +141,25 @@ When each leg returns, confirm its verdict file exists in CWD and is non-empty. 
 
 - **Never retry more than once.** A leg that fails twice is for the human to look at, not for a retry loop to grind on.
 
-## 5. Report-only run — stop here
+## 5. Assemble the apply list
 
-When step 1 resolved to report-only, print a compact index and stop:
+The two groups below enter the list on different terms. Compose the whole list before invoking anything, and print it before applying anything.
 
-- One section per leg: its verdict file path and its finding count.
-- One line per finding: `<lens> #N [severity] <file>:<lines> — <one-line title>`; omit `[severity]` for a lens that labels none, as `refactor` does — it emits `Risk` and `Effort`.
+### 5.1. Every `test-sdd` finding goes in, unconditionally
 
-- The closing line: findings are applied by `/address-verdicts`, or by re-running `/quality-gate --auto-solve`.
+Whenever §3 dispatched the `test-sdd` leg and §4 collected a non-empty file for it, every finding enters the apply list. This applies equally to report-only and auto-solve runs.
 
-**Nothing is applied on a report-only run**, including findings that look trivially safe. The opt-in came from step 1, and its absence is an answer.
+No triage runs over them. Each names a test the plan declared and the repo lacks, so "is this worth doing" was already answered when the human approved the plan.
 
-## 6. Auto-solve — triage here, apply through `/address-verdicts`
+When §2 resolved no plan, that leg never dispatched and this sub-step contributes nothing.
 
-Entry: step 1 resolved to auto-solve, or `--auto-solve` was passed.
+### 5.2. `refactor` and `auto-review` findings go in only on an auto-solve run
 
-### 6.1. Decide which findings are addressable
+**Report-only** (§1 resolved to it, or `--report-only` was passed) → neither lens contributes anything, including findings that look trivially safe. The opt-in came from §1, and its absence is an answer.
 
-Read every verdict file this run produced **in full** — not the return summaries — and sort each finding into addressable or not.
+**Auto-solve** (§1 resolved to it, or `--auto-solve` was passed) → read both verdict files **in full**, never the legs' return summaries, and sort each finding into addressable or not.
 
-That is three files on a full run and two when §2 found no plan, so a run that reads exactly three is skipping nothing only when the `test-sdd` leg actually dispatched.
-
-- **Addressable** — small, well-scoped, clearly evidenced, low blast radius: a missing planned test, a local simplification, a correctness fix with an obvious forcing case.
+- **Addressable** — small, well-scoped, clearly evidenced, low blast radius: a local simplification, a correctness fix with an obvious forcing case.
 - **Not addressable** — design tradeoffs, cross-cutting risk, anything a leg flagged as uncertain, anything whose fix needs a product decision.
 
 Print the accepted list before applying anything, one line per finding: `<lens>#N (<file>:<lines>) — <one-line recap> — accepted because <reason>`.
@@ -154,7 +167,9 @@ Print the rejected list in the same shape, carrying the rejection reason instead
 The relevance call is judgment, so it gets shown, not just its result.
 The recap keeps the list self-contained so a human never has to open the verdict file to know what was decided.
 
-### 6.2. Hand the accepted list to `/address-verdicts`
+## 6. Hand the apply list to `/address-verdicts`
+
+**An empty apply list skips this step entirely** — a report-only run that resolved no plan has nothing to apply. Go straight to §7.
 
 **Applying is not this skill's job.** `/address-verdicts` is the apply step for every `verdict_*.md` on disk, whoever wrote it.
 This skill decides *which* findings deserve a fix; that one owns *how* every fix lands.
@@ -165,19 +180,22 @@ Two copies drift, leaving a human unable to tell which one their report followed
 Resolve the repo's test command first — a `package.json` script, a Makefile target, the repo's own CLAUDE.md — then invoke, **in this session**:
 
 ```
-/address-verdicts <accepted finding identifiers, with their verdict file paths> --no-ask --test-cmd <cmd>
+/address-verdicts <every finding identifier §5 assembled, with their verdict file paths> --no-ask --test-cmd <cmd>
 ```
 
-- **The accepted list is explicit**, naming each finding exactly as its report does, so nothing re-derives §6.1's triage from a severity floor and quietly widens the scope.
+**Pass the whole list in one invocation**, never one call per lens. That skill groups the list by lens itself, so a second call would only re-seed a TaskList it already owns.
 
-- **`--no-ask` is mandatory here.** An auto-solve run has no human standing by, and a prompt mid-batch would stall a `/implement` tail indefinitely.
+- **The list is explicit**, naming each finding exactly as its report does, so nothing re-derives §5.2's triage from a severity floor and quietly widens the scope.
 
-- **`--test-cmd` is passed** so its inference step has nothing left to guess about.
+- **`--no-ask` is mandatory here**, on a report-only run as much as an auto-solve one.
+  - §1 already asked this run's one question, so a prompt now would either re-ask it or stall a `/implement` tail that has nobody standing by.
+
+- **`--test-cmd` is passed** so its inference step has nothing left to guess about — the one thing it would otherwise have prompted for.
 
 Two reasons it runs in this session rather than inside a subagent, the same two that put this skill in `/implement`'s main session:
 
 - It commits the `refactor` agent's work, and a permission prompt only renders in the main session.
-- Its per-finding apply agents are already fresh-context subagents, so wrapping it would spend one of the harness's three nesting levels on a layer that decides nothing.
+- Its per-lens apply agents are already fresh-context subagents, so wrapping it would spend one of the harness's three nesting levels on a layer that decides nothing.
 
 It returns the ledger §7 reports from: applied findings with SHAs, skipped findings with reasons, and failures with what each needs to retry.
 
@@ -188,11 +206,15 @@ Compose this from the ledger `/address-verdicts` returned, not from a second rea
 - Every verdict file path this run produced, plus any leg that failed to produce one, and the `test-sdd` leg when §2 resolved no plan to dispatch it with.
 
 - **Every finding below carries its `<lens>#N (<file>:<lines>)` reference plus a one-line recap of what it says — never a bare id, count, or SHA alone.**
-  - §6.1 already composed this recap for the accepted/rejected lines; reuse it here instead of re-deriving it.
+  - §5.2 already composed this recap for the accepted/rejected lines; reuse it here instead of re-deriving it.
   - A human reading the report should never have to open a verdict file to know what was decided.
 
 - Applied findings, each with its recap/reference and its commit SHA.
-- Findings judged not addressable by §6.1, each with its recap/reference and the reason — they stay unmarked in their verdict files.
+- Findings judged not addressable by §5.2, each with its recap/reference and the reason — they stay unmarked in their verdict files.
+
+- **On a report-only run, every `refactor` and `auto-review` finding, each with its recap/reference, under a heading naming them as never triaged.**
+  - Nothing read them for addressability, so reporting them as "not addressable" would claim a judgment this run never made.
+  - Close that section by naming both ways to work them: `/address-verdicts`, or a re-run as `/quality-gate --auto-solve`.
 
 - Findings `/address-verdicts` skipped, each with its recap/reference and its reason — an ambiguity or a missing test command under `--no-ask`.
 - Findings whose apply failed, each with its recap/reference and what it needs to retry.

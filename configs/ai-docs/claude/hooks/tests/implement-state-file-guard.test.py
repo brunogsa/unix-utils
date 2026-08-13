@@ -263,7 +263,7 @@ class StopHookStateFileGuardTestCase(unittest.TestCase):
 
     def write_state(self, phase):
         state_path(self.sid).write_text(json.dumps({
-            "version": 3, "session_id": self.sid, "slug": "demo",
+            "version": 4, "session_id": self.sid, "slug": "demo",
             "pr_label": "", "phase": phase,
         }))
         return state_path(self.sid)

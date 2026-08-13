@@ -8,7 +8,9 @@ disable-model-invocation: false
 
 Check every `**Tests (planned)**` title a `plan_<slug>.md` declares against the tests that exist in the repo right now, and write the misses to a timestamped verdict file.
 
-**Report only** — this skill never writes a test, never edits source, never commits. Fixing what it finds is a separate step, run by hand or by `/quality-gate --auto-solve`.
+**Report only** — this skill never writes a test, never edits source, never commits.
+
+Fixing what it finds is a separate step, run by hand or by `/quality-gate`, which writes these misses on every run that dispatches this leg.
 
 ## Usage
 
@@ -161,7 +163,7 @@ Rules the schema depends on:
 - Findings are numbered from `1`, sequentially, with the number in the heading.
 
 - Keep that exact heading shape — `### N. [SEVERITY] <title>`.
-  `/quality-gate`'s auto-solve stamps `[Done]` right after the number, giving `### 1. [Done][HIGH] …`.
+  `/quality-gate`'s apply step stamps `[Done]` right after the number, giving `### 1. [Done][HIGH] …`.
   This follows the same prefix-after-the-number convention `/implement` uses on plan headings.
 
 - **Zero missing titles** → write the file anyway, with a `## Findings` section reading `None — every planned test is present.`
@@ -179,7 +181,7 @@ After the agent returns:
 
 If the file is missing or empty after the agent returns, treat the run as failed and re-dispatch once; do not report from the truncated return alone.
 
-**Stop here.** Writing the missing tests is not part of this flow — that is `/quality-gate --auto-solve`, or a direct ask.
+**Stop here.** Writing the missing tests is not part of this flow — that is `/quality-gate`, or a direct ask.
 
 ## Flowchart (human-facing)
 

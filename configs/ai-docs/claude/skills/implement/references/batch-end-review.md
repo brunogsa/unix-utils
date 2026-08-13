@@ -23,26 +23,34 @@ Skip whichever file doesn't match the run: the branch-record file only fires on 
 On no, skip this entire section — go straight to the repo-green gate (§8.2), and have the package state that the quality gate was skipped by request.
 No retroactive re-run; invoke `/quality-gate` manually later.
 
-This runs before §8.2's repo-green gate so that gate gets the last word — it measures a tree that already contains whatever `--auto-solve` applied.
+This runs before §8.2's repo-green gate so that gate gets the last word — it measures a tree that already contains whatever this tail applied.
 That ordering removes any "the gate applied something, so re-run the suite" rule: an applied fix is verified by construction, not by a conditional the run must remember.
+
+It holds whether or not `--auto-solve` goes along: the `test-sdd` leg writes the plan's missing tests on every run of this tail, so the tree changes either way.
 
 This section's toggle and §8.2's are independent — either can be on while the other is off.
 When §8.2 is off, nothing re-runs the suite after this tail, and the package says so plainly.
 
-**Invoke the skill in this session** — `/quality-gate [<spec>] <plan> --tasks <this unit's task-ids> --auto-solve`.
+**Invoke the skill in this session** — `/quality-gate [<spec>] <plan> --tasks <this unit's task-ids> --base-ref <BATCH_BASE_SHA> <--auto-solve|--report-only>`.
 
 Pass the `<spec>` path only when §1.1 resolved one; a plan-only run passes just the plan and nothing else changes.
 `/quality-gate` recognizes each path by its `spec_`/`plan_` filename prefix rather than by position, so the missing argument needs no placeholder.
 Its `auto-review` leg then runs without spec-conformance context — that is its documented plan-only behavior, not a degraded invocation to work around.
 
-Hand `<BATCH_BASE_SHA>` over as the base ref, instead of letting it resolve `origin/HEAD`.
+That `--base-ref` is what stops it resolving `origin/HEAD` and reviewing a range this batch never touched.
 
 Two reasons it runs here rather than inside a subagent:
 
-- Its auto-solve commits the `refactor` agent's work itself, and a permission prompt only renders in the main session.
+- Its apply step commits the `refactor` agent's work itself, and a permission prompt only renders in the main session.
 - Its three review legs are already fresh-context subagents, so wrapping it would spend one of the harness's three nesting levels on a layer that decides nothing.
 
-`--auto-solve` is always passed: this run already asked its review questions in §1.2's interview, so a second prompt mid-batch would re-ask what the human answered.
+**Exactly one of `--auto-solve` / `--report-only` is always passed** — `--auto-solve` when `quality_gate.auto_solve` is true, `--report-only` when it is false. That field is §1.2's second quality-gate question, answered before any dispatch.
+
+**Never omit both.** Either flag skips `/quality-gate`'s own opening interview; with neither, it asks the human a question §1.2 already answered and the batch stalls on a prompt nobody is watching.
+
+On `--report-only` nothing else about the invocation changes: the same three legs run, and only the `refactor` and `auto-review` verdict files land unapplied for the human to work through later.
+
+The planned-test leg writes its misses under either flag, so `--report-only` costs the batch its refactor and correctness fixes, never its plan-declared tests.
 
 `--tasks` scopes only the planned-test leg, to the task-ids of **this** unit. On a PR-label run that keeps PR-2's tail from reporting PR-3's unwritten tests as misses.
 
@@ -111,8 +119,9 @@ So there is exactly one package shape, never a partial one:
   - Outcome is applied (with its commit SHA), judged not addressable (with the reason), or failed to apply (with what it needs to retry).
   - The recap is what lets the human skip opening the verdict file.
 
-- **Missing planned tests** — the `test-sdd` leg's misses that auto-solve did not write, called out on their own line rather than buried in the finding list.
+- **Missing planned tests** — the `test-sdd` leg's misses the tail did not manage to write, called out on their own line rather than buried in the finding list.
   - A plan-declared test nobody wrote is the one gap this batch was supposed to close.
+  - The tail attempts every one of them on every run, so anything on this line is a failure or a skip, never a run that declined to try.
 
 - **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §8.1, §8.2) — reported, never fixed by this run.
 - **The literal diff range** — print `git diff BATCH_BASE_SHA..HEAD` with the SHA substituted, so the human can reproduce the range.

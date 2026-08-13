@@ -59,41 +59,34 @@
 #   id → silent exit 0. A compaction keeps the same session_id, so the files
 #   the run created are the ones this hook finds.
 #
-# Why a subagent's compaction is skipped (agent_id/agent_type guard):
-#   session_id alone CANNOT tell the orchestrator apart from its subagents —
-#   a subagent inherits the parent's session_id, so the glob below matches the
-#   ORCHESTRATOR's state file during a SUBAGENT's compaction. Observed twice on
-#   disk: a tdd-coder (agent a99fe40a2c619d271, session f02f2530) and a
-#   general-purpose agent (a1d3da5f0f1c345be, session aa2eba71) each absorbed
-#   this directive into their own compaction summary and read it as their own
-#   mandate.
+# Why this hook skips a subagent's compaction:
+#   A subagent inherits its parent's session_id,
+#   so the state-file glob below can't tell it
+#   apart from the orchestrator owning the batch.
 #
-#   That is a real hazard, not just noise. This text orders a
-#   'git push -u origin HEAD'. A task subagent is scoped to one task's commit
-#   (see agents/tdd-coder.md) and cannot know what else the worktree holds —
-#   a worktree shared with a concurrent session would have its unreviewed
-#   commits pushed to the remote by an obedient subagent. Both observed
-#   subagents happened to refuse, but relying on a subagent to talk itself out
-#   of a system-reminder is not a guard; the state must not reach it.
+#   Observed twice: a subagent absorbed this §8
+#   directive -- including its 'git push' step --
+#   into its own compaction summary, risking a push
+#   of another session's unreviewed commits.
 #
-#   So the discriminator is ownership of the state file, and agent_id (falling
-#   back to agent_type) is what expresses it: non-empty means this compaction
-#   belongs to a subagent, not to the session that created the file. Same
-#   precedent as claude-tmux-compact-bump.py — which routes the very same
-#   SessionStart:compact event — plus claude-explore-mandate-hook.sh and
+#   agent_id (falling back to agent_type) scopes
+#   the reminder to the owning session only. Same
+#   precedent as claude-explore-mandate-hook.sh and
 #   claude-stopfailure-resume.sh.
 #
-#   Do NOT relax this back to a session_id-only check: the orchestrator still
-#   needs the reminder (a batch really did nearly end at the last task's
-#   commit), so the fix is scoping it, never dropping it.
-#
 # Safeguards (all silent no-ops — never break Claude on a tooling/state gap):
-#   - jq missing → exit 0.
-#   - No session_id, or no state files match it → exit 0.
-#   - agent_id or agent_type non-empty (a subagent's compaction) → exit 0.
-#   - A state file that is corrupt JSON is skipped (fail-open per-file).
-#   - No unit's phase is tasks|gates|tails (e.g. all presented/halted/
-#     blocked) → exit 0: nothing mid-flight to re-inject.
+# - jq missing → exit 0.
+# - No session_id, or no state files match it → exit 0.
+# - agent_id or agent_type non-empty (a subagent's
+#   compaction) → exit 0.
+#
+# - A state file that is corrupt JSON is skipped
+#   (fail-open per-file).
+#
+# - No unit's phase is tasks|gates|tails (e.g. all
+#   presented/halted/blocked) → exit 0: nothing
+#   mid-flight to re-inject.
+#
 
 set -eo pipefail
 
@@ -190,7 +183,7 @@ read -r -d '' DIRECTIVE <<EOF || true
 A /implement batch for '$slug' has $unit_desc mid-flight (state phase: '$phase'). This compaction may have dropped the §8 batch-end steps from working memory — do NOT let the batch end at the last task's commit.
 
 Resume the §8 batch-end procedure (implement skill §8, detail in references/batch-end-review.md — re-read it, do not work from this summary). Remaining steps, in order:
-§8.1 quality-gate tail with --auto-solve (only when quality_gate.wanted) → §8.2 repo-green gate: full suite + full lint, fix-loop until green (only when repo_green_gate.wanted) → §8.3 push the branch with 'git push -u origin HEAD' (ALWAYS, no toggle) → record it as the Branch: clause on the plan's PR line$pr_step → print the batch-end package, closing with the review notification (review starts at $sha_display).
+§8.1 quality-gate tail (only when quality_gate.wanted; pass --auto-solve when quality_gate.auto_solve is true, --report-only when it is false, never neither) → §8.2 repo-green gate: full suite + full lint, fix-loop until green (only when repo_green_gate.wanted) → §8.3 push the branch with 'git push -u origin HEAD' (ALWAYS, no toggle) → record it as the Branch: clause on the plan's PR line$pr_step → print the batch-end package, closing with the review notification (review starts at $sha_display).
 $remaining_line
 
 Verify the batch-end [Reminder] tasks are still in your TaskList; if this compaction dropped them, re-seed the four from §2.2. The run is done only when phase reaches 'presented'; a 'halted' unit is waiting on the human and won't resume on its own.

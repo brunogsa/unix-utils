@@ -64,7 +64,7 @@ def test_sdd(arg):
     print(plan, checked_ids, found_and_missing_counts, one_line_per_finding)
 
     return  # 17 · Stop — report only. Writing the missing tests is
-            #      /quality-gate --auto-solve, or a direct ask.
+            #      /quality-gate, or a direct ask.
 ```
 
 ## Flowchart
@@ -101,7 +101,7 @@ flowchart TD
   n15{"15. Step 7 · VERDICT_PATH present and non-empty?"}
   n15a["15a. Re-dispatch the reviewer once;<br/>never report from the truncated return"]:::dispatch
   n16["16. Step 7 · Read VERDICT_PATH end-to-end,<br/>then print the plan, the checked ids,<br/>found/missing counts, one line per finding"]
-  n17(["17. Stop — report only.<br/>Writing the missing tests is<br/>/quality-gate --auto-solve, or a direct ask"])
+  n17(["17. Stop — report only.<br/>Writing the missing tests is<br/>/quality-gate, or a direct ask"])
 
   n1 --> n2 --> n3
   n3 -->|"zero"| n3a

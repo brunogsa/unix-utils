@@ -19,8 +19,8 @@ Python-shaped for readability only; nothing here runs, and the function names st
 
 ```python
 # 1 · Entry: /address-verdicts <which ones> [--no-ask] [--test-cmd <cmd>].
-#     A human invokes it, or a skill dispatches it — /quality-gate --auto-solve
-#     passes an explicit finding list plus --no-ask, having already triaged.
+#     A human invokes it, or a skill dispatches it — /quality-gate passes an
+#     explicit finding list plus --no-ask, having already triaged.
 def address_verdicts(arg):
     # 2 · Step 1 — several timestamped generations can exist per lens, and the
     #     timestamp is embedded in the filename, so it sorts lexically.
@@ -73,89 +73,119 @@ def address_verdicts(arg):
             #       and is asked alone otherwise.
             resolve(ask(ambiguity))                        # 8a2
 
-    # 9 · Step 3 — seeded BEFORE anything applies, so the list is this run's
-    #     whole timeline: nothing appears later, out of order, as it becomes
-    #     relevant.
-    tasklist.seed([f"[Task] Apply {f.lens} finding: {f.title}" for f in findings],
+    # 9 · Step 3 — group findings by lens; ONE TaskList entry per lens that
+    #     contributed at least one finding, NEVER one per finding — seeded in
+    #     the FIXED order test-sdd, auto-review, refactor (also step 4's
+    #     dispatch order — each stage hands the next a stronger test safety
+    #     net). Shaped "Apply all N <lens> findings". First entry
+    #     in_progress, every other one pending. A real run yields 30-50
+    #     findings but at most 3 entries.
+    lens_entries = group_by_lens(findings,
+                                  order=["test-sdd", "auto-review", "refactor"])
+    tasklist.seed([f"[Task] Apply all {len(e.findings)} {e.lens} findings"
+                   for e in lens_entries],
                   first="in_progress", rest="pending")     # 9
     # 10 · Step 3 — survives a mid-run compaction, so the wrap-up step
     #      cannot get silently skipped.
     tasklist.add("[Reminder] Close with the report (step 6)")       # 10
 
-    for f in findings:                                     # 17 · serial, in the seeded order
-        # 11 · Step 4 — the refactor agent refuses any behavior change BY
-        #      DESIGN, so a correctness fix or a test the repo lacks cannot
-        #      route through it; both need tdd-coder's test-first discipline.
-        match f.lens:
+    for entry in lens_entries:                             # 18 · outer loop, serial in the
+                                                             #      seeded order — NEVER parallel,
+                                                             #      since every dispatch commits to
+                                                             #      the same branch
+        # 11 · Step 4 — each dispatch carries ALL of this lens's selected
+        #      findings at once. The refactor agent refuses any behavior
+        #      change BY DESIGN, so a correctness fix or a missing test
+        #      cannot route through it; both need tdd-coder's test-first
+        #      discipline instead.
+        match entry.lens:
+            case "test-sdd":
+                # 11a · A test-sdd finding names a planned test the repo
+                #       lacks, so writing that test IS the fix. Every
+                #       planned title is passed verbatim so each test lands
+                #       under the name the plan declared.
+                result = agent("tdd-coder", title="Apply all test-sdd findings",
+                                findings=entry.findings, test_cmd=test_cmd)  # 11a
+            case "auto-review":
+                # 11b · Strict TDD, RED before GREEN, once per finding —
+                #       same as any other tdd-coder dispatch.
+                result = agent("tdd-coder", title="Apply all auto-review findings",
+                                findings=entry.findings, test_cmd=test_cmd)  # 11b
             case "refactor":
-                # 11a · It applies the change itself and confirms the tests
-                #       are green before and after.
-                result = agent("refactor", scope=f, test_cmd=test_cmd)     # 11a
-            case "auto-review" | "test-sdd":
-                # 11b · Strict TDD, RED before GREEN. For a test-sdd finding
-                #       the missing test IS the fix, so the planned title is
-                #       passed verbatim and the test lands under the name the
-                #       plan declared.
-                result = agent("tdd-coder", scope=f, test_cmd=test_cmd)    # 11b
+                # 11c · It applies the changes itself and confirms the
+                #       tests are green before and after.
+                result = agent("refactor", title="Apply all refactor findings",
+                                findings=entry.findings, test_cmd=test_cmd)  # 11c
 
-        # 12 · Step 4 — a subagent's summary describes intent; only the
+        # 12 · Step 4 — one verify per dispatch, covering every finding in
+        #      the batch. A subagent's summary describes intent; only the
         #      artifact shows what actually landed.
-        landed = verify_against_artifacts(result)          # 12
+        verify_against_artifacts(result)                   # 12
 
-        if not landed:                                     # 13
-            # 13a · Recorded as failed, never as done, and never committed.
-            f.outcome = failed(result)                     # 13a
-        else:
-            # 14 · Step 4 — one commit per finding, before the next starts.
-            if f.lens != "refactor":
-                # 14a · tdd-coder commits its own work under commit-standards,
-                #       so confirm the SHA exists rather than re-committing.
-                f.sha = confirm_commit_exists(result)      # 14a
+        for f in entry.findings:                           # 17 · inner loop, per finding
+                                                             #      in this lens's batch
+            # 13 · Step 4 — scored per finding, never per lens: a dispatch
+            #      that landed 6 of its 9 findings is 6 applied, 3 failed.
+            if not landed(result, f):                       # 13
+                # 13a · Recorded as failed, never as done, and never
+                #       committed.
+                f.outcome = failed(result, f)               # 13a
             else:
-                # 14b · The refactor agent leaves its change uncommitted by
-                #       design, so commit it HERE, in this session, where the
-                #       permission prompt can render.
-                f.sha = commit(f)                          # 14b
+                # 14 · Step 4 — one commit per finding still holds inside a
+                #      batched dispatch: the saving is fewer agent spawns,
+                #      not a coarser diff — who commits this one?
+                if entry.lens != "refactor":
+                    # 14a · tdd-coder commits its own work under
+                    #       commit-standards, so confirm the SHA exists
+                    #       rather than re-committing.
+                    f.sha = confirm_commit_exists(result, f)   # 14a
+                else:
+                    # 14b · The refactor agent leaves its change uncommitted
+                    #       by design, so commit it HERE, in this session,
+                    #       where the permission prompt can render.
+                    f.sha = commit(f)                        # 14b
 
-        # ---- 15/16 · Step 5 — written in place the MOMENT the finding lands,
-        #      never batched to the end of the run: a killed session then still
-        #      leaves an accurate ledger, instead of a pile of applied fixes
-        #      with no record of which report entries they answer. ----
-        if f.sha:
-            # 15 · The machine-checkable mark — a re-run skips it and grep
-            #      counts it. Same prefix-after-the-number convention
-            #      /implement uses on plan task headings, so one rule covers
-            #      both surfaces. A skipped or failed finding is left unmarked.
-            stamp_heading(f, "[Done]")                     # 15
-        # 16 · The evidence. APPLIED pairs with a [Done] heading; SKIPPED
-        #      leaves the heading unmarked, so a re-run reconsiders it.
-        #      The heading alone cannot say WHY or point at the fix, and the
-        #      body line alone is not greppable — hence both.
-        write_body_line(f, f"APPLIED ({f.sha})" if f.sha
-                           else f"SKIPPED ({f.reason})")   # 16
+            # ---- 15/16 · Step 5 — written in place the MOMENT this lens's
+            #      dispatch returns, never held back until the last lens
+            #      finishes: a killed session mid-run then still leaves an
+            #      accurate ledger for the lenses already processed. ----
+            if f.sha:
+                # 15 · The machine-checkable mark — a re-run skips it and
+                #      grep counts it. Same prefix-after-the-number
+                #      convention /implement uses on plan task headings, so
+                #      one rule covers both surfaces. A skipped or failed
+                #      finding is left unmarked.
+                stamp_heading(f, "[Done]")                   # 15
+            # 16 · The evidence. APPLIED pairs with a [Done] heading;
+            #      SKIPPED leaves the heading unmarked, so a re-run
+            #      reconsiders it. The heading alone cannot say WHY or
+            #      point at the fix, and the body line alone is not
+            #      greppable — hence both.
+            write_body_line(f, f"APPLIED ({f.sha})" if f.sha
+                               else f"SKIPPED ({f.reason})")   # 16
 
-    # 18 · Step 6 — applied findings with their SHAs, skipped findings with
-    #      their reasons, and anything that failed to apply with exactly what
-    #      it needs to retry.
-    ledger = compose_ledger(findings)                      # 18
+    # 19 · Step 6 — applied findings with their SHAs, skipped findings with
+    #      their reasons, and anything that failed to apply with exactly
+    #      what it needs to retry.
+    ledger = compose_ledger(findings)                       # 19
 
-    if arg.invoked_by_skill:                               # 19
-        # 19b · Hand it back rather than only printing it: the caller composes
-        #       the report the human actually reads, and can only name what it
-        #       was told.
-        return ledger                                      # 19b
+    if arg.invoked_by_skill:                                # 20
+        # 20b · Hand it back rather than only printing it: the caller
+        #       composes the report the human actually reads, and can only
+        #       name what it was told.
+        return ledger                                       # 20b
 
-    # 19a · Print it, and state plainly EVERY time: every finding step 2 did
+    # 20a · Print it, and state plainly EVERY time: every finding step 2 did
     #       not select is untouched and carries no annotation, and this run
     #       never re-ran a reviewer.
-    print(ledger, untouched_note(), never_re_ran_note())   # 19a
+    print(ledger, untouched_note(), never_re_ran_note())    # 20a
 ```
 
 ## Flowchart
 
 ```mermaid
 flowchart TD
-  n1(["1. /address-verdicts &lt;which ones&gt;<br/>[--no-ask] [--test-cmd &lt;cmd&gt;]<br/><br/>A human's invocation, or a skill's dispatch —<br/>/quality-gate --auto-solve passes an explicit<br/>finding list plus --no-ask, having already triaged"]):::start
+  n1(["1. /address-verdicts &lt;which ones&gt;<br/>[--no-ask] [--test-cmd &lt;cmd&gt;]<br/><br/>A human's invocation, or a skill's dispatch —<br/>/quality-gate passes an explicit finding list<br/>plus --no-ask, having already triaged"]):::start
   n2["2. Step 1 · Glob CWD for verdict_refactor_*.md,<br/>verdict_auto-review_*.md, verdict_test-sdd_*.md.<br/>Several timestamped generations can exist per lens,<br/>and the timestamp sorts lexically"]
   n3{"3. Step 1 · Any verdict file at all?"}
   n3a(["3a. STOP — nothing to address yet. Run /quality-gate,<br/>or a single lens, first. NEVER fabricate a report by<br/>re-running a reviewer; this skill only consumes<br/>reports already on disk"])
@@ -168,32 +198,34 @@ flowchart TD
   n8a{"8a. Was --no-ask passed?"}
   n8a1["8a1. Resolve it to SKIPPED (the ambiguity) on that finding<br/>and carry on with the rest. Skipping beats guessing:<br/>the caller re-runs it by hand after reading the ledger,<br/>where a wrong guess lands a commit nobody asked for.<br/>A missing test command skips only the findings that need<br/>one — refactor-lens findings still apply, since that<br/>agent brings its own green-before-and-after check"]
   n8a2["8a2. Ask ONE question, carrying your recommended reading.<br/>Never guess past an ambiguity — a wrong guess silently<br/>works the wrong finding. The test-command ask bundles<br/>into this one when it already fires, else is asked alone"]:::gate
-  n9["9. Step 3 · Add to TaskList one [Task] entry per selected<br/>finding, in the order they will execute; the first<br/>in_progress, every other one pending. Seeded upfront so<br/>the list is this run's whole timeline — nothing appears<br/>later, out of order, as it becomes relevant"]:::state
-  n10["10. Step 3 · Add to TaskList one closing [Reminder] entry<br/>for step 6's report, so a mid-run compaction cannot<br/>silently skip the wrap-up"]:::state
-  n11{"11. Step 4 · Which lens wrote this finding?<br/>The refactor agent refuses any behavior change BY DESIGN,<br/>so a correctness fix or a test the repo lacks cannot<br/>route through it — both need tdd-coder's test-first<br/>discipline instead"}
+  n9["9. Step 3 · Group findings by lens. Add to TaskList ONE<br/>[Task] entry per contributing lens — NEVER one per<br/>finding — shaped 'Apply all N &lt;lens&gt; findings', seeded<br/>in the FIXED order test-sdd, auto-review, refactor<br/>(also step 4's dispatch order — each stage hands the<br/>next a stronger test safety net). First entry<br/>in_progress, every other one pending. A real run<br/>yields 30-50 findings but at most 3 entries"]:::state
+  n10["10. Step 3 · Add to TaskList one closing [Reminder]<br/>entry for step 6's report, so a mid-run compaction<br/>cannot silently skip the wrap-up"]:::state
+  n11{"11. Step 4 · Which lens does this seeded entry dispatch?<br/>Each dispatch carries ALL of that lens's selected<br/>findings at once, serially in the seeded order — NEVER<br/>in parallel, since every dispatch commits to the same<br/>branch. The refactor agent refuses any behavior change<br/>BY DESIGN, so a correctness fix or a missing test cannot<br/>route through it — both need tdd-coder's test-first<br/>discipline instead"}
 
-  n11a["11a. Dispatch refactor (agent-pinned, background, serial)<br/>with the finding's scope and step 2's test command.<br/>It applies the change itself and confirms the tests<br/>are green before and after"]:::dispatch
-    n11b["11b. Dispatch tdd-coder (agent-pinned, background, serial):<br/>strict TDD, RED before GREEN. For a test-sdd finding the<br/>missing test IS the fix, so pass the planned title<br/>verbatim and it lands under the name the plan declared"]:::dispatch
+  n11a["11a. Dispatch tdd-coder (agent-pinned, background, serial)<br/>title: Apply all test-sdd findings. A test-sdd finding<br/>names a planned test the repo lacks, so writing that<br/>test IS the fix — pass every planned title verbatim so<br/>each lands under the name the plan declared"]:::dispatch
+  n11b["11b. Dispatch tdd-coder (agent-pinned, background, serial)<br/>title: Apply all auto-review findings. Strict TDD, RED<br/>before GREEN, once per finding — same as any other<br/>tdd-coder dispatch"]:::dispatch
+  n11c["11c. Dispatch refactor (agent-pinned, background, serial)<br/>title: Apply all refactor findings. It applies the<br/>changes itself and confirms the tests are green<br/>before and after"]:::dispatch
 
-  n12["12. Step 4 · Verify the result against the artifacts —<br/>the diff, the test run — before trusting its done.<br/>A summary describes intent; only the artifact<br/>shows what actually landed"]
-  n13{"13. Step 4 · Did the apply land?"}
+  n12["12. Step 4 · Verify the dispatch's result against the<br/>artifacts — the diff, the test run — before trusting<br/>its done. One verify per dispatch, covering every<br/>finding in the batch; a summary describes intent,<br/>only the artifact shows what actually landed"]
+  n13{"13. Step 4 · Did this finding's fix land? Scored per<br/>finding, never per lens — a dispatch that landed 6 of<br/>its 9 findings is 6 applied, 3 failed"}
   n13a["13a. Record it as failed, never as done.<br/>No commit, and no [Done] mark"]
-  n14{"14. Step 4 · One commit per finding, before the next<br/>one starts — who commits this one?"}
+  n14{"14. Step 4 · One commit per finding still holds inside a<br/>batched dispatch — the saving is fewer agent spawns,<br/>not a coarser diff — who commits this one?"}
   n14a["14a. tdd-coder commits its own work under<br/>commit-standards, so confirm the SHA exists<br/>rather than re-committing"]
   n14b["14b. The refactor agent leaves its change uncommitted<br/>by design, so commit it HERE, in this session,<br/>where the permission prompt can render"]:::gate
 
-  subgraph annotate["15/16. Step 5 · Written in place the MOMENT the finding lands, never batched to the end of the run — a killed session then still leaves an accurate ledger, instead of a pile of applied fixes with no record of which report entries they answer."]
+  subgraph annotate["15/16. Step 5 · Written in place the MOMENT this lens's dispatch returns, never held back until the last lens finishes — a killed session mid-run then still leaves an accurate ledger for the lenses already processed."]
     direction TB
     n15["15. In the finding's HEADING, stamp a [Done] prefix right<br/>after the number, before any severity tag. The<br/>machine-checkable mark: a re-run skips it and grep counts<br/>it. Same prefix-after-the-number convention /implement<br/>uses on plan task headings, so one rule covers both.<br/>A skipped or failed finding is left unmarked"]:::state
     n16["16. In the finding's BODY, write the outcome and its<br/>evidence: APPLIED (sha), or SKIPPED (reason) with the<br/>heading left unmarked so a re-run reconsiders it.<br/>The heading alone cannot say WHY or point at the fix,<br/>and the body line alone is not greppable"]:::state
     n15 --> n16
   end
 
-  n17{"17. More seeded findings left?"}
-  n18["18. Step 6 · Compose the ledger: applied findings with<br/>their SHAs, skipped findings with their reasons, and<br/>anything that failed to apply with exactly what<br/>it needs to retry"]
-  n19{"19. Step 6 · Who invoked this run?"}
-  n19a(["19a. Print it, and state plainly EVERY time: every finding<br/>step 2 did not select is untouched and carries no<br/>annotation, and this run never re-ran a reviewer"])
-  n19b(["19b. Hand the same ledger back to the caller rather than<br/>only printing it — the caller composes the report the<br/>human actually reads, and can only name what it was told"])
+  n17{"17. Step 4 · More findings left in this lens's batch?"}
+  n18{"18. Step 4 · More seeded lens entries left,<br/>in the fixed order?"}
+  n19["19. Step 6 · Compose the ledger: applied findings with<br/>their SHAs, skipped findings with their reasons, and<br/>anything that failed to apply with exactly what<br/>it needs to retry"]
+  n20{"20. Step 6 · Who invoked this run?"}
+  n20a(["20a. Print it, and state plainly EVERY time: every finding<br/>step 2 did not select is untouched and carries no<br/>annotation, and this run never re-ran a reviewer"])
+  n20b(["20b. Hand the same ledger back to the caller rather than<br/>only printing it — the caller composes the report the<br/>human actually reads, and can only name what it was told"])
 
   n1 --> n2 --> n3
   n3 -->|"no file for any lens"| n3a
@@ -206,19 +238,22 @@ flowchart TD
   n8a -->|"yes"| n8a1 --> n9
   n8a -->|"no"| n8a2 --> n9
   n9 --> n10 --> n11
-  n11 -->|"refactor lens"| n11a --> n12
-  n11 -->|"auto-review or test-sdd lens"| n11b --> n12
+  n11 -->|"test-sdd lens"| n11a --> n12
+  n11 -->|"auto-review lens"| n11b --> n12
+  n11 -->|"refactor lens"| n11c --> n12
   n12 --> n13
   n13 -->|"no"| n13a --> n15
   n13 -->|"yes"| n14
   n14 -->|"tdd-coder"| n14a --> n15
   n14 -->|"refactor agent"| n14b --> n15
   n16 --> n17
-  n17 -->|"yes, the next finding"| n11
+  n17 -->|"yes, next finding in this batch"| n13
   n17 -->|"no"| n18
-  n18 --> n19
-  n19 -->|"a human"| n19a
-  n19 -->|"a skill"| n19b
+  n18 -->|"yes, next lens entry"| n11
+  n18 -->|"no"| n19
+  n19 --> n20
+  n20 -->|"a human"| n20a
+  n20 -->|"a skill"| n20b
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px

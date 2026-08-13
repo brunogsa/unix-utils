@@ -30,10 +30,10 @@ disable-model-invocation: false
 This is **the** apply step for any `verdict_*.md` on disk, whichever lens wrote it: `/refactor`, `/auto-review`, `/test-sdd`, or a `/quality-gate` run that produced all three.
 
 It is the only place the apply loop lives.
-`/quality-gate --auto-solve` decides *which* findings are worth applying and calls this skill to apply them.
+`/quality-gate` decides *which* findings are worth applying and calls this skill to apply them.
 The routing, commit, and annotation rules have one home rather than a copy per caller.
 
-Two ways in, and the difference is only who picks the findings:
+Two ways in, and the difference is only who picks the findings — the batching in §3 and §4 is identical either way:
 
 - **A human invokes it** — `<which ones>` is the selection, and §2 may ask a clarifying question.
 - **A skill invokes it** — the caller passes an explicit finding list plus `--no-ask`, having already triaged. Nothing prompts.
@@ -87,51 +87,72 @@ Ask only when it can't be inferred — bundle that ask into §2's clarifying que
 Skipping beats guessing here because the caller can re-run the finding by hand once it reads the ledger, whereas a wrong guess lands a commit nobody asked for.
 A missing test command under `--no-ask` skips only the findings that need one — refactor-lens findings still apply, since the `refactor` agent brings its own green-before-and-after check.
 
-## 3. Seed the whole TaskList upfront
+## 3. Seed the whole TaskList upfront — one entry per lens, never one per finding
 
-Before applying anything, create one entry per selected finding, in the order they will execute.
+Before applying anything, group §2's selection by lens and create one entry per lens that contributed at least one finding.
 
 The list is this run's whole timeline — nothing appears later, out of order, as it becomes relevant.
 
 ```
- <id>. [#<returned-id>][Task] Apply <lens> finding: <short finding description>
+ <id>. [#<returned-id>][Task] Apply all <N> <lens> findings
 ```
+
+Seed them in this fixed order, which is also §4's dispatch order: **`test-sdd`, then `auto-review`, then `refactor`**.
+
+Each stage hands the next a stronger safety net — the planned tests land first, correctness fixes run against that fuller suite, and the structural pass runs last with everything protecting it.
+
+A lens that contributed no finding gets no entry at all, since an empty task reads as work that silently never ran.
 
 Mark the first entry `in_progress`, every other one `pending`.
 
+**One entry per lens is the rule, whoever invoked this skill.**
+A `/quality-gate` run routinely yields 30–50 findings, and a row-per-finding list costs one subagent spawn each while telling the human nothing three rows don't.
+
+No finding is lost to the grouping: each entry names its own count, and §5 still annotates every finding individually in its verdict file.
+That file, not the TaskList, is the durable per-finding ledger.
+
 Add one closing `[Reminder]` entry for the final report (§6) — it survives even if the session compacts mid-run, so the wrap-up step can't get silently skipped.
 
-## 4. Apply each finding via a pinned subagent
+## 4. Apply each lens through one pinned subagent
 
-Dispatch one subagent per finding, in the order seeded above:
+Dispatch one subagent per entry seeded above, **serially, in that seeded order** — never in parallel, since every dispatch commits to the same branch.
 
-- **Refactor-lens finding** (from `verdict_refactor_*.md`):
-  - `agent(subAgent=refactor, title=Apply refactor finding: <finding>)`.
-  - Pass it the finding's scope and the test command from §2.
-  - It applies the change itself and confirms tests are green before and after.
+Each dispatch carries **all** of its lens's selected findings at once, each with the identifier, scope, and evidence its report gives it, plus the test command from §2:
 
-- **Auto-review- or test-sdd-lens finding** (from `verdict_auto-review_*.md` / `verdict_test-sdd_*.md`):
-  - `agent(subAgent=tdd-coder, title=Apply <lens> finding: <finding>)`.
-  - Strict TDD: RED before GREEN, same as any other `tdd-coder` dispatch.
+- **`test-sdd` entry** (from `verdict_test-sdd_*.md`):
+  - `agent(subAgent=tdd-coder, title=Apply all test-sdd findings)`.
   - A test-sdd finding names a planned test the repo lacks, so writing that test IS the fix.
-    Pass the planned title verbatim so the test lands under the name the plan declared.
+    Pass every planned title verbatim so each test lands under the name the plan declared.
 
-Why the split: the `refactor` agent refuses any behavior change, by design.
+- **`auto-review` entry** (from `verdict_auto-review_*.md`):
+  - `agent(subAgent=tdd-coder, title=Apply all auto-review findings)`.
+  - Strict TDD, RED before GREEN, once per finding — same as any other `tdd-coder` dispatch.
+
+- **`refactor` entry** (from `verdict_refactor_*.md`):
+  - `agent(subAgent=refactor, title=Apply all refactor findings)`.
+  - It applies the changes itself and confirms tests are green before and after.
+
+Why the refactor lens keeps its own agent rather than joining the other two on `tdd-coder`: that agent refuses any behavior change, by design.
 A correctness fix or a missing test can't route through it — both need `tdd-coder`'s test-first discipline instead.
+Making all three dispatches uniform would trade that refusal for symmetry, and a "simplification" that quietly changes semantics is the exact case the refusal catches.
+
+**One commit per finding still holds inside a batched dispatch** — say so explicitly in every dispatch prompt.
+The batching exists to cut subagent spawns, not to coarsen the diff a human reviews: a lens-sized commit would bury which fix answers which finding.
+
+- `tdd-coder` commits its own work under `commit-standards` — confirm each reported SHA exists rather than re-committing.
+- The `refactor` agent leaves its changes uncommitted by design, so commit them here, in this session, where the permission prompt can render —
+  - still one commit per finding, never one for the lens.
 
 Verify each subagent's result against the artifacts — the diff, the test run — before trusting its "done."
 A subagent's summary describes intent; only the artifact shows what actually landed.
 
-Then commit, one commit per finding, before starting the next:
-
-- `tdd-coder` commits its own work under `commit-standards` — confirm the SHA exists rather than re-committing.
-- The `refactor` agent leaves its change uncommitted by design, so commit it here, in this session, where the permission prompt can render.
-
 A finding whose apply failed or was reverted is recorded as failed, never as done, and never gets a commit.
+**Score a partial batch per finding, never per lens** — this matters when a dispatch lands only some of its findings.
+A dispatch that landed 6 of its 9 findings is recorded as 6 applied and 3 failed, never as one failed lens, so six real commits are preserved in the ledger.
 
-## 5. Annotate the verdict file, the moment each finding lands
+## 5. Annotate the verdict file, the moment each lens's dispatch returns
 
-Write the outcome in place, next to that finding — never batched to the end of the run. Two marks per finding, and they do different jobs:
+Write every one of that lens's outcomes in place, next to its own finding — never held back until the last lens finishes. Two marks per finding, and they do different jobs:
 
 - **In the finding's heading**, a `[Done]` prefix right after the number, before any severity tag: `### 1. [Done][HIGH] <title>`.
   - Same prefix-after-the-number convention `/implement` uses on plan task headings, so one rule covers both surfaces.
@@ -146,8 +167,10 @@ This is the durable, on-disk ledger of fixed-versus-deferred the user explicitly
 The heading marker alone can't say *why* or point at the fix, and the body line alone isn't greppable.
 A skipped finding then reads as unfinished from either surface, which is what a re-run needs.
 
-Annotating as you go means a killed session still leaves an accurate ledger.
-Batching it to the end would leave a pile of applied fixes with no record of which report entries they answer.
+Annotating lens by lens means a session killed during the second dispatch still leaves an accurate ledger for the first.
+Holding it to the end of the run would leave a pile of applied fixes with no record of which report entries they answer.
+
+The per-finding granularity is what §3's per-lens TaskList gives up, so this is the only surface carrying it — never coarsen it to match the task list.
 
 ## 6. Close with a report
 

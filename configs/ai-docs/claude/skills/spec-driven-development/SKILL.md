@@ -51,7 +51,7 @@ Resolve with this shared baseline:
 Everything else diverges per consumer: the bullets below name those divergences, and each consumer's own `SKILL.md` is canonical for anything they leave out.
 
 - **When and how that pick is asked.** `/auto-review` and `/quality-gate` prompt inline; `/implement` and `/create-pr` fold it into their one up-front interview instead.
-- **What happens with no human to ask** — `/quality-gate --auto-solve` proceeds without that kind rather than stalling on a prompt.
+- **What happens with no human to ask** — `/quality-gate` under either `--auto-solve` or `--report-only` proceeds without that kind rather than stalling on a prompt.
 
 - **Zero matches, or only one kind.** Only `/implement` stops without a plan; every other consumer degrades to the diff alone.
 

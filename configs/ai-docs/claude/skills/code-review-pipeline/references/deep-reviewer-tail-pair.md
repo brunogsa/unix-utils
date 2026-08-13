@@ -102,7 +102,9 @@ Never do this as an unprompted default, and never as a repeating loop:
 
 Lens routing beats one generic applier because the `refactor` agent refuses behavior changes by design, so a correctness finding has to reach `tdd-coder` to get a test written for it at all.
 
-`implement`'s batch end reaches this same routing indirectly. Its quality-gate tail (`implement/references/batch-end-review.md`) invokes `/quality-gate --auto-solve`, whose triage step names the findings and hands them to `address-verdicts`.
+`implement`'s batch end reaches this same routing indirectly. Its quality-gate tail (`implement/references/batch-end-review.md`) invokes `/quality-gate` with `--auto-solve`, whose triage step names the findings and hands them to `address-verdicts`.
+
+Under `--report-only` that tail still reaches the same routing, carrying only the planned-test findings — `/quality-gate` applies those on every run, so `address-verdicts` gets a `tdd-coder` dispatch either way.
 
 One difference: the orchestrator names them in-run.
 It does not wait for a human to name them after seeing the package.

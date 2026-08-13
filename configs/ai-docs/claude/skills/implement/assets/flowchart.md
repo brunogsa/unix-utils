@@ -5,8 +5,8 @@
 # trimming to the bundled defaults would drop steps from the flow audit or drop
 # a whole rendering. Two renderings is the point: they cross-check each other.
 # Parked in assets/ and never loaded by the model, so its words cost no context.
-words-budget: 4096
-lines-budget: 512
+words-budget: 8192
+lines-budget: 1024
 ---
 
 # implement — flow overview
@@ -29,40 +29,80 @@ def implement(arg):
     # A plan with no spec is a supported mode, not a missing input: a plan-only
     # run works unchanged, and the spec is simply passed nowhere.
 
-    # 4 · §1.2 — ONE up-front interview, the only round until the review package:
-    #     plan pick · plan path, if none found (§1.1) · worktree · draft PR
-    #     · quality-gate tail (default yes) · full-suite green baseline
-    #     · repo-green gate (default yes) · confirm the base branch.
-    answers = ask_everything_at_once()
+    # 4 · §1.2 — loaded here, on every run, before its own two pre-flight gates.
+    load("references/stacked-by-task.md")                  # 4
 
-    # 5 · §1.3 — re-validate BOTH graphs ONCE, before any execution.
-    if not (check_tasks_dag(plan) and check_pr_dag(plan)):  # 6
-        return stop(script_stderr_verbatim)                # 6a · fix the plan, re-invoke
-
-    if answers.worktree:                                   # 7
-        load("references/worktree-setup.md")               # 7a
-        enter_worktree(symlink=[plan, spec], copy=[".env*"])    # 7b · §1.4
-
-    if arg.is_pr_labels:                                   # 8
-        load("references/pr-awareness.md")                 # 8a
-        units = [get_pr_tasks(label) for label in arg.labels]   # 8b · §1.5
-        # 8c · §1.5 — decide the stack mode ONCE: a PR with 2+ parents
-        #      (diamond) → merge; linear AND the gh-stack extension installed
-        #      → native; else merge. Recorded as a Mode: line under the plan's
-        #      PR Breakdown heading — sticky for the stack's whole life.
-        plan.record_stack_mode(decide_stack_mode(units))
+    # 5-9 · §1.2 — a unit (one PR-N entry, or the whole <task-ids> run when the
+    #      plan has no PR Breakdown) delivers stacked (one PR per task, layered)
+    #      unless one of two gates overrules it. Neither gate is overridable by
+    #      a later 'yes' — that's why the question is skipped entirely, not
+    #      asked-then-ignored.
+    if not gh("stack", "--help"):                           # 5 · exits non-zero:
+        stack_choice = forced_non_stacked(                  # 5a   extension missing
+            reason="gh-stack extension not installed")
     else:
-        units = [Unit(arg.task_ids)]                       # the whole batch is one unit
+        verdict = run("resolve-task-order.sh", plan, arg.task_ids)   # 6
+        if verdict.exit_code == 1:
+            stack_choice = forced_non_stacked(              # 6a · a task has 2+
+                reason=verdict.stderr)                      #      in-scope parents
+                                                              #      (a true join);
+                                                              #      surfaced verbatim
+        elif verdict.exit_code == 2:
+            return stop(verdict.stderr)                     # 6b · usage/parse error,
+                                                              #      same as any other
+                                                              #      pre-flight failure
+        else:
+            stack_choice = ask_stacked_question(             # 7 · both gates passed;
+                layer_order=verdict.stdout)                  #     topo order, ties
+                                                              #     lowest-id-first;
+                                                              #     user may reorder,
+                                                              #     but only into
+                                                              #     another DAG-valid
+                                                              #     order
+    if stack_choice.forced:                                 # 8 · 5a or 6a's merge:
+        stack_choice = confirm_forced_non_stacked(          #     name which gate
+            stack_choice.reason)                            #     fired, in the SAME
+                                                              #     interview call —
+                                                              #     never a separate round
 
-    # 9 · §1.6 — capture a full-suite green baseline, only when §1.2 said yes;
-    #     runs once worktree (7b) and PR-label resolution (8b) have settled.
-    if answers.baseline:                                   # 9
-        load("references/full-suite-baseline.md")          # 9a
-        state.baseline = capture_full_suite_baseline()      # 9b · full lint + full test
-                                                             #      suite; log PATH + failing
-                                                             #      signatures only, never content
+    # 9 · §1.2 — ONE up-front interview, the only round until the review package:
+    #     plan pick · plan path, if none found (§1.1) · worktree · draft PR
+    #     · quality-gate tail (default yes) · auto-solve its findings (default
+    #     yes, read only when the tail is on) · full-suite green baseline
+    #     · repo-green gate (default yes) · confirm the base branch
+    #     · PLUS, in this same call, whichever of 7/8 stack_choice resolved to.
+    answers = ask_everything_at_once(stack_choice)
 
-    # 10 · §2.1 + 11 · §2.2 — seed the WHOLE run upfront, in execution order:
+    # 10 · §1.3 — re-validate ALL THREE checks ONCE, before any execution.
+    if not (check_tasks_dag(plan) and check_pr_dag(plan)     # 11
+            and check_pr_task_projection(plan)):
+        return stop(script_stderr_verbatim)                 # 11a · fix the plan, re-invoke
+
+    if answers.worktree:                                    # 12
+        load("references/worktree-setup.md")                # 12a
+        enter_worktree(symlink=[plan, spec], copy=[".env*"])    # 12b · §1.4
+
+    if arg.is_pr_labels:                                    # 13
+        load("references/pr-awareness.md")                  # 13a
+        units = [get_pr_tasks(label) for label in arg.labels]   # 13b · §1.5
+        # 13c · §1.5 — decide the CROSS-UNIT stack mode ONCE: a PR with 2+ parents
+        #      (diamond) → merge; linear AND the gh-stack extension installed
+        #      → native; else merge. Independent of 7/8's per-task stack_choice,
+        #      which decides delivery WITHIN one unit, not chaining BETWEEN units.
+        #      Recorded as a Mode: line under the plan's PR Breakdown heading.
+        plan.record_stack_mode(decide_cross_unit_stack_mode(units))
+    else:
+        units = [Unit(arg.task_ids)]                        # the whole batch is one unit
+
+    # 14 · §1.6 — capture a full-suite green baseline, only when §1.2 said yes;
+    #     runs once worktree (12b) and PR-label resolution (13b) have settled.
+    if answers.baseline:                                    # 14
+        load("references/full-suite-baseline.md")           # 14a
+        state.baseline = capture_full_suite_baseline()       # 14b · full lint + full test
+                                                              #      suite; log PATH + failing
+                                                              #      signatures only, never content
+
+    # 15 · §2.1 + 16 · §2.2 — seed the WHOLE run upfront, in execution order:
     #     ALL PRs, each PR's tasks before its own batch-end reminders.
     for unit in units:
         for task in unit.tasks:
@@ -71,183 +111,248 @@ def implement(arg):
             # TaskList carries status ONLY — attempts, gates and SHAs live in the JSON.
         for step in BATCH_END_STEPS:      # FOUR separate entries:
             task_create(f"[Reminder] {step}")
-            # 11a · 1/4 quality-gate tail with --auto-solve (opt-in)
-            # 11b · 2/4 repo-green gate, fix-loop until green (opt-in)
-            # 11c · 3/4 push the branch; record it in the PR entry; PR when wanted
-            # 11d · 4/4 package print, closing review notification
+            # 16a · 1/4 quality-gate tail, --auto-solve per its own toggle (opt-in)
+            # 16b · 2/4 repo-green gate, fix-loop until green (opt-in)
+            # 16c · 3/4 push the branch(es); record it in the PR entry; PR when wanted
+            # 16d · 4/4 package print, closing review notification
             # Never one chain: a combined entry has one completed flag, so a
             # step-level skip would have nowhere to land.
 
-    # 12 · §2.3 — durable state NOW, kept current as the run goes.
+    # 17 · §2.3 — durable state NOW, kept current as the run goes.
     for unit in units:
         write_json(f"/tmp/implement_{session_id}{unit.suffix}.json",
-                   phase="tasks", start_sha=head(), batch_base_sha="")
+                   phase="tasks", start_sha=head(), batch_base_sha="",
+                   stack={"wanted": stack_choice.wanted,        # this unit's confirmed
+                          "order": stack_choice.layer_order,    # layer order (§3.4 advances
+                          "refused": stack_choice.forced_reason})  # through it) + which gate,
+                                                                     # if any, forced it off
     write_scratchpad(f"/tmp/implement_{session_id}.md")
     # NO resume path — a leftover state file is stale: delete it and start over.
 
-    # 36 · a task-ids run has one unit; a PR-label run repeats §3–§8 per PR, in order.
+    # 45 · a task-ids run has one unit; a PR-label run repeats §3–§8 per PR, in order.
     for unit in units:
         run_unit(unit)
 
-    return  # 39 · invocation ends
-            # 39a · Stop hook releases only on
+    return  # 48 · invocation ends
+            # 48a · Stop hook releases only on
             #       phase "presented" or "halted"
 
 
 def run_unit(unit):
-    if unit.is_pr and need_git_checkout(plan, unit.label):  # 13
-        load("references/pr-branch-creation.md")            # 13a
-        create_branch(unit)   # 13b · §3.1 — ONCE, here. Never mid-loop, never a subagent.
+    if unit.is_pr and need_git_checkout(plan, unit.label):  # 18
+        load("references/pr-branch-creation.md")            # 18a
+        create_branch(unit)   # 18b · §3.1 — ONCE, here. Never mid-loop, never a subagent.
 
-    state.batch_base_sha = head()                          # 14 · §3.2
+    state.batch_base_sha = head()                           # 19 · §3.2
     recap(git_log(base_branch, "HEAD"), read="COMMIT MESSAGES, not the diff")
 
-    tasks = exact_match(unit.task_ids, plan.headings)      # 15 · §3.3
+    tasks = exact_match(unit.task_ids, plan.headings)       # 20 · §3.3
     # A prefix matching two headings means a malformed plan, not a question — stop.
 
     # `while True`, never "while something is pending": an empty-looking queue is
-    # NOT the gates. It empties two ways, and only 23's verdict can tell them apart.
+    # NOT the gates. It empties two ways, and only 29's verdict can tell them apart.
     while True:
-        # 16 · §5.4 — ask --eligible-set, NEVER the plain verdict, while anything
-        #      is in flight: the plain one assumes nothing is, so mid-wave it
-        #      answers "halted" and stops the run to wait for a human.
-        wave = eligible_set(state_file)
+        # 21 · §5.4 — route by delivery shape for the WHOLE unit, every iteration,
+        #      never just the first: a stacked unit is strictly sequential and
+        #      never calls --eligible-set or the parallel-worktrees skill at all,
+        #      because each layer branches off the previous layer's tip and two
+        #      parallel siblings would leave no single tip to stack the next one on.
+        if state.stack.wanted:
+            task_id = state.stack.order[next_unresolved_index()]   # 21a · from
+                                                                     #  stack.order,
+                                                                     #  NEVER the
+                                                                     #  verdict
+                                                                     #  script's
+                                                                     #  own ordering
+            if not is_stack_order_first_entry(task_id):             # 21b
+                create_layer_branch(task_id)     # 21c · git checkout -b
+                                                  #      <layer-1-branch>-t<task-id>
+                                                  #      from the previous layer's
+                                                  #      tip; existing-branch adopt
+                                                  #      check first; branch recorded
+                                                  #      into this task's state entry
+            run_one_task(task_id)                            # -> 23-28
+        else:
+            # 22 · ask --eligible-set, NEVER the plain verdict, while anything
+            #      is in flight: the plain one assumes nothing is, so mid-wave it
+            #      answers "halted" and stops the run to wait for a human.
+            wave = eligible_set(state_file)
 
-        if len(wave) > 1:
-            wave = run_parallel_wave(wave)                 # 16a–16h; may fall back to one
-        if len(wave) == 1:
-            run_one_task(wave.first)                       # 17–22
+            if len(wave) > 1:
+                wave = run_parallel_wave(wave)               # 22a–22e; may fall back to one
+            if len(wave) == 1:
+                run_one_task(wave.first)                     # 23–28
 
-        # 23 · ONLY this script sends a unit to the gates. Never infer "gates"
+        # 29 · ONLY this script sends a unit to the gates. Never infer "gates"
         #      from an empty-looking queue — it empties two ways.
         v = implement_loop_state(state_file)
         if v == "next-task":
-            continue                                       # back to 16
+            continue                                        # back to 21 — re-checks
+                                                              # stack.wanted every time,
+                                                              # never straight to 22
         elif v == "gates":
-            break                                          # every task in the unit is done
-        else:                                              # "halted" | "halt-budget"
+            break                                            # every task in the unit is done
+        else:                                                # "halted" | "halt-budget"
             halt()
 
-    # ---- 24–28 · §8.1–§8.2 · the two opt-in gates, in that order ----
-    load("references/batch-end-review.md")                 # 24
+    # ---- 30–34 · §8.1–§8.2 · the two opt-in gates, in that order ----
+    load("references/batch-end-review.md")                  # 30
 
-    if answers.quality_gate_tail:                          # 25 · else skipped by request
-        # 26 · §8.1 — IN THIS SESSION, never wrapped in a subagent: its legs are
+    if answers.quality_gate_tail:                           # 31 · else skipped by request
+        # 32 · §8.1 — IN THIS SESSION, never wrapped in a subagent: its legs are
         #     already fresh-context reviewers, and its commits need a permission
         #     prompt only main can render. The spec argument goes in only when
         #     §1.1 resolved one — the skill matches paths by spec_/plan_ prefix.
         run_skill("/quality-gate", spec_if_resolved, plan,
                   tasks=unit.task_ids, base_ref=state.batch_base_sha,
-                  auto_solve=True)
-        # 26a · inside it: refactor ∥ auto-review ∥ test-sdd legs → three
+                  # EXACTLY ONE of auto_solve/report_only always goes along —
+                  # omitting both drops into /quality-gate's own interview,
+                  # stalling on a prompt nobody is watching.
+                  auto_solve=answers.quality_gate_auto_solve)
+        # 32a · inside it: refactor ∥ auto-review ∥ test-sdd legs → three
         #       verdict_*.md, then per-finding apply → commit → mark [Done].
-        # 26b · hook: deep-reviewer-write-guard (only verdict_*.md writes approved).
-        state.record_verdict_paths()   # 26c · PATHS, never content; every finding
+        # 32b · hook: deep-reviewer-write-guard (only verdict_*.md writes approved).
+        state.record_verdict_paths()   # 32c · PATHS, never content; every finding
         scout(quality_gate.declined)   #       it declined becomes a [Scout];
         state.phase = "tails"          #       then phase=tails
 
-    if answers.repo_green_gate:                            # 27 · else skipped by request
+    if answers.repo_green_gate:                             # 33 · else skipped by request
         while True:
-            # 28 · §8.2 — repo-wide, never scoped to the batch's own files. Runs
+            # 34 · §8.2 — repo-wide, never scoped to the batch's own files. Runs
             #     AFTER the quality gate, so it measures a tree already holding
-            #     whatever --auto-solve applied. That ordering is why no "the gate
-            #     applied something, so re-run the suite" rule exists.
-            if full_lint() and full_test_suite():          # 28a
+            #     whatever this tail applied — true under EITHER flag, since the
+            #     test-sdd leg writes the plan's missing tests on every run of it.
+            #     That's why no "the gate applied something, so re-run the suite"
+            #     rule exists.
+            if full_lint() and full_test_suite():           # 34a
                 break
             # A failure the batch didn't cause is a [Scout], never a blocker.
-            if not fix_attempts_left():                    # 28b
+            if not fix_attempts_left():                     # 34b
                 halt()
-            dispatch("tdd-coder", failure,                 # 28c · attempt recorded,
-                     timeout_ms=3_600_000)                 #       RE-RUN THE FULL SUITE
+            dispatch("tdd-coder", failure,                  # 34c · attempt recorded,
+                     timeout_ms=3_600_000)                   #       RE-RUN THE FULL SUITE
 
-    # ---- 29–35 · §8.3 · push, PR, package, finalize ----
-    # 29 · Finalize step 1 — ALWAYS, on every batch end, whatever pr.wanted says.
+    # ---- 35–44 · §8.3 · push, PR, package, finalize ----
+    # 35 · Finalize step 1 — ALWAYS, on every batch end, whatever pr.wanted says.
     #      A pushed branch with no PR is the ordinary outcome, not a half state.
-    if not git_push("-u", "origin", "HEAD"):               # 30 · no remote, a rejected
-        halt()                                             #      non-fast-forward, no creds
+    #      A stacked unit pushes EVERY layer branch, in layer order, in one
+    #      command; a non-stacked unit pushes its own single branch, as before.
+    branches = unit.layer_branches if state.stack.wanted else [current_branch()]
+    if not git_push("-u", "origin", *branches):             # 36 · no remote, a rejected
+        halt()                                              #      non-fast-forward, no creds
 
     # The three batch-end-pr* files load under three separate conditions — each
     # `if` below reads only its own, so no run pays for a branch it skips.
-    if unit.is_pr:                                         # 31
-        load("references/batch-end-pr-branch-record.md")   # 31a
-        # 32 · Finalize step 2, PR-label runs only: the Branch: clause and the
-        #      PR-level [Done] marker, both on this PR's own plan line.
-        plan.record_branch_clause(unit.label, current_branch())
+    if unit.is_pr:                                          # 37
+        load("references/batch-end-pr-branch-record.md")    # 37a
+        # 38 · Finalize step 2, PR-label runs only: the Branch: clause (the
+        #      unit's LAST layer's branch when stacked, else the unit's own
+        #      branch) + the PR-level [Done] marker, both on this PR's own
+        #      plan line.
+        plan.record_branch_clause(unit.label, unit.last_layer_branch_or_own())
         plan.mark_pr(unit.label, "[Done]")
 
-    if answers.draft_pr:                                   # 33
-        load("references/batch-end-pr.md")                 # 33a
-        pr = dispatch("pr-creator", batch_diff)      # 33b · composes the body and
-                                                     #       CREATES ONLY — 29 pushed,
-                                                     #       so it must never push
-        if not pr.opened:                                  # 33c
-            halt()
-        # Native mode + the run's last PR only: register the chain as a native
-        # stack, reusing the already-created PRs. Linking runs LAST so no branch
-        # is server-rebased mid-run.
-        if plan.stack_mode == "native" and unit.is_last_label:
-            load("references/batch-end-pr-native-link.md") # 33d
-            if not gh("stack", "link"):                    # 33e · a failed link
-                plan.record_stack_mode("merge")            #       downgrades Mode:
-                                                           #       to merge, never halts
+    if state.stack.wanted:                                  # 39
+        # 39a · EACH layer's branch, on its own task heading beside the [Done]
+        #      marker §6 already writes there. A plain <task-ids> run has no
+        #      PR Breakdown entry (37 never ran for it), so it records only
+        #      this per-layer half.
+        for task in unit.stack.order:
+            plan.record_task_branch(task, task.layer_branch)
 
-    print_review_package()          # 34 · Finalize step 3 — the package, closing with
+    if answers.draft_pr:                                    # 40
+        load("references/batch-end-pr.md")                  # 40a
+        if state.stack.wanted:                               # 40b
+            # 40b1 · one pr-creator dispatch per layer, bottom-up, so every
+            #       parent PR exists before its child targets it. --base is
+            #       the PREVIOUS layer's branch; layer 1's --base is whatever
+            #       batch-end-pr.md already resolves for the unit. Each body
+            #       is scoped to that task's own plan slice and cross-links
+            #       the chain (Stack: #A ← #B ← current).
+            prs = [dispatch("pr-creator", task_diff(layer),
+                            base=layer.previous_branch_or_unit_base(),
+                            body_path=f"./pr_{slug}_t{layer.task_id}.final.md")
+                   for layer in unit.stack.order]            # serial, bottom-up
+            if not all(pr.opened for pr in prs):             # 40b2
+                halt()
+            # 40b2a · once per unit, at THIS unit's own batch end — never
+            #        deferred to the run's last PR-label, unlike 41 below.
+            #        `gh stack link --help` checked first; a failed link is a
+            #        platform-limit note in the package, never a halt.
+            gh("stack", "link", layer=prs.topmost)
+        else:
+            pr = dispatch("pr-creator", batch_diff)          # 40b3 · composes the body and
+                                                              #       CREATES ONLY — 36 pushed,
+                                                              #       so it must never push
+            if not pr.opened:                                # 40b4
+                halt()
+        # Native mode + the run's last PR only: register the CROSS-UNIT chain,
+        # reusing the already-created PRs. Linking runs LAST so no branch is
+        # server-rebased mid-run. Independent of 40b2a, which registers only
+        # THIS unit's own layers — both can fire on the same run.
+        if plan.stack_mode == "native" and unit.is_last_label:
+            load("references/batch-end-pr-native-link.md") # 41
+            if not gh("stack", "link"):                     # 42 · a failed link
+                plan.record_stack_mode("merge")             #      downgrades Mode:
+                                                             #      to merge, never halts
+
+    print_review_package()          # 43 · Finalize step 3 — the package, closing with
                                     #      the review notification: base SHA + its
                                     #      subject, then one line per unit — label ·
                                     #      branch · commit count · PR URL when one exists
     complete_remaining_reminders()
-    state.phase = "presented"                              # 35 · Finalize step 4
+    state.phase = "presented"                              # 44 · Finalize step 4
     delete(state_file)
 
 
 def run_one_task(task):
-    # 17 · §3.4 — the only orchestrator work between two dispatches: flip the
+    # 23 · §3.4 — the only orchestrator work between two dispatches: flip the
     #      status, hand over a breadcrumb. No checklist path is assigned.
     task_update(task, "in_progress", breadcrumb=plan.acceptance_titles(task))
 
-    while True:   # retry loop: 21c's "retry" comes back here, not to activation
-        # 18 · §4 — agent-pinned, background, 1h Monitor cap. One task, so it
+    while True:   # retry loop: 27c's "retry" comes back here, not to activation
+        # 24 · §4 — agent-pinned, background, 1h Monitor cap. One task, so it
         #      runs in the main tree: a worktree exists only to keep concurrent
         #      siblings off one index, and there are no siblings here.
         report = dispatch("tdd-coder", task, timeout_ms=3_600_000)
-        # 18a · hooks: subagent-model-guard + git-guard
-        # 18c · THE SUBAGENT owns its RED-GREEN checklist end to end: it derives
+        # 24a · hooks: subagent-model-guard + git-guard
+        # 24c · THE SUBAGENT owns its RED-GREEN checklist end to end: it derives
         #       the path, writes it, and resumes from it. The orchestrator never
         #       names it, reads it, or gates on it.
         if report.timed_out:
-            task_stop(report.agent)                        # 18b · resolves as a timeout
+            task_stop(report.agent)                        # 24b · resolves as a timeout
             report.status = "timeout"
 
-        if report.status == "done":                        # 19 · §4.4
-            # 20 · §5.1 — the orchestrator's whole part: no dispatch, no re-run,
+        if report.status == "done":                        # 25 · §4.4
+            # 26 · §5.1 — the orchestrator's whole part: no dispatch, no re-run,
             #      no checklist. One `git cat-file -e <sha>^{commit}` per SHA
             #      the report named — existence only, never content.
-            accepted = all_reported_commits_resolve(report)          # 21
+            accepted = all_reported_commits_resolve(report)          # 27
         else:
             accepted = False  # `blocked` and `timeout` take the failure path too
 
         if accepted:
-            return advance(task, report)                   # 22 · §5.4
+            return advance(task, report)                   # 28 · §5.4
 
-        load("references/failure-and-halt.md")             # 21a
-        state.record_attempt(task, result, signature)      # 21b · §5.2
-        v = implement_loop_state(state_file)               # 21c
+        load("references/failure-and-halt.md")             # 27a
+        state.record_attempt(task, result, signature)      # 27b · §5.2
+        v = implement_loop_state(state_file)               # 27c
         if v != "retry":                                   # retry loads debug-standards
             break
 
-    if v == "stuck":                                       # 21d · §5.3
+    if v == "stuck":                                        # 27d · §5.3
         mark_terminal(task)
         chain_abort_dependents(task, transitive=True)
         plan.mark(task, "[Blocked]")
         task_update(task, "completed")
-        if not next_runnable():                            # 21e
+        if not next_runnable():                            # 27e
             halt()
     elif v in ("halted", "halt-budget"):
         halt()
 
 
 def advance(task, report):
-    state.set(task, status="done")     # 22 · §5.4 — flipped BEFORE the verdict script,
+    state.set(task, status="done")     # 28 · §5.4 — flipped BEFORE the verdict script,
     plan.mark(task, "[Done]")          #      which picks by status: a passed task left
     task_create_scouts(report.scouts)  #      pending gets re-dispatched later.
     task_update(task, "completed")     #      §4.3 — one [Scout] task each.
@@ -259,30 +364,31 @@ def run_parallel_wave(wave):
     # guard, the merge order, the cleanup. Parallelism is still derived from the
     # plan's DAG rather than asked, which is why §1.2's interview never grew a
     # question for it. This function only supplies inputs and judges reports.
-    load_skill("parallel-worktrees")                       # 16a
+    # NEVER entered for a stacked unit — 21 routes those away before this call.
+    load_skill("parallel-worktrees")                        # 22a
 
-    # 16b · A DAG says ordering, never shared files, so the skill re-filters the
+    # 22b · A DAG says ordering, never shared files, so the skill re-filters the
     #       set against each sibling's Files list AND the main tree's uncommitted
     #       paths, then caps at 4. Below 2 there are no concurrent siblings to
-    #       keep off one index, so the leftover task falls through to 17 and no
+    #       keep off one index, so the leftover task falls through to 23 and no
     #       worktree is created at all.
     wave = parallel_worktrees.filter(wave, files_by_task,
                                      base=state.batch_base_sha, slug=slug)
     if len(wave) < 2:
-        return wave        # falls back to 17 — no worktree for a single task
+        return wave        # falls back to 23 — no worktree for a single task
 
-    # 16c · The skill writes in_progress + branch + worktree_path into OUR state
+    # 22c · The skill writes in_progress + branch + worktree_path into OUR state
     #       file before each spawn. Its ledger is ours by necessity: --eligible-set
     #       is what reads that mark back to skip a task already in flight.
     reports = parallel_worktrees.create_and_dispatch(wave, agent="tdd-coder")
 
-    for r in reports:                                      # 16d · §5.1 per report, as each
-        if all_reported_commits_resolve(r):                #       lands — so a failure
-            advance(r.task, r)                             #       re-dispatches (into its
-        else:                                              #       OWN worktree) while its
-            handle_failure(r)   # 21a-21e, unchanged       #       siblings still work
+    for r in reports:                                       # 22d · §5.1 per report, as each
+        if all_reported_commits_resolve(r):                 #       lands — so a failure
+            advance(r.task, r)                               #       re-dispatches (into its
+        else:                                                #       OWN worktree) while its
+            handle_failure(r)   # 27a-27e, unchanged        #       siblings still work
 
-    # 16e · Ascending task-id order, rebase inside each worktree then --ff-only in
+    # 22e · Ascending task-id order, rebase inside each worktree then --ff-only in
     #       the main tree, cleanup per merge. A conflict means a file predicate was
     #       wrong for that pair, and the skill keeps every worktree on the way out
     #       — halt() below is already the no-cleanup path, so nothing extra here.
@@ -295,8 +401,8 @@ def halt():
     # RAISES, never returns: every call site above is terminal at whatever depth
     # it sits, and a returned halt would be discarded by run_one_task's caller
     # and misread as the next `wave` by run_parallel_wave's.
-    load("references/failure-and-halt.md")                 # 37
-    set_halted_phase_on_all_units()                        # 38 · §5.5
+    load("references/failure-and-halt.md")                 # 46
+    set_halted_phase_on_all_units()                        # 47 · §5.5
     scratchpad.write(what_each_blocker_needs)
     leave_pending(remaining_reminders)
     # Cleanup stops entirely on the way out: an unmerged branch holds work only
@@ -312,156 +418,193 @@ flowchart TD
   n2["2. Step 1.1 · Locate plan_&lt;slug&gt;.md (+ the spec when one<br/>exists — a plan-only run is a supported mode)"]
   n3{"3. Plan found?"}
   n3a(["3a. Stop: no plan given"])
-  n4["4. Step 1.2 · ONE up-front interview —<br/>the only round until the<br/>review package:<br/><br/>- Plan pick, if multiple candidates<br/>- Plan path, if none found (§1.1)<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Quality-gate tail? (default yes)<br/>- Capture a full-suite green baseline first?<br/>- Repo-green gate? (default yes)<br/>- Confirm the base branch"]:::gate
-  n5["5. Step 1.3 · Re-validate BOTH graphs ONCE,<br/>before any execution:<br/>check-tasks-dag.sh + check-pr-dag.sh"]:::hook
-  n6{"6. Both graphs valid?"}
-  n6a(["6a. Stop: surface the script's stderr;<br/>fix the plan, re-invoke"])
-  n7{"7. Worktree requested?"}
-  n7a["7a. Load references/worktree-setup.md"]:::skill
-  n7b["7b. Step 1.4 · EnterWorktree + symlink<br/>the plan and its spec, copy .env*"]
-  n8{"8. Arg is PR-label(s)?"}
-  n8a["8a. Load references/pr-awareness.md"]:::skill
-  n8b["8b. Step 1.5 · Resolve EVERY PR-N to its<br/>task-id list (get-pr-tasks.sh),<br/>before any seeding"]
-  n8c["8c. Step 1.5 · Decide the stack mode ONCE:<br/>diamond (a PR with 2+ parents) -&gt; merge;<br/>linear AND gh-stack extension installed -&gt; native;<br/>else merge. Record a Mode: line under the plan's<br/>PR Breakdown heading — sticky for the stack's life"]:::state
-  n9{"9. Full-suite baseline requested?"}
-  n9a["9a. Load references/full-suite-baseline.md"]:::skill
-  n9b["9b. Step 1.6 · Capture the baseline: full lint +<br/>full test suite, once worktree (7b) and<br/>PR-label resolution (8b) have settled;<br/>save the log PATH + failing signatures into<br/>state.baseline (never the log content)"]:::state
-  n10["10. Step 2.1 · TaskList: one entry per task,<br/>ALL PRs upfront in execution order<br/>(subjects prefixed 'PR-2 &middot;');<br/>1st in_progress, rest pending;<br/>status only"]:::state
+  n4["4. Step 1.2 · Load references/stacked-by-task.md<br/>— here, on every run, before its own two<br/>pre-flight gates below"]:::skill
+  n5{"5. Step 1.2 · Gate 1 · Does 'gh stack --help'<br/>exit 0? (gh-stack extension installed —<br/>without it a stack can be built but never registered)"}:::hook
+  n5a["5a. Gate 1 fired: gh-stack extension not installed"]
+  n6{"6. Step 1.2 · Gate 2 (checked only once Gate 1<br/>passes) · resolve-task-order.sh &lt;plan-file&gt; &lt;task-ids&gt;<br/>— exit code?"}:::hook
+  n6a["6a. Gate 2 fired (exit 1): a task in scope has<br/>2+ in-scope parents (a true join) — surface every<br/>offending task + its parents verbatim"]
+  n6b(["6b. Stop (exit 2): usage/parse error —<br/>fix the plan/args and re-invoke, like any<br/>other pre-flight failure"])
+  n7["7. Step 1.2 · Ask 'Deliver each task as its own<br/>stacked PR?' (yes/no, default yes) in the SAME<br/>interview call, showing resolve-task-order.sh's<br/>topological layer order (ties lowest-id-first)<br/>for the user to confirm or reorder — an order that<br/>puts a task before an in-scope parent is rejected"]:::gate
+  n8["8. Step 1.2 · Either gate fired: confirm the<br/>forced non-stacked run (naming which gate),<br/>in the SAME interview call instead of asking 7 —<br/>a 'yes' answer cannot override either gate"]:::gate
+  n9["9. Step 1.2 · Rest of the up-front interview,<br/>same call:<br/><br/>- Plan pick, if multiple candidates<br/>- Plan path, if none found (§1.1)<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Quality-gate tail? (default yes)<br/>- Auto-solve its findings? (default yes,<br/>read only when the tail is on)<br/>- Capture a full-suite green baseline first?<br/>- Repo-green gate? (default yes)<br/>- Confirm the base branch<br/><br/>PLUS whichever of 7 / 8 this run resolved to"]:::gate
+  n10["10. Step 1.3 · Re-validate ALL THREE checks ONCE,<br/>before any execution: check-tasks-dag.sh +<br/>check-pr-dag.sh + check-pr-task-projection.py"]:::hook
+  n11{"11. All three checks valid?"}
+  n11a(["11a. Stop: surface the script's stderr;<br/>fix the plan, re-invoke"])
+  n12{"12. Worktree requested?"}
+  n12a["12a. Load references/worktree-setup.md"]:::skill
+  n12b["12b. Step 1.4 · EnterWorktree + symlink<br/>the plan and its spec, copy .env*"]
+  n13{"13. Arg is PR-label(s)?"}
+  n13a["13a. Load references/pr-awareness.md"]:::skill
+  n13b["13b. Step 1.5 · Resolve EVERY PR-N to its<br/>task-id list (get-pr-tasks.sh),<br/>before any seeding"]
+  n13c["13c. Step 1.5 · Decide the CROSS-UNIT stack mode<br/>ONCE — between PR-N units, independent of 7's<br/>per-task stack choice within one unit: diamond<br/>(a PR with 2+ parents) -&gt; merge; linear AND<br/>gh-stack extension installed -&gt; native; else merge.<br/>Record a Mode: line under the plan's PR Breakdown<br/>heading — sticky for the stack's whole life"]:::state
+  n14{"14. Full-suite baseline requested?"}
+  n14a["14a. Load references/full-suite-baseline.md"]:::skill
+  n14b["14b. Step 1.6 · Capture the baseline: full lint +<br/>full test suite, once worktree (12b) and<br/>PR-label resolution (13b) have settled;<br/>save the log PATH + failing signatures into<br/>state.baseline (never the log content)"]:::state
+  n15["15. Step 2.1 · TaskList: one entry per task,<br/>ALL PRs upfront in execution order<br/>(subjects prefixed 'PR-2 &middot;');<br/>1st in_progress, rest pending;<br/>status only"]:::state
 
-  subgraph seedRemind["11. Step 2.2 · After each PR's task entries, seed that batch's 4 batch-end [Reminder]s — separate entries, never one chain:<br/>a combined entry has one completed flag, so a step-level skip would have nowhere to land."]
+  subgraph seedRemind["16. Step 2.2 · After each PR's task entries, seed that batch's 4 batch-end [Reminder]s — separate entries, never one chain:<br/>a combined entry has one completed flag, so a step-level skip would have nowhere to land."]
     direction TB
-    n11a["11a. Add to TaskList a [Reminder] for<br/>Batch-end 1/4: quality-gate tail with --auto-solve<br/>(only when opted in)"]:::state
-    n11b["11b. Add to TaskList a [Reminder] for<br/>Batch-end 2/4: repo-green gate, fix-loop until green<br/>(only when opted in)"]:::state
-    n11c["11c. Add to TaskList a [Reminder] for<br/>Batch-end 3/4: push the branch; record it in the<br/>PR entry; open the PR via pr-creator when wanted"]:::state
-    n11d["11d. Add to TaskList a [Reminder] for<br/>Batch-end 4/4: package print,<br/>closing review notification"]:::state
-    n11a --> n11b --> n11c --> n11d
+    n16a["16a. Add to TaskList a [Reminder] for<br/>Batch-end 1/4: quality-gate tail, --auto-solve<br/>per its own toggle (only when opted in)"]:::state
+    n16b["16b. Add to TaskList a [Reminder] for<br/>Batch-end 2/4: repo-green gate, fix-loop until green<br/>(only when opted in)"]:::state
+    n16c["16c. Add to TaskList a [Reminder] for<br/>Batch-end 3/4: push the branch(es); record it in the<br/>PR entry; open the PR via pr-creator when wanted"]:::state
+    n16d["16d. Add to TaskList a [Reminder] for<br/>Batch-end 4/4: package print,<br/>closing review notification"]:::state
+    n16a --> n16b --> n16c --> n16d
   end
 
-  n12["12. Step 2.3 · Write durable state NOW,<br/>kept current as the run goes:<br/>one /tmp/implement_&lt;session_id&gt;[_prN].json<br/>per unit (phase=tasks, start_sha=HEAD)<br/>+ /tmp/implement_&lt;session_id&gt;.md scratchpad.<br/>NO resume path — a leftover file is stale"]:::state
+  n17["17. Step 2.3 · Write durable state NOW,<br/>kept current as the run goes:<br/>one /tmp/implement_&lt;session_id&gt;[_prN].json<br/>per unit (phase=tasks, start_sha=HEAD,<br/>stack: {wanted, order, refused} from 7/8/9)<br/>+ /tmp/implement_&lt;session_id&gt;.md scratchpad.<br/>NO resume path — a leftover file is stale"]:::state
 
   subgraph perunit ["Per unit: the whole batch (task-ids run), or each PR in turn (PR-label list)"]
-    n13{"13. PR-label run: checkout needed?<br/>(need-git-checkout.sh)"}:::hook
-    n13a["13a. Load references/pr-branch-creation.md"]:::skill
-    n13b["13b. Step 3.1 · Orchestrator creates this<br/>PR's branch — ONCE, here; never<br/>mid-loop, never by a subagent"]
-    n14["14. Step 3.2 · Capture BATCH_BASE_SHA into<br/>the state file; recap the base from<br/>COMMIT MESSAGES, not the diff"]:::state
-    n15["15. Step 3.3 · Exact-match this unit's task-ids<br/>(a collision means a malformed plan)"]
-    n16{"16. Step 5.4 · How many tasks are eligible right now?<br/>(implement-loop-state.py --eligible-set — NEVER the plain<br/>verdict while anything is in flight: the plain one assumes<br/>nothing is, so mid-wave it answers 'halted' and stops the<br/>run to wait for a human)"}:::hook
-    n16a["16a. Load the parallel-worktrees skill, handing it the eligible<br/>ids, each task's Files list, batch_base_sha and the plan slug.<br/>Every worktree, branch, dispatch and merge below is its flow,<br/>authored in its own file: this run supplies those four inputs<br/>and judges the reports, and owns nothing else in the wave"]:::skill
-    n16b{"16b. After its own two file predicates and its cap of 4,<br/>does the set still hold 2 or more? (a DAG says ordering,<br/>never shared files, so undeclared-independent tasks can<br/>still collide — and 1 task needs no worktree at all)"}
-    n16c["16c. It opens one worktree + branch per task and dispatches<br/>one tdd-coder into each (agent-pinned, background, ∥),<br/>marking every task in_progress in THIS state file first —<br/>its ledger is ours, because --eligible-set is what reads<br/>that mark back to skip a task already in flight"]:::dispatch
-    n16d["16d. Step 5.1 · Accept each report as it lands, so a failure<br/>re-dispatches — into its OWN worktree — while its siblings<br/>still work. A failure or block is that task's alone"]
-    n16e["16e. Once every task is accepted it merges each branch back<br/>in ascending task-id order and removes that worktree per<br/>merge, leaving history identical to a sequential run's"]:::state
-    n17["17. Step 3.4 · Activate a task: TaskUpdate<br/>in_progress + breadcrumb.<br/>NO checklist path is assigned"]:::state
-    n18["18. Step 4 · Dispatch tdd-coder (agent-pinned,<br/>background, 1h Monitor cap). One task, so it runs<br/>in the main tree: a worktree exists only to keep<br/>concurrent siblings off one index, and there are none"]:::dispatch
-    n18a["18a. Hooks: subagent-model-guard + git-guard"]:::hook
-    n18b["18b. 1h Monitor expires: TaskStop the<br/>subagent (resolves as timeout)"]:::hook
-    n18c["18c. THE SUBAGENT owns its RED-GREEN checklist<br/>end to end: it derives the path, writes it,<br/>and resumes from it. The orchestrator never<br/>names it, reads it, or gates on it"]:::state
-    n19{"19. Step 4.4 · Subagent report status?"}
-    n20["20. Step 5.1 · Accept the result: the orchestrator<br/>dispatches no reviewer, re-runs nothing and reads no<br/>checklist — its whole part is one<br/>git cat-file -e &lt;sha&gt;^{commit} per reported SHA"]
-    n21{"21. Every reported commit resolves?<br/>(a 'done' reporting none fails too;<br/>existence only, never content)"}
-    n21a["21a. Load references/failure-and-halt.md"]:::skill
-    n21b["21b. Step 5.2 · Record the attempt<br/>(fail/timeout/blocked + signature)<br/>into the state file"]:::state
-    n21c{"21c. Step 5.2 · implement-loop-state.py:<br/>verdict?"}:::hook
-    n21d["21d. Step 5.3 · Mark the task terminal;<br/>chain-abort dependents transitively;<br/>plan [Blocked]; TaskUpdate completed"]:::state
-    n21e{"21e. Step 5.3 · Any runnable task left?"}
-    n22["22. Step 5.4 · Advance: state file status=done<br/>(flipped BEFORE the verdict script, which picks by<br/>status — a passed task left pending is re-dispatched);<br/>plan [Done]; TaskCreate [Scout] items; TaskUpdate completed"]:::state
-    n23{"23. Step 5.4 · implement-loop-state.py: verdict?<br/>ONLY this script sends a unit to the gates"}:::hook
-    n24["24. Load references/batch-end-review.md"]:::skill
-    n25{"25. Quality-gate tail requested?"}
-    n26["26. Step 8.1 · Invoke /quality-gate [&lt;spec&gt;] &lt;plan&gt;<br/>--tasks &lt;this unit's ids&gt; --auto-solve,<br/>base ref = BATCH_BASE_SHA. The spec argument goes in<br/>only when §1.1 resolved one.<br/>IN THIS SESSION, never wrapped in a subagent:<br/>its legs are already fresh-context reviewers, and<br/>its commits need a prompt only main can render"]:::skill
-    n26a["26a. Inside it: refactor ∥ auto-review ∥ test-sdd legs<br/>→ three verdict_*.md, then per-finding<br/>apply → commit → mark [Done]"]:::dispatch
-    n26b["26b. Hook: deep-reviewer-write-guard<br/>(only verdict_*.md writes are approved)"]:::hook
-    n26c["26c. Record each verdict PATH into the state file<br/>(never its content); every finding it declined<br/>becomes a [Scout]; then phase=tails"]:::state
-    n27{"27. Repo-green gate requested?"}
-    n28["28. Step 8.2 · Repo-green GATE: full lint + full test<br/>suite, repo-wide, never scoped to the batch's own<br/>files. Runs AFTER the quality gate, so it measures a<br/>tree already holding whatever --auto-solve applied —<br/>which is why no 'it applied something,<br/>so re-run the suite' rule exists"]:::gate
-    n28a{"28a. Green? (a failure the batch didn't<br/>cause is a [Scout], never a blocker)"}
-    n28b{"28b. Fix attempts left?"}
-    n28c["28c. Step 8.2 · Dispatch tdd-coder to fix it<br/>(agent-pinned, 1h Monitor cap, attempt<br/>recorded); RE-RUN THE FULL SUITE"]:::dispatch
-    n29["29. Step 8.3 · Finalize step 1 · git push -u origin HEAD<br/>— ALWAYS, on every batch end, whatever pr.wanted<br/>says. A pushed branch with no PR is the ordinary<br/>outcome, not a half-finished state"]:::gate
-    n30{"30. Push succeeded?<br/>(no remote / rejected non-fast-forward /<br/>missing credentials)"}
-    n31{"31. PR-label run?"}
-    n31a["31a. Load references/batch-end-pr-branch-record.md"]:::skill
-    n32["32. Step 8.3 · Finalize step 2 · Record the Branch:<br/>clause + the PR-level [Done] marker on this PR's<br/>own plan line (PR-label runs only)"]:::state
-    n33{"33. Draft PR requested?"}
-    n33a["33a. Load references/batch-end-pr.md"]:::skill
-    n33b["33b. Step 8.3 · Dispatch the pr-creator agent<br/>(agent-pinned): it composes the body and CREATES<br/>the PR ONLY — step 29 already pushed,<br/>so it must never push or force-push"]:::dispatch
-    n33c{"33c. PR opened or updated?"}
-    n33d["33d. Native mode + the run's LAST PR only (skipped<br/>otherwise): load references/batch-end-pr-native-link.md"]:::skill
-    n33e["33e. gh stack link registers the chain as a native stack,<br/>reusing the already-created PRs. Linking runs LAST so no<br/>branch is server-rebased mid-run; a failed link downgrades<br/>the plan's Mode: to merge and continues — never a halt"]
-    n34["34. Step 8.3 · Finalize step 3 · Print the review<br/>package, closing with the review notification:<br/>base SHA + its subject, then one line per unit —<br/>label · branch · commit count · PR URL when one<br/>exists; complete the remaining [Reminder]s"]
-    n35["35. Step 8.3 · Finalize step 4 · phase=presented;<br/>DELETE this unit's state file"]:::state
+    n18{"18. PR-label run: checkout needed?<br/>(need-git-checkout.sh)"}:::hook
+    n18a["18a. Load references/pr-branch-creation.md"]:::skill
+    n18b["18b. Step 3.1 · Orchestrator creates this<br/>PR's branch — ONCE, here; never<br/>mid-loop, never by a subagent"]
+    n19["19. Step 3.2 · Capture BATCH_BASE_SHA into<br/>the state file; recap the base from<br/>COMMIT MESSAGES, not the diff"]:::state
+    n20["20. Step 3.3 · Exact-match this unit's task-ids<br/>(a collision means a malformed plan)"]
+    n21{"21. Step 5.4 · Unit stacked (state.stack.wanted)?<br/>Checked EVERY loop iteration, never just the first —<br/>a stacked unit is strictly sequential and never<br/>calls --eligible-set or parallel-worktrees at all"}
+    n21a["21a. Take the next task id from stack.order<br/>— NEVER the verdict script's own ordering"]
+    n21b{"21b. Is this task stack.order's first<br/>entry (layer 1)?"}
+    n21c["21c. Create this layer's branch:<br/>git checkout -b &lt;layer-1-branch&gt;-t&lt;task-id&gt;<br/>from the previous layer's tip (existing-branch<br/>adopt check first); branch recorded into<br/>this task's state-file entry"]:::state
+    n22{"22. Step 5.4 · How many tasks are eligible right now?<br/>(implement-loop-state.py --eligible-set — NEVER the plain<br/>verdict while anything is in flight: the plain one assumes<br/>nothing is, so mid-wave it answers 'halted' and stops the<br/>run to wait for a human)"}:::hook
+    n22a["22a. Load the parallel-worktrees skill, handing it the eligible<br/>ids, each task's Files list, batch_base_sha and the plan slug.<br/>Every worktree, branch, dispatch and merge below is its flow,<br/>authored in its own file: this run supplies those four inputs<br/>and judges the reports, and owns nothing else in the wave"]:::skill
+    n22b{"22b. After its own two file predicates and its cap of 4,<br/>does the set still hold 2 or more? (a DAG says ordering,<br/>never shared files, so undeclared-independent tasks can<br/>still collide — and 1 task needs no worktree at all)"}
+    n22c["22c. It opens one worktree + branch per task and dispatches<br/>one tdd-coder into each (agent-pinned, background, ∥),<br/>marking every task in_progress in THIS state file first —<br/>its ledger is ours, because --eligible-set is what reads<br/>that mark back to skip a task already in flight"]:::dispatch
+    n22d["22d. Step 5.1 · Accept each report as it lands, so a failure<br/>re-dispatches — into its OWN worktree — while its siblings<br/>still work. A failure or block is that task's alone"]
+    n22e["22e. Once every task is accepted it merges each branch back<br/>in ascending task-id order and removes that worktree per<br/>merge, leaving history identical to a sequential run's"]:::state
+    n23["23. Step 3.4 · Activate a task: TaskUpdate<br/>in_progress + breadcrumb.<br/>NO checklist path is assigned"]:::state
+    n24["24. Step 4 · Dispatch tdd-coder (agent-pinned,<br/>background, 1h Monitor cap). One task, so it runs<br/>in the main tree: a worktree exists only to keep<br/>concurrent siblings off one index, and there are none"]:::dispatch
+    n24a["24a. Hooks: subagent-model-guard + git-guard"]:::hook
+    n24b["24b. 1h Monitor expires: TaskStop the<br/>subagent (resolves as timeout)"]:::hook
+    n24c["24c. THE SUBAGENT owns its RED-GREEN checklist<br/>end to end: it derives the path, writes it,<br/>and resumes from it. The orchestrator never<br/>names it, reads it, or gates on it"]:::state
+    n25{"25. Step 4.4 · Subagent report status?"}
+    n26["26. Step 5.1 · Accept the result: the orchestrator<br/>dispatches no reviewer, re-runs nothing and reads no<br/>checklist — its whole part is one<br/>git cat-file -e &lt;sha&gt;^{commit} per reported SHA"]
+    n27{"27. Every reported commit resolves?<br/>(a 'done' reporting none fails too;<br/>existence only, never content)"}
+    n27a["27a. Load references/failure-and-halt.md"]:::skill
+    n27b["27b. Step 5.2 · Record the attempt<br/>(fail/timeout/blocked + signature)<br/>into the state file"]:::state
+    n27c{"27c. Step 5.2 · implement-loop-state.py:<br/>verdict?"}:::hook
+    n27d["27d. Step 5.3 · Mark the task terminal;<br/>chain-abort dependents transitively;<br/>plan [Blocked]; TaskUpdate completed"]:::state
+    n27e{"27e. Step 5.3 · Any runnable task left?"}
+    n28["28. Step 5.4 · Advance: state file status=done<br/>(flipped BEFORE the verdict script, which picks by<br/>status — a passed task left pending is re-dispatched);<br/>plan [Done]; TaskCreate [Scout] items; TaskUpdate completed"]:::state
+    n29{"29. Step 5.4 · implement-loop-state.py: verdict?<br/>ONLY this script sends a unit to the gates"}:::hook
+    n30["30. Load references/batch-end-review.md"]:::skill
+    n31{"31. Quality-gate tail requested?"}
+    n32["32. Step 8.1 · Invoke /quality-gate [&lt;spec&gt;] &lt;plan&gt;<br/>--tasks &lt;this unit's ids&gt;, base ref = BATCH_BASE_SHA,<br/>carrying EXACTLY ONE of --auto-solve / --report-only<br/>per §1.2's second toggle (never neither — that drops<br/>/quality-gate into its own interview and stalls the<br/>batch on an unwatched prompt). Spec argument goes in<br/>only when §1.1 resolved one.<br/>IN THIS SESSION, never wrapped in a subagent:<br/>its legs are already fresh-context reviewers, and<br/>its commits need a prompt only main can render"]:::skill
+    n32a["32a. Inside it: refactor ∥ auto-review ∥ test-sdd leg<br/>→ three verdict_*.md, then per-finding<br/>apply → commit → mark [Done]"]:::dispatch
+    n32b["32b. Hook: deep-reviewer-write-guard<br/>(only verdict_*.md writes are approved)"]:::hook
+    n32c["32c. Record each verdict PATH into the state file<br/>(never its content); every finding it declined<br/>becomes a [Scout]; then phase=tails"]:::state
+    n33{"33. Repo-green gate requested?"}
+    n34["34. Step 8.2 · Repo-green GATE: full lint + full test<br/>suite, repo-wide, never scoped to the batch's own<br/>files. Runs AFTER the quality gate, so it measures a<br/>tree already holding whatever this tail applied — true<br/>under EITHER --auto-solve or --report-only, since the<br/>test-sdd leg writes the plan's missing tests on every<br/>run. Why no 'it applied something, so re-run the<br/>suite' rule exists"]:::gate
+    n34a{"34a. Green? (a failure the batch didn't<br/>cause is a [Scout], never a blocker)"}
+    n34b{"34b. Fix attempts left?"}
+    n34c["34c. Step 8.2 · Dispatch tdd-coder to fix it<br/>(agent-pinned, 1h Monitor cap, attempt<br/>recorded); RE-RUN THE FULL SUITE"]:::dispatch
+    n35["35. Step 8.3 · Finalize step 1 · git push -u origin<br/>&lt;branch(es)&gt; — ALWAYS, on every batch end, whatever<br/>pr.wanted says. A stacked unit pushes EVERY layer<br/>branch, in layer order, in one command; else just<br/>the unit's single branch. A pushed branch with no PR<br/>is the ordinary outcome, not a half-finished state"]:::gate
+    n36{"36. Push succeeded?<br/>(no remote / rejected non-fast-forward /<br/>missing credentials)"}
+    n37{"37. PR-label run?"}
+    n37a["37a. Load references/batch-end-pr-branch-record.md"]:::skill
+    n38["38. Step 8.3 · Finalize step 2 · Record the Branch:<br/>clause (the unit's LAST layer's branch when stacked,<br/>else the unit's own branch) + the PR-level [Done]<br/>marker on this PR's own plan line (PR-label runs only)"]:::state
+    n39{"39. Unit stacked (state.stack.wanted)?"}
+    n39a["39a. Record EACH layer's branch on its own task<br/>heading, beside its [Done] marker (a plain<br/>&lt;task-ids&gt; run has no PR Breakdown entry — 37 never<br/>ran for it — so it records only this per-layer half)"]:::state
+    n40{"40. Draft PR requested?"}
+    n40a["40a. Load references/batch-end-pr.md"]:::skill
+    n40b{"40b. Unit stacked (state.stack.wanted)?"}
+    n40b1["40b1. Open one PR per layer, bottom-up: one<br/>pr-creator dispatch each (serial), so every parent<br/>PR exists before its child targets it. --base is the<br/>PREVIOUS layer's branch; layer 1's --base is whatever<br/>batch-end-pr.md resolves for the unit. Each body is<br/>scoped to that task's own plan slice, cross-linking<br/>the chain (Stack: #A ← #B ← current)"]:::dispatch
+    n40b2{"40b2. Every layer's PR opened?"}
+    n40b2a["40b2a. Register THIS unit's chain: gh stack link<br/>from the topmost layer (gh stack link --help checked<br/>first). Once per unit, at this unit's own batch end —<br/>never deferred to the run's last PR-label, unlike 41.<br/>A failed link is a platform-limit note in the<br/>package, never a halt"]
+    n40b3["40b3. Dispatch the pr-creator agent (agent-pinned):<br/>it composes the body and CREATES the PR ONLY —<br/>step 35 already pushed, so it must never push<br/>or force-push"]:::dispatch
+    n40b4{"40b4. PR opened or updated?"}
+    n41["41. Native mode + the run's LAST PR only (skipped<br/>otherwise): load references/batch-end-pr-native-link.md.<br/>Registers the CROSS-UNIT chain — independent of 40b2a,<br/>which registers only this unit's own layers; both can<br/>fire on the same run"]:::skill
+    n42["42. gh stack link registers the cross-unit chain,<br/>reusing the already-created PRs. Linking runs LAST so no<br/>branch is server-rebased mid-run; a failed link downgrades<br/>the plan's Mode: to merge and continues — never a halt"]
+    n43["43. Step 8.3 · Finalize step 3 · Print the review<br/>package, closing with the review notification:<br/>base SHA + its subject, then one line per unit —<br/>label · branch · commit count · PR URL when one<br/>exists; complete the remaining [Reminder]s"]
+    n44["44. Step 8.3 · Finalize step 4 · phase=presented;<br/>DELETE this unit's state file"]:::state
   end
 
-  n36{"36. PR-label run with PRs remaining?"}
-  n37["37. Load references/failure-and-halt.md"]:::skill
-  n38(["38. Step 5.5 · HALT and wait for the human:<br/>phase=halted on all units; write what each blocker<br/>needs into the scratchpad; leave remaining<br/>[Reminder]s pending. Cleanup stops entirely here —<br/>an unmerged branch holds work only a human can<br/>resolve, so every worktree stays and the halt names<br/>each one; run NOTHING further"]):::gate
-  n39(["39. Invocation ends"])
-  n39a["39a. Stop hook: releases only on<br/>phase presented or halted"]:::hook
+  n45{"45. PR-label run with PRs remaining?"}
+  n46["46. Load references/failure-and-halt.md"]:::skill
+  n47(["47. Step 5.5 · HALT and wait for the human:<br/>phase=halted on all units; write what each blocker<br/>needs into the scratchpad; leave remaining<br/>[Reminder]s pending. Cleanup stops entirely here —<br/>an unmerged branch holds work only a human can<br/>resolve, so every worktree stays and the halt names<br/>each one; run NOTHING further"]):::gate
+  n48(["48. Invocation ends"])
+  n48a["48a. Stop hook: releases only on<br/>phase presented or halted"]:::hook
 
   n1 --> n2 --> n3
   n3 -->|"no"| n3a
-  n3 -->|"yes"| n4 --> n5 --> n6
-  n6 -->|"no"| n6a
-  n6 -->|"yes"| n7
-  n7 -->|"yes"| n7a --> n7b --> n8
-  n7 -->|"no"| n8
-  n8 -->|"yes"| n8a --> n8b --> n8c --> n9
-  n8 -->|"no"| n9
-  n9 -->|"yes"| n9a --> n9b --> n10
-  n9 -->|"no"| n10
-  n10 --> n11a
-  n11d --> n12 --> n13
-  n13 -->|"yes"| n13a --> n13b --> n14
-  n13 -->|"no / task-ids run"| n14
-  n14 --> n15 --> n16
-  n16 -->|"2 or more"| n16a --> n16b
-  n16b -->|"no — filtered down to 1"| n17
-  n16b -->|"yes"| n16c --> n16d --> n16e --> n22
-  n16d -->|"a task fails, blocks or times out"| n21a
-  n16e -->|"it hits a rebase conflict and halts: the<br/>file-disjointness predicate was wrong for<br/>that pair, so it keeps every worktree"| n37
-  n16 -->|"1 (or a run with no independent tasks)"| n17 --> n18
-  n18 -.->|"guards"| n18a
-  n18 -.->|"owns"| n18c
-  n18 -->|"1h timeout"| n18b --> n21a
-  n18 --> n19
-  n19 -->|"blocked"| n21a
-  n19 -->|"done"| n20 --> n21
-  n21 -->|"yes"| n22
-  n21 -->|"no"| n21a
-  n21a --> n21b --> n21c
-  n21c -->|"retry (loads debug-standards)"| n18
-  n21c -->|"stuck"| n21d --> n21e
-  n21c -->|"halt-budget"| n37
-  n21e -->|"yes"| n16
-  n21e -->|"no"| n37
-  n22 --> n23
-  n23 -->|"next-task"| n16
-  n23 -->|"gates"| n24
-  n23 -->|"halted / halt-budget"| n37
+  n3 -->|"yes"| n4 --> n5
+  n5 -->|"no"| n5a --> n8
+  n5 -->|"yes"| n6
+  n6 -->|"1 (join)"| n6a --> n8
+  n6 -->|"2 (usage/parse error)"| n6b
+  n6 -->|"0 (pass)"| n7
+  n7 --> n9
+  n8 --> n9
+  n9 --> n10 --> n11
+  n11 -->|"no"| n11a
+  n11 -->|"yes"| n12
+  n12 -->|"yes"| n12a --> n12b --> n13
+  n12 -->|"no"| n13
+  n13 -->|"yes"| n13a --> n13b --> n13c --> n14
+  n13 -->|"no"| n14
+  n14 -->|"yes"| n14a --> n14b --> n15
+  n14 -->|"no"| n15
+  n15 --> n16a
+  n16d --> n17 --> n18
+  n18 -->|"yes"| n18a --> n18b --> n19
+  n18 -->|"no / task-ids run"| n19
+  n19 --> n20 --> n21
+  n21 -->|"yes (stacked)"| n21a --> n21b
+  n21b -->|"no — layer 2+"| n21c --> n23
+  n21b -->|"yes — layer 1, no new branch"| n23
+  n21 -->|"no"| n22
+  n22 -->|"2 or more"| n22a --> n22b
+  n22b -->|"no — filtered down to 1"| n23
+  n22b -->|"yes"| n22c --> n22d --> n22e --> n28
+  n22d -->|"a task fails, blocks or times out"| n27a
+  n22e -->|"it hits a rebase conflict and halts: the<br/>file-disjointness predicate was wrong for<br/>that pair, so it keeps every worktree"| n46
+  n22 -->|"1 (or a run with no independent tasks)"| n23 --> n24
+  n24 -.->|"guards"| n24a
+  n24 -.->|"owns"| n24c
+  n24 -->|"1h timeout"| n24b --> n27a
   n24 --> n25
-  n25 -->|"yes"| n26 --> n26a --> n26c --> n27
-  n26a -.->|"guards"| n26b
-  n25 -->|"no, skipped by request"| n27
-  n27 -->|"yes"| n28 --> n28a
-  n28a -->|"no"| n28b
-  n28b -->|"no"| n37
-  n28b -->|"yes"| n28c --> n28
-  n28a -->|"yes"| n29
-  n27 -->|"no, skipped by request"| n29
-  n29 --> n30
-  n30 -->|"no"| n37
-  n30 -->|"yes"| n31
-  n31 -->|"yes"| n31a --> n32 --> n33
-  n31 -->|"no / task-ids run"| n33
-  n33 -->|"yes"| n33a --> n33b --> n33c
-  n33c -->|"no"| n37
-  n33c -->|"yes"| n33d --> n33e --> n34
-  n33 -->|"no"| n34
-  n34 --> n35 --> n36
-  n36 -->|"yes"| n13
-  n36 -->|"no"| n39
-  n37 --> n38 --> n39
-  n39 -.->|"releases"| n39a
+  n25 -->|"blocked"| n27a
+  n25 -->|"done"| n26 --> n27
+  n27 -->|"yes"| n28
+  n27 -->|"no"| n27a
+  n27a --> n27b --> n27c
+  n27c -->|"retry (loads debug-standards)"| n24
+  n27c -->|"stuck"| n27d --> n27e
+  n27c -->|"halt-budget"| n46
+  n27e -->|"yes"| n21
+  n27e -->|"no"| n46
+  n28 --> n29
+  n29 -->|"next-task"| n21
+  n29 -->|"gates"| n30
+  n29 -->|"halted / halt-budget"| n46
+  n30 --> n31
+  n31 -->|"yes"| n32 --> n32a --> n32c --> n33
+  n32a -.->|"guards"| n32b
+  n31 -->|"no, skipped by request"| n33
+  n33 -->|"yes"| n34 --> n34a
+  n34a -->|"no"| n34b
+  n34b -->|"no"| n46
+  n34b -->|"yes"| n34c --> n34
+  n34a -->|"yes"| n35
+  n33 -->|"no, skipped by request"| n35
+  n35 --> n36
+  n36 -->|"no"| n46
+  n36 -->|"yes"| n37
+  n37 -->|"yes"| n37a --> n38 --> n39
+  n37 -->|"no / task-ids run"| n39
+  n39 -->|"yes"| n39a --> n40
+  n39 -->|"no"| n40
+  n40 -->|"yes"| n40a --> n40b
+  n40b -->|"yes"| n40b1 --> n40b2
+  n40b2 -->|"no"| n46
+  n40b2 -->|"yes"| n40b2a --> n41
+  n40b -->|"no"| n40b3 --> n40b4
+  n40b4 -->|"no"| n46
+  n40b4 -->|"yes"| n41
+  n41 --> n42 --> n43
+  n40 -->|"no"| n43
+  n43 --> n44 --> n45
+  n45 -->|"yes"| n18
+  n45 -->|"no"| n48
+  n46 --> n47 --> n48
+  n48 -.->|"releases"| n48a
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px
