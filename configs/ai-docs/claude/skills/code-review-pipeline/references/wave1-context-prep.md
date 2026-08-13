@@ -54,31 +54,16 @@ Repo root for specialists is the user's CWD; the work dir is scratch for diff/co
 
 `base_ref` is supplied by the caller — `auto-review`'s resolved `<BASE_REF>`, or `/implement`'s `BATCH_BASE_SHA` — and may be a branch name, a commit SHA, or `HEAD~N`.
 
+`base_ref` resolution: a branch on origin diffs against the freshly fetched remote copy, so a stale local branch never silently narrows the diff. Anything else must already resolve locally (SHA, `HEAD~N`, tag).
+
+See the script's own `if`/`else` for the exact fallback and its failure message.
+
 ```bash
 work_dir=$(mktemp -d /tmp/auto-review.XXXXXX)
 out_base="./verdict_auto-review_$(date +%Y-%m-%d_%H:%M)"
 
-# A branch on origin diffs against the freshly fetched remote copy, so a
-# stale local branch never silently narrows the diff. Anything else must
-# already resolve locally (SHA, HEAD~N, tag).
-if git ls-remote --exit-code --heads origin "$base_ref" >/dev/null 2>&1; then
-  git fetch origin "$base_ref"
-  base_rev="origin/$base_ref"
-else
-  git rev-parse --verify --quiet "$base_ref^{commit}" >/dev/null \
-    || { echo "base ref '$base_ref' is neither a branch on origin nor a local commit-ish"; exit 1; }
-  base_rev="$base_ref"
-fi
-
-git diff -U20 "$base_rev...HEAD"             > "$work_dir/diff"
-git diff      "$base_rev...HEAD" --name-only > "$work_dir/changed-files.txt"
-git log  "$base_rev..HEAD" --format='%B%n---%n' > "$work_dir/commit-messages.txt"
-
-bash ~/.claude/skills/code-review-pipeline/scripts/extract-commentable-lines.sh \
-  "$work_dir/diff" > "$work_dir/commentable-lines.txt"
-
-bash ~/.claude/skills/code-review-pipeline/scripts/extract-skipped-files.sh \
-  "$work_dir/diff" "$work_dir"
+bash ~/.claude/skills/code-review-pipeline/scripts/prep-local-context.sh \
+  "$base_ref" "$work_dir"
 ```
 
 ### Repo-wide static checks + tests + coverage (local mode)
@@ -89,22 +74,23 @@ Full discovery + outputs table + consumption rules live in [`wave1-repo-wide-che
 
 ## Tiny-PR fast-path
 
-After the diff is on disk (both modes), count added lines:
+Both modes count added lines once the diff is on disk. Local mode's `prep-local-context.sh` already did this and wrote the result to `$work_dir/tiny-pr.txt` (see above).
+
+Github mode still counts inline, since it has no equivalent script:
 
 ```bash
-diff_file="$work_dir/pr.diff"; [ -f "$diff_file" ] || diff_file="$work_dir/diff"
-added_lines=$(grep -c '^+[^+]' "$diff_file" || echo 0)
+added_lines=$(grep -c '^+[^+]' "$work_dir/pr.diff" || echo 0)
 tiny_pr=false; [ "$added_lines" -lt 100 ] && tiny_pr=true
 echo "$tiny_pr" > "$work_dir/tiny-pr.txt"
 ```
 
-If `added_lines < 100`, set the `tiny_pr=true` flag. Waves 2 and 3 collapse
+If `added_lines < 100`, `tiny_pr=true`. Waves 2 and 3 collapse
 into a single combined pass (see Wave 2 below). At this scale the whole diff
 fits comfortably in context, serial expansion buys little, and the
 per-finding validator adds more cost than it saves. Otherwise leave
 `tiny_pr=false` and run the full pipeline.
 
-**Persist it to `$work_dir/tiny-pr.txt`** (in the block above) so Wave 2
-can recover the flag from disk instead of trusting working memory after a
-mid-pipeline compaction. Without it, a resumed tiny PR reruns through the
-full 8-specialist loop the fast-path exists to skip.
+**Persist it to `$work_dir/tiny-pr.txt`** so Wave 2 can recover the flag
+from disk instead of trusting working memory after a mid-pipeline
+compaction. Without it, a resumed tiny PR reruns through the full
+8-specialist loop the fast-path exists to skip.
