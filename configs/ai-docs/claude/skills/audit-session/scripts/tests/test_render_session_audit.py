@@ -351,6 +351,48 @@ class TestSessionAuditRendererTimeHoursFormatting(unittest.TestCase):
         self.assertNotIn("1800s", html_text, msg="no bare-seconds agent-hours duration may remain")
 
 
+class TestSessionAuditRendererUnattributedBucket(unittest.TestCase):
+    def test_should_render_the_unattributed_bucket_with_its_own_label_and_color_when_present_in_the_timeline_payload(self):
+        """Scout #33: extract-session-timeline.py now emits a 5th
+        `unattributed` bucket for a computed turn's span when no activity
+        record falls inside it (the transcript has no marker for when an
+        unmeasured API call began, so that time can no longer be counted
+        as main_api). The renderer must draw this bucket with its own
+        label ("Unattributed") and its own dedicated colour -- not the
+        raw dict key, and not the "#888" fallback used for an unknown
+        bucket name, which would prove the renderer never learned about
+        it and is rendering it as if it were unrecognised."""
+        cost = _cost_fixture()
+        timeline = _timeline_fixture(time_partition={
+            "wall_clock_seconds": 3600.0,
+            "buckets": {
+                "main_api": {"seconds": 1200.0, "pct": 31.0},
+                "tool_exec": {"seconds": 900.0, "pct": 25.0},
+                "agent_occupied": {"seconds": 300.0, "pct": 8.0},
+                "unattributed": {"seconds": 300.0, "pct": 8.0},
+                "human_idle": {"seconds": 900.0, "pct": 25.0},
+            },
+            "agent_hours_vs_wall_clock_occupied": {
+                "agent_hours_seconds": 300.0,
+                "wall_clock_occupied_seconds": 300.0,
+            },
+        })
+        narrative = _narrative_fixture()
+
+        html_text = rsa.render_audit_html(cost, timeline, narrative)
+
+        self.assertIn("Unattributed", html_text,
+                       msg="the 5th bucket must render its own label, not "
+                           "the raw \"unattributed\" dict key")
+        self.assertIn(rsa._TIME_BUCKET_COLORS["unattributed"], html_text,
+                       msg="the 5th bucket must render with its own "
+                           "dedicated colour, not the \"#888\" "
+                           "unknown-bucket fallback")
+        self.assertNotIn("#888", html_text,
+                          msg="the fallback colour firing would prove the "
+                              "renderer doesn't recognise the bucket name")
+
+
 class TestSessionAuditRendererCommitsRemoved(unittest.TestCase):
     def test_should_not_render_a_commits_section_even_when_the_timeline_carries_commit_items(self):
         """Gap 5: the Commits section is a wall of raw git-log text that

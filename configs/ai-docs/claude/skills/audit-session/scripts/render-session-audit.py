@@ -155,18 +155,20 @@ def _render_agent_hours_vs_wall_clock(agent_hours_seconds, wall_clock_occupied_s
 
 # Bucket display names + a distinct colour per bucket, reused by both the
 # stacked-bar segments and their legend -- fixed, not derived from data,
-# since the 4 buckets are a closed set defined by
-# extract-session-timeline.py's time-partition contract.
+# since the buckets are a closed set defined by extract-session-timeline.py's
+# time-partition contract (5 as of Scout #33's `unattributed` bucket).
 _TIME_BUCKET_LABELS = {
     "main_api": "Main API",
     "tool_exec": "Tool exec",
     "agent_occupied": "Agent occupied",
+    "unattributed": "Unattributed",
     "human_idle": "Human idle",
 }
 _TIME_BUCKET_COLORS = {
     "main_api": "#4c78a8",
     "tool_exec": "#f58518",
     "agent_occupied": "#54a24b",
+    "unattributed": "#8c8c8c",
     "human_idle": "#b279a2",
 }
 
@@ -460,7 +462,7 @@ def _render_money_panel(cost):
 
 
 def _render_time_partition(timeline):
-    """The Time panel's data viz: a stacked bar across the 4 time buckets,
+    """The Time panel's data viz: a stacked bar across the time buckets,
     plus the agent-hours-vs-wall-clock-occupied parallelism pair. Every
     duration goes through _format_duration_hours (gap 4) -- `pct` is
     still printed exactly as supplied, never re-derived, since
