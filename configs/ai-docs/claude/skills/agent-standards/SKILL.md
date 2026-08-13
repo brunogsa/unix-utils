@@ -81,6 +81,19 @@ slice of subagent spend in usage telemetry and had no native turn cap.
 
   - [Example] `tdd-coder.md` pins `model: sonnet` for ordinary task execution and declares `allowedModelOverrides: opus` for the `[Harness]`-task dispatches CLAUDE.md routes to it.
 
+- [Instruction] Add `allowedSubagents:` to an agent file only to carve out specific subagent types it may dispatch via `Agent`, listing each by `subagent_type`, instead of removing `Agent` from `disallowedTools` outright.
+  - [Why] Removing `Agent` from `disallowedTools` lifts the block for every subagent type that agent could ever dispatch, where `allowedSubagents:` narrows it to exactly the types named.
+
+- [Instruction] Treat `allowedSubagents:` as fail-closed at dispatch time -- deny whenever the requested `subagent_type` can't be confirmed as listed.
+  - [Why] A carve-out is a narrower permission than an outright block, so anything ambiguous about it must default to deny, not allow.
+  - [Example] The guard denies an absent `subagent_type`, a missing `tool_input.subagent_type`, an empty list, or an unparseable value -- the same posture as malformed `disallowedTools:`.
+
+`scripts/check-agent-contract.sh` extends the same fail-closed intent to build time.
+It flags an empty `allowedSubagents:` list, and flags `allowedSubagents:` declared alongside a `disallowedTools:` that still contains `Agent` -- a contradiction where the carve-out can never fire because `Agent` itself is already blocked.
+The Stop-hook coverage described above applies here too; no separate instruction to run it.
+
+`tdd-coder.md` is the carve-out's first real caller -- it declares `allowedSubagents: Explore` and drops `Agent` from `disallowedTools`, so only `Explore` may be dispatched.
+
 ## Descriptions
 
 The trigger-phrase rule in `skill-standards` › Descriptions applies verbatim to agent descriptions — it lives there, not here.

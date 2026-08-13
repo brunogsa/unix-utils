@@ -2,37 +2,37 @@
 
 Read once a plan exists, before a human reviews it.
 
-A run may write the plan alone, per SKILL.md — never report the absent spec as a finding, and never ask for one back.
+A run may write the plan alone (SKILL.md) — never report the absent spec as a finding, and never ask for one back.
 
 ## The two buckets
 
 **Deterministic** — a script or renderer returns the verdict, so re-running costs nothing.
 
-- Members: the two artifact fixers, plus `check-sections.sh`, `check-test-distribution.sh`, `check-pr-dag.sh`, `check-tasks-dag.sh`, and — whenever a spec exists — `check-ac-coverage.sh` and `check-coverage-checklists.sh`.
+- Members: the mermaid fixer and the density checks, plus `check-sections.sh`, `check-test-distribution.sh`, `check-pr-dag.sh`, `check-tasks-dag.sh`, and, with a spec, `check-ac-coverage.sh` and `check-coverage-checklists.sh`.
 
-- Dispatch each fixer at its agent file's pinned model — never name one here.
-  - Why: `subagent-model-guard.py` hard-denies a model override, so an instruction to override is one no caller can follow.
+- Dispatch the mermaid fixer at its agent file's pinned model — never name one here.
+  - Why: `subagent-model-guard.py` hard-denies a model override, so naming one is an instruction no caller can follow.
 
-**Judged** — a `deep-reviewer` decides; each round costs one dispatch over both documents whole.
+**Judged** — a `deep-reviewer` decides; each round costs one dispatch over both whole documents.
 
 - Members: the qualitative pass, the semantic half of "every AC has a test", "how would this break?", and the two toggled checks.
-- Dispatch each at `effort=high`, overriding its agent file's `max` pin — both documents are lean, so `max` buys latency on a short read, not accuracy.
+- Dispatch each at `effort=high`, overriding its agent file's `max` pin — both documents are lean, so `max` buys latency, not accuracy.
 
-Run the deterministic bucket first, to exhaustion under SKILL.md's recovery loop, then dispatch the judged bucket.
+Run the deterministic bucket first, to exhaustion under SKILL.md's recovery loop, then the judged one.
 
-Why that order: a deterministic gate is free to re-run, and catches structural breakage a judged pass would otherwise spend a dispatch rediscovering.
+Why: a deterministic gate catches structural breakage a judged pass would otherwise spend a dispatch rediscovering.
 
 ## Qualitative pass
 
 Dispatch `agent(subAgent=deep-reviewer, title=Qualitative review of spec and plan)` over both docs; only the PR-size item blocks.
 
 **Skip this checklist when `qualitative_pass` is false** (SKILL.md's toggles) — state it was skipped.
-The dispatch itself still runs, carrying this file's always-on checks.
+The dispatch still runs, carrying this file's always-on checks.
 
 - **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
 - **Contradictions**: do sections within one doc disagree, or does the plan contradict the spec?
 - **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition?
-  - If decomposable, hand the decomposition back to the caller — the caller owns how sub-projects get recorded and what it re-runs.
+  - If decomposable, hand it back to the caller, who owns how sub-projects get recorded and what re-runs.
   - A caller that already probed decomposition before the spec was written skips this item.
 
 - **PR size**: does the work fit one reviewable PR, or stage into several per `plan-template.md`'s splitting rules?
@@ -41,26 +41,29 @@ The dispatch itself still runs, carrying this file's always-on checks.
 - **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker.
 - **Completeness**: does the Testable Acceptance Criteria section cover every Goal, Success Metric/KPI, User Story, and Non-Functional/Technical Requirement the spec carries — and every corner case and failure mode?
 
-- **Human-Reviewable**: could a complete novice succeed with only this plan and the repo?
+- **Human-Reviewable**: could a novice succeed with only this plan and the repo?
 
-## Artifact fixers
+## Mechanical defects — one repaired, one reported
 
-Two dispatches that repair rather than judge — never inline, in either case.
+Both measure rather than judge — never inline.
 
-- **Artifacts Valid**: if any mermaid diagram exists, is it valid per `mmdc`? A failure routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)` on the resolved doc path.
+- **Artifacts Valid**: is every mermaid diagram valid per `mmdc`? A failure routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)` on the resolved doc path.
 
-- **Density**: spawn `agent(subAgent=markdown-standards-fixer, title=Fix spec/plan markdown - haiku low)` on the resolved spec and plan paths.
-  - Runs after mermaid validation, since repairing a diagram adds lines density must then measure.
+- **Density**: run `doc-standards`' `scripts/check-density.sh` and `scripts/check-bullet-gap.py` on the resolved spec and plan paths.
+  - Runs after mermaid validation: repairing a diagram adds lines density must then measure.
 
-**No toggle switches these two off.**
+  - On any violation, file ONE `[Scout]` TaskList entry naming the file and what is off standard.
+  - Dispatch no fixer — the user alone triages if and when that Scout runs.
 
-Why: they repair a mechanical defect rather than judge content, so nothing else in the run catches an unrenderable diagram or an over-cap line.
+**No toggle switches either off, but only the mermaid failure repairs itself.**
+
+Why: an unrenderable diagram is broken outright, so its fix needs no judgment. Reflowing prose is a judgment call that has already split bullets mid-sentence and damaged a plan.
 
 ## Every AC has a test
 
-Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped coverage list (format and authoring mechanics: `plan-template.md`).
+Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped coverage list (format and mechanics: `plan-template.md`).
 
-- No spec — skip both halves, saying so; there is no AC-grouped list to check.
+- No spec — skip both halves, saying so: there is no AC-grouped list.
 
 - Mechanical half — `scripts/check-ac-coverage.sh <plan> <spec>` checks coverage completeness and citation honesty (no truncated or invented breadcrumb); exit 1 blocks.
 

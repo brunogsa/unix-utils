@@ -754,6 +754,213 @@ EOF
 }
 
 
+it_should_fail_an_agent_file_that_declares_allowed_subagents_alongside_a_disallowed_tools_containing_agent() {
+  local dir="$work_dir/failure-allowed-subagents-contradicts-disallowed-tools"
+  mkdir -p "$dir"
+  cat > "$dir/contradicting-carve-out-agent.md" <<'EOF'
+---
+name: contradicting-carve-out-agent
+description: Sample agent used for fixture testing.
+model: sonnet
+disallowedTools: Agent, Workflow
+allowedSubagents: Explore
+---
+
+## Objective
+
+Search the codebase for a pattern and report every match.
+
+## Inputs
+
+- The search query string.
+
+## Sources and tools
+
+- Grep and Glob for search.
+
+## Procedure
+
+1. Run the search.
+2. Summarize the results.
+
+## Boundaries
+
+- Never modify any file found during the search.
+
+## Report format
+
+- **Matches**: file:line pairs found, or none.
+EOF
+  run_script "$dir"
+  assert_eq "should fail an agent file that declares allowedSubagents alongside a disallowedTools containing Agent (exit code)" "1" "$VERDICT_EXIT"
+  assert_nonempty "should fail an agent file that declares allowedSubagents alongside a disallowedTools containing Agent (diagnostic present)" "$VERDICT_OUT"
+}
+
+it_should_fail_an_agent_file_whose_allowed_subagents_key_is_present_but_has_an_empty_list() {
+  local dir="$work_dir/corner-allowed-subagents-empty-list"
+  mkdir -p "$dir"
+  cat > "$dir/empty-allowed-subagents-agent.md" <<'EOF'
+---
+name: empty-allowed-subagents-agent
+description: Sample agent used for fixture testing.
+model: sonnet
+disallowedTools: Workflow
+allowedSubagents:
+---
+
+## Objective
+
+Search the codebase for a pattern and report every match.
+
+## Inputs
+
+- The search query string.
+
+## Sources and tools
+
+- Grep and Glob for search.
+
+## Procedure
+
+1. Run the search.
+2. Summarize the results.
+
+## Boundaries
+
+- Never modify any file found during the search.
+
+## Report format
+
+- **Matches**: file:line pairs found, or none.
+EOF
+  run_script "$dir"
+  assert_eq "should fail an agent file whose allowedSubagents key is present but has an empty list (exit code)" "1" "$VERDICT_EXIT"
+  assert_nonempty "should fail an agent file whose allowedSubagents key is present but has an empty list (diagnostic present)" "$VERDICT_OUT"
+}
+
+it_should_fail_an_agent_file_whose_allowed_subagents_list_contains_only_whitespace() {
+  local dir="$work_dir/corner-allowed-subagents-whitespace-only"
+  mkdir -p "$dir"
+  printf '%s\n' \
+    '---' \
+    'name: whitespace-allowed-subagents-agent' \
+    'description: Sample agent used for fixture testing.' \
+    'model: sonnet' \
+    'disallowedTools: Workflow' \
+    'allowedSubagents:    ' \
+    '---' \
+    '' \
+    '## Objective' \
+    '' \
+    'Search the codebase for a pattern and report every match.' \
+    '' \
+    '## Inputs' \
+    '' \
+    '- The search query string.' \
+    '' \
+    '## Sources and tools' \
+    '' \
+    '- Grep and Glob for search.' \
+    '' \
+    '## Procedure' \
+    '' \
+    '1. Run the search.' \
+    '2. Summarize the results.' \
+    '' \
+    '## Boundaries' \
+    '' \
+    '- Never modify any file found during the search.' \
+    '' \
+    '## Report format' \
+    '' \
+    '- **Matches**: file:line pairs found, or none.' \
+    > "$dir/whitespace-allowed-subagents-agent.md"
+  run_script "$dir"
+  assert_eq "should fail an agent file whose allowedSubagents list contains only whitespace (exit code)" "1" "$VERDICT_EXIT"
+  assert_nonempty "should fail an agent file whose allowedSubagents list contains only whitespace (diagnostic present)" "$VERDICT_OUT"
+}
+
+it_should_pass_an_agent_file_that_declares_no_allowed_subagents_key_at_all() {
+  local dir="$work_dir/happy-no-allowed-subagents-key"
+  mkdir -p "$dir"
+  cat > "$dir/no-allowed-subagents-agent.md" <<'EOF'
+---
+name: no-allowed-subagents-agent
+description: Sample agent used for fixture testing.
+model: sonnet
+disallowedTools: Agent, Workflow
+---
+
+## Objective
+
+Search the codebase for a pattern and report every match.
+
+## Inputs
+
+- The search query string.
+
+## Sources and tools
+
+- Grep and Glob for search.
+
+## Procedure
+
+1. Run the search.
+2. Summarize the results.
+
+## Boundaries
+
+- Never modify any file found during the search.
+
+## Report format
+
+- **Matches**: file:line pairs found, or none.
+EOF
+  run_script "$dir"
+  assert_eq "should pass an agent file that declares no allowedSubagents key at all" "0" "$VERDICT_EXIT"
+}
+
+it_should_pass_an_agent_file_whose_allowed_subagents_list_is_non_empty_and_whose_disallowed_tools_does_not_contain_agent() {
+  local dir="$work_dir/happy-allowed-subagents-non-empty-no-agent-conflict"
+  mkdir -p "$dir"
+  cat > "$dir/valid-carve-out-agent.md" <<'EOF'
+---
+name: valid-carve-out-agent
+description: Sample agent used for fixture testing.
+model: sonnet
+disallowedTools: Workflow
+allowedSubagents: Explore
+---
+
+## Objective
+
+Search the codebase for a pattern and report every match.
+
+## Inputs
+
+- The search query string.
+
+## Sources and tools
+
+- Grep and Glob for search.
+
+## Procedure
+
+1. Run the search.
+2. Summarize the results.
+
+## Boundaries
+
+- Never modify any file found during the search.
+
+## Report format
+
+- **Matches**: file:line pairs found, or none.
+EOF
+  run_script "$dir"
+  assert_eq "should pass an agent file whose allowedSubagents list is non-empty and whose disallowedTools does not contain Agent" "0" "$VERDICT_EXIT"
+}
+
 it_should_exit_0_when_a_file_has_all_six_required_headings_in_canonical_order_with_non_empty_content
 it_should_exit_0_when_a_shadow_file_carries_only_a_shadows_heading_with_non_empty_content
 it_should_exit_0_when_frontmatter_has_a_name_matching_the_filename_non_empty_description_and_a_model_key
@@ -773,6 +980,11 @@ it_should_exit_1_when_a_non_shadow_description_exceeds_the_character_budget
 it_should_exit_0_when_a_description_lands_on_exactly_the_character_budget
 it_should_exit_0_when_a_shadow_files_description_exceeds_the_character_budget
 it_should_exit_0_when_an_exempt_named_agents_description_exceeds_the_character_budget
+it_should_pass_an_agent_file_that_declares_no_allowed_subagents_key_at_all
+it_should_pass_an_agent_file_whose_allowed_subagents_list_is_non_empty_and_whose_disallowed_tools_does_not_contain_agent
+it_should_fail_an_agent_file_whose_allowed_subagents_key_is_present_but_has_an_empty_list
+it_should_fail_an_agent_file_whose_allowed_subagents_list_contains_only_whitespace
+it_should_fail_an_agent_file_that_declares_allowed_subagents_alongside_a_disallowed_tools_containing_agent
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

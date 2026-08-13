@@ -7,6 +7,9 @@
 #     non-empty and within MAX_DESC_CHARS, model: is present. A
 #     shadow file is exempt from the model: and description-budget
 #     checks; DESC_BUDGET_EXEMPT names the other exemptions.
+#   - frontmatter: when allowedSubagents: is present, its list is
+#     non-empty, and it is not declared alongside a disallowedTools:
+#     list containing Agent (that combination can never fire).
 #   - body (fenced code blocks stripped first): either exactly one
 #     non-empty "## Shadows" heading (a shadow file), or all six
 #     canonical headings -- Objective, Inputs, Sources and tools,
@@ -103,6 +106,9 @@ for file in "$dir"/*.md; do
       name_val = ""
       desc_val = ""
       model_present = 0
+      disallowed_tools_val = ""
+      allowed_subagents_val = ""
+      allowed_subagents_present = 0
       nbody = 0
     }
 
@@ -121,6 +127,17 @@ for file in "$dir"/*.md; do
         desc_val = v
       } else if ($0 ~ /^model:[ \t]*/) {
         model_present = 1
+      } else if ($0 ~ /^disallowedTools:[ \t]*/) {
+        v = $0
+        sub(/^disallowedTools:[ \t]*/, "", v)
+        gsub(/^[ \t"]+|[ \t"]+$/, "", v)
+        disallowed_tools_val = v
+      } else if ($0 ~ /^allowedSubagents:[ \t]*/) {
+        v = $0
+        sub(/^allowedSubagents:[ \t]*/, "", v)
+        gsub(/^[ \t"]+|[ \t"]+$/, "", v)
+        allowed_subagents_val = v
+        allowed_subagents_present = 1
       }
       next
     }
@@ -138,6 +155,32 @@ for file in "$dir"/*.md; do
       }
       if (desc_val == "") {
         reasons = reasons "frontmatter description is missing or empty\n"
+      }
+
+      if (allowed_subagents_present) {
+        n_allowed = split(allowed_subagents_val, allowed_arr, ",")
+        n_allowed_nonblank = 0
+        for (a = 1; a <= n_allowed; a++) {
+          item = allowed_arr[a]
+          gsub(/^[ \t]+|[ \t]+$/, "", item)
+          if (item != "") n_allowed_nonblank++
+        }
+        if (n_allowed_nonblank == 0) {
+          reasons = reasons "frontmatter allowedSubagents: is present but has an empty list\n"
+        }
+
+        n_disallowed = split(disallowed_tools_val, disallowed_arr, ",")
+        for (d = 1; d <= n_disallowed; d++) {
+          item = disallowed_arr[d]
+          gsub(/^[ \t]+|[ \t]+$/, "", item)
+          if (item == "Agent") {
+            reasons = reasons "frontmatter allowedSubagents: is declared alongside " \
+                      "a disallowedTools: list containing Agent -- the carve-out " \
+                      "can never fire because the guard denies every Agent " \
+                      "dispatch before allowedSubagents is ever consulted\n"
+            break
+          }
+        }
       }
 
       # Locate every canonical/Shadows heading line, in body order.
