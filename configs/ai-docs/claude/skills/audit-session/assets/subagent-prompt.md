@@ -52,6 +52,8 @@ Each shard writes exactly one JSON object — not wrapped in `sections` — to i
 
 `section` must be exactly the one id assigned to that shard below — `render-session-audit.py` requires all five (`time`, `money`, `work`, `status`, `recommendations`) present in `narrative.json`'s `sections` array, or it refuses to render.
 
+Every duration a shard writes into `headline`, `findings`, or a `ranked` label must use the same form `render-session-audit.py` applies to the durations it computes itself: `>= 3600s` becomes `12h 47m`, `>= 60s` becomes `42m`, and only a genuinely sub-minute value stays a bare `38s`. Never write a raw seconds count for anything past a minute — `80,550.5s` is 22h 22m, no reader converts that in their head, and a page mixing both forms reads as two different measurements of one session. The renderer cannot clean this up downstream: it formats only the numbers it computes, and teaching it to rewrite a shard's prose would mean running a regex over arbitrary LLM text and silently corrupting any figure the pattern misjudged.
+
 ## JSON slice + raw-file pointers, never a raw transcript file (D3)
 
 Every shard receives a JSON slice cut from `cost.json`/`timeline.json` (only the fields relevant to its own section) plus pointers to the raw session transcript and any subagent transcript files — file path and, when known, a byte or line range. No shard is ever handed a raw transcript file's contents in its dispatch prompt.
