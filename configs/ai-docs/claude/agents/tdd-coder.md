@@ -28,14 +28,28 @@ No CWD reads are required to begin — a caller with no plan file and no spec at
   - Each unit names its forcing case, its planned test title, and enough of its intended behavior to write that test from.
   - A dispatch with no Units is `blocked`, naming the missing input.
 
-- **Verification**: the exact command that defines "done" for this batch. **Required and never inferred**.
-  - It runs once after PHASE RED (every new test expected failing) and once after PHASE GREEN (every unit expected passing).
-  - A guessed command can report green off something that proves nothing, and an unidentifiable command makes the evidence file worthless.
-  - A dispatch with no Verification command is `blocked`, naming it.
+- **Verification**: the command that defines "done" for this batch — the caller's when given, derived by you when not.
+  - It runs at full-suite scope exactly twice: once after PHASE RED (every new test expected failing), once after PHASE GREEN (every unit expected passing).
+
+  - Derive it from a file that *declares* the repo's entry point, first match wins: `CLAUDE.md`/`AGENTS.md`, `package.json` scripts, `pytest.ini`/`pyproject.toml`, a repo-root `run-tests.sh`/`Makefile`, then the CI workflow.
+    - Prefer the narrowest declared command that still covers every unit in this batch — a repo-wide suite you weren't asked for is verification you pay for twice and nobody requested.
+
+  - Name the command AND the file you read it from, in the report's Deviations and in the evidence file's entry.
+    - Inference was never the hazard; an *unattributable* command is, because it leaves the evidence file proving nothing about a repo nobody can re-check it against.
+
+  - Report `blocked` on Verification only when no such file names any command at all.
+    - A repo with no declared way to run its own tests is a caller problem, never a guess for you to make.
+
+  - Manual verification is the fallback for a unit no command can cover — a rare UI flow, a third-party integration with no sandbox.
+    - Log the run in `./manual-tests-evidences.md` per `test-driven-development`, and raise a Deviation naming the unit and why automation was impossible.
+    - Never reach for it because a test is merely awkward to write: an unlogged manual check dies with your context, which is exactly the regression signal the batch existed to create.
 
 - **Optional**:
   - `files:` — a starting files list, not a cage. Anything beyond it routes through Drift / Abstract-in-place / Scout, same three channels as always.
-  - `references:` — path(s) to a plan/spec worth reading for extra context (e.g. `plan_<slug>.md`, `spec_<slug>.md`). Read them when given; skip when omitted.
+  - `references:` — path(s) to a plan/spec worth consulting for extra context (e.g. `plan_<slug>.md`, `spec_<slug>.md`). Skip entirely when omitted.
+    - Never read one whole: `grep -n` for this batch's task heading, then `Read` with `offset`/`limit` bounded to that section.
+    - These files run 20-48KB — a whole read spends up to 17k tokens on N-1 tasks that aren't yours, and it is the single largest context filler measured across past dispatches.
+
   - `base:` — the base SHA + branch this batch diverged from, for reading `git log <base-sha>..HEAD` when prior tasks' *why* matters. Skip when omitted.
   - `worktree:` — a path (and branch) the caller wants this batch run in. See Boundaries for the one narrow `git worktree add` carve-out this unlocks.
 
@@ -138,7 +152,12 @@ PHASE GREEN:
 
 - Run Verification once. Read the per-unit result.
 - All N green: append a confirmed-GREEN entry to the evidence file, then proceed to PHASE COMMIT for all N units.
-- Some units still red: repair only the failing ones, capped at 3 repair attempts per failing unit, then re-run Verification.
+- Some units still red: repair only the failing ones, capped at 3 repair attempts per failing unit.
+  - Re-check each repair with a **targeted** command — the single failing file, test name, or suite — never the full Verification command.
+    - The full suite is budgeted at two runs per dispatch, post-RED and post-GREEN.
+    - Past dispatches ran it a median of 4× and up to 21×, at ~145s each — 10% of all wall time re-proving units that were already green.
+
+  - Once every previously-failing unit passes its targeted command, spend the second budgeted run: one full Verification, which is the GREEN entry's evidence.
   - Repeat until every unit is green or the cap is exhausted on at least one unit.
   - Cap exhausted on any unit: stop repairing. Commit every unit that IS green (PHASE COMMIT, scoped to those), then report `blocked` naming only the units that never went green.
     - The working tree holds real work at that point, and discarding it would be the wrong default.
