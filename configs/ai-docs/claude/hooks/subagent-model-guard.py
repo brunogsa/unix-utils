@@ -31,6 +31,13 @@ Policy:
     `model:`): tool_input.model must be present -- an omitted model on an
     unpinned type silently inherits the session's (possibly expensive) model,
     so it is denied. Any explicit model is accepted; the invoker decides.
+  - THE `fork` TYPE is exempt from all of the above. A conversation fork has
+    no agent file to pin and always runs the main session's model, so the
+    unpinned branch's rationale -- that an omitted model silently inherits
+    the session tier -- never applied to it: inheriting IS a fork's contract.
+    Denying it merely forced callers to name a model the harness then ignored.
+    This is a narrow exception for one literal type, not a loosened threshold,
+    so every other unpinned type still has to name its tier.
 
   Fail-open on anything unexpected (malformed stdin, unreadable agents dir,
   unreadable agent file): exit 0 with no output, so a hook bug never bricks
@@ -47,6 +54,8 @@ Examples:
     | subagent-model-guard.py                          # allowed (declared override tier)
   echo '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose"}}' \
     | subagent-model-guard.py                          # denied (unpinned, no model named)
+  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"fork"}}' \
+    | subagent-model-guard.py                          # allowed (a fork takes the session's model)
 """
 
 import json
@@ -55,6 +64,7 @@ import sys
 from pathlib import Path
 
 AGENTS_DIR = Path.home() / ".claude" / "agents"
+FORK_SUBAGENT_TYPE = "fork"
 MODEL_ALIASES = ("sonnet", "opus", "haiku", "fable")
 FRONTMATTER_KEYS = ("name", "model", "effort", "allowedModelOverrides")
 
@@ -152,6 +162,13 @@ def main():
         subagent_type = tool_input.get("subagent_type")
         if not subagent_type:
             return  # nothing to resolve against; fail open
+
+        if subagent_type == FORK_SUBAGENT_TYPE:
+            # A fork inherits the main session's model, so
+            # there is no tier here to get wrong, and no
+            # agent file to read one from. Checked before
+            # the pins load, since "fork" never resolves.
+            return
 
         requested_model = tool_input.get("model") or None
         pins = load_agent_pins()

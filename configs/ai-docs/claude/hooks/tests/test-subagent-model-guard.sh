@@ -88,6 +88,16 @@ it_should_allow_a_declared_override_named_as_a_full_model_id() {
   assert_eq "should allow the dispatch when the declared override is named as a full model ID rather than its family alias" "allow" "$HOOK_DECISION"
 }
 
+it_should_allow_a_conversation_fork_with_no_model_given() {
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"fork"}}'
+  assert_eq "should allow the dispatch when subagent_type is fork and no model is given, because a fork always runs the main session's model" "allow" "$HOOK_DECISION"
+}
+
+it_should_allow_a_conversation_fork_whatever_model_is_named() {
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"fork","model":"haiku"}}'
+  assert_eq "should allow the dispatch when subagent_type is fork and a model is named, since the harness ignores that model rather than honoring it" "allow" "$HOOK_DECISION"
+}
+
 # --- corner cases ---
 
 it_should_index_the_pin_under_both_frontmatter_name_and_filename_stem() {
@@ -170,6 +180,8 @@ it_should_allow_explore_when_model_matches_the_sonnet_pin
 it_should_allow_tdd_coder_with_no_model_given
 it_should_allow_tdd_coder_when_the_model_is_the_opus_override_its_file_declares
 it_should_allow_a_declared_override_named_as_a_full_model_id
+it_should_allow_a_conversation_fork_with_no_model_given
+it_should_allow_a_conversation_fork_whatever_model_is_named
 it_should_index_the_pin_under_both_frontmatter_name_and_filename_stem
 it_should_accept_every_entry_of_a_multi_entry_override_declaration
 it_should_deny_retired_lowercase_explore_with_no_model_given
