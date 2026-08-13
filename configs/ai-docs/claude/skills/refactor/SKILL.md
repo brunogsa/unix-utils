@@ -95,7 +95,7 @@ Without that fallback the unpushed half either dies on `fatal: no upstream confi
 - Classify each finding as **subjective** or **mechanical**:
   - **Subjective**: naming, decomposition, architecture, layered-architecture violations, guideline alignment -- things only a context-aware reviewer can judge
   - **Mechanical**: unused imports/variables, dead code/exports, cyclomatic complexity, circular dependencies, missing type annotations -- things a linter could catch deterministically
-  - For mechanical findings, prefix the **What** field with `[LINTER GAP]` to signal that the project's linter config should be improved to catch this automatically
+  - For mechanical findings, prefix the finding's title with `[LINTER GAP]`, per the exact composition order in the schema below
 
 - Write the complete findings report to `$VERDICT_PATH` (overwrite if exists) per the schema below.
 
@@ -111,11 +111,27 @@ Subagent return messages are capped and **WILL truncate long lists** -- the user
 
 #### Per-finding schema (inside `$VERDICT_PATH`)
 
-Each finding is a `## N. <one-line title>` section. Inside, use these labeled blocks -- no field may be omitted. Empty / N/A is allowed but must be stated explicitly.
+Each finding's heading stamps severity right after the number: `## N. [SEVERITY] <title>`.
+
+When the finding is also `mechanical`, `[LINTER GAP]` follows the severity tag: `## N. [SEVERITY][LINTER GAP] <title>`.
+
+`/address-verdicts` prepends its own `[Done]` in front of both once it applies the finding -- its own §5 rule places `[Done]` right after the number, before any severity tag.
+
+The resulting order, top to bottom: `[Done]` (if applied), then `[SEVERITY]`, then `[LINTER GAP]` (if mechanical), then the title -- e.g. `## 5. [Done][HIGH][LINTER GAP] <title>`.
+
+Inside, use these labeled blocks -- no field may be omitted. Empty / N/A is allowed but must be stated explicitly.
 
 - **File**: absolute or repo-relative path
 - **Lines**: precise line range (e.g. `42-67`), not approximate
-- **Classification**: `subjective` or `mechanical` (prefix `[LINTER GAP]` on the title when mechanical)
+- **Severity**: `HIGH` / `MEDIUM` / `LOW` -- how much it matters if the change is never made, stamped into the title right after the number.
+
+  - Distinct from **Risk** and **Effort** below: Risk is the danger of *making* the change, Effort is the change's *size*.
+  - Severity is the cost of *never making it* -- a finding can be low-risk, trivial-effort, and still `LOW` severity.
+  - `HIGH` -- if never done, a real defect ships or persists: wrong behavior, misleading code, or a violated MUST-level standard.
+  - `MEDIUM` -- if never done, the code stays correct but harder to maintain, or drifts from convention -- cost compounds on the next touch.
+  - `LOW` -- if never done, no practical cost ever accrues; this is pure polish.
+
+- **Classification**: `subjective` or `mechanical` (prefix `[LINTER GAP]` on the title, after the severity tag, when mechanical)
 - **Category**: suggested TaskList category for the eventual commit -- `[Refactor]`, `[Debt]`, `[Drift]`, `[Scout]`, `[Sub-Step]` (see CLAUDE.md "Prefix every task subject with a category")
 - **What**: 2-4 sentences on the change. Name the construct (function, variable, type, test), what it does now, what it should become.
   - Avoid pronouns without antecedents ("it", "this") -- spell out the target.
