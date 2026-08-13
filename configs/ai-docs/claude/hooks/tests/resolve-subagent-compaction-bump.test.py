@@ -216,7 +216,7 @@ class TestResolveSubagentCompactionBumpHappy:
     def test_should_leave_stdout_empty_so_the_hook_adds_no_context_to_the_session(
         self, tmp_path
     ):
-        hook, _capture = _install_hook(tmp_path)
+        hook, _ = _install_hook(tmp_path)
         transcript = _transcript_with(tmp_path, boundary_count=1)
 
         result = _run_hook(hook, _payload(transcript), tmp_path / "fake_home")
