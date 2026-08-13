@@ -7,11 +7,11 @@
 #
 # stdin: none. stdout: the timeline.json payload (pretty-printed JSON) — a
 # chronological event feed, the D5 wall-clock time partition (main-API /
-# tool-exec / agent-occupied / human-idle, reconciled to 100% after rounding),
-# the agent-hours-vs-wall-clock-occupied pair, the session's task-store
-# listing, and every git-commit tool call found across the main and subagent
-# transcripts. Exit 1, naming every project directory searched, when `sid`
-# matches no transcript anywhere under ~/.claude/projects.
+# tool-exec / agent-occupied / unattributed / human-idle, reconciled to 100%
+# after rounding), the agent-hours-vs-wall-clock-occupied pair, the session's
+# task-store listing, and every git-commit tool call found across the main
+# and subagent transcripts. Exit 1, naming every project directory searched,
+# when `sid` matches no transcript anywhere under ~/.claude/projects.
 #
 # WHY REUSE CLAUDE-USAGE-REPORT.PY'S HELPERS: parse_ts/local_day/iter_records/
 # find_session_transcripts/project_directories/is_human_message already parse
@@ -253,6 +253,22 @@ def _first_away_summary_in_window(away_summary_epochs, window_start, window_end)
     return None
 
 
+def _has_interior_activity(activity_epochs, span_start, span_end):
+    """Whether any activity epoch falls strictly inside (span_start,
+    span_end), excluding both endpoints. A computed span's span_end is
+    itself DEFINED by its closing activity epoch (from
+    _last_activity_in_window) or by an away_summary marker — that endpoint is
+    evidence the turn ended there, never evidence of what happened while it
+    ran. A span with no epoch strictly between its own bounds carries only a
+    completion marker: the transcript has no record of when the underlying
+    API call actually began, so its duration is an estimate, not a
+    measurement (Scout #33). Only the FIRST activity epoch after span_start
+    needs checking — since activity_epochs is sorted, if that one already
+    lands on or past span_end, nothing smaller could be interior either."""
+    index = bisect.bisect_right(activity_epochs, span_start)
+    return index < len(activity_epochs) and activity_epochs[index] < span_end
+
+
 def _build_turns(human_epochs, turn_duration_events, last_epoch,
                   activity_epochs, away_summary_epochs):
     """One entry per human turn, each carrying the engaged span used for the
@@ -420,36 +436,16 @@ def build_timeline_payload(sid):
     turns = _build_turns(human_epochs, turn_duration_events, last_epoch,
                          main_activity_epochs, main_away_summary_epochs)
 
-    tool_exec_intervals = [(s, e) for s, e, kind in tool_spans if kind == "tool-exec"]
-    agent_occupied_intervals = [(s, e) for s, e, kind in tool_spans if kind == "agent-occupied"]
-    main_api_intervals = [(turn["span_start"], turn["span_end"]) for turn in turns]
-
-    agent_merged = _merge_intervals(agent_occupied_intervals)
-    tool_merged = _subtract_intervals(_merge_intervals(tool_exec_intervals), agent_merged)
-    main_merged = _subtract_intervals(
-        _merge_intervals(main_api_intervals),
-        _merge_intervals(agent_occupied_intervals + tool_exec_intervals))
-
-    agent_seconds = _interval_seconds(agent_merged)
-    tool_seconds = _interval_seconds(tool_merged)
-    main_seconds = _interval_seconds(main_merged)
-    window_start, window_end = _window_bounds(
-        first_epoch, last_epoch,
-        main_api_intervals, tool_exec_intervals, agent_occupied_intervals)
-    wall_clock_seconds = (max(0.0, window_end - window_start)
-                          if window_start is not None else 0.0)
-    engaged_seconds = agent_seconds + tool_seconds + main_seconds
-    human_idle_seconds = max(0.0, wall_clock_seconds - engaged_seconds)
-
-    seconds_by_bucket = {
-        "main_api": main_seconds, "tool_exec": tool_seconds,
-        "agent_occupied": agent_seconds, "human_idle": human_idle_seconds,
-    }
-    percentages = _percentages_summing_to_100(seconds_by_bucket, wall_clock_seconds)
-
+    # Subagent scan moved ahead of the partition and reused for BOTH
+    # agent_runs and agent_occupied_intervals below — never re-read a
+    # subagent transcript twice. Scout #32: agent_occupied must measure each
+    # subagent's own first/last event epoch, not the main transcript's
+    # dispatch tool_use/tool_result pair, which can close in milliseconds
+    # while the subagent it spawned keeps running for hours.
     commit_items = list(main_commits)
     agent_hours_seconds = 0.0
     agent_runs = []
+    agent_run_intervals = []
     for subagent_path in subagent_paths:
         label = os.path.splitext(os.path.basename(subagent_path))[0]
         (_sub_events, _sub_activity_epochs, _sub_away_summary_epochs, sub_commits,
@@ -458,11 +454,58 @@ def build_timeline_payload(sid):
         duration = (max(0.0, sub_last - sub_first)
                     if sub_first is not None and sub_last is not None else 0.0)
         agent_hours_seconds += duration
+        if sub_first is not None and sub_last is not None:
+            agent_run_intervals.append((sub_first, sub_last))
         label_info = _subagent_run_label(subagent_path)
         agent_runs.append({
             "file": label, "agent_type": label_info["agent_type"], "model": label_info["model"],
             "duration_seconds": round(duration, 1),
         })
+
+    tool_exec_intervals = [(s, e) for s, e, kind in tool_spans if kind == "tool-exec"]
+    agent_occupied_intervals = agent_run_intervals
+    all_turn_intervals = [(turn["span_start"], turn["span_end"]) for turn in turns]
+
+    # Scout #33: a computed turn with no activity record strictly inside its
+    # span carries only the record that closed it — a completion marker, not
+    # a start marker — so that time is unmeasurable and must not be billed
+    # to main_api. A turn_duration-measured span is never split this way
+    # (its recorded duration is authoritative regardless of what the
+    # transcript shows inside it, per bd3293ec).
+    main_api_intervals = []
+    unattributed_intervals = []
+    for turn in turns:
+        span = (turn["span_start"], turn["span_end"])
+        if turn["measure"] == "computed" and not _has_interior_activity(
+                main_activity_epochs, turn["span_start"], turn["span_end"]):
+            unattributed_intervals.append(span)
+        else:
+            main_api_intervals.append(span)
+
+    agent_merged = _merge_intervals(agent_occupied_intervals)
+    tool_merged = _subtract_intervals(_merge_intervals(tool_exec_intervals), agent_merged)
+    exclusions = _merge_intervals(agent_occupied_intervals + tool_exec_intervals)
+    main_merged = _subtract_intervals(_merge_intervals(main_api_intervals), exclusions)
+    unattributed_merged = _subtract_intervals(_merge_intervals(unattributed_intervals), exclusions)
+
+    agent_seconds = _interval_seconds(agent_merged)
+    tool_seconds = _interval_seconds(tool_merged)
+    main_seconds = _interval_seconds(main_merged)
+    unattributed_seconds = _interval_seconds(unattributed_merged)
+    window_start, window_end = _window_bounds(
+        first_epoch, last_epoch,
+        all_turn_intervals, tool_exec_intervals, agent_occupied_intervals)
+    wall_clock_seconds = (max(0.0, window_end - window_start)
+                          if window_start is not None else 0.0)
+    engaged_seconds = agent_seconds + tool_seconds + main_seconds + unattributed_seconds
+    human_idle_seconds = max(0.0, wall_clock_seconds - engaged_seconds)
+
+    seconds_by_bucket = {
+        "main_api": main_seconds, "tool_exec": tool_seconds,
+        "agent_occupied": agent_seconds, "unattributed": unattributed_seconds,
+        "human_idle": human_idle_seconds,
+    }
+    percentages = _percentages_summing_to_100(seconds_by_bucket, wall_clock_seconds)
 
     commit_items = _attach_turn_index(commit_items, turns)
     commit_items.sort(key=lambda item: item["timestamp"] or "")
@@ -484,7 +527,7 @@ def build_timeline_payload(sid):
             "wall_clock_seconds": round(wall_clock_seconds, 1),
             "buckets": {
                 name: {"seconds": round(seconds_by_bucket[name], 1), "pct": percentages[name]}
-                for name in ("main_api", "tool_exec", "agent_occupied", "human_idle")
+                for name in ("main_api", "tool_exec", "agent_occupied", "unattributed", "human_idle")
             },
             "agent_hours_vs_wall_clock_occupied": {
                 "agent_hours_seconds": round(agent_hours_seconds, 1),

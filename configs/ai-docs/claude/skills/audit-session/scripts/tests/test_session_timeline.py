@@ -147,15 +147,15 @@ class TestSessionTimeline(unittest.TestCase):
             return sti.build_timeline_payload(sid)
 
     def _assert_partition_reconciles(self, payload):
-        """The D5 partition invariant: the four buckets' seconds sum exactly
-        to wall clock, and their rounded percentages sum to exactly 100.
+        """The D5 partition invariant: the buckets' seconds sum exactly to
+        wall clock, and their rounded percentages sum to exactly 100.
         Excludes a zero-duration session, where there is no span to divide by
         and every bucket comes back 0 — that fixture asserts its own totals."""
         partition = payload["time_partition"]
         buckets = partition["buckets"]
         total_seconds = sum(buckets[name]["seconds"] for name in buckets)
         self.assertEqual(total_seconds, partition["wall_clock_seconds"],
-                          msg="the four buckets must be a true partition of wall clock")
+                          msg="the buckets must be a true partition of wall clock")
         total_pct = sum(buckets[name]["pct"] for name in buckets)
         self.assertEqual(total_pct, 100.0,
                           msg="the rounded percentages must reconcile to exactly 100")
@@ -163,17 +163,30 @@ class TestSessionTimeline(unittest.TestCase):
     def test_attributes_engaged_time_to_main_api_tool_exec_and_agent_occupied_buckets_that_partition_wall_clock(self):
         """The core D5 partition: a tool call and a subagent run that both
         fall inside one turn's span must be carved out of main-API time, not
-        double-counted on top of it, and the four buckets must sum exactly to
-        the session's wall clock."""
+        double-counted on top of it, and the buckets must sum exactly to
+        the session's wall clock. The Task dispatch call itself returns fast
+        (1040-1045, 5s -- what a dispatch-pairing reading would carve out),
+        while the subagent's own transcript shows it actually ran until 1090
+        (50s, Scout #32) -- reading the dispatch pairing instead would leave
+        45s of real agent-occupied time misattributed to main_api."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-buckets", [
                 _human_record(1000),
                 _tool_use_record(1010, "tu_bash", "Bash", command="pytest ."),
                 _tool_result_record(1030, "tu_bash"),
                 _tool_use_record(1040, "tu_task", "Task"),
-                _tool_result_record(1090, "tu_task"),
+                _tool_result_record(1045, "tu_task"),
                 _turn_duration_record(1100, duration_ms=100_000),
-            ])
+            ], subagent_files={
+                # Scout #32: agent_occupied is now measured from the
+                # subagent's own transcript span (1040-1090, 50s), not the
+                # main-side dispatch call's fast 1040-1045 tool_use/tool_result
+                # pair above.
+                "agent-a.jsonl": [
+                    _tool_use_record(1040, "tu_sub", "Bash", command="ls"),
+                    _tool_result_record(1090, "tu_sub"),
+                ],
+            })
             payload = self._build(tmp, sid)
 
         buckets = payload["time_partition"]["buckets"]
@@ -212,31 +225,47 @@ class TestSessionTimeline(unittest.TestCase):
         self._assert_partition_reconciles(payload)
 
     def test_carves_a_concurrent_bash_call_entirely_out_of_tool_exec_when_it_falls_inside_a_subagent_run(self):
-        """A Bash call (1020-1080) running concurrently INSIDE a Task span
-        (1010-1090) is agent-occupied time, not tool-exec — cross-kind
-        overlap must subtract fully, leaving tool_exec at 0, not the Bash
-        call's own 60s."""
+        """A Bash call (1020-1080) running concurrently INSIDE the subagent's
+        REAL run span (1010-1090, Scout #32) is agent-occupied time, not
+        tool-exec -- cross-kind overlap must subtract fully, leaving
+        tool_exec at 0, not the Bash call's own 60s. The Task dispatch call
+        itself returns fast (1010-1013) -- reading that short dispatch pair
+        instead of the subagent's real 1010-1090 span would miss the overlap
+        entirely and leave the Bash call's full 60s billed to tool_exec."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-crosskind-overlap", [
                 _human_record(1000),
                 _tool_use_record(1010, "tu_task", "Task"),
+                _tool_result_record(1013, "tu_task"),
                 _tool_use_record(1020, "tu_bash", "Bash", command="pytest ."),
                 _tool_result_record(1080, "tu_bash"),
-                _tool_result_record(1090, "tu_task"),
                 _turn_duration_record(1100, duration_ms=100_000),
-            ])
+            ], subagent_files={
+                # Scout #32: the exclusion must be driven by the subagent's
+                # own 1010-1090 run span, not the main-side dispatch pair.
+                "agent-a.jsonl": [
+                    _tool_use_record(1010, "tu_sub", "Bash", command="ls"),
+                    _tool_result_record(1090, "tu_sub"),
+                ],
+            })
             payload = self._build(tmp, sid)
 
         buckets = payload["time_partition"]["buckets"]
         self.assertEqual(buckets["tool_exec"]["seconds"], 0.0,
                           msg="the Bash call's 1020-1080 span sits entirely "
-                              "inside the Task's 1010-1090 span")
+                              "inside the subagent's real 1010-1090 run span")
         self.assertEqual(buckets["agent_occupied"]["seconds"], 80.0)
         self._assert_partition_reconciles(payload)
 
-    def test_labels_both_task_and_agent_tool_use_names_as_agent_occupied_time(self):
-        """AGENT_TOOL_NAMES must recognize both "Task" and "Agent" as a
-        subagent run occupying wall clock, not just one of the two names."""
+    def test_labels_both_task_and_agent_tool_use_names_as_dispatch_calls_excluded_from_tool_exec(self):
+        """AGENT_TOOL_NAMES must still recognize both "Task" and "Agent" as
+        a subagent dispatch call, not a plain tool call -- so its own
+        main-transcript tool_use/tool_result pairing, however brief, is
+        never miscounted as tool-exec time. Scout #32 moved the actual
+        agent-occupied MEASUREMENT to each subagent's own run span, so with
+        no subagent transcript file here, agent_occupied is exactly 0 --
+        see test_measures_agent_occupied_from_each_subagents_own_run_span_rather_than_the_dispatch_calls_immediate_return
+        for that measurement."""
         for agent_tool_name in ("Task", "Agent"):
             with self.subTest(agent_tool_name=agent_tool_name):
                 with tempfile.TemporaryDirectory() as tmp:
@@ -248,39 +277,105 @@ class TestSessionTimeline(unittest.TestCase):
                     ])
                     payload = self._build(tmp, sid)
                 buckets = payload["time_partition"]["buckets"]
-                self.assertEqual(buckets["agent_occupied"]["seconds"], 80.0,
+                self.assertEqual(buckets["tool_exec"]["seconds"], 0.0,
                                   msg=f'a "{agent_tool_name}" tool_use/tool_result '
-                                      f"span must be agent-occupied")
+                                      f"span must never be counted as tool-exec time")
+                self.assertEqual(buckets["agent_occupied"]["seconds"], 0.0,
+                                  msg="with no subagent transcript file, there is "
+                                      "nothing to measure agent-occupied time from "
+                                      "-- the dispatch call's own timing no longer "
+                                      "feeds this bucket (Scout #32)")
 
     def test_reports_the_agent_hours_vs_wall_clock_occupied_pair_explicitly(self):
-        """Two 60s subagent runs whose main-side Task spans overlap
-        (1010-1070 and 1040-1100, unioning to 90s of wall-clock-occupied
-        time) must still report their own 60+60=120s of agent_hours_seconds
-        independently — nothing else in the payload pins this pair, so a
-        deleted or zeroed key would otherwise ship silently."""
+        """The main-side Task dispatch calls return fast (1010-1015 and
+        1040-1045, 5s each, non-overlapping -- what a dispatch-pairing
+        reading would report: 10s agent_hours, 10s wall-clock-occupied) while
+        each subagent's OWN transcript shows it actually ran for 60s
+        (1010-1070 and 1040-1100, overlapping and unioning to 90s of
+        wall-clock-occupied time) -- Scout #32's forcing case exactly: a
+        backgrounded dispatch whose tool_result returns milliseconds after
+        its tool_use while the subagent's own transcript spans far longer.
+        The pair must read 120s agent_hours (60+60 summed) and 90s
+        wall-clock-occupied (unioned) from the subagent transcripts, not
+        10s/10s from the dispatch pairing -- nothing else in the payload
+        pins this pair, so reading the wrong source would otherwise ship
+        silently."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-agent-hours", [
                 _human_record(1000),
                 _tool_use_record(1010, "tu_task1", "Task"),
-                _tool_result_record(1070, "tu_task1"),
+                _tool_result_record(1015, "tu_task1"),
                 _tool_use_record(1040, "tu_task2", "Task"),
-                _tool_result_record(1100, "tu_task2"),
+                _tool_result_record(1045, "tu_task2"),
                 _turn_duration_record(1110, duration_ms=110_000),
             ], subagent_files={
                 "agent-a.jsonl": [
-                    _tool_use_record(2000, "tu_a", "Bash", command="ls"),
-                    _tool_result_record(2060, "tu_a"),
+                    _tool_use_record(1010, "tu_a", "Bash", command="ls"),
+                    _tool_result_record(1070, "tu_a"),
                 ],
                 "agent-b.jsonl": [
-                    _tool_use_record(3000, "tu_b", "Bash", command="ls"),
-                    _tool_result_record(3060, "tu_b"),
+                    _tool_use_record(1040, "tu_b", "Bash", command="ls"),
+                    _tool_result_record(1100, "tu_b"),
                 ],
             })
             payload = self._build(tmp, sid)
 
         self.assertEqual(
             payload["time_partition"]["agent_hours_vs_wall_clock_occupied"],
-            {"agent_hours_seconds": 120.0, "wall_clock_occupied_seconds": 90.0})
+            {"agent_hours_seconds": 120.0, "wall_clock_occupied_seconds": 90.0},
+            msg="must read from the subagents' own 60s+60s overlapping runs, "
+                "not the dispatch calls' 5s+5s non-overlapping return pairs")
+
+    def test_measures_agent_occupied_from_each_subagents_own_run_span_rather_than_the_dispatch_calls_immediate_return(self):
+        """The dispatch call itself (tool_use@1/tool_result@2) returns in 1s
+        -- a backgrounded Agent dispatch whose tool_result lands milliseconds
+        after tool_use while the subagent's own transcript spans hours (Scout
+        #32's forcing case). agent_occupied must come from the subagent
+        transcript's own first/last event (1-901, 900s), not the 1s dispatch
+        pairing -- reading the dispatch pairing alone would report 4.7s of
+        occupied time on a session that actually spent 67% of its wall clock
+        in a subagent."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-real-run-span", [
+                _human_record(0),
+                _tool_use_record(1, "tu_task", "Task"),
+                _tool_result_record(2, "tu_task"),
+                _turn_duration_record(1000, duration_ms=1_000_000),
+            ], subagent_files={
+                "agent-a.jsonl": [
+                    _tool_use_record(1, "tu_a", "Bash", command="ls"),
+                    _tool_result_record(901, "tu_a"),
+                ],
+            })
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        self.assertEqual(buckets["agent_occupied"]["seconds"], 900.0,
+                          msg="the subagent's own 1-901 transcript span, not "
+                              "the dispatch call's 1-2 immediate return")
+        self.assertEqual(buckets["main_api"]["seconds"], 100.0,
+                          msg="the measured 0-1000 turn minus the 900s the "
+                              "subagent actually ran")
+        self._assert_partition_reconciles(payload)
+
+    def test_reports_zero_agent_occupied_seconds_for_a_session_with_no_subagent_transcripts_at_all(self):
+        """No Task/Agent dispatch and no subagents/*.jsonl at all -- Scout
+        #32's per-subagent-transcript scan must not invent occupied time out
+        of nothing, and the agent_hours_vs_wall_clock_occupied pair must both
+        read zero rather than one key silently staying stale."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-no-subagents", [
+                _human_record(0),
+                _turn_duration_record(100, duration_ms=100_000),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        self.assertEqual(buckets["agent_occupied"]["seconds"], 0.0)
+        self.assertEqual(
+            payload["time_partition"]["agent_hours_vs_wall_clock_occupied"],
+            {"agent_hours_seconds": 0.0, "wall_clock_occupied_seconds": 0.0})
+        self._assert_partition_reconciles(payload)
 
     def test_widens_wall_clock_to_cover_a_turn_duration_span_that_starts_before_the_transcripts_first_record(self):
         """A turn_duration record's measured duration can exceed the elapsed
@@ -288,7 +383,7 @@ class TestSessionTimeline(unittest.TestCase):
         span_start = end - duration then lands before first_epoch. That is
         evidence the session began earlier than its first record shows, so
         wall clock must widen to cover it rather than clamping engaged time,
-        or the four shares stop reconciling to 100% (AC 1)."""
+        or the shares stop reconciling to 100% (AC 1)."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-overrun", [
                 _human_record(1000),
@@ -304,9 +399,14 @@ class TestSessionTimeline(unittest.TestCase):
         self._assert_partition_reconciles(payload)
 
     def test_reconciles_every_wall_clock_percentage_to_100_after_rounding(self):
-        """A 6-second wall clock split 2/1/2/1 across the four buckets forces
-        two of them (16.667%, 33.333%) to round unevenly — the largest-
-        remainder method must still land the four shares on exactly 100."""
+        """A 6-second wall clock split 2/1/2/1 across four of the buckets
+        (the 5th, unattributed, at 0) forces two of the nonzero shares
+        (16.667%, 33.333%) to round unevenly — the largest-remainder method
+        must still land every share on exactly 100. The subagent_files
+        fixture reconstructs the same 3-5 (2s) agent_occupied span the
+        main-transcript Task call's own dispatch pairing used to produce
+        directly, since Scout #32 moved that measurement to the subagent's
+        own transcript."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-pct", [
                 _human_record(0),
@@ -316,7 +416,12 @@ class TestSessionTimeline(unittest.TestCase):
                 _tool_result_record(5, "tu_task"),
                 _turn_duration_record(5, duration_ms=5_000),
                 _human_record(6),
-            ])
+            ], subagent_files={
+                "agent-a.jsonl": [
+                    _tool_use_record(3, "tu_sub", "Bash", command="ls"),
+                    _tool_result_record(5, "tu_sub"),
+                ],
+            })
             payload = self._build(tmp, sid)
 
         buckets = payload["time_partition"]["buckets"]
@@ -324,6 +429,50 @@ class TestSessionTimeline(unittest.TestCase):
         self.assertEqual(buckets["tool_exec"]["pct"], 17.0)
         self.assertEqual(buckets["agent_occupied"]["pct"], 33.0)
         self.assertEqual(buckets["human_idle"]["pct"], 17.0)
+        self._assert_partition_reconciles(payload)
+
+    def test_reconciles_all_five_time_partition_buckets_percentages_to_exactly_100_after_rounding(self):
+        """A 12-second wall clock split 2/2/2/2/4 across all five buckets --
+        main_api, tool_exec, agent_occupied, unattributed, human_idle -- forces
+        four separate 16.667% shares to round unevenly (three round up to
+        17%, one stays at 16%, per the largest-remainder method's stable-sort
+        tiebreak on seconds_by_bucket's insertion order) while human_idle's
+        33.333% rounds down to 33%. Turn 0 (0-6) carries a Bash call (1-3,
+        tool_exec) and a Task dispatch (3-5, agent_occupied via its subagent's
+        own transcript) plus 2s of pure main_api outside both; turn 1 (7-9)
+        has only its own closing record and no interior activity, so it
+        routes entirely to unattributed; the 6-7 and 9-12 gaps are
+        human_idle."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-five-bucket-pct", [
+                _human_record(0),
+                _tool_use_record(1, "tu_bash", "Bash", command="pytest ."),
+                _tool_result_record(3, "tu_bash"),
+                _tool_use_record(3, "tu_task", "Task"),
+                _tool_result_record(5, "tu_task"),
+                _assistant_text_record(6),
+                _human_record(7),
+                _assistant_text_record(9),
+                _human_record(12),
+            ], subagent_files={
+                "agent-a.jsonl": [
+                    _tool_use_record(3, "tu_sub", "Bash", command="ls"),
+                    _tool_result_record(5, "tu_sub"),
+                ],
+            })
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        self.assertEqual(buckets["main_api"]["seconds"], 2.0)
+        self.assertEqual(buckets["tool_exec"]["seconds"], 2.0)
+        self.assertEqual(buckets["agent_occupied"]["seconds"], 2.0)
+        self.assertEqual(buckets["unattributed"]["seconds"], 2.0)
+        self.assertEqual(buckets["human_idle"]["seconds"], 4.0)
+        self.assertEqual(buckets["main_api"]["pct"], 17.0)
+        self.assertEqual(buckets["tool_exec"]["pct"], 17.0)
+        self.assertEqual(buckets["agent_occupied"]["pct"], 17.0)
+        self.assertEqual(buckets["unattributed"]["pct"], 16.0)
+        self.assertEqual(buckets["human_idle"]["pct"], 33.0)
         self._assert_partition_reconciles(payload)
 
     def test_guards_every_duration_percentage_against_division_by_zero_for_a_zero_duration_or_single_record_session(self):
@@ -437,7 +586,11 @@ class TestSessionTimeline(unittest.TestCase):
     def test_collapses_a_computed_turns_span_to_zero_when_the_human_message_drew_no_assistant_activity_at_all(self):
         """The human writes at 0 and gets no answer before writing again an
         hour later — there is no engaged time to attribute, so the turn's span
-        must collapse rather than swallow the whole hour."""
+        must collapse rather than swallow the whole hour. The second turn's
+        3600-3610 span has only ONE activity record -- the assistant reply
+        at 3610 that closes it -- so per Scout #33 it carries no evidence of
+        when the API call actually began and goes to unattributed, not
+        main_api."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-unanswered-turn", [
                 _human_record(0),
@@ -449,9 +602,14 @@ class TestSessionTimeline(unittest.TestCase):
         buckets = payload["time_partition"]["buckets"]
         self.assertEqual(payload["turns"][0]["duration_seconds"], 0.0,
                           msg="no assistant event followed the message at 0")
-        self.assertEqual(buckets["main_api"]["seconds"], 10.0,
-                          msg="only the answered second turn's 3600-3610 span "
-                              "is main-API time")
+        self.assertEqual(buckets["main_api"]["seconds"], 0.0,
+                          msg="the second turn's 3600-3610 span has no "
+                              "activity record strictly inside it, so it is "
+                              "unattributed, not main-API time")
+        self.assertEqual(buckets["unattributed"]["seconds"], 10.0,
+                          msg="the answered second turn's span is unmeasured "
+                              "time -- its only record is the completion "
+                              "marker that closes it")
         self.assertEqual(buckets["human_idle"]["seconds"], 3600.0)
         self._assert_partition_reconciles(payload)
 
@@ -460,7 +618,9 @@ class TestSessionTimeline(unittest.TestCase):
         record instead of a next human message, and that last record can be an
         away-summary written two hours after the assistant stopped — the same
         activity-based end must apply there, not a silent pass-through of the
-        old behavior."""
+        old behavior. The 0-20 span's only activity record is the assistant
+        reply at 20 that closes it, so per Scout #33 it has no interior
+        evidence of when the API call began and goes to unattributed."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-final-turn", [
                 _human_record(0),
@@ -475,7 +635,10 @@ class TestSessionTimeline(unittest.TestCase):
                               "(20), not at the away-summary record (7200)")
         self.assertEqual(payload["time_partition"]["wall_clock_seconds"], 7200.0,
                           msg="wall clock still spans every timestamped record")
-        self.assertEqual(buckets["main_api"]["seconds"], 20.0)
+        self.assertEqual(buckets["main_api"]["seconds"], 0.0,
+                          msg="no activity record falls strictly inside the "
+                              "0-20 span, so it cannot be billed to main_api")
+        self.assertEqual(buckets["unattributed"]["seconds"], 20.0)
         self.assertEqual(buckets["human_idle"]["seconds"], 7180.0)
         self._assert_partition_reconciles(payload)
 
@@ -484,7 +647,10 @@ class TestSessionTimeline(unittest.TestCase):
         end-minus-duration wide whatever the transcript's own records show, so
         narrowing computed spans to observed activity must not leak into this
         branch and shrink a measured 100s turn that has no assistant record of
-        its own."""
+        its own. The second, computed 40000-40010 turn has only ONE activity
+        record -- the assistant reply at 40010 that closes it -- so per Scout
+        #33 it goes to unattributed, not main_api; that is a separate
+        turn from the measured one and does not affect this test's own point."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-measured-then-away", [
                 _human_record(0),
@@ -500,9 +666,12 @@ class TestSessionTimeline(unittest.TestCase):
         self.assertEqual(first_turn["duration_seconds"], 100.0,
                           msg="the recorded duration stands on its own, with no "
                               "assistant record inside the 0-100 span")
-        self.assertEqual(buckets["main_api"]["seconds"], 110.0,
-                          msg="the measured 100s turn plus the computed "
-                              "40000-40010 turn")
+        self.assertEqual(buckets["main_api"]["seconds"], 100.0,
+                          msg="only the measured 100s turn -- the computed "
+                              "40000-40010 turn has no interior activity")
+        self.assertEqual(buckets["unattributed"]["seconds"], 10.0,
+                          msg="the computed 40000-40010 turn's only record is "
+                              "the completion marker that closes it")
         self._assert_partition_reconciles(payload)
 
     def test_bounds_a_computed_turns_span_at_an_away_summary_marker_when_the_assistant_resumed_hours_later_after_the_human_stepped_away(self):
@@ -512,7 +681,11 @@ class TestSessionTimeline(unittest.TestCase):
         it was being produced. Last-activity alone would still charge the
         whole 80000s gap to main-API; the away-summary at 180 is itself
         evidence the assistant had stopped by then, so the span must end
-        there instead."""
+        there instead. That 0-180 span has no activity record at all inside
+        it (its only assistant record lands at 80000, outside the
+        away-summary-bounded window) -- per Scout #33 that leaves no
+        evidence of when the API call began, so the span is unattributed,
+        not main_api."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-away-bounds-computed", [
                 _human_record(0),
@@ -528,7 +701,10 @@ class TestSessionTimeline(unittest.TestCase):
         self.assertEqual(first_turn["duration_seconds"], 180.0,
                           msg="span ends at the away-summary (180), not the "
                               "assistant's resumed reply 80000s later")
-        self.assertEqual(buckets["main_api"]["seconds"], 180.0,
+        self.assertEqual(buckets["main_api"]["seconds"], 0.0,
+                          msg="no activity record falls inside the away-"
+                              "summary-bounded 0-180 span at all")
+        self.assertEqual(buckets["unattributed"]["seconds"], 180.0,
                           msg="turn 0's 0-180 span; turn 1 (80010-80010) "
                               "collapses to zero, no activity in its window")
         self.assertEqual(buckets["human_idle"]["seconds"], 79830.0,
@@ -557,9 +733,84 @@ class TestSessionTimeline(unittest.TestCase):
         self.assertEqual(first_turn["duration_seconds"], 100.0,
                           msg="the away-summary at 50 sits inside the "
                               "measured 0-100 span but must not shrink it")
-        self.assertEqual(buckets["main_api"]["seconds"], 110.0,
-                          msg="the measured 100s turn plus the computed "
-                              "40000-40010 turn")
+        self.assertEqual(buckets["main_api"]["seconds"], 100.0,
+                          msg="only the measured 100s turn_duration span -- "
+                              "unaffected by Scout #33, which never touches "
+                              "the turn_duration branch")
+        self.assertEqual(buckets["unattributed"]["seconds"], 10.0,
+                          msg="the computed 40000-40010 turn has no activity "
+                              "record inside it, only its own closing record "
+                              "at 40010")
+        self._assert_partition_reconciles(payload)
+
+    def test_routes_a_computed_turns_span_to_unattributed_when_no_activity_records_fall_inside_it(self):
+        """Scout #33's forcing case: session 2e481849's turn 25 is a
+        17h8m-wide computed span containing exactly ONE assistant record, at
+        the very end -- a completion marker, not a start-of-work marker.
+        With no activity anywhere inside the span, the transcript carries no
+        evidence the API was actually running for those 61685s -- charging
+        it to main_api would be pure last-activity guesswork, so it goes to
+        unattributed instead. No duration threshold is involved: the trigger
+        is structural (no activity record strictly inside the span)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-no-interior-activity", [
+                _human_record(0),
+                _assistant_text_record(61685),
+                _human_record(61698),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        first_turn = payload["turns"][0]
+        self.assertEqual(first_turn["measure"], "computed")
+        self.assertEqual(first_turn["duration_seconds"], 61685.0)
+        self.assertEqual(buckets["main_api"]["seconds"], 0.0,
+                          msg="no activity record falls inside the 0-61685 "
+                              "span -- only its own closing record at 61685")
+        self.assertEqual(buckets["unattributed"]["seconds"], 61685.0)
+        self._assert_partition_reconciles(payload)
+
+    def test_keeps_a_computed_turns_span_in_main_api_when_an_activity_record_falls_strictly_inside_it(self):
+        """The same 0-61685 span as the no-interior-activity case, but with
+        one assistant record at 30000 strictly inside it -- that record is
+        evidence the assistant really was working partway through the span,
+        so the whole span stays main_api rather than moving to unattributed.
+        This is the discriminator: interior activity present vs. absent, not
+        the span's length."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-interior-activity", [
+                _human_record(0),
+                _assistant_text_record(30000, text="partial progress"),
+                _assistant_text_record(61685),
+                _human_record(61698),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        self.assertEqual(buckets["main_api"]["seconds"], 61685.0)
+        self.assertEqual(buckets["unattributed"]["seconds"], 0.0)
+        self._assert_partition_reconciles(payload)
+
+    def test_never_routes_a_turn_duration_measured_span_to_unattributed_even_with_no_interior_activity(self):
+        """The 61685s span from the forcing case above, but measured by a
+        recorded turn_duration instead of computed from last-activity -- a
+        turn_duration record IS itself the evidence the span measures a real
+        elapsed duration, so Scout #33's structural trigger must never touch
+        the turn_duration branch, exactly as bd3293ec's away-summary rule
+        never touches it either."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-no-interior-activity-measured", [
+                _human_record(0),
+                _turn_duration_record(61685, duration_ms=61_685_000),
+                _human_record(61698),
+            ])
+            payload = self._build(tmp, sid)
+
+        buckets = payload["time_partition"]["buckets"]
+        first_turn = payload["turns"][0]
+        self.assertEqual(first_turn["measure"], "turn_duration")
+        self.assertEqual(buckets["main_api"]["seconds"], 61685.0)
+        self.assertEqual(buckets["unattributed"]["seconds"], 0.0)
         self._assert_partition_reconciles(payload)
 
     def test_ignores_an_away_summary_marker_that_falls_outside_a_computed_turns_own_window(self):
