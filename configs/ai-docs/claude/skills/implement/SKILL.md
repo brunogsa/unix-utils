@@ -98,9 +98,9 @@ Mid-run `.env` needs are self-served (copied from the original checkout) rather 
 - **Run the quality-gate batch-end tail?** (yes/no, default yes) — decides whether §8.2 runs `/quality-gate` at all, always `--report-only`.
   - The human applies its refactor and auto-review verdicts manually afterward, via `/address-verdicts` — never this run.
 
-- **Capture a full-suite green baseline before starting?** (yes/no) — on yes, §1.6 runs the full suite and records pre-existing failures for §8.3 to diff against.
-
-- **Run the repo-green gate at batch end?** (yes/no, default yes, independent of the quality-gate toggle, decided fresh each run) — decides whether §8.3 runs.
+- **Run the repo-green gate at batch end?** (yes/no, default yes, independent of the quality-gate toggle, decided fresh each run).
+  - On yes, runs BOTH §1.6's full-suite baseline capture and §8.3's batch-end gate; on no, runs NEITHER.
+  - The gate can only classify pre-existing red by diffing against a baseline, so a gate without one can never terminate.
 
 - **Base-branch confirmation** — show `~/.claude/scripts/resolve-base-ref.sh`'s output (origin/HEAD, falling back to local main, then local master) as the default; let the user confirm or override.
 
@@ -142,7 +142,7 @@ Resolve every `PR-N` in the arg to its task-id list now, before §2 seeds anythi
 
 Resolution and per-PR branch creation live in [`references/pr-awareness.md`](references/pr-awareness.md). Load it here.
 
-### 1.6. Capture the full-suite baseline (only when §1.2 answered yes)
+### 1.6. Capture the full-suite baseline (only when §1.2's repo-green gate toggle answered yes)
 
 Commands, ordering, and result handling live in [`references/full-suite-baseline.md`](references/full-suite-baseline.md). Load it here.
 
@@ -219,7 +219,7 @@ Each state file has exactly this shape:
   "tasks": [{ "id": "1", "status": "pending", "depends_on": [], "branch": "", "worktree_path": "" }],
   "attempts": [],
   "gate_dispatches": 0,
-  "baseline": { "wanted": false, "log_path": "", "failures": [] },
+  "baseline": { "log_path": "", "failures": [] },
   "repo_green_gate": { "wanted": true },
   "quality_gate": { "wanted": true, "reports": [] },
   "worktree": { "created": false, "path": "", "branch": "" },
@@ -245,7 +245,7 @@ Each state file has exactly this shape:
 
 - `pr_label` is `""` on a plain run, else the `PR-N` that file belongs to.
 - §5.2/§5.4 append `attempts[]` entries as `{ "task", "n", "result", "signature", "at" }`.
-- `baseline.log_path` and `baseline.failures` come from §1.6, empty when `baseline.wanted` is `false`.
+- `baseline.log_path` and `baseline.failures` come from §1.6, empty when `repo_green_gate.wanted` is `false`.
 
 **Update both artifacts as they go** — every flip, attempt, verdict, report path, and block. The hooks and verdict script read them, and a compaction or kill keeps only what's on disk.
 
