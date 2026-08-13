@@ -5,8 +5,8 @@
 #
 # Only the auditor agent's own model:opus pin is
 # hook-enforced (subagent-model-guard.py gates model
-# only, never effort); the four shard model values and
-# four effort values live in prose a later edit could
+# only, never effort); the five shard model values and
+# five effort values live in prose a later edit could
 # change silently. This suite is that guard: it extracts
 # each shard's dispatch line from the one committed
 # fixed-schema table and checks it against the tier the
@@ -60,10 +60,10 @@ shard_effort() {
 }
 
 # check_shard_tiers <file> - verifies the file exists and
-# every one of S1..S4 names an explicit model matching its
+# every one of S1..S5 names an explicit model matching its
 # assigned tier below. Prints the first mismatch reason to
 # stdout and returns 1 on any failure; returns 0 only when
-# all four shards match exactly.
+# all five shards match exactly.
 check_shard_tiers() {
   local file="$1"
   if [ ! -f "$file" ]; then
@@ -71,7 +71,7 @@ check_shard_tiers() {
     return 1
   fi
   local shard_id expected_model expected_effort line model effort
-  for entry in "S1:opus:max" "S2:opus:max" "S3:opus:high" "S4:opus:high"; do
+  for entry in "S1:opus:max" "S2:opus:max" "S3:opus:high" "S4:opus:high" "S5:opus:high"; do
     shard_id="${entry%%:*}"
     expected_model="${entry#*:}"; expected_model="${expected_model%%:*}"
     expected_effort="${entry##*:}"
@@ -123,14 +123,21 @@ it_should_assert_s4_status_and_next_steps_is_dispatched_with_model_opus_and_effo
   assert_eq "should assert S4 Status and next steps is dispatched with effort high" "high" "$(shard_effort "$line")"
 }
 
+it_should_assert_s5_recommendations_is_dispatched_with_model_opus_and_effort_high() {
+  local line
+  line=$(shard_dispatch_line "$PROMPT_FILE" "S5")
+  assert_eq "should assert S5 Recommendations is dispatched with model opus" "opus" "$(shard_model "$line")"
+  assert_eq "should assert S5 Recommendations is dispatched with effort high" "high" "$(shard_effort "$line")"
+}
+
 it_should_assert_every_shard_dispatch_names_an_explicit_model() {
   local shard_id line model all_present="yes"
-  for shard_id in S1 S2 S3 S4; do
+  for shard_id in S1 S2 S3 S4 S5; do
     line=$(shard_dispatch_line "$PROMPT_FILE" "$shard_id")
     model=$(shard_model "$line")
     [ -n "$model" ] || all_present="no"
   done
-  assert_eq "should assert every one of the four shard dispatches names an explicit model" \
+  assert_eq "should assert every one of the five shard dispatches names an explicit model" \
     "yes" "$all_present"
 }
 
@@ -182,6 +189,7 @@ it_should_assert_s1_time_is_dispatched_with_model_opus_and_effort_max
 it_should_assert_s2_money_is_dispatched_with_model_opus_and_effort_max
 it_should_assert_s3_work_done_is_dispatched_with_model_opus_and_effort_high
 it_should_assert_s4_status_and_next_steps_is_dispatched_with_model_opus_and_effort_high
+it_should_assert_s5_recommendations_is_dispatched_with_model_opus_and_effort_high
 it_should_assert_every_shard_dispatch_names_an_explicit_model
 it_should_fail_when_subagent_prompt_is_missing
 it_should_fail_when_a_shard_tier_is_altered
