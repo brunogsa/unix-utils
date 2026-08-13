@@ -7,8 +7,9 @@ user-invocable: true
 # Audit Session
 
 Resolves a session id, then dispatches the `session-auditor` agent with that
-one token. The agent owns the entire audit — extraction, the 4 fixed
-shards, the merge, and the render — read `assets/subagent-prompt.md` for
+one token. The agent owns the entire audit — extraction, the 5 fixed
+shards (S1-S4 in parallel, then S5 sequentially once their digests are
+merged), the merge, and the render — read `assets/subagent-prompt.md` for
 that routine; this file is only the dispatcher.
 
 ## Usage
@@ -69,6 +70,7 @@ it first.
 ## Files
 
 - `assets/subagent-prompt.md` — the self-contained routine the
-  `session-auditor` agent reads for the full procedure: the 4 fixed shard
-  dispatches, the digest schema, the retry-once-then-INCOMPLETE rule, and
-  the `/tmp/audit-session-<sid>/` working-directory layout.
+  `session-auditor` agent reads for the full procedure: the 5 fixed shard
+  dispatches (S1-S4 parallel, S5 sequential), the digest schema, the
+  retry-once-then-INCOMPLETE rule, and the `/tmp/audit-session-<sid>/`
+  working-directory layout.
