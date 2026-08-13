@@ -327,7 +327,15 @@ Any later delta spanning these days has to account for all of them.
 
 - **`1e4654a` — brainstorm writes its docs via a general-purpose subagent instead of `fork`.** User's words: *"fork subagent simply did not work"*.
 
-  - This is a bug workaround, not a tier or cost decision, and it kills the `fork` option in open question 1 below.
+  - This is a bug workaround, not a tier or cost decision.
+
+  - **The bug was diagnosed and fixed on 2026-08-13, so this no longer kills the `fork` option in open question 1 below.** Two blockers were stacked, the first masking the second.
+
+  - `hooks/subagent-model-guard.py` denied `fork` under its unpinned-no-model branch, and behind that, fork mode itself was off because `CLAUDE_CODE_FORK_SUBAGENT` was set nowhere.
+
+  - Both are now fixed, and a live probe forked successfully in-session.
+
+  - Read cost off that probe, not off this entry: a one-line answer cost 141,003 subagent tokens, because a fork pays for the conversation it inherits.
 
 - **`3b4f628` — the arco-ai-plugins marketplace and its four plugins enabled.** User's words: *"No, capability decision"*.
   - It still adds always-on tool and context surface from 2026-08-06 onward, pushing the opposite way to every context-trim entry.
@@ -600,11 +608,17 @@ The user's standing workflow questions (raised 2026-07-24). Each audit advances 
 
 1. **At pinned quality, which is cheaper: more work in main (more compactions), or more subagent fan-out (cold-start context re-gathering)?**
    - Known: cost per compaction $13.40; a general-purpose spawn averages $4.70 and pays a cold cache-write prefix (https://code.claude.com/docs/en/prompt-caching).
-   - ~~Third option (verified 2026-07-24): a `fork` subagent inherits the parent's full context and system prompt, sharing its cache prefix — near-zero cold start.~~
+   - Third option (verified 2026-07-24, re-verified live 2026-08-13): a `fork` subagent inherits the parent's full context and system prompt, sharing its cache prefix — near-zero cold start.
 
-   - **The `fork` option is dead as of 2026-08-08, on the user's report: *"fork subagent simply did not work"***, which is why `1e4654a` moved brainstorm's doc writing to a general-purpose subagent.
+   - **The `fork` option was declared dead 2026-08-08 on the user's report *"fork subagent simply did not work"*, then revived 2026-08-13.**
 
-   - The docs still describe the mechanism (https://code.claude.com/docs/en/sub-agents.md), so this is an observed failure in practice, not a documentation change. Treat the question as two-way until fork is re-verified.
+   - The two stacked blockers behind that report are named in the `1e4654a` entry above.
+
+   - Sharing the cache prefix is not the same as being cheap: the 2026-08-13 probe answered in one line for 141,003 subagent tokens, since a fork is charged for what it inherits.
+
+   - So the third option's real shape is: no cold-start re-gathering, but a floor that scales with the parent's context size.
+
+   - It beats a fresh spawn only where that inherited context is what the task actually needs.
 
    - Settle by: A/B a repeatable task class both ways; compare cost, compactions/day, and corrections at similar workload.
 
