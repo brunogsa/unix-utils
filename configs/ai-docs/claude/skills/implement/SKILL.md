@@ -330,9 +330,11 @@ The prompt pushes only the per-task data below.
 - **Units**: the task's acceptance criteria and planned-test titles, one unit per forcing case, in the plan slice's own order.
   - Cap one dispatch at **3 units**. A task carrying more splits into consecutive dispatches of ≤3 units each, in plan order, each with its own `<run-label>`.
 
-  - Unit count is what drives the subagent's context growth, and a dispatch that auto-compacts ran ~3.7× longer than one that didn't (18.4m vs 5.0m median).
+  - A dispatch that auto-compacts ran ~3.7× longer than one that didn't (18.4m vs 5.0m median), and each compaction stalls ~176s and buys nothing.
 
-  - Each compaction stalls ~176s and buys nothing; three small dispatches pay a spawn apiece instead, and each reasons over a clean window.
+  - The cap is a proxy, not the mechanism: a single-unit dispatch still auto-compacted, at 168,867 pre-compaction tokens, so a low unit count alone does not prevent it.
+
+  - Dispatch prompt size is a second, independent factor: that single-unit dispatch burned 275s on its first turn before any tool call, then averaged 18.3s/call against 9.1s/call elsewhere.
 
   - `tdd-coder.md` forbids the subagent from self-splitting, precisely so batch size stays a caller decision; that means this cap does not exist unless you apply it here.
 
