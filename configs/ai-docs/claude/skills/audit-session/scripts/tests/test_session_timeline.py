@@ -1025,9 +1025,11 @@ class TestSessionTimeline(unittest.TestCase):
             payload = self._build(tmp, sid)
 
         run = payload["agent_runs"][0]
-        self.assertEqual(run["model"], "claude-opus-4-7",
+        self.assertEqual(run["model"], "opus",
                           msg="the sidecar is gone, but the transcript's own "
-                              "assistant record still names the real model")
+                              "assistant record still names the real model -- "
+                              "normalized to the sidecar's own short-alias "
+                              "family so this column never mixes both forms")
         self.assertEqual(run["agent_type"], "unknown",
                           msg="nothing in the transcript names the dispatched "
                               "subagent_type, so it must stay unknown, not guessed")
@@ -1050,9 +1052,10 @@ class TestSessionTimeline(unittest.TestCase):
             payload = self._build(tmp, sid)
 
         run = payload["agent_runs"][0]
-        self.assertEqual(run["model"], "claude-opus-4-7",
+        self.assertEqual(run["model"], "opus",
                           msg="the run finished on opus, so that must be the "
-                              "reported model even though it started on sonnet")
+                              "reported model even though it started on sonnet -- "
+                              "normalized to the short-alias family")
 
     def test_falls_back_to_the_subagent_transcripts_own_model_field_when_its_meta_json_sidecar_is_unreadable(self):
         """agent-badmeta.meta.json exists but is not valid JSON -- this must
@@ -1074,10 +1077,103 @@ class TestSessionTimeline(unittest.TestCase):
             payload = self._build(tmp, sid)
 
         run = payload["agent_runs"][0]
-        self.assertEqual(run["model"], "claude-opus-4-7",
+        self.assertEqual(run["model"], "opus",
                           msg="a sidecar that fails to parse must fall back to the "
-                              "transcript's own model, the same as a missing sidecar")
+                              "transcript's own model, the same as a missing "
+                              "sidecar, and normalized the same way")
         self.assertEqual(run["agent_type"], "unknown")
+
+    def test_falls_back_to_the_transcripts_own_model_when_the_sidecar_exists_but_omits_the_model_key(self):
+        """agent-nomodelkey.meta.json exists and parses fine, but simply has
+        no "model" key -- Claude Code stopped writing it into the sidecar
+        for 27 of 39 observed runs while still writing "agentType". The old
+        fallback only fired when the WHOLE sidecar was missing/unreadable,
+        so a present-but-model-less sidecar silently stayed "unknown" even
+        though the transcript itself names the real model -- that's the
+        no-op this test guards against."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-nomodelkey", [
+                _human_record(1000),
+                _turn_duration_record(1010, duration_ms=10_000),
+            ], subagent_files={"agent-nomodelkey.jsonl": [
+                _tool_use_record(1001, "tu_inner", "Bash", command="ls"),
+                _tool_result_record(1006, "tu_inner"),
+                _assistant_text_record(1007, model="claude-sonnet-5"),
+            ]})
+            subagent_dir = os.path.join(tmp, "-Users-x-project", sid, "subagents")
+            with open(os.path.join(subagent_dir, "agent-nomodelkey.meta.json"), "w") as fh:
+                json.dump({"agentType": "tdd-coder"}, fh)
+            payload = self._build(tmp, sid)
+
+        run = payload["agent_runs"][0]
+        self.assertEqual(run["model"], "sonnet",
+                          msg="the sidecar loaded fine but has no model key -- "
+                              "the fallback must still fire, independent of "
+                              "whether the sidecar itself loaded")
+        self.assertEqual(run["agent_type"], "tdd-coder",
+                          msg="agent_type still comes from the sidecar, unaffected "
+                              "by the model fallback")
+
+    def test_falls_back_to_the_transcripts_own_model_when_the_sidecars_model_field_is_an_empty_string(self):
+        """An explicit "model": "" in the sidecar is the same as an absent
+        key -- both must trigger the transcript fallback."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-emptymodel", [
+                _human_record(1000),
+                _turn_duration_record(1010, duration_ms=10_000),
+            ], subagent_files={"agent-emptymodel.jsonl": [
+                _tool_use_record(1001, "tu_inner", "Bash", command="ls"),
+                _tool_result_record(1006, "tu_inner"),
+                _assistant_text_record(1007, model="claude-haiku-4-5"),
+            ]})
+            subagent_dir = os.path.join(tmp, "-Users-x-project", sid, "subagents")
+            with open(os.path.join(subagent_dir, "agent-emptymodel.meta.json"), "w") as fh:
+                json.dump({"agentType": "refactor", "model": ""}, fh)
+            payload = self._build(tmp, sid)
+
+        run = payload["agent_runs"][0]
+        self.assertEqual(run["model"], "haiku",
+                          msg="an empty-string model field must fall back to the "
+                              "transcript's own model the same as a missing key")
+
+    def test_uses_the_sidecars_own_agent_type_and_model_when_both_are_present(self):
+        """The primary path (sidecar carries both fields) must stay
+        unaffected by the fallback-gating fix -- a regression guard on the
+        branch the fix's condition touches."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sid = _make_session(tmp, "sess-fullmeta", [
+                _human_record(1000),
+                _turn_duration_record(1010, duration_ms=10_000),
+            ], subagent_files={"agent-fullmeta.jsonl": [
+                _tool_use_record(1001, "tu_inner", "Bash", command="ls"),
+                _tool_result_record(1006, "tu_inner"),
+            ]})
+            subagent_dir = os.path.join(tmp, "-Users-x-project", sid, "subagents")
+            with open(os.path.join(subagent_dir, "agent-fullmeta.meta.json"), "w") as fh:
+                json.dump({"agentType": "tdd-coder", "model": "opus"}, fh)
+            payload = self._build(tmp, sid)
+
+        run = payload["agent_runs"][0]
+        self.assertEqual(run["agent_type"], "tdd-coder")
+        self.assertEqual(run["model"], "opus",
+                          msg="a fully-populated sidecar must be used as-is, "
+                              "never re-normalized or overridden by the "
+                              "transcript fallback")
+
+    def test_normalize_model_alias_maps_each_full_model_id_prefix_to_the_sidecars_short_alias_family(self):
+        """The fallback's raw transcript model id (e.g. "claude-sonnet-5")
+        must collapse to the same short-alias family the sidecar itself
+        writes ("opus"/"sonnet"/"haiku"), so the model column never mixes
+        both forms."""
+        self.assertEqual(sti._normalize_model_alias("claude-opus-4-7"), "opus")
+        self.assertEqual(sti._normalize_model_alias("claude-sonnet-5"), "sonnet")
+        self.assertEqual(sti._normalize_model_alias("claude-haiku-4-5"), "haiku")
+
+    def test_normalize_model_alias_keeps_the_raw_id_for_an_unrecognized_model_prefix(self):
+        """A model id that doesn't start with a known claude-<tier>- prefix
+        must be returned unchanged -- guessing a tier for it would be worse
+        than showing the raw id."""
+        self.assertEqual(sti._normalize_model_alias("some-future-model-9"), "some-future-model-9")
 
     def test_renders_every_duration_in_the_users_local_timezone_by_reusing_parse_ts_and_local_day_never_re_deriving_them(self):
         """A UTC timestamp just after midnight must fall on the PREVIOUS

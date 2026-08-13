@@ -341,34 +341,62 @@ def _percentages_summing_to_100(seconds_by_bucket, total_seconds):
 def _subagent_run_label(subagent_path):
     """{"agent_type", "model"} for one subagent run.
 
-    Sidecar present and readable -> today's behavior, unchanged: both fields
-    come from <subagent>.meta.json ("agentType"/"model").
+    agent_type always comes from <subagent>.meta.json's "agentType" when the
+    sidecar is present and readable; "unknown" when the sidecar is missing,
+    unreadable, or omits the key — nothing else in the transcript names the
+    dispatched subagent_type, so it is never guessed.
 
-    Sidecar missing or unreadable -> model falls back to the LAST "model"
-    carried by the subagent transcript's own assistant records (present on
-    every priced response even without the sidecar; the LAST one, because a
-    mid-run model switch means the run finished on that model). agent_type
-    has no such fallback — nothing else in the transcript names the
-    dispatched subagent_type — so it stays "unknown", never guessed."""
+    model comes from the sidecar's "model" field ONLY when that field is
+    present and non-empty. The fallback fires whenever model is absent or
+    empty, independent of whether the sidecar itself loaded — sidecars
+    exist for every run on a real session but carry "model" for only 12 of
+    39, so gating the fallback on "sidecar missing" (the prior behavior)
+    left the other 27 stuck on "unknown" even though the transcript names
+    the real model. The fallback model is the LAST "model" carried by the
+    subagent transcript's own assistant records (present on every priced
+    response even without the sidecar; the LAST one, because a mid-run
+    model switch means the run finished on that model), normalized via
+    _normalize_model_alias() to the sidecar's own short-alias family so the
+    model column never mixes raw ids with aliases. "unknown" only when no
+    assistant record in the transcript carries a model at all."""
+    agent_type = "unknown"
+    model = None
     meta_path = os.path.splitext(subagent_path)[0] + ".meta.json"
     if os.path.isfile(meta_path):
         try:
             with open(meta_path) as fh:
                 meta = json.load(fh)
-            return {
-                "agent_type": meta.get("agentType") or "unknown",
-                "model": meta.get("model") or "unknown",
-            }
+            agent_type = meta.get("agentType") or "unknown"
+            model = meta.get("model") or None
         except (OSError, json.JSONDecodeError):
             pass
-    return {"agent_type": "unknown", "model": _last_transcript_model(subagent_path)}
+    if not model:
+        model = _normalize_model_alias(_last_transcript_model(subagent_path))
+    return {"agent_type": agent_type, "model": model}
+
+
+def _normalize_model_alias(model):
+    """model normalized to the .meta.json sidecar's own short-alias family
+    ("opus"/"sonnet"/"haiku"), matched by prefix against the full model ids
+    Claude Code's transcripts carry (e.g. "claude-sonnet-5",
+    "claude-opus-4-7") — the form _last_transcript_model() returns. An id
+    whose prefix isn't recognized (a future model family) is returned
+    unchanged rather than guessing a tier; "unknown" (no model found at
+    all) passes through unchanged for the same reason."""
+    if model.startswith("claude-opus-"):
+        return "opus"
+    if model.startswith("claude-sonnet-"):
+        return "sonnet"
+    if model.startswith("claude-haiku-"):
+        return "haiku"
+    return model
 
 
 def _last_transcript_model(subagent_path):
     """The `model` on the LAST assistant record that carries one, scanning
     subagent_path's own transcript; "unknown" when none do — the fallback
-    source for _subagent_run_label() when the .meta.json sidecar is missing
-    or unreadable."""
+    source for _subagent_run_label() when the .meta.json sidecar's "model"
+    field is absent or empty."""
     model = "unknown"
     for record in usage_report.iter_records(subagent_path):
         record_model = (record.get("message") or {}).get("model")
