@@ -325,7 +325,7 @@ Cap the dispatch with a 1-hour `Monitor` timeout (`timeout_ms: 3600000` — the 
 
 On expiry, call `TaskStop` on the subagent — the dispatch resolves as a `timeout`, which §5.2 records and obeys exactly like a `fail`.
 
-The subagent runs the full per-task lifecycle. Its invariant discipline — TDD rules, preloaded standards, checklist mechanics, routing channels, report shape — lives in `~/.claude/agents/tdd-coder.md`.
+The subagent runs the full per-task lifecycle. Its invariant discipline — TDD rules, standards-loading triggers, checklist mechanics, routing channels, report shape — lives in `~/.claude/agents/tdd-coder.md`.
 
 The prompt pushes only the per-task data below.
 
@@ -335,6 +335,19 @@ The prompt pushes only the per-task data below.
 
 - **Context**: the task's heading and brief description — what the task does and why, in the plan's own words.
 - **Units**: the task's acceptance criteria and planned-test titles, one unit per forcing case, in the plan slice's own order.
+  - Cap one dispatch at **3 units**. A task carrying more splits into consecutive dispatches of ≤3 units each, in plan order, each with its own `<run-label>`.
+
+  - Unit count is what drives the subagent's context growth, and a dispatch that auto-compacts ran ~3.7× longer than one that didn't (18.4m vs 5.0m median).
+
+  - Each compaction stalls ~176s and buys nothing; three small dispatches pay a spawn apiece instead, and each reasons over a clean window.
+
+  - `tdd-coder.md` forbids the subagent from self-splitting, precisely so batch size stays a caller decision; that means this cap does not exist unless you apply it here.
+
+  - Chunks of one task run **sequentially**, never in parallel: they commit to the same branch and would collide on a single git index.
+  - Cross-task parallelism stays with `parallel-worktrees` (§5.4), which gives each task its own tree.
+
+  - Give a later chunk's **Context** a one-line summary of what the earlier chunks landed, plus `base:`, so it can `git log` the *why* instead of rediscovering it.
+
 - **Verification**: the task's **task-scoped verification commands only**.
   - Strip any repo-wide/full-suite command (e.g. a full `test:agentic` run, a repo-wide `yarn lint`) before pushing. A subagent verifies only its own change, never the whole repo.
 
@@ -351,7 +364,7 @@ The prompt pushes only the per-task data below.
 
   - `<run-label>` — this task's number, so its checklist and evidence files key uniquely among any siblings dispatched concurrently.
 
-Everything invariant is baked into `tdd-coder.md` — checklist mechanics, preloaded standards, commit rule, report shape.
+Everything invariant is baked into `tdd-coder.md` — checklist mechanics, standards-loading triggers, commit rule, report shape.
 
 Don't re-push any of it.
 
