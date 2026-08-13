@@ -38,28 +38,20 @@ Direct `/refactor` invocation, phrases like "refactor this" / "clean this up" / 
 
 ### 1. Identify Target Files
 
-If the user provided a path/glob argument, use that directly.
+With a user-provided path/glob argument, pass it as the script's optional trailing path argument (below). Otherwise call the script with no path arguments to cover the whole repo.
 
-Otherwise, collect files from both unpushed commits and uncommitted changes:
+Mint a work dir, then call the script:
 
 ```bash
-# Unpushed commits — @{upstream} when the branch tracks a
-# remote, else the repo default branch, which is all a fresh
-# /implement branch has: its tail runs before the first push.
-base=$(git rev-parse --abbrev-ref --symbolic-full-name @{upstream} 2>/dev/null) \
-  || base=$(~/.claude/scripts/resolve-base-ref.sh)
-git diff --name-only "$base"..HEAD
-
-# Uncommitted changes (staged + unstaged)
-git diff --name-only HEAD
-
-# Untracked files
-git ls-files --others --exclude-standard
+work_dir=$(mktemp -d /tmp/refactor.XXXXXX)
+bash ~/.claude/skills/refactor/scripts/prep-refactor-context.sh "$work_dir" [<path>...]
 ```
 
-Deduplicate and merge the lists. If no files are found, inform the user and stop.
+Base resolution tries `@{upstream}` first, falling back to `~/.claude/scripts/resolve-base-ref.sh` -- see the script's own `if`/`else` for the exact fallback and its failure message.
 
 Without that fallback the unpushed half either dies on `fatal: no upstream configured` or yields nothing, and the run writes a near-empty report that reads as "nothing to refactor".
+
+If the script reports nothing to refactor, inform the user and stop.
 
 ### 2. Dispatch deep-reviewer to detect opportunities
 
@@ -74,7 +66,11 @@ Without that fallback the unpushed half either dies on `fatal: no upstream confi
 **Dispatch** `agent(subAgent=deep-reviewer, title=Refactor-lens review)` — report-only by construction. In the prompt:
 
 - Run in the **background** (the default) -- the UI still surfaces progress, and the harness delivers the findings report on completion.
-- List the target files identified in step 1.
+
+- Hand it `$work_dir` and the four file names step 1 wrote there (`diff`, `changed-files.txt`, `untracked-files.txt`, `commit-messages.txt`) -- tell it to read them from disk, not re-run git commands.
+
+  - State why: reading a file from disk costs ~12.5x less than admitting a fresh tool result into context, so re-running step 1's probes is the expensive path to avoid.
+
 - Include the analysis constraints below verbatim.
 - Instruct it to **write the complete report to `$VERDICT_PATH`** (overwrite if exists) and make no other edits — the guard enforces this; stating it stops a wasted blocked-write attempt.
 
