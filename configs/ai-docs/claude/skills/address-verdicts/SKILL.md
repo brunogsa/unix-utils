@@ -117,7 +117,7 @@ Add one closing `[Reminder]` entry for the final report (§6) — it survives ev
 
 Dispatch one subagent per entry seeded above, **serially, in that seeded order** — never in parallel, since every dispatch commits to the same branch.
 
-Each dispatch carries **all** of its lens's selected findings at once, each with the identifier, scope, and evidence its report gives it, plus the test command from §2:
+Each dispatch carries **all** of the findings assigned to it at once, each with the identifier, scope, and evidence its report gives it, plus the test command from §2:
 
 - **`test-sdd` entry** (from `verdict_test-sdd_*.md`):
   - `agent(subAgent=tdd-coder, title=Apply all test-sdd findings)`.
@@ -131,6 +131,16 @@ Each dispatch carries **all** of its lens's selected findings at once, each with
 - **`refactor` entry** (from `verdict_refactor_*.md`):
   - `agent(subAgent=refactor, title=Apply all refactor findings)`.
   - It applies the changes itself and confirms tests are green before and after.
+
+**Size the `test-sdd` and `auto-review` entries to `tdd-coder`'s no-self-split contract** before dispatching — it never splits an oversized batch on its own:
+
+- Cluster related findings into the same dispatch, so one subagent sees the full picture behind them.
+- Bundle findings too small to deserve their own RED-GREEN cycle into one unit.
+- Aim for ~10 units per dispatch as a guide, not a rigid rule — deviate when clustering or bundling argues for it.
+
+When either entry contributes more than ~10 findings, split it into multiple sequential `tdd-coder` dispatches for that lens — still serial, same branch, same seeded order, never one uncapped batch.
+
+The `refactor` entry is exempt: it dispatches to the `refactor` agent below, not `tdd-coder`, so this guide doesn't apply to it.
 
 Why the refactor lens keeps its own agent rather than joining the other two on `tdd-coder`: that agent refuses any behavior change, by design.
 A correctness fix or a missing test can't route through it — both need `tdd-coder`'s test-first discipline instead.
