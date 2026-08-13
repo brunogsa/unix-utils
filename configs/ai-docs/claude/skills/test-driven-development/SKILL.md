@@ -59,20 +59,20 @@ Across multi-cycle TDD, keep Docker / DBs / LocalStack / browser sessions runnin
 
 ---
 
-## Rationalization tables — catch drift before it commits
+## Rationalizations — catch drift before it commits
 
-Watch for these phrases in your own thinking. Each is a rationalization that bypasses TDD. If you catch yourself thinking any of them, **stop and write the test**.
+Eight phrases bypass TDD while sounding like engineering judgement. Catch yourself thinking one and **stop and write the test**.
 
-| You're about to think... | What it actually means | What to do instead |
-|---|---|---|
-| "I'll write the test after I see what works" | You don't know the contract yet, so you'll shape the test to whatever you end up writing | Write the test first; the failing test forces you to define the contract before the implementation |
-| "this case is too simple to test first" | Simple cases lock in trivial implementations that miss real corner cases | Pick the **most forcing** case first; simple cases backfill easily once core logic is right |
-| "the test passed immediately, that's fine" | Either the test wasn't testing what you think, or production code already had the behavior (so the test is redundant) | Force a deliberate failure (mutate the assertion or the impl) and watch it red, then revert — proves the test is real |
-| "I just need to see the API shape, then I'll test" | You're prototyping in production code; the test you write later will conform to the shape, not check it | Sketch the API in the test instead — test-first is the cheapest API exploration |
-| "this is glue code, no logic to test" | "No logic" usually means "I haven't found the edge cases yet" | Test the behavior at the boundary (input → output) even if the body is one line; boundaries are where bugs live |
-| "one quick manual check covers it" | The check disappears the moment the session ends; next regression has no signal | Either write a real test, or log the check in `manual-tests-evidences.md` (format below) |
-| "the test is a thin wrapper — the implementation is the real check" | The test isn't testing behavior, it's mirroring the implementation; refactor will break it | Test what the caller observes (the contract), not how the function structures itself |
-| "I'll add the regression test once I confirm the fix works" | "Confirming the fix works" without a test is debugging, not fixing; the bug recurs the next time someone touches that area | Write the failing regression test FIRST; the fix's job is to turn it green |
+- "I'll write the test after I see what works" / "I just need to see the API shape, then I'll test"
+- "this case is too simple to test first" / "this is glue code, no logic to test"
+- "the test passed immediately, that's fine" / "the test is a thin wrapper, the implementation is the real check"
+- "one quick manual check covers it" / "I'll add the regression test once I confirm the fix works"
+
+What each one actually means and what to do instead: [`references/rationalizations.md`](references/rationalizations.md).
+
+That table sits outside this file because this skill preloads into every `tdd-coder` dispatch, at full cost, every time.
+
+The eight triggers are what you need in-flight; the diagnosis is what you need only once you've caught one.
 
 ---
 
