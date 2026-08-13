@@ -132,6 +132,7 @@ Look for machinery with no real caller, speculative configurability, ceremony th
 
 **Goal**: Let the `implement` skill split its committed tasks across **several PRs** instead of forcing one PR per run. Two shapes must both work:
 - **Independent PRs** — groups of committed tasks with no dependency between them, each opened straight off the base branch, reviewable and mergeable in any order.
+
 - **Stacked (dependent) PRs** — a chain where PR B branches off PR A's head (not base), so B's diff shows only its own delta; A must merge (or rebase) first.
 
 **Scope**: `configs/ai-docs/claude/skills/implement/`. Likely touches how the skill plans branch/commit grouping and how it hands off to PR creation (`create-pr` skill).
@@ -139,8 +140,20 @@ Look for machinery with no real caller, speculative configurability, ceremony th
 **Design questions to settle before wiring**:
 - How does the skill decide the grouping — explicit user direction, task-dependency inference from the plan, or both? Default when unspecified?
 - Stacked-PR mechanics: plain git branches-off-branches vs. a tool (`gh`, Graphite/`gt`, `spr`). Prefer plain git + `gh` unless a tool clearly pays off — check for existing stacking support first.
+
 - Base-branch tracking on rebase: when the bottom of a stack merges, how do the upper PRs get retargeted (manual note vs. automated)?
 - Overlap with `create-pr` — does multi-PR logic live in `implement`, in `create-pr`, or split? Avoid duplicating PR-creation mechanics.
+- **Parallelizing stacked-PR execution**: today `implement` runs a stack's task work in series.
+
+  - Confirm whether that is a hard git constraint: PR B's branch sits on PR A's committed head, so B's code cannot be written until A's diff is final.
+
+  - Or whether it is only how the skill currently sequences its loop.
+
+  - If part of B's work needs only to branch off A, and not A's diff content, pick between the two options below.
+
+    - Start that work against a provisional local head, then rebase it once A lands.
+
+    - Accept series execution as inherent to the stacking model.
 
 **Deliverable**: `implement` supports emitting N PRs (independent and stacked) from one run, the grouping rule documented, the stacking mechanic chosen and wired, and `create-pr` reused rather than duplicated.
 
