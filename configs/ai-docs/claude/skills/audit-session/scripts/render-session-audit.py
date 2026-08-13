@@ -274,10 +274,24 @@ def _render_highlights(cost, timeline):
     if wall_clock_seconds is not None:
         tiles.append(_kpi_tile("Wall clock", _format_duration_hours(wall_clock_seconds)))
 
-    kpis = cost.get("kpis", {})
-    session_hours = kpis.get("session_hours")
-    if total is not None and session_hours:
-        tiles.append(_kpi_tile("Cost / hour", f"${total / session_hours:.2f}"))
+    # Replaces the old wall-clock "Cost / hour" tile. Wall clock spans
+    # first message to last message, so it counts hours the human was
+    # asleep or away -- on the sessions that motivated this change that
+    # inflated the denominator ~5x and understated cost/hour by the same
+    # factor, and it's the headline number a reader quotes. Active
+    # seconds (main_api + tool_exec + agent_occupied) excludes both
+    # unattributed and human_idle time instead. Keeping only one
+    # cost-per-hour tile avoids inviting the misleading one to be
+    # quoted; total wall clock is still reported in the Time section, so
+    # nothing is lost by replacing rather than adding a second tile.
+    buckets = timeline.get("time_partition", {}).get("buckets", {})
+    active_seconds = sum(
+        buckets.get(bucket_name, {}).get("seconds", 0)
+        for bucket_name in ("main_api", "tool_exec", "agent_occupied")
+    )
+    if total is not None and active_seconds:
+        active_hours = active_seconds / 3600
+        tiles.append(_kpi_tile("Cost / active hr", f"${total / active_hours:.2f}"))
 
     main_cost = cost.get("main_cost")
     subagent_cost = cost.get("subagent_cost")
@@ -296,6 +310,7 @@ def _render_highlights(cost, timeline):
     if api_calls is not None:
         tiles.append(_kpi_tile("API calls", api_calls.get("main", 0) + api_calls.get("sub", 0)))
 
+    kpis = cost.get("kpis", {})
     if "user_messages" in kpis:
         tiles.append(_kpi_tile("User messages", kpis["user_messages"]))
 

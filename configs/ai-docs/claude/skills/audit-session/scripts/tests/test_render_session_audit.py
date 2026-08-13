@@ -436,7 +436,9 @@ class TestSessionAuditRendererHighlights(unittest.TestCase):
         self.assertIn("Highlights", html_text, msg="the Highlights section title must appear")
         self.assertIn("$16.80", html_text, msg="Total cost tile: total verbatim as dollars")
         self.assertIn("1h 0m", html_text, msg="Wall clock tile: 3600s through the hours formatter")
-        self.assertIn("$4.20", html_text, msg="Cost / hour tile: 16.80 / 4.0 session_hours")
+        self.assertIn("$22.40", html_text,
+                       msg="Cost / active hr tile: 16.80 / ((1200+900+600)s active / 3600) = "
+                           "16.80 / 0.75h")
         self.assertIn("72%", html_text,
                        msg="Main vs subagent tile: main_cost 9.03 of 12.47 combined is 72%")
         for tile_label in ("Cache hit rate", "API calls", "User messages",
@@ -464,11 +466,23 @@ class TestSessionAuditRendererHighlights(unittest.TestCase):
 
     def test_should_skip_a_highlights_tile_whose_source_cost_json_key_is_absent_rather_than_printing_none(self):
         """`_cost_fixture()` carries only total/main_cost/subagent_cost --
-        the 6 tiles whose source keys it omits (cost/hour, cache hit rate,
-        API calls, user messages, compactions, interruptions) must not
-        render at all, and never as a literal "None"."""
+        the 6 tiles whose source keys it omits (cost/active hr, cache hit
+        rate, API calls, user messages, compactions, interruptions) must
+        not render at all, and never as a literal "None". Cost/active hr's
+        source is the timeline's active buckets (main_api/tool_exec/
+        agent_occupied), not a cost.json key, so this fixture drops those
+        buckets entirely -- only human_idle remains."""
         cost = _cost_fixture()  # only total, main_cost, subagent_cost
-        timeline = _timeline_fixture()
+        timeline = _timeline_fixture(time_partition={
+            "wall_clock_seconds": 3600.0,
+            "buckets": {
+                "human_idle": {"seconds": 3600.0, "pct": 100.0},
+            },
+            "agent_hours_vs_wall_clock_occupied": {
+                "agent_hours_seconds": 0.0,
+                "wall_clock_occupied_seconds": 0.0,
+            },
+        })
         narrative = _narrative_fixture()
 
         html_text = rsa.render_audit_html(cost, timeline, narrative)
@@ -478,11 +492,42 @@ class TestSessionAuditRendererHighlights(unittest.TestCase):
         self.assertNotIn("$None", html_text,
                           msg="a missing dollar-value source key must skip its tile, "
                               "never render the literal None inside a $ tile")
-        for missing_tile_label in ("Cost / hour", "Cache hit rate", "API calls",
+        for missing_tile_label in ("Cost / active hr", "Cache hit rate", "API calls",
                                      "User messages", "Compactions", "Interruptions"):
             self.assertNotIn(f'<span class="kpi-label">{missing_tile_label}</span>', html_text,
                               msg=f"the {missing_tile_label} tile must not render "
                                   "when its source key is absent")
+
+    def test_should_skip_the_cost_per_active_hour_tile_when_the_active_buckets_are_present_but_sum_to_zero(self):
+        """A session where the timeline extractor emitted main_api,
+        tool_exec, and agent_occupied buckets that all measured zero
+        seconds (e.g. a session cut off before any turn completed) must
+        skip the tile rather than divide by zero or print $inf/$None --
+        the same skip-when-absent shape the tile already had for
+        session_hours, now applied to a sum-to-zero denominator instead
+        of a missing key."""
+        cost = _cost_fixture(total=16.80)
+        timeline = _timeline_fixture(time_partition={
+            "wall_clock_seconds": 3600.0,
+            "buckets": {
+                "main_api": {"seconds": 0.0, "pct": 0.0},
+                "tool_exec": {"seconds": 0.0, "pct": 0.0},
+                "agent_occupied": {"seconds": 0.0, "pct": 0.0},
+                "human_idle": {"seconds": 3600.0, "pct": 100.0},
+            },
+            "agent_hours_vs_wall_clock_occupied": {
+                "agent_hours_seconds": 0.0,
+                "wall_clock_occupied_seconds": 0.0,
+            },
+        })
+        narrative = _narrative_fixture()
+
+        html_text = rsa.render_audit_html(cost, timeline, narrative)
+
+        self.assertIn("$16.80", html_text, msg="Total cost tile still renders: total is present")
+        self.assertNotIn('<span class="kpi-label">Cost / active hr</span>', html_text,
+                          msg="zero active seconds must skip the tile, never render "
+                              "a division-by-zero result")
 
 
 class TestSessionAuditRendererMoneyMainVsSubagent(unittest.TestCase):
