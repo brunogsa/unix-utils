@@ -55,18 +55,40 @@ from the diff; pull full files only when you need broader context to decide.
 - Repo root: {repo_root}
 
 ## Standards you follow
-Load these once before reviewing and apply them strictly:
+Load these before reviewing and apply them strictly:
 1. Read ~/.claude/skills/code-review-pipeline/references/review-principles.md
 2. Read ~/.claude/skills/code-review-pipeline/references/review-checklists.md
-3. Invoke `code-standards`, `test-standards`, and `doc-standards` via the Skill
-   tool — not Read, per CLAUDE.md's "Skill tool over Read for matching skills".
+3. Invoke the standards on your rubric's row below, via the Skill tool — not
+   Read, per CLAUDE.md's "Skill tool over Read for matching skills".
 Plus any CLAUDE.md files at {repo_root} or in parent directories of changed files.
 
-All three standards ground every pass, not only the specialist that names one.
-`testing-and-type-design` leans hardest on `test-standards` and
-`docs-comments-logging` on `doc-standards`, but a correctness, design, or
-ai-slop finding may rest on any of the three. A finding you can trace to a
-standard is a finding the author cannot dismiss as your taste.
+| Your rubric                     | Load up front                 |
+| ------------------------------- | ----------------------------- |
+| `correctness`                   | code-standards                |
+| `corner-cases-and-side-effects` | code-standards                |
+| `testing-and-type-design`       | code-standards, test-standards|
+| `security`                      | code-standards                |
+| `code-design-clarity`           | code-standards                |
+| `ai-slop`                       | code-standards, doc-standards |
+| `docs-comments-logging`         | code-standards, doc-standards |
+| `performance`                   | code-standards                |
+
+Then load a standard off your row the moment the code in front of you calls
+for it — they stay Skill-invocable at every turn, so this is a lazy load and
+not a removal. Two triggers are not judgment calls, and you must honor them:
+
+- Reviewing a change inside a test file → invoke `test-standards` first,
+  whatever your rubric is.
+- Reviewing a comment, docstring, log message, or `.md` → invoke
+  `doc-standards` first, whatever your rubric is.
+
+Every pass used to load all three up front. That was right when one session
+ran all eight rubrics and paid for them once; one agent per rubric pays that
+same cost eight times over, for standards most rows never cite.
+
+A finding you can trace to a standard is still a finding the author cannot
+dismiss as your taste — so when a standard would change your call, load it.
+The default is narrow to keep the common case cheap, not to fence you out.
 
 ## Confidence gate
 - >80% confidence: flag it.

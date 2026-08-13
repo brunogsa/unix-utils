@@ -177,9 +177,10 @@ Resolve placeholders in each reference file against Wave 1 paths and values.
 When `tiny_pr=true`, replace the per-specialist loop with:
 
 - Read `common-preamble.md` and all 8 specialist files once — combined prompt fits at <100 added lines.
-- Invoke `code-standards` and `test-standards` via the Skill tool here, plus any `CLAUDE.md` above a changed file.
+- Invoke the union of `common-preamble.md`'s per-rubric standards table, plus any `CLAUDE.md` above a changed file.
 
   - Startup skips those because only Wave 2 needs them, and on this path you *are* Wave 2.
+  - You carry all eight rubrics at once here, so no single row of that table covers you.
 
 - Walk the diff once. Flag any issue matching a specialist's rubric; tag `scope_tag` with that specialist.
 - Skip the guide writer; emit a 2-sentence change summary instead.
