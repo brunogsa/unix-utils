@@ -414,8 +414,8 @@ class TestCheckScriptNamingRealCorpusRegression:
         not UNIX_UTILS_ROOT.is_dir(),
         reason=f"no unix-utils checkout at {UNIX_UTILS_ROOT}",
     )
-    def test_should_keep_reporting_the_same_42_unix_utils_scripts_known_to_fail_naming(self):
-        # Batch 13 (`hooks/`+`scripts/`, 23 rows) + Batch 14
+    def test_should_keep_reporting_the_same_41_unix_utils_scripts_known_to_fail_naming(self):
+        # Batch 13 (`hooks/`+`scripts/`, 22 rows) + Batch 14
         # (`skills/*/scripts/`, 19 rows) in rename-list.md were
         # measured with the pre-fix checker — the regression
         # bar this fix must not cross.
@@ -437,7 +437,6 @@ class TestCheckScriptNamingRealCorpusRegression:
             "configs/ai-docs/claude/hooks/claude-sdd-stop-hook.sh",
             "configs/ai-docs/claude/hooks/claude-stop-orchestrator.sh",
             "configs/ai-docs/claude/hooks/claude-stopfailure-resume.sh",
-            "configs/ai-docs/claude/hooks/claude-tmux-compact-bump.py",
             "configs/ai-docs/claude/hooks/claude-tmux-notification.sh",
             "configs/ai-docs/claude/hooks/claude-tmux-title-compact-reminder.sh",
             "configs/ai-docs/claude/hooks/claude-tmux-title-reminder.sh",

@@ -63,6 +63,12 @@
       "Bash(python3 /Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/usage-audit/scripts/claude-usage-report.py*)",
       "Bash(/home/brunogsa/unix-utils/configs/ai-docs/claude/skills/usage-audit/scripts/claude-usage-report.py*)",
       "Bash(python3 /home/brunogsa/unix-utils/configs/ai-docs/claude/skills/usage-audit/scripts/claude-usage-report.py*)",
+      "Bash(~/.claude/hooks/resolve-subagent-compaction-bump.py*)",
+      "Bash(python3 ~/.claude/hooks/resolve-subagent-compaction-bump.py*)",
+      "Bash(/Users/brunoagostini/unix-utils/configs/ai-docs/claude/hooks/resolve-subagent-compaction-bump.py*)",
+      "Bash(python3 /Users/brunoagostini/unix-utils/configs/ai-docs/claude/hooks/resolve-subagent-compaction-bump.py*)",
+      "Bash(/home/brunogsa/unix-utils/configs/ai-docs/claude/hooks/resolve-subagent-compaction-bump.py*)",
+      "Bash(python3 /home/brunogsa/unix-utils/configs/ai-docs/claude/hooks/resolve-subagent-compaction-bump.py*)",
       "Bash(~/.claude/scripts/tmux-window-title.sh *)",
       "Bash(bash ~/.claude/scripts/tmux-window-title.sh *)",
       "Bash(/Users/brunoagostini/unix-utils/configs/ai-docs/claude/scripts/tmux-window-title.sh *)",
@@ -266,7 +272,17 @@
           },
           {
             "type": "command",
-            "command": "python3 ~/.claude/hooks/claude-tmux-compact-bump.py"
+            "command": "bash ~/.claude/scripts/tmux-window-title.sh --bump-counter"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/resolve-subagent-compaction-bump.py"
           }
         ]
       }

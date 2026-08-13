@@ -298,5 +298,99 @@ it_should_fail_when_enabledplugins_still_lists_claude_hud
 it_should_fail_when_the_plugins_claude_hud_config_file_still_exists
 it_should_fail_when_extraknownmarketplaces_still_lists_claude_hud
 
+# ============================================================
+# describe("SubagentCompactionCounterWiring")
+# ============================================================
+
+HOOKS_DIR="$repo_root/configs/ai-docs/claude/hooks"
+SUBAGENT_BUMP_HOOK="$HOOKS_DIR/resolve-subagent-compaction-bump.py"
+DEAD_COMPACT_ROUTER="$HOOKS_DIR/claude-tmux-compact-bump.py"
+DEAD_COMPACT_ROUTER_HARNESS="$HOOKS_DIR/tests/test-claude-tmux-compact-bump.sh"
+
+# working_settings - the WORKING-TREE settings.json, unlike the
+# committed_settings helper above.
+#
+# Hook wiring and permissions are never written session by
+# session (only /model, /effort and /advisor are), so the
+# working tree carries no noise for these keys — and reading it
+# is what lets a wiring change be red before its commit lands
+# instead of only after.
+working_settings() {
+  cat "$repo_root/configs/ai-docs/claude/settings.json"
+}
+
+subagent_stop_commands() {
+  working_settings | jq -r '.hooks.SubagentStop // [] | .[].hooks[].command'
+}
+
+session_start_compact_commands() {
+  working_settings | jq -r \
+    '.hooks.SessionStart[] | select(.matcher == "compact") | .hooks[].command'
+}
+
+it_should_run_the_subagent_compaction_bump_hook_when_a_subagent_stops() {
+  local actual
+  subagent_stop_commands | grep -q 'hooks/resolve-subagent-compaction-bump.py' \
+    && actual=true || actual=false
+  assert_eq \
+    "SubagentCompactionCounterWiring > happy > should run the subagent compaction-bump hook when a subagent stops" \
+    "true" "$actual"
+}
+
+it_should_ship_the_subagent_compaction_bump_hook_script_the_settings_command_names() {
+  local exists
+  [ -f "$SUBAGENT_BUMP_HOOK" ] && exists=true || exists=false
+  assert_eq \
+    "SubagentCompactionCounterWiring > happy > should ship the subagent compaction-bump hook script the settings command names" \
+    "true" "$exists"
+}
+
+it_should_allow_the_subagent_compaction_bump_hook_path_on_both_macos_and_linux() {
+  # Two entries per path form, not one: every other script here
+  # is allowed both bare and interpreter-prefixed, because a
+  # caller may write either and only the literal string matches.
+  local macos linux tilde
+  macos=$(working_settings | jq -r '[.permissions.allow[] | select(contains("/Users/brunoagostini/unix-utils/configs/ai-docs/claude/hooks/resolve-subagent-compaction-bump.py"))] | length')
+  linux=$(working_settings | jq -r '[.permissions.allow[] | select(contains("/home/brunogsa/unix-utils/configs/ai-docs/claude/hooks/resolve-subagent-compaction-bump.py"))] | length')
+  tilde=$(working_settings | jq -r '[.permissions.allow[] | select(contains("~/.claude/hooks/resolve-subagent-compaction-bump.py"))] | length')
+  assert_eq \
+    "SubagentCompactionCounterWiring > happy > should allow the subagent compaction-bump hook path bare and python3-prefixed on both macOS and Linux" \
+    "2 2 2" "$macos $linux $tilde"
+}
+
+it_should_bump_the_main_compaction_counter_straight_from_the_title_script_on_a_main_session_compaction() {
+  local actual
+  session_start_compact_commands | grep -q 'tmux-window-title.sh --bump-counter' \
+    && actual=true || actual=false
+  assert_eq \
+    "SubagentCompactionCounterWiring > happy > should bump the main compaction counter straight from the title script on a main-session compaction" \
+    "true" "$actual"
+}
+
+it_should_fail_when_the_session_start_compaction_router_is_still_wired() {
+  local actual
+  session_start_compact_commands | grep -q 'claude-tmux-compact-bump.py' \
+    && actual=true || actual=false
+  assert_eq \
+    "SubagentCompactionCounterWiring > failure > should fail when the SessionStart compaction router is still wired" \
+    "false" "$actual"
+}
+
+it_should_fail_when_the_dead_session_start_compaction_router_script_survives() {
+  local router_exists harness_exists
+  [ -f "$DEAD_COMPACT_ROUTER" ] && router_exists=true || router_exists=false
+  [ -f "$DEAD_COMPACT_ROUTER_HARNESS" ] && harness_exists=true || harness_exists=false
+  assert_eq \
+    "SubagentCompactionCounterWiring > failure > should fail when the dead SessionStart compaction router script or its harness survives" \
+    "false false" "$router_exists $harness_exists"
+}
+
+it_should_run_the_subagent_compaction_bump_hook_when_a_subagent_stops
+it_should_ship_the_subagent_compaction_bump_hook_script_the_settings_command_names
+it_should_allow_the_subagent_compaction_bump_hook_path_on_both_macos_and_linux
+it_should_bump_the_main_compaction_counter_straight_from_the_title_script_on_a_main_session_compaction
+it_should_fail_when_the_session_start_compaction_router_is_still_wired
+it_should_fail_when_the_dead_session_start_compaction_router_script_survives
+
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

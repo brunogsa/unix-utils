@@ -38,7 +38,7 @@ checker invocation will reproduce byte-for-byte on a later run.
 
 | Batch | Scope (Task) | Repo | Files | Failing |
 |---|---|---|---|---|
-| 13 | `hooks/` + `scripts/` (Task 13) | `unix-utils` | 24 | 23 |
+| 13 | `hooks/` + `scripts/` (Task 13) | `unix-utils` | 23 | 22 |
 | 14 | `skills/*/scripts/`, excludes vendored `skill-standards/scripts/` + `eval-viewer/` (Task 14) | `unix-utils` | 55 | 19 |
 | 15 | `commands/` + `lib/` + root (Task 15) | `oh-my-zsh` | 31 | 31 |
 
@@ -66,7 +66,6 @@ Paths relative to `configs/ai-docs/claude/`.
 | `hooks/claude-sdd-stop-hook.sh` | 'claude' is not a recognized verb; 'sdd' is an abbreviation outside the allowlist | `check-spec-coverage-drift.sh` |
 | `hooks/claude-stop-orchestrator.sh` | 'claude' is not a recognized verb | `resolve-stop-sequence.sh` |
 | `hooks/claude-stopfailure-resume.sh` | 'claude' is not a recognized verb | `resolve-stop-failure.sh` |
-| `hooks/claude-tmux-compact-bump.py` | 'claude' is not a recognized verb | `resolve-compact-counter-bump.py` |
 | `hooks/claude-tmux-notification.sh` | 'claude' is not a recognized verb | `resolve-tmux-attention-state.sh` |
 | `hooks/claude-tmux-title-compact-reminder.sh` | 'claude' is not a recognized verb | `build-tmux-retitle-reminder.sh` |
 | `hooks/claude-tmux-title-reminder.sh` | 'claude' is not a recognized verb | `build-tmux-title-reminder.sh` |
