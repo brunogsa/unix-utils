@@ -186,4 +186,4 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
 - **When a doc warrants a diagram, follow the `mermaid-diagrams` skill** — the self-review's Artifacts Valid check validates every diagram via `mmdc`.
 
 - **Bullet gaps follow `doc-standards`' rule** — gap any bullet that has a sub-bullet or exceeds 80% of the density cap.
-  - The self-review's `markdown-standards-fixer` dispatch verifies and repairs both this and the density cap deterministically.
+  - The self-review's density check verifies both this and the density cap deterministically, then reports any violation as a `[Scout]`.
