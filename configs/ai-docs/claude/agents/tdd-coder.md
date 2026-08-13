@@ -181,9 +181,15 @@ Throughout:
   - **Soft** fork — take the sensible default, proceed, and flag the choice under Deviations. Most forks are this.
   - **Hard** fork — you can't sensibly proceed; stop and return `blocked`, naming the open decision so the human can settle it.
 
-- If Verification runs long in the background, block on it with a synchronous Bash `until <check>; do sleep 2; done` loop rather than a single `Monitor` call.
-  - A bare Monitor call lets your turn end before its notification arrives.
-  - The harness marks you complete while the command is still running, costing the orchestrator a manual resume round trip to recover you.
+- Run Verification as one foreground Bash call with an explicit `timeout: 600000` and its output redirected to a stable `/tmp` path, then read the summary back from that file.
+  - Never wrap it in an `until <check>; do sleep 2; done` polling loop.
+    - 16 past dispatches burned the full 10-minute cap inside such a loop and lost the run's output — an hour of wall time that produced nothing.
+
+  - A Bash `timeout` this long covers essentially every real suite — the heaviest measured here averages 145s — so the polling loop was guarding against a case that does not occur.
+
+- Only for a command you already know exceeds 10 minutes, launch it with `run_in_background` and let the harness re-invoke you when it exits.
+  - Do not reach for `Monitor` to wait on it: a bare Monitor call lets your turn end before its notification arrives.
+    - The harness then marks you complete mid-run, costing the orchestrator a manual resume round trip to recover you.
 
 Evidence file, `/tmp/tdd-coder_evidences_<run-label>.txt`:
 
