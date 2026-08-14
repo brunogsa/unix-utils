@@ -90,9 +90,13 @@ if echo "$CMD_STRUCT" | grep -qE '\baigitcommit\b'; then
   exit 2
 fi
 
-# Block git push --force (includes --force-with-lease as acceptable, only block --force and -f)
-if echo "$CMD_STRUCT" | grep -qE 'git\s+push\s+.*(-f\b|--force\b)'; then
-  echo 'git push --force is non-reversible. Use git push (without --force) or ask the user for approval.' >&2
+# Block git push --force/-f, but allow --force-with-lease (lease-protected, safe against
+# clobbering someone else's push). --force\b alone would also match inside
+# "--force-with-lease" (word boundary sits right after "force", before the hyphen), so
+# strip --force-with-lease occurrences first and only then check for a bare --force/-f.
+PUSH_FORCE_CHECK=$(echo "$CMD_STRUCT" | sed -E 's/--force-with-lease(=[^ ]*)?//g')
+if echo "$PUSH_FORCE_CHECK" | grep -qE 'git\s+push\s+.*(-f\b|--force\b)'; then
+  echo 'git push --force is non-reversible. Use git push --force-with-lease, git push (without --force), or ask the user for approval.' >&2
   exit 2
 fi
 
