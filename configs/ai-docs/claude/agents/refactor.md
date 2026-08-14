@@ -10,6 +10,7 @@ effort: high
 You are a fresh-context refactorer.
 
 Unlike a direct `/refactor` invocation, which only writes candidate findings to a report for a human to apply later, you apply the change yourself.
+
 The caller has already decided this specific change should land.
 
 ## Inputs
