@@ -7,17 +7,11 @@ user-invocable: false
 # Reviewer Agent
 
 You orchestrate a 7-wave code review pipeline (Waves 0-6) shared by both
-modes — only Waves 1 and 5 differ fully, plus one guide-writer skip in Wave 2 for local mode.
+modes — only Waves 1 and 5 differ fully.
 
 **Architecture.** The orchestrator runs in one session — the caller's own or an isolated subagent, per "How callers dispatch" below — and every wave but Wave 2 runs inside it.
 
-Wave 2 fans its eight specialists out as concurrent `review-specialist` agents, one rubric each.
-
-Serial passes shared one warm cache but grew one context: measured runs sat at ~100k resident tokens median and 157k at p90, re-reading all of it every turn.
-
-Eight isolated contexts each carry one rubric instead of eight, and that read saving is what pays for the eight base-context writes the fan-out adds.
-
-Dedup moved to Wave 3 along with it — a specialist that cannot see its siblings cannot skip what they raised.
+Wave 2's isolated fan-out — the context-cost telemetry behind it and why dedup moved to Wave 3 — is explained in [`references/wave2-architecture-rationale.md`](./references/wave2-architecture-rationale.md); Wave 2 below states what to do, not why.
 
 **Compaction resilience.** Waves 2–4 persist their output to `$work_dir` as they complete (see each wave's "Resume check" / "Persist" notes).
 After a mid-pipeline compaction, re-read this SKILL.md, then load `$work_dir`'s furthest-along wave/step output instead of redoing that work.
@@ -51,9 +45,7 @@ Put the resolved inputs in its prompt body and tell it to read this SKILL.md and
 
 Whatever Wave 5's doc-standards check flagged comes back in that summary's doc-standards-flags block, and this calling session files the `[Scout]` each offending file earns.
 
-The isolated run cannot: a subagent's TaskList write never reaches the user who triages it.
-
-The sonnet pin covers the github isolated path — an accepted cost/depth tradeoff, reached by `--isolate` or by the A/B's parity assignment.
+The sonnet pin covers the github isolated path — an accepted cost/depth tradeoff.
 
 `Mode: local` never reaches it: `/auto-review`, the sole local caller, pins `deep-reviewer` (opus) instead, because review judgment is the product it ships (see `auto-review/SKILL.md`).
 
@@ -86,15 +78,7 @@ Specialists never hit GitHub or any external system — pre-built Wave 1 context
 
 Deterministic check; no subagent needed. Only aborts on hard no-ops.
 
-- **github**: `state=$(gh pr view "$pr_number" --repo "$repo" --json state --jq .state)`. If `state` is `CLOSED` or `MERGED`, print `abort: PR <state>` and stop.
-- **github — prior-review guard**: check whether this PR already carries a review from this pipeline, pending or submitted, before spending tokens on a duplicate:
-  ```bash
-  prior_count=$(gh api repos/"$repo"/pulls/"$pr_number"/comments \
-    --jq '[.[] | select(.body | test("gerado por IA, revisado pelo usuário|comentário gerado automaticamente por IA"))] | length')
-  ```
-  If `prior_count > 0`, print `abort: prior review detected` and stop.
-  - Every inline comment this pipeline posts carries the Wave 5 signature, so any match means a run already reviewed this PR.
-  - The pattern matches the prior signature text too, catching PRs reviewed before that text changed.
+- **github**: run the closed/merged guard and the prior-review guard from [`references/wave0-github-guards.md`](./references/wave0-github-guards.md) — abort per its stop conditions.
 
 - **local**: always proceed — Wave 0 is a no-op here (both guards are github-only). Empty diffs surface naturally — Wave 5 writes "auto-review: no findings".
 
@@ -205,8 +189,6 @@ hallucinations **and** tightens line anchors, so you re-load each file at most o
 **Read `references/validator.md` once, then apply it to the flat list.**
 
 It authors the cross-specialist dedup pre-pass, both per-finding checks — false positive, then line range — the conservative-keep threshold, and the hard rules, so nothing restates them here.
-
-Dedup lands here rather than in Wave 2 because this is the first step holding all eight arrays at once, and it already loads every finding.
 
 Artifact: a reduced, range-tightened findings list + a drop log. **Persist**: write both to `$work_dir/wave3-findings.json` and `$work_dir/wave3-drop-log.txt` before moving to Wave 4.
 
