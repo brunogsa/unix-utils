@@ -71,9 +71,9 @@ This is the single exit every dead end in the run routes to. Entry, from anywher
 
 - A `halted` or `halt-budget` verdict (§5.2 above, or §5.4).
 - §5.3's scan above finding nothing runnable while some task is terminal-without-`[Done]`.
-- [`batch-end-review.md`](batch-end-review.md)'s §8.2 repo-green gate exhausting its fix attempts with a batch-caused failure still red.
-- [`batch-end-review.md`](batch-end-review.md)'s §8.3 push failing — no remote, a rejected non-fast-forward, missing credentials.
-- [`batch-end-review.md`](batch-end-review.md)'s §8.3 PR dispatch failing when a PR was requested.
+- [`batch-end-review.md`](batch-end-review.md)'s §8.3 repo-green gate exhausting its fix attempts with a batch-caused failure still red.
+- [`batch-end-review.md`](batch-end-review.md)'s §8.1 push failing — no remote, a rejected non-fast-forward, missing credentials.
+- [`batch-end-review.md`](batch-end-review.md)'s §8.1 PR dispatch failing when a PR was requested.
 
 Regardless of entry:
 

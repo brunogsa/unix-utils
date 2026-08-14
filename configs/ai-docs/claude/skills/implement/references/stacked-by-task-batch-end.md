@@ -1,8 +1,8 @@
 # Stacked-by-task — batch end
 
-Read this at §8.3, on a run where `stack.wanted` is true.
+Read this at §8.1, on a run where `stack.wanted` is true.
 
-It replaces the single-PR path in [`batch-end-pr.md`](batch-end-pr.md); everything else about §8.3 — when it runs, the halt rule, the `pr-creator` dispatch contract, the body's required content — is unchanged.
+It replaces the single-PR path in [`batch-end-pr.md`](batch-end-pr.md); everything else about §8.1 — when it runs, the halt rule, the `pr-creator` dispatch contract, the body's required content — is unchanged.
 
 [`stacked-by-task.md`](stacked-by-task.md) owns the §1.2 decision that got the run here, and the layer branches this step pushes.
 

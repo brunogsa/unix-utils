@@ -110,4 +110,4 @@ This serialization is why §1.2 asks the question as an opt-in: a unit whose ind
 
 Not here — [`stacked-by-task-batch-end.md`](stacked-by-task-batch-end.md) owns the push, the one-PR-per-layer loop, the `gh stack link`, and both branch records.
 
-Read it at §8.3, not now: a batch runs its whole §3–§8 pass in between, so anything loaded here is gone by the time it binds.
+Read it at §8.1, not now: a batch runs its whole §3–§8 pass in between, so anything loaded here is gone by the time it binds.
