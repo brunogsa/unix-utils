@@ -66,21 +66,24 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 CHANGED_LINES_SCRIPT = SCRIPT_DIR / "get-changed-lines.sh"
 
-# `\s+|$` so a bare `-` counts as a marker line too: the rule excludes marker
-# lines by definition, and the corpus carries four of them.
+# `\s+|$` so a bare `-` counts as a marker line too: the rule
+# excludes marker lines by definition, and the corpus carries
+# four of them.
 LIST_MARKER = re.compile(r"^(\s*)([-*+]|\d+\.)(\s+|$)")
 FENCE = re.compile(r"^\s*(```|~~~)")
 FRONTMATTER = re.compile(r"^---\s*$")
 
-# Blocks CommonMark lets interrupt a paragraph. A line starting one of these
-# CLOSES the list instead of being absorbed by it, so author and parser agree
-# and there is nothing to report.
+# Blocks CommonMark lets interrupt a paragraph. A line starting
+# one of these CLOSES the list instead of being absorbed by it,
+# so author and parser agree and there is nothing to report.
 ATX_HEADING = re.compile(r"^\s*#")
 BLOCKQUOTE = re.compile(r"^\s*>")
 THEMATIC_BREAK = re.compile(r"^\s*((\*\s*){3,}|(-\s*){3,}|(_\s*){3,})$")
-# Any `<`-led line is treated as an HTML block, though CommonMark only lets
-# some kinds interrupt a paragraph. Over-matching here can only lose a
-# finding; under-matching would invent one.
+
+# Any `<`-led line is treated as an HTML block, though
+# CommonMark only lets some kinds interrupt a paragraph.
+# Over-matching here can only lose a finding; under-matching
+# would invent one.
 HTML_BLOCK = re.compile(r"^\s*<")
 
 PARAGRAPH_INTERRUPTERS = (ATX_HEADING, BLOCKQUOTE, THEMATIC_BREAK, HTML_BLOCK)
@@ -125,7 +128,8 @@ def find_hits(lines):
 
     for index, line in enumerate(lines):
         if in_frontmatter:
-            # The opening --- is line 0, so only a LATER --- closes the block.
+            # The opening --- is line 0, so only a LATER ---
+            # closes the block.
             if index > 0 and FRONTMATTER.match(line):
                 in_frontmatter = False
             continue

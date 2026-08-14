@@ -25,18 +25,27 @@ Idempotent; safe to re-run. Uses inline OS detection (unlike the other stack rep
 
 ## Testing
 
-Two commands cover the whole repo — run both:
+One command covers the whole repo:
 
 ```bash
-./run-tests.sh   # every bash suite, across all four test trees
-pytest           # every python suite, collected by the repo-root pytest.ini
+./run-tests.sh   # every bash suite (all four test trees) plus the pytest.ini python suites
 ```
 
-`run-tests.sh` discovers suites by glob, so a new `test-*.sh` under any of the four trees is picked up with no registration step.
+`run-tests.sh` discovers bash suites by glob, so a new `test-*.sh` under any of the four trees is picked up with no registration step.
+
+Python suites are collected the normal pytest way, via the repo-root `pytest.ini`.
+
+`pytest` runs as one more suite entry, through the same PASS/FAIL/log-replay path as every bash suite.
+
+Before this, its own exit code alone said nothing about the python suites, so a green `./run-tests.sh` could hide a red `pytest`.
+
+A missing `pytest` binary fails that entry loudly rather than silently reading as a pass.
 
 It runs every suite even after one fails, prints the failing suites' output, and exits non-zero if any failed.
 
 Never compose an ad-hoc `for t in .../test-*.sh` loop instead — that is exactly how ten hook suites ended up with nothing enumerating them.
+
+For the same reason, never run `pytest` as a separate manual step again — `./run-tests.sh` alone is now the honest answer to "is the repo green."
 
 ## Editing
 

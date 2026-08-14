@@ -8,10 +8,13 @@
 #   0 - every suite passed
 #   1 - at least one suite failed
 #
-# The python suites are NOT run here. The repo-root
-# pytest.ini already collects all of them from one
-# `pytest` invocation, so a second entry point would
-# only add a PATH dependency on an already-working one.
+# The repo-root pytest.ini's suites run here too, as one
+# more entry alongside the bash suites below.
+#
+# A prior version left pytest out and pointed at running
+# it separately — but nothing enforced that second
+# command, so this script's own exit code silently lied
+# about whether the repo was actually green.
 #
 # Why this exists:
 #   Four separate bash test trees had nothing
@@ -47,6 +50,22 @@ failed_suites=()
 failed_logs=()
 suite_index=0
 
+# record_pass/record_fail - shared by the bash-suite loop below
+# and the pytest step after it, so both report through the same
+# counters, PASS/FAIL line, and failure-replay list rather than
+# two near-identical bookkeeping blocks drifting apart.
+record_pass() {
+  pass_count=$((pass_count + 1))
+  printf 'PASS  %s\n' "$1"
+}
+
+record_fail() {
+  fail_count=$((fail_count + 1))
+  failed_suites+=("$1")
+  failed_logs+=("$2")
+  printf 'FAIL  %s\n' "$1"
+}
+
 for suite in \
   configs/ai-docs/claude/tests/test-*.sh \
   configs/ai-docs/claude/scripts/tests/test-*.sh \
@@ -62,15 +81,34 @@ do
   log_file="$log_dir/$suite_index.log"
 
   if bash "$suite" > "$log_file" 2>&1; then
-    pass_count=$((pass_count + 1))
-    printf 'PASS  %s\n' "$suite"
+    record_pass "$suite"
   else
-    fail_count=$((fail_count + 1))
-    failed_suites+=("$suite")
-    failed_logs+=("$log_file")
-    printf 'FAIL  %s\n' "$suite"
+    record_fail "$suite" "$log_file"
   fi
 done
+
+# pytest.ini at the repo root collects every python suite
+# from one bare `pytest` invocation, so it runs here as one
+# more suite through the same record_pass/record_fail path.
+#
+# The python failures replay below exactly like a bash
+# suite's would.
+#
+# A missing pytest binary fails loudly instead of silently
+# reading as green: skipping it here would recreate the same gap
+# this fold-in exists to close, just moved from "forgot to run
+# pytest" to "pytest wasn't on PATH".
+suite_index=$((suite_index + 1))
+log_file="$log_dir/$suite_index.log"
+
+if ! command -v pytest > /dev/null 2>&1; then
+  printf 'pytest: command not found\n' > "$log_file"
+  record_fail "pytest" "$log_file"
+elif pytest > "$log_file" 2>&1; then
+  record_pass "pytest"
+else
+  record_fail "pytest" "$log_file"
+fi
 
 # A bare FAIL line names the suite but not the
 # assertion, forcing a second run by hand to learn
