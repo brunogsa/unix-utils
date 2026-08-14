@@ -83,7 +83,7 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 - [Instruction] Delegate every comment-format run — checking and fixing alike — to `agent(subAgent=comment-format-fixer, title=Fix <file> comments)`, never inline in the main session.
   - [Why] It runs check-comment-format.js --fix and rewords only the residue; inline floods main with one row per violation.
 
-- [Instruction] Hand it only files this session's own `Edit`/`Write` calls created or modified — never a file the session merely opened or read.
+- [Instruction] Give `comment-format-fixer`, `markdown-standards-fixer`, and the density scripts only files this session's own `Edit`/`Write` calls created or modified — never a file it merely opened or read.
   - [Why] `--changed-only` scopes lines, but a never-written file turns its violations into noise blamed on this session.
 
 - [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments — use plain ASCII (`=`, `-`, `|`).
@@ -100,17 +100,13 @@ That agent reads `references/comment-formatting.md` for the fix shapes, bad/good
 
 Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles — concretely:
 
-- [Instruction] Never cite a spec/design doc by a numbered token in code, docs, comments, or test titles — spell out the behavior inline; exempt a doc's own step numbers and anchors.
-  - [Why] A bare lookup number renumbers on edit and forces a lookup; a doc's own step numbers are structure, not pointers.
+- [Instruction] Cite sources only by file path, URL, or named anchor — never a bare symbol name or a numbered lookup token; exempt a doc's own step numbers and anchors.
+  - [Why] A path, URL, or anchor survives edits; a bare name or lookup number forces a hunt and rots silently on renumber.
 
-  - [Example] Bad (lookup pointers into another file): `AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
+  - [Example] Bad (lookup pointers — spell the behavior out inline): `AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
+  - [Example] Bad (bare symbol name): `see handleRetry`. Good: `handleRetry` in `src/net/retry.ts`, or `[HLD → Riscos](./hld.md#riscos)`.
   - [Example] OK (step order — exempted): `implement/SKILL.md` citing its own `§3–§8 repeat once per PR` — the numbers encode the loop's bounds.
   - [Example] OK (registry anchors — exempted): an HLD/LLD citing its own `D-`/`PR-`/`R-`/`OQ-` items inside that same doc, per `design-docs`.
-
-- [Instruction] Point to a source by file path, URL, or named anchor — a bare symbol name is none of the three.
-  - [Why] A path, URL, or anchor survives edits; a bare name forces a hunt and rots silently on rename.
-
-  - [Example] Bad: `see handleRetry`. Good: `handleRetry` in `src/net/retry.ts`, or `[HLD → Riscos](./hld.md#riscos)`.
 
 - [Instruction] Write out any shorthand — a project-private acronym, an abstract call shape standing in for a value — instead of leaving the reader to decode it.
   - [Why] Decoding costs the reader a step, and the context it takes can be forgotten or never reach a new team member.
@@ -145,9 +141,6 @@ Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`d
 - [Instruction] Delegate verifying and retargeting every such pointer to `agent(subAgent=markdown-standards-fixer, title=Fix <doc> markdown)`, never inline.
   - [Why] It runs check-rule-citations.py and reads both files to settle each row; inline dumps every candidate into context.
 
-- [Instruction] Hand it only files this session's own `Edit`/`Write` calls created or modified — never a file the session merely opened or read.
-  - [Why] `--changed-only` scopes lines, but a never-written file turns its violations into noise blamed on this session.
-
 ## Density
 
 - [Instruction] Every line/bullet ≤256 chars and ≤32 words; over the cap, split on a sentence boundary — never drop info to fit.
@@ -155,9 +148,6 @@ Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`d
 
 - [Instruction] Run `scripts/check-density.sh --changed-only <file>` and `scripts/check-bullet-gap.py --changed-only <file>` inline in the main session, never delegating the check to a subagent.
   - [Why] Both only report line numbers, so inline costs one command's verdict where a subagent round-trip pays a full dispatch.
-
-- [Instruction] Run them only against files this session's own `Edit`/`Write` calls created or modified — never a file the session merely opened or read.
-  - [Why] Without this, `--changed-only` surfaces every violation on a file merely opened, turning it into `[Scout]` noise.
 
 - [Instruction] Report every line they flag as ONE `[Scout]` TaskList entry naming the file and what is off standard, dispatching no fixer and asking nothing.
   - [Why] Reflowing prose is a judgment call that already split sentences mid-phrase and damaged a plan, so the user decides.
