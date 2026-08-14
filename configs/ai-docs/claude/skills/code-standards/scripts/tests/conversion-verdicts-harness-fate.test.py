@@ -72,6 +72,18 @@ PORT_TO_PYTEST_HARNESS_PATHS = [
 ]
 
 
+# A second dangling `convert` row exists (path deleted, Harness fate
+# cell still `—`), found by the test below but out of THIS fix's scope:
+# `implement-loop-state.sh` was already converted to `.py` by commit
+# f8aff54d — Task 18's own scope note (Summary table) already knows
+# this, but the row's own Harness fate cell doesn't yet say so. Tracked
+# as a separate [Scout] rather than fixed here, to keep this change to
+# the single row it was scoped for.
+KNOWN_DANGLING_CONVERT_PATHS_PENDING_A_SEPARATE_FIX = [
+    "configs/ai-docs/claude/skills/implement/scripts/implement-loop-state.sh",
+]
+
+
 @dataclass
 class Row:
     path: str
@@ -246,6 +258,24 @@ class TestConversionVerdictsHarnessFateHappy(unittest.TestCase):
                 msg=f"{path}'s subject stays `.sh`, so its fate must "
                     f"say 'port' (to a pytest suite); got "
                     f"fate={row.fate!r}")
+
+    def test_should_have_every_convert_row_name_a_path_still_on_disk_unless_harness_fate_explains_its_absence(self):
+        rows = _read_unix_utils_table_rows()
+        convert_rows = [r for r in rows if r.verdict == "convert"]
+
+        dangling = [
+            r.path for r in convert_rows
+            if not (UNIX_UTILS_ROOT / r.path).exists()
+            and (not r.fate or r.fate == "—")
+            and r.path not in KNOWN_DANGLING_CONVERT_PATHS_PENDING_A_SEPARATE_FIX
+        ]
+
+        self.assertEqual(
+            dangling, [],
+            msg="every 'convert' row must name a path that still exists "
+                "on disk, unless its 'Harness fate' cell explains the "
+                "absence (e.g. names the commit that deleted it); found "
+                f"with no such explanation: {dangling}")
 
     def test_should_keep_every_verdict_column_value_within_the_classifiers_known_set(self):
         rows = _read_all_table_rows()

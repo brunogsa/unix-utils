@@ -170,7 +170,7 @@ carries a `Requires-npm` header, so none opted into `js`.
 | `configs/ai-docs/claude/skills/spec-driven-development/scripts/dag-check-helper.sh` | convert | py | awk | — |
 | `configs/ai-docs/claude/skills/spec-driven-development/scripts/extract-design-tests.sh` | convert | py | awk | — |
 | `configs/ai-docs/claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh` | convert | py | awk | — |
-| `configs/ai-docs/claude/skills/spec-driven-development/scripts/normalize-list-breadcrumbs.sh` | convert | py | awk | — |
+| `configs/ai-docs/claude/skills/spec-driven-development/scripts/normalize-list-breadcrumbs.sh` | convert | py | awk | Script removed in b85f0e47 — nothing left to convert |
 | `configs/ai-docs/claude/skills/spec-driven-development/scripts/plan-section.sh` | convert | py | awk | — |
 | `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-ac-coverage.sh` | convert | py | 186 lines (>128) | Delete alongside subject's conversion |
 | `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-coverage-checklists.sh` | convert | py | here-doc; 243 lines (>128) | Delete alongside subject's conversion |
