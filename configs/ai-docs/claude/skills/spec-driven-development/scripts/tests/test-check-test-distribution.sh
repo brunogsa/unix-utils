@@ -237,9 +237,10 @@ it_should_fail_when_a_task_lists_a_test_absent_from_the_test_design_section() {
   fi
 }
 
-# Annotated-form fixture: every it() carries an inline `// T<n>` annotation
-# naming the task that will write it, so there is no separate per-task
-# `**Tests (planned)**:` list left for a task heading to carry.
+# Annotated-form fixture: every it() carries an inline `// T<n>`
+# annotation naming the task that will write it, so there is no
+# separate per-task `**Tests (planned)**:` list left for a task
+# heading to carry.
 ANNOTATED_DESIGN='```
 describe("checkTestDistribution", () => {
   // Happy cases

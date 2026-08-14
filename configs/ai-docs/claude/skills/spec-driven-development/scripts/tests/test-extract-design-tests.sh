@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# test-extract-design-tests.sh - plain-bash test file for extract-design-tests.sh.
+# test-extract-design-tests.sh - plain-bash test file for
+# extract-design-tests.sh.
 #
 # Usage:
 #   bash test-extract-design-tests.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
-# by design, matching the other scripts in this skill's test suite.
+# Exits 0 when every assertion passes, non-zero otherwise.
+# No bats dependency by design, matching the other scripts in
+# this skill's test suite.
 #
-# Scoped to the `--annotations` mode only (bare-title, breadcrumb, AC tokens,
-# T tokens columns): the default and `--pairs` modes are pre-existing,
-# unchanged behavior and already have no regression to pin here.
+# Scoped to the `--annotations` mode only (bare-title,
+# breadcrumb, AC tokens, T tokens columns): the default and
+# `--pairs` modes are pre-existing, unchanged behavior and
+# already have no regression to pin here.
 
 set -uo pipefail
 
@@ -22,7 +25,8 @@ trap 'rm -rf "$work_dir"' EXIT
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs actual,
+# prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -34,8 +38,8 @@ assert_eq() {
   fi
 }
 
-# write_plan - writes a plan fixture with the caller's Test Design body,
-# returning its path via stdout.
+# write_plan - writes a plan fixture with the caller's Test
+# Design body, returning its path via stdout.
 write_plan() {
   local name="$1" design_body="$2"
   local path="$work_dir/$name.md"

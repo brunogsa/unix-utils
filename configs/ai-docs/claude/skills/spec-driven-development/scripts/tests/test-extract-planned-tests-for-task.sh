@@ -1,22 +1,34 @@
 #!/usr/bin/env bash
-# test-extract-planned-tests-for-task.sh - plain-bash test file for
-# extract-planned-tests-for-task.sh.
+# test-extract-planned-tests-for-task.sh - plain-bash test file
+# for extract-planned-tests-for-task.sh.
 #
 # Usage:
 #   bash test-extract-planned-tests-for-task.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
-# by design, matching the other scripts in this skill's test suite.
+# Exits 0 when every assertion passes, non-zero otherwise.
+# No bats dependency by design, matching the other scripts in
+# this skill's test suite.
 #
 # Covers BOTH forms the script must accept:
-#   - annotated form (new): filters Test Design by the task's T<n> tokens.
-#     These cases genuinely force the new behavior — RED before it lands.
-#   - list form (old): parses the task's own `**Tests (planned)**:` bullet
-#     list, unchanged from before this dispatch. This form had zero dedicated
-#     coverage before this file existed, so these cases are added as
-#     regression pins for already-correct behavior rather than to force new
-#     behavior — they may already pass before the annotated-form branch is
-#     added, since the old code path is untouched.
+# - annotated form (new): filters Test Design by the task's T<n>
+#   tokens.
+#
+#     These cases genuinely force the new behavior — RED before
+#     it lands.
+#
+# - list form (old): parses the task's own `**Tests
+#   (planned)**:` bullet list, unchanged from before
+#   this dispatch.
+#
+#     This form had zero dedicated coverage before this
+#     file existed, so these cases are added as regression
+#     pins for already-correct behavior rather than to
+#     force new behavior.
+#
+#     They may already pass before the annotated-form
+#     branch is added, since the old code path is
+#     untouched.
+#
 
 set -uo pipefail
 
@@ -29,7 +41,8 @@ trap 'rm -rf "$work_dir"' EXIT
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs actual,
+# prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -41,8 +54,8 @@ assert_eq() {
   fi
 }
 
-# run_script - invokes extract-planned-tests-for-task.sh, capturing
-# stdout/exit code into VERDICT_OUT/VERDICT_EXIT.
+# run_script - invokes extract-planned-tests-for-task.sh,
+# capturing stdout/exit code into VERDICT_OUT/VERDICT_EXIT.
 run_script() {
   local plan_file="$1" task_n="$2"
   local out_file="$work_dir/stdout.txt"
@@ -51,8 +64,8 @@ run_script() {
   VERDICT_OUT=$(cat "$out_file")
 }
 
-# write_plan - writes a fresh plan fixture from its Test Design and Task
-# Breakdown bodies, returns its path via stdout.
+# write_plan - writes a fresh plan fixture from its Test Design
+# and Task Breakdown bodies, returns its path via stdout.
 write_plan() {
   local name="$1" design_body="$2" task_body="$3"
   local path="$work_dir/$name.md"
