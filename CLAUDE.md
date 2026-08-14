@@ -59,9 +59,11 @@ The writes are documented at code.claude.com/docs/en/model-config.md and .../adv
 For a session-only model that never touches the file, use the `s` key inside the `/model` picker, or launch with `claude --model <m>` / `claude --advisor <m>`.
 
 **Permission-glob caveat**: in `settings.json` `permissions.allow`, an `Edit`/`Write` path glob with a SINGLE leading slash (`Edit(/tmp/**)`) is read as project-root-relative and silently matches nothing.
+
 A filesystem-absolute path needs a DOUBLE slash: `Edit(//tmp/**)`.
 
 For a symlinked dir (macOS `/tmp` → `/private/tmp`), add both the symlink path and its resolved target — `//tmp/**` and `//private/tmp/**`.
+
 The failure reads as a missing permission, not a typo, so it recurs on every rediscovery.
 
 **`ccburn collect` runs detached beside the statusline pipe, not inline**: inline, its 3.4–8.5s startup stall blew past Claude Code's 300ms statusline debounce.
@@ -79,7 +81,9 @@ Revisit dropping it only if `~/.ccburn/collect_last.json` still shows `"has_rate
   - Cross-platform (MUST): path-based config needs both home-dir forms (`/Users/...` and `/home/...`); prefer OS-agnostic logic. (See the `personal-environment` skill for the symlink/permission gotchas.)
   - Cross-tool (should-have): opencode/Gemini parity is desirable, not required — pursue it when it's cheap or when actually working in those tools.
     - Never block, delay, or complicate Claude Code work for it.
+
     - The worktree-guard port exploring this was cancelled as not-now, not never.
+
   - Why: a config that breaks on the other OS is a silent hole that surfaces only when work moves there — non-negotiable.
     - Cross-tool parity is wanted but stays subordinate: it earns effort, just never at Claude Code's expense.
 
@@ -91,12 +95,16 @@ Revisit dropping it only if `~/.ccburn/collect_last.json` still shows `"has_rate
   - `install.sh` still needs an explicit `claude plugin install <name>@<marketplace>` line for every plugin, mirroring `enabledPlugins`.
   - Non-official marketplaces are version-controlled the same way, under `extraKnownMarketplaces` in `configs/ai-docs/claude/settings.json`.
   - `claude plugin install <name>@<marketplace>` writes *through* the symlink (it does NOT detach it the way `/config` and `update-config` do).
+
     - The new `enabledPlugins` entry lands in the repo file directly — just commit it.
+
   - The official `claude-plugins-official` marketplace is built-in; only non-official marketplaces need an `extraKnownMarketplaces` entry.
 
 - **Read skills from source, not the symlink** -- when reading or auditing a skill, use `configs/ai-docs/claude/skills/<name>/SKILL.md`, not `~/.claude/skills/<name>/`.
   - The symlink target can be replaced silently — same caveat as `settings.json`.
   - **Native skills** (`simplify`, `init`, `review`, `security-review`, `code-review`, `verify`) are built into Claude Code; no local file exists.
+
     - The local GitHub-PR review skill is `pr-review` (renamed from `code-review` to avoid shadowing the native one).
+
   - **Plugin skills** (`claude-hud:*`, etc.) live in plugin marketplace dirs, not in this repo.
   - If the source path is missing, check whether the skill is native or plugin-provided before assuming the file is gone.
