@@ -30,9 +30,13 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 
 **CRITICAL: Dispatch `changes-gatherer` the moment the base ref is final, then resolve everything else below while it runs.**
 
-- Final means the default resolution below, or the `<parent>` override when one was given — never the default base on a stacked run, whose digest would then carry the parent's commits too.
+- Final means the default resolution below, or the `<parent>` override when one was given.
 
-- It diffs the branch against that base and reads nothing else — not the spec/plan choice, not the `PR-N` answer — so holding it until the interview answers arrive serializes its whole run behind a human who is not blocking it.
+  - Never the default base on a stacked run, whose digest would then carry the parent's commits too.
+
+- It diffs the branch against that base and reads nothing else — not the spec/plan choice, not the `PR-N` answer.
+
+  - Holding it until the interview answers arrive serializes its whole run behind a human who is not blocking it.
 
 - Discover spec/plan in cwd by glob `spec_*.md plan_*.md` (top-level):
   - One spec / one plan → use whichever exist, auto-resolved. Multiple of either → open question **(A) Spec/plan choice**: list them numbered.
