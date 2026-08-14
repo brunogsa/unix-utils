@@ -1,95 +1,128 @@
 # Writing the implementation plan
 
-The procedure that turns an approved `spec_<slug>.md` into `plan_<slug>.md`. Read by path from `brainstorm`'s step 9, which dispatches it as a conversation fork.
+Turns an approved `spec_<slug>.md` into `plan_<slug>.md`. Read by path from `brainstorm`'s step 9, as a conversation fork.
+
+Also read once by whoever fills in `assets/plan-template.md`, since that skeleton carries no rules.
 
 ## What running as a fork means here
 
-You carry the whole brainstorm session — the interview, the trade-off discussion, the approach that won. Nothing was withheld from you.
+You carry the whole brainstorm session — interview, trade-offs, the approach that won. That's a convenience, not a licence: the spec is what the next reader gets.
 
-That inheritance is a convenience, not a licence. The spec is what the next reader gets, and they will have none of it.
+A decision living only in memory is missing — see Boundaries.
 
-So a decision living only in your memory of the interview is, for every purpose that matters, missing — and this file's Boundaries treat it that way.
-
-Fresh eyes still audit this plan: `brainstorm`'s step 10 sends it to a `deep-reviewer` that has never seen the session. Write for that reader, not for the one who remembers.
+Fresh eyes still audit this plan: `brainstorm`'s step 10 sends it to a `deep-reviewer` that never saw the session.
 
 ## Inputs
 
-The caller gives you the spec file's path, and a plan output path.
+The caller gives you the spec file's path and, optionally, a plan output path — write there when given, or derive it from a given slug via `SKILL.md`'s naming convention.
 
-- The plan output path is optional. When the caller gives one, write there.
-
-- When the caller gives a slug instead, derive the output path from `SKILL.md`'s naming convention — the single definition of plan naming.
-
-  - Deriving it there keeps one owner for the filename format, so a caller that never reads the library cannot spell a stale name.
-
-You also receive an optional planning-conventions file (an ADR/HLD/LLD, or other naming constraints the plan must respect).
+You may receive a planning-conventions file (ADR/HLD/LLD or other naming constraints) the plan must respect.
 
 ## Sources and tools
 
 - `assets/plan-template.md` and the "Self-review gates" section of `SKILL.md`.
-
 - The `task-breakdown` skill, which emits a prioritized breakdown artifact in `/tmp`.
-
 - The relevant existing code the spec references.
 
 ## Procedure
 
-1. Read the spec file in full, even where you remember writing it. Read any planning-conventions file the caller named.
+1. Read the spec file in full, even where you remember writing it, plus any planning-conventions file named.
 
-   Reading it beats recalling it: the spec is the only version the reviewer and the implementer will ever see, and your memory of the interview will not flag where the two diverged.
+   Recall won't flag where memory and spec diverged.
 
-2. Read `assets/plan-template.md` and the "Self-review gates" section of `SKILL.md`.
+2. Read `assets/plan-template.md` and `SKILL.md`'s "Self-review gates" — the plan must pass the AC-coverage, test-distribution, and DAG checks run on your output.
 
-   The plan you write must satisfy the AC-coverage, test-distribution, and DAG checks listed there — the caller runs them on your output the moment you return.
+   Load `task-breakdown` over the spec's work per this file's Task Breakdown section below.
 
-   Also load the `task-breakdown` skill and run it over the spec's work — it emits a prioritized breakdown artifact in `/tmp`.
-
-   Populate the plan's Task Breakdown section from that artifact, and sequence the PR Breakdown by the same priority order.
-
-3. Read the relevant existing code the spec references — the modules, files, and patterns the plan's Task Breakdown depends on.
-
-   Don't plan against a codebase you haven't looked at.
+3. Read the existing code the spec references. Don't plan against a codebase you haven't looked at.
 
 4. List what the spec doesn't carry:
+   - An AC you can't resolve to a concrete approach.
+   - An unaddressed non-functional/technical requirement.
+   - A design fork the spec leaves open — including one the interview settled but never recorded.
 
-   - Any acceptance criterion you can't resolve to a concrete approach.
+5. A gap never withholds the plan — write around it and record a `**QUESTION:**` under Open Questions, stating what's missing.
 
-   - Any non-functional/technical requirement left unaddressed.
+   The caller closes every question in one batch before any expensive review runs.
 
-   - Any design fork the plan needs decided that the spec leaves open — including one the interview settled but the spec never wrote down.
+6. Write the plan at the resolved path, following `assets/plan-template.md`'s structure — write every section.
 
-5. A gap never withholds the plan.
+   One the change doesn't need still gets its own `N/A — <reason>` line, never a deletion.
 
-   Write the plan around each one and record it as a `**QUESTION:**` entry under the plan's Open Questions, stating exactly what's missing and what the plan can't settle without it.
+## Diagram conventions
 
-   The caller closes them all in one batch before any expensive review runs, so a gap costs a question there rather than a refused plan here.
+Lead Technical Approach and General Flow each with a diagram — faster to scan than prose. Follow `mermaid-diagrams`.
 
-6. Write the plan at the resolved output path, following `assets/plan-template.md`'s structure.
+- **Technical Approach**: flowchart or C4L1 context diagram, kept simple; prose only for trade-offs it can't convey.
+- **General Flow**: sequence diagram or flowchart of where execution starts, what data it carries, which modules run in order — legible without codebase knowledge, no code.
 
-   Include: Technical Approach, Threat Model, General Flow, Test Design (AC → test coverage), Task Breakdown, PR Breakdown, Open Questions, Technical Decisions.
+## Threat Model vocabulary
 
-   Write every one of them — a section the change doesn't need gets its own `N/A — <reason>` line, never a deletion. Drop nothing on a caller's say-so.
+Reuse the vocabulary from `code-review-pipeline/references/review-checklists.md#Security Checklist` — injection, output-encoding gaps, unsafe deserialization, authn/authz, secret exposure, SSRF, unsafe dynamic execution.
+
+A second taxonomy would drift from the one the review actually applies.
+
+An unmitigated threat is an Open Question, not a table row — that blocks approval instead of shipping as an unvoted risk.
+
+## Task Breakdown section
+
+Load `task-breakdown` before authoring — it orders tasks (unblockers first, riskiest PoC next), extracts thin contract tasks, splits sub-steps, and emits a `/tmp` artifact.
+
+Populate from that artifact: order becomes the numbering (execution, not narrative, order), links become each `Depends on:`, sub-steps become the title breadcrumb and commit sketch.
+
+Lead with a task-dependency DAG (mermaid, `mmdc`-validated) when a task names a real dependency; else `N/A — no task dependencies`.
+
+Each task produces at least one base commit (tests, code, IaC/docs together; RED/GREEN lives inside it).
+
+At execution, a refactor/scout/drift/`/auto-review` follow-up becomes its own extra commit; a substantial addition becomes a new peer task. Refactors are isolated tasks by definition.
+
+Sub-step breadcrumb: optional, semicolon-separated parenthetical after the title — `### N. Title (sub-step; sub-step)`; keep ~4 items or split the task.
+
+## Files and Commits fields
+
+`Files (logical order)` grounds the task's subagent as its starting set, so it skips re-discovering the map; keep accurate, though the subagent may touch more.
+
+`Commits (sketch, minimum)` is a floor. Drift fixes, scout findings, refactor sub-steps, and `/auto-review` follow-ups become extra commits, each tagged `[Drift]`/`[Scout]`/`[Refactor]`.
+
+## PR Breakdown section
+
+Split past one-plan-one-PR when the work is too large to review well in one sitting.
+
+Felt size (guide, not gate): defect-detection drops sharply past ~400 diff lines, falls off above ~600 (SmartBear/Cisco study; Google guidance).
+
+No code exists yet — estimate by feel, never invent a line number.
+
+Splitting rules:
+- Vertical, never horizontal — each PR ships its own tests+code+docs+infra; never "PR-1 = tests, PR-2 = code."
+- Prefer independent PRs; a dependent sequence is fine.
+- Each PR independently reviewable/mergeable, in order if dependent.
+- Sequence by `task-breakdown`'s priorities — unblockers and riskiest PoC first.
+- Don't over-split (~50-line floor) — catch one giant PR, not many tiny ones.
+
+One `### PR-N.` heading per PR, one level above Task Breakdown's `### N.`.
+
+The orchestrating agent, never the author, writes two fields inline, absent until then:
+- `[<status>]` (`[Doing]`/`[Done]`/`[Blocked]`/`[Deferred]`/`[Dropped]`) after `PR-N.`, at batch-end.
+- Backtick-wrapped `**Branch**:`, once that PR's batch pushes — load-bearing: `parse-pr-breakdown.sh` reads the branch name between the backticks.
+
+Each field is its own line; parsers read the first found per PR. Free prose after is for the reviewer.
+
+Lead the PR headings with a PR-dependency DAG (mermaid, `mmdc`-validated) when any PR names a real dependency; else `N/A — no PR dependencies`.
 
 ## Boundaries
 
-- Never plan on a decision the spec doesn't record, including one you remember the interview settling.
+- Never plan on a decision the spec doesn't record, including one the interview settled.
 
-  - Recording it as an Open Question is what routes it back into the spec, where the next reader will actually find it; planning on it silently leaves the spec wrong forever.
+  - Recording it as an Open Question routes it into the spec; planning on it leaves the spec wrong forever.
 
-- Never guess at code you haven't read.
+- Never guess at code you haven't read — an unlocatable module, file, or pattern is an Open Question, not an invented name.
 
-  - If the spec references a module, file, or pattern you can't locate, record that as an Open Question too — don't invent a plausible-sounding name.
+- Write the plan in English regardless of the spec's language, per `SKILL.md`.
 
-- Write the plan in English regardless of the spec's language, matching `SKILL.md`'s convention.
+- Every spec AC must map to one Test Design test — an unmapped AC is the same gap class as missing spec content.
 
-- Every AC in the spec's Acceptance Criteria section must map to at least one test in the plan's Test Design section.
-
-  - An unmapped AC is the same class of gap as missing spec content, so surface it rather than skip it silently.
-
-- Never modify the spec file — you read it, you don't edit it.
-
-  - A spec-shaped gap still goes in the plan's Open Questions; the caller decides how to fix the spec.
+- Never modify the spec file — a spec-shaped gap goes in Open Questions; the caller fixes the spec.
 
 ## Report format
 
-"Plan written to `<path>`" + a one-paragraph summary of the approach and task count, then the count of Open Questions you recorded and a one-line statement of each.
+"Plan written to `<path>`" + a one-paragraph summary of approach and task count, then the Open Questions count and a one-line statement of each.
