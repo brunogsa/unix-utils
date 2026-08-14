@@ -4,31 +4,33 @@ Read this only when the interview opted into a PR.
 On a PR-label run, the branch-record and PR-level status-marker edits live in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) instead, reached from the same §8.1 step regardless of whether a PR is also opened.
 
 **Dispatched from inside §8.1, right after its always-run push** (`batch-end-review.md`'s §8.1 step 2), before either gate runs.
-The body therefore describes the pre-gate diff, and §8.4 refreshes it once the quality-gate and repo-green fixes have landed — which is why the PR opens as a draft.
+The body describes the pre-gate diff; §8.4 refreshes it once the quality-gate and repo-green fixes land — why the PR opens as a draft.
 
 ## Open the PR (opt-in)
 
 Only when the interview opted into a PR (§1.2, `pr.wanted: true`). Skip this section otherwise.
 
+**When `stack.wanted` is true, this unit opens one PR per task, not one total** — [`stacked-by-task-batch-end.md`](stacked-by-task-batch-end.md) owns that loop. Every requirement below still binds each PR it opens.
+
 **One dispatch owns the PR: `agent(subAgent=pr-creator, title=Open the batch PR)`.**
 It composes the body and creates (or updates) the PR — the orchestrator never writes a body.
 
 **The branch is already on the remote — §8.1's step 1 pushed it before this section is reached.**
-Push and create are split owners: pushing no longer depends on a PR being wanted, so a pushed branch with no PR is a normal outcome, not an inconsistent state needing cleanup.
+Push and create are split owners: pushing no longer depends on a PR being wanted, so a pushed branch with no PR is normal, not an inconsistent state needing cleanup.
 
-- **CRITICAL: re-read this whole section fresh immediately before dispatching — never execute it from a compacted-summary recollection.**
+- **CRITICAL: re-read this whole section immediately before dispatching — never execute it from a compacted-summary recollection.**
   A paraphrase like "generate the body via a subagent, following create-pr conventions" silently drops every enumerated specific below.
   Re-reading costs one file read; skipping it costs a PR pushed with mandatory sections or safety rules missing.
 
 - Never dispatch `deep-reviewer` for this: its write-guard hook allows only `verdict_*.md` and `/tmp` writes, denying the `pr_*.final.md` write in CWD.
 
-- **The dispatch prompt must spell out every requirement below explicitly — never just "follow create-pr's conventions" by bare reference.**
+- **The dispatch prompt must spell out every requirement below explicitly — never just "follow create-pr's conventions".**
   The agent loads its own skill's conventions but can't see this batch's specifics (output path, PR-label, base branch) unless the prompt states them:
 
   - Check `.github/PULL_REQUEST_TEMPLATE.md` / `.github/pull_request_template.md` first; if present it's the base structure — keep every section/checkbox, fill with rich content, never replace it.
   - The body's section list and order are `create-pr`'s, owned by [`pr-template.md`](../../create-pr/references/pr-template.md).
     This is the one item the prompt does NOT re-enumerate: the agent loads that file with its own skill.
-    A copy here would be a second enumeration that drifts, then silently outranks the original.
+    A copy here would drift, then silently outrank the original.
     - Drop a section only when it is genuinely N/A for this batch, never silently.
 
     - Plan-only run (§1.1 resolved no spec) → the acceptance criteria the template puts in the appendix come verbatim from each covered task's **Testable Acceptance criteria** list in the plan, same formatting.
