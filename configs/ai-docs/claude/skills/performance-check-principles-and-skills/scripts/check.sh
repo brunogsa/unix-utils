@@ -283,6 +283,10 @@ missing_why_after_critical() {
 # the reader rationale and nothing else — the one marker
 # whose length is worth capping on its own.
 #
+# An [Instruction] earns its length by adding a rule; a
+# [Why] past the cap is always-on context buying no rule,
+# so it is gated like every other budget here.
+#
 # Bytes, not characters: these files are full of em dashes,
 # arrows and ×, which cost 2-3 bytes each, and context is
 # spent in bytes. LC_ALL=C is what makes awk's length()
@@ -293,16 +297,9 @@ missing_why_after_critical() {
 # same bytes on load and still models the convention for
 # the next author.
 #
-# Report-only, and unfinished by design: the lines carry no
-# `- ` bullet and the status row never reads OVER, so this
-# check's own exit code never keys on them.
-#
-# Landing it gated instead would fail every session sharing
-# this tree over the existing violations before anyone has
-# had a chance to drain them.
-#
-# Flip it to gated — OVER status, counted into `overages` —
-# once the reported count reaches 0.
+# Measures the same population the [Instruction] counters
+# measure: CLAUDE.md plus every top-level SKILL.md.
+# references/ and assets/ stay outside it by design.
 over_budget_why_lines() {
     LC_ALL=C awk -v b="$WHY_BYTES_BUDGET" '
         /^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*\[Why\]/ && length($0) > b {
@@ -632,14 +629,11 @@ missing_why_count=$(printf '%s' "$missing_why_rows" | grep -c '^- ' || true)
 echo "| CRITICAL [Instruction] missing [Why] | $missing_why_count | 0 | $(status_of "$missing_why_count" 0) |"
 [ "$missing_why_count" -gt 0 ] && overages=1
 
-# Budget is 0, the gated form this row is staged toward.
-#
-# The status cell stays REPORT-ONLY at any count and the
-# count is left out of `overages`, so neither the row nor
-# the section below can fail a run while the existing
-# violations are being drained.
+# Budget is 0: a [Why] line past the byte cap is over,
+# same as any other budget in this table.
 why_over_count=$(printf '%s' "$why_over_rows" | grep -c ' bytes (>' || true)
-echo "| [Why] lines over $WHY_BYTES_BUDGET bytes | $why_over_count | 0 | REPORT-ONLY |"
+echo "| [Why] lines over $WHY_BYTES_BUDGET bytes | $why_over_count | 0 | $(status_of "$why_over_count" 0) |"
+[ "$why_over_count" -gt 0 ] && overages=1
 
 # Rows for the skills that subtotal excludes, placed right
 # below it so the exclusion and the budget replacing it
@@ -705,13 +699,13 @@ if [ -n "$missing_why_rows" ]; then
     echo
 fi
 
-# Over-cap [Why] sites, one per line, so a drain pass can
-# work straight from the report while the cap is report-only.
+# Over-cap [Why] sites, one per line, so a fix pass can work
+# straight from the report.
 if [ -n "$why_over_rows" ]; then
-    echo "## [Why] lines over $WHY_BYTES_BUDGET bytes (report-only)"
+    echo "## [Why] lines over $WHY_BYTES_BUDGET bytes"
     echo
     echo "A \`[Why]\` adds no constraint, so every byte past the cap is always-on context buying no rule — trim each to one decision-shaping sentence."
-    echo "Report-only until this count reaches 0, when the cap flips to gated."
+    echo "An over-cap \`[Why]\` fails this check."
     echo
     printf '%s\n' "$why_over_rows" | sed '/^$/d'
     echo

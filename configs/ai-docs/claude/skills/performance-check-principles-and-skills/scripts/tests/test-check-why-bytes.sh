@@ -115,6 +115,20 @@ run_row() {
     bash "$CHECK" "$dir" 2>/dev/null | grep '^| \[Why\] lines over '
 }
 
+# Echo check.sh's exit code against the fixture.
+#
+# Fixtures here are the minimal two-line CLAUDE.md the byte
+# cap needs, so this is the one gate the cap itself controls.
+#
+# The citation-only fixtures above pad other markers to
+# arbitrary widths, leaving the exit code unasserted —
+# nothing else in a minimal fixture can trip.
+check_exit_code() {
+    local dir=$1
+    bash "$CHECK" "$dir" >/dev/null 2>&1
+    echo $?
+}
+
 it_should_pass_a_why_line_of_exactly_the_byte_cap() {
     echo "it_should_pass_a_why_line_of_exactly_the_byte_cap"
     local d; d=$(new_fixture)
@@ -219,12 +233,12 @@ it_should_report_a_clean_file_as_zero_in_the_status_table() {
         printf -- '- [Instruction] Verify everything you build.\n'
         printf -- '  - [Why] Unverified beliefs compound.\n'
     } > "$d/CLAUDE.md"
-    assert_eq "row counts 0" "| [Why] lines over $CAP bytes | 0 | 0 | REPORT-ONLY |" "$(run_row "$d")"
+    assert_eq "row counts 0" "| [Why] lines over $CAP bytes | 0 | 0 | OK |" "$(run_row "$d")"
     rm -rf "$d"
 }
 
-it_should_count_every_over_cap_why_in_the_status_table_without_ever_reading_over() {
-    echo "it_should_count_every_over_cap_why_in_the_status_table_without_ever_reading_over"
+it_should_count_every_over_cap_why_in_the_status_table_and_read_over() {
+    echo "it_should_count_every_over_cap_why_in_the_status_table_and_read_over"
     local d; d=$(new_fixture)
     {
         printf '# Principles\n\n'
@@ -235,9 +249,46 @@ it_should_count_every_over_cap_why_in_the_status_table_without_ever_reading_over
     } > "$d/CLAUDE.md"
 
     # An OVER status cell is the shape the regression gate
-    # keys on, so the count rises while the status must not.
-    assert_eq "row counts both, stays report-only" \
-        "| [Why] lines over $CAP bytes | 2 | 0 | REPORT-ONLY |" "$(run_row "$d")"
+    # keys on, and the count rising is exactly what flips it.
+    assert_eq "row counts both, reads over" \
+        "| [Why] lines over $CAP bytes | 2 | 0 | OVER |" "$(run_row "$d")"
+    rm -rf "$d"
+}
+
+it_should_exit_nonzero_when_a_why_line_is_over_the_cap() {
+    echo "it_should_exit_nonzero_when_a_why_line_is_over_the_cap"
+    local d; d=$(new_fixture)
+    {
+        printf '# Principles\n\n'
+        printf -- '- [Instruction] Verify everything you build.\n'
+        marker_line_of_bytes $((CAP + 1)) Why
+    } > "$d/CLAUDE.md"
+    assert_eq "exits non-zero" "1" "$(check_exit_code "$d")"
+    rm -rf "$d"
+}
+
+it_should_report_over_in_the_row_when_a_why_line_is_over_the_cap() {
+    echo "it_should_report_over_in_the_row_when_a_why_line_is_over_the_cap"
+    local d; d=$(new_fixture)
+    {
+        printf '# Principles\n\n'
+        printf -- '- [Instruction] Verify everything you build.\n'
+        marker_line_of_bytes $((CAP + 1)) Why
+    } > "$d/CLAUDE.md"
+    assert_eq "row reads over" "| [Why] lines over $CAP bytes | 1 | 0 | OVER |" "$(run_row "$d")"
+    rm -rf "$d"
+}
+
+it_should_exit_zero_and_report_ok_when_every_why_line_is_at_or_under_the_cap() {
+    echo "it_should_exit_zero_and_report_ok_when_every_why_line_is_at_or_under_the_cap"
+    local d; d=$(new_fixture)
+    {
+        printf '# Principles\n\n'
+        printf -- '- [Instruction] Verify everything you build.\n'
+        marker_line_of_bytes "$CAP" Why
+    } > "$d/CLAUDE.md"
+    assert_eq "exits zero" "0" "$(check_exit_code "$d")"
+    assert_eq "row reads ok" "| [Why] lines over $CAP bytes | 0 | 0 | OK |" "$(run_row "$d")"
     rm -rf "$d"
 }
 
@@ -249,7 +300,10 @@ it_should_ignore_a_long_example_line
 it_should_flag_an_over_cap_why_inside_a_fenced_block_like_every_other_marker_check
 it_should_flag_an_over_cap_why_in_a_skill_that_is_not_a_standards_skill
 it_should_report_a_clean_file_as_zero_in_the_status_table
-it_should_count_every_over_cap_why_in_the_status_table_without_ever_reading_over
+it_should_count_every_over_cap_why_in_the_status_table_and_read_over
+it_should_exit_nonzero_when_a_why_line_is_over_the_cap
+it_should_report_over_in_the_row_when_a_why_line_is_over_the_cap
+it_should_exit_zero_and_report_ok_when_every_why_line_is_at_or_under_the_cap
 
 echo
 echo "$passed passed, $failed failed"
