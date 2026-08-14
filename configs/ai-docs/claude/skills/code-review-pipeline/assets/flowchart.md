@@ -1,10 +1,11 @@
 ---
-# performance-check budget override, not part of the diagram itself.
+# performance-check budget overrides, not part of the diagram itself.
 # This file renders one flow twice — once as pseudo-code, once as a diagram — so
 # its size is fixed by the skill's step count, and trimming to the bundled default
 # would drop steps from the flow audit or drop a whole rendering.
 # Parked in assets/ and never loaded by the model, so its words cost no context.
 words-budget: 2048
+lines-budget: 512
 ---
 
 # code-review-pipeline — flow overview
