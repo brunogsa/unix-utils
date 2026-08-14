@@ -9,9 +9,9 @@
 # stdin: the SubagentStop hook payload, as JSON
 # stdout: {"decision": "block", "reason": "..."} when a
 #   background job was left uncollected, nothing otherwise
-# exit: always 0
+# exit: always 0.
 #
-# What this guards, and why it is a SubagentStop gate:
+# Why this guard is a SubagentStop gate.
 #
 # A subagent has no event loop. Ending its turn IS ending its
 # run, and a background job a subagent owns is killed when it
@@ -21,16 +21,18 @@
 # dies idle, its result a sentence about waiting, recoverable
 # only by a manual SendMessage from the orchestrator.
 #
-# A PreToolUse deny on run_in_background would catch only half
-# of that. A command can also reach the background without the
-# agent choosing anything, when the runner auto-backgrounds it
-# on timeout -- and at PreToolUse time that call still reads as
+# A PreToolUse deny on run_in_background would catch only
+# half of that.
+#
+# A command can also reach the background without the agent
+# choosing anything, when the runner auto-backgrounds it on
+# timeout -- and at PreToolUse time that call still reads as
 # a foreground one.
 #
 # The defect is also yielding while a job is uncollected, not
 # backgrounding, which is legitimate on its own.
 #
-# Detection, covering both entry paths:
+# Detection covers both entry paths.
 #
 # The runner prints one of two announcements, and they share
 # exactly one literal -- "Output is being written to: <path>."
@@ -42,7 +44,7 @@
 # finished before the stop and whose output was still never
 # read -- a dead run just the same.
 #
-# What counts as collected:
+# What counts as collected.
 #
 # Any later Read of the output path, any later Bash command
 # naming that path or the job id, and any later poll of the id.
@@ -54,7 +56,7 @@
 # semantics inside a stop hook, and would block the read-the-
 # tail-and-move-on flow the slow-command rule asks for.
 #
-# Posture, split by what the evidence supports:
+# Posture splits by what the evidence supports.
 #
 # Fail OPEN when the transcript cannot be read at all, and
 # when the payload names none. With no evidence of a job, a
@@ -73,12 +75,15 @@
 # guard trusted past its range is worse than one that names
 # its holes:
 #
-#   - A bare `cmd &` inside a Bash command is invisible here.
+# - A bare `cmd &` inside a Bash command is invisible here.
 #     It produces no runner announcement to key on.
-#   - A long-lived process started on purpose and never meant
+#
+# - A long-lived process started on purpose and never meant
 #     to be collected -- a dev server -- trips this.
-#   - A poll that returned only partial output counts as
+#
+# - A poll that returned only partial output counts as
 #     collected, per the deliberate non-judgment above.
+#
 import json
 import re
 import sys
@@ -86,6 +91,7 @@ import sys
 # The two announcements this has to cover:
 #   agent-initiated
 #     "Command running in background with ID: <id>."
+#
 #   harness-initiated, on a foreground command's timeout
 #     "Command did not complete within its <n>s timeout and
 #      was moved to the background (ID: <id>)."
