@@ -18,6 +18,7 @@ SKILL.md's `§8.1 → §8.2 → §8.3 → §8.4` is the running order and the on
 Delivered work reaches the remote before anything that can stall gets a turn — SKILL.md's §8 records the two audited batches that stranded commits when push sat behind a gate.
 
 1. **Push the branch — always, on every batch end, regardless of `pr.wanted`.**
+   - **On a stacked run**, [`stacked-by-task-batch-end.md`](stacked-by-task-batch-end.md) replaces this step.
    Use `git push -u origin HEAD`, which covers both a fresh PR branch with no upstream and a plain run's branch that already has one.
    A pushed branch with no PR is this skill's ordinary outcome, not a half-finished state — what the notification points the human at.
    - **Any push failure is a [`failure-and-halt.md`](failure-and-halt.md) §5.5 halt** — no remote, a rejected non-fast-forward, missing credentials.
