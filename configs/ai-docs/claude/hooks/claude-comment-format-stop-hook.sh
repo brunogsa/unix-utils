@@ -47,6 +47,25 @@
 #   A [Scout] hands the whole call to the human, who triages
 #   if and when it ever runs.
 #
+# Repo scope - only this repo's own sources:
+#   The caps above are the user's personal standards,
+#   so only sources in the repo this hook itself
+#   lives in are the user's to hold to them.
+#
+#   A block raised anywhere else - a client repo, a
+#   vendored tree - is noise the user asked to be rid
+#   of.
+#
+#   lib/gate-repo-scope.sh derives that repo from its
+#   own location, so nothing here spells out a path.
+#
+#   It fails closed: a copy outside any git work tree
+#   gates nothing, and a missing lib exits 0.
+#
+#   The check runs before the transcript parse, the
+#   most expensive step a session outside this repo
+#   would otherwise pay for nothing.
+#
 # Scope - "source comments THIS SESSION wrote", narrowed
 # twice, the same two filters the markdown gate uses:
 #
@@ -180,17 +199,6 @@ CHANGED_LINES="$HOME/.claude/skills/doc-standards/scripts/get-changed-lines.sh"
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 
-transcript_path=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/null || true)
-[ -n "$transcript_path" ] && [ -f "$transcript_path" ] || exit 0
-
-session_files=$(jq -r '
-    select(.message.content != null) | .message.content[]?
-    | select(.type == "tool_use")
-    | select(.name == "Edit" or .name == "Write" or .name == "NotebookEdit")
-    | .input.file_path // empty
-  ' "$transcript_path" 2>/dev/null | sort -u || true)
-[ -n "$session_files" ] || exit 0
-
 # Both git listings below emit repo-root-relative paths, so
 # this anchors on the repo root rather than the session's
 # cwd.
@@ -201,6 +209,27 @@ session_files=$(jq -r '
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
 [ -n "$repo_root" ] || exit 0
 cd "$repo_root" 2>/dev/null || exit 0
+
+# Repo scope, resolved before the transcript parse (see the
+# header): a session in any other repo pays none of it.
+#
+# A missing lib exits 0 like every other tooling-gap
+# safeguard here.
+gate_lib="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd -P)/lib/gate-repo-scope.sh"
+[ -f "$gate_lib" ] || exit 0
+. "$gate_lib"
+is_gated_repo "$repo_root" || exit 0
+
+transcript_path=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/null || true)
+[ -n "$transcript_path" ] && [ -f "$transcript_path" ] || exit 0
+
+session_files=$(jq -r '
+    select(.message.content != null) | .message.content[]?
+    | select(.type == "tool_use")
+    | select(.name == "Edit" or .name == "Write" or .name == "NotebookEdit")
+    | .input.file_path // empty
+  ' "$transcript_path" 2>/dev/null | sort -u || true)
+[ -n "$session_files" ] || exit 0
 
 to_abs() {
   case "$1" in

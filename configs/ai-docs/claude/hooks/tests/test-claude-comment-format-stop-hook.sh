@@ -128,15 +128,27 @@ assert_not_contains() {
 }
 
 # new_repo - creates an empty git repo under
-# work_dir and prints its path. Identity is set
-# locally so the fixture commit never depends on
-# the machine's global git config.
+# work_dir, seats a copy of the hook inside it, and
+# prints its path.
+#
+# Identity is set locally so the fixture commit never
+# depends on the machine's global git config.
+#
+# The seated copy is what makes the fixture the
+# hook's own gate repo: the installed hook gates
+# unix-utils alone, so from here it would fall silent
+# and every block assertion would read as a pass.
+#
+# hooks/ is ignored so the untracked copy never joins
+# the file listing the checker scans.
 new_repo() {
   local dir="$work_dir/$1"
   mkdir -p "$dir"
   git -C "$dir" init -q .
   git -C "$dir" config user.email test@example.com
   git -C "$dir" config user.name test
+  seat_hook "$dir" > /dev/null
+  printf 'hooks/\n' >> "$dir/.gitignore"
   printf '%s' "$dir"
 }
 
@@ -193,19 +205,49 @@ decisions_file_path() {
   printf '/tmp/claude-comment-fixer-decisions-%s\n' "$1"
 }
 
-# run_hook - runs the hook from inside the given
-# repo, capturing stdout in HOOK_OUT and the
-# decoded reason (empty when it stayed silent) in
-# HOOK_REASON.
+# run_hook - runs the fixture's own seated copy of
+# the hook from inside that fixture repo, which is
+# what any case about the hook's OTHER filters wants.
 #
-# The cd matters: the hook resolves its own repo
-# root from the caller's working directory, so
-# running it from anywhere else would measure this
-# repo instead of the fixture.
+# The installed hook would gate unix-utils instead
+# and fall silent here, turning every block assertion
+# into a false pass.
 run_hook() {
   local repo="$1" stdin_json="$2"
-  HOOK_OUT=$(cd "$repo" && printf '%s' "$stdin_json" | bash "$HOOK" 2>/dev/null)
+  run_hook_at "$repo/hooks/$(basename "$HOOK")" "$repo" "$stdin_json"
+}
+
+# run_hook_at - runs a NAMED copy of the hook from
+# inside the given repo, capturing stdout in HOOK_OUT
+# and the decoded reason (empty when it stayed
+# silent) in HOOK_REASON.
+#
+# Which copy runs is itself under test: the hook
+# derives the one repo it gates from its own
+# location.
+#
+# The cd matters too - the hook resolves the
+# session's repo root from the caller's working
+# directory.
+run_hook_at() {
+  local hook="$1" repo="$2" stdin_json="$3"
+  HOOK_OUT=$(cd "$repo" && printf '%s' "$stdin_json" | bash "$hook" 2>/dev/null)
   HOOK_REASON=$(printf '%s' "$HOOK_OUT" | jq -r '.reason // empty' 2>/dev/null || true)
+}
+
+# seat_hook - copies the hook and the lib directory
+# it sources into <dir>/hooks, then prints the copy's
+# path.
+#
+# Seating it inside a fixture repo is what makes that
+# repo the copy's own gate repo, which is the only
+# way a throwaway repo can observe a block at all.
+seat_hook() {
+  local dir="$1"
+  mkdir -p "$dir/hooks"
+  cp -R "$hooks_dir/lib" "$dir/hooks/"
+  cp "$HOOK" "$dir/hooks/"
+  printf '%s' "$dir/hooks/$(basename "$HOOK")"
 }
 
 # An untracked file is new in full, so every line
@@ -438,6 +480,56 @@ it_should_stay_silent_when_session_id_gives_it_nowhere_to_record_the_skip() {
   assert_eq "should stay silent when session_id gives it nowhere to record the skip" "" "$HOOK_OUT"
 }
 
+# These are the user's own comment-format standards,
+# so only sources in the repo the hook itself lives in
+# are theirs to hold to them.
+#
+# A block anywhere else - a client repo, a vendored
+# tree - is noise, and this is the fixture that would
+# have produced it before the gate.
+it_should_stay_silent_in_a_repo_the_installed_hook_does_not_gate() {
+  local repo; repo=$(new_repo foreign-repo)
+  write_clean_base "$repo" tracked.sh
+  append_wide_comment "$repo" tracked.sh
+  local t; t=$(write_transcript "$repo/transcript.jsonl" "$repo/tracked.sh")
+  run_hook_at "$HOOK" "$repo" "{\"session_id\":\"s\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
+
+  assert_eq "should stay silent in a repo the installed hook does not gate" "" "$HOOK_OUT"
+}
+
+# The control for the case above: same fixture, same
+# violation, only the hook's own location differs.
+#
+# Without it a silenced gate and a broken checker read
+# identically, since both end in an empty stdout.
+it_should_still_block_when_run_from_a_copy_seated_in_the_repo_it_gates() {
+  local repo; repo=$(new_repo seated-copy)
+  write_clean_base "$repo" tracked.sh
+  append_wide_comment "$repo" tracked.sh
+  local seated; seated=$(seat_hook "$repo")
+  local t; t=$(write_transcript "$repo/transcript.jsonl" "$repo/tracked.sh")
+  run_hook_at "$seated" "$repo" "{\"session_id\":\"s\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
+
+  assert_eq "should still block when run from a copy seated in the repo it gates (decision)" \
+    "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
+  assert_eq "should still block when run from a copy seated in the repo it gates (names the file)" \
+    "1" "$(printf '%s' "$HOOK_REASON" | grep -c 'tracked\.sh')"
+}
+
+# Fail-closed corner: a hook with no repo of its own
+# to derive gates nothing, rather than gating every
+# repo a session might sit in.
+it_should_stay_silent_when_the_running_hook_sits_outside_any_git_work_tree() {
+  local repo; repo=$(new_repo unseated-hook)
+  write_clean_base "$repo" tracked.sh
+  append_wide_comment "$repo" tracked.sh
+  local loose; loose=$(seat_hook "$work_dir/loose-hook")
+  local t; t=$(write_transcript "$repo/transcript.jsonl" "$repo/tracked.sh")
+  run_hook_at "$loose" "$repo" "{\"session_id\":\"s\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
+
+  assert_eq "should stay silent when the running hook sits outside any git work tree" "" "$HOOK_OUT"
+}
+
 it_should_block_on_an_untracked_source_file_this_session_wrote
 it_should_block_on_a_paragraph_violation_in_an_untracked_file
 it_should_block_on_a_width_violation_added_to_a_tracked_file
@@ -451,6 +543,9 @@ it_should_stay_silent_on_a_file_recorded_as_skip_this_session
 it_should_ignore_a_stale_delegate_line_left_by_the_removed_approval_flow
 it_should_only_file_a_scout_for_the_undecided_file_when_one_of_two_is_skipped
 it_should_stay_silent_when_session_id_gives_it_nowhere_to_record_the_skip
+it_should_stay_silent_in_a_repo_the_installed_hook_does_not_gate
+it_should_still_block_when_run_from_a_copy_seated_in_the_repo_it_gates
+it_should_stay_silent_when_the_running_hook_sits_outside_any_git_work_tree
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

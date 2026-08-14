@@ -31,6 +31,25 @@
 #   through, so an "ask the user" instruction just becomes the AI guessing. A [Scout]
 #   defers the whole decision to the human, who triages if and when it ever runs.
 #
+# Repo scope - only this repo's own markdown:
+#   The rules above are the user's personal doc
+#   standards, so only markdown in the repo this hook
+#   itself lives in is the user's to hold to them.
+#
+#   A block raised anywhere else - a client repo, a
+#   vendored tree - is noise the user asked to be rid
+#   of.
+#
+#   lib/gate-repo-scope.sh derives that repo from its
+#   own location, so nothing here spells out a path.
+#
+#   It fails closed: a copy outside any git work tree
+#   gates nothing, and a missing lib exits 0.
+#
+#   The check runs before the transcript parse, the
+#   most expensive step a session outside this repo
+#   would otherwise pay for nothing.
+#
 # Scope — "everything THIS SESSION wrote/edited on .md", narrowed twice:
 #   - Working-tree filter: which lines changed. Untracked .md (new spec/plan) →
 #     the WHOLE file is new, every line is checked. Tracked, modified .md → only
@@ -112,6 +131,28 @@ esac
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 
+# Both git listings below are forced to repo-root-relative paths (`--full-name`
+# for ls-files; the default for diff --name-only), so this anchors on the repo
+# root rather than the session's cwd. Anchoring on cwd breaks whenever a session
+# sits in a subdirectory: the paths resolve to files that don't exist, the
+# session filter matches nothing, and the gate silently stops firing.
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
+[ -n "$repo_root" ] || exit 0
+# Run from the root too, so the relative paths git hands back also resolve for
+# the checkers and for `git diff -U0`.
+cd "$repo_root" 2>/dev/null || exit 0
+
+# Repo scope, resolved before the transcript parse
+# (see the header): a session in any other repo pays
+# none of it.
+#
+# A missing lib exits 0 like every other tooling-gap
+# safeguard here.
+gate_lib="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd -P)/lib/gate-repo-scope.sh"
+[ -f "$gate_lib" ] || exit 0
+. "$gate_lib"
+is_gated_repo "$repo_root" || exit 0
+
 # Session filter setup: which files did THIS session's own Edit/Write/
 # NotebookEdit tool calls touch? Computed up front — no signal, no point
 # scanning the working tree at all.
@@ -125,17 +166,6 @@ session_files=$(jq -r '
     | .input.file_path // empty
   ' "$transcript_path" 2>/dev/null | sort -u || true)
 [ -n "$session_files" ] || exit 0
-
-# Both git listings below are forced to repo-root-relative paths (`--full-name`
-# for ls-files; the default for diff --name-only), so this anchors on the repo
-# root rather than the session's cwd. Anchoring on cwd breaks whenever a session
-# sits in a subdirectory: the paths resolve to files that don't exist, the
-# session filter matches nothing, and the gate silently stops firing.
-repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
-[ -n "$repo_root" ] || exit 0
-# Run from the root too, so the relative paths git hands back also resolve for
-# the checkers and for `git diff -U0`.
-cd "$repo_root" 2>/dev/null || exit 0
 
 to_abs() {
   case "$1" in
