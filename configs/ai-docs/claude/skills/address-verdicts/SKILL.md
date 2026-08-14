@@ -177,7 +177,7 @@ A dispatch that landed 6 of its 9 findings is recorded as 6 applied and 3 failed
 Write every one of that lens's outcomes in place, next to its own finding — never held back until the last lens finishes. Two marks per finding, and they do different jobs:
 
 - **In the finding's heading**, a `[Done]` prefix right after the number, before any severity tag: `### 1. [Done][HIGH] <title>`.
-  - Same prefix-after-the-number convention `/implement` uses on plan task headings, so one rule covers both surfaces.
+  - Same prefix-after-the-number convention `plan-status-markers` defines for plan task headings, so one rule covers both surfaces.
   - This one is the machine-checkable mark: it makes a re-run skip what already landed, and `grep` count it.
 
 - **In the finding's body**, the outcome and its evidence:

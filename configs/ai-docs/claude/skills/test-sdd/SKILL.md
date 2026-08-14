@@ -164,7 +164,7 @@ Rules the schema depends on:
 
 - Keep that exact heading shape — `### N. [SEVERITY] <title>`.
   `/quality-gate`'s apply step stamps `[Done]` right after the number, giving `### 1. [Done][HIGH] …`.
-  This follows the same prefix-after-the-number convention `/implement` uses on plan headings.
+  This follows the same prefix-after-the-number convention `plan-status-markers` defines for plan headings.
 
 - **Zero missing titles** → write the file anyway, with a `## Findings` section reading `None — every planned test is present.`
   A run that produces no artifact leaves nothing to point at later.

@@ -180,7 +180,7 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
 
 - **Tasks are commit-sized, never smaller**.
 
-- **CRITICAL: Keep task status updated as you go, in both TaskList and the plan** — in the plan, status markers (`[Doing]`/`[Done]`/`[Blocked]`/`[Deferred]`/`[Dropped]`, pending needs none) follow `/implement`'s status-markers section exactly.
+- **CRITICAL: Keep task status updated as you go, in both TaskList and the plan** — in the plan, status markers (`[Doing]`/`[Done]`/`[Blocked]`/`[Deferred]`/`[Dropped]`, pending needs none) follow `plan-status-markers` exactly.
 
 - **After completing a task note deviations from the original plan**.
 
