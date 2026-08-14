@@ -58,7 +58,7 @@ shard_model() {
 }
 
 # shard_effort <line> - the Effort column value from a dispatch
-# table row (`| Shard | Title | Brief | Effort | Output path |`),
+# row (`| Shard | Title | Brief | Effort | Output path |`),
 # or empty when the line is empty.
 shard_effort() {
   printf '%s' "$1" | cut -d'|' -f5 | xargs
@@ -195,9 +195,9 @@ it_should_fail_when_a_shard_dispatch_omits_its_model() {
   tmp_file="$(mktemp)"
 
   # The shared dispatch template (every shard's only source of
-  # model=) loses its ", model=opus" clause entirely -- simulates
-  # the dispatch line edited down to the unpinned general-purpose
-  # default the guard hook would deny.
+  # model=) loses its ", model=opus" clause entirely --
+  # simulates the dispatch line edited down to the unpinned
+  # general-purpose default the guard hook would deny.
   sed '/^Dispatch each as/ s/, model=opus//' "$PROMPT_FILE" > "$tmp_file"
 
   # Guard against vacuity: if the sed above stops matching the
