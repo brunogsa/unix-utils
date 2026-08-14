@@ -87,7 +87,7 @@ Heading presence only — an `N/A — <reason>` body satisfies it, a dropped hea
 
 Output: `A \ B` (designed, no task) + `B \ A` (task invents a test); empty = pass, block otherwise.
 
-Both checks share `scripts/extract-design-tests.sh`; breadcrumbs come from that script's own output, copied verbatim, never hand-typed.
+Both checks share `scripts/extract-design-tests.sh`; breadcrumbs are copied verbatim from its output, never hand-typed.
 
 ## How would this break?
 
