@@ -176,7 +176,7 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
   - This skill owns only the spec's *altitude and ownership*; the section structure and self-review gates live in that library, and the interview workflow in `brainstorm`.
 
 - The plan — same rule: read that same library by path and populate its `assets/plan-template.md`.
-  - Sections: Technical Approach & High Level Architecture, General Flow, Test Design with its AC → test coverage list, structured Task Breakdown, PR Breakdown, Open Questions, Technical Decisions log.
+  - Sections: Technical Approach & High Level Architecture, Threat Model, General Flow, Test Design with its AC → test coverage list, structured Task Breakdown, PR Breakdown, Open Questions, Technical Decisions log.
 
   - Authoring a spec/plan from the altitude notes above instead of these templates is the known failure mode this route exists to prevent.
 

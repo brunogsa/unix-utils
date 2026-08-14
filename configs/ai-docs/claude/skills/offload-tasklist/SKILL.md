@@ -1,7 +1,6 @@
 ---
 name: offload-tasklist
-description: "Move not-done TaskList tasks into tasklist.md in CWD, then dispatch the tasklist-sweeper background agent to dedup and renumber. Trigger: /offload-tasklist only — never auto-invoked from conversation."
-disable-model-invocation: true
+description: "Move not-done TaskList tasks into tasklist.md in CWD, then dispatch the tasklist-sweeper background agent to dedup and renumber. Trigger: /offload-tasklist, or invoke directly when the user asks to offload TaskList entries."
 ---
 
 # Offload Tasklist

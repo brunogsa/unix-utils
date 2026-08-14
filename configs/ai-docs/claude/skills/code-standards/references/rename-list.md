@@ -54,8 +54,7 @@ Batch 14 folds in `prep-local-context.sh` (`dc00b576`) and `prep-refactor-contex
 | 14 | `skills/*/scripts/`, excludes vendored `skill-standards/scripts/` + `eval-viewer/` (Task 14) | `unix-utils` | 57 | 21 |
 | 15 | `commands/` + `lib/` + root (Task 15) | `oh-my-zsh` | 31 | 31 |
 
-No failing script in either tree-mode/file-mode sweep falls outside these
-three scopes — every FAIL line is assigned to exactly one batch.
+Every FAIL line is assigned to exactly one of these three batches.
 Excluded and vendored paths never appear below.
 
 ## Batch 13 — `unix-utils` `hooks/` + `scripts/`

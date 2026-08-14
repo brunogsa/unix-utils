@@ -189,7 +189,7 @@ session, but no state file exists at /tmp/implement_${session_id}.json (nor any 
 /tmp/implement_${session_id}_pr<N>.json). The implement skill's §2.3 was \
 skipped, so implement-loop-state.py, this Stop gate and the compact reminder \
 are all blind and the batch can run to the end unrecorded. Write the §2.3 state \
-file now — its version-3 shape is in the implement skill — before doing anything \
+file now — its version-4 shape is in the implement skill — before doing anything \
 else. If /implement is NOT running here (pre-flight aborted at §1.1 or §1.3, or \
 the invocation never started the skill), clear the guard instead with: trash \
 /tmp/implement_${session_id}.expected"

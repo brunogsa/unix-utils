@@ -237,3 +237,58 @@ The template keeps Given/When/Then beneath the title for exactly that reason; wa
 Sources: <https://alistairmavin.com/ears/> (official), <https://en.wikipedia.org/wiki/Easy_Approach_to_Requirements_Syntax>, <https://kiro.dev/docs/specs/>.
 
 ---
+
+## 8. [Task] Script overhaul — shrink the shell, rename for intent, codify the authoring principles
+
+**Goal**: every script across the stack ends up in the language that makes it easiest to read, under a filename that says what it does.
+Each one also carries the briefest usable usage header and composes as a Unix building block.
+
+### Three principles to codify FIRST — before touching a single script
+
+These are standing rules, not one-off edits, so they belong in the `code-standards` skill (confirm that home before writing them).
+Landing them first also gives the conversion pass a bar to convert *against*, instead of re-deciding per script.
+
+- **Brief, simple usage header** — the header comment on top stays, but is as short and plain as it can be while still telling a caller how to run the script.
+  - Today's headers run long: `check-density.sh` spends 14 lines before any code, `implement-loop-state.sh` 14, `dag-check-helper.sh` 14.
+  - Decide what the header MUST carry (invocation forms? input/output contract? the non-obvious WHY?) and what moves to the skill's `SKILL.md` or drops entirely.
+
+- **Unix philosophy — built to be reused** — one job per script, input on stdin or argv, result on stdout, diagnostics on stderr, meaning in the exit code.
+  - This is what makes scripts composable via pipes instead of copy-pasted between skills; `dag-check-helper.sh` is the existing example of the shape done right.
+
+- **Self-describing filename** — the name states WHAT it does and WHAT it is about, decodable without opening the file or knowing its skill.
+  - Weakest current names: `check.sh` (performance-check skill), `utils.py` / `shared.py`, `jira-utilities.sh`, `dag-check-helper.sh`.
+
+### The conversion rule
+
+Keep `.sh` only where a junior developer could read the whole script end-to-end without effort. Everything past that bar becomes `.js` or `.py`.
+
+**Scope, counted 2026-08-09** (excluding the stale `.claude/worktrees/stacked-prs-pr2/` copy — itself a `[Scout]`-worthy orphan):
+
+- `unix-utils`: 83 `.sh`, 31 `.py`, 10 `.js`.
+- `oh-my-zsh`: 29 `.sh`, 3 `.js`.
+- `tmux` / `neovim` / `ghostty`: only `install.sh` + `perf-check.sh` each — probably out of scope, confirm.
+
+**Longest shell, the likeliest conversions**: `statusline-tier.sh` 827 lines, `performance-check.../check.sh` 685, `jira-utilities.sh` 587, `implement-loop-state.sh` 420, `tmux-window-title.sh` 384.
+
+### The hazard: no script here is only a file
+
+A rename or extension change is never local — the filename is referenced from three places that will not fail loudly:
+
+- `configs/ai-docs/claude/settings.json` hardcodes script filenames in BOTH `permissions.allow` and `hooks`. A stale allow-entry reads as a missing permission, not as a typo.
+- Permission entries are canonical absolute paths, one per platform (macOS `/Users/...` + Linux `/home/...`) — per the `personal-environment` skill, both must move together.
+- 81 markdown files under `configs/ai-docs/claude/` name a script in prose; `install.sh` mirrors the setup. Every rename touches all of them in the same commit.
+
+### Open questions to settle before converting anything
+
+- **`.js` or `.py` — what decides?** Pick one default and name the cases the other wins, rather than choosing per script.
+- **Do hooks stay `.sh` regardless?** Hooks fire on every tool call, and an interpreter's startup cost is paid each time. Measure before converting any hook.
+
+- **Does `install.sh` need to guarantee the runtime?** A converted script has a hard dependency on `node`/`python3` being present on a fresh machine, on both OSes.
+
+**Relation to #1 / #2 / #3**: those audit the skills' *prose* for over-engineering;
+this audits their *scripts*. Sequence them so a script an audit is about to delete never gets converted first.
+
+**Deliverable**: the three principles landed in `code-standards`; every script either converted or kept as `.sh` with the junior-readability call recorded;
+names fixed where they don't say what the script does; headers trimmed to the new rule; every existing script test still green; `settings.json`, docs, and `install.sh` references updated in the same commits.
+
+---

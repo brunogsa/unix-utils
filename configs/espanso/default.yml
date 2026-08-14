@@ -13,6 +13,15 @@ matches:
   - trigger: ";check"
     replace: "✓"
 
+  - trigger: ";green"
+    replace: "🟢"
+
+  - trigger: ";yellow"
+    replace: "🟡"
+
+  - trigger: ";red"
+    replace: "🔴"
+
   - trigger: ";block-code"
     replace: |-
       ```
