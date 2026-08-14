@@ -357,7 +357,7 @@ Routing and upkeep for the two note surfaces, plus the two scratchpad files each
   - [Why] Every replication compounds the bad pattern.
 
 - [Instruction] **Surface harness gaps** -- file a `[Harness]` entry when a check could catch the defect class you just hand-fixed AND stay correct on unwritten cases with no hand-maintained list.
-  - [Why] A hand-fix a rule could make is signal lost, but a check leaning on a ledger goes stale faster than it catches anything.
+  - [Why] A hand-fix a rule could make is signal lost, but a ledger-backed check goes stale faster than it catches anything.
   - [Example] A check needing that ledger edited on every repo change is not a `[Harness]`; file the defect class as `[Debt]` instead.
 
 - [Instruction] Close a `[Harness]` task within the session that surfaced it, never in a later batch.
