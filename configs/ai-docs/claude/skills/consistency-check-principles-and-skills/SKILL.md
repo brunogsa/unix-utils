@@ -25,14 +25,23 @@ Fix: **shard, then self-consistency** — split the corpus into shards, sample e
 
 | Role | Trigger | Behavior |
 |---|---|---|
-| **Main** | invoked from the top-level session (default) | wave 1: shards the corpus, dispatches shard-orchestrators in batches of ≤4; wave 2: pairs shards whose governed activities overlap, re-dispatches at union scope; merges every digest into the final report |
+| **Main** | invoked from the top-level session (default) | wave 1: shards + dispatches shard-orchestrators (≤4 in flight); wave 2: pairs overlapping shards, re-dispatches at union scope; merges every digest into the final report |
 | **Shard-orchestrator** | dispatched by main, once per shard per wave | spawns 3 `consistency-ensemble-child`, runs the 2/3 vote, returns a fixed-schema digest |
 | **Ensemble child** | dispatched by `consistency-shard-orchestrator` | runs §Lifecycle on its own shard only, emits the raw `[KEY]`-tagged report |
 
-[Instruction] **CRITICAL: an ensemble child must NOT spawn further children** — enforced structurally by its own `disallowedTools: Agent`, not by prompt convention.
+[Instruction] **CRITICAL: an ensemble child must NOT spawn further children** — enforced structurally by its own `disallowedTools: Agent`.
 
-[Instruction] **Batch shard-orchestrator dispatch at ≤4 per message, next batch only after digests land; 3 children per shard stay one uncapped message.**
-4×3=16, the `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` cap — safe whether a waiting parent holds its slot against its own children (4+12=16) or not (12); the hazard is deadlock, not slowness.
+[Instruction] **CRITICAL: A no-argument invocation dispatches every shard the manifest emits — the default; never silently narrow the corpus, sample a subset, or stop early because the shard count looks expensive.**
+A consistency audit's value is cross-file coverage; quietly narrowing the corpus reports 'no findings' for files it never read.
+
+[Instruction] **A scoped invocation dispatches only the shard(s) whose slug matches the given skill name(s) or path(s), including more than one skill at once.**
+`gen-shard-manifest.sh` always emits every shard; scoping happens entirely at this dispatch-selection step, not inside the script — it has no name-filter flag.
+
+[Instruction] **Keep at most 4 shard-orchestrators in flight — dispatch a replacement the instant any digest lands, never waiting for the rest of the batch.**
+A finished orchestrator frees its own slot plus its 3 children's, so refilling to 4 parents never exceeds the 16-agent `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` cap (4×3=16) — the hazard is deadlock, not slowness.
+
+[Instruction] **Dispatch a shard-orchestrator's 3 ensemble children in one uncapped message.**
+Only the parent count needs throttling — each shard's fixed 3 children never do.
 
 [Instruction] **Dispatch by name, never `general-purpose`** — `subAgent=consistency-shard-orchestrator` from main, `subAgent=consistency-ensemble-child` from a shard-orchestrator; each file's own frontmatter pins its model/effort tier.
 
@@ -42,20 +51,20 @@ Fix: **shard, then self-consistency** — split the corpus into shards, sample e
 
 **Wave 1 — shard and sample.**
 
-1. Run `gen-shard-manifest.sh [path]` — one `[SHARD] <slug>` block per skill dir plus a dedicated `claude-md` shard. A scoped invocation dispatches only matching shard(s); no-arg dispatches all.
+1. Run `gen-shard-manifest.sh [path]` — one `[SHARD] <slug>` block per skill dir plus a dedicated `claude-md` shard; dispatch follows the scoping rule above.
 
-2. Dispatch `consistency-shard-orchestrator` per shard, batched per the ≤4 cap above, forwarding that shard's file list — the skill's own shard additionally inlines heuristics for its children.
+2. Dispatch `consistency-shard-orchestrator` per shard, per the ≤4 rolling window above, forwarding that shard's file list — the skill's own shard inlines heuristics for its children.
 
 3. Collect each shard's digest: STATUS, BLOCKING count + lines, ADVISORY count, GOVERNS (see the agent's own Report format).
 
 **Wave 2 — cross-shard pairs.**
 
 4. From the wave-1 GOVERNS fields, pair shards whose activities/paths overlap — capped at 5 pairs/run.
-5. Re-dispatch `consistency-shard-orchestrator` per pair (same ≤4 batch cap) at the union of both shards' file lists, same 3-child/2-of-3 vote; it dedups against both shards' wave-1 findings.
+5. Re-dispatch `consistency-shard-orchestrator` per pair at the union of both shards' file lists, same 3-child/2-of-3 vote; it dedups against both shards' wave-1 findings.
 
 **Merge and report.**
 
-6. Sum BLOCKING across every shard/pair that returned OK; emit a `[BLOCKING] count=N` trailer. Recommended: re-run after fixes until N=0 (cap 5 rounds), then hand back regardless.
+6. Sum BLOCKING across every shard/pair that returned OK; emit a `[BLOCKING] count=N` trailer. Re-run after fixes until N=0 (cap 5 rounds), then hand back.
 
 7. Take ADVISORY from every shard/pair, rank by confidence then heuristic priority, keep the top 5 for the whole run.
 8. **Fail loud, never silent:** a shard/pair whose children all died, digest is malformed, or BLOCKING findings all fail their citation gate —
@@ -63,7 +72,7 @@ Fix: **shard, then self-consistency** — split the corpus into shards, sample e
 
 ### `[KEY]` line and BLOCKING citations
 
-Children still emit the same `[KEY]` line under each finding — the shard-orchestrator runs the two-tier vote (see its own file and [references/majority-merge.md](references/majority-merge.md)); main never runs it directly.
+Children emit a `[KEY]` line under each finding — the shard-orchestrator runs the two-tier vote (see its own file and [references/majority-merge.md](references/majority-merge.md)); main never runs it directly.
 
 Required emission (full per-finding template in §Report Format):
 
@@ -77,12 +86,11 @@ Required emission (full per-finding template in §Report Format):
 the defining line of each rule in the conflict, never a range. Cite the `[Instruction]` line, not its `[Why]`/`[Example]` child — the vote tolerates ±3.
 
 [Instruction] **CRITICAL: every BLOCKING finding (#1, #6a) carries a citation naming the script and result that verified it** —
-`verify-quote.sh <file>` (exit 0, both quoted sides) for #1, or a `check-refs.sh` output line for #6a. A BLOCKING finding without a passing citation is dropped, never filed on judgment alone.
+`verify-quote.sh <file>` (exit 0, both quoted sides) for #1, or a `check-refs.sh` output line for #6a.
 
 ## What this skill does NOT flag
 
 Anything `performance-check` counts deterministically (marker counts, char budgets, density, CRITICAL ratio), or `skill-creator` already states (frontmatter/folder/description shape).
-This skill's surface is semantic relationships across files — contradictions, coupling, term drift — never counts or format.
 
 ## Default state: no findings
 
@@ -105,7 +113,7 @@ Findings trigger users to ignore the next run.
 
 ## Heuristics (priority order)
 
-**BLOCKING** (script-verified, gates the fix-loop): #1, #6a. **ADVISORY** (report-only, never gates): #2, #3, #4, #5, #6b, #7, #8 — capped top 5/run, ranked by confidence then priority order.
+**BLOCKING** (script-verified, gates the fix-loop): #1, #6a. **ADVISORY** (report-only, never gates): #2, #3, #4, #5, #6b, #7, #8.
 
 ### 1. Contradictions — BLOCKING
 
@@ -116,9 +124,7 @@ Look for:
 - A skill says "do Y" while CLAUDE.md says "do not Y" (or vice versa).
 - Two skills give opposing guidance on the same situation.
 
-Top priority: contradictions cause **behavioral drift** — Claude follows one rule today, the other tomorrow.
-
-When in doubt, **do not flag** — apply the confidence rubric. A vague contradiction without locatable file:line + concrete diff is LOW; drop it.
+Contradictions cause **behavioral drift** — Claude follows one rule today, the other tomorrow.
 
 ### 2. Unresolved trade-off tensions — ADVISORY
 
@@ -159,7 +165,6 @@ Multiple rules / skills that could collapse into one stronger general rule.
 Look for:
 - Bullets differing only by a modifier (one for tests, one for code).
 - Skill `description` fields overlapping ≳50% on triggers.
-- A pattern stated in three sections.
 - Two copies saying the same thing at the same level of detail.
 - One principle with two distinct `[Why]` clauses on different mechanisms.
 
@@ -170,20 +175,19 @@ Merging duplicates buys back attention lost past ~200 instructions (Jaroslawicz 
 
 ### 5. Misplaced CRITICAL marker — ADVISORY
 
-Perf-check counts the CRITICAL ratio; this heuristic asks *whether the right rules carry it* — WHICH matters more than HOW MANY (Control Illusion, arXiv:2502.15851).
+Perf-check counts the CRITICAL ratio; this heuristic asks *whether the right rules carry it* (Control Illusion, arXiv:2502.15851).
 
 Look for **under-marked** rules — a non-CRITICAL rule that other rules visibly defer to.
 
-Do NOT hand-check for a missing `[Why]` under a CRITICAL `[Instruction]` — `check.sh` already settles that by anchored `awk`; eyeballing risks mistaking a `[Why]` mentioning "CRITICAL" for the marker itself.
+Do NOT hand-check for a missing `[Why]` under a CRITICAL `[Instruction]` — `check.sh` already settles that by anchored `awk`.
 
 HIGH confidence cites the other rule(s) that defer to it.
 
 ### 6. Stale or unnecessary references — split
 
-Cross-file references ("see `<skill>`/`<section>`", "per CLAUDE.md's `<rule>`") rot when targets rename or move, and can carry unnecessary coupling.
+Cross-file references ("see `<skill>`/`<section>`") rot when targets rename or move, and can carry unnecessary coupling.
 
 **6a. Broken refs — BLOCKING, scripted.** Run `check-refs.sh <file>...` over the shard's files: every `<file>:<line> -> <target>` line is a BLOCKING finding, citation = that line.
-Never judge a ref by eye — the script is the gate.
 
 **6b. Unnecessary coupling — ADVISORY, judgment.** Look for a coupling that could NOT exist and still keep that skill functioning.
 
@@ -216,7 +220,7 @@ HIGH confidence names the mechanism and plug-in point: script path, hook event, 
 
 The **ensemble child** executes this, scoped to its shard — main and the shard-orchestrator never run heuristics themselves (see §Two-wave flow).
 
-1. Use the shard's file list forwarded by the shard-orchestrator, plus CLAUDE.md (read-only) — never resolve paths yourself; scoping happened at dispatch (§Two-wave flow step 1).
+1. Use the shard's file list forwarded by the shard-orchestrator, plus CLAUDE.md (read-only) — never resolve paths yourself; scoping happened at dispatch (step 1).
 
 2. Read every file in the shard's list, plus CLAUDE.md, in full — cross-file within the shard is the whole point, no grep shortcuts.
    - Load `skill-standards` too — heuristics #3, #5 judge marker placement against its rules.
@@ -233,7 +237,7 @@ The **ensemble child** executes this, scoped to its shard — main and the shard
 
 ## Report Format
 
-Summary table + per-heuristic sections. Eight heuristic rows, each in the same fixed order as the §Heuristics list.
+Summary table + per-heuristic sections, each in the same fixed order as the §Heuristics list.
 
 **Example with findings** (the `[KEY]` line is mandatory in child reports — see §"`[KEY]` line and BLOCKING citations"):
 
@@ -260,6 +264,6 @@ Summary table + per-heuristic sections. Eight heuristic rows, each in the same f
 
 `[KEY]` lines exist only for the shard-orchestrator's vote — strip them before any report a human reads, including main's final merged report.
 
-Status: **OK** (no findings), **REVIEW** (user judgment needed), **ISSUE** (high-confidence problem), **INCOMPLETE** (a shard/pair failed to report — name it; never fold into "0 BLOCKING").
+Status: **OK** (no findings), **REVIEW** (user judgment needed), **ISSUE** (high-confidence problem), **INCOMPLETE** (a shard/pair failed to report — name it).
 
 Reference findings by ID: `apply 1.1, 4.2` or `skip 7.1`.
