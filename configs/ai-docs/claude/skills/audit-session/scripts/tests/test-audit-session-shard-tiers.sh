@@ -47,16 +47,20 @@ shard_dispatch_line() {
   grep -E "^\| $shard_id \|" "$file" || true
 }
 
-# shard_model <line> - the model= value quoted in a
-# dispatch line, or empty when none is present.
+# shard_model <file> - the model= value quoted in the shared
+# dispatch template line every shard's row draws from, or empty
+# when the file or that line is absent.
 shard_model() {
-  printf '%s' "$1" | grep -oE 'model=[a-z]+' | head -n1 | cut -d= -f2
+  local file="$1"
+  [ -f "$file" ] || return 0
+  grep -E '^Dispatch each as' "$file" | grep -oE 'model=[a-z]+' | head -n1 | cut -d= -f2
 }
 
-# shard_effort <line> - the effort= value quoted in a
-# dispatch line, or empty when none is present.
+# shard_effort <line> - the Effort column value from a dispatch
+# table row (`| Shard | Title | Brief | Effort | Output path |`),
+# or empty when the line is empty.
 shard_effort() {
-  printf '%s' "$1" | grep -oE 'effort=[a-z]+' | head -n1 | cut -d= -f2
+  printf '%s' "$1" | cut -d'|' -f5 | xargs
 }
 
 # check_shard_tiers <file> - verifies the file exists and every
@@ -82,7 +86,7 @@ check_shard_tiers() {
       printf 'no dispatch row found for %s\n' "$shard_id"
       return 1
     fi
-    model=$(shard_model "$line")
+    model=$(shard_model "$file")
     effort=$(shard_effort "$line")
     if [ -z "$model" ]; then
       printf '%s names no explicit model\n' "$shard_id"
@@ -100,35 +104,35 @@ check_shard_tiers() {
 it_should_assert_s1_time_is_dispatched_with_model_opus_and_effort_max() {
   local line
   line=$(shard_dispatch_line "$PROMPT_FILE" "S1")
-  assert_eq "should assert S1 Time is dispatched with model opus" "opus" "$(shard_model "$line")"
+  assert_eq "should assert S1 Time is dispatched with model opus" "opus" "$(shard_model "$PROMPT_FILE")"
   assert_eq "should assert S1 Time is dispatched with effort max" "max" "$(shard_effort "$line")"
 }
 
 it_should_assert_s2_money_is_dispatched_with_model_opus_and_effort_max() {
   local line
   line=$(shard_dispatch_line "$PROMPT_FILE" "S2")
-  assert_eq "should assert S2 Money is dispatched with model opus" "opus" "$(shard_model "$line")"
+  assert_eq "should assert S2 Money is dispatched with model opus" "opus" "$(shard_model "$PROMPT_FILE")"
   assert_eq "should assert S2 Money is dispatched with effort max" "max" "$(shard_effort "$line")"
 }
 
 it_should_assert_s3_work_done_is_dispatched_with_model_opus_and_effort_high() {
   local line
   line=$(shard_dispatch_line "$PROMPT_FILE" "S3")
-  assert_eq "should assert S3 Work done is dispatched with model opus" "opus" "$(shard_model "$line")"
+  assert_eq "should assert S3 Work done is dispatched with model opus" "opus" "$(shard_model "$PROMPT_FILE")"
   assert_eq "should assert S3 Work done is dispatched with effort high" "high" "$(shard_effort "$line")"
 }
 
 it_should_assert_s4_status_and_next_steps_is_dispatched_with_model_opus_and_effort_high() {
   local line
   line=$(shard_dispatch_line "$PROMPT_FILE" "S4")
-  assert_eq "should assert S4 Status and next steps is dispatched with model opus" "opus" "$(shard_model "$line")"
+  assert_eq "should assert S4 Status and next steps is dispatched with model opus" "opus" "$(shard_model "$PROMPT_FILE")"
   assert_eq "should assert S4 Status and next steps is dispatched with effort high" "high" "$(shard_effort "$line")"
 }
 
 it_should_assert_s5_recommendations_is_dispatched_with_model_opus_and_effort_high() {
   local line
   line=$(shard_dispatch_line "$PROMPT_FILE" "S5")
-  assert_eq "should assert S5 Recommendations is dispatched with model opus" "opus" "$(shard_model "$line")"
+  assert_eq "should assert S5 Recommendations is dispatched with model opus" "opus" "$(shard_model "$PROMPT_FILE")"
   assert_eq "should assert S5 Recommendations is dispatched with effort high" "high" "$(shard_effort "$line")"
 }
 
@@ -136,7 +140,8 @@ it_should_assert_every_shard_dispatch_names_an_explicit_model() {
   local shard_id line model all_present="yes"
   for shard_id in S1 S2 S3 S4 S5; do
     line=$(shard_dispatch_line "$PROMPT_FILE" "$shard_id")
-    model=$(shard_model "$line")
+    [ -n "$line" ] || all_present="no"
+    model=$(shard_model "$PROMPT_FILE")
     [ -n "$model" ] || all_present="no"
   done
   assert_eq "should assert every one of the five shard dispatches names an explicit model" \
