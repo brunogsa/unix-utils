@@ -461,23 +461,9 @@ The full entry list, state-file phase, notes.md's blocked-task record, which rem
 
 ## 6. Status markers (plan task title)
 
-The orchestrator owns the plan's status edits (`[Doing]` / `[Done]` / `[Blocked]` / `[Deferred]` / `[Dropped]`); the subagent never touches them.
+**Only the orchestrator edits these markers — the task subagent never touches them.**
 
-Status is a file edit only, never committed (the plan is session-scoped per `spec-driven-development`).
-
-Status sits **right after the number, before any pre-existing tag** (e.g. Jira IDs): `### N. [Doing][JIRA-123] Title (...)`, omitted entirely in the initial state.
-
-Single value, mutually exclusive — `[Blocked]` *replaces* `[Doing]`, never stacks with it.
-
-### Semantics
-
-- `[Doing]` — actively in progress this session (dispatched, not yet verified-done).
-- `[Done]` — finished, verified by the orchestrator, committed by the subagent.
-- `[Blocked]` — external dependency unresolvable in this session. Pair with a `**QUESTION:**` marker naming what's needed to unblock.
-- `[Deferred]` — deliberately postponed to a later session, but still planned.
-- `[Dropped]` — decided not to do at all (scope reduction). Pair with `**DECISION (Task N):**` capturing the reason.
-
-In all non-`[Done]` terminal states, do NOT leave partial code committed under a misleading status — either the commits stand as coherent work, or get reverted first.
+Marker vocabulary, placement, and semantics live in [`plan-status-markers`](../plan-status-markers/SKILL.md); load it before any status edit.
 
 ### PR-level status markers (PR Breakdown heading, PR-label runs only)
 
