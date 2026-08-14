@@ -32,16 +32,54 @@ repo_root="$(cd "$script_dir/../../../../.." && pwd)"
 SETTINGS_JSON="$repo_root/configs/ai-docs/claude/settings.json"
 CCSTATUSLINE_CONFIG_SRC="$repo_root/configs/ai-docs/claude/ccstatusline/settings.json"
 
-# configured_statusline_command - the live (working-tree,
-# not committed) statusLine.command from settings.json.
+# snapshot_statusline_command - copy <src>'s
+# statusLine.command into <dest>, the file every later read
+# in this suite is served from.
 #
-# Reading the working tree rather than HEAD lets the
-# StatusLineRender tests go RED before the wiring commit
-# lands and GREEN right after the Edit, with no commit in
-# between.
-configured_statusline_command() {
-  jq -r '.statusLine.command' "$SETTINGS_JSON"
+# Usage:
+#   snapshot_statusline_command <src> <dest>
+#
+# stdout: none
+# exit: 0 once <dest> holds the command, 1 without writing
+#   <dest> when <src> carries no readable statusLine.command
+#
+# Why a snapshot rather than a read per assertion: this
+# settings.json is rewritten under the suite by every
+# concurrent Claude Code session, because /model, /effort
+# and /advisor each write it mid-session. Re-reading it nine
+# times made the render assertions depend on whether a
+# sibling session happened to be mid-write - three failed
+# inside one full run and the same three passed in an
+# isolated re-run seconds later.
+snapshot_statusline_command() {
+  local src="$1" dest="$2" statusline_command
+  statusline_command="$(jq -r '.statusLine.command // empty' "$src" 2>/dev/null)"
+
+  # Empty covers both halves of the rename window a writer
+  # opens: the path resolving to nothing, and a file that
+  # parses but has no statusLine yet. Failing here turns
+  # either into one startup error rather than a dozen render
+  # assertions comparing against an empty command.
+  [ -n "$statusline_command" ] || return 1
+  printf '%s\n' "$statusline_command" >"$dest"
 }
+
+# configured_statusline_command - the snapshotted
+# statusLine.command.
+#
+# Snapshotting the working tree rather than HEAD keeps what
+# the live read was there for: the StatusLineRender tests go
+# RED before the wiring commit lands and GREEN right after
+# the Edit, with no commit in between.
+configured_statusline_command() {
+  cat "$SETTINGS_COMMAND_SNAPSHOT"
+}
+
+SETTINGS_COMMAND_SNAPSHOT="$(mktemp "${TMPDIR:-/tmp}/statusline-tier-command.XXXXXX")"
+if ! snapshot_statusline_command "$SETTINGS_JSON" "$SETTINGS_COMMAND_SNAPSHOT"; then
+  printf 'no readable .statusLine.command in %s\n' "$SETTINGS_JSON" >&2
+  exit 1
+fi
 
 pass_count=0
 fail_count=0
@@ -65,6 +103,56 @@ assert_eq() {
 fresh_sandbox() {
   mktemp -d "${TMPDIR:-/tmp}/statusline-tier-test.XXXXXX"
 }
+
+it_should_keep_serving_the_snapshotted_statusline_command_after_the_source_settings_file_is_rewritten() {
+  local sandbox source_settings snapshot
+  sandbox="$(fresh_sandbox)"
+  source_settings="$sandbox/settings.json"
+  snapshot="$sandbox/statusline-command"
+  printf '{"statusLine":{"command":"echo snapshotted-command"}}\n' >"$source_settings"
+
+  snapshot_statusline_command "$source_settings" "$snapshot"
+
+  # What a concurrent Claude Code session does to this file
+  # mid-suite: /model, /effort and /advisor each rewrite
+  # settings.json, and one landed between two assertions is
+  # what turned three StatusLineRender tests red inside a
+  # full run that passed on its isolated re-run.
+  printf '{"statusLine":{"command":"echo a-sibling-sessions-command"}}\n' >"$source_settings"
+
+  assert_eq \
+    "SettingsSnapshot > should keep serving the snapshotted statusline command after the source settings file is rewritten" \
+    "echo snapshotted-command" \
+    "$(SETTINGS_COMMAND_SNAPSHOT="$snapshot" configured_statusline_command)"
+  rm -rf "$sandbox"
+}
+
+it_should_report_failure_and_write_no_snapshot_when_the_source_settings_file_is_unreadable() {
+  local sandbox snapshot status snapshot_state
+  sandbox="$(fresh_sandbox)"
+  snapshot="$sandbox/statusline-command"
+
+  # Every settings.json writer swaps the file in by rename,
+  # so the path resolves to nothing for the width of that
+  # swap. Serving an empty command from that window is what
+  # made the flake read as a dozen wrong render assertions
+  # instead of one unreadable-source error.
+  snapshot_statusline_command "$sandbox/never-written.json" "$snapshot"
+  status=$?
+  snapshot_state=absent
+  [ -e "$snapshot" ] && snapshot_state=present
+
+  assert_eq \
+    "SettingsSnapshot > should report failure when the source settings file is unreadable" \
+    "1" "$status"
+  assert_eq \
+    "SettingsSnapshot > should write no snapshot when the source settings file is unreadable" \
+    "absent" "$snapshot_state"
+  rm -rf "$sandbox"
+}
+
+it_should_keep_serving_the_snapshotted_statusline_command_after_the_source_settings_file_is_rewritten
+it_should_report_failure_and_write_no_snapshot_when_the_source_settings_file_is_unreadable
 
 # One `security` fake serves every test, symlinked into
 # each sandbox, because an endpoint-security agent
@@ -91,7 +179,10 @@ fresh_sandbox() {
 # Production never pays this: the real `security` is a
 # Mach-O binary macOS scanned long ago (measured: 0.03s).
 SHARED_FAKE_BIN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/statusline-tier-shared-fakes.XXXXXX")"
-trap 'rm -rf "$SHARED_FAKE_BIN_DIR"' EXIT
+# One EXIT trap serves every suite-scoped temp path, because
+# a second `trap ... EXIT` would replace this one rather than
+# run beside it.
+trap 'rm -rf "$SHARED_FAKE_BIN_DIR" "$SETTINGS_COMMAND_SNAPSHOT"' EXIT
 
 # The per-test fixture is read from the directory the fake
 # was invoked THROUGH rather than baked into its text,
