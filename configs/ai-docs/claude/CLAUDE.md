@@ -327,9 +327,10 @@ Routing and upkeep for the two note surfaces, plus the two scratchpad files each
 ### Slow commands
 
 - [Instruction] **Save slow command output, verify from the file** -- any command taking 4+ seconds: redirect full output to a stable, reused `/tmp/` path, then filter from the file.
-  - [Why] A slow command is expensive to repeat, and its exit code can lie — some runners exit 0 on partial failure, so only the file's tail shows the real summary.
+  - [Why] Rerunning is costly, and the exit code lies twice: a partial-failure runner exits 0, and so does a trailing `echo`.
 
-  - [Example] `<slow-cmd> > /tmp/out.txt 2>&1; echo "exit: $?"; tail -<N> /tmp/out.txt;` — choose N to fit the command's summary.
+  - [Example] `<slow-cmd> > /tmp/out.txt 2>&1; rc=$?; echo "exit: $rc" >> /tmp/out.txt; tail -<N> /tmp/out.txt; exit $rc` — `exit $rc` must stay last; choose N to fit the summary.
+
   - [Example] Bad: `<slow-cmd>; tail -<N> /tmp/out.txt; echo "exit: $?"` — that `echo` reports tail's `0`, not the command's.
   - [Example] Don't pipe it straight to `grep`/`head` — a wrong filter discards the output and forces the whole slow run again.
 
