@@ -197,7 +197,7 @@ Create the run's durable state **immediately after §2.2's reminders land**, nev
   - `/tmp/implement_<session_id>.json` on a plain `<task-ids>` run.
   - `/tmp/implement_<session_id>_pr<n>.json` per PR on a PR-label run (`_pr1`, `_pr2`, …) — one per label, **all created now**, never lazily.
 
-- **`<scratchpad>/notes.md`**, in the scratchpad directory this session's system prompt names, per CLAUDE.md's Note-taking discipline — never an invented `/tmp` path. Holds what the JSON cannot: blocked-task notes (§5.5).
+- **`<scratchpad>/notes.md`**, per CLAUDE.md's Note-taking discipline. Holds what the JSON cannot: blocked-task notes (§5.5).
 
 Each state file has exactly this shape:
 
@@ -230,7 +230,7 @@ Each state file has exactly this shape:
 - Populate `depends_on` from the plan's `**Depends on**:` clause that §1.3's `check-tasks-dag.sh` validated, as bare id strings (`["3", "5"]`; `none` → `[]`).
   - `implement-loop-state.py` reads it to pick a DAG-eligible next task; unset, it silently degrades to lowest-id-first, so seed it here, not later.
 
-  - An id absent from this unit's `tasks[]` counts as satisfied: it belongs to an earlier PR that `references/pr-awareness.md`'s stop predicate already required to be `[Done]`.
+  - An id absent from this unit's `tasks[]` counts as satisfied: it belongs to an earlier PR that `references/pr-awareness.md`'s stop predicate requires `[Done]`.
 
 - `stack.order` is this unit's confirmed layer order (§1.2), which §3.4 advances through when `stack.wanted` is true, overriding the script's DAG-only ordering.
   - Keeps its seeded default until §1.2 answers `yes`.
@@ -318,17 +318,15 @@ The prompt pushes only the per-task data below.
 
 ### 4.1. Context contract
 
-**Push** — embed a `Context`/`Units`/`Verification`/`Optional` block verbatim in the prompt, using the exact field names `tdd-coder.md`'s Inputs section defines; the subagent pulls nothing from CWD to begin.
+**Push** — embed a `Context`/`Units`/`Verification`/`Optional` block verbatim, using the exact field names `tdd-coder.md`'s Inputs section defines; the subagent pulls nothing from CWD.
 
 - **Context**: the task's heading and brief description — what it does and why, in the plan's own words.
 - **Units**: the task's acceptance criteria and planned-test titles, one unit per forcing case, in the plan slice's own order.
-  - Cap one dispatch at **3 units**; a task carrying more splits into consecutive dispatches of ≤3 units each, in plan order, each with its own `<run-label>`.
+  - Cap one dispatch at **3 units**; a task with more splits into consecutive ≤3-unit dispatches, in plan order, each with its own `<run-label>`.
 
-  - `tdd-coder.md` forbids the subagent from self-splitting, so this cap doesn't exist unless applied here.
+  - `tdd-coder.md` forbids the subagent from self-splitting, so only this section enforces the cap.
 
-  - A dispatch that auto-compacts runs ~3.7× longer (18.4m vs 5.0m median) and buys nothing.
-
-  - The cap alone doesn't guarantee it: a single-unit dispatch still auto-compacted, so keep the whole prompt small, not just the unit count.
+  - The cap alone doesn't guarantee a small prompt: a single-unit dispatch still auto-compacted, so keep the whole prompt small too.
 
   - Chunks of one task run **sequentially**, never in parallel — same branch, same git index. Cross-task parallelism stays with `parallel-worktrees` (§5.4), which gives each task its own tree.
 
@@ -337,28 +335,28 @@ The prompt pushes only the per-task data below.
   - A test and the change it covers are **one unit, never two**: `tdd-coder` commits one per unit, so splitting them lands a commit whose test fails standing alone, which commit-standards forbids.
 
 - **Verification**: the task's **task-scoped verification commands only**, when the plan names any.
-  - Strip any repo-wide/full-suite command (e.g. a full `test:agentic` run, a repo-wide `yarn lint`) before pushing — a subagent verifies only its own change.
+  - Strip any repo-wide/full-suite command (e.g. `test:agentic`, a repo-wide `yarn lint`) before pushing — a subagent verifies only its own change.
 
-  - A stripped requirement isn't dropped silently: §8.3's gate re-covers it when on; when off, the batch-end package (§8.4) names what full-suite checks never ran.
+  - A stripped requirement isn't dropped silently: §8.3's gate re-covers it when on; when off, §8.4's package names what full-suite checks never ran.
 
-  - When the plan names no command for the task, **omit the field** rather than inventing one.
+  - When the plan names no command, **omit the field** rather than inventing one.
 
   - `tdd-coder.md` derives it from a file declaring the repo's entry point and reports the command plus its source — inventing one is the one gap it can't audit.
 
-  - Read the derived command back off the subagent's report and check it actually covers the task.
+  - Read the derived command off the subagent's report and check it covers the task.
 
-  - A wrong one is a plan gap, not a subagent fault — push the correct command on the re-dispatch, and write it into the plan's task slice.
+  - A wrong one is a plan gap, not a subagent fault — push the correct command on re-dispatch, and write it into the plan's task slice.
 
   - Never substitute a full-suite command for a missing task-scoped one.
 
-  - The subagent budgets the full suite at two runs per dispatch, so a stand-in burns that whole budget proving nothing about this task.
+  - The subagent budgets the full suite at two runs per dispatch, so a stand-in burns that budget proving nothing about this task.
 
 - **Optional**:
   - `files:` — the task's **Files (logical order)** list as the **starting set** — not a cage; touch more when needed, routing the delta per §4.3.
 
   - `references:` — `plan_<slug>.md`, plus `spec_<slug>.md` when one exists.
   - `base:` — `BATCH_BASE_SHA` and the base branch, so the subagent can scope its own `git log`.
-  - `worktree:` — left unset: a single-worktree run already sits inside that worktree via CWD (§1.4); a per-task worktree instead routes through `parallel-worktrees`'s own separate four-input contract (§5.4).
+  - `worktree:` — left unset: a single-worktree run already sits inside that worktree via CWD (§1.4); a per-task worktree routes through `parallel-worktrees`'s own four-input contract (§5.4).
 
   - `<run-label>` — this task's number, so its checklist and evidence files key uniquely among any siblings dispatched concurrently.
 
