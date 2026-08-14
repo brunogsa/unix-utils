@@ -1,10 +1,24 @@
 #!/usr/bin/env bash
-# check-ac-coverage - verify a plan's AC -> test coverage list is complete and honest.
+# check-ac-coverage - verify a plan's spec ACs are all covered by Test Design.
 #
 # Usage:
 #   check-ac-coverage.sh <plan-path> <spec-path>
 #
-# The AC -> test mapping is a SEMANTIC judgment ("does this test prove this AC?") that no
+# Two Test Design forms, detected per-plan from extract-design-tests.sh --annotations (any
+# it() line carrying an `// AC-<n>` or `T<n>` token puts the WHOLE plan in annotated form):
+#
+# ANNOTATED form (single source — the AC -> test mapping lives ONLY as inline `// AC-N T<n>`
+# comments on Test Design's it() lines; see plan-template.md). One check remains:
+#   COMPLETENESS - every `### AC-N:` defined in the spec's Acceptance Criteria section is cited
+#                  by >=1 it() annotation in Test Design (catches a silently-dropped AC).
+# The HONESTY check this script used to run (every cited breadcrumb exists verbatim among Test
+# Design's breadcrumbs) is DELETED for this form, not merely skipped: HONESTY existed to catch
+# a plan citing a test that was never designed, and annotated form has no second copy of the
+# mapping left to fake — the failure class it guarded against no longer exists.
+#
+# LIST form (old — still required so plan_gate-roi.md/plan_script-overhaul.md-shaped plans keep
+# passing unchanged; a transition path this comment already marks for removal once no plan uses
+# it): the AC -> test mapping is a SEMANTIC judgment ("does this test prove this AC?") that no
 # script can make — it stays human-authored in the plan as an AC-grouped nested list, each
 # cited test written as a breadcrumb (<describe> [> class] > it), same as Test Design:
 #
@@ -12,7 +26,7 @@
 #     - "SgeSyncPicAgreementUseCase > happy > verbatim test title from Test Design"
 #     - "SgeClient > another verbatim test title"   (2-segment for a flat helper block)
 #
-# This script mechanizes the two GAMING vectors around that judgment, leaving the judgment
+# This form mechanizes the two GAMING vectors around that judgment, leaving the judgment
 # itself to the human read:
 #   COMPLETENESS - every `### AC-N:` defined in the spec's Acceptance Criteria section appears
 #                  as an `- **AC-N**` header in the plan (catches a silently-dropped AC).
@@ -24,9 +38,9 @@
 # and a corner/failure test need not map to any spec AC.
 #
 # Exit codes:
-#   0  - complete AND honest.
-#   1  - a spec AC has no header, a plan header names a non-spec AC, or a cited test is not
-#        a real Test Design title (diffs printed to stderr).
+#   0  - complete (annotated form), or complete AND honest (list form).
+#   1  - a spec AC has no annotation/header, a list-form plan header names a non-spec AC, or a
+#        list-form cited test is not a real Test Design title (diffs printed to stderr).
 #   2  - usage error (wrong arg count, a file not found).
 
 set -eo pipefail
@@ -70,12 +84,50 @@ if [ -z "$ac_section" ]; then
   ac_section=$(cat "$spec")
 fi
 
-spec_acs=$(printf '%s\n' "$ac_section" | grep -oE '^### AC-[0-9]+:' | grep -oE 'AC-[0-9]+' | sort -u)
+# `|| true` keeps grep's no-match exit 1 from killing the script
+# under `set -e`, so the empty case reaches the error below.
+spec_acs=$(printf '%s\n' "$ac_section" | grep -oE '^### AC-[0-9]+:' | grep -oE 'AC-[0-9]+' | sort -u || true)
 
 if [ -z "$spec_acs" ]; then
   echo "error: no '### AC-N:' definitions found in spec $spec" >&2
   exit 1
 fi
+
+# Detect the plan's Test Design form via extract-design-tests.sh --annotations: any it() row
+# with a non-empty AC or T column puts the WHOLE plan in annotated form (see header comment).
+if ! annotation_rows=$("$design_extract" --annotations "$plan"); then
+  echo "error: could not extract Test Design breadcrumbs from $plan (see above)" >&2
+  exit 1
+fi
+
+is_annotated=$(printf '%s\n' "$annotation_rows" | awk -F'\t' '$3 != "" || $4 != "" { found = 1 } END { print (found ? "yes" : "no") }')
+
+fail=0
+
+if [ "$is_annotated" = "yes" ]; then
+  # ANNOTATED form: COMPLETENESS only, checked against the union of `// AC-N` tokens across
+  # every it() annotation — HONESTY is deleted here (see header comment), not skipped: there is
+  # no second citation list left for a `...`-truncated or invented reference to hide behind.
+  annotated_acs=$(printf '%s\n' "$annotation_rows" | cut -f3 | tr ' ' '\n' | grep -v '^$' | sort -u || true)
+
+  spec_only=$(comm -23 <(printf '%s\n' "$spec_acs") <(printf '%s\n' "$annotated_acs"))
+
+  if [ -n "$spec_only" ]; then
+    fail=1
+    echo "FAIL (completeness): spec ACs with NO annotation in Test Design:" >&2
+    printf '%s\n' "$spec_only" | sed 's/^/  - /' >&2
+  fi
+
+  if [ "$fail" -eq 0 ]; then
+    ac_count=$(printf '%s\n' "$spec_acs" | wc -l | tr -d ' ')
+    echo "OK: all $ac_count spec ACs are annotated in Test Design."
+    exit 0
+  fi
+
+  exit 1
+fi
+
+# LIST form (below): unchanged from before this dispatch — see header comment.
 
 # plan AC headers: `- **AC-N**` bullets. Also collect the tests cited under each.
 # A cited test is an indented `- "..."` sub-bullet belonging to the most recent AC header.
@@ -107,8 +159,6 @@ if ! design_tests=$("$design_extract" "$plan" | sort -u); then
   echo "error: could not extract Test Design breadcrumbs from $plan (see above)" >&2
   exit 1
 fi
-
-fail=0
 
 # COMPLETENESS: spec_acs == plan_acs.
 spec_only=$(comm -23 <(printf '%s\n' "$spec_acs") <(printf '%s\n' "$plan_acs"))
