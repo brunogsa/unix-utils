@@ -13,15 +13,12 @@ Principles for any git commit. Each rule is an instruction with its nested why; 
 
 ### One logical change per commit
 
-- [Instruction] Never bundle unrelated changes — one logical change per commit.
-  - [Why] A commit is the unit of revert and review; bundling forces you to revert good changes to undo a bad one and makes reviewers context-switch between concerns.
+- [Instruction] Never bundle unrelated changes — split into small, single-concern commits rather than one big one.
+  - [Why] A commit is the unit of revert and review; bundling or oversizing forces reverting good changes to undo a bad one and makes reviewers judge multiple concerns at once.
 
 - [Instruction] **CRITICAL: Ensure every commit builds and passes its tests on its own.**
   - [Why] A commit that doesn't build breaks `git bisect` and any rollback that lands on it, defeating the per-commit revert it's supposed to enable.
   - [Example] A migration's move + update-refs + delete must land in one commit — split apart, the intermediate commits don't build.
-
-- [Instruction] Split a large task into several small, focused commits rather than one big one.
-  - [Why] A big commit makes the reviewer judge it all at once; small focused commits each get reviewed and reverted on their own.
 
 - [Instruction] **Bundle the related tests, code, docs, and IaC for a change into that one commit.**
   - [Why] Splitting them strands a reviewer who can't see the test that proves the code, or the doc that explains it.
@@ -73,6 +70,14 @@ git commit -m "$(cat <<'EOF'
 
 - [Instruction] Don't stage with `git add -A` or `git add .`; specify paths explicitly.
   - [Why] A blanket add risks sweeping in secrets or unrelated files that then ship in the commit.
+
+- [Instruction] Never trail a pathspec on `git commit` — stage explicitly with `git add <path>`, then commit with no path argument.
+  - [Why] `git commit -- <path>` silently re-stages that path's entire working-tree diff and commits it, discarding any partial `git-hunk`/`git add -p` selection meant to protect someone else's in-progress edits.
+  - [Example]
+```bash
+git-hunk stage <id>; git commit -m "..." -- configs/foo.txt   # bad — recommits the whole file, discarding the hunk pick
+git-hunk stage <id>; git commit -m "..."                       # good — commits exactly what was staged
+```
 
 - [Instruction] **Never pass `--no-verify` or `--no-gpg-sign` unless the user explicitly asks for it.**
   - [Why] Hooks catch lint and security issues at commit time, so bypassing them just ships those issues.
