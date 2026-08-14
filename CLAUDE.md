@@ -42,9 +42,11 @@ Never compose an ad-hoc `for t in .../test-*.sh` loop instead — that is exactl
 
 Always edit source in `configs/`, never the symlink targets.
 
-**`settings.json` caveat**: Claude Code's `/config` command and the `update-config` skill write through temp+rename, which **replaces the symlink with a regular file** and detaches it from the repo.
+**Symlink-detaching writes**: `/config`, the `update-config` skill, `git config --global ...`, and a re-run of `gh auth setup-git` all write through temp/lock+rename.
 
-Always edit `configs/ai-docs/claude/settings.json` directly. If the symlink has been broken, re-run `install.sh` to restore it.
+This **replaces the symlink with a regular file** and detaches it from the repo — same hazard, four triggers.
+
+Always edit `configs/ai-docs/claude/settings.json` and `configs/git/.gitconfig` directly. If a symlink has been broken, re-run `install.sh` to restore it.
 
 **`/model`, `/effort`, and `/advisor` write to `settings.json` — never commit that**: these three keys get changed session by session on purpose, so their diff is expected noise, not drift.
 
@@ -62,23 +64,13 @@ A filesystem-absolute path needs a DOUBLE slash: `Edit(//tmp/**)`.
 For a symlinked dir (macOS `/tmp` → `/private/tmp`), add both the symlink path and its resolved target — `//tmp/**` and `//private/tmp/**`.
 The failure reads as a missing permission, not a typo, so it recurs on every rediscovery.
 
-**`~/.gitconfig` caveat**: `git config --global ...` writes through lock+rename, which **replaces the symlink with a regular file** and detaches it from the repo.
-This is the same hazard as `settings.json`, but easier to trip since `git config --global` (and a re-run of `gh auth setup-git`) is reflexive.
+**`ccburn collect` runs detached beside the statusline pipe, not inline**: inline, its 3.4–8.5s startup stall blew past Claude Code's 300ms statusline debounce.
 
-Always edit `configs/git/.gitconfig` directly. If the symlink has been broken, re-run `install.sh` to restore it.
+The debounce **cancels the in-flight script**, leaving the stale line on screen — detached, the render returns in ~0.9s and `collect` still finishes.
 
-**`ccburn collect` runs beside the statusline pipe, not inside it**: `statusLine.command` buffers the payload once, hands a copy to
-`ccburn collect` in a detached subshell (`( ... & )`, output discarded), and pipes the same copy through `ccstatusline | statusline-tier.sh filter`.
+`collect` feeds ccburn's burn-rate TUI but has recorded nothing since 2026-08-10 because the statusline payload stopped carrying `rate_limits`.
 
-`collect` is a byte-identical passthrough, so it never contributed to the rendered line — but it costs 3.4–8.5s per exec (ccburn's fixed
-startup stall, near-zero CPU, not work it performs). Inline that blew past Claude Code's 300ms statusline debounce, which **cancels the
-in-flight script**, so during active work every render was killed and the stale previous line stayed on screen. Detached, the render returns
-in ~0.9s and `collect` still finishes.
-
-**Why keep it at all**: `collect` records rate-limit snapshots into `~/.ccburn/history.db` for ccburn's own burn-rate TUI. It has recorded
-nothing since 2026-08-10T23:51Z because Claude Code's statusline payload stopped carrying a `rate_limits` key — check
-`~/.ccburn/collect_last.json` for `"has_rate_limits": false`. It is dormant, not dead: if Claude Code restores the field, `collect` resumes
-with no change here. Revisit dropping it only if that flag is still `false` after a ccburn or Claude Code release that claims to fix it.
+Revisit dropping it only if `~/.ccburn/collect_last.json` still shows `"has_rate_limits": false` after a release claims a fix.
 
 ## Conventions
 
