@@ -329,7 +329,7 @@ class StopHookStateFileGuardTestCase(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         self.assertEqual(
             result.stdout, "",
-            msg="§8.3 trashes the state file but not the scratchpad, so a completed "
+            msg="§8.4 trashes the state file but not the scratchpad, so a completed "
                 "run whose only Stop is the batch-end one must not be blocked")
 
     def test_should_disarm_the_marker_once_a_fresh_scratchpad_has_witnessed_2_3(self):

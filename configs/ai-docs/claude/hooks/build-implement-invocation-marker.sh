@@ -37,7 +37,7 @@
 #   - Removed by claude-implement-stop-hook.sh, in gate mode only, the moment it
 #     witnesses §2.3 (a state file exists, or the scratchpad is newer than this
 #     marker). Removing it there and nowhere else is what stops a marker from
-#     outliving its run: §8.3 trashes the state file at batch end, so a marker
+#     outliving its run: §8.4 trashes the state file at batch end, so a marker
 #     still armed afterwards would false-block every later Stop in the session.
 #   - NEVER consumed by a block. A batch whose orchestrator ends no turn
 #     mid-flight stops exactly once — at batch end — so a marker that a first

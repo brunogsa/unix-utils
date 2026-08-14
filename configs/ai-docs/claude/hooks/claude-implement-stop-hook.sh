@@ -71,7 +71,7 @@
 #   Two artifacts count as a §2.3 witness, because §2.3 writes two:
 #   - Any /tmp/implement_<session_id>*.json state file.
 #   - /tmp/implement_<session_id>.md, the scratchpad — NEWER than the marker.
-#     §8.3 trashes the state file but nothing disposes of the scratchpad, so it
+#     §8.4 trashes the state file but nothing disposes of the scratchpad, so it
 #     is the only witness left at the batch-end Stop of a run that ended no turn
 #     mid-flight. The newer-than test is what stops a leftover scratchpad from
 #     an earlier /implement in the same session from disarming a later one.
@@ -175,7 +175,7 @@ if [ "${#state_files[@]}" -eq 0 ]; then
     leave_not_mid_flight
   fi
 
-  # §8.3 trashes the state file but leaves the scratchpad, so a completed run
+  # §8.4 trashes the state file but leaves the scratchpad, so a completed run
   # whose only Stop is the batch-end one still has a witness. It must be NEWER
   # than the marker: a leftover scratchpad from an earlier /implement in the
   # same session would otherwise disarm this run permanently.

@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # test-batch-end-section-refs.sh - plain-bash test file
-# guarding that every §8.<n> cross-reference under
-# skills/implement/ names the batch-end stage it means.
+# guarding that every §8.<n> cross-reference names the
+# batch-end stage it means.
+#
+# Its scope is the whole skill directory - prose, diagram
+# and scripts - plus the hooks that drive the skill from
+# outside it and carry §8 pointers of their own.
 #
 # §8 was renumbered when push + branch record + draft PR
 # was hoisted ahead of both gates. SKILL.md and
@@ -48,6 +52,12 @@ set -uo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKILL_FILE="$script_dir/../SKILL.md"
 REFERENCES_DIR="$script_dir/../references"
+ASSETS_DIR="$script_dir/../assets"
+
+# A hook states its §8 pointer to a reader who has no skill
+# file open, so a stale one there sends that reader to a
+# stage doing nothing it was named for.
+HOOKS_DIR="$script_dir/../../../hooks"
 
 # The four stage keys this suite reasons in. Every
 # expected number is looked up through one of these, so
@@ -90,12 +100,16 @@ stage_bullet_pattern() {
 # Deliberately narrow: a word only qualifies when it can
 # belong to exactly one stage, so an ambiguous noun like
 # a bare "gate" is left out rather than guessed at.
+#
+# "trashes" qualifies for the final stage because disposing
+# of the state file is the last thing a batch does, and no
+# earlier stage may do it.
 stage_keyword_pattern() {
   case "$1" in
     push)    printf '%s' 'push|PR dispatch|draft PR|branch record|PR-creation' ;;
     quality) printf '%s' 'quality-gate|quality gate' ;;
     green)   printf '%s' 'repo-green' ;;
-    final)   printf '%s' 're-push|refreshe?s|review package|Finalize' ;;
+    final)   printf '%s' 're-push|refreshe?s|review package|Finalize|trashes' ;;
   esac
 }
 
@@ -200,6 +214,25 @@ check_keyword_refs_in_tree() {
   return $status
 }
 
+# check_keyword_refs_in_hook_tree <dir> - the same sweep
+# over the hook scripts and their own suites.
+#
+# Source extensions are globbed by name so __pycache__
+# bytecode - a stale copy of a .py the sweep already read -
+# can never be scanned as a live reference.
+check_keyword_refs_in_hook_tree() {
+  local dir="$1" file status=0
+  if [ ! -d "$dir" ]; then
+    printf 'missing directory: %s\n' "$dir"
+    return 1
+  fi
+  for file in "$dir"/*.sh "$dir"/*.py "$dir"/tests/*.sh "$dir"/tests/*.py; do
+    [ -f "$file" ] || continue
+    check_keyword_refs "$file" || status=1
+  done
+  return $status
+}
+
 # check_pointer_refs <references-dir> - returns 0 only
 # when every tabled prose pointer names its stage's
 # derived number.
@@ -272,6 +305,16 @@ it_should_assert_every_reference_file_names_the_right_stage() {
     "passed" "$(run_check check_keyword_refs_in_tree "$REFERENCES_DIR")"
 }
 
+it_should_assert_every_diagram_reference_names_the_right_stage() {
+  assert_eq "should assert every flow diagram section reference names the stage it describes" \
+    "passed" "$(run_check check_keyword_refs_in_tree "$ASSETS_DIR")"
+}
+
+it_should_assert_every_hook_reference_names_the_right_stage() {
+  assert_eq "should assert every hook's section references name the stage they describe" \
+    "passed" "$(run_check check_keyword_refs_in_hook_tree "$HOOKS_DIR")"
+}
+
 it_should_assert_every_prose_pointer_names_the_right_stage() {
   assert_eq "should assert every cross-file prose pointer names the stage it sends the reader to" \
     "passed" "$(run_check check_pointer_refs "$REFERENCES_DIR")"
@@ -305,6 +348,35 @@ it_should_fail_when_a_reference_names_the_wrong_stage_beside_the_token() {
   assert_eq "should fail when a reference names the push stage beside another stage's number" \
     "failed" "$(run_check check_keyword_refs "$tmp_file")"
   rm -f "$tmp_file"
+}
+
+it_should_fail_when_a_hook_names_the_wrong_stage_for_the_state_file_disposal() {
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+
+  # Disposal moved to the final stage with the reorder, and
+  # a hook left pointing at the old one sends its reader to
+  # the repo-green gate to look for it.
+  printf '%s\n' '# §8.9 trashes the state file at batch end.' \
+    > "$tmp_dir/stale-hook.sh"
+  assert_eq "should fail when a hook points the state-file disposal at another stage" \
+    "failed" "$(run_check check_keyword_refs_in_hook_tree "$tmp_dir")"
+  rm -rf "$tmp_dir"
+}
+
+it_should_not_read_stale_bytecode_as_a_hook_reference() {
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+
+  # Bytecode is a compiled copy of a source file the sweep
+  # already reads, so flagging it would demand fixing a
+  # reference that has no editable line to fix.
+  mkdir -p "$tmp_dir/tests/__pycache__"
+  printf '%s\n' 'msg="§8.9 trashes the state file"' \
+    > "$tmp_dir/tests/__pycache__/stale-hook.test.cpython-314.pyc"
+  assert_eq "should not flag a stale section reference left in compiled bytecode" \
+    "passed" "$(run_check check_keyword_refs_in_hook_tree "$tmp_dir")"
+  rm -rf "$tmp_dir"
 }
 
 it_should_fail_when_a_prose_pointer_names_the_wrong_stage() {
@@ -353,10 +425,14 @@ it_should_fail_when_a_stage_number_cannot_be_derived() {
 it_should_assert_skill_md_still_declares_all_four_batch_end_stages
 it_should_assert_skill_md_names_the_right_stage_for_every_reference
 it_should_assert_every_reference_file_names_the_right_stage
+it_should_assert_every_diagram_reference_names_the_right_stage
+it_should_assert_every_hook_reference_names_the_right_stage
 it_should_assert_every_prose_pointer_names_the_right_stage
 it_should_not_flag_a_bare_section_eight_reference
+it_should_not_read_stale_bytecode_as_a_hook_reference
 it_should_fail_when_a_scanned_file_is_missing
 it_should_fail_when_a_reference_names_the_wrong_stage_beside_the_token
+it_should_fail_when_a_hook_names_the_wrong_stage_for_the_state_file_disposal
 it_should_fail_when_a_prose_pointer_names_the_wrong_stage
 it_should_fail_when_a_tabled_prose_pointer_disappears
 it_should_fail_when_a_stage_number_cannot_be_derived
