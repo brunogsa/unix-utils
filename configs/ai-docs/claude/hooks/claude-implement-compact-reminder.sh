@@ -174,7 +174,7 @@ unit_desc="the plain run"
 # Its "create only" wording matters — the pr-creator agent runs
 # the create-pr skill, which pushes by default otherwise.
 pr_step=""
-[ "$pr_wanted" = "true" ] && pr_step=" → open the draft PR via the pr-creator agent (create only; step 3 already pushed)"
+[ "$pr_wanted" = "true" ] && pr_step=" → open the draft PR via the pr-creator agent (create only; the push above already ran)"
 
 # Fall back to a literal placeholder if the sha somehow wasn't
 # recorded.
@@ -211,10 +211,10 @@ read -r -d '' DIRECTIVE <<EOF || true
 A /implement batch for '$slug' has $unit_desc mid-flight (state phase: '$phase'). This compaction may have dropped the §8 batch-end steps from working memory — do NOT let the batch end at the last task's commit.
 
 Resume the §8 batch-end procedure (implement skill §8, detail in references/batch-end-review.md — re-read it, do not work from this summary). Remaining steps, in order:
-§8.1 quality-gate tail (only when quality_gate.wanted; pass --auto-solve when quality_gate.auto_solve is true, --report-only when it is false, never neither) → §8.2 repo-green gate: full suite + full lint, fix-loop until green (only when repo_green_gate.wanted) → §8.3 push the branch with 'git push -u origin HEAD' (ALWAYS, no toggle) → record it as the Branch: clause on the plan's PR line$pr_step → print the batch-end package, closing with the review notification (review starts at $sha_display).
+§8.1 push the branch with 'git push -u origin HEAD' (ALWAYS, no toggle) → record it as the Branch: clause on the plan's PR line$pr_step → §8.2 quality-gate tail, always --report-only (only when quality_gate.wanted) → §8.3 repo-green gate: full suite + full lint, fix-loop until green (only when repo_green_gate.wanted) → §8.4 re-push and refresh the PR description when §8.2/§8.3 landed commits, then print the batch-end package, closing with the review notification (review starts at $sha_display).
 $remaining_line
 
-Verify the batch-end [Reminder] tasks are still in your TaskList; if this compaction dropped them, re-seed the four from §2.2. The run is done only when phase reaches 'presented'; a 'halted' unit is waiting on the human and won't resume on its own.
+Verify the batch-end [Reminder] tasks are still in your TaskList; if this compaction dropped them, re-seed exactly the ones §2.2 seeds for this run's toggles — a step the interview turned off gets no entry at all. The run is done only when phase reaches 'presented'; a 'halted' unit is waiting on the human and won't resume on its own.
 EOF
 
 fi

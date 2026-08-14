@@ -24,6 +24,14 @@
 # Running them inline is what let those two sessions stall
 # with no verdict and no separable cost.
 #
+# The scan reaches the hooks tree as well as the skill's
+# own, because the compaction hook restates the order in a
+# payload it injects the moment §8 leaves working memory.
+#
+# A stale order surviving there outranks the prose: it
+# arrives as an instruction, at the one moment nothing else
+# is left to contradict it.
+#
 # Assertions anchor on prose markers and compare their line
 # offsets, never on hardcoded line numbers, so ordinary
 # edits above a marker do not fail the suite.
@@ -39,8 +47,13 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKILL_FILE="$script_dir/../SKILL.md"
 REVIEW_FILE="$script_dir/../references/batch-end-review.md"
 BASELINE_FILE="$script_dir/../references/full-suite-baseline.md"
-FLOWCHART_FILE="$script_dir/../assets/flowchart.md"
 IMPLEMENT_DIR="$script_dir/.."
+
+# The hooks tree drives this skill from outside its own
+# directory, so a stage order living only there is an order
+# no scan of skills/implement/ can reach.
+HOOKS_DIR="$script_dir/../../../hooks"
+COMPACT_REMINDER_FILE="$HOOKS_DIR/claude-implement-compact-reminder.sh"
 
 # SKILL.md's four stage-summary bullets. Loose enough to
 # match the old order too, so a run against the pre-reorder
@@ -108,6 +121,25 @@ BASELINE_WANTED_STRING='baseline.wanted'
 AUTO_SOLVE_MARKER='auto-solve'
 AUTO_SOLVE_UNDERSCORE_MARKER='auto_solve'
 
+# The compaction hook re-injects the §8 sequence at the one
+# moment an orchestrator has just lost it, so a stale order
+# there reinstates the stranding this whole suite pins.
+#
+# It writes that sequence as a single physical line, which
+# is why these three are compared by byte offset rather
+# than by line offset.
+HOOK_PUSH_MARKER='§8\.[0-9]+ push the branch'
+HOOK_QUALITY_MARKER='§8\.[0-9]+ quality-gate tail'
+HOOK_GREEN_MARKER='§8\.[0-9]+ repo-green gate'
+
+# §2.2 seeds one batch-end reminder per step the interview
+# left on - two, three or four - and seeds nothing for a
+# step toggled off.
+#
+# A payload naming a fixed count therefore orders reminders
+# §2.2 forbids seeding, so the count belongs to §2.2 alone.
+HOOK_FIXED_REMINDER_COUNT_PATTERN='re-seed the (one|two|three|four|[0-9]+)'
+
 pass_count=0
 fail_count=0
 
@@ -157,6 +189,38 @@ check_precedes() {
   if [ "$earlier_line" -ge "$later_line" ]; then
     printf 'out of order in %s: %s at line %s, %s at line %s\n' \
       "$file" "$earlier" "$earlier_line" "$later" "$later_line"
+    return 1
+  fi
+  return 0
+}
+
+# check_precedes_in_text <file> <earlier-regex> <later-regex>
+# - the ordering contract of check_precedes, compared by byte
+# offset instead of by line offset.
+#
+# A directive written as one long line carries both markers
+# at the same line offset, where a line comparison can see
+# no order at all.
+check_precedes_in_text() {
+  local file="$1" earlier="$2" later="$3"
+  local earlier_offset later_offset
+  if [ ! -f "$file" ]; then
+    printf 'missing: %s\n' "$file"
+    return 1
+  fi
+  earlier_offset=$(grep -obE "$earlier" "$file" | head -1 | cut -d: -f1)
+  later_offset=$(grep -obE "$later" "$file" | head -1 | cut -d: -f1)
+  if [ -z "$earlier_offset" ]; then
+    printf 'no text matching %s in %s\n' "$earlier" "$file"
+    return 1
+  fi
+  if [ -z "$later_offset" ]; then
+    printf 'no text matching %s in %s\n' "$later" "$file"
+    return 1
+  fi
+  if [ "$earlier_offset" -ge "$later_offset" ]; then
+    printf 'out of order in %s: %s at byte %s, %s at byte %s\n' \
+      "$file" "$earlier" "$earlier_offset" "$later" "$later_offset"
     return 1
   fi
   return 0
@@ -244,6 +308,25 @@ check_absent() {
   fi
   if grep -qFi "$needle" "$file"; then
     printf 'found forbidden string %s in %s\n' "$needle" "$file"
+    return 1
+  fi
+  return 0
+}
+
+# check_pattern_absent <file> <regex> - returns 0 only when
+# the pattern matches nowhere in the file.
+#
+# Its sibling check_absent takes a fixed string, which can
+# only name the one wrong value somebody already wrote, not
+# the family that value belongs to.
+check_pattern_absent() {
+  local file="$1" pattern="$2"
+  if [ ! -f "$file" ]; then
+    printf 'missing: %s\n' "$file"
+    return 1
+  fi
+  if grep -qEi "$pattern" "$file"; then
+    printf 'found forbidden pattern %s in %s\n' "$pattern" "$file"
     return 1
   fi
   return 0
@@ -504,11 +587,30 @@ it_should_assert_no_baseline_wanted_reference_anywhere_under_implement() {
     "passed" "$(run_check check_absent_in_tree "$IMPLEMENT_DIR" "$BASELINE_WANTED_STRING")"
 }
 
-it_should_assert_flowchart_carries_no_auto_solve_reference() {
-  assert_eq "should assert flowchart.md carries no auto-solve reference" \
-    "passed" "$(run_check check_absent "$FLOWCHART_FILE" "$AUTO_SOLVE_MARKER")"
-  assert_eq "should assert flowchart.md carries no auto_solve reference" \
-    "passed" "$(run_check check_absent "$FLOWCHART_FILE" "$AUTO_SOLVE_UNDERSCORE_MARKER")"
+it_should_assert_no_auto_solve_reference_under_implement_or_its_hooks() {
+  assert_eq "should assert no file under skills/implement/ references auto-solve" \
+    "passed" "$(run_check check_absent_in_tree "$IMPLEMENT_DIR" "$AUTO_SOLVE_MARKER")"
+  assert_eq "should assert no file under skills/implement/ references auto_solve" \
+    "passed" "$(run_check check_absent_in_tree "$IMPLEMENT_DIR" "$AUTO_SOLVE_UNDERSCORE_MARKER")"
+  assert_eq "should assert no hook driving the skill references auto-solve" \
+    "passed" "$(run_check check_absent_in_tree "$HOOKS_DIR" "$AUTO_SOLVE_MARKER")"
+  assert_eq "should assert no hook driving the skill references auto_solve" \
+    "passed" "$(run_check check_absent_in_tree "$HOOKS_DIR" "$AUTO_SOLVE_UNDERSCORE_MARKER")"
+}
+
+it_should_assert_the_compaction_hook_orders_the_push_ahead_of_both_gates() {
+  assert_eq "should assert the compaction hook's directive orders the push before the quality-gate tail" \
+    "passed" "$(run_check check_precedes_in_text "$COMPACT_REMINDER_FILE" \
+      "$HOOK_PUSH_MARKER" "$HOOK_QUALITY_MARKER")"
+  assert_eq "should assert the compaction hook's directive orders the push before the repo-green gate" \
+    "passed" "$(run_check check_precedes_in_text "$COMPACT_REMINDER_FILE" \
+      "$HOOK_PUSH_MARKER" "$HOOK_GREEN_MARKER")"
+}
+
+it_should_assert_the_compaction_hook_names_no_fixed_reminder_count() {
+  assert_eq "should assert the compaction hook's directive names no fixed batch-end reminder count" \
+    "passed" "$(run_check check_pattern_absent "$COMPACT_REMINDER_FILE" \
+      "$HOOK_FIXED_REMINDER_COUNT_PATTERN")"
 }
 
 it_should_fail_when_a_file_under_implement_still_mentions_baseline_wanted() {
@@ -524,13 +626,45 @@ it_should_fail_when_a_file_under_implement_still_mentions_baseline_wanted() {
   rm -rf "$tmp_dir"
 }
 
-it_should_fail_when_flowchart_still_mentions_auto_solve() {
+it_should_fail_when_a_file_under_a_scanned_tree_still_mentions_auto_solve() {
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+
+  # The removed third interview toggle, seeded once, is the
+  # regression the widened scan exists to catch wherever it
+  # survives - a doc, a diagram or a hook payload.
+  printf -- '- Auto-solve its findings? (default yes)\n' > "$tmp_dir/leftover-toggle.md"
+  assert_eq "should fail when a file under a scanned tree still mentions auto-solve" \
+    "failed" "$(run_check check_absent_in_tree "$tmp_dir" "$AUTO_SOLVE_MARKER")"
+  rm -rf "$tmp_dir"
+}
+
+it_should_fail_when_the_compaction_hook_orders_a_gate_ahead_of_the_push() {
   local tmp_file
   tmp_file="$(mktemp)"
 
-  { cat "$FLOWCHART_FILE"; printf '\n- Auto-solve its findings? (default yes)\n'; } > "$tmp_file"
-  assert_eq "should fail when flowchart.md still mentions auto-solve" \
-    "failed" "$(run_check check_absent "$tmp_file" "$AUTO_SOLVE_MARKER")"
+  # The pre-reorder payload, gates first, on one line: what
+  # a compaction would replay into an orchestrator that had
+  # just lost §8 from working memory.
+  printf '%s\n' \
+    '§8.1 quality-gate tail → §8.2 repo-green gate → §8.3 push the branch' > "$tmp_file"
+  assert_eq "should fail when the compaction hook's directive orders a gate before the push" \
+    "failed" "$(run_check check_precedes_in_text "$tmp_file" \
+      "$HOOK_PUSH_MARKER" "$HOOK_QUALITY_MARKER")"
+  rm -f "$tmp_file"
+}
+
+it_should_fail_when_the_compaction_hook_names_a_fixed_reminder_count() {
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  # A run with both gates off owes two reminders, so a
+  # payload asserting four orders the orchestrator to seed
+  # reminders for steps the interview turned off.
+  printf '%s\n' 'If this compaction dropped them, re-seed the four from §2.2.' > "$tmp_file"
+  assert_eq "should fail when the compaction hook's directive names a fixed reminder count" \
+    "failed" "$(run_check check_pattern_absent "$tmp_file" \
+      "$HOOK_FIXED_REMINDER_COUNT_PATTERN")"
   rm -f "$tmp_file"
 }
 
@@ -551,9 +685,13 @@ it_should_assert_section_1_2_declares_exactly_one_merged_toggle
 it_should_fail_when_skill_md_still_mentions_baseline_wanted
 it_should_fail_when_section_1_2_still_declares_two_separate_questions
 it_should_assert_no_baseline_wanted_reference_anywhere_under_implement
-it_should_assert_flowchart_carries_no_auto_solve_reference
+it_should_assert_no_auto_solve_reference_under_implement_or_its_hooks
+it_should_assert_the_compaction_hook_orders_the_push_ahead_of_both_gates
+it_should_assert_the_compaction_hook_names_no_fixed_reminder_count
 it_should_fail_when_a_file_under_implement_still_mentions_baseline_wanted
-it_should_fail_when_flowchart_still_mentions_auto_solve
+it_should_fail_when_a_file_under_a_scanned_tree_still_mentions_auto_solve
+it_should_fail_when_the_compaction_hook_orders_a_gate_ahead_of_the_push
+it_should_fail_when_the_compaction_hook_names_a_fixed_reminder_count
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
