@@ -2,7 +2,7 @@
 
 Read once a plan exists, before a human reviews it.
 
-A run may write the plan alone (SKILL.md) — never report the absent spec as a finding, and never ask for one back.
+A run may write the plan alone (SKILL.md) — never report the absent spec as a finding or ask for one back.
 
 ## The two buckets
 
@@ -13,14 +13,14 @@ A run may write the plan alone (SKILL.md) — never report the absent spec as a 
 - Dispatch the mermaid fixer at its agent file's pinned model — never name one here.
   - Why: `subagent-model-guard.py` hard-denies a model override, so naming one is an instruction no caller can follow.
 
-**Judged** — a `deep-reviewer` decides; each round costs one dispatch over both whole documents.
+**Judged** — a `deep-reviewer` decides; each round costs one dispatch over the whole documents.
 
 - Members: the qualitative pass, the semantic half of "every AC has a test", "how would this break?", and the two toggled checks.
 - Dispatch each at `effort=high`, overriding its agent file's `max` pin — both documents are lean, so `max` buys latency, not accuracy.
 
 Run the deterministic bucket first, to exhaustion under SKILL.md's recovery loop, then the judged one.
 
-Why: a deterministic gate catches structural breakage a judged pass would otherwise spend a dispatch rediscovering.
+Why: a deterministic gate catches structural breakage that would otherwise cost a judged dispatch.
 
 ## Qualitative pass
 
@@ -33,7 +33,7 @@ The dispatch still runs, carrying this file's always-on checks.
 - **Contradictions**: do sections within one doc disagree, or does the plan contradict the spec?
 - **Scope**: is this still single-spec-sized, or did the interview reveal hidden decomposition?
   - If decomposable, hand it back to the caller, who owns how sub-projects get recorded and what re-runs.
-  - A caller that already probed decomposition before the spec was written skips this item.
+  - A caller that probed decomposition before the spec was written skips this item.
 
 - **PR size**: does the work fit one reviewable PR, or stage into several per `plan-template.md`'s splitting rules?
   - An oversized PR — that file's felt-size anchor — blocks approval unless the user waives it.
@@ -49,7 +49,7 @@ Both measure rather than judge — never inline.
 
 - **Artifacts Valid**: is every mermaid diagram valid per `mmdc`? A failure routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)` on the resolved doc path.
 
-- **Density**: run `doc-standards`' `scripts/check-density.sh` and `scripts/check-bullet-gap.py` on the resolved spec and plan paths.
+- **Density**: run `doc-standards`' `scripts/check-density.sh` and `scripts/check-bullet-gap.py` on the resolved doc paths.
   - Runs after mermaid validation: repairing a diagram adds lines density must then measure.
 
   - On any violation, file ONE `[Scout]` TaskList entry naming the file and what is off standard.
@@ -57,24 +57,24 @@ Both measure rather than judge — never inline.
 
 **No toggle switches either off, but only the mermaid failure repairs itself.**
 
-Why: an unrenderable diagram is broken outright, so its fix needs no judgment. Reflowing prose is a judgment call that has already split bullets mid-sentence and damaged a plan.
+Why: an unrenderable diagram is broken outright, so its fix needs no judgment. Reflowing prose is a judgment call that has split bullets mid-sentence and damaged a plan.
 
 ## Every AC has a test
 
 Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped coverage list (format and mechanics: `plan-template.md`).
 
-- No spec — skip both halves, saying so: there is no AC-grouped list.
+- No spec — skip the mechanical half; the semantic half reads each task's AC and planned-test fields.
 
 - Mechanical half — `scripts/check-ac-coverage.sh <plan> <spec>` checks coverage completeness and citation honesty (no truncated or invented breadcrumb); exit 1 blocks.
 
-- Semantic half — runs only after the mechanical half passes, never in parallel.
-  - Dispatch `agent(subAgent=deep-reviewer, title=Judge AC-to-test coverage)` to judge whether each cited test actually *proves* its AC — the match no script can make.
+- Semantic half — runs after any mechanical half passes, never in parallel.
+  - Dispatch `agent(subAgent=deep-reviewer, title=Judge AC-to-test coverage)` to judge whether each cited test *proves* its AC — the match no script can make.
 
 - Output: orphan ACs + bogus citations (empty = pass); block plan approval if non-empty.
 
 ## Every template section is written
 
-`scripts/check-sections.sh <doc> <template>` asserts every `## ` heading the template defines is present in the doc; exit 1 blocks, listing each absent heading.
+`scripts/check-sections.sh <doc> <template>` asserts every `## ` heading the template defines is present; exit 1 blocks, listing each absent one.
 Never judge a missing section by eye — the templates are one fixed set (SKILL.md).
 
 Run it on the plan against `assets/plan-template.md`, and on any spec against `assets/spec-template.md`.
@@ -91,17 +91,17 @@ Both checks share `scripts/extract-design-tests.sh`; breadcrumbs come from `scri
 
 ## How would this break?
 
-Dispatch `agent(subAgent=deep-reviewer, title=Judge failure-mode coverage)` on both docs — never sweep inline; a listed failure mode's realness is a blind spot its own author can't see.
+Dispatch `agent(subAgent=deep-reviewer, title=Judge failure-mode coverage)` on the docs — never sweep inline; a listed failure mode's realness is a blind spot its author can't see.
 
-`scripts/check-coverage-checklists.sh <spec>` settles whether the boundary and failure-category checklists are instantiated; exit 1 blocks. Never judge those rows by eye.
+With a spec, `scripts/check-coverage-checklists.sh <spec>` settles whether the boundary and failure-category checklists are instantiated; exit 1 blocks. Never judge those rows by eye.
 
-Then, for every AC, ask "how would this break in production?" — flag any AC with no surfaced failure mode as under-specified. Fail-closed; runs whatever all three toggles say.
+Then ask, for every AC, "how would this break in production?" — flag any with no surfaced failure mode as under-specified. Fail-closed; no toggle removes it.
 
-With no spec, each task's `**Testable Acceptance criteria**` field is the AC set this reads.
+With no spec, skip that script; each task's `**Testable Acceptance criteria**` field is the AC set.
 
 ## PR and Task dependency DAGs
 
-- `scripts/check-pr-dag.sh <plan>` validates the PR Breakdown's `Depends on:` graph (trivially passes when it reads `Single PR.`); exit 1 blocks.
+- `scripts/check-pr-dag.sh <plan>` validates the PR Breakdown's `Depends on:` graph (passes trivially on `Single PR.`); exit 1 blocks.
 - `scripts/check-tasks-dag.sh <plan>` runs the same checks on the Task Breakdown's graph; exit 1 blocks.
 
 ## Every line traces to an AC (toggle)
