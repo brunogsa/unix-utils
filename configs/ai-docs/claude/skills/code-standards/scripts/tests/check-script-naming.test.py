@@ -414,7 +414,7 @@ class TestCheckScriptNamingRealCorpusRegression:
         not UNIX_UTILS_ROOT.is_dir(),
         reason=f"no unix-utils checkout at {UNIX_UTILS_ROOT}",
     )
-    def test_should_keep_reporting_the_same_43_unix_utils_scripts_known_to_fail_naming(self):
+    def test_should_keep_reporting_the_same_44_unix_utils_scripts_known_to_fail_naming(self):
         # Batch 13 (`hooks/`+`scripts/`, 22 rows) + Batch 14
         # (`skills/*/scripts/`, 19 rows) in rename-list.md were
         # measured with the pre-fix checker — the regression
@@ -428,6 +428,12 @@ class TestCheckScriptNamingRealCorpusRegression:
         # the same unknown-verb rule: prep-local-context.sh
         # and prep-refactor-context.sh. They are corpus
         # growth, not a checker regression.
+        #
+        # claude-scan-hang-guard.sh is the same kind of
+        # growth: every hook here carries the `claude-`
+        # prefix the rename batches will retire together,
+        # so a new hook joins the batch instead of
+        # breaking the directory's one naming convention.
         expected_relative_fail_paths = {
             "configs/ai-docs/claude/hooks/claude-agent-contract-stop-hook.sh",
             "configs/ai-docs/claude/hooks/claude-comment-format-stop-hook.sh",
@@ -439,6 +445,7 @@ class TestCheckScriptNamingRealCorpusRegression:
             "configs/ai-docs/claude/hooks/claude-markdown-standards-stop-hook.sh",
             "configs/ai-docs/claude/hooks/claude-rename-guard-stop-hook.sh",
             "configs/ai-docs/claude/hooks/claude-rm-guard.sh",
+            "configs/ai-docs/claude/hooks/claude-scan-hang-guard.sh",
             "configs/ai-docs/claude/hooks/claude-sdd-stop-hook.sh",
             "configs/ai-docs/claude/hooks/claude-stop-orchestrator.sh",
             "configs/ai-docs/claude/hooks/claude-stopfailure-resume.sh",
