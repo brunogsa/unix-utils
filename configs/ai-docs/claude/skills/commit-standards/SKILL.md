@@ -2,7 +2,7 @@
 name: commit-standards
 description: "USE PROACTIVELY at two moments: planning commit boundaries when a task or sub-step ends, AND drafting a message or running git commit. Conventional format + one-logical-change decomposition, refactor isolation, tests/docs bundled."
 user-invocable: false
-instructions-budget: 12
+instructions-budget: 13
 ---
 
 # Commit Standards
@@ -71,20 +71,29 @@ git commit -m "$(cat <<'EOF'
 - [Instruction] Don't stage with `git add -A` or `git add .`; specify paths explicitly.
   - [Why] A blanket add risks sweeping in secrets or unrelated files that then ship in the commit.
 
-- [Instruction] Never whole-file-stage a path — `git commit -- <path>`, `git commit -a`, or `git add <path>` alike — while another writer may hold uncommitted edits there.
-  - [Why] `git add <path>` re-stages that path's entire working-tree diff exactly like the trailing pathspec does, so either one silently commits a concurrent session's in-progress edits alongside yours.
+- [Instruction] The index is a repo-global singleton with no owner — before any operation reads then acts on it, the committer must own its current state or abort.
+  - [Why] A repo-global index has no owner, so reading it now and acting later is racy — abort closes that gap.
+
+- [Instruction] The stager must not leave what it owns unowned — stage and commit in one uninterrupted chain, `git-hunk stage <id>` included, never as two separate tool calls.
+  - [Why] A staged-but-uncommitted file is unowned — any session's next commit can claim it — one invocation closes the gap.
 
   - [Example]
 ```bash
-# Before staging, confirm every hunk in the diff is yours to commit:
-git diff configs/foo.txt
+# Assert ownership of everything already staged — empty index, or exactly
+# your own paths — then act in the same invocation. The same shape covers
+# any other index-touching operation: amend, stash/pop, reset, a
+# pre-commit hook that re-stages.
+staged=$(git diff --cached --name-only) \
+  && { [ -z "$staged" ] || [ "$staged" = "configs/foo.txt" ]; } \
+  && git add configs/foo.txt && git commit -m "..."
 
-# A file you just created has no other writer — git add <path> is safe there.
-# Otherwise stage only your own hunks:
-git-hunk stage <id>; git commit -m "..."                       # good — commits exactly what was staged
-
-git-hunk stage <id>; git commit -m "..." -- configs/foo.txt   # bad — recommits the whole file, discarding the hunk pick
-git add configs/foo.txt; git commit -m "..."                   # bad — also re-stages the whole file, sweeping in anyone else's edits
+# git-hunk splits belong inside the same guarded chain, never staged first
+# and committed later — a hunk-level commit can't use the pathspec form,
+# since `git commit <path>` recommits that path's whole working-tree
+# version and silently undoes the split:
+staged=$(git diff --cached --name-only) \
+  && { [ -z "$staged" ] || [ "$staged" = "configs/foo.txt" ]; } \
+  && git-hunk stage <id> && git commit -m "..."
 ```
 
 - [Instruction] **Never pass `--no-verify` or `--no-gpg-sign` unless the user explicitly asks for it.**
