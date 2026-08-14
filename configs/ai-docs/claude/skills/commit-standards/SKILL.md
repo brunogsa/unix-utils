@@ -71,13 +71,20 @@ git commit -m "$(cat <<'EOF'
 - [Instruction] Don't stage with `git add -A` or `git add .`; specify paths explicitly.
   - [Why] A blanket add risks sweeping in secrets or unrelated files that then ship in the commit.
 
-- [Instruction] Never trail a pathspec on `git commit` — stage explicitly with `git add <path>`, then commit with no path argument.
-  - [Why] `git commit -- <path>` silently re-stages that path's entire working-tree diff and commits it, discarding any partial `git-hunk`/`git add -p` selection meant to protect someone else's in-progress edits.
+- [Instruction] Never whole-file-stage a path — `git commit -- <path>`, `git commit -a`, or `git add <path>` alike — while another writer may hold uncommitted edits there.
+  - [Why] `git add <path>` re-stages that path's entire working-tree diff exactly like the trailing pathspec does, so either one silently commits a concurrent session's in-progress edits alongside yours.
 
   - [Example]
 ```bash
-git-hunk stage <id>; git commit -m "..." -- configs/foo.txt   # bad — recommits the whole file, discarding the hunk pick
+# Before staging, confirm every hunk in the diff is yours to commit:
+git diff configs/foo.txt
+
+# A file you just created has no other writer — git add <path> is safe there.
+# Otherwise stage only your own hunks:
 git-hunk stage <id>; git commit -m "..."                       # good — commits exactly what was staged
+
+git-hunk stage <id>; git commit -m "..." -- configs/foo.txt   # bad — recommits the whole file, discarding the hunk pick
+git add configs/foo.txt; git commit -m "..."                   # bad — also re-stages the whole file, sweeping in anyone else's edits
 ```
 
 - [Instruction] **Never pass `--no-verify` or `--no-gpg-sign` unless the user explicitly asks for it.**
