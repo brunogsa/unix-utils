@@ -2,10 +2,12 @@
 name: brainstorm
 description: "Refine an idea into an approved plan_<slug>.md — plus a spec_<slug>.md at full mode — via Socratic interview, then self-review and /implement. USE when the user says 'let's brainstorm', or when planning a feature or breaking work into commits."
 disable-model-invocation: false
-# Trim hierarchy exhausted at 3066 words. Every step below fires on every run, so nothing earns
-# a lazy load; the spec and plan phases co-fire at `full` by contract, so splitting them would
-# make two files that always load together. The two modes share every step but four, so a
-# per-mode split would duplicate ten steps. Override is the only honest option left.
+# Tightened from 4068 to 3639 words: dropped brief-contract prose duplicated across
+# §3/§5/§6, and merged stacked reason-sentences in §9/§10 (the heaviest steps), without
+# dropping any instruction, gate, or step. Splitting was proposed twice and rejected
+# twice — the spec and plan phases co-fire at `full` by contract, so a split would
+# fragment files that always load together; every step below fires on every run, so
+# nothing earns a lazy load either. Override remains the only honest option.
 words-budget: 4096
 ---
 
@@ -86,16 +88,11 @@ Four fields, named exactly: `mode`, valued `full` or `light`; then the booleans 
 Why spell the field names here: every later step reads them back out of this file, so writer and reader would otherwise have to guess the same key.
 Answer them fresh each run: never reuse a previous run's answers, and never write any of them into the spec, the plan, or any committed file.
 
-Why here rather than first: the mode is a scope judgment, so the user answers it holding the codebase read and whatever step 2's probe surfaced, instead of blind.
-Why no later than here: the mode decides whether a spec exists, and the toggles decide how strictly later steps check it.
-Settling both before anything is written closes off tuning either down after seeing the output.
-Why persisted: a compaction between here and self-review would lose them.
+The mode is settled here, not earlier or later: the user needs the codebase read and step 2's probe to judge it rather than answering blind.
+Settling both before anything is written closes off tuning either down after seeing the output — the mode decides whether a spec exists, the toggles how strictly later steps check it.
+Persisting survives a compaction between here and self-review.
 
-`<scratchpad>/brainstorm-brief.md`, that same directory's zero-context hand-off, does not exist yet at this point.
-Step 5 composes it once the interview closes, before the first dispatch that reads it — step 6 at `full`, step 9 at `light`.
-Never continuously during the interview, and never merely because a dispatch is imminent.
-It is the sole context channel to every dispatched writing agent — each one starts with none of this session's context.
-Anything the brief omits is invisible to the agent that writes the documents.
+`<scratchpad>/brainstorm-brief.md` does not exist yet at this point — step 5 composes it once the interview closes, per CLAUDE.md's Note-taking discipline.
 
 ### 4. Interview the user
 
@@ -131,9 +128,8 @@ Push the user through every category of the taxonomy read at the top of this ste
 
 If the user only describes the happy path, ask explicitly: "what should happen when X is empty / oversized / invalid / unavailable?"
 
-**Close every question this step raises, here.** Carry none forward as an Open Question — a question the interview could have settled costs a whole extra round at step 12.
-
-Questions that surface later, while writing the documents, are expected and fine; step 12 exists for exactly those.
+**Close every question this step raises, here** — carrying one forward as an Open Question costs a whole extra round at step 12.
+Questions that surface later, while writing the documents, are expected and fine; that's what step 12 is for.
 
 **Exit criterion**: end interview rounds once the latest round adds no new requirement or constraint changes, every coverage-taxonomy category is covered or explicitly ruled out, and nothing raised is still open.
 
@@ -152,8 +148,7 @@ It also surfaces when the constraint that killed an alternative no longer applie
 It carries the verbatim original request, every finding with its `file:line` evidence, and every decision with the alternatives it discarded.
 It is elaborated past what `notes.md`'s density guide allows, since the brief's zero-context reader needs detail that guide deliberately omits.
 
-Why now and not earlier: composing it before the interview and approach pick finish would hand off unfinished results.
-Why not later: the first dispatch that reads it — step 6 at `full`, step 9 at `light` — needs it to already exist the moment it dispatches.
+Composing it any earlier would hand off unfinished results; any later, the first dispatch that reads it — step 6 at `full`, step 9 at `light` — needs it to already exist.
 
 ### 6. Derive the slug, then dispatch a `general-purpose` agent to write the spec
 
@@ -179,9 +174,8 @@ Then dispatch `agent(subAgent=general-purpose, model=sonnet, title=Write the spe
 Why delegate: writing the spec costs the context to load the library and template — context this session still needs for both reviews and the hand-off.
 
 Why `general-purpose`: this agent inherits none of this session's context, unlike a fork, so it cannot lean on the interview or the approach pick.
-It must ground entirely from `brainstorm-brief.md` instead — that is why the brief, not `notes.md`, has to be self-contained.
-That means the verbatim original request, every finding with its file:line evidence, and every decision with the alternatives it discarded.
-Leaving any of that out of the brief makes it invisible to the agent that writes the spec, which would otherwise silently invent whatever is missing.
+It must ground entirely from `brainstorm-brief.md` instead, which is why that file, not `notes.md`, has to be self-contained (step 5).
+Whatever it omits is invisible to the agent that writes the spec, and gets silently invented instead.
 
 ### 7. Self-review the spec once, with fresh eyes
 
@@ -193,7 +187,7 @@ Point it at `~/.claude/skills/spec-driven-development/references/self-review-che
 Over the spec that means every boundary and failure-category checklist row instantiated or explicitly opted out, and every AC carrying a surfaced failure mode.
 
 Why it can't be waived: the Testable Acceptance Criteria section is the only part of the spec a downstream script parses.
-A gap there passes every later gate untouched, and reaches implementation as a test nobody wrote.
+A gap there passes every later gate untouched and reaches implementation as a test nobody wrote.
 
 **Then the Qualitative pass section, only when `qualitative_pass` is true** — read it back from `/tmp/sdd_<session_id>.json`, never re-ask.
 Apply these items only: placeholders, contradictions, ambiguity, completeness, human-reviewable.
@@ -205,8 +199,7 @@ Then decide each finding yourself and dispatch `agent(subAgent=general-purpose, 
 
 **Report the outcome to the user in one block before step 8** — each finding, and whether it was applied or skipped with the reason.
 
-Why report it: this summary is the only way to judge whether the gate earns its cost.
-In the finished spec, a silently-applied fix and a gate that found nothing read identically.
+Why report it: it's the only way to judge whether the gate earns its cost — in the finished spec, a silently-applied fix and a gate that found nothing read identically.
 
 **Runs once per spec, never twice over the same text.** The step 8 loop re-runs no review; from there the user reading the spec is the stronger judge.
 
@@ -232,96 +225,65 @@ Why a loop: approval is rarely one round, and a step that ends the run on "not y
 
 ### 9. Write the plan, then run the deterministic gates
 
-**At `full`** — dispatch `agent(subAgent=fork, title=Write implementation plan from spec)`, waiting for it, to write the plan. Pass it:
+**At `full`** — dispatch `agent(subAgent=fork, title=Write implementation plan from spec)`, waiting for it. Pass it:
 
-- The instruction to follow `~/.claude/skills/spec-driven-development/references/plan-writing.md`, which holds the whole procedure.
-- The spec file's absolute path, plus the slug derived in step 6.
+- `~/.claude/skills/spec-driven-development/references/plan-writing.md` (the whole procedure — a fork loads no definition file of its own, so this must be named by path).
+- The spec file's absolute path and the slug from step 6; it derives the output path itself.
 - Any planning-conventions file the user named (ADR/HLD/LLD), if one exists.
 
-A fork loads no definition file of its own, so the procedure has to be named by path here — that reference is the only place it lives.
+A fork inherits the whole session, planning against the interview instead of re-deriving it. Its model is the main session's; a fork's tier can't be pinned.
 
-It resolves the output path itself from the slug, so this session never spells that name out.
+**A gap in the spec never withholds the plan** — including a decision this session settled in the interview but never wrote into the spec.
+The fork plans around it and records a `**QUESTION:**` under Open Questions rather than silently filling from memory, which leaves the spec wrong for the next reader.
+Step 12 closes them all in one batch.
 
-Why a fork rather than a fresh agent: the planner inherits this whole session, so it plans against the interview that produced the spec instead of re-deriving it.
-
-Its model is the main session's, whatever `/model` holds — a fork's tier can't be pinned.
-
-**A gap in the spec never withholds the plan.**
-Where the spec doesn't carry a decision the plan needs, the fork writes the plan around it and records it as a `**QUESTION:**` entry under the plan's Open Questions.
-
-A decision this session settled in the interview but never wrote into the spec is exactly that kind of gap, inherited context or not.
-
-The spec is the artifact the next reader gets, so quietly planning on a remembered decision leaves it wrong forever. Step 12 closes them all, in one batch.
-
-Fresh eyes have not been dropped, they moved one step later: step 10 sends the finished plan to a `deep-reviewer` that never saw this session.
-
-That reviewer tests the plan itself, rather than only testing whether the spec carried enough to plan from.
+Fresh eyes just move later — step 10 sends the finished plan to a `deep-reviewer` that never saw this session.
 
 **At `light`** — dispatch `agent(subAgent=general-purpose, model=sonnet, title=Write the plan)` in the background instead, waiting for it. Instruct it to:
 
-- Read `~/.claude/skills/spec-driven-development/SKILL.md` and its `assets/plan-template.md`, and write every section of that template.
-
-- Derive a short kebab-case `<slug>` from the feature itself, and write `plan_<slug>.md` in CWD.
-
-- Follow that library's *A plan may exist without a spec* section for the `Spec:` line, the per-task acceptance criteria, and the Test Design coverage list.
-
-- Same brief contract as step 6: it inherits no context, so pass this session's resolved absolute path to `brainstorm-brief.md` in the dispatch prompt.
-
+- Read `~/.claude/skills/spec-driven-development/SKILL.md` and its `assets/plan-template.md`, writing every section.
+- Derive a short kebab-case `<slug>` from the feature and write `plan_<slug>.md` in CWD.
+- Follow that library's *A plan may exist without a spec* section for the `Spec:` line, per-task acceptance criteria, and Test Design coverage list.
+- Pass this session's resolved absolute path to `brainstorm-brief.md` in the dispatch prompt — same brief contract as step 6.
 - Fold its decisions and discarded alternatives into the plan's Technical Decisions section.
 
-Why `general-purpose` rather than the fork here: a fork carries the entire interview and runs at the main session's tier, which is the opposite of what `light` is for.
-The brief already holds those decisions in condensed form, so a sonnet agent reading it plans from the same material at a fraction of the cost.
+A fork carries the whole interview at the main session's tier — the opposite of `light`'s economy; the brief already condenses those decisions for a cheaper sonnet agent.
 
-**Once the plan exists, in either mode: read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now** — it defines every gate, sorts them into a deterministic and a judged bucket, and gives each bucket's dispatch tier.
+**Once the plan exists, either mode: read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now** — it defines every gate, sorts them into a deterministic and a judged bucket, and gives each bucket's dispatch tier.
 
-Run the whole deterministic bucket to exhaustion, in the order the reference gives — fix each failure, then re-run that gate alone until it passes.
+Run the deterministic bucket to exhaustion, in the reference's order — fix each failure, re-run that gate alone until it passes.
+**Skip `check-ac-coverage.sh` and `check-coverage-checklists.sh` at `light`**: both need a spec, and the latter exits 2 without one, a failure the loop can never clear.
 
-**Skip `check-ac-coverage.sh` and `check-coverage-checklists.sh` at `light`**: both need a spec, and none exists.
-`check-coverage-checklists.sh` exits 2 on a missing spec, which is a failure the fix-and-re-run loop above can never clear.
-
-Why the scripts run here rather than after approval: they are free to re-run, so running them first costs nothing and is the order the library states.
-Step 10 would otherwise spend a `deep-reviewer` dispatch rediscovering a cyclic task DAG or a bogus AC citation.
-Step 11 would hand the user a plan whose graphs have never been parsed.
+Running the scripts here rather than after approval costs nothing, since they're free to re-run.
+Otherwise step 10 would rediscover a cyclic task DAG or bogus AC citation, and step 11 would hand the user a plan whose graphs were never parsed.
 
 ### 10. Self-review the plan once, with fresh eyes
 
 **Both modes.** Dispatch `agent(subAgent=deep-reviewer, effort=high, title=Fresh-eyes review of plan)` in the background, waiting for it, pointed at the plan and, at `full`, the spec.
 
-**Always, whatever the toggles say — the semantic half of the library's "Every AC has a test" check**: does each cited test actually *prove* its AC?
-Step 9's `check-ac-coverage.sh` already settled that every AC is cited and every citation is real, so this pass judges only the match no script can make.
-At `light` that script never ran, so it judges the whole match: each task's `**Testable Acceptance criteria**` field is the AC set, and its `**Tests (planned)**` list is what must prove it.
+**Always — the semantic half of "Every AC has a test"**: does each cited test *prove* its AC?
+At `full`, step 9's `check-ac-coverage.sh` already settled citation completeness and honesty, so this judges only the match no script can make.
+At `light` that script never ran, so it judges the whole match instead: each task's `**Testable Acceptance criteria**` field against its `**Tests (planned)**` list.
 
-Widen it to the rest of the test design while it is there.
-Flag a planned test title asserting nothing checkable, a thin scenario class, or a task whose `**Tests (planned)**` list is empty without saying why.
+Also flag a planned test asserting nothing checkable, a thin scenario class, or an empty `**Tests (planned)**` list with no reason.
+`tdd-coder` builds each RED cycle from these titles, so an undesigned one never gets a test.
 
-Why that emphasis: `tdd-coder` builds each RED cycle straight from these titles, so a title that never got designed is a behavior that never gets a test.
+**Also always — the library's "How would this break?" judgment, but it only runs here at `light`** (step 7 already ran it over the spec at `full`).
+At `light` it runs here instead, over each task's AC field — dropping the spec also drops the failure-mode checklists, so this is its only failure-mode coverage.
 
-**Also always — the library's "How would this break?" judgment, at `light` only.**
-At `full` step 7 already ran it over the spec's acceptance criteria, so it is not repeated here.
-At `light` no spec was ever written, so it runs here instead, over each task's `**Testable Acceptance criteria**` field.
-
-Why `light` cannot waive it: dropping the spec drops the boundary and failure-mode checklists and `check-coverage-checklists.sh` with them, so this is the run's only failure-mode coverage.
-
-**Then, `full` only** — each read back from `/tmp/sdd_<session_id>.json` and never re-asked here: the qualitative pass from that same reference when `qualitative_pass` is true.
-Add each rigor check whose own toggle — `traces_to_ac`, `right_sized` — is true.
-`light` leaves all three off, so none of them runs there.
-
-Exclude Scope too: step 2 asked the user about decomposition, so re-asking here would reopen a question the user already settled.
+**`full` only** — read back from `/tmp/sdd_<session_id>.json`, never re-asked: the qualitative pass when `qualitative_pass` is true, plus each rigor check whose own toggle (`traces_to_ac`, `right_sized`) is true.
+`light` runs none of the three. Scope is excluded too — step 2 already asked the user about decomposition.
 
 **At `light`, before deciding anything, read the plan against `notes.md` yourself.**
-Treat every decision or constraint the interview settled that the plan contradicts or omits as a finding of the same kind, so the accepted ones ride the same dispatch.
-Why this session rather than fresh eyes: `light`'s plan comes from an agent grounded solely in `brainstorm-brief.md`, so whatever the brief dropped gets invented silently.
-This session is the only holder of the interview that could notice.
+Treat every decision or constraint the interview settled that the plan contradicts or omits as a finding too.
+Only this session holds the interview, since `light`'s plan comes from an agent grounded solely in `brainstorm-brief.md` and would otherwise invent whatever the brief dropped.
 
-Then decide each finding yourself, dispatch `agent(subAgent=general-purpose, model=sonnet, title=Apply plan review findings)` with the ones you accept, and report applied-or-skipped to the user exactly as step 7 does.
-
+Decide each finding yourself, dispatch `agent(subAgent=general-purpose, model=sonnet, title=Apply plan review findings)` with the ones you accept, and report applied-or-skipped exactly as step 7 does.
 **Runs once per plan, never twice over the same text.**
 
-**At `light`, one more thing goes into that same report block.**
-
-Name every gate that ran and every one that did not.
-That is the deterministic bucket minus its two spec-taking scripts, the two always-on judged checks above, and the qualitative and toggled checks the mode leaves off.
-Why: the finished plan carries no trace of what verified it, so without this the user cannot tell one that passed every gate from one that passed none.
+**At `light`, that report also names every gate that ran and every one that didn't.**
+That's the deterministic bucket minus its two spec-taking scripts, the two always-on judged checks above, and the qualitative/toggled checks the mode leaves off.
+Without it the plan carries no trace of what verified it.
 
 ### 11. User review/approve plan
 
