@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # prep-local-context.sh - assemble Wave 1 local-mode review
-# context on disk
+# context on disk.
 #
 # Usage:
 #   prep-local-context.sh <base_ref> <work_dir>
@@ -8,6 +8,7 @@
 # stdin: none
 # stdout: one "<name>: <path>" line per file written into
 #   <work_dir>
+#
 # exit: 0 on success, 1 on bad input or an unresolvable
 #   base ref
 

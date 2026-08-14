@@ -35,6 +35,7 @@ assert_eq() {
 # make_scratch_repo - builds a throwaway git repo at a fresh
 # mktemp dir with a single "master" branch and one commit
 # adding tracked.txt, "master" left checked out as HEAD.
+#
 # Base resolution falls back to resolve-base-ref.sh's local
 # "master" lookup, so this repo needs no origin remote.
 # Echoes the repo path.
@@ -55,17 +56,21 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 }
 
 # make_diverged_scratch_repo - builds a repo shaped for the
-# merge-base test:
+# merge-base test.
+#
+# Shape:
 #   C0 (common ancestor, adds shared.txt)
-#   master:  C0 -> C1 (adds base-only.txt), advances AFTER
-#            feature branches off
+#   master:  C0 -> C1 (adds base-only.txt), after the split
 #   feature: C0 -> C2 (adds feature-only.txt), checked out HEAD
 #
-# This shape is what makes merge-base vs plain-base observable:
-# C1 sits on master but not on the path from the merge-base to
-# feature, so diffing from the merge-base (correct) omits it
-# while diffing from master's tip directly (the bug this
+# This shape is what makes merge-base vs plain-base
+# observable.
+#
+# C1 sits on master but not on the path from the merge-base
+# to feature, so diffing from the merge-base (correct) omits
+# it while diffing from master's tip directly (the bug this
 # script must avoid) would render it as a reversed deletion.
+#
 # Echoes the repo path.
 make_diverged_scratch_repo() {
   local repo
@@ -103,6 +108,7 @@ it_should_write_all_four_output_files_creating_a_not_yet_existing_work_dir_on_th
   local repo work_dir output missing="" f result
   repo="$(make_scratch_repo)"
   echo "tracked line 1 modified" > "$repo/tracked.txt"
+
   # Nested, not-yet-existing dir: also exercises the script's
   # own defensive `mkdir -p`, since nothing pre-creates this.
   work_dir="$(mktemp -d)/nested/output"

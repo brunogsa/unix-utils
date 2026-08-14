@@ -9,6 +9,7 @@
 # stdin: none
 # stdout: one "<name>: <path>" line per file written into
 #   <work_dir>
+#
 # exit: 0 on success, 1 on bad input, an unresolvable base
 #   ref, or an empty scope (nothing changed, nothing untracked)
 
@@ -38,11 +39,13 @@ base=$(git rev-parse --abbrev-ref --symbolic-full-name "@{upstream}" 2>/dev/null
   || { echo "prep-refactor-context: could not resolve a base ref (no upstream, no origin/HEAD, no local main or master)" >&2; exit 1; }
 
 # The merge-base, not $base directly: if $base has advanced past
-# this branch, diffing $base itself renders its own newer commits
-# as reversed changes this branch never made. Diffing from the
-# merge-base to the working tree is the three-dot-diff equivalent
-# for a right-hand side that is the working tree, not a commit
-# (three-dot syntax requires both sides to be commits).
+# this branch, diffing $base itself renders its own newer
+# commits as reversed changes this branch never made.
+#
+# Diffing from the merge-base to the working tree is the
+# three-dot-diff equivalent for a right-hand side that is the
+# working tree, not a commit (three-dot syntax requires both
+# sides to be commits).
 merge_base=$(git merge-base "$base" HEAD)
 
 # The caller owns work_dir's lifecycle (creation and cleanup);

@@ -44,10 +44,12 @@ assert_eq() {
 #   feature: C0 -> C2 (adds feature-only.txt), checked out HEAD
 #
 # This shape is what makes the two-dot/three-dot range
-# distinction observable: C1 sits on base but not on the path
-# from the merge-base to feature, so a three-dot diff (which
-# diffs against the merge-base) omits it while a two-dot diff
-# (base tip vs feature tip) would include it.
+# distinction observable.
+#
+# C1 sits on base but not on the path from the merge-base to
+# feature, so a three-dot diff (which diffs against the
+# merge-base) omits it while a two-dot diff (base tip vs
+# feature tip) would include it.
 make_scratch_repo() {
   local repo
   repo="$(mktemp -d)"
@@ -102,6 +104,7 @@ make_scratch_repo_with_n_added_lines() {
 it_should_write_all_seven_output_files_with_a_non_empty_diff_on_the_happy_path() {
   local repo work_dir output missing="" f result
   repo="$(make_scratch_repo)"
+
   # Nested, not-yet-existing dir: also exercises the script's
   # own defensive `mkdir -p`, since nothing pre-creates this.
   work_dir="$(mktemp -d)/nested/output"
@@ -169,7 +172,9 @@ it_should_write_tiny_pr_true_with_no_stderr_integer_expression_error_when_added_
 # make_scratch_repo_with_only_deletions - "feature" removes a
 # file that existed on the common ancestor (and so on "base"
 # too), producing a diff with only "-" lines and zero "+"
-# lines: the realistic trigger for a zero-added-lines diff
+# lines.
+#
+# That is the realistic trigger for a zero-added-lines diff
 # (pure deletion PR), distinct from an all-new-but-empty file.
 make_scratch_repo_with_only_deletions() {
   local repo

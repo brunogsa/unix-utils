@@ -73,32 +73,38 @@ GATE_MODE_MARKER='mode: gate'
 
 # §1.2 used to ask the baseline and the gate as two
 # independent yes/no questions, which admitted the reachable
-# combination gate=yes, baseline=no. Under it the repo-green
-# gate has no baseline to diff against and HALTs a finished
-# batch with every commit still local.
+# combination gate=yes, baseline=no.
+#
+# Under it the repo-green gate has no baseline to diff
+# against and HALTs a finished batch with every commit still
+# local.
 #
 # The two questions are now one: SKILL_MERGED_GATE_MARKER is
 # the bullet's bold heading text, and it is the ONLY toggle
-# §1.2 may declare governing the baseline - so a still-present
-# old baseline question is the regression this section-scoped
-# check exists to catch.
+# §1.2 may declare governing the baseline.
+#
+# A still-present old baseline question is the regression
+# this section-scoped check exists to catch.
 SKILL_MERGED_GATE_MARKER='^- \*\*Run the repo-green gate at batch end\?\*\*'
 SKILL_OLD_BASELINE_QUESTION_MARKER='^- \*\*Capture a full-suite green baseline before starting\?\*\*'
 
 # The state object's `baseline` key used to carry its own
 # `wanted` boolean, redundant with `repo_green_gate.wanted`
-# once the two questions merged. A leftover reference to it
-# anywhere under skills/implement/ is drift from a doc the
-# merge should have retargeted.
+# once the two questions merged.
+#
+# A leftover reference to it anywhere under
+# skills/implement/ is drift from a doc the merge should
+# have retargeted.
 BASELINE_WANTED_STRING='baseline.wanted'
 
 # The interview used to ask a third, independent toggle -
 # "Auto-solve its findings?" - that a prior commit removed
 # from the skill body without updating this diagram, which
-# stays authoritative for the flow it depicts. check_absent
-# matches case-insensitively, but "auto-solve" and
-# "auto_solve" are still two distinct fixed strings, so both
-# are checked.
+# stays authoritative for the flow it depicts.
+#
+# check_absent matches case-insensitively, but "auto-solve"
+# and "auto_solve" are still two distinct fixed strings, so
+# both are checked.
 AUTO_SOLVE_MARKER='auto-solve'
 AUTO_SOLVE_UNDERSCORE_MARKER='auto_solve'
 
@@ -224,11 +230,12 @@ check_dispatches() {
 }
 
 # check_absent <file> <fixed-string> - returns 0 only when
-# the string never occurs in the file. Fixed-string,
-# case-insensitive match (grep -Fi), so a caller passing a
-# literal dotted key never needs its own escaping, and prose
-# that capitalizes the same word (e.g. "Auto-solve") still
-# gets caught.
+# the string never occurs in the file.
+#
+# Fixed-string, case-insensitive match (grep -Fi), so a
+# caller passing a literal dotted key never needs its own
+# escaping, and prose that capitalizes the same word
+# (e.g. "Auto-solve") still gets caught.
 check_absent() {
   local file="$1" needle="$2"
   if [ ! -f "$file" ]; then
@@ -448,9 +455,11 @@ it_should_fail_when_skill_md_still_mentions_baseline_wanted() {
 
   # Reintroduce the leftover dotted key SKILL.md's prose
   # used to carry, so the check fails on a file that
-  # regressed back to referencing it. Must be the exact
-  # dotted form check_absent searches for, not merely a
-  # JSON key/value pair that happens to sit nearby.
+  # regressed back to referencing it.
+  #
+  # Must be the exact dotted form check_absent searches
+  # for, not merely a JSON key/value pair that happens to
+  # sit nearby.
   { cat "$SKILL_FILE"; printf 'empty when `%s` is `false`.\n' "$BASELINE_WANTED_STRING"; } > "$tmp_file"
   assert_eq "should fail when SKILL.md still mentions baseline.wanted" \
     "failed" "$(run_check check_absent "$tmp_file" "$BASELINE_WANTED_STRING")"
@@ -464,9 +473,11 @@ it_should_fail_when_section_1_2_still_declares_two_separate_questions() {
 
   # Reconstruct the pre-merge shape: re-insert the old,
   # separate baseline question right after the merged
-  # toggle bullet, so section 1.2 declares both again -
-  # the exact combination that let gate=yes, baseline=no
-  # reach the repo-green-runner agent's HALT rule.
+  # toggle bullet, so section 1.2 declares both again.
+  #
+  # That is the exact combination that let gate=yes,
+  # baseline=no reach the repo-green-runner agent's HALT
+  # rule.
   {
     head -n "$line_num" "$SKILL_FILE"
     printf -- '- **Capture a full-suite green baseline before starting?** (yes/no) — on yes, section 1.6 runs the full suite first.\n'
