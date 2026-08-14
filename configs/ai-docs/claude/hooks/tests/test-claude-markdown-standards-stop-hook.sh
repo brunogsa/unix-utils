@@ -204,9 +204,11 @@ write_bullet_gap_violation() {
 #
 # Every line is short and no bullet sits flush against
 # a sibling, so neither check-density.sh nor
-# check-bullet-gap.py fires here (verified directly
-# against both before writing this) — only
-# check-lazy-continuation.py can make it block.
+# check-bullet-gap.py fires here.
+#
+# Verified directly against both before writing this
+# fixture — only check-lazy-continuation.py can
+# make it block.
 write_lazy_continuation_violation() {
   local repo="$1" name="$2"
   printf '# Doc\n\n1. numbered item\n   - pointer bullet\n   absorbed prose line\n' > "$repo/$name"
