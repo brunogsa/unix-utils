@@ -414,7 +414,7 @@ class TestCheckScriptNamingRealCorpusRegression:
         not UNIX_UTILS_ROOT.is_dir(),
         reason=f"no unix-utils checkout at {UNIX_UTILS_ROOT}",
     )
-    def test_should_keep_reporting_the_same_41_unix_utils_scripts_known_to_fail_naming(self):
+    def test_should_keep_reporting_the_same_43_unix_utils_scripts_known_to_fail_naming(self):
         # Batch 13 (`hooks/`+`scripts/`, 22 rows) + Batch 14
         # (`skills/*/scripts/`, 19 rows) in rename-list.md were
         # measured with the pre-fix checker — the regression
@@ -423,6 +423,11 @@ class TestCheckScriptNamingRealCorpusRegression:
         # Widening collect_tree_scripts must not sweep in
         # unrelated unix-utils scripts out of scope for those
         # two batches.
+        #
+        # Two scripts landed after those batches and fail on
+        # the same unknown-verb rule: prep-local-context.sh
+        # and prep-refactor-context.sh. They are corpus
+        # growth, not a checker regression.
         expected_relative_fail_paths = {
             "configs/ai-docs/claude/hooks/claude-agent-contract-stop-hook.sh",
             "configs/ai-docs/claude/hooks/claude-comment-format-stop-hook.sh",
@@ -449,6 +454,7 @@ class TestCheckScriptNamingRealCorpusRegression:
             "configs/ai-docs/claude/skills/brag/scripts/parse_gcal_mcp.py",
             "configs/ai-docs/claude/skills/brag/scripts/parse_ics.py",
             "configs/ai-docs/claude/skills/brag/scripts/shared.py",
+            "configs/ai-docs/claude/skills/code-review-pipeline/scripts/prep-local-context.sh",
             "configs/ai-docs/claude/skills/code-standards/scripts/classify-conversion.py",
             "configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/gen-shard-manifest.sh",
             "configs/ai-docs/claude/skills/implement/scripts/implement-loop-state.py",
@@ -460,6 +466,7 @@ class TestCheckScriptNamingRealCorpusRegression:
             "configs/ai-docs/claude/skills/open-in-tmux/scripts/diffview-in-tmux.sh",
             "configs/ai-docs/claude/skills/open-in-tmux/scripts/open-in-tmux.sh",
             "configs/ai-docs/claude/skills/performance-check-principles-and-skills/scripts/check.sh",
+            "configs/ai-docs/claude/skills/refactor/scripts/prep-refactor-context.sh",
             "configs/ai-docs/claude/skills/spec-driven-development/scripts/dag-check-helper.sh",
             "configs/ai-docs/claude/skills/spec-driven-development/scripts/plan-section.sh",
             "configs/ai-docs/claude/skills/usage-audit/scripts/claude-usage-report.py",
