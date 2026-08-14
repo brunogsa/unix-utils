@@ -83,6 +83,18 @@ The debounce **cancels the in-flight script**, leaving the stale line on screen 
 
 Revisit dropping it only if `~/.ccburn/collect_last.json` still shows `"has_rate_limits": false` after a release claims a fix.
 
+**The format Stop hooks fire only inside this repo**: `claude-comment-format-stop-hook.sh` and `claude-markdown-standards-stop-hook.sh` gate on `configs/ai-docs/claude/hooks/lib/gate-repo-scope.sh`.
+
+That gate script resolves the gated repo from its own on-disk location.
+
+`~/.claude/hooks` is a directory symlink into this repo, so `pwd -P` resolves the gate script's location through the symlink back to `~/unix-utils`.
+
+That is the repo the hooks are meant to enforce standards on.
+
+These are personal doc/comment standards, not universal ones, so only this repo's own sources are held to them; there is deliberately no env-var override to widen that scope.
+
+An unresolvable gate repo fails closed: the hooks do not fire rather than risk enforcing personal standards somewhere they don't apply.
+
 ## Conventions
 
 - **Cross-platform is a MUST; cross-tool is a should-have** -- **Claude Code is the primary tool and MUST work** on both OSes (macOS + Linux).

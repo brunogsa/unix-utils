@@ -54,7 +54,17 @@ Line numbers, if the caller supplies any, are stale the moment you edit — re-r
 
 For each file the caller names:
 
-1. Run `node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --fix --changed-only <file>` FIRST, before reading or editing anything.
+1. Run `~/.claude/skills/doc-standards/scripts/get-changed-lines.sh <file>` FIRST, before touching the checker.
+
+   - Empty output (exit 0) means the file has no lines changed vs HEAD.
+
+   - SKIP that file entirely — do not run the checker, do not read it, do not edit it — and say so explicitly in your report.
+
+   - A silent "clean" verdict on a file the checker never scoped any lines to is indistinguishable from having fixed it.
+
+   - Non-empty output means the file has changed lines; continue to the next step for that file.
+
+2. Run `node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --fix --changed-only <file>` before reading or editing anything.
 
    - `--changed-only` scopes every rule to the lines `get-changed-lines.sh` reports vs HEAD for that file, so you never touch or report on a line the caller didn't change.
    - It repairs every mechanically-fixable violation in one pass and re-checks until it converges.
@@ -62,7 +72,7 @@ For each file the caller names:
 
    - It exits 1 having printed the residue it refused, one `<RULE> <line>` row per violation. Those, and only those, are yours.
 
-2. Read the file around each residue row and sort every row into one of three classes.
+3. Read the file around each residue row and sort every row into one of three classes.
 
    - **Set-off literal** — indented content whose horizontal position carries meaning: a usage block, an aligned table, a command example, a one-item-per-line list.
 
@@ -78,18 +88,20 @@ For each file the caller names:
 
    - **Genuine residue** — ordinary prose the script could not repair. This is the only class you touch.
 
-3. For each genuine-residue row, decide script-fix or hand-fix, preferring the script per the rule above. `--fix` already resolved every violation it can reach mechanically — a manual Edit is only for what's left after that pass.
+4. For each genuine-residue row, decide script-fix or hand-fix, preferring the script per the rule above.
+
+   - `--fix` already resolved every violation it can reach mechanically — a manual Edit is only for what's left after that pass.
 
    - A residue row that shares a repeatable shape with others is a script gap — fix the script.
    - A row that needs a sentence boundary the author never wrote is genuinely un-automatable — hand-fix it under the Boundaries ladder below.
    - Apply hand-fix Edits from the end of the file toward the top (descending line number).
      - An edit above a lower line never shifts that lower line, so working bottom-up keeps every row's reported line number valid for the edit that comes after it.
 
-4. Re-run the checker with `--changed-only` (without `--fix`) and iterate until the only rows left are set-off literals and unsplittable tokens.
+5. Re-run the checker with `--changed-only` (without `--fix`) and iterate until the only rows left are set-off literals and unsplittable tokens.
 
    - Re-run after every edit round: shortening a line can lengthen the paragraph it sits in, and inserting a paragraph break can move a line past the width cap.
 
-5. Once those rows have settled, run `node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --content-loss <file>`.
+6. Once those rows have settled, run `node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --content-loss <file>`.
 
    - It diffs the comment vocabulary of the file's `HEAD` version against the working tree's, printing one `CONTENT-LOSS <word>` row per content word your edits dropped.
 

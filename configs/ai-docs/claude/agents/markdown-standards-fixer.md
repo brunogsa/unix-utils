@@ -64,8 +64,18 @@ The caller gives you a list of files (sometimes with specific line numbers; line
 
 For each file the caller names:
 
-1. Read it. Read `~/.claude/skills/doc-standards/references/density-rules.md` once for the rewrite patterns and what the verifiers exclude (code fences, tables, link-only lines).
-2. Run `fix-density.py --changed-only <file>` FIRST, before reading or editing anything.
+1. Run `~/.claude/skills/doc-standards/scripts/get-changed-lines.sh <file>` FIRST, before touching any verifier.
+
+   - Empty output (exit 0) means the file has no lines changed vs HEAD.
+
+   - SKIP that file entirely — do not run the verifiers, do not read it, do not edit it — and say so explicitly in your report.
+
+   - A silent "clean" verdict on a file no verifier ever scoped any lines to is indistinguishable from having fixed it.
+
+   - Non-empty output means the file has changed lines; continue to the next step for that file.
+
+2. Read it. Read `~/.claude/skills/doc-standards/references/density-rules.md` once for the rewrite patterns and what the verifiers exclude (code fences, tables, link-only lines).
+3. Run `fix-density.py --changed-only <file>` before reading or editing anything.
 
    - `--changed-only` scopes every rule to the lines `get-changed-lines.sh` reports vs HEAD for that file, so you never touch or report on a line the caller didn't change.
 
@@ -78,7 +88,7 @@ For each file the caller names:
 
    - Why script-first: it is deterministic and sub-second, where hand-splitting the same lines burns turns and risks mangling prose it should only have re-wrapped.
 
-3. Hand-fix ONLY the residue lines it reported.
+4. Hand-fix ONLY the residue lines it reported.
 
    `fix-density.py` already resolved every violation it can reach mechanically — density splits, bullet-gap insertions — so a manual Edit is only for residue those passes can't fix.
 
@@ -101,10 +111,10 @@ For each file the caller names:
 
    - Never "fix" the script to split these instead. `fix-density.py`'s module docstring records why each refusal is deliberate, and a fabricated marker corrupts the counts `performance-check/check.sh` measures.
 
-4. Run BOTH `check-density.sh --changed-only <file>` and `check-bullet-gap.py --changed-only <file>` from `~/.claude/skills/doc-standards/scripts/`, and iterate on that file until each exits 0.
+5. Run BOTH `check-density.sh --changed-only <file>` and `check-bullet-gap.py --changed-only <file>` from `~/.claude/skills/doc-standards/scripts/`, and iterate on that file until each exits 0.
    - Re-run both after every edit round: splitting a long line adds bullets, which can open a new gap, and gapping a bullet never fixes a density hit.
 
-5. Run `check-rule-citations.py --changed-only <file>` LAST, once the line rules are green, and fix each row it reports.
+6. Run `check-rule-citations.py --changed-only <file>` LAST, once the line rules are green, and fix each row it reports.
 
    - Running it last is deliberate: splitting a long line can move a rule pointer onto a new line, so a citation pass done first reports line numbers that no longer exist.
 
