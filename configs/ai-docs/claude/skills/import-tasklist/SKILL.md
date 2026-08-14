@@ -1,6 +1,6 @@
 ---
 name: import-tasklist
-description: "Load tasklist.md entries from CWD back into the current session's TaskList, then dispatch the tasklist-sweeper background agent to remove the imported entries. Trigger: /import-tasklist, or invoke directly when the user asks to reimport specific tasklist.md entries."
+description: "Load tasklist.md entries from CWD back into the current session's TaskList. Trigger: /import-tasklist, or when the user asks to reimport, restore, or pull back specific tasklist.md entries."
 ---
 
 # Import Tasklist
