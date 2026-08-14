@@ -21,15 +21,26 @@ N/A escape: for a trivial or no-flow change, write "N/A — `<reason>`" and skip
 ---
 ## Threat Model
 
-N/A escape: when the change crosses no trust boundary, write "N/A — `<reason>`" and skip the rest of this section.
+N/A escape: no trust boundary crossed → `N/A — <reason>`.
 
-**Trust boundaries touched** — name each boundary this change introduces, moves, or weakens: where untrusted input enters, where privilege changes, where data leaves the system.
+Mark boundaries on the Technical Approach diagram as dashed subgraphs — never a second diagram:
 
-Mark them on the architecture diagram above rather than drawing a second one — a boundary the reviewer can see on the flow they already read costs nothing extra to check.
+    subgraph trust_public["trust: public internet"]
+    subgraph trust_db["trust: service account"]
 
-| Asset | Threat | Mitigation | AC |
-|---|---|---|---|
-| `<what an attacker wants>` | `<how they would get it>` | `<what stops them>` | `<the AC that proves it>` |
+Tick every boundary this change touches, or N/A:
+
+- [ ] untrusted input enters
+- [ ] privilege changes
+- [ ] data leaves the system
+- [ ] a secret is read or written
+- [ ] dynamic execution / deserialization
+
+One line per ticked box:
+
+- `<asset>` ← `<threat>` ⇒ `<mitigation>` → AC-N
+
+Unmitigated threat → Open Question, never a bullet.
 
 ---
 ## General Flow
