@@ -50,7 +50,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
   - [Why] Softened corrections accumulate; when every contradiction is hedged, I must decode whether a real problem exists.
 
 - [Instruction] **CRITICAL: When uncertainty survives search, ask** -- never guess intent, requirements, or context only the user holds.
-  - [Why] The worst outcome is confidently solving the wrong thing, and the gap is invisible to whoever introduced it.
+  - [Why] Confidently solving the wrong thing is the worst outcome, invisible to its author, so asking is never an interruption.
 
 - [Instruction] Never ask a question whose answer the invocation context, a prior answer, or an already-corrected pattern already determines — resolve it and act.
   - [Why] The ask-when-uncertain rule has no counterweight, so it drifts into asking what you could have read.
@@ -274,7 +274,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
   - [Why] Metadata survives compaction and reads back as structured fields, so a resumed skill needn't re-parse prose.
 
 - [Instruction] Split durable state by surface — the TaskList carries status plus machine-checkable metadata; the `/tmp` scratchpad carries narrative findings, evidence, and decision rationale.
-  - [Why] The TaskList re-surfaces every turn, so narrative there taxes every turn; the scratchpad reads on demand.
+  - [Why] Narrative in the TaskList taxes every turn; the scratchpad reads on demand (https://code.claude.com/docs/en/memory).
 
 - [Instruction] Cross-reference the two surfaces by task id and file path — never duplicate the same content on both.
   - [Why] Content stored twice drifts into two versions on the next edit; a pointer keeps one source of truth.
@@ -283,7 +283,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
   - [Why] Inline execution burns the main window that compactions are rationed by.
 
 - [Instruction] **Pick the pin per task** -- haiku when the dispatch prompt carries the exact content to place (trivial transform), sonnet when the subagent must compose or restructure under conventions.
-  - [Why] Tier follows judgment required, not habit — haiku costs ~3x less than sonnet when nothing is left to decide.
+  - [Why] Tier follows judgment required, not habit — haiku suffices when nothing is left to decide, at ~3x less than sonnet.
 
 ### Note-taking discipline
 
@@ -319,7 +319,7 @@ Routing and upkeep for the two note surfaces, plus the two scratchpad files each
   - [Why] Post-compaction recall feels complete but is a summary; the file re-reads verbatim as a checkable fact.
 
 - [Instruction] Write `<skill>-brief.md` once the work unit it records has finished — never continuously, and never merely because a dispatch is imminent.
-  - [Why] Composing it before the unit finishes hands off unfinished results to a zero-context reader.
+  - [Why] Composing it early hands off unfinished results, and a zero-context reader needs elaboration notes.md's guide omits.
 
 - [Instruction] A dispatched subagent gets its own, different scratchpad directory — pass your own resolved path explicitly in its dispatch prompt if it must read yours.
   - [Why] Its environment carries only its own directory, so an unstated path leaves it with no way to find your notes at all.
@@ -337,7 +337,7 @@ Routing and upkeep for the two note surfaces, plus the two scratchpad files each
 ### RTK command proxy
 
 - [Instruction] Never hand-prefix another tool's command with `rtk` — write the plain command and let the `PreToolUse` hook rewrite it.
-  - [Why] The hook already rewrites every Bash call to `rtk` at zero token overhead (60-90% savings on dev operations).
+  - [Why] The hook rewrites every Bash call to `rtk` at zero overhead (60-90% on dev ops); a manual prefix only double-prefixes.
 
 - [Instruction] Pass an explicit `-n <count>` to every `git log` you run as a Bash tool call.
   - [Why] rtk silently caps it at 10 commits (50 with `--pretty`), so a truncated head reads as the complete answer.
@@ -365,7 +365,7 @@ Routing and upkeep for the two note surfaces, plus the two scratchpad files each
   - [Why] Deferred harness work never outranks feature work, so the gap keeps charging every future session.
 
 - [Instruction] Execute every `[Harness]` task through the `tdd-coder` agent dispatched with `model=opus`, the override its file declares above the sonnet default.
-  - [Why] Closing a gap means authoring a rule that must fire on cases nobody has written yet, needing opus judgment.
+  - [Why] A rule must fire on cases nobody has written yet: opus judgment, plus a RED proof that blocks a wrong-but-green check.
 
 - [Instruction] On this machine's Bash tool (zsh, not bash), never rely on an unquoted `$VAR` to split a space-separated path list — use an array or literal paths instead.
   - [Why] zsh has word-splitting off by default, so an unquoted multi-path variable collapses to one argument.
@@ -390,7 +390,7 @@ Routing and upkeep for the two note surfaces, plus the two scratchpad files each
   - [Why] Permission UIs only render in main, so a subagent cannot complete one at all — a harness limit.
 
 - [Instruction] Launch every subagent in the background (`run_in_background`), waiting for its completion notification — never poll via a blocking `TaskOutput` call, a Bash `sleep`/`until` busy-wait, or a `kill -0`/`pgrep` wait loop.
-  - [Why] One audited session burned 33 minutes on 6 blocking `TaskOutput` calls plus 12 busy-waiting, vs 0.1s backgrounded.
+  - [Why] One session lost 33 min to 6 blocking `TaskOutput` calls — 3 returned nothing — plus 12 min busy-waiting, vs 0.1s.
 
 - [Instruction] Give a recurring, repeatable unit of work its own dedicated agent type, rather than running it inline in the main session.
   - [Why] Inline work reads as the session's spend and can't be budgeted or compared; a type gets its own report row.
