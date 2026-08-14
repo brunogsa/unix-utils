@@ -1,6 +1,6 @@
 # PR body budget: non-overlap invariant and one-page goal
 
-Read before drafting a PR body. `pr-writer` loads this; `SKILL.md` points here.
+Read before drafting a PR body. `pr-writer` and `pr-finalizer` load this; `SKILL.md` points here.
 
 ## CRITICAL: the non-overlap invariant
 

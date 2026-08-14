@@ -14,7 +14,7 @@ disable-model-invocation: false
 
 The non-overlap invariant and the one-page goal -- the 64-line budget, its per-section split, cut order, and measurement script -- live in [`references/pr-page-budget.md`](references/pr-page-budget.md).
 
-Read it before drafting or reviewing a PR body; `pr-writer` loads it every dispatch.
+Read it before drafting or reviewing a PR body; `pr-writer` and `pr-finalizer` load it every dispatch.
 
 ## Process
 
@@ -28,7 +28,11 @@ Read it before drafting or reviewing a PR body; `pr-writer` loads it every dispa
 
 A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an unchecked box or a caveat — take the most conservative reading and keep going.
 
-Resolve everything below BEFORE dispatching `changes-gatherer` at the end of this step.
+**CRITICAL: Dispatch `changes-gatherer` the moment the base ref is final, then resolve everything else below while it runs.**
+
+- Final means the default resolution below, or the `<parent>` override when one was given — never the default base on a stacked run, whose digest would then carry the parent's commits too.
+
+- It diffs the branch against that base and reads nothing else — not the spec/plan choice, not the `PR-N` answer — so holding it until the interview answers arrive serializes its whole run behind a human who is not blocking it.
 
 - Discover spec/plan in cwd by glob `spec_*.md plan_*.md` (top-level):
   - One spec / one plan → use whichever exist, auto-resolved. Multiple of either → open question **(A) Spec/plan choice**: list them numbered.
@@ -45,6 +49,11 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
 
 - **The optional `<parent>` arg is this skill's whole stacked-PR surface** -- when given, base = the parent's head branch instead of the default.
   - Resolution, digest-scoping, and hand-off rules: [`references/parent-arg.md`](references/parent-arg.md).
+
+- **Delegate diff/log reading to a subagent, and start it HERE** -- dispatch `agent(subAgent=changes-gatherer, title=Gather PR changes digest)` in the background, then continue into the interview below without waiting on it.
+  - Give it the resolved base branch and a `/tmp` artifact path; it writes the full commit log and diff there and returns only the **changes digest** (`references/changes-digest.md`).
+
+  - The digest is what step 2 authors from, so the raw diff never enters the main session's context.
 
 - **Ask (A) and (B) together, as two separate questions, in one pre-flight `AskUserQuestion` call**.
   - Carry both; skip either label that auto-resolved above; skip the call when both auto-resolved.
@@ -64,16 +73,14 @@ Resolve everything below BEFORE dispatching `changes-gatherer` at the end of thi
   - Sections come from `scripts/extract-md-sections.sh`; diagrams from `scripts/extract-mermaid-blocks.sh`, whose every fenced `mermaid` block becomes the Architecture section and leaves the appendix.
   - A re-summarized section or a re-drawn diagram diverges from what the spec/plan was reviewed against, and nothing downstream catches the divergence.
 
-- **Delegate diff/log reading to a subagent** -- dispatch `agent(subAgent=changes-gatherer, title=Gather PR changes digest)` in the background, waiting for it — step 2 needs its digest immediately.
-  - Give it the resolved base branch and a `/tmp` artifact path; it writes the full commit log and diff there and returns only the **changes digest** (`references/changes-digest.md`).
-
-  - The digest is what step 2 authors from, so the raw diff never enters the main session's context.
+- **Collect the `changes-gatherer` digest as this step's last act** -- step 2 cannot start without it, so wait here if it is still running.
+  - By this point it has had the whole interview to run in, so a wait that used to cost its full duration usually costs nothing.
 
 ### 2. Compose the ideal description — density and page fit
 
 **CRITICAL: The main session orchestrates and never composes the prose itself** -- dispatch the agent and let it hand back a finished file.
 
-- `agent(subAgent=pr-writer, title=Compose ideal PR description)` in mode `ideal`, in the background, waiting for it — step 3 reads the file it writes.
+- `agent(subAgent=pr-writer, title=Compose ideal PR description)` in the background, waiting for it — step 3 reads the file it writes.
   - Give it the changes digest, the resolved spec/plan paths, the appendix section list, the output path `./pr_<slug>_pr<N>.ideal.md`, and any resolved `<parent>`.
   - It loads this skill and `doc-standards` itself, runs the extractors, and loops on the density and page-fit gates before returning — none of that belongs in the dispatch prompt.
 
@@ -114,7 +121,10 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
 **Check `.github/` for a PR template** (`pull_request_template.md`, `PULL_REQUEST_TEMPLATE.md`).
 
-**Dispatch the merge either way** -- `agent(subAgent=pr-writer, title=Compose repo PR description)` in mode `final`, in the background, waiting for it — step 4 pushes its output.
+**Dispatch the merge either way** -- `agent(subAgent=pr-finalizer, title=Compose repo PR description)` in the background, waiting for it — step 4 pushes its output.
+
+- **A different agent from step 2's, deliberately** -- this step re-derives nothing, so it runs a tier below the author that produced its input.
+  - Effort is frontmatter-only, so the cheaper stage needs its own file; the two cannot be one agent taking a mode argument.
 
 - Give it three paths: the `pr_<slug>_pr<N>.ideal.md` from step 2, the repo's template file, and the output `./pr_<slug>_pr<N>.final.md`.
 - No template found → say so instead of naming one; the agent copies the ideal description verbatim into the final body.
@@ -181,7 +191,7 @@ Two entry points: a change the user asks for after the push, or step 4 finding t
   - Skip this on step 4's already-exists entry: the `.final.md` just composed IS the replacement, so pulling would overwrite it with the body it replaces.
 
 - **Load the `doc-standards` skill before editing** -- this is the only prose the main session writes, so density cap, BLUF ordering, and collapse rules apply.
-  - Steps 1-4 never need it: `pr-writer` already loads it and owns both gates; step 4 only checks the artifact exists.
+  - Steps 1-4 never need it: `pr-writer` and `pr-finalizer` each load it and own their own gates; step 4 only checks the artifact exists.
 
 - **Edit `pr_<slug>_pr<N>.final.md` only** -- the `.ideal.md` is deliberately left to drift once the PR exists.
   - Re-deriving the final body from it would discard the user's own edits, and nobody reads the ideal description after the push.
