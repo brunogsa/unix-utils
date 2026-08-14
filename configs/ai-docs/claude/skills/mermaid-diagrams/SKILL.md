@@ -90,7 +90,7 @@ oms["OMS<br/>« Salesforce »<br/><br/>• Orquestração: Pedidos, Invoice<br/>
 cgi["CGI (Cadastro Global)<br/><br/>Fonte da Verdade: Escolas, Faculdades<br/>expõe eventos + API"]
 ~~~
 
-[Why] The header answers "what is this?", the body "what does it do?". The blank line lets the eye grab the name first and drop into details only when needed.
+[Why] The blank line lets the eye grab the name first and drop into details only when needed.
 
 
 
