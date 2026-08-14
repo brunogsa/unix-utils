@@ -10,7 +10,8 @@ Every list-bullet carries one marker for deterministic counting via `grep` — n
 
 - **`[Why]`** — the single rationale beneath an instruction; adds no constraint. *Test: it reads after "because."* Decision-shaping only; combine multiple reasons into one bullet rather than stacking two.
 
-- **`[Example]`** — a snippet, table, or bad/good contrast for the instruction or why. Never an abstract restatement, aphorism, or pointer.
+- **`[Example]`** — a snippet, table, bad/good contrast, or an enumeration bounding a vague noun, for the instruction or why. Never an abstract restatement, aphorism, or pointer.
+
 - **`CRITICAL`** — optional prefix flagging an instruction as a tiebreaker. Rare by design; the script caps the ratio.
 
 - [Instruction] Load the `skill-standards` skill before editing this file or any `*-standards` skill — it holds the marker-authoring rules (splitting, nesting, headings, density interplay).
@@ -144,7 +145,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 - [Instruction] **CRITICAL: Handle failures, corner cases, unexpected states** -- applies to code paths, user flows, scripts, processes, integrations — anything you build.
   - [Why] Without them you ship a poor solution that won't survive production, where these conditions are the norm — not rare edge cases.
-  - [Example] Common real-world failures: DB overloaded or slow, third-party API down or rate-limited, network timeouts, partial writes, malformed input.
 
 - [Instruction] **CRITICAL: No speculative scope** -- don't add features, configurability, abstractions, comments, tests, or principles the user didn't ask for. Every line should trace to the request.
   - [Why] Speculative additions inflate diff size, dilute review attention, and ship code with no real caller.
@@ -178,7 +178,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **CRITICAL: Verify everything you build, accept, or claim** -- evidence over optimism, applied at every gate.
   - [Why] Unverified beliefs compound — a wrong assumption caught late costs N× a 30-second spike, an accepted limit propagates into bad design, and an unverified output ships the bug.
 
-  - [Example] Before starting — dry-run or EXPLAIN to check your assumption holds.
   - [Example] Before claiming a count or "complete," grep/wc the actual file — a truncated snippet isn't proof.
   - [Example] A README saying a service runs in staging isn't evidence — read the terraform/`.env`/manifest that actually sets it.
 
@@ -203,8 +202,6 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] Load every `*-standards` skill whose trigger fires (`agent/code/doc/test/commit/debug/skill-standards`) — one change can fire several; when in doubt, load it.
   - [Why] They encode hard-won wisdom but lazy-load to save context; a change can span several concerns, and each standard you skip is wisdom the user must repeat by hand.
-
-  - [Example] A change that touches code, its comments, and its tests fires three triggers at once — load code-standards, doc-standards, and test-standards.
 
 - [Instruction] Treat config files as code — editing one (e.g. `init.lua`) fires the same `*-standards` triggers a source file would.
   - [Why] Counting config as code loads code-standards on it, so its conventions apply instead of getting skipped as "just config".
@@ -257,6 +254,7 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 
 - [Instruction] Build a task subject in two steps: create it as ` <id>. <description>` (leading space, number, period, trailing space); once TaskCreate returns its id, TaskUpdate `[#<returned-id>][<category>]` before the description.
   - [Why] The manual id is referenceable in chat immediately without waiting for TaskCreate's return, and pinning the system id afterward makes later updates and references unambiguous.
+
   - [Example] Final shape ` <id>. [#<returned-id>][<category>] <description>`. Default `[Task]`; also `[Feature]`, `[Spike]`, `[Debt]`, `[Refactor]`.
 
   - [Example] The five placement categories — pick by the commit rule, which is the reason each exists:
@@ -268,8 +266,6 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 | `[Scout]` | pre-existing non-blocking issue, auto-queued with no approval | own commit, end of list. Absorbing a pre-existing fix would mix concerns. |
 | `[Drift]` | collateral fix the current task is blocked on mid-flight | base commit if trivial, else its own — a large drift burdens the goal's reviewer. |
 | `[Reminder]` | a process step to run later | may produce no commit; stays pending until it runs, so a long run can't skip it. |
-
-  - [Example] `[Reminder]` in practice — batch-end steps: run the repo-green gate, dispatch the review tails, finalize the PR, open the diff-review pane.
 
 - [Instruction] Persist machine-checkable task state — step counters, gate outcomes, attempt counts, decisions, artifact/experiment links — in the task's `metadata` field, not in prose subjects or descriptions.
   - [Why] Metadata survives compaction with the task and reads back as structured fields, so a resumed skill checks exactly where it was instead of re-parsing prose.
@@ -332,7 +328,6 @@ Routing and upkeep for the two note surfaces, plus the two scratchpad files each
 
   - [Example] `<slow-cmd> > /tmp/out.txt 2>&1; echo "exit: $?"; tail -<N> /tmp/out.txt;` — choose N to fit the command's summary.
   - [Example] Bad: `<slow-cmd>; tail -<N> /tmp/out.txt; echo "exit: $?"` — that `echo` reports tail's `0`, not the command's.
-  - [Example] Reuse one path per concern (`/tmp/test-out.txt`) so the user can keep a `tail -f` open across your re-runs.
   - [Example] Don't pipe it straight to `grep`/`head` — a wrong filter discards the output and forces the whole slow run again.
 
 ### RTK command proxy
