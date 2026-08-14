@@ -25,7 +25,7 @@
 # Each entry reads `<report section> :: <what was measured> :: <metric>
 # = <value>`, taken verbatim from check.sh's own report. Lines starting
 # with # are comments; blank lines are ignored.
-Budgets :: Bundled files failing size or heading checks :: measured = 5
+Budgets :: Bundled files failing size or heading checks :: measured = 3
 Budgets :: CLAUDE.md [Instruction] count :: measured = 99
 Budgets :: CLAUDE.md non-blank lines :: measured = 265
 Budgets :: Max skill desc chars :: measured = 288
