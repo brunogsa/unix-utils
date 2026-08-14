@@ -2,7 +2,7 @@
 # extract-design-tests - emit the Test Design test titles of a plan as breadcrumbs.
 #
 # Usage:
-#   extract-design-tests.sh [--pairs] <plan-path>
+#   extract-design-tests.sh [--pairs|--annotations] <plan-path>
 #
 # Default: prints one breadcrumb per line, reconstructed from the `## Test Design` section only:
 #
@@ -12,6 +12,21 @@
 # --pairs: prints `<bare-it><TAB><breadcrumb>` per line instead — consumed by
 # normalize-list-breadcrumbs.sh to upgrade bare list titles to breadcrumbs. This keeps the
 # describe/class reconstruction in ONE place (both gates and the normalizer read it here).
+#
+# --annotations: prints `<bare-it><TAB><breadcrumb><TAB><AC tokens><TAB><T tokens>` per line —
+# the AC/T tokens parsed from a trailing `// AC-<n>... T<n>... [on-demand]` comment on the
+# it() line (the single-source annotation grammar; see plan-template.md's Test Design section).
+# Both columns are space-joined when an annotation cites several tokens, and empty (but the tab
+# still present) when the it() line carries no annotation at all — a plan still on the old
+# list-form Test Design (no annotations anywhere) reads as every row's AC/T columns empty, which
+# is exactly the signal check-ac-coverage.sh, check-test-distribution.sh, and
+# extract-planned-tests-for-task.sh use to fall back to the pre-annotation list-form behavior.
+# Consumed by those three sibling scripts, so the annotation grammar lives in ONE place too.
+#
+# The bare title and breadcrumb columns are already clean of the trailing annotation comment
+# without any extra stripping step: the same `it\("[^"]*"\)` match the default/--pairs modes
+# use stops at the closing `")`, before the `//` comment ever begins — so default and --pairs
+# output are byte-identical whether or not the plan's it() lines carry annotations.
 #
 # The breadcrumb is DERIVED from Test Design's own structure — the `describe("X")` name and
 # the nearest `// Happy cases` / `// Corner cases` / `// Failure scenarios` comment above the
@@ -31,13 +46,14 @@
 set -eo pipefail
 
 pairs=0
-if [ "${1:-}" = "--pairs" ]; then
-  pairs=1
-  shift
-fi
+annotations=0
+case "${1:-}" in
+  --pairs) pairs=1; shift ;;
+  --annotations) annotations=1; shift ;;
+esac
 
 if [ $# -ne 1 ]; then
-  echo "usage: $(basename "$0") [--pairs] <plan-path>" >&2
+  echo "usage: $(basename "$0") [--pairs|--annotations] <plan-path>" >&2
   exit 2
 fi
 
@@ -48,7 +64,7 @@ if [ ! -f "$plan" ]; then
   exit 2
 fi
 
-titles=$(awk -v pairs="$pairs" '
+titles=$(awk -v pairs="$pairs" -v annotations="$annotations" '
   # Enter/leave the Test Design section; a later `## ` heading ends it.
   /^## / {
     if (in_design) exit
@@ -76,10 +92,34 @@ titles=$(awk -v pairs="$pairs" '
   # it("Title") — emit the breadcrumb (3-segment under a class, else 2-segment).
   match($0, /it\("[^"]*"\)/) {
     t = substr($0, RSTART, RLENGTH)
+    matchEnd = RSTART + RLENGTH
     sub(/^it\("/, "", t)
     sub(/"\)$/, "", t)
     crumb = (cls != "") ? (desc " > " cls " > " t) : (desc " > " t)
-    if (pairs) print t "\t" crumb
+    if (annotations) {
+      # `rest` is captured before any inner match() call below, since those
+      # overwrite the same RSTART/RLENGTH the outer it() match just set.
+      rest = substr($0, matchEnd)
+      comment = ""
+      slashPos = index(rest, "//")
+      if (slashPos > 0) comment = substr(rest, slashPos + 2)
+
+      acs = ""; x = comment
+      while (match(x, /AC-[0-9]+/)) {
+        tok = substr(x, RSTART, RLENGTH)
+        acs = (acs == "" ? tok : acs " " tok)
+        x = substr(x, RSTART + RLENGTH)
+      }
+
+      tnums = ""; x = comment
+      while (match(x, /T[0-9]+/)) {
+        tok = substr(x, RSTART, RLENGTH)
+        tnums = (tnums == "" ? tok : tnums " " tok)
+        x = substr(x, RSTART + RLENGTH)
+      }
+
+      print t "\t" crumb "\t" acs "\t" tnums
+    } else if (pairs) print t "\t" crumb
     else print crumb
   }
 ' "$plan")
