@@ -66,7 +66,7 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 - **Derive the appendix's section list — never ask the user for it** -- it is the resolved spec/plan minus every section the body already renders.
   - Excluded, because the body owns them at the same altitude: mermaid diagrams, Background/Context, Goals, User Stories, and the plan's task breakdown.
   - Included: Testable Acceptance Criteria, Functional Decisions, Technical Decisions, Non-Functional/Technical Requirements, Test Design, and any section with no body counterpart.
-  - Decisions stay here in FULL and verbatim, per the altitude rule in [`references/pr-page-budget.md`](references/pr-page-budget.md).
+  - Decisions follow the altitude rule in [`references/pr-page-budget.md`](references/pr-page-budget.md).
   - `### References` joins them there as authored content, so the appendix survives even when no spec/plan resolved.
 
 - **CRITICAL: Both halves of a spec/plan reach the PR by script, never by re-authoring** -- the main session derives the list, and step 2's agent runs the extractors.
@@ -74,7 +74,6 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
   - A re-summarized section or a re-drawn diagram diverges from what the spec/plan was reviewed against, and nothing downstream catches the divergence.
 
 - **Collect the `changes-gatherer` digest as this step's last act** -- step 2 cannot start without it, so wait here if it is still running.
-  - By this point it has had the whole interview to run in, so a wait that used to cost its full duration usually costs nothing.
 
 ### 2. Compose the ideal description — density and page fit
 
@@ -185,19 +184,8 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
 ### 5. Apply post-push changes
 
-Two entry points: a change the user asks for after the push, or step 4 finding the branch already had an open PR. Either way:
+Two entry points, neither firing on most runs: a change the user asks for after the push, or step 4 finding the branch already had an open PR.
 
-- **Pull GitHub's current body into the file first** -- `gh pr view <n> --json body`, so a hand-edit made there is not overwritten by the next push.
-  - Skip this on step 4's already-exists entry: the `.final.md` just composed IS the replacement, so pulling would overwrite it with the body it replaces.
-
-- **Load the `doc-standards` skill before editing** -- this is the only prose the main session writes, so density cap, BLUF ordering, and collapse rules apply.
-  - Steps 1-4 never need it: `pr-writer` and `pr-finalizer` each load it and own their own gates; step 4 only checks the artifact exists.
-
-- **Edit `pr_<slug>_pr<N>.final.md` only** -- the `.ideal.md` is deliberately left to drift once the PR exists.
-  - Re-deriving the final body from it would discard the user's own edits, and nobody reads the ideal description after the push.
-
-- **Confirm with the user before writing to GitHub** -- the local edit is cheap to revise; the pushed body notifies reviewers.
-- **Updating an existing PR's body: never use `gh pr edit --body-file`** — take the REST command and its mandatory read-back from the `gh-cli-usage` skill, which authors that hazard.
-  - Restating the command would be a third copy that drifts the next time GitHub changes the endpoint.
+Rules, the editing target, and the GitHub-body-update hazard: [`references/post-push-changes.md`](references/post-push-changes.md).
 
 [`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
