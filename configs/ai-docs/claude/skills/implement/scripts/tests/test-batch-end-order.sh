@@ -49,6 +49,11 @@ REVIEW_FILE="$script_dir/../references/batch-end-review.md"
 BASELINE_FILE="$script_dir/../references/full-suite-baseline.md"
 IMPLEMENT_DIR="$script_dir/.."
 
+# repo-green-runner.md lives outside skills/implement/ - agents/
+# is a sibling of skills/ under configs/ai-docs/claude/, same
+# depth HOOKS_DIR below already reaches.
+AGENT_FILE="$script_dir/../../../agents/repo-green-runner.md"
+
 # The hooks tree drives this skill from outside its own
 # directory, so a stage order living only there is an order
 # no scan of skills/implement/ can reach.
@@ -139,6 +144,23 @@ HOOK_GREEN_MARKER='§8\.[0-9]+ repo-green gate'
 # A payload naming a fixed count therefore orders reminders
 # §2.2 forbids seeding, so the count belongs to §2.2 alone.
 HOOK_FIXED_REMINDER_COUNT_PATTERN='re-seed the (one|two|three|four|[0-9]+)'
+
+# Scout #38 - signature diffing assumed the set of suite
+# entries producing signatures never changes between baseline
+# and gate.
+#
+# A test-*.sh added, deleted, or renamed mid-batch breaks that
+# assumption in both directions, so baseline mode now records
+# which entries ran, and gate mode carries that record through
+# to diff against.
+INVENTORY_KEY_MARKER='baseline.inventory'
+
+# The two rules the agent file states as one principle and its
+# inverse (repo-green-runner.md's gate-mode step). Matched as
+# fixed substrings of the exact sentences, so a rewrite that
+# drops either direction's reasoning fails this suite.
+ADDED_ENTRY_RULE_MARKER='entry that would produce it actually ran'
+REMOVED_ENTRY_RULE_MARKER='entry that produced it still ran'
 
 pass_count=0
 fail_count=0
@@ -308,6 +330,26 @@ check_absent() {
   fi
   if grep -qFi "$needle" "$file"; then
     printf 'found forbidden string %s in %s\n' "$needle" "$file"
+    return 1
+  fi
+  return 0
+}
+
+# check_present <file> <fixed-string> - the mirror of
+# check_absent: returns 0 only when the string occurs at
+# least once in the file.
+#
+# Some assertions need to confirm a marker IS there (a
+# recorded state key, a stated rule), not that a forbidden
+# one is missing.
+check_present() {
+  local file="$1" needle="$2"
+  if [ ! -f "$file" ]; then
+    printf 'missing: %s\n' "$file"
+    return 1
+  fi
+  if ! grep -qFi "$needle" "$file"; then
+    printf 'expected string %s not found in %s\n' "$needle" "$file"
     return 1
   fi
   return 0
@@ -522,6 +564,83 @@ it_should_fail_when_a_dispatch_names_no_mode() {
   rm -f "$tmp_file"
 }
 
+it_should_assert_the_pre_flight_baseline_records_the_suite_inventory() {
+  assert_eq "should assert full-suite-baseline.md records the suite inventory alongside baseline.failures" \
+    "passed" "$(run_check check_present "$BASELINE_FILE" "$INVENTORY_KEY_MARKER")"
+}
+
+it_should_fail_when_the_baseline_reference_never_mentions_the_inventory() {
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  # Dropping the inventory key is the pre-fix shape: baseline
+  # mode records only failures and a log path, leaving gate
+  # mode with no per-entry record to diff its own against.
+  grep -v -F "$INVENTORY_KEY_MARKER" "$BASELINE_FILE" > "$tmp_file"
+  assert_eq "should fail when full-suite-baseline.md never mentions baseline.inventory" \
+    "failed" "$(run_check check_present "$tmp_file" "$INVENTORY_KEY_MARKER")"
+  rm -f "$tmp_file"
+}
+
+it_should_assert_the_repo_green_gate_dispatch_passes_the_baseline_inventory() {
+  assert_eq "should assert batch-end-review.md's gate dispatch passes baseline.inventory" \
+    "passed" "$(run_check check_present "$REVIEW_FILE" "$INVENTORY_KEY_MARKER")"
+  assert_eq "should assert the baseline.inventory mention sits inside the repo-green gate section" \
+    "passed" "$(run_check check_precedes "$REVIEW_FILE" "$REVIEW_GREEN_MARKER" "$INVENTORY_KEY_MARKER")"
+}
+
+it_should_fail_when_the_gate_dispatch_never_passes_the_inventory() {
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  # Passing failures + log path but not the inventory
+  # reproduces Scout #38's premise: the gate can classify a
+  # signature but has no way to tell whether the entry that
+  # would produce it ever ran at baseline.
+  grep -v -F "$INVENTORY_KEY_MARKER" "$REVIEW_FILE" > "$tmp_file"
+  assert_eq "should fail when the repo-green gate dispatch never passes baseline.inventory" \
+    "failed" "$(run_check check_present "$tmp_file" "$INVENTORY_KEY_MARKER")"
+  rm -f "$tmp_file"
+}
+
+it_should_assert_the_agent_file_states_the_added_entry_rule() {
+  assert_eq "should assert repo-green-runner.md states an added suite entry reads as unmeasured, not batch-caused" \
+    "passed" "$(run_check check_present "$AGENT_FILE" "$ADDED_ENTRY_RULE_MARKER")"
+}
+
+it_should_fail_when_the_agent_file_omits_the_added_entry_rule() {
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  # Without this direction, a suite entry added mid-batch (a
+  # new test-*.sh dropped into any of run-tests.sh's four
+  # globbed trees) has no baseline signature, so the gate
+  # reads its red as batch-caused and fixes red it doesn't own.
+  grep -v -F "$ADDED_ENTRY_RULE_MARKER" "$AGENT_FILE" > "$tmp_file"
+  assert_eq "should fail when repo-green-runner.md drops the added-entry rule" \
+    "failed" "$(run_check check_present "$tmp_file" "$ADDED_ENTRY_RULE_MARKER")"
+  rm -f "$tmp_file"
+}
+
+it_should_assert_the_agent_file_states_the_removed_entry_rule() {
+  assert_eq "should assert repo-green-runner.md states a removed suite entry never counts as fixed" \
+    "passed" "$(run_check check_present "$AGENT_FILE" "$REMOVED_ENTRY_RULE_MARKER")"
+}
+
+it_should_fail_when_the_agent_file_omits_the_removed_entry_rule() {
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  # Without this direction, a suite entry removed since
+  # baseline (deleted, renamed, or moved test-*.sh) vanishes
+  # from the gate's own signature set, and "no longer failing"
+  # reads as fixed - a false green nobody investigates.
+  grep -v -F "$REMOVED_ENTRY_RULE_MARKER" "$AGENT_FILE" > "$tmp_file"
+  assert_eq "should fail when repo-green-runner.md drops the removed-entry rule" \
+    "failed" "$(run_check check_present "$tmp_file" "$REMOVED_ENTRY_RULE_MARKER")"
+  rm -f "$tmp_file"
+}
+
 it_should_assert_skill_md_never_mentions_baseline_wanted() {
   assert_eq "should assert SKILL.md contains no baseline.wanted occurrence" \
     "passed" "$(run_check check_absent "$SKILL_FILE" "$BASELINE_WANTED_STRING")"
@@ -675,6 +794,14 @@ it_should_assert_the_repo_green_gate_is_dispatched_to_the_repo_green_runner
 it_should_assert_the_gate_dispatch_sits_inside_the_repo_green_gate_section
 it_should_fail_when_a_suite_run_names_no_repo_green_runner_dispatch
 it_should_fail_when_a_dispatch_names_no_mode
+it_should_assert_the_pre_flight_baseline_records_the_suite_inventory
+it_should_fail_when_the_baseline_reference_never_mentions_the_inventory
+it_should_assert_the_repo_green_gate_dispatch_passes_the_baseline_inventory
+it_should_fail_when_the_gate_dispatch_never_passes_the_inventory
+it_should_assert_the_agent_file_states_the_added_entry_rule
+it_should_fail_when_the_agent_file_omits_the_added_entry_rule
+it_should_assert_the_agent_file_states_the_removed_entry_rule
+it_should_fail_when_the_agent_file_omits_the_removed_entry_rule
 it_should_assert_the_run_is_marked_presented_only_after_both_gates_have_run
 it_should_fail_when_a_batch_end_file_is_missing
 it_should_fail_when_the_push_step_is_moved_back_behind_a_gate
