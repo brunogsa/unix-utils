@@ -60,12 +60,34 @@ printf '%s' "$CMD" \
   | grep -qE '(^|[^A-Za-z0-9_-])(strings|grep|egrep|fgrep|rg|ugrep)([^A-Za-z0-9_-]|$)' \
   || exit 0
 
+# Resolved via BASH_SOURCE (never `$0`, which breaks
+# under `source`) so this still finds lib/ when invoked
+# through the `~/.claude/hooks` symlink into this repo.
+#
+# The OS resolves a directory symlink transparently for
+# every path built underneath it, so this works whether
+# `pwd` reports the logical or the physical path.
+CLAUDE_HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export CLAUDE_HOOKS_DIR
 export CLAUDE_SCAN_CMD="$CMD"
 python3 - <<'PYEOF'
+import importlib.util
 import os
 import re
 import shlex
 import sys
+
+# strip_heredoc_bodies() and split_into_pipelines() live in
+# lib/parse-shell-command.py, shared with claude-rm-guard.sh — see that
+# module's header for why guards import it via spec_from_file_location
+# instead of a bare `import` (its filename is hyphenated, not a valid
+# Python identifier).
+_lib_path = os.path.join(os.environ['CLAUDE_HOOKS_DIR'], 'lib', 'parse-shell-command.py')
+_spec = importlib.util.spec_from_file_location('parse_shell_command', _lib_path)
+_parse_shell_command = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_parse_shell_command)
+strip_heredoc_bodies = _parse_shell_command.strip_heredoc_bodies
+split_into_pipelines = _parse_shell_command.split_into_pipelines
 
 cmd = os.environ.get('CLAUDE_SCAN_CMD', '')
 if not cmd.strip():
@@ -91,111 +113,6 @@ COMMAND_WRAPPERS = ('sudo', 'command', 'env', 'nice', 'nohup', 'time', 'xargs')
 BOUNDED_REPETITION_BODY = re.compile(r'^\d+(,\d*)?$')
 
 ENV_ASSIGNMENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
-
-HEREDOC_OPENER = re.compile(r'<<(-?)\s*(["\'])?([A-Za-z_][A-Za-z0-9_]*)\2')
-
-
-def strip_heredoc_bodies(text):
-    """Drop heredoc body lines, keeping opener and delimiter.
-
-    Body text between `<<'EOF'` and its closing marker is
-    inert data fed to a redirect target, never executed.
-
-    A commit message describing this very incident quotes
-    the hung commands verbatim, so scanning that prose as
-    code would block the commit that documents the guard.
-
-    Mirrors the same-named helper in claude-rm-guard.sh.
-    """
-    lines = text.split('\n')
-    kept = []
-    index = 0
-    total = len(lines)
-    while index < total:
-        line = lines[index]
-        kept.append(line)
-        opener = HEREDOC_OPENER.search(line)
-        index += 1
-        if not opener:
-            continue
-        dash, _quote, delimiter = opener.groups()
-        while index < total:
-            probe = lines[index].lstrip('\t') if dash else lines[index]
-            if probe == delimiter:
-                kept.append(lines[index])
-                index += 1
-                break
-            index += 1
-    return '\n'.join(kept)
-
-
-def split_into_pipelines(text):
-    """Split a command into statements of pipeline stages.
-
-    Quote-aware, because a separator inside a quoted
-    argument is data, not structure: `grep 'a|b' f` is one
-    stage, and splitting it would misread the pattern as a
-    second command.
-
-    A redirect's `&` (`2>&1`, `&>log`) is likewise data,
-    not a statement separator.
-    """
-    statements = []
-    stages = []
-    current = []
-    quote = None
-    index = 0
-    total = len(text)
-    while index < total:
-        char = text[index]
-        if quote is not None:
-            if quote == '"' and char == '\\' and index + 1 < total:
-                current.append(char)
-                current.append(text[index + 1])
-                index += 2
-                continue
-            current.append(char)
-            if char == quote:
-                quote = None
-            index += 1
-            continue
-        if char == '\\' and index + 1 < total:
-            current.append(char)
-            current.append(text[index + 1])
-            index += 2
-            continue
-        if char in ('"', "'"):
-            quote = char
-            current.append(char)
-            index += 1
-            continue
-        if text[index:index + 2] in ('&&', '||'):
-            stages.append(''.join(current))
-            statements.append(stages)
-            current, stages = [], []
-            index += 2
-            continue
-        if char == '&' and (''.join(current).rstrip().endswith(('>', '<'))
-                            or text[index + 1:index + 2] == '>'):
-            current.append(char)
-            index += 1
-            continue
-        if char in (';', '\n', '&'):
-            stages.append(''.join(current))
-            statements.append(stages)
-            current, stages = [], []
-            index += 1
-            continue
-        if char == '|':
-            stages.append(''.join(current))
-            current = []
-            index += 1
-            continue
-        current.append(char)
-        index += 1
-    stages.append(''.join(current))
-    statements.append(stages)
-    return statements
 
 
 def parse_stage(stage):

@@ -34,41 +34,31 @@ CMD=$(jq -r '.tool_input.command // empty' 2>/dev/null)
 # Cheap short-circuit: if there is no `rm` word at all, skip the Python parse entirely.
 printf '%s' "$CMD" | grep -qw rm || exit 0
 
+# Resolved via BASH_SOURCE (never `$0`, which breaks under `source`) so this
+# still finds lib/ when invoked as `bash ~/.claude/hooks/claude-rm-guard.sh`
+# — `~/.claude/hooks` is a directory symlink into this repo, and the OS
+# resolves it transparently for every path built underneath it.
+CLAUDE_HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export CLAUDE_HOOKS_DIR
 export CLAUDE_RM_CMD="$CMD"
 python3 - <<'PYEOF'
-import os, sys, re, shlex, glob, subprocess
+import os, sys, re, shlex, glob, subprocess, importlib.util
+
+# strip_heredoc_bodies() and the quote-aware pipeline splitter live in
+# lib/parse-shell-command.py, shared with claude-scan-hang-guard.sh — see
+# that module's header for why guards import it via spec_from_file_location
+# instead of a bare `import` (its filename is hyphenated, not a valid
+# Python identifier).
+_lib_path = os.path.join(os.environ['CLAUDE_HOOKS_DIR'], 'lib', 'parse-shell-command.py')
+_spec = importlib.util.spec_from_file_location('parse_shell_command', _lib_path)
+_parse_shell_command = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_parse_shell_command)
+strip_heredoc_bodies = _parse_shell_command.strip_heredoc_bodies
+split_into_pipelines = _parse_shell_command.split_into_pipelines
 
 cmd = os.environ.get('CLAUDE_RM_CMD', '')
 if not cmd.strip():
     sys.exit(0)
-
-# Strip heredoc BODY lines (keeping the opener line, which may itself hold a
-# real command, and the closing delimiter line) before segment-splitting or
-# the final fail-closed regex ever see `cmd`. Body text between `<<'EOF'` and
-# the closing `EOF` marker is inert data fed to a redirect target, never
-# executed as a shell command — so prose in there (e.g. a commit message
-# describing a past `rm -f` incident) must not be scanned as if it were code.
-def strip_heredoc_bodies(c):
-    lines = c.split('\n')
-    out = []
-    i = 0
-    n = len(lines)
-    opener_re = re.compile(r'<<(-?)\s*(["\'])?([A-Za-z_][A-Za-z0-9_]*)\2')
-    while i < n:
-        line = lines[i]
-        out.append(line)
-        m = opener_re.search(line)
-        i += 1
-        if m:
-            dash, _quote, delim = m.groups()
-            while i < n:
-                probe = lines[i].lstrip('\t') if dash else lines[i]
-                if probe == delim:
-                    out.append(lines[i])
-                    i += 1
-                    break
-                i += 1
-    return '\n'.join(out)
 
 cmd = strip_heredoc_bodies(cmd)
 
@@ -79,60 +69,20 @@ def git(args, cwd):
 def is_repo(cwd):
     return git(['rev-parse', '--is-inside-work-tree'], cwd).returncode == 0
 
-# Split a compound command into segments on shell separators (`&&`, `||`,
-# `;`, `\n`, `&`, `|`) — but never on one of those characters sitting INSIDE
-# a quoted argument. A regex-based split can't tell the difference, so a
-# search pattern like `grep -rn "rm -rf; keep looking" .` used to shatter
-# into fragments mid-string: one fragment lost its closing quote, shlex
-# rejected it as unparseable, and the final fail-closed regex then found
-# "rm" inside what was really inert grep-pattern data — blocking a plain
-# search that never invoked rm. Mirrors strip_heredoc_bodies() above: a
-# single scan over `cmd` that keeps quoted DATA out of the segments before
-# anything downstream treats it as command structure.
+# split_into_pipelines() (shared, imported above) is quote-aware — a search
+# pattern like `grep -rn "rm -rf; keep looking" .` used to shatter into
+# fragments mid-string when the old regex-based split couldn't tell a `;`
+# INSIDE a quoted argument from a real shell separator: one fragment lost
+# its closing quote, shlex rejected it as unparseable, and the final
+# fail-closed regex then found "rm" inside what was really inert
+# grep-pattern data — blocking a plain search that never invoked rm.
 #
-# An unterminated quote leaves `quote` still set at end-of-string; the
-# unclosed fragment is appended as-is, so shlex.split() on it still raises
-# ValueError downstream and the command still fails closed as unparseable —
-# exactly like the pre-existing heredoc/unbalanced-quote cases below.
+# This guard doesn't care whether a separator was `;`, `&&`, or a pipe `|`
+# — it wants one flat list of command segments — so it flattens the shared
+# splitter's statement/stage structure rather than tracking pipelines
+# itself.
 def split_segments(c):
-    segments = []
-    current = []
-    quote = None  # None, "'", or '"' — which quote (if any) we're inside.
-    i, n = 0, len(c)
-    while i < n:
-        ch = c[i]
-        if quote == "'":
-            current.append(ch)
-            if ch == "'":
-                quote = None
-            i += 1
-        elif quote == '"':
-            if ch == '\\' and i + 1 < n and c[i + 1] in ('"', '\\'):
-                current.append(ch)
-                current.append(c[i + 1])
-                i += 2
-                continue
-            current.append(ch)
-            if ch == '"':
-                quote = None
-            i += 1
-        elif ch in ("'", '"'):
-            quote = ch
-            current.append(ch)
-            i += 1
-        elif c[i:i + 2] in ('&&', '||'):
-            segments.append(''.join(current))
-            current = []
-            i += 2
-        elif ch in (';', '\n', '&', '|'):
-            segments.append(''.join(current))
-            current = []
-            i += 1
-        else:
-            current.append(ch)
-            i += 1
-    segments.append(''.join(current))
-    return segments
+    return [stage for stages in split_into_pipelines(c) for stage in stages]
 
 # Parse one segment -> (exe_basename_or_None, args_list). '__UNPARSEABLE__' on quote errors.
 def parse_seg(seg):
