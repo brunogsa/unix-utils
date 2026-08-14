@@ -138,15 +138,19 @@ Each dispatch carries **all** of the findings assigned to it at once, each with 
   - `agent(subAgent=refactor, title=Apply all refactor findings)`.
   - It applies the changes itself and confirms tests are green before and after.
 
-**Size the `test-sdd` and `auto-review` entries to `tdd-coder`'s no-self-split contract** before dispatching — it never splits an oversized batch on its own:
+**Size all three entries to the same cap** before dispatching, so no dispatch exhausts its agent's turn budget mid-run.
+
+Neither `tdd-coder` nor the `refactor` agent splits an oversized batch on its own, so a batch that outruns its turn budget leaves the work half-applied with no record of where it stopped.
 
 - Cluster related findings into the same dispatch, so one subagent sees the full picture behind them.
 - Bundle findings too small to deserve their own RED-GREEN cycle into one unit.
 - Aim for ~10 units per dispatch as a guide, not a rigid rule — deviate when clustering or bundling argues for it.
 
-When either entry contributes more than ~10 findings, split it into multiple sequential `tdd-coder` dispatches for that lens — still serial, same branch, same seeded order, never one uncapped batch.
+When an entry contributes more than ~10 findings, split it into multiple sequential dispatches to that entry's own agent — still serial, same branch, same seeded order, never one uncapped batch.
 
-The `refactor` entry is exempt: it dispatches to the `refactor` agent named above, not `tdd-coder`, so this guide doesn't apply to it.
+The `refactor` agent is the concrete case for this cap: 30 days of telemetry puts its assistant-turn count at p90 = 85, max = 174.
+
+A `/quality-gate` run's 30-50 refactor findings can exhaust that budget in one uncapped dispatch, leaving the batch mid-run with nothing committed.
 
 Why the refactor lens keeps its own agent rather than joining the other two on `tdd-coder`: that agent refuses any behavior change, by design.
 A correctness fix or a missing test can't route through it — both need `tdd-coder`'s test-first discipline instead.
