@@ -37,47 +37,60 @@ def code_review_pipeline(arg):
     if mode == "github" and (pr_closed_or_merged() or prior_review_found()):   # 5 · Wave 0
         return abort("PR closed/merged, or a prior review exists")             # 5a
 
-    # ---- 6 · Wave 1 · context prep: create $work_dir, clone/diff,
-    #      commentable-lines, skipped-files ----
+    # 6 · Wave 1 · context prep: mode decides the path
     work_dir = create_work_dir()
-    if not clone():
-        return abort("clone failed")                       # 6c · github-only
-    run("extract-commentable-lines.sh", "extract-skipped-files.sh")   # 7
-    if mode == "github" and arg.jira_url:
-        run("fetch-jira-review-context.sh")   # 6a · jira-cli skill, optional
-    if mode == "local":
-        # 6b · repo-wide static checks: lint, typecheck, dead-code, circular,
-        #      tests, coverage.
+    if mode == "github":
+        assemble_diff_and_metadata()                       # 6a · pr.diff, changed-files,
+                                                             #      pr.json, commit-messages
+        if not clone():
+            return abort("clone failed")                    # 6a1
+        run("extract-commentable-lines.sh", "extract-skipped-files.sh")   # 6b
+        if arg.jira_url:
+            run("fetch-jira-review-context.sh")   # 6b1 · jira-cli skill, optional
+    else:
+        # 6c · one script call replaces the old inline git commands;
+        #      writes all 7 artifacts Wave 2 needs in a single pass.
+        run("prep-local-context.sh", base_ref, work_dir)
+        # 6d · repo-wide static checks: lint, typecheck, dead-code,
+        #      circular, tests, coverage.
         run_repo_wide_static_checks()
 
-    # 8 · persist to $work_dir: diff, changed-files, commit-messages,
-    #     commentable-lines, skipped-files.
-    persist(work_dir, diff, changed_files, commit_messages, commentable, skipped)
-
-    # 9b · persisted so a compaction before Wave 2 can't lose which path resumes.
-    tiny_pr = added_lines() < 100
+    # 7 · github computes+persists tiny_pr here; local's script (6c)
+    #     already wrote it — read either way from disk.
+    tiny_pr = added_lines_under_100(work_dir)
     persist(f"{work_dir}/tiny-pr.txt", tiny_pr)
 
-    if tiny_pr:                                            # 9 · tiny_pr
-        # 9a · tiny-PR fast-path: one pass, a 2-sentence summary,
-        #      skipping the guide writer AND Wave 3 — it jumps straight to 15a.
+    if tiny_pr:                                            # 8 · tiny_pr
+        # 8a · tiny-PR fast-path: load the union of all 8 rubrics'
+        #      standards + CLAUDE.md, walk the diff once, tag each
+        #      finding with its rubric, emit a 2-sentence summary
+        #      instead of the guide, skip Wave 3 entirely.
+        load_skill(union_of_specialist_standards(), "CLAUDE.md")
         findings = one_pass_review()
-        goto_wave4()                                       # 9a → 15a
+        persist(f"{work_dir}/wave2-guide.md", two_sentence_summary())
+        persist(f"{work_dir}/wave3-findings.json", findings)
+        goto_wave4()                                       # 8a → 15a
     else:
-        # 10 · via the Skill tool, plus the repo's own CLAUDE.md.
-        load_skill("code-standards", "test-standards", "doc-standards")
-        read("<repo>/CLAUDE.md")
+        # 9 · resume check: an existing specialist-<name>.json means
+        #     that rubric already ran — dispatch only what's missing.
+        done = {f.stem for f in glob(f"{work_dir}/specialist-*.json")}
+        remaining = [s for s in SPECIALISTS_8 if s not in done]
 
-        # 11 · a persisted progress file means resume after the last completed
-        #      specialist; absent, start at correctness.
-        done = read_or_empty(f"{work_dir}/wave2-progress.txt")
+        # 10 · Wave 2 · dispatch every remaining specialist as its own
+        #      review-specialist agent, all in one turn, concurrent.
+        #      Isolated context each — no specialist sees another's
+        #      findings, so dedup can't happen here (moved to 14a).
+        dispatch_concurrent("review-specialist · agent-pinned (opus · high)",
+                             remaining, one_turn=True)
+        # each agent writes $work_dir/specialist-<name>.json
 
-        # 12 · Wave 2 · the 8 specialists: correctness, corner-cases, testing,
-        #      security, design, ai-slop, docs, performance.
-        for specialist in SPECIALISTS_8[len(done):]:
-            findings += specialist.run()   # 60-80% confidence emits a QUESTION tag
-            # persist BEFORE moving to the next specialist
-            persist(f"{work_dir}/wave2-findings.json", f"{work_dir}/wave2-progress.txt")
+        # 11 · hard guard: an absent file and an empty array are
+        #      indistinguishable downstream, so count before merging.
+        if count(f"{work_dir}/specialist-*.json") != 8:
+            return abort("expected 8 specialist outputs, found fewer")   # 11a
+
+        findings = merge_json(f"{work_dir}/specialist-*.json")           # 12
+        persist(f"{work_dir}/wave2-findings.json", findings)
 
         if mode == "github":                               # 13
             if not exists(f"{work_dir}/wave2-guide.md"):   # 13a
@@ -86,8 +99,13 @@ def code_review_pipeline(arg):
         # 13 · local skips the guide entirely
 
         if not exists(f"{work_dir}/wave3-findings.json"):  # 14
-            # 14a · Wave 3 · batched validation: drop false positives, tighten
-            #       lines. Threshold LOW — keep the finding when in doubt.
+            # 14a · Wave 3 dedup pre-pass: this is the first step
+            #       holding all 8 arrays at once, so cross-specialist
+            #       overlap gets resolved here, not inside Wave 2.
+            findings = dedup_across_specialists(findings)
+            # 14b · per-finding validation: drop false positives,
+            #       tighten line anchors. Threshold LOW — keep when
+            #       in doubt.
             findings = validate(findings)
             persist(f"{work_dir}/wave3-findings.json", f"{work_dir}/wave3-drop-log.txt")
 
@@ -162,27 +180,36 @@ flowchart TD
   n5{"5. Wave 0 (github-only): PR closed/merged,<br/>or prior review detected?"}
   n5a(["5a. Abort: PR closed/merged<br/>or prior review found"])
 
-  n6["6. Wave 1: context prep<br/>create $work_dir, clone/diff,<br/>commentable-lines, skipped-files"]
-  n7["7. extract-commentable-lines.sh<br/>extract-skipped-files.sh"]:::hook
-  n6a["6a. jira-cli skill: fetch-jira-review-context.sh<br/>(github + Jira URL given, optional)"]:::skill
-  n6b["6b. Repo-wide static checks<br/>lint/typecheck/dead-code/circular,<br/>tests, coverage (local mode only)"]:::hook
-  n6c(["6c. Abort: clone failed"])
-  n8["8. Persist to $work_dir:<br/>diff, changed-files, commit-messages,<br/>commentable-lines, skipped-files"]:::state
+  n6{"6. Wave 1: context prep -- Mode?"}
 
-  n9b["9b. tiny_pr = added_lines less than 100,<br/>persisted to $work_dir/tiny-pr.txt<br/>(survives compaction before Wave 2)"]:::state
-  n9{"9. tiny_pr?"}
-  n9a["9a. Tiny-PR fast-path:<br/>one pass, 2-sentence summary,<br/>skip guide writer and Wave 3"]
+  n6a["6a. github: assemble diff + metadata<br/>(pr.diff, changed-files.txt, pr.json,<br/>commit-messages.txt), clone PR head<br/>into $work_dir/repo"]
+  n6a1(["6a1. Abort: clone failed (github-only)"])
+  n6b["6b. extract-commentable-lines.sh<br/>extract-skipped-files.sh"]:::hook
+  n6b1["6b1. jira-cli skill: fetch-jira-review-context.sh<br/>(github + Jira URL given, optional)"]:::skill
 
-  n10["10. Invoke code-standards, test-standards,<br/>doc-standards via Skill tool<br/>+ read repo CLAUDE.md"]:::skill
-  n11{"11. $work_dir/wave2-progress.txt<br/>exists?"}
-  n12["12. Wave 2: run next specialist<br/>(8 total: correctness, corner-cases,<br/>testing, security, design, ai-slop,<br/>docs, performance)<br/><br/>60-80% confidence emitted as QUESTION tag;<br/>persist wave2-findings.json + progress.txt<br/>before each next specialist"]
+  n6c["6c. local: scripts/prep-local-context.sh --<br/>writes 7 artifacts to $work_dir:<br/>diff, changed-files.txt, commit-messages.txt,<br/>commentable-lines.txt, skipped-binary.txt,<br/>skipped-deleted.txt, tiny-pr.txt"]:::hook
+  n6d["6d. local: repo-wide static checks --<br/>lint/typecheck/dead-code/circular,<br/>all test tiers, coverage"]:::hook
+
+  n7["7. tiny_pr = added_lines less than 100,<br/>persisted to $work_dir/tiny-pr.txt<br/>(github computes here; local already<br/>wrote it via 6c)"]:::state
+
+  n8{"8. tiny_pr?"}
+  n8a["8a. Tiny-PR fast-path -- read common-preamble.md<br/>+ all 8 specialist files, load union of<br/>per-rubric standards + CLAUDE.md, walk the<br/>diff once tagging findings by rubric; skip<br/>guide writer, emit 2-sentence summary to<br/>wave2-guide.md; persist findings to<br/>wave3-findings.json; skip Wave 3 entirely"]
+
+  n9{"9. $work_dir/specialist-*.json --<br/>which of the 8 rubrics still lack<br/>an output file?"}
+
+  n10["10. Wave 2: dispatch remaining specialists<br/>(of 8 total: correctness, corner-cases,<br/>testing, security, design, ai-slop,<br/>docs, performance) as concurrent<br/>review-specialist agents, one turn --<br/>agent-pinned (opus · high) ∥<br/>each writes specialist-&lt;name&gt;.json"]:::dispatch
+
+  n11{"11. count($work_dir/specialist-*.json)<br/>== 8?"}
+  n11a(["11a. Abort: expected 8 specialist<br/>outputs, found fewer"])
+  n12["12. jq -s 'add' merge into<br/>wave2-findings.json"]:::state
 
   n13{"13. Mode local?"}
   n13a{"13a. $work_dir/wave2-guide.md<br/>exists? (github only)"}
   n13a1["13a1. Write Review Guide<br/>(github only, max 400 words)<br/>persist wave2-guide.md"]
 
   n14{"14. $work_dir/wave3-findings.json<br/>exists?"}
-  n14a["14a. Wave 3: batched validation<br/>(drop false positives, tighten lines)<br/>threshold LOW -- keep when in doubt<br/>persist wave3-findings.json + wave3-drop-log.txt"]
+  n14a["14a. Wave 3: dedup pre-pass across all<br/>8 specialist arrays -- same path,<br/>overlapping lines, same underlying<br/>defect = duplicate; keep highest<br/>severity/confidence; log each drop"]
+  n14b["14b. Wave 3: per-finding validation --<br/>false-positive check, then line-range<br/>check; threshold LOW -- keep when in doubt<br/>persist wave3-findings.json + wave3-drop-log.txt"]
 
   n15{"15. $work_dir/wave4-findings.json<br/>exists?"}
   n15a["15a. Wave 4: filter-off-diff-findings.sh<br/>(anchor outside commentable-lines.txt)<br/>persist wave4-findings.json + wave4-drop-log.txt"]:::hook
@@ -195,6 +222,7 @@ flowchart TD
   n17{"17. Mode?"}
 
   n18["18. check-density.sh + check-bullet-gap.py on<br/>wave5-comment-*.md + wave2-guide.md<br/>(measure only -- nothing reflows a comment body)"]:::hook
+  n18a{"18a. Session is<br/>calling (not isolated)?"}
   n18a1["18a1. File ONE Scout TaskList entry per offending file<br/>naming the file and what is off standard<br/>(user alone decides if the repair ever runs)"]:::state
   n18a2["18a2. Carry the same Scouts into the Wave 6 summary<br/>(already a subagent -- its TaskList write<br/>never reaches the user who triages it)"]
 
@@ -227,26 +255,28 @@ flowchart TD
   n5 -->|"yes (github)"| n5a
   n5 -->|"no (github) / no-op (local)"| n6
 
-  n6 --> n7
-  n6 -.->|"github + Jira URL given"| n6a
-  n6 -.->|"local mode only"| n6b
-  n6 -->|"clone fails (github-only)"| n6c
+  n6 -->|"github"| n6a
+  n6a -->|"clone fails"| n6a1
+  n6a -->|"clone ok"| n6b
+  n6b -.->|"github + Jira URL given"| n6b1
+  n6b --> n7
+  n6b1 --> n7
+
+  n6 -->|"local"| n6c
+  n6c --> n6d
+  n6d --> n7
+
   n7 --> n8
-  n6a --> n8
-  n6b --> n8
-  n8 --> n9b
+  n8 -->|"yes"| n8a
+  n8 -->|"no"| n9
+  n8a --> n15a
 
-  n9b --> n9
-  n9 -->|"yes"| n9a
-  n9 -->|"no"| n10
+  n9 -->|"some rubrics missing an output file"| n10
+  n9 -->|"all 8 already done (resumed)"| n10
   n10 --> n11
-  n11 -->|"yes -- resume after last<br/>completed specialist"| n12
-  n11 -->|"no -- start at correctness"| n12
-
-  n12 -->|"next specialist"| n12
-  n12 -->|"all 8 done"| n13
-
-  n9a --> n15a
+  n11 -->|"count != 8"| n11a
+  n11 -->|"count == 8"| n12
+  n12 --> n13
 
   n13 -->|"yes, skip guide"| n14
   n13 -->|"no, github"| n13a
@@ -256,7 +286,8 @@ flowchart TD
 
   n14 -->|"yes -- skip Wave 3"| n15
   n14 -->|"no"| n14a
-  n14a --> n15
+  n14a --> n14b
+  n14b --> n15
 
   n15 -->|"yes -- skip Wave 4"| n16
   n15 -->|"no"| n15a
@@ -273,7 +304,7 @@ flowchart TD
   n17 -->|"github"| n18
   n17 -->|"local"| n17a
 
-  n18 -->|"violations found"| n18a{"18a. Session is<br/>calling (not isolated)?"}
+  n18 -->|"violations found"| n18a
   n18 -->|"clean"| n19
   n18a -->|"yes"| n18a1
   n18a -->|"no, already isolated"| n18a2
