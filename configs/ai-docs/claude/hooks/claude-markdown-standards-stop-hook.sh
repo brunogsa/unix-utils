@@ -138,20 +138,30 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 # session filter matches nothing, and the gate silently stops firing.
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
 [ -n "$repo_root" ] || exit 0
-# Run from the root too, so the relative paths git hands back also resolve for
-# the checkers and for `git diff -U0`.
-cd "$repo_root" 2>/dev/null || exit 0
 
 # Repo scope, resolved before the transcript parse
 # (see the header): a session in any other repo pays
 # none of it.
 #
+# It also sits before the cd below, because
+# BASH_SOURCE carries whatever path the caller typed:
+# a relative one resolves against the cwd the hook
+# started in, not the repo root.
+#
 # A missing lib exits 0 like every other tooling-gap
 # safeguard here.
 gate_lib="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd -P)/lib/gate-repo-scope.sh"
 [ -f "$gate_lib" ] || exit 0
+
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/gate-repo-scope.sh
 . "$gate_lib"
 is_gated_repo "$repo_root" || exit 0
+
+# Run from the root too, so the relative paths git
+# hands back also resolve for the checkers and for
+# `git diff -U0`.
+cd "$repo_root" 2>/dev/null || exit 0
 
 # Session filter setup: which files did THIS session's own Edit/Write/
 # NotebookEdit tool calls touch? Computed up front — no signal, no point

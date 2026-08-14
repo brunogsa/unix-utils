@@ -218,7 +218,7 @@ run_hook() {
 }
 
 # run_hook_at - runs a NAMED copy of the hook from
-# inside the given repo, capturing stdout in HOOK_OUT
+# inside the given directory, capturing stdout in HOOK_OUT
 # and the decoded reason (empty when it stayed
 # silent) in HOOK_REASON.
 #
@@ -226,12 +226,12 @@ run_hook() {
 # derives the one repo it gates from its own
 # location.
 #
-# The cd matters too - the hook resolves the
-# session's repo root from the caller's working
-# directory.
+# The cwd matters too - the hook resolves both the
+# session's repo root and a relative hook path from
+# the caller's working directory.
 run_hook_at() {
-  local hook="$1" repo="$2" stdin_json="$3"
-  HOOK_OUT=$(cd "$repo" && printf '%s' "$stdin_json" | bash "$hook" 2>/dev/null)
+  local hook="$1" cwd="$2" stdin_json="$3"
+  HOOK_OUT=$(cd "$cwd" && printf '%s' "$stdin_json" | bash "$hook" 2>/dev/null)
   HOOK_REASON=$(printf '%s' "$HOOK_OUT" | jq -r '.reason // empty' 2>/dev/null || true)
 }
 
@@ -530,6 +530,29 @@ it_should_stay_silent_when_the_running_hook_sits_outside_any_git_work_tree() {
   assert_eq "should stay silent when the running hook sits outside any git work tree" "" "$HOOK_OUT"
 }
 
+# ${BASH_SOURCE[0]} carries whatever path the caller
+# typed, so a relative one only resolves against the
+# directory the hook was started from.
+#
+# Resolving it after the hook cds to the repo root
+# aims the gate at a sibling of that root, and the
+# fail-closed exit then reads as "this repo is not
+# gated" instead of "that path was wrong".
+it_should_still_block_when_invoked_by_a_relative_path_from_a_subdirectory() {
+  local repo; repo=$(new_repo relative-invocation)
+  write_clean_base "$repo" tracked.sh
+  append_wide_comment "$repo" tracked.sh
+  mkdir -p "$repo/sub"
+  local t; t=$(write_transcript "$repo/transcript.jsonl" "$repo/tracked.sh")
+  run_hook_at "../hooks/$(basename "$HOOK")" "$repo/sub" \
+    "{\"session_id\":\"s\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
+
+  assert_eq "should still block when invoked by a relative path from a subdirectory (decision)" \
+    "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
+  assert_eq "should still block when invoked by a relative path from a subdirectory (names the file)" \
+    "1" "$(printf '%s' "$HOOK_REASON" | grep -c 'tracked\.sh')"
+}
+
 it_should_block_on_an_untracked_source_file_this_session_wrote
 it_should_block_on_a_paragraph_violation_in_an_untracked_file
 it_should_block_on_a_width_violation_added_to_a_tracked_file
@@ -546,6 +569,7 @@ it_should_stay_silent_when_session_id_gives_it_nowhere_to_record_the_skip
 it_should_stay_silent_in_a_repo_the_installed_hook_does_not_gate
 it_should_still_block_when_run_from_a_copy_seated_in_the_repo_it_gates
 it_should_stay_silent_when_the_running_hook_sits_outside_any_git_work_tree
+it_should_still_block_when_invoked_by_a_relative_path_from_a_subdirectory
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
