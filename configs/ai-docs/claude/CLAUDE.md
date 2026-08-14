@@ -252,17 +252,11 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
 - [Instruction] **Leverage TaskList proactively** -- whenever there are 2+ things to do, use TaskCreate/TaskUpdate; never skip it.
   - [Why] It's the only durable surface that survives compaction and session ends, so tracking 2+ items there is what stops you forgetting them.
 
-- [Instruction] Create the task with ` <id>. ` in the subject — leading space, number, period, trailing space.
-  - [Why] The manual ` <id>` lets you reference the task in chat immediately, without waiting for TaskCreate to return its system id.
-
-- [Instruction] Once TaskCreate returns its id, TaskUpdate the subject to add ` [#<returned-id>]` after the period (final shape ` <id>. [#<returned-id>] <description>`).
-  - [Why] Pinning the system id into the subject lets later updates and references point at the task unambiguously.
-
 - [Instruction] A **Task** is anything that produces one or more small, isolated commits.
   - [Why] Producing its own commit is the test that separates a Task from a Sub-Step; without it an AI mislabels Sub-Steps as Tasks and fragments the plan.
 
-- [Instruction] **Prefix every task subject with a category** placed between `[#<returned-id>]` and the description.
-  - [Why] The category lets you and the reader triage tasks by kind at a glance — deferred, scout, ships-with-current, etc.
+- [Instruction] Build a task subject in two steps: create it as ` <id>. <description>` (leading space, number, period, trailing space); once TaskCreate returns its id, TaskUpdate `[#<returned-id>][<category>]` before the description.
+  - [Why] The manual id is referenceable in chat immediately without waiting for TaskCreate's return, and pinning the system id afterward makes later updates and references unambiguous.
   - [Example] Final shape ` <id>. [#<returned-id>][<category>] <description>`. Default `[Task]`; also `[Feature]`, `[Spike]`, `[Debt]`, `[Refactor]`.
 
   - [Example] The five placement categories — pick by the commit rule, which is the reason each exists:
@@ -313,11 +307,8 @@ Routing and upkeep for the two note surfaces, plus the two scratchpad files each
 - [Instruction] Tasks and reminders go to the TaskList only — never into `notes.md`, not even as a copy.
   - [Why] The TaskList is the one surface with a status that re-surfaces every turn; a scratchpad copy is a second version that drifts the moment the status flips.
 
-- [Instruction] Note a reference — path, line range, link — only when strictly necessary: when you genuinely expect to re-read the details later.
-  - [Why] References are the easiest note to hoard and the least often re-read, so each unneeded one is noise burying the notes that matter.
-
-- [Instruction] Persist to `notes.md` only state expensive to reconstruct — counts, verdicts, decisions, rejected approaches — and reference large payloads by path instead of copying them in.
-  - [Why] Cheap-to-rederive content or a copied payload buries what notes exist to protect, and a copy goes stale where a pointer re-reads fresh.
+- [Instruction] Persist to `notes.md` only state expensive to reconstruct — counts, verdicts, decisions, rejected approaches — pointing at large payloads and references (path, line range, link) instead of copying them in.
+  - [Why] An unneeded note buries the notes that matter, and a copied payload goes stale where a pointer re-reads fresh.
 
 - [Instruction] Mark a task done the moment it completes, and update or delete a `notes.md` entry the moment reality diverges from it.
   - [Why] A stale entry or a pending-looking finished task gets trusted as current and steers work wrong — currency is what keeps either surface worth consulting.
@@ -399,10 +390,7 @@ Routing and upkeep for the two note surfaces, plus the two scratchpad files each
 - [Instruction] Run a permission-gated action (commit, push, reply) in main even when its task is delegated — hand the subagent everything else.
   - [Why] Permission UIs only render in main, so a subagent cannot complete one at all — a harness limit, not a preference to weigh against context economy.
 
-- [Instruction] Launch every subagent in the background (`run_in_background`) — when the next step needs its result, wait for its completion notification rather than switching to foreground.
-  - [Why] A foreground agent blocks the harness's cost computing for its whole run, while the background wait costs the same wall-clock and leaves that accounting free.
-
-- [Instruction] Never poll a running subagent — no blocking `TaskOutput` call, no Bash `sleep`/`until` busy-wait, no `kill -0`/`pgrep` wait loop — wait for its completion notification instead.
+- [Instruction] Launch every subagent in the background (`run_in_background`), waiting for its completion notification — never poll via a blocking `TaskOutput` call, a Bash `sleep`/`until` busy-wait, or a `kill -0`/`pgrep` wait loop.
   - [Why] One audited session burned 33 minutes on 6 blocking `TaskOutput` calls — three hit the ceiling, returning nothing — plus 12 minutes busy-waiting, vs 0.1s backgrounded.
 
 - [Instruction] Give a recurring, repeatable unit of work its own dedicated agent type, rather than running it inline in the main session.
