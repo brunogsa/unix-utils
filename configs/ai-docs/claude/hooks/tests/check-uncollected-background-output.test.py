@@ -331,6 +331,95 @@ class TestBlockReasonNamesTheFix:
         assert "final response" in reason
 
 
+class TestIgnoresTextThatMerelyQuotesTheAnnouncement:
+    """Reading ABOUT a background job is not starting one.
+
+    Every case here was produced by running this guard against the
+    transcript of the run that wrote it. It reported four jobs, and
+    three of them were text that merely contained the announcement's
+    trailing clause. A guard that fires on its own documentation
+    blocks the very agents maintaining it."""
+
+    def test_should_stay_silent_when_a_tool_result_only_quotes_the_hook_header(
+        self, tmp_path
+    ):
+        transcript = write_transcript(
+            tmp_path,
+            "quotes-own-header",
+            [
+                read_call("toolu_01Ct6WhkXbBTjEuS4nkkVN9y", str(HOOK)),
+                tool_result(
+                    "toolu_01Ct6WhkXbBTjEuS4nkkVN9y",
+                    "# The runner prints one of two announcements, and they\n"
+                    "# share exactly one literal -- "
+                    '"Output is being written to: <path>."\n'
+                    "# That literal is what this keys on.\n",
+                ),
+            ],
+        )
+
+        result = run_hook(payload(transcript))
+
+        assert result.stdout == ""
+        assert result.returncode == 0
+
+    def test_should_stay_silent_when_a_tool_result_holds_the_runners_own_source(
+        self, tmp_path
+    ):
+        transcript = write_transcript(
+            tmp_path,
+            "quotes-runner-source",
+            [
+                bash_call(
+                    "toolu_01LiDjLZKMZFxNBHphmZAqLd",
+                    "grep -n 'Output is being written to' /tmp/cc-strings-bg.txt",
+                ),
+                tool_result(
+                    "toolu_01LiDjLZKMZFxNBHphmZAqLd",
+                    "Command running in background with ID: ${e}. "
+                    "Output is being written to: ${t}.`:`Command did not complete "
+                    "within its ${Math.max(1,Math.round(n/1000))}s timeout and was "
+                    "moved to the background (ID: ${e}). "
+                    'Output is being written to: ${t}.`,a=o?"If it exits while you',
+                ),
+            ],
+        )
+
+        result = run_hook(payload(transcript))
+
+        assert result.stdout == ""
+        assert result.returncode == 0
+
+    def test_should_still_block_a_real_job_announced_among_quoted_ones(
+        self, tmp_path
+    ):
+        """The discriminator must not be "any transcript that mentions the
+        literal is exempt" -- a real job alongside quoted text still blocks,
+        and the reason names only the real one."""
+        transcript = write_transcript(
+            tmp_path,
+            "real-job-beside-quoted",
+            [
+                read_call("toolu_01Ct6WhkXbBTjEuS4nkkVN9y", str(HOOK)),
+                tool_result(
+                    "toolu_01Ct6WhkXbBTjEuS4nkkVN9y",
+                    '# share exactly one literal -- "Output is being written to: '
+                    '<path>."\n',
+                ),
+                bash_call("toolu_01M2imnnoG9wXKgz7hp8ivKs", "./run-tests.sh"),
+                harness_backgrounded_result(
+                    "toolu_01M2imnnoG9wXKgz7hp8ivKs", SUITE_JOB_ID, SUITE_JOB_OUTPUT
+                ),
+            ],
+        )
+
+        result = run_hook(payload(transcript))
+
+        assert decision_of(result) == "block"
+        assert SUITE_JOB_OUTPUT in reason_of(result)
+        assert "<path>" not in reason_of(result)
+
+
 class TestAllowsACollectedOrAbsentBackgroundJob:
     def test_should_stay_silent_when_the_agent_read_the_background_output_file_afterwards(
         self, tmp_path

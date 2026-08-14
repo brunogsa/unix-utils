@@ -95,7 +95,23 @@ import sys
 #   harness-initiated, on a foreground command's timeout
 #     "Command did not complete within its <n>s timeout and
 #      was moved to the background (ID: <id>)."
-OUTPUT_PATH_PATTERN = re.compile(r"Output is being written to: (\S+)")
+#
+# The match is anchored to the START of the tool_result, because
+# the runner emits an announcement as the whole result and
+# nothing else does.
+#
+# Keying on the trailing clause alone instead fires on any text
+# that merely QUOTES it -- this file's own header, a grep of
+# the runner's source, a log holding an earlier announcement.
+#
+# That is not hypothetical: it was found by running this guard
+# against the transcript of the run that wrote it, which
+# reported four jobs, three of them quotations.
+ANNOUNCEMENT_PATTERN = re.compile(
+    r"^Command (?:running in background|did not complete within)"
+    r".*?Output is being written to: (\S+)",
+    re.DOTALL,
+)
 JOB_ID_PATTERN = re.compile(r"(?:with ID: |\(ID: )([A-Za-z0-9_-]+)")
 
 # A later call to one of these can hand the agent the job's
@@ -137,11 +153,19 @@ def parse_background_job(block):
     content = block.get("content")
     if not isinstance(content, str):
         return None
-    path_match = OUTPUT_PATH_PATTERN.search(content)
+    path_match = ANNOUNCEMENT_PATTERN.match(content.lstrip())
     if path_match is None:
         return None
-    id_match = JOB_ID_PATTERN.search(content)
     output_path = path_match.group(1).rstrip(".")
+
+    # The runner always names an absolute path. A relative one
+    # means the anchor matched quoted text whose placeholders
+    # were never expanded -- "${t}.", "<path>." -- so there is
+    # no file to demand the agent read.
+    if not output_path.startswith("/"):
+        return None
+
+    id_match = JOB_ID_PATTERN.search(content)
     return output_path, (id_match.group(1) if id_match else "")
 
 
