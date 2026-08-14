@@ -73,6 +73,7 @@ git commit -m "$(cat <<'EOF'
 
 - [Instruction] Never trail a pathspec on `git commit` — stage explicitly with `git add <path>`, then commit with no path argument.
   - [Why] `git commit -- <path>` silently re-stages that path's entire working-tree diff and commits it, discarding any partial `git-hunk`/`git add -p` selection meant to protect someone else's in-progress edits.
+
   - [Example]
 ```bash
 git-hunk stage <id>; git commit -m "..." -- configs/foo.txt   # bad — recommits the whole file, discarding the hunk pick
