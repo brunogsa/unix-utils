@@ -460,6 +460,17 @@ it_should_fail_when_skill_md_still_mentions_baseline_wanted() {
   # Must be the exact dotted form check_absent searches
   # for, not merely a JSON key/value pair that happens to
   # sit nearby.
+  #
+  # The backticks belong to the fixture: they are the
+  # markdown code spans SKILL.md's prose wraps this key in,
+  # and check_absent greps the dotted form as a fixed
+  # string.
+  #
+  # Double quotes would make the shell try to run them, so
+  # SC2016 is reporting the literal this line needs rather
+  # than an expansion that goes missing.
+  #
+  # shellcheck disable=SC2016
   { cat "$SKILL_FILE"; printf 'empty when `%s` is `false`.\n' "$BASELINE_WANTED_STRING"; } > "$tmp_file"
   assert_eq "should fail when SKILL.md still mentions baseline.wanted" \
     "failed" "$(run_check check_absent "$tmp_file" "$BASELINE_WANTED_STRING")"
