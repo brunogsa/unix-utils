@@ -2332,6 +2332,11 @@ it_should_bill_a_5minute_cache_write_at_its_own_lower_rate() {
 
   actual="$(render_subagent_cost_for 0 "$transcript")"
 
+  # SC2016 is reporting a literal currency amount this
+  # expected value needs rather than an expansion that
+  # goes missing.
+  #
+  # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should bill a 5-minute cache write at its own lower rate" \
     '+ $0.09' "$actual"
@@ -2352,6 +2357,11 @@ it_should_bill_a_legacy_entrys_flat_cache_field_at_the_5minute_rate() {
 
   actual="$(render_subagent_cost_for 0 "$transcript")"
 
+  # SC2016 is reporting a literal currency amount this
+  # expected value needs rather than an expansion that
+  # goes missing.
+  #
+  # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should bill a legacy entry's flat cache field at the 5-minute rate when it carries no TTL breakdown" \
     '+ $0.07' "$actual"
