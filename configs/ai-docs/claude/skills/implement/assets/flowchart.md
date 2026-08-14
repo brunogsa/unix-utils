@@ -206,7 +206,6 @@ def run_unit(unit):
     #      A pushed branch with no PR is the ordinary outcome, not a half state.
     #      A stacked unit pushes EVERY layer branch, in layer order, in one
     #      command; a non-stacked unit pushes its own single branch, as before.
-    pushed_sha = head_sha()                                 # 31a · 43's re-push trigger
     branches = unit.layer_branches if state.stack.wanted else [current_branch()]
     if not git_push("-u", "origin", *branches):             # 32 · no remote, a rejected
         halt()                                              #      non-fast-forward, no creds
@@ -309,7 +308,7 @@ def run_unit(unit):
     #      tree and never from memory. Skipped outright otherwise: a no-op push
     #      and a rewritten body saying nothing each cost the reviewer a diff to
     #      discover that.
-    if git_rev_list_count(f"{pushed_sha}..HEAD") > 0:       # 43
+    if git_rev_list_count("@{u}..HEAD") > 0:                # 43
         if not git_push("origin", *branches):               # 43a · halts on 32's terms
             halt()
         if answers.draft_pr:                                # 43b · the gate commits land
@@ -535,7 +534,7 @@ flowchart TD
     n42a{"42a. Green? (a failure the batch didn't<br/>cause is a [Scout], never a blocker)"}
     n42b{"42b. Fix attempts left?"}
     n42c["42c. Step 8.3 · Dispatch tdd-coder to fix it<br/>(agent-pinned, 1h Monitor cap, attempt<br/>recorded); RE-RUN THE FULL SUITE"]:::dispatch
-    n43{"43. Step 8.4 · Did 39–42 land any commit?<br/>git rev-list --count &lt;the SHA 31 pushed&gt;..HEAD &gt; 0,<br/>read off the tree and never from memory. Nothing<br/>landed: skip both halves below, since a no-op push and<br/>a body rewritten to say nothing each cost the reviewer<br/>a diff to discover that"}
+    n43{"43. Step 8.4 · Did 39–42 land any commit?<br/>git rev-list --count @{u}..HEAD &gt; 0, read off the<br/>tree and never from memory. Nothing landed: skip both<br/>halves below, since a no-op push and a body rewritten<br/>to say nothing each cost the reviewer a diff to<br/>discover that"}
     n43a["43a. Step 8.4 · git push origin &lt;branch(es)&gt;, so the<br/>remote carries the gate fixes before anything<br/>describes them"]:::gate
     n43b{"43b. Re-push succeeded?<br/>(halts on 32's terms)"}
     n43c{"43c. Did 36 open a draft PR?"}

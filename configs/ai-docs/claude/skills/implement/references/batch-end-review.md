@@ -160,7 +160,7 @@ PR-2 — branch `feat/parser/pr2` — 4 commits to review — https://github.com
 ## Finalize — the step order inside §8.4
 
 1. **Re-push and refresh the PR description — only when §8.2 or §8.3 landed commits.**
-   Decide from the tree, not from memory: `git rev-list --count <the SHA HEAD was at when §8.1 pushed>..HEAD` above zero is the trigger.
+   Decide from the tree, not from memory: `git rev-list --count @{u}..HEAD` above zero is the trigger.
    - **Nothing landed → skip both halves outright.** Never re-push an unmoved branch, and never rewrite a description whose diff is unchanged.
      - Either no-op costs the reviewer a diff to discover it said nothing.
 
