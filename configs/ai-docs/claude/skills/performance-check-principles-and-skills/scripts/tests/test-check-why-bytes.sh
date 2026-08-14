@@ -20,10 +20,6 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECK="$SCRIPT_DIR/../check.sh"
 
-# The regression gate that reads check.sh's report and fails
-# the repo's pytest run on any overage it can key on.
-GATE="$SCRIPT_DIR/../../../../scripts/check-performance-budget-regressions.py"
-
 # Mirrors WHY_BYTES_BUDGET in check.sh. Hard-coded here on
 # purpose: a test that read the budget from the script would
 # still pass if the constant were silently changed, which is
@@ -117,30 +113,6 @@ run_check() {
 run_row() {
     local dir=$1
     bash "$CHECK" "$dir" 2>/dev/null | grep '^| \[Why\] lines over '
-}
-
-# Echo `printed=<n> keys=<n>` — the findings the report
-# printed, and the gated keys the regression gate's parser
-# builds out of them.
-#
-# The printed half guards against a vacuous pass: zero keys
-# proves nothing unless the section actually rendered.
-run_gate_keys() {
-    local dir=$1
-    bash "$CHECK" "$dir" 2>/dev/null | GATE="$GATE" python3 -c '
-import importlib.util
-import os
-import sys
-
-spec = importlib.util.spec_from_file_location("gate", os.environ["GATE"])
-gate = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(gate)
-
-report = sys.stdin.read()
-printed = sum(1 for line in report.splitlines() if " bytes (>" in line)
-keys = [key for key in gate.parse_report(report) if "[Why] lines over" in key]
-print(f"printed={printed} keys={len(keys)}")
-'
 }
 
 it_should_pass_a_why_line_of_exactly_the_byte_cap() {
@@ -239,23 +211,6 @@ it_should_flag_an_over_cap_why_in_a_skill_that_is_not_a_standards_skill() {
     rm -rf "$d"
 }
 
-it_should_print_findings_the_budget_regression_gate_cannot_key_on() {
-    echo "it_should_print_findings_the_budget_regression_gate_cannot_key_on"
-    local d; d=$(new_fixture)
-    {
-        printf '# Principles\n\n'
-        printf -- '- [Instruction] Verify everything you build.\n'
-        marker_line_of_bytes $((CAP + 1)) Why
-    } > "$d/CLAUDE.md"
-
-    # A gated key here would be absent from
-    # performance-budget-baseline.txt, which the gate treats
-    # as a regression — reddening pytest for every session
-    # in this tree while the cap is still being drained.
-    assert_eq "one finding, no gated key" "printed=1 keys=0" "$(run_gate_keys "$d")"
-    rm -rf "$d"
-}
-
 it_should_report_a_clean_file_as_zero_in_the_status_table() {
     echo "it_should_report_a_clean_file_as_zero_in_the_status_table"
     local d; d=$(new_fixture)
@@ -293,7 +248,6 @@ it_should_ignore_a_long_instruction_line
 it_should_ignore_a_long_example_line
 it_should_flag_an_over_cap_why_inside_a_fenced_block_like_every_other_marker_check
 it_should_flag_an_over_cap_why_in_a_skill_that_is_not_a_standards_skill
-it_should_print_findings_the_budget_regression_gate_cannot_key_on
 it_should_report_a_clean_file_as_zero_in_the_status_table
 it_should_count_every_over_cap_why_in_the_status_table_without_ever_reading_over
 

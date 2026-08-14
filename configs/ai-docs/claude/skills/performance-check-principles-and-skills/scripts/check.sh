@@ -294,18 +294,15 @@ missing_why_after_critical() {
 # the next author.
 #
 # Report-only, and unfinished by design: the lines carry no
-# `- ` bullet and the status row never reads OVER, the two
-# shapes check-performance-budget-regressions.py parses, so
-# no gated key is created.
+# `- ` bullet and the status row never reads OVER, so this
+# check's own exit code never keys on them.
 #
-# Landing it gated instead would turn every existing
-# violation into a new baseline key and redden the gate for
-# every session sharing this tree — the staged rollout
-# performance-budget-baseline.txt's own header describes.
+# Landing it gated instead would fail every session sharing
+# this tree over the existing violations before anyone has
+# had a chance to drain them.
 #
-# Flip it to gated — OVER status, counted into `overages`,
-# with no baseline line ever added — once the reported count
-# reaches 0.
+# Flip it to gated — OVER status, counted into `overages` —
+# once the reported count reaches 0.
 over_budget_why_lines() {
     LC_ALL=C awk -v b="$WHY_BYTES_BUDGET" '
         /^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*\[Why\]/ && length($0) > b {
@@ -708,14 +705,13 @@ if [ -n "$missing_why_rows" ]; then
     echo
 fi
 
-# Over-cap [Why] sites, printed without a `- ` bullet so the
-# regression gate cannot key on them while the cap is
-# report-only.
+# Over-cap [Why] sites, one per line, so a drain pass can
+# work straight from the report while the cap is report-only.
 if [ -n "$why_over_rows" ]; then
     echo "## [Why] lines over $WHY_BYTES_BUDGET bytes (report-only)"
     echo
     echo "A \`[Why]\` adds no constraint, so every byte past the cap is always-on context buying no rule — trim each to one decision-shaping sentence."
-    echo "Report-only until this count reaches 0, when the cap flips to gated; never record these in performance-budget-baseline.txt."
+    echo "Report-only until this count reaches 0, when the cap flips to gated."
     echo
     printf '%s\n' "$why_over_rows" | sed '/^$/d'
     echo
