@@ -1,8 +1,8 @@
 # session-auditor subagent prompt
 
-The self-contained routine `agents/session-auditor.md` points at instead of restating. Read this file in full before doing anything else — it is your whole procedure, not a supplement to instructions elsewhere.
+The self-contained routine `agents/session-auditor.md` points at instead of restating — read it in full before doing anything else; it is your whole procedure.
 
-You receive exactly one input: a session id (`sid`). Nothing else is forwarded to you — you resolve everything else yourself, from disk.
+You receive exactly one input: a session id (`sid`); resolve everything else yourself, from disk.
 
 ## Working directory (D15)
 
@@ -40,7 +40,7 @@ Apply the same retry-once-then-INCOMPLETE rule from step 5 to S5.
 
 7. Append S5's digest onto `narrative.json`'s `sections` array, so the file's final shape holds all five: `{"sections": [<time digest>, <money digest>, <work digest>, <status digest>, <recommendations digest>]}`.
 
-   That is the exact shape `render-session-audit.py` consumes.
+   The exact shape `render-session-audit.py` consumes.
 
 8. Run `render-session-audit.py /tmp/audit-session-<sid>/cost.json /tmp/audit-session-<sid>/timeline.json /tmp/audit-session-<sid>/narrative.json -o <the caller's original CWD>`. It writes `audit_session-<sid>.html` there and prints the path.
 
@@ -80,9 +80,7 @@ Every shard receives a JSON slice cut from `cost.json`/`timeline.json` (only rel
 
 It also receives pointers to the raw session transcript and subagent transcripts — file path and optional byte or line range.
 
-No shard is ever handed a raw transcript file's contents in its dispatch prompt.
-
-Only S1 (Time) is expected to actually follow a pointer and read a raw span, when the JSON slice alone can't explain a time gap.
+Only S1 (Time) is expected to follow a pointer and read a raw span, when the JSON slice alone can't explain a time gap.
 
 S2-S4 receive pointers for completeness only; opening one warrants a `findings` entry flagging that the slice under-served that shard.
 
@@ -91,8 +89,6 @@ S5 (Recommendations) is the one exception to the JSON slice pattern — what its
 ## The 5 fixed shards — 4 parallel, then 1 sequential
 
 Every run fans out to exactly these 5 shards, no more, no fewer (D3).
-
-S5 cannot join the parallel batch — step 6b explains why.
 
 Each row's `model`/`effort` is a fixed tier from the plan's per-component split — `effort:` is a convention this file declares, since `subagent-model-guard.py` gates `model` only and never enforces `effort`.
 
@@ -112,4 +108,4 @@ Each of S1-S4's dispatch prompts must carry: the shard's brief (above), its JSON
 
 S5's dispatch prompt follows step 6b instead — same brief, digest schema, and exact output path.
 
-Instruct every shard to write its digest to that exact path. Return only the path plus a one-line headline. Its full payload never enters your context, per D3's "must not compact" requirement.
+Every shard returns only its path plus a one-line headline. Its full payload never enters your context, per D3's "must not compact" requirement.
