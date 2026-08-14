@@ -26,7 +26,9 @@ disable-model-invocation: false
 
 ## What this is
 
-This is **the** apply step for any `verdict_*.md` on disk, whichever lens wrote it: `/refactor`, `/auto-review`, `/test-sdd`, or a `/quality-gate` run that produced all three. It is the only place the apply loop lives.
+This is **the** apply step for any `verdict_*.md` on disk, whichever lens wrote it: `/refactor`, `/auto-review`, `/test-sdd`, or a `/quality-gate` run that produced all three.
+
+It is the only place the apply loop lives.
 
 `/quality-gate` decides *which* findings are worth applying and calls this skill to apply them. The routing, commit, and annotation rules have one home rather than a copy per caller.
 
@@ -69,7 +71,9 @@ Never guess past an ambiguity like these — a wrong guess silently works the wr
 
 A severity floor compares the ordinal `HIGH` / `MEDIUM` / `LOW` tag each lens stamps in its finding headings, so all three filter alike.
 
-A `[QUESTION]` finding carries no ordinal, so no floor filters it out — it is always selected, and reported to the human instead of dispatched, since it names no fix an apply agent could land.
+A `[QUESTION]` finding carries no ordinal, so no floor filters it out — it is always selected.
+
+It is reported to the human instead of dispatched, since it names no fix an apply agent could land.
 
 Applying an auto-review-lens finding also needs a test command, to run RED-then-GREEN (§4).
 
@@ -131,7 +135,11 @@ Each dispatch carries **all** findings assigned to it at once, each with the ide
   - `agent(subAgent=refactor, title=Apply all refactor findings)`.
   - It applies the changes itself and confirms tests are green before and after.
 
-**Size all three entries to the same cap** before dispatching — neither `tdd-coder` nor the `refactor` agent splits an oversized batch on its own, so one that outruns its turn budget leaves the work half-applied with no record of where it stopped.
+**Size all three entries to the same cap** before dispatching.
+
+Neither `tdd-coder` nor the `refactor` agent splits an oversized batch on its own.
+
+One that outruns its turn budget leaves the work half-applied with no record of where it stopped.
 
 - Cluster related findings into the same dispatch, so one subagent sees the full picture behind them.
 - Bundle findings too small to deserve their own RED-GREEN cycle into one unit.
@@ -143,7 +151,11 @@ The `refactor` agent is the concrete case for this cap: 30 days of telemetry put
 
 A `/quality-gate` run's 30-50 refactor findings can exhaust that budget in one uncapped dispatch, leaving the batch mid-run with nothing committed.
 
-The refactor lens keeps its own agent because that agent refuses any behavior change, by design — a correctness fix or missing test can't route through it, needing `tdd-coder`'s test-first discipline instead. Making all three dispatches uniform would trade that refusal for symmetry, and a "simplification" that quietly changes semantics is exactly what the refusal catches.
+The refactor lens keeps its own agent because that agent refuses any behavior change, by design.
+
+A correctness fix or missing test can't route through it, needing `tdd-coder`'s test-first discipline instead.
+
+Making all three dispatches uniform would trade that refusal for symmetry, and a "simplification" that quietly changes semantics is exactly what the refusal catches.
 
 **One commit per finding still holds inside a batched dispatch** — say so explicitly in every dispatch prompt.
 
@@ -152,9 +164,13 @@ The batching exists to cut subagent spawns, not to coarsen the diff a human revi
 - `tdd-coder` commits its own work under `commit-standards` — confirm each reported SHA exists rather than re-committing.
 - The `refactor` agent leaves its changes uncommitted by design — commit them here, in this session where the permission prompt renders, still one commit per finding, never one for the lens.
 
-Verify each subagent's result against the artifacts — diff, test run — before trusting its "done"; the summary describes intent, only the artifact shows what landed. A finding whose apply failed or was reverted is recorded as failed, never done, and never gets a commit.
+Verify each subagent's result against the artifacts — diff, test run — before trusting its "done"; the summary describes intent, only the artifact shows what landed.
 
-**Score a partial batch per finding, never per lens** — a dispatch that landed 6 of its 9 findings is recorded as 6 applied and 3 failed, never one failed lens, so six real commits are preserved in the ledger.
+A finding whose apply failed or was reverted is recorded as failed, never done, and never gets a commit.
+
+**Score a partial batch per finding, never per lens.**
+
+A dispatch that landed 6 of its 9 findings is recorded as 6 applied and 3 failed, never one failed lens, so six real commits are preserved in the ledger.
 
 ## 5. Annotate the verdict file, the moment each lens's dispatch returns
 
@@ -168,9 +184,15 @@ Write every one of that lens's outcomes in place, next to its own finding — ne
   - `APPLIED (<sha>)` — the fix commit's SHA. Pairs with a `[Done]` heading.
   - `SKIPPED (<reason>)` — why it wasn't applied. The heading stays unmarked, so a re-run reconsiders it.
 
-This is the durable, on-disk ledger of fixed-versus-deferred the user explicitly asked for — the heading marker alone can't say *why* or point at the fix, and the body line alone isn't greppable, so a skipped finding reads as unfinished from either surface, which is what a re-run needs.
+This is the durable, on-disk ledger of fixed-versus-deferred the user explicitly asked for.
 
-Annotating lens by lens means a session killed during the second dispatch still leaves an accurate ledger for the first; holding it to the end would leave a pile of applied fixes with no record of which report entries they answer.
+The heading marker alone can't say *why* or point at the fix, and the body line alone isn't greppable.
+
+So a skipped finding reads as unfinished from either surface, which is what a re-run needs.
+
+Annotating lens by lens means a session killed during the second dispatch still leaves an accurate ledger for the first.
+
+Holding it to the end would leave a pile of applied fixes with no record of which report entries they answer.
 
 The per-finding granularity is what §3's per-lens TaskList gives up, so this is the only surface carrying it — never coarsen it to match the task list.
 
