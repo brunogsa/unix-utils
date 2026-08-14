@@ -243,7 +243,7 @@ function processDataCommand(filepath, outputPath) {
 ```
 
 - [Instruction] Let a low-level client signal failures as typed errors and let the business-aware caller decide what each one means — never bake the business reaction into the client.
-  - [Why] The client sees the protocol, not the domain, so a retry or fallback chosen there silently applies one policy to every caller that will ever use it.
+  - [Why] The client sees the protocol, not the domain, so a policy chosen there binds every caller that will ever use it.
 
 - [Instruction] Builder/factory functions should only assemble data from explicit parameters. Business decisions (conditionals, calculations, transformations) belong at the use-case/caller level.
   - [Why] Business decisions buried in builders hide the rules; pulling them out keeps logic visible and builders reusable.
