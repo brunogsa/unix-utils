@@ -148,6 +148,61 @@ it_should_write_tiny_pr_false_when_added_lines_is_one_hundred() {
     "false" "$content"
 }
 
+it_should_write_tiny_pr_true_with_no_stderr_integer_expression_error_when_added_lines_is_zero() {
+  local repo work_dir content stderr_output result
+  repo="$(make_scratch_repo_with_n_added_lines 0)"
+  work_dir="$(mktemp -d)"
+
+  stderr_output="$(cd "$repo" && bash "$SCRIPT" base "$work_dir" 2>&1 1>/dev/null)"
+  content="$(cat "$work_dir/tiny-pr.txt" 2>/dev/null)"
+
+  result="tiny-pr.txt=$content, stderr=$stderr_output"
+  if [ "$content" = "true" ] && [[ "$stderr_output" != *"integer expression expected"* ]]; then
+    result="tiny-pr.txt=true with no integer expression expected error on stderr"
+  fi
+
+  rm -rf "$repo" "$work_dir"
+  assert_eq "should write tiny-pr.txt=true with no stderr 'integer expression expected' error when added_lines is zero" \
+    "tiny-pr.txt=true with no integer expression expected error on stderr" "$result"
+}
+
+# make_scratch_repo_with_only_deletions - "feature" removes a
+# file that existed on the common ancestor (and so on "base"
+# too), producing a diff with only "-" lines and zero "+"
+# lines: the realistic trigger for a zero-added-lines diff
+# (pure deletion PR), distinct from an all-new-but-empty file.
+make_scratch_repo_with_only_deletions() {
+  local repo
+  repo="$(mktemp -d)"
+  git -C "$repo" init -q -b feature
+  git -C "$repo" config user.email test@example.com
+  git -C "$repo" config user.name "Test User"
+
+  printf 'line 1\nline 2\nline 3\n' > "$repo/removed.txt"
+  git -C "$repo" add removed.txt
+  git -C "$repo" commit -q -m "common ancestor commit"
+
+  git -C "$repo" branch base
+
+  git -C "$repo" rm -q removed.txt
+  git -C "$repo" commit -q -m "remove all lines, adding none"
+
+  echo "$repo"
+}
+
+it_should_write_tiny_pr_true_when_diff_is_all_deletions_with_zero_added_lines() {
+  local repo work_dir content
+  repo="$(make_scratch_repo_with_only_deletions)"
+  work_dir="$(mktemp -d)"
+
+  (cd "$repo" && bash "$SCRIPT" base "$work_dir" >/dev/null 2>&1)
+  content="$(cat "$work_dir/tiny-pr.txt" 2>/dev/null)"
+
+  rm -rf "$repo" "$work_dir"
+  assert_eq "should write tiny-pr.txt=true when the diff is entirely deletions with zero added lines" \
+    "true" "$content"
+}
+
 it_should_fail_and_name_the_ref_when_base_ref_is_neither_an_origin_branch_nor_a_local_commit_ish() {
   local repo work_dir output exit_code result
   repo="$(make_scratch_repo)"
@@ -251,6 +306,8 @@ it_should_print_the_usage_header_and_exit_zero_on_help_flag() {
 it_should_write_all_seven_output_files_with_a_non_empty_diff_on_the_happy_path
 it_should_write_tiny_pr_true_when_added_lines_is_ninety_nine
 it_should_write_tiny_pr_false_when_added_lines_is_one_hundred
+it_should_write_tiny_pr_true_with_no_stderr_integer_expression_error_when_added_lines_is_zero
+it_should_write_tiny_pr_true_when_diff_is_all_deletions_with_zero_added_lines
 it_should_fail_and_name_the_ref_when_base_ref_is_neither_an_origin_branch_nor_a_local_commit_ish
 it_should_fail_naming_the_problem_when_called_with_the_wrong_argument_count
 it_should_fail_naming_the_problem_when_run_outside_a_git_repository

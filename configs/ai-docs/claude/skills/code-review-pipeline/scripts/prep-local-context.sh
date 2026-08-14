@@ -59,7 +59,7 @@ bash "$script_dir/extract-commentable-lines.sh" \
 bash "$script_dir/extract-skipped-files.sh" \
   "$work_dir/diff" "$work_dir"
 
-added_lines=$(grep -c '^+[^+]' "$work_dir/diff" || echo 0)
+added_lines=$(grep -c '^+[^+]' "$work_dir/diff" || true)
 tiny_pr=false
 [ "$added_lines" -lt 100 ] && tiny_pr=true
 echo "$tiny_pr" > "$work_dir/tiny-pr.txt"
