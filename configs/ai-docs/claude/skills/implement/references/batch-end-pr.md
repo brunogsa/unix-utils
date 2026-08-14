@@ -8,7 +8,7 @@ The body describes the pre-gate diff; §8.4 refreshes it once the quality-gate a
 
 ## Open the PR (opt-in)
 
-Only when the interview opted into a PR (§1.2, `pr.wanted: true`). Skip this section otherwise.
+Only when `pr.wanted: true` (§1.2). Skip this section otherwise.
 
 **When `stack.wanted` is true, this unit opens one PR per task, not one total** — [`stacked-by-task-batch-end.md`](stacked-by-task-batch-end.md) owns that loop. Every requirement below still binds each PR it opens.
 
@@ -23,6 +23,8 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
   Re-reading costs one file read; skipping it costs a PR pushed with mandatory sections or safety rules missing.
 
 - Never dispatch `deep-reviewer` for this: its write-guard hook allows only `verdict_*.md` and `/tmp` writes, denying the `pr_*.final.md` write in CWD.
+
+## Dispatch prompt requirements
 
 - **The dispatch prompt must spell out every requirement below explicitly — never just "follow create-pr's conventions".**
   The agent loads its own skill's conventions but can't see this batch's specifics (output path, PR-label, base branch) unless the prompt states them:
@@ -53,8 +55,7 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
     - Once a parent PR merges and its branch is deleted, GitHub retargets this PR automatically; verification and post-merge sync live in [`stacked-prs.md`](stacked-prs.md).
 
     - Every PR-label run needs this `--base`, dependent or not.
-      Without it, `gh pr create` falls back to `branch.<name>.gh-merge-base` or the repo's default branch — never to a parent's branch by any ancestry heuristic.
-      That fallback is implicit, not the plan's resolved choice.
+      Without it, `gh pr create` falls back to `branch.<name>.gh-merge-base` or the repo's default branch — never to a parent's branch by any ancestry heuristic, an implicit fallback, not the plan's resolved choice.
     - **Branch already has an open PR** (`gh pr create` errors that one exists) → not a failure.
       Fall back to the REST-API body-update path below, targeting that PR number, so a rerun of `/implement` updates its own open PR instead of erroring.
     - **Updating an existing PR's body: use the REST API, never `gh pr edit --body-file`** — the command and its mandatory read-back live in the `gh-cli-usage` skill, which authors that hazard.
@@ -68,8 +69,10 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
     - On a plain `<task-ids>` run (`pr_label` is `""`): drop the label — `./pr_<slug>.final.md` — matching create-pr's single-PR-plan convention.
     - `.final.md` is the file GitHub receives; create-pr's `.ideal.md` is an intermediate this flow never pushes.
 
+## On failure
+
 **Any failure the agent reports — no `gh`, or a create/update that errored — is a run halt, not a partial package.**
-A push failure can't surface here: §8.1's step 1 owns the push and already halted if it failed.
+A push failure can't surface here — that already halted at §8.1's step 1.
 Go to §5.5: name the failure in one short message, keep the state file, print nothing further — there is nothing to present when the PR was never published.
 
 Once this run's last PR has just been created under `Mode: native`, continue to [`batch-end-pr-native-link.md`](batch-end-pr-native-link.md) to register the stack. Skip otherwise.
