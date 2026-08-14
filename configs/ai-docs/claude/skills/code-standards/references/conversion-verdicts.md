@@ -1,3 +1,15 @@
+---
+# performance-check budget override, not prose a trim could reach.
+# This file is the committed, verbatim output of classify-conversion.py that
+# plan_script-overhaul.md Tasks 16-20 scope their conversion batches from,
+# and two pytest suites assert its table cells column by column. Trimming
+# would falsify the reproduction it exists to be; splitting would scatter
+# tables those suites parse as one. Words doubled twice from the 1024
+# bundled default, lines once from 256.
+words-budget: 4096
+lines-budget: 512
+---
+
 # Conversion verdicts — classify-conversion.py swept across both repos
 
 This is the committed input Tasks 16-20 of `plan_script-overhaul.md` scope

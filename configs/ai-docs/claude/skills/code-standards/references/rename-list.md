@@ -1,3 +1,14 @@
+---
+# performance-check budget override, not prose a trim could reach.
+# This file is the committed, verbatim output of check-script-naming.py that
+# plan_script-overhaul.md Tasks 13-15 scope their rename batches from, and
+# check-script-naming.test.py asserts its batch scopes against it. Every
+# "Reason" cell is the checker's own output, so trimming would falsify the
+# reproduction rather than tighten it. Doubled once from the 1024 bundled
+# default.
+words-budget: 2048
+---
+
 # Rename list — check-script-naming.py swept across both repos
 
 This is the committed input Tasks 13-15 of `plan_script-overhaul.md` scope
