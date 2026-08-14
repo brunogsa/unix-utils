@@ -70,7 +70,8 @@ A caller may write the plan alone — `brainstorm`'s `light` mode does exactly t
 Such a plan writes `N/A — plan-only run` on its `Spec:` line, and carries each task's acceptance criteria in that task's own `**Testable Acceptance criteria**` field.
 In place of the Test Design section's AC → test coverage list it writes `N/A — no spec`.
 
-It cannot run `check-ac-coverage.sh`, which takes both documents — so with no spec there is nothing for that coverage list to cite and no gate left to read it.
+It runs neither `check-ac-coverage.sh` nor `check-coverage-checklists.sh`, which each need a spec.
+So the semantic half of "Every AC has a test" judges the per-task fields above in place of the absent coverage list.
 
 Why the spec is the droppable one: every downstream consumer degrades gracefully to "no spec", while `/implement` — the one that writes code — refuses to run without a plan.
 
@@ -109,8 +110,8 @@ It carries the bucket membership and dispatch tiers, the qualitative-pass checkl
 Three toggles the caller resolves *before* the plan exists and persists to `/tmp/sdd_<session_id>.json`.
 Read the answers from that file when you reach the checks — never ask them here.
 
-A caller may also resolve none of them and run the deterministic bucket alone — `brainstorm`'s `light` mode does.
-Treat all three as off in that case, and skip `check-ac-coverage.sh` too, since it takes both a plan and a spec.
+A caller may also resolve none of them and run the deterministic bucket plus the two always-on judged checks — `brainstorm`'s `light` mode does.
+Treat all three as off in that case, and skip `check-ac-coverage.sh` and `check-coverage-checklists.sh` too, since both need a spec.
 
 Name the three fields exactly `traces_to_ac`, `right_sized`, and `qualitative_pass`, so writer and reader never have to guess the same key.
 
@@ -126,7 +127,7 @@ Eight formal checks run in sequence (six always-on + the two toggles above):
 | Every template section is written | `check-sections.sh` | a dropped `## ` heading in either doc | Always on |
 | Every AC has a test | `check-ac-coverage.sh`, then `deep-reviewer` | AC↔Test Design coverage | Always on |
 | Every test has a task | `check-test-distribution.sh` | Test Design↔per-task assignment | Always on |
-| How would this break? | `deep-reviewer` | checklist completeness + inversion sweep, merged | Always on |
+| How would this break? | `check-coverage-checklists.sh`, then `deep-reviewer` | checklist completeness + inversion sweep, merged | Always on |
 | PR dependencies form a DAG | `check-pr-dag.sh` | cyclic, dangling, or duplicate PR-N label in the PR Breakdown | Always on |
 | Task dependencies form a DAG | `check-tasks-dag.sh` | cyclic, dangling, or duplicate task id in the Task Breakdown | Always on |
 | Every line traces to an AC | `deep-reviewer` | machinery↔AC traceability | Toggle |
@@ -135,9 +136,9 @@ Eight formal checks run in sequence (six always-on + the two toggles above):
 The six always-on checks, plus the Test Design authoring requirement itself, never become optional — they verify the plan is mechanically correct regardless of change size.
 
 No toggle removes one, including the two judged ones — "How would this break?" and the semantic half of "Every AC has a test".
-The single way those two go unrun is the deterministic-bucket-alone run above, which has no judged bucket to run them in.
+A no-toggle run keeps both: it drops the qualitative pass and the two toggled checks, and runs those two over whatever the plan alone carries.
 
-A toggled-off check or pass is omitted; self-review's output states explicitly what was skipped by request, so the reviewer never wonders why something is absent.
+A toggled-off check or pass is omitted; self-review's output states explicitly what was skipped by request or by mode, so the reviewer never wonders why something is absent.
 
 Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces only in implementation.
 

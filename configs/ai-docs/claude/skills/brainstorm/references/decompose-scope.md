@@ -1,6 +1,6 @@
 # Decompose scope into sub-projects
 
-Fires only when step 3 finds the request decomposable and the user agrees to split it.
+Fires only when step 2 finds the request decomposable and the user agrees to split it.
 
 - Name the candidate sub-projects, ask the user how they relate and which one ships first.
 - Brainstorm only the first sub-project here — each remaining piece ideally gets its own spec→plan cycle.
