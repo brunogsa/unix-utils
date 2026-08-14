@@ -9,7 +9,7 @@ words-budget: 2048
 
 Detail for /implement's batch-end steps. Load when the batch reaches its end.
 
-SKILL.md's `§8.1 → §8.2 → §8.3 → §8.4` is the running order and the only place it is written down; this file expands each step without restating it.
+SKILL.md's `§8.1 → §8.2 → §8.3 → §8.4` is the running order and the only place it's written down; this file expands each step without restating it.
 
 ## Push, branch record & the draft PR (§8.1)
 
@@ -21,7 +21,7 @@ Delivered work reaches the remote before anything that can stall gets a turn —
    Use `git push -u origin HEAD`, which covers both a fresh PR branch with no upstream and a plain run's branch that already has one.
    A pushed branch with no PR is this skill's ordinary outcome, not a half-finished state — what the notification points the human at.
    - **Any push failure is a [`failure-and-halt.md`](failure-and-halt.md) §5.5 halt** — no remote, a rejected non-fast-forward, missing credentials.
-     - Name the failure, keep the state file, print nothing further. A notification pointing at a branch that never reached the remote is worse than a halt.
+     - Name the failure, keep the state file, print nothing further. A notification pointing at an unpushed branch is worse than a halt.
 
 2. **Record the branch, then open the draft PR** — mechanics in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) and [`batch-end-pr.md`](batch-end-pr.md).
    The `Branch:` clause and the PR-level `[Done]` marker land on a PR-label run; the `pr-creator` dispatch runs only on `pr.wanted: true`.
@@ -34,7 +34,7 @@ Delivered work reaches the remote before anything that can stall gets a turn —
 ## The quality-gate tail (§8.2)
 
 **Entry: only when §1.2's quality-gate question was answered yes (`quality_gate.wanted: true`).**
-On no, skip this entire section — go straight to the repo-green gate (§8.3), and have the package state that the quality gate was skipped by request.
+On no, skip this entire section — go straight to the repo-green gate (§8.3), and have the package state the quality gate was skipped by request.
 No retroactive re-run; invoke `/quality-gate` manually later.
 
 This runs before §8.3's repo-green gate so that gate gets the last word — it measures a tree already carrying the `test-sdd` leg's written tests.
