@@ -143,7 +143,7 @@ carries a `Requires-npm` header, so none opted into `js`.
 | `configs/ai-docs/claude/skills/english-coach/scripts/extract-user-messages.sh` | convert | py | jq | — |
 | `configs/ai-docs/claude/skills/implement/scripts/check-pr-dependencies-ready.sh` | convert | py | awk; 218 lines (>128) | — |
 | `configs/ai-docs/claude/skills/implement/scripts/get-pr-tasks.sh` | convert | py | awk | — |
-| `configs/ai-docs/claude/skills/implement/scripts/implement-loop-state.sh` | convert | py | awk+jq+here-doc; 455 lines (>128) | — |
+| `configs/ai-docs/claude/skills/implement/scripts/implement-loop-state.sh` | convert | py | awk+jq+here-doc; 455 lines (>128) | Converted to `.py` in f8aff54d — conversion already done |
 | `configs/ai-docs/claude/skills/implement/scripts/need-git-checkout.sh` | convert | py | awk | — |
 | `configs/ai-docs/claude/skills/implement/scripts/parse-pr-breakdown.sh` | convert | py | awk; 138 lines (>128) | — |
 | `configs/ai-docs/claude/skills/implement/scripts/tests/test-check-pr-dependencies-ready.sh` | convert | py | 270 lines (>128) | Delete alongside subject's conversion |

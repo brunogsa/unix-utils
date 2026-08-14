@@ -72,18 +72,6 @@ PORT_TO_PYTEST_HARNESS_PATHS = [
 ]
 
 
-# A second dangling `convert` row exists (path deleted, Harness fate
-# cell still `—`), found by the test below but out of THIS fix's scope:
-# `implement-loop-state.sh` was already converted to `.py` by commit
-# f8aff54d — Task 18's own scope note (Summary table) already knows
-# this, but the row's own Harness fate cell doesn't yet say so. Tracked
-# as a separate [Scout] rather than fixed here, to keep this change to
-# the single row it was scoped for.
-KNOWN_DANGLING_CONVERT_PATHS_PENDING_A_SEPARATE_FIX = [
-    "configs/ai-docs/claude/skills/implement/scripts/implement-loop-state.sh",
-]
-
-
 @dataclass
 class Row:
     path: str
@@ -267,7 +255,6 @@ class TestConversionVerdictsHarnessFateHappy(unittest.TestCase):
             r.path for r in convert_rows
             if not (UNIX_UTILS_ROOT / r.path).exists()
             and (not r.fate or r.fate == "—")
-            and r.path not in KNOWN_DANGLING_CONVERT_PATHS_PENDING_A_SEPARATE_FIX
         ]
 
         self.assertEqual(
