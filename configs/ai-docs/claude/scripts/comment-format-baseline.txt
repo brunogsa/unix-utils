@@ -68,8 +68,6 @@ configs/ai-docs/claude/skills/code-standards/scripts/classify-conversion.py
 configs/ai-docs/claude/skills/code-standards/scripts/tests/check-script-naming.test.py
 configs/ai-docs/claude/skills/code-standards/scripts/tests/classify-conversion.test.py
 configs/ai-docs/claude/skills/code-standards/scripts/tests/code-standards-scripts-section.test.py
-configs/ai-docs/claude/skills/code-standards/scripts/tests/conversion-verdicts-harness-fate.test.py
-configs/ai-docs/claude/skills/code-standards/scripts/tests/conversion-verdicts-provenance.test.py
 configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/check-refs.sh
 configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/gen-shard-manifest.sh
 configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/tests/test-check-refs.sh
