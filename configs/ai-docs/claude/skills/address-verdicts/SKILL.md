@@ -30,21 +30,19 @@ disable-model-invocation: false
 This is **the** apply step for any `verdict_*.md` on disk, whichever lens wrote it: `/refactor`, `/auto-review`, `/test-sdd`, or a `/quality-gate` run that produced all three.
 
 It is the only place the apply loop lives.
-`/quality-gate` decides *which* findings are worth applying and calls this skill to apply them.
-The routing, commit, and annotation rules have one home rather than a copy per caller.
+
+`/quality-gate` decides *which* findings are worth applying and calls this skill to apply them. The routing, commit, and annotation rules have one home rather than a copy per caller.
 
 Two ways in, and the difference is only who picks the findings — the batching in §3 and §4 is identical either way:
 
 - **A human invokes it** — `<which ones>` is the selection, and §2 may ask a clarifying question.
 - **A skill invokes it** — the caller passes an explicit finding list plus `--no-ask`, having already triaged. Nothing prompts.
 
-This skill is a standalone entry point either way.
-It discovers the verdict files itself, in a fresh session, whether or not `/implement` ran first.
+This skill is a standalone entry point either way. It discovers the verdict files itself, in a fresh session, whether or not `/implement` ran first.
 
 It never re-runs either reviewer. It only consumes reports already on disk.
 
-A finding you don't select stays untouched and un-annotated.
-The report keeps no record it was even considered.
+A finding you don't select stays untouched and un-annotated. The report keeps no record it was even considered.
 
 ## 1. Locate the verdict files
 
@@ -52,8 +50,7 @@ The report keeps no record it was even considered.
 ls -1 verdict_refactor_*.md verdict_auto-review_*.md verdict_test-sdd_*.md 2>/dev/null
 ```
 
-Several timestamped generations can exist per lens — e.g. two `verdict_refactor_*.md` files from different runs.
-The timestamp is embedded in the filename (`verdict_<lens>_YYYY-MM-DD_HH:MM.md`), so it sorts lexically.
+Several timestamped generations can exist per lens — e.g. two `verdict_refactor_*.md` files from different runs. The timestamp is embedded in the filename (`verdict_<lens>_YYYY-MM-DD_HH:MM.md`), so it sorts lexically.
 
 - **Default**: the newest generation of each lens — the last name after a sort.
 - **To work an older generation instead**: name its exact file path inside `<which ones>`.
@@ -86,11 +83,13 @@ Report it to the human instead of dispatching it, since a question names no fix 
 Applying an auto-review-lens finding also needs a test command, to run RED-then-GREEN (§4).
 
 Infer it first: a `package.json` test script, a Makefile target, the repo's own CLAUDE.md.
+
 Ask only when it can't be inferred — bundle that ask into §2's clarifying question if one already fires, otherwise ask it alone.
 
 **Under `--no-ask`, nothing above prompts.** Each ambiguity resolves to `SKIPPED (<the ambiguity>)` on that finding, and the run continues with the rest.
 
 Skipping beats guessing here because the caller can re-run the finding by hand once it reads the ledger, whereas a wrong guess lands a commit nobody asked for.
+
 A missing test command under `--no-ask` skips only the findings that need one — refactor-lens findings still apply, since the `refactor` agent brings its own green-before-and-after check.
 
 ## 3. Seed the whole TaskList upfront — one entry per lens, never one per finding
@@ -112,9 +111,11 @@ A lens that contributed no finding gets no entry at all, since an empty task rea
 Mark the first entry `in_progress`, every other one `pending`.
 
 **One entry per lens is the rule, whoever invoked this skill.**
+
 A `/quality-gate` run routinely yields 30–50 findings, and a row-per-finding list costs one subagent spawn each while telling the human nothing three rows don't.
 
 No finding is lost to the grouping: each entry names its own count, and §5 still annotates every finding individually in its verdict file.
+
 That file, not the TaskList, is the durable per-finding ledger.
 
 Add one closing `[Reminder]` entry for the final report (§6) — it survives even if the session compacts mid-run, so the wrap-up step can't get silently skipped.
@@ -128,6 +129,7 @@ Each dispatch carries **all** of the findings assigned to it at once, each with 
 - **`test-sdd` entry** (from `verdict_test-sdd_*.md`):
   - `agent(subAgent=tdd-coder, title=Apply all test-sdd findings)`.
   - A test-sdd finding names a planned test the repo lacks, so writing that test IS the fix.
+
     Pass every planned title verbatim so each test lands under the name the plan declared.
 
 - **`auto-review` entry** (from `verdict_auto-review_*.md`):
@@ -153,21 +155,25 @@ The `refactor` agent is the concrete case for this cap: 30 days of telemetry put
 A `/quality-gate` run's 30-50 refactor findings can exhaust that budget in one uncapped dispatch, leaving the batch mid-run with nothing committed.
 
 Why the refactor lens keeps its own agent rather than joining the other two on `tdd-coder`: that agent refuses any behavior change, by design.
+
 A correctness fix or a missing test can't route through it — both need `tdd-coder`'s test-first discipline instead.
+
 Making all three dispatches uniform would trade that refusal for symmetry, and a "simplification" that quietly changes semantics is the exact case the refusal catches.
 
 **One commit per finding still holds inside a batched dispatch** — say so explicitly in every dispatch prompt.
+
 The batching exists to cut subagent spawns, not to coarsen the diff a human reviews: a lens-sized commit would bury which fix answers which finding.
 
 - `tdd-coder` commits its own work under `commit-standards` — confirm each reported SHA exists rather than re-committing.
 - The `refactor` agent leaves its changes uncommitted by design, so commit them here, in this session, where the permission prompt can render —
   - still one commit per finding, never one for the lens.
 
-Verify each subagent's result against the artifacts — the diff, the test run — before trusting its "done."
-A subagent's summary describes intent; only the artifact shows what actually landed.
+Verify each subagent's result against the artifacts — the diff, the test run — before trusting its "done." A subagent's summary describes intent; only the artifact shows what actually landed.
 
 A finding whose apply failed or was reverted is recorded as failed, never as done, and never gets a commit.
+
 **Score a partial batch per finding, never per lens** — this matters when a dispatch lands only some of its findings.
+
 A dispatch that landed 6 of its 9 findings is recorded as 6 applied and 3 failed, never as one failed lens, so six real commits are preserved in the ledger.
 
 ## 5. Annotate the verdict file, the moment each lens's dispatch returns
@@ -185,9 +191,11 @@ Write every one of that lens's outcomes in place, next to its own finding — ne
 This is the durable, on-disk ledger of fixed-versus-deferred the user explicitly asked for.
 
 The heading marker alone can't say *why* or point at the fix, and the body line alone isn't greppable.
+
 A skipped finding then reads as unfinished from either surface, which is what a re-run needs.
 
 Annotating lens by lens means a session killed during the second dispatch still leaves an accurate ledger for the first.
+
 Holding it to the end of the run would leave a pile of applied fixes with no record of which report entries they answer.
 
 The per-finding granularity is what §3's per-lens TaskList gives up, so this is the only surface carrying it — never coarsen it to match the task list.
@@ -195,7 +203,9 @@ The per-finding granularity is what §3's per-lens TaskList gives up, so this is
 ## 6. Close with a report
 
 One line per finding — never a bare id, count, or SHA alone: `<lens>#N (<file>:<lines>) — <one-line recap of what the finding says> → <outcome>`.
+
 The recap is mandatory even when the finding is already annotated in a verdict file on disk.
+
 The report is what the human actually reads, and a bare id forces them to open that file just to know what was decided.
 
 - **Applied** — outcome is `APPLIED (<sha>)`.
@@ -208,6 +218,7 @@ State plainly, every time:
 - This run never re-ran either reviewer — it only consumed their existing reports.
 
 Invoked by a skill, hand that same list back to the caller rather than only printing it.
+
 The caller composes the closing report the human actually reads, and can only name what it was told.
 
 ## Flowchart (human-facing)
