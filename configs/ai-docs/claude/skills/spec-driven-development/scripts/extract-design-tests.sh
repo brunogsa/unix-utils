@@ -9,9 +9,8 @@
 #   <describe> > <happy|corner|failure> > <it>   when the it() sits under a class comment
 #   <describe> > <it>                            for a flat helper block (no class comment)
 #
-# --pairs: prints `<bare-it><TAB><breadcrumb>` per line instead — consumed by
-# normalize-list-breadcrumbs.sh to upgrade bare list titles to breadcrumbs. This keeps the
-# describe/class reconstruction in ONE place (both gates and the normalizer read it here).
+# --pairs: prints `<bare-it><TAB><breadcrumb>` per line — each
+# bare it() title next to its reconstructed breadcrumb.
 #
 # --annotations: prints `<bare-it><TAB><breadcrumb><TAB><AC tokens><TAB><T tokens>` per line —
 # the AC/T tokens parsed from a trailing `// AC-<n>... T<n>... [on-demand]` comment on the

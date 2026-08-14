@@ -135,7 +135,6 @@ configs/ai-docs/claude/skills/spec-driven-development/scripts/check-test-distrib
 configs/ai-docs/claude/skills/spec-driven-development/scripts/dag-check-helper.sh
 configs/ai-docs/claude/skills/spec-driven-development/scripts/extract-design-tests.sh
 configs/ai-docs/claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh
-configs/ai-docs/claude/skills/spec-driven-development/scripts/normalize-list-breadcrumbs.sh
 configs/ai-docs/claude/skills/spec-driven-development/scripts/plan-section.sh
 configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-ac-coverage.sh
 configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-coverage-checklists.sh
