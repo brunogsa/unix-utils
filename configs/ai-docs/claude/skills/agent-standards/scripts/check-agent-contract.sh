@@ -2,19 +2,31 @@
 # check-agent-contract.sh - validate agent files against the
 # agent-authoring contract (agent-standards/SKILL.md).
 #
-# For every *.md file in <agents-directory> (non-.md files skipped):
-#   - frontmatter: name: matches the filename, description: is
-#     non-empty and within MAX_DESC_CHARS, model: is present. A
-#     shadow file is exempt from the model: and description-budget
-#     checks; DESC_BUDGET_EXEMPT names the other exemptions.
-#   - frontmatter: when allowedSubagents: is present, its list is
-#     non-empty, and it is not declared alongside a disallowedTools:
-#     list containing Agent (that combination can never fire).
-#   - body (fenced code blocks stripped first): either exactly one
-#     non-empty "## Shadows" heading (a shadow file), or all six
-#     canonical headings -- Objective, Inputs, Sources and tools,
-#     Procedure, Boundaries, Report format -- each h2 (`## `), each
-#     with non-empty content, in that exact order, none duplicated.
+# For every *.md file in <agents-directory> (non-.md files
+# skipped):
+#
+# - frontmatter: name: matches the filename, description:
+#     is non-empty and within MAX_DESC_CHARS, model: and
+#     effort: are both present.
+#
+#     A shadow file is exempt from the model:, effort: and
+#     description-budget checks; DESC_BUDGET_EXEMPT names
+#     the other exemptions.
+#
+# - frontmatter: when allowedSubagents: is present, its
+#     list is non-empty, and it is not declared alongside a
+#     disallowedTools: list containing Agent (that
+#     combination can never fire).
+#
+# - body (fenced code blocks stripped first): either
+#     exactly one non-empty "## Shadows" heading (a shadow
+#     file), or all six canonical headings.
+#
+#     The six: Objective, Inputs, Sources and tools,
+#     Procedure, Boundaries, Report format.
+#
+#     Each must be h2 (`## `), with non-empty content, in
+#     that exact order, none duplicated.
 #
 # Usage:
 #   check-agent-contract.sh <agents-directory>
@@ -45,16 +57,19 @@ fi
 # always-on context in every session and live routing input.
 MAX_DESC_CHARS=250
 
-# Names exempt from MAX_DESC_CHARS, space-separated. Each needs a
-# reason the budget's own rationale never covered — a longer
-# description alone is never one.
+# Names exempt from MAX_DESC_CHARS, space-separated.
+# Each needs a reason the budget's own rationale never covered —
+# a longer description alone is never one.
 #
-#   markdown-standards-fixer - carries an ask-the-user-first guard
-#     the caller must read BEFORE dispatching. It cannot move to
-#     ## Boundaries, which loads only after that decision is made.
+#   markdown-standards-fixer - carries an ask-the-user-first
+#     guard the caller must read BEFORE dispatching. It cannot
+#     move to ## Boundaries, which loads only after that
+#     decision is made.
+#
 #   comment-format-fixer - same ask-the-user-first guard, same
-#     reason: the file may not be the caller's to hold to these
-#     standards, and that must be read before dispatch, not after.
+#     reason: the file may not be the caller's to hold to
+#     these standards, and that must be read before dispatch,
+#     not after.
 DESC_BUDGET_EXEMPT="markdown-standards-fixer comment-format-fixer"
 
 # description_chars - character count of a file's frontmatter
@@ -63,7 +78,8 @@ DESC_BUDGET_EXEMPT="markdown-standards-fixer comment-format-fixer"
 #
 # An em dash is 3 UTF-8 bytes, so a byte count would flag a
 # description that routes fine. Under LC_ALL=C, tr drops every
-# continuation byte (0x80-0xBF); each byte left is one character.
+# continuation byte (0x80-0xBF); each byte left is one
+# character.
 description_chars() {
   awk '
     FNR == 1 && /^---[ \t]*$/ { in_fm = 1; next }
@@ -106,6 +122,7 @@ for file in "$dir"/*.md; do
       name_val = ""
       desc_val = ""
       model_present = 0
+      effort_present = 0
       disallowed_tools_val = ""
       allowed_subagents_val = ""
       allowed_subagents_present = 0
@@ -127,6 +144,8 @@ for file in "$dir"/*.md; do
         desc_val = v
       } else if ($0 ~ /^model:[ \t]*/) {
         model_present = 1
+      } else if ($0 ~ /^effort:[ \t]*/) {
+        effort_present = 1
       } else if ($0 ~ /^disallowedTools:[ \t]*/) {
         v = $0
         sub(/^disallowedTools:[ \t]*/, "", v)
@@ -226,6 +245,14 @@ for file in "$dir"/*.md; do
       } else {
         if (model_present == 0) {
           reasons = reasons "frontmatter model: key is missing\n"
+        }
+
+        # Paired with model: on purpose. subagent-model-guard.py gates
+        # model only, so an undeclared effort silently inherits the
+        # tier of whatever session dispatched the agent -- real spend
+        # with nothing anywhere reporting where it went.
+        if (effort_present == 0) {
+          reasons = reasons "frontmatter effort: key is missing\n"
         }
 
         # A shadow file skips this: its description must mirror the

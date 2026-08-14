@@ -48,7 +48,7 @@ write_agent() {
   local dir="$1" name="$2" shape="$3"
   mkdir -p "$dir"
   {
-    printf -- '---\nname: %s\ndescription: fixture\nmodel: sonnet\n---\n\n' "$name"
+    printf -- '---\nname: %s\ndescription: fixture\nmodel: sonnet\neffort: high\n---\n\n' "$name"
     printf '## Objective\nSomething.\n'
     if [ "$shape" = "valid" ]; then
       printf '\n## Inputs\nx.\n\n## Sources and tools\nx.\n\n## Procedure\nx.\n\n## Boundaries\nx.\n\n## Report format\nx.\n'

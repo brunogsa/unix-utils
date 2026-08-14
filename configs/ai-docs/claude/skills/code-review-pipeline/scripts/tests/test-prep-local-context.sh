@@ -7,8 +7,8 @@
 # on this repo's own history, then runs the real script
 # end to end against it.
 #
-# No bats dependency, matching the sibling
-# test-subagent-prompt-script-refs.sh suite.
+# No bats dependency, matching every other bash suite
+# run-tests.sh discovers.
 #
 # Exits 0 when every assertion passes, non-zero otherwise.
 

@@ -63,6 +63,7 @@ it_should_exit_0_when_a_file_has_all_six_required_headings_in_canonical_order_wi
 name: sample-agent
 description: Sample agent used for fixture testing.
 model: sonnet
+effort: high
 ---
 
 ## Objective
@@ -124,6 +125,7 @@ it_should_exit_0_when_frontmatter_has_a_name_matching_the_filename_non_empty_des
 name: quoted-frontmatter-agent
 description: "Sample agent with a quoted description for fixture testing."
 model: opus
+effort: high
 ---
 
 ## Objective
@@ -184,6 +186,7 @@ it_should_exit_0_when_a_heading_has_trailing_whitespace() {
     'name: trailing-whitespace-agent' \
     'description: Sample agent used for fixture testing.' \
     'model: sonnet' \
+    'effort: high' \
     '---' \
     '' \
     '## Objective   ' \
@@ -223,6 +226,7 @@ it_should_skip_non_md_files_in_the_target_directory() {
 name: sample-agent
 description: Sample agent used for fixture testing.
 model: sonnet
+effort: high
 ---
 
 ## Objective
@@ -266,6 +270,7 @@ it_should_exit_1_when_a_required_headings_text_only_appears_inside_a_fenced_code
 name: fenced-heading-agent
 description: Sample agent used for fixture testing.
 model: sonnet
+effort: high
 ---
 
 ## Objective
@@ -309,6 +314,7 @@ it_should_exit_1_when_a_required_heading_is_missing() {
 name: missing-heading-agent
 description: Sample agent used for fixture testing.
 model: sonnet
+effort: high
 ---
 
 ## Objective
@@ -345,6 +351,7 @@ it_should_exit_1_when_a_required_heading_has_no_content_beneath_it_before_the_ne
 name: empty-heading-agent
 description: Sample agent used for fixture testing.
 model: sonnet
+effort: high
 ---
 
 ## Objective
@@ -383,6 +390,7 @@ it_should_exit_1_when_headings_appear_out_of_canonical_order() {
 name: out-of-order-agent
 description: Sample agent used for fixture testing.
 model: sonnet
+effort: high
 ---
 
 ## Inputs
@@ -423,6 +431,7 @@ it_should_exit_1_when_a_heading_is_duplicated() {
 name: duplicate-heading-agent
 description: Sample agent used for fixture testing.
 model: sonnet
+effort: high
 ---
 
 ## Objective
@@ -467,6 +476,7 @@ it_should_exit_1_when_an_h3_objective_is_used_instead_of_h2_objective() {
 name: h3-objective-agent
 description: Sample agent used for fixture testing.
 model: sonnet
+effort: high
 ---
 
 ### Objective
@@ -507,6 +517,7 @@ it_should_exit_1_when_frontmatter_name_does_not_match_the_filename() {
 name: a-completely-different-name
 description: Sample agent used for fixture testing.
 model: sonnet
+effort: high
 ---
 
 ## Objective
@@ -546,6 +557,7 @@ it_should_exit_1_when_frontmatter_description_is_missing_or_empty() {
 ---
 name: missing-description-agent
 model: sonnet
+effort: high
 ---
 
 ## Objective
@@ -585,6 +597,7 @@ it_should_exit_1_when_a_non_shadow_files_frontmatter_has_no_model_key() {
 ---
 name: missing-model-agent
 description: Sample agent used for fixture testing.
+effort: high
 ---
 
 ## Objective
@@ -617,6 +630,46 @@ EOF
   assert_nonempty "should exit 1 when a non-shadow file's frontmatter has no model key (diagnostic present)" "$VERDICT_OUT"
 }
 
+it_should_exit_1_when_a_non_shadow_files_frontmatter_has_no_effort_key() {
+  local dir="$work_dir/failure-missing-effort"
+  mkdir -p "$dir"
+  cat > "$dir/missing-effort-agent.md" <<'EOF'
+---
+name: missing-effort-agent
+description: Sample agent used for fixture testing.
+model: sonnet
+---
+
+## Objective
+
+Search the codebase for a pattern and report every match.
+
+## Inputs
+
+- The search query string.
+
+## Sources and tools
+
+- Grep and Glob for search.
+
+## Procedure
+
+1. Run the search.
+2. Summarize the results.
+
+## Boundaries
+
+- Never modify any file found during the search.
+
+## Report format
+
+- **Matches**: file:line pairs found, or none.
+EOF
+  run_script "$dir"
+  assert_eq "should exit 1 when a non-shadow file's frontmatter has no effort key (exit code)" "1" "$VERDICT_EXIT"
+  assert_nonempty "should exit 1 when a non-shadow file's frontmatter has no effort key (diagnostic present)" "$VERDICT_OUT"
+}
+
 it_should_exit_0_when_a_description_lands_on_exactly_the_character_budget() {
   local dir="$work_dir/happy-description-at-cap"
   mkdir -p "$dir"
@@ -625,6 +678,7 @@ it_should_exit_0_when_a_description_lands_on_exactly_the_character_budget() {
 name: at-cap-description-agent
 description: Sample agent used for fixture testing, with a description written deliberately to land on exactly the two-hundred-and-fifty character budget so the length gate has its permitted boundary pinned, padded with filler carrying no meaning.................
 model: sonnet
+effort: high
 ---
 
 ## Objective
@@ -664,6 +718,7 @@ it_should_exit_1_when_a_non_shadow_description_exceeds_the_character_budget() {
 name: long-description-agent
 description: Sample agent used for fixture testing, with a description written deliberately past the two-hundred-and-fifty character budget so the length gate has something real to flag, padded here with filler that carries no meaning at all beyond its own length.
 model: sonnet
+effort: high
 ---
 
 ## Objective
@@ -722,6 +777,7 @@ it_should_exit_0_when_an_exempt_named_agents_description_exceeds_the_character_b
 name: markdown-standards-fixer
 description: Sample agent used for fixture testing, with a description written deliberately past the two-hundred-and-fifty character budget so the length gate has something real to flag, padded here with filler that carries no meaning at all beyond its own length.
 model: haiku
+effort: high
 ---
 
 ## Objective
@@ -762,6 +818,7 @@ it_should_fail_an_agent_file_that_declares_allowed_subagents_alongside_a_disallo
 name: contradicting-carve-out-agent
 description: Sample agent used for fixture testing.
 model: sonnet
+effort: high
 disallowedTools: Agent, Workflow
 allowedSubagents: Explore
 ---
@@ -804,6 +861,7 @@ it_should_fail_an_agent_file_whose_allowed_subagents_key_is_present_but_has_an_e
 name: empty-allowed-subagents-agent
 description: Sample agent used for fixture testing.
 model: sonnet
+effort: high
 disallowedTools: Workflow
 allowedSubagents:
 ---
@@ -846,6 +904,7 @@ it_should_fail_an_agent_file_whose_allowed_subagents_list_contains_only_whitespa
     'name: whitespace-allowed-subagents-agent' \
     'description: Sample agent used for fixture testing.' \
     'model: sonnet' \
+    'effort: high' \
     'disallowedTools: Workflow' \
     'allowedSubagents:    ' \
     '---' \
@@ -888,6 +947,7 @@ it_should_pass_an_agent_file_that_declares_no_allowed_subagents_key_at_all() {
 name: no-allowed-subagents-agent
 description: Sample agent used for fixture testing.
 model: sonnet
+effort: high
 disallowedTools: Agent, Workflow
 ---
 
@@ -928,6 +988,7 @@ it_should_pass_an_agent_file_whose_allowed_subagents_list_is_non_empty_and_whose
 name: valid-carve-out-agent
 description: Sample agent used for fixture testing.
 model: sonnet
+effort: high
 disallowedTools: Workflow
 allowedSubagents: Explore
 ---
@@ -976,6 +1037,7 @@ it_should_exit_1_when_an_h3_objective_is_used_instead_of_h2_objective
 it_should_exit_1_when_frontmatter_name_does_not_match_the_filename
 it_should_exit_1_when_frontmatter_description_is_missing_or_empty
 it_should_exit_1_when_a_non_shadow_files_frontmatter_has_no_model_key
+it_should_exit_1_when_a_non_shadow_files_frontmatter_has_no_effort_key
 it_should_exit_1_when_a_non_shadow_description_exceeds_the_character_budget
 it_should_exit_0_when_a_description_lands_on_exactly_the_character_budget
 it_should_exit_0_when_a_shadow_files_description_exceeds_the_character_budget

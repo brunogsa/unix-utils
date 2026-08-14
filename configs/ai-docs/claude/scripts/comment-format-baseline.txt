@@ -50,13 +50,11 @@ configs/ai-docs/claude/scripts/tests/check-shell-harness-orphans.test.py
 configs/ai-docs/claude/scripts/tests/test-statusline-tier.sh
 configs/ai-docs/claude/scripts/tests/test-tmux-window-title.sh
 configs/ai-docs/claude/scripts/tmux-window-title.sh
-configs/ai-docs/claude/skills/agent-standards/scripts/check-agent-contract.sh
 configs/ai-docs/claude/skills/agent-standards/scripts/tests/test-check-agent-contract.sh
 configs/ai-docs/claude/skills/audit-session/scripts/extract-session-timeline.py
 configs/ai-docs/claude/skills/audit-session/scripts/render-session-audit.py
 configs/ai-docs/claude/skills/audit-session/scripts/tests/test_render_session_audit.py
 configs/ai-docs/claude/skills/audit-session/scripts/tests/test_session_timeline.py
-configs/ai-docs/claude/skills/audit-session/scripts/tests/test-session-auditor-frontmatter.sh
 configs/ai-docs/claude/skills/brag/scripts/parse_gcal_mcp.py
 configs/ai-docs/claude/skills/brag/scripts/parse_ics.py
 configs/ai-docs/claude/skills/brag/scripts/shared.py

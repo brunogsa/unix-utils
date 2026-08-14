@@ -73,8 +73,11 @@ slice of subagent spend in usage telemetry and had no native turn cap.
 - [Instruction] Give every non-shadow agent file a frontmatter `model:` key.
   - [Why] subagent-model-guard.py treats a missing model: as unpinned, inheriting the session's model, often priciest.
 
-- [Instruction] Exempt a shadow file from the `model:` requirement only — its `name:`/`description:` still must pass.
-  - [Why] A shadow file's purpose can be leaving the model unpinned, so forcing model: there breaks the behavior it preserves.
+- [Instruction] Give every non-shadow agent file a frontmatter `effort:` key.
+  - [Why] subagent-model-guard.py gates model only, so an undeclared effort inherits the dispatching session's tier unreported.
+
+- [Instruction] Exempt a shadow file from the `model:` and `effort:` requirements only — its `name:`/`description:` still must pass.
+  - [Why] A shadow file's purpose can be leaving those unpinned, so forcing them there breaks the behavior it preserves.
 
 - [Instruction] Add `allowedModelOverrides:` to an agent file only when a minority of its dispatches genuinely need a tier the pin doesn't give, listing each by family alias.
   - [Why] subagent-model-guard.py reads that list as the pin's only escape hatch — every alias listed becomes spendable later.
