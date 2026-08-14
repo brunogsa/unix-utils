@@ -8,9 +8,10 @@
 # five shard model and effort values live in prose a later edit
 # could change silently.
 #
-# This suite is that guard: it extracts each shard's dispatch
-# line from the one committed fixed-schema table and checks it
-# against the tier the plan assigns.
+# This suite is that guard: it reads each shard's effort tier
+# from the dispatch table and the shared model pin from the
+# dispatch template line, then checks both against the tier the
+# plan assigns.
 #
 # Exits 0 when every assertion passes, non-zero otherwise.
 #
