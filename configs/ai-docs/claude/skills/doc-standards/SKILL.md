@@ -126,11 +126,8 @@ Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`d
 - [Instruction] Lead with the bottom line — state a doc's and each section's conclusion first, then its support (BLUF).
   - [Why] NN/g eye-tracking shows readers scan in an F-pattern and bail early, so a buried conclusion is one early-scanning readers never reach.
 
-- [Instruction] Collapse into a `<details>` or equivalent toggle whatever this document's own reader only consults or already holds — judged from that reader, never from the content's type.
-  - [Why] Content the reader only consults taxes everyone when left expanded, and a type-based rule misjudges it — a PR reviewer must read decisions a plan's author already made.
-
-- [Instruction] Never collapse what that reader needs in order to form the judgment the document asks of them.
-  - [Why] Collapsed content is content nobody opens, so hiding what the doc exists to communicate trades away the reading it was written for.
+- [Instruction] Collapsibility follows one reader-judged test: collapse whatever this doc's reader only consults or already holds; never collapse what they need to form the judgment the doc asks of them.
+  - [Why] A type-based rule misjudges what to collapse — a PR reviewer must read decisions a plan's author made — and collapsing what the reader needs defeats why the doc exists.
 
 - [Instruction] Never inventory facts a tool generates on demand — file paths, callers, deps, file/function listings — in any doc or comment.
   - [Why] IDEs, grep, and doc tools regenerate these for free, so an inline copy adds nothing and goes stale the moment an item moves.
@@ -161,8 +158,6 @@ Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`d
 
 - [Instruction] In standalone markdown docs, keep each prose paragraph on a single physical line — never hard-wrap mid-paragraph; `scripts/check-hard-wrap.py` reports every one.
   - [Why] The density check flags over-long lines, but hard-wrapping a long paragraph into short lines makes each one pass while the reader's cognitive load stays just as high.
-
-  - [Example] Bad: a 60-word paragraph wrapped into three 20-word lines, each passing the cap though it's still 60 words to read. Good: one line the cap can flag honestly.
 
 - [Instruction] Separate any bullet that has a sub-bullet or exceeds 80% of the density cap from the next bullet with a blank line.
   - [Why] A dense or parent bullet blurs into the next without a gap — the same stopping-point rule as comment paragraphs.
