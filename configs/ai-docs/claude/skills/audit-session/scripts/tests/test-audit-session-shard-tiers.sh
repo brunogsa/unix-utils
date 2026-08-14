@@ -157,10 +157,23 @@ it_should_fail_when_a_shard_tier_is_altered() {
   local tmp_file result
   tmp_file="$(mktemp)"
 
-  # S2 (Money) is assigned effort=max -- downgrade it to
-  # effort=high to simulate a later edit silently drifting
-  # the tier away from what the plan assigned.
-  sed 's/^| S2 |\(.*\)effort=max)/| S2 |\1effort=high)/' "$PROMPT_FILE" > "$tmp_file"
+  # S2 (Money) is assigned Effort=max in the dispatch table --
+  # downgrade its Effort cell to high to simulate a later edit
+  # silently drifting the tier away from what the plan assigned.
+  sed '/^| S2 |/ s/| max | /| high | /' "$PROMPT_FILE" > "$tmp_file"
+
+  # Guard against vacuity: if the sed above stops matching the
+  # current file format, it silently produces an unmutated copy
+  # and the assertion below would pass for the wrong reason.
+  local differs
+  if cmp -s "$PROMPT_FILE" "$tmp_file"; then
+    differs="same"
+  else
+    differs="differs"
+  fi
+  assert_eq "the S2 tier-altered fixture should differ from the source file before it is checked" \
+    "differs" "$differs"
+
   if check_shard_tiers "$tmp_file" >/dev/null 2>&1; then
     result="passed"
   else
@@ -175,10 +188,24 @@ it_should_fail_when_a_shard_dispatch_omits_its_model() {
   local tmp_file result
   tmp_file="$(mktemp)"
 
-  # S3 (Work done) loses its ", model=opus" clause entirely
-  # -- simulates a dispatch line edited down to the unpinned
-  # general-purpose default the guard hook would deny.
-  sed 's/^| S3 |\(.*\), model=opus\(.*\)/| S3 |\1\2/' "$PROMPT_FILE" > "$tmp_file"
+  # The shared dispatch template (every shard's only source of
+  # model=) loses its ", model=opus" clause entirely -- simulates
+  # the dispatch line edited down to the unpinned general-purpose
+  # default the guard hook would deny.
+  sed '/^Dispatch each as/ s/, model=opus//' "$PROMPT_FILE" > "$tmp_file"
+
+  # Guard against vacuity: if the sed above stops matching the
+  # current file format, it silently produces an unmutated copy
+  # and the assertion below would pass for the wrong reason.
+  local differs
+  if cmp -s "$PROMPT_FILE" "$tmp_file"; then
+    differs="same"
+  else
+    differs="differs"
+  fi
+  assert_eq "the omits-model fixture should differ from the source file before it is checked" \
+    "differs" "$differs"
+
   if check_shard_tiers "$tmp_file" >/dev/null 2>&1; then
     result="passed"
   else
