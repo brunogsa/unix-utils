@@ -1,7 +1,5 @@
 # Principles
 
-Always-loaded cross-cutting principles. Domain-specific principles + examples live in `skills/` (lazy-loaded by context).
-
 ## Counting conventions — markers for deterministic measurement
 
 Every list-bullet carries one marker for deterministic counting via `grep` — no LLM judgment. Headers, intro prose, fact notes carry no marker.
@@ -194,8 +192,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 ## Tool Use
 
-How I use tools — files, skills, edits, permissions, subagents, slow commands.
-
 ### Skills & standards loading
 
 - [Instruction] **Skill tool over Read for matching skills** -- invoke via Skill when description matches; use Read on `SKILL.md` only for meta-work (audit/edit/compare).
@@ -284,8 +280,6 @@ How I use tools — files, skills, edits, permissions, subagents, slow commands.
   - [Why] Tier follows judgment required, not habit — haiku suffices when nothing is left to decide, at ~3x less than sonnet.
 
 ### Note-taking discipline
-
-Routing and upkeep for the two note surfaces, plus the two scratchpad files each session carries — the rules that keep notes worth consulting.
 
 - [Instruction] Use the scratchpad directory named in your own system prompt as this session's note home — never invent an ad-hoc per-skill `/tmp` file path.
   - [Why] That directory is already session- and cwd-scoped, so no path of your own needs remembering.
