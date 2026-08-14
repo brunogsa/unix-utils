@@ -27,10 +27,15 @@ Fixing red here would erase the very signatures that evidence is made of.
 - Record the runner's **Failure signatures** into `baseline.failures` as returned — short signatures (file + test name, or lint rule + file).
   - This is the set §8.3 diffs its own final failures against to tell pre-existing red from batch-caused red without guessing.
 
+- Record the runner's **Suite inventory** into `baseline.inventory` as returned.
+  - The complete set of suite entries (test files, lint targets) this run's commands reported on, whether they passed or failed.
+  - This is what §8.3's gate diffs its own inventory against.
+  - So an entry added or removed mid-batch reads as unmeasured rather than as a fix or a regression this batch never touched.
+
 ## When skipped
 
-When §1.2's repo-green gate toggle answered no, skip this step entirely — `baseline.log_path` and `baseline.failures` stay empty.
+When §1.2's repo-green gate toggle answered no, skip this step entirely — `baseline.log_path`, `baseline.failures`, and `baseline.inventory` stay empty.
 
-A dispatch that halts or times out leaves both keys empty too, so treat it the same way from there.
+A dispatch that halts or times out leaves all three keys empty too, so treat it the same way from there.
 
 Either way §8.3's gate then has nothing to classify against — see its own entry rules for what that costs, since the runner refuses to guess which red is pre-existing.
