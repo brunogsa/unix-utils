@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # test-global-config-invariants.sh - plain-bash test file
-# guarding invariants spread across install.sh,
-# settings.json, and the global CLAUDE.md.
+# guarding invariants spread across install.sh and
+# settings.json.
+#
+# Scoped to files an interpreter reads. A group asserting
+# CLAUDE.md's prose lived here and was dropped: the actor
+# reading a CLAUDE.md is an LLM, so such a check catches an
+# edit to the wording and never the behavior it asks for.
 #
 # Usage:
 #   bash test-global-config-invariants.sh
@@ -140,65 +145,6 @@ it_should_keep_the_three_pre_existing_env_keys_intact_alongside_the_new_cap
 it_should_fail_when_the_committed_env_block_defines_claude_code_subagent_model
 
 # ============================================================
-# describe("SubagentCostGuidance")
-# ============================================================
-
-CLAUDE_MD="$repo_root/configs/ai-docs/claude/CLAUDE.md"
-
-# subagents_section - the body of CLAUDE.md's "### Subagents"
-# section, from its heading to the next heading of any level.
-#
-# Scoped to the section rather than to the fan-out bullet
-# alone: the cost guidance has already been split into a
-# second bullet once, and a fixed one-line lookahead from the
-# fan-out instruction stopped covering the facts the moment
-# it moved. What these assertions actually guard is that the
-# subagent guidance states the real cost multiplier and never
-# resurrects a debunked lever — wherever in the section it is
-# written.
-subagents_section() {
-  awk '/^### Subagents$/ { inside = 1; next } inside && /^#/ { exit } inside' "$CLAUDE_MD"
-}
-
-it_should_state_the_subagent_count_times_per_subagent_cost_multiplier() {
-  local has_subagent_count has_per_subagent_cost
-  subagents_section | grep -q "subagent count" && has_subagent_count=true || has_subagent_count=false
-  subagents_section | grep -q "per-subagent cost" && has_per_subagent_cost=true || has_per_subagent_cost=false
-  assert_eq \
-    "SubagentCostGuidance > happy > should state the subagent-count times per-subagent-cost multiplier" \
-    "true true" "$has_subagent_count $has_per_subagent_cost"
-}
-
-it_should_fail_when_the_subagent_guidance_claims_max_thinking_tokens_is_a_usable_cost_lever() {
-  local actual
-  subagents_section | grep -q "MAX_THINKING_TOKENS" && actual=true || actual=false
-  assert_eq \
-    "SubagentCostGuidance > failure > should fail when the subagent guidance claims MAX_THINKING_TOKENS is a usable cost lever" \
-    "false" "$actual"
-}
-
-it_should_fail_when_the_subagent_guidance_claims_effortlevel_high_is_an_above_default_multiplier() {
-  local actual
-  subagents_section | grep -q "effortLevel" && actual=true || actual=false
-  assert_eq \
-    "SubagentCostGuidance > failure > should fail when the subagent guidance claims effortLevel high is an above-default multiplier" \
-    "false" "$actual"
-}
-
-it_should_fail_when_the_subagent_guidance_claims_the_native_rate_limits_stdin_field_is_missing_data() {
-  local actual
-  subagents_section | grep -q "rate_limits" && actual=true || actual=false
-  assert_eq \
-    "SubagentCostGuidance > failure > should fail when the subagent guidance claims the native rate_limits stdin field is missing data" \
-    "false" "$actual"
-}
-
-it_should_state_the_subagent_count_times_per_subagent_cost_multiplier
-it_should_fail_when_the_subagent_guidance_claims_max_thinking_tokens_is_a_usable_cost_lever
-it_should_fail_when_the_subagent_guidance_claims_effortlevel_high_is_an_above_default_multiplier
-it_should_fail_when_the_subagent_guidance_claims_the_native_rate_limits_stdin_field_is_missing_data
-
-# ============================================================
 # describe("SettingsModelDefaults")
 # ============================================================
 
@@ -218,29 +164,8 @@ it_should_fail_when_the_committed_settings_json_carries_an_advisormodel_key() {
     "false" "$actual"
 }
 
-ROOT_CLAUDE_MD="$repo_root/CLAUDE.md"
-
-# declared_defaults_line - the "declared defaults" sentence
-# in the repo's own CLAUDE.md Editing section;
-#
-# /model, /effort and /advisor writes are expected to
-# diverge from it session by session, so only this one
-# sentence documents the checked-in baseline.
-declared_defaults_line() {
-  grep 'declared defaults' "$ROOT_CLAUDE_MD"
-}
-
-it_should_fail_when_the_repo_claude_md_declared_defaults_line_still_names_advisormodel_opus() {
-  local actual
-  declared_defaults_line | grep -q "advisorModel" && actual=true || actual=false
-  assert_eq \
-    "SettingsModelDefaults > failure > should fail when the repo CLAUDE.md declared-defaults line still names advisorModel opus" \
-    "false" "$actual"
-}
-
 it_should_record_model_as_sonnet_in_the_committed_settings_json
 it_should_fail_when_the_committed_settings_json_carries_an_advisormodel_key
-it_should_fail_when_the_repo_claude_md_declared_defaults_line_still_names_advisormodel_opus
 
 # ============================================================
 # describe("ClaudeHudRemoval")
