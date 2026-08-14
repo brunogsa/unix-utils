@@ -69,12 +69,14 @@ def test_prose_continuing_a_bullet_is_reported_as_continues_bullet(tmp_path):
 
 
 def test_bullet_indented_continuation_is_reported_not_treated_as_code(tmp_path):
-    """Pins the heuristic this checker must NOT grow.
+    """Pins how narrow the indented-code rule has to stay.
 
-    A 4-space indent conventionally means an indented code block, but every doc
-    in this repo is deeply nested bullets, so at that depth an indent is far
-    more often a bullet continuation. Only FENCED code is skipped; if someone
-    later adds an indented-code skip, this test is what catches it.
+    A 4-space indent conventionally means an indented code block, but markdown
+    opens one only where a paragraph could start - and here the indent sits
+    directly under the bullet it continues, with no blank line. Every doc in
+    this repo is deeply nested bullets, so widening the rule to any deep
+    indent would silence far more real wraps than it fixes; this test is what
+    catches that.
     """
     result = run(
         tmp_path,
@@ -159,8 +161,9 @@ def test_trailing_backslash_hard_break_is_not_a_wrap(tmp_path):
 def test_wrapped_prose_inside_a_fenced_code_block_is_not_reported(tmp_path):
     """Line breaks inside a fence are the code's own, never a prose wrap.
 
-    Only FENCED code is recognised. There is deliberately no indented-code
-    rule - see test_bullet_indented_continuation_is_reported_not_treated_as_code.
+    A fence is recognised at any indent and needs no blank line above it,
+    which is what separates it from markdown's indented code form - the tests
+    below cover that one.
     """
     result = run(
         tmp_path,
@@ -176,6 +179,123 @@ def test_wrapped_prose_inside_a_fenced_code_block_is_not_reported(tmp_path):
         "a tilde fence works the same way\n"
         "and its second line is also code\n"
         "~~~\n",
+    )
+
+    assert hits(result) == []
+    assert result.returncode == 0
+
+
+def test_indented_code_block_after_a_blank_line_is_not_reported(tmp_path):
+    """Markdown's other code form: four spaces opened by a blank line.
+
+    Joining two lines of an indented block - the remedy a hard-wrap report
+    invites - destroys the code exactly as joining a fenced block would.
+    """
+    result = run(
+        tmp_path,
+        "A real paragraph.\n"
+        "\n"
+        "    first = 'a line of code'\n"
+        "    second = 'another line of code'\n"
+        "\n"
+        "A paragraph after the block.\n",
+    )
+
+    assert hits(result) == []
+    assert result.returncode == 0
+
+
+def test_indented_line_directly_under_a_paragraph_is_reported(tmp_path):
+    """The blank line is what opens an indented code block.
+
+    Without one, an indented line is a lazy continuation of the paragraph
+    above it - the plain hard wrap this checker exists to report, wearing an
+    indent. This is the half of the boundary an over-broad "any deep indent
+    is code" rule would silence.
+    """
+    result = run(
+        tmp_path,
+        "A paragraph the author wrapped, whose tail they then indented\n"
+        "    onto a second physical line.\n",
+    )
+
+    assert hits(result) == [(2, "continues-prose")]
+
+
+def test_hard_wrapped_continuation_paragraph_under_a_bullet_is_reported(tmp_path):
+    """Four spaces under a bullet is the item's own text, never code.
+
+    Markdown opens an indented code block only where a paragraph could
+    start, and inside a list item that bar is the item's content column plus
+    four. A blank line alone therefore does not turn an item's continuation
+    paragraph into code.
+    """
+    result = run(
+        tmp_path,
+        "- A bullet with a continuation paragraph beneath it.\n"
+        "\n"
+        "    That continuation paragraph, hard-wrapped by its author\n"
+        "    onto a second physical line.\n",
+    )
+
+    assert hits(result) == [(4, "continues-prose")]
+
+
+def test_code_block_nested_inside_a_bullet_is_not_reported(tmp_path):
+    """The bar inside a list item is its content column plus four.
+
+    A top-level bullet's content starts at column 2, so a code block nested
+    in that item starts at column 6 - measuring from column 0 instead would
+    read this snippet as the item's own wrapped prose.
+    """
+    result = run(
+        tmp_path,
+        "- A bullet introducing a snippet.\n"
+        "\n"
+        "      first = 'a line of code'\n"
+        "      second = 'another line of code'\n",
+    )
+
+    assert hits(result) == []
+    assert result.returncode == 0
+
+
+def test_indented_code_block_after_a_list_ends_is_not_reported(tmp_path):
+    """The raised in-list bar drops again when the list does.
+
+    Left latched at the last bullet's column, it would misread every
+    top-level indented block in the rest of the file as wrapped prose - and
+    these docs are mostly bullets, so nearly every real code block follows
+    one.
+    """
+    result = run(
+        tmp_path,
+        "- A bullet.\n"
+        "  - A nested bullet.\n"
+        "\n"
+        "A paragraph at the left margin, after the list.\n"
+        "\n"
+        "    first = 'a line of code'\n"
+        "    second = 'another line of code'\n",
+    )
+
+    assert hits(result) == []
+    assert result.returncode == 0
+
+
+def test_tab_indented_code_block_is_not_reported(tmp_path):
+    """A leading tab is markdown's other indented-code form.
+
+    A tab counts as an indent of up to four columns, so measuring the raw
+    string rather than the tab-expanded one would report a tab-indented
+    block as wrapped prose.
+    """
+    result = run(
+        tmp_path,
+        "A real paragraph.\n"
+        "\n"
+        "\tfirst = 'a line of code'\n"
+        "\tsecond = 'another line of code'\n",
     )
 
     assert hits(result) == []

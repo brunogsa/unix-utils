@@ -66,6 +66,28 @@ LINK_REF_DEF = re.compile(r"^\s*\[[^\]]+\]:\s")
 HTML_TAG_ONLY = re.compile(r"^\s*</?[a-zA-Z][^>]*>\s*$")
 LINK_ONLY = re.compile(r"^\s*([>*+-]|\d+\.)?\s*\[[^\]]+\]\([^)]+\)\s*\.?\s*$")
 
+# Markdown's second code form: four columns of indent past wherever a
+# paragraph could otherwise start. A tab counts as one such indent, so
+# every indent here is measured in tab-expanded columns.
+INDENTED_CODE_INDENT = 4
+TAB_WIDTH = 4
+
+
+def indent_columns(line):
+    """The line's leading indent, in columns, with tabs expanded."""
+    expanded = line.expandtabs(TAB_WIDTH)
+    return len(expanded) - len(expanded.lstrip())
+
+
+def bullet_content_column(line):
+    """The column a bullet's own text starts at, or None for a non-bullet.
+
+    Content indented past that column belongs to the item, which is why it
+    is also where a code block nested inside the item has to start.
+    """
+    match = BULLET.match(line.expandtabs(TAB_WIDTH))
+    return len(match.group(0)) if match else None
+
 
 def is_setext_underline(line, previous):
     """True when `line` underlines `previous` into a setext heading.
@@ -82,9 +104,17 @@ def is_setext_underline(line, previous):
 def is_continuable_prose(line):
     """True when this line is body prose a paragraph could be wrapped across.
 
-    This is the inverse of check-density.sh's skip-set: a line that script
-    declines to MEASURE is a line this script must decline to JOIN, so the two
-    never disagree about what counts as a paragraph.
+    Judges a line on its own markers alone. For those it is the inverse of
+    check-density.sh's skip-set: a line that script declines to MEASURE is a
+    line this script must decline to JOIN.
+
+    Block context is find_hits()'s job, and there the two checkers diverge
+    deliberately. check-density.sh skips only frontmatter and fenced code, so
+    an INDENTED code block is prose to it and unjoinable here.
+
+    That divergence is safe because density only flags lines OVER a 256-char
+    cap, which indented code lines do not reach - the blind spot is inert on
+    density's side, while joining an indented block here destroys the code.
     """
     if not line.strip():
         return False
@@ -113,6 +143,11 @@ def find_hits(lines):
     """(line_number, reason) for every line continuing the line above it."""
     hits = []
     in_fence = False
+    in_indented_code = False
+    # The innermost open list item's content column, 0 outside any list. It
+    # is what raises the code-block bar inside an item: four spaces under a
+    # bullet is that item's continuation text, not a code block.
+    list_content_column = 0
     # Frontmatter only exists as a leading block, so the opening --- must be
     # line 0; a bare --- anywhere else is a horizontal rule, not a delimiter.
     in_frontmatter = bool(lines) and bool(FRONTMATTER.match(lines[0]))
@@ -129,7 +164,47 @@ def find_hits(lines):
         if in_fence:
             continue
 
+        is_blank = not line.strip()
+        indent = indent_columns(line)
+        code_column = list_content_column + INDENTED_CODE_INDENT
+
+        left_indented_code = False
+        if in_indented_code:
+            # A blank line never closes an indented code block - only a
+            # non-blank line dedented back out of it does.
+            if not is_blank and indent < code_column:
+                in_indented_code = False
+                left_indented_code = True
+        elif not is_blank and indent >= code_column:
+            # Markdown opens an indented code block only where a paragraph
+            # could otherwise start, which is why the blank line above is
+            # part of the test.
+            #
+            # Directly under a paragraph line the same indent is a lazy
+            # continuation of it - the hard wrap this script exists to
+            # report, wearing an indent.
+            opens_a_block = i == 0 or not lines[i - 1].strip()
+            in_indented_code = opens_a_block
+
+        if in_indented_code:
+            continue
+
+        if not is_blank:
+            bullet_column = bullet_content_column(line)
+            if bullet_column is not None:
+                list_content_column = bullet_column
+            else:
+                # A line dedented past the innermost item's content column
+                # has left that item, so the bar drops back down with it.
+                list_content_column = min(list_content_column, indent)
+
         if i == 0:
+            continue
+
+        # The line that dedents out of a code block opens a new block, so it
+        # continues nothing - and the code line above it is not prose to be
+        # joined onto anyway.
+        if left_indented_code:
             continue
 
         # A bullet OPENS a block, so it is never a continuation of the line
