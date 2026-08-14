@@ -393,8 +393,8 @@ it_should_tell_the_session_to_file_a_scout_for_a_file_with_no_recorded_decision(
     "$HOOK_REASON" "delegate"
   assert_contains "should tell the session to file a Scout for a file with no recorded decision (forbids dispatching now)" \
     "$HOOK_REASON" "Dispatch nothing now"
-  assert_contains "should tell the session to file a Scout for a file with no recorded decision (carries the deterministic --fix command)" \
-    "$HOOK_REASON" "node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --fix"
+  assert_contains "should tell the session to file a Scout for a file with no recorded decision (scopes the deterministic --fix command to the lines this session changed)" \
+    "$HOOK_REASON" "node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --fix --changed-only"
   assert_contains "should tell the session to file a Scout for a file with no recorded decision (tells where to append the skip)" \
     "$HOOK_REASON" "append 'skip:<abs path>' for each file to $(decisions_file_path new)"
 }

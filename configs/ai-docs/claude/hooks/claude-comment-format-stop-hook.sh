@@ -381,7 +381,7 @@ list=$(printf '%s\n' "$violations" | awk -F: '
 # Scout, now that no branch of this hook runs it.
 reason="Source comments you edited this session break doc-standards' comment-format caps — ${list}. \
 File ONE [Scout] TaskList entry per file, describing the broken caps and its repair: run \
-'node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --fix <file>' first, then a Haiku \
+'node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --fix --changed-only <file>' first, then a Haiku \
 (claude-haiku-4-5) comment-format-fixer subagent for whatever it still reports. Dispatch nothing now, \
 run nothing now, and ask nothing — the user alone decides if and when a Scout runs. Then append \
 'skip:<abs path>' for each file to ${decisions_file}."
