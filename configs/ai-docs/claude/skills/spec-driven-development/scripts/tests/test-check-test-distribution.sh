@@ -33,6 +33,19 @@ assert_eq() {
   fi
 }
 
+# assert_contains - passes when the haystack carries the given
+# literal text.
+assert_contains() {
+  local description="$1" haystack="$2" needle="$3"
+  if printf '%s\n' "$haystack" | grep -qF -- "$needle"; then
+    pass_count=$((pass_count + 1))
+    printf 'ok - %s\n' "$description"
+  else
+    fail_count=$((fail_count + 1))
+    printf 'not ok - %s\n  missing text: %s\n  actual:\n%s\n' "$description" "$needle" "$haystack"
+  fi
+}
+
 # run_script - invokes check-test-distribution.sh against a
 # plan-file fixture, capturing stderr/exit code into
 # VERDICT_ERR/VERDICT_EXIT (stdout is discarded — these tests
@@ -224,6 +237,73 @@ it_should_fail_when_a_task_lists_a_test_absent_from_the_test_design_section() {
   fi
 }
 
+# Annotated-form fixture: every it() carries an inline `// T<n>` annotation
+# naming the task that will write it, so there is no separate per-task
+# `**Tests (planned)**:` list left for a task heading to carry.
+ANNOTATED_DESIGN='```
+describe("checkTestDistribution", () => {
+  // Happy cases
+  it("should report every designed test as distributed when the two regions agree");   // T1
+  // Failure scenarios
+  it("should report the orphan title when a designed test reaches no task");   // T2
+});
+```'
+
+it_should_pass_in_annotated_form_when_every_it_carries_a_t_token_naming_a_real_task() {
+  local fixture
+  fixture=$(write_plan "annotated-matching" "$ANNOTATED_DESIGN" \
+    '### 1. Wire the gate
+
+No Tests (planned) bullet needed — the T1 annotation on the it() above already names this task.
+
+### 2. Report the diffs
+
+No Tests (planned) bullet needed — the T2 annotation on the it() above already names this task.')
+  run_script "$fixture"
+  assert_eq "should pass in annotated form when every it() carries a T<n> token naming a real task" "0" "$VERDICT_EXIT"
+}
+
+it_should_fail_in_annotated_form_when_an_it_carries_no_t_token() {
+  local fixture design
+  design='```
+describe("checkTestDistribution", () => {
+  // Happy cases
+  it("should report every designed test as distributed when the two regions agree");   // T1
+  // Failure scenarios
+  it("should report the orphan title when a designed test reaches no task");
+});
+```'
+  fixture=$(write_plan "annotated-missing-t" "$design" \
+    '### 1. Wire the gate
+
+### 2. Report the diffs')
+  run_script "$fixture"
+  assert_eq "should fail in annotated form when an it() carries no T<n> token (exit code)" "1" "$VERDICT_EXIT"
+  assert_contains "should fail in annotated form when an it() carries no T<n> token (names the unassigned title)" \
+    "$VERDICT_ERR" "should report the orphan title when a designed test reaches no task"
+}
+
+it_should_fail_in_annotated_form_when_a_t_token_names_a_task_the_task_breakdown_never_defines() {
+  local fixture design
+  design='```
+describe("checkTestDistribution", () => {
+  // Happy cases
+  it("should report every designed test as distributed when the two regions agree");   // T1
+  // Failure scenarios
+  it("should report the orphan title when a designed test reaches no task");   // T9
+});
+```'
+  fixture=$(write_plan "annotated-invented-task" "$design" \
+    '### 1. Wire the gate
+
+### 2. Report the diffs')
+  run_script "$fixture"
+  assert_eq "should fail in annotated form when a T<n> token names a task the Task Breakdown never defines (exit code)" \
+    "1" "$VERDICT_EXIT"
+  assert_contains "should fail in annotated form when a T<n> token names a task the Task Breakdown never defines (names the invented task)" \
+    "$VERDICT_ERR" "T9"
+}
+
 it_should_pass_when_the_test_design_section_is_the_n_a_escape_with_a_reason
 it_should_fail_when_the_test_design_is_the_n_a_escape_but_a_task_still_plans_a_real_test
 it_should_fail_when_the_test_design_lists_real_titles_but_every_task_is_n_a
@@ -232,6 +312,9 @@ it_should_fail_when_the_plan_has_no_test_design_section_at_all
 it_should_fail_when_the_test_design_body_is_prose_with_no_titles_and_no_escape
 it_should_pass_when_every_designed_test_appears_in_a_tasks_planned_test_list
 it_should_fail_when_a_task_lists_a_test_absent_from_the_test_design_section
+it_should_pass_in_annotated_form_when_every_it_carries_a_t_token_naming_a_real_task
+it_should_fail_in_annotated_form_when_an_it_carries_no_t_token
+it_should_fail_in_annotated_form_when_a_t_token_names_a_task_the_task_breakdown_never_defines
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

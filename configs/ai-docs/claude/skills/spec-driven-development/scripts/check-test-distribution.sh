@@ -1,10 +1,21 @@
 #!/usr/bin/env bash
-# check-test-distribution - verify a plan's Test Design titles match its per-task Tests (planned) lists.
+# check-test-distribution - verify a plan's Test Design titles are all distributed to a task.
 #
 # Usage:
 #   check-test-distribution.sh <plan-path>
 #
-# Asserts SET EQUALITY between two regions of a plan_<slug>.md:
+# Two Test Design forms, detected per-plan from extract-design-tests.sh --annotations (any
+# it() line carrying an `// AC-<n>` or `T<n>` token puts the WHOLE plan in annotated form):
+#
+# ANNOTATED form (single source — the distribution lives ONLY as inline `T<n>` comments on Test
+# Design's it() lines; see plan-template.md). Two checks:
+#   (a) every it() line carries >=1 T<n> token (catches an undistributed/orphan designed test).
+#   (b) every T<n> token names a task the `## Task Breakdown` actually defines (catches a
+#       distribution to an invented/typo'd task number).
+#
+# LIST form (old — still required so plan_gate-roi.md/plan_script-overhaul.md-shaped plans keep
+# passing unchanged; a transition path this comment already marks for removal once no plan uses
+# it): asserts SET EQUALITY between two regions of a plan_<slug>.md:
 #   A = every Test Design title as a breadcrumb (<describe> [> class] > it), reconstructed by
 #       the shared extract-design-tests.sh (the design, single source).
 #   B = the union of every task's `**Tests (planned)**:` bullet list (the distribution),
@@ -32,9 +43,11 @@
 # drift, not an escape, and keeps failing as B \ A.
 #
 # Exit codes:
-#   0  - A == B. Every designed test is distributed to a task; no task invents a test.
-#        Also the "N/A" Test Design escape, when no task plans a test either.
-#   1  - A != B (diffs printed to stderr), OR a task is missing its `**Tests (planned)**:` bullet.
+#   0  - annotated form: every it() has >=1 T<n>, all naming real tasks. List form: A == B, or
+#        the "N/A" Test Design escape when no task plans a test either.
+#   1  - annotated form: an it() has no T<n>, or a T<n> names a task Task Breakdown never
+#        defines. List form: A != B (diffs printed to stderr), or a task is missing its
+#        `**Tests (planned)**:` bullet.
 #   2  - usage error (wrong arg count, plan file not found, sibling script missing).
 
 set -eo pipefail
@@ -108,6 +121,56 @@ if [ -z "$task_nums" ]; then
   echo "error: no '### <N>.' task headings found in $plan" >&2
   exit 1
 fi
+
+# Detect the plan's Test Design form the same way check-ac-coverage.sh does: any it() row with
+# a non-empty T column puts the whole plan in annotated form. Skipped when the design is N/A
+# (no it() lines at all — form doesn't apply; the list-form N/A handling below covers it).
+is_annotated=false
+
+if [ "$is_design_na" = false ]; then
+  annotation_rows=$("$design_extract" --annotations "$plan")
+  if printf '%s\n' "$annotation_rows" | awk -F'\t' '$4 != "" { found = 1 } END { exit !found }'; then
+    is_annotated=true
+  fi
+fi
+
+if [ "$is_annotated" = true ]; then
+  # ANNOTATED form: the distribution lives ONLY as `T<n>` tokens on each it() line, so there is
+  # no per-task `**Tests (planned)**:` bullet list to reuse extract-planned-tests-for-task.sh on.
+  fail=0
+
+  untagged=$(printf '%s\n' "$annotation_rows" | awk -F'\t' '$4 == "" { print $1 }')
+  if [ -n "$untagged" ]; then
+    fail=1
+    echo "FAIL: designed tests with NO T<n> distribution tag:" >&2
+    printf '%s\n' "$untagged" | sed 's/^/  - /' >&2
+  fi
+
+  all_t_tokens=$(printf '%s\n' "$annotation_rows" | cut -f4 | tr ' ' '\n' | grep -v '^$' | sort -u || true)
+  invented=""
+  for tok in $all_t_tokens; do
+    n="${tok#T}"
+    if ! printf '%s\n' "$task_nums" | grep -qxF "$n"; then
+      invented="$invented $tok"
+    fi
+  done
+
+  if [ -n "$invented" ]; then
+    fail=1
+    echo "FAIL: T<n> tokens naming a task the Task Breakdown never defines:" >&2
+    for tok in $invented; do echo "  - $tok" >&2; done
+  fi
+
+  if [ "$fail" -eq 0 ]; then
+    count=$(printf '%s\n' "$annotation_rows" | wc -l | tr -d ' ')
+    echo "OK: $count designed tests, all distributed to tasks; no task invents a task number."
+    exit 0
+  fi
+
+  exit 1
+fi
+
+# LIST form (below): unchanged from before this dispatch — see header comment.
 
 set_b=""
 for n in $task_nums; do
