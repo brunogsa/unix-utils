@@ -84,13 +84,12 @@ tiny_pr=false; [ "$added_lines" -lt 100 ] && tiny_pr=true
 echo "$tiny_pr" > "$work_dir/tiny-pr.txt"
 ```
 
-If `added_lines < 100`, `tiny_pr=true`. Waves 2 and 3 collapse
-into a single combined pass (see Wave 2 below). At this scale the whole diff
-fits comfortably in context, serial expansion buys little, and the
-per-finding validator adds more cost than it saves. Otherwise leave
-`tiny_pr=false` and run the full pipeline.
+If `added_lines < 100`, `tiny_pr=true`. Waves 2 and 3 collapse into a single combined pass (see Wave 2 below).
 
-**Persist it to `$work_dir/tiny-pr.txt`** so Wave 2 can recover the flag
-from disk instead of trusting working memory after a mid-pipeline
-compaction. Without it, a resumed tiny PR reruns through the full
-8-specialist loop the fast-path exists to skip.
+At this scale the whole diff fits comfortably in context, serial expansion buys little, and the per-finding validator adds more cost than it saves.
+
+Otherwise leave `tiny_pr=false` and run the full pipeline.
+
+**Persist it to `$work_dir/tiny-pr.txt`** so Wave 2 can recover the flag from disk instead of trusting working memory after a mid-pipeline compaction.
+
+Without it, a resumed tiny PR reruns through the full 8-specialist loop the fast-path exists to skip.
