@@ -202,8 +202,8 @@ class TestCheckRenameReferencesCorner:
         samples = []
         for _ in range(3):
             start = time.perf_counter()
-            result = _run()
-            samples.append(time.perf_counter() - start)
+            run_result = _run()
+            samples.append((time.perf_counter() - start, run_result))
 
         # A shared machine can run other processes during any single sample,
         # and contention can only ever make a sample slower, never faster.
@@ -211,14 +211,15 @@ class TestCheckRenameReferencesCorner:
         # observable estimate of what the scan costs when nothing else is
         # competing for the CPU -- the floor is the real signal, everything
         # above it is noise from machine load.
-        fastest = min(samples)
-        sample_report = ", ".join(f"{s:.3f}s" for s in samples)
+        fastest = min(elapsed for elapsed, _ in samples)
+        sample_report = ", ".join(f"{elapsed:.3f}s" for elapsed, _ in samples)
+        last_result = samples[-1][1]
 
         assert fastest < budget_seconds, (
             f"fastest of 3 runs took {fastest:.3f}s (budget {budget_seconds}s); "
-            f"samples: {sample_report}\n{result.stdout}{result.stderr}"
+            f"samples: {sample_report}\n{last_result.stdout}{last_result.stderr}"
         )
-        assert result.returncode in (0, 1), result.stdout + result.stderr
+        assert last_result.returncode in (0, 1), last_result.stdout + last_result.stderr
 
     def test_should_be_reachable_from_the_stop_hook_entry_in_settings_json_through_the_orchestrator_at_its_own_resolved_path(self):
         # [Drift] Task 26's own working title for this test assumed
