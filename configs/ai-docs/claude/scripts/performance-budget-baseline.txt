@@ -26,14 +26,11 @@
 # = <value>`, taken verbatim from check.sh's own report. Lines starting
 # with # are comments; blank lines are ignored.
 Budgets :: Bundled files failing size or heading checks :: measured = 3
-Budgets :: CLAUDE.md [Instruction] count :: measured = 99
-Budgets :: CLAUDE.md non-blank lines :: measured = 265
 Budgets :: Max skill desc chars :: measured = 288
 Bundled resources failing size or heading checks :: audit-session/assets/subagent-prompt.md :: words = 1254
 Bundled resources failing size or heading checks :: code-standards/references/conversion-verdicts.md :: lines = 274
 Bundled resources failing size or heading checks :: code-standards/references/conversion-verdicts.md :: words = 3358
 Bundled resources failing size or heading checks :: code-standards/references/rename-list.md :: words = 1464
-Density check :: skills/address-verdicts/SKILL.md :: count = 12
 Skills exceeding budgets :: address-verdicts :: words = 2118
 Skills exceeding budgets :: code-review-pipeline :: words = 2253
 Skills exceeding budgets :: consistency-check-principles-and-skills :: words = 2290
@@ -43,5 +40,4 @@ Skills exceeding budgets :: doc-standards :: words = 2095
 Skills exceeding budgets :: implement :: words = 5069
 Skills exceeding budgets :: quality-gate :: desc = 288
 Skills exceeding budgets :: quality-gate :: words = 2292
-Skills over their `instructions-budget` frontmatter override :: commit-standards :: count = 13
 Skills over their `instructions-budget` frontmatter override :: doc-standards :: count = 31
