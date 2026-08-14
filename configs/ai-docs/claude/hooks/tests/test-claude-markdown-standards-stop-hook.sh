@@ -197,6 +197,21 @@ write_bullet_gap_violation() {
   printf '# Doc\n\n- parent\n  - child\n- next parent\n' > "$repo/$name"
 }
 
+# write_lazy_continuation_violation - writes a
+# markdown file whose only violation is prose indented
+# for the numbered item but swallowed by the bullet
+# above it — the lazy-continuation checker's own rule.
+#
+# Every line is short and no bullet sits flush against
+# a sibling, so neither check-density.sh nor
+# check-bullet-gap.py fires here (verified directly
+# against both before writing this) — only
+# check-lazy-continuation.py can make it block.
+write_lazy_continuation_violation() {
+  local repo="$1" name="$2"
+  printf '# Doc\n\n1. numbered item\n   - pointer bullet\n   absorbed prose line\n' > "$repo/$name"
+}
+
 # write_transcript - writes a transcript naming the
 # given absolute paths as this session's own Edit
 # tool calls. Prints the transcript path.
@@ -263,6 +278,24 @@ it_should_block_on_a_bullet_gap_violation_the_density_checker_would_miss() {
   run_hook "$repo" "{\"session_id\":\"bullet-gap-case\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
 
   assert_eq "should block on a bullet-gap violation the density checker would miss" \
+    "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
+}
+
+# Three checkers feed one gate: this proves
+# check-lazy-continuation.py alone can trigger a
+# block, on a fixture the other two stay clean on.
+#
+# The defect it guards inverts a sentence's meaning
+# rather than merely reading long, so an unwired
+# checker here ships a rendered lie.
+it_should_block_on_a_lazy_continuation_the_other_checkers_would_miss() {
+  local repo; repo=$(new_repo lazy-continuation)
+  write_clean_base "$repo" base.md
+  write_lazy_continuation_violation "$repo" new.md
+  local t; t=$(write_transcript "$repo/transcript.jsonl" "$repo/new.md")
+  run_hook "$repo" "{\"session_id\":\"lazy-continuation-case\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
+
+  assert_eq "should block on a lazy continuation the other checkers would miss" \
     "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
 }
 
@@ -463,6 +496,7 @@ it_should_stay_silent_when_session_id_gives_it_nowhere_to_record_the_skip() {
 
 it_should_block_on_an_untracked_markdown_file_this_session_wrote
 it_should_block_on_a_bullet_gap_violation_the_density_checker_would_miss
+it_should_block_on_a_lazy_continuation_the_other_checkers_would_miss
 it_should_block_on_a_violation_added_to_a_tracked_markdown_file
 it_should_stay_silent_on_a_preexisting_violation_the_session_did_not_add
 it_should_not_block_on_a_violating_file_this_session_never_touched

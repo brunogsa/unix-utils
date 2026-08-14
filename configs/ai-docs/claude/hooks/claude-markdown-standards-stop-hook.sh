@@ -7,11 +7,16 @@
 #   stdin:  hook event JSON ({ session_id, stop_hook_active, ... })
 #   stdout: optional JSON ({ decision: "block", reason: "..." }) to keep Claude going
 #
-# Two checkers, one gate — both are line-level doc-standards rules a Haiku fixes
-# the same mechanical way, so they share one block instead of two competing ones:
+# Three checkers, one gate — all are line-level doc-standards rules a Haiku fixes
+# the same mechanical way, so they share one block instead of three competing ones:
 #   - check-density.sh     line over 256 chars / 32 words → split it.
 #   - check-bullet-gap.py  bullet with a sub-bullet, or over 80% of that cap,
 #                          sitting flush against the next bullet → gap it.
+#   - check-lazy-continuation.py  prose indented for an outer list item that the
+#                          bullet above swallows → re-indent, gap, or reorder it.
+#                          The other two only make a doc read worse; this one makes
+#                          it render the opposite of what the source says, which is
+#                          why it earns a place in the same blocking gate.
 #
 # Rationale:
 #   The Stop event IS the review handoff — the AI finishes a turn and hands the
@@ -142,19 +147,21 @@ to_abs() {
 SCRIPTS="$HOME/.claude/skills/doc-standards/scripts"
 DENSITY="$SCRIPTS/check-density.sh"
 BULLET_GAP="$SCRIPTS/check-bullet-gap.py"
+LAZY_CONT="$SCRIPTS/check-lazy-continuation.py"
 CHANGED_LINES="$SCRIPTS/get-changed-lines.sh"
 
 # Each checker is gated on its own availability, so one missing interpreter
 # narrows the gate rather than dropping it.
 [ -x "$DENSITY" ] || DENSITY=""
 { [ -x "$BULLET_GAP" ] && command -v python3 >/dev/null 2>&1; } || BULLET_GAP=""
-[ -n "$DENSITY$BULLET_GAP" ] || exit 0
+{ [ -x "$LAZY_CONT" ] && command -v python3 >/dev/null 2>&1; } || LAZY_CONT=""
+[ -n "$DENSITY$BULLET_GAP$LAZY_CONT" ] || exit 0
 
 # Emit "path:line" for each violation that counts as "written/edited":
 #   mode=whole → every violating line (untracked file; all lines are new)
 #   mode=diff  → only violating lines that git shows as added/changed vs HEAD
 #
-# Both checkers share one output contract — "<line>:<detail>" rows under a
+# Every checker shares one output contract — "<line>:<detail>" rows under a
 # "== <file>" header — so their reports concatenate and parse as one stream.
 collect_file() {
   local f="$1" mode="$2"
@@ -165,6 +172,7 @@ collect_file() {
     {
       [ -n "$DENSITY" ]    && { "$DENSITY"    "$f" 2>/dev/null || true; }
       [ -n "$BULLET_GAP" ] && { "$BULLET_GAP" "$f" 2>/dev/null || true; }
+      [ -n "$LAZY_CONT" ]  && { "$LAZY_CONT"  "$f" 2>/dev/null || true; }
       # An unset checker leaves the group's status at 1, which pipefail would
       # turn into a set -e exit — so close on an unconditional success.
       true
