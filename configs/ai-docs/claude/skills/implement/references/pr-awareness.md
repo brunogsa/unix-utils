@@ -35,6 +35,9 @@ Decide by shape first, availability second — both must pass for `native`:
 - Any PR with 2+ parents in its `Depends on:` clause (a diamond, unrepresentable in a linear-only native stack) → `merge`.
 - Linear chain AND `gh stack --help` exits 0 (the `gh-stack` extension is installed) → `native`. Extension missing → `merge`.
 
+**This decision reads the PR graph, separate from §1.2's stacked-by-task gates** ([`stacked-by-task.md`](stacked-by-task.md)), which read the *task* graph inside one PR.
+The two are independent: a `Mode: merge` plan can still ship each of its PRs as a linear stack of per-task layers, and vice versa.
+
 Record the decision as a `Mode: <merge|native>` line under the plan's `## PR Breakdown` heading — same inline edit style as a `Branch:` clause, idempotent on re-runs.
 
 The mode is sticky for the stack's whole life; later sessions (review fixes, post-merge sync) read it for their rulebook in [`stacked-prs.md`](stacked-prs.md):
@@ -65,33 +68,11 @@ On `yes`, [`pr-branch-creation.md`](pr-branch-creation.md) owns resolving and cr
 
 ## Branch recording (the plan's `Branch:` clause)
 
-Every PR — checkout-needed or not — records its branch once, in its own PR Breakdown entry, at its own batch-end push (§8.3, `references/batch-end-pr-branch-record.md`), never at branch creation:
+Every PR — checkout-needed or not — records its branch once, in its own PR Breakdown entry, at its own batch-end push, never at branch creation.
 
-```
-### PR-N. [Done] <title>
+The field's grammar, the guarantee that this is its only writer, and the idempotence rule all live with the step that performs the write: [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md), read at §8.1.
 
-**Tasks**: <N, N>
-
-**Depends on**: <none | PR-N>
-
-**Branch**: `<branch-name>`
-```
-
-Each PR is its own `###` heading and each field its own line, per the grammar the `spec-driven-development` skill's `assets/plan-template.md` authors.
-
-A plan written before that grammar packs the same fields onto one numbered-list line; `parse-pr-breakdown.sh` reads either, so edit whichever shape the plan already uses.
-
-Write it inline, same edit style as a status marker — never scripted. The backticks are load-bearing: `parse-pr-breakdown.sh` reads the name between them, so a branch containing periods survives.
-
-A `no`-checkout PR's branch is `git branch --show-current`'s value from its own preflight; a checkout-needed PR's is whatever `checkout -b` (or the existing-branch check's plain `checkout`) resolved to.
-
-This is the *only* write for a PR's clause — the branch-creation guard above writes nothing, so no earlier write can race it.
-
-That holds even though a PR is both a later PR's recorded parent and the subject of its own batch-end write.
-
-Re-writing the clause must stay idempotent across two separate runs reaching the *same* PR's batch-end — replace the existing clause rather than appending a second one.
-
-Example: an earlier run halted mid-§8 and a fresh `/implement` re-invocation reaches §8 again. It need not be idempotent across two different call sites.
+Nothing here needs them earlier.
 
 ## The per-PR loop and fail-fast
 
