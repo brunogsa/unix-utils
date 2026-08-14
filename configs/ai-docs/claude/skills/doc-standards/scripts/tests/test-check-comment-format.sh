@@ -12,7 +12,11 @@
 set -uo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCRIPT="$script_dir/check-comment-format.js"
+
+# CHECK_COMMENT_FORMAT_SCRIPT lets a RED run point SCRIPT at a
+# HEAD snapshot instead of the working-tree file, without
+# touching the default every other run relies on.
+SCRIPT="${CHECK_COMMENT_FORMAT_SCRIPT:-$script_dir/check-comment-format.js}"
 
 work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT
@@ -209,6 +213,47 @@ assert_contains "should name WIDTH on each residue row --fix refused" \
   "$FIX_OUT" "WIDTH"
 run_check
 assert_eq "should still report the literals it refused to re-wrap" "1" "$CHECK_EXIT"
+
+# ==============================================================
+# Backtick code spans: atomic through --fix, never split across
+# two comment lines
+# ==============================================================
+
+# A multi-word backtick span whose own length stays under the
+# cap. Word-splitting on whitespace would let the wrap land
+# mid-span, leaving an opening backtick on one line and the
+# closing one on the next -- invalid Markdown inline code.
+new_fixture backtick-atomic.py
+cat >"$FIXTURE" <<'EOF'
+#!/usr/bin/env python3
+# See `git log --oneline --since yesterday --until today --author me` for the full history.
+VALUE = 1
+EOF
+run_fix
+assert_contains "should keep a multi-word backtick span on one line, never split across two" \
+  "$(cat "$FIXTURE")" \
+  '`git log --oneline --since yesterday --until today --author me`'
+
+# A backtick span long enough on its own to exceed the cap.
+# Atomicity must not silently exempt an over-cap span from the
+# width rule -- it stays reported, the same "unsplittable word"
+# residue design as the literals section above.
+new_fixture backtick-residue.py
+cat >"$FIXTURE" <<'EOF'
+#!/usr/bin/env python3
+# See `git log --oneline --since yesterday --until today --author me --format json` please.
+VALUE = 1
+EOF
+run_fix
+assert_eq "should exit 1 when --fix leaves an over-cap backtick span as residue" \
+  "1" "$FIX_EXIT"
+assert_contains "should leave the over-cap backtick-span line intact rather than mangle it" \
+  "$(awk 'length > 64' "$FIXTURE")" \
+  '`git log --oneline --since yesterday --until today --author me --format json`'
+run_check
+assert_eq "should still report the untouched backtick-span residue" "1" "$CHECK_EXIT"
+assert_contains "should name WIDTH on the backtick-span residue line" \
+  "$CHECK_OUT" "WIDTH"
 
 # ==============================================================
 # Break placement, code gaps, and the untouched-file guarantees

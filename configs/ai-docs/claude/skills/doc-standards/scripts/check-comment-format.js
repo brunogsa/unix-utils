@@ -271,18 +271,18 @@ function parseArgs(argv) {
   return { maxChars, maxLines, lang, fix, changedOnly, contentLoss, files };
 }
 
-// Shells out to get-changed-lines.sh rather than re-deriving git's
-// diff locally, so every doc-standards checker agrees on what
-// "changed" means.
+// Shells out to get-changed-lines.sh rather than re-deriving
+// git's diff locally, so every doc-standards checker agrees on
+// what "changed" means.
 //
 // A non-zero exit there (no git repo, file outside the work
 // tree, ...) is never treated as clean or as
 // whole-file-in-scope -- it propagates as exit 2 here too.
 //
-// get-changed-lines.sh finds its repo from the CWD it runs in, not
-// from the file argument, so cwd is pinned to the file's own
-// directory -- otherwise it would resolve against whatever repo
-// this process happened to be launched from.
+// get-changed-lines.sh finds its repo from the CWD it runs in,
+// not from the file argument, so cwd is pinned to the file's
+// own directory -- otherwise it would resolve against whatever
+// repo this process happened to be launched from.
 //
 // The caller's own file argument is not what gets passed on
 // though: cwd has already moved to that argument's directory,
@@ -992,10 +992,24 @@ function flowUnit(lines, start, lang, fullCommentLines, stopBefore) {
 // A continuation of a bullet is indented two further columns
 // so the wrapped text stays visually inside its own item
 // rather than reading as the next one.
+//
+// Backtick-quoted code spans are treated as atomic units and
+// never split across lines, since they would become invalid
+// Markdown inline code.
 function wrapUnit(unit, maxChars) {
   const { head, proseIndent, isBullet } = unit;
   const { indent, marker } = head;
-  const words = unit.text.split(/\s+/).filter(Boolean);
+
+  // Extract backtick spans and replace with placeholders to
+  // keep them atomic during word-splitting; restore them after
+  // wrapping.
+  const backtickSpans = [];
+  const textWithPlaceholders = unit.text.replace(/`[^`]*`/g, (match) => {
+    backtickSpans.push(match);
+    return `__BACKTICK_${backtickSpans.length - 1}__`;
+  });
+
+  const words = textWithPlaceholders.split(/\s+/).filter(Boolean);
 
   // One word cannot be split without rewriting it, so an
   // over-long path, URL, or identifier is left as residue.
@@ -1038,7 +1052,19 @@ function wrapUnit(unit, maxChars) {
   }
   if (current.length > 0) wrapped.push(pad + current.join(' '));
 
-  return wrapped.map((text) => renderCommentLine(indent, marker, text));
+  // Restore backtick spans that were extracted before wrapping,
+  // then render each line with its comment marker.
+  return wrapped.map((text) => {
+    let restored = text;
+    for (let i = 0; i < backtickSpans.length; i++) {
+      restored = restored.replace(`__BACKTICK_${i}__`, backtickSpans[i]);
+    }
+
+    // Extract the prose (already includes prose indent from
+    // wrapping)
+    const prose = restored.slice(proseIndent.length);
+    return renderCommentLine(indent, marker, prose);
+  });
 }
 
 // Where to insert the blank line that breaks one over-long
@@ -1050,11 +1076,12 @@ function wrapUnit(unit, maxChars) {
 // another the script cannot then repair.
 //
 // Preference goes to the latest such line inside the cap, so
-// the first half stays full. Failing that, the earliest one
-// anywhere in the run still splits it: both halves may stay
-// over cap, but each gets its own attempt on the next round,
-// and a run whose every sentence outruns the cap is residue a
-// human has to reword.
+// the first half stays full.
+//
+// Failing that, the earliest one anywhere in the run still
+// splits it: both halves may stay over cap, but each gets its
+// own attempt on the next round, and a run whose every sentence
+// outruns the cap is residue a human has to reword.
 function paragraphBreakIndex(violation, lines, lang, maxLines) {
   const runStart = violation.startLine - 1;
   const lastOffset = violation.length - 1;
@@ -1111,9 +1138,11 @@ function applyPass(pass, report, maxChars, maxLines) {
 
   // A flow unit reaches forward across lines the checker never
   // flagged, so every unit is measured against the untouched
-  // file first and only then spliced in bottom-to-top -- read
-  // and write interleaved would let one repair reach into text
-  // an earlier one had already rewritten.
+  // file first.
+  //
+  // Only then is it spliced in bottom-to-top, since read and
+  // write interleaved would let one repair reach into text an
+  // earlier one had already rewritten.
   //
   // A re-flow that reproduces its own input is not progress,
   // and counting it as one would keep convergence from ever
