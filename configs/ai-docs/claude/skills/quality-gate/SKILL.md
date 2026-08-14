@@ -32,7 +32,8 @@ The third leg runs only when a plan resolves — without a plan there are no pla
 
 - `--auto-solve` — skip the opening interview and apply the `refactor`/`auto-review` findings this run judges safe. Doesn't govern `test-sdd`, whose findings apply on every run that dispatches that leg (§5.1).
 
-- `--report-only` — skip the interview the other way: leave every `refactor`/`auto-review` finding unapplied. A skill caller that already asked its human passes one of the two flags, never neither, so §1 never stalls a batch on a prompt nobody is watching.
+- `--report-only` — skip the interview the other way: leave every `refactor`/`auto-review` finding unapplied.
+  - A skill caller that already asked its human passes one of the two flags, never neither, so §1 never stalls a batch on a prompt nobody is watching.
 
   - Both flags at once is a contradiction, not a precedence puzzle — stop and say so.
 
@@ -91,7 +92,9 @@ Also resolve `<BASE_REF>` for the `auto-review` leg:
 
 The script falls back from `origin/HEAD` to local `main` to local `master`; a failed detection means none of the three exist.
 
-If detection fails, ask which branch to diff against rather than guessing — under either flag, stop and print what failed instead, since a missing base has no safe default and proceeding would review the wrong range.
+If detection fails, ask which branch to diff against rather than guessing.
+
+Under either flag, stop and print what failed instead, since a missing base has no safe default and proceeding would review the wrong range.
 
 A caller may pass its own base ref via `--base-ref` instead — `/implement`'s batch-end tail passes `BATCH_BASE_SHA` that way.
 
@@ -103,9 +106,15 @@ Spawn every leg as `agent(subAgent=deep-reviewer, …)`, all in the **same turn*
 - `agent(subAgent=deep-reviewer, title=Auto-review pipeline)` — invokes the `auto-review` skill, orchestrating from there with `<BASE_REF>` and the resolved spec/plan paths pushed in so it needs no interactive resolution.
 - `agent(subAgent=deep-reviewer, title=Planned-test presence check)` — invokes and executes the `test-sdd` skill, with the resolved plan path and any `--tasks` ids pushed in; dispatch only when a plan resolved.
 
-**Each leg performs its skill's reviewer role itself and never spawns a nested reviewer** — it already *is* the fresh-context reviewer those skills would otherwise dispatch, and nesting would spend one of the harness's three levels on a second opinion nobody asked for. Tell each leg this explicitly: the skills it invokes describe dispatching a reviewer, and without the override it would follow that literally.
+**Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.**
 
-Every leg mints its own `verdict_*.md` timestamp per its own skill, so repeated runs accumulate rather than collide. The `deep-reviewer-write-guard.sh` hook backs the report-only contract at the tool layer — its exact terms live in [`deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md), the single home for that wording.
+It already *is* the fresh-context reviewer those skills would otherwise dispatch, and nesting would spend one of the harness's three levels on a second opinion nobody asked for.
+
+Tell each leg this explicitly: the skills it invokes describe dispatching a reviewer, and without the override it would follow that literally.
+
+Every leg mints its own `verdict_*.md` timestamp per its own skill, so repeated runs accumulate rather than collide.
+
+The `deep-reviewer-write-guard.sh` hook backs the report-only contract at the tool layer — its exact terms live in [`deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md), the single home for that wording.
 
 Tell each leg the `/tmp` half too — the `auto-review` leg's waves persist there, and a leg that believes only `verdict_*` is writable skips the `$work_dir` persistence its compaction-resume depends on.
 
@@ -113,7 +122,8 @@ Tell each leg the `/tmp` half too — the `auto-review` leg's waves persist ther
 
 When each leg returns, confirm its verdict file exists in CWD and is non-empty. Record the three resolved paths.
 
-- **A leg's file is missing or empty** → re-dispatch once; still missing → flag it in the summary, let the other legs' reports stand, and move on. Never retry twice — a leg that fails twice is for the human to look at, not a retry loop to grind on.
+- **A leg's file is missing or empty** → re-dispatch once; still missing → flag it in the summary, let the other legs' reports stand, and move on.
+  - Never retry twice — a leg that fails twice is for the human to look at, not a retry loop to grind on.
 
 - **Never report from a leg's return message** — messages are capped and truncate long finding lists; the file is the source of truth.
 
@@ -123,7 +133,11 @@ The two groups below enter the list on different terms. Compose the whole list b
 
 ### 5.1. Every `test-sdd` finding goes in, unconditionally
 
-Whenever §3 dispatched the `test-sdd` leg and §4 collected a non-empty file for it, every finding enters the apply list — report-only and auto-solve alike, with no triage. Each names a test the plan declared and the repo lacks, so "is this worth doing" was already answered when the human approved the plan. When §2 resolved no plan, that leg never dispatched and this sub-step contributes nothing.
+Whenever §3 dispatched the `test-sdd` leg and §4 collected a non-empty file for it, every finding enters the apply list — report-only and auto-solve alike, with no triage.
+
+Each names a test the plan declared and the repo lacks, so "is this worth doing" was already answered when the human approved the plan.
+
+When §2 resolved no plan, that leg never dispatched and this sub-step contributes nothing.
 
 ### 5.2. `refactor` and `auto-review` findings go in only on an auto-solve run
 
@@ -142,7 +156,11 @@ The relevance call is judgment, so it gets shown, not just its result.
 
 **An empty apply list skips straight to §7** — a report-only run with no plan resolved has nothing to apply.
 
-**Applying is not this skill's job** — `/address-verdicts` is the apply step for every `verdict_*.md` on disk, whoever wrote it; this skill decides *which* findings deserve a fix, that one owns *how* every fix lands. Duplicating its loop here would drift two copies of the lens routing, commit rule, and annotation format apart, leaving a human unable to tell which one their report followed.
+**Applying is not this skill's job** — `/address-verdicts` is the apply step for every `verdict_*.md` on disk, whoever wrote it.
+
+This skill decides *which* findings deserve a fix, that one owns *how* every fix lands.
+
+Duplicating its loop here would drift two copies of the lens routing, commit rule, and annotation format apart, leaving a human unable to tell which one their report followed.
 
 Resolve the repo's test command first — a `package.json` script, a Makefile target, the repo's own CLAUDE.md — then invoke, **in this session**:
 
@@ -154,11 +172,16 @@ Resolve the repo's test command first — a `package.json` script, a Makefile ta
 
 - **The list is explicit** — naming each finding as its report does, so nothing re-derives §5.2's triage from a severity floor and widens scope.
 
-- **`--no-ask` is mandatory here**, report-only or auto-solve alike — §1 already asked this run's one question, so a prompt now would either re-ask it or stall a `/implement` tail with nobody standing by.
+- **`--no-ask` is mandatory here**, report-only or auto-solve alike.
+  - §1 already asked this run's one question, so a prompt now would either re-ask it or stall a `/implement` tail with nobody standing by.
 
 - **`--test-cmd` is passed** so its inference step has nothing left to guess — the one thing it would otherwise prompt for.
 
-It runs in this session rather than a subagent, the same reason this skill sits in `/implement`'s main session: it commits the `refactor` agent's work (a permission prompt only renders in main), and its per-lens apply agents are already fresh-context subagents, so wrapping it would spend one of the harness's three nesting levels on a layer that decides nothing.
+It runs in this session rather than a subagent, the same reason this skill sits in `/implement`'s main session.
+
+It commits the `refactor` agent's work (a permission prompt only renders in main), and its per-lens apply agents are already fresh-context subagents.
+
+So wrapping it would spend one of the harness's three nesting levels on a layer that decides nothing.
 
 It returns the ledger §7 reports from: applied findings with SHAs, skipped findings with reasons, failures with retry needs.
 
@@ -168,7 +191,11 @@ Compose this from the ledger `/address-verdicts` returned, not from a second rea
 
 - Every verdict file path this run produced, plus any leg that failed to produce one, and the `test-sdd` leg when §2 resolved no plan to dispatch it with.
 
-- **Every finding below carries its `<lens>#N (<file>:<lines>)` reference plus a one-line recap — never a bare id, count, or SHA alone.** §5.2 already composed this for the accepted/rejected lines; reuse it. A human reading the report should never have to open a verdict file to know what was decided.
+- **Every finding below carries its `<lens>#N (<file>:<lines>)` reference plus a one-line recap — never a bare id, count, or SHA alone.**
+
+§5.2 already composed this for the accepted/rejected lines; reuse it.
+
+A human reading the report should never have to open a verdict file to know what was decided.
 
 - Applied findings, with commit SHA.
 - Findings judged not addressable by §5.2, with the reason — they stay unmarked in their verdict files.
