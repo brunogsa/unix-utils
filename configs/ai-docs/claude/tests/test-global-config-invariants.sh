@@ -392,5 +392,38 @@ it_should_bump_the_main_compaction_counter_straight_from_the_title_script_on_a_m
 it_should_fail_when_the_session_start_compaction_router_is_still_wired
 it_should_fail_when_the_dead_session_start_compaction_router_script_survives
 
+# ============================================================
+# describe("SuiteExecBitPermissions")
+# ============================================================
+
+# suite_exec_bit_violations - tracked suites under the four
+# glob trees run-tests.sh discovers by, whose git INDEX mode
+# isn't 100755.
+#
+# A fresh clone materializes exactly the index mode, so a
+# filesystem-only chmod would still leave a clone broken.
+#
+# Enumerated by the same four globs run-tests.sh itself uses
+# (never a hardcoded file list) — a hardcoded list reproduces
+# the exact registration gap run-tests.sh exists to close.
+suite_exec_bit_violations() {
+  (cd "$repo_root" && git ls-files -s \
+    configs/ai-docs/claude/tests/test-*.sh \
+    configs/ai-docs/claude/scripts/tests/test-*.sh \
+    configs/ai-docs/claude/hooks/tests/test-*.sh \
+    configs/ai-docs/claude/skills/*/scripts/tests/test-*.sh) \
+    | awk '$1 != "100755" { print $4 }'
+}
+
+it_should_mark_every_run_tests_discovered_suite_executable_in_the_git_index() {
+  local actual
+  actual=$(suite_exec_bit_violations | sort | tr '\n' ' ' | sed 's/ *$//')
+  assert_eq \
+    "SuiteExecBitPermissions > happy > should mark every run-tests.sh-discovered suite executable in the git index" \
+    "" "$actual"
+}
+
+it_should_mark_every_run_tests_discovered_suite_executable_in_the_git_index
+
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
