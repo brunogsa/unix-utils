@@ -464,12 +464,12 @@ flowchart TD
   n14b["14b. Step 1.6 · Capture the baseline: full lint +<br/>full test suite, once worktree (12b) and<br/>PR-label resolution (13b) have settled;<br/>save the log PATH + failing signatures into<br/>state.baseline (never the log content)"]:::state
   n15["15. Step 2.1 · TaskList: one entry per task,<br/>ALL PRs upfront in execution order<br/>(subjects prefixed 'PR-2 &middot;');<br/>1st in_progress, rest pending;<br/>status only"]:::state
 
-  subgraph seedRemind["16. Step 2.2 · After each PR's task entries, seed that batch's 4 batch-end [Reminder]s — separate entries, never one chain:<br/>a combined entry has one completed flag, so a step-level skip would have nowhere to land."]
+  subgraph seedRemind["16. Step 2.2 · After each PR's task entries, seed that batch's [Reminder]s — N of up to 4, per §2.2 — separate entries, never one chain:<br/>a combined entry has one completed flag, so a step-level skip would have nowhere to land."]
     direction TB
-    n16a["16a. Add to TaskList a [Reminder] for<br/>Batch-end 1/4: push the branch(es); record it in the<br/>PR entry; open the draft PR via pr-creator when wanted"]:::state
-    n16b["16b. Add to TaskList a [Reminder] for<br/>Batch-end 2/4: quality-gate tail, always<br/>report-only (only when opted in)"]:::state
-    n16c["16c. Add to TaskList a [Reminder] for<br/>Batch-end 3/4: repo-green gate, fix-loop until green<br/>(only when opted in)"]:::state
-    n16d["16d. Add to TaskList a [Reminder] for<br/>Batch-end 4/4: re-push and refresh the PR body when<br/>16b/16c landed commits; package print,<br/>closing review notification"]:::state
+    n16a["16a. Add to TaskList a [Reminder] for<br/>Batch-end (push): push the branch(es); record it in the<br/>PR entry; open the draft PR via pr-creator when wanted"]:::state
+    n16b["16b. Add to TaskList a [Reminder] for<br/>Batch-end (quality-gate tail), always<br/>report-only (only when opted in)"]:::state
+    n16c["16c. Add to TaskList a [Reminder] for<br/>Batch-end (repo-green gate), fix-loop until green<br/>(only when opted in)"]:::state
+    n16d["16d. Add to TaskList a [Reminder] for<br/>Batch-end (package): re-push and refresh the PR body when<br/>16b/16c landed commits; package print,<br/>closing review notification"]:::state
     n16a --> n16b --> n16c --> n16d
   end
 

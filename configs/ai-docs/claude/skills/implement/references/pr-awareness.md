@@ -80,7 +80,7 @@ Each PR's own §3–§8 run scopes that PR's repo-green gate, quality-gate tail,
 
 Label resolution and the checkout decision above run fresh per PR; the DAG re-check `implement/SKILL.md` §1.3 owns does not.
 
-§2 seeds **every** PR's entries upfront — each PR's tasks followed by that PR's four batch-end reminders — so the list reads as the whole run's timeline.
+§2 seeds **every** PR's entries upfront — each PR's tasks followed by that PR's batch-end reminders, §2.2's computed N of them — so the list reads as the whole run's timeline.
 A fail-fast stop simply leaves the later PRs' entries `pending`.
 
 **Stop predicate, checked after each PR's own §8 completes:**
