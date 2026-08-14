@@ -81,7 +81,7 @@ The TaskList already carries this step as a `Batch-end` reminder seeded in §2.2
 On no, skip this entire section — go straight to Finalize (§8.4).
 Have the package (§8.4) state the gate was skipped by request, with no repo-green result to show.
 
-Dispatch ONE fresh-context `agent(subAgent=repo-green-runner, title=Repo-green gate)`, handing it `mode: gate`, the repo's full lint + full test commands repo-wide, and the state file's `baseline.failures` + `baseline.log_path`.
+Dispatch ONE fresh-context `agent(subAgent=repo-green-runner, title=Repo-green gate)`, handing it `mode: gate`, the repo's full lint + full test commands repo-wide, and the state file's `baseline.failures` + `baseline.log_path` + `baseline.inventory`.
 
 Same contract as §4 — background, its 1-hour `Monitor` cap, its `TaskStop`-on-expiry timeout path — with model omitted so the agent file's own pin applies.
 
@@ -98,7 +98,9 @@ This still guards a baseline dispatch that halted or timed out, leaving both key
 **What this section does with the verdict it gets back:**
 
 - `GREEN` — proceed to Finalize (§8.4).
-- `GREEN-WITH-EXCEPTIONS` — proceed to §8.4, carrying the runner's Scout list into the package as `[Scout]` notes, so nothing it declined to fix disappears.
+- `GREEN-WITH-EXCEPTIONS` — proceed to §8.4, carrying the runner's Scout list AND its Unclassifiable list into the package, so nothing it declined to fix, or couldn't classify, disappears.
+  - The Unclassifiable list is flagged separately from Scout, since a changed suite inventory is evidence of neither pre-existing red nor a real fix.
+
 - `HALT` — [`failure-and-halt.md`](failure-and-halt.md)'s §5.5, halt, with the runner's surviving red set named. The human clears it, not this run.
 
 Then call `implement-loop-state.py --budget <state-file>`: `exhausted: true` on any verdict but `GREEN`/`GREEN-WITH-EXCEPTIONS` is a §5.5 halt too.
@@ -125,7 +127,10 @@ A unit only reaches this package with every task `[Done]` — anything unfinishe
 - **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §8.2, §8.3) — reported, never fixed by this run.
 - **The literal diff range** — print `git diff BATCH_BASE_SHA..HEAD` with the SHA substituted.
 - **"Unexpected extras"** — §8.3's runner's Fixed list: each commit it produced to reach green, with the failure that commit closed.
-- **Repo-green result** — §8.3's verdict, the runner's log path and final pass/fail + counts, and its Scout list of failures left unfixed because the batch didn't cause them.
+- **Repo-green result** — carries §8.3's verdict, its log path, and final pass/fail counts into the package.
+  - Its Scout list of failures left unfixed because the batch didn't cause them.
+  - Its Unclassifiable list of failures whose suite inventory changed since baseline, reported on its own line, distinct from Scout, so a false green never hides inside a pre-existing-red count.
+
   - When §8.3 was skipped, state plainly that no repo-green pass ran this batch.
 
 - **Worktree merge-back reminder** — only when a worktree exists (read its path + branch from the state file); omit when the interview declined it.
