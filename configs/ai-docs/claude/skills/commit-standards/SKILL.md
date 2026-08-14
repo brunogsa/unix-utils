@@ -14,10 +14,10 @@ Principles for any git commit. Each rule is an instruction with its nested why; 
 ### One logical change per commit
 
 - [Instruction] Never bundle unrelated changes — split into small, single-concern commits rather than one big one.
-  - [Why] A commit is the unit of revert and review; bundling or oversizing forces reverting good changes to undo a bad one and makes reviewers judge multiple concerns at once.
+  - [Why] A commit is the unit of revert and review; bundling forces reverting good changes to undo a bad one.
 
 - [Instruction] **CRITICAL: Ensure every commit builds and passes its tests on its own.**
-  - [Why] A commit that doesn't build breaks `git bisect` and any rollback that lands on it, defeating the per-commit revert it's supposed to enable.
+  - [Why] A commit that doesn't build breaks `git bisect` and any rollback that lands on it.
   - [Example] A migration's move + update-refs + delete must land in one commit — split apart, the intermediate commits don't build.
 
 - [Instruction] **Bundle the related tests, code, docs, and IaC for a change into that one commit.**
@@ -26,12 +26,12 @@ Principles for any git commit. Each rule is an instruction with its nested why; 
 ### Refactor isolation & hunk-splitting
 
 - [Instruction] Keep a refactor commit to structure only — rename, restructure, extract, with green tests staying green.
-  - [Why] Bundling behavior in hides it under mechanical noise, so reviewers can't separate the substantive diff from the cosmetic; isolation makes each reviewable in seconds.
+  - [Why] Bundling behavior in hides it under mechanical noise, so reviewers can't separate substantive diff from cosmetic.
 
   - [Example] A migration (move + update refs + delete) is structure-only — keep it as one isolated refactor commit.
 
 - [Instruction] **Split entangled commits by staging with `git-hunk`, never by editing code — committed content stays byte-identical to what was authored and reviewed.**
-  - [Why] Editing to stage selectively risks altering the code under review and breaks the audit trail; staging touches the index, never the working tree.
+  - [Why] Editing to stage selectively risks altering the code under review and breaks the audit trail.
 
 - [Example]
 ```bash
@@ -44,13 +44,13 @@ git-hunk stage <id> -l 3,5-7   # stage only lines 3 and 5-7
 ## Message format
 
 - [Instruction] Make the body carry the why — the spec, business reason, and intent — not the what the diff already records.
-  - [Why] Spec and business reasoning rarely survive in the code; the commit body is their durable record for later readers, human and AI alike.
+  - [Why] Spec and business reasoning rarely survive in the code; the commit body is their durable record for later readers.
 
 - [Instruction] Format the subject as Conventional Commits (`type(scope): subject`), imperative, max 64 chars.
-  - [Why] A uniform machine-parseable subject lets tooling group and changelog commits, and the cap keeps it readable in a one-line log.
+  - [Why] A uniform machine-parseable subject lets tooling group and changelog commits, readable in a one-line log.
 
 - [Instruction] Pass a multi-line commit message via HEREDOC, not a plain `-m "..."`.
-  - [Why] HEREDOC preserves line breaks, indentation, and blank lines reliably across shells, where `-m "..."` mangles multi-line text.
+  - [Why] HEREDOC preserves line breaks, indentation, and blank lines across shells; `-m "..."` mangles multi-line text.
 
 - [Example]
 ```bash
