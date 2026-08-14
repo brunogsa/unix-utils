@@ -2,7 +2,9 @@
 
 Fixtures: each test builds a throwaway git repo under tmp_path and
 writes its own baseline file, so enumeration runs against real git
-state instead of a mock, and no test reads the repo's own baseline.
+state instead of a mock. Two tests read the repo's own baseline
+instead: one runs the gate itself, the other checks the baseline
+for entries that stopped violating.
 
 Usage:
   pytest configs/ai-docs/claude/scripts/tests/\
@@ -27,6 +29,12 @@ TYPESCRIPT = (
     REPO_ROOT
     / "configs/ai-docs/claude/skills/doc-standards/scripts"
     / "node_modules/typescript"
+)
+
+CHECKER = (
+    REPO_ROOT
+    / "configs/ai-docs/claude/skills/doc-standards/scripts"
+    / "check-comment-format.js"
 )
 
 # A comment line wider than the checker's 64-char WIDTH
@@ -169,6 +177,39 @@ def test_tracked_file_deleted_from_the_worktree_is_skipped(tmp_path):
     result = _run(repo, _baseline(tmp_path))
 
     assert result.returncode == 0
+
+
+@pytest.mark.skipif(
+    not TYPESCRIPT.is_dir(),
+    reason="check-comment-format.js needs typescript for .js/.ts files; "
+    "run install.sh to bootstrap it",
+)
+def test_no_baseline_entry_has_stopped_violating():
+    """A baselined path is never handed to the checker at all (the
+    scan filter in check-comment-format-regressions.py), so a file
+    that goes clean while still listed turns unwatched: clean now,
+    but any later regression in it stays structurally invisible."""
+    entries = sorted(
+        line.strip()
+        for line in BASELINE.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    )
+    existing = [e for e in entries if (REPO_ROOT / e).is_file()]
+
+    result = subprocess.run(
+        ["node", str(CHECKER), *existing],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    reported = {
+        line[len("== ") :]
+        for line in result.stdout.splitlines()
+        if line.startswith("== ")
+    }
+    stale = sorted(set(existing) - reported)
+
+    assert not stale, f"baseline entries no longer violate: {stale}"
 
 
 @pytest.mark.skipif(

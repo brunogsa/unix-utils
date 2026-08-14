@@ -16,7 +16,6 @@ configs/ai-docs/claude/hooks/check-rename-references.py
 configs/ai-docs/claude/hooks/claude-agent-contract-stop-hook.sh
 configs/ai-docs/claude/hooks/claude-compact-skill-reload.sh
 configs/ai-docs/claude/hooks/claude-git-guard.sh
-configs/ai-docs/claude/hooks/claude-implement-compact-reminder.sh
 configs/ai-docs/claude/hooks/claude-implement-stop-hook.sh
 configs/ai-docs/claude/hooks/claude-markdown-standards-stop-hook.sh
 configs/ai-docs/claude/hooks/claude-rename-guard-stop-hook.sh
@@ -85,7 +84,6 @@ configs/ai-docs/claude/skills/debug-sync-agreement-flow/scripts/build-adf-payloa
 configs/ai-docs/claude/skills/debug-sync-agreement-flow/scripts/extract-payloads.py
 configs/ai-docs/claude/skills/debug-sync-agreement-flow/scripts/post-jira-comment.sh
 configs/ai-docs/claude/skills/doc-standards/scripts/check-bullet-gap.py
-configs/ai-docs/claude/skills/doc-standards/scripts/check-comment-format.js
 configs/ai-docs/claude/skills/doc-standards/scripts/check-density.sh
 configs/ai-docs/claude/skills/doc-standards/scripts/check-hard-wrap.py
 configs/ai-docs/claude/skills/doc-standards/scripts/check-rule-citations.py
