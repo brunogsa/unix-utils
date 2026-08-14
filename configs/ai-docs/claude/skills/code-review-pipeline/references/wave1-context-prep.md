@@ -79,7 +79,7 @@ Both modes count added lines once the diff is on disk. Local mode's `prep-local-
 Github mode still counts inline, since it has no equivalent script:
 
 ```bash
-added_lines=$(grep -c '^+[^+]' "$work_dir/pr.diff" || echo 0)
+added_lines=$(grep -c '^+[^+]' "$work_dir/pr.diff" || true)
 tiny_pr=false; [ "$added_lines" -lt 100 ] && tiny_pr=true
 echo "$tiny_pr" > "$work_dir/tiny-pr.txt"
 ```
