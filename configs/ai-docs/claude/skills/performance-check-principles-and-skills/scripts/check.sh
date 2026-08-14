@@ -82,6 +82,21 @@ readonly STANDARDS_INSTRUCTIONS_BUDGET=200
 # Percent of [Instruction] count per file
 readonly CRITICAL_RATIO_BUDGET=16
 
+# Bytes one [Why] line may cost.
+#
+# Every budget above counts markers or words, never bytes,
+# so a file can sit exactly on its [Instruction] cap while
+# rationale eats 42.7% of it — 15,488 of CLAUDE.md's 37.1 KB
+# at the measurement that motivated this cap.
+#
+# 128 is the user's own pick against the distribution of
+# that file's 100 [Why] lines: min 54, p50 159, p75 181,
+# p90 198, max 227.
+#
+# It sits below the median on purpose, so the cap binds the
+# typical rationale rather than only the tail.
+readonly WHY_BYTES_BUDGET=128
+
 # *-standards skills excluded from
 # STANDARDS_INSTRUCTIONS_BUDGET (space-separated).
 #
@@ -260,6 +275,45 @@ missing_why_after_critical() {
     ' "$1"
 }
 
+# Print `<file>:<line>: <n> bytes (>cap)` for every [Why]
+# marker line over WHY_BYTES_BUDGET.
+# Silent when the file is clean.
+#
+# A [Why] adds no constraint by convention, so its bytes buy
+# the reader rationale and nothing else — the one marker
+# whose length is worth capping on its own.
+#
+# Bytes, not characters: these files are full of em dashes,
+# arrows and ×, which cost 2-3 bytes each, and context is
+# spent in bytes. LC_ALL=C is what makes awk's length()
+# count them.
+#
+# Anchored on the same leading-tag pattern as the counters
+# above, fenced blocks included — a fenced [Why] costs the
+# same bytes on load and still models the convention for
+# the next author.
+#
+# Report-only, and unfinished by design: the lines carry no
+# `- ` bullet and the status row never reads OVER, the two
+# shapes check-performance-budget-regressions.py parses, so
+# no gated key is created.
+#
+# Landing it gated instead would turn every existing
+# violation into a new baseline key and redden the gate for
+# every session sharing this tree — the staged rollout
+# performance-budget-baseline.txt's own header describes.
+#
+# Flip it to gated — OVER status, counted into `overages`,
+# with no baseline line ever added — once the reported count
+# reaches 0.
+over_budget_why_lines() {
+    LC_ALL=C awk -v b="$WHY_BYTES_BUDGET" '
+        /^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*\[Why\]/ && length($0) > b {
+            printf "%s:%d: %d bytes (>%d)\n", FILENAME, FNR, length($0), b
+        }
+    ' "$1"
+}
+
 # Integer percentage, rounded to nearest, not truncated.
 #
 # The single source used for BOTH the displayed value and
@@ -290,6 +344,15 @@ status_of() {
 # convention binds only there.
 missing_why_rows=""
 
+# [Why] lines over the byte cap, across the same population
+# the [Instruction] counters measure: CLAUDE.md plus every
+# SKILL.md.
+#
+# Wider than the CRITICAL-ratio population on purpose: any
+# skill that writes a [Why] pays for its bytes, whether or
+# not it is a *-standards skill.
+why_over_rows=""
+
 # CLAUDE.md measurements
 if [ "$has_claude_md" -eq 1 ]; then
     claude_lines=$(grep -c '\S' "$CLAUDE_MD")
@@ -305,6 +368,9 @@ if [ "$has_claude_md" -eq 1 ]; then
 
     claude_missing_why=$(missing_why_after_critical "$CLAUDE_MD")
     [ -n "$claude_missing_why" ] && missing_why_rows+=$'\n'"$claude_missing_why"
+
+    claude_why_over=$(over_budget_why_lines "$CLAUDE_MD")
+    [ -n "$claude_why_over" ] && why_over_rows+=$'\n'"$claude_why_over"
 fi
 
 # Skill measurements
@@ -388,6 +454,10 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
     # No key declared means no cap — the check is silent,
     # never a default.
     skill_instructions=$(count_instructions "$f")
+
+    skill_why_over=$(over_budget_why_lines "$f")
+    [ -n "$skill_why_over" ] && why_over_rows+=$'\n'"$skill_why_over"
+
     instr_budget_override=$(extract_frontmatter_budget "instructions-budget" "$f")
     if [ -n "$instr_budget_override" ] && [ "$skill_instructions" -gt "$instr_budget_override" ]; then
         skill_instr_overages+=$'\n'"- $name: $skill_instructions [Instruction] (>$instr_budget_override budget)"
@@ -565,6 +635,15 @@ missing_why_count=$(printf '%s' "$missing_why_rows" | grep -c '^- ' || true)
 echo "| CRITICAL [Instruction] missing [Why] | $missing_why_count | 0 | $(status_of "$missing_why_count" 0) |"
 [ "$missing_why_count" -gt 0 ] && overages=1
 
+# Budget is 0, the gated form this row is staged toward.
+#
+# The status cell stays REPORT-ONLY at any count and the
+# count is left out of `overages`, so neither the row nor
+# the section below can fail a run while the existing
+# violations are being drained.
+why_over_count=$(printf '%s' "$why_over_rows" | grep -c ' bytes (>' || true)
+echo "| [Why] lines over $WHY_BYTES_BUDGET bytes | $why_over_count | 0 | REPORT-ONLY |"
+
 # Rows for the skills that subtotal excludes, placed right
 # below it so the exclusion and the budget replacing it
 # read as one unit.
@@ -626,6 +705,19 @@ if [ -n "$missing_why_rows" ]; then
     echo
     echo "Fix each by adding the missing \`[Why]\`, or by dropping the \`CRITICAL\` prefix — an unexplained tiebreaker cannot be weighed against the rule it overrides."
     printf '%s\n' "$missing_why_rows" | sed '/^$/d'
+    echo
+fi
+
+# Over-cap [Why] sites, printed without a `- ` bullet so the
+# regression gate cannot key on them while the cap is
+# report-only.
+if [ -n "$why_over_rows" ]; then
+    echo "## [Why] lines over $WHY_BYTES_BUDGET bytes (report-only)"
+    echo
+    echo "A \`[Why]\` adds no constraint, so every byte past the cap is always-on context buying no rule — trim each to one decision-shaping sentence."
+    echo "Report-only until this count reaches 0, when the cap flips to gated; never record these in performance-budget-baseline.txt."
+    echo
+    printf '%s\n' "$why_over_rows" | sed '/^$/d'
     echo
 fi
 
