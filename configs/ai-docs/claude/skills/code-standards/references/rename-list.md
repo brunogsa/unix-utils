@@ -3,8 +3,7 @@
 This is the committed input Tasks 13-15 of `plan_script-overhaul.md` scope
 their rename batches from. Every "Reason" cell below is the checker's own
 output, verbatim; every "Proposed name" was hand-derived from the script's
-actual behavior, then re-validated by running the same unmodified checker
-against the proposed path (file-mode, so the target need not exist yet).
+actual behavior.
 
 ## How this was generated
 
@@ -23,7 +22,7 @@ python3 configs/ai-docs/claude/skills/code-standards/scripts/check-script-naming
 ```
 
 against the file's target path (not yet created) — file mode resolves the
-path but never stats it, so this validates the name alone. Exit 0, 73/73 OK.
+path but never stats it, so this validates the name alone. Exit 0, 74/74 OK.
 
 ## Snapshot provenance
 
@@ -34,18 +33,19 @@ a minute (see `plan_script-overhaul.md`'s concurrency protocol), so this
 table is a point-in-time snapshot of both trees' scripts, not a value either
 checker invocation will reproduce byte-for-byte on a later run.
 
+Batch 14 folds in `prep-local-context.sh` (`dc00b576`) and `prep-refactor-context.sh` (`45d62ffe`), which landed after that capture and fail the same rule the batch retires, so its counts run two above the sweep.
+
 ## Summary
 
 | Batch | Scope (Task) | Repo | Files | Failing |
 |---|---|---|---|---|
 | 13 | `hooks/` + `scripts/` (Task 13) | `unix-utils` | 23 | 22 |
-| 14 | `skills/*/scripts/`, excludes vendored `skill-standards/scripts/` + `eval-viewer/` (Task 14) | `unix-utils` | 55 | 19 |
+| 14 | `skills/*/scripts/`, excludes vendored `skill-standards/scripts/` + `eval-viewer/` (Task 14) | `unix-utils` | 57 | 21 |
 | 15 | `commands/` + `lib/` + root (Task 15) | `oh-my-zsh` | 31 | 31 |
 
 No failing script in either tree-mode/file-mode sweep falls outside these
-three scopes — every FAIL line below is assigned to exactly one batch.
-Excluded and vendored paths never appear below (the checker skips them
-silently; no reason column is needed for files that were never evaluated).
+three scopes — every FAIL line is assigned to exactly one batch.
+Excluded and vendored paths never appear below.
 
 ## Batch 13 — `unix-utils` `hooks/` + `scripts/`
 
@@ -87,6 +87,7 @@ produced a FAIL in the tree-mode sweep, so there was nothing to drop.
 | `brag/scripts/parse_gcal_mcp.py` | name is not kebab-case | `extract-gcal-events.py` |
 | `brag/scripts/parse_ics.py` | name is not kebab-case | `extract-ical-events.py` |
 | `brag/scripts/shared.py` | 'shared' is not a recognized verb; verb carries no object; 'shared' names a category, not a specific object | `resolve-calendar-overlaps.py` |
+| `code-review-pipeline/scripts/prep-local-context.sh` | 'prep' is not a recognized verb | `build-local-review-context.sh` |
 | `code-standards/scripts/classify-conversion.py` | 'classify' is not a recognized verb | `resolve-conversion-verdict.py` |
 | `consistency-check-principles-and-skills/scripts/gen-shard-manifest.sh` | 'gen' is not a recognized verb | `build-shard-manifest.sh` |
 | `implement/scripts/implement-loop-state.sh` | repeats its own skill directory 'implement' | `resolve-task-loop-verdict.sh` |
@@ -98,6 +99,7 @@ produced a FAIL in the tree-mode sweep, so there was nothing to drop.
 | `open-in-tmux/scripts/diffview-in-tmux.sh` | 'diffview' is not a recognized verb | `open-diffview-pane.sh` |
 | `open-in-tmux/scripts/open-in-tmux.sh` | repeats its own skill directory 'open-in-tmux' | `open-command-in-pane.sh` |
 | `performance-check-principles-and-skills/scripts/check.sh` | verb carries no object | `check-budget-compliance.sh` |
+| `refactor/scripts/prep-refactor-context.sh` | 'prep' is not a recognized verb; repeats its own skill directory 'refactor' | `build-uncommitted-change-context.sh` |
 | `spec-driven-development/scripts/dag-check-helper.sh` | 'dag' is not a recognized verb; 'helper' names a category, not a specific object | `check-dag-integrity.sh` |
 | `spec-driven-development/scripts/plan-section.sh` | 'plan' is not a recognized verb | `extract-plan-section.sh` |
 | `usage-audit/scripts/claude-usage-report.py` | 'claude' is not a recognized verb | `build-usage-report.py` |
@@ -107,10 +109,9 @@ produced a FAIL in the tree-mode sweep, so there was nothing to drop.
 ## Batch 15 — `oh-my-zsh` `commands/` + `lib/` + root
 
 Paths relative to the `oh-my-zsh` repo root. Includes three scripts sitting
-directly at that root (Scout #89: the checker no longer blanket-skips every
-root-level file, only the named `install.sh`/`run-tests.sh` entrypoints —
-`install.sh` is present at this root and stays exempt, so it does not appear
-below).
+directly at that root: the checker skips only the named
+`install.sh`/`run-tests.sh` entrypoints, and `install.sh` is present here,
+so it stays exempt and does not appear below.
 
 | Current path | Reason | Proposed name |
 |---|---|---|
@@ -148,7 +149,6 @@ below).
 
 ## Collision check
 
-All 72 proposed basenames are pairwise distinct, and none matches an
-existing file at its proposed target path — checked mechanically (`sort |
-uniq -d` on basenames, plus an existence test on every proposed path)
-alongside the checker re-validation above.
+All 74 proposed basenames are pairwise distinct, and none matches an
+existing file at its proposed target path — checked mechanically alongside
+the checker re-validation above.
