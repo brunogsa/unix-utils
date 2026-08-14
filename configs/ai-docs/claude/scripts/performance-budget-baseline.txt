@@ -1,0 +1,49 @@
+# performance-budget-baseline.txt - the performance budgets
+# check.sh already reports as over, and the value each one measured when
+# the regression gate (check-performance-budget-regressions.py) was
+# introduced.
+#
+# This is DEBT, not permission. Every line is a budget someone has to
+# bring back under its cap; nothing here is an accepted exception. The
+# gate exists because check.sh had no caller at all, so two budget
+# regressions shipped with the whole harness green. Enforcing all of
+# these at once would have turned run-tests.sh red for every session in
+# this tree, so the bleeding is stopped first and the debt is drained
+# after.
+#
+# The gate fails on a key that is absent here, and on a key whose
+# measured value has grown past the value recorded here. It stays green,
+# and prints a tighten-the-baseline notice, when a value shrinks or an
+# entry stops being reported at all.
+#
+# TO UPDATE: only ever downward. When the notice says a budget improved,
+# lower that line's value to the new measurement; when it says one
+# resolved, delete the line. Never raise a value and never add a line to
+# make the gate green - that is silencing the check, and the fix is the
+# overage itself. There is deliberately no regenerate flag.
+#
+# Each entry reads `<report section> :: <what was measured> :: <metric>
+# = <value>`, taken verbatim from check.sh's own report. Lines starting
+# with # are comments; blank lines are ignored.
+Budgets :: Bundled files failing size or heading checks :: measured = 5
+Budgets :: CLAUDE.md [Instruction] count :: measured = 103
+Budgets :: CLAUDE.md non-blank lines :: measured = 273
+Budgets :: Max skill desc chars :: measured = 288
+Bundled resources failing size or heading checks :: audit-session/assets/subagent-prompt.md :: words = 1254
+Bundled resources failing size or heading checks :: code-standards/references/conversion-verdicts.md :: lines = 274
+Bundled resources failing size or heading checks :: code-standards/references/conversion-verdicts.md :: words = 3358
+Bundled resources failing size or heading checks :: code-standards/references/rename-list.md :: words = 1464
+Bundled resources failing size or heading checks :: implement/references/batch-end-pr.md :: words = 1036
+Bundled resources failing size or heading checks :: implement/references/batch-end-review.md :: words = 2052
+Density check :: skills/address-verdicts/SKILL.md :: count = 12
+Skills exceeding budgets :: address-verdicts :: words = 2118
+Skills exceeding budgets :: code-review-pipeline :: words = 2253
+Skills exceeding budgets :: consistency-check-principles-and-skills :: words = 2290
+Skills exceeding budgets :: create-pr :: words = 2063
+Skills exceeding budgets :: debug-sync-agreement-flow :: desc = 251
+Skills exceeding budgets :: doc-standards :: words = 2095
+Skills exceeding budgets :: implement :: words = 5069
+Skills exceeding budgets :: quality-gate :: desc = 288
+Skills exceeding budgets :: quality-gate :: words = 2292
+Skills over their `instructions-budget` frontmatter override :: commit-standards :: count = 13
+Skills over their `instructions-budget` frontmatter override :: doc-standards :: count = 31
