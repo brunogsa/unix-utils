@@ -39,6 +39,18 @@ Combine when both apply: `While <precondition>, when <trigger>, the <system> sha
 - Bad: `AC-3: Expired token` — names a scenario, states no outcome, and hides whether this is the happy path or a failure.
 - Good: `AC-3: If the stored token is expired, then the sync job shall refresh it once before retrying` — trigger, actor, and outcome, and `If` marks it as unwanted behaviour.
 
+## Size guide
+
+Keep each AC's Given/When/Then body to ≤128 words — roughly the 70th percentile of what specs already write, so this tightens existing practice instead of inventing new discipline.
+
+A flat file-wide cap either punishes a legitimate 44-criterion spec or sits meaningless on a 5-criterion one.
+
+A per-AC cap scales with the feature instead, and still catches one bloated AC hiding inside an otherwise-compliant file.
+
+Total spec body word count — everything except the appendix, the Functional/Technical Decisions log, and the fenced Test Design block — is a split signal, not a gate, at 4,096 words.
+
+Past it, open a PR-split conversation — it's a signal to split, never a hard fail.
+
 ## Coverage checklists
 
 Both the boundary checklist (corner cases) and the failure-category checklist (failure modes) share one rule, stated once here instead of twice in the template.
