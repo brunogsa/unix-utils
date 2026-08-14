@@ -25,8 +25,10 @@ N/A escape: no trust boundary crossed → `N/A — <reason>`.
 
 Mark boundaries on the Technical Approach diagram as dashed subgraphs — never a second diagram:
 
-    subgraph trust_public["trust: public internet"]
-    subgraph trust_db["trust: service account"]
+```
+subgraph trust_public["trust: public internet"]
+subgraph trust_db["trust: service account"]
+```
 
 Tick every boundary this change touches, or N/A:
 
@@ -58,15 +60,19 @@ Test titles designed before implementation — bodies come during each RED-GREEN
 - **Corner cases** — boundary/edge inputs handled deliberately (off-by-one, empty, single-vs-many, precision residue, optional field present/absent).
 - **Failure scenarios** — every way it fails: guard rejections, downstream errors, partial success, retry-vs-DLQ classification.
 
+Annotate every `it()` with a trailing `// AC-<n>… T<n>… [on-demand]` comment: the ACs it proves, the tasks that write it, and `[on-demand]` when the test is pulled mid-cycle rather than upfront.
+
+This section is the single source — the annotation replaces both the AC-coverage list and the per-task `Tests (planned)` field, so no test title is ever written twice.
+
 ```
 // <file>
 describe("[ComponentOrUseCase]", () => {
   // Happy cases
-  it("should [behavior] when [nominal condition]");
+  it("should [behavior] when [nominal condition]");    // AC-1 T3
   // Corner cases
-  it("should [behavior] when [boundary condition]");
+  it("should [behavior] when [boundary condition]");   // AC-1 AC-2 T3
   // Failure scenarios
-  it("should [fail/throw] when [failure condition]");
+  it("should [fail/throw] when [failure condition]");  // AC-4 T5 [on-demand]
 });
 ```
 
@@ -75,7 +81,7 @@ describe("[ComponentOrUseCase]", () => {
 ```
 // <file>
 describe("[obviousPureHelper]", () => {
-  it("should [behavior] when [input]");
+  it("should [behavior] when [input]");                // AC-3 T2
 });
 ```
 
