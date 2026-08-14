@@ -179,6 +179,19 @@ it('should disable Apply while loading (loading dominates dirty state)', ...);
 
 ## Splitting & pruning tests
 
+### Tests that should not exist
+
+Whether a change owes a test at all is settled by CLAUDE.md → "Execution lanes". This section covers the case that passes that gate and is still not worth writing.
+
+- [Instruction] Never write a test whose system under test is prose in a committed `.md` — its heading order, its wording, its section list, its frontmatter values.
+  - [Why] It can only catch an edit to the prose, never the behavior the prose asks for, because the actor reading it is an LLM.
+
+A fixture-driven suite is not in this class: feeding a checker a temp-dir `.md` the test itself wrote exercises the checker, and the checker is real code.
+
+The tell is which file the assertion reads. A path into the repo's own committed docs is a doc-content contract test; a `mktemp`/`TemporaryDirectory` path is a behavior test.
+
+When a committed doc really must hold a shape, encode that shape as a checker running over every file of its kind, and test the checker on fixtures.
+
 ### One test per distinct cause
 
 - [Instruction] **CRITICAL: When a new test exercises the same code path with the same inputs as an existing one, remove the duplicate or merge.**

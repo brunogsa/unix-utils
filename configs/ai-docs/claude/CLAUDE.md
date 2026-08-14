@@ -141,9 +141,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **Surface every Scout, one TaskCreate each** -- never pre-filter; give each your fix-or-skip prior, and never bundle findings under an umbrella like "investigate the failures".
   - [Why] Only the human can triage a scout as now-vs-later, and only if they see it as its own entry.
 
-- [Instruction] Fix every approved `[Scout]` through the `tdd-coder` agent, however trivial the fix looks.
-  - [Why] Its own RED-GREEN cycle and commit is what stops a "too small to test" fix from landing unguarded.
-
 ### Robust, in-scope work
 
 - [Instruction] **CRITICAL: Handle failures, corner cases, unexpected states** -- applies to code paths, user flows, scripts, processes, integrations — anything you build.
@@ -191,8 +188,9 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
   - [Why] An LLM check can hallucinate and burns tokens; a deterministic tool avoids both and returns the fact.
   - [Example] Dead code: `knip`/`ts-prune`/`madge`. Coverage: coverage reports. Types: `tsc --noEmit`. Style: linters. Complexity: `eslint-plugin-sonarjs`/`lizard`. History: `git blame`/`git log`.
 
-- [Instruction] **Manual verification persists to a .md file in CWD** -- session memory is ephemeral; only the persisted artifact survives. No persistence = no manual check.
-  - [Why] A manual check in session memory vanishes on compaction; persisted, it gives the next regression a signal.
+- [Instruction] Persist a manual verification to a `.md` file in CWD only when the check is multi-step, environment-dependent, or irreversible.
+  - [Why] Those three are the checks a future regression must re-run; anything else is cheaper to re-run than to read back.
+  - [Example] Earns no file: a single command whose output you read in-session, a grep confirming a count, one script run.
 
 ## Tool Use
 
@@ -358,8 +356,9 @@ Routing and upkeep for the two note surfaces, plus the two scratchpad files each
 - [Instruction] **Don't replicate problematic patterns** -- pause and ask before copying one that either (a) contradicts the global rules or (b) is itself a smell.
   - [Why] Every replication compounds the bad pattern.
 
-- [Instruction] **Surface harness gaps** -- when fixing something a linter/test/hook/automation could catch, file a `[Harness]` TaskList entry so the harness can be used instead of AI.
-  - [Why] A hand-fix a linter could make by rule is signal lost; tagging the gap makes the fix compound.
+- [Instruction] **Surface harness gaps** -- file a `[Harness]` entry when a check could catch the defect class you just hand-fixed AND stay correct on unwritten cases with no hand-maintained list.
+  - [Why] A hand-fix a rule could make is signal lost, but a check leaning on a ledger goes stale faster than it catches anything.
+  - [Example] A check needing that ledger edited on every repo change is not a `[Harness]`; file the defect class as `[Debt]` instead.
 
 - [Instruction] Close a `[Harness]` task within the session that surfaced it, never in a later batch.
   - [Why] Deferred harness work never outranks feature work, so the gap keeps charging every future session.
@@ -385,6 +384,10 @@ Routing and upkeep for the two note surfaces, plus the two scratchpad files each
 
 - [Instruction] Execute any TaskList item whose goal diverges from the main session's goal (e.g. `[Side]`/`[Scout]` entries) through a subagent — never inline in the main session.
   - [Why] Inline execution pulls the off-goal task's files into the main context, taxing the budget the actual goal needs.
+
+- [Instruction] Route a change to `tdd-coder` when you can name an input for which the pre- and post-change versions behave differently, and to `direct-coder` when you cannot.
+  - [Why] With no such input there is no RED to write, so a TDD cycle manufactures a test that asserts the text you typed.
+  - [Example] No such input: a comment, prose, a rename, a file move, a config or frontmatter value, a dead-code deletion.
 
 - [Instruction] Run a permission-gated action (commit, push, reply) in main even when its task is delegated — hand the subagent everything else.
   - [Why] Permission UIs only render in main, so a subagent cannot complete one at all — a harness limit.

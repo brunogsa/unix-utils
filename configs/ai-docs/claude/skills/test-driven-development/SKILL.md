@@ -76,9 +76,31 @@ The eight triggers are what you need in-flight; the diagnosis is what you need o
 
 ---
 
+## The one verdict that is not a rationalization
+
+**A change earns TDD when you can name an input for which the pre-change and post-change versions behave differently** — output, exit code, side effect, or control flow.
+
+- Name that input and the RED is already written for you. None of the eight phrases above survives it.
+
+- Fail to name one and there is no RED to write. A test manufactured anyway asserts the text you just typed, and passes on its first run by construction.
+
+Changes that routinely have no such input: a comment or docstring, a rename, a file move, a config or frontmatter value, a section reorder in a `.md`, a deletion of dead code.
+
+Those are finished work with no test owed. Route them to `direct-coder`, which edits and commits with no cycle, rather than inventing one.
+
+**The discriminator against the eight phrases**: each of them concedes a behavior exists and defers testing it.
+
+"Nothing to falsify" denies the behavior exists at all — and is wrong the instant you can name the distinguishing input.
+
+---
+
 ## Manual tests — evidence file
 
 When manual testing is the right call (rare UI flows, third-party integrations without sandbox, automation cost disproportionate), log it in `./manual-tests-evidences.md` at project root.
+
+The file is owed only when the check is multi-step, environment-dependent, or irreversible — the cases a future regression would have to re-run.
+
+A single command whose output you read in-session earns no entry. You already verified it, and the entry would cost more to read back than the command costs to re-run.
 
 **Lifecycle:** gitignored, session-scoped — same as the spec and the plan. Delete or archive after PR.
 
