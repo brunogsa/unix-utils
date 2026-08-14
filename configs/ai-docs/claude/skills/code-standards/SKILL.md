@@ -15,7 +15,7 @@ Principles for any code edit. Each rule is an instruction with its nested why; c
 ### Lower reviewer load: nesting & dense lines
 
 - [Instruction] **CRITICAL: Treat the human reviewer as the bottleneck — favor any tactic that lowers reviewer cognitive load over author keystrokes.**
-  - [Why] The AI writes code in seconds; the reviewer takes minutes and pays that tax on every read — optimize the larger cumulative cost, not the author's one-time write.
+  - [Why] AI writes in seconds; the reviewer pays minutes on every read — optimize the recurring cost, not the one-time write.
 
 - [Instruction] Treat more than 2 nesting levels as a smell, more than 3 as a refactor — reduce it by extracting inner units or early returns.
   - [Why] Each nesting level multiplies the mental state the reader holds — bugs hide where "I don't understand" lives.
@@ -50,7 +50,7 @@ const perSchoolResults = await Promise.all(cnpjs.map(fetchSchoolData));
   - [Why] Spreading the logic moves work from the reader's mental stack into discrete, scannable steps.
 
 - [Instruction] Break unfamiliar APIs, nested callbacks into named intermediate variables.
-  - [Why] A dense expression forces the reader to unpack it mentally before they can judge it; named intermediates do that unpacking once, in the code.
+  - [Why] A dense expression forces mental unpacking before judging it; named intermediates do that unpacking once, in the code.
 
 - [Example]
 ```javascript
@@ -67,10 +67,10 @@ for (let i = 1; i <= count; i++) {
 ### Extraction: helpers, components, wrappers
 
 - [Instruction] When a render tree exceeds ~50 lines with multiple conditional branches, extract each branch into a self-naming sub-component (inline same-file is fine; any framework's templates).
-  - [Why] Flat conditional markup with anonymous blocks forces the reader to parse every branch; named sub-components make the top level read as the page's outline.
+  - [Why] Flat anonymous markup forces parsing every branch; named sub-components let the top level read as an outline.
 
 - [Instruction] When extracting, preserve data-testids and behavior — you're moving the markup, not changing it.
-  - [Why] An extraction that alters behavior or testids is a refactor disguised as a move — it breaks tests and erodes review trust.
+  - [Why] Altering behavior or testids during an extraction is a refactor disguised as a move — it breaks tests, erodes trust.
 
 - [Example]
 ```tsx
@@ -109,7 +109,7 @@ return (
 ```
 
 - [Instruction] Extract a helper for 2–4 callsites only when extraction raises BOTH the readability and cognitive-load bars.
-  - [Why] One bar alone doesn't justify the indirection; both must rise or inline wins — DRY reduces complexity, it isn't a value in itself.
+  - [Why] One bar alone doesn't justify indirection; both must rise or inline wins — DRY cuts complexity, not a value itself.
 
 - [Instruction] Readability bar: the helper's name must communicate intent better than the inline form.
   - [Why] If the inline pattern is already self-evident, a helper name adds indirection without revelation.
@@ -118,14 +118,14 @@ return (
   - [Why] A 10-line helper hiding a 2-line pattern spreads the same load across two files the reader must chase.
 
 - [Instruction] A wrapper must earn its keep — by adding behavior (retry, logging, validation) or by giving a counter-intuitive API an intuitive interface; never by renaming a clear stdlib call.
-  - [Why] Each call site of a counter-intuitive API is a future bug site, so taming it pays off; a `getCurrentTime()` wrapper over `Date.now()` only adds indirection.
+  - [Why] Each counter-intuitive-API site is a future bug, so taming it pays off; wrapping `Date.now()` only adds indirection.
 
 ## Naming
 
 ### Name by purpose, clearly
 
 - [Instruction] **CRITICAL: Name functions and variables by what the caller gets, not how it works.**
-  - [Why] Implementation changes with refactors but the caller's contract shouldn't — a mechanism-named function starts lying after a body rewrite.
+  - [Why] Implementation changes with refactors but the contract shouldn't — a mechanism-named function lies after a rewrite.
 
 - [Example]
 ```javascript
@@ -139,7 +139,7 @@ function extractUniqueEmails(rows) { /* ... */ }
 ```
 
 - [Instruction] Rename when a name implies the wrong concept, even when it computes the right value.
-  - [Why] A reader trusts what the name says, not what it computes; a misleading name sends them down the wrong path even though the value is correct.
+  - [Why] A reader trusts the name, not what it computes; a misleading name misdirects them even though the value is correct.
 
 - [Example]
 ```ts
@@ -173,7 +173,7 @@ const salesAgreementProductSummaryQuery = ...;
   - [Why] A `cnpj` field locks shared code to one country's regulations; `documentNumber` survives expansion to others.
 
 - [Instruction] Don't mix languages in code identifiers — keep names in one language (default English), unless a country-specific term (`cnpj`, `notaFiscal`) turns obscure when translated.
-  - [Why] A half-native-half-English name (`endereco` beside `agreementId`) reads awkwardly and splits the codebase's vocabulary, forcing every reader to code-switch mid-line.
+  - [Why] A half-native-half-English name reads awkwardly and splits the vocabulary, forcing readers to code-switch mid-line.
 
 ### Booleans, conditions & naming conventions
 
@@ -213,7 +213,7 @@ if (isExpandableKit) { ... }
   - [Why] Helpers shaped by real demand match their callers; speculative ones built ahead of a caller don't.
 
 - [Instruction] **CRITICAL: One thing at one level of abstraction.**
-  - [Why] A function that does two jobs has two reasons to change — that's the single-responsibility principle (SRP) — and editing it for one job risks breaking the other.
+  - [Why] A function doing two jobs has two reasons to change (SRP) — editing it for one job risks breaking the other.
 
 - [Instruction] **Controller (I/O, validation, logging) → Use Case (pure business logic, no I/O).**
   - [Why] I/O changes most often (HTTP → queue → CLI); pure use cases survive every swap.
@@ -243,7 +243,7 @@ function processDataCommand(filepath, outputPath) {
 ```
 
 - [Instruction] Builder/factory functions should only assemble data from explicit parameters. Business decisions (conditionals, calculations, transformations) belong at the use-case/caller level.
-  - [Why] Business decisions buried inside builders hide the actual rules; pulling them out keeps business logic visible and builders reusable.
+  - [Why] Business decisions buried in builders hide the rules; pulling them out keeps logic visible and builders reusable.
 
 - [Example]
 ```ts
@@ -267,7 +267,7 @@ function buildAvulso({ parentKit, childSku, price, discount }) {
 ```
 
 - [Instruction] When a spec defines N cases, design a unified pipeline that naturally produces correct output for all of them.
-  - [Why] A 1:1 if/else translation couples control flow to the spec — every requirement change demands a code change, and every extra branch is another place for a bug to hide.
+  - [Why] A 1:1 case translation couples control flow to spec — a spec change forces code change; each branch hides a bug.
 
 ### Design & performance choices
 
@@ -275,13 +275,13 @@ function buildAvulso({ parentKit, childSku, price, discount }) {
   - [Why] Inheritance couples to the parent's implementation, not just its contract; composition couples to interfaces only.
 
 - [Instruction] **Information hiding** -- expose intent, hide implementation across code APIs, CLI interfaces, doc structures, and test helpers; clients depend only on the contract.
-  - [Why] Hiding internals lets you change them later without breaking downstream callers; exposing internals creates coupling you'll have to keep forever.
+  - [Why] Hiding internals lets you change them later without breaking callers; exposing them creates coupling kept forever.
 
 - [Instruction] **Keep backward compatibility unless told otherwise** -- changing shared code, APIs, schemas, or configs must not break existing callers without explicit approval.
   - [Why] Shared code's blast radius is every consumer; a silent breaking change ships failures you can't see from the diff.
 
 - [Instruction] Drive optional behavior with an explicit flag the consumer sets, not a heuristic that infers intent from incidental state.
-  - [Why] An inferred trigger couples behavior to a coincidence of the data, so it fires in cases the consumer never meant and the caller loses the choice.
+  - [Why] An inferred trigger couples behavior to a data coincidence, firing where never meant, costing the consumer the choice.
 
 - [Example] Bad: `hasReadableDetail: detail !== undefined` — inferred from whether a field happened to parse. Good: a `shouldPrintResponse` flag the caller sets deliberately.
 
@@ -292,7 +292,7 @@ function buildAvulso({ parentKit, childSku, price, discount }) {
   - [Why] Async on CPU-bound tasks blocks the event loop — concurrency in name only.
 
 - [Instruction] Simplest correct version first. Memoization/caching needs profiling proof OR a clear Big-O reason.
-  - [Why] An optimization you can't tie to a profile or a Big-O argument adds complexity that may not even sit on the hot path — cost with no measured benefit.
+  - [Why] An optimization untied to profile or Big-O adds complexity that may miss the hot path — no measured benefit.
 
 ## Functions, purity & side effects
 
@@ -303,7 +303,7 @@ function buildAvulso({ parentKit, childSku, price, discount }) {
   - [Why] Pure functions test without mocks; I/O is the part that needs infrastructure — keep it at the edges.
 
 - [Instruction] **Name a helper for what it returns, not its operation — a `get`-noun signals a new immutable; a verb like `append` signals mutation.**
-  - [Why] The name is the caller's only clue whether the result is fresh or changed in place; `getX` reads as the value returned, `appendX` reads as a command that hides it.
+  - [Why] The name is the only clue if a result is fresh or mutated; `getX` reads as a value, `appendX` a hidden command.
 
 - [Example]
 ```ts
@@ -319,7 +319,7 @@ setFailures((prev) => getPreviousFailuresWithNewSchoolAgreementFetchError(prev, 
 ```
 
 - [Instruction] Inject what's hard to mock — pass I/O collaborators as parameters.
-  - [Why] Passing the collaborator as a param lets a test swap in a fake; an imported singleton binds at module load and can't be substituted.
+  - [Why] Passing the collaborator as a param lets a test swap in a fake; an imported singleton binds at load, unsubstitutable.
 
 - [Instruction] **Use named-param objects for any function with 2+ params.**
   - [Why] Positional args lose meaning at call sites (`configure(3, 5000)` — what's 3?).
@@ -407,15 +407,15 @@ logger.debug({
 ```
 
 - [Instruction] When a log payload may carry sensitive data (CPF, CNPJ, email, address, tokens, free-text), surface the candidate fields and ask before shipping — never silently include or drop them.
-  - [Why] Silent-include leaks PII; silent-drop robs the user of the decision. Both replace an explicit per-field choice with a default the user never made.
+  - [Why] Silent-include leaks PII; silent-drop robs the choice — both replace an explicit per-field pick with a default.
 
 ## Error handling & resilience
 
 - [Instruction] Always validate input at trust boundaries (user input, external APIs, queue payloads); trust internals.
-  - [Why] Validating every internal call is wasted effort; only the trust boundary takes untrusted data, so that's the one place validation actually catches anything.
+  - [Why] Validating internals wastes effort; only the trust boundary takes untrusted data — the one place a check catches it.
 
 - [Instruction] **CRITICAL: Fail loudly, not silently — errors propagate or get logged explicitly; when an internal invariant breaks, fail fast and never coerce, swallow, or default it away.**
-  - [Why] A crash stops the program where the bug is; a swallowed error lets it run on and corrupt data downstream, with no trail back to the break.
+  - [Why] A crash stops the program where the bug is; a swallowed error runs on, corrupting data downstream with no trail back.
 
 - [Instruction] Never retry indefinitely — always cap consecutive retries.
   - [Why] Uncapped retries during an outage become a self-inflicted DDoS on the upstream.
@@ -432,7 +432,7 @@ logger.debug({
   - [Why] Defer normalization and you scatter `parseInt`/`new Date` across the codebase.
 
 - [Instruction] **CRITICAL: Use an enum for a fixed set of related magic values; a named constant for a standalone one.**
-  - [Why] A `10` or `"KIT"` scattered across files is a coordination problem when it changes — a named constant is grep-able and changes once.
+  - [Why] A `10`/`"KIT"` scattered across files is a coordination problem on change — a constant is grep-able, changed once.
 
 - [Example]
 ```ts
@@ -459,7 +459,7 @@ if (type === ProductType.KIT || type === ProductType.AVULSO) {
   - [Why] A blind cast lies to the type system about unchecked data.
 
 - [Instruction] Validate runtime-derived enum membership at the boundary and throw a domain error on mismatch.
-  - [Why] Validation catches out-of-range values loudly at the boundary instead of failing silently downstream as wrongly-typed enums.
+  - [Why] Validation catches out-of-range values loudly at the boundary, not silently failing downstream as a wrong-typed enum.
 
 - [Example]
 ```ts
@@ -481,7 +481,7 @@ function assertSgeSiglaNivel(value: string): asserts value is SgeSiglaNivel {
   - [Why] Conventional streams and exit codes let callers and pipes tell success from misuse without parsing output.
 
 - [Instruction] Keep the header to exactly four things — the script's name, its one-line purpose, its invocation forms, and its stdin/stdout/exit-code I/O contract.
-  - [Why] Rationale, background, and worked examples belong in the owning skill's `SKILL.md`; a header padded with them stops being brief and simple to scan.
+  - [Why] Rationale and examples belong in the owning skill's `SKILL.md`; a header padded with them stops being brief to scan.
 
 - [Example]
 ```python
@@ -500,16 +500,16 @@ function assertSgeSiglaNivel(value: string): asserts value is SgeSiglaNivel {
 ### Scripts: language, conversion & naming
 
 - [Instruction] Default every script's target language to Python; pick `.js` only when its header carries a `# Requires-npm: <package> — <stdlib gap>` line naming an npm package Python's stdlib cannot substitute.
-  - [Why] Python's stdlib already covers process glue, JSON, and file work, so an unstated npm reach forks the toolchain for no real gain; the header names the one genuine exception.
+  - [Why] Python's stdlib covers this, so unstated npm reach forks the toolchain for nothing; the header names the exception.
 
 - [Instruction] Convert a `.sh` script to its target language when it embeds `awk`, `jq`, `sed -E`, or a here-doc, or when it exceeds 128 lines with none of those four.
-  - [Why] Either signal marks a script a junior developer can no longer read end-to-end — the same bar measured 54 of 82 real scripts across this repo needing conversion.
+  - [Why] Either signal marks a script unreadable end-to-end by a junior — flagging 54 of 82 repo scripts for conversion.
 
 - [Instruction] Exempt a script from that verdict when a per-invocation cold start is measurable — a per-tool-call hook, or a ccstatusline widget command; exclude `install.sh` from the bar entirely.
-  - [Why] A script re-entered on every tool call or every status-line render pays that cold start each time, and `install.sh` bootstraps the interpreters a conversion would make it depend on.
+  - [Why] A script re-entered per call pays that cold start each time; `install.sh` bootstraps interpreters a conversion needs.
 
 - [Instruction] Name every script `<verb>-<object>[-<qualifier>]` in kebab-case, sourcing the verb list, category denylist, and abbreviation allowlist from `scripts/naming-rule-lexicon.json` — never restate them here.
-  - [Why] A lexicon file keeps the verb list, denylist, and allowlist a single edit instead of a prose rewrite scattered across every rule change.
+  - [Why] A lexicon file keeps the verb list, denylist, allowlist one edit, not a prose rewrite scattered across every change.
 
 - [Instruction] **CRITICAL: Follow the Unix philosophy — make each script do one thing well and compose via stdin/stdout pipes.**
   - [Why] A small, pipeable tool composes into pipelines; a monolithic script becomes a private API nobody reuses.
@@ -520,4 +520,4 @@ function assertSgeSiglaNivel(value: string): asserts value is SgeSiglaNivel {
 ### Scripts: tests
 
 - [Instruction] Test every `.py` script with `pytest` and every `.js` script with `node:test`, in a `<stem>.test.<ext>` file inside a `tests/` directory beside the script.
-  - [Why] A shared runner and one filename convention retire the hand-rolled bash test harnesses this repo used to write per script, one framework instead of many.
+  - [Why] A shared runner and filename convention retire this repo's hand-rolled bash harnesses, one framework instead of many.

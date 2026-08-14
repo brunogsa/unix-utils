@@ -84,7 +84,7 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
   - [Why] It runs check-comment-format.js --fix and rewords only the residue; inline floods main with one row per violation.
 
 - [Instruction] Hand it only files this session's own `Edit`/`Write` calls created or modified — never a file the session merely opened or read.
-  - [Why] `--changed-only` scopes lines within a file, but a file the session never wrote to still turns its pre-existing violations into noise the fixer reports as if the session caused them.
+  - [Why] `--changed-only` scopes lines, but a never-written file turns its violations into noise blamed on this session.
 
 - [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments — use plain ASCII (`=`, `-`, `|`).
   - [Why] Humans don't type these by hand, so they read as AI-written and break in terminals, diffs, and grep.
@@ -146,7 +146,7 @@ Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`d
   - [Why] It runs check-rule-citations.py and reads both files to settle each row; inline dumps every candidate into context.
 
 - [Instruction] Hand it only files this session's own `Edit`/`Write` calls created or modified — never a file the session merely opened or read.
-  - [Why] `--changed-only` scopes lines within a file, but a file the session never wrote to still turns its pre-existing violations into noise the fixer reports as if the session caused them.
+  - [Why] `--changed-only` scopes lines, but a never-written file turns its violations into noise blamed on this session.
 
 ## Density
 
@@ -157,7 +157,7 @@ Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`d
   - [Why] Both only report line numbers, so inline costs one command's verdict where a subagent round-trip pays a full dispatch.
 
 - [Instruction] Run them only against files this session's own `Edit`/`Write` calls created or modified — never a file the session merely opened or read.
-  - [Why] Without this, `--changed-only` still surfaces every pre-existing violation on a file the session never wrote to, turning a file merely opened into `[Scout]` noise.
+  - [Why] Without this, `--changed-only` surfaces every violation on a file merely opened, turning it into `[Scout]` noise.
 
 - [Instruction] Report every line they flag as ONE `[Scout]` TaskList entry naming the file and what is off standard, dispatching no fixer and asking nothing.
   - [Why] Reflowing prose is a judgment call that already split sentences mid-phrase and damaged a plan, so the user decides.
