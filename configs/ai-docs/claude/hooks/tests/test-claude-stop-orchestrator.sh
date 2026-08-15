@@ -218,6 +218,39 @@ it_should_notify_done_when_an_implement_run_halted_for_the_human() {
   assert_eq "should notify done when an implement run halted for the human (notified state)" "done" "$NOTIFIED"
 }
 
+# Claude Code v2.1.145+ Stop payloads carry a background_tasks array listing
+# work still in flight. A dispatched subagent/workflow guarantees a LATER Stop
+# event wakes the session back up (that's the whole point of backgrounding
+# it), so a "done" ping fired while one is still running is premature — the
+# session looks finished when it isn't.
+it_should_stay_silent_when_a_background_subagent_is_still_running() {
+  run_orchestrator '{"session_id": "sess-orch-bg-subagent", "stop_hook_active": false, "background_tasks": [{"type": "subagent", "status": "running"}]}'
+  assert_eq "should stay silent when a background subagent is still running (nothing notified)" "" "$NOTIFIED"
+}
+
+# Confirms the type filter includes workflow, not just subagent.
+it_should_stay_silent_when_a_background_workflow_is_still_running() {
+  run_orchestrator '{"session_id": "sess-orch-bg-workflow", "stop_hook_active": false, "background_tasks": [{"type": "workflow", "status": "running"}]}'
+  assert_eq "should stay silent when a background workflow is still running (nothing notified)" "" "$NOTIFIED"
+}
+
+# Regression guard: a long-lived intentionally-backgrounded shell task (e.g.
+# `tail -f /var/log/syslog`, a dev server) sits in background_tasks with
+# status "running" indefinitely. Only subagent/workflow guarantee a later
+# Stop wakes the session — a shell task does not, so it must NOT suppress the
+# ping. This is what stops a future edit from widening the filter back to a
+# bare length check and permanently silencing the ping for the rest of the
+# session.
+it_should_notify_done_when_only_a_background_shell_task_is_still_running() {
+  run_orchestrator '{"session_id": "sess-orch-bg-shell", "stop_hook_active": false, "background_tasks": [{"type": "shell", "status": "running"}]}'
+  assert_eq "should notify done when only a background shell task is still running (notified state)" "done" "$NOTIFIED"
+}
+
+it_should_notify_done_when_background_tasks_is_an_empty_array() {
+  run_orchestrator '{"session_id": "sess-orch-bg-empty", "stop_hook_active": false, "background_tasks": []}'
+  assert_eq "should notify done when background_tasks is an empty array (notified state)" "done" "$NOTIFIED"
+}
+
 it_should_notify_done_when_no_gate_blocks_and_no_implement_run_is_active
 it_should_block_without_notifying_when_the_markdown_gate_blocks
 it_should_block_without_notifying_when_the_agent_contract_gate_blocks
@@ -228,6 +261,10 @@ it_should_block_without_notifying_when_the_rename_guard_gate_blocks
 it_should_block_without_notifying_when_an_implement_run_is_mid_batch
 it_should_stay_silent_when_an_implement_run_is_mid_batch_and_the_gates_loop_guard_has_disarmed_it
 it_should_notify_done_when_an_implement_run_halted_for_the_human
+it_should_stay_silent_when_a_background_subagent_is_still_running
+it_should_stay_silent_when_a_background_workflow_is_still_running
+it_should_notify_done_when_only_a_background_shell_task_is_still_running
+it_should_notify_done_when_background_tasks_is_an_empty_array
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

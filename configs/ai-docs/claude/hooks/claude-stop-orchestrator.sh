@@ -30,6 +30,16 @@
 #   via --check, and a /implement run still working its
 #   task loop stays silent. See step 9.
 #
+#   The same backstop also reads the Stop payload's own background_tasks array
+#   (Claude Code v2.1.145+): dispatching a subagent or workflow in the
+#   background and ending the turn right after is a normal pattern, and a
+#   later Stop event is guaranteed to wake the session back up when one is
+#   still running. Pinging "done" before that later Stop misleads whoever is
+#   watching the tmux window into thinking the session is finished. Only
+#   `subagent`/`workflow` entries carry that guarantee, so only those types
+#   suppress the ping — a long-lived `shell` task (a `tail -f`, a dev server)
+#   would otherwise swallow the ping for the rest of the session. See step 13.
+#
 # This does NOT merge the child scripts:
 #   claude-markdown-standards-stop-hook.sh, claude-agent-contract-stop-hook.sh,
 #   claude-comment-format-stop-hook.sh,
@@ -213,6 +223,23 @@ esac
 #    A missing or failing --check exits non-zero and the ping fires, matching
 #    every other fail-open path here.
 if [ -f "$implement_gate" ] && printf '%s' "$input" | bash "$implement_gate" --check 2>/dev/null; then
+  exit 0
+fi
+
+# 13b. Same backstop, second source: the Stop payload's own background_tasks
+#    array. Only `subagent`/`workflow` entries count — those are the only
+#    types that guarantee a LATER Stop event wakes the session back up, which
+#    is the whole point of dispatching them in the background. A `shell` or
+#    `monitor` entry (e.g. a long-lived `tail -f` or dev server) carries no
+#    such guarantee and must NOT suppress the ping, or it would swallow the
+#    ping for the rest of the session. Fails open on missing jq or
+#    unparseable JSON, same as every other gate here: a stray ping beats a
+#    swallowed stop.
+bg_count=$(printf '%s' "$input" | jq -r \
+  '[(.background_tasks // [])[] | select(.type == "subagent" or .type == "workflow")] | length' \
+  2>/dev/null || printf '0')
+case "$bg_count" in ''|*[!0-9]*) bg_count=0 ;; esac
+if [ "$bg_count" -gt 0 ]; then
   exit 0
 fi
 
