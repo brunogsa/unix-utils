@@ -161,10 +161,6 @@ is acceptable for MANDATORY findings that benefit from a worked example or
 multi-step fix. Stay under 4000 chars (GitHub displays the rest behind a
 "…show more" affordance).
 
-Keep individual lines inside doc-standards' density cap: ≤256 chars AND ≤32
-words per line, where Markdown allows it. Wave 5 runs check-density.sh over
-every body before posting, but only reports what it flags — nobody reflows the
-line for you, so an over-cap body ships over-cap.
 Use bullets and short paragraphs over walls of text.
 
 Permalinks (GH mode only): when referencing *another* file inside a comment body,

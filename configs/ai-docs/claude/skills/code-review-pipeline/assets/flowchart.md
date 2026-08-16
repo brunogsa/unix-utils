@@ -134,20 +134,6 @@ def code_review_pipeline(arg):
     else:
         match mode:                                        # 17
             case "github":
-                # 18 · cap 256 chars / 32 words per line; gap bullets at 80%.
-                #      Measures only -- nothing here reflows a comment body.
-                clean = run("check-density.sh", "check-bullet-gap.py",
-                            on=["wave5-comment-*.md", "wave2-guide.md"])
-                if not clean:
-                    if session_is_calling_not_isolated():  # 18a
-                        # 18a1 · one entry per offending file; the user alone
-                        #        decides if and when the repair ever runs.
-                        file_scout_per_offending_file()
-                    else:
-                        # 18a2 · a subagent's TaskList write never reaches the
-                        #        user, so hand them up for the caller to file.
-                        carry_scouts_into_wave6_summary()
-
                 # 19 · one single batch call.
                 post_pending_review(build("review-payload.json"))
                 if response.status == 422:                 # 20
@@ -164,13 +150,6 @@ def code_review_pipeline(arg):
 
             case "local":
                 out_file = write(f"verdict_auto-review_{ts}", to=CWD)   # 17a
-                # 17a1 · measures only -- nothing here reflows the verdict file.
-                clean = run("check-density.sh", "check-bullet-gap.py",
-                            on=[out_file])
-                if not clean:
-                    # 17a1a · local mode is always isolated, so its own TaskList
-                    #         write would never reach the user who triages it.
-                    carry_scouts_into_wave6_summary()
 
     print(terminal_summary())                              # 23 · Wave 6
 
@@ -237,11 +216,6 @@ flowchart TD
 
   n17{"17. Mode?"}
 
-  n18["18. check-density.sh + check-bullet-gap.py on<br/>wave5-comment-*.md + wave2-guide.md<br/>(measure only -- nothing reflows a comment body)"]:::hook
-  n18a{"18a. Session is<br/>calling (not isolated)?"}
-  n18a1["18a1. File ONE Scout TaskList entry per offending file<br/>naming the file and what is off standard<br/>(user alone decides if the repair ever runs)"]:::state
-  n18a2["18a2. Carry the same Scouts into the Wave 6 summary<br/>(already a subagent -- its TaskList write<br/>never reaches the user who triages it)"]
-
   n19["19. Build review-payload.json,<br/>POST pending review (single batch call)"]:::state
   n20{"20. POST returned 422?"}
   n20a["20a. Drop unresolvable anchors,<br/>retry once (same batch shape)"]
@@ -254,8 +228,6 @@ flowchart TD
   n22["22. Post Review Guide as<br/>standalone PR comment<br/>(guide-payload.json)"]:::state
 
   n17a["17a. Write verdict_auto-review_TIMESTAMP<br/>file to CWD"]:::state
-  n17a1["17a1. check-density.sh + check-bullet-gap.py on out_file<br/>(measure only -- nothing reflows the verdict file)"]:::hook
-  n17a1a["17a1a. Carry the flagged lines into the Wave 6 summary<br/>(local mode is always isolated -- its TaskList<br/>write never reaches the user who triages it)"]
 
   n23["23. Wave 6: print terminal summary"]
   n24(["24. Pending review (github) or verdict file (local)<br/>awaits human read/submit -- nothing auto-submits"]):::gate
@@ -322,15 +294,8 @@ flowchart TD
   n16a1 --> n22
   n16a2 --> n23
 
-  n17 -->|"github"| n18
+  n17 -->|"github"| n19
   n17 -->|"local"| n17a
-
-  n18 -->|"violations found"| n18a
-  n18 -->|"clean"| n19
-  n18a -->|"yes"| n18a1
-  n18a -->|"no, already isolated"| n18a2
-  n18a1 --> n19
-  n18a2 --> n19
 
   n19 --> n20
   n20 -->|"no"| n21
@@ -344,10 +309,7 @@ flowchart TD
 
   n22 --> n23
 
-  n17a --> n17a1
-  n17a1 -->|"violations found"| n17a1a
-  n17a1 -->|"clean"| n23
-  n17a1a --> n23
+  n17a --> n23
 
   n23 --> n24
 
