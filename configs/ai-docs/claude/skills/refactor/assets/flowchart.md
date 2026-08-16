@@ -46,7 +46,7 @@ def refactor(arg):
     #      Reads step 3's four artifacts from disk instead of
     #      re-running git commands — ~12.5x cheaper than admitting a
     #      fresh tool result into context. ----
-    agent = dispatch("deep-reviewer", background=True,      # 6
+    agent = dispatch("code-reviewer", background=True,      # 6
                      work_dir=work_dir,
                      context_files=["diff", "changed-files.txt",
                                      "untracked-files.txt",
@@ -55,7 +55,7 @@ def refactor(arg):
                      #     constraints and the per-finding schema
                      #     verbatim, plus write-only-to-VERDICT_PATH.
                      verdict_path=VERDICT_PATH)
-    # 6a · hook: deep-reviewer-write-guard backs that contract at the
+    # 6a · hook: check-reviewer-writes backs that contract at the
     #      tool layer, so stating it only saves a blocked-write attempt.
 
     while not present_and_non_empty(VERDICT_PATH):         # 7
@@ -96,8 +96,8 @@ flowchart TD
   n4{"4. Script exited 0 (found target files)?"}
   n4a["4a. Inform the user and stop — script exited 1:<br/>not a git repo, no resolvable base ref, or nothing<br/>changed/untracked in the given scope (reason on<br/>stderr). Collapsed: the script's own reason, not a<br/>branch this skill's flow makes"]:::gate
   n5["5. Step 2 · Mint VERDICT_PATH =<br/>date +verdict_refactor_&lt;ts&gt;.md, in CWD not /tmp<br/>— the user reads it beside the diff in their editor.<br/>The verdict_ prefix is mandatory: the write guard<br/>denies every other basename at exit 2, and it beats<br/>report_/findings_ because the harness intercepts<br/>those before any hook runs. One file per invocation"]:::state
-  n6["6. Step 2 · Dispatch deep-reviewer<br/>(agent-pinned, background) — report-only by<br/>construction; subAgent=refactor would silently<br/>make this an editing leg.<br/>Hands it work_dir plus the four files step 3 wrote<br/>(diff, changed-files.txt, untracked-files.txt,<br/>commit-messages.txt), told to read them from disk,<br/>not re-run git commands — ~12.5x cheaper than<br/>admitting a fresh tool result into context.<br/>Prompt also carries the analysis constraints and<br/>per-finding schema verbatim, plus<br/>write-only-to-VERDICT_PATH"]:::dispatch
-  n6a["6a. Hook: deep-reviewer-write-guard<br/>— backs the report-only contract at the tool layer"]:::hook
+  n6["6. Step 2 · Dispatch code-reviewer<br/>(agent-pinned, background) — report-only by<br/>construction; subAgent=refactor would silently<br/>make this an editing leg.<br/>Hands it work_dir plus the four files step 3 wrote<br/>(diff, changed-files.txt, untracked-files.txt,<br/>commit-messages.txt), told to read them from disk,<br/>not re-run git commands — ~12.5x cheaper than<br/>admitting a fresh tool result into context.<br/>Prompt also carries the analysis constraints and<br/>per-finding schema verbatim, plus<br/>write-only-to-VERDICT_PATH"]:::dispatch
+  n6a["6a. Hook: check-reviewer-writes<br/>— backs the report-only contract at the tool layer"]:::hook
   n7{"7. VERDICT_PATH present and non-empty?"}
   n7a["7a. Treat the run as failed and re-invoke.<br/>Never proceed from the return message —<br/>it is capped and WILL truncate a long list"]:::dispatch
   n8["8. Step 3 · Read VERDICT_PATH end-to-end.<br/>The return carries only a count, the path, and<br/>one title line per finding, by design"]

@@ -1,6 +1,6 @@
 ---
 name: refactor
-description: "USE for an end-of-branch refactoring sweep over unpushed/uncommitted changes — dispatches the deep-reviewer agent to write a report the user applies later. Triggers: 'refactor this', 'clean up', /refactor, or another skill's dispatch."
+description: "USE for an end-of-branch refactoring sweep over unpushed/uncommitted changes — dispatches the code-reviewer agent to write a report the user applies later. Triggers: 'refactor this', 'clean up', /refactor, or another skill's dispatch."
 disable-model-invocation: false
 ---
 
@@ -12,7 +12,7 @@ Detect refactoring opportunities in unpushed/uncommitted code and write them to 
 
 `refactor` names two things with opposite write contracts — this skill, and the `refactor` **agent** (`~/.claude/agents/refactor.md`), which applies one already-accepted finding under a test gate.
 
-A caller wanting this skill's report dispatches `subAgent=deep-reviewer`, never `subAgent=refactor` — the latter silently turns a report-only leg into an editing one.
+A caller wanting this skill's report dispatches `subAgent=code-reviewer`, never `subAgent=refactor` — the latter silently turns a report-only leg into an editing one.
 
 ## When to invoke
 
@@ -53,17 +53,17 @@ Without that fallback the unpushed half either dies on `fatal: no upstream confi
 
 If the script reports nothing to refactor, inform the user and stop.
 
-### 2. Dispatch deep-reviewer to detect opportunities
+### 2. Dispatch code-reviewer to detect opportunities
 
 **Before dispatch, mint the report path.** Run `date "+verdict_refactor_%Y-%m-%d_%H:%M.md"` once and treat the output as `$VERDICT_PATH` in CWD (NOT `/tmp/` — the user reviews it alongside the diff in their editor).
 
-- The `verdict_` prefix is mandatory, not cosmetic — `~/.claude/hooks/deep-reviewer-write-guard.sh` denies every other basename at exit 2.
+- The `verdict_` prefix is mandatory, not cosmetic — `~/.claude/hooks/check-reviewer-writes.sh` denies every other basename at exit 2.
 
 - It reads `verdict_` and not `report_`/`findings_` because the Claude Code harness intercepts those two before any hook runs; the guard's own header records that.
 
 - Use that exact filename in every reference below. One file per `/refactor` invocation; never reuse a prior run's path.
 
-**Dispatch** `agent(subAgent=deep-reviewer, title=Refactor-lens review)` — report-only by construction. In the prompt:
+**Dispatch** `agent(subAgent=code-reviewer, title=Refactor-lens review)` — report-only by construction. In the prompt:
 
 - Run in the **background** (the default) -- the UI still surfaces progress, and the harness delivers the findings report on completion.
 
@@ -74,7 +74,7 @@ If the script reports nothing to refactor, inform the user and stop.
 - Include the analysis constraints below verbatim.
 - Instruct it to **write the complete report to `$VERDICT_PATH`** (overwrite if exists) and make no other edits — the guard enforces this; stating it stops a wasted blocked-write attempt.
 
-#### Analysis constraints (passed to deep-reviewer)
+#### Analysis constraints (passed to code-reviewer)
 
 - Load and apply principles from `~/.claude/CLAUDE.md` and the `code-standards`, `test-standards`, `doc-standards` skills.
 
