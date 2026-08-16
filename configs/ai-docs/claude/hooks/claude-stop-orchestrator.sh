@@ -8,15 +8,14 @@
 #
 # Why this exists:
 #   Claude Code runs all hooks on one event IN PARALLEL with no short-circuit
-#   (one hook's block does not suppress a sibling's side effects). With the
-#   markdown-standards gate and the tmux "done" notification both wired directly
-#   to Stop, a turn that the gate blocks (to keep fixing the doc) still fires a premature
+#   (one hook's block does not suppress a sibling's side effects). With a
+#   gate and the tmux "done" notification both wired directly
+#   to Stop, a turn that the gate blocks (to keep fixing an issue) still fires a premature
 #   "done" ping — then a second, real ping after the fix. On a tmux window you
 #   aren't watching, that's a misleading double-notify.
 #
 #   Sequencing them here fixes it: run the
-#   markdown-standards gate, then the agent-contract gate,
-#   then the comment-format gate, then the session-scoped
+#   agent-contract gate, then the session-scoped
 #   implement gate, then the spec-driven coverage gate,
 #   then the rename-reference guard.
 #
@@ -28,7 +27,7 @@
 #   say nothing about the work being finished. So the last check before the ping
 #   asks the implement gate the plain mid-flight question
 #   via --check, and a /implement run still working its
-#   task loop stays silent. See step 9.
+#   task loop stays silent. See step 5.
 #
 #   The same backstop also reads the Stop payload's own background_tasks array
 #   (Claude Code v2.1.145+): dispatching a subagent or workflow in the
@@ -38,11 +37,10 @@
 #   watching the tmux window into thinking the session is finished. Only
 #   `subagent`/`workflow` entries carry that guarantee, so only those types
 #   suppress the ping — a long-lived `shell` task (a `tail -f`, a dev server)
-#   would otherwise swallow the ping for the rest of the session. See step 13.
+#   would otherwise swallow the ping for the rest of the session. See step 9.
 #
 # This does NOT merge the child scripts:
-#   claude-markdown-standards-stop-hook.sh, claude-agent-contract-stop-hook.sh,
-#   claude-comment-format-stop-hook.sh,
+#   claude-agent-contract-stop-hook.sh,
 #   claude-implement-stop-hook.sh,
 #   claude-sdd-stop-hook.sh, claude-rename-guard-stop-hook.sh, and
 #   claude-tmux-notification.sh stay standalone,
@@ -61,45 +59,24 @@
 input=$(cat)
 
 dir=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd) || dir="$HOME/.claude/hooks"
-md_standards="$dir/claude-markdown-standards-stop-hook.sh"
 agent_contract="$dir/claude-agent-contract-stop-hook.sh"
-comment_format="$dir/claude-comment-format-stop-hook.sh"
 implement_gate="$dir/claude-implement-stop-hook.sh"
 sdd_gate="$dir/claude-sdd-stop-hook.sh"
 rename_guard="$dir/claude-rename-guard-stop-hook.sh"
 notify="$dir/claude-tmux-notification.sh"
 
-# 1. Markdown-standards gate first. It prints a {decision:"block"} JSON (and
-#    nothing else) when changed markdown still violates a doc-standards line
-#    rule (density cap or bullet gap); stays silent otherwise.
-md_standards_out=""
-if [ -f "$md_standards" ]; then
-  md_standards_out=$(printf '%s' "$input" | bash "$md_standards" 2>/dev/null || true)
-fi
-
-# 2. Gate blocked → pass its decision straight through and STOP here. The turn
-#    isn't really over (Claude will fix the markdown next), so do NOT notify.
-case "$md_standards_out" in
-  *'"decision"'*)
-    printf '%s\n' "$md_standards_out"
-    exit 0
-    ;;
-esac
-
-# 3. Agent-contract gate. It prints a {decision:"block"} JSON when an agent file
+# 1. Agent-contract gate. It prints a {decision:"block"} JSON when an agent file
 #    THIS session edited is off the six-heading/frontmatter contract; stays
-#    silent for every session that touched no agent file. Placed beside the
-#    markdown gate because both are cheap session-scoped standards checks on
-#    what the turn just wrote — and before the implement gate for the same
-#    reason step 7 sits before step 9: a mid-batch block
-#    would defer this until the batch ends, long after the edit.
+#    silent for every session that touched no agent file. Placed before the
+#    implement gate for the same reason step 3 sits before step 5: a
+#    mid-batch block would defer this until the batch ends, long after the edit.
 agent_contract_out=""
 if [ -f "$agent_contract" ]; then
   agent_contract_out=$(printf '%s' "$input" | bash "$agent_contract" 2>/dev/null || true)
 fi
 
-# 4. Gate blocked → pass its decision straight through and STOP here, same as
-#    step 2: the contract still needs fixing, so do NOT notify.
+# 2. Gate blocked → pass its decision straight through and STOP here. The turn
+#    isn't really over (Claude will fix the contract next), so do NOT notify.
 case "$agent_contract_out" in
   *'"decision"'*)
     printf '%s\n' "$agent_contract_out"
@@ -107,31 +84,7 @@ case "$agent_contract_out" in
     ;;
 esac
 
-# 5. Comment-format gate. It prints a {decision:"block"}
-#    JSON when source comments THIS session wrote break a
-#    doc-standards comment-format cap.
-#
-#    Stays silent for a session that edited no source file.
-#
-#    Beside the two gates above for the same reason they sit
-#    beside each other: all three are cheap session-scoped
-#    standards checks on what the turn just wrote.
-comment_format_out=""
-if [ -f "$comment_format" ]; then
-  comment_format_out=$(printf '%s' "$input" | bash "$comment_format" 2>/dev/null || true)
-fi
-
-# 6. Gate blocked → pass its decision straight through and
-#    STOP here, same as steps 2 and 4: the comments still
-#    need fixing, so do NOT notify.
-case "$comment_format_out" in
-  *'"decision"'*)
-    printf '%s\n' "$comment_format_out"
-    exit 0
-    ;;
-esac
-
-# 7. Session-scoped implement gate. It prints a
+# 3. Session-scoped implement gate. It prints a
 #    {decision:"block"} JSON when THIS session has a
 #    /implement run still mid-batch.
 #
@@ -142,8 +95,8 @@ if [ -f "$implement_gate" ]; then
   implement_out=$(printf '%s' "$input" | bash "$implement_gate" 2>/dev/null || true)
 fi
 
-# 8. Gate blocked → pass its decision straight through
-#    and STOP here, same as steps 2, 4 and 6: the batch
+# 4. Gate blocked → pass its decision straight through
+#    and STOP here, same as step 2: the batch
 #    isn't done, so do NOT notify.
 case "$implement_out" in
   *'"decision"'*)
@@ -152,7 +105,7 @@ case "$implement_out" in
     ;;
 esac
 
-# 9. Spec-driven coverage gate. Runs AFTER the implement
+# 5. Spec-driven coverage gate. Runs AFTER the implement
 #    gate on purpose: that gate blocks every mid-batch
 #    stop, and the plan_/spec_ docs are the batch's own WIP.
 #
@@ -169,9 +122,9 @@ if [ -f "$sdd_gate" ]; then
   sdd_out=$(printf '%s' "$input" | bash "$sdd_gate" 2>/dev/null || true)
 fi
 
-# 10. Gate blocked → pass its decision straight through
-#     and STOP here, same as steps 2, 4, 6 and 8:
-#     coverage still needs reconciling, so do NOT notify.
+# 6. Gate blocked → pass its decision straight through
+#    and STOP here, same as steps 2 and 4:
+#    coverage still needs reconciling, so do NOT notify.
 case "$sdd_out" in
   *'"decision"'*)
     printf '%s\n' "$sdd_out"
@@ -179,14 +132,14 @@ case "$sdd_out" in
     ;;
 esac
 
-# 11. Rename-reference guard. Runs AFTER the sdd gate for the same reason
+# 7. Rename-reference guard. Runs AFTER the sdd gate for the same reason
 #    that gate sits after the implement gate: a mid-batch rename is
 #    transient WIP, and blocking on it churns. It prints a
 #    {decision:"block"} JSON when check-rename-references.py finds a
 #    dangling FAIL-severity reference (settings.json or an install.sh)
 #    anywhere across the covered repos.
 #
-#    Unlike the four gates above, this one is NOT session-scoped: the
+#    Unlike the gates above, this one is NOT session-scoped: the
 #    checker scans a fixed corpus, not "what this session touched", so a
 #    dangling reference blocks every session's stop, including one that
 #    never touched the offending file. The checker's own severity split
@@ -197,9 +150,9 @@ if [ -f "$rename_guard" ]; then
   rename_guard_out=$(printf '%s' "$input" | bash "$rename_guard" 2>/dev/null || true)
 fi
 
-# 12. Gate blocked → pass its decision straight through
-#     and STOP here, same as steps 2, 4, 6, 8 and 10:
-#     the dangling reference still needs fixing, so do NOT notify.
+# 8. Gate blocked → pass its decision straight through
+#    and STOP here, same as steps 2, 4 and 6:
+#    the dangling reference still needs fixing, so do NOT notify.
 case "$rename_guard_out" in
   *'"decision"'*)
     printf '%s\n' "$rename_guard_out"
@@ -207,9 +160,9 @@ case "$rename_guard_out" in
     ;;
 esac
 
-# 13. Mid-flight backstop for the notification.
+# 9. Mid-flight backstop for the notification.
 #
-#    Steps 2/4/6/8/10/12 suppress the ping only when a gate
+#    Steps 2/4/6/8 suppress the ping only when a gate
 #    CHOSE to block, which is not the same as the work being
 #    over: the implement gate's stop_hook_active loop guard makes it stay silent
 #    on every stop that its own previous block caused, so a /implement run pinged
@@ -226,7 +179,7 @@ if [ -f "$implement_gate" ] && printf '%s' "$input" | bash "$implement_gate" --c
   exit 0
 fi
 
-# 13b. Same backstop, second source: the Stop payload's own background_tasks
+# 9b. Same backstop, second source: the Stop payload's own background_tasks
 #    array. Only `subagent`/`workflow` entries count — those are the only
 #    types that guarantee a LATER Stop event wakes the session back up, which
 #    is the whole point of dispatching them in the background. A `shell` or
@@ -243,7 +196,7 @@ if [ "$bg_count" -gt 0 ]; then
   exit 0
 fi
 
-# 14. All gates clean and nothing mid-flight → this is the
+# 10. All gates clean and nothing mid-flight → this is the
 #    real stop → fire the "done" notification.
 #
 #    Its stdout (none today; forward-safe if a future
