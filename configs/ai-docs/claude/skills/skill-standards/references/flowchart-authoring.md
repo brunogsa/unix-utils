@@ -128,7 +128,7 @@ Why: those internals live in their own file and change on its schedule — a cop
 
 Collapsing also holds the diagram at a single altitude — what makes it auditable at a glance.
 
-Bad: a dispatch node listing the five skills an agent preloads, or a hook node spelling out its auto-approved write paths. Good: `Dispatch tdd-coder (agent-pinned, background, serial)`, `Hook: deep-reviewer-write-guard`.
+Bad: a dispatch node listing the five skills an agent preloads, or a hook node spelling out its auto-approved write paths. Good: `Dispatch tdd-coder (agent-pinned, background, serial)`, `Hook: check-reviewer-writes`.
 
 ## Model and effort come from the agent file
 

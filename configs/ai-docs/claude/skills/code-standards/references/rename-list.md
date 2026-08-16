@@ -80,7 +80,6 @@ Paths relative to `configs/ai-docs/claude/`.
 | `hooks/claude-tmux-title-compact-reminder.sh` | 'claude' is not a recognized verb | `build-tmux-retitle-reminder.sh` |
 | `hooks/claude-tmux-title-reminder.sh` | 'claude' is not a recognized verb | `build-tmux-title-reminder.sh` |
 | `hooks/claude-tmux-title-restore.sh` | 'claude' is not a recognized verb | `resolve-tmux-title-restore.sh` |
-| `hooks/deep-reviewer-write-guard.sh` | 'deep' is not a recognized verb | `check-deep-reviewer-writes.sh` |
 | `hooks/subagent-disallowed-tools-guard.py` | 'subagent' is not a recognized verb | `check-subagent-tool-permission.py` |
 | `hooks/subagent-model-guard.py` | 'subagent' is not a recognized verb | `check-subagent-model-tier.py` |
 | `scripts/statusline-tier.sh` | 'statusline' is not a recognized verb | `build-statusline-tier.sh` |

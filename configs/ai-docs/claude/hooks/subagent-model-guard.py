@@ -46,9 +46,9 @@ Policy:
   so it still denies (see PINNED case above).
 
 Examples:
-  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"deep-reviewer"}}' \
+  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"code-reviewer"}}' \
     | subagent-model-guard.py                          # allowed (omitted model, pinned)
-  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"deep-reviewer","model":"haiku"}}' \
+  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"code-reviewer","model":"haiku"}}' \
     | subagent-model-guard.py                          # denied (wrong model for the pin)
   echo '{"tool_name":"Agent","tool_input":{"subagent_type":"tdd-coder","model":"opus"}}' \
     | subagent-model-guard.py                          # allowed (declared override tier)

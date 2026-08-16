@@ -52,7 +52,7 @@ RISKY_CONSTRUCT_PATTERNS = (
 COLD_START_SENSITIVE_BASENAMES = frozenset({
     "claude-git-guard.sh",
     "claude-rm-guard.sh",
-    "deep-reviewer-write-guard.sh",
+    "check-reviewer-writes.sh",
     "statusline-tier.sh",
 })
 

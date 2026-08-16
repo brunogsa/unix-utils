@@ -99,7 +99,7 @@ carries a `Requires-npm` header, so none opted into `js`.
 | `configs/ai-docs/claude/hooks/claude-tmux-title-compact-reminder.sh` | convert | py | jq+here-doc | — |
 | `configs/ai-docs/claude/hooks/claude-tmux-title-reminder.sh` | convert | py | jq+here-doc | — |
 | `configs/ai-docs/claude/hooks/claude-tmux-title-restore.sh` | convert | py | jq | — |
-| `configs/ai-docs/claude/hooks/deep-reviewer-write-guard.sh` | stays-sh | py | per-call hook exemption (fires every tool call) | — |
+| `configs/ai-docs/claude/hooks/check-reviewer-writes.sh` | stays-sh | py | per-call hook exemption (fires every tool call) | — |
 | `configs/ai-docs/claude/hooks/tests/test-claude-agent-contract-stop-hook.sh` | convert | py | jq; 167 lines (>128) | Delete alongside subject's conversion |
 | `configs/ai-docs/claude/hooks/tests/test-claude-comment-format-stop-hook.sh` | convert | py | jq; 255 lines (>128) | Delete alongside subject's conversion |
 | `configs/ai-docs/claude/hooks/tests/test-claude-compact-skill-reload.sh` | convert | py | jq | Delete alongside subject's conversion |

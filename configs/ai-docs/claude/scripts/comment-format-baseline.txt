@@ -13,6 +13,7 @@
 # Lines starting with # are comments; blank lines are ignored.
 configs/ai-docs/claude/hooks/build-implement-invocation-marker.sh
 configs/ai-docs/claude/hooks/check-rename-references.py
+configs/ai-docs/claude/hooks/check-reviewer-writes.sh
 configs/ai-docs/claude/hooks/claude-agent-contract-stop-hook.sh
 configs/ai-docs/claude/hooks/claude-compact-skill-reload.sh
 configs/ai-docs/claude/hooks/claude-git-guard.sh
@@ -27,7 +28,6 @@ configs/ai-docs/claude/hooks/claude-tmux-notification.sh
 configs/ai-docs/claude/hooks/claude-tmux-title-compact-reminder.sh
 configs/ai-docs/claude/hooks/claude-tmux-title-reminder.sh
 configs/ai-docs/claude/hooks/claude-tmux-title-restore.sh
-configs/ai-docs/claude/hooks/deep-reviewer-write-guard.sh
 configs/ai-docs/claude/hooks/subagent-disallowed-tools-guard.py
 configs/ai-docs/claude/hooks/tests/check-rename-references.test.py
 configs/ai-docs/claude/hooks/tests/implement-state-file-guard.test.py
