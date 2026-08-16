@@ -1,8 +1,8 @@
-# Deep-Reviewer Tail Pair
+# Code-Reviewer Tail Pair
 
-Shared dispatch for a two-lens, report-only review over a commit range: one `deep-reviewer` subagent with a simplification lens, one with a correctness lens.
+Shared dispatch for a two-lens, report-only review over a commit range: one `code-reviewer` subagent with a simplification lens, one with a correctness lens.
 
-Consumed directly by path — `code-review-pipeline/references/deep-reviewer-tail-pair.md` — by `address-pr-comments` (optional post-apply tails), `address-ai-comments` (optional post-sweep tails), and `test-sdd` (its report-only preamble only).
+Consumed directly by path — `code-review-pipeline/references/code-reviewer-tail-pair.md` — by `address-pr-comments` (optional post-apply tails), `address-ai-comments` (optional post-sweep tails), and `test-sdd` (its report-only preamble only).
 
 `loop-auto-review` also uses it for per-round dispatch inside its own loop.
 
@@ -16,7 +16,7 @@ It is not part of the 7-wave pipeline those callers' sibling skills (`/auto-revi
 
 ## The two tails
 
-Spawn both as `agent(subAgent=deep-reviewer, title=Simplification-lens review)` and `agent(subAgent=deep-reviewer, title=Correctness-lens review)`, in the background, **in the same turn**.
+Spawn both as `agent(subAgent=code-reviewer, title=Simplification-lens review)` and `agent(subAgent=code-reviewer, title=Correctness-lens review)`, in the background, **in the same turn**.
 
 They're independent report-only passes with no ordering dependency between them.
 
@@ -51,7 +51,7 @@ YOU MUST:
 Violating any of the MUST NOT items aborts the whole run.
 ```
 
-A `PreToolUse` hook (`~/.claude/hooks/deep-reviewer-write-guard.sh`) backs this at the tool layer.
+A `PreToolUse` hook (`~/.claude/hooks/check-reviewer-writes.sh`) backs this at the tool layer.
 
 It auto-approves a write whose basename matches `verdict_*.md` or `verdict_*.html`, and any write under `/tmp`; everything else is denied (exit 2).
 

@@ -1,13 +1,13 @@
 #!/bin/bash
-# PreToolUse guard for the reviewer agent that references it from its
-# frontmatter: deep-reviewer.
+# PreToolUse guard shared by every reviewer agent that references it from its
+# frontmatter: code-reviewer, spec-reviewer, test-reviewer.
 #
-# deep-reviewer is a read-only judge. Its write affordances are exactly two:
+# Each is a read-only judge. Its write affordances are exactly two:
 #   1. persisting a verdict to a caller-assigned verdict file, and
 #   2. scratch under /tmp — the review pipeline (auto-review) persists its wave
 #      artifacts to a mktemp dir there, and /tmp is never repo source.
 #
-# When deep-reviewer runs code-review-pipeline's local mode (its own pin), Wave 2's
+# When code-reviewer runs auto-review's local mode (its own pin), Wave 2's
 # findings JSON lands in that same mktemp dir under the second affordance, so an
 # opus context running the whole pipeline still cannot reach repo source even
 # under a bypassPermissions parent.
