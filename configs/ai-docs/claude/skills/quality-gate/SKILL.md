@@ -100,11 +100,11 @@ A caller may pass its own base ref via `--base-ref` instead — `/implement`'s b
 
 ## 3. Dispatch the legs in parallel
 
-Spawn every leg as `agent(subAgent=deep-reviewer, …)`, all in the **same turn**, all in the background. They are independent report-only passes with no ordering dependency.
+Spawn each leg as its own agent per role — `code-reviewer` for the refactor-lens and auto-review legs, `test-reviewer` for the planned-test-presence leg — all in the **same turn**, all in the background. They are independent report-only passes with no ordering dependency.
 
-- `agent(subAgent=deep-reviewer, title=Refactor-lens review)` — invokes and executes the `refactor` skill (via the Skill tool).
-- `agent(subAgent=deep-reviewer, title=Auto-review pipeline)` — invokes the `auto-review` skill, orchestrating from there with `<BASE_REF>` and the resolved spec/plan paths pushed in so it needs no interactive resolution.
-- `agent(subAgent=deep-reviewer, title=Planned-test presence check)` — invokes and executes the `test-sdd` skill, with the resolved plan path and any `--tasks` ids pushed in; dispatch only when a plan resolved.
+- `agent(subAgent=code-reviewer, title=Refactor-lens review)` — invokes and executes the `refactor` skill (via the Skill tool).
+- `agent(subAgent=code-reviewer, title=Auto-review pipeline)` — invokes the `auto-review` skill, orchestrating from there with `<BASE_REF>` and the resolved spec/plan paths pushed in so it needs no interactive resolution.
+- `agent(subAgent=test-reviewer, title=Planned-test presence check)` — invokes and executes the `test-sdd` skill, with the resolved plan path and any `--tasks` ids pushed in; dispatch only when a plan resolved.
 
 **Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.**
 
@@ -114,7 +114,7 @@ Tell each leg this explicitly: the skills it invokes describe dispatching a revi
 
 Every leg mints its own `verdict_*.md` timestamp per its own skill, so repeated runs accumulate rather than collide.
 
-The `deep-reviewer-write-guard.sh` hook backs the report-only contract at the tool layer — its exact terms live in [`deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md), the single home for that wording.
+The `check-reviewer-writes.sh` hook backs the report-only contract at the tool layer — its exact terms live in [`code-reviewer-tail-pair.md`](../code-review-pipeline/references/code-reviewer-tail-pair.md), the single home for that wording.
 
 Tell each leg the `/tmp` half too — the `auto-review` leg's waves persist there, and a leg that believes only `verdict_*` is writable skips the `$work_dir` persistence its compaction-resume depends on.
 

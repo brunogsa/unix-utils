@@ -64,13 +64,13 @@ def quality_gate(arg):
     # ---- 8 · Step 3 — dispatch every leg in the SAME turn. Independent
     #      report-only passes, no ordering between them. Each leg IS the
     #      fresh-context reviewer, so none of them spawns a nested one. ----
-    legs = dispatch_parallel("deep-reviewer", background=True, legs=[
-        ("refactor",    "refactor/SKILL.md",    f"verdict_refactor_{ts}.md"),      # 8a · leg dispatch
-        ("auto-review", "auto-review/SKILL.md", f"verdict_auto-review_{ts}.md"),   # 8b · leg dispatch
+    legs = dispatch_parallel(background=True, legs=[
+        ("code-reviewer", "refactor",    "refactor/SKILL.md",    f"verdict_refactor_{ts}.md"),      # 8a · leg dispatch
+        ("code-reviewer", "auto-review", "auto-review/SKILL.md", f"verdict_auto-review_{ts}.md"),   # 8b · leg dispatch
         # 8c · scoped by --tasks, and dispatched ONLY when a plan resolved.
-        ("test-sdd",    "test-sdd/SKILL.md",    f"verdict_test-sdd_{ts}.md"),
+        ("test-reviewer", "test-sdd",    "test-sdd/SKILL.md",    f"verdict_test-sdd_{ts}.md"),
     ] if plans else [...])
-    # 8d · hook: deep-reviewer-write-guard — approves verdict_*.md and
+    # 8d · hook: check-reviewer-writes — approves verdict_*.md and
     #      verdict_*.html, AND any write under /tmp; everything else denied.
     #      Each leg is told the /tmp half too: a leg believing only
     #      verdict_* is writable skips the $work_dir persistence its
@@ -164,12 +164,12 @@ flowchart TD
 
   subgraph legs["8. Step 3 · Dispatch every leg in the SAME turn — independent report-only passes, no ordering between them. Each leg IS the fresh-context reviewer, so none spawns a nested one."]
     direction TB
-    n8a["8a. deep-reviewer · reads refactor/SKILL.md<br/>(agent-pinned, background, ∥)<br/>→ verdict_refactor_&lt;ts&gt;.md"]:::dispatch
-    n8b["8b. deep-reviewer · reads auto-review/SKILL.md<br/>(agent-pinned, background, ∥)<br/>→ verdict_auto-review_&lt;ts&gt;.md"]:::dispatch
-    n8c["8c. deep-reviewer · reads test-sdd/SKILL.md,<br/>scoped by --tasks (agent-pinned, background, ∥)<br/>→ verdict_test-sdd_&lt;ts&gt;.md<br/>ONLY when a plan resolved"]:::dispatch
+    n8a["8a. code-reviewer · reads refactor/SKILL.md<br/>(agent-pinned, background, ∥)<br/>→ verdict_refactor_&lt;ts&gt;.md"]:::dispatch
+    n8b["8b. code-reviewer · reads auto-review/SKILL.md<br/>(agent-pinned, background, ∥)<br/>→ verdict_auto-review_&lt;ts&gt;.md"]:::dispatch
+    n8c["8c. test-reviewer · reads test-sdd/SKILL.md,<br/>scoped by --tasks (agent-pinned, background, ∥)<br/>→ verdict_test-sdd_&lt;ts&gt;.md<br/>ONLY when a plan resolved"]:::dispatch
   end
 
-  n8d["8d. Hook: deep-reviewer-write-guard — approves verdict_*.md<br/>and verdict_*.html, AND any write under /tmp; else denied.<br/>Each leg is told the /tmp half too: a leg believing only<br/>verdict_* is writable skips the $work_dir persistence<br/>its compaction-resume depends on"]:::hook
+  n8d["8d. Hook: check-reviewer-writes — approves verdict_*.md<br/>and verdict_*.html, AND any write under /tmp; else denied.<br/>Each leg is told the /tmp half too: a leg believing only<br/>verdict_* is writable skips the $work_dir persistence<br/>its compaction-resume depends on"]:::hook
   n9{"9. Step 4 · Each leg's verdict file<br/>present and non-empty?"}
   n9a["9a. Re-dispatch that leg ONCE; still missing,<br/>flag it and let the others stand.<br/>Never report from a capped return message"]:::dispatch
 
