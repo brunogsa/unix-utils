@@ -1,10 +1,10 @@
 # Wave 1 — Repo-wide static checks + tests + coverage (local mode)
 
-Detail for the Wave 1 context-prep step that gathers repo-wide signal for Wave 2 specialists. Referenced from `SKILL.md` Wave 1.
+Detail for the Wave 1 context-prep step that gathers repo-wide signal for Wave 2. Referenced from `SKILL.md` Wave 1.
 
 ## What runs
 
-After the diff files are on disk, gather repo-wide signal that specialists in Wave 2 consume alongside the diff.
+After the diff files are on disk, gather repo-wide signal that Wave 2 consumes alongside the diff.
 
 CWD is the branch under review, so the project's own commands run directly.
 

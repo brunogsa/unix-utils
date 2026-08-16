@@ -17,7 +17,7 @@ Not a skill — its frontmatter carries only the performance-check budget overri
 
 Confidence governs reviewer behavior at two gates that pull in opposite directions:
 
-- **Emission gate (Wave 2 specialists):**
+- **Emission gate (Wave 2):**
   - **>80% confidence** → emit a direct comment with clear reasoning.
   - **60-80% confidence** → emit as a clarifying question to reduce ambiguity.
   - **<60% confidence** → skip the comment entirely.
@@ -28,7 +28,7 @@ Confidence governs reviewer behavior at two gates that pull in opposite directio
 
 Why they pull opposite ways: emission is cheap to abort (the comment doesn't exist yet), so its bar is "is this likely real?".
 
-Validation is expensive to abort — the work is done, and dropping it loses the specialist's reasoning — so its bar is "is this provably wrong?".
+Validation is expensive to abort — the work is done, and dropping it loses the reviewer's reasoning — so its bar is "is this provably wrong?".
 
 Avoid speculative "maybe"/"possibly"/"consider" at the emission gate without strong justification. Don't compensate at validation.
 

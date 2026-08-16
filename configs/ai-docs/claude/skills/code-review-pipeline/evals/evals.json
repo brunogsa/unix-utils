@@ -17,8 +17,8 @@
       "name": "gh-already-reviewed-early-exit",
       "mode": "github",
       "prompt": "/pr-review <PR_URL_THAT_ALREADY_HAS_A_CLAUDE_REVIEW>",
-      "setup": "Re-run /pr-review on a PR that already carries the '— gerado por IA, revisado pelo usuário' signature from a prior pending review. Wave 0 should abort before launching specialists.",
-      "expected_output": "Skill prints 'abort: prior review detected'. No specialist Agent calls are made.",
+      "setup": "Re-run /pr-review on a PR that already carries the '— gerado por IA, revisado pelo usuário' signature from a prior pending review. Wave 0 should abort before Wave 2 runs.",
+      "expected_output": "Skill prints 'abort: prior review detected'. No review pass runs at all.",
       "assertions": [],
       "files": []
     },
@@ -28,7 +28,7 @@
       "mode": "local",
       "prompt": "/auto-review main",
       "setup": "Create a throwaway feature branch with (a) one real bug in use-case code, (b) one subjective style quirk, (c) one incidental fix in an unrelated module (bump log level, fix typo). Run /auto-review main.",
-      "expected_output": "./verdict_auto-review_<timestamp>.md generated, carrying no Review Guide block — local mode skips the guide writer, so the incidental change gets no narration and surfaces only if a specialist flags it. The bug is flagged MANDATORY. The style quirk is flagged NITPICK with the subjective-opinion prefix.",
+      "expected_output": "./verdict_auto-review_<timestamp>.md generated, carrying no Review Guide block — local mode skips the guide writer, so the incidental change gets no narration and surfaces only if Wave 2 flags it. The bug is flagged MANDATORY. The style quirk is flagged NITPICK with the subjective-opinion prefix.",
       "assertions": [],
       "files": []
     }

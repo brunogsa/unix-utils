@@ -57,58 +57,70 @@ def code_review_pipeline(arg):
         run_repo_wide_static_checks()
 
     # 7 · github computes+persists tiny_pr here; local's script (6c)
-    #     already wrote it — read either way from disk.
+    #     already wrote it -- read either way from disk. tiny_pr no
+    #     longer bypasses Wave 2; it only shrinks the guide (13b) and
+    #     skips Wave 3's validator (14a).
     tiny_pr = added_lines_under_100(work_dir)
     persist(f"{work_dir}/tiny-pr.txt", tiny_pr)
 
-    if tiny_pr:                                            # 8 · tiny_pr
-        # 8a · tiny-PR fast-path: load the union of all 8 rubrics'
-        #      standards + CLAUDE.md, walk the diff once, tag each
-        #      finding with its rubric, emit a 2-sentence summary
-        #      instead of the guide, skip Wave 3 entirely.
-        load_skill(union_of_specialist_standards(), "CLAUDE.md")
-        findings = one_pass_review()
-        persist(f"{work_dir}/wave2-guide.md", two_sentence_summary())
-        persist(f"{work_dir}/wave3-findings.json", findings)
-        goto_wave4()                                       # 8a → 15a
+    # 8 · Wave 2 resume check: an existing wave2-lens-<name>.json means
+    #     that lens already ran -- review only what's missing.
+    done = {f.stem for f in glob(f"{work_dir}/wave2-lens-*.json")}
+    remaining = [lens for lens in LENSES_8 if lens not in done]
+
+    if remaining:                                           # 9
+        # 9a · Wave 2 setup (once): read common-preamble.md + all 8
+        #      specialists/*.md files in one message; load code-standards
+        #      + CLAUDE.md up front -- every lens cites them.
+        load_skill("common-preamble.md", "specialists/*.md",
+                    "code-standards", "CLAUDE.md")
+        # 10 · one inline pass, sequential -- no subagent dispatch, no
+        #      fan-out. Each lens walks the diff once, tags findings
+        #      scope_tag=<lens>, writes its own file so a mid-pass
+        #      compaction resumes from the next unfinished lens.
+        for lens in remaining:
+            findings = review_one_lens(lens)
+            persist(f"{work_dir}/wave2-lens-{lens}.json", findings)
+
+    # 11 · hard guard: an absent file and an empty array are
+    #      indistinguishable downstream, so count before merging.
+    if count(f"{work_dir}/wave2-lens-*.json") != 8:
+        return abort("expected 8 lens outputs, found fewer")   # 11a
+
+    findings = merge_json(f"{work_dir}/wave2-lens-*.json")      # 12 · jq -s add
+    persist(f"{work_dir}/wave2-findings.json", findings)
+    # dedup is NOT done here -- one pass applying eight lenses over the
+    # same diff can still flag one defect twice under two scope_tags;
+    # Wave 3 (14b) resolves overlaps with the full merged list in hand.
+
+    if mode == "local":                                     # 13
+        pass   # local skips the guide entirely -> Wave 3
+    elif exists(f"{work_dir}/wave2-guide.md"):                # 13a
+        pass   # already written -- resume
+    elif tiny_pr:                                            # 13b
+        persist(f"{work_dir}/wave2-guide.md", two_sentence_summary())   # 13b1
     else:
-        # 9 · resume check: an existing specialist-<name>.json means
-        #     that rubric already ran — dispatch only what's missing.
-        done = {f.stem for f in glob(f"{work_dir}/specialist-*.json")}
-        remaining = [s for s in SPECIALISTS_8 if s not in done]
+        # 13b2 · github only, max 400 words.
+        persist(f"{work_dir}/wave2-guide.md", write_review_guide())
 
-        # 10 · Wave 2 · dispatch every remaining specialist as its own
-        #      review-specialist agent, all in one turn, concurrent.
-        #      Isolated context each — no specialist sees another's
-        #      findings, so dedup can't happen here (moved to 14a).
-        dispatch_concurrent("review-specialist · agent-pinned (opus · high)",
-                             remaining, one_turn=True)
-        # each agent writes $work_dir/specialist-<name>.json
-
-        # 11 · hard guard: an absent file and an empty array are
-        #      indistinguishable downstream, so count before merging.
-        if count(f"{work_dir}/specialist-*.json") != 8:
-            return abort("expected 8 specialist outputs, found fewer")   # 11a
-
-        findings = merge_json(f"{work_dir}/specialist-*.json")           # 12
-        persist(f"{work_dir}/wave2-findings.json", findings)
-
-        if mode == "github":                               # 13
-            if not exists(f"{work_dir}/wave2-guide.md"):   # 13a
-                # 13a1 · github only, max 400 words.
-                persist(f"{work_dir}/wave2-guide.md", write_review_guide())
-        # 13 · local skips the guide entirely
-
-        if not exists(f"{work_dir}/wave3-findings.json"):  # 14
-            # 14a · Wave 3 dedup pre-pass: this is the first step
-            #       holding all 8 arrays at once, so cross-specialist
-            #       overlap gets resolved here, not inside Wave 2.
-            findings = dedup_across_specialists(findings)
-            # 14b · per-finding validation: drop false positives,
-            #       tighten line anchors. Threshold LOW — keep when
-            #       in doubt.
-            findings = validate(findings)
-            persist(f"{work_dir}/wave3-findings.json", f"{work_dir}/wave3-drop-log.txt")
+    if exists(f"{work_dir}/wave3-findings.json"):             # 14
+        pass   # already completed -- resume straight to Wave 4
+    elif tiny_pr:                                             # 14a
+        # 14a1 · tiny_pr skips the validator pass entirely -- at <100
+        #        added lines the change is in context and hallucinations
+        #        are rare, so the per-finding validator costs more than
+        #        it saves. Straight copy-through instead.
+        persist(f"{work_dir}/wave3-findings.json", findings)
+        persist(f"{work_dir}/wave3-drop-log.txt", "")
+    else:
+        # 14b · Wave 3 dedup pre-pass: first step holding all 8 lens
+        #       arrays at once, so cross-lens overlap gets resolved
+        #       here, not inside Wave 2.
+        findings = dedup_across_lenses(findings)
+        # 14c · per-finding validation: drop false positives, tighten
+        #       line anchors. Threshold LOW -- keep when in doubt.
+        findings = validate(findings)
+        persist(f"{work_dir}/wave3-findings.json", f"{work_dir}/wave3-drop-log.txt")
 
     if not exists(f"{work_dir}/wave4-findings.json"):      # 15
         # 15a · Wave 4 · drop every finding anchored outside commentable-lines.txt.
@@ -123,7 +135,7 @@ def code_review_pipeline(arg):
         match mode:                                        # 17
             case "github":
                 # 18 · cap 256 chars / 32 words per line; gap bullets at 80%.
-                #      Measures only — nothing here reflows a comment body.
+                #      Measures only -- nothing here reflows a comment body.
                 clean = run("check-density.sh", "check-bullet-gap.py",
                             on=["wave5-comment-*.md", "wave2-guide.md"])
                 if not clean:
@@ -152,7 +164,7 @@ def code_review_pipeline(arg):
 
             case "local":
                 out_file = write(f"verdict_auto-review_{ts}", to=CWD)   # 17a
-                # 17a1 · measures only — nothing here reflows the verdict file.
+                # 17a1 · measures only -- nothing here reflows the verdict file.
                 clean = run("check-density.sh", "check-bullet-gap.py",
                             on=[out_file])
                 if not clean:
@@ -191,26 +203,29 @@ flowchart TD
   n6c["6c. local: scripts/prep-local-context.sh --<br/>writes 7 artifacts to $work_dir:<br/>diff, changed-files.txt, commit-messages.txt,<br/>commentable-lines.txt, skipped-binary.txt,<br/>skipped-deleted.txt, tiny-pr.txt"]:::hook
   n6d["6d. local: repo-wide static checks --<br/>lint/typecheck/dead-code/circular,<br/>all test tiers, coverage"]:::hook
 
-  n7["7. tiny_pr = added_lines less than 100,<br/>persisted to $work_dir/tiny-pr.txt<br/>(github computes here; local already<br/>wrote it via 6c)"]:::state
+  n7["7. tiny_pr = added_lines less than 100,<br/>persisted to $work_dir/tiny-pr.txt<br/>(github computes here; local already<br/>wrote it via 6c) -- only shrinks the<br/>guide (13b) and skips Wave 3 (14a),<br/>never bypasses Wave 2"]:::state
 
-  n8{"8. tiny_pr?"}
-  n8a["8a. Tiny-PR fast-path -- read common-preamble.md<br/>+ all 8 specialist files, load union of<br/>per-rubric standards + CLAUDE.md, walk the<br/>diff once tagging findings by rubric; skip<br/>guide writer, emit 2-sentence summary to<br/>wave2-guide.md; persist findings to<br/>wave3-findings.json; skip Wave 3 entirely"]
+  n8["8. Wave 2 resume check -- list<br/>$work_dir/wave2-lens-*.json,<br/>compute which of the 8 lenses<br/>still lack an output file"]
 
-  n9{"9. $work_dir/specialist-*.json --<br/>which of the 8 rubrics still lack<br/>an output file?"}
+  n9{"9. Any lenses remaining?"}
+  n9a["9a. Wave 2 setup (once) -- read<br/>common-preamble.md + all 8<br/>specialists/*.md files, load<br/>code-standards + CLAUDE.md up front"]:::skill
+  n10["10. Wave 2: one inline pass, sequential --<br/>no subagent dispatch, no fan-out.<br/>For each remaining lens (of 8: correctness,<br/>corner-cases, testing, security, design,<br/>ai-slop, docs, performance): walk the diff<br/>once, tag findings scope_tag=&lt;lens&gt;,<br/>write wave2-lens-&lt;name&gt;.json"]
 
-  n10["10. Wave 2: dispatch remaining specialists<br/>(of 8 total: correctness, corner-cases,<br/>testing, security, design, ai-slop,<br/>docs, performance) as concurrent<br/>review-specialist agents, one turn --<br/>agent-pinned (opus · high) ∥<br/>each writes specialist-&lt;name&gt;.json"]:::dispatch
-
-  n11{"11. count($work_dir/specialist-*.json)<br/>== 8?"}
-  n11a(["11a. Abort: expected 8 specialist<br/>outputs, found fewer"])
+  n11{"11. count($work_dir/wave2-lens-*.json)<br/>== 8?"}
+  n11a(["11a. Abort: expected 8 lens<br/>outputs, found fewer"])
   n12["12. jq -s 'add' merge into<br/>wave2-findings.json"]:::state
 
   n13{"13. Mode local?"}
   n13a{"13a. $work_dir/wave2-guide.md<br/>exists? (github only)"}
-  n13a1["13a1. Write Review Guide<br/>(github only, max 400 words)<br/>persist wave2-guide.md"]
+  n13b{"13b. tiny_pr? (github, guide<br/>not yet written)"}
+  n13b1["13b1. Emit 2-sentence change summary<br/>persist wave2-guide.md"]
+  n13b2["13b2. Write Review Guide<br/>(github only, max 400 words)<br/>persist wave2-guide.md"]
 
   n14{"14. $work_dir/wave3-findings.json<br/>exists?"}
-  n14a["14a. Wave 3: dedup pre-pass across all<br/>8 specialist arrays -- same path,<br/>overlapping lines, same underlying<br/>defect = duplicate; keep highest<br/>severity/confidence; log each drop"]
-  n14b["14b. Wave 3: per-finding validation --<br/>false-positive check, then line-range<br/>check; threshold LOW -- keep when in doubt<br/>persist wave3-findings.json + wave3-drop-log.txt"]
+  n14a{"14a. tiny_pr? (not yet<br/>completed)"}
+  n14a1["14a1. Copy wave2-findings.json to<br/>wave3-findings.json verbatim,<br/>write empty wave3-drop-log.txt --<br/>skip the validator entirely"]
+  n14b["14b. Wave 3: dedup pre-pass across all<br/>8 lens arrays -- same path,<br/>overlapping lines, same underlying<br/>defect = duplicate; keep highest<br/>severity/confidence; log each drop"]
+  n14c["14c. Wave 3: per-finding validation --<br/>false-positive check, then line-range<br/>check; threshold LOW -- keep when in doubt<br/>persist wave3-findings.json + wave3-drop-log.txt"]
 
   n15{"15. $work_dir/wave4-findings.json<br/>exists?"}
   n15a["15a. Wave 4: filter-off-diff-findings.sh<br/>(anchor outside commentable-lines.txt)<br/>persist wave4-findings.json + wave4-drop-log.txt"]:::hook
@@ -268,27 +283,32 @@ flowchart TD
   n6d --> n7
 
   n7 --> n8
-  n8 -->|"yes"| n8a
-  n8 -->|"no"| n9
-  n8a --> n15a
-
-  n9 -->|"some rubrics missing an output file"| n10
-  n9 -->|"all 8 already done (resumed)"| n10
+  n8 --> n9
+  n9 -->|"yes -- some lenses remaining"| n9a
+  n9a --> n10
   n10 --> n11
+  n9 -->|"no -- all 8 already done (resumed)"| n11
+
   n11 -->|"count != 8"| n11a
   n11 -->|"count == 8"| n12
   n12 --> n13
 
   n13 -->|"yes, skip guide"| n14
   n13 -->|"no, github"| n13a
-  n13a -->|"yes -- load persisted guide"| n14
-  n13a -->|"no"| n13a1
-  n13a1 --> n14
+  n13a -->|"yes -- already written, resume"| n14
+  n13a -->|"no"| n13b
+  n13b -->|"yes"| n13b1
+  n13b -->|"no"| n13b2
+  n13b1 --> n14
+  n13b2 --> n14
 
-  n14 -->|"yes -- skip Wave 3"| n15
+  n14 -->|"yes -- already completed, resume"| n15
   n14 -->|"no"| n14a
-  n14a --> n14b
-  n14b --> n15
+  n14a -->|"yes"| n14a1
+  n14a -->|"no"| n14b
+  n14a1 --> n15
+  n14b --> n14c
+  n14c --> n15
 
   n15 -->|"yes -- skip Wave 4"| n16
   n15 -->|"no"| n15a

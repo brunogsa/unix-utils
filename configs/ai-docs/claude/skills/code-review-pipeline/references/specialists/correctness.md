@@ -13,7 +13,7 @@ do what the PR description says it should? Where it diverges, flag.
 
 You're looking for things that are demonstrably wrong — not things that could be
 wrong under some input. "This might fail if X" is not a correctness finding;
-corner-cases-and-side-effects specialist covers that.
+the corner-cases-and-side-effects lens covers that.
 
 ## Signals you should flag
 - Typo'd comparison or assignment (`===` vs `==`, `=` in a condition).
@@ -25,7 +25,7 @@ corner-cases-and-side-effects specialist covers that.
 - Missing return causing fall-through to default.
 - State mutated in the wrong order, breaking the invariant the function claims.
 
-## Signals outside your scope (leave to other specialists)
+## Signals outside your scope (leave to another lens)
 - Naming, style, design → code-design-clarity.
 - "Could fail under edge input" or "swallows the error silently" →
   corner-cases-and-side-effects.

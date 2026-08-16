@@ -9,14 +9,14 @@ user-invocable: false
 You orchestrate a 7-wave code review pipeline (Waves 0-6) shared by both
 modes — only Waves 1 and 5 differ fully.
 
-**Architecture.** The orchestrator runs in one session — the caller's own or an isolated subagent, per "How callers dispatch" below — and every wave but Wave 2 runs inside it.
+**Architecture.** The orchestrator runs in one session — the caller's own or an isolated subagent, per "How callers dispatch" below — and every wave, including Wave 2, runs inside it.
 
-Wave 2's isolated fan-out — the context-cost telemetry behind it and why dedup moved to Wave 3 — is explained in [`references/wave2-architecture-rationale.md`](./references/wave2-architecture-rationale.md); Wave 2 below states what to do, not why.
+Wave 2 used to fan out into eight concurrent `review-specialist` agents, one per rubric, because a serial single-context pass measured ~100k resident tokens median / 157k p90. This skill now accepts that resident-context cost instead of paying for eight separate base contexts — the fan-out traded token cost for context growth, and token cost is the constraint this rewrite optimizes for.
 
 **Compaction resilience.** Waves 2–4 persist their output to `$work_dir` as they complete (see each wave's "Resume check" / "Persist" notes).
 After a mid-pipeline compaction, re-read this SKILL.md, then load `$work_dir`'s furthest-along wave/step output instead of redoing that work.
 
-Specialist prompts and validator rubric live in `references/`; bash glue in `scripts/`.
+Rubric prompts and validator rubric live in `references/`; bash glue in `scripts/`.
 
 ## How callers dispatch
 
@@ -66,11 +66,11 @@ The sonnet pin covers the github isolated path — an accepted cost/depth tradeo
 
 Invoke that standard via Skill, never Read — CLAUDE.md's Skill-tool-over-Read rule (meta-work only).
 
-You no longer load `code-standards`, `test-standards`, the specialist rubrics, or the changed files' `CLAUDE.md` — each Wave 2 specialist loads its own, scoped to its rubric.
+You no longer load `code-standards`, `test-standards`, the rubric files, or the changed files' `CLAUDE.md` here — Wave 2 loads them itself, once, when it runs.
 
 Carrying all of them here meant every later wave re-read all of them on every turn, for material only Wave 2 ever used.
 
-Specialists never hit GitHub or any external system — pre-built Wave 1 context only, keeping review reproducible and idempotent.
+Wave 2 never hits GitHub or any external system — pre-built Wave 1 context only, keeping review reproducible and idempotent.
 
 ---
 
@@ -86,31 +86,27 @@ Deterministic check; no subagent needed. Only aborts on hard no-ops.
 
 ## Wave 1 — Context prep
 
-Assemble everything specialists need on disk from GitHub PR or local repo.
-Implementation: github & local modes, tiny-PR fast-path — see [`references/wave1-context-prep.md`](./references/wave1-context-prep.md).
+Assemble everything Wave 2 needs on disk from GitHub PR or local repo.
+Implementation: github & local modes, tiny-PR flag — see [`references/wave1-context-prep.md`](./references/wave1-context-prep.md).
 
 This is where the `tiny_pr` flag (`added_lines < 100`) gets set.
 
 ---
 
-## Wave 2 — Specialist review + guide writer (parallel fan-out)
+## Wave 2 — Review + guide writer (single pass)
 
-**If `tiny_pr=true`, use the fast-path at the end of this section instead
-of the fan-out below.** If a mid-pipeline compaction dropped
-`tiny_pr` from memory, the Resume check below recovers it from disk.
+One inline pass covers all eight rubrics — no subagent dispatch, no fan-out.
 
-Dispatch all eight specialists in **one turn**, as eight `agent(subAgent=review-specialist, title=Review: <name>)` calls.
+- **Resume check** (before starting): list `$work_dir/wave2-lens-*.json` and review only the rubrics with no file there yet.
 
-Each loads its own preamble, rubric, and standards and writes its own JSON array — you load none of them, and you never see a finding until the merge.
-
-- **Resume check** (before dispatching): list `$work_dir/specialist-*.json` and dispatch only the specialists with no file there.
-
-  - A finished specialist's array is already on disk. Re-running it spends a second opus context to reproduce a file you can just read.
+  - A finished lens's array is already on disk. Reviewing it again spends tokens to reproduce a file you can just read.
 
   - Also read `$work_dir/tiny-pr.txt`, if present, and use it as `tiny_pr` instead of the in-memory value.
-  - Wave 1 persists it there so a mid-pipeline compaction can't lose which path a resumed run takes.
+  - Wave 1 persists it there so a mid-pipeline compaction can't lose which downstream path (guide length, whether Wave 3 runs) a resumed run takes.
 
-**The eight rubrics** — order no longer matters, since they run concurrently:
+**Setup** (once, before the first remaining lens): read `references/common-preamble.md` and all 8 files under `references/specialists/` in one message. Invoke `code-standards` up front — every lens cites it — plus any `CLAUDE.md` above a changed file; `common-preamble.md`'s two lazy triggers still govern `test-standards` and `doc-standards`.
+
+**The eight rubric lenses** — apply in this order, `review-principles.md`'s priority order, most critical first:
 
 1. `correctness`
 2. `corner-cases-and-side-effects`
@@ -121,61 +117,35 @@ Each loads its own preamble, rubric, and standards and writes its own JSON array
 7. `docs-comments-logging`
 8. `performance`
 
-**Each dispatch's prompt carries exactly these** — `review-specialist.md` states everything else:
+For each remaining lens: walk the diff once through that lens only, apply the preamble's confidence gate and don't-flag list, tag every finding `scope_tag: <lens name>`, and write the array to `$work_dir/wave2-lens-<name>.json` — one file per lens, so a mid-Wave-2 compaction resumes from the next unfinished lens instead of redoing the whole pass.
 
-- **Rubric name**: the list entry, matching `references/specialists/<name>.md`.
-- **Work dir**: `$work_dir`.
-- **Repo root**: `{repo_root}`.
-- **Mode**: `github` or `local` — it decides body language and whether permalinks apply.
-- **`{pr_context}`**: the resolved PR title/body plus optional Jira snippet, or the local spec and plan paths.
-- **Output path**: `$work_dir/specialist-<name>.json`.
-
-**Merge, once every dispatch has returned:**
+**Merge, once every lens has a file:**
 
 ```bash
-n=$(ls "$work_dir"/specialist-*.json 2>/dev/null | wc -l | tr -d ' ')
-[ "$n" -eq 8 ] || { echo "wave2: expected 8 specialist outputs, found $n"; exit 1; }
-jq -s 'add' "$work_dir"/specialist-*.json > "$work_dir/wave2-findings.json"
+n=$(ls "$work_dir"/wave2-lens-*.json 2>/dev/null | wc -l | tr -d ' ')
+[ "$n" -eq 8 ] || { echo "wave2: expected 8 lens outputs, found $n"; exit 1; }
+jq -s 'add' "$work_dir"/wave2-lens-*.json > "$work_dir/wave2-findings.json"
 ```
 
 The count guard is the point of that block: an absent file and an empty array are indistinguishable downstream.
 
-Without it, a specialist that died silently reads as a rubric that found nothing.
+Without it, a lens skipped by mistake reads as a rubric that found nothing.
 
-Dedup is **not** done here. Eight isolated specialists cannot see each other, so overlapping findings are expected and Wave 3 resolves them with all eight arrays in hand.
+Dedup is **not** done here. One pass applying eight lenses over the same diff can still flag one defect twice under two `scope_tag`s, so Wave 3 resolves overlaps with the full merged list in hand.
 
-**Guide writer (after all 8 specialists):**
+**Guide writer (after the merge):**
 
 - **Skip entirely when `Mode: local`** — go straight to Wave 3; local reports drop the guide (rationale in `references/local-review-template.md`).
 
 - **Resume check** (github mode only): if `$work_dir/wave2-guide.md` already exists, load it and skip straight to Wave 3.
-- Read `references/guide-writer.md`.
-- Produce the Review Guide Markdown (business context, decisions, where to
+- **If `tiny_pr=true`**: skip `references/guide-writer.md`; emit a 2-sentence change summary instead. At <100 added lines the change speaks for itself.
+- **Else**: read `references/guide-writer.md`. Produce the Review Guide Markdown (business context, decisions, where to
   focus, incidental changes). 400 words max.
-- **Persist**: write the guide to `$work_dir/wave2-guide.md`.
+- **Persist**: write the guide (or 2-sentence summary) to `$work_dir/wave2-guide.md`.
 
 Resolve placeholders in each reference file against Wave 1 paths and values.
 
-### Tiny-PR fast-path body
-
-When `tiny_pr=true`, replace the per-specialist loop with:
-
-- Read `common-preamble.md` and all 8 specialist files once — combined prompt fits at <100 added lines.
-- Invoke the union of `common-preamble.md`'s per-rubric standards table, plus any `CLAUDE.md` above a changed file.
-
-  - Startup skips those because only Wave 2 needs them, and on this path you *are* Wave 2.
-  - You carry all eight rubrics at once here, so no single row of that table covers you.
-
-- Walk the diff once. Flag any issue matching a specialist's rubric; tag `scope_tag` with that specialist.
-- Skip the guide writer; emit a 2-sentence change summary instead.
-- **Persist**: write the summary to `$work_dir/wave2-guide.md` — same filename the full guide uses, so Wave 5 needs no tiny-PR-specific branching.
-
-- **Persist the flat findings list to `$work_dir/wave3-findings.json`** — the filename Wave 4 reads, written here because Wave 3 never runs to write it.
-  - Wave 4's script exits 1 on an input it cannot read, so a fast-path run that skips this write hard-fails there rather than reviewing.
-
-- **Skip Wave 3 entirely.** At <100 added lines the change is in context; hallucinations are rare. Findings go straight to Wave 4.
-
-Artifact at the end of Wave 2: **one flat findings list + one Review Guide** (or 2-sentence summary on the fast-path).
+Artifact at the end of Wave 2: **one flat findings list + one Review Guide** (or 2-sentence summary when `tiny_pr=true`).
 
 ---
 
@@ -186,9 +156,11 @@ hallucinations **and** tightens line anchors, so you re-load each file at most o
 
 **Resume check**: if `$work_dir/wave3-findings.json` already exists, load it (and `$work_dir/wave3-drop-log.txt`) and skip straight to Wave 4 — this wave already completed.
 
+**If `tiny_pr=true`**: copy `$work_dir/wave2-findings.json` to `$work_dir/wave3-findings.json` verbatim, write an empty `$work_dir/wave3-drop-log.txt`, and go to Wave 4 — skip everything below. At <100 added lines the change is in context; hallucinations are rare, and the per-finding validator adds more cost than it saves.
+
 **Read `references/validator.md` once, then apply it to the flat list.**
 
-It authors the cross-specialist dedup pre-pass, both per-finding checks — false positive, then line range — the conservative-keep threshold, and the hard rules, so nothing restates them here.
+It authors the cross-lens dedup pre-pass, both per-finding checks — false positive, then line range — the conservative-keep threshold, and the hard rules, so nothing restates them here.
 
 Artifact: a reduced, range-tightened findings list + a drop log. **Persist**: write both to `$work_dir/wave3-findings.json` and `$work_dir/wave3-drop-log.txt` before moving to Wave 4.
 

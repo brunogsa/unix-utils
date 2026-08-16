@@ -122,7 +122,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 
    Este comentário acompanha a [revisão automática neste PR](<pr-files-url>). Use ele pra localizar os hunks que valem mais atenção antes de mergulhar no diff inteiro.
 
-   <guide content from references/guide-writer.md — sections "Onde focar" + "Mudanças incidentais" only; on tiny_pr=true this is just the 2-sentence summary from Wave 2's fast-path>
+   <guide content from references/guide-writer.md — sections "Onde focar" + "Mudanças incidentais" only; on tiny_pr=true this is just Wave 2's 2-sentence summary in place of the full guide>
 
    </details>
 

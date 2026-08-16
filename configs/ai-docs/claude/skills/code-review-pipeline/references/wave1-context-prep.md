@@ -1,12 +1,12 @@
 # Wave 1 — Context Prep
 
-Purpose: assemble everything every specialist will need on disk, so specialists run from pre-built context (no network calls).
+Purpose: assemble everything Wave 2 will need on disk, so it runs from pre-built context (no network calls).
 
 **Work dir**:
 - github: `/tmp/pr-review-<n>/`; create fresh (`rm -rf && mkdir -p`).
 - local: `$(mktemp -d /tmp/auto-review.XXXXXX)` for scratch; the review lands in a timestamped `./verdict_auto-review_<timestamp>` file in CWD (`out_base` set below; always `.md`, per the html-artifacts Gate 1 note in `auto-review/SKILL.md`).
 
-**Specialists receive the context listed in `references/common-preamble.md#Context you have`** — ensure Wave 1 produces all of it on disk. Commit messages are fetched in both modes; only `{pr_context}` differs:
+**Wave 2 reads the context listed in `references/common-preamble.md#Context you have`** — ensure Wave 1 produces all of it on disk. Commit messages are fetched in both modes; only `{pr_context}` differs:
 
 - github: PR title + body + optional Jira snippet.
 - local: the resolved spec and plan (if present).
@@ -21,7 +21,7 @@ repo="owner/name"
 work_dir="/tmp/pr-review-${pr_number}"
 
 # gh pr diff has no context-width flag, so github mode gets 3-line hunks (vs
-# local's -U20); specialists read the on-disk clone below for deeper context.
+# local's -U20); Wave 2 reads the on-disk clone below for deeper context.
 gh pr diff "$pr_number" --repo "$repo" > "$work_dir/pr.diff"
 gh pr diff  "$pr_number" --repo "$repo" --name-only > "$work_dir/changed-files.txt"
 gh pr view  "$pr_number" --repo "$repo" --json title,body,headRefOid,baseRefName,headRefName > "$work_dir/pr.json"
@@ -50,7 +50,7 @@ Teardown: work dir stays in `/tmp` for macOS's periodic cleanup. On failure, pri
 
 ## local mode
 
-Repo root for specialists is the user's CWD; the work dir is scratch for diff/context files.
+Repo root for Wave 2 is the user's CWD; the work dir is scratch for diff/context files.
 
 `base_ref` is supplied by the caller — `auto-review`'s resolved `<BASE_REF>`, or `/implement`'s `BATCH_BASE_SHA` — and may be a branch name, a commit SHA, or `HEAD~N`.
 
@@ -68,11 +68,11 @@ bash ~/.claude/skills/code-review-pipeline/scripts/prep-local-context.sh \
 
 ### Repo-wide static checks + tests + coverage (local mode)
 
-After the diff files are on disk, gather repo-wide signal (lint, typecheck, dead-code, circular, all test tiers, coverage) into `$work_dir/` for Wave 2 specialists to read alongside the diff.
+After the diff files are on disk, gather repo-wide signal (lint, typecheck, dead-code, circular, all test tiers, coverage) into `$work_dir/` for Wave 2 to read alongside the diff.
 
 Full discovery + outputs table + consumption rules live in [`wave1-repo-wide-checks.md`](wave1-repo-wide-checks.md). Load on demand. Local mode only today.
 
-## Tiny-PR fast-path
+## Tiny-PR flag
 
 Both modes count added lines once the diff is on disk. Local mode's `prep-local-context.sh` already did this and wrote the result to `$work_dir/tiny-pr.txt` (see above).
 
@@ -84,12 +84,12 @@ tiny_pr=false; [ "$added_lines" -lt 100 ] && tiny_pr=true
 echo "$tiny_pr" > "$work_dir/tiny-pr.txt"
 ```
 
-If `added_lines < 100`, `tiny_pr=true`. Waves 2 and 3 collapse into a single combined pass (see Wave 2 below).
+If `added_lines < 100`, `tiny_pr=true`: Wave 2's guide step emits a 2-sentence summary instead of the full Review Guide, and Wave 3 is skipped entirely (see Wave 2 and Wave 3 below).
 
-At this scale the whole diff fits comfortably in context, serial expansion buys little, and the per-finding validator adds more cost than it saves.
+At this scale the whole diff fits comfortably in context, the full guide narrates little a 2-sentence summary doesn't already say, and the per-finding validator adds more cost than it saves.
 
 Otherwise leave `tiny_pr=false` and run the full pipeline.
 
 **Persist it to `$work_dir/tiny-pr.txt`** so Wave 2 can recover the flag from disk instead of trusting working memory after a mid-pipeline compaction.
 
-Without it, a resumed tiny PR reruns through the full 8-specialist loop the fast-path exists to skip.
+Without it, a resumed tiny PR reruns Wave 3's full validator pass and writes the long-form guide the flag exists to skip.

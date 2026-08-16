@@ -8,11 +8,11 @@ finding, not twice.
 
 ---
 
-## Pre-pass — dedup across specialists
+## Pre-pass — dedup across lenses
 
 Run this once over the whole list, before any per-finding check. It reads no files, so doing it first spares you from validating a finding you are about to drop.
 
-Wave 2's eight specialists run concurrently and cannot see each other, so two of them raising the same defect is expected, not a bug. You are the first step that can tell.
+Wave 2 walks the diff once per lens, eight lenses in one pass. Two lenses landing on the same defect from different angles is expected, not a bug — you are the first step that holds the full merged list and can tell.
 
 Two findings are duplicates when **all three** hold:
 
@@ -20,7 +20,7 @@ Two findings are duplicates when **all three** hold:
 - `start_line..line` ranges overlap by at least one line.
 - The summary line (the second line of `body`) describes the same underlying defect — not merely the same symptom or the same function.
 
-Different `scope_tag` values do **not** make them distinct. Two specialists reaching one defect from different rubrics is the exact case this pre-pass exists for.
+Different `scope_tag` values do **not** make them distinct. Two lenses reaching one defect from different rubrics is the exact case this pre-pass exists for.
 
 Distinct defects that happen to share a line both stay. A null check and a unit-conversion bug on the same line are two findings, not one.
 
@@ -32,9 +32,9 @@ Keep exactly one of each duplicate set, by this order:
 
 Record each dropped duplicate: `path:line — <first 80 chars of body> — duplicate of <kept scope_tag>`.
 
-Log them even though they are routine. The drop log is the only place the cost of running the specialists in isolation becomes visible.
+Log them even though they are routine. The drop log is where a rubric-boundary problem in Wave 2's rubric files becomes visible.
 
-Wave 6 surfaces that log, so a rising duplicate count is where you would notice the isolation starting to cost more than it saves.
+Wave 6 surfaces that log, so a rising duplicate count is where you would notice two rubrics' scopes overlapping more than they should.
 
 ---
 
@@ -50,11 +50,11 @@ Ask yourself: **is the claim visibly present in the code?**
 **Drop** ONLY when you have clear, specific evidence the claim doesn't hold:
 
 - The cited code literally doesn't exist at any nearby line.
-- The code already does what the specialist asked for (the suggestion is a no-op).
+- The code already does what the finding asked for (the suggestion is a no-op).
 - The issue depends on a behavior the file explicitly prevents (e.g., a guard
   clause immediately above the flagged block).
 
-**Keep** in every other case — including when uncertain. The specialist had
+**Keep** in every other case — including when uncertain. Wave 2's lens had
 the same context you have. Dropping a real finding is worse than keeping noise.
 
 When you drop, record one sentence: `path:line — <first 80 chars of body> — dropped because <reason>`.
@@ -83,7 +83,7 @@ misleads the reader about where the issue is.
 
 ## Hard rules
 
-- Don't touch severity, body, or scope_tag. The specialist owns those.
+- Don't touch severity, body, or scope_tag. Wave 2's lens owns those.
 - Don't invent new findings; validate the ones you have.
 - Don't widen/tighten findings that are already anchored correctly.
 - Err toward KEPT throughout. Calibration happens by reading the drop log in
