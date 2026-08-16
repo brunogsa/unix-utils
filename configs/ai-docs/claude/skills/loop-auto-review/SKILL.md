@@ -1,14 +1,14 @@
 ---
 name: loop-auto-review
-description: "Loop the deep-reviewer tail pair, auto-apply every finding (RED-GREEN-verify, commit per fix), repeating until both tails come back dry. Trigger: /loop-auto-review only — never auto-invoked from conversation."
+description: "Loop the code-reviewer tail pair, auto-apply every finding (RED-GREEN-verify, commit per fix), repeating until both tails come back dry. Trigger: /loop-auto-review only — never auto-invoked from conversation."
 disable-model-invocation: true
 ---
 
 # Loop Auto-Review
 
-Repeatedly runs the shared `deep-reviewer` tail pair over a fixed base ref, auto-applies every finding through the existing single-finding-apply mechanic, and loops until both tails report nothing left to fix.
+Repeatedly runs the shared `code-reviewer` tail pair over a fixed base ref, auto-applies every finding through the existing single-finding-apply mechanic, and loops until both tails report nothing left to fix.
 
-Invoking this skill **by name** is the opt-in for unattended auto-apply, per [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md).
+Invoking this skill **by name** is the opt-in for unattended auto-apply, per [`code-review-pipeline/references/code-reviewer-tail-pair.md`](../code-review-pipeline/references/code-reviewer-tail-pair.md).
 
 That repeat-and-auto-apply behavior exists nowhere else and only fires behind a direct `/loop-auto-review` call.
 
@@ -35,7 +35,7 @@ Hardcoded safety belt: **5 rounds max** — not a config knob, just a guard agai
 
 Each round:
 
-1. Dispatch the shared tail pair — [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md) — with `<BASE_REF>` and `<SPEC_PLAN_PATHS>`.
+1. Dispatch the shared tail pair — [`code-review-pipeline/references/code-reviewer-tail-pair.md`](../code-review-pipeline/references/code-reviewer-tail-pair.md) — with `<BASE_REF>` and `<SPEC_PLAN_PATHS>`.
 2. Read both verdict files. Findings already annotated `APPLIED`/`SKIPPED` from a prior round carry forward — never re-attempt them.
 3. **Dry check**: if every finding in both reports is already annotated (or both reports have none) → stop, report success.
 4. Otherwise, for each un-annotated finding, dispatch the fix via the reference's "Applying a single finding" mechanic.
