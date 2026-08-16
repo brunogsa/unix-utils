@@ -2,7 +2,7 @@
   "commit_repos": {
     "brag": 3,
     "workspace/code/team-engineering/arco2-error-monitor": 20,
-    "workspace/code/team-engineering/arco2-integrator": 23,
+    "workspace/code/team-engineering/arco2-integrator": 31,
     "workspace/code/team-engineering/technical-refining": 14
   },
   "days": {
@@ -33,12 +33,12 @@
     },
     "2026-07-13": {
       "merged_prs": 1,
-      "pr_work_minutes": 714.2,
+      "pr_work_minutes": 0.0,
       "shipped_commits": 1
     },
     "2026-07-16": {
       "merged_prs": 1,
-      "pr_work_minutes": 2310.5,
+      "pr_work_minutes": 317.4,
       "shipped_commits": 1
     },
     "2026-07-17": {
@@ -100,6 +100,21 @@
       "merged_prs": 1,
       "pr_work_minutes": 152.9,
       "shipped_commits": 0
+    },
+    "2026-08-11": {
+      "merged_prs": 2,
+      "pr_work_minutes": 198.4,
+      "shipped_commits": 2
+    },
+    "2026-08-12": {
+      "merged_prs": 2,
+      "pr_work_minutes": 353.8,
+      "shipped_commits": 2
+    },
+    "2026-08-14": {
+      "merged_prs": 4,
+      "pr_work_minutes": 559.6,
+      "shipped_commits": 4
     }
   },
   "excluded_personal_env": [
@@ -111,7 +126,7 @@
   ],
   "pr_repos": {
     "arco-cv/arco2-error-monitor": 3,
-    "arco-cv/arco2-integrator": 23,
+    "arco-cv/arco2-integrator": 31,
     "arco-cv/b2b-store-front": 1
   },
   "pull_requests": [
@@ -147,23 +162,23 @@
     },
     {
       "branch": "design/lld-sync-agreements-sge",
-      "lead_hours": 121.7,
+      "lead_hours": 0.0,
       "merged_day": "2026-07-13",
       "number": 2191,
-      "records": 10585,
+      "records": 0,
       "repo": "arco-cv/arco2-integrator",
       "title": "[Sync Acordos PIC 1.9 > ERPs 1.0] LLD Tradutor SGE",
-      "work_minutes": 714.2
+      "work_minutes": 0.0
     },
     {
       "branch": "feat/itgd-2947_sge-translator",
-      "lead_hours": 140.2,
+      "lead_hours": 6.6,
       "merged_day": "2026-07-16",
       "number": 2212,
-      "records": 34486,
+      "records": 4404,
       "repo": "arco-cv/arco2-integrator",
       "title": "Tradutor SGE para sync de acordos PIC",
-      "work_minutes": 2310.5
+      "work_minutes": 317.4
     },
     {
       "branch": "fix/itgd-3288",
@@ -384,21 +399,101 @@
       "repo": "arco-cv/arco2-error-monitor",
       "title": "test(frontend): add harness de e2e com Playwright para o dashboard",
       "work_minutes": 152.9
+    },
+    {
+      "branch": "brunoagostini/cdpi-84-foundational-tabel",
+      "lead_hours": 117.0,
+      "merged_day": "2026-08-11",
+      "number": 2352,
+      "records": 1265,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "\ud83d\udfe2 [CDPI-84] feat: provisiona tabela de cooldown para controle de vaz\u00e3o do reprocessamento",
+      "work_minutes": 79.2
+    },
+    {
+      "branch": "brunoagostini/cdpi-89-foundational-contr",
+      "lead_hours": 4.5,
+      "merged_day": "2026-08-11",
+      "number": 2358,
+      "records": 1887,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "\ud83d\udfe2 [CDPI-89] feat: controle de vaz\u00e3o do reprocessamento e rota provis\u00f3ria no Integrador",
+      "work_minutes": 119.2
+    },
+    {
+      "branch": "chore/add-core-typecheck-script",
+      "lead_hours": 21.8,
+      "merged_day": "2026-08-12",
+      "number": 2361,
+      "records": 478,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "\ud83d\udfe2 chore: add standalone typecheck script for core",
+      "work_minutes": 37.9
+    },
+    {
+      "branch": "fix/ITGD-3471/detalhes-contrato-suplementar",
+      "lead_hours": 25.3,
+      "merged_day": "2026-08-12",
+      "number": 2362,
+      "records": 3164,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "\ud83d\udfe2 fix(ITGD-3471): include suplementar product SKU in DetalhesContrato",
+      "work_minutes": 315.9
+    },
+    {
+      "branch": "feat/itgd-3409_prepara",
+      "lead_hours": 74.2,
+      "merged_day": "2026-08-14",
+      "number": 2376,
+      "records": 2943,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "\ud83d\udfe2 feat(pic-client): add PREPARA_INTENSIVO to PicSerie enum (ITGD-3409)",
+      "work_minutes": 270.6
+    },
+    {
+      "branch": "feat/itgd-3409_prepara-t2",
+      "lead_hours": 70.8,
+      "merged_day": "2026-08-14",
+      "number": 2377,
+      "records": 794,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "\ud83d\udfe2 [ITGD-3409] feat(docs): accept nivel PV / serie PREPARA INTENSIVO in Sync de Acordos OpenAPI",
+      "work_minutes": 64.8
+    },
+    {
+      "branch": "feat/itgd-3409_prepara-t3",
+      "lead_hours": 70.7,
+      "merged_day": "2026-08-14",
+      "number": 2380,
+      "records": 390,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "\ud83d\udfe2 feat(sync-pic-agreements): map PREPARA_INTENSIVO to Ensino M\u00e9dio 3 in SGE de/para (ITGD-3409)",
+      "work_minutes": 43.9
+    },
+    {
+      "branch": "feat/itgd-3409_prepara-t4",
+      "lead_hours": 70.5,
+      "merged_day": "2026-08-14",
+      "number": 2381,
+      "records": 2866,
+      "repo": "arco-cv/arco2-integrator",
+      "title": "\ud83d\udfe2 Map PREPARA_INTENSIVO to Ensino Medio 3 in Oracle EBS series de/para",
+      "work_minutes": 180.3
     }
   ],
   "warnings": [
     "arco-cv/b2b-store-front: 1 merged PR(s) but no shipped commits \u2014 last fetched 2026-06-03",
-    "4 of 27 merged PR(s) have no transcript records on their branch \u2014 transcripts aged out, so they are excluded from work time rather than read as zero"
+    "5 of 35 merged PR(s) have no transcript records on their branch \u2014 transcripts aged out, so they are excluded from work time rather than read as zero"
   ],
   "window": {
     "since": "2026-06-14",
-    "until": "2026-08-08"
+    "until": "2026-08-15"
   },
   "work_time": {
-    "attributed_prs": 23,
-    "hours_per_merged_pr": 6.54,
+    "attributed_prs": 30,
+    "hours_per_merged_pr": 4.13,
     "idle_cap_minutes": 30,
-    "unattributed_prs": 4,
-    "work_hours": 150.4
+    "unattributed_prs": 5,
+    "work_hours": 123.9
   }
 }
