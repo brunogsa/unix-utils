@@ -35,15 +35,9 @@ Rubric prompts and validator rubric live in `references/`; bash glue in `scripts
 
 **Inline — `Mode: github` without `--isolate`:** Read this SKILL.md and walk every wave (0 → 6) yourself, treating the resolved inputs as the "Parse the input header" step below.
 
-This path also owns the one TaskList write the pipeline makes: Wave 5 files its density `[Scout]` entries here, where an isolated run can only report them upward.
-
-See [`wave5-emit-github.md`](./references/wave5-emit-github.md) step 2.
-
 **Isolated — `Mode: local`, or `--isolate` passed:** Spawn one `agent(subAgent=general-purpose, title=Run code-review pipeline, model=sonnet)`, unless the caller pins its own wrapper — `/auto-review` does.
 
 Put the resolved inputs in its prompt body and tell it to read this SKILL.md and orchestrate from there; the user sees only its final summary.
-
-Whatever Wave 5's doc-standards check flagged comes back in that summary's doc-standards-flags block, and this calling session files the `[Scout]` each offending file earns.
 
 The sonnet pin covers the github isolated path — an accepted cost/depth tradeoff.
 
@@ -62,9 +56,6 @@ The sonnet pin covers the github isolated path — an accepted cost/depth tradeo
 **Load lazily, by wave; keep loaded after.** They ground your own validation and emit decisions:
 
 1. Read `~/.claude/skills/code-review-pipeline/references/review-principles.md` + `review-checklists.md` (Wave 0+)
-2. Invoke `doc-standards` via the Skill tool (Wave 5's density check)
-
-Invoke that standard via Skill, never Read — CLAUDE.md's Skill-tool-over-Read rule (meta-work only).
 
 You no longer load `code-standards`, `test-standards`, the rubric files, or the changed files' `CLAUDE.md` here — Wave 2 loads them itself, once, when it runs.
 

@@ -8,7 +8,7 @@
       "mode": "github",
       "prompt": "/pr-review <SMALL_PR_URL>",
       "setup": "Pick or craft a small open PR (≤5 files, ≤100 lines changed) with at least one real bug (e.g., off-by-one, missing await, or a subjective style issue). Prefer a throwaway repo so the pending review can be deleted without noise.",
-      "expected_output": "A PENDING review appears in the GitHub UI. Body contains the Review Guide (Contexto de negócio, Decisões, Onde focar, Mudanças incidentais — sections present only when they add value). Inline comments anchor on the right lines and carry the '— gerado por IA, revisado pelo usuário' signature footer, and every comment body passes the doc-standards density check. Terminal summary prints per-severity finding counts, the dropped-findings list, and skipped files.",
+      "expected_output": "A PENDING review appears in the GitHub UI. Body contains the Review Guide (Contexto de negócio, Decisões, Onde focar, Mudanças incidentais — sections present only when they add value). Inline comments anchor on the right lines and carry the '— gerado por IA, revisado pelo usuário' signature footer. Terminal summary prints per-severity finding counts, the dropped-findings list, and skipped files.",
       "assertions": [],
       "files": []
     },
