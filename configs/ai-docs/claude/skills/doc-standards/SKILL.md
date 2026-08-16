@@ -65,21 +65,6 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 
 ### Comment line formatting
 
-- [Instruction] **CRITICAL: One idea per comment-line** — split multi-clause lines at the next punctuation boundary (`,`, `.`, `;`) into separate lines or sub-bullets.
-  - [Why] A single-line comment scans as one chunk; comma-stacked clauses force re-parsing before the reader gets the idea.
-
-- [Instruction] Put a blank comment line between distinct comment paragraphs, or after a phrase heavy or important enough to deserve visual isolation.
-  - [Why] Without the gap, separate thoughts blur into one block instead of giving the eye a stopping point.
-
-- [Instruction] Cap every comment-touched physical line — standalone or trailing code — at 64 chars total (`WIDTH`).
-  - [Why] A narrow fixed width keeps comments scannable in diff panes and side-by-side review.
-
-- [Instruction] Cap a standalone-comment paragraph (consecutive full-comment lines) at 4 lines before a blank comment line breaks it up (`PARAGRAPH`).
-  - [Why] Same one-stopping-point-per-thought as the blank-line rule, made checkable at a reader's ~4-line limit.
-
-- [Instruction] **CRITICAL: A paragraph break may only land where the preceding line ends a sentence or clause** (`.`/`;`, or `:` introducing a bullet list) — never mid-sentence (`SENTENCE-BREAK`).
-  - [Why] A line-count break can split a clause from its continuation, forcing the reader to rejoin severed fragments.
-
 - [Instruction] Delegate every comment-format run — checking and fixing alike — to `agent(subAgent=comment-format-fixer, title=Fix <file> comments)`, never inline in the main session.
   - [Why] It runs check-comment-format.js --fix and rewords only the residue; inline floods main with one row per violation.
 
@@ -90,11 +75,6 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
   - [Why] Humans don't type these by hand, so they read as AI-written and break in terminals, diffs, and grep.
 
 That agent reads `references/comment-formatting.md` for the fix shapes, bad/good pairs, language detection, and Python docstring caveat — the main session never needs them.
-
-### Section fencing in code files
-
-- [Instruction] Fence a section only when the file has multiple distinct sections worth separating — use `=` (ASCII, never `-`/`---`), sized by nesting: a 64-char line top-level, 32 second, 16 third.
-  - [Why] = dodges collisions with list, heading-underline, and front-matter syntax that -/--- would trigger.
 
 ## Self-describing comments
 
@@ -132,31 +112,8 @@ Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`d
   - [Why] IDEs, grep, and doc tools regenerate these for free; an inline copy adds nothing and goes stale on the next move.
   - [Example] Bad: `// Used by: src/foo.ts, src/bar.ts, tests/baz.test.ts`. Good: omit the list entirely; the reader can grep.
 
-- [Instruction] An FAQ/Q&A entry must add a distinct angle — new audience, framing, or context — not restate the body. Drop test: if cutting it loses only "Q&A format", cut it.
-  - [Why] FAQs feel safe to grow, but one that restates the body forces the same edit in two places and bloats the doc.
-
 - [Instruction] When a doc or script header points at a sibling file instead of restating a rule, name the file that authors it — never the file you read it in.
   - [Why] A pointer to the wrong file is worse than none — the reader follows it, finds nothing, and re-derives the rule.
 
 - [Instruction] Delegate verifying and retargeting every such pointer to `agent(subAgent=markdown-standards-fixer, title=Fix <doc> markdown)`, never inline.
   - [Why] It runs check-rule-citations.py and reads both files to settle each row; inline dumps every candidate into context.
-
-## Density
-
-- [Instruction] Every line/bullet ≤256 chars and ≤32 words; over the cap, split on a sentence boundary — never drop info to fit.
-  - [Why] Dense prose drops adherence in LLM consumers and raises scan time for humans; the cap forces clarity.
-
-- [Instruction] Run `scripts/check-density.sh --changed-only <file>` and `scripts/check-bullet-gap.py --changed-only <file>` inline in the main session, never delegating the check to a subagent.
-  - [Why] Both only report line numbers, so inline costs one command's verdict where a subagent round-trip pays a full dispatch.
-
-- [Instruction] Report every line they flag as ONE `[Scout]` TaskList entry naming the file and what is off standard, dispatching no fixer and asking nothing.
-  - [Why] Reflowing prose is a judgment call that already split sentences mid-phrase and damaged a plan, so the user decides.
-
-- [Instruction] Separately verify each schema JSONC block against its ≤80-char/line rule (in the `design-docs` skill).
-  - [Why] check-density.sh excludes fenced code, so a green run hides an unmeasured JSONC block's over-long schema lines.
-
-- [Instruction] In standalone markdown docs, keep each prose paragraph on a single physical line — never hard-wrap mid-paragraph; `scripts/check-hard-wrap.py` reports every one.
-  - [Why] Hard-wrapping a paragraph into short lines passes the density check while the reader's cognitive load stays the same.
-
-- [Instruction] Separate any bullet that has a sub-bullet or exceeds 80% of the density cap from the next bullet with a blank line.
-  - [Why] A dense or parent bullet blurs into the next without a gap — the same stopping-point rule as comment paragraphs.

@@ -40,6 +40,13 @@ The caller gives you a list of files (sometimes with specific line numbers; line
 
 - `~/.claude/skills/doc-standards/references/density-rules.md` — the rewrite patterns and what the verifiers exclude (code fences, tables, link-only lines).
 
+### Rules you enforce
+
+- An FAQ/Q&A entry must add a distinct angle — new audience, framing, or context — never restate the body.
+- Every prose line and bullet stays under a fixed char/word density cap — see `references/density-rules.md` for the numbers.
+- Never hard-wrap a paragraph — keep each sentence/paragraph on one physical line — see `references/density-rules.md`.
+- A bullet that carries a sub-bullet, or sits near the density cap, gets a blank line before the next bullet — see `references/density-rules.md`.
+
 ### Fix the script before you fix by hand
 
 - CRITICAL: when `fix-density.py` leaves a violation it could have split, or splits one wrongly, your first move is to FIX THE SCRIPT.

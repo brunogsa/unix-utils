@@ -36,6 +36,15 @@ Line numbers, if the caller supplies any, are stale the moment you edit — re-r
 
 - `~/.claude/skills/doc-standards/references/comment-formatting.md` — the fix shapes, bad/good pairs, and the Python docstring caveat.
 
+### Rules you enforce
+
+- One idea per comment line — split a multi-clause line at the next punctuation boundary into separate lines or sub-bullets.
+- A blank comment line separates distinct comment paragraphs, or sets off a phrase heavy enough to deserve isolation.
+- Every comment-touched physical line stays under a fixed width cap — see `references/comment-formatting.md` for the number.
+- A standalone-comment paragraph stays under a fixed line-count cap — see `references/comment-formatting.md` for the number.
+- Any break inserted to fit that cap may only land where the preceding line ends a sentence or clause — never mid-sentence.
+- A section fence (`=`, never `-`/`---`) is sized by nesting depth — see `references/comment-formatting.md` for the sizes.
+
 ### Fix the script before you fix by hand
 
 - CRITICAL: when the script leaves a violation it could have repaired, or repairs one wrongly, your first move is to FIX THE SCRIPT.
