@@ -103,10 +103,9 @@
 #     would be a false block whose disarm could never succeed.
 #   - The marker removal is best-effort (`rm -f ... || true`); a removal that
 #     fails costs at most one more armed Stop, never a broken hook.
-#   - stop_hook_active=true → exit 0, GATE MODE ONLY (mirrors
-#     claude-markdown-standards-stop-hook.sh's guard: an always-on hook must
-#     never spin an infinite stop-block loop). --check skips it on purpose —
-#     see "Why query mode exists" above.
+#   - stop_hook_active=true → exit 0, GATE MODE ONLY (the same guard every
+#     always-on Stop hook needs: it must never spin an infinite stop-block
+#     loop). --check skips it on purpose — see "Why query mode exists" above.
 #   - A state file that is corrupt JSON is skipped (fail-open per-file), not
 #     treated as blocking.
 #   - A unit's phase other than tasks|gates|tails — including presented,
