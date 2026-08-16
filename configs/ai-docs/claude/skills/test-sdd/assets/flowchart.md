@@ -27,9 +27,9 @@ def test_sdd(arg):
     # 6 · Step 3 — minted in CWD, one per run, never reused.
     verdict_path = f"verdict_test-sdd_{now('%Y-%m-%d_%H:%M')}.md"
 
-    # 7 · Step 4 — ONE deep-reviewer, agent-pinned, background, fresh context.
-    dispatch("deep-reviewer", plan, tasks, verdict_path)
-    # 7a · hook: deep-reviewer-write-guard (only verdict_*.md writes are approved)
+    # 7 · Step 4 — ONE test-reviewer, agent-pinned, background, fresh context.
+    dispatch("test-reviewer", plan, tasks, verdict_path)
+    # 7a · hook: check-reviewer-writes (only verdict_*.md writes are approved)
 
     # ---- 8–13 · Step 5 · inside the reviewer, once per resolved task-id ----
     for task in tasks:
@@ -58,7 +58,7 @@ def test_sdd(arg):
     reviewer.write(verdict_path)
 
     while not present_and_non_empty(verdict_path):         # 15 · Step 7
-        redispatch_once("deep-reviewer")   # 15a · never report from the truncated return
+        redispatch_once("test-reviewer")   # 15a · never report from the truncated return
 
     read_end_to_end(verdict_path)                          # 16 · Step 7
     print(plan, checked_ids, found_and_missing_counts, one_line_per_finding)
@@ -80,8 +80,8 @@ flowchart TD
   n5{"5. Every id matched exactly one heading?"}
   n5a(["5a. Stop: name the id that missed,<br/>or the collision (malformed plan)"])
   n6["6. Step 3 · Mint VERDICT_PATH in CWD:<br/>date +verdict_test-sdd_%Y-%m-%d_%H:%M.md<br/>(one per run, never reused)"]:::state
-  n7["7. Step 4 · Dispatch ONE deep-reviewer<br/>(agent-pinned, background, fresh context)"]:::dispatch
-  n7a["7a. Hook: deep-reviewer-write-guard<br/>(only verdict_*.md writes are approved)"]:::hook
+  n7["7. Step 4 · Dispatch ONE test-reviewer<br/>(agent-pinned, background, fresh context)"]:::dispatch
+  n7a["7a. Hook: check-reviewer-writes<br/>(only verdict_*.md writes are approved)"]:::hook
 
   subgraph reviewer["Step 5 · Inside the reviewer, once per resolved task-id"]
     direction TB

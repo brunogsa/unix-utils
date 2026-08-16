@@ -75,17 +75,17 @@ The marker never changes whether a task is checked — it is carried into the re
 
 Run `date "+verdict_test-sdd_%Y-%m-%d_%H:%M.md"` once and treat the output as `$VERDICT_PATH` in CWD — never `/tmp/`, since the user reads it alongside the plan in their editor.
 
-The `verdict_` prefix is load-bearing, not cosmetic: `~/.claude/hooks/deep-reviewer-write-guard.sh` auto-approves exactly that basename pattern and denies every other write.
+The `verdict_` prefix is load-bearing, not cosmetic: `~/.claude/hooks/check-reviewer-writes.sh` auto-approves exactly that basename pattern and denies every other write.
 
 One file per invocation; never reuse a prior run's path. Repeated runs accumulate as separate timestamped files, preserving their order.
 
-## 4. Dispatch one deep-reviewer
+## 4. Dispatch one test-reviewer
 
-Spawn a single `agent(subAgent=deep-reviewer, title=Planned-test presence check)`, in the **background** (the default).
+Spawn a single `agent(subAgent=test-reviewer, title=Planned-test presence check)`, in the **background** (the default).
 
 Fresh context is the point: the invoking session often wrote the tests under check, and a same-session read carries the bias CLAUDE.md's fresh-context rule guards against.
 
-Lead the prompt with the report-only preamble from [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md), substituting `$VERDICT_PATH`.
+Lead the prompt with the report-only preamble from [`code-review-pipeline/references/code-reviewer-tail-pair.md`](../code-review-pipeline/references/code-reviewer-tail-pair.md), substituting `$VERDICT_PATH`.
 That file is the single source of truth for the contract wording.
 
 Push into the prompt: the resolved plan path, the resolved task-ids with their status markers, `$VERDICT_PATH`, §5's matching procedure, and §6's report schema.
