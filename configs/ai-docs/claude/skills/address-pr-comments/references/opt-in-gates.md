@@ -30,8 +30,8 @@ If either is red, abort — fix pre-existing breakage first so cluster commits d
 
 Runs only on a yes to step 1d's persisted toggle. When it is off, skip straight to step 8.
 
-Otherwise dispatch the shared deep-reviewer tail pair — [`deep-reviewer-tail-pair.md`](../../code-review-pipeline/references/deep-reviewer-tail-pair.md).
+Otherwise dispatch the shared code-reviewer tail pair — [`code-reviewer-tail-pair.md`](../../code-review-pipeline/references/code-reviewer-tail-pair.md).
 
 Pass `<BASE_REF>` = `<BATCH_BASE_SHA>` and no `<SPEC_PLAN_PATHS>`, since this flow has no spec/plan.
 
-The tails are report-only (the `deep-reviewer-write-guard.sh` PreToolUse hook enforces it), so they need no new lint/test gate.
+The tails are report-only (the `check-reviewer-writes.sh` PreToolUse hook enforces it), so they need no new lint/test gate.

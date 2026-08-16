@@ -133,12 +133,12 @@ def address_pr_comments(pr, filters):
                 skip_and_list_in_final_report()            # 22b2b1
 
     if state.answers.tails:                                # 23 · Step 7d
-        # 23a · Step 7d — 2x deep-reviewer · agent-pinned, parallel (∥),
-        #       background, reading deep-reviewer-tail-pair.md.
+        # 23a · Step 7d — 2x code-reviewer · agent-pinned, parallel (∥),
+        #       background, reading code-reviewer-tail-pair.md.
         #       Lens A simplification → verdict_refactor_*.md
         #       Lens B correctness   → verdict_auto-review_*.md
-        tails = dispatch_parallel("deep-reviewer", lenses=["A", "B"])
-        # 23b · PreToolUse hook: deep-reviewer-write-guard.sh auto-approves
+        tails = dispatch_parallel("code-reviewer", lenses=["A", "B"])
+        # 23b · PreToolUse hook: check-reviewer-writes.sh auto-approves
         #       writes to verdict_*.md or /tmp, and denies everything else.
 
         # 23c · read BOTH reports, synthesize a prioritized summary,
@@ -219,8 +219,8 @@ flowchart TD
   n22b2b{"22b2b. Retry<br/>succeeded?"}
   n22b2b1["22b2b1. Skip reply;<br/>list in final report"]
   n23{"23. Step 7d &middot; Tails toggle on<br/>step 0 answer?"}
-  n23a["23a. Step 7d: Dispatch deep-reviewer tail pair<br/>2x deep-reviewer &middot; agent-pinned<br/>parallel (∥), background<br/><br/>Reads deep-reviewer-tail-pair.md<br/>Lens A simplification -&gt; verdict_refactor_*.md<br/>Lens B correctness -&gt; verdict_auto-review_*.md"]:::dispatch
-  n23b["23b. PreToolUse hook:<br/>deep-reviewer-write-guard.sh<br/><br/>Auto-approves writes to verdict_*.md or /tmp;<br/>denies all other writes/mutations"]:::hook
+  n23a["23a. Step 7d: Dispatch code-reviewer tail pair<br/>2x code-reviewer &middot; agent-pinned<br/>parallel (∥), background<br/><br/>Reads code-reviewer-tail-pair.md<br/>Lens A simplification -&gt; verdict_refactor_*.md<br/>Lens B correctness -&gt; verdict_auto-review_*.md"]:::dispatch
+  n23b["23b. PreToolUse hook:<br/>check-reviewer-writes.sh<br/><br/>Auto-approves writes to verdict_*.md or /tmp;<br/>denies all other writes/mutations"]:::hook
   n23c["23c. Read both verdict reports;<br/>synthesize prioritized summary;<br/>offer to apply (report-only by default)"]
   n23d{"23d. User names specific<br/>findings to apply?"}
   n23d1["23d1. Dispatch a fresh subagent per named finding<br/>general-purpose &middot; sonnet &middot; medium<br/>serial per named finding<br/><br/>test-first: confirm RED, apply fix, confirm GREEN"]:::dispatch
