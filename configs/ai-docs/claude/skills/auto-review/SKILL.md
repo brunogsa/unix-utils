@@ -22,7 +22,7 @@ See "How callers dispatch" → "Isolated" in
 that dispatch reuses (prompt body, reading this SKILL.md, orchestrating from
 there). auto-review overrides the model choice: the pipeline's default
 isolated wrapper pins `model: "sonnet"`, but auto-review spawns the
-`deep-reviewer` agent (opus) instead — review judgment is the product here,
+`code-reviewer` agent (opus) instead — review judgment is the product here,
 so it earns the top tier, unlike mechanical spawns, which pin sonnet.
 
 ## Usage
@@ -124,11 +124,11 @@ The code-review-pipeline expects these inputs:
     (replacing the default lookup of the spec and the plan).
 
 With the inputs above resolved, always dispatch isolated: spawn
-`agent(subAgent=deep-reviewer, title=Review branch changes)`.
+`agent(subAgent=code-reviewer, title=Review branch changes)`.
 Put the resolved inputs in its prompt body, and tell it to read
 `~/.claude/skills/code-review-pipeline/SKILL.md` and orchestrate from there
 — per that file's "Isolated" dispatch mode under "How callers dispatch",
-substituting deep-reviewer (opus) for the pipeline's default sonnet-pinned
+substituting code-reviewer (opus) for the pipeline's default sonnet-pinned
 wrapper.
 
 After the pipeline finishes, the review is at

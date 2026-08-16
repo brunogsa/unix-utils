@@ -126,7 +126,7 @@ Any other exemption is a deliberate edit to that script's `DESC_BUDGET_EXEMPT` l
 - [Instruction] Omit the model on a dispatch to a pinned agent type, letting that file's `model:` bind.
   - [Why] The guard accepts a pinned model only when absent or matching the file — naming it is redundant, denied on repin.
 
-  - [Example] `agent(subAgent=deep-reviewer, …)` — pinned, so no `model=`. `agent(subAgent=general-purpose, …, model=sonnet)` — unpinned, so the tier must be named.
+  - [Example] `agent(subAgent=code-reviewer, …)` — pinned, so no `model=`. `agent(subAgent=general-purpose, …, model=sonnet)` — unpinned, so the tier must be named.
 
 - [Instruction] Name a model on a dispatch to a pinned agent type only when that file's `allowedModelOverrides:` lists it, and only for the dispatch that needs the other tier.
   - [Why] The guard accepts only the pin plus that list — a declared tier taken by habit spends higher on routine work.
