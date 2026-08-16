@@ -350,20 +350,8 @@ async function fetchLogs({ logGroups, logRadius, workDir }) {
 - [Instruction] Log progress in I/O loops with a counter: `[3/70] item-name`.
   - [Why] Silent loops feel hung; the counter answers "progressing?" and "stuck where?" at once.
 
-- [Instruction] Use structured logging with level, timestamp, transactionId, message, context.
+- [Instruction] Logs must be structured and queryable — level, timestamp, a correlation/trace id, message, and context — never bare string concatenation.
   - [Why] Structured logs are queryable; free-text needs grep + human pattern matching.
-
-- [Example]
-```ts
-logger.info({
-  level: "INFO",
-  timestamp: "2025-07-10T15:12:34Z",
-  transactionId: "550e8400-e29b-41d4-a716-446655440000",
-  message: "User created successfully",
-  userId: 666,
-  userCpf: "***29430880"
-});
-```
 
 - [Instruction] On failure, log the full input that caused the error.
   - [Why] A failure log without input is a hunt; with input, it's a reproduction case.
