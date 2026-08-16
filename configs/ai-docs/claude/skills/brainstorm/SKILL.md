@@ -150,7 +150,7 @@ It is elaborated past what `notes.md`'s density guide allows, since the brief's 
 
 Composing it any earlier would hand off unfinished results; any later, the first dispatch that reads it — step 6 at `full`, step 9 at `light` — needs it to already exist.
 
-### 6. Derive the slug, then dispatch a `general-purpose` agent to write the spec
+### 6. Derive the slug, then dispatch `spec-writer` to write the spec
 
 **Full only.** At `light` skip to step 9, which derives its own slug.
 
@@ -159,22 +159,17 @@ The plan inherits that same slug at step 9 — the shared slug is what pairs the
 
 Why not confirm: the slug just names two paired files — a wrong one costs only a rename, and the user is about to read the spec anyway.
 
-Then dispatch `agent(subAgent=general-purpose, model=sonnet, title=Write the spec)` in the background, waiting for it — the next step needs the spec to exist. Instruct it to:
+Then dispatch `agent(subAgent=spec-writer, title=Write the spec)` in the background, waiting for it — the next step needs the spec to exist. Pass it:
 
-- Read `~/.claude/skills/spec-driven-development/SKILL.md` and its `assets/spec-template.md` — that library's Guidelines govern what it writes, and every section of the template gets written.
+- This session's resolved absolute path to `brainstorm-brief.md` — a dispatched subagent gets its own, different scratchpad directory, so an unstated path leaves it no way to find this session's brief.
+- The slug derived above (or the output path directly).
 
-- It has no inherited context — read `brainstorm-brief.md` first, passing this session's resolved absolute path to it explicitly in the dispatch prompt.
-- A dispatched subagent gets its own, different scratchpad directory, so an unstated path would leave it with no way to find this session's brief at all.
-
-- Fold the brief's decisions and discarded alternatives into the spec's Functional Decisions section.
-- Write `spec_<slug>.md` in CWD, and report back its resolved path plus a short summary of what it wrote.
-
-**This session never writes the spec itself** — every later edit goes through another `agent(subAgent=general-purpose, model=sonnet, title=Apply spec edits)` carrying the exact changes to make.
+**This session never writes the spec itself** — every later edit goes through another `agent(subAgent=spec-writer, title=Apply spec edits)` carrying the exact changes to make.
 
 Why delegate: writing the spec costs the context to load the library and template — context this session still needs for both reviews and the hand-off.
 
-Why `general-purpose`: this agent inherits none of this session's context, unlike a fork, so it cannot lean on the interview or the approach pick.
-It must ground entirely from `brainstorm-brief.md` instead, which is why that file, not `notes.md`, has to be self-contained (step 5).
+Why `spec-writer`, never `general-purpose` or a fork: it's a recurring, repeatable unit of work, so a dedicated type gets its own report row instead of reading as generic session spend.
+It also inherits none of this session's context — same as `general-purpose` would — so it grounds entirely from `brainstorm-brief.md`, which is why that file, not `notes.md`, has to be self-contained (step 5).
 Whatever it omits is invisible to the agent that writes the spec, and gets silently invented instead.
 
 ### 7. Self-review the spec once, with fresh eyes
@@ -195,7 +190,7 @@ Apply these items only: placeholders, contradictions, ambiguity, completeness, h
 Exclude PR-size and plan-contradiction — no plan exists yet.
 Exclude Scope too: step 2 already asked the user about decomposition.
 
-Then decide each finding yourself and dispatch `agent(subAgent=general-purpose, model=sonnet, title=Apply spec review findings)` with the ones you accept.
+Then decide each finding yourself and dispatch `agent(subAgent=spec-writer, title=Apply spec review findings)` with the ones you accept.
 
 **Report the outcome to the user in one block before step 8** — each finding, and whether it was applied or skipped with the reason.
 
@@ -205,7 +200,7 @@ Why report it: it's the only way to judge whether the gate earns its cost — in
 
 Why fresh eyes before the user: this session argued itself into every choice, so it reads its own spec as complete because it remembers what the spec never says.
 
-Why not `general-purpose` for the review: it composes under conventions the way the spec-writing dispatch does, not the fresh-eyes judgment a review needs — that judgment is `deep-reviewer`'s job.
+Why not `spec-writer` for the review: it composes under conventions the way the spec-writing dispatch does, not the fresh-eyes judgment a review needs — that judgment is `deep-reviewer`'s job.
 
 ### 8. User review/approve spec
 
@@ -217,7 +212,7 @@ Give the user the spec's path, then ask via `AskUserQuestion` whether it is appr
 
 Route each round's rework to the earliest step the feedback invalidates:
 
-- Wording/detail issues → re-dispatch the `general-purpose` agent with the edits, then re-ask.
+- Wording/detail issues → re-dispatch `spec-writer` with the edits, then re-ask.
 - Missing or wrong requirements → back to the step 4 interview.
 - Approach concerns → back to the step 5 trade-off discussion.
 
@@ -225,29 +220,20 @@ Why a loop: approval is rarely one round, and a step that ends the run on "not y
 
 ### 9. Write the plan, then run the deterministic gates
 
-**At `full`** — dispatch `agent(subAgent=fork, title=Write implementation plan from spec)`, waiting for it. Pass it:
+Dispatch `agent(subAgent=plan-writer, title=Write implementation plan)` in the background, waiting for it — the next step needs the plan to exist. Pass it:
 
-- `~/.claude/skills/spec-driven-development/references/plan-writing.md` (the whole procedure — a fork loads no definition file of its own, so this must be named by path).
-- The spec file's absolute path and the slug from step 6; it derives the output path itself.
+- This session's resolved absolute path to `brainstorm-brief.md` — same brief contract as step 6; `plan-writer` inherits none of this session's context.
+- **At `full`**: the spec file's absolute path and the slug from step 6.
+- **At `light`**: no spec path — `plan-writer` treats its absence as a plan-only run and derives its own slug from the brief's original request.
 - Any planning-conventions file the user named (ADR/HLD/LLD), if one exists.
 
-A fork inherits the whole session, planning against the interview instead of re-deriving it. Its model is the main session's; a fork's tier can't be pinned.
+Why `plan-writer`, never `general-purpose` or a fork: same reasoning as step 6's `spec-writer` — a dedicated type gets its own report row, and grounding from the brief instead of an inherited session keeps its tier pinnable, which a fork's can't be.
 
 **A gap in the spec never withholds the plan** — including a decision this session settled in the interview but never wrote into the spec.
-The fork plans around it and records a `**QUESTION:**` under Open Questions rather than silently filling from memory, which leaves the spec wrong for the next reader.
+`plan-writer` plans around it and records a `**QUESTION:**` under Open Questions rather than silently filling from memory, which leaves the spec wrong for the next reader.
 Step 12 closes them all in one batch.
 
 Fresh eyes just move later — step 10 sends the finished plan to a `deep-reviewer` that never saw this session.
-
-**At `light`** — dispatch `agent(subAgent=general-purpose, model=sonnet, title=Write the plan)` in the background instead, waiting for it. Instruct it to:
-
-- Read `~/.claude/skills/spec-driven-development/SKILL.md` and its `assets/plan-template.md`, writing every section.
-- Derive a short kebab-case `<slug>` from the feature and write `plan_<slug>.md` in CWD.
-- Follow that library's *A plan may exist without a spec* section for the `Spec:` line, per-task acceptance criteria, and Test Design coverage list.
-- Pass this session's resolved absolute path to `brainstorm-brief.md` in the dispatch prompt — same brief contract as step 6.
-- Fold its decisions and discarded alternatives into the plan's Technical Decisions section.
-
-A fork carries the whole interview at the main session's tier — the opposite of `light`'s economy; the brief already condenses those decisions for a cheaper sonnet agent.
 
 **Once the plan exists, either mode: read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now** — it defines every gate, sorts them into a deterministic and a judged bucket, and gives each bucket's dispatch tier.
 
@@ -276,9 +262,9 @@ At `light` it runs here instead, over each task's AC field — dropping the spec
 
 **At `light`, before deciding anything, read the plan against `notes.md` yourself.**
 Treat every decision or constraint the interview settled that the plan contradicts or omits as a finding too.
-Only this session holds the interview, since `light`'s plan comes from an agent grounded solely in `brainstorm-brief.md` and would otherwise invent whatever the brief dropped.
+Only this session holds the interview, since `light`'s plan comes from `plan-writer` grounded solely in `brainstorm-brief.md` and would otherwise invent whatever the brief dropped.
 
-Decide each finding yourself, dispatch `agent(subAgent=general-purpose, model=sonnet, title=Apply plan review findings)` with the ones you accept, and report applied-or-skipped exactly as step 7 does.
+Decide each finding yourself, dispatch `agent(subAgent=plan-writer, title=Apply plan review findings)` with the ones you accept, and report applied-or-skipped exactly as step 7 does.
 **Runs once per plan, never twice over the same text.**
 
 **At `light`, that report also names every gate that ran and every one that didn't.**
@@ -290,7 +276,7 @@ Without it the plan carries no trace of what verified it.
 Give the user the plan's path, then ask via `AskUserQuestion` whether it is approved or what to change.
 
 Same loop shape as step 8: apply, re-ask, and continue to step 12 automatically the moment they approve.
-Route rework the same way — plan-level edits go through a `general-purpose` agent (`model=sonnet`), requirement gaps back to step 4, approach concerns back to step 5.
+Route rework the same way — plan-level edits go through `plan-writer`, requirement gaps back to step 4, approach concerns back to step 5.
 
 **No self-review re-runs during this loop, in either mode.**
 
@@ -302,7 +288,7 @@ A second AI pass over text they are actively editing spends a dispatch on a movi
 Read the Open Questions section of the plan, and of the spec when one exists.
 
 While either still holds a `**QUESTION:**` entry, interview the user to settle them — `AskUserQuestion`, 2-3 at a time, recommended answer first, exactly as in step 4.
-Then dispatch `agent(subAgent=general-purpose, model=sonnet, title=Close open questions)` to fold the answers in and leave each Open Questions section reading `None`.
+Then dispatch `agent(subAgent=plan-writer, title=Close open questions in the plan)` to fold the plan's answers in, and — full mode only, when the spec also held one — `agent(subAgent=spec-writer, title=Close open questions in the spec)` for the spec's. Each leaves its own Open Questions section reading `None`.
 
 Re-run `~/.claude/skills/spec-driven-development/scripts/check-open-questions.sh <plan> [<spec>]` after each round — never settle it by eye.
 **Step 13 does not run while that script exits non-zero.**

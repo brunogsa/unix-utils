@@ -1,12 +1,8 @@
 # Writing the implementation plan
 
-Turns an approved `spec_<slug>.md` into `plan_<slug>.md`. Read by path from `brainstorm`'s step 9, as a conversation fork.
+Turns an approved `spec_<slug>.md` into `plan_<slug>.md`. Read by path from the `plan-writer` agent, which `brainstorm`'s step 9 dispatches.
 
 Also read once by whoever fills in `assets/plan-template.md`, since it carries no rules.
-
-## What running as a fork means here
-
-You carry the whole brainstorm session, but that's convenience, not licence: the spec is what the next reader gets, and a decision living only in memory is missing (see Boundaries).
 
 Fresh eyes still audit this plan — `brainstorm`'s step 10 sends it to a `deep-reviewer` who never saw the session.
 
