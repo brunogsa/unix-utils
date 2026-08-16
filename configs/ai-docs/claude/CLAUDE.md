@@ -98,6 +98,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 - [Instruction] **Scannable means structure, not length** -- one thought per bullet, and only for thoughts that earn a bullet. Applies to code, comments, chat.
   - [Why] Structure is what makes text fast to read; treating it as permission to write more moves the cost to the reader.
+  - [Example] Markdown: bad crams setup and fix into one paragraph; good splits it into bullets. Comment: bad restates the code; good keeps only `// why: retry avoids a cold-start race`.
 
 - [Instruction] **Cut filler and hedges** -- no preambles, emojis, or vague words ("generally", "often"); give the number or exact condition instead of a hedge.
   - [Why] Filler burns budget on words that carry no decision, and a hedge is uncheckable where a number is verifiable.
