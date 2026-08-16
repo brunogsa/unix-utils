@@ -47,7 +47,7 @@ Whatever Wave 5's doc-standards check flagged comes back in that summary's doc-s
 
 The sonnet pin covers the github isolated path — an accepted cost/depth tradeoff.
 
-`Mode: local` never reaches it: `/auto-review`, the sole local caller, pins `deep-reviewer` (opus) instead, because review judgment is the product it ships (see `auto-review/SKILL.md`).
+`Mode: local` never reaches it: `/auto-review`, the sole local caller, pins `code-reviewer` (opus) instead, because review judgment is the product it ships (see `auto-review/SKILL.md`).
 
 ## Before you start
 
