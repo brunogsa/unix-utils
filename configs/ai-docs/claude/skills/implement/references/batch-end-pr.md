@@ -22,7 +22,7 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
   A paraphrase like "generate the body via a subagent, following create-pr conventions" silently drops every enumerated specific below.
   Re-reading costs one file read; skipping it costs a PR pushed with mandatory sections or safety rules missing.
 
-- Never dispatch `deep-reviewer` for this: its write-guard hook allows only `verdict_*.md` and `/tmp` writes, denying the `pr_*.final.md` write in CWD.
+- Never dispatch a reviewer agent (`code-reviewer`, `spec-reviewer`, or `test-reviewer`) for this: their shared write-guard hook allows only `verdict_*.md` and `/tmp` writes, denying the `pr_*.final.md` write in CWD.
 
 ## Dispatch prompt requirements
 

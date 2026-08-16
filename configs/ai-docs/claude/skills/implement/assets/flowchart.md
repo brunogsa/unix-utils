@@ -282,7 +282,7 @@ def run_unit(unit):
                   report_only=True)
         # 40a · inside it: refactor ∥ auto-review ∥ test-sdd legs → three
         #       verdict_*.md, then per-finding apply → commit → mark [Done].
-        # 40b · hook: deep-reviewer-write-guard (only verdict_*.md writes approved).
+        # 40b · hook: check-reviewer-writes (only verdict_*.md writes approved).
         state.record_verdict_paths()   # 40c · PATHS, never content; every finding
         scout(quality_gate.declined)   #       it declined becomes a [Scout];
         state.phase = "tails"          #       then phase=tails
@@ -527,7 +527,7 @@ flowchart TD
     n39{"39. Quality-gate tail requested?"}
     n40["40. Step 8.2 · Invoke /quality-gate [&lt;spec&gt;] &lt;plan&gt;<br/>--tasks &lt;this unit's ids&gt;, base ref = BATCH_BASE_SHA,<br/>always carrying --report-only (never omitted — that<br/>drops /quality-gate into its own interview and stalls<br/>the batch on an unwatched prompt). The human applies<br/>verdicts manually afterward via /address-verdicts.<br/>Spec argument goes in only when §1.1 resolved one.<br/>IN THIS SESSION, never wrapped in a subagent:<br/>its legs are already fresh-context reviewers, and<br/>its commits need a prompt only main can render"]:::skill
     n40a["40a. Inside it: refactor ∥ auto-review ∥ test-sdd leg<br/>→ three verdict_*.md, then per-finding<br/>apply → commit → mark [Done]"]:::dispatch
-    n40b["40b. Hook: deep-reviewer-write-guard<br/>(only verdict_*.md writes are approved)"]:::hook
+    n40b["40b. Hook: check-reviewer-writes<br/>(only verdict_*.md writes are approved)"]:::hook
     n40c["40c. Record each verdict PATH into the state file<br/>(never its content); every finding it declined<br/>becomes a [Scout]; then phase=tails"]:::state
     n41{"41. Repo-green gate requested?"}
     n42["42. Step 8.3 · Repo-green GATE: full lint + full test<br/>suite, repo-wide, never scoped to the batch's own<br/>files. Runs AFTER the quality gate, so it measures a<br/>tree already holding the test-sdd leg's written tests<br/>— the tail's other two legs, refactor and auto-review,<br/>are always report-only and never touch the tree. Why<br/>no 'it applied something, so re-run the suite' rule<br/>exists"]:::gate
