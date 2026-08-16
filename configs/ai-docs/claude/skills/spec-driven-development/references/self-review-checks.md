@@ -13,7 +13,7 @@ A run may write the plan alone (SKILL.md) — never report the absent spec as a 
 - Dispatch the mermaid fixer at its agent file's pinned model — never name one here.
   - Why: `subagent-model-guard.py` hard-denies a model override, so naming one is an instruction no caller can follow.
 
-**Judged** — a `deep-reviewer` decides; each round costs one dispatch over the whole documents.
+**Judged** — a `spec-reviewer` decides; each round costs one dispatch over the whole documents.
 
 - Members: the qualitative pass, the semantic half of "every AC has a test", "how would this break?", and the two toggled checks.
 - Dispatch each at `effort=high`, overriding its agent file's `max` pin — both documents are lean, so `max` buys latency, not accuracy.
@@ -24,7 +24,7 @@ Why: a deterministic gate catches structural breakage that would otherwise cost 
 
 ## Qualitative pass
 
-Dispatch `agent(subAgent=deep-reviewer, title=Qualitative review of spec and plan)` over both docs; only the PR-size item blocks.
+Dispatch `agent(subAgent=spec-reviewer, title=Qualitative review of spec and plan)` over both docs; only the PR-size item blocks.
 
 **Skip this checklist when `qualitative_pass` is false** (SKILL.md's toggles) — state it was skipped.
 The dispatch still runs, carrying this file's always-on checks.
@@ -68,7 +68,7 @@ Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped co
 - Mechanical half — `scripts/check-ac-coverage.sh <plan> <spec>` checks coverage completeness and citation honesty (no truncated or invented breadcrumb); exit 1 blocks.
 
 - Semantic half — runs after any mechanical half passes, never in parallel.
-  - Dispatch `agent(subAgent=deep-reviewer, title=Judge AC-to-test coverage)` to judge whether each cited test *proves* its AC — the match no script can make.
+  - Dispatch `agent(subAgent=spec-reviewer, title=Judge AC-to-test coverage)` to judge whether each cited test *proves* its AC — the match no script can make.
 
 - Output: orphan ACs + bogus citations (empty = pass); block plan approval if non-empty.
 
@@ -91,7 +91,7 @@ Both checks share `scripts/extract-design-tests.sh`; breadcrumbs are copied verb
 
 ## How would this break?
 
-Dispatch `agent(subAgent=deep-reviewer, title=Judge failure-mode coverage)` on the docs — never sweep inline; a listed failure mode's realness is a blind spot its author can't see.
+Dispatch `agent(subAgent=spec-reviewer, title=Judge failure-mode coverage)` on the docs — never sweep inline; a listed failure mode's realness is a blind spot its author can't see.
 
 With a spec, `scripts/check-coverage-checklists.sh <spec>` settles whether the boundary and failure-category checklists are instantiated; exit 1 blocks. Never judge those rows by eye.
 
@@ -106,12 +106,12 @@ With no spec, skip that script; each task's `**Testable Acceptance criteria**` f
 
 ## Every line traces to an AC (toggle)
 
-Dispatch `agent(subAgent=deep-reviewer, title=Judge machinery-to-AC traceability)` with spec and plan: every piece of machinery must trace to a spec AC or requirement.
+Dispatch `agent(subAgent=spec-reviewer, title=Judge machinery-to-AC traceability)` with spec and plan: every piece of machinery must trace to a spec AC or requirement.
 
 Output: untraceable items (empty = pass); block if non-empty — cut it or earn it an AC.
 
 ## Right-sized plan (toggle)
 
-Dispatch `agent(subAgent=deep-reviewer, title=Judge spec/plan simplicity)` with the user's request + spec + plan — no gold-plating in the spec, simplest design meeting every AC in the plan.
+Dispatch `agent(subAgent=spec-reviewer, title=Judge spec/plan simplicity)` with the user's request + spec + plan — no gold-plating in the spec, simplest design meeting every AC in the plan.
 
 Advisory even when its toggle is "yes" — surface findings, never block.

@@ -4,7 +4,7 @@ Turns an approved `spec_<slug>.md` into `plan_<slug>.md`. Read by path from the 
 
 Also read once by whoever fills in `assets/plan-template.md`, since it carries no rules.
 
-Fresh eyes still audit this plan — `brainstorm`'s step 10 sends it to a `deep-reviewer` who never saw the session.
+Fresh eyes still audit this plan — `brainstorm`'s step 10 sends it to a `spec-reviewer` who never saw the session.
 
 ## Inputs
 

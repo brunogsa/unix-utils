@@ -100,7 +100,7 @@ Opt out per task with `**Tests (planned)**: N/A — <reason>` inside the task �
 
 Every plan passes every gate below before a human is asked to review it.
 
-The gates split into two buckets: **deterministic** — a script or a renderer returns the verdict — and **judged**, where a `deep-reviewer` decides.
+The gates split into two buckets: **deterministic** — a script or a renderer returns the verdict — and **judged**, where a `spec-reviewer` decides.
 
 Run the deterministic bucket first and as often as needed; the judged bucket runs as few times as the caller will accept.
 
@@ -125,13 +125,13 @@ Eight formal checks run in sequence (six always-on + the two toggles above):
 | Check | Run by | Catches | Toggle? |
 |---|---|---|---|
 | Every template section is written | `check-sections.sh` | a dropped `## ` heading in either doc | Always on |
-| Every AC has a test | `check-ac-coverage.sh`, then `deep-reviewer` | AC↔Test Design coverage | Always on |
+| Every AC has a test | `check-ac-coverage.sh`, then `spec-reviewer` | AC↔Test Design coverage | Always on |
 | Every test has a task | `check-test-distribution.sh` | Test Design↔per-task assignment | Always on |
-| How would this break? | `check-coverage-checklists.sh`, then `deep-reviewer` | checklist completeness + inversion sweep, merged | Always on |
+| How would this break? | `check-coverage-checklists.sh`, then `spec-reviewer` | checklist completeness + inversion sweep, merged | Always on |
 | PR dependencies form a DAG | `check-pr-dag.sh` | cyclic, dangling, or duplicate PR-N label in the PR Breakdown | Always on |
 | Task dependencies form a DAG | `check-tasks-dag.sh` | cyclic, dangling, or duplicate task id in the Task Breakdown | Always on |
-| Every line traces to an AC | `deep-reviewer` | machinery↔AC traceability | Toggle |
-| Right-sized plan | `deep-reviewer` | scope vs. request, simplest design | Toggle |
+| Every line traces to an AC | `spec-reviewer` | machinery↔AC traceability | Toggle |
+| Right-sized plan | `spec-reviewer` | scope vs. request, simplest design | Toggle |
 
 The six always-on checks, plus the Test Design authoring requirement itself, never become optional — they verify the plan is mechanically correct regardless of change size.
 
