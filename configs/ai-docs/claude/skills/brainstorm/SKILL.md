@@ -174,7 +174,7 @@ Whatever it omits is invisible to the agent that writes the spec, and gets silen
 
 ### 7. Self-review the spec once, with fresh eyes
 
-**Full only.** Dispatch `agent(subAgent=deep-reviewer, effort=high, title=Fresh-eyes review of spec)` in the background, waiting for it, pointed at the spec file alone.
+**Full only.** Dispatch `agent(subAgent=spec-reviewer, effort=high, title=Fresh-eyes review of spec)` in the background, waiting for it, pointed at the spec file alone.
 
 Point it at `~/.claude/skills/spec-driven-development/references/self-review-checks.md` and give it two jobs.
 
@@ -200,7 +200,7 @@ Why report it: it's the only way to judge whether the gate earns its cost — in
 
 Why fresh eyes before the user: this session argued itself into every choice, so it reads its own spec as complete because it remembers what the spec never says.
 
-Why not `spec-writer` for the review: it composes under conventions the way the spec-writing dispatch does, not the fresh-eyes judgment a review needs — that judgment is `deep-reviewer`'s job.
+Why not `spec-writer` for the review: it composes under conventions the way the spec-writing dispatch does, not the fresh-eyes judgment a review needs — that judgment is `spec-reviewer`'s job.
 
 ### 8. User review/approve spec
 
@@ -233,7 +233,7 @@ Why `plan-writer`, never `general-purpose` or a fork: same reasoning as step 6's
 `plan-writer` plans around it and records a `**QUESTION:**` under Open Questions rather than silently filling from memory, which leaves the spec wrong for the next reader.
 Step 12 closes them all in one batch.
 
-Fresh eyes just move later — step 10 sends the finished plan to a `deep-reviewer` that never saw this session.
+Fresh eyes just move later — step 10 sends the finished plan to a `spec-reviewer` that never saw this session.
 
 **Once the plan exists, either mode: read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now** — it defines every gate, sorts them into a deterministic and a judged bucket, and gives each bucket's dispatch tier.
 
@@ -245,7 +245,7 @@ Otherwise step 10 would rediscover a cyclic task DAG or bogus AC citation, and s
 
 ### 10. Self-review the plan once, with fresh eyes
 
-**Both modes.** Dispatch `agent(subAgent=deep-reviewer, effort=high, title=Fresh-eyes review of plan)` in the background, waiting for it, pointed at the plan and, at `full`, the spec.
+**Both modes.** Dispatch `agent(subAgent=spec-reviewer, effort=high, title=Fresh-eyes review of plan)` in the background, waiting for it, pointed at the plan and, at `full`, the spec.
 
 **Always — the semantic half of "Every AC has a test"**: does each cited test *prove* its AC?
 At `full`, step 9's `check-ac-coverage.sh` already settled citation completeness and honesty, so this judges only the match no script can make.

@@ -144,7 +144,7 @@ def brainstorm():
         #      THIS session never writes the spec itself.
         spec = dispatch("spec-writer", write_spec=True, slug=slug)
 
-        # 20 · Step 7 — deep-reviewer · agent-pinned · serial · background, over
+        # 20 · Step 7 — spec-reviewer · agent-pinned · serial · background, over
         #      the spec ALONE — full only, and ALWAYS dispatched (no toggle gates
         #      the dispatch itself anymore).
         #      ALWAYS runs "How would this break?" (fail-closed): every
@@ -155,7 +155,7 @@ def brainstorm():
         #      contradictions, ambiguity, completeness, human-reviewable.
         #      NOT PR-size, NOT plan-contradiction (no plan yet), NOT Scope
         #      (step 2 already asked).
-        findings = dispatch("deep-reviewer", target=spec)
+        findings = dispatch("spec-reviewer", target=spec)
         # 21 · dispatch spec-writer (agent-pinned) · serial · background, with
         #      the findings YOU accepted.
         dispatch("spec-writer", apply=main_session_decides(findings))
@@ -204,7 +204,7 @@ def brainstorm():
             break
         fix(results.first_failure)   # 28a · re-run THAT gate alone until it passes
 
-    # 29 · Step 10, BOTH modes — deep-reviewer · agent-pinned · serial ·
+    # 29 · Step 10, BOTH modes — spec-reviewer · agent-pinned · serial ·
     #      background, over the plan and, at full, the spec.
     #      ALWAYS the semantic half of "Every AC has a test": does each cited
     #      test actually PROVE its AC? At full, step 9's script already
@@ -218,7 +218,7 @@ def brainstorm():
     #      THEN, full only, each read back from disk: the qualitative pass
     #      (qualitative_pass) and the 2 rigor checks (traces_to_ac,
     #      right_sized). Light leaves all three off.
-    findings = dispatch("deep-reviewer", target=[plan, spec] if mode == "full" else [plan])
+    findings = dispatch("spec-reviewer", target=[plan, spec] if mode == "full" else [plan])
     # 29b · AT LIGHT, before deciding anything: read the plan against notes.md
     #       yourself. Every interview decision or constraint the plan
     #       contradicts or omits is a finding of the same kind, so accepted
@@ -337,7 +337,7 @@ flowchart TD
   n18["18. Step 6 · Derive a short kebab-case slug, never confirmed with the user;<br/>the plan inherits it, and the shared slug is what pairs the two files"]
   n19{{"19. Step 6 · Dispatch: Write the spec<br/>spec-writer · agent-pinned · serial · background<br/><br/>no inherited context: reads brainstorm-brief.md first, passing this session's<br/>resolved absolute path to it explicitly — its own scratchpad directory differs —<br/>then the spec-driven-development library + spec-template, and writes EVERY<br/>section; folds the brief's decisions into Functional Decisions<br/><br/>this session never writes the spec itself"}}:::dispatch
 
-  n20{{"20. Step 7 · Dispatch: Fresh-eyes review of the spec<br/>deep-reviewer · agent-pinned · serial · background — full only, ALWAYS dispatched<br/><br/>ALWAYS: 'How would this break?' (fail-closed) — every boundary/failure-category<br/>checklist row instantiated or opted out, every AC carrying a surfaced failure mode<br/><br/>THEN, only when qualitative_pass is true (read from /tmp/sdd_&lt;session_id&gt;.json):<br/>also sweeps placeholders · contradictions · ambiguity · completeness · human-reviewable<br/>NOT PR-size, NOT plan-contradiction (no plan yet), NOT Scope (step 2 already asked)"}}:::dispatch
+  n20{{"20. Step 7 · Dispatch: Fresh-eyes review of the spec<br/>spec-reviewer · agent-pinned · serial · background — full only, ALWAYS dispatched<br/><br/>ALWAYS: 'How would this break?' (fail-closed) — every boundary/failure-category<br/>checklist row instantiated or opted out, every AC carrying a surfaced failure mode<br/><br/>THEN, only when qualitative_pass is true (read from /tmp/sdd_&lt;session_id&gt;.json):<br/>also sweeps placeholders · contradictions · ambiguity · completeness · human-reviewable<br/>NOT PR-size, NOT plan-contradiction (no plan yet), NOT Scope (step 2 already asked)"}}:::dispatch
   n21{{"21. Dispatch: Apply the spec review findings<br/>spec-writer · agent-pinned · serial · background · the findings the main session accepted"}}:::dispatch
   n22["22. Report every finding to the user — applied, or skipped with the reason.<br/>The only way to judge whether this gate earns its cost.<br/>Runs ONCE per spec; the step-8 loop re-runs no review."]
 
@@ -353,7 +353,7 @@ flowchart TD
   n28{"28. All deterministic gates pass?"}
   n28a["28a. Fix the failure, then re-run that gate ALONE until it passes"]
 
-  n29{{"29. Step 10, BOTH modes · Dispatch: Fresh-eyes review of the plan<br/>deep-reviewer · agent-pinned · serial · background, over the plan and, at full, the spec —<br/>ALWAYS dispatched, in either mode<br/><br/>ALWAYS: the semantic half of 'Every AC has a test' — does each cited test actually<br/>PROVE its AC? At full, step 9's script already checked citation existence/validity,<br/>so this judges only the match; at light no coverage script ran, so it judges the WHOLE<br/>match — each task's Testable Acceptance criteria field against its Tests (planned) list<br/><br/>ALWAYS at light: the library's 'How would this break?' judgment, over each task's<br/>Testable Acceptance criteria field — at full, step 7 already ran it over the spec's<br/>ACs, so it is NOT repeated here<br/><br/>THEN, full only, each read back from disk: the qualitative pass (qualitative_pass)<br/>and the 2 rigor checks (traces_to_ac, right_sized). Light leaves all three off."}}:::dispatch
+  n29{{"29. Step 10, BOTH modes · Dispatch: Fresh-eyes review of the plan<br/>spec-reviewer · agent-pinned · serial · background, over the plan and, at full, the spec —<br/>ALWAYS dispatched, in either mode<br/><br/>ALWAYS: the semantic half of 'Every AC has a test' — does each cited test actually<br/>PROVE its AC? At full, step 9's script already checked citation existence/validity,<br/>so this judges only the match; at light no coverage script ran, so it judges the WHOLE<br/>match — each task's Testable Acceptance criteria field against its Tests (planned) list<br/><br/>ALWAYS at light: the library's 'How would this break?' judgment, over each task's<br/>Testable Acceptance criteria field — at full, step 7 already ran it over the spec's<br/>ACs, so it is NOT repeated here<br/><br/>THEN, full only, each read back from disk: the qualitative pass (qualitative_pass)<br/>and the 2 rigor checks (traces_to_ac, right_sized). Light leaves all three off."}}:::dispatch
   n29b["29b. AT LIGHT, before deciding anything · Read the plan against notes.md yourself.<br/>Every interview decision or constraint the plan contradicts or omits is a finding of the<br/>same kind, so accepted ones ride the SAME apply dispatch below.<br/>This session is the only holder of that interview"]:::state
   n30{{"30. Dispatch: Apply the plan review findings<br/>plan-writer · agent-pinned · serial · background · the findings the main session accepted"}}:::dispatch
   n31["31. Report every finding to the user — applied, or skipped with the reason.<br/>Runs ONCE per plan, never twice over the same text.<br/><br/>AT LIGHT, one more thing goes into this same report block: name every gate that ran<br/>and every one that didn't — the deterministic bucket minus its two spec-taking scripts,<br/>the 2 always-on judged checks above, and the qualitative/toggled checks the mode<br/>leaves off. Without it the finished plan carries no trace of what verified it"]
