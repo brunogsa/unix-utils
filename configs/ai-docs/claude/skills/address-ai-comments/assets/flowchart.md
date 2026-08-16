@@ -58,11 +58,11 @@ def address_ai_comments(arg):
 
     tails = None
     if run_tails:                                          # 9
-        # 9a · Step 5 — deep-reviewer x2, agent-pinned, dispatched in the SAME turn (∥):
+        # 9a · Step 5 — code-reviewer x2, agent-pinned, dispatched in the SAME turn (∥):
         #      simplification + correctness lenses, over BATCH_BASE_SHA..working tree.
-        #      ref: code-review-pipeline/references/deep-reviewer-tail-pair.md
-        tails = dispatch_parallel("deep-reviewer", lenses=["simplification", "correctness"])
-        # 9b · hook: deep-reviewer-write-guard.sh — writes allowed only to
+        #      ref: code-review-pipeline/references/code-reviewer-tail-pair.md
+        tails = dispatch_parallel("code-reviewer", lenses=["simplification", "correctness"])
+        # 9b · hook: check-reviewer-writes.sh — writes allowed only to
         #      verdict_*.md or under /tmp; anything else is denied and aborts the run.
 
         # 9c · read BOTH verdict reports, synthesize a prioritized summary,
@@ -99,8 +99,8 @@ flowchart TD
   n8a2["8a2. Step 4b · AI?: answer in chat first, never in the file"]
   n8b["8b. Delete the marker from source once resolved"]
   n9{"9. Step 1 toggle was on?"}
-  n9a[["9a. Step 5 · Dispatch deep-reviewer x2 · agent-pinned,<br/>in parallel (∥, same turn) — simplification + correctness lenses<br/>(ref: code-review-pipeline/references/deep-reviewer-tail-pair.md);<br/>diff BATCH_BASE_SHA..working tree"]]:::dispatch
-  n9b["9b. PreToolUse hook: deep-reviewer-write-guard.sh<br/>allows writes only to verdict_*.md or under /tmp;<br/>denies + aborts run otherwise"]:::hook
+  n9a[["9a. Step 5 · Dispatch code-reviewer x2 · agent-pinned,<br/>in parallel (∥, same turn) — simplification + correctness lenses<br/>(ref: code-review-pipeline/references/code-reviewer-tail-pair.md);<br/>diff BATCH_BASE_SHA..working tree"]]:::dispatch
+  n9b["9b. PreToolUse hook: check-reviewer-writes.sh<br/>allows writes only to verdict_*.md or under /tmp;<br/>denies + aborts run otherwise"]:::hook
   n9c["9c. Triage: read both verdict reports, synthesize<br/>prioritized summary, close with apply-offer<br/>(opt-in only — never auto-applied)"]:::gate
   n9d["9d. Append tails' two report paths + top findings<br/>+ apply-offer to final report"]
   n10["10. Step 6 · Report tasks created/executed + file:line refs<br/>(single final report — no per-cluster reports)"]

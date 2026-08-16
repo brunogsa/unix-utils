@@ -76,7 +76,7 @@ See "When a subagent might still help" below for the one case worth revisiting.
      A task isn't done until its marker comment is gone from the source; strip each `AI!` marker the moment its change lands.
    - Treat the file like a burn-down list, not an archive of resolved notes, in both passes.
 
-5. **Optional refactor + auto-review tails (only when step 1's toggle is on).** Dispatch the shared deep-reviewer tail pair — [`code-review-pipeline/references/deep-reviewer-tail-pair.md`](../code-review-pipeline/references/deep-reviewer-tail-pair.md).
+5. **Optional refactor + auto-review tails (only when step 1's toggle is on).** Dispatch the shared code-reviewer tail pair — [`code-review-pipeline/references/code-reviewer-tail-pair.md`](../code-review-pipeline/references/code-reviewer-tail-pair.md).
    - Set `<BASE_REF>` = `BATCH_BASE_SHA`, diffing against the working tree since this batch may be uncommitted.
    - No `<SPEC_PLAN_PATHS>` — this flow has no spec/plan.
    - No new lint/test gate is needed — the tails are report-only; that means this skill adds no lint/test gate of its own.
