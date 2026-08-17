@@ -107,6 +107,10 @@ it_should_start_the_counter_at_one_on_the_first_compaction() {
   title "auth-fix"
   title --bump-counter
 
+  # Also the "no compact-focus label set yet" case: nothing was
+  # retitled since the freeze, so the root renders alone with no
+  # trailing "/" -- the label field never appears until Claude
+  # calls title() again.
   assert_eq \
     "TmuxWindowTitle > counter > should start the compaction counter at 1" \
     "auth-fix[1]" "$(window_name)"
@@ -203,7 +207,7 @@ it_should_root_a_retitle_that_follows_a_compaction() {
 
   assert_eq \
     "TmuxWindowTitle > root > should prefix a drifted title with the frozen root" \
-    "auth-fix/db-store[1]" "$(window_name)"
+    "auth-fix/db-sto[1]" "$(window_name)"
   stop_server
 }
 
@@ -220,7 +224,7 @@ it_should_freeze_the_root_at_the_last_pre_compaction_title() {
 
   assert_eq \
     "TmuxWindowTitle > root > should freeze the last pre-compaction title, not the first" \
-    "auth-fix/db-store[1]" "$(window_name)"
+    "auth-fix/db-sto[1]" "$(window_name)"
   stop_server
 }
 
@@ -238,7 +242,7 @@ it_should_keep_the_root_stable_across_later_compactions() {
   # root onto the first ("auth-fix/auth-fix[3]").
   assert_eq \
     "TmuxWindowTitle > root > should not re-root a title that already carries its root" \
-    "auth-fix/db-store[3]" "$(window_name)"
+    "auth-fix/db-sto[3]" "$(window_name)"
   stop_server
 }
 
@@ -253,50 +257,39 @@ it_should_keep_the_root_immutable_across_many_retitles() {
 
   assert_eq \
     "TmuxWindowTitle > root > should keep anchoring to the original root after several topic shifts" \
-    "auth-fix/db-store[2]" "$(window_name)"
+    "auth-fix/db-sto[2]" "$(window_name)"
   stop_server
 }
 
-it_should_drop_root_words_from_the_current_work() {
+it_should_not_drop_root_words_from_the_compact_focus_label() {
   start_server
 
   title "tmux-titles"
   title --bump-counter
   title "tmux-titles-cap"
 
-  # The root already spells "tmux-titles" out, so repeating
-  # it would cost the cap the only new word.
+  # Word-dedup was removed: the compact-focus label renders
+  # as-is (subject to its own 8-char room), even though it
+  # repeats "tmux-titles" from the root.
   assert_eq \
-    "TmuxWindowTitle > root > should drop from the current work every word the root already carries" \
-    "tmux-titles/cap[1]" "$(window_name)"
+    "TmuxWindowTitle > root > should not drop a compact-focus word that repeats one already in the root" \
+    "tmux-titles/tmux-t[1]" "$(window_name)"
   stop_server
 }
 
-it_should_drop_only_whole_words_of_the_root() {
-  start_server
-
-  title "auth"
-  title --bump-counter
-  title "authz-fix"
-
-  # "authz" merely starts with the root — dropping it would
-  # lose the word the current work is actually about.
-  assert_eq \
-    "TmuxWindowTitle > root > should keep a current-work word that only starts with a root word" \
-    "auth/authz-fix[1]" "$(window_name)"
-  stop_server
-}
-
-it_should_render_bare_when_the_root_covers_every_word() {
+it_should_not_render_bare_when_the_compact_focus_label_merely_contains_root_words() {
   start_server
 
   title "auth-fix"
   title --bump-counter
   title "auth"
 
+  # "auth" is not IDENTICAL to the root "auth-fix" (only a
+  # substring of it), so the bare fallback -- reserved for an
+  # exact string match -- must not fire; the label renders.
   assert_eq \
-    "TmuxWindowTitle > root > should render bare when the root already covers every word of the current work" \
-    "auth-fix[1]" "$(window_name)"
+    "TmuxWindowTitle > root > should render the compact-focus label when it is a substring of the root, not just equal to it" \
+    "auth-fix/auth[1]" "$(window_name)"
   stop_server
 }
 
@@ -319,13 +312,14 @@ it_should_fold_a_caller_supplied_separator_into_a_hyphen() {
 
   title "auth-fix"
   title --bump-counter
-  title "auth-fix/token-refresh"
+  title "a/b"
 
-  # The script owns the composition, so a caller passing an
-  # already-rooted string must not nest one root in another.
+  # The script owns the composition, so a caller passing a
+  # slash must not nest a second root separator in another --
+  # "a/b" folds to "a-b", a single hyphenated word.
   assert_eq \
     "TmuxWindowTitle > root > should fold a caller-supplied slash into a hyphen" \
-    "auth-fix/token-refres[1]" "$(window_name)"
+    "auth-fix/a-b[1]" "$(window_name)"
   stop_server
 }
 
@@ -390,40 +384,26 @@ it_should_cap_a_rooted_title_at_twentyfour_chars_including_the_counter() {
   local actual; actual=$(window_name)
   assert_eq \
     "TmuxWindowTitle > cap > should cap a rooted title at 24 chars, counter included" \
-    "verylongro/verylongcu[1]" "$actual"
+    "verylongrootna/verylo[1]" "$actual"
   assert_eq \
     "TmuxWindowTitle > cap > should render a rooted title exactly 24 chars wide" \
     "24" "${#actual}"
   stop_server
 }
 
-it_should_give_a_short_root_s_slack_to_the_current_work() {
+it_should_not_reallocate_a_short_root_s_unused_room_to_the_compact_focus_label() {
   start_server
 
   title "ab"
   title --bump-counter
   title "verylongcurrentwork"
 
-  # Half of the 20-char text budget is 10; the 2-char root
-  # hands its unspent 8 to the current work, which keeps 18.
+  # Reallocation was removed: the compact-focus label is still
+  # capped at its fixed 7-char room (8 minus the [1] steal) even
+  # though the 2-char root leaves 12 chars unused.
   assert_eq \
-    "TmuxWindowTitle > cap > should hand a short root's unused room to the current work" \
-    "ab/verylongcurrentwor[1]" "$(window_name)"
-  stop_server
-}
-
-it_should_give_a_short_current_work_s_slack_to_the_root() {
-  start_server
-
-  title "verylongrootname"
-  title --bump-counter
-  title "abcdef"
-
-  # The mirror case: the 6-char current work hands its
-  # unspent 4 to the root, which keeps 14 instead of 10.
-  assert_eq \
-    "TmuxWindowTitle > cap > should hand short current work's unused room back to the root" \
-    "verylongrootna/abcdef[1]" "$(window_name)"
+    "TmuxWindowTitle > cap > should not hand a short root's unused room to the compact-focus label" \
+    "ab/verylo[1]" "$(window_name)"
   stop_server
 }
 
@@ -442,20 +422,25 @@ it_should_keep_the_counter_whole_when_truncating() {
   local actual; actual=$(window_name)
   assert_eq \
     "TmuxWindowTitle > cap > should keep a two-digit counter whole and shrink the text instead" \
-    "verylongro/verylongc[10]" "$actual"
+    "verylongrootna/veryl[10]" "$actual"
   stop_server
 }
 
 it_should_drop_a_trailing_hyphen_left_by_truncation() {
   start_server
 
-  title "aaaa-bbbb-cccc-dddd"
+  # Fixtures land exactly on a hyphen at each side's room: the
+  # root (16 chars, at the pre-compaction cap) cuts to its
+  # 14-char room right after "...ccc-", and the compact-focus
+  # label cuts to its 7-char field ("/" + 6 chars) right after
+  # "/yyyyy-".
+  title "aaaaaaaaaaaaa-zz"
   title --bump-counter
-  title "xxxxxxxxxxxxxxxxxxx"
+  title "yyyyy-zzzz"
 
   assert_eq \
-    "TmuxWindowTitle > cap > should drop a trailing hyphen the truncation cut leaves" \
-    "aaaa-bbbb/xxxxxxxxxx[1]" "$(window_name)"
+    "TmuxWindowTitle > cap > should drop a trailing hyphen the truncation cut leaves on either side" \
+    "aaaaaaaaaaaaa/yyyyy[1]" "$(window_name)"
   stop_server
 }
 
@@ -477,14 +462,14 @@ it_should_keep_a_split_counter_suffix_whole_when_truncating() {
   local actual; actual=$(window_name)
   assert_eq \
     "TmuxWindowTitle > cap > should shrink the text further to keep a two-half [M+S] suffix whole" \
-    "verylongro/verylong[3+2]" "$actual"
+    "verylongrootn/veryl[3+2]" "$actual"
   assert_eq \
     "TmuxWindowTitle > cap > should render a split-counter title exactly 24 chars wide" \
     "24" "${#actual}"
   stop_server
 }
 
-it_should_hold_the_root_at_its_fixed_entitlement_as_a_wide_split_counter_grows() {
+it_should_shrink_the_root_proportionally_as_a_wide_split_counter_grows() {
   start_server
 
   title "aaaa-bbbb-cccc-d"
@@ -493,8 +478,8 @@ it_should_hold_the_root_at_its_fixed_entitlement_as_a_wide_split_counter_grows()
 
   local baseline; baseline=$(window_name)
   assert_eq \
-    "TmuxWindowTitle > cap > should render the minimal [1] counter as the fixed-entitlement baseline" \
-    "aaaa-bbbb/eeee-ffff[1]" "$baseline"
+    "TmuxWindowTitle > cap > should render the minimal [1] counter at the 16/8 baseline split" \
+    "aaaa-bbbb-cccc/eeee-f[1]" "$baseline"
 
   # Looping --bump-subagent-counter 345 times to reach [12+345]
   # for real would make the test itself absurd -- inject the
@@ -506,12 +491,15 @@ it_should_hold_the_root_at_its_fixed_entitlement_as_a_wide_split_counter_grows()
 
   local widened; widened=$(window_name)
   assert_eq \
-    "TmuxWindowTitle > cap > should shrink only the current-work half as the split counter widens" \
-    "aaaa-bbbb/eeee[12+345]" "$widened"
+    "TmuxWindowTitle > cap > should shrink both halves as the split counter widens, root included" \
+    "aaaa-bbbb-c/eeee[12+345]" "$widened"
 
+  local baseline_root=${baseline%%/*} widened_root=${widened%%/*}
+  local root_shrank=no
+  [ "${#widened_root}" -lt "${#baseline_root}" ] && root_shrank=yes
   assert_eq \
-    "TmuxWindowTitle > cap > should keep the root segment exactly as wide as the [1] baseline" \
-    "${baseline%%/*}" "${widened%%/*}"
+    "TmuxWindowTitle > cap > should narrow the root segment itself as the [3:2] steal eats a wider counter" \
+    "yes" "$root_shrank"
   stop_server
 }
 
@@ -525,7 +513,7 @@ it_should_stay_within_the_twentyfour_char_cap_as_the_split_counter_keeps_widenin
 
   local actual; actual=$(window_name)
   assert_eq \
-    "TmuxWindowTitle > cap > should render an even wider split counter without breaking the root" \
+    "TmuxWindowTitle > cap > should render an even wider split counter, root and label both shrinking further" \
     "aaaa-bbbb/eee[123+4567]" "$actual"
 
   local within_cap=yes
@@ -580,6 +568,84 @@ it_should_survive_an_absurdly_wide_counter_with_no_root_frozen() {
   stop_server
 }
 
+it_should_split_room_fourteen_and_seven_at_the_minimal_counter_width() {
+  start_server
+
+  # Pins the fixed 16/8 baseline split (14/7 once the minimal
+  # [N] suffix -- a single digit, W=3 -- steals its 3:2 share)
+  # with hyphen-free fixtures so the width is exact and
+  # unambiguous.
+  title "xxxxxxxxxxxxxxxx"
+  title --bump-counter
+  title "yyyyyyyyyyyyyyyyyyyy"
+
+  local actual; actual=$(window_name)
+  assert_eq \
+    "TmuxWindowTitle > cap > should split 14/7 between root and compact-focus at the minimal [N] counter width" \
+    "xxxxxxxxxxxxxx/yyyyyy[1]" "$actual"
+  assert_eq \
+    "TmuxWindowTitle > cap > should render the 14/7 split exactly 24 chars wide" \
+    "24" "${#actual}"
+  stop_server
+}
+
+it_should_keep_the_twentyfour_char_split_exact_for_moderate_counter_widths() {
+  start_server
+
+  title "aaaaaaaaaaaaaaaa"
+  title --bump-counter
+
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "aaaaaaaaaaaaaaaa[12+3]"
+  title "bbbbbbbbbbbbbbbb"
+  assert_eq \
+    "TmuxWindowTitle > cap > should split 12/6 for a 6-char [M+S] suffix, exactly 24 chars wide" \
+    "aaaaaaaaaaaa/bbbbb[12+3]" "$(window_name)"
+
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "aaaaaaaaaaaaaaaa[123+4]"
+  title "bbbbbbbbbbbbbbbb"
+  assert_eq \
+    "TmuxWindowTitle > cap > should split 12/5 for a 7-char [M+S] suffix, exactly 24 chars wide" \
+    "aaaaaaaaaaaa/bbbb[123+4]" "$(window_name)"
+  stop_server
+}
+
+it_should_render_no_compact_focus_field_when_its_room_drops_below_two_chars() {
+  start_server
+
+  title "aaaaaaaaaaaaaaaa"
+  title --bump-counter
+
+  # A 16-digit main count (W=18) steals so much that the
+  # compact-focus room drops to 1 -- too narrow for even "/"
+  # plus one letter, so the label is dropped entirely rather
+  # than rendering a dangling "/".
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "aaaaaaaaaaaaaaaa[1234567890123456]"
+  title "bbbbbbbbbbbbbbbb"
+
+  assert_eq \
+    "TmuxWindowTitle > cap > should drop the compact-focus field entirely once its room falls below 2 chars" \
+    "aaaaa[1234567890123456]" "$(window_name)"
+  stop_server
+}
+
+it_should_clamp_compact_focus_room_to_zero_without_negative_width_at_a_wide_counter() {
+  start_server
+
+  title "aaaaaaaaaaaaaaaa"
+  title --bump-counter
+
+  # A 20-digit main count (W=22) drives the compact-focus steal
+  # past its 8-char baseline; the room clamps at 0 (never
+  # negative) while the root, only partly eaten, still renders.
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "aaaaaaaaaaaaaaaa[12345678901234567890]"
+  title "bbbbbbbbbbbbbbbb"
+
+  assert_eq \
+    "TmuxWindowTitle > cap > should clamp the compact-focus room at 0 rather than go negative" \
+    "aaa[12345678901234567890]" "$(window_name)"
+  stop_server
+}
+
 it_should_drop_the_counter_and_the_root_on_reset() {
   start_server
 
@@ -590,7 +656,7 @@ it_should_drop_the_counter_and_the_root_on_reset() {
 
   assert_eq \
     "TmuxWindowTitle > reset > should shed both the counter and the root prefix" \
-    "db-store" "$(window_name)"
+    "db-sto" "$(window_name)"
   stop_server
 }
 
@@ -605,16 +671,17 @@ it_should_shed_a_split_counter_and_release_the_root_on_reset() {
 
   assert_eq \
     "TmuxWindowTitle > reset > should shed both halves of a split [M+S] counter on reset" \
-    "db-store" "$(window_name)"
+    "db-st" "$(window_name)"
 
   title --bump-counter
   title "api-cache"
 
   # The released root must not still be "auth-fix" -- the
-  # post-reset base ("db-store") becomes the next root instead.
+  # post-reset base ("db-st", already truncated to its [1+1]-era
+  # compact-focus room before the reset) becomes the next root instead.
   assert_eq \
     "TmuxWindowTitle > reset > should release the frozen root so the post-reset base becomes the next root" \
-    "db-store/api-cache[1]" "$(window_name)"
+    "db-st/api-ca[1]" "$(window_name)"
   stop_server
 }
 
@@ -628,11 +695,12 @@ it_should_let_a_new_root_be_frozen_after_a_reset() {
   title --bump-counter
   title "api-cache"
 
-  # The new root is "db-store", the title the pane carried
-  # when the reset landed — not the released "auth-fix".
+  # The new root is "db-sto" (the post-reset base, already truncated to
+  # its [1]-era compact-focus room), the title the pane carried when the
+  # reset landed — not the released "auth-fix".
   assert_eq \
     "TmuxWindowTitle > reset > should anchor the next session to its own first title" \
-    "db-store/api-cache[1]" "$(window_name)"
+    "db-sto/api-ca[1]" "$(window_name)"
   stop_server
 }
 
@@ -652,7 +720,7 @@ it_should_release_the_root_even_when_no_counter_is_present() {
 
   assert_eq \
     "TmuxWindowTitle > reset > should release the root before the no-counter early return" \
-    "db-store/api-cache[1]" "$(window_name)"
+    "db-sto/api-ca[1]" "$(window_name)"
   stop_server
 }
 
@@ -734,24 +802,26 @@ it_should_root_a_retitle_that_follows_a_compaction
 it_should_freeze_the_root_at_the_last_pre_compaction_title
 it_should_keep_the_root_stable_across_later_compactions
 it_should_keep_the_root_immutable_across_many_retitles
-it_should_drop_root_words_from_the_current_work
-it_should_drop_only_whole_words_of_the_root
-it_should_render_bare_when_the_root_covers_every_word
+it_should_not_drop_root_words_from_the_compact_focus_label
+it_should_not_render_bare_when_the_compact_focus_label_merely_contains_root_words
 it_should_render_bare_when_the_title_matches_the_root
 it_should_fold_a_caller_supplied_separator_into_a_hyphen
 it_should_not_root_a_pane_claude_never_titled
 it_should_freeze_the_root_at_the_title_current_when_the_main_bump_lands
 it_should_cap_a_plain_title_at_sixteen_chars
 it_should_cap_a_rooted_title_at_twentyfour_chars_including_the_counter
-it_should_give_a_short_root_s_slack_to_the_current_work
-it_should_give_a_short_current_work_s_slack_to_the_root
+it_should_not_reallocate_a_short_root_s_unused_room_to_the_compact_focus_label
 it_should_keep_the_counter_whole_when_truncating
 it_should_drop_a_trailing_hyphen_left_by_truncation
 it_should_keep_a_split_counter_suffix_whole_when_truncating
-it_should_hold_the_root_at_its_fixed_entitlement_as_a_wide_split_counter_grows
+it_should_shrink_the_root_proportionally_as_a_wide_split_counter_grows
 it_should_stay_within_the_twentyfour_char_cap_as_the_split_counter_keeps_widening
 it_should_survive_an_absurdly_wide_counter_that_alone_exceeds_the_cap
 it_should_survive_an_absurdly_wide_counter_with_no_root_frozen
+it_should_split_room_fourteen_and_seven_at_the_minimal_counter_width
+it_should_keep_the_twentyfour_char_split_exact_for_moderate_counter_widths
+it_should_render_no_compact_focus_field_when_its_room_drops_below_two_chars
+it_should_clamp_compact_focus_room_to_zero_without_negative_width_at_a_wide_counter
 it_should_drop_the_counter_and_the_root_on_reset
 it_should_shed_a_split_counter_and_release_the_root_on_reset
 it_should_let_a_new_root_be_frozen_after_a_reset

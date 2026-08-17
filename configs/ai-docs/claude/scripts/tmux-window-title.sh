@@ -47,23 +47,27 @@
 #
 #   So the first --bump-counter freezes the then-current base as the session's
 #   ROOT, in the pane option @claude_root_title. Every later title renders as
-#   "<root>/<current>[N]" -- the anchor the user scans for, plus where the work
-#   has actually moved.
+#   "<root>/<compact-focus>[N]" -- the anchor the user scans for, plus where
+#   the work has actually moved.
 #
-#   The current half AGGREGATES over the root rather than repeating it: any
-#   hyphen-separated word the root already carries is dropped from it, so
-#   "tmux-titles" plus "tmux-titles-cap" reads "tmux-titles/cap[1]". Repeating
-#   a word already on screen would spend the cap truncating the work that is
-#   actually new. A base the root fully covers leaves nothing to add and
-#   renders bare, so an undrifted session never reads "auth-fix/auth-fix[2]".
+#   The compact-focus half always renders the label as-is, even when it
+#   repeats a word the root already carries -- there is no dedup/aggregation.
+#   A rooted title renders bare (root only, no "/") only when the label is
+#   IDENTICAL to the root, or when nothing has been set post-root yet.
 #
-#   The root's own room in that pair is a FIXED entitlement:
-#   half of what the NARROWEST possible counter would leave,
-#   not half of whatever counter is actually on screen.
+#   Root and compact-focus each get a FIXED room inside the 24-char cap: 16
+#   for the root (MAX_LEN_PLAIN, deliberately equal to the pre-compaction cap)
+#   and 8 for the compact-focus half (FOCUS_ROOM_BASELINE, the leading "/"
+#   included -- so "/" plus up to 7 label chars). 16 + 8 = 24 = MAX_LEN_COMPACTED.
 #
-#   A widening counter then only ever eats into the current
-#   half, so the anchor the user scans for never shrinks past
-#   what any real counter could force on it.
+#   A counter wider than the narrowest possible "[N]" steals width from BOTH
+#   sides, proportionally 3:2 (root:compact-focus) -- see split_rooted_rooms.
+#   There is no reallocation between the two: once a side's room clamps to 0
+#   it stays 0, it is never handed back to the other side.
+#
+#   If the compact-focus room ever drops below 2 chars (not even room for the
+#   "/" plus one label char), the field is dropped entirely rather than
+#   rendering a dangling "/[N]".
 #
 #   The root is stored in tmux, not left to Claude's memory, precisely because
 #   compaction is what erases the first turn: after it, Claude no longer knows
@@ -85,9 +89,10 @@
 #     is currently focused.
 #   - Caps the whole title, counter included: 16 chars before any compaction,
 #     24 once a counter exists. The wider cap is spent only where the rooted
-#     "<root>/<current>[N]" form needs it. The counter suffix is always kept
-#     intact and the text is truncated to fit, so the count stays readable
-#     even as the title shrinks. The caller should still keep titles short.
+#     "<root>/<compact-focus>[N]" form needs it. The counter suffix is always
+#     kept intact and the text is truncated to fit, so the count stays
+#     readable even as the title shrinks. The caller should still keep titles
+#     short.
 #   - On the first rename for a pane (any mode), captures the pre-Claude window
 #     name and automatic-rename flag into pane options ($TMUX_PANE-scoped
 #     @claude_prev_window_name / @claude_prev_auto_rename) before overwriting
@@ -105,10 +110,11 @@
 #   tmux-window-title.sh --reset-counter
 #     "tmux-titles[1+1]" -> "tmux-titles"
 #   tmux-window-title.sh "hook-tests"
-#     after that bump, roots the title:
-#     "tmux-title/hook-tests[1]"
+#     after that bump, roots the title, compact-focus capped to its 8-char
+#     (incl. "/") room: "tmux-titles/hook-t[1]"
 #   tmux-window-title.sh "tmux-titles-cap"
-#     the root's own words drop out: "tmux-titles/cap[1]"
+#     the label renders as-is, even repeating a root word, truncated to its
+#     8-char (incl. "/") room: "tmux-titles/tmux-t[1]"
 
 set -euo pipefail
 
@@ -125,21 +131,21 @@ print_help() {
 MAX_LEN_PLAIN=16
 MAX_LEN_COMPACTED=24
 
-# Separates the frozen root from the current work in a rooted title.
+# Separates the frozen root from the compact-focus label in a rooted title.
 ROOT_SEPARATOR="/"
 
-# Narrowest a counter suffix can ever be: a single-digit main
-# count with no subagent half, e.g. "[1]".
-MIN_COUNTER_SUFFIX_LEN=3
+# Fixed room the compact-focus half gets inside a rooted title, before any
+# counter-width steal -- the leading ROOT_SEPARATOR included, so "/" plus up
+# to 7 label chars. Paired with MAX_LEN_PLAIN (the root's own fixed room):
+# 16 + 8 = 24 = MAX_LEN_COMPACTED.
+FOCUS_ROOM_BASELINE=8
 
-# The root's fixed entitlement inside a rooted title's text
-# budget: half of what the NARROWEST possible counter would
-# leave, not half of whatever counter is actually rendered.
-#
-# A counter wider than the minimum then only ever eats into
-# the current-work half -- the anchor itself never shrinks
-# below what any real counter could force on it.
-ROOT_ROOM=$(( (MAX_LEN_COMPACTED - MIN_COUNTER_SUFFIX_LEN - ${#ROOT_SEPARATOR}) / 2 ))
+# A counter wider than the narrowest possible "[N]" steals width from BOTH
+# the root and the compact-focus room, proportionally ROOT_STEAL_RATIO :
+# FOCUS_STEAL_RATIO -- see split_rooted_rooms for the exact formula.
+ROOT_STEAL_RATIO=3
+FOCUS_STEAL_RATIO=2
+STEAL_RATIO_TOTAL=$(( ROOT_STEAL_RATIO + FOCUS_STEAL_RATIO ))
 
 # Parse a trailing compaction counter from a title. Echoes the
 # counter BODY without its brackets -- "3" or "3+2" -- and
@@ -207,13 +213,13 @@ compose_counter() {
   printf '%s' "$main"
 }
 
-# Recover the current-work half of an already-rendered title.
+# Recover the compact-focus half of an already-rendered title.
 #
 # The window name is a RENDERED title, and rendering is not
-# idempotent -- feeding "<root>/<current>" back in would compose
+# idempotent -- feeding "<root>/<compact-focus>" back in would compose
 # a second root onto it and squeeze both halves again. On a
 # pre-root title there is no separator and this is a no-op.
-current_base() {
+compact_focus_base() {
   local base
   base=$(strip_counter "$1")
   printf '%s' "${base##*"$ROOT_SEPARATOR"}"
@@ -230,73 +236,31 @@ truncate_segment() {
   printf '%s' "$text"
 }
 
-# Split `available` chars between the root and the current
-# base. The root gets the fixed ROOT_ROOM, clamped down only
-# when `available` itself is narrower than that.
-#
-# A side shorter than its room still hands the slack to the
-# other -- so a short root never wastes room a long current
-# base could use. Echoes the two fitted segments separated
-# by ROOT_SEPARATOR.
-fit_rooted_pair() {
-  local root=$1 base=$2 available=$3
+# Split the rooted pair's two fixed rooms (MAX_LEN_PLAIN for the root,
+# FOCUS_ROOM_BASELINE for the compact-focus half) given a counter-suffix
+# length. A counter wider than the narrowest possible "[N]" steals from BOTH
+# sides proportionally 3:2 (root:compact-focus), round-half-up, and each
+# room clamps at 0 rather than go negative -- there is no reallocation
+# between sides. Echoes "<root_room> <focus_room>".
+split_rooted_rooms() {
+  local suffix_len=$1
+  local root_steal=$(( (suffix_len * ROOT_STEAL_RATIO + STEAL_RATIO_TOTAL / 2) / STEAL_RATIO_TOTAL ))
+  local focus_steal=$(( suffix_len - root_steal ))
 
-  if [ $(( ${#root} + ${#base} )) -le "$available" ]; then
-    printf '%s%s%s' "$root" "$ROOT_SEPARATOR" "$base"
-    return
-  fi
+  local root_room=$(( MAX_LEN_PLAIN - root_steal ))
+  [ "$root_room" -lt 0 ] && root_room=0
+  local focus_room=$(( FOCUS_ROOM_BASELINE - focus_steal ))
+  [ "$focus_room" -lt 0 ] && focus_room=0
 
-  local root_room=$ROOT_ROOM
-  [ "$root_room" -gt "$available" ] && root_room=$available
-  local base_room=$(( available - root_room ))
-
-  if [ "${#root}" -lt "$root_room" ]; then
-    root_room=${#root}
-    base_room=$(( available - root_room ))
-  elif [ "${#base}" -lt "$base_room" ]; then
-    base_room=${#base}
-    root_room=$(( available - base_room ))
-  fi
-
-  printf '%s%s%s' \
-    "$(truncate_segment "$root" "$root_room")" \
-    "$ROOT_SEPARATOR" \
-    "$(truncate_segment "$base" "$base_room")"
-}
-
-# Echo `base` with every hyphen-separated word the root already carries
-# dropped, in the order the survivors appeared. Echoes nothing when the root
-# covers every word.
-#
-# This is what makes a rooted title aggregate instead of repeat: the root is
-# already on screen, so re-printing one of its words buys the reader nothing
-# while the cap truncates away the work that IS new.
-drop_words_already_in_root() {
-  local root=$1 remaining=$2 kept="" word
-
-  while [ -n "$remaining" ]; do
-    word="${remaining%%-*}"
-    remaining="${remaining#"$word"}"
-    remaining="${remaining#-}"
-
-    # Both sides wrapped in hyphens so only whole words match -- an "auth"
-    # in the root must not swallow "authz" from the current work.
-    case "-$root-" in
-      *"-$word-"*) continue ;;
-    esac
-
-    kept="${kept:+$kept-}$word"
-  done
-
-  printf '%s' "$kept"
+  printf '%s %s' "$root_room" "$focus_room"
 }
 
 # Render the window title, capped per MAX_LEN_PLAIN / MAX_LEN_COMPACTED. The
 # counter is kept whole and the text truncated to make room, so the count stays
 # visible even as the title shrinks.
 #
-# The root is prepended only when there is one AND the base still says
-# something the root does not.
+# The root is prepended only when there is one AND the base still differs
+# from it -- an identical base renders bare rather than doubled.
 render_title() {
   local base=$1 counter=$2 root=${3:-} suffix=""
   [ -n "$counter" ] && suffix="[$counter]"
@@ -313,26 +277,27 @@ render_title() {
   [ "$budget" -lt 0 ] && budget=0
 
   if [ -n "$root" ]; then
-    local new_work
-    new_work=$(drop_words_already_in_root "$root" "$base")
+    local focus_label=$base
+    [ "$focus_label" = "$root" ] && focus_label=""
 
-    if [ -n "$new_work" ]; then
-      local available=$(( budget - ${#ROOT_SEPARATOR} ))
-      [ "$available" -lt 0 ] && available=0
+    if [ -n "$focus_label" ]; then
+      local rooms root_room focus_room
+      rooms=$(split_rooted_rooms "${#suffix}")
+      root_room=${rooms%% *}
+      focus_room=${rooms#* }
 
-      # No room for either half of the pair -- render the
-      # counter alone rather than a bare "/[N]" separator.
-      if [ "$available" -eq 0 ]; then
-        printf '%s' "$suffix"
-        return
-      fi
+      # Below a 2-char room there's not even space for the "/" plus one
+      # label char -- drop the field entirely rather than render a
+      # dangling "/[N]".
+      local focus_out=""
+      [ "$focus_room" -ge 2 ] && focus_out=$(truncate_segment "${ROOT_SEPARATOR}${focus_label}" "$focus_room")
 
-      printf '%s%s' "$(fit_rooted_pair "$root" "$new_work" "$available")" "$suffix"
+      printf '%s%s%s' "$(truncate_segment "$root" "$root_room")" "$focus_out" "$suffix"
       return
     fi
 
-    # Nothing survived: the root already spells the current work out, so it
-    # renders alone rather than as "auth-fix/auth-fix" or "auth-fix/auth".
+    # Nothing to add: the label is identical to the root, so it renders
+    # alone rather than as "auth-fix/auth-fix".
     base=$root
   fi
 
@@ -434,7 +399,7 @@ bump_counter() {
   current=$(current_title)
   body=$(parse_counter "$current")
   capture_prev_state
-  base=$(current_base "$current")
+  base=$(compact_focus_base "$current")
 
   main=$(main_count "$body")
   sub=$(subagent_count "$body")
@@ -514,7 +479,7 @@ case "$MODE" in
     # Shed the now-released root too, keeping only the current work -- carrying
     # "<root>/" into a counter-less title would anchor the new session to the
     # old one's identity, which is what the reset just revoked.
-    base=$(current_base "$current")
+    base=$(compact_focus_base "$current")
     capture_prev_state
     apply_title "$(render_title "$base" "")"
     ;;
