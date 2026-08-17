@@ -99,7 +99,7 @@ Dispatch each as `agent(subAgent=general-purpose, title=Audit session <Title>, m
 | Shard | Title | Brief | Effort | Output path |
 |---|---|---|---|---|
 | S1 | time | build the `time` digest from `timeline.json`'s time partition and event list; rank the largest time sinks | max | `/tmp/audit-session-<sid>/shard-s1-time.json` |
-| S2 | money | build the `money` digest from `cost.json`'s main/subagent cost split; rank the costliest spans | max | `/tmp/audit-session-<sid>/shard-s2-money.json` |
+| S2 | money | build the `money` digest from `cost.json`'s main/subagent cost split; rank the costliest spans; compare each identifiable skill invocation's cost against its ceiling in `~/.claude/skills/usage-audit/usage-history/targets.md` and flag any that ran over | max | `/tmp/audit-session-<sid>/shard-s2-money.json` |
 | S3 | work done | build the `work` digest from the task-store listing and commit list in `timeline.json`; rank completed work by scope | high | `/tmp/audit-session-<sid>/shard-s3-work.json` |
 | S4 | status and next steps | build the `status` digest from the session's latest state and pending tasks; rank next steps by urgency | high | `/tmp/audit-session-<sid>/shard-s4-status.json` |
 | S5 | recommendations | build the `recommendations` digest from S1-S4's merged narrative.json plus cost.json's summary; each recommendation must be concise, actionable, and tied to a specific number or finding from another digest — reject any generic enough to fit a session it never saw | high | `/tmp/audit-session-<sid>/shard-s5-recommendations.json` |

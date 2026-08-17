@@ -54,3 +54,4 @@ With `[sid]`, audits that session instead — this is what makes a finished, pos
 
 - `assets/subagent-prompt.md` — the self-contained routine the `session-auditor` agent reads for the full procedure.
   - The 5 fixed shard dispatches (S1-S4 parallel, S5 sequential), the digest schema, the retry-once-then-INCOMPLETE rule, and the `/tmp/audit-session-<sid>/` working-directory layout.
+  - S2 (money) compares the session's per-skill spend against `~/.claude/skills/usage-audit/usage-history/targets.md` — the same per-skill cost ceilings `usage-audit` reads, not a copy of them.

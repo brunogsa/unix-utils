@@ -76,27 +76,31 @@ def usage_audit(arg=None):
     for commit in ledger.uncovered_by_any_entry():         # 13
         experiments_md.add_enacted(commit) or note_why_it_cannot_move_a_kpi(commit)
 
-    run("build-usage-viewer.py --open")   # 14 · Step 6 — viewer.html is gitignored
+    # 14 · Step 6 — refresh the delivered-work denominator first; it cannot be
+    #      re-derived later, so repeat any warning it prints.
+    run("delivered-work-ledger.py --refresh")
 
-    # 15 · walk the user through the chart under "Reading the numbers":
+    run("build-usage-viewer.py --open")   # 15 · Step 6 — viewer.html is gitignored
+
+    # 16 · walk the user through the chart under "Reading the numbers":
     #      the main-vs-subagent split first, then the four known levers.
     walk_through(chart)
 
-    ask("Any new experiments to note?")                    # 16 · Step 7
+    ask("Any new experiments to note?")                    # 17 · Step 7
 
-    # 17 · 1-3 hypotheses of your own, each backed by web search against
+    # 18 · 1-3 hypotheses of your own, each backed by web search against
     #      current official sources.
     experiments_md.proposed.extend(web_backed_hypotheses(n=range(1, 4)))
 
-    # 18 · advance ONE Open-questions backlog item: settle it with cited
+    # 19 · advance ONE Open-questions backlog item: settle it with cited
     #      evidence, or promote it into an entry carrying a watch signal.
     advance_one(open_questions_backlog)
 
-    offer("commit the new snapshots plus the experiments edits")   # 19
-    if user_authorizes():                                  # 20
-        commit_from_main_session()   # 20a · main is where the permission gate renders
+    offer("commit the new snapshots plus the experiments edits")   # 20
+    if user_authorizes():                                  # 21
+        commit_from_main_session()   # 21a · main is where the permission gate renders
 
-    return  # 21 · Done
+    return  # 22 · Done
 ```
 
 ## Flowchart
@@ -129,15 +133,16 @@ flowchart TD
   n11a["11a. Move each closed entry to experiments-archive.md<br/>in the same edit that settles it"]:::state
   n12["12. Verify via the ledger that each ## Enacted entry has a commit;<br/>demote it to ## Proposed when none exists"]:::state
   n13["13. Catalogue any Step 3 commit no entry covers — new ## Enacted<br/>entry, or a note saying why it cannot move a KPI"]:::state
-  n14["14. Step 6 · build-usage-viewer.py --open<br/>(viewer.html is gitignored and never committed)"]:::hook
-  n15["15. Walk the user through the chart under 'Reading the numbers':<br/>main-vs-subagent split first, then the four known levers"]
-  n16["16. Step 7 · Ask the user outright for new experiments to note"]:::gate
-  n17["17. Raise 1-3 hypotheses of your own, each backed by web search<br/>against current official sources; append under ## Proposed"]:::state
-  n18["18. Advance one Open questions backlog item — settle it with cited<br/>evidence, or promote it into an entry with a watch signal"]:::state
-  n19["19. Offer to commit the new snapshots plus the experiments edits"]:::gate
-  n20{"20. User authorizes the commit?"}
-  n20a["20a. Commit from the main session, where the permission gate renders"]
-  n21(["21. Done"])
+  n14["14. Step 6 · delivered-work-ledger.py --refresh<br/>(cannot be re-derived later; repeat any warning it prints)"]:::hook
+  n15["15. Step 6 · build-usage-viewer.py --open<br/>(viewer.html is gitignored and never committed)"]:::hook
+  n16["16. Walk the user through the chart under 'Reading the numbers':<br/>main-vs-subagent split first, then the four known levers"]
+  n17["17. Step 7 · Ask the user outright for new experiments to note"]:::gate
+  n18["18. Raise 1-3 hypotheses of your own, each backed by web search<br/>against current official sources; append under ## Proposed"]:::state
+  n19["19. Advance one Open questions backlog item — settle it with cited<br/>evidence, or promote it into an entry with a watch signal"]:::state
+  n20["20. Offer to commit the new snapshots plus the experiments edits"]:::gate
+  n21{"21. User authorizes the commit?"}
+  n21a["21a. Commit from the main session, where the permission gate renders"]
+  n22(["22. Done"])
 
   n1 --> n2
   n2 -->|"yes"| n2a
@@ -170,9 +175,10 @@ flowchart TD
   n17 --> n18
   n18 --> n19
   n19 --> n20
-  n20 -->|"yes"| n20a
-  n20 -->|"no"| n21
-  n20a --> n21
+  n20 --> n21
+  n21 -->|"yes"| n21a
+  n21 -->|"no"| n22
+  n21a --> n22
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px

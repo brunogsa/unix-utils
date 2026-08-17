@@ -212,7 +212,13 @@ Steps 2, 5, and 6 quote figures; these rules bind every one.
 
 ## Context: the history and the repertoire
 
-Everything durable lives in `./usage-history/`: the per-day series in `snapshots/`, live experiments in `experiments.md`, settled ones in `experiments-archive.md`, and the shipped-work denominator in `delivered-work.json`.
+Everything durable lives in `./usage-history/`: the per-day series in `snapshots/`, live experiments in `experiments.md`, settled ones in `experiments-archive.md`, the shipped-work denominator in `delivered-work.json`.
+
+Per-skill-invocation cost ceilings live in `targets.md`, in the same directory.
+
+- **Compare `by_skill`/`by_skill_marginal` cost-per-load against `targets.md` during Step 5.** A skill reading meaningfully over its target is grounds for a new `## Proposed` entry, same as any other cost signal.
+
+  - `audit-session` reads the same `targets.md` for its own per-session comparison — edit the targets there, never duplicate a number into this skill.
 
 There is no single baseline file: the day series is the baseline, and any two closed days compare directly.
 
