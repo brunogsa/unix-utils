@@ -102,7 +102,7 @@ Fixture agent for SubagentDisallowedToolsGuard's
 allowedSubagents tests. Exists only under a tmp HOME.
 EOF
 
-  run_guard '{"tool_name":"Agent","agent_type":"guard-fixture-allowed-subagents-match","subagent_type":"Explore"}' "$fixture_home"
+  run_guard '{"tool_name":"Agent","agent_type":"guard-fixture-allowed-subagents-match","tool_input":{"subagent_type":"Explore"}}' "$fixture_home"
   assert_eq "should allow the dispatch when the requested subagent_type is in the calling agent's allowedSubagents list" "allow" "$HOOK_DECISION"
 
   rm -rf "$fixture_home"
@@ -122,7 +122,7 @@ Fixture agent for SubagentDisallowedToolsGuard's
 allowedSubagents tests. Exists only under a tmp HOME.
 EOF
 
-  run_guard '{"tool_name":"Agent","agent_type":"guard-fixture-no-allowed-subagents-key","subagent_type":"AnythingAtAll"}' "$fixture_home"
+  run_guard '{"tool_name":"Agent","agent_type":"guard-fixture-no-allowed-subagents-key","tool_input":{"subagent_type":"AnythingAtAll"}}' "$fixture_home"
   assert_eq "should allow the dispatch when the calling agent declares no allowedSubagents key" "allow" "$HOOK_DECISION"
 
   rm -rf "$fixture_home"
@@ -182,7 +182,7 @@ Fixture agent for SubagentDisallowedToolsGuard's
 allowedSubagents tests. Exists only under a tmp HOME.
 EOF
 
-  run_guard '{"tool_name":"Agent","agent_type":"guard-fixture-allowed-subagents-explore","subagent_type":"Grep"}' "$fixture_home"
+  run_guard '{"tool_name":"Agent","agent_type":"guard-fixture-allowed-subagents-explore","tool_input":{"subagent_type":"Grep"}}' "$fixture_home"
   assert_eq "should deny the dispatch when the requested subagent_type is absent from the calling agent's allowedSubagents list" "deny" "$HOOK_DECISION"
 
   rm -rf "$fixture_home"
@@ -202,7 +202,7 @@ Fixture agent for SubagentDisallowedToolsGuard's
 allowedSubagents tests. Exists only under a tmp HOME.
 EOF
 
-  run_guard '{"tool_name":"Agent","agent_type":"guard-fixture-allowed-subagents-empty","subagent_type":"Explore"}' "$fixture_home"
+  run_guard '{"tool_name":"Agent","agent_type":"guard-fixture-allowed-subagents-empty","tool_input":{"subagent_type":"Explore"}}' "$fixture_home"
   assert_eq "should deny every dispatch when allowedSubagents is present but empty" "deny" "$HOOK_DECISION"
 
   rm -rf "$fixture_home"
@@ -242,7 +242,7 @@ name: GuardFixtureAllowedSubagentsMalformed
 allowedSubagents: Explore
 EOF
 
-  run_guard '{"tool_name":"Agent","agent_type":"guard-fixture-allowed-subagents-malformed","subagent_type":"Explore"}' "$fixture_home"
+  run_guard '{"tool_name":"Agent","agent_type":"guard-fixture-allowed-subagents-malformed","tool_input":{"subagent_type":"Explore"}}' "$fixture_home"
   assert_eq "should deny (fail closed) when allowedSubagents cannot be parsed" "deny" "$HOOK_DECISION"
   assert_eq "should still exit 0 when allowedSubagents cannot be parsed, per the hook's fail-open-on-mechanics/fail-closed-on-uncertain-restriction contract" "0" "$HOOK_EXIT"
 
