@@ -1,7 +1,7 @@
 ---
 name: consistency-ensemble-child
 description: One independent sample of a single shard's consistency audit — reads only that shard's files plus CLAUDE.md, emits a [KEY]-tagged report for the shard-orchestrator's 2/3 vote. Dispatched only by consistency-shard-orchestrator.
-model: opus
+model: sonnet
 effort: max
 maxTurns: 128
 disallowedTools: Edit, Write, NotebookEdit, Agent, Artifact, ExitPlanMode

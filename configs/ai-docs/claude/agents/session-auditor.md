@@ -1,7 +1,7 @@
 ---
 name: session-auditor
 description: Orchestrates one Claude Code session's audit end to end -- runs the cost and timeline extractors, fans out to 5 general-purpose shards (4 parallel, 1 sequential), merges their digests, and renders the self-contained audit_session-<sid>.html.
-model: opus
+model: sonnet
 effort: high
 ---
 

@@ -152,14 +152,14 @@ The audit stays report-only — but applying the fixes is noisy: dozens of read/
 
 So when the report shows overages, end it with an offer: delegate the **fix loop**.
 
-On the user's go-ahead, main spawns one opus subagent (`Agent` with `model: opus`) owning the whole loop in its own context:
+On the user's go-ahead, main spawns `agent(subAgent=performance-check-fixer, title=Fix performance-check overages)` owning the whole loop in its own context:
 
 - Run `check.sh`, apply trim-hierarchy steps 1–4 to the offending files, re-run, repeat until green or stuck.
 - Load `skill-standards` before editing any `SKILL.md` — it holds the marker-splitting/nesting rules a trim must not violate.
 - Never the override step (`words-budget`/`instructions-budget`) — that's a budget trade-off the user owns, not a trim.
 - Return a concise summary plus a minimal diff so the user can review fast.
 
-**Opus, never a cheaper tier.** Delegation moves the *noise* off main, not the judgment.
+**`performance-check-fixer` is pinned to opus, never a cheaper tier.** Delegation moves the *noise* off main, not the judgment.
 
 Deciding what may be cut, merged, or extracted without losing a rule is judgment — a cheap tier hits the number by taking a rule with it.
 

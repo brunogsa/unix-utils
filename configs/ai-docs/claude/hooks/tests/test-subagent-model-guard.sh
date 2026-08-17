@@ -163,6 +163,71 @@ it_should_deny_retired_lowercase_explore_with_no_model_given() {
   assert_eq "should deny the dispatch when the guard is invoked directly with subagent_type explore (retired lowercase, no pin resolves) and no model is given" "deny" "$HOOK_DECISION"
 }
 
+it_should_allow_general_purpose_with_sonnet() {
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose","model":"sonnet"}}'
+  assert_eq "should allow the dispatch when subagent_type is general-purpose and the model is sonnet, which is not on its deniedModels list" "allow" "$HOOK_DECISION"
+}
+
+it_should_deny_general_purpose_with_opus() {
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose","model":"opus"}}'
+  assert_eq "should deny the dispatch when subagent_type is general-purpose and the model is opus, which its deniedModels list forbids" "deny" "$HOOK_DECISION"
+}
+
+it_should_deny_general_purpose_with_fable() {
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose","model":"fable"}}'
+  assert_eq "should deny the dispatch when subagent_type is general-purpose and the model is fable, which its deniedModels list forbids" "deny" "$HOOK_DECISION"
+}
+
+it_should_deny_general_purpose_with_no_model_given() {
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose"}}'
+  assert_eq "should deny the dispatch when subagent_type is general-purpose and no model is given, same as any other unpinned type" "deny" "$HOOK_DECISION"
+}
+
+it_should_deny_a_dispatch_with_no_subagent_type_and_opus() {
+  run_guard '{"tool_name":"Agent","tool_input":{"model":"opus"}}'
+  assert_eq "should deny the dispatch when subagent_type is omitted entirely and the model is opus, since it resolves to general-purpose rather than failing open" "deny" "$HOOK_DECISION"
+}
+
+it_should_allow_a_dispatch_with_no_subagent_type_and_sonnet() {
+  run_guard '{"tool_name":"Agent","tool_input":{"model":"sonnet"}}'
+  assert_eq "should allow the dispatch when subagent_type is omitted entirely and the model is sonnet, since it resolves to general-purpose and sonnet is not denied" "allow" "$HOOK_DECISION"
+}
+
+it_should_deny_a_dispatch_with_no_subagent_type_and_no_model() {
+  run_guard '{"tool_name":"Agent","tool_input":{}}'
+  assert_eq "should deny the dispatch when both subagent_type and model are omitted, since it resolves to general-purpose (unpinned) and an omitted model on an unpinned type is always denied" "deny" "$HOOK_DECISION"
+}
+
+it_should_accept_every_entry_of_a_multi_entry_denial_declaration() {
+  local fixture_home
+  fixture_home=$(mktemp -d)
+  mkdir -p "$fixture_home/.claude/agents"
+
+  # Inline-flow-list spelling with two entries — the live
+  # general-purpose.md has only the single-line comma-separated
+  # scalar form, so a fixture is the only place the bracket-list
+  # syntax gets exercised for deniedModels specifically.
+  cat > "$fixture_home/.claude/agents/guard-fixture-denials.md" <<'EOF'
+---
+name: guard-fixture-denials
+deniedModels: [opus, fable]
+---
+Fixture agent for SubagentModelGuardDeniedModelsParsing's multi-entry test.
+Exists only under a tmp HOME.
+EOF
+
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"guard-fixture-denials","model":"opus"}}' "$fixture_home"
+  assert_eq "should deny every entry of a multi-entry denial declaration written as an inline list (first entry)" "deny" "$HOOK_DECISION"
+
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"guard-fixture-denials","model":"fable"}}' "$fixture_home"
+  assert_eq "should deny every entry of a multi-entry denial declaration written as an inline list (last entry)" "deny" "$HOOK_DECISION"
+
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"guard-fixture-denials","model":"haiku"}}' "$fixture_home"
+  assert_eq "should still allow a model absent from a multi-entry denial declaration" "allow" "$HOOK_DECISION"
+
+  rm -rf "$fixture_home"
+}
+
 # --- failure scenarios ---
 
 it_should_deny_explore_when_model_contradicts_the_sonnet_pin() {
@@ -185,6 +250,14 @@ it_should_allow_a_conversation_fork_whatever_model_is_named
 it_should_index_the_pin_under_both_frontmatter_name_and_filename_stem
 it_should_accept_every_entry_of_a_multi_entry_override_declaration
 it_should_deny_retired_lowercase_explore_with_no_model_given
+it_should_allow_general_purpose_with_sonnet
+it_should_deny_general_purpose_with_opus
+it_should_deny_general_purpose_with_fable
+it_should_deny_general_purpose_with_no_model_given
+it_should_deny_a_dispatch_with_no_subagent_type_and_opus
+it_should_allow_a_dispatch_with_no_subagent_type_and_sonnet
+it_should_deny_a_dispatch_with_no_subagent_type_and_no_model
+it_should_accept_every_entry_of_a_multi_entry_denial_declaration
 it_should_deny_explore_when_model_contradicts_the_sonnet_pin
 it_should_deny_tdd_coder_when_the_model_is_neither_the_pin_nor_a_declared_override
 

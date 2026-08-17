@@ -34,7 +34,7 @@ and the subagent's reasoning doesn't pollute the active conversation.
 ## Run
 
 1. Spawn `agent(subAgent=english-coach-analyst, title=English-coach analysis pass)`
-   — its frontmatter pins opus at high effort.
+   — its frontmatter pins sonnet at high effort.
    Prompt: "Run the English-coach analysis pass for the current session."
    The subagent reads its own instructions from disk — the orchestrator never
    loads `assets/subagent-prompt.md`.

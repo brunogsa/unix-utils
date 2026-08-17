@@ -1,7 +1,7 @@
 ---
 name: test-reviewer
 description: Fresh-context, unbiased judge of whether planned tests exist and cover a plan's tasks. Dispatch for test-presence checks (test-sdd, quality-gate). Input: the plan/tasks and the test suite to check against.
-model: opus
+model: sonnet
 effort: high
 maxTurns: 64
 hooks:

@@ -30,7 +30,22 @@ Policy:
   - UNPINNED subagent_type (no matching agent file, or a file without
     `model:`): tool_input.model must be present -- an omitted model on an
     unpinned type silently inherits the session's (possibly expensive) model,
-    so it is denied. Any explicit model is accepted; the invoker decides.
+    so it is denied. Any explicit model is accepted; the invoker decides --
+    unless the file declares `deniedModels:` (see below), which still binds.
+  - UNPINNED WITH DECLARED DENIALS (frontmatter has `deniedModels:` but no
+    `model:`): the type stays otherwise unpinned -- any named model not on
+    the list is accepted -- but a model matching a listed family is denied.
+    This is how a type whose whole point is inheriting the caller's model
+    (general-purpose) can still rule out specific expensive/lower-precision
+    tiers without becoming pinned to a single one. Same reasoning as
+    `allowedModelOverrides:`: declaring it in frontmatter keeps this hook
+    free of an allowlist of its own.
+  - A DISPATCH WITH NO `subagent_type` AT ALL resolves to `general-purpose`,
+    mirroring the Agent tool's own documented default ("omitting it starts a
+    fresh agent -- general-purpose by default"). It is not a fail-open case:
+    treating it as unresolvable let a caller dodge every check below --
+    including `general-purpose`'s own `deniedModels:` -- just by leaving the
+    field out, which defeats the ban rather than being neutral to it.
   - THE `fork` TYPE is exempt from all of the above. A conversation fork has
     no agent file to pin and always runs the main session's model, so the
     unpinned branch's rationale -- that an omitted model silently inherits
@@ -54,6 +69,12 @@ Examples:
     | subagent-model-guard.py                          # allowed (declared override tier)
   echo '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose"}}' \
     | subagent-model-guard.py                          # denied (unpinned, no model named)
+  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose","model":"opus"}}' \
+    | subagent-model-guard.py                          # denied (opus is on general-purpose's deniedModels)
+  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose","model":"sonnet"}}' \
+    | subagent-model-guard.py                          # allowed (sonnet is not denied)
+  echo '{"tool_name":"Agent","tool_input":{"model":"opus"}}' \
+    | subagent-model-guard.py                          # denied (no subagent_type resolves to general-purpose)
   echo '{"tool_name":"Agent","tool_input":{"subagent_type":"fork"}}' \
     | subagent-model-guard.py                          # allowed (a fork takes the session's model)
 """
@@ -66,7 +87,8 @@ from pathlib import Path
 AGENTS_DIR = Path.home() / ".claude" / "agents"
 FORK_SUBAGENT_TYPE = "fork"
 MODEL_ALIASES = ("sonnet", "opus", "haiku", "fable")
-FRONTMATTER_KEYS = ("name", "model", "effort", "allowedModelOverrides")
+DEFAULT_SUBAGENT_TYPE = "general-purpose"
+FRONTMATTER_KEYS = ("name", "model", "effort", "allowedModelOverrides", "deniedModels")
 
 
 def normalize_model(value):
@@ -86,14 +108,14 @@ def normalize_model(value):
     return lowered
 
 
-def parse_allowed_overrides(value):
-    """Normalize an `allowedModelOverrides:` value into its family aliases.
+def parse_model_list(value):
+    """Normalize an `allowedModelOverrides:`/`deniedModels:` value into family aliases.
 
     Accepts both spellings the frontmatter can carry -- a comma-separated
     scalar (`opus` / `opus, fable`) and YAML's inline flow list
     (`[opus, fable]`) -- because the agent file is hand-edited and neither
-    form is wrong there. An absent or empty key yields no overrides, which
-    is what keeps every agent that never declares one strictly pinned.
+    form is wrong there. An absent or empty key yields an empty tuple, which
+    is what keeps every agent that never declares either key unaffected.
     """
     if not value:
         return ()
@@ -159,9 +181,7 @@ def main():
             return  # not our matcher's concern; allow silently
 
         tool_input = payload.get("tool_input") or {}
-        subagent_type = tool_input.get("subagent_type")
-        if not subagent_type:
-            return  # nothing to resolve against; fail open
+        subagent_type = tool_input.get("subagent_type") or DEFAULT_SUBAGENT_TYPE
 
         if subagent_type == FORK_SUBAGENT_TYPE:
             # A fork inherits the main session's model, so
@@ -180,7 +200,7 @@ def main():
 
     if pin and pinned_model:
         pinned_effort = pin.get("effort", "inherited")
-        allowed_overrides = parse_allowed_overrides(pin.get("allowedModelOverrides"))
+        allowed_overrides = parse_model_list(pin.get("allowedModelOverrides"))
         if requested_model is None:
             return  # allow: omitted model takes the pin
         if normalize_model(requested_model) == normalize_model(pinned_model):
@@ -217,9 +237,25 @@ def main():
             f"sonnet = compose under conventions, opus/fable = judgment); "
             f"an omitted model silently inherits the session's expensive tier."
         )
+        return
 
-    # else: allow: unpinned type with an explicit model — the
-    # invoker decides
+    denied_models = parse_model_list(pin.get("deniedModels")) if pin else ()
+    if normalize_model(requested_model) in denied_models:
+        deny(
+            f"agent type '{subagent_type}' declares deniedModels="
+            f"{','.join(denied_models)}, and the model you named is one of "
+            f"them. That frontmatter is the only place this is decided, so "
+            f"it outranks any skill or reference telling you to use that "
+            f"tier here. Dispatch a different, pinned agent type that "
+            f"legitimately needs that tier instead of forcing it through "
+            f"this one. If a doc told you to do this, that is a real "
+            f"conflict, not your misreading — surface it so the doc or the "
+            f"ban gets changed, and do not retry this dispatch."
+        )
+        return
+
+    # else: allow: unpinned type with an explicit, non-denied model —
+    # the invoker decides
 
 
 if __name__ == "__main__":

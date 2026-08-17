@@ -92,9 +92,9 @@ Every run fans out to exactly these 5 shards, no more, no fewer (D3).
 
 Each row's `model`/`effort` is a fixed tier from the plan's per-component split — `effort:` is a convention this file declares, since `subagent-model-guard.py` gates `model` only and never enforces `effort`.
 
-`general-purpose` carries no frontmatter pin, so every dispatch below must name `model` explicitly or the guard hook denies it.
+`general-purpose` carries no frontmatter pin, so every dispatch below must name `model` explicitly or the guard hook denies it — never `opus`/`fable`, which `general-purpose`'s `deniedModels:` forbids.
 
-Dispatch each as `agent(subAgent=general-purpose, title=Audit session <Title>, model=opus, effort=<Effort>)`.
+Dispatch each as `agent(subAgent=general-purpose, title=Audit session <Title>, model=sonnet, effort=<Effort>)`.
 
 | Shard | Title | Brief | Effort | Output path |
 |---|---|---|---|---|

@@ -41,7 +41,7 @@ With `[sid]`, audits that session instead — this is what makes a finished, pos
 
 2. Dispatch `agent(subAgent=session-auditor, title=Audit session <sid>)`, with no `model=` param.
 
-   `session-auditor`'s own frontmatter pins `model: opus`, so naming it here is redundant at best, and a denied mismatch at worst if the two ever drift.
+   `session-auditor`'s own frontmatter pins `model: sonnet`, so naming it here is redundant at best, and a denied mismatch at worst if the two ever drift.
 
    Pass only the resolved sid as the prompt — no procedure, no schema, no file paths.
 
