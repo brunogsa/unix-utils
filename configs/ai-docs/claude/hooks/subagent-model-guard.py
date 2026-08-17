@@ -254,8 +254,8 @@ def main():
         )
         return
 
-    # else: allow: unpinned type with an explicit, non-denied model —
-    # the invoker decides
+    # else: allow: unpinned type with an explicit, non-denied
+    # model — the invoker decides
 
 
 if __name__ == "__main__":
