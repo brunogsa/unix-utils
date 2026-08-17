@@ -511,9 +511,7 @@ read_effective_advisor() {
 }
 
 # read_configured_advisor - the advisorModel setting, or the
-# literal string "none" when unset (matches this repo's own
-# default: the committed settings.json carries no
-# advisorModel key).
+# literal string "none" when unset.
 read_configured_advisor() {
   local settings_file
   settings_file="$(claude_settings_path)"

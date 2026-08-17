@@ -608,8 +608,7 @@ it_should_render_the_literal_none_for_the_advisor_field_when_no_advisormodel_is_
 
   # Deliberately no $sandbox/.claude/settings.json at all:
   # read_advisor_field falls back to "none" when the file is
-  # missing, matching this repo's own committed default (no
-  # advisorModel key).
+  # missing.
   write_fake_ccburn "$bin_dir"
   write_fake_ccstatusline "$bin_dir"
 

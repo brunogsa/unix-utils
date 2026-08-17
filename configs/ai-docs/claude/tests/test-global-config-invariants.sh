@@ -156,16 +156,16 @@ it_should_record_model_as_sonnet_in_the_committed_settings_json() {
     "sonnet" "$actual"
 }
 
-it_should_fail_when_the_committed_settings_json_carries_an_advisormodel_key() {
+it_should_record_advisormodel_as_opus_in_the_committed_settings_json() {
   local actual
-  actual=$(committed_settings | jq -r 'has("advisorModel")')
+  actual=$(committed_settings | jq -r '.advisorModel')
   assert_eq \
-    "SettingsModelDefaults > failure > should fail when the committed settings.json carries an advisorModel key" \
-    "false" "$actual"
+    "SettingsModelDefaults > happy > should record advisorModel as opus in the committed settings.json" \
+    "opus" "$actual"
 }
 
 it_should_record_model_as_sonnet_in_the_committed_settings_json
-it_should_fail_when_the_committed_settings_json_carries_an_advisormodel_key
+it_should_record_advisormodel_as_opus_in_the_committed_settings_json
 
 # ============================================================
 # describe("ClaudeHudRemoval")
