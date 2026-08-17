@@ -25,7 +25,7 @@ See [`references/pr-awareness.md`](references/pr-awareness.md), loaded whenever 
 
 - **Orchestrator** (this session) — pre-flight, TaskList, dispatch, post-commit verification, batch-end report. Holds only orchestration state — the **only** role that spawns subagents.
 
-- **Task subagent** — one fresh context per task: decompose into its own checklist file, RED-GREEN work, self-verify, commit, report.
+- **Task subagent** — one fresh context per task: run its lane's cycle (§4.0), self-verify, commit, report.
   - Re-grounds from durable artifacts (the plan, spec when one exists, `git log`), not session history.
 
 Run subagents on **Sonnet** (mechanical); keep orchestrator on stronger model.
@@ -36,7 +36,7 @@ Run subagents on **Sonnet** (mechanical); keep orchestrator on stronger model.
 
 A **unit** is one `PR-N` entry, or the `<task-ids>` run when the plan has no PR Breakdown.
 
-**Not stacked** (the default) makes the unit one PR whose tasks are commits inside it; **stacked** is opt-in and makes each task its own PR, layered into one stack.
+**Not stacked** (default) makes the unit one PR, its tasks landing as commits; **stacked** (opt-in) makes each task its own PR, layered into one stack.
 
 This turns the unit strictly sequential, so §5.4's parallel dispatch is off.
 
@@ -48,7 +48,7 @@ The plan reads the same either way — [`references/stacked-by-task.md`](referen
 
 §1 and §2 never repeat per PR — they run once.
 
-Per-PR iteration order, the fail-fast stop predicate, label resolution, branch creation and recording, and each PR's gate/quality-gate/diff scoping live in [`references/pr-awareness.md`](references/pr-awareness.md). Load it only on a PR-label run.
+Per-PR iteration order, the fail-fast stop predicate, label resolution, branch creation and recording, and each PR's gate/quality-gate/diff scoping live in [`references/pr-awareness.md`](references/pr-awareness.md), loaded only on a PR-label run.
 
 ### Chain-abort, with no human gate
 
@@ -95,8 +95,8 @@ Mid-run `.env` needs are self-served (copied from the original checkout) rather 
 - **Run the quality-gate batch-end tail?** (yes/no, default yes) — decides whether §8.2 runs `/quality-gate`.
 
 - **Run the repo-green gate at batch end?** (yes/no, default yes, independent of the quality-gate toggle).
-  - On yes, runs BOTH §1.6's full-suite baseline capture and §8.3's batch-end gate; on no, runs NEITHER.
-  - The gate can only classify pre-existing red by diffing against a baseline, so a gate without one can never terminate.
+  - Yes runs BOTH §1.6's baseline capture and §8.3's batch-end gate; no runs NEITHER.
+  - The gate classifies pre-existing red only by diffing against a baseline, so a gate without one never terminates.
 
 - **Base-branch confirmation** — show `~/.claude/scripts/resolve-base-ref.sh`'s output (origin/HEAD, falling back to local main, then local master) as the default; let the user confirm or override.
 
@@ -114,7 +114,7 @@ Run all three checkers on the resolved plan, before §2 seeds anything:
 
 The first two validate one graph each in isolation — the Task Breakdown's, and the PR Breakdown's.
 
-A plan can pass both and still be wrong: a task in an early PR can depend on one in a later PR never listed as a dependency.
+A plan can pass both and still be wrong: an early-PR task can depend on a later-PR task never listed as a dependency.
 
 §2.3's "absent id counts as satisfied" rule then dispatches it before the real prerequisite runs — caught only by the third check, `check-pr-task-projection.py`.
 
@@ -122,7 +122,7 @@ A plan can pass both and still be wrong: a task in an early PR can depend on one
 
 The last two pass trivially with no PR Breakdown, or with the literal "Single PR." escape.
 
-The plan stays hand-editable, so a later edit can reintroduce a cycle, dangling dependency, or duplicate id — and nothing downstream re-checks it.
+The plan stays hand-editable — a later edit can reintroduce a cycle, dangling dependency, or duplicate id, uncaught downstream.
 
 A non-zero exit stops the run: surface the script's stderr diagnostic verbatim and fix the plan before re-invoking.
 
@@ -134,11 +134,11 @@ Creation and file-symlink mechanics live in [`references/worktree-setup.md`](ref
 
 Resolve every `PR-N` in the arg to its task-id list now, before §2 seeds anything.
 
-Resolution and per-PR branch creation live in [`references/pr-awareness.md`](references/pr-awareness.md). Load it here.
+Resolution and per-PR branch creation live in [`references/pr-awareness.md`](references/pr-awareness.md), loaded here.
 
 ### 1.6. Capture the full-suite baseline (only when §1.2's repo-green gate toggle answered yes)
 
-Commands, ordering, and result handling live in [`references/full-suite-baseline.md`](references/full-suite-baseline.md). Load it here.
+Commands, ordering, and result handling live in [`references/full-suite-baseline.md`](references/full-suite-baseline.md), loaded here.
 
 ## 2. Seed the whole TaskList upfront, in execution order
 
@@ -146,7 +146,7 @@ Before dispatching anything, create every TaskList entry the run will need, top-
 
 Within each batch: **tasks first, then that batch's batch-end reminders**, since reminders fire after the last task lands.
 
-On a PR-label list this covers **every** PR, in order: PR-1's tasks → PR-1's reminders → PR-2's tasks → PR-2's reminders, and so on.
+On a PR-label list this covers **every** PR: PR-1's tasks → PR-1's reminders → PR-2's tasks → PR-2's reminders, and so on.
 
 The per-PR loop never repeats this step.
 
@@ -177,7 +177,7 @@ Never one shared chain, since one `completed` flag per task would hide step-leve
 
 Number the entries seeded as `Batch-end <i>/<N>` in the fixed order above.
 
-`N` is however many of the four apply this run (2, 3, or 4); `i` is that step's position among the seeded ones.
+`N` is however many of the four apply (2, 3, or 4); `i` is that step's position among the seeded ones.
 
 Prefix each with the owning `PR-N ·` on a PR-label run.
 
@@ -226,14 +226,14 @@ Each state file has exactly this shape:
   - `branch` / `worktree_path` are set only for a per-task worktree; `worktree`, `pr`, `repo_green_gate.wanted`, and `quality_gate.wanted` come from §1.2's answers.
 
 - Populate `depends_on` from the plan's `**Depends on**:` clause `check-tasks-dag.sh` validated (§1.3), as bare id strings (`["3", "5"]`; `none` → `[]`).
-  - `implement-loop-state.py` reads it to pick a DAG-eligible next task; unset, it silently degrades to lowest-id-first, so seed it here, not later.
+  - `implement-loop-state.py` reads it to pick a DAG-eligible next task; unset, it degrades to lowest-id-first — seed it here.
 
   - An id absent from this unit's `tasks[]` counts as satisfied: it belongs to an earlier PR that `references/pr-awareness.md`'s stop predicate requires `[Done]`.
 
 - `stack.order` is this unit's confirmed layer order (§1.2), which §3.4 advances through when `stack.wanted` is true, overriding the script's DAG-only ordering.
-  - Keeps its seeded default until §1.2 answers `yes`.
+  - Keeps its default until §1.2 answers `yes`.
 
-- `stack.refused` names the gate that forced `wanted: false` against a `yes` answer (`""` when none did), so the batch-end package can say why the run wasn't stacked.
+- `stack.refused` names the gate that forced `wanted: false` against a `yes` (`""` if none did), so batch-end can explain why.
 
 - `pr_label` is `""` on a plain run, else the `PR-N` that file belongs to.
 - §5.2/§5.4 append `attempts[]` entries as `{ "task", "n", "result", "signature", "at" }`.
@@ -271,7 +271,7 @@ Write it into this unit's state file as `batch_base_sha`; §5 and §8 both read 
 
 Recap the work this unit builds on, in 3–5 lines, from `git log <base-branch>..HEAD`.
 
-**Read the commit messages, not the diff** — bodies carry the *why*; open it only when a message can't tell you what it did.
+**Read the commit messages, not the diff** — bodies carry the *why*; open it only when the message doesn't say.
 
 Don't dump the log into chat.
 
@@ -279,7 +279,7 @@ Don't dump the log into chat.
 
 Exact-match each task-id against the numeric prefixes of the plan's task headings.
 
-A prefix matching more than one heading means the plan changed underneath the run — §1.3's `check-tasks-dag.sh` already rejected duplicate ids. Stop and say so; never guess which heading was meant.
+A prefix matching more than one heading means the plan changed underneath the run — §1.3's `check-tasks-dag.sh` already rejected duplicate ids. Stop and say so; never guess the heading.
 
 ### 3.4. Activate a task
 
@@ -290,9 +290,9 @@ Per task, as it becomes the active one — the only orchestrator work between tw
 
 **The checklist file is the subagent's, end to end.** The orchestrator supplies only the `<run-label>` key that names it.
 
-That key becomes the path `/tmp/tdd-coder_substeps_<run-label>.md`, per §4.1.
+On a tdd-coder-lane task (§4.0), that key becomes the checklist path `/tmp/tdd-coder_substeps_<run-label>.md`, per §4.1 — path, contents, and re-dispatch resume live in `~/.claude/agents/tdd-coder.md`; edit that file and this section together.
 
-Its path, contents, and re-dispatch resume live in `~/.claude/agents/tdd-coder.md`; edit that file and this section together.
+A direct-coder-lane task has none: `direct-coder.md` runs no cycle to log.
 
 ### 3.5. Mid-flight sub-steps
 
@@ -300,60 +300,49 @@ When a helper or drift surfaces mid-task, the subagent inserts new RED-GREEN lin
 
 ## 4. Dispatch the task subagent
 
-Spawn one fresh-context `agent(subAgent=tdd-coder, title=Implement task <N>: <task subject>)` per task, in the background — only a background dispatch can carry the Monitor cap below.
+### 4.0. Pick the lane, per task
 
-Model is omitted: the agent file pins sonnet and the subagent-model-guard hook enforces it.
+Run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <task-N>` before dispatch: non-empty stdout → `tdd-coder`, §4.1; empty stdout → `direct-coder`, [`references/direct-coder-dispatch.md`](references/direct-coder-dispatch.md) — CLAUDE.md's Subagents section owns why.
+
+Exit 1 (malformed task section) is a plan defect, not a lane choice — stop, per §1.3's non-zero-exit rule.
+
+§5.4's `parallel-worktrees` wave dispatches per-lane: check every eligible id first, then spawn each lane's subset as its own parallel batch — never one mixed dispatch.
+
+Spawn one fresh-context `agent(subAgent=<lane>, title=Implement task <N>: <task subject>)` per task, in the background — only a background dispatch can carry the Monitor cap below.
+
+Model is omitted: each agent file pins its own model and the subagent-model-guard hook enforces it.
 
 Cap the dispatch with a 1-hour `Monitor` timeout (`timeout_ms: 3600000` — the tool's documented maximum).
 
 On expiry, call `TaskStop` on the subagent — the dispatch resolves as a `timeout`, which §5.2 records and obeys like a `fail`.
 
-The subagent runs the per-task lifecycle. Its invariant discipline — TDD rules, standards-loading triggers, checklist mechanics, routing channels, report shape — lives in `~/.claude/agents/tdd-coder.md`.
+The subagent runs the per-task lifecycle. Its invariant discipline lives in its own agent file: `tdd-coder.md` or `direct-coder.md`.
 
 The prompt pushes only the per-task data below.
 
-### 4.1. Context contract
+### 4.1. Context contract — tdd-coder lane
 
-**Push** — embed a `Context`/`Units`/`Verification`/`Optional` block verbatim, using `tdd-coder.md`'s Inputs field names; the subagent pulls nothing from CWD.
+Push a `Context`/`Units`/`Verification`/`Optional` block verbatim, using `tdd-coder.md`'s Inputs field names; the subagent pulls nothing from CWD.
 
 - **Context**: the task's heading and brief description, in the plan's own words.
 - **Units**: the task's acceptance criteria and planned-test titles, one unit per forcing case, in the plan slice's own order.
-  - Cap one dispatch at **3 units**; a task with more splits into consecutive ≤3-unit dispatches, in plan order, each with its own `<run-label>`.
-
-  - `tdd-coder.md` forbids the subagent from self-splitting, so only this section enforces the cap.
-
-  - The cap alone doesn't guarantee a small prompt: a single-unit dispatch still auto-compacted, so keep it small too.
-
+  - Cap one dispatch at **3 units**; a task with more splits into consecutive ≤3-unit dispatches, in plan order, each with its own `<run-label>`. `tdd-coder.md` forbids self-splitting, so only this section enforces the cap.
+  - Even a single-unit dispatch has auto-compacted before, so keep the pushed prompt small.
   - Chunks of one task run **sequentially**, never in parallel — same branch, same git index. Cross-task parallelism stays with `parallel-worktrees` (§5.4).
-
   - Give a later chunk's **Context** a one-line summary of what earlier chunks landed, plus `base:`, so it can `git log` the *why*.
-
   - A test and the change it covers are **one unit, never two**: `tdd-coder` commits one per unit, so splitting them violates commit-standards.
-
 - **Verification**: the task's **task-scoped verification commands only**, when the plan names any.
   - Strip any repo-wide/full-suite command (e.g. `test:agentic`, `yarn lint`) before pushing — a subagent verifies only its own change.
-
   - A stripped requirement isn't dropped: §8.3's gate re-covers it when on; when off, §8.4's package names what full-suite checks never ran.
-
-  - When the plan names none, **omit the field** rather than inventing one.
-
-  - `tdd-coder.md` derives it from a file declaring the repo's entry point and reports the command plus its source.
-
-  - Read the derived command off the subagent's report and check it covers the task.
-
-  - A wrong one is a plan gap, not a subagent fault — push the correct command on re-dispatch, and write it into the plan's task slice.
-
-  - Never substitute a full-suite command for a missing task-scoped one.
-
-  - The subagent budgets the full suite at two runs per dispatch, so a stand-in burns that budget.
-
+  - When the plan names none, **omit the field**; `tdd-coder.md` derives one from a file declaring the repo's entry point and reports it plus its source.
+  - Read the derived command off the report and check it covers the task.
+  - A wrong one is a plan gap, not a subagent fault — push the correct command on re-dispatch, and write it into its task slice.
+  - Never substitute a full-suite command for a missing task-scoped one — the subagent budgets the full suite at two runs per dispatch, and a stand-in burns it.
 - **Optional**:
   - `files:` — the task's **Files (logical order)** list as the **starting set** — touch more when needed, routing the delta per §4.3.
-
   - `references:` — `plan_<slug>.md`, plus `spec_<slug>.md` when one exists.
   - `base:` — `BATCH_BASE_SHA` and the base branch.
   - `worktree:` — left unset: a single-worktree run sits inside that worktree via CWD (§1.4); a per-task worktree routes through `parallel-worktrees`'s four-input contract (§5.4).
-
   - `<run-label>` — this task's number.
 
 Everything else is baked into `tdd-coder.md`. Don't re-push any of it.
@@ -366,7 +355,7 @@ The second opinion isn't lost, just deferred to §8.2's quality-gate tail.
 
 ### 4.3. Routing mid-execution discoveries
 
-Anything outside the task's core work routes through three channels defined in `tdd-coder.md`: **Drift** (fix in place), **abstract-in-place** (dissolve into the code), **Scout** (leave it, return it).
+Anything outside the task's core work routes through three channels `tdd-coder.md` defines: **Drift** (fix in place), **abstract-in-place** (dissolve into the code), **Scout** (leave it, return it) — `direct-coder.md` shares only Drift and Scout.
 
 There's no separate carry-forward digest: a Drift fix travels in its commit body.
 
@@ -374,7 +363,7 @@ There's no separate carry-forward digest: a Drift fix travels in its commit body
 
 ### 4.4. Report back
 
-`~/.claude/agents/tdd-coder.md` authors the report's full shape — `Status`, `Commits`, `Units`, `Deviations`, `Scouts`, `Blocked on`, `Evidence`, `Checklist`; restating it here would be a second copy to keep in sync.
+The dispatched lane's agent file authors the report's full shape (§4.0) — restating it here would duplicate it.
 
 Three of its fields drive this section:
 
@@ -415,7 +404,7 @@ It also covers verdict semantics, attempt-recording fields, and the `debug-stand
 
 Entry: `implement-loop-state.py` verdicted `stuck` (§5.2).
 
-Marking the task terminal, chain-aborting its dependents transitively, flipping the plan to `[Blocked]`, and picking (or failing to pick) next task all live in [`references/failure-and-halt.md`](references/failure-and-halt.md).
+Marking the task terminal, chain-aborting dependents transitively, flipping the plan to `[Blocked]`, and picking (or not) the next task live in [`references/failure-and-halt.md`](references/failure-and-halt.md).
 
 ### 5.4. On an accepted `done` — advance
 
@@ -439,7 +428,7 @@ Run `~/.claude/skills/implement/scripts/implement-loop-state.py <state-file>` an
 
 - **`wait`** → a dispatched sibling hasn't reported yet. Dispatch nothing, take no halt action, and re-run this verdict once its report lands.
 - **`gates`** → **every** task in this unit is `done`. Set `phase: "gates"` and go to §8's batch end.
-- **`halted`** → every task is terminal with at least one blocked or stuck, or a same-unit dependency deadlock leaves pending tasks with unsatisfied `depends_on`. Go to §5.5.
+- **`halted`** → every task is terminal (blocked or stuck), or a same-unit dependency deadlock leaves pending tasks with unsatisfied `depends_on`. Go to §5.5.
 
 - **`halt-budget`** → the unit's dispatch budget is exhausted. Go to §5.5.
 
@@ -447,7 +436,7 @@ Run `~/.claude/skills/implement/scripts/implement-loop-state.py <state-file>` an
 
 ### 5.5. Halt — stop where you stand and wait for the human
 
-The entry list, state-file phase, notes.md's blocked-task record, which remaining steps stay unrun, and the release condition all live in [`references/failure-and-halt.md`](references/failure-and-halt.md).
+The entry list, state-file phase, notes.md's blocked-task record, unrun remaining steps, and the release condition live in [`references/failure-and-halt.md`](references/failure-and-halt.md).
 
 ## 6. Status markers (plan task title)
 
@@ -459,13 +448,13 @@ Marker vocabulary, placement, and semantics live in [`plan-status-markers`](../p
 
 A PR-label run's PR Breakdown heading gets the same `[<status>]` prefix at its own §8.1. Only `[Done]`, inline, never scripted. Format/timing: `references/batch-end-pr-branch-record.md`'s "Branch record & PR-level status marker".
 
-On a stacked run each task heading additionally carries a layer `**Branch**:` field, written at that same §8.1 — see [`references/stacked-by-task-batch-end.md`](references/stacked-by-task-batch-end.md)'s "Where the branch gets recorded".
+On a stacked run each task heading also carries a layer `**Branch**:` field, written at that same §8.1 — see [`references/stacked-by-task-batch-end.md`](references/stacked-by-task-batch-end.md)'s "Where the branch gets recorded".
 
 ## 7. Commit model
 
 The **subagent** produces the commits: a task lands **at least 1 commit**.
 
-RED + GREEN share one commit (tests + impl together); a refactor lands as its own, per `commit-standards`.
+tdd-coder lane: RED + GREEN share one commit; a refactor lands as its own, per `commit-standards`. direct-coder lane: one commit per logical change, per `direct-coder.md`.
 
 Scouts are never committed by the subagent — they route to the orchestrator per §4.3.
 
@@ -487,11 +476,7 @@ Run the batch-end flow over `<BATCH_BASE_SHA>..HEAD`, then present the batch for
 
 - **§8.4 — re-push, refresh the PR description, package & finalize.** Both refreshes are skipped when §8.2 and §8.3 landed no commits.
 
-§8.1 runs first because it opens a **draft** PR whose description §8.4 later refreshes against the final diff.
-
-A gate that cannot terminate must not strand delivered work, so nothing that can hang sits between a finished batch and its remote.
-
-Two audited batches once stalled unpushed for ~40 hours on this gap.
+§8.1 runs first because it opens a **draft** PR whose description §8.4 later refreshes against the final diff, and because nothing that can hang may sit between a finished batch and its remote — [`references/batch-end-review.md`](references/batch-end-review.md) covers why.
 
 `/quality-gate`'s `test-sdd` leg carries this run's **only** planned-test check, read against the batch's final state.
 

@@ -92,6 +92,8 @@ Those are finished work with no test owed. Route them to `direct-coder`, which e
 
 "Nothing to falsify" denies the behavior exists at all — and is wrong the instant you can name the distinguishing input.
 
+**Exception**: a non-code artifact never earns TDD, even with a nameable distinguishing input — see the global CLAUDE.md's Subagents section.
+
 ---
 
 ## Manual tests — evidence file

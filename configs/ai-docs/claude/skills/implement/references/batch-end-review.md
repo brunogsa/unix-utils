@@ -17,7 +17,7 @@ SKILL.md's `§8.1 → §8.2 → §8.3 → §8.4` is the running order and the on
 
 **Entry: unconditional — this is the first thing batch end does, before either gate.**
 
-Delivered work reaches the remote before anything that can stall gets a turn.
+Delivered work reaches the remote before anything that can stall gets a turn — two audited batches once stalled unpushed for ~40 hours on this gap.
 
 1. **Push the branch — always, on every batch end, regardless of `pr.wanted`.**
    Use `git push -u origin HEAD`, covering both a fresh PR branch with no upstream and a plain run's branch that already has one.

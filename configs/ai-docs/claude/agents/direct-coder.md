@@ -72,6 +72,8 @@ Issue every independent call in one message — the reads that open the files, t
   - Apply and commit every other part normally — a partial delivery is correct here, and the caller re-dispatches only the bounced part to `tdd-coder`.
   - Writing a behavior change in this lane is the one failure mode that makes this agent worse than not existing, because it lands untested work under a label that says none was needed.
 
+- **Exception**: a non-code artifact — a document, spec, plan, or other prose file — never bounces, even when you can name a distinguishing input. Apply and commit it here regardless. CLAUDE.md's Subagents section owns why.
+
 - Never write a new test suite, and never add a test case to an existing one. Deleting a test the caller named is allowed and expected; authoring one is `tdd-coder`'s job by definition.
 
 - Commit on whatever branch is already checked out where you were placed — never `git checkout <branch>`, `git switch`, `git merge`, `git rebase`, or `git branch -d`.
