@@ -67,7 +67,7 @@ Examples:
     | subagent-disallowed-tools-guard.py   # allowed (Explore has no disallowedTools pin)
   echo '{"tool_name":"Agent"}' \
     | subagent-disallowed-tools-guard.py   # allowed (main session, no calling agent)
-  echo '{"tool_name":"Agent","agent_type":"tdd-coder","subagent_type":"Grep"}' \
+  echo '{"tool_name":"Agent","agent_type":"tdd-coder","tool_input":{"subagent_type":"Grep"}}' \
     | subagent-disallowed-tools-guard.py   # denied once tdd-coder declares allowedSubagents: Explore
 """
 
@@ -212,7 +212,7 @@ def main():
 
     if tool_name == "Agent" and "allowedSubagents" in fields:
         allowed_subagents = parse_comma_list(fields["allowedSubagents"])
-        requested_subagent_type = payload.get("subagent_type")
+        requested_subagent_type = (payload.get("tool_input") or {}).get("subagent_type")
         if requested_subagent_type not in allowed_subagents:
             deny(
                 f"'{agent_type}' ({agent_file}) declares "

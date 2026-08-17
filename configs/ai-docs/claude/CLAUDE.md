@@ -384,6 +384,9 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
   - [Why] With no such input there is no RED to write, so a TDD cycle manufactures a test that asserts the text you typed.
   - [Example] No such input: a comment, prose, a rename, a file move, a config or frontmatter value, a dead-code deletion.
 
+- [Instruction] CRITICAL: Never route a document, spec, plan, or other non-code artifact edit through TDD (`tdd-coder`) — TDD applies to code only, even when a distinguishing input can be named.
+  - [Why] Automated tests over prose have a terrible ROI: authoring and maintaining them costs more than the regressions they would ever catch.
+
 - [Instruction] Run a permission-gated action (commit, push, reply) in main even when its task is delegated — hand the subagent everything else.
   - [Why] Permission UIs only render in main, so a subagent cannot complete one at all — a harness limit.
 

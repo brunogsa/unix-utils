@@ -19,7 +19,7 @@ The split that matters most is **purpose**: HLD, LLD, and ADR are **decision & a
 
 So durable docs carry tests, tasks, and launch at **alignment altitude** — strategy, titles, cross-team deps — while the plan carries the **concrete** version — commit-tasks, file paths, test titles.
 
-The spec/plan workflow — interviewing, drafting, refining — lives in the `brainstorm` skill, and their conventions and self-review gates in the `spec-driven-development` library; this skill only covers their shape and altitude.
+The spec/plan/tasks workflow splits by phase: interviewing lives in `brainstorm`; drafting and self-review live in `to-spec`, `to-plan`, and `task-breakdown`. Shared conventions live in `doc-standards/references/living-docs.md`; `to-spec`'s and `to-plan`'s own self-review gates live in each one's own `references/self-review-checks.md`. This skill only covers their shape and altitude.
 
 ## Who owns what (single source of truth)
 
