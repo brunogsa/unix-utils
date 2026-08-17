@@ -2,7 +2,7 @@
 name: consistency-shard-orchestrator
 description: Owns one shard of the consistency-check ensemble — spawns 3 consistency-ensemble-child samples, votes 2/3 majority, persists the full report, returns a digest. Dispatched by consistency-check-principles-and-skills, once per shard per wave.
 model: sonnet
-effort: high
+effort: medium
 maxTurns: 64
 disallowedTools: Edit, NotebookEdit, Artifact, ExitPlanMode
 ---

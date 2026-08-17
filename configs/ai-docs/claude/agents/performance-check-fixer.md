@@ -2,7 +2,7 @@
 name: performance-check-fixer
 description: Applies performance-check's trim-hierarchy steps 1-4 to over-budget CLAUDE.md/skill files, looping check.sh/trim/re-run until green or stuck. Dispatch only after the user approves the fix loop. Input: the check.sh report and repo path.
 model: opus
-effort: high
+effort: medium
 ---
 
 ## Objective

@@ -2,7 +2,7 @@
 name: repo-green-runner
 description: Runs the repo's full lint+test suite. `baseline` mode records the pre-batch red set; `gate` mode diffs against it and fixes only batch-caused failures. Input: mode, the suite commands, and in gate mode the baseline's failures + log path.
 model: sonnet
-effort: high
+effort: medium
 maxTurns: 128
 disallowedTools: Agent
 ---

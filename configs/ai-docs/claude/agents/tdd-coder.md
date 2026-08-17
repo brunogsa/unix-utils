@@ -3,7 +3,7 @@ name: tdd-coder
 description: TDD batch executor — runs N test-first units through one shared RED/CODE/GREEN cycle, commits one per unit, reports done or blocked. Dispatch with an inline Context/Units/Verification block; no CWD reads needed. Any caller with those inputs works.
 model: sonnet
 allowedModelOverrides: opus
-effort: high
+effort: medium
 maxTurns: 256
 tools: Bash, Read, Edit, Write, Grep, Glob, Skill, Agent, WebSearch, WebFetch
 disallowedTools: Workflow

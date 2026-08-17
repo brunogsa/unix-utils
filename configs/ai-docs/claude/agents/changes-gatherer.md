@@ -2,7 +2,7 @@
 name: changes-gatherer
 description: Reads a branch's git log and diff, writes the gathered artifact to a caller-named file, and returns only a compact digest. Dispatch when a caller needs what a branch changed without the raw diff in its context. Input: base ref, branch, output path.
 model: sonnet
-effort: high
+effort: medium
 ---
 
 ## Objective

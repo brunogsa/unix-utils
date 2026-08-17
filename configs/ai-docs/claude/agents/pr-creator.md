@@ -2,7 +2,7 @@
 name: pr-creator
 description: Composes a PR title and body under the create-pr skill's conventions, then returns the draft's path or pushes and returns the PR URL. Dispatch for implement's batch-end PR-description step. Input: branch/base, spec and plan paths, draft-or-push.
 model: sonnet
-effort: medium
+effort: low
 ---
 
 ## Objective

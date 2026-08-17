@@ -2,7 +2,7 @@
 name: refactor
 description: Applies structure-only changes in isolated context, verifying tests stay green before and after. Dispatch when a caller has decided a refactor finding should land and wants it applied, not just reported. Input: the scope and the test command.
 model: sonnet
-effort: high
+effort: medium
 ---
 
 ## Objective

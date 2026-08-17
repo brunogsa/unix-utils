@@ -2,7 +2,7 @@
 name: pr-writer
 description: Authors the ideal PR description to CWD as pr_<slug>.ideal.md, owning the density and page-fit gates. Never pushes; the repo template is pr-finalizer's job. Dispatch for create-pr's compose step. Input: the changes digest plus the spec/plan paths.
 model: sonnet
-effort: high
+effort: medium
 ---
 
 ## Objective

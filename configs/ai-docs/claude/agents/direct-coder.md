@@ -3,7 +3,7 @@ name: direct-coder
 description: Applies a change with no falsifiable behavior — comment, prose, rename, move, config or frontmatter value, dead-code deletion — and commits it, with no RED/GREEN cycle. Input: the change, its files, and the checker command that must stay green.
 model: sonnet
 allowedModelOverrides: haiku
-effort: medium
+effort: low
 maxTurns: 64
 tools: Bash, Read, Edit, Write, Grep, Glob, Skill
 disallowedTools: Workflow, Agent

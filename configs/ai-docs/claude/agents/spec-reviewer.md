@@ -2,7 +2,7 @@
 name: spec-reviewer
 description: Fresh-context, unbiased judge for spec/plan docs — fresh-eyes review, AC-to-test match, failure-mode coverage, traceability, right-sizing. Dispatch for brainstorm and self-review gates. Input: the spec/plan doc(s) and the review question.
 model: sonnet
-effort: high
+effort: medium
 maxTurns: 64
 hooks:
   PreToolUse:

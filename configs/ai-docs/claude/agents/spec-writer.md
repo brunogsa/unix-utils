@@ -2,7 +2,7 @@
 name: spec-writer
 description: Authors or edits spec_<slug>.md from brainstorm-brief.md and the template, or applies exact caller-named edits (review findings, feedback, closed questions). Dispatch for brainstorm spec steps. Input: brief + output path, or spec path + edits.
 model: sonnet
-effort: high
+effort: medium
 ---
 
 ## Objective

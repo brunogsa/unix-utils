@@ -2,7 +2,7 @@
 name: plan-writer
 description: Authors or edits plan_<slug>.md from the spec (full) or brief alone (light), plus the template, or applies exact caller-named edits. Dispatch for brainstorm plan steps. Input: brief + optional spec + output path, or plan path + edits.
 model: sonnet
-effort: high
+effort: medium
 ---
 
 ## Objective

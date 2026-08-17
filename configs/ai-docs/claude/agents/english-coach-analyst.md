@@ -2,7 +2,7 @@
 name: english-coach-analyst
 description: Single-pass English-lesson analyst — extracts the current session's typed user messages from disk, mines them for recurring English patterns, and writes ./english-lesson_<timestamp>.md. Dispatched only by the english-coach skill.
 model: sonnet
-effort: high
+effort: medium
 ---
 
 ## Objective
