@@ -24,10 +24,9 @@ Python-shaped for readability only; nothing here runs, and the function names st
 def code_review_pipeline(arg):
     if arg.mode == "local" or arg.isolate:                 # 2
         # 2a · one instance runs the WHOLE pipeline, serial.
-        #      Each mode pins its own tier: local's caller
-        #      (/auto-review) buys opus judgment, and the
-        #      sonnet default covers only github --isolate.
-        pin = ("code-reviewer · opus" if arg.mode == "local"
+        #      Both pins are sonnet; local's caller (/auto-review)
+        #      forces effort:high, github --isolate's effort inherits.
+        pin = ("code-reviewer · sonnet · effort forced high" if arg.mode == "local"
                else "general-purpose · sonnet · effort inherits")
         return dispatch(pin, arg)
     # 2b · github with no --isolate: run inline in a fresh main session.
@@ -164,7 +163,7 @@ def code_review_pipeline(arg):
 flowchart TD
   n1(["1. Invoke /auto-review (local) or /pr-review (github)<br/>flag: --isolate forces isolated path"]):::start
   n2{"2. Mode local, or --isolate passed?"}
-  n2a["2a. Dispatch isolated, serial -- one instance runs whole pipeline<br/>local: code-reviewer · opus (pinned by /auto-review)<br/>github --isolate: general-purpose · sonnet · effort inherits"]:::dispatch
+  n2a["2a. Dispatch isolated, serial -- one instance runs whole pipeline<br/>local: code-reviewer · sonnet · effort forced high (pinned by /auto-review)<br/>github --isolate: general-purpose · sonnet · effort inherits"]:::dispatch
   n2b["2b. Run inline in fresh main session<br/>(github, no --isolate)"]
   n3["3. Parse input header<br/>(mode, PR/branch, language)"]
   n4["4. Load review-principles.md<br/>+ review-checklists.md<br/>(grounds every wave)"]:::skill

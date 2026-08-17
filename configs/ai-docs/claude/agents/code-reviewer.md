@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Fresh-context judge for code changes — correctness, simplification, or refactor lens, or a full auto-review pipeline run. Dispatch for diff review, refactor sweeps, or branch review. Input: the diff, lens or pipeline mode, and review question.
-model: opus
+model: sonnet
 effort: high
 maxTurns: 64
 hooks:

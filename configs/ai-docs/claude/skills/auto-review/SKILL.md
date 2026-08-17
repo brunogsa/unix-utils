@@ -20,10 +20,11 @@ of main context is a secondary benefit.
 See "How callers dispatch" → "Isolated" in
 `~/.claude/skills/code-review-pipeline/SKILL.md` for the subagent mechanics
 that dispatch reuses (prompt body, reading this SKILL.md, orchestrating from
-there). auto-review overrides the model choice: the pipeline's default
-isolated wrapper pins `model: "sonnet"`, but auto-review spawns the
-`code-reviewer` agent (opus) instead — review judgment is the product here,
-so it earns the top tier, unlike mechanical spawns, which pin sonnet.
+there). auto-review spawns the purpose-built `code-reviewer` agent instead of
+the pipeline's default `general-purpose` isolated wrapper — review judgment
+is the product here, so it forces `effort: high` and the write-guard hook
+regardless of caller settings, unlike the mechanical `general-purpose` spawn,
+whose effort inherits from the caller.
 
 ## Usage
 
@@ -128,8 +129,8 @@ With the inputs above resolved, always dispatch isolated: spawn
 Put the resolved inputs in its prompt body, and tell it to read
 `~/.claude/skills/code-review-pipeline/SKILL.md` and orchestrate from there
 — per that file's "Isolated" dispatch mode under "How callers dispatch",
-substituting code-reviewer (opus) for the pipeline's default sonnet-pinned
-wrapper.
+substituting the code-reviewer agent for the pipeline's default
+`general-purpose` wrapper.
 
 After the pipeline finishes, the review is at
 `./verdict_auto-review_<timestamp>.md` (Wave 6 summary contains the exact
