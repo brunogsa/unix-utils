@@ -4,7 +4,7 @@ Purpose: assemble everything Wave 2 will need on disk, so it runs from pre-built
 
 **Work dir**:
 - github: `/tmp/pr-review-<n>/`; create fresh (`rm -rf && mkdir -p`).
-- local: `$(mktemp -d /tmp/auto-review.XXXXXX)` for scratch; the review lands in a timestamped `./verdict_auto-review_<timestamp>` file in CWD (`out_base` set below; always `.md`, per the html-artifacts Gate 1 note in `auto-review/SKILL.md`).
+- local: `$(mktemp -d /tmp/auto-review.XXXXXX)` for scratch; the review lands in a `./verdict_auto-review_<branch>_<timestamp>` file in CWD (`out_base` set below; always `.md`, per the html-artifacts Gate 1 note in `auto-review/SKILL.md`). The branch segment lets several PRs run in series, each on its own branch, keep distinguishable verdict files.
 
 **Wave 2 reads the context listed in `references/common-preamble.md#Context you have`** — ensure Wave 1 produces all of it on disk. Commit messages are fetched in both modes; only `{pr_context}` differs:
 
@@ -60,7 +60,8 @@ See the script's own `if`/`else` for the exact fallback and its failure message.
 
 ```bash
 work_dir=$(mktemp -d /tmp/auto-review.XXXXXX)
-out_base="./verdict_auto-review_$(date +%Y-%m-%d_%H:%M)"
+branch="$(git branch --show-current | tr '/' '-')"
+out_base="./verdict_auto-review_${branch}_$(date +%Y-%m-%d_%H:%M)"
 
 bash ~/.claude/skills/code-review-pipeline/scripts/prep-local-context.sh \
   "$base_ref" "$work_dir"

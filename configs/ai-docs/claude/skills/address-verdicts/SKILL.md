@@ -45,9 +45,9 @@ This skill is a standalone entry point either way, discovering the verdict files
 ls -1 verdict_refactor_*.md verdict_auto-review_*.md verdict_test-sdd_*.md 2>/dev/null
 ```
 
-Several timestamped generations can exist per lens — e.g. two `verdict_refactor_*.md` files from different runs. The timestamp is embedded in the filename (`verdict_<lens>_YYYY-MM-DD_HH:MM.md`), so it sorts lexically.
+Several timestamped generations can exist per lens — e.g. two `verdict_refactor_*.md` files from different runs, possibly on different branches. The filename is `verdict_<lens>_<branch>_YYYY-MM-DD_HH:MM.md`: the branch segment keeps runs from different branches distinguishable, but it also means filenames no longer sort lexically into chronological order (a branch name can sort before or after another regardless of when its run happened). Pick the newest generation per lens by modification time (`ls -t verdict_<lens>_*.md | head -1`), not by a lexical filename sort.
 
-- **Default**: the newest generation of each lens — the last name after a sort.
+- **Default**: the newest generation of each lens — the most recently modified file.
 - **To work an older generation instead**: name its exact file path inside `<which ones>`.
 - **A lens has no file at all**: proceed with the lens that does have one.
   - Say so plainly in the closing report (§6).

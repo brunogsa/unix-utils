@@ -73,7 +73,9 @@ The marker never changes whether a task is checked — it is carried into the re
 
 ## 3. Mint the verdict path
 
-Run `date "+verdict_test-sdd_%Y-%m-%d_%H:%M.md"` once and treat the output as `$VERDICT_PATH` in CWD — never `/tmp/`, since the user reads it alongside the plan in their editor.
+Run `date "+verdict_test-sdd_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"` once and treat the output as `$VERDICT_PATH` in CWD — never `/tmp/`, since the user reads it alongside the plan in their editor.
+
+The branch name sits before the timestamp so multiple PRs run in series, each on its own branch, produce verdict files that stay distinguishable at a glance. Slashes are swapped for hyphens since a raw `/` in the branch name would create a subdirectory instead of a filename.
 
 The `verdict_` prefix is load-bearing, not cosmetic: `~/.claude/hooks/check-reviewer-writes.sh` auto-approves exactly that basename pattern and denies every other write.
 

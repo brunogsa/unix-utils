@@ -207,7 +207,7 @@ Print a terminal summary using `references/wave6-summary-template.md`. Both mode
   - GH: skip the pending review entirely — don't post an empty review just to carry the guide.
     - Still post the Review Guide as a standalone PR comment (Wave 5's guide-posting step) so the human gets the context.
 
-  - LOCAL: write `${out_file}` (the timestamped `./verdict_auto-review_<timestamp>` file) with "no findings" under Findings.
+  - LOCAL: write `${out_file}` (the `./verdict_auto-review_<branch>_<timestamp>` file) with "no findings" under Findings.
 
 ---
 

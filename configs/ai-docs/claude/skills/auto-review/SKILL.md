@@ -133,13 +133,15 @@ substituting the code-reviewer agent for the pipeline's default
 `general-purpose` wrapper.
 
 After the pipeline finishes, the review is at
-`./verdict_auto-review_<timestamp>.md` (Wave 6 summary contains the exact
-resolved path). It is always Markdown — `address-verdicts` re-reads and
+`./verdict_auto-review_<branch>_<timestamp>.md` (Wave 6 summary contains the
+exact resolved path). It is always Markdown — `address-verdicts` re-reads and
 annotates it, which is exactly what the html-artifacts router's Gate 1 excludes
 from an interactive page.
 Print the file path, per-severity counts, skipped files, and the
-Wave 6 summary. Multiple runs accumulate as separate timestamped files,
-preserving their order when the user runs several reviews in one CWD.
+Wave 6 summary. Multiple runs accumulate as separate files — the branch
+segment keeps runs from different branches distinguishable, and the timestamp
+preserves order when the user runs several reviews on the same branch in one
+CWD.
 
 File one `[Scout]` TaskList entry per file listed in that summary's
 doc-standards-flags block, naming the file and what is off standard.

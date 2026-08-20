@@ -12,9 +12,9 @@ Three legs, each a fresh-context reviewer writing its own timestamped verdict fi
 
 | Leg | Lens | Verdict file |
 |---|---|---|
-| `refactor` | structure, duplication, dead code, naming | `verdict_refactor_<ts>.md` |
-| `auto-review` | correctness, edge cases, contract and spec conformance | `verdict_auto-review_<ts>.md` |
-| `test-sdd` | planned tests the plan declared but the repo lacks | `verdict_test-sdd_<ts>.md` |
+| `refactor` | structure, duplication, dead code, naming | `verdict_refactor_<branch>_<ts>.md` |
+| `auto-review` | correctness, edge cases, contract and spec conformance | `verdict_auto-review_<branch>_<ts>.md` |
+| `test-sdd` | planned tests the plan declared but the repo lacks | `verdict_test-sdd_<branch>_<ts>.md` |
 
 The third leg runs only when a plan resolves — without a plan there are no planned tests to check.
 

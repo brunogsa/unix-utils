@@ -1,6 +1,6 @@
 # Local Review Output Template
 
-Used by Wave 5 (local mode) to write `${out_file}` (timestamped, e.g. `./verdict_auto-review_2026-04-26_14-32.md`) to the user's CWD. Timestamp preserves ordering across runs.
+Used by Wave 5 (local mode) to write `${out_file}` (branch + timestamp, e.g. `./verdict_auto-review_feat-my-branch_2026-04-26_14-32.md`) to the user's CWD. The branch segment distinguishes runs across branches; the timestamp preserves ordering across runs within a branch.
 
 Placeholders resolved by the orchestrator:
 - `<branch>`, `<base-branch>`: current and base branch names
