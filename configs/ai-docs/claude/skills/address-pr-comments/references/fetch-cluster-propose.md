@@ -91,7 +91,7 @@ Inline comments carry one more: `thread_id`, the enclosing thread's `PRRT_...` n
 
 ### 3g. Emit the proposal block
 
-Return this single editable block as your final message — one `### Cluster N` section per cluster, nothing else:
+Return this single block as your final message — one `### Cluster N` section per cluster, nothing else. Main never shows this to the user as text: it parses each section into one `AskUserQuestion` question (SKILL.md's "Output: cluster decisions via AskUserQuestion"), so every field below must stay filled in and unambiguous — main has no way to ask you a follow-up.
 
 ```
 ## PR <n> — <total> candidate comments in <K> clusters

@@ -68,14 +68,30 @@ Load each as its scope opens, not upfront. Most fire automatically on their desc
 
 ## Step 0: Pre-flight interview (main — before any other step)
 
-Run `git status --porcelain` and probe for lint/test runners with 1c's table (read-only — run nothing yet). Then ask, in ONE message, only the questions whose condition holds:
+Run `git status --porcelain` and probe for lint/test runners with 1c's table (read-only — run nothing yet). Then ask via **one `AskUserQuestion` call**, only the questions whose condition holds — never a freeform chat message.
 
-- **Dirty tree** (only if git status printed output) — list the dirty files, ask whether to commit now.
-- **Green baseline check?** (yes/no, default no) — always asked. Opt-in: 1c runs only on a yes.
-- **Green baseline checker** (only if 1c's table matched multiple or none) — which lint/test commands establish the baseline; relevant only on an opt-in yes.
-- **Repo-green gate after changes?** (yes/no, default no) — always asked. Opt-in: runs the repo's full lint + full test suite, once before any cluster edit and once after all commits.
-  - Fixes any batch-caused regression until green — see step 5's repo-green gate.
-- **Refactor + auto-review tails after this batch?** (yes/no, default no) — always asked.
+Each option gets a `description` (what picking it does) and a `preview` (the extra detail behind "what you mean" — dirty-file list, the runner candidates found, what the gate actually runs) so the user can check the detail without a round trip. The recommended option is always first and labeled "(Recommended)", per this project's question-asking convention.
+
+Candidate questions, in priority order (only those whose condition holds are sent):
+
+1. **Dirty tree** (only if `git status --porcelain` printed output) — header `Dirty tree`.
+   - `question`: "Working tree has uncommitted changes — what should I do before clustering?"
+   - Options: **Commit now (Recommended)** — description: "commit via `commit-standards`, then continue"; preview: the dirty file list. / **Stop here** — description: "abort the skill so you can commit or stash by hand, then re-run"; preview: same file list.
+2. **Green baseline check?** (always) — header `Baseline`.
+   - `question`: "Record a lint+test baseline before any cluster edit, to catch pre-existing breakage?"
+   - Options: **No — skip (Recommended)** — description: "faster; only worth it if the repo might already be red"; preview: "1c is skipped entirely; step 5 still runs whatever gate you pick below." / **Yes — capture baseline** — description: "runs 1c's lint+test probe now, aborts if either is already red"; preview: 1c's runner-discovery table from `references/opt-in-gates.md`.
+3. **Green baseline checker** (only if 1c's table matched multiple markers or none — e.g. both `package.json` and `Makefile` present, or neither) — header `Checker cmd`.
+   - `question`: "Which lint/test commands should establish the baseline?"
+   - Options: one per matched candidate (or the most likely guess when none matched), each showing the exact command in its preview; the user can always type a custom command via the tool's built-in "Other".
+   - Only consumed if the previous question ends up "Yes" — send it regardless, ignore it otherwise, rather than a second round-trip.
+4. **Repo-green gate after changes?** (always) — header `Green gate`.
+   - `question`: "Run the repo's full lint+test suite before the first cluster edit and again before push, fixing any batch-caused regression?"
+   - Options: **No — skip (Recommended)** — description: "faster; skip straight to push after commits"; preview: "step 5 goes straight from commits to step 6's push." / **Yes — gate on green** — description: "blocks the push until green; pre-existing red is reported, never fixed"; preview: the gate's baseline/gate mechanics from `references/opt-in-gates.md`.
+5. **Refactor + auto-review tails after this batch?** (always) — header `Tails`.
+   - `question`: "After pushing, run the refactor + auto-review tail pair over this batch's commit range?"
+   - Options: **No — skip (Recommended)** — description: "stop at step 8's report"; preview: "n/a." / **Yes — run tails** — description: "dispatches the shared code-reviewer tail pair, report-only"; preview: `code-reviewer-tail-pair.md`'s scope.
+
+`AskUserQuestion` caps at 4 questions per call. Dirty-tree + baseline + gate + tails already fill 4 slots when the tree is dirty — in that case, send the checker-command question (if its own condition holds) as an immediate second `AskUserQuestion` call, before doing anything else. Otherwise everything fits in one call.
 
 Persist the answers the moment they arrive; steps 1b–1d consume them and never ask again.
 
@@ -140,27 +156,30 @@ fetched JSON.
 
 Subsections 3a–3g (fetch, gate, filter, cluster, rank, propose) live in `references/fetch-cluster-propose.md`; only the dispatched subagent reads them.
 
-## Output: the proposal block
+## Output: cluster decisions via AskUserQuestion
 
-The subagent returns one editable block of `### Cluster N` sections (template in `references/fetch-cluster-propose.md`). Relay it verbatim; the user edits it in place and sends it back. **One round.**
+The subagent returns structured per-cluster data (`references/fetch-cluster-propose.md`'s 3g format) — main never relays it to the user as raw text to hand-edit. Instead, build one `AskUserQuestion` question per cluster.
 
-### Editing rules (state these to the user)
+Per cluster: `header` = `Cluster N`; `question` = the cluster's short title plus a one-line summary of what it's about. Four options, always in this order, default action first and labeled "(Recommended)":
 
-- Flip `[action: apply]` to `[action: answer]` or `[action: drop]`.
-- Edit the drop-reason text directly — what's there is only the proposal.
-- Delete a whole `### Cluster N` section to skip it entirely (no commit, no reply).
-- For `answer`, add an `Answer:` line — clustering doesn't write your answers.
-- Send the edited block back as a single message.
+- **Apply** — description: the subagent's one-line `Planned change`. `preview`: every comment in the cluster (author, `(yours)` if self, file:line, body, url) plus the deduped `Threads` list — this is the "let me check what you mean in more detail" view.
+- **Answer** — description: "reply with your own reasoning instead of changing code — pick Other below and type it, since I can't write your answer for you." `preview`: same full comment context as Apply.
+- **Drop** — description: the subagent's proposed one-line drop reason. `preview`: same full comment context.
+- **Skip** — description: "leave this cluster out entirely — no commit, no reply, thread stays open." `preview`: same full comment context.
 
-## Step 4: Parse the user's edited block, then create TaskList tasks (main)
+`AskUserQuestion` caps at 4 questions per call — batch clusters 4 at a time, issuing consecutive calls back-to-back (no other work interleaved) until every cluster has been asked. This is the "one round" from the user's point of view: every cluster's decision arrives in the same unbroken back-and-forth, just chunked by the tool's own limit.
 
-For each surviving cluster, record its `action`, `comment_ids` (`databaseId`), `thread_ids` (the deduped `Threads` line), and `urls` for cross-linking in the commit body.
+The tool's built-in "Other" is how the user overrides a default: typed text becomes the `answer_body` (when the picked/implied action is `answer`), a replacement `planned_change` (`apply`), or a custom `drop_reason` (`drop`) — infer which from the text's shape; ask a one-line inline clarification rather than guess when it's genuinely ambiguous.
+
+## Step 4: Parse the AskUserQuestion answers, then create TaskList tasks (main)
+
+For each cluster, map its answer to an `action` (`apply`/`answer`/`drop`; `skip` clusters are dropped from the run entirely, no task, no reply) plus `comment_ids` (`databaseId`), `thread_ids` (the deduped `Threads` line), and `urls` for cross-linking in the commit body.
 
 `thread_ids` drives step 7's replies; `comment_ids` and `urls` stay for the commit body and the top-level reply prefix.
 
-Add `planned_change` on apply clusters (it guides step 5's edit), plus whichever of `drop_reason` or `answer_body` the action needs.
+Add `planned_change` on apply clusters (it guides step 5's edit), plus whichever of `drop_reason` or `answer_body` the action needs, from the subagent's default or the user's "Other" text per the rule above.
 
-If parse fails (mangled markers, missing `Answer:` for answer clusters, missing `Threads` on a cluster holding inline comments), surface the exact issue and ask the user to re-send. Don't guess.
+If a cluster's final action is `answer` and the user picked the plain "Answer" option rather than typing a reply via "Other", the answer body is still missing — the model cannot invent it. Batch these into one follow-up `AskUserQuestion` round (one question per such cluster, `header: Cluster N`, no preset options — the point is to capture free text via "Other"), 4 per call, before proceeding.
 
 **Before touching any code or running any command in step 5**, create one TaskList task per applied cluster — see "Run-state file + TaskList state" above.
 
@@ -194,7 +213,7 @@ Load [`references/opt-in-gates.md`](references/opt-in-gates.md) for the gate dis
 
 ## Step 6: Batch push (main)
 
-After all `apply` clusters are committed, run a single `git push`. Confirm with the user first — it's irreversible, triggers CI, and notifies reviewers.
+After all `apply` clusters are committed, run a single `git push` — no confirmation prompt. Step 1a already verified the PR's branch is the current branch, and step 5's clusters were each explicitly approved by the user; pushing them is the batch's completion, not a new decision.
 
 If the push is rejected (remote moved), abort and surface it — the per-cluster commits stand as-is.
 
