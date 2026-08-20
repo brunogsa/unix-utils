@@ -163,13 +163,19 @@ This list is step 2-7's working input. When Mode A's read stage escalates to sub
    - Does this learning already exist?
    - Is there a related guideline that needs clarification?
    - Would this contradict any existing content?
+   - **When it already exists, don't file it as "Already Covered" and drop it — the user having to raise it again is evidence the current wording isn't landing.** Diagnose why it didn't land, then propose the matching fix as a **Strengthen** candidate (same per-item approval as a new addition, step 7):
+     - Wording didn't cover this exact case → reword the `[Instruction]` (or the relevant sentence, in a skill without markers) to close that gap.
+     - No concrete illustration → add an `[Example]` showing the missed case.
+     - It's been missed more than once, or the cost of missing it is high → promote it to `CRITICAL`.
+     - Several near-misses point at the same root cause → fold them into one strengthened bullet rather than stacking near-duplicates.
+   - Only file as genuinely "Already Covered" (no edit proposed) when the feedback was a passing mention or question, not a correction of behavior that diverged from the existing rule.
 
 6. **Present findings** - Show the user:
    - What learnings were identified
    - How they were generalized
    - Target file for each (CLAUDE.md or which skill)
-   - Which are new vs already covered
-   - Proposed additions (if any)
+   - Which are new vs already covered vs already-covered-but-strengthened
+   - Proposed additions (if any), plus proposed strengthenings of existing rules (if any) — each showing the current wording next to the proposed one
    - Repo-specific findings dropped from a unix-utils sweep (not written), each labeled with its originating repo
 
 7. **Apply changes only with approval** - Wait for user confirmation before modifying any file.
@@ -213,9 +219,15 @@ Number each proposal so the user can approve/reject by number (e.g., "Apply 1 an
 ### skills/[skill-name]/SKILL.md
 2. **[Addition title]** - [Description]
 
+## Strengthen Existing
+
+Number these alongside the additions above so they share the same approve-by-number flow.
+
+3. **[Target file > guideline]** - Why the current wording missed this feedback; current text → proposed text (reword / add `[Example]` / promote to `CRITICAL`).
+
 ## Already Covered
 
-- [Existing guideline/skill content that covers this]
+- [Existing guideline/skill content that covers this feedback as a passing mention, not a correction — no edit proposed]
 
 ## Repo-Specific Findings (unix-utils sweep only, not written)
 
