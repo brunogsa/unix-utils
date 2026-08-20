@@ -50,6 +50,8 @@ At skill start, create `/tmp/address-pr-comments_<session_id>_<ts>.json` — thi
 
 Persist as produced, never at the end: pre-flight answers first, then each cluster's chosen action, planned change (apply clusters), drop/skip reason, and commit SHA.
 
+When the repo-green gate is on, also persist its baseline and final verdict — never log content — per `references/opt-in-gates.md`.
+
 Once step 4 approves the clusters, create one TaskList task per **applied** cluster — only those produce a commit, which is CLAUDE.md's test for a Task.
 
 Put machine-checkable state (`action`, `commit_sha`, `status`) in the task's `metadata`; keep narrative rationale in the run-state file.
@@ -71,6 +73,8 @@ Run `git status --porcelain` and probe for lint/test runners with 1c's table (re
 - **Dirty tree** (only if git status printed output) — list the dirty files, ask whether to commit now.
 - **Green baseline check?** (yes/no, default no) — always asked. Opt-in: 1c runs only on a yes.
 - **Green baseline checker** (only if 1c's table matched multiple or none) — which lint/test commands establish the baseline; relevant only on an opt-in yes.
+- **Repo-green gate after changes?** (yes/no, default no) — always asked. Opt-in: runs the repo's full lint + full test suite, once before any cluster edit and once after all commits.
+  - Fixes any batch-caused regression until green — see step 5's repo-green gate.
 - **Refactor + auto-review tails after this batch?** (yes/no, default no) — always asked.
 
 Persist the answers the moment they arrive; steps 1b–1d consume them and never ask again.
@@ -166,6 +170,8 @@ This step ends only once every applied cluster has its task.
 
 If step 1d's toggle is on, capture `BATCH_BASE_SHA=$(git rev-parse HEAD)` before the first commit below — step 7d's tails review this range.
 
+If step 0's "Repo-green gate after changes?" is on, capture the repo-green baseline now, before the first cluster edit below — see [`references/opt-in-gates.md`](references/opt-in-gates.md).
+
 For each `apply` cluster, **in the order the user left them**:
 
 1. Make the code changes that address the cluster's comments.
@@ -179,6 +185,12 @@ If a cluster's edits accidentally touch files outside its scope (drift), never s
 Pause and ask the user whether to split it into a separate `[Drift]` commit per CLAUDE.md, or bundle it if trivial.
 
 Either answer only decides where the drift fix commits; the cluster's own flow then resumes.
+
+### Repo-green gate (opt-in, after all apply clusters are committed, before step 6's push)
+
+Runs only when step 0's "Repo-green gate after changes?" is on — otherwise go straight to step 6.
+
+Load [`references/opt-in-gates.md`](references/opt-in-gates.md) for the gate dispatch and its verdict handling. On `HALT`, stop here — never push broken commits, and never hand-fix a failure the gate returned.
 
 ## Step 6: Batch push (main)
 
@@ -279,6 +291,8 @@ PR <n> address summary
 - Reply failures (permission/API skip): <count> targets
 - Open threads remaining for you to resolve: <link to PR's "Files changed">
 ```
+
+When step 5's repo-green gate ran, append its verdict (`GREEN` / `GREEN-WITH-EXCEPTIONS` + Scout/Unclassifiable lists / `HALT` + surviving red) to this summary.
 
 When step 7d ran, append its two report paths and top findings to this summary so the user sees them in the same pass.
 
