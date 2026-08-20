@@ -83,6 +83,13 @@ Ask only when it can't be inferred — bundle that ask into §2's clarifying que
 
 **Under `--no-ask`, nothing above prompts.** Each ambiguity resolves to `SKIPPED (<the ambiguity>)` on that finding, and the run continues with the rest.
 
+**Emit a `[Learning]` marker the moment a human choice lands**, on a human invocation only (never under `--no-ask`, since nothing there is a human choice to learn from):
+
+- Answering a clarifying question here in §2.
+- Rejecting, rewording, or hand-editing a proposed `SKIPPED` reason (§5) or a subagent's applied fix (§4) before it's committed.
+
+Follow CLAUDE.md's correction rule exactly — infer the general rule behind the choice, confirm it with the human in the same turn, then emit the standalone `[Learning]` line in its fixed `said=... | rule=...` format. This is what lets `/improve-from-user` mine the choice back out of the transcript later; skip it and the choice is lost the moment this session ends.
+
 Skipping beats guessing here because the caller can re-run the finding by hand once it reads the ledger, whereas a wrong guess lands a commit nobody asked for.
 
 A missing test command under `--no-ask` skips only the findings that need one — refactor-lens findings still apply, since the `refactor` agent brings its own green-before-and-after check.
