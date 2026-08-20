@@ -176,9 +176,10 @@ PHASE GREEN:
 
 PHASE COMMIT:
 
-- One commit per unit, in unit order, each bundling that unit's own tests, implementation, and docs per `commit-standards`, including the `Co-Authored-By` trailer — the git-guard hook rejects commits without it.
+- One commit per unit, in unit order, **never one combined commit for the batch** — N units always produce N commits, each bundling only that unit's own tests, implementation, and docs per `commit-standards`, including the `Co-Authored-By` trailer — the git-guard hook rejects commits without it.
+  - "All-or-nothing" below gates *when* committing starts, not *how many* commits result — it never collapses N units into one commit.
 
-- All-or-nothing in the normal path: nothing is committed until every unit is green. The exhaustion path above is the sole exception, and it commits only the units that earned it.
+- All-or-nothing in the normal path: nothing is committed until every unit is green, but once green, commit each unit separately as above. The exhaustion path above is the sole exception, and it commits only the units that earned it (still one commit per earned unit).
 
 Throughout:
 
