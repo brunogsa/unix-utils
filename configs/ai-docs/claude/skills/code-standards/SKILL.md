@@ -2,7 +2,7 @@
 name: code-standards
 description: "USE PROACTIVELY when you write, edit, or review code — any language, including config that is itself code like init.lua, not just settings.json — even one-liners. Not for pure reading."
 user-invocable: false
-words-budget: 4096
+words-budget: 8192
 instructions-budget: 80
 ---
 
@@ -147,6 +147,10 @@ function buildCsvColumnOrder(rows) { /* ... */ }
 function extractUniqueEmails(rows) { /* ... */ }
 ```
 
+- [Instruction] Reject a vague, overloaded verb (`resolve`, `handle`, `process`, `manage`) in a name — name the specific operation performed instead.
+  - [Why] A vague verb could mean any of several operations, forcing the reader to open the body to learn which one actually happens.
+  - [Example] `resolveSoldSupplementaryChildSkus` — deleted, inlined as a direct `unpack()` call at its one call site; `resolveStandaloneSeries` → `mapGroupSeriesSiglas`, naming the conditional mapping it does.
+
 - [Instruction] Rename when a name implies the wrong concept, even when it computes the right value.
   - [Why] A reader trusts the name, not what it computes; a misleading name misdirects them even though the value is correct.
 
@@ -245,6 +249,10 @@ only — translation and business rules belong in their own named steps.
 
 - [Instruction] Make the controller the logging owner — avoid duplicate `info` across layers; helpers stay quiet (`debug` only, or `info` solely for what the controller can't see).
   - [Why] One owner per log line keeps the output deduplicated and tells the reader which layer to trust for each fact.
+
+- [Instruction] Never thread a parameter, or add an if/loop branch, through a pure or business-logic layer solely to support a logging call — centralize logging in controllers, which already hold that context.
+  - [Why] Keeping logging out of lower layers lets each one focus only on its own workload, staying simpler and easier to understand.
+  - [Example] A mapper's `buildCollectionItem` carried an `if (soldChildSkus.length > 0)` guard whose only job was calling `LogContext.extendContext` — deleted; the caller already had every field needed to log it itself.
 
 - [Example]
 ```javascript
