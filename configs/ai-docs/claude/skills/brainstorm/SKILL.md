@@ -164,7 +164,7 @@ Then dispatch `agent(subAgent=spec-writer, title=Write the spec)` in the backgro
 - This session's resolved absolute path to `brainstorm-brief.md` — a dispatched subagent gets its own, different scratchpad directory, so an unstated path leaves it no way to find this session's brief.
 - The slug derived above (or the output path directly).
 
-**This session never writes the spec itself** — every later edit goes through another `agent(subAgent=spec-writer, title=Apply spec edits)` carrying the exact changes to make.
+**This session never writes the spec itself** — every later edit goes through another `agent(subAgent=spec-editor, title=Apply spec edits)` carrying the exact changes to make.
 
 Why delegate: writing the spec costs the context to load the library and template — context this session still needs for both reviews and the hand-off.
 
@@ -172,6 +172,9 @@ Why `spec-writer`, never `general-purpose` or a fork: it's a recurring, repeatab
 It also inherits none of this session's context — same as `general-purpose` would — so it grounds entirely from `brainstorm-brief.md`, which is why that file, not `notes.md`, has
 to be self-contained (step 5).
 Whatever it omits is invisible to the agent that writes the spec, and gets silently invented instead.
+
+Why `spec-editor`, a separate type from `spec-writer`, for every edit: same reasoning one level further — write and edit are different-shaped calls with different costs, so splitting them
+lets each get its own report row instead of one combined type blurring the two.
 
 ### 7. Self-review the spec once, with fresh eyes
 
@@ -191,7 +194,7 @@ Apply these items only: placeholders, contradictions, ambiguity, completeness, h
 Exclude PR-size and plan-contradiction — no plan exists yet.
 Exclude Scope too: step 2 already asked the user about decomposition.
 
-Then decide each finding yourself and dispatch `agent(subAgent=spec-writer, title=Apply spec review findings)` with the ones you accept.
+Then decide each finding yourself and dispatch `agent(subAgent=spec-editor, title=Apply spec review findings)` with the ones you accept.
 
 **Report the outcome to the user in one block before step 8** — each finding, and whether it was applied or skipped with the reason.
 
@@ -201,7 +204,7 @@ Why report it: it's the only way to judge whether the gate earns its cost — in
 
 Why fresh eyes before the user: this session argued itself into every choice, so it reads its own spec as complete because it remembers what the spec never says.
 
-Why not `spec-writer` for the review: it composes under conventions the way the spec-writing dispatch does, not the fresh-eyes judgment a review needs — that judgment is `spec-reviewer`'s job.
+Why not `spec-writer` or `spec-editor` for the review: both compose under conventions the way a write or edit dispatch does, not the fresh-eyes judgment a review needs — that judgment is `spec-reviewer`'s job.
 
 ### 8. User review/approve spec
 
@@ -213,7 +216,7 @@ Give the user the spec's path, then ask via `AskUserQuestion` whether it is appr
 
 Route each round's rework to the earliest step the feedback invalidates:
 
-- Wording/detail issues → re-dispatch `spec-writer` with the edits, then re-ask.
+- Wording/detail issues → re-dispatch `spec-editor` with the edits, then re-ask.
 - Missing or wrong requirements → back to the step 4 interview.
 - Approach concerns → back to the step 5 trade-off discussion.
 
@@ -230,6 +233,8 @@ Dispatch `agent(subAgent=plan-writer, title=Write implementation plan)` in the b
 
 Why `plan-writer`, never `general-purpose` or a fork: same reasoning as step 6's `spec-writer` — a dedicated type gets its own report row, and grounding from the brief instead
 of an inherited session keeps its tier pinnable, which a fork's can't be.
+
+Why `plan-editor`, a separate type from `plan-writer`, for every later edit: same split as `spec-writer`/`spec-editor` — write and edit are different-shaped calls, so each gets its own report row.
 
 **A gap in the spec never withholds the plan** — including a decision this session settled in the interview but never wrote into the spec.
 `plan-writer` plans around it and records a `**QUESTION:**` under Open Questions rather than silently filling from memory, which leaves the spec wrong for the next reader.
@@ -266,7 +271,7 @@ At `light` it runs here instead, over each task's AC field — dropping the spec
 Treat every decision or constraint the interview settled that the plan contradicts or omits as a finding too.
 Only this session holds the interview, since `light`'s plan comes from `plan-writer` grounded solely in `brainstorm-brief.md` and would otherwise invent whatever the brief dropped.
 
-Decide each finding yourself, dispatch `agent(subAgent=plan-writer, title=Apply plan review findings)` with the ones you accept, and report applied-or-skipped exactly as step 7 does.
+Decide each finding yourself, dispatch `agent(subAgent=plan-editor, title=Apply plan review findings)` with the ones you accept, and report applied-or-skipped exactly as step 7 does.
 **Runs once per plan, never twice over the same text.**
 
 **At `light`, that report also names every gate that ran and every one that didn't.**
@@ -278,7 +283,7 @@ Without it the plan carries no trace of what verified it.
 Give the user the plan's path, then ask via `AskUserQuestion` whether it is approved or what to change.
 
 Same loop shape as step 8: apply, re-ask, and continue to step 12 automatically the moment they approve.
-Route rework the same way — plan-level edits go through `plan-writer`, requirement gaps back to step 4, approach concerns back to step 5.
+Route rework the same way — plan-level edits go through `plan-editor`, requirement gaps back to step 4, approach concerns back to step 5.
 
 **No self-review re-runs during this loop, in either mode.**
 
@@ -290,7 +295,7 @@ A second AI pass over text they are actively editing spends a dispatch on a movi
 Read the Open Questions section of the plan, and of the spec when one exists.
 
 While either still holds a `**QUESTION:**` entry, interview the user to settle them — `AskUserQuestion`, 2-3 at a time, recommended answer first, exactly as in step 4.
-Then dispatch `agent(subAgent=plan-writer, title=Close open questions in the plan)` to fold the plan's answers in, and — full mode only, when the spec also held one — `agent(subAgent=spec-writer,
+Then dispatch `agent(subAgent=plan-editor, title=Close open questions in the plan)` to fold the plan's answers in, and — full mode only, when the spec also held one — `agent(subAgent=spec-editor,
 title=Close open questions in the spec)` for the spec's. Each leaves its own Open Questions section reading `None`.
 
 Re-run `~/.claude/skills/spec-driven-development/scripts/check-open-questions.sh <plan> [<spec>]` after each round — never settle it by eye.

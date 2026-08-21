@@ -85,7 +85,7 @@ def brainstorm():
     TaskCreate("[Reminder] Step 4 · Interview")                          # 8a ·
     TaskCreate("[Reminder] Step 5 · Propose 2-3 approaches")             # 8b ·
     if mode == "full":
-        TaskCreate("[Reminder] Step 6 · spec-writer agent writes the spec")  # 8c ·
+        TaskCreate("[Reminder] Step 6 · spec-writer agent writes the spec, spec-editor applies later edits")  # 8c ·
         TaskCreate("[Reminder] Step 7 · Review the spec")                        # 8d ·
         TaskCreate("[Reminder] Step 8 · User review/approve spec")               # 8e ·
     TaskCreate("[Reminder] Step 9 · Write the plan and run the deterministic gates")  # 8f ·
@@ -156,9 +156,9 @@ def brainstorm():
         #      NOT PR-size, NOT plan-contradiction (no plan yet), NOT Scope
         #      (step 2 already asked).
         findings = dispatch("spec-reviewer", target=spec)
-        # 21 · dispatch spec-writer (agent-pinned) · serial · background, with
+        # 21 · dispatch spec-editor (agent-pinned) · serial · background, with
         #      the findings YOU accepted.
-        dispatch("spec-writer", apply=main_session_decides(findings))
+        dispatch("spec-editor", apply=main_session_decides(findings))
         # 22 · every finding, applied or skipped with the reason — the only
         #      way to judge whether this gate earns its cost.
         #      Runs ONCE per spec; the step-8 loop below re-runs no review.
@@ -169,7 +169,7 @@ def brainstorm():
             verdict = ask_user_question(spec.path, "Approved, or what changes?")
             match verdict:                                 # 24 ·
                 case "approved":                  break                    # → 25
-                case "wording/detail":            dispatch("spec-writer", edits=...)  # 24a · → 23
+                case "wording/detail":            dispatch("spec-editor", edits=...)  # 24a · → 23
                 case "missing/wrong requirements": goto(10)                # the interview
                 case "approach concerns":          goto(14)                # the proposals
 
@@ -226,9 +226,9 @@ def brainstorm():
     #       holder of that interview.
     if mode == "light":
         findings += read_plan_against(notes)
-    # 30 · dispatch plan-writer (agent-pinned) · serial · background, with the
+    # 30 · dispatch plan-editor (agent-pinned) · serial · background, with the
     #      findings YOU accepted.
-    dispatch("plan-writer", apply=main_session_decides(findings))
+    dispatch("plan-editor", apply=main_session_decides(findings))
     # 31 · every finding, applied or skipped with the reason.
     #      AT LIGHT, one more thing goes into this same report block: name
     #      every gate that ran and every one that didn't (the deterministic
@@ -243,7 +243,7 @@ def brainstorm():
         verdict = ask_user_question(plan.path, "Approved, or what changes?")
         match verdict:                                     # 33 ·
             case "approved":                  break                        # → 34
-            case "plan-level edits":          dispatch("plan-writer", edits=...)   # 33a · → 32
+            case "plan-level edits":          dispatch("plan-editor", edits=...)   # 33a · → 32
             case "missing/wrong requirements": goto(10)                    # the interview
             case "approach concerns":          goto(14)                    # the proposals
 
@@ -256,14 +256,14 @@ def brainstorm():
         # 35a · AskUserQuestion, 2-3 at a time, recommended answer first.
         #       Step 13 does not run while a question is open.
         settled = ask_user_question(open_qs[:3])
-        # 35b · dispatch plan-writer (agent-pinned) · serial · background;
+        # 35b · dispatch plan-editor (agent-pinned) · serial · background;
         #       leaves the plan's Open Questions section reading None.
-        dispatch("plan-writer", close_open_questions=settled)
+        dispatch("plan-editor", close_open_questions=settled)
         # 35c · full mode only, when the spec also held a **QUESTION:** entry —
-        #       dispatch spec-writer (agent-pinned) · serial · background;
+        #       dispatch spec-editor (agent-pinned) · serial · background;
         #       leaves the spec's Open Questions section reading None too.
         if mode == "full" and spec_has_open_question:
-            dispatch("spec-writer", close_open_questions=settled)
+            dispatch("spec-editor", close_open_questions=settled)
 
     while True:
         # 36 · Step 13 — the deterministic bucket AGAIN, same order and same
@@ -338,12 +338,12 @@ flowchart TD
   n19{{"19. Step 6 · Dispatch: Write the spec<br/>spec-writer · agent-pinned · serial · background<br/><br/>no inherited context: reads brainstorm-brief.md first, passing this session's<br/>resolved absolute path to it explicitly — its own scratchpad directory differs —<br/>then the spec-driven-development library + spec-template, and writes EVERY<br/>section; folds the brief's decisions into Functional Decisions<br/><br/>this session never writes the spec itself"}}:::dispatch
 
   n20{{"20. Step 7 · Dispatch: Fresh-eyes review of the spec<br/>spec-reviewer · agent-pinned · serial · background — full only, ALWAYS dispatched<br/><br/>ALWAYS: 'How would this break?' (fail-closed) — every boundary/failure-category<br/>checklist row instantiated or opted out, every AC carrying a surfaced failure mode<br/><br/>THEN, only when qualitative_pass is true (read from /tmp/sdd_&lt;session_id&gt;.json):<br/>also sweeps placeholders · contradictions · ambiguity · completeness · human-reviewable<br/>NOT PR-size, NOT plan-contradiction (no plan yet), NOT Scope (step 2 already asked)"}}:::dispatch
-  n21{{"21. Dispatch: Apply the spec review findings<br/>spec-writer · agent-pinned · serial · background · the findings the main session accepted"}}:::dispatch
+  n21{{"21. Dispatch: Apply the spec review findings<br/>spec-editor · agent-pinned · serial · background · the findings the main session accepted"}}:::dispatch
   n22["22. Report every finding to the user — applied, or skipped with the reason.<br/>The only way to judge whether this gate earns its cost.<br/>Runs ONCE per spec; the step-8 loop re-runs no review."]
 
   n23["23. Step 8 · Give the user the spec's PATH, then ask:<br/>approved, or what changes?"]:::gate
   n24{"24. User approved the spec?"}
-  n24a{{"24a. Dispatch: Apply the spec edits<br/>spec-writer · agent-pinned · serial · background · carrying the exact edits"}}:::dispatch
+  n24a{{"24a. Dispatch: Apply the spec edits<br/>spec-editor · agent-pinned · serial · background · carrying the exact edits"}}:::dispatch
 
   n25{{"25. Step 9, both modes · Dispatch: Write the plan<br/>plan-writer · agent-pinned · serial · background<br/><br/>always: this session's resolved absolute path to brainstorm-brief.md — plan-writer<br/>inherits none of this session's context, same brief contract as step 6/19<br/><br/>at full: the spec path + the step-18 slug<br/>at light: no spec path — plan-writer treats its absence as a plan-only run and<br/>derives its own slug from the brief's original request<br/><br/>any planning-conventions file the user named (ADR/HLD/LLD), if one exists<br/><br/>a spec gap never withholds the plan — it becomes a **QUESTION:** entry, including<br/>a decision the interview settled but the spec never got"}}:::dispatch
 
@@ -355,18 +355,18 @@ flowchart TD
 
   n29{{"29. Step 10, BOTH modes · Dispatch: Fresh-eyes review of the plan<br/>spec-reviewer · agent-pinned · serial · background, over the plan and, at full, the spec —<br/>ALWAYS dispatched, in either mode<br/><br/>ALWAYS: the semantic half of 'Every AC has a test' — does each cited test actually<br/>PROVE its AC? At full, step 9's script already checked citation existence/validity,<br/>so this judges only the match; at light no coverage script ran, so it judges the WHOLE<br/>match — each task's Testable Acceptance criteria field against its Tests (planned) list<br/><br/>ALWAYS at light: the library's 'How would this break?' judgment, over each task's<br/>Testable Acceptance criteria field — at full, step 7 already ran it over the spec's<br/>ACs, so it is NOT repeated here<br/><br/>THEN, full only, each read back from disk: the qualitative pass (qualitative_pass)<br/>and the 2 rigor checks (traces_to_ac, right_sized). Light leaves all three off."}}:::dispatch
   n29b["29b. AT LIGHT, before deciding anything · Read the plan against notes.md yourself.<br/>Every interview decision or constraint the plan contradicts or omits is a finding of the<br/>same kind, so accepted ones ride the SAME apply dispatch below.<br/>This session is the only holder of that interview"]:::state
-  n30{{"30. Dispatch: Apply the plan review findings<br/>plan-writer · agent-pinned · serial · background · the findings the main session accepted"}}:::dispatch
+  n30{{"30. Dispatch: Apply the plan review findings<br/>plan-editor · agent-pinned · serial · background · the findings the main session accepted"}}:::dispatch
   n31["31. Report every finding to the user — applied, or skipped with the reason.<br/>Runs ONCE per plan, never twice over the same text.<br/><br/>AT LIGHT, one more thing goes into this same report block: name every gate that ran<br/>and every one that didn't — the deterministic bucket minus its two spec-taking scripts,<br/>the 2 always-on judged checks above, and the qualitative/toggled checks the mode<br/>leaves off. Without it the finished plan carries no trace of what verified it"]
 
   n32["32. Step 11 · Give the user the plan's PATH, then ask:<br/>approved, or what changes?<br/>NO self-review re-runs inside this loop, in either mode."]:::gate
   n33{"33. User approved the plan?"}
-  n33a{{"33a. Dispatch: Apply the plan edits<br/>plan-writer · agent-pinned · serial · background · carrying the exact edits"}}:::dispatch
+  n33a{{"33a. Dispatch: Apply the plan edits<br/>plan-editor · agent-pinned · serial · background · carrying the exact edits"}}:::dispatch
 
   n34["34. Step 12 · Run check-open-questions.sh over the plan, and the spec when one exists"]
   n35{"35. Script exits non-zero — any **QUESTION:** entry still open?"}
   n35a["35a. Interview the user to settle them — AskUserQuestion, 2-3 at a time,<br/>recommended answer first. Step 13 does not run while a question is open."]:::gate
-  n35b{{"35b. Dispatch: Close the open questions in the plan<br/>plan-writer · agent-pinned · serial · background · leaves the plan's Open Questions section reading None"}}:::dispatch
-  n35c{{"35c. Full mode only, when the spec also held a **QUESTION:** entry · Dispatch: Close the open questions in the spec<br/>spec-writer · agent-pinned · serial · background · leaves the spec's Open Questions section reading None too"}}:::dispatch
+  n35b{{"35b. Dispatch: Close the open questions in the plan<br/>plan-editor · agent-pinned · serial · background · leaves the plan's Open Questions section reading None"}}:::dispatch
+  n35c{{"35c. Full mode only, when the spec also held a **QUESTION:** entry · Dispatch: Close the open questions in the spec<br/>spec-editor · agent-pinned · serial · background · leaves the spec's Open Questions section reading None too"}}:::dispatch
 
   n36["36. Step 13 · Run the DETERMINISTIC bucket AGAIN, same order and same light skip-rule<br/>as step 9 — both check-ac-coverage.sh and check-coverage-checklists.sh skipped at light.<br/>The reference is already in this session's context from step 9 (node 26) — don't read it twice.<br/><br/>Run NO judged gate here: step 10 — and step 7 at full — already ran every judged check<br/>the mode carries, and the user has approved every document since"]
   n37{"37. All deterministic gates pass?"}

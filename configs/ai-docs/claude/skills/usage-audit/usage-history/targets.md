@@ -17,8 +17,10 @@ These are **list-price targets**, same caveat as everywhere else in `usage-histo
 | Invocation | Target | Scope |
 |---|---|---|
 | Brainstorm, one phase, accepted | $5 | Either the why-phase (feeding spec) or the how-phase (feeding plan) — see note below |
-| Spec generation | $5 | Already brainstormed; `spec-writer` composing from the brainstorm brief |
-| Plan generation | $8 | Already brainstormed; `plan-writer` composing from spec + brief |
+| Spec generation (write) | $5 | Already brainstormed; `spec-writer` composing the first version from the brainstorm brief |
+| Spec generation (edit) | $2 | `spec-editor` applying accepted review findings, feedback, or open-question answers to an existing spec |
+| Plan generation (write) | $8 | Already brainstormed; `plan-writer` composing the first version from spec + brief |
+| Plan generation (edit) | $3 | `plan-editor` applying accepted review findings, feedback, or open-question answers to an existing plan |
 | Implement | $13 | With or without a spec/plan; excludes auto-review and quality-gate |
 | Auto-review or pr-review | $8 | Either review path |
 | Create-PR | $5 | PR title + description composition |
@@ -30,9 +32,9 @@ Each phase is its own $5 target, not one $5 target charged once. A PR that brain
 
 ## Derived: cost of one full PR
 
-$5 (brainstorm-why) + $5 (spec) + $5 (brainstorm-how) + $8 (plan) + $13 (implement) + $8 (auto-review) + $5 (create-pr) + $5 (address-pr-comments) = **~$54**
+$5 (brainstorm-why) + $5 (spec write) + $5 (brainstorm-how) + $8 (plan write) + $13 (implement) + $8 (auto-review) + $5 (create-pr) + $5 (address-pr-comments) = **~$54**
 
-This is the composite ceiling for one PR that runs the full spec-through-review pipeline.
+This is the composite ceiling for one PR that runs the full spec-through-review pipeline. It counts each doc's write once — the edit rows above aren't in the sum because a PR's review/open-question edit rounds vary in count, unlike the other line items, which run exactly once per PR.
 
 A task that skips brainstorm (already scoped) or skips review (no PR yet) targets a smaller subset of the table above, not a fraction of $54.
 
