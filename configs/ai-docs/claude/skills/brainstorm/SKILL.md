@@ -169,7 +169,8 @@ Then dispatch `agent(subAgent=spec-writer, title=Write the spec)` in the backgro
 Why delegate: writing the spec costs the context to load the library and template — context this session still needs for both reviews and the hand-off.
 
 Why `spec-writer`, never `general-purpose` or a fork: it's a recurring, repeatable unit of work, so a dedicated type gets its own report row instead of reading as generic session spend.
-It also inherits none of this session's context — same as `general-purpose` would — so it grounds entirely from `brainstorm-brief.md`, which is why that file, not `notes.md`, has to be self-contained (step 5).
+It also inherits none of this session's context — same as `general-purpose` would — so it grounds entirely from `brainstorm-brief.md`, which is why that file, not `notes.md`, has
+to be self-contained (step 5).
 Whatever it omits is invisible to the agent that writes the spec, and gets silently invented instead.
 
 ### 7. Self-review the spec once, with fresh eyes
@@ -227,7 +228,8 @@ Dispatch `agent(subAgent=plan-writer, title=Write implementation plan)` in the b
 - **At `light`**: no spec path — `plan-writer` treats its absence as a plan-only run and derives its own slug from the brief's original request.
 - Any planning-conventions file the user named (ADR/HLD/LLD), if one exists.
 
-Why `plan-writer`, never `general-purpose` or a fork: same reasoning as step 6's `spec-writer` — a dedicated type gets its own report row, and grounding from the brief instead of an inherited session keeps its tier pinnable, which a fork's can't be.
+Why `plan-writer`, never `general-purpose` or a fork: same reasoning as step 6's `spec-writer` — a dedicated type gets its own report row, and grounding from the brief instead
+of an inherited session keeps its tier pinnable, which a fork's can't be.
 
 **A gap in the spec never withholds the plan** — including a decision this session settled in the interview but never wrote into the spec.
 `plan-writer` plans around it and records a `**QUESTION:**` under Open Questions rather than silently filling from memory, which leaves the spec wrong for the next reader.
@@ -288,7 +290,8 @@ A second AI pass over text they are actively editing spends a dispatch on a movi
 Read the Open Questions section of the plan, and of the spec when one exists.
 
 While either still holds a `**QUESTION:**` entry, interview the user to settle them — `AskUserQuestion`, 2-3 at a time, recommended answer first, exactly as in step 4.
-Then dispatch `agent(subAgent=plan-writer, title=Close open questions in the plan)` to fold the plan's answers in, and — full mode only, when the spec also held one — `agent(subAgent=spec-writer, title=Close open questions in the spec)` for the spec's. Each leaves its own Open Questions section reading `None`.
+Then dispatch `agent(subAgent=plan-writer, title=Close open questions in the plan)` to fold the plan's answers in, and — full mode only, when the spec also held one — `agent(subAgent=spec-writer,
+title=Close open questions in the spec)` for the spec's. Each leaves its own Open Questions section reading `None`.
 
 Re-run `~/.claude/skills/spec-driven-development/scripts/check-open-questions.sh <plan> [<spec>]` after each round — never settle it by eye.
 **Step 13 does not run while that script exits non-zero.**

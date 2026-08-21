@@ -22,9 +22,8 @@ Remove it first if it already exists, then recreate it empty, so no file in it s
    - Each dispatch names its own `model`/`effort` and assigns its own output path — a shard never derives or invents its own filename (D15).
 
 5. For each of S1-S4, once it returns, read its assigned `shard-*.json` file.
-   - If the file is missing or fails to parse, retry that one shard's dispatch once. If it fails a second time, do not drop the section —
-
-   - build its digest yourself as `{"section": "<id>", "headline": "INCOMPLETE", "ranked": [], "findings": [], "incomplete": "<named reason, e.g. dispatch failed twice or output unparseable>"}`.
+   - If the file is missing or fails to parse, retry once; on a second failure, don't drop the section — build its digest yourself
+as `{"section": "<id>", "headline": "INCOMPLETE", "ranked": [], "findings": [], "incomplete": "<named reason, e.g. dispatch failed twice or output unparseable>"}`.
 
 6. Merge the 4 digests into `/tmp/audit-session-<sid>/narrative.json` as `{"sections": [<time digest>, <money digest>, <work digest>, <status digest>]}`.
 
@@ -32,9 +31,8 @@ Remove it first if it already exists, then recreate it empty, so no file in it s
 
 6b. Only now, with step 6's merge on disk, dispatch S5 (Recommendations) — sequentially, never in parallel with S1-S4.
 
-S5's dispatch prompt carries the whole merged `narrative.json` (all four digests, not a JSON slice) plus `cost.json`'s summary, so it can reason across every other shard's findings.
-
-A parallel S5 would see only its own cost/timeline slice, and recommendations that cannot see the time/money/work/status findings are exactly the generic filler this shard exists to avoid.
+S5's dispatch prompt carries the whole merged `narrative.json` (all four digests, not a slice) plus `cost.json`'s summary, so it can reason across every shard's findings — a parallel
+S5 would see only its own cost/timeline slice, producing exactly the generic filler this shard exists to avoid.
 
 Apply the same retry-once-then-INCOMPLETE rule from step 5 to S5.
 
@@ -50,7 +48,7 @@ Apply the same retry-once-then-INCOMPLETE rule from step 5 to S5.
 
 A live or mid-session read is inherently partial.
 
-Neither this procedure, `claude-usage-report.py --session` mode, nor `extract-session-timeline.py` may ever write under `usage-history/snapshots/` — that series depends on days being immutable and closed.
+Neither this procedure, `claude-usage-report.py --session` mode, nor `extract-session-timeline.py` may write under `usage-history/snapshots/` — that series depends on days being immutable and closed.
 
 ## The digest schema every shard writes
 
@@ -90,9 +88,9 @@ S5 (Recommendations) is the one exception to the JSON slice pattern — what its
 
 Every run fans out to exactly these 5 shards, no more, no fewer (D3).
 
-Each row's `model`/`effort` is a fixed tier from the plan's per-component split — `effort:` is a convention this file declares, since `subagent-model-guard.py` gates `model` only and never enforces `effort`.
+Each row's `model`/`effort` is a fixed tier from the plan's per-component split — `effort:` is this file's own convention, since `subagent-model-guard.py` gates only `model`, never `effort`.
 
-`general-purpose` carries no frontmatter pin, so every dispatch below must name `model` explicitly or the guard hook denies it — never `opus`/`fable`, which `general-purpose`'s `deniedModels:` forbids.
+`general-purpose` carries no frontmatter pin, so every dispatch below must name `model` explicitly or the guard hook denies it — never `opus`/`fable`, forbidden by `deniedModels:`.
 
 Dispatch each as `agent(subAgent=general-purpose, title=Audit session <Title>, model=sonnet, effort=<Effort>)`.
 

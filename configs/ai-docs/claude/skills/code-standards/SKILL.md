@@ -64,6 +64,15 @@ for (let i = 1; i <= count; i++) {
 }
 ```
 
+### Comments
+
+- [Instruction] Cap a code comment at 4 sentences of prose, or convert it to a bullet list of one sentence each.
+  - [Why] A comment past a few sentences reads as prose to parse, not text to scan — the same problem bullets solve.
+
+- [Instruction] When a function needs a long or complex comment to explain itself, treat that as a signal to restructure it (clearer name, narrower params, a pure
+return over a mutated accumulator) — not a documentation task.
+  - [Why] The comment compensates for the function's shape — fixing the shape removes the need for it, not polishing it.
+
 ### Extraction: helpers, components, wrappers
 
 - [Instruction] When a render tree exceeds ~50 lines with multiple conditional branches, extract each branch into a self-naming sub-component (inline same-file is fine; any framework's templates).
@@ -175,6 +184,19 @@ const salesAgreementProductSummaryQuery = ...;
 - [Instruction] Don't mix languages in code identifiers — keep names in one language (default English), unless a country-specific term (`cnpj`, `notaFiscal`) turns obscure when translated.
   - [Why] A half-native-half-English name reads awkwardly and splits the vocabulary, forcing readers to code-switch mid-line.
 
+- [Instruction] When a name only makes sense alongside a comment explaining a business rule, rename it instead of keeping the comment.
+  - [Why] A reader trusts the name over a comment, which can go stale or be skipped — a misleading name still misleads.
+
+- [Example]
+```ts
+// Bad — the type needs a comment to say what "entry" means:
+/** One sold sourcing collection's contribution to a resolved child SKU. */
+type Entry = { resolvedSku: string; quantidadeVenda: number };
+
+// Good — the name itself says what it holds; the comment becomes unnecessary:
+type SourcingContribution = { resolvedSku: string; quantidadeVenda: number };
+```
+
 ### Booleans, conditions & naming conventions
 
 - [Instruction] Prefix booleans with `is`/`has`/`should`/`can`.
@@ -214,6 +236,9 @@ if (isExpandableKit) { ... }
 
 - [Instruction] **CRITICAL: One thing at one level of abstraction.**
   - [Why] A function doing two jobs has two reasons to change (SRP) — editing it for one job risks breaking the other.
+
+- [Example] A same-layer mix, not just I/O-vs-business-logic: `collectSuplementarRepeats` also called `UnpackPicSuplementarKitUseCase.resolve()` (translation) and computed `isBonificado`/`unitPrice` (business rules). "Collect" means gather
+only — translation and business rules belong in their own named steps.
 
 - [Instruction] **Controller (I/O, validation, logging) → Use Case (pure business logic, no I/O).**
   - [Why] I/O changes most often (HTTP → queue → CLI); pure use cases survive every swap.
@@ -297,7 +322,17 @@ function buildAvulso({ parentKit, childSku, price, discount }) {
 - [Instruction] Simplest correct version first. Memoization/caching needs profiling proof OR a clear Big-O reason.
   - [Why] An optimization untied to profile or Big-O adds complexity that may miss the hot path — no measured benefit.
 
+- [Instruction] When a filter/dedup/build-style pipeline is hard to follow in one combined pass, split it into named sequential steps even at a performance cost, absent profiling proof
+the combined form is needed.
+  - [Why] Tracing a combined pass forces holding every stage in mind at once; named steps let it verify one stage at a time.
+
 ## Functions, purity & side effects
+
+- [Instruction] Don't mark a function `async` (or return a `Promise`) unless it performs genuine asynchronous work.
+  - [Why] Wrapping already-resolved or purely synchronous logic in `async` forces every caller to `await` for nothing.
+
+- [Example] `buildLines(payload)` became `async buildLines(payload): Promise<Line[]>` purely to call a mapper marked `async` with nothing to await — it propagated through every caller with no real async
+work anywhere. Keep the chain synchronous.
 
 - [Instruction] Avoid global mutable state — pass data through params and return values.
   - [Why] Module-scope state makes data flow invisible and breaks unit isolation.
@@ -327,7 +362,7 @@ setFailures((prev) => getPreviousFailuresWithNewSchoolAgreementFetchError(prev, 
 - [Instruction] **Use named-param objects for any function with 2+ params.**
   - [Why] Positional args lose meaning at call sites (`configure(3, 5000)` — what's 3?).
 
-- [Instruction] **In the signature, list the specific fields the function needs rather than passing whole config objects.**
+- [Instruction] **CRITICAL: In the signature, list the specific fields the function needs rather than passing whole config objects.**
   - [Why] Fat-object params hide internal coupling — the signature stops documenting what the function actually depends on.
 
 - [Example]
@@ -406,7 +441,10 @@ logger.debug({
   - [Why] Validating internals wastes effort; only the trust boundary takes untrusted data — the one place a check catches it.
 
 - [Instruction] **CRITICAL: Fail loudly, not silently — errors propagate or get logged explicitly; when an internal invariant breaks, fail fast and never coerce, swallow, or default it away.**
-  - [Why] A crash stops the program where the bug is; a swallowed error runs on, corrupting data downstream with no trail back.
+  - [Why] A crash stops the program at the bug; a swallowed error runs on, corrupting data downstream with no trail back.
+
+- [Instruction] Include the affected entity's identifying key (SKU, order id, user id) in the error message itself, not only in surrounding logs.
+  - [Why] Whoever triages reads the message first — a generic one forces hunting for which entity failed.
 
 - [Instruction] Never retry indefinitely — always cap consecutive retries.
   - [Why] Uncapped retries during an outage become a self-inflicted DDoS on the upstream.

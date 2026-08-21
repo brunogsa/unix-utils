@@ -100,7 +100,7 @@ N/A escape: when every task is independent, or there's only one task, write `N/A
 - Task X
 - ...
 
-**Brief Description**: What needs to be done.
+**Brief Description**: What needs to be done. Either a short paragraph of at most 4 sentences, or a bullet list of one sentence per bullet — never a longer prose block.
 
 **Testable Acceptance criteria**:
 - What "done" looks like for this task.

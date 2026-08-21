@@ -100,7 +100,8 @@ A caller may pass its own base ref via `--base-ref` instead — `/implement`'s b
 
 ## 3. Dispatch the legs in parallel
 
-Spawn each leg as its own agent per role — `code-reviewer` for the refactor-lens and auto-review legs, `test-reviewer` for the planned-test-presence leg — all in the **same turn**, all in the background. They are independent report-only passes with no ordering dependency.
+Spawn each leg as its own agent per role — `code-reviewer` for the refactor-lens and auto-review legs, `test-reviewer` for the planned-test-presence leg — all in the **same turn**,
+all in the background. They are independent report-only passes with no ordering dependency.
 
 - `agent(subAgent=code-reviewer, title=Refactor-lens review)` — invokes and executes the `refactor` skill (via the Skill tool).
 - `agent(subAgent=code-reviewer, title=Auto-review pipeline)` — invokes the `auto-review` skill, orchestrating from there with `<BASE_REF>` and the resolved spec/plan paths pushed in so it needs no interactive resolution.

@@ -302,7 +302,8 @@ When a helper or drift surfaces mid-task, the subagent inserts new RED-GREEN lin
 
 ### 4.0. Pick the lane, per task
 
-Run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <task-N>` before dispatch: non-empty stdout → `tdd-coder`, §4.1; empty stdout → `direct-coder`, [`references/direct-coder-dispatch.md`](references/direct-coder-dispatch.md) — CLAUDE.md's Subagents section owns why.
+Run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <task-N>` before dispatch: non-empty stdout → `tdd-coder`, §4.1; empty stdout → `direct-coder`,
+[`references/direct-coder-dispatch.md`](references/direct-coder-dispatch.md) — CLAUDE.md's Subagents section owns why.
 
 Exit 1 (malformed task section) is a plan defect, not a lane choice — stop, per §1.3's non-zero-exit rule.
 
@@ -326,7 +327,8 @@ Push a `Context`/`Units`/`Verification`/`Optional` block verbatim, using `tdd-co
 
 - **Context**: the task's heading and brief description, in the plan's own words.
 - **Units**: the task's acceptance criteria and planned-test titles, one unit per forcing case, in the plan slice's own order.
-  - Cap one dispatch at **3 units**; a task with more splits into consecutive ≤3-unit dispatches, in plan order, each with its own `<run-label>`. `tdd-coder.md` forbids self-splitting, so only this section enforces the cap.
+  - Cap one dispatch at **3 units**; a task with more splits into consecutive ≤3-unit dispatches, in plan order, each with its own `<run-label>`. `tdd-coder.md` forbids
+self-splitting, so only this section enforces the cap.
   - Even a single-unit dispatch has auto-compacted before, so keep the pushed prompt small.
   - Chunks of one task run **sequentially**, never in parallel — same branch, same git index. Cross-task parallelism stays with `parallel-worktrees` (§5.4).
   - Give a later chunk's **Context** a one-line summary of what earlier chunks landed, plus `base:`, so it can `git log` the *why*.
@@ -355,7 +357,8 @@ The second opinion isn't lost, just deferred to §8.2's quality-gate tail.
 
 ### 4.3. Routing mid-execution discoveries
 
-Anything outside the task's core work routes through three channels `tdd-coder.md` defines: **Drift** (fix in place), **abstract-in-place** (dissolve into the code), **Scout** (leave it, return it) — `direct-coder.md` shares only Drift and Scout.
+Anything outside the task's core work routes through three channels `tdd-coder.md` defines: **Drift** (fix in place), **abstract-in-place** (dissolve into the code), **Scout** (leave it, return it) — `direct-coder.md`
+shares only Drift and Scout.
 
 There's no separate carry-forward digest: a Drift fix travels in its commit body.
 
@@ -476,7 +479,8 @@ Run the batch-end flow over `<BATCH_BASE_SHA>..HEAD`, then present the batch for
 
 - **§8.4 — re-push, refresh the PR description, package & finalize.** Both refreshes are skipped when §8.2 and §8.3 landed no commits.
 
-§8.1 runs first because it opens a **draft** PR whose description §8.4 later refreshes against the final diff, and because nothing that can hang may sit between a finished batch and its remote — [`references/batch-end-review.md`](references/batch-end-review.md) covers why.
+§8.1 runs first because it opens a **draft** PR whose description §8.4 later refreshes against the final diff, and because nothing that can hang may sit between a
+finished batch and its remote — [`references/batch-end-review.md`](references/batch-end-review.md) covers why.
 
 `/quality-gate`'s `test-sdd` leg carries this run's **only** planned-test check, read against the batch's final state.
 

@@ -55,9 +55,11 @@ If the script reports nothing to refactor, inform the user and stop.
 
 ### 2. Dispatch code-reviewer to detect opportunities
 
-**Before dispatch, mint the report path.** Run `date "+verdict_refactor_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"` once and treat the output as `$VERDICT_PATH` in CWD (NOT `/tmp/` — the user reviews it alongside the diff in their editor).
+**Before dispatch, mint the report path.** Run `date "+verdict_refactor_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"` once and treat the output as `$VERDICT_PATH` in CWD (NOT `/tmp/` — the
+user reviews it alongside the diff in their editor).
 
-- The branch name sits before the timestamp so multiple PRs run in series, each on its own branch, produce verdict files that stay distinguishable at a glance. Slashes are swapped for hyphens since a raw `/` in the branch name would create a subdirectory instead of a filename.
+- The branch name sits before the timestamp so multiple PRs run in series, each on its own branch, produce verdict files that stay distinguishable at a glance.
+Slashes are swapped for hyphens since a raw `/` in the branch name would create a subdirectory instead of a filename.
 
 - The `verdict_` prefix is mandatory, not cosmetic — `~/.claude/hooks/check-reviewer-writes.sh` denies every other basename at exit 2.
 

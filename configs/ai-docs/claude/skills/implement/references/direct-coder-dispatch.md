@@ -17,4 +17,5 @@ Everything else is baked into `direct-coder.md`. Don't re-push any of it.
 
 `~/.claude/agents/direct-coder.md` authors the report's full shape — `Status`, `Commits`, `Changes`, `Verification`, `Needs-TDD`, `Deviations`, `Scouts`, `Blocked on`.
 
-A report carrying **Needs-TDD** re-dispatches that named part through §4.1's tdd-coder lane, same task, same `<run-label>`. `direct-coder.md`'s Boundaries carve non-code artifacts out of the bounce entirely, so a `Needs-TDD` here always names a genuine, code-only falsifiable input the extractor's empty stdout missed — not a doc, spec, or plan edit.
+A report carrying **Needs-TDD** re-dispatches that named part through §4.1's tdd-coder lane, same task, same `<run-label>`. `direct-coder.md`'s Boundaries carve non-code artifacts out of the bounce entirely, so a
+`Needs-TDD` here always names a genuine, code-only falsifiable input the extractor's empty stdout missed — not a doc, spec, or plan edit.

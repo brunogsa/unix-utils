@@ -59,11 +59,11 @@ $S/claude-usage-report.py --backfill --since <SINCE> > /tmp/usage-report.txt 2>&
 
 - **Never snapshot the current day**, and never work around the script's refusal to.
 
-  - A day is only immutable once it has ended: a mid-day sample counts only the sessions that already ran, so it reads low and poisons every comparison against a closed day.
+  - A day is only immutable once it ends — a mid-day sample counts only sessions that already ran, reading low and poisoning any comparison against a closed day.
 
 - **Re-run with `--backfill --rebuild` after any change to pricing or aggregation**, then say in the audit which days were rebuilt.
 
-  - Plain `--backfill` skips days that already have a file, so a fix silently reaches only the uncaptured tail and splits the series into two incomparable halves.
+  - Plain `--backfill` skips days with an existing file, so a fix silently reaches only the uncaptured tail, splitting the series into two incomparable halves.
 
 ### Step 3 — Read what changed, from the config-change ledger
 
@@ -75,9 +75,9 @@ $S/config-change-ledger.py --since <SINCE> --until <UNTIL>
 
   - The script gets day grouping and surface classification for free, and runs git as a subprocess — sidestepping the `rtk` output cap.
 
-- **Draft one candidate intent per commit or same-day commit cluster**: the tweak, the surface it touched, and the KPI it could plausibly move.
+- **Draft one candidate intent per commit or commit cluster**: the tweak, the surface it touched, and the KPI it could plausibly move.
 
-  - A snapshot says what usage did; only commits say what changed to cause it, and a config edit landing on day D shows in the KPIs from D+1 onward.
+  - A snapshot says what usage did; only commits say what caused it, and an edit landing on day D shows in the KPIs from D+1 onward.
 
 - **Record by hand the day and value of any lever `settings.json` does not commit** — `model`, `advisorModel`, `effortLevel`.
 
@@ -105,9 +105,9 @@ $S/config-change-ledger.py --since <SINCE> --until <UNTIL>
 
 Live entries sit in `experiments.md`, split into `## Enacted` (change is in git, window open) and `## Proposed` (nothing enacted yet).
 
-- **Present every `## Enacted` entry** with its before → after numbers, both source day filenames, and your recommendation: close as `kept` or `reverted`, or keep watching.
+- **Present every `## Enacted` entry** with before→after numbers, both source day filenames, and a recommendation: `kept`, `reverted`, or keep watching.
 
-  - "Worked" without numbers cannot be audited later; the figures plus their source days make the verdict checkable from the snapshots alone.
+  - "Worked" without numbers can't be audited later — the figures plus source days make the verdict checkable from the snapshots alone.
 
 - **Wait for the user's yes before archiving anything.**
 
@@ -115,15 +115,15 @@ Live entries sit in `experiments.md`, split into `## Enacted` (change is in git,
 
 - **Move each entry the user closes to `./usage-history/experiments-archive.md`** in the same edit that settles it.
 
-  - The live file is read in full on every audit, so a settled entry taxes each run to repeat a decision already made.
+  - The live file reads in full every audit, so a settled entry taxes each run repeating a decision already made.
 
 - **Verify with the ledger that every `## Enacted` entry really has a commit**, and demote it to `## Proposed` if it does not.
 
   - Three entries sat `running` for a week describing tweaks nobody had made, so their flat signals measured the status quo.
 
-- **Catalogue any config commit from Step 3 that no entry covers** — as a new `## Enacted` entry, or a note saying why it cannot move a KPI.
+- **Catalogue any Step 3 config commit no entry covers** — as a new `## Enacted` entry, or a note on why it can't move a KPI.
 
-  - An unrecorded change is a confounder in every later delta. The model-pin deny hook shipped 2026-07-24, yet the log still listed it as an open question.
+  - An unrecorded change confounds every later delta — the model-pin deny hook shipped 2026-07-24, yet stayed logged as an open question.
 
 ### Step 6 — Build and open the viewer
 
@@ -134,7 +134,7 @@ $S/build-usage-viewer.py --open
 
 - **Refresh the delivered-work ledger before building**, and repeat any warning it prints.
 
-  - Unlike the config-commit markers, this half cannot be re-derived later: it needs the work repos still cloned, and the network for the PR side.
+  - Unlike config-commit markers, this half can't be re-derived later — it needs the work repos still cloned and network access for the PR side.
 
 - **Rebuild the viewer, open it, and walk the user through it under "Reading the numbers"**, rather than pasting long tables into chat.
 
@@ -148,7 +148,7 @@ $S/build-usage-viewer.py --open
 
 - **Ask the user outright for new experiments to note**, before offering any of your own.
 
-  - The user runs tweaks the ledger cannot see and the interview did not reach; this question is the only place those enter the record.
+  - The user runs tweaks the ledger can't see and the interview didn't reach — this question is their only entry point.
 
 - **Raise 1-3 new hypotheses of your own** and append them under `## Proposed`, each with the tweak, its rationale, and the signal to watch.
 
@@ -160,9 +160,9 @@ $S/build-usage-viewer.py --open
 
 - **Keep a hypothesis under `## Proposed` until its change is committed** — never file an idea as enacted.
 
-  - Filing an unmade change as enacted opens a window over a period nothing happened in, so the flat reading looks like a settled negative result.
+  - Filing an unmade change as enacted opens a window over a null period, so the flat reading looks like a settled negative result.
 
-- **Advance at least one `Open questions backlog` item** — settle it with cited evidence, or promote it into an entry with a watch signal.
+- **Advance one `Open questions backlog` item** — settle it with cited evidence, or promote it into an entry with a watch signal.
 
   - The backlog holds the user's standing questions; without a per-audit pull, fresh hypotheses crowd them out indefinitely.
 
@@ -176,7 +176,7 @@ Steps 2, 5, and 6 quote figures; these rules bind every one.
 
 - **Read a run of consecutive days** from `./usage-history/snapshots/`, not two isolated files.
 
-  - Daily spend swings hard on workload alone — $49.20 on 2026-07-21 against $291.57 on 2026-07-26 — so a two-point delta measures which two days you picked, not the trend.
+  - Daily spend swings hard on workload alone — $49.20 vs $291.57 within the same week — so a two-point delta measures which days you picked, not the trend.
 
 - **Name both days explicitly** in every comparison you state.
 
@@ -184,7 +184,7 @@ Steps 2, 5, and 6 quote figures; these rules bind every one.
 
 - **Skip any day whose `coverage` is not `"complete"`** when computing a delta.
 
-  - A day past the transcript retention floor reads near-zero because its transcripts were deleted, so including it manufactures a drop that never happened.
+  - A day past the retention floor reads near-zero since its transcripts were deleted, manufacturing a drop that never happened.
 
 - **Compare per-day fields directly and never divide** by anything.
 
@@ -196,7 +196,7 @@ Steps 2, 5, and 6 quote figures; these rules bind every one.
 
 - **Ignore `ccusage_cost_untrusted`** — never quote it, never reconcile dollars against it.
 
-  - ccusage prices from a bundled LiteLLM snapshot that on 2026-07-27 missed 4 of the 5 models in use, so `--offline` priced a ~$130 day at $0.92.
+  - ccusage's bundled LiteLLM snapshot missed 4 of 5 models in use on 2026-07-27, so `--offline` priced a ~$130 day at $0.92.
 
 - **Lead with the main-vs-subagent split** — do not assume subagents dominate.
 
@@ -216,7 +216,7 @@ Everything durable lives in `./usage-history/`: the per-day series in `snapshots
 
 Per-skill-invocation cost ceilings live in `targets.md`, in the same directory.
 
-- **Compare `by_skill`/`by_skill_marginal` cost-per-load against `targets.md` during Step 5.** A skill reading meaningfully over its target is grounds for a new `## Proposed` entry, same as any other cost signal.
+- **Compare `by_skill`/`by_skill_marginal` cost-per-load against `targets.md` during Step 5** — a skill meaningfully over target is grounds for a new `## Proposed` entry, like any other cost signal.
 
   - `audit-session` reads the same `targets.md` for its own per-session comparison — edit the targets there, never duplicate a number into this skill.
 
@@ -226,13 +226,11 @@ For scale: the 2026-07 days run roughly $20–$455 each with a median near $116,
 
 - **Read `./usage-history/README.md` before comparing snapshots.**
 
-  - It carries the caveats that decide whether a delta is real — list prices, local-day bucketing, wall-clock hours, block-based thinking share, and the retention floor.
+  - It carries the caveats deciding whether a delta is real: list prices, local-day bucketing, wall-clock hours, thinking share, and the retention floor.
 
-- **Treat every dollar and token figure logged in the experiments files before 2026-07-27 as VOID** — not directional, not re-citable, not usable as one end of a new delta.
+- **Treat every dollar/token figure logged before 2026-07-27 as VOID** — not directional, not re-citable, not usable as one end of a new delta.
 
-  - The aggregator billed each response once per content block, inflating 2026-07-20 from a true $130.16 to $441.44.
-
-  - That multiplier rose with thinking and tool-call density, so it manufactures deltas rather than cancelling.
+  - The aggregator billed each response once per content block, inflating 2026-07-20's true $130.16 to $441.44 — the multiplier rose with thinking/tool-call density, manufacturing deltas, not cancelling them.
 
   - Non-cost counters from that era stay citable: `compactions`, `user_messages`, `interruptions`, `session_hours`, `thinking_blocks`.
 

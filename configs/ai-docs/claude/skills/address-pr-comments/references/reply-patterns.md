@@ -1,6 +1,61 @@
-# Reply Patterns: observed behaviors
+# Reply Patterns: templates, API, and observed behaviors
 
-Real edits the user has made to AI-generated replies, captured to justify the templates in `SKILL.md` Step 7.
+Step 7's reply mechanics — templates, the `gh api` call per reply-target kind, and the signature rule — plus the real user edits that justify them.
+
+## Templates, by action
+
+**Apply** — optional one-word ack + commit URL, nothing more. No praise, no re-explaining, no double-anchoring the SHA.
+
+```
+<optional one-word ack> https://github.com/<OWNER_REPO>/pull/<n>/commits/<FULL_SHA>
+
+_via Claude Code (`address-pr-comments`)_
+```
+
+**Answer** — the user-supplied answer text, in the user's voice, no signature (see "Signature rule" below).
+
+```
+<answer_body>
+```
+
+**Drop** — minimal drop reason.
+
+```
+Dropping this one — <drop_reason>
+
+_via Claude Code (`address-pr-comments`)_
+```
+
+## API call, by reply-target kind
+
+**Inline** — one GraphQL mutation per `thread_id`, mutating a thread rather than a comment so the duplicate-reply mistake is unrepresentable, not merely forbidden:
+
+```bash
+gh api graphql -f query='
+mutation($tid: ID!, $body: String!) {
+  addPullRequestReviewThreadReply(
+    input: { pullRequestReviewThreadId: $tid, body: $body }
+  ) { comment { url } }
+}' -f tid="<thread_id>" -f body="<reply_body>"
+```
+
+**Top-level and review-summary** — REST, since GitHub exposes no thread object for either:
+
+| Source | gh command |
+|---|---|
+| top-level | `gh api -X POST repos/$OWNER_REPO/issues/<n>/comments -f body='@<author> re: <comment_url> — <body>'` |
+| review-summary | same as top-level (no per-review reply API) |
+
+That `@<author> re: <link>` prefix pings the commenter and preserves thread context. Both post a fresh comment rather than threading — GitHub's model, not a shortcut; no API threads either kind.
+
+## Signature rule
+
+`apply` and `drop` replies carry the AI signature **mandatorily**; `answer` replies carry **none** — an answer is the user's reasoning in the user's voice, and an AI tag
+dilutes that ownership (see "Answer replies — no signature" below).
+
+The inverse case — a comment addressed to Claude, answered in Claude's own voice — belongs to `gh-answer-claude-mentions`, not here.
+
+Signature literal: `_via Claude Code (`address-pr-comments`)_`. Plain text only — no emoji, same as any posted reply.
 
 ## Apply replies — observed deletions
 

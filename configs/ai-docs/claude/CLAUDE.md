@@ -152,6 +152,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 - [Instruction] **CRITICAL: Self-describing artifacts — no context-dependent shorthand** -- names, comments, tests, logs, and planning docs must stand alone for a future reader without today's mental model.
   - [Why] Decoding shorthand makes a future reader reconstruct context that may be gone, and that energy is the bottleneck.
+  - [Example] Bad: a comment citing `RN-01`, `AC-8` — IDs from an uncommitted spec doc. Good: state the rule itself — "same-collection rows combine into one line unless bonificado status disagrees."
 
 ### Single source of truth, no orphans
 
@@ -177,8 +178,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **CRITICAL: Verify everything you build, accept, or claim** -- evidence over optimism, applied at every gate.
   - [Why] Unverified beliefs compound — a wrong assumption caught late costs N× a 30-second spike.
 
-  - [Example] Before claiming a count or "complete," grep/wc the actual file — a truncated snippet isn't proof.
-  - [Example] A README saying a service runs in staging isn't evidence — read the terraform/`.env`/manifest that actually sets it.
+  - [Example] Before claiming a count or "complete," grep/wc the file; before trusting a README on staging, read the terraform/`.env`/manifest that actually sets it.
 
 - [Instruction] **Fresh evidence only** -- re-run verification if stale since your latest change; re-read the actual code on contradiction.
   - [Why] Prior-turn output proves the past state, not the current one; stale evidence ships the regression you just introduced.
@@ -227,15 +227,12 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **Permission UIs are the asking. NEVER pre-ask in chat** -- issue the decided call directly, UNLESS it's an irreversible remote mutation that may be allowlisted, then confirm once in chat.
   - [Why] Pre-show + run = double-prompt; an allowlisted irreversible action fires no UI, so the chat confirm is the only gate.
 
-  - [Example] DO NOT pre-show + ask: no "does this look good?", "want me to apply?", "confirm and I'll run it".
-  - [Example] UNLESS case: the batch `git push` in `address-pr-comments` — irreversible (fires CI, notifies reviewers) and commonly allowlisted.
+  - [Example] DO NOT pre-show + ask: no "does this look good?", "confirm and I'll run it". UNLESS: the batch `git push` in `address-pr-comments` — irreversible, commonly allowlisted.
 
 - [Instruction] **CRITICAL: Preserve user work — prefer the least-destructive action, and never delete or overwrite an existing artifact without explicit instruction.**
   - [Why] Each step up the destruction ladder risks losing unrecoverable context the user can't undo.
 
-  - [Example] Move over write+delete; `git checkout -- <file>` over manual rewrite to revert; `git stash` over `git checkout` when you may still need the changes.
-
-  - [Example] When a file holds others' uncommitted work, stage only your hunks with `git-hunk` rather than committing or reverting the whole file.
+  - [Example] Move over write+delete; `git checkout -- <file>` over rewrite-to-revert; `git stash` over `git checkout` when still needed. Stage only your hunks (`git-hunk`) in a file holding others' uncommitted work.
 
 - [Instruction] Modify only the exact lines/fields/keys/entries needed for the requested change.
   - [Why] Touching more than asked widens the review surface and buries the real change in incidental reformatting.
@@ -324,8 +321,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
   - [Example] `<slow-cmd> > /tmp/out.txt 2>&1; rc=$?; echo "exit: $rc" >> /tmp/out.txt; tail -<N> /tmp/out.txt; exit $rc` — `exit $rc` must stay last; choose N to fit the summary.
 
-  - [Example] Bad: `<slow-cmd>; tail -<N> /tmp/out.txt; echo "exit: $?"` — that `echo` reports tail's `0`, not the command's.
-  - [Example] Don't pipe it straight to `grep`/`head` — a wrong filter discards the output and forces the whole slow run again.
+  - [Example] Bad: `<slow-cmd>; tail -<N> /tmp/out.txt; echo "exit: $?"` — reports tail's `0`, not the command's. Also don't pipe straight to `grep`/`head` — a wrong filter discards output, forcing a rerun.
 
 ### RTK command proxy
 
@@ -385,7 +381,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
   - [Example] No such input: a comment, prose, a rename, a file move, a config or frontmatter value, a dead-code deletion.
 
 - [Instruction] CRITICAL: Never route a document, spec, plan, or other non-code artifact edit through TDD (`tdd-coder`) — TDD applies to code only, even when a distinguishing input can be named.
-  - [Why] Automated tests over prose have a terrible ROI: authoring and maintaining them costs more than the regressions they would ever catch.
+  - [Why] Tests over prose have a bad ROI — authoring and maintaining them costs more than the regressions they'd ever catch.
 
 - [Instruction] Run a permission-gated action (commit, push, reply) in main even when its task is delegated — hand the subagent everything else.
   - [Why] Permission UIs only render in main, so a subagent cannot complete one at all — a harness limit.

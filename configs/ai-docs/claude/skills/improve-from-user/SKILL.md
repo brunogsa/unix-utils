@@ -8,7 +8,7 @@ disable-model-invocation: false
 
 Review user feedback — from the current session, a pull request's comments, or AI! comments left in files — and identify learnings to add to CLAUDE.md or skills.
 
-Steps 2-7 always run inline in the main context; step 1's read stage is the only part that can fan out to background subagents (see Execution).
+Steps 2-7 run inline; only step 1's read stage can fan out to background subagents (see Execution).
 
 This skill is **read-only on input artifacts**: it does NOT strip AI! comments, resolve PR comments, or address the questions they raise.
 
@@ -88,8 +88,6 @@ A missing slice must never look identical to a slice that genuinely found nothin
 
 Full detail: [`references/mode-a-session.md`](references/mode-a-session.md).
 
-Clustering, ranking, generalizing, targeting, cross-checking, presenting, and applying — steps 2-7 — always stay inline; only this read stage can fan out.
-
 **Post-edit audits do NOT run inside this skill.**
 
 - Running `consistency-check-principles-and-skills` nested inside this skill's own execution would audit a half-applied edit set — its 3 ensemble children read the files exactly as they stand at that moment.
@@ -163,7 +161,8 @@ This list is step 2-7's working input. When Mode A's read stage escalates to sub
    - Does this learning already exist?
    - Is there a related guideline that needs clarification?
    - Would this contradict any existing content?
-   - **When it already exists, don't file it as "Already Covered" and drop it — the user having to raise it again is evidence the current wording isn't landing.** Diagnose why it didn't land, then propose the matching fix as a **Strengthen** candidate (same per-item approval as a new addition, step 7):
+   - **When it already exists, don't file it as "Already Covered" and drop it — the user having to raise it again is evidence the
+current wording isn't landing.** Diagnose why it didn't land, then propose the matching fix as a **Strengthen** candidate (same per-item approval as a new addition, step 7):
      - Wording didn't cover this exact case → reword the `[Instruction]` (or the relevant sentence, in a skill without markers) to close that gap.
      - No concrete illustration → add an `[Example]` showing the missed case.
      - It's been missed more than once, or the cost of missing it is high → promote it to `CRITICAL`.

@@ -12,7 +12,8 @@ finding, not twice.
 
 Run this once over the whole list, before any per-finding check. It reads no files, so doing it first spares you from validating a finding you are about to drop.
 
-Wave 2 walks the diff once per lens, eight lenses in one pass. Two lenses landing on the same defect from different angles is expected, not a bug — you are the first step that holds the full merged list and can tell.
+Wave 2 walks the diff once per lens, eight lenses in one pass. Two lenses landing on the same defect from different angles is expected, not a bug
+— you are the first step that holds the full merged list and can tell.
 
 Two findings are duplicates when **all three** hold:
 

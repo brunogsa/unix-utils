@@ -4,7 +4,8 @@ Read this only when Wave 1 resolved the run to **local mode**. The github-mode p
 
 Write `${out_file}` (`${out_base}.md`) to the current CWD.
 
-- `${out_base}` is set in Wave 1 to `./verdict_auto-review_<branch>_YYYY-MM-DD_HH:MM`; the branch segment keeps runs from different branches distinguishable, and the timestamp preserves ordering within a branch when the user runs several reviews in one CWD.
+- `${out_base}` is set in Wave 1 to `./verdict_auto-review_<branch>_YYYY-MM-DD_HH:MM`; the branch segment keeps runs from different branches distinguishable, and the timestamp preserves ordering within a branch when the
+user runs several reviews in one CWD.
 
 - The output follows the template at `references/local-review-template.md` — read it and expand its placeholders.
 
