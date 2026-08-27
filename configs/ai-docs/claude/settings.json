@@ -9,6 +9,7 @@
     "CLAUDE_ENABLE_STREAM_WATCHDOG": "1"
   },
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
       "Read",
       "Edit(//tmp/**)",
@@ -125,6 +126,11 @@
     ]
   },
   "model": "sonnet",
+  "skillOverrides": {
+    "english-coach": "off",
+    "gh-answer-claude-mentions": "off",
+    "loop-auto-review": "off"
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -317,16 +323,16 @@
     "typescript-lsp@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
     "lua-lsp@claude-plugins-official": true,
-    "gopls-lsp@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": false,
     "bash-language-server@claude-code-lsps": true,
     "terraform-ls@claude-code-lsps": true,
     "security-guidance@claude-plugins-official": true,
     "explanatory-output-style@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
-    "frontend-design@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": false,
     "core@arco-ai-plugins": true,
-    "audit@arco-ai-plugins": true,
+    "audit@arco-ai-plugins": false,
     "sdd@arco-ai-plugins": true,
     "sdk@arco-ai-plugins": true,
     "linear@claude-plugins-official": true
