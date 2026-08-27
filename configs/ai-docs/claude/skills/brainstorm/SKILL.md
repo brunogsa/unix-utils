@@ -204,7 +204,9 @@ Why report it: it's the only way to judge whether the gate earns its cost — in
 
 Why fresh eyes before the user: this session argued itself into every choice, so it reads its own spec as complete because it remembers what the spec never says.
 
-Why not `spec-writer` or `spec-editor` for the review: both compose under conventions the way a write or edit dispatch does, not the fresh-eyes judgment a review needs — that judgment is `spec-reviewer`'s job.
+Why not `spec-writer` or `spec-editor` for the review: both compose under conventions the way a write or edit dispatch does, not the fresh-eyes judgment a review needs.
+
+That judgment is `spec-reviewer`'s job.
 
 ### 8. User review/approve spec
 
@@ -240,7 +242,7 @@ Why `plan-editor`, a separate type from `plan-writer`, for every later edit: sam
 `plan-writer` plans around it and records a `**QUESTION:**` under Open Questions rather than silently filling from memory, which leaves the spec wrong for the next reader.
 Step 12 closes them all in one batch.
 
-Fresh eyes just move later — step 10 sends the finished plan to a `spec-reviewer` that never saw this session.
+Fresh eyes just move later — step 10 sends the finished plan to a `plan-reviewer` that never saw this session.
 
 **Once the plan exists, either mode: read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now** — it defines every gate, sorts them into a deterministic and a judged bucket, and gives each bucket's dispatch tier.
 
@@ -252,7 +254,7 @@ Otherwise step 10 would rediscover a cyclic task DAG or bogus AC citation, and s
 
 ### 10. Self-review the plan once, with fresh eyes
 
-**Both modes.** Dispatch `agent(subAgent=spec-reviewer, effort=high, title=Fresh-eyes review of plan)` in the background, waiting for it, pointed at the plan and, at `full`, the spec.
+**Both modes.** Dispatch `agent(subAgent=plan-reviewer, effort=high, title=Fresh-eyes review of plan)` in the background, waiting for it, pointed at the plan and, at `full`, the spec.
 
 **Always — the semantic half of "Every AC has a test"**: does each cited test *prove* its AC?
 At `full`, step 9's `check-ac-coverage.sh` already settled citation completeness and honesty, so this judges only the match no script can make.
@@ -273,6 +275,12 @@ Only this session holds the interview, since `light`'s plan comes from `plan-wri
 
 Decide each finding yourself, dispatch `agent(subAgent=plan-editor, title=Apply plan review findings)` with the ones you accept, and report applied-or-skipped exactly as step 7 does.
 **Runs once per plan, never twice over the same text.**
+
+Why `plan-reviewer` and never `spec-reviewer` here: a plan is judged on questions a spec never raises — planned-test design, task decomposition, machinery tracing back to an AC.
+
+They are also separate report rows, so one type judging both blurs what each review costs.
+
+At `full` the spec rides along only as the reference the plan is read against — its own judge already ran at step 7.
 
 **At `light`, that report also names every gate that ran and every one that didn't.**
 That's the deterministic bucket minus its two spec-taking scripts, the two always-on judged checks above, and the qualitative/toggled checks the mode leaves off.

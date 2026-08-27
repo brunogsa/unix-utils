@@ -1,6 +1,6 @@
 #!/bin/bash
 # PreToolUse guard shared by every reviewer agent that references it from its
-# frontmatter: code-reviewer, spec-reviewer, test-reviewer.
+# frontmatter: code-reviewer, spec-reviewer, plan-reviewer, test-reviewer.
 #
 # Each is a read-only judge. Its write affordances are exactly two:
 #   1. persisting a verdict to a caller-assigned verdict file, and

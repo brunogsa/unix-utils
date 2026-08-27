@@ -204,7 +204,7 @@ def brainstorm():
             break
         fix(results.first_failure)   # 28a · re-run THAT gate alone until it passes
 
-    # 29 · Step 10, BOTH modes — spec-reviewer · agent-pinned · serial ·
+    # 29 · Step 10, BOTH modes — plan-reviewer · agent-pinned · serial ·
     #      background, over the plan and, at full, the spec.
     #      ALWAYS the semantic half of "Every AC has a test": does each cited
     #      test actually PROVE its AC? At full, step 9's script already
@@ -218,7 +218,7 @@ def brainstorm():
     #      THEN, full only, each read back from disk: the qualitative pass
     #      (qualitative_pass) and the 2 rigor checks (traces_to_ac,
     #      right_sized). Light leaves all three off.
-    findings = dispatch("spec-reviewer", target=[plan, spec] if mode == "full" else [plan])
+    findings = dispatch("plan-reviewer", target=[plan, spec] if mode == "full" else [plan])
     # 29b · AT LIGHT, before deciding anything: read the plan against notes.md
     #       yourself. Every interview decision or constraint the plan
     #       contradicts or omits is a finding of the same kind, so accepted
@@ -353,7 +353,7 @@ flowchart TD
   n28{"28. All deterministic gates pass?"}
   n28a["28a. Fix the failure, then re-run that gate ALONE until it passes"]
 
-  n29{{"29. Step 10, BOTH modes · Dispatch: Fresh-eyes review of the plan<br/>spec-reviewer · agent-pinned · serial · background, over the plan and, at full, the spec —<br/>ALWAYS dispatched, in either mode<br/><br/>ALWAYS: the semantic half of 'Every AC has a test' — does each cited test actually<br/>PROVE its AC? At full, step 9's script already checked citation existence/validity,<br/>so this judges only the match; at light no coverage script ran, so it judges the WHOLE<br/>match — each task's Testable Acceptance criteria field against its Tests (planned) list<br/><br/>ALWAYS at light: the library's 'How would this break?' judgment, over each task's<br/>Testable Acceptance criteria field — at full, step 7 already ran it over the spec's<br/>ACs, so it is NOT repeated here<br/><br/>THEN, full only, each read back from disk: the qualitative pass (qualitative_pass)<br/>and the 2 rigor checks (traces_to_ac, right_sized). Light leaves all three off."}}:::dispatch
+  n29{{"29. Step 10, BOTH modes · Dispatch: Fresh-eyes review of the plan<br/>plan-reviewer · agent-pinned · serial · background, over the plan and, at full, the spec —<br/>ALWAYS dispatched, in either mode<br/><br/>ALWAYS: the semantic half of 'Every AC has a test' — does each cited test actually<br/>PROVE its AC? At full, step 9's script already checked citation existence/validity,<br/>so this judges only the match; at light no coverage script ran, so it judges the WHOLE<br/>match — each task's Testable Acceptance criteria field against its Tests (planned) list<br/><br/>ALWAYS at light: the library's 'How would this break?' judgment, over each task's<br/>Testable Acceptance criteria field — at full, step 7 already ran it over the spec's<br/>ACs, so it is NOT repeated here<br/><br/>THEN, full only, each read back from disk: the qualitative pass (qualitative_pass)<br/>and the 2 rigor checks (traces_to_ac, right_sized). Light leaves all three off."}}:::dispatch
   n29b["29b. AT LIGHT, before deciding anything · Read the plan against notes.md yourself.<br/>Every interview decision or constraint the plan contradicts or omits is a finding of the<br/>same kind, so accepted ones ride the SAME apply dispatch below.<br/>This session is the only holder of that interview"]:::state
   n30{{"30. Dispatch: Apply the plan review findings<br/>plan-editor · agent-pinned · serial · background · the findings the main session accepted"}}:::dispatch
   n31["31. Report every finding to the user — applied, or skipped with the reason.<br/>Runs ONCE per plan, never twice over the same text.<br/><br/>AT LIGHT, one more thing goes into this same report block: name every gate that ran<br/>and every one that didn't — the deterministic bucket minus its two spec-taking scripts,<br/>the 2 always-on judged checks above, and the qualitative/toggled checks the mode<br/>leaves off. Without it the finished plan carries no trace of what verified it"]
