@@ -64,6 +64,10 @@ The repo's template is the base structure, never the thing being replaced.
 
 6. Compose the PR title and return it in your report — imperative, no trailing period, and no `AC-N`/`PR-N` token or untracked filename, same as the body.
    Derive it from the `## Context` section the ideal description already carries, never from the branch name, which encodes the plan slice rather than the change.
+   **Lead with the payoff the reader already feels; the cause goes in trailing parens.**
+   Good: `remove 26 phantom changes from every plan (dead eventbridge IAM role)`. Bad: `remove dead eventbridge IAM role and colliding policy`.
+   A reviewer skims a column of titles, so the half that survives truncation has to be the reason to open this one; the cause is what the body is for.
+   That title is often permanent: a squash-only repo with `squash_merge_commit_title: PR_TITLE` writes it into `main` as the commit subject, discarding the branch's own messages.
    The caller passes it to `gh pr create --title`, which has no other source: `gh` prompts for a title when none is given, and the caller runs non-interactively.
 
 ### Fixing what a gate flags
