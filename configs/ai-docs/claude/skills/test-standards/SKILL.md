@@ -57,15 +57,24 @@ Principles for any test work. Each section pairs a principle with its WHY, with 
 
 Concrete patterns this rule generates:
 
-- [Instruction] **Cover every variant** — when several things are the same kind (input fields, filters, query params, tabs, entity types, view modes), test each one, directly or via parametrization.
-  - [Why] Testing one variant says nothing about the others — they share a kind but can behave differently.
+- [Instruction] **Cover all cases** — list every case the code can take, then test each one, directly or via parametrization.
+  - [Why] Testing one case says nothing about its siblings — they share a kind but can behave differently.
 
 [Example]
 ```ts
+// A case is any field, filter, param, tab, entity type, view mode, union
+// branch, or path a shared shape can arrive through.
+
 // Bad — one filter tested, the other two ship unverified
 it('should filter by status', ...);
 
-// Good — every filter variant covered
+// Bad — materiais[].professores[] asserted, suplementares[].professores[] not:
+// the same shape arrives through two paths, so both need the assertion.
+
+// Bad — the professor branch's accept case asserted, the student branch's
+// reject case missing: a union needs every branch tested, both ways.
+
+// Good — every case covered
 it('should filter by status', ...);
 it('should filter by date range', ...);
 it('should filter by assignee', ...);

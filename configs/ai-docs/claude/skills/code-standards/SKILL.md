@@ -126,8 +126,9 @@ return (
 - [Instruction] Cognitive-load bar: extraction must shrink the working set the reader holds.
   - [Why] A 10-line helper hiding a 2-line pattern spreads the same load across two files the reader must chase.
 
-- [Instruction] A wrapper must earn its keep — by adding behavior (retry, logging, validation) or by giving a counter-intuitive API an intuitive interface; never by renaming a clear stdlib call.
+- [Instruction] A wrapper must earn its keep — by adding behavior (retry, logging, validation) or by giving a counter-intuitive API an intuitive interface; never by merely forwarding to what it wraps.
   - [Why] Each counter-intuitive-API site is a future bug, so taming it pays off; wrapping `Date.now()` only adds indirection.
+  - [Example] Bad: `const getKitBimestre = (kit) => kit.bimestre;`, and a function whose whole body is one call to another — read the property and call the callee directly.
 
 ## Naming
 
@@ -147,9 +148,9 @@ function buildCsvColumnOrder(rows) { /* ... */ }
 function extractUniqueEmails(rows) { /* ... */ }
 ```
 
-- [Instruction] Reject a vague, overloaded verb (`resolve`, `handle`, `process`, `manage`) in a name — name the specific operation performed instead.
+- [Instruction] **CRITICAL: Reject a vague, overloaded verb (`resolve`, `handle`, `process`, `manage`) in a name — name the specific operation performed instead.**
   - [Why] A vague verb could mean any of several operations, forcing the reader to open the body to learn which one happens.
-  - [Example] `resolveSoldSupplementaryChildSkus` — deleted, inlined as a direct `unpack()` call at its one call site; `resolveStandaloneSeries` → `mapGroupSeriesSiglas`, naming the conditional mapping it does.
+  - [Example] `resolveSoldSupplementaryChildSkus` — deleted, inlined as a direct `unpack()` call at its one call site; `resolveStandaloneSeries` → `mapGroupSeriesSiglas`, naming the conditional mapping it does; `resolveMarca` → `getSharedMarca`.
 
 - [Instruction] Rename when a name implies the wrong concept, even when it computes the right value.
   - [Why] A reader trusts the name, not what it computes; a misleading name misdirects them even though the value is correct.
@@ -181,6 +182,10 @@ const schoolsDataReady = hasApplied && hasSchoolsData && hasAgreements;
 const salesAgreementSummaryQuery = trpc.errorCallbacks.summary.useQuery(...);
 const salesAgreementProductSummaryQuery = ...;
 ```
+
+- [Instruction] Namespace a concept by the external system whose vocabulary it belongs to — in the file, class, and module name alike.
+  - [Why] Un-namespaced, the name implies every integrated system, so the reader can't tell which one's contract it obeys.
+  - [Example] `build-professor-lines.helper.ts` → `build-ebs-professor-lines.helper.ts`; "professor line" is Oracle EBS's term, not SAP B1's, Raizes' or SGE's.
 
 - [Instruction] Use locale-neutral names in shared code (`documentNumber` over `cnpj`) — reserve locale-specific forms for where the locale IS the contract (URL segments, validators, i18n'd end-user strings).
   - [Why] A `cnpj` field locks shared code to one country's regulations; `documentNumber` survives expansion to others.
@@ -399,6 +404,9 @@ async function fetchLogs({ logGroups, logRadius, workDir }) {
 - [Instruction] On failure, log the full input that caused the error.
   - [Why] A failure log without input is a hunt; with input, it's a reproduction case.
 
+- [Instruction] Never add code whose only purpose is to emit a log — no log-only branch, variable, or early return.
+  - [Why] A log-only branch buys observability an inline log already gives, and charges every future reader for the extra path.
+
 - [Instruction] Logs must never crash the flow — every reducer/accessor/template expression must tolerate undefined or empty inputs.
   - [Why] Telemetry that crashes the flow removes the very thing meant to help you debug.
 
@@ -454,6 +462,10 @@ logger.debug({
 - [Instruction] Include the affected entity's identifying key (SKU, order id, user id) in the error message itself, not only in surrounding logs.
   - [Why] Whoever triages reads the message first — a generic one forces hunting for which entity failed.
 
+- [Instruction] Phrase an error message as the rule that must hold, not as a judgment word about the violation.
+  - [Why] A judgment word makes the reader infer which rule broke; the rule stated outright hands it to them.
+  - [Example] Bad: "professor marca disagrees with student marca". Good: "professor and student lines must share one marca; got X and Y".
+
 - [Instruction] Never retry indefinitely — always cap consecutive retries.
   - [Why] Uncapped retries during an outage become a self-inflicted DDoS on the upstream.
 
@@ -492,8 +504,9 @@ if (type === ProductType.KIT || type === ProductType.AVULSO) {
 - [Instruction] Distinguish missing from intentional zero/empty — check null/undefined, not falsiness.
   - [Why] `if (count)` treats `0` and `undefined` identically — falsiness checks paper over the distinction and ship bugs.
 
-- [Instruction] Never narrow a runtime-derived value to a stricter enum with a blind `as` or `as unknown as` cast.
-  - [Why] A blind cast lies to the type system about unchecked data.
+- [Instruction] Treat every `as` / `as unknown as` cast as a defect to remove — fix the declared type at its source so the compiler and linter prove the shape.
+  - [Why] A cast suppresses the only tool that checks you, so the error it hides surfaces at runtime instead of at build.
+  - [Example] Bad: `kit.bimestre as Bimestre` — a webhook `number` asserted into `1|2|3|4`. Good: type that field `Bimestre` where the payload is parsed, or validate and throw.
 
 - [Instruction] Validate runtime-derived enum membership at the boundary and throw a domain error on mismatch.
   - [Why] Validation catches out-of-range values loudly at the boundary, not silently failing downstream as a wrong-typed enum.

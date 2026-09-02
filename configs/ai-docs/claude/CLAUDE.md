@@ -73,8 +73,8 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **Highlight assumptions** -- explicitly name what you assumed.
   - [Why] Unspoken assumptions silently drive the wrong outcome.
 
-- [Instruction] **CRITICAL: When I tweak, edit, reject, reword, or hand-edit your output, infer the general rule behind my change, confirm that with me, and apply it to every later case.**
-  - [Why] A one-off fix that isn't generalized guarantees the next near-identical case repeats it.
+- [Instruction] **CRITICAL: When I tweak, edit, reject, reword, or hand-edit your output, infer the general rule behind my change, confirm it with me, then sweep our changes and every later case.**
+  - [Why] Deferring the sweep cost four repeat comments in one review; the peers are in front of you now, not later.
 
 - [Instruction] Emit that inferred rule as a standalone `[Learning]` marker line the moment the correction lands, in the fixed format below — its own line, never mid-sentence.
   - [Why] Compaction thins my memory to a summary, but the transcript keeps turns verbatim for `improve-from-user` to grep.
@@ -152,7 +152,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 - [Instruction] **CRITICAL: Self-describing artifacts — no context-dependent shorthand** -- names, comments, tests, logs, and planning docs must stand alone for a future reader without today's mental model.
   - [Why] Decoding shorthand makes a future reader reconstruct context that may be gone, and that energy is the bottleneck.
-  - [Example] Bad: a comment citing `RN-01`, `AC-8` — IDs from an uncommitted spec doc. Good: state the rule itself — "same-collection rows combine into one line unless bonificado status disagrees."
+  - [Example] Bad: `RN-01`, `AC-8`, `RI01`, "the Apendice" — a pointer resolves only if it names a committed path or URL. Good: recap the rule inline.
 
 ### Single source of truth, no orphans
 
