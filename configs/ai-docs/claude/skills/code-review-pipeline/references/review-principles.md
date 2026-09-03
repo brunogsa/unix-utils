@@ -32,9 +32,9 @@ Validation is expensive to abort — the work is done, and dropping it loses the
 
 Avoid speculative "maybe"/"possibly"/"consider" at the emission gate without strong justification. Don't compensate at validation.
 
-## Feedback structure: severity tag → summary line → What's wrong → Why it matters → How to fix
+## Feedback structure: severity tag → summary line → Sugestão → Trade-off de não fazer
 
-Every review comment opens with a bold, bracketed severity tag on its own line, then a one-sentence plain summary, then three bold-labeled sections, each a short bullet list (not paragraphs):
+Every review comment opens with a bold, bracketed severity tag on its own line, then a one-sentence plain summary, then two bold-labeled sections:
 
 - **Severity tag**: one of the five under "Priority tags" below, bracketed and bold — `**[OBRIGATÓRIO]**` in PT-BR output, `**[MANDATORY]**` in English.
   - The tag must match the finding's `severity` field 1:1 — the visible tag and the machine-readable field can never disagree.
@@ -43,23 +43,29 @@ Every review comment opens with a bold, bracketed severity tag on its own line, 
   - Example: *"Fees come out 100x too high because the rate unit is wrong."*
   - It carries the whole finding on its own — a reader who stops there still knows whether this blocks them.
 
-- **O que está errado** / **What's wrong**: the problem, stated concretely. Quote the relevant code (1-2 lines) inline.
-- **Por que importa** / **Why it matters**: the impact — always include, it's what helps developers learn.
-  - For numeric/unit issues, use a worked example with concrete values.
+- **Sugestão** / **Suggestion**: the fix, shown as code whenever possible.
+  - Prefer a `suggestion` fenced block whenever the replacement fits the commented lines — GitHub renders it as an applyable before/after diff, so no prose has to describe the current state.
+  - Fall back to a `diff` fenced block with `-`/`+` when the change can't anchor on the commented lines, or touches another file.
+  - Prose around the block: 0-1 paragraph of 1-4 sentences, OR 2-5 bullets/sub-bullets of 1-2 sentences. Drop the prose entirely when the code block speaks for itself.
+  - Omit the whole section only for a QUESTION finding with no concrete fix to propose.
 
-- **Como corrigir** / **How to fix**: the fix — a `suggestion` diff block when it fits a single hunk and you're confident in the exact replacement.
-  - Otherwise a short bullet describing the change.
-  - Omit only for a QUESTION finding with no concrete fix to propose.
+- **Trade-off de não fazer** / **Trade-off of not doing it**: what leaving it costs.
+  - Always bullets + sub-bullets, never a paragraph. 2-5 in total, 1-2 sentences each — pick the most important.
+  - Each bullet may carry an optional `[+]` / `[-]` marker, for the upside/downside of skipping the fix.
+  - Name the concrete scenario being avoided; for numeric/unit issues use real values.
+  - Never omitted.
 
 Why: the problem alone leaves the author guessing about severity, and the tag fixes that immediately.
 
-The summary line tells the reader in one pass whether to care, Why it matters educates, and How to fix removes ambiguity about the next step.
+The summary line tells the reader in one pass whether to care, Sugestão shows the next step as code they can apply, and Trade-off de não fazer is what educates.
 
-The fix gets its own bold section rather than folding into the problem prose, so each part stays independently scannable.
+It makes the cost of ignoring the comment explicit instead of leaving it as the reviewer's taste.
 
-The headers are phrased as questions the reader already has, so no one has to decode a label before reading the section under it.
+Two sections instead of four because the summary line already states what is wrong; a section for that only restated the same defect at greater length.
 
-Keep bullets short, simple enough for an intern unfamiliar with the module, max 256 characters per line.
+Length budget per body: **≤512 characters**. A MANDATORY finding may go to **≤1024 characters and ≤16 lines**.
+
+Fenced code blocks count toward neither — the visual diff is the point, and charging it against the budget pushes reviewers back to prose.
 
 ## Priority tags — match severity to tone, and each tag to an ordinal rank
 
