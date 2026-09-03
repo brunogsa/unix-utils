@@ -15,6 +15,8 @@ Only when `pr.wanted: true` (§1.2). Skip this section otherwise.
 **One dispatch owns the PR: `agent(subAgent=pr-creator, title=Open the batch PR)`.**
 It composes the body and creates (or updates) the PR — the orchestrator never writes a body.
 
+- **CRITICAL: `pr-creator`, never `core:pr-creator`** — the agent list carries both; `core:pr-creator` is a different, unrelated agent (a generic GitHub PR opener with no create-pr-skill awareness) that ignores every requirement this section enumerates (template preservation, `.final.md` output path, untracked-doc-reference stripping, the REST-API update path). Picking it silently drops this whole section's contract.
+
 **The branch is already on the remote — §8.1's step 1 pushed it before this section is reached.**
 Push and create are split owners: pushing no longer depends on a PR being wanted, so a pushed branch with no PR is normal, not an inconsistent state needing cleanup.
 
