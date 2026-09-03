@@ -63,6 +63,8 @@ This skill **never merges or deletes §1.2's worktree**; `parallel-worktrees` ca
 
 **§1.1–§1.6 and §2 run once per invocation**, in that order, before execution; §3 starts each unit.
 
+**TaskCreate a lightweight tracking entry for any §1.4–§1.6 step before running it**, when that step takes non-trivial wall-clock (worktree creation, dependency install/build, baseline capture) — flip it `in_progress`/`completed` around the step. This is scaffolding visibility only, separate from and prior to §2's formal per-plan-task seeding; §2 still creates every plan-task and reminder entry itself, never lazily.
+
 ### 1.1. Locate the plan (and spec)
 
 Glob in CWD (top-level only):
