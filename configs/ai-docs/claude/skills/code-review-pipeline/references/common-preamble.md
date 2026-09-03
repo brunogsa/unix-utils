@@ -118,19 +118,21 @@ JSON. Each finding object:
   "line": 42,                        // inclusive; equal to start_line for single-line
   "side": "RIGHT",                   // always RIGHT; comments target new code
   "severity": "MANDATORY|RECOMMENDED|NITPICK|OPTIONAL|QUESTION",
-  "body": "**[OBRIGATÓRIO]**\n\n<resumo de uma linha>\n\n**O que está errado:**\n- ...\n\n**Por que importa:**\n- ...\n\n**Como corrigir:**\n- ...",
+  "body": "**[OBRIGATÓRIO]**\n\n<resumo de uma linha>\n\n**Sugestão**\n\n<bloco suggestion com o código corrigido>\n\n**Trade-off de não fazer**\n\n- [-] ...\n  - [-] ...\n- [+] ...",
   "confidence": 0.85,                // 0.0–1.0 self-reported
   "scope_tag": "<current lens name>"     // e.g. "security"; used for dedup
 }
 
-Body follows the severity-tag → summary line → What's wrong → Why it
-matters → How to fix structure from
-`review-principles.md`. Write for a **low-context reviewer** — someone
-reading the comment as their first exposure to the issue, without having
-read the full PR or surrounding code. Each body must include enough
-information to act on without leaving the comment. Every section is a
-short bullet list, not a paragraph — scannable, simple enough wording for
-an intern unfamiliar with the module to follow.
+Body follows the severity-tag → summary line → Sugestão → Trade-off de não
+fazer structure from `review-principles.md`. Write for a **low-context
+reviewer** — someone reading the comment as their first exposure to the
+issue, without having read the full PR or surrounding code. The summary
+line plus the code block must be enough to act on without leaving the
+comment.
+
+Be AS CONCISE AS POSSIBLE: scannable, visual, simple enough for an intern
+unfamiliar with the module. Add a sentence only when it changes what the
+reader does.
 
 - **Severity tag** (first line, bold + bracketed): `**[OBRIGATÓRIO]**` /
   `**[RECOMENDADO]**` / `**[NITPICK]**` / `**[OPCIONAL]**` / `**[PERGUNTA]**`
@@ -141,27 +143,34 @@ an intern unfamiliar with the module to follow.
   sentence naming the visible effect and its cause (e.g. *"Fees come out
   100x too high because the rate unit is wrong."*). A reader who stops
   here still knows whether this blocks them.
-- **O que está errado** / **What's wrong**: name the issue concretely, in
-  bullets. Quote the relevant code (1–2 lines) inline so the reader doesn't
-  have to navigate elsewhere.
-- **Por que importa** / **Why it matters**: explain the runtime/user-facing
-  impact, in bullets.
-  For numeric/unit issues include a worked example with concrete values
-  (e.g. *"subtotal R$200 × 3.11% should be R$6.22, but the function returns 622"*).
-  For broader correctness issues, name the failure mode the reader will see.
-- **Como corrigir** / **How to fix**: the fix, in bullets — prefer `​`​`​`suggestion ... `​`​`​`
-  blocks when the change fits a single hunk and you're confident in the exact
-  replacement text; otherwise a short bullet describing the change, with a
-  fenced code snippet when it helps. Omit this section only for a QUESTION
-  finding with no concrete fix to propose. Add a permalink reference (see
-  below) only when genuinely needed.
+- **Sugestão** / **Suggestion**: the fix, as code whenever possible.
+  - Prefer a `suggestion` fenced block whenever the replacement fits the
+    commented lines — GitHub renders it as an applyable before/after diff,
+    so no prose has to describe the current state. Fall back to a `diff`
+    fenced block with `-`/`+` when the change can't anchor there or touches
+    another file.
+  - Prose around it: 0–1 paragraph of 1–4 sentences, OR 2–5
+    bullets/sub-bullets of 1–2 sentences. Drop the prose entirely when the
+    code block speaks for itself.
+  - Omit the whole section only for a QUESTION finding with no concrete fix.
+- **Trade-off de não fazer** / **Trade-off of not doing it**: what leaving
+  it costs.
+  - Always bullets + sub-bullets, never a paragraph. 2–5 in total, 1–2
+    sentences each — pick the most important.
+  - Optional `[+]` / `[-]` marker per bullet, for the upside/downside of
+    skipping the fix.
+  - Name the concrete scenario being avoided; for numeric/unit issues use
+    real values (e.g. *"subtotal R$200 × 3.11% deveria dar R$6.22, mas a
+    função retorna 622"*).
+  - Never omitted.
 
-Length budget per body: target ~8–14 lines, ~800–1500 chars. Up to ~2500 chars
-is acceptable for MANDATORY findings that benefit from a worked example or
-multi-step fix. Stay under 4000 chars (GitHub displays the rest behind a
-"…show more" affordance).
+Length budget per body: **≤512 characters**. A MANDATORY finding may go to
+**≤1024 characters and ≤16 lines**. Fenced code blocks count toward neither
+— the visual diff is the point, and charging it against the budget pushes
+you back to prose.
 
-Use bullets and short paragraphs over walls of text.
+Never pad to reach the budget. A finding whose summary line and suggestion
+block already say everything is finished.
 
 Permalinks (GH mode only): when referencing *another* file inside a comment body,
 use `https://github.com/{repo}/blob/{commit_sha}/{path}#L{a}-L{b}`. Values for
