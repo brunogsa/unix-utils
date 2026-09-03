@@ -8,7 +8,7 @@
       "mode": "github",
       "prompt": "/pr-review <SMALL_PR_URL>",
       "setup": "Pick or craft a small open PR (≤5 files, ≤100 lines changed) with at least one real bug (e.g., off-by-one, missing await, or a subjective style issue). Prefer a throwaway repo so the pending review can be deleted without noise.",
-      "expected_output": "A PENDING review appears in the GitHub UI. Body contains the Review Guide (Contexto de negócio, Decisões, Onde focar, Mudanças incidentais — sections present only when they add value). Inline comments anchor on the right lines and carry the '— gerado por IA, revisado pelo usuário' signature footer. Terminal summary prints per-severity finding counts, the dropped-findings list, and skipped files.",
+      "expected_output": "A PENDING review appears in the GitHub UI with an EMPTY top-level body — the Review Guide is posted separately, as its own PR conversation comment wrapped in a collapsed <details> block. At ≤100 added lines tiny_pr is true, so that comment carries a 2-sentence change summary instead of the full Onde focar / Mudanças incidentais guide, and Wave 3's validator pass is skipped. Inline comments anchor on the right lines, follow the severity tag → summary line → Sugestão → Trade-off de não fazer body structure, lead the Sugestão with an applyable suggestion block, keep prose under 512 chars (1024 and 16 lines for MANDATORY, fenced code excluded), and carry the '— gerado por IA, revisado pelo usuário' signature footer. Terminal summary prints the review URL, the guide comment URL, per-severity finding counts, the dropped-findings list, and skipped files.",
       "assertions": [],
       "files": []
     },
