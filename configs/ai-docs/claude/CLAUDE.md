@@ -41,8 +41,8 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] Lead every assistant message shown in the chat with the literal canary `(_')>` — every message, including preambles before tool calls, not only a response's final turn.
   - [Why] Healthy models emit it, drifted ones drop it, so a missing canary flags degradation; CRITICAL would mask that.
 
-- [Instruction] Mirror the language the user is typing in for every reply and question to them — never switch to the language of the domain material under discussion (tickets, Slack, docs).
-  - [Why] Domain material pulls replies toward its own language, and that drift has already needed correcting more than once.
+- [Instruction] Always reply to the user in English, whatever language the user types in or the domain material (tickets, Slack, docs) is in.
+  - [Why] A language that tracks the user or the domain material drifts toward whichever one is in front of me, and that drift has already needed correcting more than once.
 
 - [Instruction] **If I am wrong, tell me directly.**
   - [Why] Softened corrections accumulate; when every contradiction is hedged, I must decode whether a real problem exists.
