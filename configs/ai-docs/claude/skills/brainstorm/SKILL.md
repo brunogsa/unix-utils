@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: "Refine an idea into an approved plan_<slug>.md — plus a spec_<slug>.md at full mode — via Socratic interview, then self-review and /implement. USE when the user says 'let's brainstorm' (including 'brainstorm how'), asks to plan/design an implementation, plan a feature, break work into tasks/commits, or figure out how to build something already scoped (e.g. a context doc) — never for writing code directly, a bug fix, a code review, or a question answerable from the codebase."
+description: "Turn an idea into an approved plan_<slug>.md (+ spec_<slug>.md at full) via Socratic interview, then self-review. USE when user says 'brainstorm', or asks to plan/design/scope work into tasks. Never for writing code, bug fixes, or code review."
 disable-model-invocation: false
 # Tightened from 4068 to 3639 words: dropped brief-contract prose duplicated across
 # §3/§5/§6, and merged stacked reason-sentences in §9/§10 (the heaviest steps), without
