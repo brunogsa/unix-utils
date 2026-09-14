@@ -6,6 +6,8 @@ ask via **one `AskUserQuestion` call**, only the questions whose condition holds
 Each option gets a `description` (what picking it does) and a `preview` (the detail behind "what you mean" — dirty-file list, runner candidates, what the gate runs) so
 the user checks detail without a round trip. Recommended option always first, labeled "(Recommended)".
 
+## Candidate questions
+
 Candidate questions, in priority order (only those whose condition holds are sent):
 
 | # | Header | Condition | Question | Options (default first) |
@@ -16,9 +18,13 @@ Candidate questions, in priority order (only those whose condition holds are sen
 | 4 | `Green gate` | always | "Gate the push on a green full-repo lint+test run, fixing any batch-caused regression?" | **No — skip (Rec.)** — faster; preview: "step 5 goes straight from commits to step 6's push" / **Yes — gate before push** — blocks push until green, pre-existing red reported never fixed; preview: gate mechanics from `opt-in-gates.md`. |
 | 5 | `Tails` | always | "After pushing, run the refactor + auto-review tail pair over this batch's commit range?" | **No — skip (Rec.)** — stop at step 8's report / **Yes — run tails** — dispatches the shared code-reviewer tail pair, report-only; preview: `code-reviewer-tail-pair.md`'s scope. |
 
+## Row 4 vs row 2
+
 Row 4 is independent of row 2 — a "yes" here never re-runs row 2's file-scoped 1c baseline. It captures its own full-repo baseline internally
 (see `opt-in-gates.md`'s "Repo-green gate" section) purely so the pre-push gate has something to diff against; that internal capture is never
 surfaced as a second baseline question.
+
+## Batching rule
 
 `AskUserQuestion` caps at 4 per call. Rows 1+2+4+5 already fill 4 slots when the tree is dirty — then send row 3 (if its condition holds) as an
 immediate second call, before doing anything else. Otherwise everything fits in one call.
