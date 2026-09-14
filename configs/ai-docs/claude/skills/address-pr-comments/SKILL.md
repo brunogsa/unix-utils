@@ -60,8 +60,6 @@ Load each as its scope opens, not upfront. Most fire automatically on their desc
 
 Before any other step, ask via **one `AskUserQuestion` call** covering up to 5 candidate questions (dirty tree, baseline, checker cmd, green gate, tails) — only those whose condition holds, never a freeform chat message. Full candidate table, conditions, exact wording, options, and the 4-per-call batching rule: [`references/preflight-interview.md`](references/preflight-interview.md) — load it now.
 
-Persist the answers the moment they arrive; steps 1b–1d consume them and never ask again.
-
 ## Step 1: Validate preconditions (main)
 
 Run 1a–1d in order, fail-fast on the first failure (1c only when step 0 opted in).
@@ -80,7 +78,7 @@ If `PR_BRANCH != CUR_BRANCH`, abort:
 
 ### 1b. Clean working tree
 
-Step 0's persisted answer decides what happens next: `commit_now` commits via `commit-standards` then continues; `proceed_without_committing` continues straight through, since step 5 only ever stages cluster-relevant paths so the dirty files can't get bundled in; `stop_here` aborts so the user commits/stashes by hand, then re-runs the skill.
+Step 0's persisted answer decides what happens next: `commit_now`, `proceed_without_committing`, or `stop_here` — mechanics for each per `references/preflight-interview.md`'s row 1 options.
 
 ### 1c. Green baseline (lint + test — opt-in)
 
