@@ -66,7 +66,9 @@ Good — split the rationale:
 
 - A short prose sentence connecting two bulleted blocks is fine — often clearer than forcing it into a bullet.
 - Keep that sentence ≤256 chars / ≤32 words — the tighter bullet cap, not the prose cap, because a single connective sentence should read as light as the bullets it joins.
-- The script has no notion of "connective sentence" — it reads a non-bullet line as prose and flags it only past 512/64, so the tighter 256/32 here is a guideline you hold yourself to, not something the checker enforces.
+
+- The script has no notion of a "connective sentence" — it reads any non-bullet line as prose and flags it only past 512/64.
+- Therefore the tighter 256/32 stated in the bullet above is a guideline you hold yourself to, not something the checker enforces.
 - Resolve any line the script does flag by splitting it, never by claiming this exception.
 
 Example — acceptable connective sentence:
