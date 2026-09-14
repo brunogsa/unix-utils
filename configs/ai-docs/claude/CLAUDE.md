@@ -42,7 +42,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
   - [Why] Healthy models emit it, drifted ones drop it, so a missing canary flags degradation; CRITICAL would mask that.
 
 - [Instruction] Always reply to the user in English, whatever language the user types in or the domain material (tickets, Slack, docs) is in.
-  - [Why] A language that tracks the user or the domain material drifts toward whichever one is in front of me, and that drift has already needed correcting more than once.
+  - [Why] Tracking the user's or the material's language drifts, and that drift has already needed correcting more than once.
 
 - [Instruction] **If I am wrong, tell me directly.**
   - [Why] Softened corrections accumulate; when every contradiction is hedged, I must decode whether a real problem exists.
