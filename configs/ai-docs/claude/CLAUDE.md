@@ -341,8 +341,13 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
   - [Example] Don't reach for `// eslint-disable`, `# type: ignore`, `--no-verify`, or editing the config to mute the rule.
 
-- [Instruction] When a check genuinely misfires on content its rationale never covered, carve a narrow explicit exception rather than loosening the threshold for everyone.
-  - [Why] Forbidding silence says nothing about a genuinely wrong check, so the pressure escapes into a raised limit.
+- [Instruction] When a check or a written convention genuinely misfires on content its rationale never covered, carve a narrow explicit exception rather than loosening it for everyone.
+  - [Why] Forbidding silence says nothing about a genuinely wrong rule, so the pressure escapes into a raised limit.
+
+- [Instruction] Before carving that exception, implement the compliant version and show it fails — an exception is never the first response to a rule your own code broke.
+  - [Why] Documenting a deviation costs less than restructuring code, so without this gate the exception wins by default.
+
+  - [Example] A controller validating inline because a route-level pipe can't see the field: extracting an isolated validation function complies and was never tried, so the exception was unjustified.
 
 - [Instruction] **Don't replicate problematic patterns** -- pause and ask before copying one that either (a) contradicts the global rules or (b) is itself a smell.
   - [Why] Every replication compounds the bad pattern.
