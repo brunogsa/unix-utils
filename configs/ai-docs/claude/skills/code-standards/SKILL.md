@@ -432,6 +432,13 @@ logger.info({
 // Even better — extract a safeSum helper if the pattern repeats
 ```
 
+- [Instruction] Pick a log level by who caused the condition — the system's own degradation is `warn`, a caller's invalid input is `info`.
+  - [Why] Warn-rate is only alertable if it tracks the system's health; a warn per bad request turns that signal into a traffic counter.
+  - [Example] `info` — designed outcomes: a 400 on an invalid body, a not-found lookup, a feature flag off, operation start/end, outbound calls.
+  - [Example] `warn` — degradation the system itself absorbed: a fallback served after the primary failed, a retry that succeeded, an unexpected-but-recoverable state normalized.
+  - [Example] `error` — a failure the system must act on: a downstream call that exhausted its retries, a payload no mapper can process.
+  - [Example] `debug` — the sorted arrays and full request/response bodies behind an `info` count.
+
 - [Instruction] Pair each `info` log (counts/IDs/status) with a `debug` log carrying the full payload (sorted arrays).
   - [Why] `info` stays cheap and scannable always-on; the heavy `debug` detail rides alongside for when you need it.
 
