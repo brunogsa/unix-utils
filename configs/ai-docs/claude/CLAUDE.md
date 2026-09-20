@@ -19,14 +19,14 @@ Every list-bullet carries one marker for deterministic counting via `grep` — n
 
 Architectural principles — auto-memory disabled, so knowledge persists only where you deliberately place it.
 
-- [Instruction] Put cross-cutting, always-needed rules in the global CLAUDE.md (here).
-  - [Why] CLAUDE.md loads every session, so only universally-needed rules justify the always-on context cost.
+- [Instruction] Place every rule by its scope — the narrowest surface that still reaches every reader who needs it.
+  - [Why] The always-on CLAUDE.md, a lazy-loaded skill, and a repo file cost wildly different context for the same words.
 
-- [Instruction] Put domain knowledge, how-tos, and anything lazy-loadable in skills.
-  - [Why] Skills lazy-load, so domain detail rides along only when its trigger fires — free until needed.
+  - [Example] Cross-cutting and always needed → the global CLAUDE.md (here), which loads every session.
 
-- [Instruction] Put repo-specific gotchas, conventions, architecture, and non-obvious decisions in the repo's CLAUDE.md / agents.md.
-  - [Why] Repo facts only make sense in-repo and would be noise in every other project.
+  - [Example] Domain knowledge, how-tos, anything lazy-loadable → a skill, which rides along only when its trigger fires.
+
+  - [Example] Repo-specific gotchas, conventions, architecture, non-obvious decisions → that repo's CLAUDE.md / agents.md, noise anywhere else.
 
 - [Instruction] **Prefer CLI scripts + skills over MCP servers** — use MCP only for capabilities CLI + skills can't provide.
   - [Why] CLI is cheaper in context, easier to debug, and composes via pipes.
