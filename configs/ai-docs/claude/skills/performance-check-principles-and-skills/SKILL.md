@@ -163,8 +163,6 @@ On the user's go-ahead, main spawns `agent(subAgent=performance-check-fixer, tit
 
 **`performance-check-fixer` is pinned to opus, never a cheaper tier.** Delegation moves the *noise* off main, not the judgment.
 
-Deciding what may be cut, merged, or extracted without losing a rule is judgment — a cheap tier hits the number by taking a rule with it.
-
 A sonnet run merged two separately-violable instructions with an "and": the count drops, the hidden-instruction defect ships.
 
 The human's `git diff` read is the backstop — nothing lands as final until they review it.
