@@ -145,42 +145,6 @@ JSONL
     "true" "$survey_before_content"
 }
 
-it_should_group_learnings_and_turns_per_session_in_session_order() {
-  local dir="$work_dir/session_order"
-
-  make_transcript "$dir/session_early.jsonl" "$((2 * DAY))" <<'JSONL'
-{"type":"user","timestamp":"2026-01-01T00:00:00","message":{"content":"alpha first real user correction"}}
-{"type":"assistant","message":{"content":[{"type":"text","text":"[Learning] said=\"applied alpha fix\" | rule=\"alpha-rule\""}]}}
-{"type":"user","timestamp":"2026-01-01T00:01:00","message":{"content":"alpha second real user correction"}}
-{"type":"assistant","message":{"content":[{"type":"text","text":"ack2"}]}}
-JSONL
-
-  make_transcript "$dir/session_late.jsonl" "$DAY" <<'JSONL'
-{"type":"user","timestamp":"2026-01-02T00:00:00","message":{"content":"beta first real user correction"}}
-{"type":"assistant","message":{"content":[{"type":"text","text":"[Learning] said=\"applied beta fix\" | rule=\"beta-rule\""}]}}
-{"type":"user","timestamp":"2026-01-02T00:01:00","message":{"content":"beta second real user correction"}}
-{"type":"assistant","message":{"content":[{"type":"text","text":"ack2"}]}}
-JSONL
-
-  run_script --since 7 --project-dirs "$dir"
-
-  local session1 alpha_learning session2 beta_learning
-  session1=$(printf '%s\n' "$VERDICT_OUT" | grep -n '^## Session 1' | head -1 | cut -d: -f1)
-  alpha_learning=$(printf '%s\n' "$VERDICT_OUT" | grep -n 'alpha-rule' | head -1 | cut -d: -f1)
-  session2=$(printf '%s\n' "$VERDICT_OUT" | grep -n '^## Session 2' | head -1 | cut -d: -f1)
-  beta_learning=$(printf '%s\n' "$VERDICT_OUT" | grep -n 'beta-rule' | head -1 | cut -d: -f1)
-
-  local grouped_in_order="false"
-  if [ -n "$session1" ] && [ -n "$alpha_learning" ] && [ -n "$session2" ] && [ -n "$beta_learning" ] \
-     && [ "$session1" -lt "$alpha_learning" ] && [ "$alpha_learning" -lt "$session2" ] \
-     && [ "$session2" -lt "$beta_learning" ]; then
-    grouped_in_order="true"
-  fi
-  assert_eq \
-    "ExtractSessionFeedbackSweep > happy > should group emitted [Learning] markers and verbatim turns per session, in session order" \
-    "true" "$grouped_in_order"
-}
-
 it_should_exclude_the_running_sessions_own_transcript_even_when_it_qualifies() {
   local dir="$work_dir/exclude_running"
 
@@ -335,7 +299,6 @@ PY
 it_should_reject_the_removed_session_id_project_dir_and_cwd_flags_with_a_nonzero_exit
 it_should_select_every_transcript_in_the_since_window_with_turns_gte_2
 it_should_print_the_corpus_survey_before_emitting_any_session_content
-it_should_group_learnings_and_turns_per_session_in_session_order
 it_should_exclude_the_running_sessions_own_transcript_even_when_it_qualifies
 it_should_default_since_to_7_days_when_omitted
 it_should_report_zero_qualifying_sessions_without_a_survey_estimate_of_zero

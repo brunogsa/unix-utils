@@ -53,9 +53,7 @@ Below the ~80k threshold, nothing is dispatched — read every qualifying transc
 ## What the extractor's output contains
 
 It emits, grouped per session in session order:
-- **`[Learning]` markers** — learnings you pre-digested at correction time. Each pairs what the user did (`said`) with the rule you inferred (`rule`). Highest signal; treat every marker as a candidate.
-
-- **Verbatim user turns + next action** — raw feedback, recovered losslessly across compaction boundaries. Mine these for corrections no marker captured — your raw input is itself feedback.
+- **Verbatim user turns + next action** — raw feedback, recovered losslessly across compaction boundaries. Mine these for corrections — your raw input is itself feedback.
 
 - **Compaction boundaries** — marked inline, so you see where memory was thinned within that session.
 
@@ -80,7 +78,7 @@ Then list moments covering:
 - Any user correction of the AI's approach or assumptions
 
 Per-item field hints (the unified format is documented in SKILL.md):
-- **Source** — the extractor's session header and `[line N]`, or the `[Learning]` marker it came from. If the moment was Claude-initiated with no user prompt, note that here.
+- **Source** — the extractor's session header and `[line N]`. If the moment was Claude-initiated with no user prompt, note that here.
 
 - **Verbatim** — exact user words. Do NOT paraphrase; preserve typos, casing, and emphasis. If Claude-initiated, write `(Claude-initiated — no user quote)`.
 - **Context** — what Claude was doing, what misunderstanding or gap existed, relevant file paths or commands.

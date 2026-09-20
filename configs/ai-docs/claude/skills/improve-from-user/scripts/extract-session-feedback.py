@@ -12,11 +12,9 @@ never rewrites that file — it only inserts a `compact_boundary` marker and kee
 appending. The originals survive above each boundary. Verified: one session held
 13 compactions in a single file with all 14 pre-first-boundary user turns intact.
 
-This script reads that file and emits three things:
-  1. [Learning] markers  — pre-digested learnings Claude wrote at correction time
-                            (the write-ahead log; immune to compaction by design)
-  2. verbatim user turns  — each with a one-line note of what Claude did next
-  3. compaction boundaries — marked inline so you see where memory was thinned
+This script reads that file and emits two things:
+  1. verbatim user turns  — each with a one-line note of what Claude did next
+  2. compaction boundaries — marked inline so you see where memory was thinned
 
 Scope: a multi-session sweep, not a single file. Every transcript whose mtime
 falls in the --since window AND holds >= 2 real user turns qualifies; the
@@ -36,7 +34,6 @@ import datetime
 import glob
 import json
 import os
-import re
 import subprocess
 import sys
 import time
@@ -44,12 +41,6 @@ from typing import NoReturn
 
 USER_TURN_CHAR_CAP = 6000  # verbatim, but guard against a giant paste bloating output
 NEXT_TEXT_HEAD = 200        # chars of the following assistant text to show as context
-
-# A real marker is a STANDALONE line `[Learning] said="…" | rule="…"` (the CLAUDE.md
-# rule mandates its own line). Anchor to line-start plus the `said=` payload field so
-# prose that merely mentions or quotes "[Learning]" mid-sentence isn't misread as an
-# emitted marker. Optional leading list bullet / backtick tolerates markdown rendering.
-LEARNING_RE = re.compile(r"^\s*[-*]?\s*`?\[Learning\]\s+said=")
 
 
 def die(msg, code=2) -> NoReturn:
@@ -74,9 +65,9 @@ def is_real_user_prose(d):
 
 
 def assistant_parts(d):
-    """Return (text, [tool names], [learning-marker lines]) for an assistant message."""
+    """Return (text, [tool names]) for an assistant message."""
     content = d.get("message", {}).get("content")
-    texts, tools, learnings = [], [], []
+    texts, tools = [], []
     if isinstance(content, str):
         blocks = [{"type": "text", "text": content}]
     elif isinstance(content, list):
@@ -87,14 +78,10 @@ def assistant_parts(d):
         if not isinstance(b, dict):
             continue
         if b.get("type") == "text":
-            t = b.get("text", "")
-            texts.append(t)
-            for line in t.splitlines():
-                if LEARNING_RE.search(line):
-                    learnings.append(line.strip())
+            texts.append(b.get("text", ""))
         elif b.get("type") == "tool_use":
             tools.append(b.get("name", "?"))
-    return "\n".join(texts).strip(), tools, learnings
+    return "\n".join(texts).strip(), tools
 
 
 def one_line(text, cap):
@@ -181,7 +168,7 @@ def survey(qualifying):
 
 
 def parse_transcript(path):
-    """Parse one transcript into (turns, learnings, boundaries).
+    """Parse one transcript into (turns, boundaries).
 
     Restores the event-linking loop the deleted single-file resolve_transcript()
     used to run inline in main() — each assistant burst is attached to the user
@@ -189,7 +176,6 @@ def parse_transcript(path):
     per qualifying transcript instead of once per process.
     """
     turns = []            # list of dicts: {ts, line, text, tools, next_text, boundaries_after}
-    learnings = []         # (line, marker-text)
     boundaries = []        # line numbers of compaction boundaries
     current = None         # the user turn currently collecting its "next action"
 
@@ -222,9 +208,7 @@ def parse_transcript(path):
                 continue
 
             if d.get("type") == "assistant":
-                text, tools, marks = assistant_parts(d)
-                for m in marks:
-                    learnings.append((lineno, m))
+                text, tools = assistant_parts(d)
                 if current is not None:
                     for t in tools:
                         if t not in current["tools"]:
@@ -232,7 +216,7 @@ def parse_transcript(path):
                     if not current["next_text"] and text:
                         current["next_text"] = text
 
-    return turns, learnings, boundaries
+    return turns, boundaries
 
 
 def _default_project_dirs():
@@ -295,8 +279,8 @@ def main():
     emit(qualifying)
 
 
-def _emit_session(out, path, index, total, turns, learnings, boundaries):
-    """Write one session's grouped [Learning] markers + verbatim turns to out.
+def _emit_session(out, path, index, total, turns, boundaries):
+    """Write one session's verbatim turns to out.
 
     Body formatting (truncation, NEXT: line, compaction-boundary notes) is
     unchanged from the pre-sweep single-file emit() — only the surrounding
@@ -312,19 +296,10 @@ def _emit_session(out, path, index, total, turns, learnings, boundaries):
     out.write(f"## Session {index}/{total}: {path}\n")
     out.write(f"# modified   : {mtime}\n")
     out.write(f"# summary    : {len(turns)} user turns · "
-              f"{len(learnings)} [Learning] markers · {len(boundaries)} compaction boundaries\n")
+              f"{len(boundaries)} compaction boundaries\n")
     if boundaries:
         out.write("# NOTE: this session compacted — the turns below are the ORIGINAL verbatim text,\n")
         out.write("#       not the summary your in-context memory now holds. Trust these over memory.\n")
-    out.write("\n")
-
-    out.write("### [Learning] markers — pre-digested, emitted at correction time\n\n")
-    if learnings:
-        for lineno, m in learnings:
-            out.write(f"- [line {lineno}] {m}\n")
-    else:
-        out.write("(none — no [Learning] markers were emitted this session; "
-                  "rely on the verbatim turns below)\n")
     out.write("\n")
 
     out.write("### Verbatim user turns + what Claude did next\n\n")
@@ -353,8 +328,8 @@ def emit(paths):
     out.write("# Session feedback extract (recovered from disk — survives compaction)\n\n")
     total = len(paths)
     for index, path in enumerate(paths, 1):
-        turns, learnings, boundaries = parse_transcript(path)
-        _emit_session(out, path, index, total, turns, learnings, boundaries)
+        turns, boundaries = parse_transcript(path)
+        _emit_session(out, path, index, total, turns, boundaries)
 
 
 if __name__ == "__main__":
