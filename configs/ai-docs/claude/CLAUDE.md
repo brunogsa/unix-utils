@@ -346,8 +346,8 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
   - [Example] A controller validating inline because a route-level pipe can't see the field: extracting an isolated validation function complies and was never tried, so the exception was unjustified.
 
-- [Instruction] **Don't replicate problematic patterns** -- pause and ask before copying one that either (a) contradicts the global rules or (b) is itself a smell.
-  - [Why] Every replication compounds the bad pattern.
+- [Instruction] **Don't replicate problematic patterns** -- never extend one that these principles or your own judgment mark as a problem; new code gets the right shape regardless of its neighbours.
+  - [Why] Every copy compounds the pattern, while rewriting the ones already there is scope you were never asked for.
 
 - [Instruction] **CRITICAL: Surface harness gaps** -- file a `[Harness]` when a check could catch the defect class you hand-fixed, or the rule that keeps being violated, and needs no hand-maintained list.
   - [Why] A hand-fix a rule could make is signal lost, but a ledger-backed check goes stale faster than it catches anything.
