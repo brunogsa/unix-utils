@@ -146,6 +146,7 @@ write_fake_sysctl() {
   mkdir -p "$bindir"
   {
     printf '#!%s\n' "$real_bash"
+
     # literal $2 for the generated script, not a shell expansion
     # shellcheck disable=SC2016
     printf 'case "$2" in\n'
