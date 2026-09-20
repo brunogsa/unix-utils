@@ -303,7 +303,10 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] Persist to `notes.md` only state expensive to reconstruct — counts, verdicts, decisions, rejected approaches — pointing at large payloads and references (path, line range, link) instead of copying them in.
   - [Why] An unneeded note buries the notes that matter, and a copied payload goes stale where a pointer re-reads fresh.
 
-- [Instruction] Mark a task done the moment it completes, and update or delete a `notes.md` entry the moment reality diverges from it.
+- [Instruction] Mark a task done the moment it completes.
+  - [Why] A task left open reads as still-pending work and pulls attention back to something already finished.
+
+- [Instruction] Update or delete a `notes.md` entry the moment reality diverges from it.
   - [Why] A stale entry gets trusted as current and steers work wrong — currency is what keeps the surface worth consulting.
 
 - [Instruction] When a `notes.md` question, concern, or insight becomes actionable, move it to the TaskList, deleting the note.
