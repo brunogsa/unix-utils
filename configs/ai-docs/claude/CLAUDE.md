@@ -404,5 +404,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
   - [Why] In-session reading carries "I already convinced myself" residue; a subagent sees only the artifact + the question.
   - [Example] Test-presence gates, AC↔test coverage, code-review of just-written code, end-of-batch refactor + auto-review reports.
 
-- [Instruction] **Verify mutating-subagent results against artifacts** -- check diff, file contents, or command output before treating a write-agent's "done" as done.
-  - [Why] The summary describes intent; only the artifact shows reality.
+- [Instruction] **Verify every subagent claim** -- check a mutation against the artifact (diff, file, output); re-run a finding at higher tier/effort, or across two subagents cross-checked in main.
+  - [Why] Re-reading its files in main burns the context the delegation saved, so the check has to run outside main too.
+  - [Example] A finding the user repeats back to you is still that subagent's claim, not evidence — it earns the same check.
