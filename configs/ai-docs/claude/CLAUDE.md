@@ -74,7 +74,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **Highlight assumptions** -- explicitly name what you assumed.
   - [Why] Unspoken assumptions silently drive the wrong outcome.
 
-- [Instruction] **CRITICAL: When I tweak, edit, reject, reword, or hand-edit your output, infer the general rule behind my change, confirm it with me, then sweep our changes and every later case.**
+- [Instruction] **CRITICAL: When I tweak, edit, reject, reword, or hand-edit your output, infer the general rule behind my change, then sweep our changes and every later case.**
   - [Why] Deferring the sweep cost four repeat comments in one review; the peers are in front of you now, not later.
 
 ### Async iteration
