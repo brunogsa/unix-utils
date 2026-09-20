@@ -10,6 +10,9 @@ Each marker sits at the margin; its [Why]/[Example] indent beneath; code fences 
 - [Instruction] Write one constraint per instruction — merge near-duplicate facets, split only the truly independent ones.
   - [Why] The count equals the real constraint count only if each tagged line carries exactly one; a bundled bullet hides rules the reader and the grep both miss.
 
+- [Instruction] Scope a rule to its root cause — the end state wanted, not the case that triggered it.
+  - [Why] A rule written at one instance leaves its sibling cases uncovered.
+
 - [Instruction] When a marker breaks the density cap, don't fix it like prose — an over-long marker is a signal of fused constraints, so split it into separate sibling instructions.
   - [Why] A marker takes only a why or example as a child — it can't hold a sub-bullet — so a constraint that won't fit can only grow sideways into siblings.
 
@@ -50,6 +53,9 @@ Each marker sits at the margin; its [Why]/[Example] indent beneath; code fences 
 - [Instruction] Make every why a real decision-shaping stake — if you can't name one, dig for it or ask, never ship filler.
   - [Why] A rule whose stake isn't written gets misapplied by readers who can't see why it matters; if you can't name the stake, the rule itself is suspect.
 
+- [Instruction] Name the cost the rule avoids, not the mechanism behind it.
+  - [Why] Restating the mechanism reads as justified while giving no basis for the next case.
+
 ## Placing whys, examples, and code fences
 
 - [Instruction] Nest each why and example one level under its instruction, why first, then any examples (one why; examples may repeat).
@@ -57,6 +63,9 @@ Each marker sits at the margin; its [Why]/[Example] indent beneath; code fences 
 
 - [Instruction] Put a code-fence example at the left margin, not indented under its instruction.
   - [Why] A fenced block doesn't indent cleanly under a bullet, so the margin is its only readable, parseable spot; order binds it to the nearest instruction above.
+
+- [Instruction] Make each example a concrete shape, pairing a bad case with its good counterpart.
+  - [Why] An abstract restatement fits no situation; a bad case alone leaves the fix to guesswork.
 
 ## Headings and the groups they cover
 
