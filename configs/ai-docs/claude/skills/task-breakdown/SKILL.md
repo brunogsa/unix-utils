@@ -54,6 +54,18 @@ A feature slice too big for one commit splits into **sub-steps** (a.k.a. subtask
 
 - **Past ~4 sub-steps, split the task** — a slice that long is two tasks in disguise, and each task must stay independently dispatchable.
 
+## Placement categories
+
+The five TaskList placement categories — pick by the commit rule, which is the reason each exists:
+
+| Category | What it is | Commit & placement |
+|---|---|---|
+| `[Sub-Step]` | child of a Task or another Sub-step | with its Task ancestor, after its parent or a sibling. Not shippable alone, so the reviewer gets one coherent change. |
+| `[Side]` | deferred out-of-scope work you uncover — review feedback, mid-task requests | own commit, end of list. File it instead of pivoting, so each commit stays one logical change. |
+| `[Scout]` | pre-existing non-blocking issue, auto-queued with no approval | own commit, end of list. Absorbing a pre-existing fix would mix concerns. |
+| `[Drift]` | collateral fix the current task is blocked on mid-flight | base commit if trivial, else its own — a large drift burdens the goal's reviewer. |
+| `[Reminder]` | a process step to run later | may produce no commit; stays pending until it runs, so a long run can't skip it. |
+
 ## Output artifact
 
 Write the breakdown to `/tmp/task-breakdown_<slug>.md` — derive a short kebab-case `<slug>` from the work — unless the caller names an output path. Report the resolved path back.

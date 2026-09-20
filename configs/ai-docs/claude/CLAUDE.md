@@ -256,15 +256,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
   - [Example] Final shape ` <id>. [#<returned-id>][<category>] <description>`. Default `[Task]`; also `[Feature]`, `[Spike]`, `[Debt]`, `[Refactor]`.
 
-  - [Example] The five placement categories — pick by the commit rule, which is the reason each exists:
-
-| Category | What it is | Commit & placement |
-|---|---|---|
-| `[Sub-Step]` | child of a Task or another Sub-step | with its Task ancestor, after its parent or a sibling. Not shippable alone, so the reviewer gets one coherent change. |
-| `[Side]` | deferred out-of-scope work you uncover — review feedback, mid-task requests | own commit, end of list. File it instead of pivoting, so each commit stays one logical change. |
-| `[Scout]` | pre-existing non-blocking issue, auto-queued with no approval | own commit, end of list. Absorbing a pre-existing fix would mix concerns. |
-| `[Drift]` | collateral fix the current task is blocked on mid-flight | base commit if trivial, else its own — a large drift burdens the goal's reviewer. |
-| `[Reminder]` | a process step to run later | may produce no commit; stays pending until it runs, so a long run can't skip it. |
+  - [Example] The five placement categories: `[Sub-Step]`, `[Side]`, `[Scout]`, `[Drift]`, `[Reminder]` — the `task-breakdown` skill holds what each is and where it commits.
 
 - [Instruction] Persist machine-checkable task state — step counters, gate outcomes, attempt counts, decisions, artifact/experiment links — in the task's `metadata` field, not in prose subjects or descriptions.
   - [Why] Metadata survives compaction and reads back as structured fields, so a resumed skill needn't re-parse prose.
