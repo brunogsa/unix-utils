@@ -89,7 +89,12 @@ fi
 # hard-fail — otherwise it would silently produce a manifest holding
 # only the dedicated claude-md shard, which is an empty manifest for
 # every purpose that matters (no skill ever gets audited).
-skill_dir_count=$(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')
+#
+# `! -name synced` excludes Anthropic's skill-sync bucket
+# (see the line-321 comment for why), so a skills dir
+# holding only synced/ now hard-fails too — zero auditable
+# skills, same as truly empty.
+skill_dir_count=$(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d ! -name synced | wc -l | tr -d ' ')
 if [ "$skill_dir_count" -eq 0 ]; then
     echo "ERROR: no skill directories found under $SKILLS_DIR" >&2
     exit 1
@@ -301,6 +306,14 @@ emit_shard() {
     printf '\n'
 }
 
+# `synced` holds Anthropic's skill-sync bucket, upstream-owned
+# and unfixable (the next sync reverts any local edit), so it
+# never earns its own audit shard.
+#
+# `-name`, not `-path`: SKILLS_DIR is physicalized at line 128,
+# after skill_dir_count above already ran, so a `-path` built
+# from either spelling would match one site and miss the other.
+# `-name` compares only the basename, immune to that ordering.
 while IFS= read -r skill_dir; do
     slug="$(basename "$skill_dir")"
     own_files_str="$(list_skill_files "$skill_dir")"
@@ -318,6 +331,6 @@ EOF
     all_files+=("$CLAUDE_MD")
 
     emit_shard "$slug" "${all_files[@]}"
-done < <(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d | LC_ALL=C sort)
+done < <(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d ! -name synced | LC_ALL=C sort)
 
 emit_shard "claude-md" "$CLAUDE_MD"
