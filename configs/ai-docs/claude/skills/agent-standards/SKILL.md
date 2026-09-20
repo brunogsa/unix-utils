@@ -145,3 +145,11 @@ Any other exemption is a deliberate edit to that script's `DESC_BUDGET_EXEMPT` l
 - [Instruction] When dispatching a subagent that must persist an artifact, pick a basename outside the harness's reserved stems — or have the orchestrator accept the returned text and write it itself.
   - [Why] Write silently intercepts a basename starting, case-insensitive, with report/findings/analysis/summary, ending .md.
   - [Example] Interception raises no error and substitutes a "return as text" message. Blocked: `report_x.md`, `Findings.md`, `ANALYSIS.md`. Allowed: other extensions (`.txt`, `.html`), non-reserved stems (`verdict_`, `plan_`, `spec_`).
+
+- [Instruction] Never instruct a subagent to file or update a task — it has no `TaskCreate`/`TaskUpdate`/`TaskList`; take the item back in its report and file it yourself.
+  - [Why] The harness gives it no task tools, so the instruction fails silently and the item is simply never filed.
+
+## Waiting on a subagent
+
+- [Instruction] Scale the watch cadence to the dispatch's expected duration, preferring one check scheduled near that estimate over a streaming watch.
+  - [Why] A completion notification arrives on its own, so every earlier poll spends a turn to learn it is still running.
