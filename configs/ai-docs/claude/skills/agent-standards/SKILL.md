@@ -120,6 +120,9 @@ Any other exemption is a deliberate edit to that script's `DESC_BUDGET_EXEMPT` l
 
 ## Subagent dispatch
 
+- [Instruction] Give a recurring, repeatable unit of work its own dedicated agent type, rather than running it inline in the main session.
+  - [Why] Inline work reads as the session's spend and can't be budgeted or compared; a type gets its own report row.
+
 - [Instruction] Name the model on every dispatch to an unpinned agent type — one with no file, or a file omitting `model:` — by CLAUDE.md's "Pick the pin per task" rule.
   - [Why] subagent-model-guard.py denies an omitted model only there — that call inherits the session's model, often priciest.
 

@@ -392,9 +392,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] Launch every subagent in the background (`run_in_background`), waiting for its completion notification — never poll via a blocking `TaskOutput` call, a Bash `sleep`/`until` busy-wait, or a `kill -0`/`pgrep` wait loop.
   - [Why] One session lost 33 min to 6 blocking `TaskOutput` calls — 3 returned nothing — plus 12 min busy-waiting, vs 0.1s.
 
-- [Instruction] Give a recurring, repeatable unit of work its own dedicated agent type, rather than running it inline in the main session.
-  - [Why] Inline work reads as the session's spend and can't be budgeted or compared; a type gets its own report row.
-
 - [Instruction] Render every Agent `description` here as `<title> - <model> <effort>` from the values a skill declares — no parens, no `<agent-type>`, which the UI already prepends.
   - [Why] That dispatch line is all the user sees live, so naming tier and effort lets them audit spawns in real time.
 
