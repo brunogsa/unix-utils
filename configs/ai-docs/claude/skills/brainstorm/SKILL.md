@@ -16,6 +16,9 @@ words-budget: 4096
 Help the user explore and refine an idea into a self-reviewed plan ready to hand off, preceded by a spec when the run is `full`.
 
 This skill owns the whole procedure end to end.
+
+It plans and does not build: nothing in the working tree changes before the user approves the plan at step 11 — no scaffolded files, no stubs, no config edited to unblock a later step.
+
 The document conventions it writes against — naming, templates, guidelines, self-review gates — live in the `spec-driven-development` library.
 
 Read that library by path — never via the Skill tool; its `disable-model-invocation: true` keeps it out of the skill listing entirely.
@@ -46,6 +49,8 @@ Step 3 settles one of two. Every step below reads it back from `/tmp/sdd_<sessio
 **Once step 3 settles the mode**, seed the TaskList per CLAUDE.md's `[Reminder]` category — the mode decides which steps exist.
 
 Seed the step 6, 7 and 8 reminders only at `full` — `light` runs none of them, so a reminder there is one that stalls the list.
+
+Seeding is scaffolding only — creating a `[Reminder]` entry is never a go-ahead to run its step early.
 
 ### 1. Gather starting context
 
