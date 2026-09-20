@@ -77,13 +77,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **CRITICAL: When I tweak, edit, reject, reword, or hand-edit your output, infer the general rule behind my change, confirm it with me, then sweep our changes and every later case.**
   - [Why] Deferring the sweep cost four repeat comments in one review; the peers are in front of you now, not later.
 
-- [Instruction] Emit that inferred rule as a standalone `[Learning]` marker line the moment the correction lands, in the fixed format below — its own line, never mid-sentence.
-  - [Why] Compaction thins my memory to a summary, but the transcript keeps turns verbatim for `improve-from-user` to grep.
-
-```
-[Learning] said="<what you did — your verbatim words, or a summary of the edit you made>" | rule="<the general rule I inferred>"
-```
-
 ### Async iteration
 
 - [Instruction] Keep synchronous engagement to design and planning; run everything downstream (implement, refactor, review, docs) async — emit a complete artifact the human reviews in one pass.
