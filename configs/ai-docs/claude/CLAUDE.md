@@ -119,9 +119,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **CRITICAL: Search before creating** -- look for existing similar code before writing anything new.
   - [Why] Duplicate code splits maintenance across N callers; finding prior art first is cheaper than discovering it post-merge.
 
-- [Instruction] **Ask where new code logically belongs** before adding it.
-  - [Why] Code placed where it doesn't belong fragments the module and hides from the next searcher.
-
 - [Instruction] **Use web search, preferring trusted/official sources** -- triggers: complex themes, walls, consecutive failures, confirmation requests.
   - [Why] Training-data drift makes stale answers feel current, and only current primary sources detect it.
 
