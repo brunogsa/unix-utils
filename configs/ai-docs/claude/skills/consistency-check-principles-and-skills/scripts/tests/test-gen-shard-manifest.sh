@@ -498,6 +498,55 @@ it_should_hard_fail_when_the_skills_directory_is_missing() {
     rm -rf "$d"
 }
 
+# Mirrors Anthropic's synced/<bucket>/<skill>/ nesting.
+write_synced_skill_file() {
+    local dir=$1 bucket=$2 skill=$3 relpath=$4
+    mkdir -p "$(dirname "$dir/configs/ai-docs/claude/skills/synced/$bucket/$skill/$relpath")"
+    cat > "$dir/configs/ai-docs/claude/skills/synced/$bucket/$skill/$relpath"
+}
+
+it_should_not_emit_a_shard_for_the_synced_skills_bucket() {
+    echo "it_should_not_emit_a_shard_for_the_synced_skills_bucket"
+    local d; d=$(new_fixture)
+    write_skill_file "$d" "real-skill" "SKILL.md" <<'EOF'
+---
+name: real-skill
+description: "Real."
+---
+Real skill body.
+EOF
+    write_synced_skill_file "$d" "bucket-abc123" "fake-upstream" "SKILL.md" <<'EOF'
+---
+name: fake-upstream
+description: "Fake."
+---
+Upstream skill body.
+EOF
+    local output; output=$(run_gen "$d")
+    local synced_shards; synced_shards=$(printf '%s\n' "$output" | grep -c '^\[SHARD\] synced$')
+    assert_eq "no shard is emitted for the synced bucket dir itself" "0" "$synced_shards"
+    local real_shards; real_shards=$(printf '%s\n' "$output" | grep -c '^\[SHARD\] real-skill$')
+    assert_eq "the ordinary skill still gets its own shard" "1" "$real_shards"
+    rm -rf "$d"
+}
+
+it_should_hard_fail_when_the_skills_dir_holds_only_the_synced_bucket() {
+    echo "it_should_hard_fail_when_the_skills_dir_holds_only_the_synced_bucket"
+    local d; d=$(new_fixture)
+    write_synced_skill_file "$d" "bucket-abc123" "fake-upstream" "SKILL.md" <<'EOF'
+---
+name: fake-upstream
+description: "Fake."
+---
+Upstream skill body.
+EOF
+    bash "$GEN" "$d/configs/ai-docs/claude" >/dev/null 2>/tmp/gen-shard-manifest-synced-only-stderr.txt
+    local status=$?
+    assert_status "exits non-zero once synced/ is the only entry" "1" "$status"
+    assert_eq "prints an error to stderr" "1" "$([ -s /tmp/gen-shard-manifest-synced-only-stderr.txt ] && echo 1 || echo 0)"
+    rm -rf "$d"
+}
+
 it_should_emit_one_shard_per_skill_directory_including_every_file_in_it
 it_should_include_agent_files_a_skill_dispatches_by_name_in_its_shard
 it_should_include_cross_referenced_paths_outside_the_skill_dir_in_its_shard
@@ -516,6 +565,8 @@ it_should_collapse_a_symlinked_claude_md_to_one_physical_path
 it_should_exclude_a_tilde_prefixed_reference_to_a_file_outside_the_repo_root
 it_should_exclude_an_absolute_path_reference_to_a_file_outside_the_repo_root
 it_should_hard_fail_when_the_skills_directory_is_missing
+it_should_not_emit_a_shard_for_the_synced_skills_bucket
+it_should_hard_fail_when_the_skills_dir_holds_only_the_synced_bucket
 
 echo
 echo "$passed passed, $failed failed"
