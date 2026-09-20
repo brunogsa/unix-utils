@@ -73,11 +73,10 @@ Applying an auto-review-lens finding also needs a test command, to run RED-then-
 
 **Under `--no-ask`, nothing above prompts.** Each ambiguity resolves to `SKIPPED (<the ambiguity>)` on that finding, and the run continues.
 
-**Emit a `[Learning]` marker the moment a human choice lands**, on a human invocation only (`--no-ask` has no human choice to learn from): answering a clarifying question here
+**Capture the rule behind a human choice the moment it lands**, on a human invocation only (`--no-ask` has no human choice to learn from): answering a clarifying question here
 in §2, or rejecting, rewording, or hand-editing a proposed `SKIPPED` reason (§5) or a subagent's fix (§4) before it's committed.
 
-Follow CLAUDE.md's correction rule exactly — infer the general rule, confirm it with the human, then emit the standalone `[Learning]` line in its fixed `said=... | rule=...` format,
-so `/improve-from-user` can mine it back out later; skip it and the choice is lost when the session ends.
+Follow CLAUDE.md's correction rule — infer the general rule behind the change, then sweep it across this run's remaining findings; skip it and the correction lands again on the next lens.
 
 Skipping beats guessing — the caller can re-run the finding by hand, whereas a wrong guess lands a commit nobody asked for.
 
