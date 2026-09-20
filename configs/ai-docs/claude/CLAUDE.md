@@ -238,8 +238,8 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **Leverage TaskList proactively** -- whenever there are 2+ things to do, use TaskCreate/TaskUpdate; never skip it.
   - [Why] It's the only durable surface that survives compaction and session ends, so untracked items get forgotten.
 
-- [Instruction] A **Task** is anything that produces one or more small, isolated commits.
-  - [Why] Producing its own commit is what separates a Task from a Sub-Step; without it an AI fragments the plan.
+- [Instruction] Create a TaskList entry as a Task only when it produces one or more small, isolated commits of its own; anything smaller is a Sub-Step under its parent.
+  - [Why] Without a commit boundary an AI fragments the plan into steps no reviewer can take one at a time.
 
 - [Instruction] Build a task subject in two steps: create it as ` <id>. <description>` (leading space, number, period, trailing space); once TaskCreate returns its id, TaskUpdate `[#<returned-id>][<category>]` before the description.
   - [Why] The manual id is referenceable in chat immediately, and pinning the system id keeps later updates unambiguous.
