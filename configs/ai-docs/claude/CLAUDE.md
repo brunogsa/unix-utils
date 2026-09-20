@@ -324,6 +324,14 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
   - [Example] Bad: `<slow-cmd>; tail -<N> /tmp/out.txt; echo "exit: $?"` — reports tail's `0`, not the command's. Also don't pipe straight to `grep`/`head` — a wrong filter discards output, forcing a rerun.
 
+- [Instruction] Leave me CPU, RAM and disk to work with — run one heavy command at a time, and start a second only after `check-machine-headroom.sh` reports room.
+  - [Why] This is my daily driver, not a build box — a saturated machine stalls my work, not just yours.
+
+  - [Example] A worker count, heap limit or concurrency in the project's declared config holds; the same value as a CLI flag protects one invocation and is gone the next run.
+
+- [Instruction] Treat a command slower than expected, or an unexpected timeout, as a symptom — check whether the machine is saturated before retrying or raising the timeout.
+  - [Why] The two have opposite fixes — long work needs a bigger budget, a saturated machine needs load shed.
+
 ### RTK command proxy
 
 - [Instruction] Never hand-prefix another tool's command with `rtk` — write the plain command and let the `PreToolUse` hook rewrite it.
