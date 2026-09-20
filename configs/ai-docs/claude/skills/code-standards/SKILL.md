@@ -437,7 +437,7 @@ logger.info({
 ```
 
 - [Instruction] Pick a log level by who caused the condition — the system's own degradation is `warn`, a caller's invalid input is `info`.
-  - [Why] Warn-rate is only alertable if it tracks the system's health; a warn per bad request turns that signal into a traffic counter.
+  - [Why] Warn-rate is only alertable if it tracks the system's health; a warn per bad request makes it a traffic counter.
   - [Example] `info` — designed outcomes: a 400 on an invalid body, a not-found lookup, a feature flag off, operation start/end, outbound calls.
   - [Example] `warn` — degradation the system itself absorbed: a fallback served after the primary failed, a retry that succeeded, an unexpected-but-recoverable state normalized.
   - [Example] `error` — a failure the system must act on: a downstream call that exhausted its retries, a payload no mapper can process.
