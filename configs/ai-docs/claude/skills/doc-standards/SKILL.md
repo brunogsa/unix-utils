@@ -94,9 +94,11 @@ Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles �
   - [Example] Bad: `// see evidence_erp-empty-stage.md §9` (untracked). Good: `// Stage proved the ERP rejects an all-bonused, kit-less payload.`
 
 - [Instruction] Keep requirement IDs and source paths out of every runtime string — a test title, an error message, a log message states the rule in plain language alone, and the pointer goes in an adjacent code comment only where a reader would actually need the source.
-  - [Why] These strings are read in runner output, a stack trace, or a log query, where a path resolves against nothing and crowds out the rule the reader came for.
+  - [Why] In runner output, a stack trace, or a log query, a path resolves against nothing and crowds out the rule.
 
-  - [Example] Bad: `it('rejects entrega.local="M" when tipoContrato is Loja Virtual (BR-002 — docs/designs/sync-agreements-pic1.9_hld.md §5.6)')`. Good: `it('rejects entrega.local="M" when tipoContrato is Loja Virtual')` — with `// BR-002 — docs/designs/sync-agreements-pic1.9_hld.md §5.6` above it if the source is worth citing.
+  - [Example] Bad: `it('rejects entrega.local="M" when tipoContrato is Loja Virtual (BR-002 — docs/designs/sync-agreements-pic1.9_hld.md §5.6)')`.
+
+  - [Example] Good: `it('rejects entrega.local="M" when tipoContrato is Loja Virtual')` — with `// BR-002 — docs/designs/sync-agreements-pic1.9_hld.md §5.6` above it if the source is worth citing.
 
 - [Instruction] Keep environment-specific record identifiers — a contract, order, or ticket number observed in one run — out of every runtime string.
   - [Why] That record gets deleted or refreshed later, so the string sends a future reader hunting data that no longer exists.
