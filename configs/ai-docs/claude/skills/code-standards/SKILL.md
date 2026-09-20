@@ -228,13 +228,17 @@ const isExpandable = !item.isShrinked;
 if (isExpandable) { ... }
 ```
 
-- [Instruction] **CRITICAL: When a condition spans 3+ clauses, extract it into a named boolean used at the if site.**
-  - [Why] A multi-clause condition at the call site hides intent; a named boolean documents it.
+- [Instruction] **CRITICAL: When a condition spans 3+ clauses or negates a quantifier over a collection, extract it into a named boolean used at the if site.**
+  - [Why] Such a condition hides intent behind stacked clauses or a flipped negation; a named boolean documents it.
 
 - [Example]
 ```ts
 const isExpandableKit = item.type === KIT && !item.isShrinked && item.children.length < 1;
 if (isExpandableKit) { ... }
+
+// Negated quantifier — one clause, same decode cost:
+const hasNoPriceableItem = !items.some((item) => item.precoTotal > 0);
+if (hasNoPriceableItem) { ... }
 ```
 
 - [Instruction] Encode a collection's type in its name — plural for arrays, a `Set`/`Map` suffix for those.
