@@ -22,10 +22,24 @@
 # extract-planned-tests-for-task.sh use to fall back to the pre-annotation list-form behavior.
 # Consumed by those three sibling scripts, so the annotation grammar lives in ONE place too.
 #
-# The bare title and breadcrumb columns are already clean of the trailing annotation comment
-# without any extra stripping step: the same `it\("[^"]*"\)` match the default/--pairs modes
-# use stops at the closing `")`, before the `//` comment ever begins — so default and --pairs
-# output are byte-identical whether or not the plan's it() lines carry annotations.
+# The bare title and breadcrumb columns come out clean of
+# the trailing annotation comment with no extra stripping
+# step: the `it\("[^"]*"` match every mode shares stops
+# right after the title's closing quote.
+#
+# It stops before any second argument or `//` comment, so
+# default and --pairs output are byte-identical whether or
+# not the plan's it() lines carry annotations.
+#
+# That match deliberately does NOT require a `)` after the
+# closing quote, so it reads the one-argument
+# `it("Title");` form and any two-argument
+# `it("Title", <anything>);` form alike.
+#
+# Plans write the two-arg form for failure-branch titles,
+# e.g. `{ expectFailure: true }`; the old `it\("[^"]*"\)`
+# invariant skipped such a line entirely — no title, no
+# breadcrumb, no annotation — silently under-extracting.
 #
 # The breadcrumb is DERIVED from Test Design's own structure — the `describe("X")` name and
 # the nearest `// Happy cases` / `// Corner cases` / `// Failure scenarios` comment above the
@@ -88,12 +102,15 @@ titles=$(awk -v pairs="$pairs" -v annotations="$annotations" '
   /^[[:space:]]*\/\/ Corner cases[[:space:]]*$/   { cls = "corner";  next }
   /^[[:space:]]*\/\/ Failure scenarios[[:space:]]*$/ { cls = "failure"; next }
 
-  # it("Title") — emit the breadcrumb (3-segment under a class, else 2-segment).
-  match($0, /it\("[^"]*"\)/) {
+  # it("Title") — emit the breadcrumb (3-segment under a
+  # class, else 2-segment). The title match ends at the
+  # closing double quote, not at a quote-paren pair, so
+  # one-arg and two-arg it() forms share one matchEnd.
+  match($0, /it\("[^"]*"/) {
     t = substr($0, RSTART, RLENGTH)
     matchEnd = RSTART + RLENGTH
     sub(/^it\("/, "", t)
-    sub(/"\)$/, "", t)
+    sub(/"$/, "", t)
     crumb = (cls != "") ? (desc " > " cls " > " t) : (desc " > " t)
     if (annotations) {
       # `rest` is captured before any inner match() call below, since those

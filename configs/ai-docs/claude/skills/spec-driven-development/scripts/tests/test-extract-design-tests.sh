@@ -10,9 +10,12 @@
 # this skill's test suite.
 #
 # Scoped to the `--annotations` mode only (bare-title,
-# breadcrumb, AC tokens, T tokens columns): the default and
-# `--pairs` modes are pre-existing, unchanged behavior and
-# already have no regression to pin here.
+# breadcrumb, AC tokens, T tokens columns), the widest of
+# the three modes: it reads the same it() title match the
+# default and `--pairs` modes read, plus its own columns.
+#
+# So a title-match regression surfaces here first, and the
+# two narrower modes need no case of their own.
 
 set -uo pipefail
 
@@ -105,10 +108,25 @@ describe("check-thing", () => {
     "$actual"
 }
 
+it_should_extract_the_bare_title_breadcrumb_and_tokens_from_the_two_argument_it_form() {
+  local plan actual
+  plan=$(write_plan "two-arg-it" '```
+describe("AgreementSyncUseCase", () => {
+  // Failure scenarios
+  it("should reject the collection without a priceable item", { expectFailure: true });   // AC-2 T4
+});
+```')
+  actual=$(bash "$SCRIPT" --annotations "$plan")
+  assert_eq "should extract the bare title, breadcrumb, AC tokens and T tokens from the two-argument it() form" \
+    "$(printf 'should reject the collection without a priceable item\tAgreementSyncUseCase > failure > should reject the collection without a priceable item\tAC-2\tT4')" \
+    "$actual"
+}
+
 it_should_print_the_bare_title_breadcrumb_and_ac_and_t_tokens_for_an_annotated_it_line
 it_should_join_multiple_ac_and_t_tokens_space_separated_when_an_annotation_cites_several
 it_should_ignore_the_on_demand_tag_when_extracting_ac_and_t_tokens
 it_should_print_empty_ac_and_t_columns_for_every_row_when_the_plan_uses_the_old_list_form_with_no_annotations
+it_should_extract_the_bare_title_breadcrumb_and_tokens_from_the_two_argument_it_form
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
