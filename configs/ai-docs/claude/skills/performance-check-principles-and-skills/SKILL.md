@@ -42,6 +42,8 @@ All limits sourced where possible. [`references/research.md`](references/researc
 | CRITICAL ratio per file ([Instruction] lines marked CRITICAL ÷ [Instruction] count) | 16% | [Emphasis-salience reasoning — not measured](references/research-instruction-load-budgets.md#critical-emphasis-ratio) |
 | CRITICAL [Instruction] lines with no [Why] in the next 3 non-blank lines | 0 | A tiebreaker with no stated rationale can't be weighed against the rule it overrides |
 
+`synced/` is excluded from every check above: upstream reverts local edits there, so these budgets govern only authored skills.
+
 Skills have no per-line length limit — the per-skill word cap covers overflow.
 
 Density is checked across CLAUDE.md + every `SKILL.md` + every `references/*.md` + every `assets/*.md`. Per-file violation counts are listed under "Density violations" in the report.

@@ -155,6 +155,18 @@ if [ ! -d "$SKILLS_DIR" ]; then
     exit 1
 fi
 
+# Anthropic's skill sync writes upstream-owned skills under
+# synced/<bucket-id>/<skill>/, one level deeper than a normal
+# skill.
+#
+# The user cannot edit those files — the next sync reverts
+# any change — so every budget below excludes this subtree
+# entirely.
+#
+# Derived from the resolved $SKILLS_DIR, not $HOME, so repo
+# mode (this repo's own skills/ tree) prunes it too.
+SYNCED_DIR="$SKILLS_DIR/synced"
+
 # The agent-contract row always targets the canonical
 # installed agents dir, never $1 or the no-arg default
 # above — the contract is about this config repo, not
@@ -368,7 +380,12 @@ if [ "$has_claude_md" -eq 1 ]; then
 fi
 
 # Skill measurements
-skill_count=$(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')
+
+# ! -path (no trailing slash, no glob) excludes the synced/
+# directory itself at maxdepth 1 — a "/*" glob here would
+# no-op, since synced/ is the entry being listed, not a
+# descendant of one.
+skill_count=$(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d ! -path "$SYNCED_DIR" | wc -l | tr -d ' ')
 
 skill_overages=""
 max_desc=0
@@ -564,7 +581,7 @@ while IFS= read -r bf; do
         bundled_overages+=$'\n'"- $rel:$b_issues"
         bundled_over=$((bundled_over + 1))
     fi
-done < <(find -L "$SKILLS_DIR" -type f \( -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort)
+done < <(find -L "$SKILLS_DIR" -type f ! -path "$SYNCED_DIR/*" \( -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort)
 
 # Agent-contract measurement — always the canonical dir
 # resolved above, never $SKILLS_DIR or $1.
@@ -602,7 +619,7 @@ else
     echo "| CLAUDE.md | — | — | NOT FOUND at $CLAUDE_MD |"
 fi
 
-echo "| Skill count | $skill_count | $SKILLS_COUNT_BUDGET | $(status_of "$skill_count" "$SKILLS_COUNT_BUDGET") |"
+echo "| Skill count (excl. synced/) | $skill_count | $SKILLS_COUNT_BUDGET | $(status_of "$skill_count" "$SKILLS_COUNT_BUDGET") |"
 echo "| Max skill desc chars | $max_desc ($max_desc_skill) | $SKILL_DESC_BUDGET | $(status_of "$max_desc" "$SKILL_DESC_BUDGET") |"
 echo "| Max skill name chars | $max_name ($max_name_skill) | $SKILL_NAME_BUDGET | $(status_of "$max_name" "$SKILL_NAME_BUDGET") |"
 [ "$skill_count" -gt "$SKILLS_COUNT_BUDGET" ] && overages=1
@@ -610,7 +627,7 @@ echo "| Max skill name chars | $max_name ($max_name_skill) | $SKILL_NAME_BUDGET 
 
 # Bundled resources — one row for the whole
 # references/ + assets/ population.
-echo "| Bundled files failing size or heading checks (references/ + assets/) | $bundled_over of $bundled_count | 0 | $(status_of "$bundled_over" 0) |"
+echo "| Bundled files failing size or heading checks (references/ + assets/, excl. synced/) | $bundled_over of $bundled_count | 0 | $(status_of "$bundled_over" 0) |"
 [ "$bundled_over" -gt 0 ] && overages=1
 
 # Agent-authoring contract — always $CANONICAL_AGENTS_DIR,
@@ -736,14 +753,14 @@ if [ -x "$density_script" ]; then
     density_targets=()
     [ "$has_claude_md" -eq 1 ] && density_targets+=("$CLAUDE_MD")
     while IFS= read -r f; do density_targets+=("$f"); done < <(
-        find -L "$SKILLS_DIR" -type f \( -name "SKILL.md" -o -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort
+        find -L "$SKILLS_DIR" -type f ! -path "$SYNCED_DIR/*" \( -name "SKILL.md" -o -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort
     )
     if [ "${#density_targets[@]}" -gt 0 ]; then
         density_out=$("$density_script" "${density_targets[@]}" 2>/dev/null || true)
         density_total=$(printf '%s\n' "$density_out" | awk '/^[0-9]/' | wc -l | tr -d ' ')
         density_status="OK"
         [ "$density_total" -gt 0 ] && density_status="OVER" && overages=1
-        echo "## Density check (256 chars / 32 words per line)"
+        echo "## Density check (256 chars / 32 words per line, excl. synced/)"
         echo
         echo "Total violations: $density_total ($density_status)"
         if [ "$density_total" -gt 0 ]; then
