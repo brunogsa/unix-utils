@@ -88,10 +88,20 @@ Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles �
   - [Example] OK (step order — exempted): `implement/SKILL.md` citing its own `§3–§8 repeat once per PR` — the numbers encode the loop's bounds.
   - [Example] OK (registry anchors — exempted): an HLD/LLD citing its own `D-`/`PR-`/`R-`/`OQ-` items inside that same doc, per `design-docs`.
 
+- [Instruction] Cite only a target the reader can open — never an uncommitted scratch file; recap its finding inline instead.
+  - [Why] An untracked evidence file exists only on the author's machine, so the pointer resolves to nothing for everyone else.
+
+  - [Example] Bad: `// see evidence_erp-empty-stage.md §9` (untracked). Good: `// Stage proved the ERP rejects an all-bonused, kit-less payload.`
+
 - [Instruction] Keep requirement IDs and source paths out of every runtime string — a test title, an error message, a log message states the rule in plain language alone, and the pointer goes in an adjacent code comment only where a reader would actually need the source.
   - [Why] These strings are read in runner output, a stack trace, or a log query, where a path resolves against nothing and crowds out the rule the reader came for.
 
   - [Example] Bad: `it('rejects entrega.local="M" when tipoContrato is Loja Virtual (BR-002 — docs/designs/sync-agreements-pic1.9_hld.md §5.6)')`. Good: `it('rejects entrega.local="M" when tipoContrato is Loja Virtual')` — with `// BR-002 — docs/designs/sync-agreements-pic1.9_hld.md §5.6` above it if the source is worth citing.
+
+- [Instruction] Keep environment-specific record identifiers — a contract, order, or ticket number observed in one run — out of every runtime string.
+  - [Why] That record gets deleted or refreshed later, so the string sends a future reader hunting data that no longer exists.
+
+  - [Example] Bad: `it('accepts a mixed payload (SGE accepted on stage, contract 2026000137)')`. Good: `it('accepts a payload mixing a priced material with an all-bonused, kit-less one')`.
 
 - [Instruction] Write out any shorthand — a project-private acronym, an abstract call shape standing in for a value — instead of leaving the reader to decode it.
   - [Why] Decoding costs the reader a step, and the context it takes can be forgotten or never reach a new team member.
