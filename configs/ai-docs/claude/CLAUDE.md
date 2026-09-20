@@ -230,8 +230,11 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
   - [Example] DO NOT pre-show + ask: no "does this look good?", "confirm and I'll run it". UNLESS: the batch `git push` in `address-pr-comments` — irreversible, commonly allowlisted.
 
-- [Instruction] **CRITICAL: Preserve user work — prefer the least-destructive action, and never delete or overwrite an existing artifact without explicit instruction.**
+- [Instruction] **CRITICAL: Never delete or overwrite an existing artifact without explicit instruction.**
   - [Why] Each step up the destruction ladder risks losing unrecoverable context the user can't undo.
+
+- [Instruction] **Prefer the least-destructive action that accomplishes the change.**
+  - [Why] Two actions can both be authorized while one still throws away context the other keeps.
 
   - [Example] Move over write+delete; `git checkout -- <file>` over rewrite-to-revert; `git stash` over `git checkout` when still needed. Stage only your hunks (`git-hunk`) in a file holding others' uncommitted work.
 
