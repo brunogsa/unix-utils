@@ -8,7 +8,7 @@ A run may write the plan alone (SKILL.md) — never report the absent spec as a 
 
 **Deterministic** — a script or renderer returns the verdict, so re-running costs nothing.
 
-- Members: the mermaid fixer and the density checks, plus `check-sections.sh`, `check-test-distribution.sh`, `check-pr-dag.sh`, `check-tasks-dag.sh`, and, with a spec, `check-ac-coverage.sh` and `check-coverage-checklists.sh`.
+- Members: the mermaid fixer, the density checks, `check-sections.sh`, `check-test-distribution.sh`, `check-pr-dag.sh`, `check-tasks-dag.sh`, `check-ac-task-consistency.py`, plus, with a spec, `check-ac-coverage.sh` and `check-coverage-checklists.sh`.
 
 - Dispatch the mermaid fixer at its agent file's pinned model — never name one here.
   - Why: `subagent-model-guard.py` hard-denies an override, so naming one is an instruction no caller can follow.

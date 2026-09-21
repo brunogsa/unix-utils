@@ -122,12 +122,13 @@ Name the three fields exactly `traces_to_ac`, `right_sized`, and `qualitative_pa
 
 Why: asking after the plan is written lets a check get waived because it failed, rather than because it never applied.
 
-Eight formal checks run in sequence (six always-on + the two toggles above):
+Nine formal checks run in sequence (seven always-on + the two toggles above):
 
 | Check | Run by | Catches | Toggle? |
 |---|---|---|---|
 | Every template section is written | `check-sections.sh` | a dropped `## ` heading in either doc | Always on |
 | Every AC has a test | `check-ac-coverage.sh`, then `plan-reviewer` | AC↔Test Design coverage | Always on |
+| Every cited AC is its task's | `check-ac-task-consistency.py` | a Test Design row citing an AC its own task never declares | Always on |
 | Every test has a task | `check-test-distribution.sh` | Test Design↔per-task assignment | Always on |
 | How would this break? | `check-coverage-checklists.sh`, then `spec-reviewer` | checklist completeness + inversion sweep, merged | Always on |
 | PR dependencies form a DAG | `check-pr-dag.sh` | cyclic, dangling, or duplicate PR-N label in the PR Breakdown | Always on |
@@ -135,7 +136,7 @@ Eight formal checks run in sequence (six always-on + the two toggles above):
 | Every line traces to an AC | `plan-reviewer` | machinery↔AC traceability | Toggle |
 | Right-sized plan | `plan-reviewer` | scope vs. request, simplest design | Toggle |
 
-The six always-on checks, plus the Test Design authoring requirement itself, never become optional — they verify the plan is mechanically correct regardless of change size.
+The seven always-on checks, plus the Test Design authoring requirement itself, never become optional — they verify the plan is mechanically correct regardless of change size.
 
 No toggle removes one, including the two judged ones — "How would this break?" and the semantic half of "Every AC has a test".
 A no-toggle run keeps both: it drops the qualitative pass and the two toggled checks, and runs those two over whatever the plan alone carries.
