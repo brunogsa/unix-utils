@@ -167,6 +167,11 @@ def main():
 
     lines = plan.read_text(encoding="utf-8").splitlines()
 
+    if not any(DESIGN_HEADING.match(text) for text in lines):
+        exit_with_usage_error(f"no '## Test Design' section in {plan}")
+    if not any(TASKS_HEADING.match(text) for text in lines):
+        exit_with_usage_error(f"no '## Task Breakdown' section in {plan}")
+
     rows = read_annotation_rows(plan)
     row_lines = find_design_row_lines(lines)
 

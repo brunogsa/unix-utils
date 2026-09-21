@@ -190,6 +190,22 @@ def test_passes_trivially_when_no_row_carries_an_annotation(tmp_path):
     assert "0 task-AC citations" in result.stdout
 
 
+def test_exits_two_when_the_plan_has_no_test_design_section(tmp_path):
+    plan = _write_plan(tmp_path, design_body=None, task_body=CONSISTENT_TASKS)
+    result = _run(str(plan))
+    assert result.returncode == 2
+    assert "Test Design" in result.stderr
+
+
+def test_exits_two_when_the_plan_has_no_task_breakdown_section(tmp_path):
+    plan = _write_plan(
+        tmp_path, design_body=CONSISTENT_DESIGN, task_body=None
+    )
+    result = _run(str(plan))
+    assert result.returncode == 2
+    assert "Task Breakdown" in result.stderr
+
+
 def test_exits_two_when_the_test_design_section_holds_no_rows(tmp_path):
     plan = _write_plan(
         tmp_path,
