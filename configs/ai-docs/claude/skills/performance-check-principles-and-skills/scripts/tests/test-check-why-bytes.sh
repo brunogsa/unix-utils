@@ -118,10 +118,9 @@ run_row() {
 # Echo check.sh's exit code against the fixture.
 #
 # This exit code is NOT the cap's alone: check.sh resolves
-# the installed agents dir whatever fixture it is pointed at,
-# so it is a verdict on all eleven budgets over real repo
-# content too. An over-cap agent description turned this red
-# once while the cap under test was fine.
+# the installed agents dir whatever fixture it gets, so it
+# judges all eleven budgets over real repo content too. An
+# over-cap agent description turned this red once.
 #
 # So read the status table in the report before touching the
 # cap: a red here may name a budget in agents/ or CLAUDE.md,
