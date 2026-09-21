@@ -203,7 +203,7 @@ When a committed doc really must hold a shape, encode that shape as a checker ru
 - [Instruction] When multiple events produce the same outcome (different filters reset the page, different errors roll back one transaction), write ONE test on the outcome, not N one-per-trigger.
   - [Why] One-per-trigger tests miss the next trigger someone adds; a test on the shared outcome covers new triggers too.
 
-Distinguish from neighbors: "Remove redundant tests" fires on identical assertions; "One test per distinct cause" fires when causes have independent production branches; this rule fires when triggers differ but share one branch.
+Distinguish the two rules above: the code-path rule collapses cases that reach one shared branch; this one collapses independent branches that converge on a single observable outcome.
 
 [Example]
 ```ts

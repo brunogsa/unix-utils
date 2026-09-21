@@ -31,8 +31,8 @@ For each dependency call and state-changing operation — every call owes at min
 - partial failure (some items succeed, some fail)
 - auth / authz failure
 - rate limits / throttling (429)
-- concurrency / race / double-submit (UI: the control stays disabled during fetch)
-- idempotency (repeat-request behavior; API: idempotency keys, retry-resistant operations)
+- concurrency / race / double-submit
+- idempotency (repeat-request behavior)
 - network drop mid-operation
 - datastore unavailable / deadlock / constraint violation
 - crash mid-transaction (what state does the retry see?)
@@ -49,8 +49,10 @@ For each event or message the change consumes or emits:
 - redelivery after partial processing (consumer crashed mid-message)
 - poison message / dead-letter path
 
-## Classification note
+## Classification and probing notes
 
 Concurrency and idempotency file under failure modes (adverse interaction with state), not corner cases (data shape) — probe and checklist them there.
+
+Both take concrete forms per layer: on a UI, the control stays disabled during fetch; on an API, idempotency keys and retry-resistant operations.
 
 Duplicate / out-of-order *entries* (data inside one input list) are a corner case; duplicate / out-of-order *delivery* (the broker re-sends or reorders messages) files under async failure modes.
