@@ -56,6 +56,8 @@ Testing:
   case → RECOMMENDED, nice-to-have → NITPICK).
 - Test title describing implementation ("should call `setUser()`") instead of
   behavior ("should reject when the user is already logged in").
+- Test title carrying a lookup token from a design doc (`R4`, `BR-02`,
+  `PR-06`) instead of the rule in plain language.
 - Test mocking internal collaborators (indicates coupling to implementation
   that will break on refactor).
 - Test reproducing the logic under test (manually computing expected results

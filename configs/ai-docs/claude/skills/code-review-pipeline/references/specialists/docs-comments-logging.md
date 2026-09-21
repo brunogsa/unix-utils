@@ -49,6 +49,9 @@ Comments & docs:
 - Misleading docstring (parameter description doesn't match actual usage,
   return description is wrong).
 - Side effects or critical assumptions not documented where they matter.
+- WHY comment that is itself the symptom — it reads as a legitimate WHY, but
+  the only reason it is needed is an unclear name or structure. Flag the
+  restructure, not the comment's wording.
 
 Logging:
 - I/O loop without progress logs — per `code-standards`, loops of external
@@ -64,6 +67,10 @@ Logging:
 - Log message that assumes the reader already knows what's happening
   ("failed") instead of stating operation + inputs ("failed to fetch
   agreement XYZ for school ABC").
+- Error message sent to another system or to on-call that asserts a cause not
+  established at that point, or drops the underlying error. Bad: "internal
+  integrator failure while forwarding the agreement to the ERP queue". Good:
+  "Failed to publish agreement to ERP X queue. Please, retry this integration."
 
 ## Signals outside your scope
 - Comment style / formatting (linter covers it).
