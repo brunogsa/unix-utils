@@ -146,24 +146,23 @@ Budget violations are signals, not commands.
 - Fixes often require judgment (which rule to merge, which example to prune, whether to split a bullet or move to a reference file).
 - The skill surfaces findings so the user can triage; blind auto-consolidation tends to damage intent.
 
-### Offer to run the fixes on an opus subagent
+### Offer to run the audit on an opus subagent
 
-The audit stays report-only — but applying the fixes is noisy: dozens of read/edit/re-run calls that flood the main session's context.
+The audit stays report-only, and so does the subagent. Reading every offending file and judging what may go is the expensive part; main applies the edits the user picks.
 
-So when the report shows overages, end it with an offer: delegate the **fix loop**.
+When the report shows overages, end it with an offer: delegate the **candidate hunt**.
 
-On the user's go-ahead, main spawns `agent(subAgent=performance-check-fixer, title=Fix performance-check overages)` owning the whole loop in its own context:
+On the user's go-ahead, main spawns `agent(subAgent=performance-check-auditor, title=Audit performance-check overages)`, which reads the flagged files in its own context and returns a ranked menu:
 
-- Run `check.sh`, apply trim-hierarchy steps 1–4 to the offending files, re-run, repeat until green or stuck.
-- Load `skill-standards` before editing any `SKILL.md` — it holds the marker-splitting/nesting rules a trim must not violate.
+- Walk trim-hierarchy steps 1–4 over every offending file, collecting candidates rather than stopping at the first that clears the overage.
+- Verify each candidate's arithmetic on a `/tmp` copy — the script measures, the auditor proposes, neither edits the source.
 - Never the override step (`words-budget`/`instructions-budget`) — that's a budget trade-off the user owns, not a trim.
-- Return a concise summary plus a minimal diff so the user can review fast.
 
-**`performance-check-fixer` is pinned to opus, never a cheaper tier.** Delegation moves the *noise* off main, not the judgment.
+**`performance-check-auditor` is pinned to opus, never a cheaper tier.** Delegation moves the *reading* off main, not the judgment.
 
 A sonnet run merged two separately-violable instructions with an "and": the count drops, the hidden-instruction defect ships.
 
-The human's `git diff` read is the backstop — nothing lands as final until they review it.
+Main applies each pick under the user's eye — nothing lands unreviewed.
 
 ### Quote both sides, never cite by line number
 

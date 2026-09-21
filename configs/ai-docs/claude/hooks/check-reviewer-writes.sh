@@ -1,9 +1,10 @@
 #!/bin/bash
 # PreToolUse guard shared by every reviewer agent that references it from its
-# frontmatter: code-reviewer, spec-reviewer, plan-reviewer, test-reviewer.
+# frontmatter: code-reviewer, spec-reviewer, plan-reviewer, test-reviewer,
+# performance-check-auditor.
 #
 # Each is a read-only judge. Its write affordances are exactly two:
-#   1. persisting a verdict to a caller-assigned verdict file, and
+#   1. persisting a verdict to a verdict file, and
 #   2. scratch under /tmp — the review pipeline (auto-review) persists its wave
 #      artifacts to a mktemp dir there, and /tmp is never repo source.
 #
