@@ -117,12 +117,18 @@ run_row() {
 
 # Echo check.sh's exit code against the fixture.
 #
-# Fixtures here are the minimal two-line CLAUDE.md the byte
-# cap needs, so this is the one gate the cap itself controls.
+# This exit code is NOT the cap's alone: check.sh resolves
+# the installed agents dir whatever fixture it is pointed at,
+# so it is a verdict on all eleven budgets over real repo
+# content too. An over-cap agent description turned this red
+# once while the cap under test was fine.
+#
+# So read the status table in the report before touching the
+# cap: a red here may name a budget in agents/ or CLAUDE.md,
+# not in the fixture.
 #
 # The citation-only fixtures above pad other markers to
-# arbitrary widths, leaving the exit code unasserted —
-# nothing else in a minimal fixture can trip.
+# arbitrary widths, so they assert no exit code at all.
 check_exit_code() {
     local dir=$1
     bash "$CHECK" "$dir" >/dev/null 2>&1
