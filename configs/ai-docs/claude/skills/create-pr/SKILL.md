@@ -91,11 +91,14 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 - `agent(subAgent=pr-writer, title=Compose ideal PR description)` in the background, waiting for it — step 3 reads the file it writes.
   - Give it the changes digest, the resolved spec/plan paths, the resolved manual-evidence artifact path (or "none"), the appendix section list, the output path `./pr_<slug>_pr<N>.ideal.md`, and any resolved `<parent>`.
 
-  - It loads this skill and `doc-standards` itself, runs the extractors, and loops on the density, page-fit, and evidence gates before returning — none of that belongs in the dispatch prompt.
+  - It loads this skill and `doc-standards` itself, runs the extractors, and runs all three gates before returning — none of that belongs in the dispatch prompt.
 
 **All three gates belong to the agent — never re-run them here, and never hand-fix its prose.**
 
-- It returns only once `check-density.sh`, `check-pr-page-fit.sh`, and `check-pr-evidence.sh` all pass, so a main-session re-run re-measures an already-measured file and pays for a second dispatch.
+- It loops `check-pr-page-fit.sh` and `check-pr-evidence.sh` until both pass, so a main-session re-run re-measures an already-measured file and pays for a second dispatch.
+
+- **Density is the one gate it reports instead of fixing** -- a file whose density flags it named IS finished, so never send it back for them.
+  - File those flags as a `[Scout]` entry from its report: the agent cannot, since a subagent's TaskList write never reaches the user who triages it.
 
 **CRITICAL: It writes the IDEAL description in this skill's own format, ignoring any repo template** -- the repo's template is step 3's problem, not its.
 - The format has to stay stable, because `check-pr-page-fit.sh` can only hold a section to its budget when it recognizes that section.
