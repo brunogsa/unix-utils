@@ -318,6 +318,10 @@ function buildAvulso({ parentKit, childSku, price, discount }) {
 - [Instruction] When a spec defines N cases, design a unified pipeline that naturally produces correct output for all of them.
   - [Why] A 1:1 case translation couples control flow to spec — a spec change forces code change; each branch hides a bug.
 
+- [Instruction] When you work around another system's broken guarantee, say in the code that your data covers only what passed through you — it is not the source of truth.
+  - [Why] The workaround misses every record that never passed through you.
+  - [Example] "ERP must reject duplicates and doesn't; this table has only the agreements we created — ERP fix tracked separately."
+
 ### Design & performance choices
 
 - [Instruction] Prefer composition — small, focused pieces — over inheritance and deep class hierarchies.
