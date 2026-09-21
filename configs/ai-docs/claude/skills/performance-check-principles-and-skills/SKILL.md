@@ -68,19 +68,15 @@ words-budget: 4096
 ---
 ```
 
-Why: a few skills legitimately pair principles with inline examples (code-standards, test-standards), so they need ~2× the default budget.
-
-Hard-coding the exception list would couple performance-check to specific skill names; an opt-in field keeps the override self-documenting and local to the skill.
+Why: a few skills legitimately pair principles with inline examples (code-standards, test-standards) and need ~2× the default budget; an opt-in field keeps that self-documenting instead of hard-coding an exception list by name.
 
 The report stays quiet about an override until the skill blows past its own ceiling.
 
 Over-budget lines are annotated as `words=N(>budget (override; default=2048))` so the next reader knows the larger budget was intentional.
 
-`references/*.md` and `assets/*.md` take the same keys in their own frontmatter: `words-budget:` against the 1024 default, `lines-budget:` against the 256 one. Description, name, and count budgets stay global.
+`references/*.md` and `assets/*.md` take the same keys in their own frontmatter: `words-budget:` against 1024, `lines-budget:` against 256. Description, name, and count budgets stay global.
 
-Double from the default until the file fits (1024 → 2048 → 4096), and set only the key actually over.
-
-A `lines-budget` on a file already under 256 lines is a no-op that reads as a real exemption.
+Double from the default until the file fits (1024 → 2048 → 4096), setting only the key actually over — a `lines-budget` on a file already under 256 lines is a no-op that misreads as a real exemption.
 
 `check.sh` parses frontmatter with `NF == 2`, so a `#` comment line inside the block is skipped. Use one to record why the file resisted trimming, right where the override lives.
 
@@ -106,17 +102,21 @@ instructions-budget: 90
 ---
 ```
 
-The override is enforced **in addition to** the cross-skill `*-standards` total cap (200) — or **instead of** it for a skill that total exempts.
+The override is enforced **in addition to** the cross-skill `*-standards` total cap (200) — or **instead of** it for a skill that total exempts — letting the 200 be allocated intentionally, e.g. weighting test-standards over doc-standards since testing fires more often.
 
-It lets the 200 budget be allocated intentionally across standards skills — e.g., weighting test-standards over doc-standards since testing fires more often.
-
-When a skill exceeds its override, the report lists the offending count.
+Exceeding it, the report lists the offending count.
 
 Skills without `instructions-budget` participate only in the *-standards total — the per-skill check is silent for them, and an exempt one is then ungated entirely.
 
 **Same user-only rule applies**: AI must not set or raise `instructions-budget`.
 
-On an instruction-count overflow, AI's job is to merge near-duplicates, demote sub-bullets, or extract examples.
+On an instruction-count overflow, AI's job is to merge near-duplicates, demote sub-bullets, extract examples, or delete outright — deletion is a first-class move here, not a last resort.
+
+Reach for deletion first on: a rule redundant with one living elsewhere; an unenforceable one (no obedience test — an unbounded qualifier like "where reasonable"); a definition rather than a directive; or standard industry knowledge a Sonnet-class model already carries, not project-specific machinery that has to be taught.
+
+A bullet with no imperative verb and no nameable action a reader could fail to take is a definition wearing an `[Instruction]` marker, not an instruction — it spends a budget slot while enforcing nothing.
+
+Fix it by rewriting it as a directive, or by demoting it to an unmarked fact note or an `[Example]` under a neighboring instruction. Only the demotion drops the count, so say which one was applied.
 
 ## How to Run
 
@@ -129,17 +129,15 @@ bash scripts/check.sh <path>    # repo mode
 
 The script measures with `grep`, `awk`, `wc`, `find`, and `readlink`.
 
-- It prints a markdown report to stdout: the status table, then follow-up sections listing offending lines in CLAUDE.md and over-budget skills if any.
+- Prints a markdown report to stdout: the status table, then follow-up sections listing offending lines in CLAUDE.md and over-budget skills.
 - Both modes also audit `agents/*.md` against the canonical `~/.claude/agents` dir (resolved via `readlink -f`), hard-failing if unresolvable.
 - Exit code is 0 when all budgets are met, 1 otherwise — handy for CI.
 
 ## What the Report Looks Like
 
-A status table with one row per budget above, each `Measured | Budget | OK`-or-`OVER`.
+A status table with one row per budget above, each `Measured | Budget | OK`-or-`OVER`, then one follow-up section per failing budget naming the offending lines, skills, or bundled files, plus a per-skill CRITICAL-ratio table and the density total.
 
-Then one follow-up section per failing budget, naming the offending lines, skills, or bundled files — plus a per-skill CRITICAL-ratio table and the density total.
-
-Run the script rather than reproducing the shape here; a pasted sample drifts silently as budgets are added.
+Run the script rather than reproducing the shape here — a pasted sample drifts silently as budgets are added.
 
 ## Why Report-Only
 
@@ -167,6 +165,18 @@ A sonnet run merged two separately-violable instructions with an "and": the coun
 
 The human's `git diff` read is the backstop — nothing lands as final until they review it.
 
+### Quote both sides, never cite by line number
+
+A merge, demotion, or removal proposal spells out the full `[Instruction]`, its `[Why]`, and any `[Example]` children on both sides, plus the exact replacement text — never a bare pointer like "merge this under :202", already rejected as unreadable.
+
+### Surface width, not a shortlist
+
+Return 8–12 ranked candidates, never a pre-filtered top-3 — a short list where every candidate looked important was cut too early and had to be re-run wider.
+
+Keep every entry, ranked but unfiltered, each carrying its verbatim text, what real coverage is lost if it goes, and a confidence.
+
+A last-place candidate with an honest loss note still belongs — the human may value what the audit doesn't.
+
 ### Trim hierarchy (preference order)
 
 Apply in order, top to bottom. Each step is cheaper / less destructive than the next.
@@ -183,17 +193,9 @@ Apply in order, top to bottom. Each step is cheaper / less destructive than the 
 
 Extraction to `references/<name>.md` only buys savings if the content is **conditionally loaded** — fires on a specific trigger that doesn't hit every skill invocation.
 
-Examples that **earn** lazy extraction:
+Earns it: a mid-flight helper-insertion procedure, `code-review-pipeline`'s per-wave specialist rubrics, a debug deep-dive tree — each fires only on its own trigger.
 
-- Mid-flight helper-insertion procedure (fires only when a helper surfaces mid-task).
-- Domain-specific specialist rubrics in `code-review-pipeline` (each specialist file loads only when its wave runs).
-- Debug deep-dive trees (fire only when a specific failure pattern appears).
-
-Examples that **don't** earn lazy extraction (move them inline or split the skill instead):
-
-- Sections that fire every invocation (Gate procedures, always-needed orchestration steps).
-- "How to use this skill" content (always needed when the skill is loaded).
-- Standard verification matrices that apply to every skill output.
+Doesn't earn it (move inline or split the skill instead): gate procedures, "how to use this skill" content, a verification matrix every output needs — these fire every invocation.
 
 When extraction doesn't pass the lazy test, prefer steps 1–2 (drop / tighten) over step 3.
 
@@ -203,9 +205,9 @@ When extraction doesn't pass the lazy test, prefer steps 1–2 (drop / tighten) 
 
 - **Skill lines or words over**: apply the trim hierarchy above. Look for the redundancy and density wins first — references second.
 
-- **Skill description over 250 chars**: front-load triggers within the first 250 (the `/skills` listing only routes on those); move long enumerations of trigger phrases into the skill body, not the description.
+- **Skill description over 250 chars**: front-load triggers within the first 250, since only those route the `/skills` listing; move long trigger-phrase enumerations into the body.
 
-- **Skill name over 64 chars**: rename the skill directory (the `name` Claude Code uses); ensure replacement is still descriptive in gerund form.
+- **Skill name over 64 chars**: rename the skill directory (what Claude Code reads as `name`), keeping the replacement descriptive in gerund form.
 
 - **Skill count over**: merge near-duplicate skills or fold rarely-used ones into a broader sibling.
 
@@ -213,16 +215,4 @@ Cite the research file when justifying cuts — grounded numbers are easier to d
 
 ## Why These Numbers
 
-Short answers:
-
-- **CLAUDE.md length (260 lines)**: Jaroslawicz et al. 2025 (arXiv:2507.11538) found instruction-following peaks at 150–200 *instructions*, degrading to 68% at 500.
-  - The old 200-*line* budget stood in for instruction count under "1 line ≈ 1 instruction" — true before the marker convention.
-  - Markers added a [Why] line under every [Instruction], so lines now ≈ 2× instructions + header/meta; the line cap no longer proxies the count.
-  - The [Instruction] count (≤100) is the real adherence gate; the line budget only guards marker-overhead bloat — re-derived to 260.
-
-- **Skill lines**: Anthropic's own skill-authoring docs state "Keep SKILL.md body under 500 lines."
-- **Skill description chars**: Claude Code 2.1.86 caps the `/skills` listing at 250 chars per description; only those participate in routing. The 1024 frontmatter cap is the failure threshold, not the budget.
-
-- **Skill name chars**: Anthropic's frontmatter validation rejects names over 64 chars. We measure the directory `basename` because that's what Claude Code uses when no explicit `name` field is set.
-
-- **Other values**: user preferences where no authoritative source exists; kept deliberately so the skill can be dialled without re-citing research.
+See [`references/research.md`](references/research.md) for the citation backing each budget value and how to re-derive one when a source changes.
