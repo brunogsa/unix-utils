@@ -32,7 +32,9 @@ Exit codes:
       dependency projection onto the PR partition is consistent.
   1 - one of the four defects above was found (diagnostics on stderr).
   2 - usage error (wrong arg count, plan file missing, a breakdown
-      section carries real entries that could not be parsed).
+      section carries real entries that could not be parsed, or a
+      task's "Depends on" field is written in neither canonical
+      shape).
 """
 import re
 import subprocess
@@ -60,7 +62,20 @@ DEPENDS_FIELD_RE = re.compile(r"\*?\*?Depends on\*?\*?:\s*(?P<deps>[^.\n]*)")
 # dependency block can never leak into a neighboring task,
 # mirroring check-tasks-dag.sh's own state-machine boundary.
 TASK_HEADING_SPLIT_RE = re.compile(r"^### (\d+)\. ", re.M)
-TASK_DEPS_BLOCK_RE = re.compile(r"\*\*Depends on\*\*:\n((?:- .*\n?)+)")
+
+# The whole field: its same-line trailer plus any "- ..."
+# bullets directly under it. Only two shapes are canonical
+# (plan-template.md): a "none" trailer, or an empty trailer
+# over at least one "- Task N" bullet.
+#
+# Anything else, the inline "**Depends on**: Task 1" above
+# all, is a grammar violation rather than a dependency-free
+# task. Reading it as dependency-free is what let this
+# checker pass vacuously over a plan of real dependencies.
+TASK_DEPS_FIELD_RE = re.compile(
+    r"^\*\*Depends on\*\*:(?P<trailer>[^\n]*)(?:\n(?P<bullets>(?:- [^\n]*\n?)+))?",
+    re.M,
+)
 
 
 def extract_section(plan_file: Path, heading_pattern: str) -> str:
@@ -100,15 +115,27 @@ def parse_pr_entries(section: str):
     return pr_tasks, pr_deps
 
 
-def parse_task_entries(section: str) -> dict[str, list[str]]:
-    """Return task id -> the task ids it depends on, for every
-    "### N." entry in a Task Breakdown section."""
+def parse_task_entries(section: str):
+    """Return (task_deps, ungrammatical): task id -> the task
+    ids it depends on, plus the ids whose "Depends on" field
+    is written in neither canonical shape."""
     chunks = TASK_HEADING_SPLIT_RE.split(section)
     task_deps: dict[str, list[str]] = {}
+    ungrammatical: list[str] = []
     for tid, body in zip(chunks[1::2], chunks[2::2]):
-        deps_match = TASK_DEPS_BLOCK_RE.search(body)
-        task_deps[tid] = re.findall(r"- Task (\d+)", deps_match.group(1)) if deps_match else []
-    return task_deps
+        field = TASK_DEPS_FIELD_RE.search(body)
+        if field is None:
+            task_deps[tid] = []
+            continue
+        trailer = field.group("trailer").strip()
+        bullets = re.findall(r"- Task (\d+)", field.group("bullets") or "")
+        if trailer == "none":
+            task_deps[tid] = []
+        elif trailer == "" and bullets:
+            task_deps[tid] = bullets
+        else:
+            ungrammatical.append(tid)
+    return task_deps, ungrammatical
 
 
 def get_ancestor_prs(pid: str, pr_deps: dict[str, list[str]]) -> set[str]:
@@ -207,7 +234,20 @@ def main() -> int:
         return 2
 
     task_section = extract_section(plan_file, "^Task Breakdown[[:space:]]*$")
-    task_deps = parse_task_entries(task_section)
+    task_deps, ungrammatical = parse_task_entries(task_section)
+    if ungrammatical:
+        labels = ", ".join(f"Task {tid}" for tid in ungrammatical)
+        print(
+            f"error: unparsable **Depends on** field in: {labels}",
+            file=sys.stderr,
+        )
+        print(
+            "  canonical grammar: '**Depends on**: none', or a bare "
+            "'**Depends on**:' line followed by one '- Task N' bullet "
+            "per dependency",
+            file=sys.stderr,
+        )
+        return 2
     if not task_deps:
         print(
             "error: Task Breakdown section found but no task entries "

@@ -228,3 +228,35 @@ def test_should_exit_0_on_the_real_script_overhaul_plan_27_tasks_18_prs():
     result = _run(real_plan)
     assert result.returncode == 0, result.stderr
     assert result.stdout.startswith("OK:")
+
+
+def test_should_exit_2_when_a_task_names_its_dependencies_inline_instead_of_as_task_bullets(tmp_path):
+    # The inline form parses as dependency-free, so every
+    # projection check below it passes vacuously — the fail-open
+    # the exit-2 grammar guard closes.
+    task_body = (
+        "### 1. First task\n\n"
+        "**Depends on**: none\n\n"
+        "### 2. Second task\n\n"
+        "**Depends on**: Task 1\n"
+    )
+    pr_body = "1. **PR-1** — First slice. Tasks: 1, 2. Depends on: none.\n"
+    plan = _write_plan(tmp_path, task_body=task_body, pr_body=pr_body)
+    result = _run(plan)
+    assert result.returncode == 2
+    assert "Task 2" in result.stderr
+    assert "- Task N" in result.stderr
+
+
+def test_should_exit_2_when_a_task_depends_on_opens_with_a_bare_colon_and_lists_no_task_bullet(tmp_path):
+    task_body = (
+        "### 1. First task\n\n"
+        "**Depends on**:\n\n"
+        "### 2. Second task\n\n"
+        "**Depends on**: none\n"
+    )
+    pr_body = "1. **PR-1** — First slice. Tasks: 1, 2. Depends on: none.\n"
+    plan = _write_plan(tmp_path, task_body=task_body, pr_body=pr_body)
+    result = _run(plan)
+    assert result.returncode == 2
+    assert "Task 1" in result.stderr
