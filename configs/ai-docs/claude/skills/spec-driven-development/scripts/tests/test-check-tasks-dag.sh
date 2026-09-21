@@ -30,6 +30,19 @@ assert_eq() {
   fi
 }
 
+# assert_contains - inline assert helper: checks that a
+# captured stream carries an expected substring.
+assert_contains() {
+  local description="$1" needle="$2" haystack="$3"
+  if [[ "$haystack" == *"$needle"* ]]; then
+    pass_count=$((pass_count + 1))
+    printf 'ok - %s\n' "$description"
+  else
+    fail_count=$((fail_count + 1))
+    printf 'not ok - %s\n  expected: %s\n  actual:   %s\n' "$description" "$needle" "$haystack"
+  fi
+}
+
 # run_script - invokes check-tasks-dag.sh against a plan-file fixture,
 # capturing stderr/exit code into VERDICT_ERR/VERDICT_EXIT (stdout is
 # discarded — these tests assert on exit code and diagnostic presence only).
@@ -150,8 +163,39 @@ it_should_detect_a_duplicate_label_when_two_task_breakdown_entries_share_the_sam
   fi
 }
 
+it_should_reject_a_task_that_names_its_dependencies_inline_instead_of_as_task_bullets() {
+  local fixture
+  fixture=$(write_plan "inline-deps" '### 1. New first task
+
+**Depends on**: none
+
+### 2. New second task
+
+**Depends on**: Task 1')
+  run_script "$fixture"
+  assert_eq "should reject a task that names its dependencies inline instead of as Task bullets (exit code)" "2" "$VERDICT_EXIT"
+  assert_contains "should reject a task that names its dependencies inline instead of as Task bullets (names the offending task)" "Task 2" "$VERDICT_ERR"
+  assert_contains "should reject a task that names its dependencies inline instead of as Task bullets (names the canonical grammar)" "- Task N" "$VERDICT_ERR"
+}
+
+it_should_reject_a_task_whose_depends_on_opens_with_a_bare_colon_and_lists_no_task_bullet() {
+  local fixture
+  fixture=$(write_plan "bare-colon" '### 1. New first task
+
+**Depends on**:
+
+### 2. New second task
+
+**Depends on**: none')
+  run_script "$fixture"
+  assert_eq "should reject a task whose Depends on opens with a bare colon and lists no Task bullet (exit code)" "2" "$VERDICT_EXIT"
+  assert_contains "should reject a task whose Depends on opens with a bare colon and lists no Task bullet (names the offending task)" "Task 1" "$VERDICT_ERR"
+}
+
 it_should_pass_when_every_task_dependency_resolves_to_a_real_non_cyclic_task_id
 it_should_pass_when_no_task_declares_a_depends_on_entry_fully_independent_task_list
+it_should_reject_a_task_that_names_its_dependencies_inline_instead_of_as_task_bullets
+it_should_reject_a_task_whose_depends_on_opens_with_a_bare_colon_and_lists_no_task_bullet
 it_should_detect_a_two_task_cycle_when_task_1_depends_on_task_2_and_task_2_depends_on_task_1
 it_should_detect_a_dangling_reference_when_a_task_depends_on_a_task_id_absent_from_the_task_breakdown
 it_should_detect_a_duplicate_label_when_two_task_breakdown_entries_share_the_same_task_number
