@@ -308,6 +308,15 @@ A second AI pass over text they are actively editing spends a dispatch on a movi
 Read the Open Questions section of the plan, and of the spec when one exists.
 
 While either still holds a `**QUESTION:**` entry, interview the user to settle them — `AskUserQuestion`, 2-3 at a time, recommended answer first, exactly as in step 4.
+
+**This loop has exactly two exits**: every question is answered, or the user explicitly defers a specific one. Never stop because a round is mostly settled, or because the user answered the batch you happened to ask.
+
+An answer that raises a new `**QUESTION:**` joins the same loop — keep asking until a round adds none.
+
+**A deferral is recorded, never deleted.** Rewrite that entry's marker to `**DEFERRED:**` plus the user's reason for deferring it. That keeps the question visible to the next reader, while `check-open-questions.sh` stops counting it as unsettled.
+
+Why an explicit deferral is the only other exit: a question left unanswered by drift reads identically to one nobody noticed, and the gate cannot tell them apart.
+
 Then dispatch `agent(subAgent=plan-editor, title=Close open questions in the plan)` to fold the plan's answers in, and — full mode only, when the spec also held one — `agent(subAgent=spec-editor,
 title=Close open questions in the spec)` for the spec's. Each leaves its own Open Questions section reading `None`.
 
