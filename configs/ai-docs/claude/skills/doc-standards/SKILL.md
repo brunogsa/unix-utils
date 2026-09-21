@@ -83,7 +83,7 @@ Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles �
 - [Instruction] Cite sources only by file path, URL, or named anchor — never a bare symbol name or a numbered lookup token; exempt a doc's own step numbers and anchors.
   - [Why] A path, URL, or anchor survives edits; a bare name or lookup number forces a hunt and rots silently on renumber.
 
-  - [Example] Bad (lookup pointers — spell the behavior out inline): `AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
+  - [Example] Bad (lookup pointers — spell the behavior out inline): `AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `BR-N` rules, `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
   - [Example] Bad (bare symbol name): `see handleRetry`. Good: `handleRetry` in `src/net/retry.ts`, or `[HLD → Riscos](./hld.md#riscos)`.
   - [Example] OK (step order — exempted): `implement/SKILL.md` citing its own `§3–§8 repeat once per PR` — the numbers encode the loop's bounds.
   - [Example] OK (registry anchors — exempted): an HLD/LLD citing its own `D-`/`PR-`/`R-`/`OQ-` items inside that same doc, per `design-docs`.
