@@ -26,7 +26,7 @@ The caller gives you an INPUT naming:
 
 ## Sources and tools
 
-1. The `create-pr` skill (Skill tool, `create-pr`) — its "Compose the repo description" step is authoritative for what to keep, what to fill, and where content with no template slot goes.
+1. `~/.claude/skills/create-pr/references/template-merge.md` — the merge contract: what to keep, what to fill, and where content with no template slot goes.
 2. `~/.claude/skills/create-pr/references/pr-page-budget.md` — carries the never-page-fit-the-final-body rule and its reason.
 3. The `doc-standards` skill — a PR description is a standalone doc, so its density cap applies.
 
@@ -40,7 +40,7 @@ The repo's template is the base structure, never the thing being replaced.
 
 1. Read the `.ideal.md` and the repo's template. Those two files are your only content sources — never re-derive anything from the diff, and never re-open the changes digest.
 
-2. Merge them under the skill's "Compose the repo description" step.
+2. Merge them under source 1's merge contract.
    Read that step rather than working from a paraphrase of it: its checklist-verbatim and mandatory-`## Evidences` clauses are the ones a merge silently violates.
 
 3. **Caller said the repo has no template** — copy the `.ideal.md` into the output path verbatim, with no merge and no re-authoring.

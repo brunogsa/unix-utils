@@ -20,6 +20,8 @@ Read before drafting a PR body. `pr-writer` and `pr-finalizer` load this; `SKILL
 
 - **Appendix complements, never copies** -- duplicates at the same altitude are stripped.
   - Diagrams live in Architecture, expanded, removed from appendix.
+  - Excluded for the same reason, the body owning them: Background/Context, Goals, User Stories, and the plan's task breakdown.
+  - Included: Testable Acceptance Criteria, Functional Decisions, Technical Decisions, Non-Functional/Technical Requirements, Test Design, and any section with no body counterpart.
   - No spec resolved → no acceptance-criteria or decision sections; code carries them.
 
 - **CRITICAL: One subject may appear both places ONLY at different altitudes** -- body summary, appendix full.

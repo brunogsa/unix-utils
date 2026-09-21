@@ -43,10 +43,9 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 
   - None found → proceed from the changes digest (below) only, auto-resolved.
 
-- **Discover a manual-evidence artifact in cwd by glob `evidence_*.md` (top-level)** -- a persisted artifact file is the only path a manual scenario can reach the PR through.
-  - The session's own recollection is never a source; that gap is what let narrated, unbacked bullets through before.
-
-  - One found → use it, auto-resolved. None found → auto-resolve to "none", and Evidences carries automated coverage only. Multiple found → open question **(C) Evidence artifact**: list them numbered.
+- **Discover a manual-evidence artifact in cwd by glob `evidence_*.md` (top-level)** -- a persisted file is the only path a manual scenario reaches the PR through.
+  - The session's own recollection is never a source; that gap is what let narrated, unbacked bullets ship.
+  - One found → use it. None → "none", and Evidences carries automated coverage only. Several → open question **(C) Evidence artifact**, listed numbered.
 
 - **Resolve the output filename's `<slug>` and `<N>` (used in step 2)**: `<slug>` is the shared filename slug from the resolved spec/plan filenames.
   - Fall back to the current branch name (`/` → `-`) when neither spec nor plan resolved.
@@ -73,9 +72,7 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
   - It is this skill's durable record, not a separate scratchpad -- it survives a mid-flow compaction that would drop the answers.
 
 - **Derive the appendix's section list — never ask the user for it** -- it is the resolved spec/plan minus every section the body already renders.
-  - Excluded, because the body owns them at the same altitude: mermaid diagrams, Background/Context, Goals, User Stories, and the plan's task breakdown.
-  - Included: Testable Acceptance Criteria, Functional Decisions, Technical Decisions, Non-Functional/Technical Requirements, Test Design, and any section with no body counterpart.
-  - Decisions follow the altitude rule in [`references/pr-page-budget.md`](references/pr-page-budget.md).
+  - Which sections are excluded, which are included, and the altitude rule behind the split: [`references/pr-page-budget.md`](references/pr-page-budget.md), a mandatory read already.
   - `### References` joins them there as authored content, so the appendix survives even when no spec/plan resolved.
 
 - **CRITICAL: Both halves of a spec/plan reach the PR by script, never by re-authoring** -- the main session derives the list, and step 2's agent runs the extractors.
@@ -98,7 +95,7 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 - It loops `check-pr-page-fit.sh` and `check-pr-evidence.sh` until both pass, so a main-session re-run re-measures an already-measured file and pays for a second dispatch.
 
 - **Density is the one gate it reports instead of fixing** -- a file whose density flags it named IS finished, so never send it back for them.
-  - File those flags as a `[Scout]` entry from its report: the agent cannot, since a subagent's TaskList write never reaches the user who triages it.
+  - File those flags as a `[Scout]` from its report; a subagent cannot, its TaskList write never reaching the user who triages it.
 
 **CRITICAL: It writes the IDEAL description in this skill's own format, ignoring any repo template** -- the repo's template is step 3's problem, not its.
 - The format has to stay stable, because `check-pr-page-fit.sh` can only hold a section to its budget when it recognizes that section.
@@ -144,24 +141,13 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 - **Never copy the file here instead** -- the body-size gate runs only inside the agent.
   - A `cp` in the main session would push a `.final.md` no gate ever measured, on the path most repos take.
 
-- It re-reads the rules below from this skill, and owns the density and body-size gates end to end — same as step 2, they are never re-run.
+- It re-reads the merge rules itself, and owns the density and body-size gates end to end — same as step 2, they are never re-run.
 
 - **It also returns the PR title** -- carry that line to step 4's `--title`; the body file is the only other thing this step hands forward.
 
-**CRITICAL: The repo's template is the base structure, never the thing being replaced.**
+**The merge contract — keep the template as the base, fill it from the ideal description, and where content with no slot goes — is [`references/template-merge.md`](references/template-merge.md)'s.**
 
-- Keep every section and checkbox, sourced from the ideal description, not re-derived from the diff.
-
-- Preserve its checklist verbatim -- never rewrite, reorder, or prune the items; the default template carries no checklist, so the repo's is the only one.
-
-- Mark checklist items `[x]` when applicable.
-  - **An item with no local evidence to back it stays unchecked, reported as a caveat.**
-    - Example: an e2e/integration check that needs infra this session doesn't have.
-    - Never ask whether to go run it; the reviewer verifies and flips it on GitHub.
-
-- Add whatever the ideal description carries that the template has no slot for WITHIN it (preferred) or as an appendix, **NEVER** replacing it.
-
-- **CRITICAL: `## Evidences` is MANDATORY** regardless of the template -- add it inside the template structure when absent.
+- Main never merges a template, so those rules stay out of this file's always-on load.
 
 **Never page-fit the final body** -- the rule and its reason are [`references/pr-page-budget.md`](references/pr-page-budget.md)'s.
 
