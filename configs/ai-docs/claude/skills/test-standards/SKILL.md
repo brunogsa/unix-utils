@@ -12,19 +12,16 @@ Principles for any test work. Each section pairs a principle with its WHY, with 
 
 ## Test types
 
-- [Instruction] Unit tests exercise a single function or module in isolation — especially good for stress-testing corner cases in leaf functions (parsers, normalizers, validators, formatters).
+- [Instruction] Reach for a unit test to stress-test corner cases in a leaf function — a parser, normalizer, validator, or formatter — exercised in isolation.
   - [Why] Fast execution shortens the code-test cycle, but isolation alone can't prove business value delivered.
 
-- [Instruction] Integration tests exercise multiple units together with some parts mocked — typically external/IO boundaries like DB, HTTP, queues.
-  - [Why] They verify units collaborate correctly without E2E's full-stack cost, while still validating real behavior.
+- [Instruction] Reach for an integration test to exercise several units together with only the external/IO boundaries — DB, HTTP, queues — mocked.
+  - [Why] It verifies units collaborate without E2E's full-stack cost, while still validating real behavior.
 
-- [Instruction] Make integration tests the most-used tier of the suite.
-  - [Why] They hit the sweet spot — more real behavior than unit tests, far cheaper and less brittle than E2E.
-
-- [Instruction] Contract tests verify the API boundary between two systems — request/response shape, status codes, error format — without running the full stack.
+- [Instruction] Reach for a contract test to pin the API boundary between two systems — request/response shape, status codes, error format — without standing up the full stack.
   - [Why] Cheaper and faster than E2E (no full-stack setup) and catches incompatibilities before they reach E2E or production.
 
-- [Instruction] E2E tests exercise real scenarios end-to-end with no mocking — only fake or test data — validating the full system as users experience it.
+- [Instruction] Write an E2E test to exercise a real scenario end-to-end with no mocking at all — only fake or test data.
   - [Why] No mocking means they catch integration bugs that narrower tests miss.
 
 - [Instruction] Reserve E2E for a few critical paths — don't grow the E2E tier broadly.
@@ -54,6 +51,10 @@ Principles for any test work. Each section pairs a principle with its WHY, with 
 
 - [Instruction] **Probe corner-case and failure-mode coverage against the canonical checklists in `references/coverage-taxonomy.md`** — that file owns the category lists; other skills only recap it.
   - [Why] One canonical taxonomy keeps probes, checklists, and test design aligned; parallel copies drift and ship gaps.
+  - [Example] Caps: a cap of N gets an explicit N+1 test proving the cap engages.
+  - [Example] Dependency calls: success, error response, AND timeout/never-responds — all three branches.
+  - [Example] Async safety: disabled-during-fetch (UI), idempotency keys (API), retry-resistant operations.
+  - [Example] Caches: both directions — populate and read back, then clear or invalidate (value gone, refetch reloads).
 
 Concrete patterns this rule generates:
 
@@ -80,21 +81,9 @@ it('should filter by date range', ...);
 it('should filter by assignee', ...);
 ```
 
-- [Instruction] **Boundary on caps/limits** — a cap of N gets an explicit N+1 test: send N+1 of the limited thing and prove the cap engages.
-  - [Why] Happy-path-only leaves the invariant unverified — the cap could break silently and every test would miss it.
-
 - [Instruction] **Fixture data must enter the guarded branch** — when the code under test has precision/rounding/division/dedup logic, build fixtures from realistic non-round, multi-element values, never round numbers or a single element.
   - [Why] A round-number, single-element fixture stays green while never executing the guarded branch, hiding the bug.
   - [Example] Price `1000` split one way never trips a rounding-reconciliation guard; `1058.33` divided across 3 shares of `33.33%` does.
-
-- [Instruction] **Async safety / idempotency** — explicitly test disabled-during-fetch (UI), idempotency keys (API), and retry-resistant operations.
-  - [Why] These are the actions a manual tester would re-fire — untested, they leave a double-submit or duplicate-write gap.
-
-- [Instruction] **Three-branch dependency outcome** — test success, error response, AND timeout/never-responds for every dependency call.
-  - [Why] Missing the timeout branch leaves a real gap — the caller hangs forever (UI stuck, backend leaking connections).
-
-- [Instruction] **Test both cache directions** — when you test that data is cached and read back, also test that clearing or invalidating it works (value gone, refetch reloads it).
-  - [Why] Testing only the populate path leaves eviction unverified — broken invalidation silently serves stale data.
 
 - [Instruction] **Observably-non-empty BEFORE and AFTER** — for filter/transition tests (UI or API), baseline and final state must both be non-empty.
   - [Why] Empty-to-something only proves the filter renders/returns something — not that it changes the result meaningfully.
@@ -207,12 +196,9 @@ When a committed doc really must hold a shape, encode that shape as a checker ru
 
 ### One test per distinct cause
 
-- [Instruction] **CRITICAL: When a new test exercises the same code path with the same inputs as an existing one, remove the duplicate or merge.**
-  - [Why] Two tests asserting the same thing don't improve safety — they slow the suite and double the maintenance burden.
+- [Instruction] **CRITICAL: Make the code path the unit of a test — every case reaching the same path collapses into one test, identical inputs or not.**
+  - [Why] Distinct paths are the unit of safety; duplicates on one path add upkeep and suite time with no coverage gain.
   - [Example] If "max 10" is enforced, one test at 11 covers it; tests at 12, 15, 100 are redundant — boundary + 1 is the contract.
-
-- [Instruction] Isolate each independent trigger for a behavior; different inputs that exercise the same code path are one test, not two.
-  - [Why] Distinct causes are the unit of safety — two cases on the same code path add upkeep with no coverage gain.
 
 - [Instruction] When multiple events produce the same outcome (different filters reset the page, different errors roll back one transaction), write ONE test on the outcome, not N one-per-trigger.
   - [Why] One-per-trigger tests miss the next trigger someone adds; a test on the shared outcome covers new triggers too.
@@ -282,12 +268,10 @@ describe('contractValidation.getSchoolsAgreementsAndSkus', () => {
 
 - [Instruction] **No shared state between tests — each test sets up and tears down its own.**
   - [Why] Shared state makes outcome depend on run order — pass 9 times, fail the 10th, and rerun replaces investigate.
+  - [Example] Clone an input before passing it to a mutating function; otherwise it corrupts the shared fixture the next test inherits.
 
 - [Instruction] **No randomness in test inputs or assertions — use fixed values.**
   - [Why] A random input means a failure may not reproduce, so the signal is unactionable and erodes trust in the suite.
-
-- [Instruction] Clone inputs before passing them to mutating functions.
-  - [Why] A function that mutates its argument corrupts the shared fixture, so the next test silently inherits it.
 
 - [Instruction] **Pin the clock with fake timers whenever the system under test reads it (directly or via helpers); test names like "expired", "deadline", "min", "cap" are the tell.**
   - [Why] Without a frozen clock, a time-derived test passes today and silently fails once the wall-clock crosses its threshold.
@@ -418,8 +402,8 @@ expect(response.body.pagination).toEqual({ page: 1, pageSize: 20, totalItems: 1,
 - [Instruction] Delete dead skips — a stale one (old, no follow-up commits, referenced code gone or changed), or the whole file when 100% of its tests are skipped.
   - [Why] A stale skip pads the count with tests mapping to no real code; a fully-skipped file adds only audit cost.
 
-- [Instruction] Un-skip and run when the condition that justified the skip may have lifted.
-  - [Why] If it passes, the skip outlived its purpose; if it fails meaningfully, it just caught a real gap.
+- [Instruction] File a `[Scout]` whenever you judge the condition justifying a skip has lifted, naming the test and why it looks un-skippable now.
+  - [Why] Only a filed entry gets triaged — an un-skip judged in passing is lost and the skip goes unchallenged.
 
 - [Instruction] When the answer is "delete," capture the investigation (what was tried, why the skip is dead, what code it would have guarded) in the commit body.
   - [Why] The next reader who wonders why that coverage vanished needs the reasoning, or they re-litigate the same dead skip.
