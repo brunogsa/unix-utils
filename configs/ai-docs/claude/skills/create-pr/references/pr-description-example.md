@@ -331,7 +331,10 @@ The criteria below carry the field-by-field mapping (source → destination → 
 - unicode / whitespace-only / leading-trailing spaces: **N/A — text (name/address) is passthrough from the CRM/PIC; shape validation belongs to the middleware/source**
 - duplicate / out-of-order entries: **N/A — the translator doesn't deduplicate Agreement entries (message dedup belongs to the Foundation)**
 - boundary numbers (0, -1, MAX_INT, off-by-one): **covered** (`duracao`=1 → off-by-one on the term; `anoProduto`/`bimestre`=0 on the collection item)
+- caps and limits: **N/A — the translator enforces no cap or limit of its own**
+- numeric precision: **covered** (kit apportionment rounds to 2 decimals, allocating the residual so Σ(`precoTotal`) = the collection price)
 - clock / timezone / DST boundaries: **covered** (term 01/03–31/12, as pure `YYYY-MM-DD` strings)
+- timestamp format / offset: **N/A — dates travel as date-only strings; no epoch, offset, or fractional seconds crosses the boundary**
 - combined / composed filters: **N/A — no composed filters in this flow**
 
 ##### Single-brand vs multi-brand Agreement
@@ -370,6 +373,7 @@ The criteria below carry the field-by-field mapping (source → destination → 
 - network drop mid-operation: **covered** (network failure / unmapped exception → retryable)
 - datastore unavailable / deadlock / constraint violation: **N/A — the translator doesn't access its own datastore; only HTTP to SGE/CRM**
 - crash mid-transaction (what state does retry see?): **covered** (retry reprocesses the same 3 idempotent calls)
+- cache in both directions: **N/A — the translator holds no cache to populate or invalidate**
 - stale cache: **N/A — read-then-PUT always reads the CRM fresh; no cache in the translator**
 - resource exhaustion: **N/A — backpressure/queue is the Foundation's responsibility**
 - duplicate delivery (at-least-once): **covered** (redrive idempotency)
