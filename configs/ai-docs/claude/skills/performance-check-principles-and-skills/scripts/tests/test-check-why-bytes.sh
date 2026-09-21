@@ -8,9 +8,10 @@
 # These assert ONLY the over-budget-[Why] section and its
 # status-table row.
 #
-# Every fixture below trips other budgets too, so the exit
-# code is ignored: a fixture tuned to satisfy all eleven
-# budgets would be rewritten by every future budget change.
+# The exit code is asserted in the over-cap direction only,
+# where the fixture's own violation guarantees it. No fixture
+# here asserts a clean exit 0; tests/test-repo-budgets.sh
+# gates that, over the repo's real tree.
 #
 # check.sh resolves $HOME/.claude/agents unconditionally, so
 # these run against an installed config, not a bare checkout.
@@ -117,17 +118,10 @@ run_row() {
 
 # Echo check.sh's exit code against the fixture.
 #
-# This exit code is NOT the cap's alone: check.sh resolves
-# the installed agents dir whatever fixture it gets, so it
-# judges all eleven budgets over real repo content too. An
+# Only usable in the non-zero direction: check.sh resolves
+# the installed agents dir whatever fixture it gets, so a
+# clean fixture can still exit 1 over real repo content. An
 # over-cap agent description turned this red once.
-#
-# So read the status table in the report before touching the
-# cap: a red here may name a budget in agents/ or CLAUDE.md,
-# not in the fixture.
-#
-# The citation-only fixtures above pad other markers to
-# arbitrary widths, so they assert no exit code at all.
 check_exit_code() {
     local dir=$1
     bash "$CHECK" "$dir" >/dev/null 2>&1
@@ -284,15 +278,14 @@ it_should_report_over_in_the_row_when_a_why_line_is_over_the_cap() {
     rm -rf "$d"
 }
 
-it_should_exit_zero_and_report_ok_when_every_why_line_is_at_or_under_the_cap() {
-    echo "it_should_exit_zero_and_report_ok_when_every_why_line_is_at_or_under_the_cap"
+it_should_report_ok_in_the_row_when_a_why_line_sits_exactly_at_the_cap() {
+    echo "it_should_report_ok_in_the_row_when_a_why_line_sits_exactly_at_the_cap"
     local d; d=$(new_fixture)
     {
         printf '# Principles\n\n'
         printf -- '- [Instruction] Verify everything you build.\n'
         marker_line_of_bytes "$CAP" Why
     } > "$d/CLAUDE.md"
-    assert_eq "exits zero" "0" "$(check_exit_code "$d")"
     assert_eq "row reads ok" "| [Why] lines over $CAP bytes | 0 | 0 | OK |" "$(run_row "$d")"
     rm -rf "$d"
 }
@@ -308,7 +301,7 @@ it_should_report_a_clean_file_as_zero_in_the_status_table
 it_should_count_every_over_cap_why_in_the_status_table_and_read_over
 it_should_exit_nonzero_when_a_why_line_is_over_the_cap
 it_should_report_over_in_the_row_when_a_why_line_is_over_the_cap
-it_should_exit_zero_and_report_ok_when_every_why_line_is_at_or_under_the_cap
+it_should_report_ok_in_the_row_when_a_why_line_sits_exactly_at_the_cap
 
 echo
 echo "$passed passed, $failed failed"
