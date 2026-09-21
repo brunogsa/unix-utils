@@ -2,10 +2,7 @@
 
 Fixtures: none on disk except what each test writes to tmp_path — every
 plan is a minimal, hand-built Task Breakdown + PR Breakdown pair, small
-enough that the expected FAIL/OK verdict is verifiable by eye. One test
-also runs the checker against the repo's real plan_script-overhaul.md as
-a regression fixture. That plan is session-scoped and untracked, so the
-test skips rather than fails once the session that wrote it is gone.
+enough that the expected FAIL/OK verdict is verifiable by eye.
 
 Usage:
   pytest scripts/tests/check-pr-task-projection.test.py
@@ -15,10 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 SCRIPT = Path(__file__).parent.parent / "check-pr-task-projection.py"
-REPO_ROOT = Path(__file__).parents[7]
 
 
 def _write_plan(tmp_path, *, task_body, pr_body):
@@ -219,15 +213,6 @@ def test_should_report_a_cross_level_task_dependency_landing_in_a_non_ancestor_p
     assert "Task 9" in result.stderr
     assert "Task 10" in result.stderr
     assert "PR-2" in result.stderr
-
-
-def test_should_exit_0_on_the_real_script_overhaul_plan_27_tasks_18_prs():
-    real_plan = REPO_ROOT / "plan_script-overhaul.md"
-    if not real_plan.is_file():
-        pytest.skip(f"session-scoped plan absent: {real_plan.name}")
-    result = _run(real_plan)
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.startswith("OK:")
 
 
 def test_should_exit_2_when_a_task_names_its_dependencies_inline_instead_of_as_task_bullets(tmp_path):
