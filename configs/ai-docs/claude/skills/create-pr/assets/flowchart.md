@@ -33,6 +33,12 @@ def create_pr():
     # 3 · Step 1 — none found means authoring from the changes digest alone.
     sources = glob("spec_*.md", "plan_*.md", top_level_of=CWD)
 
+    # 3a · A persisted artifact file is the only path a manual scenario can
+    #      reach the PR through. The session's own recollection is never a
+    #      source — that gap is what let narrated, unbacked bullets ship.
+    #      None found → "none", and Evidences carries automated coverage only.
+    evidence = glob("evidence_*.md", top_level_of=CWD)
+
     # 4 · Resolve the base branch. Default: the repo's default branch; empty →
     #     omit --base at create time. The optional <parent> invocation arg is
     #     this skill's whole stacked-PR surface: base becomes the parent's head
@@ -50,16 +56,17 @@ def create_pr():
     digest_handle = dispatch_background("changes-gatherer", base=base)
 
     # 6 · (A) several spec/plan files matched, (B) several PR-N entries
-    #     in the plan's PR Breakdown.
-    if ambiguous(sources):
-        # 6a · ONE AskUserQuestion carrying (A) and (B) as two SEPARATE
-        #      questions. They resolve different things, so merging them would
-        #      force two answers into a single choice.
-        answers = ask_user_question([question_A, question_B])
+    #     in the plan's PR Breakdown, (C) several evidence_*.md matched.
+    if ambiguous(sources, evidence):
+        # 6a · ONE AskUserQuestion carrying (A), (B) and (C) as three SEPARATE
+        #      questions. They resolve different things — which source file to
+        #      read, which plan slice this is, which artifact backs the manual
+        #      evidence — so merging them would force several answers into one.
+        answers = ask_user_question([question_A, question_B, question_C])
 
     # 7 · created right away, with an HTML comment logging each answer — spec,
-    #     PR-N, and base — this skill's durable record, surviving a mid-flow
-    #     compaction that drops them.
+    #     PR-N, base, and the resolved evidence artifact or "none" — this
+    #     skill's durable record, surviving a mid-flow compaction that drops it.
     ideal_path = write(f"./pr_{slug}_pr{N}.ideal.md", log_answers_as_html_comment())
 
     # 8 · Never ask for this list: it is the resolved spec/plan MINUS every
@@ -78,9 +85,13 @@ def create_pr():
     # 10 · Step 2 — pr-writer · agent-pinned · background. No mode argument:
     #      this agent only ever writes the ideal description now. Main
     #      orchestrates and never composes the prose. The agent loads
-    #      doc-standards itself, loops check-density.sh and check-pr-page-fit.sh,
-    #      and returns only once both pass — nothing out here re-runs them.
-    dispatch("pr-writer", digest=digest, appendix=appendix_sections)
+    #      doc-standards itself, loops check-density.sh, check-pr-page-fit.sh
+    #      and check-pr-evidence.sh, and returns only once all three pass —
+    #      nothing out here re-runs them. The evidence gate is why the artifact
+    #      path travels with the dispatch: with no artifact to paste from, a
+    #      manual scenario has to be dropped rather than narrated.
+    dispatch("pr-writer", digest=digest, appendix=appendix_sections,
+             evidence=evidence)
     # 11 · written in THIS skill's own format, ignoring any repo template —
     #      page-fit can only budget a section it recognizes.
 
@@ -171,22 +182,23 @@ flowchart TD
 
   subgraph n2["2. Seed the TaskList before step 1 runs — a skipped step then stays<br/>visible as pending across a compaction, which the steps alone do not survive.<br/>Steps 1-4 only: step 5 runs only if the user asks after the push"]
     n2a["2a. [Reminder] Step 1: gather context"]:::state
-    n2b["2b. [Reminder] Step 2: compose the ideal description<br/>— density and page fit"]:::state
+    n2b["2b. [Reminder] Step 2: compose the ideal description<br/>— density, page fit, and evidence"]:::state
     n2c["2c. [Reminder] Step 3: compose the repo description<br/>— density and body size"]:::state
     n2d["2d. [Reminder] Step 4: create the draft PR"]:::state
   end
 
   n3["3. Step 1 · Glob cwd top-level for spec_*.md / plan_*.md;<br/>none found -&gt; author from the changes digest alone"]
+  n3a["3a. Glob cwd top-level for evidence_*.md — a persisted artifact file is<br/>the only path a manual scenario can reach the PR through. The session's own<br/>recollection is never a source, which is the gap that let narrated, unbacked<br/>bullets ship. None found -&gt; 'none', and Evidences carries automated<br/>coverage only"]
   n4["4. Resolve the base branch: default is origin/HEAD (empty -&gt; omit --base<br/>at create time). The optional &lt;parent&gt; invocation arg is this skill's whole<br/>stacked-PR surface: base becomes the parent's head branch, which also scopes<br/>the changes digest to this PR's own delta. Never inferred from ancestry or<br/>the plan — only the explicit arg stacks a PR.<br/>Chain workflow lives in implement's references/stacked-prs.md"]
   n5[["5. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · background, NOT awaited<br/>dispatched the moment the base branch resolves (parent override applied),<br/>so the interview below runs CONCURRENTLY with it — writes the full commit<br/>log + diff to a /tmp artifact and returns only the digest, diffed against<br/>the resolved base so a stacked PR digests only its own delta"]]:::dispatch
 
-  n6{"6. Anything left ambiguous?<br/>(A) several spec/plan files matched<br/>(B) several PR-N entries in the plan's PR Breakdown"}
-  n6a["6a. ONE AskUserQuestion carrying (A) and (B) as two SEPARATE<br/>questions — they resolve different things, so one merged question<br/>would force two answers into one choice"]:::gate
-  n7["7. Create ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md right away, with an HTML<br/>comment logging each answer — spec, PR-N, and base — this skill's<br/>durable record, surviving a mid-flow compaction that drops them"]:::state
+  n6{"6. Anything left ambiguous?<br/>(A) several spec/plan files matched<br/>(B) several PR-N entries in the plan's PR Breakdown<br/>(C) several evidence_*.md matched"}
+  n6a["6a. ONE AskUserQuestion carrying (A), (B) and (C) as three SEPARATE<br/>questions — they resolve different things (which source file to read,<br/>which plan slice this is, which artifact backs the manual evidence),<br/>so one merged question would force several answers into one choice"]:::gate
+  n7["7. Create ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md right away, with an HTML comment<br/>logging each answer — spec, PR-N, base, and the resolved evidence artifact<br/>or 'none' — this skill's durable record, surviving a mid-flow compaction"]:::state
   n8["8. Derive the appendix's section list — never ask for it:<br/>the resolved spec/plan MINUS every section the body renders.<br/>The list is handed to step 2's agent, which extracts sections with<br/>extract-md-sections.sh and diagrams with extract-mermaid-blocks.sh —<br/>a re-summarized section or re-drawn diagram diverges silently"]
   n9["9. Step 1's last act · Collect the changes-gatherer digest — step 2<br/>cannot start without it, so wait here if it's still running. By this point<br/>it has had the whole interview to run in, so a wait that used to cost its<br/>full duration usually costs nothing"]
 
-  n10[["10. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · background<br/>it loads doc-standards itself and loops check-density.sh and<br/>check-pr-page-fit.sh, returning only once both pass —<br/>main never re-runs them, never hand-fixes its prose"]]:::dispatch
+  n10[["10. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · background — the resolved evidence artifact<br/>travels with the dispatch, since with nothing to paste from a manual<br/>scenario must be dropped rather than narrated<br/>it loads doc-standards itself and loops check-density.sh,<br/>check-pr-page-fit.sh and check-pr-evidence.sh, returning only once all<br/>three pass — main never re-runs them, never hand-fixes its prose"]]:::dispatch
   n11["11. Ideal description written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md<br/>in THIS skill's own format, ignoring any repo template —<br/>page-fit can only budget a section it recognizes"]:::state
 
   n12["12. Step 3 · Check .github/ for pull_request_template.md /<br/>PULL_REQUEST_TEMPLATE.md — the result is the agent's third input,<br/>a template path or an explicit 'no template', not a branch here"]
@@ -211,7 +223,8 @@ flowchart TD
 
   n1 --> n2
   n2 --> n3
-  n3 --> n4
+  n3 --> n3a
+  n3a --> n4
   n4 --> n5
   n5 -->|"continues immediately — not awaited"| n6
   n5 -.->|"background — joins at 9 once ready"| n9

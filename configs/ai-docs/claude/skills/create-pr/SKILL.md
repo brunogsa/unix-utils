@@ -84,7 +84,7 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 
 - **Collect the `changes-gatherer` digest as this step's last act** -- step 2 cannot start without it, so wait here if it is still running.
 
-### 2. Compose the ideal description — density and page fit
+### 2. Compose the ideal description — density, page fit, and evidence
 
 **CRITICAL: The main session orchestrates and never composes the prose itself** -- dispatch the agent and let it hand back a finished file.
 
