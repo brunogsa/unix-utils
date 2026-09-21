@@ -116,7 +116,7 @@ Each manual scenario sits in its own `<details>`, COLLAPSED by default, preceded
 
 Its methodology goes INSIDE that collapsed block, not above it: 2-3 sentences in plain words on what you ran, against what, and what you looked at.
 
-Then just enough log output or screenshots to show it ran and passed — not the full transcript.
+Then the exact command and its verbatim response — [`manual-evidence.md`](manual-evidence.md) is canonical on what "paste the artifact" requires and why length is never a reason to summarize instead.
 
 GitHub does NOT auto-generate anchors from `<details><summary>` text — only from headings — which is why the explicit anchor is mandatory.
 
@@ -129,7 +129,13 @@ Manual-scenario layout:
 <details>
 <summary>Scenario 1 — short description</summary>
 
-`GET /v1/...` → `200 OK`, `totalItems: N`:
+2026-09-18T14:32:07-03:00, stage.erp.example.com
+
+```bash
+curl -sS https://stage.erp.example.com/v1/sales-agreements?totalItems=1
+```
+
+`HTTP/1.1 200 OK`
 
 ```json
 { ... pretty-printed ... }

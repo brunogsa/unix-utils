@@ -60,13 +60,7 @@ Read before drafting PR-body prose.
 
 - **CRITICAL: Never index the acceptance criteria in the body** -- no per-criterion bullets, no happy-path/failure/corner-case groups; the tests already prove coverage.
 
-- **Manual evidence covers only what automation could not prove** -- omit if fully automated.
-
-- **Every manual scenario is a `<details>` COLLAPSED by default** -- precede each with an explicit `<a id="scenario-N"></a>` anchor.
-
-  - Methodology goes INSIDE the block: 2-3 sentences on what ran, against what, what you checked, plus passing output.
-
-- **No claim without evidence** -- can't paste the artifact → DROP the bullet, never a "TODO collect post-merge".
+- **Manual evidence covers only what automation could not prove, and its rules live in [`manual-evidence.md`](manual-evidence.md)** -- omit the whole part if fully automated.
 
 - **Skip what the checks tab renders as a badge** -- lint, generic build, security scans; screenshot only if UI changed.
 
