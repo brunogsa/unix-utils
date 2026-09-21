@@ -153,9 +153,42 @@ Comparei os 3 corpos enviados com o contrato da LLD, campo a campo, e confirmei 
 
 O sandbox não está disponível no CI, então este cenário é a única prova possível deste caminho.
 
-`POST /api/contratos-terceiro` → `201 Created`:
+Rodado em `2026-07-14T15:32:07-03:00`, contra `http://172.21.48.31:8099` (sandbox, VPN-only).
 
-```json
+```bash
+curl -X POST 'http://172.21.48.31:8099/api/contratos-terceiro' \
+  -H 'Content-Type: application/json' \
+  -H 'x-api-key: <redacted>' \
+  -d '{
+    "sistema": "SPE",
+    "tipoVenda": "LNE",
+    "cliente": "12345678000195",
+    "faturadoPor": "98765432000110",
+    "expedidoPor": "98765432000110",
+    "anoInicial": 2026,
+    "anoFinal": 2026,
+    "dataInicioVigencia": "2026-03-01",
+    "dataFimVigencia": "2026-12-31",
+    "situacaoContrato": 1,
+    "tipoPortal": 1,
+    "tipoCapa": "A",
+    "tipoContraCapa": 1,
+    "tipoCapaPreco": "A",
+    "tipoContratoTerceiro": 5,
+    "integraLoja": true,
+    "vendaBimestral": false,
+    "confissaoDivida": false,
+    "percentualComissaoEscola": null,
+    "urlLojaNaEscola": null
+  }'
+```
+
+Resposta:
+
+```
+HTTP/1.1 201 Created
+Content-Type: application/json
+
 {
   "chaveContrato": "SGE-2024-0098231",
   "sistema": "SPE",
@@ -163,7 +196,34 @@ O sandbox não está disponível no CI, então este cenário é a única prova p
 }
 ```
 
-`POST /api/contratos-terceiro/SGE-2024-0098231/itens` → `201 Created`, 14 itens aceitos, soma `precoTotal` = `4235.00` (bate com o preço da coleção).
+```bash
+curl -X POST 'http://172.21.48.31:8099/api/contratos-terceiro/SGE-2024-0098231/itens' \
+  -H 'Content-Type: application/json' \
+  -H 'x-api-key: <redacted>' \
+  -d '{
+    "itens": [
+      { "produtoGrafica": "COL-88213", "anoProduto": 0, "bimestre": 0, "precoTotal": 4235.00, "produtoGraficasVinculados": ["KIT-88213-1", "KIT-88213-2", "..."] },
+      { "produtoGrafica": "KIT-88213-1", "anoProduto": 2026, "bimestre": 1, "precoTotal": 1058.75 },
+      … 11 of 14 itens elided …
+    ]
+  }'
+```
+
+Resposta:
+
+```
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "chaveContrato": "SGE-2024-0098231",
+  "itensAceitos": 14,
+  "itensRejeitados": 0,
+  "somaPrecoTotal": 4235.00
+}
+```
+
+`itensAceitos: 14` e `somaPrecoTotal: 4235.00` batem com o preço da coleção.
 
 </details>
 
