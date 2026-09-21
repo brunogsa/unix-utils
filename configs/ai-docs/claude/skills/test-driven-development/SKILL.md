@@ -8,7 +8,7 @@ user-invocable: false
 
 Canonical TDD/BDD discipline for plan-driven work.
 
-For test patterns (titles, mock data, parametrized suites, anti-patterns) and test-type selection (integration vs unit vs e2e vs manual), load `test-standards`.
+**Load `test-standards` before writing the first test** — it owns test patterns (titles, mock data, parametrized suites, anti-patterns) and test-type selection (integration vs unit vs e2e vs manual).
 
 **Bug fixes follow the same discipline**: start with a RED regression test that reproduces the bug.
 
@@ -98,7 +98,7 @@ Those are finished work with no test owed. Route them to `direct-coder`, which e
 
 ## Manual tests — evidence file
 
-When manual testing is the right call (rare UI flows, third-party integrations without sandbox, automation cost disproportionate), log it in `./manual-tests-evidences.md` at project root.
+When manual testing is the right call — `test-standards` owns that call — log it in `./manual-tests-evidences.md` at project root.
 
 The file is owed only when the check is multi-step, environment-dependent, or irreversible — the cases a future regression would have to re-run.
 
