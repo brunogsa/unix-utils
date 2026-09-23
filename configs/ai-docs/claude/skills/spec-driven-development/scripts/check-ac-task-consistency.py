@@ -1,20 +1,33 @@
 #!/usr/bin/env python3
 """check-ac-task-consistency.py - assert every Test Design row's cited
-ACs are declared by the tasks that row cites.
+ACs are declared by the tasks that row cites, and that every task is
+paired with exactly one Task Details entry.
 
 A plan's `## Test Design` annotates each it() row with the ACs it proves
-and the tasks that write it (`// AC-17 T14`), while each task under
-`## Task Breakdown` separately declares its own
-`**Testable Acceptance criteria**`. Nothing else joins the two, so a row
-can cite an AC its task never claims. check-ac-coverage.sh does not
-cover this: in annotated form it runs completeness against the spec only,
-and never reads the task-side field at all.
+and the tasks that write it (`// AC-17 T14`). Each task under
+`## Task Breakdown` gets a `### N.` heading with no AC field of its own;
+its `**Testable Acceptance criteria**` field lives instead in the
+`## Task Details` appendix, in a `<details><summary>Task N — ...`
+entry. Nothing else joins the three, so a row can cite an AC its task's
+entry never claims, or a task can be missing its entry entirely (or vice
+versa). check-ac-coverage.sh does not cover this: in annotated form it
+runs completeness against the spec only, and never reads the task-side
+field at all.
+
+This checker runs only at authoring time, from brainstorm self-review
+against a freshly written plan — never against an old in-flight plan
+the way /implement's parsers do — so it reads the Task Details appendix
+only; a task's old-location body-side AC field (if any survives from
+before the doc reshape) is not read.
 
 Usage:
   check-ac-task-consistency.py <plan-path>
 
 stdout: one `OK: ...` line on a consistent plan, naming what was checked
-stderr: one `line <n>: T<k> lacks AC-<m>` per mismatch, or a diagnostic
+stderr: one `line <n>: T<k> lacks AC-<m>` per citation mismatch, one
+        `Task <n> has no Task Details entry` or `Task Details entry for
+        Task <n> names no existing task` per pairing mismatch, or a
+        diagnostic
 exit: 0 consistent, 1 at least one mismatch, 2 usage error or a section
       that is absent or holds nothing to check
 """
@@ -30,9 +43,11 @@ EXTRACT_DESIGN_TESTS = SCRIPT_DIR / "extract-design-tests.sh"
 SECTION_HEADING = re.compile(r"^## ")
 DESIGN_HEADING = re.compile(r"^## Test Design[ \t]*$")
 TASKS_HEADING = re.compile(r"^## Task Breakdown[ \t]*$")
+DETAILS_HEADING = re.compile(r"^## Task Details[ \t]*$")
 DESCRIBE_CALL = re.compile(r'describe\("[^"]*"')
 IT_CALL = re.compile(r'it\("[^"]*"')
 TASK_HEADING = re.compile(r"^### (\d+)\.")
+SUMMARY_TASK = re.compile(r"<summary>Task (\d+)")
 AC_FIELD = re.compile(r"\*\*Testable Acceptance criteria\*\*")
 AC_TOKEN = re.compile(r"AC-\d+")
 
@@ -69,21 +84,15 @@ def find_design_row_lines(lines):
     return row_lines
 
 
-def read_task_declarations(lines):
-    """Map each `### <n>.` task in the Task Breakdown to the AC tokens
-    its `**Testable Acceptance criteria**` field names.
-
-    Returns the set of task numbers that have a heading, and the subset
-    of those mapped to their declared ACs. A task missing from the
-    second dict has no criteria field at all, which is a different
-    defect from a field that names the wrong ACs.
+def read_task_headings(lines):
+    """The set of `### <n>.` task numbers declared under `## Task
+    Breakdown`.
 
     Scoped to the Task Breakdown section: a `### <n>.` heading elsewhere
-    in the plan belongs to another section's numbering."""
+    in the plan (e.g. under `## Technical Decisions`) belongs to another
+    section's numbering."""
     headings = set()
-    declared = {}
     in_tasks = False
-    current = None
 
     for text in lines:
         if SECTION_HEADING.match(text):
@@ -96,14 +105,74 @@ def read_task_declarations(lines):
 
         heading = TASK_HEADING.match(text)
         if heading:
-            current = int(heading.group(1))
-            headings.add(current)
+            headings.add(int(heading.group(1)))
+
+    return headings
+
+
+def read_task_details(lines):
+    """Map each `<summary>Task <n>` entry under `## Task Details` to the
+    AC tokens its `**Testable Acceptance criteria**` field lists.
+
+    Returns the set of task numbers with a Task Details entry, and the
+    subset of those mapped to their declared ACs. An entry missing from
+    the second dict has no criteria field at all, which is a different
+    defect from a field that names no AC token.
+
+    The field's tokens sit on the bullet lines below the field marker,
+    not on the marker's own line, so this reads every line up to the
+    next blank line as part of the field."""
+    entries = set()
+    declared = {}
+    in_details = False
+    current = None
+    in_ac_field = False
+
+    for text in lines:
+        if SECTION_HEADING.match(text):
+            if in_details:
+                break
+            in_details = bool(DETAILS_HEADING.match(text))
+            continue
+        if not in_details:
             continue
 
-        if current is not None and AC_FIELD.search(text):
-            declared.setdefault(current, set(AC_TOKEN.findall(text)))
+        summary = SUMMARY_TASK.search(text)
+        if summary:
+            current = int(summary.group(1))
+            entries.add(current)
+            in_ac_field = False
+            continue
 
-    return headings, declared
+        if current is None:
+            continue
+
+        if AC_FIELD.search(text):
+            declared.setdefault(current, set())
+            in_ac_field = True
+            continue
+
+        if in_ac_field:
+            if not text.strip():
+                in_ac_field = False
+                continue
+            declared[current] |= set(AC_TOKEN.findall(text))
+
+    return entries, declared
+
+
+def find_pairing_mismatches(headings, detail_entries):
+    """Every task/entry that has no counterpart on the other side."""
+    mismatches = []
+
+    for task in sorted(headings - detail_entries):
+        mismatches.append(f"Task {task} has no Task Details entry")
+    for task in sorted(detail_entries - headings):
+        mismatches.append(
+            f"Task Details entry for Task {task} names no existing task"
+        )
+
+    return mismatches
 
 
 def read_annotation_rows(plan):
@@ -122,9 +191,9 @@ def read_annotation_rows(plan):
     return [line.split("\t") for line in result.stdout.splitlines()]
 
 
-def find_mismatches(rows, row_lines, headings, declared):
-    """Every cited (task, AC) pair the task does not declare, plus the
-    count of pairs actually checked."""
+def find_citation_mismatches(rows, row_lines, headings, declared):
+    """Every cited (task, AC) pair the task's Task Details entry does
+    not declare, plus the count of pairs actually checked."""
     mismatches = []
     checked = 0
 
@@ -171,6 +240,8 @@ def main():
         exit_with_usage_error(f"no '## Test Design' section in {plan}")
     if not any(TASKS_HEADING.match(text) for text in lines):
         exit_with_usage_error(f"no '## Task Breakdown' section in {plan}")
+    if not any(DETAILS_HEADING.match(text) for text in lines):
+        exit_with_usage_error(f"no '## Task Details' section in {plan}")
 
     rows = read_annotation_rows(plan)
     row_lines = find_design_row_lines(lines)
@@ -182,10 +253,14 @@ def main():
             f"and this one disagree"
         )
 
-    headings, declared = read_task_declarations(lines)
-    mismatches, checked = find_mismatches(
+    headings = read_task_headings(lines)
+    detail_entries, declared = read_task_details(lines)
+
+    mismatches = find_pairing_mismatches(headings, detail_entries)
+    citation_mismatches, checked = find_citation_mismatches(
         rows, row_lines, headings, declared
     )
+    mismatches.extend(citation_mismatches)
 
     if mismatches:
         for mismatch in mismatches:
@@ -194,7 +269,8 @@ def main():
 
     print(
         f"OK: {len(rows)} Test Design rows, {checked} task-AC citations "
-        f"checked; every cited AC is declared by its task."
+        f"checked; every cited AC is declared by its task, and every "
+        f"task is paired with a Task Details entry."
     )
 
 
