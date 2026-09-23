@@ -20,15 +20,22 @@ work_dir=$(mktemp -d)
 # The hook reads a fixed /tmp path (no HOME involved),
 # so tests write real /tmp state files.
 #
+# Every session id below gets a $$ after "sess-".
+#
+# That stops two overlapping runs clobbering state files.
+#
+# It also keeps this suite off orchestrator's fixtures.
+#
 # The trap removes every test-session file on exit.
 # The rm below clears leftovers from an interrupted prior run.
-trap 'rm -rf "$work_dir"; rm -f /tmp/implement_sess-*.json' EXIT
-rm -f /tmp/implement_sess-*.json
+trap 'rm -rf "$work_dir"; rm -f "/tmp/implement_sess-$$-"*.json' EXIT
+rm -f "/tmp/implement_sess-$$-"*.json
 
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs actual,
+# prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -40,7 +47,8 @@ assert_eq() {
   fi
 }
 
-# assert_true - inline assert helper: fails when condition is false, no expected/actual diff needed.
+# assert_true - inline assert helper: fails when condition is
+# false, no expected/actual diff needed.
 assert_true() {
   local description="$1" condition="$2"
   if [ "$condition" = "true" ]; then
@@ -52,38 +60,56 @@ assert_true() {
   fi
 }
 
-# write_state - writes the given JSON body as the plain-run state file for
-# session_id, at the hook's fixed /tmp path.
+# write_state - writes the given JSON body as the plain-run
+# state file for session_id, at the hook's fixed /tmp path.
 write_state() {
   local session_id="$1" body="$2"
+  session_id="sess-$$-${session_id#sess-}"
   printf '%s' "$body" > "/tmp/implement_$session_id.json"
 }
 
-# write_pr_state - writes the given JSON body as the state file for one PR
-# unit of session_id (the _pr<N> naming a multi-PR run uses).
+# write_pr_state - writes the given JSON body as the state file
+# for one PR unit of session_id (the _pr<N> naming a multi-PR
+# run uses).
 write_pr_state() {
   local session_id="$1" pr_suffix="$2" body="$3"
+  session_id="sess-$$-${session_id#sess-}"
   printf '%s' "$body" > "/tmp/implement_${session_id}_${pr_suffix}.json"
 }
 
-# run_hook - invokes the hook with the given stdin JSON, capturing
-# stdout/exit code into HOOK_OUT/HOOK_EXIT (stderr is discarded — no test here
-# asserts on it). An optional second arg overrides PATH (used by the
-# "jq unavailable" test).
+# run_hook - invokes the hook with the given stdin JSON,
+# capturing stdout/exit code into HOOK_OUT/HOOK_EXIT (stderr is
+# discarded — no test here asserts on it).
+#
+# An optional second arg overrides PATH (used by the "jq
+# unavailable" test).
 bash_bin="$(command -v bash)"
 
+# prefix_session_id - inserts this run's $$ right after
+# "sess-" in a stdin JSON payload's session_id field, matching
+# the prefix write_state/write_pr_state apply to the file they
+# wrote, so run_hook/run_check look up the same file.
+prefix_session_id() {
+  printf '%s' "$1" | sed -E "s/(\"session_id\": *\")sess-/\\1sess-$$-/"
+}
+
 run_hook() {
-  local stdin_json="$1" path_override="${2:-$PATH}"
-  # Invoke bash by absolute path so a restricted PATH (the "jq unavailable"
-  # test) affects only commands the hook itself runs, not resolving bash.
+  local stdin_json path_override="${2:-$PATH}"
+  stdin_json="$(prefix_session_id "$1")"
+
+  # Invoke bash by absolute path so a restricted PATH (the "jq
+  # unavailable" test) affects only commands the hook itself
+  # runs, not resolving bash.
   HOOK_OUT=$(printf '%s' "$stdin_json" | PATH="$path_override" "$bash_bin" "$SCRIPT" 2>/dev/null)
   HOOK_EXIT=$?
 }
 
-# run_check - same as run_hook, but in --check query mode: no stdout is
-# expected, and the exit code IS the answer (0 mid-flight, 1 not).
+# run_check - same as run_hook, but in --check query mode: no
+# stdout is expected, and the exit code IS the answer (0
+# mid-flight, 1 not).
 run_check() {
-  local stdin_json="$1" path_override="${2:-$PATH}"
+  local stdin_json path_override="${2:-$PATH}"
+  stdin_json="$(prefix_session_id "$1")"
   HOOK_OUT=$(printf '%s' "$stdin_json" | PATH="$path_override" "$bash_bin" "$SCRIPT" --check 2>/dev/null)
   HOOK_EXIT=$?
 }
@@ -194,9 +220,10 @@ it_should_report_not_mid_flight_under_check_when_phase_is_presented_halted_or_bl
   done
 }
 
-# The regression this whole mode exists for: gate mode goes silent on a stop
-# caused by its own previous block, and the orchestrator read that silence as
-# "the batch is done" and pinged success once per task.
+# The regression this whole mode exists for: gate mode goes
+# silent on a stop caused by its own previous block, and the
+# orchestrator read that silence as "the batch is done" and
+# pinged success once per task.
 it_should_report_mid_flight_under_check_even_when_stop_hook_active_is_true() {
   write_state "sess-check-active" '{"phase": "tasks"}'
   run_check '{"session_id": "sess-check-active", "stop_hook_active": true}'
