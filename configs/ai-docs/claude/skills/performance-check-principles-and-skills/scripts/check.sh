@@ -399,6 +399,7 @@ standards_total_instructions=0
 standards_ratio_rows=""
 standards_unmigrated=""
 standards_ratio_over=0
+standards_missing_instr_budget=""
 
 # Status-table rows for the *-standards skills the subtotal
 # excludes.
@@ -478,6 +479,13 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
     # Instruction density — only *-standards skills participate
     case "$name" in
         *-standards)
+            # `instructions-budget` is opt-in for any other
+            # skill, mandatory for these.
+            #
+            # An undeclared cap leaves a *-standards skill's
+            # growth ungated, not merely uncapped.
+            [ -z "$instr_budget_override" ] && standards_missing_instr_budget+=$'\n'"- $name"
+
             skill_criticals=$(count_critical_instructions "$f")
 
             skill_missing_why=$(missing_why_after_critical "$f")
@@ -662,6 +670,7 @@ echo "| [Why] lines over $WHY_BYTES_BUDGET bytes | $why_over_count | 0 | $(statu
 [ "$standards_ratio_over" -eq 1 ] && overages=1
 [ "$skill_instr_over" -eq 1 ] && overages=1
 [ -n "$standards_unmigrated" ] && overages=1
+[ -n "$standards_missing_instr_budget" ] && overages=1
 echo
 
 if [ "$has_claude_md" -eq 1 ] && [ -n "$claude_offending" ]; then
@@ -734,6 +743,16 @@ if [ -n "$skill_instr_overages" ]; then
     echo "## Skills over their \`instructions-budget\` frontmatter override"
     echo
     echo "$skill_instr_overages"
+    echo
+fi
+
+# *-standards skills with no instructions-budget — error
+# condition
+if [ -n "$standards_missing_instr_budget" ]; then
+    echo "## *-standards skills with no \`instructions-budget\` declared (FAIL)"
+    echo
+    echo "Every \`*-standards\` skill must cap its own [Instruction] count. Add \`instructions-budget: N\` to the skill's frontmatter, or rename the directory so it no longer matches the \`*-standards\` glob."
+    echo "$standards_missing_instr_budget"
     echo
 fi
 
