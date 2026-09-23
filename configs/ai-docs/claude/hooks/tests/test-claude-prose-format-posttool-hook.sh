@@ -68,6 +68,46 @@ assert_not_contains() {
   fi
 }
 
+# assert_no_line_number_row - passes when actual contains
+# no printed line-number row.
+#
+# Anchored to the hook's real row shape (two leading
+# spaces, a label, whitespace, then "L<digits>") rather than
+# a naked `L[0-9]` substring search.
+#
+# A fixture's own tmp path can itself contain "L" followed
+# by a digit (mktemp's random suffix, or a printed pointer
+# command that carries that path), which a naked substring
+# search misreads as a row.
+assert_no_line_number_row() {
+  local description="$1" actual="$2"
+  if printf '%s\n' "$actual" | grep -qE '^  [A-Za-z-]+[[:space:]]+L[0-9]'; then
+    fail_count=$((fail_count + 1))
+    printf 'not ok - %s\n  actual:   %s\n' "$description" "$actual"
+  else
+    pass_count=$((pass_count + 1))
+    printf 'ok - %s\n' "$description"
+  fi
+}
+
+# assert_line_number_row_matches - passes when actual
+# contains a real line-number row (same anchored shape as
+# assert_no_line_number_row) whose value column carries the
+# given "L<n>" token as a whole token.
+#
+# Never a substring match against the fixture's own tmp
+# path, which the header line also prints.
+assert_line_number_row_matches() {
+  local description="$1" token="$2" actual="$3"
+  if printf '%s\n' "$actual" | grep -qE "^  [A-Za-z-]+[[:space:]]+${token}([^0-9]|\$)"; then
+    pass_count=$((pass_count + 1))
+    printf 'ok - %s\n' "$description"
+  else
+    fail_count=$((fail_count + 1))
+    printf 'not ok - %s\n  expected row containing: %s\n  actual:   %s\n' "$description" "$token" "$actual"
+  fi
+}
+
 # new_repo_fixture - creates a fresh scratch git repo
 # under TMPDIR and echoes its path.
 new_repo_fixture() {
@@ -141,19 +181,43 @@ it_should_use_the_counts_regime_over_the_threshold() {
 
   # Counts regime: no line-number rows, but does list the
   # checker's own script pointer command.
-  if [[ "$HOOK_OUT" =~ L[0-9] ]]; then
-    fail_count=$((fail_count + 1))
-    printf 'not ok - should not print any L<digits> line-number row over threshold\n  actual:   %s\n' "$HOOK_OUT"
-  else
-    pass_count=$((pass_count + 1))
-    printf 'ok - should not print any L<digits> line-number row over threshold\n'
-  fi
+  assert_no_line_number_row \
+    "should not print any L<digits> line-number row over threshold" \
+    "$HOOK_OUT"
 
   # The pointer command must resolve when run as printed, so it
   # carries the real file_path (defect 1), never the bare
   # basename the header shows.
   assert_contains "should list the checker's own script pointer over threshold" \
     "check-density.sh   --changed-only $dir/big.md" "$HOOK_OUT"
+}
+
+it_should_not_flake_when_the_fixture_path_contains_l_digit_over_threshold() {
+  # Regression: a prior run hit a fixture dir whose mktemp
+  # random suffix happened to contain "L2" (e.g.
+  # .../tmp.R5L2gMWnKC/big.md).
+  #
+  # The naked `L[0-9]` substring check below misread that
+  # path fragment as a printed line-number row.
+  #
+  # This test forces the same collision deterministically -
+  # via a fixed "L2" in the dir name, not mktemp's luck - so
+  # the flaw reproduces on every run instead of only
+  # sometimes.
+  local dir long_line i
+  dir=$(mktemp -d "$TMPDIR/tmpL2XXXXXX")
+  git init -q "$dir"
+  long_line=$(python3 -c "print('word ' * 120)")
+  : > "$dir/big.md"
+  for ((i = 0; i < 15; i++)); do
+    printf '%s\n\n' "$long_line" >> "$dir/big.md"
+  done
+  run_hook "Write" "$dir/big.md"
+  assert_eq "should exit 2 over the threshold with an L-digit-bearing fixture path" "2" "$HOOK_EXIT"
+
+  assert_no_line_number_row \
+    "should not print any L<digits> line-number row over threshold, even when the fixture path itself contains \"L<digit>\"" \
+    "$HOOK_OUT"
 }
 
 it_should_use_the_line_number_regime_under_the_threshold() {
@@ -163,7 +227,7 @@ it_should_use_the_line_number_regime_under_the_threshold() {
   printf '%s\n' "$long_line" > "$dir/small.md"
   run_hook "Write" "$dir/small.md"
   assert_eq "should exit 2 under the threshold" "2" "$HOOK_EXIT"
-  assert_contains "should print the violated line number" "L1" "$HOOK_OUT"
+  assert_line_number_row_matches "should print the violated line number" "L1" "$HOOK_OUT"
   assert_not_contains "should not list a script pointer under threshold" \
     "doc-standards/scripts/check-density.sh" "$HOOK_OUT"
 }
@@ -515,6 +579,7 @@ it_should_treat_a_leading_dash_filename_as_a_path_not_a_flag() {
 it_should_stay_silent_on_a_clean_markdown_write
 it_should_report_a_wall_of_text_markdown_write
 it_should_use_the_counts_regime_over_the_threshold
+it_should_not_flake_when_the_fixture_path_contains_l_digit_over_threshold
 it_should_use_the_line_number_regime_under_the_threshold
 it_should_route_a_shell_file_to_the_comment_checker
 it_should_stay_silent_on_an_unknown_extension
