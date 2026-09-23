@@ -36,7 +36,7 @@ This file owns the `<details>` wrapper and the summary label; `references/readin
 </details>
 
 ## Jira link
-[Budget: 4 lines. Bullet list of the ticket(s) this PR closes, plus any related PR — including the `Stacks on #<parent>` pointer on a stacked run, per `references/parent-arg.md`.
+[Budget: 4 lines. Bullet list of the ticket(s) this PR closes, plus any related PR — including the `Stacks on #<parent>` pointer on a stacked run, per `references/parent-arg.md`. The ticket is step 1's resolved ID.
 
 Omit only when the repo tracks no tickets and the run is not stacked.]
 

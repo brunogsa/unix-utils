@@ -23,6 +23,7 @@ The caller gives you an INPUT naming:
 - The path of the `.ideal.md` to fit.
 - Either the repo's PR template path, or an explicit statement that the repo has none.
 - The output path to write.
+- The resolved ticket ID, or "none".
 
 ## Sources and tools
 
@@ -65,9 +66,18 @@ The repo's template is the base structure, never the thing being replaced.
 6. Compose the PR title and return it in your report — imperative, no trailing period, and no `AC-N`/`PR-N` token or untracked filename, same as the body.
    Derive it from the `## Context` section the ideal description already carries, never from the branch name, which encodes the plan slice rather than the change.
    **Lead with the payoff the reader already feels; the cause goes in trailing parens.**
-   Good: `remove 26 phantom changes from every plan (dead eventbridge IAM role)`. Bad: `remove dead eventbridge IAM role and colliding policy`.
    A reviewer skims a column of titles, so the half that survives truncation has to be the reason to open this one; the cause is what the body is for.
+
+   The title is `[<ID>] <Title>` when the caller gave you a ticket ID, plain `<Title>` when it gave you "none".
+
+   The resolved ticket prefix is the one sanctioned exception to the "no `AC-N`/`PR-N` token" rule above, since it resolves to a real Jira/Linear issue rather than a local lookup number.
+
+   Capitalize the first word of the `<Title>` part, except a leading code token (`gh`, `npm`, a backticked identifier), which keeps its own case.
+
+   Good: `[ITGD-1234] Remove 26 phantom changes from every plan (dead eventbridge IAM role)`. Bad: `Remove dead eventbridge IAM role and colliding policy`.
+
    That title is often permanent: a squash-only repo with `squash_merge_commit_title: PR_TITLE` writes it into `main` as the commit subject, discarding the branch's own messages.
+
    The caller passes it to `gh pr create --title`, which has no other source: `gh` prompts for a title when none is given, and the caller runs non-interactively.
 
 ### Fixing what a gate flags
@@ -103,7 +113,7 @@ The repo's template is the base structure, never the thing being replaced.
 ## Report format
 
 - **Output path** and whether a template was merged or the ideal description was copied verbatim.
-- **PR title**: the one line the caller hands to `gh pr create --title`.
+- **PR title**: the one line the caller hands to `gh pr create --title`, including the `[<ID>] ` prefix when a ticket resolved.
 - **Gate results**: the exit code of each script you ran, on its final run, plus every line `check-density.sh` flagged.
 - **Checklist**: any template checkbox you left unchecked, with the evidence that was missing.
 - **Caveats**: any template slot the ideal description could not fill, and any content you dropped to fit the body-size cap.

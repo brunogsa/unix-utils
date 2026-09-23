@@ -26,10 +26,14 @@ The caller gives you an INPUT naming the output path to write, plus:
 
   - None resolved → the Evidences section carries the automated-coverage line only. Your own recollection of a manual scenario is never a source; only that artifact is.
 
+- The resolved ticket ID, or "none".
 - The appendix section titles to extract.
 - The resolved `<parent>` on a stacked run.
 
   - A `<parent>` means the Jira/links section carries a `Stacks on #<parent>` bullet, which is what its 4-line budget is for.
+
+- **The `## Jira link` ticket bullet uses exactly the resolved ticket ID** -- link it only with a URL the spec/plan itself carries; never invent a Jira/Linear base URL.
+  - "none" and no `<parent>` either → omit the section entirely, per the template's omit rule; never emit an empty heading.
 
 ## Sources and tools
 

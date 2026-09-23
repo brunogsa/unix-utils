@@ -55,6 +55,17 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 - **Resolve the base branch (used by `changes-gatherer` below and by step 4)**: default is `~/.claude/scripts/resolve-base-ref.sh`, which falls back from origin/HEAD to local main to local master.
   - Empty result (none of the three resolve) → omit `--base` in step 4.
 
+- **Resolve the Jira/Linear ticket ID (used in steps 2 and 3)** -- it prefixes the PR title and fills the body's `## Jira link` bullet.
+  - Candidates: an ID the caller passed, an ID stated in this session, a key in the branch name (`feat/itgd-2947_x` → `ITGD-2947`), or a key/URL in any globbed spec/plan.
+
+  - Grep the spec/plan for keys and URLs, never read them in full. The `<parent>` arg and `AC-N`/`PR-N`/`UTF-8` tokens are never tickets.
+
+  - Caller passed an ID or "none" → resolved; never ask, since `pr-creator` runs as a subagent that cannot.
+  - Exactly one confident ID → auto-resolved. Zero, 2+, or unsure → open question **(D) Ticket ID**.
+
+  - (D) with candidates: up to 3 IDs, the strongest marked `(Recommended)`, plus `No ticket`. The user types an unlisted ID in Other.
+  - (D) with none: `No ticket (Recommended)` and `Has one, add it later` (plain title now, renamed on GitHub).
+
 - **The optional `<parent>` arg is this skill's whole stacked-PR surface** -- when given, base = the parent's head branch instead of the default.
   - Resolution, digest-scoping, and hand-off rules: [`references/parent-arg.md`](references/parent-arg.md).
 
@@ -63,12 +74,13 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 
   - The digest is what step 2 authors from, so the raw diff never enters the main session's context.
 
-- **Ask (A), (B), and (C) together, as separate questions, in one pre-flight `AskUserQuestion` call**.
-  - Carry all three; skip any label that auto-resolved above; skip the call when all three auto-resolved.
-  - They resolve different things — which source file to read, which plan slice this is, which evidence artifact backs it — so merging would force multiple answers into one.
+- **Ask (A), (B), (C), and (D) together, as separate questions, in one pre-flight `AskUserQuestion` call**.
+  - Carry all four; skip any that auto-resolved; skip the call when all four did.
+  - They resolve different things — source, plan slice, evidence, ticket — so merging forces one answer to cover several.
 
 - Once answered, create `./pr_<slug>_pr<N>.ideal.md` with an HTML comment logging each answer.
-  - Example: `<!-- step 1: spec=<resolved spec>; PR=2/3; base=<resolved base>; evidence=<resolved evidence artifact or none> -->` -- GitHub hides HTML comments in rendered bodies.
+  - Example: `<!-- step 1: spec=<resolved spec>; PR=2/3; base=<resolved base>; evidence=<resolved evidence artifact or none>; ticket=<ID or none> -->` -- GitHub hides HTML comments in rendered bodies.
+
   - It is this skill's durable record, not a separate scratchpad -- it survives a mid-flow compaction that would drop the answers.
 
 - **Derive the appendix's section list — never ask the user for it** -- it is the resolved spec/plan minus every section the body already renders.
@@ -86,7 +98,8 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 **CRITICAL: The main session orchestrates and never composes the prose itself** -- dispatch the agent and let it hand back a finished file.
 
 - `agent(subAgent=pr-writer, title=Compose ideal PR description)` in the background, waiting for it — step 3 reads the file it writes.
-  - Give it the changes digest, the resolved spec/plan paths, the resolved manual-evidence artifact path (or "none"), the appendix section list, the output path `./pr_<slug>_pr<N>.ideal.md`, and any resolved `<parent>`.
+  - Give it the changes digest, the resolved spec/plan paths, and the manual-evidence path and ticket ID, each "none" when unresolved.
+  - Also the appendix section list, the output path `./pr_<slug>_pr<N>.ideal.md`, and any resolved `<parent>`.
 
   - It loads this skill and `doc-standards` itself, runs the extractors, and runs all three gates before returning — none of that belongs in the dispatch prompt.
 
@@ -135,7 +148,8 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 - **A different agent from step 2's, deliberately** -- this step re-derives nothing, so it runs a tier below the author that produced its input.
   - Effort is frontmatter-only, so the cheaper stage needs its own file; the two cannot be one agent taking a mode argument.
 
-- Give it three paths: the `pr_<slug>_pr<N>.ideal.md` from step 2, the repo's template file, and the output `./pr_<slug>_pr<N>.final.md`.
+- Give it three paths — the `pr_<slug>_pr<N>.ideal.md` from step 2, the repo's template, and the output `./pr_<slug>_pr<N>.final.md` — plus the ticket ID.
+
 - No template found → say so instead of naming one; the agent copies the ideal description verbatim into the final body.
 
 - **Never copy the file here instead** -- the body-size gate runs only inside the agent.
@@ -143,7 +157,8 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
 - It re-reads the merge rules itself, and owns the density and body-size gates end to end — same as step 2, they are never re-run.
 
-- **It also returns the PR title** -- carry that line to step 4's `--title`; the body file is the only other thing this step hands forward.
+- **It also returns the PR title**, carrying the `[<ID>] ` prefix when a ticket resolved.
+  - Carry that line to step 4's `--title`; the body file is the only other thing this step hands forward.
 
 **The merge contract — keep the template as the base, fill it from the ideal description, and where content with no slot goes — is [`references/template-merge.md`](references/template-merge.md)'s.**
 

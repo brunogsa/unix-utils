@@ -55,18 +55,22 @@ def create_pr():
     #     delta. Only step 1's last act (9) waits on the result.
     digest_handle = dispatch_background("changes-gatherer", base=base)
 
-    # 6 · (A) several spec/plan files matched, (B) several PR-N entries
-    #     in the plan's PR Breakdown, (C) several evidence_*.md matched.
-    if ambiguous(sources, evidence):
-        # 6a · ONE AskUserQuestion carrying (A), (B) and (C) as three SEPARATE
-        #      questions. They resolve different things — which source file to
-        #      read, which plan slice this is, which artifact backs the manual
-        #      evidence — so merging them would force several answers into one.
-        answers = ask_user_question([question_A, question_B, question_C])
+    # 6 · (A) several spec/plan files matched, (B) several PR-N entries in the
+    #     plan's PR Breakdown, (C) several evidence_*.md matched, (D) zero, 2+,
+    #     or an unsure ticket ID candidate — collected from a caller-passed ID,
+    #     the session, the branch name, and every matched spec/plan.
+    if ambiguous(sources, evidence, ticket_candidates):
+        # 6a · ONE AskUserQuestion carrying (A), (B), (C) and (D) as four
+        #      SEPARATE questions. They resolve different things — which
+        #      source file to read, which plan slice this is, which artifact
+        #      backs the manual evidence, which ticket names the PR — so
+        #      merging them would force several answers into one.
+        answers = ask_user_question([question_A, question_B, question_C, question_D])
 
     # 7 · created right away, with an HTML comment logging each answer — spec,
-    #     PR-N, base, and the resolved evidence artifact or "none" — this
-    #     skill's durable record, surviving a mid-flow compaction that drops it.
+    #     PR-N, base, the resolved evidence artifact or "none", and the
+    #     resolved ticket or "none" — this skill's durable record, surviving a
+    #     mid-flow compaction that drops it.
     ideal_path = write(f"./pr_{slug}_pr{N}.ideal.md", log_answers_as_html_comment())
 
     # 8 · Never ask for this list: it is the resolved spec/plan MINUS every
@@ -93,12 +97,13 @@ def create_pr():
     #      dispatch: with no artifact to paste from, a manual scenario has to
     #      be dropped rather than narrated.
     dispatch("pr-writer", digest=digest, appendix=appendix_sections,
-             evidence=evidence)
+             evidence=evidence, ticket=ticket)
     # 11 · written in THIS skill's own format, ignoring any repo template —
     #      page-fit can only budget a section it recognizes.
 
-    # 12 · Step 3 — this check picks the agent's third input, and is NOT a branch
-    #      in this flow: a path when .github/ carries a template, an explicit
+    # 12 · Step 3 — this check picks one of the agent's four inputs (the other
+    #      three are ideal_path, out, and ticket), and is NOT a branch in this
+    #      flow: a path when .github/ carries a template, an explicit
     #      "no template" when it does not.
     template = repo_pr_template()
 
@@ -109,10 +114,11 @@ def create_pr():
     #      either way, because it owns density and body size end to end: with no
     #      template it copies the ideal verbatim, and once the trim order is
     #      exhausted it returns a blocking caveat rather than cutting into body
-    #      content. Also returns the PR title, carried to step 4's --title.
+    #      content. Also returns the PR title (carrying `[<ID>] ` when a ticket
+    #      resolved), carried to step 4's --title.
     final_path = f"./pr_{slug}_pr{N}.final.md"
     dispatch("pr-finalizer", ideal=ideal_path,
-             template=template, out=final_path)
+             template=template, out=final_path, ticket=ticket)
     # 14 · the repo's template is the BASE structure, never the thing replaced.
     #      This file is NEVER page-fit-checked, per pr-page-budget.md's
     #      "Measure the ideal description, never the final body", which owns the
@@ -126,7 +132,7 @@ def create_pr():
         # 15a · missing or empty means step 3's agent never finished. Re-dispatch
         #       pr-finalizer; never compose a replacement body out here.
         dispatch("pr-finalizer", ideal=ideal_path,
-                 template=template, out=final_path)
+                 template=template, out=final_path, ticket=ticket)
 
     # 16 · Only NOW push, when the branch has no upstream. The push is the run's
     #      first outward-facing act — it fires CI and makes the branch visible,
@@ -194,17 +200,17 @@ flowchart TD
   n4["4. Resolve the base branch: default is origin/HEAD (empty -&gt; omit --base<br/>at create time). The optional &lt;parent&gt; invocation arg is this skill's whole<br/>stacked-PR surface: base becomes the parent's head branch, which also scopes<br/>the changes digest to this PR's own delta. Never inferred from ancestry or<br/>the plan — only the explicit arg stacks a PR.<br/>Chain workflow lives in implement's references/stacked-prs.md"]
   n5[["5. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · background, NOT awaited<br/>dispatched the moment the base branch resolves (parent override applied),<br/>so the interview below runs CONCURRENTLY with it — writes the full commit<br/>log + diff to a /tmp artifact and returns only the digest, diffed against<br/>the resolved base so a stacked PR digests only its own delta"]]:::dispatch
 
-  n6{"6. Anything left ambiguous?<br/>(A) several spec/plan files matched<br/>(B) several PR-N entries in the plan's PR Breakdown<br/>(C) several evidence_*.md matched"}
-  n6a["6a. ONE AskUserQuestion carrying (A), (B) and (C) as three SEPARATE<br/>questions — they resolve different things (which source file to read,<br/>which plan slice this is, which artifact backs the manual evidence),<br/>so one merged question would force several answers into one choice"]:::gate
-  n7["7. Create ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md right away, with an HTML comment<br/>logging each answer — spec, PR-N, base, and the resolved evidence artifact<br/>or 'none' — this skill's durable record, surviving a mid-flow compaction"]:::state
+  n6{"6. Anything left ambiguous?<br/>(A) several spec/plan files matched<br/>(B) several PR-N entries in the plan's PR Breakdown<br/>(C) several evidence_*.md matched<br/>(D) zero, 2+, or an unsure ticket ID candidate, collected from a<br/>caller-passed ID, the session, the branch name, and every spec/plan"}
+  n6a["6a. ONE AskUserQuestion carrying (A), (B), (C) and (D) as four SEPARATE<br/>questions — they resolve different things (which source file to read,<br/>which plan slice this is, which artifact backs the manual evidence,<br/>which ticket names the PR), so one merged question would force several<br/>answers into one choice"]:::gate
+  n7["7. Create ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md right away, with an HTML comment<br/>logging each answer — spec, PR-N, base, the resolved evidence artifact<br/>or 'none', and the resolved ticket or 'none' — this skill's durable<br/>record, surviving a mid-flow compaction"]:::state
   n8["8. Derive the appendix's section list — never ask for it:<br/>the resolved spec/plan MINUS every section the body renders.<br/>The list is handed to step 2's agent, which extracts sections with<br/>extract-md-sections.sh and diagrams with extract-mermaid-blocks.sh —<br/>a re-summarized section or re-drawn diagram diverges silently"]
   n9["9. Step 1's last act · Collect the changes-gatherer digest — step 2<br/>cannot start without it, so wait here if it's still running. By this point<br/>it has had the whole interview to run in, so a wait that used to cost its<br/>full duration usually costs nothing"]
 
-  n10[["10. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · background — the resolved evidence artifact<br/>travels with the dispatch, since with nothing to paste from a manual<br/>scenario must be dropped rather than narrated<br/>it loads doc-standards itself and loops check-pr-page-fit.sh and<br/>check-pr-evidence.sh until both pass, but only REPORTS what<br/>check-density.sh flagged — main files those as a [Scout], re-runs<br/>nothing, and never hand-fixes its prose"]]:::dispatch
+  n10[["10. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · background — the resolved evidence artifact<br/>and the resolved ticket ID (or 'none') travel with the dispatch, since<br/>with nothing to paste from a manual scenario must be dropped rather than<br/>narrated, and with no ticket the Jira link section names none<br/>it loads doc-standards itself and loops check-pr-page-fit.sh and<br/>check-pr-evidence.sh until both pass, but only REPORTS what<br/>check-density.sh flagged — main files those as a [Scout], re-runs<br/>nothing, and never hand-fixes its prose"]]:::dispatch
   n11["11. Ideal description written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md<br/>in THIS skill's own format, ignoring any repo template —<br/>page-fit can only budget a section it recognizes"]:::state
 
-  n12["12. Step 3 · Check .github/ for pull_request_template.md /<br/>PULL_REQUEST_TEMPLATE.md — the result is the agent's third input,<br/>a template path or an explicit 'no template', not a branch here"]
-  n13[["13. Dispatch: Compose repo PR description<br/>pr-finalizer · agent-pinned · background<br/>dispatched either way — a different, cheaper agent from step 2's pr-writer,<br/>since this step re-derives nothing: owns the density and body-size gates<br/>end to end, copies the ideal verbatim when no template, returns a blocking<br/>caveat once the trim order is exhausted instead of cutting deeper, and also<br/>returns the PR title, carried to step 4's --title"]]:::dispatch
+  n12["12. Step 3 · Check .github/ for pull_request_template.md /<br/>PULL_REQUEST_TEMPLATE.md — the result is one of the agent's four inputs<br/>(with ideal_path, out, and the ticket ID), a template path or an explicit<br/>'no template', not a branch here"]
+  n13[["13. Dispatch: Compose repo PR description<br/>pr-finalizer · agent-pinned · background<br/>dispatched either way — a different, cheaper agent from step 2's pr-writer,<br/>since this step re-derives nothing: owns the density and body-size gates<br/>end to end, copies the ideal verbatim when no template, returns a blocking<br/>caveat once the trim order is exhausted instead of cutting deeper, and also<br/>returns the PR title (carrying '[&lt;ID&gt;] ' when a ticket resolved),<br/>carried to step 4's --title"]]:::dispatch
   n14["14. Final body written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md — the repo's<br/>template is the base structure, never the thing replaced.<br/>NEVER page-fit-checked, per pr-page-budget.md's 'Measure the ideal<br/>description, never the final body', which owns the reason"]:::state
 
   n15{"15. Step 4 · Does the .final.md exist and carry content?<br/>an artifact check, never a re-run of the agent's gates —<br/>an over-budget body shows in the rendered PR, and an<br/>over-cap one fails loudly at the gh pr create API"}
