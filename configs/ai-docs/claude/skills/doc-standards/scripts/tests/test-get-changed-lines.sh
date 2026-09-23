@@ -23,7 +23,8 @@ SCRIPT="$script_dir/get-changed-lines.sh"
 # physical, so an unresolved work_dir would make every
 # relative-path comparison miss.
 work_dir=$(cd "$(mktemp -d)" && pwd -P)
-trap 'rm -rf "$work_dir"' EXIT
+missing_out="$(mktemp)"
+trap 'rm -rf "$work_dir"; rm -f "$missing_out"' EXIT
 
 pass_count=0
 fail_count=0
@@ -92,7 +93,7 @@ assert_eq "staged-but-uncommitted new file reports every line" "$(printf '1\n2')
 # --- Case 5: file missing -> exit 2 ---
 repo=$(new_repo repo5)
 git -C "$repo" commit -q --allow-empty -m base
-(cd "$repo" && "$SCRIPT" missing.txt) >/tmp/get-changed-lines-missing.out 2>&1
+(cd "$repo" && "$SCRIPT" missing.txt) >"$missing_out" 2>&1
 rc=$?
 assert_eq "missing file exits 2" "2" "$rc"
 
