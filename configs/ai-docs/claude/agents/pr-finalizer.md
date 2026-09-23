@@ -1,6 +1,6 @@
 ---
 name: pr-finalizer
-description: Merges an ideal PR description into the repo's template, owns the density and body-size gates, and returns the PR title. Never pushes. Dispatch for create-pr's final compose step. Input: the .ideal.md path, plus the template path or none.
+description: Merges an ideal PR description into the repo's template, owns the density and body-size gates, and returns the PR title. Never pushes. Dispatch for create-pr's final compose step. Input: the .ideal.md path, template path or none, ticket ID or none.
 model: sonnet
 effort: low
 ---

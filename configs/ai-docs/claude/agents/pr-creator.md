@@ -1,6 +1,6 @@
 ---
 name: pr-creator
-description: Composes a PR title and body under the create-pr skill's conventions, then returns the draft's path or pushes and returns the PR URL. Dispatch for implement's batch-end PR-description step. Input: branch/base, spec and plan paths, draft-or-push.
+description: Composes a PR title and body under the create-pr skill's conventions, then returns the draft's path or pushes and returns the URL. Dispatch for implement's batch-end PR step. Input: branch/base, spec/plan paths, ticket ID or none, draft-or-push.
 model: sonnet
 effort: low
 ---
@@ -19,7 +19,7 @@ It also gives you the output path to write to, and whether it wants the drafted 
 
 It also gives you the Jira/Linear ticket ID, or an explicit "none" — hand it to `create-pr`'s step 1 as the caller-passed ID, so its ticket question is never asked.
 
-You cannot ask the user, so a missing ticket input is a caveat in your report, never a guess.
+You cannot ask the user, so treat a missing ticket input as "none" and flag it as a caveat in your report — never guess one.
 
 ## Sources and tools
 

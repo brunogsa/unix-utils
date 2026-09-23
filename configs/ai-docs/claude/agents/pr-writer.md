@@ -1,6 +1,6 @@
 ---
 name: pr-writer
-description: Authors the ideal PR description to CWD as pr_<slug>.ideal.md, owning its density, page-fit and evidence gates. Never pushes; the repo template is pr-finalizer's job. Dispatch for create-pr's compose step. Input: changes digest and spec/plan paths.
+description: Authors the ideal PR body to CWD as pr_<slug>.ideal.md, owning its density, page-fit and evidence gates. Never pushes; the template is pr-finalizer's job. Dispatch for create-pr step 2. Input: changes digest, spec/plan paths, ticket ID or none.
 model: sonnet
 effort: medium
 ---
