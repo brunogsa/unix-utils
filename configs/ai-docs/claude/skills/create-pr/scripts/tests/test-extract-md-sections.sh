@@ -135,6 +135,33 @@ assert_not_contains \
   "should never print the literal '# Appendix' boundary line itself, even after a fenced block" \
   "$out" "# Appendix"
 
+fenced_heading_doc="$work_dir/plan_fenced_heading.md"
+cat > "$fenced_heading_doc" <<'EOF'
+# plan_fixture
+
+## Wanted Section
+
+Body line one.
+
+```markdown
+## Not Wanted Section
+```
+
+Body line two, still inside Wanted Section.
+
+## Not Wanted Section
+
+Real section content that must never appear.
+EOF
+
+out=$("$SCRIPT" "$fenced_heading_doc" "Wanted Section")
+assert_contains \
+  "should not end the wanted section at a '## ' line that only appears inside a fenced code block" \
+  "$out" "Body line two, still inside Wanted Section."
+assert_not_contains \
+  "should never pull in the real (non-fenced) Not Wanted Section that follows" \
+  "$out" "Real section content that must never appear."
+
 no_appendix_doc="$work_dir/plan_no_appendix.md"
 cat > "$no_appendix_doc" <<'EOF'
 # plan_fixture

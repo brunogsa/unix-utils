@@ -23,6 +23,10 @@
 # does not end the section — only another heading at the SAME <marker> depth
 # does, matching the per-script awk state machines this helper replaces.
 #
+# A <marker>-depth-shaped line inside a fenced code block is
+# sample content, not a real heading, so it never opens or
+# closes a section.
+#
 # plan-template.md prescribes a trailing "---" divider line before every
 # "##"-depth heading, which otherwise lands inside the PRECEDING section's
 # extracted body (it sits before the next heading, not after it). That
@@ -55,7 +59,8 @@ if [ ! -f "$plan_file" ]; then
 fi
 
 awk -v marker="$marker" -v pat="$heading_pattern" '
-  index($0, marker " ") == 1 {
+  /^```/ { in_fence = !in_fence }
+  !in_fence && index($0, marker " ") == 1 {
     if (in_section) exit
     stripped = $0
     sub("^" marker " ", "", stripped)

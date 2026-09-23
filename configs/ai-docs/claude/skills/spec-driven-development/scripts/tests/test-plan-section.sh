@@ -81,6 +81,14 @@ it_should_support_a_prefix_match_for_a_dynamic_heading_without_matching_a_longer
     "$(printf '\nthird body\n')" "$VERDICT_OUT"
 }
 
+it_should_not_end_the_section_at_a_marker_depth_heading_inside_a_fenced_code_block() {
+  local path="$work_dir/fenced-heading.md"
+  printf '## Task Breakdown\n\nbody before fence\n\n```markdown\n## Fake Boundary\n```\n\nbody after fence, still in Task Breakdown\n\n## Next Section\n\nnot included\n' > "$path"
+  run_script "$path" "##" '^Task Breakdown[[:space:]]*$'
+  assert_eq "should not end the section at a '## ' line that only appears inside a fenced code block" \
+    "$(printf '\nbody before fence\n\n```markdown\n## Fake Boundary\n```\n\nbody after fence, still in Task Breakdown\n')" "$VERDICT_OUT"
+}
+
 it_should_exit_2_on_wrong_arg_count() {
   run_script "one-arg-only"
   assert_eq "should exit 2 on wrong arg count" "2" "$VERDICT_EXIT"
@@ -94,6 +102,7 @@ it_should_exit_2_when_the_plan_file_is_missing() {
 it_should_print_only_the_matched_section_body_excluding_the_heading_line
 it_should_stop_at_the_next_same_level_heading_and_exit_0
 it_should_not_end_the_section_at_a_deeper_subheading
+it_should_not_end_the_section_at_a_marker_depth_heading_inside_a_fenced_code_block
 it_should_print_empty_stdout_and_exit_0_when_no_heading_matches
 it_should_support_a_prefix_match_for_a_dynamic_heading_without_matching_a_longer_number
 it_should_exit_2_on_wrong_arg_count
