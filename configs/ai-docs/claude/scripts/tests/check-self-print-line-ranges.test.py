@@ -190,3 +190,66 @@ class TestLeavesOtherPrintersAlone:
 
         assert result.returncode == 0
         assert result.stdout == ""
+
+
+REPO_ROOT = Path(__file__).resolve().parents[5]
+
+# The scripts whose --help once printed a fixed line range of
+# their own file, each range ending before the header did.
+FORMER_FIXED_RANGE_PRINTERS = [
+    "code-review-pipeline/scripts/extract-commentable-lines.sh",
+    "code-review-pipeline/scripts/extract-skipped-files.sh",
+    "code-review-pipeline/scripts/filter-off-diff-findings.sh",
+    "code-review-pipeline/scripts/prep-local-context.sh",
+    "consistency-check-principles-and-skills/scripts/check-refs.sh",
+    "consistency-check-principles-and-skills/scripts/"
+    "gen-shard-manifest.sh",
+    "consistency-check-principles-and-skills/scripts/verify-quote.sh",
+    "english-coach/scripts/extract-user-messages.sh",
+    "refactor/scripts/prep-refactor-context.sh",
+]
+
+SKILLS_DIR = REPO_ROOT / "configs" / "ai-docs" / "claude" / "skills"
+
+
+def _last_header_line(script_path):
+    """Return the last line of the comment block right under the
+    shebang, with its leading "# " stripped - the line a truncated
+    --help drops first."""
+    lines = script_path.read_text(encoding="utf-8").splitlines()
+    last = None
+    for line in lines[1:]:
+        if not line.startswith("#"):
+            break
+        last = line
+    return last[2:] if last.startswith("# ") else last[1:]
+
+
+class TestThisRepo:
+    def test_this_repo_has_no_fixed_range_self_printers(self):
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--repo-root", str(REPO_ROOT)],
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.stdout == "", result.stdout
+        assert result.returncode == 0
+
+    @pytest.mark.parametrize("relpath", FORMER_FIXED_RANGE_PRINTERS)
+    def test_help_prints_the_whole_header_through_its_last_line(
+        self, relpath
+    ):
+        script_path = SKILLS_DIR / relpath
+        result = subprocess.run(
+            ["bash", str(script_path), "--help"],
+            capture_output=True,
+            text=True,
+            stdin=subprocess.DEVNULL,
+        )
+
+        last_line = _last_header_line(script_path)
+        help_text = result.stdout + result.stderr
+        assert last_line in help_text, (
+            f"--help dropped {last_line!r}; it printed:\n{help_text}"
+        )

@@ -20,7 +20,7 @@
 set -euo pipefail
 
 if [[ $# -ne 1 || "$1" == "-h" || "$1" == "--help" ]]; then
-  sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
+  awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"
   exit 0
 fi
 
