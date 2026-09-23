@@ -646,8 +646,8 @@ read_monthly_spend_limit() {
 #
 # A whole uncached render measured 0.24-0.28s against the
 # 217 MB native binary, and a live statusline refilled a
-# deleted cache on its first render, so Claude Code's 300ms
-# statusline debounce does not starve it.
+# deleted cache within about a minute of renders, so Claude
+# Code's 300ms statusline debounce does not starve it.
 #
 # The cache is one JSON file keyed by the resolved binary
 # path plus its mtime.
