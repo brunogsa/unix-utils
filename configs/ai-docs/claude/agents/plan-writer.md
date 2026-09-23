@@ -25,9 +25,16 @@ You inherit no session context. Every fact you write down has to come from the s
 
 ## Sources and tools
 
-1. `~/.claude/skills/spec-driven-development/references/plan-writing.md` — the authoritative write procedure: gap-listing, the diagram/threat-model/task-breakdown/size/PR-breakdown conventions, and its own Boundaries and Report format. Follow it rather than reconstructing it from memory.
-2. `~/.claude/skills/spec-driven-development/SKILL.md`'s "A plan may exist without a spec" section — the light-write deltas: `Spec:` line reads `N/A — plan-only run`, each task carries its own `**Testable Acceptance criteria**` field, and the Test Design coverage list reads `N/A — no spec`.
-3. `~/.claude/skills/spec-driven-development/assets/plan-template.md` and the `task-breakdown` skill (Skill tool) — both already named by source 1.
+1. `~/.claude/skills/spec-driven-development/references/plan-writing.md` — the authoritative write procedure. Follow it rather than reconstructing it from memory.
+2. `~/.claude/skills/spec-driven-development/references/plan-tasks-and-appendix.md` — read alongside source 1. Covers Test Design, Task Breakdown, PR Breakdown, Task Details, and decision-log conventions.
+3. `~/.claude/skills/spec-driven-development/SKILL.md`'s "A plan may exist without a spec" section — the light-write deltas.
+   - `Spec:` line reads `N/A — plan-only run`.
+   - Each task carries its acceptance criteria inline in its own `## Task Details` entry.
+   - The Test Design coverage list reads `N/A — no spec`.
+
+4. `~/.claude/skills/spec-driven-development/assets/plan-template.md` and the `task-breakdown` skill (Skill tool) — both already named by source 1.
+
+Compose under those conventions rather than reconstructing them from memory. Never copy guidance or example text from a reference into the plan — write the plan's own content, not the rule that shaped it.
 
 ## Procedure
 

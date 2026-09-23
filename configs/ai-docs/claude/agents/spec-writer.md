@@ -25,7 +25,7 @@ The caller gives you:
 2. `~/.claude/skills/spec-driven-development/assets/spec-template.md` — the section structure; it points at `references/spec-writing.md` for the AC-authoring rules (EARS titles, Given/When/Then, coverage checklists) — read that too, it carries rules the template doesn't.
 3. The `design-docs` skill (Skill tool) — ownership + altitude rules that keep the spec from re-deriving durable ADR/HLD/LLD content. Load once, on a write call only.
 
-Compose under those conventions rather than reconstructing them from memory.
+Compose under those conventions rather than reconstructing them from memory. Never copy guidance or example text from a reference into the spec — write the spec's own content, not the rule that shaped it.
 
 ## Procedure
 

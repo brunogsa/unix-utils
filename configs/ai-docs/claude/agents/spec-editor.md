@@ -30,6 +30,8 @@ Read only the existing spec and the caller's instructions otherwise — an edit 
 1. Read the existing spec in full.
 2. Apply only the exact changes the caller named — leave every other line verbatim.
 3. Closing a question: resolve the `**QUESTION:**` entry with the answer given, and leave Open Questions reading `None` once every entry is closed.
+4. Adding a decision appends a new `<details>` entry below the execution divider, inside `## Functional Decisions` in the appendix.
+5. Nothing moves across the literal H1 `# Appendix` line: an edit to body content stays in the body, an edit to appendix content stays in the appendix.
 
 ## Boundaries
 

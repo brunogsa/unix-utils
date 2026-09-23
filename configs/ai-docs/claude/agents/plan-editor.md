@@ -30,6 +30,9 @@ Read only the existing plan and the caller's instructions otherwise — an edit 
 1. Read the existing plan in full.
 2. Apply only the exact changes the caller named — leave every other line verbatim.
 3. Closing a question: resolve the `**QUESTION:**` entry with the answer given, and leave Open Questions reading `None` once every entry is closed.
+4. Adding a plan task writes BOTH its body `### N.` entry and its matching `## Task Details` entry.
+5. Adding a decision appends a new `<details>` entry below the execution divider, inside `## Technical Decisions` in the appendix.
+6. Nothing moves across the literal H1 `# Appendix` line: an edit to body content stays in the body, an edit to appendix content stays in the appendix.
 
 ## Boundaries
 

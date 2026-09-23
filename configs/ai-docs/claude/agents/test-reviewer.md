@@ -26,7 +26,7 @@ The caller gives you an INPUT — a plan doc (optionally scoped to specific task
 
 ## Sources and tools
 
-Read the plan and the test suite the caller points you to — the tasks' Testable Acceptance criteria, the test files that claim to cover them, and any referenced source.
+Read the plan and the test suite the caller points you to — each task's acceptance criteria in its `## Task Details` entry, the test files that claim to cover them, and any referenced source.
 
 Don't stop at the plan alone if answering the question requires broader context.
 
@@ -44,7 +44,7 @@ Keep a follow-up turn for what a batch's own output revealed — a file a grep h
 
 1. Read the plan (scoped to the given task ids, if any) and the test suite the caller points you to.
 
-2. For each task's Testable Acceptance criteria, check whether a planned or existing test actually exercises it — presence alone doesn't pass; the test must exist and cover the stated behavior.
+2. For each AC in the task's `## Task Details` entry, check a planned or existing test exercises it — presence alone doesn't pass; the test must cover the stated behavior.
 
    Don't drift into an unrelated critique they didn't request — this is a presence/coverage check, not a general test-quality review.
 

@@ -12,7 +12,7 @@ This skill is a library, not a procedure.
 It defines what the docs are called, how consumers find them, what shape they take, and which checks a plan must pass before a human sees it.
 The procedure that produces them — interview, spec, plan, self-review, handoff — lives in the `brainstorm` skill.
 
-Why the split: `/implement`, `/auto-review`, and `/create-pr` consume these docs without ever authoring one, so the authoring flow would be dead weight in their context.
+Why the split: `/implement`, `/auto-review`, and `/create-pr` consume these docs without authoring one, so the authoring flow is dead weight in their context.
 
 **Callers reach this file by path, not by the Skill tool** — `Read ~/.claude/skills/spec-driven-development/SKILL.md`.
 `disable-model-invocation: true` keeps a library nothing auto-triggers off the model's skill listing, which is also what takes its description out of every session's always-on budget.
@@ -20,6 +20,10 @@ Why the split: `/implement`, `/auto-review`, and `/create-pr` consume these docs
 ## Documents
 
 Two living documents in CWD. Templates live in `assets/` and are populated based on the user's input.
+
+Each doc is a short human body, then a literal H1 `# Appendix` line, then AI-execution detail in collapsed `<details>` blocks. Reading stops at `# Appendix` — the body alone is the 1–6 page human read.
+
+Body guidance lives in `references/spec-writing.md` (spec) and `references/plan-writing.md` (plan). Guidance for the plan's Test Design, Task Breakdown, PR Breakdown, and Task Details/decision-log sections lives in `references/plan-tasks-and-appendix.md`, read alongside `plan-writing.md`.
 
 These throwaway docs feed from durable design docs (ADR / HLD / LLD).
 Load the `design-docs` skill when authoring the spec, for the ownership + altitude rules that keep spec/plan from re-deriving them.
@@ -31,13 +35,13 @@ Each feature gets a descriptive slug, and its spec and plan **share** that slug:
 - `spec_<slug>.md` — e.g. `spec_parallel-sessions.md`
 - `plan_<slug>.md` — e.g. `plan_parallel-sessions.md`
 
-`<slug>` is a short kebab-case descriptor of the feature. The shared slug pairs the spec with its plan by name.
+`<slug>` is a short kebab-case descriptor of the feature; the shared slug pairs spec with plan by name.
 
 Why: a directory may hold several in-flight features at once, so a descriptive slug keeps each pair self-identifying instead of colliding on one shared name.
 
 ### Discovery (how consumers find these files)
 
-Downstream skills (`/implement`, `/auto-review`, `/create-pr`, `/quality-gate`) discover the files by glob in CWD (top-level only):
+Downstream skills (`/implement`, `/auto-review`, `/create-pr`, `/quality-gate`) discover the files by glob in CWD, top-level only:
 
 ```bash
 ls -1 spec_*.md plan_*.md 2>/dev/null
@@ -48,7 +52,7 @@ Resolve with this shared baseline:
 - **Exactly one spec and one plan** → use both; print the resolved paths, no prompt.
 - **Multiple specs or multiple plans** → never guess; the matches get listed numbered for a human to pick from.
 
-Everything else diverges per consumer: the bullets below name those divergences, and each consumer's own `SKILL.md` is canonical for anything they leave out.
+Everything else diverges per consumer; each consumer's own `SKILL.md` is canonical for anything the bullets below leave out.
 
 - **When and how that pick is asked.** `/auto-review` and `/quality-gate` prompt inline; `/implement` and `/create-pr` fold it into their one up-front interview instead.
 - **What happens with no human to ask** — `/quality-gate` under either `--auto-solve` or `--report-only` proceeds without that kind rather than stalling on a prompt.
@@ -63,17 +67,19 @@ Trim inside a section with its own `N/A — <reason>` escape instead, per the Gu
 
 Why no variant: a dropped section is invisible to the reader, where an `N/A` line states that the author considered it and ruled it out.
 
+The literal H1 `# Appendix` line is required in both docs — a boundary, not a `## ` section, never a candidate for the `N/A` escape above.
+
 ### A plan may exist without a spec
 
 A caller may write the plan alone — `brainstorm`'s `light` mode does exactly that.
 
-Such a plan writes `N/A — plan-only run` on its `Spec:` line, and carries each task's acceptance criteria in that task's own `**Testable Acceptance criteria**` field.
+Such a plan writes `N/A — plan-only run` on its `Spec:` line, carrying each task's acceptance criteria inline in its own `## Task Details` entry.
 In place of the Test Design section's AC → test coverage list it writes `N/A — no spec`.
 
 It runs neither `check-ac-coverage.sh` nor `check-coverage-checklists.sh`, which each need a spec.
 So the semantic half of "Every AC has a test" judges the per-task fields above in place of the absent coverage list.
 
-Why the spec is the droppable one: every downstream consumer degrades gracefully to "no spec", while `/implement` — the one that writes code — refuses to run without a plan.
+Why the spec is droppable: every downstream consumer degrades gracefully to "no spec", while `/implement` — the one that writes code — refuses to run without a plan.
 
 ### spec_<slug>.md (why / what)
 
@@ -102,9 +108,9 @@ Every plan passes every gate below before a human is asked to review it.
 
 The gates split into two buckets: **deterministic** — a script or a renderer returns the verdict — and **judged**, where a fresh-context reviewer decides.
 
-The judged bucket routes by artifact: `spec-reviewer` over a spec, `plan-reviewer` over a plan.
+The judged bucket routes by artifact — `spec-reviewer` over a spec, `plan-reviewer` over a plan.
 
-Run the deterministic bucket first and as often as needed; the judged bucket runs as few times as the caller will accept.
+Run the deterministic bucket first, as often as needed; the judged bucket runs as few times as the caller accepts.
 
 **Read [`references/self-review-checks.md`](references/self-review-checks.md) when you run these.**
 It carries the bucket membership and dispatch tiers, the qualitative-pass checklist, the two artifact fixers, and, per formal check, what it means and what blocks.
@@ -120,7 +126,7 @@ Name the three fields exactly `traces_to_ac`, `right_sized`, and `qualitative_pa
 - The first two switch off one formal check each — the last two rows of the table below.
 - `qualitative_pass` switches off the qualitative pass's checklist, and only that. The artifact fixers run regardless, and so does every always-on check.
 
-Why: asking after the plan is written lets a check get waived because it failed, rather than because it never applied.
+Why: asking after the plan is written lets a check get waived because it failed, not because it never applied.
 
 Nine formal checks run in sequence (seven always-on + the two toggles above):
 
@@ -141,7 +147,7 @@ The seven always-on checks, plus the Test Design authoring requirement itself, n
 No toggle removes one, including the two judged ones — "How would this break?" and the semantic half of "Every AC has a test".
 A no-toggle run keeps both: it drops the qualitative pass and the two toggled checks, and runs those two over whatever the plan alone carries.
 
-A toggled-off check or pass is omitted; self-review's output states explicitly what was skipped by request or by mode, so the reviewer never wonders why something is absent.
+A toggled-off check or pass is omitted; self-review's output states what was skipped, by request or by mode, so the reviewer never wonders why.
 
 Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces only in implementation.
 
@@ -176,7 +182,7 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
   - Why: specs/plans are scanned non-linearly; an ID reference adds lookup cost on every scan, while the behavior recap alone carries the meaning.
 
 - **CRITICAL: Keep spec and plan up to date** -- Stale docs degrade `/create-pr`.
-  - Both files stay living through implementation; decisions are append-only past the divider that exists on both.
+  - Both files stay living through implementation; decisions are append-only past the divider on both.
 
 - **The plan's tasks and their sub-steps become items on TaskList** — when running inline.
   - Under `/implement`, only parent tasks go on the orchestrator's TaskList; each task subagent tracks its own sub-steps in a private checklist file.
