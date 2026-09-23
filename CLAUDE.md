@@ -47,6 +47,14 @@ Never compose an ad-hoc `for t in .../test-*.sh` loop instead — that is exactl
 
 For the same reason, never run `pytest` as a separate manual step again — `./run-tests.sh` alone is now the honest answer to "is the repo green."
 
+Before any suite runs, `run-tests.sh` calls `configs/ai-docs/claude/scripts/check-machine-headroom.sh` and refuses to start when it isn't GO — a profiled run averages only ~0.47 cores, so this exists to protect a machine that's already busy, not to serialize otherwise-light runs against each other.
+
+A refused or missing gate exits 2, distinct from exit 1 (a red suite) — that's how a caller tells "didn't run" apart from "ran and failed."
+
+On a busy machine, override the gate's thresholds with `HEADROOM_LOAD_RATIO_MAX`, `HEADROOM_MIN_AVAILABLE_MB`, or `HEADROOM_MIN_FREE_DISK_MB` rather than waiting it out.
+
+Known gap: the gate reads the 1-minute load average, which lags a command that just started, so two runs launched in the same instant can both read the same stale load and both get GO — only a lock closes that, and this repo accepts the gap rather than pay for a lock again.
+
 ## Editing
 
 Always edit source in `configs/`, never the symlink targets.
