@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# gen-shard-manifest.sh - Emit the file-shard manifest consistency-check
-# hands to its per-shard ensemble dispatch (D12).
+# gen-shard-manifest.sh - Emit the file-shard manifest
+# consistency-check hands to its per-shard ensemble dispatch
+# (D12).
 #
-# For each skills/*/ directory, emits a shard listing every file in
-# it, plus any agents/*.md file it dispatches by name, plus any other
-# in-repo file its own files reference outside its own directory.
-# Emits one further dedicated shard containing only CLAUDE.md, and
-# adds CLAUDE.md to every other shard's file list (D13) so every shard
-# carries the principles that govern it.
+# For each skills/*/ directory, emits a shard listing every file
+# in it, plus any agents/*.md file it dispatches by name, plus
+# any other in-repo file its own files reference outside its own
+# directory.
+#
+# Emits one further dedicated shard containing only CLAUDE.md,
+# and adds CLAUDE.md to every other shard's file list (D13) so
+# every shard carries the principles that govern it.
 #
 # Usage:
 #   gen-shard-manifest.sh [path]
@@ -24,16 +27,19 @@
 #   [SHARD] <slug>
 #   <absolute file path>
 #   <absolute file path>
+#
 #   ...
-#   <blank line>
+#   <blank line>.
+#
 #   ... one block per skill, sorted by slug, then a final
 #   [SHARD] claude-md block containing only CLAUDE.md.
 #
 # Exit codes:
 #   0 - manifest emitted
-#   1 - hard failure (missing skills directory, missing CLAUDE.md,
-#       or a skills directory with zero skill subdirectories) —
-#       never an empty manifest.
+#
+#   1 - hard failure (missing skills directory, missing
+#       CLAUDE.md, or a skills directory with zero skill
+#       subdirectories) — never an empty manifest.
 
 set -eo pipefail
 
@@ -46,8 +52,9 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     exit 0
 fi
 
-# Resolve targets — mirrors check.sh's nested-then-sibling resolution
-# exactly, so a path arg behaves identically for both scripts.
+# Resolve targets — mirrors check.sh's nested-then-sibling
+# resolution exactly, so a path arg behaves identically for both
+# scripts.
 if [ -z "${1:-}" ]; then
     CLAUDE_MD="$HOME/.claude/CLAUDE.md"
     SKILLS_DIR="$HOME/.claude/skills"
@@ -70,25 +77,28 @@ else
     SKILLS_DIR_TRIED="$skills_dir_nested, $skills_dir_sibling"
 fi
 
-# A missing skills dir must hard-fail here, never fall through to an
-# empty manifest.
+# A missing skills dir must hard-fail here, never fall through
+# to an empty manifest.
 if [ ! -d "$SKILLS_DIR" ]; then
     echo "ERROR: no skills directory found (tried $SKILLS_DIR_TRIED)" >&2
     exit 1
 fi
 
-# Unlike check.sh (where CLAUDE.md is optional), D13 requires CLAUDE.md
-# in every shard — a run with no CLAUDE.md can never honor that, so it
-# hard-fails here too rather than silently omitting it everywhere.
+# Unlike check.sh (where CLAUDE.md is optional), D13 requires
+# CLAUDE.md in every shard — a run with no CLAUDE.md can never
+# honor that, so it hard-fails here too rather than silently
+# omitting it everywhere.
 if [ ! -f "$CLAUDE_MD" ]; then
     echo "ERROR: no CLAUDE.md found ($CLAUDE_MD)" >&2
     exit 1
 fi
 
-# A skills dir that exists but has zero skill subdirectories must also
-# hard-fail — otherwise it would silently produce a manifest holding
-# only the dedicated claude-md shard, which is an empty manifest for
-# every purpose that matters (no skill ever gets audited).
+# A skills dir that exists but has zero skill subdirectories
+# must also hard-fail — otherwise it would silently produce a
+# manifest holding only the dedicated claude-md shard.
+#
+# This is an empty manifest for every purpose that matters
+# (no skill ever gets audited).
 #
 # `! -name synced` excludes Anthropic's skill-sync bucket
 # (see the line-321 comment for why), so a skills dir
@@ -100,13 +110,17 @@ if [ "$skill_dir_count" -eq 0 ]; then
     exit 1
 fi
 
-# Fully physicalize a file path, including a symlinked leaf — `cd
-# dirname && pwd -P` alone only resolves symlinked *directories* along
-# the way, so a real directory holding a symlinked *file* (this repo's
-# own ~/.claude/CLAUDE.md: ~/.claude is real, CLAUDE.md inside it is
-# the symlink) passes through untouched and yields two spellings of
-# one file. No `readlink -f` (GNU-only, absent on BSD/macOS readlink)
-# — walk plain `readlink` instead, which both ship.
+# Fully physicalize a file path, including a symlinked leaf —
+# `cd dirname && pwd -P` alone only resolves symlinked
+# *directories* along the way.
+#
+# So a real directory holding a symlinked *file*
+# (this repo's own ~/.claude/CLAUDE.md: ~/.claude is real,
+# CLAUDE.md inside it is the symlink) passes through untouched
+# and yields two spellings of one file.
+#
+# No `readlink -f` (GNU-only, absent on BSD/macOS readlink) —
+# walk plain `readlink` instead, which both ship.
 #
 # scripts/check-refs.sh has no counterpart: it only ever
 # tests `[ -e "$resolved" ]`, which already follows symlinks
@@ -124,12 +138,15 @@ physical_file() {
     printf '%s/%s\n' "$(cd "$(dirname "$target")" && pwd -P)" "$(basename "$target")"
 }
 
-# Physicalize every root path up front. SKILLS_DIR may be a symlink
-# (e.g. no-arg mode's ~/.claude/skills), and `find -L` reports paths
-# under the root as given, not canonicalized — resolving once here
-# means every path this script ever prints or compares is spelled the
-# same way, so string-equality dedup and containment checks
-# (own-dir vs. cross-shard) just work.
+# Physicalize every root path up front.
+#
+# SKILLS_DIR may be a symlink (e.g. no-arg mode's
+# ~/.claude/skills), and `find -L` reports paths under the
+# root as given, not canonicalized.
+#
+# Resolving once here means every path this script ever prints
+# or compares is spelled the same way, so string-equality dedup
+# and containment checks (own-dir vs. cross-shard) just work.
 SKILLS_DIR="$(cd "$SKILLS_DIR" && pwd -P)"
 CLAUDE_MD="$(physical_file "$CLAUDE_MD")"
 CLAUDE_ROOT="$(dirname "$SKILLS_DIR")"
@@ -139,12 +156,14 @@ else
     AGENTS_DIR=""
 fi
 
-# Resolve a cross-reference candidate string (already stripped of any
-# markdown-link/backtick delimiters) found inside $referencing_file to
-# an absolute, physical file path. Prints the resolved path and
-# returns 0 on success; returns 1 for anything that isn't a real file
-# (prose captured by an over-eager backtick/link match included) —
-# that failure is the filter, not an error condition.
+# Resolve a cross-reference candidate string (already stripped
+# of any markdown-link/backtick delimiters) found inside
+# $referencing_file to an absolute, physical file path.
+#
+# Prints the resolved path and returns 0 on success; returns 1
+# for anything that isn't a real file (prose captured by an
+# over-eager backtick/link match included) — that failure is the
+# filter, not an error condition.
 #
 # scripts/check-refs.sh's check_candidate() takes the
 # opposite contract on purpose: it REPORTS an unresolved
@@ -187,11 +206,13 @@ resolve_candidate() {
     base="$resolved_dir/$(basename "$base")"
     [ -f "$base" ] || return 1
     resolved="$(physical_file "$base")"
+
     # The header's contract is "in-repo" only — a `~/` or
     # `/`-absolute candidate resolves against the real
-    # filesystem, not the root argument, so without this
-    # check an out-of-repo personal file would land in a
-    # shard's authorized read set.
+    # filesystem, not the root argument.
+    #
+    # Without this check an out-of-repo personal file would
+    # land in a shard's authorized read set.
     case "$resolved" in
         "$CLAUDE_ROOT"/*) ;;
         *) return 1 ;;
@@ -200,19 +221,25 @@ resolve_candidate() {
 }
 
 # Every file under a skill dir, skipping any node_modules or
-# __pycache__ directory — both are gitignored build artifacts, never
-# skill content, and walking into node_modules risks exactly the
-# multi-minute hang this script's cross-ref scan once hit on a real
-# vendored bundle: each file scanned spawns a subprocess per
-# candidate span, and a single multi-megabyte minified file yields
-# thousands of them.
+# __pycache__ directory — both are gitignored build artifacts,
+# never skill content.
+#
+# Walking into node_modules risks exactly the multi-minute
+# hang this script's cross-ref scan once hit on a real
+# vendored bundle: each file scanned spawned a subprocess per
+# candidate span.
+#
+# A single multi-megabyte minified file yielded thousands of
+# them.
 list_skill_files() {
     find -L "$1" \( \( -name node_modules -o -name __pycache__ \) -type d -prune \) -o -type f -print | LC_ALL=C sort
 }
 
-# Every file a skill dispatches by `agent(subAgent=<name>...` or bare
-# `subAgent=<name>` text, matched against agents/*.md basenames. A
-# trailing non-name character (or end of match) is required so
+# Every file a skill dispatches by `agent(subAgent=<name>...`
+# or bare `subAgent=<name>` text matched against agents/*.md
+# basenames.
+#
+# A trailing non-name character (or end of match) is required so
 # `subAgent=refactor` doesn't also match a hypothetical
 # `subAgent=refactor-helper`.
 list_dispatched_agents() {
@@ -275,16 +302,20 @@ list_file_ref_candidates() {
     done < <(grep -oE '`[^`]+`' <<<"$stripped" 2>/dev/null || true)
 }
 
-# Every in-repo path a skill's own files reference outside their own
-# directory — markdown links `](path)` and backtick spans `` `path` ``
-# that resolve to a real file. Existence-checked resolution is the
-# filter: prose like `` `git status` `` or `subAgent=<name>` never
-# resolves to a real file relative to the referencing file, so it's
-# dropped without needing a separate extension allowlist.
+# Every in-repo path a skill's own files reference outside their
+# own directory — markdown links `](path)` and backtick
+# spans `` `path` `` that
+# resolve to a real file.
+#
+# Existence-checked resolution is the filter: prose like
+# `` `git status` `` or `subAgent=<name>` never resolves to a
+# real file relative to the referencing file.
+#
+# It's dropped without needing a separate extension allowlist.
 #
 # The skill dir is both what gets scanned and what gets excluded
-# from the result: a reference to a sibling inside the same shard
-# is not a CROSS-shard reference.
+# from the result: a reference to a sibling inside the same
+# shard is not a CROSS-shard reference.
 list_cross_refs() {
     local skill_dir=$1 own_dir_physical=$1 f candidate resolved
     while IFS= read -r f; do

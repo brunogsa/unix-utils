@@ -69,8 +69,10 @@ class TestCheckSettingsJsonIntegrityFailure(unittest.TestCase):
 
             settings_path = tmp_path / "dot-claude" / "settings.json"
             settings_path.parent.mkdir(parents=True)
-            # Simulates /config's temp+rename: a regular file lands where
-            # the symlink onto the repo source used to be.
+
+            # Simulates /config's temp+rename: a regular file
+            # lands where the symlink onto the repo source used
+            # to be.
             settings_path.write_text('{"model": "sonnet"}\n')
 
             result = run_check(settings_path, source_path)

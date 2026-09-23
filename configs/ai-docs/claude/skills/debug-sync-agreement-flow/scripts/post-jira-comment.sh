@@ -1,24 +1,30 @@
 #!/usr/bin/env bash
-#
 # Post a markdown file as a comment on a Jira issue.
 #
-# Self-contained on purpose: it talks to the Jira Cloud REST API v3 directly so this skill works
-# from a fresh clone of the repo, with no dependency on any personally-installed Jira tooling.
+# Self-contained on purpose: it talks to the Jira Cloud REST API
+# v3 directly so this skill works from a fresh clone of the
+# repo, with no dependency on any personally-installed Jira
+# tooling.
 #
-# The v3 API requires rich-text fields as ADF documents, so the markdown is converted by the
-# sibling build-adf-payload.py before being wrapped as {"body": <adf>}.
+# The v3 API requires rich-text fields as ADF documents, so the
+# markdown is converted by the sibling build-adf-payload.py
+# before being wrapped as {"body": <adf>}.
 #
 # Usage:
 #   post-jira-comment.sh <issue-key> <markdown-file>
 #   post-jira-comment.sh <issue-key> <markdown-file> --dry-run
 #
-# --dry-run converts and validates without posting, printing the ADF to stdout. Use it while
-# drafting: a comment is public the moment it posts, and there is no edit-before-anyone-sees-it.
+# --dry-run converts and validates without posting, printing the
+# ADF to stdout.
+# Use it while drafting: a comment is public the moment it
+# posts, and there is no edit-before-anyone-sees-it.
 #
 # Required environment:
 #   JIRA_URL        e.g. https://yourcompany.atlassian.net
 #   JIRA_EMAIL      the account's email
-#   JIRA_API_TOKEN  an API token from https://id.atlassian.com/manage-profile/security/api-tokens
+#
+#   JIRA_API_TOKEN  an API token, generated at:
+#   https://id.atlassian.com/manage-profile/security/api-tokens
 
 set -euo pipefail
 
@@ -51,7 +57,8 @@ if [[ ! -f "$MD_FILE" ]]; then
   exit 1
 fi
 
-# Convert first, so a conversion failure never reaches the network.
+# Convert first, so a conversion failure never reaches the
+# network.
 if ! ADF=$(python3 "$SCRIPT_DIR/build-adf-payload.py" "$MD_FILE"); then
   echo "Error: markdown to ADF conversion failed." >&2
   exit 1
@@ -72,7 +79,8 @@ for var in JIRA_URL JIRA_EMAIL JIRA_API_TOKEN; do
   fi
 done
 
-# A trailing slash would produce a double slash in the path and a 404.
+# A trailing slash would produce a double slash in the path and
+# a 404.
 BASE_URL="${JIRA_URL%/}"
 
 RESPONSE=$(

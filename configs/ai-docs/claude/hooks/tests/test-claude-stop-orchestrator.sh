@@ -217,9 +217,10 @@ it_should_notify_done_when_an_implement_run_halted_for_the_human() {
 #
 # A dispatched subagent/workflow guarantees a LATER Stop event
 # wakes the session back up (that's the whole point of
-# backgrounding it), so a "done" ping fired while one is still
-# running is premature — the session looks finished when it
-# isn't.
+# backgrounding it).
+#
+# A "done" ping fired while one is still running is premature —
+# the session looks finished when it isn't.
 it_should_stay_silent_when_a_background_subagent_is_still_running() {
   run_orchestrator '{"session_id": "sess-orch-bg-subagent", "stop_hook_active": false, "background_tasks": [{"type": "subagent", "status": "running"}]}'
   assert_eq "should stay silent when a background subagent is still running (nothing notified)" "" "$NOTIFIED"
@@ -232,9 +233,8 @@ it_should_stay_silent_when_a_background_workflow_is_still_running() {
 }
 
 # Regression guard: a long-lived intentionally-backgrounded
-# shell task (e.g.
-# `tail -f /var/log/syslog`, a dev server) sits in background_tasks with
-# status "running" indefinitely.
+# shell task (e.g. `tail -f /var/log/syslog` or a dev server)
+# sits in background_tasks with status "running" indefinitely.
 #
 # Only subagent/workflow guarantee a later Stop wakes the
 # session — a shell task does not, so it must NOT suppress the

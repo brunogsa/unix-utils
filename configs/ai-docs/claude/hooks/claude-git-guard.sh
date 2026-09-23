@@ -1,34 +1,50 @@
 #!/bin/bash
-# claude-git-guard - Block non-reversible git operations and unattributed commits
+# claude-git-guard - Block non-reversible git operations and
+# unattributed commits.
 #
 # Usage (Claude Code PreToolUse hook):
 #   Reads JSON from stdin, exits 2 to block, 0 to allow
 #
-# Blocks:
+# Blocks non-reversible operations.
 #   git push --force/-f, git push -f (non-reversible)
 #   git reset --hard (non-reversible)
 #   git clean -f/-fd/-fx (non-reversible)
-#   git worktree remove --force (discards a dirty worktree's uncommitted changes)
+#
+# Blocks destructive worktree and branch operations.
+#   git worktree remove --force (discards a dirty worktree's
+#   uncommitted changes)
 #   git branch -D (non-reversible)
+#
+# Blocks bulk discard and amend operations.
 #   git checkout . / git restore . (bulk discard)
 #   git commit --amend (must create new commits)
+#
+# Blocks improper commits and human-only tools.
 #   aigitcommit (human-only tool)
 #   git commit without Co-Authored-By: Claude attribution
 #
-# Every "is this a dangerous invocation" check below matches against
-# CMD_STRUCT, not the raw command: heredoc bodies fed to a non-executing
-# sink (cat, python3) are dropped, and quoted-string contents are blanked
-# to a placeholder. Otherwise text that only ever appears as *data* — a
-# scratchpad doc line mentioning "git commit", a test string containing
-# "aigitcommit" — reads as a real invocation. Heredocs fed to a shell
-# (bash, sh, ssh) are left unstripped, since those genuinely execute an
-# embedded git command. The one exception is the Co-Authored-By search
-# a few lines down, which must look at the RAW command: that's the
-# actual commit message text, which always lives inside quotes.
+# Every "is this a dangerous invocation" check below matches
+# against CMD_STRUCT, not the raw command: heredoc bodies fed to
+# a non-executing sink (cat, python3) are dropped, and
+# quoted-string contents are blanked to a placeholder.
+#
+# Otherwise text that only ever appears as *data* — a scratchpad
+# doc line mentioning "git commit", a test string containing
+# "aigitcommit" — reads as a real invocation.
+#
+# Heredocs fed to a shell (bash, sh, ssh) are left unstripped,
+# since those genuinely execute an embedded git command.
+#
+# The one exception is the Co-Authored-By search a few lines
+# down, which must look at the RAW command: that's the actual
+# commit message text, which always lives inside quotes.
 #
 # Examples:
-#   echo '{"tool_input":{"command":"git push --force"}}' | bash claude-git-guard.sh  # blocked
-#   echo '{"tool_input":{"command":"git status"}}' | bash claude-git-guard.sh        # allowed
+#   echo '{"tool_input":{"command":"git push --force"}}' \
+#     | bash claude-git-guard.sh  # blocked
+#
+#   echo '{"tool_input":{"command":"git status"}}' \
+#     | bash claude-git-guard.sh  # allowed
 
 CMD=$(jq -r '.tool_input.command // empty')
 
@@ -90,10 +106,15 @@ if echo "$CMD_STRUCT" | grep -qE '\baigitcommit\b'; then
   exit 2
 fi
 
-# Block git push --force/-f, but allow --force-with-lease (lease-protected, safe against
-# clobbering someone else's push). --force\b alone would also match inside
-# "--force-with-lease" (word boundary sits right after "force", before the hyphen), so
-# strip --force-with-lease occurrences first and only then check for a bare --force/-f.
+# Block git push --force/-f, but allow --force-with-lease
+# (lease-protected, safe against clobbering someone else's
+# push).
+#
+# --force\b alone would also match inside "--force-with-lease"
+# (word boundary sits right after "force", before hyphen).
+#
+# So strip --force-with-lease occurrences first and only
+# then check for a bare --force/-f.
 PUSH_FORCE_CHECK=$(echo "$CMD_STRUCT" | sed -E 's/--force-with-lease(=[^ ]*)?//g')
 if echo "$PUSH_FORCE_CHECK" | grep -qE 'git\s+push\s+.*(-f\b|--force\b)'; then
   echo 'git push --force is non-reversible. Use git push --force-with-lease, git push (without --force), or ask the user for approval.' >&2
@@ -112,9 +133,12 @@ if echo "$CMD_STRUCT" | grep -qE 'git\s+clean\s+.*-[a-z]*f'; then
   exit 2
 fi
 
-# Block git worktree remove --force (bypasses ExitWorktree's dirty-tree refusal)
-# Plain "git worktree remove" already refuses a dirty tree; only --force/-f discards
-# uncommitted changes. "git worktree add --force" stays allowed (legitimate).
+# Block git worktree remove --force (bypasses ExitWorktree's
+# dirty-tree refusal) Plain "git worktree remove" already
+# refuses a dirty tree; only --force/-f discards uncommitted
+# changes.
+#
+# "git worktree add --force" stays allowed (legitimate).
 if echo "$CMD_STRUCT" | grep -qE 'git\s+worktree\s+remove\s+.*(-f\b|--force\b)'; then
   echo 'git worktree remove --force discards a dirty worktree'\''s uncommitted changes. Run git worktree remove (no --force), or ask the user.' >&2
   exit 2
@@ -138,16 +162,17 @@ if echo "$CMD_STRUCT" | grep -qE 'git\s+restore\s+(\.|--\s+\.)'; then
   exit 2
 fi
 
-# Block git commit --amend (must create new commits per CLAUDE.md)
+# Block git commit --amend (must create new commits per
+# CLAUDE.md)
 if echo "$CMD_STRUCT" | grep -qE 'git\s+commit\s+.*--amend'; then
   echo 'git commit --amend modifies the previous commit. Create a new commit instead, or ask the user.' >&2
   exit 2
 fi
 
-# Block git commit without Co-Authored-By: Claude attribution. The trigger
-# checks CMD_STRUCT (a real invocation), but the attribution search checks
-# the RAW command, since the message text lives inside quotes that
-# CMD_STRUCT has blanked out.
+# Block git commit without Co-Authored-By: Claude attribution.
+# The trigger checks CMD_STRUCT (a real invocation), but the
+# attribution search checks the RAW command, since the message
+# text lives inside quotes that CMD_STRUCT has blanked out.
 if echo "$CMD_STRUCT" | grep -qE 'git\s+commit\b'; then
   if ! echo "$CMD" | grep -qi 'Co-Authored-By:.*Claude'; then
     echo 'git commit must include Co-Authored-By: Claude attribution. Add it to the commit message.' >&2

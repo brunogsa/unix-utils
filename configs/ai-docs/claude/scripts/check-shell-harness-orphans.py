@@ -1,24 +1,29 @@
 #!/usr/bin/env python3
-# check-shell-harness-orphans.py - detect a test-<stem>.sh harness left
-# behind for a stem that no longer ships as shell.
+# check-shell-harness-orphans.py - detect a test-<stem>.sh
+# harness left behind for a stem that no longer ships as shell.
 #
 # Usage:
-#   check-shell-harness-orphans.py --tree <dir> [--tree <dir> ...]
+#   check-shell-harness-orphans.py --tree <dir>
+#                                   [--tree <dir> ...]
 #                                   [--overrides <json-file>]
 #
-# stdin: none
-# stdout: one "OK: <path>: <reason>" or "FAIL: <path>: <reason>" line
-#   per test-*.sh harness found under a --tree root
-# exit: 0 all resolved OK, 1 one or more orphaned/unresolved, 2 usage
-#   error (no --tree given, or --overrides file unreadable/invalid)
+# stdin: none.
+#
+# stdout: one "OK: <path>: <reason>" or
+#   "FAIL: <path>: <reason>" line, per test-*.sh
+#   harness found under a --tree root.
+#
+# exit: 0 all resolved OK, 1 one or more
+#   orphaned/unresolved, 2 usage error (no --tree
+#   given, or --overrides file unreadable/invalid).
 import argparse
 import json
 import sys
 from pathlib import Path
 
-# Same approach as check-script-naming.py's exclusion, not a second
-# invention: the one stale worktree checkout every tree-scanning
-# script in this repo skips.
+# Same approach as check-script-naming.py's exclusion, not a
+# second invention: the one stale worktree checkout every
+# tree-scanning script in this repo skips.
 STALE_WORKTREE_MARKER = "worktrees/stacked-prs-pr2"
 
 SUBJECT_EXTENSIONS = (".sh", ".py", ".js")

@@ -1,16 +1,19 @@
 #!/bin/bash
 
-# fetch-jira-review-context - Fetch Jira issue context for code review
+# fetch-jira-review-context - Fetch Jira issue context for
+# code review and output it as markdown.
 #
-# Outputs a human-readable markdown block with issue summary, description,
-# and epic context. Uses jira-api-request from jira.sh for authentication.
+# Outputs a human-readable markdown block with issue summary,
+# description, and epic context.
+# Uses jira-api-request from jira.sh for authentication.
 #
 # Usage:
 #   fetch-jira-review-context <jira-url>
 #   fetch-jira-review-context <issue-key>
 #
 # Examples:
-#   fetch-jira-review-context https://company.atlassian.net/browse/PROJ-123
+#   url=https://company.atlassian.net/browse/PROJ-123
+#   fetch-jira-review-context "$url"
 #   fetch-jira-review-context PROJ-123
 
 # Source core Jira library if not already loaded
@@ -33,7 +36,8 @@ function fetch-jira-review-context() {
   # Extract issue key from URL or use as-is
   local issue_key
   if [[ "$input" == http* ]]; then
-    # Strip URL prefix, then trim trailing non-key characters; subsequent validation rejects malformed inputs
+    # Strip URL prefix, then trim trailing non-key characters;
+    # subsequent validation rejects malformed inputs
     issue_key="${input##*/browse/}"
     issue_key="${issue_key%%[^A-Z0-9-]*}"
   else
@@ -82,8 +86,9 @@ function fetch-jira-review-context() {
     sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | \
     sed '/^$/N;/^\n$/D')
 
-  # Output markdown. printf (not echo) for anything carrying Jira-sourced
-  # text — same zsh-echo backslash-reinterpretation hazard as the JSON above.
+  # Output markdown. printf (not echo) for anything carrying
+  # Jira-sourced text — same zsh-echo backslash-reinterpretation
+  # hazard as the JSON above.
   printf '## Jira Card: %s - %s\n' "$issue_key" "$summary"
   echo ""
 

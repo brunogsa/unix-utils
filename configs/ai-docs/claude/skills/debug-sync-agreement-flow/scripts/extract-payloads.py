@@ -30,13 +30,15 @@ import json
 import sys
 from typing import Any, Dict, Optional
 
-# Emitted by AxiosHttpClient.executeRequest for every outbound HTTP call.
+# Emitted by AxiosHttpClient.executeRequest for every outbound
+# HTTP call.
 REQUEST_MSG = "HTTP request body"
 RESPONSE_MSG = "HTTP response details"
 FAILURE_MSG = "HTTP request failed with 4XX or 5XX"
 
-# The inbound webhook, as logged by the middleware. Either message carries the payload; the first
-# one found wins, since they are two renderings of the same body.
+# The inbound webhook, as logged by the middleware.
+# Either message carries the payload; the first one found wins,
+# since they are two renderings of the same body.
 WEBHOOK_FIELDS = {
     "Message to be queued": "messageBody",
     "SQS message details": "payload",
@@ -202,8 +204,10 @@ def build_evidence(args):
 
 
 def emit(evidence, minified):
-    # One section per header. Pretty by default — paste each body straight into a fenced
-    # ```json block in the notes file. --minified collapses it to one line instead.
+    # One section per header.
+    # Pretty by default — paste each body straight into a fenced
+    # ```json block in the notes file. --minified
+    # collapses it to one line instead.
     for section in SECTIONS:
         print(f"###{section}###")
         value = evidence.get(section)

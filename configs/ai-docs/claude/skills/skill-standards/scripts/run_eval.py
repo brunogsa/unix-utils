@@ -101,7 +101,9 @@ def run_single_query(
             credential_file.write_text(credentials)
             credential_file.chmod(0o600)
         command_file.parent.mkdir(parents=True)
-        # Use YAML block scalar to avoid breaking on quotes in description
+
+        # Use YAML block scalar to avoid breaking on quotes in
+        # description
         indented_desc = "\n  ".join(skill_description.split("\n"))
         command_content = (
             f"---\n"
@@ -123,8 +125,9 @@ def run_single_query(
         if model:
             cmd.extend(["--model", model])
 
-        # Remove CLAUDECODE env var to allow nesting claude -p inside a
-        # Claude Code session. The guard is for interactive terminal conflicts;
+        # Remove CLAUDECODE env var to allow nesting claude -p
+        # inside a Claude Code session.
+        # The guard is for interactive terminal conflicts;
         # programmatic subprocess usage is safe.
         env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
         env["CLAUDE_CONFIG_DIR"] = str(config_dir)
@@ -136,12 +139,15 @@ def run_single_query(
             cwd=str(project_root),
             env=env,
         )
-        assert process.stdout is not None  # guaranteed by stdout=subprocess.PIPE above
+
+        # guaranteed by stdout=subprocess.PIPE above
+        assert process.stdout is not None
         stdout = process.stdout
 
         triggered = False
         start_time = time.time()
         buffer = ""
+
         # Track state for stream event detection
         pending_tool_name = None
         accumulated_json = ""
@@ -192,10 +198,18 @@ def run_single_query(
                                     pending_tool_name = tool_name
                                     accumulated_json = ""
                                 else:
-                                    # Not the tool we're watching for -- a Bash/Grep/etc
-                                    # call earlier in the run doesn't rule out a Skill
-                                    # or Read call later in the same run, so keep scanning
-                                    # instead of deciding here.
+                                    # Not the tool we're
+                                    # watching for.
+                                    #
+                                    # A Bash/Grep/etc call may
+                                    # occur earlier in the run.
+                                    #
+                                    # That doesn't rule out a
+                                    # Skill or Read call later
+                                    # in the same run.
+                                    #
+                                    # So keep scanning instead
+                                    # of deciding here.
                                     pending_tool_name = None
 
                         elif se_type == "content_block_delta" and pending_tool_name:
@@ -210,9 +224,13 @@ def run_single_query(
                                 return True
                             pending_tool_name = None
 
-                        # message_stop only ends the current assistant turn, not the
-                        # whole `claude -p` run -- a later turn (after a tool result)
-                        # can still call Skill/Read, so don't decide here either.
+                        # message_stop only ends the current
+                        # assistant turn, not the whole
+                        # `claude -p` run.
+                        #
+                        # A later turn (after a tool result)
+                        # can still call Skill/Read, so
+                        # don't decide here either.
 
                     # Fallback: full assistant message
                     elif event.get("type") == "assistant":
@@ -232,14 +250,16 @@ def run_single_query(
                     elif event.get("type") == "result":
                         return triggered
         finally:
-            # Clean up process on any exit path (return, exception, timeout)
+            # Clean up process on any exit path (return,
+            # exception, timeout)
             if process.poll() is None:
                 process.kill()
                 process.wait()
 
-        # A run with zero JSON events did not evaluate anything — plain-text
-        # output like "Not logged in" would otherwise score as a silent
-        # non-trigger and mask an auth failure as a description failure.
+        # A run with zero JSON events did not evaluate anything
+        # — plain-text output like "Not logged in" would
+        # otherwise score as a silent non-trigger and mask an
+        # auth failure as a description failure.
         if not saw_json_event:
             raise RuntimeError(
                 f"claude -p produced no JSON events (auth failure or crash?); "

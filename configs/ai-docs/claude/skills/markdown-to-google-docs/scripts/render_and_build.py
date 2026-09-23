@@ -75,8 +75,10 @@ def main():
         return f"![Diagram {n['i']}]({rendered[n['i']-1]}){width_attr}"
     text = mermaid_re.sub(repl_mermaid, text)
 
-    # 3. resolve relative image refs to absolute + width-constrain.
-    #    Leave absolute paths and URLs alone (only rewrite if the resolved file exists).
+    # 3. resolve relative image refs to absolute +
+    # width-constrain.
+    #    Leave absolute paths and URLs alone (only rewrite if
+    #    the resolved file exists).
     def repl_img(m):
         alt, target = m.group(1), m.group(2).strip()
         if target.startswith(("http://", "https://", "/")) or target.startswith("/tmp/"):

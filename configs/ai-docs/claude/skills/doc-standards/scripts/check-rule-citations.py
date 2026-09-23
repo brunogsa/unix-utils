@@ -83,12 +83,16 @@ RULE_NOUN = r"(?:rule|section|invariant|convention|goal|order|budget)"
 
 # A: the "X" rule in Y.md  ->  (name, file)
 FORM_QUOTED_IN_FILE = re.compile(rf"{QUOTED}\s+{RULE_NOUN}s?\s+in\s+({MD_FILE})")
+
 # B: Y.md's "X"  ->  (file, name)
 FORM_FILE_OWNS_QUOTED = re.compile(rf"({MD_FILE}){APOS}\s+{QUOTED}")
+
 # D: Y.md "X"  ->  (file, name)
 FORM_FILE_THEN_QUOTED = re.compile(rf"({MD_FILE})\s+{QUOTED}")
-# C: Y.md's altitude rule  ->  (file, slug). The noun rides along in the slug:
-# "one-page goal" identifies a topic where the bare adjective "one-page" doesn't.
+
+# C: Y.md's altitude rule -> (file, slug).
+# The noun rides along in the slug: "one-page goal" identifies a
+# topic where the bare adjective "one-page" doesn't.
 FORM_FILE_OWNS_SLUG = re.compile(
     rf"({MD_FILE}){APOS}\s+([a-z][a-z' ’-]{{2,40}}?\s+{RULE_NOUN})\b"
 )
@@ -96,10 +100,13 @@ FORM_FILE_OWNS_SLUG = re.compile(
 BOLD_SPAN = re.compile(r"\*\*(.+?)\*\*")
 HEADING = re.compile(r"^#+\s+(.*)$")
 
-# Words carrying no identifying signal; dropped before comparing a cited name to
-# an authored one, so a citation may compress or expand the connective tissue.
-# "rule" is here because it names the act of citing, not the thing cited - unlike
-# "goal", "invariant", or "budget", which do narrow which rule is meant.
+# Words carrying no identifying signal; dropped before comparing
+# a cited name to an authored one, so a citation may compress or
+# expand the connective tissue.
+#
+# "rule" is here because it names the act of citing, not the
+# thing cited - unlike "goal", "invariant", or "budget", which
+# do narrow which rule is meant.
 STOPWORDS = {
     "the", "and", "for", "its", "it", "in", "on", "of", "to", "or", "is", "as",
     "at", "by", "with", "from", "that", "this", "not", "never", "only", "per",
@@ -124,7 +131,8 @@ def iter_prose_lines(path):
 
     for index, line in enumerate(lines):
         if in_frontmatter:
-            # The opening --- is line 0, so only a LATER --- closes the block.
+            # The opening --- is line 0, so only a LATER ---
+            # closes the block.
             if index > 0 and FRONTMATTER.match(line):
                 in_frontmatter = False
             continue
@@ -303,8 +311,9 @@ def check(path, changed_only=False):
                 hits.append((line_no, f"unknown-topic:{cited}:{name}"))
                 continue
 
-            # A rule authored in the target is the target's, however many example
-            # files its own line links out to - only an unauthored topic forwards.
+            # A rule authored in the target is the target's,
+            # however many example files its own line links out
+            # to - only an unauthored topic forwards.
             if is_authored_in(name, target):
                 continue
 

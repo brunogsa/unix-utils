@@ -235,10 +235,11 @@ DEAD_COMPACT_ROUTER_HARNESS="$HOOKS_DIR/tests/test-claude-tmux-compact-bump.sh"
 # working_settings - the WORKING-TREE settings.json, unlike the
 # committed_settings helper above.
 #
-# Hook wiring and permissions are never written session by
-# session (only /model, /effort and /advisor are), so the
-# working tree carries no noise for these keys — and reading it
-# is what lets a wiring change be red before its commit lands
+# Hook wiring and permissions are never written each session
+# (only /model, /effort and /advisor are), so the working tree
+# carries no noise for these keys.
+#
+# Reading it lets a wiring change be red before its commit lands
 # instead of only after.
 working_settings() {
   cat "$repo_root/configs/ai-docs/claude/settings.json"

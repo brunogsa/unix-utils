@@ -186,10 +186,10 @@ class TestSessionTimeline(unittest.TestCase):
                 _tool_result_record(1045, "tu_task"),
                 _turn_duration_record(1100, duration_ms=100_000),
             ], subagent_files={
-                # Scout #32: agent_occupied is now measured from the
-                # subagent's own transcript span (1040-1090, 50s), not the
-                # main-side dispatch call's fast 1040-1045 tool_use/tool_result
-                # pair above.
+                # Scout #32: agent_occupied is now measured from
+                # the subagent's own transcript span (1040-1090,
+                # 50s), not the main-side dispatch call's fast
+                # 1040-1045 tool_use/tool_result pair above.
                 "agent-a.jsonl": [
                     _tool_use_record(1040, "tu_sub", "Bash", command="ls"),
                     _tool_result_record(1090, "tu_sub"),
@@ -249,8 +249,9 @@ class TestSessionTimeline(unittest.TestCase):
                 _tool_result_record(1080, "tu_bash"),
                 _turn_duration_record(1100, duration_ms=100_000),
             ], subagent_files={
-                # Scout #32: the exclusion must be driven by the subagent's
-                # own 1010-1090 run span, not the main-side dispatch pair.
+                # Scout #32: the exclusion must be driven by the
+                # subagent's own 1010-1090 run span, not the
+                # main-side dispatch pair.
                 "agent-a.jsonl": [
                     _tool_use_record(1010, "tu_sub", "Bash", command="ls"),
                     _tool_result_record(1090, "tu_sub"),
@@ -1261,7 +1262,8 @@ class TestSessionTimeline(unittest.TestCase):
             project_dir = os.path.join(tmp, "-Users-x-project")
             path = os.path.join(project_dir, f"{sid}.jsonl")
             with open(path, "a") as fh:
-                fh.write('{"type": "assistant", "timestamp": "2026-0')  # torn, no trailing newline
+                # torn, no trailing newline
+                fh.write('{"type": "assistant", "timestamp": "2026-0')
 
             payload = self._build(tmp, sid)
 

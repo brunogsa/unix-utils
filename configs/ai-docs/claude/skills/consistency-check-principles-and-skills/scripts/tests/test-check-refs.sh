@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# test-check-refs.sh - Tests check-refs.sh's ref resolution: markdown
-# links and backtick paths, file-existence checking, GitHub-style
-# anchor-heading matching, relative-path resolution, and the
-# report-every-broken-ref guarantee. Also runs it against one real
-# skill file as an integration regression guard.
+# test-check-refs.sh - Tests check-refs.sh's ref resolution:
+# markdown links, backtick paths, and file-existence checking.
+#
+# It also tests GitHub-style anchor-heading matching,
+# relative-path resolution, and the report-every-broken-ref
+# guarantee.
+#
+# The script runs against one real skill file as an integration
+# regression guard.
 #
 # Usage:
 #   bash test-check-refs.sh

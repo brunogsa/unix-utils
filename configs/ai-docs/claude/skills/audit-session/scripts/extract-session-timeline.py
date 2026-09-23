@@ -1,26 +1,38 @@
 #!/usr/bin/env python3
-# extract-session-timeline - Build timeline.json: the time-and-work-done
-# extractor for one Claude Code session.
+# extract-session-timeline - Build timeline.json: the
+# time-and-work-done extractor for one Claude Code session.
 #
 # Usage:
 #   extract-session-timeline.py <sid>
 #
-# stdin: none. stdout: the timeline.json payload (pretty-printed JSON) — a
-# chronological event feed, the D5 wall-clock time partition (main-API /
-# tool-exec / agent-occupied / unattributed / human-idle, reconciled to 100%
-# after rounding), the agent-hours-vs-wall-clock-occupied pair, the session's
-# task-store listing, and every git-commit tool call found across the main
-# and subagent transcripts. Exit 1, naming every project directory searched,
-# when `sid` matches no transcript anywhere under ~/.claude/projects.
+# stdin: none. stdout: the timeline.json payload (pretty-printed
+# JSON) — a chronological event feed, the D5 wall-clock time
+# partition (main-API / tool-exec / agent-occupied /
+# unattributed / human-idle, reconciled to 100% after rounding).
 #
-# WHY REUSE CLAUDE-USAGE-REPORT.PY'S HELPERS: parse_ts/local_day/iter_records/
-# find_session_transcripts/project_directories/is_human_message already parse
-# the same transcript shape correctly (torn final lines, ISO timestamps,
-# local-day bucketing, sid resolution across every project directory) — this
-# script must never re-derive what that one already got right. Imported by
-# file path via importlib because the filename's dash makes it an invalid
-# module name for a plain `import`, the same precedent build-usage-viewer.py
-# uses for config-change-ledger.py and delivered-work-ledger.py.
+# The payload includes the agent-hours-vs-wall-clock-occupied
+# pair, the session's task-store listing, and every git-commit
+# tool call found across the main and subagent transcripts.
+#
+# Exit 1, naming every project directory searched, when
+# `sid` matches no transcript anywhere under
+# ~/.claude/projects.
+#
+# WHY REUSE CLAUDE-USAGE-REPORT.PY'S HELPERS: parse_ts,
+# local_day, iter_records, find_session_transcripts,
+# project_directories and is_human_message already parse the
+# same transcript shape correctly.
+#
+# That covers torn final lines, ISO timestamps, local-day
+# bucketing, and sid resolution across every project directory.
+#
+# This script must never re-derive what that one already got
+# right.
+#
+# Imported by file path via importlib because the filename's
+# dash makes it an invalid module name for a plain
+# `import`, the same precedent build-usage-viewer.py uses
+# for config-change-ledger.py and delivered-work-ledger.py.
 
 import argparse
 import bisect
@@ -33,13 +45,15 @@ from datetime import datetime, timezone
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 TASKS_ROOT = os.path.expanduser("~/.claude/tasks")
 
-# Tool names whose wall-clock span is a subagent run, not a plain tool call —
-# same check claude-usage-report.py's collect_agent_spawns() uses to find a
-# spawn, so the two scripts agree on what counts as "an agent ran".
+# Tool names whose wall-clock span is a subagent run, not a
+# plain tool call — same check claude-usage-report.py's
+# collect_agent_spawns() uses to find a spawn, so the two
+# scripts agree on what counts as "an agent ran".
 AGENT_TOOL_NAMES = ("Task", "Agent")
 
-# Requires a trailing whitespace-or-end after "commit" so "commit-tree" /
-# "commit-graph" (real git plumbing subcommands) don't false-match "commit".
+# Requires a trailing whitespace-or-end after "commit" so
+# "commit-tree" / "commit-graph" (real git plumbing subcommands)
+# don't false-match "commit".
 GIT_COMMIT_RE = re.compile(r"\bgit\s+commit(?:\s|$)")
 
 COMMIT_NOTE = ("a commit made by a hook, or folded into an existing commit by "
@@ -485,11 +499,13 @@ def build_timeline_payload(sid):
     turns = _build_turns(human_epochs, turn_duration_events, last_epoch,
                          main_activity_epochs, main_away_summary_epochs)
 
-    # Subagent scan moved ahead of the partition and reused for BOTH
-    # agent_runs and agent_occupied_intervals below — never re-read a
-    # subagent transcript twice. Scout #32: agent_occupied must measure each
-    # subagent's own first/last event epoch, not the main transcript's
-    # dispatch tool_use/tool_result pair, which can close in milliseconds
+    # Subagent scan moved ahead of the partition and reused for
+    # BOTH agent_runs and agent_occupied_intervals below — never
+    # re-read a subagent transcript twice.
+    #
+    # Scout #32: agent_occupied must measure each subagent's own
+    # first/last event epoch, not the main transcript's dispatch
+    # tool_use/tool_result pair, which can close in milliseconds
     # while the subagent it spawned keeps running for hours.
     commit_items = list(main_commits)
     agent_hours_seconds = 0.0
@@ -515,12 +531,14 @@ def build_timeline_payload(sid):
     agent_occupied_intervals = agent_run_intervals
     all_turn_intervals = [(turn["span_start"], turn["span_end"]) for turn in turns]
 
-    # Scout #33: a computed turn with no activity record strictly inside its
-    # span carries only the record that closed it — a completion marker, not
-    # a start marker — so that time is unmeasurable and must not be billed
-    # to main_api. A turn_duration-measured span is never split this way
-    # (its recorded duration is authoritative regardless of what the
-    # transcript shows inside it, per bd3293ec).
+    # Scout #33: a computed turn with no activity record
+    # strictly inside its span carries only the closing
+    # record — a completion marker, not a start marker — so
+    # its time is unmeasurable and must not bill main_api.
+    #
+    # A turn_duration-measured span is never split this way
+    # (its recorded duration is authoritative regardless of
+    # what the transcript shows inside it, per bd3293ec).
     main_api_intervals = []
     unattributed_intervals = []
     for turn in turns:

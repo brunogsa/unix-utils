@@ -11,9 +11,11 @@
 # How the hook is exercised: it forwards its own extra
 # args straight to check-rename-references.py, so each
 # case pins --repo/--settings to an isolated fixture
-# instead of this machine's real corpus. The one exception
-# is the real-corpus case below, matching the checker's
-# own 2-second-budget test's fixtures-only exception.
+# instead of this machine's real corpus.
+#
+# The one exception is the real-corpus case below,
+# matching the checker's own 2-second-budget test's
+# fixtures-only exception.
 #
 # The checker itself is NOT stubbed: these tests assert
 # the hook's exit-code-to-JSON translation and its
@@ -25,10 +27,13 @@ set -uo pipefail
 hooks_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOOK="$hooks_dir/claude-rename-guard-stop-hook.sh"
 
-# CPU-time budget (user+sys seconds) for the real-corpus scan below.
-# Not wall-clock: a concurrently running ./run-tests.sh/pytest steals
-# scheduler time from this process without adding to ITS OWN user+sys
-# total, so this budget tracks the scan's workload, not the machine's.
+# CPU-time budget (user+sys seconds) for the real-corpus scan
+# below.
+#
+# Not wall-clock: a concurrently running ./run-tests.sh/pytest
+# steals scheduler time from this process without adding to ITS
+# OWN user+sys total, so this budget tracks the scan's workload,
+# not the machine's.
 REAL_CORPUS_CPU_BUDGET_SECONDS=2.0
 
 work_dir=$(mktemp -d)
@@ -37,7 +42,8 @@ trap 'rm -rf "$work_dir"' EXIT
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs actual,
+# prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -49,8 +55,8 @@ assert_eq() {
   fi
 }
 
-# assert_true - inline assert helper: fails unless condition (a shell test
-# expression string, eval'd) is true.
+# assert_true - inline assert helper: fails unless condition (a
+# shell test expression string, eval'd) is true.
 assert_true() {
   local description="$1" condition="$2"
   if eval "$condition"; then
@@ -62,16 +68,18 @@ assert_true() {
   fi
 }
 
-# no_settings - a --settings path that never exists, so a case not about
-# settings.json content gets a clean, empty scan of that source. Mirrors
-# check-rename-references.test.py's _no_settings helper.
+# no_settings - a --settings path that never exists, so a case
+# not about settings.json content gets a clean, empty scan of
+# that source.
+# Mirrors check-rename-references.test.py's _no_settings helper.
 no_settings() {
   printf '%s' "$work_dir/no-settings.json"
 }
 
-# run_hook - runs the real hook with the given stdin JSON, forwarding any
-# extra args straight through to check-rename-references.py. Captures
-# stdout in HOOK_OUT.
+# run_hook - runs the real hook with the given stdin JSON,
+# forwarding any extra args straight through to
+# check-rename-references.py.
+# Captures stdout in HOOK_OUT.
 run_hook() {
   local stdin_json="$1"; shift
   HOOK_OUT=$(printf '%s' "$stdin_json" | bash "$HOOK" "$@" 2>/dev/null)
@@ -92,8 +100,10 @@ it_should_stay_silent_when_the_repo_has_no_dangling_reference() {
 it_should_stay_silent_when_only_a_markdown_warn_finding_exists() {
   local repo="$work_dir/warn-only-repo"
   mkdir -p "$repo"
-  # The backticks are literal markdown inline-code syntax written into the
-  # fixture file, not a shell command substitution.
+
+  # The backticks are literal markdown inline-code syntax
+  # written into the fixture file, not a shell command
+  # substitution.
   # shellcheck disable=SC2016
   printf 'Prose example: run `example-script.sh` to see how it works.\n' > "$repo/README.md"
 
@@ -134,8 +144,10 @@ it_should_stay_silent_when_the_checker_script_is_missing() {
   local isolated_dir="$work_dir/isolated-hooks"
   mkdir -p "$isolated_dir"
   cp "$HOOK" "$isolated_dir/claude-rename-guard-stop-hook.sh"
-  # No check-rename-references.py copied alongside -- the wrapper's own
-  # dirname-based resolution must find it missing and fail open.
+
+  # No check-rename-references.py copied alongside -- the
+  # wrapper's own dirname-based resolution must find it missing
+  # and fail open.
 
   local repo="$work_dir/fail-repo-missing-checker"
   local settings="$repo/settings.json"
@@ -149,22 +161,33 @@ it_should_stay_silent_when_the_checker_script_is_missing() {
 }
 
 it_should_stay_silent_on_the_real_corpus_within_the_2_second_budget() {
-  # [Fixtures exception] mirrors check-rename-references.test.py's own
-  # 2-second-budget corner test: runs against THIS machine's real
-  # unix-utils checkout (no --repo/--settings override), proving AC2's
-  # pass-through on the actual ~240-WARN corpus with a real test, not by
-  # reading the code.
+  # [Fixtures exception] mirrors
+  # check-rename-references.test.py's own 2-second-budget corner
+  # test: runs against THIS machine's real unix-utils checkout.
   #
-  # Wall-clock elapsed time used to gate this: it failed at 3.36s when
-  # ./run-tests.sh and pytest happened to run concurrently, even though
-  # the scan itself did no more work than usual -- a wall-clock budget
-  # measures the whole machine's business, not this scan. CPU time
-  # (user+sys) only accrues while this process is actually executing on
-  # a core, so a competing process delays it without inflating its own
-  # total. It still catches the regression this test exists for: a scan
-  # that starts doing dramatically more work burns dramatically more CPU
-  # time too, proven by temporarily repeating the scan 40x during
-  # authoring (14.6s CPU vs. the budget below, reverted before commit).
+  # No --repo/--settings override: proves AC2's pass-through on
+  # the actual ~240-WARN corpus with a real test, not by reading
+  # the code.
+  #
+  # Wall-clock elapsed time used to gate this: it failed at
+  # 3.36s when ./run-tests.sh and pytest happened to run
+  # concurrently, even though the scan itself did no more work
+  # than usual.
+  #
+  # A wall-clock budget measures the whole machine's business,
+  # not this scan.
+  #
+  # CPU time (user+sys) only accrues while this process is
+  # actually executing on a core, so a competing process delays
+  # it without inflating its own total.
+  #
+  # It still catches the regression this test exists for: a scan
+  # that starts doing dramatically more work burns dramatically
+  # more CPU time too.
+  #
+  # Proven by temporarily repeating the scan 40x
+  # during authoring (14.6s CPU vs. the budget below,
+  # reverted before commit).
   local timing_file cpu_seconds
   timing_file="$work_dir/real-corpus-timing.txt"
 

@@ -1,47 +1,62 @@
 #!/bin/bash
 
-# Jira Utilities - Interactive commands for Jira API interactions
+# Jira Utilities.
+# Interactive commands for Jira API interactions.
 #
-# Core library functions (jira-validate-env, jira-api-request, jira-check-error)
-# live in jira.sh and are sourced below.
+# Core library functions (jira-validate-env, jira-api-request,
+# jira-check-error) live in jira.sh and are sourced below.
 #
 # Requirements:
 #   export JIRA_URL='https://yourcompany.atlassian.net'
-#   export JIRA_EMAIL='your.email@company.com'
+#   export JIRA_EMAIL='your.email@company.com'.
+#
 #   export JIRA_API_TOKEN='your-api-token'
-#   Get API token at: https://id.atlassian.com/manage-profile/security/api-tokens
+#   Get API token at:
+#   https://id.atlassian.com/manage-profile/security/api-tokens.
 #
 # Functions:
 #   Query:
-#     query-jira                     - Search issues using JQL
+#     query-jira            - Search issues using JQL.
 #
 #   Issue CRUD:
-#     get-jira-issue                 - Get issue by key
-#     create-jira-issue              - Create new issue
-#     update-jira-issue              - Update existing issue
-#     upsert-jira-issue              - Create or update (by summary match)
-#     delete-jira-issue              - Delete an issue
+#     get-jira-issue        - Get issue by key
+#     create-jira-issue     - Create new issue
+#     update-jira-issue     - Update existing issue.
+#
+#     upsert-jira-issue     - Create or update (by summary
+#                             match)
+#     delete-jira-issue     - Delete an issue.
 #
 #   Links:
-#     get-jira-links                 - Get all links for an issue
-#     link-jira-issues               - Create a link: source --[type]--> target (intuitive order)
-#     delete-jira-link               - Delete a link by ID
-#     bulk-link-jira-issues          - Link one source to multiple targets
+#     get-jira-links        - Get all links for an issue.
+#
+#     link-jira-issues      - Create a link: source
+#                             --[type]--> target (intuitive
+#                             order)
+#     delete-jira-link      - Delete a link by ID.
+#
+#     bulk-link-jira-issues - Link one source to multiple
+#                             targets.
 #
 #   Transitions:
-#     get-jira-transitions           - Get available transitions for an issue
-#     transition-jira-issue          - Transition an issue to a new status
+#     get-jira-transitions  - Get available transitions for an
+#                             issue.
+#
+#     transition-jira-issue - Transition an issue to a new
+#                             status.
 
-# Source core library (jira-validate-env, jira-api-request, jira-check-error)
+# Source core library (jira-validate-env, jira-api-request,
+# jira-check-error)
 source "$HOME/.claude/skills/jira-cli/scripts/jira.sh"
 
-# ==============================================================================
+# ==============================================================
 # QUERY
-# ==============================================================================
+# ==============================================================
 
 # Query Jira using JQL and return JSON results
 # Usage: query-jira "JQL query" [maxResults] [fields]
-# Example: query-jira "assignee = currentUser() AND status = Done" 50
+# Example: query-jira "assignee = currentUser() AND status =
+# Done" 50
 function query-jira() {
   local jql="$1"
   local max_results="${2:-100}"
@@ -76,9 +91,9 @@ function query-jira() {
   printf '%s' "$response" | jira-check-error
 }
 
-# ==============================================================================
+# ==============================================================
 # ISSUE CRUD
-# ==============================================================================
+# ==============================================================
 
 # Get a Jira issue by key
 # Usage: get-jira-issue <issue-key> [fields]
@@ -103,15 +118,21 @@ function get-jira-issue() {
 }
 
 # Create a new Jira issue
-# Usage: create-jira-issue <project> <issue-type> <summary> [json-fields]
+# Usage: create-jira-issue <project> <issue-type> <summary>
+#   [json-fields]
+#
 # Example: create-jira-issue PROJ Story "My new story"
-# Example: create-jira-issue PROJ Task "My task" '{"labels":["team-a"],"parent":{"key":"PROJ-100"}}'
+# Example: create-jira-issue PROJ Task "My task"
+#   '{"labels":["team-a"],"parent":{"key":"PROJ-100"}}'
 function create-jira-issue() {
   local project="$1"
   local issue_type="$2"
   local summary="$3"
-  # Avoid ${4:-{}} — zsh misparses the closing brace in the default word,
-  # appending a stray '}' to the value when $4 is set. Use explicit conditional.
+
+  # Avoid ${4:-{}} — zsh misparses the closing brace in the
+  # default word, appending a stray '}' to the value when $4 is
+  # set.
+  # Use explicit conditional.
   local extra_fields
   extra_fields="${4}"
   [[ -z "$extra_fields" ]] && extra_fields="{}"
@@ -123,7 +144,8 @@ function create-jira-issue() {
     return 1
   fi
 
-  # Write extra_fields to a temp file to avoid shell-escaping issues with --argjson
+  # Write extra_fields to a temp file to avoid shell-escaping
+  # issues with --argjson
   local tmp_extra
   tmp_extra=$(mktemp)
   printf '%s' "$extra_fields" > "$tmp_extra"
@@ -154,8 +176,10 @@ function create-jira-issue() {
 }
 
 # Update an existing Jira issue
-# Usage: update-jira-issue <issue-key> <json-fields>
-# Example: update-jira-issue PROJ-123 '{"summary":"Updated summary"}'
+# Usage: update-jira-issue <issue-key> <json-fields>.
+#
+# Example: update-jira-issue PROJ-123
+#   '{"summary":"Updated summary"}'
 # Example: update-jira-issue PROJ-123 '{"labels":["new-label"]}'
 function update-jira-issue() {
   local issue_key="$1"
@@ -186,9 +210,13 @@ function update-jira-issue() {
 }
 
 # Create or update a Jira issue
-# Searches for existing issue by project and exact summary match
-# Usage: upsert-jira-issue <project> <issue-type> <summary> [json-fields]
-# Example: upsert-jira-issue PROJ Story "My story" '{"labels":["team-a"]}'
+# Searches for the existing issue by project and exact summary
+# match.
+#
+# Usage: upsert-jira-issue <project> <issue-type> <summary>
+#   [json-fields]
+# Example: upsert-jira-issue PROJ Story "My story"
+#   '{"labels":["team-a"]}'
 function upsert-jira-issue() {
   local project="$1"
   local issue_type="$2"
@@ -272,14 +300,16 @@ function delete-jira-issue() {
   echo "Issue ${issue_key} deleted successfully"
 }
 
-# ==============================================================================
+# ==============================================================
 # LINKS
-# ==============================================================================
+# ==============================================================
 
 # Get all links for a Jira issue
-# Usage: get-jira-links <issue-key> [--raw]
+# Usage: get-jira-links <issue-key> [--raw].
+#
 # Example: get-jira-links PROJ-123
-# Example: get-jira-links PROJ-123 --raw  # Returns full JSON response
+# Example: get-jira-links PROJ-123 --raw
+#   Returns the full JSON response
 function get-jira-links() {
   local issue_key="$1"
   local raw_mode="$2"
@@ -324,16 +354,23 @@ function get-jira-links() {
 }
 
 # Link two Jira issues
-# Usage: link-jira-issues <source-key> <link-type> <target-key>
+# Usage: link-jira-issues <source-key> <link-type> <target-key>.
 #
-# The link reads naturally: SOURCE --[link-type]--> TARGET
-#   - "PROJ-100 blocks PROJ-101"      => link-jira-issues PROJ-100 "Blocks" PROJ-101
-#   - "PROJ-100 is parent of PROJ-101" => link-jira-issues PROJ-100 "Parent-Child" PROJ-101
+# The link reads naturally: SOURCE --[link-type]--> TARGET.
+# - "PROJ-100 blocks PROJ-101" => link-jira-issues PROJ-100
+#   "Blocks" PROJ-101.
+#
+# - "PROJ-100 is parent of PROJ-101" => link-jira-issues
+#   PROJ-100 "Parent-Child" PROJ-101.
 #
 # Common link types:
-#   - "Blocks"       (source blocks target / target is blocked by source)
-#   - "Parent-Child" (source is parent of target / target is child of source)
-#   - "Relates"      (source relates to target)
+# - "Blocks" (source blocks target / target is blocked by
+#   source).
+#
+# - "Parent-Child" (source is parent of target / target is child
+#   of source).
+#
+# - "Relates" (source relates to target).
 #
 function link-jira-issues() {
   local source_key="$1"
@@ -347,9 +384,10 @@ function link-jira-issues() {
     return 1
   fi
 
-  # NOTE: Jira API is counter-intuitive. To make "A blocks B" appear in UI:
-  #   - inwardIssue = A (the source/blocker/parent)
-  #   - outwardIssue = B (the target/blocked/child)
+  # NOTE: Jira API is counter-intuitive.
+  # To make "A blocks B" appear in UI:
+  # - inwardIssue = A (the source/blocker/parent)
+  # - outwardIssue = B (the target/blocked/child)
   local body
   body=$(jq -n \
     --arg linkType "$link_type" \
@@ -404,12 +442,18 @@ function delete-jira-link() {
   echo "Link ${link_id} deleted successfully"
 }
 
-# Bulk link issues (helper for linking one source to multiple targets)
-# Usage: bulk-link-jira-issues <link-type> <source-key> <target-key1> [target-key2] ...
-# Example: bulk-link-jira-issues "Parent-Child" PROJ-100 PROJ-101 PROJ-102 PROJ-103
-#          (makes PROJ-100 parent of 101, 102, 103)
-# Example: bulk-link-jira-issues "Blocks" PROJ-100 PROJ-101 PROJ-102
-#          (makes PROJ-100 block 101 and 102)
+# Bulk link issues (helper for linking one source to multiple
+# targets)
+# Usage: bulk-link-jira-issues <link-type> <source-key>
+#   <target-key1> [target-key2] ...
+#
+# Example: bulk-link-jira-issues "Parent-Child" PROJ-100
+#   PROJ-101 PROJ-102 PROJ-103
+#   (makes PROJ-100 parent of 101, 102, 103)
+#
+# Example: bulk-link-jira-issues "Blocks" PROJ-100 PROJ-101
+#   PROJ-102
+#   (makes PROJ-100 block 101 and 102)
 function bulk-link-jira-issues() {
   local link_type="$1"
   local source_key="$2"
@@ -435,9 +479,9 @@ function bulk-link-jira-issues() {
   echo "Bulk link complete: ${success_count} succeeded, ${fail_count} failed"
 }
 
-# ==============================================================================
+# ==============================================================
 # TRANSITIONS (Status changes)
-# ==============================================================================
+# ==============================================================
 
 # Get available transitions for an issue
 # Usage: get-jira-transitions <issue-key>
@@ -494,14 +538,18 @@ function transition-jira-issue() {
   echo "Issue ${issue_key} transitioned successfully"
 }
 
-# ==============================================================================
+# ==============================================================
 # MARKDOWN -> ADF HELPERS
-# ==============================================================================
-# Jira REST API v3 requires rich-text fields (description, comments) in ADF JSON,
-# not plain markdown. These wrappers let you author content in .md files and
+# ==============================================================
+
+# Jira REST API v3 requires rich-text fields (description,
+# comments) in ADF JSON, not plain markdown.
+#
+# These wrappers let you author content in .md files and
 # delegate the conversion to the bundled md-to-adf.py.
 
-# Convert a markdown file (or stdin via "-") to ADF JSON on stdout.
+# Convert a markdown file (or stdin via "-") to ADF JSON on
+# stdout.
 # Usage: md-to-adf <markdown-file>
 #        echo "## Title" | md-to-adf -
 function md-to-adf() {
@@ -529,13 +577,19 @@ function md-to-adf() {
   fi
 }
 
-# Create a Jira issue with description sourced from a markdown file.
-# Wraps create-jira-issue: converts md -> ADF, merges into extra-fields JSON,
-# delegates. Returns the API response (key, id, self).
+# Create a Jira issue with description sourced from a markdown
+# file.
+# Wraps create-jira-issue: converts md -> ADF, merges into
+# extra-fields JSON, delegates.
 #
-# Usage: create-jira-issue-from-md <project> <type> <summary> <md-file> [extra-fields-json]
+# Returns the API response (key, id, self).
+#
+# Usage: create-jira-issue-from-md <project> <type> <summary>
+#   <md-file> [extra-fields-json]
+#
 # Example:
-#   create-jira-issue-from-md PROJ Task "Foo" foo.md '{"labels":["team-a"],"parent":{"key":"PROJ-100"}}'
+#   create-jira-issue-from-md PROJ Task "Foo" foo.md
+#   '{"labels":["team-a"],"parent":{"key":"PROJ-100"}}'
 function create-jira-issue-from-md() {
   local project="$1" type="$2" summary="$3" md_file="$4"
   local extra_fields="${5}"
@@ -559,11 +613,15 @@ function create-jira-issue-from-md() {
 }
 
 # Update a Jira issue's description from a markdown file.
-# Optional extra-fields JSON gets merged in (e.g. labels, duedate, status fields).
+# Optional extra-fields JSON gets merged in (e.g. labels,
+# duedate, status fields).
 #
-# Usage: update-jira-issue-from-md <issue-key> <md-file> [extra-fields-json]
+# Usage: update-jira-issue-from-md <issue-key> <md-file>
+#   [extra-fields-json]
+#
 # Example:
-#   update-jira-issue-from-md PROJ-123 desc.md '{"labels":["needs-review"]}'
+#   update-jira-issue-from-md PROJ-123 desc.md
+#   '{"labels":["needs-review"]}'
 function update-jira-issue-from-md() {
   local issue_key="$1" md_file="$2"
   local extra_fields="${3}"

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # test-claude-implement-compact-reminder.sh - plain-bash
 # test file for claude-implement-compact-reminder.sh's
-# scoping of the §8 batch-end directive: it must reach the
-# orchestrator that owns the state file, and only once that
-# unit's task loop has drained.
+# scoping of the §8 batch-end directive.
+#
+# It must reach the orchestrator that owns the state file,
+# and only once that unit's task loop has drained.
 #
 # Exits 0 when every assertion passes, non-zero otherwise.
 #
@@ -11,15 +12,20 @@
 # scripts don't justify a new cross-platform test-runner
 # dependency in install.sh.
 #
-# Why the subagent cases carry the weight here:
-#   A subagent inherits its parent's session_id, and the
-#   hook globs its state files by session_id, so before
-#   the agent_id/agent_type guard a SUBAGENT's compaction
-#   was handed the ORCHESTRATOR's batch-end directive —
-#   including its 'git push -u origin HEAD' step. In a
-#   worktree shared with a concurrent session, an obedient
-#   subagent would push that other session's unreviewed
-#   commits. Observed on two subagents before the fix.
+# Why the subagent cases carry the weight here.
+#
+#   A subagent inherits its parent's session_id, so the
+#   hook globs its state files by session_id.
+#
+#   Before the agent_id/agent_type guard, a SUBAGENT's
+#   compaction was handed the ORCHESTRATOR's batch-end
+#   directive including its 'git push -u origin HEAD'
+#   step.
+#
+#   In a worktree shared with a concurrent session, an
+#   obedient subagent would push that other session's
+#   unreviewed commits. Observed on two subagents before
+#   the fix.
 #
 #   The orchestrator case is here for the opposite reason:
 #   it pins that the scoping did not simply silence the
@@ -38,6 +44,7 @@
 # Fixtures live at /tmp/implement_<id>.json because the
 # hook hardcodes that directory (the real /implement run
 # writes there, and TMPDIR on macOS points elsewhere).
+#
 # Every fixture id is namespaced by this suite's name and
 # PID, so a run can never read or clobber a live run's
 # state file.

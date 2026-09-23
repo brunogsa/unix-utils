@@ -1,32 +1,40 @@
 #!/usr/bin/env bash
-# extract-mermaid-blocks - Print every ```mermaid fenced block from Markdown files.
+# extract-mermaid-blocks - Print every ```mermaid
+# fenced block from Markdown files.
 #
-# Emits each block with its fences intact, in file order, blocks separated by a
-# blank line, so the output pastes straight into a PR description's Architecture
-# section. Built so diagrams reach the PR by copy, never by an AI re-drawing
-# them from the source file — a re-drawn diagram silently diverges from the one
-# the spec/plan was reviewed against.
+# Emits each block with its fences intact, in file order, blocks
+# separated by a blank line, so the output pastes straight into
+# a PR description's Architecture section.
 #
-# Sibling of extract-md-sections.sh, which cherry-picks "## " sections instead;
-# together they cover both halves of a spec/plan (headings and diagrams).
+# Built so diagrams reach the PR by copy, never by an AI
+# re-drawing them from the source file — a re-drawn diagram
+# silently diverges from the one the spec/plan was reviewed
+# against.
+#
+# Sibling of extract-md-sections.sh, which cherry-picks "## "
+# sections instead; together they cover both halves of a
+# spec/plan (headings and diagrams).
 #
 # Usage:
 #   extract-mermaid-blocks.sh <file> [<file> ...]
 #
-#   <file>  Markdown file to read. Several files are read in argument order.
+#   <file>  Markdown file to read. Several files are read in
+#           argument order.
 #
 # Output: the fenced blocks on stdout (redirect/pipe as needed).
+#
 # Exit codes:
 #   0  at least one block was found
 #   1  bad usage / file not found (message on stderr)
 #   2  no block found in any file (empty stdout; hint on stderr)
 #
-# An unterminated block (opening fence with no closing fence) is printed up to
-# EOF and warned about on stderr, since dropping it silently would lose a
-# diagram the author did write.
+# An unterminated block (opening fence with no closing fence) is
+# printed up to EOF and warned about on stderr, since dropping
+# it silently would lose a diagram the author did write.
 #
 # Examples:
-#   extract-mermaid-blocks.sh spec_sge.md plan_sge.md > diagrams.md
+#   extract-mermaid-blocks.sh spec_sge.md plan_sge.md \
+#     > diagrams.md
 #   extract-mermaid-blocks.sh plan_sge.md | wc -l
 #
 # Count the blocks first:  grep -c '^ *```mermaid' <file>

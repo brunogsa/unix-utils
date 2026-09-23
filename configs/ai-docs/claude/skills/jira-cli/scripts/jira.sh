@@ -1,18 +1,23 @@
 #!/bin/bash
 
-# Jira API Core Library - Authentication and request primitives
+# Jira API Core Library - Authentication and request primitives.
 #
 # Provides the foundational functions for Jira API interactions.
-# Sourced by commands/jira-utilities.sh and other scripts that need Jira access.
+# Sourced by commands/jira-utilities.sh and other scripts that
+# need Jira access.
 #
 # Requirements:
 #   export JIRA_URL='https://yourcompany.atlassian.net'
 #   export JIRA_EMAIL='your.email@company.com'
+#
 #   export JIRA_API_TOKEN='your-api-token'
-#   Get API token at: https://id.atlassian.com/manage-profile/security/api-tokens
+#   Get API token at:
+#   https://id.atlassian.com/manage-profile/security/api-tokens.
 #
 # Functions:
-#   jira-validate-env   - Validate required environment variables
+#   jira-validate-env   - Validate required environment
+#                          variables
+#
 #   jira-api-request    - Make authenticated API requests
 #   jira-check-error    - Check API response for errors
 
@@ -44,9 +49,11 @@ function jira-validate-env() {
 }
 
 # Make a Jira API request
-# Usage: jira-api-request <method> <endpoint> [json-body]
+# Usage: jira-api-request <method> <endpoint> [json-body].
+#
 # Example: jira-api-request GET "/rest/api/3/issue/PROJ-123"
-# Example: jira-api-request POST "/rest/api/3/issue" '{"fields":...}'
+# Example: jira-api-request POST "/rest/api/3/issue"
+# '{"fields":...}'
 function jira-api-request() {
   local method="$1"
   local endpoint="$2"
@@ -81,13 +88,19 @@ function jira-api-request() {
     return 1
   fi
 
-  # NOTE: printf, not echo — these library functions are `source`d into the
-  # caller's interactive shell (zsh here), and zsh's builtin echo reinterprets
-  # backslash escapes (\n, \t) by default. Jira returns properly-escaped JSON;
-  # `echo "$response"` silently turns escaped \n\t sequences into raw control
-  # bytes, which then breaks every downstream jq (strict JSON parser). printf
-  # never reinterprets escapes regardless of shell, so it round-trips the
-  # payload unchanged.
+  # NOTE: printf, not echo — these library functions are
+  # `source`d into the caller's interactive shell (zsh
+  # here), and zsh's builtin echo reinterprets backslash
+  # escapes (\n, \t) by default.
+  #
+  # Jira returns properly-escaped JSON;
+  #
+  # `echo "$response"` silently turns escaped \n\t sequences
+  # into raw control bytes, which then breaks every
+  # downstream jq (strict JSON parser).
+  #
+  # printf never reinterprets escapes regardless of shell,
+  # so it round-trips the payload unchanged.
   printf '%s' "$response"
 }
 

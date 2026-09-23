@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# test-resolve-task-order.sh - plain-bash test file for resolve-task-order.sh.
+# test-resolve-task-order.sh - plain-bash test file for
+# resolve-task-order.sh.
 #
 # Usage:
 #   bash test-resolve-task-order.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
-# by design, matching the other scripts in this skill's test suite.
+# Exits 0 when every assertion passes, non-zero otherwise.
+# No bats dependency by design, matching the other scripts in
+# this skill's test suite.
 
 set -uo pipefail
 
@@ -18,7 +20,8 @@ trap 'rm -rf "$work_dir"' EXIT
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs actual,
+# prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -30,7 +33,8 @@ assert_eq() {
   fi
 }
 
-# assert_true - inline assert helper: prints ok/not-ok on a boolean condition string.
+# assert_true - inline assert helper: prints ok/not-ok on a
+# boolean condition string.
 assert_true() {
   local description="$1" condition="$2"
   if [ "$condition" = "true" ]; then
@@ -42,9 +46,9 @@ assert_true() {
   fi
 }
 
-# run_script - invokes resolve-task-order.sh against a plan-file fixture and a
-# task-ids list, capturing stdout/stderr/exit code into
-# VERDICT_OUT/VERDICT_ERR/VERDICT_EXIT.
+# run_script - invokes resolve-task-order.sh against a plan-file
+# fixture and a task-ids list, capturing stdout/stderr/exit code
+# into VERDICT_OUT/VERDICT_ERR/VERDICT_EXIT.
 run_script() {
   local plan_file="$1" task_ids="$2"
   local out_file="$work_dir/stdout.txt"
@@ -55,8 +59,9 @@ run_script() {
   VERDICT_ERR=$(cat "$err_file")
 }
 
-# write_plan - writes the given Task-Breakdown-section body to a fresh plan
-# fixture under work_dir, returns its path via stdout.
+# write_plan - writes the given Task-Breakdown-section body to a
+# fresh plan fixture under work_dir, returns its path via
+# stdout.
 write_plan() {
   local name="$1" body="$2"
   local path="$work_dir/$name.md"
@@ -64,10 +69,13 @@ write_plan() {
   printf '%s' "$path"
 }
 
-# run_verify_script - invokes resolve-task-order.sh in --verify mode against a
-# plan-file fixture, the in-scope task-ids set (what the user was shown),
-# and a candidate task-order list (what the user typed back), capturing
-# stdout/stderr/exit code into VERDICT_OUT/VERDICT_ERR/VERDICT_EXIT.
+# run_verify_script - invokes resolve-task-order.sh in --verify
+# mode against a plan-file fixture, the in-scope task-ids set
+# (what the user was shown), and a candidate task-order list
+# (what the user typed back).
+#
+# Captures stdout/stderr/exit code into
+# VERDICT_OUT/VERDICT_ERR/VERDICT_EXIT.
 run_verify_script() {
   local plan_file="$1" task_ids="$2" candidate_order="$3"
   local out_file="$work_dir/verify-stdout.txt"

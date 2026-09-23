@@ -5,19 +5,21 @@
 # Usage:
 #   bash test-check-bullet-gap-fix.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats
-# dependency by design, matching this skill area's other test suites
-# (test-check-rule-citations.sh).
+# Exits 0 when every assertion passes, non-zero otherwise.
+# No bats dependency by design, matching this skill area's other
+# test suites (test-check-rule-citations.sh).
 
 set -uo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$script_dir/check-bullet-gap.py"
 
-# pwd -P resolves /var -> /private/var on macOS. get-changed-lines.sh anchors on
-# `git rev-parse --show-toplevel`, always physical, so an unresolved work_dir
-# would make its relative-path comparison miss - same caveat as
-# test-get-changed-lines.sh.
+# pwd -P resolves /var -> /private/var on macOS.
+#
+# get-changed-lines.sh anchors on
+# `git rev-parse --show-toplevel` Always physical, so an
+# unresolved work_dir would make its relative-path comparison
+# miss — same caveat as test-get-changed-lines.sh.
 work_dir=$(cd "$(mktemp -d)" && pwd -P)
 trap 'rm -rf "$work_dir"' EXIT
 
@@ -37,32 +39,37 @@ assert_eq() {
   fi
 }
 
-# new_fixture - writes $2 into a fresh tmp file, sets FIXTURE to its path.
+# new_fixture - writes $2 into a fresh tmp file, sets FIXTURE to
+# its path.
 new_fixture() {
   local name="$1" content="$2"
   FIXTURE="$work_dir/$name"
   printf '%s' "$content" > "$FIXTURE"
 }
 
-# run_fix - invokes check-bullet-gap.py --fix on FIXTURE, capturing the
-# exit code into FIX_EXIT.
+# run_fix - invokes check-bullet-gap.py --fix on FIXTURE,
+# capturing the exit code into FIX_EXIT.
 run_fix() {
   python3 "$SCRIPT" --fix "$FIXTURE" >"$work_dir/fix-stdout.txt" 2>&1
   FIX_EXIT=$?
 }
 
-# run_check - invokes check-bullet-gap.py (no --fix) on FIXTURE, capturing
-# the exit code into CHECK_EXIT.
+# run_check - invokes check-bullet-gap.py (no --fix) on FIXTURE,
+# capturing the exit code into CHECK_EXIT.
 run_check() {
   python3 "$SCRIPT" "$FIXTURE" >"$work_dir/check-stdout.txt" 2>&1
   CHECK_EXIT=$?
 }
 
-# new_repo - creates an empty git repo under work_dir and prints its path.
-# Identity is set locally so the fixture commit never depends on the
-# machine's global git config. Mirrors test-get-changed-lines.sh's helper,
-# since --changed-only's whole contract is "what does get-changed-lines.sh
-# report" - there is nothing to assert without a real repo underneath it.
+# new_repo - creates an empty git repo under work_dir and prints
+# its path.
+# Identity is set locally so the fixture commit never depends on
+# the machine's global git config.
+#
+# Mirrors test-get-changed-lines.sh's helper, since
+# --changed-only's whole contract is "what does
+# get-changed-lines.sh report" - there is nothing to assert
+# without a real repo underneath it.
 new_repo() {
   local dir="$work_dir/$1"
   mkdir -p "$dir"
@@ -97,8 +104,9 @@ EOF
 }
 
 it_should_insert_a_blank_line_after_an_over_80pct_hit_and_pass_the_check_afterward() {
-  # 210 chars, over the 205-char gap threshold (80% of 256), under the
-  # full 256-char density cap so check-density.sh itself stays quiet.
+  # 210 chars, over the 205-char gap threshold (80% of 256),
+  # under the full 256-char density cap so check-density.sh
+  # itself stays quiet.
   local long_bullet="- This bullet is deliberately long enough to cross the eighty percent gap threshold used by check-bullet-gap.py, comfortably under the two-hundred-fifty-six character density cap check-density.sh enforces separately."
   new_fixture over-80pct.md "$(printf '%s\n- Sibling bullet flush against the long one above (no gap).\n' "$long_bullet")"
 
@@ -139,12 +147,14 @@ it_should_exit_2_when_given_an_unknown_flag() {
   assert_eq 'should exit 2 when given an unknown flag' "2" "$?"
 }
 
-# --- --changed-only cases ---
+# --- --changed-only cases ---.
 #
-# Every fixture below shares one violation shape: a parent bullet with a
-# nested child right below it, followed by a sibling bullet flush against
-# the child (no gap) - the same sub-bullet hit the two tests above already
-# exercise, just placed inside a real git repo so get-changed-lines.sh has
+# Every fixture below shares one violation shape: a parent
+# bullet with a nested child right below it, followed by a
+# sibling bullet flush against the child (no gap).
+#
+# The same sub-bullet hit the two tests above already exercise,
+# just placed inside a real git repo so get-changed-lines.sh has
 # something to diff against.
 
 it_should_hide_a_pre_existing_violation_and_still_report_a_newly_added_one_under_changed_only() {
@@ -162,9 +172,10 @@ it_should_hide_a_pre_existing_violation_and_still_report_a_newly_added_one_under
   git -C "$repo" add mixed.md
   git -C "$repo" commit -q -m base
 
-  # Section A is untouched (still identical to HEAD) - its sub-bullet hit
-  # predates this session's edit. Section B is newly appended - its
-  # sub-bullet hit is the only one this session's diff actually created.
+  # Section A is untouched (still identical to HEAD) - its
+  # sub-bullet hit predates this session's edit.
+  # Section B is newly appended - its sub-bullet hit is the only
+  # one this session's diff actually created.
   printf '%s\n%s\n%s\n%s\n%s\n%s\n' \
     "$parent_a" "$child_a" "$sibling_a" "$parent_b" "$child_b" "$sibling_b" \
     > "$repo/mixed.md"

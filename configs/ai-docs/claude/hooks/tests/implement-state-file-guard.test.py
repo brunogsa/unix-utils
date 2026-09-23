@@ -222,8 +222,9 @@ class MarkerHookTestCase(unittest.TestCase):
         self.assert_inert(result, "empty stdin")
 
     def test_should_stay_inert_when_the_marker_path_cannot_be_written(self):
-        # A directory sitting on the marker path makes the write fail the same
-        # way an unwritable /tmp would, without touching /tmp's permissions.
+        # A directory sitting on the marker path makes the write
+        # fail the same way an unwritable /tmp would, without
+        # touching /tmp's permissions.
         marker_path(self.sid).mkdir()
 
         result = run_marker_hook(prompt="/implement 5", sid=self.sid)
@@ -450,9 +451,10 @@ class StopHookStateFileGuardTestCase(unittest.TestCase):
         self.assertEqual(result.stdout, "")
 
     def test_should_ignore_a_directory_sitting_on_the_marker_path(self):
-        # Only a regular file arms the guard. A directory there is not a marker
-        # any hook wrote, and treating it as one would both false-block and
-        # hand the disarm an rm it can never satisfy.
+        # Only a regular file arms the guard.
+        # A directory there is not a marker any hook wrote, and
+        # treating it as one would both false-block and hand the
+        # disarm an rm it can never satisfy.
         marker_path(self.sid).mkdir()
 
         result = run_stop_hook(sid=self.sid)

@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# test-parse-pr-breakdown.sh - plain-bash test file for parse-pr-breakdown.sh.
+# test-parse-pr-breakdown.sh - plain-bash test file for
+# parse-pr-breakdown.sh.
 #
 # Usage:
 #   bash test-parse-pr-breakdown.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
-# by design, matching the other scripts in this skill's test suite.
+# Exits 0 when every assertion passes, non-zero otherwise.
+# No bats dependency by design, matching the other scripts in
+# this skill's test suite.
 
 set -uo pipefail
 
@@ -18,7 +20,8 @@ trap 'rm -rf "$work_dir"' EXIT
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs actual,
+# prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -30,11 +33,13 @@ assert_eq() {
   fi
 }
 
-# run_script - invokes parse-pr-breakdown.sh with any number of args,
-# capturing stdout/exit code into VERDICT_OUT/VERDICT_EXIT (stderr is
-# discarded to a file, not a variable - no assertion below needs it, since
-# parse-pr-breakdown.sh's exit-1 trivial-section path prints no diagnostic
-# by design, leaving that message to each caller's own $pr_label context).
+# run_script - invokes parse-pr-breakdown.sh with any number of
+# args, capturing stdout/exit code into VERDICT_OUT/VERDICT_EXIT
+# (stderr is discarded to a file, not a variable).
+#
+# No assertion below needs it, since parse-pr-breakdown.sh's
+# exit-1 trivial-section path prints no diagnostic by design,
+# leaving that message to each caller's own $pr_label context.
 run_script() {
   local out_file="$work_dir/stdout.txt"
   local err_file="$work_dir/stderr.txt"
@@ -43,8 +48,9 @@ run_script() {
   VERDICT_OUT=$(cat "$out_file")
 }
 
-# write_plan - writes the given PR-Breakdown-section body to a fresh plan
-# fixture under work_dir, returns its path via stdout.
+# write_plan - writes the given PR-Breakdown-section body to a
+# fresh plan fixture under work_dir, returns its path via
+# stdout.
 write_plan() {
   local name="$1" body="$2"
   local path="$work_dir/$name.md"

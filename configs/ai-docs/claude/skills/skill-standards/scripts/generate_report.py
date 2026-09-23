@@ -19,7 +19,8 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
     holdout = data.get("holdout", 0)
     title_prefix = html.escape(skill_name + " \u2014 ") if skill_name else ""
 
-    # Get all unique queries from train and test sets, with should_trigger info
+    # Get all unique queries from train and test sets, with
+    # should_trigger info
     train_queries: list[dict] = []
     test_queries: list[dict] = []
     if history:
@@ -223,7 +224,8 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
         train_by_query = {r["query"]: r for r in train_results}
         test_by_query = {r["query"]: r for r in test_results} if test_results else {}
 
-        # Compute aggregate correct/total runs across all retries
+        # Compute aggregate correct/total runs across all
+        # retries
         def aggregate_runs(results: list[dict]) -> tuple[int, int]:
             correct = 0
             total = 0
@@ -274,7 +276,8 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
 
             html_parts.append(f'                <td class="result {css_class}">{icon}<span class="rate">{triggers}/{runs}</span></td>\n')
 
-        # Add result for each test query (with different background)
+        # Add result for each test query (with different
+        # background)
         for qinfo in test_queries:
             r = test_by_query.get(qinfo["query"], {})
             did_pass = r.get("pass", False)

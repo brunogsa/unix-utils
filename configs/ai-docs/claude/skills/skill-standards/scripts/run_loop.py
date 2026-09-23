@@ -82,7 +82,8 @@ def run_loop(
             print(f"Description: {current_description}", file=sys.stderr)
             print(f"{'='*60}", file=sys.stderr)
 
-        # Evaluate train + test together in one batch for parallelism
+        # Evaluate train + test together in one batch for
+        # parallelism
         all_queries = train_set + test_set
         t0 = time.time()
         all_results = run_eval(
@@ -127,6 +128,7 @@ def run_loop(
             "test_failed": test_summary["failed"] if test_summary else None,
             "test_total": test_summary["total"] if test_summary else None,
             "test_results": test_results["results"] if test_results else None,
+
             # For backward compat with report generator
             "passed": train_summary["passed"],
             "failed": train_summary["failed"],
@@ -189,7 +191,9 @@ def run_loop(
             print(f"\nImproving description...", file=sys.stderr)
 
         t0 = time.time()
-        # Strip test scores from history so improvement model can't see them
+
+        # Strip test scores from history so improvement model
+        # can't see them
         blinded_history = [
             {k: v for k, v in h.items() if not k.startswith("test_")}
             for h in history
@@ -211,7 +215,8 @@ def run_loop(
 
         current_description = new_description
 
-    # Find the best iteration by TEST score (or train if no test set)
+    # Find the best iteration by TEST score (or train if no test
+    # set)
     if test_set:
         best = max(history, key=lambda h: h["test_passed"] or 0)
         best_score = f"{best['test_passed']}/{best['test_total']}"
@@ -272,13 +277,15 @@ def main():
             live_report_path = Path(tempfile.gettempdir()) / f"skill_description_report_{skill_path.name}_{timestamp}.html"
         else:
             live_report_path = Path(args.report)
+
         # Open the report immediately so the user can watch
         live_report_path.write_text("<html><body><h1>Starting optimization loop...</h1><meta http-equiv='refresh' content='5'></body></html>")
         webbrowser.open(str(live_report_path))
     else:
         live_report_path = None
 
-    # Determine output directory (create before run_loop so logs can be written)
+    # Determine output directory (create before run_loop so logs
+    # can be written)
     if args.results_dir:
         timestamp = time.strftime("%Y-%m-%d_%H%M%S")
         results_dir = Path(args.results_dir) / timestamp

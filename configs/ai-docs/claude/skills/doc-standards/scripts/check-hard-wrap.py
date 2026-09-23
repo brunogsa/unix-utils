@@ -66,9 +66,10 @@ LINK_REF_DEF = re.compile(r"^\s*\[[^\]]+\]:\s")
 HTML_TAG_ONLY = re.compile(r"^\s*</?[a-zA-Z][^>]*>\s*$")
 LINK_ONLY = re.compile(r"^\s*([>*+-]|\d+\.)?\s*\[[^\]]+\]\([^)]+\)\s*\.?\s*$")
 
-# Markdown's second code form: four columns of indent past wherever a
-# paragraph could otherwise start. A tab counts as one such indent, so
-# every indent here is measured in tab-expanded columns.
+# Markdown's second code form: four columns of indent past
+# wherever a paragraph could otherwise start.
+# A tab counts as one such indent, so every indent here is
+# measured in tab-expanded columns.
 INDENTED_CODE_INDENT = 4
 TAB_WIDTH = 4
 
@@ -121,8 +122,10 @@ def is_continuable_prose(line):
         return False
     if FENCE.match(line):
         return False
-    # Each of these carries its own per-line marker, so consecutive ones are
-    # structure the author wrote deliberately, not an unmarked wrap.
+
+    # Each of these carries its own per-line marker, so
+    # consecutive ones are structure the author wrote
+    # deliberately, not an unmarked wrap.
     if TABLE_ROW.match(line):
         return False
     if BLOCKQUOTE.match(line):
@@ -145,12 +148,18 @@ def find_hits(lines):
     hits = []
     in_fence = False
     in_indented_code = False
-    # The innermost open list item's content column, 0 outside any list. It
-    # is what raises the code-block bar inside an item: four spaces under a
-    # bullet is that item's continuation text, not a code block.
+
+    # The innermost open list item's content column, 0 outside
+    # any list.
+    #
+    # It is what raises the code-block bar inside an item: four
+    # spaces under a bullet is that item's continuation text,
+    # not a code block.
     list_content_column = 0
-    # Frontmatter only exists as a leading block, so the opening --- must be
-    # line 0; a bare --- anywhere else is a horizontal rule, not a delimiter.
+
+    # Frontmatter only exists as a leading block, so the opening
+    # --- must be line 0; a bare --- anywhere else is a
+    # horizontal rule, not a delimiter.
     in_frontmatter = bool(lines) and bool(FRONTMATTER.match(lines[0]))
 
     for i, line in enumerate(lines):
@@ -171,19 +180,20 @@ def find_hits(lines):
 
         left_indented_code = False
         if in_indented_code:
-            # A blank line never closes an indented code block - only a
-            # non-blank line dedented back out of it does.
+            # A blank line never closes an indented code block -
+            # only a non-blank line dedented back out of it
+            # does.
             if not is_blank and indent < code_column:
                 in_indented_code = False
                 left_indented_code = True
         elif not is_blank and indent >= code_column:
-            # Markdown opens an indented code block only where a paragraph
-            # could otherwise start, which is why the blank line above is
-            # part of the test.
+            # Markdown opens an indented code block only where a
+            # paragraph could otherwise start, which is why the
+            # blank line above is part of the test.
             #
-            # Directly under a paragraph line the same indent is a lazy
-            # continuation of it - the hard wrap this script exists to
-            # report, wearing an indent.
+            # Directly under a paragraph line the same indent is
+            # a lazy continuation of it - the hard wrap this
+            # script exists to report, wearing an indent.
             opens_a_block = i == 0 or not lines[i - 1].strip()
             in_indented_code = opens_a_block
 
@@ -195,22 +205,26 @@ def find_hits(lines):
             if bullet_column is not None:
                 list_content_column = bullet_column
             else:
-                # A line dedented past the innermost item's content column
-                # has left that item, so the bar drops back down with it.
+                # A line dedented past the innermost item's
+                # content column has left that item, so the bar
+                # drops back down with it.
                 list_content_column = min(list_content_column, indent)
 
         if i == 0:
             continue
 
-        # The line that dedents out of a code block opens a new block, so it
-        # continues nothing - and the code line above it is not prose to be
-        # joined onto anyway.
+        # The line that dedents out of a code block opens a new
+        # block, so it continues nothing - and the code line
+        # above it is not prose to be joined onto anyway.
         if left_indented_code:
             continue
 
-        # A bullet OPENS a block, so it is never a continuation of the line
-        # above it. A bullet flush against preceding prose is the bullet-gap
-        # concern check-bullet-gap.py owns, not a hard wrap.
+        # A bullet OPENS a block, so it is never a continuation
+        # of the line above it.
+        #
+        # A bullet flush against preceding prose is the
+        # bullet-gap concern check-bullet-gap.py owns, not a
+        # hard wrap.
         if BULLET.match(line):
             continue
 
@@ -221,9 +235,10 @@ def find_hits(lines):
         if is_setext_underline(line, previous):
             continue
 
-        # Two trailing spaces and a trailing backslash are markdown's two
-        # explicit hard breaks - authored, visible in the render, and destroyed
-        # by joining. Only an UNMARKED break is a hard wrap.
+        # Two trailing spaces and a trailing backslash are
+        # markdown's two explicit hard breaks - authored,
+        # visible in the render, and destroyed by joining.
+        # Only an UNMARKED break is a hard wrap.
         if previous.endswith("  ") or previous.endswith("\\"):
             continue
 

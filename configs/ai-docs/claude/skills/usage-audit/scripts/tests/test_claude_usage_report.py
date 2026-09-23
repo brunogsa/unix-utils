@@ -38,8 +38,10 @@ SCRIPTS = Path(__file__).parent.parent
 def _load_module(filename, module_name):
     """Import a dash-named script (not a valid module name) by file path."""
     spec = importlib.util.spec_from_file_location(module_name, SCRIPTS / filename)
-    # spec_from_file_location returns None for a path no importer claims, and
-    # a spec built without a loader; both mean the script under test is gone.
+
+    # spec_from_file_location returns None for a path no
+    # importer claims, and a spec built without a loader; both
+    # mean the script under test is gone.
     if spec is None or spec.loader is None:
         raise ImportError(f"cannot load {filename} from {SCRIPTS}")
     module = importlib.util.module_from_spec(spec)
@@ -93,8 +95,9 @@ def _assistant_record(message_id, request_id, epoch, *, input_tokens, output_tok
     if speed is not None:
         usage["speed"] = speed
     if advisor_iterations is not None:
-        # Real records carry the main model's own turn as a "message"
-        # iteration alongside; only the advisor entries are extra spend.
+        # Real records carry the main model's own turn as a
+        # "message" iteration alongside; only the advisor
+        # entries are extra spend.
         usage["iterations"] = [{"type": "message"}] + advisor_iterations
     record = {
         "type": "assistant",
@@ -211,11 +214,15 @@ class TestBillingCorrectness(unittest.TestCase):
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         epoch = since + 3600
-        # All three blocks share one epoch: real transcripts can stamp
-        # sub-second blocks identically, and a shared epoch isolates the
-        # dedup gate from the separate anchor-day mechanism under test
-        # elsewhere, which also blocks a same-key repeat but only when the
-        # repeat's epoch differs from the earliest one seen for that key.
+
+        # All three blocks share one epoch: real transcripts
+        # can stamp sub-second blocks identically, and a shared
+        # epoch isolates the dedup gate from the separate
+        # anchor-day mechanism under test elsewhere.
+        #
+        # That mechanism also blocks a same-key repeat but only
+        # when the repeat's epoch differs from the earliest one
+        # seen for that key.
         records = [
             _assistant_record("msg_dedup", "req_dedup", epoch,
                                input_tokens=1000, output_tokens=500, cache_read_tokens=200)
@@ -374,8 +381,10 @@ class TestBillingCorrectness(unittest.TestCase):
         """A record whose UTC calendar date and local calendar date differ
         must convert to the LOCAL date. Bucketing by the raw UTC date
         historically misfiled 44.2% of records for a UTC-3 user."""
-        # 2026-07-21T01:00:00Z is 2026-07-20T22:00:00 local at UTC-3 (this
-        # test class's forced TZ): UTC day is the 21st, local day the 20th.
+
+        # 2026-07-21T01:00:00Z is 2026-07-20T22:00:00 local at
+        # UTC-3 (this test class's forced TZ): UTC day is the
+        # 21st, local day the 20th.
         epoch = cur.parse_ts("2026-07-21T01:00:00Z")
         self.assertEqual(
             cur.local_day(epoch), "2026-07-20",
@@ -491,7 +500,8 @@ class TestBillingCorrectness(unittest.TestCase):
         epoch = since + 3600
         iterations = [_advisor_iteration(input_tokens=50000, output_tokens=800)]
         records = [
-            # The anchor carries none, exactly as a real subagent's does.
+            # The anchor carries none, exactly as a real
+            # subagent's does.
             _assistant_record("msg_late", "req_late", epoch,
                                input_tokens=1000, output_tokens=100),
             _assistant_record("msg_late", "req_late", epoch + 1,
@@ -1515,8 +1525,11 @@ class TestSpawnAttribution(unittest.TestCase):
                 "tool_use id, unchanged from what the transcript recorded")
 
     def test_match_spawn_treats_a_short_transcript_prompt_as_a_candidate_when_it_prefixes_a_longer_spawn_prompt(self):
-        spawn_prompt = "Refactor the pricing module " * 6  # > 150 chars, one dispatch
-        transcript_prompt = spawn_prompt[:40]  # shorter than the 100-char floor
+        # > 150 chars, one dispatch
+        spawn_prompt = "Refactor the pricing module " * 6
+
+        # shorter than the 100-char floor
+        transcript_prompt = spawn_prompt[:40]
         session_spawns = [("refactor", spawn_prompt, 3, "toolu_refactor")]
 
         spawn_type, record_index = cur.match_spawn(transcript_prompt, session_spawns)

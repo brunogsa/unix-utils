@@ -2,41 +2,58 @@
 # check-density.sh — flag markdown lines exceeding density caps.
 #
 # AI-consumed output (compact, parseable):
-#   <line>:<chars>:<words>      one per violation
-#   == <filename>               header (for each file that has hits)
+#   <line>:<chars>:<words>  one per violation
+#   == <filename>           header (for each file that has hits)
 #
 # Two caps, chosen by line shape (override with flags):
-#   prose line (no bullet marker):  512 chars / 64 words (--max-chars/--max-words)
-#   bullet/sub-bullet/ordered line: 256 chars / 32 words (--bullet-chars/--bullet-words)
-# A bullet line is one matching ^\s*([-*+]|\d+\.)\s (same shape check-hard-wrap.py
-# uses), so an indented sub-bullet or an ordered "1. " line both take the
-# bullet cap, never the looser prose cap.
 #
-# Skips: leading YAML frontmatter (--- ... ---), fenced code blocks (``` or ~~~),
-# blank lines, table rows, HTML-tag-only lines, link-only lines (a single
-# "[text](url)" with optional list/quote marker).
+# - prose line (no bullet marker): 512 chars / 64 words
+#   (--max-chars/--max-words).
 #
-# Frontmatter is skipped because its keys are router/tooling metadata, not prose:
-# a `description:` scalar can't obey the "split on a sentence boundary" remedy, and
-# its real cap is the skill-router budget (~first 250 chars), not the word count.
+# - bullet/sub-bullet/ordered line: 256 chars / 32 words
+#   (--bullet-chars/--bullet-words).
 #
-# Char/word counts are measured AFTER stripping `(https://…)` and `(data:…)` URI
-# portions and remaining `[`/`]` brackets — so "[label](url)" measures as "label"
-# and a base64 image — inline `![alt](data:…)` or reference def `[id]: <data:…>` —
-# collapses to its label, giving the rendered density a reader actually sees.
+# A bullet line is one matching ^\s*([-*+]|\d+\.)\s (same
+# shape check-hard-wrap.py uses), so an indented sub-bullet
+# or an ordered "1." line both take the bullet cap, never
+# the looser prose cap.
+#
+# Skips: leading YAML frontmatter (--- ... ---), fenced code
+# blocks (``` or ~~~), blank lines, table rows,
+# HTML-tag-only lines, link-only lines (a single "[text](url)"
+# with optional list/quote marker).
+#
+# Frontmatter is skipped because its keys are router/tooling
+# metadata, not prose: a `description:` scalar can't obey the
+# "split on a sentence boundary" remedy, and its real cap is the
+# skill-router budget (~first 250 chars), not the word count.
+#
+# Char/word counts are measured AFTER stripping `(https://…)`
+# and `(data:…)` URI portions and remaining `[`/`]` brackets
+# — so "[label](url)" measures as "label" and a base64 image.
+#
+# Inline `![alt](data:…)` or reference def `[id]: <data:…>` —
+# collapses to its label, giving the rendered density a
+# reader actually sees.
 #
 # Usage:
-#   check-density.sh [--max-chars N] [--max-words N] [--bullet-chars N]
-#     [--bullet-words N] [--changed-only] <file> [<file>...]
+#   check-density.sh [--max-chars N] [--max-words N]
+#     [--bullet-chars N] [--bullet-words N]
+#     [--changed-only] <file> [<file>...]
 #
-# --changed-only scopes violations to lines get-changed-lines.sh reports
-# as changed vs git HEAD (see that script's own docstring for what
-# counts as changed) — an out-of-scope violation is never printed and
-# never counts toward the exit code. Scope is recomputed fresh per file
-# on every run; nothing is cached. When get-changed-lines.sh itself fails for
-# a file (not a git repo, missing file), this script exits 2 and names
-# the file, rather than treating that file as clean or as fully in
-# scope.
+# --changed-only scopes violations to lines get-changed-lines.sh
+# reports as changed vs git HEAD (see that script's own
+# docstring for what counts as changed).
+#
+# Out-of-scope violations are never printed and never count
+# toward the exit code.
+#
+# Scope is recomputed fresh per file on every run; nothing is
+# cached.
+#
+# When get-changed-lines.sh itself fails for a file (not a git
+# repo, missing file), this script exits 2 and names the file,
+# rather than treating that file as clean or as fully in scope.
 #
 # Exit codes:
 #   0  clean (no in-scope violations)
@@ -44,10 +61,12 @@
 #   2  usage error, or --changed-only failed to scope a file
 #
 # Examples:
-#   check-density.sh pr-description.md
-#   check-density.sh --max-chars 200 spec_<slug>.md plan_<slug>.md
-#   check-density.sh --max-words 24 README.md
-#   check-density.sh --changed-only spec_<slug>.md
+# - check-density.sh pr-description.md
+# - check-density.sh --max-chars 200 spec_<slug>.md
+#   plan_<slug>.md.
+#
+# - check-density.sh --max-words 24 README.md
+# - check-density.sh --changed-only spec_<slug>.md
 
 set -euo pipefail
 
@@ -75,11 +94,14 @@ done
 
 [[ ${#FILES[@]} -eq 0 ]] && { echo "usage: check-density.sh [--max-chars N] [--max-words N] [--bullet-chars N] [--bullet-words N] [--changed-only] <file>..." >&2; exit 2; }
 
-# check_one_file - runs the density awk program over a single file,
-# restricting hits to CHANGED_CSV's line numbers when scoped is "1".
+# check_one_file - runs the density awk program over a single
+# file, restricting hits to CHANGED_CSV's line numbers when
+# scoped is "1".
+#
 # Kept per-file (rather than one awk invocation over every FILES
-# entry) because --changed-only needs a distinct changed-line set per
-# file, and awk has no clean way to key a per-file array off ARGV.
+# entry) because --changed-only needs a distinct changed-line
+# set per file, and awk has no clean way to key a per-file array
+# off ARGV.
 check_one_file() {
   local file="$1" scoped="$2" changed_csv="$3"
   awk -v mc="$MAX_CHARS" -v mw="$MAX_WORDS" -v bc="$BULLET_CHARS" -v bw="$BULLET_WORDS" \

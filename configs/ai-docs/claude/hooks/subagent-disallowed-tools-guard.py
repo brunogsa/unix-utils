@@ -140,7 +140,8 @@ def resolve_agent_file(agent_type):
         try:
             fields = parse_agent_frontmatter(md_file)
         except Exception:
-            continue  # not readable/parseable by name; not our candidate
+            # not readable/parseable by name; not our candidate
+            continue
         if fields.get("name") == agent_type:
             return md_file
     return None
@@ -160,7 +161,8 @@ def main():
     try:
         payload = json.load(sys.stdin)
     except Exception:
-        return  # fail open: can't even parse the hook's own stdin
+        # fail open: can't even parse the hook's own stdin
+        return
 
     tool_name = payload.get("tool_name")
     if tool_name not in GATED_TOOLS:
@@ -168,7 +170,8 @@ def main():
 
     agent_type = payload.get("agent_type")
     if not agent_type:
-        return  # main-session call: no calling-agent file to restrict
+        # main-session call: no calling-agent file to restrict
+        return
 
     try:
         agent_file = resolve_agent_file(agent_type)
@@ -176,7 +179,8 @@ def main():
         return  # fail open: can't even enumerate the agents dir
 
     if agent_file is None:
-        return  # allow: absence of an agent file is not a restriction
+        # allow: absence of an agent file is not a restriction
+        return
 
     try:
         fields = parse_agent_frontmatter(agent_file)

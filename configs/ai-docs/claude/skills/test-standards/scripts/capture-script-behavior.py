@@ -1,22 +1,28 @@
 #!/usr/bin/env python3
-# capture-script-behavior.py - Capture-and-replay characterization
-# harness: run a table of input rows against a script, record its
-# full (stdout, stderr, exit code, fixture post-state) tuple as
+# capture-script-behavior.py - Capture-and-replay
+# characterization harness.
+#
+# Run a table of input rows against a script, record its full
+# (stdout, stderr, exit code, fixture post-state) tuple as
 # golden, and emit a <stem>.test.py that replays the same table
 # against a rewrite to prove behavioral equivalence.
 #
 # Usage:
-#   capture-script-behavior.py capture --script PATH --table TABLE.json
-#     [--json-out CAPTURED.json] [--out STEM.test.py]
+#   capture-script-behavior.py capture --script PATH
+#     --table TABLE.json [--json-out CAPTURED.json]
+#     [--out STEM.test.py]
+#
 #   capture-script-behavior.py compare --expected EXPECTED.json
 #     --actual ACTUAL.json
 #
 # stdin: none
-# stdout: `compare` prints one JSON result object; `capture` prints
+# stdout: `compare` prints one JSON result object;
+# `capture` prints
 #   nothing on success (its output is --json-out / --out)
 #
-# exit: 0 on success; 1 on a row that fails without an accepted
-#   divergence marker, a fixture-escape attempt, or a bad invocation
+# exit: 0 on success; 1 on a row that fails without an
+#   accepted divergence marker, a fixture-escape attempt,
+#   or a bad invocation
 
 import argparse
 import hashlib
@@ -29,9 +35,11 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 # Shared, declared mask set — the ONLY place non-deterministic
-# values get normalized. Both capture (before hashing fixture
-# content) and compare (before comparing stdout/stderr) route
-# through mask_text, so a script never needs its own private mask.
+# values get normalized.
+#
+# Both capture (before hashing fixture content) and compare
+# (before comparing stdout/stderr) route through mask_text, so a
+# script never needs its own private mask.
 MASK_PATTERNS = (
     (re.compile(r"\b\d+(\.\d+)?s\b"), "<DURATION>"),
     (re.compile(r"\bpid[= ]\d+\b", re.IGNORECASE), "pid=<PID>"),
@@ -93,12 +101,16 @@ def mask_text(text: str, *, fixture_dir: Path | None = None) -> str:
     the common shapes, not every OS's real temp-dir layout."""
     if fixture_dir is not None:
         # Longest-first: the resolved path (e.g. macOS's
-        # /private/var/... symlink target) contains the raw path as
-        # a substring, so replacing the raw form first would strand
-        # the "/private" prefix un-masked instead of consuming the
-        # whole resolved match. A plain set() has no ordering
-        # guarantee, which made this fail non-deterministically
-        # depending on PYTHONHASHSEED.
+        # /private/var/... symlink target) contains the raw path
+        # as a substring.
+        #
+        # So replacing the raw form first would strand the
+        # "/private" prefix un-masked instead of consuming the
+        # whole resolved match.
+        #
+        # A plain set() has no ordering guarantee, which made
+        # this fail non-deterministically depending on
+        # PYTHONHASHSEED.
         candidates = sorted({str(fixture_dir), str(fixture_dir.resolve())}, key=len, reverse=True)
         for candidate in candidates:
             if candidate:
@@ -219,31 +231,42 @@ def compute_branch_hits(known_branches: list, rows: list) -> dict:
 
 
 def render_test_file(script: Path, rows: list, branch_hits: dict, out_path: Path | None = None) -> str:
-    # Embedded as a JSON *string literal* (parsed via json.loads at
-    # import time), not as a raw Python literal — JSON's null/true/
-    # false are not valid Python syntax, and repr()-ing the string
-    # (rather than f-string-interpolating it raw) lets Python's own
-    # escaping handle any quote/backslash in captured stdout/stderr.
+    # Embedded as a JSON *string literal* (parsed via json.loads
+    # at import time), not as a raw Python literal — JSON's
+    # null/true/false are not valid Python syntax.
+    #
+    # Repr()-ing the string (rather than f-string-interpolating
+    # it raw) lets Python's own escaping handle any
+    # quote/backslash in captured stdout/stderr.
     rows_json = repr(json.dumps([asdict(r) for r in rows], indent=4))
     branch_hits_json = repr(json.dumps(branch_hits, indent=4))
-    # "# DIVERGENCE: <reason>" (colon immediately after the word) is
-    # the exact, grep-able marker AC-23 defines — a future `grep
-    # '# DIVERGENCE:'` must find every intentional behavior change,
-    # so the row name goes in a trailing parenthetical instead of
-    # between DIVERGENCE and the colon.
+
+    # "# DIVERGENCE: <reason>" (colon immediately after the
+    # word) is the exact, grep-able marker AC-23 defines — a
+    # future `grep '# DIVERGENCE:'` must find every intentional
+    # behavior change.
+    #
+    # The row name goes in a trailing parenthetical instead
+    # of between DIVERGENCE and the colon.
     divergence_comments = "\n".join(
         f"# DIVERGENCE: {row.divergence} (row: {row.name})"
         for row in rows if row.divergence
     )
     module_dir = Path(__file__).parent
-    # A committed <stem>.test.py is cloned onto machines other than
-    # the one that ran `capture` (CLAUDE.md's cross-platform MUST),
-    # so neither path below may be the absolute string captured
-    # here. When out_path is known, embed each as a path relative
-    # to the emitted file's own directory, reconstructed at import
-    # time from that file's __file__ — the offset between the test
-    # file and the script (or the harness) is fixed by the repo's
-    # own layout and survives the repo being cloned anywhere.
+
+    # A committed <stem>.test.py is cloned onto machines other
+    # than the one that ran `capture` (CLAUDE.md's
+    # cross-platform MUST), so neither path below may be the
+    # absolute string captured here.
+    #
+    # When out_path is known, embed each as a path relative to
+    # the emitted file's own directory, reconstructed at import
+    # time from that file's __file__.
+    #
+    # The offset between the test file and script (or harness)
+    # is fixed by the repo's own layout and survives the repo
+    # being cloned anywhere.
+    #
     # Without an out_path (no destination file exists to anchor
     # against), fall back to the absolute path captured here.
     if out_path is not None:
@@ -313,8 +336,8 @@ def _load_table(path: Path) -> tuple:
 def cmd_capture(args) -> int:
     # Resolved to absolute up front: capture_row runs the script
     # with cwd=fixture_dir, so a relative --script path would
-    # otherwise be looked up inside the fixture directory instead
-    # of from the caller's original working directory.
+    # otherwise be looked up inside the fixture directory
+    # instead of from the caller's original working directory.
     script = Path(args.script).resolve()
     table_path = Path(args.table)
     rows, known_branches = _load_table(table_path)

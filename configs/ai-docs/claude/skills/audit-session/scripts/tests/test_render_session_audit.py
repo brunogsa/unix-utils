@@ -210,8 +210,10 @@ class TestSessionAuditRendererRanking(unittest.TestCase):
         mistakes a truncated list for the complete one."""
         cost = _cost_fixture()
         timeline = _timeline_fixture()
-        # 8 items, deliberately out of order, so a renderer that trusted
-        # on-disk order (rather than sorting) would show the wrong top 5.
+
+        # 8 items, deliberately out of order, so a renderer that
+        # trusted on-disk order (rather than sorting) would show
+        # the wrong top 5.
         unsorted_ranked = [
             _ranked_item("turn 3", 40.0),
             _ranked_item("turn 7", 900.0),
@@ -320,7 +322,9 @@ class TestSessionAuditRendererTimeHoursFormatting(unittest.TestCase):
         as a bare seconds count. Every duration over a minute must go
         through the hours formatter -- no "1200s"/"3600s" left anywhere."""
         cost = _cost_fixture()
-        timeline = _timeline_fixture()  # buckets: 1200s, 900s, 600s, 900s; wall clock 3600s
+
+        # buckets: 1200s, 900s, 600s, 900s; wall clock 3600s
+        timeline = _timeline_fixture()
         narrative = _narrative_fixture()
 
         html_text = rsa.render_audit_html(cost, timeline, narrative)
@@ -338,7 +342,10 @@ class TestSessionAuditRendererTimeHoursFormatting(unittest.TestCase):
         distinct labelled bars, both durations through the hours
         formatter -- never a bare seconds count."""
         cost = _cost_fixture()
-        timeline = _timeline_fixture()  # agent_hours_seconds=1800, wall_clock_occupied_seconds=600
+
+        # agent_hours_seconds=1800,
+        # wall_clock_occupied_seconds=600
+        timeline = _timeline_fixture()
         narrative = _narrative_fixture()
 
         html_text = rsa.render_audit_html(cost, timeline, narrative)
@@ -402,7 +409,9 @@ class TestSessionAuditRendererCommitsRemoved(unittest.TestCase):
         timeline.json still carries commits.items (the extractor keeps
         emitting them; only this renderer's use of them stops)."""
         cost = _cost_fixture()
-        timeline = _timeline_fixture()  # commits.items carries a real commit command
+
+        # commits.items carries a real commit command
+        timeline = _timeline_fixture()
         narrative = _narrative_fixture()
 
         html_text = rsa.render_audit_html(cost, timeline, narrative)
@@ -428,7 +437,9 @@ class TestSessionAuditRendererHighlights(unittest.TestCase):
             compactions=9,
             kpis={"session_hours": 4.0, "user_messages": 26, "interruptions": 3},
         )
-        timeline = _timeline_fixture()  # wall_clock_seconds=3600.0
+
+        # wall_clock_seconds=3600.0
+        timeline = _timeline_fixture()
         narrative = _narrative_fixture()
 
         html_text = rsa.render_audit_html(cost, timeline, narrative)
@@ -472,7 +483,9 @@ class TestSessionAuditRendererHighlights(unittest.TestCase):
         source is the timeline's active buckets (main_api/tool_exec/
         agent_occupied), not a cost.json key, so this fixture drops those
         buckets entirely -- only human_idle remains."""
-        cost = _cost_fixture()  # only total, main_cost, subagent_cost
+
+        # only total, main_cost, subagent_cost
+        cost = _cost_fixture()
         timeline = _timeline_fixture(time_partition={
             "wall_clock_seconds": 3600.0,
             "buckets": {
@@ -535,7 +548,9 @@ class TestSessionAuditRendererMoneyMainVsSubagent(unittest.TestCase):
         """Gap 3: main-vs-subagent distribution was invisible. One
         horizontal stacked bar, two segments, each labelled with its
         dollar amount and percent of the combined main+subagent spend."""
-        cost = _cost_fixture()  # main_cost=9.03, subagent_cost=3.44
+
+        # main_cost=9.03, subagent_cost=3.44
+        cost = _cost_fixture()
         timeline = _timeline_fixture()
         narrative = _narrative_fixture()
 
@@ -655,7 +670,9 @@ class TestSessionAuditRendererThinkingShare(unittest.TestCase):
         """Graceful degradation: the trimmed default cost fixture carries no
         thinking_block_share at all -- the panel must simply not render,
         never crash or print a literal "None"."""
-        cost = _cost_fixture()  # only total, main_cost, subagent_cost
+
+        # only total, main_cost, subagent_cost
+        cost = _cost_fixture()
         timeline = _timeline_fixture()
         narrative = _narrative_fixture()
 
@@ -696,7 +713,9 @@ class TestSessionAuditRendererSubagentTypes(unittest.TestCase):
     def test_should_skip_the_subagent_types_panel_when_its_source_data_is_absent(self):
         """Graceful degradation: the trimmed default cost fixture carries
         no by_subagent_type at all -- the panel must simply not render."""
-        cost = _cost_fixture()  # only total, main_cost, subagent_cost
+
+        # only total, main_cost, subagent_cost
+        cost = _cost_fixture()
         timeline = _timeline_fixture()
         narrative = _narrative_fixture()
 
@@ -717,7 +736,8 @@ class TestSessionAuditRendererMoneyPanelDegradation(unittest.TestCase):
         timeline = _timeline_fixture()
         narrative = _narrative_fixture()
 
-        html_text = rsa.render_audit_html(cost, timeline, narrative)  # must not raise
+        # must not raise
+        html_text = rsa.render_audit_html(cost, timeline, narrative)
 
         self.assertIn("Highlights", html_text)
         self.assertIn("$12.47", html_text, msg="the total that IS present must still render")
@@ -799,11 +819,15 @@ class TestSessionAuditRendererReconciledPercentages(unittest.TestCase):
         rounded number for the same bucket -- two disagreeing answers for
         one figure. The supplied pct must appear verbatim."""
         cost = _cost_fixture()
-        # 1200 / 3600 naively rounds to 33.3%, but the reconciled pct
-        # supplied here is deliberately 41.0% -- a value no naive
-        # recomputation from these seconds would ever produce. If the
-        # renderer printed anything else, it would prove it re-derived
-        # the percentage instead of trusting the supplied one.
+
+        # 1200 / 3600 naively rounds to 33.3%, but the
+        # reconciled pct supplied here is deliberately 41.0% --
+        # a value no naive recomputation from these seconds
+        # would ever produce.
+        #
+        # If the renderer printed anything else, it would prove
+        # it re-derived the percentage instead of trusting the
+        # supplied one.
         timeline = _timeline_fixture(time_partition={
             "wall_clock_seconds": 3600.0,
             "buckets": {
@@ -975,6 +999,7 @@ class TestSessionAuditRendererFailure(unittest.TestCase):
             _section_digest("time", "Engaged time was 45 minutes.", ranked=[_ranked_item("turn 0", 120.0)]),
             _section_digest("money", "Session cost $12.47 total.", ranked=[_ranked_item("main", 9.03)]),
             _section_digest("work", "One commit landed.", ranked=[_ranked_item("commit", 1.0)]),
+
             # "status" section deliberately omitted.
         ])
 
@@ -998,6 +1023,7 @@ class TestSessionAuditRendererFailure(unittest.TestCase):
             _section_digest("money", "Session cost $12.47 total.", ranked=[_ranked_item("main", 9.03)]),
             _section_digest("work", "One commit landed.", ranked=[_ranked_item("commit", 1.0)]),
             _section_digest("status", "Session is complete.", ranked=[]),
+
             # "recommendations" section deliberately omitted.
         ])
 

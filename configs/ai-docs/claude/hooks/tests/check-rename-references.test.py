@@ -88,13 +88,17 @@ class TestCheckRenameReferencesHappy:
             assert expected in result.stdout, f"{expected} missing from:\n{result.stdout}"
 
     def test_should_substitute_the_running_platforms_home_form_before_resolving_a_foreign_platform_reference(self, tmp_path):
-        # foreign_home is deliberately a path INSIDE repo (not an alien
-        # filesystem root): an unsubstituted token still resolves in
-        # scope, to a location that does NOT exist -- so a checker that
-        # skips substitution reports a dangling reference here instead
-        # of silently classifying the token as out-of-scope. Only a
-        # checker that actually substitutes lands on the real foo.sh
-        # and stays clean.
+        # foreign_home is deliberately a path INSIDE repo (not
+        # an alien filesystem root): an unsubstituted token
+        # still resolves in scope, to a location that does NOT
+        # exist.
+        #
+        # So a checker that skips substitution reports a
+        # dangling reference here instead of silently
+        # classifying the token as out-of-scope.
+        #
+        # Only a checker that actually substitutes lands on the
+        # real foo.sh and stays clean.
         repo = tmp_path / "repo"
         _write(repo / "hooks" / "foo.sh")
         foreign_home = str(repo / "foreign-placeholder")
@@ -205,12 +209,16 @@ class TestCheckRenameReferencesCorner:
             run_result = _run()
             samples.append((time.perf_counter() - start, run_result))
 
-        # A shared machine can run other processes during any single sample,
-        # and contention can only ever make a sample slower, never faster.
-        # The minimum across several samples is therefore the closest
-        # observable estimate of what the scan costs when nothing else is
-        # competing for the CPU -- the floor is the real signal, everything
-        # above it is noise from machine load.
+        # A shared machine can run other processes during any
+        # single sample, and contention can only ever make a
+        # sample slower, never faster.
+        #
+        # The minimum across several samples is therefore the
+        # closest observable estimate of what the scan costs
+        # when nothing else is competing for the CPU.
+        #
+        # The floor is the real signal, everything above it is
+        # noise from machine load.
         fastest = min(elapsed for elapsed, _ in samples)
         sample_report = ", ".join(f"{elapsed:.3f}s" for elapsed, _ in samples)
         last_result = samples[-1][1]
@@ -222,26 +230,37 @@ class TestCheckRenameReferencesCorner:
         assert last_result.returncode in (0, 1), last_result.stdout + last_result.stderr
 
     def test_should_be_reachable_from_the_stop_hook_entry_in_settings_json_through_the_orchestrator_at_its_own_resolved_path(self):
-        # [Drift] Task 26's own working title for this test assumed
-        # settings.json would name this checker directly in its Stop
-        # array. Reading claude-stop-orchestrator.sh (Task 26's design
-        # investigation) found every Stop-event gate dispatches through
-        # that single orchestrator instead of a direct settings.json
-        # entry -- a second, independent blocking Stop entry would race
-        # the orchestrator's own "done" notification (Stop hooks run in
-        # parallel with no short-circuit) and reintroduce the
-        # double-notify bug the orchestrator's header docstring says it
-        # exists to prevent.
+        # [Drift] Task 26's own working title for this test
+        # assumed settings.json would name this checker directly
+        # in its Stop array.
         #
-        # This test asserts the real chain instead: settings.json's Stop
-        # array names the orchestrator; the orchestrator names this
-        # checker's wrapper (claude-rename-guard-stop-hook.sh) at a path
-        # that resolves to a real file; the wrapper names this checker
-        # (SCRIPT, imported above) at its own resolved path.
+        # Reading claude-stop-orchestrator.sh (Task 26's design
+        # investigation) found every Stop-event gate dispatches
+        # through that single orchestrator instead of a direct
+        # settings.json entry.
         #
-        # Reads the real repo files on purpose -- the second explicit
-        # exception to this suite's fixtures-only convention, alongside
-        # the 2-second-budget corner test above.
+        # A second, independent blocking Stop entry would race
+        # the orchestrator's own "done" notification (Stop
+        # hooks run in parallel with no short-circuit).
+        #
+        # That would reintroduce the double-notify bug the
+        # orchestrator's header docstring says it exists to
+        # prevent.
+        #
+        # This test asserts the real chain instead:
+        # settings.json's Stop array names the orchestrator.
+        #
+        # The orchestrator names this checker's wrapper
+        # (claude-rename-guard-stop-hook.sh) at a path that
+        # resolves to a real file.
+        #
+        # The wrapper names this checker (SCRIPT, imported
+        # above) at its own resolved path.
+        #
+        # Reads the real repo files on purpose -- the second
+        # explicit exception to this suite's fixtures-only
+        # convention, alongside the 2-second-budget corner test
+        # above.
         repo_root = SCRIPT.parents[4]
         settings_path = repo_root / "configs" / "ai-docs" / "claude" / "settings.json"
         hooks_dir = SCRIPT.parent
@@ -267,11 +286,13 @@ class TestCheckRenameReferencesCorner:
         assert SCRIPT.is_file(), SCRIPT
 
     def test_should_not_extract_a_bare_extension_glob_mention_as_a_reference(self, tmp_path):
-        # [Drift] regression: a real-corpus run against production
-        # surfaced '.py'/'*.py' prose mentions ("the .py extension")
-        # extracted as a bogus zero-basename token and reported as a
-        # permanent FAIL -- not a rename gap, a false positive in
-        # extraction itself.
+        # [Drift] regression: a real-corpus run against
+        # production surfaced '.py'/'*.py' prose mentions ("the
+        # .py extension") extracted as a bogus zero-basename
+        # token and reported as a permanent FAIL.
+        #
+        # Not a rename gap, a false positive in extraction
+        # itself.
         repo = tmp_path / "repo"
         _write(repo / "README.md", "Every hook here uses the *.py extension.\n")
 
@@ -281,10 +302,10 @@ class TestCheckRenameReferencesCorner:
         assert result.stdout == ""
 
     def test_should_not_extract_an_ellipsis_prefixed_filename_as_a_reference(self, tmp_path):
-        # [Drift] regression: a real-corpus run surfaced '...check.sh'
-        # (an ellipsis abbreviation in prose, e.g. 'rename ...check.sh')
-        # extracted whole, including the leading dots, as a bogus
-        # dangling reference.
+        # [Drift] regression: a real-corpus run surfaced
+        # '...check.sh' (an ellipsis abbreviation in prose, e.g.
+        # 'rename ...check.sh') extracted whole, including the
+        # leading dots, as a bogus dangling reference.
         repo = tmp_path / "repo"
         _write(repo / "README.md", "Rename every ...check.sh script in this batch.\n")
 
@@ -321,10 +342,13 @@ class TestCheckRenameReferencesFailure:
 
         assert result.returncode == 1, result.stdout + result.stderr
         fail_lines = _fail_lines(result)
-        # install.sh is a hard-fail source: both dangling scripts must
-        # surface as their own FAIL line, not merely appear somewhere
-        # in stdout (a single combined or truncated-to-one-line report
-        # would still pass a bare substring check).
+
+        # install.sh is a hard-fail source: both dangling
+        # scripts must surface as their own FAIL line.
+        #
+        # Not merely appear somewhere in stdout (a single
+        # combined or truncated-to-one-line report would still
+        # pass a bare substring check).
         assert len(fail_lines) == 2, result.stdout
         assert any("missing-one.sh" in line for line in fail_lines)
         assert any("missing-two.sh" in line for line in fail_lines)
@@ -338,9 +362,11 @@ class TestCheckRenameReferencesFailure:
 
         assert result.returncode == 1, result.stdout + result.stderr
         fail_lines = _fail_lines(result)
-        # Must be reported as a FAIL (install.sh is a hard-fail source)
-        # keyed by the full dangling path -- not silently downgraded to
-        # a WARN, and not satisfied by other-dir/widget.sh's existence.
+
+        # Must be reported as a FAIL (install.sh is a hard-fail
+        # source) keyed by the full dangling path -- not
+        # silently downgraded to a WARN, and not satisfied by
+        # other-dir/widget.sh's existence.
         assert len(fail_lines) == 1, result.stdout
         assert str(Path(repo, "hooks", "widget.sh")) in fail_lines[0]
 

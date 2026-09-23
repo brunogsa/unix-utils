@@ -142,7 +142,10 @@ def md_to_adf(md):
             while index < len(lines) and not lines[index].strip().startswith(marker):
                 code_lines.append(lines[index])
                 index += 1
-            index += 1  # skip the closing fence (or EOF on an unterminated block)
+
+            # skip the closing fence (or EOF on an
+            # unterminated block)
+            index += 1
             node = {"type": "codeBlock", "attrs": {"language": language or "text"}}
             code_text = "\n".join(code_lines)
             if code_text:

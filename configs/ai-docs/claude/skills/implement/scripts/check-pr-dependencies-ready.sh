@@ -1,42 +1,58 @@
 #!/usr/bin/env bash
-# check-pr-dependencies-ready.sh - PR-level dependency guard: confirms every
-# parent PR named in PR-N's "Depends on:" list is safe to build on, before
-# /implement creates PR-N's own branch. Extracts the guard's core logic out
-# of inline /implement prose, mirroring the existing task-level chain-abort
-# pattern one level up (implement/SKILL.md's "On stuck" step), per the
-# spec's explicit decision to make this specific check scriptable and
-# unit-tested.
+# check-pr-dependencies-ready.sh - PR-level dependency guard:
+# confirms every parent PR named in PR-N's "Depends on:" list is
+# safe to build on, before /implement creates PR-N's own branch.
+#
+# Extracts the guard's core logic out of inline /implement
+# prose, mirroring the existing task-level chain-abort pattern
+# one level up (implement/SKILL.md's "On stuck" step).
+#
+# That is per the spec's explicit decision to make this
+# specific check scriptable and unit-tested.
 #
 # Usage:
-#   check-pr-dependencies-ready.sh <plan-file> <PR-N> <worktree-path>
+#   check-pr-dependencies-ready.sh <plan-file> <PR-N>
+#       <worktree-path>
 #
-# For every PR-M listed in PR-N's "Depends on:" clause (comma-separated -
-# there can be more than one, e.g. a diamond dependency), performs two
-# checks:
-#   (a) every task listed in PR-M's own "Tasks: <N, N>" clause carries a
-#       "[Done]" status marker in the plan's Task Breakdown
-#       ("### <id>. [<status>] <title>"; a task heading with no bracket at
-#       all counts as not-Done, same as the Task Breakdown template's
-#       pending/not-started convention).
-#   (b) the branch PR-M's own PR Breakdown line records in its
-#       "Branch: `<name>`." clause (written by /implement when that PR
-#       pushed) is a real git ancestor of <worktree-path>'s current HEAD,
-#       via `git merge-base --is-ancestor`.
-#       A [Done] marker alone only proves the plan file's bookkeeping, not
-#       that this worktree's HEAD actually contains PR-M's commits - a
-#       dependent PR started from the wrong worktree must fail loudly here
-#       instead of silently branching off the wrong base.
+# For every PR-M listed in PR-N's "Depends on:" clause
+# (comma-separated - there can be more than one, e.g. a
+# diamond dependency), performs two checks:
 #
-# PR-N with no parents (Depends on: none) passes immediately - a DAG root
-# has nothing to wait for.
+# - (a) every task listed in PR-M's own "Tasks: <N, N>" clause
+#   carries a "[Done]" status marker in the plan's Task
+#   Breakdown ("### <id>. [<status>] <title>").
+#
+#   A task heading with no bracket at all counts as not-Done,
+#   same as the Task Breakdown template's pending/not-started
+#   convention.
+#
+# - (b) the branch PR-M's own PR Breakdown line records in its
+#   "Branch: `<name>`." clause (written by /implement when that
+#   PR pushed) is a real git ancestor of <worktree-path>'s
+#   current HEAD, via `git merge-base --is-ancestor`.
+#
+#   A [Done] marker alone only proves the plan file's
+#   bookkeeping, not that this worktree's HEAD actually
+#   contains PR-M's commits.
+#
+#   A dependent PR started from the wrong worktree must fail
+#   loudly here instead of silently branching off the wrong
+#   base.
+#
+# PR-N with no parents (Depends on: none) passes immediately - a
+# DAG root has nothing to wait for.
 #
 # Exit codes:
-#   0 - PR-N has no parents, or every parent clears both checks.
-#   1 - PR-N label not found in the PR Breakdown, or at least one parent is
-#       not ready (outstanding task and/or ancestry mismatch); diagnostic
-#       naming every offending task id / branch on stderr.
-#   2 - usage error (wrong arg count, plan/worktree path missing, PR
-#       Breakdown section unparsable).
+# - 0: PR-N has no parents, or every parent clears both checks.
+#
+# - 1: PR-N label not found in the PR Breakdown, or at least one
+#   parent is not ready (outstanding task and/or ancestry
+#   mismatch); diagnostic naming every offending task id /
+#   branch on stderr.
+#
+# - 2: usage error (wrong arg count, plan/worktree path missing,
+#   PR Breakdown section unparsable).
+#
 
 set -eo pipefail
 
@@ -61,18 +77,30 @@ fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# parse-pr-breakdown.sh does the section-extraction + entry-parse pipeline
-# shared with get-pr-tasks.sh and need-git-checkout.sh; this script consumes
-# the Tasks: field (column 2), the Depends on: field (column 3), and the
-# Branch: field (column 4) of its TSV output, where each sibling needs
-# fewer. Its non-zero exit
-# codes distinguish a trivial section (1: absent/"Single PR."), which needs
-# this script's own $pr_label-specific diagnostic below, from a malformed
-# one (2: content present but unparsable), whose diagnostic
-# parse-pr-breakdown.sh already printed to stderr itself - re-printing it
-# here would duplicate the line, since $(...) only captures stdout, never
-# stderr. Assigned inside an if-condition (never a bare assignment) so a
-# non-zero exit here doesn't abort the script under `set -e`.
+# parse-pr-breakdown.sh does the section-extraction +
+# entry-parse pipeline shared with get-pr-tasks.sh and
+# need-git-checkout.sh;
+#
+# this script consumes the Tasks: field (column 2), the
+# Depends on: field (column 3), and the Branch: field
+# (column 4) of its TSV output, where each sibling needs
+# fewer.
+#
+# Its non-zero exit codes distinguish a trivial section (1:
+# absent/"Single PR.") from a malformed one (2: content
+# present but unparsable).
+#
+# The trivial section needs this script's own
+# $pr_label-specific diagnostic below; the malformed one's
+# diagnostic, parse-pr-breakdown.sh already printed to stderr
+# itself.
+#
+# Re-printing it here would duplicate the line, since $(...)
+# only captures stdout, never stderr.
+#
+# Assigned inside an if-condition (never a bare assignment) so a
+# non-zero exit here doesn't abort the script under
+# `set -e`.
 if pr_entries=$("$script_dir/parse-pr-breakdown.sh" "$plan_file"); then
   :
 else
@@ -85,12 +113,17 @@ else
   fi
 fi
 
-# find_pr_entry - prints the pr_entries line (label\ttasks\tdeps\tbranch) for the
-# given PR-N label, or nothing if absent. Bare awk, never a non-zero exit,
-# for the same set -e/bare-assignment reason noted throughout this script.
-# Defined before its first use below (the target PR-N lookup) since the
-# dependency-walk loop further down calls it again for each PARENT label -
-# two distinct callers sharing the one lookup.
+# find_pr_entry - prints the pr_entries line
+# (label\ttasks\tdeps\tbranch) for the given PR-N label, or
+# nothing if absent.
+#
+# Bare awk, never a non-zero exit, for the same set
+# -e/bare-assignment reason noted throughout this script.
+#
+# Defined before its first use below (the target PR-N lookup)
+# since the dependency-walk loop further down calls it again for
+# each PARENT label - two distinct callers sharing the one
+# lookup.
 find_pr_entry() {
   local label="$1"
   printf '%s\n' "$pr_entries" | awk -F'\t' -v target="$label" '$1 == target { print; exit }'
@@ -119,9 +152,10 @@ task_section=$(awk '
   in_section { print }
 ' "$plan_file")
 
-# Each Task Breakdown heading looks like: ### <N>. [<status>] <title>
-# A task not yet started carries no bracket at all (matches the PR-level
-# marker's own "absent for pending" convention), so its status here is "".
+# Each Task Breakdown heading looks like: ### <N>. [<status>]
+# <title> A task not yet started carries no bracket at all
+# (matches the PR-level marker's own "absent for pending"
+# convention), so its status here is "".
 task_statuses=$(printf '%s\n' "$task_section" | awk '
   /^### [0-9]+\./ {
     line = $0
@@ -135,8 +169,9 @@ task_statuses=$(printf '%s\n' "$task_section" | awk '
   }
 ')
 
-# task_status_for - prints "found\t<status>" for the given task id, or
-# "missing\t" when the id has no heading in the Task Breakdown at all.
+# task_status_for - prints "found\t<status>" for the given task
+# id, or "missing\t" when the id has no heading in the Task
+# Breakdown at all.
 task_status_for() {
   local id="$1"
   local hit
@@ -148,11 +183,14 @@ task_status_for() {
   fi
 }
 
-# branch_for_pr - prints the branch name the plan records for <label> in its
-# "Branch: `<name>`." clause (column 4 of the shared parser's TSV), or
-# nothing when that PR has not pushed yet. Reuses find_pr_entry so the plan
-# is parsed once for every field this guard reads, rather than re-scanning
-# the file per parent.
+# branch_for_pr - prints the branch name the plan records for
+# <label> in its "Branch: `<name>`." clause (column 4 of
+# the shared parser's TSV), or nothing when that PR has not
+# pushed yet.
+#
+# Reuses find_pr_entry so the plan is parsed once for every
+# field this guard reads, rather than re-scanning the file per
+# parent.
 branch_for_pr() {
   local label="$1"
   find_pr_entry "$label" | cut -f4

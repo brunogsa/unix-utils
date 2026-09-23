@@ -1,30 +1,48 @@
 #!/usr/bin/env python3
-# check-rename-references.py - resolve every .sh/.py/.js full path
-# referenced across settings.json, every covered install.sh, and every
-# markdown file in the two covered repos (unix-utils, oh-my-zsh),
-# naming any reference that does not resolve to a real in-scope file.
-# Also lints permissions.allow for the single-leading-slash absolute-glob
-# defect documented in this repo's CLAUDE.md ("Permission-glob caveat").
+# check-rename-references.py - name every dangling .sh/.py/.js
+# path reference.
 #
-# Manually-run checker: a later task wires this in as a blocking Stop
-# hook. Run directly:
+# It resolves every .sh/.py/.js full path referenced across
+# settings.json, every covered install.sh, and every markdown
+# file in the two covered repos (unix-utils, oh-my-zsh).
 #
-#   check-rename-references.py [--repo DIR]... [--settings PATH]
-#                               [--native-home DIR] [--foreign-home DIR]
+# It names any reference that does not resolve to a real
+# in-scope file.
 #
-# --repo may repeat; defaults to the unix-utils checkout this script
-# lives in, plus ~/oh-my-zsh when that checkout exists. --settings
-# defaults to this repo's own settings.json. --native-home/--foreign-home
-# exist for test isolation and for substituting the OTHER personal
-# machine's home-directory form before resolving a reference (a settings
-# entry commonly appears once per platform, e.g. /Users/<mac-user>/... and
-# /home/<linux-user>/...).
+# Also lints permissions.allow for the single-leading-slash
+# absolute-glob defect documented in this repo's CLAUDE.md
+# ("Permission-glob caveat").
 #
-# stdin: none
-# stdout: one "FAIL: ..." or "WARN: ..." line per dangling/defective
-#   reference; nothing at all for a fully clean scan
-# exit: 0 nothing failed (WARN-only findings still allowed), 1 one or
-#   more FAIL findings, 2 on a usage error
+# Manually-run checker: a later task wires this in as a
+# blocking Stop hook.
+#
+# Run directly:
+#   check-rename-references.py [--repo DIR]...
+#       [--settings PATH] [--native-home DIR]
+#       [--foreign-home DIR]
+#
+# --repo may repeat; defaults to the unix-utils checkout
+# this script lives in, plus ~/oh-my-zsh when that checkout
+# exists.
+#
+# --settings defaults to this repo's own settings.json.
+#
+# --native-home/--foreign-home exist for test isolation
+# and for substituting the OTHER personal machine's
+# home-directory form before resolving a reference.
+#
+# A settings entry commonly appears once per platform,
+#   e.g. /Users/<mac-user>/... and /home/<linux-user>/...
+#
+# stdin: none.
+#
+# stdout: one "FAIL: ..." or "WARN: ..." line per
+#   dangling/defective reference; nothing at all for a
+#   fully clean scan.
+#
+# exit: 0 nothing failed (WARN-only findings still
+#   allowed), 1 one or more FAIL findings, 2 on a usage
+#   error.
 import argparse
 import json
 import re
@@ -38,33 +56,47 @@ DEFAULT_SETTINGS_PATH = SCRIPT_PATH.parent.parent / "settings.json"
 MAC_HOME = "/Users/brunoagostini"
 LINUX_HOME = "/home/brunogsa"
 
-# The same standing exclusions check-script-naming.py's is_excluded()
-# applies (node_modules, the one named stale worktree checkout), plus
-# .git: a source-scanning walk has no reason to read version-control
-# internals and skipping it is what keeps the 2-second budget (AC-30)
-# comfortable on a 500-file .git directory.
+# The same standing exclusions check-script-naming.py's
+# is_excluded() applies (node_modules, the one named stale
+# worktree checkout), plus .git.
+#
+# A source-scanning walk has no reason to read
+# version-control internals and skipping it is what keeps
+# the 2-second budget (AC-30) comfortable on a 500-file
+# .git directory.
 STALE_WORKTREE_MARKER = "worktrees/stacked-prs-pr2"
 SCRIPT_EXTENSIONS = (".sh", ".py", ".js")
 
-# Extracts a whole path-like run ending in one of the three script
-# extensions. The negative lookbehind/lookahead anchor both ends of the
-# token to a non-path-char boundary, which is what keeps
-# 'perf-check.sh' from ever yielding a spurious 'check.sh' match (the
-# lookbehind rejects starting mid-token, since '-' is itself a
-# path-char) and keeps 'config.json' from ever matching '.js' (the
-# lookahead rejects an extension immediately followed by a word char,
-# i.e. '...js' immediately followed by 'on'). No special-case
-# post-filtering needed for either boundary.
+# Extracts a whole path-like run ending in one of the
+# three script extensions.
 #
-# The mandatory non-dot start char (word/~/$//, or a leading './'/'../'
-# relative-path prefix) exists because the real corpus surfaced a
-# second class of false positive the lookbehind/lookahead alone don't
-# stop: a bare extension mention ('.py', '*.py', glob patterns) or an
-# ellipsis run before a filename ('...check.sh') both satisfy
-# '[\w./~$-]*' with zero or dot-only content, extracting a garbage
-# token that names no real file. Requiring the run to open on an
-# actual path-shaped character closes both without narrowing any of
-# the legitimate absolute/tilde/$HOME/relative forms above.
+# The negative lookbehind/lookahead anchor both ends of the
+# token to a non-path-char boundary.
+#
+# The lookbehind keeps 'perf-check.sh' from ever yielding a
+# spurious 'check.sh' match: it rejects starting mid-token,
+# since '-' is itself a path-char.
+#
+# The lookahead keeps 'config.json' from ever matching
+# '.js': it rejects an extension immediately followed by a
+# word char, i.e. '...js' immediately followed by 'on'.
+#
+# No special-case post-filtering is needed for either
+# boundary.
+#
+# The mandatory non-dot start char (word/~/$//, or a
+# leading './'/'../' relative-path prefix) exists because
+# the real corpus surfaced a second class of false
+# positive the lookbehind/lookahead alone don't stop.
+#
+# A bare extension mention ('.py', '*.py', glob patterns)
+# or an ellipsis run before a filename ('...check.sh') both
+# satisfy '[\w./~$-]*' with zero or dot-only content.
+# That extracts a garbage token that names no real file.
+#
+# Requiring the run to open on an actual path-shaped
+# character closes both without narrowing any of the
+# legitimate absolute/tilde/$HOME/relative forms above.
 TOKEN_RE = re.compile(
     r"(?<![\w./~$-])(?:\.{1,2}/)?[\w~$/][\w./~$-]*\.(?:sh|py|js)(?![\w])"
 )

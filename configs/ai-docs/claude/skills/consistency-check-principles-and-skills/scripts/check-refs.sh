@@ -4,11 +4,12 @@
 # heuristic #6, D7).
 #
 # Scans each given file for markdown links `[text](path#anchor)`
-# and backtick paths like `references/foo.md`, resolves each
-# target relative to the referencing file's own directory, confirms
-# the target exists (file or directory), and — when the ref carries
-# a `#anchor` — that a heading in the target slugifies (GitHub-style)
-# to it.
+# and backtick paths like `references/foo.md`.
+#
+# Resolves each target relative to the referencing file's own
+# directory. Confirms the target exists (file or directory).
+# When the ref carries `#anchor`, verifies a heading in the
+# target slugifies (GitHub-style) to it.
 #
 # Usage:
 #   check-refs.sh <file> [file...]
@@ -22,9 +23,10 @@
 #
 # Exit codes:
 #   0 - every ref resolves (or no refs found)
-#   1 - one or more refs broken, or a usage error (no files given,
-#       or a given file does not exist) — every broken ref gets
-#       listed, never just the first
+#
+#   1 - one or more refs broken, or a usage error:
+#       no files given, or a given file does not exist —
+#       every broken ref gets listed, never just the first
 
 set -eo pipefail
 
@@ -54,11 +56,13 @@ found_broken=0
 
 # GitHub-style heading-to-slug: drop the leading `#` marker,
 # lowercase, strip anything but letters/digits/spaces/hyphens/
-# underscores, then replace each space with a hyphen individually.
+# underscores, then replace each space with a hyphen
+# individually.
 #
-# GitHub replaces spaces one at a time, not as a collapsed run: a
-# stripped em-dash between two spaces leaves them adjacent, and each
-# becomes its own hyphen — producing a double hyphen, not one.
+# GitHub replaces spaces one at a time, not as a collapsed run:
+# a stripped em-dash between two spaces leaves them adjacent,
+# and each becomes its own hyphen — producing a double hyphen,
+# not one.
 slugify_heading() {
     local heading=$1
     heading="$(printf '%s' "$heading" | sed -E 's/^#{1,6}[[:space:]]+//')"
@@ -68,30 +72,37 @@ slugify_heading() {
         | sed -E 's/ /-/g'
 }
 
-# True (0) when $line opens or closes a fenced code block (```` ``` ````
-# or ```` ~~~ ````, optionally after leading whitespace).
+# True (0) when $line opens or closes a fenced code block
+# (```` ``` ```` or ```` ~~~ ````, optionally after leading
+# whitespace).
 #
-# Toggling an `in_fence` flag on this lets both the main scan loop and
-# `heading_exists` skip a fenced line: example markdown/shell text
-# inside a fence is not a real ref, and a `#`-prefixed shell comment
-# inside a fence is not a real heading.
+# Toggling an `in_fence` flag on this lets both the main
+# scan loop and `heading_exists` skip a fenced line.
+#
+# Fenced content is not scanned: example markdown/shell text
+# inside a fence is not a real ref, and a `#`-prefixed shell
+# comment inside one is not a real heading.
+#
 is_fence_delimiter() {
     local line=$1
     [[ "$line" =~ ^[[:space:]]*('```'|'~~~') ]]
 }
 
-# True (0) when $target_file has a heading whose GitHub-style anchor is
-# $anchor. GitHub disambiguates repeated headings by appending -1, -2,
-# ... to the second and later occurrences of an identical slug, so a
-# raw slug match alone would miss those suffixed anchors.
+# True (0) when $target_file has a heading whose GitHub-style
+# anchor is $anchor.
 #
-# Tracks occurrences with a plain indexed array, not an associative
-# array (`declare -A`) — macOS ships bash 3.2, which lacks it, and
-# this repo must run on that stock bash.
+# GitHub disambiguates repeated headings by appending -1, -2,
+# ... to the second and later occurrences of an identical slug,
+# so a raw slug match alone would miss those suffixed anchors.
 #
-# Reads $target_file as a line loop (not a single grep) so it can
-# track fence state and skip a `#`-prefixed line inside a fence —
-# a shell comment like `# Usage: ...` is not a real heading.
+# Tracks occurrences with a plain indexed array, not an
+# associative array (`declare -A`) — macOS ships bash 3.2,
+# which lacks it, and this repo must run on that stock bash.
+#
+# Reads $target_file as a line loop (not a single grep) so it
+# can track fence state and skip a `#`-prefixed line
+# inside a fence — a shell comment like `# Usage: ...` is not a
+# real heading.
 #
 # scripts/gen-shard-manifest.sh has no counterpart function:
 # its resolve_candidate() only needs a target file to exist,
@@ -129,12 +140,13 @@ heading_exists() {
 }
 
 # True (0) when $path starts with `/` and its first path segment
-# is a real directory entry on this filesystem (e.g. `/tmp`, `/Users`).
+# is a real directory entry on this filesystem (e.g.
+# `/tmp`, `/Users`).
 #
-# A slash-command mention like `/implement` also starts with `/` but
-# resolves to no real top-level entry, so without this check it gets
-# treated as a filesystem-absolute ref and reported broken — it is
-# prose, not a path.
+# A slash-command mention like `/implement` also starts with
+# `/` but resolves to no real top-level entry, so
+# without this check it gets treated as a filesystem-absolute
+# ref and reported broken — it is prose, not a path.
 #
 # scripts/gen-shard-manifest.sh's resolve_candidate() has no
 # equivalent check: its own $CLAUDE_ROOT containment check
@@ -152,12 +164,14 @@ is_real_absolute_path_candidate() {
 # `upstream/main`) or a conventional-commit-prefixed branch name
 # (`feat/parser/pr2`, `release/1.2`, `test/itgd-3283`).
 #
-# Prose routinely names these refs in backticks — base-ref fallback
-# docs, PR handoff notes — and none of them resolve on disk, so
-# without this check every mention becomes a permanent, unfixable
-# BLOCKING finding. The prefix list mirrors this repo's own
-# Conventional Commits types (commit-standards) plus the two remote
-# names and branch conventions actually seen in this corpus.
+# Prose routinely names these refs in backticks — base-ref
+# fallback docs, PR handoff notes — and none of them resolve on
+# disk, so without this check every mention becomes a permanent,
+# unfixable BLOCKING finding.
+#
+# The prefix list mirrors this repo's own Conventional Commits
+# types (commit-standards) plus the two remote names and branch
+# conventions actually seen in this corpus.
 #
 # scripts/gen-shard-manifest.sh's resolve_candidate() needs no
 # such shape check: a git revision name never resolves to a
@@ -176,10 +190,12 @@ is_git_revision_shape() {
     return 1
 }
 
-# Resolve $path relative to $referencing_file's own directory (or as
-# an absolute/home path). Existence is NOT checked here — that's the
-# caller's job, since an unresolved path is exactly the broken-ref
-# case this script exists to report, not a case to filter out.
+# Resolve $path relative to $referencing_file's own directory
+# (or as an absolute/home path).
+#
+# Existence is NOT checked here — that's the caller's job, since
+# an unresolved path is exactly the broken-ref case this script
+# exists to report, not a case to filter out.
 #
 # scripts/gen-shard-manifest.sh's resolve_candidate() checks
 # existence itself instead, since dropping what doesn't exist
@@ -193,7 +209,8 @@ resolve_target_path() {
     esac
 }
 
-# Report $target as broken for $file:$line, and flip the exit status.
+# Report $target as broken for $file:$line, and flip the exit
+# status.
 report_broken() {
     local file=$1 line=$2 target=$3
     printf '%s:%s -> %s\n' "$file" "$line" "$target"
@@ -201,15 +218,23 @@ report_broken() {
 }
 
 # Validate, resolve, and verify one candidate ref found at
-# $file:$line. Reports it as broken when the target file is missing,
-# or — given an anchor — when no heading in the target slugifies to
-# it. Silently does nothing for a candidate that isn't a real
-# file-ref target: an in-page `#anchor`-only link, a URL scheme, a
-# trailing-slash directory mention (`scripts/`), a git revision name
-# (`origin/HEAD`, `feat/parser/pr2`), or prose caught by an
-# over-eager backtick/link match. Those aren't the blocking
-# heuristic's cross-file-reference target, so they're not refs to
-# begin with, not refs that happen to resolve.
+# $file:$line.
+#
+# Reports it as broken when the target file is missing, or —
+# given an anchor — when no heading in the target slugifies to
+# it.
+#
+# Silently does nothing for a candidate that isn't a real
+# file-ref target.
+#
+# That includes in-page `#anchor`-only links, a URL scheme,
+# trailing-slash directory mentions like `scripts/`, git
+# revision names like `origin/HEAD` or `feat/parser/pr2`, and
+# prose caught by an over-eager backtick or link match.
+#
+# Those aren't the blocking heuristic's cross-file-reference
+# target, so they're not refs to begin with, not refs that
+# happen to resolve.
 #
 # scripts/gen-shard-manifest.sh's resolve_candidate() takes
 # the opposite contract on purpose: an unresolved candidate

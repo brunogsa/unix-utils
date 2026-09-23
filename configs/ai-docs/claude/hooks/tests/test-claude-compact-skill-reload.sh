@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # test-claude-compact-skill-reload.sh - plain-bash test
-# file for claude-compact-skill-reload.sh's subagent guard:
-# a SessionStart:compact firing inside a subagent must not
+# file for claude-compact-skill-reload.sh's subagent guard.
+#
+# A SessionStart:compact firing inside a subagent must not
 # receive the "reload your skills" directive.
 #
 # Exits 0 when every assertion passes, non-zero otherwise.

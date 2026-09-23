@@ -1,43 +1,69 @@
 #!/bin/bash
-# claude-rm-guard - Block `rm` of files that have no recoverable copy.
+# claude-rm-guard - Block `rm` of files that have no
+# recoverable copy.
 #
 # Usage (Claude Code PreToolUse hook, matcher: Bash):
-#   Reads the tool JSON from stdin, exits 2 to block, 0 to allow.
+#   Reads the tool JSON from stdin, exits 2 to block, 0 to
+#   allow.
 #
 # Policy (per target path of every `rm` in the command):
-#   - NOT inside a git repo            -> BLOCK   (deletion is unrecoverable)
-#   - git-TRACKED file/dir             -> allow   (recoverable via `git restore`)
-#   - git-IGNORED path (node_modules,  -> allow   (deliberately disposable / regenerable)
-#     dist, build, .env.local, ...)
-#   - UNTRACKED & NOT ignored (`??`)   -> BLOCK   (real work, exactly one copy on disk)
+# - NOT inside a git repo -> BLOCK (deletion is
+#   unrecoverable).
 #
-# Why this shape (learned from a real incident): the previous guard only matched
-# `rm -rf` and allowed ALL rm inside a git repo, on the premise "git can restore it".
-# That premise is false for untracked files — a background agent ran
-# `rm -f <untracked>.md` inside this repo and the file was gone for good. The correct
-# axis is tracked/ignored/untracked, not git/non-git, and it must cover `rm -f`, plain
-# `rm`, `rm -r`, etc. — not just `rm -rf`.
+# - git-TRACKED file/dir -> allow (recoverable via
+#   `git restore`).
 #
-# The command string is parsed BEFORE the shell runs it (globs are not yet expanded),
-# so the guard expands globs itself, follows leading `cd` into the right directory,
-# and FAILS CLOSED (blocks) on anything it cannot parse or resolve — a false block just
-# means "rephrase or ask the user", a false allow means lost work.
+# - git-IGNORED path (node_modules, dist, build,
+#   .env.local, ...) -> allow (deliberately disposable /
+#   regenerable).
+#
+# - UNTRACKED & NOT ignored (`??`) -> BLOCK (real work,
+#   exactly one copy on disk).
+#
+# Why this shape (learned from a real incident): the previous
+# guard only matched `rm -rf` and allowed ALL rm inside a
+# git repo, on the premise "git can restore it".
+#
+# That premise is false for untracked files — a background
+# agent ran `rm -f <untracked>.md` inside this repo and the
+# file was gone for good.
+#
+# The correct axis is tracked/ignored/untracked, not
+# git/non-git, and it must cover `rm -f`, plain `rm`,
+# `rm -r`, etc. — not just `rm -rf`.
+#
+# The command string is parsed BEFORE the shell runs it
+# (globs are not yet expanded), so the guard expands globs
+# itself, follows leading `cd` into the right directory.
+#
+# It also FAILS CLOSED (blocks) on anything it cannot parse
+# or resolve — a false block just means "rephrase or ask the
+# user", a false allow means lost work.
 #
 # Examples (pipe JSON, check exit code):
-#   echo '{"tool_input":{"command":"rm -f notes.md"}}'      | bash claude-rm-guard.sh  # block if notes.md is untracked
-#   echo '{"tool_input":{"command":"rm -rf node_modules"}}' | bash claude-rm-guard.sh  # allow (ignored)
-#   echo '{"tool_input":{"command":"rm src/index.ts"}}'     | bash claude-rm-guard.sh  # allow (tracked)
+#   echo '{"tool_input":{"command":"rm -f notes.md"}}' \
+#     | bash claude-rm-guard.sh  # block if notes.md untracked
+#
+#   echo '{"tool_input":{"command":"rm -rf node_modules"}}' \
+#     | bash claude-rm-guard.sh  # allow (ignored)
+#
+#   echo '{"tool_input":{"command":"rm src/index.ts"}}' \
+#     | bash claude-rm-guard.sh  # allow (tracked)
 
 CMD=$(jq -r '.tool_input.command // empty' 2>/dev/null)
 [ -z "$CMD" ] && exit 0
 
-# Cheap short-circuit: if there is no `rm` word at all, skip the Python parse entirely.
+# Cheap short-circuit: if there is no `rm` word at
+# all, skip the Python parse entirely.
 printf '%s' "$CMD" | grep -qw rm || exit 0
 
-# Resolved via BASH_SOURCE (never `$0`, which breaks under `source`) so this
-# still finds lib/ when invoked as `bash ~/.claude/hooks/claude-rm-guard.sh`
-# — `~/.claude/hooks` is a directory symlink into this repo, and the OS
-# resolves it transparently for every path built underneath it.
+# Resolved via BASH_SOURCE (never `$0`, which breaks under
+# `source`) so this still finds lib/ when invoked as `bash
+# ~/.claude/hooks/claude-rm-guard.sh`.
+#
+# `~/.claude/hooks` is a directory symlink into this repo,
+# and the OS resolves it transparently for every path built
+# underneath it.
 CLAUDE_HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export CLAUDE_HOOKS_DIR
 export CLAUDE_RM_CMD="$CMD"

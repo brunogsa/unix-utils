@@ -1,32 +1,43 @@
 #!/usr/bin/env bash
-# check-pr-body-size - Check a Markdown file against GitHub's body size limit.
+# check-pr-body-size - Check a Markdown file against GitHub's
+# body size limit.
 #
-# GitHub rejects a pull-request (or issue) body longer than 65536 characters —
-# a hard API limit. Run this BEFORE pushing pr_<slug>_pr<N>.final.md so the
-# `gh api PATCH .../pulls/<n>` write never bounces on an oversized body.
+# GitHub rejects a pull-request (or issue) body longer than
+# 65536 characters — a hard API limit.
+#
+# Run this BEFORE pushing pr_<slug>_pr<N>.final.md so the
+# `gh api PATCH .../pulls/<n>` write never bounces on an
+# oversized body.
 #
 # Usage:
 #   check-pr-body-size.sh <file> [warn-margin]
 #
-#   <file>        Markdown file to measure (e.g. pr_<slug>_pr<N>.final.md).
-#   warn-margin   Optional. Chars of headroom below the hard limit that still
-#                 trigger a "close" warning. Default: 3500 — covers the small
-#                 drift between local `wc -m` and GitHub's own counting of
-#                 multibyte content (accents, em dashes, arrows).
+#   <file>        Markdown file to measure (e.g.
+#                 pr_<slug>_pr<N>.final.md).
+#
+#   warn-margin   Optional. Chars of headroom below the hard
+#                 limit that still trigger a "close" warning.
+#
+#                 Default: 3500 — covers the small drift
+#                 between local `wc -m` and GitHub's own
+#                 counting of multibyte content (accents, em
+#                 dashes, arrows).
 #
 # Output: one human-readable line on stdout.
+#
 # Exit codes:
-#   0  under the warn threshold (safe to push)
-#   1  bad usage / file not found (message on stderr)
-#   2  within the warn margin (close — trim soon)
-#   3  over the hard limit (GitHub will reject)
+#   0  under the warn threshold (safe to push).
+#   1  bad usage / file not found (message on stderr).
+#
+#   2  within the warn margin (close — trim soon).
+#   3  over the hard limit (GitHub will reject).
 #
 # Examples:
 #   check-pr-body-size.sh pr_<slug>_pr<N>.final.md
 #   check-pr-body-size.sh pr_<slug>_pr<N>.final.md 5000
 #
-# Over the limit? Trim embedded docs to selected sections with the sibling
-# extract-md-sections.sh, then re-run this check.
+# Over the limit? Trim embedded docs to selected sections with
+# the sibling extract-md-sections.sh, then re-run this check.
 
 set -euo pipefail
 

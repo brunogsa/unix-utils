@@ -112,7 +112,8 @@ def md_to_adf(md):
             content.append({"type": "orderedList", "content": items})
             continue
 
-        # Paragraph: collect consecutive non-blank, non-special lines
+        # Paragraph: collect consecutive non-blank, non-special
+        # lines
         para_lines = []
         while i < len(lines):
             ls = lines[i].strip()

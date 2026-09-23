@@ -207,7 +207,8 @@ def parse_ics_events(ics_path, start_range, end_range):
         if not dtstart_line:
             continue
 
-        # Skip all-day events (date-only DTSTART, no time component)
+        # Skip all-day events (date-only DTSTART, no time
+        # component)
         dtstart_val = dtstart_line.split(":")[-1].strip()
         if "T" not in dtstart_val:
             continue
@@ -231,10 +232,13 @@ def parse_ics_events(ics_path, start_range, end_range):
         created_iso = created_dt.isoformat() if created_dt else None
 
         if rrule_str and not has_recurrence_id:
-            # Series definition — expand RRULE to find occurrences in range.
-            # Use None for _created: series CREATED date is misleading for
-            # overlap resolution (it's when the series was created, not when
-            # this specific occurrence was scheduled).
+            # Series definition — expand RRULE to find
+            # occurrences in range.
+            #
+            # Use None for _created: series CREATED date is
+            # misleading for overlap resolution (it's when the
+            # series was created, not when this specific
+            # occurrence was scheduled).
             for occ_dt in expand_rrule(dt, rrule_str, start_range, end_range):
                 if occ_dt in exdates:
                     continue
@@ -247,15 +251,18 @@ def parse_ics_events(ics_path, start_range, end_range):
                 continue
             if dt in exdates:
                 continue
-            # Recurrence overrides also inherit the series CREATED date,
-            # which is misleading for overlap resolution. Only use CREATED
-            # for true one-time events.
+
+            # Recurrence overrides also inherit the series
+            # CREATED date, which is misleading for overlap
+            # resolution.
+            # Only use CREATED for true one-time events.
             event_created = None if has_recurrence_id else created_iso
             append_event(events, seen, dt, summary, duration, event_created)
 
     events.sort(key=lambda x: x["start"])
 
-    # Merge "#2" (and "#3", etc.) overflow events into the preceding event's duration
+    # Merge "#2" (and "#3", etc.) overflow events into the
+    # preceding event's duration
     merged = []
     for event in events:
         if re.match(r"^#\d+$", event["summary"]) and merged:

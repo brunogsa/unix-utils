@@ -55,7 +55,8 @@ def parse_gcal_events(mcp_json_path, start_range, end_range):
         if dt < start_range or dt >= end_range:
             continue
 
-        # PARTSTAT: personal events (no attendees) always included; others must be accepted
+        # PARTSTAT: personal events (no attendees) always
+        # included; others must be accepted
         response = get_self_response(ev.get("attendees", []))
         if response is not None and response != "accepted":
             continue
@@ -66,8 +67,9 @@ def parse_gcal_events(mcp_json_path, start_range, end_range):
 
         summary = ev.get("summary", "(no title)").strip()
 
-        # _created: None for recurring event occurrences — the series creation date
-        # is misleading for overlap resolution (same reasoning as parse_ics.py).
+        # _created: None for recurring event occurrences — the
+        # series creation date is misleading for overlap
+        # resolution (same reasoning as parse_ics.py).
         is_recurring = "recurringEventId" in ev
         created_iso = None
         if not is_recurring:
@@ -79,7 +81,8 @@ def parse_gcal_events(mcp_json_path, start_range, end_range):
 
     events.sort(key=lambda x: x["start"])
 
-    # Merge #N overflow events into the preceding event's duration
+    # Merge #N overflow events into the preceding event's
+    # duration
     merged = []
     for event in events:
         if re.match(r"^#\d+$", event["summary"]) and merged:

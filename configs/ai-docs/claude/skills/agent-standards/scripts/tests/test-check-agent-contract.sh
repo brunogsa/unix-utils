@@ -5,9 +5,10 @@
 # Usage:
 #   bash test-check-agent-contract.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats
-# dependency by design, matching this skill area's other test suites
-# (spec-driven-development/scripts/tests/test-check-tasks-dag.sh).
+# Exits 0 when every assertion passes, non-zero
+# otherwise. No bats dependency by design,
+# matching this skill area's other test suites:
+# spec-driven-development/scripts/tests/test-check-tasks-dag.sh
 
 set -uo pipefail
 
@@ -33,7 +34,8 @@ assert_eq() {
   fi
 }
 
-# assert_nonempty - passes when the given value is a non-empty string.
+# assert_nonempty - passes when the given value is a non-empty
+# string.
 assert_nonempty() {
   local description="$1" actual="$2"
   if [ -n "$actual" ]; then
@@ -46,7 +48,8 @@ assert_nonempty() {
 }
 
 # run_script - invokes check-agent-contract.sh against a fixture
-# directory, capturing stdout/exit code into VERDICT_OUT/VERDICT_EXIT.
+# directory, capturing stdout/exit code into
+# VERDICT_OUT/VERDICT_EXIT.
 run_script() {
   local target_dir="$1"
   local out_file="$work_dir/stdout.txt"

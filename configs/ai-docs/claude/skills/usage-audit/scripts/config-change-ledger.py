@@ -1,39 +1,57 @@
 #!/usr/bin/env python3
-# config-change-ledger - What changed in the Claude Code config, grouped by day.
+# config-change-ledger - What changed in the Claude Code config,
+# grouped by day.
 #
 # Usage:
-#   config-change-ledger.py                      # oldest snapshot day .. yesterday
-#   config-change-ledger.py --since 2026-07-20   # from a day
-#   config-change-ledger.py --since 2026-07-20 --until 2026-07-24
-#   config-change-ledger.py --json               # machine-readable
 #
-# Pairs with claude-usage-report.py: that one says WHAT usage did on a day, this
-# one says WHAT CHANGED that day to explain it. A config edit lands on day D and
-# shows up in the KPIs on D+1 onward, so the ledger is the candidate-cause list
-# an audit reads next to the snapshot deltas.
+# - config-change-ledger.py: oldest snapshot day .. yesterday.
+# - config-change-ledger.py --since 2026-07-20: from that day.
 #
-# It also settles a question the experiments log cannot answer about itself:
-# whether a row's "change" actually shipped. Three rows sat `running` for over a
-# week describing tweaks that were never enacted ("no actual toggle has been
-# tried yet"). A commit either exists or it does not.
+# - config-change-ledger.py --since 2026-07-20 \
+#     --until 2026-07-24: a bounded day range.
 #
-# Scope is configs/ai-docs/claude/ — CLAUDE.md, skills, agents, settings.json and
-# hooks are the only tracked paths that can change token spend. Widening it to
-# the whole repo adds shell/editor commits that cannot move a usage KPI.
+# - config-change-ledger.py --json: machine-readable output.
 #
-# WHY A SCRIPT AND NOT AN INLINE `git log`: day grouping, surface classification
-# and the --json shape are reasons enough, but rtk adds one more.
+# Pairs with claude-usage-report.py: that one says WHAT usage
+# did on a day, this one says WHAT CHANGED that day to explain
+# it.
 #
-# `rtk git log` injects a default -n cap — 10 commits, 50 with --pretty — and
-# announces it on neither stdout nor stderr. The truncated head then reads as the
-# complete answer for whatever range was asked for, and since git orders newest
+# A config edit lands on day D and shows up in the KPIs on D+1
+# onward, so the ledger is the candidate-cause list an audit
+# reads next to the snapshot deltas.
+#
+# It also settles a question the experiments log cannot answer
+# about itself: whether a row's "change" actually shipped.
+#
+# Three rows sat `running` for over a week describing
+# tweaks that were never enacted ("no actual toggle has been
+# tried yet").
+# A commit either exists or it does not.
+#
+# Scope is configs/ai-docs/claude/ — CLAUDE.md, skills, agents,
+# settings.json and hooks are the only tracked paths that can
+# change token spend.
+#
+# Widening it to the whole repo adds shell/editor commits that
+# cannot move a usage KPI.
+#
+# WHY A SCRIPT AND NOT AN INLINE `git log`: day grouping,
+# surface classification and the --json shape are reasons
+# enough, but rtk adds one more.
+#
+# `rtk git log` injects a default -n cap — 10 commits, 50 with
+# --pretty — and announces it on neither stdout nor stderr.
+#
+# The truncated head then reads as the complete answer for
+# whatever range was asked for, and since git orders newest
 # first, a multi-day range comes back looking like a single day.
 #
-# The range flags themselves survive: --since and --until pass through untouched,
-# and an explicit -n is honored exactly. The cap is the entire defect.
+# The range flags themselves survive: --since and --until pass
+# through untouched, and an explicit -n is honored exactly.
+# The cap is the entire defect.
 #
-# The hook rewrites Bash tool calls, not subprocesses, so the git call below never
-# meets the cap regardless.
+# The hook rewrites Bash tool calls, not subprocesses, so the
+# git call below never meets the cap regardless.
 
 import argparse
 import json
@@ -44,15 +62,18 @@ import sys
 from collections import defaultdict
 from datetime import date, timedelta
 
-# realpath resolves the ~/.claude symlink so the repo is found from either path.
+# realpath resolves the ~/.claude symlink so the repo is found
+# from either path.
 SKILL_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 SNAPSHOTS_DIR = os.path.join(SKILL_DIR, "usage-history", "snapshots")
 SNAPSHOT_DAY_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})\.json$")
 
-# The config tree that can move a usage KPI, relative to the repo root.
+# The config tree that can move a usage KPI, relative to the
+# repo root.
 CONFIG_PATH = "configs/ai-docs/claude"
 
-# Record separator: a byte sequence that cannot occur in a commit subject.
+# Record separator: a byte sequence that cannot occur in a
+# commit subject.
 RECORD_SEP = "\x1e"
 FIELD_SEP = "\x1f"
 
@@ -78,7 +99,8 @@ def classify(path):
     rest = path[len(CONFIG_PATH) + 1:] if path.startswith(CONFIG_PATH + "/") else path
     parts = rest.split("/")
     if parts[0] in ("skills", "agents", "hooks", "scripts") and len(parts) > 1:
-        # A skill is a directory; an agent/hook/script is a single file.
+        # A skill is a directory; an agent/hook/script is a
+        # single file.
         name = parts[1][:-3] if parts[1].endswith(".md") else parts[1]
         return f"{parts[0][:-1]}:{name}"
     return parts[0]

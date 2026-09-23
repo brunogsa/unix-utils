@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# test-need-git-checkout.sh - plain-bash test file for need-git-checkout.sh.
+# test-need-git-checkout.sh - plain-bash test file for
+# need-git-checkout.sh.
 #
 # Usage:
 #   bash test-need-git-checkout.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
-# by design, matching the other scripts in this skill's test suite.
+# Exits 0 when every assertion passes, non-zero otherwise.
+# No bats dependency by design, matching the other scripts in
+# this skill's test suite.
 
 set -uo pipefail
 
@@ -18,7 +20,8 @@ trap 'rm -rf "$work_dir"' EXIT
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs actual,
+# prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -30,7 +33,8 @@ assert_eq() {
   fi
 }
 
-# assert_true - inline assert helper: prints ok/not-ok based on a boolean condition already evaluated by the caller.
+# assert_true - inline assert helper: prints ok/not-ok based on
+# a boolean condition already evaluated by the caller.
 assert_true() {
   local description="$1" condition="$2"
   if [ "$condition" = "true" ]; then
@@ -42,9 +46,9 @@ assert_true() {
   fi
 }
 
-# run_script - invokes need-git-checkout.sh against a plan-file fixture and a
-# PR-N label, capturing stdout/stderr/exit code into
-# VERDICT_OUT/VERDICT_ERR/VERDICT_EXIT.
+# run_script - invokes need-git-checkout.sh against a plan-file
+# fixture and a PR-N label, capturing stdout/stderr/exit code
+# into VERDICT_OUT/VERDICT_ERR/VERDICT_EXIT.
 run_script() {
   local plan_file="$1" pr_label="$2"
   local out_file="$work_dir/stdout.txt"
@@ -55,8 +59,9 @@ run_script() {
   VERDICT_ERR=$(cat "$err_file")
 }
 
-# write_plan - writes the given PR-Breakdown-section body to a fresh plan
-# fixture named plan_<slug>.md under work_dir, returns its path via stdout.
+# write_plan - writes the given PR-Breakdown-section body to a
+# fresh plan fixture named plan_<slug>.md under work_dir,
+# returns its path via stdout.
 write_plan() {
   local slug="$1" body="$2"
   local path="$work_dir/plan_$slug.md"

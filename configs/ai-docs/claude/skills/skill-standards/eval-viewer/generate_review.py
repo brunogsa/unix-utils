@@ -239,7 +239,8 @@ def load_previous_iteration(workspace: Path) -> dict[str, dict]:
             "outputs": run.get("outputs", []),
         }
 
-    # Also add feedback for run_ids that had feedback but no matching run
+    # Also add feedback for run_ids that had feedback but no
+    # matching run
     for run_id, fb in feedback_map.items():
         if run_id not in result:
             result[run_id] = {"feedback": fb, "outputs": []}
@@ -257,7 +258,8 @@ def generate_html(
     template_path = Path(__file__).parent / "viewer.html"
     template = template_path.read_text()
 
-    # Build previous_feedback and previous_outputs maps for the template
+    # Build previous_feedback and previous_outputs maps for the
+    # template
     previous_feedback: dict[str, str] = {}
     previous_outputs: dict[str, list[dict]] = {}
     if previous:
@@ -281,9 +283,9 @@ def generate_html(
     return template.replace("/*__EMBEDDED_DATA__*/", f"const EMBEDDED_DATA = {data_json};")
 
 
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------
 # HTTP server (stdlib only, zero dependencies)
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------
 
 def _kill_port(port: int) -> None:
     """Kill any process listening on the given port."""
@@ -331,7 +333,8 @@ class ReviewHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if self.path == "/" or self.path == "/index.html":
-            # Regenerate HTML on each request (re-scans workspace for new outputs)
+            # Regenerate HTML on each request (re-scans
+            # workspace for new outputs)
             runs = find_runs(self.workspace)
             benchmark = None
             if self.benchmark_path and self.benchmark_path.exists():
@@ -373,9 +376,13 @@ class ReviewHandler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin")
         if origin is None:
             return True
-        # server_address covers unix sockets too, so it is not indexable in
-        # general. A bound TCP server always gives (host, port, ...); anything
-        # else fails closed rather than guessing which port to trust.
+
+        # server_address covers unix sockets too, so it is not
+        # indexable in general.
+        # A bound TCP server always gives (host, port, ...);
+        #
+        # anything else fails closed rather than guessing which
+        # port to trust.
         address = self.server.server_address
         if not isinstance(address, tuple) or len(address) < 2:
             return False

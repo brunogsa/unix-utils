@@ -58,8 +58,10 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 CHANGED_LINES_SCRIPT = SCRIPT_DIR / "get-changed-lines.sh"
 
-# Defaults mirror check-density.sh's bullet cap only (not the prose cap);
-# this script gates at 80% of it since it only ever measures bullets.
+# Defaults mirror check-density.sh's bullet cap only (not the
+# prose cap);
+# this script gates at 80% of it since it only ever measures
+# bullets.
 MAX_CHARS = 256
 MAX_WORDS = 32
 GAP_RATIO = 0.8
@@ -99,7 +101,8 @@ def find_hits(lines, max_chars, max_words):
         cur = lines[i]
 
         if in_frontmatter:
-            # The opening --- is line 0, so only a LATER --- closes the block.
+            # The opening --- is line 0, so only a LATER ---
+            # closes the block.
             if i > 0 and FRONTMATTER.match(cur):
                 in_frontmatter = False
             continue
@@ -119,7 +122,8 @@ def find_hits(lines, max_chars, max_words):
             hits.append((i + 1, "sub-bullet"))
             continue
 
-        # A DEEPER next bullet is this bullet's own child - same group, no gap.
+        # A DEEPER next bullet is this bullet's own child - same
+        # group, no gap.
         if cur_indent < next_indent:
             continue
 
@@ -204,12 +208,15 @@ def fix(path, max_chars, max_words, changed_only):
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + ("\n" if trailing_newline else ""))
 
-    # Defensive re-check: the insertion above is designed to always resolve
-    # every in-scope hit in one pass (see the docstring), so this should
-    # stay 0 - but a real remainder here is a correctness bug worth
-    # surfacing loudly rather than reporting a false "clean". Scope is
-    # recomputed against the file just written, per get_changed_line_set's
-    # own fresh-per-call contract.
+    # Defensive re-check: the insertion above is designed to
+    # always resolve every in-scope hit in one pass (see the
+    # docstring), so this should stay 0.
+    #
+    # A real remainder here is a correctness bug worth
+    # surfacing loudly rather than reporting a false "clean".
+    #
+    # Scope is recomputed against the file just written, per
+    # get_changed_line_set's own fresh-per-call contract.
     remaining = find_hits(lines, max_chars, max_words)
     return len(in_scope_hits(remaining, path, changed_only))
 

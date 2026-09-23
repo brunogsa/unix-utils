@@ -103,6 +103,7 @@ def _classify_header_comment_lines(comment_lines):
         if in_usage_block:
             if usage_continuation_pattern.match(line):
                 continue
+
             # Falls through on a clean slate: a same-indent line
             # (e.g. "# Examples:") closes the block instead of
             # being swept in as an invocation form, so it still

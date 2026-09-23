@@ -9,11 +9,11 @@
 # to stdout.
 #
 # Exit codes:
-#   0  ran cleanly - empty output on an unmodified tracked file is a
-#      normal result, not an error.
+#   0  ran cleanly - empty output on an unmodified tracked
+#      file is a normal result, not an error.
 #
-#   2  usage error, not inside a git work tree, file missing, or the file
-#      sits outside the work tree.
+#   2  usage error: not inside a git work tree, file is
+#      missing, or file sits outside the work tree.
 #
 # Rules:
 # - Untracked (new, never `git add`ed) -> every line is
@@ -25,10 +25,10 @@
 #
 # - Tracked and identical to HEAD -> empty output, exit 0.
 #
-#   A file that is staged but never committed still differs from HEAD, so
-#   it falls into the second case and its whole content comes back as
-#   changed - same result as the untracked case, with no separate branch
-#   needed for it.
+#   A file that is staged but never committed still differs
+#   from HEAD, so it falls into the second case. Its whole
+#   content comes back as changed — same result as the
+#   untracked case, with no separate branch needed.
 #
 # This is the one hunk-parser every doc-standards script and
 # stop hook needs.

@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
-# extract-commentable-lines - list the new-file line numbers of `+` lines in a unified diff
+# extract-commentable-lines - list the new-file line numbers of
+# `+` lines in a unified diff.
 #
 # Usage:
 #   extract-commentable-lines <diff-file>
-#   gh pr diff 1234 --repo owner/repo | extract-commentable-lines -
+#   gh pr diff 9 --repo owner/repo | extract-commentable-lines -
 #
-# Output: one `path:line` per `+` line (the set of lines safe to anchor an inline comment on).
+# Output: one `path:line` per `+` line (the set of lines safe
+# to anchor an inline comment on).
 #
 # Examples:
-#   extract-commentable-lines /tmp/pr.diff                 # from file
-#   gh pr diff 1 --repo o/r | extract-commentable-lines -  # from stdin
+#   from file:
+#   extract-commentable-lines /tmp/pr.diff
+#
+#   from stdin:
+#   gh pr diff 1 --repo o/r | extract-commentable-lines -
 #   extract-commentable-lines /tmp/pr.diff | grep '^src/foo.ts:'
 
 set -euo pipefail

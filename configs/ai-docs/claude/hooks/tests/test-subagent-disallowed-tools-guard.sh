@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # test-subagent-disallowed-tools-guard.sh - plain-bash
-# test file for subagent-disallowed-tools-guard.py's
-# call-time enforcement of a calling agent's
+# test file for subagent-disallowed-tools-guard.py.
+#
+# Covers call-time enforcement of a calling agent's
 # disallowedTools frontmatter.
 #
 # Exits 0 when every assertion passes, non-zero
@@ -41,16 +42,18 @@ assert_eq() {
 #
 # Sets HOOK_DECISION to "allow" (empty stdout, the
 # guard's own allow signal) or the JSON's
-# hookSpecificOutput.permissionDecision otherwise, and
-# HOOK_EXIT to the process exit code -- the guard must
-# always exit 0, even when it denies or hits a malformed
-# agent file, per its fail-open-on-hook-mechanics
-# contract.
+# hookSpecificOutput.permissionDecision otherwise.
+#
+# Sets HOOK_EXIT to the process exit code -- the guard
+# must always exit 0, even when it denies or hits a
+# malformed agent file, per its
+# fail-open-on-hook-mechanics contract.
 #
 # An optional second arg overrides HOME for the
 # invocation only, so a tmp-only agents-dir fixture never
-# touches the real ~/.claude/agents; that agents dir is a
-# live symlink into this repo's
+# touches the real ~/.claude/agents.
+#
+# That agents dir is a live symlink into this repo's
 # configs/ai-docs/claude/agents/.
 run_guard() {
   local json_input="$1" fake_home="${2:-}"
@@ -68,13 +71,14 @@ run_guard() {
 }
 
 # --- happy cases ---
-#
 # tdd-coder.md is real, live under
 # configs/ai-docs/claude/agents/, and its frontmatter
-# already reads `disallowedTools: Agent, Workflow` -- both
-# assertions below exercise that real file rather than a
-# fixture, since the fix exists specifically to bind that
-# exact line at call time instead of at session start.
+# already reads `disallowedTools: Agent, Workflow`.
+#
+# Both assertions below exercise that real file rather
+# than a fixture, since the fix exists specifically to
+# bind that exact line at call time instead of at session
+# start.
 
 it_should_deny_agent_dispatch_when_the_caller_disallows_it() {
   run_guard '{"tool_name":"Agent","agent_type":"tdd-coder"}'

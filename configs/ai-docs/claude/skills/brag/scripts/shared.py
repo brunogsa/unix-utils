@@ -2,7 +2,8 @@
 
 from datetime import datetime, timedelta, timezone
 
-# BRT (UTC-3) — Google Calendar exports from Brazil use this or UTC
+# BRT (UTC-3) — Google Calendar exports from Brazil use this or
+# UTC
 BRT = timezone(timedelta(hours=-3))
 
 

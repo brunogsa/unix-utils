@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
-# extract-skipped-files - list binary and deleted files from a unified diff
+# extract-skipped-files - list binary and deleted files from a
+# unified diff.
 #
 # Usage:
 #   extract-skipped-files <diff-file> <output-dir>
-#   gh pr diff 1234 --repo owner/repo | extract-skipped-files - <output-dir>
+#   gh pr diff 1234 --repo owner/repo \
+#     | extract-skipped-files - <output-dir>
 #
 # Output: writes two files into <output-dir>:
-#   skipped-binary.txt   — one path per line, files the diff reports as binary
-#   skipped-deleted.txt  — one path per line, files removed by the diff
+#   skipped-binary.txt   — one path per line, files the diff
+#                          reports as binary
+#
+#   skipped-deleted.txt  — one path per line, files removed by
+#                          the diff
 #
 # Examples:
 #   extract-skipped-files /tmp/pr.diff /tmp/pr-review-42/

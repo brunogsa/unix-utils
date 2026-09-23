@@ -21,8 +21,10 @@ SCRIPTS = Path(__file__).parent.parent
 def _load_module(filename, module_name):
     """Import a dash-named script (not a valid module name) by file path."""
     spec = importlib.util.spec_from_file_location(module_name, SCRIPTS / filename)
-    # spec_from_file_location returns None for a path no importer claims, and
-    # a spec built without a loader; both mean the script under test is gone.
+
+    # spec_from_file_location returns None for a path no
+    # importer claims, and a spec built without a loader; both
+    # mean the script under test is gone.
     if spec is None or spec.loader is None:
         raise ImportError(f"cannot load {filename} from {SCRIPTS}")
     module = importlib.util.module_from_spec(spec)

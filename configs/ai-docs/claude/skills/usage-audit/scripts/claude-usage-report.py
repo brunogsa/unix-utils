@@ -1,40 +1,72 @@
 #!/usr/bin/env python3
-# claude-usage-report - Estimate Claude Code token spend from local transcripts.
+# claude-usage-report - Estimate Claude Code token spend from
+# local transcripts.
 #
 # Usage:
-#   claude-usage-report.py --backfill              # write a snapshot per missing closed day
-#   claude-usage-report.py --backfill --rebuild    # also redo days already snapshotted
-#   claude-usage-report.py --day YYYY-MM-DD        # one calendar day
-#   claude-usage-report.py [--days N] [--top N]    # ad-hoc rolling window (never snapshots)
-#   claude-usage-report.py --json                  # machine-readable aggregates
-#   claude-usage-report.py --session SID --json    # one session id (never snapshots)
+#   claude-usage-report.py --backfill
+#     Write a snapshot per missing closed day.
 #
-# Reads every transcript under ~/.claude/projects and prices each API response at
-# Anthropic LIST prices (MODEL_PRICES below). Answers: where did the spend go —
-# main loop vs subagents, model family, day, subagent type, skill (both
-# whole-session and marginal/non-overlapping), and the costliest sessions.
+#   claude-usage-report.py --backfill --rebuild
+#     Also redo days already snapshotted.
 #
-# "Response", not "record": one API response is written as one transcript record
-# PER CONTENT BLOCK, each stamped with the same message.usage, so summing records
-# bills a response once per block it emitted. See billing_id() — this went
-# unnoticed long enough to inflate every snapshot written before 2026-07-27.
-# Every snapshot now carries a ccusage token cross-check so it cannot recur
-# silently; see the reconcile_tokens() block for why tokens and not dollars.
+#   claude-usage-report.py --day YYYY-MM-DD
+#     One calendar day.
 #
-# The committed record is one snapshot per CLOSED LOCAL CALENDAR DAY. That unit
-# is what makes the history comparable, and each property below was a live bug
-# in the previous rolling-window design:
-#   - Immutable: a day's aggregate never changes once the day is over, so a
-#     backfilled day equals a day captured live. Windows captured mid-day did
-#     not — 2026-07-24 read $49 when sampled at 21:49 that day vs $413 once closed.
-#   - Non-overlapping: window snapshots double-counted. The 7-day 2026-07-25
-#     snapshot fully contained both the 2026-07-19 and 2026-07-23 snapshots, so
-#     every "before -> after" delta between them compared a set to its superset.
-#   - Self-dividing: cost_per_day is just the day's total, so the old divisor bug
-#     (total / nominal window_days, while cost spanned window_days + 1 buckets)
-#     cannot recur. It had inflated the 2026-07-19 snapshot 2x.
-#   - LOCAL, not UTC: bucketing on the raw UTC timestamp prefix misfiled 44.2%
-#     of priced records (12,693 sampled) for a UTC-3 user who works evenings.
+#   claude-usage-report.py [--days N] [--top N]
+#     Ad-hoc rolling window (never snapshots).
+#
+#   claude-usage-report.py --json
+#     Machine-readable aggregates.
+#
+#   claude-usage-report.py --session SID --json
+#     One session id (never snapshots).
+#
+# Reads every transcript under ~/.claude/projects and prices
+# each API response at Anthropic LIST prices (MODEL_PRICES
+# below).
+#
+# Answers: where did the spend go — main loop vs subagents,
+# model family, day, subagent type, skill (both whole-session
+# and marginal/non-overlapping), and the costliest sessions.
+#
+# "Response", not "record": one API response is written as one
+# transcript record PER CONTENT BLOCK, each stamped with the
+# same message.usage, so summing records bills a response once
+# per block it emitted.
+#
+# See billing_id() — this went unnoticed long enough to inflate
+# every snapshot written before 2026-07-27.
+#
+# Every snapshot now carries a ccusage token cross-check so it
+# cannot recur silently; see the reconcile_tokens() block for
+# why tokens and not dollars.
+#
+# The committed record is one snapshot per CLOSED LOCAL CALENDAR
+# DAY.
+#
+# That unit is what makes the history comparable, and each
+# property below was a live bug in the previous rolling-window
+# design:
+#
+# - Immutable: a day's aggregate never changes once the day is
+#   over, so a backfilled day equals a day captured live.
+#   Windows captured mid-day did not — 2026-07-24 read $49 when
+#   sampled at 21:49 that day vs $413 once closed.
+#
+# - Non-overlapping: window snapshots double-counted. The 7-day
+#   2026-07-25 snapshot fully contained both the 2026-07-19 and
+#   2026-07-23 snapshots, so every "before -> after" delta
+#   between them compared a set to its superset.
+#
+# - Self-dividing: cost_per_day is just the day's total, so the
+#   old divisor bug (total / nominal window_days, while cost
+#   spanned window_days + 1 buckets) cannot recur. It had
+#   inflated the 2026-07-19 snapshot 2x.
+#
+# - LOCAL, not UTC: bucketing on the raw UTC timestamp prefix
+#   misfiled 44.2% of priced records (12,693 sampled) for a
+#   UTC-3 user who works evenings.
+#
 
 import argparse
 import bisect
@@ -51,7 +83,9 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 TRANSCRIPTS_ROOT = os.path.expanduser("~/.claude/projects")
-# realpath resolves the ~/.claude symlink so snapshots land in the repo checkout.
+
+# realpath resolves the ~/.claude symlink so snapshots land in
+# the repo checkout.
 HISTORY_DIR = os.path.normpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "usage-history"))
 
@@ -77,40 +111,58 @@ def _load_personal_env():
 
 
 TOKEN_KINDS = ("input", "output", "cache_read", "cache_write_5m", "cache_write_1h")
+
 # Read from the ledger rather than restated here, so the
 # spend split and the delivered-work denominator can never
 # disagree about which repos count as tooling.
 PERSONAL_ENV = _load_personal_env()
 REPO_CLASSES = ("work", "tooling")
-# The literal record Claude Code writes when the user presses Escape mid-turn.
+
+# The literal record Claude Code writes when the user presses
+# Escape mid-turn.
 INTERRUPT_SENTINEL = "[Request interrupted by user"
-# Slash-command invocations land in user records as <command-name>/x</command-name>;
+
+# Slash-command invocations land in user records as
+# <command-name>/x</command-name>;
 # plugin skills can carry a colon (plugin:skill).
 COMMAND_NAME_RE = re.compile(r"<command-name>/?([\w:-]+)</command-name>")
-# Built-in commands are told apart structurally: the record after theirs
-# carries <local-command-stdout>. These built-ins emit no stdout record,
-# so the structural filter can't catch them — exclude by name.
+
+# Built-in commands are told apart structurally: the record
+# after theirs carries <local-command-stdout>.
+# These built-ins emit no stdout record, so the structural
+# filter can't catch them — exclude by name.
 BUILTIN_SILENT_COMMANDS = {"clear", "compact", "login", "logout"}
-# A/B experiment markers a skill prints into chat (e.g. pr-review's
-# review-isolation experiment), landing verbatim in assistant text blocks:
-#   [ABTest] experiment=review-isolation arm=A pr=123
-#   [ABTest] experiment=review-isolation arm=B pr=124 override=manual
-# experiment/arm are opaque tokens — the parser never hardcodes a slug or arm
-# name, so any future experiment using this shape parses for free.
+
+# A/B experiment markers a skill prints into chat (e.g.
+# pr-review's review-isolation experiment), landing verbatim in
+# assistant text blocks:
+#
+# - [ABTest] experiment=review-isolation arm=A pr=123
+# - [ABTest] experiment=review-isolation arm=B pr=124
+#   override=manual.
+#
+# experiment/arm are opaque tokens — the parser never hardcodes
+# a slug or arm name, so any future experiment using this shape
+# parses for free.
 AB_MARKER_RE = re.compile(
     r"\[ABTest\] experiment=(\S+) arm=(\S+) pr=(\d+)(?: override=(manual))?")
 
 # Anthropic LIST prices, $/MTok — verified 2026-07-27 against
 # platform.claude.com/docs/en/about-claude/pricing.
-# (input, output, cache_read); cache write = input x1.25 (5m TTL) / x2 (1h TTL).
+# (input, output, cache_read); cache write = input x1.25 (5m
+# TTL) / x2 (1h TTL).
 #
-# Keyed by EXACT model, not by family. Family-level pricing was wrong in two
-# directions at once: Sonnet 5 bills below its family during its intro window,
-# and Opus bills DOUBLE its family under fast mode. Both are handled below.
+# Keyed by EXACT model, not by family.
+# Family-level pricing was wrong in two directions at once:
+# Sonnet 5 bills below its family during its intro window, and
+# Opus bills DOUBLE its family under fast mode.
 #
-# The generic family bucket survives only as the fallback for a model released
-# after this table was written — a new model prices at its family's rate rather
-# than crashing, and shows up in by_family so the omission is visible.
+# Both are handled below.
+#
+# The generic family bucket survives only as the fallback for a
+# model released after this table was written — a new model
+# prices at its family's rate rather than crashing, and shows up
+# in by_family so the omission is visible.
 FAMILY_PRICES = {
     "fable": (10.0, 50.0, 1.00),
     "opus": (5.0, 25.0, 0.50),
@@ -131,19 +183,24 @@ MODEL_PRICES = {
     "claude-haiku-4-5": (1.0, 5.0, 0.10),
 }
 
-# Sonnet 5 launched on an introductory rate. It is a real discount on real days
-# already in the snapshot series, so pricing those days at the post-intro rate
-# overstates them by 50% — the largest single model in this workload.
+# Sonnet 5 launched on an introductory rate.
+#
+# It is a real discount on real days already in the snapshot
+# series, so pricing those days at the post-intro rate
+# overstates them by 50% — the largest single model in this
+# workload.
 SONNET_5_INTRO_PRICES = (2.0, 10.0, 0.20)
 SONNET_5_INTRO_LAST_DAY = "2026-08-31"
 
-# Fast mode bills Opus 5 / Opus 4.8 at double list. Nothing in the token counts
-# reveals it; only usage.speed does, so a fast-mode day would silently read as a
-# standard-mode day at half the true cost.
+# Fast mode bills Opus 5 / Opus 4.8 at double list.
+# Nothing in the token counts reveals it; only usage.speed does,
+# so a fast-mode day would silently read as a standard-mode day
+# at half the true cost.
 FAST_MODE_PRICES = (10.0, 50.0, 1.00)
 FAST_MODE_MODELS = {"claude-opus-5", "claude-opus-4-8"}
 
-# Model ids carry an optional release-date suffix (claude-haiku-4-5-20251001).
+# Model ids carry an optional release-date suffix
+# (claude-haiku-4-5-20251001).
 MODEL_DATE_SUFFIX_RE = re.compile(r"-\d{8}$")
 
 
@@ -213,6 +270,7 @@ def cache_writes(usage):
     write_1h = breakdown.get("ephemeral_1h_input_tokens", 0) or 0
     if write_5m or write_1h:
         return write_5m, write_1h
+
     # No breakdown at all — older records predate the field, and
     # Claude Code writes to the 1h cache.
     return 0, usage.get("cache_creation_input_tokens", 0) or 0
@@ -498,30 +556,43 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
         "interruptions": 0,
         "compactions": 0,
         "skills": defaultdict(int),
-        # [(record_index, skill_name)], one entry per invocation, in file order —
-        # by_skill_marginal's span split (aggregate()) uses these as span boundaries.
+
+        # [(record_index, skill_name)], one entry per
+        # invocation, in file order — by_skill_marginal's span
+        # split (aggregate()) uses these as span boundaries.
         "skill_events": [],
-        # [(record_index, cost)] for every priced API message — the per-message
-        # cost by_skill_marginal sums into whichever skill's span it falls in.
+
+        # [(record_index, cost)] for every priced API message —
+        # the per-message cost by_skill_marginal sums into
+        # whichever skill's span it falls in.
         "message_costs": [],
-        # One dict per distinct (experiment, arm, pr) [ABTest] marker found in
-        # this session — see ab_seen below for how repeats within a session
-        # collapse to a single trial.
+
+        # One dict per distinct (experiment, arm, pr) [ABTest]
+        # marker found in this session — see ab_seen below for
+        # how repeats within a session collapse to a single
+        # trial.
         "ab_trials": [],
         "first_epoch": None,
         "last_epoch": None,
     }
-    # Commands seen but not yet classified as skill vs built-in, as
-    # (record_index, name); settled by the NEXT user record (see the deferral below).
+
+    # Commands seen but not yet classified as skill vs built-in,
+    # as (record_index, name); settled by the NEXT user record
+    # (see the deferral below).
     pending_commands = []
-    # (experiment, arm, pr) -> override-seen bool. A session can print the same
-    # marker more than once (e.g. reprinted after a retry); dedupe to one trial
-    # per distinct tuple, OR-ing the override flag across repeats.
+
+    # (experiment, arm, pr) -> override-seen bool.
+    # A session can print the same marker more than once (e.g.
+    # reprinted after a retry); dedupe to one trial per distinct
+    # tuple, OR-ing the override flag across repeats.
     ab_seen = {}
-    # Earliest record epoch per billing key, over the WHOLE file — built before
-    # the window filter because its inputs must include records the window drops.
+
+    # Earliest record epoch per billing key, over the WHOLE file
+    # — built before the window filter because its inputs must
+    # include records the window drops.
     # See the anchor check in the pricing block for why.
     anchor_epoch = {}
+
     # Highest output_tokens and cache_read_input_tokens
     # per billing key, same whole-file scope and for the
     # same reason as the anchor above.
@@ -540,8 +611,10 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
     advisor_entries = {}
     for record in iter_records(path):
         message = record.get("message")
-        # This pass sees records the window filter drops, so it meets shapes the
-        # main loop never reaches — a non-dict `message` is skipped, not fatal.
+
+        # This pass sees records the window filter drops, so it
+        # meets shapes the main loop never reaches — a non-dict
+        # `message` is skipped, not fatal.
         if not isinstance(message, dict):
             continue
         epoch = parse_ts(record.get("timestamp"))
@@ -564,20 +637,28 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
                     advisor_entries[key] = found
     for record_index, record in enumerate(iter_records(path)):
         epoch = parse_ts(record.get("timestamp"))
-        # An unplaceable record is dropped rather than kept: with one scan per
-        # day, a record that matches no window would otherwise match EVERY
-        # window and be counted once per backfilled day.
+
+        # An unplaceable record is dropped rather than kept:
+        # with one scan per day, a record that matches no window
+        # would otherwise match EVERY window and be counted once
+        # per backfilled day.
         if epoch is None or not (since_epoch <= epoch < until_epoch):
             continue
         if record.get("subtype") == "compact_boundary":
             stats["compactions"] += 1
-        # Claude Code writes an auto-generated title as this session
-        # progresses; the transcript's last one is the final title.
+
+        # Claude Code writes an auto-generated title as this
+        # session progresses; the transcript's last one is the
+        # final title.
         if record.get("type") == "ai-title" and record.get("aiTitle"):
             stats["title"] = record["aiTitle"]
-        # Every surviving record is timestamped and inside the window, so these
-        # bounds measure the session's wall-clock WITHIN the window — a session
-        # spanning midnight contributes its own slice to each day it touches.
+
+        # Every surviving record is timestamped and inside the
+        # window, so these bounds measure the session's
+        # wall-clock WITHIN the window.
+        #
+        # A session spanning midnight contributes its own
+        # slice to each day it touches.
         if stats["first_epoch"] is None or epoch < stats["first_epoch"]:
             stats["first_epoch"] = epoch
         if stats["last_epoch"] is None or epoch > stats["last_epoch"]:
@@ -585,12 +666,15 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
         message = record.get("message") or {}
         content = message.get("content")
         if message.get("role") == "user":
-            # Command-name tags also appear in meta/local-command records,
-            # so scan every user record, not just typed human turns.
+            # Command-name tags also appear in
+            # meta/local-command records, so scan every user
+            # record, not just typed human turns.
             #
-            # A built-in command's record is immediately followed by a
-            # <local-command-stdout> user record; a skill invocation's
-            # never is. Defer counting each command until the next user
+            # A built-in command's record is immediately
+            # followed by a <local-command-stdout> user record;
+            # a skill invocation's never is.
+            #
+            # Defer counting each command until the next user
             # record settles which kind it was.
             texts = list(iter_text_payloads(content))
             is_stdout_record = any("<local-command-stdout>" in t for t in texts)
@@ -607,7 +691,9 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
         if message.get("role") == "user" and is_human_message(record, content):
             text = first_text(content)
             touches = stats["touches_by_repo_class"][repo_class(record.get("cwd"))]
-            # An Escape press is a correction event, not a typed turn — count it apart.
+
+            # An Escape press is a correction event, not a typed
+            # turn — count it apart.
             if text.startswith(INTERRUPT_SENTINEL):
                 stats["interruptions"] += 1
                 touches["interruptions"] += 1
@@ -620,9 +706,13 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
             for item in content:
                 if not isinstance(item, dict):
                     continue
-                # Transcripts persist thinking blocks with EMPTY text (signature only),
-                # so block counts are the only locally measurable thinking signal;
-                # the thinking tokens themselves hide inside usage.output_tokens.
+
+                # Transcripts persist thinking blocks with EMPTY
+                # text (signature only), so block counts are the
+                # only locally measurable thinking signal;
+                #
+                # the thinking tokens themselves hide inside
+                # usage.output_tokens.
                 if item.get("type") == "thinking":
                     stats["thinking_blocks"] += 1
                 elif item.get("type") == "text":
@@ -639,29 +729,48 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
         model = message.get("model") or ""
         if not usage or model == "<synthetic>":
             continue
-        # ONE API response becomes N transcript records — one per content block —
-        # and Claude Code stamps the same request-side `message.usage` figures on
-        # every one. Summing records bills each response once per block it emitted.
+
+        # ONE API response becomes N transcript records — one
+        # per content block — and Claude Code stamps the same
+        # request-side `message.usage` figures on every one.
         #
-        # Measured on 2026-07-20: 6,989 priced records carried 3,345 distinct
-        # billing keys, inflating output tokens 3.64x and the day's dollars 2.97x
-        # against ccusage. Worse than a constant bias, the multiplier IS the
-        # blocks-per-response count, which rises with thinking and tool-call
-        # density — so it correlates with the very levers this report measures
-        # and does not cancel out of a day-over-day delta.
+        # Summing records bills each response once per block it
+        # emitted.
+        #
+        # Measured on 2026-07-20: 6,989 priced records carried
+        # 3,345 distinct billing keys, inflating output tokens
+        # 3.64x and the day's dollars 2.97x against ccusage.
+        #
+        # Worse than a constant bias, the multiplier IS the
+        # blocks-per-response count, which rises with thinking
+        # and tool-call density.
+        #
+        # It correlates with the very levers this report
+        # measures and does not cancel out of a day-over-day
+        # delta.
         billing_key = billing_id(record, message)
         if billing_key is not None:
             if billing_key in seen_messages:
                 continue
-            # Those N records are written over a real interval, so they can
-            # straddle local midnight: msg_011Cd6t8KHRgiEBkBq9N9AYs wrote block 1
-            # at 2026-07-16 23:59:59 and blocks 2-4 within the next 1.5s. The
-            # dedup set above is per-day, so each side saw an unseen key and both
-            # billed the response in full. Charging it to the day of its EARLIEST
-            # record makes exactly one day claim it, whichever days are scanned.
+
+            # Those N records are written over a real
+            # interval, so they can straddle local midnight.
+            #
+            # msg_011Cd6t8KHRgiEBkBq9N9AYs wrote block 1 at
+            # 2026-07-16 23:59:59 and blocks 2-4 within the
+            # next 1.5s.
+            #
+            # The dedup set above is per-day, so each side saw
+            # an unseen key and both billed the response in
+            # full.
+            #
+            # Charging it to the day of its EARLIEST record
+            # makes exactly one day claim it, whichever days are
+            # scanned.
             if anchor_epoch.get(billing_key, epoch) != epoch:
                 continue
             seen_messages.add(billing_key)
+
             # `output_tokens` and `cache_read_input_tokens`
             # are both written CUMULATIVELY as a response
             # streams, so the anchor record holds a partial
@@ -756,7 +865,9 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
             stats["by_model"][model_key(advisor_model)] += advisor_cost
             stats["by_day"][day] += advisor_cost
             stats["by_repo_class"][repo_class(record.get("cwd"))] += advisor_cost
-    # A command at end-of-file has no follower to disprove it — count it.
+
+    # A command at end-of-file has no follower to disprove it —
+    # count it.
     for pending_index, name in pending_commands:
         stats["skills"][name] += 1
         stats["skill_events"].append((pending_index, name))
@@ -952,8 +1063,10 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
         "main_cost": 0.0,
         "subagent_cost": 0.0,
         "by_family": defaultdict(float),
-        # Per exact model, so a snapshot can be reconciled against ccusage's
-        # modelBreakdowns without re-deriving which family each model belongs to.
+
+        # Per exact model, so a snapshot can be reconciled
+        # against ccusage's modelBreakdowns without re-deriving
+        # which family each model belongs to.
         "by_model": defaultdict(float),
         "by_day": defaultdict(lambda: {"main": 0.0, "sub": 0.0}),
 
@@ -982,16 +1095,23 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
             "by_repo_class": defaultdict(lambda: {
                 "cost": 0.0, "invocations": 0, "sessions": 0}),
         }),
-        # Marginal counterpart to by_skill: partitions each session's cost across
-        # the skills it invoked instead of letting rows overlap — see the
-        # dedicated/mixed split in the main_files loop below.
+
+        # Marginal counterpart to by_skill: partitions each
+        # session's cost across the skills it invoked instead of
+        # letting rows overlap — see the dedicated/mixed split
+        # in the main_files loop below.
         "by_skill_marginal": defaultdict(lambda: dict(
             new_marginal_counters(),
             by_repo_class=defaultdict(new_marginal_counters))),
-        # [ABTest] marker rollup: ab_tests[experiment][arm] holds that arm's
-        # trials/sessions/cost/tokens/overrides; ab_contaminated[experiment]
-        # counts sessions that carried 2+ arms of the SAME experiment, whose
-        # cost is excluded from every arm rather than misattributed to one.
+
+        # [ABTest] marker rollup: ab_tests[experiment][arm]
+        # holds that arm's
+        # trials/sessions/cost/tokens/overrides;
+        #
+        # ab_contaminated[experiment] counts sessions that
+        # carried 2+ arms of the SAME experiment, whose cost is
+        # excluded from every arm rather than misattributed to
+        # one.
         "ab_tests": defaultdict(lambda: defaultdict(lambda: {
             "trials": 0, "sessions": 0, "cost": 0.0,
             "tokens": dict.fromkeys(TOKEN_KINDS, 0), "overrides": 0,
@@ -1000,9 +1120,11 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
         "sessions": [],
         "subagents_per_session": defaultdict(lambda: {
             "cost": 0.0, "runs": 0, "tokens": dict.fromkeys(TOKEN_KINDS, 0),
-            # [(spawn record_index or None, cost)], one entry per subagent run —
-            # by_skill_marginal uses spawn_index to place each subagent's cost
-            # into the skill span it was spawned in.
+
+            # [(spawn record_index or None, cost)], one entry
+            # per subagent run — by_skill_marginal uses
+            # spawn_index to place each subagent's cost into the
+            # skill span it was spawned in.
             "by_spawn": [],
         }),
         "api_calls": {"main": 0, "sub": 0},
@@ -1014,16 +1136,23 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
         "compactions": 0,
         "session_seconds": 0.0,
     }
-    # One billing-key set for the whole run: a response is billed once no matter
-    # how many files or how many content blocks it appears across.
+
+    # One billing-key set for the whole run: a response is
+    # billed once no matter how many files or how many content
+    # blocks it appears across.
     seen_messages = set()
     for path in subagent_files:
         stats = scan_transcript(path, since_epoch, until_epoch, seen_messages)
-        # find_transcripts() only lower-bounds by mtime (see its docstring), so
-        # subagent_files can hold a run whose transcript wasn't touched again
-        # until well after this window. Gating on api_calls also drops a run
-        # that produced no priced response at all, so "runs" counts invocations
-        # that did work rather than every file passing the mtime filter.
+
+        # find_transcripts() only lower-bounds by mtime (see its
+        # docstring), so subagent_files can hold a run whose
+        # transcript wasn't touched again until well after this
+        # window.
+        #
+        # Gating on api_calls also drops a run that produced no
+        # priced response at all, so "runs" counts invocations
+        # that did work rather than every file passing the mtime
+        # filter.
         if stats["api_calls"] == 0:
             continue
         result["subagent_cost"] += stats["cost"]
@@ -1039,20 +1168,33 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
         result["subagents_per_session"][parent]["by_spawn"].append((spawn_index, stats["cost"]))
     for path in main_files:
         stats = scan_transcript(path, since_epoch, until_epoch, seen_messages)
-        # Same mtime-only-lower-bound gap as subagent_files above: main_files
-        # can include a session last touched after this window closed. Without
-        # a guard, result["sessions"] gained one entry per FILE regardless of
-        # whether it had any record inside the window, so session_count read as
-        # "sessions from this day forward" instead of "sessions active on this
-        # day" — it grew for every day still-open sessions would later touch,
-        # which is why older days showed inflated, monotonically higher counts.
+
+        # Same mtime-only-lower-bound gap as subagent_files
+        # above: main_files can include a session last touched
+        # after this window closed.
         #
-        # api_calls is the stricter gate: a prompt can be queued and its
-        # attachments resolved while the session ends before any API response
-        # comes back. Such a file carries a "user" record and no usage at all,
-        # so counting it inflates user_messages — a KPI meant to fall — and
-        # deflates cost_per_user_message, which divides by it. On 2026-07-19
-        # that was 186 of 284 files and roughly 187 of 425 user_messages.
+        # Without a guard, result["sessions"] gained one entry
+        # per FILE regardless of whether it had any record
+        # inside the window.
+        #
+        # So session_count read as "sessions from this day
+        # forward" instead of "sessions active on this day".
+        #
+        # It grew for every day still-open sessions would later
+        # touch, which is why older days showed inflated,
+        # monotonically higher counts.
+        #
+        # api_calls is the stricter gate: a prompt can be queued
+        # and its attachments resolved while the session ends
+        # before any API response comes back.
+        #
+        # Such a file carries a "user" record and no usage at
+        # all, so counting it inflates user_messages — a KPI
+        # meant to fall — and deflates cost_per_user_message,
+        # which divides by it.
+        #
+        # On 2026-07-19 that was 186 of 284 files and roughly
+        # 187 of 425 user_messages.
         if stats["api_calls"] == 0:
             continue
         result["main_cost"] += stats["cost"]
@@ -1070,8 +1212,10 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
             result["by_repo_class"][cls]["interruptions"] += touches["interruptions"]
         result["compactions"] += stats["compactions"]
         result["session_seconds"] += duration
-        # A session counts under EVERY skill it invoked, so by_skill rows
-        # overlap and don't sum to the total — they isolate, not partition.
+
+        # A session counts under EVERY skill it invoked, so
+        # by_skill rows overlap and don't sum to the total —
+        # they isolate, not partition.
         session_subagents = result["subagents_per_session"].get(
             path, {"cost": 0.0, "tokens": dict.fromkeys(TOKEN_KINDS, 0), "by_spawn": []})
         session_class = session_repo_class(stats)
@@ -1088,14 +1232,22 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
             half["cost"] += stats["cost"] + session_subagents["cost"]
             half["invocations"] += invocation_count
             half["sessions"] += 1
-        # by_skill_marginal: a session with exactly one distinct skill is
-        # "dedicated" to it — its whole cost (session + subagents) is a clean,
-        # non-overlapping signal. A session with 2+ distinct skills is "mixed" —
-        # split its cost by invocation span instead of double-counting it under
-        # every skill: each skill owns everything from its invocation event up
-        # to the next invocation (of any skill); cost before the first
-        # invocation is excluded from all skills, same as an unattributed setup
-        # cost. A session with zero skills invoked has nothing to attribute.
+
+        # by_skill_marginal: a session with exactly one distinct
+        # skill is "dedicated" to it — its whole cost (session +
+        # subagents) is a clean, non-overlapping signal.
+        #
+        # A session with 2+ distinct skills is "mixed" — split
+        # its cost by invocation span instead of double-counting
+        # it under every skill.
+        #
+        # Each skill owns everything from its invocation event
+        # up to the next invocation (of any skill); cost before
+        # the first invocation is excluded from all skills, same
+        # as an unattributed setup cost.
+        #
+        # A session with zero skills invoked has nothing to
+        # attribute.
         distinct_skills = list(stats["skills"].keys())
         if len(distinct_skills) == 1:
             marginal = result["by_skill_marginal"][distinct_skills[0]]
@@ -1115,9 +1267,13 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
                     mixed_cost_by_skill[owner] += cost
             for spawn_index, sub_cost in session_subagents["by_spawn"]:
                 if spawn_index is None:
-                    # Can't tell which Task/Agent call spawned this subagent, so
-                    # its span is undeterminable — split like messages: proportional
-                    # to each skill's message-cost share already assigned above.
+                    # Can't tell which Task/Agent call spawned
+                    # this subagent, so its span is
+                    # undeterminable.
+                    #
+                    # Split like messages: proportional to
+                    # each skill's message-cost share already
+                    # assigned above.
                     total_assigned = sum(mixed_cost_by_skill.values())
                     for skill in distinct_skills:
                         share = (mixed_cost_by_skill[skill] / total_assigned if total_assigned
@@ -1127,8 +1283,10 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
                 owner = span_owner(events, event_indices, spawn_index)
                 if owner is not None:
                     mixed_cost_by_skill[owner] += sub_cost
-                # else: spawned before the first skill invocation — excluded,
-                # same as pre-invocation messages.
+
+                # else: spawned before the first skill
+                # invocation — excluded, same as pre-invocation
+                # messages.
             for skill in distinct_skills:
                 marginal = result["by_skill_marginal"][skill]
                 skill_cost = mixed_cost_by_skill.get(skill, 0.0)
@@ -1137,11 +1295,15 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
                 half = marginal["by_repo_class"][session_class]
                 half["mixed_sessions"] += 1
                 half["mixed_cost_estimate"] += skill_cost
-        # [ABTest] markers: this session's full cost (+ its subagents')
-        # attributes to each arm it carries, per experiment — a session with
-        # unrelated experiments A and B contributes its whole cost to both.
-        # A session carrying 2+ arms of the SAME experiment can't be trusted
-        # to pick one, so it's tallied as contaminated instead of split.
+
+        # [ABTest] markers: this session's full cost (+ its
+        # subagents') attributes to each arm it carries, per
+        # experiment — a session with unrelated experiments A
+        # and B contributes its whole cost to both.
+        #
+        # A session carrying 2+ arms of the SAME experiment
+        # can't be trusted to pick one, so it's tallied as
+        # contaminated instead of split.
         trials_by_experiment = defaultdict(list)
         for trial in stats["ab_trials"]:
             trials_by_experiment[trial["experiment"]].append(trial)
@@ -1223,9 +1385,10 @@ def render_text(result, top_n):
     for family, cost in sorted(result["by_family"].items(), key=lambda kv: -kv[1]):
         print(f"{family}\t${cost:.2f}")
 
-    # Exact model, not just family: Sonnet 5 bills under its family during its
-    # intro window and fast-mode Opus bills double, so the family row alone can
-    # no longer be reconciled against a bill or against ccusage.
+    # Exact model, not just family: Sonnet 5 bills under its
+    # family during its intro window and fast-mode Opus bills
+    # double, so the family row alone can no longer be
+    # reconciled against a bill or against ccusage.
     print("\n== BY MODEL ==")
     for model, cost in sorted(result["by_model"].items(), key=lambda kv: -kv[1]):
         print(f"{model}\t${cost:.2f}")
@@ -1320,10 +1483,16 @@ def build_payload(result, top_n, day=None, coverage="complete", reconciliation=N
     grand = result["main_cost"] + result["subagent_cost"]
     derived = derived_metrics(result)
     ranked_sessions = sorted(result["sessions"], key=lambda s: -s["cost"])[:top_n]
-    # Divide by the days actually observed, never a nominal window length. The
-    # old code divided by --days N while the cost spanned N+1 buckets (the cutoff
-    # lands mid-day, making the oldest bucket partial), which had inflated the
-    # 2026-07-19 snapshot's headline KPI 2x ($571.22 reported vs $285.61 true).
+
+    # Divide by the days actually observed, never a nominal
+    # window length.
+    #
+    # The old code divided by --days N while the cost spanned
+    # N+1 buckets (the cutoff lands mid-day, making the oldest
+    # bucket partial).
+    #
+    # That had inflated the 2026-07-19 snapshot's headline KPI
+    # 2x ($571.22 reported vs $285.61 true).
     observed_days = len(result["by_day"]) or 1
     payload = {
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
@@ -1366,7 +1535,9 @@ def build_payload(result, top_n, day=None, coverage="complete", reconciliation=N
             for cls in REPO_CLASSES},
         "by_subagent_type": {k: {"cost": round(v["cost"], 2), "runs": v["runs"]}
                              for k, v in result["by_subagent_type"].items()},
-        # Rows overlap — a session counts under every skill it invoked.
+
+        # Rows overlap — a session counts under every skill it
+        # invoked.
         "by_skill": {k: {"cost": round(v["cost"], 2), "invocations": v["invocations"],
                          "sessions": v["sessions"], "compactions": v["compactions"],
                          "interruptions": v["interruptions"], "tokens": dict(v["tokens"]),
@@ -1376,8 +1547,10 @@ def build_payload(result, top_n, day=None, coverage="complete", reconciliation=N
                              "sessions": h["sessions"]})}
                      for k, v in sorted(result["by_skill"].items(),
                                         key=lambda kv: -kv[1]["cost"])},
-        # Non-overlapping counterpart to by_skill — dedicated_cost is exact,
-        # mixed_cost_estimate is a span-based approximation (see render_text).
+
+        # Non-overlapping counterpart to by_skill —
+        # dedicated_cost is exact, mixed_cost_estimate is a
+        # span-based approximation (see render_text).
         "by_skill_marginal": {
             k: {"dedicated_sessions": v["dedicated_sessions"],
                 "dedicated_cost": round(v["dedicated_cost"], 2),
@@ -1406,13 +1579,19 @@ def build_payload(result, top_n, day=None, coverage="complete", reconciliation=N
             "skills": s["skills"],
         } for s in ranked_sessions],
     }
-    # Snapshots only. Carried IN the snapshot rather than printed once at run
-    # time so a day stays auditable years later: a reader can tell a figure that
-    # was cross-checked from one written while ccusage was missing or drifting.
+
+    # Snapshots only.
+    #
+    # Carried IN the snapshot rather than printed once at run
+    # time so a day stays auditable years later: a reader can
+    # tell a figure that was cross-checked from one written
+    # while ccusage was missing or drifting.
     if reconciliation is not None:
         payload["reconciliation"] = reconciliation
-    # Only present when at least one [ABTest] marker was found — mirrors
-    # render_text's gate so a marker-free window's JSON stays unchanged too.
+
+    # Only present when at least one [ABTest] marker was found —
+    # mirrors render_text's gate so a marker-free window's JSON
+    # stays unchanged too.
     if result["ab_tests"] or result["ab_contaminated"]:
         payload["ab_tests"] = {
             experiment: {
@@ -1492,36 +1671,55 @@ def day_range(first_day, last_day):
             for offset in range((end - start).days + 1)]
 
 
-# --- ccusage cross-check -----------------------------------------------------
+# --- ccusage cross-check --------------------------------------
+# ccusage (github.com/ryoppippi/ccusage) reads the same
+# transcripts and is the nearest thing to an independent second
+# opinion on this script.
 #
-# ccusage (github.com/ryoppippi/ccusage) reads the same transcripts and is the
-# nearest thing to an independent second opinion on this script. It is wired in
-# as a TOKEN oracle only, and that restriction is the whole design:
+# It is wired in as a TOKEN oracle only, and that restriction is
+# the whole design:
 #
-#   - Its token counts are exact. On 2026-07-20 its input, output and cache-read
-#     totals matched this script to the single token once the billing-key dedup
-#     landed. That makes it a live regression test for the one bug that had
-#     inflated this entire history ~3x, and for any future transcript-shape
-#     change that reintroduces it.
-#   - Its DOLLARS cannot be trusted. It prices from a LiteLLM snapshot bundled
-#     into the npm package, and on 2026-07-27 that snapshot was missing 4 of the
-#     5 models in this workload. An unknown model costs $0 with no warning, so
-#     `ccusage --offline` priced that same ~$130 day at $0.92. With network it
-#     fetches fresher prices but is not reproducible: $148.67 and $122.34 for
-#     the same closed day, one hour apart. Backed out of its own per-model
-#     totals, its implied input rates were $7.67/MTok for Opus 4.8 and
-#     $13.41/MTok for Fable 5, against Anthropic's published $5 and $10.
+# - Its token counts are exact.
 #
-# So dollars stay computed here from the dated Anthropic table at the top, and
-# ccusage answers only the question it answers reliably: did you count the same
-# tokens? That is also what retires the old manual "re-verify PRICES before
-# quoting dollars" step — the check that actually catches regressions now runs
-# on every snapshot instead of on whoever remembers.
+#   On 2026-07-20 its input, output and cache-read totals
+#   matched this script to the single token once the billing-key
+#   dedup landed.
+#
+#   That makes it a live regression test for the one bug that
+#   had inflated this entire history ~3x, and for any future
+#   transcript-shape change that reintroduces it.
+#
+# - Its DOLLARS cannot be trusted.
+#
+#   It prices from a LiteLLM snapshot bundled into the npm
+#   package, and on 2026-07-27 that snapshot was missing 4 of
+#   the 5 models in this workload.
+#
+#   An unknown model costs $0 with no warning, so `ccusage
+#   --offline` priced that same ~$130 day at $0.92.
+#
+#   With network it fetches fresher prices but is not
+#   reproducible: $148.67 and $122.34 for the same closed day,
+#   one hour apart.
+#
+#   Backed out of its own per-model totals, its implied input
+#   rates were $7.67/MTok for Opus 4.8 and $13.41/MTok for Fable
+#   5, against Anthropic's published $5 and $10.
+#
+# So dollars stay computed here from the dated Anthropic table
+# at the top, and ccusage answers only the question it answers
+# reliably: did you count the same tokens.
+#
+# That is also what retires the old manual "re-verify PRICES
+# before quoting dollars" step — the check that actually catches
+# regressions now runs on every snapshot instead of on whoever
+# remembers.
 CCUSAGE_TOKEN_TOLERANCE = 0.005
 
-# day -> ccusage token totals. Primed once per run over the whole backfill range
-# because ccusage rescans every transcript on each invocation; 42 single-day
-# calls cost 42 full scans.
+# day -> ccusage token totals.
+# Primed once per run over the whole backfill range because
+# ccusage rescans every transcript on each invocation; 42
+# single-day calls cost 42 full scans.
 _ccusage_days = {}
 
 
@@ -1536,14 +1734,19 @@ def prime_ccusage(first_day, last_day):
              "--until", last_day.replace("-", "")],
             capture_output=True, text=True, check=True, timeout=900)
         entries = json.loads(out.stdout)["daily"]
-        # Staged in a local dict so a mid-loop schema failure leaves the shared
-        # cache untouched rather than half-filled with an unusable range.
+
+        # Staged in a local dict so a mid-loop schema failure
+        # leaves the shared cache untouched rather than
+        # half-filled with an unusable range.
         parsed = {}
         for entry in entries:
-            # ccusage 20.x renamed this key `date` -> `period` and added an
-            # `agent` dimension whose non-"all" rows break the same day down per
-            # agent. Reading those on top of "all" would double-count the day,
-            # so keep only the aggregate row.
+            # ccusage 20.x renamed this key `date` ->
+            # `period` and added an `agent`
+            # dimension whose non-"all" rows break the same day
+            # down per agent.
+            #
+            # Reading those on top of "all" would double-count
+            # the day, so keep only the aggregate row.
             if entry.get("agent", "all") != "all":
                 continue
             parsed[entry.get("period") or entry["date"]] = {
@@ -1553,15 +1756,21 @@ def prime_ccusage(first_day, last_day):
                 "cache_write": entry.get("cacheCreationTokens", 0) or 0,
                 "cost": entry.get("totalCost", 0.0) or 0.0,
             }
-    # The entry loop sits inside the try because this is an advisory cross-check:
-    # the next schema rename must degrade the affected days to `reconciliation:
-    # "unavailable"`, never abort the measurement it only verifies.
+
+    # The entry loop sits inside the try because this is an
+    # advisory cross-check: the next schema rename must
+    # degrade the affected days to `reconciliation:
+    # "unavailable"`.
+    #
+    # It never aborts the measurement it only verifies.
     except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as err:
         print(f"ccusage cross-check unavailable: {err}", file=sys.stderr)
         return False
     _ccusage_days.update(parsed)
-    # A day ccusage omits is a real zero, not a failed lookup — record it as one
-    # so an idle day reconciles "ok" instead of "unavailable".
+
+    # A day ccusage omits is a real zero, not a failed lookup —
+    # record it as one so an idle day reconciles "ok" instead of
+    # "unavailable".
     empty = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "cost": 0.0}
     for day in day_range(first_day, last_day):
         _ccusage_days.setdefault(day, dict(empty))
@@ -1574,8 +1783,11 @@ def reconcile_tokens(result, day):
         "input": result["tokens"]["input"],
         "output": result["tokens"]["output"],
         "cache_read": result["tokens"]["cache_read"],
-        # ccusage reports one flat cache-creation figure; this script splits it
-        # by TTL because the two bill at different multiples. Sum to compare.
+
+        # ccusage reports one flat cache-creation figure; this
+        # script splits it by TTL because the two bill at
+        # different multiples.
+        # Sum to compare.
         "cache_write": result["tokens"]["cache_write_5m"] + result["tokens"]["cache_write_1h"],
     }
     if day not in _ccusage_days and not prime_ccusage(day, day):
@@ -1594,7 +1806,9 @@ def reconcile_tokens(result, day):
         "status": "ok" if worst <= CCUSAGE_TOKEN_TOLERANCE else "drift",
         "worst_delta_pct": round(worst * 100, 3),
         "tokens": buckets,
-        # Recorded for visibility, never compared against: see the note above.
+
+        # Recorded for visibility, never compared against: see
+        # the note above.
         "ccusage_cost_untrusted": round(reference["cost"], 2),
     }
 
@@ -1660,12 +1874,17 @@ def run_backfill(args, last_closed_day):
         print(f"nothing to backfill: {first_day} is after the last closed day {last_day}.")
         return
     committed = existing_snapshot_days()
-    # --rebuild re-measures days that already have a snapshot. Normally skipping
-    # them is right — a closed day is immutable, so recomputing it is wasted
-    # work. But when the AGGREGATION changes, every existing file is wrong and
-    # skipping them is exactly the failure: the 2026-07-27 dedup fix left 42
-    # committed days overstated ~3x with no supported way to correct them short
-    # of deleting the series by hand.
+
+    # --rebuild re-measures days that already have a snapshot.
+    # Normally skipping them is right — a closed day is
+    # immutable, so recomputing it is wasted work.
+    #
+    # But when the AGGREGATION changes, every existing file is
+    # wrong and skipping them is exactly the failure.
+    #
+    # The 2026-07-27 dedup fix left 42 committed days overstated
+    # ~3x with no supported way to correct them short of
+    # deleting the series by hand.
     missing = [d for d in day_range(first_day, last_day)
                if args.rebuild or d not in committed]
     if not missing:
@@ -1674,9 +1893,12 @@ def run_backfill(args, last_closed_day):
     verb = "rebuilding" if args.rebuild else "backfilling"
     print(f"{verb} {len(missing)} day(s) in {first_day}..{last_day} "
           f"(transcripts retained from {retention_floor or 'unknown'})")
-    # One ccusage call for the whole range: it rescans every transcript per
-    # invocation, so priming per day would multiply the backfill's cost by the
-    # number of days. A failure here is non-fatal — each day then records
+
+    # One ccusage call for the whole range: it rescans every
+    # transcript per invocation, so priming per day would
+    # multiply the backfill's cost by the number of days.
+    #
+    # A failure here is non-fatal — each day then records
     # "unavailable" and the snapshot is still written.
     prime_ccusage(first_day, last_day)
     drifted, preserved = [], []
@@ -1697,9 +1919,10 @@ def run_backfill(args, last_closed_day):
               f"  Their transcripts have been pruned, so re-measuring would "
               f"only have lowered a figure taken while the records existed.")
 
-    # Surfaced at the end because a per-day line scrolls past on a 40-day run,
-    # and a token disagreement means the aggregation itself is wrong — the one
-    # failure mode that silently poisons every comparison built on these files.
+    # Surfaced at the end because a per-day line scrolls past on
+    # a 40-day run, and a token disagreement means the
+    # aggregation itself is wrong — the one failure mode that
+    # silently poisons every comparison built on these files.
     if drifted:
         print(f"\nTOKEN DRIFT vs ccusage on {len(drifted)} day(s): {', '.join(drifted)}\n"
               f"  Counting disagrees with an independent reader. Treat these days' "
@@ -1732,8 +1955,10 @@ def main():
         print(f"transcripts dir not found: {TRANSCRIPTS_ROOT}", file=sys.stderr)
         sys.exit(1)
 
-    # Yesterday, not today: a day is only immutable once it has ended. Sampling
-    # 2026-07-24 at 21:49 that day read $49; the closed day was $413.
+    # Yesterday, not today: a day is only immutable once it has
+    # ended.
+    # Sampling 2026-07-24 at 21:49 that day read $49; the closed
+    # day was $413.
     last_closed_day = (date.today() - timedelta(days=1)).isoformat()
 
     if args.backfill:
@@ -1750,11 +1975,14 @@ def main():
         return
 
     if args.session:
-        # One session's own transcripts, not a date window — the far bound is
-        # unbounded (float("inf")) so a session spanning multiple calendar days
-        # is captured whole. Never touches snapshot_day()/run_backfill(): a
-        # mid-session read is inherently partial and must not be mistaken for
-        # the immutable closed-day record those two produce.
+        # One session's own transcripts, not a date window — the
+        # far bound is unbounded (float("inf")) so a session
+        # spanning multiple calendar days is captured whole.
+        #
+        # Never touches snapshot_day()/run_backfill(): a
+        # mid-session read is inherently partial and must not be
+        # mistaken for the immutable closed-day record those two
+        # produce.
         main_path, subagent_files = find_session_transcripts(args.session)
         if main_path is None:
             exit_session_not_found(args.session)
@@ -1762,9 +1990,10 @@ def main():
         print(json.dumps(build_payload(result, args.top), indent=2))
         return
 
-    # Ad-hoc window: a human-readable read of recent activity. It deliberately
-    # cannot snapshot — an overlapping, variable-length window is exactly the
-    # unit the per-day record replaced.
+    # Ad-hoc window: a human-readable read of recent activity.
+    # It deliberately cannot snapshot — an overlapping,
+    # variable-length window is exactly the unit the per-day
+    # record replaced.
     since_epoch = time.time() - args.days * 86400
     main_files, subagent_files = find_transcripts(since_epoch)
     if not main_files and not subagent_files:

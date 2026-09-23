@@ -72,10 +72,10 @@ class TestClassifyConversionHappy(_TempDirTestCase):
     def test_should_return_py_as_the_target_language_when_the_script_carries_no_requires_npm_header(self):
         tmp_path = self._tmp()
 
-        # Also embeds awk so this row's verdict is convert — only
-        # a convert row keeps its target_language (a stays-sh row
-        # gets None regardless of what get_target_language would
-        # have returned).
+        # Also embeds awk so this row's verdict is convert —
+        # only a convert row keeps its target_language (a
+        # stays-sh row gets None regardless of what
+        # get_target_language would have returned).
         script = _write_script(tmp_path, "plain.sh", [
             "#!/usr/bin/env bash",
             "awk '{print}' x",
@@ -197,10 +197,11 @@ class TestClassifyConversionHappy(_TempDirTestCase):
         tmp_path = self._tmp()
 
         # Same trap as the per-tool-call hook above: risky
-        # construct + over-cap body. ccstatusline invokes this
-        # script once per widget it wires, on every render, so
-        # a conversion would pay one interpreter cold start per
-        # widget per render.
+        # construct + over-cap body.
+        #
+        # ccstatusline invokes this script once per widget it
+        # wires, on every render, so a conversion would pay one
+        # interpreter cold start per widget per render.
         body = ["awk '{print}' x"] + [f"echo {i}" for i in range(LINE_CAP)]
         script = _write_script(tmp_path, "statusline-tier.sh", ["#!/usr/bin/env bash", *body])
         payload = _single_result(_run(script))
@@ -210,9 +211,10 @@ class TestClassifyConversionHappy(_TempDirTestCase):
         tmp_path = self._tmp()
 
         # Fixture sits in the widget's own directory under the
-        # widget's own name prefix, and still converts: the
-        # exemption is keyed on the exact basenames measured to
-        # run per render, so a directory- or prefix-shaped
+        # widget's own name prefix, and still converts.
+        #
+        # The exemption is keyed on the exact basenames measured
+        # to run per render, so a directory- or prefix-shaped
         # widening would sweep in neighbours nobody evaluated.
         script = _script_with_line_count(
             tmp_path, "configs/ai-docs/claude/scripts/statusline-resolve-base-ref.sh",
@@ -356,7 +358,8 @@ class TestClassifyConversionFailure(_TempDirTestCase):
         result = _run("--tree", tmp_path)
 
         # The malformed header must still fail the run — losing
-        # this signal would trade one silent failure for another.
+        # this signal would trade one silent failure for
+        # another.
         self.assertNotEqual(
             result.returncode, 0,
             msg=f"expected non-zero exit but got 0: {result.stdout}",

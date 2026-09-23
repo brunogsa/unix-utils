@@ -1,27 +1,34 @@
 #!/usr/bin/env python3
-# implement-loop-state.py - Pure verdict script for the /implement task loop
+# implement-loop-state.py - Pure verdict script for the
+# /implement task loop.
 #
 # Usage:
 #   implement-loop-state.py <state-file>
 #   implement-loop-state.py --budget <state-file>
-#   implement-loop-state.py --next-eligible <state-file>
-#   implement-loop-state.py --eligible-set <state-file>
 #
-# stdin: none
-# stdout: one JSON verdict/answer object (shape depends on the flag)
+#   implement-loop-state.py --next-eligible <state-file>
+#   implement-loop-state.py --eligible-set <state-file>.
+#
+# stdin: none.
+# stdout: one JSON verdict/answer object (shape depends on the
+# flag).
+#
 # exit: 0 on success, 1 on usage error, missing/invalid state
-#       file, or (no-flag mode) a phase this script has no verdict for
+# file, or (no-flag mode) a phase this script has no verdict
+# for.
 
 import json
 import re
 import sys
 from pathlib import Path
 
-# Pure: no writes, no clock reads, deterministic -- the same state
-# file always yields the same verdict. The orchestrator (main
-# session AI) is the fallible recorder of raw facts (attempt
-# outcomes, phase, report paths); this script is the infallible
-# judge that turns those facts into one of seven actions.
+# Pure: no writes, no clock reads, deterministic -- the same
+# state file always yields the same verdict.
+#
+# The orchestrator (main session AI) is the fallible recorder of
+# raw facts (attempt outcomes, phase, report paths); this script
+# is the infallible judge that turns those facts into one of
+# seven actions.
 
 # Tunable constants.
 MAX_ATTEMPTS = 3
@@ -29,11 +36,14 @@ STUCK_CONSECUTIVE = 3
 BATCH_CAP_MULT = 4
 GATE_FIX_ALLOWANCE = 2
 
-# NOTE: this text still names the script "implement-loop-state.sh"
-# (not .py) because it is replayed byte-for-byte against a golden
-# table captured from the original shell script -- see
-# scripts/tests/implement-loop-state.test.py. Renaming the
-# self-reference is Task 14's job (full rename to
+# NOTE: this text still names the script
+# "implement-loop-state.sh" (not .py) because it is replayed
+# byte-for-byte against a golden table captured from the
+# original shell script.
+#
+# See scripts/tests/implement-loop-state.test.py.
+#
+# Renaming the self-reference is Task 14's job (full rename to
 # resolve-task-loop-verdict), not this conversion's.
 USAGE = 'usage: implement-loop-state.sh <state-file>\n       implement-loop-state.sh --budget <state-file>\n       implement-loop-state.sh --next-eligible <state-file>\n       implement-loop-state.sh --eligible-set <state-file>\n\nWith no flag, reads a /implement run\'s JSON state file at phase "tasks" and\nprints one JSON verdict:\n  {"action": "retry|stuck|next-task|wait|gates|halted|halt-budget", "task": "...", "reason": "..."}\n\n--budget: is the batch\'s dispatch budget exhausted? Works at any phase.\n  {"exhausted": true|false, "total_dispatches": N, "budget_threshold": N, "reason": "..."}\n\n--next-eligible: which pending task is DAG-eligible to dispatch next? Works\nat any phase, and does not depend on attempts[-1].result. Checks the same\nbatch dispatch budget --budget and --eligible-set check; once it\'s\nexhausted this answers "none" regardless of eligibility (reason names the\nbudget). Otherwise "none" with a non-zero in_progress means wait for a live\nsibling, not halt.\n  {"task": "<id or the literal string \\"none\\">", "in_progress": N, "reason": "..."}\n\n--eligible-set: every task dispatchable right now, for a parallel wave. Works\nat any phase. Empty tasks[] with in_progress > 0 means wait; empty with\nin_progress 0 means the wave drained. exhausted true forces tasks[] empty.\n  {"tasks": ["<id>", ...], "in_progress": N, "exhausted": true|false, "reason": "..."}\n\nExamples:\n  implement-loop-state.sh /tmp/implement_abc123.json\n  implement-loop-state.sh --budget /tmp/implement_abc123.json\n  implement-loop-state.sh --next-eligible /tmp/implement_abc123.json\n  implement-loop-state.sh --eligible-set /tmp/implement_abc123.json\n'
 
@@ -41,8 +51,8 @@ USAGE = 'usage: implement-loop-state.sh <state-file>\n       implement-loop-stat
 def normalize_signature(signature: str) -> str:
     # Two failures differing only by a line number or a tmp path
     # count as the same signature: lowercase, drop any
-    # whitespace-delimited token containing "/" (path-like), strip
-    # digits, then collapse whitespace.
+    # whitespace-delimited token containing "/" (path-like),
+    # strip digits, then collapse whitespace.
     lowered = signature.lower()
     kept_tokens = [token for token in lowered.split() if "/" not in token]
     digits_stripped = re.sub(r"\d", "", " ".join(kept_tokens))
@@ -54,8 +64,8 @@ def emit_verdict(action: str, task: str, reason: str) -> None:
 
 
 def emit_budget(exhausted: bool, total: int, threshold: int, reason: str) -> None:
-    # Same key-plus-reason shape as emit_verdict, not a second ad
-    # hoc convention.
+    # Same key-plus-reason shape as emit_verdict, not a second
+    # ad hoc convention.
     print(json.dumps({
         "exhausted": exhausted,
         "total_dispatches": total,
@@ -65,13 +75,15 @@ def emit_budget(exhausted: bool, total: int, threshold: int, reason: str) -> Non
 
 
 def emit_next_eligible(task: str, running: int, reason: str) -> None:
-    # Reuses emit_verdict's "task"/"reason" fields as one family.
+    # Reuses emit_verdict's "task"/"reason" fields as one
+    # family.
     print(json.dumps({"task": task, "in_progress": running, "reason": reason}, indent=2))
 
 
 def emit_eligible_set(tasks: list, running: int, exhausted: bool, reason: str) -> None:
     # The whole dispatchable set, plus the two counts its caller
-    # needs to tell "wait for a sibling" from "the wave drained".
+    # needs to tell "wait for a sibling" from "the wave
+    # drained".
     print(json.dumps({
         "tasks": tasks,
         "in_progress": running,
@@ -81,16 +93,16 @@ def emit_eligible_set(tasks: list, running: int, exhausted: bool, reason: str) -
 
 
 def fail(message: str) -> None:
-    # Fail-loud by design: this is not the fail-open component --
-    # that role belongs to claude-implement-stop-hook.sh.
+    # Fail-loud by design: this is not the fail-open component
+    # -- that role belongs to claude-implement-stop-hook.sh.
     print(f"error: {message}", file=sys.stderr)
     sys.exit(1)
 
 
 def in_progress_count(state: dict) -> int:
-    # The script owns this count rather than leaving the caller to
-    # compute it, so the orchestrator stays the recorder of raw
-    # facts and never becomes a second judge.
+    # The script owns this count rather than leaving the caller
+    # to compute it, so the orchestrator stays the recorder of
+    # raw facts and never becomes a second judge.
     return sum(1 for task in state["tasks"] if task.get("status") == "in_progress")
 
 
@@ -107,12 +119,14 @@ class BudgetStatus:
         self.task_count = task_count
         self.total_dispatches = total_dispatches
         self.budget_threshold = budget_threshold
+
         # The batch-wide dispatch budget (BATCH_CAP_MULT * task
-        # count + GATE_FIX_ALLOWANCE) is the backstop for a runaway
-        # gate-fixing loop (gate_dispatches piling up), since a
-        # single task alone can never exceed MAX_ATTEMPTS + 1
-        # attempts before the per-task "stuck" verdict already
-        # caught it.
+        # count + GATE_FIX_ALLOWANCE) is the backstop for a
+        # runaway gate-fixing loop (gate_dispatches piling up).
+        #
+        # Because a single task alone can never exceed
+        # MAX_ATTEMPTS + 1 attempts before the per-task
+        # "stuck" verdict already caught it.
         self.exhausted = total_dispatches >= budget_threshold
 
 
@@ -134,24 +148,26 @@ def budget_clause(status: BudgetStatus, *, verb: str) -> str:
 
 
 def eligible_tasks(state: dict, exclude_id: str) -> list:
-    # DAG-eligible, non-terminal tasks, lowest id first. Shared by
-    # the "pass" branch below and --next-eligible, so the
-    # eligibility rule is authored once.
+    # DAG-eligible, non-terminal tasks, lowest id first.
+    # Shared by the "pass" branch below and --next-eligible, so
+    # the eligibility rule is authored once.
     #
     # exclude_id: the "pass" branch's own current task, whose
     # tasks[].status may still read "pending" here -- status can
-    # lag attempts[]. It needs an explicit exclusion on top of the
-    # status check. Pass "" for no exclusion.
+    # lag attempts[].
+    # It needs an explicit exclusion on top of the status check.
+    #
+    # Pass "" for no exclusion.
     #
     # --next-eligible has no "current task": any task it should
     # exclude already carries a terminal status, set by its own
-    # caller before asking what runs next -- the status check alone
-    # covers it there.
+    # caller before asking what runs next -- the status check
+    # alone covers it there.
     #
     # "in_progress" is excluded as a third non-terminal status
     # because it means already dispatched -- the only thing
-    # stopping a parallel wave from dispatching one task into two
-    # worktrees.
+    # stopping a parallel wave from dispatching one task into
+    # two worktrees.
     status_by_id = {task["id"]: task["status"] for task in state["tasks"]}
 
     def is_eligible(task: dict) -> bool:
@@ -160,10 +176,11 @@ def eligible_tasks(state: dict, exclude_id: str) -> list:
         if task["status"] in ("done", "blocked", "in_progress"):
             return False
         deps = task.get("depends_on") or []
+
         # An absent dependency id belongs to an earlier PR that
-        # pr-awareness.md's stop predicate already required to be
-        # done before this unit could start, so treating "absent"
-        # as "satisfied" is deliberate, not a gap.
+        # pr-awareness.md's stop predicate already required to
+        # be done before this unit could start, so treating
+        # "absent" as "satisfied" is deliberate, not a gap.
         return all(status_by_id.get(dep, "done") == "done" for dep in deps)
 
     eligible = [task for task in state["tasks"] if is_eligible(task)]
@@ -187,17 +204,19 @@ def verdict_pass(state: dict, current_task: str) -> None:
     ]
     if remaining:
         # DAG-eligible: every declared depends_on id is either
-        # "done" in this unit's own tasks[], or absent from it (an
-        # earlier PR's task, already required done by the time this
-        # unit started).
+        # "done" in this unit's own tasks[], or absent from it
+        # (an earlier PR's task, already required done by the
+        # time this unit started).
         eligible = eligible_tasks(state, current_task)
         if not eligible:
-            # No pending task is DAG-eligible right now, but that
-            # is not necessarily a dead end: a non-zero in_progress
-            # means one or more dispatched siblings just haven't
-            # reported yet, and dispatching more or halting the run
-            # would be premature -- only a true zero in_progress
-            # means this really is a dependency deadlock.
+            # No pending task is DAG-eligible right now, but
+            # that is not necessarily a dead end: a non-zero
+            # in_progress means one or more dispatched siblings
+            # just haven't reported yet.
+            #
+            # Dispatching more or halting the run would be
+            # premature -- only a true zero in_progress means
+            # this really is a dependency deadlock.
             running = in_progress_count(state)
             if running > 0:
                 emit_verdict("wait", "",
@@ -220,9 +239,10 @@ def verdict_pass(state: dict, current_task: str) -> None:
     # The gates phase is reachable only when every task in the
     # batch ended "done": once the current task passes and no
     # non-terminal task remains, a "blocked" task among tasks[]
-    # means the batch verdicts "halted" instead of "gates", so a
-    # run with an unresolved blocked task stops for the human
-    # rather than running gates over an incomplete batch.
+    # means the batch verdicts "halted" instead of "gates".
+    #
+    # So a run with an unresolved blocked task stops for the
+    # human rather than running gates over an incomplete batch.
     blocked_count = sum(1 for task in state["tasks"] if task["status"] == "blocked")
     if blocked_count > 0:
         emit_verdict("halted", "",
@@ -240,10 +260,12 @@ def verdict_fail_or_timeout(state: dict, current_task: str) -> None:
     signatures = [normalize_signature(a["signature"]) for a in task_attempts]
 
     # A "blocked" attempt (handled by the caller before this
-    # function runs) verdicts "stuck" on its first occurrence, with
-    # no retry and no signature comparison -- but a repeated "fail"
-    # needs the signature-window check below to tell "stuck in a
-    # loop" from "still making forward progress".
+    # function runs) verdicts "stuck" on its first occurrence,
+    # with no retry and no signature comparison.
+    #
+    # A repeated "fail" needs the signature-window check below
+    # to tell "stuck in a loop" from "still making forward
+    # progress".
     consecutive_identical = False
     if n_attempts >= STUCK_CONSECUTIVE:
         window = signatures[n_attempts - STUCK_CONSECUTIVE:]
@@ -288,8 +310,8 @@ def main(argv: list) -> int:
 
     # --next-eligible shares compute_budget_status with
     # --eligible-set (below) and the no-flag backstop, so its
-    # sequential caller never dispatches a task past the same cap a
-    # parallel wave respects.
+    # sequential caller never dispatches a task past the same
+    # cap a parallel wave respects.
     if mode == "next-eligible":
         running = in_progress_count(state)
         if status.exhausted:
@@ -310,12 +332,14 @@ def main(argv: list) -> int:
                 "(or absent from this unit's own tasks[])")
         return 0
 
-    # --eligible-set and --next-eligible (above) are the two direct
-    # dispatch deciders (parallel wave, sequential pick), so both
-    # carry the batch budget the plain verdict path checks. Without
-    # it a wave of retries, or a sequential loop through repeated
-    # stuck picks, runs past the cap that exists to stop a runaway
-    # loop.
+    # --eligible-set and --next-eligible (above) are the two
+    # direct dispatch deciders (parallel wave, sequential pick),
+    # so both carry the batch budget the plain verdict path
+    # checks.
+    #
+    # Without it a wave of retries, or a sequential loop through
+    # repeated stuck picks, runs past the cap that exists to
+    # stop a runaway loop.
     if mode == "eligible-set":
         running = in_progress_count(state)
         if status.exhausted:
@@ -330,7 +354,8 @@ def main(argv: list) -> int:
         return 0
 
     # Batch-wide budget backstop, checked before any per-task
-    # logic. Its caller halts the run and waits for the human -- it
+    # logic.
+    # Its caller halts the run and waits for the human -- it
     # does not proceed to the batch-end flow.
     if status.exhausted:
         emit_verdict("halt-budget", "",
@@ -340,8 +365,8 @@ def main(argv: list) -> int:
 
     # This no-flag mode only verdicts phase "tasks"
     # (retry/stuck/next-task/wait/gates/halted/halt-budget). Any
-    # other phase is a caller misuse it fails loud on rather than
-    # guess a verdict for.
+    # other phase is a caller misuse it fails loud on rather
+    # than guess a verdict for.
     phase = state.get("phase")
     if phase != "tasks":
         fail(f"no verdict defined for phase '{phase}' (this script only verdicts phase 'tasks')")

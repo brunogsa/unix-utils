@@ -1,9 +1,10 @@
 # capture-script-behavior.test.py - Blackbox CLI tests for
-# capture-script-behavior.py: every test invokes the script's CLI
-# via subprocess (never imports it directly — hyphenated filenames
-# aren't importable via a plain `import` statement), inside a fresh
-# tempfile.TemporaryDirectory() per test so no run touches the real
-# repo tree.
+# capture-script-behavior.py: every test invokes the script's
+# CLI via subprocess (never imports it directly — hyphenated
+# filenames aren't importable via a plain `import` statement).
+#
+# Each test runs inside a fresh tempfile.TemporaryDirectory()
+# per test so no run touches the real repo tree.
 
 import hashlib
 import json
@@ -103,10 +104,11 @@ class TestCaptureScriptBehaviorHappy(_TempDirTestCase):
         self.assertTrue(emitted.exists())
         text = emitted.read_text()
         self.assertIn("SCRIPT_UNDER_TEST", text)
-        # Relative-to-__file__, not the absolute path captured here —
-        # see test_should_emit_a_relocatable_test_file_with_no_hardcoded_absolute_paths
-        # for why (this test only checks the emitted file still works
-        # from where it was captured).
+
+        # Relative to __file__, not the absolute path captured
+        # here. The relocatable-test-file test right below says
+        # why. This test only checks that the emitted file still
+        # works from where it was captured.
         self.assertNotIn(str(script), text)
         self.assertIn("Path(__file__).resolve().parent", text)
 
@@ -117,12 +119,14 @@ class TestCaptureScriptBehaviorHappy(_TempDirTestCase):
         self.assertEqual(replay_result.returncode, 0, msg=replay_result.stdout + replay_result.stderr)
 
     def test_should_emit_a_relocatable_test_file_with_no_hardcoded_absolute_paths(self):
-        # A committed <stem>.test.py is cloned onto other machines
-        # (CLAUDE.md's cross-platform MUST) and CI runners with a
-        # different home-dir root. Both SCRIPT_UNDER_TEST and the
-        # harness import path must resolve via the emitted file's
-        # own __file__, not a path literal baked in at capture time
-        # on this machine.
+        # A committed <stem>.test.py is cloned onto other
+        # machines (CLAUDE.md's cross-platform MUST) and CI
+        # runners with a different home-dir root.
+        #
+        # Both SCRIPT_UNDER_TEST and the harness import path
+        # must resolve via the emitted file's own __file__, not
+        # a path literal baked in at capture time on this
+        # machine.
         fake_repo = self.tmp_path / "fake-repo"
         harness_copy = fake_repo / "test-standards" / "scripts" / "capture-script-behavior.py"
         harness_copy.parent.mkdir(parents=True)
@@ -205,10 +209,13 @@ class TestCaptureScriptBehaviorCorner(_TempDirTestCase):
                        "--json-out", str(json_out))
 
         self.assertEqual(result.returncode, 0, msg=result.stderr)
-        # The row's canary file genuinely got written (proves the row
-        # actually ran and the assertion below isn't vacuous).
+
+        # The row's canary file genuinely got written (proves
+        # the row actually ran and the assertion below isn't
+        # vacuous).
         captured = json.loads(json_out.read_text())
         self.assertIn(canary_name, captured["rows"][0]["expected_post_state"]["tree"])
+
         # ...yet it never touched the real repo tree.
         matches = list(REPO_ROOT.rglob(canary_name))
         self.assertEqual(matches, [], msg=f"canary leaked into the real repo at {matches}")
@@ -255,7 +262,9 @@ class TestCaptureScriptBehaviorCorner(_TempDirTestCase):
             capture_output=True, text=True,
         ).stdout
 
-        for _ in range(2):  # crash, then a repeat run — both must leave the repo untouched
+        # crash, then a repeat run — both must leave the repo
+        # untouched
+        for _ in range(2):
             result = _run("capture", "--script", str(script), "--table", str(table),
                            "--json-out", str(json_out))
             self.assertNotEqual(result.returncode, 0)
@@ -270,12 +279,14 @@ class TestCaptureScriptBehaviorCorner(_TempDirTestCase):
         self.assertFalse((REPO_ROOT / "escape.txt").exists())
 
     def test_should_normalize_duration_pid_temp_path_and_uuid_values_to_the_same_masked_value_across_captures(self):
-        # One row, captured twice independently (two fresh fixture
-        # dirs, guaranteed different paths) via a script whose only
-        # non-constant output is exactly the four masked value kinds
-        # — the resulting golden must be byte-identical across both
-        # captures, proving the mask set (not just per-script luck)
-        # absorbs the difference.
+        # One row, captured twice independently (two fresh
+        # fixture dirs, guaranteed different paths) via a script
+        # whose only non-constant output is exactly the four
+        # masked value kinds.
+        #
+        # The resulting golden must be byte-identical across
+        # both captures, proving the mask set (not just
+        # per-script luck) absorbs the difference.
         script = _write_executable(self.tmp_path / "toy.sh", (
             "#!/bin/sh\n"
             'printf "cwd=%s dur=3.2s pid=1234 id=abcd1234-ab12-cd34-ef56-abcdef123456\\n" "$(pwd)"\n'
@@ -347,11 +358,15 @@ class TestCaptureScriptBehaviorCorner(_TempDirTestCase):
 
     def test_should_capture_a_script_passed_as_a_relative_path(self):
         # capture_row runs each script with cwd=fixture_dir; a
-        # relative --script path must still resolve against the
-        # caller's original cwd, not silently look for the script
-        # inside the (unrelated) fixture directory instead. Found
-        # via manual exploration, not one of the 13 planned titles —
-        # folded in as a Drift fix with its own regression test.
+        # relative --script path must still resolve against
+        # the caller's original cwd.
+        #
+        # It must not silently look for the script inside the
+        # (unrelated) fixture directory instead.
+        #
+        # Found via manual exploration, not one of the 13
+        # planned titles — folded in as a Drift fix with its own
+        # regression test.
         script = _write_executable(self.tmp_path / "toy.sh", "#!/bin/sh\necho hi\nexit 0\n")
         table = _write_table(self.tmp_path / "table.json", [
             {"name": "only-row", "argv": [], "stdin": "", "branch": None,
@@ -359,9 +374,10 @@ class TestCaptureScriptBehaviorCorner(_TempDirTestCase):
         ])
         json_out = self.tmp_path / "captured.json"
 
-        # `script.name` (not a hardcoded "toy.sh") is what actually
-        # makes this a relative-path invocation: it's a bare
-        # filename, resolved only via cwd=self.tmp_path below.
+        # `script.name` (not a hardcoded "toy.sh") is what
+        # actually makes this a relative-path invocation: it's a
+        # bare filename, resolved only via cwd=self.tmp_path
+        # below.
         result = _run("capture", "--script", script.name, "--table", str(table),
                        "--json-out", str(json_out), cwd=str(self.tmp_path))
 
@@ -405,9 +421,9 @@ class TestCaptureScriptBehaviorFailure(_TempDirTestCase):
         first = _run("capture", "--script", str(original), "--table", str(table), "--json-out", str(captured))
         self.assertEqual(first.returncode, 0, msg=first.stderr)
 
-        # Same stdout/stderr/exit code, but writes different fixture
-        # content — the old 3-tuple comparison this harness replaces
-        # would have missed this entirely.
+        # Same stdout/stderr/exit code, but writes different
+        # fixture content — the old 3-tuple comparison this
+        # harness replaces would have missed this entirely.
         rewrite = _write_executable(self.tmp_path / "rewrite.sh", (
             "#!/bin/sh\necho ok\nprintf v2 > state.txt\nexit 0\n"
         ))
@@ -443,7 +459,9 @@ class TestCaptureScriptBehaviorFailure(_TempDirTestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("divergence", result.stderr)
         self.assertFalse(emitted.exists())
-        # The captured golden must NOT have been silently overwritten.
+
+        # The captured golden must NOT have been silently
+        # overwritten.
         unchanged = json.loads(captured.read_text())["rows"][0]
         self.assertEqual(unchanged["expected_stdout"], "ok\n")
 
@@ -459,7 +477,8 @@ class TestCaptureScriptBehaviorFailure(_TempDirTestCase):
         first = _run("capture", "--script", str(original), "--table", str(table), "--json-out", str(captured))
         self.assertEqual(first.returncode, 0, msg=first.stderr)
 
-        # A human amends the checked-in table with the accepted reason.
+        # A human amends the checked-in table with the accepted
+        # reason.
         payload = json.loads(captured.read_text())
         payload["rows"][0]["divergence"] = "greeting message rewritten for clarity"
         captured.write_text(json.dumps(payload))
@@ -480,11 +499,13 @@ class TestCaptureScriptBehaviorFailure(_TempDirTestCase):
         self.assertIn("# DIVERGENCE: greeting message rewritten for clarity", text)
 
     def test_should_report_the_unreadable_harness_path_when_the_generated_test_cannot_load_its_harness(self):
-        # The emitted file reaches its harness through a relative
-        # `../../../` walk, which breaks the moment either file is
-        # relocated. The reader's first question is then "which
-        # harness path could it not load?", so that path has to be
-        # in the message the failure prints.
+        # The emitted file reaches its harness through a
+        # relative `../../../` walk, which breaks the moment
+        # either file is relocated.
+        #
+        # The reader's first question is then "which harness
+        # path could it not load?", so that path has to be in
+        # the message the failure prints.
         fake_repo = self.tmp_path / "fake-repo"
         harness_copy = fake_repo / "test-standards" / "scripts" / "capture-script-behavior.py"
         harness_copy.parent.mkdir(parents=True)
@@ -508,9 +529,9 @@ class TestCaptureScriptBehaviorFailure(_TempDirTestCase):
         )
         self.assertEqual(capture_result.returncode, 0, msg=capture_result.stderr)
 
-        # Delete only the harness, leaving the emitted test where it
-        # was captured — the exact state a relocated or renamed
-        # harness leaves behind.
+        # Delete only the harness, leaving the emitted test
+        # where it was captured — the exact state a relocated or
+        # renamed harness leaves behind.
         harness_copy.unlink()
 
         replay_result = subprocess.run(
@@ -522,6 +543,8 @@ class TestCaptureScriptBehaviorFailure(_TempDirTestCase):
         self.assertNotEqual(replay_result.returncode, 0)
         self.assertIn(str(harness_copy), output)
         self.assertIn("ImportError", output)
+
         # An AttributeError from inside importlib names its own
-        # internals rather than the file the reader has to go fix.
+        # internals rather than the file the reader has to go
+        # fix.
         self.assertNotIn("AttributeError", output)

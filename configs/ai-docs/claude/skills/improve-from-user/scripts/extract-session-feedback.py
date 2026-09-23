@@ -39,8 +39,11 @@ import sys
 import time
 from typing import NoReturn
 
-USER_TURN_CHAR_CAP = 6000  # verbatim, but guard against a giant paste bloating output
-NEXT_TEXT_HEAD = 200        # chars of the following assistant text to show as context
+# Verbatim, but guard against a giant paste bloating output.
+USER_TURN_CHAR_CAP = 6000
+
+# Chars of the following assistant text to show as context.
+NEXT_TEXT_HEAD = 200
 
 
 def die(msg, code=2) -> NoReturn:
@@ -54,7 +57,8 @@ def is_real_user_prose(d):
         return False
     content = d.get("message", {}).get("content")
     if not isinstance(content, str):
-        return False  # tool_result turns carry a list, not a string
+        # tool_result turns carry a list, not a string.
+        return False
     stripped = content.strip()
     if not stripped:
         return False
@@ -175,9 +179,16 @@ def parse_transcript(path):
     turn it answers. Now scoped per file so the sweep's emit() can call it once
     per qualifying transcript instead of once per process.
     """
-    turns = []            # list of dicts: {ts, line, text, tools, next_text, boundaries_after}
-    boundaries = []        # line numbers of compaction boundaries
-    current = None         # the user turn currently collecting its "next action"
+
+    # List of turn dicts: {ts, line, text, tools, next_text,
+    # boundaries_after}.
+    turns = []
+
+    # Line numbers where compaction boundaries occur.
+    boundaries = []
+
+    # The user turn currently collecting its "next action".
+    current = None
 
     with open(path, encoding="utf-8") as fh:
         for lineno, raw in enumerate(fh, 1):

@@ -172,7 +172,8 @@ def classify_file(path: Path, tree_root: Path | None = None) -> dict:
 
     # Still parsed unconditionally so a malformed Requires-npm
     # header fails the run even on a script that stays shell —
-    # only the reported value is withheld for a non-convert verdict.
+    # only the reported value is withheld for a non-convert
+    # verdict.
     target_language = get_target_language(text)
     result["target_language"] = target_language if verdict == "convert" else None
     return result
@@ -212,6 +213,7 @@ def main(argv):
             if not root.is_dir():
                 print(f"error: no such directory: {root}", file=sys.stderr)
                 return 1
+
             # Isolate each file's ValueError so one malformed
             # header doesn't discard verdicts already computed
             # for its tree-mates.

@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
-# parse-pr-breakdown.sh - shared PR Breakdown parser: extracts <plan-file>'s
-# "## PR Breakdown" section and emits one TSV line per PR-N entry found in it.
+# parse-pr-breakdown.sh - shared PR Breakdown parser: extracts
+# <plan-file>'s "## PR Breakdown" section and emits one TSV line
+# per PR-N entry found in it.
 #
 # Usage:
 #   parse-pr-breakdown.sh <plan-file>
 #
-# stdin: unused
+# stdin is not used.
+#
 # stdout: one line per PR-N entry, as
 #   <label><TAB><tasks><TAB><deps><TAB><branch>
-# exit: 0 entries printed; 1 section absent or "Single PR."; 2 usage error,
-#       or the section has content but no PR-N entry could be parsed.
 #
-# The entry grammar is authored by the spec-driven-development skill's
-# assets/plan-template.md; how each caller uses these fields is in
-# implement/references/pr-awareness.md.
+# exit: 0 entries printed; 1 section absent or "Single PR."; 2
+# usage error, or the section has content but no PR-N
+# entry could be parsed.
+#
+# The entry grammar is authored by the spec-driven-development
+# skill's assets/plan-template.md; how each caller uses these
+# fields is in implement/references/pr-awareness.md.
 
 set -eo pipefail
 
@@ -44,10 +48,13 @@ if [ -z "$trimmed" ] || [ "$trimmed" = "Single PR." ]; then
   exit 1
 fi
 
-# A plan authored before the heading grammar labels its PRs in a bold span on
-# a list line instead. Picking the boundary from what the section actually
-# contains keeps those plans parsable through their own execution, and stops a
-# bolded PR-N inside a heading-grammar plan's prose from opening a phantom entry.
+# A plan authored before the heading grammar labels its PRs in a
+# bold span on a list line instead.
+#
+# Picking the boundary from what the section actually contains
+# keeps those plans parsable through their own execution, and
+# stops a bolded PR-N inside a heading-grammar plan's prose from
+# opening a phantom entry.
 if printf '%s\n' "$section" | grep -qE '^###[[:space:]].*PR-[0-9]+'; then
   entry_boundary="heading"
 else

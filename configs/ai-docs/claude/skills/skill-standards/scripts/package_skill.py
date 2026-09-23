@@ -20,7 +20,9 @@ from scripts.quick_validate import validate_skill
 EXCLUDE_DIRS = {"__pycache__", "node_modules"}
 EXCLUDE_GLOBS = {"*.pyc"}
 EXCLUDE_FILES = {".DS_Store"}
-# Directories excluded only at the skill root (not when nested deeper).
+
+# Directories excluded only at the skill root (not when nested
+# deeper).
 ROOT_EXCLUDE_DIRS = {"evals"}
 
 
@@ -29,8 +31,10 @@ def should_exclude(rel_path: Path) -> bool:
     parts = rel_path.parts
     if any(part in EXCLUDE_DIRS for part in parts):
         return True
-    # rel_path is relative to skill_path.parent, so parts[0] is the skill
-    # folder name and parts[1] (if present) is the first subdir.
+
+    # rel_path is relative to skill_path.parent, so parts[0] is
+    # the skill folder name and parts[1] (if present) is the
+    # first subdir.
     if len(parts) > 1 and parts[1] in ROOT_EXCLUDE_DIRS:
         return True
     name = rel_path.name
@@ -89,7 +93,8 @@ def package_skill(skill_path, output_dir=None):
     # Create the .skill file (zip format)
     try:
         with zipfile.ZipFile(skill_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            # Walk through the skill directory, excluding build artifacts
+            # Walk through the skill directory, excluding build
+            # artifacts
             for file_path in skill_path.rglob('*'):
                 if not file_path.is_file():
                     continue

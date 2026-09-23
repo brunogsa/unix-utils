@@ -1,21 +1,27 @@
 #!/usr/bin/env python3
-# render-session-audit - Fill assets/audit-template.html from cost.json +
-# timeline.json + narrative.json to produce one self-contained session audit.
+# render-session-audit - Fill assets/audit-template.html from
+# cost.json + timeline.json + narrative.json to produce one
+# self-contained session audit.
 #
 # Usage:
-#   render-session-audit.py <cost.json> <timeline.json> <narrative.json> [-o DIR]
+#   render-session-audit.py <cost.json> <timeline.json>
+#     <narrative.json> [-o DIR]
 #
-# stdin: none. stdout: the path written. exit: 0 on success, 1 when an
-# input file cannot be read/parsed or the narrative digest is missing a
-# required section.
+# stdin: none. stdout: the path written. exit: 0 on success, 1
+# when an input file cannot be read/parsed or the narrative
+# digest is missing a required section.
 #
-# WHY DATA_TOKEN-REPLACE, NOT CLIENT-SIDE JS: build-usage-viewer.py's
-# pattern is read-template / compute-blob / string-replace / write. Here the
-# "blob" is pre-rendered, already-escaped HTML built in Python, not a JSON
-# blob for a <script> to parse client-side -- every value that reaches the
-# page (commit messages, narrative findings) is transcript-derived text
-# flowing into a static file a browser will open, so escaping has to be a
-# property of the bytes on disk, checkable without running any JS at all.
+# WHY DATA_TOKEN-REPLACE, NOT CLIENT-SIDE JS:
+# build-usage-viewer.py's pattern is read-template /
+# compute-blob / string-replace / write.
+#
+# Here the "blob" is pre-rendered, already-escaped HTML built in
+# Python, not a JSON blob for a <script> to parse client-side.
+#
+# Every value that reaches the page (commit messages, narrative
+# findings) is transcript-derived text flowing into a static
+# file a browser will open, so escaping has to be a property of
+# the bytes on disk, checkable without running any JS at all.
 
 import argparse
 import html
@@ -28,11 +34,13 @@ SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 TEMPLATE_PATH = os.path.join(SCRIPT_DIR, "..", "assets", "audit-template.html")
 DATA_TOKEN = "__AUDIT_CONTENT__"
 
-# The 5 fixed shards the orchestrator always fans out to (plan D3, spec
-# S5): a narrative.json missing any one of these is malformed input,
-# never a silently-blank section. S5 Recommendations runs sequentially
-# after the other 4 are merged (it needs their findings to be specific
-# rather than generic), but its digest is validated the same way.
+# The 5 fixed shards the orchestrator always fans out to (plan
+# D3, spec S5): a narrative.json missing any one of these is
+# malformed input, never a silently-blank section.
+#
+# S5 Recommendations runs sequentially after the other 4 are
+# merged (it needs their findings to be specific rather than
+# generic), but its digest is validated the same way.
 REQUIRED_SECTIONS = ("time", "money", "work", "status", "recommendations")
 SECTION_TITLES = {
     "time": "Time",
@@ -42,13 +50,16 @@ SECTION_TITLES = {
     "recommendations": "Recommendations",
 }
 
-# D9: top-5 per section, plus a "plus N more, not shown" line for the rest.
+# D9: top-5 per section, plus a "plus N more, not shown" line
+# for the rest.
 TOP_N_RANKED = 5
 
-# A rough four-print-page proxy for the largest realistic session (long
-# commit list, all 4 sections near their top-N cap): ~75KB/page at this
-# template's font size and margins, so 4 pages gives headroom without
-# letting the page silently balloon past its budget.
+# A rough four-print-page proxy for the largest realistic
+# session (long commit list, all 4 sections near their top-N
+# cap): ~75KB/page at this template's font size and margins.
+#
+# 4 pages gives headroom without letting the page silently
+# balloon past its budget.
 FOUR_PAGE_BYTE_BUDGET = 300_000
 
 
@@ -153,10 +164,12 @@ def _render_agent_hours_vs_wall_clock(agent_hours_seconds, wall_clock_occupied_s
     )
 
 
-# Bucket display names + a distinct colour per bucket, reused by both the
-# stacked-bar segments and their legend -- fixed, not derived from data,
-# since the buckets are a closed set defined by extract-session-timeline.py's
-# time-partition contract (5 as of Scout #33's `unattributed` bucket).
+# Bucket display names + a distinct colour per bucket, reused by
+# both the stacked-bar segments and their legend.
+#
+# Fixed, not derived from data, since the buckets are a closed
+# set defined by extract-session-timeline.py's time-partition
+# contract (5 as of Scout #33's `unattributed` bucket).
 _TIME_BUCKET_LABELS = {
     "main_api": "Main API",
     "tool_exec": "Tool exec",
@@ -274,16 +287,24 @@ def _render_highlights(cost, timeline):
     if wall_clock_seconds is not None:
         tiles.append(_kpi_tile("Wall clock", _format_duration_hours(wall_clock_seconds)))
 
-    # Replaces the old wall-clock "Cost / hour" tile. Wall clock spans
-    # first message to last message, so it counts hours the human was
-    # asleep or away -- on the sessions that motivated this change that
-    # inflated the denominator ~5x and understated cost/hour by the same
-    # factor, and it's the headline number a reader quotes. Active
-    # seconds (main_api + tool_exec + agent_occupied) excludes both
-    # unattributed and human_idle time instead. Keeping only one
-    # cost-per-hour tile avoids inviting the misleading one to be
-    # quoted; total wall clock is still reported in the Time section, so
-    # nothing is lost by replacing rather than adding a second tile.
+    # Replaces the old wall-clock "Cost / hour" tile.
+    #
+    # Wall clock spans first message to last message, so it
+    # counts hours the human was asleep or away.
+    #
+    # On the sessions that motivated this change, that inflated
+    # the denominator ~5x and understated cost/hour by the same
+    # factor.
+    #
+    # It's the headline number a reader quotes.
+    #
+    # Active seconds (main_api + tool_exec + agent_occupied)
+    # excludes both unattributed and human_idle time instead.
+    #
+    # Keeping only one cost-per-hour tile avoids inviting the
+    # misleading one to be quoted; total wall clock is still
+    # reported in the Time section, so nothing is lost by
+    # replacing rather than adding a second tile.
     buckets = timeline.get("time_partition", {}).get("buckets", {})
     active_seconds = sum(
         buckets.get(bucket_name, {}).get("seconds", 0)
@@ -302,8 +323,9 @@ def _render_highlights(cost, timeline):
 
     cache_hit_rate = cost.get("cache_hit_rate")
     if cache_hit_rate is not None:
-        # claude-usage-report.py always emits this as a 0-1 fraction
-        # (round(derived["cache_hit_rate"], 3)), never pre-scaled to 0-100.
+        # claude-usage-report.py always emits this as a 0-1
+        # fraction (round(derived["cache_hit_rate"], 3)), never
+        # pre-scaled to 0-100.
         tiles.append(_kpi_tile("Cache hit rate", f"{cache_hit_rate * 100:.0f}%"))
 
     api_calls = cost.get("api_calls")
@@ -427,9 +449,10 @@ def _render_thinking_share(cost):
     share = cost.get("thinking_block_share")
     if share is None:
         return ""
+
     # claude-usage-report.py always emits this as a 0-1 fraction
-    # (round(derived["thinking_block_share"], 3)), the same contract as
-    # cache_hit_rate -- never pre-scaled to 0-100.
+    # (round(derived["thinking_block_share"], 3)), the same
+    # contract as cache_hit_rate -- never pre-scaled to 0-100.
     return (
         f'<p>Thinking-block share: {_escape(f"{share * 100:.1f}%")} of assistant blocks '
         f"({_escape(cost.get('thinking_blocks', 0))} thinking / "

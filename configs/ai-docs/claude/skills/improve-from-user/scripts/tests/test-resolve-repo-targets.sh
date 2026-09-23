@@ -15,12 +15,16 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$script_dir/resolve-repo-targets.py"
 
 work_dir=$(mktemp -d)
-# Resolve once: macOS's /tmp is a symlink to /private/tmp, and both
-# `git rev-parse --show-toplevel` and the OS's real getcwd() resolve
-# symlinks -- so every path built under an unresolved work_dir would
-# mismatch what the script under test actually reports. Resolving the
-# root here means everything mkdir'd/mktemp'd underneath is already
-# canonical, with no need to re-resolve each one individually.
+# Resolve once: macOS's /tmp is a symlink to /private/tmp, and
+# both `git rev-parse --show-toplevel` and the OS's real
+# getcwd() resolve symlinks.
+#
+# So every path built under an unresolved work_dir would
+# mismatch what the script under test actually reports.
+#
+# Resolving the root here means everything mkdir'd/mktemp'd
+# underneath is already canonical, with no need to re-resolve
+# each one individually.
 work_dir=$(cd "$work_dir" && pwd -P)
 trap 'rm -rf "$work_dir"' EXIT
 
@@ -42,8 +46,10 @@ assert_eq() {
 
 # make_fake_home - creates an isolated $HOME (with an
 # empty .claude/projects dir) under work_dir, echoes its
-# path. Every CLI-level test uses its own fake HOME so
-# real ~/.claude/CLAUDE.md and ~/.claude/skills are never
+# path.
+#
+# Every CLI-level test uses its own fake HOME so real
+# ~/.claude/CLAUDE.md and ~/.claude/skills are never
 # touched.
 make_fake_home() {
   local home
@@ -129,9 +135,10 @@ print("true" if sys.argv[3] in data[sys.argv[2]] else "false")
 # call_matching_project_dirs - loads resolve-repo-targets.py
 # via importlib (its hyphenated filename blocks a normal
 # `import`) and calls matching_project_dirs(repo_root,
-# projects_root) directly, printing one path per line. Used
-# by the pure-unit test only -- every other test drives the
-# script through its CLI/JSON contract.
+# projects_root) directly, printing one path per line.
+#
+# Used by the pure-unit test only -- every other test drives
+# the script through its CLI/JSON contract.
 call_matching_project_dirs() {
   local repo_root="$1" projects_root="$2"
   python3 -c '
@@ -144,17 +151,23 @@ for p in mod.matching_project_dirs(sys.argv[2], sys.argv[3]):
 ' "$SCRIPT" "$repo_root" "$projects_root"
 }
 
-# ---------------------------------------------------------------
+# --------------------------------------------------------------
 # matching_project_dirs > pure unit test
-# ---------------------------------------------------------------
+# --------------------------------------------------------------
 
 it_should_match_a_slug_that_equals_the_repo_slug_or_starts_with_the_repo_slug_plus_a_hyphen_boundary() {
   local projects_root repo_root="/tmp/fake/unix-utils"
   local repo_slug="-tmp-fake-unix-utils"
   projects_root=$(mktemp -d "$work_dir/projects.XXXXXX")
-  mkdir -p "$projects_root/$repo_slug"                    # equals repo slug
-  mkdir -p "$projects_root/${repo_slug}-configs"           # hyphen-boundary match
-  mkdir -p "$projects_root/-tmp-fake-unrelated"             # unrelated, must be excluded
+
+  # equals repo slug
+  mkdir -p "$projects_root/$repo_slug"
+
+  # hyphen-boundary match
+  mkdir -p "$projects_root/${repo_slug}-configs"
+
+  # unrelated, must be excluded
+  mkdir -p "$projects_root/-tmp-fake-unrelated"
 
   local matches
   matches=$(call_matching_project_dirs "$repo_root" "$projects_root")
@@ -169,9 +182,9 @@ it_should_match_a_slug_that_equals_the_repo_slug_or_starts_with_the_repo_slug_pl
     "true true true" "$exact_included $boundary_included $unrelated_excluded"
 }
 
-# ---------------------------------------------------------------
+# --------------------------------------------------------------
 # ResolveRepoTargets > happy
-# ---------------------------------------------------------------
+# --------------------------------------------------------------
 
 it_should_resolve_read_scope_to_every_claude_projects_slug_when_run_from_the_unix_utils_repo_root() {
   local home repos_parent repo
@@ -259,9 +272,9 @@ it_should_resolve_the_write_target_to_the_current_repos_own_claude_md_when_run_f
     "$repo/CLAUDE.md" "$(py_field "$VERDICT_OUT" claude_md_target)"
 }
 
-# ---------------------------------------------------------------
+# --------------------------------------------------------------
 # ResolveRepoTargets > corner
-# ---------------------------------------------------------------
+# --------------------------------------------------------------
 
 it_should_match_a_worktree_slug_to_its_parent_repo_with_no_worktree_specific_logic() {
   local home repos_parent repo repo_slug worktree_slug
@@ -269,10 +282,12 @@ it_should_match_a_worktree_slug_to_its_parent_repo_with_no_worktree_specific_log
   repos_parent=$(mktemp -d "$work_dir/repos.XXXXXX")
   repo=$(make_git_repo "$repos_parent" "arco2-integrator")
   repo_slug=$(python3 -c "import re,sys; print(re.sub(r'[/.]', '-', sys.argv[1]))" "$repo")
-  # Shaped exactly like a real observed worktree project-dir slug:
-  # <repo-slug>--claude-worktrees-<branch>. No worktree was actually
-  # created -- this proves plain prefix+boundary matching alone
-  # (no git-worktree detection) is what includes it.
+  # Shaped exactly like a real observed worktree project-dir
+  # slug: <repo-slug>--claude-worktrees-<branch>.
+  #
+  # No worktree was actually created -- this proves plain
+  # prefix+boundary matching alone (no git-worktree detection)
+  # is what includes it.
   worktree_slug="${repo_slug}--claude-worktrees-someone-cdpi-1-fix"
   add_project_dir "$home" "$worktree_slug"
 
@@ -287,15 +302,18 @@ it_should_not_match_a_sibling_repo_whose_slug_shares_the_same_prefix_without_a_b
   local home repos_parent repo repo_slug
   home=$(make_fake_home)
   repos_parent=$(mktemp -d "$work_dir/repos.XXXXXX")
-  # A non-unix-utils repo, deliberately: the unix-utils branch lists
-  # every ~/.claude/projects dir unconditionally (per the "list every
-  # slug" happy-path test above) and never calls matching_project_dirs
-  # at all, so it can't exercise this exclusion rule.
+  # A non-unix-utils repo, deliberately: the unix-utils branch
+  # lists every ~/.claude/projects dir unconditionally (per the
+  # "list every slug" happy-path test above).
+  #
+  # It never calls matching_project_dirs at all, so it can't
+  # exercise this exclusion rule.
   repo=$(make_git_repo "$repos_parent" "client-repo")
   repo_slug=$(python3 -c "import re,sys; print(re.sub(r'[/.]', '-', sys.argv[1]))" "$repo")
   # No hyphen between the repo slug and "fork" -- a genuinely
   # boundary-less shared prefix (unlike "<slug>-fork", which the
-  # rule legitimately treats as an in-scope worktree-shaped slug).
+  # rule legitimately treats as an in-scope worktree-shaped
+  # slug).
   add_project_dir "$home" "${repo_slug}fork"
 
   run_from "$repo" "$home"
@@ -339,9 +357,9 @@ it_should_fall_back_to_the_cwd_derived_slug_alone_read_only_when_cwd_is_outside_
     "1 true null null" "$len $contains_slug $claude_target $skills_target"
 }
 
-# ---------------------------------------------------------------
+# --------------------------------------------------------------
 # ResolveRepoTargets > failure
-# ---------------------------------------------------------------
+# --------------------------------------------------------------
 
 it_should_die_loudly_when_claude_claude_md_is_a_detached_regular_file_instead_of_a_symlink_into_the_repo() {
   local home repos_parent repo
@@ -367,8 +385,8 @@ it_should_die_loudly_when_the_repo_basename_is_unix_utils_but_configs_ai_docs_cl
   home=$(make_fake_home)
   repos_parent=$(mktemp -d "$work_dir/repos.XXXXXX")
   repo=$(make_git_repo "$repos_parent" "unix-utils")
-  # Deliberately no add_unix_utils_marker call -- the marker file
-  # this test asserts is missing.
+  # Deliberately no add_unix_utils_marker call -- the marker
+  # file this test asserts is missing.
 
   run_from "$repo" "$home"
 
@@ -381,7 +399,7 @@ it_should_die_loudly_when_the_repo_basename_is_unix_utils_but_configs_ai_docs_cl
     "true" "$died_naming_mismatch"
 }
 
-# ---------------------------------------------------------------
+# --------------------------------------------------------------
 
 it_should_match_a_slug_that_equals_the_repo_slug_or_starts_with_the_repo_slug_plus_a_hyphen_boundary
 it_should_resolve_read_scope_to_every_claude_projects_slug_when_run_from_the_unix_utils_repo_root

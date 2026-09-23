@@ -5,13 +5,17 @@
 # Usage:
 #   bash test-check-pr-dependencies-ready.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
-# by design, matching the other scripts in this skill's test suite.
+# Exits 0 when every assertion passes, non-zero otherwise.
+# No bats dependency by design, matching the other scripts in
+# this skill's test suite.
 #
-# Unlike its sibling scripts' tests (pure text-fixture parsing), this script
-# performs a real `git merge-base --is-ancestor` check, so several test cases
-# build a real git repo per scenario via mktemp -d + git init, entirely
-# isolated from the actual unix-utils repo this test file lives in.
+# Unlike its sibling scripts' tests (pure text-fixture
+# parsing), this script performs a real `git merge-base
+# --is-ancestor` check.
+#
+# So several test cases build a real git repo per scenario via
+# mktemp -d + git init, entirely isolated from the actual
+# unix-utils repo this test file lives in.
 
 set -uo pipefail
 
@@ -24,7 +28,8 @@ trap 'rm -rf "$work_dir"' EXIT
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs actual,
+# prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -36,7 +41,8 @@ assert_eq() {
   fi
 }
 
-# assert_true - inline assert helper: prints ok/not-ok based on a boolean condition already evaluated by the caller.
+# assert_true - inline assert helper: prints ok/not-ok based on
+# a boolean condition already evaluated by the caller.
 assert_true() {
   local description="$1" condition="$2"
   if [ "$condition" = "true" ]; then
@@ -48,7 +54,8 @@ assert_true() {
   fi
 }
 
-# assert_contains - inline assert helper: true when haystack contains needle.
+# assert_contains - inline assert helper: true when haystack
+# contains needle.
 assert_contains() {
   local description="$1" haystack="$2" needle="$3"
   case "$haystack" in
@@ -63,11 +70,13 @@ assert_contains() {
   esac
 }
 
-# run_script - invokes check-pr-dependencies-ready.sh against a plan-file
-# fixture, a PR-N label, and a worktree path, capturing stderr/exit code
-# into VERDICT_ERR/VERDICT_EXIT. stdout is discarded to a file (not
-# captured into a variable) since no assertion below needs it - every
-# test asserts on the exit code and/or the stderr diagnostic only.
+# run_script - invokes check-pr-dependencies-ready.sh against a
+# plan-file fixture, a PR-N label, and a worktree path,
+# capturing stderr/exit code into VERDICT_ERR/VERDICT_EXIT.
+#
+# stdout is discarded to a file (not captured into a variable)
+# since no assertion below needs it - every test asserts on the
+# exit code and/or the stderr diagnostic only.
 run_script() {
   local plan_file="$1" pr_label="$2" worktree_path="$3"
   local out_file="$work_dir/stdout.txt"
@@ -77,11 +86,14 @@ run_script() {
   VERDICT_ERR=$(cat "$err_file")
 }
 
-# write_plan - writes a plan fixture named plan_<slug>.md with the given
-# "## PR Breakdown" body and "## Task Breakdown" body, returns its path via
-# stdout. The Task Breakdown must come first in a real plan_<slug>.md, but
-# this script's own section-scoped parsing never depends on ordering, so
-# tests are free to lay them out however's clearest.
+# write_plan - writes a plan fixture named plan_<slug>.md with
+# the given "## PR Breakdown" body and "## Task Breakdown" body,
+# returns its path via stdout.
+#
+# The Task Breakdown must come first in a real plan_<slug>.md,
+# but this script's own section-scoped parsing never depends on
+# ordering, so tests are free to lay them out however's
+# clearest.
 write_plan() {
   local slug="$1" task_body="$2" pr_body="$3"
   local path="$work_dir/plan_$slug.md"
@@ -92,9 +104,10 @@ write_plan() {
   printf '%s' "$path"
 }
 
-# init_repo_with_ancestor_branch - builds a real git repo at <dir> where
-# <parent_branch> is an actual ancestor of HEAD (mirrors /implement creating
-# a dependent PR's branch from its parent's tip).
+# init_repo_with_ancestor_branch - builds a real git repo at
+# <dir> where <parent_branch> is an actual ancestor of HEAD
+# (mirrors /implement creating a dependent PR's branch from its
+# parent's tip).
 init_repo_with_ancestor_branch() {
   local dir="$1" parent_branch="$2"
   mkdir -p "$dir"
@@ -116,10 +129,13 @@ init_repo_with_ancestor_branch() {
   git -C "$dir" commit -q -m "dependent PR commit"
 }
 
-# init_repo_with_sibling_branch - builds a real git repo at <dir> where
-# <parent_branch> is a SIBLING of HEAD, not an ancestor (both branch off the
-# same root commit independently) — simulates a worktree that never actually
-# checked out the parent's commits.
+# init_repo_with_sibling_branch - builds a real git repo at
+# <dir> where <parent_branch> is a SIBLING of HEAD, not an
+# ancestor (both branch off the same root commit
+# independently).
+#
+# Simulates a worktree that never actually checked out the
+# parent's commits.
 init_repo_with_sibling_branch() {
   local dir="$1" parent_branch="$2"
   mkdir -p "$dir"
@@ -202,10 +218,13 @@ it_should_block_when_head_does_not_descend_from_a_parent_prs_branch_tip_even_if_
   assert_contains "should block when the worktree HEAD does not descend from a parent PR's branch tip, even if that parent's tasks are all Done (diagnostic names the branch)" "$VERDICT_ERR" "feat-foo/pr1"
 }
 
-# [on-demand] multi-parent: a diamond-dependency PR must check EVERY listed
-# parent, not just the first — pulled in mid-task per the plan's explicit
-# "Multi-parent parsing" requirement, which the four originally planned
-# titles above don't individually exercise (each uses a single parent).
+# [on-demand] multi-parent: a diamond-dependency PR must check
+# EVERY listed parent, not just the first — pulled in
+# mid-task per the plan's explicit "Multi-parent parsing"
+# requirement.
+#
+# The four originally planned titles above don't individually
+# exercise this (each uses a single parent).
 it_should_block_naming_the_second_parents_outstanding_task_when_a_pr_has_two_parents_on_demand() {
   local slug="failure-multi-parent" worktree_dir plan_file
   worktree_dir="$work_dir/$slug-worktree"

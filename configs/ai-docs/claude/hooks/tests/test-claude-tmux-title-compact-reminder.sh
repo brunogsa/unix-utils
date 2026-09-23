@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # test-claude-tmux-title-compact-reminder.sh - plain-bash
 # test file for claude-tmux-title-compact-reminder.sh's
-# subagent guard: a SessionStart:compact firing inside a
-# subagent must not receive the retitle directive, since a
-# subagent must never call tmux-window-title.sh itself.
+# subagent guard.
+#
+# A SessionStart:compact firing inside a subagent must not
+# receive the retitle directive, since a subagent must never
+# call tmux-window-title.sh itself.
 #
 # Exits 0 when every assertion passes, non-zero otherwise.
 #

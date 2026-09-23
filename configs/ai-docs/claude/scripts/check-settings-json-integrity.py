@@ -1,25 +1,30 @@
 #!/usr/bin/env python3
-# check-settings-json-integrity.py - detect a settings.json detached from its
-# repo symlink.
+# check-settings-json-integrity.py - detect a settings.json
+# detached from its repo symlink.
 #
 # Usage:
-#   check-settings-json-integrity.py [--settings-path PATH] [--source-path PATH]
+#   check-settings-json-integrity.py [--settings-path PATH]
+#     [--source-path PATH]
 #
-# Defaults: --settings-path ~/.claude/settings.json, --source-path this
-# script's own configs/ai-docs/claude/settings.json.
+# Defaults: --settings-path ~/.claude/settings.json.
+#
+# --source-path defaults to this script's own
+# configs/ai-docs/claude/settings.json.
 #
 # stdin: none
-# stdout: nothing on success; on failure, one line naming the detached path
-# exit: 0 when --settings-path is a symlink resolving to --source-path,
-#       1 otherwise (missing, a regular file, or a symlink onto a
-#       different target)
+# stdout: nothing on success; on failure, one line naming
+# the detached path.
+#
+# exit: 0 when --settings-path is a symlink resolving to
+# --source-path, 1 otherwise (missing, a regular file, or
+# a symlink onto a different target).
 
 import argparse
 import sys
 from pathlib import Path
 
-# This script sits at configs/ai-docs/claude/scripts/, so the repo's
-# own settings.json is one parent up.
+# This script sits at configs/ai-docs/claude/scripts/, so the
+# repo's own settings.json is one parent up.
 DEFAULT_SOURCE_PATH = Path(__file__).resolve().parent.parent / "settings.json"
 DEFAULT_SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
 

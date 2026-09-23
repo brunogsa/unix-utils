@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# test-check-density.sh - plain-bash test file for check-density.sh:
-# its pre-existing whole-file behavior (this script had zero test
-# coverage before this file existed) and its new --changed-only flag.
+# test-check-density.sh - plain-bash test file for
+# check-density.sh's pre-existing whole-file behavior and its
+# new --changed-only flag.
+#
+# This script had zero test coverage before this file existed.
 #
 # Usage:
 #   bash test-check-density.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats
-# dependency by design, matching this skill area's other test suites
-# (test-check-bullet-gap-fix.sh, test-get-changed-lines.sh).
+# Exits 0 when every assertion passes, non-zero otherwise.
+# No bats dependency by design, matching this skill area's other
+# test suites (test-check-bullet-gap-fix.sh,
+# test-get-changed-lines.sh).
 
 set -uo pipefail
 
@@ -16,8 +19,9 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$script_dir/check-density.sh"
 
 # pwd -P resolves /var -> /private/var on macOS, matching
-# test-get-changed-lines.sh's own reasoning: get-changed-lines.sh anchors on
-# `git rev-parse --show-toplevel`, always physical.
+# test-get-changed-lines.sh's own reasoning:
+# get-changed-lines.sh anchors on `git rev-parse
+# --show-toplevel`, always returning physical paths.
 work_dir=$(cd "$(mktemp -d)" && pwd -P)
 trap 'rm -rf "$work_dir"' EXIT
 
@@ -53,28 +57,29 @@ repeat_char() {
   printf "${char}%.0s" $(seq 1 "$count")
 }
 
-# 600 chars, 1 word - trips only the prose char cap (512), never the
-# prose word cap (64).
+# 600 chars, 1 word - trips only the prose char cap (512), never
+# the prose word cap (64).
 LONG_A_LINE=$(repeat_char a 600)
 LONG_B_LINE=$(repeat_char b 600)
-# 60 chars, 1 word - under both the prose (512/64) and bullet (256/32)
-# default caps.
+# 60 chars, 1 word - under both the prose (512/64) and bullet
+# (256/32) default caps.
 SIXTY_X_LINE=$(repeat_char x 60)
-# 70 "word " units = 350 chars, 70 words - trips only the prose word
-# cap (64), stays under the prose char cap (512).
+# 70 "word " units = 350 chars, 70 words - trips only the prose
+# word cap (64), stays under the prose char cap (512).
 LONG_WORDCOUNT_LINE=$(printf 'word %.0s' $(seq 1 70))
-# 40 "abcdefgh " units = 360 chars, 40 words - between the bullet cap
-# (256 chars/32 words) and the prose cap (512 chars/64 words) on both
-# dimensions at once: flags as a bullet, stays clean as prose.
+# 40 "abcdefgh " units = 360 chars, 40 words - between the
+# bullet cap (256 chars/32 words) and the prose cap (512
+# chars/64 words) on both dimensions at once: flags as a bullet,
+# stays clean as prose.
 BETWEEN_CAPS_LINE=$(printf 'abcdefgh %.0s' $(seq 1 40))
-# 80 "abcdefgh " units = 720 chars, 80 words - over the prose cap (512
-# chars/64 words) on both dimensions at once.
+# 80 "abcdefgh " units = 720 chars, 80 words - over the prose
+# cap (512 chars/64 words) on both dimensions at once.
 OVER_PROSE_CAP_LINE=$(printf 'abcdefgh %.0s' $(seq 1 80))
 
 # new_fixture - writes $2 into a fresh tmp file under a plain
-# (non-git) directory, sets FIXTURE to its path. Used by the baseline
-# whole-file tests, which never invoke get-changed-lines.sh so cwd/git
-# state is irrelevant to them.
+# (non-git) directory, sets FIXTURE to its path.
+# Used by the baseline whole-file tests, which never invoke
+# get-changed-lines.sh so cwd/git state is irrelevant to them.
 new_fixture() {
   local name="$1" content="$2"
   local dir="$work_dir/plain"
@@ -83,9 +88,12 @@ new_fixture() {
   printf '%s' "$content" > "$FIXTURE"
 }
 
-# new_repo - creates an empty git repo under work_dir and prints its
-# path. Identity is set locally so the fixture commit never depends on
-# the machine's global git config, matching test-get-changed-lines.sh.
+# new_repo - creates an empty git repo under work_dir and prints
+# its path.
+#
+# Identity is set locally so the fixture commit never depends on
+# the machine's global git config, matching
+# test-get-changed-lines.sh.
 new_repo() {
   local dir="$work_dir/$1"
   mkdir -p "$dir"
@@ -95,16 +103,19 @@ new_repo() {
   printf '%s' "$dir"
 }
 
-# run_check - invokes check-density.sh with the given extra args plus
-# FIXTURE, capturing stdout+stderr into CHECK_OUT and the exit code
-# into CHECK_EXIT. Runs in the ambient cwd (this repo) since these
-# baseline cases never pass --changed-only.
+# run_check - invokes check-density.sh with the given extra args
+# plus FIXTURE, capturing stdout+stderr into CHECK_OUT and the
+# exit code into CHECK_EXIT.
+#
+# Runs in the ambient cwd (this repo) since these baseline cases
+# never pass --changed-only.
 run_check() {
   CHECK_OUT=$("$SCRIPT" "$@" "$FIXTURE" 2>&1)
   CHECK_EXIT=$?
 }
 
-# --- Baseline (no --changed-only): today's whole-file behavior ---
+# --- Baseline (no --changed-only): today's whole-file behavior
+# ---
 
 it_should_report_nothing_for_a_clean_file() {
   new_fixture clean.md "$(printf 'A short line.\nAnother short line.\n')"
@@ -189,11 +200,14 @@ it_should_exit_2_when_no_files_given() {
   assert_contains 'should exit 2 when no files are given (usage message)' 'usage:' "$out"
 }
 
-# --- Bullet vs prose caps: bullets/sub-bullets/ordered bullets stay at the
-# tighter 256-char/32-word cap; everything else (prose) gets the looser
-# 512-char/64-word cap. BETWEEN_CAPS_LINE (360 chars/40 words) sits strictly
-# between the two, so it is the one fixture that tells them apart: it must
-# flag when written as a bullet and stay clean when written as prose. ---
+# --- Bullet vs prose caps: bullets/sub-bullets/ordered bullets
+# stay at the tighter 256-char/32-word cap; everything else
+# (prose) gets the looser 512-char/64-word cap.
+#
+# BETWEEN_CAPS_LINE (360 chars/40 words) sits strictly between
+# the two, so it is the one fixture that tells them apart: it
+# must flag when written as a bullet and stay clean when written
+# as prose. ---
 
 it_should_not_flag_a_prose_line_between_the_two_caps() {
   new_fixture between-caps-prose.md "$(printf '%s\n' "$BETWEEN_CAPS_LINE")"
@@ -237,8 +251,8 @@ it_should_flag_a_prose_line_over_the_prose_cap() {
 }
 
 it_should_apply_bullet_and_prose_flags_independently() {
-  # A bullet line: loosening the prose flags must not clear it (bullet cap
-  # still governs); loosening the bullet flags must.
+  # A bullet line: loosening the prose flags must not clear it
+  # (bullet cap still governs); loosening the bullet flags must.
   new_fixture independent-bullet.md "$(printf -- '- %s\n' "$BETWEEN_CAPS_LINE")"
   run_check --max-chars 2000 --max-words 2000
   assert_eq 'should keep flagging a bullet line when only the prose flags are loosened (stdout)' \
@@ -252,8 +266,8 @@ it_should_apply_bullet_and_prose_flags_independently() {
   assert_eq 'should clear a bullet line once the bullet flags are loosened (exit code)' \
     '0' "$CHECK_EXIT"
 
-  # A prose line: loosening the bullet flags must not clear it (prose cap
-  # still governs); loosening the prose flags must.
+  # A prose line: loosening the bullet flags must not clear it
+  # (prose cap still governs); loosening the prose flags must.
   new_fixture independent-prose.md "$(printf '%s\n' "$OVER_PROSE_CAP_LINE")"
   run_check --bullet-chars 2000 --bullet-words 2000
   assert_eq 'should keep flagging a prose line when only the bullet flags are loosened (stdout)' \
@@ -268,7 +282,8 @@ it_should_apply_bullet_and_prose_flags_independently() {
     '0' "$CHECK_EXIT"
 }
 
-# --- --changed-only: scope violations to lines changed vs git HEAD ---
+# --- --changed-only: scope violations to lines changed vs git
+# HEAD ---
 
 it_should_report_every_line_as_changed_for_an_untracked_file() {
   local repo

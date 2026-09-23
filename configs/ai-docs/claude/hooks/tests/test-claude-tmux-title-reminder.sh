@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # test-claude-tmux-title-reminder.sh - plain-bash test
-# file for claude-tmux-title-reminder.sh's subagent
-# guard: a SessionStart firing inside a subagent must
-# not receive the retitle directive, since a subagent
-# must never call tmux-window-title.sh itself.
+# file for claude-tmux-title-reminder.sh's subagent guard.
+#
+# A SessionStart firing inside a subagent must not receive
+# the retitle directive, since a subagent must never call
+# tmux-window-title.sh itself.
 #
 # Exits 0 when every assertion passes, non-zero otherwise.
 #
@@ -11,8 +12,9 @@
 #
 # Scope: only the agent_id/agent_type guard, plus a
 # non-regression check on the hook's pre-existing
-# tmux/entrypoint early exits -- see
-# test-claude-tmux-title-compact-reminder.sh for the
+# tmux/entrypoint early exits.
+#
+# See test-claude-tmux-title-compact-reminder.sh for the
 # same narrow-scope precedent.
 
 set -uo pipefail
@@ -39,8 +41,9 @@ assert_eq() {
 # run_hook - pipes the given stdin JSON into the hook
 # under test, with TMUX set and CLAUDE_CODE_ENTRYPOINT
 # forced to "cli" so the pre-existing headless guards
-# let execution reach the guard under test. Sets
-# HOOK_STDOUT and HOOK_EXIT.
+# let execution reach the guard under test.
+#
+# Sets HOOK_STDOUT and HOOK_EXIT.
 run_hook() {
   HOOK_STDOUT=$(printf '%s' "$1" \
     | TMUX="/tmp/fake-tmux-socket,1234,0" CLAUDE_CODE_ENTRYPOINT="cli" \

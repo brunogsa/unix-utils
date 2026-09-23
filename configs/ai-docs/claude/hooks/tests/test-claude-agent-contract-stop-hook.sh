@@ -8,14 +8,18 @@
 #
 # Same no-bats rationale as the sibling test files.
 #
-# How the hook is exercised: it reads a transcript path out of its stdin JSON
-# and derives the agents directory from the file paths it finds there, so each
-# case writes a real fixture dir plus a minimal transcript naming a subset of
-# it. That makes the two filters observable — which is the whole point, since
-# the orchestrator's own test stubs this gate out entirely.
+# How the hook is exercised: it reads a transcript path out of
+# its stdin JSON and derives the agents directory from the file
+# paths it finds there, so each case writes a real fixture dir
+# plus a minimal transcript naming a subset of it.
 #
-# The checker itself is NOT stubbed: these tests assert the hook's filtering,
-# and a stub that always reports a violation would assert the filters away.
+# That makes the two filters observable — which is the whole
+# point, since the orchestrator's own test stubs this gate out
+# entirely.
+#
+# The checker itself is NOT stubbed: these tests assert the
+# hook's filtering, and a stub that always reports a violation
+# would assert the filters away.
 
 set -uo pipefail
 
@@ -28,7 +32,8 @@ trap 'rm -rf "$work_dir"' EXIT
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs actual,
+# prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -40,10 +45,12 @@ assert_eq() {
   fi
 }
 
-# write_agent - writes an agent file. Passing "valid" gives it all six headings;
-# anything else stops after Objective, which the checker reports as five
-# missing headings — deliberately more than one, so the grouping assertion has
-# something to group.
+# write_agent - writes an agent file.
+# Passing "valid" gives it all six headings;
+#
+# anything else stops after Objective, which the checker reports
+# as five missing headings — deliberately more than one, so the
+# grouping assertion has something to group.
 write_agent() {
   local dir="$1" name="$2" shape="$3"
   mkdir -p "$dir"
@@ -56,8 +63,9 @@ write_agent() {
   } > "$dir/$name.md"
 }
 
-# write_transcript - writes a transcript naming the given absolute paths as
-# this session's own Edit tool calls. Prints the transcript path.
+# write_transcript - writes a transcript naming the given
+# absolute paths as this session's own Edit tool calls.
+# Prints the transcript path.
 write_transcript() {
   local out="$1"; shift
   : > "$out"
@@ -68,8 +76,9 @@ write_transcript() {
   printf '%s' "$out"
 }
 
-# run_hook - runs the hook with the given stdin JSON, capturing stdout in
-# HOOK_OUT and the decoded reason (empty when it stayed silent) in HOOK_REASON.
+# run_hook - runs the hook with the given stdin JSON, capturing
+# stdout in HOOK_OUT and the decoded reason (empty when it
+# stayed silent) in HOOK_REASON.
 run_hook() {
   HOOK_OUT=$(printf '%s' "$1" | bash "$HOOK" 2>/dev/null)
   HOOK_REASON=$(printf '%s' "$HOOK_OUT" | jq -r '.reason // empty' 2>/dev/null || true)
@@ -87,10 +96,12 @@ it_should_block_when_an_agent_file_this_session_edited_breaks_the_contract() {
     "1" "$(printf '%s' "$HOOK_REASON" | grep -c 'touched\.md')"
 }
 
-# The checker validates a whole DIRECTORY, so it also reports files this session
-# never opened. Without the output filter, one pre-existing broken agent file
-# would block every stop in every session until someone fixed a file they never
-# touched.
+# The checker validates a whole DIRECTORY, so it also reports
+# files this session never opened.
+#
+# Without the output filter, one pre-existing broken agent file
+# would block every stop in every session until someone fixed a
+# file they never touched.
 it_should_not_block_on_a_broken_agent_file_this_session_never_touched() {
   local d="$work_dir/case-filter"
   write_agent "$d/agents" touched broken
@@ -102,9 +113,9 @@ it_should_not_block_on_a_broken_agent_file_this_session_never_touched() {
     "0" "$(printf '%s' "$HOOK_REASON" | grep -c 'untouched\.md')"
 }
 
-# A file missing all six headings emits five violation rows; repeating its
-# absolute path on each would inject the same long string five times into the
-# main context on every block.
+# A file missing all six headings emits five violation rows;
+# repeating its absolute path on each would inject the same long
+# string five times into the main context on every block.
 it_should_name_each_offending_path_once_with_its_reasons_grouped() {
   local d="$work_dir/case-group"
   write_agent "$d/agents" touched broken
@@ -126,8 +137,9 @@ it_should_stay_silent_when_the_edited_agent_file_satisfies_the_contract() {
   assert_eq "should stay silent when the edited agent file satisfies the contract" "" "$HOOK_OUT"
 }
 
-# Loop guard: the hook cannot re-verify its own fix, so it must bow out on the
-# stop its own block caused — otherwise an always-on gate spins forever.
+# Loop guard: the hook cannot re-verify its own fix, so it must
+# bow out on the stop its own block caused — otherwise an
+# always-on gate spins forever.
 it_should_stay_silent_when_its_own_block_caused_this_stop() {
   local d="$work_dir/case-loop"
   write_agent "$d/agents" touched broken
@@ -137,8 +149,8 @@ it_should_stay_silent_when_its_own_block_caused_this_stop() {
   assert_eq "should stay silent when its own block caused this stop" "" "$HOOK_OUT"
 }
 
-# A missing session signal must fail open to "no block", NOT widen the scope to
-# every agent file on disk.
+# A missing session signal must fail open to "no block", NOT
+# widen the scope to every agent file on disk.
 it_should_stay_silent_when_the_transcript_is_missing() {
   run_hook '{"session_id":"s","stop_hook_active":false}'
   assert_eq "should stay silent when the transcript is missing" "" "$HOOK_OUT"

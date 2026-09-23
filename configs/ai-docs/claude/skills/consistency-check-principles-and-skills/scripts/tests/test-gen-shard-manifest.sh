@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# test-gen-shard-manifest.sh - Tests gen-shard-manifest.sh's shard
-# construction: one shard per skill dir, dispatched-agent inclusion,
-# cross-reference inclusion, the dedicated claude-md shard, and the
-# hard-fail/determinism guarantees.
+# test-gen-shard-manifest.sh: Tests gen-shard-manifest.sh for
+# shard construction, inclusion, and guarantees.
+#
+# Specifically: one shard per skill dir, dispatched-agent
+# inclusion, cross-reference inclusion, the dedicated claude-md
+# shard, and hard-fail/determinism guarantees.
 #
 # Usage:
 #   bash test-gen-shard-manifest.sh
@@ -33,9 +35,10 @@ assert_status() {
     assert_eq "$label" "$expected" "$actual"
 }
 
-# Build a fixture repo laid out like this repo: <root>/configs/ai-docs/claude
-# with CLAUDE.md, skills/, and agents/ siblings — the "sibling" branch of
-# check.sh's nested-then-sibling resolution.
+# Build a fixture repo laid out like this repo:
+# <root>/configs/ai-docs/claude with CLAUDE.md, skills/, and
+# agents/ siblings — the "sibling" branch of check.sh's
+# nested-then-sibling resolution.
 new_fixture() {
     local d
     d=$(mktemp -d)
@@ -45,9 +48,10 @@ new_fixture() {
     echo "$d"
 }
 
-# Physical claude-root for a fixture (mktemp -d can itself sit behind a
-# symlink, e.g. macOS's /tmp -> /private/tmp — resolve it the same way
-# the script under test must, so path assertions compare like with like).
+# Physical claude-root for a fixture (mktemp -d can itself sit
+# behind a symlink, e.g. macOS's /tmp -> /private/tmp — resolve
+# it the same way the script under test must, so path assertions
+# compare like with like).
 claude_root() {
     local d=$1
     (cd "$d/configs/ai-docs/claude" && pwd -P)
@@ -67,15 +71,15 @@ write_agent() {
     printf '# %s\n' "$name" > "$dir/configs/ai-docs/claude/agents/$name.md"
 }
 
-# Run gen-shard-manifest.sh against the fixture's claude-config dir
-# (the sibling-branch layout) and echo raw stdout.
+# Run gen-shard-manifest.sh against the fixture's claude-config
+# dir (the sibling-branch layout) and echo raw stdout.
 run_gen() {
     local d=$1
     bash "$GEN" "$d/configs/ai-docs/claude" 2>/dev/null
 }
 
-# Echo the sorted, newline-joined file list under a `[SHARD] <slug>`
-# header, up to the next blank line.
+# Echo the sorted, newline-joined file list under a
+# `[SHARD] <slug>` header, up to the next blank line.
 shard_files() {
     local output=$1 slug=$2
     printf '%s\n' "$output" | awk -v slug="[SHARD] $slug" '
@@ -150,9 +154,9 @@ EOF
 }
 
 # A path shown purely as an illustrative example inside a fenced
-# code block is not a genuine cross-reference — skills quote example
-# paths constantly, and resolving those would silently widen exactly
-# what sharding exists to narrow (Scout #48).
+# code block is not a genuine cross-reference — skills quote
+# example paths constantly, and resolving those would silently
+# widen exactly what sharding exists to narrow (Scout #48).
 it_should_not_pull_in_a_cross_reference_shown_only_inside_a_fenced_code_block() {
     echo "it_should_not_pull_in_a_cross_reference_shown_only_inside_a_fenced_code_block"
     local d; d=$(new_fixture)
@@ -176,10 +180,10 @@ EOF
     rm -rf "$d"
 }
 
-# Companion to the fenced-block exclusion above: a genuine reference
-# outside the fence, in the same file that also contains a fenced
-# example, must still resolve — proving the fix narrows detection
-# instead of disabling it.
+# Companion to the fenced-block exclusion above: a genuine
+# reference outside the fence, in the same file that also
+# contains a fenced example, must still resolve — proving the
+# fix narrows detection instead of disabling it.
 it_should_still_pull_in_a_cross_reference_that_appears_outside_a_fenced_code_block_in_the_same_file() {
     echo "it_should_still_pull_in_a_cross_reference_that_appears_outside_a_fenced_code_block_in_the_same_file"
     local d; d=$(new_fixture)
@@ -208,13 +212,16 @@ EOF
     rm -rf "$d"
 }
 
-# Regression: a skill's own vendored `node_modules/` (e.g. a scripts/
-# dependency tree, gitignored and never skill content) must not be
-# walked into the shard's own-file list. Before the fix, `find -L`
-# descended into it unconditionally — harmless for a tiny fixture, but
-# this repo's doc-standards/scripts/node_modules/typescript ships
-# multi-megabyte minified bundles that turned this same walk into a
-# multi-minute hang ending in SIGBUS (Scout #42).
+# Regression: a skill's own vendored `node_modules/` (e.g. a
+# scripts/ dependency tree, gitignored and never skill content)
+# must not be walked into the shard's own-file list.
+#
+# Before the fix, `find -L` descended into it
+# unconditionally — harmless for a tiny fixture.
+#
+# But this repo's doc-standards/scripts/node_modules/typescript
+# ships multi-megabyte minified bundles that turned this same
+# walk into a multi-minute hang ending in SIGBUS (Scout #42).
 it_should_exclude_files_under_a_node_modules_directory_from_a_skills_own_file_list() {
     echo "it_should_exclude_files_under_a_node_modules_directory_from_a_skills_own_file_list"
     local d; d=$(new_fixture)
@@ -235,11 +242,15 @@ EOF
 }
 
 # Regression: the cross-reference scan must not read files under
-# node_modules either — otherwise a vendored file that happens to
-# contain a backtick or markdown-link span pulls in whatever it
-# resolves to, and (per the Scout #42 hang) the scan itself is the
-# expensive part: it forks a subprocess per candidate span, and a
-# single real-world vendored bundle can yield thousands of spans.
+# node_modules either.
+#
+# Otherwise a vendored file that happens to contain a
+# backtick or markdown-link span pulls in whatever
+# it resolves to, and (per the Scout #42 hang) the
+# scan itself is the expensive part.
+#
+# It forks a subprocess per candidate span, and a single
+# real-world vendored bundle can yield thousands of spans.
 it_should_not_pull_in_cross_references_found_inside_a_node_modules_directory() {
     echo "it_should_not_pull_in_cross_references_found_inside_a_node_modules_directory"
     local d; d=$(new_fixture)
@@ -262,10 +273,10 @@ EOF
     rm -rf "$d"
 }
 
-# Regression: a skill's own `__pycache__/` (Python bytecode cache,
-# gitignored and never skill content) must not be walked into the
-# shard's own-file list — same defect class node_modules already
-# has a prune for (Scout #47).
+# Regression: a skill's own `__pycache__/` (Python bytecode
+# cache, gitignored and never skill content) must not be walked
+# into the shard's own-file list — same defect class
+# node_modules already has a prune for (Scout #47).
 it_should_exclude_files_under_a_pycache_directory_from_a_skills_own_file_list() {
     echo "it_should_exclude_files_under_a_pycache_directory_from_a_skills_own_file_list"
     local d; d=$(new_fixture)
@@ -285,11 +296,12 @@ EOF
     rm -rf "$d"
 }
 
-# Regression: an agent-dispatch match found only inside a skill's own
-# `__pycache__/` must not authorize that agent — the dispatched-agent
-# scan greps skill_dir recursively, so an unpruned pycache dir can
-# surface a false dispatch the same way an unpruned node_modules
-# already could (Scout #47).
+# Regression: an agent-dispatch match found only inside a
+# skill's own `__pycache__/` must not authorize that agent.
+#
+# The dispatched-agent scan greps skill_dir recursively, so an
+# unpruned pycache dir can surface a false dispatch the same way
+# an unpruned node_modules already could (Scout #47).
 it_should_not_pull_in_a_dispatched_agent_match_found_only_inside_a_pycache_directory() {
     echo "it_should_not_pull_in_a_dispatched_agent_match_found_only_inside_a_pycache_directory"
     local d; d=$(new_fixture)
@@ -355,8 +367,8 @@ description: "Demo."
 Demo.
 EOF
     local output; output=$(run_gen "$d")
-    # No `[SHARD] <slug>` header immediately followed by a blank line
-    # (or EOF) with zero file lines between.
+    # No `[SHARD] <slug>` header immediately followed by a blank
+    # line (or EOF) with zero file lines between.
     local empty_count
     empty_count=$(printf '%s\n' "$output" | awk '
         /^\[SHARD\] / { if (in_shard && count == 0) bad++; in_shard = 1; count = 0; next }
@@ -394,11 +406,15 @@ EOF
 it_should_resolve_a_repo_path_argument_the_same_way_check_sh_does() {
     echo "it_should_resolve_a_repo_path_argument_the_same_way_check_sh_does"
     local d; d=$(mktemp -d)
-    # Nested layout: <path>/.claude/skills, with CLAUDE.md at <path>
-    # itself — check.sh's CLAUDE_MD is always "$1/CLAUDE.md"
-    # regardless of which skills-dir branch resolves, so a real repo
-    # keeps project CLAUDE.md at its root while skills live nested
-    # under .claude/. Nested skills wins over sibling when both exist.
+    # Nested layout: <path>/.claude/skills, with CLAUDE.md at
+    # <path> itself.
+    #
+    # check.sh's CLAUDE_MD is always "$1/CLAUDE.md" regardless
+    # of which skills-dir branch resolves, so a real repo keeps
+    # project CLAUDE.md at its root while skills live nested
+    # under .claude/.
+    #
+    # Nested skills wins over sibling when both exist.
     mkdir -p "$d/.claude/skills/demo-skill"
     printf '# Principles\n' > "$d/CLAUDE.md"
     cat > "$d/.claude/skills/demo-skill/SKILL.md" <<'EOF'
@@ -408,8 +424,9 @@ description: "Demo."
 ---
 Demo.
 EOF
-    # Also create a sibling skills/ dir that must be IGNORED, since
-    # nested wins when both exist.
+
+    # Also create a sibling skills/ dir that must be IGNORED,
+    # since nested wins when both exist.
     mkdir -p "$d/skills/decoy-skill"
     cat > "$d/skills/decoy-skill/SKILL.md" <<'EOF'
 ---
@@ -424,10 +441,12 @@ EOF
     rm -rf "$d"
 }
 
-# Regression: a symlinked CLAUDE.md (this repo's own ~/.claude/CLAUDE.md
-# layout) must resolve to one physical path everywhere it appears —
-# as the shard root AND via a cross-reference — never two spellings
-# of the same file in one shard's list.
+# Regression: a symlinked CLAUDE.md (this repo's own
+# ~/.claude/CLAUDE.md layout) must resolve to one physical path
+# everywhere it appears — as the shard root AND via a
+# cross-reference.
+#
+# Never two spellings of the same file in one shard's list.
 it_should_collapse_a_symlinked_claude_md_to_one_physical_path() {
     echo "it_should_collapse_a_symlinked_claude_md_to_one_physical_path"
     local d; d=$(mktemp -d)

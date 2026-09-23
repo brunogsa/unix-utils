@@ -5,8 +5,9 @@
 # Usage:
 #   bash test-check-rule-citations.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats
-# dependency by design, matching this skill area's other test suites
+# Exits 0 when every assertion passes, non-zero otherwise.
+# No bats dependency by design, matching this skill area's other
+# test suites
 # (agent-standards/scripts/tests/test-check-agent-contract.sh).
 
 set -uo pipefail
@@ -33,7 +34,8 @@ assert_eq() {
   fi
 }
 
-# assert_contains - passes when VERDICT_OUT carries the given literal row.
+# assert_contains - passes when VERDICT_OUT carries the given
+# literal row.
 assert_contains() {
   local description="$1" needle="$2"
   if printf '%s\n' "$VERDICT_OUT" | grep -qF -- "$needle"; then
@@ -45,8 +47,9 @@ assert_contains() {
   fi
 }
 
-# assert_not_contains - passes when VERDICT_OUT does NOT carry the given
-# literal row - the --changed-only contract's "entirely invisible" check.
+# assert_not_contains - passes when VERDICT_OUT does NOT carry
+# the given literal row - the --changed-only contract's
+# "entirely invisible" check.
 assert_not_contains() {
   local description="$1" needle="$2"
   if printf '%s\n' "$VERDICT_OUT" | grep -qF -- "$needle"; then
@@ -58,8 +61,9 @@ assert_not_contains() {
   fi
 }
 
-# new_skill - builds an isolated fixture skill, nested so that the skill
-# root's grandparent is a config root that can hold a CLAUDE.md.
+# new_skill - builds an isolated fixture skill, nested so that
+# the skill root's grandparent is a config root that can hold a
+# CLAUDE.md.
 # Sets SKILL_DIR (the skill root) and CONFIG_ROOT.
 new_skill() {
   local name="$1"
@@ -69,8 +73,8 @@ new_skill() {
   printf '# %s\n' "$name" > "$SKILL_DIR/SKILL.md"
 }
 
-# run_script - invokes check-rule-citations.py on one file, capturing
-# stdout/exit code into VERDICT_OUT/VERDICT_EXIT.
+# run_script - invokes check-rule-citations.py on one file,
+# capturing stdout/exit code into VERDICT_OUT/VERDICT_EXIT.
 run_script() {
   local target_file="$1"
   local out_file="$work_dir/stdout.txt"
@@ -79,10 +83,12 @@ run_script() {
   VERDICT_OUT=$(cat "$out_file")
 }
 
-# run_script_args - invokes check-rule-citations.py with arbitrary args
-# (a flag plus one or more files), capturing stdout+stderr/exit code
-# into VERDICT_OUT/VERDICT_EXIT - same contract as run_script, for the
-# --changed-only cases that need more than a single bare file argument.
+# run_script_args - invokes check-rule-citations.py with
+# arbitrary args (a flag plus one or more files), capturing
+# stdout+stderr/exit code into VERDICT_OUT/VERDICT_EXIT.
+#
+# Same contract as run_script, for --changed-only cases that
+# need more than a single bare file argument.
 run_script_args() {
   local out_file="$work_dir/stdout.txt"
   python3 "$SCRIPT" "$@" >"$out_file" 2>&1
@@ -90,9 +96,9 @@ run_script_args() {
   VERDICT_OUT=$(cat "$out_file")
 }
 
-# git_init_at - initializes a throwaway git repo at $1 with a local
-# identity, so a --changed-only fixture never depends on the machine's
-# global git config.
+# git_init_at - initializes a throwaway git repo at $1 with a
+# local identity, so a --changed-only fixture never depends on
+# the machine's global git config.
 git_init_at() {
   local dir="$1"
   git -C "$dir" init -q .
@@ -440,9 +446,11 @@ EOF
 
 it_should_exit_2_and_name_the_file_when_changed_lines_sh_cannot_determine_scope() {
   new_skill changed-only-not-a-repo
-  # Deliberately no git_init_at - the fixture sits outside any git work
-  # tree, so get-changed-lines.sh itself exits 2 and this must propagate
-  # rather than read as clean or fall back to whole-file scope.
+
+  # Deliberately no git_init_at - the fixture sits outside any
+  # git work tree, so get-changed-lines.sh itself exits 2 and
+  # this must propagate rather than read as clean or fall back
+  # to whole-file scope.
   cat > "$SKILL_DIR/references/writing-style.md" <<'EOF'
 # Writing style
 

@@ -1,18 +1,24 @@
 #!/usr/bin/env bash
-# filter-off-diff-findings - keep only findings whose whole line range is commentable
+# filter-off-diff-findings - keep only findings whose whole line
+# range is commentable.
 #
-# Usage:
-#   filter-off-diff-findings <findings-json> <commentable-lines-file>
+# Usage: filter-off-diff-findings <findings-json>
+#   <commentable-lines-file>
 #
-# A finding survives when every line from `start_line` through `line` appears in
-# the commentable-lines set. Surviving findings go to stdout as a JSON array;
-# dropped ones go to stderr as `path:start-end — <first 80 chars of body>`, the
-# shape Wave 6's drop log prints.
+# A finding survives when every line from `start_line` through
+# `line` appears in the commentable-lines set. Surviving
+# findings go to stdout as a JSON array;
+#
+# dropped ones go to stderr as `path:start-end — <first 80
+# chars of body>`, the shape Wave 6's drop log prints.
 #
 # Examples:
-#   filter-off-diff-findings "$work_dir/wave3-findings.json" "$work_dir/commentable-lines.txt" \
+#   filter-off-diff-findings "$work_dir/wave3-findings.json" \
+#     "$work_dir/commentable-lines.txt" \
 #     > "$work_dir/wave4-findings.json"
-#   filter-off-diff-findings f.json lines.txt 2> /tmp/dropped.txt
+#
+#   filter-off-diff-findings f.json lines.txt \
+#     2> /tmp/dropped.txt
 
 set -euo pipefail
 
@@ -30,8 +36,9 @@ for f in "$findings_file" "$lines_file"; do
   [[ -r "$f" ]] || { echo "filter-off-diff-findings: cannot read $f" >&2; exit 1; }
 done
 
-# An empty commentable set drops every finding. That is a real outcome (a diff of
-# pure deletions has no addable lines), but it is indistinguishable from a Wave 1
+# An empty commentable set drops every finding.
+# That is a real outcome (a diff of pure deletions has no
+# addable lines), but it is indistinguishable from a Wave 1
 # extraction failure, so say which one the caller is looking at.
 if [[ ! -s "$lines_file" ]]; then
   echo "filter-off-diff-findings: $lines_file is empty — every finding will drop" >&2

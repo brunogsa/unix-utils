@@ -1,36 +1,50 @@
 #!/usr/bin/env bash
-# open-in-tmux
+# open-in-tmux - Run any shell command in a new tmux pane,
+# split, or window.
 #
-# Run any shell command in a new tmux pane, split, or window.
 # Common use cases:
-#   Review a file:    open-in-tmux vertical "nvim +42 src/auth.ts"
-#   Stream output:    open-in-tmux horizontal "tail -f /tmp/build.log"
-#   Watch a process:  open-in-tmux window "watch -n2 kubectl get pods"
+# - Review a file: open-in-tmux vertical "nvim +42 src/auth.ts".
+# - Stream output: open-in-tmux horizontal "tail -f
+#   /tmp/build.log".
+#
+# - Watch a process: open-in-tmux window "watch -n2 kubectl
+#   get pods".
 #
 # Usage:
 #   open-in-tmux <mode> <command>
 #
 # Modes:
-#   vertical          Side-by-side split of the caller's own pane (this session's
-#                     pane, not the pane the user is currently viewing).
-#   horizontal        Stacked split of the caller's own pane (same targeting).
-#   window            New tmux window — leaves the current layout untouched.
-#   pane:<N>          Send the command to pane N via send-keys (types it into
-#                     the existing shell; preserves pane history and state).
+# - vertical — Side-by-side split of the caller's own pane
+#   (this session's pane, not the pane the user is currently
+#   viewing).
+#
+# - horizontal — Stacked split of the caller's own pane
+#   (same targeting).
+#
+# - window — New tmux window; leaves the current layout
+#   untouched.
+#
+# - pane:<N> — Send the command to pane N via send-keys
+#   (types it into the existing shell; preserves pane
+#   history and state).
 #
 # Examples:
-#   open-in-tmux vertical "nvim +42 src/auth.ts"
-#   open-in-tmux horizontal "tail -f /tmp/build.log"
-#   open-in-tmux window "watch -n2 kubectl get pods"
-#   open-in-tmux pane:2 "tail -f /tmp/output.txt"
+#   open-in-tmux vertical "nvim +42 src/auth.ts".
+#   open-in-tmux horizontal "tail -f /tmp/build.log".
+#
+#   open-in-tmux window "watch -n2 kubectl get pods".
+#   open-in-tmux pane:2 "tail -f /tmp/output.txt".
 #
 # Exit codes:
 #   0  success
 #   1  invalid usage or mode
-#   2  not inside a tmux session (fallback command printed on stdout)
+#
+#   2  not inside a tmux session (fallback command printed
+#      on stdout)
 #
 # Env:
-#   TMUX_DRY_RUN=1   print the dispatched tmux command instead of executing it.
+#   TMUX_DRY_RUN=1   print the dispatched tmux command
+#   instead of executing it.
 
 set -euo pipefail
 
@@ -82,14 +96,21 @@ tmux_argv=()
 
 case "$mode" in
   vertical|horizontal)
-    # Target THIS script's own pane ($TMUX_PANE), not the attached client's
-    # active pane: `split-window` with no -t splits whatever pane the user is
-    # currently viewing, which may be a different window than the one this ran
-    # in (e.g. a Claude Code session in window 1 while the user browses window
-    # 2 — the split would wrongly land in window 2). Fall back to the active
-    # pane only if $TMUX_PANE is somehow unset.
-    split_flag="-h"                                # -h = side-by-side
-    [[ "$mode" == horizontal ]] && split_flag="-v" # -v = stacked
+    # Target THIS script's own pane ($TMUX_PANE), not the
+    # attached client's active pane.
+    # `split-window` with no -t splits whatever pane the user is
+    # currently viewing.
+    #
+    # That may be a different window than the one this ran in
+    # (e.g. a Claude Code session in window 1 while the user
+    # browses window 2 — the split would wrongly land in window
+    # 2).
+    #
+    # Fall back to the active pane only if $TMUX_PANE is somehow
+    # unset.
+    # -h = side-by-side, -v = stacked.
+    split_flag="-h"
+    [[ "$mode" == horizontal ]] && split_flag="-v"
     if [[ -n "${TMUX_PANE:-}" ]]; then
       tmux_argv=(tmux split-window "$split_flag" -t "$TMUX_PANE" -c "$PWD" "$command_str")
     else

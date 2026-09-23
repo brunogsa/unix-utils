@@ -75,14 +75,18 @@ class TestCheckShellHarnessOrphansFailure:
     ):
         # Mirrors test-check-bullet-gap-fix.sh: the harness stem
         # carries a trailing qualifier ("-fix") its real subject
-        # doesn't have, so naive stem-matching finds nothing. The
-        # real subject genuinely exists on disk in the subject dir,
-        # but with NO override entry naming it. A checker that
-        # "helpfully" trims/guesses the subject from the filename
-        # would wrongly resolve and clear this harness -- exactly
-        # what Scout #119 warned would destroy real coverage. This
-        # test asserts the opposite: loud failure, and the would-be
-        # subject never named as resolved.
+        # doesn't have, so naive stem-matching finds nothing.
+        #
+        # The real subject genuinely exists on disk in the
+        # subject dir, but with NO override entry naming it.
+        #
+        # A checker that "helpfully" trims/guesses the subject
+        # from the filename would wrongly resolve and clear this
+        # harness -- exactly what Scout #119 warned would
+        # destroy real coverage.
+        #
+        # This test asserts the opposite: loud failure, and the
+        # would-be subject never named as resolved.
         _write(tmp_path / "skills" / "doc" / "scripts" / "check-bullet-gap.py")
         harness = _write(
             tmp_path
@@ -104,8 +108,8 @@ class TestCheckShellHarnessOrphansFailure:
         self, tmp_path
     ):
         # Generic unmapped case, distinct fixture from the
-        # mismatched-stem test above: no sibling subject file at all,
-        # and no --overrides flag given.
+        # mismatched-stem test above: no sibling subject file at
+        # all, and no --overrides flag given.
         harness = _write(tmp_path / "scripts" / "tests" / "test-mystery-thing.sh")
 
         result = _run("--tree", str(tmp_path))
@@ -120,10 +124,12 @@ class TestCheckShellHarnessOrphansCorner:
         self, tmp_path
     ):
         # Mirrors test-global-config-invariants.sh: no single
-        # resolvable subject (it spans install.sh, settings.json,
-        # CLAUDE.md). Must be handled LOUDLY via an explicit
-        # override entry naming "no subject" -- never a silent
-        # fall-through to a bare, unexplained exit 0.
+        # resolvable subject (it spans install.sh,
+        # settings.json, CLAUDE.md).
+        #
+        # Must be handled LOUDLY via an explicit override entry
+        # naming "no subject" -- never a silent fall-through to
+        # a bare, unexplained exit 0.
         harness = _write(tmp_path / "tests" / "test-global-config-invariants.sh")
         rel_key = str(harness.relative_to(tmp_path))
         overrides = _write_overrides(tmp_path, {rel_key: None})
@@ -138,9 +144,11 @@ class TestCheckShellHarnessOrphansCorner:
         self, tmp_path
     ):
         # Mirrors test-check-missing-why.sh: the harness stem
-        # describes the CHECK, not the file -- naive stem-matching
-        # fails -- but an override entry names its real, still-shell
-        # subject. Proves the map, not the filename, decides.
+        # describes the CHECK, not the file -- naive
+        # stem-matching fails -- but an override entry names its
+        # real, still-shell subject.
+        #
+        # Proves the map, not the filename, decides.
         _write(tmp_path / "skills" / "perf" / "scripts" / "check.sh")
         harness = _write(
             tmp_path
@@ -165,10 +173,12 @@ class TestCheckShellHarnessOrphansCorner:
         self, tmp_path
     ):
         # Same stale-worktree exclusion check-script-naming.py
-        # already applies -- reused, not reinvented. This harness
-        # would otherwise fail as unresolved (no sibling subject,
-        # no override), so a non-empty, exit-0 result proves it was
-        # genuinely excluded, not accidentally resolved OK.
+        # already applies -- reused, not reinvented.
+        #
+        # This harness would otherwise fail as unresolved (no
+        # sibling subject, no override), so a non-empty, exit-0
+        # result proves it was genuinely excluded, not
+        # accidentally resolved OK.
         repo = tmp_path / "worktrees" / "stacked-prs-pr2" / "myrepo"
         _write(repo / "scripts" / "tests" / "test-check-density.sh")
 

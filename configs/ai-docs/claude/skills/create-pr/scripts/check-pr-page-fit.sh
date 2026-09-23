@@ -1,57 +1,86 @@
 #!/usr/bin/env bash
-# check-pr-page-fit - Check that a PR body's visible text fits on one screen.
+# check-pr-page-fit - Check that a PR body's visible text fits
+# on one screen.
 #
-# GitHub's hard 65536-char cap (see the sibling check-pr-body-size.sh) is about
-# what the API accepts. This checks something else: what a reviewer actually
-# sees before scrolling. A PR whose body needs three screens gets skimmed.
+# GitHub's hard 65536-char cap (see the sibling
+# check-pr-body-size.sh) is about what the API accepts.
+# This checks something else: what a reviewer actually sees
+# before scrolling.
+#
+# A PR whose body needs three screens gets skimmed.
 #
 # What counts as one rendered line — the measurement model:
-#   * A collapsed <details> block            -> 1 line (only its summary shows).
-#   * An expanded <details open> block       -> summary + its text, minus images.
-#   * A ```mermaid fence                     -> 0 lines (renders as a diagram).
-#   * Any other fenced code block            -> counted, it is text the eye reads.
-#   * ![image](...) lines                    -> 0 lines.
-#   * HTML comments and [ref]: link defs     -> 0 lines (never rendered).
-#   * A heading                              -> 1 line.
-#   * A long source line                     -> ceil(chars / width), since it wraps.
-#   * Blank lines                            -> 0 lines (separators, not content).
+# - A collapsed <details> block -> 1 line (only its summary
+#   shows).
 #
-# The appendix needs no special case: its bulk sits inside collapsed <details>,
-# so it costs only its own headings plus one line per collapsed block. Leaving
-# an appendix section expanded costs its full text, which is the point.
+# - An expanded <details open> block -> summary + its text,
+#   minus images.
+#
+# - A ```mermaid fence -> 0 lines (renders as a diagram).
+# - Any other fenced code block -> counted, it is text the eye
+#   reads.
+#
+# - ![image](...) lines -> 0 lines.
+# - HTML comments and [ref]: link defs -> 0 lines (never
+#   rendered).
+#
+# - A heading -> 1 line.
+# - A long source line -> ceil(chars / width), since it wraps.
+# - Blank lines -> 0 lines (separators, not content).
+#
+# The appendix needs no special case: its bulk sits inside
+# collapsed <details>, so it costs only its own headings plus
+# one line per collapsed block.
+#
+# Leaving an appendix section expanded costs its full text,
+# which is the point.
 #
 # Usage:
 #   check-pr-page-fit.sh <file> [page-lines] [wrap-width]
 #
-#   <file>       Markdown file to measure (e.g. pr_<slug>_pr<N>.ideal.md).
-#   page-lines   Optional. Rendered lines the whole body may occupy. Default: 64,
-#                the sum of the per-section budgets in create-pr's
-#                references/pr-page-budget.md, which is the authority on how
-#                those 64 lines are divided.
-#   wrap-width   Optional. Chars per rendered line before wrapping. Default: 95 —
-#                GitHub's ~860px description column at 14px/1.5 body type.
+#   <file>       Markdown file to measure
+#                (e.g. pr_<slug>_pr<N>.ideal.md).
 #
-# Output: a verdict line, then a breakdown per heading — top-level sections
-# worst-first, each subsection indented under its parent and included in its
-# total. Compare it against the per-section budgets in create-pr's
-# references/pr-page-budget.md: a body can pass the total while one section has
-# eaten another's allowance.
+#   page-lines   Optional. Rendered lines the whole body may
+#                occupy.
+#
+#                Default: 64, the sum of the per-section
+#                budgets in create-pr's
+#                references/pr-page-budget.md, which is the
+#                authority on how those 64 lines are divided.
+#
+#   wrap-width   Optional. Chars per rendered line before
+#                wrapping. Default: 95 — GitHub's ~860px
+#                description column at 14px/1.5 body type.
+#
+# Output: a verdict line, then a breakdown per heading —
+# top-level sections worst-first, each subsection indented under
+# its parent and included in its total.
+#
+# Compare it against the per-section budgets in create-pr's
+# references/pr-page-budget.md: a body can pass the total while
+# one section has eaten another's allowance.
 #
 # Exit codes:
-#   0  fits on one page
-#   1  bad usage / file not found (message on stderr)
-#   2  within 20% of the budget (close — trim soon)
-#   3  over the budget (does not fit one page)
+#   0  fits on one page.
+#   1  bad usage / file not found (message on stderr).
+#
+#   2  within 20% of the budget (close — trim soon).
+#   3  over the budget (does not fit one page).
 #
 # Examples:
 #   check-pr-page-fit.sh pr_<slug>_pr<N>.ideal.md
-#   check-pr-page-fit.sh pr_<slug>_pr<N>.ideal.md 80      # taller screen
-#   check-pr-page-fit.sh pr_<slug>_pr<N>.ideal.md 64 110  # wider column
+#   # taller screen:
+#
+#   check-pr-page-fit.sh pr_<slug>_pr<N>.ideal.md 80
+#   # wider column:
+#   check-pr-page-fit.sh pr_<slug>_pr<N>.ideal.md 64 110
 
 set -euo pipefail
 
-# Prints the header block above as help. Walks until the first non-comment line
-# rather than a fixed range, so editing the header can never desync the help.
+# Prints the header block above as help.
+# Walks until the first non-comment line rather than a fixed
+# range, so editing the header can never desync the help.
 usage() { awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; }
 
 case "${1:-}" in
@@ -83,18 +112,27 @@ if ! [[ "$wrap_width" =~ ^[0-9]+$ ]] || ((wrap_width < 20)); then
     exit 1
 fi
 
-# Wrapping is decided by what GitHub RENDERS, not by what the source spells, so the
-# second input below is a width-only copy with the invisible markup removed:
+# Wrapping is decided by what GitHub RENDERS, not by what the
+# source spells, so the second input below is a width-only copy
+# with the invisible markup removed:
 #
-#   * HTML tags        - <summary><strong>x</strong></summary> shows as `x`.
-#   * Link targets     - [types.ts](https://…200 chars…) shows as `types.ts`.
-#   * Emphasis markers - **x**, _x_, and `x` all show as `x`.
+# - HTML tags - <summary><strong>x</strong></summary> shows as
+#   `x`.
 #
-# awk's length() then counts BYTES and ignores LC_ALL, so an accented character in a
-# non-English body would still be charged twice. Deleting UTF-8 continuation bytes
-# (0x80-0xBF) leaves one byte per character, giving true widths.
+# - Link targets - [types.ts](https://…200 chars…) shows as
+#   `types.ts`.
 #
-# awk reads structure from the original file, so headings still print intact.
+# - Emphasis markers - **x**, _x_, and `x` all show as `x`.
+#
+# awk's length() then counts BYTES and ignores LC_ALL, so an
+# accented character in a non-English body would still be
+# charged twice.
+#
+# Deleting UTF-8 continuation bytes (0x80-0xBF) leaves one byte
+# per character, giving true widths.
+#
+# awk reads structure from the original file, so headings still
+# print intact.
 report=$(awk -v width="$wrap_width" '
 function ceil(x) { return (x == int(x)) ? x : int(x) + 1 }
 
@@ -218,7 +256,8 @@ total=$(printf '%s\n' "$report" | awk '/^TOTAL /{print $2; exit}')
 sections=$(printf '%s\n' "$report" | awk 'NR>1' | LC_ALL=C sort -t"$(printf '\t')" -k1,1n -k2,2n)
 warn_threshold=$((page_lines * 80 / 100))
 
-# Indent by heading depth so a section's subsections read as its breakdown.
+# Indent by heading depth so a section's subsections read as its
+# breakdown.
 print_breakdown() {
     echo "  lines  section (subsections roll up into their parent)"
     printf '%s\n' "$sections" | awk -F'\t' 'NF==5 {
@@ -238,8 +277,10 @@ elif ((total > warn_threshold)); then
     exit 2
 else
     echo "OK: ~$total rendered lines — fits one page ($page_lines), $((page_lines - total)) to spare."
-    # Printed even on success: the total passing does not mean every section stayed
-    # within its own budget, and only the breakdown can show that.
+
+    # Printed even on success: the total passing does not mean
+    # every section stayed within its own budget, and only the
+    # breakdown can show that.
     print_breakdown
     exit 0
 fi
