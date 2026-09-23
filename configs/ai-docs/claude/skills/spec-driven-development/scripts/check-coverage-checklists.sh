@@ -12,18 +12,22 @@
 # symlink), falling back to the $HOME-anchored path only when that
 # relative file is missing.
 #
-# spec-template.md's "#### Corner cases" and "#### Failure modes"
-# each carry a checklist: one row per taxonomy item. Failure modes
-# also absorbs the taxonomy's Async delivery rows -- its own
-# classification note files those under failure modes, not corner
-# cases.
+# spec-template.md's checklists now live under "## Coverage
+# Checklists", not "#### Corner cases" / "#### Failure modes".
 #
-# Extraction is two-staged: "## Testable Acceptance Criteria" bounds
-# the search first, then "#### Corner cases" / "#### Failure modes"
-# is sliced from that bounded text. plan-section.sh only stops at a
-# heading of the SAME depth, and Failure modes has no later "#### "
-# sibling to stop it -- without the outer bound its slice would run
-# past Open Questions to EOF.
+# The two headings are "### Boundary checklist" and "###
+# Failure category checklist"; Failure category still absorbs
+# the taxonomy's Async delivery rows (its own classification
+# note files those under failure modes, not corner cases).
+#
+# Extraction is two-staged: "## Coverage Checklists" bounds
+# the search first, then each "### " sub-heading is sliced
+# from that bounded text.
+#
+# plan-section.sh only stops at a heading of the SAME depth,
+# and Failure category checklist has no later "### " sibling
+# to stop it -- without the outer bound its slice would run
+# past Functional Decisions to EOF.
 #
 # Each row must read "covered (<recap>)" or "N/A - <one-word
 # reason>". A category with nothing under its heading has no
@@ -100,36 +104,30 @@ labels_under() {
 labels_under '^Corner cases' > "$work_dir/corner-labels.txt"
 labels_under '^Failure modes' > "$work_dir/failure-labels.txt"
 
-# ac_section - written to a file because plan-section.sh needs a
-# real path; this is the outer bound described above.
-ac_section=$("$script_dir/plan-section.sh" "$spec_file" "##" \
-  '^Testable Acceptance Criteria[[:space:]]*$')
+# coverage_section - written to a file because plan-section.sh
+# needs a real path; this is the outer bound described above.
+coverage_section=$("$script_dir/plan-section.sh" "$spec_file" "##" \
+  '^Coverage Checklists[[:space:]]*$')
 
 violations_found=0
 
-# check_category - validates one checklist against its taxonomy
-# labels; sets violations_found=1 on any defect. $1 name (used in
-# both messages and the opt-out phrase), $2 "#### " heading pattern,
-# $3 canonical-labels file.
+# check_category - validates one checklist against its
+# taxonomy labels; sets violations_found=1 on any defect. $1
+# name (used in messages and the opt-out phrase), $2 "### "
+# heading pattern, $3 canonical-labels file.
 check_category() {
   local name="$1" heading_pattern="$2" labels_file="$3"
 
   local full_section
-  full_section=$("$script_dir/plan-section.sh" "$ac_section_file" \
-    "####" "$heading_pattern")
+  full_section=$("$script_dir/plan-section.sh" "$coverage_section_file" \
+    "###" "$heading_pattern")
   [ -z "$full_section" ] && return 0
 
   local fenced_free
   fenced_free=$(printf '%s\n' "$full_section" | strip_fences)
 
-  # Cut before the first AC heading so an AC's own Given/When/Then
-  # bullets are never read as checklist rows.
-  local narrow_window
-  narrow_window=$(printf '%s\n' "$fenced_free" \
-    | awk '/^### / { exit } { print }')
-
   local scan
-  scan=$(printf '%s\n' "$narrow_window" | awk -v labels_file="$labels_file" '
+  scan=$(printf '%s\n' "$fenced_free" | awk -v labels_file="$labels_file" '
     BEGIN {
       while ((getline line < labels_file) > 0) labels[++n] = line
       close(labels_file)
@@ -211,13 +209,14 @@ check_category() {
   fi
 }
 
-if [ -n "$ac_section" ]; then
-  ac_section_file="$work_dir/ac-section.md"
-  printf '%s\n' "$ac_section" > "$ac_section_file"
+if [ -n "$coverage_section" ]; then
+  coverage_section_file="$work_dir/coverage-section.md"
+  printf '%s\n' "$coverage_section" > "$coverage_section_file"
 
-  check_category "boundary" '^Corner cases[[:space:]]*$' \
+  check_category "boundary" '^Boundary checklist[[:space:]]*$' \
     "$work_dir/corner-labels.txt"
-  check_category "failure-category" '^Failure modes[[:space:]]*$' \
+  check_category "failure-category" \
+    '^Failure category checklist[[:space:]]*$' \
     "$work_dir/failure-labels.txt"
 fi
 
