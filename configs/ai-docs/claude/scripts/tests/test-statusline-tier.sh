@@ -46,10 +46,11 @@ CCSTATUSLINE_CONFIG_SRC="$repo_root/configs/ai-docs/claude/ccstatusline/settings
 # Why a snapshot rather than a read per assertion: this
 # settings.json is rewritten under the suite by every
 # concurrent Claude Code session, because /model, /effort
-# and /advisor each write it mid-session. Re-reading it nine
-# times made the render assertions depend on whether a
-# sibling session happened to be mid-write - three failed
-# inside one full run and the same three passed in an
+# and /advisor each write it mid-session.
+#
+# Re-reading it nine times made the render assertions depend
+# on whether a sibling session happened to be mid-write - three
+# failed inside one full run and the same three passed in an
 # isolated re-run seconds later.
 snapshot_statusline_command() {
   local src="$1" dest="$2" statusline_command
@@ -57,9 +58,11 @@ snapshot_statusline_command() {
 
   # Empty covers both halves of the rename window a writer
   # opens: the path resolving to nothing, and a file that
-  # parses but has no statusLine yet. Failing here turns
-  # either into one startup error rather than a dozen render
-  # assertions comparing against an empty command.
+  # parses but has no statusLine yet.
+  #
+  # Failing here turns either into one startup error rather
+  # than a dozen render assertions comparing against an empty
+  # command.
   [ -n "$statusline_command" ] || return 1
   printf '%s\n' "$statusline_command" >"$dest"
 }
@@ -115,9 +118,11 @@ it_should_keep_serving_the_snapshotted_statusline_command_after_the_source_setti
 
   # What a concurrent Claude Code session does to this file
   # mid-suite: /model, /effort and /advisor each rewrite
-  # settings.json, and one landed between two assertions is
-  # what turned three StatusLineRender tests red inside a
-  # full run that passed on its isolated re-run.
+  # settings.json.
+  #
+  # One landed between two assertions is what turned three
+  # StatusLineRender tests red inside a full run that passed
+  # on its isolated re-run.
   printf '{"statusLine":{"command":"echo a-sibling-sessions-command"}}\n' >"$source_settings"
 
   assert_eq \
@@ -134,9 +139,11 @@ it_should_report_failure_and_write_no_snapshot_when_the_source_settings_file_is_
 
   # Every settings.json writer swaps the file in by rename,
   # so the path resolves to nothing for the width of that
-  # swap. Serving an empty command from that window is what
-  # made the flake read as a dozen wrong render assertions
-  # instead of one unreadable-source error.
+  # swap.
+  #
+  # Serving an empty command from that window is what made
+  # the flake read as a dozen wrong render assertions instead
+  # of one unreadable-source error.
   snapshot_statusline_command "$sandbox/never-written.json" "$snapshot"
   status=$?
   snapshot_state=absent
@@ -179,6 +186,7 @@ it_should_report_failure_and_write_no_snapshot_when_the_source_settings_file_is_
 # Production never pays this: the real `security` is a
 # Mach-O binary macOS scanned long ago (measured: 0.03s).
 SHARED_FAKE_BIN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/statusline-tier-shared-fakes.XXXXXX")"
+
 # One EXIT trap serves every suite-scoped temp path, because
 # a second `trap ... EXIT` would replace this one rather than
 # run beside it.
@@ -2819,9 +2827,12 @@ it_should_render_no_duration_when_neither_the_transcript_nor_the_payload_has_one
 
   # Regression guard: the whole decorated segment (separator,
   # clock label, figure, unit) must be absent, not merely the
-  # figure - ccstatusline has no cross-widget dependency, so a
+  # figure.
+  #
+  # ccstatusline has no cross-widget dependency, so a
   # decoration-only widget left rendering on its own would
-  # strand "· ⏱  h" on the line even though this figure is gone.
+  # strand "· ⏱  h" on the line even though this figure is
+  # gone.
   assert_eq \
     "StatusLineSessionDuration > failure > should render the whole decorated segment as absent, not merely the figure, when neither the transcript nor Claude Code offers a duration" \
     " 0" "$actual $status"

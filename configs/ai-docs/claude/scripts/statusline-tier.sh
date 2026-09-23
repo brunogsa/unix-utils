@@ -18,13 +18,14 @@
 #     turn ("opus"), or the literal "none", read from the
 #     transcript_path on stdin.
 #
-#   statusline-tier.sh duration
-#     the decorated segment "· ⏱ <N>h" for the whole-hour
-#     session length, measured from the earliest timestamp in
-#     the transcript_path on stdin, falling back to
-#     cost.total_duration_ms. Prints its own separator and
-#     clock label so the group appears or vanishes as one
-#     unit; empty stdout when neither source has a duration.
+#   statusline-tier.sh duration: the decorated segment
+#     "· ⏱ <N>h" for the whole-hour session length, measured
+#     from the earliest timestamp in the transcript_path on
+#     stdin, falling back to cost.total_duration_ms.
+#
+#     Prints its own separator and clock label so the group
+#     appears or vanishes as one unit; empty stdout when
+#     neither source has a duration.
 #
 #   statusline-tier.sh spend-limit
 #     the org's monthly extra-usage cap in dollars, read
@@ -846,10 +847,11 @@ sum_subagent_cost() {
 # "$19.01", replacing ccstatusline's own Session Cost widget.
 #
 # That widget renders cost.total_cost_usd, which Claude Code
-# keeps as an in-process counter with no reset path. Running
-# "claude --continue" restarts the process, so a session that
-# has already spent $42 renders $0.00 from then on
-# (anthropics/claude-code#78136).
+# keeps as an in-process counter with no reset path.
+#
+# Running "claude --continue" restarts the process, so a
+# session that has already spent $42 renders $0.00 from then
+# on (anthropics/claude-code#78136).
 #
 # The transcript is the durable record of that spend, so
 # pricing it locally is what makes the figure survive a
@@ -864,10 +866,11 @@ sum_subagent_cost() {
 # a floor rather than the real number.
 #
 # On any scan failure the figure Claude Code sent is printed
-# instead. That number is wrong after a resume, but a wrong
-# number still reads as a session that has spent something,
-# where a vanished widget cannot be told apart from a free
-# one.
+# instead.
+#
+# That number is wrong after a resume, but a wrong number
+# still reads as a session that has spent something, where a
+# vanished widget cannot be told apart from a free one.
 #
 # Unlike the sub-agent addendum, a priced $0.00 is printed
 # rather than suppressed: this is the row's main figure, and
@@ -993,8 +996,10 @@ compute_expected_percent() {
 # The minimum stamp is taken rather than the first line's,
 # for two independent reasons: a transcript often opens with
 # a file-history-snapshot entry carrying no timestamp field
-# at all, and concurrent sub-agent writes interleave the
-# entries that follow.
+# at all.
+#
+# Concurrent sub-agent writes interleave the entries that
+# follow.
 #
 # The conversion is done inside jq rather than with date(1),
 # because the BSD and GNU flags differ and this avoids the
@@ -1028,12 +1033,15 @@ compute_session_duration_hours() {
 #
 # This widget prints its own leading separator and clock
 # label rather than leaving them to ccstatusline's config,
-# because ccstatusline has no cross-widget dependency: a
-# decoration-only widget renders whether or not the figure
-# beside it did. Split across widgets, an omitted figure
-# still strands a bare "· ⏱  h" on the line. Printing the
-# whole group from one widget is what lets it appear or
-# vanish as a single unit.
+# because ccstatusline has no cross-widget dependency.
+#
+# A decoration-only widget renders whether or not the figure
+# beside it did.
+#
+# Split across widgets, an omitted figure still strands a
+# bare "· ⏱  h" on the line. Printing the whole group from
+# one widget is what lets it appear or vanish as a single
+# unit.
 #
 # Precedent: render_subagent_cost prints its own "+" prefix
 # for the same reason.
@@ -1054,9 +1062,11 @@ render_session_duration() {
 
     # No transcript and no reported elapsed time means the
     # widget has nothing to say, and exiting 0 with empty
-    # stdout is how ccstatusline is told to omit it - the
-    # whole decorated segment along with it, since nothing
-    # else in the config renders this group's decoration.
+    # stdout is how ccstatusline is told to omit it.
+    #
+    # The whole decorated segment along with it will be omitted
+    # since nothing else in the config renders this group's
+    # decoration.
     [ -z "$duration_ms" ] && return 0
     start_epoch=$((now - duration_ms / 1000))
   fi
