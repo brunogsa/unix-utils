@@ -76,8 +76,8 @@ Spec:
 <details>
 <summary><strong>DECISION:</strong></summary>
 
-- **DECISION:** __Chose__ ``, __because__ ``
-  - __Discarded__ ****: ``
+- **DECISION:** __Chose__ , __because__
+  - __Discarded__ :
 
 </details>
 
@@ -86,7 +86,7 @@ Spec:
 <details>
 <summary><strong>DECISION (Task N):</strong></summary>
 
-- **DECISION (Task N):** __Chose__ ``, __because__ ``
-  - __Supersedes__ "" __because__ ``
+- **DECISION (Task N):** __Chose__ , __because__
+  - __Supersedes__ __because__
 
 </details>

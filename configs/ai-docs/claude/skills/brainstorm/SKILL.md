@@ -263,13 +263,15 @@ Otherwise step 10 would rediscover a cyclic task DAG or bogus AC citation, and s
 
 **Always — the semantic half of "Every AC has a test"**: does each cited test *prove* its AC?
 At `full`, step 9's `check-ac-coverage.sh` already settled citation completeness and honesty, so this judges only the match no script can make.
-At `light` that script never ran, so it judges the whole match instead: each task's `**Testable Acceptance criteria**` field against its `**Tests (planned)**` list.
+
+At `light` that script never ran, so it judges the whole match instead: each task's acceptance criteria in its `## Task Details` entry against its `**Tests (planned)**` list.
 
 Also flag a planned test asserting nothing checkable, a thin scenario class, or an empty `**Tests (planned)**` list with no reason.
 `tdd-coder` builds each RED cycle from these titles, so an undesigned one never gets a test.
 
 **Also always — the library's "How would this break?" judgment, but it only runs here at `light`** (step 7 already ran it over the spec at `full`).
-At `light` it runs here instead, over each task's AC field — dropping the spec also drops the failure-mode checklists, so this is its only failure-mode coverage.
+
+At `light` it runs here instead, over each task's acceptance criteria in its `## Task Details` entry — dropping the spec also drops the failure-mode checklists, so this is its only failure-mode coverage.
 
 **`full` only** — read back from `/tmp/sdd_<session_id>.json`, never re-asked: the qualitative pass when `qualitative_pass` is true, plus each rigor check whose own toggle (`traces_to_ac`, `right_sized`) is true.
 `light` runs none of the three. Scope is excluded too — step 2 already asked the user about decomposition.
