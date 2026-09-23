@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# test-verify-quote.sh - Tests verify-quote.sh's literal, contiguous,
-# trailing-whitespace-normalized quote matching (D5, A4), and its
-# hard-fail behavior on a missing target file.
+# test-verify-quote.sh - Tests verify-quote.sh's literal,
+# contiguous, trailing-whitespace-normalized quote matching (D5,
+# A4), and its hard-fail behavior on a missing target file.
 #
 # Usage:
 #   bash test-verify-quote.sh
@@ -10,7 +10,8 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERIFY="$SCRIPT_DIR/../verify-quote.sh"
-STDERR_FILE="/tmp/verify-quote-test-stderr.txt"
+STDERR_FILE="$(mktemp)"
+trap 'rm -f "$STDERR_FILE"' EXIT
 
 passed=0
 failed=0
@@ -57,12 +58,15 @@ it_should_pass_a_quote_that_is_a_fragment_of_a_longer_line() {
     echo "verify-quote.sh > happy > should pass a quote that is a fragment of a longer line"
     local d; d=$(mktemp -d)
     local f="$d/notes.md"
-    # doc-standards mandates one prose paragraph per physical line, so
-    # real files are made of long single-line bullets — an auditor
-    # quoting "the exact text" will usually hand back a fragment of
-    # such a line, not the whole line. grep -F semantics (the AC's own
-    # words) match a fixed string anywhere inside a line, not only a
-    # full-line match, so this must pass.
+
+    # doc-standards mandates one prose paragraph per physical
+    # line, so real files are made of long single-line bullets —
+    # an auditor quoting "the exact text" will usually hand back
+    # a fragment of such a line, not the whole line.
+    #
+    # grep -F semantics (the AC's own words) match a fixed
+    # string anywhere inside a line, not only a full-line match,
+    # so this must pass.
     write_file "$f" <<'EOF'
 Intro line.
 - [Instruction] Prefer CLI scripts + skills over MCP servers — use MCP only for capabilities CLI + skills can't provide.
@@ -107,9 +111,10 @@ it_should_treat_the_quote_as_a_literal_substring_not_a_regex() {
     echo "verify-quote.sh > corner > should treat the quote as a literal substring not a regex"
     local d; d=$(mktemp -d)
     local f="$d/notes.md"
-    # a.c[x]* as an ERE means "a, any char, c, zero-or-more x" and
-    # would wrongly match the decoy "aYc" below if the matcher ran it
-    # as a pattern instead of a literal string.
+
+    # a.c[x]* as an ERE means "a, any char, c, zero-or-more x"
+    # and would wrongly match the decoy "aYc" below if the
+    # matcher ran it as a pattern instead of a literal string.
     write_file "$f" <<'EOF'
 Intro line.
 This looks like it could match a regex: aYc
@@ -149,8 +154,8 @@ EOF
     local status=$?
     assert_status "exits 1 for lines separated by an unrelated line" "1" "$status"
 
-    # AC #6's other named sub-case: the same two lines present but
-    # reordered (no interleaving line at all) must fail too.
+    # AC #6's other named sub-case: the same two lines present
+    # but reordered (no interleaving line at all) must fail too.
     printf '%s\n%s' "Block line two." "Block line one." | bash "$VERIFY" "$f" >/dev/null 2>"$STDERR_FILE"
     status=$?
     assert_status "exits 1 for lines present but reordered" "1" "$status"
