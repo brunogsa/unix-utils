@@ -2478,13 +2478,16 @@ it_should_re_read_the_catalog_after_the_binary_is_upgraded() {
 
   write_subagent_transcript "$agent" claude-sonnet-5 '{"output_tokens":1000}' 1
 
-  # Seed a cache keyed to a DIFFERENT mtime than the fixture
-  # catalog currently carries, so it reads as stale on sight.
+  # Take the REAL key (resolved path + real mtime) and swap
+  # only its epoch for a wrong one, so the resolved-path half
+  # still matches and only the mtime half is stale.
   #
   # That's the same state a Claude Code upgrade leaves behind,
   # since an upgrade changes the binary's mtime without
-  # changing its path.
-  cache_key="${binary}@1"
+  # changing its path - a wrong path would make this test pass
+  # for a reason that has nothing to do with mtime.
+  cache_key="$(model_rates_cache_key_for "$binary")"
+  cache_key="${cache_key%@*}@1"
   stale_rates='{"claude-sonnet-5":{"input":0,"output":0.0009,"cache_write_5m":0,"cache_write_1h":0,"cache_read":0}}'
   jq -nc --arg key "$cache_key" --argjson rates "$stale_rates" '{key: $key, rates: $rates}' \
     >"$sandbox/$MODEL_RATES_CACHE_RELATIVE"
