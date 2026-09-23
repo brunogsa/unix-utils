@@ -92,7 +92,7 @@ The heading gate takes no override: a raised size budget still leaves the file f
 
 ### Per-skill instructions-budget override
 
-A `*-standards` skill can opt into a per-skill instruction cap by adding `instructions-budget: N` to its YAML frontmatter:
+A `*-standards` skill **must** declare `instructions-budget: N`; any other skill **may** opt in:
 
 ```yaml
 ---
@@ -106,7 +106,7 @@ The override is enforced **in addition to** the cross-skill `*-standards` total 
 
 Exceeding it, the report lists the offending count.
 
-Skills without `instructions-budget` participate only in the *-standards total — the per-skill check is silent for them, and an exempt one is then ungated entirely.
+A non-`*-standards` skill without it participates only in the *-standards total, silently — an exempt one is ungated entirely. A `*-standards` skill without it fails the run, naming the skill.
 
 **Same user-only rule applies**: AI must not set or raise `instructions-budget`.
 

@@ -458,13 +458,14 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
         skill_overages+=$'\n'"- $name:$issues"
     fi
 
-    # `instructions-budget` is opt-in for ANY skill, not
-    # just *-standards: a skill that caps its own
-    # instruction count gets the gate without joining the
-    # *-standards subtotal or CRITICAL-ratio report below.
+    # `instructions-budget` is opt-in for any non-*-standards
+    # skill: a skill that caps its own instruction count gets
+    # the gate without joining the *-standards subtotal or
+    # CRITICAL-ratio report below.
     #
-    # No key declared means no cap — the check is silent,
-    # never a default.
+    # No key declared means no cap for a non-*-standards skill
+    # — the check is silent, never a default. For a *-standards
+    # skill, no key declared fails the gate below instead.
     skill_instructions=$(count_instructions "$f")
 
     skill_why_over=$(over_budget_why_lines "$f")
