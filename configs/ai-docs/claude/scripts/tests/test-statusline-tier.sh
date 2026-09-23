@@ -1925,14 +1925,67 @@ it_should_render_nothing_when_the_usage_cache_has_not_been_written_yet
 # Each test drives a whole fake project directory, so the
 # maintainer's live transcripts are never read.
 
+# FIXTURE_CATALOG_RELATIVE / MODEL_RATES_CACHE_RELATIVE - the
+# per-sandbox paths every render_*_for helper points
+# STATUSLINE_CLAUDE_BINARY / STATUSLINE_MODEL_RATES_CACHE at.
+#
+# So no test here ever reads the real installed Claude Code
+# or writes the real ~/.cache/statusline-tier.
+FIXTURE_CATALOG_RELATIVE="claude-fixture-binary"
+MODEL_RATES_CACHE_RELATIVE="model-rates-cache.json"
+
+# write_fixture_catalog - a synthetic catalog file, in the
+# same marker-plus-minified-JS shape extract-claude-model-
+# rates.py parses out of a real Claude Code binary.
+#
+# Rates mirror the real installed catalog's current values
+# for the three models these tests actually run transcripts
+# on.
+#
+# claude-opus-9 is invented, priced through an inline object
+# rather than a named tier, standing in for a model that ships
+# in a newer catalog with no edit to this script.
+write_fixture_catalog() {
+  local path="$1"
+  {
+    printf '//! synthetic catalog fixture\n'
+    printf 'schema_version:1,pricing_tiers:'
+    printf '{tier_sonnet:{input:2,output:10,cache_write_5m:2.5,cache_write_1h:4,cache_read:0.2},'
+    printf 'tier_haiku:{input:1,output:5,cache_write_5m:1.25,cache_write_1h:2,cache_read:0.1},'
+    printf 'tier_opus55:{input:4,output:20,cache_write_5m:5,cache_write_1h:8,cache_read:0.2}},'
+    printf 'models:['
+    printf '{id:"claude-sonnet-5",pricing:"tier_sonnet"},'
+    printf '{id:"claude-haiku-4-5",pricing:"tier_haiku"},'
+    printf '{id:"claude-opus-5-5",pricing:"tier_opus55"},'
+    printf '{id:"claude-opus-9",pricing:{input:6,output:30,cache_write_5m:7.5,cache_write_1h:12,cache_read:0.6}}'
+    printf ']\n'
+  } >"$path"
+}
+
 # write_session_fixture - lays out one session's transcript
-# path plus the sub-agent directory that belongs to it, and
-# prints the main transcript path for the caller to feed in.
+# path, the sub-agent directory that belongs to it, and this
+# sandbox's own fixture catalog, then prints the main
+# transcript path for the caller to feed in.
 write_session_fixture() {
   local sandbox="$1"
   mkdir -p "$sandbox/projects/a-project/a-session/subagents"
   : >"$sandbox/projects/a-project/a-session.jsonl"
+  write_fixture_catalog "$sandbox/$FIXTURE_CATALOG_RELATIVE"
   printf '%s\n' "$sandbox/projects/a-project/a-session.jsonl"
+}
+
+# model_rates_cache_key_for - the exact cache key
+# read_model_rates computes for a given binary path, read
+# back through the script's own helpers rather than
+# reimplemented here.
+#
+# That way a seeded cache test never drifts from what the
+# script actually checks.
+model_rates_cache_key_for() {
+  local binary_path="$1"
+  STATUSLINE_CLAUDE_BINARY="$binary_path" \
+    bash -c 'source "$0"; bp="$(claude_binary_path)" && printf "%s@%s" "$bp" "$(stat_mtime_epoch "$bp")"' \
+    "$SCRIPT_UNDER_TEST"
 }
 
 # statusline_json - the fields the two cost subcommands read
@@ -1962,10 +2015,18 @@ write_subagent_transcript() {
   done
 }
 
+# render_subagent_cost_for - runs subagent-cost against this
+# sandbox's own fixture catalog and rate cache by default, or
+# against `binary_override` when the caller passes one (a
+# missing path, to force a catalog-read failure).
 render_subagent_cost_for() {
-  local main_cost="$1" transcript_path="$2"
+  local main_cost="$1" transcript_path="$2" binary_override="${3:-}"
+  local sandbox="${transcript_path%/projects/*}"
+  local binary="${binary_override:-$sandbox/$FIXTURE_CATALOG_RELATIVE}"
   statusline_json "$main_cost" "$transcript_path" \
-    | bash "$SCRIPT_UNDER_TEST" subagent-cost
+    | STATUSLINE_CLAUDE_BINARY="$binary" \
+      STATUSLINE_MODEL_RATES_CACHE="$sandbox/$MODEL_RATES_CACHE_RELATIVE" \
+      bash "$SCRIPT_UNDER_TEST" subagent-cost
 }
 
 it_should_report_every_subagents_spend_as_one_addendum() {
@@ -1988,7 +2049,7 @@ it_should_report_every_subagents_spend_as_one_addendum() {
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > happy > should report every sub-agent's spend as a single addendum term" \
-    '+ $1.46' "$actual"
+    '+ $1.01' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2009,13 +2070,13 @@ it_should_bill_a_streamed_reply_once_at_its_final_token_count() {
   actual="$(render_subagent_cost_for 0 "$transcript")"
 
   # Billing both flushes would double the cache read and
-  # reach $0.18 instead.
+  # reach $0.12 instead.
   #
   # literal dollar sign, not a shell expansion
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should bill a streamed reply once, at its final token count" \
-    '+ $0.12' "$actual"
+    '+ $0.08' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2030,7 +2091,7 @@ it_should_price_a_dated_model_alias_at_its_base_models_rate() {
 
   actual="$(render_subagent_cost_for 0 "$transcript")"
 
-  # Sonnet's rate would triple this to $0.40, and no rate at
+  # Sonnet's rate would double this to $0.26, and no rate at
   # all would report $0.00 with a floor marker.
   #
   # literal dollar sign, not a shell expansion
@@ -2049,20 +2110,21 @@ it_should_mark_the_total_as_a_floor_when_a_model_has_no_known_rate() {
 
   write_subagent_transcript "$subagents/agent-ee55.jsonl" claude-sonnet-5 \
     '{"output_tokens":4213,"cache_read_input_tokens":55125}' 2
-  write_subagent_transcript "$subagents/agent-ff66.jsonl" a-model-released-after-this-rate-table \
+  write_subagent_transcript "$subagents/agent-ff66.jsonl" a-model-the-installed-catalog-has-never-heard-of \
     '{"output_tokens":4213,"cache_read_input_tokens":55125}' 3
 
   actual="$(render_subagent_cost_for 0 "$transcript")"
 
   # Reporting a bare $0.11 would read as the whole truth,
-  # which is how a stale rate table hides a whole sub-agent's
-  # spend behind a confident-looking number.
+  # which is how a model absent from the installed catalog
+  # hides a whole sub-agent's spend behind a confident-looking
+  # number.
   #
   # literal dollar sign, not a shell expansion
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should mark the total as a floor when a sub-agent ran on a model with no known rate" \
-    '+ ~$0.16' "$actual"
+    '+ ~$0.11' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2088,7 +2150,7 @@ it_should_bill_only_the_subagents_belonging_to_this_session() {
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should bill only the sub-agents belonging to this session, not a sibling session's" \
-    '+ $0.93' "$actual"
+    '+ $0.62' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2109,7 +2171,7 @@ it_should_skip_a_request_that_came_back_as_an_api_error() {
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should skip a request that came back as an API error" \
-    '+ $0.93' "$actual"
+    '+ $0.62' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2131,7 +2193,7 @@ it_should_keep_summing_when_a_live_transcripts_last_line_is_half_written() {
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should keep summing when a live transcript's last line is only half written" \
-    '+ $0.93' "$actual"
+    '+ $0.62' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2176,7 +2238,7 @@ it_should_still_report_a_floor_when_unpriced_subagents_cost_under_a_cent() {
   transcript="$(write_session_fixture "$sandbox")"
   agent="$sandbox/projects/a-project/a-session/subagents/agent-77dd.jsonl"
 
-  write_subagent_transcript "$agent" a-model-released-after-this-rate-table \
+  write_subagent_transcript "$agent" a-model-the-installed-catalog-has-never-heard-of \
     '{"output_tokens":31000}' 2
 
   actual="$(render_subagent_cost_for 2.25 "$transcript")"
@@ -2211,57 +2273,6 @@ it_should_render_no_addendum_when_the_session_has_no_transcript_to_price() {
     " 0" "$actual $status"
 }
 
-it_should_carry_a_rate_for_every_model_subagents_run_on() {
-  local actual expected
-
-  # Pinned as a literal rather than read off the table,
-  # because a test that asks the table which models it holds
-  # can never notice one going missing.
-  #
-  # The list is what a sweep of every sub-agent transcript
-  # on this setup actually turned up.
-  #
-  #   jq -r 'select(.type=="assistant")|.message.model' \
-  #     ~/.claude/projects/*/*/subagents/*.jsonl | sort -u
-  expected='claude-fable-5 claude-haiku-4-5 claude-opus-4-8 claude-opus-5 claude-sonnet-5'
-
-  actual="$(bash -c 'source "$0"; printf "%s" "$MODEL_RATE_TABLE_JSON"' \
-    "$SCRIPT_UNDER_TEST" | jq -r 'keys | join(" ")')"
-
-  assert_eq \
-    "StatusLineSubagentCost > happy > should carry a rate for every model this setup runs sub-agents on" \
-    "$expected" "$actual"
-}
-
-it_should_price_every_model_the_rate_table_advertises() {
-  local sandbox transcript subagents models model index actual has_marker
-  sandbox="$(fresh_sandbox)"
-  transcript="$(write_session_fixture "$sandbox")"
-  subagents="$sandbox/projects/a-project/a-session/subagents"
-
-  # Reading the table back rather than listing models here
-  # means a model added to it later is covered without
-  # anyone remembering to touch this test.
-  models="$(bash -c 'source "$0"; printf "%s" "$MODEL_RATE_TABLE_JSON"' \
-    "$SCRIPT_UNDER_TEST" | jq -r 'keys[]')"
-
-  index=0
-  while IFS= read -r model; do
-    index=$((index + 1))
-    write_subagent_transcript "$subagents/agent-priced$index.jsonl" \
-      "$model" '{"output_tokens":4213,"cache_read_input_tokens":55125}' 1
-  done <<<"$models"
-
-  actual="$(render_subagent_cost_for 0 "$transcript")"
-  has_marker="no"
-  case "$actual" in *"~"*) has_marker="yes" ;; esac
-
-  assert_eq \
-    "StatusLineSubagentCost > happy > should price every model the rate table advertises, with no floor marker" \
-    "no" "$has_marker"
-  rm -rf "$sandbox"
-}
-
 it_should_not_raise_the_floor_marker_for_a_turn_that_spent_no_tokens() {
   local sandbox transcript agent actual
   sandbox="$(fresh_sandbox)"
@@ -2271,8 +2282,8 @@ it_should_not_raise_the_floor_marker_for_a_turn_that_spent_no_tokens() {
   write_subagent_transcript "$agent" claude-sonnet-5 '{"output_tokens":31000}' 2
 
   # Claude Code logs a placeholder for a turn that never
-  # reached the API, under a model name no rate table can
-  # carry and with every token count at zero.
+  # reached the API, under a model name no installed catalog
+  # can carry and with every token count at zero.
   printf '%s\n' \
     '{"type":"assistant","message":{"id":"msg_synthetic","model":"<synthetic>","usage":{"input_tokens":0,"output_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}' \
     >>"$agent"
@@ -2287,7 +2298,7 @@ it_should_not_raise_the_floor_marker_for_a_turn_that_spent_no_tokens() {
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should not raise the floor marker for a turn that spent no tokens" \
-    '+ $0.93' "$actual"
+    '+ $0.62' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2307,15 +2318,15 @@ it_should_bill_a_1hour_cache_write_at_double_the_5minute_rate() {
 
   actual="$(render_subagent_cost_for 0 "$transcript")"
 
-  # A 1-hour cache write bills at 6e-6 (2x sonnet's input
-  # rate). Billing it at the 5-minute rate (3.75e-6) instead
-  # would under-price this entry to $0.19.
+  # A 1-hour cache write bills at 4e-6 (2x sonnet's input
+  # rate). Billing it at the 5-minute rate (2.5e-6) instead
+  # would under-price this entry to $0.13.
   #
   # literal dollar sign, not a shell expansion
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should bill a 1-hour cache write at double the 5-minute rate" \
-    '+ $0.30' "$actual"
+    '+ $0.20' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2338,7 +2349,7 @@ it_should_bill_a_5minute_cache_write_at_its_own_lower_rate() {
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should bill a 5-minute cache write at its own lower rate" \
-    '+ $0.09' "$actual"
+    '+ $0.06' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2363,16 +2374,144 @@ it_should_bill_a_legacy_entrys_flat_cache_field_at_the_5minute_rate() {
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSubagentCost > corner > should bill a legacy entry's flat cache field at the 5-minute rate when it carries no TTL breakdown" \
-    '+ $0.07' "$actual"
+    '+ $0.04' "$actual"
   rm -rf "$sandbox"
 }
 
+it_should_price_an_opus_5_5_subagent_at_its_catalog_rate() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-o55.jsonl"
+
+  # This is the regression this whole change fixes: before
+  # it, claude-opus-5-5 had no row in the hand-kept rate
+  # table and rendered "~$0.00" no matter how much it spent.
+  write_subagent_transcript "$agent" claude-opus-5-5 \
+    '{"output_tokens":1000,"cache_read_input_tokens":5000}' 1
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSubagentCost > happy > should price an Opus 5.5 sub-agent at its catalog rate, with no floor marker" \
+    '+ $0.02' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_price_a_model_the_script_has_never_been_edited_to_know_about() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-o9.jsonl"
+
+  # claude-opus-9 exists only in this sandbox's fixture
+  # catalog, never in statusline-tier.sh itself - proving a
+  # model that first appears in a newer Claude Code catalog
+  # prices correctly with no edit to this script at all.
+  write_subagent_transcript "$agent" claude-opus-9 \
+    '{"output_tokens":2000}' 1
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSubagentCost > happy > should price a model that first appears in a newer catalog with no script edit" \
+    '+ $0.06' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_render_a_bare_question_mark_when_no_catalog_can_be_read() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-nocat.jsonl"
+
+  write_subagent_transcript "$agent" claude-sonnet-5 '{"output_tokens":31000}' 2
+
+  # "$sandbox/no-such-binary" never exists, so
+  # claude_binary_path fails and read_model_rates can never
+  # produce a rate to price this sub-agent transcript with.
+  actual="$(render_subagent_cost_for 0 "$transcript" "$sandbox/no-such-binary")"
+
+  assert_eq \
+    "StatusLineSubagentCost > failure > should render a bare question mark when sub-agents ran but no catalog can be read" \
+    '+ ?' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_reuse_a_cached_rate_instead_of_re_reading_the_catalog() {
+  local sandbox transcript agent binary cache_key injected_rates actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-cache.jsonl"
+  binary="$sandbox/$FIXTURE_CATALOG_RELATIVE"
+
+  write_subagent_transcript "$agent" claude-sonnet-5 '{"output_tokens":1000}' 1
+
+  # A rate this sandbox's own fixture catalog would never
+  # produce (real sonnet output is $10/MTok) - only a cache
+  # hit could make this the rendered figure.
+  cache_key="$(model_rates_cache_key_for "$binary")"
+  injected_rates='{"claude-sonnet-5":{"input":0,"output":0.0009,"cache_write_5m":0,"cache_write_1h":0,"cache_read":0}}'
+  jq -nc --arg key "$cache_key" --argjson rates "$injected_rates" '{key: $key, rates: $rates}' \
+    >"$sandbox/$MODEL_RATES_CACHE_RELATIVE"
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSubagentCost > corner > should reuse a cached rate instead of re-reading the catalog on every render" \
+    '+ $0.90' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_re_read_the_catalog_after_the_binary_is_upgraded() {
+  local sandbox transcript agent binary cache_key stale_rates actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-upgrade.jsonl"
+  binary="$sandbox/$FIXTURE_CATALOG_RELATIVE"
+
+  write_subagent_transcript "$agent" claude-sonnet-5 '{"output_tokens":1000}' 1
+
+  # Seed a cache keyed to a DIFFERENT mtime than the fixture
+  # catalog currently carries, so it reads as stale on sight.
+  #
+  # That's the same state a Claude Code upgrade leaves behind,
+  # since an upgrade changes the binary's mtime without
+  # changing its path.
+  cache_key="${binary}@1"
+  stale_rates='{"claude-sonnet-5":{"input":0,"output":0.0009,"cache_write_5m":0,"cache_write_1h":0,"cache_read":0}}'
+  jq -nc --arg key "$cache_key" --argjson rates "$stale_rates" '{key: $key, rates: $rates}' \
+    >"$sandbox/$MODEL_RATES_CACHE_RELATIVE"
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+
+  # $0.01, the real fixture catalog's own rate (1000 x
+  # $10/MTok), proves the stale cache was rejected and the
+  # catalog was re-read rather than trusted.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSubagentCost > corner > should re-read the catalog once the cached key no longer matches the binary's mtime" \
+    '+ $0.01' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_price_an_opus_5_5_subagent_at_its_catalog_rate
+it_should_price_a_model_the_script_has_never_been_edited_to_know_about
+it_should_render_a_bare_question_mark_when_no_catalog_can_be_read
+it_should_reuse_a_cached_rate_instead_of_re_reading_the_catalog
+it_should_re_read_the_catalog_after_the_binary_is_upgraded
 it_should_report_every_subagents_spend_as_one_addendum
 it_should_bill_a_1hour_cache_write_at_double_the_5minute_rate
 it_should_bill_a_5minute_cache_write_at_its_own_lower_rate
 it_should_bill_a_legacy_entrys_flat_cache_field_at_the_5minute_rate
-it_should_carry_a_rate_for_every_model_subagents_run_on
-it_should_price_every_model_the_rate_table_advertises
 it_should_render_nothing_when_the_session_spawned_no_subagents
 it_should_bill_a_streamed_reply_once_at_its_final_token_count
 it_should_not_raise_the_floor_marker_for_a_turn_that_spent_no_tokens
@@ -2408,10 +2547,18 @@ write_main_transcript() {
   write_subagent_transcript "$@"
 }
 
+# render_session_cost_for - runs session-cost against this
+# sandbox's own fixture catalog and rate cache by default, or
+# against `binary_override` when the caller passes one (a
+# missing path, to force a catalog-read failure).
 render_session_cost_for() {
-  local main_cost="$1" transcript_path="$2"
+  local main_cost="$1" transcript_path="$2" binary_override="${3:-}"
+  local sandbox="${transcript_path%/projects/*}"
+  local binary="${binary_override:-$sandbox/$FIXTURE_CATALOG_RELATIVE}"
   statusline_json "$main_cost" "$transcript_path" \
-    | bash "$SCRIPT_UNDER_TEST" session-cost
+    | STATUSLINE_CLAUDE_BINARY="$binary" \
+      STATUSLINE_MODEL_RATES_CACHE="$sandbox/$MODEL_RATES_CACHE_RELATIVE" \
+      bash "$SCRIPT_UNDER_TEST" session-cost
 }
 
 it_should_price_the_sessions_own_transcript_rather_than_trust_the_reported_figure() {
@@ -2425,14 +2572,14 @@ it_should_price_the_sessions_own_transcript_rather_than_trust_the_reported_figur
   status=$?
 
   # The payload reports 0 - exactly what a resumed session
-  # sends - so anything but the transcript's own $0.93 means
+  # sends - so anything but the transcript's own $0.62 means
   # the reset counter won.
   #
   # literal dollar sign, not a shell expansion
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSessionCost > happy > should price the session's own transcript so a resumed session keeps its spend" \
-    '$0.93 0' "$actual $status"
+    '$0.62 0' "$actual $status"
   rm -rf "$sandbox"
 }
 
@@ -2443,21 +2590,39 @@ it_should_mark_the_session_total_as_a_floor_when_a_model_has_no_known_rate() {
 
   write_main_transcript "$transcript" claude-sonnet-5 '{"output_tokens":31000}' 2
   printf '%s\n' \
-    '{"type":"assistant","message":{"id":"msg_main_unrated","model":"a-model-released-after-this-rate-table","usage":{"output_tokens":31000}}}' \
+    '{"type":"assistant","message":{"id":"msg_main_unrated","model":"a-model-the-installed-catalog-has-never-heard-of","usage":{"output_tokens":31000}}}' \
     >>"$transcript"
 
   actual="$(render_session_cost_for 0 "$transcript")"
   status=$?
 
-  # The rate table ages every time Anthropic ships a model,
-  # so the total has to say "at least this much" rather than
-  # quietly bill the new model at nothing.
+  # The installed catalog can still lag a model shipped after
+  # it, so the total has to say "at least this much" rather
+  # than quietly bill the new model at nothing.
   #
   # literal dollar sign, not a shell expansion
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSessionCost > corner > should mark the session total as a floor when the session ran on a model with no known rate" \
-    '~$0.93 0' "$actual $status"
+    '~$0.62 0' "$actual $status"
+  rm -rf "$sandbox"
+}
+
+it_should_fall_back_to_the_reported_cost_when_no_catalog_can_be_read() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  write_main_transcript "$transcript" claude-sonnet-5 '{"output_tokens":31000}' 2
+
+  # "$sandbox/no-such-binary" never exists, so pricing the
+  # transcript fails and the widget falls back to Claude
+  # Code's own reported total_cost_usd instead.
+  actual="$(render_session_cost_for 4.75 "$transcript" "$sandbox/no-such-binary")"
+
+  assert_eq \
+    "StatusLineSessionCost > failure > should fall back to Claude Code's reported cost when no catalog can be read" \
+    '$4.75' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2510,6 +2675,7 @@ it_should_price_nothing_rather_than_wait_on_stdin_when_given_no_transcripts() {
 
 it_should_price_the_sessions_own_transcript_rather_than_trust_the_reported_figure
 it_should_mark_the_session_total_as_a_floor_when_a_model_has_no_known_rate
+it_should_fall_back_to_the_reported_cost_when_no_catalog_can_be_read
 it_should_report_the_cost_claude_code_sent_when_the_transcript_cannot_be_read
 it_should_render_no_session_cost_when_neither_the_transcript_nor_the_payload_has_one
 it_should_price_nothing_rather_than_wait_on_stdin_when_given_no_transcripts

@@ -107,6 +107,36 @@ usage_cache_path() {
   printf '%s\n' "${STATUSLINE_USAGE_CACHE:-$HOME/.cache/ccstatusline/usage.json}"
 }
 
+model_rates_cache_path() {
+  printf '%s\n' "${STATUSLINE_MODEL_RATES_CACHE:-$HOME/.cache/statusline-tier/model-rates.json}"
+}
+
+# claude_binary_path - the Claude Code binary or cli.js whose
+# catalog prices this session, symlinks resolved.
+#
+# STATUSLINE_CLAUDE_BINARY, when the caller sets it at all
+# (even to a path that does not exist), is the only
+# candidate: it never falls through to command -v claude.
+#
+# That is what lets a test point this at a fixture and stay
+# isolated from whatever the real machine has installed.
+#
+# Symlinks are resolved through python3 rather than
+# `readlink -f`/`realpath`, neither of which ships on stock
+# macOS, and this script already depends on python3 for the
+# extractor it launches below.
+claude_binary_path() {
+  local candidate
+  if [ "${STATUSLINE_CLAUDE_BINARY+set}" = "set" ]; then
+    candidate="$STATUSLINE_CLAUDE_BINARY"
+  else
+    candidate="$(command -v claude 2>/dev/null)"
+    [ -z "$candidate" ] && candidate="$HOME/.local/bin/claude"
+  fi
+  [ -e "$candidate" ] || return 1
+  python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$candidate" 2>/dev/null
+}
+
 # ----------------------------------------------------------
 # run_with_timeout - portable bash-only timeout wrapper.
 #
@@ -586,7 +616,8 @@ read_monthly_spend_limit() {
 # Session cost, including sub-agent spend
 # ----------------------------------------------------------
 
-# MODEL_RATE_TABLE_JSON - dollars per token, per model.
+# read_model_rates - dollars per token, per model, read from
+# the installed Claude Code's own model catalog.
 #
 # Claude Code's own cost.total_cost_usd counts only the
 # orchestrator's tokens.
@@ -598,18 +629,18 @@ read_monthly_spend_limit() {
 # So the sub-agent half has to be priced here from raw
 # transcript usage, which needs a rate per model.
 #
-# The rates are vendored rather than shelled out to a
-# local cost tool because ccusage, ccburn, and codeburn
-# were each checked and none of them reads the subagents/
-# directory at all.
+# The rates come from extract-claude-model-rates.py rather
+# than a hand-kept table, so a model shipped after this
+# script was last edited (claude-opus-5-5, ...) prices
+# correctly the day it appears in a transcript.
+#
+# They are read from the installed binary rather than
+# shelled out to a local cost tool: ccusage, ccburn, and
+# codeburn were each checked and none of them reads the
+# subagents/ directory at all.
 #
 # So none can produce this figure, whatever pricing data
 # it carries.
-#
-# Every rate here was solved rather than vendored: four
-# single-process, never-resumed --output-format json probes
-# each report an authoritative total_cost_usd for their own
-# usage, one equation per probe in the rate variables.
 #
 # A cache write bills at 2x its model's input rate under the
 # 1-hour TTL, or 1.25x under the 5-minute TTL - this setup's
@@ -618,13 +649,60 @@ read_monthly_spend_limit() {
 #
 # A cache read bills at 0.1x input, the one ratio that does
 # not vary by TTL.
-readonly MODEL_RATE_TABLE_JSON='{
-  "claude-opus-5":    { "input": 5e-6,  "output": 25e-6, "cache_write_5m": 6.25e-6, "cache_write_1h": 10e-6, "cache_read": 0.5e-6 },
-  "claude-opus-4-8":  { "input": 5e-6,  "output": 25e-6, "cache_write_5m": 6.25e-6, "cache_write_1h": 10e-6, "cache_read": 0.5e-6 },
-  "claude-sonnet-5":  { "input": 3e-6,  "output": 15e-6, "cache_write_5m": 3.75e-6, "cache_write_1h": 6e-6,  "cache_read": 0.3e-6 },
-  "claude-haiku-4-5": { "input": 1e-6,  "output": 5e-6,  "cache_write_5m": 1.25e-6, "cache_write_1h": 2e-6,  "cache_read": 0.1e-6 },
-  "claude-fable-5":   { "input": 10e-6, "output": 50e-6, "cache_write_5m": 12.5e-6, "cache_write_1h": 20e-6, "cache_read": 1e-6 }
-}'
+#
+# The extraction cost (~0.14s against the real binary,
+# measured on the native macOS install) stays under
+# ccstatusline's 300ms render debounce.
+#
+# So it runs inline on a cache miss rather than detached in
+# the background - see EXTRACTOR_SCRIPT_PATH below.
+#
+# The cache is one JSON file keyed by the resolved binary
+# path plus its mtime.
+#
+# A Claude Code upgrade changes that mtime, so it re-extracts
+# once and every render after that is a cache hit.
+#
+# Prints the rates JSON on a hit or a successful extraction,
+# and nothing on any failure (no binary, extraction failed,
+# cache unwritable) - the caller decides what "no rates"
+# means for its own widget.
+EXTRACTOR_SCRIPT_PATH="$(dirname "${BASH_SOURCE[0]}")/extract-claude-model-rates.py"
+
+: "${STATUSLINE_MODEL_RATES_TIMEOUT_SECS:=3}"
+
+read_model_rates() {
+  local binary_path cache_path cache_key cached_key rates tmp_file
+  binary_path="$(claude_binary_path)" || return 1
+  cache_path="$(model_rates_cache_path)"
+  cache_key="$binary_path@$(stat_mtime_epoch "$binary_path")"
+
+  if [ -f "$cache_path" ]; then
+    cached_key="$(jq -r '.key // empty' "$cache_path" 2>/dev/null)"
+    if [ "$cached_key" = "$cache_key" ]; then
+      jq -c '.rates' "$cache_path" 2>/dev/null
+      return 0
+    fi
+  fi
+
+  rates="$(
+    run_with_timeout "$STATUSLINE_MODEL_RATES_TIMEOUT_SECS" \
+      python3 "$EXTRACTOR_SCRIPT_PATH" "$binary_path" 2>/dev/null
+  )"
+  [ -z "$rates" ] && return 1
+  printf '%s' "$rates" | jq -e . >/dev/null 2>&1 || return 1
+
+  mkdir -p "$(dirname "$cache_path")" 2>/dev/null
+  tmp_file="$(mktemp "${cache_path}.XXXXXX" 2>/dev/null)"
+  if [ -n "$tmp_file" ]; then
+    jq -nc --arg key "$cache_key" --argjson rates "$rates" '{key: $key, rates: $rates}' \
+      >"$tmp_file" 2>/dev/null \
+      && mv "$tmp_file" "$cache_path" \
+      || rm -f "$tmp_file"
+  fi
+
+  printf '%s\n' "$rates"
+}
 
 : "${STATUSLINE_TRANSCRIPT_SCAN_TIMEOUT_SECS:=3}"
 
@@ -697,7 +775,10 @@ price_transcripts() {
   # until the widget timed out rather than fail here.
   [ "$#" -gt 0 ] || return 1
 
-  jq -Rnr --argjson rates "$MODEL_RATE_TABLE_JSON" '
+  local rates
+  rates="$(read_model_rates)" || return 1
+
+  jq -Rnr --argjson rates "$rates" '
     def base_model: sub("-20[0-9]{6}$"; "");
 
     def total_tokens:
@@ -753,6 +834,12 @@ price_transcripts() {
 # because an unmatched glob would reach jq as a literal
 # "agent-*.jsonl" path and read as a scan failure instead of
 # the ordinary case of a session that spawned no sub-agents.
+#
+# Exit 1 means no sub-agent ran at all; exit 2 means one or
+# more ran but no rates could be read to price them.
+#
+# render_subagent_cost tells the two apart to decide between
+# printing nothing and printing "+ ?".
 sum_subagent_cost() {
   local subagents_dir="$1"
   [ -d "$subagents_dir" ] || return 1
@@ -760,7 +847,7 @@ sum_subagent_cost() {
   local transcripts=("$subagents_dir"/agent-*.jsonl)
   [ -e "${transcripts[0]:-}" ] || return 1
 
-  price_transcripts "${transcripts[@]}"
+  price_transcripts "${transcripts[@]}" || return 2
 }
 
 # render_session_cost - what this session has spent, as
@@ -780,9 +867,9 @@ sum_subagent_cost() {
 # sub-agent addendum: main transcripts carry no isSidechain
 # assistant entries, so the two file sets are disjoint.
 #
-# A total carrying tokens from a model absent from
-# MODEL_RATE_TABLE_JSON is prefixed "~", marking it a floor
-# rather than the real number.
+# A total carrying tokens from a model the installed Claude
+# Code's own catalog doesn't list is prefixed "~", marking it
+# a floor rather than the real number.
 #
 # On any scan failure the figure Claude Code sent is printed
 # instead. That number is wrong after a resume, but a wrong
@@ -830,13 +917,13 @@ render_session_cost() {
 # have spent, as an addendum to the main figure
 # render_session_cost prints: "+ $19.01".
 #
-# A total carrying tokens from a model absent from
-# MODEL_RATE_TABLE_JSON is prefixed "~", marking it a floor
-# rather than the real number.
+# A total carrying tokens from a model the installed Claude
+# Code's own catalog doesn't list is prefixed "~", marking it
+# a floor rather than the real number.
 #
-# ccusage is the cautionary case: its pinned rate table
-# predates claude-sonnet-5, so it reports a confident
-# $0.00 for an entire session on that model.
+# ccusage is the cautionary case: it doesn't read
+# "subagents/" at all, so it can't answer this widget's
+# question regardless of its own rates.
 #
 # Nothing prints without a transcript path, which is the one
 # input both halves of the row need - so this addendum can
@@ -846,11 +933,18 @@ render_session_cost() {
 # to show and every one of them was priced, since "+ $0.00"
 # widens the row to report no spend.
 #
+# "+ ?" prints instead when sub-agents ran but no catalog
+# could be read to price any of them.
+#
+# sum_subagent_cost signals that case with exit 2, distinct
+# from exit 1's "no sub-agents ran at all", which this widget
+# must stay silent on.
+#
 # Printing nothing and exiting 0 is ccstatusline's
 # omit-this-widget contract - a non-zero exit renders a
 # visible "[Exit: N]" token.
 render_subagent_cost() {
-  local payload transcript_path subagent_total
+  local payload transcript_path subagent_total status=0
   payload="$(cat)"
 
   transcript_path="$(printf '%s' "$payload" | jq -r '.transcript_path // empty' 2>/dev/null)"
@@ -859,8 +953,12 @@ render_subagent_cost() {
   subagent_total="$(
     run_with_timeout "$STATUSLINE_TRANSCRIPT_SCAN_TIMEOUT_SECS" \
       sum_subagent_cost "$(subagent_transcript_dir "$transcript_path")"
-  )"
-  [ -z "$subagent_total" ] && return 0
+  )" || status=$?
+
+  if [ -z "$subagent_total" ]; then
+    [ "$status" -eq 2 ] && printf '+ ?\n'
+    return 0
+  fi
 
   awk -v subagent_total="$subagent_total" 'BEGIN {
     split(subagent_total, parts, " ")
