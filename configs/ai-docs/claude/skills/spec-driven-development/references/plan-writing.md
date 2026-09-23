@@ -48,7 +48,7 @@ The human body is everything above the literal `# Appendix` heading. Appendix `#
 
 Keep the human body (everything above `# Appendix`) to 1–6 pages (~500–3,000 words) depending on the problem; simpler and shorter is better. A soft guideline, never a gate.
 
-Keep each task's Brief Description to ≤256 words — this now spans two places: the body's Task Breakdown entry (title, Depends on, Brief Description, Commits sketch) plus the matching Appendix Task Details entry (AC, Verification, Files). Together they replace the old single 240–406-word median entry, which held a per-task `Tests (planned)` field now folded into Test Design.
+Keep each task's entry to ≤256 words total, counting the body's Task Breakdown entry (title, Depends on, Brief Description, Commits sketch) together with the matching Appendix Task Details entry (AC, Verification, Files) — the two spans of one task, not two separate budgets. Together they replace the old single 240–406-word median entry, which held a per-task `Tests (planned)` field now folded into Test Design.
 
 ## Spec line
 
@@ -89,6 +89,8 @@ subgraph trust_db["trust: service account"]
 Tick every box this change touches. Each ticked box carries its mitigation on the same line, appended after the box's text. An unmitigated threat becomes an Open Question, never a bullet — it blocks approval instead of shipping as an unvoted risk.
 
 The five boxes map to `code-review-pipeline/references/review-checklists.md`'s Security Checklist vocabulary: untrusted input → injection, XSS/output-encoding gaps, unsafe deserialization. Permissions → authn/authz. Personal data → the data-handling side of secret/credential exposure. A secret/credential → secret and credential exposure. Code/shell/SQL built from input → SSRF/RCE, unsafe eval or dynamic execution.
+
+Reuse this vocabulary rather than inventing a second one — a second taxonomy would drift from the one review applies.
 
 The old `asset ← threat ⇒ mitigation → AC-N` line format is dropped — the per-box mitigation above replaces it.
 
