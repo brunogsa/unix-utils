@@ -200,6 +200,105 @@ No sections here at all.')
   assert_contains "should say the template defines no sections" "no '## ' sections" "$VERDICT_ERR"
 }
 
+APPENDIX_TEMPLATE_BODY='# Plan: [Title]
+
+## Technical Approach
+
+## Threat Model
+
+# Appendix
+
+## Task Details
+
+## Technical Decisions'
+
+it_should_pass_when_the_doc_places_every_section_on_the_templates_side_of_appendix() {
+  local template doc
+  template=$(write_fixture "appendix-ok-template" "$APPENDIX_TEMPLATE_BODY")
+  doc=$(write_fixture "appendix-ok-doc" '# Plan: Parallel sessions
+
+## Technical Approach
+
+## Threat Model
+
+# Appendix
+
+## Task Details
+
+## Technical Decisions')
+  run_script "$doc" "$template"
+  assert_eq "should pass when every section sits on the same side of '# Appendix' as the template" "0" "$VERDICT_EXIT"
+}
+
+it_should_fail_when_the_template_has_an_appendix_but_the_doc_has_none() {
+  local template doc
+  template=$(write_fixture "appendix-required-template" "$APPENDIX_TEMPLATE_BODY")
+  doc=$(write_fixture "appendix-missing-doc" '# Plan: Parallel sessions
+
+## Technical Approach
+
+## Threat Model
+
+## Task Details
+
+## Technical Decisions')
+  run_script "$doc" "$template"
+  assert_eq "should fail when the template requires a '# Appendix' boundary the doc never writes" "1" "$VERDICT_EXIT"
+  assert_contains "should name the missing '# Appendix' boundary in the failure output" "# Appendix" "$VERDICT_ERR"
+}
+
+it_should_fail_when_an_appendix_only_section_sits_on_the_body_side_in_the_doc() {
+  local template doc
+  template=$(write_fixture "wrong-side-appendix-template" "$APPENDIX_TEMPLATE_BODY")
+  doc=$(write_fixture "wrong-side-appendix-doc" '# Plan: Parallel sessions
+
+## Technical Approach
+
+## Threat Model
+
+## Task Details
+
+# Appendix
+
+## Technical Decisions')
+  run_script "$doc" "$template"
+  assert_eq "should fail when a template appendix-side section is written on the doc's body side" "1" "$VERDICT_EXIT"
+  assert_contains "should name the section that crossed to the wrong side" "## Task Details" "$VERDICT_ERR"
+}
+
+it_should_fail_when_a_body_only_section_sits_on_the_appendix_side_in_the_doc() {
+  local template doc
+  template=$(write_fixture "wrong-side-body-template" "$APPENDIX_TEMPLATE_BODY")
+  doc=$(write_fixture "wrong-side-body-doc" '# Plan: Parallel sessions
+
+## Threat Model
+
+# Appendix
+
+## Technical Approach
+
+## Task Details
+
+## Technical Decisions')
+  run_script "$doc" "$template"
+  assert_eq "should fail when a template body-side section is written on the doc's appendix side" "1" "$VERDICT_EXIT"
+  assert_contains "should name the section that crossed to the wrong side" "## Technical Approach" "$VERDICT_ERR"
+}
+
+it_should_pass_as_today_when_the_template_has_no_appendix_boundary() {
+  local template doc
+  template=$(write_fixture "no-appendix-template" "$TEMPLATE_BODY")
+  doc=$(write_fixture "no-appendix-doc" '# Plan: Parallel sessions
+
+## Task Breakdown
+
+## Technical Approach
+
+## Threat Model')
+  run_script "$doc" "$template"
+  assert_eq "should keep passing on section order/placement alone when the template never defines a '# Appendix' boundary" "0" "$VERDICT_EXIT"
+}
+
 it_should_pass_when_the_doc_carries_every_template_section
 it_should_fail_and_name_the_section_when_one_is_missing
 it_should_pass_when_a_section_body_is_only_an_na_line
@@ -209,6 +308,11 @@ it_should_pass_when_the_doc_adds_a_section_the_template_lacks
 it_should_report_a_usage_error_on_the_wrong_argument_count
 it_should_report_a_usage_error_when_a_file_is_missing
 it_should_report_a_usage_error_when_the_template_defines_no_sections
+it_should_pass_when_the_doc_places_every_section_on_the_templates_side_of_appendix
+it_should_fail_when_the_template_has_an_appendix_but_the_doc_has_none
+it_should_fail_when_an_appendix_only_section_sits_on_the_body_side_in_the_doc
+it_should_fail_when_a_body_only_section_sits_on_the_appendix_side_in_the_doc
+it_should_pass_as_today_when_the_template_has_no_appendix_boundary
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
