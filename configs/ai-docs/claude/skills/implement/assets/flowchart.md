@@ -35,6 +35,10 @@ def implement(arg):
     #     gate (default yes, runs BOTH the full-suite baseline AND the
     #     batch-end gate, or neither) · confirm base branch
     #     · PLUS 'Deliver each task as its own stacked PR?' — default NO.
+    #     · On a draft-PR yes, the ticket ID resolves by create-pr's step 1
+    #       rule; only when left open is its question (D) asked, in a
+    #       follow-up call (shared with 9's when the stacked gates run).
+    #       pr-creator cannot ask, so 37b3's dispatch passes the ID or "none".
     answers = ask_everything_at_once()                      # 4
 
     # 5-9 · §1.2 — stacked delivery (one PR per task, layered) is OPT-IN: it
@@ -504,7 +508,7 @@ flowchart TD
   n2["2. Step 1.1 · Locate plan_&lt;slug&gt;.md (+ the spec when one<br/>exists — a plan-only run is a supported mode)"]
   n3{"3. Plan found?"}
   n3a(["3a. Stop: no plan given"])
-  n4["4. Step 1.2 · ONE up-front interview, one call:<br/><br/>- Plan pick, if multiple candidates<br/>- Plan path, if none found (§1.1)<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Quality-gate tail? (default yes)<br/>- Repo-green gate? (default yes,<br/>runs both the full-suite baseline<br/>and the batch-end gate, or neither)<br/>- Confirm the base branch<br/>- Deliver each task as its own stacked PR?<br/>(yes/no, default NO)"]:::gate
+  n4["4. Step 1.2 · ONE up-front interview, one call:<br/><br/>- Plan pick, if multiple candidates<br/>- Plan path, if none found (§1.1)<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Quality-gate tail? (default yes)<br/>- Repo-green gate? (default yes,<br/>runs both the full-suite baseline<br/>and the batch-end gate, or neither)<br/>- Confirm the base branch<br/>- Deliver each task as its own stacked PR?<br/>(yes/no, default NO)<br/>- On a draft-PR yes: the ticket ID, asked<br/>in a follow-up call only when not obvious<br/>(passed to pr-creator, which cannot ask)"]:::gate
   n5{"5. Step 1.2 · Stacked answered yes? Stacked is<br/>OPT-IN because it turns the whole unit strictly<br/>sequential — no parallel dispatch for the run"}
   n5a["5a. Default 'no': the unit ships as ONE PR,<br/>its tasks commits inside it — nothing else in<br/>step 1.2 runs, and stacked-by-task.md is<br/>never loaded"]
   n6["6. Step 1.2 · Load references/stacked-by-task.md<br/>— only on a 'yes', before its two gates below"]:::skill

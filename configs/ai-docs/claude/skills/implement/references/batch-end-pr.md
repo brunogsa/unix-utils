@@ -20,7 +20,7 @@ It composes the body and creates (or updates) the PR — the orchestrator never 
   It ignores every requirement this section enumerates (template preservation, `.final.md` output path, untracked-doc-reference stripping, the REST-API update path) — picking it silently drops this whole section's contract.
 
 **The branch is already on the remote — §8.1's step 1 pushed it before this section is reached.**
-Push and create are split owners: pushing no longer depends on a PR being wanted, so a pushed branch with no PR is normal, not an inconsistent state needing cleanup.
+Push and create are split owners: pushing doesn't depend on a PR being wanted, so a pushed branch with no PR is normal, not an inconsistent state needing cleanup.
 
 - **CRITICAL: re-read this whole section immediately before dispatching — never execute it from a compacted-summary recollection.**
   A paraphrase like "generate the body via a subagent, following create-pr conventions" silently drops every enumerated specific below.
@@ -45,7 +45,7 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
   - `WARNING:`-prefixed items for any manual deploy prerequisite (new secrets, new Parameter-Store values) or other operationally-risky item needing human coordination.
   - Zero references to untracked session docs (`spec_<slug>.md`, `plan_<slug>.md`, `verdict_*.md`, internal task/AC numbers, commit SHAs).
     Verify each with `git ls-files <name>`; substitute the value or drop it.
-  - **Create the draft PR only — never push, never force-push**: `gh pr create --draft --body-file <file> --base <base-branch>`. Never auto-merge.
+  - **Create the draft PR only — never push, never force-push**: `gh pr create --draft --title "<title>" --body-file <file> --base <base-branch>`. Never auto-merge.
 
     - State this in the dispatch prompt explicitly: left unsaid, the agent pushes by default, since its own skill covers the whole flow.
 
@@ -66,6 +66,8 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
       - Name the skill in the dispatch prompt rather than pasting the command: a third copy drifts the next time GitHub changes the endpoint.
 
   - Put completed Scout / repo-green fix-loop (§8.3) commits under an **"Unexpected extras"** section in the PR body.
+  - Pass §1.2's ticket ID or "none" ([`ticket-id.md`](../../create-pr/references/ticket-id.md)); the subagent cannot ask.
+
   - Pass the resolved `<this-PR-label>` explicitly in the dispatch prompt, so the subagent opens one PR without asking which it covers — CWD may hold several spec/plan pairs.
   - Assign its body-file output path explicitly:
     - When `pr_label` is non-empty: `./pr_<slug>_<this-PR-label-lowercase>.final.md` (e.g. `pr_multi-pr-implement_pr2.final.md`).
@@ -75,7 +77,6 @@ Push and create are split owners: pushing no longer depends on a PR being wanted
 ## On failure
 
 **Any failure the agent reports — no `gh`, or a create/update that errored — is a run halt, not a partial package.**
-A push failure can't surface here — that already halted at §8.1's step 1.
 Go to §5.5: name the failure in one short message, keep the state file, print nothing further.
 
 Once this run's last PR has just been created under `Mode: native`, continue to [`batch-end-pr-native-link.md`](batch-end-pr-native-link.md) to register the stack. Skip otherwise.

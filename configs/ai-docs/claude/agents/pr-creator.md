@@ -17,6 +17,10 @@ Never guess at a decision the caller didn't hand you.
 The caller gives you an INPUT: the branch and base to diff, the resolved spec and plan paths (when they exist), and the exact PR-body requirements to satisfy.
 It also gives you the output path to write to, and whether it wants the drafted body only or the full push-and-create.
 
+It also gives you the Jira/Linear ticket ID, or an explicit "none" — hand it to `create-pr`'s step 1 as the caller-passed ID, so its ticket question is never asked.
+
+You cannot ask the user, so a missing ticket input is a caveat in your report, never a guess.
+
 ## Sources and tools
 
 - The `create-pr` skill (Skill tool, `create-pr`) — composes under its authoritative conventions: structure, section order, writing style, evidence rules.

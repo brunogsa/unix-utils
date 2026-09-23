@@ -92,6 +92,8 @@ Mid-run `.env` needs are self-served (copied from the original checkout) rather 
 - **Plan path**, only when §1.1 found no plan — if still not provided, stop (§1.1).
 - **Run in a git worktree?** (yes/no) — on yes, §1.4 creates it from HEAD and symlinks files in.
 - **Open a draft PR at batch end?** (yes/no) — decides the PR only.
+  - On `yes`, resolve the ticket ID per [`ticket-id.md`](../create-pr/references/ticket-id.md), asking (D) in the follow-up call only when left open.
+
 - **Deliver each task as its own stacked PR?** (yes/no, default no) — see "Two delivery shapes" above.
   - On `yes` only, load [`references/stacked-by-task.md`](references/stacked-by-task.md): it owns two gates that can overrule the yes and the layer order.
   - Both run in a **follow-up** `AskUserQuestion` call; a `no` loads nothing.
@@ -102,7 +104,7 @@ Mid-run `.env` needs are self-served (copied from the original checkout) rather 
   - Yes runs BOTH §1.6's baseline capture and §8.3's batch-end gate; no runs NEITHER.
   - The gate classifies pre-existing red only by diffing against a baseline, so a gate with none never terminates.
 
-- **Base-branch confirmation** — show `~/.claude/scripts/resolve-base-ref.sh`'s output (origin/HEAD, falling back to local main, then local master) as the default for confirm-or-override.
+- **Base-branch confirmation** — show `~/.claude/scripts/resolve-base-ref.sh`'s output as the default for confirm-or-override.
 
 Record all answers — §2.3 persists them to the state file.
 
@@ -120,7 +122,7 @@ The first two validate one graph each in isolation — the Task Breakdown's, and
 
 A plan can pass both and still be wrong: an early-PR task can depend on a later-PR task never listed as a dependency.
 
-§2.3's "absent id counts as satisfied" rule then dispatches it before the real prerequisite runs — caught only by the third check, `check-pr-task-projection.py`.
+§2.3's "absent id counts as satisfied" rule then dispatches it before the real prerequisite runs — caught only by `check-pr-task-projection.py`.
 
 **All three run once per invocation, PR-label or not** — never again per task, per PR, or on retry.
 
@@ -132,7 +134,7 @@ A non-zero exit stops the run: surface the stderr diagnostic verbatim and fix th
 
 ### 1.4. Worktree setup (only when §1.2 answered yes)
 
-Creation and file-symlink mechanics live in [`references/worktree-setup.md`](references/worktree-setup.md). When §1.2 answered no, skip this step; the batch-end package omits the merge-back reminder.
+Creation and file-symlink mechanics live in [`references/worktree-setup.md`](references/worktree-setup.md). On a no, the batch-end package omits the merge-back reminder.
 
 ### 1.5. Resolve the PR-labels (only when the arg is a PR-label)
 
@@ -219,7 +221,7 @@ Each state file has exactly this shape:
   "repo_green_gate": { "wanted": true },
   "quality_gate": { "wanted": true, "reports": [] },
   "worktree": { "created": false, "path": "", "branch": "" },
-  "pr": { "wanted": false },
+  "pr": { "wanted": false, "ticket": "" },
   "stack": { "wanted": false, "order": [], "refused": "" }
 }
 ```
@@ -454,7 +456,7 @@ Marker vocabulary, placement, and semantics live in [`plan-status-markers`](../p
 
 A PR-label run's PR Breakdown heading gets the same `[<status>]` prefix at its own §8.1. Only `[Done]`, inline, never scripted. Format/timing: `references/batch-end-pr-branch-record.md`'s "Branch record & PR-level status marker".
 
-On a stacked run each task heading also carries a layer `**Branch**:` field, written at that same §8.1 — see [`references/stacked-by-task-batch-end.md`](references/stacked-by-task-batch-end.md)'s "Where the branch gets recorded".
+On a stacked run each task heading also carries a layer `**Branch**:` field, written at that same §8.1 — see [`references/stacked-by-task-batch-end.md`](references/stacked-by-task-batch-end.md#where-the-branch-gets-recorded).
 
 ## 7. Commit model
 
