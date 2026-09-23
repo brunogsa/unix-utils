@@ -78,10 +78,22 @@ fresh_sandbox() {
   cp "$run_tests_src" "$sandbox/run-tests.sh"
   cp "$pytest_ini_src" "$sandbox/pytest.ini"
   mkdir -p \
+    "$sandbox/configs/ai-docs/claude/scripts" \
     "$sandbox/configs/ai-docs/claude/tests" \
     "$sandbox/configs/ai-docs/claude/scripts/tests" \
     "$sandbox/configs/ai-docs/claude/hooks/tests" \
     "$sandbox/configs/ai-docs/claude/skills/fake-skill/scripts/tests"
+
+  # A GO stub at the path run-tests.sh resolves its gate to,
+  # so this fold-in suite stays green whatever this machine's
+  # real load is - including a busy outer run loading it.
+  cat > "$sandbox/configs/ai-docs/claude/scripts/check-machine-headroom.sh" <<'STUB'
+#!/usr/bin/env bash
+printf 'HEADROOM=GO cores=8 load1=0.10 ratio=0.01 max_ratio=0.70 mem_avail_mb=4000 min_avail_mb=1536 disk_free_mb=100000 min_disk_mb=5120\n'
+exit 0
+STUB
+  chmod +x "$sandbox/configs/ai-docs/claude/scripts/check-machine-headroom.sh"
+
   printf '%s\n' "$sandbox"
 }
 
