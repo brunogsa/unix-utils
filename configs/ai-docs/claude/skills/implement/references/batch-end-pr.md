@@ -39,7 +39,7 @@ Push and create are split owners: pushing doesn't depend on a PR being wanted, s
     A copy here would drift, then silently outrank the original.
     - Drop a section only when it is genuinely N/A for this batch, never silently.
 
-    - Plan-only run (§1.1 resolved no spec) → the acceptance criteria the template puts in the appendix come verbatim from each covered task's **Testable Acceptance criteria** list in the plan, same formatting.
+    - Plan-only run (§1.1 resolved no spec) → the acceptance criteria the template puts in the appendix come verbatim from each covered task's `## Task Details` entry, same formatting.
       The plan always carries them, never N/A for want of a spec.
 
   - `WARNING:`-prefixed items for any manual deploy prerequisite (new secrets, new Parameter-Store values) or other operationally-risky item needing human coordination.

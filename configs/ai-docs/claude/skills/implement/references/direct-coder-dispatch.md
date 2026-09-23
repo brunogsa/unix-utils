@@ -9,6 +9,7 @@ Loaded whenever §4.0's extractor call returns empty stdout for a task: no test 
 - **Change**: the task's heading, description, and acceptance criteria, in the plan's own words — enough detail to apply with no test to write against.
 - **Files**: the task's **Files (logical order)** list, same starting-set rule as §4.1.
 - **Verification**: same rule as §4.1 — task-scoped commands only, when the plan names any; omit when it names none.
+- Read Files, Verification, and acceptance criteria from the task's `## Task Details` entry, same fallback rule as §4.1.
 - **Optional**: the same `references:` / `base:` / `<run-label>` fields as §4.1.
 
 Everything else is baked into `direct-coder.md`. Don't re-push any of it.

@@ -13,7 +13,7 @@ words-budget: 4096
 
 `<task-ids>` is one numeric task prefix or a comma-list (1 space after commas) — `5`, or `1, 2, 3` — from the plan in CWD.
 
-Each ID must match the numeric prefix of one plan heading; colliding ids make the plan malformed, and §1.3's checker rejects it.
+Each ID must match one plan heading's numeric prefix; colliding ids make the plan malformed, rejected by §1.3's checker.
 
 `<PR-label(s)>` is `PR-N` or a comma-list, same convention — `PR-1`, or `PR-1, PR-2` — from the plan's PR Breakdown, resolving to its own task-id list.
 
@@ -38,7 +38,7 @@ A **unit** is one `PR-N` entry, or the `<task-ids>` run when the plan has no PR 
 
 **Not stacked** (default) makes the unit one PR, its tasks landing as commits; **stacked** (opt-in) makes each task its own PR, layered into one stack.
 
-This turns the unit strictly sequential, so §5.4's parallel dispatch is off.
+This turns the unit strictly sequential — §5.4's parallel dispatch is off.
 
 The plan reads the same either way — [`references/stacked-by-task.md`](references/stacked-by-task.md) owns the choice.
 
@@ -65,7 +65,7 @@ This skill **never merges or deletes §1.2's worktree**; `parallel-worktrees` ca
 
 **TaskCreate a lightweight tracking entry for any §1.4–§1.6 step before running it**, when that step takes non-trivial wall-clock (worktree creation, dependency install/build, baseline capture) — flip it `in_progress`/`completed` around the step.
 
-This is scaffolding visibility only, prior to §2's own per-plan-task seeding; §2 still creates every plan-task and reminder entry itself.
+This is scaffolding visibility only, prior to §2's per-plan-task seeding; §2 still creates every plan-task and reminder entry.
 
 ### 1.1. Locate the plan (and spec)
 
@@ -86,7 +86,7 @@ Resolve candidates with this decision tree — it never prompts; ambiguity becom
 
 Ask everything at once, before any dispatch — the run's only round of questions (two or three `AskUserQuestion` calls; each caps at 4 questions and 4 options).
 
-Mid-run `.env` needs are self-served (copied from the original checkout) rather than asked.
+Mid-run `.env` needs are self-served (copied from the original checkout), never asked.
 
 - **Plan pick**, only when §1.1 found multiple candidates.
 - **Plan path**, only when §1.1 found no plan — if still not provided, stop (§1.1).
@@ -120,17 +120,17 @@ Run all three checkers on the resolved plan, before §2 seeds anything:
 
 The first two validate one graph each in isolation — the Task Breakdown's, and the PR Breakdown's.
 
-A plan can pass both and still be wrong: an early-PR task can depend on a later-PR task never listed as a dependency.
+A plan can pass both and still be wrong: an early-PR task can depend on a later-PR task never listed.
 
-§2.3's "absent id counts as satisfied" rule then dispatches it before the real prerequisite runs — caught only by `check-pr-task-projection.py`.
+§2.3's "absent id counts as satisfied" rule then dispatches it early — caught only by `check-pr-task-projection.py`.
 
 **All three run once per invocation, PR-label or not** — never again per task, per PR, or on retry.
 
-The last two pass trivially with no PR Breakdown, or with the literal "Single PR." escape.
+The last two pass trivially with no PR Breakdown, or the literal "Single PR." escape.
 
-The plan stays hand-editable — a later edit can reintroduce a cycle, dangling dependency, or duplicate id, uncaught downstream.
+The plan stays hand-editable — a later edit can reintroduce a cycle, dangling dependency, or duplicate id.
 
-A non-zero exit stops the run: surface the stderr diagnostic verbatim and fix the plan before re-invoking.
+A non-zero exit stops the run: surface the stderr diagnostic and fix the plan before re-invoking.
 
 ### 1.4. Worktree setup (only when §1.2 answered yes)
 
@@ -138,7 +138,7 @@ Creation and file-symlink mechanics live in [`references/worktree-setup.md`](ref
 
 ### 1.5. Resolve the PR-labels (only when the arg is a PR-label)
 
-Resolve every `PR-N` in the arg to its task-id list now, before §2 seeds anything.
+Resolve every `PR-N` in the arg to its task-id list, before §2 seeds anything.
 
 Resolution and per-PR branch creation live in [`references/pr-awareness.md`](references/pr-awareness.md), loaded here.
 
@@ -331,14 +331,16 @@ The prompt pushes only the per-task data below.
 
 Push a `Context`/`Units`/`Verification`/`Optional` block verbatim, using `tdd-coder.md`'s Inputs field names; the subagent pulls nothing from CWD.
 
-- **Context**: the task's heading and brief description, in the plan's own words.
-- **Units**: the task's acceptance criteria and planned-test titles, one unit per forcing case, in the plan slice's own order.
-  - Cap one dispatch at **3 units**; a task with more splits into consecutive ≤3-unit dispatches, in plan order, each with its own `<run-label>`. `tdd-coder.md` forbids self-splitting; enforce the cap here.
+- **Context**: the task's heading and brief description, plan's own words.
+- **Units**: the task's ACs and planned-test titles, one unit per forcing case, in the plan slice's order.
+  - Cap one dispatch at **3 units**; a bigger task splits into ≤3-unit dispatches, each its own `<run-label>`. `tdd-coder.md` forbids self-splitting; enforce it here.
   - Even a single-unit dispatch has auto-compacted before, so keep the pushed prompt small.
   - Chunks of one task run **sequentially**, never in parallel — same branch, same git index. Cross-task parallelism stays with `parallel-worktrees` (§5.4).
   - Give a later chunk's **Context** a one-line summary of earlier chunks' landing, plus `base:`, so it can `git log` the *why*.
-  - A test and the change it covers are **one unit, never two**: `tdd-coder` commits one per unit, so splitting them violates commit-standards.
+  - A test and the change it covers are **one unit, never two**: `tdd-coder` commits one per unit; splitting them violates commit-standards.
+
 - **Verification**: the task's **task-scoped verification commands only**, when the plan names any.
+  - Read it from the task's Task Details entry; fall back to `### N.` only on an old-shape plan, never silently on a new-shape one.
   - Strip any repo-wide/full-suite command (e.g. `test:agentic`, `yarn lint`) before pushing — a subagent verifies only its own change.
   - A stripped requirement isn't dropped: §8.3's gate re-covers it when on; §8.4's package names it when off.
   - When the plan names none, **omit the field**; `tdd-coder.md` derives one from a file declaring the repo's entry point and reports it plus its source.
