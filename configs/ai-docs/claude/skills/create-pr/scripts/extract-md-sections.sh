@@ -11,6 +11,15 @@
 # any "## " sections you don't name. Nested "### " sub-headings ride along
 # inside their parent section untouched.
 #
+# A kept section also stops at a literal "# Appendix" H1 line,
+# so a doc split into a human body plus an AI-only appendix
+# never bleeds the boundary line (or the appendix content past
+# it) into a body section's output.
+#
+# A generic "^# " line, such as a "# comment" inside a fenced
+# code block, is never treated as this boundary — only the
+# exact "# Appendix" text is.
+#
 # Usage:
 #   extract-md-sections.sh <file> "<section title>" ["<section title>" ...]
 #
@@ -83,6 +92,7 @@ out=$(
             n = split(ENVIRON["WANTED_SECTIONS"], arr, "\n")
             for (i = 1; i <= n; i++) if (arr[i] != "") want[arr[i]] = 1
         }
+        /^# Appendix[ \t]*$/ { keep = 0 }
         /^## / { keep = (($0) in want) ? 1 : 0 }
         keep
     ' "$file"
