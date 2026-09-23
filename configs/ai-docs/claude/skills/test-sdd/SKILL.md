@@ -6,7 +6,7 @@ disable-model-invocation: false
 
 # Test-SDD — did the plan's planned tests actually land?
 
-Check every `**Tests (planned)**` title a `plan_<slug>.md` declares against the tests that exist in the repo right now, and write the misses to a timestamped verdict file.
+Check every planned test a `plan_<slug>.md` declares — Test Design's `it()` titles annotated to a task, or that task's `**Tests (planned)**: N/A` opt-out — against the tests that exist in the repo right now, and write the misses to a timestamped verdict file.
 
 **Report only** — this skill never writes a test, never edits source, never commits.
 
@@ -108,12 +108,18 @@ For each id `<N>`, first check that task's plan entry for a `**DECISION:** Skip 
 ~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <N>
 ```
 
+The script auto-detects the plan's Test Design form: today's plans annotate `it()` titles with a trailing `// AC-N T<task-N>` comment, and the script filters to the titles carrying this task's token.
+
+A legacy plan whose Test Design has no annotated `it()` at all falls back to that task's own `**Tests (planned)**:` bullet list, still accepted for older plans.
+
 Handle its exit codes exactly this way — never fall back to inline AI judgment on a parse failure:
 
 - **Exit 2** (usage / parse error) → record the failure in the report and mark the whole run inconclusive.
-- **Exit 1** (plan malformed — missing `### N.` heading or missing `**Tests (planned)**:` bullet) → same treatment; the plan must be fixed before a re-run means anything.
+- **Exit 1** (plan malformed — missing `### N.` heading, or, on a legacy plan, missing `**Tests (planned)**:` bullet) → same treatment; the plan must be fixed before a re-run means anything.
 
-- **Exit 0, empty stdout** → the task declared `**Tests (planned)**: N/A`. Report it in the N/A list; it is not a finding.
+- **Exit 0, empty stdout** → no annotated `it()` carries this task's token, or, on a legacy plan, the task declared `**Tests (planned)**: N/A`.
+  - Report it in the N/A list; it is not a finding.
+
 - **Exit 0, non-empty stdout** → titles captured; continue to the grep pass.
 
 Run a deterministic grep pre-pass per title, over tracked and untracked files:
@@ -145,7 +151,7 @@ Write the complete report to `$VERDICT_PATH`. Every missing title is one numbere
 |------|--------|---------|-------|---------|
 | 3    | [Done] | 4       | 3     | 1       |
 
-Tasks declaring `**Tests (planned)**: N/A`: <ids, or "none">.
+Tasks with zero planned tests (no annotated `it()` carries the task's token, or a legacy `**Tests (planned)**: N/A`): <ids, or "none">.
 Tasks opted out via `**DECISION:** Skip planned-test check`: <ids with reasons, or "none">.
 
 ## Findings
