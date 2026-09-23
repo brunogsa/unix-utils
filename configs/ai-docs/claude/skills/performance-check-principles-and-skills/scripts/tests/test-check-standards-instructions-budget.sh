@@ -22,30 +22,15 @@
 # another session mid-edit) used to flip the two exits-zero
 # assertions.
 #
-# These run check.sh under its own fake HOME instead: an
-# empty agents dir, plus symlinks to the repo's own
-# agent-standards and doc-standards helper scripts.
+# lib-fake-home.sh builds and tears down the fake HOME these
+# run under; see that file for the full reasoning.
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECK="$SCRIPT_DIR/../check.sh"
-REPO_SKILLS_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
-# Fake HOME so check.sh's unconditional $HOME/.claude/agents
-# audit never sees the live, possibly mid-edit agents dir.
-#
-# Directory symlinks (not file copies) for the two helper
-# scripts: check-density.sh resolves its own script_dir from
-# BASH_SOURCE, and check.sh hides helper failures, so a
-# broken/stale copy would read as a clean pass.
-FAKE_HOME=$(mktemp -d)
-mkdir -p "$FAKE_HOME/.claude/agents" "$FAKE_HOME/.claude/skills"
-ln -s "$REPO_SKILLS_DIR/agent-standards" \
-    "$FAKE_HOME/.claude/skills/agent-standards"
-ln -s "$REPO_SKILLS_DIR/doc-standards" \
-    "$FAKE_HOME/.claude/skills/doc-standards"
-trap 'rm -rf "$FAKE_HOME"' EXIT
+source "$SCRIPT_DIR/lib-fake-home.sh"
 
 passed=0
 failed=0

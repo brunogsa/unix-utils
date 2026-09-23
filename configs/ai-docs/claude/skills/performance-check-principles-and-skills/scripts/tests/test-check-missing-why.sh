@@ -11,13 +11,15 @@
 # code is ignored: a fixture tuned to satisfy all ten
 # budgets would be rewritten by every future budget change.
 #
-# check.sh resolves $HOME/.claude/agents unconditionally, so
-# these run against an installed config, not a bare checkout.
+# These run under lib-fake-home.sh's shared fake HOME, so a
+# bare checkout with no installed ~/.claude still passes.
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECK="$SCRIPT_DIR/../check.sh"
+
+source "$SCRIPT_DIR/lib-fake-home.sh"
 
 passed=0
 failed=0
@@ -59,7 +61,7 @@ write_skill() {
 # so assertions stay readable and path-independent.
 run_check() {
     local dir=$1
-    bash "$CHECK" "$dir" 2>/dev/null | awk '
+    HOME="$FAKE_HOME" bash "$CHECK" "$dir" 2>/dev/null | awk '
         /^## CRITICAL \[Instruction\] lines with no \[Why\]/ { in_section = 1; next }
         /^## / { in_section = 0 }
         in_section && /^- / { print }

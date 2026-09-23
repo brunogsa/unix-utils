@@ -13,13 +13,15 @@
 # here asserts a clean exit 0; tests/test-repo-budgets.sh
 # gates that, over the repo's real tree.
 #
-# check.sh resolves $HOME/.claude/agents unconditionally, so
-# these run against an installed config, not a bare checkout.
+# These run under lib-fake-home.sh's shared fake HOME, so a
+# bare checkout with no installed ~/.claude still passes.
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECK="$SCRIPT_DIR/../check.sh"
+
+source "$SCRIPT_DIR/lib-fake-home.sh"
 
 # Mirrors WHY_BYTES_BUDGET in check.sh. Hard-coded here on
 # purpose: a test that read the budget from the script would
@@ -103,7 +105,7 @@ why_line_of_em_dashes() {
 # keeps the regression gate from keying on them.
 run_check() {
     local dir=$1
-    bash "$CHECK" "$dir" 2>/dev/null | awk '
+    HOME="$FAKE_HOME" bash "$CHECK" "$dir" 2>/dev/null | awk '
         /^## \[Why\] lines over / { in_section = 1; next }
         /^## / { in_section = 0 }
         in_section && / bytes \(>/ { print }
@@ -113,18 +115,17 @@ run_check() {
 # Echo the status-table row for the byte cap.
 run_row() {
     local dir=$1
-    bash "$CHECK" "$dir" 2>/dev/null | grep '^| \[Why\] lines over '
+    HOME="$FAKE_HOME" bash "$CHECK" "$dir" 2>/dev/null | grep '^| \[Why\] lines over '
 }
 
 # Echo check.sh's exit code against the fixture.
 #
-# Only usable in the non-zero direction: check.sh resolves
-# the installed agents dir whatever fixture it gets, so a
-# clean fixture can still exit 1 over real repo content. An
-# over-cap agent description turned this red once.
+# Only usable in the non-zero direction: no fixture here
+# satisfies every other budget too, so a clean exit 0 would
+# be a tautology this suite never earns.
 check_exit_code() {
     local dir=$1
-    bash "$CHECK" "$dir" >/dev/null 2>&1
+    HOME="$FAKE_HOME" bash "$CHECK" "$dir" >/dev/null 2>&1
     echo $?
 }
 

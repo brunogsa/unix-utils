@@ -12,11 +12,16 @@
 # Every fixture below trips other budgets too, so the exit
 # code is ignored: a fixture tuned to satisfy all eleven
 # budgets would be rewritten by every future budget change.
+#
+# These run under lib-fake-home.sh's shared fake HOME, so a
+# bare checkout with no installed ~/.claude still passes.
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECK="$SCRIPT_DIR/../check.sh"
+
+source "$SCRIPT_DIR/lib-fake-home.sh"
 
 passed=0
 failed=0
@@ -74,19 +79,19 @@ new_fixture() {
 # Echo the skill-count status-table row.
 run_skill_count_row() {
     local dir=$1
-    bash "$CHECK" "$dir" 2>/dev/null | grep '^| Skill count'
+    HOME="$FAKE_HOME" bash "$CHECK" "$dir" 2>/dev/null | grep '^| Skill count'
 }
 
 # Echo the bundled-files status-table row.
 run_bundled_row() {
     local dir=$1
-    bash "$CHECK" "$dir" 2>/dev/null | grep '^| Bundled files failing'
+    HOME="$FAKE_HOME" bash "$CHECK" "$dir" 2>/dev/null | grep '^| Bundled files failing'
 }
 
 # Echo the density check's total-violations line.
 run_density_total() {
     local dir=$1
-    bash "$CHECK" "$dir" 2>/dev/null | grep '^Total violations:'
+    HOME="$FAKE_HOME" bash "$CHECK" "$dir" 2>/dev/null | grep '^Total violations:'
 }
 
 it_should_count_only_the_authored_skill_not_the_synced_bucket() {
