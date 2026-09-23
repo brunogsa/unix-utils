@@ -642,20 +642,12 @@ read_monthly_spend_limit() {
 # So none can produce this figure, whatever pricing data
 # it carries.
 #
-# A cache write bills at 2x its model's input rate under the
-# 1-hour TTL, or 1.25x under the 5-minute TTL - this setup's
-# sessions use the 1-hour cache exclusively, which is why
-# that rate dominates a real transcript's total.
+# On a cache miss the extraction runs inline, not detached.
 #
-# A cache read bills at 0.1x input, the one ratio that does
-# not vary by TTL.
-#
-# The extraction cost (~0.14s against the real binary,
-# measured on the native macOS install) stays under
-# ccstatusline's 300ms render debounce.
-#
-# So it runs inline on a cache miss rather than detached in
-# the background - see EXTRACTOR_SCRIPT_PATH below.
+# A whole uncached render measured 0.24-0.28s against the
+# 217 MB native binary, and a live statusline refilled a
+# deleted cache on its first render, so Claude Code's 300ms
+# statusline debounce does not starve it.
 #
 # The cache is one JSON file keyed by the resolved binary
 # path plus its mtime.
@@ -695,10 +687,10 @@ read_model_rates() {
   mkdir -p "$(dirname "$cache_path")" 2>/dev/null
   tmp_file="$(mktemp "${cache_path}.XXXXXX" 2>/dev/null)"
   if [ -n "$tmp_file" ]; then
-    jq -nc --arg key "$cache_key" --argjson rates "$rates" '{key: $key, rates: $rates}' \
-      >"$tmp_file" 2>/dev/null \
-      && mv "$tmp_file" "$cache_path" \
-      || rm -f "$tmp_file"
+    if ! jq -nc --arg key "$cache_key" --argjson rates "$rates" '{key: $key, rates: $rates}' \
+      >"$tmp_file" 2>/dev/null || ! mv "$tmp_file" "$cache_path" 2>/dev/null; then
+      rm -f "$tmp_file"
+    fi
   fi
 
   printf '%s\n' "$rates"
