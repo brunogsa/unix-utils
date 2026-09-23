@@ -17,13 +17,35 @@
 # exits-zero assertions loudly, rather than quietly turning
 # the exits-non-zero one into a tautology.
 #
-# check.sh resolves $HOME/.claude/agents unconditionally, so
-# these run against an installed config, not a bare checkout.
+# check.sh always audits $HOME/.claude/agents, so an
+# unrelated edit anywhere in the live agents dir (e.g.
+# another session mid-edit) used to flip the two exits-zero
+# assertions.
+#
+# These run check.sh under its own fake HOME instead: an
+# empty agents dir, plus symlinks to the repo's own
+# agent-standards and doc-standards helper scripts.
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECK="$SCRIPT_DIR/../check.sh"
+REPO_SKILLS_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+# Fake HOME so check.sh's unconditional $HOME/.claude/agents
+# audit never sees the live, possibly mid-edit agents dir.
+#
+# Directory symlinks (not file copies) for the two helper
+# scripts: check-density.sh resolves its own script_dir from
+# BASH_SOURCE, and check.sh hides helper failures, so a
+# broken/stale copy would read as a clean pass.
+FAKE_HOME=$(mktemp -d)
+mkdir -p "$FAKE_HOME/.claude/agents" "$FAKE_HOME/.claude/skills"
+ln -s "$REPO_SKILLS_DIR/agent-standards" \
+    "$FAKE_HOME/.claude/skills/agent-standards"
+ln -s "$REPO_SKILLS_DIR/doc-standards" \
+    "$FAKE_HOME/.claude/skills/doc-standards"
+trap 'rm -rf "$FAKE_HOME"' EXIT
 
 passed=0
 failed=0
@@ -69,7 +91,7 @@ write_skill() {
 # missing-instructions-budget section's bullet lines.
 run_check() {
     local dir=$1
-    bash "$CHECK" "$dir" 2>/dev/null | awk '
+    HOME="$FAKE_HOME" bash "$CHECK" "$dir" 2>/dev/null | awk '
         /^## \*-standards skills with no `instructions-budget`/ { in_section = 1; next }
         /^## / { in_section = 0 }
         in_section && /^- / { print }
@@ -79,7 +101,7 @@ run_check() {
 # Run check.sh on the fixture and echo its exit code.
 run_check_status() {
     local dir=$1
-    bash "$CHECK" "$dir" >/dev/null 2>&1
+    HOME="$FAKE_HOME" bash "$CHECK" "$dir" >/dev/null 2>&1
     echo $?
 }
 
