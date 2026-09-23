@@ -8,7 +8,7 @@
 words-budget: 2048
 ---
 
-[Template is in English. For non-English teams, translate section headers and body text to the team's primary language per the "Section names in the PR's primary language" rule in writing-style.md.]
+[Template headings are shown in English for reference only. Every PR body ships in PT-BR — translate section headers and body text per the "Section names AND body prose in PT-BR" rule in writing-style.md.]
 
 [Every section below obeys pr-page-budget.md's non-overlap invariant: nothing rendered here may also appear in the appendix, and nothing in the appendix may repeat a body section.]
 

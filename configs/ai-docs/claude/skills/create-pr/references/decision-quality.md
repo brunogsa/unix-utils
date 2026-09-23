@@ -43,11 +43,11 @@ Good (one concrete use the reviewer can verify):
 Future reuse: determine whether a Store is "data-clean" enough to open, in TICKET-XYZ
 ```
 
-## Section names AND body prose in the PR's primary language
+## Section names AND body prose in PT-BR
 
 Translate not just section headers but recurring body terms.
 
-- **Section names** (Portuguese team example): `Evidences` → `Evidências`, `References` → `Referências`, `Changes` → `Mudanças`.
+- **Section names**: `Evidences` → `Evidências`, `References` → `Referências`, `Changes` → `Mudanças`.
 - **Body prose** (verbs and structural words): `Apply` → `Aplicar`, `Browse` → `Navegação`, `sibling` → `irmã`, `nested` → `aninhada`.
 - **Keep English**: engineering jargon (`passthrough`, `fan-out`, `trade-off`, `deploy`, `follow-up`, `default`, `cache`, `tab`).
 

@@ -20,7 +20,7 @@ Read before drafting PR-body prose.
 - **CRITICAL: Changes reads as a changelog, not a narrative** -- flat one-line bullets in patch-notes voice, no sub-bullets, no `**Topic** --` prefix.
   - Skimming the bullets alone gives the whole delta.
 
-- **Separate planned from incidental** -- two groups in Changes: `**Planned:**` (PT-BR `**Planejado:**`) and `**Discovered along the way:**` (PT-BR `**Descobertas durante o desenvolvimento, também endereçadas:**`).
+- **Separate planned from incidental** -- two groups in Changes: `**Planejado:**` and `**Descobertas durante o desenvolvimento, também endereçadas:**`.
   - Keep only incidentals changing shared state (docs, conventions, shared infra); drop the group when Architecture/Decisions cover per-ticket scope.
 
   - Skip diff-visible items (merge resolutions, auto-review responses, refactors, cleanup), grouping small fixes into one bullet.
@@ -83,7 +83,7 @@ Read before drafting PR-body prose.
 
   - Good: break it after "…undefined." and after "…never reads `professores`." — three paragraphs of 3, 2, and 1 sentences.
 
-- **Section names AND body prose in the PR's primary language** -- translate headers and recurring terms; engineering jargon stays English. Examples: [`decision-quality.md`](decision-quality.md).
+- **Section names AND body prose in PT-BR** -- translate headers and recurring terms; engineering jargon stays English. Examples: [`decision-quality.md`](decision-quality.md).
 
 - **Blank line BEFORE every list** -- prevents CommonMark merging ordered lists that don't start at `1.` into the preceding paragraph.
 
