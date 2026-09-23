@@ -31,8 +31,8 @@
 #
 #   A zero subagent half renders as nothing at all: a session
 #   whose subagents never compacted reads "[3]", never "[3+0]".
-#   The "+" costs two of a 24-char budget, so it appears only
-#   once it carries information.
+#   The "+" costs two of the 16-char tail room (see Root anchor
+#   below), so it appears only once it carries information.
 #
 #   The count lives in the title itself (single source of
 #   truth), managed by SessionStart hooks: a bump on `compact`,
@@ -55,19 +55,31 @@
 #   A rooted title renders bare (root only, no "/") only when the label is
 #   IDENTICAL to the root, or when nothing has been set post-root yet.
 #
-#   Root and compact-focus each get a FIXED room inside the 24-char cap: 16
-#   for the root (MAX_LEN_PLAIN, deliberately equal to the pre-compaction cap)
-#   and 8 for the compact-focus half (FOCUS_ROOM_BASELINE, the leading "/"
-#   included -- so "/" plus up to 7 label chars). 16 + 8 = 24 = MAX_LEN_COMPACTED.
+#   Root and tail each get their OWN fixed 16-char room, 32
+#   total: MAX_LEN_PLAIN for the root (deliberately equal to the
+#   pre-compaction cap) and TAIL_ROOM for the tail segment.
 #
-#   A counter wider than the narrowest possible "[N]" steals width from BOTH
-#   sides, proportionally 3:2 (root:compact-focus) -- see split_rooted_rooms.
-#   There is no reallocation between the two: once a side's room clamps to 0
-#   it stays 0, it is never handed back to the other side.
+#   The tail room is shared by the leading "/", the label, and
+#   the "[N]" counter. The counter is always rendered whole --
+#   only the label gives up width as the counter widens (see
+#   render_title).
 #
-#   If the compact-focus room ever drops below 2 chars (not even room for the
-#   "/" plus one label char), the field is dropped entirely rather than
-#   rendering a dangling "/[N]".
+#   A counter wider than 16 chars steals from the ROOT side too,
+#   one char for one char past that point (head_room = 16 -
+#   max(0, W-16), where W is the counter's own width including
+#   its brackets).
+#
+#   Clamped at 0, so a counter wider than 32 chars leaves the
+#   root empty and renders alone.
+#
+#   The tail's own room never grows to reclaim a short root's
+#   unused space: it stays fixed at max(0, TAIL_ROOM - W)
+#   regardless of how little of the root's 16 chars a short root
+#   actually uses.
+#
+#   If the tail's label room ever drops below 2 chars (not even
+#   room for the "/" plus one label char), the field is dropped
+#   entirely rather than rendering a dangling "/[N]".
 #
 #   The root is stored in tmux, not left to Claude's memory, precisely because
 #   compaction is what erases the first turn: after it, Claude no longer knows
@@ -87,34 +99,34 @@
 #     stick.
 #   - Renames the window that Claude runs in ($TMUX_PANE), not whatever window
 #     is currently focused.
-#   - Caps the whole title, counter included: 16 chars before any compaction,
-#     24 once a counter exists. The wider cap is spent only where the rooted
-#     "<root>/<compact-focus>[N]" form needs it. The counter suffix is always
-#     kept intact and the text is truncated to fit, so the count stays
-#     readable even as the title shrinks. The caller should still keep titles
-#     short.
 #   - On the first rename for a pane (any mode), captures the pre-Claude window
 #     name and automatic-rename flag into pane options ($TMUX_PANE-scoped
 #     @claude_prev_window_name / @claude_prev_auto_rename) before overwriting
 #     either -- first-set-wins, so later calls in the same session don't
 #     clobber the captured original. A separate SessionEnd hook restores it.
 #
+#   The whole title is capped, counter included: 16 chars
+#   before any compaction, 32 once a counter exists (16 root +
+#   16 tail, see Root anchor above).
+#
+#   The counter suffix stays intact and the label is truncated
+#   to fit, so the count stays readable as the title shrinks.
+#
 # Examples:
 #   tmux-window-title.sh "fix-auth-bug"
 #     spaces are converted to hyphens too
 #   tmux-window-title.sh "tmux-titles"
 #   tmux-window-title.sh --bump-counter
-#     "tmux-titles" -> "tmux-titles[1]"
+#     "tmux-titles" -> "tmux-titles[1]", freezing the root
+#   tmux-window-title.sh "hook-tests-cleanup"
+#     the label is truncated to fit the tail's 16-char room
+#     (incl. "/" and the counter): "tmux-titles/hook-tests-c[1]"
 #   tmux-window-title.sh --bump-subagent-counter
-#     "tmux-titles[1]" -> "tmux-titles[1+1]"
+#     a wider counter eats further into the label's room:
+#     "tmux-titles/hook-tests[1+1]"
 #   tmux-window-title.sh --reset-counter
-#     "tmux-titles[1+1]" -> "tmux-titles"
-#   tmux-window-title.sh "hook-tests"
-#     after that bump, roots the title, compact-focus capped to its 8-char
-#     (incl. "/") room: "tmux-titles/hook-t[1]"
-#   tmux-window-title.sh "tmux-titles-cap"
-#     the label renders as-is, even repeating a root word, truncated to its
-#     8-char (incl. "/") room: "tmux-titles/tmux-t[1]"
+#     drops the counter and the root, keeping the rendered
+#     label: "hook-tests"
 
 set -euo pipefail
 
@@ -125,27 +137,26 @@ print_help() {
   awk 'NR==1 {next} /^#/ {sub(/^# ?/, ""); print; next} {exit}' "$0"
 }
 
-# Two caps, both counting the "[N]" suffix. A pre-compaction title is a bare
-# base and stays at the tight 16 the caller is told to aim for; once a counter
-# exists the title may also carry the root, so it gets room for both.
+# Two fixed 16-char segments, 32 total.
+# A pre-compaction title is a bare base and stays at the tight
+# 16 the caller is told to aim for.
+#
+# Once a counter exists, the head segment (root, or base when
+# unrooted) keeps its own 16, and the tail segment ("/" + label
+# + "[M+S]") gets a second 16.
 MAX_LEN_PLAIN=16
-MAX_LEN_COMPACTED=24
 
 # Separates the frozen root from the compact-focus label in a rooted title.
 ROOT_SEPARATOR="/"
 
-# Fixed room the compact-focus half gets inside a rooted title, before any
-# counter-width steal -- the leading ROOT_SEPARATOR included, so "/" plus up
-# to 7 label chars. Paired with MAX_LEN_PLAIN (the root's own fixed room):
-# 16 + 8 = 24 = MAX_LEN_COMPACTED.
-FOCUS_ROOM_BASELINE=8
-
-# A counter wider than the narrowest possible "[N]" steals width from BOTH
-# the root and the compact-focus room, proportionally ROOT_STEAL_RATIO :
-# FOCUS_STEAL_RATIO -- see split_rooted_rooms for the exact formula.
-ROOT_STEAL_RATIO=3
-FOCUS_STEAL_RATIO=2
-STEAL_RATIO_TOTAL=$(( ROOT_STEAL_RATIO + FOCUS_STEAL_RATIO ))
+# Fixed room the tail segment gets inside a rooted (or
+# unrooted-with-counter) title: the leading ROOT_SEPARATOR, the
+# label, and the "[M+S]" counter all share this one 16-char
+# room.
+#
+# The counter is always rendered whole, so only the label gives
+# up width as the counter widens.
+TAIL_ROOM=16
 
 # Parse a trailing compaction counter from a title. Echoes the
 # counter BODY without its brackets -- "3" or "3+2" -- and
@@ -199,9 +210,9 @@ subagent_count() {
 # Compose a counter body from its two halves.
 #
 # A zero subagent half is dropped entirely rather than rendered
-# as "+0": the suffix competes with the title text for a 24-char
-# budget, so it earns its two characters only once a subagent
-# has actually compacted.
+# as "+0": the "+" costs two of the tail segment's fixed 16-char
+# room (see render_title), so it earns those two characters only
+# once a subagent has actually compacted.
 compose_counter() {
   local main=$1 sub=$2
 
@@ -236,28 +247,12 @@ truncate_segment() {
   printf '%s' "$text"
 }
 
-# Split the rooted pair's two fixed rooms (MAX_LEN_PLAIN for the root,
-# FOCUS_ROOM_BASELINE for the compact-focus half) given a counter-suffix
-# length. A counter wider than the narrowest possible "[N]" steals from BOTH
-# sides proportionally 3:2 (root:compact-focus), round-half-up, and each
-# room clamps at 0 rather than go negative -- there is no reallocation
-# between sides. Echoes "<root_room> <focus_room>".
-split_rooted_rooms() {
-  local suffix_len=$1
-  local root_steal=$(( (suffix_len * ROOT_STEAL_RATIO + STEAL_RATIO_TOTAL / 2) / STEAL_RATIO_TOTAL ))
-  local focus_steal=$(( suffix_len - root_steal ))
-
-  local root_room=$(( MAX_LEN_PLAIN - root_steal ))
-  [ "$root_room" -lt 0 ] && root_room=0
-  local focus_room=$(( FOCUS_ROOM_BASELINE - focus_steal ))
-  [ "$focus_room" -lt 0 ] && focus_room=0
-
-  printf '%s %s' "$root_room" "$focus_room"
-}
-
-# Render the window title, capped per MAX_LEN_PLAIN / MAX_LEN_COMPACTED. The
-# counter is kept whole and the text truncated to make room, so the count stays
-# visible even as the title shrinks.
+# Render the window title, capped per MAX_LEN_PLAIN
+# (pre-counter) or the 16+16 head/tail split (once a counter
+# exists).
+#
+# The counter is kept whole and the text truncated to make room,
+# so the count stays visible even as the title shrinks.
 #
 # The root is prepended only when there is one AND the base still differs
 # from it -- an identical base renders bare rather than doubled.
@@ -265,34 +260,48 @@ render_title() {
   local base=$1 counter=$2 root=${3:-} suffix=""
   [ -n "$counter" ] && suffix="[$counter]"
 
-  local max_len=$MAX_LEN_PLAIN
-  [ -n "$counter" ] && max_len=$MAX_LEN_COMPACTED
+  if [ -z "$suffix" ]; then
+    # Pre-compaction: a bare base, no head/tail split to apply.
+    printf '%s' "$(truncate_segment "$base" "$MAX_LEN_PLAIN")"
+    return
+  fi
 
-  local budget=$(( max_len - ${#suffix} ))
-  # An absurdly wide counter can outgrow the whole cap by
-  # itself. A negative budget fed into truncate_segment's
-  # "${text:0:max}" is a bash version trap: bash < 4.2 errors,
-  # bash >= 4.2 reads a negative length as "N chars off the
-  # end" and returns MORE text, not less -- clamp it away.
-  [ "$budget" -lt 0 ] && budget=0
+  local suffix_len=${#suffix}
+
+  # The head segment (root, or base when unrooted) keeps its own
+  # MAX_LEN_PLAIN room, and gives up width only once the counter
+  # itself grows past that same MAX_LEN_PLAIN -- one char stolen
+  # per char the counter widens past it.
+  #
+  # An absurdly wide counter can outgrow this room entirely.
+  #
+  # A negative room fed into truncate_segment's "${text:0:max}"
+  # is a bash version trap: bash < 4.2 errors, bash >= 4.2 reads
+  # a negative length as "N chars off the end" and returns MORE
+  # text, not less -- clamp it away.
+  local head_steal=0
+  [ "$suffix_len" -gt "$MAX_LEN_PLAIN" ] && head_steal=$(( suffix_len - MAX_LEN_PLAIN ))
+  local head_room=$(( MAX_LEN_PLAIN - head_steal ))
+  [ "$head_room" -lt 0 ] && head_room=0
 
   if [ -n "$root" ]; then
     local focus_label=$base
     [ "$focus_label" = "$root" ] && focus_label=""
 
     if [ -n "$focus_label" ]; then
-      local rooms root_room focus_room
-      rooms=$(split_rooted_rooms "${#suffix}")
-      root_room=${rooms%% *}
-      focus_room=${rooms#* }
+      # The tail's own room never grows to reclaim a short
+      # root's unused space: it stays fixed at TAIL_ROOM minus
+      # the counter's width, regardless of head_room.
+      local label_room=$(( TAIL_ROOM - suffix_len ))
+      [ "$label_room" -lt 0 ] && label_room=0
 
       # Below a 2-char room there's not even space for the "/" plus one
       # label char -- drop the field entirely rather than render a
       # dangling "/[N]".
       local focus_out=""
-      [ "$focus_room" -ge 2 ] && focus_out=$(truncate_segment "${ROOT_SEPARATOR}${focus_label}" "$focus_room")
+      [ "$label_room" -ge 2 ] && focus_out=$(truncate_segment "${ROOT_SEPARATOR}${focus_label}" "$label_room")
 
-      printf '%s%s%s' "$(truncate_segment "$root" "$root_room")" "$focus_out" "$suffix"
+      printf '%s%s%s' "$(truncate_segment "$root" "$head_room")" "$focus_out" "$suffix"
       return
     fi
 
@@ -301,7 +310,7 @@ render_title() {
     base=$root
   fi
 
-  printf '%s%s' "$(truncate_segment "$base" "$budget")" "$suffix"
+  printf '%s%s' "$(truncate_segment "$base" "$head_room")" "$suffix"
 }
 
 # Read the name of the window Claude runs in ($TMUX_PANE), not whatever window
