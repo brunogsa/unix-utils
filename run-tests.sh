@@ -232,7 +232,10 @@ do
   suite_index=$((suite_index + 1))
   log_file="$log_dir/$suite_index.log"
 
-  if bash "$suite" > "$log_file" 2>&1; then
+  # The caller's stdin may never close (a Claude Bash tool
+  # socket), so any stray stdin read inside a suite would hang
+  # this run and hold the lock for every other caller.
+  if bash "$suite" < /dev/null > "$log_file" 2>&1; then
     record_pass "$suite"
   else
     record_fail "$suite" "$log_file"
@@ -256,7 +259,7 @@ log_file="$log_dir/$suite_index.log"
 if ! command -v pytest > /dev/null 2>&1; then
   printf 'pytest: command not found\n' > "$log_file"
   record_fail "pytest" "$log_file"
-elif pytest > "$log_file" 2>&1; then
+elif pytest < /dev/null > "$log_file" 2>&1; then
   record_pass "pytest"
 else
   record_fail "pytest" "$log_file"

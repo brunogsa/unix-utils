@@ -59,9 +59,12 @@ write_skill_file() {
     cat > "$dir/configs/ai-docs/claude/skills/$skill/$relpath"
 }
 
+# Agent fixtures need no body - tests check only the path.
+# A bare `cat` would block on inherited stdin, which a
+# caller (e.g. a Claude Bash tool socket) may never close.
 write_agent() {
     local dir=$1 name=$2
-    cat > "$dir/configs/ai-docs/claude/agents/$name.md"
+    printf '# %s\n' "$name" > "$dir/configs/ai-docs/claude/agents/$name.md"
 }
 
 # Run gen-shard-manifest.sh against the fixture's claude-config dir
