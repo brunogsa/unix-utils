@@ -354,8 +354,10 @@ it_should_block_the_stop_hook_when_an_ac_loses_its_test_design_annotation() {
   mkdir -p "$stop_hook_work"
   cp "$spec_file" "$stop_hook_work/spec_widget.md"
   drifted_plan="$stop_hook_work/plan_widget.md"
-  # Drop AC-3's annotation so the spec's "### AC-3:" heading (sniffed the
-  # same way as before the reshape) has no Test Design citation left.
+
+  # Drop AC-3's annotation so the spec's "### AC-3:" heading
+  # (sniffed the same way as before the reshape) has no Test
+  # Design citation left.
   sed 's#// AC-3 T2#// T2#' "$plan_file" > "$drifted_plan"
   out=$(cd "$stop_hook_work" && printf '{}' | bash "$hooks_dir/claude-sdd-stop-hook.sh" 2>&1)
   decision=$(printf '%s' "$out" | python3 -c 'import json, sys; print(json.load(sys.stdin)["decision"])' 2>/dev/null)
