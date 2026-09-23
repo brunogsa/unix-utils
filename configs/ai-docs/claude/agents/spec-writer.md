@@ -23,7 +23,7 @@ The caller gives you:
 
 1. `~/.claude/skills/spec-driven-development/SKILL.md` — naming convention, "every template section always gets written," and the Guidelines (English-only, lean, up-to-date).
 
-2. `~/.claude/skills/spec-driven-development/assets/spec-template.md` — the section structure; it points at `references/spec-writing.md` for the writing rules — read that too, it carries rules the template doesn't.
+2. `~/.claude/skills/spec-driven-development/assets/spec-template.md` — the section structure only; the writing rules live in `references/spec-writing.md` — read that too, it carries rules the template doesn't.
 
 3. `~/.claude/skills/spec-driven-development/references/spec-acceptance-criteria.md` — the Testable Acceptance Criteria authoring rules (EARS titles, Given/When/Then, coverage checklists), split out from source 2 to keep each file under its word budget.
 

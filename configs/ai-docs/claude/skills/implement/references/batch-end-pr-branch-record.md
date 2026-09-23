@@ -30,7 +30,7 @@ Both edits land in this PR's own entry in the plan's PR Breakdown, in one pass:
 
 Write both inline, in a task-level marker's edit style — never scripted.
 
-Each PR is its own `###` heading and each field its own line, per the grammar the `spec-driven-development` skill's `assets/plan-template.md` authors.
+Each PR is its own `###` heading and each field its own line, per the grammar the `spec-driven-development` skill's `references/plan-tasks-and-appendix.md` authors.
 A plan written before that grammar packs the same fields onto one numbered-list line; `parse-pr-breakdown.sh` reads either, so edit whichever shape the plan already uses.
 The backticks are load-bearing: `parse-pr-breakdown.sh` reads the name between them, so a branch containing periods survives.
 

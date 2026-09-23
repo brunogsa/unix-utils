@@ -8,7 +8,8 @@ A run may write the plan alone (SKILL.md) — never report the absent spec as a 
 
 **Deterministic** — a script or renderer returns the verdict, so re-running costs nothing.
 
-- Members: the mermaid fixer, the density checks, `check-sections.sh`, `check-test-distribution.sh`, `check-pr-dag.sh`, `check-tasks-dag.sh`, `check-ac-task-consistency.py`, plus, with a spec, `check-ac-coverage.sh` and `check-coverage-checklists.sh`.
+- Members: the mermaid fixer, the density checks, `scripts/check-sections.sh`, `scripts/check-test-distribution.sh`, `scripts/check-pr-dag.sh`, `scripts/check-tasks-dag.sh`, `check-ac-task-consistency.py`.
+  - With a spec: `check-ac-coverage.sh`, `check-coverage-checklists.sh`.
 
 - Dispatch the mermaid fixer at its agent file's pinned model — never name one here.
   - Why: `subagent-model-guard.py` hard-denies an override, so naming one is an instruction no caller can follow.
@@ -39,7 +40,7 @@ The dispatch still runs, carrying this file's always-on checks.
   - If decomposable, hand it back to the caller, who owns how sub-projects are recorded.
   - A caller that probed decomposition before the spec was written skips this item.
 
-- **PR size**: does the work fit one reviewable PR, or stage into several per `plan-template.md`'s splitting rules?
+- **PR size**: does the work fit one reviewable PR, or stage into several per `plan-tasks-and-appendix.md`'s splitting rules?
   - An oversized PR blocks approval unless the user waives it.
 
 - **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker.
@@ -53,7 +54,7 @@ Both measure rather than judge — never inline.
 
 - **Artifacts Valid**: is every mermaid diagram valid per `mmdc`? A failure routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)` on that doc path.
 
-- **Density**: run `doc-standards`' `check-density.sh` and `check-bullet-gap.py` on the resolved doc paths.
+- **Density**: run `doc-standards`' `scripts/check-density.sh` and `scripts/check-bullet-gap.py` on the resolved doc paths.
   - Runs after mermaid validation: repairing a diagram adds lines density must measure.
 
   - On any violation, file ONE `[Scout]` entry naming the file and what is off standard.
@@ -65,7 +66,7 @@ Why: an unrenderable diagram is broken outright, needing no judgment to fix. Ref
 
 ## Every AC has a test
 
-Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped coverage list (mechanics: `plan-template.md`).
+Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped coverage list (mechanics: `plan-tasks-and-appendix.md`, Test Design).
 
 - No spec — skip the mechanical half; the semantic half reads each task's `## Task Details` acceptance criteria and planned-test fields.
 
@@ -78,7 +79,7 @@ Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped co
 
 ## Every template section is written
 
-`check-sections.sh <doc> <template>` asserts every `## ` heading the template defines is present; exit 1 blocks, listing each absent one.
+`scripts/check-sections.sh <doc> <template>` asserts every `## ` heading the template defines is present; exit 1 blocks, listing each absent one.
 
 Never judge a missing section by eye.
 
@@ -88,11 +89,11 @@ Heading presence only — an `N/A — <reason>` body satisfies it, a dropped hea
 
 ## Every test has a task
 
-`check-test-distribution.sh <plan>` asserts set-equality between the Test Design breadcrumbs and tasks' planned-test lists (mechanics in `plan-template.md`).
+`scripts/check-test-distribution.sh <plan>` asserts set-equality between the Test Design breadcrumbs and tasks' planned-test lists (same mechanics as above).
 
 Output: `A \ B` (designed, no task) + `B \ A` (invented test); empty = pass, block otherwise.
 
-Both checks share `extract-design-tests.sh`; breadcrumbs are copied verbatim from its output, never hand-typed.
+Both checks share `scripts/extract-design-tests.sh`; breadcrumbs are copied verbatim from its output, never hand-typed.
 
 ## How would this break?
 
@@ -106,8 +107,8 @@ With no spec, skip that script; each task's `## Task Details` acceptance criteri
 
 ## PR and Task dependency DAGs
 
-- `check-pr-dag.sh <plan>` validates the PR Breakdown's `Depends on:` graph (trivial on `Single PR.`); exit 1 blocks.
-- `check-tasks-dag.sh <plan>` runs the same on the Task Breakdown's graph; exit 1 blocks.
+- `scripts/check-pr-dag.sh <plan>` validates the PR Breakdown's `Depends on:` graph (trivial on `Single PR.`); exit 1 blocks.
+- `scripts/check-tasks-dag.sh <plan>` runs the same on the Task Breakdown's graph; exit 1 blocks.
 
 ## Every line traces to an AC (toggle)
 

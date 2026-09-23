@@ -331,6 +331,8 @@ The prompt pushes only the per-task data below.
 
 Push a `Context`/`Units`/`Verification`/`Optional` block verbatim, using `tdd-coder.md`'s Inputs field names; the subagent pulls nothing from CWD.
 
+Read Units (ACs), Verification, and Files from the task's `## Task Details` entry; fall back to `### N.` only on an old-shape plan, never silently on a new-shape one.
+
 - **Context**: the task's heading and brief description, plan's own words.
 - **Units**: the task's ACs and planned-test titles, one unit per forcing case, in the plan slice's order.
   - Cap one dispatch at **3 units**; a bigger task splits into ≤3-unit dispatches, each its own `<run-label>`. `tdd-coder.md` forbids self-splitting; enforce it here.
@@ -340,7 +342,6 @@ Push a `Context`/`Units`/`Verification`/`Optional` block verbatim, using `tdd-co
   - A test and the change it covers are **one unit, never two**: `tdd-coder` commits one per unit; splitting them violates commit-standards.
 
 - **Verification**: the task's **task-scoped verification commands only**, when the plan names any.
-  - Read it from the task's Task Details entry; fall back to `### N.` only on an old-shape plan, never silently on a new-shape one.
   - Strip any repo-wide/full-suite command (e.g. `test:agentic`, `yarn lint`) before pushing — a subagent verifies only its own change.
   - A stripped requirement isn't dropped: §8.3's gate re-covers it when on; §8.4's package names it when off.
   - When the plan names none, **omit the field**; `tdd-coder.md` derives one from a file declaring the repo's entry point and reports it plus its source.

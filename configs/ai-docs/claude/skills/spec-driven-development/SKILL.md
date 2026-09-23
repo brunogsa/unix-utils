@@ -8,11 +8,17 @@ disable-model-invocation: true
 
 Conventions and gates for the two living documents in CWD that drive development, code review, and PR description generation.
 
-This skill is a library, not a procedure. It defines what the docs are called, how consumers find them, what shape they take, which checks a plan must pass before a human sees it. The procedure producing them — interview, spec, plan, self-review, handoff — lives in `brainstorm`.
+This skill is a library, not a procedure.
+
+It defines what the docs are called, how consumers find them, what shape they take, which checks a plan must pass before a human sees it.
+
+The procedure producing them — interview, spec, plan, self-review, handoff — lives in `brainstorm`.
 
 Why the split: `/implement`, `/auto-review`, `/create-pr` consume these docs without authoring one, so the authoring flow is dead weight in their context.
 
-**Callers reach this file by path, not by the Skill tool** — `Read ~/.claude/skills/spec-driven-development/SKILL.md`. `disable-model-invocation: true` keeps a library nothing auto-triggers off the model's skill listing, which also takes its description out of every session's always-on budget.
+**Callers reach this file by path, not by the Skill tool** — `Read ~/.claude/skills/spec-driven-development/SKILL.md`.
+
+`disable-model-invocation: true` keeps a library nothing auto-triggers off the model's skill listing, which also takes its description out of every session's always-on budget.
 
 ## Documents
 
@@ -22,7 +28,9 @@ Each doc is a short human body, then a literal H1 `# Appendix` line, then AI-exe
 
 Body guidance lives in `references/spec-writing.md` (spec) and `references/plan-writing.md` (plan). The spec's Testable Acceptance Criteria authoring (EARS titles, Given/When/Then, coverage checklists) lives in `references/spec-acceptance-criteria.md`, read alongside `spec-writing.md`. The plan's Test Design, Task Breakdown, PR Breakdown, Task Details/decision-log sections live in `references/plan-tasks-and-appendix.md`, read alongside `plan-writing.md`.
 
-These throwaway docs feed from durable design docs (ADR / HLD / LLD). Load `design-docs` when authoring the spec, for the ownership + altitude rules keeping spec/plan from re-deriving them.
+These throwaway docs feed from durable design docs (ADR / HLD / LLD).
+
+Load `design-docs` when authoring the spec, for the ownership + altitude rules keeping spec/plan from re-deriving them.
 
 ### Naming convention
 

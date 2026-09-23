@@ -50,6 +50,10 @@ The recap is enough to read standalone; the link is the drill-down for readers w
 
 Recap *and* link, never link alone and never a bare number.
 
+**Point only at what already exists** — a committed doc, a merged ADR, a thread, an incident ticket.
+
+Never mention another tracker issue or a doc not yet written ("see the upcoming ADR on X"); its scope shifts or it never ships, and the reader can't open it. The doc's own origin issue is the exception.
+
 A `§X` pointer rots when the target renumbers and forces a jump to understand; the inline recap keeps each doc readable on its own.
 
 So related sections are **elastic**:
@@ -170,14 +174,19 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
 
 - The spec — do **not** improvise from this skill's altitude/ownership notes.
   - Read `~/.claude/skills/spec-driven-development/SKILL.md` (by path — it is not Skill-invocable) and populate its `assets/spec-template.md`.
-  - Sections, in order: Background/Context, Goals and Success Metrics/KPIs, Context Diagram, User Stories.
 
-  - Then Non-Functional and Technical Requirements, Testable Acceptance Criteria (`### AC-N:` BDD entries plus boundary/failure checklists), Open Questions, Functional Decisions log.
+  - Follow `references/spec-writing.md` for the section rules and `references/spec-acceptance-criteria.md` for AC authoring.
+
+  - Body sections, in order: Background/Context, Goals and Success Metrics/KPIs, Context Diagram, User Stories, Non-Functional and Technical Requirements, Testable Acceptance Criteria (`### AC-N:` BDD entries), Open Questions.
+
+  - `# Appendix`: `## Coverage Checklists` (boundary + failure category, instantiated per AC) and `## Functional Decisions` log.
 
   - This skill owns only the spec's *altitude and ownership*; the section structure and self-review gates live in that library, and the interview workflow in `brainstorm`.
 
-- The plan — same rule: read that same library by path and populate its `assets/plan-template.md`.
-  - Sections: Technical Approach & High Level Architecture, Threat Model, General Flow, Test Design with its AC → test coverage list, structured Task Breakdown, PR Breakdown, Open Questions, Technical Decisions log.
+- The plan — same rule: read that same library by path and populate its `assets/plan-template.md` per `references/plan-writing.md` and `references/plan-tasks-and-appendix.md`.
+  - Body sections: Technical Approach & High Level Architecture, Threat Model, General Flow, Test Design with its AC → test coverage list, structured Task Breakdown, PR Breakdown, Open Questions.
+
+  - `# Appendix`: `## Task Details` (per-task ACs/Verification/Files) and `## Technical Decisions` log.
 
   - Authoring a spec/plan from the altitude notes above instead of these templates is the known failure mode this route exists to prevent.
 
