@@ -51,7 +51,9 @@ Before any suite runs, `run-tests.sh` calls `configs/ai-docs/claude/scripts/chec
 
 A refused or missing gate exits 2, distinct from exit 1 (a red suite) — that's how a caller tells "didn't run" apart from "ran and failed."
 
-On a busy machine, override the gate's thresholds with `HEADROOM_LOAD_RATIO_MAX`, `HEADROOM_MIN_AVAILABLE_MB`, or `HEADROOM_MIN_FREE_DISK_MB` rather than waiting it out.
+A refusal means wait for load to drop, then retry — never reach for an override by default, since the gate exists to leave the human's machine room.
+
+Only when the user deliberately wants a run on a busy machine, relax the thresholds for that one call with `HEADROOM_LOAD_RATIO_MAX`, `HEADROOM_MIN_AVAILABLE_MB`, or `HEADROOM_MIN_FREE_DISK_MB`.
 
 Known gap: the gate reads the 1-minute load average, which lags a command that just started, so two runs launched in the same instant can both read the same stale load and both get GO — only a lock closes that, and this repo accepts the gap rather than pay for a lock again.
 
