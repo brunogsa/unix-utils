@@ -1,6 +1,4 @@
-# Spec: [Title]
-
-> Authoring rules live in `references/spec-writing.md` — read it once before filling this in. This file is a copyable skeleton only.
+# Spec:
 
 ---
 ## Background / Context
@@ -14,13 +12,8 @@
 ---
 ## User Stories
 
-- As a [role], I want [capability] so that [benefit].
-
 ---
 ## Non-Functional and Technical Requirements
-1. Performance: ...
-2. Security: ...
-3. Reuse module X ...
 
 ---
 ## Testable Acceptance Criteria
@@ -63,7 +56,7 @@
 
 ---
 ## Open Questions
-- **QUESTION:** ... ?
+- **QUESTION:**
 
 ---
 # Appendix
@@ -77,19 +70,19 @@
 ## Functional Decisions
 
 <details>
-<summary><strong>DECISION:</strong> &lt;one-line gist of the choice&gt;</summary>
+<summary><strong>DECISION:</strong></summary>
 
-- **DECISION:** __Chose__ `<approach>`, __because__ `<reason>`
-  - __Discarded__ **`<alternative>`**: `<reason>`
+- **DECISION:** __Chose__ ``, __because__ ``
+  - __Discarded__ ****: ``
 
 </details>
 
 <!-- ── execution begins below; entries above are frozen, append-only below ── -->
 
 <details>
-<summary><strong>DECISION (Task N):</strong> &lt;one-line gist of the choice&gt;</summary>
+<summary><strong>DECISION (Task N):</strong></summary>
 
-- **DECISION (Task N):** __Chose__ `<approach>`, __because__ `<reason>`
-  - __Supersedes__ "`<first ~60 chars of prior decision>`" __because__ `<reason>`
+- **DECISION (Task N):** __Chose__ ``, __because__ ``
+  - __Supersedes__ "" __because__ ``
 
 </details>

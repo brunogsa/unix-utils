@@ -1,14 +1,14 @@
 # Writing acceptance criteria
 
-Read once by the authoring agent while filling in `assets/spec-template.md`. Rules only — the copyable skeleton carries no rules, so they live here.
+Read once by the authoring agent while filling in `assets/spec-template.md`. Rules only — the skeleton carries none, so they live here.
 
-Never copy guidance text from this reference or the template into the written doc — the doc holds content only.
+Never copy guidance text from this or the template into the written doc — the doc holds content only.
 
 ## Body/appendix contract
 
 The human body is everything above the literal `# Appendix` heading. It ends there, and every section below is AI-only.
 
-Appendix `## ` headings come heading-first, with a `<details>` collapsible inside them — never a `<details>` wrapping an entire `## ` heading. Every parsed heading keeps its exact text and level, so a script grepping `## ` still finds every section.
+Appendix `## ` headings come heading-first, with a `<details>` collapsible inside — never wrapping an entire heading. Every heading keeps its exact text and level, so grepping `## ` still finds each section.
 
 ## Size guideline
 
@@ -16,7 +16,15 @@ Keep the human body (everything above `# Appendix`) to 1–6 pages (~500–3,000
 
 Keep each AC's Given/When/Then body to ≤128 words — roughly the 70th percentile of what specs already write, so this tightens existing practice instead of inventing new discipline.
 
-A flat file-wide cap either punishes a legitimate 44-criterion spec or sits meaningless on a 5-criterion one; a per-AC cap scales with the feature instead, and still catches one bloated AC hiding inside an otherwise-compliant file.
+A flat file-wide cap punishes a large spec or sits meaningless on a small one; a per-AC cap scales with the feature and still catches one bloated AC in an otherwise-compliant file.
+
+## User Stories
+
+Pattern: `As a <role>, I want <capability> so that <benefit>.` — one per bullet.
+
+## Non-Functional and Technical Requirements
+
+Prompt: performance, security, module reuse. Instantiate what applies, skip the rest.
 
 ## Given/When/Then
 
@@ -88,4 +96,6 @@ Once the user approves the plan and signals execution start, insert the divider 
 
 Entries above the divider stay editable until execution starts; afterwards, append below it only.
 
-Each decision is its own collapsed `<details>`, with the summary carrying a one-line gist.
+Each decision is its own collapsed `<details>`, with the summary carrying a one-line gist of the choice.
+
+`__Chose__`: approach. `__because__`: reason. `__Discarded__`: alternative plus why it lost. `__Supersedes__`: first ~60 chars of prior entry replaced.

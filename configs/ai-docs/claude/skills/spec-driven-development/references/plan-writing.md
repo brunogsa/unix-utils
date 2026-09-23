@@ -6,6 +6,8 @@ Fresh eyes still audit this plan — `brainstorm`'s step 10 sends it to a `plan-
 
 Never copy guidance text from this reference or the template into the written doc — the doc holds content only.
 
+Also read `references/plan-tasks-and-appendix.md` for the Test Design, Task Breakdown, PR Breakdown, and Decision logs sections — split out to keep each file under its word budget.
+
 ## Inputs
 
 The caller gives you the spec file's path and, optionally, a plan output path — write there when given, else derive it from a slug via `SKILL.md`'s naming convention.
@@ -22,7 +24,9 @@ You may receive a planning-conventions file (ADR/HLD/LLD or other naming constra
 
 1. Read the spec file in full, even the parts you wrote, plus any planning-conventions file named — recall won't flag where memory and spec diverged.
 
-2. Read `assets/plan-template.md` and `SKILL.md`'s "Self-review gates" — your output must pass the AC-coverage, test-distribution, and DAG checks. Load `task-breakdown` over the spec's work per this file's Task Breakdown section below.
+2. Read `assets/plan-template.md` and `SKILL.md`'s "Self-review gates" — your output must pass the AC-coverage, test-distribution, and DAG checks.
+
+   Load `task-breakdown` over the spec's work per `references/plan-tasks-and-appendix.md`'s Task Breakdown section.
 
 3. Read the existing code the spec references — never plan against code you haven't looked at.
 
@@ -45,6 +49,10 @@ The human body is everything above the literal `# Appendix` heading. Appendix `#
 Keep the human body (everything above `# Appendix`) to 1–6 pages (~500–3,000 words) depending on the problem; simpler and shorter is better. A soft guideline, never a gate.
 
 Keep each task's Brief Description to ≤256 words — this now spans two places: the body's Task Breakdown entry (title, Depends on, Brief Description, Commits sketch) plus the matching Appendix Task Details entry (AC, Verification, Files). Together they replace the old single 240–406-word median entry, which held a per-task `Tests (planned)` field now folded into Test Design.
+
+## Spec line
+
+The body opens with `Spec: <link or reference to the paired spec file>`. On a plan-only run with no spec, write `Spec: N/A — plan-only run` instead.
 
 ## N/A escapes
 
@@ -83,85 +91,6 @@ Tick every box this change touches. Each ticked box carries its mitigation on th
 The five boxes map to `code-review-pipeline/references/review-checklists.md`'s Security Checklist vocabulary: untrusted input → injection, XSS/output-encoding gaps, unsafe deserialization. Permissions → authn/authz. Personal data → the data-handling side of secret/credential exposure. A secret/credential → secret and credential exposure. Code/shell/SQL built from input → SSRF/RCE, unsafe eval or dynamic execution.
 
 The old `asset ← threat ⇒ mitigation → AC-N` line format is dropped — the per-box mitigation above replaces it.
-
-## Test Design
-
-Test titles designed before implementation — bodies come during each RED-GREEN cycle. Review before coding starts.
-
-**Integration tests (outer layer)** — the stable user-facing contract. Design all titles upfront, grouped by scenario class so a thin class is a visible gap:
-
-- **Happy cases** — the expected success paths.
-- **Corner cases** — boundary/edge inputs handled deliberately (off-by-one, empty, single-vs-many, precision residue, optional field present/absent).
-- **Failure scenarios** — every way it fails: guard rejections, downstream errors, partial success, retry-vs-DLQ classification.
-
-Annotate every `it()` with a trailing `// AC-<n>… T<n>… [on-demand]` comment: the ACs it proves, the tasks that write it, and `[on-demand]` when pulled mid-cycle rather than upfront. This section is the single source — the annotation replaces both the AC-coverage list and the per-task `Tests (planned)` field, so no test title is ever written twice.
-
-**Unit tests for pre-known pure helpers** — only helpers we know will exist regardless of design or implementation choices (e.g., obvious normalizers, parsers, validators). Skip this subsection if none.
-
-Tests for helpers pulled on demand during RED-GREEN are designed at the moment the caller first needs them (test-first at the point of pull) — designing them eagerly would force premature signatures.
-
-## Task Breakdown section
-
-Load `task-breakdown` before authoring: it orders tasks (unblockers first, riskiest PoC next), extracts thin contract tasks, splits sub-steps, and emits a `/tmp` artifact.
-
-Populate from it: order becomes the numbering (execution, not narrative order), links become each `Depends on:`, sub-steps become the title breadcrumb and commit sketch.
-
-Lead with a task-dependency DAG (mermaid, `mmdc`-validated) when a task names a real dependency; else `N/A — no task dependencies`.
-
-Each task produces at least one base commit (tests, code, IaC/docs together; RED/GREEN lives inside it). At execution, a refactor/scout/drift/`/auto-review` follow-up becomes its own extra commit; a substantial addition becomes a new peer task. Refactors are isolated tasks.
-
-Sub-step breadcrumb: optional, semicolon-separated parenthetical after the title — `### N. Title (sub-step; sub-step)`; keep ~4 items or split the task.
-
-**Brief Description** is either a short paragraph of at most 4 sentences, or a bullet list of one sentence per bullet — never a longer prose block.
-
-## Task Details section
-
-Lives in the Appendix, one `<details>` entry per task, in the exact shape the template shows. Never use a `### N.` heading inside Task Details — the task's identity lives in the body's Task Breakdown entry; Task Details is keyed by its `Task N —` summary line only.
-
-Field placement:
-
-- **Testable Acceptance criteria** and **Verification** live only in Task Details, never in the body entry.
-
-- **Files (logical order)** lives only in Task Details — it grounds the task's subagent as its starting set, skipping re-discovery; keep it accurate, though the subagent may touch more.
-
-- Title, **Depends on**, **Brief Description**, and **Commits (sketch, minimum)** live only in the body's Task Breakdown entry.
-
-Adding a task always writes both entries — a task with only one is incomplete.
-
-**Tests (planned)**: dropped everywhere except one opt-out — when a task's tests are fully covered elsewhere and none apply, state `**Tests (planned)**: N/A — <reason>` inside that task's body entry. This is the one surviving use of the field.
-
-A plan-only run (no spec) carries each task's acceptance criteria inline in its Task Details entry, since there's no spec AC to point back to.
-
-`Commits (sketch, minimum)` is a floor — drift fixes, scout findings, refactor sub-steps, and `/auto-review` follow-ups become extra commits, each tagged `[Drift]`/`[Scout]`/`[Refactor]`.
-
-## PR Breakdown section
-
-Split past one-plan-one-PR when the work is too large to review well in one sitting. Felt size (guide, not gate): defect-detection drops sharply past ~400 diff lines, falls off above ~600 (SmartBear/Cisco, Google). No code exists yet — estimate by feel, never invent a line number.
-
-Splitting rules:
-- Vertical, never horizontal — each PR ships its own tests+code+docs+infra; never "PR-1 = tests, PR-2 = code."
-- Prefer independent PRs; a dependent sequence is fine.
-- Each PR independently reviewable/mergeable, in order if dependent.
-- Sequence by `task-breakdown`'s priorities — unblockers and riskiest PoC first.
-- Don't over-split (~50-line floor) — catch one giant PR, not many tiny ones.
-
-One `### PR-N.` heading per PR, one level above Task Breakdown's `### N.`.
-
-Only the orchestrating agent writes two inline fields, absent until then:
-- `[<status>]` (`[Doing]`/`[Done]`/`[Blocked]`/`[Deferred]`/`[Dropped]`) after `PR-N.`, at batch-end.
-- Backtick-wrapped `**Branch**:`, once that PR's batch pushes — `parse-pr-breakdown.sh` reads the branch name between the backticks.
-
-Each field is its own line; parsers read the first found per PR. Free prose after is for the reviewer.
-
-Lead the PR headings with a PR-dependency DAG (mermaid, `mmdc`-validated) when any PR names a real dependency; else `N/A — no PR dependencies`.
-
-## Decision logs
-
-Both the Functional Decisions (spec) and Technical Decisions (plan) logs live in the Appendix, are chronological, and are editable until the user approves and signals execution start.
-
-At that point, insert the divider line already present in the template and switch to append-only: entries above stay frozen, revisions become new entries appended below with `**Supersedes:**` references rather than in-place edits.
-
-Each decision is its own collapsed `<details>`, with the summary carrying a one-line gist.
 
 ## Boundaries
 

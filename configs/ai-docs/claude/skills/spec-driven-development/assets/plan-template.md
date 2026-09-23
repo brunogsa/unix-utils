@@ -1,8 +1,6 @@
-# Plan: [Title]
+# Plan:
 
-> Authoring rules live in `references/plan-writing.md` — read it once before filling this in. This file is a copyable skeleton only.
-
-Spec: [link or reference to the paired spec file — `N/A — plan-only run` when no spec was written]
+Spec:
 
 ---
 ## Technical Approach & High Level Architecture
@@ -22,65 +20,40 @@ Spec: [link or reference to the paired spec file — `N/A — plan-only run` whe
 ---
 ## Test Design
 
-```
-// <file>
-describe("[ComponentOrUseCase]", () => {
-  // Happy cases
-  it("should [behavior] when [nominal condition]");    // AC-1 T3
-  // Corner cases
-  it("should [behavior] when [boundary condition]");   // AC-1 AC-2 T3
-  // Failure scenarios
-  it("should [fail/throw] when [failure condition]");  // AC-4 T5 [on-demand]
-});
-```
-
-```
-// <file>
-describe("[obviousPureHelper]", () => {
-  it("should [behavior] when [input]");                // AC-3 T2
-});
-```
-
 ---
 ## Task Breakdown
 
-### 1. [Task title] (optional: sub-step; sub-step; sub-step)
+### 1.
 
 **Depends on**:
-- Task X
 
 **Brief Description**:
 
 **Commits (sketch, minimum)**:
-  1. `~/repo` — `type(scope): subject`
-
-### 2. [Task title]
-
-...
 
 ---
 ## PR Breakdown
 
-### PR-1. [<status>] <title>
+### PR-1.
 
-**Tasks**: <N, N>
+**Tasks**:
 
-**Depends on**: <none | PR-N, PR-M, ...>
+**Depends on**:
 
-**Branch**: `<branch-name>`
+**Branch**:
 
-### PR-2. [<status>] <title>
+### PR-2.
 
-**Tasks**: <N, N>
+**Tasks**:
 
-**Depends on**: <none | PR-N, PR-M, ...>
+**Depends on**:
 
-**Branch**: `<branch-name>`
+**Branch**:
 
 ---
 ## Open Questions
 
-- **QUESTION:** ... ?
+- **QUESTION:**
 
 ---
 # Appendix
@@ -101,19 +74,19 @@ describe("[obviousPureHelper]", () => {
 ## Technical Decisions
 
 <details>
-<summary><strong>DECISION:</strong> &lt;one-line gist of the choice&gt;</summary>
+<summary><strong>DECISION:</strong></summary>
 
-- **DECISION:** __Chose__ `<approach>`, __because__ `<reason>`
-  - __Discarded__ **`<alternative>`**: `<reason>`
+- **DECISION:** __Chose__ ``, __because__ ``
+  - __Discarded__ ****: ``
 
 </details>
 
 <!-- ── execution begins below; entries above are frozen, append-only below ── -->
 
 <details>
-<summary><strong>DECISION (Task N):</strong> &lt;one-line gist of the choice&gt;</summary>
+<summary><strong>DECISION (Task N):</strong></summary>
 
-- **DECISION (Task N):** __Chose__ `<approach>`, __because__ `<reason>`
-  - __Supersedes__ "`<first ~60 chars of prior decision>`" __because__ `<reason>`
+- **DECISION (Task N):** __Chose__ ``, __because__ ``
+  - __Supersedes__ "" __because__ ``
 
 </details>
