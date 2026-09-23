@@ -8,15 +8,18 @@
 #
 # Same no-bats rationale as the sibling test files.
 #
-# How the orchestrator is exercised: it resolves its children by BASH_SOURCE
-# directory, so each case runs a COPY of the real script in a temp dir beside
-# stub children. That keeps the orchestrator's own sequencing under test (the
-# thing that broke) while making "did it notify?" observable — the real
-# notification script only touches tmux and would be invisible here.
+# How the orchestrator is exercised: it resolves its children by
+# BASH_SOURCE directory, so each case runs a COPY of the real
+# script in a temp dir beside stub children.
 #
-# claude-implement-stop-hook.sh is copied in REAL, not stubbed: the regression
-# these tests guard lives in how the two scripts interact, so a stub would
-# assert the bug away.
+# That keeps the orchestrator's own sequencing under test (the
+# thing that broke) while making "did it notify?" observable —
+# the real notification script only touches tmux and would be
+# invisible here.
+#
+# claude-implement-stop-hook.sh is copied in REAL, not stubbed:
+# the regression these tests guard lives in how the two scripts
+# interact, so a stub would assert the bug away.
 
 set -uo pipefail
 
@@ -26,16 +29,23 @@ IMPLEMENT_GATE="$hooks_dir/claude-implement-stop-hook.sh"
 
 work_dir=$(mktemp -d)
 
-# The implement gate reads a fixed /tmp path (no HOME involved), so tests write
-# real /tmp state files. The trap removes them; the rm clears leftovers from an
+# The implement gate reads a fixed /tmp path (no HOME involved),
+# so tests write real /tmp state files.
+#
+# Every session id below gets a $$ after "sess-orch-".
+#
+# That stops two overlapping runs clobbering state files.
+#
+# The trap removes them; the rm clears leftovers from an
 # interrupted prior run.
-trap 'rm -rf "$work_dir"; rm -f /tmp/implement_sess-orch-*.json' EXIT
-rm -f /tmp/implement_sess-orch-*.json
+trap 'rm -rf "$work_dir"; rm -f "/tmp/implement_sess-orch-$$-"*.json' EXIT
+rm -f "/tmp/implement_sess-orch-$$-"*.json
 
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs actual,
+# prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -101,21 +111,29 @@ STUB
   printf '%s' "$dir"
 }
 
-# run_orchestrator - runs the orchestrator copy with the given stdin JSON,
-# capturing its stdout in ORCH_OUT and whatever the notify stub recorded in
-# NOTIFIED (empty string when the ping never fired).
+# run_orchestrator - runs the orchestrator copy with the given
+# stdin JSON, capturing its stdout in ORCH_OUT and whatever the
+# notify stub recorded in NOTIFIED (empty string when the ping
+# never fired).
+#
+# Inserts this run's $$ after "sess-orch-" in the payload's
+# session_id, matching the prefix write_state applies to the
+# file it wrote.
 run_orchestrator() {
-  local stdin_json="$1"
+  local stdin_json
   local dir
+  stdin_json=$(printf '%s' "$1" | sed -E "s/(\"session_id\": *\")sess-orch-/\\1sess-orch-$$-/")
   dir=$(build_hook_dir)
   ORCH_OUT=$(printf '%s' "$stdin_json" | bash "$dir/claude-stop-orchestrator.sh" 2>/dev/null)
   NOTIFIED=$(cat "$dir/notify.log" 2>/dev/null || true)
 }
 
-# write_state - writes the given JSON body as the plain-run state file for
-# session_id, at the implement gate's fixed /tmp path.
+# write_state - writes the given JSON body as the plain-run
+# state file for session_id, at the implement gate's fixed /tmp
+# path.
 write_state() {
   local session_id="$1" body="$2"
+  session_id="sess-orch-$$-${session_id#sess-orch-}"
   printf '%s' "$body" > "/tmp/implement_$session_id.json"
 }
 
@@ -131,9 +149,10 @@ it_should_block_without_notifying_when_the_agent_contract_gate_blocks() {
   assert_eq "should block without notifying when the agent-contract gate blocks (nothing notified)" "" "$NOTIFIED"
 }
 
-# The agent-contract gate runs first, so its block must short-circuit before
-# any later gate is ever consulted — otherwise two gates could each emit a
-# decision and the orchestrator would print both, which is not valid hook output.
+# The agent-contract gate runs first, so its block must
+# short-circuit before any later gate is ever consulted —
+# otherwise two gates could each emit a decision and the
+# orchestrator would print both, which is not valid hook output.
 it_should_pass_through_only_the_first_blocking_gates_decision() {
   STUB_AGENT_CONTRACT_BLOCKS=1 \
     run_orchestrator '{"session_id": "sess-orch-both", "stop_hook_active": false}'
@@ -165,12 +184,16 @@ it_should_block_without_notifying_when_an_implement_run_is_mid_batch() {
   assert_eq "should block without notifying when an implement run is mid-batch (nothing notified)" "" "$NOTIFIED"
 }
 
-# The reported bug: /implement pinged success once per task. Its task loop ends
-# a turn, the gate blocks it, Claude does one more thing and ends the turn again
-# — and that second stop arrives with stop_hook_active=true, which disarms the
-# gate's loop guard. The orchestrator used to read that silence as "the batch is
-# finished" and fire the green "done" ping while the task subagent was still
-# running.
+# The reported bug: /implement pinged success once per task.
+#
+# Its task loop ends a turn, the gate blocks it, Claude does one
+# more thing and ends the turn again — and that second stop
+# arrives with stop_hook_active=true, which disarms the gate's
+# loop guard.
+#
+# The orchestrator used to read that silence as "the batch is
+# finished" and fire the green "done" ping while the task
+# subagent was still running.
 it_should_stay_silent_when_an_implement_run_is_mid_batch_and_the_gates_loop_guard_has_disarmed_it() {
   write_state "sess-orch-disarmed" '{"phase": "tasks"}'
   run_orchestrator '{"session_id": "sess-orch-disarmed", "stop_hook_active": true}'
@@ -180,19 +203,23 @@ it_should_stay_silent_when_an_implement_run_is_mid_batch_and_the_gates_loop_guar
     "" "$ORCH_OUT"
 }
 
-# The other half of the contract: a run that stopped FOR the human is exactly
-# the stop worth interrupting for, so silencing it would trade one bug for another.
+# The other half of the contract: a run that stopped FOR the
+# human is exactly the stop worth interrupting for, so silencing
+# it would trade one bug for another.
 it_should_notify_done_when_an_implement_run_halted_for_the_human() {
   write_state "sess-orch-halted" '{"phase": "halted"}'
   run_orchestrator '{"session_id": "sess-orch-halted", "stop_hook_active": true}'
   assert_eq "should notify done when an implement run halted for the human (notified state)" "done" "$NOTIFIED"
 }
 
-# Claude Code v2.1.145+ Stop payloads carry a background_tasks array listing
-# work still in flight. A dispatched subagent/workflow guarantees a LATER Stop
-# event wakes the session back up (that's the whole point of backgrounding
-# it), so a "done" ping fired while one is still running is premature — the
-# session looks finished when it isn't.
+# Claude Code v2.1.145+ Stop payloads carry a background_tasks
+# array listing work still in flight.
+#
+# A dispatched subagent/workflow guarantees a LATER Stop event
+# wakes the session back up (that's the whole point of
+# backgrounding it), so a "done" ping fired while one is still
+# running is premature — the session looks finished when it
+# isn't.
 it_should_stay_silent_when_a_background_subagent_is_still_running() {
   run_orchestrator '{"session_id": "sess-orch-bg-subagent", "stop_hook_active": false, "background_tasks": [{"type": "subagent", "status": "running"}]}'
   assert_eq "should stay silent when a background subagent is still running (nothing notified)" "" "$NOTIFIED"
@@ -204,13 +231,18 @@ it_should_stay_silent_when_a_background_workflow_is_still_running() {
   assert_eq "should stay silent when a background workflow is still running (nothing notified)" "" "$NOTIFIED"
 }
 
-# Regression guard: a long-lived intentionally-backgrounded shell task (e.g.
+# Regression guard: a long-lived intentionally-backgrounded
+# shell task (e.g.
 # `tail -f /var/log/syslog`, a dev server) sits in background_tasks with
-# status "running" indefinitely. Only subagent/workflow guarantee a later
-# Stop wakes the session — a shell task does not, so it must NOT suppress the
-# ping. This is what stops a future edit from widening the filter back to a
-# bare length check and permanently silencing the ping for the rest of the
-# session.
+# status "running" indefinitely.
+#
+# Only subagent/workflow guarantee a later Stop wakes the
+# session — a shell task does not, so it must NOT suppress the
+# ping.
+#
+# This is what stops a future edit from widening the filter back
+# to a bare length check and permanently silencing the ping for
+# the rest of the session.
 it_should_notify_done_when_only_a_background_shell_task_is_still_running() {
   run_orchestrator '{"session_id": "sess-orch-bg-shell", "stop_hook_active": false, "background_tasks": [{"type": "shell", "status": "running"}]}'
   assert_eq "should notify done when only a background shell task is still running (notified state)" "done" "$NOTIFIED"
