@@ -44,10 +44,8 @@ configs/ai-docs/claude/hooks/tests/test-claude-tmux-title-reminder.sh
 configs/ai-docs/claude/hooks/tests/test-subagent-disallowed-tools-guard.sh
 configs/ai-docs/claude/scripts/check-settings-json-integrity.py
 configs/ai-docs/claude/scripts/check-shell-harness-orphans.py
-configs/ai-docs/claude/scripts/statusline-tier.sh
 configs/ai-docs/claude/scripts/tests/check-settings-json-integrity.test.py
 configs/ai-docs/claude/scripts/tests/check-shell-harness-orphans.test.py
-configs/ai-docs/claude/scripts/tests/test-statusline-tier.sh
 configs/ai-docs/claude/scripts/tmux-window-title.sh
 configs/ai-docs/claude/skills/agent-standards/scripts/tests/test-check-agent-contract.sh
 configs/ai-docs/claude/skills/audit-session/scripts/extract-session-timeline.py
