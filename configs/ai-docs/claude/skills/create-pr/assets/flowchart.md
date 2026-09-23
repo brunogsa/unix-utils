@@ -59,7 +59,8 @@ def create_pr():
     #     plan's PR Breakdown, (C) several evidence_*.md matched, (D) zero, 2+,
     #     or an unsure ticket ID candidate — collected from a caller-passed ID,
     #     the session, the branch name, and every matched spec/plan.
-    if ambiguous(sources, evidence, ticket_candidates):
+    ticket = resolve_ticket()  # references/ticket-id.md; None while (D) is open
+    if ambiguous(sources, evidence, ticket):
         # 6a · ONE AskUserQuestion carrying (A), (B), (C) and (D) as four
         #      SEPARATE questions. They resolve different things — which
         #      source file to read, which plan slice this is, which artifact
