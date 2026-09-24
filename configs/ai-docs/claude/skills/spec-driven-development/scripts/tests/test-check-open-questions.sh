@@ -128,6 +128,20 @@ it_should_not_read_a_question_marker_from_a_later_section() {
   assert_eq "should not read a QUESTION marker from a section after Open Questions" "0" "$VERDICT_EXIT"
 }
 
+it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof() {
+  local fixture="$work_dir/unclosed-backtick.md"
+  printf '## Open Questions\n\n```\n- **QUESTION:** still open?\n## Next\n' > "$fixture"
+  run_script "$fixture"
+  assert_eq "should fail closed when a \`\`\` fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
+}
+
+it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof() {
+  local fixture="$work_dir/unclosed-tilde.md"
+  printf '## Open Questions\n\n~~~~~~~~~~~~\n- **QUESTION:** still open?\n## Next\n' > "$fixture"
+  run_script "$fixture"
+  assert_eq "should fail closed when a ~~~ fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
+}
+
 it_should_report_a_usage_error_when_the_named_file_is_missing() {
   run_script "$work_dir/absent.md"
   assert_eq "should report a usage error when the named file is missing" "2" "$VERDICT_EXIT"
@@ -140,6 +154,8 @@ it_should_ignore_a_question_marker_quoted_inside_a_fenced_code_block
 it_should_ignore_a_question_marker_quoted_inside_a_tilde_fenced_code_block
 it_should_pass_trivially_when_the_document_has_no_open_questions_section
 it_should_not_read_a_question_marker_from_a_later_section
+it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof
+it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof
 it_should_report_a_usage_error_when_the_named_file_is_missing
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"

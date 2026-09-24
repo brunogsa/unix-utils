@@ -30,8 +30,10 @@
 #   1 - at least one "**QUESTION:**" entry survives
 #       (diagnostic on stderr).
 #
-#   2 - usage error (wrong arg count, or a named file
-#       missing).
+#   2 - usage error (wrong arg count, a named file
+#       missing, or a ``` / ~~~ fence left open at EOF
+#       in a given document, inherited from
+#       plan-section.sh's whole-file fence check).
 
 set -eo pipefail
 

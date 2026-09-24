@@ -60,7 +60,9 @@
 #   1 - a missing, extra, or malformed row was found (on
 #       stderr).
 #   2 - usage error (wrong arg count, spec/taxonomy file
-#       missing).
+#       missing, or a ``` / ~~~ fence left open at EOF
+#       in the spec, inherited from plan-section.sh's
+#       whole-file fence check).
 
 set -eo pipefail
 

@@ -237,6 +237,20 @@ it_should_not_count_a_row_quoted_inside_a_tilde_fenced_code_block() {
   esac
 }
 
+it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof() {
+  local fixture="$work_dir/unclosed-backtick.md"
+  printf '## Testable Acceptance Criteria\n\n```\nunclosed fence in the spec\n' > "$fixture"
+  run_script "$fixture"
+  assert_eq "should fail closed when a \`\`\` fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
+}
+
+it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof() {
+  local fixture="$work_dir/unclosed-tilde.md"
+  printf '## Testable Acceptance Criteria\n\n~~~\nunclosed fence in the spec\n' > "$fixture"
+  run_script "$fixture"
+  assert_eq "should fail closed when a ~~~ fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
+}
+
 it_should_pass_when_both_checklists_instantiate_every_taxonomy_row
 it_should_fail_when_one_taxonomy_row_is_missing_from_a_checklist
 it_should_fail_when_a_row_has_malformed_grammar
@@ -245,6 +259,8 @@ it_should_pass_trivially_when_the_spec_has_no_checklist_block_at_all
 it_should_report_a_usage_error_when_the_spec_file_is_missing
 it_should_not_count_a_row_quoted_inside_a_fenced_code_block
 it_should_not_count_a_row_quoted_inside_a_tilde_fenced_code_block
+it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof
+it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

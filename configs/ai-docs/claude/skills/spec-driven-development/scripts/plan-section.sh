@@ -55,6 +55,10 @@
 # PR." check) see the body without the template's own
 # formatting scaffolding.
 #
+# A ``` or ~~~ fence left open at EOF makes the whole
+# plan file malformed. This applies whole-file, not
+# just the scanned section.
+#
 # Exit codes:
 #   0 - always, including "no heading matched" (empty
 #       stdout, same as before this extraction).
@@ -63,7 +67,8 @@
 #       callers keep owning their own "empty means
 #       error" vs "empty means N/A" interpretation.
 #
-#   2 - usage error (wrong arg count, plan file missing).
+#   2 - usage error (wrong arg count, plan file missing,
+#       or a ``` / ~~~ fence left open at EOF).
 
 set -eo pipefail
 
@@ -85,17 +90,21 @@ awk -v marker="$marker" -v pat="$heading_pattern" '
   /^```/ || /^~~~/ {
     m = substr($0, 1, 1)
     if (in_fence) { if (m == fence_char) in_fence = 0 }
-    else { in_fence = 1; fence_char = m }
+    else { in_fence = 1; fence_char = m; fence_line = NR }
   }
-  !in_fence && index($0, marker " ") == 1 {
-    if (in_section) exit
+  !in_fence && !done && index($0, marker " ") == 1 {
+    if (in_section) { done = 1; next }
     stripped = $0
     sub("^" marker " ", "", stripped)
     if (stripped ~ pat) { in_section = 1; next }
     next
   }
-  in_section { buf[++n] = $0 }
+  in_section && !done { buf[++n] = $0 }
   END {
+    if (in_fence) {
+      print "error: unclosed code fence opened at line " fence_line " in " FILENAME > "/dev/stderr"
+      exit 2
+    }
     while (n > 0 && buf[n] ~ /^[[:space:]]*$/) n--
     if (n > 0 && buf[n] ~ /^---[[:space:]]*$/) n--
     while (n > 0 && buf[n] ~ /^[[:space:]]*$/) n--
