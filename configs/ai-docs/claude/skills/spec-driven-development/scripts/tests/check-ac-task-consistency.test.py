@@ -401,6 +401,30 @@ def test_exits_two_when_the_test_design_section_holds_no_rows(tmp_path):
     assert "Test Design" in result.stderr
 
 
+def test_exits_two_when_a_backtick_fence_is_left_open_at_eof(tmp_path):
+    plan = _write_plan(
+        tmp_path,
+        design_body="```\nunclosed fence in Test Design",
+        task_body=CONSISTENT_TASKS,
+        details_body=CONSISTENT_DETAILS,
+    )
+    result = _run(str(plan))
+    assert result.returncode == 2
+    assert "unclosed code fence" in result.stderr
+
+
+def test_exits_two_when_a_tilde_fence_is_left_open_at_eof(tmp_path):
+    plan = _write_plan(
+        tmp_path,
+        design_body="~~~\nunclosed fence in Test Design",
+        task_body=CONSISTENT_TASKS,
+        details_body=CONSISTENT_DETAILS,
+    )
+    result = _run(str(plan))
+    assert result.returncode == 2
+    assert "unclosed code fence" in result.stderr
+
+
 def test_exits_two_when_the_named_plan_is_missing(tmp_path):
     result = _run(str(tmp_path / "absent.md"))
     assert result.returncode == 2

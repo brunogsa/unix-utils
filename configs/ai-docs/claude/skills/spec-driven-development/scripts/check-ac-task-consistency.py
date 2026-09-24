@@ -88,6 +88,21 @@ def exit_with_usage_error(message):
     sys.exit(2)
 
 
+def check_fence_balance(lines):
+    """The line number a ``` or ~~~ fence opened at, if one is
+    still open after the last line, else None.
+
+    Whole-file rule: an unclosed fence anywhere in the plan is
+    malformed, not just inside a scanned section."""
+    in_fence, fence_char, open_line = False, "", None
+    for line_number, text in enumerate(lines, start=1):
+        was_open = in_fence
+        in_fence, fence_char = toggle_fence(text, in_fence, fence_char)
+        if in_fence and not was_open:
+            open_line = line_number
+    return open_line if in_fence else None
+
+
 def find_design_row_lines(lines):
     """The 1-based plan line number of every Test Design it() row.
 
@@ -282,6 +297,12 @@ def main():
         exit_with_usage_error(f"plan file not found: {plan}")
 
     lines = plan.read_text(encoding="utf-8").splitlines()
+
+    open_line = check_fence_balance(lines)
+    if open_line is not None:
+        exit_with_usage_error(
+            f"unclosed code fence opened at line {open_line} in {plan}"
+        )
 
     if not any(DESIGN_HEADING.match(text) for text in lines):
         exit_with_usage_error(f"no '## Test Design' section in {plan}")
