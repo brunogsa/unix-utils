@@ -88,7 +88,9 @@
 #   0  - success (>=1 title found).
 #   1  - no `## Test Design` section, or no it("...") titles
 #        within it.
-#   2  - usage error (wrong arg count, plan file not found).
+#   2  - usage error (wrong arg count, plan file not
+#        found, or a ``` / ~~~ fence left open at
+#        EOF in the plan).
 
 set -eo pipefail
 
@@ -110,6 +112,30 @@ if [ ! -f "$plan" ]; then
   echo "error: plan file not found: $plan" >&2
   exit 2
 fi
+
+# assert_fence_closed - exit 2 when a ``` or ~~~
+# fence in the given file is still open at EOF.
+#
+# Whole-file rule: an unclosed fence anywhere in
+# the file is malformed, not just inside a scanned
+# section.
+assert_fence_closed() {
+  awk '
+    /^```/ || /^~~~/ {
+      m = substr($0, 1, 1)
+      if (in_fence) { if (m == fence_char) in_fence = 0 }
+      else { in_fence = 1; fence_char = m; fence_line = NR }
+    }
+    END {
+      if (in_fence) {
+        print "error: unclosed code fence opened at line " fence_line " in " FILENAME > "/dev/stderr"
+        exit 2
+      }
+    }
+  ' "$1"
+}
+
+assert_fence_closed "$plan"
 
 titles=$(awk -v pairs="$pairs" -v annotations="$annotations" '
   # Track fence state only to guard the `## ` boundary check below;

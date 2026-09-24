@@ -139,12 +139,34 @@ describe("AgreementSyncUseCase", () => {
     "$actual"
 }
 
+it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof() {
+  local plan
+  plan=$(write_plan "unclosed-backtick" '```
+describe("fixture", () => {
+  it("should accept a valid path");')
+  bash "$SCRIPT" --annotations "$plan" >/dev/null 2>"$work_dir/stderr.txt"
+  local rc=$?
+  assert_eq "should fail closed when a \`\`\` fence is left open at EOF (exit code)" "2" "$rc"
+}
+
+it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof() {
+  local plan
+  plan=$(write_plan "unclosed-tilde" '~~~
+describe("fixture", () => {
+  it("should accept a valid path");')
+  bash "$SCRIPT" --annotations "$plan" >/dev/null 2>"$work_dir/stderr.txt"
+  local rc=$?
+  assert_eq "should fail closed when a ~~~ fence is left open at EOF (exit code)" "2" "$rc"
+}
+
 it_should_print_the_bare_title_breadcrumb_and_ac_and_t_tokens_for_an_annotated_it_line
 it_should_join_multiple_ac_and_t_tokens_space_separated_when_an_annotation_cites_several
 it_should_ignore_the_on_demand_tag_when_extracting_ac_and_t_tokens
 it_should_print_empty_ac_and_t_columns_for_every_row_when_the_plan_uses_the_old_list_form_with_no_annotations
 it_should_extract_the_bare_title_breadcrumb_and_tokens_from_the_two_argument_it_form
 it_should_keep_reading_it_lines_after_a_fenced_line_that_starts_with_a_heading_marker
+it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof
+it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
