@@ -200,6 +200,42 @@ Tasks: 3, 4, 10. Depends on: PR-2.')
   assert_eq "should read a legacy one-line entry whose clauses wrap to the next physical line (TSV body)" "$(printf 'PR-1\t3, 4, 10\tPR-2\t')" "$VERDICT_OUT"
 }
 
+it_should_keep_reading_prs_after_a_fenced_line_that_starts_with_a_section_heading_marker() {
+  local fixture
+  fixture=$(write_plan "fenced-section-heading" '1. **PR-1** — Naming and validators. Tasks: 1, 2, 3. Depends on: none.
+
+```
+## Not a real heading, just sample doc text quoted in the fence
+```
+
+2. **PR-2** — Worktree hygiene. Tasks: 4. Depends on: none.')
+  run_script "$fixture"
+  assert_eq "should keep reading PRs after a fenced line that starts with a section heading marker (exit code)" "0" "$VERDICT_EXIT"
+  local expected
+  expected=$(printf 'PR-1\t1, 2, 3\t\t\nPR-2\t4\t\t')
+  assert_eq "should keep reading PRs after a fenced line that starts with a section heading marker (TSV body)" "$expected" "$VERDICT_OUT"
+}
+
+it_should_ignore_a_fenced_pr_n_heading_shown_as_sample_markup() {
+  local fixture
+  fixture=$(write_plan "fenced-entry-heading" '### PR-1. Naming and validators
+
+**Tasks**: 1
+
+**Depends on**: none
+
+Written like:
+```
+### PR-9. Example heading shown as sample markup
+
+**Tasks**: 9
+```
+')
+  run_script "$fixture"
+  assert_eq "should ignore a fenced PR-N heading shown as sample markup (exit code)" "0" "$VERDICT_EXIT"
+  assert_eq "should ignore a fenced PR-N heading shown as sample markup, emitting only the real entry (TSV body)" "$(printf 'PR-1\t1\t\t')" "$VERDICT_OUT"
+}
+
 it_should_emit_one_tsv_line_per_pr_n_entry_for_a_normal_multi_pr_plan
 it_should_emit_one_tsv_line_per_pr_when_each_pr_is_its_own_heading
 it_should_ignore_a_bolded_pr_label_inside_an_entrys_prose
@@ -214,6 +250,8 @@ it_should_exit_2_when_pr_breakdown_exists_but_no_pr_entries
 it_should_exit_2_on_wrong_arg_count
 it_should_exit_2_when_the_plan_file_does_not_exist
 it_should_parse_a_pr_entry_with_no_tasks_or_depends_clauses
+it_should_keep_reading_prs_after_a_fenced_line_that_starts_with_a_section_heading_marker
+it_should_ignore_a_fenced_pr_n_heading_shown_as_sample_markup
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

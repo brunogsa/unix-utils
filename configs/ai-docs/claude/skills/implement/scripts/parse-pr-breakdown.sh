@@ -18,6 +18,11 @@
 # The entry grammar is authored by the spec-driven-development
 # skill's assets/plan-template.md; how each caller uses these
 # fields is in implement/references/pr-awareness.md.
+#
+# Both the section boundary and the entry-heading match are
+# fence-aware: a `## `/`### PR-N` line shown as sample markup
+# inside a ``` or ~~~ fence never ends the section early or
+# opens a phantom entry.
 
 set -eo pipefail
 
@@ -33,8 +38,19 @@ if [ ! -f "$plan_file" ]; then
   exit 2
 fi
 
+# The fence toggle guards only the `## ` boundary check below —
+# it never skips content — since a fenced sample line quoted
+# inside the section must still print as part of it. Closes
+# only on the same marker (``` or ~~~) that opened it.
 section=$(awk '
-  /^## / {
+  /^```/ || /^~~~/ {
+    m = substr($0, 1, 1)
+    if (in_fence) { if (m == fence_char) in_fence = 0 }
+    else { in_fence = 1; fence_char = m }
+    print
+    next
+  }
+  !in_fence && /^## / {
     if (in_section) exit
     if ($0 ~ /^## PR Breakdown[[:space:]]*$/) { in_section = 1; next }
     next
@@ -107,6 +123,19 @@ entries=$(printf '%s\n' "$section" | awk -v entry_boundary="$entry_boundary" '
   function flush() {
     if (label != "") print label "\t" tasks "\t" deps "\t" branch
   }
+
+  # A fenced sample entry (e.g. a ### PR-N heading shown as
+  # doc-writing markup) is skipped entirely here, not just
+  # boundary-guarded: its heading must never open a phantom
+  # entry, and its field lines must never leak into a real
+  # entry above it. Closes only on the same marker that opened it.
+  /^```/ || /^~~~/ {
+    m = substr($0, 1, 1)
+    if (in_fence) { if (m == fence_char) in_fence = 0 }
+    else { in_fence = 1; fence_char = m }
+    next
+  }
+  in_fence { next }
 
   {
     opening_label = entry_label($0)

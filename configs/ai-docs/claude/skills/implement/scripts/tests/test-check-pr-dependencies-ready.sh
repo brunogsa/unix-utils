@@ -278,12 +278,34 @@ it_should_block_when_a_parent_pr_has_no_branch_clause_because_it_never_pushed() 
   assert_contains "should block when a parent PR carries no Branch: clause because its batch never pushed (diagnostic names the missing clause)" "$VERDICT_ERR" "no Branch: clause"
 }
 
+it_should_read_a_task_heading_that_follows_a_fenced_line_starting_with_a_heading_marker() {
+  local slug="fenced-task-heading" worktree_dir plan_file
+  worktree_dir="$work_dir/$slug-worktree"
+  init_repo_with_ancestor_branch "$worktree_dir" "feat-foo/pr1"
+
+  plan_file=$(write_plan "$slug" \
+    '### 1. [Done] Naming and validators
+
+Example shown as sample markup:
+```
+## Not a real heading, just sample doc text quoted in the fence
+```
+
+### 2. [Done] Core loop' \
+    '1. **[Done] PR-1** — Naming and validators. Tasks: 1, 2. Depends on: none. Branch: `feat-foo/pr1`.
+2. **PR-2** — Core loop. Tasks: 3. Depends on: PR-1.')
+
+  run_script "$plan_file" "PR-2" "$worktree_dir"
+  assert_eq "should read Task 2's heading even though a fenced line before it starts with a '## ' marker (exit code)" "0" "$VERDICT_EXIT"
+}
+
 it_should_pass_when_every_parent_prs_tasks_are_done_and_head_descends_from_each_parents_branch
 it_should_pass_immediately_for_a_pr_with_no_declared_dependencies
 it_should_block_when_a_parent_pr_has_no_branch_clause_because_it_never_pushed
 it_should_block_and_name_the_outstanding_tasks_when_a_parent_pr_has_any_non_done_task
 it_should_block_when_head_does_not_descend_from_a_parent_prs_branch_tip_even_if_done
 it_should_block_naming_the_second_parents_outstanding_task_when_a_pr_has_two_parents_on_demand
+it_should_read_a_task_heading_that_follows_a_fenced_line_starting_with_a_heading_marker
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

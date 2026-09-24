@@ -42,6 +42,11 @@
 # PR-N with no parents (Depends on: none) passes immediately - a
 # DAG root has nothing to wait for.
 #
+# The Task Breakdown boundary and its `### N.` heading match are
+# fence-aware: a `## `/`### N.` line shown as sample markup
+# inside a ``` or ~~~ fence never ends the section early or
+# registers as a phantom task status.
+#
 # Exit codes:
 # - 0: PR-N has no parents, or every parent clears both checks.
 #
@@ -143,8 +148,19 @@ if [ -z "$deps" ]; then
   exit 0
 fi
 
+# The fence toggle guards only the `## ` boundary check below —
+# it never skips content — since a fenced sample line quoted
+# inside the section must still print as part of it. Closes
+# only on the same marker (``` or ~~~) that opened it.
 task_section=$(awk '
-  /^## / {
+  /^```/ || /^~~~/ {
+    m = substr($0, 1, 1)
+    if (in_fence) { if (m == fence_char) in_fence = 0 }
+    else { in_fence = 1; fence_char = m }
+    print
+    next
+  }
+  !in_fence && /^## / {
     if (in_section) exit
     if ($0 ~ /^## Task Breakdown[[:space:]]*$/) { in_section = 1; next }
     next
@@ -156,7 +172,18 @@ task_section=$(awk '
 # <title> A task not yet started carries no bracket at all
 # (matches the PR-level marker's own "absent for pending"
 # convention), so its status here is "".
+#
+# A `### N.` heading shown as sample markup inside a fenced
+# block is skipped entirely, so it never registers as a
+# phantom task status.
 task_statuses=$(printf '%s\n' "$task_section" | awk '
+  /^```/ || /^~~~/ {
+    m = substr($0, 1, 1)
+    if (in_fence) { if (m == fence_char) in_fence = 0 }
+    else { in_fence = 1; fence_char = m }
+    next
+  }
+  in_fence { next }
   /^### [0-9]+\./ {
     line = $0
     match(line, /^### [0-9]+/)
