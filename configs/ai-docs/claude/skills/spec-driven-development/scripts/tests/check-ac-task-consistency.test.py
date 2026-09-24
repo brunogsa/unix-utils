@@ -23,6 +23,7 @@ Usage:
 import subprocess
 import sys
 from pathlib import Path
+from typing import Optional
 
 SCRIPT = Path(__file__).parent.parent / "check-ac-task-consistency.py"
 
@@ -105,7 +106,7 @@ def _write_plan(
     *,
     design_body,
     task_body,
-    details_body="",
+    details_body: Optional[str] = "",
     trailer="",
 ):
     """Write a plan_<slug>.md fixture holding only the sections the gate
