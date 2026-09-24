@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# test-plan-section.sh - plain-bash test file for plan-section.sh.
+# test-plan-section.sh - plain-bash test file for
+# plan-section.sh.
 #
 # Usage:
 #   bash test-plan-section.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
-# by design, matching the other scripts in this skill's test suite.
+# Exits 0 when every assertion passes, non-zero
+# otherwise. No bats dependency by design, matching the
+# other scripts in this skill's test suite.
 
 set -uo pipefail
 
@@ -18,7 +20,8 @@ trap 'rm -rf "$work_dir"' EXIT
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs
+# actual, prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -30,8 +33,8 @@ assert_eq() {
   fi
 }
 
-# run_script - invokes plan-section.sh, capturing stdout/exit code into
-# VERDICT_OUT/VERDICT_EXIT.
+# run_script - invokes plan-section.sh, capturing
+# stdout/exit code into VERDICT_OUT/VERDICT_EXIT.
 run_script() {
   local out_file="$work_dir/stdout.txt"
   VERDICT_EXIT=0

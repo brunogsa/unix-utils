@@ -1,26 +1,42 @@
 #!/usr/bin/env bash
-# extract-design-tests - emit the Test Design test titles of a plan as breadcrumbs.
+# extract-design-tests - emit the Test Design test titles of a
+# plan as breadcrumbs.
 #
 # Usage:
 #   extract-design-tests.sh [--pairs|--annotations] <plan-path>
 #
-# Default: prints one breadcrumb per line, reconstructed from the `## Test Design` section only:
+# Default: prints one breadcrumb per line, reconstructed from
+# the `## Test Design` section only.
 #
-#   <describe> > <happy|corner|failure> > <it>   when the it() sits under a class comment
-#   <describe> > <it>                            for a flat helper block (no class comment)
+#   <describe> > <happy|corner|failure> > <it>
+#     when the it() sits under a class comment
+#   <describe> > <it>
+#     for a flat helper block (no class comment)
 #
 # --pairs: prints `<bare-it><TAB><breadcrumb>` per line — each
 # bare it() title next to its reconstructed breadcrumb.
 #
-# --annotations: prints `<bare-it><TAB><breadcrumb><TAB><AC tokens><TAB><T tokens>` per line —
-# the AC/T tokens parsed from a trailing `// AC-<n>... T<n>... [on-demand]` comment on the
-# it() line (the single-source annotation grammar; see plan-template.md's Test Design section).
-# Both columns are space-joined when an annotation cites several tokens, and empty (but the tab
-# still present) when the it() line carries no annotation at all — a plan still on the old
-# list-form Test Design (no annotations anywhere) reads as every row's AC/T columns empty, which
-# is exactly the signal check-ac-coverage.sh, check-test-distribution.sh, and
-# extract-planned-tests-for-task.sh use to fall back to the pre-annotation list-form behavior.
-# Consumed by those three sibling scripts, so the annotation grammar lives in ONE place too.
+# --annotations: prints
+# `<bare-it><TAB><breadcrumb><TAB><AC tokens><TAB><T tokens>`
+# per line — the AC/T tokens parsed from a trailing
+# `// AC-<n>... T<n>... [on-demand]` comment on the it() line.
+#
+# (the single-source annotation grammar; see
+# plan-template.md's Test Design section).
+#
+# Both columns are space-joined when an annotation cites several
+# tokens, and empty (but the tab still present) when the it()
+# line carries no annotation at all.
+#
+# A plan still on the old list-form Test Design (no annotations
+# anywhere) reads as every row's AC/T columns empty.
+#
+# That is exactly the signal check-ac-coverage.sh, check-test-
+# distribution.sh, and extract-planned-tests-for-task.sh use to
+# fall back to the pre-annotation list-form behavior.
+#
+# Consumed by those three sibling scripts, so the annotation
+# grammar lives in ONE place too.
 #
 # The bare title and breadcrumb columns come out clean of
 # the trailing annotation comment with no extra stripping
@@ -41,19 +57,32 @@
 # invariant skipped such a line entirely — no title, no
 # breadcrumb, no annotation — silently under-extracting.
 #
-# The breadcrumb is DERIVED from Test Design's own structure — the `describe("X")` name and
-# the nearest `// Happy cases` / `// Corner cases` / `// Failure scenarios` comment above the
-# it(). Test Design keeps bare `it("...")`; the plan's two lists (AC coverage, per-task Tests
-# (planned)) carry the breadcrumb verbatim. Both gate scripts reconstruct via THIS script, so
-# the breadcrumb lives in one place and any format drift between list and design surfaces red.
+# The breadcrumb is DERIVED from Test Design's own structure —
+# the `describe("X")` name and the nearest `// Happy cases` /
+# `// Corner cases` / `// Failure scenarios` comment above the
+# it().
 #
-# Why breadcrumb and not bare title: two describe blocks may share an it() title; bare titles
-# collapse under `sort -u`, silently hiding a coverage gap. The describe (+ class) prefix keeps
-# same-named tests distinct and makes each citation self-describing (its exact home is visible).
+# Test Design keeps bare `it("...")`; the plan's two lists
+# (AC coverage, per-task Tests (planned)) carry the breadcrumb
+# verbatim.
 #
-# Exit codes:
+# Both gate scripts reconstruct via THIS script, so the
+# breadcrumb lives in one place and any format drift between
+# list and design surfaces red.
+#
+# Why breadcrumb and not bare title: two describe blocks may
+# share an it() title; bare titles collapse under
+# `sort -u`, silently hiding a coverage gap.
+#
+# The describe (+ class) prefix keeps same-named tests distinct
+# and makes each citation self-describing (its exact home is
+# visible).
+#
+# Exit codes.
+#
 #   0  - success (>=1 title found).
-#   1  - no `## Test Design` section, or no it("...") titles within it.
+#   1  - no `## Test Design` section, or no it("...") titles
+#        within it.
 #   2  - usage error (wrong arg count, plan file not found).
 
 set -eo pipefail

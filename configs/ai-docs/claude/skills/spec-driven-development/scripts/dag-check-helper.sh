@@ -1,26 +1,46 @@
 #!/usr/bin/env bash
-# dag-check-helper - shared cycle / dangling-reference / duplicate-label detector.
+# dag-check-helper - shared cycle / dangling-reference /
+# duplicate-label detector.
 #
 # Usage:
-#   <label>\t<dep1,dep2,...> lines on stdin | dag-check-helper.sh <kind>
+#   <label>\t<dep1,dep2,...> lines on stdin |
+#     dag-check-helper.sh <kind>
 #
-# Input: one TSV line per node — `<label><TAB><comma-separated deps, empty when none>`.
-# `<kind>` is a short noun (e.g. "PR", "task") used only in diagnostics, so
-# check-pr-dag.sh and check-tasks-dag.sh can share this ONE detection algorithm
-# without this script knowing which breakdown section it's validating.
+# Input: one TSV line per node —
+# `<label><TAB><comma-separated deps, empty when
+# none>`.
+#
+# `<kind>` is a short noun (e.g. "PR", "task") used
+# only in diagnostics, so check-pr-dag.sh and
+# check-tasks-dag.sh can share this ONE detection
+# algorithm.
+#
+# This script itself never knows which breakdown
+# section it's validating.
 #
 # Detects, over the input graph:
-#   DUPLICATE  - the same label appears on more than one input line.
-#   DANGLING   - a dependency names a label absent from the input's own labels.
-#   CYCLE      - a dependency chain returns to a label already on its own path
-#                (a standard white/gray/black DFS over the whole graph).
+#   DUPLICATE  - the same label appears on more
+#                than one input line.
 #
-# All three checks run independently and every failure is reported together —
-# not fail-fast on the first one found — so one bad edit doesn't hide a second.
+#   DANGLING   - a dependency names a label absent
+#                from the input's own labels.
+#
+#   CYCLE      - a dependency chain returns to a
+#                label already on its own path (a
+#                standard white/gray/black DFS over
+#                the whole graph).
+#
+# All three checks run independently and every failure is
+# reported together — not fail-fast on the first one found — so
+# one bad edit doesn't hide a second.
 #
 # Exit codes:
-#   0 - no duplicate, dangling reference, or cycle found.
-#   1 - at least one of the three found (diagnostics printed to stderr).
+#   0 - no duplicate, dangling reference, or
+#       cycle found.
+#
+#   1 - at least one of the three found
+#       (diagnostics printed to stderr).
+#
 #   2 - usage error (wrong arg count, empty stdin).
 
 set -eo pipefail
@@ -50,7 +70,8 @@ if [ -n "$duplicates" ]; then
   printf '%s\n' "$duplicates" | sed 's/^/  - /' >&2
 fi
 
-# DANGLING: a dependency naming a label absent from the input's own label set.
+# DANGLING: a dependency naming a label absent from the input's
+# own label set.
 labels=$(printf '%s\n' "$input" | cut -f1 | sort -u)
 
 dangling=$(printf '%s\n' "$input" | awk -F'\t' '
@@ -75,9 +96,10 @@ if [ -n "$dangling" ]; then
   printf '%s\n' "$dangling" | sed 's/^/  - /' >&2
 fi
 
-# CYCLE: white/gray/black DFS over the whole graph. A dangling dependency (not
-# a key in `deps`) is skipped here — it's already reported above, and walking
-# into it would need a fabricated node the diagnostic would misname.
+# CYCLE: white/gray/black DFS over the whole graph.
+# A dangling dependency (not a key in `deps`) is skipped
+# here — it's already reported above, and walking into it would
+# need a fabricated node the diagnostic would misname.
 cycle=$(printf '%s\n' "$input" | awk -F'\t' '
   function dfs(node,   n, arr, i, d, res) {
     color[node] = 1

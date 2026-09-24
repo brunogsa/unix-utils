@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# test-check-pr-dag.sh - plain-bash test file for check-pr-dag.sh.
+# test-check-pr-dag.sh - plain-bash test file for
+# check-pr-dag.sh.
 #
 # Usage:
 #   bash test-check-pr-dag.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
-# by design, matching the other scripts in this skill's test suite.
+# Exits 0 when every assertion passes, non-zero otherwise.
+# No bats dependency by design, matching the other scripts in
+# this skill's test suite.
 
 set -uo pipefail
 
@@ -18,7 +20,8 @@ trap 'rm -rf "$work_dir"' EXIT
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs actual,
+# prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -30,9 +33,10 @@ assert_eq() {
   fi
 }
 
-# run_script - invokes check-pr-dag.sh against a plan-file fixture, capturing
-# stderr/exit code into VERDICT_ERR/VERDICT_EXIT (stdout is discarded — these
-# tests assert on exit code and diagnostic presence only).
+# run_script - invokes check-pr-dag.sh against a plan-file
+# fixture, capturing stderr/exit code into
+# VERDICT_ERR/VERDICT_EXIT (stdout is discarded — these tests
+# assert on exit code and diagnostic presence only).
 run_script() {
   local plan_file="$1"
   local err_file="$work_dir/stderr.txt"
@@ -41,8 +45,9 @@ run_script() {
   VERDICT_ERR=$(cat "$err_file")
 }
 
-# write_plan - writes the given PR-Breakdown-section body to a fresh plan
-# fixture under work_dir, returns its path via stdout.
+# write_plan - writes the given PR-Breakdown-section body to a
+# fresh plan fixture under work_dir, returns its path via
+# stdout.
 write_plan() {
   local name="$1" body="$2"
   local path="$work_dir/$name.md"
@@ -83,9 +88,12 @@ it_should_pass_when_the_plan_reads_the_n_a_escape_for_a_no_pr_repo() {
   assert_eq "should pass when the plan reads the N/A — <reason> escape for a no-PR repo" "0" "$VERDICT_EXIT"
 }
 
-# plan-template.md tells authors to write "N/A — no PR dependencies" in
-# place of the dependency diagram, which leads the numbered PR list. The
-# escape must not disarm validation of the entries that follow it.
+# plan-template.md tells authors to write "N/A — no PR
+# dependencies" in place of the dependency diagram, which leads
+# the numbered PR list.
+#
+# The escape must not disarm validation of the entries that
+# follow it.
 it_should_still_validate_pr_entries_that_follow_the_n_a_in_place_of_the_diagram() {
   local fixture
   fixture=$(write_plan "n-a-then-cycle" 'N/A — no PR dependencies

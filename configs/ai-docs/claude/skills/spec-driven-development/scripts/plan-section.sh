@@ -1,45 +1,67 @@
 #!/usr/bin/env bash
-# plan-section.sh - extract one heading's section body from a plan_<slug>.md file.
+# plan-section.sh - extract one heading's section body
+# from a plan_<slug>.md file.
 #
 # Usage:
 #   plan-section.sh <plan-file> <marker> <heading-pattern>
 #
-# <marker> is the heading prefix delimiting sections at the level being sliced
-# ("##" for a plan's top-level sections, "###" for per-task sub-headings).
-# <heading-pattern> is an ERE tested against the heading line with "<marker> "
-# already stripped from its start — anchor it yourself (^...$) for an exact
-# match (a fixed section name), or leave it unanchored at the end for a
+# <marker> is the heading prefix delimiting sections at
+# the level being sliced ("##" for a plan's top-level
+# sections, "###" for per-task sub-headings).
+#
+# <heading-pattern> is an ERE tested against the heading
+# line with "<marker> " already stripped from its start.
+#
+# Anchor it yourself (^...$) for an exact match (a fixed
+# section name), or leave it unanchored at the end for a
 # prefix match (a dynamic heading like a task number).
 #
-# Pass a literal dot in <heading-pattern> as a bracket expression ([.]), never
-# a backslash escape (\.) — awk's -v assignment runs C-style escape
-# processing on the value, so "\\." silently degrades to "match any char" on
-# several awk implementations, including the default awk on macOS. "[.]"
-# survives -v intact on every awk and means the same thing.
+# Pass a literal dot in <heading-pattern> as a bracket
+# expression ([.]), never a backslash escape (\.).
 #
-# Extracts from the first line at <marker> depth whose stripped text matches
-# <heading-pattern>, through the line before the next <marker>-depth heading
-# (or EOF). A deeper subheading (e.g. a "### " line inside a "##" section)
-# does not end the section — only another heading at the SAME <marker> depth
-# does, matching the per-script awk state machines this helper replaces.
+# awk's -v assignment runs C-style escape processing on
+# the value, so "\\." silently degrades to "match any
+# char" on several awk implementations, including the
+# default awk on macOS.
 #
-# A <marker>-depth-shaped line inside a fenced code block is
-# sample content, not a real heading, so it never opens or
-# closes a section.
+# "[.]" survives -v intact on every awk and means the
+# same thing.
 #
-# plan-template.md prescribes a trailing "---" divider line before every
-# "##"-depth heading, which otherwise lands inside the PRECEDING section's
-# extracted body (it sits before the next heading, not after it). That
-# divider, and any blank lines around it, is trimmed from the end of the
-# extracted body before printing, so callers doing exact-match checks against
-# a section's last line (e.g. check-pr-dag.sh's "Single PR." check) see the
-# body without the template's own formatting scaffolding.
+# Extracts from the first line at <marker> depth whose
+# stripped text matches <heading-pattern>, through the
+# line before the next <marker>-depth heading (or EOF).
+#
+# A deeper subheading (e.g. a "### " line inside a "##"
+# section) does not end the section. Only another
+# heading at the SAME <marker> depth does, matching the
+# per-script awk state machines this helper replaces.
+#
+# A <marker>-depth-shaped line inside a fenced code
+# block is sample content, not a real heading, so it
+# never opens or closes a section.
+#
+# plan-template.md prescribes a trailing "---" divider
+# line before every "##"-depth heading, which otherwise
+# lands inside the PRECEDING section's extracted body
+# (it sits before the next heading, not after it).
+#
+# That divider, and any blank lines around it, is
+# trimmed from the end of the extracted body before
+# printing.
+#
+# So callers doing exact-match checks against a
+# section's last line (e.g. check-pr-dag.sh's "Single
+# PR." check) see the body without the template's own
+# formatting scaffolding.
 #
 # Exit codes:
-#   0 - always, including "no heading matched" (empty stdout, same as before
-#       this extraction). The awk itself can't fail on well-formed input;
-#       callers keep owning their own "empty means error" vs "empty means
-#       N/A" interpretation.
+#   0 - always, including "no heading matched" (empty
+#       stdout, same as before this extraction).
+#
+#       The awk itself can't fail on well-formed input;
+#       callers keep owning their own "empty means
+#       error" vs "empty means N/A" interpretation.
+#
 #   2 - usage error (wrong arg count, plan file missing).
 
 set -eo pipefail

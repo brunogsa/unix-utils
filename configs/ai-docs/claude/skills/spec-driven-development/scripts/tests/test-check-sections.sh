@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# test-check-sections.sh - plain-bash test file for check-sections.sh.
+# test-check-sections.sh - plain-bash test file
+# for check-sections.sh.
 #
 # Usage:
 #   bash test-check-sections.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
-# by design, matching the other scripts in this skill's test suite.
+# Exits 0 when every assertion passes, non-zero
+# otherwise. No bats dependency by design, matching
+# the other scripts in this skill's test suite.
 
 set -uo pipefail
 
@@ -18,7 +20,8 @@ trap 'rm -rf "$work_dir"' EXIT
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares
+# expected vs actual, prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -30,7 +33,8 @@ assert_eq() {
   fi
 }
 
-# assert_contains - asserts the captured stderr mentions the given substring.
+# assert_contains - asserts the captured stderr
+# mentions the given substring.
 assert_contains() {
   local description="$1" needle="$2" haystack="$3"
   case "$haystack" in
@@ -45,17 +49,21 @@ assert_contains() {
   esac
 }
 
-# run_script - invokes check-sections.sh against a doc/template fixture pair,
-# capturing stderr/exit code into VERDICT_ERR/VERDICT_EXIT (stdout is discarded —
-# these tests assert on exit code and diagnostic presence only).
+# run_script - invokes check-sections.sh against a
+# doc/template fixture pair, capturing stderr/exit
+# code into VERDICT_ERR/VERDICT_EXIT.
+#
+# stdout is discarded — these tests assert on exit
+# code and diagnostic presence only.
 run_script() {
   bash "$SCRIPT" "$@" >/dev/null 2>"$work_dir/stderr.txt"
   VERDICT_EXIT=$?
   VERDICT_ERR=$(cat "$work_dir/stderr.txt")
 }
 
-# write_fixture - writes the given markdown body to a fresh file under work_dir,
-# returns its path via stdout.
+# write_fixture - writes the given markdown body
+# to a fresh file under work_dir, returns its path
+# via stdout.
 write_fixture() {
   local name="$1" body="$2"
   local path="$work_dir/$name.md"

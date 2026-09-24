@@ -10,10 +10,12 @@
 # this skill's test suite.
 #
 # Fixtures use a small custom taxonomy file, not the real
-# coverage-taxonomy.md -- a fixture built against the real file
-# would silently go stale (false "missing row" failures) the
-# next time someone edits that file's row list, since it's a
-# shared canonical doc this suite doesn't own.
+# coverage-taxonomy.md.
+#
+# A fixture built against the real file would silently go stale
+# (false "missing row" failures) the next time someone edits
+# that file's row list, since it's a shared canonical doc this
+# suite doesn't own.
 #
 # Fixtures use the reshaped layout: checklists sit under "##
 # Coverage Checklists", after "# Appendix", not under the old
@@ -68,10 +70,12 @@ cat > "$taxonomy_file" <<'EOF'
 Unrelated trailing note, not a row.
 EOF
 
-# run_script - invokes check-coverage-checklists.sh against a spec
-# fixture and the fixed test taxonomy, capturing stderr/exit code
-# into VERDICT_ERR/VERDICT_EXIT (stdout is discarded -- these tests
-# assert on exit code and diagnostic presence only).
+# run_script - invokes check-coverage-checklists.sh against a
+# spec fixture and the fixed test taxonomy, capturing
+# stderr/exit code into VERDICT_ERR/VERDICT_EXIT.
+#
+# stdout is discarded -- these tests assert on exit code and
+# diagnostic presence only.
 run_script() {
   local spec_file="$1"
   local err_file="$work_dir/stderr.txt"

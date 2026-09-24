@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# test-check-open-questions.sh - plain-bash test file for check-open-questions.sh.
+# test-check-open-questions.sh - plain-bash test file for
+# check-open-questions.sh.
 #
 # Usage:
 #   bash test-check-open-questions.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
-# by design, matching the other scripts in this skill's test suite.
+# Exits 0 when every assertion passes, non-zero otherwise.
+# No bats dependency by design, matching the other scripts in
+# this skill's test suite.
 
 set -uo pipefail
 
@@ -18,7 +20,8 @@ trap 'rm -rf "$work_dir"' EXIT
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs actual,
+# prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -30,9 +33,10 @@ assert_eq() {
   fi
 }
 
-# run_script - invokes check-open-questions.sh against one or two fixtures,
-# capturing stderr/exit code into VERDICT_ERR/VERDICT_EXIT (stdout is
-# discarded — these tests assert on exit code and diagnostic presence only).
+# run_script - invokes check-open-questions.sh against one or
+# two fixtures, capturing stderr/exit code into
+# VERDICT_ERR/VERDICT_EXIT (stdout is discarded — these tests
+# assert on exit code and diagnostic presence only).
 run_script() {
   local err_file="$work_dir/stderr.txt"
   bash "$SCRIPT" "$@" >/dev/null 2>"$err_file"
@@ -40,9 +44,10 @@ run_script() {
   VERDICT_ERR=$(cat "$err_file")
 }
 
-# write_doc - writes the given Open-Questions-section body to a fresh fixture
-# under work_dir, returns its path via stdout. A body of "-" writes a doc with
-# no Open Questions section at all.
+# write_doc - writes the given Open-Questions-section body to a
+# fresh fixture under work_dir, returns its path via stdout.
+# A body of "-" writes a doc with no Open Questions section at
+# all.
 write_doc() {
   local name="$1" body="$2"
   local path="$work_dir/$name.md"

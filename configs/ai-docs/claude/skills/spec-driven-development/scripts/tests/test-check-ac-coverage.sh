@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# test-check-ac-coverage.sh - plain-bash test file for check-ac-coverage.sh.
+# test-check-ac-coverage.sh - plain-bash test file for
+# check-ac-coverage.sh.
 #
 # Usage:
 #   bash test-check-ac-coverage.sh
 #
-# Exits 0 when every assertion passes, non-zero otherwise. No bats dependency
-# by design, matching the other scripts in this skill's test suite.
+# Exits 0 when every assertion passes, non-zero otherwise.
+# No bats dependency by design, matching the other scripts in
+# this skill's test suite.
 
 set -uo pipefail
 
@@ -18,7 +20,8 @@ trap 'rm -rf "$work_dir"' EXIT
 pass_count=0
 fail_count=0
 
-# assert_eq - inline assert helper: compares expected vs actual, prints ok/not-ok.
+# assert_eq - inline assert helper: compares expected vs actual,
+# prints ok/not-ok.
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -30,7 +33,8 @@ assert_eq() {
   fi
 }
 
-# assert_contains - passes when the haystack carries the given literal text.
+# assert_contains - passes when the haystack carries the given
+# literal text.
 assert_contains() {
   local description="$1" haystack="$2" needle="$3"
   if printf '%s\n' "$haystack" | grep -qF -- "$needle"; then
@@ -42,8 +46,9 @@ assert_contains() {
   fi
 }
 
-# run_script - invokes check-ac-coverage.sh on a plan and a spec, capturing
-# stderr into VERDICT_ERR and the exit code into VERDICT_EXIT.
+# run_script - invokes check-ac-coverage.sh on a plan and a
+# spec, capturing stderr into VERDICT_ERR and the exit code into
+# VERDICT_EXIT.
 run_script() {
   local err_file="$work_dir/stderr.txt"
   bash "$SCRIPT" "$@" >/dev/null 2>"$err_file"
@@ -51,14 +56,17 @@ run_script() {
   VERDICT_ERR=$(cat "$err_file")
 }
 
-# write_plan - writes a plan fixture whose Test Design section is fixed and
-# whose AC-coverage list is the caller's, returning its path via stdout. The
-# two designed breadcrumbs it always yields are:
+# write_plan - writes a plan fixture whose Test Design section
+# is fixed and whose AC-coverage list is the caller's, returning
+# its path via stdout.
+#
+# The two designed breadcrumbs it always yields are:
 #   check-thing > happy > should accept a valid path
 #   check-thing > failure > should reject a missing path
 #
-# The "plan-" prefix is what keeps a test free to pass the same name to
-# write_spec - without it the second writer silently overwrites the first.
+# The "plan-" prefix is what keeps a test free to pass the same
+# name to write_spec - without it the second writer silently
+# overwrites the first.
 write_plan() {
   local name="$1" coverage="$2"
   local path="$work_dir/plan-$name.md"
@@ -77,9 +85,10 @@ write_plan() {
   printf '%s' "$path"
 }
 
-# write_spec - writes a spec fixture with the caller's body under a
-# `## Testable Acceptance Criteria` heading, returning its path via stdout.
-# Carries a "spec-" prefix for the reason write_plan's comment gives.
+# write_spec - writes a spec fixture with the caller's body
+# under a `## Testable Acceptance Criteria` heading, returning
+# its path via stdout. Carries a "spec-" prefix for the reason
+# write_plan's comment gives.
 write_spec() {
   local name="$1" body="$2"
   local path="$work_dir/spec-$name.md"
@@ -87,10 +96,12 @@ write_spec() {
   printf '%s' "$path"
 }
 
-# write_annotated_plan - writes a plan fixture whose Test Design carries the
-# new inline `// AC-N` annotations and NO separate AC Coverage list at all
-# (the single-source form): completeness reads the annotations directly, so
-# there is no second citation list left for the HONESTY check to police.
+# write_annotated_plan - writes a plan fixture whose Test Design
+# carries the new inline `// AC-N` annotations and NO separate
+# AC Coverage list at all (the single-source form).
+#
+# Completeness reads the annotations directly, so there is no
+# second citation list left for the HONESTY check to police.
 write_annotated_plan() {
   local name="$1" design_body="$2"
   local path="$work_dir/plan-$name.md"

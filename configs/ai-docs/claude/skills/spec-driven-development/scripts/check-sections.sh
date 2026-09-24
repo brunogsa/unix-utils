@@ -1,24 +1,41 @@
 #!/usr/bin/env bash
-# check-sections - verify a spec or plan carries every `## ` section its template defines.
+# check-sections - verify a spec or plan carries
+# every `## ` section its template defines.
 #
 # Usage:
 #   check-sections.sh <doc-path> <template-path>
 #
-# SKILL.md's "Every template section always gets written": both templates are one fixed
-# section set, there is no reduced variant, and a caller never picks which sections to write.
-# A section the change doesn't need still gets its heading, with an `N/A — <reason>` line as
-# its body — so this script checks HEADING PRESENCE only and never reads a section's contents.
+# SKILL.md's "Every template section always gets
+# written": both templates are one fixed section
+# set, there is no reduced variant, and a caller
+# never picks which sections to write.
 #
-# Why a heading and not an absence: a dropped section is invisible to the reader, where an
-# `N/A` line states that the author considered it and ruled it out. Only the heading makes
-# that distinction reviewable, which is exactly what a `grep` can settle for free.
+# A section the change doesn't need still gets its
+# heading, with an `N/A — <reason>` line as its
+# body — so this script checks HEADING PRESENCE
+# only and never reads a section's contents.
 #
-# Missing-only, never extra: a template heading absent from the doc is the defect the rule
-# names. An author-added heading is not addressed by that rule, so flagging one would invent
-# a constraint the library never states.
+# Why a heading and not an absence: a dropped
+# section is invisible to the reader, where an
+# `N/A` line states that the author considered it
+# and ruled it out.
 #
-# Both files are scanned fence-aware — a `## ` line inside a ``` block is sample content, not
-# a section, and a plan's fenced shell snippets would otherwise satisfy a heading it lacks.
+# Only the heading makes that distinction
+# reviewable, which is exactly what a `grep` can
+# settle for free.
+#
+# Missing-only, never extra: a template heading
+# absent from the doc is the defect the rule
+# names.
+#
+# An author-added heading is not addressed by
+# that rule, so flagging one would invent a
+# constraint the library never states.
+#
+# Both files are scanned fence-aware — a `## `
+# line inside a ``` block is sample content, not
+# a section, and a plan's fenced shell snippets
+# would otherwise satisfy a heading it lacks.
 #
 # A template that also carries a literal `# Appendix` H1 line
 # adds one more check: the doc must have its own `# Appendix`
@@ -30,10 +47,14 @@
 #
 # Exit codes:
 #   0  - every check above passes.
-#   1  - a section is missing, the doc lacks a required
-#        '# Appendix' line, or a section is on the wrong side
-#        of it (each printed to stderr).
-#   2  - usage error (wrong arg count, file not found, or template defines no sections).
+#
+#   1  - a section is missing, the doc lacks a
+#        required '# Appendix' line, or a section
+#        is on the wrong side of it (each printed
+#        to stderr).
+#
+#   2  - usage error (wrong arg count, file not
+#        found, or template defines no sections).
 
 set -eo pipefail
 
@@ -52,9 +73,13 @@ for f in "$doc" "$template"; do
   fi
 done
 
-# headings - print every `## ` heading in a markdown file, skipping fenced regions.
-# Toggling on every ``` line means an unbalanced fence swallows the tail rather than
-# reporting phantom headings from inside it — failing toward "missing", which blocks.
+# headings - print every `## ` heading in a
+# markdown file, skipping fenced regions.
+#
+# Toggling on every ``` line means an unbalanced
+# fence swallows the tail rather than reporting
+# phantom headings from inside it — failing
+# toward "missing", which blocks.
 headings() {
   awk '/^```/ { in_fence = !in_fence; next } !in_fence && /^## / { print }' "$1"
 }

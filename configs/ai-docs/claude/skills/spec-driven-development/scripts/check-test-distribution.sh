@@ -1,35 +1,61 @@
 #!/usr/bin/env bash
-# check-test-distribution - verify a plan's Test Design titles are all distributed to a task.
+# check-test-distribution - verify a plan's Test Design titles
+# are all distributed to a task.
 #
 # Usage:
 #   check-test-distribution.sh <plan-path>
 #
-# Two Test Design forms, detected per-plan from extract-design-tests.sh --annotations (any
-# it() line carrying an `// AC-<n>` or `T<n>` token puts the WHOLE plan in annotated form):
+# Two Test Design forms, detected per-plan from
+# extract-design-tests.sh --annotations (any it() line carrying
+# an `// AC-<n>` or `T<n>` token puts the WHOLE plan in
+# annotated form).
 #
-# ANNOTATED form (single source — the distribution lives ONLY as inline `T<n>` comments on Test
-# Design's it() lines; see plan-template.md). Two checks:
-#   (a) every it() line carries >=1 T<n> token (catches an undistributed/orphan designed test).
-#   (b) every T<n> token names a task the `## Task Breakdown` actually defines (catches a
-#       distribution to an invented/typo'd task number).
+# ANNOTATED form (single source — the distribution lives ONLY as
+# inline `T<n>` comments on Test Design's it() lines; see
+# plan-template.md).
 #
-# LIST form (old — still required so plan_gate-roi.md/plan_script-overhaul.md-shaped plans keep
-# passing unchanged; a transition path this comment already marks for removal once no plan uses
-# it): asserts SET EQUALITY between two regions of a plan_<slug>.md:
-#   A = every Test Design title as a breadcrumb (<describe> [> class] > it), reconstructed by
-#       the shared extract-design-tests.sh (the design, single source).
-#   B = the union of every task's `**Tests (planned)**:` bullet list (the distribution),
-#       which carries those same breadcrumbs verbatim.
+# Two checks:
+#   (a) every it() line carries >=1 T<n> token (catches an
+#       undistributed/orphan designed test).
 #
-# Set-equality (not a >=2 occurrence count) is deliberate: a naive count is fooled by a
-# third region that also quotes titles verbatim (the AC -> test coverage table). Equality
-# pins down exactly which two regions must agree and reports BOTH diffs:
+#   (b) every T<n> token names a task the `## Task Breakdown`
+#       actually defines (catches a distribution to an
+#       invented/typo'd task number).
+#
+# LIST form (old — still required so
+# plan_gate-roi.md/plan_script-overhaul.md-shaped plans keep
+# passing unchanged; a transition path this comment already
+# marks for removal once no plan uses it).
+#
+# It asserts SET EQUALITY between two regions of a
+# plan_<slug>.md.
+#
+#   A = every Test Design title as a breadcrumb (<describe> [>
+#       class] > it), reconstructed by the shared
+#       extract-design-tests.sh (the design, single source).
+#
+#   B = the union of every task's `**Tests (planned)**:` bullet
+#       list (the distribution), which carries those same
+#       breadcrumbs verbatim.
+#
+# Set-equality (not a >=2 occurrence count) is deliberate: a
+# naive count is fooled by a third region that also quotes
+# titles verbatim (the AC -> test coverage table).
+#
+# Equality pins down exactly which two regions must agree and
+# reports BOTH diffs.
+#
 #   A \ B -> a designed test assigned to no task (orphan test).
-#   B \ A -> a task lists a test absent from the design (invented/renamed title).
-# A byte-level difference surfaces as the title in A\B and its near-twin in B\A.
+#   B \ A -> a task lists a test absent from the design
+#            (invented/renamed title).
 #
-# Reuses extract-planned-tests-for-task.sh (sibling) for B, so bullet/quote/[on-demand]/[skip]
-# normalization stays in one place. N/A tasks contribute nothing (correct).
+# A byte-level difference surfaces as the title in A\B and its
+# near-twin in B\A.
+#
+# Reuses extract-planned-tests-for-task.sh (sibling) for B, so
+# bullet/quote/[on-demand]/[skip] normalization stays in one
+# place.
+# N/A tasks contribute nothing (correct).
 #
 # A Test Design section whose body reads "N/A — <reason>"
 # designs no test at all, so it has nothing to distribute.
@@ -43,12 +69,17 @@
 # drift, not an escape, and keeps failing as B \ A.
 #
 # Exit codes:
-#   0  - annotated form: every it() has >=1 T<n>, all naming real tasks. List form: A == B, or
-#        the "N/A" Test Design escape when no task plans a test either.
-#   1  - annotated form: an it() has no T<n>, or a T<n> names a task Task Breakdown never
-#        defines. List form: A != B (diffs printed to stderr), or a task is missing its
+#   0  - annotated form: every it() has >=1 T<n>, all naming
+#        real tasks. List form: A == B, or the "N/A" Test
+#        Design escape when no task plans a test either.
+#
+#   1  - annotated form: an it() has no T<n>, or a T<n> names a
+#        task Task Breakdown never defines. List form: A != B
+#        (diffs printed to stderr), or a task is missing its
 #        `**Tests (planned)**:` bullet.
-#   2  - usage error (wrong arg count, plan file not found, sibling script missing).
+#
+#   2  - usage error (wrong arg count, plan file not found,
+#        sibling script missing).
 
 set -eo pipefail
 
@@ -76,11 +107,14 @@ for sib in "$extract" "$design_extract" "$section_slice"; do
   fi
 done
 
-# A: Test Design breadcrumbs (<describe> [> class] > it), reconstructed by the shared extractor
-# so the breadcrumb format lives in ONE place (check-ac-coverage.sh reconstructs via the same script).
+# A: Test Design breadcrumbs (<describe> [> class] > it),
+# reconstructed by the shared extractor so the breadcrumb format
+# lives in ONE place (check-ac-coverage.sh reconstructs via the
+# same script).
 #
-# Its diagnostic is held back until the "N/A" escape below is ruled out: on an
-# N/A Test Design, "no it() titles found" is the expected reading, not a defect.
+# Its diagnostic is held back until the "N/A" escape below is
+# ruled out: on an N/A Test Design, "no it() titles found" is
+# the expected reading, not a defect.
 design_err=$(mktemp)
 trap 'rm -f "$design_err"' EXIT
 
@@ -90,8 +124,9 @@ if ! set_a=$("$design_extract" "$plan" 2>"$design_err"); then
   # Per-section escape sanctioned by plan-template.md: a
   # Test Design body reading "N/A" (case-insensitive,
   # word-boundary so "N/Ax" misses) designs no test, so
-  # there is no distribution to check. Mirrors the same
-  # escape in check-pr-dag.sh.
+  # there is no distribution to check.
+  #
+  # Mirrors the same escape in check-pr-dag.sh.
   #
   # Tested HERE, after extraction, not against the raw
   # body: the AC -> test coverage list shares this
@@ -114,7 +149,8 @@ if ! set_a=$("$design_extract" "$plan" 2>"$design_err"); then
   fi
 fi
 
-# B: union of every task's Tests (planned) list. Iterate the task numbers, reuse the sibling extractor.
+# B: union of every task's Tests (planned) list.
+# Iterate the task numbers, reuse the sibling extractor.
 task_nums=$(grep -oE '^### [0-9]+\.' "$plan" | grep -oE '[0-9]+' || true)
 
 if [ -z "$task_nums" ]; then
@@ -122,9 +158,12 @@ if [ -z "$task_nums" ]; then
   exit 1
 fi
 
-# Detect the plan's Test Design form the same way check-ac-coverage.sh does: any it() row with
-# a non-empty T column puts the whole plan in annotated form. Skipped when the design is N/A
-# (no it() lines at all — form doesn't apply; the list-form N/A handling below covers it).
+# Detect the plan's Test Design form the same way
+# check-ac-coverage.sh does: any it() row with a non-empty T
+# column puts the whole plan in annotated form.
+#
+# Skipped when the design is N/A (no it() lines at all — form
+# doesn't apply; the list-form N/A handling below covers it).
 is_annotated=false
 
 if [ "$is_design_na" = false ]; then
@@ -135,8 +174,10 @@ if [ "$is_design_na" = false ]; then
 fi
 
 if [ "$is_annotated" = true ]; then
-  # ANNOTATED form: the distribution lives ONLY as `T<n>` tokens on each it() line, so there is
-  # no per-task `**Tests (planned)**:` bullet list to reuse extract-planned-tests-for-task.sh on.
+  # ANNOTATED form: the distribution lives ONLY as
+  # `T<n>` tokens on each it() line, so there is no
+  # per-task `**Tests (planned)**:` bullet list to reuse
+  # extract-planned-tests-for-task.sh on.
   fail=0
 
   untagged=$(printf '%s\n' "$annotation_rows" | awk -F'\t' '$4 == "" { print $1 }')
@@ -170,11 +211,14 @@ if [ "$is_annotated" = true ]; then
   exit 1
 fi
 
-# LIST form (below): unchanged from before this dispatch — see header comment.
+# LIST form (below): unchanged from before this dispatch — see
+# header comment.
 
 set_b=""
 for n in $task_nums; do
-  # extract exits 1 if a task lacks its `**Tests (planned)**:` bullet — surface that as a plan defect.
+  # extract exits 1 if a task lacks its
+  # `**Tests (planned)**:` bullet — surface that as a plan
+  # defect.
   if ! titles=$("$extract" "$plan" "$n"); then
     echo "error: task $n is malformed (missing '**Tests (planned)**:' bullet); see extractor output above" >&2
     exit 1
@@ -198,9 +242,10 @@ sorted_b=$(printf '%s\n' "$set_b" | sed '/^[[:space:]]*$/d' | sort -u)
 #
 # A task still planning a test against an N/A design is
 # genuine drift between the two regions, which is precisely
-# what this gate exists to catch. Waving it through on the
-# design's say-so alone would turn the escape into a hole
-# any plan could opt into.
+# what this gate exists to catch.
+#
+# Waving it through on the design's say-so alone would turn
+# the escape into a hole any plan could opt into.
 if [ "$is_design_na" = true ]; then
   if [ -n "$sorted_b" ]; then
     echo "FAIL: Test Design reads 'N/A' but tasks still plan tests (Tests-planned \\ Test Design):" >&2

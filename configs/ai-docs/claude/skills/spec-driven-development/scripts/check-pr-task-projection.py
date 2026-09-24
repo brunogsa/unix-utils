@@ -44,17 +44,25 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 PLAN_SECTION = SCRIPT_DIR / "plan-section.sh"
 
-# One "### PR-N." heading opens each entry. A plan authored before that
-# grammar labels its PRs in a bold span on a list line instead, so both
-# boundaries are recognized - which one applies is decided per section in
-# parse_pr_entries, mirroring check-pr-dag.sh's own boundary choice.
-# Either shape tolerates the optional "[<status>]" marker around the label.
+# One "### PR-N." heading opens each entry.
+#
+# A plan authored before that grammar labels its PRs in a bold
+# span on a list line instead, so both boundaries are
+# recognized.
+#
+# Which one applies is decided per section in parse_pr_entries,
+# mirroring check-pr-dag.sh's own boundary choice.
+#
+# Either shape tolerates the optional "[<status>]" marker around
+# the label.
+#
 PR_HEADING_SPLIT_RE = re.compile(r"^###[ \t]+[^\n]*?PR-(\d+)", re.M)
 PR_BOLD_SPAN_SPLIT_RE = re.compile(r"\*\*[^*]*PR-(\d+)[^*]*\*\*")
 
-# A field ends at the next period or the line break, whichever comes
-# first: the heading grammar gives each field its own line, while the
-# older one-line grammar separates them with periods.
+# A field ends at the next period or the line break, whichever
+# comes first: the heading grammar gives each field its own
+# line, while the older one-line grammar separates them with
+# periods.
 TASKS_FIELD_RE = re.compile(r"\*?\*?Tasks\*?\*?:\s*(?P<tasks>[^.\n]*)")
 DEPENDS_FIELD_RE = re.compile(r"\*?\*?Depends on\*?\*?:\s*(?P<deps>[^.\n]*)")
 
@@ -106,8 +114,9 @@ def parse_pr_entries(section: str):
     pr_tasks: dict[str, list[str]] = {}
     pr_deps: dict[str, list[str]] = {}
     for pid, body in zip(chunks[1::2], chunks[2::2]):
-        # First occurrence wins: past its fields, an entry runs into
-        # free prose that may name a task or a PR without claiming it.
+        # First occurrence wins: past its fields, an entry runs
+        # into free prose that may name a task or a PR without
+        # claiming it.
         tasks_match = TASKS_FIELD_RE.search(body)
         deps_match = DEPENDS_FIELD_RE.search(body)
         pr_tasks[pid] = re.findall(r"\d+", tasks_match.group("tasks")) if tasks_match else []

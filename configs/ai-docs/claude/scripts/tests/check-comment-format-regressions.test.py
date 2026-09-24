@@ -1,10 +1,8 @@
 """Blackbox CLI tests for check-comment-format-regressions.py.
 
-Fixtures: each test builds a throwaway git repo under tmp_path and
-writes its own baseline file, so enumeration runs against real git
-state instead of a mock. Two tests read the repo's own baseline
-instead: one runs the gate itself, the other checks the baseline
-for entries that stopped violating.
+Fixtures: each test builds a throwaway git repo under tmp_path, so
+enumeration runs against real git state instead of a mock. One test
+reads this repo's own state instead, to run the gate for real.
 
 Usage:
   pytest configs/ai-docs/claude/scripts/tests/\
@@ -19,8 +17,6 @@ import pytest
 
 SCRIPT = Path(__file__).parent.parent / "check-comment-format-regressions.py"
 
-BASELINE = Path(__file__).parent.parent / "comment-format-baseline.txt"
-
 # unix-utils repo root: this test file's own checkout,
 # five levels above scripts/tests/.
 REPO_ROOT = Path(__file__).resolve().parents[5]
@@ -29,12 +25,6 @@ TYPESCRIPT = (
     REPO_ROOT
     / "configs/ai-docs/claude/skills/doc-standards/scripts"
     / "node_modules/typescript"
-)
-
-CHECKER = (
-    REPO_ROOT
-    / "configs/ai-docs/claude/skills/doc-standards/scripts"
-    / "check-comment-format.js"
 )
 
 # A comment line wider than the checker's 64-char WIDTH
@@ -79,42 +69,21 @@ def _commit(repo, relpath, content):
     return path
 
 
-def _baseline(tmp_path, *relpaths):
-    path = tmp_path / "baseline.txt"
-    path.write_text("".join(f"{p}\n" for p in relpaths), encoding="utf-8")
-    return path
-
-
-def _run(repo, baseline):
+def _run(repo):
     return subprocess.run(
-        [
-            sys.executable,
-            str(SCRIPT),
-            "--repo-root",
-            str(repo),
-            "--baseline",
-            str(baseline),
-        ],
+        [sys.executable, str(SCRIPT), "--repo-root", str(repo)],
         capture_output=True,
         text=True,
     )
 
 
-def test_violation_in_a_file_outside_the_baseline_fails_the_gate(tmp_path):
+def test_violation_in_a_file_fails_the_gate(tmp_path):
     repo = _make_repo(tmp_path)
     _commit(repo, "regressed.sh", f"#!/usr/bin/env bash\n{OVERWIDE_COMMENT}")
-    result = _run(repo, _baseline(tmp_path))
+    result = _run(repo)
 
     assert result.returncode == 1
     assert "regressed.sh" in result.stdout
-
-
-def test_violation_in_a_baselined_file_leaves_the_gate_green(tmp_path):
-    repo = _make_repo(tmp_path)
-    _commit(repo, "legacy.sh", f"#!/usr/bin/env bash\n{OVERWIDE_COMMENT}")
-    result = _run(repo, _baseline(tmp_path, "legacy.sh"))
-
-    assert result.returncode == 0
 
 
 def test_untracked_new_file_is_scanned_by_the_gate(tmp_path):
@@ -126,45 +95,10 @@ def test_untracked_new_file_is_scanned_by_the_gate(tmp_path):
     (repo / "arrival.sh").write_text(
         f"#!/usr/bin/env bash\n{OVERWIDE_COMMENT}", encoding="utf-8"
     )
-    result = _run(repo, _baseline(tmp_path))
+    result = _run(repo)
 
     assert result.returncode == 1
     assert "arrival.sh" in result.stdout
-
-
-def test_missing_baseline_file_is_a_usage_error(tmp_path):
-    """Exit 2, never a silent pass: a typo'd or deleted baseline must
-    not read as 'nothing is grandfathered, everything is clean'."""
-    repo = _make_repo(tmp_path)
-    result = _run(repo, tmp_path / "does-not-exist.txt")
-
-    assert result.returncode == 2
-    assert "does-not-exist.txt" in result.stderr
-
-
-def test_stale_baseline_entry_does_not_break_the_gate(tmp_path):
-    """An entry for a path that no longer exists is the expected
-    residue of someone deleting a grandfathered file, so it must be
-    inert rather than a crash or a false failure."""
-    repo = _make_repo(tmp_path)
-    result = _run(repo, _baseline(tmp_path, "deleted-long-ago.sh"))
-
-    assert result.returncode == 0
-
-
-def test_baseline_comment_lines_are_not_read_as_paths(tmp_path):
-    """The baseline has to carry its own prune-only instructions, or
-    the next maintainer treats it as an append-anything allowlist —
-    so a leading-# line must document, never grandfather."""
-    repo = _make_repo(tmp_path)
-    _commit(repo, "regressed.sh", f"#!/usr/bin/env bash\n{OVERWIDE_COMMENT}")
-    baseline = tmp_path / "baseline.txt"
-    baseline.write_text(
-        "# regressed.sh\n# prune entries, never add them\n", encoding="utf-8"
-    )
-    result = _run(repo, baseline)
-
-    assert result.returncode == 1
 
 
 def test_tracked_file_deleted_from_the_worktree_is_skipped(tmp_path):
@@ -174,7 +108,7 @@ def test_tracked_file_deleted_from_the_worktree_is_skipped(tmp_path):
     normal working-tree state, so it must stay green."""
     repo = _make_repo(tmp_path)
     (repo / "clean.sh").unlink()
-    result = _run(repo, _baseline(tmp_path))
+    result = _run(repo)
 
     assert result.returncode == 0
 
@@ -184,71 +118,8 @@ def test_tracked_file_deleted_from_the_worktree_is_skipped(tmp_path):
     reason="check-comment-format.js needs typescript for .js/.ts files; "
     "run install.sh to bootstrap it",
 )
-def test_no_baseline_entry_has_stopped_violating():
-    """A baselined path is never handed to the checker at all (the
-    scan filter in check-comment-format-regressions.py), so a file
-    that goes clean while still listed turns unwatched: clean now,
-    but any later regression in it stays structurally invisible."""
-    entries = sorted(
-        line.strip()
-        for line in BASELINE.read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.strip().startswith("#")
-    )
-    existing = [e for e in entries if (REPO_ROOT / e).is_file()]
-
-    result = subprocess.run(
-        ["node", str(CHECKER), *existing],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-    reported = {
-        line[len("== ") :]
-        for line in result.stdout.splitlines()
-        if line.startswith("== ")
-    }
-    stale = sorted(set(existing) - reported)
-
-    assert not stale, f"baseline entries no longer violate: {stale}"
-
-
-@pytest.mark.skipif(
-    not TYPESCRIPT.is_dir(),
-    reason="check-comment-format.js needs typescript for .js/.ts files; "
-    "run install.sh to bootstrap it",
-)
 def test_this_repo_passes_its_own_comment_format_gate():
-    """The gate run for real. The scan-set assertion is the load-
-    bearing half: without it, a baseline that swallowed every file
-    would still exit 0 and look like a passing gate."""
-    listed = subprocess.run(
-        [
-            "git",
-            "-C",
-            str(REPO_ROOT),
-            "ls-files",
-            "-z",
-            "--cached",
-            "--others",
-            "--exclude-standard",
-            "--",
-            "*.py",
-            "*.sh",
-            "*.js",
-            "*.ts",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    enumerated = {p for p in listed.stdout.split("\0") if p}
-    grandfathered = {
-        line.strip()
-        for line in BASELINE.read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.strip().startswith("#")
-    }
-    assert enumerated - grandfathered, "baseline swallowed every source file"
-
+    """The gate run for real, over this repo's own checkout."""
     result = subprocess.run(
         [sys.executable, str(SCRIPT)], capture_output=True, text=True
     )

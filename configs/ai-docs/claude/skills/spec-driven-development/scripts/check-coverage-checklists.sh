@@ -1,28 +1,31 @@
 #!/usr/bin/env bash
 # check-coverage-checklists.sh - self-review validator: every
-# AC-category checklist instantiates each canonical taxonomy row.
+# AC-category checklist instantiates each canonical taxonomy
+# row.
 #
 # Usage:
 #   check-coverage-checklists.sh <spec-file> [<taxonomy-file>]
 #
 # <taxonomy-file> defaults to the canonical coverage taxonomy at
-# test-standards/references/coverage-taxonomy.md, resolved next to
-# this script first (spec-driven-development and test-standards are
-# sibling skill dirs in both the repo source and the ~/.claude
-# symlink), falling back to the $HOME-anchored path only when that
+# test-standards/references/coverage-taxonomy.md, resolved next
+# to this script first;
+#
+# spec-driven-development and test-standards are sibling skill
+# dirs in both the repo source and the ~/.claude symlink.
+# It falls back to the $HOME-anchored path only when that
 # relative file is missing.
 #
 # spec-template.md's checklists now live under "## Coverage
 # Checklists", not "#### Corner cases" / "#### Failure modes".
 #
-# The two headings are "### Boundary checklist" and "###
-# Failure category checklist"; Failure category still absorbs
-# the taxonomy's Async delivery rows (its own classification
-# note files those under failure modes, not corner cases).
+# The two headings are "### Boundary checklist" and "### Failure
+# category checklist"; Failure category still absorbs the
+# taxonomy's Async delivery rows (its own classification note
+# files those under failure modes, not corner cases).
 #
-# Extraction is two-staged: "## Coverage Checklists" bounds
-# the search first, then each "### " sub-heading is sliced
-# from that bounded text.
+# Extraction is two-staged: "## Coverage Checklists" bounds the
+# search first, then each "### " sub-heading is sliced from
+# that bounded text.
 #
 # plan-section.sh only stops at a heading of the SAME depth,
 # and Failure category checklist has no later "### " sibling
@@ -31,27 +34,33 @@
 #
 # Each row must read "covered (<recap>)" or "N/A - <one-word
 # reason>". A category with nothing under its heading has no
-# checklist to check and passes trivially, same as check-pr-dag.sh
-# treats an absent PR Breakdown.
+# checklist to check and passes trivially, same as
+# check-pr-dag.sh treats an absent PR Breakdown.
 #
-# Whole-checklist opt-out: a line starting with "**DECISION:** Skip
-# <name> checklist because <reason>" satisfies a category outright,
-# but ONLY when zero canonical rows were matched -- real rows found
-# are validated regardless, the same discipline check-pr-dag.sh
-# applies to its own N/A escape. Anchoring the marker to line-start
-# also keeps the template's own instructional example ("Opt-out:
-# replace the checklist with `**DECISION:** ...`") from reading as a
-# real decision -- that sentence starts with "Opt-out:", not
-# "**DECISION:**".
+# Whole-checklist opt-out: a line starting with "**DECISION:**
+# Skip <name> checklist because <reason>" satisfies a category
+# outright, but ONLY when zero canonical rows were matched.
 #
-# A row quoted inside a fenced code block is sample content, not a
-# real entry, and is dropped before scanning (mirrors
+# Real rows found are validated regardless -- this is the same
+# discipline check-pr-dag.sh applies to its own N/A escape.
+#
+# Anchoring the marker to line-start also keeps the template's
+# own instructional example ("Opt-out: replace the checklist
+# with `**DECISION:** ...`") from reading as a real decision.
+# That sentence starts with "Opt-out:", not "**DECISION:**".
+#
+# A row quoted inside a fenced code block is sample content, not
+# a real entry, and is dropped before scanning (mirrors
 # check-open-questions.sh).
 #
 # Exit codes:
-#   0 - every checklist present is complete, or nothing to check.
-#   1 - a missing, extra, or malformed row was found (on stderr).
-#   2 - usage error (wrong arg count, spec/taxonomy file missing).
+#   0 - every checklist present is complete, or nothing to
+#       check.
+#
+#   1 - a missing, extra, or malformed row was found (on
+#       stderr).
+#   2 - usage error (wrong arg count, spec/taxonomy file
+#       missing).
 
 set -eo pipefail
 
@@ -86,15 +95,16 @@ done
 work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT
 
-# strip_fences - drop ``` regions so a quoted example row is never
-# read as a real entry.
+# strip_fences - drop ``` regions so a quoted example row is
+# never read as a real entry.
 strip_fences() {
   awk '/^```/ { f = !f; next } f { next } { print }'
 }
 
 # labels_under - flat "- " taxonomy rows filed under a "## "
 # heading. Unanchored pattern so a heading with a parenthetical
-# suffix (e.g. "Corner cases (data-shape boundaries)") still matches.
+# suffix (e.g. "Corner cases (data-shape boundaries)") still
+# matches.
 labels_under() {
   "$script_dir/plan-section.sh" "$taxonomy_file" "##" "$1" \
     | strip_fences \
@@ -156,8 +166,9 @@ check_category() {
     | awk -F'\t' '$1 == "MATCH" { c++ } END { print c + 0 }')
 
   if [ "$matched_count" -eq 0 ]; then
-    # Only reachable when NO real row was found -- see the header
-    # comment on why the escape can't disarm rows already present.
+    # Only reachable when NO real row was found -- see the
+    # header comment on why the escape can't disarm rows
+    # already present.
     if printf '%s\n' "$fenced_free" | grep -qE \
         "^[[:space:]]*(-[[:space:]]+)?\\*\\*DECISION:\\*\\* Skip ${name} checklist because [^[:space:]]"; then
       echo "OK: $name checklist opted out (DECISION marker)."
