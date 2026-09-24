@@ -12,8 +12,8 @@
 #   <label><TAB><tasks><TAB><deps><TAB><branch>
 #
 # exit: 0 entries printed; 1 section absent or "Single PR."; 2
-# usage error, or the section has content but no PR-N
-# entry could be parsed.
+# usage error, the section has content but no PR-N entry could
+# be parsed, or a ``` / ~~~ fence is left open at EOF.
 #
 # The entry grammar is authored by the spec-driven-development
 # skill's assets/plan-template.md; how each caller uses these
@@ -46,16 +46,22 @@ section=$(awk '
   /^```/ || /^~~~/ {
     m = substr($0, 1, 1)
     if (in_fence) { if (m == fence_char) in_fence = 0 }
-    else { in_fence = 1; fence_char = m }
-    print
+    else { in_fence = 1; fence_char = m; fence_line = NR }
+    if (in_section && !done) print
     next
   }
-  !in_fence && /^## / {
-    if (in_section) exit
+  !in_fence && !done && /^## / {
+    if (in_section) { done = 1; next }
     if ($0 ~ /^## PR Breakdown[[:space:]]*$/) { in_section = 1; next }
     next
   }
-  in_section { print }
+  in_section && !done { print }
+  END {
+    if (in_fence) {
+      print "error: unclosed code fence opened at line " fence_line " in " FILENAME > "/dev/stderr"
+      exit 2
+    }
+  }
 ' "$plan_file")
 
 trimmed=$(printf '%s' "$section" | sed '/^[[:space:]]*$/d')

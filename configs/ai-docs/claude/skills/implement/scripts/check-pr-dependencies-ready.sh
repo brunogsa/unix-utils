@@ -56,7 +56,9 @@
 #   branch on stderr.
 #
 # - 2: usage error (wrong arg count, plan/worktree path missing,
-#   PR Breakdown section unparsable).
+#   PR Breakdown section unparsable, or a ``` / ~~~ fence left
+#   open at EOF in the plan, inherited from
+#   parse-pr-breakdown.sh's whole-file fence check).
 #
 
 set -eo pipefail

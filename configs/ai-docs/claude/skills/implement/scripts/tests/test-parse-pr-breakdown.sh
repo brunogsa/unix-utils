@@ -58,6 +58,20 @@ write_plan() {
   printf '%s' "$path"
 }
 
+it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof() {
+  local fixture="$work_dir/unclosed-backtick.md"
+  printf '## PR Breakdown\n\n1. **PR-1** — Naming and validators. Tasks: 1.\n\n```\nunclosed fence\n' > "$fixture"
+  run_script "$fixture"
+  assert_eq "should fail closed when a \`\`\` fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
+}
+
+it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof() {
+  local fixture="$work_dir/unclosed-tilde.md"
+  printf '## PR Breakdown\n\n1. **PR-1** — Naming and validators. Tasks: 1.\n\n~~~\nunclosed fence\n' > "$fixture"
+  run_script "$fixture"
+  assert_eq "should fail closed when a ~~~ fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
+}
+
 it_should_emit_one_tsv_line_per_pr_n_entry_for_a_normal_multi_pr_plan() {
   local fixture
   fixture=$(write_plan "happy-multi-pr" '1. **PR-1** — Naming and validators. Tasks: 1, 2, 3. Depends on: none.
@@ -252,6 +266,8 @@ it_should_exit_2_when_the_plan_file_does_not_exist
 it_should_parse_a_pr_entry_with_no_tasks_or_depends_clauses
 it_should_keep_reading_prs_after_a_fenced_line_that_starts_with_a_section_heading_marker
 it_should_ignore_a_fenced_pr_n_heading_shown_as_sample_markup
+it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof
+it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

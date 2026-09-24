@@ -158,6 +158,24 @@ init_repo_with_sibling_branch() {
   git -C "$dir" commit -q -m "dependent PR commit, never merged parent"
 }
 
+it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof() {
+  local worktree_dir="$work_dir/unclosed-backtick-worktree"
+  mkdir -p "$worktree_dir"
+  local plan_file="$work_dir/plan_unclosed-backtick.md"
+  printf '## Task Breakdown\n\n### 1. [Done] Naming and validators\n\n## PR Breakdown\n\n1. **PR-1** — Naming and validators. Tasks: 1.\n\n```\nunclosed fence\n' > "$plan_file"
+  run_script "$plan_file" "PR-1" "$worktree_dir"
+  assert_eq "should fail closed when a \`\`\` fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
+}
+
+it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof() {
+  local worktree_dir="$work_dir/unclosed-tilde-worktree"
+  mkdir -p "$worktree_dir"
+  local plan_file="$work_dir/plan_unclosed-tilde.md"
+  printf '## Task Breakdown\n\n### 1. [Done] Naming and validators\n\n## PR Breakdown\n\n1. **PR-1** — Naming and validators. Tasks: 1.\n\n~~~\nunclosed fence\n' > "$plan_file"
+  run_script "$plan_file" "PR-1" "$worktree_dir"
+  assert_eq "should fail closed when a ~~~ fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
+}
+
 it_should_pass_when_every_parent_prs_tasks_are_done_and_head_descends_from_each_parents_branch() {
   local slug="happy-ready" worktree_dir plan_file
   worktree_dir="$work_dir/$slug-worktree"
@@ -299,6 +317,8 @@ Example shown as sample markup:
   assert_eq "should read Task 2's heading even though a fenced line before it starts with a '## ' marker (exit code)" "0" "$VERDICT_EXIT"
 }
 
+it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof
+it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof
 it_should_pass_when_every_parent_prs_tasks_are_done_and_head_descends_from_each_parents_branch
 it_should_pass_immediately_for_a_pr_with_no_declared_dependencies
 it_should_block_when_a_parent_pr_has_no_branch_clause_because_it_never_pushed
