@@ -22,14 +22,25 @@ import re
 
 HEREDOC_OPENER = re.compile(r'<<(-?)\s*(["\'])?([A-Za-z_][A-Za-z0-9_]*)\2')
 
+# A heredoc-opening line whose sink is `cat` or
+# `python3`/`python` — a non-executing sink, its
+# heredoc is inert data.
+#
+# Requires a boundary before the word so it doesn't false-match
+# "concat".
+NON_EXECUTING_SINK_PATTERN = re.compile(r'(^|[;&|(`]|\s)(cat|python3?)\b')
 
-def strip_heredoc_bodies(text):
-    """Drop heredoc body lines, keeping the opener and delimiter lines.
+# Matches every position (zero-width): every heredoc's body gets
+# dropped, regardless of sink.
+_ANY_SINK_PATTERN = re.compile(r'')
 
-    Body text between `<<'EOF'` and its closing marker is inert data fed
-    to a redirect target, never executed as a shell command — so prose in
-    there (e.g. a commit message describing a past incident) must not be
-    scanned as if it were code.
+
+def strip_heredoc_bodies_for_sinks(text, sink_pattern):
+    """Drop heredoc body lines, but only for heredocs whose opening line matches `sink_pattern` before the `<<` — keeping the opener and delimiter lines.
+
+    Body text between `<<'EOF'` and its closing marker is inert data fed to a redirect target — never executed as a shell command — so prose in there (e.g. a commit message describing a past incident) must not be scanned as if it were code, PROVIDED the sink reading it never executes it.
+
+    A heredoc fed to `bash`/`sh`/`ssh` DOES execute its body as shell commands, so a caller wanting to preserve those (to still catch a dangerous command smuggled through `bash <<EOF`) passes a sink_pattern that excludes them.
     """
     lines = text.split('\n')
     kept = []
@@ -40,7 +51,7 @@ def strip_heredoc_bodies(text):
         kept.append(line)
         opener = HEREDOC_OPENER.search(line)
         index += 1
-        if not opener:
+        if not opener or not sink_pattern.search(line[:opener.start()]):
             continue
         dash, _quote, delimiter = opener.groups()
         while index < total:
@@ -51,6 +62,15 @@ def strip_heredoc_bodies(text):
                 break
             index += 1
     return '\n'.join(kept)
+
+
+def strip_heredoc_bodies(text):
+    """Drop every heredoc's body lines, regardless of which sink reads it.
+
+    A thin wrapper over strip_heredoc_bodies_for_sinks() with a
+    match-everything sink pattern — see that function for the mechanics.
+    """
+    return strip_heredoc_bodies_for_sinks(text, _ANY_SINK_PATTERN)
 
 
 def split_into_pipelines(text):
