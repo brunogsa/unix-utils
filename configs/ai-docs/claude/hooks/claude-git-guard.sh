@@ -81,7 +81,7 @@ CLAUDE_HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export CLAUDE_HOOKS_DIR
 export CLAUDE_GIT_CMD="$CMD"
 
-CMD_STRUCT=$(python3 - <<'PYEOF'
+CMD_STRUCT=$(python3 - 2>/dev/null <<'PYEOF'
 import importlib.util
 import os
 
@@ -121,7 +121,7 @@ cmd = os.environ.get('CLAUDE_GIT_CMD', '')
 stripped = strip_heredoc_bodies_for_sinks(cmd, NON_EXECUTING_SINK_PATTERN)
 print('\n'.join(blank_quotes(line) for line in stripped.split('\n')))
 PYEOF
-2>/dev/null) || CMD_STRUCT="$CMD"
+) || CMD_STRUCT="$CMD"
 
 # Cheap short-circuit: skip the heavier push-target parse
 # entirely unless the raw command names both "git" and "push"
@@ -342,7 +342,16 @@ if blocked_reasons:
 sys.exit(0)
 PYEOF
   GIT_PUSH_GUARD_EXIT=$?
-  if [ "$GIT_PUSH_GUARD_EXIT" -eq 2 ]; then
+  if [ "$GIT_PUSH_GUARD_EXIT" -ne 0 ]; then
+    if [ "$GIT_PUSH_GUARD_EXIT" -ne 2 ]; then
+      # The check itself crashed (e.g. the shared lib import
+      # failed) rather than cleanly deciding block/allow.
+      #
+      # The push-to-main/master requirement is NEVER, so a
+      # broken check fails CLOSED instead of silently letting
+      # every push through.
+      printf '%s\n' "git push to main/master is never allowed, and the safety check that verifies this crashed (exit $GIT_PUSH_GUARD_EXIT) instead of deciding cleanly -- blocking rather than risking an unverified push to main/master." >&2
+    fi
     exit 2
   fi
 fi

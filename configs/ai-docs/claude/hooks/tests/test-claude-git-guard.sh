@@ -84,6 +84,30 @@ make_bare_origin() {
   printf '%s' "$dir"
 }
 
+# make_hook_without_lib - copies claude-git-guard.sh alone
+# into a throwaway directory with no lib/ subdirectory.
+#
+# CLAUDE_HOOKS_DIR (resolved from BASH_SOURCE) then points at
+# a location where lib/parse-shell-command.py cannot be
+# imported. Prints the copied script's path on stdout.
+make_hook_without_lib() {
+  local dir
+  dir=$(mktemp -d)
+  CLEANUP_DIRS+=("$dir")
+  cp "$SCRIPT" "$dir/claude-git-guard.sh"
+  printf '%s' "$dir/claude-git-guard.sh"
+}
+
+# run_hook_with_script - like run_hook, but against an
+# explicit script path instead of the real hook, for exercising
+# the copy make_hook_without_lib built.
+run_hook_with_script() {
+  local script="$1" command="$2" stdin_json
+  stdin_json=$(jq -n --arg c "$command" '{tool_input: {command: $c}}')
+  printf '%s' "$stdin_json" | "$bash_bin" "$script" >/dev/null 2>&1
+  HOOK_EXIT=$?
+}
+
 it_should_allow_a_plain_git_status() {
   run_hook "git status"
   assert_eq "should allow a plain git status" "0" "$HOOK_EXIT"
@@ -401,6 +425,27 @@ it_should_allow_cat_heredoc_mentioning_push_to_main_as_inert_data() {
   assert_eq "should allow a cat heredoc body that merely mentions git push origin main" "0" "$HOOK_EXIT"
 }
 
+it_should_block_force_push_when_shared_lib_is_missing() {
+  local hook
+  hook=$(make_hook_without_lib)
+  run_hook_with_script "$hook" "git push --force"
+  assert_eq "should fail closed and block git push --force when the shared parsing lib cannot be imported" "2" "$HOOK_EXIT"
+}
+
+it_should_block_push_to_main_when_shared_lib_is_missing() {
+  local hook
+  hook=$(make_hook_without_lib)
+  run_hook_with_script "$hook" "git push origin main"
+  assert_eq "should fail closed and block git push origin main when the push-target check itself crashes" "2" "$HOOK_EXIT"
+}
+
+it_should_allow_git_status_when_shared_lib_is_missing() {
+  local hook
+  hook=$(make_hook_without_lib)
+  run_hook_with_script "$hook" "git status"
+  assert_eq "should still allow git status when the shared parsing lib cannot be imported" "0" "$HOOK_EXIT"
+}
+
 it_should_allow_a_plain_git_status
 it_should_block_git_push_force
 it_should_block_git_reset_hard
@@ -451,6 +496,9 @@ it_should_allow_receive_pack_option_to_feature_branch
 it_should_allow_push_option_value_named_main_not_counted_as_refspec
 it_should_allow_echo_of_push_to_main_as_quoted_data
 it_should_allow_cat_heredoc_mentioning_push_to_main_as_inert_data
+it_should_block_force_push_when_shared_lib_is_missing
+it_should_block_push_to_main_when_shared_lib_is_missing
+it_should_allow_git_status_when_shared_lib_is_missing
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
