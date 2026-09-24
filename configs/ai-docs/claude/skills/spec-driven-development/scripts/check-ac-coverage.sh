@@ -63,6 +63,11 @@
 # test may prove several ACs, and a corner/failure test need not
 # map to any spec AC.
 #
+# Every section-boundary scan (spec AC section, plan AC
+# headers, cited-test sub-bullets) is fence-aware: a `## `/`---`
+# line shown as sample markup inside a ``` or ~~~ fence never
+# ends the region early.
+#
 # Exit codes:
 #   0  - complete (annotated form), or complete AND honest (list
 #   form).
@@ -105,8 +110,20 @@ fi
 #
 # Falls back to the whole file (with a warning) if that heading
 # is absent.
+#
+# The fence toggle guards only the `## ` boundary check below —
+# it never skips content — since a fenced sample line quoted
+# inside the AC section must still print as part of it. Closes
+# only on the same marker (``` or ~~~) that opened it.
 ac_section=$(awk '
-  /^## / {
+  /^```/ || /^~~~/ {
+    m = substr($0, 1, 1)
+    if (in_fence) { if (m == fence_char) in_fence = 0 }
+    else { in_fence = 1; fence_char = m }
+    print
+    next
+  }
+  !in_fence && /^## / {
     if (in_ac) exit
     if (tolower($0) ~ /acceptance criteria/) { in_ac = 1; next }
   }
@@ -173,10 +190,18 @@ fi
 # A cited test is an indented `- "..."` sub-bullet
 # belonging to the most recent AC header.
 #
-# The AC region ends at a `## ` heading or a `---` divider.
+# The AC region ends at a `## ` heading or a `---` divider; a
+# fenced sample line quoted inside the region (``` or ~~~,
+# closing only on the same marker) never trips that reset.
 plan_acs=$(awk '
-  /^## / { in_ac = 0 }
-  /^---$/ { in_ac = 0 }
+  /^```/ || /^~~~/ {
+    m = substr($0, 1, 1)
+    if (in_fence) { if (m == fence_char) in_fence = 0 }
+    else { in_fence = 1; fence_char = m }
+    next
+  }
+  !in_fence && /^## / { in_ac = 0 }
+  !in_fence && /^---$/ { in_ac = 0 }
   /^- \*\*AC-[0-9]+\*\*/ {
     if (match($0, /AC-[0-9]+/)) { print substr($0, RSTART, RLENGTH); in_ac = 1 }
     next
@@ -184,8 +209,14 @@ plan_acs=$(awk '
 ' "$plan" | sort -u)
 
 cited_tests=$(awk '
-  /^## / { in_ac = 0 }
-  /^---$/ { in_ac = 0 }
+  /^```/ || /^~~~/ {
+    m = substr($0, 1, 1)
+    if (in_fence) { if (m == fence_char) in_fence = 0 }
+    else { in_fence = 1; fence_char = m }
+    next
+  }
+  !in_fence && /^## / { in_ac = 0 }
+  !in_fence && /^---$/ { in_ac = 0 }
   /^- \*\*AC-[0-9]+\*\*/ { in_ac = 1; next }
   in_ac && /^[[:space:]]+- "/ {
     line = $0

@@ -78,6 +78,11 @@
 # and makes each citation self-describing (its exact home is
 # visible).
 #
+# A `## ` line quoted as sample markup inside a ``` or ~~~ fence
+# never ends the Test Design section early; the it() rows
+# themselves stay readable even though they conventionally sit
+# inside one such fence.
+#
 # Exit codes.
 #
 #   0  - success (>=1 title found).
@@ -107,8 +112,20 @@ if [ ! -f "$plan" ]; then
 fi
 
 titles=$(awk -v pairs="$pairs" -v annotations="$annotations" '
+  # Track fence state only to guard the `## ` boundary check below;
+  # it() rows live conventionally INSIDE one big Test Design fence,
+  # so fenced content is never skipped wholesale — only a `## `
+  # line quoted as sample markup inside a fence must not end the
+  # section early. Closes only on the same marker that opened it.
+  /^```/ || /^~~~/ {
+    m = substr($0, 1, 1)
+    if (in_fence) { if (m == fence_char) in_fence = 0 }
+    else { in_fence = 1; fence_char = m }
+    next
+  }
+
   # Enter/leave the Test Design section; a later `## ` heading ends it.
-  /^## / {
+  !in_fence && /^## / {
     if (in_design) exit
     if ($0 ~ /^## Test Design[[:space:]]*$/) in_design = 1
     next

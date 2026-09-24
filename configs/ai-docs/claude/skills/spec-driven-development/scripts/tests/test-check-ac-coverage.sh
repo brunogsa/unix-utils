@@ -230,6 +230,41 @@ describe("check-thing", () => {
   assert_contains "should fail in annotated form when a spec AC has no annotation (names the uncovered AC)" "$VERDICT_ERR" "AC-2"
 }
 
+it_should_keep_reading_spec_acs_after_a_fenced_line_that_starts_with_a_heading_marker() {
+  local plan spec
+  plan=$(write_plan "fenced-spec-heading" '- **AC-1** valid path accepted
+  - "check-thing > happy > should accept a valid path"
+- **AC-2** missing path rejected
+  - "check-thing > failure > should reject a missing path"')
+  spec=$(write_spec "fenced-spec-heading" '### AC-1: The checker accepts a valid path
+
+```
+## Not a real heading, just sample doc text quoted in the fence
+```
+
+### AC-2: The checker rejects a missing path')
+  run_script "$plan" "$spec"
+  assert_eq "should keep reading spec ACs after a fenced line that starts with a '## ' heading marker" "0" "$VERDICT_EXIT"
+}
+
+it_should_keep_reading_plan_ac_headers_after_a_fenced_line_that_starts_with_a_heading_marker() {
+  local plan spec
+  plan=$(write_plan "fenced-plan-heading" '- **AC-1** valid path accepted
+  - "check-thing > happy > should accept a valid path"
+
+```
+## Not a real heading, just sample doc text quoted in the fence
+```
+
+- **AC-2** missing path rejected
+  - "check-thing > failure > should reject a missing path"')
+  spec=$(write_spec "fenced-plan-heading" '### AC-1: The checker accepts a valid path
+
+### AC-2: The checker rejects a missing path')
+  run_script "$plan" "$spec"
+  assert_eq "should keep reading plan AC coverage headers after a fenced line that starts with a '## ' heading marker" "0" "$VERDICT_EXIT"
+}
+
 it_should_pass_when_every_spec_ac_has_a_header_and_every_citation_is_a_real_design_title
 it_should_fail_when_a_spec_ac_has_no_coverage_header_in_the_plan
 it_should_fail_when_a_plan_coverage_header_names_an_ac_absent_from_the_spec
@@ -240,6 +275,8 @@ it_should_report_a_usage_error_when_a_named_file_is_missing
 it_should_report_a_usage_error_when_given_the_wrong_argument_count
 it_should_pass_in_annotated_form_when_every_spec_ac_appears_in_at_least_one_annotation
 it_should_fail_in_annotated_form_when_a_spec_ac_has_no_annotation_naming_the_uncovered_ac
+it_should_keep_reading_spec_acs_after_a_fenced_line_that_starts_with_a_heading_marker
+it_should_keep_reading_plan_ac_headers_after_a_fenced_line_that_starts_with_a_heading_marker
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

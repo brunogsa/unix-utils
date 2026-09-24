@@ -122,11 +122,29 @@ describe("AgreementSyncUseCase", () => {
     "$actual"
 }
 
+it_should_keep_reading_it_lines_after_a_fenced_line_that_starts_with_a_heading_marker() {
+  local plan actual
+  plan=$(write_plan "fenced-heading-marker" '```
+describe("AgreementSyncUseCase", () => {
+  // Happy cases
+  it("should persist the agreement when the payload validates");   // AC-1 T3
+  ## not a real heading, just sample doc text quoted in the fence
+  // Failure scenarios
+  it("should DLQ the message when the downstream returns 5xx");     // AC-4 T5
+});
+```')
+  actual=$(bash "$SCRIPT" --annotations "$plan")
+  assert_eq "should keep reading it() lines after a fenced line that starts with a '## ' heading marker" \
+    "$(printf 'should persist the agreement when the payload validates\tAgreementSyncUseCase > happy > should persist the agreement when the payload validates\tAC-1\tT3\nshould DLQ the message when the downstream returns 5xx\tAgreementSyncUseCase > failure > should DLQ the message when the downstream returns 5xx\tAC-4\tT5')" \
+    "$actual"
+}
+
 it_should_print_the_bare_title_breadcrumb_and_ac_and_t_tokens_for_an_annotated_it_line
 it_should_join_multiple_ac_and_t_tokens_space_separated_when_an_annotation_cites_several
 it_should_ignore_the_on_demand_tag_when_extracting_ac_and_t_tokens
 it_should_print_empty_ac_and_t_columns_for_every_row_when_the_plan_uses_the_old_list_form_with_no_annotations
 it_should_extract_the_bare_title_breadcrumb_and_tokens_from_the_two_argument_it_form
+it_should_keep_reading_it_lines_after_a_fenced_line_that_starts_with_a_heading_marker
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
