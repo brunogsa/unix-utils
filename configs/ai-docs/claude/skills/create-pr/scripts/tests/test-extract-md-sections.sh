@@ -204,5 +204,38 @@ assert_contains \
   "should keep extracting to EOF on a doc with no '# Appendix' marker at all" \
   "$out" "row two"
 
+unclosed_backtick_doc="$work_dir/plan_unclosed_backtick.md"
+cat > "$unclosed_backtick_doc" <<'EOF'
+# plan_fixture
+
+## Wanted Section
+
+Body line one.
+
+```
+Unclosed fence content.
+EOF
+
+"$SCRIPT" "$unclosed_backtick_doc" "Wanted Section" >/dev/null 2>"$work_dir/stderr-backtick.txt"
+rc_backtick=$?
+assert_eq "should fail closed when a \`\`\` fence is left open at EOF (exit code)" "1" "$rc_backtick"
+assert_contains "should name the fence in the diagnostic" "$(cat "$work_dir/stderr-backtick.txt")" "unclosed code fence"
+
+unclosed_tilde_doc="$work_dir/plan_unclosed_tilde.md"
+cat > "$unclosed_tilde_doc" <<'EOF'
+# plan_fixture
+
+## Wanted Section
+
+Body line one.
+
+~~~
+Unclosed fence content.
+EOF
+
+"$SCRIPT" "$unclosed_tilde_doc" "Wanted Section" >/dev/null 2>"$work_dir/stderr-tilde.txt"
+rc_tilde=$?
+assert_eq "should fail closed when a ~~~ fence is left open at EOF (exit code)" "1" "$rc_tilde"
+
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

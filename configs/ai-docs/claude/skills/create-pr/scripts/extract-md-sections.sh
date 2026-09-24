@@ -43,7 +43,8 @@
 #
 # Exit codes:
 #   0  at least one section matched
-#   1  bad usage / file not found (message on stderr)
+#   1  bad usage / file not found / a ``` or ~~~
+#      fence left open at EOF (message on stderr)
 #
 #   2  no requested section matched (empty stdout; hint on
 #      stderr)
@@ -82,6 +83,31 @@ if [[ ! -f "$file" ]]; then
     echo "error: file not found: $file" >&2
     exit 1
 fi
+
+# assert_fence_closed - exit 1 when a ``` or ~~~
+# fence in the given file is still open at EOF.
+#
+# Whole-file rule: an unclosed fence anywhere in
+# the file is malformed, not just inside a scanned
+# section. Exits 1 (not 2) to match this script's
+# own usage-error family.
+assert_fence_closed() {
+    awk '
+        /^```/ || /^~~~/ {
+            m = substr($0, 1, 1)
+            if (in_fence) { if (m == fence_char) in_fence = 0 }
+            else { in_fence = 1; fence_char = m; fence_line = NR }
+        }
+        END {
+            if (in_fence) {
+                print "error: unclosed code fence opened at line " fence_line " in " FILENAME > "/dev/stderr"
+                exit 1
+            }
+        }
+    ' "$1"
+}
+
+assert_fence_closed "$file"
 shift
 
 if [[ $# -eq 0 ]]; then
