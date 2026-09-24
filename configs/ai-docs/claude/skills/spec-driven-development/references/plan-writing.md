@@ -64,7 +64,7 @@ Every section keeps its heading even when it doesn't apply — write `N/A — <r
 
 - Task Breakdown: when every task is independent, or there's only one task, write `N/A — no task dependencies` in place of the dependency DAG.
 
-- PR Breakdown: default is **one plan = one PR** — most plans write "Single PR." and move on.
+- PR Breakdown: default is **one plan = one PR** — the section then holds only the line `Single PR.` (parsers match it exactly).
 
 - PR Breakdown DAG: for a "Single PR." plan, or a multi-PR plan where every PR is independent, write `N/A — no PR dependencies`.
 
