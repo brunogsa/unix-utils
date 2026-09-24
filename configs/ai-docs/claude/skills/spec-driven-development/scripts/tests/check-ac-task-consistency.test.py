@@ -346,6 +346,48 @@ def test_exits_two_when_the_plan_has_no_task_details_section(tmp_path):
     assert "Task Details" in result.stderr
 
 
+def test_ignores_a_task_heading_inside_a_fenced_block_in_task_breakdown(
+    tmp_path,
+):
+    """A fenced sample showing task-heading syntax (e.g. a template
+    snippet) must not register as a real task — it would open a
+    phantom task with no Task Details entry and trip the pairing
+    check for no reason."""
+    fenced_task_body = (
+        CONSISTENT_TASKS
+        + "\n```\n### 3. Example heading shown as sample markup\n```\n"
+    )
+    plan = _write_plan(
+        tmp_path,
+        design_body=CONSISTENT_DESIGN,
+        task_body=fenced_task_body,
+        details_body=CONSISTENT_DETAILS,
+    )
+    result = _run(str(plan))
+    assert result.returncode == 0, result.stderr
+
+
+def test_ignores_a_summary_task_line_inside_a_fenced_block_in_task_details(
+    tmp_path,
+):
+    """A fenced sample inside Task Details showing the
+    `<summary>Task N` syntax must not register as a real entry — it
+    would pair a phantom Task Details entry against no matching task
+    heading."""
+    fenced_details_body = (
+        CONSISTENT_DETAILS
+        + "\n```\n<summary>Task 9 — Example entry shown as sample markup</summary>\n```\n"
+    )
+    plan = _write_plan(
+        tmp_path,
+        design_body=CONSISTENT_DESIGN,
+        task_body=CONSISTENT_TASKS,
+        details_body=fenced_details_body,
+    )
+    result = _run(str(plan))
+    assert result.returncode == 0, result.stderr
+
+
 def test_exits_two_when_the_test_design_section_holds_no_rows(tmp_path):
     plan = _write_plan(
         tmp_path,

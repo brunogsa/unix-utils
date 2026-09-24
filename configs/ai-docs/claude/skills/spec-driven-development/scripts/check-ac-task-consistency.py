@@ -20,6 +20,10 @@ the way /implement's parsers do — so it reads the Task Details appendix
 only; a task's old-location body-side AC field (if any survives from
 before the doc reshape) is not read.
 
+Every section scan is fence-aware: a `### N.` heading or a
+`<summary>Task N` line shown as sample markup inside a ``` or ~~~
+fenced block is never mistaken for a real one.
+
 Usage:
   check-ac-task-consistency.py <plan-path>
 
@@ -51,6 +55,33 @@ SUMMARY_TASK = re.compile(r"<summary>Task (\d+)")
 AC_FIELD = re.compile(r"\*\*Testable Acceptance criteria\*\*")
 AC_TOKEN = re.compile(r"AC-\d+")
 
+# A fenced code block opens on a line of 3+ backticks or 3+
+# tildes and closes only on a later line starting with that
+# same character.
+#
+# This is the repo-wide fence idiom (see extract-design-tests.sh
+# and check-sections.sh), so a heading or `<summary>Task N` line
+# quoted as sample markup inside a fence is never mistaken for
+# the real thing.
+FENCE_MARKERS = ("```", "~~~")
+
+
+def toggle_fence(text, in_fence, fence_char):
+    """The (in_fence, fence_char) state after reading one more line.
+
+    A line that does not open or close a fence leaves the state
+    unchanged. A mismatched marker (e.g. a ``` line while a ~~~
+    fence is open) is fence content, not a delimiter, and also
+    leaves the state unchanged."""
+    if not text.startswith(FENCE_MARKERS):
+        return in_fence, fence_char
+    marker = text[0]
+    if not in_fence:
+        return True, marker
+    if marker == fence_char:
+        return False, fence_char
+    return in_fence, fence_char
+
 
 def exit_with_usage_error(message):
     print(f"error: {message}", file=sys.stderr)
@@ -61,19 +92,24 @@ def find_design_row_lines(lines):
     """The 1-based plan line number of every Test Design it() row.
 
     extract-design-tests.sh emits exactly one row per such line and has
-    no line-number mode, so this walk mirrors the three rules its awk
-    shares: the `## ` section bounds, the describe() skip, and the it()
-    match. The caller zips the two by position and refuses to guess when
-    the counts disagree."""
+    no line-number mode, so this walk mirrors the four rules its awk
+    shares: the `## ` section bounds (fence-guarded so a fenced sample
+    heading never ends the section early), the describe() skip, and the
+    it() match. The caller zips the two by position and refuses to
+    guess when the counts disagree."""
     row_lines = []
     in_design = False
+    in_fence = False
+    fence_char = ""
 
     for number, text in enumerate(lines, 1):
-        if SECTION_HEADING.match(text):
+        if not in_fence and SECTION_HEADING.match(text):
             if in_design:
                 break
             in_design = bool(DESIGN_HEADING.match(text))
+            in_fence, fence_char = toggle_fence(text, in_fence, fence_char)
             continue
+        in_fence, fence_char = toggle_fence(text, in_fence, fence_char)
         if not in_design:
             continue
         if DESCRIBE_CALL.search(text):
@@ -90,17 +126,22 @@ def read_task_headings(lines):
 
     Scoped to the Task Breakdown section: a `### <n>.` heading elsewhere
     in the plan (e.g. under `## Technical Decisions`) belongs to another
-    section's numbering."""
+    section's numbering. A `### <n>.` heading shown as sample markup
+    inside a fenced block is skipped entirely, the same way a fenced
+    real heading never opens a phantom task."""
     headings = set()
     in_tasks = False
+    in_fence = False
+    fence_char = ""
 
     for text in lines:
-        if SECTION_HEADING.match(text):
+        in_fence, fence_char = toggle_fence(text, in_fence, fence_char)
+        if not in_fence and SECTION_HEADING.match(text):
             if in_tasks:
                 break
             in_tasks = bool(TASKS_HEADING.match(text))
             continue
-        if not in_tasks:
+        if not in_tasks or in_fence:
             continue
 
         heading = TASK_HEADING.match(text)
@@ -121,20 +162,26 @@ def read_task_details(lines):
 
     The field's tokens sit on the bullet lines below the field marker,
     not on the marker's own line, so this reads every line up to the
-    next blank line as part of the field."""
+    next blank line as part of the field. A `<summary>Task N` line
+    shown as sample markup inside a fenced block is skipped entirely,
+    the same way a fenced real entry never registers as a phantom
+    Task Details entry."""
     entries = set()
     declared = {}
     in_details = False
     current = None
     in_ac_field = False
+    in_fence = False
+    fence_char = ""
 
     for text in lines:
-        if SECTION_HEADING.match(text):
+        in_fence, fence_char = toggle_fence(text, in_fence, fence_char)
+        if not in_fence and SECTION_HEADING.match(text):
             if in_details:
                 break
             in_details = bool(DETAILS_HEADING.match(text))
             continue
-        if not in_details:
+        if not in_details or in_fence:
             continue
 
         summary = SUMMARY_TASK.search(text)
