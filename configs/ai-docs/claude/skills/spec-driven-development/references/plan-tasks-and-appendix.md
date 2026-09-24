@@ -43,7 +43,7 @@ Tests for helpers pulled on demand during RED-GREEN are designed at the moment t
 
 Load `task-breakdown` before authoring: it orders tasks (unblockers first, riskiest PoC next), extracts thin contract tasks, splits sub-steps, emits a `/tmp` artifact.
 
-Populate from it: order becomes the numbering (execution order), links become each `Depends on:`, sub-steps become the title breadcrumb and commit sketch.
+Populate from it: order becomes the numbering (execution order), links become each `**Depends on**:` (`none`, or one `- Task N` bullet per dependency), sub-steps become the title breadcrumb and commit sketch.
 
 Lead with a task-dependency DAG (mermaid, `mmdc`-validated) when a task names a real dependency; else `N/A — no task dependencies`.
 
@@ -57,7 +57,7 @@ Commit sketch line: `` `<repo>` — `type(scope): subject` `` — repo path, Con
 
 ## Task Details section
 
-Lives in the Appendix, one `<details>` entry per task, in the exact shape the template shows. Never a `### N.` heading inside Task Details — the task's identity lives in the body's Task Breakdown entry; Task Details is keyed by its `Task N —` summary line only.
+Lives in the Appendix, one `<details>` entry per task, in the template's shape. Never a `### N.` heading inside Task Details — the task's identity lives in the body's Task Breakdown entry; Task Details is keyed by its `Task N —` summary line only.
 
 Field placement:
 
@@ -69,7 +69,7 @@ Field placement:
 
 Adding a task writes both entries — a task with only one is incomplete.
 
-**Tests (planned)**: dropped everywhere except one opt-out — when a task's tests are fully covered elsewhere, state `**Tests (planned)**: N/A — <reason>` inside that task's body entry. The one surviving use of the field.
+**Tests (planned)**: dropped everywhere except one opt-out — when a task's tests are fully covered elsewhere, state `**Tests (planned)**: N/A — <reason>` inside that task's body entry.
 
 A plan-only run (no spec) carries each task's acceptance criteria inline in Task Details, since there's no spec AC to point back to.
 
