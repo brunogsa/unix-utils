@@ -8,7 +8,7 @@ A run may write the plan alone (SKILL.md) — never report the absent spec as a 
 
 **Deterministic** — a script or renderer returns the verdict, so re-running costs nothing.
 
-- Members: the mermaid fixer, the density checks, `scripts/check-sections.sh`, `scripts/check-test-distribution.sh`, `scripts/check-pr-dag.sh`, `scripts/check-tasks-dag.sh`, `check-ac-task-consistency.py`.
+- Members: `scripts/check-mermaid-renders.sh`, the density checks, `scripts/check-sections.sh`, `scripts/check-test-distribution.sh`, `scripts/check-pr-dag.sh`, `scripts/check-tasks-dag.sh`, `check-ac-task-consistency.py`.
   - With a spec: `check-ac-coverage.sh`, `check-coverage-checklists.sh`.
 
 - Dispatch the mermaid fixer at its agent file's pinned model — never name one here.
@@ -52,7 +52,7 @@ The dispatch still runs, carrying this file's always-on checks.
 
 Both measure rather than judge — never inline.
 
-- **Artifacts Valid**: is every mermaid diagram valid per `mmdc`? A failure routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)` on that doc path.
+- **Artifacts Valid**: `scripts/check-mermaid-renders.sh` on each resolved doc path; a failure routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)` on it.
 
 - **Density**: run `doc-standards`' `scripts/check-density.sh` and `scripts/check-bullet-gap.py` on the resolved doc paths.
   - Runs after mermaid validation: repairing a diagram adds lines density must measure.

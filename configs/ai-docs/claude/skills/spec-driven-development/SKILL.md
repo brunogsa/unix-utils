@@ -117,7 +117,7 @@ The judged bucket routes by artifact — `spec-reviewer` over a spec, `plan-revi
 Run the deterministic bucket first, as often as needed; the judged bucket runs as few times as the caller accepts.
 
 **Read [`references/self-review-checks.md`](references/self-review-checks.md) when you run these.**
-It carries the bucket membership and dispatch tiers, the qualitative-pass checklist, the two artifact fixers, and, per formal check, what it means and what blocks.
+It carries bucket membership, dispatch tiers, the qualitative-pass checklist, the artifact fixers, and what each formal check means and blocks.
 
 Three toggles the caller resolves *before* the plan exists and persists to `/tmp/sdd_<session_id>.json`.
 Read the answers from that file when you reach the checks — never ask them here.
@@ -128,14 +128,15 @@ Treat all three as off in that case, and skip `check-ac-coverage.sh` and `check-
 Name the three fields exactly `traces_to_ac`, `right_sized`, and `qualitative_pass`, so writer and reader never have to guess the same key.
 
 - The first two switch off one formal check each — the last two rows of the table below.
-- `qualitative_pass` switches off the qualitative pass's checklist, and only that. The artifact fixers run regardless, and so does every always-on check.
+- `qualitative_pass` switches off the qualitative pass's checklist, and only that — the artifact fixers and every always-on check run regardless.
 
 Why: asking after the plan is written lets a check get waived because it failed, not because it never applied.
 
-Nine formal checks run in sequence (seven always-on + the two toggles above):
+The formal checks run in sequence:
 
 | Check | Run by | Catches | Toggle? |
 |---|---|---|---|
+| Every diagram renders | `check-mermaid-renders.sh` | a diagram `mmdc` cannot parse | Always on |
 | Every template section is written | `check-sections.sh` | a dropped `## ` heading in either doc | Always on |
 | Every AC has a test | `check-ac-coverage.sh`, then `plan-reviewer` | AC↔Test Design coverage | Always on |
 | Every cited AC is its task's | `check-ac-task-consistency.py` | a Test Design row citing an AC its own task never declares | Always on |
@@ -146,7 +147,7 @@ Nine formal checks run in sequence (seven always-on + the two toggles above):
 | Every line traces to an AC | `plan-reviewer` | machinery↔AC traceability | Toggle |
 | Right-sized plan | `plan-reviewer` | scope vs. request, simplest design | Toggle |
 
-The seven always-on checks, plus the Test Design authoring requirement itself, never become optional — they verify the plan is mechanically correct regardless of change size.
+Every always-on check, plus the Test Design authoring requirement itself, never becomes optional — each verifies the plan is mechanically correct regardless of change size.
 
 No toggle removes one, including the two judged ones — "How would this break?" and the semantic half of "Every AC has a test".
 A no-toggle run keeps both: it drops the qualitative pass and the two toggled checks, and runs those two over whatever the plan alone carries.
@@ -158,7 +159,7 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
 ### Iteration rounds and drift (conditional — load only when they fire)
 
 - **Formal-check recovery loop** — on a blocking failure, fix the issue, then re-run only the check that failed.
-  - Never re-run the full eight-check block from the top; the other seven already passed over text the fix didn't touch.
+  - Never re-run the whole block from the top; the others already passed over text the fix didn't touch.
 
 - **Resolving spec/plan drift** — when the plan and the spec disagree, surface each conflict for the user before editing either doc.
   - Load [`references/resolving-drift.md`](references/resolving-drift.md) the moment a conflict first surfaces — any check, qualitative or formal; there is no fixed slot.

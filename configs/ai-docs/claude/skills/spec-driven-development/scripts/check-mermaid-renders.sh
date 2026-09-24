@@ -9,10 +9,11 @@
 # `mermaid` and renders each one with `mmdc`.
 #
 # A fence opens on 3+ backticks or 3+ tildes and closes only on
-# that same character, so a ```mermaid line quoted inside an
-# outer ~~~ block is sample markup, not a diagram — the same
-# fence rule check-sections.sh and check-ac-task-consistency.py
-# use.
+# that same character, the fence rule check-sections.sh and
+# check-ac-task-consistency.py already use.
+#
+# So a ```mermaid line quoted inside an outer ~~~ block is
+# sample markup, not a diagram to render.
 #
 # A document with no mermaid block passes trivially: the check
 # is "every diagram renders", and a doc with no diagram
