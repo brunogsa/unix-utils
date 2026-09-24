@@ -265,6 +265,26 @@ it_should_keep_reading_plan_ac_headers_after_a_fenced_line_that_starts_with_a_he
   assert_eq "should keep reading plan AC coverage headers after a fenced line that starts with a '## ' heading marker" "0" "$VERDICT_EXIT"
 }
 
+it_should_fail_closed_when_the_plans_backtick_fence_is_left_open_at_eof() {
+  local plan spec fixture_path
+  plan="$work_dir/plan-unclosed-backtick.md"
+  printf '# Plan\n\n## Test Design\n\n```\nunclosed fence in the plan\n' > "$plan"
+  spec=$(write_spec "unclosed-backtick" '### AC-1: The checker accepts a valid path')
+  run_script "$plan" "$spec"
+  assert_eq "should fail closed when the plan's \`\`\` fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
+  assert_contains "should name the fence in the diagnostic" "$VERDICT_ERR" "unclosed code fence"
+}
+
+it_should_fail_closed_when_the_specs_tilde_fence_is_left_open_at_eof() {
+  local plan spec
+  plan=$(write_plan "unclosed-tilde" '- **AC-1** valid path accepted
+  - "check-thing > happy > should accept a valid path"')
+  spec="$work_dir/spec-unclosed-tilde.md"
+  printf '## Testable Acceptance Criteria\n\n~~~\nunclosed fence in the spec\n' > "$spec"
+  run_script "$plan" "$spec"
+  assert_eq "should fail closed when the spec's ~~~ fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
+}
+
 it_should_pass_when_every_spec_ac_has_a_header_and_every_citation_is_a_real_design_title
 it_should_fail_when_a_spec_ac_has_no_coverage_header_in_the_plan
 it_should_fail_when_a_plan_coverage_header_names_an_ac_absent_from_the_spec
@@ -277,6 +297,8 @@ it_should_pass_in_annotated_form_when_every_spec_ac_appears_in_at_least_one_anno
 it_should_fail_in_annotated_form_when_a_spec_ac_has_no_annotation_naming_the_uncovered_ac
 it_should_keep_reading_spec_acs_after_a_fenced_line_that_starts_with_a_heading_marker
 it_should_keep_reading_plan_ac_headers_after_a_fenced_line_that_starts_with_a_heading_marker
+it_should_fail_closed_when_the_plans_backtick_fence_is_left_open_at_eof
+it_should_fail_closed_when_the_specs_tilde_fence_is_left_open_at_eof
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

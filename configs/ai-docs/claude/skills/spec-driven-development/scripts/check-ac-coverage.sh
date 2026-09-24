@@ -76,7 +76,9 @@
 #   header names a non-spec AC, or a list-form cited test is not
 #   a real Test Design title (diffs printed to stderr).
 #
-#   2  - usage error (wrong arg count, a file not found).
+#   2  - usage error (wrong arg count, a file not
+#        found, or a ``` / ~~~ fence left open at
+#        EOF in the plan or spec).
 
 set -eo pipefail
 
@@ -94,6 +96,31 @@ for f in "$plan" "$spec"; do
     exit 2
   fi
 done
+
+# assert_fence_closed - exit 2 when a ``` or ~~~
+# fence in the given file is still open at EOF.
+#
+# Whole-file rule: an unclosed fence anywhere in
+# the file is malformed, not just inside a scanned
+# section.
+assert_fence_closed() {
+  awk '
+    /^```/ || /^~~~/ {
+      m = substr($0, 1, 1)
+      if (in_fence) { if (m == fence_char) in_fence = 0 }
+      else { in_fence = 1; fence_char = m; fence_line = NR }
+    }
+    END {
+      if (in_fence) {
+        print "error: unclosed code fence opened at line " fence_line " in " FILENAME > "/dev/stderr"
+        exit 2
+      }
+    }
+  ' "$1"
+}
+
+assert_fence_closed "$plan"
+assert_fence_closed "$spec"
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 design_extract="$script_dir/extract-design-tests.sh"
