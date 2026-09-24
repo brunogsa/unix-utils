@@ -97,6 +97,33 @@ One worker per session.
   assert_eq "should pass when the doc carries every template section" "0" "$VERDICT_EXIT"
 }
 
+it_should_fail_closed_when_the_docs_backtick_fence_is_left_open_at_eof() {
+  local template doc
+  template=$(write_fixture "fence-template-backtick" "$TEMPLATE_BODY")
+  doc=$(write_fixture "fence-doc-backtick" '# Plan: Parallel sessions
+
+## Technical Approach
+
+```
+unclosed fence in the doc')
+  run_script "$doc" "$template"
+  assert_eq "should fail closed when the doc's \`\`\` fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
+  assert_contains "should name the fence in the diagnostic" "unclosed code fence" "$VERDICT_ERR"
+}
+
+it_should_fail_closed_when_the_docs_tilde_fence_is_left_open_at_eof() {
+  local template doc
+  template=$(write_fixture "fence-template-tilde" "$TEMPLATE_BODY")
+  doc=$(write_fixture "fence-doc-tilde" '# Plan: Parallel sessions
+
+## Technical Approach
+
+~~~
+unclosed fence in the doc')
+  run_script "$doc" "$template"
+  assert_eq "should fail closed when the doc's ~~~ fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
+}
+
 it_should_fail_and_name_the_section_when_one_is_missing() {
   local template doc
   template=$(write_fixture "missing-template" "$TEMPLATE_BODY")
@@ -325,6 +352,8 @@ it_should_pass_as_today_when_the_template_has_no_appendix_boundary() {
 }
 
 it_should_pass_when_the_doc_carries_every_template_section
+it_should_fail_closed_when_the_docs_backtick_fence_is_left_open_at_eof
+it_should_fail_closed_when_the_docs_tilde_fence_is_left_open_at_eof
 it_should_fail_and_name_the_section_when_one_is_missing
 it_should_pass_when_a_section_body_is_only_an_na_line
 it_should_not_let_a_fenced_heading_in_the_doc_satisfy_a_missing_section
