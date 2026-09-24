@@ -22,13 +22,14 @@
 # never bleeds the boundary line (or the appendix content past
 # it) into a body section's output.
 #
-# A generic "^# " line, such as a "# comment" inside a fenced
-# code block, is never treated as this boundary — only the
-# exact "# Appendix" text is.
+# A generic "^# " line, such as a "# comment" inside a ``` or
+# ~~~ fenced code block, is never treated as this boundary —
+# only the exact "# Appendix" text is.
 #
-# A "## " line inside a fenced code block is sample content,
-# not a real heading — it never opens, closes, or ends a kept
-# section.
+# A "## " line inside a ``` or ~~~ fenced code block is sample
+# content, not a real heading — it never opens, closes, or
+# ends a kept section. A fence closes only on the same marker
+# that opened it.
 #
 # Usage:
 #   extract-md-sections.sh <file> "<section title>" \
@@ -113,7 +114,11 @@ out=$(
             n = split(ENVIRON["WANTED_SECTIONS"], arr, "\n")
             for (i = 1; i <= n; i++) if (arr[i] != "") want[arr[i]] = 1
         }
-        /^```/ { in_fence = !in_fence }
+        /^```/ || /^~~~/ {
+            m = substr($0, 1, 1)
+            if (in_fence) { if (m == fence_char) in_fence = 0 }
+            else { in_fence = 1; fence_char = m }
+        }
         !in_fence && /^# Appendix[ \t]*$/ { keep = 0 }
         !in_fence && /^## / { keep = (($0) in want) ? 1 : 0 }
         keep

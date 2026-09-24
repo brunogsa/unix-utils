@@ -13,9 +13,10 @@
 # (brainstorm's `light` mode) passes the plan alone
 # rather than inventing a spec path.
 #
-# Markers inside a fenced code block are ignored: a doc quoting
-# the template's own "- **QUESTION:** ... ?" line as an example
-# is showing the syntax, not holding an unanswered question.
+# Markers inside a ``` or ~~~ fenced code block are ignored: a
+# doc quoting the template's own "- **QUESTION:** ... ?" line as
+# an example is showing the syntax, not holding an unanswered
+# question. A fence closes only on the marker that opened it.
 #
 # A document with no Open Questions section has nothing to
 # settle and passes trivially, same as check-pr-dag.sh treats an
@@ -56,7 +57,13 @@ for doc in "$@"; do
   # Drop fenced blocks before matching, so a quoted example
   # never counts.
   open=$(printf '%s\n' "$section" | awk '
-    /^[[:space:]]*```/ { in_fence = !in_fence; next }
+    /^[[:space:]]*```/ || /^[[:space:]]*~~~/ {
+      match($0, /```|~~~/)
+      m = substr($0, RSTART, 3)
+      if (in_fence) { if (m == fence_char) in_fence = 0 }
+      else { in_fence = 1; fence_char = m }
+      next
+    }
     !in_fence && /\*\*QUESTION:\*\*/ { print }
   ')
 

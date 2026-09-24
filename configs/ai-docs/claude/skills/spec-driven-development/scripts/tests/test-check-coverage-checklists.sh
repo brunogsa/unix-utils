@@ -210,6 +210,33 @@ it_should_not_count_a_row_quoted_inside_a_fenced_code_block() {
   esac
 }
 
+it_should_not_count_a_row_quoted_inside_a_tilde_fenced_code_block() {
+  local fixture
+  fixture=$(write_spec "tilde-fenced-row" \
+    'Example format:
+
+~~~markdown
+- empty / single / many: covered (AC-2)
+~~~
+
+- null / undefined / missing: N/A — irrelevant' \
+    '- validation error (4xx): covered (AC-3)
+- downstream timeout / never-responds: N/A — irrelevant
+- duplicate delivery (at-least-once redelivery): N/A — irrelevant')
+  run_script "$fixture"
+  assert_eq "should not count a row quoted inside a ~~~-fenced code block (exit code)" "1" "$VERDICT_EXIT"
+  case "$VERDICT_ERR" in
+    *"missing: empty / single / many"*)
+      pass_count=$((pass_count + 1))
+      printf 'ok - should not count a row quoted inside a ~~~-fenced code block (row still missing)\n'
+      ;;
+    *)
+      fail_count=$((fail_count + 1))
+      printf 'not ok - should not count a row quoted inside a ~~~-fenced code block (row still missing)\n'
+      ;;
+  esac
+}
+
 it_should_pass_when_both_checklists_instantiate_every_taxonomy_row
 it_should_fail_when_one_taxonomy_row_is_missing_from_a_checklist
 it_should_fail_when_a_row_has_malformed_grammar
@@ -217,6 +244,7 @@ it_should_pass_when_the_whole_checklist_opt_out_marker_is_used
 it_should_pass_trivially_when_the_spec_has_no_checklist_block_at_all
 it_should_report_a_usage_error_when_the_spec_file_is_missing
 it_should_not_count_a_row_quoted_inside_a_fenced_code_block
+it_should_not_count_a_row_quoted_inside_a_tilde_fenced_code_block
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

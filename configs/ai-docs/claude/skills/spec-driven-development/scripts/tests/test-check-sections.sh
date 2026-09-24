@@ -163,6 +163,23 @@ it_should_ignore_a_fenced_heading_in_the_template() {
   assert_eq "should not require a heading the template only shows inside a fenced sample" "0" "$VERDICT_EXIT"
 }
 
+it_should_not_let_a_tilde_fenced_heading_in_the_doc_satisfy_a_missing_section() {
+  local template doc
+  template=$(write_fixture "tildefence-template" "$TEMPLATE_BODY")
+  doc=$(write_fixture "tildefence-doc" '# Plan: Parallel sessions
+
+## Technical Approach
+
+~~~markdown
+## Threat Model
+~~~
+
+## Task Breakdown')
+  run_script "$doc" "$template"
+  assert_eq "should fail when the only occurrence of a section heading sits inside a ~~~-fenced block" "1" "$VERDICT_EXIT"
+  assert_contains "should still name the section that exists only inside a ~~~ fence" "## Threat Model" "$VERDICT_ERR"
+}
+
 it_should_pass_when_the_doc_adds_a_section_the_template_lacks() {
   local template doc
   template=$(write_fixture "extra-template" "$TEMPLATE_BODY")
@@ -311,6 +328,7 @@ it_should_pass_when_the_doc_carries_every_template_section
 it_should_fail_and_name_the_section_when_one_is_missing
 it_should_pass_when_a_section_body_is_only_an_na_line
 it_should_not_let_a_fenced_heading_in_the_doc_satisfy_a_missing_section
+it_should_not_let_a_tilde_fenced_heading_in_the_doc_satisfy_a_missing_section
 it_should_ignore_a_fenced_heading_in_the_template
 it_should_pass_when_the_doc_adds_a_section_the_template_lacks
 it_should_report_a_usage_error_on_the_wrong_argument_count

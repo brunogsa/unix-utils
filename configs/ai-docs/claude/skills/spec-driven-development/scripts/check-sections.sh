@@ -33,9 +33,9 @@
 # constraint the library never states.
 #
 # Both files are scanned fence-aware — a `## `
-# line inside a ``` block is sample content, not
-# a section, and a plan's fenced shell snippets
-# would otherwise satisfy a heading it lacks.
+# line inside a ``` or ~~~ block is sample content,
+# not a section, so a plan's fenced shell snippets
+# never satisfy a heading it lacks.
 #
 # A template that also carries a literal `# Appendix` H1 line
 # adds one more check: the doc must have its own `# Appendix`
@@ -81,7 +81,15 @@ done
 # phantom headings from inside it — failing
 # toward "missing", which blocks.
 headings() {
-  awk '/^```/ { in_fence = !in_fence; next } !in_fence && /^## / { print }' "$1"
+  awk '
+    /^```/ || /^~~~/ {
+      m = substr($0, 1, 1)
+      if (in_fence) { if (m == fence_char) in_fence = 0 }
+      else { in_fence = 1; fence_char = m }
+      next
+    }
+    !in_fence && /^## / { print }
+  ' "$1"
 }
 
 template_sections=$(headings "$template")
@@ -107,7 +115,16 @@ fi
 # has_appendix_line - fence-aware check for the literal
 # "# Appendix" boundary line.
 has_appendix_line() {
-  awk '/^```/ { in_fence = !in_fence; next } !in_fence && /^# Appendix[ \t]*$/ { found = 1 } END { exit !found }' "$1"
+  awk '
+    /^```/ || /^~~~/ {
+      m = substr($0, 1, 1)
+      if (in_fence) { if (m == fence_char) in_fence = 0 }
+      else { in_fence = 1; fence_char = m }
+      next
+    }
+    !in_fence && /^# Appendix[ \t]*$/ { found = 1 }
+    END { exit !found }
+  ' "$1"
 }
 
 if has_appendix_line "$template"; then
@@ -122,7 +139,12 @@ if has_appendix_line "$template"; then
   # once the literal "# Appendix" boundary line is crossed.
   heading_sides() {
     awk '
-      /^```/ { in_fence = !in_fence; next }
+      /^```/ || /^~~~/ {
+        m = substr($0, 1, 1)
+        if (in_fence) { if (m == fence_char) in_fence = 0 }
+        else { in_fence = 1; fence_char = m }
+        next
+      }
       in_fence { next }
       /^# Appendix[ \t]*$/ { side = "appendix"; next }
       /^## / { print (side == "appendix" ? "appendix" : "body") "\t" $0 }
