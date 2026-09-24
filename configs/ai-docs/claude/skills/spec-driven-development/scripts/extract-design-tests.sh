@@ -86,8 +86,10 @@
 # Exit codes.
 #
 #   0  - success (>=1 title found).
+#
 #   1  - no `## Test Design` section, or no it("...") titles
 #        within it.
+#
 #   2  - usage error (wrong arg count, plan file not
 #        found, or a ``` / ~~~ fence left open at
 #        EOF in the plan).
