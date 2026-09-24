@@ -166,6 +166,7 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
 - HLD — start from `assets/template-hld.md` (skeleton with TODOs + authoring notes); see `references/example-good-hld.md` for a full worked example (MoSCoW scope, numbered premises/decisions/risks, sequence + state diagrams, appendix).
 
 - ADR — start from `assets/template-adr.md` (skeleton with TODOs); see `references/example-good-adr.md` for a worked example (decision + alternatives with +/-/~ trade-offs + consequences).
+  - Each fact lives in one section: Decision says what, Rationale says why the costs are acceptable, Consequences lists the concrete costs.
 
 - LLD — start from `assets/template-lld.md` (one component, implementation-ready: code design, data model, contracts, de/para mappings, error/concurrency, observability).
   - See `references/example-good-lld.md` for a full worked example (numbered premises/decisions/risks/open-questions with `PR-`/`D-`/`R-`/`OQ-` tokens, de/para mappings as the core, call-sequence diagram, source/destination schemas in the appendix).
