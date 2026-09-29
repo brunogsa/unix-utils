@@ -56,10 +56,10 @@ The caller gives you a list of files (sometimes with specific line numbers; line
 - Fixing the script means teaching it to SPLIT the case correctly. It NEVER means raising the 256-char/32-word cap, broadening an exclusion, or making a verifier stop reporting.
   - That is silencing the check: it ships the defect the rule exists to catch and drops the guard for everyone.
 
-- After any edit to a script, run `bash ~/.claude/skills/doc-standards/scripts/tests/test-fix-density.sh` and `bash ~/.claude/skills/doc-standards/scripts/tests/test-check-bullet-gap-fix.sh`, and leave both green.
+- After any edit to a script, run `bash test-fix-density.sh`, `bash test-check-bullet-gap-fix.sh` and `pytest check-bullet-structure.test.py` from `~/.claude/skills/doc-standards/scripts/tests/`, and leave all three green.
   - A fixer that regresses the checker breaks every future caller, which costs far more than the line it was fixing.
 
-- If either suite is not green after two attempts, `git -C ~/unix-utils checkout --` the script you edited, then hand-fix and report the script gap.
+- If any suite is not green after two attempts, `git -C ~/unix-utils checkout --` the script you edited, then hand-fix and report the script gap.
   - Leaving a half-edited checker behind is worse than the residue you were trying to automate away.
 
 - `check-rule-citations.py` has no `--fix` pass, and that is not a gap to close mid-run. Every row it reports is yours to fix by hand.
