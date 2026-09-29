@@ -12,7 +12,7 @@ Test titles designed before implementation — bodies come during each RED-GREEN
 - **Corner cases** — boundary/edge inputs handled deliberately (off-by-one, empty, single-vs-many, precision residue, optional field present/absent).
 - **Failure scenarios** — every way it fails: guard rejections, downstream errors, partial success, retry-vs-DLQ classification.
 
-Annotate every `it()` with a trailing `// AC-<n>… T<n>… [on-demand]` comment: the ACs it proves, the tasks that write it, and `[on-demand]` when pulled mid-cycle. This section is the single source — the annotation replaces both the AC-coverage list and the per-task `Tests (planned)` field, so no test title is ever written twice.
+Annotate every `it()` with a trailing `// AC-<n>… T<n>… [on-demand]` comment: the ACs it proves, the tasks that write it, and `[on-demand]` when pulled mid-cycle. This section is the single source — the annotation replaces the AC-coverage list, so no test title is ever written twice.
 
 Group each `describe()` block by scenario class, one comment per class:
 
@@ -94,7 +94,7 @@ Only the orchestrating agent writes two inline fields, absent until then:
 
 Each field is its own line; parsers read the first found per PR. Free prose after is for the reviewer.
 
-`**Tasks**:` the task numbers shipped (`1, 2`). `**Depends on**:` `none` or the PR numbers (`PR-1, PR-2`). `**Branch**:` the backtick-wrapped branch name once created.
+`**Tasks**:` the task numbers shipped (`1, 2`). `**Depends on**:` `none` or the PR numbers (`PR-1, PR-2`).
 
 Lead the PR headings with a PR-dependency DAG (mermaid, `mmdc`-validated) when any PR names a real dependency; else `N/A — no PR dependencies`.
 
