@@ -14,6 +14,8 @@ It defines what the docs are called, how consumers find them, what shape they ta
 
 The procedure producing them — interview, spec, plan, self-review, handoff — lives in `brainstorm`.
 
+Why the split: `/implement`, `/auto-review`, `/create-pr` consume these docs without authoring one, so the authoring flow is dead weight in their context.
+
 **Callers reach this file by path, not by the Skill tool** — `Read ~/.claude/skills/spec-driven-development/SKILL.md`.
 
 `disable-model-invocation: true` keeps a library nothing auto-triggers off the model's skill listing.
