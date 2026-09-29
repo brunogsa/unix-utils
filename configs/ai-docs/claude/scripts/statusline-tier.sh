@@ -728,8 +728,17 @@ subagent_transcript_dir() {
   printf '%s\n' "$dir/$stem/subagents"
 }
 
-# price_transcripts - prints "<dollars> <unpriced-count>"
+# price_transcripts - prints "<executor-dollars>
+# <executor-unpriced> <advisor-dollars> <advisor-unpriced>"
 # for the transcript files given as arguments.
+#
+# Advisor-tool consults are priced apart from the replies
+# around them, because the API bills each consult as its own
+# sub-inference at the advisor model's rate.
+#
+# It reports a consult only inside usage.iterations[], never
+# in the top-level usage, so reading the top level alone
+# drops the advisor's spend entirely.
 #
 # It takes files rather than a directory so both callers can
 # share it: the main session's cost is one transcript, and
@@ -793,6 +802,26 @@ price_transcripts() {
       | ([0, ((.usage.cache_creation_input_tokens // 0) - $h - $m)] | max) as $x
       | $h * .rate.cache_write_1h + ($m + $x) * .rate.cache_write_5m;
 
+    def rated(model): { rate: $rates[(model // "") | base_model], usage: . };
+
+    # Input: a list of { rate, usage }. Output: the dollars
+    # for every rated one, and how many unrated ones spent
+    # tokens.
+    def cost_and_unpriced:
+      {
+        cost: (
+          map(
+            select(.rate != null)
+            | (.usage.input_tokens // 0) * .rate.input
+            + (.usage.output_tokens // 0) * .rate.output
+            + (.usage.cache_read_input_tokens // 0) * .rate.cache_read
+            + cache_write_cost
+          )
+          | add // 0
+        ),
+        unpriced: (map(select(.rate == null and (.usage | total_tokens) > 0)) | length)
+      };
+
     reduce (inputs | fromjson? // empty) as $entry ({};
       if $entry.type == "assistant"
         and ($entry.isApiErrorMessage | not)
@@ -801,27 +830,19 @@ price_transcripts() {
       then .[$entry.message.id] = $entry.message
       else . end
     )
-    | [ .[] | { rate: $rates[(.model // "") | base_model], usage } ]
+    | [ .[] ] as $messages
+    | ($messages | map(.model as $model | .usage | rated($model)) | cost_and_unpriced) as $executor
     | (
-        map(select(.rate == null and (.usage | total_tokens) > 0))
-        | length
-      ) as $unpriced
-    | (
-        map(
-          select(.rate != null)
-          | (.usage.input_tokens // 0) * .rate.input
-          + (.usage.output_tokens // 0) * .rate.output
-          + (.usage.cache_read_input_tokens // 0) * .rate.cache_read
-          + cache_write_cost
-        )
-        | add // 0
-      ) as $cost
-    | "\($cost) \($unpriced)"
+        $messages
+        | map(.usage.iterations // [] | .[] | select(.type == "advisor_message") | rated(.model))
+        | cost_and_unpriced
+      ) as $advisor
+    | "\($executor.cost) \($executor.unpriced) \($advisor.cost) \($advisor.unpriced)"
   ' "$@" 2>/dev/null
 }
 
 # sum_subagent_cost - price every sub-agent transcript in the
-# given directory, as "<dollars> <unpriced-count>".
+# given directory, in price_transcripts' four-figure form.
 #
 # The glob is guarded rather than passed straight through,
 # because an unmatched glob would reach jq as a literal

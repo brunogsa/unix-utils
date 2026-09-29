@@ -2023,6 +2023,35 @@ write_subagent_transcript() {
   done
 }
 
+# ADVISOR_CONSULT_ON_OPUS_9 - one advisor-tool consult, as the
+# usage.iterations[] element Claude Code logs for it.
+#
+# claude-opus-9 is priced differently from claude-sonnet-5 on
+# every rate, so a consult billed at the executor's rate would
+# land on a different figure.
+ADVISOR_CONSULT_ON_OPUS_9='{"type":"advisor_message","model":"claude-opus-9","input_tokens":114090,"output_tokens":7139,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}'
+
+# advisor_consult_entry - one claude-sonnet-5 reply whose turn
+# escalated to the advisor tool mid-way, carrying the given
+# consult between two executor iterations.
+#
+# The top-level usage is the sum of the two "message"
+# iterations only, because the API bills the consult as a
+# separate sub-inference and keeps it out of the top-level
+# totals.
+#
+# That executor spend prices at $0.090720 on the fixture
+# catalog, whatever consult the caller passes in.
+advisor_consult_entry() {
+  local message_id="$1" consult_json="$2"
+  printf '{"type":"assistant","message":{"id":"%s","model":"claude-sonnet-5","usage":{%s,"iterations":[%s,%s,%s]}}}\n' \
+    "$message_id" \
+    '"input_tokens":3,"output_tokens":4213,"cache_read_input_tokens":190000,"cache_creation_input_tokens":2646,"cache_creation":{"ephemeral_1h_input_tokens":2646,"ephemeral_5m_input_tokens":0}' \
+    '{"type":"message","input_tokens":1,"output_tokens":26,"cache_read_input_tokens":95000,"cache_creation_input_tokens":1073,"cache_creation":{"ephemeral_1h_input_tokens":1073,"ephemeral_5m_input_tokens":0}}' \
+    "$consult_json" \
+    '{"type":"message","input_tokens":2,"output_tokens":4187,"cache_read_input_tokens":95000,"cache_creation_input_tokens":1573,"cache_creation":{"ephemeral_1h_input_tokens":1573,"ephemeral_5m_input_tokens":0}}'
+}
+
 # render_subagent_cost_for - runs subagent-cost against this
 # sandbox's own fixture catalog and rate cache by default, or
 # against `binary_override` when the caller passes one (a
@@ -2690,6 +2719,127 @@ it_should_fall_back_to_the_reported_cost_when_no_catalog_can_be_read
 it_should_report_the_cost_claude_code_sent_when_the_transcript_cannot_be_read
 it_should_render_no_session_cost_when_neither_the_transcript_nor_the_payload_has_one
 it_should_price_nothing_rather_than_wait_on_stdin_when_given_no_transcripts
+
+# ============================================================
+# describe("StatusLineTranscriptPricing")
+# ============================================================
+
+# price_transcripts reports the executor's spend and the
+# advisor's spend as two separate figures.
+#
+# The API bills an advisor consult as its own sub-inference
+# at the advisor model's rate, never in the top-level usage.
+
+# price_transcripts_for - prices one transcript against this
+# sandbox's own fixture catalog, printed as "<executor
+# dollars> <executor unpriced> <advisor dollars> <advisor
+# unpriced>".
+#
+# Dollars are rounded to six places so a float's last-digit
+# noise never decides a test, and any other shape prints as
+# itself so a missing figure fails loudly.
+price_transcripts_for() {
+  local transcript_path="$1"
+  local sandbox="${transcript_path%/projects/*}"
+  STATUSLINE_CLAUDE_BINARY="$sandbox/$FIXTURE_CATALOG_RELATIVE" \
+    STATUSLINE_MODEL_RATES_CACHE="$sandbox/$MODEL_RATES_CACHE_RELATIVE" \
+    bash -c 'source "$0"; price_transcripts "$1"' "$SCRIPT_UNDER_TEST" "$transcript_path" \
+    | awk 'NF == 4 { printf "%.6f %d %.6f %d\n", $1, $2, $3, $4; next } { print "not four figures: " $0 }'
+}
+
+it_should_price_an_advisor_consult_apart_from_the_executor_at_the_advisors_own_rate() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  advisor_consult_entry msg_consult "$ADVISOR_CONSULT_ON_OPUS_9" >"$transcript"
+
+  actual="$(price_transcripts_for "$transcript")"
+
+  # Executor: the top-level usage at claude-sonnet-5's rates.
+  # Advisor: 114090 input x $6/MTok + 7139 output x $30/MTok,
+  # claude-opus-9's rates.
+  assert_eq \
+    "StatusLineTranscriptPricing > happy > should price an advisor consult apart from the main model's reply, at the advisor model's own rate" \
+    "0.090720 0 0.898710 0" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_count_an_advisor_consult_on_a_model_with_no_known_rate_as_unpriced() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  advisor_consult_entry msg_consult \
+    '{"type":"advisor_message","model":"a-model-the-installed-catalog-has-never-heard-of","input_tokens":114090,"output_tokens":7139}' \
+    >"$transcript"
+
+  actual="$(price_transcripts_for "$transcript")"
+
+  assert_eq \
+    "StatusLineTranscriptPricing > corner > should count an advisor consult on a model with no known rate as unpriced, still pricing the main model's reply" \
+    "0.090720 0 0.000000 1" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_price_an_advisor_consults_cache_traffic_at_the_advisors_cache_rates() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  advisor_consult_entry msg_consult \
+    '{"type":"advisor_message","model":"claude-opus-9","input_tokens":100,"output_tokens":1000,"cache_read_input_tokens":200000,"cache_creation_input_tokens":10000,"cache_creation":{"ephemeral_1h_input_tokens":10000,"ephemeral_5m_input_tokens":0}}' \
+    >"$transcript"
+
+  actual="$(price_transcripts_for "$transcript")"
+
+  # 200000 cache reads x $0.6/MTok + 10000 1-hour cache writes
+  # x $12/MTok on top of the plain tokens. Billing the write at
+  # the 5-minute rate instead would read 0.225600.
+  assert_eq \
+    "StatusLineTranscriptPricing > corner > should price an advisor consult's cache reads and 1-hour cache writes at the advisor model's cache rates" \
+    "0.090720 0 0.270600 0" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_bill_a_streamed_replys_advisor_consult_once() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  # Claude Code re-appends a streamed reply once per flush, and
+  # each copy carries the same iterations[] again.
+  advisor_consult_entry msg_consult "$ADVISOR_CONSULT_ON_OPUS_9" >"$transcript"
+  advisor_consult_entry msg_consult "$ADVISOR_CONSULT_ON_OPUS_9" >>"$transcript"
+
+  actual="$(price_transcripts_for "$transcript")"
+
+  assert_eq \
+    "StatusLineTranscriptPricing > corner > should bill a streamed reply's advisor consult once, not once per flush" \
+    "0.090720 0 0.898710 0" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_report_no_advisor_spend_for_a_reply_logged_before_iterations_existed() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  write_main_transcript "$transcript" claude-sonnet-5 '{"output_tokens":31000}' 2
+
+  actual="$(price_transcripts_for "$transcript")"
+
+  assert_eq \
+    "StatusLineTranscriptPricing > corner > should report no advisor spend and an unchanged main figure for a reply logged with no iterations at all" \
+    "0.620000 0 0.000000 0" "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_price_an_advisor_consult_apart_from_the_executor_at_the_advisors_own_rate
+it_should_count_an_advisor_consult_on_a_model_with_no_known_rate_as_unpriced
+it_should_price_an_advisor_consults_cache_traffic_at_the_advisors_cache_rates
+it_should_bill_a_streamed_replys_advisor_consult_once
+it_should_report_no_advisor_spend_for_a_reply_logged_before_iterations_existed
 
 # ============================================================
 # describe("StatusLineSessionDuration")
