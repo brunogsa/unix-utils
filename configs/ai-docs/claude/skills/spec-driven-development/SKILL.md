@@ -14,11 +14,9 @@ It defines what the docs are called, how consumers find them, what shape they ta
 
 The procedure producing them — interview, spec, plan, self-review, handoff — lives in `brainstorm`.
 
-Why the split: `/implement`, `/auto-review`, `/create-pr` consume these docs without authoring one, so the authoring flow is dead weight in their context.
-
 **Callers reach this file by path, not by the Skill tool** — `Read ~/.claude/skills/spec-driven-development/SKILL.md`.
 
-`disable-model-invocation: true` keeps a library nothing auto-triggers off the model's skill listing, which also takes its description out of every session's always-on budget.
+`disable-model-invocation: true` keeps a library nothing auto-triggers off the model's skill listing.
 
 ## Documents
 
@@ -41,7 +39,7 @@ Each feature gets a descriptive slug, and its spec and plan **share** that slug:
 
 `<slug>` is a short kebab-case descriptor of the feature; the shared slug pairs spec with plan by name.
 
-Why: a directory may hold several in-flight features at once, so a descriptive slug keeps each pair self-identifying instead of colliding on one shared name.
+Why: a directory may hold several in-flight features, so a descriptive slug keeps each pair self-identifying.
 
 ### Discovery (how consumers find these files)
 
@@ -69,7 +67,7 @@ Both templates below are one fixed section set — there is no reduced variant, 
 
 Trim inside a section with its own `N/A — <reason>` escape instead, per the Guidelines' lean rule.
 
-Why no variant: a dropped section is invisible to the reader, where an `N/A` line states that the author considered it and ruled it out.
+Why no variant: a dropped section is invisible, where an `N/A` line shows the author ruled it out.
 
 The literal H1 `# Appendix` line is required in both docs — a boundary, not a `## ` section, never a candidate for the `N/A` escape above.
 
@@ -101,7 +99,6 @@ Read `./assets/plan-template.md` when starting the plan phase, and populate it.
 The Task Breakdown section is populated from the artifact the `task-breakdown` skill emits.
 That skill owns task ordering (unblockers first, riskiest with a proof of concept next), thin contract-task extraction, and sub-step splitting.
 The PR Breakdown mirrors the same priority order one level up.
-The template instructs loading it where each section is authored, so any plan author picks it up without this library saying more.
 
 Uses BDD/TDD by default: load the `test-driven-development` skill once per task, before implementing it.
 Opt out per task with `**Tests (planned)**: N/A — <reason>` inside the task — the one opt-out with a runner, which `scripts/extract-planned-tests-for-task.sh` short-circuits on.
@@ -147,14 +144,10 @@ The formal checks run in sequence:
 | Every line traces to an AC | `plan-reviewer` | machinery↔AC traceability | Toggle |
 | Right-sized plan | `plan-reviewer` | scope vs. request, simplest design | Toggle |
 
-Every always-on check, plus the Test Design authoring requirement itself, never becomes optional — each verifies the plan is mechanically correct regardless of change size.
-
-No toggle removes one, including the two judged ones — "How would this break?" and the semantic half of "Every AC has a test".
+No toggle removes an always-on check or the Test Design authoring requirement, including the two judged ones — "How would this break?" and the semantic half of "Every AC has a test".
 A no-toggle run keeps both: it drops the qualitative pass and the two toggled checks, and runs those two over whatever the plan alone carries.
 
 A toggled-off check or pass is omitted; self-review's output states what was skipped, by request or by mode, so the reviewer never wonders why.
-
-Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces only in implementation.
 
 ### Iteration rounds and drift (conditional — load only when they fire)
 
@@ -170,7 +163,7 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
   - Covers everything in both docs: headings, prose, Given/When/Then, task titles, and planned-test breadcrumbs.
   - Match the code they drive — comments, `describe`/`it` titles, and symbols are English, so a same-language plan stays greppable and copy-paste-ready.
   - Localize only the durable decision docs (ADR/HLD/LLD) and the final PR description — those target human reviewers, not the codebase.
-  - Why: a plan in one language driving code in another forces the implementer to translate every task title and test name before writing the actual symbol.
+  - Why: a plan in another language forces the implementer to translate every task title and test name into the symbol.
 
 - **CRITICAL: The spec and the plan are session-scoped and untracked**.
   - Never reference them in committed artifacts (code comments, commit bodies, docs).
@@ -179,7 +172,7 @@ Why: catch them early; prevents "looks good, ship it" where ambiguity surfaces o
 - **CRITICAL: Keep spec and plan as lean as the change allows — brief and didactic beats exhaustive**:
   - Fill only the sections the change needs; use each section's `N/A — <reason>` escape freely instead of padding.
   - Short titles, one thought per bullet, terse Given/When/Then — optimize for a fast human read, not formal completeness.
-  - Why: these are throwaway living docs, so verbosity taxes every re-read and buries the decisions that matter.
+  - Why: verbosity taxes every re-read and buries the decisions that matter.
 
 - **Cross-references inside the planning doc spell out the behavior — never cite `AC-N` IDs** (doc-standards' no-ID-references rule).
   - Anchors, not references — exempt from the ban: the spec's `### AC-N:` definition headings, and the plan's `- **AC-N**` coverage-list headers that `scripts/check-ac-coverage.sh` joins on.
