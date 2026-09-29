@@ -237,5 +237,52 @@ EOF
 rc_tilde=$?
 assert_eq "should fail closed when a ~~~ fence is left open at EOF (exit code)" "1" "$rc_tilde"
 
+nested_longer_doc="$work_dir/plan_nested_longer.md"
+cat > "$nested_longer_doc" <<'EOF'
+# plan_fixture
+
+## Wanted Section
+
+Before the nested block.
+
+`````markdown
+````mermaid
+## Heading quoted as sample markup inside the nested block
+````
+`````
+
+After the nested block.
+
+## Other Section
+
+Not wanted.
+EOF
+
+nested_longer_out=$("$SCRIPT" "$nested_longer_doc" "Wanted Section" 2>/dev/null)
+assert_eq "should keep the whole section when a five-backtick fence wraps a four-backtick sample that quotes a '## ' line (exit code)" "0" "$?"
+assert_contains "should keep the body after a nested four-backtick sample inside a five-backtick fence" "$nested_longer_out" "After the nested block."
+assert_not_contains "should still stop at the next real heading after the nested fences" "$nested_longer_out" "Not wanted."
+
+info_string_doc="$work_dir/plan_info_string.md"
+cat > "$info_string_doc" <<'EOF'
+# plan_fixture
+
+## Wanted Section
+
+```
+```mermaid
+## Heading quoted as sample markup inside the fence
+```
+
+After the info-string line.
+
+## Other Section
+
+Not wanted.
+EOF
+
+info_string_out=$("$SCRIPT" "$info_string_doc" "Wanted Section" 2>/dev/null)
+assert_contains "should not close a fence on an inner line that carries an info string" "$info_string_out" "After the info-string line."
+
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

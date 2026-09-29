@@ -28,8 +28,8 @@
 #
 # A "## " line inside a ``` or ~~~ fenced code block is sample
 # content, not a real heading — it never opens, closes, or
-# ends a kept section. A fence closes only on the same marker
-# that opened it.
+# ends a kept section. A fence closes only on a line of the same
+# marker, at least as long as the opener, with no info string.
 #
 # Usage:
 #   extract-md-sections.sh <file> "<section title>" \
@@ -95,8 +95,11 @@ assert_fence_closed() {
     awk '
         /^```/ || /^~~~/ {
             m = substr($0, 1, 1)
-            if (in_fence) { if (m == fence_char) in_fence = 0 }
-            else { in_fence = 1; fence_char = m; fence_line = NR }
+            fence_run = 0
+            while (substr($0, fence_run + 1, 1) == m) fence_run++
+            fence_tail = substr($0, fence_run + 1)
+            if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run; fence_line = NR }
+            else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
         }
         END {
             if (in_fence) {
@@ -142,8 +145,11 @@ out=$(
         }
         /^```/ || /^~~~/ {
             m = substr($0, 1, 1)
-            if (in_fence) { if (m == fence_char) in_fence = 0 }
-            else { in_fence = 1; fence_char = m }
+            fence_run = 0
+            while (substr($0, fence_run + 1, 1) == m) fence_run++
+            fence_tail = substr($0, fence_run + 1)
+            if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
+            else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
         }
         !in_fence && /^# Appendix[ \t]*$/ { keep = 0 }
         !in_fence && /^## / { keep = (($0) in want) ? 1 : 0 }
