@@ -125,8 +125,11 @@ assert_fence_closed() {
   awk '
     /^```/ || /^~~~/ {
       m = substr($0, 1, 1)
-      if (in_fence) { if (m == fence_char) in_fence = 0 }
-      else { in_fence = 1; fence_char = m; fence_line = NR }
+      fence_run = 0
+      while (substr($0, fence_run + 1, 1) == m) fence_run++
+      fence_tail = substr($0, fence_run + 1)
+      if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run; fence_line = NR }
+      else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
     }
     END {
       if (in_fence) {
@@ -144,11 +147,15 @@ titles=$(awk -v pairs="$pairs" -v annotations="$annotations" '
   # it() rows live conventionally INSIDE one big Test Design fence,
   # so fenced content is never skipped wholesale — only a `## `
   # line quoted as sample markup inside a fence must not end the
-  # section early. Closes only on the same marker that opened it.
+  # section early. Closes only on a line of the same marker,
+  # at least as long as the opener, with no info string.
   /^```/ || /^~~~/ {
     m = substr($0, 1, 1)
-    if (in_fence) { if (m == fence_char) in_fence = 0 }
-    else { in_fence = 1; fence_char = m }
+    fence_run = 0
+    while (substr($0, fence_run + 1, 1) == m) fence_run++
+    fence_tail = substr($0, fence_run + 1)
+    if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
+    else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
     next
   }
 

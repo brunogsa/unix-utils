@@ -159,6 +159,60 @@ describe("fixture", () => {
   assert_eq "should fail closed when a ~~~ fence is left open at EOF (exit code)" "2" "$rc"
 }
 
+it_should_keep_reading_it_lines_after_an_inner_three_backtick_sample_inside_a_four_backtick_fence() {
+  local plan actual
+  plan=$(write_plan "longer-backtick-fence" '````
+describe("AgreementSyncUseCase", () => {
+  // Happy cases
+  it("should persist the agreement when the payload validates");   // AC-1 T3
+```mermaid
+  ## not a real heading, just sample doc text quoted in the fence
+  // Failure scenarios
+  it("should DLQ the message when the downstream returns 5xx");     // AC-4 T5
+});
+````')
+  actual=$(bash "$SCRIPT" --annotations "$plan")
+  assert_eq "should keep reading it() lines after a mermaid sample quoted inside a four-backtick fence" \
+    "$(printf '%s\n%s' "$(printf 'should persist the agreement when the payload validates\tAgreementSyncUseCase > happy > should persist the agreement when the payload validates\tAC-1\tT3')" "$(printf 'should DLQ the message when the downstream returns 5xx\tAgreementSyncUseCase > failure > should DLQ the message when the downstream returns 5xx\tAC-4\tT5')")" \
+    "$actual"
+}
+
+it_should_keep_reading_it_lines_after_an_inner_three_tilde_sample_inside_a_four_tilde_fence() {
+  local plan actual
+  plan=$(write_plan "longer-tilde-fence" '~~~~
+describe("AgreementSyncUseCase", () => {
+  // Happy cases
+  it("should persist the agreement when the payload validates");   // AC-1 T3
+~~~
+  ## not a real heading, just sample doc text quoted in the fence
+  // Failure scenarios
+  it("should DLQ the message when the downstream returns 5xx");     // AC-4 T5
+});
+~~~~')
+  actual=$(bash "$SCRIPT" --annotations "$plan")
+  assert_eq "should keep reading it() lines after a ~~~ sample quoted inside a four-tilde fence" \
+    "$(printf '%s\n%s' "$(printf 'should persist the agreement when the payload validates\tAgreementSyncUseCase > happy > should persist the agreement when the payload validates\tAC-1\tT3')" "$(printf 'should DLQ the message when the downstream returns 5xx\tAgreementSyncUseCase > failure > should DLQ the message when the downstream returns 5xx\tAC-4\tT5')")" \
+    "$actual"
+}
+
+it_should_keep_reading_it_lines_after_an_inner_info_string_line_inside_a_same_length_fence() {
+  local plan actual
+  plan=$(write_plan "info-string-line" '```
+describe("AgreementSyncUseCase", () => {
+  // Happy cases
+  it("should persist the agreement when the payload validates");   // AC-1 T3
+```mermaid
+  ## not a real heading, just sample doc text quoted in the fence
+  // Failure scenarios
+  it("should DLQ the message when the downstream returns 5xx");     // AC-4 T5
+});
+```')
+  actual=$(bash "$SCRIPT" --annotations "$plan")
+  assert_eq "should keep reading it() lines after a mermaid info-string line inside a three-backtick fence" \
+    "$(printf '%s\n%s' "$(printf 'should persist the agreement when the payload validates\tAgreementSyncUseCase > happy > should persist the agreement when the payload validates\tAC-1\tT3')" "$(printf 'should DLQ the message when the downstream returns 5xx\tAgreementSyncUseCase > failure > should DLQ the message when the downstream returns 5xx\tAC-4\tT5')")" \
+    "$actual"
+}
+
 it_should_print_the_bare_title_breadcrumb_and_ac_and_t_tokens_for_an_annotated_it_line
 it_should_join_multiple_ac_and_t_tokens_space_separated_when_an_annotation_cites_several
 it_should_ignore_the_on_demand_tag_when_extracting_ac_and_t_tokens
@@ -167,6 +221,9 @@ it_should_extract_the_bare_title_breadcrumb_and_tokens_from_the_two_argument_it_
 it_should_keep_reading_it_lines_after_a_fenced_line_that_starts_with_a_heading_marker
 it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof
 it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof
+it_should_keep_reading_it_lines_after_an_inner_three_backtick_sample_inside_a_four_backtick_fence
+it_should_keep_reading_it_lines_after_an_inner_three_tilde_sample_inside_a_four_tilde_fence
+it_should_keep_reading_it_lines_after_an_inner_info_string_line_inside_a_same_length_fence
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

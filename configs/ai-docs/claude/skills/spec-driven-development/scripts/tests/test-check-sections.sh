@@ -351,6 +351,80 @@ it_should_pass_as_today_when_the_template_has_no_appendix_boundary() {
   assert_eq "should keep passing on section order/placement alone when the template never defines a '# Appendix' boundary" "0" "$VERDICT_EXIT"
 }
 
+it_should_not_let_a_heading_quoted_inside_a_longer_backtick_fence_satisfy_a_missing_section() {
+  local template doc
+  template=$(write_fixture "longfence-template" "$TEMPLATE_BODY")
+  doc=$(write_fixture "longfence-doc" '# Plan: Parallel sessions
+
+## Technical Approach
+
+````markdown
+```mermaid
+## Threat Model
+```
+````
+
+## Task Breakdown')
+  run_script "$doc" "$template"
+  assert_eq "should fail when the only occurrence of a section heading is quoted inside a four-backtick fence wrapping a three-backtick sample" "1" "$VERDICT_EXIT"
+  assert_contains "should still name the section quoted only inside the longer fence" "## Threat Model" "$VERDICT_ERR"
+}
+
+it_should_not_let_a_heading_quoted_inside_a_longer_tilde_fence_satisfy_a_missing_section() {
+  local template doc
+  template=$(write_fixture "longtilde-template" "$TEMPLATE_BODY")
+  doc=$(write_fixture "longtilde-doc" '# Plan: Parallel sessions
+
+## Technical Approach
+
+~~~~markdown
+~~~
+## Threat Model
+~~~
+~~~~
+
+## Task Breakdown')
+  run_script "$doc" "$template"
+  assert_eq "should fail when the only occurrence of a section heading is quoted inside a four-tilde fence wrapping a three-tilde sample" "1" "$VERDICT_EXIT"
+  assert_contains "should still name the section quoted only inside the longer tilde fence" "## Threat Model" "$VERDICT_ERR"
+}
+
+it_should_not_close_a_fence_on_an_inner_line_that_carries_an_info_string() {
+  local template doc
+  template=$(write_fixture "infostring-template" "$TEMPLATE_BODY")
+  doc=$(write_fixture "infostring-doc" '# Plan: Parallel sessions
+
+## Technical Approach
+
+```markdown
+```mermaid
+## Threat Model
+```
+
+## Task Breakdown')
+  run_script "$doc" "$template"
+  assert_eq "should fail when the only occurrence of a section heading follows an inner fence line with an info string inside a same-length fence" "1" "$VERDICT_EXIT"
+  assert_contains "should still name the section hidden behind the info-string line" "## Threat Model" "$VERDICT_ERR"
+}
+
+it_should_still_see_a_real_section_after_a_longer_fence_quoting_a_shorter_opener() {
+  local template doc
+  template=$(write_fixture "afterlong-template" "$TEMPLATE_BODY")
+  doc=$(write_fixture "afterlong-doc" '# Plan: Parallel sessions
+
+## Technical Approach
+
+````markdown
+```mermaid
+````
+
+## Threat Model
+
+## Task Breakdown')
+  run_script "$doc" "$template"
+  assert_eq "should pass and read the real section after a four-backtick fence quoting a bare three-backtick opener" "0" "$VERDICT_EXIT"
+}
+
 it_should_pass_when_the_doc_carries_every_template_section
 it_should_fail_closed_when_the_docs_backtick_fence_is_left_open_at_eof
 it_should_fail_closed_when_the_docs_tilde_fence_is_left_open_at_eof
@@ -368,6 +442,10 @@ it_should_fail_when_the_template_has_an_appendix_but_the_doc_has_none
 it_should_fail_when_an_appendix_only_section_sits_on_the_body_side_in_the_doc
 it_should_fail_when_a_body_only_section_sits_on_the_appendix_side_in_the_doc
 it_should_pass_as_today_when_the_template_has_no_appendix_boundary
+it_should_not_let_a_heading_quoted_inside_a_longer_backtick_fence_satisfy_a_missing_section
+it_should_not_let_a_heading_quoted_inside_a_longer_tilde_fence_satisfy_a_missing_section
+it_should_not_close_a_fence_on_an_inner_line_that_carries_an_info_string
+it_should_still_see_a_real_section_after_a_longer_fence_quoting_a_shorter_opener
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
