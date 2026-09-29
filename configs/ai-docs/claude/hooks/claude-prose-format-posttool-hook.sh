@@ -67,7 +67,7 @@ base="$(basename -- "$FILE_PATH")"
 checker_names=()
 case "$ext" in
   md)
-    checker_names=(check-density.sh check-hard-wrap.py check-bullet-gap.py)
+    checker_names=(check-density.sh check-hard-wrap.py check-bullet-gap.py check-bullet-structure.py)
     ;;
   ts|tsx|js|jsx|sh|bash|py)
     checker_names=(check-comment-format.js)
@@ -83,7 +83,8 @@ esac
 #
 # check-density.sh/check-hard-wrap.py/check-bullet-gap.py
 # lines start with the line number directly, so their
-# caller passes the fixed label instead of a tag.
+# caller passes the fixed label instead of a tag;
+# check-bullet-structure.py's rule token is already a label.
 label_for_tag() {
   case "$1" in
     WIDTH) echo "width" ;;
@@ -103,6 +104,8 @@ description_for_label() {
     density) echo "line over its cap (prose 512c/64w, bullet 256c/32w)" ;;
     hard-wrap) echo "paragraph split across physical lines" ;;
     bullet-gap) echo "bullet missing its blank line" ;;
+    dangling-colon) echo "bullet ends in a colon but introduces no deeper item" ;;
+    staircase) echo "3+ single-child bullets, each a level deeper" ;;
     width) echo "comment line over its width cap" ;;
     paragraph) echo "comment paragraph over its line cap with no blank break" ;;
     sentence-break) echo "comment run ends without a blank line" ;;
@@ -125,8 +128,9 @@ for name in "${checker_names[@]}"; do
   # "-": passed raw, every checker here would parse it as an
   # option instead of a path.
   #
-  # check-density.sh, check-hard-wrap.py and check-bullet-gap.py
-  # all accept a "--" end-of-options separator;
+  # check-density.sh, check-hard-wrap.py, check-bullet-gap.py
+  # and check-bullet-structure.py all accept a "--"
+  # end-of-options separator;
   # check-comment-format.js does not, so it gets a "./"-prefixed
   # path instead.
   invocation_path="$FILE_PATH"
@@ -160,6 +164,9 @@ for name in "${checker_names[@]}"; do
     check-bullet-gap.py)
       printf '%s\n' "$out" | awk -F: '/^== / {next} NF>=2 {print "bullet-gap\t" $1 "\t" (NF>=3 ? $3 : "")}' >> "$rows_file"
       ;;
+    check-bullet-structure.py)
+      printf '%s\n' "$out" | awk -F: '/^== / {next} NF>=2 {print $2 "\t" $1 "\t"}' >> "$rows_file"
+      ;;
     check-comment-format.js)
       printf '%s\n' "$out" | awk '
         /^== / {next}
@@ -182,7 +189,8 @@ total=$(wc -l < "$rows_file" | tr -d ' ')
 
 RULE_BLOCK='Prose: small paragraphs of 1-4 sentences, blank line between each.
 Bullets + sub-bullets: 1-2 sentences each.
-One paragraph = one physical line — never hard-wrap. Never drop information.'
+One paragraph = one physical line — never hard-wrap. Never drop information.
+Colon-ended bullet: nest the items it introduces under it, or end it with a period. Single-child chain 3+ levels deep: flatten it into siblings under the shared parent.'
 
 {
   printf 'prose-format: %s — %s violation%s\n\n' "$base" "$total" "$([ "$total" -eq 1 ] && echo "" || echo "s")"

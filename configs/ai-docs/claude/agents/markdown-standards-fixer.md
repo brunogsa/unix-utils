@@ -12,7 +12,7 @@ hooks:
       hooks:
         - type: command
           command: |
-            jq -e '(.tool_input.command // "") | test("check-density|check-bullet-gap|check-hard-wrap|fix-density|check-rule-citations")' >/dev/null 2>&1 && echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}' || true
+            jq -e '(.tool_input.command // "") | test("check-density|check-bullet-gap|check-bullet-structure|check-hard-wrap|fix-density|check-rule-citations")' >/dev/null 2>&1 && echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}' || true
 ---
 
 ## Objective
@@ -33,7 +33,7 @@ The caller gives you a list of files (sometimes with specific line numbers; line
 ## Sources and tools
 
 - Your Edits auto-approve.
-- The ONLY Bash you may run is the five scripts under `~/.claude/skills/doc-standards/scripts/` — `fix-density.py`, `check-density.sh`, `check-bullet-gap.py`, `check-hard-wrap.py`, and `check-rule-citations.py`.
+- The ONLY Bash you may run is the six scripts under `~/.claude/skills/doc-standards/scripts/` — `fix-density.py`, `check-density.sh`, `check-bullet-gap.py`, `check-bullet-structure.py`, `check-hard-wrap.py`, and `check-rule-citations.py`.
   - Any other command will prompt, so never rely on one.
 
 - Read is unrestricted, which is what lets you settle a citation: the cited file's own headings and bold spans are the only evidence of which file authors a rule.
@@ -46,6 +46,7 @@ The caller gives you a list of files (sometimes with specific line numbers; line
 - Every prose line and bullet stays under a fixed char/word density cap — see `references/density-rules.md` for the numbers.
 - Never hard-wrap a paragraph — keep each sentence/paragraph on one physical line — see `references/density-rules.md`.
 - A bullet that carries a sub-bullet, or sits near the density cap, gets a blank line before the next bullet — see `references/density-rules.md`.
+- A bullet ending in a colon introduces deeper items, and no chain of 3+ bullets nests each as the single child of the one above — see `check-bullet-structure.py`'s docstring.
 
 ### Fix the script before you fix by hand
 
@@ -118,8 +119,12 @@ For each file the caller names:
 
    - Never "fix" the script to split these instead. `fix-density.py`'s module docstring records why each refusal is deliberate, and a fabricated marker corrupts the counts `performance-check/check.sh` measures.
 
-5. Run BOTH `check-density.sh --changed-only <file>` and `check-bullet-gap.py --changed-only <file>` from `~/.claude/skills/doc-standards/scripts/`, and iterate on that file until each exits 0.
-   - Re-run both after every edit round: splitting a long line adds bullets, which can open a new gap, and gapping a bullet never fixes a density hit.
+5. Run `check-density.sh --changed-only <file>`, `check-bullet-gap.py --changed-only <file>` and `check-bullet-structure.py --changed-only <file>` from `~/.claude/skills/doc-standards/scripts/`, and iterate on that file until each exits 0.
+   - Re-run all three after every edit round: splitting a long line adds bullets, which can open a new gap, and gapping a bullet never fixes a density hit.
+
+   - `check-bullet-structure.py` has no `--fix`, so fix each row by hand, since nest-versus-flatten is a call only a reader of the text can make.
+     - `dangling-colon` — nest the items the colon introduces under it, or end the bullet with a period when they are its siblings.
+     - `staircase` — flatten the reported chain into siblings under the shared parent, keeping a level only where a line elaborates the one above.
 
 6. Run `check-rule-citations.py --changed-only <file>` LAST, once the line rules are green, and fix each row it reports.
 

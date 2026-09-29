@@ -443,6 +443,28 @@ it_should_keep_hard_wrap_rows_bare_under_the_threshold() {
   fi
 }
 
+it_should_report_list_structure_rows_and_their_fix_line() {
+  local dir
+  dir=$(new_repo_fixture)
+  cat > "$dir/structure.md" << 'EOF'
+- The rollout happens in two waves:
+- Monitoring starts after the second wave.
+
+- Level one of the chain.
+  - Level two of the chain.
+    - Level three of the chain.
+EOF
+  run_hook "Write" "$dir/structure.md"
+  assert_eq "should exit 2 on a list-structure violation" "2" "$HOOK_EXIT"
+  assert_line_number_row_matches "should report the dangling colon on its own row" "L1" "$HOOK_OUT"
+  assert_contains "should label the dangling-colon row" "dangling-colon" "$HOOK_OUT"
+  assert_line_number_row_matches "should report the staircase at its head" "L4" "$HOOK_OUT"
+  assert_contains "should label the staircase row" "staircase" "$HOOK_OUT"
+  assert_contains "should tell the author how to fix both list-structure rules" \
+    'Colon-ended bullet: nest the items it introduces under it, or end it with a period. Single-child chain 3+ levels deep: flatten it into siblings under the shared parent.' \
+    "$HOOK_OUT"
+}
+
 it_should_run_correctly_when_the_path_has_a_space() {
   local dir subdir long_line pointer_line cmd rc
   dir=$(new_repo_fixture)
@@ -592,6 +614,7 @@ it_should_keep_the_basename_in_the_header_for_a_nested_file
 it_should_align_the_flag_column_across_printed_commands
 it_should_carry_density_char_word_counts_under_the_threshold
 it_should_keep_hard_wrap_rows_bare_under_the_threshold
+it_should_report_list_structure_rows_and_their_fix_line
 it_should_run_correctly_when_the_path_has_a_space
 it_should_produce_an_inert_command_for_a_shell_metacharacter_path
 it_should_treat_a_leading_dash_filename_as_a_path_not_a_flag
