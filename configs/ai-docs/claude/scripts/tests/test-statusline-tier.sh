@@ -2713,12 +2713,58 @@ it_should_price_nothing_rather_than_wait_on_stdin_when_given_no_transcripts() {
     "1 " "$status $actual"
 }
 
+it_should_leave_advisor_consults_out_of_the_main_models_session_cost() {
+  local sandbox transcript actual status
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  advisor_consult_entry msg_main_consult "$ADVISOR_CONSULT_ON_OPUS_9" >"$transcript"
+
+  actual="$(render_session_cost_for 0 "$transcript")"
+  status=$?
+
+  # The consult's $0.90 belongs to the sub-agent addendum, so
+  # this figure stays the main model's own spend and reads the
+  # same whichever model the advisor runs on.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSessionCost > happy > should leave advisor consults out of the main model's own session cost" \
+    '$0.09 0' "$actual $status"
+  rm -rf "$sandbox"
+}
+
+it_should_not_mark_the_session_cost_a_floor_when_only_an_advisor_consult_has_no_known_rate() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  advisor_consult_entry msg_main_consult \
+    '{"type":"advisor_message","model":"a-model-the-installed-catalog-has-never-heard-of","input_tokens":114090,"output_tokens":7139}' \
+    >"$transcript"
+
+  actual="$(render_session_cost_for 0 "$transcript")"
+
+  # The unpriced consult is the addendum's to flag, and this
+  # figure's own spend is fully priced.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSessionCost > corner > should not mark the session cost a floor when only an advisor consult ran on a model with no known rate" \
+    '$0.09' "$actual"
+  rm -rf "$sandbox"
+}
+
 it_should_price_the_sessions_own_transcript_rather_than_trust_the_reported_figure
 it_should_mark_the_session_total_as_a_floor_when_a_model_has_no_known_rate
 it_should_fall_back_to_the_reported_cost_when_no_catalog_can_be_read
 it_should_report_the_cost_claude_code_sent_when_the_transcript_cannot_be_read
 it_should_render_no_session_cost_when_neither_the_transcript_nor_the_payload_has_one
 it_should_price_nothing_rather_than_wait_on_stdin_when_given_no_transcripts
+it_should_leave_advisor_consults_out_of_the_main_models_session_cost
+it_should_not_mark_the_session_cost_a_floor_when_only_an_advisor_consult_has_no_known_rate
 
 # ============================================================
 # describe("StatusLineTranscriptPricing")

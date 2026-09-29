@@ -32,7 +32,8 @@
 #     from ccstatusline's own usage cache.
 #
 #   statusline-tier.sh session-cost
-#     what this session has spent, priced from the
+#     what this session's main model has spent on its own,
+#     advisor consults excluded, priced from the
 #     transcript_path on stdin and falling back to
 #     cost.total_cost_usd: "$19.01".
 #
@@ -882,9 +883,22 @@ sum_subagent_cost() {
 # sub-agent addendum: main transcripts carry no isSidechain
 # assistant entries, so the two file sets are disjoint.
 #
+# The main transcript's advisor consults are left out of
+# this figure and billed in that addendum instead.
+#
+# A consult escalates to a stronger model, the same kind of
+# spend a sub-agent is, and leaving it out keeps this figure
+# comparable across main-model choices.
+#
+# Main figure plus addendum together match Claude Code's own
+# /cost; this figure alone does not.
+#
 # A total carrying tokens from a model the installed Claude
 # Code's own catalog doesn't list is prefixed "~", marking it
 # a floor rather than the real number.
+#
+# Only the main model's own tokens raise that marker here,
+# since an unpriced consult is the addendum's to flag.
 #
 # On any scan failure the figure Claude Code sent is printed
 # instead.
