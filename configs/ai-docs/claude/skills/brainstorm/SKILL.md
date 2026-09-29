@@ -251,8 +251,8 @@ Fresh eyes just move later — step 10 sends the finished plan to a `plan-review
 
 **Once the plan exists, either mode: read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now** — it defines every gate, sorts them into a deterministic and a judged bucket, and gives each bucket's dispatch tier.
 
-Run the deterministic bucket to exhaustion, in the reference's order — fix each failure, re-run that gate alone until it passes.
-**Skip `check-ac-coverage.sh` and `check-coverage-checklists.sh` at `light`**: both need a spec, and the latter exits 2 without one, a failure the loop can never clear.
+Run `~/.claude/skills/spec-driven-development/scripts/check-deterministic-gates.sh <plan> [<spec>]` to exhaustion — it runs the bucket in the reference's order and continues past a failure. Fix each failure, re-run that gate alone until it passes.
+**At `light`, pass no spec**: the runner then skips `check-ac-coverage.sh` and `check-coverage-checklists.sh`, since the latter exits 2 without one, a failure the loop can never clear.
 
 Running the scripts here rather than after approval costs nothing, since they're free to re-run.
 Otherwise step 10 would rediscover a cyclic task DAG or bogus AC citation, and step 11 would hand the user a plan whose graphs were never parsed.
@@ -329,7 +329,7 @@ Why after approval rather than during: one pass here lets the user decide every 
 
 ### 13. Re-run the deterministic gates
 
-Run the whole deterministic bucket again, exactly as step 9 ran it — same order, same `light` skip, same fix-and-re-run-that-gate-alone loop.
+Run the runner again, exactly as step 9 ran it — same `light` no-spec call, same fix-and-re-run-that-gate-alone loop.
 The reference is already in this session's context from step 9; don't read it twice.
 
 **Run no judged gate here.** Step 10 — and step 7 at `full` — already ran every judged check the mode carries, and the user has approved every document since.

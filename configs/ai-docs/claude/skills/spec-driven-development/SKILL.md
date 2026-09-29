@@ -113,7 +113,7 @@ The gates split into two buckets: **deterministic** — a script or a renderer r
 
 The judged bucket routes by artifact — `spec-reviewer` over a spec, `plan-reviewer` over a plan.
 
-Run the deterministic bucket first, as often as needed; the judged bucket runs as few times as the caller accepts.
+Run the deterministic bucket first with `scripts/check-deterministic-gates.sh <plan> [<spec>]`, as often as needed; the judged bucket runs as few times as the caller accepts.
 
 **Read [`references/self-review-checks.md`](references/self-review-checks.md) when you run these.**
 It carries bucket membership, dispatch tiers, the qualitative-pass checklist, the artifact fixers, and what each formal check means and blocks.
@@ -122,7 +122,7 @@ Three toggles the caller resolves *before* the plan exists and persists to `/tmp
 Read the answers from that file when you reach the checks — never ask them here.
 
 A caller may also resolve none of them and run the deterministic bucket plus the two always-on judged checks — `brainstorm`'s `light` mode does.
-Treat all three as off in that case, and skip `check-ac-coverage.sh` and `check-coverage-checklists.sh` too, since both need a spec.
+Treat all three as off in that case, and pass the runner no spec, which skips the gates that need one.
 
 Name the three fields exactly `traces_to_ac`, `right_sized`, and `qualitative_pass`, so writer and reader never have to guess the same key.
 

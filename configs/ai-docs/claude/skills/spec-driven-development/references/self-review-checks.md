@@ -11,6 +11,8 @@ A run may write the plan alone (SKILL.md) — never report the absent spec as a 
 - Members: `scripts/check-mermaid-renders.sh`, the density checks, `scripts/check-sections.sh`, `scripts/check-test-distribution.sh`, `scripts/check-pr-dag.sh`, `scripts/check-tasks-dag.sh`, `check-ac-task-consistency.py`.
   - With a spec: `check-ac-coverage.sh`, `check-coverage-checklists.sh`.
 
+- Run all with `scripts/check-deterministic-gates.sh <plan> [<spec>]`; no spec `SKIP`s the spec-taking gates.
+
 - Dispatch the mermaid fixer at its agent file's pinned model — never name one here.
   - Why: `subagent-model-guard.py` hard-denies an override, so naming one is an instruction no caller can follow.
 
@@ -25,7 +27,7 @@ Why never `spec-reviewer` over a plan: separate report rows, and a plan raises q
 
 Run the deterministic bucket first, to exhaustion under SKILL.md's recovery loop, then the judged one.
 
-Why: a deterministic gate catches structural breakage a judged dispatch would otherwise cost.
+Why: a script catches breakage a judged dispatch would cost.
 
 ## Qualitative pass
 
@@ -62,7 +64,7 @@ Both measure rather than judge — never inline.
 
 **No toggle switches either off, but only the mermaid failure repairs itself.**
 
-Why: an unrenderable diagram is broken outright, needing no judgment to fix. Reflowing prose is a judgment call that has split bullets mid-sentence.
+Why: an unrenderable diagram is broken outright, needing no judgment to fix. Reflowing prose is a judgment call that has split bullets.
 
 ## Every AC has a test
 
@@ -70,7 +72,7 @@ Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped co
 
 - No spec — skip the mechanical half; the semantic half reads each task's `## Task Details` acceptance criteria and planned-test fields.
 
-- Mechanical half — `scripts/check-ac-coverage.sh <plan> <spec>` checks coverage completeness and citation honesty (no truncated/invented breadcrumb); exit 1 blocks.
+- Mechanical half — `scripts/check-ac-coverage.sh <plan> <spec>` checks coverage completeness and citation honesty; exit 1 blocks.
 
 - Semantic half — runs after any mechanical half passes, never in parallel.
   - Dispatch `agent(subAgent=plan-reviewer, title=Judge AC-to-test coverage)` to judge whether each cited test *proves* its AC — the match no script can make.
@@ -89,7 +91,7 @@ Heading presence only — an `N/A — <reason>` body satisfies it, a dropped hea
 
 ## Every test has a task
 
-`scripts/check-test-distribution.sh <plan>` asserts set-equality between the Test Design breadcrumbs and tasks' planned-test lists (same mechanics as above).
+`scripts/check-test-distribution.sh <plan>` asserts set-equality between the Test Design breadcrumbs and tasks' planned-test lists.
 
 Output: `A \ B` (designed, no task) + `B \ A` (invented test); empty = pass, block otherwise.
 
