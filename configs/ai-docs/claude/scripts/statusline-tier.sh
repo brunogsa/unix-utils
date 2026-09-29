@@ -32,10 +32,9 @@
 #     from ccstatusline's own usage cache.
 #
 #   statusline-tier.sh session-cost
-#     what this session's main model has spent on its own,
-#     advisor consults excluded, priced from the
-#     transcript_path on stdin and falling back to
-#     cost.total_cost_usd: "$19.01".
+#     the main model's own spend, advisor consults excluded,
+#     priced from the transcript_path on stdin, falling back
+#     to cost.total_cost_usd: "$19.01".
 #
 #   statusline-tier.sh subagent-cost
 #     what every sub-agent this session spawned and every
