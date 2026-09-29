@@ -1,9 +1,11 @@
 """Tests for check-bullet-structure.py - the report-only list-structure checker.
 
-Asserted as exact `(line, detail)` rows rather than a count:
+Two rules, each asserted as exact `(line, detail)` rows rather than a count:
 
   dangling-colon  a list item ending in ":" whose next list item sits at the
                   same or a shallower indent, so the colon introduces nothing.
+  staircase       a chain of 3+ list items, each the single child of the one
+                  above, reported once at the chain's head with its span.
 
 Every fixture is hand-built. The Portuguese ones reproduce the shapes observed
 in a real ADR run, rewritten here so an edit to that ADR never moves them.
@@ -204,7 +206,103 @@ def test_colon_items_inside_a_fenced_code_block_are_not_reported(tmp_path):
     assert hits(result) == []
 
 
+# --- staircase: flag cases ---
+
+
+def test_three_level_single_child_chain_is_reported_once_at_its_head_with_its_span(tmp_path):
+    result = run(
+        tmp_path,
+        "- **O desligamento do IS dependia de uma configuração ausente.**\n"
+        "  - Sem essa chave, o use case do IS não envia a escola.\n"
+        "  - Em 29/09/2026, o PR #2644 adicionou a chave.\n"
+        "    - O sync do IS passou a enviar escolas ao Protheus em produção.\n"
+        "      - No mesmo dia, a DLQ do IS recebeu uma mensagem recusada com HTTP 400.\n"
+        "\n"
+        "  - Ainda em 29/09/2026, o PR #2657 zerou o batch size do IS.\n",
+    )
+
+    assert hits(result) == [(3, "staircase:3-5")]
+    assert result.returncode == 1
+
+
+def test_four_level_single_child_chain_is_reported_once_spanning_all_four_levels(tmp_path):
+    result = run(
+        tmp_path,
+        "- **Como o PIC 1.9 escreve os Acordos no Protheus SAS/IS?**\n"
+        "  - A resposta importa porque o PIC 2.0 vai reutilizar o mecanismo.\n"
+        "  - O sync de Acordos cadastra o cliente no ERP antes de enviar o Acordo.\n"
+        "    - Em produção, usa os mesmos endpoints de cliente que o sync de escolas.\n"
+        "      - Está desligado para SAS e IS.\n"
+        "        - Ligá-lo antes do saneamento traz de volta a sobrescrita?\n",
+    )
+
+    assert hits(result) == [(3, "staircase:3-6")]
+
+
+def test_numbered_item_counts_as_a_chain_level(tmp_path):
+    result = run(
+        tmp_path,
+        "1. Desligar o sync de escolas do SAS.\n"
+        "   - O batch size da fila foi zerado.\n"
+        "     - Com batch size 0, o Integrador não consome a fila.\n",
+    )
+
+    assert hits(result) == [(1, "staircase:1-3")]
+
+
+# --- staircase: no-flag cases ---
+
+
+def test_parent_with_a_single_child_and_no_grandchild_is_not_reported(tmp_path):
+    result = run(
+        tmp_path,
+        "- **Vínculo:** cada conta do CRM corresponde a um cliente no Protheus.\n"
+        "  - O vínculo é feito pelo CNPJ da escola.\n"
+        "- **Volume:** aprox. 1.031 CNPJs no total.\n"
+        "  - O volume de alteração esperado na virada é baixo.\n",
+    )
+
+    assert hits(result) == []
+
+
+def test_chain_where_a_middle_level_has_two_children_is_not_reported(tmp_path):
+    result = run(
+        tmp_path,
+        "- Pedir ao Protheus SAS e IS o endpoint `PUT /schools`.\n"
+        "  - Os syncs de SAS e IS passam pelo http-caller.\n"
+        "    - Manda para a DLQ as respostas 4xx do Protheus.\n"
+        "    - O sync hub genérico não usa o http-caller.\n"
+        "      - Falta confirmar se o endereço de entrega é opcional.\n",
+    )
+
+    assert hits(result) == []
+
+
+def test_staircase_shaped_example_inside_a_fenced_code_block_is_not_reported(tmp_path):
+    result = run(
+        tmp_path,
+        "```markdown\n"
+        "- Level one.\n"
+        "  - Level two.\n"
+        "    - Level three.\n"
+        "```\n",
+    )
+
+    assert hits(result) == []
+
+
 # --- --changed-only scope ---
+
+
+def test_changed_only_reports_a_staircase_whose_only_changed_line_is_its_third_level(tmp_path):
+    repo = new_repo(tmp_path, "- Level one of the chain.\n  - Level two of the chain.\n")
+    with open(repo / "doc.md", "a", encoding="utf-8") as fh:
+        fh.write("    - Level three, added after the base commit.\n")
+
+    result = run_changed_only(repo)
+
+    assert hits(result) == [(1, "staircase:1-3")]
+    assert result.returncode == 1
 
 
 def test_changed_only_reports_a_dangling_colon_whose_only_changed_line_is_the_next_sibling(tmp_path):
@@ -220,7 +318,7 @@ def test_changed_only_reports_a_dangling_colon_whose_only_changed_line_is_the_ne
 def test_changed_only_hides_defects_whose_lines_were_all_left_untouched(tmp_path):
     repo = new_repo(
         tmp_path,
-        "- Ends with a colon:\n- Sibling.\n",
+        "- Level one.\n  - Level two.\n    - Level three.\n- Ends with a colon:\n- Sibling.\n",
     )
     with open(repo / "doc.md", "a", encoding="utf-8") as fh:
         fh.write("\nA new closing paragraph.\n")

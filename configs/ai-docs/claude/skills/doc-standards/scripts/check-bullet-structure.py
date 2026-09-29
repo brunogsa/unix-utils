@@ -4,16 +4,19 @@
 Rules:
   dangling-colon  a list item ending in ":" whose next list item sits at the
                   same or a shallower indent, so the colon introduces nothing.
+  staircase       3+ list items chained as single children, each one level
+                  deeper than the last - sibling sentences pushed down a level.
 
 Output (mirrors check-bullet-gap.py):
   == <filename>                 header, per file with hits
   <line>:dangling-colon         the colon-ended item
+  <line>:staircase:<A>-<B>      the chain's head, and its first-last line span
 
 Report-only, no --fix: nesting the items after a colon versus ending it with a
-period is an authorial call.
+period, or flattening a chain versus keeping one level, is an authorial call.
 
 --changed-only keeps a hit when ANY line it spans changed vs HEAD, per
-get-changed-lines.sh - the colon line or the item after it.
+get-changed-lines.sh - the colon line or the item after it, any chain level.
 
 Usage:
   check-bullet-structure.py [--changed-only] <file> [<file>...]
@@ -128,11 +131,34 @@ def find_dangling_colons(lines, kinds, items):
     return hits
 
 
+def has_single_child(item):
+    return len(item.children) == 1
+
+
+def find_staircases(items):
+    """One hit per chain, at its head: the topmost item whose single child
+    also has a single child. Its parent, when it has one, has siblings."""
+    hits = []
+    for item in items:
+        starts_chain = has_single_child(item) and has_single_child(item.children[0])
+        continues_parent_chain = item.parent is not None and has_single_child(item.parent)
+        if not starts_chain or continues_parent_chain:
+            continue
+
+        chain = [item]
+        while has_single_child(chain[-1]):
+            chain.append(chain[-1].children[0])
+
+        head, last = chain[0].line_no, chain[-1].line_no
+        hits.append((head, f"staircase:{head}-{last}", {n.line_no for n in chain}))
+    return hits
+
+
 def find_hits(lines):
     """(line, detail, scope_lines) per violation, in line order."""
     kinds = bullet_gap.classify_lines(lines)
     items = build_list_items(lines, kinds)
-    hits = find_dangling_colons(lines, kinds, items)
+    hits = find_dangling_colons(lines, kinds, items) + find_staircases(items)
     return sorted(hits, key=lambda hit: hit[0])
 
 
