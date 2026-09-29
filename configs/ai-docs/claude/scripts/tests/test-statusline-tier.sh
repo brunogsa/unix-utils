@@ -2023,6 +2023,17 @@ write_subagent_transcript() {
   done
 }
 
+# write_main_transcript - the session's own transcript, in
+# the same priced-reply shape a sub-agent's carries.
+#
+# Named apart from the sub-agent helper because which file a
+# fixture lands in is the whole distinction the two disjoint
+# scans rest on, and a call site reading "subagent" at the
+# main transcript's path would hide that.
+write_main_transcript() {
+  write_subagent_transcript "$@"
+}
+
 # ADVISOR_CONSULT_ON_OPUS_9 - one advisor-tool consult, as the
 # usage.iterations[] element Claude Code logs for it.
 #
@@ -2543,6 +2554,104 @@ it_should_re_read_the_catalog_after_the_binary_is_upgraded() {
   rm -rf "$sandbox"
 }
 
+it_should_report_the_main_sessions_advisor_consults_even_when_no_subagent_ran() {
+  local sandbox transcript actual status
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  rm -rf "$sandbox/projects/a-project/a-session/subagents"
+
+  advisor_consult_entry msg_main_consult "$ADVISOR_CONSULT_ON_OPUS_9" >"$transcript"
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+  status=$?
+
+  # The consult is escalation spend on a stronger model, the
+  # same kind a sub-agent is, so it belongs in the addendum
+  # even for a session that never fanned out.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSubagentCost > happy > should report the main session's advisor consults even when no sub-agent ran" \
+    '+ $0.90 0' "$actual $status"
+  rm -rf "$sandbox"
+}
+
+it_should_add_every_advisor_consult_to_the_subagents_spend() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-adv1.jsonl"
+
+  advisor_consult_entry msg_main_consult "$ADVISOR_CONSULT_ON_OPUS_9" >"$transcript"
+
+  # A sub-agent can consult the advisor too, here on a model
+  # priced apart from the main session's advisor.
+  advisor_consult_entry msg_subagent_consult \
+    '{"type":"advisor_message","model":"claude-opus-5-5","input_tokens":114090,"output_tokens":7139}' \
+    >"$agent"
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+
+  # $0.90 main-session consult + $0.09 sub-agent reply + $0.60
+  # sub-agent consult. Dropping either consult reads $0.69 or
+  # $0.99, and the sub-agent reply alone reads $0.09.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSubagentCost > happy > should add every advisor consult, the main session's and each sub-agent's, to the sub-agents' spend" \
+    '+ $1.59' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_mark_the_addendum_a_floor_when_only_an_advisor_consult_has_no_known_rate() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-adv2.jsonl"
+
+  advisor_consult_entry msg_main_consult \
+    '{"type":"advisor_message","model":"a-model-the-installed-catalog-has-never-heard-of","input_tokens":114090,"output_tokens":7139}' \
+    >"$transcript"
+  write_subagent_transcript "$agent" claude-sonnet-5 '{"output_tokens":31000}' 2
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+
+  # Every sub-agent is priced, so only the consult can raise
+  # the floor marker here.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSubagentCost > corner > should mark the addendum a floor when only the main session's advisor consult ran on a model with no known rate" \
+    '+ ~$0.62' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_keep_the_main_models_own_spend_out_of_the_addendum() {
+  local sandbox transcript actual status
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  write_main_transcript "$transcript" claude-sonnet-5 '{"output_tokens":31000}' 2
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+  status=$?
+
+  # The main model's $0.62 is the Session Cost widget's
+  # figure, so repeating it here would bill it twice across
+  # the row.
+  assert_eq \
+    "StatusLineSubagentCost > happy > should render nothing when the main session consulted no advisor and spawned no sub-agents" \
+    " 0" "$actual $status"
+  rm -rf "$sandbox"
+}
+
+it_should_report_the_main_sessions_advisor_consults_even_when_no_subagent_ran
+it_should_add_every_advisor_consult_to_the_subagents_spend
+it_should_mark_the_addendum_a_floor_when_only_an_advisor_consult_has_no_known_rate
+it_should_keep_the_main_models_own_spend_out_of_the_addendum
 it_should_price_an_opus_5_5_subagent_at_its_catalog_rate
 it_should_price_a_model_the_script_has_never_been_edited_to_know_about
 it_should_render_a_bare_question_mark_when_no_catalog_can_be_read
@@ -2575,17 +2684,6 @@ it_should_render_no_addendum_when_the_session_has_no_transcript_to_price
 #
 # The transcript is the durable record of that spend, so
 # pricing it is what makes the number survive a resume.
-
-# write_main_transcript - the session's own transcript, in
-# the same priced-reply shape a sub-agent's carries.
-#
-# Named apart from the sub-agent helper because which file a
-# fixture lands in is the whole distinction the two disjoint
-# scans rest on, and a call site reading "subagent" at the
-# main transcript's path would hide that.
-write_main_transcript() {
-  write_subagent_transcript "$@"
-}
 
 # render_session_cost_for - runs session-cost against this
 # sandbox's own fixture catalog and rate cache by default, or

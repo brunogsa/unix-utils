@@ -38,8 +38,9 @@
 #     cost.total_cost_usd: "$19.01".
 #
 #   statusline-tier.sh subagent-cost
-#     what every sub-agent this session spawned has spent,
-#     as an addendum to that figure: "+ $19.01".
+#     what every sub-agent this session spawned and every
+#     advisor consult has spent, as an addendum to that
+#     figure: "+ $19.01".
 #
 # Usage (as the last stage of the statusLine.command pipe,
 # fed ccstatusline's RENDERED output rather than JSON).
@@ -943,9 +944,13 @@ render_session_cost() {
   return 0
 }
 
-# render_subagent_cost - what this session's sub-agents
-# have spent, as an addendum to the main figure
-# render_session_cost prints: "+ $19.01".
+# render_subagent_cost - what this session's sub-agents and
+# advisor consults have spent, as an addendum to the main
+# figure render_session_cost prints: "+ $19.01".
+#
+# A consult is an escalation to a stronger model, the same
+# kind of spend a sub-agent is, so the main transcript's
+# consults sit here beside every sub-agent's own.
 #
 # A total carrying tokens from a model the installed Claude
 # Code's own catalog doesn't list is prefixed "~", marking it
@@ -959,12 +964,16 @@ render_session_cost() {
 # input both halves of the row need - so this addendum can
 # never render alone in front of an empty main figure.
 #
-# Nothing prints either when the sub-agents cost too little
-# to show and every one of them was priced, since "+ $0.00"
-# widens the row to report no spend.
+# Nothing prints either when the sub-agents and consults
+# cost too little to show and every one of them was priced,
+# since "+ $0.00" widens the row to report no spend.
 #
 # "+ ?" prints instead when sub-agents ran but no catalog
 # could be read to price any of them.
+#
+# Without a catalog, a session with consults but no
+# sub-agents prints nothing: spotting a consult would cost
+# a second transcript scan on every render for a rare case.
 #
 # sum_subagent_cost signals that case with exit 2, distinct
 # from exit 1's "no sub-agents ran at all", which this widget
@@ -974,26 +983,36 @@ render_session_cost() {
 # omit-this-widget contract - a non-zero exit renders a
 # visible "[Exit: N]" token.
 render_subagent_cost() {
-  local payload transcript_path subagent_total status=0
+  local payload transcript_path main_total="" subagent_total status=0
   payload="$(cat)"
 
   transcript_path="$(printf '%s' "$payload" | jq -r '.transcript_path // empty' 2>/dev/null)"
   [ -z "$transcript_path" ] && return 0
+
+  if [ -r "$transcript_path" ]; then
+    main_total="$(
+      run_with_timeout "$STATUSLINE_TRANSCRIPT_SCAN_TIMEOUT_SECS" \
+        price_transcripts "$transcript_path"
+    )"
+  fi
 
   subagent_total="$(
     run_with_timeout "$STATUSLINE_TRANSCRIPT_SCAN_TIMEOUT_SECS" \
       sum_subagent_cost "$(subagent_transcript_dir "$transcript_path")"
   )" || status=$?
 
-  if [ -z "$subagent_total" ]; then
+  if [ -z "$main_total" ] && [ -z "$subagent_total" ]; then
     [ "$status" -eq 2 ] && printf '+ ?\n'
     return 0
   fi
 
-  awk -v subagent_total="$subagent_total" 'BEGIN {
-    split(subagent_total, parts, " ")
-    cost = sprintf("%.2f", parts[1])
-    unpriced = parts[2] + 0
+  # Only the main transcript's advisor figures enter the sum:
+  # its executor figures are render_session_cost's to print.
+  awk -v main_total="$main_total" -v subagent_total="$subagent_total" 'BEGIN {
+    split(main_total, main_parts, " ")
+    split(subagent_total, subagent_parts, " ")
+    cost = sprintf("%.2f", main_parts[3] + subagent_parts[1] + subagent_parts[3])
+    unpriced = main_parts[4] + subagent_parts[2] + subagent_parts[4]
     if (cost == "0.00" && unpriced == 0)
       exit
     printf "+ %s$%s\n", (unpriced > 0 ? "~" : ""), cost
