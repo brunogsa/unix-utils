@@ -967,54 +967,66 @@ render_session_cost() {
 # cost too little to show and every one of them was priced,
 # since "+ $0.00" widens the row to report no spend.
 #
-# "+ ?" prints instead when sub-agents ran but no catalog
-# could be read to price any of them.
+# A scan that ran and failed - timeout, jq error, or no
+# catalog - marks whatever else priced with "~", even at
+# $0.00, and prints "+ ?" when nothing else priced at all.
 #
-# Without a catalog, a session with consults but no
-# sub-agents prints nothing: spotting a consult would cost
-# a second transcript scan on every render for a rare case.
+# Shown without that "~", a partial figure reads as the full
+# total, the exact under-report this widget exists to prevent.
 #
-# sum_subagent_cost signals that case with exit 2, distinct
-# from exit 1's "no sub-agents ran at all", which this widget
-# must stay silent on.
+# sum_subagent_cost's exit 1 means no sub-agent ran at all,
+# and an unreadable main transcript has no consults to miss,
+# so neither counts as a failed scan.
 #
 # Printing nothing and exiting 0 is ccstatusline's
 # omit-this-widget contract - a non-zero exit renders a
 # visible "[Exit: N]" token.
 render_subagent_cost() {
-  local payload transcript_path main_total="" subagent_total status=0
+  local payload transcript_path main_total="" subagent_total="" subagent_status=0 has_failed_scan=0
   payload="$(cat)"
 
   transcript_path="$(printf '%s' "$payload" | jq -r '.transcript_path // empty' 2>/dev/null)"
   [ -z "$transcript_path" ] && return 0
 
+  # A failed scan's stdout is dropped rather than summed, since
+  # jq can print a total for the files it read before failing.
   if [ -r "$transcript_path" ]; then
     main_total="$(
       run_with_timeout "$STATUSLINE_TRANSCRIPT_SCAN_TIMEOUT_SECS" \
         price_transcripts "$transcript_path"
-    )"
+    )" || {
+      main_total=""
+      has_failed_scan=1
+    }
   fi
 
   subagent_total="$(
     run_with_timeout "$STATUSLINE_TRANSCRIPT_SCAN_TIMEOUT_SECS" \
       sum_subagent_cost "$(subagent_transcript_dir "$transcript_path")"
-  )" || status=$?
+  )" || subagent_status=$?
+
+  if [ "$subagent_status" -ne 0 ]; then
+    subagent_total=""
+    [ "$subagent_status" -ne 1 ] && has_failed_scan=1
+  fi
 
   if [ -z "$main_total" ] && [ -z "$subagent_total" ]; then
-    [ "$status" -eq 2 ] && printf '+ ?\n'
+    [ "$has_failed_scan" -eq 1 ] && printf '+ ?\n'
     return 0
   fi
 
   # Only the main transcript's advisor figures enter the sum:
   # its executor figures are render_session_cost's to print.
-  awk -v main_total="$main_total" -v subagent_total="$subagent_total" 'BEGIN {
+  awk -v main_total="$main_total" -v subagent_total="$subagent_total" \
+    -v has_failed_scan="$has_failed_scan" 'BEGIN {
     split(main_total, main_parts, " ")
     split(subagent_total, subagent_parts, " ")
     cost = sprintf("%.2f", main_parts[3] + subagent_parts[1] + subagent_parts[3])
     unpriced = main_parts[4] + subagent_parts[2] + subagent_parts[4]
-    if (cost == "0.00" && unpriced == 0)
+    is_floor = (unpriced > 0 || has_failed_scan == 1)
+    if (cost == "0.00" && !is_floor)
       exit
-    printf "+ %s$%s\n", (unpriced > 0 ? "~" : ""), cost
+    printf "+ %s$%s\n", (is_floor ? "~" : ""), cost
   }'
 }
 

@@ -2648,10 +2648,107 @@ it_should_keep_the_main_models_own_spend_out_of_the_addendum() {
   rm -rf "$sandbox"
 }
 
+# make_unscannable - turns a transcript path into a directory,
+# which "[ -r ]" still passes but jq cannot read.
+#
+# That fails the scan deterministically on macOS and Linux,
+# where chmod 000 would still read fine under root.
+make_unscannable() {
+  local path="$1"
+  rm -f "$path"
+  mkdir -p "$path"
+}
+
+it_should_mark_the_addendum_a_floor_when_a_subagent_transcript_cannot_be_scanned() {
+  local sandbox transcript actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+
+  advisor_consult_entry msg_main_consult "$ADVISOR_CONSULT_ON_OPUS_9" >"$transcript"
+  make_unscannable "$sandbox/projects/a-project/a-session/subagents/agent-a.jsonl"
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+
+  # Only the $0.90 consult could be priced, so the figure is a
+  # floor: a sub-agent ran whose spend is missing from it.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSubagentCost > failure > should mark the addendum a floor when a sub-agent's transcript cannot be scanned" \
+    '+ ~$0.90' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_mark_the_addendum_a_floor_when_the_main_transcript_cannot_be_scanned() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-ok.jsonl"
+
+  write_subagent_transcript "$agent" claude-sonnet-5 '{"output_tokens":31000}' 2
+  make_unscannable "$transcript"
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+
+  # The main session's consults are missing from the $0.62
+  # the sub-agent priced to, so the figure is a floor.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSubagentCost > failure > should mark the addendum a floor when the main session's transcript cannot be scanned" \
+    '+ ~$0.62' "$actual"
+  rm -rf "$sandbox"
+}
+
+it_should_render_a_bare_question_mark_when_only_the_main_transcript_ran_and_cannot_be_scanned() {
+  local sandbox transcript actual status
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  rm -rf "$sandbox/projects/a-project/a-session/subagents"
+
+  make_unscannable "$transcript"
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+  status=$?
+
+  assert_eq \
+    "StatusLineSubagentCost > failure > should render a bare question mark when no sub-agent ran and the main session's transcript cannot be scanned" \
+    '+ ? 0' "$actual $status"
+  rm -rf "$sandbox"
+}
+
+it_should_report_the_subagents_spend_as_complete_when_the_main_transcript_is_missing() {
+  local sandbox transcript agent actual
+  sandbox="$(fresh_sandbox)"
+  transcript="$(write_session_fixture "$sandbox")"
+  agent="$sandbox/projects/a-project/a-session/subagents/agent-ok.jsonl"
+
+  write_subagent_transcript "$agent" claude-sonnet-5 '{"output_tokens":31000}' 2
+  rm -f "$transcript"
+
+  actual="$(render_subagent_cost_for 0 "$transcript")"
+
+  # A main transcript that isn't there has no consults to
+  # miss, so nothing is unpriced and no floor marker belongs.
+  #
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
+  assert_eq \
+    "StatusLineSubagentCost > corner > should report the sub-agents' spend as complete when the main session's transcript is missing" \
+    '+ $0.62' "$actual"
+  rm -rf "$sandbox"
+}
+
 it_should_report_the_main_sessions_advisor_consults_even_when_no_subagent_ran
 it_should_add_every_advisor_consult_to_the_subagents_spend
 it_should_mark_the_addendum_a_floor_when_only_an_advisor_consult_has_no_known_rate
 it_should_keep_the_main_models_own_spend_out_of_the_addendum
+it_should_mark_the_addendum_a_floor_when_a_subagent_transcript_cannot_be_scanned
+it_should_mark_the_addendum_a_floor_when_the_main_transcript_cannot_be_scanned
+it_should_render_a_bare_question_mark_when_only_the_main_transcript_ran_and_cannot_be_scanned
+it_should_report_the_subagents_spend_as_complete_when_the_main_transcript_is_missing
 it_should_price_an_opus_5_5_subagent_at_its_catalog_rate
 it_should_price_a_model_the_script_has_never_been_edited_to_know_about
 it_should_render_a_bare_question_mark_when_no_catalog_can_be_read
