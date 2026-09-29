@@ -105,11 +105,14 @@ strip_fences() {
   awk '
     /^```/ || /^~~~/ {
       m = substr($0, 1, 1)
-      if (f) { if (m == fence_char) f = 0 }
-      else { f = 1; fence_char = m }
+      fence_run = 0
+      while (substr($0, fence_run + 1, 1) == m) fence_run++
+      fence_tail = substr($0, fence_run + 1)
+      if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
+      else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
       next
     }
-    f { next }
+    in_fence { next }
     { print }
   '
 }

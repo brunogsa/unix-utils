@@ -89,8 +89,11 @@ fi
 awk -v marker="$marker" -v pat="$heading_pattern" '
   /^```/ || /^~~~/ {
     m = substr($0, 1, 1)
-    if (in_fence) { if (m == fence_char) in_fence = 0 }
-    else { in_fence = 1; fence_char = m; fence_line = NR }
+    fence_run = 0
+    while (substr($0, fence_run + 1, 1) == m) fence_run++
+    fence_tail = substr($0, fence_run + 1)
+    if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run; fence_line = NR }
+    else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
   }
   !in_fence && !done && index($0, marker " ") == 1 {
     if (in_section) { done = 1; next }

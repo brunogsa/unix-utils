@@ -247,6 +247,24 @@ it_should_keep_reading_spec_acs_after_a_fenced_line_that_starts_with_a_heading_m
   assert_eq "should keep reading spec ACs after a fenced line that starts with a '## ' heading marker" "0" "$VERDICT_EXIT"
 }
 
+it_should_keep_reading_spec_acs_after_a_longer_fence_quoting_an_inner_opener() {
+  local plan spec
+  plan=$(write_plan "longer-fenced-spec-heading" '- **AC-1** valid path accepted
+  - "check-thing > happy > should accept a valid path"
+- **AC-2** missing path rejected
+  - "check-thing > failure > should reject a missing path"')
+  spec=$(write_spec "longer-fenced-spec-heading" '### AC-1: The checker accepts a valid path
+
+````markdown
+```markdown
+## Not a real heading, just sample doc text quoted in the fence
+````
+
+### AC-2: The checker rejects a missing path')
+  run_script "$plan" "$spec"
+  assert_eq "should keep reading spec ACs after a four-backtick fence quoting an inner three-backtick opener" "0" "$VERDICT_EXIT"
+}
+
 it_should_keep_reading_plan_ac_headers_after_a_fenced_line_that_starts_with_a_heading_marker() {
   local plan spec
   plan=$(write_plan "fenced-plan-heading" '- **AC-1** valid path accepted
@@ -296,6 +314,7 @@ it_should_report_a_usage_error_when_given_the_wrong_argument_count
 it_should_pass_in_annotated_form_when_every_spec_ac_appears_in_at_least_one_annotation
 it_should_fail_in_annotated_form_when_a_spec_ac_has_no_annotation_naming_the_uncovered_ac
 it_should_keep_reading_spec_acs_after_a_fenced_line_that_starts_with_a_heading_marker
+it_should_keep_reading_spec_acs_after_a_longer_fence_quoting_an_inner_opener
 it_should_keep_reading_plan_ac_headers_after_a_fenced_line_that_starts_with_a_heading_marker
 it_should_fail_closed_when_the_plans_backtick_fence_is_left_open_at_eof
 it_should_fail_closed_when_the_specs_tilde_fence_is_left_open_at_eof

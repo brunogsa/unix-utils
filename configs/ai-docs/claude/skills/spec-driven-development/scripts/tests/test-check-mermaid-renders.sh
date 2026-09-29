@@ -149,6 +149,63 @@ MD
   assert_contains "should count no diagrams when the only tilde mermaid fence is sample markup" "no mermaid" "$VERDICT_OUT"
 }
 
+it_should_ignore_a_mermaid_opener_quoted_inside_a_longer_backtick_fence() {
+  local fixture="$work_dir/longer-backtick-sample.md"
+  cat > "$fixture" <<'MD'
+# Doc
+
+The skill documents its diagram opener as:
+
+````markdown
+```mermaid
+this is not a diagram, it is sample markup
+````
+
+## Next section
+MD
+  run_script "$fixture"
+  assert_eq "should ignore a mermaid opener quoted inside a four-backtick fence (exit code)" "0" "$VERDICT_EXIT"
+  assert_contains "should count no diagrams when the only mermaid opener is quoted sample markup" "no mermaid" "$VERDICT_OUT"
+}
+
+it_should_ignore_a_mermaid_opener_quoted_inside_a_longer_tilde_fence() {
+  local fixture="$work_dir/longer-tilde-sample.md"
+  cat > "$fixture" <<'MD'
+# Doc
+
+The skill documents its diagram opener as:
+
+~~~~markdown
+~~~mermaid
+this is not a diagram, it is sample markup
+~~~~
+
+## Next section
+MD
+  run_script "$fixture"
+  assert_eq "should ignore a mermaid opener quoted inside a four-tilde fence (exit code)" "0" "$VERDICT_EXIT"
+  assert_contains "should count no diagrams when the only mermaid opener is quoted sample markup" "no mermaid" "$VERDICT_OUT"
+}
+
+it_should_ignore_a_mermaid_line_inside_a_same_length_backtick_fence_because_it_carries_an_info_string() {
+  local fixture="$work_dir/info-string-sample.md"
+  cat > "$fixture" <<'MD'
+# Doc
+
+The skill documents its diagram opener as:
+
+```
+```mermaid
+this is not a diagram, it is sample markup
+```
+
+## Next section
+MD
+  run_script "$fixture"
+  assert_eq "should ignore a mermaid line inside a three-backtick fence, since an info string never closes a fence (exit code)" "0" "$VERDICT_EXIT"
+  assert_contains "should count no diagrams when the only mermaid opener is quoted sample markup" "no mermaid" "$VERDICT_OUT"
+}
+
 it_should_render_a_diagram_written_with_a_tilde_fence() {
   local fixture="$work_dir/tilde-diagram.md"
   cat > "$fixture" <<'MD'
@@ -205,6 +262,9 @@ it_should_fail_when_a_sequence_diagram_carries_a_semicolon_inside_a_message
 it_should_pass_when_the_document_holds_no_mermaid_block_at_all
 it_should_ignore_a_mermaid_fence_quoted_inside_an_outer_tilde_fence
 it_should_ignore_a_tilde_mermaid_fence_quoted_inside_an_outer_backtick_fence
+it_should_ignore_a_mermaid_opener_quoted_inside_a_longer_backtick_fence
+it_should_ignore_a_mermaid_opener_quoted_inside_a_longer_tilde_fence
+it_should_ignore_a_mermaid_line_inside_a_same_length_backtick_fence_because_it_carries_an_info_string
 it_should_render_a_diagram_written_with_a_tilde_fence
 it_should_fail_closed_when_a_fence_is_left_open_at_eof
 it_should_report_a_usage_error_when_no_argument_is_given

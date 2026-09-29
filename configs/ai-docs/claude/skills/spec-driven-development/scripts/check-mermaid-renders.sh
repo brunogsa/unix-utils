@@ -74,9 +74,11 @@ awk -v dir="$work_dir" '
 
     if (marker != "") {
       ch = substr(marker, 1, 1)
+      fence_run = length(marker)
+      fence_tail = substr($0, RSTART + RLENGTH)
 
       if (in_fence) {
-        if (ch == fence_char) {
+        if (ch == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) {
           in_fence = 0
           in_mermaid = 0
         } else if (in_mermaid) {
@@ -87,9 +89,10 @@ awk -v dir="$work_dir" '
 
       in_fence = 1
       fence_char = ch
+      fence_len = fence_run
       fence_line = NR
 
-      info = substr($0, RSTART + RLENGTH)
+      info = fence_tail
       gsub(/[ \t]/, "", info)
 
       if (info == "mermaid") {

@@ -367,6 +367,62 @@ def test_ignores_a_task_heading_inside_a_fenced_block_in_task_breakdown(
     assert result.returncode == 0, result.stderr
 
 
+def test_ignores_a_task_heading_quoted_inside_a_longer_backtick_fence(
+    tmp_path,
+):
+    """A four-backtick fence quoting a bare three-backtick opener must stay
+    open until its own four-backtick closer, so the task heading quoted
+    inside it never opens a phantom task."""
+    fenced_task_body = CONSISTENT_TASKS + (
+        "\n````markdown\n```mermaid\n### 3. Example heading shown as sample markup\n````\n"
+    )
+    plan = _write_plan(
+        tmp_path,
+        design_body=CONSISTENT_DESIGN,
+        task_body=fenced_task_body,
+        details_body=CONSISTENT_DETAILS,
+    )
+    result = _run(str(plan))
+    assert result.returncode == 0, result.stderr
+
+
+def test_ignores_a_task_heading_quoted_inside_a_longer_tilde_fence(
+    tmp_path,
+):
+    """A four-tilde fence quoting a bare three-tilde line must stay open
+    until its own four-tilde closer."""
+    fenced_task_body = CONSISTENT_TASKS + (
+        "\n~~~~markdown\n~~~\n### 3. Example heading shown as sample markup\n~~~~\n"
+    )
+    plan = _write_plan(
+        tmp_path,
+        design_body=CONSISTENT_DESIGN,
+        task_body=fenced_task_body,
+        details_body=CONSISTENT_DETAILS,
+    )
+    result = _run(str(plan))
+    assert result.returncode == 0, result.stderr
+
+
+def test_ignores_a_task_heading_after_an_inner_line_carrying_an_info_string(
+    tmp_path,
+):
+    """An inner ```mermaid line inside a three-backtick fence has the same
+    marker and run length as the opener, so only its info string keeps
+    it from being read as the closer."""
+    fenced_task_body = CONSISTENT_TASKS + (
+        "\n```\n```mermaid\n### 3. Example heading shown as sample markup\n```\n"
+    )
+    plan = _write_plan(
+        tmp_path,
+        design_body=CONSISTENT_DESIGN,
+        task_body=fenced_task_body,
+        details_body=CONSISTENT_DETAILS,
+    )
+    result = _run(str(plan))
+    assert result.returncode == 0, result.stderr
+
+
 def test_ignores_a_summary_task_line_inside_a_fenced_block_in_task_details(
     tmp_path,
 ):

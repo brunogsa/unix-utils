@@ -56,8 +56,8 @@ AC_FIELD = re.compile(r"\*\*Testable Acceptance criteria\*\*")
 AC_TOKEN = re.compile(r"AC-\d+")
 
 # A fenced code block opens on a line of 3+ backticks or 3+
-# tildes and closes only on a later line starting with that
-# same character.
+# tildes and closes only on a later line of that same character,
+# at least as long as the opener, with no info string.
 #
 # This is the repo-wide fence idiom (see extract-design-tests.sh
 # and check-sections.sh), so a heading or `<summary>Task N` line
@@ -66,21 +66,25 @@ AC_TOKEN = re.compile(r"AC-\d+")
 FENCE_MARKERS = ("```", "~~~")
 
 
-def toggle_fence(text, in_fence, fence_char):
-    """The (in_fence, fence_char) state after reading one more line.
+def toggle_fence(text, in_fence, fence_char, fence_len):
+    """The (in_fence, fence_char, fence_len) state after reading one
+    more line.
 
     A line that does not open or close a fence leaves the state
-    unchanged. A mismatched marker (e.g. a ``` line while a ~~~
-    fence is open) is fence content, not a delimiter, and also
-    leaves the state unchanged."""
+    unchanged. So does a line inside an open fence that fails any
+    closing rule: a different marker (a ``` line while a ~~~ fence is
+    open), a run shorter than the opener's, or trailing text after
+    the run (an info string). Each is fence content, not a
+    delimiter."""
     if not text.startswith(FENCE_MARKERS):
-        return in_fence, fence_char
+        return in_fence, fence_char, fence_len
     marker = text[0]
+    run = len(text) - len(text.lstrip(marker))
     if not in_fence:
-        return True, marker
-    if marker == fence_char:
-        return False, fence_char
-    return in_fence, fence_char
+        return True, marker, run
+    if marker == fence_char and run >= fence_len and not text[run:].strip():
+        return False, fence_char, fence_len
+    return in_fence, fence_char, fence_len
 
 
 def exit_with_usage_error(message):
@@ -94,10 +98,12 @@ def check_fence_balance(lines):
 
     Whole-file rule: an unclosed fence anywhere in the plan is
     malformed, not just inside a scanned section."""
-    in_fence, fence_char, open_line = False, "", None
+    in_fence, fence_char, fence_len, open_line = False, "", 0, None
     for line_number, text in enumerate(lines, start=1):
         was_open = in_fence
-        in_fence, fence_char = toggle_fence(text, in_fence, fence_char)
+        in_fence, fence_char, fence_len = toggle_fence(
+            text, in_fence, fence_char, fence_len
+        )
         if in_fence and not was_open:
             open_line = line_number
     return open_line if in_fence else None
@@ -116,15 +122,20 @@ def find_design_row_lines(lines):
     in_design = False
     in_fence = False
     fence_char = ""
+    fence_len = 0
 
     for number, text in enumerate(lines, 1):
         if not in_fence and SECTION_HEADING.match(text):
             if in_design:
                 break
             in_design = bool(DESIGN_HEADING.match(text))
-            in_fence, fence_char = toggle_fence(text, in_fence, fence_char)
+            in_fence, fence_char, fence_len = toggle_fence(
+                text, in_fence, fence_char, fence_len
+            )
             continue
-        in_fence, fence_char = toggle_fence(text, in_fence, fence_char)
+        in_fence, fence_char, fence_len = toggle_fence(
+            text, in_fence, fence_char, fence_len
+        )
         if not in_design:
             continue
         if DESCRIBE_CALL.search(text):
@@ -148,9 +159,12 @@ def read_task_headings(lines):
     in_tasks = False
     in_fence = False
     fence_char = ""
+    fence_len = 0
 
     for text in lines:
-        in_fence, fence_char = toggle_fence(text, in_fence, fence_char)
+        in_fence, fence_char, fence_len = toggle_fence(
+            text, in_fence, fence_char, fence_len
+        )
         if not in_fence and SECTION_HEADING.match(text):
             if in_tasks:
                 break
@@ -188,9 +202,12 @@ def read_task_details(lines):
     in_ac_field = False
     in_fence = False
     fence_char = ""
+    fence_len = 0
 
     for text in lines:
-        in_fence, fence_char = toggle_fence(text, in_fence, fence_char)
+        in_fence, fence_char, fence_len = toggle_fence(
+            text, in_fence, fence_char, fence_len
+        )
         if not in_fence and SECTION_HEADING.match(text):
             if in_details:
                 break
