@@ -87,6 +87,32 @@ def measure(line):
     return len(s), len(s.split())
 
 
+def classify_lines(lines):
+    """One kind per line: "frontmatter", "fence" (a ``` or ~~~ delimiter),
+    "code" (inside a fence) or "text" - the only kind a list rule may read.
+
+    Shared with check-bullet-structure.py, so both checkers agree on which
+    lines are markdown and which are code or metadata."""
+    kinds = []
+    in_fence = False
+    in_frontmatter = bool(lines) and bool(FRONTMATTER.match(lines[0]))
+
+    for i, line in enumerate(lines):
+        if in_frontmatter:
+            # The opening --- is line 0, so only a LATER ---
+            # closes the block.
+            if i > 0 and FRONTMATTER.match(line):
+                in_frontmatter = False
+            kinds.append("frontmatter")
+        elif FENCE.match(line):
+            in_fence = not in_fence
+            kinds.append("fence")
+        else:
+            kinds.append("code" if in_fence else "text")
+
+    return kinds
+
+
 def find_hits(lines, max_chars, max_words):
     """Bullet-gap hits in an already-split line list - the shared scan
     both check() and fix() run, so fixing can never drift from checking."""
@@ -94,25 +120,13 @@ def find_hits(lines, max_chars, max_words):
     gap_words = max_words * GAP_RATIO
 
     hits = []
-    in_fence = False
-    in_frontmatter = bool(lines) and bool(FRONTMATTER.match(lines[0]))
+    kinds = classify_lines(lines)
 
     for i in range(len(lines) - 1):
+        if kinds[i] != "text":
+            continue
+
         cur = lines[i]
-
-        if in_frontmatter:
-            # The opening --- is line 0, so only a LATER ---
-            # closes the block.
-            if i > 0 and FRONTMATTER.match(cur):
-                in_frontmatter = False
-            continue
-
-        if FENCE.match(cur):
-            in_fence = not in_fence
-            continue
-        if in_fence:
-            continue
-
         cur_indent = indent_of(cur)
         next_indent = indent_of(lines[i + 1])
         if cur_indent is None or next_indent is None:
