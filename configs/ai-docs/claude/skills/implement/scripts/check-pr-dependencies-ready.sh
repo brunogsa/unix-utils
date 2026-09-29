@@ -152,9 +152,8 @@ fi
 
 # The fence toggle guards only the `## ` boundary check below —
 # it never skips content — since a fenced sample line quoted
-# inside the section must still print as part of it. Closes
-# only on a line of the same marker (``` or ~~~), at least as
-# long as the opener, with no info string.
+# inside the section must still print. A fence closes only on
+# a same-marker line at least as long as its opener, bare.
 task_section=$(awk '
   /^```/ || /^~~~/ {
     m = substr($0, 1, 1)
