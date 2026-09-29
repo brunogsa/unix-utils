@@ -48,6 +48,16 @@ section=$("$script_dir/plan-section.sh" "$plan_file" "##" '^Task Breakdown[[:spa
 # - Task X
 # - Task Y.
 #
+# or, as the bullet spelling of "no dependencies":
+#   **Depends on**:
+#
+# - none.
+#
+# A lone "- none" bullet reads exactly like the inline "none".
+# Mixing it with "- Task N" bullets is ungrammatical: "none"
+# and "some" contradict, so accepting the mix would silently
+# pick one.
+#
 # A task's own dependency block ends at the next blank line or
 # heading.
 #
@@ -66,6 +76,8 @@ section=$("$script_dir/plan-section.sh" "$plan_file" "##" '^Task Breakdown[[:spa
 edges=$(printf '%s\n' "$section" | awk '
   function flush() {
     if (label == "") return
+    if (none_bullets > 1 || (none_bullets == 1 && dep_count > 0)) is_ungrammatical = 1
+    if (none_bullets == 1 && dep_count == 0) is_none = 1
     if (is_ungrammatical || (has_field && !is_none && dep_count == 0)) {
       print "UNGRAMMATICAL\t" label
       return
@@ -83,6 +95,7 @@ edges=$(printf '%s\n' "$section" | awk '
     in_deps = 0
     has_field = 0
     is_none = 0
+    none_bullets = 0
     is_ungrammatical = 0
     next
   }
@@ -105,6 +118,10 @@ edges=$(printf '%s\n' "$section" | awk '
     dep_count++
     next
   }
+  in_deps && /^- none[[:space:]]*$/ {
+    none_bullets++
+    next
+  }
   in_deps { in_deps = 0 }
   END { flush() }
 ')
@@ -114,7 +131,7 @@ ungrammatical=$(printf '%s\n' "$edges" |
 
 if [ -n "$ungrammatical" ]; then
   echo "error: unparsable **Depends on** field in: $ungrammatical" >&2
-  echo "  canonical grammar: '**Depends on**: none', or a bare '**Depends on**:' line followed by one '- Task N' bullet per dependency" >&2
+  echo "  canonical grammar: '**Depends on**: none', or a bare '**Depends on**:' line followed by either a lone '- none' bullet or one '- Task N' bullet per dependency (never both)" >&2
   exit 2
 fi
 
