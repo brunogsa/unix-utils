@@ -33,8 +33,8 @@ Exit codes:
   1 - one of the four defects above was found (diagnostics on stderr).
   2 - usage error (wrong arg count, plan file missing, a breakdown
       section carries real entries that could not be parsed, or a
-      task's "Depends on" field is written in neither canonical
-      shape).
+      task's "Depends on" field is written in none of the canonical
+      shapes).
 """
 import re
 import subprocess
@@ -72,9 +72,12 @@ DEPENDS_FIELD_RE = re.compile(r"\*?\*?Depends on\*?\*?:\s*(?P<deps>[^.\n]*)")
 TASK_HEADING_SPLIT_RE = re.compile(r"^### (\d+)\. ", re.M)
 
 # The whole field: its same-line trailer plus any "- ..."
-# bullets directly under it. Only two shapes are canonical
-# (plan-template.md): a "none" trailer, or an empty trailer
-# over at least one "- Task N" bullet.
+# bullets directly under it. Canonical shapes, per
+# plan-tasks-and-appendix.md: a "none" trailer, or an empty
+# trailer over a lone "- none" or one or more "- Task N".
+#
+# "- none" mixed with "- Task N" contradicts itself, so it is
+# a grammar violation, not a pick.
 #
 # Anything else, the inline "**Depends on**: Task 1" above
 # all, is a grammar violation rather than a dependency-free
@@ -127,7 +130,7 @@ def parse_pr_entries(section: str):
 def parse_task_entries(section: str):
     """Return (task_deps, ungrammatical): task id -> the task
     ids it depends on, plus the ids whose "Depends on" field
-    is written in neither canonical shape."""
+    is written in none of the canonical shapes."""
     chunks = TASK_HEADING_SPLIT_RE.split(section)
     task_deps: dict[str, list[str]] = {}
     ungrammatical: list[str] = []
@@ -137,10 +140,14 @@ def parse_task_entries(section: str):
             task_deps[tid] = []
             continue
         trailer = field.group("trailer").strip()
-        bullets = re.findall(r"- Task (\d+)", field.group("bullets") or "")
+        bullet_text = field.group("bullets") or ""
+        bullets = re.findall(r"- Task (\d+)", bullet_text)
+        none_bullets = re.findall(r"^- none[ \t]*$", bullet_text, re.M)
         if trailer == "none":
             task_deps[tid] = []
-        elif trailer == "" and bullets:
+        elif trailer == "" and len(none_bullets) == 1 and not bullets:
+            task_deps[tid] = []
+        elif trailer == "" and bullets and not none_bullets:
             task_deps[tid] = bullets
         else:
             ungrammatical.append(tid)
@@ -252,8 +259,9 @@ def main() -> int:
         )
         print(
             "  canonical grammar: '**Depends on**: none', or a bare "
-            "'**Depends on**:' line followed by one '- Task N' bullet "
-            "per dependency",
+            "'**Depends on**:' line followed by either a lone '- none' "
+            "bullet or one '- Task N' bullet per dependency "
+            "(never both)",
             file=sys.stderr,
         )
         return 2

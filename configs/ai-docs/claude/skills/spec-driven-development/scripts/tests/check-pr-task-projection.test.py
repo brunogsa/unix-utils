@@ -12,6 +12,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPT = Path(__file__).parent.parent / "check-pr-task-projection.py"
 
 
@@ -245,3 +247,37 @@ def test_should_exit_2_when_a_task_depends_on_opens_with_a_bare_colon_and_lists_
     result = _run(plan)
     assert result.returncode == 2
     assert "Task 1" in result.stderr
+
+
+def test_should_exit_0_when_a_bare_depends_on_is_followed_by_a_lone_none_bullet(tmp_path):
+    task_body = (
+        "### 1. First task\n\n"
+        "**Depends on**:\n"
+        "- none\n\n"
+        "### 2. Second task\n\n"
+        "**Depends on**:\n"
+        "- Task 1\n"
+    )
+    pr_body = "1. **PR-1** — First slice. Tasks: 1, 2. Depends on: none.\n"
+    plan = _write_plan(tmp_path, task_body=task_body, pr_body=pr_body)
+    result = _run(plan)
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    "bullets",
+    ["- none\n- Task 1\n", "- Task 1\n- none\n"],
+    ids=["none-before-task", "none-after-task"],
+)
+def test_should_exit_2_when_a_none_bullet_is_mixed_with_a_task_bullet_under_one_depends_on(tmp_path, bullets):
+    task_body = (
+        "### 1. First task\n\n"
+        "**Depends on**: none\n\n"
+        "### 2. Second task\n\n"
+        f"**Depends on**:\n{bullets}"
+    )
+    pr_body = "1. **PR-1** — First slice. Tasks: 1, 2. Depends on: none.\n"
+    plan = _write_plan(tmp_path, task_body=task_body, pr_body=pr_body)
+    result = _run(plan)
+    assert result.returncode == 2
+    assert "Task 2" in result.stderr
