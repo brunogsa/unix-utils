@@ -621,15 +621,14 @@ read_monthly_spend_limit() {
 # read_model_rates - dollars per token, per model, read from
 # the installed Claude Code's own model catalog.
 #
-# Claude Code's own cost.total_cost_usd counts only the
-# orchestrator's tokens.
+# Claude Code's own cost.total_cost_usd is its all-in session
+# total: the main model, advisor consults and sub-agents
+# together, in one figure.
 #
-# A sub-agent's tokens never reach that tracker, and
-# Anthropic closed the request to change it as "not
-# planned" (anthropics/claude-code#43945).
-#
-# So the sub-agent half has to be priced here from raw
-# transcript usage, which needs a rate per model.
+# That one figure cannot be split, so the sub-agent half
+# (Anthropic closed the request to change it as "not
+# planned", anthropics/claude-code#43945) has to be priced
+# here from raw transcript usage, which needs a rate per model.
 #
 # The rates come from extract-claude-model-rates.py rather
 # than a hand-kept table, so a model shipped after this
@@ -850,8 +849,10 @@ price_transcripts() {
 # "agent-*.jsonl" path and read as a scan failure instead of
 # the ordinary case of a session that spawned no sub-agents.
 #
-# Exit 1 means no sub-agent ran at all; exit 2 means one or
-# more ran but no rates could be read to price them.
+# Exit 1 means nothing to price: no sub-agent ran at all.
+# Exit 2 means something to price that could not be priced:
+# transcripts exist but no rates could be read, or one of
+# them was unreadable.
 #
 # render_subagent_cost tells the two apart to decide between
 # printing nothing and printing "+ ?".
@@ -906,6 +907,11 @@ sum_subagent_cost() {
 # That number is wrong after a resume, but a wrong number
 # still reads as a session that has spent something, where a
 # vanished widget cannot be told apart from a free one.
+#
+# It is also the all-in figure, advisor consults and
+# sub-agents included, so it can read higher than the priced
+# main-model figure it stands in for; a high number is
+# accepted because it still reads as spend.
 #
 # Unlike the sub-agent addendum, a priced $0.00 is printed
 # rather than suppressed: this is the row's main figure, and
