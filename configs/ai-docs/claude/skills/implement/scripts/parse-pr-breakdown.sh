@@ -41,12 +41,16 @@ fi
 # The fence toggle guards only the `## ` boundary check below —
 # it never skips content — since a fenced sample line quoted
 # inside the section must still print as part of it. Closes
-# only on the same marker (``` or ~~~) that opened it.
+# only on a line of the same marker (``` or ~~~), at least as
+# long as the opener, with no info string.
 section=$(awk '
   /^```/ || /^~~~/ {
     m = substr($0, 1, 1)
-    if (in_fence) { if (m == fence_char) in_fence = 0 }
-    else { in_fence = 1; fence_char = m; fence_line = NR }
+    fence_run = 0
+    while (substr($0, fence_run + 1, 1) == m) fence_run++
+    fence_tail = substr($0, fence_run + 1)
+    if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run; fence_line = NR }
+    else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
     if (in_section && !done) print
     next
   }
@@ -134,11 +138,15 @@ entries=$(printf '%s\n' "$section" | awk -v entry_boundary="$entry_boundary" '
   # doc-writing markup) is skipped entirely here, not just
   # boundary-guarded: its heading must never open a phantom
   # entry, and its field lines must never leak into a real
-  # entry above it. Closes only on the same marker that opened it.
+  # entry above it. Closes only on a line of the same marker,
+  # at least as long as the opener, with no info string.
   /^```/ || /^~~~/ {
     m = substr($0, 1, 1)
-    if (in_fence) { if (m == fence_char) in_fence = 0 }
-    else { in_fence = 1; fence_char = m }
+    fence_run = 0
+    while (substr($0, fence_run + 1, 1) == m) fence_run++
+    fence_tail = substr($0, fence_run + 1)
+    if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
+    else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
     next
   }
   in_fence { next }

@@ -250,6 +250,75 @@ Written like:
   assert_eq "should ignore a fenced PR-N heading shown as sample markup, emitting only the real entry (TSV body)" "$(printf 'PR-1\t1\t\t')" "$VERDICT_OUT"
 }
 
+it_should_keep_reading_prs_after_a_longer_fence_that_wraps_a_shorter_fenced_sample() {
+  local fixture
+  fixture=$(write_plan "nested-longer-fence-heading" '### PR-1. Naming and validators
+
+**Tasks**: 1
+
+**Depends on**: none
+
+`````markdown
+````mermaid
+## Heading quoted as sample markup inside the nested block
+````
+`````
+
+### PR-2. Core loop
+
+**Tasks**: 2
+
+**Depends on**: PR-1')
+  run_script "$fixture"
+  assert_eq "should keep reading PRs after a five-backtick fence wrapping a four-backtick sample that quotes a '## ' line (exit code)" "0" "$VERDICT_EXIT"
+  assert_eq "should keep reading PRs after a five-backtick fence wrapping a four-backtick sample that quotes a '## ' line (TSV body)" "$(printf 'PR-1\t1\t\t\nPR-2\t2\tPR-1\t')" "$VERDICT_OUT"
+}
+
+it_should_ignore_a_pr_n_heading_quoted_inside_a_longer_fence_wrapping_a_shorter_sample() {
+  local fixture
+  fixture=$(write_plan "nested-longer-fence-entry" '### PR-1. Naming and validators
+
+**Tasks**: 1
+
+**Depends on**: none
+
+`````markdown
+````mermaid
+### PR-9. Phantom entry quoted as sample markup
+
+**Tasks**: 9
+````
+`````
+')
+  run_script "$fixture"
+  assert_eq "should ignore a PR-N heading quoted inside a nested four-backtick sample within a five-backtick fence (exit code)" "0" "$VERDICT_EXIT"
+  assert_eq "should ignore a PR-N heading quoted inside a nested four-backtick sample within a five-backtick fence (TSV body)" "$(printf 'PR-1\t1\t\t')" "$VERDICT_OUT"
+}
+
+it_should_not_close_a_fence_on_an_inner_line_that_carries_an_info_string() {
+  local fixture
+  fixture=$(write_plan "info-string-closer" '### PR-1. Naming and validators
+
+**Tasks**: 1
+
+**Depends on**: none
+
+```
+```mermaid
+### PR-9. Phantom entry quoted as sample markup
+
+**Tasks**: 9
+```
+
+### PR-2. Core loop
+
+**Tasks**: 2
+
+**Depends on**: PR-1')
+  run_script "$fixture"
+  assert_eq "should not close a fence on a line carrying an info string, so the quoted PR-N heading stays ignored (TSV body)" "$(printf 'PR-1\t1\t\t\nPR-2\t2\tPR-1\t')" "$VERDICT_OUT"
+}
+
 it_should_emit_one_tsv_line_per_pr_n_entry_for_a_normal_multi_pr_plan
 it_should_emit_one_tsv_line_per_pr_when_each_pr_is_its_own_heading
 it_should_ignore_a_bolded_pr_label_inside_an_entrys_prose
@@ -268,6 +337,9 @@ it_should_keep_reading_prs_after_a_fenced_line_that_starts_with_a_section_headin
 it_should_ignore_a_fenced_pr_n_heading_shown_as_sample_markup
 it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof
 it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof
+it_should_keep_reading_prs_after_a_longer_fence_that_wraps_a_shorter_fenced_sample
+it_should_ignore_a_pr_n_heading_quoted_inside_a_longer_fence_wrapping_a_shorter_sample
+it_should_not_close_a_fence_on_an_inner_line_that_carries_an_info_string
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
