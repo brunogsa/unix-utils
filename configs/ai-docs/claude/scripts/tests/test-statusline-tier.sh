@@ -2855,9 +2855,11 @@ it_should_fall_back_to_the_reported_cost_when_no_catalog_can_be_read() {
   # Code's own reported total_cost_usd instead.
   actual="$(render_session_cost_for 4.75 "$transcript" "$sandbox/no-such-binary")"
 
+  # literal dollar sign, not a shell expansion
+  # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSessionCost > failure > should fall back to Claude Code's reported cost when no catalog can be read" \
-    "\$4.75" "$actual"
+    '$4.75' "$actual"
   rm -rf "$sandbox"
 }
 
@@ -2876,7 +2878,7 @@ it_should_report_the_cost_claude_code_sent_when_the_transcript_cannot_be_read() 
   # shellcheck disable=SC2016
   assert_eq \
     "StatusLineSessionCost > failure > should report the cost Claude Code sent when the session transcript cannot be read" \
-    "\$4.75" "$actual"
+    '$4.75' "$actual"
   rm -rf "$sandbox"
 }
 
