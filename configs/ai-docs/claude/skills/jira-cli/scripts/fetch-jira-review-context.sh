@@ -18,6 +18,7 @@
 
 # Source core Jira library if not already loaded
 if ! command -v jira-api-request &>/dev/null; then
+  # shellcheck source=jira.sh
   source "$HOME/.claude/skills/jira-cli/scripts/jira.sh"
 fi
 

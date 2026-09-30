@@ -47,6 +47,7 @@
 
 # Source core library (jira-validate-env, jira-api-request,
 # jira-check-error)
+# shellcheck source=jira.sh
 source "$HOME/.claude/skills/jira-cli/scripts/jira.sh"
 
 # ==============================================================
