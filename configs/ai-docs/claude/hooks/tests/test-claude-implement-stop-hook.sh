@@ -201,6 +201,56 @@ it_should_exit_silently_when_stop_hook_active_is_true() {
   assert_eq "should exit silently when stop_hook_active is true (no stdout)" "" "$HOOK_OUT"
 }
 
+# A turn ending with a background subagent in flight is not the
+# session ending mid-batch: the harness re-invokes the session
+# when that subagent completes, so the batch resumes on its own.
+#
+# claude-stop-orchestrator.sh step 9b already accepts that same
+# tradeoff for its "done" ping; these cases pin the gate to the
+# same predicate.
+it_should_allow_the_stop_when_a_unit_is_mid_flight_but_a_background_agent_is_running() {
+  local task_type
+  for task_type in subagent workflow; do
+    write_state "sess-bg-$task_type" '{"phase": "tails"}'
+    run_hook "{\"session_id\": \"sess-bg-$task_type\", \"stop_hook_active\": false, \
+\"background_tasks\": [{\"type\": \"$task_type\", \"id\": \"bg_01JQZ4\"}]}"
+    assert_eq "should allow the stop when a unit is mid-flight but a background $task_type is running (exit code)" \
+      "0" "$HOOK_EXIT"
+    assert_eq "should allow the stop when a unit is mid-flight but a background $task_type is running (no stdout)" \
+      "" "$HOOK_OUT"
+  done
+}
+
+it_should_block_a_mid_flight_unit_when_the_background_tasks_list_is_empty() {
+  write_state "sess-bg-empty" '{"phase": "tails"}'
+  run_hook '{"session_id": "sess-bg-empty", "stop_hook_active": false, "background_tasks": []}'
+  local decision
+  decision=$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')
+  assert_eq "should block a mid-flight unit when the background tasks list is empty (decision)" "block" "$decision"
+}
+
+# A `shell` task (a `tail -f`, a dev server) carries no promise
+# that a later Stop wakes the session, so it must not buy the
+# exemption — same carve-out the orchestrator's step 9b makes.
+it_should_block_a_mid_flight_unit_when_background_tasks_holds_only_a_shell_task() {
+  write_state "sess-bg-shell" '{"phase": "tails"}'
+  run_hook '{"session_id": "sess-bg-shell", "stop_hook_active": false, "background_tasks": [{"type": "shell", "id": "bg_01JQZ5"}]}'
+  local decision
+  decision=$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')
+  assert_eq "should block a mid-flight unit when background tasks holds only a shell task (decision)" "block" "$decision"
+}
+
+# The exemption belongs to the block and nothing else: --check
+# answers "is the batch mid-flight", which a background subagent
+# does not change. The orchestrator reads background_tasks
+# itself at step 9b, so exempting here too would double-count.
+it_should_still_report_mid_flight_under_check_when_a_background_subagent_is_running() {
+  write_state "sess-bg-check" '{"phase": "tails"}'
+  run_check '{"session_id": "sess-bg-check", "stop_hook_active": false, "background_tasks": [{"type": "subagent", "id": "bg_01JQZ6"}]}'
+  assert_eq "should still report mid-flight under --check when a background subagent is running (exit code)" \
+    "0" "$HOOK_EXIT"
+}
+
 it_should_report_mid_flight_under_check_when_phase_is_tasks_gates_or_tails() {
   local phase
   for phase in tasks gates tails; do
@@ -264,6 +314,10 @@ it_should_skip_a_corrupt_unit_and_still_block_on_a_valid_mid_flight_unit
 it_should_exit_silently_when_the_state_file_is_corrupt_json
 it_should_exit_silently_when_jq_is_unavailable
 it_should_exit_silently_when_stop_hook_active_is_true
+it_should_allow_the_stop_when_a_unit_is_mid_flight_but_a_background_agent_is_running
+it_should_block_a_mid_flight_unit_when_the_background_tasks_list_is_empty
+it_should_block_a_mid_flight_unit_when_background_tasks_holds_only_a_shell_task
+it_should_still_report_mid_flight_under_check_when_a_background_subagent_is_running
 it_should_report_mid_flight_under_check_when_phase_is_tasks_gates_or_tails
 it_should_report_not_mid_flight_under_check_when_phase_is_presented_halted_or_blocked
 it_should_report_mid_flight_under_check_even_when_stop_hook_active_is_true

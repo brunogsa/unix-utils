@@ -178,6 +178,11 @@
 #   presented, halted, and blocked — releases that unit; the
 #   stop is allowed once no unit is left mid-flight.
 #
+# - A Stop payload carrying a background_tasks entry of type
+#   subagent or workflow releases the BLOCK only, GATE MODE
+#   ONLY — see the comment at that check for why, and note that
+#   --check still answers "mid-flight" there.
+#
 # - halted and blocked deliberately release the stop: a run that
 #   stopped for the human (a failed gate, a triage decision)
 #   must be allowed to stop, otherwise this hook would spin
@@ -319,6 +324,34 @@ done
 # and its phase is the block reason's job, and the orchestrator
 # has nothing to print it into.
 [ "$mode" = "check" ] && exit 0
+
+# A turn that ends with a background subagent or workflow still
+# running is not the session walking away from a half-finished
+# batch.
+#
+# The harness re-invokes the session when that task completes,
+# so the batch resumes on its own and the block buys nothing
+# but filler turns.
+#
+# Only `subagent`/`workflow` carry that wake-up guarantee; a
+# long-lived `shell` task (a `tail -f`, a dev server) does not,
+# and would otherwise disarm the gate for the rest of the run.
+#
+# Predicate kept verbatim in step with
+# claude-stop-orchestrator.sh's step 9b, which makes the same
+# call for its "done" ping: these two hooks disagreed precisely
+# because this one had no copy at all.
+#
+# Fails open on missing jq or unparseable JSON, like every other
+# safeguard here — the block is what's skipped, never the truth
+# --check reports.
+bg_count=$(printf '%s' "$input" | jq -r \
+  '[(.background_tasks // [])[] | select(.type == "subagent" or .type == "workflow")] | length' \
+  2>/dev/null || printf '0')
+case "$bg_count" in ''|*[!0-9]*) bg_count=0 ;; esac
+if [ "$bg_count" -gt 0 ]; then
+  exit 0
+fi
 
 remaining=$((mid_flight_count - 1))
 remaining_note=""
