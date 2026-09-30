@@ -28,8 +28,9 @@
 # spec and a skip that reads as a pass is the defect.
 #
 # WARN is check-density.sh / check-bullet-gap.py /
-# check-bullet-structure.py exiting 1:
-# the reference reports density as a [Scout], never a
+# check-bullet-structure.py exiting 1.
+#
+# The reference reports density as a [Scout], never a
 # blocker, so it does not fail the run. Any other non-zero
 # density exit (a usage error) is a FAIL.
 #
