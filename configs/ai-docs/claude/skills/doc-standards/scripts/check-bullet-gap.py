@@ -282,7 +282,7 @@ def main(argv):
             else:
                 total += check(path, max_chars, max_words, changed_only)
         except OSError as err:
-            print(f"cannot read {path}: {err}", file=sys.stderr)
+            print(f"check-bullet-gap.py: cannot read {path}: {err}", file=sys.stderr)
             return 2
         except UnicodeDecodeError:
             # An uncaught decode error would exit 1, which

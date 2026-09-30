@@ -816,6 +816,17 @@ it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8() {
   assert_eq 'should leave the file byte-identical when the input is not valid UTF-8' "0" "$?"
 }
 
+it_should_exit_2_and_name_the_checker_when_the_input_path_does_not_exist() {
+  local path="$work_dir/missing.md" stdout_file="$work_dir/missing-stdout.txt" stderr_file="$work_dir/missing-stderr.txt" rc
+  python3 "$SCRIPT" "$path" >"$stdout_file" 2>"$stderr_file"
+  rc=$?
+  assert_eq 'should exit 2 when the input path does not exist' "2" "$rc"
+  assert_eq 'should print nothing on stdout when the input path does not exist' "" "$(cat "$stdout_file")"
+  local prefix="fix-density.py: cannot read $path: "
+  assert_eq 'should start the stderr line with the checker name and the missing path when the input path does not exist' \
+    "$prefix" "$(head -c "${#prefix}" "$stderr_file")"
+}
+
 it_should_split_an_over_cap_line_at_a_sentence_boundary_with_both_halves_under_the_caps
 it_should_split_an_over_cap_top_level_bullet_into_a_parent_bullet_and_an_indented_sub_bullet
 it_should_nest_a_split_sub_bullet_one_level_under_an_already_indented_parent_bullet
@@ -847,6 +858,7 @@ it_should_split_a_freshly_split_half_that_enters_scope_on_the_very_next_converge
 it_should_relay_changed_only_to_the_bullet_gap_fix_call_leaving_a_pre_existing_bullet_gap_violation_untouched
 it_should_exit_2_and_name_the_file_when_changed_only_is_used_outside_any_git_work_tree
 it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8
+it_should_exit_2_and_name_the_checker_when_the_input_path_does_not_exist
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

@@ -450,3 +450,17 @@ def test_exits_2_naming_script_and_file_when_input_is_not_valid_utf8(tmp_path):
         f"check-bullet-structure.py: cannot read {path}: not valid UTF-8"
     ]
     assert path.read_bytes() == latin1
+
+
+def test_exits_2_naming_script_and_file_when_input_path_does_not_exist(tmp_path):
+    path = tmp_path / "missing.md"
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), str(path)],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2, result.stderr
+    assert result.stdout == ""
+    assert result.stderr.startswith(f"check-bullet-structure.py: cannot read {path}: ")

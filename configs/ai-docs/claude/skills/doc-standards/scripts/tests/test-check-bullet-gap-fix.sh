@@ -361,6 +361,17 @@ it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8() {
   assert_eq 'should leave the file byte-identical when the input is not valid UTF-8' "0" "$?"
 }
 
+it_should_exit_2_and_name_the_checker_when_the_input_path_does_not_exist() {
+  local path="$work_dir/missing.md" stdout_file="$work_dir/missing-stdout.txt" stderr_file="$work_dir/missing-stderr.txt" rc
+  python3 "$SCRIPT" --fix "$path" >"$stdout_file" 2>"$stderr_file"
+  rc=$?
+  assert_eq 'should exit 2 when the input path does not exist' "2" "$rc"
+  assert_eq 'should print nothing on stdout when the input path does not exist' "" "$(cat "$stdout_file")"
+  local prefix="check-bullet-gap.py: cannot read $path: "
+  assert_eq 'should start the stderr line with the checker name and the missing path when the input path does not exist' \
+    "$prefix" "$(head -c "${#prefix}" "$stderr_file")"
+}
+
 it_should_insert_a_blank_line_after_a_sub_bullet_hit_and_pass_the_check_afterward
 it_should_insert_a_blank_line_after_an_over_80pct_hit_and_pass_the_check_afterward
 it_should_leave_the_file_byte_identical_when_fix_flag_is_omitted
@@ -374,6 +385,7 @@ it_should_exit_2_when_changed_lines_sh_fails_outside_a_git_work_tree_in_check_mo
 it_should_exit_2_when_changed_lines_sh_fails_outside_a_git_work_tree_in_fix_mode
 it_should_apply_changed_only_independently_per_file_when_given_multiple_files
 it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8
+it_should_exit_2_and_name_the_checker_when_the_input_path_does_not_exist
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

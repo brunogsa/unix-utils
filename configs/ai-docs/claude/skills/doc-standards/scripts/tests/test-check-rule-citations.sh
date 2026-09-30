@@ -479,6 +479,17 @@ it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8() {
   assert_eq 'should leave the file byte-identical when the input is not valid UTF-8' "0" "$?"
 }
 
+it_should_exit_2_and_name_the_checker_when_the_input_path_does_not_exist() {
+  local path="$work_dir/missing.md" stdout_file="$work_dir/missing-stdout.txt" stderr_file="$work_dir/missing-stderr.txt" rc
+  python3 "$SCRIPT" "$path" >"$stdout_file" 2>"$stderr_file"
+  rc=$?
+  assert_eq 'should exit 2 when the input path does not exist' "2" "$rc"
+  assert_eq 'should print nothing on stdout when the input path does not exist' "" "$(cat "$stdout_file")"
+  local prefix="check-rule-citations.py: cannot read $path: "
+  assert_eq 'should start the stderr line with the checker name and the missing path when the input path does not exist' \
+    "$prefix" "$(head -c "${#prefix}" "$stderr_file")"
+}
+
 it_should_accept_a_quoted_name_authored_as_a_bold_span_in_the_cited_file
 it_should_accept_a_quoted_name_authored_as_a_heading_in_the_cited_file
 it_should_accept_a_citation_that_compresses_the_authored_rule_name
@@ -502,6 +513,7 @@ it_should_report_only_the_hit_on_a_line_the_session_changed_under_changed_only
 it_should_scope_changed_only_independently_per_file_when_multiple_files_are_given
 it_should_exit_2_and_name_the_file_when_changed_lines_sh_cannot_determine_scope
 it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8
+it_should_exit_2_and_name_the_checker_when_the_input_path_does_not_exist
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
