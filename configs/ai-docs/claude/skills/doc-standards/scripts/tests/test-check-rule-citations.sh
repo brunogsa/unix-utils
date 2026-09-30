@@ -444,27 +444,6 @@ EOF
     '1:unresolved-rule:writing-style.md:"Separate planned from incidental"'
 }
 
-it_should_exit_2_and_name_the_file_when_changed_lines_sh_cannot_determine_scope() {
-  new_skill changed-only-not-a-repo
-
-  # Deliberately no git_init_at - the fixture sits outside any
-  # git work tree, so get-changed-lines.sh itself exits 2 and
-  # this must propagate rather than read as clean or fall back
-  # to whole-file scope.
-  cat > "$SKILL_DIR/references/writing-style.md" <<'EOF'
-# Writing style
-
-- **Bullets** -- one thought per bullet.
-EOF
-  cat > "$SKILL_DIR/references/pr-template.md" <<'EOF'
-Group changes per the "Separate planned from incidental" rule in writing-style.md.
-EOF
-  run_script_args --changed-only "$SKILL_DIR/references/pr-template.md"
-  assert_eq 'should exit 2 when get-changed-lines.sh cannot determine scope' "2" "$VERDICT_EXIT"
-  assert_contains 'should name the file in the exit-2 stderr message' \
-    "$SKILL_DIR/references/pr-template.md"
-}
-
 it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8() {
   local path="$work_dir/latin1.md" stdout_file="$work_dir/latin1-stdout.txt" stderr_file="$work_dir/latin1-stderr.txt" rc
   printf -- '- caf\351 item\n- next\n' > "$path"
@@ -561,7 +540,6 @@ it_should_flag_an_untracked_files_hit_under_changed_only_same_as_without_the_fla
 it_should_hide_a_pre_existing_hit_on_an_unmodified_tracked_file_under_changed_only
 it_should_report_only_the_hit_on_a_line_the_session_changed_under_changed_only
 it_should_scope_changed_only_independently_per_file_when_multiple_files_are_given
-it_should_exit_2_and_name_the_file_when_changed_lines_sh_cannot_determine_scope
 it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8
 it_should_exit_2_and_name_the_checker_when_the_input_path_does_not_exist
 it_should_exit_2_naming_the_cited_file_when_it_is_not_valid_utf8

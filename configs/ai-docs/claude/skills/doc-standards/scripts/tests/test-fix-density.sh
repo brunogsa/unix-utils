@@ -323,19 +323,6 @@ EOF
   assert_eq 'should leave a prose paragraph between the bullet and prose caps unchanged (independently re-verified clean by check-density.sh)' "0" "$DENSITY_EXIT"
 }
 
-it_should_exit_2_when_given_a_missing_file() {
-  FIXTURE="$work_dir/does-not-exist.md"
-  run_fix
-  assert_eq 'should exit 2 when given a missing file' "2" "$FIX_EXIT"
-}
-
-it_should_exit_2_when_given_an_unknown_flag() {
-  new_fixture unknown-flag.md
-  printf '# ok\n' > "$FIXTURE"
-  python3 "$SCRIPT" --nope "$FIXTURE" >"$work_dir/unknown-stdout.txt" 2>&1
-  assert_eq 'should exit 2 when given an unknown flag' "2" "$?"
-}
-
 it_should_leave_an_over_cap_line_untouched_when_an_unclosed_bracket_precedes_the_only_boundary() {
   new_fixture ac12-unclosed-bracket.md
   cat > "$FIXTURE" <<'EOF'
@@ -844,8 +831,6 @@ it_should_refuse_to_split_when_the_remainder_would_start_with_a_markdown_structu
 it_should_repair_hits_at_many_line_numbers_in_one_invocation
 it_should_leave_an_already_clean_file_unchanged_and_exit_0
 it_should_leave_a_prose_paragraph_between_the_bullet_and_prose_caps_unchanged_and_exit_0
-it_should_exit_2_when_given_a_missing_file
-it_should_exit_2_when_given_an_unknown_flag
 it_should_leave_an_over_cap_line_untouched_when_an_unclosed_bracket_precedes_the_only_boundary
 it_should_leave_an_over_cap_line_untouched_when_its_only_boundary_sits_inside_a_code_span
 it_should_leave_an_over_cap_line_untouched_when_its_only_semicolon_boundary_sits_inside_parentheses

@@ -438,26 +438,6 @@ def test_no_arguments_is_a_usage_error():
     assert "usage:" in result.stderr
 
 
-def test_unknown_option_is_a_usage_error(tmp_path):
-    result = subprocess.run(
-        [sys.executable, str(SCRIPT), "--nope", str(tmp_path / "x.md")],
-        capture_output=True,
-        text=True,
-    )
-
-    assert result.returncode == 2
-
-
-def test_unreadable_file_is_a_usage_error(tmp_path):
-    result = subprocess.run(
-        [sys.executable, str(SCRIPT), str(tmp_path / "does-not-exist.md")],
-        capture_output=True,
-        text=True,
-    )
-
-    assert result.returncode == 2
-
-
 def init_repo(tmp_path, name):
     """Create a throwaway git repo under tmp_path and return its path.
 

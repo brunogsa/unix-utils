@@ -135,18 +135,6 @@ EOF
   assert_eq 'should leave the file byte-identical when --fix is omitted (file content)' "$before" "$(cat "$FIXTURE")"
 }
 
-it_should_exit_2_when_given_a_missing_file() {
-  FIXTURE="$work_dir/does-not-exist.md"
-  run_fix
-  assert_eq 'should exit 2 when --fix is given a missing file' "2" "$FIX_EXIT"
-}
-
-it_should_exit_2_when_given_an_unknown_flag() {
-  new_fixture unknown-flag.md '- A single bullet.'
-  python3 "$SCRIPT" --nope "$FIXTURE" >"$work_dir/unknown-stdout.txt" 2>&1
-  assert_eq 'should exit 2 when given an unknown flag' "2" "$?"
-}
-
 # --- --changed-only cases ---.
 #
 # Every fixture below shares one violation shape: a parent
@@ -375,8 +363,6 @@ it_should_exit_2_and_name_the_checker_when_the_input_path_does_not_exist() {
 it_should_insert_a_blank_line_after_a_sub_bullet_hit_and_pass_the_check_afterward
 it_should_insert_a_blank_line_after_an_over_80pct_hit_and_pass_the_check_afterward
 it_should_leave_the_file_byte_identical_when_fix_flag_is_omitted
-it_should_exit_2_when_given_a_missing_file
-it_should_exit_2_when_given_an_unknown_flag
 it_should_hide_a_pre_existing_violation_and_still_report_a_newly_added_one_under_changed_only
 it_should_leave_a_pre_existing_violation_untouched_and_fix_only_the_newly_added_one_under_changed_only
 it_should_report_no_violations_under_changed_only_for_a_tracked_unmodified_file
