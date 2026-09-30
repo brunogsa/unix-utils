@@ -22,8 +22,8 @@
 # the distribution lives only in the annotation.
 #
 # LIST form (old — unchanged; a transition path for
-# plan_gate-roi.md/plan_script-overhaul.md- shaped plans, kept
-# until no plan uses it): parses the task's own
+# plans listing tests under each task's `**Tests (planned)**:`
+# bullets, kept until no plan uses it): parses the task's own
 # `**Tests (planned)**:` bullet list.
 #
 # Stripped of leading bullet marker, surrounding quotes, and

@@ -1,20 +1,17 @@
 ---
 # performance-check budget override, not prose a trim could reach.
 # This file is the committed, verbatim output of check-script-naming.py that
-# plan_script-overhaul.md Tasks 13-15 scope their rename batches from, and
-# check-script-naming.test.py asserts its batch scopes against it. Every
-# "Reason" cell is the checker's own output, so trimming would falsify the
-# reproduction rather than tighten it. Doubled once from the 1024 bundled
-# default.
+# the script-overhaul rename batches (hooks, skill scripts, oh-my-zsh
+# scripts) scope themselves from, and check-script-naming.test.py asserts
+# its batch scopes against it. Every "Reason" cell is the checker's own
+# output, so trimming would falsify the reproduction rather than tighten
+# it. Doubled once from the 1024 bundled default.
 words-budget: 2048
 ---
 
 # Rename list — check-script-naming.py swept across both repos
 
-This is the committed input Tasks 13-15 of `plan_script-overhaul.md` scope
-their rename batches from. Every "Reason" cell below is the checker's own
-output, verbatim; every "Proposed name" was hand-derived from the script's
-actual behavior.
+This is the committed input the script-overhaul rename batches scope themselves from. Every "Reason" cell below is the checker's own output, verbatim; every "Proposed name" was hand-derived from the script's actual behavior.
 
 ## How this was generated
 
@@ -39,10 +36,7 @@ path but never stats it, so this validates the name alone. Exit 0, 74/74 OK.
 
 `unix-utils` HEAD at capture time: `8f92ae95ddc33588bb4abc92161fe618d2b10ecc`.
 
-A second Claude Code session commits to this same working tree roughly once
-a minute (see `plan_script-overhaul.md`'s concurrency protocol), so this
-table is a point-in-time snapshot of both trees' scripts, not a value either
-checker invocation will reproduce byte-for-byte on a later run.
+A second Claude Code session commits to this same working tree roughly once a minute, so this table is a point-in-time snapshot of both trees' scripts, not a value either checker invocation will reproduce byte-for-byte on a later run.
 
 Batch 14 folds in `prep-local-context.sh` (`dc00b576`) and `prep-refactor-context.sh` (`45d62ffe`), which landed after that capture and fail the same rule the batch retires, so its counts run two above the sweep.
 

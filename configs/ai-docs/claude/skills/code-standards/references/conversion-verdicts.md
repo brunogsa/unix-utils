@@ -1,10 +1,10 @@
 ---
 # performance-check budget override, not prose a trim could reach.
 # This file is the committed, verbatim output of classify-conversion.py that
-# plan_script-overhaul.md Tasks 16-20 scope their conversion batches from,
-# and two pytest suites assert its table cells column by column. Trimming
-# would falsify the reproduction it exists to be; splitting would scatter
-# tables those suites parse as one. Words doubled twice from the 1024
+# the script-overhaul conversion batches (hooks, skill scripts, oh-my-zsh
+# shell scripts) scope themselves from, and two pytest suites assert its
+# table cells column by column. Trimming would falsify the reproduction it
+# exists to be; splitting would scatter tables those suites parse as one. Words doubled twice from the 1024
 # bundled default, lines once from 256.
 words-budget: 4096
 lines-budget: 512
@@ -12,10 +12,7 @@ lines-budget: 512
 
 # Conversion verdicts — classify-conversion.py swept across both repos
 
-This is the committed input Tasks 16-20 of `plan_script-overhaul.md` scope
-their conversion batches from. Per row, the `Path`, `Verdict`, and
-`Target` columns are exactly what `classify-conversion.py` returned —
-none of those three was hand-adjusted.
+This is the committed input the script-overhaul conversion batches scope themselves from. Per row, the `Path`, `Verdict`, and `Target` columns are exactly what `classify-conversion.py` returned — none of those three was hand-adjusted.
 
 The `Triggering reason` and `Harness fate` columns are hand-derived: the
 classifier emits only four keys (`path`, `target_language`, `tree_root`,
@@ -37,14 +34,7 @@ Exit code 0, no crash, on both trees.
 
 `unix-utils` HEAD at capture time: `96fd600bef36a06a4f9b5818f79ba1f5ce300618`.
 
-A second Claude Code session commits to this same working tree roughly
-once a minute (see `plan_script-overhaul.md`'s concurrency protocol), so
-this table is a point-in-time snapshot, not a value the classifier will
-reproduce byte-for-byte on a later run. Four of the files below
-(`claude-compact-skill-reload.sh`, `claude-tmux-title-compact-reminder.sh`,
-`claude-tmux-title-reminder.sh`, `tmux-window-title.sh`, and their four new
-paired `test-*.sh` files) were mid-edit or newly-added and uncommitted
-in that session at capture time.
+A second Claude Code session commits to this same working tree roughly once a minute, so this table is a point-in-time snapshot, not a value the classifier will reproduce byte-for-byte on a later run. Four of the files below (`claude-compact-skill-reload.sh`, `claude-tmux-title-compact-reminder.sh`, `claude-tmux-title-reminder.sh`, `tmux-window-title.sh`, and their four new paired `test-*.sh` files) were mid-edit or newly-added and uncommitted in that session at capture time.
 
 The `Target` column is stale in a second, narrower way: at capture time
 `classify-conversion.py` unconditionally emitted `py` for every row,

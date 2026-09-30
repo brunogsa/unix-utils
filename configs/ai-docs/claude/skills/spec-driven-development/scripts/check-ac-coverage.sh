@@ -28,8 +28,8 @@
 # left to fake — the failure class it guarded against no longer
 # exists.
 #
-# LIST form (old — still required so
-# plan_gate-roi.md/plan_script-overhaul.md-shaped plans keep
+# LIST form (old — still required so plans listing tests
+# under each task's `**Tests (planned)**:` bullets keep
 # passing unchanged; a transition path this comment already
 # marks for removal once no plan uses it).
 #
