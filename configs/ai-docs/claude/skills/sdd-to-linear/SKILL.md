@@ -151,6 +151,8 @@ Write the comments and the project description in PT-BR, the same rule as the is
 
 **A module failure degrades, never aborts.** This covers a disconnected MCP, a call that times out or never responds, a 5xx, and an auth or permission rejection.
 
+A failure on a call that would have written, an issue create or update, is a write failure first, so the stop-and-report rule above wins. Degrade only when no write was ever possible: the module is disconnected, or it rejected the run before its first write.
+
 - Degrade to the user's own non-Linear path: the plan file alone, which is complete without Linear.
 
 - Report the degradation loudly, naming the failed call.
