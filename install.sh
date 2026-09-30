@@ -407,6 +407,14 @@ ln -sf ~/unix-utils/configs/ai-docs/claude/scripts ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/agents ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/settings.json ~/.claude/
 
+# Pyright walks up from a file's path as opened, not from
+# its symlink target, and ~/.claude has no .git, so files
+# opened through the symlinks above never find the repo's
+# generated config without this link.
+if [[ -f ~/unix-utils/pyrightconfig.json ]]; then
+    ln -sf ~/unix-utils/pyrightconfig.json ~/.claude/pyrightconfig.json
+fi
+
 # ccstatusline's own config, rendered via statusLine.command.
 #
 # No env-var override exists for its settings path
