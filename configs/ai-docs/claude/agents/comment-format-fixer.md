@@ -53,7 +53,7 @@ Line numbers, if the caller supplies any, are stale the moment you edit — re-r
 - Fixing the script means teaching it to REPAIR the case correctly. It NEVER means raising `--max-chars`/`--max-lines`, broadening an exemption, or making the checker stop reporting.
   - That is silencing the check: it ships the defect the rule exists to catch and drops the guard for everyone.
 
-- After any edit to the script, run `bash ~/.claude/skills/doc-standards/scripts/tests/test-check-comment-format.sh` and leave it green.
+- After any edit to the script, run `node --test ~/.claude/skills/doc-standards/scripts/tests/check-comment-format.test.js` and leave it green.
   - A fixer that regresses the checker breaks every future caller, which costs far more than the line it was fixing.
 
 - If the suite is not green after two attempts, run `git -C ~/unix-utils checkout -- configs/ai-docs/claude/skills/doc-standards/scripts/check-comment-format.js`, then hand-fix and report the script gap.
@@ -76,7 +76,9 @@ For each file the caller names:
 2. Run `node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --fix --changed-only <file>` before reading or editing anything.
 
    - `--changed-only` scopes every rule to the lines `get-changed-lines.sh` reports vs HEAD for that file, so you never touch or report on a line the caller didn't change.
+
    - It repairs every mechanically-fixable violation in one pass and re-checks until it converges.
+
    - It exits 0 when nothing is left. That file is DONE — do not read it, do not edit it, move to the next file.
 
    - It exits 1 having printed the residue it refused, one `<RULE> <line>` row per violation. Those, and only those, are yours.
