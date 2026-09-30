@@ -2,13 +2,15 @@
 name: code-standards
 description: "USE PROACTIVELY when you write, edit, or review code — any language, including config that is itself code like init.lua, not just settings.json — even one-liners. Not for pure reading."
 user-invocable: false
-words-budget: 8192
+words-budget: 4096
 instructions-budget: 80
 ---
 
 # Code Standards
 
 Principles for any code edit. Each rule is an instruction with its nested why; code-fence examples sit at the margin below.
+
+Open `references/more-examples.md` when a rule's intent is unclear without a worked bad/good contrast.
 
 ## Readability & decomposition
 
@@ -20,49 +22,11 @@ Principles for any code edit. Each rule is an instruction with its nested why; c
 - [Instruction] Treat more than 2 nesting levels as a smell, more than 3 as a refactor — reduce it by extracting inner units or early returns.
   - [Why] Each nesting level multiplies the mental state the reader holds — bugs hide where "I don't understand" lives.
 
-- [Example]
-```ts
-// Bad — Promise.all + .map + async + try/catch + conditional, all stacked
-const perSchoolResults = await Promise.all(
-  cnpjs.map(async (cnpj) => {
-    const source = resolveDataSource(cnpj);
-    try {
-      const sa = await getSalesAgreements({ cnpj, source });
-      if (sa.failed) {
-        return { cnpj, agreements: [], failedBrands: sa.failed };
-      }
-      const skus = await getSKUs({ agreementIds: sa.ids });
-      return { cnpj, agreements: enrich(sa.data, skus), failedBrands: [] };
-    } catch (err) { ... }
-  })
-);
-
-// Good — extract per-school helper with single concern
-async function fetchSchoolData(cnpj: string) {
-  const source = resolveDataSource(cnpj);
-  return tryFetchAgreementsAndSkus({ cnpj, source });
-}
-
-const perSchoolResults = await Promise.all(cnpjs.map(fetchSchoolData));
-```
-
 - [Instruction] Break multi-clause one-liners across 2-3 short lines.
   - [Why] Spreading the logic moves work from the reader's mental stack into discrete, scannable steps.
 
 - [Instruction] Break unfamiliar APIs, nested callbacks into named intermediate variables.
   - [Why] A dense expression forces mental unpacking before judging it; named intermediates do that unpacking once, in the code.
-
-- [Example]
-```javascript
-// Bad -- requires mental unpacking:
-const paths = Array.from({ length: count }, (_, i) => resolve(dir, `batch-${i + 1}.csv`));
-
-// Good -- each step is clear:
-const paths = [];
-for (let i = 1; i <= count; i++) {
-  paths.push(resolve(dir, FILE_NAMES.batch(i)));
-}
-```
 
 ### Comments
 
@@ -80,42 +44,6 @@ return over a mutated accumulator) — not a documentation task.
 
 - [Instruction] When extracting, preserve data-testids and behavior — you're moving the markup, not changing it.
   - [Why] Altering behavior or testids during an extraction is a refactor disguised as a move — it breaks tests, erodes trust.
-
-- [Example]
-```tsx
-// Bad — flat return; parent has no scannable outline:
-return (
-  <div>
-    <h1>{title}</h1>
-    {isOverCap && (
-      <div className="banner banner--warning">
-        <Icon name="warning" />
-        <span>Cap reached: {currentCount} / {maxCount}</span>
-        <Button onClick={onClear}>Clear</Button>
-      </div>
-    )}
-    {isLoading && <Spinner />}
-    {!isLoading && items.length === 0 && (
-      <div className="empty">
-        <Illustration name="empty-box" />
-        <p>{emptyMessage}</p>
-      </div>
-    )}
-    {!isLoading && items.length > 0 && <ul>{items.map(...)}</ul>}
-  </div>
-);
-
-// Good — parent reads as outline; each branch is one line:
-return (
-  <div>
-    <h1>{title}</h1>
-    {isOverCap && <OverCapBanner current={currentCount} max={maxCount} onClear={onClear} />}
-    {isLoading && <Spinner />}
-    {!isLoading && items.length === 0 && <EmptyState message={emptyMessage} />}
-    {!isLoading && items.length > 0 && <ItemList items={items} />}
-  </div>
-);
-```
 
 - [Instruction] Extract a helper for 2–4 callsites only when extraction raises BOTH the readability and cognitive-load bars.
   - [Why] One bar alone doesn't justify indirection; both must rise or inline wins — DRY cuts complexity, not a value itself.
@@ -141,17 +69,6 @@ return (
 - [Instruction] **CRITICAL: Name functions and variables by what the caller gets, not how it works.**
   - [Why] Implementation changes with refactors but the contract shouldn't — a mechanism-named function lies after a rewrite.
 
-- [Example]
-```javascript
-// Bad -- describes the mechanism (what it does internally):
-function collectAllColumns(rows) { /* ... */ }
-function getValues(rows) { /* ... */ }
-
-// Good -- describes the purpose/output (what the caller gets):
-function buildCsvColumnOrder(rows) { /* ... */ }
-function extractUniqueEmails(rows) { /* ... */ }
-```
-
 - [Instruction] **CRITICAL: Reject a vague, overloaded verb (`resolve`, `handle`, `process`, `manage`) in a name — name the specific operation performed instead.**
   - [Why] A vague verb could mean any of several operations, forcing the reader to open the body to learn which one happens.
   - [Example] `resolveSoldSupplementaryChildSkus` — deleted, inlined at its call site; `resolveStandaloneSeries` → `mapGroupSeriesSiglas`; `resolveMarca` → `getSharedMarca`; `resolveSerieRank` → `getSerieSortIndex`, naming the ordinal it returns.
@@ -159,33 +76,8 @@ function extractUniqueEmails(rows) { /* ... */ }
 - [Instruction] Rename when a name implies the wrong concept, even when it computes the right value.
   - [Why] A reader trusts the name, not what it computes; a misleading name misdirects them even though the value is correct.
 
-- [Example]
-```ts
-// Bad — `hasApplied` implies an event tracker, but is actually a URL-state derivative.
-const hasApplied = appliedCNPJs.length > 0;
-// A reader debugging "why are we in slow mode after clearing?" gets misled twice:
-// once by the name (implies sticky), once by the derivation (it isn't).
-
-// Good — rename to match the question it answers:
-const isSlowMode = appliedCNPJs.length > 0;
-// The identifier now reads as the mode gate it actually is.
-```
-
 - [Instruction] In identifiers, avoid numbered phases (`Phase-1`), abbreviated prefixes (`sa`/`sap`), and platform-colliding acronyms (`SAP` vs ERP).
   - [Why] A reviewer skimming the diff in 18 months shouldn't have to recover spec context to decode `sa` or `Phase-2`.
-
-- [Example]
-```ts
-// Bad — numbered phases force readers to recover spec context
-const phaseOneReady = hasApplied && hasSchoolsData && hasAgreements;
-const saSummaryQuery = trpc.errorCallbacks.summary.useQuery(...);  // sa = SalesAgreement? SAP? SAS?
-const sapSummaryQuery = ...;  // SAP collides with the ERP
-
-// Good — describe what each step does
-const schoolsDataReady = hasApplied && hasSchoolsData && hasAgreements;
-const salesAgreementSummaryQuery = trpc.errorCallbacks.summary.useQuery(...);
-const salesAgreementProductSummaryQuery = ...;
-```
 
 - [Instruction] Namespace a concept by the external system whose vocabulary it belongs to — in the file, class, and module name alike.
   - [Why] Un-namespaced, the name implies every integrated system, so the reader can't tell which one's contract it obeys.
@@ -200,16 +92,6 @@ const salesAgreementProductSummaryQuery = ...;
 - [Instruction] When a name only makes sense alongside a comment explaining a business rule, rename it instead of keeping the comment.
   - [Why] A reader trusts the name over a comment, which can go stale or be skipped — a misleading name still misleads.
 
-- [Example]
-```ts
-// Bad — the type needs a comment to say what "entry" means:
-/** One sold sourcing collection's contribution to a resolved child SKU. */
-type Entry = { resolvedSku: string; quantidadeVenda: number };
-
-// Good — the name itself says what it holds; the comment becomes unnecessary:
-type SourcingContribution = { resolvedSku: string; quantidadeVenda: number };
-```
-
 ### Booleans, conditions & naming conventions
 
 - [Instruction] Prefix booleans with `is`/`has`/`should`/`can`.
@@ -218,28 +100,8 @@ type SourcingContribution = { resolvedSku: string; quantidadeVenda: number };
 - [Instruction] Avoid negating a negative (`!isNotReady`) — name the positive condition.
   - [Why] Double negatives force the reader to flip the truth value at every read site — a cognitive tax.
 
-- [Example]
-```ts
-// Bad -- negation of a negative:
-if (!item.isShrinked) { ... }
-
-// Good -- name the positive condition:
-const isExpandable = !item.isShrinked;
-if (isExpandable) { ... }
-```
-
 - [Instruction] **CRITICAL: When a condition spans 3+ clauses or negates a quantifier over a collection, extract it into a named boolean used at the if site.**
   - [Why] Such a condition hides intent behind stacked clauses or a flipped negation; a named boolean documents it.
-
-- [Example]
-```ts
-const isExpandableKit = item.type === KIT && !item.isShrinked && item.children.length < 1;
-if (isExpandableKit) { ... }
-
-// Negated quantifier — one clause, same decode cost:
-const hasNoPriceableItem = !items.some((item) => item.precoTotal > 0);
-if (hasNoPriceableItem) { ... }
-```
 
 - [Instruction] Encode a collection's type in its name — plural for arrays, a `Set`/`Map` suffix for those.
   - [Why] The convention is a free type system; drop it and the reader looks up the type at every use.
@@ -267,53 +129,11 @@ only — translation and business rules belong in their own named steps.
   - [Why] Keeping logging out of lower layers lets each focus on its own workload, staying simpler and easier to understand.
   - [Example] A mapper's `buildCollectionItem` carried an `if (soldChildSkus.length > 0)` guard whose only job was calling `LogContext.extendContext` — deleted; the caller already had every field needed to log it itself.
 
-- [Example]
-```javascript
-// BAD: Use case handles I/O
-function processDataUseCase(filepath) {
-  const data = readFileSync(filepath);  // I/O in use case!
-  const result = doBusinessLogic(data);
-  writeFileSync(outputPath, result);    // I/O in use case!
-}
-
-// GOOD: Controller handles I/O, use case is pure
-function processDataUseCase(data) {
-  return doBusinessLogic(data);
-}
-
-function processDataCommand(filepath, outputPath) {
-  const data = JSON.parse(readFileSync(filepath, 'utf8'));
-  const result = processDataUseCase(data);
-  writeFileSync(outputPath, JSON.stringify(result));
-}
-```
-
 - [Instruction] Let a low-level client signal failures as typed errors and let the business-aware caller decide what each one means — never bake the business reaction into the client.
   - [Why] The client sees the protocol, not the domain, so a policy chosen there binds every caller that will ever use it.
 
 - [Instruction] Builder/factory functions should only assemble data from explicit parameters. Business decisions (conditionals, calculations, transformations) belong at the use-case/caller level.
   - [Why] Business decisions buried in builders hide the rules; pulling them out keeps logic visible and builders reusable.
-
-- [Example]
-```ts
-// Bad -- business rule hidden inside builder:
-function buildAvulso({ parentKit, child }) {
-    return {
-        sku: child.sku,
-        price: child.isBonused ? 0 : child.price,     // business rule buried here
-        discount: child.isBonused ? 0 : parentKit.discount,
-    };
-}
-
-// Good -- business rule visible at call site, builder is a dumb assembler:
-const price = child.isBonused ? 0 : child.price;
-const discount = child.isBonused ? 0 : parentKit.discount;
-buildAvulso({ parentKit, childSku: child.sku, price, discount });
-
-function buildAvulso({ parentKit, childSku, price, discount }) {
-    return { sku: childSku, price, discount, brandSlug: parentKit.brandSlug };
-}
-```
 
 - [Instruction] When a spec defines N cases, design a unified pipeline that naturally produces correct output for all of them.
   - [Why] A 1:1 case translation couples control flow to spec — a spec change forces code change; each branch hides a bug.
@@ -368,19 +188,6 @@ work anywhere. Keep the chain synchronous.
 - [Instruction] **Name a helper for what it returns, not its operation — a `get`-noun signals a new immutable; a verb like `append` signals mutation.**
   - [Why] The name is the only clue if a result is fresh or mutated; `getX` reads as a value, `appendX` a hidden command.
 
-- [Example]
-```ts
-// Bad — name describes the operation; reads naturally only inside `setFailures`.
-function withSchoolAgreementFetchError(failures, schoolDocNumber, error): Failures { ... }
-setFailures((prev) => withSchoolAgreementFetchError(prev, schoolDocNumber, error));
-// Parsed left-to-right: "with-school-agreement-fetch-error-applied-to-prev" — incomplete without setFailures.
-
-// Good — name describes the output; reads as a noun on its own.
-function getPreviousFailuresWithNewSchoolAgreementFetchError(failures, schoolDocNumber, error): Failures { ... }
-setFailures((prev) => getPreviousFailuresWithNewSchoolAgreementFetchError(prev, schoolDocNumber, error));
-// Parsed left-to-right: "set failures to: [the previous failures with a new school-agreement fetch error]".
-```
-
 - [Instruction] Inject what's hard to mock — pass I/O collaborators as parameters.
   - [Why] Passing the collaborator as a param lets a test swap in a fake; an imported singleton binds at load, unsubstitutable.
 
@@ -389,21 +196,6 @@ setFailures((prev) => getPreviousFailuresWithNewSchoolAgreementFetchError(prev, 
 
 - [Instruction] **CRITICAL: In the signature, list the specific fields the function needs rather than passing whole config objects.**
   - [Why] Fat-object params hide internal coupling — the signature stops documenting what the function actually depends on.
-
-- [Example]
-```javascript
-// Bad -- signature hides what the function actually needs:
-async function fetchLogs({ config, workDir }) {
-  const query = buildQuery(config.logGroups);
-  const { start, end } = buildTimeWindow({ radiusMinutes: config.logRadius });
-}
-
-// Good -- signature documents exact dependencies:
-async function fetchLogs({ logGroups, logRadius, workDir }) {
-  const query = buildQuery(logGroups);
-  const { start, end } = buildTimeWindow({ radiusMinutes: logRadius });
-}
-```
 
 ## Logging & observability
 
