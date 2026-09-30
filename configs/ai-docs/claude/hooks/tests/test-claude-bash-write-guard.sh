@@ -173,6 +173,14 @@ it_should_allow_a_search_whose_pattern_merely_contains_a_redirect_arrow() {
   assert_eq "should allow a search whose quoted pattern merely contains a redirect arrow" "0" "$HOOK_EXIT"
 }
 
+it_should_allow_a_write_after_a_cd_whose_destination_cannot_be_resolved() {
+  # Once a cd target is unknown, every later relative path in
+  # the command is unknown too - resolving it against the old
+  # cwd invents a repo path the command never writes.
+  run_hook 'cd "$scratch"; printf wall > wall.md'
+  assert_eq "should allow a relative write after a cd into an unresolved directory" "0" "$HOOK_EXIT"
+}
+
 it_should_allow_a_read_only_sed_with_no_in_place_flag() {
   run_hook "sed -n '1,5p' src/index.ts"
   assert_eq "should allow a read-only sed with no in-place flag" "0" "$HOOK_EXIT"
@@ -198,6 +206,7 @@ it_should_allow_a_redirect_whose_target_is_an_unresolved_variable
 it_should_allow_a_redirect_into_dev_null
 it_should_allow_a_write_outside_any_git_work_tree
 it_should_allow_a_search_whose_pattern_merely_contains_a_redirect_arrow
+it_should_allow_a_write_after_a_cd_whose_destination_cannot_be_resolved
 it_should_allow_a_read_only_sed_with_no_in_place_flag
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"

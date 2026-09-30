@@ -270,8 +270,14 @@ for segment in split_segments(cmd):
             destination = os.path.expanduser('~')
         else:
             destination = os.path.normpath(os.path.join(cwd, arguments[0]))
-        if os.path.isdir(destination):
-            cwd = destination
+        if not os.path.isdir(destination):
+            # The cwd is now unknown, so every later relative
+            # path is unknown too. Resolving one against the
+            # old cwd invents a repo path the command never
+            # writes, which is the false block that gets a
+            # guard switched off.
+            break
+        cwd = destination
         continue
     for target in write_targets(exe, tokens, cwd):
         reason = block_reason(cwd, target)
