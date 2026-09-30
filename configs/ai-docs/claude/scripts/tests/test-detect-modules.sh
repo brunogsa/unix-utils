@@ -101,5 +101,10 @@ assert_eq "should stay silent on stderr when the settings file is readable" "" "
 stderr_output="$(CLAUDE_SETTINGS="$scratch/does-not-exist.json" bash "$SCRIPT_UNDER_TEST" 2>&1 >/dev/null)"
 assert_eq "should stay silent on stderr when the settings file does not exist" "" "$stderr_output"
 
+mkdir -p "$scratch/home/.claude"
+printf '%s\n' '{"enabledPlugins":{"core@arco-ai-plugins":true}}' > "$scratch/home/.claude/settings.json"
+output="$(HOME="$scratch/home" CLAUDE_SETTINGS= bash "$SCRIPT_UNDER_TEST" 2>/dev/null | tr '\n' ' ')"
+assert_eq "should read the settings file under HOME when CLAUDE_SETTINGS is unset" "arco=true linear=false " "$output"
+
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
