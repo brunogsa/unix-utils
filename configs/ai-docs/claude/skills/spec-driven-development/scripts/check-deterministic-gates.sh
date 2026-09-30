@@ -48,8 +48,7 @@
 # Exit codes:
 #   0 - no gate failed (WARN and SKIP do not count).
 #   1 - at least one gate exited non-zero.
-#   2 - usage error (wrong arg count, a named file missing,
-#       --spec-only without exactly one file).
+#   2 - usage error, or a named file missing.
 
 set -uo pipefail
 
