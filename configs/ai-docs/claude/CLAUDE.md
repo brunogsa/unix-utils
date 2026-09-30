@@ -198,8 +198,8 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] Load a skill once per session — never re-invoke it while it remains loaded in context.
   - [Why] Re-invoking repeats guidance already active in context, spending tokens without adding anything new.
 
-- [Instruction] After a compaction, treat every previously loaded skill as unloaded, not carried forward.
-  - [Why] Eager reload-all taxed every compaction 10-30k tokens; treating skills as unloaded is what stops the eager reload.
+- [Instruction] After a compaction, count a skill as still loaded only when the post-compaction reminder shows its full text; one shown truncated, or not shown at all, counts as unloaded.
+  - [Why] Reload-all cost 10-30k tokens per compaction, and re-invoking a skill the reminder re-injected in full pays twice.
 
 - [Instruction] On compaction, reload eagerly-first — before continuing the task — any procedural/orchestrator skill (e.g. `brainstorm`, `implement`) that still governs what you are doing.
   - [Why] These carry multi-step state compaction drops, leaving the orchestrator blind until its procedure returns.
