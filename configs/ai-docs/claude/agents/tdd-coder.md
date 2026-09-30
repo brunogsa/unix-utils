@@ -56,7 +56,7 @@ No CWD reads are required to begin — a caller with no plan file and no spec at
 
   - `<run-label>` — an opaque token the caller picks for this batch's file keys: `/tmp/tdd-coder_substeps_<run-label>.md` and `/tmp/tdd-coder_evidences_<run-label>.txt`.
     - The caller owns uniqueness among its own concurrently-live dispatches (e.g. `implement`'s task number, `address-verdicts`'s batch number).
-      - Derive a label yourself — batch/task-shaped, plus a short disambiguator — only when the caller gives none.
+    - Derive a label yourself — batch/task-shaped, plus a short disambiguator — only when the caller gives none.
 
 Any other optional field missing or unusable: proceed without it, note that once in the report. Only Units and Verification can put you in `blocked` on their own.
 
