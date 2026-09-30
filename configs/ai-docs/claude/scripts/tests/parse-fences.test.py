@@ -162,6 +162,14 @@ class TestAwkLibrary:
         )
         assert result.stdout == "  mermaid\n"
 
+    def test_reports_a_fence_shaped_line_that_stays_content_as_an_inner_event(
+        self, tmp_path
+    ):
+        lines = ["````", "```", "```python", "````", "```"]
+        result, _ = run_awk_lib(tmp_path, lines)
+        events = [row.partition(":")[2] for row in result.stdout.splitlines()]
+        assert events == ["open", "inner", "inner", "close", "open"]
+
     def test_fails_with_exit_2_naming_the_opener_line_when_a_fence_is_left_open(
         self, tmp_path
     ):

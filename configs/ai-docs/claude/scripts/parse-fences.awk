@@ -14,7 +14,8 @@
 #
 # Per record, before the caller's rules run:
 #   in_fence     1 while inside a fence, after this line
-#   fence_event  "open", "close", or "" for any other line
+#   fence_event  "open", "close", "inner" (a fence-shaped line
+#                that stays content), or "" for prose
 #   fence_tail   text after the run of a fence line (the
 #                info string of an opener)
 #   fence_line   line number where the current fence opened
@@ -52,6 +53,8 @@ $0 ~ fence_start_pattern {
   } else if (fence_marker == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) {
     in_fence = 0
     fence_event = "close"
+  } else {
+    fence_event = "inner"
   }
 }
 
