@@ -43,9 +43,9 @@ Batch 14 folds in `prep-local-context.sh` (`dc00b576`) and `prep-refactor-contex
 
 | Batch | Scope (Task) | Repo | Files | Failing |
 |---|---|---|---|---|
-| 13 | `hooks/` + `scripts/` (Task 13) | `unix-utils` | 23 | 22 |
-| 14 | `skills/*/scripts/`, excludes vendored `skill-standards/scripts/` + `eval-viewer/` (Task 14) | `unix-utils` | 57 | 21 |
-| 15 | `commands/` + `lib/` + root (Task 15) | `oh-my-zsh` | 31 | 31 |
+| 13 | `hooks/` + `scripts/` (the hooks/ and scripts/ rename batch) | `unix-utils` | 23 | 22 |
+| 14 | `skills/*/scripts/`, excludes vendored `skill-standards/scripts/` + `eval-viewer/` (the skill-scripts rename batch) | `unix-utils` | 57 | 21 |
+| 15 | `commands/` + `lib/` + root (the oh-my-zsh rename batch) | `oh-my-zsh` | 31 | 31 |
 
 Every FAIL line is assigned to exactly one of these three batches. Excluded and vendored paths never appear below.
 
@@ -79,7 +79,7 @@ Paths relative to `configs/ai-docs/claude/`.
 
 ## Batch 14 — `unix-utils` `skills/*/scripts/`
 
-Paths relative to `configs/ai-docs/claude/skills/`. Excludes vendored `skill-standards/scripts/` and `eval-viewer/` per Task 14's scope — neither produced a FAIL in the tree-mode sweep, so there was nothing to drop.
+Paths relative to `configs/ai-docs/claude/skills/`. Excludes vendored `skill-standards/scripts/` and `eval-viewer/` per the skill-scripts rename batch's scope — neither produced a FAIL in the tree-mode sweep, so there was nothing to drop.
 
 | Current path | Reason | Proposed name |
 |---|---|---|
