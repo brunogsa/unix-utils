@@ -7,8 +7,11 @@
 #   bash test-detect-modules.sh
 
 # Every fixture is a throwaway settings file under a scratch
-# dir, passed via CLAUDE_SETTINGS. The real settings.json is
-# never read or written.
+# dir. Most are passed via CLAUDE_SETTINGS.
+#
+# The HOME-default case clears it and points HOME at the
+# scratch dir instead, so both resolution paths get covered.
+# The real settings.json is never read or written.
 
 set -uo pipefail
 
