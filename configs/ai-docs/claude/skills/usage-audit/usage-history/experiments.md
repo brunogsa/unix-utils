@@ -549,7 +549,7 @@ A signal to watch rather than a change to make; it stays here because nothing is
 
 - **Log 2026-08-08 — this entry now has citable evidence, and it says the learning is still being violated.** Opus share on the six `reconciliation: "ok"` days:
 
-- 2026-07-20 6.6%, 2026-07-21 24.1%, 2026-07-26 84.1%, 2026-07-31 0.0%, 2026-08-05 74.8%, **2026-08-06 78.0%**.
+  - 2026-07-20 6.6%, 2026-07-21 24.1%, 2026-07-26 84.1%, 2026-07-31 0.0%, 2026-08-05 74.8%, **2026-08-06 78.0%**.
 
 - **2026-08-06 is the load-bearing reading.** `ea55036` reconciled the committed `model` default to sonnet on that very day, and opus still took 78% of spend.
 
