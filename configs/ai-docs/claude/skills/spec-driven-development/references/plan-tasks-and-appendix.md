@@ -77,6 +77,12 @@ Adding a task writes both entries — a task with only one is incomplete.
 
 **Tests (planned)**: dropped everywhere except one opt-out — when a task's tests are fully covered elsewhere, state `**Tests (planned)**: N/A — <reason>` inside that task's body entry.
 
+A task whose deliverable is prose or markdown (a prompt file, a markdown template, a doc) gets `**Tests (planned)**: N/A — prose deliverable, no test`, never a planned test.
+
+- Why: the global CLAUDE.md forbids routing a document or prose edit through TDD, so a test planned over one can never be written and the AC-to-test gate would demand the impossible.
+
+- A script the same task ships is still tested; only the prose part gets the N/A line.
+
 A plan-only run (no spec) carries each task's acceptance criteria inline in Task Details, since there's no spec AC to point back to.
 
 `Commits (sketch, minimum)` is a floor — drift fixes, scout findings, refactor sub-steps, `/auto-review` follow-ups become extra commits, each tagged `[Drift]`/`[Scout]`/`[Refactor]`.
