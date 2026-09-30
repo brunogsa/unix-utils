@@ -79,8 +79,12 @@ Resolve candidates with this decision tree — it never prompts; ambiguity becom
 
 - **Exactly one plan and one spec** → use both; print the resolved paths.
 - **Multiple plans (or multiple specs)** → the plan-pick question lists the matches numbered; pair each plan with the spec sharing its `<slug>`.
-- **No plan found** → the interview asks for the path; if none provided, **stop**.
+- **No plan found** → the interview asks for the path; if none provided, **hard-stop** with nothing executed, naming `to-plan` as how to produce one.
 - **Plan but no spec** → proceed plan-only, spec is optional context.
+
+A plan present means proceed, the plan file its only input, through the user's own `tdd-coder`, `quality-gate`, `create-pr` and `address-pr-comments`.
+
+`implement` reads and writes nothing in Linear and runs no drift detection: every Linear write belongs to `sdd-to-linear` alone, and a connected Linear MCP changes no branch here. It has no module opt-in to offer on any machine, so it never asks one.
 
 ### 1.2. One up-front interview
 
@@ -203,47 +207,7 @@ Create the run's durable state **immediately after §2.2's reminders land**, nev
 
 - **`<scratchpad>/notes.md`**, per CLAUDE.md's Note-taking discipline. Holds what the JSON cannot: blocked-task notes (§5.5).
 
-Each state file has exactly this shape:
-
-```json
-{
-  "version": 4,
-  "session_id": "<session_id>",
-  "slug": "<slug>",
-  "pr_label": "",
-  "phase": "tasks",
-  "start_sha": "<HEAD before this run touched anything>",
-  "batch_base_sha": "",
-  "tasks": [{ "id": "1", "status": "pending", "depends_on": [], "branch": "", "worktree_path": "" }],
-  "attempts": [],
-  "gate_dispatches": 0,
-  "baseline": { "log_path": "", "failures": [] },
-  "repo_green_gate": { "wanted": true },
-  "quality_gate": { "wanted": true, "reports": [] },
-  "worktree": { "created": false, "path": "", "branch": "" },
-  "pr": { "wanted": false, "ticket": "" },
-  "stack": { "wanted": false, "order": [], "refused": "" }
-}
-```
-
-- `start_sha` is `git rev-parse HEAD`, identical in every unit's file — the run's anchor.
-- `batch_base_sha` stays `""` until that unit starts (§3.2) — a dependent PR branches off its parent, so its base doesn't exist yet.
-- One `tasks[]` entry per task-id that unit resolved, flipped to `"in_progress"` at dispatch.
-  - `branch` / `worktree_path` are set only for a per-task worktree; `worktree`, `pr`, `repo_green_gate.wanted`, and `quality_gate.wanted` come from §1.2's answers.
-
-- Populate `depends_on` from the plan's `**Depends on**:` clause `check-tasks-dag.sh` validated (§1.3), as bare id strings (`["3", "5"]`; `none` → `[]`).
-  - `implement-loop-state.py` reads it to pick a DAG-eligible next task; unset, it degrades to lowest-id-first — seed it here.
-
-  - An id absent from this unit's `tasks[]` counts as satisfied: it belongs to an earlier PR that `references/pr-awareness.md`'s stop predicate requires `[Done]`.
-
-- `stack.order` is this unit's confirmed layer order (§1.2), which §3.4 advances through when `stack.wanted` is true, overriding the script's DAG-only ordering.
-  - Keeps its default until §1.2 answers `yes`.
-
-- `stack.refused` names the gate that forced `wanted: false` against a `yes` (`""` if none did), so batch-end can explain why.
-
-- `pr_label` is `""` on a plain run, else the `PR-N` that file belongs to.
-- §5.2/§5.4 append `attempts[]` entries as `{ "task", "n", "result", "signature", "at" }`.
-- `baseline.log_path` and `baseline.failures` come from §1.6, empty when `repo_green_gate.wanted` is `false`.
+Each state file's shape and field meanings live in [`references/state-file.md`](references/state-file.md), loaded here.
 
 **Update both artifacts as they go** — every flip, attempt, verdict, report path, and block; a compaction or kill keeps only what's on disk.
 
@@ -345,9 +309,12 @@ Read Units (ACs), Verification, and Files from the task's `## Task Details` entr
   - Strip any repo-wide/full-suite command (e.g. `test:agentic`, `yarn lint`) before pushing — a subagent verifies only its own change.
   - A stripped requirement isn't dropped: §8.3's gate re-covers it when on; §8.4's package names it when off.
   - When the plan names none, **omit the field**; `tdd-coder.md` derives one from a file declaring the repo's entry point and reports it plus its source.
+
   - Check the derived command in the report covers the task.
   - A wrong one is a plan gap, not a subagent fault — push the correct command on re-dispatch, and write it into its task slice.
+
   - Never substitute a full-suite command for a missing task-scoped one — the subagent budgets the full suite at two runs, and a stand-in burns it.
+
 - **Optional**:
   - `files:` — the task's **Files (logical order)** list as the **starting set** — touch more when needed, per §4.3.
   - `references:` — `plan_<slug>.md`, plus `spec_<slug>.md` when one exists.

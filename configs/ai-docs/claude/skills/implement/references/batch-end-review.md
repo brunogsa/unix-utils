@@ -136,6 +136,20 @@ A unit only reaches this package with every task `[Done]` — anything unfinishe
 - **Worktree merge-back reminder** — only when a worktree exists (read its path + branch from the state file); omit when the interview declined it.
   - Its path, its branch, and "nothing was merged or deleted — merge back and remove it yourself".
 
+## Degraded — modules that vanished mid-run
+
+`implement` calls no module itself, so nothing it does degrades; this section collects what its **task subagents** report.
+
+A subagent whose own opt-in module failed mid-task falls back to the user's own path and says so in its report.
+
+Give the package a dedicated **Degraded** section naming, per report:
+
+- **Which module vanished.**
+- **At which task.**
+- **Which non-module path took over.**
+
+When no subagent reported a degradation, the section reads `N/A — no module was in play`.
+
 ## The review notification — the package's closing block
 
 Printed last, after every other package section — the pointer to the work, not a second summary of it: no findings, no counts beyond the commit count.
