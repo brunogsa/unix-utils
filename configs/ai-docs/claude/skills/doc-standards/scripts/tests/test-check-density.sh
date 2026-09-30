@@ -479,7 +479,28 @@ it_should_exit_2_when_iconv_is_unavailable() {
     "$(cat "$err_file")"
 }
 
+# macOS iconv fails with "Inappropriate ioctl for device" when
+# its stdout is /dev/null and a multibyte character straddles
+# its 1024-byte read boundary.
+#
+# Here the em dash starts at byte offset 1022 (3 x 256 + 254
+# bytes before it). Every line stays under the bullet cap.
+it_should_accept_valid_utf8_with_a_multibyte_char_across_the_1024_byte_boundary() {
+  local full_line short_line content err_file="$work_dir/boundary.err" out rc
+  full_line=$(repeat_char a 255)
+  short_line=$(repeat_char a 253)
+  content=$(printf '%s\n%s\n%s\n%s\n\xe2\x80\x94 end\n' \
+    "$full_line" "$full_line" "$full_line" "$short_line")
+  new_fixture utf8-boundary.md "$content"
+  out=$("$SCRIPT" "$FIXTURE" 2>"$err_file")
+  rc=$?
+  assert_eq 'should exit 0 for valid UTF-8 with a character across the 1024-byte boundary (exit code)' '0' "$rc"
+  assert_eq 'should print nothing to stdout for that file' '' "$out"
+  assert_eq 'should print nothing to stderr for that file' '' "$(cat "$err_file")"
+}
+
 it_should_report_nothing_for_a_clean_file
+it_should_accept_valid_utf8_with_a_multibyte_char_across_the_1024_byte_boundary
 it_should_flag_a_line_over_the_char_cap
 it_should_flag_a_line_over_the_word_cap
 it_should_exit_2_for_a_non_utf8_file_under_the_c_locale

@@ -179,7 +179,9 @@ for f in "${FILES[@]}"; do
   fi
 
   # why: stdin, because a "-x.md" argument parses as a flag.
-  if ! iconv -f UTF-8 -t UTF-8 <"$f" >/dev/null 2>&1; then
+  # why: piped to cat, because macOS iconv fails with stdout on
+  # /dev/null for some valid input; pipefail keeps iconv's rc.
+  if ! iconv -f UTF-8 -t UTF-8 <"$f" 2>/dev/null | cat >/dev/null; then
     echo "check-density.sh: cannot read $f: not valid UTF-8" >&2
     exit 2
   fi
