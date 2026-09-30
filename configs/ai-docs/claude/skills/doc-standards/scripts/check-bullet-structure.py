@@ -4,19 +4,24 @@
 Rules:
   dangling-colon  a list item ending in ":" whose next list item sits at the
                   same or a shallower indent, so the colon introduces nothing.
+  dangling-dash   a list item ending in an em dash or " --" whose next list
+                  item, at the same or a shallower indent, continues the
+                  sentence in lowercase - one sentence split across bullets.
   staircase       3+ list items chained as single children, each one level
                   deeper than the last - sibling sentences pushed down a level.
 
 Output (mirrors check-bullet-gap.py):
   == <filename>                 header, per file with hits
   <line>:dangling-colon         the colon-ended item
+  <line>:dangling-dash          the dash-ended item
   <line>:staircase:<A>-<B>      the chain's head, and its first-last line span
 
 Report-only, no --fix: nesting the items after a colon versus ending it with a
 period, or flattening a chain versus keeping one level, is an authorial call.
 
 --changed-only keeps a hit when ANY line it spans changed vs HEAD, per
-get-changed-lines.sh - the colon line or the item after it, any chain level.
+get-changed-lines.sh - the colon or dash line or the item after it, any
+chain level.
 
 Usage:
   check-bullet-structure.py [--changed-only] <file> [<file>...]
@@ -65,6 +70,9 @@ INLINE_CODE = re.compile(r"`[^`]*`")
 CODE_SPAN_STAND_IN = "code"
 TRAILING_EMPHASIS = re.compile(r"[*_\s]+$")
 
+# " --" needs its leading space, so a "---" rule never matches.
+SENTENCE_DASHES = ("\u2014", " --")
+
 
 class ListItem:
     def __init__(self, line_no, indent, parent):
@@ -111,15 +119,30 @@ def build_list_items(lines, kinds):
     return items
 
 
-def ends_with_colon(line):
-    """True when the item's own text ends in ":".
+def get_item_ending_text(line):
+    """The item's own line as its ending should be judged.
 
-    Each inline code span becomes one opaque word, so a colon inside it
-    never counts, and a "Label: <code span>" item ends in the span.
-    A closing bold marker after the colon hides nothing."""
+    Each inline code span becomes one opaque word, so punctuation inside
+    it never counts, and a "Label: <code span>" item ends in the span.
+    A closing bold marker after the punctuation hides nothing."""
     text = INLINE_CODE.sub(CODE_SPAN_STAND_IN, line)
-    text = TRAILING_EMPHASIS.sub("", text)
-    return text.endswith(":")
+    return TRAILING_EMPHASIS.sub("", text)
+
+
+def ends_with_colon(line):
+    return get_item_ending_text(line).endswith(":")
+
+
+def ends_with_sentence_dash(line):
+    return get_item_ending_text(line).endswith(SENTENCE_DASHES)
+
+
+def starts_in_lowercase(line):
+    """True when the item's text, right after its list marker, opens with
+    a lowercase letter - a bold, backtick, bracket or digit opener never
+    counts."""
+    text = line[bullet_gap.BULLET.match(line).end():].lstrip()
+    return text[:1].islower()
 
 
 def next_non_blank_index(lines, start):
@@ -129,20 +152,42 @@ def next_non_blank_index(lines, start):
     return None
 
 
+def find_next_item_outside(lines, kinds, item):
+    """Index of the next non-blank line when it is a list item at the same
+    or a shallower indent than `item` - so not nested under it - else None."""
+    j = next_non_blank_index(lines, item.line_no)
+    if j is None or kinds[j] != "text":
+        return None
+
+    next_indent = bullet_gap.indent_of(lines[j])
+    is_sibling_or_shallower = next_indent is not None and next_indent <= item.indent
+    return j if is_sibling_or_shallower else None
+
+
 def find_dangling_colons(lines, kinds, items):
     hits = []
     for item in items:
         if not ends_with_colon(lines[item.line_no - 1]):
             continue
 
-        j = next_non_blank_index(lines, item.line_no)
-        if j is None or kinds[j] != "text":
+        j = find_next_item_outside(lines, kinds, item)
+        if j is not None:
+            hits.append((item.line_no, "dangling-colon", {item.line_no, j + 1}))
+    return hits
+
+
+def find_dangling_dashes(lines, kinds, items):
+    """Dash-ended items whose sentence runs on into the next item outside
+    them. A nested continuation is left alone: fix-density.py splits an
+    over-cap bullet at a dash into a parent and a nested child by design."""
+    hits = []
+    for item in items:
+        if not ends_with_sentence_dash(lines[item.line_no - 1]):
             continue
 
-        next_indent = bullet_gap.indent_of(lines[j])
-        is_sibling_or_shallower = next_indent is not None and next_indent <= item.indent
-        if is_sibling_or_shallower:
-            hits.append((item.line_no, "dangling-colon", {item.line_no, j + 1}))
+        j = find_next_item_outside(lines, kinds, item)
+        if j is not None and starts_in_lowercase(lines[j]):
+            hits.append((item.line_no, "dangling-dash", {item.line_no, j + 1}))
     return hits
 
 
@@ -173,7 +218,11 @@ def find_hits(lines):
     """(line, detail, scope_lines) per violation, in line order."""
     kinds = bullet_gap.classify_lines(lines)
     items = build_list_items(lines, kinds)
-    hits = find_dangling_colons(lines, kinds, items) + find_staircases(items)
+    hits = (
+        find_dangling_colons(lines, kinds, items)
+        + find_dangling_dashes(lines, kinds, items)
+        + find_staircases(items)
+    )
     return sorted(hits, key=lambda hit: hit[0])
 
 

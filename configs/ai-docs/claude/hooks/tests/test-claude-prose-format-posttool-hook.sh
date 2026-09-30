@@ -288,10 +288,12 @@ EOF
 }
 
 it_should_carry_the_rule_block_verbatim_in_every_report() {
-  local dir long_line rule1 rule2 rule3
+  local dir long_line rule1 rule2 rule3 rule4 rule5
   rule1='Prose: small paragraphs of 1-4 sentences, blank line between each.'
   rule2='Bullets + sub-bullets: 1-2 sentences each.'
   rule3='One paragraph = one physical line — never hard-wrap. Never drop information.'
+  rule4='Colon-ended bullet: nest the items it introduces under it, or end it with a period. Single-child chain 3+ levels deep: flatten it into siblings under the shared parent.'
+  rule5='Dash-ended bullet whose next bullet continues its sentence: rewrite the pair as two full sentences, or rejoin them into one bullet. Before flattening a chain, rewrite as a full sentence any line that continues the sentence above it.'
 
   dir=$(new_repo_fixture)
   long_line=$(python3 -c "print('word ' * 120)")
@@ -300,6 +302,8 @@ it_should_carry_the_rule_block_verbatim_in_every_report() {
   assert_contains "under-threshold report should carry rule line 1 verbatim" "$rule1" "$HOOK_OUT"
   assert_contains "under-threshold report should carry rule line 2 verbatim" "$rule2" "$HOOK_OUT"
   assert_contains "under-threshold report should carry rule line 3 verbatim" "$rule3" "$HOOK_OUT"
+  assert_contains "under-threshold report should carry rule line 4 verbatim" "$rule4" "$HOOK_OUT"
+  assert_contains "under-threshold report should carry rule line 5 verbatim" "$rule5" "$HOOK_OUT"
 
   dir=$(new_repo_fixture)
   : > "$dir/big.md"
@@ -310,6 +314,8 @@ it_should_carry_the_rule_block_verbatim_in_every_report() {
   assert_contains "over-threshold report should carry rule line 1 verbatim" "$rule1" "$HOOK_OUT"
   assert_contains "over-threshold report should carry rule line 2 verbatim" "$rule2" "$HOOK_OUT"
   assert_contains "over-threshold report should carry rule line 3 verbatim" "$rule3" "$HOOK_OUT"
+  assert_contains "over-threshold report should carry rule line 4 verbatim" "$rule4" "$HOOK_OUT"
+  assert_contains "over-threshold report should carry rule line 5 verbatim" "$rule5" "$HOOK_OUT"
 }
 
 it_should_run_the_printed_pointer_command_for_a_nested_file() {
@@ -465,6 +471,39 @@ EOF
     "$HOOK_OUT"
 }
 
+it_should_tell_the_author_how_to_fix_a_dangling_dash_row() {
+  local dir
+  dir=$(new_repo_fixture)
+  cat > "$dir/dash.md" << 'EOF'
+- Either flag marks a run with nobody standing by —
+- the same premise the other step uses, so a prompt here stalls the run.
+EOF
+  run_hook "Write" "$dir/dash.md"
+  assert_line_number_row_matches "should report the dangling dash on its own row" "L1" "$HOOK_OUT"
+  assert_contains "should tell the author to rewrite a dash-split pair as two full sentences" \
+    "rewrite the pair as two full sentences" "$HOOK_OUT"
+}
+
+it_should_describe_the_dangling_dash_row_over_the_threshold() {
+  # Descriptions render only in the counts regime, so 15
+  # over-cap lines push the report past the threshold.
+  local dir long_line i
+  dir=$(new_repo_fixture)
+  long_line=$(python3 -c "print('word ' * 120)")
+  : > "$dir/dash.md"
+  for ((i = 0; i < 15; i++)); do
+    printf '%s\n\n' "$long_line" >> "$dir/dash.md"
+  done
+  cat >> "$dir/dash.md" << 'EOF'
+- Either flag marks a run with nobody standing by —
+- the same premise the other step uses, so a prompt here stalls the run.
+EOF
+  run_hook "Write" "$dir/dash.md"
+  assert_contains "should label the dangling-dash row" "dangling-dash" "$HOOK_OUT"
+  assert_contains "should describe the dangling-dash row" \
+    "bullet ends in a dash and the next bullet continues its sentence" "$HOOK_OUT"
+}
+
 it_should_run_correctly_when_the_path_has_a_space() {
   local dir subdir long_line pointer_line cmd rc
   dir=$(new_repo_fixture)
@@ -615,6 +654,8 @@ it_should_align_the_flag_column_across_printed_commands
 it_should_carry_density_char_word_counts_under_the_threshold
 it_should_keep_hard_wrap_rows_bare_under_the_threshold
 it_should_report_list_structure_rows_and_their_fix_line
+it_should_tell_the_author_how_to_fix_a_dangling_dash_row
+it_should_describe_the_dangling_dash_row_over_the_threshold
 it_should_run_correctly_when_the_path_has_a_space
 it_should_produce_an_inert_command_for_a_shell_metacharacter_path
 it_should_treat_a_leading_dash_filename_as_a_path_not_a_flag

@@ -1,9 +1,12 @@
 """Tests for check-bullet-structure.py - the report-only list-structure checker.
 
-Two rules, each asserted as exact `(line, detail)` rows rather than a count:
+Three rules, each asserted as exact `(line, detail)` rows rather than a count:
 
   dangling-colon  a list item ending in ":" whose next list item sits at the
                   same or a shallower indent, so the colon introduces nothing.
+  dangling-dash   a list item ending in an em dash or " --" whose next list
+                  item, at the same or a shallower indent, continues the
+                  sentence in lowercase.
   staircase       a chain of 3+ list items, each the single child of the one
                   above, reported once at the chain's head with its span.
 
@@ -206,6 +209,75 @@ def test_colon_items_inside_a_fenced_code_block_are_not_reported(tmp_path):
     assert hits(result) == []
 
 
+# --- dangling-dash: flag cases ---
+
+
+def test_flags_a_bullet_ending_in_an_em_dash_whose_next_sibling_continues_the_sentence_in_lowercase(tmp_path):
+    result = run(
+        tmp_path,
+        "- Either flag marks a run with nobody standing by —\n"
+        "- the same premise the other step uses, so a prompt here stalls the run.\n",
+    )
+
+    assert hits(result) == [(1, "dangling-dash")]
+    assert result.returncode == 1
+
+
+def test_flags_a_bullet_ending_in_a_double_hyphen_the_same_way(tmp_path):
+    result = run(
+        tmp_path,
+        "- Either flag marks a run with nobody standing by --\n"
+        "- the same premise the other step uses, so a prompt here stalls the run.\n",
+    )
+
+    assert hits(result) == [(1, "dangling-dash")]
+
+
+def test_flags_a_dash_ended_bullet_whose_lowercase_continuation_sits_at_a_shallower_indent(tmp_path):
+    result = run(
+        tmp_path,
+        "- **Under `--auto-solve`, never prompt on a multi-match** and say so.\n"
+        "  - Either flag marks a run dispatched by a skill with nobody standing by —\n"
+        "\n"
+        "- the same premise the other step uses, so a prompt here stalls the run.\n",
+    )
+
+    assert hits(result) == [(2, "dangling-dash")]
+
+
+# --- dangling-dash: no-flag cases ---
+
+
+def test_leaves_a_dash_ended_bullet_alone_when_its_continuation_is_nested_beneath_it(tmp_path):
+    result = run(
+        tmp_path,
+        "- Either flag marks a run with nobody standing by —\n"
+        "  - the same premise the other step uses, so a prompt here stalls the run.\n",
+    )
+
+    assert hits(result) == []
+
+
+def test_leaves_a_dash_used_as_an_empty_value_placeholder_alone_when_the_next_bullet_opens_uppercase(tmp_path):
+    result = run(
+        tmp_path,
+        "- Corpo da requisição: —\n"
+        "- Comportamento interno: grava a escola e publica o evento.\n",
+    )
+
+    assert hits(result) == []
+
+
+def test_ignores_a_dash_that_sits_inside_a_trailing_inline_code_span(tmp_path):
+    result = run(
+        tmp_path,
+        "- Options end at the separator `--`\n"
+        "- files after it are read as paths, never as flags.\n",
+    )
+
+    assert hits(result) == []
+
+
 # --- staircase: flag cases ---
 
 
@@ -313,6 +385,16 @@ def test_changed_only_reports_a_dangling_colon_whose_only_changed_line_is_the_ne
     result = run_changed_only(repo)
 
     assert hits(result) == [(1, "dangling-colon")]
+
+
+def test_changed_only_keeps_a_dangling_dash_hit_when_only_the_continuation_line_changed(tmp_path):
+    repo = new_repo(tmp_path, "- Either flag marks a run with nobody standing by —\n")
+    with open(repo / "doc.md", "a", encoding="utf-8") as fh:
+        fh.write("- the same premise the other step uses, so a prompt here stalls the run.\n")
+
+    result = run_changed_only(repo)
+
+    assert hits(result) == [(1, "dangling-dash")]
 
 
 def test_changed_only_hides_defects_whose_lines_were_all_left_untouched(tmp_path):

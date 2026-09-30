@@ -105,6 +105,7 @@ description_for_label() {
     hard-wrap) echo "paragraph split across physical lines" ;;
     bullet-gap) echo "bullet missing its blank line" ;;
     dangling-colon) echo "bullet ends in a colon but introduces no deeper item" ;;
+    dangling-dash) echo "bullet ends in a dash and the next bullet continues its sentence" ;;
     staircase) echo "3+ single-child bullets, each a level deeper" ;;
     width) echo "comment line over its width cap" ;;
     paragraph) echo "comment paragraph over its line cap with no blank break" ;;
@@ -190,7 +191,8 @@ total=$(wc -l < "$rows_file" | tr -d ' ')
 RULE_BLOCK='Prose: small paragraphs of 1-4 sentences, blank line between each.
 Bullets + sub-bullets: 1-2 sentences each.
 One paragraph = one physical line — never hard-wrap. Never drop information.
-Colon-ended bullet: nest the items it introduces under it, or end it with a period. Single-child chain 3+ levels deep: flatten it into siblings under the shared parent.'
+Colon-ended bullet: nest the items it introduces under it, or end it with a period. Single-child chain 3+ levels deep: flatten it into siblings under the shared parent.
+Dash-ended bullet whose next bullet continues its sentence: rewrite the pair as two full sentences, or rejoin them into one bullet. Before flattening a chain, rewrite as a full sentence any line that continues the sentence above it.'
 
 {
   printf 'prose-format: %s — %s violation%s\n\n' "$base" "$total" "$([ "$total" -eq 1 ] && echo "" || echo "s")"

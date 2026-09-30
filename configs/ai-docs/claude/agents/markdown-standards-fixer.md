@@ -124,7 +124,9 @@ For each file the caller names:
 
    - `check-bullet-structure.py` has no `--fix`, so fix each row by hand, since nest-versus-flatten is a call only a reader of the text can make.
      - `dangling-colon` — nest the items the colon introduces under it, or end the bullet with a period when they are its siblings.
+     - `dangling-dash` — rewrite the reported bullet and the next as two full sentences, or rejoin them into one bullet when it fits the cap.
      - `staircase` — flatten the reported chain into siblings under the shared parent, keeping a level only where a line elaborates the one above.
+       - Rewrite a line that continues the sentence above it as a full sentence before flattening, since an outdented continuation opens mid-sentence.
 
 6. Run `check-rule-citations.py --changed-only <file>` LAST, once the line rules are green, and fix each row it reports.
 
