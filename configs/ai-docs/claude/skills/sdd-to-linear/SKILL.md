@@ -109,6 +109,26 @@ So those two gates alone can reject a cyclic or cross-level graph.
 
 Exporting only a graph they accepted keeps an uncheckable cycle out of Linear.
 
+Once the issues exist, write each PR's decisions as one comment on that PR's issue through `save_comment`.
+
+The comment carries the decisions recorded in the tasks that roll into that PR, and the alternatives each one discarded.
+
+`save_comment` takes markdown, threads through `parentId`, and attributes the author automatically.
+
+Write a mermaid block inside a decision through unchanged, because Linear renders a `mermaid` fenced block natively.
+
+A PR whose tasks record no decision gets no comment at all, never an empty or placeholder one.
+
+Then set the Linear project description from `spec_<slug>.md` when it sits beside the plan.
+
+Take its `## Background / Context` and `## Functional Decisions` sections.
+
+Where no spec exists, the export still runs and the project description stays as the user set it, never overwritten with plan-derived filler.
+
+Why: a colleague opening any one issue reaches the reasoning behind the whole project without the plan file.
+
+Write the comments and the project description in PT-BR, the same rule as the issues.
+
 ### 6. Handle failure
 
 **A write failure partway stops the export.**
@@ -122,6 +142,10 @@ Exporting only a graph they accepted keeps an uncheckable cycle out of Linear.
 - Apply the same rule to a `blockedBy` relation whose blocking PR has no issue, because the export stopped early or that PR was skipped.
 
 - Name that specific relation, finish the rest of the export, and never report a clean export over a partial one.
+
+- Apply the same rule to a rejected comment write and a rejected project-description write.
+
+- Name the specific comment, by its PR, or the description that did not land, and finish the rest of the export.
 
 **A module failure degrades, never aborts.** This covers a disconnected MCP, a call that times out or never responds, a 5xx, and an auth or permission rejection.
 
@@ -140,5 +164,7 @@ End by reporting every URL the run created as a nested bullet tree in the plan's
 Flag separately each issue handed back for being In Progress, In Review or Done, and each PR that got no issue.
 
 Also list each `blockedBy` relation left unwritten, naming both PRs, so a partial tree is never read as clean.
+
+Name too each comment write and the project-description write that was rejected, for the same reason.
 
 Why: the reader walks from plan to Linear without opening the workspace.
