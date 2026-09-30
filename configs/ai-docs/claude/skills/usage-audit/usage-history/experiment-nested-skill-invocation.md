@@ -1,0 +1,220 @@
+# Experiment: nested Skill() invocation and the lost-control-flow bug
+
+Verdict: on Claude Code 2.1.285 the lost-control-flow bug (Claude Code issue 17351) never fired in 19 of 19 runs, including 10 of 10 in the primary cell, so the last-act-only pattern is not needed to survive it on this version, though it stays harmless insurance.
+
+The rate is 0 of 10 failures in the primary cell (fork not set, explicit after-instruction present). The upper 95% bound on the true rate with 0 of 10 is about 26% (rule of three: 3/10 = 30%, exact 25.9%), so this is evidence of rarity on this setup, not proof of absence.
+
+## Question
+
+- Issue 17351 reports that a skill calling `Skill(child)` can lose control flow: the child runs and the parent's later steps never execute.
+- The planned `brainstorm-why` wrapper invokes the unmodified `sdd:sdd-grill` plugin skill and works around the bug by making the nested call its last action.
+- This experiment measures whether a parent resumes after a child skill returns, on the installed version.
+
+## Version
+
+Output of `claude --version`, verbatim:
+
+```
+2.1.285 (Claude Code)
+```
+
+The spawning session itself reports `AI_AGENT=claude-code_2-1-284_agent`. The runs used the 2.1.285 binary directly: `/Users/brunoagostini/.local/share/claude/versions/2.1.285`.
+
+The model was the account default, which the smoke run's JSON output reported as `claude-opus-5-5`.
+
+## Step 0: smoke-test findings
+
+- Nested-session guard: `env | grep -i claude` showed `CLAUDECODE=1`, `CLAUDE_CODE_CHILD_SESSION=1`, `CLAUDE_CODE_ENTRYPOINT=cli`, `CLAUDE_CODE_SESSION_ID=<uuid>`, plus messaging-socket and tuning variables.
+  - A child `claude -p` without unsetting anything was not tried in isolation, so which variable mattered is undetermined.
+
+  - Every run unsets `CLAUDECODE`, `CLAUDE_CODE_CHILD_SESSION`, `CLAUDE_CODE_ENTRYPOINT`, and `CLAUDE_CODE_SESSION_ID` as a precaution, and the child ran, so no guard blocked it.
+
+- `CLAUDE_CONFIG_DIR=<empty dir>` isolates, but it also hides the login: the child printed `Not logged in` and exited.
+
+  - The OAuth credential is keyed to the config dir, so this mechanism is unusable without an API key, which this machine does not use.
+
+- Mechanism that worked instead: `--setting-sources project`, `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1`, `--strict-mcp-config`, and `--no-session-persistence`.
+
+  - `--setting-sources project` skips user `settings.json` (no user hooks, no user-enabled plugins), and `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1` skips every CLAUDE.md.
+
+  - `--strict-mcp-config` loads no MCP servers.
+
+  - This deviates from the brief: it is not full isolation. `~/.claude/skills` is still discovered, so the user's skill list still loaded (the smoke run read about 75k cache tokens).
+
+  - No `~/.claude/skills/parent` or `child` exists, so there was no name collision. The tmux window title read `sku-spike/spike-wrap[2]` after the smoke run, so the user's title hooks did not fire.
+
+- Skill discovery: project-scoped skills under a throwaway `.claude/skills/` in a scratchpad directory, CWD set there. The smoke run confirmed `-p` invoked the parent skill (both markers written).
+
+- Permissions: `--dangerously-skip-permissions` pinned for every run.
+
+- `< /dev/null` is passed as stdin, because `claude -p` otherwise warns after 3 seconds about waiting for stdin.
+
+- The smoke run used variant fork-unset/instruction-present and is not counted in the table below.
+
+## Spike skills
+
+Each run writes absolute marker paths under `/private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/`. Both markers are deleted before every run.
+
+Cells are named by the child's `context: fork` setting (fork) and whether the parent's step 2 says "After the child returns" (instr).
+
+### Cell fork=0 1 instr=
+
+Child `SKILL.md`:
+
+````markdown
+---
+name: child
+description: Spike child skill. Writes a marker file.
+---
+
+Write the text `child-ran` into the file `/private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/child.marker` (use the Bash tool: echo child-ran > /private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/child.marker). That is your only action.
+````
+
+Parent `SKILL.md`:
+
+````markdown
+---
+name: parent
+description: Spike parent skill. Invokes the child skill then writes a marker.
+---
+
+Two steps, in order.
+
+1. Invoke the `child` skill via the Skill tool.
+2. Write the text `parent-resumed` into the file `/private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/parent.marker` (use the Bash tool: echo parent-resumed > /private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/parent.marker).
+````
+
+### Cell fork=0 0 instr=
+
+Child `SKILL.md`:
+
+````markdown
+---
+name: child
+description: Spike child skill. Writes a marker file.
+---
+
+Write the text `child-ran` into the file `/private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/child.marker` (use the Bash tool: echo child-ran > /private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/child.marker). That is your only action.
+````
+
+Parent `SKILL.md`:
+
+````markdown
+---
+name: parent
+description: Spike parent skill. Invokes the child skill then writes a marker.
+---
+
+Two steps, in order.
+
+1. Invoke the `child` skill via the Skill tool.
+2. Write the text `parent-resumed` into the file `/private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/parent.marker` (use the Bash tool: echo parent-resumed > /private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/parent.marker).
+````
+
+### Cell fork=1 1 instr=
+
+Child `SKILL.md`:
+
+````markdown
+---
+name: child
+description: Spike child skill. Writes a marker file.
+---
+
+Write the text `child-ran` into the file `/private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/child.marker` (use the Bash tool: echo child-ran > /private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/child.marker). That is your only action.
+````
+
+Parent `SKILL.md`:
+
+````markdown
+---
+name: parent
+description: Spike parent skill. Invokes the child skill then writes a marker.
+---
+
+Two steps, in order.
+
+1. Invoke the `child` skill via the Skill tool.
+2. Write the text `parent-resumed` into the file `/private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/parent.marker` (use the Bash tool: echo parent-resumed > /private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/parent.marker).
+````
+
+### Cell fork=1 0 instr=
+
+Child `SKILL.md`:
+
+````markdown
+---
+name: child
+description: Spike child skill. Writes a marker file.
+---
+
+Write the text `child-ran` into the file `/private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/child.marker` (use the Bash tool: echo child-ran > /private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/child.marker). That is your only action.
+````
+
+Parent `SKILL.md`:
+
+````markdown
+---
+name: parent
+description: Spike parent skill. Invokes the child skill then writes a marker.
+---
+
+Two steps, in order.
+
+1. Invoke the `child` skill via the Skill tool.
+2. Write the text `parent-resumed` into the file `/private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/parent.marker` (use the Bash tool: echo parent-resumed > /private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/markers/parent.marker).
+````
+
+## Command line per run
+
+Every run, from CWD `/private/tmp/claude-503/-Users-brunoagostini-unix-utils/5a3a2efe-028c-4de3-9faa-fa0da42d6c4f/scratchpad/spike/work`, sequentially, one process at a time:
+
+```
+env -u CLAUDECODE -u CLAUDE_CODE_CHILD_SESSION -u CLAUDE_CODE_ENTRYPOINT -u CLAUDE_CODE_SESSION_ID CLAUDE_CODE_DISABLE_CLAUDE_MDS=1 /Users/brunoagostini/.local/share/claude/versions/2.1.285 -p --dangerously-skip-permissions --setting-sources project --strict-mcp-config --no-session-persistence "Invoke the parent skill." < /dev/null
+```
+
+The run order was 10 runs of fork=0 instr=1, then 3 of fork=0 instr=0, 3 of fork=1 instr=1, 3 of fork=1 instr=0. The exit code was 0 for all 19.
+
+A run is PASS when both markers exist afterwards, FAIL when only `child.marker` exists, and INVALID otherwise.
+
+## Per-run results
+
+| Run | Cell | child.marker | parent.marker | Exit code | Result |
+|---|---|---|---|---|---|
+| 1 | fork=0 instr=1 | yes | yes | 0 | PASS |
+| 2 | fork=0 instr=1 | yes | yes | 0 | PASS |
+| 3 | fork=0 instr=1 | yes | yes | 0 | PASS |
+| 4 | fork=0 instr=1 | yes | yes | 0 | PASS |
+| 5 | fork=0 instr=1 | yes | yes | 0 | PASS |
+| 6 | fork=0 instr=1 | yes | yes | 0 | PASS |
+| 7 | fork=0 instr=1 | yes | yes | 0 | PASS |
+| 8 | fork=0 instr=1 | yes | yes | 0 | PASS |
+| 9 | fork=0 instr=1 | yes | yes | 0 | PASS |
+| 10 | fork=0 instr=1 | yes | yes | 0 | PASS |
+| 11 | fork=0 instr=0 | yes | yes | 0 | PASS |
+| 12 | fork=0 instr=0 | yes | yes | 0 | PASS |
+| 13 | fork=0 instr=0 | yes | yes | 0 | PASS |
+| 14 | fork=1 instr=1 | yes | yes | 0 | PASS |
+| 15 | fork=1 instr=1 | yes | yes | 0 | PASS |
+| 16 | fork=1 instr=1 | yes | yes | 0 | PASS |
+| 17 | fork=1 instr=0 | yes | yes | 0 | PASS |
+| 18 | fork=1 instr=0 | yes | yes | 0 | PASS |
+| 19 | fork=1 instr=0 | yes | yes | 0 | PASS |
+
+## Totals
+
+| Cell | Runs | PASS | FAIL | INVALID | Failure rate |
+|---|---|---|---|---|---|
+| fork=0 instr=1 (primary) | 10 | 10 | 0 | 0 | 0% |
+| fork=0 instr=0 | 3 | 3 | 0 | 0 | 0% |
+| fork=1 instr=1 | 3 | 3 | 0 | 0 | 0% |
+| fork=1 instr=0 | 3 | 3 | 0 | 0 | 0% |
+
+## Reading
+
+- The bug did not fire in any cell, so on this version neither `context: fork` nor the explicit after-instruction changed the outcome.
+
+- Limits: one prompt, one model, a trivial child, and a headless `-p` session. The real `sdd:sdd-grill` child is interactive and long, so a longer child may still lose control flow.
+
+- The isolation was partial (user skills still loaded), which cannot plausibly lower the failure rate but is recorded for honesty.
+- Keeping the self-contained `[Reminder]` seeding from the spec costs little, so the recommendation is to keep it as insurance and drop only any requirement that the nested call be strictly last.
