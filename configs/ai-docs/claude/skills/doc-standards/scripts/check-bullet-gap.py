@@ -50,6 +50,7 @@ Exit codes:
      missing file), or an input file is unreadable or not valid UTF-8
 """
 
+import importlib.util
 import re
 import subprocess
 import sys
@@ -57,6 +58,23 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 CHANGED_LINES_SCRIPT = SCRIPT_DIR / "get-changed-lines.sh"
+
+# A load failure exits 2: the hook reads exit 1 as findings.
+try:
+    _spec = importlib.util.spec_from_file_location(
+        "input_readability", SCRIPT_DIR / "input_readability.py"
+    )
+    if _spec is None or _spec.loader is None:
+        raise ImportError("no import spec")
+    input_readability = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(input_readability)
+except Exception as error:
+    print(
+        f"check-bullet-gap.py: cannot load input_readability.py "
+        f"from {SCRIPT_DIR}: {error}",
+        file=sys.stderr,
+    )
+    sys.exit(2)
 
 # Defaults mirror check-density.sh's bullet cap only (not the
 # prose cap);
@@ -235,28 +253,6 @@ def fix(path, max_chars, max_words, changed_only):
     return len(in_scope_hits(remaining, path, changed_only))
 
 
-def cannot_read_message(path, err):
-    # An uncaught decode error would exit 1, which
-    # callers read as findings; a load failure exits 2.
-    #
-    # strerror, since str(err) repeats the path this line names.
-    reason = "not valid UTF-8" if isinstance(err, UnicodeDecodeError) else err.strerror or err
-    return f"check-bullet-gap.py: cannot read {path}: {reason}"
-
-
-def first_unreadable_input(files):
-    """cannot_read_message for the first file that is not readable UTF-8,
-    or None - checked for every file before any is reported or fixed, so
-    a bad later file never follows an earlier file's output or rewrite."""
-    for path in files:
-        try:
-            with open(path, encoding="utf-8") as fh:
-                fh.read()
-        except (OSError, UnicodeDecodeError) as err:
-            return cannot_read_message(path, err)
-    return None
-
-
 def main(argv):
     max_chars, max_words = MAX_CHARS, MAX_WORDS
     fix_mode = False
@@ -296,7 +292,7 @@ def main(argv):
         )
         return 2
 
-    unreadable = first_unreadable_input(files)
+    unreadable = input_readability.first_unreadable_input("check-bullet-gap.py", files)
     if unreadable:
         print(unreadable, file=sys.stderr)
         return 2
@@ -319,7 +315,10 @@ def main(argv):
             else:
                 total += check(path, max_chars, max_words, changed_only)
         except (OSError, UnicodeDecodeError) as err:
-            print(cannot_read_message(path, err), file=sys.stderr)
+            message = input_readability.cannot_read_message(
+                "check-bullet-gap.py", path, err
+            )
+            print(message, file=sys.stderr)
             return 2
         except RuntimeError as err:
             print(f"check-bullet-gap.py: {err}", file=sys.stderr)

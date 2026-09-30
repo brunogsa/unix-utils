@@ -89,6 +89,7 @@ Exit codes:
      failed - message names the file
 """
 
+import importlib.util
 import re
 import subprocess
 import sys
@@ -97,6 +98,23 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 BULLET_GAP_SCRIPT = SCRIPT_DIR / "check-bullet-gap.py"
 DENSITY_SCRIPT = SCRIPT_DIR / "check-density.sh"
+
+# A load failure exits 2: the hook reads exit 1 as findings.
+try:
+    _spec = importlib.util.spec_from_file_location(
+        "input_readability", SCRIPT_DIR / "input_readability.py"
+    )
+    if _spec is None or _spec.loader is None:
+        raise ImportError("no import spec")
+    input_readability = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(input_readability)
+except Exception as error:
+    print(
+        f"fix-density.py: cannot load input_readability.py "
+        f"from {SCRIPT_DIR}: {error}",
+        file=sys.stderr,
+    )
+    sys.exit(2)
 
 PROSE_MAX_CHARS = 512
 PROSE_MAX_WORDS = 64
@@ -393,28 +411,6 @@ def converge(path, prose_chars, prose_words, bullet_chars, bullet_words, changed
     return residue
 
 
-def cannot_read_message(path, err):
-    # An uncaught decode error would exit 1, which
-    # callers read as findings; a load failure exits 2.
-    #
-    # strerror, since str(err) repeats the path this line names.
-    reason = "not valid UTF-8" if isinstance(err, UnicodeDecodeError) else err.strerror or err
-    return f"fix-density.py: cannot read {path}: {reason}"
-
-
-def first_unreadable_input(files):
-    """cannot_read_message for the first file that is not readable UTF-8,
-    or None - checked for every file before any is rewritten, so a bad
-    later file never leaves an earlier one already changed."""
-    for path in files:
-        try:
-            with open(path, encoding="utf-8") as fh:
-                fh.read()
-        except (OSError, UnicodeDecodeError) as err:
-            return cannot_read_message(path, err)
-    return None
-
-
 def main(argv):
     prose_chars, prose_words = PROSE_MAX_CHARS, PROSE_MAX_WORDS
     bullet_chars, bullet_words = BULLET_MAX_CHARS, BULLET_MAX_WORDS
@@ -457,7 +453,7 @@ def main(argv):
         )
         return 2
 
-    unreadable = first_unreadable_input(files)
+    unreadable = input_readability.first_unreadable_input("fix-density.py", files)
     if unreadable:
         print(unreadable, file=sys.stderr)
         return 2
@@ -481,7 +477,10 @@ def main(argv):
                 path, prose_chars, prose_words, bullet_chars, bullet_words, changed_only
             )
         except (OSError, UnicodeDecodeError) as err:
-            print(cannot_read_message(path, err), file=sys.stderr)
+            message = input_readability.cannot_read_message(
+                "fix-density.py", path, err
+            )
+            print(message, file=sys.stderr)
             return 2
         except RuntimeError as err:
             print(str(err), file=sys.stderr)
