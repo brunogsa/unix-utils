@@ -73,7 +73,11 @@ Check the file on disk, never the agent's "done" message alone.
 
 ### 4. Self-review the spec once, with fresh eyes
 
-Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now, and run `~/.claude/skills/spec-driven-development/scripts/check-sections.sh <spec> ~/.claude/skills/spec-driven-development/assets/spec-template.md` first, fixing each miss through `spec-editor`.
+Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now.
+
+Run the deterministic gates first with `~/.claude/skills/spec-driven-development/scripts/check-deterministic-gates.sh --spec-only <spec>`, and fix each miss through `spec-editor`.
+
+A runner exit of 1 is a finding to fix. **Exit 2, or a `FAIL exit=2` line, means a gate could not run** — report it to the user, never route it to `spec-editor`, and never count the spec as gated.
 
 Then dispatch `agent(subAgent=spec-reviewer, effort=high, title=Fresh-eyes review of spec)` in the background, pointed at the spec file alone, with two jobs:
 

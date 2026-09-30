@@ -13,6 +13,7 @@ A run may write the plan alone (SKILL.md) — never report the absent spec as a 
   - With a spec: `check-ac-coverage.sh`, `check-coverage-checklists.sh`.
 
 - Run all with `scripts/check-deterministic-gates.sh <plan> [<spec>]`; no spec `SKIP`s the spec-taking gates.
+  - Before a plan exists, `--spec-only <spec>` runs the spec gates and `SKIP`s the plan-taking ones.
 
 - Dispatch the mermaid fixer at its agent file's pinned model — never name one here.
   - Why: `subagent-model-guard.py` hard-denies an override, so naming one is an instruction no caller can follow.
