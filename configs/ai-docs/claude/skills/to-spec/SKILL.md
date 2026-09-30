@@ -43,8 +43,6 @@ Why: `sdd-grill` is opt-in at `brainstorm-why`, so a scratchpad without its outp
 
 One `AskUserQuestion` call, recommended answer first, before anything is dispatched:
 
-- **"Every line traces to an AC?"** — `traces_to_ac`.
-- **"Right-sized plan?"** — `right_sized`.
 - **"Qualitative pass?"** — `qualitative_pass`, default yes.
 
 Persist the answers to `/tmp/sdd_<session_id>.json` as booleans under exactly those three field names, keeping any other field already in the file.
