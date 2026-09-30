@@ -100,4 +100,5 @@ Report back as structured text, never a silent "done":
 - **Needs-TDD**: present whenever the bounce fired — the part you left unwritten, and the input that distinguishes the two behaviors.
 - **Deviations**: Drift fixes folded in, and any judgment call the Change left open.
 - **Scouts**: pre-existing, non-blocking items observed — one line each.
+- **Degraded**: when an opt-in module you called fails mid-task (disconnected MCP, timeout, 5xx, auth rejection), fall back to the non-module path and report it as its own line: which module, which task, which path took over.
 - **Blocked on**: present only when Status is `blocked` — the missing or unusable required input, and exactly what clears it.

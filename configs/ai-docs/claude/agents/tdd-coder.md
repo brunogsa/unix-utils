@@ -253,6 +253,7 @@ Report back — structured text, never a silent "done":
 - **Units**: N/N green, or the per-unit pass/fail breakdown when the batch didn't fully close.
 - **Deviations**: sub-steps inserted mid-flight, soft forks resolved (with the choice made), Drift fixes folded in, and any wrong-test correction (unit + what changed).
 - **Scouts**: `[Scout]` items observed — pre-existing, non-blocking — one line each.
+- **Degraded**: when an opt-in module you called fails mid-task (disconnected MCP, timeout, 5xx, auth rejection), fall back to the non-module path and report it as its own line: which module, which task, which path took over.
 - **Blocked on**: present only when Status is `blocked` — the units that never went green, or the missing/unusable required input, and exactly what's needed to clear it.
 
 - **Evidence**: path to `/tmp/tdd-coder_evidences_<run-label>.txt`, for the caller to open or not.
