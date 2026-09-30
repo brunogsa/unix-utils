@@ -260,14 +260,69 @@ it_should_stay_silent_on_an_unknown_extension() {
   assert_eq "should print nothing on an unknown extension" "" "$HOOK_OUT"
 }
 
-it_should_fail_open_outside_a_git_repo() {
+it_should_report_a_markdown_wall_of_text_outside_a_git_repo() {
   local dir long_line
   dir=$(mktemp -d)
   long_line=$(python3 -c "print('word ' * 120)")
   printf '%s\n' "$long_line" > "$dir/wall.md"
   run_hook "Write" "$dir/wall.md"
-  assert_eq "should exit 0 outside a git work tree" "0" "$HOOK_EXIT"
-  assert_eq "should print nothing outside a git work tree" "" "$HOOK_OUT"
+  assert_eq "should exit 2 on a wall of text outside a git work tree" "2" "$HOOK_EXIT"
+  assert_contains "should open the report with the prose-format header outside a git work tree" "prose-format: wall.md" "$HOOK_OUT"
+  assert_line_number_row_matches "should report the over-cap line as a density row outside a git work tree" "L1" "$HOOK_OUT"
+}
+
+it_should_report_an_over_width_comment_outside_a_git_repo() {
+  local dir
+  dir=$(mktemp -d)
+  printf '# This comment line is deliberately far longer than the comment-format width cap so the checker has something concrete to report.\nx = 1\n' > "$dir/outside-probe.py"
+  run_hook "Write" "$dir/outside-probe.py"
+  assert_eq "should exit 2 on an over-width comment outside a git work tree" "2" "$HOOK_EXIT"
+  assert_contains "should label the over-width comment as width outside a git work tree" "width" "$HOOK_OUT"
+}
+
+it_should_not_report_pre_existing_violations_inside_a_git_repo_after_a_clean_edit() {
+  local dir long_line
+  dir=$(new_repo_fixture)
+  long_line=$(python3 -c "print('word ' * 120)")
+  printf '%s\n' "$long_line" > "$dir/old.md"
+  git -C "$dir" add old.md
+  git -C "$dir" -c user.name=fixture -c user.email=fixture@example.com commit -q -m "seed"
+  printf '\nA new short clean paragraph.\n' >> "$dir/old.md"
+  run_hook "Write" "$dir/old.md"
+  assert_eq "should exit 0 when only clean lines were added next to a committed violation" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing for a committed violation the write did not touch" "" "$HOOK_OUT"
+}
+
+it_should_fail_open_on_a_non_utf8_file_outside_a_git_repo() {
+  local dir
+  dir=$(mktemp -d)
+  printf 'caf\xe9 caf\xe9\n' > "$dir/latin1.md"
+  run_hook "Write" "$dir/latin1.md"
+  assert_eq "should exit 0 on a non-UTF-8 file outside a git work tree" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing on a non-UTF-8 file outside a git work tree" "" "$HOOK_OUT"
+}
+
+it_should_cap_the_output_over_the_threshold_outside_a_git_repo() {
+  local dir long_line i
+  dir=$(mktemp -d)
+  long_line=$(python3 -c "print('word ' * 120)")
+  : > "$dir/big.md"
+  for ((i = 0; i < 15; i++)); do
+    printf '%s\n\n' "$long_line" >> "$dir/big.md"
+  done
+  run_hook "Write" "$dir/big.md"
+  assert_eq "should exit 2 over the threshold outside a git work tree" "2" "$HOOK_EXIT"
+  assert_contains "should report 15 violations outside a git work tree" "15 violations" "$HOOK_OUT"
+  assert_no_line_number_row \
+    "should not print any L<digits> row over the threshold outside a git work tree" \
+    "$HOOK_OUT"
+
+  # The pointer command is printed to be re-run as shown, and
+  # --changed-only itself exits 2 outside a work tree.
+  assert_contains "should print a runnable pointer command outside a git work tree" \
+    "check-density.sh   $dir/big.md" "$HOOK_OUT"
+  assert_not_contains "should not print --changed-only in a pointer command outside a git work tree" \
+    "--changed-only" "$HOOK_OUT"
 }
 
 it_should_fail_open_on_a_missing_file() {
@@ -697,13 +752,23 @@ EOF
   assert_eq "should print nothing when every Bash-changed file is clean" "" "$HOOK_OUT"
 }
 
-it_should_fail_open_for_a_bash_payload_outside_a_git_repo() {
+it_should_report_a_file_written_through_bash_outside_a_git_repo() {
   local dir
   dir=$(mktemp -d)
   write_wall_of_text "$dir/wall.md"
   run_hook_bash "$dir"
-  assert_eq "should exit 0 for a Bash payload outside any git work tree" "0" "$HOOK_EXIT"
-  assert_eq "should print nothing for a Bash payload outside any git work tree" "" "$HOOK_OUT"
+  assert_eq "should exit 2 on a wall of text a Bash call wrote outside any git work tree" "2" "$HOOK_EXIT"
+  assert_contains "should name the Bash-written file outside any git work tree" "wall.md" "$HOOK_OUT"
+}
+
+it_should_ignore_a_file_last_written_long_before_a_bash_call_outside_a_git_repo() {
+  local dir
+  dir=$(mktemp -d)
+  write_wall_of_text "$dir/wall.md"
+  touch -t 202001010000 "$dir/wall.md"
+  run_hook_bash "$dir"
+  assert_eq "should exit 0 when the only file outside a work tree predates the Bash call" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing when the only file outside a work tree predates the Bash call" "" "$HOOK_OUT"
 }
 
 it_should_report_a_renamed_file_under_its_new_name() {
@@ -755,7 +820,8 @@ it_should_stay_silent_on_a_clean_markdown_write
 it_should_report_a_wall_of_text_written_through_bash
 it_should_name_every_offending_file_when_bash_changed_several
 it_should_stay_silent_when_bash_changed_only_clean_files
-it_should_fail_open_for_a_bash_payload_outside_a_git_repo
+it_should_report_a_file_written_through_bash_outside_a_git_repo
+it_should_ignore_a_file_last_written_long_before_a_bash_call_outside_a_git_repo
 it_should_ignore_a_dirty_file_last_written_long_before_the_bash_call
 it_should_report_a_renamed_file_under_its_new_name
 it_should_report_a_bash_written_file_whose_name_contains_a_space
@@ -765,7 +831,11 @@ it_should_not_flake_when_the_fixture_path_contains_l_digit_over_threshold
 it_should_use_the_line_number_regime_under_the_threshold
 it_should_route_a_shell_file_to_the_comment_checker
 it_should_stay_silent_on_an_unknown_extension
-it_should_fail_open_outside_a_git_repo
+it_should_report_a_markdown_wall_of_text_outside_a_git_repo
+it_should_report_an_over_width_comment_outside_a_git_repo
+it_should_not_report_pre_existing_violations_inside_a_git_repo_after_a_clean_edit
+it_should_fail_open_on_a_non_utf8_file_outside_a_git_repo
+it_should_cap_the_output_over_the_threshold_outside_a_git_repo
 it_should_fail_open_on_a_missing_file
 it_should_fail_open_on_a_non_write_edit_payload
 it_should_carry_the_rule_block_verbatim_in_every_report

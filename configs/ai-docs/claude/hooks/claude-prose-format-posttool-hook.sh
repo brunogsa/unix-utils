@@ -3,8 +3,9 @@
 # format reminder, fired right after a Write/Edit lands.
 #
 # Usage (Claude Code hooks):
-#   PostToolUse matcher Write|Edit -> read the stdin payload,
-#   check the file just written, report or stay silent.
+#   PostToolUse matcher Write|Edit|Bash -> read the stdin
+#   payload, check the file(s) just written, report or stay
+#   silent.
 #
 # The user's complaint is walls of text in docs and code
 # comments. The rule already exists (doc-standards), but
@@ -21,10 +22,18 @@
 # content - "I just dont wanna us fixing what is already
 # there."
 #
+# A file outside any git work tree has no baseline to diff
+# against, so every line counts as new: it is checked whole,
+# without --changed-only.
+#
+# A Bash payload names no file, so outside a work tree the
+# files directly in cwd touched
+# within the write window stand in for git's list.
+#
 # Fail-open is the safety property this hook lives or dies
-# by: a missing file, a non-repo path (every /tmp scratchpad
-# write), a missing checker, or a missing python3/node must
-# all read as "no signal" and exit 0, never as a block.
+# by: a missing file, a missing checker, a checker that
+# errors (e.g. a non-UTF-8 file), or a missing python3/node
+# must all read as "no signal" and exit 0, never as a block.
 #
 # Any checker exit code other than 0 (clean) or 1
 # (violations) is treated exactly that way, one checker at a
@@ -115,6 +124,21 @@ description_for_label() {
   esac
 }
 
+# scope_flag is --changed-only only for a file inside a git
+# work tree, resolved from the FILE's own directory - never
+# the hook's cwd, which sits in a repo while the file may not.
+#
+# Outside a work tree get-changed-lines.sh has no baseline and
+# exits 2, which every checker passes on as exit 2 and this
+# hook reads as "no signal". With no baseline every line is
+# this write's own, so the whole file is the honest scope.
+#
+# Deciding here, not by retrying on exit 2, keeps a transient
+# failure inside a work tree from widening to a whole-file
+# check.
+scope_flag="--changed-only"
+git -C "$(dirname -- "$FILE_PATH")" rev-parse --is-inside-work-tree >/dev/null 2>&1 || scope_flag=""
+
 rows_file=$(mktemp)
 hit_checkers_file=$(mktemp)
 
@@ -138,12 +162,12 @@ for name in "${checker_names[@]}"; do
       case "$invocation_path" in
         -*) invocation_path="./$invocation_path" ;;
       esac
-      out=$("$chk" --changed-only "$invocation_path" 2>/dev/null)
+      out=$("$chk" ${scope_flag:+"$scope_flag"} "$invocation_path" 2>/dev/null)
       ;;
     *)
       case "$invocation_path" in
-        -*) out=$("$chk" --changed-only -- "$invocation_path" 2>/dev/null) ;;
-        *) out=$("$chk" --changed-only "$invocation_path" 2>/dev/null) ;;
+        -*) out=$("$chk" ${scope_flag:+"$scope_flag"} -- "$invocation_path" 2>/dev/null) ;;
+        *) out=$("$chk" ${scope_flag:+"$scope_flag"} "$invocation_path" 2>/dev/null) ;;
       esac
       ;;
   esac
@@ -226,8 +250,8 @@ Dash-ended bullet whose next bullet continues its sentence: rewrite the pair as 
     printf '\n%s\n\n' "$RULE_BLOCK"
 
     # name_width is the longest hit checker's basename, so every
-    # printed command's --changed-only flag lines up in one
-    # column regardless of which checker names ran.
+    # printed command's flag-or-path lines up in one column
+    # regardless of which checker names ran.
     name_width=0
     while IFS= read -r name; do
       [ "${#name}" -gt "$name_width" ] && name_width="${#name}"
@@ -253,8 +277,8 @@ Dash-ended bullet whose next bullet continues its sentence: rewrite the pair as 
           ;;
       esac
       quoted_path=$(printf '%q' "$print_path")
-      printf '  ~/.claude/skills/doc-standards/scripts/%-*s   --changed-only %s%s\n' \
-        "$name_width" "$name" "$extra_flag" "$quoted_path"
+      printf '  ~/.claude/skills/doc-standards/scripts/%-*s   %s%s%s\n' \
+        "$name_width" "$name" "${scope_flag:+$scope_flag }" "$extra_flag" "$quoted_path"
     done < "$hit_checkers_file"
   else
     for label in "${labels_seen[@]}"; do
@@ -321,12 +345,26 @@ file_mtime_seconds() {
 # the command invoked, so git's own view is the only signal
 # that needs no hand-maintained list of writers.
 #
-# Returns non-zero when there is no work tree to read, which is
-# the fail-open case: no git, no signal.
+# Outside a work tree git has nothing to report, so the fallback
+# is the files directly in cwd touched inside the same window.
+# Depth 1, never recursive: a cwd of $HOME or / must not turn
+# every Bash call into a disk walk.
+#
+# Returns non-zero when cwd is no directory, which is the
+# fail-open case: no signal.
 collect_bash_paths() {
   local cwd="$1" top entry status_pair relative_path absolute_path mtime now
   now=$(date +%s)
-  git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 1
+  if ! git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    [ -d "$cwd" ] || return 1
+    while IFS= read -r -d '' absolute_path; do
+      mtime=$(file_mtime_seconds "$absolute_path")
+      [ -n "$mtime" ] || continue
+      [ "$((now - mtime))" -le "$BASH_WRITE_WINDOW_SECONDS" ] || continue
+      paths+=("$absolute_path")
+    done < <(find "$cwd" -maxdepth 1 -type f -print0 2>/dev/null)
+    return 0
+  fi
   top=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || return 1
   [ -n "$top" ] || return 1
 
