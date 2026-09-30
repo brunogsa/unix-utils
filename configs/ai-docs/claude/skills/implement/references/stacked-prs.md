@@ -64,8 +64,8 @@ Retarget via REST, not `gh pr edit --base` — the same `gh pr edit` deprecation
 
 3. Sync each remaining child with the new base — what it costs depends on how the repo merges:
 
-- **Merge-commit repos**: nothing to do — the parent's commits are now in the default branch, so each child's diff is already clean.
-- **Squash-merge repos**: the child's diff shows the parent's original commits until you `git merge master` into it. Both sides carry textually identical changes, so the merge normally auto-resolves.
+   - **Merge-commit repos**: nothing to do — the parent's commits are now in the default branch, so each child's diff is already clean.
+   - **Squash-merge repos**: the child's diff shows the parent's original commits until you `git merge master` into it. Both sides carry textually identical changes, so the merge normally auto-resolves.
 
 ```bash
 git fetch origin
