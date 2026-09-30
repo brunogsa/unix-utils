@@ -51,7 +51,7 @@ With no module selected, go straight to step 4.
 
 With the module selected, `sdd:sdd-grill` is this skill's LAST ACT, because a nested Skill call can return control to the main context instead of resuming this skill (Claude Code bug https://github.com/anthropics/claude-code/issues/17351). Nothing scheduled after the call may depend on this text still being loaded.
 
-The spike in `configs/ai-docs/claude/skills/usage-audit/usage-history/experiment-nested-skill-invocation.md` measured 0 losses in 19 runs on 2.1.285, using a trivial child in a headless session. The real module is long and interactive, so the pattern stays.
+The spike in `~/.claude/skills/usage-audit/usage-history/experiment-nested-skill-invocation.md` measured 0 losses in 19 runs on 2.1.285, using a trivial child in a headless session. The real module is long and interactive, so the pattern stays.
 
 Before the call, in this order:
 
