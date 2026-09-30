@@ -24,7 +24,8 @@ Usage:
 Exit codes:
   0  clean
   1  violations found
-  2  usage error, or get-changed-lines.sh itself failed
+  2  usage error, get-changed-lines.sh failed, or check-bullet-gap.py
+     could not be loaded (one stderr line names it and the directory)
 """
 
 import importlib.util
@@ -41,10 +42,22 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 _spec = importlib.util.spec_from_file_location(
     "check_bullet_gap", SCRIPT_DIR / "check-bullet-gap.py"
 )
-if _spec is None or _spec.loader is None:
-    raise ImportError(f"cannot load check-bullet-gap.py from {SCRIPT_DIR}")
-bullet_gap = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(bullet_gap)
+
+# A load failure exits 2: the hook reads exit 1 as findings.
+
+# Nothing imports this script, so exiting at import is safe.
+try:
+    if _spec is None or _spec.loader is None:
+        raise ImportError("no import spec")
+    bullet_gap = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(bullet_gap)
+except Exception as error:
+    print(
+        f"check-bullet-structure.py: cannot load check-bullet-gap.py "
+        f"from {SCRIPT_DIR}: {error}",
+        file=sys.stderr,
+    )
+    sys.exit(2)
 
 USAGE = "usage: check-bullet-structure.py [--changed-only] <file>..."
 

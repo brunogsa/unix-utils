@@ -327,3 +327,24 @@ def test_changed_only_hides_defects_whose_lines_were_all_left_untouched(tmp_path
 
     assert hits(result) == []
     assert result.returncode == 0
+
+
+def test_exits_2_naming_check_bullet_gap_when_that_sibling_cannot_be_loaded(tmp_path):
+    # The hook reads exit 1 as findings, so a broken install
+    # must exit 2 (no signal) rather than a traceback's 1.
+    lone_dir = tmp_path / "lone"
+    lone_dir.mkdir()
+    lone_script = lone_dir / "check-bullet-structure.py"
+    lone_script.write_text(SCRIPT.read_text(encoding="utf-8"), encoding="utf-8")
+    doc = tmp_path / "doc.md"
+    doc.write_text("- A plain item.\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(lone_script), str(doc)],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2, result.stderr
+    assert "check-bullet-gap.py" in result.stderr
+    assert "Traceback" not in result.stderr
