@@ -31,13 +31,18 @@ Why: edits at the system location bypass version control. They survive locally b
 
 ## Symlink + permission-rule gotcha
 
-`settings.json` `permissions.allow` matches the **canonical path** (use `realpath`), not the symlink.
+A `Bash(...)` rule in `settings.json` `permissions.allow` matches the **command text as written**, not the file it resolves to — the symlink path and the canonical path are two different commands.
 
-Why: Claude Code's permission engine resolves symlinks before matching. Adding a rule with the symlink path silently fails to match.
+Why: a Bash rule "doesn't match the same program invoked in a different form" (https://code.claude.com/docs/en/permissions#bash-rule-limits) — a row for one form silently leaves the other prompting.
 
-- One entry per platform (home dirs differ); drop symlink-path entries.
-- macOS: `"Bash(/Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/.../script.sh *)"`
-- Linux: `"Bash(/home/brunogsa/unix-utils/configs/ai-docs/claude/skills/.../script.sh *)"`
+- `~/.claude/...` form: one row covers both platforms; `claude-prose-format-posttool-hook.sh` prints its re-run commands in this form.
+- Canonical form (`realpath`): one row per platform, since home dirs differ.
+  - macOS: `"Bash(/Users/brunoagostini/unix-utils/configs/ai-docs/claude/skills/.../script.sh *)"`
+  - Linux: `"Bash(/home/brunogsa/unix-utils/configs/ai-docs/claude/skills/.../script.sh *)"`
+
+- An interpreter prefix (`bash `, `python3 `) makes another form — give it its own rows.
+
+`Read(...)`/`Edit(...)` rules differ: `~/` means the home directory, and an allow rule applies only when both the requested path and the file it resolves to match (https://code.claude.com/docs/en/permissions#symlinks).
 
 ## Platform differences (macOS vs Linux)
 
