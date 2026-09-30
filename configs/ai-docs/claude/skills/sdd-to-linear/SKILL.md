@@ -91,6 +91,10 @@ After each successful create, write that issue's URL into the plan's `**Linear**
 
 Why backticks: the plan parser's field reader ends a value at the first period, so a bare `https://linear.app/...` truncates at `https://linear`.
 
+After the run's first issue lands, write the plan's document-level `Linear:` line with the resolved project or initiative URL, wrapped in backticks the same way.
+
+A run that writes zero issues writes no `Linear:` line, matching the zero-PR rule.
+
 ### 6. Handle failure
 
 **A write failure partway stops the export.**

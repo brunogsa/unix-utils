@@ -1,6 +1,6 @@
 ---
 name: brainstorm-how
-description: "Interview the user on the technical how (architecture, approach, risk) from an approved spec, then offer to-plan. USE when user says 'brainstorm how', or asks how to build what a spec describes. Writes no documents. Never for the why/what, code, bug fixes, or review."
+description: "Interview the user on the technical how (architecture, approach, risk) from an approved spec, then offer to-plan. USE when user says 'brainstorm how' or asks how to build what a spec describes. Writes no docs. Never for why/what, code, bugs, review."
 disable-model-invocation: false
 ---
 
