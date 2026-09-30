@@ -24,7 +24,7 @@ Confidence governs reviewer behavior at two gates that pull in opposite directio
 
 - **Validation gate (Wave 3 self-check, post-emission):**
   - **When in doubt, KEEP.** Dropping a real finding erodes trust more than keeping noise.
-    - Only drop on clear, specific evidence the claim doesn't hold (cited code doesn't exist; code already does what was asked; the issue depends on behavior the file explicitly prevents).
+  - Only drop on clear, specific evidence the claim doesn't hold (cited code doesn't exist; code already does what was asked; the issue depends on behavior the file explicitly prevents).
 
 Why they pull opposite ways: emission is cheap to abort (the comment doesn't exist yet), so its bar is "is this likely real?".
 
