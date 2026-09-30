@@ -4,7 +4,7 @@ The shared interview discipline for `brainstorm-why` (problem space) and `brains
 
 A caller skill reads this file and runs it, supplying only a seed and an output path. Everything else here belongs to the engine.
 
-Both callers read this file rather than nesting a `Skill()` call to a shared skill, because a file read cannot lose control flow the way a nested skill call can. Never invoke this file through `Skill()`.
+Both callers read this file rather than nesting a shared skill through the Skill tool, because a file read cannot lose control flow the way a nested skill call can. Never invoke this file through the Skill tool.
 
 ## What the caller supplies
 
