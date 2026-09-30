@@ -160,6 +160,10 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/claude-scan-hang-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/claude-bash-write-guard.sh"
           }
         ]
       },
