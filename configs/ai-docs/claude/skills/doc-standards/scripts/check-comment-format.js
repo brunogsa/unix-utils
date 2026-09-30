@@ -152,8 +152,9 @@
 //   1  violations found, residue --fix could not repair, or
 //      comment content lost since HEAD
 //
-//   2  usage error, `typescript` not installed, or
-//      get-changed-lines.sh failed to determine a file's scope.
+//   2  usage error, `typescript` not installed,
+//      get-changed-lines.sh failed to determine a file's scope,
+//      or a file could not be read as UTF-8.
 //
 // Examples:
 //   check-comment-format.js path/to/spec.e2e.spec.ts
@@ -866,8 +867,29 @@ function findSentenceAndBulletViolations(fullCommentLines, lines, lang) {
   return { sentenceBreaks, bulletSpacing, bulletBlanks };
 }
 
+const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+
+// A lenient decode turns a stray latin-1 byte into U+FFFD,
+// which --fix would then write back over the original byte.
+function readUtf8File(file) {
+  let bytes;
+  try {
+    bytes = fs.readFileSync(file);
+  } catch (err) {
+    console.error(`check-comment-format.js: cannot read ${file}: ${err.message}`);
+    process.exit(2);
+  }
+
+  try {
+    return STRICT_UTF8.decode(bytes);
+  } catch {
+    console.error(`check-comment-format.js: cannot read ${file}: not valid UTF-8`);
+    process.exit(2);
+  }
+}
+
 function checkFile(file, maxChars, maxLines, langOverride, changedOnly) {
-  const text = fs.readFileSync(file, 'utf8');
+  const text = readUtf8File(file);
   const lang = resolveLanguage(file, text, langOverride);
   const lines = text.split('\n');
   const lineStarts = getLineStartOffsets(text);
@@ -1194,7 +1216,7 @@ function applyPass(pass, report, maxChars, maxLines) {
 }
 
 function fixFile(file, maxChars, maxLines, langOverride, changedOnly) {
-  let previous = fs.readFileSync(file, 'utf8');
+  let previous = readUtf8File(file);
 
   for (let round = 0; round < MAX_FIX_ITERATIONS; round++) {
     for (const pass of FIX_PASSES) {
@@ -1203,7 +1225,7 @@ function fixFile(file, maxChars, maxLines, langOverride, changedOnly) {
       if (updated !== null) fs.writeFileSync(file, updated);
     }
 
-    const current = fs.readFileSync(file, 'utf8');
+    const current = readUtf8File(file);
     if (current === previous) return;
     previous = current;
   }
@@ -1309,7 +1331,7 @@ function reportContentLoss(file, langOverride) {
   if (headText === null) return false;
 
   const headWords = getCommentWordSet(headText, file, langOverride);
-  const currentWords = getCommentWordSet(fs.readFileSync(file, 'utf8'), file, langOverride);
+  const currentWords = getCommentWordSet(readUtf8File(file), file, langOverride);
   const lostWords = [...headWords].filter((word) => !currentWords.has(word));
   if (lostWords.length === 0) return false;
 
