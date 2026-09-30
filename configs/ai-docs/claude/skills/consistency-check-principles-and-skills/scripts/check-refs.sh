@@ -204,7 +204,7 @@ resolve_target_path() {
     local referencing_file=$1 path=$2
     case "$path" in
         /*) printf '%s\n' "$path" ;;
-        '~/'*) printf '%s\n' "$HOME/${path#\~/}" ;;
+        \~/*) printf '%s\n' "$HOME/${path#\~/}" ;;
         *) printf '%s\n' "$(dirname "$referencing_file")/$path" ;;
     esac
 }

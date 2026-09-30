@@ -191,7 +191,7 @@ resolve_candidate() {
     case "$candidate" in
         /*)
             base="$candidate" ;;
-        '~/'*)
+        \~/*)
             base="$HOME/${candidate#\~/}" ;;
         skills/*)
             base="$CLAUDE_ROOT/$candidate" ;;
