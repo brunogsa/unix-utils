@@ -45,66 +45,120 @@ write_fixture() {
   printf '%s\n' "$scratch/$name"
 }
 
-fixture="$(write_fixture both-present.json '{"enabledPlugins":{"core@arco-ai-plugins":true,"audit@arco-ai-plugins":false,"linear@claude-plugins-official":true}}')"
-run_against "$fixture"
-assert_eq "should report Arco and Linear present when both plugins are enabled" "arco=true linear=true " "$output"
-assert_eq "should exit 0 when both modules are present" "0" "$status"
+# Happy path: a readable file reports the enabled modules
 
-fixture="$(write_fixture neither-key.json '{"enabledPlugins":{"frontend-design@claude-plugins-official":true}}')"
-run_against "$fixture"
-assert_eq "should report both absent when neither module key exists" "arco=false linear=false " "$output"
-assert_eq "should exit 0 when neither module key exists" "0" "$status"
+it_should_report_both_modules_present_when_both_plugins_are_enabled() {
+  fixture="$(write_fixture both-present.json '{"enabledPlugins":{"core@arco-ai-plugins":true,"audit@arco-ai-plugins":false,"linear@claude-plugins-official":true}}')"
+  run_against "$fixture"
+  assert_eq "should report Arco and Linear present when both plugins are enabled" "arco=true linear=true " "$output"
+  assert_eq "should exit 0 when both modules are present" "0" "$status"
+}
 
-fixture="$(write_fixture all-false.json '{"enabledPlugins":{"core@arco-ai-plugins":false,"sdd@arco-ai-plugins":false,"linear@claude-plugins-official":false}}')"
-run_against "$fixture"
-assert_eq "should report both absent when every module key is disabled" "arco=false linear=false " "$output"
+it_should_report_only_arco_present_when_one_arco_plugin_is_enabled_among_disabled_ones() {
+  fixture="$(write_fixture arco-only.json '{"enabledPlugins":{"audit@arco-ai-plugins":false,"sdk@arco-ai-plugins":true}}')"
+  run_against "$fixture"
+  assert_eq "should report Arco present and Linear absent when one Arco plugin is enabled among disabled ones" "arco=true linear=false " "$output"
+}
 
-fixture="$(write_fixture arco-only.json '{"enabledPlugins":{"audit@arco-ai-plugins":false,"sdk@arco-ai-plugins":true}}')"
-run_against "$fixture"
-assert_eq "should report Arco present and Linear absent when one Arco plugin is enabled among disabled ones" "arco=true linear=false " "$output"
+it_should_report_only_linear_present_when_only_the_linear_plugin_is_enabled() {
+  fixture="$(write_fixture linear-only.json '{"enabledPlugins":{"linear@claude-plugins-official":true}}')"
+  run_against "$fixture"
+  assert_eq "should report Linear present and Arco absent when only the Linear plugin is enabled" "arco=false linear=true " "$output"
+}
 
-fixture="$(write_fixture linear-only.json '{"enabledPlugins":{"linear@claude-plugins-official":true}}')"
-run_against "$fixture"
-assert_eq "should report Linear present and Arco absent when only the Linear plugin is enabled" "arco=false linear=true " "$output"
+it_should_read_the_settings_file_under_home_when_claude_settings_is_unset() {
+  mkdir -p "$scratch/home/.claude"
+  printf '%s\n' '{"enabledPlugins":{"core@arco-ai-plugins":true}}' > "$scratch/home/.claude/settings.json"
+  output="$(HOME="$scratch/home" CLAUDE_SETTINGS= bash "$SCRIPT_UNDER_TEST" 2>/dev/null | tr '\n' ' ')"
+  assert_eq "should read the settings file under HOME when CLAUDE_SETTINGS is unset" "arco=true linear=false " "$output"
+}
 
-fixture="$(write_fixture no-enabled-plugins.json '{"model":"sonnet"}')"
-run_against "$fixture"
-assert_eq "should report both absent when enabledPlugins is missing" "arco=false linear=false " "$output"
-assert_eq "should exit 0 when enabledPlugins is missing" "0" "$status"
+# Absent modules: nothing enabled, or no settings file at all
 
-run_against "$scratch/does-not-exist.json"
-assert_eq "should report both absent when the settings file is missing" "arco=false linear=false " "$output"
-assert_eq "should exit 0 when the settings file is missing" "0" "$status"
+it_should_report_both_absent_when_neither_module_key_exists() {
+  fixture="$(write_fixture neither-key.json '{"enabledPlugins":{"frontend-design@claude-plugins-official":true}}')"
+  run_against "$fixture"
+  assert_eq "should report both absent when neither module key exists" "arco=false linear=false " "$output"
+  assert_eq "should exit 0 when neither module key exists" "0" "$status"
+}
 
-fixture="$(write_fixture malformed.json '{"enabledPlugins": {"core@arco-ai-plugins": tru')"
-run_against "$fixture"
-assert_eq "should report both absent when the settings file is malformed JSON" "arco=false linear=false " "$output"
-assert_eq "should exit 0 when the settings file is malformed JSON" "0" "$status"
+it_should_report_both_absent_when_every_module_key_is_disabled() {
+  fixture="$(write_fixture all-false.json '{"enabledPlugins":{"core@arco-ai-plugins":false,"sdd@arco-ai-plugins":false,"linear@claude-plugins-official":false}}')"
+  run_against "$fixture"
+  assert_eq "should report both absent when every module key is disabled" "arco=false linear=false " "$output"
+}
 
-fixture="$(write_fixture unreadable.json '{"enabledPlugins":{"core@arco-ai-plugins":true}}')"
-chmod 000 "$fixture"
-run_against "$fixture"
-chmod 600 "$fixture"
-assert_eq "should report both absent when the settings file is unreadable" "arco=false linear=false " "$output"
-assert_eq "should exit 0 when the settings file is unreadable" "0" "$status"
+it_should_report_both_absent_when_enabled_plugins_is_missing() {
+  fixture="$(write_fixture no-enabled-plugins.json '{"model":"sonnet"}')"
+  run_against "$fixture"
+  assert_eq "should report both absent when enabledPlugins is missing" "arco=false linear=false " "$output"
+  assert_eq "should exit 0 when enabledPlugins is missing" "0" "$status"
+}
 
-stderr_output="$(CLAUDE_SETTINGS="$scratch/malformed.json" bash "$SCRIPT_UNDER_TEST" 2>&1 >/dev/null)"
-assert_eq "should warn on stderr that it cannot read the settings file when it is malformed JSON" "detect-modules.sh: cannot read $scratch/malformed.json - reporting both modules absent" "$stderr_output"
+it_should_report_both_absent_when_the_settings_file_is_missing() {
+  run_against "$scratch/does-not-exist.json"
+  assert_eq "should report both absent when the settings file is missing" "arco=false linear=false " "$output"
+  assert_eq "should exit 0 when the settings file is missing" "0" "$status"
+}
 
-mkdir -p "$scratch/no-jq-bin"
-stderr_output="$(PATH="$scratch/no-jq-bin" CLAUDE_SETTINGS="$scratch/both-present.json" "$BASH" "$SCRIPT_UNDER_TEST" 2>&1 >/dev/null)"
-assert_eq "should warn on stderr that it cannot read the settings file when jq is not installed" "detect-modules.sh: cannot read $scratch/both-present.json - reporting both modules absent" "$stderr_output"
+# Unreadable input: a bad settings file reports both absent
 
-stderr_output="$(CLAUDE_SETTINGS="$scratch/both-present.json" bash "$SCRIPT_UNDER_TEST" 2>&1 >/dev/null)"
-assert_eq "should stay silent on stderr when the settings file is readable" "" "$stderr_output"
+it_should_report_both_absent_when_the_settings_file_is_malformed_json() {
+  fixture="$(write_fixture malformed.json '{"enabledPlugins": {"core@arco-ai-plugins": tru')"
+  run_against "$fixture"
+  assert_eq "should report both absent when the settings file is malformed JSON" "arco=false linear=false " "$output"
+  assert_eq "should exit 0 when the settings file is malformed JSON" "0" "$status"
+}
 
-stderr_output="$(CLAUDE_SETTINGS="$scratch/does-not-exist.json" bash "$SCRIPT_UNDER_TEST" 2>&1 >/dev/null)"
-assert_eq "should stay silent on stderr when the settings file does not exist" "" "$stderr_output"
+it_should_report_both_absent_when_the_settings_file_is_unreadable() {
+  fixture="$(write_fixture unreadable.json '{"enabledPlugins":{"core@arco-ai-plugins":true}}')"
+  chmod 000 "$fixture"
+  run_against "$fixture"
+  chmod 600 "$fixture"
+  assert_eq "should report both absent when the settings file is unreadable" "arco=false linear=false " "$output"
+  assert_eq "should exit 0 when the settings file is unreadable" "0" "$status"
+}
 
-mkdir -p "$scratch/home/.claude"
-printf '%s\n' '{"enabledPlugins":{"core@arco-ai-plugins":true}}' > "$scratch/home/.claude/settings.json"
-output="$(HOME="$scratch/home" CLAUDE_SETTINGS= bash "$SCRIPT_UNDER_TEST" 2>/dev/null | tr '\n' ' ')"
-assert_eq "should read the settings file under HOME when CLAUDE_SETTINGS is unset" "arco=true linear=false " "$output"
+# Stderr: warn only when a file cannot be read or jq is missing
+
+it_should_warn_on_stderr_when_the_settings_file_is_malformed_json() {
+  write_fixture malformed.json '{"enabledPlugins": {"core@arco-ai-plugins": tru' > /dev/null
+  stderr_output="$(CLAUDE_SETTINGS="$scratch/malformed.json" bash "$SCRIPT_UNDER_TEST" 2>&1 >/dev/null)"
+  assert_eq "should warn on stderr that it cannot read the settings file when it is malformed JSON" "detect-modules.sh: cannot read $scratch/malformed.json - reporting both modules absent" "$stderr_output"
+}
+
+it_should_warn_on_stderr_when_jq_is_not_installed() {
+  write_fixture both-present.json '{"enabledPlugins":{"core@arco-ai-plugins":true,"audit@arco-ai-plugins":false,"linear@claude-plugins-official":true}}' > /dev/null
+  mkdir -p "$scratch/no-jq-bin"
+  stderr_output="$(PATH="$scratch/no-jq-bin" CLAUDE_SETTINGS="$scratch/both-present.json" "$BASH" "$SCRIPT_UNDER_TEST" 2>&1 >/dev/null)"
+  assert_eq "should warn on stderr that it cannot read the settings file when jq is not installed" "detect-modules.sh: cannot read $scratch/both-present.json - reporting both modules absent" "$stderr_output"
+}
+
+it_should_stay_silent_on_stderr_when_the_settings_file_is_readable() {
+  write_fixture both-present.json '{"enabledPlugins":{"core@arco-ai-plugins":true,"audit@arco-ai-plugins":false,"linear@claude-plugins-official":true}}' > /dev/null
+  stderr_output="$(CLAUDE_SETTINGS="$scratch/both-present.json" bash "$SCRIPT_UNDER_TEST" 2>&1 >/dev/null)"
+  assert_eq "should stay silent on stderr when the settings file is readable" "" "$stderr_output"
+}
+
+it_should_stay_silent_on_stderr_when_the_settings_file_does_not_exist() {
+  stderr_output="$(CLAUDE_SETTINGS="$scratch/does-not-exist.json" bash "$SCRIPT_UNDER_TEST" 2>&1 >/dev/null)"
+  assert_eq "should stay silent on stderr when the settings file does not exist" "" "$stderr_output"
+}
+
+it_should_report_both_modules_present_when_both_plugins_are_enabled
+it_should_report_only_arco_present_when_one_arco_plugin_is_enabled_among_disabled_ones
+it_should_report_only_linear_present_when_only_the_linear_plugin_is_enabled
+it_should_read_the_settings_file_under_home_when_claude_settings_is_unset
+it_should_report_both_absent_when_neither_module_key_exists
+it_should_report_both_absent_when_every_module_key_is_disabled
+it_should_report_both_absent_when_enabled_plugins_is_missing
+it_should_report_both_absent_when_the_settings_file_is_missing
+it_should_report_both_absent_when_the_settings_file_is_malformed_json
+it_should_report_both_absent_when_the_settings_file_is_unreadable
+it_should_warn_on_stderr_when_the_settings_file_is_malformed_json
+it_should_warn_on_stderr_when_jq_is_not_installed
+it_should_stay_silent_on_stderr_when_the_settings_file_is_readable
+it_should_stay_silent_on_stderr_when_the_settings_file_does_not_exist
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
