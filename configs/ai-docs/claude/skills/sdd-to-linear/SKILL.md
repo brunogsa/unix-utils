@@ -105,7 +105,7 @@ The plan stays the source of truth and Linear is a projection of it, never the o
 
 Why: Linear documents no cycle detection and no depth limit on `blocks`/`blockedBy`.
 
-So those two gates alone can reject a cyclic or cross-level graph.
+So those three gates alone can reject a cyclic or cross-level graph.
 
 Exporting only a graph they accepted keeps an uncheckable cycle out of Linear.
 
