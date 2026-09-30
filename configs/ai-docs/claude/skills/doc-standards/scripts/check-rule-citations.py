@@ -62,7 +62,8 @@ Usage:
 Exit codes:
   0  clean
   1  citations found that don't resolve
-  2  usage error, or get-changed-lines.sh could not determine changed lines
+  2  usage error, get-changed-lines.sh could not determine changed lines,
+     or an input file is unreadable or not valid UTF-8
 """
 
 import re
@@ -355,6 +356,11 @@ def main(argv):
             total += check(path, changed_only=changed_only)
         except OSError as err:
             print(f"cannot read {path}: {err}", file=sys.stderr)
+            return 2
+        except UnicodeDecodeError:
+            # An uncaught decode error would exit 1, which
+            # callers read as findings; a load failure exits 2.
+            print(f"check-rule-citations.py: cannot read {path}: not valid UTF-8", file=sys.stderr)
             return 2
         except ChangedLinesError as err:
             print(f"cannot determine changed lines for {path}: {err}", file=sys.stderr)

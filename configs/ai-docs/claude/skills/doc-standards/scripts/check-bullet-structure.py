@@ -29,8 +29,9 @@ Usage:
 Exit codes:
   0  clean
   1  violations found
-  2  usage error, get-changed-lines.sh failed, or check-bullet-gap.py
-     could not be loaded (one stderr line names it and the directory)
+  2  usage error, get-changed-lines.sh failed, check-bullet-gap.py
+     could not be loaded (one stderr line names it and the directory),
+     or an input file is unreadable or not valid UTF-8
 """
 
 import importlib.util
@@ -272,6 +273,11 @@ def main(argv):
             total += check(path, changed_only)
         except OSError as err:
             print(f"cannot read {path}: {err}", file=sys.stderr)
+            return 2
+        except UnicodeDecodeError:
+            # An uncaught decode error would exit 1, which
+            # callers read as findings; a load failure exits 2.
+            print(f"check-bullet-structure.py: cannot read {path}: not valid UTF-8", file=sys.stderr)
             return 2
         except RuntimeError as err:
             print(str(err), file=sys.stderr)

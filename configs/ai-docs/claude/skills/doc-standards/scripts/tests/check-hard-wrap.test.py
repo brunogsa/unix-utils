@@ -763,3 +763,23 @@ def test_each_hitting_file_gets_its_own_header(tmp_path):
         "2:continues-prose",
     ]
     assert result.returncode == 1
+
+
+def test_exits_2_naming_script_and_file_when_input_is_not_valid_utf8(tmp_path):
+    latin1 = b"- caf\xe9 item\n- next\n"
+    path = tmp_path / "latin1.md"
+    path.write_bytes(latin1)
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), str(path)],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2, result.stderr
+    assert result.stdout == ""
+    assert "Traceback" not in result.stderr
+    assert result.stderr.splitlines() == [
+        f"check-hard-wrap.py: cannot read {path}: not valid UTF-8"
+    ]
+    assert path.read_bytes() == latin1

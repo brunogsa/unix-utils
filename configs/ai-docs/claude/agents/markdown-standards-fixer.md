@@ -94,6 +94,8 @@ For each file the caller names:
 
    - It exits 2 when `get-changed-lines.sh` cannot scope the file — not a git work tree, or a missing file. Report that file and move on; re-running never clears it.
 
+   - It also exits 2 when the file is not valid UTF-8. Report that file and move on.
+
    - Why script-first: it is deterministic and sub-second, where hand-splitting the same lines burns turns and risks mangling prose it should only have re-wrapped.
 
 4. Hand-fix ONLY the residue lines it reported.

@@ -802,6 +802,20 @@ EOF
   assert_contains 'should refuse to split an over-cap heading (residue row)' "$FIX_OUT" '3:468:77'
 }
 
+it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8() {
+  local path="$work_dir/latin1.md" stdout_file="$work_dir/latin1-stdout.txt" stderr_file="$work_dir/latin1-stderr.txt" rc
+  printf -- '- caf\351 item\n- next\n' > "$path"
+  cp "$path" "$work_dir/latin1-before.md"
+  python3 "$SCRIPT" "$path" >"$stdout_file" 2>"$stderr_file"
+  rc=$?
+  assert_eq 'should exit 2 when the input is not valid UTF-8' "2" "$rc"
+  assert_eq 'should print nothing on stdout when the input is not valid UTF-8' "" "$(cat "$stdout_file")"
+  assert_eq 'should print one stderr line naming the script and file, with no traceback, when the input is not valid UTF-8' \
+    "fix-density.py: cannot read $path: not valid UTF-8" "$(cat "$stderr_file")"
+  cmp -s "$path" "$work_dir/latin1-before.md"
+  assert_eq 'should leave the file byte-identical when the input is not valid UTF-8' "0" "$?"
+}
+
 it_should_split_an_over_cap_line_at_a_sentence_boundary_with_both_halves_under_the_caps
 it_should_split_an_over_cap_top_level_bullet_into_a_parent_bullet_and_an_indented_sub_bullet
 it_should_nest_a_split_sub_bullet_one_level_under_an_already_indented_parent_bullet
@@ -832,6 +846,7 @@ it_should_split_only_a_newly_added_violation_and_leave_a_pre_existing_violation_
 it_should_split_a_freshly_split_half_that_enters_scope_on_the_very_next_convergence_pass_with_changed_only
 it_should_relay_changed_only_to_the_bullet_gap_fix_call_leaving_a_pre_existing_bullet_gap_violation_untouched
 it_should_exit_2_and_name_the_file_when_changed_only_is_used_outside_any_git_work_tree
+it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

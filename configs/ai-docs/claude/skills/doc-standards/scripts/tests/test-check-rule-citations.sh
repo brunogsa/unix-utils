@@ -465,6 +465,20 @@ EOF
     "$SKILL_DIR/references/pr-template.md"
 }
 
+it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8() {
+  local path="$work_dir/latin1.md" stdout_file="$work_dir/latin1-stdout.txt" stderr_file="$work_dir/latin1-stderr.txt" rc
+  printf -- '- caf\351 item\n- next\n' > "$path"
+  cp "$path" "$work_dir/latin1-before.md"
+  python3 "$SCRIPT" "$path" >"$stdout_file" 2>"$stderr_file"
+  rc=$?
+  assert_eq 'should exit 2 when the input is not valid UTF-8' "2" "$rc"
+  assert_eq 'should print nothing on stdout when the input is not valid UTF-8' "" "$(cat "$stdout_file")"
+  assert_eq 'should print one stderr line naming the script and file, with no traceback, when the input is not valid UTF-8' \
+    "check-rule-citations.py: cannot read $path: not valid UTF-8" "$(cat "$stderr_file")"
+  cmp -s "$path" "$work_dir/latin1-before.md"
+  assert_eq 'should leave the file byte-identical when the input is not valid UTF-8' "0" "$?"
+}
+
 it_should_accept_a_quoted_name_authored_as_a_bold_span_in_the_cited_file
 it_should_accept_a_quoted_name_authored_as_a_heading_in_the_cited_file
 it_should_accept_a_citation_that_compresses_the_authored_rule_name
@@ -487,6 +501,7 @@ it_should_hide_a_pre_existing_hit_on_an_unmodified_tracked_file_under_changed_on
 it_should_report_only_the_hit_on_a_line_the_session_changed_under_changed_only
 it_should_scope_changed_only_independently_per_file_when_multiple_files_are_given
 it_should_exit_2_and_name_the_file_when_changed_lines_sh_cannot_determine_scope
+it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

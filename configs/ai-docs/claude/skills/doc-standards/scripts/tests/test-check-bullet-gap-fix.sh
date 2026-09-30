@@ -347,6 +347,20 @@ it_should_apply_changed_only_independently_per_file_when_given_multiple_files() 
   assert_eq 'should exit 1 (one in-scope violation, from the untracked file only)' '1' "$rc"
 }
 
+it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8() {
+  local path="$work_dir/latin1.md" stdout_file="$work_dir/latin1-stdout.txt" stderr_file="$work_dir/latin1-stderr.txt" rc
+  printf -- '- caf\351 item\n- next\n' > "$path"
+  cp "$path" "$work_dir/latin1-before.md"
+  python3 "$SCRIPT" --fix "$path" >"$stdout_file" 2>"$stderr_file"
+  rc=$?
+  assert_eq 'should exit 2 when the input is not valid UTF-8' "2" "$rc"
+  assert_eq 'should print nothing on stdout when the input is not valid UTF-8' "" "$(cat "$stdout_file")"
+  assert_eq 'should print one stderr line naming the script and file, with no traceback, when the input is not valid UTF-8' \
+    "check-bullet-gap.py: cannot read $path: not valid UTF-8" "$(cat "$stderr_file")"
+  cmp -s "$path" "$work_dir/latin1-before.md"
+  assert_eq 'should leave the file byte-identical when the input is not valid UTF-8' "0" "$?"
+}
+
 it_should_insert_a_blank_line_after_a_sub_bullet_hit_and_pass_the_check_afterward
 it_should_insert_a_blank_line_after_an_over_80pct_hit_and_pass_the_check_afterward
 it_should_leave_the_file_byte_identical_when_fix_flag_is_omitted
@@ -359,6 +373,7 @@ it_should_fix_every_hit_in_an_untracked_file_under_changed_only_same_as_a_full_s
 it_should_exit_2_when_changed_lines_sh_fails_outside_a_git_work_tree_in_check_mode
 it_should_exit_2_when_changed_lines_sh_fails_outside_a_git_work_tree_in_fix_mode
 it_should_apply_changed_only_independently_per_file_when_given_multiple_files
+it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

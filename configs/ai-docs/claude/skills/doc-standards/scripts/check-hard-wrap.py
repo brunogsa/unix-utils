@@ -43,7 +43,8 @@ printed), never the line it continues - see find_hits()'s docstring.
 Exit codes:
   0  clean
   1  violations found
-  2  usage error, or (with --changed-only) get-changed-lines.sh failed
+  2  usage error, (with --changed-only) get-changed-lines.sh failed, or
+     an input file is unreadable or not valid UTF-8
 """
 
 import re
@@ -322,6 +323,11 @@ def main(argv):
             total += check(path, changed_only)
         except OSError as err:
             print(f"cannot read {path}: {err}", file=sys.stderr)
+            return 2
+        except UnicodeDecodeError:
+            # An uncaught decode error would exit 1, which
+            # callers read as findings; a load failure exits 2.
+            print(f"check-hard-wrap.py: cannot read {path}: not valid UTF-8", file=sys.stderr)
             return 2
         except ChangedLinesError as err:
             print(f"get-changed-lines.sh failed for {err}", file=sys.stderr)

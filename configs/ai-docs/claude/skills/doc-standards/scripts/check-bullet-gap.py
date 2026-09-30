@@ -46,8 +46,8 @@ Usage:
 Exit codes:
   0  clean
   1  violations found (or, with --fix, violations remained after fixing)
-  2  usage error, or get-changed-lines.sh itself failed (not a git work tree,
-     missing file)
+  2  usage error, get-changed-lines.sh itself failed (not a git work tree,
+     missing file), or an input file is unreadable or not valid UTF-8
 """
 
 import re
@@ -283,6 +283,11 @@ def main(argv):
                 total += check(path, max_chars, max_words, changed_only)
         except OSError as err:
             print(f"cannot read {path}: {err}", file=sys.stderr)
+            return 2
+        except UnicodeDecodeError:
+            # An uncaught decode error would exit 1, which
+            # callers read as findings; a load failure exits 2.
+            print(f"check-bullet-gap.py: cannot read {path}: not valid UTF-8", file=sys.stderr)
             return 2
         except RuntimeError as err:
             print(str(err), file=sys.stderr)

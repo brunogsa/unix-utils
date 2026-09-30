@@ -84,8 +84,9 @@ the file and the inner script, never silently read back as zero hits.
 Exit codes:
   0  fully clean (or fully resolved by fixing)
   1  residue remains - printed as <line>:<chars>:<words>, one per line
-  2  usage error, or an inner script (check-density.sh or
-     check-bullet-gap.py) itself failed - message names the file
+  2  usage error, an input file is unreadable or not valid UTF-8, or
+     an inner script (check-density.sh or check-bullet-gap.py) itself
+     failed - message names the file
 """
 
 import re
@@ -442,6 +443,11 @@ def main(argv):
             )
         except OSError as err:
             print(f"cannot read {path}: {err}", file=sys.stderr)
+            return 2
+        except UnicodeDecodeError:
+            # An uncaught decode error would exit 1, which
+            # callers read as findings; a load failure exits 2.
+            print(f"fix-density.py: cannot read {path}: not valid UTF-8", file=sys.stderr)
             return 2
         except RuntimeError as err:
             print(str(err), file=sys.stderr)
