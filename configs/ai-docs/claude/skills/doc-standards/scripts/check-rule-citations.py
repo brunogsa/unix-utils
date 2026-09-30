@@ -378,6 +378,19 @@ def main(argv):
         return 2
 
     total = 0
+    # Every input's scope is resolved before any is reported, so
+    # a later file with no scope exits 2 first.
+    if changed_only:
+        for path in files:
+            try:
+                changed_line_numbers(path)
+            except ChangedLinesError as err:
+                print(
+                    f"check-rule-citations.py: cannot determine changed lines for {path}: {err}",
+                    file=sys.stderr,
+                )
+                return 2
+
     for path in files:
         try:
             total += check(path, changed_only=changed_only)

@@ -1359,6 +1359,10 @@ function main() {
   // unreadable later file exits 2 before any stdout or rewrite.
   for (const file of files) readUtf8File(file);
 
+  // Scope is resolved up front for the same reason: a file with
+  // no changed-line scope exits 2 before any stdout or rewrite.
+  if (changedOnly) for (const file of files) getChangedLineSet(file);
+
   for (const file of files) {
     if (contentLoss) {
       if (reportContentLoss(file, lang)) anyHit = true;

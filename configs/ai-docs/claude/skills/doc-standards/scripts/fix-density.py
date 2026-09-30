@@ -462,6 +462,18 @@ def main(argv):
         print(unreadable, file=sys.stderr)
         return 2
 
+    # Every scope is resolved before any file is rewritten, so
+    # a later file with no scope leaves earlier ones unchanged.
+    if changed_only:
+        try:
+            for path in files:
+                get_density_hits(
+                    path, prose_chars, prose_words, bullet_chars, bullet_words, changed_only
+                )
+        except RuntimeError as err:
+            print(str(err), file=sys.stderr)
+            return 2
+
     total_residue = 0
     for path in files:
         try:

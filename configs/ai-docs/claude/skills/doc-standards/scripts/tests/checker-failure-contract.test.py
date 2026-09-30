@@ -243,3 +243,48 @@ def test_exits_2_naming_itself_and_the_file_when_changed_only_runs_outside_a_git
     assert result.returncode == 2
     assert result.stdout == b""
     assert any(str(path) in line for line in named_lines), named_lines
+
+
+CHANGED_ONLY_MODES = [
+    pytest.param(["--changed-only"], id="default-mode"),
+    pytest.param(["--fix", "--changed-only"], id="fix-mode"),
+]
+
+
+# The earlier file sits in a fresh repo, untracked, so every
+# line of it is in scope; the later file sits outside any work
+# tree, so its changed lines cannot be determined.
+def write_scoped_then_unscopable_fixtures(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    env = {**C_LOCALE_ENV, "GIT_CEILING_DIRECTORIES": str(tmp_path)}
+    return write_violating_fixture(repo), write_plain_fixture(outside), env
+
+
+@pytest.mark.parametrize("mode_args", CHANGED_ONLY_MODES)
+@pytest.mark.parametrize("checker", CHECKERS)
+def test_exits_2_with_nothing_on_stdout_when_a_later_files_changed_lines_cannot_be_determined(
+    tmp_path, checker, mode_args
+):
+    violating, unscopable, env = write_scoped_then_unscopable_fixtures(tmp_path)
+
+    result = run(checker, *mode_args, str(violating), str(unscopable), env=env)
+
+    assert result.returncode == 2
+    assert result.stdout == b""
+
+
+@pytest.mark.parametrize("mode_args", CHANGED_ONLY_MODES)
+@pytest.mark.parametrize("checker", CHECKERS)
+def test_leaves_an_earlier_violating_file_unchanged_when_a_later_files_changed_lines_cannot_be_determined(
+    tmp_path, checker, mode_args
+):
+    violating, unscopable, env = write_scoped_then_unscopable_fixtures(tmp_path)
+    before = violating.read_bytes()
+
+    run(checker, *mode_args, str(violating), str(unscopable), env=env)
+
+    assert violating.read_bytes() == before

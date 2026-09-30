@@ -294,6 +294,16 @@ def main(argv):
         print(unreadable, file=sys.stderr)
         return 2
 
+    # Every input's scope is resolved before any is reported, so
+    # a later file with no scope exits 2 first.
+    if changed_only:
+        try:
+            for path in files:
+                bullet_gap.get_changed_line_set(path)
+        except RuntimeError as err:
+            print(f"check-bullet-structure.py: {err}", file=sys.stderr)
+            return 2
+
     total = 0
     for path in files:
         try:

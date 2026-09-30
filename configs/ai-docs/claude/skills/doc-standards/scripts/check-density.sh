@@ -170,6 +170,8 @@ if ! command -v iconv >/dev/null 2>&1; then
   exit 2
 fi
 
+# One scope per FILES index; bash 3.2 has no associative arrays.
+changed_csvs=()
 for f in "${FILES[@]}"; do
   # why: readable check first, because iconv also exits 1 on a
   # missing file and the message would wrongly blame UTF-8.
@@ -185,11 +187,7 @@ for f in "${FILES[@]}"; do
     echo "check-density.sh: cannot read $f: not valid UTF-8" >&2
     exit 2
   fi
-done
 
-# why: every input is validated before any is checked, so a
-# later unreadable file exits 2 before any stdout.
-for f in "${FILES[@]}"; do
   changed_csv=""
   if [[ $CHANGED_ONLY -eq 1 ]]; then
     if ! lines=$("$script_dir/get-changed-lines.sh" "$f" 2>"$err_file"); then
@@ -198,6 +196,14 @@ for f in "${FILES[@]}"; do
     fi
     changed_csv="${lines//$'\n'/,}"
   fi
+  changed_csvs+=("$changed_csv")
+done
+
+# why: every input is read and scoped before any is checked,
+# so a bad later file exits 2 before any stdout.
+for i in "${!FILES[@]}"; do
+  f=${FILES[$i]}
+  changed_csv=${changed_csvs[$i]}
 
   if out=$(check_one_file "$f" "$CHANGED_ONLY" "$changed_csv"); then
     rc=0

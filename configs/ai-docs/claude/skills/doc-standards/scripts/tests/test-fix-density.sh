@@ -568,7 +568,7 @@ EOF
   assert_eq 'should exit non-zero when --changed-only is used outside any git work tree (scoping failure surfaced, not swallowed into a false clean result)' \
     "2" "$FIX_EXIT"
   assert_contains 'should name the file in stderr when scoping fails outside a git work tree' "$FIX_OUT" 'plain.md'
-  assert_contains 'should name the failing inner script in stderr when scoping fails outside a git work tree' "$FIX_OUT" 'check-bullet-gap.py'
+  assert_contains 'should name the failing inner script in stderr when scoping fails outside a git work tree' "$FIX_OUT" 'check-density.sh'
   assert_eq 'should leave the file untouched when scoping fails outside a git work tree' "$before" "$(cat "$plain_dir/plain.md")"
 }
 
