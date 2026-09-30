@@ -4,15 +4,15 @@ Read alongside `plan-writing.md` when writing the Test Design, Task Breakdown, P
 
 ## Test Design
 
-Test titles designed before implementation — bodies come during each RED-GREEN cycle. Review before coding starts.
+Test titles are designed before implementation and reviewed before coding; bodies come during each RED-GREEN cycle.
 
-**Integration tests (outer layer)** — the stable user-facing contract. Design all titles upfront, grouped by scenario class so a thin class is a visible gap:
+**Integration tests (outer layer)** — the user-facing contract. Design all titles upfront, grouped by scenario class so a thin class is a visible gap:
 
 - **Happy cases** — the expected success paths.
 - **Corner cases** — boundary/edge inputs handled deliberately (off-by-one, empty, single-vs-many, precision residue, optional field present/absent).
 - **Failure scenarios** — every way it fails: guard rejections, downstream errors, partial success, retry-vs-DLQ classification.
 
-Annotate every `it()` with a trailing `// AC-<n>… T<n>… [on-demand]` comment: the ACs it proves, the tasks that write it, and `[on-demand]` when pulled mid-cycle. This section is the single source — the annotation replaces the AC-coverage list, so no test title is ever written twice.
+Annotate every `it()` with a trailing `// AC-<n>… T<n>… [on-demand]` comment: the ACs it proves, the tasks that write it, and `[on-demand]` when pulled mid-cycle. This section is the single source, so no test title is written twice.
 
 Group each `describe()` block by scenario class, one comment per class:
 
@@ -28,7 +28,7 @@ describe("[ComponentOrUseCase]", () => {
 });
 ```
 
-**Unit tests for pre-known pure helpers** — only helpers we know will exist regardless of design or implementation choices (e.g., obvious normalizers, parsers, validators). Skip this subsection if none:
+**Unit tests for pre-known pure helpers** — only helpers we know will exist regardless of design or implementation choices (e.g., obvious normalizers, parsers, validators):
 
 ```
 // <file>
@@ -37,7 +37,7 @@ describe("[obviousPureHelper]", () => {
 });
 ```
 
-Tests for helpers pulled on demand during RED-GREEN are designed at the moment the caller first needs them (test-first at the point of pull) — designing them eagerly would force premature signatures.
+Tests for helpers pulled on demand during RED-GREEN are designed at the moment the caller first needs them — designing them eagerly would force premature signatures.
 
 ## Task Breakdown section
 
@@ -53,7 +53,7 @@ Sub-step breadcrumb: optional, semicolon-separated parenthetical after the title
 
 **Brief Description**: a short paragraph of at most 4 sentences, or a bullet list of one sentence per bullet — never a longer prose block.
 
-Commit sketch line: `` `<repo>` — `type(scope): subject` `` — repo path, Conventional Commits subject. Add a second line only when the task naturally produces two commits (e.g. "introduce helper" + "replace callers"), else omit.
+Commit sketch line: `` `<repo>` — `type(scope): subject` ``. Add a second line only when the task naturally produces two commits, else omit.
 
 ## Task Details section
 
@@ -91,6 +91,8 @@ One `### PR-N.` heading per PR, one level above Task Breakdown's `### N.`.
 Only the orchestrating agent writes two inline fields, absent until then:
 - `[<status>]` (`[Doing]`/`[Done]`/`[Blocked]`/`[Deferred]`/`[Dropped]`) after `PR-N.`, at batch-end.
 - Backtick-wrapped `**Branch**:`, once that PR's batch pushes — `parse-pr-breakdown.sh` reads the branch name between backticks.
+
+Only `sdd-to-linear` writes `**Linear**:`, at export time, its issue URL wrapped in backticks like `**Branch**:`. The awk parser's `field()` ends a value at the first period, so a bare `https://linear.app/...` truncates at `https://linear`.
 
 Each field is its own line; parsers read the first found per PR. Free prose after is for the reviewer.
 
