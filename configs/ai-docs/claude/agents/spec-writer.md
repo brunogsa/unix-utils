@@ -18,6 +18,9 @@ You inherit no session context. Every fact you write down has to come from the b
 The caller gives you:
 - The absolute path to `brainstorm-why-brief.md`.
 - The output path (or the slug to derive `spec_<slug>.md` in CWD from).
+- Optionally, the absolute path to the caller's session `notes.md`.
+  - It is passed explicitly because a dispatched subagent gets its own, different scratchpad directory and cannot find the caller's notes otherwise.
+  - A run with no notes omits it.
 
 ## Sources and tools
 
@@ -34,6 +37,8 @@ Compose under those conventions rather than reconstructing them from memory. Nev
 ## Procedure
 
 1. Read `brainstorm-why-brief.md` at the given path in full — it carries the verbatim original request, every finding with its `file:line` evidence, and every decision with the alternatives it discarded.
+   - With a notes path, read it too and add its decisions and rejected approaches the brief lacks. A conflict with the brief becomes a `**QUESTION:**`.
+
 2. Read sources 1 and 2, then write every section of the template — no section gets dropped; one the change doesn't need still gets its own `N/A — <reason>` line.
 3. Fold the brief's `## Decisions` into the Functional Decisions section: the chosen approach as one marker, discarded alternatives as sub-bullets naming why they lost.
 4. A gap the brief doesn't cover never withholds the spec — write around it and record a `**QUESTION:**` under Open Questions, stating what's missing. Never invent to fill it.

@@ -61,6 +61,7 @@ Dispatch `agent(subAgent=spec-writer, title=Write the spec)` in the background a
 
 - The absolute path to `brainstorm-why-brief.md` in this session's scratchpad, since a dispatched subagent gets its own different scratchpad directory.
 - The slug.
+- The absolute path to this session's `notes.md`, when one exists, since the subagent cannot find it in its own scratchpad directory.
 
 **This session never writes the spec itself.** Every later edit goes through `agent(subAgent=spec-editor, title=Apply spec edits)` carrying the exact changes.
 
