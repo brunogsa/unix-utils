@@ -90,6 +90,8 @@ Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md`
 
 Run the deterministic gates first with `~/.claude/skills/spec-driven-development/scripts/check-deterministic-gates.sh <plan> [<spec>]`, passing the spec path when one exists, and fix each miss through `plan-editor`.
 
+A runner exit of 1 is a finding to fix. **Exit 2, or a `FAIL exit=2` line, means a gate could not run** — report it to the user, never route it to `plan-editor`, and never count the plan as gated.
+
 Then dispatch `agent(subAgent=plan-reviewer, effort=high, title=Fresh-eyes review of plan)` in the background, pointed at the plan file alone (plus the spec path when one exists).
 
 Its qualitative leg runs only when `qualitative_pass` is true, read back from `/tmp/sdd_<session_id>.json`; its fail-closed judged checks run regardless.
