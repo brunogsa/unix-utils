@@ -50,14 +50,12 @@ VIOLATION_THRESHOLD=10
 INPUT=$(cat)
 
 TOOL_NAME=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
-case "$TOOL_NAME" in
-  Write|Edit) ;;
-  *) exit 0 ;;
-esac
 
-FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
-[ -n "$FILE_PATH" ] || exit 0
-[ -f "$FILE_PATH" ] || exit 0
+# check_file - run one file's checkers and print its report on
+# stderr, returning 2 when it found anything and 0 when clean.
+check_file() {
+  local FILE_PATH="$1"
+  [ -f "$FILE_PATH" ] || return 0
 
 ext="${FILE_PATH##*.}"
 base="$(basename -- "$FILE_PATH")"
@@ -73,7 +71,7 @@ case "$ext" in
     checker_names=(check-comment-format.js)
     ;;
   *)
-    exit 0
+    return 0
     ;;
 esac
 
@@ -119,7 +117,6 @@ description_for_label() {
 
 rows_file=$(mktemp)
 hit_checkers_file=$(mktemp)
-trap 'rm -f "$rows_file" "$hit_checkers_file"' EXIT
 
 for name in "${checker_names[@]}"; do
   chk="$doc_scripts_dir/$name"
@@ -187,7 +184,10 @@ for name in "${checker_names[@]}"; do
 done
 
 total=$(wc -l < "$rows_file" | tr -d ' ')
-[ "$total" -gt 0 ] || exit 0
+if [ "$total" -eq 0 ]; then
+  rm -f "$rows_file" "$hit_checkers_file"
+  return 0
+fi
 
 RULE_BLOCK='Prose: small paragraphs of 1-4 sentences, blank line between each.
 Bullets + sub-bullets: 1-2 sentences each.
@@ -289,4 +289,91 @@ Dash-ended bullet whose next bullet continues its sentence: rewrite the pair as 
   fi
 } >&2
 
+  rm -f "$rows_file" "$hit_checkers_file"
+  return 2
+}
+
+# How recently a file must have been touched to count as
+# written by the Bash call that just ran.
+#
+# git reports every dirty file in the tree, but this hook only
+# has standing over the ones its own Bash call produced.
+#
+# A long-dirty work tree - a concurrent session's scratch, a
+# half-finished refactor - would otherwise be re-reported in
+# full on every Bash call.
+#
+# That measured 29 files and 30 seconds per call in this repo,
+# which is how a hook gets switched off.
+BASH_WRITE_WINDOW_SECONDS=300
+
+# file_mtime_seconds - epoch mtime of a file, via the BSD form
+# first and the GNU form second, since this repo runs on both.
+file_mtime_seconds() {
+  stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null
+}
+
+# collect_bash_paths - fill `paths` with every file git reports
+# as changed in the work tree the Bash call ran in.
+#
+# A Bash payload names no file, and the write may have come
+# from a redirect, a heredoc, tee, an in-place edit or a script
+# the command invoked, so git's own view is the only signal
+# that needs no hand-maintained list of writers.
+#
+# Returns non-zero when there is no work tree to read, which is
+# the fail-open case: no git, no signal.
+collect_bash_paths() {
+  local cwd="$1" top entry status_pair relative_path absolute_path mtime now
+  now=$(date +%s)
+  git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 1
+  top=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || return 1
+  [ -n "$top" ] || return 1
+
+  # -z keeps every path raw, so a name carrying a space or a
+  # quote needs no unquoting; -uall lists files inside a new
+  # directory instead of collapsing it to the directory.
+  while IFS= read -r -d '' entry; do
+    status_pair="${entry:0:2}"
+    relative_path="${entry:3}"
+
+    # A rename or copy entry carries its old path as a second
+    # NUL field, which names no file on disk to check.
+    case "$status_pair" in
+      *R*|*C*) IFS= read -r -d '' _ ;;
+    esac
+
+    absolute_path="$top/$relative_path"
+    mtime=$(file_mtime_seconds "$absolute_path")
+    [ -n "$mtime" ] || continue
+    [ "$((now - mtime))" -le "$BASH_WRITE_WINDOW_SECONDS" ] || continue
+
+    paths+=("$absolute_path")
+  done < <(git -C "$cwd" status --porcelain -z -uall 2>/dev/null)
+}
+
+paths=()
+case "$TOOL_NAME" in
+  Write|Edit)
+    FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+    [ -n "$FILE_PATH" ] || exit 0
+    paths=("$FILE_PATH")
+    ;;
+  Bash)
+    HOOK_CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+    [ -n "$HOOK_CWD" ] || HOOK_CWD="$PWD"
+    collect_bash_paths "$HOOK_CWD" || exit 0
+    ;;
+  *)
+    exit 0
+    ;;
+esac
+
+reported=0
+for candidate_path in "${paths[@]:-}"; do
+  [ -n "$candidate_path" ] || continue
+  check_file "$candidate_path" || reported=1
+done
+
+[ "$reported" -eq 1 ] || exit 0
 exit 2

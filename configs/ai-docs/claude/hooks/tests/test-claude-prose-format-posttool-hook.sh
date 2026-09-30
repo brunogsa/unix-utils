@@ -637,7 +637,128 @@ it_should_treat_a_leading_dash_filename_as_a_path_not_a_flag() {
   assert_eq "the checker must never rewrite the file while checking its leading-dash name" "$before" "$after"
 }
 
+# run_hook_bash - invokes the hook with a Bash PostToolUse
+# payload whose cwd is the given fixture repo.
+#
+# A Bash payload carries no file_path, so the hook has to
+# discover what changed from git itself - which is the whole
+# point of covering the tool that writes through a redirect.
+run_hook_bash() {
+  local dir="$1" stdin_json
+  stdin_json=$(jq -n --arg d "$dir" \
+    '{tool_name: "Bash", cwd: $d, tool_input: {command: "printf x > y"}}')
+  HOOK_OUT=$(printf '%s' "$stdin_json" | "$bash_bin" "$SCRIPT" 2>&1)
+  HOOK_EXIT=$?
+}
+
+# write_wall_of_text - fills the given path with three
+# over-cap paragraphs, the same fixture shape the Write-payload
+# tests above use.
+write_wall_of_text() {
+  local path="$1" long_line
+  long_line=$(python3 -c "print('word ' * 120)")
+  {
+    printf '%s\n\n' "$long_line"
+    printf '%s\n\n' "$long_line"
+    printf '%s\n\n' "$long_line"
+  } > "$path"
+}
+
+it_should_report_a_wall_of_text_written_through_bash() {
+  local dir
+  dir=$(new_repo_fixture)
+  write_wall_of_text "$dir/wall.md"
+  run_hook_bash "$dir"
+  assert_eq "should exit 2 on a wall of text written through Bash" "2" "$HOOK_EXIT"
+  assert_contains "should name the Bash-written file in the report" "wall.md" "$HOOK_OUT"
+}
+
+it_should_name_every_offending_file_when_bash_changed_several() {
+  local dir
+  dir=$(new_repo_fixture)
+  write_wall_of_text "$dir/first.md"
+  write_wall_of_text "$dir/second.md"
+  run_hook_bash "$dir"
+  assert_eq "should exit 2 when Bash left several offending files" "2" "$HOOK_EXIT"
+  assert_contains "should name the first offending file" "first.md" "$HOOK_OUT"
+  assert_contains "should name the second offending file" "second.md" "$HOOK_OUT"
+}
+
+it_should_stay_silent_when_bash_changed_only_clean_files() {
+  local dir
+  dir=$(new_repo_fixture)
+  cat > "$dir/clean.md" << 'EOF'
+Small clean paragraph.
+
+Another small one.
+EOF
+  run_hook_bash "$dir"
+  assert_eq "should exit 0 when every Bash-changed file is clean" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing when every Bash-changed file is clean" "" "$HOOK_OUT"
+}
+
+it_should_fail_open_for_a_bash_payload_outside_a_git_repo() {
+  local dir
+  dir=$(mktemp -d)
+  write_wall_of_text "$dir/wall.md"
+  run_hook_bash "$dir"
+  assert_eq "should exit 0 for a Bash payload outside any git work tree" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing for a Bash payload outside any git work tree" "" "$HOOK_OUT"
+}
+
+it_should_report_a_renamed_file_under_its_new_name() {
+  # git status reports a rename as one entry carrying BOTH
+  # paths, so a parser taking the second whitespace field reads
+  # the arrow or the old path instead of the file on disk.
+  local dir
+  dir=$(new_repo_fixture)
+  (
+    cd "$dir" || exit 1
+    git config user.email "test@example.com"
+    git config user.name "Test"
+    printf 'Small clean paragraph.\n' > before.md
+    git add before.md
+    git commit -q -m "init"
+    git mv before.md after.md
+  )
+  write_wall_of_text "$dir/after.md"
+  run_hook_bash "$dir"
+  assert_eq "should exit 2 on a renamed file whose new content is a wall of text" "2" "$HOOK_EXIT"
+  assert_contains "should name the renamed file by its new name" "after.md" "$HOOK_OUT"
+}
+
+it_should_ignore_a_dirty_file_last_written_long_before_the_bash_call() {
+  # git reports every dirty file in the tree, not the ones this
+  # Bash call wrote, so a long-dirty work tree would re-report
+  # the same files on every single Bash call forever.
+  local dir
+  dir=$(new_repo_fixture)
+  write_wall_of_text "$dir/stale.md"
+  touch -t 200001010000 "$dir/stale.md"
+  run_hook_bash "$dir"
+  assert_eq "should exit 0 when the only dirty file predates the Bash call" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing when the only dirty file predates the Bash call" "" "$HOOK_OUT"
+}
+
+it_should_report_a_bash_written_file_whose_name_contains_a_space() {
+  # git status quotes any path carrying a space, so a parser
+  # reading raw porcelain output splits that one path in two.
+  local dir
+  dir=$(new_repo_fixture)
+  write_wall_of_text "$dir/my notes.md"
+  run_hook_bash "$dir"
+  assert_eq "should exit 2 on a Bash-written file whose name contains a space" "2" "$HOOK_EXIT"
+  assert_contains "should name the spaced file in the report" "my notes.md" "$HOOK_OUT"
+}
+
 it_should_stay_silent_on_a_clean_markdown_write
+it_should_report_a_wall_of_text_written_through_bash
+it_should_name_every_offending_file_when_bash_changed_several
+it_should_stay_silent_when_bash_changed_only_clean_files
+it_should_fail_open_for_a_bash_payload_outside_a_git_repo
+it_should_ignore_a_dirty_file_last_written_long_before_the_bash_call
+it_should_report_a_renamed_file_under_its_new_name
+it_should_report_a_bash_written_file_whose_name_contains_a_space
 it_should_report_a_wall_of_text_markdown_write
 it_should_use_the_counts_regime_over_the_threshold
 it_should_not_flake_when_the_fixture_path_contains_l_digit_over_threshold
