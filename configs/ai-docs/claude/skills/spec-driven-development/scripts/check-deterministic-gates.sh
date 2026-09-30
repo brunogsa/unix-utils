@@ -59,11 +59,17 @@ for f in "$plan" ${spec:+"$spec"}; do
 done
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-assets_dir="$(cd "$script_dir/../assets" && pwd)"
+assets_dir="$(cd "$script_dir/../assets" && pwd)" || {
+  echo "error: cannot resolve the assets directory: $script_dir/../assets" >&2
+  exit 2
+}
 
 # doc-standards is a sibling skill dir in both the repo
 # source and the ~/.claude symlink.
-density_dir="$(cd "$script_dir/../../doc-standards/scripts" && pwd)"
+density_dir="$(cd "$script_dir/../../doc-standards/scripts" && pwd)" || {
+  echo "error: cannot resolve the doc-standards scripts directory: $script_dir/../../doc-standards/scripts" >&2
+  exit 2
+}
 
 failed=0
 out_file=$(mktemp)

@@ -227,6 +227,24 @@ it_should_exit_2_naming_the_file_when_the_spec_is_missing() {
   assert_contains "should name the missing spec on stderr" "nospec.md" "$RUN_ERR"
 }
 
+it_should_exit_2_naming_the_directory_when_the_doc_standards_sibling_is_missing() {
+  build_tree
+  rm -rf "$TREE/doc-standards"
+  run_runner "$PLAN" "$SPEC"
+  assert_eq "should exit 2 when doc-standards cannot be resolved" "2" "$RUN_EXIT"
+  assert_contains "should name the unresolved doc-standards directory on stderr" "error: cannot resolve the doc-standards scripts directory" "$RUN_ERR"
+  assert_eq "should run no gate when doc-standards cannot be resolved" "" "$(cat "$CALL_LOG")"
+}
+
+it_should_exit_2_naming_the_directory_when_the_assets_sibling_is_missing() {
+  build_tree
+  rm -rf "$TREE/spec-driven-development/assets"
+  run_runner "$PLAN" "$SPEC"
+  assert_eq "should exit 2 when assets cannot be resolved" "2" "$RUN_EXIT"
+  assert_contains "should name the unresolved assets directory on stderr" "error: cannot resolve the assets directory" "$RUN_ERR"
+  assert_eq "should run no gate when assets cannot be resolved" "" "$(cat "$CALL_LOG")"
+}
+
 it_should_run_every_member_in_the_reference_order_and_pass_when_given_a_plan_and_a_spec
 it_should_skip_the_spec_taking_gates_and_report_them_as_skipped_when_given_no_spec
 it_should_keep_running_after_a_failing_gate_show_its_output_and_exit_non_zero
@@ -237,6 +255,8 @@ it_should_exit_2_with_usage_on_stderr_when_given_no_arguments
 it_should_exit_2_with_usage_on_stderr_when_given_more_than_two_arguments
 it_should_exit_2_naming_the_file_when_the_plan_is_missing
 it_should_exit_2_naming_the_file_when_the_spec_is_missing
+it_should_exit_2_naming_the_directory_when_the_doc_standards_sibling_is_missing
+it_should_exit_2_naming_the_directory_when_the_assets_sibling_is_missing
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
