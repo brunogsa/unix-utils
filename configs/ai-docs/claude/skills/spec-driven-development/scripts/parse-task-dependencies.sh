@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# parse-task-dependencies.sh - the one parser of the Task Breakdown's
-# **Depends on** grammar.
+# parse-task-dependencies.sh - the one parser of the Task
+# Breakdown's **Depends on** grammar.
 #
 # Usage:
 #   parse-task-dependencies.sh <plan-file>
 #
-# stdout: one "Task N<TAB>Task A,Task B" line per task (empty second
-#         field when the task has no dependencies)
-# exit: 0 parsed; 2 usage error, unparsable field, or no task entries
-#       (diagnostic on stderr)
+# stdout: one "Task N<TAB>Task A,Task B" line per task (empty
+#         second field when the task has no dependencies)
+# exit: 0 parsed; 2 usage error, unparsable field, or no task
+#       entries (diagnostic on stderr)
 
 set -eo pipefail
 

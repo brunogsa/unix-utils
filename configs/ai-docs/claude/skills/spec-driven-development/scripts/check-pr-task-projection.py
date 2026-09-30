@@ -43,6 +43,7 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PLAN_SECTION = SCRIPT_DIR / "plan-section.sh"
+PARSE_TASK_DEPENDENCIES = SCRIPT_DIR / "parse-task-dependencies.sh"
 
 # One "### PR-N." heading opens each entry.
 #
@@ -65,28 +66,6 @@ PR_BOLD_SPAN_SPLIT_RE = re.compile(r"\*\*[^*]*PR-(\d+)[^*]*\*\*")
 # periods.
 TASKS_FIELD_RE = re.compile(r"\*?\*?Tasks\*?\*?:\s*(?P<tasks>[^.\n]*)")
 DEPENDS_FIELD_RE = re.compile(r"\*?\*?Depends on\*?\*?:\s*(?P<deps>[^.\n]*)")
-
-# Task headings split the section into per-task chunks so a
-# dependency block can never leak into a neighboring task,
-# mirroring check-tasks-dag.sh's own state-machine boundary.
-TASK_HEADING_SPLIT_RE = re.compile(r"^### (\d+)\. ", re.M)
-
-# The whole field: its same-line trailer plus any "- ..."
-# bullets directly under it. Canonical shapes, per
-# plan-tasks-and-appendix.md: a "none" trailer, or an empty
-# trailer over a lone "- none" or one or more "- Task N".
-#
-# "- none" mixed with "- Task N" contradicts itself, so it is
-# a grammar violation, not a pick.
-#
-# Anything else, the inline "**Depends on**: Task 1" above
-# all, is a grammar violation rather than a dependency-free
-# task. Reading it as dependency-free is what let this
-# checker pass vacuously over a plan of real dependencies.
-TASK_DEPS_FIELD_RE = re.compile(
-    r"^\*\*Depends on\*\*:(?P<trailer>[^\n]*)(?:\n(?P<bullets>(?:- [^\n]*\n?)+))?",
-    re.M,
-)
 
 
 def extract_section(plan_file: Path, heading_pattern: str) -> str:
@@ -127,31 +106,26 @@ def parse_pr_entries(section: str):
     return pr_tasks, pr_deps
 
 
-def parse_task_entries(section: str):
-    """Return (task_deps, ungrammatical): task id -> the task
-    ids it depends on, plus the ids whose "Depends on" field
-    is written in none of the canonical shapes."""
-    chunks = TASK_HEADING_SPLIT_RE.split(section)
+def parse_task_entries(plan_file: Path) -> dict[str, list[str]]:
+    """Return task id -> the task ids it depends on, read via
+    parse-task-dependencies.sh, the one **Depends on** parser. Its
+    exit 2 (unparsable field, no task entries) ends this script with
+    the parser's own diagnostic."""
+    result = subprocess.run(
+        [str(PARSE_TASK_DEPENDENCIES), str(plan_file)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        sys.stderr.write(result.stderr)
+        sys.exit(2)
     task_deps: dict[str, list[str]] = {}
-    ungrammatical: list[str] = []
-    for tid, body in zip(chunks[1::2], chunks[2::2]):
-        field = TASK_DEPS_FIELD_RE.search(body)
-        if field is None:
-            task_deps[tid] = []
-            continue
-        trailer = field.group("trailer").strip()
-        bullet_text = field.group("bullets") or ""
-        bullets = re.findall(r"- Task (\d+)", bullet_text)
-        none_bullets = re.findall(r"^- none[ \t]*$", bullet_text, re.M)
-        if trailer == "none":
-            task_deps[tid] = []
-        elif trailer == "" and len(none_bullets) == 1 and not bullets:
-            task_deps[tid] = []
-        elif trailer == "" and bullets and not none_bullets:
-            task_deps[tid] = bullets
-        else:
-            ungrammatical.append(tid)
-    return task_deps, ungrammatical
+    for line in result.stdout.splitlines():
+        label, _, deps = line.partition("\t")
+        task_deps[label.removeprefix("Task ")] = [
+            dep.removeprefix("Task ") for dep in deps.split(",") if dep
+        ]
+    return task_deps
 
 
 def get_ancestor_prs(pid: str, pr_deps: dict[str, list[str]]) -> set[str]:
@@ -249,29 +223,7 @@ def main() -> int:
         )
         return 2
 
-    task_section = extract_section(plan_file, "^Task Breakdown[[:space:]]*$")
-    task_deps, ungrammatical = parse_task_entries(task_section)
-    if ungrammatical:
-        labels = ", ".join(f"Task {tid}" for tid in ungrammatical)
-        print(
-            f"error: unparsable **Depends on** field in: {labels}",
-            file=sys.stderr,
-        )
-        print(
-            "  canonical grammar: '**Depends on**: none', or a bare "
-            "'**Depends on**:' line followed by either a lone '- none' "
-            "bullet or one '- Task N' bullet per dependency "
-            "(never both)",
-            file=sys.stderr,
-        )
-        return 2
-    if not task_deps:
-        print(
-            "error: Task Breakdown section found but no task entries "
-            "could be parsed from it",
-            file=sys.stderr,
-        )
-        return 2
+    task_deps = parse_task_entries(plan_file)
 
     problems = find_projection_problems(task_deps, pr_tasks, pr_deps)
     if problems:
