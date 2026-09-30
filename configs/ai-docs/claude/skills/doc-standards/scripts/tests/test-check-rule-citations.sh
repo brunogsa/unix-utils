@@ -490,6 +490,56 @@ it_should_exit_2_and_name_the_checker_when_the_input_path_does_not_exist() {
     "$prefix" "$(head -c "${#prefix}" "$stderr_file")"
 }
 
+# write_citing_pair - an earlier file with a finding of its
+# own, then a later file citing references/writing-style.md,
+# which the caller then makes unreadable.
+# Sets EARLIER, LATER and TARGET (the resolved cited path).
+write_citing_pair() {
+  local name="$1"
+  new_skill "$name"
+  cat > "$SKILL_DIR/references/style-guide.md" <<'EOF'
+# Style guide
+EOF
+  EARLIER="$SKILL_DIR/references/earlier.md"
+  cat > "$EARLIER" <<'EOF'
+Group changes per the "Separate planned from incidental" rule in style-guide.md.
+EOF
+  LATER="$SKILL_DIR/references/later.md"
+  cat > "$LATER" <<'EOF'
+Keep bullets short per the "Bullets" rule in writing-style.md.
+EOF
+  TARGET="$(cd "$SKILL_DIR/references" && pwd -P)/writing-style.md"
+}
+
+# run_citing_pair - runs the checker on EARLIER then LATER and
+# asserts the whole run reports one cannot-read line for TARGET.
+run_citing_pair() {
+  local case_name="$1" expected_reason="$2" stdout_file stderr_file rc
+  stdout_file="$work_dir/$case_name-stdout.txt"
+  stderr_file="$work_dir/$case_name-stderr.txt"
+  python3 "$SCRIPT" "$EARLIER" "$LATER" >"$stdout_file" 2>"$stderr_file"
+  rc=$?
+  assert_eq "should exit 2 when a cited file is $case_name" "2" "$rc"
+  assert_eq "should print nothing on stdout, not even an earlier file's rows, when a cited file is $case_name" \
+    "" "$(cat "$stdout_file")"
+  assert_eq "should print one stderr line naming the checker and the cited file when a cited file is $case_name" \
+    "check-rule-citations.py: cannot read $TARGET: $expected_reason" "$(cat "$stderr_file")"
+}
+
+it_should_exit_2_naming_the_cited_file_when_it_is_not_valid_utf8() {
+  write_citing_pair cited-latin1
+  printf -- '# Writing style\n\n- **Bullets** caf\351 rule\n' > "$TARGET"
+  run_citing_pair 'not valid UTF-8' 'not valid UTF-8'
+}
+
+it_should_exit_2_naming_the_cited_file_when_it_cannot_be_opened() {
+  write_citing_pair cited-unopenable
+  printf -- '# Writing style\n\n- **Bullets** rule\n' > "$TARGET"
+  chmod 000 "$TARGET"
+  run_citing_pair 'unopenable' 'Permission denied'
+  chmod 600 "$TARGET"
+}
+
 it_should_accept_a_quoted_name_authored_as_a_bold_span_in_the_cited_file
 it_should_accept_a_quoted_name_authored_as_a_heading_in_the_cited_file
 it_should_accept_a_citation_that_compresses_the_authored_rule_name
@@ -514,6 +564,8 @@ it_should_scope_changed_only_independently_per_file_when_multiple_files_are_give
 it_should_exit_2_and_name_the_file_when_changed_lines_sh_cannot_determine_scope
 it_should_exit_2_and_leave_the_file_untouched_when_input_is_not_valid_utf8
 it_should_exit_2_and_name_the_checker_when_the_input_path_does_not_exist
+it_should_exit_2_naming_the_cited_file_when_it_is_not_valid_utf8
+it_should_exit_2_naming_the_cited_file_when_it_cannot_be_opened
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

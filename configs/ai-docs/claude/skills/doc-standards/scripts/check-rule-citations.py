@@ -278,13 +278,38 @@ def cited_names(line):
         yield cited, slug.strip(), False
 
 
-def check(path, changed_only=False):
-    """Report unresolved citations in one file; returns the violation count.
+class CannotReadError(Exception):
+    """A file the run needed could not be read; str() is the stderr line."""
 
-    changed_only restricts every emitted row to a line changed_line_numbers
+
+def judge_citation(cited, name, is_quoted, target):
+    """The violation detail for one citation of `target`, or None."""
+    if is_quoted:
+        return None if is_authored_in(name, target) else f'unresolved-rule:{cited}:"{name}"'
+
+    if not is_mentioned_in(name, target):
+        return f"unknown-topic:{cited}:{name}"
+
+    # A rule authored in the target is the target's,
+    # however many example files its own line links out
+    # to - only an unauthored topic forwards.
+    if is_authored_in(name, target):
+        return None
+
+    signpost = forwarded_to(name, target)
+    return f"forwarded:{cited}:{signpost}" if signpost else None
+
+
+def check(path, changed_only=False):
+    """Unresolved citations in one file, as sorted (line_no, detail) rows.
+
+    changed_only restricts every row to a line changed_line_numbers
     reports as changed vs HEAD - an out-of-scope hit is skipped before it
     can ever reach `hits`, so it is never printed and never counted toward
     the exit code.
+
+    Raises CannotReadError naming the cited file when one cannot be read,
+    so the message blames the file that failed, not the one citing it.
     """
     skill_root = find_skill_root(path)
     hits = []
@@ -303,31 +328,14 @@ def check(path, changed_only=False):
             if target is None or target.samefile(path):
                 continue
 
-            if is_quoted:
-                if not is_authored_in(name, target):
-                    hits.append((line_no, f'unresolved-rule:{cited}:"{name}"'))
-                continue
+            try:
+                detail = judge_citation(cited, name, is_quoted, target)
+            except (OSError, UnicodeDecodeError) as err:
+                raise CannotReadError(cannot_read_message(target, err)) from err
+            if detail:
+                hits.append((line_no, detail))
 
-            if not is_mentioned_in(name, target):
-                hits.append((line_no, f"unknown-topic:{cited}:{name}"))
-                continue
-
-            # A rule authored in the target is the target's,
-            # however many example files its own line links out
-            # to - only an unauthored topic forwards.
-            if is_authored_in(name, target):
-                continue
-
-            signpost = forwarded_to(name, target)
-            if signpost:
-                hits.append((line_no, f"forwarded:{cited}:{signpost}"))
-
-    if hits:
-        print(f"== {path}")
-        for line_no, detail in sorted(hits):
-            print(f"{line_no}:{detail}")
-
-    return len(hits)
+    return sorted(hits)
 
 
 def cannot_read_message(path, err):
@@ -377,7 +385,6 @@ def main(argv):
         print(unreadable, file=sys.stderr)
         return 2
 
-    total = 0
     # Every input's scope is resolved before any is reported, so
     # a later file with no scope exits 2 first.
     if changed_only:
@@ -391,9 +398,16 @@ def main(argv):
                 )
                 return 2
 
+    # Rows are held until every file is checked: a cited file
+    # is only read mid-check, so it can fail after an earlier
+    # file's rows exist.
+    reports = []
     for path in files:
         try:
-            total += check(path, changed_only=changed_only)
+            reports.append((path, check(path, changed_only=changed_only)))
+        except CannotReadError as err:
+            print(err, file=sys.stderr)
+            return 2
         except (OSError, UnicodeDecodeError) as err:
             print(cannot_read_message(path, err), file=sys.stderr)
             return 2
@@ -404,7 +418,13 @@ def main(argv):
             )
             return 2
 
-    return 1 if total else 0
+    for path, hits in reports:
+        if hits:
+            print(f"== {path}")
+            for line_no, detail in hits:
+                print(f"{line_no}:{detail}")
+
+    return 1 if any(hits for _, hits in reports) else 0
 
 
 if __name__ == "__main__":
