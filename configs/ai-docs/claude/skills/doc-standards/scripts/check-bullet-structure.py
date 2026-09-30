@@ -258,7 +258,7 @@ def main(argv):
             files.extend(argv[i + 1:])
             break
         elif arg.startswith("-"):
-            print(f"unknown opt: {arg}", file=sys.stderr)
+            print(f"check-bullet-structure.py: unknown opt: {arg}", file=sys.stderr)
             return 2
         else:
             files.append(arg)
@@ -280,7 +280,7 @@ def main(argv):
             print(f"check-bullet-structure.py: cannot read {path}: not valid UTF-8", file=sys.stderr)
             return 2
         except RuntimeError as err:
-            print(str(err), file=sys.stderr)
+            print(f"check-bullet-structure.py: {err}", file=sys.stderr)
             return 2
 
     return 1 if total else 0

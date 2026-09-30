@@ -246,12 +246,12 @@ function parseArgs(argv) {
     } else if (arg === '--lang') {
       lang = argv[++i];
       if (!Object.prototype.hasOwnProperty.call(LANGUAGES, lang)) {
-        console.error(`unknown --lang: ${lang}`);
+        console.error(`check-comment-format.js: unknown --lang: ${lang}`);
         console.error(USAGE);
         process.exit(2);
       }
     } else if (arg.startsWith('-')) {
-      console.error(`unknown opt: ${arg}`);
+      console.error(`check-comment-format.js: unknown opt: ${arg}`);
       process.exit(2);
     } else {
       files.push(arg);
@@ -265,7 +265,9 @@ function parseArgs(argv) {
   // Rejected rather than ignored, so a caller can never read a
   // clean --fix run as proof the content it dropped came back.
   if (contentLoss && fix) {
-    console.error('--content-loss reports only; it cannot be combined with --fix');
+    console.error(
+      'check-comment-format.js: --content-loss reports only; it cannot be combined with --fix',
+    );
     process.exit(2);
   }
 
@@ -358,7 +360,7 @@ function resolveLanguage(file, text, override) {
     if (shebang && lang.shebangRe.test(shebang)) return lang;
   }
 
-  console.error(`cannot tell what language ${file} is — pass --lang`);
+  console.error(`check-comment-format.js: cannot tell what language ${file} is — pass --lang`);
   process.exit(2);
 }
 
@@ -392,7 +394,7 @@ function loadTypescriptFor(file) {
   }
 
   console.error(
-    `no TypeScript with a JS scanner API found for ${file} — ` +
+    `check-comment-format.js: no TypeScript with a JS scanner API found for ${file} — ` +
       "run install.sh, or 'npm install' in this script's own directory",
   );
   process.exit(2);

@@ -421,7 +421,7 @@ def main(argv):
             files.extend(argv[i + 1 :])
             break
         elif arg.startswith("-"):
-            print(f"unknown opt: {arg}", file=sys.stderr)
+            print(f"fix-density.py: unknown opt: {arg}", file=sys.stderr)
             return 2
         else:
             files.append(arg)

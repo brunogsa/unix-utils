@@ -305,7 +305,7 @@ def main(argv):
             i += 1
             continue
         if arg.startswith("-"):
-            print(f"unknown opt: {arg}", file=sys.stderr)
+            print(f"check-hard-wrap.py: unknown opt: {arg}", file=sys.stderr)
             return 2
         files.append(arg)
         i += 1
@@ -330,7 +330,7 @@ def main(argv):
             print(f"check-hard-wrap.py: cannot read {path}: not valid UTF-8", file=sys.stderr)
             return 2
         except ChangedLinesError as err:
-            print(f"get-changed-lines.sh failed for {err}", file=sys.stderr)
+            print(f"check-hard-wrap.py: get-changed-lines.sh failed for {err}", file=sys.stderr)
             return 2
 
     return 1 if total else 0

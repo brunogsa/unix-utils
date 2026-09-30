@@ -338,8 +338,8 @@ def main(argv):
         if arg == "--changed-only":
             changed_only = True
         elif arg.startswith("-"):
-            files = None
-            break
+            print(f"check-rule-citations.py: unknown opt: {arg}", file=sys.stderr)
+            return 2
         else:
             files.append(arg)
 
@@ -363,7 +363,10 @@ def main(argv):
             print(f"check-rule-citations.py: cannot read {path}: not valid UTF-8", file=sys.stderr)
             return 2
         except ChangedLinesError as err:
-            print(f"cannot determine changed lines for {path}: {err}", file=sys.stderr)
+            print(
+                f"check-rule-citations.py: cannot determine changed lines for {path}: {err}",
+                file=sys.stderr,
+            )
             return 2
 
     return 1 if total else 0

@@ -296,8 +296,8 @@ it_should_exit_2_when_changed_lines_sh_fails_outside_a_git_work_tree_in_check_mo
   err=$(cd "$plain_dir" && python3 "$SCRIPT" --changed-only plain.md 2>&1 1>/dev/null)
   rc=$?
   assert_eq 'should exit 2 in check mode when get-changed-lines.sh fails outside a git work tree' '2' "$rc"
-  assert_eq 'should name the file in stderr when get-changed-lines.sh fails (check mode)' \
-    'get-changed-lines.sh failed for plain.md: get-changed-lines.sh: not inside a git work tree' "$err"
+  assert_eq 'should name itself and the file in stderr when get-changed-lines.sh fails (check mode)' \
+    'check-bullet-gap.py: get-changed-lines.sh failed for plain.md: get-changed-lines.sh: not inside a git work tree' "$err"
 }
 
 it_should_exit_2_when_changed_lines_sh_fails_outside_a_git_work_tree_in_fix_mode() {
@@ -314,8 +314,8 @@ it_should_exit_2_when_changed_lines_sh_fails_outside_a_git_work_tree_in_fix_mode
   err=$(cd "$plain_dir" && python3 "$SCRIPT" --fix --changed-only plain.md 2>&1 1>/dev/null)
   rc=$?
   assert_eq 'should exit 2 in --fix mode when get-changed-lines.sh fails outside a git work tree' '2' "$rc"
-  assert_eq 'should name the file in stderr when get-changed-lines.sh fails (--fix mode)' \
-    'get-changed-lines.sh failed for plain.md: get-changed-lines.sh: not inside a git work tree' "$err"
+  assert_eq 'should name itself and the file in stderr when get-changed-lines.sh fails (--fix mode)' \
+    'check-bullet-gap.py: get-changed-lines.sh failed for plain.md: get-changed-lines.sh: not inside a git work tree' "$err"
   assert_eq 'should never insert into the file when get-changed-lines.sh fails (no fake fix on error)' \
     "$before" "$(cat "$plain_dir/plain.md")"
 }

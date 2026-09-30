@@ -92,7 +92,7 @@ while [[ $# -gt 0 ]]; do
     --bullet-words) BULLET_WORDS="${2:?}"; shift 2 ;;
     --changed-only) CHANGED_ONLY=1; shift ;;
     --) shift; FILES+=("$@"); break ;;
-    -*) echo "unknown opt: $1" >&2; exit 2 ;;
+    -*) echo "check-density.sh: unknown opt: $1" >&2; exit 2 ;;
     *)  FILES+=("$1"); shift ;;
   esac
 done

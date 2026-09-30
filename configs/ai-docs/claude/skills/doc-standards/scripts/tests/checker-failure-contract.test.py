@@ -74,12 +74,23 @@ UNREADABLE_INPUTS = [
 ]
 
 
-def run(checker, *args):
+def write_plain_fixture(tmp_path):
+    path = tmp_path / "plain.py"
+    path.write_text("TIMEOUT_SECONDS = 30\n", encoding="utf-8")
+    return path
+
+
+def run(checker, *args, env=C_LOCALE_ENV):
     return subprocess.run(
         [INTERPRETERS[checker.suffix], str(checker), *args],
         capture_output=True,
-        env=C_LOCALE_ENV,
+        env=env,
     )
+
+
+def prefixed_stderr_lines(result, checker):
+    stderr_lines = result.stderr.decode("utf-8", errors="replace").splitlines()
+    return [line for line in stderr_lines if line.startswith(f"{checker.name}: ")]
 
 
 @pytest.mark.parametrize("make_input", UNREADABLE_INPUTS)
@@ -112,3 +123,52 @@ def test_leaves_a_non_utf8_file_byte_for_byte_unchanged(tmp_path, checker, mode_
     run(checker, *mode_args, str(path))
 
     assert path.read_bytes() == before
+
+
+# A checker with no --fix mode refuses the flag through its
+# unknown-option path, so naming the flag satisfies the contract
+# as well as naming the file.
+@pytest.mark.parametrize("checker", CHECKERS)
+def test_exits_2_naming_itself_and_the_file_or_flag_when_asked_to_fix_a_non_utf8_file(
+    tmp_path, checker
+):
+    path = write_non_utf8_fixture(tmp_path)
+
+    result = run(checker, "--fix", str(path))
+
+    named_lines = prefixed_stderr_lines(result, checker)
+    assert result.returncode == 2
+    assert result.stdout == b""
+    assert any(str(path) in line or "--fix" in line for line in named_lines), named_lines
+
+
+@pytest.mark.parametrize("checker", CHECKERS)
+def test_exits_2_naming_itself_and_the_option_when_given_an_unknown_option(
+    tmp_path, checker
+):
+    path = write_plain_fixture(tmp_path)
+
+    result = run(checker, "--no-such-option", str(path))
+
+    named_lines = prefixed_stderr_lines(result, checker)
+    assert result.returncode == 2
+    assert result.stdout == b""
+    assert any("--no-such-option" in line for line in named_lines), named_lines
+
+
+# Stopping git's repository search at the fixture directory's
+# parent keeps the file outside any work tree, wherever the
+# temporary directory happens to live.
+@pytest.mark.parametrize("checker", CHECKERS)
+def test_exits_2_naming_itself_and_the_file_when_changed_only_runs_outside_a_git_work_tree(
+    tmp_path, checker
+):
+    path = write_plain_fixture(tmp_path)
+    outside_git_env = {**C_LOCALE_ENV, "GIT_CEILING_DIRECTORIES": str(tmp_path.parent)}
+
+    result = run(checker, "--changed-only", str(path), env=outside_git_env)
+
+    named_lines = prefixed_stderr_lines(result, checker)
+    assert result.returncode == 2
+    assert result.stdout == b""
+    assert any(str(path) in line for line in named_lines), named_lines
