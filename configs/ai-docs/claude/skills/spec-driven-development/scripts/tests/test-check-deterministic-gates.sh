@@ -213,6 +213,51 @@ it_should_exit_2_with_usage_on_stderr_when_given_more_than_two_arguments() {
   assert_contains "should print usage on stderr" "usage:" "$RUN_ERR"
 }
 
+it_should_run_exactly_the_spec_gates_and_report_the_plan_gates_as_skipped_when_given_spec_only() {
+  build_tree
+  run_runner --spec-only "$SPEC"
+  assert_eq "should exit 0 when every spec gate passes in spec-only mode" "0" "$RUN_EXIT"
+  local expected
+  expected=$(cat <<EOF2
+check-mermaid-renders.sh $SPEC
+check-density.sh $SPEC
+check-bullet-gap.py $SPEC
+check-bullet-structure.py $SPEC
+check-sections.sh $SPEC $TREE/spec-driven-development/assets/spec-template.md
+check-coverage-checklists.sh $SPEC
+EOF2
+)
+  assert_eq "should invoke only the spec gates, with the spec template for check-sections" "$expected" "$(cat "$CALL_LOG")"
+  assert_not_contains "should never compare the spec against the plan template" "plan-template.md" "$(cat "$CALL_LOG")"
+  assert_contains "should report the plan-only check-test-distribution as SKIP" "SKIP exit=- check-test-distribution.sh" "$RUN_OUT"
+  assert_contains "should report check-ac-coverage as SKIP since it needs a plan" "SKIP exit=- check-ac-coverage.sh" "$RUN_OUT"
+  assert_not_contains "should never report a plan gate as PASS in spec-only mode" "PASS exit=0 check-pr-dag.sh" "$RUN_OUT"
+}
+
+it_should_exit_1_with_the_failing_gate_when_a_spec_gate_fails_in_spec_only_mode() {
+  build_tree
+  make_stub "$TREE/spec-driven-development/scripts/check-sections.sh" check-sections.sh 1 "MISSING-SECTION-MARKER"
+  run_runner --spec-only "$SPEC"
+  assert_eq "should exit 1 when a spec gate failed in spec-only mode" "1" "$RUN_EXIT"
+  assert_contains "should report the failing spec gate" "FAIL exit=1 check-sections.sh (spec)" "$RUN_OUT"
+}
+
+it_should_exit_2_with_usage_on_stderr_when_spec_only_has_no_file_argument() {
+  build_tree
+  run_runner --spec-only
+  assert_eq "should exit 2 when --spec-only names no file" "2" "$RUN_EXIT"
+  assert_contains "should print usage on stderr" "usage:" "$RUN_ERR"
+  assert_eq "should run no gate on a usage error" "" "$(cat "$CALL_LOG")"
+}
+
+it_should_exit_2_naming_the_file_when_the_spec_only_file_is_missing() {
+  build_tree
+  run_runner --spec-only "$TREE/nospec.md"
+  assert_eq "should exit 2 on a missing spec in spec-only mode" "2" "$RUN_EXIT"
+  assert_contains "should name the missing spec on stderr" "nospec.md" "$RUN_ERR"
+  assert_eq "should run no gate when the spec is missing" "" "$(cat "$CALL_LOG")"
+}
+
 it_should_exit_2_naming_the_file_when_the_plan_is_missing() {
   build_tree
   run_runner "$TREE/nope.md"
@@ -254,6 +299,10 @@ it_should_count_a_gate_usage_error_as_a_failure
 it_should_warn_without_failing_the_run_when_a_density_check_finds_a_violation
 it_should_exit_2_with_usage_on_stderr_when_given_no_arguments
 it_should_exit_2_with_usage_on_stderr_when_given_more_than_two_arguments
+it_should_run_exactly_the_spec_gates_and_report_the_plan_gates_as_skipped_when_given_spec_only
+it_should_exit_1_with_the_failing_gate_when_a_spec_gate_fails_in_spec_only_mode
+it_should_exit_2_with_usage_on_stderr_when_spec_only_has_no_file_argument
+it_should_exit_2_naming_the_file_when_the_spec_only_file_is_missing
 it_should_exit_2_naming_the_file_when_the_plan_is_missing
 it_should_exit_2_naming_the_file_when_the_spec_is_missing
 it_should_exit_2_naming_the_directory_when_the_doc_standards_sibling_is_missing
