@@ -81,8 +81,8 @@ ls -1 spec_*.md plan_*.md 2>/dev/null
 - **More than one of a kind** → prompt with a numbered list and let the user pick; never guess which spec or plan was meant.
 
 - **Under `--auto-solve` or `--report-only`, never prompt on a multi-match** → proceed without that kind and say so, exactly as a zero match resolves.
-  - Either flag marks a run dispatched by a skill with nobody standing by —
-  - the same premise §6 uses to force `--no-ask` — so a prompt here stalls the `/implement` tail indefinitely.
+  - Either flag marks a run dispatched by a skill with nobody standing by, the same premise §6 uses to force `--no-ask`.
+  - A prompt here would stall the `/implement` tail indefinitely.
 
 Also resolve `<BASE_REF>` for the `auto-review` leg:
 
