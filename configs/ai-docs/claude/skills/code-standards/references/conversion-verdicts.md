@@ -14,12 +14,7 @@ lines-budget: 512
 
 This is the committed input the script-overhaul conversion batches scope themselves from. Per row, the `Path`, `Verdict`, and `Target` columns are exactly what `classify-conversion.py` returned — none of those three was hand-adjusted.
 
-The `Triggering reason` and `Harness fate` columns are hand-derived: the
-classifier emits only four keys (`path`, `target_language`, `tree_root`,
-`verdict`) and has no reason or harness-fate field, so a human wrote
-those two columns' cell values — and the explanatory notes around the
-tables, including the harness-fate note above the `unix-utils` table —
-by reading the classifier's evidence, not by copying its output.
+The `Triggering reason` and `Harness fate` columns are hand-derived: the classifier emits only four keys (`path`, `target_language`, `tree_root`, `verdict`) and has no reason or harness-fate field, so a human wrote those two columns' cell values — and the explanatory notes around the tables, including the harness-fate note above the `unix-utils` table — by reading the classifier's evidence, not by copying its output.
 
 ## How this was generated
 
@@ -36,16 +31,13 @@ Exit code 0, no crash, on both trees.
 
 A second Claude Code session commits to this same working tree roughly once a minute, so this table is a point-in-time snapshot, not a value the classifier will reproduce byte-for-byte on a later run. Four of the files below (`claude-compact-skill-reload.sh`, `claude-tmux-title-compact-reminder.sh`, `claude-tmux-title-reminder.sh`, `tmux-window-title.sh`, and their four new paired `test-*.sh` files) were mid-edit or newly-added and uncommitted in that session at capture time.
 
-The `Target` column is stale in a second, narrower way: at capture time
-`classify-conversion.py` unconditionally emitted `py` for every row,
-`stays-sh` rows included. Commit `d012ceb9` (landed after capture)
-changed that function to emit `None` for any non-`convert` verdict,
-since a script that stays `.sh` is never converted and a target language
-is moot for it. Every `stays-sh` row below still shows `py` in `Target`
-— that was the tool's real output at capture time, not a hand-adjustment
-— but a fresh run today would emit no target for those rows. Read
-`Target` on a `stays-sh` row as "what the classifier said before
-`d012ceb9`," not as what the classifier says now.
+The `Target` column is stale in a second, narrower way: at capture time `classify-conversion.py` unconditionally emitted `py` for every row, `stays-sh` rows included.
+
+Commit `d012ceb9` (landed after capture) changed that function to emit `None` for any non-`convert` verdict, since a script that stays `.sh` is never converted and a target language is moot for it.
+
+Every `stays-sh` row below still shows `py` in `Target` — that was the tool's real output at capture time, not a hand-adjustment — but a fresh run today would emit no target for those rows.
+
+Read `Target` on a `stays-sh` row as "what the classifier said before `d012ceb9`," not as what the classifier says now.
 
 ## Summary
 
@@ -54,15 +46,9 @@ is moot for it. Every `stays-sh` row below still shows `py` in `Target`
 | `unix-utils` (real tree, excludes the stale `worktrees/stacked-prs-pr2` duplicate) | 99 | 1 (`install.sh`) | 87 | 11 |
 | `oh-my-zsh` | 29 | 1 (`install.sh`) | 9 | 19 |
 
-`unix-utils` also has 54 files under the stale `.claude/worktrees/stacked-prs-pr2`
-duplicate worktree (53 excluded by the `STALE_WORKTREE_MARKER` rule, plus
-that worktree's own `install.sh` excluded by the `install.sh` rule first).
-None of those 54 are listed below — they are a byte-for-byte duplicate of
-a worktree, not scripts anyone edits, and the classifier already routes
-every one of them out at the first check.
+`unix-utils` also has 54 files under the stale `.claude/worktrees/stacked-prs-pr2` duplicate worktree (53 excluded by the `STALE_WORKTREE_MARKER` rule, plus that worktree's own `install.sh` excluded by the `install.sh` rule first). None of those 54 are listed below — they are a byte-for-byte duplicate of a worktree, not scripts anyone edits, and the classifier already routes every one of them out at the first check.
 
-Every `convert` verdict below targets `py` — no script in either repo
-carries a `Requires-npm` header, so none opted into `js`.
+Every `convert` verdict below targets `py` — no script in either repo carries a `Requires-npm` header, so none opted into `js`.
 
 ## `unix-utils` — 98 non-excluded scripts
 
@@ -208,49 +194,33 @@ carries a `Requires-npm` header, so none opted into `js`.
 
 ## Divergence from the 54-convert / 28-stay baseline
 
-The measured split here is **87 convert / 11 stays-sh** (98 non-excluded),
-not the plan's 54/28 (82). Every extra file is explained below; none is a
-classifier defect.
+The measured split here is **87 convert / 11 stays-sh** (98 non-excluded), not the plan's 54/28 (82). Every extra file is explained below; none is a classifier defect.
 
-- **The 54/28 baseline was never generated by this classifier.** It was
-  written into `code-standards/SKILL.md` by commit `6ab6ed88`, which
-  predates `classify-conversion.py` itself (shipped later by `3e6501fa`,
-  Task 3). It was a manual/eyeballed count, not a reproducible run — there
-  is no prior script output to diff this table against line-for-line.
+- **The 54/28 baseline was never generated by this classifier.** It was written into `code-standards/SKILL.md` by commit `6ab6ed88`, which predates `classify-conversion.py` itself (shipped later by `3e6501fa`, Task 3).
+  - It was a manual/eyeballed count, not a reproducible run — there is no prior script output to diff this table against line-for-line.
 
-- **The repo grew between that baseline and this sweep.** Of the 93
-  in-scope files that existed at or before commit `6ab6ed88`, 36 are
-  `test-*.sh` / `tests/`-directory harnesses and 57 are the scripts they
-  test — together already exceeding 82. One more file,
-  `configs/ai-docs/claude/hooks/tests/test-claude-implement-compact-reminder.sh`,
-  was added afterward at commit `fbd8480f`.
+- **The repo grew between that baseline and this sweep.**
+  - Of the 93 in-scope files that existed at or before commit `6ab6ed88`, 36 are `test-*.sh` / `tests/`-directory harnesses and 57 are the scripts they test — together already exceeding 82.
 
-- **Four more files are in-flight in the concurrent session** at capture
-  time and were never committed at all when `6ab6ed88` ran:
-  `configs/ai-docs/claude/hooks/tests/test-claude-compact-skill-reload.sh`,
-  `configs/ai-docs/claude/hooks/tests/test-claude-tmux-compact-bump.sh`,
-  `configs/ai-docs/claude/hooks/tests/test-claude-tmux-title-compact-reminder.sh`,
-  `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-ac-coverage.sh`.
+  - One more file, `configs/ai-docs/claude/hooks/tests/test-claude-implement-compact-reminder.sh`, was added afterward at commit `fbd8480f`.
+
+- **Four more files are in-flight in the concurrent session** at capture time and were never committed at all when `6ab6ed88` ran:
+  - `configs/ai-docs/claude/hooks/tests/test-claude-compact-skill-reload.sh`
+  - `configs/ai-docs/claude/hooks/tests/test-claude-tmux-compact-bump.sh`
+  - `configs/ai-docs/claude/hooks/tests/test-claude-tmux-title-compact-reminder.sh`
+  - `configs/ai-docs/claude/skills/spec-driven-development/scripts/tests/test-check-ac-coverage.sh`
 
 - **`test-*.sh` harnesses inflate the count on both sides of the split.**
-  38 of the 87 `convert` verdicts and 3 of the 11 `stays-sh` verdicts are
-  bash test files for other scripts, not production scripts themselves —
-  the classifier does not special-case them, since it classifies every
-  `.sh` file under the tree by design (see the General Flow diagram in
-  the plan: a `test-<stem>.sh` is deleted, not converted, once its
-  companion script converts). Whether the manual 82-count included these
-  is unrecoverable, since no script produced it.
+  - 38 of the 87 `convert` verdicts and 3 of the 11 `stays-sh` verdicts are bash test files for other scripts, not production scripts themselves.
+  - The classifier does not special-case them, since it classifies every `.sh` file under the tree by design.
+  - See the General Flow diagram in the plan: a `test-<stem>.sh` is deleted, not converted, once its companion script converts.
+  - Whether the manual 82-count included these is unrecoverable, since no script produced it.
 
-Going forward, this table (not the prose 54/28 baseline) is the number
-Tasks 16-20 should scope against — it is the one that is regeneratable.
+Going forward, this table (not the prose 54/28 baseline) is the number Tasks 16-20 should scope against — it is the one that is regeneratable.
 
 ## Review-cap check against the five conversion batches (Tasks 16-20)
 
-The cap in this task's acceptance criteria is ~6 scripts / ~600 diff
-lines per batch. The counts below use each convert-verdict script's
-*current* line count as a footprint proxy — a rewrite typically touches
-the whole file, so the real diff (old lines removed + new lines added)
-runs higher than this number, not lower.
+The cap in this task's acceptance criteria is ~6 scripts / ~600 diff lines per batch. The counts below use each convert-verdict script's *current* line count as a footprint proxy — a rewrite typically touches the whole file, so the real diff (old lines removed + new lines added) runs higher than this number, not lower.
 
 | Task | Files scope | Convert scripts in scope | Current-line footprint | Vs. cap |
 |---|---|---|---|---|
@@ -260,55 +230,41 @@ runs higher than this number, not lower.
 | 19 — remaining unix-utils | `usage-audit/` + `brag/` (0 scripts) + `configs/ai-docs/claude/scripts/` (2) + remaining marked skill trees (5) | 7 | 1,353 + 1,621 = 2,974 | over on script count (marginal), over on lines |
 | 20 — oh-my-zsh | `commands/`, `lib/` | 9 | 1,488 | over on both axes; the plan already anticipates this ("may split into peer batches") |
 
-**Every one of the five already-scoped batches exceeds the ~6-script
-cap** once measured against the real verdict counts.
+**Every one of the five already-scoped batches exceeds the ~6-script cap** once measured against the real verdict counts.
 
-One more gap: `configs/ai-docs/claude/tests/test-global-config-invariants.sh`
-carries a `convert` verdict (302 lines, `awk`+`jq`) but sits outside every
-directory named in Tasks 16-20's original hand-listed Files entries — it is not
-`hooks/`, not any named skill's `scripts/`, and not
-`configs/ai-docs/claude/scripts/`. No hand-listed batch would pick it up.
+One more gap: `configs/ai-docs/claude/tests/test-global-config-invariants.sh` carries a `convert` verdict (302 lines, `awk`+`jq`) but sits outside every directory named in Tasks 16-20's original hand-listed Files entries — it is not `hooks/`, not any named skill's `scripts/`, and not `configs/ai-docs/claude/scripts/`. No hand-listed batch would pick it up.
 
 ## The re-partition rule Tasks 16-20 resolve against
 
-Both findings above have the same root cause: the batches were written
-from a hand-listed set of directories, while the classifier walks the
-tree. Re-listing directories reproduces the bug on the next directory
-anyone adds. So Tasks 16-20 no longer carry a frozen file list at all —
-each carries a tree filter, and resolves its own scope from this table
-at execution time, against the paths that exist then.
+Both findings above have the same root cause: the batches were written from a hand-listed set of directories, while the classifier walks the tree.
+
+Re-listing directories reproduces the bug on the next directory anyone adds.
+
+So Tasks 16-20 no longer carry a frozen file list at all — each carries a tree filter, and resolves its own scope from this table at execution time, against the paths that exist then.
 
 **Scope query.** A script is in a batch's scope when all three hold:
 
 1. its row in the table above carries verdict `convert`;
-2. its row's Harness-fate cell does **not** begin with `Delete` — a
-   `Delete alongside subject's conversion` row is a `test-<stem>.sh`
-   removed by its subject's commit, never itself converted;
+2. its row's Harness-fate cell does **not** begin with `Delete` — a `Delete alongside subject's conversion` row is a `test-<stem>.sh` removed by its subject's commit, never itself converted;
+
 3. its path falls under that batch's tree filter.
 
-**Cap reading — diff lines, not current lines.** The cap is ~6 scripts /
-~600 **diff** lines. A conversion removes the whole `.sh` and adds a
-whole `.py`, so estimate diff lines as `current lines x 2`. That makes
-~300 current lines the practical per-script ceiling, and it is the line
-cap — not the script cap — that binds nearly everywhere.
+**Cap reading — diff lines, not current lines.** The cap is ~6 scripts / ~600 **diff** lines. A conversion removes the whole `.sh` and adds a whole `.py`, so estimate diff lines as `current lines x 2`. That makes ~300 current lines the practical per-script ceiling, and it is the line cap — not the script cap — that binds nearly everywhere.
 
-**Sub-batches.** A task whose scope exceeds either axis splits into
-ordered sub-batches inside that same task, one characterize+convert
-commit pair each, every sub-batch under both caps. The task id does not
-change; only the number of commits under it does.
+**Sub-batches.** A task whose scope exceeds either axis splits into ordered sub-batches inside that same task, one characterize+convert commit pair each, every sub-batch under both caps. The task id does not change; only the number of commits under it does.
 
-**Named exception for an unsplittable script.** A single script whose
-own estimated diff already exceeds ~600 lines cannot fit any sub-batch.
-It ships as a sub-batch of one, with the exception named in that
-commit's body. Do not raise the cap to accommodate it — the cap exists
-to bound one reviewer's sitting, and a raised threshold drops that guard
-for every other batch too.
+**Named exception for an unsplittable script.**
 
-**As-of snapshot, for sizing only — recompute at execution.** At the
-time this rule was written the table held 96 `convert` rows, 33 of them
-delete-fate harnesses, leaving 63 real conversions (54 unix-utils, 9
-oh-my-zsh) totalling 11,448 current lines. Under the diff reading that
-lands near 38 sub-batches, and 9 scripts already exceed ~300 current
-lines on their own. Treat those as magnitudes, not as the plan: Tasks
-13-15 rename these same trees first, so every path here is a
-pre-rename path by the time a conversion batch runs.
+A single script whose own estimated diff already exceeds ~600 lines cannot fit any sub-batch.
+
+It ships as a sub-batch of one, with the exception named in that commit's body.
+
+Do not raise the cap to accommodate it — the cap exists to bound one reviewer's sitting, and a raised threshold drops that guard for every other batch too.
+
+**As-of snapshot, for sizing only — recompute at execution.**
+
+At the time this rule was written the table held 96 `convert` rows, 33 of them delete-fate harnesses, leaving 63 real conversions (54 unix-utils, 9 oh-my-zsh) totalling 11,448 current lines.
+
+Under the diff reading that lands near 38 sub-batches, and 9 scripts already exceed ~300 current lines on their own.
+
+Treat those as magnitudes, not as the plan: Tasks 13-15 rename these same trees first, so every path here is a pre-rename path by the time a conversion batch runs.

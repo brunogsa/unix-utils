@@ -29,8 +29,7 @@ python3 configs/ai-docs/claude/skills/code-standards/scripts/check-script-naming
   <proposed-path-1> <proposed-path-2> ...
 ```
 
-against the file's target path (not yet created) — file mode resolves the
-path but never stats it, so this validates the name alone. Exit 0, 74/74 OK.
+against the file's target path (not yet created) — file mode resolves the path but never stats it, so this validates the name alone. Exit 0, 74/74 OK.
 
 ## Snapshot provenance
 
@@ -48,8 +47,7 @@ Batch 14 folds in `prep-local-context.sh` (`dc00b576`) and `prep-refactor-contex
 | 14 | `skills/*/scripts/`, excludes vendored `skill-standards/scripts/` + `eval-viewer/` (Task 14) | `unix-utils` | 57 | 21 |
 | 15 | `commands/` + `lib/` + root (Task 15) | `oh-my-zsh` | 31 | 31 |
 
-Every FAIL line is assigned to exactly one of these three batches.
-Excluded and vendored paths never appear below.
+Every FAIL line is assigned to exactly one of these three batches. Excluded and vendored paths never appear below.
 
 ## Batch 13 — `unix-utils` `hooks/` + `scripts/`
 
@@ -81,9 +79,7 @@ Paths relative to `configs/ai-docs/claude/`.
 
 ## Batch 14 — `unix-utils` `skills/*/scripts/`
 
-Paths relative to `configs/ai-docs/claude/skills/`. Excludes vendored
-`skill-standards/scripts/` and `eval-viewer/` per Task 14's scope — neither
-produced a FAIL in the tree-mode sweep, so there was nothing to drop.
+Paths relative to `configs/ai-docs/claude/skills/`. Excludes vendored `skill-standards/scripts/` and `eval-viewer/` per Task 14's scope — neither produced a FAIL in the tree-mode sweep, so there was nothing to drop.
 
 | Current path | Reason | Proposed name |
 |---|---|---|
@@ -111,10 +107,7 @@ produced a FAIL in the tree-mode sweep, so there was nothing to drop.
 
 ## Batch 15 — `oh-my-zsh` `commands/` + `lib/` + root
 
-Paths relative to the `oh-my-zsh` repo root. Includes three scripts sitting
-directly at that root: the checker skips only the named
-`install.sh`/`run-tests.sh` entrypoints, and `install.sh` is present here,
-so it stays exempt and does not appear below.
+Paths relative to the `oh-my-zsh` repo root. Includes three scripts sitting directly at that root: the checker skips only the named `install.sh`/`run-tests.sh` entrypoints, and `install.sh` is present here, so it stays exempt and does not appear below.
 
 | Current path | Reason | Proposed name |
 |---|---|---|
@@ -152,6 +145,4 @@ so it stays exempt and does not appear below.
 
 ## Collision check
 
-All 74 proposed basenames are pairwise distinct, and none matches an
-existing file at its proposed target path — checked mechanically alongside
-the checker re-validation above.
+All 74 proposed basenames are pairwise distinct, and none matches an existing file at its proposed target path — checked mechanically alongside the checker re-validation above.
