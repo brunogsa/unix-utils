@@ -1,6 +1,6 @@
 ---
 name: spec-driven-development
-description: "Self-review gates and living-doc conventions for spec_<slug>.md/plan_<slug>.md, run before a human reviews the plan. Read by path from brainstorm, design-docs, plan-writing — never model-invoked; run /brainstorm to produce them."
+description: "Self-review gates and living-doc conventions for spec_<slug>.md/plan_<slug>.md, run before a human reviews the plan. Read by path from to-spec, to-plan, design-docs, plan-writing — never model-invoked; run /brainstorm-why to produce them."
 disable-model-invocation: true
 ---
 
@@ -12,7 +12,7 @@ This skill is a library, not a procedure.
 
 It defines what the docs are called, how consumers find them, what shape they take, which checks a plan must pass before a human sees it.
 
-The procedure producing them — interview, spec, plan, self-review, handoff — lives in `brainstorm`.
+The procedure producing them — interview, spec, plan, self-review, handoff — lives in `brainstorm-why`, `to-spec`, `brainstorm-how`, and `to-plan`.
 
 Why the split: `/implement`, `/auto-review`, `/create-pr` consume these docs without authoring one, so the authoring flow is dead weight in their context.
 
@@ -75,7 +75,7 @@ The literal H1 `# Appendix` line is required in both docs — a boundary, not a 
 
 ### A plan may exist without a spec
 
-A caller may write the plan alone — `brainstorm`'s `light` mode does exactly that.
+A caller may write the plan alone — `to-plan` with no spec does exactly that.
 
 Such a plan writes `N/A — plan-only run` on its `Spec:` line, carrying each task's acceptance criteria inline in its own `## Task Details` entry.
 In place of the Test Design section's AC → test coverage list it writes `N/A — no spec`.
@@ -121,7 +121,7 @@ It carries bucket membership, dispatch tiers, the qualitative-pass checklist, th
 Three toggles the caller resolves *before* the plan exists and persists to `/tmp/sdd_<session_id>.json`.
 Read the answers from that file when you reach the checks — never ask them here.
 
-A caller may also resolve none of them and run the deterministic bucket plus the two always-on judged checks — `brainstorm`'s `light` mode does.
+A caller may also resolve none of them and run the deterministic bucket plus the two always-on judged checks — `to-plan` with no spec does.
 Treat all three as off in that case, and pass the runner no spec, which skips the gates that need one.
 
 Name the three fields exactly `traces_to_ac`, `right_sized`, and `qualitative_pass`, so writer and reader never have to guess the same key.

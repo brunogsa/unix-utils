@@ -19,7 +19,7 @@ The split that matters most is **purpose**: HLD, LLD, and ADR are **decision & a
 
 So durable docs carry tests, tasks, and launch at **alignment altitude** — strategy, titles, cross-team deps — while the plan carries the **concrete** version — commit-tasks, file paths, test titles.
 
-The spec/plan/tasks workflow splits by phase: interviewing lives in `brainstorm`; drafting and self-review live in `to-spec`, `to-plan`, and `task-breakdown`. Shared conventions live in `doc-standards/references/living-docs.md`; `to-spec`'s
+The spec/plan/tasks workflow splits by phase: interviewing lives in `brainstorm-why` and `brainstorm-how`; drafting and self-review live in `to-spec`, `to-plan`, and `task-breakdown`. Shared conventions live in `doc-standards/references/living-docs.md`; `to-spec`'s
 and `to-plan`'s own self-review gates live in each one's own `references/self-review-checks.md`. This skill only covers their shape and altitude.
 
 ## Who owns what (single source of truth)
@@ -182,7 +182,7 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
 
   - `# Appendix`: `## Coverage Checklists` (boundary + failure category, instantiated per AC) and `## Functional Decisions` log.
 
-  - This skill owns only the spec's *altitude and ownership*; the section structure and self-review gates live in that library, and the interview workflow in `brainstorm`.
+  - This skill owns only the spec's *altitude and ownership*; the section structure and self-review gates live in that library, and the interview workflow in `brainstorm-why` and `brainstorm-how`.
 
 - The plan — same rule: read that same library by path and populate its `assets/plan-template.md` per `references/plan-writing.md` and `references/plan-tasks-and-appendix.md`.
   - Body sections: Technical Approach & High Level Architecture, Threat Model, General Flow, Test Design with its AC → test coverage list, structured Task Breakdown, PR Breakdown, Open Questions.

@@ -13,7 +13,7 @@
 # Rationale:
 #   A compaction summarizes earlier turns out of the model's
 #   working memory. A skill loaded before the boundary
-#   (implement, brainstorm, ...) then silently drops out.
+#   (implement, brainstorm-why, ...) then silently drops out.
 #
 #   The model keeps working without the procedure that was
 #   governing it -- the "orchestrator forgot what it was
@@ -33,8 +33,8 @@
 #
 #   Necessity is the model's call, not the hook's: the hook
 #   only surfaces WHAT was loaded. Procedural/orchestrator
-#   skills (brainstorm, implement) carry multi-step state and
-#   are the usual casualties, so they get the emphasis;
+#   skills (brainstorm-why, implement) carry multi-step state
+#   and are the usual casualties, so they get the emphasis;
 #
 #   *-standards skills are stateless guidance and stay lazy
 #   (reload when their trigger next fires), per CLAUDE.md.

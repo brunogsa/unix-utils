@@ -162,7 +162,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] Put ephemeral scratch — throwaway scripts, debug dumps — in /tmp, never the repo or CWD, UNLESS user-reviewed, then gitignored in CWD; see Note-taking discipline.
   - [Why] Unreviewed scratch in the repo gets committed by accident or rots as orphan debt.
 
-  - [Example] User-reviewed → CWD: a `brainstorm` spec or plan, manual-verification `.md`. Never-reviewed → /tmp: debug dumps, one-off scripts, diff snapshots.
+  - [Example] User-reviewed → CWD: a `to-spec` spec or `to-plan` plan, manual-verification `.md`. Never-reviewed → /tmp: debug dumps, one-off scripts, diff snapshots.
 
 ### Verify before done
 
@@ -201,7 +201,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] After a compaction, count a skill as still loaded only when the post-compaction reminder shows its full text; one shown truncated, or not shown at all, counts as unloaded.
   - [Why] Reload-all cost 10-30k tokens per compaction, and re-invoking a skill the reminder re-injected in full pays twice.
 
-- [Instruction] On compaction, reload eagerly-first — before continuing the task — any procedural/orchestrator skill (e.g. `brainstorm`, `implement`) that still governs what you are doing.
+- [Instruction] On compaction, reload eagerly-first — before continuing the task — any procedural/orchestrator skill (e.g. `brainstorm-why`, `implement`) that still governs what you are doing.
   - [Why] These carry multi-step state compaction drops, leaving the orchestrator blind until its procedure returns.
 
 - [Instruction] **Mirror remaining steps as TaskList entries** -- when a step-shaped skill starts, add each remaining step as a `[Reminder]` entry and complete it as it runs.

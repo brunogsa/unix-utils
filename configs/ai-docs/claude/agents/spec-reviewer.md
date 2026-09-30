@@ -1,6 +1,6 @@
 ---
 name: spec-reviewer
-description: Fresh-context, unbiased judge for spec docs — fresh-eyes review, failure-mode coverage, completeness, consistency. Never judges a plan; dispatch plan-reviewer for that. Dispatch for brainstorm and self-review spec gates. Input: spec path + question.
+description: Fresh-context, unbiased judge for spec docs — fresh-eyes review, failure-mode coverage, completeness, consistency. Never judges a plan; dispatch plan-reviewer for that. Dispatch for to-spec and self-review spec gates. Input: spec path + question.
 model: sonnet
 effort: medium
 maxTurns: 64

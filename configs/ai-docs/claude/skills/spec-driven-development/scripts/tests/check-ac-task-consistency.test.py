@@ -12,7 +12,7 @@ its `**Testable Acceptance criteria**` field moved into the appendix,
 under `## Task Details`, one `<details><summary>Task N — ...`
 per task. Old-location reading (the field still on the body-side
 heading) is deliberately not supported: this checker only ever runs
-at authoring time, from brainstorm self-review against a freshly
+at authoring time, from to-plan self-review against a freshly
 written plan, never against an old in-flight plan the way /implement's
 parsers do — so new-shape-only is the right tradeoff, not a gap.
 

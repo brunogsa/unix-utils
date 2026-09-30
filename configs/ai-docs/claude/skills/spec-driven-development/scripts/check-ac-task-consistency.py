@@ -14,7 +14,7 @@ versa). check-ac-coverage.sh does not cover this: in annotated form it
 runs completeness against the spec only, and never reads the task-side
 field at all.
 
-This checker runs only at authoring time, from brainstorm self-review
+This checker runs only at authoring time, from to-plan self-review
 against a freshly written plan — never against an old in-flight plan
 the way /implement's parsers do — so it reads the Task Details appendix
 only; a task's old-location body-side AC field (if any survives from

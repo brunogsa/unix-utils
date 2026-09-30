@@ -2,7 +2,7 @@
 
 Canonical checklists of the corner-case and failure-mode categories any coverage exercise probes.
 
-Single source of truth: the `brainstorm` interview probes, the `spec-driven-development` spec-template checklists, and test-standards test design all point here.
+Single source of truth: the `brainstorm-why` interview probes, the `spec-driven-development` spec-template checklists, and test-standards test design all point here.
 
 Edit this file, never their inline recaps — parallel copies drift and ship coverage gaps between what's asked and what's checked.
 

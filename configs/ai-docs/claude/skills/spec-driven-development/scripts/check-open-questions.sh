@@ -10,7 +10,7 @@
 # it.
 #
 # The spec argument is optional, so a plan-only run
-# (brainstorm's `light` mode) passes the plan alone
+# (`to-plan` with no spec) passes the plan alone
 # rather than inventing a spec path.
 #
 # Markers inside a ``` or ~~~ fenced code block are ignored: a

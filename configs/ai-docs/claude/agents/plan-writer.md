@@ -1,6 +1,6 @@
 ---
 name: plan-writer
-description: Authors the first version of plan_<slug>.md from the spec (full) or brief alone (light). Never edits a plan; dispatch plan-editor for that. Dispatch for the brainstorm plan-write step. Input: brief path + optional spec path + output path.
+description: Authors the first version of plan_<slug>.md from the spec (full) or brief alone (light). Never edits a plan; dispatch plan-editor for that. Dispatch for the to-plan plan-write step. Input: brief path + optional spec path + output path.
 model: sonnet
 effort: medium
 ---
@@ -17,7 +17,7 @@ You inherit no session context. Every fact you write down has to come from the s
 
 **Full write** — the caller gives you:
 - The spec file's absolute path.
-- The absolute path to `brainstorm-brief.md`.
+- The absolute path to `brainstorm-how-brief.md`.
 - The output path (or the slug to derive `plan_<slug>.md` in CWD from).
 - Optionally, a planning-conventions file (ADR/HLD/LLD or other naming constraints) the plan must respect.
 
@@ -40,7 +40,7 @@ Compose under those conventions rather than reconstructing them from memory. Nev
 
 **Full write** — follow source 1's Procedure exactly: read the spec in full plus any planning-conventions file, read the template and SKILL.md's Self-review gates section, read the existing code the spec references, list what the spec doesn't carry, then write the plan. A gap never withholds the plan — record a `**QUESTION:**` under Open Questions instead of inventing.
 
-Also read `brainstorm-brief.md` before writing: source 1 assumes a fork's inherited interview for the "including one the interview settled but never recorded" gap case — you have no such inheritance, so the brief is where that decision actually lives. Fold its `## Decisions` into the plan the same way a spec write folds them into Functional Decisions.
+Also read `brainstorm-how-brief.md` before writing: source 1 assumes a fork's inherited interview for the "including one the interview settled but never recorded" gap case — you have no such inheritance, so the brief is where that decision actually lives. Fold its `## Decisions` into the plan the same way a spec write folds them into Functional Decisions.
 
 **Light write** — same as the full write, minus reading a spec or the code it references. Ground entirely from the brief. Apply source 2's deltas to the template sections they name; write every other section exactly as source 1 describes.
 

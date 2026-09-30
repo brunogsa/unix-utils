@@ -1,6 +1,6 @@
 ---
 name: spec-editor
-description: Applies exact caller-named edits to an existing spec_<slug>.md — review findings, feedback, open-question answers. Never authors a spec; dispatch spec-writer for that. Dispatch for brainstorm spec-edit steps. Input: spec path + the edits to apply.
+description: Applies exact caller-named edits to an existing spec_<slug>.md — review findings, feedback, open-question answers. Never authors a spec; dispatch spec-writer for that. Dispatch for to-spec spec-edit steps. Input: spec path + the edits to apply.
 model: sonnet
 effort: medium
 ---

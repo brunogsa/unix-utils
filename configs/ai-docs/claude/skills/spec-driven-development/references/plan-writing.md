@@ -1,8 +1,8 @@
 # Writing the implementation plan
 
-Turns an approved `spec_<slug>.md` into `plan_<slug>.md`. Read by path from the `plan-writer` agent, dispatched by `brainstorm`'s step 9, and by whoever fills in `assets/plan-template.md`, since it carries no rules.
+Turns an approved `spec_<slug>.md` into `plan_<slug>.md`. Read by path from the `plan-writer` agent, dispatched by `to-plan`, and by whoever fills in `assets/plan-template.md`, since it carries no rules.
 
-Fresh eyes still audit this plan — `brainstorm`'s step 10 sends it to a `plan-reviewer` who never saw the session.
+Fresh eyes still audit this plan — `to-plan`'s self-review sends it to a `plan-reviewer` who never saw the session.
 
 Never copy guidance text from this reference or the template into the written doc — the doc holds content only.
 
