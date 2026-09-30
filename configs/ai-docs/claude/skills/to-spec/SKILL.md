@@ -72,7 +72,7 @@ Check the file on disk, never the agent's "done" message alone.
 
 ### 4. Self-review the spec once, with fresh eyes
 
-Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now, and run `check-sections.sh <spec> ~/.claude/skills/spec-driven-development/assets/spec-template.md` first, fixing each miss through `spec-editor`.
+Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now, and run `~/.claude/skills/spec-driven-development/scripts/check-sections.sh <spec> ~/.claude/skills/spec-driven-development/assets/spec-template.md` first, fixing each miss through `spec-editor`.
 
 Then dispatch `agent(subAgent=spec-reviewer, effort=high, title=Fresh-eyes review of spec)` in the background, pointed at the spec file alone, with two jobs:
 
