@@ -404,6 +404,41 @@ run_unreadable() {
   READ_STDERR=$(cat "$err_file")
 }
 
+# MULTIBYTE_BULLET_LINE: Portuguese prose with 3-byte em dashes
+# and 2-byte accented letters - 240 chars but 270 bytes, 27
+# words. Under the 256 bullet cap in characters, over it in
+# bytes, so a byte-counting checker flags it wrongly.
+MULTIBYTE_BULLET_LINE='- Após a migração—concluída na sexta—a equipe revisou cada contrato publicado—sem exceção—e confirmou a conciliação dos pedidos—inclusive devoluções, cobranças, reembolsos—conforme a política vigente—já validada pela coordenação pedagógica.'
+
+# run_check_c_locale - like run_check but with LC_ALL=C, the
+# locale where awk counts bytes; the checker must measure
+# characters there too.
+run_check_c_locale() {
+  CHECK_OUT=$(LC_ALL=C "$SCRIPT" "$@" "$FIXTURE" 2>&1)
+  CHECK_EXIT=$?
+}
+
+it_should_not_flag_a_multibyte_bullet_line_that_is_under_the_char_cap_in_characters() {
+  new_fixture multibyte-under-cap.md "$(printf '%s\n' "$MULTIBYTE_BULLET_LINE")"
+  run_check_c_locale
+  assert_eq 'should not flag a multibyte bullet line under the char cap in characters (stdout)' \
+    '' "$CHECK_OUT"
+  assert_eq 'should not flag a multibyte bullet line under the char cap in characters (exit code)' \
+    '0' "$CHECK_EXIT"
+}
+
+# No earlier test combines multibyte text with the over-cap
+# path, so the over-cap side is pinned here: the same line,
+# flagged once the cap drops below its 240 characters, must
+# report the character count (240), not the byte count (270).
+it_should_flag_a_multibyte_bullet_line_over_the_char_cap_and_report_its_character_count() {
+  new_fixture multibyte-over-cap.md "$(printf '%s\n' "$MULTIBYTE_BULLET_LINE")"
+  run_check_c_locale --bullet-chars 200
+  assert_eq 'should flag a multibyte bullet line over the char cap and report characters (stdout)' \
+    "$(printf '== %s\n1:240:27' "$FIXTURE")" "$CHECK_OUT"
+  assert_eq 'should flag a multibyte bullet line over the char cap (exit code)' '1' "$CHECK_EXIT"
+}
+
 # LC_ALL=C is pinned because that is the locale where awk
 # measures bytes and used to report this file as clean.
 it_should_exit_2_for_a_non_utf8_file_under_the_c_locale() {
@@ -466,6 +501,8 @@ it_should_report_nothing_for_an_unmodified_tracked_file
 it_should_exit_2_and_name_the_file_when_outside_a_git_work_tree
 it_should_scope_multiple_files_independently
 it_should_recompute_scope_fresh_on_each_invocation
+it_should_not_flag_a_multibyte_bullet_line_that_is_under_the_char_cap_in_characters
+it_should_flag_a_multibyte_bullet_line_over_the_char_cap_and_report_its_character_count
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

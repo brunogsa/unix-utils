@@ -109,13 +109,24 @@ done
 # off ARGV.
 check_one_file() {
   local file="$1" scoped="$2" changed_csv="$3"
-  awk -v mc="$MAX_CHARS" -v mw="$MAX_WORDS" -v bc="$BULLET_CHARS" -v bw="$BULLET_WORDS" \
+
+  # why: LC_ALL=C pins awk to byte semantics in every machine
+  # locale; char_len below converts bytes to characters, which
+  # is sound because the caller has already validated UTF-8.
+  LC_ALL=C awk -v mc="$MAX_CHARS" -v mw="$MAX_WORDS" -v bc="$BULLET_CHARS" -v bw="$BULLET_WORDS" \
       -v scoped="$scoped" -v changed_csv="$changed_csv" '
     BEGIN {
       if (scoped && changed_csv != "") {
         n = split(changed_csv, nums, ",")
         for (i = 1; i <= n; i++) changed[nums[i]] = 1
       }
+    }
+    # char_len - characters in s under LC_ALL=C: byte length minus
+    # the UTF-8 continuation bytes (\200-\277).
+    function char_len(s,    byte_len, continuation_bytes) {
+      byte_len = length(s)
+      continuation_bytes = gsub(/[\200-\277]/, "", s)
+      return byte_len - continuation_bytes
     }
     FNR == 1 { in_code = 0; in_fm = 0 }
     FNR == 1 && /^---[[:space:]]*$/                               { in_fm = 1; next }
@@ -134,9 +145,10 @@ check_one_file() {
       gsub(/\(https?:\/\/[^)]*\)/, "")
       gsub(/[(<]data:[^)>]*[)>]/, "")
       gsub(/[][]/, "")
-      if (length($0) > eff_mc || NF > eff_mw) {
+      line_chars = char_len($0)
+      if (line_chars > eff_mc || NF > eff_mw) {
         if (scoped && !(FNR in changed)) next
-        printf "%d:%d:%d\n", FNR, length($0), NF
+        printf "%d:%d:%d\n", FNR, line_chars, NF
         hit = 1
       }
     }
