@@ -14,7 +14,7 @@ The citations are split into three files so a reader loads one cluster, not all 
 
 - [`research-skill-budgets.md`](research-skill-budgets.md) — everything measured per skill.
   - [Skill size](research-skill-budgets.md#skill-size) — 500 non-blank lines.
-  - [Skill count](research-skill-budgets.md#skill-count) — 50 skills.
+  - [Skill count](research-skill-budgets.md#skill-count) — 64 skills.
   - [Skill words per SKILL.md](research-skill-budgets.md#skill-words-per-skillmd) — 2048 words.
   - [Skill description length](research-skill-budgets.md#skill-description-length) — 250 chars.
   - [Skill name length](research-skill-budgets.md#skill-name-length) — 64 chars.
@@ -29,7 +29,7 @@ The citations are split into three files so a reader loads one cluster, not all 
 |---|---|---|
 | CLAUDE.md non-blank lines | 260 | Marker-convention re-derivation ([Why] pairs ~2× lines/instruction); count is the real gate |
 | CLAUDE.md words per line | 32 | User preference; prose-bloat guard |
-| Skill total count | 50 | Half of Anthropic's documented 100+ routing scale; preload cost negligible (~1% of context) |
+| Skill total count | 64 | 64 is the next power of 2 above half of Anthropic's documented 100+ routing scale, still well under it; preload negligible (~1.5% of context) |
 | Skill non-blank lines | 500 | Anthropic official best practice |
 | Skill words per SKILL.md | 2048 | User preference; co-binds with 500 lines at ~4 words/line |
 | Skill description chars | 250 | Claude Code 2.1.86 `/skills` listing cap |

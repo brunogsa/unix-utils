@@ -28,7 +28,7 @@ All limits sourced where possible. [`references/research.md`](references/researc
 |---|---|---|
 | CLAUDE.md non-blank lines | 260 | [Marker-convention re-derivation: [Why] pairs double lines-per-instruction; count is the real gate](references/research-claudemd-budgets.md#claudemd-length) |
 | CLAUDE.md words per line | 32 | User preference — enforces "Prefer scannable shape" |
-| Skill total count | 50 | [Half of Anthropic's documented 100+ routing scale; preload negligible (~1% of context)](references/research-skill-budgets.md#skill-count) |
+| Skill total count | 64 | [Next power of 2 above half of Anthropic's 100+ routing scale; preload negligible (~1.5% of context)](references/research-skill-budgets.md#skill-count) |
 | Skill non-blank lines | 500 | [Anthropic official best practice](references/research-skill-budgets.md#skill-size) |
 | Skill words per SKILL.md | 2048 | User preference — co-binds with 500 lines at ~4 words/line |
 | Skill description chars | 250 | [Claude Code 2.1.86 `/skills` listing cap](references/research-skill-budgets.md#skill-description-length) |

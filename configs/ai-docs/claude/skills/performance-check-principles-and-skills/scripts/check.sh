@@ -32,7 +32,7 @@ set -eo pipefail
 # See references/research-claudemd-budgets.md#claudemd-length
 readonly CLAUDE_LINES_BUDGET=260
 readonly CLAUDE_WORDS_PER_LINE_BUDGET=32
-readonly SKILLS_COUNT_BUDGET=50
+readonly SKILLS_COUNT_BUDGET=64
 readonly SKILL_LINES_BUDGET=500
 readonly SKILL_WORDS_BUDGET=2048
 

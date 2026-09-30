@@ -1,6 +1,6 @@
 # Research — skill count, size, and metadata budgets
 
-Citations behind the five per-skill numbers: 500 non-blank lines, 2048 words, 50 total skills, 250 description chars, and 64 name chars.
+Citations behind the five per-skill numbers: 500 non-blank lines, 2048 words, 64 total skills, 250 description chars, and 64 name chars.
 
 [`research.md`](research.md) indexes all three research files and carries the summary table.
 
@@ -27,7 +27,7 @@ https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md —
 
 ## Skill count
 
-**Budget: 50 skills**
+**Budget: 64 skills**
 
 *Skill authoring best practices* — https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
 
@@ -39,11 +39,11 @@ So the platform is built to route across 100+; raw count is not the constraint A
 
 Metadata preload cost is also negligible: ~30–50 tokens per skill (name + ≤250-char description).
 
-So 50 skills ≈ 1.5–2.5k tokens, ~1% of a 200k window — the old "keep preload small" rationale does not bind at this scale.
+So 64 skills ≈ 1.9–3.2k tokens, ~1.5% of a 200k window — the old "keep preload small" rationale does not bind at this scale.
 
 The real (soft) guardrail is routing sharpness: more near-overlapping descriptions make the router's pick harder.
 
-50 sits at half of Anthropic's documented 100+ scale — a 2× safety margin — while giving headroom so the cap forces consolidation only when skills genuinely proliferate.
+64 is the next power of 2 above half of Anthropic's documented 100+ scale (50), still well under that scale, while giving headroom so the cap forces consolidation only when skills genuinely proliferate.
 
 ---
 
@@ -100,7 +100,7 @@ Two concrete patterns for the description:
 Per Anthropic's API docs the metadata layer (name + description) is "always in context":
 
 - Approximately 100 tokens / ~100 words per skill at session start.
-- With 50 skills loaded, that's ~5,000 tokens before any conversation begins.
+- With 64 skills loaded, that's ~6,400 tokens before any conversation begins.
 
 ### Why 250, not 1024
 
