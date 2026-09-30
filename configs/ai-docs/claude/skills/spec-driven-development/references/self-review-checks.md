@@ -9,20 +9,20 @@ A run may write the plan alone (SKILL.md) — never report the absent spec as a 
 **Deterministic** — a script or renderer returns the verdict, so re-running costs nothing.
 
 - Members: `scripts/check-mermaid-renders.sh`, the density checks, `check-hard-wrap.py`, `scripts/check-sections.sh`, `scripts/check-test-distribution.sh`.
-  - Then: `scripts/check-pr-dag.sh`, `scripts/check-tasks-dag.sh`, `scripts/check-files-union.sh`, `check-ac-task-consistency.py`.
+  - `scripts/check-pr-dag.sh`, `scripts/check-tasks-dag.sh`, `scripts/check-files-union.sh`, `check-ac-task-consistency.py`.
   - With a spec: `check-ac-coverage.sh`, `check-coverage-checklists.sh`.
 
 - Run all with `scripts/check-deterministic-gates.sh <plan> [<spec>]`; no spec `SKIP`s the spec-taking gates.
-  - Before a plan exists, `--spec-only <spec>` runs the spec gates and `SKIP`s the plan-taking ones.
+  - `--spec-only <spec>` runs only the spec gates, `SKIP`ping the rest.
 
 - Dispatch the mermaid fixer at its agent file's pinned model — never name one here.
-  - Why: `subagent-model-guard.py` hard-denies an override, so naming one is an instruction no caller can follow.
+  - Why: `subagent-model-guard.py` hard-denies an override, so no caller can follow a named model.
 
-**Judged** — the *routed judge* decides; each round costs one dispatch over the whole documents.
+**Judged** — the *routed judge* decides; each round costs one dispatch over both documents.
 
-Routing: `spec-reviewer` over a spec, `plan-reviewer` over a plan, and for a check over both, the judge of the doc it blocks, with the other as context.
+Routing: `spec-reviewer` over a spec, `plan-reviewer` over a plan, and a check over both goes to the judge of the doc it blocks.
 
-Why never `spec-reviewer` over a plan: separate report rows, and a plan raises questions a spec never does — planned-test design, task decomposition, AC tracing.
+Why never `spec-reviewer` over a plan: separate report rows, and a plan raises questions a spec never does — test design, task decomposition, AC tracing.
 
 - Members: the qualitative pass, the semantic half of "every AC has a test", "how would this break?", and the two toggled checks.
 - Dispatch each at `effort=high`, overriding its `max` pin — both docs are lean, so `max` buys latency, not accuracy.
@@ -35,8 +35,7 @@ Why: a script catches breakage a judged dispatch would cost.
 
 Dispatch the routed judge (`title=Qualitative review of spec and plan`) over both docs; only the PR-size item blocks.
 
-**Skip this checklist when `qualitative_pass` is false** (SKILL.md's toggles) — state it was skipped.
-The dispatch still runs, carrying this file's always-on checks.
+**Skip this checklist when `qualitative_pass` is false** (SKILL.md's toggles) — state it was skipped; the dispatch still runs with this file's always-on checks.
 
 - **Placeholders**: any TBD, TODO, XXX or vague requirements lingering?
 - **Contradictions**: do sections within one doc disagree, or does the plan contradict the spec?
@@ -56,9 +55,9 @@ The dispatch still runs, carrying this file's always-on checks.
 
 Both measure rather than judge — never inline.
 
-- **Artifacts Valid**: `scripts/check-mermaid-renders.sh` on each resolved doc path; a failure routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)` on it.
+- **Artifacts Valid**: `scripts/check-mermaid-renders.sh` on each resolved doc path; a failure routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)`.
 
-- **Density**: run `doc-standards`' `scripts/check-density.sh`, `scripts/check-bullet-gap.py`, `scripts/check-bullet-structure.py`, and `scripts/check-hard-wrap.py` on the resolved doc paths.
+- **Density**: run `doc-standards`' `scripts/check-density.sh`, `scripts/check-bullet-gap.py`, `scripts/check-bullet-structure.py`, and `scripts/check-hard-wrap.py` on the resolved docs.
   - Runs after mermaid validation: repairing a diagram adds lines density must measure.
 
   - On any violation, file ONE `[Scout]` entry naming the file and what is off standard.
@@ -66,7 +65,7 @@ Both measure rather than judge — never inline.
 
 **No toggle switches either off, but only the mermaid failure repairs itself.**
 
-Why: an unrenderable diagram is broken outright, needing no judgment to fix. Reflowing prose is a judgment call that has split bullets.
+Why: an unrenderable diagram is broken outright; reflowing prose is a judgment call that has split bullets.
 
 ## Every AC has a test
 
