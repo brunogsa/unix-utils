@@ -39,15 +39,15 @@ Why these three only: they are where `brainstorm-why` persisted its findings, in
 
 Why: `sdd-grill` is opt-in at `brainstorm-why`, so a scratchpad without its output is a normal run.
 
-### 2. Settle the three rigor toggles
+### 2. Settle the rigor toggle
 
 One `AskUserQuestion` call, recommended answer first, before anything is dispatched:
 
 - **"Qualitative pass?"** — `qualitative_pass`, default yes.
 
-Persist the answers to `/tmp/sdd_<session_id>.json` as booleans under exactly those three field names, keeping any other field already in the file.
+Persist the answer to `/tmp/sdd_<session_id>.json` as a boolean under exactly that field name, keeping any other field already in the file.
 
-Answer them fresh each run, and never write them into the spec or any committed file.
+Answer it fresh each run, and never write them into the spec or any committed file.
 
 A no on `qualitative_pass` drops the qualitative checklist and nothing else; the fail-closed judged checks run regardless.
 
