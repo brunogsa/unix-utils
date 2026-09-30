@@ -394,9 +394,62 @@ it_should_recompute_scope_fresh_on_each_invocation() {
     '1' "$second_rc"
 }
 
+# run_unreadable - runs SCRIPT on PATH_ARG under the given
+# LC_ALL, capturing stdout, stderr and exit code separately
+# into READ_STDOUT, READ_STDERR and READ_EXIT.
+run_unreadable() {
+  local locale="$1" path_arg="$2" err_file="$work_dir/unreadable.err"
+  READ_STDOUT=$(LC_ALL="$locale" "$SCRIPT" "$path_arg" 2>"$err_file")
+  READ_EXIT=$?
+  READ_STDERR=$(cat "$err_file")
+}
+
+# LC_ALL=C is pinned because that is the locale where awk
+# measures bytes and used to report this file as clean.
+it_should_exit_2_for_a_non_utf8_file_under_the_c_locale() {
+  local latin1="$work_dir/latin1.md"
+  printf -- '- caf\351 item\n- next\n' > "$latin1"
+  run_unreadable C "$latin1"
+  assert_eq 'should exit 2 for a non-UTF-8 file (exit code)' '2' "$READ_EXIT"
+  assert_eq 'should print nothing to stdout for a non-UTF-8 file' '' "$READ_STDOUT"
+  assert_eq 'should name the file and the UTF-8 problem on stderr' \
+    "check-density.sh: cannot read $latin1: not valid UTF-8" "$READ_STDERR"
+}
+
+it_should_exit_2_for_a_directory() {
+  local dir="$work_dir/a-directory"
+  mkdir -p "$dir"
+  run_unreadable C "$dir"
+  assert_eq 'should exit 2 for a directory (exit code)' '2' "$READ_EXIT"
+  assert_eq 'should print nothing to stdout for a directory' '' "$READ_STDOUT"
+  assert_eq 'should say a directory is not a readable file' \
+    "check-density.sh: cannot read $dir: not a readable file" "$READ_STDERR"
+}
+
+it_should_exit_2_when_iconv_is_unavailable() {
+  local bin="$work_dir/no-iconv-bin" cmd target
+  mkdir -p "$bin"
+  for cmd in awk dirname mktemp rm cat git; do
+    target=$(command -v "$cmd") || continue
+    ln -sf "$target" "$bin/$cmd"
+  done
+  new_fixture plain-for-iconv.md "$(printf 'A short line.\n')"
+  local out err_file="$work_dir/no-iconv.err" rc
+  out=$(PATH="$bin" "$(command -v bash)" "$SCRIPT" "$FIXTURE" 2>"$err_file")
+  rc=$?
+  assert_eq 'should exit 2 when iconv is unavailable (exit code)' '2' "$rc"
+  assert_eq 'should print nothing to stdout when iconv is unavailable' '' "$out"
+  assert_eq 'should explain that iconv is required' \
+    'check-density.sh: iconv is required to check that input is UTF-8' \
+    "$(cat "$err_file")"
+}
+
 it_should_report_nothing_for_a_clean_file
 it_should_flag_a_line_over_the_char_cap
 it_should_flag_a_line_over_the_word_cap
+it_should_exit_2_for_a_non_utf8_file_under_the_c_locale
+it_should_exit_2_for_a_directory
+it_should_exit_2_when_iconv_is_unavailable
 it_should_flag_a_line_only_once_max_chars_is_tightened_below_its_length
 it_should_skip_yaml_frontmatter_content
 it_should_skip_fenced_code_block_content

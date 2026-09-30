@@ -58,7 +58,12 @@
 # Exit codes:
 #   0  clean (no in-scope violations)
 #   1  in-scope violations found
-#   2  usage error, or --changed-only failed to scope a file
+#   2  failure, never a clean or findings result
+#
+# Exit 2 covers:
+# - a usage error, or --changed-only failing to scope a file
+# - a file that is missing, unreadable or not valid UTF-8
+# - iconv being unavailable.
 #
 # Examples:
 # - check-density.sh pr-description.md
@@ -145,7 +150,28 @@ trap 'rm -f "$err_file"' EXIT
 overall_hit=0
 prev_had_hit=0
 
+# why: awk measures invalid UTF-8 as bytes under LC_ALL=C but
+# aborts on it under a UTF-8 locale; validating it here gives
+# one exit code in every locale.
+if ! command -v iconv >/dev/null 2>&1; then
+  echo "check-density.sh: iconv is required to check that input is UTF-8" >&2
+  exit 2
+fi
+
 for f in "${FILES[@]}"; do
+  # why: readable check first, because iconv also exits 1 on a
+  # missing file and the message would wrongly blame UTF-8.
+  if [[ ! -f "$f" || ! -r "$f" ]]; then
+    echo "check-density.sh: cannot read $f: not a readable file" >&2
+    exit 2
+  fi
+
+  # why: stdin, because a "-x.md" argument parses as a flag.
+  if ! iconv -f UTF-8 -t UTF-8 <"$f" >/dev/null 2>&1; then
+    echo "check-density.sh: cannot read $f: not valid UTF-8" >&2
+    exit 2
+  fi
+
   changed_csv=""
   if [[ $CHANGED_ONLY -eq 1 ]]; then
     if ! lines=$("$script_dir/get-changed-lines.sh" "$f" 2>"$err_file"); then
