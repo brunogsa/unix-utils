@@ -64,6 +64,11 @@
 #       missing, or a ``` / ~~~ fence left open at EOF
 #       in the spec, inherited from plan-section.sh's
 #       whole-file fence check).
+#
+# Loading parse-fences.awk in strip_fences brought an exit 2
+# on an unclosed fence that this script did not have before.
+# plan-section.sh rejects such a spec first, which masks it;
+# reordering or dropping that call exposes it.
 
 set -eo pipefail
 

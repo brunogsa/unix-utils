@@ -67,6 +67,10 @@ else
   entry_boundary="bold-span"
 fi
 
+# Loading parse-fences.awk here brought an exit 2 on an
+# unclosed fence that this awk program did not have before.
+# The section awk above rejects an unbalanced plan first, which
+# masks it; reordering or dropping that step exposes it.
 entries=$(printf '%s\n' "$section" | awk -v entry_boundary="$entry_boundary" \
   -f "$fences_lib" -f "$script_dir/parse-pr-breakdown-entries.awk")
 

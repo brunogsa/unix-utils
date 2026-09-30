@@ -34,6 +34,11 @@
 #       missing, or a ``` / ~~~ fence left open at EOF
 #       in a given document, inherited from
 #       plan-section.sh's whole-file fence check).
+#
+# The awk below loads parse-fences.awk with fence_indent=1,
+# which exits 2 on an unclosed fence, new to this filter.
+# plan-section.sh only checks column-0 fences, so an unclosed
+# indented one (in a list item) still reaches it here.
 
 set -eo pipefail
 
