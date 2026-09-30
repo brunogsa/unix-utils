@@ -551,8 +551,10 @@ function assertSgeSiglaNivel(value: string): asserts value is SgeSiglaNivel {
 - [Instruction] Give every script a `--help` and a comment header with usage + examples.
   - [Why] The next user (often future-you) won't read the source — `--help` is the contract surface.
 
-- [Instruction] Route help to stdout with exit 0, bad input to stderr with exit 1.
-  - [Why] Conventional streams and exit codes let callers and pipes tell success from misuse without parsing output.
+- [Instruction] Route help to stdout with exit 0, bad input to stderr with exit 1, unless the script's exit 1 reports a result — then bad input exits 2.
+  - [Why] Callers and pipes tell success from misuse by exit code, and a caller needs to tell "found something" from "could not look".
+
+  - [Example] grep and diff: 0 is clean, 1 is a match or difference, 2 is trouble.
 
 - [Instruction] Keep the header to exactly four things — the script's name, its one-line purpose, its invocation forms, and its stdin/stdout/exit-code I/O contract.
   - [Why] Rationale and examples belong in the owning skill's `SKILL.md`; a header padded with them stops being brief to scan.
