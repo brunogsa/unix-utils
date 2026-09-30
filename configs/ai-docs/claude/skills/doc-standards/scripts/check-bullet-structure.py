@@ -247,7 +247,9 @@ def check(path, changed_only):
 def cannot_read_message(path, err):
     # An uncaught decode error would exit 1, which
     # callers read as findings; a load failure exits 2.
-    reason = "not valid UTF-8" if isinstance(err, UnicodeDecodeError) else err
+    #
+    # strerror, since str(err) repeats the path this line names.
+    reason = "not valid UTF-8" if isinstance(err, UnicodeDecodeError) else err.strerror or err
     return f"check-bullet-structure.py: cannot read {path}: {reason}"
 
 

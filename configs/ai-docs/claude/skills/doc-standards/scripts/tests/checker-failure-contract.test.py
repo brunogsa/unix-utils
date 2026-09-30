@@ -132,6 +132,27 @@ def test_exits_2_naming_itself_and_the_file_when_the_file_cannot_be_read(
     ), stderr_lines
 
 
+# The OS error text repeats the path it failed on, so a reason
+# passed through verbatim names the input twice on one line.
+@pytest.mark.parametrize(
+    "make_input",
+    [
+        pytest.param(missing_path, id="missing-path"),
+        pytest.param(directory_path, id="directory"),
+    ],
+)
+@pytest.mark.parametrize("checker", CHECKERS)
+def test_names_the_unreadable_path_exactly_once_on_its_stderr_line(
+    tmp_path, checker, make_input
+):
+    path = make_input(tmp_path)
+
+    result = run(checker, str(path))
+
+    naming_lines = [line for line in prefixed_stderr_lines(result, checker) if str(path) in line]
+    assert [line.count(str(path)) for line in naming_lines] == [1], naming_lines
+
+
 @pytest.mark.parametrize("mode_args", CHECK_AND_FIX_MODES)
 @pytest.mark.parametrize("checker", CHECKERS)
 def test_leaves_a_non_utf8_file_byte_for_byte_unchanged(tmp_path, checker, mode_args):

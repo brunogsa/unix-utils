@@ -871,6 +871,13 @@ function findSentenceAndBulletViolations(fullCommentLines, lines, lang) {
 
 const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
+// Node's fs message ends in ", <syscall> '<path>'", which
+// repeats the path the cannot-read line already names.
+function describeReadError(err) {
+  const syscallSuffix = err.syscall ? err.message.indexOf(`, ${err.syscall}`) : -1;
+  return syscallSuffix === -1 ? err.message : err.message.slice(0, syscallSuffix);
+}
+
 // A lenient decode turns a stray latin-1 byte into U+FFFD,
 // which --fix would then write back over the original byte.
 function readUtf8File(file) {
@@ -878,7 +885,7 @@ function readUtf8File(file) {
   try {
     bytes = fs.readFileSync(file);
   } catch (err) {
-    console.error(`check-comment-format.js: cannot read ${file}: ${err.message}`);
+    console.error(`check-comment-format.js: cannot read ${file}: ${describeReadError(err)}`);
     process.exit(2);
   }
 
