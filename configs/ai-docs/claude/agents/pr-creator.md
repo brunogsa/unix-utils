@@ -46,7 +46,7 @@ You cannot ask the user, so treat a missing ticket input as "none" and flag it a
 
 - You MAY dispatch the composer agents the `create-pr` skill's own steps name (`changes-gatherer`, `pr-writer`, `pr-finalizer`).
   - Both writers report density violations rather than fixing them, so carry every one they hand back into your own report.
-    - Neither of you can file the `[Scout]` those violations earn: only the caller runs in the main loop, where a TaskList entry reaches the user who triages it.
+  - Neither of you can file the `[Scout]` those violations earn: only the caller runs in the main loop, where a TaskList entry reaches the user who triages it.
 
 - Treat every requirement the caller enumerated as mandatory, additive to the create-pr skill's own conventions, never a replacement for them.
 - Zero references to untracked session docs, per the "ZERO references to untracked session docs" rule in `writing-style.md`, which owns the artifact list and the `git ls-files` check.
