@@ -96,73 +96,21 @@ if [ ! -f "$plan_file" ]; then
   exit 2
 fi
 
-# plan-section.sh + the Task Breakdown awk state machine below
-# are owned by the spec-driven-development skill
-# (check-tasks-dag.sh).
+# The Task Breakdown's **Depends on** grammar is owned by the
+# spec-driven-development skill's parse-task-dependencies.sh.
+# It rejects an unparsable field (exit 2) instead of guessing.
 #
 # Installed at this fixed path on every machine that runs
 # /implement (see implement/SKILL.md's own
 # "~/.claude/skills/spec-driven-development/..." invocations).
-#
-# Reused here verbatim rather than writing a third parser for
-# the same grammar.
-plan_section_script="$HOME/.claude/skills/spec-driven-development/scripts/plan-section.sh"
+parse_script="$HOME/.claude/skills/spec-driven-development/scripts/parse-task-dependencies.sh"
 
-if [ ! -f "$plan_section_script" ]; then
-  echo "error: required helper script not found: $plan_section_script" >&2
+if [ ! -f "$parse_script" ]; then
+  echo "error: required helper script not found: $parse_script" >&2
   exit 2
 fi
 
-section=$("$plan_section_script" "$plan_file" "##" '^Task Breakdown[[:space:]]*$')
-
-# Each task entry looks like:
-#   ### N. [<status>] Title
-#   **Depends on**: none
-#
-# or:
-#   ### N. [<status>] Title
-#   **Depends on**:
-#
-# - Task X
-# - Task Y
-# A task's own dependency block ends at the next blank line or
-# heading.
-#
-# The section may open with an unrelated mermaid diagram
-# (also containing "Task N" text); the state machine never
-# enters it, since it only starts collecting once a
-# "### N." heading is seen.
-edges=$(printf '%s\n' "$section" | awk '
-  function flush() {
-    if (label != "") print label "\t" deps
-  }
-  /^### [0-9]+\./ {
-    flush()
-    seg = $0
-    sub(/^### /, "", seg)
-    match(seg, /^[0-9]+/)
-    label = "Task " substr(seg, RSTART, RLENGTH)
-    deps = ""
-    in_deps = 0
-    next
-  }
-  /^\*\*Depends on\*\*:[[:space:]]*none[[:space:]]*$/ { in_deps = 0; next }
-  /^\*\*Depends on\*\*:[[:space:]]*$/ { in_deps = 1; next }
-  in_deps && /^- Task [0-9]+/ {
-    line = $0
-    match(line, /Task [0-9]+/)
-    tok = substr(line, RSTART, RLENGTH)
-    deps = (deps == "" ? tok : deps "," tok)
-    next
-  }
-  in_deps { in_deps = 0 }
-  END { flush() }
-')
-
-if [ -z "$edges" ]; then
-  echo "error: Task Breakdown section found but no task entries could be parsed from it" >&2
-  exit 2
-fi
+edges=$("$parse_script" "$plan_file")
 
 # normalize_ids - splits a comma-space "N, N" list (tolerant of
 # missing spaces after a comma) into one bare numeric id per

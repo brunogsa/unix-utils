@@ -622,7 +622,42 @@ it_should_error_when_verify_is_invoked_with_the_wrong_number_of_arguments() {
   assert_true "should error when --verify is invoked with the wrong number of arguments (diagnostic present)" "$([ -s "$err_file" ] && echo true || echo false)"
 }
 
+it_should_accept_a_lone_none_bullet_as_no_dependencies() {
+  local fixture
+  fixture=$(write_plan "none-bullet" '### 1. First task
+
+**Depends on**:
+- none
+
+### 2. Second task
+
+**Depends on**:
+- Task 1')
+  run_script "$fixture" "1, 2"
+  assert_eq "should accept a lone none bullet as no dependencies (exit code)" "0" "$VERDICT_EXIT"
+  assert_eq "should accept a lone none bullet as no dependencies (order)" "1, 2" "$VERDICT_OUT"
+}
+
+it_should_reject_a_none_bullet_mixed_with_task_bullets_with_the_canonical_error() {
+  local fixture
+  fixture=$(write_plan "none-mixed" '### 1. First task
+
+**Depends on**: none
+
+### 2. Second task
+
+**Depends on**:
+- none
+- Task 1')
+  run_script "$fixture" "1, 2"
+  assert_eq "should reject a none bullet mixed with Task bullets (exit code)" "2" "$VERDICT_EXIT"
+  assert_eq "should reject a none bullet mixed with Task bullets (stdout empty)" "" "$VERDICT_OUT"
+  assert_eq "should reject a none bullet mixed with Task bullets (canonical error)" "$(printf "error: unparsable **Depends on** field in: Task 2\n  canonical grammar: '**Depends on**: none', or a bare '**Depends on**:' line followed by either a lone '- none' bullet or one '- Task N' bullet per dependency (never both)")" "$VERDICT_ERR"
+}
+
 it_should_print_a_linear_order_for_a_simple_chain_of_dependencies
+it_should_accept_a_lone_none_bullet_as_no_dependencies
+it_should_reject_a_none_bullet_mixed_with_task_bullets_with_the_canonical_error
 it_should_print_a_linear_order_for_a_fork_where_one_task_has_two_independent_children
 it_should_print_every_id_in_lowest_id_order_for_a_fully_disconnected_task_set
 it_should_refuse_to_stack_and_name_both_parents_when_a_task_has_a_true_join_inside_the_requested_set
