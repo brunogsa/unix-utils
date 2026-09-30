@@ -26,7 +26,13 @@ fail_count=0
 
 TMPDIR=$(mktemp -d)
 export TMPDIR
-trap 'rm -rf "$TMPDIR"' EXIT
+
+# home_root holds fixtures that must sit OUTSIDE the system
+# temp directory: the hook skips temp files, so a fixture
+# proving "a non-temp file outside a work tree is still
+# checked" cannot live under TMPDIR (or /tmp on Linux).
+home_root=$(mktemp -d "$HOME/.prose-hook-test.XXXXXX")
+trap 'rm -rf "$TMPDIR" "$home_root"' EXIT
 
 bash_bin="$(command -v bash)"
 
@@ -120,6 +126,13 @@ new_repo_fixture() {
   # git init alone is enough for get-changed-lines.sh's
   # "is this a work tree" check.
   printf '%s' "$dir"
+}
+
+# new_plain_dir_fixture - creates a directory that is neither
+# inside a git work tree nor under the system temp directory,
+# and echoes its path.
+new_plain_dir_fixture() {
+  mktemp -d "$home_root/dirXXXXXX"
 }
 
 # run_hook - invokes the hook with the given tool_name
@@ -262,7 +275,7 @@ it_should_stay_silent_on_an_unknown_extension() {
 
 it_should_report_a_markdown_wall_of_text_outside_a_git_repo() {
   local dir long_line
-  dir=$(mktemp -d)
+  dir=$(new_plain_dir_fixture)
   long_line=$(python3 -c "print('word ' * 120)")
   printf '%s\n' "$long_line" > "$dir/wall.md"
   run_hook "Write" "$dir/wall.md"
@@ -273,7 +286,7 @@ it_should_report_a_markdown_wall_of_text_outside_a_git_repo() {
 
 it_should_report_an_over_width_comment_outside_a_git_repo() {
   local dir
-  dir=$(mktemp -d)
+  dir=$(new_plain_dir_fixture)
   printf '# This comment line is deliberately far longer than the comment-format width cap so the checker has something concrete to report.\nx = 1\n' > "$dir/outside-probe.py"
   run_hook "Write" "$dir/outside-probe.py"
   assert_eq "should exit 2 on an over-width comment outside a git work tree" "2" "$HOOK_EXIT"
@@ -295,7 +308,7 @@ it_should_not_report_pre_existing_violations_inside_a_git_repo_after_a_clean_edi
 
 it_should_fail_open_on_a_non_utf8_file_outside_a_git_repo() {
   local dir
-  dir=$(mktemp -d)
+  dir=$(new_plain_dir_fixture)
   printf 'caf\xe9 caf\xe9\n' > "$dir/latin1.md"
   run_hook "Write" "$dir/latin1.md"
   assert_eq "should exit 0 on a non-UTF-8 file outside a git work tree" "0" "$HOOK_EXIT"
@@ -304,7 +317,7 @@ it_should_fail_open_on_a_non_utf8_file_outside_a_git_repo() {
 
 it_should_cap_the_output_over_the_threshold_outside_a_git_repo() {
   local dir long_line i
-  dir=$(mktemp -d)
+  dir=$(new_plain_dir_fixture)
   long_line=$(python3 -c "print('word ' * 120)")
   : > "$dir/big.md"
   for ((i = 0; i < 15; i++)); do
@@ -754,7 +767,7 @@ EOF
 
 it_should_report_a_file_written_through_bash_outside_a_git_repo() {
   local dir
-  dir=$(mktemp -d)
+  dir=$(new_plain_dir_fixture)
   write_wall_of_text "$dir/wall.md"
   run_hook_bash "$dir"
   assert_eq "should exit 2 on a wall of text a Bash call wrote outside any git work tree" "2" "$HOOK_EXIT"
@@ -763,7 +776,7 @@ it_should_report_a_file_written_through_bash_outside_a_git_repo() {
 
 it_should_ignore_a_file_last_written_long_before_a_bash_call_outside_a_git_repo() {
   local dir
-  dir=$(mktemp -d)
+  dir=$(new_plain_dir_fixture)
   write_wall_of_text "$dir/wall.md"
   touch -t 202001010000 "$dir/wall.md"
   run_hook_bash "$dir"
@@ -816,7 +829,125 @@ it_should_report_a_bash_written_file_whose_name_contains_a_space() {
   assert_contains "should name the spaced file in the report" "my notes.md" "$HOOK_OUT"
 }
 
+# run_hook_with_tmpdir - like run_hook, but the hook process
+# sees the given TMPDIR (empty string = TMPDIR unset).
+run_hook_with_tmpdir() {
+  local file_path="$1" hook_tmpdir="$2" stdin_json
+  stdin_json=$(jq -n --arg f "$file_path" \
+    '{tool_name: "Write", tool_input: {file_path: $f}}')
+  if [ -n "$hook_tmpdir" ]; then
+    HOOK_OUT=$(printf '%s' "$stdin_json" | TMPDIR="$hook_tmpdir" "$bash_bin" "$SCRIPT" 2>&1)
+  else
+    HOOK_OUT=$(printf '%s' "$stdin_json" | env -u TMPDIR "$bash_bin" "$SCRIPT" 2>&1)
+  fi
+  HOOK_EXIT=$?
+}
+
+it_should_skip_a_wall_of_text_under_slash_tmp() {
+  local dir
+  dir=$(mktemp -d /tmp/prose-hook-skipXXXXXX)
+  write_wall_of_text "$dir/notes.md"
+  run_hook_with_tmpdir "$dir/notes.md" ""
+  assert_eq "should exit 0 on a wall of text under /tmp" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing on a wall of text under /tmp" "" "$HOOK_OUT"
+  rm -rf "$dir"
+}
+
+it_should_skip_a_wall_of_text_under_private_tmp() {
+  local dir
+  [ -d /private/tmp ] || return 0
+  dir=$(mktemp -d /private/tmp/prose-hook-skipXXXXXX)
+  write_wall_of_text "$dir/notes.md"
+  run_hook_with_tmpdir "$dir/notes.md" ""
+  assert_eq "should exit 0 on a wall of text under /private/tmp" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing on a wall of text under /private/tmp" "" "$HOOK_OUT"
+  rm -rf "$dir"
+}
+
+it_should_skip_an_over_width_comment_under_slash_tmp() {
+  local dir
+  dir=$(mktemp -d /tmp/prose-hook-skipXXXXXX)
+  printf '# This comment line is deliberately far longer than the comment-format width cap so the checker has something concrete to report.\nx = 1\n' > "$dir/dump.py"
+  run_hook_with_tmpdir "$dir/dump.py" ""
+  assert_eq "should exit 0 on an over-width comment in a /tmp script" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing on an over-width comment in a /tmp script" "" "$HOOK_OUT"
+  rm -rf "$dir"
+}
+
+it_should_skip_a_wall_of_text_under_a_tmpdir_that_points_elsewhere() {
+  local dir
+  dir=$(new_plain_dir_fixture)
+  write_wall_of_text "$dir/notes.md"
+  run_hook_with_tmpdir "$dir/notes.md" "$dir"
+  assert_eq "should exit 0 on a wall of text under a custom TMPDIR" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing on a wall of text under a custom TMPDIR" "" "$HOOK_OUT"
+}
+
+it_should_skip_a_wall_of_text_under_a_tmpdir_spelled_with_a_trailing_slash() {
+  local dir
+  dir=$(new_plain_dir_fixture)
+  write_wall_of_text "$dir/notes.md"
+  run_hook_with_tmpdir "$dir/notes.md" "$dir/"
+  assert_eq "should exit 0 when TMPDIR carries a trailing slash" "0" "$HOOK_EXIT"
+}
+
+it_should_skip_a_wall_of_text_a_bash_call_wrote_under_slash_tmp() {
+  local dir
+  dir=$(mktemp -d /tmp/prose-hook-skipXXXXXX)
+  write_wall_of_text "$dir/notes.md"
+  run_hook_bash "$dir"
+  assert_eq "should exit 0 on a Bash-written wall of text under /tmp" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing on a Bash-written wall of text under /tmp" "" "$HOOK_OUT"
+  rm -rf "$dir"
+}
+
+it_should_still_report_a_wall_of_text_in_a_non_temp_dir_named_tmpfiles() {
+  local dir
+  dir=$(new_plain_dir_fixture)
+  mkdir "$dir/tmpfiles"
+  write_wall_of_text "$dir/tmpfiles/notes.md"
+  run_hook_with_tmpdir "$dir/tmpfiles/notes.md" ""
+  assert_eq "should exit 2 on a wall of text in a directory merely named tmpfiles" "2" "$HOOK_EXIT"
+}
+
+it_should_still_report_a_wall_of_text_in_a_repo_directory_named_tmpfiles() {
+  local dir
+  dir=$(new_plain_dir_fixture)
+  git init -q "$dir"
+  mkdir "$dir/tmpfiles"
+  write_wall_of_text "$dir/tmpfiles/notes.md"
+  run_hook_with_tmpdir "$dir/tmpfiles/notes.md" ""
+  assert_eq "should exit 2 on repo content under a tmpfiles directory" "2" "$HOOK_EXIT"
+}
+
+it_should_still_report_a_wall_of_text_in_a_work_tree_that_holds_tmpdir() {
+  local dir
+  dir=$(new_plain_dir_fixture)
+  git init -q "$dir"
+  write_wall_of_text "$dir/notes.md"
+  run_hook_with_tmpdir "$dir/notes.md" "$dir"
+  assert_eq "should exit 2 on repo content even when TMPDIR points inside the work tree" "2" "$HOOK_EXIT"
+}
+
+it_should_ignore_an_empty_or_root_tmpdir() {
+  local dir
+  dir=$(new_plain_dir_fixture)
+  write_wall_of_text "$dir/notes.md"
+  run_hook_with_tmpdir "$dir/notes.md" "/"
+  assert_eq "should exit 2 when TMPDIR is / (it would exempt every file)" "2" "$HOOK_EXIT"
+}
+
 it_should_stay_silent_on_a_clean_markdown_write
+it_should_skip_a_wall_of_text_under_slash_tmp
+it_should_skip_a_wall_of_text_under_private_tmp
+it_should_skip_an_over_width_comment_under_slash_tmp
+it_should_skip_a_wall_of_text_under_a_tmpdir_that_points_elsewhere
+it_should_skip_a_wall_of_text_under_a_tmpdir_spelled_with_a_trailing_slash
+it_should_skip_a_wall_of_text_a_bash_call_wrote_under_slash_tmp
+it_should_still_report_a_wall_of_text_in_a_non_temp_dir_named_tmpfiles
+it_should_still_report_a_wall_of_text_in_a_repo_directory_named_tmpfiles
+it_should_still_report_a_wall_of_text_in_a_work_tree_that_holds_tmpdir
+it_should_ignore_an_empty_or_root_tmpdir
 it_should_report_a_wall_of_text_written_through_bash
 it_should_name_every_offending_file_when_bash_changed_several
 it_should_stay_silent_when_bash_changed_only_clean_files

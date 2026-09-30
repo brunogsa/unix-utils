@@ -60,11 +60,50 @@ INPUT=$(cat)
 
 TOOL_NAME=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
 
+# is_ephemeral_temp_file - succeeds for a file under the system
+# temp directory that sits outside every git work tree.
+#
+# The user's convention puts throwaway scratch (the session
+# scratchpad, debug dumps) in temp precisely because it is not
+# held to the standards repo content is held to.
+#
+# The roots are /tmp, /private/tmp (macOS resolves the first to
+# the second) and $TMPDIR.
+#
+# Each is compared by physical path, as a whole directory
+# component, so a repo directory that merely contains "tmp" in
+# its name never matches.
+#
+# A file inside a git work tree is never skipped, even under
+# temp: it has a baseline and is real tracked content, which is
+# also why this hook's own fixture repos under TMPDIR stay
+# checked.
+#
+# An unset, empty or "/" TMPDIR adds no root - "/" would exempt
+# every file on the machine.
+is_ephemeral_temp_file() {
+  local file_dir physical_dir root physical_root
+  file_dir="$(dirname -- "$1")"
+  git -C "$file_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1 && return 1
+  physical_dir=$(cd -P -- "$file_dir" 2>/dev/null && pwd -P) || return 1
+
+  for root in /tmp /private/tmp "${TMPDIR:-}"; do
+    [ -n "$root" ] || continue
+    physical_root=$(cd -P -- "$root" 2>/dev/null && pwd -P) || continue
+    [ "$physical_root" = "/" ] && continue
+    case "$physical_dir" in
+      "$physical_root"|"$physical_root"/*) return 0 ;;
+    esac
+  done
+  return 1
+}
+
 # check_file - run one file's checkers and print its report on
 # stderr, returning 2 when it found anything and 0 when clean.
 check_file() {
   local FILE_PATH="$1"
   [ -f "$FILE_PATH" ] || return 0
+  is_ephemeral_temp_file "$FILE_PATH" && return 0
 
 ext="${FILE_PATH##*.}"
 base="$(basename -- "$FILE_PATH")"
