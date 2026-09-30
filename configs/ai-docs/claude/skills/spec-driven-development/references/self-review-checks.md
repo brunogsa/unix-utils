@@ -56,7 +56,7 @@ Both measure rather than judge — never inline.
 
 - **Artifacts Valid**: `scripts/check-mermaid-renders.sh` on each resolved doc path; a failure routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)` on it.
 
-- **Density**: run `doc-standards`' `scripts/check-density.sh` and `scripts/check-bullet-gap.py` on the resolved doc paths.
+- **Density**: run `doc-standards`' `scripts/check-density.sh`, `scripts/check-bullet-gap.py`, and `scripts/check-bullet-structure.py` on the resolved doc paths.
   - Runs after mermaid validation: repairing a diagram adds lines density must measure.
 
   - On any violation, file ONE `[Scout]` entry naming the file and what is off standard.

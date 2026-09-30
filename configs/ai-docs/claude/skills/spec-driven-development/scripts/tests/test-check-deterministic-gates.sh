@@ -103,6 +103,7 @@ build_tree() {
   done
   make_stub "$doc/scripts/check-density.sh" check-density.sh 0
   make_stub "$doc/scripts/check-bullet-gap.py" check-bullet-gap.py 0
+  make_stub "$doc/scripts/check-bullet-structure.py" check-bullet-structure.py 0
   CALL_LOG="$TREE/calls.log"
   export CALL_LOG
   : > "$CALL_LOG"
@@ -131,8 +132,10 @@ check-mermaid-renders.sh $PLAN
 check-mermaid-renders.sh $SPEC
 check-density.sh $PLAN
 check-bullet-gap.py $PLAN
+check-bullet-structure.py $PLAN
 check-density.sh $SPEC
 check-bullet-gap.py $SPEC
+check-bullet-structure.py $SPEC
 check-sections.sh $PLAN $TREE/spec-driven-development/assets/plan-template.md
 check-sections.sh $SPEC $TREE/spec-driven-development/assets/spec-template.md
 check-test-distribution.sh $PLAN
@@ -144,7 +147,7 @@ check-coverage-checklists.sh $SPEC
 EOF2
 )
   assert_eq "should invoke every member in the reference order, plan before spec for check-ac-coverage" "$expected" "$(cat "$CALL_LOG")"
-  assert_eq "should print one line per gate invocation" "14" "$(printf '%s\n' "$RUN_OUT" | grep -c '^PASS ')"
+  assert_eq "should print one line per gate invocation" "16" "$(printf '%s\n' "$RUN_OUT" | grep -c '^PASS ')"
 }
 
 it_should_skip_the_spec_taking_gates_and_report_them_as_skipped_when_given_no_spec() {
@@ -158,7 +161,7 @@ it_should_skip_the_spec_taking_gates_and_report_them_as_skipped_when_given_no_sp
   assert_contains "should report check-coverage-checklists as SKIP" "SKIP exit=- check-coverage-checklists.sh" "$RUN_OUT"
   assert_not_contains "should never report a skipped gate as PASS" "PASS exit=0 check-ac-coverage.sh" "$RUN_OUT"
   assert_not_contains "should never report the skipped spec gate as PASS" "PASS exit=0 check-coverage-checklists.sh" "$RUN_OUT"
-  assert_eq "should skip exactly the six spec-only invocations" "6" "$(printf '%s\n' "$RUN_OUT" | grep -c '^SKIP ')"
+  assert_eq "should skip exactly the seven spec-only invocations" "7" "$(printf '%s\n' "$RUN_OUT" | grep -c '^SKIP ')"
 }
 
 it_should_keep_running_after_a_failing_gate_show_its_output_and_exit_non_zero() {

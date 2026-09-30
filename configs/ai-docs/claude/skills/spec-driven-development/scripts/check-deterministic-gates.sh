@@ -27,7 +27,8 @@
 # reported SKIP — never PASS — since `light` mode has no
 # spec and a skip that reads as a pass is the defect.
 #
-# WARN is check-density.sh / check-bullet-gap.py exiting 1:
+# WARN is check-density.sh / check-bullet-gap.py /
+# check-bullet-structure.py exiting 1:
 # the reference reports density as a [Scout], never a
 # blocker, so it does not fail the run. Any other non-zero
 # density exit (a usage error) is a FAIL.
@@ -110,8 +111,10 @@ run_gate gate plan check-mermaid-renders.sh bash "$script_dir/check-mermaid-rend
 run_spec_gate gate spec check-mermaid-renders.sh bash "$script_dir/check-mermaid-renders.sh" "$spec"
 run_gate density plan check-density.sh bash "$density_dir/check-density.sh" "$plan"
 run_gate density plan check-bullet-gap.py "$density_dir/check-bullet-gap.py" "$plan"
+run_gate density plan check-bullet-structure.py "$density_dir/check-bullet-structure.py" "$plan"
 run_spec_gate density spec check-density.sh bash "$density_dir/check-density.sh" "$spec"
 run_spec_gate density spec check-bullet-gap.py "$density_dir/check-bullet-gap.py" "$spec"
+run_spec_gate density spec check-bullet-structure.py "$density_dir/check-bullet-structure.py" "$spec"
 run_gate gate plan check-sections.sh bash "$script_dir/check-sections.sh" "$plan" "$assets_dir/plan-template.md"
 run_spec_gate gate spec check-sections.sh bash "$script_dir/check-sections.sh" "$spec" "$assets_dir/spec-template.md"
 run_gate gate plan check-test-distribution.sh bash "$script_dir/check-test-distribution.sh" "$plan"
