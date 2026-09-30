@@ -32,40 +32,21 @@ if [ $# -ne 1 ]; then
 fi
 
 plan_file="$1"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fences_lib="$script_dir/../../../scripts/parse-fences.awk"
 
 if [ ! -f "$plan_file" ]; then
   echo "error: plan file not found: $plan_file" >&2
   exit 2
 fi
 
-# The fence toggle guards only the `## ` boundary check below —
-# it never skips content — since a fenced sample line quoted
-# inside the section must still print. A fence closes only on
-# a same-marker line at least as long as its opener, bare.
-section=$(awk '
-  /^```/ || /^~~~/ {
-    m = substr($0, 1, 1)
-    fence_run = 0
-    while (substr($0, fence_run + 1, 1) == m) fence_run++
-    fence_tail = substr($0, fence_run + 1)
-    if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run; fence_line = NR }
-    else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-    if (in_section && !done) print
-    next
-  }
-  !in_fence && !done && /^## / {
-    if (in_section) { done = 1; next }
-    if ($0 ~ /^## PR Breakdown[[:space:]]*$/) { in_section = 1; next }
-    next
-  }
-  in_section && !done { print }
-  END {
-    if (in_fence) {
-      print "error: unclosed code fence opened at line " fence_line " in " FILENAME > "/dev/stderr"
-      exit 2
-    }
-  }
-' "$plan_file")
+# The shared fence scanner (parse-fences.awk) sets in_fence.
+# The section program uses it only to guard the `## ` boundary,
+# and never skips content.
+#
+# A fenced sample line quoted inside the section must still
+# print. The scanner's END exits 2 on a fence left open at EOF.
+section=$(awk -f "$fences_lib" -f "$script_dir/parse-pr-breakdown-section.awk" "$plan_file")
 
 trimmed=$(printf '%s' "$section" | sed '/^[[:space:]]*$/d')
 
@@ -86,98 +67,8 @@ else
   entry_boundary="bold-span"
 fi
 
-entries=$(printf '%s\n' "$section" | awk -v entry_boundary="$entry_boundary" '
-  # The label opening a new entry, or "" when this line opens none.
-  function entry_label(line,   span) {
-    if (entry_boundary == "heading") {
-      if (line !~ /^###[ \t]/) return ""
-      if (!match(line, /PR-[0-9]+/)) return ""
-      return substr(line, RSTART, RLENGTH)
-    }
-    if (!match(line, /\*\*[^*]*PR-[0-9]+[^*]*\*\*/)) return ""
-    span = substr(line, RSTART, RLENGTH)
-    if (!match(span, /PR-[0-9]+/)) return ""
-    return substr(span, RSTART, RLENGTH)
-  }
-
-  # A named field with or without its bold markers, up to the next period or
-  # the end of the line - whichever comes first. Both terminators are needed:
-  # the heading grammar ends a field at the line break, while the older
-  # one-line grammar packs every field onto one line, separated by periods.
-  function field(line, name,   raw) {
-    if (!match(line, "\\*?\\*?" name "\\*?\\*?:[^.]*")) return ""
-    raw = substr(line, RSTART, RLENGTH)
-    sub(/^[^:]*:/, "", raw)
-    gsub(/^[ \t]+|[ \t]+$/, "", raw)
-    return raw
-  }
-
-  function pr_tokens(clause,   tokens, token) {
-    tokens = ""
-    while (match(clause, /PR-[0-9]+/)) {
-      token = substr(clause, RSTART, RLENGTH)
-      tokens = (tokens == "" ? token : tokens "," token)
-      clause = substr(clause, RSTART + RLENGTH)
-    }
-    return tokens
-  }
-
-  function branch_name(line,   clause) {
-    if (!match(line, /\*?\*?Branch\*?\*?:[ \t]*`[^`]*`/)) return ""
-    clause = substr(line, RSTART, RLENGTH)
-    match(clause, /`[^`]*`/)
-    return substr(clause, RSTART + 1, RLENGTH - 2)
-  }
-
-  function flush() {
-    if (label != "") print label "\t" tasks "\t" deps "\t" branch
-  }
-
-  # A fenced sample entry (e.g. a ### PR-N heading shown as
-  # doc-writing markup) is skipped entirely here, not just
-  # boundary-guarded: its heading must never open a phantom
-  # entry, and its field lines must never leak into a real
-  # entry above it. Closes only on a line of the same marker,
-  # at least as long as the opener, with no info string.
-  /^```/ || /^~~~/ {
-    m = substr($0, 1, 1)
-    fence_run = 0
-    while (substr($0, fence_run + 1, 1) == m) fence_run++
-    fence_tail = substr($0, fence_run + 1)
-    if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
-    else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-    next
-  }
-  in_fence { next }
-
-  {
-    opening_label = entry_label($0)
-    if (opening_label != "") {
-      flush()
-      label = opening_label
-      tasks = ""; deps = ""; branch = ""
-      seen_tasks = 0; seen_deps = 0
-    }
-    if (label == "") next
-
-    # First occurrence wins: past the fields, an entry runs into free prose
-    # that may name a task or a PR without redefining either.
-    if (!seen_tasks) {
-      tasks = field($0, "Tasks")
-      if (tasks != "") seen_tasks = 1
-    }
-    if (!seen_deps) {
-      deps_clause = field($0, "Depends on")
-      if (deps_clause != "") {
-        deps = pr_tokens(deps_clause)
-        seen_deps = 1
-      }
-    }
-    if (branch == "") branch = branch_name($0)
-  }
-
-  END { flush() }
-')
+entries=$(printf '%s\n' "$section" | awk -v entry_boundary="$entry_boundary" \
+  -f "$fences_lib" -f "$script_dir/parse-pr-breakdown-entries.awk")
 
 if [ -z "$entries" ]; then
   echo "error: PR Breakdown section found but no PR-N entries could be parsed from it" >&2

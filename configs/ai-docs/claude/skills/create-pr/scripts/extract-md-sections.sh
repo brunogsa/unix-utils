@@ -73,6 +73,9 @@ case "${1:-}" in
         ;;
 esac
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fences_lib="$script_dir/../../../scripts/parse-fences.awk"
+
 file="${1:-}"
 if [[ -z "$file" ]]; then
     echo "error: missing <file> argument" >&2
@@ -84,33 +87,11 @@ if [[ ! -f "$file" ]]; then
     exit 1
 fi
 
-# assert_fence_closed - exit 1 when a ``` or ~~~
-# fence in the given file is still open at EOF.
-#
-# Whole-file rule: an unclosed fence anywhere in
-# the file is malformed, not just inside a scanned
-# section. Exits 1 (not 2) to match this script's
-# own usage-error family.
-assert_fence_closed() {
-    awk '
-        /^```/ || /^~~~/ {
-            m = substr($0, 1, 1)
-            fence_run = 0
-            while (substr($0, fence_run + 1, 1) == m) fence_run++
-            fence_tail = substr($0, fence_run + 1)
-            if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run; fence_line = NR }
-            else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-        }
-        END {
-            if (in_fence) {
-                print "error: unclosed code fence opened at line " fence_line " in " FILENAME > "/dev/stderr"
-                exit 1
-            }
-        }
-    ' "$1"
-}
-
-assert_fence_closed "$file"
+# Whole-file rule: an unclosed ``` or ~~~ fence anywhere in the
+# file is malformed, not just inside a scanned section. The
+# shared scanner's END check exits 1 (not 2) via
+# fence_exit_code, to match this script's usage-error family.
+awk -v fence_exit_code=1 -f "$fences_lib" "$file"
 shift
 
 if [[ $# -eq 0 ]]; then
@@ -138,23 +119,8 @@ for title in "$@"; do
 done
 
 out=$(
-    WANTED_SECTIONS="$wanted" awk '
-        BEGIN {
-            n = split(ENVIRON["WANTED_SECTIONS"], arr, "\n")
-            for (i = 1; i <= n; i++) if (arr[i] != "") want[arr[i]] = 1
-        }
-        /^```/ || /^~~~/ {
-            m = substr($0, 1, 1)
-            fence_run = 0
-            while (substr($0, fence_run + 1, 1) == m) fence_run++
-            fence_tail = substr($0, fence_run + 1)
-            if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
-            else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-        }
-        !in_fence && /^# Appendix[ \t]*$/ { keep = 0 }
-        !in_fence && /^## / { keep = (($0) in want) ? 1 : 0 }
-        keep
-    ' "$file"
+    WANTED_SECTIONS="$wanted" awk -f "$fences_lib" \
+        -f "$script_dir/extract-md-sections.awk" "$file"
 )
 
 if [[ -z "$out" ]]; then

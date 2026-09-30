@@ -83,6 +83,7 @@ if [ ! -d "$worktree_path" ]; then
 fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fences_lib="$script_dir/../../../scripts/parse-fences.awk"
 
 # parse-pr-breakdown.sh does the section-extraction +
 # entry-parse pipeline shared with get-pr-tasks.sh and
@@ -150,28 +151,11 @@ if [ -z "$deps" ]; then
   exit 0
 fi
 
-# The fence toggle guards only the `## ` boundary check below —
-# it never skips content — since a fenced sample line quoted
-# inside the section must still print. A fence closes only on
-# a same-marker line at least as long as its opener, bare.
-task_section=$(awk '
-  /^```/ || /^~~~/ {
-    m = substr($0, 1, 1)
-    fence_run = 0
-    while (substr($0, fence_run + 1, 1) == m) fence_run++
-    fence_tail = substr($0, fence_run + 1)
-    if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
-    else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-    print
-    next
-  }
-  !in_fence && /^## / {
-    if (in_section) exit
-    if ($0 ~ /^## Task Breakdown[[:space:]]*$/) { in_section = 1; next }
-    next
-  }
-  in_section { print }
-' "$plan_file")
+# The shared fence scanner sets in_fence; this program uses it
+# only to guard the `## ` boundary, and never skips content,
+# since a fenced sample line quoted inside the section must
+# still print.
+task_section=$(awk -f "$fences_lib" -f "$script_dir/check-pr-dependencies-ready-task-section.awk" "$plan_file")
 
 # Each Task Breakdown heading looks like: ### <N>. [<status>]
 # <title> A task not yet started carries no bracket at all
@@ -181,28 +165,8 @@ task_section=$(awk '
 # A `### N.` heading shown as sample markup inside a fenced
 # block is skipped entirely, so it never registers as a
 # phantom task status.
-task_statuses=$(printf '%s\n' "$task_section" | awk '
-  /^```/ || /^~~~/ {
-    m = substr($0, 1, 1)
-    fence_run = 0
-    while (substr($0, fence_run + 1, 1) == m) fence_run++
-    fence_tail = substr($0, fence_run + 1)
-    if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
-    else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-    next
-  }
-  in_fence { next }
-  /^### [0-9]+\./ {
-    line = $0
-    match(line, /^### [0-9]+/)
-    id = substr(line, RSTART + 4, RLENGTH - 4)
-    status = ""
-    if (match(line, /\[[^]]+\]/)) {
-      status = substr(line, RSTART + 1, RLENGTH - 2)
-    }
-    print id "\t" status
-  }
-')
+task_statuses=$(printf '%s\n' "$task_section" |
+  awk -f "$fences_lib" -f "$script_dir/check-pr-dependencies-ready-task-statuses.awk")
 
 # task_status_for - prints "found\t<status>" for the given task
 # id, or "missing\t" when the id has no heading in the Task
