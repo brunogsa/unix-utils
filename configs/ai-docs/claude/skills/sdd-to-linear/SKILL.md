@@ -123,6 +123,8 @@ Then set the Linear project description from `spec_<slug>.md` when it sits besid
 
 Take its `## Background / Context` and `## Functional Decisions` sections.
 
+Read the current description first. Where it is non-empty and no previous run of this export wrote it, hand it back to the user with the project URL and write nothing, the same rule as an in-flight issue.
+
 Where no spec exists, the export still runs and the project description stays as the user set it, never overwritten with plan-derived filler.
 
 Why: a colleague opening any one issue reaches the reasoning behind the whole project without the plan file.
