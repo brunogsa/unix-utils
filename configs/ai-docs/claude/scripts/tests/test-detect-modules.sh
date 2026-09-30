@@ -69,7 +69,7 @@ it_should_report_only_linear_present_when_only_the_linear_plugin_is_enabled() {
 it_should_read_the_settings_file_under_home_when_claude_settings_is_unset() {
   mkdir -p "$scratch/home/.claude"
   printf '%s\n' '{"enabledPlugins":{"core@arco-ai-plugins":true}}' > "$scratch/home/.claude/settings.json"
-  output="$(HOME="$scratch/home" CLAUDE_SETTINGS= bash "$SCRIPT_UNDER_TEST" 2>/dev/null | tr '\n' ' ')"
+  output="$(HOME="$scratch/home" CLAUDE_SETTINGS='' bash "$SCRIPT_UNDER_TEST" 2>/dev/null | tr '\n' ' ')"
   assert_eq "should read the settings file under HOME when CLAUDE_SETTINGS is unset" "arco=true linear=false " "$output"
 }
 
