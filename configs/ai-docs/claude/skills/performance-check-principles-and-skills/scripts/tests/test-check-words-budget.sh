@@ -124,7 +124,17 @@ it_should_measure_a_skill_declaring_no_words_budget_against_the_2048_word_defaul
     rm -rf "$at_default" "$over_default"
 }
 
+it_should_accept_a_words_budget_override_of_exactly_4096() {
+    echo "it_should_accept_a_words_budget_override_of_exactly_4096"
+    local d; d=$(new_fixture)
+    write_skill_with_words "$d" "big-skill" 3000 4096
+    assert_eq "no findings" "" "$(run_check "$d")"
+    assert_eq "exits zero" "0" "$(run_check_status "$d")"
+    rm -rf "$d"
+}
+
 it_should_measure_a_skill_declaring_no_words_budget_against_the_2048_word_default
+it_should_accept_a_words_budget_override_of_exactly_4096
 
 echo
 echo "$passed passed, $failed failed"
