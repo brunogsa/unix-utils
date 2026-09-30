@@ -43,6 +43,8 @@ Read [`references/interview-engine.md`](references/interview-engine.md) and run 
 
 Ask only why/what questions: problem, goal and success metrics, who benefits, constraints, acceptance scenarios, and their failure modes.
 
+When the request looks decomposable, follow [`references/decompose-scope.md`](references/decompose-scope.md).
+
 ### 3. Hand off
 
 With no module selected, go straight to step 4.

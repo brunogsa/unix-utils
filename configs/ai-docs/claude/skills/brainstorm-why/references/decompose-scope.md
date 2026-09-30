@@ -11,4 +11,4 @@ Fires only when step 2 finds the request decomposable and the user agrees to spl
 Give each entry a one-sentence purpose, plus the id of the sub-project it depends on where one exists.
 
 Why the TaskList: a stale session loses the decomposition map, but an entry survives both the session and a compaction.
-The next `/brainstorm` run then picks up the queue instead of re-deriving the split.
+The next `/brainstorm-why` run then picks up the queue instead of re-deriving the split.
