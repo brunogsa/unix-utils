@@ -131,7 +131,8 @@ for name in "${checker_names[@]}"; do
   #
   # check-density.sh, check-hard-wrap.py, check-bullet-gap.py
   # and check-bullet-structure.py all accept a "--"
-  # end-of-options separator;
+  # end-of-options separator.
+  #
   # check-comment-format.js does not, so it gets a "./"-prefixed
   # path instead.
   invocation_path="$FILE_PATH"
