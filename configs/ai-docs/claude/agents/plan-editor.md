@@ -33,6 +33,10 @@ Read only the existing plan and the caller's instructions otherwise — an edit 
 4. Adding a plan task writes BOTH its body `### N.` entry and its matching `## Task Details` entry.
 5. Adding a decision appends a new `<details>` entry below the execution divider, inside `## Technical Decisions` in the appendix.
 6. Nothing moves across the literal H1 `# Appendix` line: an edit to body content stays in the body, an edit to appendix content stays in the appendix.
+7. Before reporting, run `~/.claude/skills/doc-standards/scripts/check-density.sh`, `check-hard-wrap.py`, `check-bullet-gap.py`, and `check-bullet-structure.py` on the plan.
+   - Fix every violation on the lines you wrote or changed this run, reflowing without dropping information.
+   - A violation on a line you did not touch is out of scope: leave it verbatim and mention it in the report.
+   - Why: an edited plan reaches the same readers as a written one, so a self-check on one side only lets violations in through the other.
 
 ## Boundaries
 
