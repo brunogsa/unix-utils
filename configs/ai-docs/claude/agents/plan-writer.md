@@ -46,7 +46,7 @@ Also read `brainstorm-how-brief.md` before writing: source 1 assumes a fork's in
 
 Before reporting, run `~/.claude/skills/doc-standards/scripts/check-density.sh`, `check-hard-wrap.py`, `check-bullet-gap.py`, and `check-bullet-structure.py` on the plan you wrote, and fix every violation in place, reflowing without dropping information.
 
-- Why: the self-review gates only Scout density and run no hard-wrap check, so nothing else holds a fresh plan to doc-standards.
+- Why: the gates runner is the caller's gate, run after handover, so skipping this check would hand back a plan already known to be dirty.
 
 - Evidence: one generated plan shipped 37 violations (19 density, 14 hard-wrap, 4 bullet-gap).
 
