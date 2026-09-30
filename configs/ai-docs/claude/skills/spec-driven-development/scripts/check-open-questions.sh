@@ -16,7 +16,7 @@
 # Markers inside a ``` or ~~~ fenced code block are ignored: a
 # doc quoting the template's own "- **QUESTION:** ... ?" line as
 # an example is showing the syntax, not holding an unanswered
-# question. A fence closes only on the marker that opened it.
+# question. scripts/parse-fences.awk decides what closes one.
 #
 # A document with no Open Questions section has nothing to
 # settle and passes trivially, same as check-pr-dag.sh treats an
@@ -58,19 +58,9 @@ for doc in "$@"; do
 
   # Drop fenced blocks before matching, so a quoted example
   # never counts.
-  open=$(printf '%s\n' "$section" | awk '
-    /^[[:space:]]*```/ || /^[[:space:]]*~~~/ {
-      match($0, /```|~~~/)
-      m = substr($0, RSTART, 1)
-      fence_run = 0
-      while (substr($0, RSTART + fence_run, 1) == m) fence_run++
-      fence_tail = substr($0, RSTART + fence_run)
-      if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
-      else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-      next
-    }
-    !in_fence && /\*\*QUESTION:\*\*/ { print }
-  ')
+  open=$(printf '%s\n' "$section" | awk -v fence_indent=1 \
+    -f "$script_dir/../../../scripts/parse-fences.awk" \
+    -f "$script_dir/check-open-questions.awk")
 
   if [ -n "$open" ]; then
     found=1

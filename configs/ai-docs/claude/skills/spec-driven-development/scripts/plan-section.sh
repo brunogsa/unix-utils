@@ -38,8 +38,11 @@
 #
 # A <marker>-depth-shaped line inside a ``` or ~~~
 # fenced code block is sample content, not a real
-# heading, so it never opens or closes a section. A
-# fence closes only on the same marker that opened it.
+# heading, so it never opens or closes a section.
+#
+# What counts as a fence, and what closes one, is decided
+# by scripts/parse-fences.awk, shared with every other
+# markdown scanner.
 #
 # plan-template.md prescribes a trailing "---" divider
 # line before every "##"-depth heading, which otherwise
@@ -56,8 +59,8 @@
 # formatting scaffolding.
 #
 # A ``` or ~~~ fence left open at EOF makes the whole
-# plan file malformed. This applies whole-file, not
-# just the scanned section.
+# plan file malformed. parse-fences.awk enforces this
+# whole-file, not just on the scanned section.
 #
 # Exit codes:
 #   0 - always, including "no heading matched" (empty
@@ -86,31 +89,8 @@ if [ ! -f "$plan_file" ]; then
   exit 2
 fi
 
-awk -v marker="$marker" -v pat="$heading_pattern" '
-  /^```/ || /^~~~/ {
-    m = substr($0, 1, 1)
-    fence_run = 0
-    while (substr($0, fence_run + 1, 1) == m) fence_run++
-    fence_tail = substr($0, fence_run + 1)
-    if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run; fence_line = NR }
-    else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-  }
-  !in_fence && !done && index($0, marker " ") == 1 {
-    if (in_section) { done = 1; next }
-    stripped = $0
-    sub("^" marker " ", "", stripped)
-    if (stripped ~ pat) { in_section = 1; next }
-    next
-  }
-  in_section && !done { buf[++n] = $0 }
-  END {
-    if (in_fence) {
-      print "error: unclosed code fence opened at line " fence_line " in " FILENAME > "/dev/stderr"
-      exit 2
-    }
-    while (n > 0 && buf[n] ~ /^[[:space:]]*$/) n--
-    if (n > 0 && buf[n] ~ /^---[[:space:]]*$/) n--
-    while (n > 0 && buf[n] ~ /^[[:space:]]*$/) n--
-    for (i = 1; i <= n; i++) print buf[i]
-  }
-' "$plan_file"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+awk -v marker="$marker" -v pat="$heading_pattern" \
+  -f "$script_dir/../../../scripts/parse-fences.awk" \
+  -f "$script_dir/plan-section.awk" "$plan_file"

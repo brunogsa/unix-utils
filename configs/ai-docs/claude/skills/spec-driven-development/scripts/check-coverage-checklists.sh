@@ -99,22 +99,10 @@ work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT
 
 # strip_fences - drop ``` or ~~~ regions so a quoted example
-# row is never read as a real entry. Closes only on the same
-# marker that opened it.
+# row is never read as a real entry.
 strip_fences() {
-  awk '
-    /^```/ || /^~~~/ {
-      m = substr($0, 1, 1)
-      fence_run = 0
-      while (substr($0, fence_run + 1, 1) == m) fence_run++
-      fence_tail = substr($0, fence_run + 1)
-      if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
-      else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-      next
-    }
-    in_fence { next }
-    { print }
-  '
+  awk -f "$script_dir/../../../scripts/parse-fences.awk" \
+    -f "$script_dir/check-coverage-checklists.awk"
 }
 
 # labels_under - flat "- " taxonomy rows filed under a "## "
