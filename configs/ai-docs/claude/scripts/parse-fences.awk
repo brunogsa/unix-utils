@@ -4,6 +4,7 @@
 #
 # Usage:
 #   awk [-v fence_indent=1] [-v fence_exit_code=N] \
+#     [-v fence_file=<path>] [-v fence_line_offset=N] \
 #     -f <scripts-dir>/parse-fences.awk -f <caller>.awk <file>
 #
 # A fence opens on 3+ backticks or tildes at column 0.
@@ -29,9 +30,31 @@
 #
 # fence_indent=1 also accepts a fence indented by spaces or
 # tabs.
+#
+# A caller piping a slice of a document in has no FILENAME and
+# an NR counted from the slice, so that message would name no
+# file and a line the reader cannot find.
+#
+# fence_file and fence_line_offset let it hand over the real
+# coordinates: the path to name, and the number of document
+# lines preceding the slice.
+#
+# Both are unset by default, leaving the message byte-identical
+# for a caller that passes a file path.
+#
+# An offset that is not a whole non-negative number is a caller
+# bug, so it exits 2 on the spot rather than shifting the line
+# to somewhere nobody can check.
 
 BEGIN {
   fence_start_pattern = fence_indent ? "^[ \t]*(```|~~~)" : "^(```|~~~)"
+
+  if (fence_line_offset != "" && fence_line_offset !~ /^[0-9]+$/) {
+    print "error: fence_line_offset must be a non-negative integer, got \"" \
+      fence_line_offset "\"" > "/dev/stderr"
+    fence_bad_config = 1
+    exit 2
+  }
 }
 
 { fence_event = "" }
@@ -59,8 +82,12 @@ $0 ~ fence_start_pattern {
 }
 
 END {
+  if (fence_bad_config) exit 2
+
   if (in_fence) {
-    print "error: unclosed code fence opened at line " fence_line " in " FILENAME > "/dev/stderr"
+    fence_reported_file = fence_file != "" ? fence_file : FILENAME
+    print "error: unclosed code fence opened at line " \
+      (fence_line + fence_line_offset) " in " fence_reported_file > "/dev/stderr"
     exit (fence_exit_code ? fence_exit_code : 2)
   }
 }

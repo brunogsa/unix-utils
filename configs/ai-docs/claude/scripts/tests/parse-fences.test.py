@@ -100,6 +100,18 @@ def run_awk_lib(tmp_path, lines, *assignments):
     return result, doc
 
 
+def run_awk_lib_on_stdin(tmp_path, lines, *assignments):
+    harness = tmp_path / "harness.awk"
+    harness.write_text(AWK_HARNESS)
+    command = ["awk"]
+    for assignment in assignments:
+        command += ["-v", assignment]
+    command += ["-f", str(AWK_LIB), "-f", str(harness)]
+    return subprocess.run(
+        command, input="\n".join(lines) + "\n", capture_output=True, text=True
+    )
+
+
 def token_for(is_in_fence, event):
     if event in ("open", "close"):
         return event
@@ -189,6 +201,95 @@ class TestAwkLibrary:
         result, _ = run_awk_lib(tmp_path, BALANCED_LINES)
         assert result.returncode == 0
         assert result.stderr == ""
+
+
+class TestAwkLibraryToldItsOwnCoordinates:
+    """A caller piping a SLICE of a document into awk leaves the unclosed-fence
+    message pointing nowhere: FILENAME is empty because awk reads stdin, and NR
+    counts from the slice, not from the document the reader has open.
+
+    fence_file and fence_line_offset let that caller hand awk the real
+    coordinates, so the message names the file and the line a reader can jump to.
+    """
+
+    def test_names_the_callers_file_and_document_line_for_a_slice_read_from_stdin(
+        self, tmp_path
+    ):
+        result = run_awk_lib_on_stdin(
+            tmp_path,
+            UNCLOSED_LINES,
+            "fence_file=/plans/plan_checkout-rewrite.md",
+            "fence_line_offset=7",
+        )
+        assert result.returncode == 2
+        assert result.stderr == (
+            "error: unclosed code fence opened at line "
+            f"{UNCLOSED_OPENER_LINE + 7} in /plans/plan_checkout-rewrite.md\n"
+        )
+
+    def test_reports_the_empty_file_name_and_slice_line_when_the_caller_says_nothing(
+        self, tmp_path
+    ):
+        result = run_awk_lib_on_stdin(tmp_path, UNCLOSED_LINES)
+        assert result.returncode == 2
+        assert result.stderr == (
+            f"error: unclosed code fence opened at line {UNCLOSED_OPENER_LINE} in \n"
+        )
+
+    def test_names_the_callers_file_instead_of_the_path_awk_was_handed(self, tmp_path):
+        result, _ = run_awk_lib(
+            tmp_path, UNCLOSED_LINES, "fence_file=/plans/plan_checkout-rewrite.md"
+        )
+        assert result.stderr == (
+            "error: unclosed code fence opened at line "
+            f"{UNCLOSED_OPENER_LINE} in /plans/plan_checkout-rewrite.md\n"
+        )
+
+    def test_shifts_the_line_while_keeping_the_path_awk_was_handed(self, tmp_path):
+        result, doc = run_awk_lib(tmp_path, UNCLOSED_LINES, "fence_line_offset=41")
+        assert result.stderr == (
+            f"error: unclosed code fence opened at line {UNCLOSED_OPENER_LINE + 41} in {doc}\n"
+        )
+
+    def test_leaves_the_message_untouched_for_an_offset_of_zero(self, tmp_path):
+        with_zero, doc = run_awk_lib(tmp_path, UNCLOSED_LINES, "fence_line_offset=0")
+        assert with_zero.returncode == 2
+        assert with_zero.stderr == (
+            f"error: unclosed code fence opened at line {UNCLOSED_OPENER_LINE} in {doc}\n"
+        )
+
+    @pytest.mark.parametrize("offset", ["abc", "-1", "1.5", " "])
+    def test_refuses_an_offset_that_is_not_a_whole_non_negative_number(
+        self, offset, tmp_path
+    ):
+        result, _ = run_awk_lib(tmp_path, BALANCED_LINES, f"fence_line_offset={offset}")
+        assert result.returncode == 2
+        assert result.stderr == (
+            f'error: fence_line_offset must be a non-negative integer, got "{offset}"\n'
+        )
+
+    def test_refuses_a_bad_offset_even_when_no_caller_rule_would_ever_report_a_fence(
+        self, tmp_path
+    ):
+        harness = tmp_path / "loud.awk"
+        harness.write_text('END { print "the caller END rule ran" }\n')
+        doc = write_doc(tmp_path, BALANCED_LINES)
+        result = subprocess.run(
+            [
+                "awk",
+                "-v",
+                "fence_line_offset=-1",
+                "-f",
+                str(AWK_LIB),
+                "-f",
+                str(harness),
+                str(doc),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 2
+        assert result.stdout == ""
 
 
 class TestPythonLibrary:
