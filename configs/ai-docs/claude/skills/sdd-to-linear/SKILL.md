@@ -95,6 +95,20 @@ After the run's first issue lands, write the plan's document-level `Linear:` lin
 
 A run that writes zero issues writes no `Linear:` line, matching the zero-PR rule.
 
+Once every issue this run creates exists, mirror the plan's dependency graph: write each PR's `Depends on` as a `blockedBy` relation on that PR's issue through `save_issue`.
+
+Write relations only after all the issues exist, because a relation needs both endpoints.
+
+Read a relation back with `get_issue(includeRelations: true)` to verify it landed.
+
+The plan stays the source of truth and Linear is a projection of it, never the origin. Export only a graph `check-tasks-dag.sh` and `check-pr-task-projection.py` already accepted.
+
+Why: Linear documents no cycle detection and no depth limit on `blocks`/`blockedBy`.
+
+So those two gates alone can reject a cyclic or cross-level graph.
+
+Exporting only a graph they accepted keeps an uncheckable cycle out of Linear.
+
 ### 6. Handle failure
 
 **A write failure partway stops the export.**
@@ -104,6 +118,10 @@ A run that writes zero issues writes no `Linear:` line, matching the zero-PR rul
 - Write the `**Linear**:` field only for the issues actually created.
 
 - Never retry silently. Offer the retry to the user instead.
+
+- Apply the same rule to a `blockedBy` relation whose blocking PR has no issue, because the export stopped early or that PR was skipped.
+
+- Name that specific relation, finish the rest of the export, and never report a clean export over a partial one.
 
 **A module failure degrades, never aborts.** This covers a disconnected MCP, a call that times out or never responds, a 5xx, and an auth or permission rejection.
 
@@ -120,5 +138,7 @@ Why: the plan works identically with no Linear at all, so losing the module cost
 End by reporting every URL the run created as a nested bullet tree in the plan's own order. Put the project or initiative at the root and each PR's issue beneath it.
 
 Flag separately each issue handed back for being In Progress, In Review or Done, and each PR that got no issue.
+
+Also list each `blockedBy` relation left unwritten, naming both PRs, so a partial tree is never read as clean.
 
 Why: the reader walks from plan to Linear without opening the workspace.
