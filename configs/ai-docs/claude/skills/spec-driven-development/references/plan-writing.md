@@ -1,12 +1,18 @@
+---
+# performance-check budget override, not plan-writing content.
+# Both plan reference files sat one word under the 1024w bundled default, so no rule can be
+# added without deleting another. Doubled from that default.
+words-budget: 2048
+---
 # Writing the implementation plan
 
 Turns an approved `spec_<slug>.md` into `plan_<slug>.md`. Read by path from the `plan-writer` agent, dispatched by `to-plan`, and by whoever fills in `assets/plan-template.md`, since it carries no rules.
 
-Fresh eyes audit this plan — `to-plan`'s self-review sends it to a `plan-reviewer` who never saw the session.
+Fresh eyes still audit this plan — `to-plan`'s self-review sends it to a `plan-reviewer` who never saw the session.
 
 Never copy guidance text from this reference or the template into the written doc — the doc holds content only.
 
-Also read `references/plan-tasks-and-appendix.md` for the Test Design, Task Breakdown, PR Breakdown, and Decision logs sections.
+Also read `references/plan-tasks-and-appendix.md` for the Test Design, Task Breakdown, PR Breakdown, and Decision logs sections — split out to keep each file under its word budget.
 
 ## Inputs
 
@@ -92,7 +98,7 @@ Tick every box this change touches. Each ticked box carries its mitigation on th
 
 The five boxes map to `code-review-pipeline/references/review-checklists.md`'s Security Checklist vocabulary: untrusted input → injection, XSS/output-encoding gaps, unsafe deserialization. Permissions → authn/authz. Personal data → the data-handling side of secret/credential exposure. A secret/credential → secret and credential exposure. Code/shell/SQL built from input → SSRF/RCE, unsafe eval or dynamic execution.
 
-Reuse this vocabulary — a second taxonomy would drift from the one review applies.
+Reuse this vocabulary rather than inventing a second one — a second taxonomy would drift from the one review applies.
 
 The old `asset ← threat ⇒ mitigation → AC-N` line format is dropped — the per-box mitigation above replaces it.
 
