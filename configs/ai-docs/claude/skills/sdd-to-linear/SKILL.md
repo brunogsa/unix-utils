@@ -21,7 +21,7 @@ Why: both were refused because they suggest a verbose body and their own structu
 
 ### 1. Pre-flight: detect the optional module
 
-Run `~/.claude/scripts/detect-modules.sh` through the `~/.claude` symlink and read its `linear=` line. Never edit the symlink target to change the result.
+Run `~/.claude/scripts/get-enabled-modules.py` through the `~/.claude` symlink and read its `linear=` line. Never edit the symlink target to change the result.
 
 - `linear=false`: never show the opt-in question at all. Say the Linear module is absent and stop, with zero Linear calls.
 

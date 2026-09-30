@@ -24,7 +24,7 @@ Seed the TaskList per CLAUDE.md's `[Reminder]` category with one entry per step 
 
 ### 1. Pre-flight: detect the optional module
 
-Run `~/.claude/scripts/detect-modules.sh` through the `~/.claude` symlink and read its `arco=` line. Never edit the symlink target to change the result.
+Run `~/.claude/scripts/get-enabled-modules.py` through the `~/.claude` symlink and read its `arco=` line. Never edit the symlink target to change the result.
 
 - `arco=false`: never show the opt-in question at all, and skip to step 2 with no module selected.
 - `arco=true`: ask once via `AskUserQuestion`, recommended answer first, whether to finish the interview with the `sdd:sdd-grill` module. Keep a free-text "something else" option open.

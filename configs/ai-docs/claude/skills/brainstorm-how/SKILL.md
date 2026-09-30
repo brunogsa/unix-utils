@@ -30,7 +30,7 @@ Seed the TaskList per CLAUDE.md's `[Reminder]` category with one entry per step 
 
 ### 1. Run the interview
 
-This skill wraps no module: it offers no choice at pre-flight, runs no `detect-modules.sh`, and nests no `Skill()` call.
+This skill wraps no module: it offers no choice at pre-flight, runs no `get-enabled-modules.py`, and nests no `Skill()` call.
 
 It never offers `sdd-grill-tech`, even on a machine where the Arco plugin is present.
 
