@@ -88,11 +88,7 @@ Then check the written plan: every machine-facing section body sits inside a col
 
 Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now.
 
-Run the deterministic gates first, fixing each miss through `plan-editor`:
-
-- `check-files-union.sh <plan>`.
-- `check-sections.sh <plan> ~/.claude/skills/spec-driven-development/assets/plan-template.md`.
-- The rest of the deterministic bucket, per the library's "Self-review gates" table.
+Run the deterministic gates first with `~/.claude/skills/spec-driven-development/scripts/check-deterministic-gates.sh <plan> [<spec>]`, passing the spec path when one exists, and fix each miss through `plan-editor`.
 
 Then dispatch `agent(subAgent=plan-reviewer, effort=high, title=Fresh-eyes review of plan)` in the background, pointed at the plan file alone (plus the spec path when one exists).
 
