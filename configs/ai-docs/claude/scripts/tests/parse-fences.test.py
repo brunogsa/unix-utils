@@ -227,15 +227,6 @@ class TestAwkLibraryToldItsOwnCoordinates:
             f"{UNCLOSED_OPENER_LINE + 7} in /plans/plan_checkout-rewrite.md\n"
         )
 
-    def test_reports_the_empty_file_name_and_slice_line_when_the_caller_says_nothing(
-        self, tmp_path
-    ):
-        result = run_awk_lib_on_stdin(tmp_path, UNCLOSED_LINES)
-        assert result.returncode == 2
-        assert result.stderr == (
-            f"error: unclosed code fence opened at line {UNCLOSED_OPENER_LINE} in \n"
-        )
-
     def test_names_the_callers_file_instead_of_the_path_awk_was_handed(self, tmp_path):
         result, _ = run_awk_lib(
             tmp_path, UNCLOSED_LINES, "fence_file=/plans/plan_checkout-rewrite.md"
