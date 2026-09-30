@@ -552,7 +552,7 @@ function assertSgeSiglaNivel(value: string): asserts value is SgeSiglaNivel {
   - [Why] The next user (often future-you) won't read the source — `--help` is the contract surface.
 
 - [Instruction] Route help to stdout with exit 0, bad input to stderr with exit 1, unless the script's exit 1 reports a result — then bad input exits 2.
-  - [Why] Callers and pipes tell success from misuse by exit code, and a caller needs to tell "found something" from "could not look".
+  - [Why] Callers tell success from misuse by exit code, and must also tell "found something" from "could not look".
 
   - [Example] grep and diff: 0 is clean, 1 is a match or difference, 2 is trouble.
 
