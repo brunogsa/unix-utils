@@ -186,7 +186,8 @@ Commit `55dbdca`. **Settled 2026-08-08 by the user: `kept`.**
 
 - Denials never decayed. Grepping every transcript for the two literal reason strings in `hooks/subagent-model-guard.py:140,150` gives unpinned-model denials per local day:
 
-- `07-24: 16`, `07-25: 5`, `07-26: 3`, `07-27: 7`, `07-28: 7`, `07-29: 12`, `07-30: 9`, `07-31: 3`, `08-02: 6`, `08-03: 2`, `08-04: 1`, `08-06: 5`.
+  - `07-24: 16`, `07-25: 5`, `07-26: 3`, `07-27: 7`, `07-28: 7`, `07-29: 12`, `07-30: 9`, `07-31: 3`, `08-02: 6`, `08-03: 2`, `08-04: 1`, `08-06: 5`.
+
 - The pinned-mismatch arm fires as well, in 27 transcript files.
 
 - **A steady fire rate is stronger evidence for the hook than silence would have been.** Silence is ambiguous — it reads equally as "habit formed" or "hook broken".
