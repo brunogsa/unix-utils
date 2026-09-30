@@ -58,63 +58,15 @@ trap 'rm -rf "$work_dir"' EXIT
 # Writes one block-<n>.mmd per mermaid block into work_dir, plus
 # a manifest of "<n> <opening-line-number>" rows.
 #
-# Toggling in_fence on every fence line means an unbalanced
+# parse-fences.awk toggles on every fence line, so an unbalanced
 # fence is caught at EOF rather than silently splitting the
-# rest of the document into phantom blocks.
-awk -v dir="$work_dir" '
-  function start_of_fence(   marker) {
-    if (!match($0, /^[ \t]*(```+|~~~+)/)) return ""
-    marker = substr($0, RSTART, RLENGTH)
-    sub(/^[ \t]*/, "", marker)
-    return marker
-  }
+# rest of the document into phantom blocks. It accepts an
+# indented fence, which a list item can carry.
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-  {
-    marker = start_of_fence()
-
-    if (marker != "") {
-      ch = substr(marker, 1, 1)
-      fence_run = length(marker)
-      fence_tail = substr($0, RSTART + RLENGTH)
-
-      if (in_fence) {
-        if (ch == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) {
-          in_fence = 0
-          in_mermaid = 0
-        } else if (in_mermaid) {
-          print >> block_file
-        }
-        next
-      }
-
-      in_fence = 1
-      fence_char = ch
-      fence_len = fence_run
-      fence_line = NR
-
-      info = fence_tail
-      gsub(/[ \t]/, "", info)
-
-      if (info == "mermaid") {
-        in_mermaid = 1
-        count++
-        block_file = dir "/block-" count ".mmd"
-        printf "%d %d\n", count, NR >> (dir "/manifest.txt")
-      }
-      next
-    }
-
-    if (in_mermaid) print >> block_file
-  }
-
-  END {
-    if (in_fence) {
-      print "error: unclosed code fence opened at line " fence_line " in " FILENAME > "/dev/stderr"
-      exit 2
-    }
-    print count + 0 > (dir "/count.txt")
-  }
-' "$doc"
+awk -v dir="$work_dir" -v fence_indent=1 \
+  -f "$script_dir/../../../scripts/parse-fences.awk" \
+  -f "$script_dir/check-mermaid-renders.awk" "$doc"
 
 block_count=$(cat "$work_dir/count.txt")
 

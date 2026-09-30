@@ -37,6 +37,8 @@
 # not a section, so a plan's fenced shell snippets
 # never satisfy a heading it lacks.
 #
+# scripts/parse-fences.awk owns the fence rules.
+#
 # A template that also carries a literal `# Appendix` H1 line
 # adds one more check: the doc must have its own `# Appendix`
 # line too, and every section must sit on the same side of it
@@ -75,54 +77,20 @@ for f in "$doc" "$template"; do
   fi
 done
 
-# assert_fence_closed - exit 2 when a ``` or ~~~
-# fence in the given file is still open at EOF.
-#
-# Whole-file rule: an unclosed fence anywhere in
-# the file is malformed, not just inside a scanned
-# section.
-assert_fence_closed() {
-  awk '
-    /^```/ || /^~~~/ {
-      m = substr($0, 1, 1)
-      fence_run = 0
-      while (substr($0, fence_run + 1, 1) == m) fence_run++
-      fence_tail = substr($0, fence_run + 1)
-      if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run; fence_line = NR }
-      else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-    }
-    END {
-      if (in_fence) {
-        print "error: unclosed code fence opened at line " fence_line " in " FILENAME > "/dev/stderr"
-        exit 2
-      }
-    }
-  ' "$1"
-}
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fences_lib="$script_dir/../../../scripts/parse-fences.awk"
 
-assert_fence_closed "$doc"
-assert_fence_closed "$template"
+# Whole-file rule: an unclosed fence anywhere in either file is
+# malformed, not just inside a scanned section. The library
+# prints the error and exits 2, which set -e turns into ours.
+for f in "$doc" "$template"; do
+  awk -f "$fences_lib" "$f"
+done
 
 # headings - print every `## ` heading in a
 # markdown file, skipping fenced regions.
-#
-# Toggling on every ``` line means an unbalanced
-# fence swallows the tail rather than reporting
-# phantom headings from inside it — failing
-# toward "missing", which blocks.
 headings() {
-  awk '
-    /^```/ || /^~~~/ {
-      m = substr($0, 1, 1)
-      fence_run = 0
-      while (substr($0, fence_run + 1, 1) == m) fence_run++
-      fence_tail = substr($0, fence_run + 1)
-      if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
-      else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-      next
-    }
-    !in_fence && /^## / { print }
-  ' "$1"
+  awk -f "$fences_lib" -f "$script_dir/check-sections-headings.awk" "$1"
 }
 
 template_sections=$(headings "$template")
@@ -148,19 +116,7 @@ fi
 # has_appendix_line - fence-aware check for the literal
 # "# Appendix" boundary line.
 has_appendix_line() {
-  awk '
-    /^```/ || /^~~~/ {
-      m = substr($0, 1, 1)
-      fence_run = 0
-      while (substr($0, fence_run + 1, 1) == m) fence_run++
-      fence_tail = substr($0, fence_run + 1)
-      if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
-      else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-      next
-    }
-    !in_fence && /^# Appendix[ \t]*$/ { found = 1 }
-    END { exit !found }
-  ' "$1"
+  awk -f "$fences_lib" -f "$script_dir/check-sections-has-appendix.awk" "$1"
 }
 
 if has_appendix_line "$template"; then
@@ -174,20 +130,7 @@ if has_appendix_line "$template"; then
   # `## ` heading, fence-aware, where side flips to "appendix"
   # once the literal "# Appendix" boundary line is crossed.
   heading_sides() {
-    awk '
-      /^```/ || /^~~~/ {
-        m = substr($0, 1, 1)
-        fence_run = 0
-        while (substr($0, fence_run + 1, 1) == m) fence_run++
-        fence_tail = substr($0, fence_run + 1)
-        if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
-        else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-        next
-      }
-      in_fence { next }
-      /^# Appendix[ \t]*$/ { side = "appendix"; next }
-      /^## / { print (side == "appendix" ? "appendix" : "body") "\t" $0 }
-    ' "$1"
+    awk -f "$fences_lib" -f "$script_dir/check-sections-heading-sides.awk" "$1"
   }
 
   wrong_side=$(awk -F'\t' '

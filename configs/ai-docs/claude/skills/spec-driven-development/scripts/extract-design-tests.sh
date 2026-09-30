@@ -83,6 +83,8 @@
 # themselves stay readable even though they conventionally sit
 # inside one such fence.
 #
+# scripts/parse-fences.awk owns the fence rules.
+#
 # Exit codes.
 #
 #   0  - success (>=1 title found).
@@ -115,111 +117,17 @@ if [ ! -f "$plan" ]; then
   exit 2
 fi
 
-# assert_fence_closed - exit 2 when a ``` or ~~~
-# fence in the given file is still open at EOF.
-#
-# Whole-file rule: an unclosed fence anywhere in
-# the file is malformed, not just inside a scanned
-# section.
-assert_fence_closed() {
-  awk '
-    /^```/ || /^~~~/ {
-      m = substr($0, 1, 1)
-      fence_run = 0
-      while (substr($0, fence_run + 1, 1) == m) fence_run++
-      fence_tail = substr($0, fence_run + 1)
-      if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run; fence_line = NR }
-      else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-    }
-    END {
-      if (in_fence) {
-        print "error: unclosed code fence opened at line " fence_line " in " FILENAME > "/dev/stderr"
-        exit 2
-      }
-    }
-  ' "$1"
-}
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fences_lib="$script_dir/../../../scripts/parse-fences.awk"
 
-assert_fence_closed "$plan"
+# Whole-file rule: an unclosed fence anywhere in the plan is
+# malformed, not just inside the scanned section. The library
+# prints the error and exits 2, which set -e turns into ours.
+awk -f "$fences_lib" "$plan"
 
-titles=$(awk -v pairs="$pairs" -v annotations="$annotations" '
-  # Track fence state only to guard the `## ` boundary check below;
-  # it() rows live conventionally INSIDE one big Test Design fence,
-  # so fenced content is never skipped wholesale — only a `## `
-  # line quoted as sample markup inside a fence must not end the
-  # section early. Closes only on a line of the same marker,
-  # at least as long as the opener, with no info string.
-  /^```/ || /^~~~/ {
-    m = substr($0, 1, 1)
-    fence_run = 0
-    while (substr($0, fence_run + 1, 1) == m) fence_run++
-    fence_tail = substr($0, fence_run + 1)
-    if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
-    else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-    next
-  }
-
-  # Enter/leave the Test Design section; a later `## ` heading ends it.
-  !in_fence && /^## / {
-    if (in_design) exit
-    if ($0 ~ /^## Test Design[[:space:]]*$/) in_design = 1
-    next
-  }
-  !in_design { next }
-
-  # describe("Name", ...) — set the current describe, reset the class.
-  match($0, /describe\("[^"]*"/) {
-    d = substr($0, RSTART, RLENGTH)
-    sub(/^describe\("/, "", d)
-    sub(/"$/, "", d)
-    desc = d
-    cls = ""
-    next
-  }
-
-  # Class markers — only these three exact comments set the class; other // lines are ignored
-  # so intra-section notes (e.g. "// Checagens NOSSAS...") keep the current class.
-  /^[[:space:]]*\/\/ Happy cases[[:space:]]*$/    { cls = "happy";   next }
-  /^[[:space:]]*\/\/ Corner cases[[:space:]]*$/   { cls = "corner";  next }
-  /^[[:space:]]*\/\/ Failure scenarios[[:space:]]*$/ { cls = "failure"; next }
-
-  # it("Title") — emit the breadcrumb (3-segment under a
-  # class, else 2-segment). The title match ends at the
-  # closing double quote, not at a quote-paren pair, so
-  # one-arg and two-arg it() forms share one matchEnd.
-  match($0, /it\("[^"]*"/) {
-    t = substr($0, RSTART, RLENGTH)
-    matchEnd = RSTART + RLENGTH
-    sub(/^it\("/, "", t)
-    sub(/"$/, "", t)
-    crumb = (cls != "") ? (desc " > " cls " > " t) : (desc " > " t)
-    if (annotations) {
-      # `rest` is captured before any inner match() call below, since those
-      # overwrite the same RSTART/RLENGTH the outer it() match just set.
-      rest = substr($0, matchEnd)
-      comment = ""
-      slashPos = index(rest, "//")
-      if (slashPos > 0) comment = substr(rest, slashPos + 2)
-
-      acs = ""; x = comment
-      while (match(x, /AC-[0-9]+/)) {
-        tok = substr(x, RSTART, RLENGTH)
-        acs = (acs == "" ? tok : acs " " tok)
-        x = substr(x, RSTART + RLENGTH)
-      }
-
-      tnums = ""; x = comment
-      while (match(x, /T[0-9]+/)) {
-        tok = substr(x, RSTART, RLENGTH)
-        tnums = (tnums == "" ? tok : tnums " " tok)
-        x = substr(x, RSTART + RLENGTH)
-      }
-
-      print t "\t" crumb "\t" acs "\t" tnums
-    } else if (pairs) print t "\t" crumb
-    else print crumb
-  }
-' "$plan")
+titles=$(awk -v pairs="$pairs" -v annotations="$annotations" \
+  -f "$fences_lib" \
+  -f "$script_dir/extract-design-tests.awk" "$plan")
 
 if [ -z "$titles" ]; then
   echo "error: no it(\"...\") titles found in the '## Test Design' section of $plan" >&2
