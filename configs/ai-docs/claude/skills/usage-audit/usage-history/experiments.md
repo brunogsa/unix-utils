@@ -846,13 +846,13 @@ The user's standing workflow questions (raised 2026-07-24). Each audit advances 
 
    - **The metrics the user named on 2026-08-09**, every one of them pooled over a window rather than read per day:
 
-   - `work $ / merged PR` — the money each shipped PR costs, with tooling spend out of the numerator.
-   - `work touches / merged PR`, where a touch is one user message or one interruption — the human attention each shipped PR costs.
+      - `work $ / merged PR` — the money each shipped PR costs, with tooling spend out of the numerator.
+      - `work touches / merged PR`, where a touch is one user message or one interruption — the human attention each shipped PR costs.
 
-   - `work merged PRs / day` — raw delivery throughput, and the only one of the set with no cost or attention term in it.
-   - It reads 1.0 over the 17 citable days, but 7 of those days shipped nothing, so the pooled mean hides a bimodal shape.
+      - `work merged PRs / day` — raw delivery throughput, and the only one of the set with no cost or attention term in it.
+      - It reads 1.0 over the 17 citable days, but 7 of those days shipped nothing, so the pooled mean hides a bimodal shape.
 
-   - `total weekly $`, tooling and work summed, watched for week-over-week movement.
+      - `total weekly $`, tooling and work summed, watched for week-over-week movement.
 
    - **Prefer that pair over the single composite `work $ / (merged PR / touches)`, which the user first proposed.**
    - The composite carries units of dollar-touches per PR, which no reader can interpret, while the pair says the same thing in money and attention.
