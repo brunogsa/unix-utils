@@ -5,8 +5,9 @@
 # plan may indent a fence under a list item.
 #
 # With -v locate_heading=1 it prints the file line of the
-# Open Questions heading instead, so the shell can turn a line
-# number relative to the extracted section into a file line.
+# Open Questions heading instead, which is the offset the shell
+# hands parse-fences.awk so a fence reported inside the
+# extracted section names its line in the whole file.
 locate_heading && !in_fence && /^## Open Questions[ \t]*$/ { print NR; exit }
 locate_heading { next }
 fence_event != "" { next }

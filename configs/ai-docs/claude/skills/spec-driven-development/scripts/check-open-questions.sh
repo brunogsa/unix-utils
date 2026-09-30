@@ -40,9 +40,9 @@
 # plan-section.sh only checks column-0 fences, so an unclosed
 # indented one (in a list item) still reaches it here.
 #
-# That check sees only the extracted section, so its message
-# carries no file name and a section-relative line. The script
-# rewrites it to the plan's path and the fence's file line.
+# That check sees only the extracted section, so it is told the
+# document's coordinates -- fence_file and fence_line_offset --
+# and names the plan's path and the fence's file line itself.
 # A fence unclosed outside the section still passes.
 
 set -eo pipefail
@@ -61,39 +61,27 @@ for doc in "$@"; do
   fi
 done
 
-work_dir=$(mktemp -d)
-trap 'rm -rf "$work_dir"' EXIT
-
-# The section body starts on the line after its heading, so a
-# section-relative line N is file line N + heading line.
-report_filter_failure() {
-  local doc="$1" err_file="$2" section_line heading_line
-  section_line=$(sed -n 's/^error: unclosed code fence opened at line \([0-9][0-9]*\) in .*/\1/p' "$err_file")
-  if [ -z "$section_line" ]; then
-    cat "$err_file" >&2
-    return
-  fi
-  heading_line=$(awk -v locate_heading=1 \
-    -f "$script_dir/../../../scripts/parse-fences.awk" \
-    -f "$script_dir/check-open-questions.awk" "$doc")
-  echo "error: unclosed code fence opened at line $((section_line + heading_line)) in $doc" >&2
-}
-
 found=0
+fences_lib="$script_dir/../../../scripts/parse-fences.awk"
 
 for doc in "$@"; do
   section=$("$script_dir/plan-section.sh" "$doc" "##" '^Open Questions[[:space:]]*$')
 
+  # The section body starts on the line after its heading, so
+  # the heading's own line is the offset from a section line to
+  # its file line.
+  heading_line=$(awk -v locate_heading=1 \
+    -f "$fences_lib" -f "$script_dir/check-open-questions.awk" "$doc")
+
   # Drop fenced blocks before matching, so a quoted example
   # never counts.
-  fence_err="$work_dir/fence-err.txt"
   filter_rc=0
   open=$(printf '%s\n' "$section" | awk -v fence_indent=1 \
-    -f "$script_dir/../../../scripts/parse-fences.awk" \
-    -f "$script_dir/check-open-questions.awk" 2>"$fence_err") || filter_rc=$?
+    -v fence_file="$doc" -v fence_line_offset="${heading_line:-0}" \
+    -f "$fences_lib" \
+    -f "$script_dir/check-open-questions.awk") || filter_rc=$?
 
   if [ "$filter_rc" -ne 0 ]; then
-    report_filter_failure "$doc" "$fence_err"
     exit "$filter_rc"
   fi
 
