@@ -341,7 +341,7 @@ it_should_keep_reading_plan_ac_headers_after_a_fenced_line_that_starts_with_a_he
 }
 
 it_should_fail_closed_when_the_plans_backtick_fence_is_left_open_at_eof() {
-  local plan spec fixture_path
+  local plan spec
   plan="$work_dir/plan-unclosed-backtick.md"
   printf '# Plan\n\n## Test Design\n\n```\nunclosed fence in the plan\n' > "$plan"
   spec=$(write_spec "unclosed-backtick" '### AC-1: The checker accepts a valid path')

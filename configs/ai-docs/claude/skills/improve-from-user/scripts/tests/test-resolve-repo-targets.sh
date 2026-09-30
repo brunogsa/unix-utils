@@ -69,7 +69,7 @@ add_project_dir() {
 # make_git_repo - creates and git-inits a directory named
 # exactly $2 under parent dir $1, echoes its full path.
 make_git_repo() {
-  local parent="$1" name="$2" repo="$1/$2"
+  local repo="$1/$2"
   mkdir -p "$repo"
   git -C "$repo" init -q
   echo "$repo"
