@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # lib-fake-home.sh - Shared fake-$HOME builder, sourced by
 # the check.sh suites in this directory.
 #
