@@ -44,6 +44,12 @@ Also read `brainstorm-how-brief.md` before writing: source 1 assumes a fork's in
 
 **Light write** — same as the full write, minus reading a spec or the code it references. Ground entirely from the brief. Apply source 2's deltas to the template sections they name; write every other section exactly as source 1 describes.
 
+Before reporting, run `~/.claude/skills/doc-standards/scripts/check-density.sh`, `check-hard-wrap.py`, `check-bullet-gap.py`, and `check-bullet-structure.py` on the plan you wrote, and fix every violation in place, reflowing without dropping information.
+
+- Why: the self-review gates only Scout density and run no hard-wrap check, so nothing else holds a fresh plan to doc-standards.
+
+- Evidence: one generated plan shipped 37 violations (19 density, 14 hard-wrap, 4 bullet-gap).
+
 ## Boundaries
 
 Source 1's Boundaries all apply verbatim: never plan on an undocumented decision (record it as a `**QUESTION:**` instead), never guess at unread code, write in English, every spec AC maps to one Test Design test, never modify the spec file.
