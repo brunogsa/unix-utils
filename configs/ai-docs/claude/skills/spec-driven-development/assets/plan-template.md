@@ -71,6 +71,17 @@ Spec:
 
 </details>
 
+## Files to Create or Modify
+
+<!-- Machine-facing: the body sits inside a <details> block collapsed by default, with this ## heading left outside it. Every other section written for scripts or the executing agent follows the same shape. -->
+
+<details>
+<summary>Files union</summary>
+
+- `path/to/file`
+
+</details>
+
 ## Technical Decisions
 
 <details>
