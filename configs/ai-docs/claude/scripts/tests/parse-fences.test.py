@@ -77,6 +77,8 @@ BALANCED_LINES = ["```", "code", "```"]
 
 def load_python_lib():
     spec = importlib.util.spec_from_file_location("parse_fences", PY_LIB)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot build an import spec for {PY_LIB}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
