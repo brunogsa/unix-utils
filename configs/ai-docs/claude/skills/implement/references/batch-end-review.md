@@ -144,7 +144,7 @@ Print, in this order:
 
 - **Review starts at `<BATCH_BASE_SHA>`** — its short SHA plus that commit's subject line.
   - On a multi-PR run each unit prints its own base, the previous unit's tip, so each notification covers only its own unit;
-    - on a single-unit run it is where the invocation started.
+  - on a single-unit run it is where the invocation started.
 
 - **One line for the unit just finished**, carrying its label, its pushed branch, its commit count, and the PR URL when there is one:
 
