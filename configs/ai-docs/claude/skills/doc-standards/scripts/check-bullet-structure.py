@@ -244,6 +244,26 @@ def check(path, changed_only):
     return len(hits)
 
 
+def cannot_read_message(path, err):
+    # An uncaught decode error would exit 1, which
+    # callers read as findings; a load failure exits 2.
+    reason = "not valid UTF-8" if isinstance(err, UnicodeDecodeError) else err
+    return f"check-bullet-structure.py: cannot read {path}: {reason}"
+
+
+def first_unreadable_input(files):
+    """cannot_read_message for the first file that is not readable UTF-8,
+    or None - checked for every file before any is reported, so a bad
+    later file never follows an earlier file's output."""
+    for path in files:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                fh.read()
+        except (OSError, UnicodeDecodeError) as err:
+            return cannot_read_message(path, err)
+    return None
+
+
 def main(argv):
     changed_only = False
     files = []
@@ -267,17 +287,17 @@ def main(argv):
         print(USAGE, file=sys.stderr)
         return 2
 
+    unreadable = first_unreadable_input(files)
+    if unreadable:
+        print(unreadable, file=sys.stderr)
+        return 2
+
     total = 0
     for path in files:
         try:
             total += check(path, changed_only)
-        except OSError as err:
-            print(f"check-bullet-structure.py: cannot read {path}: {err}", file=sys.stderr)
-            return 2
-        except UnicodeDecodeError:
-            # An uncaught decode error would exit 1, which
-            # callers read as findings; a load failure exits 2.
-            print(f"check-bullet-structure.py: cannot read {path}: not valid UTF-8", file=sys.stderr)
+        except (OSError, UnicodeDecodeError) as err:
+            print(cannot_read_message(path, err), file=sys.stderr)
             return 2
         except RuntimeError as err:
             print(f"check-bullet-structure.py: {err}", file=sys.stderr)

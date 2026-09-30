@@ -393,6 +393,26 @@ def converge(path, prose_chars, prose_words, bullet_chars, bullet_words, changed
     return residue
 
 
+def cannot_read_message(path, err):
+    # An uncaught decode error would exit 1, which
+    # callers read as findings; a load failure exits 2.
+    reason = "not valid UTF-8" if isinstance(err, UnicodeDecodeError) else err
+    return f"fix-density.py: cannot read {path}: {reason}"
+
+
+def first_unreadable_input(files):
+    """cannot_read_message for the first file that is not readable UTF-8,
+    or None - checked for every file before any is rewritten, so a bad
+    later file never leaves an earlier one already changed."""
+    for path in files:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                fh.read()
+        except (OSError, UnicodeDecodeError) as err:
+            return cannot_read_message(path, err)
+    return None
+
+
 def main(argv):
     prose_chars, prose_words = PROSE_MAX_CHARS, PROSE_MAX_WORDS
     bullet_chars, bullet_words = BULLET_MAX_CHARS, BULLET_MAX_WORDS
@@ -435,19 +455,19 @@ def main(argv):
         )
         return 2
 
+    unreadable = first_unreadable_input(files)
+    if unreadable:
+        print(unreadable, file=sys.stderr)
+        return 2
+
     total_residue = 0
     for path in files:
         try:
             residue = converge(
                 path, prose_chars, prose_words, bullet_chars, bullet_words, changed_only
             )
-        except OSError as err:
-            print(f"fix-density.py: cannot read {path}: {err}", file=sys.stderr)
-            return 2
-        except UnicodeDecodeError:
-            # An uncaught decode error would exit 1, which
-            # callers read as findings; a load failure exits 2.
-            print(f"fix-density.py: cannot read {path}: not valid UTF-8", file=sys.stderr)
+        except (OSError, UnicodeDecodeError) as err:
+            print(cannot_read_message(path, err), file=sys.stderr)
             return 2
         except RuntimeError as err:
             print(str(err), file=sys.stderr)

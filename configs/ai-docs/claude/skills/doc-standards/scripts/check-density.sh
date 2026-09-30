@@ -185,7 +185,11 @@ for f in "${FILES[@]}"; do
     echo "check-density.sh: cannot read $f: not valid UTF-8" >&2
     exit 2
   fi
+done
 
+# why: every input is validated before any is checked, so a
+# later unreadable file exits 2 before any stdout.
+for f in "${FILES[@]}"; do
   changed_csv=""
   if [[ $CHANGED_ONLY -eq 1 ]]; then
     if ! lines=$("$script_dir/get-changed-lines.sh" "$f" 2>"$err_file"); then

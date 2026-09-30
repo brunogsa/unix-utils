@@ -235,6 +235,26 @@ def fix(path, max_chars, max_words, changed_only):
     return len(in_scope_hits(remaining, path, changed_only))
 
 
+def cannot_read_message(path, err):
+    # An uncaught decode error would exit 1, which
+    # callers read as findings; a load failure exits 2.
+    reason = "not valid UTF-8" if isinstance(err, UnicodeDecodeError) else err
+    return f"check-bullet-gap.py: cannot read {path}: {reason}"
+
+
+def first_unreadable_input(files):
+    """cannot_read_message for the first file that is not readable UTF-8,
+    or None - checked for every file before any is reported or fixed, so
+    a bad later file never follows an earlier file's output or rewrite."""
+    for path in files:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                fh.read()
+        except (OSError, UnicodeDecodeError) as err:
+            return cannot_read_message(path, err)
+    return None
+
+
 def main(argv):
     max_chars, max_words = MAX_CHARS, MAX_WORDS
     fix_mode = False
@@ -274,6 +294,11 @@ def main(argv):
         )
         return 2
 
+    unreadable = first_unreadable_input(files)
+    if unreadable:
+        print(unreadable, file=sys.stderr)
+        return 2
+
     total = 0
     for path in files:
         try:
@@ -281,13 +306,8 @@ def main(argv):
                 total += fix(path, max_chars, max_words, changed_only)
             else:
                 total += check(path, max_chars, max_words, changed_only)
-        except OSError as err:
-            print(f"check-bullet-gap.py: cannot read {path}: {err}", file=sys.stderr)
-            return 2
-        except UnicodeDecodeError:
-            # An uncaught decode error would exit 1, which
-            # callers read as findings; a load failure exits 2.
-            print(f"check-bullet-gap.py: cannot read {path}: not valid UTF-8", file=sys.stderr)
+        except (OSError, UnicodeDecodeError) as err:
+            print(cannot_read_message(path, err), file=sys.stderr)
             return 2
         except RuntimeError as err:
             print(f"check-bullet-gap.py: {err}", file=sys.stderr)

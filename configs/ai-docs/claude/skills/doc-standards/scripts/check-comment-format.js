@@ -1348,6 +1348,10 @@ function main() {
   );
   let anyHit = false;
 
+  // Every input is read before any is checked or fixed, so an
+  // unreadable later file exits 2 before any stdout or rewrite.
+  for (const file of files) readUtf8File(file);
+
   for (const file of files) {
     if (contentLoss) {
       if (reportContentLoss(file, lang)) anyHit = true;
