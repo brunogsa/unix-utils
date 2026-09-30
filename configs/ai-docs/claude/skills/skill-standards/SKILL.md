@@ -154,6 +154,24 @@ ALWAYS use this exact template:
 - [Instruction] Move a worked example between files intact — never trim one to fit a budget.
   - [Why] An example earns its keep by being realistic, and realism is the first thing a size-driven trim takes away.
 
+### Trimming a body over its budget
+
+This specializes the two rules above for any skill: examples are what moves, so the intact-move rule gains a destination.
+
+- [Instruction] Move the lower-value examples of a SKILL.md body over its `words-budget` into that skill's `references/more-examples.md`.
+  - [Why] Examples are the words a run most often does without, so moving them trims the body while keeping every rule.
+
+- [Instruction] Keep inline every example an instruction depends on to be applied correctly.
+  - [Why] Moving it leaves that instruction misapplied on every run that never opens the file.
+
+- [Instruction] Carry one pointer in SKILL.md naming `references/more-examples.md` and the condition under which to open it.
+  - [Why] That condition is the conditional read the earn-the-move rule requires, so a typical run never loads the file.
+
+  - [Example] "Open `references/more-examples.md` only when a case falls outside the inline examples."
+
+- [Instruction] Move each example intact — never shorten, summarize, or drop one to fit the budget.
+  - [Why] The move-intact rule stays binding; this mechanic only names where the moved examples go.
+
 ## Procedural skills
 
 - [Instruction] Ship an `assets/flowchart.md` with every step-shaped skill: one mermaid flowchart of its own control flow.
