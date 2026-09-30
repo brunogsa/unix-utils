@@ -18,6 +18,12 @@ Why the why/what is out of scope: problem framing belongs to `brainstorm-why`, a
 
 `/brainstorm-how` — no arguments. A run starts from an approved `spec_<slug>.md` in CWD, never from a raw request.
 
+Resolve it before step 1:
+
+- **Exactly one `spec_*.md`** → use it, printing the resolved path.
+- **Several** → list them numbered and ask which one via `AskUserQuestion`.
+- **None** → hard-stop with nothing interviewed, naming `brainstorm-why` then `to-spec` as how to produce one.
+
 ## Process
 
 Seed the TaskList per CLAUDE.md's `[Reminder]` category with one entry per step below. Seeding is scaffolding only, never a go-ahead to run a step early.
