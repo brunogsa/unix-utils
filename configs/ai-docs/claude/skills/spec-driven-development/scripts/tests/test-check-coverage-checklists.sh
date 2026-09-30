@@ -228,6 +228,24 @@ it_should_not_count_a_row_quoted_inside_a_longer_fence_after_an_inner_opener() {
   assert_eq "should not count a row quoted inside a four-backtick fence after an inner three-backtick opener (exit code)" "1" "$VERDICT_EXIT"
 }
 
+it_should_not_count_a_row_quoted_after_an_inner_bare_line_inside_a_longer_fence() {
+  local fixture
+  fixture=$(write_spec "longer-fenced-bare-inner-row" \
+    'Example format:
+
+````markdown
+```
+- empty / single / many: covered (AC-2)
+````
+
+- null / undefined / missing: N/A — irrelevant' \
+    '- validation error (4xx): covered (AC-3)
+- downstream timeout / never-responds: N/A — irrelevant
+- duplicate delivery (at-least-once redelivery): N/A — irrelevant')
+  run_script "$fixture"
+  assert_eq "should not count a row quoted after an inner bare three-backtick line inside a four-backtick fence (exit code)" "1" "$VERDICT_EXIT"
+}
+
 it_should_not_count_a_row_quoted_inside_a_tilde_fenced_code_block() {
   local fixture
   fixture=$(write_spec "tilde-fenced-row" \
@@ -278,6 +296,7 @@ it_should_report_a_usage_error_when_the_spec_file_is_missing
 it_should_not_count_a_row_quoted_inside_a_fenced_code_block
 it_should_not_count_a_row_quoted_inside_a_tilde_fenced_code_block
 it_should_not_count_a_row_quoted_inside_a_longer_fence_after_an_inner_opener
+it_should_not_count_a_row_quoted_after_an_inner_bare_line_inside_a_longer_fence
 it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof
 it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof
 

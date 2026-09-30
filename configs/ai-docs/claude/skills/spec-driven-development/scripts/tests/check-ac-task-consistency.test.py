@@ -386,6 +386,25 @@ def test_ignores_a_task_heading_quoted_inside_a_longer_backtick_fence(
     assert result.returncode == 0, result.stderr
 
 
+def test_ignores_a_task_heading_after_an_inner_bare_line_inside_a_longer_backtick_fence(
+    tmp_path,
+):
+    """A bare three-backtick line (no info string) inside a four-backtick
+    fence must not close it, so the task heading quoted after it never
+    opens a phantom task."""
+    fenced_task_body = CONSISTENT_TASKS + (
+        "\n````markdown\n```\n### 3. Example heading shown as sample markup\n````\n"
+    )
+    plan = _write_plan(
+        tmp_path,
+        design_body=CONSISTENT_DESIGN,
+        task_body=fenced_task_body,
+        details_body=CONSISTENT_DETAILS,
+    )
+    result = _run(str(plan))
+    assert result.returncode == 0, result.stderr
+
+
 def test_ignores_a_task_heading_quoted_inside_a_longer_tilde_fence(
     tmp_path,
 ):

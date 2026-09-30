@@ -168,6 +168,26 @@ MD
   assert_contains "should count no diagrams when the only mermaid opener is quoted sample markup" "no mermaid" "$VERDICT_OUT"
 }
 
+it_should_ignore_a_mermaid_opener_after_an_inner_bare_line_inside_a_longer_backtick_fence() {
+  local fixture="$work_dir/longer-backtick-bare-inner-sample.md"
+  cat > "$fixture" <<'MD'
+# Doc
+
+The skill documents its diagram opener as:
+
+````markdown
+```
+```mermaid
+this is not a diagram, it is sample markup
+````
+
+## Next section
+MD
+  run_script "$fixture"
+  assert_eq "should ignore a mermaid opener after an inner bare three-backtick line inside a four-backtick fence (exit code)" "0" "$VERDICT_EXIT"
+  assert_contains "should count no diagrams when the only mermaid opener is quoted sample markup" "no mermaid" "$VERDICT_OUT"
+}
+
 it_should_ignore_a_mermaid_opener_quoted_inside_a_longer_tilde_fence() {
   local fixture="$work_dir/longer-tilde-sample.md"
   cat > "$fixture" <<'MD'
@@ -263,6 +283,7 @@ it_should_pass_when_the_document_holds_no_mermaid_block_at_all
 it_should_ignore_a_mermaid_fence_quoted_inside_an_outer_tilde_fence
 it_should_ignore_a_tilde_mermaid_fence_quoted_inside_an_outer_backtick_fence
 it_should_ignore_a_mermaid_opener_quoted_inside_a_longer_backtick_fence
+it_should_ignore_a_mermaid_opener_after_an_inner_bare_line_inside_a_longer_backtick_fence
 it_should_ignore_a_mermaid_opener_quoted_inside_a_longer_tilde_fence
 it_should_ignore_a_mermaid_line_inside_a_same_length_backtick_fence_because_it_carries_an_info_string
 it_should_render_a_diagram_written_with_a_tilde_fence

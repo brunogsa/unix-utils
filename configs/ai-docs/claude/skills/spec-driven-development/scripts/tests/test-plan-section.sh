@@ -100,6 +100,14 @@ it_should_not_end_the_section_at_a_marker_depth_heading_inside_a_longer_fence_af
     "$(printf '\nbody before fence\n\n````markdown\n```markdown\n## Fake Boundary\n````\n\nbody after fence, still in Task Breakdown\n')" "$VERDICT_OUT"
 }
 
+it_should_not_end_the_section_at_a_marker_depth_heading_after_an_inner_bare_line_inside_a_longer_fence() {
+  local path="$work_dir/longer-fenced-bare-inner-heading.md"
+  printf '## Task Breakdown\n\nbody before fence\n\n````markdown\n```\n## Fake Boundary\n````\n\nbody after fence, still in Task Breakdown\n\n## Next Section\n\nnot included\n' > "$path"
+  run_script "$path" "##" '^Task Breakdown[[:space:]]*$'
+  assert_eq "should not end the section at a '## ' line after an inner bare three-backtick line inside a four-backtick fence" \
+    "$(printf '\nbody before fence\n\n````markdown\n```\n## Fake Boundary\n````\n\nbody after fence, still in Task Breakdown\n')" "$VERDICT_OUT"
+}
+
 it_should_not_end_the_section_at_a_marker_depth_heading_after_an_inner_info_string_line_inside_a_same_length_fence() {
   local path="$work_dir/info-string-heading.md"
   printf '## Task Breakdown\n\nbody before fence\n\n```\n```markdown\n## Fake Boundary\n```\n\nbody after fence, still in Task Breakdown\n\n## Next Section\n\nnot included\n' > "$path"
@@ -153,6 +161,7 @@ it_should_not_end_the_section_at_a_deeper_subheading
 it_should_not_end_the_section_at_a_marker_depth_heading_inside_a_fenced_code_block
 it_should_not_end_the_section_at_a_marker_depth_heading_inside_a_tilde_fenced_code_block
 it_should_not_end_the_section_at_a_marker_depth_heading_inside_a_longer_fence_after_an_inner_opener
+it_should_not_end_the_section_at_a_marker_depth_heading_after_an_inner_bare_line_inside_a_longer_fence
 it_should_not_end_the_section_at_a_marker_depth_heading_after_an_inner_info_string_line_inside_a_same_length_fence
 it_should_print_empty_stdout_and_exit_0_when_no_heading_matches
 it_should_support_a_prefix_match_for_a_dynamic_heading_without_matching_a_longer_number

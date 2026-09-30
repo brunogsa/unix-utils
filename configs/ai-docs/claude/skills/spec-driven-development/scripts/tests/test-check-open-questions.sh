@@ -128,6 +128,20 @@ The template writes its placeholder as:
   assert_eq "should ignore a QUESTION marker quoted inside a four-backtick fence after an inner three-backtick opener" "0" "$VERDICT_EXIT"
 }
 
+it_should_ignore_a_question_marker_after_an_inner_bare_line_inside_a_longer_fence() {
+  local fixture
+  fixture=$(write_doc "longer-fenced-bare-inner" 'None
+
+The template writes its placeholder as:
+
+````markdown
+```
+- **QUESTION:** ... ?
+````')
+  run_script "$fixture"
+  assert_eq "should ignore a QUESTION marker after an inner bare three-backtick line inside a four-backtick fence" "0" "$VERDICT_EXIT"
+}
+
 it_should_ignore_a_question_marker_after_an_inner_info_string_line_inside_a_same_length_fence() {
   local fixture
   fixture=$(write_doc "info-string-example" 'None
@@ -181,6 +195,7 @@ it_should_fail_when_the_plan_is_settled_but_the_spec_still_holds_a_question
 it_should_ignore_a_question_marker_quoted_inside_a_fenced_code_block
 it_should_ignore_a_question_marker_quoted_inside_a_tilde_fenced_code_block
 it_should_ignore_a_question_marker_quoted_inside_a_longer_fence_after_an_inner_opener
+it_should_ignore_a_question_marker_after_an_inner_bare_line_inside_a_longer_fence
 it_should_ignore_a_question_marker_after_an_inner_info_string_line_inside_a_same_length_fence
 it_should_pass_trivially_when_the_document_has_no_open_questions_section
 it_should_not_read_a_question_marker_from_a_later_section
