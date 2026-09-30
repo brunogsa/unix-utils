@@ -184,6 +184,31 @@ it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof() {
   assert_eq "should fail closed when a ~~~ fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
 }
 
+it_should_name_the_plan_path_and_its_file_line_when_an_indented_fence_is_left_open() {
+  local fixture="$work_dir/unclosed-indented.md"
+  printf '# P\n\n## Open Questions\n\n  ```\nunclosed\n' > "$fixture"
+  run_script "$fixture"
+  assert_eq "should fail closed when an indented fence is left open in the Open Questions section (exit code)" "2" "$VERDICT_EXIT"
+  assert_eq "should name the plan path and the fence's line in the file, not in the extracted section" \
+    "error: unclosed code fence opened at line 5 in $fixture" "$VERDICT_ERR"
+}
+
+it_should_name_the_plan_path_when_an_indented_fence_opened_in_the_section_only_closes_in_a_later_section() {
+  local fixture="$work_dir/indented-fence-spans-sections.md"
+  printf '## Open Questions\n\n  ```\nx\n## Next\n\n  ```\n' > "$fixture"
+  run_script "$fixture"
+  assert_eq "should fail closed when an indented fence opened in the section closes only after it (exit code)" "2" "$VERDICT_EXIT"
+  assert_eq "should name the plan path and the opening line for a fence that spans past the section" \
+    "error: unclosed code fence opened at line 3 in $fixture" "$VERDICT_ERR"
+}
+
+it_should_pass_when_the_section_is_clean_and_an_indented_fence_is_left_open_in_another_section() {
+  local fixture="$work_dir/unclosed-elsewhere.md"
+  printf '# P\n\n## Open Questions\n\nNone\n\n## Other\n\n  ```\nunclosed\n' > "$fixture"
+  run_script "$fixture"
+  assert_eq "should pass when the Open Questions section is clean and an indented fence is left open in another section" "0" "$VERDICT_EXIT"
+}
+
 it_should_report_a_usage_error_when_the_named_file_is_missing() {
   run_script "$work_dir/absent.md"
   assert_eq "should report a usage error when the named file is missing" "2" "$VERDICT_EXIT"
@@ -201,6 +226,9 @@ it_should_pass_trivially_when_the_document_has_no_open_questions_section
 it_should_not_read_a_question_marker_from_a_later_section
 it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof
 it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof
+it_should_name_the_plan_path_and_its_file_line_when_an_indented_fence_is_left_open
+it_should_name_the_plan_path_when_an_indented_fence_opened_in_the_section_only_closes_in_a_later_section
+it_should_pass_when_the_section_is_clean_and_an_indented_fence_is_left_open_in_another_section
 it_should_report_a_usage_error_when_the_named_file_is_missing
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
