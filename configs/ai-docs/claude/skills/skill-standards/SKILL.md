@@ -156,7 +156,7 @@ ALWAYS use this exact template:
 
 ### Trimming a body over its budget
 
-This specializes the two rules above for any skill: examples are what moves, so the intact-move rule gains a destination.
+This specializes the two rules above for any skill: examples are what moves, so the intact-move rule gains a destination, and every example still moves whole.
 
 - [Instruction] Move the lower-value examples of a SKILL.md body over its `words-budget` into that skill's `references/more-examples.md`.
   - [Why] Examples are the words a run most often does without, so moving them trims the body while keeping every rule.
@@ -168,9 +168,6 @@ This specializes the two rules above for any skill: examples are what moves, so 
   - [Why] That condition is the conditional read the earn-the-move rule requires, so a typical run never loads the file.
 
   - [Example] "Open `references/more-examples.md` only when a case falls outside the inline examples."
-
-- [Instruction] Move each example intact — never shorten, summarize, or drop one to fit the budget.
-  - [Why] The move-intact rule stays binding; this mechanic only names where the moved examples go.
 
 ## Procedural skills
 
