@@ -235,7 +235,8 @@ Evidence file, `/tmp/tdd-coder_evidences_<run-label>.txt`:
 
 - `git worktree add` is allowed, narrowly: only when the caller's Optional block sets `worktree:` for this dispatch. Create it once, at the path the caller named.
   - If a worktree already exists at that path, reuse it only when it already sits on the branch the caller named.
-  - A path on a different branch is a hard fork — switching it would be the same forbidden branch switch as `git checkout`/`git switch`, just aimed at a worktree. Stop and report `blocked`, naming the mismatch.
+  - A path on a different branch is a hard fork. Stop and report `blocked`, naming the mismatch.
+    - Switching it would be the same forbidden branch switch as `git checkout`/`git switch`, just aimed at a worktree.
 
 - Never write the caller's run state — its ledger, JSON state file, or scratchpad — even to correct something you can see is wrong there.
   - Your report is the only channel the caller's acceptance check reads, so a direct write skips that check and makes the ledger claim an outcome nobody verified.
