@@ -56,6 +56,8 @@ Write each settled answer to `notes.md` as its round closes: decisions under `##
 
 End the rounds once the latest round changed no decision, the frontier is empty, and no question raised is still open.
 
+A node the user cannot settle after one re-ask is parked, not re-asked: record it under `## Open questions` in `notes.md`, drop it and its children from the frontier, and carry it into the brief.
+
 A question carried out of the interview lands downstream as an open question and costs the user a whole extra round.
 
 Then compose the caller's brief once, at the path the caller named. Composing it earlier hands off unfinished results.
