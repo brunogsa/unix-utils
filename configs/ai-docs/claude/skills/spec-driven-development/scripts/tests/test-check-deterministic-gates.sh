@@ -104,6 +104,7 @@ build_tree() {
   make_stub "$doc/scripts/check-density.sh" check-density.sh 0
   make_stub "$doc/scripts/check-bullet-gap.py" check-bullet-gap.py 0
   make_stub "$doc/scripts/check-bullet-structure.py" check-bullet-structure.py 0
+  make_stub "$doc/scripts/check-hard-wrap.py" check-hard-wrap.py 0
   CALL_LOG="$TREE/calls.log"
   export CALL_LOG
   : > "$CALL_LOG"
@@ -133,9 +134,11 @@ check-mermaid-renders.sh $SPEC
 check-density.sh $PLAN
 check-bullet-gap.py $PLAN
 check-bullet-structure.py $PLAN
+check-hard-wrap.py $PLAN
 check-density.sh $SPEC
 check-bullet-gap.py $SPEC
 check-bullet-structure.py $SPEC
+check-hard-wrap.py $SPEC
 check-sections.sh $PLAN $TREE/spec-driven-development/assets/plan-template.md
 check-sections.sh $SPEC $TREE/spec-driven-development/assets/spec-template.md
 check-test-distribution.sh $PLAN
@@ -148,7 +151,7 @@ check-coverage-checklists.sh $SPEC
 EOF2
 )
   assert_eq "should invoke every member in the reference order, plan before spec for check-ac-coverage" "$expected" "$(cat "$CALL_LOG")"
-  assert_eq "should print one line per gate invocation" "17" "$(printf '%s\n' "$RUN_OUT" | grep -c '^PASS ')"
+  assert_eq "should print one line per gate invocation" "19" "$(printf '%s\n' "$RUN_OUT" | grep -c '^PASS ')"
 }
 
 it_should_skip_the_spec_taking_gates_and_report_them_as_skipped_when_given_no_spec() {
@@ -162,7 +165,7 @@ it_should_skip_the_spec_taking_gates_and_report_them_as_skipped_when_given_no_sp
   assert_contains "should report check-coverage-checklists as SKIP" "SKIP exit=- check-coverage-checklists.sh" "$RUN_OUT"
   assert_not_contains "should never report a skipped gate as PASS" "PASS exit=0 check-ac-coverage.sh" "$RUN_OUT"
   assert_not_contains "should never report the skipped spec gate as PASS" "PASS exit=0 check-coverage-checklists.sh" "$RUN_OUT"
-  assert_eq "should skip exactly the seven spec-only invocations" "7" "$(printf '%s\n' "$RUN_OUT" | grep -c '^SKIP ')"
+  assert_eq "should skip exactly the eight spec-only invocations" "8" "$(printf '%s\n' "$RUN_OUT" | grep -c '^SKIP ')"
 }
 
 it_should_keep_running_after_a_failing_gate_show_its_output_and_exit_non_zero() {
@@ -199,6 +202,24 @@ it_should_warn_without_failing_the_run_when_a_density_check_finds_a_violation() 
   assert_contains "should show the density output" "TOO-DENSE-MARKER" "$RUN_OUT$RUN_ERR"
 }
 
+it_should_warn_without_failing_the_run_when_a_plan_or_spec_has_a_hard_wrapped_paragraph() {
+  build_tree
+  make_stub "$TREE/doc-standards/scripts/check-hard-wrap.py" check-hard-wrap.py 1 "HARD-WRAP-MARKER"
+  run_runner "$PLAN" "$SPEC"
+  assert_eq "should exit 0 when only hard-wrap reports violations (a Scout, not a blocker)" "0" "$RUN_EXIT"
+  assert_contains "should label the plan's hard-wrap result WARN" "WARN exit=1 check-hard-wrap.py (plan)" "$RUN_OUT"
+  assert_contains "should label the spec's hard-wrap result WARN" "WARN exit=1 check-hard-wrap.py (spec)" "$RUN_OUT"
+  assert_contains "should show the hard-wrap output" "HARD-WRAP-MARKER" "$RUN_OUT$RUN_ERR"
+}
+
+it_should_count_a_hard_wrap_checker_usage_error_as_a_failure() {
+  build_tree
+  make_stub "$TREE/doc-standards/scripts/check-hard-wrap.py" check-hard-wrap.py 2 "UNREADABLE-MARKER"
+  run_runner "$PLAN" "$SPEC"
+  assert_eq "should exit 1 when the hard-wrap checker exits 2" "1" "$RUN_EXIT"
+  assert_contains "should report the checker's exit 2 as FAIL" "FAIL exit=2 check-hard-wrap.py (plan)" "$RUN_OUT"
+}
+
 it_should_exit_2_with_usage_on_stderr_when_given_no_arguments() {
   build_tree
   run_runner
@@ -223,6 +244,7 @@ check-mermaid-renders.sh $SPEC
 check-density.sh $SPEC
 check-bullet-gap.py $SPEC
 check-bullet-structure.py $SPEC
+check-hard-wrap.py $SPEC
 check-sections.sh $SPEC $TREE/spec-driven-development/assets/spec-template.md
 check-coverage-checklists.sh $SPEC
 EOF2
@@ -297,6 +319,8 @@ it_should_keep_running_after_a_failing_gate_show_its_output_and_exit_non_zero
 it_should_stay_quiet_about_a_passing_gate_output
 it_should_count_a_gate_usage_error_as_a_failure
 it_should_warn_without_failing_the_run_when_a_density_check_finds_a_violation
+it_should_warn_without_failing_the_run_when_a_plan_or_spec_has_a_hard_wrapped_paragraph
+it_should_count_a_hard_wrap_checker_usage_error_as_a_failure
 it_should_exit_2_with_usage_on_stderr_when_given_no_arguments
 it_should_exit_2_with_usage_on_stderr_when_given_more_than_two_arguments
 it_should_run_exactly_the_spec_gates_and_report_the_plan_gates_as_skipped_when_given_spec_only

@@ -36,11 +36,11 @@
 # variable expanding to nothing cannot reach it.
 #
 # WARN is check-density.sh / check-bullet-gap.py /
-# check-bullet-structure.py exiting 1.
+# check-bullet-structure.py / check-hard-wrap.py exiting 1.
 #
-# The reference reports density as a [Scout], never a
-# blocker, so it does not fail the run. Any other non-zero
-# density exit (a usage error) is a FAIL.
+# The reference reports these prose-format findings as a
+# [Scout], never a blocker, so they do not fail the run. Any
+# other non-zero exit from them (a usage error) is a FAIL.
 #
 # Runs every gate even after one fails, so the caller gets
 # the whole red set in one pass.
@@ -97,7 +97,7 @@ trap 'rm -f "$out_file"' EXIT
 
 # run_gate - <kind> <doc-label> <gate-name> <command...>:
 # runs one invocation, prints its status line, and replays
-# its output when it did not pass. kind "density" downgrades
+# its output when it did not pass. kind "prose" downgrades
 # exit 1 to WARN.
 run_gate() {
   local kind="$1" label="$2" name="$3"
@@ -106,7 +106,7 @@ run_gate() {
   local rc=$?
   local status=PASS
   if [ "$rc" -ne 0 ]; then
-    if [ "$kind" = density ] && [ "$rc" -eq 1 ]; then
+    if [ "$kind" = prose ] && [ "$rc" -eq 1 ]; then
       status=WARN
     else
       status=FAIL
@@ -145,12 +145,14 @@ run_plan_gate() {
 
 run_plan_gate gate plan check-mermaid-renders.sh bash "$script_dir/check-mermaid-renders.sh" "$plan"
 run_spec_gate gate spec check-mermaid-renders.sh bash "$script_dir/check-mermaid-renders.sh" "$spec"
-run_plan_gate density plan check-density.sh bash "$density_dir/check-density.sh" "$plan"
-run_plan_gate density plan check-bullet-gap.py "$density_dir/check-bullet-gap.py" "$plan"
-run_plan_gate density plan check-bullet-structure.py "$density_dir/check-bullet-structure.py" "$plan"
-run_spec_gate density spec check-density.sh bash "$density_dir/check-density.sh" "$spec"
-run_spec_gate density spec check-bullet-gap.py "$density_dir/check-bullet-gap.py" "$spec"
-run_spec_gate density spec check-bullet-structure.py "$density_dir/check-bullet-structure.py" "$spec"
+run_plan_gate prose plan check-density.sh bash "$density_dir/check-density.sh" "$plan"
+run_plan_gate prose plan check-bullet-gap.py "$density_dir/check-bullet-gap.py" "$plan"
+run_plan_gate prose plan check-bullet-structure.py "$density_dir/check-bullet-structure.py" "$plan"
+run_plan_gate prose plan check-hard-wrap.py "$density_dir/check-hard-wrap.py" "$plan"
+run_spec_gate prose spec check-density.sh bash "$density_dir/check-density.sh" "$spec"
+run_spec_gate prose spec check-bullet-gap.py "$density_dir/check-bullet-gap.py" "$spec"
+run_spec_gate prose spec check-bullet-structure.py "$density_dir/check-bullet-structure.py" "$spec"
+run_spec_gate prose spec check-hard-wrap.py "$density_dir/check-hard-wrap.py" "$spec"
 run_plan_gate gate plan check-sections.sh bash "$script_dir/check-sections.sh" "$plan" "$assets_dir/plan-template.md"
 run_spec_gate gate spec check-sections.sh bash "$script_dir/check-sections.sh" "$spec" "$assets_dir/spec-template.md"
 run_plan_gate gate plan check-test-distribution.sh bash "$script_dir/check-test-distribution.sh" "$plan"

@@ -8,7 +8,8 @@ A run may write the plan alone (SKILL.md) — never report the absent spec as a 
 
 **Deterministic** — a script or renderer returns the verdict, so re-running costs nothing.
 
-- Members: `scripts/check-mermaid-renders.sh`, the density checks, `scripts/check-sections.sh`, `scripts/check-test-distribution.sh`, `scripts/check-pr-dag.sh`, `scripts/check-tasks-dag.sh`, `scripts/check-files-union.sh`, `check-ac-task-consistency.py`.
+- Members: `scripts/check-mermaid-renders.sh`, the density checks, `check-hard-wrap.py`, `scripts/check-sections.sh`, `scripts/check-test-distribution.sh`.
+  - Then: `scripts/check-pr-dag.sh`, `scripts/check-tasks-dag.sh`, `scripts/check-files-union.sh`, `check-ac-task-consistency.py`.
   - With a spec: `check-ac-coverage.sh`, `check-coverage-checklists.sh`.
 
 - Run all with `scripts/check-deterministic-gates.sh <plan> [<spec>]`; no spec `SKIP`s the spec-taking gates.
@@ -56,7 +57,7 @@ Both measure rather than judge — never inline.
 
 - **Artifacts Valid**: `scripts/check-mermaid-renders.sh` on each resolved doc path; a failure routes to `agent(subAgent=mermaid-fixer, title=Fix spec/plan diagram)` on it.
 
-- **Density**: run `doc-standards`' `scripts/check-density.sh`, `scripts/check-bullet-gap.py`, and `scripts/check-bullet-structure.py` on the resolved doc paths.
+- **Density**: run `doc-standards`' `scripts/check-density.sh`, `scripts/check-bullet-gap.py`, `scripts/check-bullet-structure.py`, and `scripts/check-hard-wrap.py` on the resolved doc paths.
   - Runs after mermaid validation: repairing a diagram adds lines density must measure.
 
   - On any violation, file ONE `[Scout]` entry naming the file and what is off standard.
