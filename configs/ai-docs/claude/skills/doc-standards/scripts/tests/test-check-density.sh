@@ -162,7 +162,7 @@ it_should_skip_yaml_frontmatter_content() {
 }
 
 it_should_skip_fenced_code_block_content() {
-  new_fixture fenced.md "$(printf 'Intro line.\n```\n%s\n```\n' "$LONG_A_LINE")"
+  new_fixture fenced.md "$(printf "Intro line.\n\`\`\`\n%s\n\`\`\`\n" "$LONG_A_LINE")"
   run_check
   assert_eq 'should skip fenced code block content (stdout)' '' "$CHECK_OUT"
   assert_eq 'should skip fenced code block content (exit code)' '0' "$CHECK_EXIT"
