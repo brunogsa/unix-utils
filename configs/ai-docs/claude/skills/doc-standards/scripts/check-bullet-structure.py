@@ -238,7 +238,7 @@ def check(path, changed_only):
 
     if hits:
         print(f"== {path}")
-        for line_no, detail, _scope in hits:
+        for line_no, detail, _ in hits:
             print(f"{line_no}:{detail}")
 
     return len(hits)

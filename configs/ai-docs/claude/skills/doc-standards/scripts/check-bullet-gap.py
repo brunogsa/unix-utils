@@ -216,7 +216,7 @@ def fix(path, max_chars, max_words, changed_only):
     if not hits:
         return 0
 
-    for line_no, _detail in sorted(hits, reverse=True):
+    for line_no, _ in sorted(hits, reverse=True):
         lines.insert(line_no, "")
 
     with open(path, "w", encoding="utf-8") as fh:
