@@ -166,6 +166,26 @@ it_should_report_a_diagnostic_when_the_spec_defines_no_ac_headings_at_all() {
   assert_contains "should report a diagnostic when the spec defines no AC headings at all (the caller is told why, not left with a bare exit code)" "$VERDICT_ERR" "no '### AC-N:' definitions found"
 }
 
+it_should_warn_and_scan_the_whole_file_when_a_spec_with_a_code_fence_has_no_acceptance_criteria_heading() {
+  local plan spec
+  plan=$(write_plan "fence-no-ac-heading" '- **AC-1** valid path accepted
+  - "check-thing > happy > should accept a valid path"')
+  spec="$work_dir/spec-fence-no-ac-heading.md"
+  printf '# Spec\n\n```sh\necho sample\n```\n\n### AC-1: The checker accepts a valid path\n' > "$spec"
+  run_script "$plan" "$spec"
+  assert_contains "should warn that the Acceptance Criteria heading is missing when the spec has a code fence but no such heading" "$VERDICT_ERR" "no '## ...Acceptance Criteria...' heading"
+}
+
+it_should_warn_when_the_only_acceptance_criteria_heading_is_quoted_inside_an_odd_number_of_nested_fences() {
+  local plan spec
+  plan=$(write_plan "quoted-ac-heading" '- **AC-1** valid path accepted
+  - "check-thing > happy > should accept a valid path"')
+  spec="$work_dir/spec-quoted-ac-heading.md"
+  printf '# Spec\n\n````md\n```sh\n## Acceptance Criteria\n````\n\n### AC-1: The checker accepts a valid path\n' > "$spec"
+  run_script "$plan" "$spec"
+  assert_contains "should warn that the Acceptance Criteria heading is missing when the only such heading is quoted inside nested fences" "$VERDICT_ERR" "no '## ...Acceptance Criteria...' heading"
+}
+
 it_should_ignore_an_ac_heading_sitting_outside_the_specs_acceptance_criteria_section() {
   local plan spec
   plan=$(write_plan "ac-outside-section" '- **AC-1** valid path accepted
@@ -345,6 +365,8 @@ it_should_fail_when_a_spec_ac_has_no_coverage_header_in_the_plan
 it_should_fail_when_a_plan_coverage_header_names_an_ac_absent_from_the_spec
 it_should_fail_when_a_cited_test_is_absent_verbatim_from_test_design
 it_should_report_a_diagnostic_when_the_spec_defines_no_ac_headings_at_all
+it_should_warn_and_scan_the_whole_file_when_a_spec_with_a_code_fence_has_no_acceptance_criteria_heading
+it_should_warn_when_the_only_acceptance_criteria_heading_is_quoted_inside_an_odd_number_of_nested_fences
 it_should_ignore_an_ac_heading_sitting_outside_the_specs_acceptance_criteria_section
 it_should_report_a_usage_error_when_a_named_file_is_missing
 it_should_report_a_usage_error_when_given_the_wrong_argument_count
