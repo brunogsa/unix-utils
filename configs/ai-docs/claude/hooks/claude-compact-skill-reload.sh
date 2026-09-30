@@ -104,7 +104,7 @@ skills=$(grep '"name":"Skill"' "$transcript_path" 2>/dev/null \
 read -r -d '' DIRECTIVE <<EOF || true
 This compaction may have dropped skills you loaded earlier out of working memory. Skills loaded this session (from the transcript): $skills.
 
-BEFORE continuing the task, RELOAD -- as your FIRST action -- any of these that still govern what you are doing. Procedural/orchestrator skills (especially 'brainstorm' and 'implement') carry multi-step state that compaction drops, so re-establish those first, then re-ground from any /tmp scratchpad and your TaskList.
+BEFORE continuing the task, RELOAD -- as your FIRST action -- any of these that still govern what you are doing. Procedural/orchestrator skills (especially 'brainstorm-why' and 'implement') carry multi-step state that compaction drops, so re-establish those first, then re-ground from any /tmp scratchpad and your TaskList.
 
 '*-standards' skills can stay lazy -- reload each when its trigger next fires. Reload only what is still necessary; you decide which.
 EOF

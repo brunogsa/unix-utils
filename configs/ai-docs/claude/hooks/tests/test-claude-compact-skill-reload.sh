@@ -64,6 +64,12 @@ emitted_directive() {
     | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null
 }
 
+# names_token - prints yes when the text contains the literal
+# token, no otherwise.
+names_token() {
+  if printf '%s' "$1" | grep -qF -- "$2"; then echo yes; else echo no; fi
+}
+
 it_should_stay_silent_when_a_subagent_identified_by_agent_id_compacts() {
   local transcript="$work_dir/agent-id.jsonl"
   write_transcript "$transcript"
@@ -91,9 +97,24 @@ it_should_still_emit_the_directive_when_neither_agent_id_nor_agent_type_is_prese
     "yes" "$([ -n "$(emitted_directive)" ] && echo yes || echo no)"
 }
 
+it_should_tell_the_main_session_to_reload_brainstorm_why_and_not_the_deleted_brainstorm_skill() {
+  local transcript="$work_dir/reload-names.jsonl"
+  write_transcript "$transcript"
+  run_hook "{\"transcript_path\":\"$transcript\"}"
+  local directive
+  directive="$(emitted_directive)"
+
+  # Quoted token: bare brainstorm matches both names.
+  assert_eq "should name 'brainstorm-why' as a procedural skill to reload" \
+    "yes" "$(names_token "$directive" "'brainstorm-why'")"
+  assert_eq "should not name the deleted bare 'brainstorm' skill as one to reload" \
+    "no" "$(names_token "$directive" "'brainstorm'")"
+}
+
 it_should_stay_silent_when_a_subagent_identified_by_agent_id_compacts
 it_should_stay_silent_when_a_subagent_identified_only_by_agent_type_compacts
 it_should_still_emit_the_directive_when_neither_agent_id_nor_agent_type_is_present
+it_should_tell_the_main_session_to_reload_brainstorm_why_and_not_the_deleted_brainstorm_skill
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
