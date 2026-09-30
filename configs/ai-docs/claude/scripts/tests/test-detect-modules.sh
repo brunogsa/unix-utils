@@ -88,5 +88,18 @@ chmod 600 "$fixture"
 assert_eq "should report both absent when the settings file is unreadable" "arco=false linear=false " "$output"
 assert_eq "should exit 0 when the settings file is unreadable" "0" "$status"
 
+stderr_output="$(CLAUDE_SETTINGS="$scratch/malformed.json" bash "$SCRIPT_UNDER_TEST" 2>&1 >/dev/null)"
+assert_eq "should warn on stderr that it cannot read the settings file when it is malformed JSON" "detect-modules.sh: cannot read $scratch/malformed.json - reporting both modules absent" "$stderr_output"
+
+mkdir -p "$scratch/no-jq-bin"
+stderr_output="$(PATH="$scratch/no-jq-bin" CLAUDE_SETTINGS="$scratch/both-present.json" "$BASH" "$SCRIPT_UNDER_TEST" 2>&1 >/dev/null)"
+assert_eq "should warn on stderr that it cannot read the settings file when jq is not installed" "detect-modules.sh: cannot read $scratch/both-present.json - reporting both modules absent" "$stderr_output"
+
+stderr_output="$(CLAUDE_SETTINGS="$scratch/both-present.json" bash "$SCRIPT_UNDER_TEST" 2>&1 >/dev/null)"
+assert_eq "should stay silent on stderr when the settings file is readable" "" "$stderr_output"
+
+stderr_output="$(CLAUDE_SETTINGS="$scratch/does-not-exist.json" bash "$SCRIPT_UNDER_TEST" 2>&1 >/dev/null)"
+assert_eq "should stay silent on stderr when the settings file does not exist" "" "$stderr_output"
+
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

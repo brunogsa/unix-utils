@@ -17,6 +17,10 @@
 #
 #   Any such file, or an absent enabledPlugins key,
 #   reports both modules absent.
+#
+# stderr: one warning line when jq is missing or an existing
+#   settings file cannot be parsed, so "cannot tell" is
+#   distinguishable from "not installed".
 
 settings_file="${CLAUDE_SETTINGS:-$HOME/.claude/settings.json}"
 
@@ -38,6 +42,14 @@ is_linear_enabled() {
     '.enabledPlugins[$key] == true' \
     "$settings_file" > /dev/null 2>&1
 }
+
+# A missing file is a genuinely absent module and stays
+# silent; a file that exists but cannot be parsed, or no jq,
+# would otherwise look identical to it, so warn on stderr.
+if ! command -v jq > /dev/null 2>&1 ||
+  { [ -e "$settings_file" ] && ! jq -e . "$settings_file" > /dev/null 2>&1; }; then
+  echo "detect-modules.sh: cannot read $settings_file - reporting both modules absent" >&2
+fi
 
 if is_arco_enabled; then echo "arco=true"; else echo "arco=false"; fi
 if is_linear_enabled; then echo "linear=true"; else echo "linear=false"; fi
