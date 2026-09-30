@@ -101,7 +101,7 @@ Write relations only after all the issues exist, because a relation needs both e
 
 Read a relation back with `get_issue(includeRelations: true)` to verify it landed.
 
-The plan stays the source of truth and Linear is a projection of it, never the origin. Export only a graph `check-tasks-dag.sh` and `check-pr-task-projection.py` already accepted.
+The plan stays the source of truth and Linear is a projection of it, never the origin. Export only a graph `check-pr-dag.sh`, `check-tasks-dag.sh` and `check-pr-task-projection.py` already accepted.
 
 Why: Linear documents no cycle detection and no depth limit on `blocks`/`blockedBy`.
 
