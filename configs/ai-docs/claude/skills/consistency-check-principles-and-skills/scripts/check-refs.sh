@@ -292,6 +292,12 @@ list_line_ref_candidates() {
     done < <(grep -oE '`[^`]+`' <<<"$line" 2>/dev/null || true)
 }
 
+# SC2094 reads as a read-and-write of one file, but nothing
+# in this script writes a file at all - every finding goes
+# to stdout. It fires only because check_candidate is a
+# user function shellcheck cannot see into.
+#
+# shellcheck disable=SC2094
 for file in "$@"; do
     line_num=0
     in_fence=0
