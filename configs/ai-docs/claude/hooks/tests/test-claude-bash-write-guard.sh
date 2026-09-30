@@ -186,6 +186,57 @@ it_should_allow_a_read_only_sed_with_no_in_place_flag() {
   assert_eq "should allow a read-only sed with no in-place flag" "0" "$HOOK_EXIT"
 }
 
+# run_hook_with_home - same as run_hook, with HOME pointed at
+# the given directory so a leading `~` has a known expansion.
+run_hook_with_home() {
+  local home_dir="$1" command="$2" stdin_json
+  stdin_json=$(jq -n --arg c "$command" '{tool_input: {command: $c}}')
+  (
+    cd "$sandbox_dir" || exit 1
+    printf '%s' "$stdin_json" | HOME="$home_dir" "$bash_bin" "$SCRIPT" >/dev/null 2>&1
+  )
+  HOOK_EXIT=$?
+}
+
+it_should_allow_a_redirect_to_a_tilde_path_whose_home_is_outside_any_git_work_tree() {
+  run_hook_with_home "$outside_dir" "printf 'probe' > ~/probe.md"
+  assert_eq "should allow a redirect to ~/probe.md when the home directory is outside any git work tree" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_an_append_redirect_to_a_tilde_path_whose_home_is_outside_any_git_work_tree() {
+  run_hook_with_home "$outside_dir" "printf 'probe' >> ~/probe.md"
+  assert_eq "should allow an append redirect to ~/probe.md when the home directory is outside any git work tree" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_tee_to_a_tilde_path_whose_home_is_outside_any_git_work_tree() {
+  run_hook_with_home "$outside_dir" "echo probe | tee ~/probe.md"
+  assert_eq "should allow a tee to ~/probe.md when the home directory is outside any git work tree" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_an_in_place_sed_on_a_tilde_path_whose_home_is_outside_any_git_work_tree() {
+  printf 'const a = 1;\n' > "$outside_dir/existing.ts"
+  run_hook_with_home "$outside_dir" "sed -i.bak 's/const/let/' ~/existing.ts"
+  assert_eq "should allow an in-place sed on ~/existing.ts when the home directory is outside any git work tree" "0" "$HOOK_EXIT"
+}
+
+it_should_block_an_in_place_sed_on_a_tilde_path_whose_home_is_inside_a_git_work_tree() {
+  run_hook_with_home "$sandbox_dir" "sed -i.bak 's/const/let/' ~/src/index.ts"
+  assert_eq "should block an in-place sed on ~/src/index.ts when the home directory is inside a git work tree" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_redirect_to_a_tilde_path_whose_home_is_inside_a_git_work_tree() {
+  run_hook_with_home "$sandbox_dir" "printf 'probe' > ~/probe.md"
+  assert_eq "should block a redirect to ~/probe.md when the home directory is inside a git work tree" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_redirect_to_another_users_home_path_because_it_cannot_be_expanded() {
+  # Conservative direction: ~someone resolves from the
+  # password database, so the guard keeps treating it as a
+  # cwd-relative path.
+  run_hook_with_home "$outside_dir" "printf 'probe' > ~someone/probe.md"
+  assert_eq "should block a redirect to ~someone/probe.md because another user's home is not expanded" "2" "$HOOK_EXIT"
+}
+
 setup_fixtures
 trap teardown_fixtures EXIT
 
@@ -208,6 +259,13 @@ it_should_allow_a_write_outside_any_git_work_tree
 it_should_allow_a_search_whose_pattern_merely_contains_a_redirect_arrow
 it_should_allow_a_write_after_a_cd_whose_destination_cannot_be_resolved
 it_should_allow_a_read_only_sed_with_no_in_place_flag
+it_should_allow_a_redirect_to_a_tilde_path_whose_home_is_outside_any_git_work_tree
+it_should_allow_an_append_redirect_to_a_tilde_path_whose_home_is_outside_any_git_work_tree
+it_should_allow_a_tee_to_a_tilde_path_whose_home_is_outside_any_git_work_tree
+it_should_allow_an_in_place_sed_on_a_tilde_path_whose_home_is_outside_any_git_work_tree
+it_should_block_an_in_place_sed_on_a_tilde_path_whose_home_is_inside_a_git_work_tree
+it_should_block_a_redirect_to_a_tilde_path_whose_home_is_inside_a_git_work_tree
+it_should_block_a_redirect_to_another_users_home_path_because_it_cannot_be_expanded
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

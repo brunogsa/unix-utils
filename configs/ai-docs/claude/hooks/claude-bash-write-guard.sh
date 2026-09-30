@@ -214,13 +214,31 @@ def git_succeeds(args, cwd):
                           stderr=subprocess.DEVNULL).returncode == 0
 
 
+def absolute_path(cwd, target):
+    """The absolute path a write target names, with a leading `~` or `~/` expanded against $HOME."""
+    # why: bash expands an unquoted leading `~` before the command
+    # runs, but this guard parses the text before that expansion.
+    # A quoted "~/x" is NOT expanded by bash and means a relative
+    # path named `~`; the parser cannot tell the two apart, and
+    # expanding both is right because a repo file literally named
+    # `~` is vanishingly rare while the false block is common.
+    # `~user/...` is left alone: bash reads it from the password
+    # database, so guessing wrong would be a false allow, and
+    # leaving it cwd-relative keeps it on the conservative side.
+    if target == '~' or target.startswith('~/'):
+        target = os.path.expanduser('~') + target[1:]
+    if os.path.isabs(target):
+        return target
+    return os.path.normpath(os.path.join(cwd, target))
+
+
 def block_reason(cwd, target):
     """Why this write target must go through Edit/Write, or None when it is allowed."""
     if re.search(r'[$`*?\[]', target):
         return None
     if not guarded_extension(target):
         return None
-    path = target if os.path.isabs(target) else os.path.normpath(os.path.join(cwd, target))
+    path = absolute_path(cwd, target)
     if is_under_scratch(path):
         return None
     ancestor = nearest_existing_ancestor(path)
@@ -254,7 +272,7 @@ def write_targets(exe, tokens, cwd):
         # A sed/perl argument list mixes the edit script in with
         # its files, and only the files exist on disk.
         for argument in positional_arguments(arguments):
-            if os.path.isfile(os.path.join(cwd, argument)):
+            if os.path.isfile(absolute_path(cwd, argument)):
                 targets.append(argument)
     return targets
 
