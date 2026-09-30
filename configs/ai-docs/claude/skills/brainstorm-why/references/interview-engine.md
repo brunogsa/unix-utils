@@ -6,14 +6,6 @@ A caller skill reads this file and runs it, supplying only a seed and an output 
 
 Both callers read this file rather than nesting a shared skill through the Skill tool, because a file read cannot lose control flow the way a nested skill call can. Never invoke this file through the Skill tool.
 
-## What the caller supplies
-
-- `brainstorm-why` seeds from the raw request plus its own codebase read, and writes its transcript to `<scratchpad>/brainstorm-why-brief.md`.
-
-- `brainstorm-how` seeds from the approved spec, and writes its transcript to `<scratchpad>/brainstorm-how-brief.md`, which `to-plan` hands to `plan-writer`.
-
-- Both keep writing `<scratchpad>/notes.md` throughout, in the scratchpad directory named in this session's system prompt, under the five fixed headings CLAUDE.md's Note-taking discipline defines.
-
 ## Build the design tree
 
 Turn the seed into a design tree: each open decision is a node, and a node's children are the decisions that only make sense once it is settled.
