@@ -36,6 +36,7 @@ exit: 0 consistent, 1 at least one mismatch, 2 usage error or a section
       that is absent or holds nothing to check
 """
 
+import importlib.util
 import re
 import subprocess
 import sys
@@ -55,58 +56,33 @@ SUMMARY_TASK = re.compile(r"<summary>Task (\d+)")
 AC_FIELD = re.compile(r"\*\*Testable Acceptance criteria\*\*")
 AC_TOKEN = re.compile(r"AC-\d+")
 
-# A fenced code block opens on a line of 3+ backticks or 3+
-# tildes and closes only on a later line of that same character,
-# at least as long as the opener, with no info string.
+# The fence rule is shared repo-wide, so a heading or
+# `<summary>Task N` line quoted as sample markup inside a fence
+# is never mistaken for the real thing.
 #
-# This is the repo-wide fence idiom (see extract-design-tests.sh
-# and check-sections.sh), so a heading or `<summary>Task N` line
-# quoted as sample markup inside a fence is never mistaken for
-# the real thing.
-FENCE_MARKERS = ("```", "~~~")
+# Loaded by path because the hyphenated name blocks an import.
+PARSE_FENCES = SCRIPT_DIR.parents[2] / "scripts" / "parse-fences.py"
+_spec = importlib.util.spec_from_file_location("parse_fences", PARSE_FENCES)
 
+# A load failure exits 2, the same as any other diagnostic here.
+try:
+    if _spec is None or _spec.loader is None:
+        raise ImportError("no import spec")
+    parse_fences = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(parse_fences)
+except Exception as error:
+    print(
+        f"check-ac-task-consistency.py: cannot load {PARSE_FENCES}: {error}",
+        file=sys.stderr,
+    )
+    sys.exit(2)
 
-def toggle_fence(text, in_fence, fence_char, fence_len):
-    """The (in_fence, fence_char, fence_len) state after reading one
-    more line.
-
-    A line that does not open or close a fence leaves the state
-    unchanged. So does a line inside an open fence that fails any
-    closing rule: a different marker (a ``` line while a ~~~ fence is
-    open), a run shorter than the opener's, or trailing text after
-    the run (an info string). Each is fence content, not a
-    delimiter."""
-    if not text.startswith(FENCE_MARKERS):
-        return in_fence, fence_char, fence_len
-    marker = text[0]
-    run = len(text) - len(text.lstrip(marker))
-    if not in_fence:
-        return True, marker, run
-    if marker == fence_char and run >= fence_len and not text[run:].strip():
-        return False, fence_char, fence_len
-    return in_fence, fence_char, fence_len
+toggle_fence = parse_fences.toggle_fence
 
 
 def exit_with_usage_error(message):
     print(f"error: {message}", file=sys.stderr)
     sys.exit(2)
-
-
-def check_fence_balance(lines):
-    """The line number a ``` or ~~~ fence opened at, if one is
-    still open after the last line, else None.
-
-    Whole-file rule: an unclosed fence anywhere in the plan is
-    malformed, not just inside a scanned section."""
-    in_fence, fence_char, fence_len, open_line = False, "", 0, None
-    for line_number, text in enumerate(lines, start=1):
-        was_open = in_fence
-        in_fence, fence_char, fence_len = toggle_fence(
-            text, in_fence, fence_char, fence_len
-        )
-        if in_fence and not was_open:
-            open_line = line_number
-    return open_line if in_fence else None
 
 
 def find_design_row_lines(lines):
@@ -315,7 +291,7 @@ def main():
 
     lines = plan.read_text(encoding="utf-8").splitlines()
 
-    open_line = check_fence_balance(lines)
+    open_line = parse_fences.find_unclosed_fence(lines)
     if open_line is not None:
         exit_with_usage_error(
             f"unclosed code fence opened at line {open_line} in {plan}"

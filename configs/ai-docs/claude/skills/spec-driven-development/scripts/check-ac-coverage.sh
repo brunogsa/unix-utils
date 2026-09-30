@@ -68,6 +68,8 @@
 # line shown as sample markup inside a ``` or ~~~ fence never
 # ends the region early.
 #
+# scripts/parse-fences.awk owns the fence rules.
+#
 # Exit codes:
 #   0  - complete (annotated form), or complete AND honest (list
 #   form).
@@ -97,35 +99,16 @@ for f in "$plan" "$spec"; do
   fi
 done
 
-# assert_fence_closed - exit 2 when a ``` or ~~~
-# fence in the given file is still open at EOF.
-#
-# Whole-file rule: an unclosed fence anywhere in
-# the file is malformed, not just inside a scanned
-# section.
-assert_fence_closed() {
-  awk '
-    /^```/ || /^~~~/ {
-      m = substr($0, 1, 1)
-      fence_run = 0
-      while (substr($0, fence_run + 1, 1) == m) fence_run++
-      fence_tail = substr($0, fence_run + 1)
-      if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run; fence_line = NR }
-      else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-    }
-    END {
-      if (in_fence) {
-        print "error: unclosed code fence opened at line " fence_line " in " FILENAME > "/dev/stderr"
-        exit 2
-      }
-    }
-  ' "$1"
-}
-
-assert_fence_closed "$plan"
-assert_fence_closed "$spec"
-
 script_dir="$(cd "$(dirname "$0")" && pwd)"
+fences_lib="$script_dir/../../../scripts/parse-fences.awk"
+
+# Whole-file rule: an unclosed fence anywhere in either file is
+# malformed, not just inside a scanned section. The library
+# prints the error and exits 2, which set -e turns into ours.
+for f in "$plan" "$spec"; do
+  awk -f "$fences_lib" "$f"
+done
+
 design_extract="$script_dir/extract-design-tests.sh"
 
 if [ ! -x "$design_extract" ]; then
@@ -141,27 +124,12 @@ fi
 # Falls back to the whole file (with a warning) if that heading
 # is absent.
 #
-# The fence toggle guards only the `## ` boundary check below —
-# it never skips content — since a fenced sample line quoted
-# inside the AC section must still print as part of it. Closes
-# only on the same marker (``` or ~~~) that opened it.
-ac_section=$(awk '
-  /^```/ || /^~~~/ {
-    m = substr($0, 1, 1)
-    fence_run = 0
-    while (substr($0, fence_run + 1, 1) == m) fence_run++
-    fence_tail = substr($0, fence_run + 1)
-    if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
-    else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-    print
-    next
-  }
-  !in_fence && /^## / {
-    if (in_ac) exit
-    if (tolower($0) ~ /acceptance criteria/) { in_ac = 1; next }
-  }
-  in_ac { print }
-' "$spec")
+# The fence state guards only the `## ` boundary check in the
+# ac-section .awk file and never skips content, since a fenced
+# sample line quoted inside the AC section must still print as
+# part of it.
+ac_section=$(awk -f "$fences_lib" \
+  -f "$script_dir/check-ac-coverage-ac-section.awk" "$spec")
 
 if [ -z "$ac_section" ]; then
   echo "warning: no '## ...Acceptance Criteria...' heading in $spec; scanning whole file for '### AC-N:'" >&2
@@ -224,46 +192,13 @@ fi
 # belonging to the most recent AC header.
 #
 # The AC region ends at a `## ` heading or a `---` divider; a
-# fenced sample line quoted inside the region (``` or ~~~,
-# closing only on the same marker) never trips that reset.
-plan_acs=$(awk '
-  /^```/ || /^~~~/ {
-    m = substr($0, 1, 1)
-    fence_run = 0
-    while (substr($0, fence_run + 1, 1) == m) fence_run++
-    fence_tail = substr($0, fence_run + 1)
-    if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
-    else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-    next
-  }
-  !in_fence && /^## / { in_ac = 0 }
-  !in_fence && /^---$/ { in_ac = 0 }
-  /^- \*\*AC-[0-9]+\*\*/ {
-    if (match($0, /AC-[0-9]+/)) { print substr($0, RSTART, RLENGTH); in_ac = 1 }
-    next
-  }
-' "$plan" | sort -u)
+# fenced sample line quoted inside the region (``` or ~~~)
+# never trips that reset.
+plan_acs=$(awk -f "$fences_lib" \
+  -f "$script_dir/check-ac-coverage-plan-acs.awk" "$plan" | sort -u)
 
-cited_tests=$(awk '
-  /^```/ || /^~~~/ {
-    m = substr($0, 1, 1)
-    fence_run = 0
-    while (substr($0, fence_run + 1, 1) == m) fence_run++
-    fence_tail = substr($0, fence_run + 1)
-    if (!in_fence) { in_fence = 1; fence_char = m; fence_len = fence_run }
-    else if (m == fence_char && fence_run >= fence_len && fence_tail ~ /^[ \t]*$/) in_fence = 0
-    next
-  }
-  !in_fence && /^## / { in_ac = 0 }
-  !in_fence && /^---$/ { in_ac = 0 }
-  /^- \*\*AC-[0-9]+\*\*/ { in_ac = 1; next }
-  in_ac && /^[[:space:]]+- "/ {
-    line = $0
-    sub(/^[[:space:]]+- "/, "", line)
-    sub(/"[[:space:]]*$/, "", line)
-    if (length(line) > 0) print line
-  }
-' "$plan" | sort -u)
+cited_tests=$(awk -f "$fences_lib" \
+  -f "$script_dir/check-ac-coverage-cited-tests.awk" "$plan" | sort -u)
 
 # design tests: Test Design breadcrumbs (<describe> [> class] >
 # it) via the shared extractor, so `cited ⊆ design` compares
