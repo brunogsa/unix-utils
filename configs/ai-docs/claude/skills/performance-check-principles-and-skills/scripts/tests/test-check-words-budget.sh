@@ -133,8 +133,19 @@ it_should_accept_a_words_budget_override_of_exactly_4096() {
     rm -rf "$d"
 }
 
+it_should_exit_non_zero_and_name_the_file_for_a_words_budget_override_of_4097() {
+    echo "it_should_exit_non_zero_and_name_the_file_for_a_words_budget_override_of_4097"
+    local d; d=$(new_fixture)
+    write_skill_with_words "$d" "big-skill" 3000 4097
+    assert_eq "names the file and its declared budget" \
+        "- big-skill: words-budget=4097(>4096 ceiling; SKILL.md override)" "$(run_check "$d")"
+    assert_eq "exits non-zero" "1" "$(run_check_status "$d")"
+    rm -rf "$d"
+}
+
 it_should_measure_a_skill_declaring_no_words_budget_against_the_2048_word_default
 it_should_accept_a_words_budget_override_of_exactly_4096
+it_should_exit_non_zero_and_name_the_file_for_a_words_budget_override_of_4097
 
 echo
 echo "$passed passed, $failed failed"

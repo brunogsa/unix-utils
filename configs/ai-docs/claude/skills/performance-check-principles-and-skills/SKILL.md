@@ -68,19 +68,19 @@ words-budget: 4096
 ---
 ```
 
-Why: a few skills legitimately pair principles with inline examples (code-standards, test-standards) and need ~2× the default budget; an opt-in field keeps that self-documenting instead of hard-coding an exception list by name.
+Why: a few skills pair principles with inline examples (code-standards, test-standards) and need ~2× the default; an opt-in field beats a hard-coded exception list.
 
-The report stays quiet about an override until the skill blows past its own ceiling.
+A `SKILL.md`'s `words-budget` is capped at 4096 (5,000 re-attach tokens x 0.75 words per token, rounded up to a power of two); a higher value fails the check, naming the file and its declared budget. `references/` and `assets/` overrides are uncapped.
 
-Over-budget lines are annotated as `words=N(>budget (override; default=2048))` so the next reader knows the larger budget was intentional.
+The report stays quiet about an override until the skill passes its own ceiling, then annotates the line `words=N(>budget (override; default=2048))`.
 
 `references/*.md` and `assets/*.md` take the same keys in their own frontmatter: `words-budget:` against 1024, `lines-budget:` against 256. Description, name, and count budgets stay global.
 
-Double from the default until the file fits (1024 → 2048 → 4096), setting only the key actually over — a `lines-budget` on a file already under 256 lines is a no-op that misreads as a real exemption.
+Double from the default until the file fits (1024 → 2048 → 4096), setting only the key actually over; an unneeded `lines-budget` misreads as a real exemption.
 
-`check.sh` parses frontmatter with `NF == 2`, so a `#` comment line inside the block is skipped. Use one to record why the file resisted trimming, right where the override lives.
+A `#` comment line inside the frontmatter is skipped (`check.sh` parses with `NF == 2`); use one to record why the file resisted trimming.
 
-The heading gate takes no override: a raised size budget still leaves the file flat, so the fix is always `## ` landmarks, never a knob.
+The heading gate takes no override; the fix is always `## ` landmarks.
 
 **CRITICAL: Only the user adds `words-budget` or `lines-budget`, in a SKILL.md or a bundled file. AI must never autonomously set or raise one.**
 

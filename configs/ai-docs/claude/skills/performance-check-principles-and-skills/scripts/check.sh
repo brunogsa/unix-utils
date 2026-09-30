@@ -35,6 +35,14 @@ readonly CLAUDE_WORDS_PER_LINE_BUDGET=32
 readonly SKILLS_COUNT_BUDGET=50
 readonly SKILL_LINES_BUDGET=500
 readonly SKILL_WORDS_BUDGET=2048
+
+# Ceiling on a SKILL.md's own `words-budget:` override:
+# 5,000 re-attach tokens x 0.75 words/token, rounded up to
+# the next power of two.
+#
+# Caps only the escape hatch; bundled references/ and
+# assets/ overrides are deliberately uncapped.
+readonly SKILL_WORDS_BUDGET_CEILING=4096
 readonly SKILL_DESC_BUDGET=250
 readonly SKILL_NAME_BUDGET=64
 
@@ -451,6 +459,7 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
     issues=""
     [ "$lines" -gt "$SKILL_LINES_BUDGET" ] && issues+=" lines=$lines"
     [ "$words" -gt "$skill_words_budget" ] && issues+=" words=$words(>$skill_words_budget$words_overage_suffix)"
+    [ "$skill_words_budget" -gt "$SKILL_WORDS_BUDGET_CEILING" ] && issues+=" words-budget=$skill_words_budget(>$SKILL_WORDS_BUDGET_CEILING ceiling; SKILL.md override)"
     [ "$desc_chars" -gt "$SKILL_DESC_BUDGET" ] && issues+=" desc=${desc_chars}c"
     [ "$name_chars" -gt "$SKILL_NAME_BUDGET" ] && issues+=" name=${name_chars}c"
 
