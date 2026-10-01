@@ -27,9 +27,11 @@
 # index partly staged beforehand is equally real.
 #
 # A pathspec is relative to the directory its own `git add`
-# runs in, so a leading `cd <dir> &&` is followed before any
-# of them is resolved - without that, every agent-shaped
-# commit here is judged against a directory holding nothing.
+# runs in, so a leading `cd <dir> &&` is followed, and a
+# `git -C <dir> add` is read, before any of them resolves.
+#
+# Without that, every agent-shaped commit here is judged
+# against a directory holding none of the named files.
 #
 # Known gap: a non-literal pathspec - a glob, a variable, a
 # command substitution, or `-A`/`-a`/`.` - names files only
@@ -115,6 +117,28 @@ def directory_after_cd(cwd, args):
     return landed if os.path.isdir(landed) else cwd
 
 
+def git_subcommand_scope(tokens, directory):
+    """Index of the subcommand in a `git ...` stage and the directory that one call runs in, or None when a global option leaves either unreadable.
+
+    `-C` moves only its own git call, never the shell's directory, so the caller must not carry the returned directory into later stages.
+    """
+    index = 1
+    while index < len(tokens) and tokens[index].startswith('-'):
+        if index + 1 >= len(tokens):
+            return None
+        value = tokens[index + 1]
+        if tokens[index] == '-C':
+            if any(c in value for c in NON_LITERAL_CHARS):
+                return None
+            directory = resolve(directory, value)
+            if not os.path.isdir(directory):
+                return None
+        elif tokens[index] != '-c':
+            return None
+        index += 2
+    return index, directory
+
+
 def added_pathspecs(command, start_directory):
     """Absolute paths of every `git add` pathspec plus the directory the command ends in, with the paths None when one cannot be read from the command string.
 
@@ -137,10 +161,14 @@ def added_pathspecs(command, start_directory):
                 continue
             if len(tokens) < 2 or os.path.basename(tokens[0]) != 'git':
                 continue
-            if tokens[1] != 'add':
+            scope = git_subcommand_scope(tokens, directory)
+            if scope is None:
+                return None, directory
+            subcommand, add_directory = scope
+            if subcommand >= len(tokens) or tokens[subcommand] != 'add':
                 continue
             after_options = False
-            for token in tokens[2:]:
+            for token in tokens[subcommand + 1:]:
                 if not after_options and token == '--':
                     after_options = True
                     continue
@@ -150,7 +178,7 @@ def added_pathspecs(command, start_directory):
                     continue
                 if token == '.' or any(c in token for c in NON_LITERAL_CHARS):
                     return None, directory
-                paths.append(resolve(directory, token))
+                paths.append(resolve(add_directory, token))
     return paths, directory
 
 

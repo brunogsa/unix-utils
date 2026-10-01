@@ -168,6 +168,25 @@ it_should_block_a_violation_staged_after_a_leading_cd() {
     "deploy.sh" "$GATE_STDERR"
 }
 
+# `git -C <dir> add` is the same hole reached without a
+# `cd`: the pathspecs are relative to <dir>, and <dir>
+# alone moves them, leaving the hook's own directory
+# irrelevant to where they live.
+it_should_block_a_violation_staged_through_git_dash_c() {
+  local repo
+  repo=$(new_repo unit7dashc)
+  mkdir -p "$repo/sub"
+  write_violating_shell_file "$repo/sub/deploy.sh"
+
+  run_gate_from "$repo/sub" \
+    "git -C $repo add sub/deploy.sh && git commit -m \"x\""
+
+  assert_eq "should block a commit whose git -C add names a violating file" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the offending file git -C made reachable" \
+    "deploy.sh" "$GATE_STDERR"
+}
+
 # The index half of the union: a file already staged is
 # part of the commit even when the command string names no
 # file at all.
@@ -279,6 +298,7 @@ it_should_allow_the_commit_when_the_checker_reports_trouble() {
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
+it_should_block_a_violation_staged_through_git_dash_c
 it_should_block_a_violation_in_an_already_staged_file
 it_should_fall_back_to_the_index_when_a_pathspec_is_a_variable
 it_should_still_judge_the_index_when_a_pathspec_is_a_variable
