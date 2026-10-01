@@ -23,14 +23,18 @@ LEXICON_PATH = SCRIPT_DIR / "naming-rule-lexicon.json"
 
 KEBAB_RE = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 
-# The three standing exclusions every count, conversion, rename,
-# and naming task honors with no exception. node_modules/ is
-# third-party payload, not authored here. The skill-standards
-# scripts and eval-viewer/generate_review.py are vendored from
-# Anthropic's skill-creator toolkit, replaced wholesale on the
-# next upstream pull, so a rename would be lost. The stale
-# worktrees/stacked-prs-pr2 checkout holds copies of this
-# repo's scripts, not authored source.
+# The three standing exclusions every count, conversion,
+# rename, and naming task honors with no exception.
+#
+# node_modules/ is third-party payload, not authored here.
+#
+# The skill-standards scripts and eval-viewer/generate_review.py
+# are vendored from Anthropic's skill-creator toolkit, replaced
+# wholesale on the next upstream pull, so a rename would be
+# lost.
+#
+# The stale worktrees/stacked-prs-pr2 checkout holds copies of
+# this repo's scripts, not authored source.
 VENDORED_DIR_SEGMENTS = ("skill-standards", "scripts")
 VENDORED_SINGLE_FILE = ("eval-viewer", "generate_review.py")
 STALE_WORKTREE_MARKER = "worktrees/stacked-prs-pr2"

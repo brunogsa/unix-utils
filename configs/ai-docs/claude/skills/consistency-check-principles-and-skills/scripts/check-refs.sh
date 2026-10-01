@@ -8,9 +8,11 @@
 #
 # Dropped on purpose: over the 51 live SKILL.md files the
 # backtick source gave 34 findings and 0 defects. Every real
-# pointer is written as a link, per skill-standards. Accepted
-# recall cost: a broken ref written as a bare backtick path is
-# no longer caught. Do not re-add that source as an oversight.
+# pointer is written as a link, per skill-standards.
+#
+# Accepted recall cost: a broken ref written as a bare backtick
+# path is no longer caught. Do not re-add that source as an
+# oversight.
 #
 # Resolves each target relative to the referencing file's own
 # directory. Confirms the target exists (file or directory).
