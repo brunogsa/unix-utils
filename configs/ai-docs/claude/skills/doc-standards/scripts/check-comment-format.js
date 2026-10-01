@@ -139,6 +139,14 @@
 // above, and never rewrites -- pairing it with --fix is a usage
 // error rather than a flag it quietly ignores.
 //
+// --list-extensions prints every extension this checker gates,
+// sorted, one per line, and checks no file. Callers that must
+// enumerate the gated files read it instead of keeping their
+// own copy of the list.
+//
+// It stands alone: any other argument alongside it is a usage
+// error rather than one it quietly ignores.
+//
 // --skip-unknown drops a file whose language cannot be
 // resolved, instead of exiting 2 on it.
 //
@@ -148,6 +156,8 @@
 // lex.
 //
 // Usage:
+//   check-comment-format.js --list-extensions
+//
 //   check-comment-format.js [--fix] [--changed-only]
 //     [--max-chars N] [--max-lines N] [--skip-unknown]
 //     [--lang <language>] <file> [<file>...]
@@ -363,11 +373,28 @@ const LANGUAGES = {
 };
 
 const USAGE =
-  'usage: check-comment-format.js [--fix] [--changed-only] [--content-loss] ' +
+  'usage: check-comment-format.js --list-extensions | ' +
+  '[--fix] [--changed-only] [--content-loss] ' +
   '[--max-chars N] [--max-lines N] [--skip-unknown] ' +
   `[--lang ${Object.keys(LANGUAGES).join('|')}] <file>...`;
 
+function listExtensions() {
+  const all = Object.values(LANGUAGES).flatMap((lang) => lang.extensions);
+  return [...new Set(all)].sort();
+}
+
 function parseArgs(argv) {
+  if (argv.includes('--list-extensions')) {
+    if (argv.length !== 1) {
+      console.error(
+        'check-comment-format.js: --list-extensions takes no other argument',
+      );
+      process.exit(2);
+    }
+    console.log(listExtensions().join('\n'));
+    process.exit(0);
+  }
+
   let maxChars = 64;
   let maxLines = 4;
   let lang = null;

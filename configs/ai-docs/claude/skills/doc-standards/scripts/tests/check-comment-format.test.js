@@ -1657,3 +1657,38 @@ function orphanLoss() {
     lines(SHEBANG, '# A comment in a file no git repo tracks.', 'VALUE = 1'),
   );
 }
+
+describe('--list-extensions', () => {
+  const GATED_EXTENSIONS = [
+    '.awk', '.bash', '.cjs', '.css', '.cts', '.go', '.htm', '.html',
+    '.js', '.jsonc','.jsx', '.ksh', '.lua', '.mjs', '.mts', '.py',
+    '.pyi', '.sh', '.tf', '.tfvars', '.ts', '.tsx', '.yaml', '.yml',
+    '.zsh',
+  ];
+
+  it('should print every gated extension, sorted, one per line, and exit 0', () => {
+    const result = run(['--list-extensions']);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(result.out.split('\n'), [...GATED_EXTENSIONS].sort());
+  });
+
+  it('should not list the deliberately excluded .json, .scss and .less', () => {
+    const listed = run(['--list-extensions']).out.split('\n');
+
+    for (const excluded of ['.json', '.scss', '.less']) {
+      assert.ok(!listed.includes(excluded), `${excluded} must stay ungated`);
+    }
+  });
+
+  it('should exit 2 when combined with a file argument', () => {
+    const file = put('a.py', lines('# A comment.', 'VALUE = 1'));
+
+    assert.equal(run(['--list-extensions', file]).status, 2);
+  });
+
+  it('should exit 2 when combined with another mode flag', () => {
+    assert.equal(run(['--list-extensions', '--fix']).status, 2);
+    assert.equal(run(['--content-loss', '--list-extensions']).status, 2);
+  });
+});
