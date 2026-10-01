@@ -268,6 +268,16 @@ const LANGUAGES = {
     // A mapping key's `:` opens the block nested under it.
     scopeOpeners: [/:$/, /[{([]$/],
   },
+
+  awk: {
+    extensions: ['.awk'],
+    shebangRe: /\b[gmn]?awk\b/,
+    scan: (text) => scanCommentRanges(text, awkDialect()),
+    delimiterRe: null,
+    blankRe: /^#$/,
+    prefixRe: /^#\s?/,
+    scopeOpeners: [/[{([]$/],
+  },
 };
 
 const USAGE =
@@ -837,6 +847,55 @@ function yamlDialect() {
       const opener = YAML_BLOCK_SCALAR.exec(text.slice(prevStart, from - 1));
       if (!opener) return from;
       return skipBlockScalarBody(text, from, opener[1].length);
+    },
+  };
+}
+
+// awk spells a regex literal with the same `/` as division,
+// so only what precedes the slash tells them apart: after an
+// operator or at the start of a line, a pattern is the only
+// thing that can follow.
+const AWK_REGEX_PRECEDERS = new Set([...'~(,{;&|!=']);
+
+function awkDialect() {
+  function previousCodeChar(text, from) {
+    let j = from;
+    while (j >= 0 && (text[j] === ' ' || text[j] === '\t')) j--;
+    return j < 0 ? '\n' : text[j];
+  }
+
+  // An unterminated slash is division rather than a regex
+  // running to the end of the file.
+  function skipRegex(text, from) {
+    let j = from;
+    while (j < text.length && text[j] !== '\n') {
+      if (text[j] === '\\') {
+        j += 2;
+        continue;
+      }
+      if (text[j] === '/') return j + 1;
+      j++;
+    }
+    return null;
+  }
+
+  return {
+    lineComments: ['#'],
+    blockComments: [],
+    needsWordBoundary: false,
+
+    skipNonCode(text, i) {
+      const ch = text[i];
+      if (ch === '"') return skipQuoted(text, i + 1, '"', true);
+      if (ch !== '/') return null;
+
+      const prev = previousCodeChar(text, i - 1);
+      if (prev !== '\n' && !AWK_REGEX_PRECEDERS.has(prev)) return null;
+      return skipRegex(text, i + 1);
+    },
+
+    afterNewline(_text, from) {
+      return from;
     },
   };
 }

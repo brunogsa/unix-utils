@@ -886,6 +886,67 @@ describe('check-comment-format', () => {
     });
   });
 
+  describe('awk files', () => {
+    const regexFile = () =>
+      put(
+        'match.awk',
+        lines(
+          '$0 ~ /a#b/ { print "collapse the records into a single billed unit" }',
+        ),
+      );
+
+    it('should report the over-cap line of a line comment', () => {
+      const file = put(
+        'tally.awk',
+        lines(
+          'BEGIN {',
+          `  # ${AGGREGATOR}`,
+          '  n = 1',
+          '}',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+
+    it('should read no comment out of a regex literal after a match operator', () => {
+      assertAbsent(check(regexFile()).out, 'WIDTH');
+    });
+
+    it('should exit 0 on a file whose only long line is a regex literal', () => {
+      assert.equal(check(regexFile()).status, 0);
+    });
+
+    it('should read no comment out of a regex literal opening a line', () => {
+      const file = put(
+        'pattern.awk',
+        lines(
+          '/a#b/ { print "collapse the many records into a single billed unit" }',
+        ),
+      );
+      assertAbsent(check(file).out, 'WIDTH');
+    });
+
+    it('should still report the comment that follows a division', () => {
+      const file = put(
+        'ratio.awk',
+        lines(
+          '{ print total / 2 }  # collapse the records into one billed unit / tally',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 1:');
+    });
+
+    it('should read no comment out of a double-quoted string', () => {
+      const file = put(
+        'sep.awk',
+        lines(
+          'BEGIN { sep = "#"; print "collapse the records into a single billed unit" }',
+        ),
+      );
+      assertAbsent(check(file).out, 'WIDTH');
+    });
+  });
+
   describe('corner cases', () => {
     it('should leave an aligned usage line byte-identical', () => {
       const file = literalsFixture();
