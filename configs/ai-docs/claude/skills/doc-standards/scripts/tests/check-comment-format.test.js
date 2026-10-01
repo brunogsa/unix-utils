@@ -682,6 +682,58 @@ describe('check-comment-format', () => {
     });
   });
 
+  describe('jsonc files', () => {
+    it('should report the over-cap line of a line comment', () => {
+      const file = put(
+        'settings.jsonc',
+        lines(
+          '{',
+          `  // ${AGGREGATOR}`,
+          '  "billedUnits": 1',
+          '}',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+
+    it('should report the over-cap line of a block comment', () => {
+      const file = put(
+        'block.jsonc',
+        lines(
+          '{',
+          `  /* ${AGGREGATOR} */`,
+          '  "billedUnits": 1',
+          '}',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+
+    it('should read no comment out of a URL held in a string value', () => {
+      const file = put(
+        'url.jsonc',
+        lines(
+          '{',
+          '  "aggregatorEndpoint": "http://example.com/collapse/records/into/one/billed/unit"',
+          '}',
+        ),
+      );
+      assertAbsent(check(file).out, 'WIDTH');
+    });
+
+    it('should exit 0 on a file whose only long line is a string value', () => {
+      const file = put(
+        'url-exit.jsonc',
+        lines(
+          '{',
+          '  "aggregatorEndpoint": "http://example.com/collapse/records/into/one/billed/unit"',
+          '}',
+        ),
+      );
+      assert.equal(check(file).status, 0);
+    });
+  });
+
   describe('corner cases', () => {
     it('should leave an aligned usage line byte-identical', () => {
       const file = literalsFixture();

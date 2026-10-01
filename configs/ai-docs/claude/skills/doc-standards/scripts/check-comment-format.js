@@ -149,10 +149,10 @@
 // Usage:
 //   check-comment-format.js [--fix] [--changed-only]
 //     [--max-chars N] [--max-lines N] [--skip-unknown]
-//     [--lang typescript|shell|python] <file> [<file>...]
+//     [--lang typescript|shell|python|jsonc] <file> [<file>...]
 //
 //   check-comment-format.js --content-loss [--skip-unknown]
-//     [--lang typescript|shell|python] <file> [<file>...]
+//     [--lang typescript|shell|python|jsonc] <file> [<file>...]
 //
 // Exit codes:
 //   0  clean (or fully repaired by --fix)
@@ -223,6 +223,19 @@ const LANGUAGES = {
     blankRe: /^#$/,
     prefixRe: /^#\s?/,
     scopeOpeners: [/:$/, /[{([]$/],
+  },
+
+  jsonc: {
+    extensions: ['.jsonc'],
+
+    // No interpreter runs a data file, so none shebangs one.
+    shebangRe: null,
+
+    scan: (text) => scanCommentRanges(text, jsoncDialect()),
+    delimiterRe: /^(\*\/|\/\*)$/,
+    blankRe: /^(\*|\/\/)$/,
+    prefixRe: /^(\*|\/\/)\s?/,
+    scopeOpeners: [/[{([]$/],
   },
 };
 
@@ -368,7 +381,7 @@ function tryResolveLanguage(file, text, override) {
 
   const shebang = text.startsWith('#!') ? text.slice(0, text.indexOf('\n') + 1 || undefined) : '';
   for (const lang of Object.values(LANGUAGES)) {
-    if (shebang && lang.shebangRe.test(shebang)) return lang;
+    if (shebang && lang.shebangRe && lang.shebangRe.test(shebang)) return lang;
   }
 
   return null;
@@ -488,6 +501,23 @@ function scanTypescriptCommentRanges(ts, text) {
 // has whitespace in front of it anyway.
 const WORD_SEPARATORS = new Set([...' \t;&|()<>']);
 
+// Shared by every dialect whose strings end at a single
+// closing character; `honorEscapes` is off for the forms
+// where a backslash carries no meaning, such as a shell
+// single-quoted word.
+function skipQuoted(text, from, quote, honorEscapes) {
+  let j = from;
+  while (j < text.length) {
+    if (honorEscapes && text[j] === '\\') {
+      j += 2;
+      continue;
+    }
+    if (text[j] === quote) return j + 1;
+    j++;
+  }
+  return text.length;
+}
+
 // In a comment-lexing dialect the hard part is the strings,
 // not the comment: an opener counts only where none is open.
 //
@@ -553,19 +583,6 @@ function scanCommentRanges(text, dialect) {
 // shift instead of swallowing the rest of the file.
 function shellDialect() {
   const pendingHeredocs = [];
-
-  function skipQuoted(text, from, quote, honorEscapes) {
-    let j = from;
-    while (j < text.length) {
-      if (honorEscapes && text[j] === '\\') {
-        j += 2;
-        continue;
-      }
-      if (text[j] === quote) return j + 1;
-      j++;
-    }
-    return text.length;
-  }
 
   function queueHeredoc(text, from) {
     let j = from;
@@ -675,6 +692,25 @@ function pythonDialect() {
       const triple = ch.repeat(3);
       if (text.startsWith(triple, i)) return skipString(text, i + 3, triple);
       return skipString(text, i + 1, ch);
+    },
+
+    afterNewline(_text, from) {
+      return from;
+    },
+  };
+}
+
+// jsonc's only string form is the double-quoted one, so a
+// `//` anywhere outside one opens a comment.
+function jsoncDialect() {
+  return {
+    lineComments: ['//'],
+    blockComments: [{ open: '/*', close: '*/' }],
+    needsWordBoundary: false,
+
+    skipNonCode(text, i) {
+      if (text[i] !== '"') return null;
+      return skipQuoted(text, i + 1, '"', true);
     },
 
     afterNewline(_text, from) {
