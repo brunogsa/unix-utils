@@ -1,0 +1,200 @@
+#!/bin/bash
+# check-staged-comment-format - Report comment-format
+# violations in the files a `git commit` will contain.
+#
+# Usage:
+#   check-staged-comment-format.sh "<commit command>"
+#
+# stdin: unused.
+#
+# stderr: the checker's report plus one line naming the
+#   offending files, or a warning when it cannot look.
+#
+# exit: 0 clean or nothing to check, 1 violations found.
+#
+# The file set is the union of two sources: the literal
+# pathspecs of every `git add` in the command string, and
+# whatever `git diff --cached` already reports.
+#
+# Both are needed because the sanctioned commit shape here
+# runs `git add` and `git commit` in one chain.
+#
+# A PreToolUse caller sees that chain before the shell runs
+# it, so the index is still empty and the index alone would
+# pass every such commit vacuously.
+#
+# It stays a union rather than a replacement because an
+# index partly staged beforehand is equally real.
+#
+# Known gap: a non-literal pathspec - a glob, a variable, a
+# command substitution, or `-A`/`-a`/`.` - names files only
+# the shell can resolve, and the shell has not run yet.
+#
+# Expanding one here would guess, so the whole command
+# string is discarded instead and the index alone decides,
+# with a warning saying so.
+#
+# Every infrastructure problem - no node, no checker, no git
+# repo, a failing git call - exits 0 with a warning.
+#
+# Blocking every commit in the repo on a broken gate is a
+# worse failure than missing one violation.
+#
+# CHECK_COMMENT_FORMAT_JS overrides the checker path, which
+# is how the suite exercises those failure paths.
+
+CMD="${1:-}"
+[ -z "$CMD" ] && exit 0
+
+# Resolved via BASH_SOURCE (never `$0`, which breaks under
+# `source`) so this finds its sibling parser whether it was
+# reached through the `~/.claude/hooks` symlink or through
+# the repo path.
+CLAUDE_HOOKS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+export CLAUDE_HOOKS_LIB_DIR
+export STAGED_FORMAT_CMD="$CMD"
+export CHECK_COMMENT_FORMAT_JS="${CHECK_COMMENT_FORMAT_JS:-$CLAUDE_HOOKS_LIB_DIR/../../skills/doc-standards/scripts/check-comment-format.js}"
+
+python3 - <<'PYEOF'
+import importlib.util
+import os
+import shlex
+import subprocess
+import sys
+
+# strip_heredoc_bodies() and the quote-aware pipeline
+# splitter live in parse-shell-command.py, shared with the
+# rm and scan-hang guards — see that module's header for why
+# they load it this way rather than with a bare `import`.
+_lib_path = os.path.join(os.environ['CLAUDE_HOOKS_LIB_DIR'], 'parse-shell-command.py')
+_spec = importlib.util.spec_from_file_location('parse_shell_command', _lib_path)
+_parse_shell_command = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_parse_shell_command)
+
+# A pathspec carrying any of these is resolvable only by the
+# shell, which has not run yet.
+NON_LITERAL_CHARS = ('$', '`', '*', '?', '[')
+
+# Flags that stage a set nobody named explicitly.
+STAGE_EVERYTHING_FLAGS = ('-A', '--all', '-a', '-u', '--update')
+
+WARNING_PREFIX = 'check-staged-comment-format:'
+
+
+def warn_and_allow(message):
+    sys.stderr.write('%s %s\n' % (WARNING_PREFIX, message))
+    sys.exit(0)
+
+
+def run_git(args):
+    return subprocess.run(['git'] + args, stdout=subprocess.PIPE,
+                          stderr=subprocess.DEVNULL, text=True)
+
+
+def added_pathspecs(command):
+    """Literal pathspecs of every `git add`, or None when one cannot be read from the command string.
+
+    None is the whole-command verdict, not a per-pathspec one: a single unresolvable member means the caller's real file set is unknown, and the other members are no longer a set anyone can trust.
+    """
+    paths = []
+    for stages in _parse_shell_command.split_into_pipelines(command):
+        for stage in stages:
+            try:
+                tokens = shlex.split(stage, comments=True)
+            except ValueError:
+                return None
+            if len(tokens) < 2 or os.path.basename(tokens[0]) != 'git':
+                continue
+            if tokens[1] != 'add':
+                continue
+            after_options = False
+            for token in tokens[2:]:
+                if not after_options and token == '--':
+                    after_options = True
+                    continue
+                if not after_options and token.startswith('-'):
+                    if token in STAGE_EVERYTHING_FLAGS:
+                        return None
+                    continue
+                if token == '.' or any(c in token for c in NON_LITERAL_CHARS):
+                    return None
+                paths.append(token)
+    return paths
+
+
+# A heredoc body is data fed to a sink, never shell
+# structure, so a `git add` written inside a commit message
+# must not be read as one the caller is about to run.
+command = _parse_shell_command.strip_heredoc_bodies(os.environ.get('STAGED_FORMAT_CMD', ''))
+
+toplevel = run_git(['rev-parse', '--show-toplevel'])
+if toplevel.returncode != 0:
+    warn_and_allow('not inside a git repository, skipping the check')
+repo_root = toplevel.stdout.strip()
+
+index = run_git(['diff', '--cached', '--name-only'])
+if index.returncode != 0:
+    warn_and_allow('could not read the git index, skipping the check')
+
+candidates = []
+
+
+def add_candidate(path):
+    if path not in candidates:
+        candidates.append(path)
+
+
+# Command pathspecs are relative to the invoking directory
+# while index paths are relative to the repo root, so both
+# are made absolute before the union can dedupe them.
+pathspecs = added_pathspecs(command)
+if pathspecs is None:
+    sys.stderr.write(
+        '%s could not read the file set from the command string, '
+        'using the git index alone\n' % WARNING_PREFIX)
+    pathspecs = []
+for pathspec in pathspecs:
+    add_candidate(os.path.abspath(pathspec))
+for relative in index.stdout.splitlines():
+    if relative.strip():
+        add_candidate(os.path.join(repo_root, relative))
+
+# A staged deletion leaves nothing on disk to lex.
+files = [path for path in candidates if os.path.isfile(path)]
+if not files:
+    sys.exit(0)
+
+checker = os.environ['CHECK_COMMENT_FORMAT_JS']
+if not os.path.isfile(checker):
+    warn_and_allow('comment checker not found at %s' % checker)
+
+# --skip-unknown keeps a staged .md or .json from failing
+# the run for the files that do lex, and --changed-only
+# keeps a legacy file's pre-existing comments out of the
+# verdict for a one-line edit to it.
+try:
+    checked = subprocess.run(
+        ['node', checker, '--skip-unknown', '--changed-only'] + files,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+except OSError as error:
+    warn_and_allow('could not run the comment checker: %s' % error)
+
+if checked.returncode == 0:
+    sys.exit(0)
+
+# Exit 1 is the checker's verdict; anything else is the
+# checker failing to reach one, which fails open like any
+# other infrastructure problem.
+if checked.returncode != 1:
+    sys.stderr.write(checked.stderr)
+    warn_and_allow('comment checker exited %d without a verdict, skipping'
+                   % checked.returncode)
+
+offenders = [line[3:].strip() for line in checked.stdout.splitlines()
+             if line.startswith('== ')]
+sys.stderr.write(checked.stdout)
+sys.stderr.write(checked.stderr)
+sys.stderr.write('%s comment-format violations in: %s\n'
+                 % (WARNING_PREFIX, ', '.join(offenders or files)))
+sys.exit(1)
+PYEOF
