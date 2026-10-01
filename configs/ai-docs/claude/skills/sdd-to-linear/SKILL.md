@@ -172,3 +172,7 @@ Also list each `blockedBy` relation left unwritten, naming both PRs, so a partia
 Name too each comment write and the project-description write that was rejected, for the same reason.
 
 Why: the reader walks from plan to Linear without opening the workspace.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
