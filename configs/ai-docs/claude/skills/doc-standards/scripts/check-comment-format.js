@@ -127,13 +127,26 @@
 //
 // A single-line row (WIDTH, SENTENCE-BREAK, BULLET-SPACING,
 // BULLET-BLANK, CODE-GAP) is in scope when its own line
-// changed; the PARAGRAPH range row is in scope only when every
-// line in its range changed.
+// changed, in both modes.
+//
+// The PARAGRAPH range row splits by mode: report mode takes it
+// when ANY line of the range changed, --fix only when every
+// line did.
+//
+// Report mode widens because growing an existing run past the
+// cap is the common way to break it, and a gate silent on that
+// is worse than one charging you a run you only partly wrote.
+//
+// --fix stays strict because it really does split paragraphs,
+// and fixing a range reaching into untouched lines is exactly
+// the churn --changed-only exists to prevent.
 //
 // Out-of-scope violations are invisible -- not printed, not
-// counted, not touched by --fix -- so a caller looping "until
-// clean" never re-fights a violation that predates its own
-// edits.
+// counted, not touched by --fix.
+//
+// A caller looping "--fix --changed-only until clean" is
+// therefore never re-fighting a violation that predates its
+// own edits, nor shown a row that mode refuses to repair.
 //
 // --content-loss reports that one row instead of the rules
 // above, and never rewrites -- pairing it with --fix is a usage
@@ -507,12 +520,19 @@ function getChangedLineSet(file) {
   return changedLines;
 }
 
-// A single-line row is in scope by its own line; the PARAGRAPH
-// range row needs every line in [start, end] to be changed.
+// A single-line row is in scope by its own line in both modes.
 //
-// Stricter on purpose: fixing a range that reaches into
-// untouched lines is exactly the churn --changed-only exists to
-// prevent.
+// The PARAGRAPH range row splits on fix: report mode takes it
+// when any line of [start, end] changed, --fix only when every
+// line did.
+//
+// --fix stays strict because fixing a range that reaches into
+// untouched lines is exactly the churn --changed-only exists
+// to prevent.
+//
+// Report mode widens because the gate only reports, and a
+// silent gate that misses a grown run is worse than a noisy
+// one.
 function filterToChangedScope(report, changedLines, fix) {
   const inScope = (line) => changedLines.has(line);
 
