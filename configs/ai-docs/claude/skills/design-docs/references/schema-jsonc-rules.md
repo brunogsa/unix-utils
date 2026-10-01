@@ -6,10 +6,12 @@ When a doc shows a request/response/event payload, render it as one annotated JS
 
 Keep every line ≤80 chars: short annotations stay inline.
 
+- The example file itself keeps the repo's 64-char source-comment cap (the comment-format gate lexes `.jsonc`); schemas rendered in a markdown doc keep the 80-char guidance.
+
 - When a full annotation would push the field line past 80, move the comment above the field (wrapped, multi-line), preceded by a blank line so it hugs its field.
 
 - The only allowed shorthand for a nested object is "same shape as X", for a sub-object whose schema is shown elsewhere; never drop a field to shorten.
-  - When such a `/* ... */` placeholder runs long, wrap it across lines inside its braces; it is a value placeholder, not a trailing annotation, so it is not moved above.
+  - Wrap a long `/* ... */` placeholder inside its braces; it is a value, not a trailing annotation, so it is not moved above.
 
 - List every enum value inline; when the enum is huge (~60), say so and give the rule instead.
 
@@ -24,7 +26,7 @@ Keep every line ≤80 chars: short annotations stay inline.
 
 - Measure before wrapping (`wc -c` on the line).
   - A line that looks long by eye often already fits within 80 chars.
-  - Splitting one that doesn't need it adds noise instead of removing it.
+  - Needless splitting adds noise.
 
 **The description segment is optional** — include it only when it adds real information beyond the name and type; otherwise omit it rather than forcing one.
 
