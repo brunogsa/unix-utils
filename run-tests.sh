@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run-tests.sh - Run every bash test suite in this repo.
+# run-tests.sh - Run every test suite in this repo.
 #
 # Usage:
 #   ./run-tests.sh
@@ -9,8 +9,8 @@
 #   1 - at least one suite failed
 #   2 - the headroom gate refused, or is missing; no run
 #
-# The repo-root pytest.ini's suites run here too, as one
-# more entry alongside the bash suites below.
+# Three legs run here: the bash suites, the node:test
+# suites, and the repo-root pytest.ini's python suites.
 #
 # A prior version left pytest out and pointed at running
 # it separately — but nothing enforced that second
@@ -130,6 +130,43 @@ do
   # socket), so any stray stdin read inside a suite would
   # hang this run indefinitely.
   if bash "$suite" < /dev/null > "$log_file" 2>&1; then
+    record_pass "$suite"
+  else
+    record_fail "$suite" "$log_file"
+  fi
+done
+
+# node:test suites run here as one more leg, globbed over
+# the same four trees as the bash loop above, so a new
+# node suite anywhere a bash suite can live needs no
+# registration step either.
+#
+# One entry per file, unlike the single pytest entry
+# below: pytest.ini is itself the discovery mechanism,
+# while here the glob is, so each FAIL line names a path
+# a human re-runs verbatim as `node --test <path>`.
+#
+# A missing node binary fails loudly for the same reason
+# the pytest step does: skipping it would reopen the very
+# gap this fold-in closes.
+#
+# Zero matched suites is not a failure - an unmatched
+# glob is an empty leg, which the `-f` guard skips.
+for suite in \
+  configs/ai-docs/claude/tests/*.test.js \
+  configs/ai-docs/claude/scripts/tests/*.test.js \
+  configs/ai-docs/claude/hooks/tests/*.test.js \
+  configs/ai-docs/claude/skills/*/scripts/tests/*.test.js
+do
+  [ -f "$suite" ] || continue
+
+  suite_index=$((suite_index + 1))
+  log_file="$log_dir/$suite_index.log"
+
+  if ! command -v node > /dev/null 2>&1; then
+    printf 'node: command not found\n' > "$log_file"
+    record_fail "$suite" "$log_file"
+  elif node --test "$suite" < /dev/null > "$log_file" 2>&1; then
     record_pass "$suite"
   else
     record_fail "$suite" "$log_file"
