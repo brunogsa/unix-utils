@@ -37,7 +37,13 @@
 # command substitution, or `-A`/`-a`/`.` - names files only
 # the shell can resolve, and the shell has not run yet.
 #
-# Expanding one here would guess, so the whole command
+# A `cd` or `-C` target the gate cannot name - a missing
+# directory, a variable, a command substitution - lands in
+# that same gap, since it leaves every later pathspec
+# rooted nowhere the gate can point at.
+#
+# Expanding or guessing one here would judge whichever
+# files happen to sit elsewhere, so the whole command
 # string is discarded instead and the index alone decides,
 # with a warning saying so.
 #
@@ -105,16 +111,19 @@ def resolve(cwd, path):
 
 
 def directory_after_cd(cwd, args):
-    """The directory a `cd` stage lands in, or the unchanged cwd when its argument is not a literal path."""
+    """The directory a `cd` stage lands in, or None when the gate cannot know which one that is.
+
+    None rather than the unchanged cwd: a `cd` whose target the gate cannot name moves every later pathspec somewhere unknown, and resolving them against the directory the hook merely started in would judge whichever files happen to sit there.
+    """
     if not args:
         return os.path.expanduser('~')
     target = args[0]
     if len(args) != 1 or target.startswith('-'):
-        return cwd
+        return None
     if any(c in target for c in NON_LITERAL_CHARS):
-        return cwd
+        return None
     landed = resolve(cwd, target)
-    return landed if os.path.isdir(landed) else cwd
+    return landed if os.path.isdir(landed) else None
 
 
 def git_subcommand_scope(tokens, directory):
@@ -158,6 +167,8 @@ def added_pathspecs(command, start_directory):
                 continue
             if tokens[0] == 'cd':
                 directory = directory_after_cd(directory, tokens[1:])
+                if directory is None:
+                    return None, start_directory
                 continue
             if len(tokens) < 2 or os.path.basename(tokens[0]) != 'git':
                 continue

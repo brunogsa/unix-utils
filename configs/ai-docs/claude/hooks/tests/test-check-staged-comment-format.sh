@@ -232,6 +232,49 @@ it_should_still_judge_the_index_when_a_pathspec_is_a_variable() {
     1 "$GATE_EXIT"
 }
 
+# A `cd` the gate cannot follow leaves every later
+# pathspec rooted nowhere it can name, so the command
+# string is discarded whole rather than resolved against
+# a directory that is merely the one it started in.
+it_should_fall_back_to_the_index_when_a_cd_target_is_missing() {
+  local repo
+  repo=$(new_repo unit8missingdir)
+  write_violating_shell_file "$repo/deploy.sh"
+
+  run_gate "$repo" \
+    "cd $tmp_root/no-such-dir && git add deploy.sh && git commit -m \"x\""
+
+  assert_eq "should allow a commit whose cd target does not exist when the index is clean" \
+    0 "$GATE_EXIT"
+  assert_contains "should say the file set could not be read when the cd target is missing" \
+    "command string" "$GATE_STDERR"
+}
+
+it_should_fall_back_to_the_index_when_a_cd_argument_is_a_variable() {
+  local repo
+  repo=$(new_repo unit8cdvar)
+  write_violating_shell_file "$repo/deploy.sh"
+
+  run_gate "$repo" 'cd "$(pwd)" && git add deploy.sh && git commit -m "x"'
+
+  assert_eq "should allow a commit whose cd argument is a command substitution when the index is clean" \
+    0 "$GATE_EXIT"
+  assert_contains "should say the file set could not be read when the cd argument is non-literal" \
+    "command string" "$GATE_STDERR"
+}
+
+it_should_still_judge_the_index_when_a_cd_argument_is_a_variable() {
+  local repo
+  repo=$(new_repo unit8cdvarstaged)
+  write_violating_shell_file "$repo/release.sh"
+  git -C "$repo" add release.sh
+
+  run_gate "$repo" 'cd $HOME && git add deploy.sh && git commit -m "x"'
+
+  assert_eq "should block on the index verdict when the cd argument is a variable" \
+    1 "$GATE_EXIT"
+}
+
 # A staged file no comment lexer covers must not decide
 # the run for the files that do lex.
 it_should_allow_a_staged_markdown_file_beside_a_clean_shell_file() {
@@ -302,6 +345,9 @@ it_should_block_a_violation_staged_through_git_dash_c
 it_should_block_a_violation_in_an_already_staged_file
 it_should_fall_back_to_the_index_when_a_pathspec_is_a_variable
 it_should_still_judge_the_index_when_a_pathspec_is_a_variable
+it_should_fall_back_to_the_index_when_a_cd_target_is_missing
+it_should_fall_back_to_the_index_when_a_cd_argument_is_a_variable
+it_should_still_judge_the_index_when_a_cd_argument_is_a_variable
 it_should_allow_a_staged_markdown_file_beside_a_clean_shell_file
 it_should_block_a_shell_violation_staged_beside_a_markdown_file
 it_should_allow_the_commit_when_the_checker_is_missing
