@@ -835,12 +835,15 @@ describe('check-comment-format', () => {
         ),
       );
 
+    // The hash sits after a space inside the quotes, where
+    // only the quote skipping keeps it out of a comment --
+    // the word-boundary rule alone would let it open one.
     const quotedScalarFile = (rel, quote) =>
       put(
         rel,
         lines(
           'billing:',
-          `  endpoint: ${quote}http://example.com/collapse/records/into/one#billed-unit${quote}`,
+          `  summary: ${quote}collapse the records # into a single billed unit now${quote}`,
         ),
       );
 
@@ -887,6 +890,17 @@ describe('check-comment-format', () => {
 
     it('should read no comment out of a single-quoted scalar', () => {
       const file = quotedScalarFile('single.yml', "'");
+      assertAbsent(check(file).out, 'WIDTH');
+    });
+
+    it('should read no comment out of a hash inside a plain word', () => {
+      const file = put(
+        'color.yaml',
+        lines(
+          'theme:',
+          '  color: red#ff0000 padded out well past the sixty-four char cap here',
+        ),
+      );
       assertAbsent(check(file).out, 'WIDTH');
     });
   });
