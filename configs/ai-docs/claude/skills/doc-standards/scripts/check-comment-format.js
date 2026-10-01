@@ -332,7 +332,11 @@ const LANGUAGES = {
 
     // A long-bracket delimiter carries its own level, so the
     // `=` run is part of what makes the line prose-neutral.
-    delimiterRe: /^(--\[=*\[|\]=*\])$/,
+    //
+    // The toggle idiom `--]]` closes the block too, so it is a
+    // delimiter rather than a prose line that merely starts
+    // with the `--` line-comment marker.
+    delimiterRe: /^(--\[=*\[|(--)?\]=*\])$/,
 
     blankRe: /^(--)?$/,
     prefixRe: /^--\s?/,
