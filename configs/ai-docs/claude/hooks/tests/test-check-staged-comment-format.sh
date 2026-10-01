@@ -79,6 +79,17 @@ write_violating_shell_file() {
   } > "$path"
 }
 
+# write_clean_shell_file - a shell file whose comments
+# already satisfy every comment-format rule.
+write_clean_shell_file() {
+  local path="$1"
+  {
+    printf '#!/usr/bin/env bash\n'
+    printf '# Greet the operator.\n'
+    printf 'echo hello\n'
+  } > "$path"
+}
+
 # run_gate - invokes the gate from inside a fixture repo
 # with the given commit command string. Captures the exit
 # code into GATE_EXIT and the report into GATE_STDERR.
@@ -164,11 +175,43 @@ it_should_still_judge_the_index_when_a_pathspec_is_a_variable() {
     1 "$GATE_EXIT"
 }
 
+# A staged file no comment lexer covers must not decide
+# the run for the files that do lex.
+it_should_allow_a_staged_markdown_file_beside_a_clean_shell_file() {
+  local repo
+  repo=$(new_repo unit4clean)
+  write_clean_shell_file "$repo/greet.sh"
+  printf '# Notes\n' > "$repo/notes.md"
+  git -C "$repo" add greet.sh notes.md
+
+  run_gate "$repo" 'git commit -m "x"'
+
+  assert_eq "should allow a commit mixing a markdown file with a clean shell file" \
+    0 "$GATE_EXIT"
+}
+
+it_should_block_a_shell_violation_staged_beside_a_markdown_file() {
+  local repo
+  repo=$(new_repo unit4violating)
+  write_violating_shell_file "$repo/deploy.sh"
+  printf '# Notes\n' > "$repo/notes.md"
+  git -C "$repo" add deploy.sh notes.md
+
+  run_gate "$repo" 'git commit -m "x"'
+
+  assert_eq "should still block the shell violation when a markdown file is staged too" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the shell file rather than the markdown one" \
+    "deploy.sh" "$GATE_STDERR"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_in_an_already_staged_file
 it_should_fall_back_to_the_index_when_a_pathspec_is_a_variable
 it_should_still_judge_the_index_when_a_pathspec_is_a_variable
+it_should_allow_a_staged_markdown_file_beside_a_clean_shell_file
+it_should_block_a_shell_violation_staged_beside_a_markdown_file
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
