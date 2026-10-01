@@ -1821,4 +1821,22 @@ describe('lexing false positives', () => {
       assertContains(check(file).out, 'PARAGRAPH 2-6:5');
     });
   });
+
+  describe('an empty line inside a typescript block-comment body', () => {
+    it('should reset the paragraph run in a typescript block comment', () => {
+      const file = put(
+        'blank.ts',
+        lines('/*', ...PROSE, '', ...MORE_PROSE, '*/', 'export const a = 1;'),
+      );
+      assertAbsent(check(file).out, 'PARAGRAPH');
+    });
+
+    it('should still report six consecutive prose lines in a typescript block comment', () => {
+      const file = put(
+        'six.ts',
+        lines('/*', ...PROSE, ...MORE_PROSE, '*/', 'export const a = 1;'),
+      );
+      assertContains(check(file).out, 'PARAGRAPH 2-7:6');
+    });
+  });
 });
