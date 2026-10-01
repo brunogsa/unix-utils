@@ -615,6 +615,81 @@ it_should_report_a_violation_once_when_two_spellings_name_the_same_file() {
     1 "$count"
 }
 
+# A directory pathspec commits every modified file under
+# it, so the gate must expand the directory rather than
+# drop it for not being a file.
+it_should_block_a_violation_in_a_file_under_a_directory_commit_pathspec() {
+  local repo
+  repo=$(new_repo unit16dirviolation)
+  mkdir -p "$repo/services/billing"
+  write_clean_shell_file "$repo/services/billing/deploy.sh"
+  commit_tracked_file "$repo" services/billing/deploy.sh
+  write_violating_shell_file "$repo/services/billing/deploy.sh"
+
+  run_gate "$repo" 'git commit services/ -m "x"'
+
+  assert_eq "should block a commit whose directory pathspec holds a modified violating file" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the violating file found under the directory pathspec" \
+    "deploy.sh" "$GATE_STDERR"
+}
+
+it_should_allow_a_directory_commit_pathspec_with_no_modified_file_under_it() {
+  local repo
+  repo=$(new_repo unit16dirclean)
+  mkdir -p "$repo/services"
+  write_clean_shell_file "$repo/services/deploy.sh"
+  commit_tracked_file "$repo" services/deploy.sh
+
+  run_gate "$repo" 'git commit services/ -m "x"'
+
+  assert_eq "should allow a directory pathspec with nothing modified under it" \
+    0 "$GATE_EXIT"
+  assert_eq "should stay silent for a directory pathspec with nothing modified under it" \
+    "" "$GATE_STDERR"
+}
+
+# A git that refuses the working-tree listing must not read
+# as "nothing modified": the gate warns, like every other
+# unreadable git call, and lets the commit through.
+it_should_warn_and_allow_when_a_directory_commit_pathspec_cannot_be_listed() {
+  local repo shim_dir real_git
+  repo=$(new_repo unit16dirlistfails)
+  mkdir -p "$repo/services"
+  write_clean_shell_file "$repo/services/deploy.sh"
+  commit_tracked_file "$repo" services/deploy.sh
+  write_violating_shell_file "$repo/services/deploy.sh"
+  shim_dir="$tmp_root/unit16shim"
+  real_git=$(command -v git)
+  mkdir -p "$shim_dir"
+  {
+    printf '#!/usr/bin/env bash\n'
+    printf 'case " $* " in *" HEAD "*) exit 128;; esac\n'
+    printf 'exec %s "$@"\n' "$real_git"
+  } > "$shim_dir/git"
+  chmod +x "$shim_dir/git"
+
+  GATE_STDERR=$(cd "$repo" \
+    && PATH="$shim_dir:$PATH" bash "$SCRIPT" 'git commit services/ -m "x"' 2>&1 >/dev/null)
+  GATE_EXIT=$?
+
+  assert_eq "should allow the commit when the directory listing fails" \
+    0 "$GATE_EXIT"
+  assert_contains "should warn that the directory pathspec could not be listed" \
+    "could not list" "$GATE_STDERR"
+}
+
+it_should_allow_a_commit_pathspec_naming_neither_a_file_nor_a_directory() {
+  local repo
+  repo=$(new_repo unit16missingpath)
+  write_violating_shell_file "$repo/deploy.sh"
+
+  run_gate "$repo" 'git commit no-such-path -m "x"'
+
+  assert_eq "should allow a commit pathspec that names nothing on disk" \
+    0 "$GATE_EXIT"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
@@ -645,6 +720,10 @@ it_should_block_a_violation_in_a_file_named_after_a_commit_double_dash
 it_should_not_read_a_commit_option_value_as_a_pathspec
 it_should_fall_back_to_the_index_when_a_commit_pathspec_is_a_variable
 it_should_report_a_violation_once_when_two_spellings_name_the_same_file
+it_should_block_a_violation_in_a_file_under_a_directory_commit_pathspec
+it_should_allow_a_directory_commit_pathspec_with_no_modified_file_under_it
+it_should_warn_and_allow_when_a_directory_commit_pathspec_cannot_be_listed
+it_should_allow_a_commit_pathspec_naming_neither_a_file_nor_a_directory
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

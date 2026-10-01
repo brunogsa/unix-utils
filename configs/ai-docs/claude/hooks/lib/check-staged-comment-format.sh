@@ -356,6 +356,17 @@ if scope.pathspecs is None:
 else:
     for pathspec in scope.pathspecs:
         add_candidate(pathspec)
+        # `git commit <dir>` commits every file under it whose
+        # working tree differs from HEAD, and a directory is
+        # no file, so it would otherwise be dropped unchecked.
+        if os.path.isdir(pathspec):
+            changed = run_git(['-c', 'diff.relative=false', 'diff',
+                               '--name-only', 'HEAD', '--', pathspec],
+                              scope.directory)
+            if changed.returncode != 0:
+                warn_and_allow('could not list the files changed under '
+                               '%s, skipping the check' % pathspec)
+            add_candidates_listed_by_git(changed.stdout)
 add_candidates_listed_by_git(index.stdout)
 
 # `-a` stages every tracked modified file at commit time,
