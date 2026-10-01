@@ -1127,14 +1127,33 @@ function cssDialect() {
 
     skipNonCode(text, i) {
       const ch = text[i];
-      if (ch !== '"' && ch !== "'") return null;
-      return skipQuoted(text, i + 1, ch, true);
+      if (ch === '"' || ch === "'") return skipQuoted(text, i + 1, ch, true);
+      return skipUnquotedUrl(text, i);
     },
 
     afterNewline(_text, from) {
       return from;
     },
   };
+}
+
+// An unquoted `url(...)` token is one literal run to its `)`,
+// so a `/*` inside it opens no comment.
+//
+// A quoted argument returns null so the quote handling above
+// still owns it, and a token with no `)` on its line ends at
+// the line break rather than swallowing the rest of the file.
+function skipUnquotedUrl(text, i) {
+  const opener = /^url\(\s*/i.exec(text.slice(i, i + 64));
+  if (!opener || /[\w-]/.test(text[i - 1] ?? '')) return null;
+
+  let j = i + opener[0].length;
+  if (text[j] === '"' || text[j] === "'") return null;
+
+  while (j < text.length && text[j] !== ')' && text[j] !== '\n') {
+    j += text[j] === '\\' ? 2 : 1;
+  }
+  return text[j] === ')' ? j + 1 : j;
 }
 
 // An apostrophe in text content (`don't`) outnumbers quoted

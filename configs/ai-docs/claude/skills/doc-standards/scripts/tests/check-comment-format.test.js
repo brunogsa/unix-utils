@@ -1743,4 +1743,37 @@ describe('lexing false positives', () => {
     });
   });
 
+  describe('an unquoted css url token', () => {
+    const urlCss = (target) =>
+      put(
+        'url.css',
+        lines(
+          '.a {',
+          '  /* a short real comment */',
+          `  background: url(${target});`,
+          '  color: red;',
+          '}',
+          '.b {',
+          '  /* second short comment */',
+          '  color: blue;',
+          '}',
+        ),
+      );
+
+    it('should open no comment at a slash-star inside an unquoted url', () => {
+      assert.equal(check(urlCss('img/a/*b.png')).status, 0);
+    });
+
+    it('should open no comment at a slash-star inside a spaced uppercase URL', () => {
+      assert.equal(check(urlCss('img/a/*b.png').replace('url(', 'URL( ')).status, 0);
+    });
+
+    it('should still read a real comment after the unquoted url closes', () => {
+      const file = put(
+        'after.css',
+        lines('.a { background: url(a/*b.png); }', `/* ${AGGREGATOR} */`),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+  });
 });
