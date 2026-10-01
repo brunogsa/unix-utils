@@ -436,6 +436,49 @@ it_should_judge_the_commit_dash_c_index_from_outside_any_repo() {
     "release.sh" "$GATE_STDERR"
 }
 
+# A `-C` target the gate cannot name lands in the same gap
+# an unfollowable `cd` does: every later pathspec is rooted
+# nowhere it can point at, so the whole command string is
+# discarded and the index alone decides.
+it_should_fall_back_to_the_index_when_a_git_dash_c_target_is_missing() {
+  local repo
+  repo=$(new_repo unit11dashcmissing)
+  write_violating_shell_file "$repo/deploy.sh"
+
+  run_gate "$repo" \
+    "git -C $tmp_root/no-such-dir add deploy.sh && git commit -m \"x\""
+
+  assert_eq "should allow a commit whose git -C target does not exist when the index is clean" \
+    0 "$GATE_EXIT"
+  assert_contains "should say the file set could not be read when the git -C target is missing" \
+    "command string" "$GATE_STDERR"
+}
+
+it_should_fall_back_to_the_index_when_a_git_dash_c_target_is_non_literal() {
+  local repo
+  repo=$(new_repo unit11dashcsubst)
+  write_violating_shell_file "$repo/deploy.sh"
+
+  run_gate "$repo" 'git -C "$(pwd)" add deploy.sh && git commit -m "x"'
+
+  assert_eq "should allow a commit whose git -C target is a command substitution when the index is clean" \
+    0 "$GATE_EXIT"
+  assert_contains "should say the file set could not be read when the git -C target is non-literal" \
+    "command string" "$GATE_STDERR"
+}
+
+it_should_still_judge_the_index_when_a_git_dash_c_target_is_a_variable() {
+  local repo
+  repo=$(new_repo unit11dashcvarstaged)
+  write_violating_shell_file "$repo/release.sh"
+  git -C "$repo" add release.sh
+
+  run_gate "$repo" 'git -C $REPO add deploy.sh && git commit -m "x"'
+
+  assert_eq "should block on the index verdict when the git -C target is a variable" \
+    1 "$GATE_EXIT"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
@@ -454,6 +497,9 @@ it_should_block_a_violation_git_commit_dash_a_would_stage
 it_should_block_a_commit_dash_a_violation_after_a_leading_cd
 it_should_judge_the_index_of_the_repo_the_commit_dash_c_names
 it_should_judge_the_commit_dash_c_index_from_outside_any_repo
+it_should_fall_back_to_the_index_when_a_git_dash_c_target_is_missing
+it_should_fall_back_to_the_index_when_a_git_dash_c_target_is_non_literal
+it_should_still_judge_the_index_when_a_git_dash_c_target_is_a_variable
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
