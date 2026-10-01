@@ -851,10 +851,11 @@ it_should_ignore_an_empty_or_root_tmpdir() {
 }
 
 # The hook keeps a literal extension list in its `case` so the
-# `*)` arm returns without a node startup on every write. This
-# pins that literal to the checker's own --list-extensions, so
-# widening one without the other fails here instead of silently
-# leaving files ungated.
+# `*)` arm returns without a node startup on every write.
+#
+# This pins that literal to the checker's own
+# --list-extensions, so widening one without the other fails
+# here instead of silently leaving files ungated.
 it_should_gate_exactly_the_extensions_the_checker_lists() {
   local checker="$script_dir/../skills/doc-standards/scripts/check-comment-format.js"
   local checker_set hook_set
