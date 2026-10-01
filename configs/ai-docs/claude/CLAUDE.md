@@ -159,7 +159,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] **CRITICAL: Remove unused artifacts** -- code, configs, mocks, env vars, scripts, docs. Trace back and remove all orphans.
   - [Why] Orphan code/configs/mocks accumulate as "is this still used?" debt — readers spend cycles auditing dead weight.
 
-- [Instruction] Put ephemeral scratch — throwaway scripts, debug dumps — in /tmp, never the repo or CWD, UNLESS user-reviewed, then gitignored in CWD; see Note-taking discipline.
+- [Instruction] Put ephemeral scratch — throwaway scripts, debug dumps — in /tmp, never the repo or CWD, UNLESS user-reviewed, then left untracked in CWD; see Note-taking discipline.
   - [Why] Unreviewed scratch in the repo gets committed by accident or rots as orphan debt.
 
   - [Example] User-reviewed → CWD: a `to-spec` spec or `to-plan` plan, manual-verification `.md`. Never-reviewed → /tmp: debug dumps, one-off scripts, diff snapshots.
