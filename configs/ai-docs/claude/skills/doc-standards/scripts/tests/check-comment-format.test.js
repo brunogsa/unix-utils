@@ -871,6 +871,18 @@ describe('check-comment-format', () => {
       const file = unlexableFixture();
       assert.equal(run(['--skip-unknown', file]).out, '');
     });
+
+    it('should exit 1 when a violating python file is run beside a skipped unlexable one', () => {
+      const violating = readonlyFixture();
+      const unlexable = unlexableFixture();
+      assert.equal(run(['--skip-unknown', violating, unlexable]).status, 1);
+    });
+
+    it('should report the python violations when a skipped unlexable file is in the same run', () => {
+      const violating = readonlyFixture();
+      const unlexable = unlexableFixture();
+      assertContains(run(['--skip-unknown', violating, unlexable]).out, 'WIDTH');
+    });
   });
 
   describe('failure scenarios', () => {
