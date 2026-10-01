@@ -43,6 +43,26 @@ new_fixture() {
     mktemp -d
 }
 
+it_should_report_a_markdown_link_whose_target_is_a_git_remote_branch_name() {
+    echo "it_should_report_a_markdown_link_whose_target_is_a_git_remote_branch_name"
+    local d; d=$(new_fixture)
+    printf 'Falls back to [the remote default](origin/HEAD) when unset.\n' > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 1" "1" "$status"
+    assert_eq "the branch-name target is reported" "1" "$(grep -c -- '-> origin/HEAD$' /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
+it_should_report_a_markdown_link_whose_target_is_the_na_abbreviation() {
+    echo "it_should_report_a_markdown_link_whose_target_is_the_na_abbreviation"
+    local d; d=$(new_fixture)
+    printf 'Marked [not applicable](N/A) by the author.\n' > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 1" "1" "$status"
+    assert_eq "the abbreviation target is reported" "1" "$(grep -c -- '-> N/A$' /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
 it_should_pass_a_markdown_link_ref_that_resolves() {
     echo "it_should_pass_a_markdown_link_ref_that_resolves"
     local d; d=$(new_fixture)
@@ -351,6 +371,8 @@ it_should_not_flag_the_na_abbreviation_as_a_broken_ref() {
     rm -rf "$d"
 }
 
+it_should_report_a_markdown_link_whose_target_is_a_git_remote_branch_name
+it_should_report_a_markdown_link_whose_target_is_the_na_abbreviation
 it_should_pass_a_markdown_link_ref_that_resolves
 it_should_pass_a_link_with_backtick_text_whose_target_resolves
 it_should_not_flag_a_bare_backtick_path_to_a_nonexistent_file

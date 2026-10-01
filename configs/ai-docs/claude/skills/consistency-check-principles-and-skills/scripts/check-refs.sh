@@ -167,56 +167,6 @@ is_real_absolute_path_candidate() {
     [ -d "/$first_segment" ]
 }
 
-# True (0) when $path's shape matches a git revision name rather
-# than a file path: a remote-tracking ref (`origin/HEAD`,
-# `upstream/main`) or a conventional-commit-prefixed branch name
-# (`feat/parser/pr2`, `release/1.2`, `test/itgd-3283`).
-#
-# Prose can write these refs as link targets — base-ref
-# fallback docs, PR handoff notes — and none of them resolve on
-# disk, so without this check every mention becomes a permanent,
-# unfixable BLOCKING finding.
-#
-# The prefix list mirrors this repo's own Conventional Commits
-# types (commit-standards) plus the two remote names and branch
-# conventions actually seen in this corpus.
-#
-# scripts/gen-shard-manifest.sh's resolve_candidate() needs no
-# such shape check: a git revision name never resolves to a
-# real file, so it is already silently dropped by the same
-# existence check every other non-path candidate fails.
-is_git_revision_shape() {
-    local path=$1
-    local first_segment="${path%%/*}"
-    case "$first_segment" in
-        origin|upstream) return 0 ;;
-    esac
-    case "$path" in
-        feat/*|fix/*|chore/*|docs/*|refactor/*|perf/*|test/*|build/*|ci/*|style/*|revert/*|release/*|hotfix/*|bugfix/*)
-            return 0 ;;
-    esac
-    return 1
-}
-
-# True (0) when $path's shape is a slash abbreviation, not a
-# file path: exactly two all-uppercase-letter segments, as in
-# `N/A`, `I/O`, `R/W`, `TCP/IP`.
-#
-# Written as a link target, one is a candidate that resolves
-# to nothing. No live skill does, so only tests exercise this.
-#
-# The rule is a shape, not a list of known tokens. It would also
-# let through a genuinely broken ref to an all-uppercase
-# two-segment path with no extension, like `README/LICENSE`; no
-# skill in this corpus references one.
-#
-# scripts/gen-shard-manifest.sh's resolve_candidate() needs no
-# such shape check: `N/A` never resolves to a real file, so
-# the existence check already drops it silently.
-is_slash_abbreviation_shape() {
-    [[ "$1" =~ ^[A-Z]+/[A-Z]+$ ]]
-}
-
 # Resolve $path relative to $referencing_file's own directory
 # (or as an absolute/home path).
 #
@@ -255,9 +205,8 @@ report_broken() {
 # file-ref target.
 #
 # That includes in-page `#anchor`-only links, a URL scheme,
-# trailing-slash directory mentions like `scripts/`, git
-# revision names like `origin/HEAD` or `feat/parser/pr2`, and
-# prose caught by an over-eager link match.
+# trailing-slash directory mentions like `scripts/`, and prose
+# caught by an over-eager link match.
 #
 # Those aren't the blocking heuristic's cross-file-reference
 # target, so they're not refs to begin with, not refs that
@@ -280,10 +229,6 @@ check_candidate() {
 
     case "$path" in
         /*) is_real_absolute_path_candidate "$path" || return 0 ;;
-        */*)
-            is_git_revision_shape "$path" && return 0
-            is_slash_abbreviation_shape "$path" && return 0
-            ;;
     esac
 
     resolved="$(resolve_target_path "$file" "$path")"
