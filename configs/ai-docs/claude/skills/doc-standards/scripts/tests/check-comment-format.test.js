@@ -1226,6 +1226,47 @@ describe('check-comment-format', () => {
     });
   });
 
+  describe('html files', () => {
+    it('should report the over-cap line of a comment', () => {
+      const file = put(
+        'page.html',
+        lines(
+          '<body>',
+          `  <!-- ${AGGREGATOR} -->`,
+          '  <p>hi</p>',
+          '</body>',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+
+    it('should report the over-cap body line of a multi-line comment', () => {
+      const file = put(
+        'doc.htm',
+        lines(
+          '<!--',
+          AGGREGATOR,
+          '-->',
+          '<p>hi</p>',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+
+    // An apostrophe in text content is far more common than a
+    // quoted attribute, so treating a quote as a string opener
+    // would swallow every comment after the first contraction.
+    it('should still report a comment that follows an apostrophe in text content', () => {
+      const file = put(
+        'prose.html',
+        lines(
+          "<p>don't</p>",
+          `<!-- ${AGGREGATOR} -->`,
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+  });
 
   describe('corner cases', () => {
     it('should leave an aligned usage line byte-identical', () => {

@@ -156,7 +156,12 @@
 //     [--lang <language>] <file> [<file>...]
 //
 // <language> is one of typescript, shell, python, jsonc,
-// go, yaml, awk, terraform, lua or css.
+// go, yaml, awk, terraform, lua, css or html.
+//
+// An html file's embedded <script> and <style> blocks carry
+// JS and CSS whose own comments go unlexed: html is scoped to
+// its own `<!-- -->` form, since a nested lexer would have to
+// re-resolve a language per block.
 //
 // Exit codes:
 //   0  clean (or fully repaired by --fix)
@@ -335,6 +340,25 @@ const LANGUAGES = {
     prefixRe: /^\*?\s?/,
 
     scopeOpeners: [/[{([]$/],
+  },
+
+  html: {
+    extensions: ['.html', '.htm'],
+
+    // Markup is rendered by the browser, never run.
+    shebangRe: null,
+
+    scan: (text) => scanCommentRanges(text, htmlDialect()),
+    delimiterRe: /^(<!--|-->)$/,
+
+    // A comment body carries no marker, so a separator line
+    // is empty and the prefix is zero-width.
+    blankRe: /^$/,
+    prefixRe: /^/,
+
+    // A closing tag ends an element rather than opening one,
+    // and so does a self-closing tag.
+    scopeOpeners: [/<[a-zA-Z][^>]*(?<!\/)>$/],
   },
 };
 
@@ -1069,6 +1093,26 @@ function cssDialect() {
       const ch = text[i];
       if (ch !== '"' && ch !== "'") return null;
       return skipQuoted(text, i + 1, ch, true);
+    },
+
+    afterNewline(_text, from) {
+      return from;
+    },
+  };
+}
+
+// An apostrophe in text content (`don't`) outnumbers quoted
+// attributes by far, so treating a quote as a string opener
+// would swallow every comment after the first contraction --
+// html therefore skips nothing.
+function htmlDialect() {
+  return {
+    lineComments: [],
+    blockComments: [{ open: '<!--', close: '-->' }],
+    needsWordBoundary: false,
+
+    skipNonCode() {
+      return null;
     },
 
     afterNewline(_text, from) {
