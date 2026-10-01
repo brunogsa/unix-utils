@@ -198,6 +198,10 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { createRequire } = require('module');
 
+// Resolved against this file's own directory, not the repo.
+// A snapshot or copy of this checker must bring the sibling
+// get-changed-lines.sh along, or --changed-only fails with a
+// missing-script error far from the real cause.
 const CHANGED_LINES_SCRIPT = path.join(__dirname, 'get-changed-lines.sh');
 
 // Every check below the lexer works off comment ranges plus
