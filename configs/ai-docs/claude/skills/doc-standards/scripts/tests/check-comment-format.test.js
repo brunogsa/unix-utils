@@ -1776,4 +1776,22 @@ describe('lexing false positives', () => {
       assertContains(check(file).out, 'WIDTH 2:');
     });
   });
+
+  describe('a lua dash-dash-bracket closer', () => {
+    it('should not charge the closer to the paragraph run', () => {
+      const file = put(
+        'toggle.lua',
+        lines('--[[', ...PROSE, 'It never bills a hold.', '--]]', 'local x = 1'),
+      );
+      assert.equal(check(file).status, 0);
+    });
+
+    it('should not charge a leveled closer to the paragraph run', () => {
+      const file = put(
+        'leveled-toggle.lua',
+        lines('--[==[', ...PROSE, 'It never bills a hold.', '--]==]', 'local x = 1'),
+      );
+      assert.equal(check(file).status, 0);
+    });
+  });
 });
