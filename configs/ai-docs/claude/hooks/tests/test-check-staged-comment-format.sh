@@ -99,6 +99,15 @@ run_gate() {
   GATE_EXIT=$?
 }
 
+# run_gate_from - invokes the gate from an arbitrary
+# directory, which is how the `cd <repo> && git add ...`
+# shape dispatched agents emit gets reproduced.
+run_gate_from() {
+  local from="$1" command="$2"
+  GATE_STDERR=$(cd "$from" && bash "$SCRIPT" "$command" 2>&1 >/dev/null)
+  GATE_EXIT=$?
+}
+
 # run_gate_with_checker - same, with the checker path
 # overridden, which is the seam the infrastructure-failure
 # cases need.
@@ -138,6 +147,25 @@ it_should_ignore_a_git_add_quoted_inside_a_commit_message() {
 
   assert_eq "should allow a commit that only quotes a git add inside its message" \
     0 "$GATE_EXIT"
+}
+
+# Every dispatched agent here emits `cd <repo> && git add
+# ... && git commit ...`, because its working directory
+# resets on each call, so pathspecs are relative to the
+# `cd` target rather than to the hook's own directory.
+it_should_block_a_violation_staged_after_a_leading_cd() {
+  local repo
+  repo=$(new_repo unit6cd)
+  mkdir -p "$repo/sub"
+  write_violating_shell_file "$repo/sub/deploy.sh"
+
+  run_gate_from "$repo/sub" \
+    "cd $repo && git add sub/deploy.sh && git commit -m \"x\""
+
+  assert_eq "should block a commit whose git add follows a leading cd into the repo root" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the offending file the leading cd made reachable" \
+    "deploy.sh" "$GATE_STDERR"
 }
 
 # The index half of the union: a file already staged is
@@ -250,6 +278,7 @@ it_should_allow_the_commit_when_the_checker_reports_trouble() {
 
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
+it_should_block_a_violation_staged_after_a_leading_cd
 it_should_block_a_violation_in_an_already_staged_file
 it_should_fall_back_to_the_index_when_a_pathspec_is_a_variable
 it_should_still_judge_the_index_when_a_pathspec_is_a_variable

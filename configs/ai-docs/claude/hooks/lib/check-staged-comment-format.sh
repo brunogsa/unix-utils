@@ -26,6 +26,11 @@
 # It stays a union rather than a replacement because an
 # index partly staged beforehand is equally real.
 #
+# A pathspec is relative to the directory its own `git add`
+# runs in, so a leading `cd <dir> &&` is followed before any
+# of them is resolved - without that, every agent-shaped
+# commit here is judged against a directory holding nothing.
+#
 # Known gap: a non-literal pathspec - a glob, a variable, a
 # command substitution, or `-A`/`-a`/`.` - names files only
 # the shell can resolve, and the shell has not run yet.
@@ -86,23 +91,50 @@ def warn_and_allow(message):
     sys.exit(0)
 
 
-def run_git(args):
-    return subprocess.run(['git'] + args, stdout=subprocess.PIPE,
+def run_git(args, cwd):
+    return subprocess.run(['git'] + args, cwd=cwd, stdout=subprocess.PIPE,
                           stderr=subprocess.DEVNULL, text=True)
 
 
-def added_pathspecs(command):
-    """Literal pathspecs of every `git add`, or None when one cannot be read from the command string.
+def resolve(cwd, path):
+    if os.path.isabs(path):
+        return os.path.normpath(path)
+    return os.path.normpath(os.path.join(cwd, path))
+
+
+def directory_after_cd(cwd, args):
+    """The directory a `cd` stage lands in, or the unchanged cwd when its argument is not a literal path."""
+    if not args:
+        return os.path.expanduser('~')
+    target = args[0]
+    if len(args) != 1 or target.startswith('-'):
+        return cwd
+    if any(c in target for c in NON_LITERAL_CHARS):
+        return cwd
+    landed = resolve(cwd, target)
+    return landed if os.path.isdir(landed) else cwd
+
+
+def added_pathspecs(command, start_directory):
+    """Absolute paths of every `git add` pathspec plus the directory the command ends in, with the paths None when one cannot be read from the command string.
 
     None is the whole-command verdict, not a per-pathspec one: a single unresolvable member means the caller's real file set is unknown, and the other members are no longer a set anyone can trust.
+
+    A pathspec is relative to whatever directory its own `git add` runs in, so the walk tracks a `cd` the same way claude-rm-guard.sh does — every dispatched agent emits `cd <repo> && git add ...`, its working directory having reset.
     """
     paths = []
+    directory = start_directory
     for stages in _parse_shell_command.split_into_pipelines(command):
         for stage in stages:
             try:
                 tokens = shlex.split(stage, comments=True)
             except ValueError:
-                return None
+                return None, directory
+            if not tokens:
+                continue
+            if tokens[0] == 'cd':
+                directory = directory_after_cd(directory, tokens[1:])
+                continue
             if len(tokens) < 2 or os.path.basename(tokens[0]) != 'git':
                 continue
             if tokens[1] != 'add':
@@ -114,12 +146,12 @@ def added_pathspecs(command):
                     continue
                 if not after_options and token.startswith('-'):
                     if token in STAGE_EVERYTHING_FLAGS:
-                        return None
+                        return None, directory
                     continue
                 if token == '.' or any(c in token for c in NON_LITERAL_CHARS):
-                    return None
-                paths.append(token)
-    return paths
+                    return None, directory
+                paths.append(resolve(directory, token))
+    return paths, directory
 
 
 # A heredoc body is data fed to a sink, never shell
@@ -127,12 +159,18 @@ def added_pathspecs(command):
 # must not be read as one the caller is about to run.
 command = _parse_shell_command.strip_heredoc_bodies(os.environ.get('STAGED_FORMAT_CMD', ''))
 
-toplevel = run_git(['rev-parse', '--show-toplevel'])
+# Both git calls run where the command string ends up, not
+# where the hook was launched, so a `cd` into another repo
+# is judged against that repo's index rather than this
+# directory's.
+pathspecs, command_directory = added_pathspecs(command, os.getcwd())
+
+toplevel = run_git(['rev-parse', '--show-toplevel'], command_directory)
 if toplevel.returncode != 0:
     warn_and_allow('not inside a git repository, skipping the check')
 repo_root = toplevel.stdout.strip()
 
-index = run_git(['diff', '--cached', '--name-only'])
+index = run_git(['diff', '--cached', '--name-only'], command_directory)
 if index.returncode != 0:
     warn_and_allow('could not read the git index, skipping the check')
 
@@ -144,17 +182,16 @@ def add_candidate(path):
         candidates.append(path)
 
 
-# Command pathspecs are relative to the invoking directory
-# while index paths are relative to the repo root, so both
-# are made absolute before the union can dedupe them.
-pathspecs = added_pathspecs(command)
+# Command pathspecs come back absolute while index paths
+# are relative to the repo root, so the index half is made
+# absolute too before the union can dedupe them.
 if pathspecs is None:
     sys.stderr.write(
         '%s could not read the file set from the command string, '
         'using the git index alone\n' % WARNING_PREFIX)
     pathspecs = []
 for pathspec in pathspecs:
-    add_candidate(os.path.abspath(pathspec))
+    add_candidate(pathspec)
 for relative in index.stdout.splitlines():
     if relative.strip():
         add_candidate(os.path.join(repo_root, relative))
