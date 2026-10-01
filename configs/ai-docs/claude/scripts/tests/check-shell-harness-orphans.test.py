@@ -172,8 +172,8 @@ class TestCheckShellHarnessOrphansCorner:
     def test_should_skip_a_harness_nested_under_the_stale_worktree_checkout(
         self, tmp_path
     ):
-        # Same stale-worktree exclusion check-script-naming.py
-        # already applies -- reused, not reinvented.
+        # Same stale-worktree exclusion every tree-scanning
+        # script in this repo applies -- reused, not reinvented.
         #
         # This harness would otherwise fail as unresolved (no
         # sibling subject, no override), so a non-empty, exit-0

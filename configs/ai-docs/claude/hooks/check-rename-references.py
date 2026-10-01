@@ -56,9 +56,8 @@ DEFAULT_SETTINGS_PATH = SCRIPT_PATH.parent.parent / "settings.json"
 MAC_HOME = "/Users/brunoagostini"
 LINUX_HOME = "/home/brunogsa"
 
-# The same standing exclusions check-script-naming.py's
-# is_excluded() applies (node_modules, the one named stale
-# worktree checkout), plus .git.
+# Standing exclusions: node_modules, the one named stale
+# worktree checkout, plus .git.
 #
 # A source-scanning walk has no reason to read
 # version-control internals and skipping it is what keeps

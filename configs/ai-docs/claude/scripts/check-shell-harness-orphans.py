@@ -21,9 +21,9 @@ import json
 import sys
 from pathlib import Path
 
-# Same approach as check-script-naming.py's exclusion, not a
-# second invention: the one stale worktree checkout every
-# tree-scanning script in this repo skips.
+# The one stale worktree checkout every tree-scanning script
+# in this repo skips, kept as one shared exclusion rather
+# than a second invention.
 STALE_WORKTREE_MARKER = "worktrees/stacked-prs-pr2"
 
 SUBJECT_EXTENSIONS = (".sh", ".py", ".js")
