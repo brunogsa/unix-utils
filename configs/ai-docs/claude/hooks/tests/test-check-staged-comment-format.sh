@@ -404,6 +404,38 @@ it_should_block_a_commit_dash_a_violation_after_a_leading_cd() {
     "deploy.sh" "$GATE_STDERR"
 }
 
+# A `git -C <dir> commit` commits <dir>'s index, not the
+# one where the shell happens to stand, so reading the
+# caller's own directory judges the wrong repo entirely.
+it_should_judge_the_index_of_the_repo_the_commit_dash_c_names() {
+  local repo elsewhere
+  repo=$(new_repo unit10dashccommit)
+  elsewhere=$(new_repo unit10dashcotherrepo)
+  write_violating_shell_file "$repo/release.sh"
+  git -C "$repo" add release.sh
+
+  run_gate_from "$elsewhere" "git -C $repo commit -m \"x\""
+
+  assert_eq "should block on the index of the repo git -C commit names, not the caller's" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the offending file staged in the repo git -C commit names" \
+    "release.sh" "$GATE_STDERR"
+}
+
+it_should_judge_the_commit_dash_c_index_from_outside_any_repo() {
+  local repo
+  repo=$(new_repo unit10dashcnorepo)
+  write_violating_shell_file "$repo/release.sh"
+  git -C "$repo" add release.sh
+
+  run_gate_from "$tmp_root" "git -C $repo commit -m \"x\""
+
+  assert_eq "should block on the git -C commit index when the caller stands outside any repo" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the offending file when the caller stands outside any repo" \
+    "release.sh" "$GATE_STDERR"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
@@ -420,6 +452,8 @@ it_should_allow_the_commit_when_the_checker_is_missing
 it_should_allow_the_commit_when_the_checker_reports_trouble
 it_should_block_a_violation_git_commit_dash_a_would_stage
 it_should_block_a_commit_dash_a_violation_after_a_leading_cd
+it_should_judge_the_index_of_the_repo_the_commit_dash_c_names
+it_should_judge_the_commit_dash_c_index_from_outside_any_repo
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

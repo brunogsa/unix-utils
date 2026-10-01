@@ -34,6 +34,11 @@
 # Without that, every agent-shaped commit here is judged
 # against a directory holding none of the named files.
 #
+# The index and the `-a` set belong to the repository the
+# `commit` itself runs in, so a `git -C <dir> commit` moves
+# both reads to <dir> rather than to wherever the caller
+# happens to stand.
+#
 # Known gap: a non-literal pathspec - a glob, a variable, a
 # command substitution, or `-A`/`-u`/`.` - names files only
 # the shell can resolve, and the shell has not run yet.
@@ -211,7 +216,9 @@ def commit_stages_every_tracked_file(args):
 
 
 def command_scope(command, start_directory):
-    """Absolute paths of every `git add` pathspec plus the directory the command ends in, with the paths None when one cannot be read from the command string.
+    """Absolute paths of every `git add` pathspec plus the directory the gate's own git calls must run in, with the paths None when one cannot be read from the command string.
+
+    That directory is the one the `commit` stage runs in, which a `git -C <dir> commit` moves on its own, and the directory the command string ends in when no `commit` stage names one.
 
     None is the whole-command verdict, not a per-pathspec one: a single unresolvable member means the caller's real file set is unknown, and the other members are no longer a set anyone can trust.
 
@@ -219,6 +226,7 @@ def command_scope(command, start_directory):
     """
     paths = []
     directory = start_directory
+    commit_directory = None
     stages_all = False
     for stages in _parse_shell_command.split_into_pipelines(command):
         for stage in stages:
@@ -242,6 +250,7 @@ def command_scope(command, start_directory):
             if subcommand >= len(tokens):
                 continue
             if tokens[subcommand] == 'commit':
+                commit_directory = call_directory
                 if commit_stages_every_tracked_file(tokens[subcommand + 1:]):
                     stages_all = True
                 continue
@@ -259,7 +268,7 @@ def command_scope(command, start_directory):
                 if token == '.' or any(c in token for c in NON_LITERAL_CHARS):
                     return CommandScope(None, directory, stages_all)
                 paths.append(resolve(call_directory, token))
-    return CommandScope(paths, directory, stages_all)
+    return CommandScope(paths, commit_directory or directory, stages_all)
 
 
 # A heredoc body is data fed to a sink, never shell
