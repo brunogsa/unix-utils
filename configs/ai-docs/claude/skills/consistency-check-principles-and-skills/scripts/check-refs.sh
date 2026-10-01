@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # check-refs.sh - Verify cross-references in one or more files
-# resolve (the scripted, BLOCKING half of consistency-check's
-# heuristic #6, D7).
+# resolve (the scripted, BLOCKING half of heuristic 6a in
+# the consistency-check-principles-and-skills SKILL.md).
 #
 # Scans each given file for markdown links `[text](path#anchor)`
 # only. A bare backtick path is prose, not a reference.
