@@ -10,7 +10,8 @@
 # ending the section early.
 fence_event != "" { next }
 
-# Enter/leave the Test Design section; a later `## ` heading ends it.
+# Enter/leave the Test Design section; a later `## ` heading
+# ends it.
 !in_fence && /^## / {
   if (in_design) exit
   if ($0 ~ /^## Test Design[[:space:]]*$/) in_design = 1
@@ -18,7 +19,8 @@ fence_event != "" { next }
 }
 !in_design { next }
 
-# describe("Name", ...) — set the current describe, reset the class.
+# describe("Name", ...) — set the current describe, reset the
+# class.
 match($0, /describe\("[^"]*"/) {
   d = substr($0, RSTART, RLENGTH)
   sub(/^describe\("/, "", d)
@@ -28,8 +30,9 @@ match($0, /describe\("[^"]*"/) {
   next
 }
 
-# Class markers — only these three exact comments set the class; other // lines are ignored
-# so intra-section notes (e.g. "// Checagens NOSSAS...") keep the current class.
+# Class markers — only these three exact comments set the
+# class; other // lines are ignored so intra-section notes
+# (e.g. "// Checagens NOSSAS...") keep the current class.
 /^[[:space:]]*\/\/ Happy cases[[:space:]]*$/    { cls = "happy";   next }
 /^[[:space:]]*\/\/ Corner cases[[:space:]]*$/   { cls = "corner";  next }
 /^[[:space:]]*\/\/ Failure scenarios[[:space:]]*$/ { cls = "failure"; next }
@@ -45,8 +48,9 @@ match($0, /it\("[^"]*"/) {
   sub(/"$/, "", t)
   crumb = (cls != "") ? (desc " > " cls " > " t) : (desc " > " t)
   if (annotations) {
-    # `rest` is captured before any inner match() call below, since those
-    # overwrite the same RSTART/RLENGTH the outer it() match just set.
+    # `rest` is captured before any inner match() call below,
+    # since those overwrite the same RSTART/RLENGTH the outer
+    # it() match just set.
     rest = substr($0, matchEnd)
     comment = ""
     slashPos = index(rest, "//")

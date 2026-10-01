@@ -16,10 +16,12 @@
 # Per record, before the caller's rules run:
 #   in_fence     1 while inside a fence, after this line
 #   fence_event  "open", "close", "inner" (a fence-shaped line
-#                that stays content), or "" for prose
+#                that stays content), or "" for prose;
+#
 #   fence_tail   text after the run of a fence line (the
-#                info string of an opener)
-#   fence_line   line number where the current fence opened
+#                info string of an opener);
+#
+#   fence_line   line number where the current fence opened.
 #
 # stdout: nothing.
 #

@@ -1,4 +1,5 @@
-# The label opening a new entry, or "" when this line opens none.
+# The label opening a new entry, or "" when this line opens
+# none.
 function entry_label(line,   span) {
   if (entry_boundary == "heading") {
     if (line !~ /^###[ \t]/) return ""
@@ -11,10 +12,12 @@ function entry_label(line,   span) {
   return substr(span, RSTART, RLENGTH)
 }
 
-# A named field with or without its bold markers, up to the next period or
-# the end of the line - whichever comes first. Both terminators are needed:
-# the heading grammar ends a field at the line break, while the older
-# one-line grammar packs every field onto one line, separated by periods.
+# A named field with or without its bold markers, up to the
+# next period or the end of the line - whichever comes first.
+#
+# Both terminators are needed: the heading grammar ends a
+# field at the line break, while the older one-line grammar
+# packs every field onto one line, separated by periods.
 function field(line, name,   raw) {
   if (!match(line, "\\*?\\*?" name "\\*?\\*?:[^.]*")) return ""
   raw = substr(line, RSTART, RLENGTH)
@@ -46,9 +49,10 @@ function flush() {
 
 # A fenced sample entry (e.g. a ### PR-N heading shown as
 # doc-writing markup) is skipped entirely here, not just
-# boundary-guarded: its heading must never open a phantom
-# entry, and its field lines must never leak into a real
-# entry above it.
+# boundary-guarded.
+#
+# Its heading must never open a phantom entry, and its field
+# lines must never leak into a real entry above it.
 fence_event != "" || in_fence { next }
 
 {
@@ -61,8 +65,9 @@ fence_event != "" || in_fence { next }
   }
   if (label == "") next
 
-  # First occurrence wins: past the fields, an entry runs into free prose
-  # that may name a task or a PR without redefining either.
+  # First occurrence wins: past the fields, an entry runs into
+  # free prose that may name a task or a PR without
+  # redefining either.
   if (!seen_tasks) {
     tasks = field($0, "Tasks")
     if (tasks != "") seen_tasks = 1
