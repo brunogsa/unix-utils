@@ -132,3 +132,7 @@ The ones here are the opposite — per-item implementation detail, commits alrea
 
 One thing does change meaning: an agent reading `git log <base-sha>..HEAD` for prior context finds it short or empty, since a sibling's commits sit on that sibling's own branch.
 Tell the agent so up front, or it chases the gap as a defect — `~/.claude/agents/tdd-coder.md` authors that for the agent this skill's first caller dispatches.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
