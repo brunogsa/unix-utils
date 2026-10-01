@@ -1225,6 +1225,10 @@ function findWidthViolations(widthTouchedLines, lines, maxChars) {
 function classifyLine(lineIndex, fullCommentLines, lines, lang) {
   if (!fullCommentLines.has(lineIndex)) return 'other';
   const trimmed = (lines[lineIndex] ?? '').trim();
+
+  // A first-line `#!` is an interpreter directive, not prose,
+  // so it must not count toward a paragraph run.
+  if (lineIndex === 0 && lang.shebangRe && trimmed.startsWith('#!')) return 'other';
   if (lang.delimiterRe && lang.delimiterRe.test(trimmed)) return 'delimiter';
   if (lang.blankRe.test(trimmed)) return 'blank';
   return 'content';

@@ -1794,4 +1794,31 @@ describe('lexing false positives', () => {
       assert.equal(check(file).status, 0);
     });
   });
+
+  describe('a shebang line above a comment run', () => {
+    const FOUR_PROSE = [...PROSE, 'Refunds post to the same ledger.'];
+    const FIVE_PROSE = [...FOUR_PROSE, 'A refund keeps its original tax.'];
+    const BASH = '#!/usr/bin/env bash';
+    const hashed = (rows) => rows.map((row) => `# ${row}`);
+
+    it('should not count the shebang toward a four-line paragraph run', () => {
+      const file = put('shebang.sh', lines(BASH, ...hashed(FOUR_PROSE)));
+      assertAbsent(check(file).out, 'PARAGRAPH');
+    });
+
+    it('should accept the same four prose lines with no shebang', () => {
+      const file = put('no-shebang.sh', lines(...hashed(FOUR_PROSE)));
+      assertAbsent(check(file).out, 'PARAGRAPH');
+    });
+
+    it('should accept the same four prose lines after a shebang and a blank line', () => {
+      const file = put('shebang-blank.sh', lines(BASH, '', ...hashed(FOUR_PROSE)));
+      assertAbsent(check(file).out, 'PARAGRAPH');
+    });
+
+    it('should still report a five-line paragraph run after a shebang, from line 2', () => {
+      const file = put('shebang-five.sh', lines(BASH, ...hashed(FIVE_PROSE)));
+      assertContains(check(file).out, 'PARAGRAPH 2-6:5');
+    });
+  });
 });
