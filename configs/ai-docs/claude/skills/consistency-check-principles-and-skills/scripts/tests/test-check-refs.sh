@@ -267,6 +267,16 @@ it_should_not_scan_a_backtick_path_inside_a_markdown_link_text_as_its_own_ref() 
     rm -rf "$d"
 }
 
+it_should_not_flag_the_na_abbreviation_as_a_broken_ref() {
+    echo "it_should_not_flag_the_na_abbreviation_as_a_broken_ref"
+    local d; d=$(new_fixture)
+    printf 'Why no variant: a dropped section is invisible, where an `N/A` line shows the author ruled it out.\n' > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 0" "0" "$status"
+    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
 it_should_pass_a_markdown_link_ref_that_resolves
 it_should_pass_a_backtick_path_ref_that_resolves
 it_should_pass_a_ref_whose_anchor_heading_exists_in_the_target
@@ -287,6 +297,7 @@ it_should_not_flag_common_remote_tracking_git_ref_mentions_as_broken_refs
 it_should_not_flag_a_conventional_commit_prefixed_branch_name_mention_as_a_broken_ref
 
 it_should_not_scan_a_backtick_path_inside_a_markdown_link_text_as_its_own_ref
+it_should_not_flag_the_na_abbreviation_as_a_broken_ref
 
 echo
 echo "$passed passed, $failed failed"

@@ -190,6 +190,26 @@ is_git_revision_shape() {
     return 1
 }
 
+# True (0) when $path's shape is a slash abbreviation, not a
+# file path: exactly two all-uppercase-letter segments, as in
+# `N/A`, `I/O`, `R/W`, `TCP/IP`.
+#
+# Prose routinely writes these in backticks, and the backtick
+# grep's `/` requirement lets them through as candidates that
+# resolve to nothing.
+#
+# The rule is a shape, not a list of known tokens. It would also
+# let through a genuinely broken ref to an all-uppercase
+# two-segment path with no extension, like `README/LICENSE`; no
+# skill in this corpus references one.
+#
+# scripts/gen-shard-manifest.sh's resolve_candidate() needs no
+# such shape check: `N/A` never resolves to a real file, so
+# the existence check already drops it silently.
+is_slash_abbreviation_shape() {
+    [[ "$1" =~ ^[A-Z]+/[A-Z]+$ ]]
+}
+
 # Resolve $path relative to $referencing_file's own directory
 # (or as an absolute/home path).
 #
@@ -253,7 +273,10 @@ check_candidate() {
 
     case "$path" in
         /*) is_real_absolute_path_candidate "$path" || return 0 ;;
-        */*) is_git_revision_shape "$path" && return 0 ;;
+        */*)
+            is_git_revision_shape "$path" && return 0
+            is_slash_abbreviation_shape "$path" && return 0
+            ;;
     esac
 
     resolved="$(resolve_target_path "$file" "$path")"
