@@ -16,10 +16,10 @@
 #   0 - the task-dependency graph is a valid DAG with no
 #       duplicate task ids.
 #
-#   1 - cycle, dangling reference, or duplicate task id found
+#   1 - cycle, dangling reference, duplicate task id, a task's
+#       **Depends on** unparsable, or no task entries found
 #       (diagnostic on stderr).
-#   2 - usage error (wrong arg count, plan file missing,
-#       section or a task's **Depends on** unparsable).
+#   2 - usage error (wrong arg count, plan file missing).
 
 set -eo pipefail
 
@@ -37,10 +37,10 @@ fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# The **Depends on** grammar (and its exit-2 diagnostics for an
+# The **Depends on** grammar (and its exit-1 diagnostics for an
 # unparsable field or a section with no task entries) lives in
 # parse-task-dependencies.sh alone; a failure there ends this
-# script with its exit 2 and diagnostic.
+# script with the parser's own exit code and diagnostic.
 edges=$("$script_dir/parse-task-dependencies.sh" "$plan_file")
 
 printf '%s\n' "$edges" | "$script_dir/dag-check-helper.sh" task

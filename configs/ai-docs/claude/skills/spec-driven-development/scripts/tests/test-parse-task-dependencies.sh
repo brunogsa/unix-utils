@@ -106,7 +106,7 @@ it_should_reject_a_none_bullet_mixed_with_task_bullets_in_either_order() {
 - none
 - Task 1')
   run_script "$fixture"
-  assert_eq "should reject none-then-Task bullets (exit code)" "2" "$VERDICT_EXIT"
+  assert_eq "should reject none-then-Task bullets (exit code)" "1" "$VERDICT_EXIT"
   assert_eq "should reject none-then-Task bullets (stdout empty)" "" "$VERDICT_OUT"
   assert_eq "should reject none-then-Task bullets (canonical error)" "$(printf 'error: unparsable **Depends on** field in: Task 2\n%s' "$canonical_grammar")" "$VERDICT_ERR"
 
@@ -120,7 +120,7 @@ it_should_reject_a_none_bullet_mixed_with_task_bullets_in_either_order() {
 - Task 1
 - none')
   run_script "$fixture"
-  assert_eq "should reject Task-then-none bullets (exit code)" "2" "$VERDICT_EXIT"
+  assert_eq "should reject Task-then-none bullets (exit code)" "1" "$VERDICT_EXIT"
 }
 
 it_should_reject_an_inline_task_reference_and_a_bare_field_with_no_bullet() {
@@ -139,7 +139,7 @@ it_should_reject_an_inline_task_reference_and_a_bare_field_with_no_bullet() {
 
 Prose that is not a bullet.')
   run_script "$fixture"
-  assert_eq "should reject an inline Task reference and a bare field with no bullet (exit code)" "2" "$VERDICT_EXIT"
+  assert_eq "should reject an inline Task reference and a bare field with no bullet (exit code)" "1" "$VERDICT_EXIT"
   assert_eq "should reject an inline Task reference and a bare field with no bullet (canonical error names every offender)" "$(printf 'error: unparsable **Depends on** field in: Task 2, Task 3\n%s' "$canonical_grammar")" "$VERDICT_ERR"
 }
 
@@ -147,7 +147,7 @@ it_should_error_when_the_section_has_no_task_entries() {
   local fixture
   fixture=$(write_plan "no-entries" 'Nothing here is a task heading.')
   run_script "$fixture"
-  assert_eq "should error when the section has no task entries (exit code)" "2" "$VERDICT_EXIT"
+  assert_eq "should error when the section has no task entries (exit code)" "1" "$VERDICT_EXIT"
   assert_eq "should error when the section has no task entries (diagnostic)" "error: Task Breakdown section found but no task entries could be parsed from it" "$VERDICT_ERR"
 }
 
@@ -167,6 +167,23 @@ Just a description.')
   assert_eq "should print an edge line for a task that declares no Depends on field (stdout)" "$(printf 'Task 1\t')" "$VERDICT_OUT"
 }
 
+it_should_report_a_blank_line_between_depends_on_and_its_bullet_as_a_plan_finding() {
+  local fixture
+  fixture=$(write_plan "blank-before-bullet" '### 1. First task
+
+**Depends on**:
+
+- none
+
+### 2. Second task
+
+**Depends on**:
+- Task 1')
+  run_script "$fixture"
+  assert_eq "should report a blank line between Depends on and its bullet as a plan finding (exit code)" "1" "$VERDICT_EXIT"
+  assert_eq "should report a blank line between Depends on and its bullet as a plan finding (canonical error)" "$(printf 'error: unparsable **Depends on** field in: Task 1\n%s' "$canonical_grammar")" "$VERDICT_ERR"
+}
+
 it_should_print_one_edge_line_per_task_for_none_and_task_bullets
 it_should_read_a_lone_none_bullet_as_no_dependencies
 it_should_reject_a_none_bullet_mixed_with_task_bullets_in_either_order
@@ -174,6 +191,7 @@ it_should_reject_an_inline_task_reference_and_a_bare_field_with_no_bullet
 it_should_error_when_the_section_has_no_task_entries
 it_should_error_on_a_missing_plan_file_and_on_a_wrong_argument_count
 it_should_print_an_edge_line_for_a_task_that_declares_no_depends_on_field
+it_should_report_a_blank_line_between_depends_on_and_its_bullet_as_a_plan_finding
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

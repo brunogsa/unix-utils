@@ -7,8 +7,10 @@
 #
 # stdout: one "Task N<TAB>Task A,Task B" line per task (empty
 #         second field when the task has no dependencies)
-# exit: 0 parsed; 2 usage error, unparsable field, or no task
-#       entries (diagnostic on stderr)
+# exit: 0 parsed; 1 plan defect: an unparsable field, or no
+#       task entries; 2 usage error: wrong arg count, plan file
+#       missing, or a fence plan-section.sh rejects (diagnostic
+#       on stderr)
 
 set -eo pipefail
 
@@ -40,7 +42,8 @@ section=$("$script_dir/plan-section.sh" "$plan_file" "##" '^Task Breakdown[[:spa
 # silently pick one.
 #
 # A task's own dependency block ends at the next blank line or
-# heading.
+# heading, so a blank line between the bare field and its
+# bullets leaves the field unparsable.
 #
 # The section may open with an unrelated mermaid diagram (also
 # containing "Task N" text) that this state machine never
@@ -113,12 +116,12 @@ ungrammatical=$(printf '%s\n' "$edges" |
 if [ -n "$ungrammatical" ]; then
   echo "error: unparsable **Depends on** field in: $ungrammatical" >&2
   echo "  canonical grammar: '**Depends on**: none', or a bare '**Depends on**:' line followed by either a lone '- none' bullet or one '- Task N' bullet per dependency (never both)" >&2
-  exit 2
+  exit 1
 fi
 
 if [ -z "$edges" ]; then
   echo "error: Task Breakdown section found but no task entries could be parsed from it" >&2
-  exit 2
+  exit 1
 fi
 
 printf '%s\n' "$edges"

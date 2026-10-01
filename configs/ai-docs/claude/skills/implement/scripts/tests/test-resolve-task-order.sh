@@ -655,6 +655,28 @@ it_should_reject_a_none_bullet_mixed_with_task_bullets_with_the_canonical_error(
   assert_eq "should reject a none bullet mixed with Task bullets (canonical error)" "$(printf "error: unparsable **Depends on** field in: Task 2\n  canonical grammar: '**Depends on**: none', or a bare '**Depends on**:' line followed by either a lone '- none' bullet or one '- Task N' bullet per dependency (never both)")" "$VERDICT_ERR"
 }
 
+# The parser reports this plan defect as exit 1, but this
+# script's own exit 1 means "a true join, ship non-stacked".
+#
+# An unparsable plan must stop /implement instead, so it stays
+# exit 2 here.
+it_should_stop_with_a_parse_error_when_a_blank_line_separates_depends_on_from_its_bullet() {
+  local fixture
+  fixture=$(write_plan "blank-before-bullet" '### 1. First task
+
+**Depends on**:
+
+- none
+
+### 2. Second task
+
+**Depends on**:
+- Task 1')
+  run_script "$fixture" "1, 2"
+  assert_eq "should stop with a parse error when a blank line separates Depends on from its bullet (exit code)" "2" "$VERDICT_EXIT"
+  assert_true "should stop with a parse error when a blank line separates Depends on from its bullet (names the unparsable task)" "$([[ "$VERDICT_ERR" == *"unparsable **Depends on** field in: Task 1"* ]] && echo true || echo false)"
+}
+
 it_should_print_a_linear_order_for_a_simple_chain_of_dependencies
 it_should_accept_a_lone_none_bullet_as_no_dependencies
 it_should_reject_a_none_bullet_mixed_with_task_bullets_with_the_canonical_error
@@ -680,6 +702,7 @@ it_should_accept_a_pr_subset_reorder_under_verify_when_the_plan_has_other_prs_ta
 it_should_scope_the_omission_diagnostic_to_the_in_scope_task_ids_under_verify
 it_should_reject_a_parent_ordering_violation_within_a_pr_subset_under_verify
 it_should_error_when_verify_is_invoked_with_the_wrong_number_of_arguments
+it_should_stop_with_a_parse_error_when_a_blank_line_separates_depends_on_from_its_bullet
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

@@ -217,10 +217,10 @@ def test_should_report_a_cross_level_task_dependency_landing_in_a_non_ancestor_p
     assert "PR-2" in result.stderr
 
 
-def test_should_exit_2_when_a_task_names_its_dependencies_inline_instead_of_as_task_bullets(tmp_path):
+def test_should_report_a_finding_when_a_task_names_its_dependencies_inline_instead_of_as_task_bullets(tmp_path):
     # The inline form parses as dependency-free, so every
     # projection check below it passes vacuously — the fail-open
-    # the exit-2 grammar guard closes.
+    # the grammar guard closes, as a finding (exit 1).
     task_body = (
         "### 1. First task\n\n"
         "**Depends on**: none\n\n"
@@ -230,12 +230,12 @@ def test_should_exit_2_when_a_task_names_its_dependencies_inline_instead_of_as_t
     pr_body = "1. **PR-1** — First slice. Tasks: 1, 2. Depends on: none.\n"
     plan = _write_plan(tmp_path, task_body=task_body, pr_body=pr_body)
     result = _run(plan)
-    assert result.returncode == 2
+    assert result.returncode == 1
     assert "Task 2" in result.stderr
     assert "- Task N" in result.stderr
 
 
-def test_should_exit_2_when_a_task_depends_on_opens_with_a_bare_colon_and_lists_no_task_bullet(tmp_path):
+def test_should_report_a_finding_when_a_task_depends_on_opens_with_a_bare_colon_and_lists_no_task_bullet(tmp_path):
     task_body = (
         "### 1. First task\n\n"
         "**Depends on**:\n\n"
@@ -245,7 +245,7 @@ def test_should_exit_2_when_a_task_depends_on_opens_with_a_bare_colon_and_lists_
     pr_body = "1. **PR-1** — First slice. Tasks: 1, 2. Depends on: none.\n"
     plan = _write_plan(tmp_path, task_body=task_body, pr_body=pr_body)
     result = _run(plan)
-    assert result.returncode == 2
+    assert result.returncode == 1
     assert "Task 1" in result.stderr
 
 
@@ -269,7 +269,7 @@ def test_should_exit_0_when_a_bare_depends_on_is_followed_by_a_lone_none_bullet(
     ["- none\n- Task 1\n", "- Task 1\n- none\n"],
     ids=["none-before-task", "none-after-task"],
 )
-def test_should_exit_2_when_a_none_bullet_is_mixed_with_a_task_bullet_under_one_depends_on(tmp_path, bullets):
+def test_should_report_a_finding_when_a_none_bullet_is_mixed_with_a_task_bullet_under_one_depends_on(tmp_path, bullets):
     task_body = (
         "### 1. First task\n\n"
         "**Depends on**: none\n\n"
@@ -279,5 +279,5 @@ def test_should_exit_2_when_a_none_bullet_is_mixed_with_a_task_bullet_under_one_
     pr_body = "1. **PR-1** — First slice. Tasks: 1, 2. Depends on: none.\n"
     plan = _write_plan(tmp_path, task_body=task_body, pr_body=pr_body)
     result = _run(plan)
-    assert result.returncode == 2
+    assert result.returncode == 1
     assert "Task 2" in result.stderr

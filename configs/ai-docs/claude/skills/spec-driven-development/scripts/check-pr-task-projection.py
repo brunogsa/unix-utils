@@ -30,11 +30,11 @@ Detects, each with its own diagnostic:
 Exit codes:
   0 - PR Breakdown is absent, reads "Single PR.", or every task's
       dependency projection onto the PR partition is consistent.
-  1 - one of the four defects above was found (diagnostics on stderr).
-  2 - usage error (wrong arg count, plan file missing, a breakdown
-      section carries real entries that could not be parsed, or a
-      task's "Depends on" field is written in none of the canonical
-      shapes).
+  1 - one of the four defects above was found, a task's "Depends
+      on" field is written in none of the canonical shapes, or the
+      Task Breakdown has no task entries (diagnostics on stderr).
+  2 - usage error (wrong arg count, plan file missing, or a breakdown
+      section carries real entries that could not be parsed).
 """
 import re
 import subprocess
@@ -108,9 +108,9 @@ def parse_pr_entries(section: str):
 
 def parse_task_entries(plan_file: Path) -> dict[str, list[str]]:
     """Return task id -> the task ids it depends on, read via
-    parse-task-dependencies.sh, the one **Depends on** parser. Its
-    exit 2 (unparsable field, no task entries) ends this script with
-    the parser's own diagnostic."""
+    parse-task-dependencies.sh, the one **Depends on** parser. Any
+    failure there ends this script with the parser's own exit code
+    and diagnostic: 1 for a plan defect, 2 for a usage error."""
     result = subprocess.run(
         [str(PARSE_TASK_DEPENDENCIES), str(plan_file)],
         capture_output=True,
@@ -118,7 +118,7 @@ def parse_task_entries(plan_file: Path) -> dict[str, list[str]]:
     )
     if result.returncode != 0:
         sys.stderr.write(result.stderr)
-        sys.exit(2)
+        sys.exit(result.returncode)
     task_deps: dict[str, list[str]] = {}
     for line in result.stdout.splitlines():
         label, _, deps = line.partition("\t")

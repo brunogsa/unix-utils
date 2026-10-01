@@ -132,7 +132,7 @@ it_should_reject_a_none_bullet_listed_before_a_task_bullet_under_the_same_depend
 - none
 - Task 1')
   run_script "$fixture"
-  assert_eq "should reject a none bullet listed before a Task bullet under the same Depends on (exit code)" "2" "$VERDICT_EXIT"
+  assert_eq "should reject a none bullet listed before a Task bullet under the same Depends on (exit code)" "1" "$VERDICT_EXIT"
   assert_contains "should reject a none bullet listed before a Task bullet under the same Depends on (names the offending task)" "Task 2" "$VERDICT_ERR"
 }
 
@@ -148,7 +148,7 @@ it_should_reject_a_none_bullet_listed_after_a_task_bullet_under_the_same_depends
 - Task 1
 - none')
   run_script "$fixture"
-  assert_eq "should reject a none bullet listed after a Task bullet under the same Depends on (exit code)" "2" "$VERDICT_EXIT"
+  assert_eq "should reject a none bullet listed after a Task bullet under the same Depends on (exit code)" "1" "$VERDICT_EXIT"
   assert_contains "should reject a none bullet listed after a Task bullet under the same Depends on (names the offending task)" "Task 2" "$VERDICT_ERR"
 }
 
@@ -225,7 +225,7 @@ it_should_reject_a_task_that_names_its_dependencies_inline_instead_of_as_task_bu
 
 **Depends on**: Task 1')
   run_script "$fixture"
-  assert_eq "should reject a task that names its dependencies inline instead of as Task bullets (exit code)" "2" "$VERDICT_EXIT"
+  assert_eq "should reject a task that names its dependencies inline instead of as Task bullets (exit code)" "1" "$VERDICT_EXIT"
   assert_contains "should reject a task that names its dependencies inline instead of as Task bullets (names the offending task)" "Task 2" "$VERDICT_ERR"
   assert_contains "should reject a task that names its dependencies inline instead of as Task bullets (names the canonical grammar)" "- Task N" "$VERDICT_ERR"
 }
@@ -240,8 +240,25 @@ it_should_reject_a_task_whose_depends_on_opens_with_a_bare_colon_and_lists_no_ta
 
 **Depends on**: none')
   run_script "$fixture"
-  assert_eq "should reject a task whose Depends on opens with a bare colon and lists no Task bullet (exit code)" "2" "$VERDICT_EXIT"
+  assert_eq "should reject a task whose Depends on opens with a bare colon and lists no Task bullet (exit code)" "1" "$VERDICT_EXIT"
   assert_contains "should reject a task whose Depends on opens with a bare colon and lists no Task bullet (names the offending task)" "Task 1" "$VERDICT_ERR"
+}
+
+it_should_report_a_blank_line_between_depends_on_and_its_bullet_as_a_plan_finding() {
+  local fixture
+  fixture=$(write_plan "blank-before-bullet" '### 1. First task
+
+**Depends on**:
+
+- none
+
+### 2. Second task
+
+**Depends on**:
+- Task 1')
+  run_script "$fixture"
+  assert_eq "should report a blank line between Depends on and its bullet as a plan finding (exit code)" "1" "$VERDICT_EXIT"
+  assert_contains "should report a blank line between Depends on and its bullet as a plan finding (names the unparsable task)" "unparsable **Depends on** field in: Task 1" "$VERDICT_ERR"
 }
 
 it_should_pass_when_every_task_dependency_resolves_to_a_real_non_cyclic_task_id
@@ -254,6 +271,7 @@ it_should_reject_a_none_bullet_listed_after_a_task_bullet_under_the_same_depends
 it_should_detect_a_two_task_cycle_when_task_1_depends_on_task_2_and_task_2_depends_on_task_1
 it_should_detect_a_dangling_reference_when_a_task_depends_on_a_task_id_absent_from_the_task_breakdown
 it_should_detect_a_duplicate_label_when_two_task_breakdown_entries_share_the_same_task_number
+it_should_report_a_blank_line_between_depends_on_and_its_bullet_as_a_plan_finding
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

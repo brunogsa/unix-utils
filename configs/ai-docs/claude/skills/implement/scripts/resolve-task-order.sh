@@ -98,7 +98,7 @@ fi
 
 # The Task Breakdown's **Depends on** grammar is owned by the
 # spec-driven-development skill's parse-task-dependencies.sh.
-# It rejects an unparsable field (exit 2) instead of guessing.
+# It rejects an unparsable field instead of guessing.
 #
 # Installed at this fixed path on every machine that runs
 # /implement (see implement/SKILL.md's own
@@ -110,7 +110,13 @@ if [ ! -f "$parse_script" ]; then
   exit 2
 fi
 
-edges=$("$parse_script" "$plan_file")
+# Any parser failure maps to exit 2 here, including the plan
+# defects the parser reports as exit 1.
+#
+# This script's own exit 1 means "a true join, ship
+# non-stacked", so passing the parser's 1 through would read an
+# unparsable plan as a join and continue instead of stopping.
+edges=$("$parse_script" "$plan_file") || exit 2
 
 # normalize_ids - splits a comma-space "N, N" list (tolerant of
 # missing spaces after a comma) into one bare numeric id per
