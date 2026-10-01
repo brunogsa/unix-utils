@@ -969,6 +969,41 @@ it_should_block_a_violation_listed_in_an_abbreviated_pathspec_from_file() {
   assert_contains "should name the violating file the abbreviated pathspec-file option lists" \
     "deploy.sh" "$GATE_STDERR"
 }
+
+# The separator flag abbreviates the same way, and reading
+# it as the full spelling is what keeps the NUL-separated
+# list from being split on newlines instead.
+it_should_block_a_violation_listed_through_an_abbreviated_pathspec_file_nul() {
+  local repo
+  repo=$(new_repo unit18abbrevnul)
+  write_violating_shell_file "$repo/deploy.sh"
+  printf 'seed.txt\0deploy.sh\0' > "$repo/paths.bin"
+
+  run_gate "$repo" 'git commit --pathspec-from-file=paths.bin --pathspec-file-nu -m "x"'
+
+  assert_eq "should block a commit whose abbreviated NUL flag separates the pathspec list" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the violating file the abbreviated NUL flag's list holds" \
+    "deploy.sh" "$GATE_STDERR"
+}
+
+# `--pathspec` abbreviates both option names at once, which
+# git rejects as ambiguous, so the gate must resolve it to
+# neither rather than guessing one.
+it_should_not_read_an_ambiguous_pathspec_abbreviation_as_a_pathspec_file_option() {
+  local repo
+  repo=$(new_repo unit18ambiguousabbrev)
+  write_violating_shell_file "$repo/deploy.sh"
+  printf 'deploy.sh\n' > "$repo/paths.txt"
+
+  run_gate "$repo" 'git commit --pathspec=paths.txt -m "x"'
+
+  assert_eq "should allow a commit whose ambiguous abbreviation names no pathspec file" \
+    0 "$GATE_EXIT"
+  assert_not_contains "should not read the ambiguously abbreviated option's list as pathspecs" \
+    "deploy.sh" "$GATE_STDERR"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
@@ -1019,6 +1054,8 @@ it_should_warn_and_allow_when_a_pathspec_file_does_not_exist
 it_should_warn_and_allow_when_a_pathspec_file_is_unreadable
 it_should_fall_back_to_the_index_when_the_pathspec_list_comes_from_stdin
 it_should_block_a_violation_listed_in_an_abbreviated_pathspec_from_file
+it_should_block_a_violation_listed_through_an_abbreviated_pathspec_file_nul
+it_should_not_read_an_ambiguous_pathspec_abbreviation_as_a_pathspec_file_option
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
