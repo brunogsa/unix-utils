@@ -41,9 +41,10 @@
 #
 # A `--pathspec-from-file` list is read from disk, its entries
 # relative to the repo root, with `--pathspec-file-nul` picking
-# the separator. A list read from stdin, which this hook never
-# sees, lands in the gap below, and an unreadable file warns
-# and allows.
+# the separator.
+#
+# A list read from stdin, which this hook never sees, lands in
+# the gap below, and an unreadable file warns and allows.
 #
 # Known gap: a non-literal pathspec - a glob, a variable, a
 # command substitution, or `-A`/`-u`/`.` - names files only
