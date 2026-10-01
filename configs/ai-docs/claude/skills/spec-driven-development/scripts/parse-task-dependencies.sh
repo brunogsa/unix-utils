@@ -7,6 +7,7 @@
 #
 # stdout: one "Task N<TAB>Task A,Task B" line per task (empty
 #         second field when the task has no dependencies)
+#
 # exit: 0 parsed; 1 plan defect: an unparsable field, or no
 #       task entries; 2 usage error: wrong arg count, plan file
 #       missing, or a fence plan-section.sh rejects (diagnostic

@@ -19,6 +19,7 @@
 #   1 - cycle, dangling reference, duplicate task id, a task's
 #       **Depends on** unparsable, or no task entries found
 #       (diagnostic on stderr).
+#
 #   2 - gate could not run: wrong arg count, plan file missing,
 #       or a code fence plan-section.sh rejects.
 
