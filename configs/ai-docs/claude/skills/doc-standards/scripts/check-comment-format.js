@@ -1471,7 +1471,7 @@ function readUtf8File(file) {
   }
 }
 
-function checkFile(file, maxChars, maxLines, langOverride, changedOnly, fix) {
+function checkFile(file, { maxChars, maxLines, langOverride, changedOnly, fix }) {
   const text = readUtf8File(file);
   const lang = resolveLanguage(file, text, langOverride);
   const lines = text.split('\n');
@@ -1804,12 +1804,18 @@ function applyPass(pass, report, maxChars, maxLines) {
   return changed ? lines.join('\n') : null;
 }
 
-function fixFile(file, maxChars, maxLines, langOverride, changedOnly) {
+function fixFile(file, { maxChars, maxLines, langOverride, changedOnly }) {
   let previous = readUtf8File(file);
 
   for (let round = 0; round < MAX_FIX_ITERATIONS; round++) {
     for (const pass of FIX_PASSES) {
-      const report = checkFile(file, maxChars, maxLines, langOverride, changedOnly, true);
+      const report = checkFile(file, {
+        maxChars,
+        maxLines,
+        langOverride,
+        changedOnly,
+        fix: true,
+      });
       const updated = applyPass(pass, report, maxChars, maxLines);
       if (updated !== null) fs.writeFileSync(file, updated);
     }
@@ -1956,7 +1962,9 @@ function main() {
       continue;
     }
 
-    if (fix) fixFile(file, maxChars, maxLines, lang, changedOnly);
+    if (fix) {
+      fixFile(file, { maxChars, maxLines, langOverride: lang, changedOnly });
+    }
 
     const {
       widthViolations,
@@ -1965,7 +1973,13 @@ function main() {
       sentenceBreaks,
       bulletSpacing,
       bulletBlanks,
-    } = checkFile(file, maxChars, maxLines, lang, changedOnly, fix);
+    } = checkFile(file, {
+      maxChars,
+      maxLines,
+      langOverride: lang,
+      changedOnly,
+      fix,
+    });
     const total =
       widthViolations.length +
       paragraphViolations.length +
