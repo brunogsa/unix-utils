@@ -690,6 +690,111 @@ it_should_allow_a_commit_pathspec_naming_neither_a_file_nor_a_directory() {
     0 "$GATE_EXIT"
 }
 
+# `git add <dir>` stages untracked files under it too, and
+# `git diff HEAD` lists tracked paths only, so a brand-new
+# file in the directory would otherwise ship unchecked.
+it_should_block_a_violation_in_an_untracked_file_under_a_git_add_directory() {
+  local repo
+  repo=$(new_repo unit17adduntracked)
+  mkdir -p "$repo/sub"
+  write_clean_shell_file "$repo/sub/kept.sh"
+  commit_tracked_file "$repo" sub/kept.sh
+  write_violating_shell_file "$repo/sub/new-script.sh"
+
+  run_gate "$repo" 'git add sub/ && git commit -m "x"'
+
+  assert_eq "should block a git add of a directory holding an untracked violating file" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the untracked file under the added directory" \
+    "new-script.sh" "$GATE_STDERR"
+}
+
+# `git commit <dir>` commits tracked paths only, so blocking
+# on an untracked file would refuse a commit that never
+# contains it.
+it_should_allow_a_directory_commit_pathspec_holding_only_an_untracked_violation() {
+  local repo
+  repo=$(new_repo unit17commituntracked)
+  mkdir -p "$repo/sub"
+  write_clean_shell_file "$repo/sub/kept.sh"
+  commit_tracked_file "$repo" sub/kept.sh
+  write_violating_shell_file "$repo/sub/new-script.sh"
+
+  run_gate "$repo" 'git commit sub/ -m "x"'
+
+  assert_eq "should allow a directory commit when the only violation is untracked" \
+    0 "$GATE_EXIT"
+}
+
+it_should_block_a_violation_in_a_tracked_file_under_a_git_add_directory() {
+  local repo
+  repo=$(new_repo unit17addtracked)
+  mkdir -p "$repo/sub"
+  write_clean_shell_file "$repo/sub/deploy.sh"
+  commit_tracked_file "$repo" sub/deploy.sh
+  write_violating_shell_file "$repo/sub/deploy.sh"
+
+  run_gate "$repo" 'git add sub/ && git commit -m "x"'
+
+  assert_eq "should block a git add of a directory holding a modified violating file" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the modified file under the added directory" \
+    "deploy.sh" "$GATE_STDERR"
+}
+
+# The real checker already treats a gitignored file as having
+# no changed lines, so its exit code cannot tell whether the
+# gate handed that file over. A stub checker that records the
+# files it was given can.
+it_should_not_check_a_gitignored_untracked_file_under_a_git_add_directory() {
+  local repo stub received
+  repo=$(new_repo unit17addignored)
+  mkdir -p "$repo/sub"
+  write_clean_shell_file "$repo/sub/kept.sh"
+  commit_tracked_file "$repo" sub/kept.sh
+  printf 'ignored-script.sh\n' > "$repo/.gitignore"
+  write_violating_shell_file "$repo/sub/ignored-script.sh"
+  write_violating_shell_file "$repo/sub/new-script.sh"
+  stub="$tmp_root/unit17recorder.js"
+  received="$tmp_root/unit17received.txt"
+  printf 'require("fs").writeFileSync(process.env.RECEIVED_FILES, process.argv.slice(2).join("\\n"));\n' > "$stub"
+
+  GATE_STDERR=$(cd "$repo" && RECEIVED_FILES="$received" CHECK_COMMENT_FORMAT_JS="$stub" \
+    bash "$SCRIPT" 'git add sub/ && git commit -m "x"' 2>&1 >/dev/null)
+
+  assert_contains "should hand the checker the untracked file that is not ignored" \
+    "sub/new-script.sh" "$(cat "$received")"
+  assert_not_contains "should not hand the checker the gitignored untracked file" \
+    "ignored-script.sh" "$(cat "$received")"
+}
+
+it_should_warn_and_allow_when_untracked_files_under_a_git_add_directory_cannot_be_listed() {
+  local repo shim_dir real_git
+  repo=$(new_repo unit17lsfilesfails)
+  mkdir -p "$repo/sub"
+  write_clean_shell_file "$repo/sub/kept.sh"
+  commit_tracked_file "$repo" sub/kept.sh
+  write_violating_shell_file "$repo/sub/new-script.sh"
+  shim_dir="$tmp_root/unit17shim"
+  real_git=$(command -v git)
+  mkdir -p "$shim_dir"
+  {
+    printf '#!/usr/bin/env bash\n'
+    printf 'case " $* " in *" ls-files "*) exit 128;; esac\n'
+    printf 'exec %s "$@"\n' "$real_git"
+  } > "$shim_dir/git"
+  chmod +x "$shim_dir/git"
+
+  GATE_STDERR=$(cd "$repo" \
+    && PATH="$shim_dir:$PATH" bash "$SCRIPT" 'git add sub/ && git commit -m "x"' 2>&1 >/dev/null)
+  GATE_EXIT=$?
+
+  assert_eq "should allow the commit when the untracked listing fails" \
+    0 "$GATE_EXIT"
+  assert_contains "should warn that the untracked files could not be listed" \
+    "could not list" "$GATE_STDERR"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
@@ -724,6 +829,11 @@ it_should_block_a_violation_in_a_file_under_a_directory_commit_pathspec
 it_should_allow_a_directory_commit_pathspec_with_no_modified_file_under_it
 it_should_warn_and_allow_when_a_directory_commit_pathspec_cannot_be_listed
 it_should_allow_a_commit_pathspec_naming_neither_a_file_nor_a_directory
+it_should_block_a_violation_in_an_untracked_file_under_a_git_add_directory
+it_should_allow_a_directory_commit_pathspec_holding_only_an_untracked_violation
+it_should_block_a_violation_in_a_tracked_file_under_a_git_add_directory
+it_should_not_check_a_gitignored_untracked_file_under_a_git_add_directory
+it_should_warn_and_allow_when_untracked_files_under_a_git_add_directory_cannot_be_listed
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

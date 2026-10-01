@@ -124,8 +124,13 @@ WARNING_PREFIX = 'check-staged-comment-format:'
 # commit will hold: the `git add` and `git commit` pathspecs,
 # the directory the gate's own git calls must run in, and
 # whether a `git commit -a` stages every tracked file too.
+#
+# `added_pathspecs` is the subset of `pathspecs` that came from
+# a `git add`: only that arm stages untracked files, so only it
+# may widen a directory to the untracked files beneath it.
 CommandScope = collections.namedtuple(
-    'CommandScope', 'pathspecs directory stages_all')
+    'CommandScope', 'pathspecs directory stages_all added_pathspecs',
+    defaults=((),))
 
 
 def warn_and_allow(message):
@@ -249,6 +254,7 @@ def command_scope(command, start_directory):
     A pathspec is relative to whatever directory its own `git add` runs in, so the walk tracks a `cd` the same way claude-rm-guard.sh does — every dispatched agent emits `cd <repo> && git add ...`, its working directory having reset.
     """
     paths = []
+    added_paths = []
     directory = start_directory
     commit_directory = None
     stages_all = False
@@ -296,8 +302,11 @@ def command_scope(command, start_directory):
                     continue
                 if token == '.' or any(c in token for c in NON_LITERAL_CHARS):
                     return CommandScope(None, directory, stages_all)
-                paths.append(resolve(call_directory, token))
-    return CommandScope(paths, commit_directory or directory, stages_all)
+                added_path = resolve(call_directory, token)
+                paths.append(added_path)
+                added_paths.append(added_path)
+    return CommandScope(paths, commit_directory or directory, stages_all,
+                        added_paths)
 
 
 # A heredoc body is data fed to a sink, never shell
@@ -367,6 +376,17 @@ else:
                 warn_and_allow('could not list the files changed under '
                                '%s, skipping the check' % pathspec)
             add_candidates_listed_by_git(changed.stdout)
+            # `git add <dir>` also stages untracked files, which
+            # the diff above never lists; `git commit <dir>` does
+            # not, so only the add arm widens to them.
+            if pathspec in scope.added_pathspecs:
+                untracked = run_git(['ls-files', '--others', '--exclude-standard',
+                                     '--full-name', '--', pathspec],
+                                    scope.directory)
+                if untracked.returncode != 0:
+                    warn_and_allow('could not list the untracked files under '
+                                   '%s, skipping the check' % pathspec)
+                add_candidates_listed_by_git(untracked.stdout)
 add_candidates_listed_by_git(index.stdout)
 
 # `-a` stages every tracked modified file at commit time,
