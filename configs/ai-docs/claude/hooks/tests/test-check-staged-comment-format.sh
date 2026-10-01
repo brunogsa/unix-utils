@@ -55,6 +55,23 @@ assert_contains() {
   esac
 }
 
+# assert_not_contains - asserts the report is free of a
+# given substring, which is how a path that resolved a file
+# set is told apart from one that gave up and warned.
+assert_not_contains() {
+  local description="$1" needle="$2" haystack="$3"
+  case "$haystack" in
+    *"$needle"*)
+      fail_count=$((fail_count + 1))
+      printf 'not ok - %s\n  expected not to contain: %s\n  actual:   %s\n' "$description" "$needle" "$haystack"
+      ;;
+    *)
+      pass_count=$((pass_count + 1))
+      printf 'ok - %s\n' "$description"
+      ;;
+  esac
+}
+
 # new_repo - fresh fixture repo with one commit, so
 # HEAD exists and --changed-only can resolve a scope.
 new_repo() {
@@ -66,6 +83,16 @@ new_repo() {
   git -C "$dir" -c user.email=suite@example.com \
     -c user.name='Hook Suite' commit -qm 'seed'
   printf '%s' "$dir"
+}
+
+# commit_tracked_file - commits a file into a fixture repo,
+# so a later edit to it is a tracked modification rather
+# than the untracked file `git commit -a` would skip.
+commit_tracked_file() {
+  local repo="$1" path="$2"
+  git -C "$repo" add "$path"
+  git -C "$repo" -c user.email=suite@example.com \
+    -c user.name='Hook Suite' commit -qm "add $path"
 }
 
 # write_violating_shell_file - a shell file whose one
@@ -338,6 +365,45 @@ it_should_allow_the_commit_when_the_checker_reports_trouble() {
     "comment checker" "$GATE_STDERR"
 }
 
+# `git commit -a` stages every tracked modified file at
+# commit time, and the gate parses only `git add`
+# pathspecs — so a `-a` commit left it with no file set at
+# all, and the still-empty index then passed it in silence.
+it_should_block_a_violation_git_commit_dash_a_would_stage() {
+  local repo
+  repo=$(new_repo unit9commitall)
+  write_clean_shell_file "$repo/deploy.sh"
+  commit_tracked_file "$repo" deploy.sh
+  write_violating_shell_file "$repo/deploy.sh"
+
+  run_gate "$repo" 'git commit -am "x"'
+
+  assert_eq "should block a commit whose -a stages a violating tracked file" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the offending file -a stages" \
+    "deploy.sh" "$GATE_STDERR"
+  assert_not_contains "should read the -a file set rather than warn it could not be read" \
+    "command string" "$GATE_STDERR"
+}
+
+# `-a` names its set relative to the repo the commit runs
+# in, so a leading `cd` moves that set the same way it
+# moves an `add` pathspec.
+it_should_block_a_commit_dash_a_violation_after_a_leading_cd() {
+  local repo
+  repo=$(new_repo unit9cdall)
+  write_clean_shell_file "$repo/deploy.sh"
+  commit_tracked_file "$repo" deploy.sh
+  write_violating_shell_file "$repo/deploy.sh"
+
+  run_gate_from "$tmp_root" "cd $repo && git commit -a -m \"x\""
+
+  assert_eq "should block a -a commit whose tracked files live under a leading cd" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the offending file the leading cd made reachable to -a" \
+    "deploy.sh" "$GATE_STDERR"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
@@ -352,6 +418,8 @@ it_should_allow_a_staged_markdown_file_beside_a_clean_shell_file
 it_should_block_a_shell_violation_staged_beside_a_markdown_file
 it_should_allow_the_commit_when_the_checker_is_missing
 it_should_allow_the_commit_when_the_checker_reports_trouble
+it_should_block_a_violation_git_commit_dash_a_would_stage
+it_should_block_a_commit_dash_a_violation_after_a_leading_cd
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

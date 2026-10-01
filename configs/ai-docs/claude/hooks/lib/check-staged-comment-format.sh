@@ -12,12 +12,13 @@
 #
 # exit: 0 clean or nothing to check, 1 violations found.
 #
-# The file set is the union of two sources: the literal
-# pathspecs of every `git add` in the command string, and
+# The file set is the union of three sources: the literal
+# pathspecs of every `git add` in the command string, the
+# tracked modified files a `git commit -a` would stage, and
 # whatever `git diff --cached` already reports.
 #
-# Both are needed because the sanctioned commit shape here
-# runs `git add` and `git commit` in one chain.
+# All three are needed because the sanctioned commit shape
+# here runs `git add` and `git commit` in one chain.
 #
 # A PreToolUse caller sees that chain before the shell runs
 # it, so the index is still empty and the index alone would
@@ -34,8 +35,12 @@
 # against a directory holding none of the named files.
 #
 # Known gap: a non-literal pathspec - a glob, a variable, a
-# command substitution, or `-A`/`-a`/`.` - names files only
+# command substitution, or `-A`/`-u`/`.` - names files only
 # the shell can resolve, and the shell has not run yet.
+#
+# A `git commit -a` sits outside that gap: its set is every
+# tracked modified file, which git names on request with
+# nothing left for the shell to expand.
 #
 # A `cd` or `-C` target the gate cannot name - a missing
 # directory, a variable, a command substitution - lands in
@@ -69,8 +74,10 @@ export STAGED_FORMAT_CMD="$CMD"
 export CHECK_COMMENT_FORMAT_JS="${CHECK_COMMENT_FORMAT_JS:-$CLAUDE_HOOKS_LIB_DIR/../../skills/doc-standards/scripts/check-comment-format.js}"
 
 python3 - <<'PYEOF'
+import collections
 import importlib.util
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -91,7 +98,28 @@ NON_LITERAL_CHARS = ('$', '`', '*', '?', '[')
 # Flags that stage a set nobody named explicitly.
 STAGE_EVERYTHING_FLAGS = ('-A', '--all', '-a', '-u', '--update')
 
+# `git commit` options whose value is a separate token, so
+# an `-a` standing in one of those slots is a message or a
+# ref rather than the flag that stages every tracked file.
+COMMIT_VALUE_OPTIONS = ('-c', '-C', '-F', '-m', '-t', '--author', '--date',
+                        '--file', '--fixup', '--message', '--reedit-message',
+                        '--reuse-message', '--squash', '--template')
+
+# `git commit` short options whose value is attached to the
+# cluster, so every letter after one of them is that value
+# rather than another flag.
+VALUE_ATTACHING_LETTERS = 'cCFmStu'
+
+SHORT_OPTION_CLUSTER_RE = re.compile(r'-[A-Za-z]+$')
+
 WARNING_PREFIX = 'check-staged-comment-format:'
+
+# Everything the command string says about the files the
+# commit will hold: the `git add` pathspecs, the directory
+# the gate's own git calls must run in, and whether a
+# `git commit -a` stages every tracked modified file too.
+CommandScope = collections.namedtuple(
+    'CommandScope', 'pathspecs directory stages_all')
 
 
 def warn_and_allow(message):
@@ -148,7 +176,41 @@ def git_subcommand_scope(tokens, directory):
     return index, directory
 
 
-def added_pathspecs(command, start_directory):
+def cluster_stages_every_tracked_file(token):
+    """True when a short-option cluster like `-am` carries the `-a` that stages every tracked modified file.
+
+    A letter following a value-attaching one belongs to that option's value, so `-mall` is a message and `-uall` an untracked-files mode rather than clusters holding an `-a`.
+    """
+    if not SHORT_OPTION_CLUSTER_RE.match(token):
+        return False
+    for letter in token[1:]:
+        if letter == 'a':
+            return True
+        if letter in VALUE_ATTACHING_LETTERS:
+            return False
+    return False
+
+
+def commit_stages_every_tracked_file(args):
+    """True when a `git commit` stage carries `-a`/`--all`, which stages every tracked modified file at commit time.
+
+    The scan stops at `--`, where pathspecs begin, and skips the value of an option that takes a separate one, so neither can be mistaken for the flag.
+    """
+    index = 0
+    while index < len(args):
+        token = args[index]
+        if token == '--':
+            return False
+        if token in COMMIT_VALUE_OPTIONS:
+            index += 2
+            continue
+        if token == '--all' or cluster_stages_every_tracked_file(token):
+            return True
+        index += 1
+    return False
+
+
+def command_scope(command, start_directory):
     """Absolute paths of every `git add` pathspec plus the directory the command ends in, with the paths None when one cannot be read from the command string.
 
     None is the whole-command verdict, not a per-pathspec one: a single unresolvable member means the caller's real file set is unknown, and the other members are no longer a set anyone can trust.
@@ -157,26 +219,33 @@ def added_pathspecs(command, start_directory):
     """
     paths = []
     directory = start_directory
+    stages_all = False
     for stages in _parse_shell_command.split_into_pipelines(command):
         for stage in stages:
             try:
                 tokens = shlex.split(stage, comments=True)
             except ValueError:
-                return None, directory
+                return CommandScope(None, directory, stages_all)
             if not tokens:
                 continue
             if tokens[0] == 'cd':
                 directory = directory_after_cd(directory, tokens[1:])
                 if directory is None:
-                    return None, start_directory
+                    return CommandScope(None, start_directory, stages_all)
                 continue
             if len(tokens) < 2 or os.path.basename(tokens[0]) != 'git':
                 continue
             scope = git_subcommand_scope(tokens, directory)
             if scope is None:
-                return None, directory
-            subcommand, add_directory = scope
-            if subcommand >= len(tokens) or tokens[subcommand] != 'add':
+                return CommandScope(None, directory, stages_all)
+            subcommand, call_directory = scope
+            if subcommand >= len(tokens):
+                continue
+            if tokens[subcommand] == 'commit':
+                if commit_stages_every_tracked_file(tokens[subcommand + 1:]):
+                    stages_all = True
+                continue
+            if tokens[subcommand] != 'add':
                 continue
             after_options = False
             for token in tokens[subcommand + 1:]:
@@ -185,12 +254,12 @@ def added_pathspecs(command, start_directory):
                     continue
                 if not after_options and token.startswith('-'):
                     if token in STAGE_EVERYTHING_FLAGS:
-                        return None, directory
+                        return CommandScope(None, directory, stages_all)
                     continue
                 if token == '.' or any(c in token for c in NON_LITERAL_CHARS):
-                    return None, directory
-                paths.append(resolve(add_directory, token))
-    return paths, directory
+                    return CommandScope(None, directory, stages_all)
+                paths.append(resolve(call_directory, token))
+    return CommandScope(paths, directory, stages_all)
 
 
 # A heredoc body is data fed to a sink, never shell
@@ -202,14 +271,14 @@ command = _parse_shell_command.strip_heredoc_bodies(os.environ.get('STAGED_FORMA
 # where the hook was launched, so a `cd` into another repo
 # is judged against that repo's index rather than this
 # directory's.
-pathspecs, command_directory = added_pathspecs(command, os.getcwd())
+scope = command_scope(command, os.getcwd())
 
-toplevel = run_git(['rev-parse', '--show-toplevel'], command_directory)
+toplevel = run_git(['rev-parse', '--show-toplevel'], scope.directory)
 if toplevel.returncode != 0:
     warn_and_allow('not inside a git repository, skipping the check')
 repo_root = toplevel.stdout.strip()
 
-index = run_git(['diff', '--cached', '--name-only'], command_directory)
+index = run_git(['diff', '--cached', '--name-only'], scope.directory)
 if index.returncode != 0:
     warn_and_allow('could not read the git index, skipping the check')
 
@@ -221,19 +290,35 @@ def add_candidate(path):
         candidates.append(path)
 
 
-# Command pathspecs come back absolute while index paths
-# are relative to the repo root, so the index half is made
-# absolute too before the union can dedupe them.
-if pathspecs is None:
+def add_candidates_listed_by_git(listing):
+    """Adds every path in a git name-only listing to the candidate set.
+
+    Command pathspecs come back absolute while a listing is relative to the repo root, so the listing is made absolute too before the union can dedupe the two halves.
+    """
+    for relative in listing.splitlines():
+        if relative.strip():
+            add_candidate(os.path.join(repo_root, relative))
+
+
+if scope.pathspecs is None:
     sys.stderr.write(
         '%s could not read the file set from the command string, '
         'using the git index alone\n' % WARNING_PREFIX)
-    pathspecs = []
-for pathspec in pathspecs:
-    add_candidate(pathspec)
-for relative in index.stdout.splitlines():
-    if relative.strip():
-        add_candidate(os.path.join(repo_root, relative))
+else:
+    for pathspec in scope.pathspecs:
+        add_candidate(pathspec)
+add_candidates_listed_by_git(index.stdout)
+
+# `-a` stages every tracked modified file at commit time,
+# and git names that set on request, so it is read rather
+# than discarded the way a glob or a variable is: there is
+# nothing here left for the shell to expand.
+if scope.stages_all:
+    modified = run_git(['diff', '--name-only'], scope.directory)
+    if modified.returncode != 0:
+        warn_and_allow('could not read the files `git commit -a` stages, '
+                       'skipping the check')
+    add_candidates_listed_by_git(modified.stdout)
 
 # A staged deletion leaves nothing on disk to lex.
 files = [path for path in candidates if os.path.isfile(path)]
