@@ -119,8 +119,26 @@ it_should_ignore_a_git_add_quoted_inside_a_commit_message() {
     0 "$GATE_EXIT"
 }
 
+# The index half of the union: a file already staged is
+# part of the commit even when the command string names no
+# file at all.
+it_should_block_a_violation_in_an_already_staged_file() {
+  local repo
+  repo=$(new_repo unit2)
+  write_violating_shell_file "$repo/release.sh"
+  git -C "$repo" add release.sh
+
+  run_gate "$repo" 'git commit -m "x"'
+
+  assert_eq "should block a commit whose index already holds a violating file" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the offending file found in the index" \
+    "release.sh" "$GATE_STDERR"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
+it_should_block_a_violation_in_an_already_staged_file
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
