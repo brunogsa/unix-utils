@@ -61,9 +61,7 @@ Otherwise ask one `AskUserQuestion`, before resolving files or dispatching anyth
 
 - **Auto-solve** — after reports land, this session triages both lenses and hands safe findings to `/address-verdicts`.
 
-Ask first, so a human wanting only a report is never surprised by commits, and one wanting fixes never has to re-invoke.
-
-**The `test-sdd` lens is applied on every run that dispatches it, unconditionally** (§5.1) — a planned-test miss carries no design call, since the human already approved the plan that declared it.
+**The `test-sdd` lens is applied on every run that dispatches it, without triage** (§5.1) — a planned-test miss carries no design call, since the human already approved the plan that declared it.
 
 ## 2. Resolve the spec and the plan
 
@@ -81,7 +79,7 @@ ls -1 spec_*.md plan_*.md 2>/dev/null
 - **More than one of a kind** → prompt with a numbered list and let the user pick; never guess which spec or plan was meant.
 
 - **Under `--auto-solve` or `--report-only`, never prompt on a multi-match** → proceed without that kind and say so, exactly as a zero match resolves.
-  - Either flag marks a run dispatched by a skill with nobody standing by, the same premise §6 uses to force `--no-ask`.
+  - Either flag marks a skill-dispatched run with nobody standing by, the premise §6 uses to force `--no-ask`.
   - A prompt here would stall the `/implement` tail indefinitely.
 
 Also resolve `<BASE_REF>` for the `auto-review` leg:
@@ -124,7 +122,7 @@ Tell each leg the `/tmp` half too — the `auto-review` leg's waves persist ther
 When each leg returns, confirm its verdict file exists in CWD and is non-empty. Record the three resolved paths.
 
 - **A leg's file is missing or empty** → re-dispatch once; still missing → flag it in the summary, let the other legs' reports stand, and move on.
-  - Never retry twice — a leg that fails twice is for the human to look at, not a retry loop to grind on.
+  - Never retry twice — a twice-failed leg is for the human, not a retry loop.
 
 - **Never report from a leg's return message** — messages are capped and truncate long finding lists; the file is the source of truth.
 
@@ -132,11 +130,15 @@ When each leg returns, confirm its verdict file exists in CWD and is non-empty. 
 
 The two groups below enter the list on different terms. Compose the whole list before invoking anything, and print it before applying anything.
 
-### 5.1. Every `test-sdd` finding goes in, unconditionally
+### 5.1. Every `test-sdd` finding goes in, without triage
 
 Whenever §3 dispatched the `test-sdd` leg and §4 collected a non-empty file for it, every finding enters the apply list — report-only and auto-solve alike, with no triage.
 
 Each names a test the plan declared and the repo lacks, so "is this worth doing" was already answered when the human approved the plan.
+
+One exception: a planned test whose target is prose is never written, because CLAUDE.md forbids tests over non-code artifacts.
+
+It still enters the list, and `/address-verdicts` §4 annotates it `SKIPPED`; plan approval cannot justify a test that may not exist.
 
 When §2 resolved no plan, that leg never dispatched and this sub-step contributes nothing.
 
