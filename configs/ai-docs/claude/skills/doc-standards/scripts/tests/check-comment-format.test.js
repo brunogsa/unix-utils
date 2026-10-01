@@ -258,6 +258,11 @@ const readonlyFixture = () =>
 const unlexableFixture = () =>
   put('notes.txt', lines('A plain note with no comment syntax.'));
 
+// A shebang every entry's shebangRe declines, including the
+// entries that declare none at all.
+const unclaimedShebangFixture = () =>
+  put('notes.rb', lines('#!/usr/bin/env ruby', 'VALUE = 1'));
+
 // A trailing-width violation on a line the edit added, beside
 // one that predates it.
 const widthScope = () =>
@@ -1299,6 +1304,11 @@ describe('check-comment-format', () => {
 
     it('should exit 2 when given no files', () => {
       assert.equal(run([]).status, 2);
+    });
+
+    it('should exit 2 on a file whose shebang no language claims', () => {
+      const file = unclaimedShebangFixture();
+      assert.equal(run([file]).status, 2);
     });
 
     it('should exit 1 when only the in-scope WIDTH violation remains', () => {
