@@ -588,23 +588,23 @@ function scanCommentRanges(text, dialect) {
   return ranges;
 }
 
-// Shell needs a word boundary before `#`, or `$#` and
-// `${v#pat}` would blank out the rest of their line.
-//
 // A heredoc body is data rather than code, so its `#` lines
-// are not comments either.
+// are not comments.
 //
-// But `<<` doubles as the arithmetic shift operator, so a
-// delimiter that never appears alone on a line is read as a
-// shift instead of swallowing the rest of the file.
-function shellDialect() {
-  const pendingHeredocs = [];
+// `stripRe` is what the `<<-` form strips off a terminator
+// before matching it -- shell drops tabs, HCL any indent.
+//
+// A `<<` that opens no body is the arithmetic shift operator,
+// so a delimiter that never appears alone on a line is read
+// as a shift instead of swallowing the rest of the file.
+function heredocQueue(stripRe) {
+  const pending = [];
 
-  function queueHeredoc(text, from) {
+  function queue(text, from) {
     let j = from;
-    let stripTabs = false;
+    let stripIndent = false;
     if (text[j] === '-') {
-      stripTabs = true;
+      stripIndent = true;
       j++;
     }
     while (text[j] === ' ' || text[j] === '\t') j++;
@@ -621,16 +621,16 @@ function shellDialect() {
     }
     if (quote && text[j] === quote) j++;
 
-    if (delim) pendingHeredocs.push({ delim, stripTabs });
+    if (delim) pending.push({ delim, stripIndent });
     return j;
   }
 
-  function findHeredocEnd(text, from, delim, stripTabs) {
+  function findEnd(text, from, delim, stripIndent) {
     let j = from;
     while (j < text.length) {
       const newline = text.indexOf('\n', j);
       const line = text.slice(j, newline === -1 ? text.length : newline);
-      if ((stripTabs ? line.replace(/^\t+/, '') : line) === delim) {
+      if ((stripIndent ? line.replace(stripRe, '') : line) === delim) {
         return newline === -1 ? text.length : newline + 1;
       }
       if (newline === -1) return null;
@@ -638,6 +638,28 @@ function shellDialect() {
     }
     return null;
   }
+
+  function drain(text, from) {
+    let j = from;
+    while (pending.length) {
+      const { delim, stripIndent } = pending.shift();
+      const end = findEnd(text, j, delim, stripIndent);
+      if (end === null) {
+        pending.length = 0;
+        break;
+      }
+      j = end;
+    }
+    return j;
+  }
+
+  return { queue, drain };
+}
+
+// Shell needs a word boundary before `#`, or `$#` and
+// `${v#pat}` would blank out the rest of their line.
+function shellDialect() {
+  const heredocs = heredocQueue(/^\t+/);
 
   return {
     lineComments: ['#'],
@@ -654,24 +676,14 @@ function shellDialect() {
       if (ch === '<' && text[i + 1] === '<') {
         // `<<<` is a here-string -- one inline word, no body.
         if (text[i + 2] === '<') return i + 3;
-        return queueHeredoc(text, i + 2);
+        return heredocs.queue(text, i + 2);
       }
 
       return null;
     },
 
     afterNewline(text, from) {
-      let j = from;
-      while (pendingHeredocs.length) {
-        const { delim, stripTabs } = pendingHeredocs.shift();
-        const end = findHeredocEnd(text, j, delim, stripTabs);
-        if (end === null) {
-          pendingHeredocs.length = 0;
-          break;
-        }
-        j = end;
-      }
-      return j;
+      return heredocs.drain(text, from);
     },
   };
 }
