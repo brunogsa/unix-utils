@@ -255,6 +255,18 @@ it_should_not_flag_a_conventional_commit_prefixed_branch_name_mention_as_a_broke
     rm -rf "$d"
 }
 
+it_should_not_scan_a_backtick_path_inside_a_markdown_link_text_as_its_own_ref() {
+    echo "it_should_not_scan_a_backtick_path_inside_a_markdown_link_text_as_its_own_ref"
+    local d; d=$(new_fixture)
+    mkdir -p "$d/skill-a" "$d/skill-b/references"
+    printf '# Thing\n' > "$d/skill-b/references/thing.md"
+    printf 'See [`skill-b/references/thing.md`](../skill-b/references/thing.md) for details.\n' > "$d/skill-a/source.md"
+    local status; bash "$CHECK" "$d/skill-a/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 0" "0" "$status"
+    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
 it_should_pass_a_markdown_link_ref_that_resolves
 it_should_pass_a_backtick_path_ref_that_resolves
 it_should_pass_a_ref_whose_anchor_heading_exists_in_the_target
@@ -273,6 +285,8 @@ it_should_report_zero_broken_refs_against_the_real_jira_cli_skill_file
 it_should_still_report_a_genuinely_broken_relative_file_ref_alongside_an_unflagged_git_ref_mention
 it_should_not_flag_common_remote_tracking_git_ref_mentions_as_broken_refs
 it_should_not_flag_a_conventional_commit_prefixed_branch_name_mention_as_a_broken_ref
+
+it_should_not_scan_a_backtick_path_inside_a_markdown_link_text_as_its_own_ref
 
 echo
 echo "$passed passed, $failed failed"

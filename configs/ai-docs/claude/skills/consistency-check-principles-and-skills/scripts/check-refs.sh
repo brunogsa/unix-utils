@@ -273,6 +273,16 @@ check_candidate() {
 #
 # A backtick match is additionally required to contain `/` —
 # bare backtick text like `` `README` `` is prose, not a path.
+#
+# A backtick span immediately followed by `](` is a markdown
+# link's TEXT, not a ref of its own.
+#
+# The link's target is already emitted by the first loop, so
+# skipping the text loses no coverage.
+#
+# Left in, the text resolves against the referencing file's
+# directory instead of the link's own base, and is falsely
+# reported broken.
 list_line_ref_candidates() {
     local line=$1 match candidate
     while IFS= read -r match; do
@@ -284,12 +294,15 @@ list_line_ref_candidates() {
 
     while IFS= read -r match; do
         [ -n "$match" ] || continue
+        case "$match" in
+            *'`](') continue ;;
+        esac
         candidate="${match#\`}"
         candidate="${candidate%\`}"
         case "$candidate" in
             */*) printf '%s\n' "$candidate" ;;
         esac
-    done < <(grep -oE '`[^`]+`' <<<"$line" 2>/dev/null || true)
+    done < <(grep -oE '`[^`]+`(\]\()?' <<<"$line" 2>/dev/null || true)
 }
 
 # SC2094 reads as a read-and-write of one file, but nothing
