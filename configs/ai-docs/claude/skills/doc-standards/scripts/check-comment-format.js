@@ -253,6 +253,21 @@ const LANGUAGES = {
     prefixRe: /^(\*|\/\/)\s?/,
     scopeOpeners: [/[{([]$/, /^(case\b.*|default)\s*:$/],
   },
+
+  yaml: {
+    extensions: ['.yaml', '.yml'],
+
+    // No interpreter runs a data file, so none shebangs one.
+    shebangRe: null,
+
+    scan: (text) => scanCommentRanges(text, yamlDialect()),
+    delimiterRe: null,
+    blankRe: /^#$/,
+    prefixRe: /^#\s?/,
+
+    // A mapping key's `:` opens the block nested under it.
+    scopeOpeners: [/:$/, /[{([]$/],
+  },
 };
 
 const USAGE =
@@ -767,6 +782,61 @@ function goDialect() {
 
     afterNewline(_text, from) {
       return from;
+    },
+  };
+}
+
+// A yaml block scalar body is literal text, so a `#` in it
+// belongs to whatever language the body carries.
+//
+// The body is every line indented deeper than the key that
+// opened it, which only the line AFTER the opener can act on
+// -- the same place shell drains its heredocs.
+//
+// The opener is `|` or `>` ending a line, with an optional
+// chomping sign and an optional explicit indent digit in
+// either order.
+const YAML_BLOCK_SCALAR = /^(\s*(?:-[ \t]+)*)[^#]*?[|>](?:[-+]?\d?|\d[-+]?)[ \t]*$/;
+
+// A quote opens a scalar only at the start of one; elsewhere
+// it is an apostrophe in plain text.
+const YAML_QUOTE_OPENERS = new Set([...' \t\n:-[{,']);
+
+function yamlDialect() {
+  function skipBlockScalarBody(text, from, keyIndent) {
+    let j = from;
+    while (j < text.length) {
+      const newline = text.indexOf('\n', j);
+      const line = text.slice(j, newline === -1 ? text.length : newline);
+      const indent = line.length - line.trimStart().length;
+      if (line.trim() !== '' && indent <= keyIndent) return j;
+      if (newline === -1) return text.length;
+      j = newline + 1;
+    }
+    return j;
+  }
+
+  return {
+    lineComments: ['#'],
+    blockComments: [],
+    needsWordBoundary: true,
+
+    skipNonCode(text, i) {
+      const ch = text[i];
+      if (ch !== "'" && ch !== '"') return null;
+      if (!YAML_QUOTE_OPENERS.has(i === 0 ? '\n' : text[i - 1])) return null;
+
+      // A yaml single-quoted scalar escapes by doubling the
+      // quote, so a backslash in it carries no meaning.
+      if (ch === "'") return skipQuoted(text, i + 1, "'", false);
+      return skipQuoted(text, i + 1, '"', true);
+    },
+
+    afterNewline(text, from) {
+      const prevStart = text.lastIndexOf('\n', from - 2) + 1;
+      const opener = YAML_BLOCK_SCALAR.exec(text.slice(prevStart, from - 1));
+      if (!opener) return from;
+      return skipBlockScalarBody(text, from, opener[1].length);
     },
   };
 }

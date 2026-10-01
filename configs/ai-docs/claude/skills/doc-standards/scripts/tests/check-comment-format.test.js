@@ -819,6 +819,73 @@ describe('check-comment-format', () => {
     });
   });
 
+  describe('yaml files', () => {
+    const blockScalarFile = () =>
+      put(
+        'script.yaml',
+        lines(
+          'script: |',
+          `  # ${AGGREGATOR}`,
+          '  echo hi',
+        ),
+      );
+
+    const quotedScalarFile = (rel, quote) =>
+      put(
+        rel,
+        lines(
+          'billing:',
+          `  endpoint: ${quote}http://example.com/collapse/records/into/one#billed-unit${quote}`,
+        ),
+      );
+
+    it('should report the over-cap line of a line comment', () => {
+      const file = put(
+        'billing.yaml',
+        lines(
+          'billing:',
+          `  # ${AGGREGATOR}`,
+          '  units: 1',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+
+    it('should read no comment out of a block scalar body', () => {
+      assertAbsent(check(blockScalarFile()).out, 'WIDTH');
+    });
+
+    it('should exit 0 on a file whose only long line is a block scalar body', () => {
+      assert.equal(check(blockScalarFile()).status, 0);
+    });
+
+    it('should resume reporting once the block scalar body dedents', () => {
+      const file = put(
+        'steps.yml',
+        lines(
+          'steps:',
+          '  - run: |-',
+          `      # ${AGGREGATOR}`,
+          '    name: step one',
+          `# ${AGGREGATOR}`,
+        ),
+      );
+      const out = check(file).out;
+      assertContains(out, 'WIDTH 5:');
+      assertAbsent(out, 'WIDTH 3');
+    });
+
+    it('should read no comment out of a double-quoted scalar', () => {
+      const file = quotedScalarFile('double.yaml', '"');
+      assertAbsent(check(file).out, 'WIDTH');
+    });
+
+    it('should read no comment out of a single-quoted scalar', () => {
+      const file = quotedScalarFile('single.yml', "'");
+      assertAbsent(check(file).out, 'WIDTH');
+    });
+  });
+
   describe('corner cases', () => {
     it('should leave an aligned usage line byte-identical', () => {
       const file = literalsFixture();
