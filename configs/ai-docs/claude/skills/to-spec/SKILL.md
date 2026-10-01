@@ -95,3 +95,7 @@ Why fresh eyes: this session never wrote the spec, but it holds the interview an
 ### 5. Offer `brainstorm-how`
 
 Give the user the spec's path and offer `brainstorm-how`. Do not run it in this session.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
