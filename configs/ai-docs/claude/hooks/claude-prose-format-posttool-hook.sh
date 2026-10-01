@@ -3,7 +3,7 @@
 # format reminder, fired right after a Write/Edit lands.
 #
 # Usage (Claude Code hooks):
-#   PostToolUse matcher Write|Edit|Bash -> read the stdin
+#   PostToolUse matcher Write|Edit -> read the stdin
 #   payload, check the file(s) just written, report or stay
 #   silent.
 #
@@ -25,10 +25,6 @@
 # A file outside any git work tree has no baseline to diff
 # against, so every line counts as new: it is checked whole,
 # without --changed-only.
-#
-# A Bash payload names no file, so outside a work tree the
-# files directly in cwd touched
-# within the write window stand in for git's list.
 #
 # Fail-open is the safety property this hook lives or dies
 # by: a missing file, a missing checker, a checker that
@@ -256,7 +252,8 @@ RULE_BLOCK='Prose: small paragraphs of 1-4 sentences, blank line between each.
 Bullets + sub-bullets: 1-2 sentences each.
 One paragraph = one physical line — never hard-wrap. Never drop information.
 Colon-ended bullet: nest the items it introduces under it, or end it with a period. Single-child chain 3+ levels deep: flatten it into siblings under the shared parent.
-Dash-ended bullet whose next bullet continues its sentence: rewrite the pair as two full sentences, or rejoin them into one bullet. Before flattening a chain, rewrite as a full sentence any line that continues the sentence above it.'
+Dash-ended bullet whose next bullet continues its sentence: rewrite the pair as two full sentences, or rejoin them into one bullet. Before flattening a chain, rewrite as a full sentence any line that continues the sentence above it.
+Fix these by re-issuing Write/Edit with the corrected text. Never bypass this hook by writing or editing the file through Bash (sed, heredoc, redirect, tee, scripts).'
 
 {
   printf 'prose-format: %s — %s violation%s\n\n' "$base" "$total" "$([ "$total" -eq 1 ] && echo "" || echo "s")"
@@ -356,90 +353,12 @@ Dash-ended bullet whose next bullet continues its sentence: rewrite the pair as 
   return 2
 }
 
-# How recently a file must have been touched to count as
-# written by the Bash call that just ran.
-#
-# git reports every dirty file in the tree, but this hook only
-# has standing over the ones its own Bash call produced.
-#
-# A long-dirty work tree - a concurrent session's scratch, a
-# half-finished refactor - would otherwise be re-reported in
-# full on every Bash call.
-#
-# That measured 29 files and 30 seconds per call in this repo,
-# which is how a hook gets switched off.
-BASH_WRITE_WINDOW_SECONDS=300
-
-# file_mtime_seconds - epoch mtime of a file, via the BSD form
-# first and the GNU form second, since this repo runs on both.
-file_mtime_seconds() {
-  stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null
-}
-
-# collect_bash_paths - fill `paths` with every file git reports
-# as changed in the work tree the Bash call ran in.
-#
-# A Bash payload names no file, and the write may have come
-# from a redirect, a heredoc, tee, an in-place edit or a script
-# the command invoked, so git's own view is the only signal
-# that needs no hand-maintained list of writers.
-#
-# Outside a work tree git has nothing to report, so the fallback
-# is the files directly in cwd touched inside the same window.
-# Depth 1, never recursive: a cwd of $HOME or / must not turn
-# every Bash call into a disk walk.
-#
-# Returns non-zero when cwd is no directory, which is the
-# fail-open case: no signal.
-collect_bash_paths() {
-  local cwd="$1" top entry status_pair relative_path absolute_path mtime now
-  now=$(date +%s)
-  if ! git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    [ -d "$cwd" ] || return 1
-    while IFS= read -r -d '' absolute_path; do
-      mtime=$(file_mtime_seconds "$absolute_path")
-      [ -n "$mtime" ] || continue
-      [ "$((now - mtime))" -le "$BASH_WRITE_WINDOW_SECONDS" ] || continue
-      paths+=("$absolute_path")
-    done < <(find "$cwd" -maxdepth 1 -type f -print0 2>/dev/null)
-    return 0
-  fi
-  top=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || return 1
-  [ -n "$top" ] || return 1
-
-  # -z keeps every path raw, so a name carrying a space or a
-  # quote needs no unquoting; -uall lists files inside a new
-  # directory instead of collapsing it to the directory.
-  while IFS= read -r -d '' entry; do
-    status_pair="${entry:0:2}"
-    relative_path="${entry:3}"
-
-    # A rename or copy entry carries its old path as a second
-    # NUL field, which names no file on disk to check.
-    case "$status_pair" in
-      *R*|*C*) IFS= read -r -d '' _ ;;
-    esac
-
-    absolute_path="$top/$relative_path"
-    mtime=$(file_mtime_seconds "$absolute_path")
-    [ -n "$mtime" ] || continue
-    [ "$((now - mtime))" -le "$BASH_WRITE_WINDOW_SECONDS" ] || continue
-
-    paths+=("$absolute_path")
-  done < <(git -C "$cwd" status --porcelain -z -uall 2>/dev/null)
-}
-
 paths=()
 case "$TOOL_NAME" in
   Write|Edit)
     FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
     [ -n "$FILE_PATH" ] || exit 0
     paths=("$FILE_PATH")
-    ;;
-  Bash)
-    HOOK_CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
-    [ -n "$HOOK_CWD" ] || HOOK_CWD="$PWD"
-    collect_bash_paths "$HOOK_CWD" || exit 0
     ;;
   *)
     exit 0
