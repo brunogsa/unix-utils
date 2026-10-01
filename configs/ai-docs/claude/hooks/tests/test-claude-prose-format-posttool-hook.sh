@@ -850,6 +850,20 @@ it_should_ignore_an_empty_or_root_tmpdir() {
   assert_eq "should exit 2 when TMPDIR is / (it would exempt every file)" "2" "$HOOK_EXIT"
 }
 
+# The hook keeps a literal extension list in its `case` so the
+# `*)` arm returns without a node startup on every write. This
+# pins that literal to the checker's own --list-extensions, so
+# widening one without the other fails here instead of silently
+# leaving files ungated.
+it_should_gate_exactly_the_extensions_the_checker_lists() {
+  local checker="$script_dir/../skills/doc-standards/scripts/check-comment-format.js"
+  local checker_set hook_set
+  checker_set=$(node "$checker" --list-extensions | sed 's/^\.//' | sort)
+  hook_set=$(grep -B1 -F 'checker_names=(check-comment-format.js)' "$SCRIPT" \
+    | head -n1 | tr -d ' )' | tr '|' '\n' | sort)
+  assert_eq "should gate exactly the extensions check-comment-format.js lists" "$checker_set" "$hook_set"
+}
+
 it_should_stay_silent_on_a_clean_markdown_write
 it_should_skip_a_wall_of_text_under_slash_tmp
 it_should_skip_a_wall_of_text_under_private_tmp
@@ -887,6 +901,7 @@ it_should_describe_the_dangling_dash_row_over_the_threshold
 it_should_run_correctly_when_the_path_has_a_space
 it_should_produce_an_inert_command_for_a_shell_metacharacter_path
 it_should_treat_a_leading_dash_filename_as_a_path_not_a_flag
+it_should_gate_exactly_the_extensions_the_checker_lists
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

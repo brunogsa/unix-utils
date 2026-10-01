@@ -104,6 +104,11 @@ check_file() {
 ext="${FILE_PATH##*.}"
 base="$(basename -- "$FILE_PATH")"
 
+# The comment-format arm lists its extensions literally: this
+# runs on every write, and asking the checker for them would
+# cost a node startup each time. A test pins the list to
+# check-comment-format.js --list-extensions.
+#
 # checker_names holds the checker basenames for this file's
 # extension, in the fixed order they run and report in.
 checker_names=()
@@ -111,7 +116,7 @@ case "$ext" in
   md)
     checker_names=(check-density.sh check-hard-wrap.py check-bullet-gap.py check-bullet-structure.py)
     ;;
-  ts|tsx|js|jsx|sh|bash|py)
+  ts|tsx|mts|cts|js|jsx|mjs|cjs|sh|bash|zsh|ksh|py|pyi|jsonc|go|yaml|yml|awk|tf|tfvars|lua|css|html|htm)
     checker_names=(check-comment-format.js)
     ;;
   *)
