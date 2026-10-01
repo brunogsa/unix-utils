@@ -148,9 +148,10 @@ it_should_block_commit_without_attribution() {
 }
 
 it_should_allow_commit_with_attribution() {
-  local msg
+  local msg dir
+  dir=$(make_repo main)
   msg=$(printf 'git commit -m "fix bug\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>"')
-  run_hook "$msg"
+  run_hook "$msg" "$dir"
   assert_eq "should allow a commit whose message carries Co-Authored-By" "0" "$HOOK_EXIT"
 }
 
