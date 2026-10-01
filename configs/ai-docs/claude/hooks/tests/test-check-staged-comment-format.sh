@@ -99,6 +99,16 @@ run_gate() {
   GATE_EXIT=$?
 }
 
+# run_gate_with_checker - same, with the checker path
+# overridden, which is the seam the infrastructure-failure
+# cases need.
+run_gate_with_checker() {
+  local repo="$1" checker="$2" command="$3"
+  GATE_STDERR=$(cd "$repo" \
+    && CHECK_COMMENT_FORMAT_JS="$checker" bash "$SCRIPT" "$command" 2>&1 >/dev/null)
+  GATE_EXIT=$?
+}
+
 # The index-timing trap: at PreToolUse the `git add` has
 # not run yet, so a gate reading only the index would pass
 # this commit vacuously.
@@ -205,6 +215,39 @@ it_should_block_a_shell_violation_staged_beside_a_markdown_file() {
     "deploy.sh" "$GATE_STDERR"
 }
 
+# Blocking every commit in the repo on a broken gate is a
+# worse failure than missing one violation, so
+# infrastructure trouble always fails open.
+it_should_allow_the_commit_when_the_checker_is_missing() {
+  local repo
+  repo=$(new_repo unit5missing)
+  write_violating_shell_file "$repo/deploy.sh"
+
+  run_gate_with_checker "$repo" "$tmp_root/no-such-checker.js" \
+    'git add deploy.sh && git commit -m "x"'
+
+  assert_eq "should allow the commit when the comment checker is not installed" \
+    0 "$GATE_EXIT"
+  assert_contains "should warn that the comment checker could not be found" \
+    "comment checker" "$GATE_STDERR"
+}
+
+it_should_allow_the_commit_when_the_checker_reports_trouble() {
+  local repo checker
+  repo=$(new_repo unit5broken)
+  write_violating_shell_file "$repo/deploy.sh"
+  checker="$tmp_root/broken-checker.js"
+  printf 'process.exit(2);\n' > "$checker"
+
+  run_gate_with_checker "$repo" "$checker" \
+    'git add deploy.sh && git commit -m "x"'
+
+  assert_eq "should allow the commit when the comment checker exits with trouble" \
+    0 "$GATE_EXIT"
+  assert_contains "should warn that the comment checker could not reach a verdict" \
+    "comment checker" "$GATE_STDERR"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_in_an_already_staged_file
@@ -212,6 +255,8 @@ it_should_fall_back_to_the_index_when_a_pathspec_is_a_variable
 it_should_still_judge_the_index_when_a_pathspec_is_a_variable
 it_should_allow_a_staged_markdown_file_beside_a_clean_shell_file
 it_should_block_a_shell_violation_staged_beside_a_markdown_file
+it_should_allow_the_commit_when_the_checker_is_missing
+it_should_allow_the_commit_when_the_checker_reports_trouble
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
