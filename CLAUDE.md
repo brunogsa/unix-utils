@@ -28,10 +28,14 @@ Idempotent; safe to re-run. Uses inline OS detection (unlike the other stack rep
 One command covers the whole repo:
 
 ```bash
-./run-tests.sh   # every bash suite (all four test trees) plus the pytest.ini python suites
+./run-tests.sh   # every bash and node:test suite (all four test trees) plus the pytest.ini python suites
 ```
 
 `run-tests.sh` discovers bash suites by glob, so a new `test-*.sh` under any of the four trees is picked up with no registration step.
+
+It discovers `node:test` suites the same way, by a `*.test.js` glob over those same four trees, so a new node suite needs no registration step either.
+
+Each node suite is its own PASS/FAIL entry named by its path, so a failing one is re-runnable by hand as `node --test <path>`, and a missing `node` binary fails that entry loudly instead of reading as a pass.
 
 Python suites are collected the normal pytest way, via the repo-root `pytest.ini`.
 

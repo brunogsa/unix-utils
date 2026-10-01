@@ -329,9 +329,15 @@ it_should_fail_when_the_dead_session_start_compaction_router_script_survives
 # A fresh clone materializes exactly the index mode, so a
 # filesystem-only chmod would still leave a clone broken.
 #
-# Enumerated by the same four globs run-tests.sh itself uses
-# (never a hardcoded file list) — a hardcoded list reproduces
-# the exact registration gap run-tests.sh exists to close.
+# Enumerated by the same four `test-*.sh` globs run-tests.sh
+# itself uses (never a hardcoded file list) - a hardcoded
+# list reproduces the exact registration gap run-tests.sh
+# exists to close.
+#
+# Scoped to the bash leg on purpose: run-tests.sh hands its
+# node and python suites to an interpreter by path, so those
+# never need an exec bit, and the repo's `.test.js` and
+# `.test.py` files are tracked at 100644.
 suite_exec_bit_violations() {
   (cd "$repo_root" && git ls-files -s \
     configs/ai-docs/claude/tests/test-*.sh \
