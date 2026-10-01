@@ -82,3 +82,7 @@ With no module selected, ask via `AskUserQuestion`, recommended answer first: wr
 Do not run `to-spec` until the user picks it.
 
 Why no `/clear` hand-off: `to-spec` grounds from this session's context and scratchpad, so clearing first destroys what it reads.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
