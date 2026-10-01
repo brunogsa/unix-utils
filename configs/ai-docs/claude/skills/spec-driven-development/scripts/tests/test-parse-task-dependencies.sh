@@ -151,6 +151,14 @@ it_should_error_when_the_section_has_no_task_entries() {
   assert_eq "should error when the section has no task entries (diagnostic)" "error: Task Breakdown section found but no task entries could be parsed from it" "$VERDICT_ERR"
 }
 
+it_should_report_a_missing_section_when_the_plan_has_no_task_breakdown_heading() {
+  local fixture="$work_dir/no-section.md"
+  printf '## Overview\n\nSome prose.\n\n## Risks\n\n### 1. Not a task\n' > "$fixture"
+  run_script "$fixture"
+  assert_eq "should report a missing section when the plan has no Task Breakdown heading (exit code)" "1" "$VERDICT_EXIT"
+  assert_eq "should report a missing section when the plan has no Task Breakdown heading (diagnostic)" "error: Task Breakdown section missing: the plan has no '## Task Breakdown' heading" "$VERDICT_ERR"
+}
+
 it_should_error_on_a_missing_plan_file_and_on_a_wrong_argument_count() {
   run_script "$work_dir/absent.md"
   assert_eq "should error on a missing plan file (exit code)" "2" "$VERDICT_EXIT"
@@ -189,6 +197,7 @@ it_should_read_a_lone_none_bullet_as_no_dependencies
 it_should_reject_a_none_bullet_mixed_with_task_bullets_in_either_order
 it_should_reject_an_inline_task_reference_and_a_bare_field_with_no_bullet
 it_should_error_when_the_section_has_no_task_entries
+it_should_report_a_missing_section_when_the_plan_has_no_task_breakdown_heading
 it_should_error_on_a_missing_plan_file_and_on_a_wrong_argument_count
 it_should_print_an_edge_line_for_a_task_that_declares_no_depends_on_field
 it_should_report_a_blank_line_between_depends_on_and_its_bullet_as_a_plan_finding

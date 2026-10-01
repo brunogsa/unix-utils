@@ -8,10 +8,10 @@
 # stdout: one "Task N<TAB>Task A,Task B" line per task (empty
 #         second field when the task has no dependencies)
 #
-# exit: 0 parsed; 1 plan defect: an unparsable field, or no
-#       task entries; 2 usage error: wrong arg count, plan file
-#       missing, or a fence plan-section.sh rejects (diagnostic
-#       on stderr)
+# exit: 0 parsed; 1 plan defect: an unparsable field, no Task
+#       Breakdown section, or no task entries; 2 usage error:
+#       wrong arg count, plan file missing, or a fence
+#       plan-section.sh rejects (diagnostic on stderr)
 
 set -eo pipefail
 
@@ -117,6 +117,19 @@ ungrammatical=$(printf '%s\n' "$edges" |
 if [ -n "$ungrammatical" ]; then
   echo "error: unparsable **Depends on** field in: $ungrammatical" >&2
   echo "  canonical grammar: '**Depends on**: none', or a bare '**Depends on**:' line followed by either a lone '- none' bullet or one '- Task N' bullet per dependency (never both)" >&2
+  exit 1
+fi
+
+# plan-section.sh prints nothing for both a missing heading and
+# an empty section, so the heading is probed separately to keep
+# the two diagnostics from sending a reader hunting for entries
+# in a section that does not exist.
+has_heading=$(awk -f "$script_dir/../../../scripts/parse-fences.awk" \
+  -f <(printf '%s\n' '!in_fence && /^## Task Breakdown[[:space:]]*$/ { print "yes" }') \
+  "$plan_file")
+
+if [ -z "$edges" ] && [ -z "$has_heading" ]; then
+  echo "error: Task Breakdown section missing: the plan has no '## Task Breakdown' heading" >&2
   exit 1
 fi
 
