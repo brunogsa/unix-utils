@@ -1692,3 +1692,55 @@ describe('--list-extensions', () => {
     assert.equal(run(['--content-loss', '--list-extensions']).status, 2);
   });
 });
+
+describe('lexing false positives', () => {
+  const PROSE = [
+    'The aggregator collapses records.',
+    'It bills one unit per response.',
+    'A retry never bills twice.',
+  ];
+  const MORE_PROSE = [
+    'Refunds post to the same ledger.',
+    'A refund keeps its original tax.',
+    'Partial refunds split the tax.',
+  ];
+
+  describe('an empty line inside a block-comment body', () => {
+    const emptyLineBody = (name, open, close, tail) =>
+      put(name, lines(...open, ...PROSE, '', ...MORE_PROSE, ...close, ...tail));
+
+    it('should reset the paragraph run in a go block comment', () => {
+      const file = emptyLineBody(
+        'blank.go', ['package main', '', '/*'], ['*/'], ['func main() {}'],
+      );
+      assertAbsent(check(file).out, 'PARAGRAPH');
+    });
+
+    it('should reset the paragraph run in a jsonc block comment', () => {
+      const file = emptyLineBody('blank.jsonc', ['/*'], ['*/'], ['{}']);
+      assertAbsent(check(file).out, 'PARAGRAPH');
+    });
+
+    it('should reset the paragraph run in a terraform block comment', () => {
+      const file = emptyLineBody('blank.tf', ['/*'], ['*/'], ['variable "a" {}']);
+      assertAbsent(check(file).out, 'PARAGRAPH');
+    });
+
+    it('should reset the paragraph run in a lua long comment', () => {
+      const file = emptyLineBody('blank.lua', ['--[['], [']]'], ['local x = 1']);
+      assertAbsent(check(file).out, 'PARAGRAPH');
+    });
+
+    it('should still report a go block-comment run of five prose lines', () => {
+      const file = put(
+        'five.go',
+        lines(
+          'package main', '', '/*', ...PROSE, ...MORE_PROSE.slice(0, 2), '*/',
+          'func main() {}',
+        ),
+      );
+      assertContains(check(file).out, 'PARAGRAPH');
+    });
+  });
+
+});

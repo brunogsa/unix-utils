@@ -334,7 +334,7 @@ const LANGUAGES = {
     // `=` run is part of what makes the line prose-neutral.
     delimiterRe: /^(--\[=*\[|\]=*\])$/,
 
-    blankRe: /^--$/,
+    blankRe: /^(--)?$/,
     prefixRe: /^--\s?/,
 
     // A function header ends on its parameter list's `)`.
