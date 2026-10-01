@@ -107,3 +107,7 @@ Why fresh eyes: this session never wrote the plan, but it holds the context and 
 ### 5. Offer `sdd-to-linear`
 
 Give the user the plan's path and offer `sdd-to-linear`, with a free-text "something else" option always open. Do not run it in this session.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
