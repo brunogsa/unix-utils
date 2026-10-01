@@ -102,8 +102,12 @@ make_hook_without_lib() {
 # explicit script path instead of the real hook, for exercising
 # the copy make_hook_without_lib built.
 run_hook_with_script() {
-  local script="$1" command="$2" stdin_json
-  stdin_json=$(jq -n --arg c "$command" '{tool_input: {command: $c}}')
+  local script="$1" command="$2" cwd="${3:-}" stdin_json
+  if [ -n "$cwd" ]; then
+    stdin_json=$(jq -n --arg c "$command" --arg d "$cwd" '{tool_input: {command: $c}, cwd: $d}')
+  else
+    stdin_json=$(jq -n --arg c "$command" '{tool_input: {command: $c}}')
+  fi
   printf '%s' "$stdin_json" | "$bash_bin" "$script" >/dev/null 2>&1
   HOOK_EXIT=$?
 }
@@ -455,6 +459,25 @@ it_should_block_commit_whose_file_breaks_comment_format() {
   assert_eq "should block a commit whose file carries a comment-format violation" "2" "$HOOK_EXIT"
 }
 
+it_should_allow_commit_whose_file_respects_comment_format() {
+  local dir cmd
+  dir=$(make_repo main)
+  printf '%s\n' '# short comment' > "$dir/f.sh"
+  cmd=$(printf 'git add f.sh && git commit -m "add f.sh\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>"')
+  run_hook "$cmd" "$dir"
+  assert_eq "should allow a commit whose file respects comment format" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_commit_with_violation_when_format_gate_is_missing() {
+  local dir hook cmd
+  dir=$(make_repo main)
+  printf '%s\n' '# this standalone comment line runs well past the sixty-four character cap' > "$dir/f.sh"
+  hook=$(make_hook_without_lib)
+  cmd=$(printf 'git add f.sh && git commit -m "add f.sh\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>"')
+  run_hook_with_script "$hook" "$cmd" "$dir"
+  assert_eq "should fail open and allow the commit when the comment-format gate cannot be run" "0" "$HOOK_EXIT"
+}
+
 it_should_allow_a_plain_git_status
 it_should_block_git_push_force
 it_should_block_git_reset_hard
@@ -509,6 +532,8 @@ it_should_block_force_push_when_shared_lib_is_missing
 it_should_block_push_to_main_when_shared_lib_is_missing
 it_should_allow_git_status_when_shared_lib_is_missing
 it_should_block_commit_whose_file_breaks_comment_format
+it_should_allow_commit_whose_file_respects_comment_format
+it_should_allow_commit_with_violation_when_format_gate_is_missing
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
