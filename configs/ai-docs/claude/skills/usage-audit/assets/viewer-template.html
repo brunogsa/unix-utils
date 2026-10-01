@@ -4,16 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Claude Code usage history</title>
+
 <!--
-  Template for usage-history/viewer.html. `scripts/build-usage-viewer.py` replaces
-  the __USAGE_DATA__ token below with the inlined snapshot + ledger payload.
+  Template for usage-history/viewer.html.
+  `scripts/build-usage-viewer.py` replaces the
+  __USAGE_DATA__ token below with the inlined snapshot +
+  ledger payload.
 
-  The data is INLINED rather than fetched: a page opened over file:// cannot read
-  a sibling .json, so fetching would force a local web server just to look at a
-  chart. Inlining keeps it a double-click away with zero dependencies.
+  The data is INLINED rather than fetched: a page opened
+  over file:// cannot read a sibling .json, so fetching
+  would force a local web server just to look at a chart.
 
-  Everything here is vanilla JS and hand-rolled SVG for the same reason — a CDN
-  chart library is a network request this page must never need.
+  Inlining keeps it a double-click away with zero
+  dependencies.
+
+  Everything here is vanilla JS and hand-rolled SVG for the
+  same reason — a CDN chart library is a network request
+  this page must never need.
 -->
 <style>
   :root {
