@@ -795,6 +795,164 @@ it_should_warn_and_allow_when_untracked_files_under_a_git_add_directory_cannot_b
     "could not list" "$GATE_STDERR"
 }
 
+# `--pathspec-from-file` names its pathspecs in a file, so a
+# gate that ignores the option sees a commit with no
+# pathspecs and lets a violating file through.
+it_should_block_a_violation_listed_in_a_commit_pathspec_from_file() {
+  local repo
+  repo=$(new_repo unit18commitfile)
+  write_violating_shell_file "$repo/deploy.sh"
+  printf 'seed.txt\ndeploy.sh\n' > "$repo/paths.txt"
+
+  run_gate "$repo" 'git commit --pathspec-from-file=paths.txt -m "x"'
+
+  assert_eq "should block a commit whose pathspec file lists a violating file" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the violating file the pathspec file lists" \
+    "deploy.sh" "$GATE_STDERR"
+}
+
+# A NUL-separated list is read by a different branch than a
+# newline-separated one.
+it_should_block_a_violation_listed_in_a_nul_separated_commit_pathspec_file() {
+  local repo
+  repo=$(new_repo unit18commitnul)
+  write_violating_shell_file "$repo/deploy.sh"
+  printf 'seed.txt\0deploy.sh\0' > "$repo/paths.bin"
+
+  run_gate "$repo" 'git commit --pathspec-from-file=paths.bin --pathspec-file-nul -m "x"'
+
+  assert_eq "should block a commit whose NUL-separated pathspec file lists a violating file" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the violating file the NUL-separated pathspec file lists" \
+    "deploy.sh" "$GATE_STDERR"
+}
+
+# The option takes its value as the next token too, and that
+# token must be neither skipped past the list nor read as a
+# pathspec itself.
+it_should_block_a_violation_listed_in_a_pathspec_file_named_by_a_separate_argument() {
+  local repo
+  repo=$(new_repo unit18separatearg)
+  write_violating_shell_file "$repo/deploy.sh"
+  printf 'deploy.sh\n' > "$repo/paths.txt"
+
+  run_gate "$repo" 'git commit --pathspec-from-file paths.txt -m "x"'
+
+  assert_eq "should block when the pathspec file is a separate argument" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the violating file listed in the separately named pathspec file" \
+    "deploy.sh" "$GATE_STDERR"
+}
+
+it_should_block_a_violation_listed_in_a_git_add_pathspec_from_file() {
+  local repo
+  repo=$(new_repo unit18addfile)
+  write_violating_shell_file "$repo/deploy.sh"
+  printf 'deploy.sh\n' > "$repo/paths.txt"
+
+  run_gate "$repo" 'git add --pathspec-from-file=paths.txt && git commit -m "x"'
+
+  assert_eq "should block a git add whose pathspec file lists a violating file" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the violating file a git add pathspec file lists" \
+    "deploy.sh" "$GATE_STDERR"
+}
+
+# Only the add arm stages untracked files, so a directory
+# listed in an add pathspec file widens to them while the
+# same line in a commit pathspec file does not.
+it_should_check_an_untracked_file_under_a_directory_listed_in_a_git_add_pathspec_file() {
+  local repo
+  repo=$(new_repo unit18adddir)
+  mkdir -p "$repo/sub"
+  write_clean_shell_file "$repo/sub/kept.sh"
+  commit_tracked_file "$repo" sub/kept.sh
+  write_violating_shell_file "$repo/sub/new-script.sh"
+  printf 'sub\n' > "$repo/paths.txt"
+
+  run_gate "$repo" 'git add --pathspec-from-file=paths.txt && git commit -m "x"'
+
+  assert_eq "should block a git add pathspec file listing a directory holding an untracked violation" \
+    1 "$GATE_EXIT"
+}
+
+it_should_allow_a_directory_listed_in_a_commit_pathspec_file_holding_only_an_untracked_violation() {
+  local repo
+  repo=$(new_repo unit18commitdir)
+  mkdir -p "$repo/sub"
+  write_clean_shell_file "$repo/sub/kept.sh"
+  commit_tracked_file "$repo" sub/kept.sh
+  write_violating_shell_file "$repo/sub/new-script.sh"
+  printf 'sub\n' > "$repo/paths.txt"
+
+  run_gate "$repo" 'git commit --pathspec-from-file=paths.txt -m "x"'
+
+  assert_eq "should allow a commit pathspec file listing a directory whose only violation is untracked" \
+    0 "$GATE_EXIT"
+}
+
+# git reads the file's entries from the repo root, while the
+# file's own path (like any argv pathspec) is relative to the
+# directory the command runs in.
+it_should_resolve_pathspec_file_entries_from_the_repo_root_when_run_from_a_subdirectory() {
+  local repo
+  repo=$(new_repo unit18subdir)
+  mkdir -p "$repo/sub"
+  write_violating_shell_file "$repo/sub/deploy.sh"
+  printf 'sub/deploy.sh\n' > "$repo/sub/paths.txt"
+
+  run_gate "$repo" 'cd sub && git commit --pathspec-from-file=paths.txt -m "x"'
+
+  assert_eq "should block a violation listed from the repo root while running in a subdirectory" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the file at its repo-root path" \
+    "sub/deploy.sh" "$GATE_STDERR"
+}
+
+it_should_warn_and_allow_when_a_pathspec_file_does_not_exist() {
+  local repo
+  repo=$(new_repo unit18missingfile)
+  write_violating_shell_file "$repo/deploy.sh"
+
+  run_gate "$repo" 'git commit --pathspec-from-file=missing.txt -m "x"'
+
+  assert_eq "should allow the commit when the pathspec file is missing" \
+    0 "$GATE_EXIT"
+  assert_contains "should warn that the pathspec file could not be read" \
+    "could not read the pathspec file" "$GATE_STDERR"
+  assert_contains "should name the pathspec file it could not read" \
+    "missing.txt" "$GATE_STDERR"
+}
+
+it_should_warn_and_allow_when_a_pathspec_file_is_unreadable() {
+  local repo
+  repo=$(new_repo unit18unreadablefile)
+  write_violating_shell_file "$repo/deploy.sh"
+  printf 'deploy.sh\n' > "$repo/paths.txt"
+  chmod 000 "$repo/paths.txt"
+
+  run_gate "$repo" 'git commit --pathspec-from-file=paths.txt -m "x"'
+  chmod 644 "$repo/paths.txt"
+
+  assert_eq "should allow the commit when the pathspec file is unreadable" \
+    0 "$GATE_EXIT"
+  assert_contains "should warn that the unreadable pathspec file could not be read" \
+    "could not read the pathspec file" "$GATE_STDERR"
+}
+
+# The hook never sees the git process's stdin, so a list read
+# from it is the same unknown set a glob is.
+it_should_fall_back_to_the_index_when_the_pathspec_list_comes_from_stdin() {
+  local repo
+  repo=$(new_repo unit18stdin)
+
+  run_gate "$repo" 'git commit --pathspec-from-file=- -m "x"'
+
+  assert_contains "should say the file set could not be read when the list comes from stdin" \
+    "command string" "$GATE_STDERR"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
@@ -834,6 +992,16 @@ it_should_allow_a_directory_commit_pathspec_holding_only_an_untracked_violation
 it_should_block_a_violation_in_a_tracked_file_under_a_git_add_directory
 it_should_not_check_a_gitignored_untracked_file_under_a_git_add_directory
 it_should_warn_and_allow_when_untracked_files_under_a_git_add_directory_cannot_be_listed
+it_should_block_a_violation_listed_in_a_commit_pathspec_from_file
+it_should_block_a_violation_listed_in_a_nul_separated_commit_pathspec_file
+it_should_block_a_violation_listed_in_a_pathspec_file_named_by_a_separate_argument
+it_should_block_a_violation_listed_in_a_git_add_pathspec_from_file
+it_should_check_an_untracked_file_under_a_directory_listed_in_a_git_add_pathspec_file
+it_should_allow_a_directory_listed_in_a_commit_pathspec_file_holding_only_an_untracked_violation
+it_should_resolve_pathspec_file_entries_from_the_repo_root_when_run_from_a_subdirectory
+it_should_warn_and_allow_when_a_pathspec_file_does_not_exist
+it_should_warn_and_allow_when_a_pathspec_file_is_unreadable
+it_should_fall_back_to_the_index_when_the_pathspec_list_comes_from_stdin
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

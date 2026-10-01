@@ -39,6 +39,12 @@
 # both reads to <dir> rather than to wherever the caller
 # happens to stand.
 #
+# A `--pathspec-from-file` list is read from disk, its entries
+# relative to the repo root, with `--pathspec-file-nul` picking
+# the separator. A list read from stdin, which this hook never
+# sees, lands in the gap below, and an unreadable file warns
+# and allows.
+#
 # Known gap: a non-literal pathspec - a glob, a variable, a
 # command substitution, or `-A`/`-u`/`.` - names files only
 # the shell can resolve, and the shell has not run yet.
@@ -216,8 +222,58 @@ def cluster_takes_separate_value(token):
     return False
 
 
+def match_pathspec_file_option(args, index):
+    """Reads the `--pathspec-from-file`/`--pathspec-file-nul` option at args[index], as (tokens consumed, file, nul), with 0 consumed when the token is neither.
+
+    The file is spelled `=<file>` or as the next token, and the second spelling must be consumed with its value so the file's own name is never mistaken for a pathspec.
+    """
+    token = args[index]
+    if token == '--pathspec-file-nul':
+        return 1, None, True
+    if token.startswith('--pathspec-from-file='):
+        return 1, token.split('=', 1)[1], False
+    if token == '--pathspec-from-file' and index + 1 < len(args):
+        return 2, args[index + 1], False
+    return 0, None, False
+
+
+def read_pathspec_file(call_directory, pathspec_file, nul_separated):
+    """Absolute paths a `--pathspec-from-file` names, or None when the hook cannot resolve them.
+
+    The list file itself is relative to the directory the git call runs in, but git reads its entries relative to the repo root, unlike an argv pathspec.
+
+    `-` is None: the list comes from the git process's stdin, which a PreToolUse hook never sees.
+
+    An unreadable file leaves the file set unknown, so it warns and allows like every other infrastructure problem rather than pretending no pathspecs were named.
+    """
+    if pathspec_file == '-':
+        return None
+    toplevel = run_git(['rev-parse', '--show-toplevel'], call_directory)
+    if toplevel.returncode != 0:
+        warn_and_allow('not inside a git repository, skipping the check')
+    repo_root = toplevel.stdout.strip()
+    try:
+        with open(resolve(call_directory, pathspec_file), 'rb') as handle:
+            raw = handle.read()
+    except OSError as error:
+        warn_and_allow('could not read the pathspec file %s: %s, '
+                       'skipping the check' % (pathspec_file, error.strerror))
+    separator = b'\0' if nul_separated else b'\n'
+    entries = [entry.decode('utf-8', 'surrogateescape')
+               for entry in raw.split(separator) if entry]
+    paths = []
+    for entry in entries:
+        # A newline-separated list may C-quote an entry, which
+        # is as unresolvable here as a glob.
+        if (entry == '.' or entry.startswith('"')
+                or any(c in entry for c in NON_LITERAL_CHARS)):
+            return None
+        paths.append(resolve(repo_root, entry))
+    return paths
+
+
 def scan_commit_args(args):
-    """Whether a `git commit` stage carries `-a`/`--all`, plus the pathspecs it names, as (stages_all, pathspecs).
+    """Whether a `git commit` stage carries `-a`/`--all`, plus the pathspecs it names and its pathspec file, as (stages_all, pathspecs, pathspec_file, file_nul).
 
     `-a` stages every tracked modified file at commit time; a pathspec commits that path's working-tree version whatever the index holds.
 
@@ -225,12 +281,20 @@ def scan_commit_args(args):
     """
     stages_all = False
     pathspecs = []
+    pathspec_file = None
+    file_nul = False
     index = 0
     while index < len(args):
         token = args[index]
         if token == '--':
             pathspecs.extend(args[index + 1:])
             break
+        consumed, option_file, option_nul = match_pathspec_file_option(args, index)
+        if consumed:
+            pathspec_file = option_file or pathspec_file
+            file_nul = file_nul or option_nul
+            index += consumed
+            continue
         if token in COMMIT_VALUE_OPTIONS:
             index += 2
             continue
@@ -241,7 +305,7 @@ def scan_commit_args(args):
         if token == '--all' or cluster_stages_every_tracked_file(token):
             stages_all = True
         index += 2 if cluster_takes_separate_value(token) else 1
-    return stages_all, pathspecs
+    return stages_all, pathspecs, pathspec_file, file_nul
 
 
 def command_scope(command, start_directory):
@@ -281,9 +345,15 @@ def command_scope(command, start_directory):
                 continue
             if tokens[subcommand] == 'commit':
                 commit_directory = call_directory
-                commit_stages_all, commit_pathspecs = scan_commit_args(
-                    tokens[subcommand + 1:])
+                commit_stages_all, commit_pathspecs, commit_file, commit_nul = (
+                    scan_commit_args(tokens[subcommand + 1:]))
                 stages_all = stages_all or commit_stages_all
+                if commit_file is not None:
+                    listed = read_pathspec_file(call_directory, commit_file,
+                                                commit_nul)
+                    if listed is None:
+                        return CommandScope(None, directory, stages_all)
+                    paths.extend(listed)
                 for token in commit_pathspecs:
                     if token == '.' or any(c in token for c in NON_LITERAL_CHARS):
                         return CommandScope(None, directory, stages_all)
@@ -292,10 +362,24 @@ def command_scope(command, start_directory):
             if tokens[subcommand] != 'add':
                 continue
             after_options = False
-            for token in tokens[subcommand + 1:]:
+            add_args = tokens[subcommand + 1:]
+            add_file = None
+            add_nul = False
+            skip_until = 0
+            for position, token in enumerate(add_args):
+                if position < skip_until:
+                    continue
                 if not after_options and token == '--':
                     after_options = True
                     continue
+                if not after_options:
+                    consumed, option_file, option_nul = match_pathspec_file_option(
+                        add_args, position)
+                    if consumed:
+                        add_file = option_file or add_file
+                        add_nul = add_nul or option_nul
+                        skip_until = position + consumed
+                        continue
                 if not after_options and token.startswith('-'):
                     if token in STAGE_EVERYTHING_FLAGS:
                         return CommandScope(None, directory, stages_all)
@@ -305,6 +389,12 @@ def command_scope(command, start_directory):
                 added_path = resolve(call_directory, token)
                 paths.append(added_path)
                 added_paths.append(added_path)
+            if add_file is not None:
+                listed = read_pathspec_file(call_directory, add_file, add_nul)
+                if listed is None:
+                    return CommandScope(None, directory, stages_all)
+                paths.extend(listed)
+                added_paths.extend(listed)
     return CommandScope(paths, commit_directory or directory, stages_all,
                         added_paths)
 
