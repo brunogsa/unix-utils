@@ -1159,6 +1159,72 @@ describe('check-comment-format', () => {
     });
   });
 
+  describe('css files', () => {
+    const quotedFile = (rel, quote) =>
+      put(
+        rel,
+        lines(
+          '.billing::after {',
+          `  content: ${quote}/* ${AGGREGATOR}${quote};`,
+          '}',
+        ),
+      );
+
+    const overCapRule = () =>
+      put(
+        'billing.css',
+        lines(
+          '.billing {',
+          `  /* ${AGGREGATOR} */`,
+          '  color: red;',
+          '}',
+        ),
+      );
+
+    it('should report the over-cap line of a block comment', () => {
+      assertContains(check(overCapRule()).out, 'WIDTH 2:');
+    });
+
+    it('should report the over-cap body line of a multi-line block comment', () => {
+      const file = put(
+        'doc.css',
+        lines(
+          '/*',
+          AGGREGATOR,
+          '*/',
+          '.billing { color: red; }',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+
+    it('should read no comment out of a double-quoted string', () => {
+      assertAbsent(check(quotedFile('double.css', '"')).out, 'WIDTH');
+    });
+
+    it('should exit 0 on a file whose only long line is a double-quoted string', () => {
+      assert.equal(check(quotedFile('double-clean.css', '"')).status, 0);
+    });
+
+    it('should read no comment out of a single-quoted string', () => {
+      assertAbsent(check(quotedFile('single.css', "'")).out, 'WIDTH');
+    });
+
+    it('should repair an over-cap block comment line by re-wrapping it', () => {
+      const file = overCapRule();
+      fix(file);
+      assert.equal(check(file).status, 0);
+    });
+
+    // CSS has no per-line comment marker, so a re-wrapped
+    // continuation carries an empty one -- which must not
+    // render as an extra space ahead of the prose.
+    it('should re-wrap a block comment without a stray leading space', () => {
+      const file = overCapRule();
+      fix(file);
+      assertAbsent(read(file), '\n   ');
+    });
+  });
 
 
   describe('corner cases', () => {

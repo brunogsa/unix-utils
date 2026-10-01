@@ -156,7 +156,7 @@
 //     [--lang <language>] <file> [<file>...]
 //
 // <language> is one of typescript, shell, python, jsonc,
-// go, yaml, awk, terraform or lua.
+// go, yaml, awk, terraform, lua or css.
 //
 // Exit codes:
 //   0  clean (or fully repaired by --fix)
@@ -315,6 +315,26 @@ const LANGUAGES = {
 
     // A function header ends on its parameter list's `)`.
     scopeOpeners: [/[{([]$/, /\)$/, /\b(then|else|do|repeat)$/],
+  },
+
+  css: {
+    extensions: ['.css'],
+
+    // A stylesheet is read by the browser, never run.
+    //
+    // `.scss` and `.less` are not css dialects: `//` is a
+    // comment in both, and in css it is not.
+    shebangRe: null,
+
+    scan: (text) => scanCommentRanges(text, cssDialect()),
+    delimiterRe: /^(\*\/|\/\*)$/,
+
+    // A continuation line may carry a jsdoc-style `*` or no
+    // marker at all, so the prefix has to match either.
+    blankRe: /^\*?$/,
+    prefixRe: /^\*?\s?/,
+
+    scopeOpeners: [/[{([]$/],
   },
 };
 
@@ -1037,6 +1057,26 @@ function luaDialect() {
   };
 }
 
+// CSS spells no line comment at all, so a `//` in a `url()` or
+// a protocol is ordinary code rather than a comment opener.
+function cssDialect() {
+  return {
+    lineComments: [],
+    blockComments: [{ open: '/*', close: '*/' }],
+    needsWordBoundary: false,
+
+    skipNonCode(text, i) {
+      const ch = text[i];
+      if (ch !== '"' && ch !== "'") return null;
+      return skipQuoted(text, i + 1, ch, true);
+    },
+
+    afterNewline(_text, from) {
+      return from;
+    },
+  };
+}
+
 // A line is "fully" comment when everything outside the
 // comment is whitespace -- before its start on the first
 // line, and after its end on the last.
@@ -1362,8 +1402,13 @@ function splitCommentLine(lineText, lang) {
 
 // Empty prose yields a bare marker, which is what every
 // language's blankRe recognizes as a paragraph separator.
+//
+// A language whose comment body carries no marker at all --
+// css, html -- yields an empty one, and the gap after it
+// would otherwise read as prose indentation.
 function renderCommentLine(indent, marker, prose) {
   if (prose === '') return indent + marker;
+  if (marker === '') return indent + prose;
   return `${indent}${marker} ${prose}`;
 }
 
