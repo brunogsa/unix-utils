@@ -53,12 +53,22 @@ it_should_pass_a_markdown_link_ref_that_resolves() {
     rm -rf "$d"
 }
 
-it_should_pass_a_backtick_path_ref_that_resolves() {
-    echo "it_should_pass_a_backtick_path_ref_that_resolves"
+it_should_pass_a_link_with_backtick_text_whose_target_resolves() {
+    echo "it_should_pass_a_link_with_backtick_text_whose_target_resolves"
     local d; d=$(new_fixture)
     mkdir -p "$d/references"
     printf '# Foo\nBody.\n' > "$d/references/foo.md"
-    printf 'See `references/foo.md` for details.\n' > "$d/source.md"
+    printf 'See [`references/foo.md`](references/foo.md) for details.\n' > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 0" "0" "$status"
+    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
+it_should_not_flag_a_bare_backtick_path_to_a_nonexistent_file() {
+    echo "it_should_not_flag_a_bare_backtick_path_to_a_nonexistent_file"
+    local d; d=$(new_fixture)
+    printf 'The convention names `assets/flowchart.md` as the required filename.\n' > "$d/source.md"
     local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
     assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
@@ -217,12 +227,12 @@ it_should_report_zero_broken_refs_against_the_real_jira_cli_skill_file() {
     assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
 }
 
-it_should_still_report_a_genuinely_broken_relative_file_ref_alongside_an_unflagged_git_ref_mention() {
-    echo "it_should_still_report_a_genuinely_broken_relative_file_ref_alongside_an_unflagged_git_ref_mention"
+it_should_still_report_a_genuinely_broken_relative_link_alongside_an_unflagged_git_ref_mention() {
+    echo "it_should_still_report_a_genuinely_broken_relative_link_alongside_an_unflagged_git_ref_mention"
     local d; d=$(new_fixture)
     printf '%s\n' \
         'Diff against `origin/main` before you touch anything.' \
-        'See `references/does-not-exist.md` for details.' \
+        'See [guide](references/does-not-exist.md) for details.' \
         > "$d/source.md"
     local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
     assert_status "exits 1" "1" "$status"
@@ -267,6 +277,18 @@ it_should_not_scan_a_backtick_path_inside_a_markdown_link_text_as_its_own_ref() 
     rm -rf "$d"
 }
 
+it_should_report_only_the_target_of_a_link_with_backtick_text_when_the_target_is_missing() {
+    echo "it_should_report_only_the_target_of_a_link_with_backtick_text_when_the_target_is_missing"
+    local d; d=$(new_fixture)
+    mkdir -p "$d/skill-a" "$d/skill-b"
+    printf 'See [`skill-b/thing.md`](../skill-b/thing.md) for details.\n' > "$d/skill-a/source.md"
+    local status; bash "$CHECK" "$d/skill-a/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 1" "1" "$status"
+    assert_eq "exactly one broken ref listed" "1" "$(grep -c ' -> ' /tmp/check-refs-out.txt)"
+    assert_eq "the link target is the one reported" "1" "$(grep -c -- '-> ../skill-b/thing.md$' /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
 it_should_not_flag_the_na_abbreviation_as_a_broken_ref() {
     echo "it_should_not_flag_the_na_abbreviation_as_a_broken_ref"
     local d; d=$(new_fixture)
@@ -278,7 +300,8 @@ it_should_not_flag_the_na_abbreviation_as_a_broken_ref() {
 }
 
 it_should_pass_a_markdown_link_ref_that_resolves
-it_should_pass_a_backtick_path_ref_that_resolves
+it_should_pass_a_link_with_backtick_text_whose_target_resolves
+it_should_not_flag_a_bare_backtick_path_to_a_nonexistent_file
 it_should_pass_a_ref_whose_anchor_heading_exists_in_the_target
 it_should_resolve_a_relative_parent_directory_path
 it_should_report_every_broken_ref_in_a_file_with_more_than_one
@@ -292,11 +315,12 @@ it_should_pass_a_ref_to_an_existing_directory_without_a_trailing_slash
 it_should_not_flag_a_broken_looking_link_shown_as_an_example_inside_a_fenced_code_block
 it_should_fail_a_ref_whose_anchor_matches_only_a_heading_line_inside_a_fenced_code_block
 it_should_report_zero_broken_refs_against_the_real_jira_cli_skill_file
-it_should_still_report_a_genuinely_broken_relative_file_ref_alongside_an_unflagged_git_ref_mention
+it_should_still_report_a_genuinely_broken_relative_link_alongside_an_unflagged_git_ref_mention
 it_should_not_flag_common_remote_tracking_git_ref_mentions_as_broken_refs
 it_should_not_flag_a_conventional_commit_prefixed_branch_name_mention_as_a_broken_ref
 
 it_should_not_scan_a_backtick_path_inside_a_markdown_link_text_as_its_own_ref
+it_should_report_only_the_target_of_a_link_with_backtick_text_when_the_target_is_missing
 it_should_not_flag_the_na_abbreviation_as_a_broken_ref
 
 echo
