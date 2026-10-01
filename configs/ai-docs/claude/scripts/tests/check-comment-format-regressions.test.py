@@ -9,6 +9,7 @@ Usage:
 check-comment-format-regressions.test.py
 """
 
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
@@ -99,6 +100,50 @@ def test_untracked_new_file_is_scanned_by_the_gate(tmp_path):
 
     assert result.returncode == 1
     assert "arrival.sh" in result.stdout
+
+
+def test_untracked_yml_file_is_scanned_by_the_gate(tmp_path):
+    """The checker lexes yaml, so the gate must find a .yml file too;
+    a glob list frozen at the original four extensions never hands
+    it one."""
+    repo = _make_repo(tmp_path)
+    (repo / "arrival.yml").write_text(
+        f"{OVERWIDE_COMMENT}key: value\n", encoding="utf-8"
+    )
+    result = _run(repo)
+
+    assert result.returncode == 1
+    assert "arrival.yml" in result.stdout
+
+
+def _load_script():
+    spec = importlib.util.spec_from_file_location("regressions", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize(
+    "checker_body",
+    ["process.exit(1)", "process.exit(0)"],
+    ids=["checker exits non-zero", "checker prints no extensions"],
+)
+def test_unlistable_checker_extensions_abort_instead_of_scanning_nothing(
+    tmp_path, monkeypatch, capsys, checker_body
+):
+    """An empty extension list would make git ls-files match no file
+    and the gate pass over an empty corpus, which is the silent pass
+    this gate exists to prevent."""
+    fake = tmp_path / "fake-checker.js"
+    fake.write_text(f"{checker_body}\n", encoding="utf-8")
+    module = _load_script()
+    monkeypatch.setattr(module, "CHECKER", fake)
+
+    with pytest.raises(SystemExit) as raised:
+        module.list_source_globs()
+
+    assert raised.value.code == 2
+    assert "--list-extensions" in capsys.readouterr().err
 
 
 def test_tracked_file_deleted_from_the_worktree_is_skipped(tmp_path):
