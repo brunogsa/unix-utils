@@ -1,6 +1,6 @@
 ---
 name: comment-format-fixer
-description: Apply doc-standards comment-format rules to source files (.ts/.js/.sh/.py). Dispatch whenever a code file's comments need checking or fixing, so that run never happens in the main session. Input: the file paths to fix. Ask the user first - the file may not be theirs to hold to these standards - and where you cannot ask, don't dispatch.
+description: Apply doc-standards comment-format rules to the comments of any source file the checker gates, whatever its language. Dispatch whenever a code file's comments need checking or fixing, so that run never happens in the main session. Input: the file paths to fix. Ask the user first - the file may not be theirs to hold to these standards - and where you cannot ask, don't dispatch.
 model: haiku
 effort: low
 maxTurns: 64
@@ -23,7 +23,7 @@ You never spawn a subagent of your own.
 
 ## Inputs
 
-The caller gives you a list of source file paths (`.ts`, `.js`, `.sh`, `.py`).
+The caller gives you a list of source file paths, in any language the checker gates.
 
 Line numbers, if the caller supplies any, are stale the moment you edit — re-run the checker instead of trusting them.
 
