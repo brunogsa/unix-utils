@@ -149,10 +149,13 @@
 // Usage:
 //   check-comment-format.js [--fix] [--changed-only]
 //     [--max-chars N] [--max-lines N] [--skip-unknown]
-//     [--lang typescript|shell|python|jsonc] <file> [<file>...]
+//     [--lang <language>] <file> [<file>...]
 //
 //   check-comment-format.js --content-loss [--skip-unknown]
-//     [--lang typescript|shell|python|jsonc] <file> [<file>...]
+//     [--lang <language>] <file> [<file>...]
+//
+// <language> is one of typescript, shell, python,
+// jsonc or go.
 //
 // Exit codes:
 //   0  clean (or fully repaired by --fix)
@@ -236,6 +239,19 @@ const LANGUAGES = {
     blankRe: /^(\*|\/\/)$/,
     prefixRe: /^(\*|\/\/)\s?/,
     scopeOpeners: [/[{([]$/],
+  },
+
+  go: {
+    extensions: ['.go'],
+
+    // A compiled source file is never run through a shebang.
+    shebangRe: null,
+
+    scan: (text) => scanCommentRanges(text, goDialect()),
+    delimiterRe: /^(\*\/|\/\*)$/,
+    blankRe: /^(\*|\/\/)$/,
+    prefixRe: /^(\*|\/\/)\s?/,
+    scopeOpeners: [/[{([]$/, /^(case\b.*|default)\s*:$/],
   },
 };
 
@@ -711,6 +727,30 @@ function jsoncDialect() {
     skipNonCode(text, i) {
       if (text[i] !== '"') return null;
       return skipQuoted(text, i + 1, '"', true);
+    },
+
+    afterNewline(_text, from) {
+      return from;
+    },
+  };
+}
+
+// Go spells a string three ways, and only the backtick form
+// takes no escapes at all: a raw string holding a shell
+// `${PATH//:/ }` would otherwise surrender its `//` to the
+// lexer and blank out the rest of the line.
+function goDialect() {
+  return {
+    lineComments: ['//'],
+    blockComments: [{ open: '/*', close: '*/' }],
+    needsWordBoundary: false,
+
+    skipNonCode(text, i) {
+      const ch = text[i];
+      if (ch === '"') return skipQuoted(text, i + 1, '"', true);
+      if (ch === "'") return skipQuoted(text, i + 1, "'", true);
+      if (ch === '`') return skipQuoted(text, i + 1, '`', false);
+      return null;
     },
 
     afterNewline(_text, from) {

@@ -734,6 +734,91 @@ describe('check-comment-format', () => {
     });
   });
 
+  describe('go files', () => {
+    const rawStringFile = () =>
+      put(
+        'raw.go',
+        lines(
+          'package billing',
+          '',
+          'var trimPathList = `${PATH//:/ } one entry per word, padded past the cap`',
+        ),
+      );
+
+    it('should report the over-cap line of a line comment', () => {
+      const file = put(
+        'aggregate.go',
+        lines(
+          'package billing',
+          '',
+          `// ${AGGREGATOR}`,
+          'const BilledUnits = 1',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 3:');
+    });
+
+    it('should report the over-cap line of a block comment', () => {
+      const file = put(
+        'block.go',
+        lines(
+          'package billing',
+          '',
+          `/* ${AGGREGATOR} */`,
+          'const BilledUnits = 1',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 3:');
+    });
+
+    it('should read no comment out of a URL held in an interpreted string', () => {
+      const file = put(
+        'url.go',
+        lines(
+          'package billing',
+          '',
+          'var aggregatorEndpoint = "http://example.com/collapse/records/into/one"',
+        ),
+      );
+      assertAbsent(check(file).out, 'WIDTH');
+    });
+
+    it('should exit 0 on a file whose only long line is an interpreted string', () => {
+      const file = put(
+        'url-exit.go',
+        lines(
+          'package billing',
+          '',
+          'var aggregatorEndpoint = "http://example.com/collapse/records/into/one"',
+        ),
+      );
+      assert.equal(check(file).status, 0);
+    });
+
+    it('should still report the comment that follows a rune literal holding a slash', () => {
+      const file = put(
+        'rune.go',
+        lines(
+          'package billing',
+          '',
+          "const pathSeparator = '/'",
+          '',
+          `// ${AGGREGATOR}`,
+          'const BilledUnits = 1',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 5:');
+    });
+
+    it('should read no comment out of a shell substitution held in a raw string', () => {
+      assertAbsent(check(rawStringFile()).out, 'WIDTH');
+    });
+
+    it('should exit 0 on a file whose only long line is a raw string', () => {
+      assert.equal(check(rawStringFile()).status, 0);
+    });
+  });
+
   describe('corner cases', () => {
     it('should leave an aligned usage line byte-identical', () => {
       const file = literalsFixture();
