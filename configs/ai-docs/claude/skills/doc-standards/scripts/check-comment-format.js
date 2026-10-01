@@ -99,8 +99,9 @@
 // a comment -- which a regex or awk pass cannot do reliably.
 //
 // TypeScript and JavaScript use the TypeScript compiler's own
-// scanner; shell and Python use a small built-in lexer that
-// tracks quotes, heredocs, and triple-quoted strings.
+// scanner; every other language rides a small built-in lexer
+// driven by a per-language dialect -- its comment openers, its
+// string forms, and what a newline owes the line above it.
 //
 // A Python docstring is a string rather than a comment, so it
 // is skipped -- a module's docstring header goes unmeasured.
@@ -154,8 +155,8 @@
 //   check-comment-format.js --content-loss [--skip-unknown]
 //     [--lang <language>] <file> [<file>...]
 //
-// <language> is one of typescript, shell, python,
-// jsonc or go.
+// <language> is one of typescript, shell, python, jsonc,
+// go, yaml, awk or terraform.
 //
 // Exit codes:
 //   0  clean (or fully repaired by --fix)
@@ -276,6 +277,23 @@ const LANGUAGES = {
     delimiterRe: null,
     blankRe: /^#$/,
     prefixRe: /^#\s?/,
+    scopeOpeners: [/[{([]$/],
+  },
+
+  terraform: {
+    extensions: ['.tf', '.tfvars'],
+
+    // HCL is read by terraform, never run as a script.
+    shebangRe: null,
+
+    scan: (text) => scanCommentRanges(text, terraformDialect()),
+    delimiterRe: /^(\*\/|\/\*)$/,
+
+    // Both line-comment spellings are legal, so either one
+    // can be the separator or the prefix of a paragraph.
+    blankRe: /^(\*|#|\/\/)$/,
+    prefixRe: /^(\*|#|\/\/)\s?/,
+
     scopeOpeners: [/[{([]$/],
   },
 };
@@ -896,6 +914,33 @@ function awkDialect() {
 
     afterNewline(_text, from) {
       return from;
+    },
+  };
+}
+
+// Terraform takes a `#` line comment, a `//` one, and a `/*`
+// block, and spells its heredoc `<<TAG` or `<<-TAG` -- the
+// dash form allowing an indented terminator.
+function terraformDialect() {
+  const heredocs = heredocQueue(/^\s+/);
+
+  return {
+    lineComments: ['#', '//'],
+    blockComments: [{ open: '/*', close: '*/' }],
+    needsWordBoundary: false,
+
+    skipNonCode(text, i) {
+      const ch = text[i];
+
+      // An interpolation rides inside the quotes, so skipping
+      // the string skips `${...}` with it.
+      if (ch === '"') return skipQuoted(text, i + 1, '"', true);
+      if (ch === '<' && text[i + 1] === '<') return heredocs.queue(text, i + 2);
+      return null;
+    },
+
+    afterNewline(text, from) {
+      return heredocs.drain(text, from);
     },
   };
 }

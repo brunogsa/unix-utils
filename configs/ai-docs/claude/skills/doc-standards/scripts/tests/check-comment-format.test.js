@@ -947,6 +947,109 @@ describe('check-comment-format', () => {
     });
   });
 
+  describe('terraform files', () => {
+    const heredocFile = () =>
+      put(
+        'instance.tf',
+        lines(
+          'resource "aws_instance" "web" {',
+          '  user_data = <<-EOF',
+          `    # ${AGGREGATOR}`,
+          '    echo hi',
+          '  EOF',
+          '}',
+        ),
+      );
+
+    it('should report the over-cap line of a hash line comment', () => {
+      const file = put(
+        'hash.tf',
+        lines(
+          'resource "aws_instance" "web" {',
+          `  # ${AGGREGATOR}`,
+          '  count = 1',
+          '}',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+
+    it('should report the over-cap line of a slash line comment', () => {
+      const file = put(
+        'slash.tf',
+        lines(
+          'resource "aws_instance" "web" {',
+          `  // ${AGGREGATOR}`,
+          '  count = 1',
+          '}',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+
+    it('should report the over-cap line of a block comment', () => {
+      const file = put(
+        'block.tfvars',
+        lines(
+          'locals = {',
+          `  /* ${AGGREGATOR} */`,
+          '  count = 1',
+          '}',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+
+    it('should read no comment out of an indented heredoc body', () => {
+      assertAbsent(check(heredocFile()).out, 'WIDTH');
+    });
+
+    it('should exit 0 on a file whose only long line is a heredoc body', () => {
+      assert.equal(check(heredocFile()).status, 0);
+    });
+
+    it('should resume reporting once the heredoc terminator is reached', () => {
+      const file = put(
+        'resume.tf',
+        lines(
+          'resource "aws_instance" "web" {',
+          '  user_data = <<EOF',
+          `# ${AGGREGATOR}`,
+          'EOF',
+          `  # ${AGGREGATOR}`,
+          '}',
+        ),
+      );
+      const out = check(file).out;
+      assertContains(out, 'WIDTH 5:');
+      assertAbsent(out, 'WIDTH 3');
+    });
+
+    it('should read no comment out of an interpolated string', () => {
+      const file = put(
+        'url.tf',
+        lines(
+          'locals = {',
+          '  endpoint = "http://example.com/collapse/records/${var.name}/one#unit"',
+          '}',
+        ),
+      );
+      assertAbsent(check(file).out, 'WIDTH');
+    });
+
+    it('should read no comment out of a string holding an escaped quote', () => {
+      const file = put(
+        'escape.tf',
+        lines(
+          'locals = {',
+          '  message = "a quoted \\" tail padded past the cap # not a comment"',
+          '}',
+        ),
+      );
+      assertAbsent(check(file).out, 'WIDTH');
+    });
+  });
+
   describe('corner cases', () => {
     it('should leave an aligned usage line byte-identical', () => {
       const file = literalsFixture();
