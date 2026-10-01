@@ -37,12 +37,9 @@ The third leg runs only when a plan resolves — without a plan there are no pla
 
   - Both flags at once is a contradiction, not a precedence puzzle — stop and say so.
 
-Examples:
+Inline examples: `/quality-gate` discovers spec/plan in CWD and asks before applying; `/quality-gate --tasks 1,2 --auto-solve` is how `/implement` scopes the `test-sdd` leg to its batch.
 
-- `/quality-gate` — discover spec/plan in CWD, ask before applying.
-- `/quality-gate spec_itgd-3374.md plan_itgd-3374.md --auto-solve` — explicit paths, apply all three lenses.
-- `/quality-gate --tasks 1,2 --auto-solve` — used by `/implement` to scope the `test-sdd` leg to its batch.
-- `/quality-gate --base-ref abc1234 --report-only` — only the plan's missing tests get written.
+See [`references/more-examples.md`](references/more-examples.md) for the explicit-path and `--base-ref --report-only` invocations, opened only when a case falls outside those two.
 
 ## When to invoke
 
@@ -79,8 +76,7 @@ ls -1 spec_*.md plan_*.md 2>/dev/null
 - **More than one of a kind** → prompt with a numbered list and let the user pick; never guess which spec or plan was meant.
 
 - **Under `--auto-solve` or `--report-only`, never prompt on a multi-match** → proceed without that kind and say so, exactly as a zero match resolves.
-  - Either flag marks a skill-dispatched run with nobody standing by, the premise §6 uses to force `--no-ask`.
-  - A prompt here would stall the `/implement` tail indefinitely.
+  - Either flag marks a run with nobody standing by, so a prompt would stall it; see [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md).
 
 Also resolve `<BASE_REF>` for the `auto-review` leg:
 
@@ -105,11 +101,9 @@ all in the background. They are independent report-only passes with no ordering 
 - `agent(subAgent=code-reviewer, title=Auto-review pipeline)` — invokes the `auto-review` skill, orchestrating from there with `<BASE_REF>` and the resolved spec/plan paths pushed in so it needs no interactive resolution.
 - `agent(subAgent=test-reviewer, title=Planned-test presence check)` — invokes and executes the `test-sdd` skill, with the resolved plan path and any `--tasks` ids pushed in; dispatch only when a plan resolved.
 
-**Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.**
+**Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.** It already *is* the fresh-context reviewer those skills would otherwise dispatch.
 
-It already *is* the fresh-context reviewer those skills would otherwise dispatch, and nesting would spend one of the harness's three levels on a second opinion nobody asked for.
-
-Tell each leg this explicitly: the skills it invokes describe dispatching a reviewer, and without the override it would follow that literally.
+Tell each leg this explicitly, since the skills it invokes describe dispatching a reviewer. See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md) for why nesting is ruled out.
 
 Every leg mints its own `verdict_*.md` timestamp per its own skill, so repeated runs accumulate rather than collide.
 
@@ -161,9 +155,7 @@ The relevance call is judgment, so it gets shown, not just its result.
 
 **Applying is not this skill's job** — `/address-verdicts` is the apply step for every `verdict_*.md` on disk, whoever wrote it.
 
-This skill decides *which* findings deserve a fix, that one owns *how* every fix lands.
-
-Duplicating its loop here would drift two copies of the lens routing, commit rule, and annotation format apart, leaving a human unable to tell which one their report followed.
+This skill decides *which* findings deserve a fix, that one owns *how* every fix lands, so its loop is never duplicated here.
 
 Resolve the repo's test command first — a `package.json` script, a Makefile target, the repo's own CLAUDE.md — then invoke, **in this session**:
 
@@ -180,11 +172,9 @@ Resolve the repo's test command first — a `package.json` script, a Makefile ta
 
 - **`--test-cmd` is passed** so its inference step has nothing left to guess — the one thing it would otherwise prompt for.
 
-It runs in this session rather than a subagent, the same reason this skill sits in `/implement`'s main session.
+It runs in this session, never wrapped in a subagent, because it commits and a permission prompt only renders in main.
 
-It commits the `refactor` agent's work (a permission prompt only renders in main), and its per-lens apply agents are already fresh-context subagents.
-
-So wrapping it would spend one of the harness's three nesting levels on a layer that decides nothing.
+See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md) for why applying is its job and why it stays in the main session.
 
 It returns the ledger §7 reports from: applied findings with SHAs, skipped findings with reasons, failures with retry needs.
 
