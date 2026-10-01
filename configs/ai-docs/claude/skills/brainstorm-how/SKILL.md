@@ -53,3 +53,7 @@ Ask via `AskUserQuestion`, recommended answer first: write the plan with `to-pla
 Do not run `to-plan` until the user picks it.
 
 Why no `/clear` hand-off: `to-plan` grounds from this session's context, `notes.md` and the brief, so clearing first destroys what it reads.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
