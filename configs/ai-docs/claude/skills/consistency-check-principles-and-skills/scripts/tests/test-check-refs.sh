@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # test-check-refs.sh - Tests check-refs.sh's ref resolution:
-# markdown links, backtick paths, and file-existence checking.
+# markdown-link targets (bare backtick paths are not refs)
+# and file-existence checking.
 #
 # It also tests GitHub-style anchor-heading matching,
 # relative-path resolution, and the report-every-broken-ref

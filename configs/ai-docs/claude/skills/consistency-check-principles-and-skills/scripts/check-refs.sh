@@ -4,7 +4,13 @@
 # heuristic #6, D7).
 #
 # Scans each given file for markdown links `[text](path#anchor)`
-# and backtick paths like `references/foo.md`.
+# only. A bare backtick path is prose, not a reference.
+#
+# Dropped on purpose: over the 51 live SKILL.md files the
+# backtick source gave 34 findings and 0 defects. Every real
+# pointer is written as a link, per skill-standards. Accepted
+# recall cost: a broken ref written as a bare backtick path is
+# no longer caught. Do not re-add that source as an oversight.
 #
 # Resolves each target relative to the referencing file's own
 # directory. Confirms the target exists (file or directory).
@@ -164,7 +170,7 @@ is_real_absolute_path_candidate() {
 # `upstream/main`) or a conventional-commit-prefixed branch name
 # (`feat/parser/pr2`, `release/1.2`, `test/itgd-3283`).
 #
-# Prose routinely names these refs in backticks — base-ref
+# Prose can write these refs as link targets — base-ref
 # fallback docs, PR handoff notes — and none of them resolve on
 # disk, so without this check every mention becomes a permanent,
 # unfixable BLOCKING finding.
@@ -194,9 +200,8 @@ is_git_revision_shape() {
 # file path: exactly two all-uppercase-letter segments, as in
 # `N/A`, `I/O`, `R/W`, `TCP/IP`.
 #
-# Prose routinely writes these in backticks, and the backtick
-# grep's `/` requirement lets them through as candidates that
-# resolve to nothing.
+# Written as a link target, one is a candidate that resolves
+# to nothing. No live skill does, so only tests exercise this.
 #
 # The rule is a shape, not a list of known tokens. It would also
 # let through a genuinely broken ref to an all-uppercase
@@ -250,7 +255,7 @@ report_broken() {
 # That includes in-page `#anchor`-only links, a URL scheme,
 # trailing-slash directory mentions like `scripts/`, git
 # revision names like `origin/HEAD` or `feat/parser/pr2`, and
-# prose caught by an over-eager backtick or link match.
+# prose caught by an over-eager link match.
 #
 # Those aren't the blocking heuristic's cross-file-reference
 # target, so they're not refs to begin with, not refs that
