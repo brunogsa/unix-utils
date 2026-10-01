@@ -12,7 +12,7 @@ This skill interviews and writes no document: no `spec_<slug>.md`, no plan, and 
 
 It plans and does not build: nothing in the working tree changes.
 
-Why the how is out of scope: solution choices belong to `brainstorm-how`, which starts from an approved spec, so asking them here settles them before their prerequisite exists.
+Why the how is out of scope: solution choices belong to `brainstorm-how`, which starts from a settled problem (an approved spec when one exists), so asking them here settles them before their prerequisite exists.
 
 ## Usage
 

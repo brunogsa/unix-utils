@@ -12,17 +12,24 @@ This skill interviews and writes no document: no `plan_<slug>.md`, and no writer
 
 It plans and does not build: nothing in the working tree changes.
 
-Why the why/what is out of scope: problem framing belongs to `brainstorm-why`, and this skill starts from its approved result, so re-asking it reopens what is already settled.
+Why the why/what is out of scope: problem framing belongs to `brainstorm-why`, and this skill starts from a problem that is already settled, so re-asking it reopens what is already settled.
+
+Why a spec is optional: a small change can have its why/what settled by an investigation doc, a ticket or a thread, and forcing the full `brainstorm-why` then `to-spec` pipeline on it is overkill.
+
+A spec is useful when it exists, but never a precondition.
 
 ## Usage
 
-`/brainstorm-how` — no arguments. A run starts from an approved `spec_<slug>.md` in CWD, never from a raw request.
+`/brainstorm-how` — no arguments. A run starts from a settled problem, never from a raw request.
+
+An approved `spec_<slug>.md` in CWD is the best seed but is optional.
 
 Resolve it before step 1:
 
 - **Exactly one `spec_*.md`** → use it, printing the resolved path.
 - **Several** → list them numbered and ask which one via `AskUserQuestion`.
-- **None** → hard-stop with nothing interviewed, naming `brainstorm-why` then `to-spec` as how to produce one.
+- **None** → proceed without one, seeding from the settled problem as found in the conversation and any artifacts the user points at (investigation docs, tickets, threads).
+  - If the why/what is genuinely still open, say so and suggest `brainstorm-why` instead of interviewing on it.
 
 ## Process
 
@@ -38,7 +45,7 @@ Why: `sdd-grill-tech` hard-requires an Arco-pipeline `domains/**/<initiative>/pr
 
 Read [`../brainstorm-why/references/interview-engine.md`](../brainstorm-why/references/interview-engine.md) and run it, never restating its discipline here. The engine lives under `brainstorm-why/` so that one directory owns it.
 
-- Seed: the approved spec, which is the solution space, plus your own codebase read of where the change lands.
+- Seed: the approved spec when one exists, otherwise the settled-problem sources (conversation and user-pointed investigation docs, tickets, threads), plus your own codebase read of where the change lands.
 - Notes: `<scratchpad>/notes.md` throughout, in the scratchpad directory named in this session's system prompt.
 - Brief: `<scratchpad>/brainstorm-how-brief.md`, composed once when the engine's close criterion is met.
 
