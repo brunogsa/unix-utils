@@ -111,13 +111,13 @@ Subagent return messages are capped and **WILL truncate long lists** -- the user
 
 #### Per-finding schema (inside `$VERDICT_PATH`)
 
-Each finding's heading stamps severity right after the number: `## N. [SEVERITY] <title>`.
+Each finding's heading stamps severity right after the number: `### N. [SEVERITY] <title>`.
 
-When the finding is also `mechanical`, `[LINTER GAP]` follows the severity tag: `## N. [SEVERITY][LINTER GAP] <title>`.
+When the finding is also `mechanical`, `[LINTER GAP]` follows the severity tag: `### N. [SEVERITY][LINTER GAP] <title>`.
 
 `/address-verdicts` prepends its own `[Done]` in front of both once it applies the finding -- its own §5 rule places `[Done]` right after the number, before any severity tag.
 
-The resulting order, top to bottom: `[Done]` (if applied), then `[SEVERITY]`, then `[LINTER GAP]` (if mechanical), then the title -- e.g. `## 5. [Done][HIGH][LINTER GAP] <title>`.
+The resulting order, top to bottom: `[Done]` (if applied), then `[SEVERITY]`, then `[LINTER GAP]` (if mechanical), then the title -- e.g. `### 5. [Done][HIGH][LINTER GAP] <title>`.
 
 Inside, use these labeled blocks -- no field may be omitted. Empty / N/A is allowed but must be stated explicitly.
 
