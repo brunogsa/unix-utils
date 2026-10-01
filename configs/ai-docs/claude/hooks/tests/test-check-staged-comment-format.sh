@@ -479,6 +479,37 @@ it_should_still_judge_the_index_when_a_git_dash_c_target_is_a_variable() {
     1 "$GATE_EXIT"
 }
 
+# A `-C` the gate cannot name on the `commit` stage itself
+# leaves it unable to say which repository the commit even
+# lands in, so the `-a` set goes unread rather than being
+# resolved against whichever repo the caller stands in.
+it_should_fall_back_to_the_index_when_a_committing_git_dash_c_target_is_missing() {
+  local repo
+  repo=$(new_repo unit12commitdashcmissing)
+  write_clean_shell_file "$repo/deploy.sh"
+  commit_tracked_file "$repo" deploy.sh
+  write_violating_shell_file "$repo/deploy.sh"
+
+  run_gate "$repo" "git -C $tmp_root/no-such-dir commit -am \"x\""
+
+  assert_eq "should allow a -a commit whose git -C target does not exist when the index is clean" \
+    0 "$GATE_EXIT"
+  assert_contains "should say the file set could not be read when the committing git -C target is missing" \
+    "command string" "$GATE_STDERR"
+}
+
+it_should_still_judge_the_index_when_a_committing_git_dash_c_target_is_missing() {
+  local repo
+  repo=$(new_repo unit12commitdashcstaged)
+  write_violating_shell_file "$repo/release.sh"
+  git -C "$repo" add release.sh
+
+  run_gate "$repo" "git -C $tmp_root/no-such-dir commit -m \"x\""
+
+  assert_eq "should block on the index verdict when the committing git -C target is missing" \
+    1 "$GATE_EXIT"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
@@ -500,6 +531,8 @@ it_should_judge_the_commit_dash_c_index_from_outside_any_repo
 it_should_fall_back_to_the_index_when_a_git_dash_c_target_is_missing
 it_should_fall_back_to_the_index_when_a_git_dash_c_target_is_non_literal
 it_should_still_judge_the_index_when_a_git_dash_c_target_is_a_variable
+it_should_fall_back_to_the_index_when_a_committing_git_dash_c_target_is_missing
+it_should_still_judge_the_index_when_a_committing_git_dash_c_target_is_missing
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
