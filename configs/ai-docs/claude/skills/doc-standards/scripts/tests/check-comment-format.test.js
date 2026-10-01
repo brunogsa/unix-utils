@@ -1330,14 +1330,14 @@ describe('check-comment-format', () => {
       assertContains(check(file).out, 'PARAGRAPH');
     });
 
-    it('should exit 0 on a PARAGRAPH range only partially covered by the diff', () => {
+    it('should exit 1 in report mode when the diff grew an existing run past the cap', () => {
       const { file } = paragraphPartial();
-      assert.equal(run(['--changed-only', file]).status, 0);
+      assert.equal(run(['--changed-only', file]).status, 1);
     });
 
-    it('should print nothing for a partially-covered PARAGRAPH range', () => {
+    it('should print the whole grown run in report mode, untouched lines included', () => {
       const { file } = paragraphPartial();
-      assert.equal(run(['--changed-only', file]).out, '');
+      assertContains(run(['--changed-only', file]).out, 'PARAGRAPH 2-6:5');
     });
 
     it('should never fix a PARAGRAPH range only partially covered by the diff', () => {
@@ -1345,6 +1345,15 @@ describe('check-comment-format', () => {
       const before = read(file);
       run(['--fix', '--changed-only', file]);
       assert.equal(read(file), before);
+    });
+
+    // A caller looping --fix --changed-only until clean must
+    // never be shown a row that mode refuses to repair, so
+    // fix mode keeps the strict whole-range scope that report
+    // mode drops.
+    it('should exit 0 under a scoped fix on a grown run so a loop-until-clean caller stops', () => {
+      const { file } = paragraphPartial();
+      assert.equal(run(['--fix', '--changed-only', file]).status, 0);
     });
 
     it('should exit 0 on an unmodified tracked file despite a pre-existing violation', () => {

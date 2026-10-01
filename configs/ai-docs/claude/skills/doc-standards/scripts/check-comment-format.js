@@ -513,14 +513,24 @@ function getChangedLineSet(file) {
 // Stricter on purpose: fixing a range that reaches into
 // untouched lines is exactly the churn --changed-only exists to
 // prevent.
-function filterToChangedScope(report, changedLines) {
+function filterToChangedScope(report, changedLines, fix) {
   const inScope = (line) => changedLines.has(line);
-  const rangeInScope = (start, end) => {
+
+  const everyLineChanged = (start, end) => {
     for (let l = start; l <= end; l++) {
       if (!changedLines.has(l)) return false;
     }
     return true;
   };
+
+  const anyLineChanged = (start, end) => {
+    for (let l = start; l <= end; l++) {
+      if (changedLines.has(l)) return true;
+    }
+    return false;
+  };
+
+  const rangeInScope = fix ? everyLineChanged : anyLineChanged;
 
   return {
     ...report,
@@ -1441,7 +1451,7 @@ function readUtf8File(file) {
   }
 }
 
-function checkFile(file, maxChars, maxLines, langOverride, changedOnly) {
+function checkFile(file, maxChars, maxLines, langOverride, changedOnly, fix) {
   const text = readUtf8File(file);
   const lang = resolveLanguage(file, text, langOverride);
   const lines = text.split('\n');
@@ -1475,7 +1485,7 @@ function checkFile(file, maxChars, maxLines, langOverride, changedOnly) {
   // eligible for the next pass to reconsider -- never a scope
   // cached from an earlier round.
   if (!changedOnly) return report;
-  return filterToChangedScope(report, getChangedLineSet(file));
+  return filterToChangedScope(report, getChangedLineSet(file), fix);
 }
 
 // A repair caps its own retries, so a rule that keeps
@@ -1779,7 +1789,7 @@ function fixFile(file, maxChars, maxLines, langOverride, changedOnly) {
 
   for (let round = 0; round < MAX_FIX_ITERATIONS; round++) {
     for (const pass of FIX_PASSES) {
-      const report = checkFile(file, maxChars, maxLines, langOverride, changedOnly);
+      const report = checkFile(file, maxChars, maxLines, langOverride, changedOnly, true);
       const updated = applyPass(pass, report, maxChars, maxLines);
       if (updated !== null) fs.writeFileSync(file, updated);
     }
@@ -1935,7 +1945,7 @@ function main() {
       sentenceBreaks,
       bulletSpacing,
       bulletBlanks,
-    } = checkFile(file, maxChars, maxLines, lang, changedOnly);
+    } = checkFile(file, maxChars, maxLines, lang, changedOnly, fix);
     const total =
       widthViolations.length +
       paragraphViolations.length +
