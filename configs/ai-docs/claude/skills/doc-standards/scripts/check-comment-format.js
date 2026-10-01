@@ -213,7 +213,10 @@ const LANGUAGES = {
     shebangRe: /\b(node|bun|deno|ts-node)\b/,
     scan: (text, file) => scanTypescriptCommentRanges(loadTypescriptFor(file), text),
     delimiterRe: /^(\/\*\*|\*\/|\/\*)$/,
-    blankRe: /^(\*|\/\/)$/,
+
+    // A truly empty line inside a block-comment body is a
+    // separator too, not only a bare `*`.
+    blankRe: /^(\*|\/\/)?$/,
     prefixRe: /^(\*|\/\/)\s?/,
 
     // The `case` label is matched narrowly, not by a bare
@@ -252,7 +255,10 @@ const LANGUAGES = {
 
     scan: (text) => scanCommentRanges(text, jsoncDialect()),
     delimiterRe: /^(\*\/|\/\*)$/,
-    blankRe: /^(\*|\/\/)$/,
+
+    // A truly empty line inside a block-comment body is a
+    // separator too, not only a bare `*`.
+    blankRe: /^(\*|\/\/)?$/,
     prefixRe: /^(\*|\/\/)\s?/,
     scopeOpeners: [/[{([]$/],
   },
@@ -265,7 +271,10 @@ const LANGUAGES = {
 
     scan: (text) => scanCommentRanges(text, goDialect()),
     delimiterRe: /^(\*\/|\/\*)$/,
-    blankRe: /^(\*|\/\/)$/,
+
+    // A truly empty line inside a block-comment body is a
+    // separator too, not only a bare `*`.
+    blankRe: /^(\*|\/\/)?$/,
     prefixRe: /^(\*|\/\/)\s?/,
     scopeOpeners: [/[{([]$/, /^(case\b.*|default)\s*:$/],
   },
@@ -306,7 +315,7 @@ const LANGUAGES = {
 
     // Both line-comment spellings are legal, so either one
     // can be the separator or the prefix of a paragraph.
-    blankRe: /^(\*|#|\/\/)$/,
+    blankRe: /^(\*|#|\/\/)?$/,
     prefixRe: /^(\*|#|\/\/)\s?/,
 
     scopeOpeners: [/[{([]$/],
