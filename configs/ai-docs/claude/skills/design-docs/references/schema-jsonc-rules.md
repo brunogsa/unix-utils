@@ -8,6 +8,11 @@ Keep every line ≤80 chars: short annotations stay inline.
 
 - When a full annotation would push the field line past 80, move the comment above the field (wrapped, multi-line), preceded by a blank line so it hugs its field.
 
+- The only allowed shorthand for a nested object is "same shape as X", for a sub-object whose schema is shown elsewhere; never drop a field to shorten.
+  - When such a `/* ... */` placeholder runs long, wrap it across lines inside its braces; it is a value placeholder, not a trailing annotation, so it is not moved above.
+
+- List every enum value inline; when the enum is huge (~60), say so and give the rule instead.
+
 - When the *value* is long (two origin paths in one de/para value), keep the leaf field in the value and move the container path up into the comment — never truncate.
 
 - When an enum has several long or multi-word values, list one value per line (`// enum:` header, then `//   - value` per line).
