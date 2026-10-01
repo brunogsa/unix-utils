@@ -351,7 +351,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 - [Instruction] **CRITICAL: Surface harness gaps** -- file a `[Harness]` when a check could catch the defect class you hand-fixed, or the rule that keeps being violated, and needs no hand-maintained list.
   - [Why] A hand-fix a rule could make is signal lost, but a ledger-backed check goes stale faster than it catches anything.
-  - [Example] A prose cap is not enforcement: `repo-green-runner` ran 1h+ against a documented 40-minute max, and the CRITICAL-density rule kept failing until a hook enforced it.
+  - [Example] Prose caps don't enforce: `repo-green-runner` ran 1h+ against a documented 40-minute max, and the CRITICAL-density rule kept failing until a hook enforced it.
   - [Example] A check needing that ledger edited on every repo change is not a `[Harness]`; file the defect class as `[Debt]` instead.
 
 - [Instruction] Close a `[Harness]` task within the session that surfaced it, never in a later batch.
