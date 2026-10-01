@@ -136,9 +136,39 @@ it_should_block_a_violation_in_an_already_staged_file() {
     "release.sh" "$GATE_STDERR"
 }
 
+# A pathspec the shell has not expanded yet cannot be
+# resolved, so the command string contributes nothing and
+# the index alone decides.
+it_should_fall_back_to_the_index_when_a_pathspec_is_a_variable() {
+  local repo
+  repo=$(new_repo unit3clean)
+  write_violating_shell_file "$repo/deploy.sh"
+
+  run_gate "$repo" 'git add $FILES && git commit -m "x"'
+
+  assert_eq "should allow a commit naming files through a variable when the index is clean" \
+    0 "$GATE_EXIT"
+  assert_contains "should say the file set could not be read from the command string" \
+    "command string" "$GATE_STDERR"
+}
+
+it_should_still_judge_the_index_when_a_pathspec_is_a_variable() {
+  local repo
+  repo=$(new_repo unit3staged)
+  write_violating_shell_file "$repo/release.sh"
+  git -C "$repo" add release.sh
+
+  run_gate "$repo" 'git add $FILES && git commit -m "x"'
+
+  assert_eq "should block on the index verdict when the command names files through a variable" \
+    1 "$GATE_EXIT"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_in_an_already_staged_file
+it_should_fall_back_to_the_index_when_a_pathspec_is_a_variable
+it_should_still_judge_the_index_when_a_pathspec_is_a_variable
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
