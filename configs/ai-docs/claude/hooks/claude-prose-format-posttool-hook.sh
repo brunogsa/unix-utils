@@ -353,23 +353,13 @@ Fix these by re-issuing Write/Edit with the corrected text. Never bypass this ho
   return 2
 }
 
-paths=()
 case "$TOOL_NAME" in
-  Write|Edit)
-    FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
-    [ -n "$FILE_PATH" ] || exit 0
-    paths=("$FILE_PATH")
-    ;;
-  *)
-    exit 0
-    ;;
+  Write|Edit) ;;
+  *) exit 0 ;;
 esac
 
-reported=0
-for candidate_path in "${paths[@]:-}"; do
-  [ -n "$candidate_path" ] || continue
-  check_file "$candidate_path" || reported=1
-done
+FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+[ -n "$FILE_PATH" ] || exit 0
 
-[ "$reported" -eq 1 ] || exit 0
-exit 2
+check_file "$FILE_PATH" || exit 2
+exit 0
