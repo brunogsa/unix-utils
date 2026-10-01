@@ -253,6 +253,11 @@ const readonlyFixture = () =>
     lines(SHEBANG, `# ${AGGREGATOR}`, 'VALUE = 1'),
   );
 
+// No extension any language claims and no shebang, so the
+// language cannot be resolved at all.
+const unlexableFixture = () =>
+  put('notes.txt', lines('A plain note with no comment syntax.'));
+
 // A trailing-width violation on a line the edit added, beside
 // one that predates it.
 const widthScope = () =>
@@ -856,6 +861,16 @@ describe('check-comment-format', () => {
       );
       assert.equal(lossOf(file).status, 0);
     });
+
+    it('should exit 0 on an unlexable file with --skip-unknown', () => {
+      const file = unlexableFixture();
+      assert.equal(run(['--skip-unknown', file]).status, 0);
+    });
+
+    it('should print nothing on an unlexable file with --skip-unknown', () => {
+      const file = unlexableFixture();
+      assert.equal(run(['--skip-unknown', file]).out, '');
+    });
   });
 
   describe('failure scenarios', () => {
@@ -970,6 +985,18 @@ describe('check-comment-format', () => {
         ),
       );
       assertContains(lossOf(file).out, 'CONTENT-LOSS not');
+    });
+
+    // The guard that keeps --skip-unknown opt-in: without it,
+    // an unlexable file must still be the usage error it was.
+    it('should still exit 2 on an unlexable file without --skip-unknown', () => {
+      const file = unlexableFixture();
+      assert.equal(run([file]).status, 2);
+    });
+
+    it('should still name the language it cannot tell without --skip-unknown', () => {
+      const file = unlexableFixture();
+      assertContains(run([file]).out, 'cannot tell what language');
     });
 
     it('should exit 2 when --content-loss is combined with --fix', () => {

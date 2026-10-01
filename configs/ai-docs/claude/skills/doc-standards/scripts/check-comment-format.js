@@ -138,12 +138,20 @@
 // above, and never rewrites -- pairing it with --fix is a usage
 // error rather than a flag it quietly ignores.
 //
+// --skip-unknown drops a file whose language cannot be
+// resolved, instead of exiting 2 on it.
+//
+// A caller handing over a whole staged file set carries `.md`,
+// `.json` and `.png` members no comment lexer exists for, and
+// one of those must not fail the run for the files that do
+// lex.
+//
 // Usage:
 //   check-comment-format.js [--fix] [--changed-only]
-//     [--max-chars N] [--max-lines N]
+//     [--max-chars N] [--max-lines N] [--skip-unknown]
 //     [--lang typescript|shell|python] <file> [<file>...]
 //
-//   check-comment-format.js --content-loss
+//   check-comment-format.js --content-loss [--skip-unknown]
 //     [--lang typescript|shell|python] <file> [<file>...]
 //
 // Exit codes:
@@ -220,7 +228,7 @@ const LANGUAGES = {
 
 const USAGE =
   'usage: check-comment-format.js [--fix] [--changed-only] [--content-loss] ' +
-  '[--max-chars N] [--max-lines N] ' +
+  '[--max-chars N] [--max-lines N] [--skip-unknown] ' +
   `[--lang ${Object.keys(LANGUAGES).join('|')}] <file>...`;
 
 function parseArgs(argv) {
@@ -230,6 +238,7 @@ function parseArgs(argv) {
   let fix = false;
   let changedOnly = false;
   let contentLoss = false;
+  let skipUnknown = false;
   const files = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -239,6 +248,8 @@ function parseArgs(argv) {
       changedOnly = true;
     } else if (arg === '--content-loss') {
       contentLoss = true;
+    } else if (arg === '--skip-unknown') {
+      skipUnknown = true;
     } else if (arg === '--max-chars') {
       maxChars = Number(argv[++i]);
     } else if (arg === '--max-lines') {
@@ -271,7 +282,7 @@ function parseArgs(argv) {
     process.exit(2);
   }
 
-  return { maxChars, maxLines, lang, fix, changedOnly, contentLoss, files };
+  return { maxChars, maxLines, lang, fix, changedOnly, contentLoss, skipUnknown, files };
 }
 
 // Shells out to get-changed-lines.sh rather than re-deriving
@@ -347,7 +358,7 @@ function filterToChangedScope(report, changedLines) {
 // The shebang is consulted after the extension, so an
 // extensionless hook script or a dotfile resolves on its own
 // instead of making every caller pass --lang.
-function resolveLanguage(file, text, override) {
+function tryResolveLanguage(file, text, override) {
   if (override) return LANGUAGES[override];
 
   const ext = path.extname(file).toLowerCase();
@@ -359,6 +370,16 @@ function resolveLanguage(file, text, override) {
   for (const lang of Object.values(LANGUAGES)) {
     if (shebang && lang.shebangRe.test(shebang)) return lang;
   }
+
+  return null;
+}
+
+// Unresolvable is a usage error here, not a skip: only main()
+// knows whether --skip-unknown was passed, and every other
+// caller has already been handed a file it can lex.
+function resolveLanguage(file, text, override) {
+  const lang = tryResolveLanguage(file, text, override);
+  if (lang !== null) return lang;
 
   console.error(`check-comment-format.js: cannot tell what language ${file} is — pass --lang`);
   process.exit(2);
@@ -1350,20 +1371,27 @@ function reportContentLoss(file, langOverride) {
 }
 
 function main() {
-  const { maxChars, maxLines, lang, fix, changedOnly, contentLoss, files } = parseArgs(
-    process.argv.slice(2),
-  );
+  const { maxChars, maxLines, lang, fix, changedOnly, contentLoss, skipUnknown, files } =
+    parseArgs(process.argv.slice(2));
   let anyHit = false;
 
   // Every input is read before any is checked or fixed, so an
   // unreadable later file exits 2 before any stdout or rewrite.
-  for (const file of files) readUtf8File(file);
+  const textByFile = new Map();
+  for (const file of files) textByFile.set(file, readUtf8File(file));
+
+  // Dropping the unlexable members here, before any other
+  // per-file work, keeps them out of the scope resolution and
+  // the exit status alike.
+  const targets = skipUnknown
+    ? files.filter((file) => tryResolveLanguage(file, textByFile.get(file), lang) !== null)
+    : files;
 
   // Scope is resolved up front for the same reason: a file with
   // no changed-line scope exits 2 before any stdout or rewrite.
-  if (changedOnly) for (const file of files) getChangedLineSet(file);
+  if (changedOnly) for (const file of targets) getChangedLineSet(file);
 
-  for (const file of files) {
+  for (const file of targets) {
     if (contentLoss) {
       if (reportContentLoss(file, lang)) anyHit = true;
       continue;
