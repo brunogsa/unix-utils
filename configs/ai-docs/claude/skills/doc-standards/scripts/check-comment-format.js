@@ -206,7 +206,7 @@ const LANGUAGES = {
   shell: {
     extensions: ['.sh', '.bash', '.zsh', '.ksh'],
     shebangRe: /\b(bash|sh|zsh|ksh|dash)\b/,
-    scan: (text) => scanHashCommentRanges(text, shellDialect()),
+    scan: (text) => scanCommentRanges(text, shellDialect()),
     delimiterRe: null,
     blankRe: /^#$/,
     prefixRe: /^#\s?/,
@@ -218,7 +218,7 @@ const LANGUAGES = {
   python: {
     extensions: ['.py', '.pyi'],
     shebangRe: /\bpython[0-9.]*\b/,
-    scan: (text) => scanHashCommentRanges(text, pythonDialect()),
+    scan: (text) => scanCommentRanges(text, pythonDialect()),
     delimiterRe: null,
     blankRe: /^#$/,
     prefixRe: /^#\s?/,
@@ -488,12 +488,13 @@ function scanTypescriptCommentRanges(ts, text) {
 // has whitespace in front of it anyway.
 const WORD_SEPARATORS = new Set([...' \t;&|()<>']);
 
-// In a `#`-comment language the hard part is the strings, not
-// the comment: a `#` opens one only where no string is open.
+// In a comment-lexing dialect the hard part is the strings,
+// not the comment: an opener counts only where none is open.
 //
-// A dialect supplies exactly that -- how far a non-code run
-// reaches, and what a newline owes the line before it.
-function scanHashCommentRanges(text, dialect) {
+// A dialect supplies exactly that -- its comment openers, how
+// far a non-code run reaches, and what a newline owes the
+// line before it.
+function scanCommentRanges(text, dialect) {
   const ranges = [];
   let i = 0;
   let atWordStart = true;
@@ -507,11 +508,24 @@ function scanHashCommentRanges(text, dialect) {
     }
 
     const ch = text[i];
+    const canOpenComment = atWordStart || !dialect.needsWordBoundary;
+    const lineOpener = dialect.lineComments.find((open) => text.startsWith(open, i));
 
-    if (ch === '#' && (atWordStart || !dialect.needsWordBoundary)) {
+    if (lineOpener && canOpenComment) {
       const start = i;
       while (i < text.length && text[i] !== '\n') i++;
       ranges.push({ start, end: i });
+      continue;
+    }
+
+    const block = dialect.blockComments.find((pair) => text.startsWith(pair.open, i));
+
+    if (block) {
+      const start = i;
+      const closeAt = text.indexOf(block.close, i + block.open.length);
+      i = closeAt === -1 ? text.length : closeAt + block.close.length;
+      ranges.push({ start, end: i });
+      atWordStart = false;
       continue;
     }
 
@@ -593,6 +607,8 @@ function shellDialect() {
   }
 
   return {
+    lineComments: ['#'],
+    blockComments: [],
     needsWordBoundary: true,
 
     skipNonCode(text, i) {
@@ -648,6 +664,8 @@ function pythonDialect() {
   }
 
   return {
+    lineComments: ['#'],
+    blockComments: [],
     needsWordBoundary: false,
 
     skipNonCode(text, i) {
