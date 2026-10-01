@@ -16,8 +16,6 @@ description: "Audit CLAUDE.md + skills for semantic coherence (contradictions, u
 Audit CLAUDE.md file and skills for semantic coherence issues.
 Report findings; never auto-fix.
 
-LLM-driven (not a script): each heuristic requires cross-file reading.
-
 ## Modes (main vs shard-orchestrator vs ensemble child)
 
 LLM cross-file reading is stochastic (over-flags) and the full corpus (~162 files) doesn't fit one context window.
@@ -266,4 +264,6 @@ Summary table + per-heuristic sections, each in the same fixed order as the §He
 
 Status: **OK** (no findings), **REVIEW** (user judgment needed), **ISSUE** (high-confidence problem), **INCOMPLETE** (a shard/pair failed to report — name it).
 
-Reference findings by ID: `apply 1.1, 4.2` or `skip 7.1`.
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
