@@ -510,6 +510,40 @@ it_should_still_judge_the_index_when_a_committing_git_dash_c_target_is_missing()
     1 "$GATE_EXIT"
 }
 
+# diff.relative=true makes `git diff --name-only` answer
+# relative to the subdirectory it runs in, which the gate
+# would then join onto the repo root and drop as missing.
+it_should_block_a_staged_violation_when_diff_relative_is_set_in_a_subdirectory() {
+  local repo
+  repo=$(new_repo unit13diffrelative)
+  git -C "$repo" config diff.relative true
+  mkdir -p "$repo/sub"
+  write_violating_shell_file "$repo/sub/deploy.sh"
+  git -C "$repo" add sub/deploy.sh
+
+  run_gate "$repo/sub" 'git commit -m "x"'
+
+  assert_eq "should block a staged violation when diff.relative is set and the commit runs in a subdirectory" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the offending file when diff.relative is set" \
+    "deploy.sh" "$GATE_STDERR"
+}
+
+it_should_block_a_commit_dash_a_violation_when_diff_relative_is_set_in_a_subdirectory() {
+  local repo
+  repo=$(new_repo unit13diffrelativeall)
+  git -C "$repo" config diff.relative true
+  mkdir -p "$repo/sub"
+  write_clean_shell_file "$repo/sub/deploy.sh"
+  commit_tracked_file "$repo" sub/deploy.sh
+  write_violating_shell_file "$repo/sub/deploy.sh"
+
+  run_gate "$repo/sub" 'git commit -am "x"'
+
+  assert_eq "should block a commit -a violation when diff.relative is set and the commit runs in a subdirectory" \
+    1 "$GATE_EXIT"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
@@ -533,6 +567,8 @@ it_should_fall_back_to_the_index_when_a_git_dash_c_target_is_non_literal
 it_should_still_judge_the_index_when_a_git_dash_c_target_is_a_variable
 it_should_fall_back_to_the_index_when_a_committing_git_dash_c_target_is_missing
 it_should_still_judge_the_index_when_a_committing_git_dash_c_target_is_missing
+it_should_block_a_staged_violation_when_diff_relative_is_set_in_a_subdirectory
+it_should_block_a_commit_dash_a_violation_when_diff_relative_is_set_in_a_subdirectory
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

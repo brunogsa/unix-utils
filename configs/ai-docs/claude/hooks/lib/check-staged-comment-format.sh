@@ -287,7 +287,11 @@ if toplevel.returncode != 0:
     warn_and_allow('not inside a git repository, skipping the check')
 repo_root = toplevel.stdout.strip()
 
-index = run_git(['diff', '--cached', '--name-only'], scope.directory)
+# diff.relative=true would make git answer relative to the
+# subdirectory the commit runs in, and the repo-root join
+# below would then name a file that does not exist.
+index = run_git(['-c', 'diff.relative=false', 'diff', '--cached', '--name-only'],
+                scope.directory)
 if index.returncode != 0:
     warn_and_allow('could not read the git index, skipping the check')
 
@@ -323,7 +327,8 @@ add_candidates_listed_by_git(index.stdout)
 # than discarded the way a glob or a variable is: there is
 # nothing here left for the shell to expand.
 if scope.stages_all:
-    modified = run_git(['diff', '--name-only'], scope.directory)
+    modified = run_git(['-c', 'diff.relative=false', 'diff', '--name-only'],
+                       scope.directory)
     if modified.returncode != 0:
         warn_and_allow('could not read the files `git commit -a` stages, '
                        'skipping the check')
