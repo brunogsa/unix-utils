@@ -79,3 +79,7 @@ After posting, confirm to the user which comments were answered and link to the 
 - **Comment already has a Claude reply:** Show the existing reply and ask if the user wants to update it (PATCH) or add a new one.
 
 - **PR URL vs number:** Accept both. Extract from URL or use current repo.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
