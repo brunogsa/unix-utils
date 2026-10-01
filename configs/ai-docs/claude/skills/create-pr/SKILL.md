@@ -130,7 +130,7 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
 ### 3. Compose the repo description — density and body size
 
-**Never pause for user review** -- the agent returns a gated file, so continue straight from step 2 into this one.
+**Never pause for user review** -- the agent returns a gated file, so continue straight on.
 
 **Check `.github/` for a PR template** (`pull_request_template.md`, `PULL_REQUEST_TEMPLATE.md`).
 
@@ -192,5 +192,7 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 Two entry points, neither firing on most runs: a change the user asks for after the push, or step 4 finding the branch already had an open PR.
 
 Rules, the editing target, and the GitHub-body-update hazard: [`references/post-push-changes.md`](references/post-push-changes.md).
+
+## Flowchart (human-facing)
 
 [`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
