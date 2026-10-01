@@ -42,7 +42,7 @@ Two ways in; only who picks the findings differs:
 ls -1 verdict_refactor_*.md verdict_auto-review_*.md verdict_test-sdd_*.md 2>/dev/null
 ```
 
-Several timestamped generations can exist per lens, possibly across branches. The filename is `verdict_<lens>_<branch>_YYYY-MM-DD_HH:MM.md`: the branch segment means filenames no longer sort lexically into chronological order. Pick the
+Several timestamped generations can exist per lens, possibly across branches. The filename is `verdict_<lens>_<branch>_YYYY-MM-DD_HH:MM.md`. Pick the
 newest generation per lens by modification time (`ls -t verdict_<lens>_*.md | head -1`), not a lexical sort.
 
 - **Default**: the newest generation of each lens — the most recently modified file.
@@ -76,7 +76,7 @@ in §2, or rejecting, rewording, or hand-editing a proposed `SKIPPED` reason (§
 
 Follow CLAUDE.md's correction rule — infer the general rule behind the change, then sweep it across this run's remaining findings; skip it and the correction lands again on the next lens.
 
-Skipping beats guessing — the caller can re-run the finding by hand, whereas a wrong guess lands a commit nobody asked for.
+Skipping beats guessing — a wrong guess lands a commit nobody asked for.
 
 A missing test command under `--no-ask` skips only findings that need one — refactor-lens findings still apply, since that agent brings its own green-before-and-after check.
 
@@ -95,8 +95,7 @@ A lens with no finding gets no entry at all, since an empty task reads as work t
 
 **One entry per lens is the rule, whoever invoked this skill.**
 
-No finding is lost to the grouping: each entry names its own count, and §5 still annotates every finding individually in its verdict file — that file, not
-the TaskList, is the durable per-finding ledger.
+Each entry names its own count, and §5 still annotates every finding individually in its verdict file. Why the grouping loses nothing: [`references/design-rationale.md`](references/design-rationale.md).
 
 Add one closing `[Reminder]` entry for the final report (§6) — it survives a mid-run compaction, so the wrap-up step can't get silently skipped.
 
@@ -112,7 +111,7 @@ Why: CLAUDE.md's CRITICAL rule bars routing a non-code artifact edit through `td
 
 A `test-sdd` finding whose planned test covers prose is **not written at all**. Annotate it `SKIPPED (tests prose, which CLAUDE.md forbids)` per §5.
 
-This is the one place this skill overrules `/quality-gate` §5.1's "every test-sdd finding applies unconditionally": the human approved the plan, but CLAUDE.md forbids the test, and the forbidden-to-exist test wins.
+This overrules `/quality-gate` §5.1's "every test-sdd finding applies unconditionally" — see [`references/design-rationale.md`](references/design-rationale.md).
 
 A lens whose findings are all non-code dispatches its own agent zero times, which is a correct outcome, not a failure. §3 still seeds its entry, and §5 still annotates every finding.
 
@@ -125,8 +124,7 @@ pass every planned title verbatim so each test lands under the name the plan dec
 
 - **`refactor` entry** (from `verdict_refactor_*.md`): `agent(subAgent=refactor, title=Apply all refactor findings)`. It applies the changes itself and confirms tests are green before and after.
 
-**Size all three entries to the same cap** before dispatching — neither `tdd-coder` nor the `refactor` agent splits an oversized batch on its own, and one that outruns
-its turn budget leaves the work half-applied with no record of where it stopped.
+**Size all three entries to the same cap** before dispatching — neither `tdd-coder` nor the `refactor` agent splits an oversized batch on its own.
 
 - Cluster related findings into the same dispatch, so one subagent sees the full picture.
 - Bundle findings too small to deserve their own RED-GREEN cycle into one unit.
@@ -134,12 +132,9 @@ its turn budget leaves the work half-applied with no record of where it stopped.
 
 When an entry contributes more than ~10 findings, split it into multiple sequential dispatches to that entry's own agent — still serial, same branch, same seeded order, never one uncapped batch.
 
-The `refactor` agent is the concrete case: its p90 is 85 assistant turns, so 30-50 findings can exhaust it mid-run with nothing committed.
+For code findings, the refactor lens keeps its own agent, since a correctness fix needs `tdd-coder`'s test-first discipline. The turn-count telemetry behind the cap, and why the refactor agent stays separate, are in [`references/design-rationale.md`](references/design-rationale.md).
 
-For code findings, the refactor lens keeps its own agent because it refuses any behavior change by design — a correctness fix needs `tdd-coder`'s test-first discipline, and a "simplification" that quietly changes semantics is what the refusal catches.
-
-**One commit per finding still holds inside a batched dispatch** — say so explicitly in every dispatch prompt. The batching exists to cut subagent spawns, not to coarsen
-the diff a human reviews: a lens-sized commit would bury which fix answers which finding.
+**One commit per finding still holds inside a batched dispatch** — say so explicitly in every dispatch prompt. The batching exists to cut subagent spawns, not to coarsen the diff a human reviews.
 
 - `tdd-coder` commits its own work under `commit-standards` — confirm each reported SHA exists rather than re-committing.
 - The `refactor` agent leaves its changes uncommitted by design — commit them here, where the permission prompt renders, still one commit per finding, never one for the lens.
@@ -162,15 +157,13 @@ task headings. This is the machine-checkable mark: it makes a re-run skip what a
   - `APPLIED (<sha>)` — the fix commit's SHA, pairs with a `[Done]` heading.
   - `SKIPPED (<reason>)` — why not applied; heading stays unmarked, so a re-run reconsiders it.
 
-This is the durable, on-disk ledger of fixed-versus-deferred. The heading marker can't say *why*, and the body line isn't greppable.
-
-Annotating lens by lens means a session killed mid-run still leaves an accurate ledger for the finished lenses.
+Why two marks, and why lens by lens: [`references/design-rationale.md`](references/design-rationale.md).
 
 ## 6. Close with a report
 
 One line per finding — never a bare id, count, or SHA alone: `<lens>#N (<file>:<lines>) — <one-line recap of what the finding says> → <outcome>`.
 
-The recap is mandatory even when the finding is already annotated on disk — a bare id forces the human to open that file to know what was decided.
+The recap is mandatory even when the finding is already annotated on disk.
 
 - **Applied** — outcome is `APPLIED (<sha>)`.
 - **Skipped** — outcome is `SKIPPED (<reason>)`.
