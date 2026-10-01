@@ -72,3 +72,7 @@ files with actual violations, so a re-run on an already-clean tree (or one
 where the prior run already fixed everything and no new changes landed)
 naturally resolves to "nothing to check" or an all-clean report, with no
 further edits. No special-case logic is needed for this.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
