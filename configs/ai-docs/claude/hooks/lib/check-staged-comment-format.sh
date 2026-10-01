@@ -120,9 +120,9 @@ SHORT_OPTION_CLUSTER_RE = re.compile(r'-[A-Za-z]+$')
 WARNING_PREFIX = 'check-staged-comment-format:'
 
 # Everything the command string says about the files the
-# commit will hold: the `git add` pathspecs, the directory
-# the gate's own git calls must run in, and whether a
-# `git commit -a` stages every tracked modified file too.
+# commit will hold: the `git add` and `git commit` pathspecs,
+# the directory the gate's own git calls must run in, and
+# whether a `git commit -a` stages every tracked file too.
 CommandScope = collections.namedtuple(
     'CommandScope', 'pathspecs directory stages_all')
 
