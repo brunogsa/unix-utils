@@ -295,10 +295,31 @@ check_candidate() {
     fi
 }
 
+# Remove every inline-code span from $line.
+#
+# Like a fenced block, a span is markup being displayed, not
+# used: `[text](url)` inside one is an example, not a ref.
+#
+# A double-backtick span may hold single backticks, so it goes
+# first. An unpaired backtick matches neither pattern and stays
+# as literal text, so the rest of the line is still scanned.
+#
+# A link whose text is a span, [`a.md`](a.md), reduces to
+# [](a.md): the `](...)` sits outside the span and survives.
+# A link target containing a backtick is out of scope: the path
+# check in check_candidate already rejects it.
+strip_inline_code_spans() {
+    printf '%s\n' "$1" \
+        | sed -E 's/``([^`]|`[^`])*``//g; s/`[^`]*`//g'
+}
+
 # Emit every markdown-link target `](path)` found in $line,
-# delimiters stripped. Bare backtick spans are not refs.
+# delimiters stripped. Bare backtick spans are not refs, and
+# neither is a link shown inside one (accepted recall cost: a
+# broken link written inside a span is no longer caught).
 list_line_ref_candidates() {
-    local line=$1 match candidate
+    local line match candidate
+    line="$(strip_inline_code_spans "$1")"
     while IFS= read -r match; do
         [ -n "$match" ] || continue
         candidate="${match#\]\(}"

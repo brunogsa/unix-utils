@@ -290,6 +290,57 @@ it_should_report_only_the_target_of_a_link_with_backtick_text_when_the_target_is
     rm -rf "$d"
 }
 
+it_should_not_flag_a_broken_looking_link_shown_inside_an_inline_code_span() {
+    echo "it_should_not_flag_a_broken_looking_link_shown_inside_an_inline_code_span"
+    local d; d=$(new_fixture)
+    printf 'Supported inline syntax: `**bold**` and `[text](missing-file.md)`.\n' > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 0" "0" "$status"
+    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
+it_should_report_a_real_broken_link_on_the_same_line_as_an_inline_code_span_link() {
+    echo "it_should_report_a_real_broken_link_on_the_same_line_as_an_inline_code_span_link"
+    local d; d=$(new_fixture)
+    printf 'Shown `[text](example-missing.md)` but real [doc](real-missing.md).\n' > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 1" "1" "$status"
+    assert_eq "exactly one broken ref listed" "1" "$(grep -c ' -> ' /tmp/check-refs-out.txt)"
+    assert_eq "only the real link is reported" "1" "$(grep -c -- '-> real-missing.md$' /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
+it_should_not_flag_a_link_inside_a_span_next_to_a_double_backtick_span() {
+    echo "it_should_not_flag_a_link_inside_a_span_next_to_a_double_backtick_span"
+    local d; d=$(new_fixture)
+    printf 'Inline `**bold**` / `` `code` `` / `[text](url-missing.md)` all work.\n' > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 0" "0" "$status"
+    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
+it_should_not_flag_a_link_inside_a_double_backtick_span() {
+    echo "it_should_not_flag_a_link_inside_a_double_backtick_span"
+    local d; d=$(new_fixture)
+    printf 'Write ``[text](double-missing.md)`` to show it.\n' > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 0" "0" "$status"
+    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
+it_should_still_scan_a_link_after_an_unpaired_backtick() {
+    echo "it_should_still_scan_a_link_after_an_unpaired_backtick"
+    local d; d=$(new_fixture)
+    printf 'A stray ` tick then [doc](odd-missing.md) here.\n' > "$d/source.md"
+    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    assert_status "exits 1" "1" "$status"
+    assert_eq "the link after the stray tick is reported" "1" "$(grep -c -- '-> odd-missing.md$' /tmp/check-refs-out.txt)"
+    rm -rf "$d"
+}
+
 it_should_not_flag_the_na_abbreviation_as_a_broken_ref() {
     echo "it_should_not_flag_the_na_abbreviation_as_a_broken_ref"
     local d; d=$(new_fixture)
@@ -323,6 +374,11 @@ it_should_not_flag_a_conventional_commit_prefixed_branch_name_mention_as_a_broke
 it_should_not_scan_a_backtick_path_inside_a_markdown_link_text_as_its_own_ref
 it_should_report_only_the_target_of_a_link_with_backtick_text_when_the_target_is_missing
 it_should_not_flag_the_na_abbreviation_as_a_broken_ref
+it_should_not_flag_a_broken_looking_link_shown_inside_an_inline_code_span
+it_should_report_a_real_broken_link_on_the_same_line_as_an_inline_code_span_link
+it_should_not_flag_a_link_inside_a_span_next_to_a_double_backtick_span
+it_should_not_flag_a_link_inside_a_double_backtick_span
+it_should_still_scan_a_link_after_an_unpaired_backtick
 
 echo
 echo "$passed passed, $failed failed"
