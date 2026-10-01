@@ -1069,6 +1069,98 @@ describe('check-comment-format', () => {
     });
   });
 
+  describe('lua files', () => {
+    const longStringFile = (rel, open, close) =>
+      put(
+        rel,
+        lines(
+          'local sql = ' + open,
+          `select -- ${AGGREGATOR}`,
+          close,
+        ),
+      );
+
+    it('should report the over-cap line of a line comment', () => {
+      const file = put(
+        'tally.lua',
+        lines(
+          'function tally()',
+          `  -- ${AGGREGATOR}`,
+          '  return 1',
+          'end',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+
+    // A long-bracket comment opens with the same `--` a line
+    // comment does, so only a lexer that tries the block form
+    // first reads past the opener's own line.
+    it('should report the over-cap body line of a long-bracket comment', () => {
+      const file = put(
+        'doc.lua',
+        lines(
+          '--[[',
+          AGGREGATOR,
+          ']]',
+          'return 1',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+
+    // The inner `]]` closes level zero only, so a lexer that
+    // ignores the level ends the comment one line early and
+    // never sees the over-cap line below it.
+    it('should keep a leveled long-bracket comment open across a shorter close', () => {
+      const file = put(
+        'leveled.lua',
+        lines(
+          '--[=[',
+          ']]',
+          AGGREGATOR,
+          ']=]',
+          'return 1',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 3:');
+    });
+
+    it('should read no comment out of a long-string body', () => {
+      const file = longStringFile('query.lua', '[[', ']]');
+      assertAbsent(check(file).out, 'WIDTH');
+    });
+
+    it('should exit 0 on a file whose only long line is a long-string body', () => {
+      const file = longStringFile('clean.lua', '[[', ']]');
+      assert.equal(check(file).status, 0);
+    });
+
+    it('should read no comment out of a leveled long-string body', () => {
+      const file = longStringFile('leveled-string.lua', '[==[', ']==]');
+      assertAbsent(check(file).out, 'WIDTH');
+    });
+
+    it('should exit 0 on a file whose only long line is a leveled long-string body', () => {
+      const file = longStringFile('leveled-clean.lua', '[==[', ']==]');
+      assert.equal(check(file).status, 0);
+    });
+
+    it('should resolve an extensionless file by its lua shebang', () => {
+      const file = put(
+        'tally',
+        lines(
+          '#!/usr/bin/env lua',
+          `-- ${AGGREGATOR}`,
+          'return 1',
+        ),
+      );
+      assertContains(check(file).out, 'WIDTH 2:');
+    });
+  });
+
+
+
   describe('corner cases', () => {
     it('should leave an aligned usage line byte-identical', () => {
       const file = literalsFixture();

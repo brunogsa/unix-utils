@@ -156,7 +156,7 @@
 //     [--lang <language>] <file> [<file>...]
 //
 // <language> is one of typescript, shell, python, jsonc,
-// go, yaml, awk or terraform.
+// go, yaml, awk, terraform or lua.
 //
 // Exit codes:
 //   0  clean (or fully repaired by --fix)
@@ -295,6 +295,26 @@ const LANGUAGES = {
     prefixRe: /^(\*|#|\/\/)\s?/,
 
     scopeOpeners: [/[{([]$/],
+  },
+
+  lua: {
+    extensions: ['.lua'],
+
+    // A lua script does get run through `#!/usr/bin/env lua`,
+    // and luajit answers to the same spelling.
+    shebangRe: /\blua(jit)?[0-9.]*\b/,
+
+    scan: (text) => scanCommentRanges(text, luaDialect()),
+
+    // A long-bracket delimiter carries its own level, so the
+    // `=` run is part of what makes the line prose-neutral.
+    delimiterRe: /^(--\[=*\[|\]=*\])$/,
+
+    blankRe: /^--$/,
+    prefixRe: /^--\s?/,
+
+    // A function header ends on its parameter list's `)`.
+    scopeOpeners: [/[{([]$/, /\)$/, /\b(then|else|do|repeat)$/],
   },
 };
 
@@ -577,12 +597,31 @@ function skipQuoted(text, from, quote, honorEscapes) {
   return text.length;
 }
 
+// A block opener is a fixed string in most dialects, but lua
+// spells one with a level -- `--[==[` -- that no fixed pair
+// can express, so a pair may carry an `openAt` matcher
+// reporting its own length and the close it earns.
+function matchBlockOpener(text, i, blockComments) {
+  for (const pair of blockComments) {
+    const opened = pair.openAt
+      ? pair.openAt(text, i)
+      : text.startsWith(pair.open, i) && { openLength: pair.open.length, close: pair.close };
+    if (opened) return opened;
+  }
+  return null;
+}
+
 // In a comment-lexing dialect the hard part is the strings,
 // not the comment: an opener counts only where none is open.
 //
 // A dialect supplies exactly that -- its comment openers, how
 // far a non-code run reaches, and what a newline owes the
 // line before it.
+//
+// The block form is tried ahead of the line form because a
+// lua long comment opens with the very `--` that also opens a
+// line comment, and only the longer match reads past that
+// first line.
 function scanCommentRanges(text, dialect) {
   const ranges = [];
   let i = 0;
@@ -597,6 +636,17 @@ function scanCommentRanges(text, dialect) {
     }
 
     const ch = text[i];
+    const block = matchBlockOpener(text, i, dialect.blockComments);
+
+    if (block) {
+      const start = i;
+      const closeAt = text.indexOf(block.close, i + block.openLength);
+      i = closeAt === -1 ? text.length : closeAt + block.close.length;
+      ranges.push({ start, end: i });
+      atWordStart = false;
+      continue;
+    }
+
     const canOpenComment = atWordStart || !dialect.needsWordBoundary;
     const lineOpener = dialect.lineComments.find((open) => text.startsWith(open, i));
 
@@ -604,17 +654,6 @@ function scanCommentRanges(text, dialect) {
       const start = i;
       while (i < text.length && text[i] !== '\n') i++;
       ranges.push({ start, end: i });
-      continue;
-    }
-
-    const block = dialect.blockComments.find((pair) => text.startsWith(pair.open, i));
-
-    if (block) {
-      const start = i;
-      const closeAt = text.indexOf(block.close, i + block.open.length);
-      i = closeAt === -1 ? text.length : closeAt + block.close.length;
-      ranges.push({ start, end: i });
-      atWordStart = false;
       continue;
     }
 
@@ -945,6 +984,59 @@ function terraformDialect() {
   };
 }
 
+// A lua long bracket carries a level -- the count of `=` signs
+// between its two square brackets -- and closes only on a `]`
+// run of the same count.
+//
+// `--` in front of one makes it a comment; bare, it is a long
+// string, and both forms share this matcher so a `--` inside
+// a long string never opens a comment.
+function matchLuaLongBracket(text, i) {
+  if (text[i] !== '[') return null;
+
+  let j = i + 1;
+  while (text[j] === '=') j++;
+  if (text[j] !== '[') return null;
+
+  const level = j - i - 1;
+  return { openLength: level + 2, close: `]${'='.repeat(level)}]` };
+}
+
+function luaDialect() {
+  return {
+    lineComments: ['--'],
+
+    blockComments: [
+      {
+        openAt(text, i) {
+          if (!text.startsWith('--', i)) return null;
+          const bracket = matchLuaLongBracket(text, i + 2);
+          if (!bracket) return null;
+          return { openLength: bracket.openLength + 2, close: bracket.close };
+        },
+      },
+    ],
+
+    needsWordBoundary: false,
+
+    skipNonCode(text, i) {
+      const ch = text[i];
+      if (ch === '"') return skipQuoted(text, i + 1, '"', true);
+      if (ch === "'") return skipQuoted(text, i + 1, "'", true);
+
+      const bracket = matchLuaLongBracket(text, i);
+      if (!bracket) return null;
+
+      const closeAt = text.indexOf(bracket.close, i + bracket.openLength);
+      return closeAt === -1 ? text.length : closeAt + bracket.close.length;
+    },
+
+    afterNewline(_text, from) {
+      return from;
+    },
+  };
+}
+
 // A line is "fully" comment when everything outside the
 // comment is whitespace -- before its start on the first
 // line, and after its end on the last.
@@ -1271,7 +1363,8 @@ function splitCommentLine(lineText, lang) {
 // Empty prose yields a bare marker, which is what every
 // language's blankRe recognizes as a paragraph separator.
 function renderCommentLine(indent, marker, prose) {
-  return prose === '' ? indent + marker : `${indent}${marker} ${prose}`;
+  if (prose === '') return indent + marker;
+  return `${indent}${marker} ${prose}`;
 }
 
 // The consecutive comment lines one over-long line's sentence
