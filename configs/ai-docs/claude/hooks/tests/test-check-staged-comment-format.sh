@@ -953,6 +953,22 @@ it_should_fall_back_to_the_index_when_the_pathspec_list_comes_from_stdin() {
     "command string" "$GATE_STDERR"
 }
 
+# git resolves an unambiguous prefix of a long option, so
+# a gate matching only the full spelling is bypassed by an
+# abbreviation git itself accepts.
+it_should_block_a_violation_listed_in_an_abbreviated_pathspec_from_file() {
+  local repo
+  repo=$(new_repo unit18abbrevfromfile)
+  write_violating_shell_file "$repo/deploy.sh"
+  printf 'deploy.sh\n' > "$repo/paths.txt"
+
+  run_gate "$repo" 'git commit --pathspec-from=paths.txt -m "x"'
+
+  assert_eq "should block a commit whose abbreviated pathspec-file option lists a violating file" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the violating file the abbreviated pathspec-file option lists" \
+    "deploy.sh" "$GATE_STDERR"
+}
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
@@ -1002,6 +1018,7 @@ it_should_resolve_pathspec_file_entries_from_the_repo_root_when_run_from_a_subdi
 it_should_warn_and_allow_when_a_pathspec_file_does_not_exist
 it_should_warn_and_allow_when_a_pathspec_file_is_unreadable
 it_should_fall_back_to_the_index_when_the_pathspec_list_comes_from_stdin
+it_should_block_a_violation_listed_in_an_abbreviated_pathspec_from_file
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

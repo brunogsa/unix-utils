@@ -123,6 +123,10 @@ COMMIT_VALUE_OPTIONS = ('-c', '-C', '-F', '-m', '-t', '--author', '--date',
 # rather than another flag.
 VALUE_ATTACHING_LETTERS = 'cCFmStu'
 
+# Every `--pathspec-*` option git accepts, which bounds what
+# an abbreviation of one can expand to.
+PATHSPEC_FILE_OPTIONS = ('--pathspec-from-file', '--pathspec-file-nul')
+
 SHORT_OPTION_CLUSTER_RE = re.compile(r'-[A-Za-z]+$')
 
 WARNING_PREFIX = 'check-staged-comment-format:'
@@ -223,18 +227,33 @@ def cluster_takes_separate_value(token):
     return False
 
 
+def expand_long_option_abbreviation(name, known_names):
+    """The one name in known_names the given long-option spelling stands for, or None when it stands for none or for several.
+
+    git accepts any abbreviation of a long option that leaves exactly one candidate, and errors on one that leaves several, so a parser reading the full spelling only is bypassed by a spelling git itself runs.
+    """
+    if name in known_names:
+        return name
+    candidates = [known for known in known_names if known.startswith(name)]
+    return candidates[0] if len(candidates) == 1 else None
+
+
 def match_pathspec_file_option(args, index):
-    """Reads the `--pathspec-from-file`/`--pathspec-file-nul` option at args[index], as (tokens consumed, file, nul), with 0 consumed when the token is neither.
+    """Reads the `--pathspec-from-file`/`--pathspec-file-nul` option at args[index], however git lets it be abbreviated, as (tokens consumed, file, nul), with 0 consumed when the token is neither.
 
     The file is spelled `=<file>` or as the next token, and the second spelling must be consumed with its value so the file's own name is never mistaken for a pathspec.
+
+    An ambiguous abbreviation and a `--pathspec-file-nul=<value>` are both spellings git rejects, so neither is read as one of these options.
     """
-    token = args[index]
-    if token == '--pathspec-file-nul':
+    name, has_attached_value, value = args[index].partition('=')
+    option = expand_long_option_abbreviation(name, PATHSPEC_FILE_OPTIONS)
+    if option == '--pathspec-file-nul' and not has_attached_value:
         return 1, None, True
-    if token.startswith('--pathspec-from-file='):
-        return 1, token.split('=', 1)[1], False
-    if token == '--pathspec-from-file' and index + 1 < len(args):
-        return 2, args[index + 1], False
+    if option == '--pathspec-from-file':
+        if has_attached_value:
+            return 1, value, False
+        if index + 1 < len(args):
+            return 2, args[index + 1], False
     return 0, None, False
 
 
