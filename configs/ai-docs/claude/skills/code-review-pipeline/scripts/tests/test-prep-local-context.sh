@@ -101,7 +101,7 @@ make_scratch_repo_with_n_added_lines() {
   echo "$repo"
 }
 
-it_should_write_all_seven_output_files_with_a_non_empty_diff_on_the_happy_path() {
+it_should_write_all_eight_output_files_with_a_non_empty_diff_on_the_happy_path() {
   local repo work_dir output missing="" f result
   repo="$(make_scratch_repo)"
 
@@ -112,17 +112,17 @@ it_should_write_all_seven_output_files_with_a_non_empty_diff_on_the_happy_path()
   output=$(cd "$repo" && bash "$SCRIPT" base "$work_dir" 2>&1)
 
   for f in diff changed-files.txt commit-messages.txt commentable-lines.txt \
-           skipped-binary.txt skipped-deleted.txt tiny-pr.txt; do
+           skipped-binary.txt skipped-deleted.txt tiny-pr.txt large-pr.txt; do
     [ -e "$work_dir/$f" ] || missing="$missing $f"
   done
   [ -s "$work_dir/diff" ] || missing="$missing diff-is-empty"
 
-  result="all seven files present and diff non-empty"
+  result="all eight files present and diff non-empty"
   [ -z "$missing" ] || result="missing/empty:$missing (script output: $output)"
 
   rm -rf "$repo" "$(dirname "$(dirname "$work_dir")")"
-  assert_eq "should write all seven output files, creating a not-yet-existing work_dir, with a non-empty diff on the happy path" \
-    "all seven files present and diff non-empty" "$result"
+  assert_eq "should write all eight output files, creating a not-yet-existing work_dir, with a non-empty diff on the happy path" \
+    "all eight files present and diff non-empty" "$result"
 }
 
 it_should_write_tiny_pr_true_when_added_lines_is_ninety_nine() {
@@ -167,6 +167,62 @@ it_should_write_tiny_pr_true_with_no_stderr_integer_expression_error_when_added_
   rm -rf "$repo" "$work_dir"
   assert_eq "should write tiny-pr.txt=true with no stderr 'integer expression expected' error when added_lines is zero" \
     "tiny-pr.txt=true with no integer expression expected error on stderr" "$result"
+}
+
+# make_scratch_repo_with_n_wide_added_lines - like the helper
+# above, but every added line is 99 chars wide so the diff's
+# byte count is predictable: 100 bytes per added line plus a
+# short file header.
+#
+# Used to pin the large-pr.txt 60000-byte boundary.
+make_scratch_repo_with_n_wide_added_lines() {
+  local n="$1" repo i wide_line
+  wide_line="$(printf 'x%.0s' $(seq 1 98))"
+  repo="$(mktemp -d)"
+  git -C "$repo" init -q -b feature
+  git -C "$repo" config user.email test@example.com
+  git -C "$repo" config user.name "Test User"
+
+  echo "shared" > "$repo/shared.txt"
+  git -C "$repo" add shared.txt
+  git -C "$repo" commit -q -m "common ancestor commit"
+
+  git -C "$repo" branch base
+
+  : > "$repo/added.txt"
+  for ((i = 1; i <= n; i++)); do
+    echo "$wide_line" >> "$repo/added.txt"
+  done
+  git -C "$repo" add added.txt
+  git -C "$repo" commit -q -m "add $n wide lines"
+
+  echo "$repo"
+}
+
+it_should_write_large_pr_false_when_diff_is_at_most_sixty_thousand_bytes() {
+  local repo work_dir content bytes result
+  repo="$(make_scratch_repo_with_n_wide_added_lines 590)"
+  work_dir="$(mktemp -d)"
+  (cd "$repo" && bash "$SCRIPT" base "$work_dir" >/dev/null 2>&1)
+  bytes="$(wc -c < "$work_dir/diff" | tr -d ' ')"
+  content="$(cat "$work_dir/large-pr.txt" 2>/dev/null)"
+  rm -rf "$repo" "$work_dir"
+  result="diff within 60000 bytes: $([ "$bytes" -le 60000 ] && echo yes || echo no), large-pr.txt=$content"
+  assert_eq "should write large-pr.txt=false when the diff is at most 60000 bytes" \
+    "diff within 60000 bytes: yes, large-pr.txt=false" "$result"
+}
+
+it_should_write_large_pr_true_when_diff_exceeds_sixty_thousand_bytes() {
+  local repo work_dir content bytes result
+  repo="$(make_scratch_repo_with_n_wide_added_lines 610)"
+  work_dir="$(mktemp -d)"
+  (cd "$repo" && bash "$SCRIPT" base "$work_dir" >/dev/null 2>&1)
+  bytes="$(wc -c < "$work_dir/diff" | tr -d ' ')"
+  content="$(cat "$work_dir/large-pr.txt" 2>/dev/null)"
+  rm -rf "$repo" "$work_dir"
+  result="diff over 60000 bytes: $([ "$bytes" -gt 60000 ] && echo yes || echo no), large-pr.txt=$content"
+  assert_eq "should write large-pr.txt=true when the diff exceeds 60000 bytes" \
+    "diff over 60000 bytes: yes, large-pr.txt=true" "$result"
 }
 
 # make_scratch_repo_with_only_deletions - "feature" removes a
@@ -308,11 +364,13 @@ it_should_print_the_usage_header_and_exit_zero_on_help_flag() {
     "printed usage header, exit 0" "$result"
 }
 
-it_should_write_all_seven_output_files_with_a_non_empty_diff_on_the_happy_path
+it_should_write_all_eight_output_files_with_a_non_empty_diff_on_the_happy_path
 it_should_write_tiny_pr_true_when_added_lines_is_ninety_nine
 it_should_write_tiny_pr_false_when_added_lines_is_one_hundred
 it_should_write_tiny_pr_true_with_no_stderr_integer_expression_error_when_added_lines_is_zero
 it_should_write_tiny_pr_true_when_diff_is_all_deletions_with_zero_added_lines
+it_should_write_large_pr_false_when_diff_is_at_most_sixty_thousand_bytes
+it_should_write_large_pr_true_when_diff_exceeds_sixty_thousand_bytes
 it_should_fail_and_name_the_ref_when_base_ref_is_neither_an_origin_branch_nor_a_local_commit_ish
 it_should_fail_naming_the_problem_when_called_with_the_wrong_argument_count
 it_should_fail_naming_the_problem_when_run_outside_a_git_repository

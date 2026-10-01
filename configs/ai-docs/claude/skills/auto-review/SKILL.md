@@ -6,25 +6,11 @@ disable-model-invocation: false
 
 # Auto Review
 
-Orchestrate a local code review by running the `code-review-pipeline` pipeline
-end-to-end, always inside an isolated subagent. Every wave but Wave 2 runs in
-that one session; Wave 2 fans its eight specialists out concurrently, one
-rubric each, so each rubric reasons in its own context instead of a shared one.
+Orchestrate a local code review by running the `code-review-pipeline` pipeline end-to-end inside one background `code-reviewer` orchestrator. Wave 2 reviews inline in that agent by default and fans its eight rubrics out, one agent each, only past the pipeline's diff-size gate.
 
-auto-review always dispatches isolated, never in-session. The invoking
-session usually authored the code under review, and a same-session author
-reviewing its own output carries "already convinced myself" bias — isolation
-gives the review fresh context instead. Keeping the pipeline's read load out
-of main context is a secondary benefit.
+The invoking session usually authored the code under review, and a same-session author reviewing its own output carries "already convinced myself" bias — the orchestrator gives the review fresh context instead. Keeping the pipeline's read load out of main context is a secondary benefit.
 
-See "How callers dispatch" → "Isolated" in
-`~/.claude/skills/code-review-pipeline/SKILL.md` for the subagent mechanics
-that dispatch reuses (prompt body, reading this SKILL.md, orchestrating from
-there). auto-review spawns the purpose-built `code-reviewer` agent instead of
-the pipeline's default `general-purpose` isolated wrapper — review judgment
-is the product here, so it forces `effort: high` and the write-guard hook
-regardless of caller settings, unlike the mechanical `general-purpose` spawn,
-whose effort inherits from the caller.
+See "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md` for the dispatch mechanics (prompt body, reading that SKILL.md, orchestrating from there). The `code-reviewer` agent pins `model: opus` / `effort: high` and carries the write-guard hook, so the dispatch names no model — review judgment is the product here.
 
 ## Usage
 
@@ -124,13 +110,7 @@ The code-review-pipeline expects these inputs:
     concatenated content used as `{pr_context}` for every specialist
     (replacing the default lookup of the spec and the plan).
 
-With the inputs above resolved, always dispatch isolated: spawn
-`agent(subAgent=code-reviewer, title=Review branch changes)`.
-Put the resolved inputs in its prompt body, and tell it to read
-`~/.claude/skills/code-review-pipeline/SKILL.md` and orchestrate from there
-— per that file's "Isolated" dispatch mode under "How callers dispatch",
-substituting the code-reviewer agent for the pipeline's default
-`general-purpose` wrapper.
+With the inputs above resolved, spawn `agent(subAgent=code-reviewer, title=Run code-review pipeline)` in the background. Put the resolved inputs in its prompt body, tell it to read `~/.claude/skills/code-review-pipeline/SKILL.md` and orchestrate every wave (0 → 6) from there — per that file's "How callers dispatch" — and wait for its completion notification.
 
 After the pipeline finishes, the review is at
 `./verdict_auto-review_<branch>_<timestamp>.md` (Wave 6 summary contains the
@@ -173,3 +153,7 @@ Applying is `/address-verdicts`' job: it globs `verdict_auto-review_*.md` and ro
 That is a test gate a reader sent to a generic "ask the AI to apply a subset" flow would have to reproduce by hand.
 
 Acting on findings is a separate, explicit step the user initiates — it is not part of this flow.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.

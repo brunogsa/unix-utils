@@ -95,6 +95,10 @@ Arm A is a fresh main session, arm B a subagent; PR parity assigns the arm, and 
 - No trial will be forced. What has failed is trial volume, not the design.
 - The arm is assigned by PR parity, so it only fires when pr-review runs on a PR, and it has not.
 
+- **Settled by the user 2026-09-29: reverted.** Both review callers now spawn one `code-reviewer` orchestrator (opus, effort high).
+  - Wave 2 fans out per lens past a 60 KB diff gate, so there is no in-session arm left to compare.
+  - The `[ABTest]` marker and `--isolate` flag are gone from pr-review.
+
 - **Settle by**: waiting for pr-review to run on a PR in the normal course of work, then reading the `ab_tests` rollup.
 - Expect this entry to read zero markers again next audit. That is the accepted cost of not steering the trial.
 

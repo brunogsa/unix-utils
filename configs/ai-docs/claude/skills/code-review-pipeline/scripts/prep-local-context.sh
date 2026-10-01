@@ -65,7 +65,18 @@ tiny_pr=false
 [ "$added_lines" -lt 100 ] && tiny_pr=true
 echo "$tiny_pr" > "$work_dir/tiny-pr.txt"
 
+# Wave 2 fans out past 60000 diff bytes: the most its inline
+# pass can hold next to a measured ~100k-token post-compaction
+# base.
+#
+# Bytes rather than added lines, because the -U20 context lines
+# get read too.
+diff_bytes=$(wc -c < "$work_dir/diff" | tr -d ' ')
+large_pr=false
+[ "$diff_bytes" -gt 60000 ] && large_pr=true
+echo "$large_pr" > "$work_dir/large-pr.txt"
+
 for name in diff changed-files.txt commit-messages.txt commentable-lines.txt \
-            skipped-binary.txt skipped-deleted.txt tiny-pr.txt; do
+            skipped-binary.txt skipped-deleted.txt tiny-pr.txt large-pr.txt; do
   echo "$name: $work_dir/$name"
 done

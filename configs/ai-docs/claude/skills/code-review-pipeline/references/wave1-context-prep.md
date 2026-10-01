@@ -3,7 +3,9 @@
 Purpose: assemble everything Wave 2 will need on disk, so it runs from pre-built context (no network calls).
 
 **Work dir**:
-- github: `/tmp/pr-review-<n>/`; create fresh (`rm -rf && mkdir -p`).
+- github: `/tmp/pr-review-<n>/`; if it already exists, move it aside to `/tmp/pr-review-<n>.prev-<timestamp>`, then `mkdir -p`.
+  - `rm -rf` is blocked by the rm-guard hook, and the moved-aside dir keeps a prior run's artifacts readable.
+
 - local: `$(mktemp -d /tmp/auto-review.XXXXXX)` for scratch; the review lands in a `./verdict_auto-review_<branch>_<timestamp>` file in CWD (`out_base` set below; always `.md`, per the html-artifacts Gate 1 note in
 `auto-review/SKILL.md`). The branch segment lets several PRs run in series, each on its own branch, keep distinguishable verdict files.
 
@@ -20,6 +22,8 @@ Always clone into the work dir in `/tmp` — never touches the user's CWD.
 pr_number=...
 repo="owner/name"
 work_dir="/tmp/pr-review-${pr_number}"
+[ -d "$work_dir" ] && mv "$work_dir" "$work_dir.prev-$(date +%Y%m%dT%H%M%S)"
+mkdir -p "$work_dir"
 
 # gh pr diff has no context-width flag, so github mode gets 3-line hunks (vs
 # local's -U20); Wave 2 reads the on-disk clone below for deeper context.
@@ -74,16 +78,20 @@ After the diff files are on disk, gather repo-wide signal (lint, typecheck, dead
 
 Full discovery + outputs table + consumption rules live in [`wave1-repo-wide-checks.md`](wave1-repo-wide-checks.md). Load on demand. Local mode only today.
 
-## Tiny-PR flag
+## Tiny-PR and large-PR flags
 
-Both modes count added lines once the diff is on disk. Local mode's `prep-local-context.sh` already did this and wrote the result to `$work_dir/tiny-pr.txt` (see above).
+Both modes size the diff once it is on disk. Local mode's `prep-local-context.sh` already did this and wrote the results to `$work_dir/tiny-pr.txt` and `$work_dir/large-pr.txt` (see above).
 
-Github mode still counts inline, since it has no equivalent script:
+Github mode still computes both inline, since it has no equivalent script:
 
 ```bash
 added_lines=$(grep -c '^+[^+]' "$work_dir/pr.diff" || true)
 tiny_pr=false; [ "$added_lines" -lt 100 ] && tiny_pr=true
 echo "$tiny_pr" > "$work_dir/tiny-pr.txt"
+
+diff_bytes=$(wc -c < "$work_dir/pr.diff" | tr -d ' ')
+large_pr=false; [ "$diff_bytes" -gt 60000 ] && large_pr=true
+echo "$large_pr" > "$work_dir/large-pr.txt"
 ```
 
 If `added_lines < 100`, `tiny_pr=true`: Wave 2's guide step emits a 2-sentence summary instead of the full Review Guide, and Wave 3 is skipped entirely (see Wave 2 and Wave 3 below).
@@ -95,3 +103,11 @@ Otherwise leave `tiny_pr=false` and run the full pipeline.
 **Persist it to `$work_dir/tiny-pr.txt`** so Wave 2 can recover the flag from disk instead of trusting working memory after a mid-pipeline compaction.
 
 Without it, a resumed tiny PR reruns Wave 3's full validator pass and writes the long-form guide the flag exists to skip.
+
+If `diff_bytes > 60000`, `large_pr=true`: Wave 2 fans its eight lenses out to one subagent each instead of reviewing inline (see Wave 2).
+
+The byte count is what Wave 2 reads, and 60 KB (~15k tokens) is the most the inline pass can hold beside its measured ~100k-token post-compaction base plus ~25k of rubric and standards text, leaving ~30k for reasoning.
+
+Local diffs carry `-U20` context while github's carry `-U3`, so the same byte gate fans out on a smaller local change on purpose — the context lines get read too.
+
+**Persist it to `$work_dir/large-pr.txt`** for the same reason as `tiny-pr.txt`: a resumed run must take the Wave 2 path it started on, or an inline retry reproduces the compaction loop the flag exists to prevent.

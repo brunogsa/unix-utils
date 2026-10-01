@@ -1,6 +1,6 @@
 # Review Guide Writer Prompt
 
-You run this prompt inline in the code-review-pipeline session — there is no separate agent call.
+On the pipeline's inline Wave 2 path this prompt runs inside the orchestrator itself; on the fan-out path a dedicated guide agent runs it and writes `$work_dir/wave2-guide.md`.
 
 It produces the "Review Guide": the standalone PR comment that tells a human reviewer where to focus.
 

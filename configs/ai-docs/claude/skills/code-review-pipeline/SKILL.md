@@ -1,6 +1,6 @@
 ---
 name: code-review-pipeline
-description: "Shared reviewer orchestrator for /auto-review (local) and /pr-review (GitHub). Local always dispatches an isolated subagent for bias isolation; GitHub runs inline by default. USE only via those callers — not directly."
+description: "Shared 7-wave reviewer pipeline behind /auto-review (local) and /pr-review (GitHub). Each caller spawns one code-reviewer orchestrator to run it; Wave 2 fans out per lens only past the size gate. USE only via those callers — not directly."
 user-invocable: false
 ---
 
@@ -9,41 +9,32 @@ user-invocable: false
 You orchestrate a 7-wave code review pipeline (Waves 0-6) shared by both
 modes — only Waves 1 and 5 differ fully.
 
-**Architecture.** The orchestrator runs in one session — the caller's own or an isolated subagent, per "How callers dispatch" below — and every wave, including Wave 2, runs inside it.
+**Architecture.** Every caller spawns one `code-reviewer` orchestrator (per "How callers dispatch" below), and every wave runs inside that one agent.
 
-Wave 2 used to fan out into eight concurrent `review-specialist` agents, one per rubric, because a serial single-context pass measured ~100k resident tokens median / 157k p90. This
-skill now accepts that resident-context cost instead of paying for eight separate base contexts — the fan-out traded token cost for context growth, and token cost is the
-constraint this rewrite optimizes for.
+Wave 2 reviews inline by default and fans out into eight `code-reviewer` lens agents, one rubric each, only when Wave 1's `large_pr` flag is set or an earlier attempt already failed to finish — see Wave 2's path selection.
+
+Measured on a 155 KB diff: the orchestrator's post-compaction base is ~100k tokens, the diff another ~45k, the rubrics and standards ~23k, so one inline pass sat at the ~184k compaction trigger and looped four times without writing a single lens file.
+
+The 60 KB gate is the largest diff that leaves ~30k tokens for reasoning under that base; below it, one inline pass stays cheaper than eight separate base contexts.
 
 **Compaction resilience.** Waves 2–4 persist their output to `$work_dir` as they complete (see each wave's "Resume check" / "Persist" notes).
 After a mid-pipeline compaction, re-read this SKILL.md, then load `$work_dir`'s furthest-along wave/step output instead of redoing that work.
+
+Never Read a `tool-results/*.txt` file the post-compaction reminder names as too large to include — it is the output that overflowed, and everything a wave needs is re-derivable from `$work_dir`.
 
 Rubric prompts and validator rubric live in `references/`; bash glue in `scripts/`.
 
 ## How callers dispatch
 
-`/auto-review` (local) and `/pr-review` (github) each resolve their own input header, then hand execution to this pipeline.
+`/auto-review` (local) and `/pr-review` (github) each resolve their own input header, then spawn one `agent(subAgent=code-reviewer, title=Run code-review pipeline)` in the background, with the header in its prompt body.
 
-**Dispatch rule — auto-decided.** The mode already determines whether the calling session is biased, so never ask the user:
+Tell it to read this SKILL.md and orchestrate every wave (0 → 6) from there, then wait for its completion notification; the caller prints only what the orchestrator reports back.
 
-- `Mode: local` (`/auto-review`) → **always dispatch isolated** (subagent path below) — it runs in the session that produced the diff, so CLAUDE.md's fresh-context-subagent rule applies.
+One path for both modes, on purpose: `/auto-review` runs in the session that produced the diff, so CLAUDE.md's fresh-context-subagent rule requires the isolation.
 
-- `Mode: github` (`/pr-review`) → **runs inline by default** — review happens after the code landed, so the calling session did not write the diff.
-  - `--isolate` still forces the isolated path when explicitly passed.
+Both callers also need the pipeline's reads — diff, rubrics, standards — kept out of their own window, which is where the compaction loop on a large PR started.
 
-  - `/pr-review`'s live `review-isolation` A/B also sends roughly half of all github runs down the isolated path by PR-number parity, passing no `--isolate` — see its own A/B section.
-
-**Order:** mode first, then isolate-or-inline, then the chosen run parses the full input header below.
-
-**Inline — `Mode: github` without `--isolate`:** Read this SKILL.md and walk every wave (0 → 6) yourself, treating the resolved inputs as the "Parse the input header" step below.
-
-**Isolated — `Mode: local`, or `--isolate` passed:** Spawn one `agent(subAgent=general-purpose, title=Run code-review pipeline, model=sonnet)`, unless the caller pins its own wrapper — `/auto-review` does.
-
-Put the resolved inputs in its prompt body and tell it to read this SKILL.md and orchestrate from there; the user sees only its final summary.
-
-The sonnet pin covers the github isolated path — an accepted cost/depth tradeoff.
-
-`Mode: local` never reaches it: `/auto-review`, the sole local caller, pins `code-reviewer` instead, because review judgment is the product it ships (see `auto-review/SKILL.md`).
+`code-reviewer` pins `model: opus` / `effort: high` in its frontmatter, so no dispatch names a model — review judgment is the product here.
 
 ## Before you start
 
@@ -82,23 +73,32 @@ Deterministic check; no subagent needed. Only aborts on hard no-ops.
 Assemble everything Wave 2 needs on disk from GitHub PR or local repo.
 Implementation: github & local modes, tiny-PR flag — see [`references/wave1-context-prep.md`](./references/wave1-context-prep.md).
 
-This is where the `tiny_pr` flag (`added_lines < 100`) gets set.
+This is where the `tiny_pr` flag (`added_lines < 100`) and the `large_pr` flag (`diff_bytes > 60000`) get set; Wave 2 reads both from disk.
 
 ---
 
-## Wave 2 — Review + guide writer (single pass)
+## Wave 2 — Review + guide writer
 
-One inline pass covers all eight rubrics — no subagent dispatch, no fan-out.
+- **Resume check** (before anything else):
 
-- **Resume check** (before starting): list `$work_dir/wave2-lens-*.json` and review only the rubrics with no file there yet.
+  - Read `$work_dir/tiny-pr.txt` and `$work_dir/large-pr.txt` and use them as `tiny_pr` / `large_pr` instead of any in-memory value;
+    - a missing file reads as `false`, so a work dir from before the flag existed still resumes.
 
+  - Wave 1 persists them so a mid-pipeline compaction can't lose which path (guide length, whether Wave 3 runs, inline or fan-out) a resumed run takes.
+
+  - Bump the attempt counter: `f="$work_dir/wave2-attempts.txt"; n=$(cat "$f" 2>/dev/null); echo $(( ${n:-0} + 1 )) > "$f"`.
+    - Every entry into Wave 2, first run or post-compaction resume, counts as one attempt.
+
+  - List `$work_dir/wave2-lens-*.json`; the lenses with no file there are the remaining ones.
   - A finished lens's array is already on disk. Reviewing it again spends tokens to reproduce a file you can just read.
 
-  - Also read `$work_dir/tiny-pr.txt`, if present, and use it as `tiny_pr` instead of the in-memory value.
-  - Wave 1 persists it there so a mid-pipeline compaction can't lose which downstream path (guide length, whether Wave 3 runs) a resumed run takes.
+**Path selection** — decide once per entry, from those three values:
 
-**Setup** (once, before the first remaining lens): read `references/common-preamble.md` and all 8 files under `references/specialists/` in one message. Invoke `code-standards` up front — every lens cites it —
-plus any `CLAUDE.md` above a changed file; `common-preamble.md`'s two lazy triggers still govern `test-standards` and `doc-standards`.
+- `large_pr=true` → fan-out path.
+- attempts ≥ 2 and fewer than 8 lens files → fan-out path, whatever the size.
+  - A second entry means the first inline pass could not finish inside one window, and retrying the same pass reproduces the compaction loop instead of finishing.
+
+- otherwise → inline path.
 
 **The eight rubric lenses** — apply in this order, `review-principles.md`'s priority order, most critical first:
 
@@ -111,32 +111,38 @@ plus any `CLAUDE.md` above a changed file; `common-preamble.md`'s two lazy trigg
 7. `docs-comments-logging`
 8. `performance`
 
-For each remaining lens: walk the diff once through that lens only, apply the preamble's confidence gate and don't-flag list, tag every finding `scope_tag: <lens name>`, and write
-the array to `$work_dir/wave2-lens-<name>.json` — one file per lens, so a mid-Wave-2 compaction resumes from the next unfinished lens instead of redoing the whole pass.
+### Inline path
 
-**Merge, once every lens has a file:**
+One pass, strictly one lens at a time:
 
-```bash
-n=$(ls "$work_dir"/wave2-lens-*.json 2>/dev/null | wc -l | tr -d ' ')
-[ "$n" -eq 8 ] || { echo "wave2: expected 8 lens outputs, found $n"; exit 1; }
-jq -s 'add' "$work_dir"/wave2-lens-*.json > "$work_dir/wave2-findings.json"
-```
+1. **Setup**, once: read `references/common-preamble.md`, invoke `code-standards` (every lens cites it), and read any `CLAUDE.md` above a changed file.
+   - `common-preamble.md`'s two lazy triggers govern `test-standards` and `doc-standards`; on a resume, re-invoke one only when a remaining lens's trigger fires.
 
-The count guard is the point of that block: an absent file and an empty array are indistinguishable downstream.
+2. For each remaining lens, in order: read that lens's rubric file only, walk the diff through that lens only, and apply the preamble's confidence gate and don't-flag list.
+   - Tag every finding `scope_tag: <lens name>` and **write `$work_dir/wave2-lens-<name>.json` before reading the next rubric**.
 
-Without it, a lens skipped by mistake reads as a rubric that found nothing.
+The per-lens file is the only thing a compaction cannot erase, so writing it before moving on is what makes the resume check worth anything.
 
-Dedup is **not** done here. One pass applying eight lenses over the same diff can still flag one defect twice under two `scope_tag`s, so Wave 3 resolves overlaps
-with the full merged list in hand.
+Reading all eight rubrics up front and reviewing in one turn is how a 155 KB diff produced zero lens files across four attempts. Never re-read a rubric whose lens file exists.
 
-**Guide writer (after the merge):**
+### Fan-out path
+
+Read [`references/wave2-fan-out.md`](./references/wave2-fan-out.md) and follow it: it dispatches one `code-reviewer` per remaining lens in one background message, verifies each `$work_dir/wave2-lens-<name>.json` parses, and merges them.
+
+Never merge with fewer than eight lens files, and never read the diff in this window on this path.
+
+Dedup is **not** done at the merge — Wave 3 resolves overlaps with the full merged list in hand.
+
+**Guide writer:**
 
 - **Skip entirely when `Mode: local`** — go straight to Wave 3; local reports drop the guide (rationale in `references/local-review-template.md`).
 
 - **Resume check** (github mode only): if `$work_dir/wave2-guide.md` already exists, load it and skip straight to Wave 3.
 - **If `tiny_pr=true`**: skip `references/guide-writer.md`; emit a 2-sentence change summary instead. At <100 added lines the change speaks for itself.
-- **Else**: read `references/guide-writer.md`. Produce the Review Guide Markdown (business context, decisions, where to
+- **Else, on the inline path**: read `references/guide-writer.md` after the merge. Produce the Review Guide Markdown (business context, decisions, where to
   focus, incidental changes). 400 words max.
+- **Else, on the fan-out path**: never write the guide inline, since `guide-writer.md` re-reads the whole diff; dispatch the guide agent per "Guide writer on the fan-out path" in `references/wave2-fan-out.md`.
+
 - **Persist**: write the guide (or 2-sentence summary) to `$work_dir/wave2-guide.md`.
 
 Resolve placeholders in each reference file against Wave 1 paths and values.
@@ -156,6 +162,8 @@ hallucinations **and** tightens line anchors, so you re-load each file at most o
 context; hallucinations are rare, and the per-finding validator adds more cost than it saves.
 
 **Read `references/validator.md` once, then apply it to the flat list.**
+
+On the fan-out path, check each finding by reading only its anchored range (`sed -n '<start>,<end>p'` with a few lines around it), never the whole diff or the whole file — that path exists to keep the diff out of this window.
 
 It authors the cross-lens dedup pre-pass, both per-finding checks — false positive, then line range — the conservative-keep threshold, and the hard rules, so nothing restates them here.
 
