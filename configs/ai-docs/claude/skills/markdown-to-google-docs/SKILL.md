@@ -136,3 +136,7 @@ Delete any scratch docs you created during verification so the user's Drive stay
   expected, not a bug.
 - **Scope matters for in-place edits.** Updating a doc the user didn't create needs full
   `auth/drive`, not `drive.file`. `--enable-gdrive-access` grants the former.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
