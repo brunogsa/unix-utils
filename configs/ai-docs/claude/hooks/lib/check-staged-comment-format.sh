@@ -196,27 +196,50 @@ def cluster_stages_every_tracked_file(token):
     return False
 
 
-def commit_stages_every_tracked_file(args):
-    """True when a `git commit` stage carries `-a`/`--all`, which stages every tracked modified file at commit time.
+def cluster_takes_separate_value(token):
+    """True when a short-option cluster ends in a letter whose value is the next token, like the `m` of `-am`.
 
-    The scan stops at `--`, where pathspecs begin, and skips the value of an option that takes a separate one, so neither can be mistaken for the flag.
+    A value-attaching letter anywhere but last already holds its value inside the cluster, and one with no separate form (`-S`, `-u`) never reaches for the next token.
     """
+    if not SHORT_OPTION_CLUSTER_RE.match(token):
+        return False
+    for position, letter in enumerate(token[1:], start=1):
+        if letter in VALUE_ATTACHING_LETTERS:
+            return position == len(token) - 1 and token[position:] in (
+                option[1:] for option in COMMIT_VALUE_OPTIONS)
+    return False
+
+
+def scan_commit_args(args):
+    """Whether a `git commit` stage carries `-a`/`--all`, plus the pathspecs it names, as (stages_all, pathspecs).
+
+    `-a` stages every tracked modified file at commit time; a pathspec commits that path's working-tree version whatever the index holds.
+
+    The value of an option that takes a separate one is skipped, so a message or a ref is never mistaken for either, and everything after `--` is a pathspec.
+    """
+    stages_all = False
+    pathspecs = []
     index = 0
     while index < len(args):
         token = args[index]
         if token == '--':
-            return False
+            pathspecs.extend(args[index + 1:])
+            break
         if token in COMMIT_VALUE_OPTIONS:
             index += 2
             continue
+        if not token.startswith('-'):
+            pathspecs.append(token)
+            index += 1
+            continue
         if token == '--all' or cluster_stages_every_tracked_file(token):
-            return True
-        index += 1
-    return False
+            stages_all = True
+        index += 2 if cluster_takes_separate_value(token) else 1
+    return stages_all, pathspecs
 
 
 def command_scope(command, start_directory):
-    """Absolute paths of every `git add` pathspec plus the directory the gate's own git calls must run in, with the paths None when one cannot be read from the command string.
+    """Absolute paths of every `git add` and `git commit` pathspec plus the directory the gate's own git calls must run in, with the paths None when one cannot be read from the command string.
 
     That directory is the one the `commit` stage runs in, which a `git -C <dir> commit` moves on its own, and the directory the command string ends in when no `commit` stage names one.
 
@@ -251,8 +274,13 @@ def command_scope(command, start_directory):
                 continue
             if tokens[subcommand] == 'commit':
                 commit_directory = call_directory
-                if commit_stages_every_tracked_file(tokens[subcommand + 1:]):
-                    stages_all = True
+                commit_stages_all, commit_pathspecs = scan_commit_args(
+                    tokens[subcommand + 1:])
+                stages_all = stages_all or commit_stages_all
+                for token in commit_pathspecs:
+                    if token == '.' or any(c in token for c in NON_LITERAL_CHARS):
+                        return CommandScope(None, directory, stages_all)
+                    paths.append(resolve(call_directory, token))
                 continue
             if tokens[subcommand] != 'add':
                 continue

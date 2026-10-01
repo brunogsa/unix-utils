@@ -544,6 +544,59 @@ it_should_block_a_commit_dash_a_violation_when_diff_relative_is_set_in_a_subdire
     1 "$GATE_EXIT"
 }
 
+# `git commit <pathspec>` commits the working-tree version
+# of that path and never consults the index.
+it_should_block_a_violation_in_a_file_named_as_a_commit_pathspec() {
+  local repo
+  repo=$(new_repo unit14commitpathspec)
+  write_clean_shell_file "$repo/deploy.sh"
+  commit_tracked_file "$repo" deploy.sh
+  write_violating_shell_file "$repo/deploy.sh"
+
+  run_gate "$repo" 'git commit deploy.sh -m "x"'
+
+  assert_eq "should block a commit whose pathspec names an unstaged violating file" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the offending file the commit pathspec brought in" \
+    "deploy.sh" "$GATE_STDERR"
+}
+
+it_should_block_a_violation_in_a_file_named_after_a_commit_double_dash() {
+  local repo
+  repo=$(new_repo unit14commitdoubledash)
+  write_clean_shell_file "$repo/deploy.sh"
+  commit_tracked_file "$repo" deploy.sh
+  write_violating_shell_file "$repo/deploy.sh"
+
+  run_gate "$repo" 'git commit -m "x" -- deploy.sh'
+
+  assert_eq "should block a commit whose pathspec follows a double dash" \
+    1 "$GATE_EXIT"
+}
+
+it_should_not_read_a_commit_option_value_as_a_pathspec() {
+  local repo
+  repo=$(new_repo unit14commitvalue)
+  write_clean_shell_file "$repo/clean.sh"
+
+  run_gate "$repo" 'git commit -m "no-such-file.sh" --author "A <a@b.c>"'
+
+  assert_eq "should allow a commit whose option values merely look like paths" \
+    0 "$GATE_EXIT"
+  assert_not_contains "should not warn when option values are skipped as pathspecs" \
+    "command string" "$GATE_STDERR"
+}
+
+it_should_fall_back_to_the_index_when_a_commit_pathspec_is_a_variable() {
+  local repo
+  repo=$(new_repo unit14commitvariable)
+
+  run_gate "$repo" 'git commit "$FILE" -m "x"'
+
+  assert_contains "should say the file set could not be read when a commit pathspec is a variable" \
+    "command string" "$GATE_STDERR"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
@@ -569,6 +622,10 @@ it_should_fall_back_to_the_index_when_a_committing_git_dash_c_target_is_missing
 it_should_still_judge_the_index_when_a_committing_git_dash_c_target_is_missing
 it_should_block_a_staged_violation_when_diff_relative_is_set_in_a_subdirectory
 it_should_block_a_commit_dash_a_violation_when_diff_relative_is_set_in_a_subdirectory
+it_should_block_a_violation_in_a_file_named_as_a_commit_pathspec
+it_should_block_a_violation_in_a_file_named_after_a_commit_double_dash
+it_should_not_read_a_commit_option_value_as_a_pathspec
+it_should_fall_back_to_the_index_when_a_commit_pathspec_is_a_variable
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
