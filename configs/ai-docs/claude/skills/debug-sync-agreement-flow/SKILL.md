@@ -231,3 +231,7 @@ proper Jira code block — no manual minifying needed. Headings, paragraphs, bul
 fenced code blocks, and inline `**bold**` / `` `code` `` / `[text](url)` are all supported; tables,
 blockquotes, nested lists, and images still degrade to plain paragraphs **silently**, so keep the
 notes file to the supported set.
+
+## Flowchart (human-facing)
+
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
