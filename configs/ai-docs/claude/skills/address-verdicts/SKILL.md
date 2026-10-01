@@ -29,14 +29,12 @@ disable-model-invocation: false
 This is **the** apply step for any `verdict_*.md` on disk, whichever lens wrote it: `/refactor`, `/auto-review`, `/test-sdd`, or a `/quality-gate` run that produced all three — the only
 place the apply loop lives.
 
-`/quality-gate` decides *which* findings are worth applying and calls this skill to apply them, so the routing, commit, and annotation rules have one home rather than a copy per caller.
+`/quality-gate` decides *which* findings are worth applying and calls this skill to apply them, so the routing, commit, and annotation rules have one home.
 
-Two ways in, and the difference is only who picks the findings — the batching in §3 and §4 is identical either way:
+Two ways in; only who picks the findings differs:
 
 - **A human invokes it** — `<which ones>` is the selection, and §2 may ask a clarifying question.
-- **A skill invokes it** — the caller passes an explicit finding list plus `--no-ask`, already triaged. Nothing prompts.
-
-This skill is a standalone entry point either way, discovering the verdict files itself in a fresh session — never re-running a reviewer, per §6.
+- **A skill invokes it** — the caller passes a triaged finding list plus `--no-ask`. Nothing prompts.
 
 ## 1. Locate the verdict files
 
@@ -91,13 +89,11 @@ nothing appears later, out of order, as it becomes relevant.
  <id>. [#<returned-id>][Task] Apply all <N> <lens> findings
 ```
 
-Seed them in this fixed order, which is also §4's dispatch order: **`test-sdd`, then `auto-review`, then `refactor`** — each stage hands the next a stronger safety net, ending
-with the structural pass running last, fully protected.
+Seed them in this fixed order, which is also §4's dispatch order: **`test-sdd`, then `auto-review`, then `refactor`** — each stage hands the next a stronger safety net.
 
 A lens with no finding gets no entry at all, since an empty task reads as work that silently never ran. Mark the first entry `in_progress`, every other one `pending`.
 
-**One entry per lens is the rule, whoever invoked this skill.** A `/quality-gate` run routinely yields 30–50 findings, and a row-per-finding list costs one subagent spawn each while
-telling the human nothing three rows don't.
+**One entry per lens is the rule, whoever invoked this skill.**
 
 No finding is lost to the grouping: each entry names its own count, and §5 still annotates every finding individually in its verdict file — that file, not
 the TaskList, is the durable per-finding ledger.
@@ -107,6 +103,18 @@ Add one closing `[Reminder]` entry for the final report (§6) — it survives a 
 ## 4. Apply each lens through one pinned subagent
 
 Dispatch one subagent per entry seeded above, **serially, in that seeded order** — never in parallel, since every dispatch commits to the same branch.
+
+**Classify each finding by what it edits, not by which lens found it.** The three bullets below are the default for a code finding; a non-code finding overrides them.
+
+A finding whose target is a document, spec, plan, prompt-markdown, `SKILL.md`, agent file, comment, rename, file move, config value, or frontmatter value goes to `direct-coder`, whichever lens reported it.
+
+Why: CLAUDE.md's CRITICAL rule bars routing a non-code artifact edit through `tdd-coder`, since a test over prose costs more to author and maintain than the regressions it would catch.
+
+A `test-sdd` finding whose planned test covers prose is **not written at all**. Annotate it `SKIPPED (tests prose, which CLAUDE.md forbids)` per §5.
+
+This is the one place this skill overrules `/quality-gate` §5.1's "every test-sdd finding applies unconditionally": the human approved the plan, but CLAUDE.md forbids the test, and the forbidden-to-exist test wins.
+
+A lens whose findings are all non-code dispatches its own agent zero times, which is a correct outcome, not a failure. §3 still seeds its entry, and §5 still annotates every finding.
 
 Each dispatch carries **all** findings assigned to it at once, each with the identifier, scope, and evidence its report gives, plus the test command from §2:
 
@@ -124,18 +132,18 @@ its turn budget leaves the work half-applied with no record of where it stopped.
 - Bundle findings too small to deserve their own RED-GREEN cycle into one unit.
 - Aim for ~10 units per dispatch as a guide, not a rule — deviate when clustering or bundling argues for it.
 
-When an entry contributes more than ~10 findings, split it into multiple sequential dispatches to that entry's own agent — still serial, same branch, same seeded order, never
-one uncapped batch. The `refactor` agent is the concrete case: 30 days of telemetry puts its assistant-turn count at p90 = 85, max = 174, and a `/quality-gate`
-run's 30-50 refactor findings can exhaust that in one uncapped dispatch, leaving the batch mid-run with nothing committed.
+When an entry contributes more than ~10 findings, split it into multiple sequential dispatches to that entry's own agent — still serial, same branch, same seeded order, never one uncapped batch.
 
-The refactor lens keeps its own agent because it refuses any behavior change by design — a correctness fix or missing test needs `tdd-coder`'s test-first discipline instead. Uniform
-dispatches would trade that refusal for symmetry, and a "simplification" that quietly changes semantics is exactly what the refusal catches.
+The `refactor` agent is the concrete case: its p90 is 85 assistant turns, so 30-50 findings can exhaust it mid-run with nothing committed.
+
+For code findings, the refactor lens keeps its own agent because it refuses any behavior change by design — a correctness fix needs `tdd-coder`'s test-first discipline, and a "simplification" that quietly changes semantics is what the refusal catches.
 
 **One commit per finding still holds inside a batched dispatch** — say so explicitly in every dispatch prompt. The batching exists to cut subagent spawns, not to coarsen
 the diff a human reviews: a lens-sized commit would bury which fix answers which finding.
 
 - `tdd-coder` commits its own work under `commit-standards` — confirm each reported SHA exists rather than re-committing.
 - The `refactor` agent leaves its changes uncommitted by design — commit them here, where the permission prompt renders, still one commit per finding, never one for the lens.
+- `direct-coder` commits its own work under `commit-standards`, so a `refactor`-lens finding routed to it needs no commit from main — unlike the `refactor` agent.
 
 Verify each subagent's result against the artifacts — diff, test run — before trusting its "done"; the summary describes intent, only the artifact shows what landed. A finding
 whose apply failed or was reverted is recorded as failed, never done, and never gets a commit.
@@ -154,20 +162,15 @@ task headings. This is the machine-checkable mark: it makes a re-run skip what a
   - `APPLIED (<sha>)` — the fix commit's SHA, pairs with a `[Done]` heading.
   - `SKIPPED (<reason>)` — why not applied; heading stays unmarked, so a re-run reconsiders it.
 
-This is the durable, on-disk ledger of fixed-versus-deferred the user asked for. The heading marker alone can't say *why*, and the body line alone isn't greppable — a
-skipped finding reads as unfinished from either surface, which is what a re-run needs.
+This is the durable, on-disk ledger of fixed-versus-deferred. The heading marker can't say *why*, and the body line isn't greppable.
 
-Annotating lens by lens means a session killed mid-run still leaves an accurate ledger for the finished lenses; holding it to the end leaves a pile of applied
-fixes with no record of which entries they answer.
-
-The per-finding granularity is what §3's TaskList gives up, so this is the only surface carrying it — never coarsen it to match the task list.
+Annotating lens by lens means a session killed mid-run still leaves an accurate ledger for the finished lenses.
 
 ## 6. Close with a report
 
 One line per finding — never a bare id, count, or SHA alone: `<lens>#N (<file>:<lines>) — <one-line recap of what the finding says> → <outcome>`.
 
-The recap is mandatory even when the finding is already annotated in a verdict file on disk — the report is what the human actually reads, and a
-bare id forces them to open that file just to know what was decided.
+The recap is mandatory even when the finding is already annotated on disk — a bare id forces the human to open that file to know what was decided.
 
 - **Applied** — outcome is `APPLIED (<sha>)`.
 - **Skipped** — outcome is `SKIPPED (<reason>)`.

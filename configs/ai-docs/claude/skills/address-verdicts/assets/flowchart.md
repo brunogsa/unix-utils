@@ -3,8 +3,10 @@
 # This file renders one flow twice — once as pseudo-code, once as a diagram — so
 # its size is fixed by the skill's step count, and trimming to the bundled default
 # would drop steps from the flow audit or drop a whole rendering.
-# Parked in assets/ and never loaded by the model, so its words cost no context.
+# The same two renderings also overrun the default line cap, so lines-budget is raised too.
+# Parked in assets/ and never loaded by the model, so its words and lines cost no context.
 words-budget: 4096
+lines-budget: 512
 ---
 
 # address-verdicts — flow overview
@@ -93,29 +95,51 @@ def address_verdicts(arg):
                                                              #      seeded order — NEVER parallel,
                                                              #      since every dispatch commits to
                                                              #      the same branch
+        # 21 · Step 4 — classify each finding by what it EDITS, not by which
+        #      lens found it. The per-lens routing below is only the default
+        #      for a code finding; a non-code target overrides it, because a
+        #      test over prose costs more to author and maintain than the
+        #      regressions it would catch.
+        code, non_code = split_by_target(entry.findings)       # 21
+        for f in non_code:
+            if entry.lens == "test-sdd" and f.planned_test_covers_prose:
+                # 22 · NOT written at all: the one place this skill overrules
+                #      /quality-gate's "every test-sdd finding applies
+                #      unconditionally" — CLAUDE.md forbids the test.
+                f.skipped, f.reason = True, "tests prose, which CLAUDE.md forbids"  # 22
+        prose = [f for f in non_code if not f.skipped]
+        if prose:
+            # 23 · Doc, spec, plan, prompt-markdown, SKILL.md, agent file,
+            #      comment, rename, file move, config or frontmatter value:
+            #      direct-coder, whichever lens reported it. It commits its
+            #      own work. A lens with ONLY non-code findings dispatches its
+            #      own agent zero times — a correct outcome, not a failure.
+            result = agent("direct-coder", title=f"Apply {entry.lens} prose findings",
+                            findings=prose)                    # 23
+
         # 11 · Step 4 — each dispatch carries ALL of this lens's selected
-        #      findings at once. The refactor agent refuses any behavior
+        #      code findings at once. The refactor agent refuses any behavior
         #      change BY DESIGN, so a correctness fix or a missing test
         #      cannot route through it; both need tdd-coder's test-first
         #      discipline instead.
-        match entry.lens:
+        match entry.lens if code else None:
             case "test-sdd":
                 # 11a · A test-sdd finding names a planned test the repo
                 #       lacks, so writing that test IS the fix. Every
                 #       planned title is passed verbatim so each test lands
                 #       under the name the plan declared.
                 result = agent("tdd-coder", title="Apply all test-sdd findings",
-                                findings=entry.findings, test_cmd=test_cmd)  # 11a
+                                findings=code, test_cmd=test_cmd)  # 11a
             case "auto-review":
                 # 11b · Strict TDD, RED before GREEN, once per finding —
                 #       same as any other tdd-coder dispatch.
                 result = agent("tdd-coder", title="Apply all auto-review findings",
-                                findings=entry.findings, test_cmd=test_cmd)  # 11b
+                                findings=code, test_cmd=test_cmd)  # 11b
             case "refactor":
                 # 11c · It applies the changes itself and confirms the
                 #       tests are green before and after.
                 result = agent("refactor", title="Apply all refactor findings",
-                                findings=entry.findings, test_cmd=test_cmd)  # 11c
+                                findings=code, test_cmd=test_cmd)  # 11c
 
         # 12 · Step 4 — one verify per dispatch, covering every finding in
         #      the batch. A subagent's summary describes intent; only the
@@ -126,7 +150,9 @@ def address_verdicts(arg):
                                                              #      in this lens's batch
             # 13 · Step 4 — scored per finding, never per lens: a dispatch
             #      that landed 6 of its 9 findings is 6 applied, 3 failed.
-            if not landed(result, f):                       # 13
+            if f.skipped:                                   # 22 · straight to annotation
+                pass
+            elif not landed(result, f):                     # 13
                 # 13a · Recorded as failed, never as done, and never
                 #       committed.
                 f.outcome = failed(result, f)               # 13a
@@ -134,10 +160,11 @@ def address_verdicts(arg):
                 # 14 · Step 4 — one commit per finding still holds inside a
                 #      batched dispatch: the saving is fewer agent spawns,
                 #      not a coarser diff — who commits this one?
-                if entry.lens != "refactor":
-                    # 14a · tdd-coder commits its own work under
-                    #       commit-standards, so confirm the SHA exists
-                    #       rather than re-committing.
+                if f.agent != "refactor":
+                    # 14a · tdd-coder and direct-coder commit their own work
+                    #       under commit-standards, so confirm the SHA exists
+                    #       rather than re-committing — even for a refactor-lens
+                    #       finding that direct-coder took.
                     f.sha = confirm_commit_exists(result, f)   # 14a
                 else:
                     # 14b · The refactor agent leaves its change uncommitted
@@ -200,6 +227,9 @@ flowchart TD
   n8a2["8a2. Ask ONE question, carrying your recommended reading.<br/>Never guess past an ambiguity — a wrong guess silently<br/>works the wrong finding. The test-command ask bundles<br/>into this one when it already fires, else is asked alone"]:::gate
   n9["9. Step 3 · Group findings by lens. Add to TaskList ONE<br/>[Task] entry per contributing lens — NEVER one per<br/>finding — shaped 'Apply all N &lt;lens&gt; findings', seeded<br/>in the FIXED order test-sdd, auto-review, refactor<br/>(also step 4's dispatch order — each stage hands the<br/>next a stronger test safety net). First entry<br/>in_progress, every other one pending. A real run<br/>yields 30-50 findings but at most 3 entries"]:::state
   n10["10. Step 3 · Add to TaskList one closing [Reminder]<br/>entry for step 6's report, so a mid-run compaction<br/>cannot silently skip the wrap-up"]:::state
+  n21{"21. Step 4 · Classify each finding in this entry by what it EDITS,<br/>not by which lens found it. The per-lens routing below is only<br/>the default for a code finding — a non-code target overrides it"}
+  n22["22. NOT written at all: a test-sdd finding whose planned test<br/>covers prose is annotated SKIPPED (tests prose, which CLAUDE.md<br/>forbids). The one place this skill overrules /quality-gate's<br/>every-test-sdd-finding-applies rule — the forbidden test wins"]
+  n23["23. Dispatch direct-coder (agent-pinned, background, serial) for a<br/>doc, spec, plan, prompt-markdown, SKILL.md, agent file, comment,<br/>rename, file move, config or frontmatter value, whichever lens<br/>reported it. A test over prose costs more to author and maintain<br/>than the regressions it would catch. A lens with only non-code<br/>findings dispatches its own agent zero times — correct, not a failure"]:::dispatch
   n11{"11. Step 4 · Which lens does this seeded entry dispatch?<br/>Each dispatch carries ALL of that lens's selected<br/>findings at once, serially in the seeded order — NEVER<br/>in parallel, since every dispatch commits to the same<br/>branch. The refactor agent refuses any behavior change<br/>BY DESIGN, so a correctness fix or a missing test cannot<br/>route through it — both need tdd-coder's test-first<br/>discipline instead"}
 
   n11a["11a. Dispatch tdd-coder (agent-pinned, background, serial)<br/>title: Apply all test-sdd findings. A test-sdd finding<br/>names a planned test the repo lacks, so writing that<br/>test IS the fix — pass every planned title verbatim so<br/>each lands under the name the plan declared"]:::dispatch
@@ -210,7 +240,7 @@ flowchart TD
   n13{"13. Step 4 · Did this finding's fix land? Scored per<br/>finding, never per lens — a dispatch that landed 6 of<br/>its 9 findings is 6 applied, 3 failed"}
   n13a["13a. Record it as failed, never as done.<br/>No commit, and no [Done] mark"]
   n14{"14. Step 4 · One commit per finding still holds inside a<br/>batched dispatch — the saving is fewer agent spawns,<br/>not a coarser diff — who commits this one?"}
-  n14a["14a. tdd-coder commits its own work under<br/>commit-standards, so confirm the SHA exists<br/>rather than re-committing"]
+  n14a["14a. tdd-coder and direct-coder commit their own work under<br/>commit-standards, so confirm the SHA exists rather than<br/>re-committing — even for a refactor-lens finding direct-coder took"]
   n14b["14b. The refactor agent leaves its change uncommitted<br/>by design, so commit it HERE, in this session,<br/>where the permission prompt can render"]:::gate
 
   subgraph annotate["15/16. Step 5 · Written in place the MOMENT this lens's dispatch returns, never held back until the last lens finishes — a killed session mid-run then still leaves an accurate ledger for the lenses already processed."]
@@ -237,19 +267,22 @@ flowchart TD
   n8 -->|"yes"| n8a
   n8a -->|"yes"| n8a1 --> n9
   n8a -->|"no"| n8a2 --> n9
-  n9 --> n10 --> n11
+  n9 --> n10 --> n21
+  n21 -->|"code finding"| n11
+  n21 -->|"prose test-sdd finding"| n22 --> n15
+  n21 -->|"other non-code finding"| n23 --> n12
   n11 -->|"test-sdd lens"| n11a --> n12
   n11 -->|"auto-review lens"| n11b --> n12
   n11 -->|"refactor lens"| n11c --> n12
   n12 --> n13
   n13 -->|"no"| n13a --> n15
   n13 -->|"yes"| n14
-  n14 -->|"tdd-coder"| n14a --> n15
+  n14 -->|"tdd-coder or direct-coder"| n14a --> n15
   n14 -->|"refactor agent"| n14b --> n15
   n16 --> n17
   n17 -->|"yes, next finding in this batch"| n13
   n17 -->|"no"| n18
-  n18 -->|"yes, next lens entry"| n11
+  n18 -->|"yes, next lens entry"| n21
   n18 -->|"no"| n19
   n19 --> n20
   n20 -->|"a human"| n20a
