@@ -597,6 +597,24 @@ it_should_fall_back_to_the_index_when_a_commit_pathspec_is_a_variable() {
     "command string" "$GATE_STDERR"
 }
 
+# Two spellings of one directory (a symlinked temp root such
+# as /var -> /private/var) must not hand the checker the
+# same file twice.
+it_should_report_a_violation_once_when_two_spellings_name_the_same_file() {
+  local repo alias count
+  repo=$(new_repo unit15spellings)
+  alias="$tmp_root/unit15alias"
+  ln -s "$repo" "$alias"
+  write_violating_shell_file "$repo/deploy.sh"
+  git -C "$repo" add deploy.sh
+
+  run_gate "$repo" "git add $alias/deploy.sh && git commit -m \"x\""
+
+  count=$(printf '%s\n' "$GATE_STDERR" | grep -c '^== ')
+  assert_eq "should report a violating file once when two spellings name it" \
+    1 "$count"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
@@ -626,6 +644,7 @@ it_should_block_a_violation_in_a_file_named_as_a_commit_pathspec
 it_should_block_a_violation_in_a_file_named_after_a_commit_double_dash
 it_should_not_read_a_commit_option_value_as_a_pathspec
 it_should_fall_back_to_the_index_when_a_commit_pathspec_is_a_variable
+it_should_report_a_violation_once_when_two_spellings_name_the_same_file
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

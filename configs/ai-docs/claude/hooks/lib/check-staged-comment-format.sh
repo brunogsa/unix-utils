@@ -324,10 +324,17 @@ if index.returncode != 0:
     warn_and_allow('could not read the git index, skipping the check')
 
 candidates = []
+seen_real_paths = set()
 
 
 def add_candidate(path):
-    if path not in candidates:
+    """Adds a path unless another spelling of the same file is already in, keeping the first spelling for the report.
+
+    Compared by realpath because a symlinked root such as macOS's /var -> /private/var spells one file two ways.
+    """
+    real_path = os.path.realpath(path)
+    if real_path not in seen_real_paths:
+        seen_real_paths.add(real_path)
         candidates.append(path)
 
 
