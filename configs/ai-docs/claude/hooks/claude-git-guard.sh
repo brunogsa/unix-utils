@@ -434,6 +434,21 @@ if echo "$CMD_STRUCT" | grep -qE 'git\s+commit\b'; then
     echo 'git commit must include Co-Authored-By: Claude attribution. Add it to the commit message.' >&2
     exit 2
   fi
+
+  # The gate resolves pathspecs against its own cwd, so it
+  # runs from the Bash tool's directory, not the hook's.
+  #
+  # Only exit 1 means "violations found". Any other status
+  # leaves the verdict unknown, and a cosmetic convention
+  # must never be the reason a commit cannot land.
+  (
+    cd "${CWD_INPUT:-.}" 2>/dev/null || exit 0
+    bash "$CLAUDE_HOOKS_DIR/lib/check-staged-comment-format.sh" "$CMD"
+  )
+  staged_format_status=$?
+  if [ "$staged_format_status" -eq 1 ]; then
+    exit 2
+  fi
 fi
 
 exit 0

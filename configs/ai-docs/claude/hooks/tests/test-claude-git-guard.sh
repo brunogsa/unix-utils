@@ -446,6 +446,15 @@ it_should_allow_git_status_when_shared_lib_is_missing() {
   assert_eq "should still allow git status when the shared parsing lib cannot be imported" "0" "$HOOK_EXIT"
 }
 
+it_should_block_commit_whose_file_breaks_comment_format() {
+  local dir cmd
+  dir=$(make_repo main)
+  printf '%s\n' '# this standalone comment line runs well past the sixty-four character cap' > "$dir/f.sh"
+  cmd=$(printf 'git add f.sh && git commit -m "add f.sh\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>"')
+  run_hook "$cmd" "$dir"
+  assert_eq "should block a commit whose file carries a comment-format violation" "2" "$HOOK_EXIT"
+}
+
 it_should_allow_a_plain_git_status
 it_should_block_git_push_force
 it_should_block_git_reset_hard
@@ -499,6 +508,7 @@ it_should_allow_cat_heredoc_mentioning_push_to_main_as_inert_data
 it_should_block_force_push_when_shared_lib_is_missing
 it_should_block_push_to_main_when_shared_lib_is_missing
 it_should_allow_git_status_when_shared_lib_is_missing
+it_should_block_commit_whose_file_breaks_comment_format
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
