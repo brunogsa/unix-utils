@@ -100,8 +100,9 @@ _spec.loader.exec_module(_parse_shell_command)
 # shell, which has not run yet.
 NON_LITERAL_CHARS = ('$', '`', '*', '?', '[')
 
-# Flags that stage a set nobody named explicitly.
-STAGE_EVERYTHING_FLAGS = ('-A', '--all', '-a', '-u', '--update')
+# `git add` flags that stage a set nobody named explicitly.
+# `git commit -a` is read separately, by scan_commit_args.
+STAGE_EVERYTHING_FLAGS = ('-A', '--all', '-u', '--update')
 
 # `git commit` options whose value is a separate token, so
 # an `-a` standing in one of those slots is a message or a
