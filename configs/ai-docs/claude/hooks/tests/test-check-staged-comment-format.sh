@@ -58,7 +58,7 @@ assert_contains() {
 # new_repo - fresh fixture repo with one commit, so
 # HEAD exists and --changed-only can resolve a scope.
 new_repo() {
-  local name="$1" dir="$tmp_root/$1"
+  local dir="$tmp_root/$1"
   mkdir -p "$dir"
   git -C "$dir" init -q
   printf 'seed\n' > "$dir/seed.txt"
