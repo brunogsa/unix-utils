@@ -86,6 +86,10 @@ USAGE = "usage: check-bullet-structure.py [--changed-only] <file>..."
 INLINE_CODE = re.compile(r"`[^`]*`")
 CODE_SPAN_STAND_IN = "code"
 TRAILING_EMPHASIS = re.compile(r"[*_\s]+$")
+# A Slack/GitHub emoji shortcode such as ":warning:" renders as an emoji, so
+# its closing colon introduces nothing. The leading whitespace keeps a real
+# "key:value:" ending flagged.
+TRAILING_EMOJI_SHORTCODE = re.compile(r"\s:[a-z0-9_+-]+:$")
 
 # " --" needs its leading space, so a "---" rule never matches.
 SENTENCE_DASHES = ("\u2014", " --")
@@ -141,9 +145,11 @@ def get_item_ending_text(line):
 
     Each inline code span becomes one opaque word, so punctuation inside
     it never counts, and a "Label: <code span>" item ends in the span.
-    A closing bold marker after the punctuation hides nothing."""
+    A closing bold marker after the punctuation hides nothing, and neither
+    does one trailing emoji shortcode."""
     text = INLINE_CODE.sub(CODE_SPAN_STAND_IN, line)
-    return TRAILING_EMPHASIS.sub("", text)
+    text = TRAILING_EMPHASIS.sub("", text)
+    return TRAILING_EMOJI_SHORTCODE.sub("", text)
 
 
 def ends_with_colon(line):

@@ -123,6 +123,26 @@ def test_bold_label_ending_in_a_colon_followed_by_a_sibling_is_reported(tmp_path
     assert hits(result) == [(1, "dangling-colon")]
 
 
+def test_plain_colon_item_with_no_nested_items_is_reported(tmp_path):
+    result = run(
+        tmp_path,
+        "- Lista de itens:\n"
+        "- O próximo item não está aninhado sob a lista.\n",
+    )
+
+    assert hits(result) == [(1, "dangling-colon")]
+
+
+def test_real_colon_after_a_trailing_emoji_shortcode_is_still_reported(tmp_path):
+    result = run(
+        tmp_path,
+        "- Itens :warning::\n"
+        "- O próximo item não está aninhado sob os itens.\n",
+    )
+
+    assert hits(result) == [(1, "dangling-colon")]
+
+
 # --- dangling-colon: no-flag cases ---
 
 
@@ -204,6 +224,19 @@ def test_colon_items_inside_a_fenced_code_block_are_not_reported(tmp_path):
         "- An example item that ends with a colon:\n"
         "- An example sibling right below it.\n"
         "```\n",
+    )
+
+    assert hits(result) == []
+
+
+def test_items_ending_in_a_slack_emoji_shortcode_are_not_reported(tmp_path):
+    # A shortcode like :information_source: renders as an emoji in Slack and
+    # GitHub, so its closing colon introduces nothing.
+    result = run(
+        tmp_path,
+        "- Integrador deve recusar Acordos B2C sem Contrato de Venda. :information_source:\n"
+        "- Essa visão vale para ambos B2B e B2C :warning: \n"
+        "- O preço do SKU vem sempre do Contrato de Venda.\n",
     )
 
     assert hits(result) == []
