@@ -34,8 +34,13 @@ LINEAR_URL_KEY = re.compile(
 )
 
 # Jira Cloud and self-hosted both serve issues at /browse/<KEY>.
+#
+# The URL body must not contain another http(s)://
+# to prevent quadratic rescans: if it did, each
+# anchor in text like "http://http://..." would
+# rescan the entire remainder from every anchor.
 JIRA_URL_KEY = re.compile(
-    rf"https?://[^\s)\]>]*?/browse/({KEY_BODY})(?![0-9])",
+    rf"https?://(?:(?!https?://)[^\s)\]>])*?/browse/({KEY_BODY})(?![0-9])",
     re.IGNORECASE,
 )
 
