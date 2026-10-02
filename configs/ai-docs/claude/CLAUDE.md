@@ -60,6 +60,9 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] Pair every question to me with your recommended option and the reasoning behind it.
   - [Why] You hold the context the options came from, so an unranked menu pushes that analysis back onto me.
 
+- [Instruction] Make every question self-contained: say why the decision exists, what changes per option, and quote the thing decided on rather than naming it by id or line number.
+  - [Why] "I did not get what under :202 means" and "sry, repeat your question" are round-trips a self-contained question avoids.
+
 - [Instruction] Cluster every decision that is open at the same moment into one `AskUserQuestion` call, rather than asking them one at a time.
   - [Why] One audited session lost 3h9m to 12 separate blocking prompts, each costing a full round-trip of my attention.
 
