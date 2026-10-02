@@ -401,6 +401,12 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] Launch every subagent in the background (`run_in_background`), waiting for its completion notification — never poll via a blocking `TaskOutput` call, a Bash `sleep`/`until` busy-wait, or a `kill -0`/`pgrep` wait loop.
   - [Why] One session lost 33 min to 6 blocking `TaskOutput` calls — 3 returned nothing — plus 12 min busy-waiting, vs 0.1s.
 
+- [Instruction] Size every dispatch to finish well inside the 64-turn subagent cap — 4-6 files per mechanical batch, an explicit stop criterion for any collection or checker loop.
+  - [Why] Five sessions hit the cap or a silent 45-minute agent, each losing the whole slice's work.
+
+- [Instruction] Treat a turn-cap stop, or a subagent 30 minutes past its last output, as a stall — kill it and re-dispatch a smaller slice, never wait it out.
+  - [Why] "Kill your general-purpose sub-agent, 45min is too long" — waiting past the stall buys nothing but wall-clock.
+
 - [Instruction] Render every Agent `description` here as `<title> - <model> <effort>` from the values a skill declares — no parens, no `<agent-type>`, which the UI already prepends.
   - [Why] That dispatch line is all the user sees live, so naming tier and effort lets them audit spawns in real time.
 
