@@ -62,7 +62,12 @@ def _make_jira_helper(tmp_path):
     )
 
 
-def _env(tmp_path, jira_url="https://acme.atlassian.net", with_linear=True, sleep_seconds=0):
+def _env(
+    tmp_path,
+    jira_url: "str | None" = "https://acme.atlassian.net",
+    with_linear=True,
+    sleep_seconds=0,
+):
     """Environment with HOME at the fixture tree and PATH holding the fake
     linear first (or, when absent, only the system dirs bash needs)."""
     env = dict(os.environ)

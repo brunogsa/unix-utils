@@ -81,7 +81,7 @@ def extract_refs(text):
     """Return [(tracker, key)] in first-appearance order, one per
     key, with a URL's tracker winning over a bare mention."""
     trackers_by_key = {}
-    for _position, key, tracker in _find_matches(text):
+    for _, key, tracker in _find_matches(text):
         known = trackers_by_key.get(key)
         is_upgrade = known == TRACKER_UNKNOWN and tracker != TRACKER_UNKNOWN
         if known is None or is_upgrade:
