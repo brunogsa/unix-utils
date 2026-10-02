@@ -363,6 +363,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
   - [Why] A hand-fix a rule could make is signal lost, but a ledger-backed check goes stale faster than it catches anything.
   - [Example] Prose caps don't enforce: `repo-green-runner` ran 1h+ against a documented 40-minute max, and the CRITICAL-density rule kept failing until a hook enforced it.
   - [Example] A check needing that ledger edited on every repo change is not a `[Harness]`; file the defect class as `[Debt]` instead.
+  - [Example] I name a workflow by its skill's job and the skill didn't fire: file a `[Harness]` to fix that skill's description, not a one-off load.
 
 - [Instruction] Close a `[Harness]` task within the session that surfaced it, never in a later batch.
   - [Why] Deferred harness work never outranks feature work, so the gap keeps charging every future session.
