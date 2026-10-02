@@ -85,6 +85,9 @@ it('should filter by assignee', ...);
   - [Why] A round-number, single-element fixture stays green while never executing the guarded branch, hiding the bug.
   - [Example] Price `1000` split one way never trips a rounding-reconciliation guard; `1058.33` divided across 3 shares of `33.33%` does.
 
+- [Instruction] For a guard whose contract is "never allow X", test its failure paths — missing input, parse error, unmatched case — and assert each blocks rather than allows.
+  - [Why] Two guards this fortnight failed open; every untested error branch of a deny rule is a silent allow.
+
 - [Instruction] **Observably-non-empty BEFORE and AFTER** — for filter/transition tests (UI or API), baseline and final state must both be non-empty.
   - [Why] Empty-to-something only proves the filter renders/returns something — not that it changes the result meaningfully.
 
