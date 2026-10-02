@@ -121,6 +121,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 - [Instruction] **CRITICAL: Push for simplicity — surface the simpler alternative** -- challenge decisions and name simpler paths.
   - [Why] The simpler path is usually invisible from inside the complex one, so only deliberate questioning surfaces it.
+  - [Example] Bad: a script to rename three files; an AI rewrite where a deterministic converter exists. Good: `git mv`; run the converter, then edit.
 
 - [Instruction] **Verify the simpler path doesn't work before committing to the complex one**.
   - [Why] Without evidence the simpler path fails, the complex path wins by default and ships unjustified machinery.
