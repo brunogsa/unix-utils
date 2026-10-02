@@ -6,8 +6,9 @@ Purpose: assemble everything Wave 2 will need on disk, so it runs from pre-built
 - github: `/tmp/pr-review-<n>/`; if it already exists, move it aside to `/tmp/pr-review-<n>.prev-<timestamp>`, then `mkdir -p`.
   - `rm -rf` is blocked by the rm-guard hook, and the moved-aside dir keeps a prior run's artifacts readable.
 
-- local: `$(mktemp -d /tmp/auto-review.XXXXXX)` for scratch; the review lands in a `./verdict_auto-review_<branch>_<timestamp>` file in CWD (`out_base` set below; always `.md`, per the html-artifacts Gate 1 note in
-`auto-review/SKILL.md`). The branch segment lets several PRs run in series, each on its own branch, keep distinguishable verdict files.
+- local: `$(mktemp -d /tmp/auto-review.XXXXXX)` for scratch; the review lands in a `./verdict_auto-review_<branch>_<timestamp>` file in CWD.
+  - `out_base` is set below; always `.md`, per the html-artifacts Gate 1 note in `auto-review/SKILL.md`.
+  - The branch segment lets several PRs run in series, each on its own branch, keeping distinguishable verdict files.
 
 **Wave 2 reads the context listed in `references/common-preamble.md#Context you have`** — ensure Wave 1 produces all of it on disk. Commit messages are fetched in both modes; only `{pr_context}` differs:
 
