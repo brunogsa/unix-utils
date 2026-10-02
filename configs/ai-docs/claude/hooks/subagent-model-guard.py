@@ -70,11 +70,11 @@ Examples:
   echo '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose"}}' \
     | subagent-model-guard.py                          # denied (unpinned, no model named)
   echo '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose","model":"opus"}}' \
-    | subagent-model-guard.py                          # denied (opus is on general-purpose's deniedModels)
+    | subagent-model-guard.py                          # allowed (opus is not on general-purpose's deniedModels)
   echo '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose","model":"sonnet"}}' \
     | subagent-model-guard.py                          # allowed (sonnet is not denied)
   echo '{"tool_name":"Agent","tool_input":{"model":"opus"}}' \
-    | subagent-model-guard.py                          # denied (no subagent_type resolves to general-purpose)
+    | subagent-model-guard.py                          # allowed (no subagent_type resolves to general-purpose, which allows opus)
   echo '{"tool_name":"Agent","tool_input":{"subagent_type":"fork"}}' \
     | subagent-model-guard.py                          # allowed (a fork takes the session's model)
 """

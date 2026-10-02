@@ -181,9 +181,9 @@ it_should_allow_general_purpose_with_sonnet() {
   assert_eq "should allow the dispatch when subagent_type is general-purpose and the model is sonnet, which is not on its deniedModels list" "allow" "$HOOK_DECISION"
 }
 
-it_should_deny_general_purpose_with_opus() {
+it_should_allow_general_purpose_with_opus() {
   run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose","model":"opus"}}'
-  assert_eq "should deny the dispatch when subagent_type is general-purpose and the model is opus, which its deniedModels list forbids" "deny" "$HOOK_DECISION"
+  assert_eq "should allow the dispatch when subagent_type is general-purpose and the model is opus, which is not on its deniedModels list" "allow" "$HOOK_DECISION"
 }
 
 it_should_deny_general_purpose_with_fable() {
@@ -196,9 +196,9 @@ it_should_deny_general_purpose_with_no_model_given() {
   assert_eq "should deny the dispatch when subagent_type is general-purpose and no model is given, same as any other unpinned type" "deny" "$HOOK_DECISION"
 }
 
-it_should_deny_a_dispatch_with_no_subagent_type_and_opus() {
+it_should_allow_a_dispatch_with_no_subagent_type_and_opus() {
   run_guard '{"tool_name":"Agent","tool_input":{"model":"opus"}}'
-  assert_eq "should deny the dispatch when subagent_type is omitted entirely and the model is opus, since it resolves to general-purpose rather than failing open" "deny" "$HOOK_DECISION"
+  assert_eq "should allow the dispatch when subagent_type is omitted entirely and the model is opus, since it resolves to general-purpose and opus is not denied" "allow" "$HOOK_DECISION"
 }
 
 it_should_allow_a_dispatch_with_no_subagent_type_and_sonnet() {
