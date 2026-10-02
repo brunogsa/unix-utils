@@ -70,6 +70,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 - [Instruction] **Make your reasoning verifiable** -- back every claim with code, test, doc, or search evidence, and say why you chose a path only where a different choice was open.
   - [Why] Claude can hallucinate, so the human must verify every conclusion — and the human is the bottleneck.
+  - [Example] A claim on how an external library, service, or tool behaves needs the URL of the official doc page confirming it.
 
 - [Instruction] **Highlight assumptions** -- explicitly name what you assumed.
   - [Why] Unspoken assumptions silently drive the wrong outcome.
