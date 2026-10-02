@@ -46,7 +46,8 @@ bash ~/.claude/skills/code-review-pipeline/scripts/extract-skipped-files.sh \
 # extraction, since the caller is pointing at an issue the PR text lacks.
 # The file is written even when empty; a miss only costs the snippet.
 if [ -n "$issue_ref" ]; then
-  printf '%s\n' "$issue_ref"
+  # Bare keys match only in uppercase in free text, so a typed ref is normalized.
+  printf '%s\n' "$issue_ref" | tr '[:lower:]' '[:upper:]'
 else
   jq -r '.title, .body' "$work_dir/pr.json"
 fi \
