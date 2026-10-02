@@ -53,9 +53,31 @@ def test_markdown_link_to_a_jira_issue_resolves_to_a_single_jira_reference():
     assert _lines(_run(text)) == ["jira PAY-482"]
 
 
-def test_output_order_follows_first_appearance_in_the_text():
-    text = "ZED-9 first, then ABC-1, then https://linear.app/acme/issue/MID-5, ABC-1 again"
-    assert _lines(_run(text)) == ["unknown ZED-9", "unknown ABC-1", "linear MID-5"]
+def test_bare_keys_keep_first_appearance_order_within_their_group():
+    text = "ZED-9 then ABC-1 then ZED-9 again"
+    assert _lines(_run(text)) == ["unknown ZED-9", "unknown ABC-1"]
+
+
+def test_url_backed_references_are_listed_before_bare_keys_so_the_cap_keeps_them():
+    text = (
+        "Encoding UTF-8, hashing SHA-256, dates ISO-8601, COVID-19, CVE-2024.\n"
+        "See https://linear.app/isaac/issue/CMSBQ-2117/x\n"
+        "Closes PROJ-123\n"
+    )
+    lines = _lines(_run(text))
+    assert lines[0] == "linear CMSBQ-2117"
+    assert "unknown PROJ-123" not in lines
+    assert len(lines) == 5
+
+
+def test_two_url_references_precede_two_bare_keys_each_group_in_appearance_order():
+    text = (
+        "ZED-9 then https://linear.app/acme/issue/MID-5 then ABC-1 "
+        "then https://acme.atlassian.net/browse/PAY-482"
+    )
+    assert _lines(_run(text)) == [
+        "linear MID-5", "jira PAY-482", "unknown ZED-9", "unknown ABC-1",
+    ]
 
 
 def test_default_cap_keeps_five_of_six_keys():

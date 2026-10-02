@@ -7,7 +7,7 @@
 #   printf '%s\n%s\n' "$title" "$body" | extract-issue-refs.py
 #
 # stdin: free text
-# stdout: "<jira|linear|unknown> <KEY>", one per distinct issue
+# stdout: "<jira|linear|unknown> <KEY>" per issue, URLs first
 # stderr: a usage message on a bad flag
 # exit: 0 on valid input (even with no keys), 2 on a bad flag
 
@@ -78,15 +78,19 @@ def _find_matches(text):
 
 
 def extract_refs(text):
-    """Return [(tracker, key)] in first-appearance order, one per
-    key, with a URL's tracker winning over a bare mention."""
+    """Return [(tracker, key)], one per key, with a URL's tracker
+    winning over a bare mention. Tracker-certain refs come before
+    unknown ones; each group keeps first-appearance order."""
     trackers_by_key = {}
     for _, key, tracker in _find_matches(text):
         known = trackers_by_key.get(key)
         is_upgrade = known == TRACKER_UNKNOWN and tracker != TRACKER_UNKNOWN
         if known is None or is_upgrade:
             trackers_by_key[key] = tracker
-    return [(tracker, key) for key, tracker in trackers_by_key.items()]
+    refs = [(tracker, key) for key, tracker in trackers_by_key.items()]
+    url_backed = [ref for ref in refs if ref[0] != TRACKER_UNKNOWN]
+    bare = [ref for ref in refs if ref[0] == TRACKER_UNKNOWN]
+    return url_backed + bare
 
 
 def main():
