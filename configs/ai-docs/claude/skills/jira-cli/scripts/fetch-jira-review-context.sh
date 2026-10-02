@@ -45,7 +45,7 @@ function fetch-jira-review-context() {
     issue_key="$input"
   fi
 
-  if [[ -z "$issue_key" ]] || ! [[ "$issue_key" =~ ^[A-Z]+-[0-9]+$ ]]; then
+  if [[ -z "$issue_key" ]] || ! [[ "$issue_key" =~ ^[A-Z][A-Z0-9]+-[0-9]+$ ]]; then
     echo "Error: Could not parse issue key from: $input" >&2
     echo "Expected format: PROJ-123 or https://company.atlassian.net/browse/PROJ-123" >&2
     return 1
