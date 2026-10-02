@@ -113,8 +113,12 @@ def test_lowercase_key_is_not_a_key():
     assert _lines(_run("proj-123")) == []
 
 
-def test_utf_eight_is_not_a_key():
-    assert _lines(_run("encoded as utf-8 text")) == []
+def test_lowercase_key_shaped_text_is_ignored_because_bare_keys_match_only_in_uppercase():
+    assert _lines(_run("encoded as utf-8 text, ticket proj-123")) == []
+
+
+def test_uppercase_utf_eight_in_free_text_is_reported_as_an_unknown_key():
+    assert _lines(_run("encoded as UTF-8 text")) == ["unknown UTF-8"]
 
 
 def test_key_followed_by_more_digits_than_allowed_is_not_a_key():
@@ -142,3 +146,9 @@ def test_unknown_flag_exits_two_with_a_message_on_stderr():
     result = _run("PROJ-1", "--bogus")
     assert result.returncode == 2
     assert result.stderr != ""
+
+
+def test_max_zero_prints_nothing_and_exits_zero():
+    result = _run("AAA-1 BBB-2", "--max", "0")
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == ""

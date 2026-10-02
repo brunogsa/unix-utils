@@ -9,6 +9,7 @@ Usage:
 """
 
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -23,19 +24,30 @@ JIRA_BLOCK = "## Jira Card: PAY-482 - Retry failed charges\n\nCharges retry twic
 UNKNOWN_KEY = "NOPE-1"
 
 
-def _make_linear(tmp_path, sleep_seconds=0):
+def _make_linear(tmp_path, sleep_seconds=0, fail_after_output=False, spawn_marker_child=False):
     """Fake `linear` on a PATH dir: prints LINEAR_BLOCK for LINEAR_KEY,
-    exits 1 otherwise, and appends its argv to argv.log."""
+    exits 1 otherwise, and appends its argv to argv.log.
+
+    fail_after_output makes the hit path print LINEAR_BLOCK and then exit 1.
+    spawn_marker_child makes it start a background child that sleeps 30 s and
+    only then writes tmp_path/child-finished.marker, records its pid in tmp_path/child.pid, then waits on it."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir(exist_ok=True)
     script = bin_dir / "linear"
+    child = (
+        f'(sleep 30; touch "{tmp_path}/child-finished.marker") &\n'
+        f'echo $! > "{tmp_path}/child.pid"\nwait\n'
+        if spawn_marker_child else ""
+    )
+    hit_exit = 1 if fail_after_output else 0
     script.write_text(
         "#!/bin/bash\n"
         f'echo "$@" >> "{tmp_path}/argv.log"\n'
         f"sleep {sleep_seconds}\n"
+        f"{child}"
         f'if [ "$3" = "{LINEAR_KEY}" ]; then\n'
         f"  printf '%s\\n' '{LINEAR_BLOCK}'\n"
-        "  exit 0\n"
+        f"  exit {hit_exit}\n"
         "fi\n"
         "echo 'Failed to view issue: Could not find referenced Issue.' >&2\n"
         "exit 1\n",
@@ -67,13 +79,15 @@ def _env(
     jira_url: "str | None" = "https://acme.atlassian.net",
     with_linear=True,
     sleep_seconds=0,
+    fail_after_output=False,
+    spawn_marker_child=False,
 ):
     """Environment with HOME at the fixture tree and PATH holding the fake
     linear first (or, when absent, only the system dirs bash needs)."""
     env = dict(os.environ)
     env["HOME"] = str(tmp_path / "home")
     if with_linear:
-        env["PATH"] = f"{_make_linear(tmp_path, sleep_seconds)}{os.pathsep}{os.environ['PATH']}"
+        env["PATH"] = f"{_make_linear(tmp_path, sleep_seconds, fail_after_output, spawn_marker_child)}{os.pathsep}{os.environ['PATH']}"
     else:
         env["PATH"] = _path_without_linear()
     if jira_url is None:
@@ -86,6 +100,14 @@ def _env(
 def _path_without_linear():
     dirs = [d for d in os.environ["PATH"].split(os.pathsep) if not (Path(d) / "linear").exists()]
     return os.pathsep.join(dirs)
+
+
+def _is_alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
 
 
 def _run(stdin, env, *args):
@@ -198,3 +220,69 @@ def test_help_exits_zero_with_usage_on_stdout(tmp_path):
     result = _run("", _env(tmp_path), "--help")
     assert result.returncode == 0
     assert "usage" in result.stdout.lower()
+
+
+def test_non_positive_timeout_exits_two_with_empty_stdout(tmp_path):
+    for value in ("0", "-1"):
+        result = _run(f"linear {LINEAR_KEY}\n", _env(tmp_path), "--timeout", value)
+        assert result.returncode == 2, value
+        assert result.stdout == "", value
+
+
+def test_linear_cli_that_prints_the_issue_and_then_fails_counts_as_a_miss(tmp_path):
+    _make_jira_helper(tmp_path)
+    env = _env(tmp_path, fail_after_output=True)
+    result = _run(f"linear {LINEAR_KEY}\n", env)
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert f"{LINEAR_KEY} not found" in result.stderr
+
+
+def test_unknown_reference_with_no_jira_url_and_no_linear_cli_is_skipped_naming_both_reasons(tmp_path):
+    _make_jira_helper(tmp_path)
+    result = _run(f"unknown {LINEAR_KEY}\n", _env(tmp_path, jira_url=None, with_linear=False))
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert "JIRA_URL unset" in result.stderr
+    assert "linear CLI not installed" in result.stderr
+
+
+def test_unknown_reference_skipped_by_jira_and_missed_by_linear_logs_one_line_with_both_outcomes(tmp_path):
+    _make_jira_helper(tmp_path)
+    result = _run(f"unknown {UNKNOWN_KEY}\n", _env(tmp_path, jira_url=None))
+    assert result.returncode == 1
+    outcome_lines = [line for line in result.stderr.splitlines() if UNKNOWN_KEY in line]
+    assert len(outcome_lines) == 1
+    assert "not found (tried linear)" in outcome_lines[0]
+    assert "jira skipped: JIRA_URL unset" in outcome_lines[0]
+
+
+def test_outcome_lines_on_stderr_follow_the_input_order_of_three_references(tmp_path):
+    _make_jira_helper(tmp_path)
+    result = _run(
+        f"linear {UNKNOWN_KEY}\njira {JIRA_KEY}\nlinear {LINEAR_KEY}\n", _env(tmp_path),
+    )
+    assert result.returncode == 1
+    positions = [result.stderr.index(key) for key in (UNKNOWN_KEY, JIRA_KEY, LINEAR_KEY)]
+    assert positions == sorted(positions)
+
+
+def test_timeout_also_kills_the_children_the_linear_cli_spawned(tmp_path):
+    _make_jira_helper(tmp_path)
+    env = _env(tmp_path, spawn_marker_child=True)
+    marker = tmp_path / "child-finished.marker"
+    started = time.monotonic()
+    result = _run(f"linear {LINEAR_KEY}\n", env, "--timeout", "1")
+    elapsed = time.monotonic() - started
+    assert result.returncode == 1
+    assert "timed out" in result.stderr
+    assert elapsed < 4
+    child_pid = int((tmp_path / "child.pid").read_text())
+    deadline = time.monotonic() + 3
+    while _is_alive(child_pid) and time.monotonic() < deadline:
+        time.sleep(0.2)
+    survived = _is_alive(child_pid)
+    if survived:
+        os.kill(child_pid, signal.SIGKILL)
+    assert not survived
+    assert not marker.exists()
