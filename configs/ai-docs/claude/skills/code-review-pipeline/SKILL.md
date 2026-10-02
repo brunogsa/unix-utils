@@ -42,7 +42,7 @@ Both callers also need the pipeline's reads — diff, rubrics, standards — kep
 
 - `Mode`: `github` or `local`
 - `PR URL` (github only)
-- `Jira URL` (github, optional)
+- `Issue ref` (github, optional): a Jira or Linear URL or key; replaces automatic extraction.
 - `Base ref` (local only; a branch name, commit SHA, or `HEAD~N` — defaults to the repo's detected default branch)
 - `Language`: `Portuguese (Brazil)` (github) or `English` (local)
 

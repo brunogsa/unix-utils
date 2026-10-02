@@ -11,11 +11,13 @@ The dispatch is the same for both review callers — see "How callers dispatch" 
 
 ## Usage
 
-`/pr-review <pr-url> [--jira <jira-url>]`
+`/pr-review <pr-url> [--issue <url-or-key>]`
 
 Examples:
 - `/pr-review https://github.com/owner/repo/pull/1597`
-- `/pr-review https://github.com/owner/repo/pull/1597 --jira https://company.atlassian.net/browse/PROJ-123` — with Jira context.
+- `/pr-review https://github.com/owner/repo/pull/1597 --issue https://linear.app/acme/issue/ABC-123` — when the PR title and body carry no issue link; a Jira URL or a bare key such as `PROJ-123` works too.
+
+Without `--issue`, Wave 1 extracts every Jira and Linear reference from the PR title and body and fetches each one, so a PR that already links its issue needs no flag.
 
 ## Execution
 
@@ -23,7 +25,7 @@ The code-review-pipeline expects these inputs:
 
 - **Mode:** `github`
 - **PR URL:** `<PR_URL>` (from the command argument)
-- **Jira URL:** `<JIRA_URL>` (only if `--jira` was passed)
+- **Issue ref:** `<ISSUE_REF>` (only if `--issue` was passed; it replaces the automatic extraction)
 - **Language:** Portuguese (Brazil)
 
 With the inputs above resolved, spawn `agent(subAgent=code-reviewer, title=Run code-review pipeline)` in the background, with the inputs in its prompt body and the instruction to read `~/.claude/skills/code-review-pipeline/SKILL.md` and orchestrate every wave (0 → 6) from there. Wait for its completion notification. The base branch is discovered inside Wave 1 from `baseRefName`.

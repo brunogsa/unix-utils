@@ -21,7 +21,7 @@ expanded but don't worry about it crowding the conversation feed.
 - Diff file: {diff_path}
 - Changed files list: {changed_files_path}
 - PR description: {pr_description}      (may be empty string)
-- Jira snippet (optional): {jira_context}
+- Issue-tracker snippet (optional): {issue_context}
 - Commit messages: {commit_messages}    (git log --format=%B since base)
 - repo_spec_md: {repo_spec_md_or_null}  (contents of the resolved spec, if any)
 - repo_plan_md: {repo_plan_md_or_null}
@@ -42,7 +42,7 @@ One short paragraph (2–4 sentences) explaining the problem being solved.
 Build it by merging:
   • the spec's Background (if repo_spec_md is not null)
   • rationale from commit messages
-  • Jira snippet (if available)
+  • issue-tracker snippet (if available)
 Include this section ONLY IF the PR description does NOT already explain the
 problem. Detection rule: if pr_description contains any sentence that clearly
 states the business goal/problem, OMIT the section entirely.

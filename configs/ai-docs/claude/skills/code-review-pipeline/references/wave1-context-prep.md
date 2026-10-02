@@ -11,7 +11,7 @@ Purpose: assemble everything Wave 2 will need on disk, so it runs from pre-built
 
 **Wave 2 reads the context listed in `references/common-preamble.md#Context you have`** — ensure Wave 1 produces all of it on disk. Commit messages are fetched in both modes; only `{pr_context}` differs:
 
-- github: PR title + body + optional Jira snippet.
+- github: PR title + body + optional issue-tracker snippet (Jira or Linear, extracted from the title and body or from the explicit Issue ref).
 - local: the resolved spec and plan (if present).
 
 ## github mode
@@ -41,10 +41,23 @@ bash ~/.claude/skills/code-review-pipeline/scripts/extract-commentable-lines.sh 
 bash ~/.claude/skills/code-review-pipeline/scripts/extract-skipped-files.sh \
   "$work_dir/pr.diff" "$work_dir"
 
-# Jira context (optional)
-source ~/.claude/skills/jira-cli/scripts/fetch-jira-review-context.sh 2>/dev/null \
-  && fetch-jira-review-context "$jira_url" > "$work_dir/jira-context.md" 2>/dev/null || true
+# Issue-tracker context: Jira or Linear references found in the PR title
+# and body. An explicit Issue ref from the input header replaces the
+# extraction, since the caller is pointing at an issue the PR text lacks.
+# The file is written even when empty; a miss only costs the snippet.
+if [ -n "$issue_ref" ]; then
+  printf '%s\n' "$issue_ref"
+else
+  jq -r '.title, .body' "$work_dir/pr.json"
+fi \
+  | ~/.claude/skills/code-review-pipeline/scripts/extract-issue-refs.py \
+  | ~/.claude/skills/code-review-pipeline/scripts/fetch-issue-context.py \
+  > "$work_dir/issue-context.md" || true
+```
 
+The fetcher logs one `issue-context:` line per reference on stderr; a reference that neither tracker knows (for example a false-positive key such as `SHA-256`) is a logged miss, never an abort.
+
+```bash
 # Clone the PR head
 gh repo clone "$repo" "$work_dir/repo" -- --depth=50 --filter=blob:none
 git -C "$work_dir/repo" fetch origin "pull/$pr_number/head" --depth=50

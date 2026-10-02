@@ -7,7 +7,7 @@ Read this only when `SKILL.md`'s Wave 2 path selection chose the fan-out path. T
 Dispatch, in one message, in the background, one `agent(subAgent=code-reviewer, title=Review lens <name>)` per remaining lens. Each prompt carries:
 
 - the resolved preamble placeholders: `diff_path`, `changed_files_path`, `commentable_lines_path`, `repo_root`, `mode`.
-  - The `pr_context` file paths: `pr.json`, `commit-messages.txt`, `jira-context.md` when present; the spec and plan paths in local mode.
+  - The `pr_context` file paths: `pr.json`, `commit-messages.txt`, `issue-context.md` when non-empty; the spec and plan paths in local mode.
 
 - the single rubric path `references/specialists/<name>.md`, with the instruction to read `references/common-preamble.md` first, invoke `code-standards`, and honor the preamble's lazy triggers;
 - the output path `$work_dir/wave2-lens-<name>.json`, holding the JSON array (an empty array when the lens finds nothing);

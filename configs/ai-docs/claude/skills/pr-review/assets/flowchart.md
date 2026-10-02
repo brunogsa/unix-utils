@@ -11,13 +11,13 @@ The pipeline's own waves are collapsed into the dispatch node; they live in `../
 Python-shaped for readability only; nothing here runs, and the function names stand for steps this skill performs, not real APIs.
 
 ```python
-def pr_review(pr_url, jira_url=None):                          # 1
+def pr_review(pr_url, issue_ref=None):                        # 1
     # 2 · the input header the pipeline parses; base branch is
     #     discovered inside its Wave 1, never resolved here
     header = {
         "Mode": "github",
         "PR URL": pr_url,
-        "Jira URL": jira_url,          # only when --jira was passed
+        "Issue ref": issue_ref,  # only when --issue was passed; replaces title/body extraction
         "Language": "Portuguese (Brazil)",
     }
 
@@ -43,8 +43,8 @@ def pr_review(pr_url, jira_url=None):                          # 1
 
 ```mermaid
 flowchart TD
-  n1(["1. Invoke /pr-review &lt;pr-url&gt; [--jira &lt;jira-url&gt;]"]):::start
-  n2["2. Resolve the input header:<br/>Mode github · PR URL · Jira URL (only with --jira)<br/>· Language Portuguese (Brazil).<br/>Base branch is found inside Wave 1, not here"]
+  n1(["1. Invoke /pr-review &lt;pr-url&gt; [--issue &lt;url-or-key&gt;]"]):::start
+  n2["2. Resolve the input header:<br/>Mode github · PR URL · Issue ref (only with --issue)<br/>· Language Portuguese (Brazil).<br/>Without it the pipeline extracts Jira/Linear refs<br/>from the PR title+body.<br/>Base branch is found inside Wave 1, not here"]
   n3["3. Dispatch code-reviewer, title Run code-review pipeline<br/>(agent-pinned · background · serial):<br/>header in the prompt body; it reads<br/>code-review-pipeline/SKILL.md and runs Waves 0-6"]:::dispatch
   n4["4. Wait for its completion notification<br/>(never poll)"]
   n5["5. Print from its report: review URL,<br/>per-severity counts, skipped files,<br/>Wave 6 summary"]

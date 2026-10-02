@@ -44,8 +44,7 @@ def code_review_pipeline(arg):   # runs inside the code-reviewer orchestrator
         if not clone():
             return abort("clone failed")                      # 6a1
         run("extract-commentable-lines.sh", "extract-skipped-files.sh")   # 6b
-        if arg.jira_url:
-            run("fetch-jira-review-context.sh")   # 6b1 · jira-cli skill, optional
+        run("extract-issue-refs.py | fetch-issue-context.py")   # 6b1 · issue-tracker context from the PR title+body, or the explicit Issue ref
     else:
         # 6c · one script call writes all 8 artifacts Wave 2 needs, tiny-pr.txt
         #      and large-pr.txt included.
@@ -200,7 +199,7 @@ flowchart TD
   n6a["6a. github: assemble diff + metadata<br/>(pr.diff, changed-files.txt, pr.json,<br/>commit-messages.txt), clone PR head<br/>into $work_dir/repo"]
   n6a1(["6a1. Abort: clone failed (github-only)"])
   n6b["6b. extract-commentable-lines.sh<br/>extract-skipped-files.sh"]:::hook
-  n6b1["6b1. jira-cli skill: fetch-jira-review-context.sh<br/>(github + Jira URL given, optional)"]:::skill
+  n6b1["6b1. extract-issue-refs.py | fetch-issue-context.py<br/>(github: Jira/Linear refs from PR title+body,<br/>or the explicit Issue ref)"]:::hook
 
   n6c["6c. local: scripts/prep-local-context.sh --<br/>writes 8 artifacts to $work_dir:<br/>diff, changed-files.txt, commit-messages.txt,<br/>commentable-lines.txt, skipped-binary.txt,<br/>skipped-deleted.txt, tiny-pr.txt, large-pr.txt"]:::hook
   n6d["6d. local: repo-wide static checks --<br/>lint/typecheck/dead-code/circular,<br/>all test tiers, coverage"]:::hook
@@ -276,8 +275,7 @@ flowchart TD
   n6 -->|"github"| n6a
   n6a -->|"clone fails"| n6a1
   n6a -->|"clone ok"| n6b
-  n6b -.->|"github + Jira URL given"| n6b1
-  n6b --> n7
+  n6b --> n6b1
   n6b1 --> n7
 
   n6 -->|"local"| n6c
