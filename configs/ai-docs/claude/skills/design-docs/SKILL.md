@@ -104,8 +104,7 @@ Don't create a separate RFC artifact; it would duplicate the HLD.
 
 ## Decisions, Premises, Risks, Open Questions — how to structure them
 
-Durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open Questions — use tokens (`D-`, `PR-`, `R-`, `OQ-`) as stable cross-reference anchors.
-One item per heading, cluster by theme before ordering.
+Durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open Questions — use tokens (`D-`, `PR-`, `R-`, `OQ-`) as stable cross-reference anchors. One item per heading, cluster by theme before ordering.
 
 See [`references/dpro-structure.md`](./references/dpro-structure.md) for detailed rules on labeling, token ordering, burn-down lists, and roadmaps.
 
@@ -193,7 +192,7 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
   - Authoring a spec/plan from the altitude notes above instead of these templates is the known failure mode this route exists to prevent.
 
 - Schema as JSONC — render request/response/event payloads as annotated JSONC (real values, each field tagged with type/required/constraints/description); copy `references/example-good-schema.jsonc`.
-  See [`references/schema-jsonc-rules.md`](./references/schema-jsonc-rules.md) for line-length, description, and enum formatting rules.
+  - See [`references/schema-jsonc-rules.md`](./references/schema-jsonc-rules.md) for line-length, description, and enum formatting rules.
 
 - de/para (from → to) mapping — qualify every field by its system.
   - Prefix each field with its source/destination system (`pic.`, `sge.`, `hub.`, `crm.`, or `const` for a literal), so provenance stays clear when systems share field names.
