@@ -68,9 +68,22 @@ it_should_allow_explore_with_no_model_given() {
   assert_eq "should allow the dispatch when subagent_type is Explore and no model is given" "allow" "$HOOK_DECISION"
 }
 
-it_should_allow_explore_when_model_matches_the_sonnet_pin() {
+it_should_allow_explore_when_model_is_the_opus_default() {
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"Explore","model":"opus"}}'
+  assert_eq "should allow the dispatch when subagent_type is Explore and the model is its opus default" "allow" "$HOOK_DECISION"
+}
+
+it_should_allow_explore_when_model_is_the_sonnet_override() {
   run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"Explore","model":"sonnet"}}'
-  assert_eq "should allow the dispatch when subagent_type is Explore and the model matches the sonnet pin" "allow" "$HOOK_DECISION"
+  assert_eq "should allow the dispatch when subagent_type is Explore and the model is the sonnet override its agent file declares" "allow" "$HOOK_DECISION"
+}
+
+it_should_not_pin_an_effort_on_explore() {
+  if grep -q '^effort:' "$script_dir/../agents/Explore.md"; then
+    assert_eq "should leave Explore's frontmatter without an effort key so the caller picks any effort level" "no effort key" "effort key present"
+  else
+    assert_eq "should leave Explore's frontmatter without an effort key so the caller picks any effort level" "no effort key" "no effort key"
+  fi
 }
 
 it_should_allow_tdd_coder_with_no_model_given() {
@@ -230,9 +243,14 @@ EOF
 
 # --- failure scenarios ---
 
-it_should_deny_explore_when_model_contradicts_the_sonnet_pin() {
+it_should_deny_explore_when_model_is_haiku() {
   run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"Explore","model":"haiku"}}'
-  assert_eq "should deny the dispatch when subagent_type is Explore and the model contradicts the sonnet pin" "deny" "$HOOK_DECISION"
+  assert_eq "should deny the dispatch when subagent_type is Explore and the model is haiku, which is neither its opus default nor its sonnet override" "deny" "$HOOK_DECISION"
+}
+
+it_should_deny_explore_when_model_is_fable() {
+  run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"Explore","model":"fable"}}'
+  assert_eq "should deny the dispatch when subagent_type is Explore and the model is fable" "deny" "$HOOK_DECISION"
 }
 
 it_should_deny_tdd_coder_when_the_model_is_neither_the_pin_nor_a_declared_override() {
@@ -241,7 +259,9 @@ it_should_deny_tdd_coder_when_the_model_is_neither_the_pin_nor_a_declared_overri
 }
 
 it_should_allow_explore_with_no_model_given
-it_should_allow_explore_when_model_matches_the_sonnet_pin
+it_should_allow_explore_when_model_is_the_opus_default
+it_should_allow_explore_when_model_is_the_sonnet_override
+it_should_not_pin_an_effort_on_explore
 it_should_allow_tdd_coder_with_no_model_given
 it_should_allow_tdd_coder_when_the_model_is_the_opus_override_its_file_declares
 it_should_allow_a_declared_override_named_as_a_full_model_id
@@ -258,7 +278,8 @@ it_should_deny_a_dispatch_with_no_subagent_type_and_opus
 it_should_allow_a_dispatch_with_no_subagent_type_and_sonnet
 it_should_deny_a_dispatch_with_no_subagent_type_and_no_model
 it_should_accept_every_entry_of_a_multi_entry_denial_declaration
-it_should_deny_explore_when_model_contradicts_the_sonnet_pin
+it_should_deny_explore_when_model_is_haiku
+it_should_deny_explore_when_model_is_fable
 it_should_deny_tdd_coder_when_the_model_is_neither_the_pin_nor_a_declared_override
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
