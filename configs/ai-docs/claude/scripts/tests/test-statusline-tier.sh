@@ -443,7 +443,8 @@ chmod +x "$SHARED_FAKE_BIN_DIR/ccstatusline"
 
 # The fake reads its widgets from the calling test's own
 # $HOME, so the warm-up needs no settings file: it execs
-# the fake and fails early, which is all the scan needs.
+# the fake; jq finds no settings file, so the fake prints
+# an empty line, and the exec alone is what the scan needs.
 HOME=/nonexistent "$SHARED_FAKE_BIN_DIR/ccstatusline" </dev/null >/dev/null 2>&1
 
 # write_fake_ccstatusline - installs a fake `ccstatusline`

@@ -179,7 +179,8 @@ for stub in df sysctl vm_stat; do
   env -i "$shared_dir/$stub" -n hw.ncpu >/dev/null 2>&1
 done
 
-# link_shared_stub - links $bindir/$1 to the warmed shared stub.
+# link_shared_stub - links $1/$2 to the warmed shared
+# stub named $2.
 link_shared_stub() {
   mkdir -p "$1"
   ln -sf "$shared_dir/$2" "$1/$2"
