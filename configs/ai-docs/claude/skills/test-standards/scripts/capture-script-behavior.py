@@ -102,6 +102,21 @@ class FixtureEscapeError(RowError, ValueError):
     isolated fixture directory."""
 
 
+class TableError(ValueError):
+    """Raised when the table itself is malformed, a fault about no
+    single row. Kept apart from RowError because it names the table
+    file, not a row. The CLI catches it by name, never a bare
+    ValueError, so a JSONDecodeError still surfaces."""
+
+    def __init__(self, table: Path, reason: str):
+        super().__init__(reason)
+        self.table = table
+        self.reason = reason
+
+    def __str__(self) -> str:
+        return f"table {self.table}: {self.reason}"
+
+
 class RowTimeoutError(RowError, RuntimeError):
     """Raised when a row's script outlives its timeout."""
 
@@ -474,23 +489,53 @@ def test_replays_every_captured_row():
 '''
 
 
+def _json_type_name(value) -> str:
+    """The JSON name of `value`'s type, for an error message."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, (int, float)):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    return "object"
+
+
 def _load_table(path: Path) -> tuple:
     data = json.loads(path.read_text())
+    if not isinstance(data, dict):
+        raise TableError(path, f"the top level must be an object, got {_json_type_name(data)}")
+    row_dicts = data.get("rows", [])
+    if not isinstance(row_dicts, list):
+        raise TableError(path, f"rows must be an array, got {_json_type_name(row_dicts)}")
+    known_branches = data.get("known_branches", [])
+    if not isinstance(known_branches, list) or not all(isinstance(branch, str) for branch in known_branches):
+        raise TableError(path, "known_branches must be an array of strings")
     rows = []
-    for index, row_dict in enumerate(data.get("rows", [])):
+    for index, row_dict in enumerate(row_dicts):
         try:
+            if not isinstance(row_dict, dict):
+                raise InvalidRowError(f"a row must be an object, got {_json_type_name(row_dict)}")
             rows.append(Row.from_dict(row_dict))
         except RowError as exc:
             # from_dict cannot know the row's table position.
-            exc.row = repr(row_dict["name"]) if "name" in row_dict else f"#{index}"
+            is_named = isinstance(row_dict, dict) and "name" in row_dict
+            exc.row = repr(row_dict["name"]) if is_named else f"#{index}"
             raise
-    known_branches = data.get("known_branches", [])
     return rows, known_branches
 
 
 def _report_row_error(exc: RowError, *, row_label: str) -> int:
     if exc.row is None:
         exc.row = row_label
+    print(f"error: {exc}", file=sys.stderr)
+    return 1
+
+
+def _report_table_error(exc: "TableError") -> int:
     print(f"error: {exc}", file=sys.stderr)
     return 1
 
@@ -506,6 +551,8 @@ def cmd_capture(args) -> int:
         rows, known_branches = _load_table(table_path)
     except RowError as exc:
         return _report_row_error(exc, row_label="")
+    except TableError as exc:
+        return _report_table_error(exc)
 
     updated_rows = []
     for row in rows:

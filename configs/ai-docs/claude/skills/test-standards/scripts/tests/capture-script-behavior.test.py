@@ -854,3 +854,62 @@ class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
         self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
         self.assertTrue(stderr.startswith("error: row #2: "), msg=stderr)
         self.assertIn("name", stderr)
+
+
+class TestCaptureScriptBehaviorMalformedTable(_TempDirTestCase):
+    def _capture_rejecting_data(self, data):
+        table = self.tmp_path / "table.json"
+        table.write_text(json.dumps(data))
+        json_out = self.tmp_path / "captured.json"
+        emitted = self.tmp_path / "toy.test.py"
+        result = _run("capture", "--script", str(self.tmp_path / "never-run.sh"),
+                       "--table", str(table), "--json-out", str(json_out), "--out", str(emitted))
+        self.assertEqual(result.returncode, 1, msg=result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertFalse(json_out.exists())
+        self.assertFalse(emitted.exists())
+        return result.stderr
+
+    def test_should_reject_a_row_that_is_not_an_object_naming_its_position_and_the_json_type_it_got(self):
+        cases = (
+            (5, "number"),
+            ("name", "string"),
+            (["a"], "array"),
+            (None, "null"),
+            (True, "boolean"),
+        )
+        for bad_row, json_type in cases:
+            with self.subTest(row=bad_row):
+                stderr = self._capture_rejecting_data({"rows": [{"name": "first-row"}, bad_row]})
+
+                self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
+                self.assertTrue(stderr.startswith("error: row #1: "), msg=stderr)
+                self.assertIn("must be an object", stderr)
+                self.assertIn(json_type, stderr)
+
+    def test_should_reject_a_table_whose_top_level_is_not_an_object_naming_the_table_and_the_json_type(self):
+        stderr = self._capture_rejecting_data([{"name": "only-row"}])
+
+        self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
+        self.assertTrue(stderr.startswith("error: table "), msg=stderr)
+        self.assertIn("table.json", stderr)
+        self.assertIn("array", stderr)
+
+    def test_should_reject_a_table_whose_rows_is_not_a_list_naming_the_table_and_the_json_type(self):
+        for bad_rows, json_type in (("abc", "string"), ({"name": "x"}, "object"), (None, "null")):
+            with self.subTest(rows=bad_rows):
+                stderr = self._capture_rejecting_data({"rows": bad_rows})
+
+                self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
+                self.assertTrue(stderr.startswith("error: table "), msg=stderr)
+                self.assertIn("rows", stderr)
+                self.assertIn(json_type, stderr)
+
+    def test_should_reject_a_table_whose_known_branches_is_not_a_list_of_strings(self):
+        for bad_branches in ("main", {"a": 1}, ["ok", 5], [["nested"]]):
+            with self.subTest(known_branches=bad_branches):
+                stderr = self._capture_rejecting_data({"known_branches": bad_branches, "rows": []})
+
+                self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
+                self.assertTrue(stderr.startswith("error: table "), msg=stderr)
+                self.assertIn("known_branches", stderr)
