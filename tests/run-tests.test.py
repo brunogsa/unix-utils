@@ -74,12 +74,20 @@ UNKNOWN_LINE = (
 # `expected_args` is a case pattern the fake's arguments must
 # match, so a runner that calls the tool wrongly gets a loud
 # failure where the real tool would have rejected it too.
+#
+# `drain_stdin` makes the fake read stdin to EOF before it
+# answers, the way a tool that reads stdin would hang on a
+# caller's stdin that never closes.
 FAKE_TOOL_SCRIPT = """#!/bin/sh
 exit_code=0
 output=
 expected_args=
+drain_stdin=
 [ -f "$0.fixture" ] && . "$0.fixture"
 printf '%s\\n' "$*" >> "$0.calls"
+if [ -n "$drain_stdin" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do :; done
+fi
 case "$*" in
   $expected_args) ;;
   *) printf 'unexpected arguments: %s\\n' "$*"; exit 64 ;;
@@ -94,6 +102,7 @@ class FakeTool:
     exit_code: int = 0
     output: str = ""
     expected_args: str = ""
+    drain_stdin: bool = False
 
 
 @dataclass(frozen=True)
@@ -123,6 +132,7 @@ def link_fake_tool(shared_stub, link_path, behavior):
         f"exit_code={behavior.exit_code}",
         f"output={shlex.quote(behavior.output)}",
         f"expected_args={shlex.quote(behavior.expected_args)}",
+        f"drain_stdin={'1' if behavior.drain_stdin else ''}",
     ]
     Path(f"{link_path}.fixture").write_text("\n".join(fixture_lines) + "\n")
 
@@ -176,16 +186,17 @@ def build_sandbox(
     return root
 
 
-def run_runner(sandbox):
+def run_runner(sandbox, *, stdin=subprocess.DEVNULL, timeout=None):
     """Run the sandboxed runner with stderr merged into stdout."""
     completed = subprocess.run(
         [*RUNNER_ARGV_PREFIX, str(sandbox / RUNNER_NAME)],
         cwd=sandbox,
         env={**os.environ, "PATH": str(sandbox / "bin")},
-        stdin=subprocess.DEVNULL,
+        stdin=stdin,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        timeout=timeout,
     )
     return RunResult(completed.returncode, completed.stdout, sandbox)
 
@@ -305,6 +316,46 @@ class TestHeadroomGate:
 
         def test_should_not_execute_a_single_suite(self, result):
             assert not suite_bodies_ran(result)
+
+    class TestCallerStdinNeverCloses:
+        # A hang guard, not a timing assertion: a healthy run
+        # takes well under a second.
+        HANG_GUARD_SECONDS = 15
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            sandbox = build_sandbox(
+                tmp_path_factory.mktemp("sandbox"),
+                shared_stub,
+                gate=FakeTool(output=GO_LINE, drain_stdin=True),
+                bash_suites={BODY_PROBE_SUITE: 0},
+            )
+
+            # A pipe the test holds open, like a Claude Bash
+            # tool socket. subprocess's own stdin=PIPE would
+            # close it inside communicate(), and the gate
+            # would see EOF.
+            read_end, write_end = os.pipe()
+            try:
+                return run_runner(
+                    sandbox, stdin=read_end, timeout=cls.HANG_GUARD_SECONDS
+                )
+            except subprocess.TimeoutExpired:
+                pytest.fail(
+                    "the runner hung on a gate reading the caller's open stdin"
+                )
+            finally:
+                # A timed-out run kills only the runner; closing
+                # the write end lets the orphaned gate read EOF.
+                os.close(write_end)
+                os.close(read_end)
+
+        def test_should_finish_the_run_even_when_the_gate_reads_stdin(self, result):
+            assert (result.status, f"PASS  {BODY_PROBE_SUITE}" in result.output) == (
+                0,
+                True,
+            )
 
 
 class TestNodeSuites:

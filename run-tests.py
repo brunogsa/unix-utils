@@ -76,11 +76,18 @@ def write_stdout_bytes(data):
 
 
 def run_headroom_gate(headroom_gate):
-    """Return (exit status, stdout bytes) of the gate; stderr passes through."""
+    """Return (exit status, stdout bytes) of the gate; stderr passes through.
+
+    stdin comes from /dev/null for the same reason every suite's does: the
+    caller's stdin may never close, so a gate that reads it would hang the
+    run before any suite starts.
+    """
     if not os.access(headroom_gate, os.X_OK):
         return GATE_UNAVAILABLE_STATUS, b""
     try:
-        completed = subprocess.run([headroom_gate], stdout=subprocess.PIPE)
+        completed = subprocess.run(
+            [headroom_gate], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE
+        )
     except OSError as error:
         print(f"run-tests.py: {headroom_gate}: {error.strerror}", file=sys.stderr, flush=True)
         return GATE_NOT_EXECUTABLE_STATUS, b""
