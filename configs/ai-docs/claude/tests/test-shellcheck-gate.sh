@@ -21,7 +21,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../../../.." && pwd)"
 
 # A missing binary must fail loudly rather than read as a
-# pass, which is the same gap run-tests.sh closed for
+# pass, which is the same gap run-tests.py closes for
 # pytest.
 if ! command -v shellcheck > /dev/null 2>&1; then
   echo "shellcheck: command not found (install.sh installs it)" >&2
@@ -173,11 +173,11 @@ print_template() {
 
 it_should_skip_a_listed_path_that_is_no_longer_on_disk() {
   local actual
-  actual=$(printf 'run-tests.sh\0deleted-by-another-session.sh\0' \
+  actual=$(printf 'install.sh\0deleted-by-another-session.sh\0' \
     | keep_existing_paths | tr '\n' ' ' | sed 's/ *$//')
   assert_eq \
     "MissingPathHandling > corner > should skip a listed path that is no longer on disk" \
-    "run-tests.sh" "$actual"
+    "install.sh" "$actual"
 }
 
 # describe(RepoWideGate)

@@ -8,7 +8,7 @@
 # end to end against it.
 #
 # No bats dependency, matching every other bash suite
-# run-tests.sh discovers.
+# run-tests.py discovers.
 #
 # Exits 0 when every assertion passes, non-zero otherwise.
 

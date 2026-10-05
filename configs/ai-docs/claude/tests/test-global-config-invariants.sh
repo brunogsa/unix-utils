@@ -323,18 +323,18 @@ it_should_fail_when_the_dead_session_start_compaction_router_script_survives
 # ============================================================
 
 # suite_exec_bit_violations - tracked suites under the four
-# glob trees run-tests.sh discovers by, whose git INDEX mode
+# glob trees run-tests.py discovers by, whose git INDEX mode
 # isn't 100755.
 #
 # A fresh clone materializes exactly the index mode, so a
 # filesystem-only chmod would still leave a clone broken.
 #
-# Enumerated by the same four `test-*.sh` globs run-tests.sh
+# Enumerated by the same four `test-*.sh` globs run-tests.py
 # itself uses (never a hardcoded file list) - a hardcoded
-# list reproduces the exact registration gap run-tests.sh
+# list reproduces the exact registration gap run-tests.py
 # exists to close.
 #
-# Scoped to the bash leg on purpose: run-tests.sh hands its
+# Scoped to the bash leg on purpose: run-tests.py hands its
 # node and python suites to an interpreter by path, so those
 # never need an exec bit, and the repo's `.test.js` and
 # `.test.py` files are tracked at 100644.
@@ -351,7 +351,7 @@ it_should_mark_every_run_tests_discovered_suite_executable_in_the_git_index() {
   local actual
   actual=$(suite_exec_bit_violations | sort | tr '\n' ' ' | sed 's/ *$//')
   assert_eq \
-    "SuiteExecBitPermissions > happy > should mark every run-tests.sh-discovered suite executable in the git index" \
+    "SuiteExecBitPermissions > happy > should mark every run-tests.py-discovered suite executable in the git index" \
     "" "$actual"
 }
 

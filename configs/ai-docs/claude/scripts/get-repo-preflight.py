@@ -242,8 +242,8 @@ def gather_declared_test_commands(root: Path) -> list[tuple[str, str]]:
     declared.extend(extract_package_json_commands(root))
     declared.extend(extract_python_test_commands(root))
 
-    if (root / "run-tests.sh").exists():
-        declared.append(("run-tests.sh", "./run-tests.sh"))
+    if (root / "run-tests.py").exists():
+        declared.append(("run-tests.py", "./run-tests.py"))
     declared.extend(extract_makefile_test_commands(root))
 
     return declared

@@ -28,10 +28,10 @@ Idempotent; safe to re-run. Uses inline OS detection (unlike the other stack rep
 One command covers the whole repo:
 
 ```bash
-./run-tests.sh   # every bash and node:test suite (all four test trees) plus the pytest.ini python suites
+./run-tests.py   # every bash and node:test suite (all four test trees) plus the pytest.ini python suites
 ```
 
-`run-tests.sh` discovers bash suites by glob, so a new `test-*.sh` under any of the four trees is picked up with no registration step.
+`run-tests.py` discovers bash suites by glob, so a new `test-*.sh` under any of the four trees is picked up with no registration step.
 
 It discovers `node:test` suites the same way, by a `*.test.js` glob over those same four trees, so a new node suite needs no registration step either.
 
@@ -41,7 +41,7 @@ Python suites are collected the normal pytest way, via the repo-root `pytest.ini
 
 `pytest` runs as one more suite entry, through the same PASS/FAIL/log-replay path as every bash suite.
 
-Before this, its own exit code alone said nothing about the python suites, so a green `./run-tests.sh` could hide a red `pytest`.
+Before this, its own exit code alone said nothing about the python suites, so a green `./run-tests.py` could hide a red `pytest`.
 
 A missing `pytest` binary fails that entry loudly rather than silently reading as a pass.
 
@@ -49,11 +49,11 @@ It runs every suite even after one fails, prints the failing suites' output, and
 
 Never compose an ad-hoc `for t in .../test-*.sh` loop instead - that is exactly how ten hook suites ended up with nothing enumerating them.
 
-For the same reason, never run `pytest` as a separate manual step again - `./run-tests.sh` alone is now the honest answer to "is the repo green."
+For the same reason, never run `pytest` as a separate manual step again - `./run-tests.py` alone is now the honest answer to "is the repo green."
 
 To iterate on one python test file, call the `pytest` binary (`pytest <path>`), never `python3 -m pytest`: `install.sh` installs pytest into its own pipx venv, so no system interpreter can import it and the module form fails with "No module named pytest".
 
-Before any suite runs, `run-tests.sh` calls `configs/ai-docs/claude/scripts/check-machine-headroom.sh` and refuses to start when it isn't GO - a profiled run averages only ~0.47 cores, so this exists to protect a machine that's already busy, not to serialize otherwise-light runs against each other.
+Before any suite runs, `run-tests.py` calls `configs/ai-docs/claude/scripts/check-machine-headroom.sh` and refuses to start when it isn't GO - a profiled run averages only ~0.47 cores, so this exists to protect a machine that's already busy, not to serialize otherwise-light runs against each other.
 
 A refused or missing gate exits 2, distinct from exit 1 (a red suite) - that's how a caller tells "didn't run" apart from "ran and failed."
 

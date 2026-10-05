@@ -32,7 +32,7 @@ No CWD reads are required to begin - a caller with no plan file and no spec at a
 - **Verification**: the command that defines "done" for this batch - the caller's when given, derived by you when not.
   - It runs at full-suite scope exactly twice: once after PHASE RED (every new test expected failing), once after PHASE GREEN (every unit expected passing).
 
-  - Derive it from a file that *declares* the repo's entry point, first match wins: `CLAUDE.md`/`AGENTS.md`, `package.json` scripts, `pytest.ini`/`pyproject.toml`, a repo-root `run-tests.sh`/`Makefile`, then the CI workflow.
+  - Derive it from a file that *declares* the repo's entry point, first match wins: `CLAUDE.md`/`AGENTS.md`, `package.json` scripts, `pytest.ini`/`pyproject.toml`, a repo-root `run-tests.py`/`Makefile`, then the CI workflow.
     - Prefer the narrowest declared command that still covers every unit in this batch - a repo-wide suite you weren't asked for is verification you pay for twice and nobody requested.
 
   - Name the command AND the file you read it from, in the report's Deviations and in the evidence file's entry.
@@ -122,7 +122,7 @@ Before touching code:
 
    - Its `[test-commands]` section names each declared command AND the file declaring it, which is the attribution the Verification input demands.
      - Read a declarer yourself only when that section prints `(none found)`, or when nothing it lists covers this batch.
-     - It scans `CLAUDE.md`/`AGENTS.md`, `package.json`, `pytest.ini`/`pyproject.toml`, `run-tests.sh` and the `Makefile` - the CI workflow is on you.
+     - It scans `CLAUDE.md`/`AGENTS.md`, `package.json`, `pytest.ini`/`pyproject.toml`, `run-tests.py` and the `Makefile` - the CI workflow is on you.
 
    - When `references:` names a plan or spec, `grep -n` it for this batch's section and read only that slice - never the whole file (see Inputs).
 

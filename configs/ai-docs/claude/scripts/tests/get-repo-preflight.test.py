@@ -217,12 +217,12 @@ class TestDeclaredTestCommands:
     ):
         (repo / "CLAUDE.md").write_text(
             "# Repo\n\n## Testing\n\n"
-            "```bash\n./run-tests.sh   # every bash suite\npytest\n```\n"
+            "```bash\n./run-tests.py   # every bash suite\npytest\n```\n"
         )
 
         command_lines = get_section(get_report(repo).stdout, "test-commands")
 
-        assert "CLAUDE.md: ./run-tests.sh   # every bash suite" in command_lines
+        assert "CLAUDE.md: ./run-tests.py   # every bash suite" in command_lines
         assert "CLAUDE.md: pytest" in command_lines
 
     def test_should_ignore_fenced_commands_under_a_heading_unrelated_to_testing(
@@ -268,9 +268,9 @@ class TestDeclaredTestCommands:
         )
 
     def test_should_report_the_repo_root_run_tests_entry_point(self, repo):
-        (repo / "run-tests.sh").write_text("#!/usr/bin/env bash\nexit 0\n")
+        (repo / "run-tests.py").write_text("#!/usr/bin/env python3\nraise SystemExit(0)\n")
 
-        assert "run-tests.sh: ./run-tests.sh" in get_section(
+        assert "run-tests.py: ./run-tests.py" in get_section(
             get_report(repo).stdout, "test-commands"
         )
 

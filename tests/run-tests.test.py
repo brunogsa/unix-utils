@@ -1,0 +1,538 @@
+# run-tests.test.py - pytest suite for the repo-root runner
+# run-tests.py.
+#
+# Usage:
+#   pytest tests/run-tests.test.py
+#
+# Each scenario builds a throwaway sandbox holding a copy of the
+# runner, so its self-anchored globs resolve inside the sandbox
+# and never touch the real test trees or recurse into the run
+# that is running this suite.
+#
+# The sandbox PATH holds only fake node and pytest tools, or
+# none at all, so no scenario ever reaches the real ones.
+#
+# The fake gate, node and pytest are one shared stub, symlinked
+# into each sandbox. macOS scans a freshly written executable on
+# its first exec (150-450 ms) and keys that scan on the inode.
+#
+# So the stub is written and exec'd once per test session and
+# every sandbox only links to it.
+#
+# Per-scenario behavior lives in a fixture file beside each
+# link, never in the stub itself: rewriting a linked stub would
+# change it for every case.
+
+import os
+import shlex
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+RUNNER_NAME = "run-tests.py"
+RUNNER_ARGV_PREFIX = [sys.executable]
+
+# The runner shells out to `bash` for bash suites. Resolved
+# here so the sandbox PATH offers exactly the tools a scenario
+# wants.
+REAL_TOOL_PATHS = {"bash": shutil.which("bash")}
+DEFAULT_PATH_TOOLS = ("bash",)
+
+GATE_RELATIVE_PATH = "configs/ai-docs/claude/scripts/check-machine-headroom.sh"
+BODY_PROBE_SUITE = "configs/ai-docs/claude/tests/test-gate-body-probe.sh"
+FAKE_BASH_SUITE = "configs/ai-docs/claude/tests/test-fake-bash-suite.sh"
+SUITE_TREES = (
+    "configs/ai-docs/claude/scripts",
+    "configs/ai-docs/claude/tests",
+    "configs/ai-docs/claude/scripts/tests",
+    "configs/ai-docs/claude/hooks/tests",
+    "configs/ai-docs/claude/skills/fake-skill/scripts/tests",
+)
+
+GO_LINE = (
+    "HEADROOM=GO cores=8 load1=1.00 ratio=0.12 max_ratio=0.70 "
+    "mem_avail_mb=4000 min_avail_mb=1536 disk_free_mb=100000 min_disk_mb=5120"
+)
+NO_GO_LINE = (
+    "HEADROOM=NO-GO cores=4 load1=5.10 ratio=1.28 max_ratio=0.70 "
+    "mem_avail_mb=500 min_avail_mb=1536 disk_free_mb=900 min_disk_mb=5120 "
+    'reason="load ratio 1.28 exceeds max 0.70"'
+)
+UNKNOWN_LINE = (
+    'HEADROOM=UNKNOWN reason="neither /proc/loadavg nor sysctl found; '
+    'cannot measure machine load"'
+)
+
+# The stub uses POSIX sh builtins only, because it runs under a
+# PATH that may hold no other tool.
+#
+# `expected_args` is a case pattern the fake's arguments must
+# match, so a runner that calls the tool wrongly gets a loud
+# failure where the real tool would have rejected it too.
+FAKE_TOOL_SCRIPT = """#!/bin/sh
+exit_code=0
+output=
+expected_args=
+[ -f "$0.fixture" ] && . "$0.fixture"
+printf '%s\\n' "$*" >> "$0.calls"
+case "$*" in
+  $expected_args) ;;
+  *) printf 'unexpected arguments: %s\\n' "$*"; exit 64 ;;
+esac
+[ -n "$output" ] && printf '%s\\n' "$output"
+exit "$exit_code"
+"""
+
+
+@dataclass(frozen=True)
+class FakeTool:
+    exit_code: int = 0
+    output: str = ""
+    expected_args: str = ""
+
+
+@dataclass(frozen=True)
+class RunResult:
+    status: int
+    output: str
+    sandbox: Path
+
+
+GO_GATE = FakeTool(output=GO_LINE)
+PASSING_NODE = FakeTool(expected_args="--test *")
+PASSING_PYTEST = FakeTool()
+FAILING_NODE = FakeTool(
+    exit_code=1,
+    output="AssertionError: sandbox node regression fixture",
+    expected_args="--test *",
+)
+FAILING_PYTEST = FakeTool(
+    exit_code=1, output="AssertionError: sandbox regression fixture"
+)
+
+
+def link_fake_tool(shared_stub, link_path, behavior):
+    link_path.parent.mkdir(parents=True, exist_ok=True)
+    link_path.symlink_to(shared_stub)
+    fixture_lines = [
+        f"exit_code={behavior.exit_code}",
+        f"output={shlex.quote(behavior.output)}",
+        f"expected_args={shlex.quote(behavior.expected_args)}",
+    ]
+    Path(f"{link_path}.fixture").write_text("\n".join(fixture_lines) + "\n")
+
+
+def write_bash_suite(sandbox, relative_path, exit_code):
+    suite = sandbox / relative_path
+    suite.parent.mkdir(parents=True, exist_ok=True)
+    suite.write_text(
+        f"printf 'ran\\n' >> {shlex.quote(str(sandbox / 'body-runs.log'))}\n"
+        f"exit {exit_code}\n"
+    )
+
+
+def write_node_suite(sandbox, relative_path):
+    suite = sandbox / relative_path
+    suite.parent.mkdir(parents=True, exist_ok=True)
+    suite.write_text("// the fake node never reads this file\n")
+
+
+def build_sandbox(
+    root,
+    shared_stub,
+    *,
+    gate=GO_GATE,
+    node=PASSING_NODE,
+    pytest_tool=PASSING_PYTEST,
+    path_tools=DEFAULT_PATH_TOOLS,
+    bash_suites=None,
+    node_suites=(),
+):
+    """Build a sandbox repo root; a None gate, node or pytest is left absent."""
+    for tree in SUITE_TREES:
+        (root / tree).mkdir(parents=True, exist_ok=True)
+    shutil.copy(REPO_ROOT / RUNNER_NAME, root / RUNNER_NAME)
+
+    bin_dir = root / "bin"
+    bin_dir.mkdir()
+    for tool in path_tools:
+        (bin_dir / tool).symlink_to(REAL_TOOL_PATHS[tool])
+    if gate is not None:
+        link_fake_tool(shared_stub, root / GATE_RELATIVE_PATH, gate)
+    if node is not None:
+        link_fake_tool(shared_stub, bin_dir / "node", node)
+    if pytest_tool is not None:
+        link_fake_tool(shared_stub, bin_dir / "pytest", pytest_tool)
+
+    for relative_path, exit_code in (bash_suites or {}).items():
+        write_bash_suite(root, relative_path, exit_code)
+    for relative_path in node_suites:
+        write_node_suite(root, relative_path)
+    return root
+
+
+def run_runner(sandbox):
+    """Run the sandboxed runner with stderr merged into stdout."""
+    completed = subprocess.run(
+        [*RUNNER_ARGV_PREFIX, str(sandbox / RUNNER_NAME)],
+        cwd=sandbox,
+        env={**os.environ, "PATH": str(sandbox / "bin")},
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    return RunResult(completed.returncode, completed.stdout, sandbox)
+
+
+def run_in_sandbox(tmp_path_factory, shared_stub, **sandbox_options):
+    root = tmp_path_factory.mktemp("sandbox")
+    return run_runner(build_sandbox(root, shared_stub, **sandbox_options))
+
+
+def gate_call_count(result):
+    calls_log = Path(f"{result.sandbox / GATE_RELATIVE_PATH}.calls")
+    return len(calls_log.read_text().splitlines()) if calls_log.exists() else 0
+
+
+def suite_bodies_ran(result):
+    return (result.sandbox / "body-runs.log").exists()
+
+
+@pytest.fixture(scope="session")
+def shared_stub(tmp_path_factory):
+    stub = tmp_path_factory.mktemp("shared-stubs") / "fake-tool"
+    stub.write_text(FAKE_TOOL_SCRIPT)
+    stub.chmod(0o755)
+    subprocess.run([str(stub)], check=True)
+    return stub
+
+
+class TestHeadroomGate:
+    class TestGoVerdict:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_in_sandbox(
+                tmp_path_factory,
+                shared_stub,
+                gate=GO_GATE,
+                bash_suites={BODY_PROBE_SUITE: 0},
+            )
+
+        def test_should_exit_zero_when_the_suites_all_pass(self, result):
+            assert result.status == 0
+
+        def test_should_consult_the_gate_exactly_once_before_running_any_suite(
+            self, result
+        ):
+            assert gate_call_count(result) == 1
+
+        def test_should_run_the_suite_body(self, result):
+            assert suite_bodies_ran(result)
+
+        def test_should_report_the_passing_suite(self, result):
+            assert f"PASS  {BODY_PROBE_SUITE}" in result.output
+
+    class TestNoGoVerdict:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_in_sandbox(
+                tmp_path_factory,
+                shared_stub,
+                gate=FakeTool(exit_code=1, output=NO_GO_LINE),
+                bash_suites={BODY_PROBE_SUITE: 0},
+            )
+
+        def test_should_exit_2_so_callers_can_tell_not_run_apart_from_red(
+            self, result
+        ):
+            assert result.status == 2
+
+        def test_should_say_outright_that_the_suites_did_not_run(self, result):
+            assert "did NOT run" in result.output
+
+        def test_should_print_the_gates_own_stdout_line(self, result):
+            assert "HEADROOM=NO-GO" in result.output
+
+        def test_should_not_execute_a_single_suite(self, result):
+            assert not suite_bodies_ran(result)
+
+    class TestUnknownVerdict:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_in_sandbox(
+                tmp_path_factory,
+                shared_stub,
+                gate=FakeTool(exit_code=2, output=UNKNOWN_LINE),
+                bash_suites={BODY_PROBE_SUITE: 0},
+            )
+
+        def test_should_exit_2_rather_than_guess_whether_the_machine_has_headroom(
+            self, result
+        ):
+            assert result.status == 2
+
+        def test_should_say_outright_that_the_suites_did_not_run(self, result):
+            assert "did NOT run" in result.output
+
+        def test_should_not_execute_a_single_suite(self, result):
+            assert not suite_bodies_ran(result)
+
+    class TestMissingGateScript:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_in_sandbox(
+                tmp_path_factory,
+                shared_stub,
+                gate=None,
+                bash_suites={BODY_PROBE_SUITE: 0},
+            )
+
+        def test_should_exit_2_rather_than_run_unguarded(self, result):
+            assert result.status == 2
+
+        def test_should_say_outright_that_the_suites_did_not_run(self, result):
+            assert "did NOT run" in result.output
+
+        def test_should_not_execute_a_single_suite(self, result):
+            assert not suite_bodies_ran(result)
+
+
+class TestNodeSuites:
+    class TestDiscovery:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_in_sandbox(
+                tmp_path_factory,
+                shared_stub,
+                node_suites=(
+                    "configs/ai-docs/claude/tests/fake-top.test.js",
+                    "configs/ai-docs/claude/scripts/tests/fake-scripts.test.js",
+                    "configs/ai-docs/claude/hooks/tests/fake-hooks.test.js",
+                    "configs/ai-docs/claude/skills/fake-skill/scripts/tests/fake-skill.test.js",
+                ),
+            )
+
+        def test_should_exit_zero_when_every_discovered_node_suite_passes(self, result):
+            assert result.status == 0
+
+        def test_should_run_a_node_suite_sitting_in_the_top_level_tests_tree(
+            self, result
+        ):
+            assert "PASS  configs/ai-docs/claude/tests/fake-top.test.js" in result.output
+
+        def test_should_run_a_node_suite_sitting_in_the_scripts_tests_tree(
+            self, result
+        ):
+            assert (
+                "PASS  configs/ai-docs/claude/scripts/tests/fake-scripts.test.js"
+                in result.output
+            )
+
+        def test_should_run_a_node_suite_sitting_in_the_hooks_tests_tree(self, result):
+            assert (
+                "PASS  configs/ai-docs/claude/hooks/tests/fake-hooks.test.js"
+                in result.output
+            )
+
+        def test_should_run_a_node_suite_sitting_in_a_skills_scripts_tests_tree(
+            self, result
+        ):
+            assert (
+                "PASS  configs/ai-docs/claude/skills/fake-skill/scripts/tests/"
+                "fake-skill.test.js"
+            ) in result.output
+
+        def test_should_count_all_four_node_suites_alongside_the_pytest_step(
+            self, result
+        ):
+            assert "5 passed, 0 failed" in result.output
+
+    class TestFailingSuite:
+        failing_suite = (
+            "configs/ai-docs/claude/skills/fake-skill/scripts/tests/fake-skill.test.js"
+        )
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_in_sandbox(
+                tmp_path_factory,
+                shared_stub,
+                node=FAILING_NODE,
+                node_suites=(cls.failing_suite,),
+            )
+
+        def test_should_exit_non_zero_when_a_folded_in_node_suite_has_a_failing_test(
+            self, result
+        ):
+            assert result.status == 1
+
+        def test_should_name_the_failing_node_suite_by_a_path_a_human_can_re_run_by_hand(
+            self, result
+        ):
+            assert f"FAIL  {self.failing_suite}" in result.output
+
+        def test_should_replay_the_failing_node_assertion_not_just_a_bare_fail_line(
+            self, result
+        ):
+            assert "sandbox node regression fixture" in result.output
+
+    class TestNodeNotInstalled:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_in_sandbox(
+                tmp_path_factory,
+                shared_stub,
+                node=None,
+                node_suites=("configs/ai-docs/claude/hooks/tests/fake-hooks.test.js",),
+            )
+
+        def test_should_exit_non_zero_rather_than_silently_reading_as_a_pass(
+            self, result
+        ):
+            assert result.status == 1
+
+        def test_should_name_node_as_not_installed_rather_than_reporting_a_bare_fail(
+            self, result
+        ):
+            assert "node: command not found" in result.output
+
+    class TestNoNodeSuiteExists:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_in_sandbox(tmp_path_factory, shared_stub)
+
+        def test_should_exit_zero_because_an_unmatched_glob_is_an_empty_leg(
+            self, result
+        ):
+            assert result.status == 0
+
+        def test_should_count_only_the_pytest_step_when_no_node_suite_is_discovered(
+            self, result
+        ):
+            assert "1 passed, 0 failed" in result.output
+
+    class TestEarlierBashSuiteFails:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_in_sandbox(
+                tmp_path_factory,
+                shared_stub,
+                bash_suites={FAKE_BASH_SUITE: 1},
+                node_suites=("configs/ai-docs/claude/hooks/tests/fake-hooks.test.js",),
+            )
+
+        def test_should_exit_non_zero_because_the_bash_suite_failed(self, result):
+            assert result.status == 1
+
+        def test_should_still_run_and_report_the_node_suite_rather_than_aborting(
+            self, result
+        ):
+            assert (
+                "PASS  configs/ai-docs/claude/hooks/tests/fake-hooks.test.js"
+                in result.output
+            )
+
+        def test_should_count_the_failed_bash_suite_the_node_suite_and_pytest(
+            self, result
+        ):
+            assert "2 passed, 1 failed" in result.output
+
+
+class TestPytestStep:
+    class TestFailingSuite:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_in_sandbox(
+                tmp_path_factory, shared_stub, pytest_tool=FAILING_PYTEST
+            )
+
+        def test_should_exit_non_zero_when_the_folded_in_pytest_step_has_a_failing_test(
+            self, result
+        ):
+            assert result.status == 1
+
+        def test_should_list_the_pytest_step_as_fail_in_the_pass_fail_summary(
+            self, result
+        ):
+            assert "FAIL  pytest" in result.output
+
+        def test_should_replay_the_failing_python_assertion_not_just_a_bare_fail_line(
+            self, result
+        ):
+            assert "sandbox regression fixture" in result.output
+
+    class TestPytestNotInstalled:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_in_sandbox(tmp_path_factory, shared_stub, pytest_tool=None)
+
+        def test_should_exit_non_zero_rather_than_silently_reading_as_a_pass(
+            self, result
+        ):
+            assert result.status == 1
+
+        def test_should_name_pytest_as_not_installed_rather_than_reporting_a_bare_fail(
+            self, result
+        ):
+            assert "pytest: command not found" in result.output
+
+    class TestEarlierBashSuiteFails:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_in_sandbox(
+                tmp_path_factory, shared_stub, bash_suites={FAKE_BASH_SUITE: 1}
+            )
+
+        def test_should_exit_non_zero_because_the_bash_suite_failed(self, result):
+            assert result.status == 1
+
+        def test_should_still_report_the_failing_bash_suite(self, result):
+            assert f"FAIL  {FAKE_BASH_SUITE}" in result.output
+
+        def test_should_still_run_and_report_the_pytest_step_rather_than_aborting(
+            self, result
+        ):
+            assert "PASS  pytest" in result.output
+
+        def test_should_count_both_the_failed_bash_suite_and_the_passing_pytest_step(
+            self, result
+        ):
+            assert "1 passed, 1 failed" in result.output
+
+
+class TestBashNotInstalled:
+    @pytest.fixture(scope="class")
+    @classmethod
+    def result(cls, tmp_path_factory, shared_stub):
+        return run_in_sandbox(
+            tmp_path_factory,
+            shared_stub,
+            path_tools=(),
+            bash_suites={FAKE_BASH_SUITE: 0},
+        )
+
+    def test_should_fail_the_bash_suite_and_exit_non_zero_instead_of_crashing(
+        self, result
+    ):
+        assert (result.status, f"FAIL  {FAKE_BASH_SUITE}" in result.output) == (1, True)
+
+    def test_should_name_bash_as_not_installed_in_the_replayed_log(self, result):
+        assert "bash: command not found" in result.output

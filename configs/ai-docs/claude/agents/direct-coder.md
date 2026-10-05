@@ -28,7 +28,7 @@ The caller embeds these directly in the dispatch prompt. No CWD reads are requir
   - Anything beyond it routes through Drift or Scout, per Procedure step 4.
 
 - **Verification**: the command that must stay green - the caller's when given, derived by you when not.
-  - Derive it from a file that *declares* the repo's entry point, first match wins: `CLAUDE.md`/`AGENTS.md`, `package.json` scripts, `pytest.ini`/`pyproject.toml`, a repo-root `run-tests.sh`/`Makefile`.
+  - Derive it from a file that *declares* the repo's entry point, first match wins: `CLAUDE.md`/`AGENTS.md`, `package.json` scripts, `pytest.ini`/`pyproject.toml`, a repo-root `run-tests.py`/`Makefile`.
   - Name the command AND the file you read it from in the report, so the run is re-checkable against a repo someone else holds.
 
 - **Optional**: `Context` - free-text framing. `base:` - the base SHA for reading prior commits' why. Thin or absent Context is never by itself a reason to report `blocked`.
