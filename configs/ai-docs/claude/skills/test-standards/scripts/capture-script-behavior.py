@@ -62,12 +62,34 @@ GIT_DIR_NAME = ".git"
 ROW_TIMEOUT_SECONDS = 60
 
 
-class FixtureEscapeError(ValueError):
+class RowError(Exception):
+    """Base of every error caused by one table row. The CLI catches
+    only this, so a malformed table's JSONDecodeError (also a
+    ValueError) is never mistaken for a bad row.
+
+    `row` is the label the CLI prints: a quoted name, or `#<index>`
+    for a row without one. A raiser that cannot know it leaves it
+    None and the caller that can fills it in."""
+
+    def __init__(self, reason: str, *, row: str | None = None):
+        super().__init__(reason)
+        self.reason = reason
+        self.row = row
+
+    def __str__(self) -> str:
+        return self.reason if self.row is None else f"row {self.row}: {self.reason}"
+
+
+class InvalidRowError(RowError, ValueError):
+    """Raised when a row's own data is malformed."""
+
+
+class FixtureEscapeError(RowError, ValueError):
     """Raised when a row's fixture_files key would write outside its
     isolated fixture directory."""
 
 
-class RowTimeoutError(RuntimeError):
+class RowTimeoutError(RowError, RuntimeError):
     """Raised when a row's script outlives its timeout."""
 
 
@@ -87,8 +109,16 @@ class Row:
 
     @classmethod
     def from_dict(cls, data: dict) -> "Row":
-        known = {f for f in cls.__dataclass_fields__}
-        return cls(**{k: v for k, v in data.items() if k in known})
+        # Dropping an unknown key silently would capture a
+        # typo'd row (`expected_stdut`) without its intended
+        # data and still exit 0.
+        if "name" not in data:
+            raise InvalidRowError("missing required key 'name'")
+        unknown = [key for key in data if key not in cls.__dataclass_fields__]
+        if unknown:
+            listed = ", ".join(repr(key) for key in unknown)
+            raise InvalidRowError(f"unknown key(s) {listed}")
+        return cls(**data)
 
     def has_golden(self) -> bool:
         return self.expected_exit_code is not None
@@ -351,9 +381,23 @@ def test_replays_every_captured_row():
 
 def _load_table(path: Path) -> tuple:
     data = json.loads(path.read_text())
-    rows = [Row.from_dict(r) for r in data.get("rows", [])]
+    rows = []
+    for index, row_dict in enumerate(data.get("rows", [])):
+        try:
+            rows.append(Row.from_dict(row_dict))
+        except RowError as exc:
+            # from_dict cannot know the row's table position.
+            exc.row = repr(row_dict["name"]) if "name" in row_dict else f"#{index}"
+            raise
     known_branches = data.get("known_branches", [])
     return rows, known_branches
+
+
+def _report_row_error(exc: RowError, *, row_label: str) -> int:
+    if exc.row is None:
+        exc.row = row_label
+    print(f"error: {exc}", file=sys.stderr)
+    return 1
 
 
 def cmd_capture(args) -> int:
@@ -363,7 +407,10 @@ def cmd_capture(args) -> int:
     # instead of from the caller's original working directory.
     script = Path(args.script).resolve()
     table_path = Path(args.table)
-    rows, known_branches = _load_table(table_path)
+    try:
+        rows, known_branches = _load_table(table_path)
+    except RowError as exc:
+        return _report_row_error(exc, row_label="")
 
     updated_rows = []
     for row in rows:
@@ -372,10 +419,9 @@ def cmd_capture(args) -> int:
             fixture_path = Path(fixture_dir)
             try:
                 setup_fixture(fixture_path, row)
-            except FixtureEscapeError as exc:
-                print(f"error: row {row.name!r}: {exc}", file=sys.stderr)
-                return 1
-            actual = capture_row(script, row, fixture_dir=fixture_path)
+                actual = capture_row(script, row, fixture_dir=fixture_path)
+            except RowError as exc:
+                return _report_row_error(exc, row_label=repr(row.name))
 
         if row.has_golden():
             expected = asdict(row)

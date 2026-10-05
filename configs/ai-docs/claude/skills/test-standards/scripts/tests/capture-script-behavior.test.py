@@ -641,3 +641,41 @@ class TestCaptureScriptBehaviorFailure(_TempDirTestCase):
         # internals rather than the file the reader has to go
         # fix.
         self.assertNotIn("AttributeError", output)
+
+
+class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
+    """A row the tool rejects before running anything: the toy
+    script path is never executed, so it need not exist."""
+
+    def _capture_rejecting(self, rows):
+        table = _write_table(self.tmp_path / "table.json", rows)
+        json_out = self.tmp_path / "captured.json"
+        emitted = self.tmp_path / "toy.test.py"
+        result = _run("capture", "--script", str(self.tmp_path / "never-run.sh"),
+                       "--table", str(table), "--json-out", str(json_out), "--out", str(emitted))
+        self.assertEqual(result.returncode, 1, msg=result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertFalse(json_out.exists())
+        self.assertFalse(emitted.exists())
+        return result.stderr
+
+    def test_should_reject_a_row_with_a_misspelled_key_naming_the_row_and_every_unknown_key(self):
+        stderr = self._capture_rejecting([
+            {"name": "typo-row", "expected_stdut": "hi\n", "fixture_file": {"a": "b"}},
+        ])
+
+        self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
+        self.assertTrue(stderr.startswith("error: row 'typo-row': "), msg=stderr)
+        self.assertIn("expected_stdut", stderr)
+        self.assertIn("fixture_file", stderr)
+
+    def test_should_name_a_row_without_a_name_by_its_position_in_the_table(self):
+        stderr = self._capture_rejecting([
+            {"name": "first-row"},
+            {"name": "second-row"},
+            {"argv": ["--flag"]},
+        ])
+
+        self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
+        self.assertTrue(stderr.startswith("error: row #2: "), msg=stderr)
+        self.assertIn("name", stderr)
