@@ -119,19 +119,79 @@ write_malformed_loadavg() {
   printf 'abc 0.00 0.00 1/200 12345\n' >"$dir/loadavg"
 }
 
+# Shared stubs - df, sysctl and vm_stat are written once into
+# $shared_dir and exec'd once as a warm-up. macOS scans every
+# newly written executable on its first exec, so a per-case
+# stub would cost one scan per case; a symlink does not.
+#
+# Each case's values live in a "<tool>.fixture" file beside its
+# symlink, which the stub finds through ${0%/*} ($0 is the
+# symlink path).
+#
+# Stubs use only the builtin `read`, because env -i leaves no
+# cat or dirname on PATH.
+#
+# A stub is never rewritten after linking: that write would
+# follow the symlink and change it for every other case.
+shared_dir="$(mktemp -d "${TMPDIR:-/tmp}/check-machine-headroom-stubs.XXXXXX")"
+trap 'rm -rf "$shared_dir"' EXIT
+
+# write_shared_stub - writes $shared_dir/$1 with body $2.
+write_shared_stub() {
+  local name="$1" body="$2"
+  {
+    printf '#!%s\n' "$real_bash"
+    printf '%s\n' "$body"
+  } >"$shared_dir/$name"
+  chmod +x "$shared_dir/$name"
+}
+
+# shellcheck disable=SC2016
+write_shared_stub df '
+IFS= read -r avail_kb <"${0%/*}/df.fixture"
+printf "%s\n" "Filesystem 1024-blocks Used Available Capacity Mounted-on"
+printf "%s\n" "/dev/disk1 1000000 500000 $avail_kb 50 /"'
+
+# shellcheck disable=SC2016
+write_shared_stub sysctl '
+{ IFS= read -r ncpu; IFS= read -r loadavg_raw; IFS= read -r pagesize; } <"${0%/*}/sysctl.fixture"
+case "$2" in
+  hw.ncpu) printf "%s\n" "$ncpu" ;;
+  vm.loadavg) printf "%s\n" "$loadavg_raw" ;;
+  hw.pagesize) printf "%s\n" "$pagesize" ;;
+esac'
+
+# shellcheck disable=SC2016
+write_shared_stub vm_stat '
+{ IFS= read -r free; IFS= read -r inactive; IFS= read -r spec; IFS= read -r purg; } <"${0%/*}/vm_stat.fixture"
+echo "Mach Virtual Memory Statistics: (page size of 16384 bytes)"
+echo "Pages free:                                   $free."
+echo "Pages active:                                 1000."
+echo "Pages inactive:                               $inactive."
+echo "Pages speculative:                            $spec."
+echo "Pages purgeable:                               $purg."
+echo "Pages wired down:                             500."'
+
+printf '1\n' >"$shared_dir/df.fixture"
+printf '1\n1\n1\n' >"$shared_dir/sysctl.fixture"
+printf '1\n1\n1\n1\n' >"$shared_dir/vm_stat.fixture"
+for stub in df sysctl vm_stat; do
+  env -i "$shared_dir/$stub" -n hw.ncpu >/dev/null 2>&1
+done
+
+# link_shared_stub - links $bindir/$1 to the warmed shared stub.
+link_shared_stub() {
+  mkdir -p "$1"
+  ln -sf "$shared_dir/$2" "$1/$2"
+}
+
 # write_fake_df - a fake `df` printing a fixed Available (KB)
 # column, so every test's disk_free_mb is deterministic and no
 # fixture ever reads the real filesystem's free space.
 write_fake_df() {
-  local bindir="$1" avail_kb="$2" f
-  f="$bindir/df"
-  mkdir -p "$bindir"
-  {
-    printf '#!%s\n' "$real_bash"
-    printf 'printf "%%s\\n" "Filesystem 1024-blocks Used Available Capacity Mounted-on"\n'
-    printf 'printf "%%s\\n" "/dev/disk1 1000000 500000 %s 50 /"\n' "$avail_kb"
-  } >"$f"
-  chmod +x "$f"
+  local bindir="$1" avail_kb="$2"
+  link_shared_stub "$bindir" df
+  printf '%s\n' "$avail_kb" >"$bindir/df.fixture"
 }
 
 # write_fake_sysctl - a fake `sysctl` answering
@@ -141,21 +201,9 @@ write_fake_df() {
 # a caller can pass a genuinely malformed shape (case 19b), not
 # just a high/low number.
 write_fake_sysctl() {
-  local bindir="$1" ncpu="$2" loadavg_raw="$3" pagesize="$4" f
-  f="$bindir/sysctl"
-  mkdir -p "$bindir"
-  {
-    printf '#!%s\n' "$real_bash"
-
-    # literal $2 for the generated script, not a shell expansion
-    # shellcheck disable=SC2016
-    printf 'case "$2" in\n'
-    printf '  hw.ncpu) printf "%%s\\n" "%s" ;;\n' "$ncpu"
-    printf '  vm.loadavg) printf "%%s\\n" "%s" ;;\n' "$loadavg_raw"
-    printf '  hw.pagesize) printf "%%s\\n" "%s" ;;\n' "$pagesize"
-    printf 'esac\n'
-  } >"$f"
-  chmod +x "$f"
+  local bindir="$1" ncpu="$2" loadavg_raw="$3" pagesize="$4"
+  link_shared_stub "$bindir" sysctl
+  printf '%s\n%s\n%s\n' "$ncpu" "$loadavg_raw" "$pagesize" >"$bindir/sysctl.fixture"
 }
 
 # write_fake_vm_stat - a fake `vm_stat` reporting the four
@@ -163,20 +211,9 @@ write_fake_sysctl() {
 # trailing period so the fixture also proves that period gets
 # stripped correctly.
 write_fake_vm_stat() {
-  local bindir="$1" free="$2" inactive="$3" spec="$4" purg="$5" f
-  f="$bindir/vm_stat"
-  mkdir -p "$bindir"
-  {
-    printf '#!%s\n' "$real_bash"
-    printf 'echo "Mach Virtual Memory Statistics: (page size of 16384 bytes)"\n'
-    printf 'echo "Pages free:                                   %s."\n' "$free"
-    printf 'echo "Pages active:                                 1000."\n'
-    printf 'echo "Pages inactive:                               %s."\n' "$inactive"
-    printf 'echo "Pages speculative:                            %s."\n' "$spec"
-    printf 'echo "Pages purgeable:                               %s."\n' "$purg"
-    printf 'echo "Pages wired down:                             500."\n'
-  } >"$f"
-  chmod +x "$f"
+  local bindir="$1" free="$2" inactive="$3" spec="$4" purg="$5"
+  link_shared_stub "$bindir" vm_stat
+  printf '%s\n%s\n%s\n%s\n' "$free" "$inactive" "$spec" "$purg" >"$bindir/vm_stat.fixture"
 }
 
 # run_headroom - runs the script under test with a fully curated
