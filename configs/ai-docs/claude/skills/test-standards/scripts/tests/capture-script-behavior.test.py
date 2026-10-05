@@ -6,8 +6,10 @@
 # Each test runs inside a fresh tempfile.TemporaryDirectory()
 # per test so no run touches the real repo tree.
 
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import subprocess
@@ -15,6 +17,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 SCRIPT = Path(__file__).parent.parent / "capture-script-behavior.py"
 REPO_ROOT = Path(__file__).parent.parent.parent.parent.parent.parent.parent.parent
@@ -668,6 +671,34 @@ class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
         self.assertTrue(stderr.startswith("error: row 'typo-row': "), msg=stderr)
         self.assertIn("expected_stdut", stderr)
         self.assertIn("fixture_file", stderr)
+
+    def test_should_report_a_row_that_outlives_its_timeout_as_a_one_line_error_and_write_nothing(self):
+        # subprocess.run is patched to time out, so no script
+        # runs and no executable is needed. The real kill is
+        # covered by the row-timeout test above.
+        spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
+        assert spec is not None and spec.loader is not None
+        harness = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(harness)
+        table = _write_table(self.tmp_path / "table.json", [{"name": "slow-row"}])
+        json_out = self.tmp_path / "captured.json"
+        emitted = self.tmp_path / "toy.test.py"
+
+        timed_out = subprocess.TimeoutExpired(cmd="never-run.sh", timeout=60)
+        stderr = io.StringIO()
+        with mock.patch.object(harness.subprocess, "run", side_effect=timed_out), \
+                contextlib.redirect_stderr(stderr):
+            exit_code = harness.main(["capture", "--script", str(self.tmp_path / "never-run.sh"),
+                                       "--table", str(table), "--json-out", str(json_out),
+                                       "--out", str(emitted)])
+
+        self.assertEqual(exit_code, 1)
+        lines = stderr.getvalue().splitlines()
+        self.assertEqual(len(lines), 1, msg=stderr.getvalue())
+        self.assertTrue(lines[0].startswith("error: row 'slow-row': ran past 60"), msg=lines[0])
+        self.assertEqual(lines[0].count("slow-row"), 1, msg=lines[0])
+        self.assertFalse(json_out.exists())
+        self.assertFalse(emitted.exists())
 
     def test_should_name_a_row_without_a_name_by_its_position_in_the_table(self):
         stderr = self._capture_rejecting([

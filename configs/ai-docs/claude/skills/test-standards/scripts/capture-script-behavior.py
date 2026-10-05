@@ -229,8 +229,9 @@ def capture_row(
         )
     except subprocess.TimeoutExpired as exc:
         raise RowTimeoutError(
-            f"row {row.name!r} ran past {timeout_seconds}s and was killed; "
-            "no golden is recorded from a killed run"
+            f"ran past {timeout_seconds}s and was killed; "
+            "no golden is recorded from a killed run",
+            row=repr(row.name),
         ) from exc
     post_state = {
         "tree": hash_fixture_tree(fixture_dir, fixture_dir=fixture_dir),
