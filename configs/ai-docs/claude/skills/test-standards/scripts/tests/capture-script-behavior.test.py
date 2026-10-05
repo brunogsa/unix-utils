@@ -184,8 +184,10 @@ class TestCaptureScriptBehaviorHappy(_TempDirTestCase):
         rewrite = _write_executable(self.tmp_path / "rewrite.sh", (
             "#!/bin/sh\necho hi\nexit 0\n"
         ))
-        # The emitted file names the script by a path relative to
-        # itself, so the substitution targets that relative form.
+
+        # The emitted file names the script by a path relative
+        # to itself, so the substitution targets that relative
+        # form.
         original_ref = repr(os.path.relpath(script, emitted.parent))
         rewrite_ref = repr(os.path.relpath(rewrite, emitted.parent))
         text = emitted.read_text().replace(original_ref, rewrite_ref)
@@ -193,8 +195,8 @@ class TestCaptureScriptBehaviorHappy(_TempDirTestCase):
         self.assertNotIn(original_ref, text)
         emitted.write_text(text)
 
-        # With the original gone, a replay can only pass by running
-        # the rewrite.
+        # With the original gone, a replay can only pass by
+        # running the rewrite.
         script.unlink()
 
         replay_result = subprocess.run(
