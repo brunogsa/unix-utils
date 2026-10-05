@@ -86,9 +86,11 @@ USAGE = "usage: check-bullet-structure.py [--changed-only] <file>..."
 INLINE_CODE = re.compile(r"`[^`]*`")
 CODE_SPAN_STAND_IN = "code"
 TRAILING_EMPHASIS = re.compile(r"[*_\s]+$")
-# A Slack/GitHub emoji shortcode such as ":warning:" renders as an emoji, so
-# its closing colon introduces nothing. The leading whitespace keeps a real
-# "key:value:" ending flagged.
+
+# A Slack/GitHub emoji shortcode like ":warning:" renders
+# as an emoji, so its closing colon introduces nothing.
+# The leading whitespace keeps a real "key:value:"
+# ending flagged.
 TRAILING_EMOJI_SHORTCODE = re.compile(r"\s:[a-z0-9_+-]+:$")
 
 # " --" needs its leading space, so a "---" rule never matches.

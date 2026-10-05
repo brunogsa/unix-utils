@@ -230,8 +230,9 @@ def test_colon_items_inside_a_fenced_code_block_are_not_reported(tmp_path):
 
 
 def test_items_ending_in_a_slack_emoji_shortcode_are_not_reported(tmp_path):
-    # A shortcode like :information_source: renders as an emoji in Slack and
-    # GitHub, so its closing colon introduces nothing.
+    # A shortcode like :information_source: renders as
+    # an emoji in Slack and GitHub, so its closing
+    # colon introduces nothing.
     result = run(
         tmp_path,
         "- Integrador deve recusar Acordos B2C sem Contrato de Venda. :information_source:\n"
