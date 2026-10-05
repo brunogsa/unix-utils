@@ -16,6 +16,7 @@
     "post",
     "render",
     "resolve",
+    "run",
     "verify"
   ],
   "category_object_denylist": [
