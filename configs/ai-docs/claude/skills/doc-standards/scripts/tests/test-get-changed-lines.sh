@@ -24,7 +24,8 @@ SCRIPT="$script_dir/get-changed-lines.sh"
 # relative-path comparison miss.
 work_dir=$(cd "$(mktemp -d)" && pwd -P)
 missing_out="$(mktemp)"
-trap 'rm -rf "$work_dir"; rm -f "$missing_out"' EXIT
+run_tmp="$(mktemp -d)"
+trap 'rm -rf "$work_dir" "$run_tmp"; rm -f "$missing_out"' EXIT
 
 pass_count=0
 fail_count=0
@@ -101,12 +102,12 @@ assert_eq "missing file exits 2" "2" "$rc"
 plain_dir="$work_dir/plain"
 mkdir -p "$plain_dir"
 printf 'x\n' > "$plain_dir/file.txt"
-(cd "$plain_dir" && "$SCRIPT" file.txt) >/tmp/get-changed-lines-norepo.out 2>&1
+(cd "$plain_dir" && "$SCRIPT" file.txt) >"$run_tmp/get-changed-lines-norepo.out" 2>&1
 rc=$?
 assert_eq "outside a git work tree exits 2" "2" "$rc"
 
 # --- Case 7: no argument -> usage error, exit 2 ---
-"$SCRIPT" >/tmp/get-changed-lines-noargs.out 2>&1
+"$SCRIPT" >"$run_tmp/get-changed-lines-noargs.out" 2>&1
 rc=$?
 assert_eq "no argument exits 2" "2" "$rc"
 

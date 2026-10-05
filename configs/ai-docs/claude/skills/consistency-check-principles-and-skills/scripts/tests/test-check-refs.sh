@@ -17,6 +17,8 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECK="$SCRIPT_DIR/../check-refs.sh"
+RUN_TMP=$(mktemp -d)
+trap 'rm -rf "$RUN_TMP"' EXIT
 
 passed=0
 failed=0
@@ -47,9 +49,9 @@ it_should_report_a_markdown_link_whose_target_is_a_git_remote_branch_name() {
     echo "it_should_report_a_markdown_link_whose_target_is_a_git_remote_branch_name"
     local d; d=$(new_fixture)
     printf 'Falls back to [the remote default](origin/HEAD) when unset.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 1" "1" "$status"
-    assert_eq "the branch-name target is reported" "1" "$(grep -c -- '-> origin/HEAD$' /tmp/check-refs-out.txt)"
+    assert_eq "the branch-name target is reported" "1" "$(grep -c -- '-> origin/HEAD$' "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -57,9 +59,9 @@ it_should_report_a_markdown_link_whose_target_is_the_na_abbreviation() {
     echo "it_should_report_a_markdown_link_whose_target_is_the_na_abbreviation"
     local d; d=$(new_fixture)
     printf 'Marked [not applicable](N/A) by the author.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 1" "1" "$status"
-    assert_eq "the abbreviation target is reported" "1" "$(grep -c -- '-> N/A$' /tmp/check-refs-out.txt)"
+    assert_eq "the abbreviation target is reported" "1" "$(grep -c -- '-> N/A$' "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -68,9 +70,9 @@ it_should_pass_a_markdown_link_ref_that_resolves() {
     local d; d=$(new_fixture)
     printf '# Target\nBody.\n' > "$d/target.md"
     printf 'See [target](target.md) for details.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -80,9 +82,9 @@ it_should_pass_a_link_with_backtick_text_whose_target_resolves() {
     mkdir -p "$d/references"
     printf '# Foo\nBody.\n' > "$d/references/foo.md"
     printf 'See [`references/foo.md`](references/foo.md) for details.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -90,9 +92,9 @@ it_should_not_flag_a_bare_backtick_path_to_a_nonexistent_file() {
     echo "it_should_not_flag_a_bare_backtick_path_to_a_nonexistent_file"
     local d; d=$(new_fixture)
     printf 'The convention names `assets/flowchart.md` as the required filename.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -101,9 +103,9 @@ it_should_pass_a_ref_whose_anchor_heading_exists_in_the_target() {
     local d; d=$(new_fixture)
     printf '# Target\n## Some Heading\nBody.\n' > "$d/target.md"
     printf 'See [target](target.md#some-heading) for details.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -113,9 +115,9 @@ it_should_resolve_a_relative_parent_directory_path() {
     mkdir -p "$d/skill-a" "$d/skill-b"
     printf '# Shared\nBody.\n' > "$d/skill-b/shared.md"
     printf 'See [shared](../skill-b/shared.md) for details.\n' > "$d/skill-a/source.md"
-    local status; bash "$CHECK" "$d/skill-a/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/skill-a/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -123,11 +125,11 @@ it_should_report_every_broken_ref_in_a_file_with_more_than_one() {
     echo "it_should_report_every_broken_ref_in_a_file_with_more_than_one"
     local d; d=$(new_fixture)
     printf 'See [one](missing-one.md).\nSee [two](missing-two.md).\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 1" "1" "$status"
-    assert_eq "both broken refs listed" "2" "$(grep -c ' -> ' /tmp/check-refs-out.txt)"
-    assert_eq "first broken ref cites its line" "1" "$(grep -c '^'"$d"'/source.md:1 -> missing-one.md$' /tmp/check-refs-out.txt)"
-    assert_eq "second broken ref cites its line" "1" "$(grep -c '^'"$d"'/source.md:2 -> missing-two.md$' /tmp/check-refs-out.txt)"
+    assert_eq "both broken refs listed" "2" "$(grep -c ' -> ' "$RUN_TMP/check-refs-out.txt")"
+    assert_eq "first broken ref cites its line" "1" "$(grep -c '^'"$d"'/source.md:1 -> missing-one.md$' "$RUN_TMP/check-refs-out.txt")"
+    assert_eq "second broken ref cites its line" "1" "$(grep -c '^'"$d"'/source.md:2 -> missing-two.md$' "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -135,9 +137,9 @@ it_should_fail_a_ref_to_a_nonexistent_file() {
     echo "it_should_fail_a_ref_to_a_nonexistent_file"
     local d; d=$(new_fixture)
     printf 'See [ghost](does-not-exist.md) for details.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 1" "1" "$status"
-    assert_eq "broken ref listed" "1" "$(grep -c 'does-not-exist.md' /tmp/check-refs-out.txt)"
+    assert_eq "broken ref listed" "1" "$(grep -c 'does-not-exist.md' "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -146,9 +148,9 @@ it_should_not_flag_a_trailing_slash_directory_mention_as_a_broken_ref() {
     local d; d=$(new_fixture)
     mkdir -p "$d/scripts"
     printf 'See the shared `scripts/` entry for details.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -157,9 +159,9 @@ it_should_fail_a_ref_whose_anchor_heading_does_not_exist_in_an_existing_target()
     local d; d=$(new_fixture)
     printf '# Target\n## Some Heading\nBody.\n' > "$d/target.md"
     printf 'See [target](target.md#missing-heading) for details.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 1" "1" "$status"
-    assert_eq "broken ref listed" "1" "$(grep -c 'target.md#missing-heading' /tmp/check-refs-out.txt)"
+    assert_eq "broken ref listed" "1" "$(grep -c 'target.md#missing-heading' "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -168,9 +170,9 @@ it_should_pass_a_ref_whose_anchor_matches_an_em_dash_heading_github_style() {
     local d; d=$(new_fixture)
     printf '# Target\n## Counting conventions \xe2\x80\x94 markers for deterministic measurement\nBody.\n' > "$d/target.md"
     printf 'See [target](target.md#counting-conventions--markers-for-deterministic-measurement) for details.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -179,9 +181,9 @@ it_should_pass_a_ref_whose_anchor_matches_the_second_occurrence_of_a_duplicate_h
     local d; d=$(new_fixture)
     printf '# Target\n## Dupe\nBody one.\n## Dupe\nBody two.\n' > "$d/target.md"
     printf 'See [target](target.md#dupe-1) for details.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -189,9 +191,9 @@ it_should_not_flag_a_slash_command_mention_as_a_broken_ref() {
     echo "it_should_not_flag_a_slash_command_mention_as_a_broken_ref"
     local d; d=$(new_fixture)
     printf 'Run `/implement` to start the batch.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -200,9 +202,9 @@ it_should_pass_a_ref_to_an_existing_directory_without_a_trailing_slash() {
     local d; d=$(new_fixture)
     mkdir -p "$d/references"
     printf 'See [references](references) for details.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -216,9 +218,9 @@ it_should_not_flag_a_broken_looking_link_shown_as_an_example_inside_a_fenced_cod
         '```' \
         'End of example.' \
         > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -234,18 +236,18 @@ it_should_fail_a_ref_whose_anchor_matches_only_a_heading_line_inside_a_fenced_co
         'More body.' \
         > "$d/target.md"
     printf 'See [target](target.md#usage-some-comment) for details.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 1" "1" "$status"
-    assert_eq "broken ref listed" "1" "$(grep -c 'target.md#usage-some-comment' /tmp/check-refs-out.txt)"
+    assert_eq "broken ref listed" "1" "$(grep -c 'target.md#usage-some-comment' "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
 it_should_report_zero_broken_refs_against_the_real_jira_cli_skill_file() {
     echo "it_should_report_zero_broken_refs_against_the_real_jira_cli_skill_file"
     local target="$SCRIPT_DIR/../../../jira-cli/SKILL.md"
-    local status; bash "$CHECK" "$target" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$target" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
 }
 
 it_should_not_scan_a_backtick_path_inside_a_markdown_link_text_as_its_own_ref() {
@@ -254,9 +256,9 @@ it_should_not_scan_a_backtick_path_inside_a_markdown_link_text_as_its_own_ref() 
     mkdir -p "$d/skill-a" "$d/skill-b/references"
     printf '# Thing\n' > "$d/skill-b/references/thing.md"
     printf 'See [`skill-b/references/thing.md`](../skill-b/references/thing.md) for details.\n' > "$d/skill-a/source.md"
-    local status; bash "$CHECK" "$d/skill-a/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/skill-a/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -265,10 +267,10 @@ it_should_report_only_the_target_of_a_link_with_backtick_text_when_the_target_is
     local d; d=$(new_fixture)
     mkdir -p "$d/skill-a" "$d/skill-b"
     printf 'See [`skill-b/thing.md`](../skill-b/thing.md) for details.\n' > "$d/skill-a/source.md"
-    local status; bash "$CHECK" "$d/skill-a/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/skill-a/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 1" "1" "$status"
-    assert_eq "exactly one broken ref listed" "1" "$(grep -c ' -> ' /tmp/check-refs-out.txt)"
-    assert_eq "the link target is the one reported" "1" "$(grep -c -- '-> ../skill-b/thing.md$' /tmp/check-refs-out.txt)"
+    assert_eq "exactly one broken ref listed" "1" "$(grep -c ' -> ' "$RUN_TMP/check-refs-out.txt")"
+    assert_eq "the link target is the one reported" "1" "$(grep -c -- '-> ../skill-b/thing.md$' "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -276,9 +278,9 @@ it_should_not_flag_a_broken_looking_link_shown_inside_an_inline_code_span() {
     echo "it_should_not_flag_a_broken_looking_link_shown_inside_an_inline_code_span"
     local d; d=$(new_fixture)
     printf 'Supported inline syntax: `**bold**` and `[text](missing-file.md)`.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -286,10 +288,10 @@ it_should_report_a_real_broken_link_on_the_same_line_as_an_inline_code_span_link
     echo "it_should_report_a_real_broken_link_on_the_same_line_as_an_inline_code_span_link"
     local d; d=$(new_fixture)
     printf 'Shown `[text](example-missing.md)` but real [doc](real-missing.md).\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 1" "1" "$status"
-    assert_eq "exactly one broken ref listed" "1" "$(grep -c ' -> ' /tmp/check-refs-out.txt)"
-    assert_eq "only the real link is reported" "1" "$(grep -c -- '-> real-missing.md$' /tmp/check-refs-out.txt)"
+    assert_eq "exactly one broken ref listed" "1" "$(grep -c ' -> ' "$RUN_TMP/check-refs-out.txt")"
+    assert_eq "only the real link is reported" "1" "$(grep -c -- '-> real-missing.md$' "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -297,9 +299,9 @@ it_should_not_flag_a_link_inside_a_span_next_to_a_double_backtick_span() {
     echo "it_should_not_flag_a_link_inside_a_span_next_to_a_double_backtick_span"
     local d; d=$(new_fixture)
     printf 'Inline `**bold**` / `` `code` `` / `[text](url-missing.md)` all work.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -307,9 +309,9 @@ it_should_not_flag_a_link_inside_a_double_backtick_span() {
     echo "it_should_not_flag_a_link_inside_a_double_backtick_span"
     local d; d=$(new_fixture)
     printf 'Write ``[text](double-missing.md)`` to show it.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 0" "0" "$status"
-    assert_eq "no broken refs reported" "" "$(cat /tmp/check-refs-out.txt)"
+    assert_eq "no broken refs reported" "" "$(cat "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 
@@ -317,9 +319,9 @@ it_should_still_scan_a_link_after_an_unpaired_backtick() {
     echo "it_should_still_scan_a_link_after_an_unpaired_backtick"
     local d; d=$(new_fixture)
     printf 'A stray ` tick then [doc](odd-missing.md) here.\n' > "$d/source.md"
-    local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
+    local status; bash "$CHECK" "$d/source.md" >"$RUN_TMP/check-refs-out.txt" 2>&1; status=$?
     assert_status "exits 1" "1" "$status"
-    assert_eq "the link after the stray tick is reported" "1" "$(grep -c -- '-> odd-missing.md$' /tmp/check-refs-out.txt)"
+    assert_eq "the link after the stray tick is reported" "1" "$(grep -c -- '-> odd-missing.md$' "$RUN_TMP/check-refs-out.txt")"
     rm -rf "$d"
 }
 

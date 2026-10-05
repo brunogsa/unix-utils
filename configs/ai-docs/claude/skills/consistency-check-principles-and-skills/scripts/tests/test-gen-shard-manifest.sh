@@ -13,6 +13,8 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GEN="$SCRIPT_DIR/../gen-shard-manifest.sh"
+RUN_TMP=$(mktemp -d)
+trap 'rm -rf "$RUN_TMP"' EXIT
 
 passed=0
 failed=0
@@ -513,10 +515,10 @@ it_should_hard_fail_when_the_skills_directory_is_missing() {
     echo "it_should_hard_fail_when_the_skills_directory_is_missing"
     local d; d=$(mktemp -d)
     printf '# Principles\n' > "$d/CLAUDE.md"
-    bash "$GEN" "$d" >/dev/null 2>/tmp/gen-shard-manifest-stderr.txt
+    bash "$GEN" "$d" >/dev/null 2>"$RUN_TMP/gen-shard-manifest-stderr.txt"
     local status=$?
     assert_status "exits non-zero" "1" "$status"
-    assert_eq "prints an error to stderr" "1" "$([ -s /tmp/gen-shard-manifest-stderr.txt ] && echo 1 || echo 0)"
+    assert_eq "prints an error to stderr" "1" "$([ -s "$RUN_TMP/gen-shard-manifest-stderr.txt" ] && echo 1 || echo 0)"
     rm -rf "$d"
 }
 
@@ -562,10 +564,10 @@ description: "Fake."
 ---
 Upstream skill body.
 EOF
-    bash "$GEN" "$d/configs/ai-docs/claude" >/dev/null 2>/tmp/gen-shard-manifest-synced-only-stderr.txt
+    bash "$GEN" "$d/configs/ai-docs/claude" >/dev/null 2>"$RUN_TMP/gen-shard-manifest-synced-only-stderr.txt"
     local status=$?
     assert_status "exits non-zero once synced/ is the only entry" "1" "$status"
-    assert_eq "prints an error to stderr" "1" "$([ -s /tmp/gen-shard-manifest-synced-only-stderr.txt ] && echo 1 || echo 0)"
+    assert_eq "prints an error to stderr" "1" "$([ -s "$RUN_TMP/gen-shard-manifest-synced-only-stderr.txt" ] && echo 1 || echo 0)"
     rm -rf "$d"
 }
 
