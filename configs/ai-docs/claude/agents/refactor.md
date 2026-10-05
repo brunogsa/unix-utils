@@ -46,6 +46,12 @@ Read every file in the caller-named scope in that same first message - the scope
 
 - If the pre-change tests are already red, stop and report it - never refactor over a known-broken baseline.
 - If the post-change tests fail, revert your change and report the failure - never hand back a red diff as done.
+  - Revert only the paths you changed, with `git checkout -- <path>`. Never widen it to `git checkout .`, which also discards whatever the caller left uncommitted.
+
+- Never run `git stash` in any form, or `git reset`, in the working tree you were placed in.
+  - The stash stack and the index are repo-global, so a stash or reset can take or discard other agents' edits, and a pop can restore someone else's stash.
+
+  - For a before-change copy of a file, write `git show HEAD:<path>` into your scratchpad instead.
 
 ## Report format
 

@@ -233,6 +233,11 @@ Evidence file, `/tmp/tdd-coder_evidences_<run-label>.txt`:
 
   - Never widen it to `git checkout .` or `git restore .`, which also discard whatever the caller left uncommitted in that tree.
 
+- Never run `git stash` in any form, or `git reset`, in the working tree you were placed in.
+  - The stash stack and the index are repo-global, so a stash or reset can take or discard other agents' edits, and a pop can restore someone else's stash.
+
+  - For a before-change copy of a file, write `git show HEAD:<path>` into your scratchpad instead.
+
 - `git worktree add` is allowed, narrowly: only when the caller's Optional block sets `worktree:` for this dispatch. Create it once, at the path the caller named.
   - If a worktree already exists at that path, reuse it only when it already sits on the branch the caller named.
   - A path on a different branch is a hard fork. Stop and report `blocked`, naming the mismatch.
