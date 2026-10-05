@@ -8,6 +8,7 @@
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -183,8 +184,18 @@ class TestCaptureScriptBehaviorHappy(_TempDirTestCase):
         rewrite = _write_executable(self.tmp_path / "rewrite.sh", (
             "#!/bin/sh\necho hi\nexit 0\n"
         ))
-        text = emitted.read_text().replace(str(script), str(rewrite))
+        # The emitted file names the script by a path relative to
+        # itself, so the substitution targets that relative form.
+        original_ref = repr(os.path.relpath(script, emitted.parent))
+        rewrite_ref = repr(os.path.relpath(rewrite, emitted.parent))
+        text = emitted.read_text().replace(original_ref, rewrite_ref)
+        self.assertIn(rewrite_ref, text)
+        self.assertNotIn(original_ref, text)
         emitted.write_text(text)
+
+        # With the original gone, a replay can only pass by running
+        # the rewrite.
+        script.unlink()
 
         replay_result = subprocess.run(
             [sys.executable, "-m", "pytest", "--import-mode=importlib", str(emitted), "-q"],
