@@ -164,7 +164,7 @@ def build_sandbox(
     root,
     shared_stub,
     *,
-    gate=GO_GATE,
+    gate: FakeTool | None = GO_GATE,
     node=PASSING_NODE,
     pytest_tool: FakeTool | None = PASSING_PYTEST,
     path_tools=DEFAULT_PATH_TOOLS,
@@ -350,6 +350,35 @@ class TestHeadroomGate:
 
         def test_should_say_outright_that_the_suites_did_not_run(self, result):
             assert "did NOT run" in result.output
+
+        def test_should_not_execute_a_single_suite(self, result):
+            assert not suite_bodies_ran(result)
+
+    class TestGateCannotBeExecuted:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub, unexecable_tool):
+            root = tmp_path_factory.mktemp("sandbox")
+            build_sandbox(
+                root,
+                shared_stub,
+                gate=None,
+                bash_suites={BODY_PROBE_SUITE: 0},
+            )
+            (root / GATE_RELATIVE_PATH).symlink_to(unexecable_tool)
+            return run_runner(root)
+
+        def test_should_exit_2_rather_than_crash_or_run_unguarded(self, result):
+            assert result.status == 2
+
+        def test_should_say_outright_that_the_suites_did_not_run(self, result):
+            assert "did NOT run" in result.output
+
+        def test_should_name_the_gate_and_why_it_could_not_start(self, result):
+            gate_path = result.sandbox / GATE_RELATIVE_PATH
+            assert (
+                f"run-tests.py: {gate_path}: No such file or directory" in result.output
+            )
 
         def test_should_not_execute_a_single_suite(self, result):
             assert not suite_bodies_ran(result)
