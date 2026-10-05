@@ -1388,7 +1388,7 @@ it_should_re_read_subscriptiontype_when_the_invalidation_timestamp_is_newer_than
   # the first call's output shows which source answered: only
   # a cache hit returns cached-tier. That proves the
   # comparison is conditional, not an unconditional re-read.
-  printf '%s cached-tier\n' "$(stat -f %m "$sandbox/credentials.json" 2>/dev/null || stat -c %Y "$sandbox/credentials.json")" \
+  printf '%s cached-tier\n' "$(stat -c %Y "$sandbox/credentials.json" 2>/dev/null || stat -f %m "$sandbox/credentials.json")" \
     >"$sandbox/tier-cache"
 
   first=$(
@@ -1783,12 +1783,12 @@ it_should_return_a_single_line_integer_epoch_when_the_hosts_stat_treats_dash_f_a
   rm -rf "$sandbox"
 }
 
-it_should_return_a_single_line_integer_epoch_from_the_real_stat_on_this_bsd_macos_host() {
+it_should_return_a_single_line_integer_epoch_from_the_real_stat() {
   local sandbox target_file expected actual
   sandbox="$(fresh_sandbox)"
   target_file="$sandbox/some-file"
   printf 'irrelevant' >"$target_file"
-  expected=$(stat -f %m "$target_file" 2>/dev/null || stat -c %Y "$target_file" 2>/dev/null)
+  expected=$(stat -c %Y "$target_file" 2>/dev/null || stat -f %m "$target_file" 2>/dev/null)
 
   actual=$(
     PATH="/usr/bin:/bin" \
@@ -1796,13 +1796,13 @@ it_should_return_a_single_line_integer_epoch_from_the_real_stat_on_this_bsd_maco
   )
 
   assert_eq \
-    "StatMtimeEpoch > happy > should return a single-line integer epoch from the real stat on this BSD/macOS host" \
+    "StatMtimeEpoch > happy > should return a single-line integer epoch from the real stat" \
     "$expected" "$actual"
   rm -rf "$sandbox"
 }
 
 it_should_return_a_single_line_integer_epoch_when_the_hosts_stat_treats_dash_f_as_a_gnu_boolean_flag
-it_should_return_a_single_line_integer_epoch_from_the_real_stat_on_this_bsd_macos_host
+it_should_return_a_single_line_integer_epoch_from_the_real_stat
 
 # ============================================================
 # describe("StatusLinePacingSegment")
