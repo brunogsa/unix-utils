@@ -40,8 +40,9 @@ RUNNER_ARGV_PREFIX = [sys.executable]
 # The runner shells out to `bash` for bash suites. Resolved
 # here so the sandbox PATH offers exactly the tools a scenario
 # wants.
-REAL_TOOL_PATHS = {"bash": shutil.which("bash")}
+REAL_TOOL_PATHS = {"bash": shutil.which("bash"), "sleep": shutil.which("sleep")}
 DEFAULT_PATH_TOOLS = ("bash",)
+WAITING_SUITE_PATH_TOOLS = ("bash", "sleep")
 
 GATE_RELATIVE_PATH = "configs/ai-docs/claude/scripts/check-machine-headroom.sh"
 BODY_PROBE_SUITE = "configs/ai-docs/claude/tests/test-gate-body-probe.sh"
@@ -146,6 +147,12 @@ def write_bash_suite(sandbox, relative_path, exit_code):
     )
 
 
+def write_bash_suite_body(sandbox, relative_path, body):
+    suite = sandbox / relative_path
+    suite.parent.mkdir(parents=True, exist_ok=True)
+    suite.write_text(body)
+
+
 def write_node_suite(sandbox, relative_path):
     suite = sandbox / relative_path
     suite.parent.mkdir(parents=True, exist_ok=True)
@@ -161,9 +168,14 @@ def build_sandbox(
     pytest_tool=PASSING_PYTEST,
     path_tools=DEFAULT_PATH_TOOLS,
     bash_suites=None,
+    bash_suite_bodies=None,
     node_suites=(),
 ):
-    """Build a sandbox repo root; a None gate, node or pytest is left absent."""
+    """Build a sandbox repo root; a None gate, node or pytest is left absent.
+
+    bash_suites maps a suite path to the exit code of a suite that only logs
+    that it ran; bash_suite_bodies maps a suite path to its full script text.
+    """
     for tree in SUITE_TREES:
         (root / tree).mkdir(parents=True, exist_ok=True)
     shutil.copy(REPO_ROOT / RUNNER_NAME, root / RUNNER_NAME)
@@ -181,6 +193,8 @@ def build_sandbox(
 
     for relative_path, exit_code in (bash_suites or {}).items():
         write_bash_suite(root, relative_path, exit_code)
+    for relative_path, body in (bash_suite_bodies or {}).items():
+        write_bash_suite_body(root, relative_path, body)
     for relative_path in node_suites:
         write_node_suite(root, relative_path)
     return root
@@ -204,6 +218,14 @@ def run_runner(sandbox, *, stdin=subprocess.DEVNULL, timeout=None):
 def run_in_sandbox(tmp_path_factory, shared_stub, **sandbox_options):
     root = tmp_path_factory.mktemp("sandbox")
     return run_runner(build_sandbox(root, shared_stub, **sandbox_options))
+
+
+def result_lines(result):
+    return [
+        line
+        for line in result.output.splitlines()
+        if line.startswith(("PASS  ", "FAIL  "))
+    ]
 
 
 def gate_call_count(result):
@@ -567,6 +589,102 @@ class TestPytestStep:
             self, result
         ):
             assert "1 passed, 1 failed" in result.output
+
+
+WAIT_BOUND_SECONDS = 10
+
+
+def bash_wait_until(condition):
+    """Script lines polling a bash condition: exit 0 once it holds, 1 past the bound.
+
+    The bound is a hang guard, not a timing assertion: a runner that never
+    satisfies the condition fails the suite instead of hanging the test.
+    """
+    return (
+        f"deadline=$((SECONDS + {WAIT_BOUND_SECONDS}))\n"
+        "while (( SECONDS < deadline )); do\n"
+        f"  {condition} && exit 0\n"
+        "  sleep 0.05\n"
+        "done\n"
+        "exit 1\n"
+    )
+
+
+class TestParallelRun:
+    class TestSuitesRunAtOnce:
+        suites = tuple(
+            f"configs/ai-docs/claude/tests/test-waits-for-all-four-{number}.sh"
+            for number in range(1, 5)
+        )
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            root = tmp_path_factory.mktemp("sandbox")
+            started_dir = root / "started"
+            started_dir.mkdir()
+            quoted_dir = shlex.quote(str(started_dir))
+
+            # Each suite marks itself started, then waits until
+            # all four have, so all four pass only when they
+            # overlap.
+            all_started = (
+                f"markers=({quoted_dir}/*); "
+                f"(( ${{#markers[@]}} >= {len(cls.suites)} ))"
+            )
+            bodies = {
+                suite: f': > {quoted_dir}/"$$"\n' + bash_wait_until(all_started)
+                for suite in cls.suites
+            }
+            return run_runner(
+                build_sandbox(
+                    root,
+                    shared_stub,
+                    path_tools=WAITING_SUITE_PATH_TOOLS,
+                    bash_suite_bodies=bodies,
+                )
+            )
+
+        def test_should_pass_four_suites_that_each_wait_until_all_four_have_started(
+            self, result
+        ):
+            assert result_lines(result) == [
+                *(f"PASS  {suite}" for suite in self.suites),
+                "PASS  pytest",
+            ]
+
+    class TestLaterSuiteFinishesFirst:
+        earlier_suite = "configs/ai-docs/claude/tests/test-a-waits-for-later-suite.sh"
+        later_suite = "configs/ai-docs/claude/tests/test-b-finishes-first.sh"
+        node_suite = "configs/ai-docs/claude/hooks/tests/fake-hooks.test.js"
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            root = tmp_path_factory.mktemp("sandbox")
+            marker = shlex.quote(str(root / "later-suite-finished"))
+            return run_runner(
+                build_sandbox(
+                    root,
+                    shared_stub,
+                    path_tools=WAITING_SUITE_PATH_TOOLS,
+                    bash_suite_bodies={
+                        cls.earlier_suite: bash_wait_until(f"[ -e {marker} ]"),
+                        cls.later_suite: f": > {marker}\n",
+                    },
+                    node_suites=(cls.node_suite,),
+                )
+            )
+
+        def test_should_print_results_in_discovery_order_not_finishing_order(
+            self, result
+        ):
+            assert result_lines(result) == [
+                f"PASS  {self.earlier_suite}",
+                f"PASS  {self.later_suite}",
+                f"PASS  {self.node_suite}",
+                "PASS  pytest",
+            ]
 
 
 class TestBashNotInstalled:

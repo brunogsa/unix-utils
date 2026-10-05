@@ -40,6 +40,8 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
+from collections import deque
 from dataclasses import dataclass, field
 
 BASH_SUITE_GLOBS = (
@@ -60,7 +62,17 @@ NODE_SUITE_GLOBS = (
     "configs/ai-docs/claude/skills/*/scripts/tests/*.test.js",
 )
 
-HEADROOM_GATE_RELATIVE_PATH = "configs/ai-docs/claude/scripts/check-machine-headroom.sh"
+# Run serially, the suites averaged 0.55 of this machine's
+# 12 cores (182 s CPU over 333 s wall-clock), so four at a
+# time cuts the wall time and still leaves the human most
+# of the machine.
+MAX_CONCURRENT_SUITES = 4
+POLL_INTERVAL_SECONDS = 0.05
+
+LAUNCH_PRIORITY = {"pytest": 0, "node": 1}
+LAUNCH_PRIORITY_DEFAULT = 2
+
+HEADROOM_GATE_RELATIVE_PATH ="configs/ai-docs/claude/scripts/check-machine-headroom.sh"
 
 # The gate itself failed to run, not a verdict it reported.
 GATE_UNAVAILABLE_STATUS = 2
@@ -126,20 +138,32 @@ class Tally:
         print(f"{'PASS' if passed else 'FAIL'}  {suite}", flush=True)
 
 
-def run_into_log(command, log_file):
-    """Run command with stdin from /dev/null, output to log_file; True on exit 0.
+@dataclass(frozen=True)
+class Entry:
+    suite: str
+    command: list
+    log_file: str
+
+
+def launch_into_log(command, log_file):
+    """Start command with stdin from /dev/null, output to log_file.
+
+    Return the started process, or None when the launch itself failed, with
+    the reason written to the log.
 
     The caller's stdin may never close (a Claude Bash tool socket), so any
     stray stdin read inside a suite would hang this run indefinitely.
     A missing executable fails loudly in the log instead of reading as a
     pass: skipping it would reopen the gap this fold-in closes.
+    The child holds its own copy of the log, so the parent's copy closes
+    on return and open descriptors never pile up across entries.
     """
     with open(log_file, "wb") as log:
         if shutil.which(command[0]) is None:
             log.write(f"{command[0]}: command not found\n".encode())
-            return False
+            return None
         try:
-            completed = subprocess.run(
+            return subprocess.Popen(
                 command,
                 stdin=subprocess.DEVNULL,
                 stdout=log,
@@ -147,8 +171,72 @@ def run_into_log(command, log_file):
             )
         except OSError as error:
             log.write(f"{command[0]}: {error.strerror}\n".encode())
-            return False
-    return completed.returncode == 0
+            return None
+
+
+def get_launch_order(entries):
+    # pytest and node were the two longest entries in the
+    # profile (61 s and 25 s), so starting them first keeps
+    # them from becoming the tail of the run. sorted() is
+    # stable, so bash suites keep their discovery order.
+    return sorted(
+        range(len(entries)),
+        key=lambda index: LAUNCH_PRIORITY.get(entries[index].command[0], LAUNCH_PRIORITY_DEFAULT),
+    )
+
+
+def collect_finished(running, passed_by_index):
+    for index, process in list(running.items()):
+        returncode = process.poll()
+        if returncode is not None:
+            passed_by_index[index] = returncode == 0
+            del running[index]
+
+
+def kill_and_reap(processes):
+    for process in processes:
+        process.kill()
+    for process in processes:
+        process.wait()
+
+
+def run_entries(entries, tally):
+    """Run entries MAX_CONCURRENT_SUITES at a time; report them in list order.
+
+    The main thread is the only launcher, and it waits by polling rather than
+    blocking in worker threads: Python runs signal handlers only in the main
+    thread, so a worker freed by a suite that Ctrl-C killed could launch the
+    next suite before the handler ran. Polling here leaves no such window.
+    """
+    pending = deque(get_launch_order(entries))
+    running = {}
+    passed_by_index = {}
+    next_to_report = 0
+    try:
+        while pending or running:
+            while pending and len(running) < MAX_CONCURRENT_SUITES:
+                index = pending.popleft()
+                process = launch_into_log(entries[index].command, entries[index].log_file)
+                if process is None:
+                    passed_by_index[index] = False
+                else:
+                    running[index] = process
+
+            collect_finished(running, passed_by_index)
+
+            # A line prints once its entry and every earlier one
+            # have finished, so output matches a serial run.
+            while next_to_report in passed_by_index:
+                entry = entries[next_to_report]
+                tally.record(entry.suite, entry.log_file, passed_by_index[next_to_report])
+                next_to_report += 1
+
+            if running:
+                time.sleep(POLL_INTERVAL_SECONDS)
+    finally:
+        # Ctrl-C and SIGTERM raise out of the loop; no suite
+        # may outlive the run that started it.
+        kill_and_reap(list(running.values()))
 
 
 def discover_suites(patterns):
@@ -182,12 +270,16 @@ def run_all_suites(log_dir):
     # bash suite's.
     entries.append(("pytest", ["pytest"]))
 
-    for index, (suite, command) in enumerate(entries, start=1):
-        # Named by index, not by the suite path: two trees
-        # can hold a suite of the same name, and
-        # flattening the path would collide their logs.
-        log_file = os.path.join(log_dir, f"{index}.log")
-        tally.record(suite, log_file, run_into_log(command, log_file))
+    # Named by index, not by the suite path: two trees can
+    # hold a suite of the same name, and flattening the path
+    # would collide their logs.
+    run_entries(
+        [
+            Entry(suite, command, os.path.join(log_dir, f"{index}.log"))
+            for index, (suite, command) in enumerate(entries, start=1)
+        ],
+        tally,
+    )
     return tally
 
 
@@ -216,10 +308,13 @@ def main():
     # concurrent runs, the oldest 7m54s in, and starved each
     # other for CPU.
     #
-    # A profile of one full run later showed it averages only
-    # ~0.47 cores (48.6s user + 63.1s sys CPU over 237s
-    # wall-clock on a 12-core machine) - light runs weren't
-    # the cause, the sessions' own separate load was.
+    # A profile of one full serial run later showed it averaged
+    # only 0.55 of a core (182s CPU over 333s wall-clock on a
+    # 12-core machine) - light runs weren't the cause, the
+    # sessions' own separate load was.
+    #
+    # Four suites at a time raise a run to about two cores,
+    # still light on its own.
     #
     # A gate that refuses to start on an already-busy machine
     # addresses that without serializing every run behind a
