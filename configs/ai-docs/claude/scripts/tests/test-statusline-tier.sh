@@ -1712,15 +1712,18 @@ it_should_return_well_under_the_timeout_on_a_successful_keychain_read
 # describe("StatMtimeEpoch")
 # ============================================================
 
-# stat_mtime_epoch tries BSD's `stat -f %m` before GNU's
-# `stat -c %Y`.
+# stat_mtime_epoch tries GNU's `stat -c %Y` before BSD's
+# `stat -f %m`.
 #
 # On GNU coreutils, `-f` is not a format flag - it means the
 # boolean `--file-system` flag.
 #
-# So `stat -f %m path` succeeds (printing a multi-line
-# filesystem dump) and the `||` fallback to `stat -c %Y`
-# never fires (auto-review#F2).
+# So trying `stat -f %m path` first would succeed (printing a
+# multi-line filesystem dump) and the `||` fallback to
+# `stat -c %Y` would never fire (auto-review#F2).
+#
+# BSD rejects `-c`, so GNU-first falls through to `-f %m`
+# there.
 #
 # write_fake_gnu_stat reproduces that divergence on this
 # BSD/macOS dev host via a fake `stat` shim.
